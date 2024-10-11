@@ -1,74 +1,192 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
 generator client {
-    provider = "prisma-client-js"
+  provider = "prisma-client-js"
+  output   = "./generated/sqlite-client"
 }
 
 datasource db {
-    provider = "sqlite"
-    // NOTE: When using mysql or sqlserver, uncomment the @db.Text annotations in model Account below
-    // Further reading:
-    // https://next-auth.js.org/adapters/prisma#create-the-prisma-schema
-    // https://www.prisma.io/docs/reference/api-reference/prisma-schema-reference#string
-    url      = env("DATABASE_URL")
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
 }
 
-model Post {
-    id        Int      @id @default(autoincrement())
-    name      String
-    createdAt DateTime @default(now())
-    updatedAt DateTime @updatedAt
+model AhsListing {
+  id          String   @id @default(cuid())
+  name        String?
+  hybridizer  String?
+  year        String?
+  scapeHeight String?
+  bloomSize   String?
+  bloomSeason String?
+  ploidy      String?
+  foliageType String?
+  bloomHabit  String?
+  seedlingNum String?
+  color       String?
+  form        String?
+  parentage   String?
+  ahsImageUrl String?
+  fragrance   String?
+  budcount    String?
+  branches    String?
+  sculpting   String?
+  foliage     String?
+  flower      String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
-    createdBy   User   @relation(fields: [createdById], references: [id])
-    createdById String
+  lilies Listing[]
+  images Image[]
+}
 
-    @@index([name])
+model Listing {
+  id          String   @id @default(cuid())
+  userId      String
+  name        String
+  price       Float?
+  publicNote  String?
+  privateNote String?
+  listId      String?
+  ahsId       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  images Image[]
+
+  ahsListing AhsListing? @relation(fields: [ahsId], references: [id])
+  list       List?       @relation(fields: [listId], references: [id])
+  user       User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([ahsId])
+  @@index([listId])
+  @@index([userId])
+}
+
+model List {
+  id        String    @id @default(cuid())
+  userId    String
+  name      String
+  intro     String?
+  bio       String?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  listings  Listing[]
+  user      User      @relation(fields: [userId], references: [id])
+
+  images Image[]
+
+  @@index([userId])
+}
+
+model UserProfile {
+  id           String   @id @default(cuid())
+  userId       String   @unique
+  logoUrl      String?
+  intro        String?
+  bio          String?
+  userLocation String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  images Image[]
+}
+
+model Image {
+  id            String   @id @default(cuid())
+  url           String
+  referenceId   String
+  referenceType String // e.g., 'UserProfile', 'Listing', 'AhsListing'
+  order         Int      @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  ahsListing  AhsListing?  @relation(fields: [referenceId], references: [id])
+  userProfile UserProfile? @relation(fields: [referenceId], references: [id])
+  listing     Listing?     @relation(fields: [referenceId], references: [id])
+  list        List?        @relation(fields: [referenceId], references: [id])
+
+  @@index([referenceId, referenceType])
+}
+
+model StripeCustomer {
+  id                  String               @id
+  userId              String               @unique
+  email               String? // TODO: Make non-nullable after migration
+  name                String? // TODO: Make non-nullable after migration
+  createdAt           DateTime             @default(now())
+  updatedAt           DateTime             @updatedAt
+  user                User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  stripeSubscriptions StripeSubscription[]
+}
+
+model StripeSubscription {
+  id                String         @id
+  userId            String         @unique
+  stripeCustomerId  String         @unique
+  status            String? // TODO: Make non-nullable after migration
+  priceId           String? // TODO: Make non-nullable after migration
+  currentPeriodEnd  DateTime? // TODO: Make non-nullable after migration
+  cancelAtPeriodEnd Boolean        @default(false)
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+  customer          StripeCustomer @relation(fields: [stripeCustomerId], references: [id], onDelete: Cascade)
+  user              User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([stripeCustomerId])
 }
 
 // Necessary for Next auth
 model Account {
-    id                       String  @id @default(cuid())
-    userId                   String
-    type                     String
-    provider                 String
-    providerAccountId        String
-    refresh_token            String? // @db.Text
-    access_token             String? // @db.Text
-    expires_at               Int?
-    token_type               String?
-    scope                    String?
-    id_token                 String? // @db.Text
-    session_state            String?
-    user                     User    @relation(fields: [userId], references: [id], onDelete: Cascade)
-    refresh_token_expires_in Int?
+  id                       String  @id @default(cuid())
+  userId                   String
+  type                     String
+  provider                 String
+  providerAccountId        String
+  refresh_token            String?
+  access_token             String?
+  expires_at               Int?
+  token_type               String?
+  scope                    String?
+  id_token                 String?
+  session_state            String?
+  user                     User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  refresh_token_expires_in Int?
 
-    @@unique([provider, providerAccountId])
+  @@unique([provider, providerAccountId])
 }
 
 model Session {
-    id           String   @id @default(cuid())
-    sessionToken String   @unique
-    userId       String
-    expires      DateTime
-    user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model User {
-    id            String    @id @default(cuid())
-    name          String?
-    email         String?   @unique
-    emailVerified DateTime?
-    image         String?
-    accounts      Account[]
-    sessions      Session[]
-    posts         Post[]
+  id                 String              @id @default(cuid())
+  username           String              @unique
+  name               String?
+  email              String?             @unique
+  emailVerified      DateTime?
+  image              String?
+  role               String?             @default("USER")
+  verifiedAt         DateTime?
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+  freeUntil          DateTime?
+  accounts           Account[]
+  sessions           Session[]
+  listings           Listing[]
+  lists              List[]
+  stripeCustomer     StripeCustomer?
+  stripeSubscription StripeSubscription?
+  profile            UserProfile?
 }
 
 model VerificationToken {
-    identifier String
-    token      String   @unique
-    expires    DateTime
+  identifier String
+  token      String   @unique
+  expires    DateTime
 
-    @@unique([identifier, token])
+  @@unique([identifier, token])
 }
