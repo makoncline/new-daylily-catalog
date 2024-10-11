@@ -1704,12 +1704,10 @@ export namespace Prisma {
 
   export type AhsListingCountOutputType = {
     lilies: number
-    images: number
   }
 
   export type AhsListingCountOutputTypeSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     lilies?: boolean | AhsListingCountOutputTypeCountLiliesArgs
-    images?: boolean | AhsListingCountOutputTypeCountImagesArgs
   }
 
   // Custom InputTypes
@@ -1728,13 +1726,6 @@ export namespace Prisma {
    */
   export type AhsListingCountOutputTypeCountLiliesArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     where?: ListingWhereInput
-  }
-
-  /**
-   * AhsListingCountOutputType without action
-   */
-  export type AhsListingCountOutputTypeCountImagesArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
-    where?: ImageWhereInput
   }
 
 
@@ -1775,12 +1766,10 @@ export namespace Prisma {
 
   export type ListCountOutputType = {
     listings: number
-    images: number
   }
 
   export type ListCountOutputTypeSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     listings?: boolean | ListCountOutputTypeCountListingsArgs
-    images?: boolean | ListCountOutputTypeCountImagesArgs
   }
 
   // Custom InputTypes
@@ -1799,13 +1788,6 @@ export namespace Prisma {
    */
   export type ListCountOutputTypeCountListingsArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     where?: ListingWhereInput
-  }
-
-  /**
-   * ListCountOutputType without action
-   */
-  export type ListCountOutputTypeCountImagesArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
-    where?: ImageWhereInput
   }
 
 
@@ -2242,7 +2224,6 @@ export namespace Prisma {
     createdAt?: boolean
     updatedAt?: boolean
     lilies?: boolean | AhsListing$liliesArgs<ExtArgs>
-    images?: boolean | AhsListing$imagesArgs<ExtArgs>
     _count?: boolean | AhsListingCountOutputTypeDefaultArgs<ExtArgs>
   }, ExtArgs["result"]["ahsListing"]>
 
@@ -2300,7 +2281,6 @@ export namespace Prisma {
 
   export type AhsListingInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     lilies?: boolean | AhsListing$liliesArgs<ExtArgs>
-    images?: boolean | AhsListing$imagesArgs<ExtArgs>
     _count?: boolean | AhsListingCountOutputTypeDefaultArgs<ExtArgs>
   }
   export type AhsListingIncludeCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {}
@@ -2309,7 +2289,6 @@ export namespace Prisma {
     name: "AhsListing"
     objects: {
       lilies: Prisma.$ListingPayload<ExtArgs>[]
-      images: Prisma.$ImagePayload<ExtArgs>[]
     }
     scalars: $Extensions.GetPayloadResult<{
       id: string
@@ -2700,7 +2679,6 @@ export namespace Prisma {
   export interface Prisma__AhsListingClient<T, Null = never, ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> extends Prisma.PrismaPromise<T> {
     readonly [Symbol.toStringTag]: "PrismaPromise"
     lilies<T extends AhsListing$liliesArgs<ExtArgs> = {}>(args?: Subset<T, AhsListing$liliesArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$ListingPayload<ExtArgs>, T, "findMany"> | Null>
-    images<T extends AhsListing$imagesArgs<ExtArgs> = {}>(args?: Subset<T, AhsListing$imagesArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$ImagePayload<ExtArgs>, T, "findMany"> | Null>
     /**
      * Attaches callbacks for the resolution and/or rejection of the Promise.
      * @param onfulfilled The callback to execute when the Promise is resolved.
@@ -3082,26 +3060,6 @@ export namespace Prisma {
     take?: number
     skip?: number
     distinct?: ListingScalarFieldEnum | ListingScalarFieldEnum[]
-  }
-
-  /**
-   * AhsListing.images
-   */
-  export type AhsListing$imagesArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
-    /**
-     * Select specific fields to fetch from the Image
-     */
-    select?: ImageSelect<ExtArgs> | null
-    /**
-     * Choose, which related nodes to fetch as well
-     */
-    include?: ImageInclude<ExtArgs> | null
-    where?: ImageWhereInput
-    orderBy?: ImageOrderByWithRelationInput | ImageOrderByWithRelationInput[]
-    cursor?: ImageWhereUniqueInput
-    take?: number
-    skip?: number
-    distinct?: ImageScalarFieldEnum | ImageScalarFieldEnum[]
   }
 
   /**
@@ -4394,7 +4352,6 @@ export namespace Prisma {
     updatedAt?: boolean
     listings?: boolean | List$listingsArgs<ExtArgs>
     user?: boolean | UserDefaultArgs<ExtArgs>
-    images?: boolean | List$imagesArgs<ExtArgs>
     _count?: boolean | ListCountOutputTypeDefaultArgs<ExtArgs>
   }, ExtArgs["result"]["list"]>
 
@@ -4422,7 +4379,6 @@ export namespace Prisma {
   export type ListInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     listings?: boolean | List$listingsArgs<ExtArgs>
     user?: boolean | UserDefaultArgs<ExtArgs>
-    images?: boolean | List$imagesArgs<ExtArgs>
     _count?: boolean | ListCountOutputTypeDefaultArgs<ExtArgs>
   }
   export type ListIncludeCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
@@ -4434,7 +4390,6 @@ export namespace Prisma {
     objects: {
       listings: Prisma.$ListingPayload<ExtArgs>[]
       user: Prisma.$UserPayload<ExtArgs>
-      images: Prisma.$ImagePayload<ExtArgs>[]
     }
     scalars: $Extensions.GetPayloadResult<{
       id: string
@@ -4810,7 +4765,6 @@ export namespace Prisma {
     readonly [Symbol.toStringTag]: "PrismaPromise"
     listings<T extends List$listingsArgs<ExtArgs> = {}>(args?: Subset<T, List$listingsArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$ListingPayload<ExtArgs>, T, "findMany"> | Null>
     user<T extends UserDefaultArgs<ExtArgs> = {}>(args?: Subset<T, UserDefaultArgs<ExtArgs>>): Prisma__UserClient<$Result.GetResult<Prisma.$UserPayload<ExtArgs>, T, "findUniqueOrThrow"> | Null, Null, ExtArgs>
-    images<T extends List$imagesArgs<ExtArgs> = {}>(args?: Subset<T, List$imagesArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$ImagePayload<ExtArgs>, T, "findMany"> | Null>
     /**
      * Attaches callbacks for the resolution and/or rejection of the Promise.
      * @param onfulfilled The callback to execute when the Promise is resolved.
@@ -5180,26 +5134,6 @@ export namespace Prisma {
     take?: number
     skip?: number
     distinct?: ListingScalarFieldEnum | ListingScalarFieldEnum[]
-  }
-
-  /**
-   * List.images
-   */
-  export type List$imagesArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
-    /**
-     * Select specific fields to fetch from the Image
-     */
-    select?: ImageSelect<ExtArgs> | null
-    /**
-     * Choose, which related nodes to fetch as well
-     */
-    include?: ImageInclude<ExtArgs> | null
-    where?: ImageWhereInput
-    orderBy?: ImageOrderByWithRelationInput | ImageOrderByWithRelationInput[]
-    cursor?: ImageWhereUniqueInput
-    take?: number
-    skip?: number
-    distinct?: ImageScalarFieldEnum | ImageScalarFieldEnum[]
   }
 
   /**
@@ -6233,31 +6167,31 @@ export namespace Prisma {
   export type ImageMinAggregateOutputType = {
     id: string | null
     url: string | null
-    referenceId: string | null
-    referenceType: string | null
     order: number | null
     createdAt: Date | null
     updatedAt: Date | null
+    userProfileId: string | null
+    listingId: string | null
   }
 
   export type ImageMaxAggregateOutputType = {
     id: string | null
     url: string | null
-    referenceId: string | null
-    referenceType: string | null
     order: number | null
     createdAt: Date | null
     updatedAt: Date | null
+    userProfileId: string | null
+    listingId: string | null
   }
 
   export type ImageCountAggregateOutputType = {
     id: number
     url: number
-    referenceId: number
-    referenceType: number
     order: number
     createdAt: number
     updatedAt: number
+    userProfileId: number
+    listingId: number
     _all: number
   }
 
@@ -6273,31 +6207,31 @@ export namespace Prisma {
   export type ImageMinAggregateInputType = {
     id?: true
     url?: true
-    referenceId?: true
-    referenceType?: true
     order?: true
     createdAt?: true
     updatedAt?: true
+    userProfileId?: true
+    listingId?: true
   }
 
   export type ImageMaxAggregateInputType = {
     id?: true
     url?: true
-    referenceId?: true
-    referenceType?: true
     order?: true
     createdAt?: true
     updatedAt?: true
+    userProfileId?: true
+    listingId?: true
   }
 
   export type ImageCountAggregateInputType = {
     id?: true
     url?: true
-    referenceId?: true
-    referenceType?: true
     order?: true
     createdAt?: true
     updatedAt?: true
+    userProfileId?: true
+    listingId?: true
     _all?: true
   }
 
@@ -6390,11 +6324,11 @@ export namespace Prisma {
   export type ImageGroupByOutputType = {
     id: string
     url: string
-    referenceId: string
-    referenceType: string
     order: number
     createdAt: Date
     updatedAt: Date
+    userProfileId: string | null
+    listingId: string | null
     _count: ImageCountAggregateOutputType | null
     _avg: ImageAvgAggregateOutputType | null
     _sum: ImageSumAggregateOutputType | null
@@ -6419,70 +6353,60 @@ export namespace Prisma {
   export type ImageSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
     id?: boolean
     url?: boolean
-    referenceId?: boolean
-    referenceType?: boolean
     order?: boolean
     createdAt?: boolean
     updatedAt?: boolean
-    ahsListing?: boolean | Image$ahsListingArgs<ExtArgs>
+    userProfileId?: boolean
+    listingId?: boolean
     userProfile?: boolean | Image$userProfileArgs<ExtArgs>
     listing?: boolean | Image$listingArgs<ExtArgs>
-    list?: boolean | Image$listArgs<ExtArgs>
   }, ExtArgs["result"]["image"]>
 
   export type ImageSelectCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
     id?: boolean
     url?: boolean
-    referenceId?: boolean
-    referenceType?: boolean
     order?: boolean
     createdAt?: boolean
     updatedAt?: boolean
-    ahsListing?: boolean | Image$ahsListingArgs<ExtArgs>
+    userProfileId?: boolean
+    listingId?: boolean
     userProfile?: boolean | Image$userProfileArgs<ExtArgs>
     listing?: boolean | Image$listingArgs<ExtArgs>
-    list?: boolean | Image$listArgs<ExtArgs>
   }, ExtArgs["result"]["image"]>
 
   export type ImageSelectScalar = {
     id?: boolean
     url?: boolean
-    referenceId?: boolean
-    referenceType?: boolean
     order?: boolean
     createdAt?: boolean
     updatedAt?: boolean
+    userProfileId?: boolean
+    listingId?: boolean
   }
 
   export type ImageInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
-    ahsListing?: boolean | Image$ahsListingArgs<ExtArgs>
     userProfile?: boolean | Image$userProfileArgs<ExtArgs>
     listing?: boolean | Image$listingArgs<ExtArgs>
-    list?: boolean | Image$listArgs<ExtArgs>
   }
   export type ImageIncludeCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
-    ahsListing?: boolean | Image$ahsListingArgs<ExtArgs>
     userProfile?: boolean | Image$userProfileArgs<ExtArgs>
     listing?: boolean | Image$listingArgs<ExtArgs>
-    list?: boolean | Image$listArgs<ExtArgs>
   }
 
   export type $ImagePayload<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     name: "Image"
     objects: {
-      ahsListing: Prisma.$AhsListingPayload<ExtArgs> | null
       userProfile: Prisma.$UserProfilePayload<ExtArgs> | null
       listing: Prisma.$ListingPayload<ExtArgs> | null
-      list: Prisma.$ListPayload<ExtArgs> | null
     }
     scalars: $Extensions.GetPayloadResult<{
       id: string
       url: string
-      referenceId: string
-      referenceType: string
       order: number
       createdAt: Date
       updatedAt: Date
+      userProfileId: string | null
+      listingId: string | null
     }, ExtArgs["result"]["image"]>
     composites: {}
   }
@@ -6847,10 +6771,8 @@ export namespace Prisma {
    */
   export interface Prisma__ImageClient<T, Null = never, ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> extends Prisma.PrismaPromise<T> {
     readonly [Symbol.toStringTag]: "PrismaPromise"
-    ahsListing<T extends Image$ahsListingArgs<ExtArgs> = {}>(args?: Subset<T, Image$ahsListingArgs<ExtArgs>>): Prisma__AhsListingClient<$Result.GetResult<Prisma.$AhsListingPayload<ExtArgs>, T, "findUniqueOrThrow"> | null, null, ExtArgs>
     userProfile<T extends Image$userProfileArgs<ExtArgs> = {}>(args?: Subset<T, Image$userProfileArgs<ExtArgs>>): Prisma__UserProfileClient<$Result.GetResult<Prisma.$UserProfilePayload<ExtArgs>, T, "findUniqueOrThrow"> | null, null, ExtArgs>
     listing<T extends Image$listingArgs<ExtArgs> = {}>(args?: Subset<T, Image$listingArgs<ExtArgs>>): Prisma__ListingClient<$Result.GetResult<Prisma.$ListingPayload<ExtArgs>, T, "findUniqueOrThrow"> | null, null, ExtArgs>
-    list<T extends Image$listArgs<ExtArgs> = {}>(args?: Subset<T, Image$listArgs<ExtArgs>>): Prisma__ListClient<$Result.GetResult<Prisma.$ListPayload<ExtArgs>, T, "findUniqueOrThrow"> | null, null, ExtArgs>
     /**
      * Attaches callbacks for the resolution and/or rejection of the Promise.
      * @param onfulfilled The callback to execute when the Promise is resolved.
@@ -6882,11 +6804,11 @@ export namespace Prisma {
   interface ImageFieldRefs {
     readonly id: FieldRef<"Image", 'String'>
     readonly url: FieldRef<"Image", 'String'>
-    readonly referenceId: FieldRef<"Image", 'String'>
-    readonly referenceType: FieldRef<"Image", 'String'>
     readonly order: FieldRef<"Image", 'Int'>
     readonly createdAt: FieldRef<"Image", 'DateTime'>
     readonly updatedAt: FieldRef<"Image", 'DateTime'>
+    readonly userProfileId: FieldRef<"Image", 'String'>
+    readonly listingId: FieldRef<"Image", 'String'>
   }
     
 
@@ -7203,21 +7125,6 @@ export namespace Prisma {
   }
 
   /**
-   * Image.ahsListing
-   */
-  export type Image$ahsListingArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
-    /**
-     * Select specific fields to fetch from the AhsListing
-     */
-    select?: AhsListingSelect<ExtArgs> | null
-    /**
-     * Choose, which related nodes to fetch as well
-     */
-    include?: AhsListingInclude<ExtArgs> | null
-    where?: AhsListingWhereInput
-  }
-
-  /**
    * Image.userProfile
    */
   export type Image$userProfileArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
@@ -7245,21 +7152,6 @@ export namespace Prisma {
      */
     include?: ListingInclude<ExtArgs> | null
     where?: ListingWhereInput
-  }
-
-  /**
-   * Image.list
-   */
-  export type Image$listArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
-    /**
-     * Select specific fields to fetch from the List
-     */
-    select?: ListSelect<ExtArgs> | null
-    /**
-     * Choose, which related nodes to fetch as well
-     */
-    include?: ListInclude<ExtArgs> | null
-    where?: ListWhereInput
   }
 
   /**
@@ -13300,11 +13192,11 @@ export namespace Prisma {
   export const ImageScalarFieldEnum: {
     id: 'id',
     url: 'url',
-    referenceId: 'referenceId',
-    referenceType: 'referenceType',
     order: 'order',
     createdAt: 'createdAt',
-    updatedAt: 'updatedAt'
+    updatedAt: 'updatedAt',
+    userProfileId: 'userProfileId',
+    listingId: 'listingId'
   };
 
   export type ImageScalarFieldEnum = (typeof ImageScalarFieldEnum)[keyof typeof ImageScalarFieldEnum]
@@ -13479,7 +13371,6 @@ export namespace Prisma {
     createdAt?: DateTimeFilter<"AhsListing"> | Date | string
     updatedAt?: DateTimeFilter<"AhsListing"> | Date | string
     lilies?: ListingListRelationFilter
-    images?: ImageListRelationFilter
   }
 
   export type AhsListingOrderByWithRelationInput = {
@@ -13507,7 +13398,6 @@ export namespace Prisma {
     createdAt?: SortOrder
     updatedAt?: SortOrder
     lilies?: ListingOrderByRelationAggregateInput
-    images?: ImageOrderByRelationAggregateInput
   }
 
   export type AhsListingWhereUniqueInput = Prisma.AtLeast<{
@@ -13538,7 +13428,6 @@ export namespace Prisma {
     createdAt?: DateTimeFilter<"AhsListing"> | Date | string
     updatedAt?: DateTimeFilter<"AhsListing"> | Date | string
     lilies?: ListingListRelationFilter
-    images?: ImageListRelationFilter
   }, "id">
 
   export type AhsListingOrderByWithAggregationInput = {
@@ -13703,7 +13592,6 @@ export namespace Prisma {
     updatedAt?: DateTimeFilter<"List"> | Date | string
     listings?: ListingListRelationFilter
     user?: XOR<UserRelationFilter, UserWhereInput>
-    images?: ImageListRelationFilter
   }
 
   export type ListOrderByWithRelationInput = {
@@ -13716,7 +13604,6 @@ export namespace Prisma {
     updatedAt?: SortOrder
     listings?: ListingOrderByRelationAggregateInput
     user?: UserOrderByWithRelationInput
-    images?: ImageOrderByRelationAggregateInput
   }
 
   export type ListWhereUniqueInput = Prisma.AtLeast<{
@@ -13732,7 +13619,6 @@ export namespace Prisma {
     updatedAt?: DateTimeFilter<"List"> | Date | string
     listings?: ListingListRelationFilter
     user?: XOR<UserRelationFilter, UserWhereInput>
-    images?: ImageListRelationFilter
   }, "id">
 
   export type ListOrderByWithAggregationInput = {
@@ -13840,29 +13726,25 @@ export namespace Prisma {
     NOT?: ImageWhereInput | ImageWhereInput[]
     id?: StringFilter<"Image"> | string
     url?: StringFilter<"Image"> | string
-    referenceId?: StringFilter<"Image"> | string
-    referenceType?: StringFilter<"Image"> | string
     order?: IntFilter<"Image"> | number
     createdAt?: DateTimeFilter<"Image"> | Date | string
     updatedAt?: DateTimeFilter<"Image"> | Date | string
-    ahsListing?: XOR<AhsListingNullableRelationFilter, AhsListingWhereInput> | null
+    userProfileId?: StringNullableFilter<"Image"> | string | null
+    listingId?: StringNullableFilter<"Image"> | string | null
     userProfile?: XOR<UserProfileNullableRelationFilter, UserProfileWhereInput> | null
     listing?: XOR<ListingNullableRelationFilter, ListingWhereInput> | null
-    list?: XOR<ListNullableRelationFilter, ListWhereInput> | null
   }
 
   export type ImageOrderByWithRelationInput = {
     id?: SortOrder
     url?: SortOrder
-    referenceId?: SortOrder
-    referenceType?: SortOrder
     order?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
-    ahsListing?: AhsListingOrderByWithRelationInput
+    userProfileId?: SortOrderInput | SortOrder
+    listingId?: SortOrderInput | SortOrder
     userProfile?: UserProfileOrderByWithRelationInput
     listing?: ListingOrderByWithRelationInput
-    list?: ListOrderByWithRelationInput
   }
 
   export type ImageWhereUniqueInput = Prisma.AtLeast<{
@@ -13871,25 +13753,23 @@ export namespace Prisma {
     OR?: ImageWhereInput[]
     NOT?: ImageWhereInput | ImageWhereInput[]
     url?: StringFilter<"Image"> | string
-    referenceId?: StringFilter<"Image"> | string
-    referenceType?: StringFilter<"Image"> | string
     order?: IntFilter<"Image"> | number
     createdAt?: DateTimeFilter<"Image"> | Date | string
     updatedAt?: DateTimeFilter<"Image"> | Date | string
-    ahsListing?: XOR<AhsListingNullableRelationFilter, AhsListingWhereInput> | null
+    userProfileId?: StringNullableFilter<"Image"> | string | null
+    listingId?: StringNullableFilter<"Image"> | string | null
     userProfile?: XOR<UserProfileNullableRelationFilter, UserProfileWhereInput> | null
     listing?: XOR<ListingNullableRelationFilter, ListingWhereInput> | null
-    list?: XOR<ListNullableRelationFilter, ListWhereInput> | null
   }, "id">
 
   export type ImageOrderByWithAggregationInput = {
     id?: SortOrder
     url?: SortOrder
-    referenceId?: SortOrder
-    referenceType?: SortOrder
     order?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
+    userProfileId?: SortOrderInput | SortOrder
+    listingId?: SortOrderInput | SortOrder
     _count?: ImageCountOrderByAggregateInput
     _avg?: ImageAvgOrderByAggregateInput
     _max?: ImageMaxOrderByAggregateInput
@@ -13903,11 +13783,11 @@ export namespace Prisma {
     NOT?: ImageScalarWhereWithAggregatesInput | ImageScalarWhereWithAggregatesInput[]
     id?: StringWithAggregatesFilter<"Image"> | string
     url?: StringWithAggregatesFilter<"Image"> | string
-    referenceId?: StringWithAggregatesFilter<"Image"> | string
-    referenceType?: StringWithAggregatesFilter<"Image"> | string
     order?: IntWithAggregatesFilter<"Image"> | number
     createdAt?: DateTimeWithAggregatesFilter<"Image"> | Date | string
     updatedAt?: DateTimeWithAggregatesFilter<"Image"> | Date | string
+    userProfileId?: StringNullableWithAggregatesFilter<"Image"> | string | null
+    listingId?: StringNullableWithAggregatesFilter<"Image"> | string | null
   }
 
   export type StripeCustomerWhereInput = {
@@ -14370,7 +14250,6 @@ export namespace Prisma {
     createdAt?: Date | string
     updatedAt?: Date | string
     lilies?: ListingCreateNestedManyWithoutAhsListingInput
-    images?: ImageCreateNestedManyWithoutAhsListingInput
   }
 
   export type AhsListingUncheckedCreateInput = {
@@ -14398,7 +14277,6 @@ export namespace Prisma {
     createdAt?: Date | string
     updatedAt?: Date | string
     lilies?: ListingUncheckedCreateNestedManyWithoutAhsListingInput
-    images?: ImageUncheckedCreateNestedManyWithoutAhsListingInput
   }
 
   export type AhsListingUpdateInput = {
@@ -14426,7 +14304,6 @@ export namespace Prisma {
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     lilies?: ListingUpdateManyWithoutAhsListingNestedInput
-    images?: ImageUpdateManyWithoutAhsListingNestedInput
   }
 
   export type AhsListingUncheckedUpdateInput = {
@@ -14454,7 +14331,6 @@ export namespace Prisma {
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     lilies?: ListingUncheckedUpdateManyWithoutAhsListingNestedInput
-    images?: ImageUncheckedUpdateManyWithoutAhsListingNestedInput
   }
 
   export type AhsListingCreateManyInput = {
@@ -14636,7 +14512,6 @@ export namespace Prisma {
     updatedAt?: Date | string
     listings?: ListingCreateNestedManyWithoutListInput
     user: UserCreateNestedOneWithoutListsInput
-    images?: ImageCreateNestedManyWithoutListInput
   }
 
   export type ListUncheckedCreateInput = {
@@ -14648,7 +14523,6 @@ export namespace Prisma {
     createdAt?: Date | string
     updatedAt?: Date | string
     listings?: ListingUncheckedCreateNestedManyWithoutListInput
-    images?: ImageUncheckedCreateNestedManyWithoutListInput
   }
 
   export type ListUpdateInput = {
@@ -14660,7 +14534,6 @@ export namespace Prisma {
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     listings?: ListingUpdateManyWithoutListNestedInput
     user?: UserUpdateOneRequiredWithoutListsNestedInput
-    images?: ImageUpdateManyWithoutListNestedInput
   }
 
   export type ListUncheckedUpdateInput = {
@@ -14672,7 +14545,6 @@ export namespace Prisma {
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     listings?: ListingUncheckedUpdateManyWithoutListNestedInput
-    images?: ImageUncheckedUpdateManyWithoutListNestedInput
   }
 
   export type ListCreateManyInput = {
@@ -14787,63 +14659,56 @@ export namespace Prisma {
   export type ImageCreateInput = {
     id?: string
     url: string
-    referenceType: string
     order?: number
     createdAt?: Date | string
     updatedAt?: Date | string
-    ahsListing?: AhsListingCreateNestedOneWithoutImagesInput
     userProfile?: UserProfileCreateNestedOneWithoutImagesInput
     listing?: ListingCreateNestedOneWithoutImagesInput
-    list?: ListCreateNestedOneWithoutImagesInput
   }
 
   export type ImageUncheckedCreateInput = {
     id?: string
     url: string
-    referenceId: string
-    referenceType: string
     order?: number
     createdAt?: Date | string
     updatedAt?: Date | string
+    userProfileId?: string | null
+    listingId?: string | null
   }
 
   export type ImageUpdateInput = {
     id?: StringFieldUpdateOperationsInput | string
     url?: StringFieldUpdateOperationsInput | string
-    referenceType?: StringFieldUpdateOperationsInput | string
     order?: IntFieldUpdateOperationsInput | number
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
-    ahsListing?: AhsListingUpdateOneWithoutImagesNestedInput
     userProfile?: UserProfileUpdateOneWithoutImagesNestedInput
     listing?: ListingUpdateOneWithoutImagesNestedInput
-    list?: ListUpdateOneWithoutImagesNestedInput
   }
 
   export type ImageUncheckedUpdateInput = {
     id?: StringFieldUpdateOperationsInput | string
     url?: StringFieldUpdateOperationsInput | string
-    referenceId?: StringFieldUpdateOperationsInput | string
-    referenceType?: StringFieldUpdateOperationsInput | string
     order?: IntFieldUpdateOperationsInput | number
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    userProfileId?: NullableStringFieldUpdateOperationsInput | string | null
+    listingId?: NullableStringFieldUpdateOperationsInput | string | null
   }
 
   export type ImageCreateManyInput = {
     id?: string
     url: string
-    referenceId: string
-    referenceType: string
     order?: number
     createdAt?: Date | string
     updatedAt?: Date | string
+    userProfileId?: string | null
+    listingId?: string | null
   }
 
   export type ImageUpdateManyMutationInput = {
     id?: StringFieldUpdateOperationsInput | string
     url?: StringFieldUpdateOperationsInput | string
-    referenceType?: StringFieldUpdateOperationsInput | string
     order?: IntFieldUpdateOperationsInput | number
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -14852,11 +14717,11 @@ export namespace Prisma {
   export type ImageUncheckedUpdateManyInput = {
     id?: StringFieldUpdateOperationsInput | string
     url?: StringFieldUpdateOperationsInput | string
-    referenceId?: StringFieldUpdateOperationsInput | string
-    referenceType?: StringFieldUpdateOperationsInput | string
     order?: IntFieldUpdateOperationsInput | number
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    userProfileId?: NullableStringFieldUpdateOperationsInput | string | null
+    listingId?: NullableStringFieldUpdateOperationsInput | string | null
   }
 
   export type StripeCustomerCreateInput = {
@@ -15379,22 +15244,12 @@ export namespace Prisma {
     none?: ListingWhereInput
   }
 
-  export type ImageListRelationFilter = {
-    every?: ImageWhereInput
-    some?: ImageWhereInput
-    none?: ImageWhereInput
-  }
-
   export type SortOrderInput = {
     sort: SortOrder
     nulls?: NullsOrder
   }
 
   export type ListingOrderByRelationAggregateInput = {
-    _count?: SortOrder
-  }
-
-  export type ImageOrderByRelationAggregateInput = {
     _count?: SortOrder
   }
 
@@ -15535,6 +15390,12 @@ export namespace Prisma {
     not?: NestedFloatNullableFilter<$PrismaModel> | number | null
   }
 
+  export type ImageListRelationFilter = {
+    every?: ImageWhereInput
+    some?: ImageWhereInput
+    none?: ImageWhereInput
+  }
+
   export type AhsListingNullableRelationFilter = {
     is?: AhsListingWhereInput | null
     isNot?: AhsListingWhereInput | null
@@ -15548,6 +15409,10 @@ export namespace Prisma {
   export type UserRelationFilter = {
     is?: UserWhereInput
     isNot?: UserWhereInput
+  }
+
+  export type ImageOrderByRelationAggregateInput = {
+    _count?: SortOrder
   }
 
   export type ListingCountOrderByAggregateInput = {
@@ -15700,11 +15565,11 @@ export namespace Prisma {
   export type ImageCountOrderByAggregateInput = {
     id?: SortOrder
     url?: SortOrder
-    referenceId?: SortOrder
-    referenceType?: SortOrder
     order?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
+    userProfileId?: SortOrder
+    listingId?: SortOrder
   }
 
   export type ImageAvgOrderByAggregateInput = {
@@ -15714,21 +15579,21 @@ export namespace Prisma {
   export type ImageMaxOrderByAggregateInput = {
     id?: SortOrder
     url?: SortOrder
-    referenceId?: SortOrder
-    referenceType?: SortOrder
     order?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
+    userProfileId?: SortOrder
+    listingId?: SortOrder
   }
 
   export type ImageMinOrderByAggregateInput = {
     id?: SortOrder
     url?: SortOrder
-    referenceId?: SortOrder
-    referenceType?: SortOrder
     order?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
+    userProfileId?: SortOrder
+    listingId?: SortOrder
   }
 
   export type ImageSumOrderByAggregateInput = {
@@ -16090,25 +15955,11 @@ export namespace Prisma {
     connect?: ListingWhereUniqueInput | ListingWhereUniqueInput[]
   }
 
-  export type ImageCreateNestedManyWithoutAhsListingInput = {
-    create?: XOR<ImageCreateWithoutAhsListingInput, ImageUncheckedCreateWithoutAhsListingInput> | ImageCreateWithoutAhsListingInput[] | ImageUncheckedCreateWithoutAhsListingInput[]
-    connectOrCreate?: ImageCreateOrConnectWithoutAhsListingInput | ImageCreateOrConnectWithoutAhsListingInput[]
-    createMany?: ImageCreateManyAhsListingInputEnvelope
-    connect?: ImageWhereUniqueInput | ImageWhereUniqueInput[]
-  }
-
   export type ListingUncheckedCreateNestedManyWithoutAhsListingInput = {
     create?: XOR<ListingCreateWithoutAhsListingInput, ListingUncheckedCreateWithoutAhsListingInput> | ListingCreateWithoutAhsListingInput[] | ListingUncheckedCreateWithoutAhsListingInput[]
     connectOrCreate?: ListingCreateOrConnectWithoutAhsListingInput | ListingCreateOrConnectWithoutAhsListingInput[]
     createMany?: ListingCreateManyAhsListingInputEnvelope
     connect?: ListingWhereUniqueInput | ListingWhereUniqueInput[]
-  }
-
-  export type ImageUncheckedCreateNestedManyWithoutAhsListingInput = {
-    create?: XOR<ImageCreateWithoutAhsListingInput, ImageUncheckedCreateWithoutAhsListingInput> | ImageCreateWithoutAhsListingInput[] | ImageUncheckedCreateWithoutAhsListingInput[]
-    connectOrCreate?: ImageCreateOrConnectWithoutAhsListingInput | ImageCreateOrConnectWithoutAhsListingInput[]
-    createMany?: ImageCreateManyAhsListingInputEnvelope
-    connect?: ImageWhereUniqueInput | ImageWhereUniqueInput[]
   }
 
   export type StringFieldUpdateOperationsInput = {
@@ -16137,20 +15988,6 @@ export namespace Prisma {
     deleteMany?: ListingScalarWhereInput | ListingScalarWhereInput[]
   }
 
-  export type ImageUpdateManyWithoutAhsListingNestedInput = {
-    create?: XOR<ImageCreateWithoutAhsListingInput, ImageUncheckedCreateWithoutAhsListingInput> | ImageCreateWithoutAhsListingInput[] | ImageUncheckedCreateWithoutAhsListingInput[]
-    connectOrCreate?: ImageCreateOrConnectWithoutAhsListingInput | ImageCreateOrConnectWithoutAhsListingInput[]
-    upsert?: ImageUpsertWithWhereUniqueWithoutAhsListingInput | ImageUpsertWithWhereUniqueWithoutAhsListingInput[]
-    createMany?: ImageCreateManyAhsListingInputEnvelope
-    set?: ImageWhereUniqueInput | ImageWhereUniqueInput[]
-    disconnect?: ImageWhereUniqueInput | ImageWhereUniqueInput[]
-    delete?: ImageWhereUniqueInput | ImageWhereUniqueInput[]
-    connect?: ImageWhereUniqueInput | ImageWhereUniqueInput[]
-    update?: ImageUpdateWithWhereUniqueWithoutAhsListingInput | ImageUpdateWithWhereUniqueWithoutAhsListingInput[]
-    updateMany?: ImageUpdateManyWithWhereWithoutAhsListingInput | ImageUpdateManyWithWhereWithoutAhsListingInput[]
-    deleteMany?: ImageScalarWhereInput | ImageScalarWhereInput[]
-  }
-
   export type ListingUncheckedUpdateManyWithoutAhsListingNestedInput = {
     create?: XOR<ListingCreateWithoutAhsListingInput, ListingUncheckedCreateWithoutAhsListingInput> | ListingCreateWithoutAhsListingInput[] | ListingUncheckedCreateWithoutAhsListingInput[]
     connectOrCreate?: ListingCreateOrConnectWithoutAhsListingInput | ListingCreateOrConnectWithoutAhsListingInput[]
@@ -16163,20 +16000,6 @@ export namespace Prisma {
     update?: ListingUpdateWithWhereUniqueWithoutAhsListingInput | ListingUpdateWithWhereUniqueWithoutAhsListingInput[]
     updateMany?: ListingUpdateManyWithWhereWithoutAhsListingInput | ListingUpdateManyWithWhereWithoutAhsListingInput[]
     deleteMany?: ListingScalarWhereInput | ListingScalarWhereInput[]
-  }
-
-  export type ImageUncheckedUpdateManyWithoutAhsListingNestedInput = {
-    create?: XOR<ImageCreateWithoutAhsListingInput, ImageUncheckedCreateWithoutAhsListingInput> | ImageCreateWithoutAhsListingInput[] | ImageUncheckedCreateWithoutAhsListingInput[]
-    connectOrCreate?: ImageCreateOrConnectWithoutAhsListingInput | ImageCreateOrConnectWithoutAhsListingInput[]
-    upsert?: ImageUpsertWithWhereUniqueWithoutAhsListingInput | ImageUpsertWithWhereUniqueWithoutAhsListingInput[]
-    createMany?: ImageCreateManyAhsListingInputEnvelope
-    set?: ImageWhereUniqueInput | ImageWhereUniqueInput[]
-    disconnect?: ImageWhereUniqueInput | ImageWhereUniqueInput[]
-    delete?: ImageWhereUniqueInput | ImageWhereUniqueInput[]
-    connect?: ImageWhereUniqueInput | ImageWhereUniqueInput[]
-    update?: ImageUpdateWithWhereUniqueWithoutAhsListingInput | ImageUpdateWithWhereUniqueWithoutAhsListingInput[]
-    updateMany?: ImageUpdateManyWithWhereWithoutAhsListingInput | ImageUpdateManyWithWhereWithoutAhsListingInput[]
-    deleteMany?: ImageScalarWhereInput | ImageScalarWhereInput[]
   }
 
   export type ImageCreateNestedManyWithoutListingInput = {
@@ -16288,25 +16111,11 @@ export namespace Prisma {
     connect?: UserWhereUniqueInput
   }
 
-  export type ImageCreateNestedManyWithoutListInput = {
-    create?: XOR<ImageCreateWithoutListInput, ImageUncheckedCreateWithoutListInput> | ImageCreateWithoutListInput[] | ImageUncheckedCreateWithoutListInput[]
-    connectOrCreate?: ImageCreateOrConnectWithoutListInput | ImageCreateOrConnectWithoutListInput[]
-    createMany?: ImageCreateManyListInputEnvelope
-    connect?: ImageWhereUniqueInput | ImageWhereUniqueInput[]
-  }
-
   export type ListingUncheckedCreateNestedManyWithoutListInput = {
     create?: XOR<ListingCreateWithoutListInput, ListingUncheckedCreateWithoutListInput> | ListingCreateWithoutListInput[] | ListingUncheckedCreateWithoutListInput[]
     connectOrCreate?: ListingCreateOrConnectWithoutListInput | ListingCreateOrConnectWithoutListInput[]
     createMany?: ListingCreateManyListInputEnvelope
     connect?: ListingWhereUniqueInput | ListingWhereUniqueInput[]
-  }
-
-  export type ImageUncheckedCreateNestedManyWithoutListInput = {
-    create?: XOR<ImageCreateWithoutListInput, ImageUncheckedCreateWithoutListInput> | ImageCreateWithoutListInput[] | ImageUncheckedCreateWithoutListInput[]
-    connectOrCreate?: ImageCreateOrConnectWithoutListInput | ImageCreateOrConnectWithoutListInput[]
-    createMany?: ImageCreateManyListInputEnvelope
-    connect?: ImageWhereUniqueInput | ImageWhereUniqueInput[]
   }
 
   export type ListingUpdateManyWithoutListNestedInput = {
@@ -16331,20 +16140,6 @@ export namespace Prisma {
     update?: XOR<XOR<UserUpdateToOneWithWhereWithoutListsInput, UserUpdateWithoutListsInput>, UserUncheckedUpdateWithoutListsInput>
   }
 
-  export type ImageUpdateManyWithoutListNestedInput = {
-    create?: XOR<ImageCreateWithoutListInput, ImageUncheckedCreateWithoutListInput> | ImageCreateWithoutListInput[] | ImageUncheckedCreateWithoutListInput[]
-    connectOrCreate?: ImageCreateOrConnectWithoutListInput | ImageCreateOrConnectWithoutListInput[]
-    upsert?: ImageUpsertWithWhereUniqueWithoutListInput | ImageUpsertWithWhereUniqueWithoutListInput[]
-    createMany?: ImageCreateManyListInputEnvelope
-    set?: ImageWhereUniqueInput | ImageWhereUniqueInput[]
-    disconnect?: ImageWhereUniqueInput | ImageWhereUniqueInput[]
-    delete?: ImageWhereUniqueInput | ImageWhereUniqueInput[]
-    connect?: ImageWhereUniqueInput | ImageWhereUniqueInput[]
-    update?: ImageUpdateWithWhereUniqueWithoutListInput | ImageUpdateWithWhereUniqueWithoutListInput[]
-    updateMany?: ImageUpdateManyWithWhereWithoutListInput | ImageUpdateManyWithWhereWithoutListInput[]
-    deleteMany?: ImageScalarWhereInput | ImageScalarWhereInput[]
-  }
-
   export type ListingUncheckedUpdateManyWithoutListNestedInput = {
     create?: XOR<ListingCreateWithoutListInput, ListingUncheckedCreateWithoutListInput> | ListingCreateWithoutListInput[] | ListingUncheckedCreateWithoutListInput[]
     connectOrCreate?: ListingCreateOrConnectWithoutListInput | ListingCreateOrConnectWithoutListInput[]
@@ -16357,20 +16152,6 @@ export namespace Prisma {
     update?: ListingUpdateWithWhereUniqueWithoutListInput | ListingUpdateWithWhereUniqueWithoutListInput[]
     updateMany?: ListingUpdateManyWithWhereWithoutListInput | ListingUpdateManyWithWhereWithoutListInput[]
     deleteMany?: ListingScalarWhereInput | ListingScalarWhereInput[]
-  }
-
-  export type ImageUncheckedUpdateManyWithoutListNestedInput = {
-    create?: XOR<ImageCreateWithoutListInput, ImageUncheckedCreateWithoutListInput> | ImageCreateWithoutListInput[] | ImageUncheckedCreateWithoutListInput[]
-    connectOrCreate?: ImageCreateOrConnectWithoutListInput | ImageCreateOrConnectWithoutListInput[]
-    upsert?: ImageUpsertWithWhereUniqueWithoutListInput | ImageUpsertWithWhereUniqueWithoutListInput[]
-    createMany?: ImageCreateManyListInputEnvelope
-    set?: ImageWhereUniqueInput | ImageWhereUniqueInput[]
-    disconnect?: ImageWhereUniqueInput | ImageWhereUniqueInput[]
-    delete?: ImageWhereUniqueInput | ImageWhereUniqueInput[]
-    connect?: ImageWhereUniqueInput | ImageWhereUniqueInput[]
-    update?: ImageUpdateWithWhereUniqueWithoutListInput | ImageUpdateWithWhereUniqueWithoutListInput[]
-    updateMany?: ImageUpdateManyWithWhereWithoutListInput | ImageUpdateManyWithWhereWithoutListInput[]
-    deleteMany?: ImageScalarWhereInput | ImageScalarWhereInput[]
   }
 
   export type UserCreateNestedOneWithoutProfileInput = {
@@ -16429,12 +16210,6 @@ export namespace Prisma {
     deleteMany?: ImageScalarWhereInput | ImageScalarWhereInput[]
   }
 
-  export type AhsListingCreateNestedOneWithoutImagesInput = {
-    create?: XOR<AhsListingCreateWithoutImagesInput, AhsListingUncheckedCreateWithoutImagesInput>
-    connectOrCreate?: AhsListingCreateOrConnectWithoutImagesInput
-    connect?: AhsListingWhereUniqueInput
-  }
-
   export type UserProfileCreateNestedOneWithoutImagesInput = {
     create?: XOR<UserProfileCreateWithoutImagesInput, UserProfileUncheckedCreateWithoutImagesInput>
     connectOrCreate?: UserProfileCreateOrConnectWithoutImagesInput
@@ -16447,28 +16222,12 @@ export namespace Prisma {
     connect?: ListingWhereUniqueInput
   }
 
-  export type ListCreateNestedOneWithoutImagesInput = {
-    create?: XOR<ListCreateWithoutImagesInput, ListUncheckedCreateWithoutImagesInput>
-    connectOrCreate?: ListCreateOrConnectWithoutImagesInput
-    connect?: ListWhereUniqueInput
-  }
-
   export type IntFieldUpdateOperationsInput = {
     set?: number
     increment?: number
     decrement?: number
     multiply?: number
     divide?: number
-  }
-
-  export type AhsListingUpdateOneWithoutImagesNestedInput = {
-    create?: XOR<AhsListingCreateWithoutImagesInput, AhsListingUncheckedCreateWithoutImagesInput>
-    connectOrCreate?: AhsListingCreateOrConnectWithoutImagesInput
-    upsert?: AhsListingUpsertWithoutImagesInput
-    disconnect?: AhsListingWhereInput | boolean
-    delete?: AhsListingWhereInput | boolean
-    connect?: AhsListingWhereUniqueInput
-    update?: XOR<XOR<AhsListingUpdateToOneWithWhereWithoutImagesInput, AhsListingUpdateWithoutImagesInput>, AhsListingUncheckedUpdateWithoutImagesInput>
   }
 
   export type UserProfileUpdateOneWithoutImagesNestedInput = {
@@ -16489,16 +16248,6 @@ export namespace Prisma {
     delete?: ListingWhereInput | boolean
     connect?: ListingWhereUniqueInput
     update?: XOR<XOR<ListingUpdateToOneWithWhereWithoutImagesInput, ListingUpdateWithoutImagesInput>, ListingUncheckedUpdateWithoutImagesInput>
-  }
-
-  export type ListUpdateOneWithoutImagesNestedInput = {
-    create?: XOR<ListCreateWithoutImagesInput, ListUncheckedCreateWithoutImagesInput>
-    connectOrCreate?: ListCreateOrConnectWithoutImagesInput
-    upsert?: ListUpsertWithoutImagesInput
-    disconnect?: ListWhereInput | boolean
-    delete?: ListWhereInput | boolean
-    connect?: ListWhereUniqueInput
-    update?: XOR<XOR<ListUpdateToOneWithWhereWithoutImagesInput, ListUpdateWithoutImagesInput>, ListUncheckedUpdateWithoutImagesInput>
   }
 
   export type UserCreateNestedOneWithoutStripeCustomerInput = {
@@ -17145,36 +16894,6 @@ export namespace Prisma {
     data: ListingCreateManyAhsListingInput | ListingCreateManyAhsListingInput[]
   }
 
-  export type ImageCreateWithoutAhsListingInput = {
-    id?: string
-    url: string
-    referenceType: string
-    order?: number
-    createdAt?: Date | string
-    updatedAt?: Date | string
-    userProfile?: UserProfileCreateNestedOneWithoutImagesInput
-    listing?: ListingCreateNestedOneWithoutImagesInput
-    list?: ListCreateNestedOneWithoutImagesInput
-  }
-
-  export type ImageUncheckedCreateWithoutAhsListingInput = {
-    id?: string
-    url: string
-    referenceType: string
-    order?: number
-    createdAt?: Date | string
-    updatedAt?: Date | string
-  }
-
-  export type ImageCreateOrConnectWithoutAhsListingInput = {
-    where: ImageWhereUniqueInput
-    create: XOR<ImageCreateWithoutAhsListingInput, ImageUncheckedCreateWithoutAhsListingInput>
-  }
-
-  export type ImageCreateManyAhsListingInputEnvelope = {
-    data: ImageCreateManyAhsListingInput | ImageCreateManyAhsListingInput[]
-  }
-
   export type ListingUpsertWithWhereUniqueWithoutAhsListingInput = {
     where: ListingWhereUniqueInput
     update: XOR<ListingUpdateWithoutAhsListingInput, ListingUncheckedUpdateWithoutAhsListingInput>
@@ -17207,54 +16926,22 @@ export namespace Prisma {
     updatedAt?: DateTimeFilter<"Listing"> | Date | string
   }
 
-  export type ImageUpsertWithWhereUniqueWithoutAhsListingInput = {
-    where: ImageWhereUniqueInput
-    update: XOR<ImageUpdateWithoutAhsListingInput, ImageUncheckedUpdateWithoutAhsListingInput>
-    create: XOR<ImageCreateWithoutAhsListingInput, ImageUncheckedCreateWithoutAhsListingInput>
-  }
-
-  export type ImageUpdateWithWhereUniqueWithoutAhsListingInput = {
-    where: ImageWhereUniqueInput
-    data: XOR<ImageUpdateWithoutAhsListingInput, ImageUncheckedUpdateWithoutAhsListingInput>
-  }
-
-  export type ImageUpdateManyWithWhereWithoutAhsListingInput = {
-    where: ImageScalarWhereInput
-    data: XOR<ImageUpdateManyMutationInput, ImageUncheckedUpdateManyWithoutAhsListingInput>
-  }
-
-  export type ImageScalarWhereInput = {
-    AND?: ImageScalarWhereInput | ImageScalarWhereInput[]
-    OR?: ImageScalarWhereInput[]
-    NOT?: ImageScalarWhereInput | ImageScalarWhereInput[]
-    id?: StringFilter<"Image"> | string
-    url?: StringFilter<"Image"> | string
-    referenceId?: StringFilter<"Image"> | string
-    referenceType?: StringFilter<"Image"> | string
-    order?: IntFilter<"Image"> | number
-    createdAt?: DateTimeFilter<"Image"> | Date | string
-    updatedAt?: DateTimeFilter<"Image"> | Date | string
-  }
-
   export type ImageCreateWithoutListingInput = {
     id?: string
     url: string
-    referenceType: string
     order?: number
     createdAt?: Date | string
     updatedAt?: Date | string
-    ahsListing?: AhsListingCreateNestedOneWithoutImagesInput
     userProfile?: UserProfileCreateNestedOneWithoutImagesInput
-    list?: ListCreateNestedOneWithoutImagesInput
   }
 
   export type ImageUncheckedCreateWithoutListingInput = {
     id?: string
     url: string
-    referenceType: string
     order?: number
     createdAt?: Date | string
     updatedAt?: Date | string
+    userProfileId?: string | null
   }
 
   export type ImageCreateOrConnectWithoutListingInput = {
@@ -17290,7 +16977,6 @@ export namespace Prisma {
     flower?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
-    images?: ImageCreateNestedManyWithoutAhsListingInput
   }
 
   export type AhsListingUncheckedCreateWithoutLiliesInput = {
@@ -17317,7 +17003,6 @@ export namespace Prisma {
     flower?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
-    images?: ImageUncheckedCreateNestedManyWithoutAhsListingInput
   }
 
   export type AhsListingCreateOrConnectWithoutLiliesInput = {
@@ -17333,7 +17018,6 @@ export namespace Prisma {
     createdAt?: Date | string
     updatedAt?: Date | string
     user: UserCreateNestedOneWithoutListsInput
-    images?: ImageCreateNestedManyWithoutListInput
   }
 
   export type ListUncheckedCreateWithoutListingsInput = {
@@ -17344,7 +17028,6 @@ export namespace Prisma {
     bio?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
-    images?: ImageUncheckedCreateNestedManyWithoutListInput
   }
 
   export type ListCreateOrConnectWithoutListingsInput = {
@@ -17413,6 +17096,19 @@ export namespace Prisma {
     data: XOR<ImageUpdateManyMutationInput, ImageUncheckedUpdateManyWithoutListingInput>
   }
 
+  export type ImageScalarWhereInput = {
+    AND?: ImageScalarWhereInput | ImageScalarWhereInput[]
+    OR?: ImageScalarWhereInput[]
+    NOT?: ImageScalarWhereInput | ImageScalarWhereInput[]
+    id?: StringFilter<"Image"> | string
+    url?: StringFilter<"Image"> | string
+    order?: IntFilter<"Image"> | number
+    createdAt?: DateTimeFilter<"Image"> | Date | string
+    updatedAt?: DateTimeFilter<"Image"> | Date | string
+    userProfileId?: StringNullableFilter<"Image"> | string | null
+    listingId?: StringNullableFilter<"Image"> | string | null
+  }
+
   export type AhsListingUpsertWithoutLiliesInput = {
     update: XOR<AhsListingUpdateWithoutLiliesInput, AhsListingUncheckedUpdateWithoutLiliesInput>
     create: XOR<AhsListingCreateWithoutLiliesInput, AhsListingUncheckedCreateWithoutLiliesInput>
@@ -17448,7 +17144,6 @@ export namespace Prisma {
     flower?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
-    images?: ImageUpdateManyWithoutAhsListingNestedInput
   }
 
   export type AhsListingUncheckedUpdateWithoutLiliesInput = {
@@ -17475,7 +17170,6 @@ export namespace Prisma {
     flower?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
-    images?: ImageUncheckedUpdateManyWithoutAhsListingNestedInput
   }
 
   export type ListUpsertWithoutListingsInput = {
@@ -17497,7 +17191,6 @@ export namespace Prisma {
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     user?: UserUpdateOneRequiredWithoutListsNestedInput
-    images?: ImageUpdateManyWithoutListNestedInput
   }
 
   export type ListUncheckedUpdateWithoutListingsInput = {
@@ -17508,7 +17201,6 @@ export namespace Prisma {
     bio?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
-    images?: ImageUncheckedUpdateManyWithoutListNestedInput
   }
 
   export type UserUpsertWithoutListingsInput = {
@@ -17642,36 +17334,6 @@ export namespace Prisma {
     create: XOR<UserCreateWithoutListsInput, UserUncheckedCreateWithoutListsInput>
   }
 
-  export type ImageCreateWithoutListInput = {
-    id?: string
-    url: string
-    referenceType: string
-    order?: number
-    createdAt?: Date | string
-    updatedAt?: Date | string
-    ahsListing?: AhsListingCreateNestedOneWithoutImagesInput
-    userProfile?: UserProfileCreateNestedOneWithoutImagesInput
-    listing?: ListingCreateNestedOneWithoutImagesInput
-  }
-
-  export type ImageUncheckedCreateWithoutListInput = {
-    id?: string
-    url: string
-    referenceType: string
-    order?: number
-    createdAt?: Date | string
-    updatedAt?: Date | string
-  }
-
-  export type ImageCreateOrConnectWithoutListInput = {
-    where: ImageWhereUniqueInput
-    create: XOR<ImageCreateWithoutListInput, ImageUncheckedCreateWithoutListInput>
-  }
-
-  export type ImageCreateManyListInputEnvelope = {
-    data: ImageCreateManyListInput | ImageCreateManyListInput[]
-  }
-
   export type ListingUpsertWithWhereUniqueWithoutListInput = {
     where: ListingWhereUniqueInput
     update: XOR<ListingUpdateWithoutListInput, ListingUncheckedUpdateWithoutListInput>
@@ -17739,22 +17401,6 @@ export namespace Prisma {
     profile?: UserProfileUncheckedUpdateOneWithoutUserNestedInput
   }
 
-  export type ImageUpsertWithWhereUniqueWithoutListInput = {
-    where: ImageWhereUniqueInput
-    update: XOR<ImageUpdateWithoutListInput, ImageUncheckedUpdateWithoutListInput>
-    create: XOR<ImageCreateWithoutListInput, ImageUncheckedCreateWithoutListInput>
-  }
-
-  export type ImageUpdateWithWhereUniqueWithoutListInput = {
-    where: ImageWhereUniqueInput
-    data: XOR<ImageUpdateWithoutListInput, ImageUncheckedUpdateWithoutListInput>
-  }
-
-  export type ImageUpdateManyWithWhereWithoutListInput = {
-    where: ImageScalarWhereInput
-    data: XOR<ImageUpdateManyMutationInput, ImageUncheckedUpdateManyWithoutListInput>
-  }
-
   export type UserCreateWithoutProfileInput = {
     id?: string
     username: string
@@ -17803,22 +17449,19 @@ export namespace Prisma {
   export type ImageCreateWithoutUserProfileInput = {
     id?: string
     url: string
-    referenceType: string
     order?: number
     createdAt?: Date | string
     updatedAt?: Date | string
-    ahsListing?: AhsListingCreateNestedOneWithoutImagesInput
     listing?: ListingCreateNestedOneWithoutImagesInput
-    list?: ListCreateNestedOneWithoutImagesInput
   }
 
   export type ImageUncheckedCreateWithoutUserProfileInput = {
     id?: string
     url: string
-    referenceType: string
     order?: number
     createdAt?: Date | string
     updatedAt?: Date | string
+    listingId?: string | null
   }
 
   export type ImageCreateOrConnectWithoutUserProfileInput = {
@@ -17897,65 +17540,6 @@ export namespace Prisma {
     data: XOR<ImageUpdateManyMutationInput, ImageUncheckedUpdateManyWithoutUserProfileInput>
   }
 
-  export type AhsListingCreateWithoutImagesInput = {
-    id?: string
-    name?: string | null
-    hybridizer?: string | null
-    year?: string | null
-    scapeHeight?: string | null
-    bloomSize?: string | null
-    bloomSeason?: string | null
-    ploidy?: string | null
-    foliageType?: string | null
-    bloomHabit?: string | null
-    seedlingNum?: string | null
-    color?: string | null
-    form?: string | null
-    parentage?: string | null
-    ahsImageUrl?: string | null
-    fragrance?: string | null
-    budcount?: string | null
-    branches?: string | null
-    sculpting?: string | null
-    foliage?: string | null
-    flower?: string | null
-    createdAt?: Date | string
-    updatedAt?: Date | string
-    lilies?: ListingCreateNestedManyWithoutAhsListingInput
-  }
-
-  export type AhsListingUncheckedCreateWithoutImagesInput = {
-    id?: string
-    name?: string | null
-    hybridizer?: string | null
-    year?: string | null
-    scapeHeight?: string | null
-    bloomSize?: string | null
-    bloomSeason?: string | null
-    ploidy?: string | null
-    foliageType?: string | null
-    bloomHabit?: string | null
-    seedlingNum?: string | null
-    color?: string | null
-    form?: string | null
-    parentage?: string | null
-    ahsImageUrl?: string | null
-    fragrance?: string | null
-    budcount?: string | null
-    branches?: string | null
-    sculpting?: string | null
-    foliage?: string | null
-    flower?: string | null
-    createdAt?: Date | string
-    updatedAt?: Date | string
-    lilies?: ListingUncheckedCreateNestedManyWithoutAhsListingInput
-  }
-
-  export type AhsListingCreateOrConnectWithoutImagesInput = {
-    where: AhsListingWhereUniqueInput
-    create: XOR<AhsListingCreateWithoutImagesInput, AhsListingUncheckedCreateWithoutImagesInput>
-  }
-
   export type UserProfileCreateWithoutImagesInput = {
     id?: string
     logoUrl?: string | null
@@ -18012,98 +17596,6 @@ export namespace Prisma {
   export type ListingCreateOrConnectWithoutImagesInput = {
     where: ListingWhereUniqueInput
     create: XOR<ListingCreateWithoutImagesInput, ListingUncheckedCreateWithoutImagesInput>
-  }
-
-  export type ListCreateWithoutImagesInput = {
-    id?: string
-    name: string
-    intro?: string | null
-    bio?: string | null
-    createdAt?: Date | string
-    updatedAt?: Date | string
-    listings?: ListingCreateNestedManyWithoutListInput
-    user: UserCreateNestedOneWithoutListsInput
-  }
-
-  export type ListUncheckedCreateWithoutImagesInput = {
-    id?: string
-    userId: string
-    name: string
-    intro?: string | null
-    bio?: string | null
-    createdAt?: Date | string
-    updatedAt?: Date | string
-    listings?: ListingUncheckedCreateNestedManyWithoutListInput
-  }
-
-  export type ListCreateOrConnectWithoutImagesInput = {
-    where: ListWhereUniqueInput
-    create: XOR<ListCreateWithoutImagesInput, ListUncheckedCreateWithoutImagesInput>
-  }
-
-  export type AhsListingUpsertWithoutImagesInput = {
-    update: XOR<AhsListingUpdateWithoutImagesInput, AhsListingUncheckedUpdateWithoutImagesInput>
-    create: XOR<AhsListingCreateWithoutImagesInput, AhsListingUncheckedCreateWithoutImagesInput>
-    where?: AhsListingWhereInput
-  }
-
-  export type AhsListingUpdateToOneWithWhereWithoutImagesInput = {
-    where?: AhsListingWhereInput
-    data: XOR<AhsListingUpdateWithoutImagesInput, AhsListingUncheckedUpdateWithoutImagesInput>
-  }
-
-  export type AhsListingUpdateWithoutImagesInput = {
-    id?: StringFieldUpdateOperationsInput | string
-    name?: NullableStringFieldUpdateOperationsInput | string | null
-    hybridizer?: NullableStringFieldUpdateOperationsInput | string | null
-    year?: NullableStringFieldUpdateOperationsInput | string | null
-    scapeHeight?: NullableStringFieldUpdateOperationsInput | string | null
-    bloomSize?: NullableStringFieldUpdateOperationsInput | string | null
-    bloomSeason?: NullableStringFieldUpdateOperationsInput | string | null
-    ploidy?: NullableStringFieldUpdateOperationsInput | string | null
-    foliageType?: NullableStringFieldUpdateOperationsInput | string | null
-    bloomHabit?: NullableStringFieldUpdateOperationsInput | string | null
-    seedlingNum?: NullableStringFieldUpdateOperationsInput | string | null
-    color?: NullableStringFieldUpdateOperationsInput | string | null
-    form?: NullableStringFieldUpdateOperationsInput | string | null
-    parentage?: NullableStringFieldUpdateOperationsInput | string | null
-    ahsImageUrl?: NullableStringFieldUpdateOperationsInput | string | null
-    fragrance?: NullableStringFieldUpdateOperationsInput | string | null
-    budcount?: NullableStringFieldUpdateOperationsInput | string | null
-    branches?: NullableStringFieldUpdateOperationsInput | string | null
-    sculpting?: NullableStringFieldUpdateOperationsInput | string | null
-    foliage?: NullableStringFieldUpdateOperationsInput | string | null
-    flower?: NullableStringFieldUpdateOperationsInput | string | null
-    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
-    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
-    lilies?: ListingUpdateManyWithoutAhsListingNestedInput
-  }
-
-  export type AhsListingUncheckedUpdateWithoutImagesInput = {
-    id?: StringFieldUpdateOperationsInput | string
-    name?: NullableStringFieldUpdateOperationsInput | string | null
-    hybridizer?: NullableStringFieldUpdateOperationsInput | string | null
-    year?: NullableStringFieldUpdateOperationsInput | string | null
-    scapeHeight?: NullableStringFieldUpdateOperationsInput | string | null
-    bloomSize?: NullableStringFieldUpdateOperationsInput | string | null
-    bloomSeason?: NullableStringFieldUpdateOperationsInput | string | null
-    ploidy?: NullableStringFieldUpdateOperationsInput | string | null
-    foliageType?: NullableStringFieldUpdateOperationsInput | string | null
-    bloomHabit?: NullableStringFieldUpdateOperationsInput | string | null
-    seedlingNum?: NullableStringFieldUpdateOperationsInput | string | null
-    color?: NullableStringFieldUpdateOperationsInput | string | null
-    form?: NullableStringFieldUpdateOperationsInput | string | null
-    parentage?: NullableStringFieldUpdateOperationsInput | string | null
-    ahsImageUrl?: NullableStringFieldUpdateOperationsInput | string | null
-    fragrance?: NullableStringFieldUpdateOperationsInput | string | null
-    budcount?: NullableStringFieldUpdateOperationsInput | string | null
-    branches?: NullableStringFieldUpdateOperationsInput | string | null
-    sculpting?: NullableStringFieldUpdateOperationsInput | string | null
-    foliage?: NullableStringFieldUpdateOperationsInput | string | null
-    flower?: NullableStringFieldUpdateOperationsInput | string | null
-    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
-    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
-    lilies?: ListingUncheckedUpdateManyWithoutAhsListingNestedInput
   }
 
   export type UserProfileUpsertWithoutImagesInput = {
@@ -18174,39 +17666,6 @@ export namespace Prisma {
     ahsId?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
-  }
-
-  export type ListUpsertWithoutImagesInput = {
-    update: XOR<ListUpdateWithoutImagesInput, ListUncheckedUpdateWithoutImagesInput>
-    create: XOR<ListCreateWithoutImagesInput, ListUncheckedCreateWithoutImagesInput>
-    where?: ListWhereInput
-  }
-
-  export type ListUpdateToOneWithWhereWithoutImagesInput = {
-    where?: ListWhereInput
-    data: XOR<ListUpdateWithoutImagesInput, ListUncheckedUpdateWithoutImagesInput>
-  }
-
-  export type ListUpdateWithoutImagesInput = {
-    id?: StringFieldUpdateOperationsInput | string
-    name?: StringFieldUpdateOperationsInput | string
-    intro?: NullableStringFieldUpdateOperationsInput | string | null
-    bio?: NullableStringFieldUpdateOperationsInput | string | null
-    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
-    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
-    listings?: ListingUpdateManyWithoutListNestedInput
-    user?: UserUpdateOneRequiredWithoutListsNestedInput
-  }
-
-  export type ListUncheckedUpdateWithoutImagesInput = {
-    id?: StringFieldUpdateOperationsInput | string
-    userId?: StringFieldUpdateOperationsInput | string
-    name?: StringFieldUpdateOperationsInput | string
-    intro?: NullableStringFieldUpdateOperationsInput | string | null
-    bio?: NullableStringFieldUpdateOperationsInput | string | null
-    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
-    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
-    listings?: ListingUncheckedUpdateManyWithoutListNestedInput
   }
 
   export type UserCreateWithoutStripeCustomerInput = {
@@ -18810,7 +18269,6 @@ export namespace Prisma {
     createdAt?: Date | string
     updatedAt?: Date | string
     listings?: ListingCreateNestedManyWithoutListInput
-    images?: ImageCreateNestedManyWithoutListInput
   }
 
   export type ListUncheckedCreateWithoutUserInput = {
@@ -18821,7 +18279,6 @@ export namespace Prisma {
     createdAt?: Date | string
     updatedAt?: Date | string
     listings?: ListingUncheckedCreateNestedManyWithoutListInput
-    images?: ImageUncheckedCreateNestedManyWithoutListInput
   }
 
   export type ListCreateOrConnectWithoutUserInput = {
@@ -19123,15 +18580,6 @@ export namespace Prisma {
     updatedAt?: Date | string
   }
 
-  export type ImageCreateManyAhsListingInput = {
-    id?: string
-    url: string
-    referenceType: string
-    order?: number
-    createdAt?: Date | string
-    updatedAt?: Date | string
-  }
-
   export type ListingUpdateWithoutAhsListingInput = {
     id?: StringFieldUpdateOperationsInput | string
     name?: StringFieldUpdateOperationsInput | string
@@ -19170,73 +18618,40 @@ export namespace Prisma {
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
 
-  export type ImageUpdateWithoutAhsListingInput = {
-    id?: StringFieldUpdateOperationsInput | string
-    url?: StringFieldUpdateOperationsInput | string
-    referenceType?: StringFieldUpdateOperationsInput | string
-    order?: IntFieldUpdateOperationsInput | number
-    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
-    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
-    userProfile?: UserProfileUpdateOneWithoutImagesNestedInput
-    listing?: ListingUpdateOneWithoutImagesNestedInput
-    list?: ListUpdateOneWithoutImagesNestedInput
-  }
-
-  export type ImageUncheckedUpdateWithoutAhsListingInput = {
-    id?: StringFieldUpdateOperationsInput | string
-    url?: StringFieldUpdateOperationsInput | string
-    referenceType?: StringFieldUpdateOperationsInput | string
-    order?: IntFieldUpdateOperationsInput | number
-    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
-    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
-  }
-
-  export type ImageUncheckedUpdateManyWithoutAhsListingInput = {
-    id?: StringFieldUpdateOperationsInput | string
-    url?: StringFieldUpdateOperationsInput | string
-    referenceType?: StringFieldUpdateOperationsInput | string
-    order?: IntFieldUpdateOperationsInput | number
-    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
-    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
-  }
-
   export type ImageCreateManyListingInput = {
     id?: string
     url: string
-    referenceType: string
     order?: number
     createdAt?: Date | string
     updatedAt?: Date | string
+    userProfileId?: string | null
   }
 
   export type ImageUpdateWithoutListingInput = {
     id?: StringFieldUpdateOperationsInput | string
     url?: StringFieldUpdateOperationsInput | string
-    referenceType?: StringFieldUpdateOperationsInput | string
     order?: IntFieldUpdateOperationsInput | number
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
-    ahsListing?: AhsListingUpdateOneWithoutImagesNestedInput
     userProfile?: UserProfileUpdateOneWithoutImagesNestedInput
-    list?: ListUpdateOneWithoutImagesNestedInput
   }
 
   export type ImageUncheckedUpdateWithoutListingInput = {
     id?: StringFieldUpdateOperationsInput | string
     url?: StringFieldUpdateOperationsInput | string
-    referenceType?: StringFieldUpdateOperationsInput | string
     order?: IntFieldUpdateOperationsInput | number
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    userProfileId?: NullableStringFieldUpdateOperationsInput | string | null
   }
 
   export type ImageUncheckedUpdateManyWithoutListingInput = {
     id?: StringFieldUpdateOperationsInput | string
     url?: StringFieldUpdateOperationsInput | string
-    referenceType?: StringFieldUpdateOperationsInput | string
     order?: IntFieldUpdateOperationsInput | number
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    userProfileId?: NullableStringFieldUpdateOperationsInput | string | null
   }
 
   export type ListingCreateManyListInput = {
@@ -19247,15 +18662,6 @@ export namespace Prisma {
     publicNote?: string | null
     privateNote?: string | null
     ahsId?: string | null
-    createdAt?: Date | string
-    updatedAt?: Date | string
-  }
-
-  export type ImageCreateManyListInput = {
-    id?: string
-    url: string
-    referenceType: string
-    order?: number
     createdAt?: Date | string
     updatedAt?: Date | string
   }
@@ -19298,73 +18704,40 @@ export namespace Prisma {
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
 
-  export type ImageUpdateWithoutListInput = {
-    id?: StringFieldUpdateOperationsInput | string
-    url?: StringFieldUpdateOperationsInput | string
-    referenceType?: StringFieldUpdateOperationsInput | string
-    order?: IntFieldUpdateOperationsInput | number
-    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
-    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
-    ahsListing?: AhsListingUpdateOneWithoutImagesNestedInput
-    userProfile?: UserProfileUpdateOneWithoutImagesNestedInput
-    listing?: ListingUpdateOneWithoutImagesNestedInput
-  }
-
-  export type ImageUncheckedUpdateWithoutListInput = {
-    id?: StringFieldUpdateOperationsInput | string
-    url?: StringFieldUpdateOperationsInput | string
-    referenceType?: StringFieldUpdateOperationsInput | string
-    order?: IntFieldUpdateOperationsInput | number
-    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
-    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
-  }
-
-  export type ImageUncheckedUpdateManyWithoutListInput = {
-    id?: StringFieldUpdateOperationsInput | string
-    url?: StringFieldUpdateOperationsInput | string
-    referenceType?: StringFieldUpdateOperationsInput | string
-    order?: IntFieldUpdateOperationsInput | number
-    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
-    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
-  }
-
   export type ImageCreateManyUserProfileInput = {
     id?: string
     url: string
-    referenceType: string
     order?: number
     createdAt?: Date | string
     updatedAt?: Date | string
+    listingId?: string | null
   }
 
   export type ImageUpdateWithoutUserProfileInput = {
     id?: StringFieldUpdateOperationsInput | string
     url?: StringFieldUpdateOperationsInput | string
-    referenceType?: StringFieldUpdateOperationsInput | string
     order?: IntFieldUpdateOperationsInput | number
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
-    ahsListing?: AhsListingUpdateOneWithoutImagesNestedInput
     listing?: ListingUpdateOneWithoutImagesNestedInput
-    list?: ListUpdateOneWithoutImagesNestedInput
   }
 
   export type ImageUncheckedUpdateWithoutUserProfileInput = {
     id?: StringFieldUpdateOperationsInput | string
     url?: StringFieldUpdateOperationsInput | string
-    referenceType?: StringFieldUpdateOperationsInput | string
     order?: IntFieldUpdateOperationsInput | number
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    listingId?: NullableStringFieldUpdateOperationsInput | string | null
   }
 
   export type ImageUncheckedUpdateManyWithoutUserProfileInput = {
     id?: StringFieldUpdateOperationsInput | string
     url?: StringFieldUpdateOperationsInput | string
-    referenceType?: StringFieldUpdateOperationsInput | string
     order?: IntFieldUpdateOperationsInput | number
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    listingId?: NullableStringFieldUpdateOperationsInput | string | null
   }
 
   export type StripeSubscriptionCreateManyCustomerInput = {
@@ -19562,7 +18935,6 @@ export namespace Prisma {
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     listings?: ListingUpdateManyWithoutListNestedInput
-    images?: ImageUpdateManyWithoutListNestedInput
   }
 
   export type ListUncheckedUpdateWithoutUserInput = {
@@ -19573,7 +18945,6 @@ export namespace Prisma {
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     listings?: ListingUncheckedUpdateManyWithoutListNestedInput
-    images?: ImageUncheckedUpdateManyWithoutListNestedInput
   }
 
   export type ListUncheckedUpdateManyWithoutUserInput = {

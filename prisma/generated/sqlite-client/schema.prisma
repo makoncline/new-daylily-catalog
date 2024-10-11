@@ -34,7 +34,6 @@ model AhsListing {
   updatedAt   DateTime @updatedAt
 
   lilies Listing[]
-  images Image[]
 }
 
 model Listing {
@@ -71,8 +70,6 @@ model List {
   listings  Listing[]
   user      User      @relation(fields: [userId], references: [id])
 
-  images Image[]
-
   @@index([userId])
 }
 
@@ -91,20 +88,20 @@ model UserProfile {
 }
 
 model Image {
-  id            String   @id @default(cuid())
-  url           String
-  referenceId   String
-  referenceType String // e.g., 'UserProfile', 'Listing', 'AhsListing'
-  order         Int      @default(0)
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  id        String   @id @default(cuid())
+  url       String
+  order     Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  ahsListing  AhsListing?  @relation(fields: [referenceId], references: [id])
-  userProfile UserProfile? @relation(fields: [referenceId], references: [id])
-  listing     Listing?     @relation(fields: [referenceId], references: [id])
-  list        List?        @relation(fields: [referenceId], references: [id])
+  userProfileId String?
+  listingId     String?
 
-  @@index([referenceId, referenceType])
+  userProfile UserProfile? @relation(fields: [userProfileId], references: [id])
+  listing     Listing?     @relation(fields: [listingId], references: [id])
+
+  @@index([userProfileId])
+  @@index([listingId])
 }
 
 model StripeCustomer {

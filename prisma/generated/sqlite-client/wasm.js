@@ -182,11 +182,11 @@ exports.Prisma.UserProfileScalarFieldEnum = {
 exports.Prisma.ImageScalarFieldEnum = {
   id: 'id',
   url: 'url',
-  referenceId: 'referenceId',
-  referenceType: 'referenceType',
   order: 'order',
   createdAt: 'createdAt',
-  updatedAt: 'updatedAt'
+  updatedAt: 'updatedAt',
+  userProfileId: 'userProfileId',
+  listingId: 'listingId'
 };
 
 exports.Prisma.StripeCustomerScalarFieldEnum = {
