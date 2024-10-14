@@ -1,12 +1,63 @@
 import { PrismaClient as PostgresClient } from "./generated/postgres-client";
 import { PrismaClient as SQLiteClient } from "./generated/sqlite-client";
+import { clerkClient } from "@clerk/clerk-sdk-node";
+import { z } from "zod";
+import { setTimeout } from "timers/promises";
 
 const postgres = new PostgresClient();
 const sqlite = new SQLiteClient();
 
+const clerkUserSchema = z.object({
+  id: z.string(),
+  primaryEmailAddressId: z.string(),
+  emailAddresses: z.array(
+    z.object({
+      id: z.string(),
+      emailAddress: z.string(),
+    }),
+  ),
+  username: z.string().nullable(),
+});
+
+async function fetchAllClerkUsers() {
+  const response = await clerkClient.users.getUserList();
+  return clerkUserSchema.array().parse(response.data);
+}
+
+async function getOrCreateClerkUser(
+  email: string,
+  username: string,
+  allClerkUsers,
+) {
+  try {
+    // Find the user in the list of Clerk users
+    let clerkUser = allClerkUsers.find((user) =>
+      user.emailAddresses.some((e) => e.emailAddress === email),
+    );
+
+    // If user doesn't exist in Clerk, create them
+    if (!clerkUser) {
+      await setTimeout(2000);
+      clerkUser = await clerkClient.users.createUser({
+        emailAddress: [email],
+        username: username,
+      });
+      console.log(`Created Clerk user for ${email}`);
+    } else {
+      console.log(`Found existing Clerk user for ${email}`);
+    }
+
+    return clerkUser.id;
+  } catch (error) {
+    console.error(`Error processing Clerk user ${email}:`, error);
+    throw error;
+  }
+}
+
 async function upsertUsers() {
   console.log("Starting user migration...");
   const users = await postgres.users.findMany({
+    take: 10, // for testing
     where: {
       user_emails: {
         some: {}, // This ensures we only get users with at least one email
@@ -14,9 +65,19 @@ async function upsertUsers() {
     },
     include: {
       user_emails: true,
+      lilies: true, // Include lilies to enable ordering by their count
+    },
+    orderBy: {
+      lilies: {
+        _count: "desc", // Order by the count of lilies, descending
+      },
     },
   });
   console.log(`Found ${users.length} users with emails to migrate.`);
+
+  // Fetch all Clerk users once
+  const allClerkUsers = await fetchAllClerkUsers();
+  console.log(`Fetched ${allClerkUsers.length} users from Clerk`);
 
   const sortedUsers = users.sort((a, b) => {
     const aVerified = a.user_emails.some((email) => email.is_verified);
@@ -48,32 +109,33 @@ async function upsertUsers() {
       continue;
     }
 
-    const userData = {
-      username: user.username,
-      email: selectedEmail.email,
-      role: user.is_admin ? "ADMIN" : "USER",
-      createdAt: user.created_at,
-      updatedAt: user.updated_at,
-    };
-
     try {
-      // Check if a user with this email already exists
-      const existingUser = await sqlite.user.findUnique({
-        where: { email: selectedEmail.email },
-      });
+      // Get or create Clerk user
+      const clerkUserId: string = await getOrCreateClerkUser(
+        selectedEmail.email,
+        user.username,
+        allClerkUsers,
+      );
 
-      if (existingUser && existingUser.id !== userId) {
-        skippedCount++;
-        continue;
-      }
+      const userData = {
+        clerkUserId: clerkUserId,
+        username: user.username,
+        email: selectedEmail.email,
+        role: user.is_admin ? "ADMIN" : "USER",
+        createdAt: user.created_at,
+        updatedAt: user.updated_at,
+      };
 
+      // Upsert user in SQLite
       await sqlite.user.upsert({
-        where: { id: userId },
+        where: { email: selectedEmail.email },
         update: userData,
         create: { id: userId, ...userData },
       });
+
       successCount++;
-    } catch {
+    } catch (error) {
+      console.error(`Error processing user ${userId}:`, error);
       errorCount++;
     }
   }

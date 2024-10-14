@@ -1,14 +1,11 @@
 import Link from "next/link";
 
-import { LatestPost } from "@/app/_components/post";
 import { api, HydrateClient } from "@/trpc/server";
 import { auth } from "@clerk/nextjs/server";
 
 export default async function Home() {
   const { userId } = auth();
   const hello = await api.post.hello({ text: "from tRPC" });
-
-  void api.post.getLatest.prefetch();
 
   return (
     <HydrateClient>

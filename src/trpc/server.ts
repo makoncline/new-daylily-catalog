@@ -25,7 +25,7 @@ const createContext = cache(() => {
 });
 
 const getQueryClient = cache(createQueryClient);
-const caller = createCaller(await createContext());
+const caller = createCaller(createContext);
 
 export const { trpc: api, HydrateClient } = createHydrationHelpers<AppRouter>(
   caller,

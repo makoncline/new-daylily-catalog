@@ -16,6 +16,7 @@
     "start-tunnel": "lt --subdomain new-daylily-catalog-dev --port 3000"
   },
   "dependencies": {
+    "@clerk/clerk-sdk-node": "^5.0.49",
     "@clerk/nextjs": "^5.7.2",
     "@prisma/client": "^5.14.0",
     "@t3-oss/env-nextjs": "^0.10.1",
