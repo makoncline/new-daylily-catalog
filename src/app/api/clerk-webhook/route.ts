@@ -4,15 +4,9 @@ import { db } from "@/server/db";
 import { env } from "@/env";
 import { NextResponse } from "next/server";
 import { headers } from "next/headers";
-
-export const config = {
-  api: {
-    bodyParser: false,
-  },
-};
+import { z } from "zod";
 
 export async function POST(req: Request) {
-  // Get the webhook secret from your environment variables
   const WEBHOOK_SECRET = env.CLERK_WEBHOOK_SECRET;
 
   if (!WEBHOOK_SECRET) {
@@ -21,13 +15,11 @@ export async function POST(req: Request) {
     );
   }
 
-  // Get the headers
   const headerPayload = headers();
   const svix_id = headerPayload.get("svix-id");
   const svix_timestamp = headerPayload.get("svix-timestamp");
   const svix_signature = headerPayload.get("svix-signature");
 
-  // If there are no headers, error out
   if (!svix_id || !svix_timestamp || !svix_signature) {
     return NextResponse.json(
       { error: "Error occurred -- no svix headers" },
@@ -35,16 +27,13 @@ export async function POST(req: Request) {
     );
   }
 
-  // Get the body
   const payload = (await req.json()) as unknown;
   const body = JSON.stringify(payload);
 
-  // Create a new Svix instance with your secret.
   const wh = new Webhook(WEBHOOK_SECRET);
 
   let evt: WebhookEvent;
 
-  // Verify the payload with the headers
   try {
     evt = wh.verify(body, {
       "svix-id": svix_id,
@@ -69,20 +58,34 @@ export async function POST(req: Request) {
   }
 }
 
+const ClerkUserWebhookSchema = z.object({
+  id: z.string(),
+  username: z.string().nullable(),
+  email_addresses: z.array(
+    z.object({
+      id: z.string(),
+      email_address: z.string().email(),
+    }),
+  ),
+  primary_email_address_id: z.string(),
+  first_name: z.string().nullable(),
+});
+
 function validateUserData(data: unknown) {
+  const result = ClerkUserWebhookSchema.safeParse(data);
+
+  if (!result.success) {
+    console.error("Validation error:", result.error);
+    return NextResponse.json({ error: "Invalid user data" }, { status: 400 });
+  }
+
   const {
     id: clerkUserId,
     username,
     email_addresses,
     primary_email_address_id,
     first_name,
-  } = data as {
-    id: string;
-    username: string | null;
-    email_addresses: Array<{ id: string; email_address: string }>;
-    primary_email_address_id: string;
-    first_name: string | null;
-  };
+  } = result.data;
 
   const primaryEmail = email_addresses.find(
     (email) => email.id === primary_email_address_id,
@@ -152,7 +155,6 @@ async function handleUserUpdated(data: WebhookEvent["data"]) {
   }
 
   try {
-    // Fetch the existing user data
     const existingUser = await db.user.findUnique({
       where: { clerkUserId: validatedData.clerkUserId },
     });
@@ -161,7 +163,6 @@ async function handleUserUpdated(data: WebhookEvent["data"]) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
-    // Prepare the update data
     const updateData: Partial<ValidatedUserData> = {};
 
     if (existingUser.email !== validatedData.email) {
@@ -174,7 +175,6 @@ async function handleUserUpdated(data: WebhookEvent["data"]) {
       updateData.name = validatedData.name;
     }
 
-    // Only update if there are changes
     if (Object.keys(updateData).length > 0) {
       const updatedUser = await db.user.update({
         where: { clerkUserId: validatedData.clerkUserId },
