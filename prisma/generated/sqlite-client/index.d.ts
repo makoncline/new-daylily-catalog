@@ -8862,7 +8862,6 @@ export namespace Prisma {
     clerkUserId: string | null
     email: string | null
     username: string | null
-    name: string | null
     role: string | null
     createdAt: Date | null
     updatedAt: Date | null
@@ -8873,7 +8872,6 @@ export namespace Prisma {
     clerkUserId: string | null
     email: string | null
     username: string | null
-    name: string | null
     role: string | null
     createdAt: Date | null
     updatedAt: Date | null
@@ -8884,7 +8882,6 @@ export namespace Prisma {
     clerkUserId: number
     email: number
     username: number
-    name: number
     role: number
     createdAt: number
     updatedAt: number
@@ -8897,7 +8894,6 @@ export namespace Prisma {
     clerkUserId?: true
     email?: true
     username?: true
-    name?: true
     role?: true
     createdAt?: true
     updatedAt?: true
@@ -8908,7 +8904,6 @@ export namespace Prisma {
     clerkUserId?: true
     email?: true
     username?: true
-    name?: true
     role?: true
     createdAt?: true
     updatedAt?: true
@@ -8919,7 +8914,6 @@ export namespace Prisma {
     clerkUserId?: true
     email?: true
     username?: true
-    name?: true
     role?: true
     createdAt?: true
     updatedAt?: true
@@ -9000,10 +8994,9 @@ export namespace Prisma {
 
   export type UserGroupByOutputType = {
     id: string
-    clerkUserId: string
+    clerkUserId: string | null
     email: string
     username: string
-    name: string
     role: string | null
     createdAt: Date
     updatedAt: Date
@@ -9031,7 +9024,6 @@ export namespace Prisma {
     clerkUserId?: boolean
     email?: boolean
     username?: boolean
-    name?: boolean
     role?: boolean
     createdAt?: boolean
     updatedAt?: boolean
@@ -9048,7 +9040,6 @@ export namespace Prisma {
     clerkUserId?: boolean
     email?: boolean
     username?: boolean
-    name?: boolean
     role?: boolean
     createdAt?: boolean
     updatedAt?: boolean
@@ -9059,7 +9050,6 @@ export namespace Prisma {
     clerkUserId?: boolean
     email?: boolean
     username?: boolean
-    name?: boolean
     role?: boolean
     createdAt?: boolean
     updatedAt?: boolean
@@ -9086,10 +9076,9 @@ export namespace Prisma {
     }
     scalars: $Extensions.GetPayloadResult<{
       id: string
-      clerkUserId: string
+      clerkUserId: string | null
       email: string
       username: string
-      name: string
       role: string | null
       createdAt: Date
       updatedAt: Date
@@ -9495,7 +9484,6 @@ export namespace Prisma {
     readonly clerkUserId: FieldRef<"User", 'String'>
     readonly email: FieldRef<"User", 'String'>
     readonly username: FieldRef<"User", 'String'>
-    readonly name: FieldRef<"User", 'String'>
     readonly role: FieldRef<"User", 'String'>
     readonly createdAt: FieldRef<"User", 'DateTime'>
     readonly updatedAt: FieldRef<"User", 'DateTime'>
@@ -10038,7 +10026,6 @@ export namespace Prisma {
     clerkUserId: 'clerkUserId',
     email: 'email',
     username: 'username',
-    name: 'name',
     role: 'role',
     createdAt: 'createdAt',
     updatedAt: 'updatedAt'
@@ -10699,10 +10686,9 @@ export namespace Prisma {
     OR?: UserWhereInput[]
     NOT?: UserWhereInput | UserWhereInput[]
     id?: StringFilter<"User"> | string
-    clerkUserId?: StringFilter<"User"> | string
+    clerkUserId?: StringNullableFilter<"User"> | string | null
     email?: StringFilter<"User"> | string
     username?: StringFilter<"User"> | string
-    name?: StringFilter<"User"> | string
     role?: StringNullableFilter<"User"> | string | null
     createdAt?: DateTimeFilter<"User"> | Date | string
     updatedAt?: DateTimeFilter<"User"> | Date | string
@@ -10715,10 +10701,9 @@ export namespace Prisma {
 
   export type UserOrderByWithRelationInput = {
     id?: SortOrder
-    clerkUserId?: SortOrder
+    clerkUserId?: SortOrderInput | SortOrder
     email?: SortOrder
     username?: SortOrder
-    name?: SortOrder
     role?: SortOrderInput | SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
@@ -10737,7 +10722,6 @@ export namespace Prisma {
     AND?: UserWhereInput | UserWhereInput[]
     OR?: UserWhereInput[]
     NOT?: UserWhereInput | UserWhereInput[]
-    name?: StringFilter<"User"> | string
     role?: StringNullableFilter<"User"> | string | null
     createdAt?: DateTimeFilter<"User"> | Date | string
     updatedAt?: DateTimeFilter<"User"> | Date | string
@@ -10750,10 +10734,9 @@ export namespace Prisma {
 
   export type UserOrderByWithAggregationInput = {
     id?: SortOrder
-    clerkUserId?: SortOrder
+    clerkUserId?: SortOrderInput | SortOrder
     email?: SortOrder
     username?: SortOrder
-    name?: SortOrder
     role?: SortOrderInput | SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
@@ -10767,10 +10750,9 @@ export namespace Prisma {
     OR?: UserScalarWhereWithAggregatesInput[]
     NOT?: UserScalarWhereWithAggregatesInput | UserScalarWhereWithAggregatesInput[]
     id?: StringWithAggregatesFilter<"User"> | string
-    clerkUserId?: StringWithAggregatesFilter<"User"> | string
+    clerkUserId?: StringNullableWithAggregatesFilter<"User"> | string | null
     email?: StringWithAggregatesFilter<"User"> | string
     username?: StringWithAggregatesFilter<"User"> | string
-    name?: StringWithAggregatesFilter<"User"> | string
     role?: StringNullableWithAggregatesFilter<"User"> | string | null
     createdAt?: DateTimeWithAggregatesFilter<"User"> | Date | string
     updatedAt?: DateTimeWithAggregatesFilter<"User"> | Date | string
@@ -11425,10 +11407,9 @@ export namespace Prisma {
 
   export type UserCreateInput = {
     id?: string
-    clerkUserId: string
+    clerkUserId?: string | null
     email: string
     username: string
-    name: string
     role?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
@@ -11441,10 +11422,9 @@ export namespace Prisma {
 
   export type UserUncheckedCreateInput = {
     id?: string
-    clerkUserId: string
+    clerkUserId?: string | null
     email: string
     username: string
-    name: string
     role?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
@@ -11457,10 +11437,9 @@ export namespace Prisma {
 
   export type UserUpdateInput = {
     id?: StringFieldUpdateOperationsInput | string
-    clerkUserId?: StringFieldUpdateOperationsInput | string
+    clerkUserId?: NullableStringFieldUpdateOperationsInput | string | null
     email?: StringFieldUpdateOperationsInput | string
     username?: StringFieldUpdateOperationsInput | string
-    name?: StringFieldUpdateOperationsInput | string
     role?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -11473,10 +11452,9 @@ export namespace Prisma {
 
   export type UserUncheckedUpdateInput = {
     id?: StringFieldUpdateOperationsInput | string
-    clerkUserId?: StringFieldUpdateOperationsInput | string
+    clerkUserId?: NullableStringFieldUpdateOperationsInput | string | null
     email?: StringFieldUpdateOperationsInput | string
     username?: StringFieldUpdateOperationsInput | string
-    name?: StringFieldUpdateOperationsInput | string
     role?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -11489,10 +11467,9 @@ export namespace Prisma {
 
   export type UserCreateManyInput = {
     id?: string
-    clerkUserId: string
+    clerkUserId?: string | null
     email: string
     username: string
-    name: string
     role?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
@@ -11500,10 +11477,9 @@ export namespace Prisma {
 
   export type UserUpdateManyMutationInput = {
     id?: StringFieldUpdateOperationsInput | string
-    clerkUserId?: StringFieldUpdateOperationsInput | string
+    clerkUserId?: NullableStringFieldUpdateOperationsInput | string | null
     email?: StringFieldUpdateOperationsInput | string
     username?: StringFieldUpdateOperationsInput | string
-    name?: StringFieldUpdateOperationsInput | string
     role?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -11511,10 +11487,9 @@ export namespace Prisma {
 
   export type UserUncheckedUpdateManyInput = {
     id?: StringFieldUpdateOperationsInput | string
-    clerkUserId?: StringFieldUpdateOperationsInput | string
+    clerkUserId?: NullableStringFieldUpdateOperationsInput | string | null
     email?: StringFieldUpdateOperationsInput | string
     username?: StringFieldUpdateOperationsInput | string
-    name?: StringFieldUpdateOperationsInput | string
     role?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -12078,7 +12053,6 @@ export namespace Prisma {
     clerkUserId?: SortOrder
     email?: SortOrder
     username?: SortOrder
-    name?: SortOrder
     role?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
@@ -12089,7 +12063,6 @@ export namespace Prisma {
     clerkUserId?: SortOrder
     email?: SortOrder
     username?: SortOrder
-    name?: SortOrder
     role?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
@@ -12100,7 +12073,6 @@ export namespace Prisma {
     clerkUserId?: SortOrder
     email?: SortOrder
     username?: SortOrder
-    name?: SortOrder
     role?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
@@ -13059,10 +13031,9 @@ export namespace Prisma {
 
   export type UserCreateWithoutListingsInput = {
     id?: string
-    clerkUserId: string
+    clerkUserId?: string | null
     email: string
     username: string
-    name: string
     role?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
@@ -13074,10 +13045,9 @@ export namespace Prisma {
 
   export type UserUncheckedCreateWithoutListingsInput = {
     id?: string
-    clerkUserId: string
+    clerkUserId?: string | null
     email: string
     username: string
-    name: string
     role?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
@@ -13228,10 +13198,9 @@ export namespace Prisma {
 
   export type UserUpdateWithoutListingsInput = {
     id?: StringFieldUpdateOperationsInput | string
-    clerkUserId?: StringFieldUpdateOperationsInput | string
+    clerkUserId?: NullableStringFieldUpdateOperationsInput | string | null
     email?: StringFieldUpdateOperationsInput | string
     username?: StringFieldUpdateOperationsInput | string
-    name?: StringFieldUpdateOperationsInput | string
     role?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -13243,10 +13212,9 @@ export namespace Prisma {
 
   export type UserUncheckedUpdateWithoutListingsInput = {
     id?: StringFieldUpdateOperationsInput | string
-    clerkUserId?: StringFieldUpdateOperationsInput | string
+    clerkUserId?: NullableStringFieldUpdateOperationsInput | string | null
     email?: StringFieldUpdateOperationsInput | string
     username?: StringFieldUpdateOperationsInput | string
-    name?: StringFieldUpdateOperationsInput | string
     role?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -13293,10 +13261,9 @@ export namespace Prisma {
 
   export type UserCreateWithoutListsInput = {
     id?: string
-    clerkUserId: string
+    clerkUserId?: string | null
     email: string
     username: string
-    name: string
     role?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
@@ -13308,10 +13275,9 @@ export namespace Prisma {
 
   export type UserUncheckedCreateWithoutListsInput = {
     id?: string
-    clerkUserId: string
+    clerkUserId?: string | null
     email: string
     username: string
-    name: string
     role?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
@@ -13355,10 +13321,9 @@ export namespace Prisma {
 
   export type UserUpdateWithoutListsInput = {
     id?: StringFieldUpdateOperationsInput | string
-    clerkUserId?: StringFieldUpdateOperationsInput | string
+    clerkUserId?: NullableStringFieldUpdateOperationsInput | string | null
     email?: StringFieldUpdateOperationsInput | string
     username?: StringFieldUpdateOperationsInput | string
-    name?: StringFieldUpdateOperationsInput | string
     role?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -13370,10 +13335,9 @@ export namespace Prisma {
 
   export type UserUncheckedUpdateWithoutListsInput = {
     id?: StringFieldUpdateOperationsInput | string
-    clerkUserId?: StringFieldUpdateOperationsInput | string
+    clerkUserId?: NullableStringFieldUpdateOperationsInput | string | null
     email?: StringFieldUpdateOperationsInput | string
     username?: StringFieldUpdateOperationsInput | string
-    name?: StringFieldUpdateOperationsInput | string
     role?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -13385,10 +13349,9 @@ export namespace Prisma {
 
   export type UserCreateWithoutProfileInput = {
     id?: string
-    clerkUserId: string
+    clerkUserId?: string | null
     email: string
     username: string
-    name: string
     role?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
@@ -13400,10 +13363,9 @@ export namespace Prisma {
 
   export type UserUncheckedCreateWithoutProfileInput = {
     id?: string
-    clerkUserId: string
+    clerkUserId?: string | null
     email: string
     username: string
-    name: string
     role?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
@@ -13458,10 +13420,9 @@ export namespace Prisma {
 
   export type UserUpdateWithoutProfileInput = {
     id?: StringFieldUpdateOperationsInput | string
-    clerkUserId?: StringFieldUpdateOperationsInput | string
+    clerkUserId?: NullableStringFieldUpdateOperationsInput | string | null
     email?: StringFieldUpdateOperationsInput | string
     username?: StringFieldUpdateOperationsInput | string
-    name?: StringFieldUpdateOperationsInput | string
     role?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -13473,10 +13434,9 @@ export namespace Prisma {
 
   export type UserUncheckedUpdateWithoutProfileInput = {
     id?: StringFieldUpdateOperationsInput | string
-    clerkUserId?: StringFieldUpdateOperationsInput | string
+    clerkUserId?: NullableStringFieldUpdateOperationsInput | string | null
     email?: StringFieldUpdateOperationsInput | string
     username?: StringFieldUpdateOperationsInput | string
-    name?: StringFieldUpdateOperationsInput | string
     role?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -13632,10 +13592,9 @@ export namespace Prisma {
 
   export type UserCreateWithoutStripeCustomerInput = {
     id?: string
-    clerkUserId: string
+    clerkUserId?: string | null
     email: string
     username: string
-    name: string
     role?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
@@ -13647,10 +13606,9 @@ export namespace Prisma {
 
   export type UserUncheckedCreateWithoutStripeCustomerInput = {
     id?: string
-    clerkUserId: string
+    clerkUserId?: string | null
     email: string
     username: string
-    name: string
     role?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
@@ -13709,10 +13667,9 @@ export namespace Prisma {
 
   export type UserUpdateWithoutStripeCustomerInput = {
     id?: StringFieldUpdateOperationsInput | string
-    clerkUserId?: StringFieldUpdateOperationsInput | string
+    clerkUserId?: NullableStringFieldUpdateOperationsInput | string | null
     email?: StringFieldUpdateOperationsInput | string
     username?: StringFieldUpdateOperationsInput | string
-    name?: StringFieldUpdateOperationsInput | string
     role?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -13724,10 +13681,9 @@ export namespace Prisma {
 
   export type UserUncheckedUpdateWithoutStripeCustomerInput = {
     id?: StringFieldUpdateOperationsInput | string
-    clerkUserId?: StringFieldUpdateOperationsInput | string
+    clerkUserId?: NullableStringFieldUpdateOperationsInput | string | null
     email?: StringFieldUpdateOperationsInput | string
     username?: StringFieldUpdateOperationsInput | string
-    name?: StringFieldUpdateOperationsInput | string
     role?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -13793,10 +13749,9 @@ export namespace Prisma {
 
   export type UserCreateWithoutStripeSubscriptionInput = {
     id?: string
-    clerkUserId: string
+    clerkUserId?: string | null
     email: string
     username: string
-    name: string
     role?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
@@ -13808,10 +13763,9 @@ export namespace Prisma {
 
   export type UserUncheckedCreateWithoutStripeSubscriptionInput = {
     id?: string
-    clerkUserId: string
+    clerkUserId?: string | null
     email: string
     username: string
-    name: string
     role?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
@@ -13868,10 +13822,9 @@ export namespace Prisma {
 
   export type UserUpdateWithoutStripeSubscriptionInput = {
     id?: StringFieldUpdateOperationsInput | string
-    clerkUserId?: StringFieldUpdateOperationsInput | string
+    clerkUserId?: NullableStringFieldUpdateOperationsInput | string | null
     email?: StringFieldUpdateOperationsInput | string
     username?: StringFieldUpdateOperationsInput | string
-    name?: StringFieldUpdateOperationsInput | string
     role?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -13883,10 +13836,9 @@ export namespace Prisma {
 
   export type UserUncheckedUpdateWithoutStripeSubscriptionInput = {
     id?: StringFieldUpdateOperationsInput | string
-    clerkUserId?: StringFieldUpdateOperationsInput | string
+    clerkUserId?: NullableStringFieldUpdateOperationsInput | string | null
     email?: StringFieldUpdateOperationsInput | string
     username?: StringFieldUpdateOperationsInput | string
-    name?: StringFieldUpdateOperationsInput | string
     role?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string

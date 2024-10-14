@@ -50,17 +50,10 @@ async function upsertUsers() {
 
     const userData = {
       username: user.username,
-      name: user.name,
       email: selectedEmail.email,
-      emailVerified: selectedEmail.is_verified
-        ? selectedEmail.updated_at
-        : null,
-      image: user.avatar_url,
       role: user.is_admin ? "ADMIN" : "USER",
-      verifiedAt: user.is_verified ? new Date() : null,
       createdAt: user.created_at,
       updatedAt: user.updated_at,
-      freeUntil: user.free_until,
     };
 
     try {
@@ -80,7 +73,7 @@ async function upsertUsers() {
         create: { id: userId, ...userData },
       });
       successCount++;
-    } catch (error) {
+    } catch {
       errorCount++;
     }
   }

@@ -68,10 +68,18 @@ const ClerkUserWebhookSchema = z.object({
     }),
   ),
   primary_email_address_id: z.string(),
-  first_name: z.string().nullable(),
 });
 
-function validateUserData(data: unknown) {
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+const ValidatedUserDataSchema = z.object({
+  clerkUserId: z.string(),
+  email: z.string().email(),
+  username: z.string(),
+});
+
+type ValidatedUserData = z.infer<typeof ValidatedUserDataSchema>;
+
+function validateUserData(data: unknown): ValidatedUserData | NextResponse {
   const result = ClerkUserWebhookSchema.safeParse(data);
 
   if (!result.success) {
@@ -84,7 +92,6 @@ function validateUserData(data: unknown) {
     username,
     email_addresses,
     primary_email_address_id,
-    first_name,
   } = result.data;
 
   const primaryEmail = email_addresses.find(
@@ -102,18 +109,11 @@ function validateUserData(data: unknown) {
   if (!username) {
     return NextResponse.json({ error: "Username not found" }, { status: 400 });
   }
-  if (!first_name) {
-    return NextResponse.json(
-      { error: "First name not found" },
-      { status: 400 },
-    );
-  }
 
   return {
     clerkUserId,
     email: primaryEmail.email_address,
     username,
-    name: first_name,
   };
 }
 
@@ -140,13 +140,6 @@ async function handleUserCreated(data: WebhookEvent["data"]) {
   }
 }
 
-interface ValidatedUserData {
-  clerkUserId: string;
-  email: string;
-  username: string;
-  name: string;
-}
-
 async function handleUserUpdated(data: WebhookEvent["data"]) {
   const validatedData = validateUserData(data);
 
@@ -170,9 +163,6 @@ async function handleUserUpdated(data: WebhookEvent["data"]) {
     }
     if (existingUser.username !== validatedData.username) {
       updateData.username = validatedData.username;
-    }
-    if (existingUser.name !== validatedData.name) {
-      updateData.name = validatedData.name;
     }
 
     if (Object.keys(updateData).length > 0) {
