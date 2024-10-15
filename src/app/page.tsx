@@ -2,6 +2,7 @@ import Link from "next/link";
 
 import { api, HydrateClient } from "@/trpc/server";
 import { auth } from "@clerk/nextjs/server";
+import { SignedIn } from "@clerk/nextjs";
 
 export default async function Home() {
   const { userId } = auth();
@@ -42,6 +43,9 @@ export default async function Home() {
             <p className="text-2xl text-white">
               {hello ? hello.greeting : "Loading tRPC query..."}
             </p>
+            <SignedIn>
+              <UserListings />
+            </SignedIn>
 
             <div className="flex flex-col items-center justify-center gap-4">
               <p className="text-center text-2xl text-white">
@@ -54,3 +58,8 @@ export default async function Home() {
     </HydrateClient>
   );
 }
+
+const UserListings = async () => {
+  const listings = await api.post.userListings();
+  return <div>{listings.length} listings</div>;
+};

@@ -38,4 +38,12 @@ export const postRouter = createTRPCRouter({
   getSecretMessage: protectedProcedure.query(() => {
     return "you can now see this secret message!";
   }),
+  userListings: protectedProcedure.query(async ({ ctx }) => {
+    const listings = await ctx.db.listing.findMany({
+      where: {
+        user: { clerkUserId: ctx.auth.userId },
+      },
+    });
+    return listings;
+  }),
 });
