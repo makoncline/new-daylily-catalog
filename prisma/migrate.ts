@@ -1,8 +1,9 @@
 import { PrismaClient as PostgresClient } from "./generated/postgres-client";
 import { PrismaClient as SQLiteClient } from "./generated/sqlite-client";
-import { clerkClient } from "@clerk/clerk-sdk-node";
+import { clerkClient, type User } from "@clerk/clerk-sdk-node";
 import { z } from "zod";
 import { setTimeout } from "timers/promises";
+import Stripe from "stripe";
 
 const postgres = new PostgresClient();
 const sqlite = new SQLiteClient();
@@ -20,23 +21,25 @@ const clerkUserSchema = z.object({
 });
 
 async function fetchAllClerkUsers() {
-  const response = await clerkClient.users.getUserList();
+  const response = await clerkClient.users.getUserList({
+    limit: 500,
+  });
   return clerkUserSchema.array().parse(response.data);
 }
 
 async function getOrCreateClerkUser(
   email: string,
   username: string,
-  allClerkUsers,
+  allClerkUsers: z.infer<typeof clerkUserSchema>[],
 ) {
   try {
     // Find the user in the list of Clerk users
-    let clerkUser = allClerkUsers.find((user) =>
-      user.emailAddresses.some((e) => e.emailAddress === email),
+    let clerkUser = (allClerkUsers as User[]).find(
+      (user) => user.username === username.toLowerCase(),
     );
-
     // If user doesn't exist in Clerk, create them
     if (!clerkUser) {
+      console.log(`Creating Clerk user for ${email} ${username}`);
       await setTimeout(2000);
       clerkUser = await clerkClient.users.createUser({
         emailAddress: [email],
@@ -57,7 +60,7 @@ async function getOrCreateClerkUser(
 async function upsertUsers() {
   console.log("Starting user migration...");
   const users = await postgres.users.findMany({
-    take: 10, // for testing
+    take: 10, // TODO: for testing. remove for actual migration
     where: {
       user_emails: {
         some: {}, // This ensures we only get users with at least one email
@@ -65,21 +68,33 @@ async function upsertUsers() {
     },
     include: {
       user_emails: true,
-      lilies: true, // Include lilies to enable ordering by their count
+      stripe_customers: true,
+      lilies: true, // Include lilies information
     },
-    orderBy: {
-      lilies: {
-        _count: "desc", // Order by the count of lilies, descending
+    orderBy: [
+      {
+        stripe_customers: {
+          id: "asc",
+        },
       },
-    },
+      {
+        lilies: {
+          _count: "desc",
+        },
+      },
+    ],
   });
-  console.log(`Found ${users.length} users with emails to migrate.`);
+  const filterOutUserIds = ["24"];
+  const filteredUsers = users.filter(
+    (user) => !filterOutUserIds.includes(user.id.toString()),
+  );
+  console.log(`Found ${filteredUsers.length} users with emails to migrate.`);
 
   // Fetch all Clerk users once
   const allClerkUsers = await fetchAllClerkUsers();
   console.log(`Fetched ${allClerkUsers.length} users from Clerk`);
 
-  const sortedUsers = users.sort((a, b) => {
+  const sortedUsers = filteredUsers.sort((a, b) => {
     const aVerified = a.user_emails.some((email) => email.is_verified);
     const bVerified = b.user_emails.some((email) => email.is_verified);
     if (aVerified && !bVerified) return -1;
@@ -89,7 +104,6 @@ async function upsertUsers() {
 
   let successCount = 0;
   let errorCount = 0;
-  let skippedCount = 0;
 
   for (const user of sortedUsers) {
     const userId = user.id.toString();
@@ -143,7 +157,6 @@ async function upsertUsers() {
   console.log(`User migration completed.`);
   console.log(`Successfully migrated: ${successCount} users`);
   console.log(`Failed to migrate: ${errorCount} users`);
-  console.log(`Skipped due to email conflicts: ${skippedCount} users`);
 }
 
 async function upsertAhsListings() {
@@ -424,9 +437,15 @@ async function upsertUserProfiles() {
   console.log(`Failed to create/update: ${imageErrorCount} images`);
 }
 
+const stripe = new Stripe(process.env.PROD_STRIPE_SECRET_KEY!);
+
 async function upsertStripeCustomers() {
   console.log("Starting Stripe customers migration...");
-  const stripeCustomers = await postgres.stripe_customers.findMany();
+  const stripeCustomers = await postgres.stripe_customers.findMany({
+    include: {
+      users: true,
+    },
+  });
   console.log(`Found ${stripeCustomers.length} Stripe customers to migrate.`);
 
   let successCount = 0;
@@ -435,16 +454,21 @@ async function upsertStripeCustomers() {
   for (const customer of stripeCustomers) {
     const customerId = customer.id;
 
-    const customerData = {
-      id: customerId,
-      userId: customer.user_id.toString(),
-      email: null, // These fields are not in the PostgreSQL schema
-      name: null, // so we'll set them to null
-      createdAt: customer.created_at,
-      updatedAt: customer.updated_at,
-    };
-
     try {
+      // Fetch additional data from Stripe
+      const stripeCustomer = (await stripe.customers.retrieve(
+        customerId,
+      )) as Stripe.Customer;
+
+      const customerData = {
+        id: customerId,
+        userId: customer.user_id.toString(),
+        email: stripeCustomer.email ?? "",
+        name: stripeCustomer.name ?? "",
+        createdAt: customer.created_at,
+        updatedAt: customer.updated_at,
+      };
+
       await sqlite.stripeCustomer.upsert({
         where: { id: customerId },
         update: customerData,
@@ -475,19 +499,25 @@ async function upsertStripeSubscriptions() {
   for (const subscription of stripeSubscriptions) {
     const subscriptionId = subscription.id;
 
-    const subscriptionData = {
-      id: subscriptionId,
-      userId: subscription.user_id.toString(),
-      stripeCustomerId: subscription.customer_id,
-      status: null, // These fields are not in the PostgreSQL schema
-      priceId: null, // so we'll set them to null
-      currentPeriodEnd: null,
-      cancelAtPeriodEnd: false, // Default value as per SQLite schema
-      createdAt: subscription.created_at,
-      updatedAt: subscription.updated_at,
-    };
-
     try {
+      // Fetch additional data from Stripe
+      const stripeSubscription =
+        await stripe.subscriptions.retrieve(subscriptionId);
+
+      const subscriptionData = {
+        id: subscriptionId,
+        userId: subscription.user_id.toString(),
+        stripeCustomerId: subscription.customer_id,
+        status: stripeSubscription.status,
+        priceId: stripeSubscription.items.data[0]?.price.id ?? "",
+        currentPeriodEnd: new Date(
+          stripeSubscription.current_period_end * 1000,
+        ),
+        cancelAtPeriodEnd: stripeSubscription.cancel_at_period_end,
+        createdAt: subscription.created_at,
+        updatedAt: subscription.updated_at,
+      };
+
       await sqlite.stripeSubscription.upsert({
         where: { id: subscriptionId },
         update: subscriptionData,

@@ -33,7 +33,19 @@ export async function POST(req: Request) {
   try {
     switch (event.type) {
       case "checkout.session.completed":
-        await handleCheckoutSessionCompleted(event.data.object);
+        await handleCheckoutCompleted(event.data.object);
+        break;
+      case "customer.subscription.created":
+        await handleSubscriptionCreated(event.data.object);
+        break;
+      case "customer.subscription.updated":
+        await handleSubscriptionUpdated(event.data.object);
+        break;
+      case "customer.subscription.deleted":
+        await handleSubscriptionDeleted(event.data.object);
+        break;
+      case "customer.subscription.trial_will_end":
+        await handleSubscriptionTrialWillEnd(event.data.object);
         break;
       case "invoice.paid":
         await handleInvoicePaid(event.data.object);
@@ -55,118 +67,138 @@ export async function POST(req: Request) {
   }
 }
 
-async function handleCheckoutSessionCompleted(
-  session: Stripe.Checkout.Session,
-) {
-  // Extract metadata (ensure you included userId when creating the checkout session)
+async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
   const userId = session.metadata?.userId;
+  const customerId = session.customer as string;
 
   if (!userId) {
-    throw new Error("Missing userId in session metadata.");
+    console.error("Missing userId in session metadata");
+    return;
   }
 
-  // Extract customer details
-  const customerId = session.customer as string;
-  const customerEmail = session.customer_details?.email ?? null;
-  const customerName = session.customer_details?.name ?? null;
-
-  // Retrieve the subscription ID from the session
-  const subscriptionId = session.subscription as string;
-
-  // Retrieve the subscription object from Stripe
-  const subscription = await stripe.subscriptions.retrieve(subscriptionId);
-
-  // Map Stripe's subscription data to your Prisma models
-  const status = subscription.status;
-  const priceId = subscription.items.data[0]?.price?.id ?? null;
-  const currentPeriodEnd = subscription.current_period_end
-    ? new Date(subscription.current_period_end * 1000)
-    : null;
-  const cancelAtPeriodEnd = subscription.cancel_at_period_end;
-
-  // Perform database operations within a transaction for data integrity
-  await db.$transaction(async (tx) => {
-    // Upsert StripeCustomer
-    await tx.stripeCustomer.upsert({
-      where: { id: customerId },
-      update: {
-        email: customerEmail,
-        name: customerName,
-        // updatedAt is handled automatically
-      },
-      create: {
-        id: customerId,
-        userId: userId,
-        email: customerEmail,
-        name: customerName,
-      },
-    });
-
-    // Upsert StripeSubscription
-    await tx.stripeSubscription.upsert({
-      where: { id: subscriptionId },
-      update: {
-        status: status,
-        priceId: priceId,
-        currentPeriodEnd: currentPeriodEnd,
-        cancelAtPeriodEnd: cancelAtPeriodEnd,
-        // updatedAt is handled automatically
-      },
-      create: {
-        id: subscriptionId,
-        userId: userId,
-        stripeCustomerId: customerId,
-        status: status,
-        priceId: priceId,
-        currentPeriodEnd: currentPeriodEnd,
-        cancelAtPeriodEnd: cancelAtPeriodEnd,
-      },
-    });
+  await db.stripeCustomer.upsert({
+    where: { id: customerId },
+    update: {
+      email: session.customer_details!.email!,
+      name: session.customer_details!.name!,
+    },
+    create: {
+      id: customerId,
+      userId: userId,
+      email: session.customer_details!.email!,
+      name: session.customer_details!.name!,
+    },
   });
 
-  console.log(`✅ Handled checkout.session.completed for user ${userId}`);
+  console.log(`Checkout completed for user ${userId}`);
+}
+
+async function handleSubscriptionCreated(subscription: Stripe.Subscription) {
+  await handleSubscriptionChange(subscription);
+}
+
+async function handleSubscriptionUpdated(subscription: Stripe.Subscription) {
+  await handleSubscriptionChange(subscription);
+}
+
+async function handleSubscriptionChange(subscription: Stripe.Subscription) {
+  const customerId = subscription.customer as string;
+  const subscriptionId = subscription.id;
+
+  const customer = await db.stripeCustomer.findUnique({
+    where: { id: customerId },
+  });
+
+  if (!customer) {
+    console.error(`No customer found for ID ${customerId}`);
+    return;
+  }
+
+  await db.stripeSubscription.upsert({
+    where: { id: subscriptionId },
+    update: {
+      status: subscription.status,
+      priceId: subscription.items.data[0]!.price.id,
+      currentPeriodEnd: new Date(subscription.current_period_end * 1000),
+      cancelAtPeriodEnd: subscription.cancel_at_period_end,
+    },
+    create: {
+      id: subscriptionId,
+      userId: customer.userId,
+      stripeCustomerId: customerId,
+      status: subscription.status,
+      priceId: subscription.items.data[0]!.price.id,
+      currentPeriodEnd: new Date(subscription.current_period_end * 1000),
+      cancelAtPeriodEnd: subscription.cancel_at_period_end,
+    },
+  });
+
+  console.log(
+    `Subscription ${subscriptionId} created/updated for user ${customer.userId}`,
+  );
+}
+
+async function handleSubscriptionDeleted(subscription: Stripe.Subscription) {
+  const subscriptionId = subscription.id;
+
+  await db.stripeSubscription.delete({
+    where: { id: subscriptionId },
+  });
+
+  console.log(`Subscription ${subscriptionId} deleted`);
+}
+
+async function handleSubscriptionTrialWillEnd(
+  subscription: Stripe.Subscription,
+) {
+  const subscriptionId = subscription.id;
+
+  if (subscription.trial_end === null) {
+    console.log(
+      `Unexpected: Trial end event received for subscription ${subscriptionId} without a trial_end date`,
+    );
+    return;
+  }
+
+  const trialEnd = new Date(subscription.trial_end * 1000);
+
+  await db.stripeSubscription.update({
+    where: { id: subscriptionId },
+    data: { currentPeriodEnd: trialEnd },
+  });
+
+  // TODO: Implement logic to notify the user about trial ending
+  console.log(
+    `Trial ending soon for subscription ${subscriptionId}. Trial ends on ${trialEnd.toLocaleString()}`,
+  );
 }
 
 async function handleInvoicePaid(invoice: Stripe.Invoice) {
   const subscriptionId = invoice.subscription as string;
+  if (!subscriptionId) return;
 
-  // Retrieve the subscription from Stripe to get the latest details
   const subscription = await stripe.subscriptions.retrieve(subscriptionId);
 
-  const status = subscription.status;
-  const currentPeriodEnd = subscription.current_period_end
-    ? new Date(subscription.current_period_end * 1000)
-    : null;
-
-  // Update the subscription in your database
   await db.stripeSubscription.update({
     where: { id: subscriptionId },
     data: {
-      status: status,
-      currentPeriodEnd: currentPeriodEnd,
-      // Update other fields if necessary
+      status: subscription.status,
+      currentPeriodEnd: new Date(subscription.current_period_end * 1000),
     },
   });
 
-  console.log(`✅ Handled invoice.paid for subscription ${subscriptionId}`);
+  console.log(`Invoice paid for subscription ${subscriptionId}`);
 }
 
 async function handleInvoicePaymentFailed(invoice: Stripe.Invoice) {
   const subscriptionId = invoice.subscription as string;
-
-  // Optionally, you can implement retry logic or mark the subscription as past due
-  // For simplicity, we'll update the status to 'past_due'
+  if (!subscriptionId) return;
 
   await db.stripeSubscription.update({
     where: { id: subscriptionId },
-    data: {
-      status: "past_due", // Ensure this matches your Prisma model's expected status values
-      // Update other fields if necessary
-    },
+    data: { status: "past_due" },
   });
 
-  // Optionally, notify the customer via email or other channels
-  console.log(
-    `⚠️  Payment failed for subscription ${subscriptionId}. Status updated to past_due.`,
-  );
+  // TODO: Implement logic to notify the user about payment failure
+  console.log(`Payment failed for subscription ${subscriptionId}`);
 }

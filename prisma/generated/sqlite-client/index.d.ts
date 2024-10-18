@@ -7035,8 +7035,8 @@ export namespace Prisma {
   export type StripeCustomerGroupByOutputType = {
     id: string
     userId: string
-    email: string | null
-    name: string | null
+    email: string
+    name: string
     createdAt: Date
     updatedAt: Date
     _count: StripeCustomerCountAggregateOutputType | null
@@ -7107,8 +7107,8 @@ export namespace Prisma {
     scalars: $Extensions.GetPayloadResult<{
       id: string
       userId: string
-      email: string | null
-      name: string | null
+      email: string
+      name: string
       createdAt: Date
       updatedAt: Date
     }, ExtArgs["result"]["stripeCustomer"]>
@@ -8023,9 +8023,9 @@ export namespace Prisma {
     id: string
     userId: string
     stripeCustomerId: string
-    status: string | null
-    priceId: string | null
-    currentPeriodEnd: Date | null
+    status: string
+    priceId: string
+    currentPeriodEnd: Date
     cancelAtPeriodEnd: boolean
     createdAt: Date
     updatedAt: Date
@@ -8107,9 +8107,9 @@ export namespace Prisma {
       id: string
       userId: string
       stripeCustomerId: string
-      status: string | null
-      priceId: string | null
-      currentPeriodEnd: Date | null
+      status: string
+      priceId: string
+      currentPeriodEnd: Date
       cancelAtPeriodEnd: boolean
       createdAt: Date
       updatedAt: Date
@@ -10546,8 +10546,8 @@ export namespace Prisma {
     NOT?: StripeCustomerWhereInput | StripeCustomerWhereInput[]
     id?: StringFilter<"StripeCustomer"> | string
     userId?: StringFilter<"StripeCustomer"> | string
-    email?: StringNullableFilter<"StripeCustomer"> | string | null
-    name?: StringNullableFilter<"StripeCustomer"> | string | null
+    email?: StringFilter<"StripeCustomer"> | string
+    name?: StringFilter<"StripeCustomer"> | string
     createdAt?: DateTimeFilter<"StripeCustomer"> | Date | string
     updatedAt?: DateTimeFilter<"StripeCustomer"> | Date | string
     user?: XOR<UserRelationFilter, UserWhereInput>
@@ -10557,8 +10557,8 @@ export namespace Prisma {
   export type StripeCustomerOrderByWithRelationInput = {
     id?: SortOrder
     userId?: SortOrder
-    email?: SortOrderInput | SortOrder
-    name?: SortOrderInput | SortOrder
+    email?: SortOrder
+    name?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
     user?: UserOrderByWithRelationInput
@@ -10571,8 +10571,8 @@ export namespace Prisma {
     AND?: StripeCustomerWhereInput | StripeCustomerWhereInput[]
     OR?: StripeCustomerWhereInput[]
     NOT?: StripeCustomerWhereInput | StripeCustomerWhereInput[]
-    email?: StringNullableFilter<"StripeCustomer"> | string | null
-    name?: StringNullableFilter<"StripeCustomer"> | string | null
+    email?: StringFilter<"StripeCustomer"> | string
+    name?: StringFilter<"StripeCustomer"> | string
     createdAt?: DateTimeFilter<"StripeCustomer"> | Date | string
     updatedAt?: DateTimeFilter<"StripeCustomer"> | Date | string
     user?: XOR<UserRelationFilter, UserWhereInput>
@@ -10582,8 +10582,8 @@ export namespace Prisma {
   export type StripeCustomerOrderByWithAggregationInput = {
     id?: SortOrder
     userId?: SortOrder
-    email?: SortOrderInput | SortOrder
-    name?: SortOrderInput | SortOrder
+    email?: SortOrder
+    name?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
     _count?: StripeCustomerCountOrderByAggregateInput
@@ -10597,8 +10597,8 @@ export namespace Prisma {
     NOT?: StripeCustomerScalarWhereWithAggregatesInput | StripeCustomerScalarWhereWithAggregatesInput[]
     id?: StringWithAggregatesFilter<"StripeCustomer"> | string
     userId?: StringWithAggregatesFilter<"StripeCustomer"> | string
-    email?: StringNullableWithAggregatesFilter<"StripeCustomer"> | string | null
-    name?: StringNullableWithAggregatesFilter<"StripeCustomer"> | string | null
+    email?: StringWithAggregatesFilter<"StripeCustomer"> | string
+    name?: StringWithAggregatesFilter<"StripeCustomer"> | string
     createdAt?: DateTimeWithAggregatesFilter<"StripeCustomer"> | Date | string
     updatedAt?: DateTimeWithAggregatesFilter<"StripeCustomer"> | Date | string
   }
@@ -10610,9 +10610,9 @@ export namespace Prisma {
     id?: StringFilter<"StripeSubscription"> | string
     userId?: StringFilter<"StripeSubscription"> | string
     stripeCustomerId?: StringFilter<"StripeSubscription"> | string
-    status?: StringNullableFilter<"StripeSubscription"> | string | null
-    priceId?: StringNullableFilter<"StripeSubscription"> | string | null
-    currentPeriodEnd?: DateTimeNullableFilter<"StripeSubscription"> | Date | string | null
+    status?: StringFilter<"StripeSubscription"> | string
+    priceId?: StringFilter<"StripeSubscription"> | string
+    currentPeriodEnd?: DateTimeFilter<"StripeSubscription"> | Date | string
     cancelAtPeriodEnd?: BoolFilter<"StripeSubscription"> | boolean
     createdAt?: DateTimeFilter<"StripeSubscription"> | Date | string
     updatedAt?: DateTimeFilter<"StripeSubscription"> | Date | string
@@ -10624,9 +10624,9 @@ export namespace Prisma {
     id?: SortOrder
     userId?: SortOrder
     stripeCustomerId?: SortOrder
-    status?: SortOrderInput | SortOrder
-    priceId?: SortOrderInput | SortOrder
-    currentPeriodEnd?: SortOrderInput | SortOrder
+    status?: SortOrder
+    priceId?: SortOrder
+    currentPeriodEnd?: SortOrder
     cancelAtPeriodEnd?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
@@ -10641,9 +10641,9 @@ export namespace Prisma {
     AND?: StripeSubscriptionWhereInput | StripeSubscriptionWhereInput[]
     OR?: StripeSubscriptionWhereInput[]
     NOT?: StripeSubscriptionWhereInput | StripeSubscriptionWhereInput[]
-    status?: StringNullableFilter<"StripeSubscription"> | string | null
-    priceId?: StringNullableFilter<"StripeSubscription"> | string | null
-    currentPeriodEnd?: DateTimeNullableFilter<"StripeSubscription"> | Date | string | null
+    status?: StringFilter<"StripeSubscription"> | string
+    priceId?: StringFilter<"StripeSubscription"> | string
+    currentPeriodEnd?: DateTimeFilter<"StripeSubscription"> | Date | string
     cancelAtPeriodEnd?: BoolFilter<"StripeSubscription"> | boolean
     createdAt?: DateTimeFilter<"StripeSubscription"> | Date | string
     updatedAt?: DateTimeFilter<"StripeSubscription"> | Date | string
@@ -10655,9 +10655,9 @@ export namespace Prisma {
     id?: SortOrder
     userId?: SortOrder
     stripeCustomerId?: SortOrder
-    status?: SortOrderInput | SortOrder
-    priceId?: SortOrderInput | SortOrder
-    currentPeriodEnd?: SortOrderInput | SortOrder
+    status?: SortOrder
+    priceId?: SortOrder
+    currentPeriodEnd?: SortOrder
     cancelAtPeriodEnd?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
@@ -10673,9 +10673,9 @@ export namespace Prisma {
     id?: StringWithAggregatesFilter<"StripeSubscription"> | string
     userId?: StringWithAggregatesFilter<"StripeSubscription"> | string
     stripeCustomerId?: StringWithAggregatesFilter<"StripeSubscription"> | string
-    status?: StringNullableWithAggregatesFilter<"StripeSubscription"> | string | null
-    priceId?: StringNullableWithAggregatesFilter<"StripeSubscription"> | string | null
-    currentPeriodEnd?: DateTimeNullableWithAggregatesFilter<"StripeSubscription"> | Date | string | null
+    status?: StringWithAggregatesFilter<"StripeSubscription"> | string
+    priceId?: StringWithAggregatesFilter<"StripeSubscription"> | string
+    currentPeriodEnd?: DateTimeWithAggregatesFilter<"StripeSubscription"> | Date | string
     cancelAtPeriodEnd?: BoolWithAggregatesFilter<"StripeSubscription"> | boolean
     createdAt?: DateTimeWithAggregatesFilter<"StripeSubscription"> | Date | string
     updatedAt?: DateTimeWithAggregatesFilter<"StripeSubscription"> | Date | string
@@ -11259,8 +11259,8 @@ export namespace Prisma {
 
   export type StripeCustomerCreateInput = {
     id: string
-    email?: string | null
-    name?: string | null
+    email: string
+    name: string
     createdAt?: Date | string
     updatedAt?: Date | string
     user: UserCreateNestedOneWithoutStripeCustomerInput
@@ -11270,8 +11270,8 @@ export namespace Prisma {
   export type StripeCustomerUncheckedCreateInput = {
     id: string
     userId: string
-    email?: string | null
-    name?: string | null
+    email: string
+    name: string
     createdAt?: Date | string
     updatedAt?: Date | string
     stripeSubscriptions?: StripeSubscriptionUncheckedCreateNestedManyWithoutCustomerInput
@@ -11279,8 +11279,8 @@ export namespace Prisma {
 
   export type StripeCustomerUpdateInput = {
     id?: StringFieldUpdateOperationsInput | string
-    email?: NullableStringFieldUpdateOperationsInput | string | null
-    name?: NullableStringFieldUpdateOperationsInput | string | null
+    email?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     user?: UserUpdateOneRequiredWithoutStripeCustomerNestedInput
@@ -11290,8 +11290,8 @@ export namespace Prisma {
   export type StripeCustomerUncheckedUpdateInput = {
     id?: StringFieldUpdateOperationsInput | string
     userId?: StringFieldUpdateOperationsInput | string
-    email?: NullableStringFieldUpdateOperationsInput | string | null
-    name?: NullableStringFieldUpdateOperationsInput | string | null
+    email?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     stripeSubscriptions?: StripeSubscriptionUncheckedUpdateManyWithoutCustomerNestedInput
@@ -11300,16 +11300,16 @@ export namespace Prisma {
   export type StripeCustomerCreateManyInput = {
     id: string
     userId: string
-    email?: string | null
-    name?: string | null
+    email: string
+    name: string
     createdAt?: Date | string
     updatedAt?: Date | string
   }
 
   export type StripeCustomerUpdateManyMutationInput = {
     id?: StringFieldUpdateOperationsInput | string
-    email?: NullableStringFieldUpdateOperationsInput | string | null
-    name?: NullableStringFieldUpdateOperationsInput | string | null
+    email?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
@@ -11317,17 +11317,17 @@ export namespace Prisma {
   export type StripeCustomerUncheckedUpdateManyInput = {
     id?: StringFieldUpdateOperationsInput | string
     userId?: StringFieldUpdateOperationsInput | string
-    email?: NullableStringFieldUpdateOperationsInput | string | null
-    name?: NullableStringFieldUpdateOperationsInput | string | null
+    email?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
 
   export type StripeSubscriptionCreateInput = {
     id: string
-    status?: string | null
-    priceId?: string | null
-    currentPeriodEnd?: Date | string | null
+    status: string
+    priceId: string
+    currentPeriodEnd: Date | string
     cancelAtPeriodEnd?: boolean
     createdAt?: Date | string
     updatedAt?: Date | string
@@ -11339,9 +11339,9 @@ export namespace Prisma {
     id: string
     userId: string
     stripeCustomerId: string
-    status?: string | null
-    priceId?: string | null
-    currentPeriodEnd?: Date | string | null
+    status: string
+    priceId: string
+    currentPeriodEnd: Date | string
     cancelAtPeriodEnd?: boolean
     createdAt?: Date | string
     updatedAt?: Date | string
@@ -11349,9 +11349,9 @@ export namespace Prisma {
 
   export type StripeSubscriptionUpdateInput = {
     id?: StringFieldUpdateOperationsInput | string
-    status?: NullableStringFieldUpdateOperationsInput | string | null
-    priceId?: NullableStringFieldUpdateOperationsInput | string | null
-    currentPeriodEnd?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    status?: StringFieldUpdateOperationsInput | string
+    priceId?: StringFieldUpdateOperationsInput | string
+    currentPeriodEnd?: DateTimeFieldUpdateOperationsInput | Date | string
     cancelAtPeriodEnd?: BoolFieldUpdateOperationsInput | boolean
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -11363,9 +11363,9 @@ export namespace Prisma {
     id?: StringFieldUpdateOperationsInput | string
     userId?: StringFieldUpdateOperationsInput | string
     stripeCustomerId?: StringFieldUpdateOperationsInput | string
-    status?: NullableStringFieldUpdateOperationsInput | string | null
-    priceId?: NullableStringFieldUpdateOperationsInput | string | null
-    currentPeriodEnd?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    status?: StringFieldUpdateOperationsInput | string
+    priceId?: StringFieldUpdateOperationsInput | string
+    currentPeriodEnd?: DateTimeFieldUpdateOperationsInput | Date | string
     cancelAtPeriodEnd?: BoolFieldUpdateOperationsInput | boolean
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -11375,9 +11375,9 @@ export namespace Prisma {
     id: string
     userId: string
     stripeCustomerId: string
-    status?: string | null
-    priceId?: string | null
-    currentPeriodEnd?: Date | string | null
+    status: string
+    priceId: string
+    currentPeriodEnd: Date | string
     cancelAtPeriodEnd?: boolean
     createdAt?: Date | string
     updatedAt?: Date | string
@@ -11385,9 +11385,9 @@ export namespace Prisma {
 
   export type StripeSubscriptionUpdateManyMutationInput = {
     id?: StringFieldUpdateOperationsInput | string
-    status?: NullableStringFieldUpdateOperationsInput | string | null
-    priceId?: NullableStringFieldUpdateOperationsInput | string | null
-    currentPeriodEnd?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    status?: StringFieldUpdateOperationsInput | string
+    priceId?: StringFieldUpdateOperationsInput | string
+    currentPeriodEnd?: DateTimeFieldUpdateOperationsInput | Date | string
     cancelAtPeriodEnd?: BoolFieldUpdateOperationsInput | boolean
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -11397,9 +11397,9 @@ export namespace Prisma {
     id?: StringFieldUpdateOperationsInput | string
     userId?: StringFieldUpdateOperationsInput | string
     stripeCustomerId?: StringFieldUpdateOperationsInput | string
-    status?: NullableStringFieldUpdateOperationsInput | string | null
-    priceId?: NullableStringFieldUpdateOperationsInput | string | null
-    currentPeriodEnd?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    status?: StringFieldUpdateOperationsInput | string
+    priceId?: StringFieldUpdateOperationsInput | string
+    currentPeriodEnd?: DateTimeFieldUpdateOperationsInput | Date | string
     cancelAtPeriodEnd?: BoolFieldUpdateOperationsInput | boolean
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -11949,17 +11949,6 @@ export namespace Prisma {
     updatedAt?: SortOrder
   }
 
-  export type DateTimeNullableFilter<$PrismaModel = never> = {
-    equals?: Date | string | DateTimeFieldRefInput<$PrismaModel> | null
-    in?: Date[] | string[] | null
-    notIn?: Date[] | string[] | null
-    lt?: Date | string | DateTimeFieldRefInput<$PrismaModel>
-    lte?: Date | string | DateTimeFieldRefInput<$PrismaModel>
-    gt?: Date | string | DateTimeFieldRefInput<$PrismaModel>
-    gte?: Date | string | DateTimeFieldRefInput<$PrismaModel>
-    not?: NestedDateTimeNullableFilter<$PrismaModel> | Date | string | null
-  }
-
   export type BoolFilter<$PrismaModel = never> = {
     equals?: boolean | BooleanFieldRefInput<$PrismaModel>
     not?: NestedBoolFilter<$PrismaModel> | boolean
@@ -12004,20 +11993,6 @@ export namespace Prisma {
     cancelAtPeriodEnd?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
-  }
-
-  export type DateTimeNullableWithAggregatesFilter<$PrismaModel = never> = {
-    equals?: Date | string | DateTimeFieldRefInput<$PrismaModel> | null
-    in?: Date[] | string[] | null
-    notIn?: Date[] | string[] | null
-    lt?: Date | string | DateTimeFieldRefInput<$PrismaModel>
-    lte?: Date | string | DateTimeFieldRefInput<$PrismaModel>
-    gt?: Date | string | DateTimeFieldRefInput<$PrismaModel>
-    gte?: Date | string | DateTimeFieldRefInput<$PrismaModel>
-    not?: NestedDateTimeNullableWithAggregatesFilter<$PrismaModel> | Date | string | null
-    _count?: NestedIntNullableFilter<$PrismaModel>
-    _min?: NestedDateTimeNullableFilter<$PrismaModel>
-    _max?: NestedDateTimeNullableFilter<$PrismaModel>
   }
 
   export type BoolWithAggregatesFilter<$PrismaModel = never> = {
@@ -12448,10 +12423,6 @@ export namespace Prisma {
     connect?: UserWhereUniqueInput
   }
 
-  export type NullableDateTimeFieldUpdateOperationsInput = {
-    set?: Date | string | null
-  }
-
   export type BoolFieldUpdateOperationsInput = {
     set?: boolean
   }
@@ -12815,34 +12786,9 @@ export namespace Prisma {
     not?: NestedFloatFilter<$PrismaModel> | number
   }
 
-  export type NestedDateTimeNullableFilter<$PrismaModel = never> = {
-    equals?: Date | string | DateTimeFieldRefInput<$PrismaModel> | null
-    in?: Date[] | string[] | null
-    notIn?: Date[] | string[] | null
-    lt?: Date | string | DateTimeFieldRefInput<$PrismaModel>
-    lte?: Date | string | DateTimeFieldRefInput<$PrismaModel>
-    gt?: Date | string | DateTimeFieldRefInput<$PrismaModel>
-    gte?: Date | string | DateTimeFieldRefInput<$PrismaModel>
-    not?: NestedDateTimeNullableFilter<$PrismaModel> | Date | string | null
-  }
-
   export type NestedBoolFilter<$PrismaModel = never> = {
     equals?: boolean | BooleanFieldRefInput<$PrismaModel>
     not?: NestedBoolFilter<$PrismaModel> | boolean
-  }
-
-  export type NestedDateTimeNullableWithAggregatesFilter<$PrismaModel = never> = {
-    equals?: Date | string | DateTimeFieldRefInput<$PrismaModel> | null
-    in?: Date[] | string[] | null
-    notIn?: Date[] | string[] | null
-    lt?: Date | string | DateTimeFieldRefInput<$PrismaModel>
-    lte?: Date | string | DateTimeFieldRefInput<$PrismaModel>
-    gt?: Date | string | DateTimeFieldRefInput<$PrismaModel>
-    gte?: Date | string | DateTimeFieldRefInput<$PrismaModel>
-    not?: NestedDateTimeNullableWithAggregatesFilter<$PrismaModel> | Date | string | null
-    _count?: NestedIntNullableFilter<$PrismaModel>
-    _min?: NestedDateTimeNullableFilter<$PrismaModel>
-    _max?: NestedDateTimeNullableFilter<$PrismaModel>
   }
 
   export type NestedBoolWithAggregatesFilter<$PrismaModel = never> = {
@@ -13625,9 +13571,9 @@ export namespace Prisma {
 
   export type StripeSubscriptionCreateWithoutCustomerInput = {
     id: string
-    status?: string | null
-    priceId?: string | null
-    currentPeriodEnd?: Date | string | null
+    status: string
+    priceId: string
+    currentPeriodEnd: Date | string
     cancelAtPeriodEnd?: boolean
     createdAt?: Date | string
     updatedAt?: Date | string
@@ -13637,9 +13583,9 @@ export namespace Prisma {
   export type StripeSubscriptionUncheckedCreateWithoutCustomerInput = {
     id: string
     userId: string
-    status?: string | null
-    priceId?: string | null
-    currentPeriodEnd?: Date | string | null
+    status: string
+    priceId: string
+    currentPeriodEnd: Date | string
     cancelAtPeriodEnd?: boolean
     createdAt?: Date | string
     updatedAt?: Date | string
@@ -13716,9 +13662,9 @@ export namespace Prisma {
     id?: StringFilter<"StripeSubscription"> | string
     userId?: StringFilter<"StripeSubscription"> | string
     stripeCustomerId?: StringFilter<"StripeSubscription"> | string
-    status?: StringNullableFilter<"StripeSubscription"> | string | null
-    priceId?: StringNullableFilter<"StripeSubscription"> | string | null
-    currentPeriodEnd?: DateTimeNullableFilter<"StripeSubscription"> | Date | string | null
+    status?: StringFilter<"StripeSubscription"> | string
+    priceId?: StringFilter<"StripeSubscription"> | string
+    currentPeriodEnd?: DateTimeFilter<"StripeSubscription"> | Date | string
     cancelAtPeriodEnd?: BoolFilter<"StripeSubscription"> | boolean
     createdAt?: DateTimeFilter<"StripeSubscription"> | Date | string
     updatedAt?: DateTimeFilter<"StripeSubscription"> | Date | string
@@ -13726,8 +13672,8 @@ export namespace Prisma {
 
   export type StripeCustomerCreateWithoutStripeSubscriptionsInput = {
     id: string
-    email?: string | null
-    name?: string | null
+    email: string
+    name: string
     createdAt?: Date | string
     updatedAt?: Date | string
     user: UserCreateNestedOneWithoutStripeCustomerInput
@@ -13736,8 +13682,8 @@ export namespace Prisma {
   export type StripeCustomerUncheckedCreateWithoutStripeSubscriptionsInput = {
     id: string
     userId: string
-    email?: string | null
-    name?: string | null
+    email: string
+    name: string
     createdAt?: Date | string
     updatedAt?: Date | string
   }
@@ -13793,8 +13739,8 @@ export namespace Prisma {
 
   export type StripeCustomerUpdateWithoutStripeSubscriptionsInput = {
     id?: StringFieldUpdateOperationsInput | string
-    email?: NullableStringFieldUpdateOperationsInput | string | null
-    name?: NullableStringFieldUpdateOperationsInput | string | null
+    email?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     user?: UserUpdateOneRequiredWithoutStripeCustomerNestedInput
@@ -13803,8 +13749,8 @@ export namespace Prisma {
   export type StripeCustomerUncheckedUpdateWithoutStripeSubscriptionsInput = {
     id?: StringFieldUpdateOperationsInput | string
     userId?: StringFieldUpdateOperationsInput | string
-    email?: NullableStringFieldUpdateOperationsInput | string | null
-    name?: NullableStringFieldUpdateOperationsInput | string | null
+    email?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
@@ -13914,8 +13860,8 @@ export namespace Prisma {
 
   export type StripeCustomerCreateWithoutUserInput = {
     id: string
-    email?: string | null
-    name?: string | null
+    email: string
+    name: string
     createdAt?: Date | string
     updatedAt?: Date | string
     stripeSubscriptions?: StripeSubscriptionCreateNestedManyWithoutCustomerInput
@@ -13923,8 +13869,8 @@ export namespace Prisma {
 
   export type StripeCustomerUncheckedCreateWithoutUserInput = {
     id: string
-    email?: string | null
-    name?: string | null
+    email: string
+    name: string
     createdAt?: Date | string
     updatedAt?: Date | string
     stripeSubscriptions?: StripeSubscriptionUncheckedCreateNestedManyWithoutCustomerInput
@@ -13937,9 +13883,9 @@ export namespace Prisma {
 
   export type StripeSubscriptionCreateWithoutUserInput = {
     id: string
-    status?: string | null
-    priceId?: string | null
-    currentPeriodEnd?: Date | string | null
+    status: string
+    priceId: string
+    currentPeriodEnd: Date | string
     cancelAtPeriodEnd?: boolean
     createdAt?: Date | string
     updatedAt?: Date | string
@@ -13949,9 +13895,9 @@ export namespace Prisma {
   export type StripeSubscriptionUncheckedCreateWithoutUserInput = {
     id: string
     stripeCustomerId: string
-    status?: string | null
-    priceId?: string | null
-    currentPeriodEnd?: Date | string | null
+    status: string
+    priceId: string
+    currentPeriodEnd: Date | string
     cancelAtPeriodEnd?: boolean
     createdAt?: Date | string
     updatedAt?: Date | string
@@ -14047,8 +13993,8 @@ export namespace Prisma {
 
   export type StripeCustomerUpdateWithoutUserInput = {
     id?: StringFieldUpdateOperationsInput | string
-    email?: NullableStringFieldUpdateOperationsInput | string | null
-    name?: NullableStringFieldUpdateOperationsInput | string | null
+    email?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     stripeSubscriptions?: StripeSubscriptionUpdateManyWithoutCustomerNestedInput
@@ -14056,8 +14002,8 @@ export namespace Prisma {
 
   export type StripeCustomerUncheckedUpdateWithoutUserInput = {
     id?: StringFieldUpdateOperationsInput | string
-    email?: NullableStringFieldUpdateOperationsInput | string | null
-    name?: NullableStringFieldUpdateOperationsInput | string | null
+    email?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     stripeSubscriptions?: StripeSubscriptionUncheckedUpdateManyWithoutCustomerNestedInput
@@ -14076,9 +14022,9 @@ export namespace Prisma {
 
   export type StripeSubscriptionUpdateWithoutUserInput = {
     id?: StringFieldUpdateOperationsInput | string
-    status?: NullableStringFieldUpdateOperationsInput | string | null
-    priceId?: NullableStringFieldUpdateOperationsInput | string | null
-    currentPeriodEnd?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    status?: StringFieldUpdateOperationsInput | string
+    priceId?: StringFieldUpdateOperationsInput | string
+    currentPeriodEnd?: DateTimeFieldUpdateOperationsInput | Date | string
     cancelAtPeriodEnd?: BoolFieldUpdateOperationsInput | boolean
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -14088,9 +14034,9 @@ export namespace Prisma {
   export type StripeSubscriptionUncheckedUpdateWithoutUserInput = {
     id?: StringFieldUpdateOperationsInput | string
     stripeCustomerId?: StringFieldUpdateOperationsInput | string
-    status?: NullableStringFieldUpdateOperationsInput | string | null
-    priceId?: NullableStringFieldUpdateOperationsInput | string | null
-    currentPeriodEnd?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    status?: StringFieldUpdateOperationsInput | string
+    priceId?: StringFieldUpdateOperationsInput | string
+    currentPeriodEnd?: DateTimeFieldUpdateOperationsInput | Date | string
     cancelAtPeriodEnd?: BoolFieldUpdateOperationsInput | boolean
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -14304,9 +14250,9 @@ export namespace Prisma {
   export type StripeSubscriptionCreateManyCustomerInput = {
     id: string
     userId: string
-    status?: string | null
-    priceId?: string | null
-    currentPeriodEnd?: Date | string | null
+    status: string
+    priceId: string
+    currentPeriodEnd: Date | string
     cancelAtPeriodEnd?: boolean
     createdAt?: Date | string
     updatedAt?: Date | string
@@ -14314,9 +14260,9 @@ export namespace Prisma {
 
   export type StripeSubscriptionUpdateWithoutCustomerInput = {
     id?: StringFieldUpdateOperationsInput | string
-    status?: NullableStringFieldUpdateOperationsInput | string | null
-    priceId?: NullableStringFieldUpdateOperationsInput | string | null
-    currentPeriodEnd?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    status?: StringFieldUpdateOperationsInput | string
+    priceId?: StringFieldUpdateOperationsInput | string
+    currentPeriodEnd?: DateTimeFieldUpdateOperationsInput | Date | string
     cancelAtPeriodEnd?: BoolFieldUpdateOperationsInput | boolean
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -14326,9 +14272,9 @@ export namespace Prisma {
   export type StripeSubscriptionUncheckedUpdateWithoutCustomerInput = {
     id?: StringFieldUpdateOperationsInput | string
     userId?: StringFieldUpdateOperationsInput | string
-    status?: NullableStringFieldUpdateOperationsInput | string | null
-    priceId?: NullableStringFieldUpdateOperationsInput | string | null
-    currentPeriodEnd?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    status?: StringFieldUpdateOperationsInput | string
+    priceId?: StringFieldUpdateOperationsInput | string
+    currentPeriodEnd?: DateTimeFieldUpdateOperationsInput | Date | string
     cancelAtPeriodEnd?: BoolFieldUpdateOperationsInput | boolean
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -14337,9 +14283,9 @@ export namespace Prisma {
   export type StripeSubscriptionUncheckedUpdateManyWithoutCustomerInput = {
     id?: StringFieldUpdateOperationsInput | string
     userId?: StringFieldUpdateOperationsInput | string
-    status?: NullableStringFieldUpdateOperationsInput | string | null
-    priceId?: NullableStringFieldUpdateOperationsInput | string | null
-    currentPeriodEnd?: NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+    status?: StringFieldUpdateOperationsInput | string
+    priceId?: StringFieldUpdateOperationsInput | string
+    currentPeriodEnd?: DateTimeFieldUpdateOperationsInput | Date | string
     cancelAtPeriodEnd?: BoolFieldUpdateOperationsInput | boolean
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
