@@ -5,15 +5,15 @@
   "type": "module",
   "scripts": {
     "build": "next build",
-    "db:generate": "prisma migrate dev",
-    "db:migrate": "prisma migrate deploy",
-    "db:push": "prisma db push",
-    "db:studio": "prisma studio",
     "dev": "next dev && start-tunnel",
     "postinstall": "prisma generate",
     "lint": "next lint",
     "start": "next start",
-    "start-tunnel": "lt --subdomain new-daylily-catalog-dev --port 3000"
+    "start-tunnel": "lt --subdomain new-daylily-catalog-dev --port 3000",
+    "db:push:dev": "npx dotenv -e .env.development -- prisma db push",
+    "db:push:prod": "npx dotenv -e .env.production -- prisma db push",
+    "db:studio:dev": "npx dotenv -e .env.development -- prisma studio",
+    "db:studio:prod": "npx dotenv -e .env.production -- prisma studio"
   },
   "dependencies": {
     "@clerk/clerk-sdk-node": "^5.0.49",
@@ -24,6 +24,7 @@
     "@trpc/client": "^11.0.0-rc.446",
     "@trpc/react-query": "^11.0.0-rc.446",
     "@trpc/server": "^11.0.0-rc.446",
+    "dotenv": "^16.4.7",
     "geist": "^1.3.0",
     "next": "^14.2.4",
     "react": "^18.3.1",

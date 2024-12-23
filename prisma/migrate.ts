@@ -4,9 +4,23 @@ import { clerkClient, type User } from "@clerk/clerk-sdk-node";
 import { z } from "zod";
 import { setTimeout } from "timers/promises";
 import Stripe from "stripe";
+import { env } from "../src/env.js";
 
-const postgres = new PostgresClient();
-const sqlite = new SQLiteClient();
+const postgres = new PostgresClient({
+  datasources: {
+    db: {
+      url: env.POSTGRES_DATABASE_URL,
+    },
+  },
+});
+
+const sqlite = new SQLiteClient({
+  datasources: {
+    db: {
+      url: env.DATABASE_URL,
+    },
+  },
+});
 
 const clerkUserSchema = z.object({
   id: z.string(),
@@ -57,11 +71,16 @@ async function getOrCreateClerkUser(
   }
 }
 
+const filterOutUserIds = [24, 153, 121, 62];
+
 async function upsertUsers() {
   console.log("Starting user migration...");
   const users = await postgres.users.findMany({
-    take: 10, // TODO: for testing. remove for actual migration
+    ...(env.NODE_ENV === "development" ? { take: 10 } : {}),
     where: {
+      id: {
+        notIn: filterOutUserIds,
+      },
       user_emails: {
         some: {}, // This ensures we only get users with at least one email
       },
@@ -84,17 +103,13 @@ async function upsertUsers() {
       },
     ],
   });
-  const filterOutUserIds = ["24"];
-  const filteredUsers = users.filter(
-    (user) => !filterOutUserIds.includes(user.id.toString()),
-  );
-  console.log(`Found ${filteredUsers.length} users with emails to migrate.`);
+  console.log(`Found ${users.length} users with emails to migrate.`);
 
   // Fetch all Clerk users once
   const allClerkUsers = await fetchAllClerkUsers();
   console.log(`Fetched ${allClerkUsers.length} users from Clerk`);
 
-  const sortedUsers = filteredUsers.sort((a, b) => {
+  const sortedUsers = users.sort((a, b) => {
     const aVerified = a.user_emails.some((email) => email.is_verified);
     const bVerified = b.user_emails.some((email) => email.is_verified);
     if (aVerified && !bVerified) return -1;
@@ -149,7 +164,10 @@ async function upsertUsers() {
 
       successCount++;
     } catch (error) {
-      console.error(`Error processing user ${userId}:`, error);
+      console.error(
+        `Error processing userId:${userId} email:${selectedEmail.email} with ${user.lilies.length} lilies`,
+        error,
+      );
       errorCount++;
     }
   }
@@ -215,7 +233,13 @@ async function upsertAhsListings() {
 
 async function upsertLists() {
   console.log("Starting lists migration...");
-  const lists = await postgres.lists.findMany();
+  const lists = await postgres.lists.findMany({
+    where: {
+      user_id: {
+        notIn: filterOutUserIds,
+      },
+    },
+  });
   console.log(`Found ${lists.length} lists to migrate.`);
 
   let successCount = 0;
@@ -253,7 +277,13 @@ async function upsertLists() {
 
 async function upsertListings() {
   console.log("Starting listings migration...");
-  const lilies = await postgres.lilies.findMany();
+  const lilies = await postgres.lilies.findMany({
+    where: {
+      user_id: {
+        notIn: filterOutUserIds,
+      },
+    },
+  });
   console.log(`Found ${lilies.length} listings to migrate.`);
 
   let successCount = 0;
@@ -347,7 +377,13 @@ async function upsertListings() {
 
 async function upsertUserProfiles() {
   console.log("Starting user profiles migration...");
-  const users = await postgres.users.findMany();
+  const users = await postgres.users.findMany({
+    where: {
+      id: {
+        notIn: filterOutUserIds,
+      },
+    },
+  });
   console.log(`Found ${users.length} users to create profiles for.`);
 
   let successCount = 0;
@@ -437,7 +473,7 @@ async function upsertUserProfiles() {
   console.log(`Failed to create/update: ${imageErrorCount} images`);
 }
 
-const stripe = new Stripe(process.env.PROD_STRIPE_SECRET_KEY!);
+const stripe = new Stripe(env.STRIPE_SECRET_KEY);
 
 async function upsertStripeCustomers() {
   console.log("Starting Stripe customers migration...");
@@ -539,6 +575,7 @@ async function upsertStripeSubscriptions() {
 }
 
 async function main() {
+  console.log(`Running migration in ${env.NODE_ENV} mode`);
   console.log("Starting migration process...");
   const startTime = Date.now();
 

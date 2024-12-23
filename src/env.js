@@ -1,5 +1,14 @@
 import { createEnv } from "@t3-oss/env-nextjs";
 import { z } from "zod";
+import * as dotenv from "dotenv";
+import path from "path";
+
+// Load the appropriate .env file before creating env
+const envFile =
+  process.env.NODE_ENV === "production"
+    ? ".env.production"
+    : ".env.development";
+dotenv.config({ path: path.resolve(process.cwd(), envFile) });
 
 export const env = createEnv({
   /**

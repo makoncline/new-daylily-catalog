@@ -32,9 +32,20 @@ export const createTRPCContext = async (opts: {
   headers: Headers;
   auth: AuthObject;
 }) => {
+  const user = opts.auth.userId
+    ? await db.user.findUnique({
+        where: { clerkUserId: opts.auth.userId },
+        include: {
+          stripeSubscription: true,
+          stripeCustomer: true,
+        },
+      })
+    : null;
+
   return {
     db,
     ...opts,
+    user,
   };
 };
 
@@ -123,6 +134,7 @@ const enforceUserIsAuthed = t.middleware(({ next, ctx }) => {
   return next({
     ctx: {
       auth: ctx.auth,
+      user: ctx.user,
     },
   });
 });

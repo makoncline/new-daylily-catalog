@@ -11,6 +11,14 @@ import {
 } from "@clerk/nextjs";
 
 import { TRPCReactProvider } from "@/trpc/react";
+import dynamic from "next/dynamic";
+
+const StripePortalButton = dynamic(
+  () => import("@/components/StripePortalButton"),
+  {
+    ssr: false,
+  },
+);
 
 export const metadata: Metadata = {
   title: "Create T3 App",
@@ -23,17 +31,20 @@ export default function RootLayout({
 }: Readonly<{ children: React.ReactNode }>) {
   return (
     <ClerkProvider>
-      <html lang="en" className={`${GeistSans.variable}`}>
-        <body>
-          <SignedOut>
-            <SignInButton />
-          </SignedOut>
-          <SignedIn>
-            <UserButton />
-          </SignedIn>
-          <TRPCReactProvider>{children}</TRPCReactProvider>
-        </body>
-      </html>
+      <TRPCReactProvider>
+        <html lang="en" className={`${GeistSans.variable}`}>
+          <body>
+            <SignedOut>
+              <SignInButton />
+            </SignedOut>
+            <SignedIn>
+              <UserButton />
+              <StripePortalButton />
+            </SignedIn>
+            {children}
+          </body>
+        </html>
+      </TRPCReactProvider>
     </ClerkProvider>
   );
 }
