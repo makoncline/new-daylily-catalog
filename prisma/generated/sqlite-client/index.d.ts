@@ -1565,37 +1565,6 @@ export namespace Prisma {
 
 
   /**
-   * Count Type StripeCustomerCountOutputType
-   */
-
-  export type StripeCustomerCountOutputType = {
-    stripeSubscriptions: number
-  }
-
-  export type StripeCustomerCountOutputTypeSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
-    stripeSubscriptions?: boolean | StripeCustomerCountOutputTypeCountStripeSubscriptionsArgs
-  }
-
-  // Custom InputTypes
-  /**
-   * StripeCustomerCountOutputType without action
-   */
-  export type StripeCustomerCountOutputTypeDefaultArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
-    /**
-     * Select specific fields to fetch from the StripeCustomerCountOutputType
-     */
-    select?: StripeCustomerCountOutputTypeSelect<ExtArgs> | null
-  }
-
-  /**
-   * StripeCustomerCountOutputType without action
-   */
-  export type StripeCustomerCountOutputTypeCountStripeSubscriptionsArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
-    where?: StripeSubscriptionWhereInput
-  }
-
-
-  /**
    * Count Type UserCountOutputType
    */
 
@@ -7066,8 +7035,7 @@ export namespace Prisma {
     createdAt?: boolean
     updatedAt?: boolean
     user?: boolean | UserDefaultArgs<ExtArgs>
-    stripeSubscriptions?: boolean | StripeCustomer$stripeSubscriptionsArgs<ExtArgs>
-    _count?: boolean | StripeCustomerCountOutputTypeDefaultArgs<ExtArgs>
+    stripeSubscription?: boolean | StripeCustomer$stripeSubscriptionArgs<ExtArgs>
   }, ExtArgs["result"]["stripeCustomer"]>
 
   export type StripeCustomerSelectCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
@@ -7091,8 +7059,7 @@ export namespace Prisma {
 
   export type StripeCustomerInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     user?: boolean | UserDefaultArgs<ExtArgs>
-    stripeSubscriptions?: boolean | StripeCustomer$stripeSubscriptionsArgs<ExtArgs>
-    _count?: boolean | StripeCustomerCountOutputTypeDefaultArgs<ExtArgs>
+    stripeSubscription?: boolean | StripeCustomer$stripeSubscriptionArgs<ExtArgs>
   }
   export type StripeCustomerIncludeCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     user?: boolean | UserDefaultArgs<ExtArgs>
@@ -7102,7 +7069,7 @@ export namespace Prisma {
     name: "StripeCustomer"
     objects: {
       user: Prisma.$UserPayload<ExtArgs>
-      stripeSubscriptions: Prisma.$StripeSubscriptionPayload<ExtArgs>[]
+      stripeSubscription: Prisma.$StripeSubscriptionPayload<ExtArgs> | null
     }
     scalars: $Extensions.GetPayloadResult<{
       id: string
@@ -7476,7 +7443,7 @@ export namespace Prisma {
   export interface Prisma__StripeCustomerClient<T, Null = never, ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> extends Prisma.PrismaPromise<T> {
     readonly [Symbol.toStringTag]: "PrismaPromise"
     user<T extends UserDefaultArgs<ExtArgs> = {}>(args?: Subset<T, UserDefaultArgs<ExtArgs>>): Prisma__UserClient<$Result.GetResult<Prisma.$UserPayload<ExtArgs>, T, "findUniqueOrThrow"> | Null, Null, ExtArgs>
-    stripeSubscriptions<T extends StripeCustomer$stripeSubscriptionsArgs<ExtArgs> = {}>(args?: Subset<T, StripeCustomer$stripeSubscriptionsArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$StripeSubscriptionPayload<ExtArgs>, T, "findMany"> | Null>
+    stripeSubscription<T extends StripeCustomer$stripeSubscriptionArgs<ExtArgs> = {}>(args?: Subset<T, StripeCustomer$stripeSubscriptionArgs<ExtArgs>>): Prisma__StripeSubscriptionClient<$Result.GetResult<Prisma.$StripeSubscriptionPayload<ExtArgs>, T, "findUniqueOrThrow"> | null, null, ExtArgs>
     /**
      * Attaches callbacks for the resolution and/or rejection of the Promise.
      * @param onfulfilled The callback to execute when the Promise is resolved.
@@ -7828,9 +7795,9 @@ export namespace Prisma {
   }
 
   /**
-   * StripeCustomer.stripeSubscriptions
+   * StripeCustomer.stripeSubscription
    */
-  export type StripeCustomer$stripeSubscriptionsArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+  export type StripeCustomer$stripeSubscriptionArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     /**
      * Select specific fields to fetch from the StripeSubscription
      */
@@ -7840,11 +7807,6 @@ export namespace Prisma {
      */
     include?: StripeSubscriptionInclude<ExtArgs> | null
     where?: StripeSubscriptionWhereInput
-    orderBy?: StripeSubscriptionOrderByWithRelationInput | StripeSubscriptionOrderByWithRelationInput[]
-    cursor?: StripeSubscriptionWhereUniqueInput
-    take?: number
-    skip?: number
-    distinct?: StripeSubscriptionScalarFieldEnum | StripeSubscriptionScalarFieldEnum[]
   }
 
   /**
@@ -10551,7 +10513,7 @@ export namespace Prisma {
     createdAt?: DateTimeFilter<"StripeCustomer"> | Date | string
     updatedAt?: DateTimeFilter<"StripeCustomer"> | Date | string
     user?: XOR<UserRelationFilter, UserWhereInput>
-    stripeSubscriptions?: StripeSubscriptionListRelationFilter
+    stripeSubscription?: XOR<StripeSubscriptionNullableRelationFilter, StripeSubscriptionWhereInput> | null
   }
 
   export type StripeCustomerOrderByWithRelationInput = {
@@ -10562,7 +10524,7 @@ export namespace Prisma {
     createdAt?: SortOrder
     updatedAt?: SortOrder
     user?: UserOrderByWithRelationInput
-    stripeSubscriptions?: StripeSubscriptionOrderByRelationAggregateInput
+    stripeSubscription?: StripeSubscriptionOrderByWithRelationInput
   }
 
   export type StripeCustomerWhereUniqueInput = Prisma.AtLeast<{
@@ -10576,7 +10538,7 @@ export namespace Prisma {
     createdAt?: DateTimeFilter<"StripeCustomer"> | Date | string
     updatedAt?: DateTimeFilter<"StripeCustomer"> | Date | string
     user?: XOR<UserRelationFilter, UserWhereInput>
-    stripeSubscriptions?: StripeSubscriptionListRelationFilter
+    stripeSubscription?: XOR<StripeSubscriptionNullableRelationFilter, StripeSubscriptionWhereInput> | null
   }, "id" | "userId">
 
   export type StripeCustomerOrderByWithAggregationInput = {
@@ -11264,7 +11226,7 @@ export namespace Prisma {
     createdAt?: Date | string
     updatedAt?: Date | string
     user: UserCreateNestedOneWithoutStripeCustomerInput
-    stripeSubscriptions?: StripeSubscriptionCreateNestedManyWithoutCustomerInput
+    stripeSubscription?: StripeSubscriptionCreateNestedOneWithoutCustomerInput
   }
 
   export type StripeCustomerUncheckedCreateInput = {
@@ -11274,7 +11236,7 @@ export namespace Prisma {
     name: string
     createdAt?: Date | string
     updatedAt?: Date | string
-    stripeSubscriptions?: StripeSubscriptionUncheckedCreateNestedManyWithoutCustomerInput
+    stripeSubscription?: StripeSubscriptionUncheckedCreateNestedOneWithoutCustomerInput
   }
 
   export type StripeCustomerUpdateInput = {
@@ -11284,7 +11246,7 @@ export namespace Prisma {
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     user?: UserUpdateOneRequiredWithoutStripeCustomerNestedInput
-    stripeSubscriptions?: StripeSubscriptionUpdateManyWithoutCustomerNestedInput
+    stripeSubscription?: StripeSubscriptionUpdateOneWithoutCustomerNestedInput
   }
 
   export type StripeCustomerUncheckedUpdateInput = {
@@ -11294,7 +11256,7 @@ export namespace Prisma {
     name?: StringFieldUpdateOperationsInput | string
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
-    stripeSubscriptions?: StripeSubscriptionUncheckedUpdateManyWithoutCustomerNestedInput
+    stripeSubscription?: StripeSubscriptionUncheckedUpdateOneWithoutCustomerNestedInput
   }
 
   export type StripeCustomerCreateManyInput = {
@@ -11331,7 +11293,7 @@ export namespace Prisma {
     cancelAtPeriodEnd?: boolean
     createdAt?: Date | string
     updatedAt?: Date | string
-    customer: StripeCustomerCreateNestedOneWithoutStripeSubscriptionsInput
+    customer: StripeCustomerCreateNestedOneWithoutStripeSubscriptionInput
     user: UserCreateNestedOneWithoutStripeSubscriptionInput
   }
 
@@ -11355,7 +11317,7 @@ export namespace Prisma {
     cancelAtPeriodEnd?: BoolFieldUpdateOperationsInput | boolean
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
-    customer?: StripeCustomerUpdateOneRequiredWithoutStripeSubscriptionsNestedInput
+    customer?: StripeCustomerUpdateOneRequiredWithoutStripeSubscriptionNestedInput
     user?: UserUpdateOneRequiredWithoutStripeSubscriptionNestedInput
   }
 
@@ -11912,14 +11874,9 @@ export namespace Prisma {
     _max?: NestedIntFilter<$PrismaModel>
   }
 
-  export type StripeSubscriptionListRelationFilter = {
-    every?: StripeSubscriptionWhereInput
-    some?: StripeSubscriptionWhereInput
-    none?: StripeSubscriptionWhereInput
-  }
-
-  export type StripeSubscriptionOrderByRelationAggregateInput = {
-    _count?: SortOrder
+  export type StripeSubscriptionNullableRelationFilter = {
+    is?: StripeSubscriptionWhereInput | null
+    isNot?: StripeSubscriptionWhereInput | null
   }
 
   export type StripeCustomerCountOrderByAggregateInput = {
@@ -12012,11 +11969,6 @@ export namespace Prisma {
   export type StripeCustomerNullableRelationFilter = {
     is?: StripeCustomerWhereInput | null
     isNot?: StripeCustomerWhereInput | null
-  }
-
-  export type StripeSubscriptionNullableRelationFilter = {
-    is?: StripeSubscriptionWhereInput | null
-    isNot?: StripeSubscriptionWhereInput | null
   }
 
   export type ListOrderByRelationAggregateInput = {
@@ -12361,18 +12313,16 @@ export namespace Prisma {
     connect?: UserWhereUniqueInput
   }
 
-  export type StripeSubscriptionCreateNestedManyWithoutCustomerInput = {
-    create?: XOR<StripeSubscriptionCreateWithoutCustomerInput, StripeSubscriptionUncheckedCreateWithoutCustomerInput> | StripeSubscriptionCreateWithoutCustomerInput[] | StripeSubscriptionUncheckedCreateWithoutCustomerInput[]
-    connectOrCreate?: StripeSubscriptionCreateOrConnectWithoutCustomerInput | StripeSubscriptionCreateOrConnectWithoutCustomerInput[]
-    createMany?: StripeSubscriptionCreateManyCustomerInputEnvelope
-    connect?: StripeSubscriptionWhereUniqueInput | StripeSubscriptionWhereUniqueInput[]
+  export type StripeSubscriptionCreateNestedOneWithoutCustomerInput = {
+    create?: XOR<StripeSubscriptionCreateWithoutCustomerInput, StripeSubscriptionUncheckedCreateWithoutCustomerInput>
+    connectOrCreate?: StripeSubscriptionCreateOrConnectWithoutCustomerInput
+    connect?: StripeSubscriptionWhereUniqueInput
   }
 
-  export type StripeSubscriptionUncheckedCreateNestedManyWithoutCustomerInput = {
-    create?: XOR<StripeSubscriptionCreateWithoutCustomerInput, StripeSubscriptionUncheckedCreateWithoutCustomerInput> | StripeSubscriptionCreateWithoutCustomerInput[] | StripeSubscriptionUncheckedCreateWithoutCustomerInput[]
-    connectOrCreate?: StripeSubscriptionCreateOrConnectWithoutCustomerInput | StripeSubscriptionCreateOrConnectWithoutCustomerInput[]
-    createMany?: StripeSubscriptionCreateManyCustomerInputEnvelope
-    connect?: StripeSubscriptionWhereUniqueInput | StripeSubscriptionWhereUniqueInput[]
+  export type StripeSubscriptionUncheckedCreateNestedOneWithoutCustomerInput = {
+    create?: XOR<StripeSubscriptionCreateWithoutCustomerInput, StripeSubscriptionUncheckedCreateWithoutCustomerInput>
+    connectOrCreate?: StripeSubscriptionCreateOrConnectWithoutCustomerInput
+    connect?: StripeSubscriptionWhereUniqueInput
   }
 
   export type UserUpdateOneRequiredWithoutStripeCustomerNestedInput = {
@@ -12383,37 +12333,29 @@ export namespace Prisma {
     update?: XOR<XOR<UserUpdateToOneWithWhereWithoutStripeCustomerInput, UserUpdateWithoutStripeCustomerInput>, UserUncheckedUpdateWithoutStripeCustomerInput>
   }
 
-  export type StripeSubscriptionUpdateManyWithoutCustomerNestedInput = {
-    create?: XOR<StripeSubscriptionCreateWithoutCustomerInput, StripeSubscriptionUncheckedCreateWithoutCustomerInput> | StripeSubscriptionCreateWithoutCustomerInput[] | StripeSubscriptionUncheckedCreateWithoutCustomerInput[]
-    connectOrCreate?: StripeSubscriptionCreateOrConnectWithoutCustomerInput | StripeSubscriptionCreateOrConnectWithoutCustomerInput[]
-    upsert?: StripeSubscriptionUpsertWithWhereUniqueWithoutCustomerInput | StripeSubscriptionUpsertWithWhereUniqueWithoutCustomerInput[]
-    createMany?: StripeSubscriptionCreateManyCustomerInputEnvelope
-    set?: StripeSubscriptionWhereUniqueInput | StripeSubscriptionWhereUniqueInput[]
-    disconnect?: StripeSubscriptionWhereUniqueInput | StripeSubscriptionWhereUniqueInput[]
-    delete?: StripeSubscriptionWhereUniqueInput | StripeSubscriptionWhereUniqueInput[]
-    connect?: StripeSubscriptionWhereUniqueInput | StripeSubscriptionWhereUniqueInput[]
-    update?: StripeSubscriptionUpdateWithWhereUniqueWithoutCustomerInput | StripeSubscriptionUpdateWithWhereUniqueWithoutCustomerInput[]
-    updateMany?: StripeSubscriptionUpdateManyWithWhereWithoutCustomerInput | StripeSubscriptionUpdateManyWithWhereWithoutCustomerInput[]
-    deleteMany?: StripeSubscriptionScalarWhereInput | StripeSubscriptionScalarWhereInput[]
+  export type StripeSubscriptionUpdateOneWithoutCustomerNestedInput = {
+    create?: XOR<StripeSubscriptionCreateWithoutCustomerInput, StripeSubscriptionUncheckedCreateWithoutCustomerInput>
+    connectOrCreate?: StripeSubscriptionCreateOrConnectWithoutCustomerInput
+    upsert?: StripeSubscriptionUpsertWithoutCustomerInput
+    disconnect?: StripeSubscriptionWhereInput | boolean
+    delete?: StripeSubscriptionWhereInput | boolean
+    connect?: StripeSubscriptionWhereUniqueInput
+    update?: XOR<XOR<StripeSubscriptionUpdateToOneWithWhereWithoutCustomerInput, StripeSubscriptionUpdateWithoutCustomerInput>, StripeSubscriptionUncheckedUpdateWithoutCustomerInput>
   }
 
-  export type StripeSubscriptionUncheckedUpdateManyWithoutCustomerNestedInput = {
-    create?: XOR<StripeSubscriptionCreateWithoutCustomerInput, StripeSubscriptionUncheckedCreateWithoutCustomerInput> | StripeSubscriptionCreateWithoutCustomerInput[] | StripeSubscriptionUncheckedCreateWithoutCustomerInput[]
-    connectOrCreate?: StripeSubscriptionCreateOrConnectWithoutCustomerInput | StripeSubscriptionCreateOrConnectWithoutCustomerInput[]
-    upsert?: StripeSubscriptionUpsertWithWhereUniqueWithoutCustomerInput | StripeSubscriptionUpsertWithWhereUniqueWithoutCustomerInput[]
-    createMany?: StripeSubscriptionCreateManyCustomerInputEnvelope
-    set?: StripeSubscriptionWhereUniqueInput | StripeSubscriptionWhereUniqueInput[]
-    disconnect?: StripeSubscriptionWhereUniqueInput | StripeSubscriptionWhereUniqueInput[]
-    delete?: StripeSubscriptionWhereUniqueInput | StripeSubscriptionWhereUniqueInput[]
-    connect?: StripeSubscriptionWhereUniqueInput | StripeSubscriptionWhereUniqueInput[]
-    update?: StripeSubscriptionUpdateWithWhereUniqueWithoutCustomerInput | StripeSubscriptionUpdateWithWhereUniqueWithoutCustomerInput[]
-    updateMany?: StripeSubscriptionUpdateManyWithWhereWithoutCustomerInput | StripeSubscriptionUpdateManyWithWhereWithoutCustomerInput[]
-    deleteMany?: StripeSubscriptionScalarWhereInput | StripeSubscriptionScalarWhereInput[]
+  export type StripeSubscriptionUncheckedUpdateOneWithoutCustomerNestedInput = {
+    create?: XOR<StripeSubscriptionCreateWithoutCustomerInput, StripeSubscriptionUncheckedCreateWithoutCustomerInput>
+    connectOrCreate?: StripeSubscriptionCreateOrConnectWithoutCustomerInput
+    upsert?: StripeSubscriptionUpsertWithoutCustomerInput
+    disconnect?: StripeSubscriptionWhereInput | boolean
+    delete?: StripeSubscriptionWhereInput | boolean
+    connect?: StripeSubscriptionWhereUniqueInput
+    update?: XOR<XOR<StripeSubscriptionUpdateToOneWithWhereWithoutCustomerInput, StripeSubscriptionUpdateWithoutCustomerInput>, StripeSubscriptionUncheckedUpdateWithoutCustomerInput>
   }
 
-  export type StripeCustomerCreateNestedOneWithoutStripeSubscriptionsInput = {
-    create?: XOR<StripeCustomerCreateWithoutStripeSubscriptionsInput, StripeCustomerUncheckedCreateWithoutStripeSubscriptionsInput>
-    connectOrCreate?: StripeCustomerCreateOrConnectWithoutStripeSubscriptionsInput
+  export type StripeCustomerCreateNestedOneWithoutStripeSubscriptionInput = {
+    create?: XOR<StripeCustomerCreateWithoutStripeSubscriptionInput, StripeCustomerUncheckedCreateWithoutStripeSubscriptionInput>
+    connectOrCreate?: StripeCustomerCreateOrConnectWithoutStripeSubscriptionInput
     connect?: StripeCustomerWhereUniqueInput
   }
 
@@ -12427,12 +12369,12 @@ export namespace Prisma {
     set?: boolean
   }
 
-  export type StripeCustomerUpdateOneRequiredWithoutStripeSubscriptionsNestedInput = {
-    create?: XOR<StripeCustomerCreateWithoutStripeSubscriptionsInput, StripeCustomerUncheckedCreateWithoutStripeSubscriptionsInput>
-    connectOrCreate?: StripeCustomerCreateOrConnectWithoutStripeSubscriptionsInput
-    upsert?: StripeCustomerUpsertWithoutStripeSubscriptionsInput
+  export type StripeCustomerUpdateOneRequiredWithoutStripeSubscriptionNestedInput = {
+    create?: XOR<StripeCustomerCreateWithoutStripeSubscriptionInput, StripeCustomerUncheckedCreateWithoutStripeSubscriptionInput>
+    connectOrCreate?: StripeCustomerCreateOrConnectWithoutStripeSubscriptionInput
+    upsert?: StripeCustomerUpsertWithoutStripeSubscriptionInput
     connect?: StripeCustomerWhereUniqueInput
-    update?: XOR<XOR<StripeCustomerUpdateToOneWithWhereWithoutStripeSubscriptionsInput, StripeCustomerUpdateWithoutStripeSubscriptionsInput>, StripeCustomerUncheckedUpdateWithoutStripeSubscriptionsInput>
+    update?: XOR<XOR<StripeCustomerUpdateToOneWithWhereWithoutStripeSubscriptionInput, StripeCustomerUpdateWithoutStripeSubscriptionInput>, StripeCustomerUncheckedUpdateWithoutStripeSubscriptionInput>
   }
 
   export type UserUpdateOneRequiredWithoutStripeSubscriptionNestedInput = {
@@ -13596,10 +13538,6 @@ export namespace Prisma {
     create: XOR<StripeSubscriptionCreateWithoutCustomerInput, StripeSubscriptionUncheckedCreateWithoutCustomerInput>
   }
 
-  export type StripeSubscriptionCreateManyCustomerInputEnvelope = {
-    data: StripeSubscriptionCreateManyCustomerInput | StripeSubscriptionCreateManyCustomerInput[]
-  }
-
   export type UserUpsertWithoutStripeCustomerInput = {
     update: XOR<UserUpdateWithoutStripeCustomerInput, UserUncheckedUpdateWithoutStripeCustomerInput>
     create: XOR<UserCreateWithoutStripeCustomerInput, UserUncheckedCreateWithoutStripeCustomerInput>
@@ -13639,38 +13577,40 @@ export namespace Prisma {
     profile?: UserProfileUncheckedUpdateOneWithoutUserNestedInput
   }
 
-  export type StripeSubscriptionUpsertWithWhereUniqueWithoutCustomerInput = {
-    where: StripeSubscriptionWhereUniqueInput
+  export type StripeSubscriptionUpsertWithoutCustomerInput = {
     update: XOR<StripeSubscriptionUpdateWithoutCustomerInput, StripeSubscriptionUncheckedUpdateWithoutCustomerInput>
     create: XOR<StripeSubscriptionCreateWithoutCustomerInput, StripeSubscriptionUncheckedCreateWithoutCustomerInput>
+    where?: StripeSubscriptionWhereInput
   }
 
-  export type StripeSubscriptionUpdateWithWhereUniqueWithoutCustomerInput = {
-    where: StripeSubscriptionWhereUniqueInput
+  export type StripeSubscriptionUpdateToOneWithWhereWithoutCustomerInput = {
+    where?: StripeSubscriptionWhereInput
     data: XOR<StripeSubscriptionUpdateWithoutCustomerInput, StripeSubscriptionUncheckedUpdateWithoutCustomerInput>
   }
 
-  export type StripeSubscriptionUpdateManyWithWhereWithoutCustomerInput = {
-    where: StripeSubscriptionScalarWhereInput
-    data: XOR<StripeSubscriptionUpdateManyMutationInput, StripeSubscriptionUncheckedUpdateManyWithoutCustomerInput>
+  export type StripeSubscriptionUpdateWithoutCustomerInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    status?: StringFieldUpdateOperationsInput | string
+    priceId?: StringFieldUpdateOperationsInput | string
+    currentPeriodEnd?: DateTimeFieldUpdateOperationsInput | Date | string
+    cancelAtPeriodEnd?: BoolFieldUpdateOperationsInput | boolean
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    user?: UserUpdateOneRequiredWithoutStripeSubscriptionNestedInput
   }
 
-  export type StripeSubscriptionScalarWhereInput = {
-    AND?: StripeSubscriptionScalarWhereInput | StripeSubscriptionScalarWhereInput[]
-    OR?: StripeSubscriptionScalarWhereInput[]
-    NOT?: StripeSubscriptionScalarWhereInput | StripeSubscriptionScalarWhereInput[]
-    id?: StringFilter<"StripeSubscription"> | string
-    userId?: StringFilter<"StripeSubscription"> | string
-    stripeCustomerId?: StringFilter<"StripeSubscription"> | string
-    status?: StringFilter<"StripeSubscription"> | string
-    priceId?: StringFilter<"StripeSubscription"> | string
-    currentPeriodEnd?: DateTimeFilter<"StripeSubscription"> | Date | string
-    cancelAtPeriodEnd?: BoolFilter<"StripeSubscription"> | boolean
-    createdAt?: DateTimeFilter<"StripeSubscription"> | Date | string
-    updatedAt?: DateTimeFilter<"StripeSubscription"> | Date | string
+  export type StripeSubscriptionUncheckedUpdateWithoutCustomerInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    userId?: StringFieldUpdateOperationsInput | string
+    status?: StringFieldUpdateOperationsInput | string
+    priceId?: StringFieldUpdateOperationsInput | string
+    currentPeriodEnd?: DateTimeFieldUpdateOperationsInput | Date | string
+    cancelAtPeriodEnd?: BoolFieldUpdateOperationsInput | boolean
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
 
-  export type StripeCustomerCreateWithoutStripeSubscriptionsInput = {
+  export type StripeCustomerCreateWithoutStripeSubscriptionInput = {
     id: string
     email: string
     name: string
@@ -13679,7 +13619,7 @@ export namespace Prisma {
     user: UserCreateNestedOneWithoutStripeCustomerInput
   }
 
-  export type StripeCustomerUncheckedCreateWithoutStripeSubscriptionsInput = {
+  export type StripeCustomerUncheckedCreateWithoutStripeSubscriptionInput = {
     id: string
     userId: string
     email: string
@@ -13688,9 +13628,9 @@ export namespace Prisma {
     updatedAt?: Date | string
   }
 
-  export type StripeCustomerCreateOrConnectWithoutStripeSubscriptionsInput = {
+  export type StripeCustomerCreateOrConnectWithoutStripeSubscriptionInput = {
     where: StripeCustomerWhereUniqueInput
-    create: XOR<StripeCustomerCreateWithoutStripeSubscriptionsInput, StripeCustomerUncheckedCreateWithoutStripeSubscriptionsInput>
+    create: XOR<StripeCustomerCreateWithoutStripeSubscriptionInput, StripeCustomerUncheckedCreateWithoutStripeSubscriptionInput>
   }
 
   export type UserCreateWithoutStripeSubscriptionInput = {
@@ -13726,18 +13666,18 @@ export namespace Prisma {
     create: XOR<UserCreateWithoutStripeSubscriptionInput, UserUncheckedCreateWithoutStripeSubscriptionInput>
   }
 
-  export type StripeCustomerUpsertWithoutStripeSubscriptionsInput = {
-    update: XOR<StripeCustomerUpdateWithoutStripeSubscriptionsInput, StripeCustomerUncheckedUpdateWithoutStripeSubscriptionsInput>
-    create: XOR<StripeCustomerCreateWithoutStripeSubscriptionsInput, StripeCustomerUncheckedCreateWithoutStripeSubscriptionsInput>
+  export type StripeCustomerUpsertWithoutStripeSubscriptionInput = {
+    update: XOR<StripeCustomerUpdateWithoutStripeSubscriptionInput, StripeCustomerUncheckedUpdateWithoutStripeSubscriptionInput>
+    create: XOR<StripeCustomerCreateWithoutStripeSubscriptionInput, StripeCustomerUncheckedCreateWithoutStripeSubscriptionInput>
     where?: StripeCustomerWhereInput
   }
 
-  export type StripeCustomerUpdateToOneWithWhereWithoutStripeSubscriptionsInput = {
+  export type StripeCustomerUpdateToOneWithWhereWithoutStripeSubscriptionInput = {
     where?: StripeCustomerWhereInput
-    data: XOR<StripeCustomerUpdateWithoutStripeSubscriptionsInput, StripeCustomerUncheckedUpdateWithoutStripeSubscriptionsInput>
+    data: XOR<StripeCustomerUpdateWithoutStripeSubscriptionInput, StripeCustomerUncheckedUpdateWithoutStripeSubscriptionInput>
   }
 
-  export type StripeCustomerUpdateWithoutStripeSubscriptionsInput = {
+  export type StripeCustomerUpdateWithoutStripeSubscriptionInput = {
     id?: StringFieldUpdateOperationsInput | string
     email?: StringFieldUpdateOperationsInput | string
     name?: StringFieldUpdateOperationsInput | string
@@ -13746,7 +13686,7 @@ export namespace Prisma {
     user?: UserUpdateOneRequiredWithoutStripeCustomerNestedInput
   }
 
-  export type StripeCustomerUncheckedUpdateWithoutStripeSubscriptionsInput = {
+  export type StripeCustomerUncheckedUpdateWithoutStripeSubscriptionInput = {
     id?: StringFieldUpdateOperationsInput | string
     userId?: StringFieldUpdateOperationsInput | string
     email?: StringFieldUpdateOperationsInput | string
@@ -13864,7 +13804,7 @@ export namespace Prisma {
     name: string
     createdAt?: Date | string
     updatedAt?: Date | string
-    stripeSubscriptions?: StripeSubscriptionCreateNestedManyWithoutCustomerInput
+    stripeSubscription?: StripeSubscriptionCreateNestedOneWithoutCustomerInput
   }
 
   export type StripeCustomerUncheckedCreateWithoutUserInput = {
@@ -13873,7 +13813,7 @@ export namespace Prisma {
     name: string
     createdAt?: Date | string
     updatedAt?: Date | string
-    stripeSubscriptions?: StripeSubscriptionUncheckedCreateNestedManyWithoutCustomerInput
+    stripeSubscription?: StripeSubscriptionUncheckedCreateNestedOneWithoutCustomerInput
   }
 
   export type StripeCustomerCreateOrConnectWithoutUserInput = {
@@ -13889,7 +13829,7 @@ export namespace Prisma {
     cancelAtPeriodEnd?: boolean
     createdAt?: Date | string
     updatedAt?: Date | string
-    customer: StripeCustomerCreateNestedOneWithoutStripeSubscriptionsInput
+    customer: StripeCustomerCreateNestedOneWithoutStripeSubscriptionInput
   }
 
   export type StripeSubscriptionUncheckedCreateWithoutUserInput = {
@@ -13997,7 +13937,7 @@ export namespace Prisma {
     name?: StringFieldUpdateOperationsInput | string
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
-    stripeSubscriptions?: StripeSubscriptionUpdateManyWithoutCustomerNestedInput
+    stripeSubscription?: StripeSubscriptionUpdateOneWithoutCustomerNestedInput
   }
 
   export type StripeCustomerUncheckedUpdateWithoutUserInput = {
@@ -14006,7 +13946,7 @@ export namespace Prisma {
     name?: StringFieldUpdateOperationsInput | string
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
-    stripeSubscriptions?: StripeSubscriptionUncheckedUpdateManyWithoutCustomerNestedInput
+    stripeSubscription?: StripeSubscriptionUncheckedUpdateOneWithoutCustomerNestedInput
   }
 
   export type StripeSubscriptionUpsertWithoutUserInput = {
@@ -14028,7 +13968,7 @@ export namespace Prisma {
     cancelAtPeriodEnd?: BoolFieldUpdateOperationsInput | boolean
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
-    customer?: StripeCustomerUpdateOneRequiredWithoutStripeSubscriptionsNestedInput
+    customer?: StripeCustomerUpdateOneRequiredWithoutStripeSubscriptionNestedInput
   }
 
   export type StripeSubscriptionUncheckedUpdateWithoutUserInput = {
@@ -14247,50 +14187,6 @@ export namespace Prisma {
     listingId?: NullableStringFieldUpdateOperationsInput | string | null
   }
 
-  export type StripeSubscriptionCreateManyCustomerInput = {
-    id: string
-    userId: string
-    status: string
-    priceId: string
-    currentPeriodEnd: Date | string
-    cancelAtPeriodEnd?: boolean
-    createdAt?: Date | string
-    updatedAt?: Date | string
-  }
-
-  export type StripeSubscriptionUpdateWithoutCustomerInput = {
-    id?: StringFieldUpdateOperationsInput | string
-    status?: StringFieldUpdateOperationsInput | string
-    priceId?: StringFieldUpdateOperationsInput | string
-    currentPeriodEnd?: DateTimeFieldUpdateOperationsInput | Date | string
-    cancelAtPeriodEnd?: BoolFieldUpdateOperationsInput | boolean
-    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
-    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
-    user?: UserUpdateOneRequiredWithoutStripeSubscriptionNestedInput
-  }
-
-  export type StripeSubscriptionUncheckedUpdateWithoutCustomerInput = {
-    id?: StringFieldUpdateOperationsInput | string
-    userId?: StringFieldUpdateOperationsInput | string
-    status?: StringFieldUpdateOperationsInput | string
-    priceId?: StringFieldUpdateOperationsInput | string
-    currentPeriodEnd?: DateTimeFieldUpdateOperationsInput | Date | string
-    cancelAtPeriodEnd?: BoolFieldUpdateOperationsInput | boolean
-    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
-    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
-  }
-
-  export type StripeSubscriptionUncheckedUpdateManyWithoutCustomerInput = {
-    id?: StringFieldUpdateOperationsInput | string
-    userId?: StringFieldUpdateOperationsInput | string
-    status?: StringFieldUpdateOperationsInput | string
-    priceId?: StringFieldUpdateOperationsInput | string
-    currentPeriodEnd?: DateTimeFieldUpdateOperationsInput | Date | string
-    cancelAtPeriodEnd?: BoolFieldUpdateOperationsInput | boolean
-    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
-    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
-  }
-
   export type ListingCreateManyUserInput = {
     id?: string
     name: string
@@ -14400,10 +14296,6 @@ export namespace Prisma {
      * @deprecated Use UserProfileCountOutputTypeDefaultArgs instead
      */
     export type UserProfileCountOutputTypeArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = UserProfileCountOutputTypeDefaultArgs<ExtArgs>
-    /**
-     * @deprecated Use StripeCustomerCountOutputTypeDefaultArgs instead
-     */
-    export type StripeCustomerCountOutputTypeArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = StripeCustomerCountOutputTypeDefaultArgs<ExtArgs>
     /**
      * @deprecated Use UserCountOutputTypeDefaultArgs instead
      */
