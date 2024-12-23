@@ -1,17 +1,9 @@
-import { z } from "zod";
 import { createTRPCRouter, protectedProcedure } from "@/server/api/trpc";
 import { stripe } from "@/server/stripe/client";
 import { TRPCError } from "@trpc/server";
 
 export const stripeRouter = createTRPCRouter({
   getSubscription: protectedProcedure.query(async ({ ctx }) => {
-    if (!ctx.user) {
-      throw new TRPCError({
-        code: "NOT_FOUND",
-        message: "User not found",
-      });
-    }
-
     return {
       subscription: ctx.user.stripeSubscription,
       email: ctx.user.email,
@@ -20,13 +12,6 @@ export const stripeRouter = createTRPCRouter({
   }),
 
   getSubscriptionLink: protectedProcedure.mutation(async ({ ctx }) => {
-    if (!ctx.user) {
-      throw new TRPCError({
-        code: "NOT_FOUND",
-        message: "User not found",
-      });
-    }
-
     return {
       url: `https://buy.stripe.com/28o9DFdmy9SbaWceUU?prefilled_email=${encodeURIComponent(
         ctx.user.email,
@@ -35,13 +20,6 @@ export const stripeRouter = createTRPCRouter({
   }),
 
   createPortalSession: protectedProcedure.mutation(async ({ ctx }) => {
-    if (!ctx.user) {
-      throw new TRPCError({
-        code: "NOT_FOUND",
-        message: "User not found",
-      });
-    }
-
     // Check if user has an active subscription
     if (!ctx.user.stripeSubscription) {
       throw new TRPCError({

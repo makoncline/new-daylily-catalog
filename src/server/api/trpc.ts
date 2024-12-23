@@ -131,6 +131,9 @@ const enforceUserIsAuthed = t.middleware(({ next, ctx }) => {
   if (!ctx.auth.userId) {
     throw new TRPCError({ code: "UNAUTHORIZED" });
   }
+  if (!ctx.user) {
+    throw new TRPCError({ code: "NOT_FOUND" });
+  }
   return next({
     ctx: {
       auth: ctx.auth,
