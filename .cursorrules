@@ -1,0 +1,326 @@
+// This file contains rules for Cursor to follow when generating code
+
+// T3 Stack Principles
+
+- Follow T3 Stack's focus on simplicity, modularity, and full-stack typesafety
+- Solve specific problems - don't add unnecessary dependencies
+- Typesafety is not optional - ensure end-to-end type safety
+- Use bleeding edge tech responsibly - stick to proven solutions for critical infrastructure
+
+// Tech Stack
+
+- Frontend: Next.js, Tailwind, shadcn/ui
+- Backend: SQLite, Prisma, tRPC, Server Actions
+- Auth: Clerk
+- Payments: Stripe
+- Deployment: Vercel
+
+// Project Structure
+
+- `src` - Source directory
+  - `actions` - Server Actions that wrap tRPC calls
+  - `app` - Next.js app router
+    - `api/trpc/[trpc]` - tRPC HTTP handler
+    - `(routes)` - App routes
+    - `_components` - Route-specific components
+  - `components` - Shared components
+    - `ui` - shadcn/ui components
+    - `forms` - Form components
+  - `server` - Server-side code
+    - `api` - tRPC API
+      - `routers` - tRPC routers (main business logic)
+      - `trpc.ts` - tRPC initialization
+    - `db` - Database utilities
+  - `lib` - Shared utilities
+    - `hooks` - Custom hooks
+    - `utils` - Utility functions
+  - `types` - Type definitions
+    - `schemas` - Shared Zod schemas
+
+// Core Patterns
+
+1. Server Actions & tRPC:
+
+- Place core business logic in tRPC routers
+- Use Server Actions to wrap tRPC calls, handle forms, and manage cache
+
+2. Database:
+
+- Use Prisma with SQLite
+- Always include createdAt/updatedAt
+- Use proper indexes and relations
+- Follow Prisma's SQLite best practices
+
+3. Forms:
+
+- Use shadcn/ui form components
+- Use useZodForm from @/lib/hooks
+- Share Zod schemas between forms and tRPC
+- Handle loading and error states
+
+4. Auth:
+
+- Use Clerk for authentication
+- Use protectedProcedure for authenticated routes
+- Import auth from "@clerk/nextjs/server"
+- Use currentUser() in server, useUser() in client
+
+5. Schema Organization:
+
+- Place Zod schemas in src/types/schemas
+- Share schemas between forms, Server Actions, and tRPC
+- Export inferred types
+
+// Example Schema Pattern:
+
+```typescript
+// src/types/schemas/post-schemas.ts
+import { z } from "zod";
+
+export const createPostSchema = z.object({
+  title: z.string().min(2).max(100),
+  content: z.string().min(10),
+});
+
+export type CreatePost = z.infer<typeof createPostSchema>;
+```
+
+// Example tRPC Pattern:
+
+```typescript
+// src/server/api/routers/posts.ts
+import { createPostSchema } from "@/types/schemas/post-schemas";
+import { createTRPCRouter, protectedProcedure } from "@/server/api/trpc";
+
+export const postRouter = createTRPCRouter({
+  create: protectedProcedure
+    .input(createPostSchema)
+    .mutation(async ({ ctx, input }) => {
+      return ctx.db.post.create({
+        data: {
+          ...input,
+          authorId: ctx.user.id,
+        },
+      });
+    }),
+});
+```
+
+// Example Server Action Pattern:
+
+```typescript
+// src/actions/posts/create-post.ts
+"use server";
+
+import { createPostSchema } from "@/types/schemas/post-schemas";
+import { api } from "@/trpc/server";
+import { revalidatePath } from "next/cache";
+
+export async function createPost(formData: FormData) {
+  try {
+    const data = createPostSchema.parse({
+      title: formData.get("title"),
+      content: formData.get("content"),
+    });
+
+    await api.post.create.mutate(data);
+    revalidatePath("/posts");
+    return { success: true };
+  } catch (error) {
+    return { error: "Failed to create post" };
+  }
+}
+```
+
+// General Rules
+
+- Use @/ imports
+- Use kebab-case for files/folders
+- Validate env vars with @t3-oss/env-nextjs
+- Don't modify shadcn/ui components
+- Follow security best practices
+- Implement proper caching
+- Use proper TypeScript types
+
+// Code Examples
+
+1. Form Component Pattern:
+
+````typescript
+// src/app/(routes)/posts/_components/create-post-form.tsx
+"use client"
+
+import { useZodForm } from "@/lib/hooks"
+import { createPostSchema } from "@/types/schemas/post-schemas"
+import { Button } from "@/components/ui/button"
+import {
+  Form,
+  FormControl,
+  FormDescription,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form"
+import { Input } from "@/components/ui/input"
+import { createPost } from "@/actions/posts/create-post"
+
+export function CreatePostForm() {
+  const form = useZodForm({
+    schema: createPostSchema,
+    defaultValues: {
+      title: "",
+      content: "",
+    },
+  })
+
+  async function onSubmit(values: z.infer<typeof createPostSchema>) {
+    const formData = new FormData()
+    Object.entries(values).forEach(([key, value]) => {
+      formData.append(key, value)
+    })
+
+    const result = await createPost(formData)
+    if (!result.success) {
+      form.setError("root", { message: result.error })
+      return
+    }
+
+    form.reset()
+  }
+
+  return (
+    <Form {...form}>
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+        <FormField
+          control={form.control}
+          name="title"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Title</FormLabel>
+              <FormControl>
+                <Input {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <Button
+          type="submit"
+          disabled={form.formState.isSubmitting}
+        >
+          {form.formState.isSubmitting ? "Creating..." : "Create"}
+        </Button>
+      </form>
+    </Form>
+  )
+}
+
+2. Page Component Pattern:
+```typescript
+// src/app/(routes)/posts/page.tsx
+import { api } from "@/trpc/server"
+import { CreatePostForm } from "./_components/create-post-form"
+import { PostList } from "./_components/post-list"
+
+export default async function PostsPage() {
+  const posts = await api.post.list.query()
+
+  return (
+    <div className="container py-6">
+      <div className="space-y-8">
+        <section>
+          <h1 className="text-3xl font-bold">Create Post</h1>
+          <CreatePostForm />
+        </section>
+
+        <section>
+          <h2 className="text-2xl font-bold mb-4">Posts</h2>
+          <PostList initialPosts={posts} />
+        </section>
+      </div>
+    </div>
+  )
+}
+
+3. Route Handler Pattern:
+```typescript
+// src/app/api/webhooks/stripe/route.ts
+import { headers } from "next/headers"
+import { env } from "@/env"
+import { stripe } from "@/lib/stripe"
+import { db } from "@/server/db"
+
+export async function POST(req: Request) {
+  const body = await req.text()
+  const signature = headers().get("stripe-signature")
+
+  try {
+    const event = stripe.webhooks.constructEvent(
+      body,
+      signature!,
+      env.STRIPE_WEBHOOK_SECRET
+    )
+
+    switch (event.type) {
+      case "checkout.session.completed": {
+        const session = event.data.object
+        await db.subscription.update({
+          where: { id: session.id },
+          data: { status: "active" }
+        })
+        break
+      }
+    }
+
+    return new Response(null, { status: 200 })
+  } catch (error) {
+    return new Response(
+      `Webhook Error: ${error instanceof Error ? error.message : "Unknown Error"}`,
+      { status: 400 }
+    )
+  }
+}
+
+4. Layout Pattern:
+```typescript
+// src/app/(routes)/layout.tsx
+import { auth } from "@clerk/nextjs"
+import { redirect } from "next/navigation"
+import { SiteHeader } from "@/components/site-header"
+import { SiteFooter } from "@/components/site-footer"
+
+export default async function RootLayout({
+  children,
+}: {
+  children: React.ReactNode
+}) {
+  const { userId } = auth()
+  if (!userId) redirect("/sign-in")
+
+  return (
+    <>
+      <SiteHeader />
+      <main className="flex-1">{children}</main>
+      <SiteFooter />
+    </>
+  )
+}
+
+5. Component Organization Pattern:
+````
+
+src/components/
+├── ui/ # shadcn/ui components
+│ ├── button.tsx
+│ └── input.tsx
+├── forms/ # Form components
+│ ├── post-form.tsx
+│ └── user-form.tsx
+└── shared/ # Shared components
+├── site-header.tsx
+└── site-footer.tsx
+
+```
+
+```
