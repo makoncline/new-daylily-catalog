@@ -12,6 +12,7 @@ import {
 
 import { TRPCReactProvider } from "@/trpc/react";
 import dynamic from "next/dynamic";
+import { Toaster } from "sonner";
 
 const StripePortalButton = dynamic(
   () => import("@/components/StripePortalButton"),
@@ -42,6 +43,7 @@ export default function RootLayout({
               <StripePortalButton />
             </SignedIn>
             {children}
+            <Toaster />
           </body>
         </html>
       </TRPCReactProvider>

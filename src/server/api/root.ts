@@ -1,6 +1,7 @@
 import { postRouter } from "@/server/api/routers/post";
 import { createCallerFactory, createTRPCRouter } from "@/server/api/trpc";
 import { stripeRouter } from "@/server/api/routers/stripe";
+import { imageRouter } from "./routers/image";
 
 /**
  * This is the primary router for your server.
@@ -10,6 +11,7 @@ import { stripeRouter } from "@/server/api/routers/stripe";
 export const appRouter = createTRPCRouter({
   post: postRouter,
   stripe: stripeRouter,
+  image: imageRouter,
 });
 
 // export type definition of API

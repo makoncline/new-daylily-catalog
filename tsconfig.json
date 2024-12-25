@@ -26,7 +26,9 @@
     /* Path Aliases */
     "baseUrl": ".",
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["./src/*"],
+      "@prisma/client": ["./prisma/generated/sqlite-client"],
+      "@/env": ["./src/env.js"]
     }
   },
   "include": [
@@ -36,7 +38,8 @@
     "**/*.tsx",
     "**/*.cjs",
     "**/*.js",
-    ".next/types/**/*.ts"
+    ".next/types/**/*.ts",
+    "src/env.js"
   ],
   "exclude": [
     "node_modules",
