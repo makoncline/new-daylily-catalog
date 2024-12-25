@@ -16,17 +16,19 @@ export const env = createEnv({
    * isn't built with invalid env vars.
    */
   server: {
-    DATABASE_URL: z.string().url(),
-    POSTGRES_DATABASE_URL: z.string().url(),
-    NODE_ENV: z
-      .enum(["development", "test", "production"])
-      .default("development"),
+    DATABASE_URL: z.string(),
+    POSTGRES_DATABASE_URL: z.string(),
     CLERK_SECRET_KEY: z.string(),
     CLERK_WEBHOOK_SECRET: z.string(),
     STRIPE_SECRET_KEY: z.string(),
     STRIPE_WEBHOOK_SECRET: z.string(),
     STRIPE_PAYMENT_LINK_ID: z.string(),
     STRIPE_PRICE_ID: z.string(),
+    AWS_ACCESS_KEY_ID: z.string(),
+    AWS_SECRET_ACCESS_KEY: z.string(),
+    AWS_REGION: z.string(),
+    AWS_BUCKET_NAME: z.string(),
+    NODE_ENV: z.enum(["development", "test", "production"]),
   },
 
   /**
@@ -35,9 +37,11 @@ export const env = createEnv({
    * `NEXT_PUBLIC_`.
    */
   client: {
-    // NEXT_PUBLIC_CLIENTVAR: z.string(),
     NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: z.string(),
-    NEXT_PUBLIC_APP_URL: z.string().url(),
+    NEXT_PUBLIC_APP_URL: z.string(),
+    NEXT_PUBLIC_AWS_REGION: z.string(),
+    NEXT_PUBLIC_AWS_BUCKET_NAME: z.string(),
+    NEXT_PUBLIC_CLOUDFLARE_DELIVERY_URL: z.string(),
   },
 
   /**
@@ -47,16 +51,24 @@ export const env = createEnv({
   runtimeEnv: {
     DATABASE_URL: process.env.DATABASE_URL,
     POSTGRES_DATABASE_URL: process.env.POSTGRES_DATABASE_URL,
-    NODE_ENV: process.env.NODE_ENV,
-    NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY:
-      process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY,
     CLERK_SECRET_KEY: process.env.CLERK_SECRET_KEY,
     CLERK_WEBHOOK_SECRET: process.env.CLERK_WEBHOOK_SECRET,
+    NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY:
+      process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY,
+    NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL,
     STRIPE_SECRET_KEY: process.env.STRIPE_SECRET_KEY,
     STRIPE_WEBHOOK_SECRET: process.env.STRIPE_WEBHOOK_SECRET,
     STRIPE_PAYMENT_LINK_ID: process.env.STRIPE_PAYMENT_LINK_ID,
     STRIPE_PRICE_ID: process.env.STRIPE_PRICE_ID,
-    NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL,
+    AWS_ACCESS_KEY_ID: process.env.AWS_ACCESS_KEY_ID,
+    AWS_SECRET_ACCESS_KEY: process.env.AWS_SECRET_ACCESS_KEY,
+    AWS_REGION: process.env.AWS_REGION,
+    AWS_BUCKET_NAME: process.env.AWS_BUCKET_NAME,
+    NEXT_PUBLIC_AWS_REGION: process.env.AWS_REGION,
+    NEXT_PUBLIC_AWS_BUCKET_NAME: process.env.AWS_BUCKET_NAME,
+    NODE_ENV: process.env.NODE_ENV,
+    NEXT_PUBLIC_CLOUDFLARE_DELIVERY_URL:
+      process.env.NEXT_PUBLIC_CLOUDFLARE_DELIVERY_URL,
   },
   /**
    * Run `build` or `dev` with `SKIP_ENV_VALIDATION` to skip env validation. This is especially
@@ -64,8 +76,8 @@ export const env = createEnv({
    */
   skipValidation: !!process.env.SKIP_ENV_VALIDATION,
   /**
-   * Makes it so that empty strings are treated as undefined. `SOME_VAR: z.string()` and
-   * `SOME_VAR=''` will throw an error.
+   * Makes it so that empty strings are treated as undefined.
+   * `SOME_VAR: z.string()` and `SOME_VAR=''` will throw an error.
    */
   emptyStringAsUndefined: true,
 });

@@ -16,6 +16,8 @@
     "db:studio:prod": "npx dotenv -e .env.production -- prisma studio"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.717.0",
+    "@aws-sdk/s3-request-presigner": "^3.717.0",
     "@clerk/clerk-sdk-node": "^5.0.49",
     "@clerk/nextjs": "^5.7.2",
     "@hookform/resolvers": "^3.9.1",
@@ -52,6 +54,7 @@
     "@trpc/client": "^11.0.0-rc.446",
     "@trpc/react-query": "^11.0.0-rc.446",
     "@trpc/server": "^11.0.0-rc.446",
+    "@types/uuid": "^10.0.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cmdk": "^1.0.0",
@@ -66,7 +69,9 @@
     "react": "^18.3.1",
     "react-day-picker": "^8.10.1",
     "react-dom": "^18.3.1",
+    "react-dropzone": "^14.3.5",
     "react-hook-form": "^7.54.2",
+    "react-image-crop": "^11.0.7",
     "react-resizable-panels": "^2.1.7",
     "recharts": "^2.15.0",
     "server-only": "^0.0.1",
@@ -76,6 +81,7 @@
     "svix": "^1.37.0",
     "tailwind-merge": "^2.6.0",
     "tailwindcss-animate": "^1.0.7",
+    "uuid": "^11.0.3",
     "vaul": "^1.1.2",
     "zod": "^3.24.1"
   },
