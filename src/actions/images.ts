@@ -25,11 +25,11 @@ export async function getPresignedUrl(data: {
     }
 
     return await api.image.getPresignedUrl(data);
-  } catch (error) {
-    console.error("Failed to get presigned URL:", error);
-    throw new Error(
-      error instanceof Error ? error.message : "Failed to get presigned URL",
-    );
+  } catch (err) {
+    console.error("Failed to get presigned URL:", err);
+    const message =
+      err instanceof Error ? err.message : "Failed to get presigned URL";
+    throw new Error(message);
   }
 }
 
@@ -49,17 +49,23 @@ export async function uploadImage(
       throw new Error("Invalid form data");
     }
 
-    return await api.image.uploadImage({
+    const result = await api.image.uploadImage({
       key,
       type: type as "listing" | "profile",
       listingId: listingId?.toString(),
       userProfileId: userProfileId?.toString(),
     });
-  } catch (error) {
-    console.error("Failed to upload image:", error);
+
+    return {
+      success: true,
+      url: result.url,
+      error: undefined,
+    };
+  } catch (err) {
+    console.error("Failed to upload image:", err);
     return {
       success: false,
-      error: error instanceof Error ? error.message : "Failed to upload image",
+      error: err instanceof Error ? err.message : "Failed to upload image",
       url: "",
     };
   }
@@ -73,12 +79,13 @@ export async function reorderImages(data: {
     const session = auth();
     if (!session.userId) throw new Error("Not authenticated");
 
-    return await api.image.reorderImages(data);
-  } catch (error) {
-    console.error("Failed to reorder images:", error);
-    throw new Error(
-      error instanceof Error ? error.message : "Failed to reorder images",
-    );
+    const result = await api.image.reorderImages(data);
+    return result;
+  } catch (err) {
+    console.error("Failed to reorder images:", err);
+    const message =
+      err instanceof Error ? err.message : "Failed to reorder images";
+    throw new Error(message);
   }
 }
 
@@ -90,11 +97,12 @@ export async function deleteImage(data: {
     const session = auth();
     if (!session.userId) throw new Error("Not authenticated");
 
-    return await api.image.deleteImage(data);
-  } catch (error) {
-    console.error("Failed to delete image:", error);
-    throw new Error(
-      error instanceof Error ? error.message : "Failed to delete image",
-    );
+    const result = await api.image.deleteImage(data);
+    return result;
+  } catch (err) {
+    console.error("Failed to delete image:", err);
+    const message =
+      err instanceof Error ? err.message : "Failed to delete image";
+    throw new Error(message);
   }
 }

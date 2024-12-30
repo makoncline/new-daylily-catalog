@@ -64,14 +64,14 @@ export default function StripePortalButton() {
     setError(null);
     try {
       if (hasActiveSubscription) {
-        const { url } = await createPortalSession.mutateAsync();
-        if (url) {
-          window.location.href = url;
+        const result = await createPortalSession.mutateAsync();
+        if (result.url) {
+          window.location.href = result.url;
         }
       } else {
-        const { url } = await getSubscriptionLink.mutateAsync();
-        if (url) {
-          window.location.href = url;
+        const result = await getSubscriptionLink.mutateAsync();
+        if (result.url) {
+          window.location.href = result.url;
         }
       }
     } catch (error) {

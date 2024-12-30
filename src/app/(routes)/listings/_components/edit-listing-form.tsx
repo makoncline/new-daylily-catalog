@@ -2,8 +2,11 @@
 
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import type { ListingFormData } from "@/actions/listings/edit-listing";
-import { updateListing, deleteListing } from "@/actions/listings/edit-listing";
+import type { ListingFormData } from "@/types/schemas/listing";
+import {
+  updateListing,
+  deleteListing,
+} from "@/server/actions/listings/edit-listing";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
@@ -51,21 +54,15 @@ export function EditListingForm({ listing }: EditListingFormProps) {
   });
 
   async function onSubmit(values: ListingFormData) {
-    const formData = new FormData();
-    Object.entries(values).forEach(([key, value]) => {
-      if (value !== undefined) {
-        formData.append(key, value.toString());
-      }
-    });
-
-    const result = await updateListing(listing.id, formData);
-    if (result.error) {
-      toast.error(result.error);
-      return;
+    try {
+      await updateListing(listing.id, values);
+      toast.success("Listing updated successfully");
+      router.push("/listings");
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Failed to update listing",
+      );
     }
-
-    toast.success("Listing updated successfully");
-    router.push("/listings");
   }
 
   async function onDelete() {
@@ -75,14 +72,13 @@ export function EditListingForm({ listing }: EditListingFormProps) {
 
     setIsDeleting(true);
     try {
-      const result = await deleteListing(listing.id);
-      if (result.error) {
-        toast.error(result.error);
-        return;
-      }
-
+      await deleteListing(listing.id);
       toast.success("Listing deleted successfully");
       router.push("/listings");
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Failed to delete listing",
+      );
     } finally {
       setIsDeleting(false);
     }
@@ -116,7 +112,7 @@ export function EditListingForm({ listing }: EditListingFormProps) {
                   type="number"
                   step="0.01"
                   {...field}
-                  value={field.value ?? ""}
+                  value={field.value?.toString() ?? ""}
                   onChange={(e) => {
                     const value = e.target.value;
                     field.onChange(value === "" ? undefined : Number(value));

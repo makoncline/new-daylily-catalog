@@ -17,13 +17,9 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useState } from "react";
 import { useZodForm } from "@/lib/hooks/use-zod-form";
-import {
-  updateListing,
-  deleteListing,
-} from "@/server/actions/listings/edit-listing";
-import { type ControllerRenderProps } from "react-hook-form";
+import { updateListing, deleteListing } from "@/server/actions/listing";
 
-interface EditListingFormProps {
+interface ListingFormProps {
   listing: {
     id: string;
     name: string;
@@ -35,9 +31,7 @@ interface EditListingFormProps {
   };
 }
 
-type FieldProps = ControllerRenderProps<ListingFormData>;
-
-export function EditListingForm({ listing }: EditListingFormProps) {
+export function ListingForm({ listing }: ListingFormProps) {
   const router = useRouter();
   const [isPending, setIsPending] = useState(false);
 
@@ -87,57 +81,6 @@ export function EditListingForm({ listing }: EditListingFormProps) {
     }
   }
 
-  const fields = [
-    {
-      name: "name" as const,
-      label: "Name",
-      required: true,
-      description: undefined,
-      render: ({ onChange, onBlur, name, ref, value }: FieldProps) => (
-        <Input
-          onChange={onChange}
-          onBlur={onBlur}
-          name={name}
-          ref={ref}
-          value={value?.toString() ?? ""}
-        />
-      ),
-    },
-    {
-      name: "price" as const,
-      label: "Price",
-      description: "Optional. Price in dollars.",
-      render: (field: FieldProps) => (
-        <Input
-          type="number"
-          step="0.01"
-          {...field}
-          value={field.value ?? ""}
-          onChange={(e) => {
-            const value = e.target.value;
-            field.onChange(value === "" ? undefined : Number(value));
-          }}
-        />
-      ),
-    },
-    {
-      name: "publicNote" as const,
-      label: "Public Note",
-      description: "This note will be visible to everyone.",
-      render: (field: FieldProps) => (
-        <Textarea {...field} value={field.value ?? ""} />
-      ),
-    },
-    {
-      name: "privateNote" as const,
-      label: "Private Note",
-      description: "This note will only be visible to you.",
-      render: (field: FieldProps) => (
-        <Textarea {...field} value={field.value ?? ""} />
-      ),
-    },
-  ] as const;
-
   return (
     <div className="p-8">
       <h1 className="mb-4 text-2xl font-bold">
@@ -146,23 +89,77 @@ export function EditListingForm({ listing }: EditListingFormProps) {
 
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
-          {fields.map((field) => (
-            <FormField
-              key={field.name}
-              control={form.control}
-              name={field.name}
-              render={({ field: fieldProps }) => (
-                <FormItem>
-                  <FormLabel>{field.label}</FormLabel>
-                  <FormControl>{field.render(fieldProps)}</FormControl>
-                  {field.description && (
-                    <FormDescription>{field.description}</FormDescription>
-                  )}
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          ))}
+          <FormField
+            control={form.control}
+            name="name"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Name</FormLabel>
+                <FormControl>
+                  <Input {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
+            name="price"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Price</FormLabel>
+                <FormControl>
+                  <Input
+                    type="number"
+                    step="0.01"
+                    {...field}
+                    value={field.value ?? ""}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      field.onChange(value === "" ? undefined : Number(value));
+                    }}
+                  />
+                </FormControl>
+                <FormDescription>Optional. Price in dollars.</FormDescription>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
+            name="publicNote"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Public Note</FormLabel>
+                <FormControl>
+                  <Textarea {...field} value={field.value ?? ""} />
+                </FormControl>
+                <FormDescription>
+                  This note will be visible to everyone.
+                </FormDescription>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
+            name="privateNote"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Private Note</FormLabel>
+                <FormControl>
+                  <Textarea {...field} value={field.value ?? ""} />
+                </FormControl>
+                <FormDescription>
+                  This note will only be visible to you.
+                </FormDescription>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
 
           <div className="flex justify-between">
             <Button type="submit" disabled={isPending}>

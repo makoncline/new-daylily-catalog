@@ -5,13 +5,20 @@ import { env } from "@/env";
 
 export const stripeRouter = createTRPCRouter({
   getSubscription: protectedProcedure.query(async ({ ctx }) => {
-    const user = await ctx.db.user.findUniqueOrThrow({
+    const user = await ctx.db.user.findUnique({
       where: { id: ctx.user.id },
       include: {
         stripeSubscription: true,
         stripeCustomer: true,
       },
     });
+
+    if (!user) {
+      throw new TRPCError({
+        code: "NOT_FOUND",
+        message: "User not found",
+      });
+    }
 
     return {
       subscription: user.stripeSubscription,
@@ -21,13 +28,20 @@ export const stripeRouter = createTRPCRouter({
   }),
 
   getSubscriptionLink: protectedProcedure.mutation(async ({ ctx }) => {
-    const user = await ctx.db.user.findUniqueOrThrow({
+    const user = await ctx.db.user.findUnique({
       where: { id: ctx.user.id },
       include: {
         stripeCustomer: true,
         stripeSubscription: true,
       },
     });
+
+    if (!user) {
+      throw new TRPCError({
+        code: "NOT_FOUND",
+        message: "User not found",
+      });
+    }
 
     // Check if user already has an active subscription
     if (
@@ -44,10 +58,12 @@ export const stripeRouter = createTRPCRouter({
     let stripeCustomer = user.stripeCustomer;
 
     if (!stripeCustomer) {
-      // Create new customer if one doesn't exist
+      // Create a new Stripe customer
       const customer = await stripe.customers.create({
         email: user.email,
-        metadata: { userId: user.id },
+        metadata: {
+          userId: user.id,
+        },
       });
 
       stripeCustomer = await ctx.db.stripeCustomer.create({
@@ -60,7 +76,6 @@ export const stripeRouter = createTRPCRouter({
       });
     }
 
-    // Create Checkout Session
     const session = await stripe.checkout.sessions.create({
       customer: stripeCustomer.id,
       mode: "subscription",
@@ -71,17 +86,10 @@ export const stripeRouter = createTRPCRouter({
           quantity: 1,
         },
       ],
-      success_url: `${env.NEXT_PUBLIC_APP_URL}`,
-      cancel_url: `${env.NEXT_PUBLIC_APP_URL}`,
-      subscription_data: {
-        trial_settings: {
-          end_behavior: {
-            missing_payment_method: "cancel",
-          },
-        },
-        metadata: {
-          userId: user.id,
-        },
+      success_url: `${env.NEXT_PUBLIC_APP_URL}/settings/billing?success=true`,
+      cancel_url: `${env.NEXT_PUBLIC_APP_URL}/settings/billing?canceled=true`,
+      metadata: {
+        userId: user.id,
       },
     });
 
@@ -96,39 +104,25 @@ export const stripeRouter = createTRPCRouter({
   }),
 
   createPortalSession: protectedProcedure.mutation(async ({ ctx }) => {
-    const user = await ctx.db.user.findUniqueOrThrow({
+    const user = await ctx.db.user.findUnique({
       where: { id: ctx.user.id },
       include: {
-        stripeSubscription: true,
         stripeCustomer: true,
       },
     });
 
-    // Check if user has an active subscription
-    if (
-      !user.stripeSubscription ||
-      (user.stripeSubscription.status !== "active" &&
-        user.stripeSubscription.status !== "trialing")
-    ) {
+    if (!user?.stripeCustomer) {
       throw new TRPCError({
-        code: "PRECONDITION_FAILED",
-        message: "No active subscription found",
+        code: "NOT_FOUND",
+        message: "No billing information found",
       });
     }
 
-    if (!user.stripeCustomer) {
-      throw new TRPCError({
-        code: "PRECONDITION_FAILED",
-        message: "No Stripe customer found",
-      });
-    }
-
-    // Create Stripe portal session
-    const { url } = await stripe.billingPortal.sessions.create({
+    const session = await stripe.billingPortal.sessions.create({
       customer: user.stripeCustomer.id,
-      return_url: `${env.NEXT_PUBLIC_APP_URL}`,
+      return_url: `${env.NEXT_PUBLIC_APP_URL}/settings/billing`,
     });
 
-    return { url };
+    return { url: session.url };
   }),
 });

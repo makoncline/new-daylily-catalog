@@ -50,24 +50,30 @@ export const imageRouter = createTRPCRouter({
           ContentType: input.contentType,
         });
 
-        const presignedUrl = await getSignedUrl(s3Client, command, {
-          expiresIn: 3600,
+        const url = await getSignedUrl(s3Client, command, {
+          expiresIn: 3600, // 1 hour
         });
 
-        // Construct the full S3 URL
-        const imageUrl = `https://${env.AWS_BUCKET_NAME}.s3.${env.AWS_REGION}.amazonaws.com/${key}`;
+        // Create the image record
+        const image = await ctx.db.image.create({
+          data: {
+            url: `https://${env.AWS_BUCKET_NAME}.s3.${env.AWS_REGION}.amazonaws.com/${key}`,
+            ...(input.type === "listing"
+              ? { listingId: input.listingId }
+              : { userProfileId: input.userProfileId }),
+          },
+        });
 
         return {
-          presignedUrl,
-          key,
-          url: imageUrl,
+          presignedUrl: url,
+          imageId: image.id,
+          url: image.url,
         };
       } catch (error) {
-        console.error("Failed to generate presigned URL:", error);
+        console.error("Error generating presigned URL:", error);
         throw new TRPCError({
           code: "INTERNAL_SERVER_ERROR",
-          message: "Failed to generate upload URL",
-          cause: error,
+          message: "Failed to generate presigned URL",
         });
       }
     }),
@@ -83,45 +89,12 @@ export const imageRouter = createTRPCRouter({
     )
     .mutation(async ({ ctx, input }) => {
       try {
-        // Validate that at least one ID is provided based on type
-        if (input.type === "listing" && !input.listingId) {
-          throw new TRPCError({
-            code: "BAD_REQUEST",
-            message: "Listing ID is required for listing images",
-          });
-        }
-        if (input.type === "profile" && !input.userProfileId) {
-          throw new TRPCError({
-            code: "BAD_REQUEST",
-            message: "User profile ID is required for profile images",
-          });
-        }
-
-        // Get the current highest order for the given listing/profile
-        const maxOrder = await ctx.db.image.findFirst({
-          where: {
-            ...(input.listingId ? { listingId: input.listingId } : {}),
-            ...(input.userProfileId
-              ? { userProfileId: input.userProfileId }
-              : {}),
-          },
-          orderBy: {
-            order: "desc",
-          },
-          select: {
-            order: true,
-          },
-        });
-
-        // Construct the full S3 URL
-        const imageUrl = `https://${env.AWS_BUCKET_NAME}.s3.${env.AWS_REGION}.amazonaws.com/${input.key}`;
-
         const image = await ctx.db.image.create({
           data: {
-            url: imageUrl,
-            order: (maxOrder?.order ?? -1) + 1,
-            listingId: input.listingId,
-            userProfileId: input.userProfileId,
+            url: `https://${env.AWS_BUCKET_NAME}.s3.${env.AWS_REGION}.amazonaws.com/${input.key}`,
+            ...(input.type === "listing"
+              ? { listingId: input.listingId }
+              : { userProfileId: input.userProfileId }),
           },
         });
 
@@ -129,12 +102,11 @@ export const imageRouter = createTRPCRouter({
           success: true,
           url: image.url,
         };
-      } catch (error) {
-        console.error("Failed to create image record:", error);
+      } catch {
+        console.error("Error uploading image");
         throw new TRPCError({
           code: "INTERNAL_SERVER_ERROR",
-          message: "Failed to create image record",
-          cause: error,
+          message: "Failed to upload image",
         });
       }
     }),
@@ -143,12 +115,7 @@ export const imageRouter = createTRPCRouter({
     .input(
       z.object({
         type: imageTypeSchema,
-        images: z.array(
-          z.object({
-            id: z.string(),
-            order: z.number().int().min(0),
-          }),
-        ),
+        images: z.array(z.object({ id: z.string(), order: z.number() })),
       }),
     )
     .mutation(async ({ ctx, input }) => {
@@ -161,14 +128,11 @@ export const imageRouter = createTRPCRouter({
             }),
           ),
         );
-
         return { success: true };
-      } catch (error) {
-        console.error("Failed to reorder images:", error);
+      } catch {
         throw new TRPCError({
           code: "INTERNAL_SERVER_ERROR",
           message: "Failed to reorder images",
-          cause: error,
         });
       }
     }),
@@ -185,14 +149,11 @@ export const imageRouter = createTRPCRouter({
         await ctx.db.image.delete({
           where: { id: input.imageId },
         });
-
         return { success: true };
-      } catch (error) {
-        console.error("Failed to delete image:", error);
+      } catch {
         throw new TRPCError({
           code: "INTERNAL_SERVER_ERROR",
           message: "Failed to delete image",
-          cause: error,
         });
       }
     }),

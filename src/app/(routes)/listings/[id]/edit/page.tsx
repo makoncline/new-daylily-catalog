@@ -1,4 +1,6 @@
-import { EditListingContent } from "../../_components/edit-listing-content";
+import { api } from "@/trpc/server";
+import { ListingForm } from "@/components/forms/listing-form";
+import { notFound } from "next/navigation";
 
 interface EditListingPageProps {
   params: {
@@ -6,6 +8,18 @@ interface EditListingPageProps {
   };
 }
 
-export default function EditListingPage({ params }: EditListingPageProps) {
-  return <EditListingContent id={params.id} />;
+export default async function EditListingPage({
+  params,
+}: EditListingPageProps) {
+  const listing = await api.listing.get({ id: params.id });
+
+  if (!listing) {
+    notFound();
+  }
+
+  return (
+    <div className="container">
+      <ListingForm listing={listing} />
+    </div>
+  );
 }

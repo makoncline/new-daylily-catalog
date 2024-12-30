@@ -23,6 +23,11 @@ export function TRPCReactProvider(props: { children: React.ReactNode }) {
         httpBatchLink({
           url: "/api/trpc",
           transformer: superjson,
+          headers() {
+            const headers = new Headers();
+            headers.set("x-trpc-source", "react");
+            return Object.fromEntries(headers.entries());
+          },
         }),
       ],
     }),

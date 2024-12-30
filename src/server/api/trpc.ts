@@ -8,151 +8,55 @@
  */
 
 import { initTRPC, TRPCError } from "@trpc/server";
+import { currentUser } from "@clerk/nextjs/server";
 import superjson from "superjson";
-import { ZodError } from "zod";
-
 import { db } from "@/server/db";
-import { type getAuth } from "@clerk/nextjs/server";
 
-type AuthObject = ReturnType<typeof getAuth>;
+export type Context = {
+  db: typeof db;
+  user: Awaited<ReturnType<typeof db.user.findUnique>> | null;
+};
 
-/**
- * 1. CONTEXT
- *
- * This section defines the "contexts" that are available in the backend API.
- *
- * These allow you to access things when processing a request, like the database, the session, etc.
- *
- * This helper generates the "internals" for a tRPC context. The API handler and RSC clients each
- * wrap this and provides the required context.
- *
- * @see https://trpc.io/docs/server/context
- */
-export const createTRPCContext = async (opts: {
-  headers: Headers;
-  auth: AuthObject;
-}) => {
-  const user = opts.auth.userId
-    ? await db.user.findUnique({
-        where: { clerkUserId: opts.auth.userId },
-        include: {
-          stripeSubscription: true,
-          stripeCustomer: true,
-        },
-      })
-    : null;
-
+export const createTRPCContext = async (): Promise<Context> => {
   return {
     db,
-    ...opts,
-    user,
+    user: null,
   };
 };
 
-/**
- * 2. INITIALIZATION
- *
- * This is where the tRPC API is initialized, connecting the context and transformer. We also parse
- * ZodErrors so that you get typesafety on the frontend if your procedure fails due to validation
- * errors on the backend.
- */
-const t = initTRPC.context<typeof createTRPCContext>().create({
+export const t = initTRPC.context<Context>().create({
   transformer: superjson,
-  errorFormatter({ shape, error }) {
-    return {
-      ...shape,
-      data: {
-        ...shape.data,
-        zodError:
-          error.cause instanceof ZodError ? error.cause.flatten() : null,
-      },
-    };
-  },
 });
 
-/**
- * Create a server-side caller.
- *
- * @see https://trpc.io/docs/server/server-side-calls
- */
-export const createCallerFactory = t.createCallerFactory;
-
-/**
- * 3. ROUTER & PROCEDURE (THE IMPORTANT BIT)
- *
- * These are the pieces you use to build your tRPC API. You should import these a lot in the
- * "/src/server/api/routers" directory.
- */
-
-/**
- * This is how you create new routers and sub-routers in your tRPC API.
- *
- * @see https://trpc.io/docs/router
- */
 export const createTRPCRouter = t.router;
 
-/**
- * Middleware for timing procedure execution and adding an artificial delay in development.
- *
- * You can remove this if you don't like it, but it can help catch unwanted waterfalls by simulating
- * network latency that would occur in production but not in local development.
- */
-const timingMiddleware = t.middleware(async ({ next, path }) => {
-  const start = Date.now();
+export const publicProcedure = t.procedure;
 
-  if (t._config.isDev) {
-    // artificial delay in dev
-    const waitMs = Math.floor(Math.random() * 400) + 100;
-    await new Promise((resolve) => setTimeout(resolve, waitMs));
-  }
+export const protectedProcedure = t.procedure.use(async (opts) => {
+  const clerkUser = await currentUser();
 
-  const result = await next();
-
-  const end = Date.now();
-  console.log(`[TRPC] ${path} took ${end - start}ms to execute`);
-
-  return result;
-});
-
-/**
- * Public (unauthenticated) procedure
- *
- * This is the base piece you use to build new queries and mutations on your tRPC API. It does not
- * guarantee that a user querying is authorized, but you can still access user session data if they
- * are logged in.
- */
-export const publicProcedure = t.procedure.use(timingMiddleware);
-
-/**
- * Reusable middleware that enforces users are logged in before running the
- * procedure
- */
-const enforceUserIsAuthed = t.middleware(({ next, ctx }) => {
-  if (!ctx.auth.userId) {
-    throw new TRPCError({ code: "UNAUTHORIZED" });
-  }
-  if (!ctx.user) {
+  if (!clerkUser) {
     throw new TRPCError({
       code: "UNAUTHORIZED",
-      message: "Please wait a moment while we set up your account",
+      message: "Not authenticated",
     });
   }
-  return next({
+
+  const dbUser = await db.user.findUnique({
+    where: { clerkUserId: clerkUser.id },
+  });
+
+  if (!dbUser) {
+    throw new TRPCError({
+      code: "UNAUTHORIZED",
+      message: "User not found in database",
+    });
+  }
+
+  return opts.next({
     ctx: {
-      auth: ctx.auth,
-      user: ctx.user,
+      ...opts.ctx,
+      user: dbUser,
     },
   });
 });
-
-/**
- * Protected (authenticated) procedure
- *
- * If you want a query or mutation to ONLY be accessible to logged in users, use this. It verifies
- * the session is valid and guarantees `ctx.session.user` is not null.
- *
- * @see https://trpc.io/docs/procedures
- */
-export const protectedProcedure = t.procedure
-  .use(timingMiddleware)
-  .use(enforceUserIsAuthed);

@@ -2,10 +2,10 @@ import { v4 as uuidv4 } from "uuid";
 import { env } from "@/env";
 import path from "path";
 import {
-  ImageType,
-  ImageVariants,
-  GenerateImageKeyParams,
-  ImageError,
+  type ImageType,
+  type ImageVariants,
+  type GenerateImageKeyParams,
+  type ImageError,
   ImageErrorType,
 } from "@/types/image";
 import { APP_CONFIG } from "@/config/constants";

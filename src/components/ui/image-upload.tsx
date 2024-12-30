@@ -11,10 +11,7 @@ import "react-image-crop/dist/ReactCrop.css";
 import { Button } from "@/components/ui/button";
 import { getPresignedUrl } from "@/actions/images";
 import { toast } from "sonner";
-import {
-  type ImageUploadProps,
-  type PresignedUrlResponse,
-} from "@/types/image";
+import { type ImageUploadProps } from "@/types/image";
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 
@@ -100,7 +97,9 @@ export function ImageUpload({
   type,
   listingId,
   userProfileId,
-  onUploadComplete = () => {},
+  onUploadComplete = (result: { url: string; success: boolean }) => {
+    console.log("Upload complete:", result);
+  },
   maxFiles = 1,
 }: ImageUploadProps) {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
