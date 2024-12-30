@@ -39,8 +39,6 @@ export const env = createEnv({
   client: {
     NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: z.string(),
     NEXT_PUBLIC_APP_URL: z.string(),
-    NEXT_PUBLIC_AWS_REGION: z.string(),
-    NEXT_PUBLIC_AWS_BUCKET_NAME: z.string(),
     NEXT_PUBLIC_CLOUDFLARE_DELIVERY_URL: z.string(),
   },
 
