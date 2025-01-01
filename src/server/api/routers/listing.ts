@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { createTRPCRouter, protectedProcedure } from "@/server/api/trpc";
-import { TRPCError } from "@trpc/server";
-import { listingSchema } from "@/types/schemas/listing";
+import { inferRouterOutputs, TRPCError } from "@trpc/server";
+import { listingFormSchema } from "@/types/schemas/listing";
 import { type PrismaClient } from "@prisma/client";
 
 async function checkListingOwnership(
@@ -31,26 +31,24 @@ async function checkListingOwnership(
 }
 
 export const listingRouter = createTRPCRouter({
-  create: protectedProcedure
-    .input(listingSchema)
-    .mutation(async ({ ctx, input }) => {
-      return ctx.db.listing.create({
-        data: {
-          ...input,
-          userId: ctx.user.id,
-        },
-        include: {
-          ahsListing: true,
-          images: true,
-        },
-      });
-    }),
+  create: protectedProcedure.mutation(async ({ ctx }) => {
+    return ctx.db.listing.create({
+      data: {
+        name: "New Listing",
+        userId: ctx.user.id,
+      },
+      include: {
+        ahsListing: true,
+        images: true,
+      },
+    });
+  }),
 
   update: protectedProcedure
     .input(
       z.object({
         id: z.string(),
-        data: listingSchema,
+        data: listingFormSchema,
       }),
     )
     .mutation(async ({ ctx, input }) => {
@@ -112,3 +110,8 @@ export const listingRouter = createTRPCRouter({
     });
   }),
 });
+
+export type ListingRouter = typeof listingRouter;
+
+export type ListingGetOutput = inferRouterOutputs<ListingRouter>["get"];
+export type ListingListOutput = inferRouterOutputs<ListingRouter>["list"];

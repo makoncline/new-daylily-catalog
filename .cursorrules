@@ -55,11 +55,16 @@
    - Store Clerk user IDs but use database user IDs for relations
 
 3. Forms:
-   - Use shadcn/ui form components
-   - Use useZodForm from @/lib/hooks
-   - Share Zod schemas between forms and tRPC
-   - Handle loading and error states
+   - Use shadcn/ui form components (Form, FormField, FormItem, FormLabel, FormControl, FormDescription, FormMessage)
+   - Use useZodForm from @/lib/hooks for form state management and validation
+   - Share Zod schemas between forms and server actions
+   - Handle loading states with isPending state
+   - Use toast notifications for success/error feedback
    - Use server actions for form submissions
+   - Handle null values with transformNullToUndefined utility
+   - Use proper type inference with ListingFormData = z.infer<typeof schema>
+   - Add proper form field descriptions and error messages
+   - Handle numeric inputs with proper onChange handlers
 
 4. Auth:
    - Use Clerk for authentication
@@ -73,10 +78,15 @@
 
 5. Schema Organization:
    - Place Zod schemas in src/types/schemas
-   - Share schemas between forms, tRPC, and server actions
-   - Use z.infer for type inference
-   - Export inferred types
-   - Validate data consistently across all entry points
+   - Share schemas between forms and server actions
+   - Use z.infer for type inference (e.g., ListingFormData)
+   - Export inferred types for reuse
+   - Handle nullable fields with .nullable() and optional()
+   - Use proper validation rules (e.g., min(1) for required fields)
+   - Transform null to undefined for form defaultValues
+   - Export utility functions for schema transformations
+   - Keep schemas focused and minimal
+   - Use descriptive validation messages
 
 6. Server Actions:
    - Place server actions in src/server/actions/
@@ -147,6 +157,106 @@ export async function checkListingOwnership(userId: string, listingId: string) {
   }
 
   return listing;
+}
+```
+
+3. Form and Schema Example:
+```typescript
+// src/types/schemas/listing.ts
+import { z } from "zod";
+
+export const transformNullToUndefined = <T>(value: T): T | undefined => {
+  if (value === null) return undefined;
+  if (typeof value === "object" && value !== null) {
+    return Object.fromEntries(
+      Object.entries(value).map(([key, val]) => [
+        key,
+        val === null ? undefined : val,
+      ]),
+    ) as T;
+  }
+  return value;
+};
+
+export const listingFormSchema = z.object({
+  name: z.string().min(1, "Name is required"),
+  price: z.number().min(0).optional().nullable(),
+  publicNote: z.string().optional().nullable(),
+});
+
+export type ListingFormData = z.infer<typeof listingFormSchema>;
+
+// src/components/forms/listing-form.tsx
+export function ListingForm({ listing }: { listing: ListingGetOutput }) {
+  const [isPending, setIsPending] = useState(false);
+  const { toast } = useToast();
+
+  const form = useZodForm({
+    schema: listingFormSchema,
+    defaultValues: {
+      ...transformNullToUndefined(listingFormSchema.parse(listing)),
+    },
+  });
+
+  async function onSubmit(values: ListingFormData) {
+    setIsPending(true);
+    try {
+      await updateListing(listing.id, values);
+      toast({ title: "Listing updated successfully" });
+    } catch {
+      toast({ title: "Failed to update listing", variant: "destructive" });
+    } finally {
+      setIsPending(false);
+    }
+  }
+
+  return (
+    <Form {...form}>
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+        <FormField
+          control={form.control}
+          name="name"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Name</FormLabel>
+              <FormControl>
+                <Input {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <FormField
+          control={form.control}
+          name="price"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Price</FormLabel>
+              <FormControl>
+                <Input
+                  type="number"
+                  step="0.01"
+                  {...field}
+                  value={field.value ?? ""}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    field.onChange(value === "" ? undefined : Number(value));
+                  }}
+                />
+              </FormControl>
+              <FormDescription>Optional. Price in dollars.</FormDescription>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <Button type="submit" disabled={isPending}>
+          {isPending ? "Saving..." : "Save Changes"}
+        </Button>
+      </form>
+    </Form>
+  );
 }
 ```
 

@@ -23,7 +23,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useState } from "react";
-import { listingSchema } from "@/types/schemas/listing";
+import { listingFormSchema } from "@/types/schemas/listing";
 
 interface EditListingFormProps {
   listing: {
@@ -42,7 +42,7 @@ export function EditListingForm({ listing }: EditListingFormProps) {
   const [isDeleting, setIsDeleting] = useState(false);
 
   const form = useForm<ListingFormData>({
-    resolver: zodResolver(listingSchema),
+    resolver: zodResolver(listingFormSchema),
     defaultValues: {
       name: listing.name,
       price: listing.price ?? undefined,

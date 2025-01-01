@@ -3,30 +3,27 @@
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { api } from "@/trpc/react";
-import { toast } from "sonner";
+import { useToast } from "@/hooks/use-toast";
 
 export function CreateListingButton() {
   const router = useRouter();
+  const { toast } = useToast();
   const createListing = api.listing.create.useMutation({
     onSuccess: (listing) => {
       router.push(`/listings/${listing.id}/edit`);
     },
     onError: () => {
-      toast.error("Failed to create listing");
+      toast({
+        title: "Failed to create listing",
+        variant: "destructive",
+      });
     },
   });
 
   return (
     <Button
       onClick={() => {
-        createListing.mutate({
-          name: "New Listing",
-          price: null,
-          publicNote: null,
-          privateNote: null,
-          ahsId: null,
-          listId: null,
-        });
+        createListing.mutate();
       }}
       disabled={createListing.status === "pending"}
     >

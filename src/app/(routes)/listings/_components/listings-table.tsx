@@ -10,21 +10,10 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { formatPrice } from "@/lib/utils";
+import { type ListingListOutput } from "@/server/api/routers/listing";
 import Link from "next/link";
 
-interface ListingsTableProps {
-  listings: {
-    id: string;
-    name: string;
-    price: number | null;
-    publicNote: string | null;
-    privateNote: string | null;
-    ahsId: string | null;
-    listId: string | null;
-  }[];
-}
-
-export function ListingsTable({ listings }: ListingsTableProps) {
+export function ListingsTable({ listings }: { listings: ListingListOutput }) {
   return (
     <div className="rounded-md border">
       <Table>

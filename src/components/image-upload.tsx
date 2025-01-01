@@ -10,7 +10,7 @@ import ReactCrop, {
 import "react-image-crop/dist/ReactCrop.css";
 import { Button } from "@/components/ui/button";
 import { getPresignedUrl } from "@/actions/images";
-import { toast } from "sonner";
+import { useToast } from "@/hooks/use-toast";
 import { type ImageUploadProps } from "@/types/image";
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
@@ -108,6 +108,7 @@ export function ImageUpload({
   const [crop, setCrop] = useState<Crop>();
   const [isUploading, setIsUploading] = useState(false);
   const imageRef = useRef<HTMLImageElement | null>(null);
+  const { toast } = useToast();
 
   const onDrop = useCallback((acceptedFiles: File[]) => {
     const file = acceptedFiles[0];
@@ -194,18 +195,23 @@ export function ImageUpload({
 
         setUploadedUrl(response.url);
         onUploadComplete({ url: response.url, success: true });
-        toast.success("Image uploaded successfully");
+        toast({
+          title: "Image uploaded successfully",
+        });
 
         // Reset state except for uploaded URL
         setSelectedFile(null);
         setPreviewUrl(null);
         setCrop(undefined);
-      } catch (verifyError) {
+      } catch {
         throw new Error("Failed to verify uploaded image");
       }
     } catch (error) {
       console.error("Upload failed:", error);
-      toast.error("Failed to upload image");
+      toast({
+        title: "Failed to upload image",
+        variant: "destructive",
+      });
       setUploadedUrl(null);
     } finally {
       setIsUploading(false);

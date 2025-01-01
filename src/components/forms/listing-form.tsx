@@ -1,8 +1,12 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { listingSchema, type ListingFormData } from "@/types/schemas/listing";
-import { toast } from "sonner";
+import {
+  listingFormSchema,
+  transformNullToUndefined,
+  type ListingFormData,
+} from "@/types/schemas/listing";
+import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import {
   Form,
@@ -19,31 +23,17 @@ import { useState } from "react";
 import { useZodForm } from "@/lib/hooks/use-zod-form";
 import { updateListing, deleteListing } from "@/server/actions/listing";
 
-interface ListingFormProps {
-  listing: {
-    id: string;
-    name: string;
-    price: number | null;
-    publicNote: string | null;
-    privateNote: string | null;
-    ahsId: string | null;
-    listId: string | null;
-  };
-}
+import type { ListingGetOutput } from "@/server/api/routers/listing";
 
-export function ListingForm({ listing }: ListingFormProps) {
+export function ListingForm({ listing }: { listing: ListingGetOutput }) {
   const router = useRouter();
+  const { toast } = useToast();
   const [isPending, setIsPending] = useState(false);
 
   const form = useZodForm({
-    schema: listingSchema,
+    schema: listingFormSchema,
     defaultValues: {
-      name: listing.name,
-      price: listing.price ?? undefined,
-      publicNote: listing.publicNote ?? undefined,
-      privateNote: listing.privateNote ?? undefined,
-      ahsId: listing.ahsId ?? undefined,
-      listId: listing.listId ?? undefined,
+      ...transformNullToUndefined(listingFormSchema.parse(listing)),
     },
   });
 
@@ -51,12 +41,15 @@ export function ListingForm({ listing }: ListingFormProps) {
     setIsPending(true);
     try {
       await updateListing(listing.id, values);
-      toast.success("Listing updated successfully");
+      toast({
+        title: "Listing updated successfully",
+      });
       router.push("/listings");
-    } catch (error) {
-      toast.error(
-        error instanceof Error ? error.message : "Failed to update listing",
-      );
+    } catch {
+      toast({
+        title: "Failed to update listing",
+        variant: "destructive",
+      });
     } finally {
       setIsPending(false);
     }
@@ -70,12 +63,15 @@ export function ListingForm({ listing }: ListingFormProps) {
     setIsPending(true);
     try {
       await deleteListing(listing.id);
-      toast.success("Listing deleted successfully");
+      toast({
+        title: "Listing deleted successfully",
+      });
       router.push("/listings");
-    } catch (error) {
-      toast.error(
-        error instanceof Error ? error.message : "Failed to delete listing",
-      );
+    } catch {
+      toast({
+        title: "Failed to delete listing",
+        variant: "destructive",
+      });
     } finally {
       setIsPending(false);
     }

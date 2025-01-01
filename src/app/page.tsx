@@ -1,6 +1,6 @@
 "use client";
 
-import { ImageUpload } from "@/components/ui/image-upload";
+import { ImageUpload } from "@/components/image-upload";
 import { type ImageUploadResponse } from "@/types/image";
 import { useState } from "react";
 

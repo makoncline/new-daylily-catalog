@@ -12,7 +12,7 @@ import {
 
 import { TRPCReactProvider } from "@/trpc/react";
 import dynamic from "next/dynamic";
-import { Toaster } from "sonner";
+import { Toaster } from "@/components/ui/toaster";
 
 const StripePortalButton = dynamic(
   () => import("@/components/StripePortalButton"),
