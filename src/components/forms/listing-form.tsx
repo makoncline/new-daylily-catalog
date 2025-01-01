@@ -21,8 +21,12 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useState } from "react";
 import { useZodForm } from "@/lib/hooks/use-zod-form";
-import { updateListing, deleteListing } from "@/server/actions/listing";
-import { Check, ChevronsUpDown, Search } from "lucide-react";
+import {
+  updateListing,
+  deleteListing,
+  deleteImage,
+} from "@/server/actions/listing";
+import { Check, ChevronsUpDown, Search, X, ExternalLink } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
   Popover,
@@ -83,6 +87,32 @@ export function ListingForm({ listing }: { listing: ListingGetOutput }) {
     } catch {
       toast({
         title: "Failed to delete listing",
+        variant: "destructive",
+      });
+    } finally {
+      setIsPending(false);
+    }
+  }
+
+  async function handleImageDelete(imageId: string) {
+    if (
+      !window.confirm(
+        "Are you sure you want to delete this image? This cannot be undone.",
+      )
+    ) {
+      return;
+    }
+
+    setIsPending(true);
+    try {
+      await deleteImage(imageId);
+      toast({
+        title: "Image deleted successfully",
+      });
+      router.refresh();
+    } catch {
+      toast({
+        title: "Failed to delete image",
         variant: "destructive",
       });
     } finally {
@@ -212,13 +242,34 @@ export function ListingForm({ listing }: { listing: ListingGetOutput }) {
             {listing.images.map((image) => (
               <div
                 key={image.id}
-                className="aspect-square overflow-hidden rounded-lg border"
+                className="group relative aspect-square overflow-hidden rounded-lg border"
               >
                 <img
                   src={image.url}
                   alt="Listing image"
                   className="h-full w-full object-cover"
                 />
+                <div className="absolute inset-4 flex justify-between">
+                  <Button
+                    type="button"
+                    variant="destructive"
+                    size="icon"
+                    className="h-8 w-8 opacity-0 transition-opacity group-hover:opacity-100"
+                    onClick={() => handleImageDelete(image.id)}
+                    disabled={isPending}
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="icon"
+                    className="h-8 w-8 opacity-0 transition-opacity group-hover:opacity-100"
+                    onClick={() => window.open(image.url, "_blank")}
+                  >
+                    <ExternalLink className="h-4 w-4" />
+                  </Button>
+                </div>
               </div>
             ))}
             {listing.images.length < LISTING_CONFIG.IMAGES.MAX_COUNT && (

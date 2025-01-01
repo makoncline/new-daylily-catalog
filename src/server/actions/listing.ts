@@ -96,3 +96,40 @@ export async function deleteListing(listingId: string) {
 
   return result;
 }
+
+export async function deleteImage(imageId: string) {
+  const clerkUser = await currentUser();
+  if (!clerkUser) {
+    throw new Error("Unauthorized");
+  }
+
+  const dbUser = await db.user.findUnique({
+    where: { clerkUserId: clerkUser.id },
+  });
+
+  if (!dbUser) {
+    throw new Error("User not found in database");
+  }
+
+  // Get the image and check ownership
+  const image = await db.image.findUnique({
+    where: { id: imageId },
+    include: { listing: true },
+  });
+
+  if (!image || !image.listing) {
+    throw new Error("Image not found");
+  }
+
+  if (image.listing.userId !== dbUser.id) {
+    throw new Error("Not authorized");
+  }
+
+  // Delete the image
+  await db.image.delete({
+    where: { id: imageId },
+  });
+
+  revalidatePath("/listings");
+  revalidatePath(`/listings/${image.listingId}/edit`);
+}
