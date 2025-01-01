@@ -34,11 +34,14 @@ import { api } from "@/trpc/react";
 import type { ListingGetOutput } from "@/server/api/routers/listing";
 import type { AhsListing } from "@prisma/client";
 import { AhsListingLink } from "@/components/ahs-listing-link";
+import { ImageUpload } from "@/components/image-upload";
+import { LISTING_CONFIG } from "@/config/constants";
 
 export function ListingForm({ listing }: { listing: ListingGetOutput }) {
   const router = useRouter();
   const { toast } = useToast();
   const [isPending, setIsPending] = useState(false);
+  const [uploadKey, setUploadKey] = useState(0);
 
   const form = useZodForm({
     schema: listingFormSchema,
@@ -194,6 +197,47 @@ export function ListingForm({ listing }: { listing: ListingGetOutput }) {
               form.setValue("name", name);
             }}
           />
+        </div>
+
+        <div className="border-t pt-8">
+          <div className="mb-4">
+            <h2 className="font-medium">Images</h2>
+            <p className="text-sm text-muted-foreground">
+              Add up to {LISTING_CONFIG.IMAGES.MAX_COUNT} images for your
+              listing. The first image will be used as the main image.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {listing.images.map((image) => (
+              <div
+                key={image.id}
+                className="aspect-square overflow-hidden rounded-lg border"
+              >
+                <img
+                  src={image.url}
+                  alt="Listing image"
+                  className="h-full w-full object-cover"
+                />
+              </div>
+            ))}
+            {listing.images.length < LISTING_CONFIG.IMAGES.MAX_COUNT && (
+              <div className="aspect-square">
+                <ImageUpload
+                  key={uploadKey}
+                  type="listing"
+                  listingId={listing.id}
+                  maxFiles={1}
+                  onUploadComplete={({ success }) => {
+                    if (success) {
+                      setUploadKey((prev) => prev + 1);
+                      router.refresh();
+                    }
+                  }}
+                />
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>

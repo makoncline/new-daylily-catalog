@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { getPresignedUrl } from "@/actions/images";
 import { useToast } from "@/hooks/use-toast";
 import { type ImageUploadProps } from "@/types/image";
+import { cn } from "@/lib/utils";
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 
@@ -220,45 +221,71 @@ export function ImageUpload({
 
   return (
     <div className="space-y-4">
-      {!uploadedUrl && (
-        <>
-          <div
-            {...getRootProps()}
-            className={`cursor-pointer rounded-lg border-2 border-dashed p-8 text-center ${
-              isDragActive ? "border-primary" : "border-muted"
-            }`}
-          >
-            <input {...getInputProps()} />
-            {isDragActive ? (
-              <p>Drop the image here...</p>
-            ) : (
-              <p>Drag and drop an image here, or click to select one</p>
+      {!uploadedUrl && !previewUrl && (
+        <div
+          {...getRootProps()}
+          className={`cursor-pointer rounded-lg border-2 border-dashed p-8 text-center ${
+            isDragActive ? "border-primary" : "border-muted"
+          }`}
+        >
+          <input {...getInputProps()} />
+          {isDragActive ? (
+            <p>Drop the image here...</p>
+          ) : (
+            <p>Drag and drop an image here, or click to select one</p>
+          )}
+        </div>
+      )}
+
+      {previewUrl && !uploadedUrl && (
+        <div className="space-y-4">
+          <div className="relative rounded-lg border">
+            <ReactCrop
+              crop={crop}
+              onChange={(c) => !isUploading && setCrop(c)}
+              aspect={1}
+              className={cn(
+                "max-w-full",
+                isUploading && "pointer-events-none opacity-50",
+              )}
+            >
+              <img ref={imageRef} src={previewUrl} alt="Preview" />
+            </ReactCrop>
+            {isUploading && (
+              <div className="absolute inset-0 flex items-center justify-center bg-background/50">
+                <div className="text-center">
+                  <p className="mb-2 text-sm">Uploading image...</p>
+                  <div className="h-1 w-32 overflow-hidden rounded-full bg-muted">
+                    <div className="h-full w-1/2 animate-[move-x_1s_linear_infinite] rounded-full bg-primary" />
+                  </div>
+                </div>
+              </div>
             )}
           </div>
 
-          {previewUrl && (
-            <div className="space-y-4">
-              <div className="rounded-lg border">
-                <ReactCrop
-                  crop={crop}
-                  onChange={(c) => setCrop(c)}
-                  aspect={1}
-                  className="max-w-full"
-                >
-                  <img ref={imageRef} src={previewUrl} alt="Preview" />
-                </ReactCrop>
-              </div>
-
-              <Button
-                onClick={handleUpload}
-                disabled={!crop || isUploading}
-                className="w-full"
-              >
-                {isUploading ? "Uploading..." : "Upload Image"}
-              </Button>
-            </div>
-          )}
-        </>
+          <div className="flex gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                setPreviewUrl(null);
+                setSelectedFile(null);
+                setCrop(undefined);
+              }}
+              disabled={isUploading}
+              className="flex-1"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleUpload}
+              disabled={!crop || isUploading}
+              className="flex-1"
+            >
+              {isUploading ? "Uploading..." : "Upload Image"}
+            </Button>
+          </div>
+        </div>
       )}
 
       {uploadedUrl && (

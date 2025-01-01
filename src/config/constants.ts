@@ -5,6 +5,10 @@ export const UPLOAD_CONFIG = {
 
 export const LISTING_CONFIG = {
   DEFAULT_NAME: "New Listing",
+  IMAGES: {
+    MAX_COUNT: UPLOAD_CONFIG.MAX_IMAGES_PER_LISTING,
+    MAX_SIZE: UPLOAD_CONFIG.MAX_FILE_SIZE,
+  },
 } as const;
 
 // Add more config objects as needed
