@@ -107,6 +107,7 @@ export function ImageUpload({
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [uploadedUrl, setUploadedUrl] = useState<string | null>(null);
   const [crop, setCrop] = useState<Crop>();
+  const [completedCrop, setCompletedCrop] = useState<Crop>();
   const [isUploading, setIsUploading] = useState(false);
   const imageRef = useRef<HTMLImageElement | null>(null);
   const { toast } = useToast();
@@ -120,14 +121,6 @@ export function ImageUpload({
     reader.onloadend = () => {
       setPreviewUrl(reader.result as string);
       setUploadedUrl(null); // Reset uploaded image when new file is selected
-
-      // Create image object to get dimensions
-      const img = new window.Image();
-      img.onload = () => {
-        const crop = centerAspectCrop(img.width, img.height, 1);
-        setCrop(crop);
-      };
-      img.src = reader.result as string;
     };
     reader.readAsDataURL(file);
 
@@ -146,7 +139,7 @@ export function ImageUpload({
   });
 
   const handleUpload = async () => {
-    if (!selectedFile || !crop || !previewUrl || !imageRef.current) return;
+    if (!selectedFile || !completedCrop || !imageRef.current) return;
 
     try {
       setIsUploading(true);
@@ -164,7 +157,7 @@ export function ImageUpload({
       // Create the cropped image blob with original mime type
       const croppedBlob = await getCroppedImg(
         imageRef.current,
-        crop,
+        completedCrop,
         selectedFile.type,
       );
 
@@ -204,6 +197,7 @@ export function ImageUpload({
         setSelectedFile(null);
         setPreviewUrl(null);
         setCrop(undefined);
+        setCompletedCrop(undefined);
       } catch {
         throw new Error("Failed to verify uploaded image");
       }
@@ -239,17 +233,30 @@ export function ImageUpload({
 
       {previewUrl && !uploadedUrl && (
         <div className="space-y-4">
-          <div className="relative rounded-lg border">
+          <div className="relative overflow-hidden rounded-lg border">
             <ReactCrop
               crop={crop}
               onChange={(c) => !isUploading && setCrop(c)}
+              onComplete={(c) => !isUploading && setCompletedCrop(c)}
               aspect={1}
               className={cn(
                 "max-w-full",
                 isUploading && "pointer-events-none opacity-50",
               )}
+              style={{ display: "block" }}
             >
-              <img ref={imageRef} src={previewUrl} alt="Preview" />
+              <img
+                ref={imageRef}
+                src={previewUrl}
+                alt="Preview"
+                onLoad={(e) => {
+                  const img = e.currentTarget;
+                  const initial = centerAspectCrop(img.width, img.height, 1);
+                  setCrop(initial);
+                  setCompletedCrop(initial);
+                }}
+                className="block h-full w-full object-cover"
+              />
             </ReactCrop>
             {isUploading && (
               <div className="absolute inset-0 flex items-center justify-center bg-background/50">
@@ -271,6 +278,7 @@ export function ImageUpload({
                 setPreviewUrl(null);
                 setSelectedFile(null);
                 setCrop(undefined);
+                setCompletedCrop(undefined);
               }}
               disabled={isUploading}
               className="flex-1"
@@ -279,7 +287,7 @@ export function ImageUpload({
             </Button>
             <Button
               onClick={handleUpload}
-              disabled={!crop || isUploading}
+              disabled={!completedCrop || isUploading}
               className="flex-1"
             >
               {isUploading ? "Uploading..." : "Upload Image"}
@@ -303,6 +311,7 @@ export function ImageUpload({
               setSelectedFile(null);
               setPreviewUrl(null);
               setCrop(undefined);
+              setCompletedCrop(undefined);
             }}
             className="w-full"
           >

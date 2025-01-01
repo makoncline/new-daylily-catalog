@@ -54,10 +54,21 @@ export const imageRouter = createTRPCRouter({
           expiresIn: 3600, // 1 hour
         });
 
+        // Get the current highest order value for this listing
+        let nextOrder = 0;
+        if (input.listingId) {
+          const lastImage = await ctx.db.image.findFirst({
+            where: { listingId: input.listingId },
+            orderBy: { order: "desc" },
+          });
+          nextOrder = lastImage ? lastImage.order + 1 : 0;
+        }
+
         // Create the image record
         const image = await ctx.db.image.create({
           data: {
             url: `https://${env.AWS_BUCKET_NAME}.s3.${env.AWS_REGION}.amazonaws.com/${key}`,
+            order: nextOrder,
             ...(input.type === "listing"
               ? { listingId: input.listingId }
               : { userProfileId: input.userProfileId }),
@@ -89,9 +100,20 @@ export const imageRouter = createTRPCRouter({
     )
     .mutation(async ({ ctx, input }) => {
       try {
+        // Get the current highest order value for this listing
+        let nextOrder = 0;
+        if (input.listingId) {
+          const lastImage = await ctx.db.image.findFirst({
+            where: { listingId: input.listingId },
+            orderBy: { order: "desc" },
+          });
+          nextOrder = lastImage ? lastImage.order + 1 : 0;
+        }
+
         const image = await ctx.db.image.create({
           data: {
             url: `https://${env.AWS_BUCKET_NAME}.s3.${env.AWS_REGION}.amazonaws.com/${input.key}`,
+            order: nextOrder,
             ...(input.type === "listing"
               ? { listingId: input.listingId }
               : { userProfileId: input.userProfileId }),
@@ -156,5 +178,38 @@ export const imageRouter = createTRPCRouter({
           message: "Failed to delete image",
         });
       }
+    }),
+
+  create: protectedProcedure
+    .input(
+      z.object({
+        url: z.string().url(),
+        type: z.enum(["listing", "profile"]),
+        listingId: z.string().optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      // Get the current highest order value for this listing
+      let nextOrder = 0;
+      if (input.listingId) {
+        const lastImage = await ctx.db.image.findFirst({
+          where: { listingId: input.listingId },
+          orderBy: { order: "desc" },
+        });
+        nextOrder = lastImage ? lastImage.order + 1 : 0;
+      }
+
+      return ctx.db.image.create({
+        data: {
+          url: input.url,
+          order: nextOrder,
+          listing: input.listingId
+            ? { connect: { id: input.listingId } }
+            : undefined,
+          userProfile: !input.listingId
+            ? { connect: { userId: ctx.user.id } }
+            : undefined,
+        },
+      });
     }),
 });
