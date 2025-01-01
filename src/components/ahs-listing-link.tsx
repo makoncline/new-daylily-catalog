@@ -89,43 +89,44 @@ export function AhsListingLink({
 
   return (
     <div className="space-y-2">
-      <div className="font-medium">AHS Listing</div>
       {listing.ahsId && listing.ahsListing?.name ? (
         <div className="rounded-lg border p-4">
           <div className="mb-2 flex items-center justify-between">
             <h3 className="text-lg font-semibold">{listing.ahsListing.name}</h3>
             <div className="flex gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={async () => {
-                  const ahsName = listing.ahsListing?.name;
-                  if (!listing.ahsId || !ahsName) return;
+              {listing.name !== listing.ahsListing.name && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={async () => {
+                    const ahsName = listing.ahsListing?.name;
+                    if (!listing.ahsId || !ahsName) return;
 
-                  setIsPending(true);
-                  try {
-                    await updateListing(listing.id, {
-                      ahsId: listing.ahsId,
-                      name: ahsName,
-                    });
-                    onNameChange?.(ahsName);
-                    toast({
-                      title: "Name synced successfully",
-                    });
-                  } catch {
-                    toast({
-                      title: "Failed to sync name",
-                      variant: "destructive",
-                    });
-                  } finally {
-                    setIsPending(false);
-                  }
-                }}
-                disabled={isPending}
-              >
-                {isPending ? "Syncing..." : "Sync Name"}
-              </Button>
+                    setIsPending(true);
+                    try {
+                      await updateListing(listing.id, {
+                        ahsId: listing.ahsId,
+                        name: ahsName,
+                      });
+                      onNameChange?.(ahsName);
+                      toast({
+                        title: "Name synced successfully",
+                      });
+                    } catch {
+                      toast({
+                        title: "Failed to sync name",
+                        variant: "destructive",
+                      });
+                    } finally {
+                      setIsPending(false);
+                    }
+                  }}
+                  disabled={isPending}
+                >
+                  {isPending ? "Syncing..." : "Sync Name"}
+                </Button>
+              )}
               <Button
                 type="button"
                 variant="outline"
@@ -210,10 +211,6 @@ export function AhsListingLink({
           </PopoverContent>
         </Popover>
       )}
-      <p className="text-sm text-muted-foreground">
-        Link this listing to an AHS listing. The name will be automatically
-        synced if it hasn&apos;t been customized.
-      </p>
     </div>
   );
 }

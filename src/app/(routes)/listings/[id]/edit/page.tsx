@@ -1,24 +1,25 @@
-import { api } from "@/trpc/server";
+"use client";
+
 import { ListingForm } from "@/components/forms/listing-form";
-import { notFound } from "next/navigation";
+import { api } from "@/trpc/react";
+import { useParams } from "next/navigation";
 
-interface EditListingPageProps {
-  params: {
-    id: string;
-  };
-}
+export default function EditListingPage() {
+  const params = useParams();
+  const id = params.id as string;
 
-export default async function EditListingPage({
-  params,
-}: EditListingPageProps) {
-  const listing = await api.listing.get({ id: params.id });
+  const { data: listing, isLoading } = api.listing.get.useQuery({ id });
+
+  if (isLoading) {
+    return <div>Loading...</div>;
+  }
 
   if (!listing) {
-    notFound();
+    return <div>Listing not found</div>;
   }
 
   return (
-    <div className="container">
+    <div className="container mx-auto p-8">
       <ListingForm listing={listing} />
     </div>
   );
