@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { api } from "@/trpc/react";
 import { useToast } from "@/hooks/use-toast";
+import { LISTING_CONFIG } from "@/config/constants";
 
 export function CreateListingButton() {
   const router = useRouter();

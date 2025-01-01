@@ -22,8 +22,18 @@ import { Textarea } from "@/components/ui/textarea";
 import { useState } from "react";
 import { useZodForm } from "@/lib/hooks/use-zod-form";
 import { updateListing, deleteListing } from "@/server/actions/listing";
+import { Check, ChevronsUpDown, Search } from "lucide-react";
+import { cn } from "@/lib/utils";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { api } from "@/trpc/react";
 
 import type { ListingGetOutput } from "@/server/api/routers/listing";
+import type { AhsListing } from "@prisma/client";
+import { AhsListingLink } from "@/components/ahs-listing-link";
 
 export function ListingForm({ listing }: { listing: ListingGetOutput }) {
   const router = useRouter();
@@ -83,96 +93,109 @@ export function ListingForm({ listing }: { listing: ListingGetOutput }) {
         Editing listing: {listing.name}
       </h1>
 
-      <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
-          <FormField
-            control={form.control}
-            name="name"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Name</FormLabel>
-                <FormControl>
-                  <Input {...field} />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            )}
+      <div className="space-y-8">
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+            <FormField
+              control={form.control}
+              name="name"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Name</FormLabel>
+                  <FormControl>
+                    <Input {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="price"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Price</FormLabel>
+                  <FormControl>
+                    <Input
+                      type="number"
+                      step="0.01"
+                      {...field}
+                      value={field.value ?? ""}
+                      onChange={(e) => {
+                        const value = e.target.value;
+                        field.onChange(
+                          value === "" ? undefined : Number(value),
+                        );
+                      }}
+                    />
+                  </FormControl>
+                  <FormDescription>Optional. Price in dollars.</FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="publicNote"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Public Note</FormLabel>
+                  <FormControl>
+                    <Textarea {...field} value={field.value ?? ""} />
+                  </FormControl>
+                  <FormDescription>
+                    This note will be visible to everyone.
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="privateNote"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Private Note</FormLabel>
+                  <FormControl>
+                    <Textarea {...field} value={field.value ?? ""} />
+                  </FormControl>
+                  <FormDescription>
+                    This note will only be visible to you.
+                  </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <div className="flex justify-between">
+              <Button type="submit" disabled={isPending}>
+                {isPending ? "Saving..." : "Save Changes"}
+              </Button>
+
+              <Button
+                type="button"
+                variant="destructive"
+                disabled={isPending}
+                onClick={onDelete}
+              >
+                {isPending ? "Deleting..." : "Delete Listing"}
+              </Button>
+            </div>
+          </form>
+        </Form>
+
+        <div className="border-t pt-8">
+          <AhsListingLink
+            listing={listing}
+            onNameChange={(name) => {
+              form.setValue("name", name);
+            }}
           />
-
-          <FormField
-            control={form.control}
-            name="price"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Price</FormLabel>
-                <FormControl>
-                  <Input
-                    type="number"
-                    step="0.01"
-                    {...field}
-                    value={field.value ?? ""}
-                    onChange={(e) => {
-                      const value = e.target.value;
-                      field.onChange(value === "" ? undefined : Number(value));
-                    }}
-                  />
-                </FormControl>
-                <FormDescription>Optional. Price in dollars.</FormDescription>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          <FormField
-            control={form.control}
-            name="publicNote"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Public Note</FormLabel>
-                <FormControl>
-                  <Textarea {...field} value={field.value ?? ""} />
-                </FormControl>
-                <FormDescription>
-                  This note will be visible to everyone.
-                </FormDescription>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          <FormField
-            control={form.control}
-            name="privateNote"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Private Note</FormLabel>
-                <FormControl>
-                  <Textarea {...field} value={field.value ?? ""} />
-                </FormControl>
-                <FormDescription>
-                  This note will only be visible to you.
-                </FormDescription>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          <div className="flex justify-between">
-            <Button type="submit" disabled={isPending}>
-              {isPending ? "Saving..." : "Save Changes"}
-            </Button>
-
-            <Button
-              type="button"
-              variant="destructive"
-              disabled={isPending}
-              onClick={onDelete}
-            >
-              {isPending ? "Deleting..." : "Delete Listing"}
-            </Button>
-          </div>
-        </form>
-      </Form>
+        </div>
+      </div>
     </div>
   );
 }
