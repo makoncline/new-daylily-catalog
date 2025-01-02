@@ -175,32 +175,21 @@ export function ImageUpload({
       }
 
       // Wait a moment for S3 to process the upload
-      await new Promise((resolve) => setTimeout(resolve, 500));
+      await new Promise((resolve) => setTimeout(resolve, 1000));
 
-      // Verify the image is accessible
-      try {
-        const verifyImage = new window.Image();
-        await new Promise<void>((resolve, reject) => {
-          verifyImage.onload = () => resolve();
-          verifyImage.onerror = () =>
-            reject(new Error("Failed to verify uploaded image"));
-          verifyImage.src = response.url;
-        });
+      // Consider the upload successful if we got this far
+      const imageUrl = response.presignedUrl.replace(/\?.*$/, "");
+      onUploadComplete({ url: imageUrl, success: true });
+      toast({
+        title: "Image uploaded successfully",
+      });
 
-        setUploadedUrl(response.url);
-        onUploadComplete({ url: response.url, success: true });
-        toast({
-          title: "Image uploaded successfully",
-        });
-
-        // Reset state except for uploaded URL
-        setSelectedFile(null);
-        setPreviewUrl(null);
-        setCrop(undefined);
-        setCompletedCrop(undefined);
-      } catch {
-        throw new Error("Failed to verify uploaded image");
-      }
+      // Reset state to initial
+      setSelectedFile(null);
+      setPreviewUrl(null);
+      setUploadedUrl(null);
+      setCrop(undefined);
+      setCompletedCrop(undefined);
     } catch (error) {
       console.error("Upload failed:", error);
       toast({
@@ -215,7 +204,7 @@ export function ImageUpload({
 
   return (
     <div className="space-y-4">
-      {!uploadedUrl && !previewUrl && (
+      {!previewUrl && (
         <div
           {...getRootProps()}
           className={`cursor-pointer rounded-lg border-2 border-dashed p-8 text-center ${
@@ -231,7 +220,7 @@ export function ImageUpload({
         </div>
       )}
 
-      {previewUrl && !uploadedUrl && (
+      {previewUrl && (
         <div className="space-y-4">
           <div className="relative overflow-hidden rounded-lg border">
             <ReactCrop
@@ -293,30 +282,6 @@ export function ImageUpload({
               {isUploading ? "Uploading..." : "Upload Image"}
             </Button>
           </div>
-        </div>
-      )}
-
-      {uploadedUrl && (
-        <div className="space-y-4">
-          <div className="aspect-square w-full overflow-hidden rounded-lg">
-            <img
-              src={uploadedUrl}
-              alt="Uploaded image"
-              className="h-full w-full object-cover"
-            />
-          </div>
-          <Button
-            onClick={() => {
-              setUploadedUrl(null);
-              setSelectedFile(null);
-              setPreviewUrl(null);
-              setCrop(undefined);
-              setCompletedCrop(undefined);
-            }}
-            className="w-full"
-          >
-            Upload New Image
-          </Button>
         </div>
       )}
     </div>

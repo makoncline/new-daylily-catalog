@@ -54,31 +54,9 @@ export const imageRouter = createTRPCRouter({
           expiresIn: 3600, // 1 hour
         });
 
-        // Get the current highest order value for this listing
-        let nextOrder = 0;
-        if (input.listingId) {
-          const lastImage = await ctx.db.image.findFirst({
-            where: { listingId: input.listingId },
-            orderBy: { order: "desc" },
-          });
-          nextOrder = lastImage ? lastImage.order + 1 : 0;
-        }
-
-        // Create the image record
-        const image = await ctx.db.image.create({
-          data: {
-            url: `https://${env.AWS_BUCKET_NAME}.s3.${env.AWS_REGION}.amazonaws.com/${key}`,
-            order: nextOrder,
-            ...(input.type === "listing"
-              ? { listingId: input.listingId }
-              : { userProfileId: input.userProfileId }),
-          },
-        });
-
         return {
           presignedUrl: url,
-          imageId: image.id,
-          url: image.url,
+          key,
         };
       } catch (error) {
         console.error("Error generating presigned URL:", error);
@@ -100,29 +78,9 @@ export const imageRouter = createTRPCRouter({
     )
     .mutation(async ({ ctx, input }) => {
       try {
-        // Get the current highest order value for this listing
-        let nextOrder = 0;
-        if (input.listingId) {
-          const lastImage = await ctx.db.image.findFirst({
-            where: { listingId: input.listingId },
-            orderBy: { order: "desc" },
-          });
-          nextOrder = lastImage ? lastImage.order + 1 : 0;
-        }
-
-        const image = await ctx.db.image.create({
-          data: {
-            url: `https://${env.AWS_BUCKET_NAME}.s3.${env.AWS_REGION}.amazonaws.com/${input.key}`,
-            order: nextOrder,
-            ...(input.type === "listing"
-              ? { listingId: input.listingId }
-              : { userProfileId: input.userProfileId }),
-          },
-        });
-
         return {
           success: true,
-          url: image.url,
+          url: `https://${env.AWS_BUCKET_NAME}.s3.${env.AWS_REGION}.amazonaws.com/${input.key}`,
         };
       } catch {
         console.error("Error uploading image");
@@ -131,85 +89,5 @@ export const imageRouter = createTRPCRouter({
           message: "Failed to upload image",
         });
       }
-    }),
-
-  reorderImages: protectedProcedure
-    .input(
-      z.object({
-        type: imageTypeSchema,
-        images: z.array(z.object({ id: z.string(), order: z.number() })),
-      }),
-    )
-    .mutation(async ({ ctx, input }) => {
-      try {
-        await Promise.all(
-          input.images.map((img) =>
-            ctx.db.image.update({
-              where: { id: img.id },
-              data: { order: img.order },
-            }),
-          ),
-        );
-        return { success: true };
-      } catch {
-        throw new TRPCError({
-          code: "INTERNAL_SERVER_ERROR",
-          message: "Failed to reorder images",
-        });
-      }
-    }),
-
-  deleteImage: protectedProcedure
-    .input(
-      z.object({
-        type: imageTypeSchema,
-        imageId: z.string(),
-      }),
-    )
-    .mutation(async ({ ctx, input }) => {
-      try {
-        await ctx.db.image.delete({
-          where: { id: input.imageId },
-        });
-        return { success: true };
-      } catch {
-        throw new TRPCError({
-          code: "INTERNAL_SERVER_ERROR",
-          message: "Failed to delete image",
-        });
-      }
-    }),
-
-  create: protectedProcedure
-    .input(
-      z.object({
-        url: z.string().url(),
-        type: z.enum(["listing", "profile"]),
-        listingId: z.string().optional(),
-      }),
-    )
-    .mutation(async ({ ctx, input }) => {
-      // Get the current highest order value for this listing
-      let nextOrder = 0;
-      if (input.listingId) {
-        const lastImage = await ctx.db.image.findFirst({
-          where: { listingId: input.listingId },
-          orderBy: { order: "desc" },
-        });
-        nextOrder = lastImage ? lastImage.order + 1 : 0;
-      }
-
-      return ctx.db.image.create({
-        data: {
-          url: input.url,
-          order: nextOrder,
-          listing: input.listingId
-            ? { connect: { id: input.listingId } }
-            : undefined,
-          userProfile: !input.listingId
-            ? { connect: { userId: ctx.user.id } }
-            : undefined,
-        },
-      });
     }),
 });
