@@ -9,10 +9,10 @@ import ReactCrop, {
 } from "react-image-crop";
 import "react-image-crop/dist/ReactCrop.css";
 import { Button } from "@/components/ui/button";
-import { getPresignedUrl } from "@/actions/images";
 import { useToast } from "@/hooks/use-toast";
 import { type ImageUploadProps } from "@/types/image";
 import { cn } from "@/lib/utils";
+import { api } from "@/trpc/react";
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 
@@ -96,21 +96,38 @@ function getCroppedImg(
 
 export function ImageUpload({
   type,
-  listingId,
-  userProfileId,
-  onUploadComplete = (result: { url: string; success: boolean }) => {
-    console.log("Upload complete:", result);
+  referenceId,
+  onUploadComplete = () => {
+    console.log("Upload complete");
   },
   maxFiles = 1,
 }: ImageUploadProps) {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-  const [uploadedUrl, setUploadedUrl] = useState<string | null>(null);
   const [crop, setCrop] = useState<Crop>();
   const [completedCrop, setCompletedCrop] = useState<Crop>();
   const [isUploading, setIsUploading] = useState(false);
   const imageRef = useRef<HTMLImageElement | null>(null);
   const { toast } = useToast();
+  const [uploadProgress, setUploadProgress] = useState(0);
+
+  const getPresignedUrlMutation = api.image.getPresignedUrl.useMutation({
+    onError: () => {
+      toast({
+        title: "Failed to get upload URL",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const createImageMutation = api.image.createImage.useMutation({
+    onError: () => {
+      toast({
+        title: "Failed to save image",
+        variant: "destructive",
+      });
+    },
+  });
 
   const onDrop = useCallback((acceptedFiles: File[]) => {
     const file = acceptedFiles[0];
@@ -120,7 +137,6 @@ export function ImageUpload({
     const reader = new FileReader();
     reader.onloadend = () => {
       setPreviewUrl(reader.result as string);
-      setUploadedUrl(null); // Reset uploaded image when new file is selected
     };
     reader.readAsDataURL(file);
 
@@ -143,16 +159,17 @@ export function ImageUpload({
 
     try {
       setIsUploading(true);
+      setUploadProgress(0);
 
       // Get presigned URL with original content type
-      const response = await getPresignedUrl({
-        type,
-        fileName: selectedFile.name,
-        contentType: selectedFile.type,
-        size: selectedFile.size,
-        listingId,
-        userProfileId,
-      });
+      const { presignedUrl, key, url } =
+        await getPresignedUrlMutation.mutateAsync({
+          type,
+          fileName: selectedFile.name,
+          contentType: selectedFile.type,
+          size: selectedFile.size,
+          referenceId,
+        });
 
       // Create the cropped image blob with original mime type
       const croppedBlob = await getCroppedImg(
@@ -161,25 +178,49 @@ export function ImageUpload({
         selectedFile.type,
       );
 
-      // Upload to S3 with original content type
-      const uploadResult = await fetch(response.presignedUrl, {
-        method: "PUT",
-        body: croppedBlob,
-        headers: {
-          "Content-Type": selectedFile.type,
-        },
+      // Upload to S3 with progress tracking
+      await new Promise<void>((resolve, reject) => {
+        const xhr = new XMLHttpRequest();
+
+        xhr.upload.addEventListener("progress", (event) => {
+          if (event.lengthComputable) {
+            const progress = Math.round((event.loaded / event.total) * 100);
+            setUploadProgress(progress);
+          }
+        });
+
+        xhr.addEventListener("load", () => {
+          if (xhr.status >= 200 && xhr.status < 300) {
+            resolve();
+          } else {
+            reject(new Error("Upload failed"));
+          }
+        });
+
+        xhr.addEventListener("error", () => {
+          reject(new Error("Upload failed"));
+        });
+
+        xhr.open("PUT", presignedUrl);
+        xhr.setRequestHeader("Content-Type", selectedFile.type);
+        xhr.send(croppedBlob);
       });
 
-      if (!uploadResult.ok) {
-        throw new Error("Failed to upload image");
-      }
-
-      // Wait a moment for S3 to process the upload
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      // Create the image in the database
+      const image = await createImageMutation.mutateAsync({
+        type,
+        referenceId,
+        url,
+        key,
+      });
 
       // Consider the upload successful if we got this far
-      const imageUrl = response.presignedUrl.replace(/\?.*$/, "");
-      onUploadComplete({ url: imageUrl, success: true });
+      onUploadComplete({
+        url,
+        key,
+        success: true,
+        image,
+      });
       toast({
         title: "Image uploaded successfully",
       });
@@ -187,16 +228,15 @@ export function ImageUpload({
       // Reset state to initial
       setSelectedFile(null);
       setPreviewUrl(null);
-      setUploadedUrl(null);
       setCrop(undefined);
       setCompletedCrop(undefined);
+      setUploadProgress(0);
     } catch (error) {
       console.error("Upload failed:", error);
       toast({
         title: "Failed to upload image",
         variant: "destructive",
       });
-      setUploadedUrl(null);
     } finally {
       setIsUploading(false);
     }
@@ -250,9 +290,14 @@ export function ImageUpload({
             {isUploading && (
               <div className="absolute inset-0 flex items-center justify-center bg-background/50">
                 <div className="text-center">
-                  <p className="mb-2 text-sm">Uploading image...</p>
+                  <p className="mb-2 text-sm">
+                    Uploading image... {uploadProgress}%
+                  </p>
                   <div className="h-1 w-32 overflow-hidden rounded-full bg-muted">
-                    <div className="h-full w-1/2 animate-[move-x_1s_linear_infinite] rounded-full bg-primary" />
+                    <div
+                      className="h-full rounded-full bg-primary transition-all duration-300"
+                      style={{ width: `${uploadProgress}%` }}
+                    />
                   </div>
                 </div>
               </div>

@@ -1,9 +1,6 @@
 import { z } from "zod";
 import { type Image } from "@prisma/client";
 
-// Base types
-export type ImageType = "listing" | "profile";
-
 // Configuration interfaces
 export interface ImageConfig {
   maxFileSize: number;
@@ -20,7 +17,7 @@ export interface ImageVariants {
 // Component props interfaces
 export interface ImageUploadProps {
   type: ImageType;
-  referenceId?: string;
+  referenceId: string;
   onUploadComplete?: (result: ImageUploadResponse) => void;
   maxFiles?: number;
 }
@@ -83,6 +80,8 @@ export interface ImageUploadResponse {
   success: boolean;
   error?: string;
   url: string;
+  key: string;
+  image: Image;
 }
 
 // Database operation interfaces
@@ -121,6 +120,7 @@ export interface ImageError {
 
 // Zod schemas for validation
 export const imageTypeSchema = z.enum(["listing", "profile"]);
+export type ImageType = z.infer<typeof imageTypeSchema>;
 
 export const presignedUrlSchema = z.object({
   type: imageTypeSchema,

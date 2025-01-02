@@ -99,7 +99,7 @@ export function AhsListingLink({
       const updatedListing = await updateListingMutation({
         id: listing.id,
         data: {
-          name: listing.ahsListing?.name || undefined,
+          name: listing.ahsListing?.name ?? undefined,
         },
       });
       if (listing.ahsListing?.name) {

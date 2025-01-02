@@ -87,21 +87,6 @@ export function ListingForm({ listing: initialListing }: ListingFormProps) {
     },
   });
 
-  const addImageMutation = api.listing.addImage.useMutation({
-    onSuccess: (newImage) => {
-      setImages((prev) => [...prev, newImage]);
-      toast({
-        title: "Image added successfully",
-      });
-    },
-    onError: () => {
-      toast({
-        title: "Failed to add image",
-        variant: "destructive",
-      });
-    },
-  });
-
   const form = useZodForm({
     schema: listingFormSchema,
     defaultValues: transformNullToUndefined(
@@ -280,17 +265,22 @@ export function ListingForm({ listing: initialListing }: ListingFormProps) {
             Upload images of your listing. You can reorder them by dragging.
           </FormDescription>
           <div className="space-y-4">
-            <ImageManager images={images} onImagesChange={setImages} />
+            <ImageManager
+              type="listing"
+              images={images}
+              onImagesChange={setImages}
+              referenceId={listing.id}
+            />
             {images.length < LISTING_CONFIG.IMAGES.MAX_COUNT && (
               <div className="p-4">
                 <ImageUpload
                   type="listing"
                   referenceId={listing.id}
                   onUploadComplete={(result) => {
-                    if (result.success && result.url) {
-                      addImageMutation.mutate({
-                        url: result.url,
-                        listingId: listing.id,
+                    if (result.success && result.image) {
+                      setImages((prev) => [...prev, result.image]);
+                      toast({
+                        title: "Image added successfully",
                       });
                     }
                   }}

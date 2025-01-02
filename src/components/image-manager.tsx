@@ -24,10 +24,13 @@ import { Button } from "@/components/ui/button";
 import { DeleteConfirmDialog } from "@/components/delete-confirm-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { api } from "@/trpc/react";
+import type { ImageType } from "@/types/image";
 
 interface ImageManagerProps {
   images: Image[];
   onImagesChange: (images: Image[]) => void;
+  referenceId: string;
+  type: ImageType;
 }
 
 function SortableImage({
@@ -67,12 +70,17 @@ function SortableImage({
   );
 }
 
-export function ImageManager({ images, onImagesChange }: ImageManagerProps) {
+export function ImageManager({
+  images,
+  onImagesChange,
+  referenceId,
+  type,
+}: ImageManagerProps) {
   const { toast } = useToast();
   const [isPending, setIsPending] = useState(false);
   const [imageToDelete, setImageToDelete] = useState<Image | null>(null);
 
-  const deleteImageMutation = api.listing.deleteImage.useMutation({
+  const deleteImageMutation = api.image.deleteImage.useMutation({
     onSuccess: () => {
       toast({
         title: "Image deleted successfully",
@@ -86,7 +94,7 @@ export function ImageManager({ images, onImagesChange }: ImageManagerProps) {
     },
   });
 
-  const reorderImagesMutation = api.listing.reorderImages.useMutation({
+  const reorderImagesMutation = api.image.reorderImages.useMutation({
     onSuccess: () => {
       toast({
         title: "Image order updated",
@@ -111,6 +119,8 @@ export function ImageManager({ images, onImagesChange }: ImageManagerProps) {
     setIsPending(true);
     try {
       await deleteImageMutation.mutateAsync({
+        type,
+        referenceId,
         imageId: image.id,
       });
       onImagesChange(images.filter((img) => img.id !== image.id));
@@ -134,6 +144,8 @@ export function ImageManager({ images, onImagesChange }: ImageManagerProps) {
 
     // Save the new order
     reorderImagesMutation.mutate({
+      type,
+      referenceId,
       images: newImages.map((img, index) => ({
         id: img.id,
         order: index,
