@@ -362,6 +362,61 @@ export const listingRouter = createTRPCRouter({
       revalidatePath("/listings");
       return updatedListing;
     }),
+
+  getUserLists: protectedProcedure.query(async ({ ctx }) => {
+    return ctx.db.list.findMany({
+      where: { userId: ctx.user.id },
+      orderBy: { name: "asc" },
+    });
+  }),
+
+  createList: protectedProcedure
+    .input(z.object({ name: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      return ctx.db.list.create({
+        data: {
+          name: input.name,
+          userId: ctx.user.id,
+        },
+      });
+    }),
+
+  updateListId: protectedProcedure
+    .input(z.object({ id: z.string(), listId: z.string().nullable() }))
+    .mutation(async ({ ctx, input }) => {
+      await checkListingOwnership(ctx.user.id, input.id, ctx.db);
+
+      if (input.listId) {
+        // Verify list exists and belongs to user
+        const list = await ctx.db.list.findUnique({
+          where: { id: input.listId },
+        });
+
+        if (!list || list.userId !== ctx.user.id) {
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "List not found",
+          });
+        }
+      }
+
+      const updatedListing = await ctx.db.listing.update({
+        where: { id: input.id },
+        data: {
+          listId: input.listId,
+        },
+        include: {
+          ahsListing: true,
+          images: {
+            orderBy: { order: "asc" },
+          },
+          list: true,
+        },
+      });
+
+      revalidatePath("/listings");
+      return updatedListing;
+    }),
 });
 
 export type ListingRouter = typeof listingRouter;

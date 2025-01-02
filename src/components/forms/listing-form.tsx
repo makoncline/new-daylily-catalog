@@ -14,6 +14,8 @@ import {
   PointerSensor,
   useSensor,
   useSensors,
+  type DragEndEvent,
+  type DraggableAttributes,
 } from "@dnd-kit/core";
 import {
   arrayMove,
@@ -51,8 +53,22 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+} from "@/components/ui/command";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { cn } from "@/lib/utils";
 import { useZodForm } from "@/lib/hooks/use-zod-form";
 import { type ImageUploadResponse } from "@/types/image";
+import { ListSelect } from "@/components/list-select";
 
 interface ListingFormProps {
   listing: ListingGetOutput;
@@ -63,7 +79,10 @@ function SortableImage({
   dragControls,
 }: {
   image: Image;
-  dragControls: (attributes: any, listeners: any) => React.ReactNode;
+  dragControls: (
+    attributes: DraggableAttributes,
+    listeners: Record<string, unknown>,
+  ) => React.ReactNode;
 }) {
   const {
     attributes,
@@ -113,6 +132,25 @@ export function ListingForm({ listing: initialListing }: ListingFormProps) {
       });
     },
   });
+
+  const updateListIdMutation = api.listing.updateListId.useMutation({
+    onSuccess: (updatedListing) => {
+      setListing(updatedListing);
+      toast({
+        title: "List updated",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Failed to update list",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const { data: lists } = api.listing.getUserLists.useQuery();
+
+  const createListMutation = api.listing.createList.useMutation();
 
   const deleteListingMutation = api.listing.delete.useMutation({
     onSuccess: () => {
@@ -239,7 +277,7 @@ export function ListingForm({ listing: initialListing }: ListingFormProps) {
     }
   }
 
-  async function handleDragEnd(event: any) {
+  async function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event;
     if (!over || active.id === over.id) return;
 
@@ -358,6 +396,34 @@ export function ListingForm({ listing: initialListing }: ListingFormProps) {
           />
           <FormDescription>
             Optional. Link this listing to an AHS listing to sync data.
+          </FormDescription>
+        </FormItem>
+
+        <FormItem>
+          <FormLabel>List</FormLabel>
+          <ListSelect
+            value={listing.listId}
+            onSelect={(listId) => {
+              setIsPending(true);
+              void updateListIdMutation
+                .mutateAsync({
+                  id: listing.id,
+                  listId,
+                })
+                .catch(() => {
+                  toast({
+                    title: "Failed to update list",
+                    variant: "destructive",
+                  });
+                })
+                .finally(() => {
+                  setIsPending(false);
+                });
+            }}
+            disabled={isPending}
+          />
+          <FormDescription>
+            Optional. Add this listing to one of your lists.
           </FormDescription>
         </FormItem>
 
