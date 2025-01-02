@@ -11,7 +11,7 @@ import "react-image-crop/dist/ReactCrop.css";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { type ImageUploadProps } from "@/types/image";
-import { cn } from "@/lib/utils";
+import { cn, uploadFileWithProgress } from "@/lib/utils";
 import { api } from "@/trpc/react";
 
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
@@ -107,9 +107,17 @@ export function ImageUpload({
   const [crop, setCrop] = useState<Crop>();
   const [completedCrop, setCompletedCrop] = useState<Crop>();
   const [isUploading, setIsUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
   const imageRef = useRef<HTMLImageElement | null>(null);
   const { toast } = useToast();
-  const [uploadProgress, setUploadProgress] = useState(0);
+
+  const reset = useCallback(() => {
+    setSelectedFile(null);
+    setPreviewUrl(null);
+    setCrop(undefined);
+    setCompletedCrop(undefined);
+    setUploadProgress(0);
+  }, []);
 
   const getPresignedUrlMutation = api.image.getPresignedUrl.useMutation({
     onError: () => {
@@ -179,31 +187,10 @@ export function ImageUpload({
       );
 
       // Upload to S3 with progress tracking
-      await new Promise<void>((resolve, reject) => {
-        const xhr = new XMLHttpRequest();
-
-        xhr.upload.addEventListener("progress", (event) => {
-          if (event.lengthComputable) {
-            const progress = Math.round((event.loaded / event.total) * 100);
-            setUploadProgress(progress);
-          }
-        });
-
-        xhr.addEventListener("load", () => {
-          if (xhr.status >= 200 && xhr.status < 300) {
-            resolve();
-          } else {
-            reject(new Error("Upload failed"));
-          }
-        });
-
-        xhr.addEventListener("error", () => {
-          reject(new Error("Upload failed"));
-        });
-
-        xhr.open("PUT", presignedUrl);
-        xhr.setRequestHeader("Content-Type", selectedFile.type);
-        xhr.send(croppedBlob);
+      await uploadFileWithProgress({
+        presignedUrl,
+        file: croppedBlob,
+        onProgress: setUploadProgress,
       });
 
       // Create the image in the database
@@ -226,11 +213,7 @@ export function ImageUpload({
       });
 
       // Reset state to initial
-      setSelectedFile(null);
-      setPreviewUrl(null);
-      setCrop(undefined);
-      setCompletedCrop(undefined);
-      setUploadProgress(0);
+      reset();
     } catch (error) {
       console.error("Upload failed:", error);
       toast({
