@@ -40,6 +40,7 @@ export function ListSelect({ value, onSelect, disabled }: ListSelectProps) {
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <Button
+          id="list-select"
           variant="outline"
           role="combobox"
           aria-expanded={open}

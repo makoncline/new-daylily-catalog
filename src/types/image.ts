@@ -20,8 +20,7 @@ export interface ImageVariants {
 // Component props interfaces
 export interface ImageUploadProps {
   type: ImageType;
-  listingId?: string;
-  userProfileId?: string;
+  referenceId?: string;
   onUploadComplete?: (result: ImageUploadResponse) => void;
   maxFiles?: number;
 }

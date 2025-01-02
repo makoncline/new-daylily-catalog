@@ -37,6 +37,7 @@ export function AhsListingSelect({
           aria-expanded={open}
           className="w-full justify-between"
           disabled={disabled}
+          id="ahs-listing-select"
         >
           Select AHS listing...
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />

@@ -211,7 +211,7 @@ export function ImageUpload({
             isDragActive ? "border-primary" : "border-muted"
           }`}
         >
-          <input {...getInputProps()} />
+          <input {...getInputProps()} id="image-upload-input" />
           {isDragActive ? (
             <p>Drop the image here...</p>
           ) : (
