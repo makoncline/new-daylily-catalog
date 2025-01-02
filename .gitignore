@@ -48,3 +48,8 @@ yarn-error.log*
 
 # delete_users.sh
 delete_users.sh
+node_modules/
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/

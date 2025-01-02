@@ -7,7 +7,6 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { api } from "@/trpc/react";
-import type { List } from "@prisma/client";
 import { cn } from "@/lib/utils";
 
 interface ListSelectProps {
