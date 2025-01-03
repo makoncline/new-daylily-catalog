@@ -1,20 +1,12 @@
 import { z } from "zod";
 import { type Image } from "@prisma/client";
 
-// Configuration interfaces
-export interface ImageConfig {
-  maxFileSize: number;
-  allowedTypes: readonly string[];
-  maxImagesPerListing: number;
-}
-
 export interface ImageVariants {
   original: string;
   thumbnail: string;
   blur: string;
 }
 
-// Component props interfaces
 export interface ImageUploadProps {
   type: ImageType;
   referenceId: string;

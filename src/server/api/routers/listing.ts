@@ -1,8 +1,8 @@
 import { z } from "zod";
 import { createTRPCRouter, protectedProcedure } from "@/server/api/trpc";
-import { inferRouterOutputs, TRPCError } from "@trpc/server";
+import { type inferRouterOutputs, TRPCError } from "@trpc/server";
 import { listingFormSchema } from "@/types/schemas/listing";
-import { type PrismaClient, Prisma } from "@prisma/client";
+import { type PrismaClient } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 
 async function checkListingOwnership(

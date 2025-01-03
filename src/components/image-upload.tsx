@@ -4,16 +4,21 @@ import { useState, useCallback } from "react";
 import { useDropzone } from "react-dropzone";
 import { ImageCropper } from "@/components/image-cropper";
 import { useImageUpload } from "@/hooks/use-image-upload";
-import { type ImageUploadProps } from "@/types/image";
-import { validateImage } from "@/lib/image-utils";
+import type { ImageType, ImageUploadResponse } from "@/types/image";
+import { APP_CONFIG } from "@/config/constants";
+import { Progress } from "@/components/ui/progress";
+
+export interface ImageUploadProps {
+  type: ImageType;
+  referenceId: string;
+  onUploadComplete?: (result: ImageUploadResponse) => void;
+}
 
 export function ImageUpload({
   type,
   referenceId,
   onUploadComplete,
-  maxFiles = 1,
 }: ImageUploadProps) {
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const { upload, progress, isUploading } = useImageUpload({
     type,
@@ -29,7 +34,6 @@ export function ImageUpload({
   });
 
   const reset = useCallback(() => {
-    setSelectedFile(null);
     setPreviewUrl(null);
   }, []);
 
@@ -37,31 +41,21 @@ export function ImageUpload({
     const file = acceptedFiles[0];
     if (!file) return;
 
-    try {
-      validateImage(file);
-
-      // Create preview URL
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setPreviewUrl(reader.result as string);
-      };
-      reader.readAsDataURL(file);
-
-      setSelectedFile(file);
-    } catch (error) {
-      console.error("File validation failed:", error);
-    }
+    // Create preview URL
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setPreviewUrl(reader.result as string);
+    };
+    reader.readAsDataURL(file);
   }, []);
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
     accept: {
-      "image/jpeg": [".jpg", ".jpeg"],
-      "image/png": [".png"],
+      "image/*": [], // Accepts all image types
     },
-    maxSize: 5 * 1024 * 1024, // 5MB
-    maxFiles,
-    multiple: maxFiles > 1,
+    maxSize: APP_CONFIG.UPLOAD.MAX_FILE_SIZE,
+    multiple: false,
   });
 
   return (
@@ -101,12 +95,7 @@ export function ImageUpload({
             <div className="absolute inset-0 flex items-center justify-center bg-background/50">
               <div className="text-center">
                 <p className="mb-2 text-sm">Uploading image... {progress}%</p>
-                <div className="h-1 w-32 overflow-hidden rounded-full bg-muted">
-                  <div
-                    className="h-full rounded-full bg-primary transition-all duration-300"
-                    style={{ width: `${progress}%` }}
-                  />
-                </div>
+                <Progress value={progress} className="w-32" />
               </div>
             </div>
           )}

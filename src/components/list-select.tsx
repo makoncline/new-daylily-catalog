@@ -64,16 +64,17 @@ export function ListSelect({ value, onSelect, disabled }: ListSelectProps) {
           </div>
           <div className="max-h-96 overflow-y-auto">
             {!searchValue && (
-              <button
+              <Button
+                variant="ghost"
                 onClick={() => {
                   onSelect(null);
                   setOpen(false);
                 }}
-                className="relative flex w-full cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none hover:bg-accent hover:text-accent-foreground"
+                className="relative w-full justify-start px-2 py-1.5 font-normal"
               >
                 <X className="mr-2 h-4 w-4" />
                 <span>None</span>
-              </button>
+              </Button>
             )}
             {lists?.length === 0 && (
               <p className="p-4 text-sm text-muted-foreground">
@@ -81,24 +82,26 @@ export function ListSelect({ value, onSelect, disabled }: ListSelectProps) {
               </p>
             )}
             {filteredLists?.length === 0 && searchValue && (
-              <button
+              <Button
+                variant="ghost"
                 onClick={() => {
                   createListMutation.mutate({ name: searchValue });
                 }}
-                className="relative flex w-full cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none hover:bg-accent hover:text-accent-foreground"
+                className="relative w-full justify-start px-2 py-1.5 font-normal"
               >
                 <Plus className="mr-2 h-4 w-4" />
                 <span>Create &quot;{searchValue}&quot;</span>
-              </button>
+              </Button>
             )}
             {filteredLists?.map((list) => (
-              <button
+              <Button
                 key={list.id}
+                variant="ghost"
                 onClick={() => {
                   onSelect(list.id === value ? null : list.id);
                   setOpen(false);
                 }}
-                className="relative flex w-full cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none hover:bg-accent hover:text-accent-foreground"
+                className="relative w-full justify-start px-2 py-1.5 font-normal"
               >
                 <Check
                   className={cn(
@@ -107,7 +110,7 @@ export function ListSelect({ value, onSelect, disabled }: ListSelectProps) {
                   )}
                 />
                 <span>{list.name}</span>
-              </button>
+              </Button>
             ))}
           </div>
         </div>

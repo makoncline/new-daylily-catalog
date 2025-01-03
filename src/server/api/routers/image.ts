@@ -72,7 +72,7 @@ export const imageRouter = createTRPCRouter({
         userProfileId: z.string().optional(),
       }),
     )
-    .mutation(async ({ ctx, input }) => {
+    .mutation(async ({ input }) => {
       try {
         return {
           success: true,

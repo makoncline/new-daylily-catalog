@@ -15,7 +15,7 @@ import dynamic from "next/dynamic";
 import { Toaster } from "@/components/ui/toaster";
 
 const StripePortalButton = dynamic(
-  () => import("@/components/StripePortalButton"),
+  () => import("@/components/stripe-portal-button"),
   {
     ssr: false,
   },

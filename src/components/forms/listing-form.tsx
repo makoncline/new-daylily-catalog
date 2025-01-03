@@ -27,7 +27,7 @@ import { type ListingGetOutput } from "@/server/api/routers/listing";
 import { AhsListingLink } from "@/components/ahs-listing-link";
 import { api } from "@/trpc/react";
 import { DeleteConfirmDialog } from "@/components/delete-confirm-dialog";
-import { useZodForm } from "@/lib/hooks/use-zod-form";
+import { useZodForm } from "@/hooks/use-zod-form";
 import { ListSelect } from "@/components/list-select";
 import { LISTING_CONFIG } from "@/config/constants";
 
@@ -284,7 +284,6 @@ export function ListingForm({ listing: initialListing }: ListingFormProps) {
                       });
                     }
                   }}
-                  maxFiles={LISTING_CONFIG.IMAGES.MAX_COUNT - images.length}
                 />
               </div>
             )}

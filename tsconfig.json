@@ -45,6 +45,8 @@
     "node_modules",
     "prisma/migrate.ts",
     "prisma/generated/**/*",
-    "prisma/schema.postgres.prisma"
+    "prisma/schema.postgres.prisma",
+    "playwright-report",
+    "src/components/ui/**/*"
   ]
 }

@@ -1,17 +1,33 @@
-# T3 Stack Principles
+# Project Instructions
 
-- Follow T3 Stack's focus on simplicity, modularity, and full-stack typesafety
-- Solve specific problems - don't add unnecessary dependencies
-- Typesafety is not optional - ensure end-to-end type safety
-- Use bleeding edge tech responsibly - stick to proven solutions for critical infrastructure
+- Use specification and guidelines as you build the app.
+- Write the complete code for every step. Do not get lazy.
+- Your goal is to completely finish whatever I ask for.
+- You will see <ai_context> tags in the code. These are context tags that you should use to help you understand the codebase.
+
+## Overview
+
+A platform where daylily growers can build and manage their online presence. Connect with our database of 90,000+ registered cultivars to showcase and sell your daylilies.
+
+## Core Features
+
+- **Daylily Listings**: Create detailed entries with names, descriptions, prices, and notes
+- **Database Integration**: Auto-populate listings with official cultivar data and photos
+- **Photo Management**: Upload and manage photos for each listing
+- **Lists**: Organize daylilies into lists (gardens, sales, favorites)
+- **Garden Profile**: Share your story, contact info, images, and business details
+
+Built to help daylily growers showcase their collections and grow their business online.
 
 # Tech Stack
 
 - Frontend: Next.js, Tailwind, shadcn/ui
-- Backend: SQLite, Prisma, tRPC
+- Backend: SQLite, Turso,Prisma, tRPC
 - Auth: Clerk
 - Payments: Stripe
 - Deployment: Vercel
+- Image storage: S3
+- Image processing: Cloudflare
 
 # Project Structure
 
@@ -21,18 +37,20 @@
     - (routes) - App routes
     - \_components - Route-specific components
   - components/ - Shared components
-    - ui/ - shadcn/ui components
+    - ui/ - shadcn/ui components only (no custom components)
     - forms/ - Form components
+    - other-component.tsx
   - server/ - Server-side code
     - api/ - tRPC API
       - routers/ - tRPC routers (main business logic)
       - trpc.ts - tRPC initialization
     - db/ - Database utilities
+  - hooks/ - Custom hooks
   - lib/ - Shared utilities
-    - hooks/ - Custom hooks
     - utils/ - Utility functions
+  - prompts/ - Prompt files
+  - public/ - Static assets
   - types/ - Type definitions
-    - schemas/ - Shared Zod schemas
 
 # Core Patterns
 

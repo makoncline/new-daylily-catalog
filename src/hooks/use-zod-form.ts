@@ -3,7 +3,6 @@ import { useId } from "react";
 import { useForm, type UseFormProps } from "react-hook-form";
 import type { z } from "zod";
 
-// Adds a unique ID to the form for accessibility
 export function useZodForm<TSchema extends z.ZodType>(
   props: Omit<UseFormProps<z.infer<TSchema>>, "resolver"> & {
     schema: TSchema;
