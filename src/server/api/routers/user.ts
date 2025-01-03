@@ -6,7 +6,7 @@ import { currentUser } from "@clerk/nextjs/server";
 import { db } from "@/server/db";
 
 export const userRouter = createTRPCRouter({
-  getCurrentUser: publicProcedure.query(async (): Promise<User | null> => {
+  getCurrentUser: publicProcedure.query(async () => {
     const clerkUser = await currentUser();
 
     if (!clerkUser) {
@@ -17,7 +17,14 @@ export const userRouter = createTRPCRouter({
       where: { clerkUserId: clerkUser.id },
     });
 
-    return dbUser;
+    if (!dbUser) {
+      return null;
+    }
+
+    return {
+      ...dbUser,
+      imageUrl: clerkUser.imageUrl,
+    };
   }),
 });
 

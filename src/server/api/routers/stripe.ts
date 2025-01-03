@@ -86,8 +86,8 @@ export const stripeRouter = createTRPCRouter({
           quantity: 1,
         },
       ],
-      success_url: `${env.NEXT_PUBLIC_APP_URL}/settings/billing?success=true`,
-      cancel_url: `${env.NEXT_PUBLIC_APP_URL}/settings/billing?canceled=true`,
+      success_url: `${env.NEXT_PUBLIC_APP_URL}/dashboard`,
+      cancel_url: `${env.NEXT_PUBLIC_APP_URL}/dashboard`,
       metadata: {
         userId: user.id,
       },
@@ -120,7 +120,7 @@ export const stripeRouter = createTRPCRouter({
 
     const session = await stripe.billingPortal.sessions.create({
       customer: user.stripeCustomer.id,
-      return_url: `${env.NEXT_PUBLIC_APP_URL}/settings/billing`,
+      return_url: `${env.NEXT_PUBLIC_APP_URL}/dashboard`,
     });
 
     return { url: session.url };

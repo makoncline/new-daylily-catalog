@@ -2,25 +2,10 @@ import "@/styles/globals.css";
 
 import { GeistSans } from "geist/font/sans";
 import { type Metadata } from "next";
-import {
-  ClerkProvider,
-  SignInButton,
-  SignedIn,
-  SignedOut,
-  UserButton,
-} from "@clerk/nextjs";
-
+import { ClerkProvider } from "@clerk/nextjs";
 import { TRPCReactProvider } from "@/trpc/react";
-import dynamic from "next/dynamic";
 import { Toaster } from "@/components/ui/toaster";
-import { Footer } from "@/components/footer";
-
-const StripePortalButton = dynamic(
-  () => import("@/components/stripe-portal-button"),
-  {
-    ssr: false,
-  },
-);
+import { TooltipProvider } from "@radix-ui/react-tooltip";
 
 export const metadata: Metadata = {
   title: "Create T3 App",
@@ -36,15 +21,7 @@ export default function RootLayout({
       <TRPCReactProvider>
         <html lang="en" className={`${GeistSans.variable}`}>
           <body className="flex min-h-svh flex-col">
-            <SignedOut>
-              <SignInButton />
-            </SignedOut>
-            <SignedIn>
-              <UserButton />
-              <StripePortalButton />
-            </SignedIn>
-            {children}
-            <Footer />
+            <TooltipProvider>{children}</TooltipProvider>
             <Toaster />
           </body>
         </html>
