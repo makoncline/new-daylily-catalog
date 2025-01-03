@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Check, ChevronsUpDown, Plus, Search, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Popover,
   PopoverContent,
@@ -116,5 +117,13 @@ export function ListSelect({ value, onSelect, disabled }: ListSelectProps) {
         </div>
       </PopoverContent>
     </Popover>
+  );
+}
+
+export function ListSelectSkeleton() {
+  return (
+    <div>
+      <Skeleton className="h-10 w-full" />
+    </div>
   );
 }

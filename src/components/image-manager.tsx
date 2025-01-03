@@ -25,6 +25,7 @@ import { DeleteConfirmDialog } from "@/components/delete-confirm-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { api } from "@/trpc/react";
 import type { ImageType } from "@/types/image";
+import { Skeleton } from "@/components/ui/skeleton";
 
 interface ImageManagerProps {
   images: Image[];
@@ -226,6 +227,20 @@ export function ImageManager({
         title="Delete Image"
         description="Are you sure you want to delete this image? This action cannot be undone."
       />
+    </div>
+  );
+}
+
+export function ImageManagerSkeleton() {
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <div key={i} className="relative aspect-square">
+            <Skeleton className="h-full w-full rounded-lg" />
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

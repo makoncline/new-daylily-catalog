@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { api } from "@/trpc/react";
 import { useToast } from "@/hooks/use-toast";
 import { LISTING_CONFIG } from "@/config/constants";
+import { Skeleton } from "@/components/ui/skeleton";
 
 import type { ListingGetOutput } from "@/server/api/routers/listing";
 import type { AhsListing } from "@prisma/client";
@@ -170,6 +171,22 @@ export function AhsListingLink({
           />
         </div>
       )}
+    </div>
+  );
+}
+
+export function AhsListingLinkSkeleton() {
+  return (
+    <div className="space-y-2">
+      <div className="rounded-lg border p-4">
+        <div className="mb-2 flex items-center justify-between">
+          <Skeleton className="h-6 w-48" />
+          <Skeleton className="h-8 w-20" />
+        </div>
+        <div className="text-sm text-muted-foreground">
+          <Skeleton className="h-4 w-64" />
+        </div>
+      </div>
     </div>
   );
 }

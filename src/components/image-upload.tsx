@@ -7,6 +7,7 @@ import { useImageUpload } from "@/hooks/use-image-upload";
 import type { ImageType, ImageUploadResponse } from "@/types/image";
 import { APP_CONFIG } from "@/config/constants";
 import { Progress } from "@/components/ui/progress";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export interface ImageUploadProps {
   type: ImageType;
@@ -101,6 +102,14 @@ export function ImageUpload({
           )}
         </div>
       )}
+    </div>
+  );
+}
+
+export function ImageUploadSkeleton() {
+  return (
+    <div className="space-y-4">
+      <Skeleton className="h-32 w-full rounded-lg" />
     </div>
   );
 }
