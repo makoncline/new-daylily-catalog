@@ -44,7 +44,8 @@ export function ListingForm({ listing: initialListing }: ListingFormProps) {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
 
   const updateListingMutation = api.listing.update.useMutation({
-    onSuccess: () => {
+    onSuccess: (updatedListing) => {
+      setListing(updatedListing);
       toast({
         title: "Changes saved",
       });
@@ -54,6 +55,9 @@ export function ListingForm({ listing: initialListing }: ListingFormProps) {
         title: "Failed to save changes",
         variant: "destructive",
       });
+    },
+    meta: {
+      path: "/listings",
     },
   });
 

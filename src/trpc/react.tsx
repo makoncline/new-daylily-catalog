@@ -11,7 +11,23 @@ import { type AppRouter } from "@/server/api/root";
 export const api = createTRPCReact<AppRouter>();
 
 export function TRPCReactProvider(props: { children: React.ReactNode }) {
-  const [queryClient] = useState(() => new QueryClient());
+  const [queryClient] = useState(() => {
+    const client = new QueryClient({
+      defaultOptions: {
+        queries: {
+          staleTime: 5000,
+        },
+        mutations: {
+          onSettled: async () => {
+            // Invalidate all queries after any mutation
+            await client.invalidateQueries();
+          },
+        },
+      },
+    });
+    return client;
+  });
+
   const [trpcClient] = useState(() =>
     api.createClient({
       links: [

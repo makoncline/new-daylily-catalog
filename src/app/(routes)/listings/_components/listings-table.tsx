@@ -12,6 +12,7 @@ import {
 import { formatPrice } from "@/lib/utils";
 import { type ListingListOutput } from "@/server/api/routers/listing";
 import Link from "next/link";
+import { EditListingPopover } from "./edit-listing-popover";
 
 export function ListingsTable({ listings }: { listings: ListingListOutput }) {
   return (
@@ -36,9 +37,12 @@ export function ListingsTable({ listings }: { listings: ListingListOutput }) {
               <TableCell>{listing.publicNote ?? "-"}</TableCell>
               <TableCell>{listing.privateNote ?? "-"}</TableCell>
               <TableCell>
-                <Button asChild variant="ghost" size="sm">
-                  <Link href={`/listings/${listing.id}/edit`}>Edit</Link>
-                </Button>
+                <div className="flex gap-2">
+                  <Button asChild variant="ghost" size="sm">
+                    <Link href={`/listings/${listing.id}/edit`}>Edit</Link>
+                  </Button>
+                  <EditListingPopover listing={listing} />
+                </div>
               </TableCell>
             </TableRow>
           ))}

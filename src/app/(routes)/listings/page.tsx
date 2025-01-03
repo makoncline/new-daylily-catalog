@@ -1,23 +1,35 @@
-import { api } from "@/trpc/server";
+"use client";
+
 import { ListingsTable } from "./_components/listings-table";
-import { auth } from "@clerk/nextjs/server";
-import { redirect } from "next/navigation";
-import { CreateListingButton } from "./_components/create-listing-button";
+import { api } from "@/trpc/react";
+import { Button } from "@/components/ui/button";
+import { useRouter } from "next/navigation";
 
-export default async function ListingsPage() {
-  const { userId } = auth();
-  if (!userId) redirect("/sign-in");
-
-  const listings = await api.listing.list();
+export default function ListingsPage() {
+  const router = useRouter();
+  const { data: listings, isLoading } = api.listing.list.useQuery();
 
   return (
-    <div className="container py-8">
+    <div className="container py-6">
       <div className="mb-8 flex items-center justify-between">
-        <h1 className="text-3xl font-bold">My Listings</h1>
-        <CreateListingButton />
+        <div>
+          <h1 className="text-3xl font-bold">Listings</h1>
+          <p className="mt-2 text-muted-foreground">
+            Manage your daylily listings
+          </p>
+        </div>
+        <Button onClick={() => router.push("/listings/new")}>
+          Add Listing
+        </Button>
       </div>
 
-      <ListingsTable listings={listings} />
+      <div className="mt-8">
+        {isLoading ? (
+          <div>Loading...</div>
+        ) : (
+          <ListingsTable listings={listings ?? []} />
+        )}
+      </div>
     </div>
   );
 }

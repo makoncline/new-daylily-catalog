@@ -3,7 +3,6 @@ import { createTRPCRouter, protectedProcedure } from "@/server/api/trpc";
 import { type inferRouterOutputs, TRPCError } from "@trpc/server";
 import { listingFormSchema } from "@/types/schemas/listing";
 import { type PrismaClient } from "@prisma/client";
-import { revalidatePath } from "next/cache";
 
 async function checkListingOwnership(
   userId: string,
@@ -60,7 +59,7 @@ async function checkImageOwnership(
 
 export const listingRouter = createTRPCRouter({
   create: protectedProcedure.mutation(async ({ ctx }) => {
-    return ctx.db.listing.create({
+    const listing = await ctx.db.listing.create({
       data: {
         name: "New Listing",
         userId: ctx.user.id,
@@ -70,6 +69,7 @@ export const listingRouter = createTRPCRouter({
         images: true,
       },
     });
+    return listing;
   }),
 
   update: protectedProcedure
@@ -102,7 +102,6 @@ export const listingRouter = createTRPCRouter({
         },
       });
 
-      revalidatePath("/listings");
       return updatedListing;
     }),
 
@@ -111,9 +110,10 @@ export const listingRouter = createTRPCRouter({
     .mutation(async ({ ctx, input }) => {
       await checkListingOwnership(ctx.user.id, input.id, ctx.db);
 
-      return ctx.db.listing.delete({
+      const listing = await ctx.db.listing.delete({
         where: { id: input.id },
       });
+      return listing;
     }),
 
   deleteImage: protectedProcedure
@@ -125,14 +125,9 @@ export const listingRouter = createTRPCRouter({
         ctx.db,
       );
 
-      // Delete the image
       await ctx.db.image.delete({
         where: { id: input.imageId },
       });
-
-      // Cache invalidation
-      revalidatePath("/listings");
-      revalidatePath(`/listings/${image.listingId}/edit`);
 
       return { success: true };
     }),
@@ -157,14 +152,8 @@ export const listingRouter = createTRPCRouter({
         });
       }
 
-      // Get first image to check ownership
-      const image = await checkImageOwnership(
-        ctx.user.id,
-        firstImage.id,
-        ctx.db,
-      );
+      await checkImageOwnership(ctx.user.id, firstImage.id, ctx.db);
 
-      // Update all images with their new orders
       await ctx.db.$transaction(
         input.images.map((img) =>
           ctx.db.image.update({
@@ -173,10 +162,6 @@ export const listingRouter = createTRPCRouter({
           }),
         ),
       );
-
-      // Cache invalidation
-      revalidatePath("/listings");
-      revalidatePath(`/listings/${image.listingId}/edit`);
 
       return { success: true };
     }),
@@ -191,7 +176,6 @@ export const listingRouter = createTRPCRouter({
     .mutation(async ({ ctx, input }) => {
       await checkListingOwnership(ctx.user.id, input.listingId, ctx.db);
 
-      // Get the current highest order value
       const lastImage = await ctx.db.image.findFirst({
         where: { listingId: input.listingId },
         orderBy: { order: "desc" },
@@ -207,10 +191,6 @@ export const listingRouter = createTRPCRouter({
           },
         },
       });
-
-      // Cache invalidation
-      revalidatePath("/listings");
-      revalidatePath(`/listings/${input.listingId}/edit`);
 
       return image;
     }),
@@ -296,7 +276,6 @@ export const listingRouter = createTRPCRouter({
         },
       });
 
-      revalidatePath("/listings");
       return updatedListing;
     }),
 
@@ -327,7 +306,6 @@ export const listingRouter = createTRPCRouter({
         },
       });
 
-      revalidatePath("/listings");
       return updatedListing;
     }),
 
@@ -359,7 +337,6 @@ export const listingRouter = createTRPCRouter({
         },
       });
 
-      revalidatePath("/listings");
       return updatedListing;
     }),
 
@@ -387,7 +364,6 @@ export const listingRouter = createTRPCRouter({
       await checkListingOwnership(ctx.user.id, input.id, ctx.db);
 
       if (input.listId) {
-        // Verify list exists and belongs to user
         const list = await ctx.db.list.findUnique({
           where: { id: input.listId },
         });
@@ -414,7 +390,6 @@ export const listingRouter = createTRPCRouter({
         },
       });
 
-      revalidatePath("/listings");
       return updatedListing;
     }),
 });
