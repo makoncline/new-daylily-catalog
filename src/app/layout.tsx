@@ -13,6 +13,7 @@ import {
 import { TRPCReactProvider } from "@/trpc/react";
 import dynamic from "next/dynamic";
 import { Toaster } from "@/components/ui/toaster";
+import { Footer } from "@/components/footer";
 
 const StripePortalButton = dynamic(
   () => import("@/components/stripe-portal-button"),
@@ -34,7 +35,7 @@ export default function RootLayout({
     <ClerkProvider>
       <TRPCReactProvider>
         <html lang="en" className={`${GeistSans.variable}`}>
-          <body>
+          <body className="flex min-h-svh flex-col">
             <SignedOut>
               <SignInButton />
             </SignedOut>
@@ -43,6 +44,7 @@ export default function RootLayout({
               <StripePortalButton />
             </SignedIn>
             {children}
+            <Footer />
             <Toaster />
           </body>
         </html>

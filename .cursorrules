@@ -47,11 +47,11 @@ Built to help daylily growers showcase their collections and grow their business
     - db/ - Database utilities
   - hooks/ - Custom hooks
   - lib/ - Shared utilities
-  - prompts/ - Prompt files
   - types/ - Type definitions
 - prisma/ - Prisma schema and migrations
 - public/ - Static assets
 - tests/ - Test files
+- prompts/ - Prompt files
 
 ## Rules
 
