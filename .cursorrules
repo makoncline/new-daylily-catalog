@@ -47,215 +47,304 @@ Built to help daylily growers showcase their collections and grow their business
     - db/ - Database utilities
   - hooks/ - Custom hooks
   - lib/ - Shared utilities
-    - utils/ - Utility functions
   - prompts/ - Prompt files
-  - public/ - Static assets
   - types/ - Type definitions
+- prisma/ - Prisma schema and migrations
+- public/ - Static assets
+- tests/ - Test files
 
-# Core Patterns
+## Rules
 
-1. tRPC:
+Follow these rules when building the app.
 
-   - Place core business logic in tRPC routers
-   - Keep mutations focused and minimal - only update what's needed
-   - Use undefined to skip field updates instead of complex logic
-   - Share helper functions between related mutations
-   - Use protectedProcedure for authenticated routes
-   - Use middleware for ownership checks with database user IDs
-   - Hide private fields in public queries
-   - Handle cache invalidation in mutations
-   - Export router types for reuse
-   - Export query output types for components
-   - Keep router files focused and organized by domain
-   - Use proper error handling with TRPCError
-   - Add proper ownership checks for all mutations
-   - Use descriptive error messages
+### General Rules
 
-2. Database:
+- Use `@` to import anything from the app unless otherwise specified
+- Use kebab case for all files and folders unless otherwise specified
+- Don't update shadcn components unless otherwise specified
 
-   - Use Prisma with SQLite
-   - Always include createdAt/updatedAt
-   - Use proper indexes and relations
-   - Follow Prisma's SQLite best practices
-   - Store Clerk user IDs but use database user IDs for relations
+#### Env Rules
 
-3. Forms:
+- If you update environment variables, update the `.env.example` file
+- All environment variables should go in `.env.development`
+- Do not expose environment variables to the frontend
+- Use `NEXT_PUBLIC_` prefix for environment variables that need to be accessed from the frontend
+- You may import environment variables in server actions and components by using `import { env } from "@/env";` then `env.VARIABLE_NAME`
 
-   - Use shadcn/ui form components
-   - Use useZodForm from @/lib/hooks for form state management
-   - Share Zod schemas between forms and tRPC
-   - Handle loading states with isPending state
-   - Use toast notifications for success/error feedback
-   - Handle null values with transformNullToUndefined utility
-   - Use proper type inference with z.infer
-   - Add proper form field descriptions and error messages
-   - Handle numeric inputs with proper onChange handlers
+#### Type Rules
 
-4. Auth:
+Follow these rules when working with types.
 
-   - Use Clerk for authentication
-   - Use protectedProcedure for authenticated routes
-   - Import currentUser from "@clerk/nextjs/server"
-   - Use currentUser() in server, useUser() in client
-   - Always get database user via clerkUserId in protected routes
-   - Use database user ID (not Clerk ID) for all ownership checks
-   - Handle missing database users with proper error messages
+- When importing types, use `@/types`
+- Name files like `example-types.ts`
+- All types should go in `types`
+- Make sure to export the types in `types/index.ts`
+- Use `zod` to create schemas that will be used to validate data
+- Create types for zod schemas using `z.infer<typeof schema>`
+- Prefer interfaces over type aliases
+- If referring to db types, use `"@prisma/client";` such as `Listing` from `prisma/schema.prisma`
 
-5. Schema Organization:
-   - Place Zod schemas in src/types/schemas
-   - Share schemas between forms and tRPC
-   - Use z.infer for type inference
-   - Export inferred types for reuse
-   - Handle nullable fields with .nullable() and optional()
-   - Use proper validation rules
-   - Transform null to undefined for form defaultValues
-   - Export utility functions for schema transformations
-   - Keep schemas focused and minimal
-   - Use descriptive validation messages
+An example of a type:
 
-# Example Patterns
+`types/actions-types.ts`
 
-1. Focused tRPC Router:
+```ts
+export type ActionState<T> =
+  | { isSuccess: true; message: string; data: T }
+  | { isSuccess: false; message: string; data?: never };
+```
 
-```typescript
-// src/server/api/routers/listing.ts
-export const listingRouter = createTRPCRouter({
+And exporting it:
+
+`types/index.ts`
+
+```ts
+export * from "./actions-types";
+```
+
+An example of a zod schema:
+
+`types/exampe-schemas.ts`
+
+```ts
+export const exampleSchema = z.object({
+  name: z.string().min(1),
+  description: z.string().min(1).optional(),
+});
+
+export type Example = z.infer<typeof exampleSchema>;
+```
+
+### Frontend Rules
+
+Follow these rules when working on the frontend.
+
+It uses Next.js, Tailwind, Shadcn, and Framer Motion.
+
+#### General Rules
+
+- Use `lucide-react` for icons
+
+#### Components
+
+- Use divs instead of other html tags unless otherwise specified
+- Separate the main parts of a component's html with an extra blank line for visual spacing
+- Always tag a component with either `use server` or `use client` at the top, including layouts and pages
+
+##### Organization
+
+- All components be named using kebab case like `example-component.tsx` unless otherwise specified
+- Put components in `/_components` in the route if one-off components
+- Put components in `/components` from the root if shared components
+
+##### Data Fetching
+
+- Fetch data in server components and pass the data down as props to client components.
+- Use trpc procedures from `@/trpc/server` to mutate data.
+
+##### Server Components
+
+- Use `"use server"` at the top of the file.
+- Implement Suspense for asynchronous data fetching to show loading states while data is being fetched.
+- If no asynchronous logic is required for a given server component, you do not need to wrap the component in `<Suspense>`. You can simply return the final UI directly since there is no async boundary needed.
+- If asynchronous fetching is required, you can use a `<Suspense>` boundary and a fallback to indicate a loading state while data is loading.
+- Server components cannot be imported into client components. If you want to use a server component in a client component, you must pass the as props using the "children" prop
+
+Example of a server layout:
+
+```tsx
+"use server";
+
+export default async function ExampleServerLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  return children;
+}
+```
+
+Example of a server page (with async logic):
+
+```tsx
+"use server";
+
+import { Suspense } from "react";
+import { SomeAction } from "@/actions/some-actions";
+import { SomeComponent } from "./_components/some-component";
+import { SomeSkeleton } from "./_components/some-skeleton";
+
+export default async function ExampleServerPage() {
+  return (
+    <Suspense fallback={<SomeSkeleton className="some-class" />}>
+      <SomeComponentFetcher />
+    </Suspense>
+  );
+}
+
+async function SomeComponentFetcher() {
+  const { data } = await SomeAction();
+  return <SomeComponent className="some-class" initialData={data || []} />;
+}
+```
+
+Example of a server page (no async logic required):
+
+```tsx
+"use server";
+
+import { SomeClientComponent } from "./_components/some-client-component";
+
+// In this case, no asynchronous work is being done, so no Suspense or fallback is required.
+export async function ExampleServerPage() {
+  return <SomeClientComponent initialData={[]} />;
+}
+```
+
+Example of a server component:
+
+```tsx
+"use server";
+
+interface ExampleServerComponentProps {
+  // Your props here
+}
+
+export async function ExampleServerComponent({
+  props,
+}: ExampleServerComponentProps) {
+  // Your code here
+}
+```
+
+##### Client Components
+
+- Use `"use client"` at the top of the file
+- Client components can safely rely on props passed down from server components, or handle UI interactions without needing <Suspense> if there’s no async logic.
+
+Example of a client page:
+
+```tsx
+"use client";
+
+export default function ExampleClientPage() {
+  // Your code here
+}
+```
+
+Example of a client component:
+
+```tsx
+"use client";
+
+interface ExampleClientComponentProps {
+  initialData: any[];
+}
+
+export default function ExampleClientComponent({
+  initialData,
+}: ExampleClientComponentProps) {
+  // Client-side logic here
+  return <div>{initialData.length} items</div>;
+}
+```
+
+### Backend Rules
+
+Follow these rules when working on the backend.
+
+It uses Sqlite, Truso, Prisma, and tRPC.
+
+#### General Rules
+
+- Never generate migrations. You do not have to do anything in the `prisma/migrations` folder inluding migrations and metadata. Ignore it.
+
+#### Organization
+
+#### Schemas
+
+- When importing database schemas, use `@prisma/client`
+- If using a userId, always use `user.id` not the clerk user id from `auth()`
+- Always include createdAt and updatedAt columns in all tables
+- Make sure to cascade delete when necessary
+
+#### Server Procedures
+
+- When importing server procedures, use `@/trpc/server`
+- When importing client procedures, use `@/trpc/react`
+- procedure should go in the `server/api/routers` folder organized by domain
+- Only write the needed procedure
+- Sort in CRUD order: Create, Read, Update, Delete
+- Make sure to return undefined as the data type if the procedure is not supposed to return any data
+
+Example of a router and procedure:
+
+```ts
+// reusable include object
+const exampleInclude = {
+  id: true,
+  name: true,
+  createdAt: true,
+  updatedAt: true,
+};
+
+export const exampleRouter = createTRPCRouter({
   update: protectedProcedure
     .input(
       z.object({
-        id: z.string(),
-        data: listingFormSchema,
+        id: z.string().min(1),
+        name: z.string().min(1),
       }),
     )
-    .mutation(async ({ ctx, input }) => {
-      const listing = await ctx.db.listing.findUnique({
-        where: { id: input.id },
-      });
+    .mutation(async ({ input }) => {
+      try {
+        const result = await db.example.update({
+          where: { id: input.id },
+          data: {
+            name: input.name,
+          },
+          include: exampleInclude,
+        });
 
-      if (!listing) {
+        revalidatePath("/example");
+
+        return result;
+      } catch (error) {
+        console.error("Error updating example", error);
         throw new TRPCError({
-          code: "NOT_FOUND",
-          message: "Listing not found",
+          code: "INTERNAL_SERVER_ERROR",
+          message: "Error updating example",
         });
       }
-
-      const updatedListing = await ctx.db.listing.update({
-        where: { id: input.id },
-        data: input.data,
-        include: {
-          ahsListing: true,
-          images: {
-            orderBy: { order: "asc" },
-          },
-        },
-      });
-
-      revalidatePath("/listings");
-      return updatedListing;
     }),
 });
 ```
 
-2. Shared Helper Function:
+you can derive the router's input and output types like this:
 
-```typescript
-// src/server/api/routers/listing.ts
-async function checkListingOwnership(userId: string, listingId: string) {
-  const listing = await db.listing.findUnique({
-    where: { id: listingId },
-  });
+```ts
+export type ExampleRouter = typeof exampleRouter;
 
-  if (!listing) {
-    throw new TRPCError({
-      code: "NOT_FOUND",
-      message: "Listing not found",
-    });
-  }
+export type ExampleRouterOutput = inferRouterOutputs<ExampleRouter>;
+export type ExampleRouterInput = inferRouterInputs<ExampleRouter>;
 
-  if (listing.userId !== userId) {
-    throw new TRPCError({
-      code: "FORBIDDEN",
-      message: "Not authorized",
-    });
-  }
-
-  return listing;
-}
+export type ExampleRouterUpdateOutput = ExampleRouterOutput["update"];
+export type ExampleRouterUpdateInput = ExampleRouterInput["update"];
 ```
 
-3. Form and Schema Example:
+### Auth Rules
 
-```typescript
-// src/types/schemas/listing.ts
-export const listingFormSchema = z.object({
-  name: z.string().min(1, "Name is required").optional(),
-  price: z.number().min(0).optional().nullable(),
-  publicNote: z.string().optional().nullable(),
-});
+Follow these rules when working on auth.
 
-export type ListingFormData = z.infer<typeof listingFormSchema>;
+It uses Clerk for authentication.
 
-// src/components/forms/listing-form.tsx
-export function ListingForm({ listing }: { listing: ListingGetOutput }) {
-  const [isPending, setIsPending] = useState(false);
-  const { toast } = useToast();
+#### General Rules
 
-  const form = useZodForm({
-    schema: listingFormSchema,
-    defaultValues: {
-      ...transformNullToUndefined(listingFormSchema.parse(listing)),
-    },
-  });
+- Import the auth helper with `import { auth } from "@clerk/nextjs/server"` in server components
+- await the auth helper in server actions
 
-  const { mutateAsync: updateListingMutation } = api.listing.update.useMutation({
-    onSuccess: () => {
-      toast({ title: "Changes saved" });
-    },
-    onError: () => {
-      toast({ title: "Failed to save changes", variant: "destructive" });
-    },
-  });
+### Payments Rules
 
-  async function onSubmit(values: ListingFormData) {
-    setIsPending(true);
-    try {
-      await updateListingMutation({
-        id: listing.id,
-        data: values,
-      });
-    } finally {
-      setIsPending(false);
-    }
-  }
+Follow these rules when working on payments.
 
-  return (
-    <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)}>
-        {/* Form fields */}
-      </form>
-    </Form>
-  );
-}
-```
-
-# General Rules
-
-- Use @/ imports
-- Use kebab-case for files/folders
-- Validate env vars with @t3-oss/env-nextjs
-- Don't modify shadcn/ui components
-- Follow security best practices
-- Handle cache invalidation consistently
-- Hide private fields in public queries
-- Use middleware for common checks
-- Use proper TypeScript types
-- Always use database user IDs for ownership checks
-- Handle missing users gracefully with proper error messages
-- Keep mutations focused and minimal
-- Share helper functions between related mutations
-
-````
-
-```;
-
-````
+It uses Stripe for payments.
