@@ -19,13 +19,13 @@ import { Skeleton } from "@/components/ui/skeleton";
 const navMainItems = [
   {
     title: "Listings",
-    url: "/listings",
+    url: "/dashboard/listings",
     icon: Flower2,
     isActive: true,
   },
   {
     title: "Lists",
-    url: "/lists",
+    url: "/dashboard/lists",
     icon: ListTodo,
   },
 ];
@@ -34,11 +34,11 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const { data: user, isLoading } = api.user.getCurrentUser.useQuery();
 
   return (
-    <Sidebar variant="inset" {...props}>
+    <Sidebar variant="floating" collapsible="icon" {...props}>
       <SidebarHeader>
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton size="lg" asChild>
+            <SidebarMenuButton size="lg" asChild tooltip="Dashboard">
               <a href="/dashboard">
                 <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
                   <Command className="size-4" />
