@@ -1,13 +1,11 @@
 "use client";
 
-import * as React from "react";
-
-export default function DashboardPage(): React.JSX.Element {
+export default function DashboardPage() {
   return (
-    <div className="p-8">
-      <h1 className="text-2xl font-bold">Welcome to Daylily Catalog</h1>
-      <p className="mt-2 text-muted-foreground">
-        Manage your daylily collection and showcase your garden.
+    <div className="flex flex-1 flex-col gap-4 p-4 pt-0">
+      <h1 className="text-4xl font-bold">Dashboard</h1>
+      <p className="text-muted-foreground">
+        Welcome to your daylily catalog dashboard
       </p>
     </div>
   );

@@ -1,13 +1,12 @@
 "use client";
 
-import * as React from "react";
-import { useRouter } from "next/navigation";
 import { api } from "@/trpc/react";
+import { DataTable } from "./_components/listings-table/data-table";
+import { columns } from "./_components/listings-table/columns";
 import { Button } from "@/components/ui/button";
-import { ListingsTable } from "./_components/listings-table";
+import { Skeleton } from "@/components/ui/skeleton";
 
-export default function ListingsPage(): React.JSX.Element {
-  const router = useRouter();
+export default function ListingsPage() {
   const { data: listings, isLoading } = api.listing.list.useQuery();
 
   return (
@@ -19,16 +18,19 @@ export default function ListingsPage(): React.JSX.Element {
             Manage and showcase your daylily listings.
           </p>
         </div>
-        <Button onClick={() => router.push("/dashboard/listings/new")}>
-          Add Listing
+        <Button asChild>
+          <a href="/dashboard/listings/new">Add Listing</a>
         </Button>
       </div>
 
       <div className="mt-8">
         {isLoading ? (
-          <div>Loading...</div>
+          <div className="space-y-4">
+            <Skeleton className="h-8 w-[250px]" />
+            <Skeleton className="h-[500px] w-full" />
+          </div>
         ) : (
-          <ListingsTable listings={listings ?? []} />
+          <DataTable columns={columns} data={listings ?? []} />
         )}
       </div>
     </div>
