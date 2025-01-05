@@ -30,13 +30,26 @@ import { DataTablePagination } from "./data-table-pagination";
 import { DataTableToolbar } from "./data-table-toolbar";
 import { fuzzyFilter } from "@/lib/table-utils";
 import { useLocalStorage } from "@/hooks/use-local-storage";
+import { cn } from "@/lib/utils";
+
+interface DataTablePinnedConfig {
+  left?: number;
+  right?: number;
+}
 
 interface DataTableProps<TData> {
   columns: ColumnDef<TData, any>[];
   data: TData[];
+  options?: { pinnedColumns: DataTablePinnedConfig };
 }
 
-export function DataTable<TData>({ columns, data }: DataTableProps<TData>) {
+export function DataTable<TData>({
+  columns,
+  data,
+  options = { pinnedColumns: { left: 0, right: 0 } },
+}: DataTableProps<TData>) {
+  const { left: leftPinnedCount = 0, right: rightPinnedCount = 0 } =
+    options.pinnedColumns;
   const [rowSelection, setRowSelection] = React.useState({});
   const [columnVisibility, setColumnVisibility] =
     useLocalStorage<VisibilityState>("listings-table-column-visibility", {});
@@ -87,18 +100,95 @@ export function DataTable<TData>({ columns, data }: DataTableProps<TData>) {
     <div className="space-y-4">
       <DataTableToolbar table={table} />
       <div className="grid auto-rows-min rounded-md border">
-        <div className="overflow-x-auto">
-          <div className="inline-block min-w-full align-middle">
+        <div className="flex min-w-full">
+          {/* Left pinned table */}
+          {leftPinnedCount > 0 && (
+            <div className="shrink-0 border-r bg-background">
+              <Table>
+                <TableHeader>
+                  {table.getHeaderGroups().map((headerGroup) => (
+                    <TableRow key={headerGroup.id}>
+                      {headerGroup.headers
+                        .slice(0, leftPinnedCount)
+                        .map((header) => (
+                          <TableHead
+                            key={header.id}
+                            colSpan={header.colSpan}
+                            className="h-12 whitespace-nowrap"
+                          >
+                            {header.isPlaceholder ? null : (
+                              <div
+                                {...{
+                                  className: header.column.getCanSort()
+                                    ? "flex cursor-pointer select-none items-center gap-2"
+                                    : "flex items-center gap-2",
+                                  onClick: header.column.getCanSort()
+                                    ? header.column.getToggleSortingHandler()
+                                    : undefined,
+                                }}
+                              >
+                                {flexRender(
+                                  header.column.columnDef.header,
+                                  header.getContext(),
+                                )}
+                              </div>
+                            )}
+                          </TableHead>
+                        ))}
+                    </TableRow>
+                  ))}
+                </TableHeader>
+                <TableBody>
+                  {table.getRowModel().rows?.length ? (
+                    table.getRowModel().rows.map((row) => (
+                      <TableRow
+                        key={row.id}
+                        data-state={row.getIsSelected() && "selected"}
+                      >
+                        {row
+                          .getVisibleCells()
+                          .slice(0, leftPinnedCount)
+                          .map((cell) => (
+                            <TableCell key={cell.id} className="h-12">
+                              {flexRender(
+                                cell.column.columnDef.cell,
+                                cell.getContext(),
+                              )}
+                            </TableCell>
+                          ))}
+                      </TableRow>
+                    ))
+                  ) : (
+                    <TableRow>
+                      <TableCell
+                        colSpan={leftPinnedCount}
+                        className="h-24 text-center"
+                      >
+                        No results.
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+
+          {/* Center scrollable table */}
+          <div className="flex-1 overflow-auto">
             <Table>
               <TableHeader>
                 {table.getHeaderGroups().map((headerGroup) => (
                   <TableRow key={headerGroup.id}>
-                    {headerGroup.headers.map((header) => {
-                      return (
+                    {headerGroup.headers
+                      .slice(
+                        leftPinnedCount,
+                        headerGroup.headers.length - rightPinnedCount,
+                      )
+                      .map((header) => (
                         <TableHead
                           key={header.id}
                           colSpan={header.colSpan}
-                          className="whitespace-nowrap"
+                          className="h-12 whitespace-nowrap"
                         >
                           {header.isPlaceholder ? null : (
                             <div
@@ -118,8 +208,7 @@ export function DataTable<TData>({ columns, data }: DataTableProps<TData>) {
                             </div>
                           )}
                         </TableHead>
-                      );
-                    })}
+                      ))}
                   </TableRow>
                 ))}
               </TableHeader>
@@ -130,20 +219,28 @@ export function DataTable<TData>({ columns, data }: DataTableProps<TData>) {
                       key={row.id}
                       data-state={row.getIsSelected() && "selected"}
                     >
-                      {row.getVisibleCells().map((cell) => (
-                        <TableCell key={cell.id}>
-                          {flexRender(
-                            cell.column.columnDef.cell,
-                            cell.getContext(),
-                          )}
-                        </TableCell>
-                      ))}
+                      {row
+                        .getVisibleCells()
+                        .slice(
+                          leftPinnedCount,
+                          row.getVisibleCells().length - rightPinnedCount,
+                        )
+                        .map((cell) => (
+                          <TableCell key={cell.id} className="h-12">
+                            {flexRender(
+                              cell.column.columnDef.cell,
+                              cell.getContext(),
+                            )}
+                          </TableCell>
+                        ))}
                     </TableRow>
                   ))
                 ) : (
                   <TableRow>
                     <TableCell
-                      colSpan={columns.length}
+                      colSpan={
+                        columns.length - leftPinnedCount - rightPinnedCount
+                      }
                       className="h-24 text-center"
                     >
                       No results.
@@ -153,6 +250,78 @@ export function DataTable<TData>({ columns, data }: DataTableProps<TData>) {
               </TableBody>
             </Table>
           </div>
+
+          {/* Right pinned table */}
+          {rightPinnedCount > 0 && (
+            <div className="shrink-0 border-l bg-background">
+              <Table>
+                <TableHeader>
+                  {table.getHeaderGroups().map((headerGroup) => (
+                    <TableRow key={headerGroup.id}>
+                      {headerGroup.headers
+                        .slice(-rightPinnedCount)
+                        .map((header) => (
+                          <TableHead
+                            key={header.id}
+                            colSpan={header.colSpan}
+                            className="h-12 whitespace-nowrap"
+                          >
+                            {header.isPlaceholder ? null : (
+                              <div
+                                {...{
+                                  className: header.column.getCanSort()
+                                    ? "flex cursor-pointer select-none items-center gap-2"
+                                    : "flex items-center gap-2",
+                                  onClick: header.column.getCanSort()
+                                    ? header.column.getToggleSortingHandler()
+                                    : undefined,
+                                }}
+                              >
+                                {flexRender(
+                                  header.column.columnDef.header,
+                                  header.getContext(),
+                                )}
+                              </div>
+                            )}
+                          </TableHead>
+                        ))}
+                    </TableRow>
+                  ))}
+                </TableHeader>
+                <TableBody>
+                  {table.getRowModel().rows?.length ? (
+                    table.getRowModel().rows.map((row) => (
+                      <TableRow
+                        key={row.id}
+                        data-state={row.getIsSelected() && "selected"}
+                      >
+                        {row
+                          .getVisibleCells()
+                          .slice(-rightPinnedCount)
+                          .map((cell) => (
+                            <TableCell key={cell.id} className="h-12">
+                              {flexRender(
+                                cell.column.columnDef.cell,
+                                cell.getContext(),
+                              )}
+                            </TableCell>
+                          ))}
+                      </TableRow>
+                    ))
+                  ) : (
+                    <TableRow>
+                      <TableCell
+                        colSpan={rightPinnedCount}
+                        className="h-24 text-center"
+                      >
+                        No results.
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+          )}
         </div>
       </div>
       <DataTablePagination table={table} />

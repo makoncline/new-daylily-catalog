@@ -30,7 +30,13 @@ export default function ListingsPage() {
             <Skeleton className="h-[500px] w-full" />
           </div>
         ) : (
-          <DataTable columns={columns} data={listings ?? []} />
+          <DataTable
+            columns={columns}
+            data={listings ?? []}
+            options={{
+              pinnedColumns: { left: 1, right: 1 },
+            }}
+          />
         )}
       </div>
     </div>
