@@ -53,7 +53,7 @@ export function DataTable<TData>({ columns, data }: DataTableProps<TData>) {
   );
   const [globalFilter, setGlobalFilter] = React.useState<string>("");
 
-  const table = useReactTable({
+  const table = useReactTable<TData>({
     data,
     columns,
     filterFns: {
