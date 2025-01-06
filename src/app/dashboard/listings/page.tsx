@@ -6,16 +6,12 @@ import { DataTable } from "./_components/listings-table/data-table";
 import { columns } from "./_components/listings-table/columns";
 import { Skeleton } from "@/components/ui/skeleton";
 import { CreateListingButton } from "./_components/create-listing-button";
+import { ListingsTable } from "./_components/listings-table";
 
 async function ListingsContent() {
-  const listings = await api.listing.list();
-  return (
-    <DataTable
-      columns={columns}
-      data={listings}
-      options={{ pinnedColumns: { left: 1, right: 1 } }}
-    />
-  );
+  // Get initial data from server
+  const initialListings = await api.listing.list();
+  return <ListingsTable initialListings={initialListings} />;
 }
 
 export default async function ListingsPage() {
