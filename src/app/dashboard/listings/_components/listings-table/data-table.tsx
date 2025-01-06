@@ -28,6 +28,7 @@ import {
 
 import { DataTablePagination } from "./data-table-pagination";
 import { DataTableToolbar } from "./data-table-toolbar";
+import { DataTableRowActions } from "./data-table-row-actions";
 import { fuzzyFilter } from "@/lib/table-utils";
 import { useLocalStorage } from "@/hooks/use-local-storage";
 
@@ -40,12 +41,14 @@ interface DataTableProps<TData> {
   columns: ColumnDef<TData, unknown>[];
   data: TData[];
   options?: { pinnedColumns: DataTablePinnedConfig };
+  onEdit?: (id: string | null) => void;
 }
 
 export function DataTable<TData>({
   columns,
   data,
   options = { pinnedColumns: { left: 0, right: 0 } },
+  onEdit,
 }: DataTableProps<TData>) {
   const { left: leftPinnedCount = 0, right: rightPinnedCount = 0 } =
     options.pinnedColumns;
@@ -67,7 +70,15 @@ export function DataTable<TData>({
 
   const table = useReactTable<TData>({
     data,
-    columns,
+    columns: columns.map((col) => {
+      if (col.id === "actions") {
+        return {
+          ...col,
+          cell: ({ row }) => <DataTableRowActions row={row} onEdit={onEdit} />,
+        };
+      }
+      return col;
+    }),
     filterFns: {
       fuzzy: fuzzyFilter,
     },
