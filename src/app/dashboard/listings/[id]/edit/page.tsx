@@ -3,7 +3,7 @@
 import { Suspense } from "react";
 import { api } from "@/trpc/server";
 import { ListingForm } from "@/components/forms/listing-form";
-import { ListingFormSkeleton } from "./_components/listing-form-skeleton";
+import { ListingFormSkeleton } from "../../../../../components/forms/listing-form-skeleton";
 import { ListingNotFound } from "./_components/listing-not-found";
 
 interface EditListingPageProps {

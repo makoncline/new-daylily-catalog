@@ -1,20 +1,19 @@
 "use client";
 
-import { ColumnDef, Row } from "@tanstack/react-table";
-import { type ListingListOutput } from "@/server/api/routers/listing";
-import { Checkbox } from "@/components/ui/checkbox";
+import type { ColumnDef, Row } from "@tanstack/react-table";
 import { DataTableColumnHeader } from "./data-table-column-header";
 import { DataTableRowActions } from "./data-table-row-actions";
 import { formatPrice } from "@/lib/utils";
-import { TABLE_CONFIG, COLUMN_NAMES } from "@/config/constants";
+import { COLUMN_NAMES } from "@/config/constants";
 import { TooltipCell } from "./tooltip-cell";
+import { type ListingGetOutput } from "@/server/api/routers/listing";
 
 /**
  * Helper function to safely get string values from a row
  * Returns null if the value is not a string
  */
 const getStringValue = (
-  row: Row<ListingListOutput[number]>,
+  row: Row<ListingGetOutput>,
   key: string,
 ): string | null => {
   const value = row.getValue(key);
@@ -29,7 +28,7 @@ const getStringValue = (
  * 3. Metadata columns (listing created/updated)
  * 4. Action column
  */
-export const columns: ColumnDef<ListingListOutput[number]>[] = [
+export const columns: ColumnDef<ListingGetOutput>[] = [
   // Core columns
   // {
   //   id: "select",

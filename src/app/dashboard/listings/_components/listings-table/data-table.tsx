@@ -30,7 +30,6 @@ import { DataTablePagination } from "./data-table-pagination";
 import { DataTableToolbar } from "./data-table-toolbar";
 import { fuzzyFilter } from "@/lib/table-utils";
 import { useLocalStorage } from "@/hooks/use-local-storage";
-import { cn } from "@/lib/utils";
 
 interface DataTablePinnedConfig {
   left?: number;
@@ -38,7 +37,7 @@ interface DataTablePinnedConfig {
 }
 
 interface DataTableProps<TData> {
-  columns: ColumnDef<TData, any>[];
+  columns: ColumnDef<TData, unknown>[];
   data: TData[];
   options?: { pinnedColumns: DataTablePinnedConfig };
 }

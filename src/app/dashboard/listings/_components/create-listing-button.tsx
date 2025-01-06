@@ -10,7 +10,7 @@ export function CreateListingButton() {
   const { toast } = useToast();
   const createListing = api.listing.create.useMutation({
     onSuccess: (listing) => {
-      router.push(`/listings/${listing.id}/edit`);
+      router.push(`/dashboard/listings/${listing.id}/edit`);
     },
     onError: () => {
       toast({

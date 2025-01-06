@@ -20,20 +20,17 @@ import { EditListingPopover } from "../edit-listing-popover";
 import { type ListingGetOutput } from "@/server/api/routers/listing";
 
 interface DataTableRowActionsProps {
-  row: Row<Listing>;
+  row: Row<ListingGetOutput>;
 }
 
 export function DataTableRowActions({ row }: DataTableRowActionsProps) {
   const router = useRouter();
-  const { data: listing } = api.listing.get.useQuery({ id: row.original.id });
   const deleteListing = api.listing.delete.useMutation({
     onSuccess: () => {
       toast.success("Listing deleted successfully");
       router.refresh();
     },
   });
-
-  if (!listing) return null;
 
   return (
     <DropdownMenu>
@@ -47,10 +44,10 @@ export function DataTableRowActions({ row }: DataTableRowActionsProps) {
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-[160px]">
-        <EditListingPopover listing={listing} />
+        <EditListingPopover listing={row.original} />
         <DropdownMenuItem
           onClick={() =>
-            router.push(`/dashboard/listings/${row.original.id}/view`)
+            router.push(`/dashboard/listings/${row.original.id}/edit`)
           }
         >
           View

@@ -33,10 +33,13 @@ import { LISTING_CONFIG } from "@/config/constants";
 
 interface ListingFormProps {
   listing: ListingGetOutput;
+  onDelete: () => void;
 }
 
-export function ListingForm({ listing: initialListing }: ListingFormProps) {
-  const router = useRouter();
+export function ListingForm({
+  listing: initialListing,
+  onDelete,
+}: ListingFormProps) {
   const { toast } = useToast();
   const [isPending, setIsPending] = useState(false);
   const [listing, setListing] = useState(initialListing);
@@ -81,7 +84,7 @@ export function ListingForm({ listing: initialListing }: ListingFormProps) {
       toast({
         title: "Listing deleted successfully",
       });
-      router.push("/listings");
+      onDelete();
     },
     onError: () => {
       toast({
@@ -123,7 +126,7 @@ export function ListingForm({ listing: initialListing }: ListingFormProps) {
     }
   };
 
-  async function onDelete() {
+  async function handleDelete() {
     setIsPending(true);
     try {
       await deleteListingMutation.mutateAsync({
@@ -309,7 +312,7 @@ export function ListingForm({ listing: initialListing }: ListingFormProps) {
       <DeleteConfirmDialog
         open={isDeleteDialogOpen}
         onOpenChange={setIsDeleteDialogOpen}
-        onConfirm={onDelete}
+        onConfirm={handleDelete}
         title="Delete Listing"
         description="Are you sure you want to delete this listing? This action cannot be undone."
       />
