@@ -37,18 +37,28 @@ interface DataTablePinnedConfig {
   right?: number;
 }
 
+interface DataTablePaginationConfig {
+  pageIndex: number;
+  pageSize: number;
+}
+
 interface DataTableProps<TData> {
   columns: ColumnDef<TData, unknown>[];
   data: TData[];
-  options?: { pinnedColumns: DataTablePinnedConfig };
+  options?: {
+    pinnedColumns: DataTablePinnedConfig;
+    pagination?: DataTablePaginationConfig;
+  };
   onEdit?: (id: string | null) => void;
+  onPaginationChange?: (pageIndex: number, pageSize: number) => void;
 }
 
-export function DataTable<TData>({
+export function DataTable<TData extends { id: string }>({
   columns,
   data,
   options = { pinnedColumns: { left: 0, right: 0 } },
   onEdit,
+  onPaginationChange,
 }: DataTableProps<TData>) {
   const { left: leftPinnedCount = 0, right: rightPinnedCount = 0 } =
     options.pinnedColumns;
@@ -89,6 +99,12 @@ export function DataTable<TData>({
       columnFilters,
       columnOrder,
       globalFilter,
+      pagination: options.pagination
+        ? {
+            pageIndex: options.pagination.pageIndex,
+            pageSize: options.pagination.pageSize,
+          }
+        : undefined,
     },
     enableRowSelection: true,
     onRowSelectionChange: setRowSelection,
@@ -97,6 +113,16 @@ export function DataTable<TData>({
     onColumnVisibilityChange: setColumnVisibility,
     onColumnOrderChange: setColumnOrder,
     onGlobalFilterChange: setGlobalFilter,
+    onPaginationChange: (updater) => {
+      if (onPaginationChange && typeof updater === "function") {
+        const state = updater({
+          pageIndex: options.pagination?.pageIndex ?? 0,
+          pageSize: options.pagination?.pageSize ?? 10,
+        });
+        onPaginationChange(state.pageIndex, state.pageSize);
+      }
+    },
+    manualPagination: !!options.pagination,
     globalFilterFn: fuzzyFilter,
     getCoreRowModel: getCoreRowModel(),
     getFilteredRowModel: getFilteredRowModel(),

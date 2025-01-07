@@ -13,6 +13,9 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { ListingForm } from "@/components/forms/listing-form";
+import { TABLE_CONFIG } from "@/config/constants";
+
+const { DEFAULT_PAGE_INDEX, DEFAULT_PAGE_SIZE } = TABLE_CONFIG.PAGINATION;
 
 interface ListingsTableProps {
   initialListings: ListingGetOutput[];
@@ -22,6 +25,8 @@ export function ListingsTable({ initialListings }: ListingsTableProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const editingId = searchParams.get("editing");
+  const pageIndex = (Number(searchParams.get("page")) || 1) - 1;
+  const pageSize = Number(searchParams.get("size")) || DEFAULT_PAGE_SIZE;
 
   // Use the initial data from the server, but keep it fresh with client-side updates
   const { data: listings } = api.listing.list.useQuery(undefined, {
@@ -49,13 +54,47 @@ export function ListingsTable({ initialListings }: ListingsTableProps) {
     router.replace(`?${params.toString()}`);
   };
 
+  const setPagination = (newPageIndex: number, newPageSize: number) => {
+    const params = new URLSearchParams(searchParams);
+
+    // Only include page if it's not the default (page 1)
+    if (newPageIndex === DEFAULT_PAGE_INDEX) {
+      params.delete("page");
+    } else {
+      // Increment the page number by 1 for the URL
+      params.set("page", (newPageIndex + 1).toString());
+    }
+
+    // Only include size if it's not the default
+    if (newPageSize === DEFAULT_PAGE_SIZE) {
+      params.delete("size");
+    } else {
+      params.set("size", newPageSize.toString());
+    }
+
+    // Keep the editing param if it exists
+    if (editingId) {
+      params.set("editing", editingId);
+    }
+
+    const search = params.toString();
+    router.replace(search ? `?${search}` : window.location.pathname);
+  };
+
   return (
     <>
       <DataTable
         columns={columns}
         data={listings}
-        options={{ pinnedColumns: { left: 1, right: 1 } }}
+        options={{
+          pinnedColumns: { left: 1, right: 1 },
+          pagination: {
+            pageIndex,
+            pageSize,
+          },
+        }}
         onEdit={setEditing}
+        onPaginationChange={setPagination}
       />
 
       <Dialog

@@ -7,6 +7,11 @@ export const TABLE_CONFIG = {
   CELL_TEXT_LENGTH: 50, // Maximum characters to show in table cells before truncating
   MIN_COLUMN_WIDTH: 100,
   MAX_COLUMN_WIDTH: 300,
+  PAGINATION: {
+    DEFAULT_PAGE_INDEX: 0,
+    DEFAULT_PAGE_SIZE: 10,
+    PAGE_SIZE_OPTIONS: [10, 20, 30, 40, 50],
+  },
 } as const;
 
 export const COLUMN_NAMES = {

@@ -2,8 +2,6 @@
 
 import { Suspense } from "react";
 import { api } from "@/trpc/server";
-import { DataTable } from "./_components/listings-table/data-table";
-import { columns } from "./_components/listings-table/columns";
 import { Skeleton } from "@/components/ui/skeleton";
 import { CreateListingButton } from "./_components/create-listing-button";
 import { ListingsTable } from "./_components/listings-table";

@@ -14,15 +14,17 @@ import {
 import { useRouter } from "next/navigation";
 import { api } from "@/trpc/react";
 import { toast } from "sonner";
-import { type ListingGetOutput } from "@/server/api/routers/listing";
 import { useState } from "react";
 
-interface DataTableRowActionsProps {
-  row: Row<ListingGetOutput>;
+interface DataTableRowActionsProps<TData> {
+  row: Row<TData>;
   onEdit?: (id: string | null) => void;
 }
 
-export function DataTableRowActions({ row, onEdit }: DataTableRowActionsProps) {
+export function DataTableRowActions<TData extends { id: string }>({
+  row,
+  onEdit,
+}: DataTableRowActionsProps<TData>) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
 
