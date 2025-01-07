@@ -1,16 +1,20 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { api } from "@/trpc/react";
 import { useToast } from "@/hooks/use-toast";
 
 export function CreateListingButton() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { toast } = useToast();
+
   const createListing = api.listing.create.useMutation({
     onSuccess: (listing) => {
-      router.push(`/dashboard/listings/${listing.id}/edit`);
+      const params = new URLSearchParams(searchParams);
+      params.set("editing", listing.id);
+      router.replace(`?${params.toString()}`);
     },
     onError: () => {
       toast({
