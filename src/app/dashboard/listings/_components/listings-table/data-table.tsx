@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   type ColumnDef,
   type ColumnFiltersState,
@@ -60,8 +61,11 @@ export function DataTable<TData extends { id: string }>({
   onEdit,
   onPaginationChange,
 }: DataTableProps<TData>) {
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const { left: leftPinnedCount = 0, right: rightPinnedCount = 0 } =
     options.pinnedColumns;
+
   const [rowSelection, setRowSelection] = React.useState({});
   const [columnVisibility, setColumnVisibility] =
     useLocalStorage<VisibilityState>("listings-table-column-visibility", {});
@@ -76,7 +80,34 @@ export function DataTable<TData extends { id: string }>({
     "listings-table-column-order",
     [],
   );
-  const [globalFilter, setGlobalFilter] = React.useState<string>("");
+
+  // Get initial filter from URL
+  const initialFilter = searchParams.get("filter") ?? "";
+  const [globalFilter, setGlobalFilter] = React.useState<string>(initialFilter);
+
+  // Update URL when filter changes
+  const updateFilterInUrl = React.useCallback(
+    (value: string) => {
+      const params = new URLSearchParams(searchParams);
+      if (value) {
+        params.set("filter", value);
+      } else {
+        params.delete("filter");
+      }
+      // Preserve other params like editing, page, size
+      router.replace(`?${params.toString()}`);
+    },
+    [searchParams, router],
+  );
+
+  // Handle filter changes
+  const handleFilterChange = React.useCallback(
+    (value: string) => {
+      setGlobalFilter(value);
+      updateFilterInUrl(value);
+    },
+    [updateFilterInUrl],
+  );
 
   const table = useReactTable<TData>({
     data,
@@ -112,7 +143,7 @@ export function DataTable<TData extends { id: string }>({
     onColumnFiltersChange: setColumnFilters,
     onColumnVisibilityChange: setColumnVisibility,
     onColumnOrderChange: setColumnOrder,
-    onGlobalFilterChange: setGlobalFilter,
+    onGlobalFilterChange: handleFilterChange,
     onPaginationChange: (updater) => {
       if (onPaginationChange && typeof updater === "function") {
         const state = updater({

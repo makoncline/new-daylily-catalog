@@ -14,8 +14,9 @@ interface DataTableToolbarProps<TData> {
 export function DataTableToolbar<TData>({
   table,
 }: DataTableToolbarProps<TData>) {
-  const globalFilter = table.getState().globalFilter as string;
-  const isFiltered = globalFilter?.length > 0;
+  const globalFilter = table.getState().globalFilter as string | undefined;
+  const isFiltered =
+    typeof globalFilter === "string" && globalFilter.length > 0;
 
   return (
     <div className="flex items-center justify-between">
