@@ -59,13 +59,17 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       </SidebarContent>
       <SidebarFooter>
         {isLoading ? (
-          <div className="flex items-center gap-4 p-4">
-            <Skeleton className="h-10 w-10 rounded-full" />
-            <div className="space-y-2">
-              <Skeleton className="h-4 w-[150px]" />
-              <Skeleton className="h-4 w-[100px]" />
-            </div>
-          </div>
+          <SidebarMenu>
+            <SidebarMenuItem>
+              <SidebarMenuButton size="lg" className="cursor-default">
+                <Skeleton className="h-8 w-8 rounded-lg" />
+                <div className="grid flex-1 gap-1.5">
+                  <Skeleton className="h-4 w-24" />
+                  <Skeleton className="h-3 w-32" />
+                </div>
+              </SidebarMenuButton>
+            </SidebarMenuItem>
+          </SidebarMenu>
         ) : user ? (
           <NavUser
             user={{

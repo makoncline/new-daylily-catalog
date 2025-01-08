@@ -86,19 +86,23 @@ export function DataTableViewOptions<TData>({
     }),
   );
 
-  // Get all hideable columns except select
+  // Get columns that can't be hidden (except actions which is always last)
+  const unhideableColumnIds = table
+    .getAllColumns()
+    .filter((column) => !column.getCanHide() && column.id !== "actions")
+    .map((column) => column.id);
+
+  // Get hideable columns for the reorderable list
   const hideableColumns = table
     .getAllColumns()
-    .filter((column) => column.getCanHide() && column.id !== "select");
+    .filter((column) => column.getCanHide());
 
-  // Get the current column order or default to all columns
-  const currentOrder = table.getState().columnOrder;
-  const allColumns = hideableColumns.map((column) => column.id);
-
-  // Use the current order if it exists, otherwise use all columns
-  const items = currentOrder.length
-    ? currentOrder.filter((id) => id !== "select")
-    : allColumns;
+  // Current order of hideable columns
+  const items = table.getState().columnOrder.length
+    ? table
+        .getState()
+        .columnOrder.filter((id) => !unhideableColumnIds.includes(id))
+    : hideableColumns.map((column) => column.id);
 
   function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event;
@@ -109,27 +113,20 @@ export function DataTableViewOptions<TData>({
 
       if (oldIndex !== -1 && newIndex !== -1) {
         const newOrder = arrayMove(items, oldIndex, newIndex);
-        // Make sure to include the select column at the start of the order
-        table.setColumnOrder(["select", ...newOrder]);
+        table.setColumnOrder([...unhideableColumnIds, ...newOrder]);
       }
     }
   }
 
   function resetTable() {
-    // Show all columns
-    const newVisibility = hideableColumns.reduce(
-      (acc, column) => ({
-        ...acc,
-        [column.id]: true,
-      }),
-      { select: true },
+    // Show all hideable columns
+    table.setColumnVisibility(
+      hideableColumns.reduce(
+        (acc, column) => ({ ...acc, [column.id]: true }),
+        {},
+      ),
     );
-    table.setColumnVisibility(newVisibility);
-
-    // Reset column order
     table.setColumnOrder([]);
-
-    // Reset sorting
     table.resetSorting();
   }
 
@@ -149,11 +146,7 @@ export function DataTableViewOptions<TData>({
       />
       <DropdownMenu modal={false}>
         <DropdownMenuTrigger asChild>
-          <Button
-            variant="outline"
-            size="sm"
-            className="ml-auto hidden h-8 lg:flex"
-          >
+          <Button variant="outline" size="sm" className="ml-auto flex h-8">
             <MixerHorizontalIcon className="mr-2 h-4 w-4" />
             Table Options
           </Button>
