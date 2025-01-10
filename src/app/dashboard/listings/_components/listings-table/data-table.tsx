@@ -29,7 +29,6 @@ import {
 
 import { DataTablePagination } from "./data-table-pagination";
 import { DataTableToolbar } from "./data-table-toolbar";
-import { DataTableRowActions } from "./data-table-row-actions";
 import { fuzzyFilter } from "@/lib/table-utils";
 import { useLocalStorage } from "@/hooks/use-local-storage";
 
@@ -50,6 +49,8 @@ interface DataTableProps<TData> {
     pinnedColumns: DataTablePinnedConfig;
     pagination?: DataTablePaginationConfig;
   };
+  filterPlaceholder?: string;
+  showTableOptions?: boolean;
   onEdit?: (id: string | null) => void;
   onPaginationChange?: (pageIndex: number, pageSize: number) => void;
 }
@@ -58,6 +59,8 @@ export function DataTable<TData extends { id: string }>({
   columns,
   data,
   options = { pinnedColumns: { left: 0, right: 0 } },
+  filterPlaceholder,
+  showTableOptions = true,
   onEdit,
   onPaginationChange,
 }: DataTableProps<TData>) {
@@ -111,15 +114,7 @@ export function DataTable<TData extends { id: string }>({
 
   const table = useReactTable<TData>({
     data,
-    columns: columns.map((col) => {
-      if (col.id === "actions") {
-        return {
-          ...col,
-          cell: ({ row }) => <DataTableRowActions row={row} onEdit={onEdit} />,
-        };
-      }
-      return col;
-    }),
+    columns,
     filterFns: {
       fuzzy: fuzzyFilter,
     },
@@ -165,7 +160,11 @@ export function DataTable<TData extends { id: string }>({
 
   return (
     <div className="space-y-4">
-      <DataTableToolbar table={table} />
+      <DataTableToolbar
+        table={table}
+        filterPlaceholder={filterPlaceholder}
+        showTableOptions={showTableOptions}
+      />
       <div className="grid auto-rows-min rounded-md border">
         <div className="flex min-w-full">
           {/* Left pinned table */}

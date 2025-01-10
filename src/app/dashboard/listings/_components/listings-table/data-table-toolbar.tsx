@@ -9,10 +9,14 @@ import { DataTableViewOptions } from "./data-table-view-options";
 
 interface DataTableToolbarProps<TData> {
   table: Table<TData>;
+  filterPlaceholder?: string;
+  showTableOptions?: boolean;
 }
 
 export function DataTableToolbar<TData>({
   table,
+  filterPlaceholder = "Filter listings...",
+  showTableOptions = true,
 }: DataTableToolbarProps<TData>) {
   const globalFilter = table.getState().globalFilter as string | undefined;
   const isFiltered =
@@ -22,7 +26,7 @@ export function DataTableToolbar<TData>({
     <div className="flex items-center justify-between">
       <div className="flex flex-1 items-center space-x-2">
         <Input
-          placeholder="Filter listings..."
+          placeholder={filterPlaceholder}
           value={globalFilter ?? ""}
           onChange={(event) => table.setGlobalFilter(event.target.value)}
           className="h-8 w-[150px] lg:w-[250px]"
@@ -38,7 +42,7 @@ export function DataTableToolbar<TData>({
           </Button>
         )}
       </div>
-      <DataTableViewOptions table={table} />
+      {showTableOptions && <DataTableViewOptions table={table} />}
     </div>
   );
 }
