@@ -1,10 +1,10 @@
 "use client";
 
 import * as React from "react";
-import { Command, Flower2, ListTodo } from "lucide-react";
+import { Command, Flower2, ListTodo, LifeBuoy, Send } from "lucide-react";
 import { api } from "@/trpc/react";
 import { NavMain } from "@/components/nav-main";
-import { NavUser } from "@/components/nav-user";
+import { NavUser, NavUserSkeleton } from "@/components/nav-user";
 import {
   Sidebar,
   SidebarContent,
@@ -15,6 +15,8 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useFeedbackUrl } from "@/hooks/use-feedback-url";
+import { NavSecondary } from "./nav-secondary";
 
 const navMainItems = [
   {
@@ -32,7 +34,14 @@ const navMainItems = [
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const { data: user, isLoading } = api.user.getCurrentUser.useQuery();
-
+  const feedbackUrl = useFeedbackUrl();
+  const navSecondaryItems = [
+    {
+      title: "Feedback",
+      url: feedbackUrl,
+      icon: Send,
+    },
+  ];
   return (
     <Sidebar variant="floating" collapsible="icon" {...props}>
       <SidebarHeader>
@@ -56,20 +65,11 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       </SidebarHeader>
       <SidebarContent>
         <NavMain items={navMainItems} />
+        <NavSecondary items={navSecondaryItems} className="mt-auto" />
       </SidebarContent>
       <SidebarFooter>
         {isLoading ? (
-          <SidebarMenu>
-            <SidebarMenuItem>
-              <SidebarMenuButton size="lg" className="cursor-default">
-                <Skeleton className="h-8 w-8 rounded-lg" />
-                <div className="grid flex-1 gap-1.5">
-                  <Skeleton className="h-4 w-24" />
-                  <Skeleton className="h-3 w-32" />
-                </div>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-          </SidebarMenu>
+          <NavUserSkeleton />
         ) : user ? (
           <NavUser
             user={{

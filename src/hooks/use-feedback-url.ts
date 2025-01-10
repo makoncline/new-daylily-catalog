@@ -10,5 +10,5 @@ export function useFeedbackUrl() {
   if (user) {
     feedbackUrl.searchParams.set("email", user.email);
   }
-  return feedbackUrl;
+  return feedbackUrl.toString();
 }
