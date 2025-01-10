@@ -1,16 +1,19 @@
 import { initTRPC, TRPCError } from "@trpc/server";
-import { auth, clerkClient, currentUser } from "@clerk/nextjs/server";
+import { auth, currentUser } from "@clerk/nextjs/server";
 import superjson from "superjson";
 import { db } from "@/server/db";
 import { type User } from "@prisma/client";
 
-async function findUserByClerkId(clerkUserId: string): Promise<User | null> {
+async function findUserByClerkId(clerkUserId: string) {
   return db.user.findUnique({
     where: { clerkUserId },
+    include: {
+      stripeSubscription: true,
+    },
   });
 }
 
-async function createUserFromClerk(clerkUserId: string): Promise<User> {
+async function createUserFromClerk(clerkUserId: string) {
   const clerkUser = await currentUser();
 
   if (!clerkUser) {
@@ -31,10 +34,13 @@ async function createUserFromClerk(clerkUserId: string): Promise<User> {
       email: primaryEmail,
       username: clerkUser.username,
     },
+    include: {
+      stripeSubscription: true,
+    },
   });
 }
 
-async function getOrCreateUser(clerkUserId: string): Promise<User | null> {
+async function getOrCreateUser(clerkUserId: string) {
   const existingUser = await findUserByClerkId(clerkUserId);
   if (existingUser) return existingUser;
 
@@ -65,15 +71,19 @@ export const createTRPCRouter = t.router;
 export const publicProcedure = t.procedure;
 
 const isAuthenticated = t.middleware((opts) => {
-  console.log("user isAuthenticated", opts.ctx.user);
-  if (!opts.ctx.user) {
+  const { ctx } = opts;
+  if (!ctx.user) {
     throw new TRPCError({
       code: "UNAUTHORIZED",
       message: "Not authenticated",
     });
   }
 
-  return opts.next({ ctx: opts.ctx });
+  return opts.next({
+    ctx: {
+      user: ctx.user,
+    },
+  });
 });
 
 export const protectedProcedure = t.procedure.use(isAuthenticated);
