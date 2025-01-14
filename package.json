@@ -10,12 +10,13 @@
     "lint": "next lint",
     "start": "next start",
     "start-tunnel": "lt --subdomain new-daylily-catalog-dev --port 3000",
-    "migrate:dev": "npx dotenv -e .env.development -- npx tsx prisma/migrate.ts",
-    "db:push:dev": "npx dotenv -e .env.development -- prisma db push",
-    "db:generate:dev": "npx dotenv -e .env.development -- prisma generate",
-    "db:push:prod": "npx dotenv -e .env.production -- prisma db push",
-    "db:studio:dev": "npx dotenv -e .env.development -- prisma studio",
-    "db:studio:prod": "npx dotenv -e .env.production -- prisma studio"
+    "env": "dotenv -e",
+    "env:dev": "npm run env .env.development -- npx",
+    "env:prod": "npm run env .env.production -- npx",
+    "migrate": "tsx prisma/migrate.ts",
+    "db:push": "prisma db push",
+    "db:generate": "prisma generate",
+    "db:studio": "prisma studio"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.717.0",
