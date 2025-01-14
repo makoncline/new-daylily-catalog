@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "build": "next build",
-    "dev": "next dev",
+    "dev": "concurrently \"next dev\" \"npm run start-tunnel\"",
     "postinstall": "prisma generate",
     "lint": "next lint",
     "start": "next start",
@@ -102,6 +102,7 @@
     "@types/stripe": "^8.0.416",
     "@typescript-eslint/eslint-plugin": "^8.1.0",
     "@typescript-eslint/parser": "^8.1.0",
+    "concurrently": "^9.1.2",
     "dotenv": "^16.4.7",
     "eslint": "^8.57.0",
     "eslint-config-next": "^14.2.4",
