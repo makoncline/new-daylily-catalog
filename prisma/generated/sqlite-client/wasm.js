@@ -189,33 +189,20 @@ exports.Prisma.ImageScalarFieldEnum = {
   listingId: 'listingId'
 };
 
-exports.Prisma.StripeCustomerScalarFieldEnum = {
-  id: 'id',
-  userId: 'userId',
-  email: 'email',
-  name: 'name',
-  createdAt: 'createdAt',
-  updatedAt: 'updatedAt'
-};
-
-exports.Prisma.StripeSubscriptionScalarFieldEnum = {
-  id: 'id',
-  userId: 'userId',
-  stripeCustomerId: 'stripeCustomerId',
-  status: 'status',
-  priceId: 'priceId',
-  currentPeriodEnd: 'currentPeriodEnd',
-  cancelAtPeriodEnd: 'cancelAtPeriodEnd',
-  createdAt: 'createdAt',
-  updatedAt: 'updatedAt'
-};
-
 exports.Prisma.UserScalarFieldEnum = {
   id: 'id',
   clerkUserId: 'clerkUserId',
+  stripeCustomerId: 'stripeCustomerId',
   email: 'email',
   username: 'username',
   role: 'role',
+  createdAt: 'createdAt',
+  updatedAt: 'updatedAt'
+};
+
+exports.Prisma.KeyValueScalarFieldEnum = {
+  key: 'key',
+  value: 'value',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
 };
@@ -237,9 +224,8 @@ exports.Prisma.ModelName = {
   List: 'List',
   UserProfile: 'UserProfile',
   Image: 'Image',
-  StripeCustomer: 'StripeCustomer',
-  StripeSubscription: 'StripeSubscription',
-  User: 'User'
+  User: 'User',
+  KeyValue: 'KeyValue'
 };
 
 /**

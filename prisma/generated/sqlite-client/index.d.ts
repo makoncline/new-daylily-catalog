@@ -39,20 +39,15 @@ export type UserProfile = $Result.DefaultSelection<Prisma.$UserProfilePayload>
  */
 export type Image = $Result.DefaultSelection<Prisma.$ImagePayload>
 /**
- * Model StripeCustomer
- * 
- */
-export type StripeCustomer = $Result.DefaultSelection<Prisma.$StripeCustomerPayload>
-/**
- * Model StripeSubscription
- * 
- */
-export type StripeSubscription = $Result.DefaultSelection<Prisma.$StripeSubscriptionPayload>
-/**
  * Model User
  * 
  */
 export type User = $Result.DefaultSelection<Prisma.$UserPayload>
+/**
+ * Model KeyValue
+ * 
+ */
+export type KeyValue = $Result.DefaultSelection<Prisma.$KeyValuePayload>
 
 /**
  * ##  Prisma Client ʲˢ
@@ -228,26 +223,6 @@ export class PrismaClient<
   get image(): Prisma.ImageDelegate<ExtArgs>;
 
   /**
-   * `prisma.stripeCustomer`: Exposes CRUD operations for the **StripeCustomer** model.
-    * Example usage:
-    * ```ts
-    * // Fetch zero or more StripeCustomers
-    * const stripeCustomers = await prisma.stripeCustomer.findMany()
-    * ```
-    */
-  get stripeCustomer(): Prisma.StripeCustomerDelegate<ExtArgs>;
-
-  /**
-   * `prisma.stripeSubscription`: Exposes CRUD operations for the **StripeSubscription** model.
-    * Example usage:
-    * ```ts
-    * // Fetch zero or more StripeSubscriptions
-    * const stripeSubscriptions = await prisma.stripeSubscription.findMany()
-    * ```
-    */
-  get stripeSubscription(): Prisma.StripeSubscriptionDelegate<ExtArgs>;
-
-  /**
    * `prisma.user`: Exposes CRUD operations for the **User** model.
     * Example usage:
     * ```ts
@@ -256,6 +231,16 @@ export class PrismaClient<
     * ```
     */
   get user(): Prisma.UserDelegate<ExtArgs>;
+
+  /**
+   * `prisma.keyValue`: Exposes CRUD operations for the **KeyValue** model.
+    * Example usage:
+    * ```ts
+    * // Fetch zero or more KeyValues
+    * const keyValues = await prisma.keyValue.findMany()
+    * ```
+    */
+  get keyValue(): Prisma.KeyValueDelegate<ExtArgs>;
 }
 
 export namespace Prisma {
@@ -702,9 +687,8 @@ export namespace Prisma {
     List: 'List',
     UserProfile: 'UserProfile',
     Image: 'Image',
-    StripeCustomer: 'StripeCustomer',
-    StripeSubscription: 'StripeSubscription',
-    User: 'User'
+    User: 'User',
+    KeyValue: 'KeyValue'
   };
 
   export type ModelName = (typeof ModelName)[keyof typeof ModelName]
@@ -720,7 +704,7 @@ export namespace Prisma {
 
   export type TypeMap<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, ClientOptions = {}> = {
     meta: {
-      modelProps: "ahsListing" | "listing" | "list" | "userProfile" | "image" | "stripeCustomer" | "stripeSubscription" | "user"
+      modelProps: "ahsListing" | "listing" | "list" | "userProfile" | "image" | "user" | "keyValue"
       txIsolationLevel: Prisma.TransactionIsolationLevel
     }
     model: {
@@ -1074,146 +1058,6 @@ export namespace Prisma {
           }
         }
       }
-      StripeCustomer: {
-        payload: Prisma.$StripeCustomerPayload<ExtArgs>
-        fields: Prisma.StripeCustomerFieldRefs
-        operations: {
-          findUnique: {
-            args: Prisma.StripeCustomerFindUniqueArgs<ExtArgs>
-            result: $Utils.PayloadToResult<Prisma.$StripeCustomerPayload> | null
-          }
-          findUniqueOrThrow: {
-            args: Prisma.StripeCustomerFindUniqueOrThrowArgs<ExtArgs>
-            result: $Utils.PayloadToResult<Prisma.$StripeCustomerPayload>
-          }
-          findFirst: {
-            args: Prisma.StripeCustomerFindFirstArgs<ExtArgs>
-            result: $Utils.PayloadToResult<Prisma.$StripeCustomerPayload> | null
-          }
-          findFirstOrThrow: {
-            args: Prisma.StripeCustomerFindFirstOrThrowArgs<ExtArgs>
-            result: $Utils.PayloadToResult<Prisma.$StripeCustomerPayload>
-          }
-          findMany: {
-            args: Prisma.StripeCustomerFindManyArgs<ExtArgs>
-            result: $Utils.PayloadToResult<Prisma.$StripeCustomerPayload>[]
-          }
-          create: {
-            args: Prisma.StripeCustomerCreateArgs<ExtArgs>
-            result: $Utils.PayloadToResult<Prisma.$StripeCustomerPayload>
-          }
-          createMany: {
-            args: Prisma.StripeCustomerCreateManyArgs<ExtArgs>
-            result: BatchPayload
-          }
-          createManyAndReturn: {
-            args: Prisma.StripeCustomerCreateManyAndReturnArgs<ExtArgs>
-            result: $Utils.PayloadToResult<Prisma.$StripeCustomerPayload>[]
-          }
-          delete: {
-            args: Prisma.StripeCustomerDeleteArgs<ExtArgs>
-            result: $Utils.PayloadToResult<Prisma.$StripeCustomerPayload>
-          }
-          update: {
-            args: Prisma.StripeCustomerUpdateArgs<ExtArgs>
-            result: $Utils.PayloadToResult<Prisma.$StripeCustomerPayload>
-          }
-          deleteMany: {
-            args: Prisma.StripeCustomerDeleteManyArgs<ExtArgs>
-            result: BatchPayload
-          }
-          updateMany: {
-            args: Prisma.StripeCustomerUpdateManyArgs<ExtArgs>
-            result: BatchPayload
-          }
-          upsert: {
-            args: Prisma.StripeCustomerUpsertArgs<ExtArgs>
-            result: $Utils.PayloadToResult<Prisma.$StripeCustomerPayload>
-          }
-          aggregate: {
-            args: Prisma.StripeCustomerAggregateArgs<ExtArgs>
-            result: $Utils.Optional<AggregateStripeCustomer>
-          }
-          groupBy: {
-            args: Prisma.StripeCustomerGroupByArgs<ExtArgs>
-            result: $Utils.Optional<StripeCustomerGroupByOutputType>[]
-          }
-          count: {
-            args: Prisma.StripeCustomerCountArgs<ExtArgs>
-            result: $Utils.Optional<StripeCustomerCountAggregateOutputType> | number
-          }
-        }
-      }
-      StripeSubscription: {
-        payload: Prisma.$StripeSubscriptionPayload<ExtArgs>
-        fields: Prisma.StripeSubscriptionFieldRefs
-        operations: {
-          findUnique: {
-            args: Prisma.StripeSubscriptionFindUniqueArgs<ExtArgs>
-            result: $Utils.PayloadToResult<Prisma.$StripeSubscriptionPayload> | null
-          }
-          findUniqueOrThrow: {
-            args: Prisma.StripeSubscriptionFindUniqueOrThrowArgs<ExtArgs>
-            result: $Utils.PayloadToResult<Prisma.$StripeSubscriptionPayload>
-          }
-          findFirst: {
-            args: Prisma.StripeSubscriptionFindFirstArgs<ExtArgs>
-            result: $Utils.PayloadToResult<Prisma.$StripeSubscriptionPayload> | null
-          }
-          findFirstOrThrow: {
-            args: Prisma.StripeSubscriptionFindFirstOrThrowArgs<ExtArgs>
-            result: $Utils.PayloadToResult<Prisma.$StripeSubscriptionPayload>
-          }
-          findMany: {
-            args: Prisma.StripeSubscriptionFindManyArgs<ExtArgs>
-            result: $Utils.PayloadToResult<Prisma.$StripeSubscriptionPayload>[]
-          }
-          create: {
-            args: Prisma.StripeSubscriptionCreateArgs<ExtArgs>
-            result: $Utils.PayloadToResult<Prisma.$StripeSubscriptionPayload>
-          }
-          createMany: {
-            args: Prisma.StripeSubscriptionCreateManyArgs<ExtArgs>
-            result: BatchPayload
-          }
-          createManyAndReturn: {
-            args: Prisma.StripeSubscriptionCreateManyAndReturnArgs<ExtArgs>
-            result: $Utils.PayloadToResult<Prisma.$StripeSubscriptionPayload>[]
-          }
-          delete: {
-            args: Prisma.StripeSubscriptionDeleteArgs<ExtArgs>
-            result: $Utils.PayloadToResult<Prisma.$StripeSubscriptionPayload>
-          }
-          update: {
-            args: Prisma.StripeSubscriptionUpdateArgs<ExtArgs>
-            result: $Utils.PayloadToResult<Prisma.$StripeSubscriptionPayload>
-          }
-          deleteMany: {
-            args: Prisma.StripeSubscriptionDeleteManyArgs<ExtArgs>
-            result: BatchPayload
-          }
-          updateMany: {
-            args: Prisma.StripeSubscriptionUpdateManyArgs<ExtArgs>
-            result: BatchPayload
-          }
-          upsert: {
-            args: Prisma.StripeSubscriptionUpsertArgs<ExtArgs>
-            result: $Utils.PayloadToResult<Prisma.$StripeSubscriptionPayload>
-          }
-          aggregate: {
-            args: Prisma.StripeSubscriptionAggregateArgs<ExtArgs>
-            result: $Utils.Optional<AggregateStripeSubscription>
-          }
-          groupBy: {
-            args: Prisma.StripeSubscriptionGroupByArgs<ExtArgs>
-            result: $Utils.Optional<StripeSubscriptionGroupByOutputType>[]
-          }
-          count: {
-            args: Prisma.StripeSubscriptionCountArgs<ExtArgs>
-            result: $Utils.Optional<StripeSubscriptionCountAggregateOutputType> | number
-          }
-        }
-      }
       User: {
         payload: Prisma.$UserPayload<ExtArgs>
         fields: Prisma.UserFieldRefs
@@ -1281,6 +1125,76 @@ export namespace Prisma {
           count: {
             args: Prisma.UserCountArgs<ExtArgs>
             result: $Utils.Optional<UserCountAggregateOutputType> | number
+          }
+        }
+      }
+      KeyValue: {
+        payload: Prisma.$KeyValuePayload<ExtArgs>
+        fields: Prisma.KeyValueFieldRefs
+        operations: {
+          findUnique: {
+            args: Prisma.KeyValueFindUniqueArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$KeyValuePayload> | null
+          }
+          findUniqueOrThrow: {
+            args: Prisma.KeyValueFindUniqueOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$KeyValuePayload>
+          }
+          findFirst: {
+            args: Prisma.KeyValueFindFirstArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$KeyValuePayload> | null
+          }
+          findFirstOrThrow: {
+            args: Prisma.KeyValueFindFirstOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$KeyValuePayload>
+          }
+          findMany: {
+            args: Prisma.KeyValueFindManyArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$KeyValuePayload>[]
+          }
+          create: {
+            args: Prisma.KeyValueCreateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$KeyValuePayload>
+          }
+          createMany: {
+            args: Prisma.KeyValueCreateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          createManyAndReturn: {
+            args: Prisma.KeyValueCreateManyAndReturnArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$KeyValuePayload>[]
+          }
+          delete: {
+            args: Prisma.KeyValueDeleteArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$KeyValuePayload>
+          }
+          update: {
+            args: Prisma.KeyValueUpdateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$KeyValuePayload>
+          }
+          deleteMany: {
+            args: Prisma.KeyValueDeleteManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateMany: {
+            args: Prisma.KeyValueUpdateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          upsert: {
+            args: Prisma.KeyValueUpsertArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$KeyValuePayload>
+          }
+          aggregate: {
+            args: Prisma.KeyValueAggregateArgs<ExtArgs>
+            result: $Utils.Optional<AggregateKeyValue>
+          }
+          groupBy: {
+            args: Prisma.KeyValueGroupByArgs<ExtArgs>
+            result: $Utils.Optional<KeyValueGroupByOutputType>[]
+          }
+          count: {
+            args: Prisma.KeyValueCountArgs<ExtArgs>
+            result: $Utils.Optional<KeyValueCountAggregateOutputType> | number
           }
         }
       }
@@ -6863,1953 +6777,6 @@ export namespace Prisma {
 
 
   /**
-   * Model StripeCustomer
-   */
-
-  export type AggregateStripeCustomer = {
-    _count: StripeCustomerCountAggregateOutputType | null
-    _min: StripeCustomerMinAggregateOutputType | null
-    _max: StripeCustomerMaxAggregateOutputType | null
-  }
-
-  export type StripeCustomerMinAggregateOutputType = {
-    id: string | null
-    userId: string | null
-    email: string | null
-    name: string | null
-    createdAt: Date | null
-    updatedAt: Date | null
-  }
-
-  export type StripeCustomerMaxAggregateOutputType = {
-    id: string | null
-    userId: string | null
-    email: string | null
-    name: string | null
-    createdAt: Date | null
-    updatedAt: Date | null
-  }
-
-  export type StripeCustomerCountAggregateOutputType = {
-    id: number
-    userId: number
-    email: number
-    name: number
-    createdAt: number
-    updatedAt: number
-    _all: number
-  }
-
-
-  export type StripeCustomerMinAggregateInputType = {
-    id?: true
-    userId?: true
-    email?: true
-    name?: true
-    createdAt?: true
-    updatedAt?: true
-  }
-
-  export type StripeCustomerMaxAggregateInputType = {
-    id?: true
-    userId?: true
-    email?: true
-    name?: true
-    createdAt?: true
-    updatedAt?: true
-  }
-
-  export type StripeCustomerCountAggregateInputType = {
-    id?: true
-    userId?: true
-    email?: true
-    name?: true
-    createdAt?: true
-    updatedAt?: true
-    _all?: true
-  }
-
-  export type StripeCustomerAggregateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
-    /**
-     * Filter which StripeCustomer to aggregate.
-     */
-    where?: StripeCustomerWhereInput
-    /**
-     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
-     * 
-     * Determine the order of StripeCustomers to fetch.
-     */
-    orderBy?: StripeCustomerOrderByWithRelationInput | StripeCustomerOrderByWithRelationInput[]
-    /**
-     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
-     * 
-     * Sets the start position
-     */
-    cursor?: StripeCustomerWhereUniqueInput
-    /**
-     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
-     * 
-     * Take `±n` StripeCustomers from the position of the cursor.
-     */
-    take?: number
-    /**
-     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
-     * 
-     * Skip the first `n` StripeCustomers.
-     */
-    skip?: number
-    /**
-     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
-     * 
-     * Count returned StripeCustomers
-    **/
-    _count?: true | StripeCustomerCountAggregateInputType
-    /**
-     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
-     * 
-     * Select which fields to find the minimum value
-    **/
-    _min?: StripeCustomerMinAggregateInputType
-    /**
-     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
-     * 
-     * Select which fields to find the maximum value
-    **/
-    _max?: StripeCustomerMaxAggregateInputType
-  }
-
-  export type GetStripeCustomerAggregateType<T extends StripeCustomerAggregateArgs> = {
-        [P in keyof T & keyof AggregateStripeCustomer]: P extends '_count' | 'count'
-      ? T[P] extends true
-        ? number
-        : GetScalarType<T[P], AggregateStripeCustomer[P]>
-      : GetScalarType<T[P], AggregateStripeCustomer[P]>
-  }
-
-
-
-
-  export type StripeCustomerGroupByArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
-    where?: StripeCustomerWhereInput
-    orderBy?: StripeCustomerOrderByWithAggregationInput | StripeCustomerOrderByWithAggregationInput[]
-    by: StripeCustomerScalarFieldEnum[] | StripeCustomerScalarFieldEnum
-    having?: StripeCustomerScalarWhereWithAggregatesInput
-    take?: number
-    skip?: number
-    _count?: StripeCustomerCountAggregateInputType | true
-    _min?: StripeCustomerMinAggregateInputType
-    _max?: StripeCustomerMaxAggregateInputType
-  }
-
-  export type StripeCustomerGroupByOutputType = {
-    id: string
-    userId: string
-    email: string
-    name: string
-    createdAt: Date
-    updatedAt: Date
-    _count: StripeCustomerCountAggregateOutputType | null
-    _min: StripeCustomerMinAggregateOutputType | null
-    _max: StripeCustomerMaxAggregateOutputType | null
-  }
-
-  type GetStripeCustomerGroupByPayload<T extends StripeCustomerGroupByArgs> = Prisma.PrismaPromise<
-    Array<
-      PickEnumerable<StripeCustomerGroupByOutputType, T['by']> &
-        {
-          [P in ((keyof T) & (keyof StripeCustomerGroupByOutputType))]: P extends '_count'
-            ? T[P] extends boolean
-              ? number
-              : GetScalarType<T[P], StripeCustomerGroupByOutputType[P]>
-            : GetScalarType<T[P], StripeCustomerGroupByOutputType[P]>
-        }
-      >
-    >
-
-
-  export type StripeCustomerSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
-    id?: boolean
-    userId?: boolean
-    email?: boolean
-    name?: boolean
-    createdAt?: boolean
-    updatedAt?: boolean
-    user?: boolean | UserDefaultArgs<ExtArgs>
-    stripeSubscription?: boolean | StripeCustomer$stripeSubscriptionArgs<ExtArgs>
-  }, ExtArgs["result"]["stripeCustomer"]>
-
-  export type StripeCustomerSelectCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
-    id?: boolean
-    userId?: boolean
-    email?: boolean
-    name?: boolean
-    createdAt?: boolean
-    updatedAt?: boolean
-    user?: boolean | UserDefaultArgs<ExtArgs>
-  }, ExtArgs["result"]["stripeCustomer"]>
-
-  export type StripeCustomerSelectScalar = {
-    id?: boolean
-    userId?: boolean
-    email?: boolean
-    name?: boolean
-    createdAt?: boolean
-    updatedAt?: boolean
-  }
-
-  export type StripeCustomerInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
-    user?: boolean | UserDefaultArgs<ExtArgs>
-    stripeSubscription?: boolean | StripeCustomer$stripeSubscriptionArgs<ExtArgs>
-  }
-  export type StripeCustomerIncludeCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
-    user?: boolean | UserDefaultArgs<ExtArgs>
-  }
-
-  export type $StripeCustomerPayload<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
-    name: "StripeCustomer"
-    objects: {
-      user: Prisma.$UserPayload<ExtArgs>
-      stripeSubscription: Prisma.$StripeSubscriptionPayload<ExtArgs> | null
-    }
-    scalars: $Extensions.GetPayloadResult<{
-      id: string
-      userId: string
-      email: string
-      name: string
-      createdAt: Date
-      updatedAt: Date
-    }, ExtArgs["result"]["stripeCustomer"]>
-    composites: {}
-  }
-
-  type StripeCustomerGetPayload<S extends boolean | null | undefined | StripeCustomerDefaultArgs> = $Result.GetResult<Prisma.$StripeCustomerPayload, S>
-
-  type StripeCustomerCountArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = 
-    Omit<StripeCustomerFindManyArgs, 'select' | 'include' | 'distinct'> & {
-      select?: StripeCustomerCountAggregateInputType | true
-    }
-
-  export interface StripeCustomerDelegate<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> {
-    [K: symbol]: { types: Prisma.TypeMap<ExtArgs>['model']['StripeCustomer'], meta: { name: 'StripeCustomer' } }
-    /**
-     * Find zero or one StripeCustomer that matches the filter.
-     * @param {StripeCustomerFindUniqueArgs} args - Arguments to find a StripeCustomer
-     * @example
-     * // Get one StripeCustomer
-     * const stripeCustomer = await prisma.stripeCustomer.findUnique({
-     *   where: {
-     *     // ... provide filter here
-     *   }
-     * })
-     */
-    findUnique<T extends StripeCustomerFindUniqueArgs>(args: SelectSubset<T, StripeCustomerFindUniqueArgs<ExtArgs>>): Prisma__StripeCustomerClient<$Result.GetResult<Prisma.$StripeCustomerPayload<ExtArgs>, T, "findUnique"> | null, null, ExtArgs>
-
-    /**
-     * Find one StripeCustomer that matches the filter or throw an error with `error.code='P2025'` 
-     * if no matches were found.
-     * @param {StripeCustomerFindUniqueOrThrowArgs} args - Arguments to find a StripeCustomer
-     * @example
-     * // Get one StripeCustomer
-     * const stripeCustomer = await prisma.stripeCustomer.findUniqueOrThrow({
-     *   where: {
-     *     // ... provide filter here
-     *   }
-     * })
-     */
-    findUniqueOrThrow<T extends StripeCustomerFindUniqueOrThrowArgs>(args: SelectSubset<T, StripeCustomerFindUniqueOrThrowArgs<ExtArgs>>): Prisma__StripeCustomerClient<$Result.GetResult<Prisma.$StripeCustomerPayload<ExtArgs>, T, "findUniqueOrThrow">, never, ExtArgs>
-
-    /**
-     * Find the first StripeCustomer that matches the filter.
-     * Note, that providing `undefined` is treated as the value not being there.
-     * Read more here: https://pris.ly/d/null-undefined
-     * @param {StripeCustomerFindFirstArgs} args - Arguments to find a StripeCustomer
-     * @example
-     * // Get one StripeCustomer
-     * const stripeCustomer = await prisma.stripeCustomer.findFirst({
-     *   where: {
-     *     // ... provide filter here
-     *   }
-     * })
-     */
-    findFirst<T extends StripeCustomerFindFirstArgs>(args?: SelectSubset<T, StripeCustomerFindFirstArgs<ExtArgs>>): Prisma__StripeCustomerClient<$Result.GetResult<Prisma.$StripeCustomerPayload<ExtArgs>, T, "findFirst"> | null, null, ExtArgs>
-
-    /**
-     * Find the first StripeCustomer that matches the filter or
-     * throw `PrismaKnownClientError` with `P2025` code if no matches were found.
-     * Note, that providing `undefined` is treated as the value not being there.
-     * Read more here: https://pris.ly/d/null-undefined
-     * @param {StripeCustomerFindFirstOrThrowArgs} args - Arguments to find a StripeCustomer
-     * @example
-     * // Get one StripeCustomer
-     * const stripeCustomer = await prisma.stripeCustomer.findFirstOrThrow({
-     *   where: {
-     *     // ... provide filter here
-     *   }
-     * })
-     */
-    findFirstOrThrow<T extends StripeCustomerFindFirstOrThrowArgs>(args?: SelectSubset<T, StripeCustomerFindFirstOrThrowArgs<ExtArgs>>): Prisma__StripeCustomerClient<$Result.GetResult<Prisma.$StripeCustomerPayload<ExtArgs>, T, "findFirstOrThrow">, never, ExtArgs>
-
-    /**
-     * Find zero or more StripeCustomers that matches the filter.
-     * Note, that providing `undefined` is treated as the value not being there.
-     * Read more here: https://pris.ly/d/null-undefined
-     * @param {StripeCustomerFindManyArgs} args - Arguments to filter and select certain fields only.
-     * @example
-     * // Get all StripeCustomers
-     * const stripeCustomers = await prisma.stripeCustomer.findMany()
-     * 
-     * // Get first 10 StripeCustomers
-     * const stripeCustomers = await prisma.stripeCustomer.findMany({ take: 10 })
-     * 
-     * // Only select the `id`
-     * const stripeCustomerWithIdOnly = await prisma.stripeCustomer.findMany({ select: { id: true } })
-     * 
-     */
-    findMany<T extends StripeCustomerFindManyArgs>(args?: SelectSubset<T, StripeCustomerFindManyArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$StripeCustomerPayload<ExtArgs>, T, "findMany">>
-
-    /**
-     * Create a StripeCustomer.
-     * @param {StripeCustomerCreateArgs} args - Arguments to create a StripeCustomer.
-     * @example
-     * // Create one StripeCustomer
-     * const StripeCustomer = await prisma.stripeCustomer.create({
-     *   data: {
-     *     // ... data to create a StripeCustomer
-     *   }
-     * })
-     * 
-     */
-    create<T extends StripeCustomerCreateArgs>(args: SelectSubset<T, StripeCustomerCreateArgs<ExtArgs>>): Prisma__StripeCustomerClient<$Result.GetResult<Prisma.$StripeCustomerPayload<ExtArgs>, T, "create">, never, ExtArgs>
-
-    /**
-     * Create many StripeCustomers.
-     * @param {StripeCustomerCreateManyArgs} args - Arguments to create many StripeCustomers.
-     * @example
-     * // Create many StripeCustomers
-     * const stripeCustomer = await prisma.stripeCustomer.createMany({
-     *   data: [
-     *     // ... provide data here
-     *   ]
-     * })
-     *     
-     */
-    createMany<T extends StripeCustomerCreateManyArgs>(args?: SelectSubset<T, StripeCustomerCreateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
-
-    /**
-     * Create many StripeCustomers and returns the data saved in the database.
-     * @param {StripeCustomerCreateManyAndReturnArgs} args - Arguments to create many StripeCustomers.
-     * @example
-     * // Create many StripeCustomers
-     * const stripeCustomer = await prisma.stripeCustomer.createManyAndReturn({
-     *   data: [
-     *     // ... provide data here
-     *   ]
-     * })
-     * 
-     * // Create many StripeCustomers and only return the `id`
-     * const stripeCustomerWithIdOnly = await prisma.stripeCustomer.createManyAndReturn({ 
-     *   select: { id: true },
-     *   data: [
-     *     // ... provide data here
-     *   ]
-     * })
-     * Note, that providing `undefined` is treated as the value not being there.
-     * Read more here: https://pris.ly/d/null-undefined
-     * 
-     */
-    createManyAndReturn<T extends StripeCustomerCreateManyAndReturnArgs>(args?: SelectSubset<T, StripeCustomerCreateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$StripeCustomerPayload<ExtArgs>, T, "createManyAndReturn">>
-
-    /**
-     * Delete a StripeCustomer.
-     * @param {StripeCustomerDeleteArgs} args - Arguments to delete one StripeCustomer.
-     * @example
-     * // Delete one StripeCustomer
-     * const StripeCustomer = await prisma.stripeCustomer.delete({
-     *   where: {
-     *     // ... filter to delete one StripeCustomer
-     *   }
-     * })
-     * 
-     */
-    delete<T extends StripeCustomerDeleteArgs>(args: SelectSubset<T, StripeCustomerDeleteArgs<ExtArgs>>): Prisma__StripeCustomerClient<$Result.GetResult<Prisma.$StripeCustomerPayload<ExtArgs>, T, "delete">, never, ExtArgs>
-
-    /**
-     * Update one StripeCustomer.
-     * @param {StripeCustomerUpdateArgs} args - Arguments to update one StripeCustomer.
-     * @example
-     * // Update one StripeCustomer
-     * const stripeCustomer = await prisma.stripeCustomer.update({
-     *   where: {
-     *     // ... provide filter here
-     *   },
-     *   data: {
-     *     // ... provide data here
-     *   }
-     * })
-     * 
-     */
-    update<T extends StripeCustomerUpdateArgs>(args: SelectSubset<T, StripeCustomerUpdateArgs<ExtArgs>>): Prisma__StripeCustomerClient<$Result.GetResult<Prisma.$StripeCustomerPayload<ExtArgs>, T, "update">, never, ExtArgs>
-
-    /**
-     * Delete zero or more StripeCustomers.
-     * @param {StripeCustomerDeleteManyArgs} args - Arguments to filter StripeCustomers to delete.
-     * @example
-     * // Delete a few StripeCustomers
-     * const { count } = await prisma.stripeCustomer.deleteMany({
-     *   where: {
-     *     // ... provide filter here
-     *   }
-     * })
-     * 
-     */
-    deleteMany<T extends StripeCustomerDeleteManyArgs>(args?: SelectSubset<T, StripeCustomerDeleteManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
-
-    /**
-     * Update zero or more StripeCustomers.
-     * Note, that providing `undefined` is treated as the value not being there.
-     * Read more here: https://pris.ly/d/null-undefined
-     * @param {StripeCustomerUpdateManyArgs} args - Arguments to update one or more rows.
-     * @example
-     * // Update many StripeCustomers
-     * const stripeCustomer = await prisma.stripeCustomer.updateMany({
-     *   where: {
-     *     // ... provide filter here
-     *   },
-     *   data: {
-     *     // ... provide data here
-     *   }
-     * })
-     * 
-     */
-    updateMany<T extends StripeCustomerUpdateManyArgs>(args: SelectSubset<T, StripeCustomerUpdateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
-
-    /**
-     * Create or update one StripeCustomer.
-     * @param {StripeCustomerUpsertArgs} args - Arguments to update or create a StripeCustomer.
-     * @example
-     * // Update or create a StripeCustomer
-     * const stripeCustomer = await prisma.stripeCustomer.upsert({
-     *   create: {
-     *     // ... data to create a StripeCustomer
-     *   },
-     *   update: {
-     *     // ... in case it already exists, update
-     *   },
-     *   where: {
-     *     // ... the filter for the StripeCustomer we want to update
-     *   }
-     * })
-     */
-    upsert<T extends StripeCustomerUpsertArgs>(args: SelectSubset<T, StripeCustomerUpsertArgs<ExtArgs>>): Prisma__StripeCustomerClient<$Result.GetResult<Prisma.$StripeCustomerPayload<ExtArgs>, T, "upsert">, never, ExtArgs>
-
-
-    /**
-     * Count the number of StripeCustomers.
-     * Note, that providing `undefined` is treated as the value not being there.
-     * Read more here: https://pris.ly/d/null-undefined
-     * @param {StripeCustomerCountArgs} args - Arguments to filter StripeCustomers to count.
-     * @example
-     * // Count the number of StripeCustomers
-     * const count = await prisma.stripeCustomer.count({
-     *   where: {
-     *     // ... the filter for the StripeCustomers we want to count
-     *   }
-     * })
-    **/
-    count<T extends StripeCustomerCountArgs>(
-      args?: Subset<T, StripeCustomerCountArgs>,
-    ): Prisma.PrismaPromise<
-      T extends $Utils.Record<'select', any>
-        ? T['select'] extends true
-          ? number
-          : GetScalarType<T['select'], StripeCustomerCountAggregateOutputType>
-        : number
-    >
-
-    /**
-     * Allows you to perform aggregations operations on a StripeCustomer.
-     * Note, that providing `undefined` is treated as the value not being there.
-     * Read more here: https://pris.ly/d/null-undefined
-     * @param {StripeCustomerAggregateArgs} args - Select which aggregations you would like to apply and on what fields.
-     * @example
-     * // Ordered by age ascending
-     * // Where email contains prisma.io
-     * // Limited to the 10 users
-     * const aggregations = await prisma.user.aggregate({
-     *   _avg: {
-     *     age: true,
-     *   },
-     *   where: {
-     *     email: {
-     *       contains: "prisma.io",
-     *     },
-     *   },
-     *   orderBy: {
-     *     age: "asc",
-     *   },
-     *   take: 10,
-     * })
-    **/
-    aggregate<T extends StripeCustomerAggregateArgs>(args: Subset<T, StripeCustomerAggregateArgs>): Prisma.PrismaPromise<GetStripeCustomerAggregateType<T>>
-
-    /**
-     * Group by StripeCustomer.
-     * Note, that providing `undefined` is treated as the value not being there.
-     * Read more here: https://pris.ly/d/null-undefined
-     * @param {StripeCustomerGroupByArgs} args - Group by arguments.
-     * @example
-     * // Group by city, order by createdAt, get count
-     * const result = await prisma.user.groupBy({
-     *   by: ['city', 'createdAt'],
-     *   orderBy: {
-     *     createdAt: true
-     *   },
-     *   _count: {
-     *     _all: true
-     *   },
-     * })
-     * 
-    **/
-    groupBy<
-      T extends StripeCustomerGroupByArgs,
-      HasSelectOrTake extends Or<
-        Extends<'skip', Keys<T>>,
-        Extends<'take', Keys<T>>
-      >,
-      OrderByArg extends True extends HasSelectOrTake
-        ? { orderBy: StripeCustomerGroupByArgs['orderBy'] }
-        : { orderBy?: StripeCustomerGroupByArgs['orderBy'] },
-      OrderFields extends ExcludeUnderscoreKeys<Keys<MaybeTupleToUnion<T['orderBy']>>>,
-      ByFields extends MaybeTupleToUnion<T['by']>,
-      ByValid extends Has<ByFields, OrderFields>,
-      HavingFields extends GetHavingFields<T['having']>,
-      HavingValid extends Has<ByFields, HavingFields>,
-      ByEmpty extends T['by'] extends never[] ? True : False,
-      InputErrors extends ByEmpty extends True
-      ? `Error: "by" must not be empty.`
-      : HavingValid extends False
-      ? {
-          [P in HavingFields]: P extends ByFields
-            ? never
-            : P extends string
-            ? `Error: Field "${P}" used in "having" needs to be provided in "by".`
-            : [
-                Error,
-                'Field ',
-                P,
-                ` in "having" needs to be provided in "by"`,
-              ]
-        }[HavingFields]
-      : 'take' extends Keys<T>
-      ? 'orderBy' extends Keys<T>
-        ? ByValid extends True
-          ? {}
-          : {
-              [P in OrderFields]: P extends ByFields
-                ? never
-                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
-            }[OrderFields]
-        : 'Error: If you provide "take", you also need to provide "orderBy"'
-      : 'skip' extends Keys<T>
-      ? 'orderBy' extends Keys<T>
-        ? ByValid extends True
-          ? {}
-          : {
-              [P in OrderFields]: P extends ByFields
-                ? never
-                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
-            }[OrderFields]
-        : 'Error: If you provide "skip", you also need to provide "orderBy"'
-      : ByValid extends True
-      ? {}
-      : {
-          [P in OrderFields]: P extends ByFields
-            ? never
-            : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
-        }[OrderFields]
-    >(args: SubsetIntersection<T, StripeCustomerGroupByArgs, OrderByArg> & InputErrors): {} extends InputErrors ? GetStripeCustomerGroupByPayload<T> : Prisma.PrismaPromise<InputErrors>
-  /**
-   * Fields of the StripeCustomer model
-   */
-  readonly fields: StripeCustomerFieldRefs;
-  }
-
-  /**
-   * The delegate class that acts as a "Promise-like" for StripeCustomer.
-   * Why is this prefixed with `Prisma__`?
-   * Because we want to prevent naming conflicts as mentioned in
-   * https://github.com/prisma/prisma-client-js/issues/707
-   */
-  export interface Prisma__StripeCustomerClient<T, Null = never, ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> extends Prisma.PrismaPromise<T> {
-    readonly [Symbol.toStringTag]: "PrismaPromise"
-    user<T extends UserDefaultArgs<ExtArgs> = {}>(args?: Subset<T, UserDefaultArgs<ExtArgs>>): Prisma__UserClient<$Result.GetResult<Prisma.$UserPayload<ExtArgs>, T, "findUniqueOrThrow"> | Null, Null, ExtArgs>
-    stripeSubscription<T extends StripeCustomer$stripeSubscriptionArgs<ExtArgs> = {}>(args?: Subset<T, StripeCustomer$stripeSubscriptionArgs<ExtArgs>>): Prisma__StripeSubscriptionClient<$Result.GetResult<Prisma.$StripeSubscriptionPayload<ExtArgs>, T, "findUniqueOrThrow"> | null, null, ExtArgs>
-    /**
-     * Attaches callbacks for the resolution and/or rejection of the Promise.
-     * @param onfulfilled The callback to execute when the Promise is resolved.
-     * @param onrejected The callback to execute when the Promise is rejected.
-     * @returns A Promise for the completion of which ever callback is executed.
-     */
-    then<TResult1 = T, TResult2 = never>(onfulfilled?: ((value: T) => TResult1 | PromiseLike<TResult1>) | undefined | null, onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | undefined | null): $Utils.JsPromise<TResult1 | TResult2>
-    /**
-     * Attaches a callback for only the rejection of the Promise.
-     * @param onrejected The callback to execute when the Promise is rejected.
-     * @returns A Promise for the completion of the callback.
-     */
-    catch<TResult = never>(onrejected?: ((reason: any) => TResult | PromiseLike<TResult>) | undefined | null): $Utils.JsPromise<T | TResult>
-    /**
-     * Attaches a callback that is invoked when the Promise is settled (fulfilled or rejected). The
-     * resolved value cannot be modified from the callback.
-     * @param onfinally The callback to execute when the Promise is settled (fulfilled or rejected).
-     * @returns A Promise for the completion of the callback.
-     */
-    finally(onfinally?: (() => void) | undefined | null): $Utils.JsPromise<T>
-  }
-
-
-
-
-  /**
-   * Fields of the StripeCustomer model
-   */ 
-  interface StripeCustomerFieldRefs {
-    readonly id: FieldRef<"StripeCustomer", 'String'>
-    readonly userId: FieldRef<"StripeCustomer", 'String'>
-    readonly email: FieldRef<"StripeCustomer", 'String'>
-    readonly name: FieldRef<"StripeCustomer", 'String'>
-    readonly createdAt: FieldRef<"StripeCustomer", 'DateTime'>
-    readonly updatedAt: FieldRef<"StripeCustomer", 'DateTime'>
-  }
-    
-
-  // Custom InputTypes
-  /**
-   * StripeCustomer findUnique
-   */
-  export type StripeCustomerFindUniqueArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
-    /**
-     * Select specific fields to fetch from the StripeCustomer
-     */
-    select?: StripeCustomerSelect<ExtArgs> | null
-    /**
-     * Choose, which related nodes to fetch as well
-     */
-    include?: StripeCustomerInclude<ExtArgs> | null
-    /**
-     * Filter, which StripeCustomer to fetch.
-     */
-    where: StripeCustomerWhereUniqueInput
-  }
-
-  /**
-   * StripeCustomer findUniqueOrThrow
-   */
-  export type StripeCustomerFindUniqueOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
-    /**
-     * Select specific fields to fetch from the StripeCustomer
-     */
-    select?: StripeCustomerSelect<ExtArgs> | null
-    /**
-     * Choose, which related nodes to fetch as well
-     */
-    include?: StripeCustomerInclude<ExtArgs> | null
-    /**
-     * Filter, which StripeCustomer to fetch.
-     */
-    where: StripeCustomerWhereUniqueInput
-  }
-
-  /**
-   * StripeCustomer findFirst
-   */
-  export type StripeCustomerFindFirstArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
-    /**
-     * Select specific fields to fetch from the StripeCustomer
-     */
-    select?: StripeCustomerSelect<ExtArgs> | null
-    /**
-     * Choose, which related nodes to fetch as well
-     */
-    include?: StripeCustomerInclude<ExtArgs> | null
-    /**
-     * Filter, which StripeCustomer to fetch.
-     */
-    where?: StripeCustomerWhereInput
-    /**
-     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
-     * 
-     * Determine the order of StripeCustomers to fetch.
-     */
-    orderBy?: StripeCustomerOrderByWithRelationInput | StripeCustomerOrderByWithRelationInput[]
-    /**
-     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
-     * 
-     * Sets the position for searching for StripeCustomers.
-     */
-    cursor?: StripeCustomerWhereUniqueInput
-    /**
-     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
-     * 
-     * Take `±n` StripeCustomers from the position of the cursor.
-     */
-    take?: number
-    /**
-     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
-     * 
-     * Skip the first `n` StripeCustomers.
-     */
-    skip?: number
-    /**
-     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
-     * 
-     * Filter by unique combinations of StripeCustomers.
-     */
-    distinct?: StripeCustomerScalarFieldEnum | StripeCustomerScalarFieldEnum[]
-  }
-
-  /**
-   * StripeCustomer findFirstOrThrow
-   */
-  export type StripeCustomerFindFirstOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
-    /**
-     * Select specific fields to fetch from the StripeCustomer
-     */
-    select?: StripeCustomerSelect<ExtArgs> | null
-    /**
-     * Choose, which related nodes to fetch as well
-     */
-    include?: StripeCustomerInclude<ExtArgs> | null
-    /**
-     * Filter, which StripeCustomer to fetch.
-     */
-    where?: StripeCustomerWhereInput
-    /**
-     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
-     * 
-     * Determine the order of StripeCustomers to fetch.
-     */
-    orderBy?: StripeCustomerOrderByWithRelationInput | StripeCustomerOrderByWithRelationInput[]
-    /**
-     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
-     * 
-     * Sets the position for searching for StripeCustomers.
-     */
-    cursor?: StripeCustomerWhereUniqueInput
-    /**
-     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
-     * 
-     * Take `±n` StripeCustomers from the position of the cursor.
-     */
-    take?: number
-    /**
-     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
-     * 
-     * Skip the first `n` StripeCustomers.
-     */
-    skip?: number
-    /**
-     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
-     * 
-     * Filter by unique combinations of StripeCustomers.
-     */
-    distinct?: StripeCustomerScalarFieldEnum | StripeCustomerScalarFieldEnum[]
-  }
-
-  /**
-   * StripeCustomer findMany
-   */
-  export type StripeCustomerFindManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
-    /**
-     * Select specific fields to fetch from the StripeCustomer
-     */
-    select?: StripeCustomerSelect<ExtArgs> | null
-    /**
-     * Choose, which related nodes to fetch as well
-     */
-    include?: StripeCustomerInclude<ExtArgs> | null
-    /**
-     * Filter, which StripeCustomers to fetch.
-     */
-    where?: StripeCustomerWhereInput
-    /**
-     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
-     * 
-     * Determine the order of StripeCustomers to fetch.
-     */
-    orderBy?: StripeCustomerOrderByWithRelationInput | StripeCustomerOrderByWithRelationInput[]
-    /**
-     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
-     * 
-     * Sets the position for listing StripeCustomers.
-     */
-    cursor?: StripeCustomerWhereUniqueInput
-    /**
-     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
-     * 
-     * Take `±n` StripeCustomers from the position of the cursor.
-     */
-    take?: number
-    /**
-     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
-     * 
-     * Skip the first `n` StripeCustomers.
-     */
-    skip?: number
-    distinct?: StripeCustomerScalarFieldEnum | StripeCustomerScalarFieldEnum[]
-  }
-
-  /**
-   * StripeCustomer create
-   */
-  export type StripeCustomerCreateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
-    /**
-     * Select specific fields to fetch from the StripeCustomer
-     */
-    select?: StripeCustomerSelect<ExtArgs> | null
-    /**
-     * Choose, which related nodes to fetch as well
-     */
-    include?: StripeCustomerInclude<ExtArgs> | null
-    /**
-     * The data needed to create a StripeCustomer.
-     */
-    data: XOR<StripeCustomerCreateInput, StripeCustomerUncheckedCreateInput>
-  }
-
-  /**
-   * StripeCustomer createMany
-   */
-  export type StripeCustomerCreateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
-    /**
-     * The data used to create many StripeCustomers.
-     */
-    data: StripeCustomerCreateManyInput | StripeCustomerCreateManyInput[]
-  }
-
-  /**
-   * StripeCustomer createManyAndReturn
-   */
-  export type StripeCustomerCreateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
-    /**
-     * Select specific fields to fetch from the StripeCustomer
-     */
-    select?: StripeCustomerSelectCreateManyAndReturn<ExtArgs> | null
-    /**
-     * The data used to create many StripeCustomers.
-     */
-    data: StripeCustomerCreateManyInput | StripeCustomerCreateManyInput[]
-    /**
-     * Choose, which related nodes to fetch as well
-     */
-    include?: StripeCustomerIncludeCreateManyAndReturn<ExtArgs> | null
-  }
-
-  /**
-   * StripeCustomer update
-   */
-  export type StripeCustomerUpdateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
-    /**
-     * Select specific fields to fetch from the StripeCustomer
-     */
-    select?: StripeCustomerSelect<ExtArgs> | null
-    /**
-     * Choose, which related nodes to fetch as well
-     */
-    include?: StripeCustomerInclude<ExtArgs> | null
-    /**
-     * The data needed to update a StripeCustomer.
-     */
-    data: XOR<StripeCustomerUpdateInput, StripeCustomerUncheckedUpdateInput>
-    /**
-     * Choose, which StripeCustomer to update.
-     */
-    where: StripeCustomerWhereUniqueInput
-  }
-
-  /**
-   * StripeCustomer updateMany
-   */
-  export type StripeCustomerUpdateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
-    /**
-     * The data used to update StripeCustomers.
-     */
-    data: XOR<StripeCustomerUpdateManyMutationInput, StripeCustomerUncheckedUpdateManyInput>
-    /**
-     * Filter which StripeCustomers to update
-     */
-    where?: StripeCustomerWhereInput
-  }
-
-  /**
-   * StripeCustomer upsert
-   */
-  export type StripeCustomerUpsertArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
-    /**
-     * Select specific fields to fetch from the StripeCustomer
-     */
-    select?: StripeCustomerSelect<ExtArgs> | null
-    /**
-     * Choose, which related nodes to fetch as well
-     */
-    include?: StripeCustomerInclude<ExtArgs> | null
-    /**
-     * The filter to search for the StripeCustomer to update in case it exists.
-     */
-    where: StripeCustomerWhereUniqueInput
-    /**
-     * In case the StripeCustomer found by the `where` argument doesn't exist, create a new StripeCustomer with this data.
-     */
-    create: XOR<StripeCustomerCreateInput, StripeCustomerUncheckedCreateInput>
-    /**
-     * In case the StripeCustomer was found with the provided `where` argument, update it with this data.
-     */
-    update: XOR<StripeCustomerUpdateInput, StripeCustomerUncheckedUpdateInput>
-  }
-
-  /**
-   * StripeCustomer delete
-   */
-  export type StripeCustomerDeleteArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
-    /**
-     * Select specific fields to fetch from the StripeCustomer
-     */
-    select?: StripeCustomerSelect<ExtArgs> | null
-    /**
-     * Choose, which related nodes to fetch as well
-     */
-    include?: StripeCustomerInclude<ExtArgs> | null
-    /**
-     * Filter which StripeCustomer to delete.
-     */
-    where: StripeCustomerWhereUniqueInput
-  }
-
-  /**
-   * StripeCustomer deleteMany
-   */
-  export type StripeCustomerDeleteManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
-    /**
-     * Filter which StripeCustomers to delete
-     */
-    where?: StripeCustomerWhereInput
-  }
-
-  /**
-   * StripeCustomer.stripeSubscription
-   */
-  export type StripeCustomer$stripeSubscriptionArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
-    /**
-     * Select specific fields to fetch from the StripeSubscription
-     */
-    select?: StripeSubscriptionSelect<ExtArgs> | null
-    /**
-     * Choose, which related nodes to fetch as well
-     */
-    include?: StripeSubscriptionInclude<ExtArgs> | null
-    where?: StripeSubscriptionWhereInput
-  }
-
-  /**
-   * StripeCustomer without action
-   */
-  export type StripeCustomerDefaultArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
-    /**
-     * Select specific fields to fetch from the StripeCustomer
-     */
-    select?: StripeCustomerSelect<ExtArgs> | null
-    /**
-     * Choose, which related nodes to fetch as well
-     */
-    include?: StripeCustomerInclude<ExtArgs> | null
-  }
-
-
-  /**
-   * Model StripeSubscription
-   */
-
-  export type AggregateStripeSubscription = {
-    _count: StripeSubscriptionCountAggregateOutputType | null
-    _min: StripeSubscriptionMinAggregateOutputType | null
-    _max: StripeSubscriptionMaxAggregateOutputType | null
-  }
-
-  export type StripeSubscriptionMinAggregateOutputType = {
-    id: string | null
-    userId: string | null
-    stripeCustomerId: string | null
-    status: string | null
-    priceId: string | null
-    currentPeriodEnd: Date | null
-    cancelAtPeriodEnd: boolean | null
-    createdAt: Date | null
-    updatedAt: Date | null
-  }
-
-  export type StripeSubscriptionMaxAggregateOutputType = {
-    id: string | null
-    userId: string | null
-    stripeCustomerId: string | null
-    status: string | null
-    priceId: string | null
-    currentPeriodEnd: Date | null
-    cancelAtPeriodEnd: boolean | null
-    createdAt: Date | null
-    updatedAt: Date | null
-  }
-
-  export type StripeSubscriptionCountAggregateOutputType = {
-    id: number
-    userId: number
-    stripeCustomerId: number
-    status: number
-    priceId: number
-    currentPeriodEnd: number
-    cancelAtPeriodEnd: number
-    createdAt: number
-    updatedAt: number
-    _all: number
-  }
-
-
-  export type StripeSubscriptionMinAggregateInputType = {
-    id?: true
-    userId?: true
-    stripeCustomerId?: true
-    status?: true
-    priceId?: true
-    currentPeriodEnd?: true
-    cancelAtPeriodEnd?: true
-    createdAt?: true
-    updatedAt?: true
-  }
-
-  export type StripeSubscriptionMaxAggregateInputType = {
-    id?: true
-    userId?: true
-    stripeCustomerId?: true
-    status?: true
-    priceId?: true
-    currentPeriodEnd?: true
-    cancelAtPeriodEnd?: true
-    createdAt?: true
-    updatedAt?: true
-  }
-
-  export type StripeSubscriptionCountAggregateInputType = {
-    id?: true
-    userId?: true
-    stripeCustomerId?: true
-    status?: true
-    priceId?: true
-    currentPeriodEnd?: true
-    cancelAtPeriodEnd?: true
-    createdAt?: true
-    updatedAt?: true
-    _all?: true
-  }
-
-  export type StripeSubscriptionAggregateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
-    /**
-     * Filter which StripeSubscription to aggregate.
-     */
-    where?: StripeSubscriptionWhereInput
-    /**
-     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
-     * 
-     * Determine the order of StripeSubscriptions to fetch.
-     */
-    orderBy?: StripeSubscriptionOrderByWithRelationInput | StripeSubscriptionOrderByWithRelationInput[]
-    /**
-     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
-     * 
-     * Sets the start position
-     */
-    cursor?: StripeSubscriptionWhereUniqueInput
-    /**
-     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
-     * 
-     * Take `±n` StripeSubscriptions from the position of the cursor.
-     */
-    take?: number
-    /**
-     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
-     * 
-     * Skip the first `n` StripeSubscriptions.
-     */
-    skip?: number
-    /**
-     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
-     * 
-     * Count returned StripeSubscriptions
-    **/
-    _count?: true | StripeSubscriptionCountAggregateInputType
-    /**
-     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
-     * 
-     * Select which fields to find the minimum value
-    **/
-    _min?: StripeSubscriptionMinAggregateInputType
-    /**
-     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
-     * 
-     * Select which fields to find the maximum value
-    **/
-    _max?: StripeSubscriptionMaxAggregateInputType
-  }
-
-  export type GetStripeSubscriptionAggregateType<T extends StripeSubscriptionAggregateArgs> = {
-        [P in keyof T & keyof AggregateStripeSubscription]: P extends '_count' | 'count'
-      ? T[P] extends true
-        ? number
-        : GetScalarType<T[P], AggregateStripeSubscription[P]>
-      : GetScalarType<T[P], AggregateStripeSubscription[P]>
-  }
-
-
-
-
-  export type StripeSubscriptionGroupByArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
-    where?: StripeSubscriptionWhereInput
-    orderBy?: StripeSubscriptionOrderByWithAggregationInput | StripeSubscriptionOrderByWithAggregationInput[]
-    by: StripeSubscriptionScalarFieldEnum[] | StripeSubscriptionScalarFieldEnum
-    having?: StripeSubscriptionScalarWhereWithAggregatesInput
-    take?: number
-    skip?: number
-    _count?: StripeSubscriptionCountAggregateInputType | true
-    _min?: StripeSubscriptionMinAggregateInputType
-    _max?: StripeSubscriptionMaxAggregateInputType
-  }
-
-  export type StripeSubscriptionGroupByOutputType = {
-    id: string
-    userId: string
-    stripeCustomerId: string
-    status: string
-    priceId: string
-    currentPeriodEnd: Date
-    cancelAtPeriodEnd: boolean
-    createdAt: Date
-    updatedAt: Date
-    _count: StripeSubscriptionCountAggregateOutputType | null
-    _min: StripeSubscriptionMinAggregateOutputType | null
-    _max: StripeSubscriptionMaxAggregateOutputType | null
-  }
-
-  type GetStripeSubscriptionGroupByPayload<T extends StripeSubscriptionGroupByArgs> = Prisma.PrismaPromise<
-    Array<
-      PickEnumerable<StripeSubscriptionGroupByOutputType, T['by']> &
-        {
-          [P in ((keyof T) & (keyof StripeSubscriptionGroupByOutputType))]: P extends '_count'
-            ? T[P] extends boolean
-              ? number
-              : GetScalarType<T[P], StripeSubscriptionGroupByOutputType[P]>
-            : GetScalarType<T[P], StripeSubscriptionGroupByOutputType[P]>
-        }
-      >
-    >
-
-
-  export type StripeSubscriptionSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
-    id?: boolean
-    userId?: boolean
-    stripeCustomerId?: boolean
-    status?: boolean
-    priceId?: boolean
-    currentPeriodEnd?: boolean
-    cancelAtPeriodEnd?: boolean
-    createdAt?: boolean
-    updatedAt?: boolean
-    customer?: boolean | StripeCustomerDefaultArgs<ExtArgs>
-    user?: boolean | UserDefaultArgs<ExtArgs>
-  }, ExtArgs["result"]["stripeSubscription"]>
-
-  export type StripeSubscriptionSelectCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
-    id?: boolean
-    userId?: boolean
-    stripeCustomerId?: boolean
-    status?: boolean
-    priceId?: boolean
-    currentPeriodEnd?: boolean
-    cancelAtPeriodEnd?: boolean
-    createdAt?: boolean
-    updatedAt?: boolean
-    customer?: boolean | StripeCustomerDefaultArgs<ExtArgs>
-    user?: boolean | UserDefaultArgs<ExtArgs>
-  }, ExtArgs["result"]["stripeSubscription"]>
-
-  export type StripeSubscriptionSelectScalar = {
-    id?: boolean
-    userId?: boolean
-    stripeCustomerId?: boolean
-    status?: boolean
-    priceId?: boolean
-    currentPeriodEnd?: boolean
-    cancelAtPeriodEnd?: boolean
-    createdAt?: boolean
-    updatedAt?: boolean
-  }
-
-  export type StripeSubscriptionInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
-    customer?: boolean | StripeCustomerDefaultArgs<ExtArgs>
-    user?: boolean | UserDefaultArgs<ExtArgs>
-  }
-  export type StripeSubscriptionIncludeCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
-    customer?: boolean | StripeCustomerDefaultArgs<ExtArgs>
-    user?: boolean | UserDefaultArgs<ExtArgs>
-  }
-
-  export type $StripeSubscriptionPayload<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
-    name: "StripeSubscription"
-    objects: {
-      customer: Prisma.$StripeCustomerPayload<ExtArgs>
-      user: Prisma.$UserPayload<ExtArgs>
-    }
-    scalars: $Extensions.GetPayloadResult<{
-      id: string
-      userId: string
-      stripeCustomerId: string
-      status: string
-      priceId: string
-      currentPeriodEnd: Date
-      cancelAtPeriodEnd: boolean
-      createdAt: Date
-      updatedAt: Date
-    }, ExtArgs["result"]["stripeSubscription"]>
-    composites: {}
-  }
-
-  type StripeSubscriptionGetPayload<S extends boolean | null | undefined | StripeSubscriptionDefaultArgs> = $Result.GetResult<Prisma.$StripeSubscriptionPayload, S>
-
-  type StripeSubscriptionCountArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = 
-    Omit<StripeSubscriptionFindManyArgs, 'select' | 'include' | 'distinct'> & {
-      select?: StripeSubscriptionCountAggregateInputType | true
-    }
-
-  export interface StripeSubscriptionDelegate<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> {
-    [K: symbol]: { types: Prisma.TypeMap<ExtArgs>['model']['StripeSubscription'], meta: { name: 'StripeSubscription' } }
-    /**
-     * Find zero or one StripeSubscription that matches the filter.
-     * @param {StripeSubscriptionFindUniqueArgs} args - Arguments to find a StripeSubscription
-     * @example
-     * // Get one StripeSubscription
-     * const stripeSubscription = await prisma.stripeSubscription.findUnique({
-     *   where: {
-     *     // ... provide filter here
-     *   }
-     * })
-     */
-    findUnique<T extends StripeSubscriptionFindUniqueArgs>(args: SelectSubset<T, StripeSubscriptionFindUniqueArgs<ExtArgs>>): Prisma__StripeSubscriptionClient<$Result.GetResult<Prisma.$StripeSubscriptionPayload<ExtArgs>, T, "findUnique"> | null, null, ExtArgs>
-
-    /**
-     * Find one StripeSubscription that matches the filter or throw an error with `error.code='P2025'` 
-     * if no matches were found.
-     * @param {StripeSubscriptionFindUniqueOrThrowArgs} args - Arguments to find a StripeSubscription
-     * @example
-     * // Get one StripeSubscription
-     * const stripeSubscription = await prisma.stripeSubscription.findUniqueOrThrow({
-     *   where: {
-     *     // ... provide filter here
-     *   }
-     * })
-     */
-    findUniqueOrThrow<T extends StripeSubscriptionFindUniqueOrThrowArgs>(args: SelectSubset<T, StripeSubscriptionFindUniqueOrThrowArgs<ExtArgs>>): Prisma__StripeSubscriptionClient<$Result.GetResult<Prisma.$StripeSubscriptionPayload<ExtArgs>, T, "findUniqueOrThrow">, never, ExtArgs>
-
-    /**
-     * Find the first StripeSubscription that matches the filter.
-     * Note, that providing `undefined` is treated as the value not being there.
-     * Read more here: https://pris.ly/d/null-undefined
-     * @param {StripeSubscriptionFindFirstArgs} args - Arguments to find a StripeSubscription
-     * @example
-     * // Get one StripeSubscription
-     * const stripeSubscription = await prisma.stripeSubscription.findFirst({
-     *   where: {
-     *     // ... provide filter here
-     *   }
-     * })
-     */
-    findFirst<T extends StripeSubscriptionFindFirstArgs>(args?: SelectSubset<T, StripeSubscriptionFindFirstArgs<ExtArgs>>): Prisma__StripeSubscriptionClient<$Result.GetResult<Prisma.$StripeSubscriptionPayload<ExtArgs>, T, "findFirst"> | null, null, ExtArgs>
-
-    /**
-     * Find the first StripeSubscription that matches the filter or
-     * throw `PrismaKnownClientError` with `P2025` code if no matches were found.
-     * Note, that providing `undefined` is treated as the value not being there.
-     * Read more here: https://pris.ly/d/null-undefined
-     * @param {StripeSubscriptionFindFirstOrThrowArgs} args - Arguments to find a StripeSubscription
-     * @example
-     * // Get one StripeSubscription
-     * const stripeSubscription = await prisma.stripeSubscription.findFirstOrThrow({
-     *   where: {
-     *     // ... provide filter here
-     *   }
-     * })
-     */
-    findFirstOrThrow<T extends StripeSubscriptionFindFirstOrThrowArgs>(args?: SelectSubset<T, StripeSubscriptionFindFirstOrThrowArgs<ExtArgs>>): Prisma__StripeSubscriptionClient<$Result.GetResult<Prisma.$StripeSubscriptionPayload<ExtArgs>, T, "findFirstOrThrow">, never, ExtArgs>
-
-    /**
-     * Find zero or more StripeSubscriptions that matches the filter.
-     * Note, that providing `undefined` is treated as the value not being there.
-     * Read more here: https://pris.ly/d/null-undefined
-     * @param {StripeSubscriptionFindManyArgs} args - Arguments to filter and select certain fields only.
-     * @example
-     * // Get all StripeSubscriptions
-     * const stripeSubscriptions = await prisma.stripeSubscription.findMany()
-     * 
-     * // Get first 10 StripeSubscriptions
-     * const stripeSubscriptions = await prisma.stripeSubscription.findMany({ take: 10 })
-     * 
-     * // Only select the `id`
-     * const stripeSubscriptionWithIdOnly = await prisma.stripeSubscription.findMany({ select: { id: true } })
-     * 
-     */
-    findMany<T extends StripeSubscriptionFindManyArgs>(args?: SelectSubset<T, StripeSubscriptionFindManyArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$StripeSubscriptionPayload<ExtArgs>, T, "findMany">>
-
-    /**
-     * Create a StripeSubscription.
-     * @param {StripeSubscriptionCreateArgs} args - Arguments to create a StripeSubscription.
-     * @example
-     * // Create one StripeSubscription
-     * const StripeSubscription = await prisma.stripeSubscription.create({
-     *   data: {
-     *     // ... data to create a StripeSubscription
-     *   }
-     * })
-     * 
-     */
-    create<T extends StripeSubscriptionCreateArgs>(args: SelectSubset<T, StripeSubscriptionCreateArgs<ExtArgs>>): Prisma__StripeSubscriptionClient<$Result.GetResult<Prisma.$StripeSubscriptionPayload<ExtArgs>, T, "create">, never, ExtArgs>
-
-    /**
-     * Create many StripeSubscriptions.
-     * @param {StripeSubscriptionCreateManyArgs} args - Arguments to create many StripeSubscriptions.
-     * @example
-     * // Create many StripeSubscriptions
-     * const stripeSubscription = await prisma.stripeSubscription.createMany({
-     *   data: [
-     *     // ... provide data here
-     *   ]
-     * })
-     *     
-     */
-    createMany<T extends StripeSubscriptionCreateManyArgs>(args?: SelectSubset<T, StripeSubscriptionCreateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
-
-    /**
-     * Create many StripeSubscriptions and returns the data saved in the database.
-     * @param {StripeSubscriptionCreateManyAndReturnArgs} args - Arguments to create many StripeSubscriptions.
-     * @example
-     * // Create many StripeSubscriptions
-     * const stripeSubscription = await prisma.stripeSubscription.createManyAndReturn({
-     *   data: [
-     *     // ... provide data here
-     *   ]
-     * })
-     * 
-     * // Create many StripeSubscriptions and only return the `id`
-     * const stripeSubscriptionWithIdOnly = await prisma.stripeSubscription.createManyAndReturn({ 
-     *   select: { id: true },
-     *   data: [
-     *     // ... provide data here
-     *   ]
-     * })
-     * Note, that providing `undefined` is treated as the value not being there.
-     * Read more here: https://pris.ly/d/null-undefined
-     * 
-     */
-    createManyAndReturn<T extends StripeSubscriptionCreateManyAndReturnArgs>(args?: SelectSubset<T, StripeSubscriptionCreateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$StripeSubscriptionPayload<ExtArgs>, T, "createManyAndReturn">>
-
-    /**
-     * Delete a StripeSubscription.
-     * @param {StripeSubscriptionDeleteArgs} args - Arguments to delete one StripeSubscription.
-     * @example
-     * // Delete one StripeSubscription
-     * const StripeSubscription = await prisma.stripeSubscription.delete({
-     *   where: {
-     *     // ... filter to delete one StripeSubscription
-     *   }
-     * })
-     * 
-     */
-    delete<T extends StripeSubscriptionDeleteArgs>(args: SelectSubset<T, StripeSubscriptionDeleteArgs<ExtArgs>>): Prisma__StripeSubscriptionClient<$Result.GetResult<Prisma.$StripeSubscriptionPayload<ExtArgs>, T, "delete">, never, ExtArgs>
-
-    /**
-     * Update one StripeSubscription.
-     * @param {StripeSubscriptionUpdateArgs} args - Arguments to update one StripeSubscription.
-     * @example
-     * // Update one StripeSubscription
-     * const stripeSubscription = await prisma.stripeSubscription.update({
-     *   where: {
-     *     // ... provide filter here
-     *   },
-     *   data: {
-     *     // ... provide data here
-     *   }
-     * })
-     * 
-     */
-    update<T extends StripeSubscriptionUpdateArgs>(args: SelectSubset<T, StripeSubscriptionUpdateArgs<ExtArgs>>): Prisma__StripeSubscriptionClient<$Result.GetResult<Prisma.$StripeSubscriptionPayload<ExtArgs>, T, "update">, never, ExtArgs>
-
-    /**
-     * Delete zero or more StripeSubscriptions.
-     * @param {StripeSubscriptionDeleteManyArgs} args - Arguments to filter StripeSubscriptions to delete.
-     * @example
-     * // Delete a few StripeSubscriptions
-     * const { count } = await prisma.stripeSubscription.deleteMany({
-     *   where: {
-     *     // ... provide filter here
-     *   }
-     * })
-     * 
-     */
-    deleteMany<T extends StripeSubscriptionDeleteManyArgs>(args?: SelectSubset<T, StripeSubscriptionDeleteManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
-
-    /**
-     * Update zero or more StripeSubscriptions.
-     * Note, that providing `undefined` is treated as the value not being there.
-     * Read more here: https://pris.ly/d/null-undefined
-     * @param {StripeSubscriptionUpdateManyArgs} args - Arguments to update one or more rows.
-     * @example
-     * // Update many StripeSubscriptions
-     * const stripeSubscription = await prisma.stripeSubscription.updateMany({
-     *   where: {
-     *     // ... provide filter here
-     *   },
-     *   data: {
-     *     // ... provide data here
-     *   }
-     * })
-     * 
-     */
-    updateMany<T extends StripeSubscriptionUpdateManyArgs>(args: SelectSubset<T, StripeSubscriptionUpdateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
-
-    /**
-     * Create or update one StripeSubscription.
-     * @param {StripeSubscriptionUpsertArgs} args - Arguments to update or create a StripeSubscription.
-     * @example
-     * // Update or create a StripeSubscription
-     * const stripeSubscription = await prisma.stripeSubscription.upsert({
-     *   create: {
-     *     // ... data to create a StripeSubscription
-     *   },
-     *   update: {
-     *     // ... in case it already exists, update
-     *   },
-     *   where: {
-     *     // ... the filter for the StripeSubscription we want to update
-     *   }
-     * })
-     */
-    upsert<T extends StripeSubscriptionUpsertArgs>(args: SelectSubset<T, StripeSubscriptionUpsertArgs<ExtArgs>>): Prisma__StripeSubscriptionClient<$Result.GetResult<Prisma.$StripeSubscriptionPayload<ExtArgs>, T, "upsert">, never, ExtArgs>
-
-
-    /**
-     * Count the number of StripeSubscriptions.
-     * Note, that providing `undefined` is treated as the value not being there.
-     * Read more here: https://pris.ly/d/null-undefined
-     * @param {StripeSubscriptionCountArgs} args - Arguments to filter StripeSubscriptions to count.
-     * @example
-     * // Count the number of StripeSubscriptions
-     * const count = await prisma.stripeSubscription.count({
-     *   where: {
-     *     // ... the filter for the StripeSubscriptions we want to count
-     *   }
-     * })
-    **/
-    count<T extends StripeSubscriptionCountArgs>(
-      args?: Subset<T, StripeSubscriptionCountArgs>,
-    ): Prisma.PrismaPromise<
-      T extends $Utils.Record<'select', any>
-        ? T['select'] extends true
-          ? number
-          : GetScalarType<T['select'], StripeSubscriptionCountAggregateOutputType>
-        : number
-    >
-
-    /**
-     * Allows you to perform aggregations operations on a StripeSubscription.
-     * Note, that providing `undefined` is treated as the value not being there.
-     * Read more here: https://pris.ly/d/null-undefined
-     * @param {StripeSubscriptionAggregateArgs} args - Select which aggregations you would like to apply and on what fields.
-     * @example
-     * // Ordered by age ascending
-     * // Where email contains prisma.io
-     * // Limited to the 10 users
-     * const aggregations = await prisma.user.aggregate({
-     *   _avg: {
-     *     age: true,
-     *   },
-     *   where: {
-     *     email: {
-     *       contains: "prisma.io",
-     *     },
-     *   },
-     *   orderBy: {
-     *     age: "asc",
-     *   },
-     *   take: 10,
-     * })
-    **/
-    aggregate<T extends StripeSubscriptionAggregateArgs>(args: Subset<T, StripeSubscriptionAggregateArgs>): Prisma.PrismaPromise<GetStripeSubscriptionAggregateType<T>>
-
-    /**
-     * Group by StripeSubscription.
-     * Note, that providing `undefined` is treated as the value not being there.
-     * Read more here: https://pris.ly/d/null-undefined
-     * @param {StripeSubscriptionGroupByArgs} args - Group by arguments.
-     * @example
-     * // Group by city, order by createdAt, get count
-     * const result = await prisma.user.groupBy({
-     *   by: ['city', 'createdAt'],
-     *   orderBy: {
-     *     createdAt: true
-     *   },
-     *   _count: {
-     *     _all: true
-     *   },
-     * })
-     * 
-    **/
-    groupBy<
-      T extends StripeSubscriptionGroupByArgs,
-      HasSelectOrTake extends Or<
-        Extends<'skip', Keys<T>>,
-        Extends<'take', Keys<T>>
-      >,
-      OrderByArg extends True extends HasSelectOrTake
-        ? { orderBy: StripeSubscriptionGroupByArgs['orderBy'] }
-        : { orderBy?: StripeSubscriptionGroupByArgs['orderBy'] },
-      OrderFields extends ExcludeUnderscoreKeys<Keys<MaybeTupleToUnion<T['orderBy']>>>,
-      ByFields extends MaybeTupleToUnion<T['by']>,
-      ByValid extends Has<ByFields, OrderFields>,
-      HavingFields extends GetHavingFields<T['having']>,
-      HavingValid extends Has<ByFields, HavingFields>,
-      ByEmpty extends T['by'] extends never[] ? True : False,
-      InputErrors extends ByEmpty extends True
-      ? `Error: "by" must not be empty.`
-      : HavingValid extends False
-      ? {
-          [P in HavingFields]: P extends ByFields
-            ? never
-            : P extends string
-            ? `Error: Field "${P}" used in "having" needs to be provided in "by".`
-            : [
-                Error,
-                'Field ',
-                P,
-                ` in "having" needs to be provided in "by"`,
-              ]
-        }[HavingFields]
-      : 'take' extends Keys<T>
-      ? 'orderBy' extends Keys<T>
-        ? ByValid extends True
-          ? {}
-          : {
-              [P in OrderFields]: P extends ByFields
-                ? never
-                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
-            }[OrderFields]
-        : 'Error: If you provide "take", you also need to provide "orderBy"'
-      : 'skip' extends Keys<T>
-      ? 'orderBy' extends Keys<T>
-        ? ByValid extends True
-          ? {}
-          : {
-              [P in OrderFields]: P extends ByFields
-                ? never
-                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
-            }[OrderFields]
-        : 'Error: If you provide "skip", you also need to provide "orderBy"'
-      : ByValid extends True
-      ? {}
-      : {
-          [P in OrderFields]: P extends ByFields
-            ? never
-            : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
-        }[OrderFields]
-    >(args: SubsetIntersection<T, StripeSubscriptionGroupByArgs, OrderByArg> & InputErrors): {} extends InputErrors ? GetStripeSubscriptionGroupByPayload<T> : Prisma.PrismaPromise<InputErrors>
-  /**
-   * Fields of the StripeSubscription model
-   */
-  readonly fields: StripeSubscriptionFieldRefs;
-  }
-
-  /**
-   * The delegate class that acts as a "Promise-like" for StripeSubscription.
-   * Why is this prefixed with `Prisma__`?
-   * Because we want to prevent naming conflicts as mentioned in
-   * https://github.com/prisma/prisma-client-js/issues/707
-   */
-  export interface Prisma__StripeSubscriptionClient<T, Null = never, ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> extends Prisma.PrismaPromise<T> {
-    readonly [Symbol.toStringTag]: "PrismaPromise"
-    customer<T extends StripeCustomerDefaultArgs<ExtArgs> = {}>(args?: Subset<T, StripeCustomerDefaultArgs<ExtArgs>>): Prisma__StripeCustomerClient<$Result.GetResult<Prisma.$StripeCustomerPayload<ExtArgs>, T, "findUniqueOrThrow"> | Null, Null, ExtArgs>
-    user<T extends UserDefaultArgs<ExtArgs> = {}>(args?: Subset<T, UserDefaultArgs<ExtArgs>>): Prisma__UserClient<$Result.GetResult<Prisma.$UserPayload<ExtArgs>, T, "findUniqueOrThrow"> | Null, Null, ExtArgs>
-    /**
-     * Attaches callbacks for the resolution and/or rejection of the Promise.
-     * @param onfulfilled The callback to execute when the Promise is resolved.
-     * @param onrejected The callback to execute when the Promise is rejected.
-     * @returns A Promise for the completion of which ever callback is executed.
-     */
-    then<TResult1 = T, TResult2 = never>(onfulfilled?: ((value: T) => TResult1 | PromiseLike<TResult1>) | undefined | null, onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | undefined | null): $Utils.JsPromise<TResult1 | TResult2>
-    /**
-     * Attaches a callback for only the rejection of the Promise.
-     * @param onrejected The callback to execute when the Promise is rejected.
-     * @returns A Promise for the completion of the callback.
-     */
-    catch<TResult = never>(onrejected?: ((reason: any) => TResult | PromiseLike<TResult>) | undefined | null): $Utils.JsPromise<T | TResult>
-    /**
-     * Attaches a callback that is invoked when the Promise is settled (fulfilled or rejected). The
-     * resolved value cannot be modified from the callback.
-     * @param onfinally The callback to execute when the Promise is settled (fulfilled or rejected).
-     * @returns A Promise for the completion of the callback.
-     */
-    finally(onfinally?: (() => void) | undefined | null): $Utils.JsPromise<T>
-  }
-
-
-
-
-  /**
-   * Fields of the StripeSubscription model
-   */ 
-  interface StripeSubscriptionFieldRefs {
-    readonly id: FieldRef<"StripeSubscription", 'String'>
-    readonly userId: FieldRef<"StripeSubscription", 'String'>
-    readonly stripeCustomerId: FieldRef<"StripeSubscription", 'String'>
-    readonly status: FieldRef<"StripeSubscription", 'String'>
-    readonly priceId: FieldRef<"StripeSubscription", 'String'>
-    readonly currentPeriodEnd: FieldRef<"StripeSubscription", 'DateTime'>
-    readonly cancelAtPeriodEnd: FieldRef<"StripeSubscription", 'Boolean'>
-    readonly createdAt: FieldRef<"StripeSubscription", 'DateTime'>
-    readonly updatedAt: FieldRef<"StripeSubscription", 'DateTime'>
-  }
-    
-
-  // Custom InputTypes
-  /**
-   * StripeSubscription findUnique
-   */
-  export type StripeSubscriptionFindUniqueArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
-    /**
-     * Select specific fields to fetch from the StripeSubscription
-     */
-    select?: StripeSubscriptionSelect<ExtArgs> | null
-    /**
-     * Choose, which related nodes to fetch as well
-     */
-    include?: StripeSubscriptionInclude<ExtArgs> | null
-    /**
-     * Filter, which StripeSubscription to fetch.
-     */
-    where: StripeSubscriptionWhereUniqueInput
-  }
-
-  /**
-   * StripeSubscription findUniqueOrThrow
-   */
-  export type StripeSubscriptionFindUniqueOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
-    /**
-     * Select specific fields to fetch from the StripeSubscription
-     */
-    select?: StripeSubscriptionSelect<ExtArgs> | null
-    /**
-     * Choose, which related nodes to fetch as well
-     */
-    include?: StripeSubscriptionInclude<ExtArgs> | null
-    /**
-     * Filter, which StripeSubscription to fetch.
-     */
-    where: StripeSubscriptionWhereUniqueInput
-  }
-
-  /**
-   * StripeSubscription findFirst
-   */
-  export type StripeSubscriptionFindFirstArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
-    /**
-     * Select specific fields to fetch from the StripeSubscription
-     */
-    select?: StripeSubscriptionSelect<ExtArgs> | null
-    /**
-     * Choose, which related nodes to fetch as well
-     */
-    include?: StripeSubscriptionInclude<ExtArgs> | null
-    /**
-     * Filter, which StripeSubscription to fetch.
-     */
-    where?: StripeSubscriptionWhereInput
-    /**
-     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
-     * 
-     * Determine the order of StripeSubscriptions to fetch.
-     */
-    orderBy?: StripeSubscriptionOrderByWithRelationInput | StripeSubscriptionOrderByWithRelationInput[]
-    /**
-     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
-     * 
-     * Sets the position for searching for StripeSubscriptions.
-     */
-    cursor?: StripeSubscriptionWhereUniqueInput
-    /**
-     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
-     * 
-     * Take `±n` StripeSubscriptions from the position of the cursor.
-     */
-    take?: number
-    /**
-     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
-     * 
-     * Skip the first `n` StripeSubscriptions.
-     */
-    skip?: number
-    /**
-     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
-     * 
-     * Filter by unique combinations of StripeSubscriptions.
-     */
-    distinct?: StripeSubscriptionScalarFieldEnum | StripeSubscriptionScalarFieldEnum[]
-  }
-
-  /**
-   * StripeSubscription findFirstOrThrow
-   */
-  export type StripeSubscriptionFindFirstOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
-    /**
-     * Select specific fields to fetch from the StripeSubscription
-     */
-    select?: StripeSubscriptionSelect<ExtArgs> | null
-    /**
-     * Choose, which related nodes to fetch as well
-     */
-    include?: StripeSubscriptionInclude<ExtArgs> | null
-    /**
-     * Filter, which StripeSubscription to fetch.
-     */
-    where?: StripeSubscriptionWhereInput
-    /**
-     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
-     * 
-     * Determine the order of StripeSubscriptions to fetch.
-     */
-    orderBy?: StripeSubscriptionOrderByWithRelationInput | StripeSubscriptionOrderByWithRelationInput[]
-    /**
-     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
-     * 
-     * Sets the position for searching for StripeSubscriptions.
-     */
-    cursor?: StripeSubscriptionWhereUniqueInput
-    /**
-     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
-     * 
-     * Take `±n` StripeSubscriptions from the position of the cursor.
-     */
-    take?: number
-    /**
-     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
-     * 
-     * Skip the first `n` StripeSubscriptions.
-     */
-    skip?: number
-    /**
-     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
-     * 
-     * Filter by unique combinations of StripeSubscriptions.
-     */
-    distinct?: StripeSubscriptionScalarFieldEnum | StripeSubscriptionScalarFieldEnum[]
-  }
-
-  /**
-   * StripeSubscription findMany
-   */
-  export type StripeSubscriptionFindManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
-    /**
-     * Select specific fields to fetch from the StripeSubscription
-     */
-    select?: StripeSubscriptionSelect<ExtArgs> | null
-    /**
-     * Choose, which related nodes to fetch as well
-     */
-    include?: StripeSubscriptionInclude<ExtArgs> | null
-    /**
-     * Filter, which StripeSubscriptions to fetch.
-     */
-    where?: StripeSubscriptionWhereInput
-    /**
-     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
-     * 
-     * Determine the order of StripeSubscriptions to fetch.
-     */
-    orderBy?: StripeSubscriptionOrderByWithRelationInput | StripeSubscriptionOrderByWithRelationInput[]
-    /**
-     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
-     * 
-     * Sets the position for listing StripeSubscriptions.
-     */
-    cursor?: StripeSubscriptionWhereUniqueInput
-    /**
-     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
-     * 
-     * Take `±n` StripeSubscriptions from the position of the cursor.
-     */
-    take?: number
-    /**
-     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
-     * 
-     * Skip the first `n` StripeSubscriptions.
-     */
-    skip?: number
-    distinct?: StripeSubscriptionScalarFieldEnum | StripeSubscriptionScalarFieldEnum[]
-  }
-
-  /**
-   * StripeSubscription create
-   */
-  export type StripeSubscriptionCreateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
-    /**
-     * Select specific fields to fetch from the StripeSubscription
-     */
-    select?: StripeSubscriptionSelect<ExtArgs> | null
-    /**
-     * Choose, which related nodes to fetch as well
-     */
-    include?: StripeSubscriptionInclude<ExtArgs> | null
-    /**
-     * The data needed to create a StripeSubscription.
-     */
-    data: XOR<StripeSubscriptionCreateInput, StripeSubscriptionUncheckedCreateInput>
-  }
-
-  /**
-   * StripeSubscription createMany
-   */
-  export type StripeSubscriptionCreateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
-    /**
-     * The data used to create many StripeSubscriptions.
-     */
-    data: StripeSubscriptionCreateManyInput | StripeSubscriptionCreateManyInput[]
-  }
-
-  /**
-   * StripeSubscription createManyAndReturn
-   */
-  export type StripeSubscriptionCreateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
-    /**
-     * Select specific fields to fetch from the StripeSubscription
-     */
-    select?: StripeSubscriptionSelectCreateManyAndReturn<ExtArgs> | null
-    /**
-     * The data used to create many StripeSubscriptions.
-     */
-    data: StripeSubscriptionCreateManyInput | StripeSubscriptionCreateManyInput[]
-    /**
-     * Choose, which related nodes to fetch as well
-     */
-    include?: StripeSubscriptionIncludeCreateManyAndReturn<ExtArgs> | null
-  }
-
-  /**
-   * StripeSubscription update
-   */
-  export type StripeSubscriptionUpdateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
-    /**
-     * Select specific fields to fetch from the StripeSubscription
-     */
-    select?: StripeSubscriptionSelect<ExtArgs> | null
-    /**
-     * Choose, which related nodes to fetch as well
-     */
-    include?: StripeSubscriptionInclude<ExtArgs> | null
-    /**
-     * The data needed to update a StripeSubscription.
-     */
-    data: XOR<StripeSubscriptionUpdateInput, StripeSubscriptionUncheckedUpdateInput>
-    /**
-     * Choose, which StripeSubscription to update.
-     */
-    where: StripeSubscriptionWhereUniqueInput
-  }
-
-  /**
-   * StripeSubscription updateMany
-   */
-  export type StripeSubscriptionUpdateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
-    /**
-     * The data used to update StripeSubscriptions.
-     */
-    data: XOR<StripeSubscriptionUpdateManyMutationInput, StripeSubscriptionUncheckedUpdateManyInput>
-    /**
-     * Filter which StripeSubscriptions to update
-     */
-    where?: StripeSubscriptionWhereInput
-  }
-
-  /**
-   * StripeSubscription upsert
-   */
-  export type StripeSubscriptionUpsertArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
-    /**
-     * Select specific fields to fetch from the StripeSubscription
-     */
-    select?: StripeSubscriptionSelect<ExtArgs> | null
-    /**
-     * Choose, which related nodes to fetch as well
-     */
-    include?: StripeSubscriptionInclude<ExtArgs> | null
-    /**
-     * The filter to search for the StripeSubscription to update in case it exists.
-     */
-    where: StripeSubscriptionWhereUniqueInput
-    /**
-     * In case the StripeSubscription found by the `where` argument doesn't exist, create a new StripeSubscription with this data.
-     */
-    create: XOR<StripeSubscriptionCreateInput, StripeSubscriptionUncheckedCreateInput>
-    /**
-     * In case the StripeSubscription was found with the provided `where` argument, update it with this data.
-     */
-    update: XOR<StripeSubscriptionUpdateInput, StripeSubscriptionUncheckedUpdateInput>
-  }
-
-  /**
-   * StripeSubscription delete
-   */
-  export type StripeSubscriptionDeleteArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
-    /**
-     * Select specific fields to fetch from the StripeSubscription
-     */
-    select?: StripeSubscriptionSelect<ExtArgs> | null
-    /**
-     * Choose, which related nodes to fetch as well
-     */
-    include?: StripeSubscriptionInclude<ExtArgs> | null
-    /**
-     * Filter which StripeSubscription to delete.
-     */
-    where: StripeSubscriptionWhereUniqueInput
-  }
-
-  /**
-   * StripeSubscription deleteMany
-   */
-  export type StripeSubscriptionDeleteManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
-    /**
-     * Filter which StripeSubscriptions to delete
-     */
-    where?: StripeSubscriptionWhereInput
-  }
-
-  /**
-   * StripeSubscription without action
-   */
-  export type StripeSubscriptionDefaultArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
-    /**
-     * Select specific fields to fetch from the StripeSubscription
-     */
-    select?: StripeSubscriptionSelect<ExtArgs> | null
-    /**
-     * Choose, which related nodes to fetch as well
-     */
-    include?: StripeSubscriptionInclude<ExtArgs> | null
-  }
-
-
-  /**
    * Model User
    */
 
@@ -8822,6 +6789,7 @@ export namespace Prisma {
   export type UserMinAggregateOutputType = {
     id: string | null
     clerkUserId: string | null
+    stripeCustomerId: string | null
     email: string | null
     username: string | null
     role: string | null
@@ -8832,6 +6800,7 @@ export namespace Prisma {
   export type UserMaxAggregateOutputType = {
     id: string | null
     clerkUserId: string | null
+    stripeCustomerId: string | null
     email: string | null
     username: string | null
     role: string | null
@@ -8842,6 +6811,7 @@ export namespace Prisma {
   export type UserCountAggregateOutputType = {
     id: number
     clerkUserId: number
+    stripeCustomerId: number
     email: number
     username: number
     role: number
@@ -8854,6 +6824,7 @@ export namespace Prisma {
   export type UserMinAggregateInputType = {
     id?: true
     clerkUserId?: true
+    stripeCustomerId?: true
     email?: true
     username?: true
     role?: true
@@ -8864,6 +6835,7 @@ export namespace Prisma {
   export type UserMaxAggregateInputType = {
     id?: true
     clerkUserId?: true
+    stripeCustomerId?: true
     email?: true
     username?: true
     role?: true
@@ -8874,6 +6846,7 @@ export namespace Prisma {
   export type UserCountAggregateInputType = {
     id?: true
     clerkUserId?: true
+    stripeCustomerId?: true
     email?: true
     username?: true
     role?: true
@@ -8957,6 +6930,7 @@ export namespace Prisma {
   export type UserGroupByOutputType = {
     id: string
     clerkUserId: string | null
+    stripeCustomerId: string | null
     email: string
     username: string
     role: string | null
@@ -8984,6 +6958,7 @@ export namespace Prisma {
   export type UserSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
     id?: boolean
     clerkUserId?: boolean
+    stripeCustomerId?: boolean
     email?: boolean
     username?: boolean
     role?: boolean
@@ -8991,8 +6966,6 @@ export namespace Prisma {
     updatedAt?: boolean
     listings?: boolean | User$listingsArgs<ExtArgs>
     lists?: boolean | User$listsArgs<ExtArgs>
-    stripeCustomer?: boolean | User$stripeCustomerArgs<ExtArgs>
-    stripeSubscription?: boolean | User$stripeSubscriptionArgs<ExtArgs>
     profile?: boolean | User$profileArgs<ExtArgs>
     _count?: boolean | UserCountOutputTypeDefaultArgs<ExtArgs>
   }, ExtArgs["result"]["user"]>
@@ -9000,6 +6973,7 @@ export namespace Prisma {
   export type UserSelectCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
     id?: boolean
     clerkUserId?: boolean
+    stripeCustomerId?: boolean
     email?: boolean
     username?: boolean
     role?: boolean
@@ -9010,6 +6984,7 @@ export namespace Prisma {
   export type UserSelectScalar = {
     id?: boolean
     clerkUserId?: boolean
+    stripeCustomerId?: boolean
     email?: boolean
     username?: boolean
     role?: boolean
@@ -9020,8 +6995,6 @@ export namespace Prisma {
   export type UserInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     listings?: boolean | User$listingsArgs<ExtArgs>
     lists?: boolean | User$listsArgs<ExtArgs>
-    stripeCustomer?: boolean | User$stripeCustomerArgs<ExtArgs>
-    stripeSubscription?: boolean | User$stripeSubscriptionArgs<ExtArgs>
     profile?: boolean | User$profileArgs<ExtArgs>
     _count?: boolean | UserCountOutputTypeDefaultArgs<ExtArgs>
   }
@@ -9032,13 +7005,12 @@ export namespace Prisma {
     objects: {
       listings: Prisma.$ListingPayload<ExtArgs>[]
       lists: Prisma.$ListPayload<ExtArgs>[]
-      stripeCustomer: Prisma.$StripeCustomerPayload<ExtArgs> | null
-      stripeSubscription: Prisma.$StripeSubscriptionPayload<ExtArgs> | null
       profile: Prisma.$UserProfilePayload<ExtArgs> | null
     }
     scalars: $Extensions.GetPayloadResult<{
       id: string
       clerkUserId: string | null
+      stripeCustomerId: string | null
       email: string
       username: string
       role: string | null
@@ -9410,8 +7382,6 @@ export namespace Prisma {
     readonly [Symbol.toStringTag]: "PrismaPromise"
     listings<T extends User$listingsArgs<ExtArgs> = {}>(args?: Subset<T, User$listingsArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$ListingPayload<ExtArgs>, T, "findMany"> | Null>
     lists<T extends User$listsArgs<ExtArgs> = {}>(args?: Subset<T, User$listsArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$ListPayload<ExtArgs>, T, "findMany"> | Null>
-    stripeCustomer<T extends User$stripeCustomerArgs<ExtArgs> = {}>(args?: Subset<T, User$stripeCustomerArgs<ExtArgs>>): Prisma__StripeCustomerClient<$Result.GetResult<Prisma.$StripeCustomerPayload<ExtArgs>, T, "findUniqueOrThrow"> | null, null, ExtArgs>
-    stripeSubscription<T extends User$stripeSubscriptionArgs<ExtArgs> = {}>(args?: Subset<T, User$stripeSubscriptionArgs<ExtArgs>>): Prisma__StripeSubscriptionClient<$Result.GetResult<Prisma.$StripeSubscriptionPayload<ExtArgs>, T, "findUniqueOrThrow"> | null, null, ExtArgs>
     profile<T extends User$profileArgs<ExtArgs> = {}>(args?: Subset<T, User$profileArgs<ExtArgs>>): Prisma__UserProfileClient<$Result.GetResult<Prisma.$UserProfilePayload<ExtArgs>, T, "findUniqueOrThrow"> | null, null, ExtArgs>
     /**
      * Attaches callbacks for the resolution and/or rejection of the Promise.
@@ -9444,6 +7414,7 @@ export namespace Prisma {
   interface UserFieldRefs {
     readonly id: FieldRef<"User", 'String'>
     readonly clerkUserId: FieldRef<"User", 'String'>
+    readonly stripeCustomerId: FieldRef<"User", 'String'>
     readonly email: FieldRef<"User", 'String'>
     readonly username: FieldRef<"User", 'String'>
     readonly role: FieldRef<"User", 'String'>
@@ -9801,36 +7772,6 @@ export namespace Prisma {
   }
 
   /**
-   * User.stripeCustomer
-   */
-  export type User$stripeCustomerArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
-    /**
-     * Select specific fields to fetch from the StripeCustomer
-     */
-    select?: StripeCustomerSelect<ExtArgs> | null
-    /**
-     * Choose, which related nodes to fetch as well
-     */
-    include?: StripeCustomerInclude<ExtArgs> | null
-    where?: StripeCustomerWhereInput
-  }
-
-  /**
-   * User.stripeSubscription
-   */
-  export type User$stripeSubscriptionArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
-    /**
-     * Select specific fields to fetch from the StripeSubscription
-     */
-    select?: StripeSubscriptionSelect<ExtArgs> | null
-    /**
-     * Choose, which related nodes to fetch as well
-     */
-    include?: StripeSubscriptionInclude<ExtArgs> | null
-    where?: StripeSubscriptionWhereInput
-  }
-
-  /**
    * User.profile
    */
   export type User$profileArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
@@ -9857,6 +7798,870 @@ export namespace Prisma {
      * Choose, which related nodes to fetch as well
      */
     include?: UserInclude<ExtArgs> | null
+  }
+
+
+  /**
+   * Model KeyValue
+   */
+
+  export type AggregateKeyValue = {
+    _count: KeyValueCountAggregateOutputType | null
+    _min: KeyValueMinAggregateOutputType | null
+    _max: KeyValueMaxAggregateOutputType | null
+  }
+
+  export type KeyValueMinAggregateOutputType = {
+    key: string | null
+    value: string | null
+    createdAt: Date | null
+    updatedAt: Date | null
+  }
+
+  export type KeyValueMaxAggregateOutputType = {
+    key: string | null
+    value: string | null
+    createdAt: Date | null
+    updatedAt: Date | null
+  }
+
+  export type KeyValueCountAggregateOutputType = {
+    key: number
+    value: number
+    createdAt: number
+    updatedAt: number
+    _all: number
+  }
+
+
+  export type KeyValueMinAggregateInputType = {
+    key?: true
+    value?: true
+    createdAt?: true
+    updatedAt?: true
+  }
+
+  export type KeyValueMaxAggregateInputType = {
+    key?: true
+    value?: true
+    createdAt?: true
+    updatedAt?: true
+  }
+
+  export type KeyValueCountAggregateInputType = {
+    key?: true
+    value?: true
+    createdAt?: true
+    updatedAt?: true
+    _all?: true
+  }
+
+  export type KeyValueAggregateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which KeyValue to aggregate.
+     */
+    where?: KeyValueWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of KeyValues to fetch.
+     */
+    orderBy?: KeyValueOrderByWithRelationInput | KeyValueOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the start position
+     */
+    cursor?: KeyValueWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` KeyValues from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` KeyValues.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Count returned KeyValues
+    **/
+    _count?: true | KeyValueCountAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the minimum value
+    **/
+    _min?: KeyValueMinAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the maximum value
+    **/
+    _max?: KeyValueMaxAggregateInputType
+  }
+
+  export type GetKeyValueAggregateType<T extends KeyValueAggregateArgs> = {
+        [P in keyof T & keyof AggregateKeyValue]: P extends '_count' | 'count'
+      ? T[P] extends true
+        ? number
+        : GetScalarType<T[P], AggregateKeyValue[P]>
+      : GetScalarType<T[P], AggregateKeyValue[P]>
+  }
+
+
+
+
+  export type KeyValueGroupByArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: KeyValueWhereInput
+    orderBy?: KeyValueOrderByWithAggregationInput | KeyValueOrderByWithAggregationInput[]
+    by: KeyValueScalarFieldEnum[] | KeyValueScalarFieldEnum
+    having?: KeyValueScalarWhereWithAggregatesInput
+    take?: number
+    skip?: number
+    _count?: KeyValueCountAggregateInputType | true
+    _min?: KeyValueMinAggregateInputType
+    _max?: KeyValueMaxAggregateInputType
+  }
+
+  export type KeyValueGroupByOutputType = {
+    key: string
+    value: string
+    createdAt: Date
+    updatedAt: Date
+    _count: KeyValueCountAggregateOutputType | null
+    _min: KeyValueMinAggregateOutputType | null
+    _max: KeyValueMaxAggregateOutputType | null
+  }
+
+  type GetKeyValueGroupByPayload<T extends KeyValueGroupByArgs> = Prisma.PrismaPromise<
+    Array<
+      PickEnumerable<KeyValueGroupByOutputType, T['by']> &
+        {
+          [P in ((keyof T) & (keyof KeyValueGroupByOutputType))]: P extends '_count'
+            ? T[P] extends boolean
+              ? number
+              : GetScalarType<T[P], KeyValueGroupByOutputType[P]>
+            : GetScalarType<T[P], KeyValueGroupByOutputType[P]>
+        }
+      >
+    >
+
+
+  export type KeyValueSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    key?: boolean
+    value?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+  }, ExtArgs["result"]["keyValue"]>
+
+  export type KeyValueSelectCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    key?: boolean
+    value?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+  }, ExtArgs["result"]["keyValue"]>
+
+  export type KeyValueSelectScalar = {
+    key?: boolean
+    value?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+  }
+
+
+  export type $KeyValuePayload<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    name: "KeyValue"
+    objects: {}
+    scalars: $Extensions.GetPayloadResult<{
+      key: string
+      value: string
+      createdAt: Date
+      updatedAt: Date
+    }, ExtArgs["result"]["keyValue"]>
+    composites: {}
+  }
+
+  type KeyValueGetPayload<S extends boolean | null | undefined | KeyValueDefaultArgs> = $Result.GetResult<Prisma.$KeyValuePayload, S>
+
+  type KeyValueCountArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = 
+    Omit<KeyValueFindManyArgs, 'select' | 'include' | 'distinct'> & {
+      select?: KeyValueCountAggregateInputType | true
+    }
+
+  export interface KeyValueDelegate<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> {
+    [K: symbol]: { types: Prisma.TypeMap<ExtArgs>['model']['KeyValue'], meta: { name: 'KeyValue' } }
+    /**
+     * Find zero or one KeyValue that matches the filter.
+     * @param {KeyValueFindUniqueArgs} args - Arguments to find a KeyValue
+     * @example
+     * // Get one KeyValue
+     * const keyValue = await prisma.keyValue.findUnique({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUnique<T extends KeyValueFindUniqueArgs>(args: SelectSubset<T, KeyValueFindUniqueArgs<ExtArgs>>): Prisma__KeyValueClient<$Result.GetResult<Prisma.$KeyValuePayload<ExtArgs>, T, "findUnique"> | null, null, ExtArgs>
+
+    /**
+     * Find one KeyValue that matches the filter or throw an error with `error.code='P2025'` 
+     * if no matches were found.
+     * @param {KeyValueFindUniqueOrThrowArgs} args - Arguments to find a KeyValue
+     * @example
+     * // Get one KeyValue
+     * const keyValue = await prisma.keyValue.findUniqueOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUniqueOrThrow<T extends KeyValueFindUniqueOrThrowArgs>(args: SelectSubset<T, KeyValueFindUniqueOrThrowArgs<ExtArgs>>): Prisma__KeyValueClient<$Result.GetResult<Prisma.$KeyValuePayload<ExtArgs>, T, "findUniqueOrThrow">, never, ExtArgs>
+
+    /**
+     * Find the first KeyValue that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {KeyValueFindFirstArgs} args - Arguments to find a KeyValue
+     * @example
+     * // Get one KeyValue
+     * const keyValue = await prisma.keyValue.findFirst({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirst<T extends KeyValueFindFirstArgs>(args?: SelectSubset<T, KeyValueFindFirstArgs<ExtArgs>>): Prisma__KeyValueClient<$Result.GetResult<Prisma.$KeyValuePayload<ExtArgs>, T, "findFirst"> | null, null, ExtArgs>
+
+    /**
+     * Find the first KeyValue that matches the filter or
+     * throw `PrismaKnownClientError` with `P2025` code if no matches were found.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {KeyValueFindFirstOrThrowArgs} args - Arguments to find a KeyValue
+     * @example
+     * // Get one KeyValue
+     * const keyValue = await prisma.keyValue.findFirstOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirstOrThrow<T extends KeyValueFindFirstOrThrowArgs>(args?: SelectSubset<T, KeyValueFindFirstOrThrowArgs<ExtArgs>>): Prisma__KeyValueClient<$Result.GetResult<Prisma.$KeyValuePayload<ExtArgs>, T, "findFirstOrThrow">, never, ExtArgs>
+
+    /**
+     * Find zero or more KeyValues that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {KeyValueFindManyArgs} args - Arguments to filter and select certain fields only.
+     * @example
+     * // Get all KeyValues
+     * const keyValues = await prisma.keyValue.findMany()
+     * 
+     * // Get first 10 KeyValues
+     * const keyValues = await prisma.keyValue.findMany({ take: 10 })
+     * 
+     * // Only select the `key`
+     * const keyValueWithKeyOnly = await prisma.keyValue.findMany({ select: { key: true } })
+     * 
+     */
+    findMany<T extends KeyValueFindManyArgs>(args?: SelectSubset<T, KeyValueFindManyArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$KeyValuePayload<ExtArgs>, T, "findMany">>
+
+    /**
+     * Create a KeyValue.
+     * @param {KeyValueCreateArgs} args - Arguments to create a KeyValue.
+     * @example
+     * // Create one KeyValue
+     * const KeyValue = await prisma.keyValue.create({
+     *   data: {
+     *     // ... data to create a KeyValue
+     *   }
+     * })
+     * 
+     */
+    create<T extends KeyValueCreateArgs>(args: SelectSubset<T, KeyValueCreateArgs<ExtArgs>>): Prisma__KeyValueClient<$Result.GetResult<Prisma.$KeyValuePayload<ExtArgs>, T, "create">, never, ExtArgs>
+
+    /**
+     * Create many KeyValues.
+     * @param {KeyValueCreateManyArgs} args - Arguments to create many KeyValues.
+     * @example
+     * // Create many KeyValues
+     * const keyValue = await prisma.keyValue.createMany({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     *     
+     */
+    createMany<T extends KeyValueCreateManyArgs>(args?: SelectSubset<T, KeyValueCreateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Create many KeyValues and returns the data saved in the database.
+     * @param {KeyValueCreateManyAndReturnArgs} args - Arguments to create many KeyValues.
+     * @example
+     * // Create many KeyValues
+     * const keyValue = await prisma.keyValue.createManyAndReturn({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Create many KeyValues and only return the `key`
+     * const keyValueWithKeyOnly = await prisma.keyValue.createManyAndReturn({ 
+     *   select: { key: true },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    createManyAndReturn<T extends KeyValueCreateManyAndReturnArgs>(args?: SelectSubset<T, KeyValueCreateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$KeyValuePayload<ExtArgs>, T, "createManyAndReturn">>
+
+    /**
+     * Delete a KeyValue.
+     * @param {KeyValueDeleteArgs} args - Arguments to delete one KeyValue.
+     * @example
+     * // Delete one KeyValue
+     * const KeyValue = await prisma.keyValue.delete({
+     *   where: {
+     *     // ... filter to delete one KeyValue
+     *   }
+     * })
+     * 
+     */
+    delete<T extends KeyValueDeleteArgs>(args: SelectSubset<T, KeyValueDeleteArgs<ExtArgs>>): Prisma__KeyValueClient<$Result.GetResult<Prisma.$KeyValuePayload<ExtArgs>, T, "delete">, never, ExtArgs>
+
+    /**
+     * Update one KeyValue.
+     * @param {KeyValueUpdateArgs} args - Arguments to update one KeyValue.
+     * @example
+     * // Update one KeyValue
+     * const keyValue = await prisma.keyValue.update({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    update<T extends KeyValueUpdateArgs>(args: SelectSubset<T, KeyValueUpdateArgs<ExtArgs>>): Prisma__KeyValueClient<$Result.GetResult<Prisma.$KeyValuePayload<ExtArgs>, T, "update">, never, ExtArgs>
+
+    /**
+     * Delete zero or more KeyValues.
+     * @param {KeyValueDeleteManyArgs} args - Arguments to filter KeyValues to delete.
+     * @example
+     * // Delete a few KeyValues
+     * const { count } = await prisma.keyValue.deleteMany({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     * 
+     */
+    deleteMany<T extends KeyValueDeleteManyArgs>(args?: SelectSubset<T, KeyValueDeleteManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more KeyValues.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {KeyValueUpdateManyArgs} args - Arguments to update one or more rows.
+     * @example
+     * // Update many KeyValues
+     * const keyValue = await prisma.keyValue.updateMany({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    updateMany<T extends KeyValueUpdateManyArgs>(args: SelectSubset<T, KeyValueUpdateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Create or update one KeyValue.
+     * @param {KeyValueUpsertArgs} args - Arguments to update or create a KeyValue.
+     * @example
+     * // Update or create a KeyValue
+     * const keyValue = await prisma.keyValue.upsert({
+     *   create: {
+     *     // ... data to create a KeyValue
+     *   },
+     *   update: {
+     *     // ... in case it already exists, update
+     *   },
+     *   where: {
+     *     // ... the filter for the KeyValue we want to update
+     *   }
+     * })
+     */
+    upsert<T extends KeyValueUpsertArgs>(args: SelectSubset<T, KeyValueUpsertArgs<ExtArgs>>): Prisma__KeyValueClient<$Result.GetResult<Prisma.$KeyValuePayload<ExtArgs>, T, "upsert">, never, ExtArgs>
+
+
+    /**
+     * Count the number of KeyValues.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {KeyValueCountArgs} args - Arguments to filter KeyValues to count.
+     * @example
+     * // Count the number of KeyValues
+     * const count = await prisma.keyValue.count({
+     *   where: {
+     *     // ... the filter for the KeyValues we want to count
+     *   }
+     * })
+    **/
+    count<T extends KeyValueCountArgs>(
+      args?: Subset<T, KeyValueCountArgs>,
+    ): Prisma.PrismaPromise<
+      T extends $Utils.Record<'select', any>
+        ? T['select'] extends true
+          ? number
+          : GetScalarType<T['select'], KeyValueCountAggregateOutputType>
+        : number
+    >
+
+    /**
+     * Allows you to perform aggregations operations on a KeyValue.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {KeyValueAggregateArgs} args - Select which aggregations you would like to apply and on what fields.
+     * @example
+     * // Ordered by age ascending
+     * // Where email contains prisma.io
+     * // Limited to the 10 users
+     * const aggregations = await prisma.user.aggregate({
+     *   _avg: {
+     *     age: true,
+     *   },
+     *   where: {
+     *     email: {
+     *       contains: "prisma.io",
+     *     },
+     *   },
+     *   orderBy: {
+     *     age: "asc",
+     *   },
+     *   take: 10,
+     * })
+    **/
+    aggregate<T extends KeyValueAggregateArgs>(args: Subset<T, KeyValueAggregateArgs>): Prisma.PrismaPromise<GetKeyValueAggregateType<T>>
+
+    /**
+     * Group by KeyValue.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {KeyValueGroupByArgs} args - Group by arguments.
+     * @example
+     * // Group by city, order by createdAt, get count
+     * const result = await prisma.user.groupBy({
+     *   by: ['city', 'createdAt'],
+     *   orderBy: {
+     *     createdAt: true
+     *   },
+     *   _count: {
+     *     _all: true
+     *   },
+     * })
+     * 
+    **/
+    groupBy<
+      T extends KeyValueGroupByArgs,
+      HasSelectOrTake extends Or<
+        Extends<'skip', Keys<T>>,
+        Extends<'take', Keys<T>>
+      >,
+      OrderByArg extends True extends HasSelectOrTake
+        ? { orderBy: KeyValueGroupByArgs['orderBy'] }
+        : { orderBy?: KeyValueGroupByArgs['orderBy'] },
+      OrderFields extends ExcludeUnderscoreKeys<Keys<MaybeTupleToUnion<T['orderBy']>>>,
+      ByFields extends MaybeTupleToUnion<T['by']>,
+      ByValid extends Has<ByFields, OrderFields>,
+      HavingFields extends GetHavingFields<T['having']>,
+      HavingValid extends Has<ByFields, HavingFields>,
+      ByEmpty extends T['by'] extends never[] ? True : False,
+      InputErrors extends ByEmpty extends True
+      ? `Error: "by" must not be empty.`
+      : HavingValid extends False
+      ? {
+          [P in HavingFields]: P extends ByFields
+            ? never
+            : P extends string
+            ? `Error: Field "${P}" used in "having" needs to be provided in "by".`
+            : [
+                Error,
+                'Field ',
+                P,
+                ` in "having" needs to be provided in "by"`,
+              ]
+        }[HavingFields]
+      : 'take' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "take", you also need to provide "orderBy"'
+      : 'skip' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "skip", you also need to provide "orderBy"'
+      : ByValid extends True
+      ? {}
+      : {
+          [P in OrderFields]: P extends ByFields
+            ? never
+            : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+        }[OrderFields]
+    >(args: SubsetIntersection<T, KeyValueGroupByArgs, OrderByArg> & InputErrors): {} extends InputErrors ? GetKeyValueGroupByPayload<T> : Prisma.PrismaPromise<InputErrors>
+  /**
+   * Fields of the KeyValue model
+   */
+  readonly fields: KeyValueFieldRefs;
+  }
+
+  /**
+   * The delegate class that acts as a "Promise-like" for KeyValue.
+   * Why is this prefixed with `Prisma__`?
+   * Because we want to prevent naming conflicts as mentioned in
+   * https://github.com/prisma/prisma-client-js/issues/707
+   */
+  export interface Prisma__KeyValueClient<T, Null = never, ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> extends Prisma.PrismaPromise<T> {
+    readonly [Symbol.toStringTag]: "PrismaPromise"
+    /**
+     * Attaches callbacks for the resolution and/or rejection of the Promise.
+     * @param onfulfilled The callback to execute when the Promise is resolved.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of which ever callback is executed.
+     */
+    then<TResult1 = T, TResult2 = never>(onfulfilled?: ((value: T) => TResult1 | PromiseLike<TResult1>) | undefined | null, onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | undefined | null): $Utils.JsPromise<TResult1 | TResult2>
+    /**
+     * Attaches a callback for only the rejection of the Promise.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of the callback.
+     */
+    catch<TResult = never>(onrejected?: ((reason: any) => TResult | PromiseLike<TResult>) | undefined | null): $Utils.JsPromise<T | TResult>
+    /**
+     * Attaches a callback that is invoked when the Promise is settled (fulfilled or rejected). The
+     * resolved value cannot be modified from the callback.
+     * @param onfinally The callback to execute when the Promise is settled (fulfilled or rejected).
+     * @returns A Promise for the completion of the callback.
+     */
+    finally(onfinally?: (() => void) | undefined | null): $Utils.JsPromise<T>
+  }
+
+
+
+
+  /**
+   * Fields of the KeyValue model
+   */ 
+  interface KeyValueFieldRefs {
+    readonly key: FieldRef<"KeyValue", 'String'>
+    readonly value: FieldRef<"KeyValue", 'String'>
+    readonly createdAt: FieldRef<"KeyValue", 'DateTime'>
+    readonly updatedAt: FieldRef<"KeyValue", 'DateTime'>
+  }
+    
+
+  // Custom InputTypes
+  /**
+   * KeyValue findUnique
+   */
+  export type KeyValueFindUniqueArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the KeyValue
+     */
+    select?: KeyValueSelect<ExtArgs> | null
+    /**
+     * Filter, which KeyValue to fetch.
+     */
+    where: KeyValueWhereUniqueInput
+  }
+
+  /**
+   * KeyValue findUniqueOrThrow
+   */
+  export type KeyValueFindUniqueOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the KeyValue
+     */
+    select?: KeyValueSelect<ExtArgs> | null
+    /**
+     * Filter, which KeyValue to fetch.
+     */
+    where: KeyValueWhereUniqueInput
+  }
+
+  /**
+   * KeyValue findFirst
+   */
+  export type KeyValueFindFirstArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the KeyValue
+     */
+    select?: KeyValueSelect<ExtArgs> | null
+    /**
+     * Filter, which KeyValue to fetch.
+     */
+    where?: KeyValueWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of KeyValues to fetch.
+     */
+    orderBy?: KeyValueOrderByWithRelationInput | KeyValueOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for KeyValues.
+     */
+    cursor?: KeyValueWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` KeyValues from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` KeyValues.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of KeyValues.
+     */
+    distinct?: KeyValueScalarFieldEnum | KeyValueScalarFieldEnum[]
+  }
+
+  /**
+   * KeyValue findFirstOrThrow
+   */
+  export type KeyValueFindFirstOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the KeyValue
+     */
+    select?: KeyValueSelect<ExtArgs> | null
+    /**
+     * Filter, which KeyValue to fetch.
+     */
+    where?: KeyValueWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of KeyValues to fetch.
+     */
+    orderBy?: KeyValueOrderByWithRelationInput | KeyValueOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for KeyValues.
+     */
+    cursor?: KeyValueWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` KeyValues from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` KeyValues.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of KeyValues.
+     */
+    distinct?: KeyValueScalarFieldEnum | KeyValueScalarFieldEnum[]
+  }
+
+  /**
+   * KeyValue findMany
+   */
+  export type KeyValueFindManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the KeyValue
+     */
+    select?: KeyValueSelect<ExtArgs> | null
+    /**
+     * Filter, which KeyValues to fetch.
+     */
+    where?: KeyValueWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of KeyValues to fetch.
+     */
+    orderBy?: KeyValueOrderByWithRelationInput | KeyValueOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for listing KeyValues.
+     */
+    cursor?: KeyValueWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` KeyValues from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` KeyValues.
+     */
+    skip?: number
+    distinct?: KeyValueScalarFieldEnum | KeyValueScalarFieldEnum[]
+  }
+
+  /**
+   * KeyValue create
+   */
+  export type KeyValueCreateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the KeyValue
+     */
+    select?: KeyValueSelect<ExtArgs> | null
+    /**
+     * The data needed to create a KeyValue.
+     */
+    data: XOR<KeyValueCreateInput, KeyValueUncheckedCreateInput>
+  }
+
+  /**
+   * KeyValue createMany
+   */
+  export type KeyValueCreateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to create many KeyValues.
+     */
+    data: KeyValueCreateManyInput | KeyValueCreateManyInput[]
+  }
+
+  /**
+   * KeyValue createManyAndReturn
+   */
+  export type KeyValueCreateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the KeyValue
+     */
+    select?: KeyValueSelectCreateManyAndReturn<ExtArgs> | null
+    /**
+     * The data used to create many KeyValues.
+     */
+    data: KeyValueCreateManyInput | KeyValueCreateManyInput[]
+  }
+
+  /**
+   * KeyValue update
+   */
+  export type KeyValueUpdateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the KeyValue
+     */
+    select?: KeyValueSelect<ExtArgs> | null
+    /**
+     * The data needed to update a KeyValue.
+     */
+    data: XOR<KeyValueUpdateInput, KeyValueUncheckedUpdateInput>
+    /**
+     * Choose, which KeyValue to update.
+     */
+    where: KeyValueWhereUniqueInput
+  }
+
+  /**
+   * KeyValue updateMany
+   */
+  export type KeyValueUpdateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to update KeyValues.
+     */
+    data: XOR<KeyValueUpdateManyMutationInput, KeyValueUncheckedUpdateManyInput>
+    /**
+     * Filter which KeyValues to update
+     */
+    where?: KeyValueWhereInput
+  }
+
+  /**
+   * KeyValue upsert
+   */
+  export type KeyValueUpsertArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the KeyValue
+     */
+    select?: KeyValueSelect<ExtArgs> | null
+    /**
+     * The filter to search for the KeyValue to update in case it exists.
+     */
+    where: KeyValueWhereUniqueInput
+    /**
+     * In case the KeyValue found by the `where` argument doesn't exist, create a new KeyValue with this data.
+     */
+    create: XOR<KeyValueCreateInput, KeyValueUncheckedCreateInput>
+    /**
+     * In case the KeyValue was found with the provided `where` argument, update it with this data.
+     */
+    update: XOR<KeyValueUpdateInput, KeyValueUncheckedUpdateInput>
+  }
+
+  /**
+   * KeyValue delete
+   */
+  export type KeyValueDeleteArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the KeyValue
+     */
+    select?: KeyValueSelect<ExtArgs> | null
+    /**
+     * Filter which KeyValue to delete.
+     */
+    where: KeyValueWhereUniqueInput
+  }
+
+  /**
+   * KeyValue deleteMany
+   */
+  export type KeyValueDeleteManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which KeyValues to delete
+     */
+    where?: KeyValueWhereInput
+  }
+
+  /**
+   * KeyValue without action
+   */
+  export type KeyValueDefaultArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the KeyValue
+     */
+    select?: KeyValueSelect<ExtArgs> | null
   }
 
 
@@ -9956,36 +8761,10 @@ export namespace Prisma {
   export type ImageScalarFieldEnum = (typeof ImageScalarFieldEnum)[keyof typeof ImageScalarFieldEnum]
 
 
-  export const StripeCustomerScalarFieldEnum: {
-    id: 'id',
-    userId: 'userId',
-    email: 'email',
-    name: 'name',
-    createdAt: 'createdAt',
-    updatedAt: 'updatedAt'
-  };
-
-  export type StripeCustomerScalarFieldEnum = (typeof StripeCustomerScalarFieldEnum)[keyof typeof StripeCustomerScalarFieldEnum]
-
-
-  export const StripeSubscriptionScalarFieldEnum: {
-    id: 'id',
-    userId: 'userId',
-    stripeCustomerId: 'stripeCustomerId',
-    status: 'status',
-    priceId: 'priceId',
-    currentPeriodEnd: 'currentPeriodEnd',
-    cancelAtPeriodEnd: 'cancelAtPeriodEnd',
-    createdAt: 'createdAt',
-    updatedAt: 'updatedAt'
-  };
-
-  export type StripeSubscriptionScalarFieldEnum = (typeof StripeSubscriptionScalarFieldEnum)[keyof typeof StripeSubscriptionScalarFieldEnum]
-
-
   export const UserScalarFieldEnum: {
     id: 'id',
     clerkUserId: 'clerkUserId',
+    stripeCustomerId: 'stripeCustomerId',
     email: 'email',
     username: 'username',
     role: 'role',
@@ -9994,6 +8773,16 @@ export namespace Prisma {
   };
 
   export type UserScalarFieldEnum = (typeof UserScalarFieldEnum)[keyof typeof UserScalarFieldEnum]
+
+
+  export const KeyValueScalarFieldEnum: {
+    key: 'key',
+    value: 'value',
+    createdAt: 'createdAt',
+    updatedAt: 'updatedAt'
+  };
+
+  export type KeyValueScalarFieldEnum = (typeof KeyValueScalarFieldEnum)[keyof typeof KeyValueScalarFieldEnum]
 
 
   export const SortOrder: {
@@ -10042,13 +8831,6 @@ export namespace Prisma {
    * Reference to a field of type 'Int'
    */
   export type IntFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Int'>
-    
-
-
-  /**
-   * Reference to a field of type 'Boolean'
-   */
-  export type BooleanFieldRefInput<$PrismaModel> = FieldRefInputType<$PrismaModel, 'Boolean'>
     
   /**
    * Deep Input Types
@@ -10502,153 +9284,13 @@ export namespace Prisma {
     listingId?: StringNullableWithAggregatesFilter<"Image"> | string | null
   }
 
-  export type StripeCustomerWhereInput = {
-    AND?: StripeCustomerWhereInput | StripeCustomerWhereInput[]
-    OR?: StripeCustomerWhereInput[]
-    NOT?: StripeCustomerWhereInput | StripeCustomerWhereInput[]
-    id?: StringFilter<"StripeCustomer"> | string
-    userId?: StringFilter<"StripeCustomer"> | string
-    email?: StringFilter<"StripeCustomer"> | string
-    name?: StringFilter<"StripeCustomer"> | string
-    createdAt?: DateTimeFilter<"StripeCustomer"> | Date | string
-    updatedAt?: DateTimeFilter<"StripeCustomer"> | Date | string
-    user?: XOR<UserRelationFilter, UserWhereInput>
-    stripeSubscription?: XOR<StripeSubscriptionNullableRelationFilter, StripeSubscriptionWhereInput> | null
-  }
-
-  export type StripeCustomerOrderByWithRelationInput = {
-    id?: SortOrder
-    userId?: SortOrder
-    email?: SortOrder
-    name?: SortOrder
-    createdAt?: SortOrder
-    updatedAt?: SortOrder
-    user?: UserOrderByWithRelationInput
-    stripeSubscription?: StripeSubscriptionOrderByWithRelationInput
-  }
-
-  export type StripeCustomerWhereUniqueInput = Prisma.AtLeast<{
-    id?: string
-    userId?: string
-    AND?: StripeCustomerWhereInput | StripeCustomerWhereInput[]
-    OR?: StripeCustomerWhereInput[]
-    NOT?: StripeCustomerWhereInput | StripeCustomerWhereInput[]
-    email?: StringFilter<"StripeCustomer"> | string
-    name?: StringFilter<"StripeCustomer"> | string
-    createdAt?: DateTimeFilter<"StripeCustomer"> | Date | string
-    updatedAt?: DateTimeFilter<"StripeCustomer"> | Date | string
-    user?: XOR<UserRelationFilter, UserWhereInput>
-    stripeSubscription?: XOR<StripeSubscriptionNullableRelationFilter, StripeSubscriptionWhereInput> | null
-  }, "id" | "userId">
-
-  export type StripeCustomerOrderByWithAggregationInput = {
-    id?: SortOrder
-    userId?: SortOrder
-    email?: SortOrder
-    name?: SortOrder
-    createdAt?: SortOrder
-    updatedAt?: SortOrder
-    _count?: StripeCustomerCountOrderByAggregateInput
-    _max?: StripeCustomerMaxOrderByAggregateInput
-    _min?: StripeCustomerMinOrderByAggregateInput
-  }
-
-  export type StripeCustomerScalarWhereWithAggregatesInput = {
-    AND?: StripeCustomerScalarWhereWithAggregatesInput | StripeCustomerScalarWhereWithAggregatesInput[]
-    OR?: StripeCustomerScalarWhereWithAggregatesInput[]
-    NOT?: StripeCustomerScalarWhereWithAggregatesInput | StripeCustomerScalarWhereWithAggregatesInput[]
-    id?: StringWithAggregatesFilter<"StripeCustomer"> | string
-    userId?: StringWithAggregatesFilter<"StripeCustomer"> | string
-    email?: StringWithAggregatesFilter<"StripeCustomer"> | string
-    name?: StringWithAggregatesFilter<"StripeCustomer"> | string
-    createdAt?: DateTimeWithAggregatesFilter<"StripeCustomer"> | Date | string
-    updatedAt?: DateTimeWithAggregatesFilter<"StripeCustomer"> | Date | string
-  }
-
-  export type StripeSubscriptionWhereInput = {
-    AND?: StripeSubscriptionWhereInput | StripeSubscriptionWhereInput[]
-    OR?: StripeSubscriptionWhereInput[]
-    NOT?: StripeSubscriptionWhereInput | StripeSubscriptionWhereInput[]
-    id?: StringFilter<"StripeSubscription"> | string
-    userId?: StringFilter<"StripeSubscription"> | string
-    stripeCustomerId?: StringFilter<"StripeSubscription"> | string
-    status?: StringFilter<"StripeSubscription"> | string
-    priceId?: StringFilter<"StripeSubscription"> | string
-    currentPeriodEnd?: DateTimeFilter<"StripeSubscription"> | Date | string
-    cancelAtPeriodEnd?: BoolFilter<"StripeSubscription"> | boolean
-    createdAt?: DateTimeFilter<"StripeSubscription"> | Date | string
-    updatedAt?: DateTimeFilter<"StripeSubscription"> | Date | string
-    customer?: XOR<StripeCustomerRelationFilter, StripeCustomerWhereInput>
-    user?: XOR<UserRelationFilter, UserWhereInput>
-  }
-
-  export type StripeSubscriptionOrderByWithRelationInput = {
-    id?: SortOrder
-    userId?: SortOrder
-    stripeCustomerId?: SortOrder
-    status?: SortOrder
-    priceId?: SortOrder
-    currentPeriodEnd?: SortOrder
-    cancelAtPeriodEnd?: SortOrder
-    createdAt?: SortOrder
-    updatedAt?: SortOrder
-    customer?: StripeCustomerOrderByWithRelationInput
-    user?: UserOrderByWithRelationInput
-  }
-
-  export type StripeSubscriptionWhereUniqueInput = Prisma.AtLeast<{
-    id?: string
-    userId?: string
-    stripeCustomerId?: string
-    AND?: StripeSubscriptionWhereInput | StripeSubscriptionWhereInput[]
-    OR?: StripeSubscriptionWhereInput[]
-    NOT?: StripeSubscriptionWhereInput | StripeSubscriptionWhereInput[]
-    status?: StringFilter<"StripeSubscription"> | string
-    priceId?: StringFilter<"StripeSubscription"> | string
-    currentPeriodEnd?: DateTimeFilter<"StripeSubscription"> | Date | string
-    cancelAtPeriodEnd?: BoolFilter<"StripeSubscription"> | boolean
-    createdAt?: DateTimeFilter<"StripeSubscription"> | Date | string
-    updatedAt?: DateTimeFilter<"StripeSubscription"> | Date | string
-    customer?: XOR<StripeCustomerRelationFilter, StripeCustomerWhereInput>
-    user?: XOR<UserRelationFilter, UserWhereInput>
-  }, "id" | "userId" | "stripeCustomerId">
-
-  export type StripeSubscriptionOrderByWithAggregationInput = {
-    id?: SortOrder
-    userId?: SortOrder
-    stripeCustomerId?: SortOrder
-    status?: SortOrder
-    priceId?: SortOrder
-    currentPeriodEnd?: SortOrder
-    cancelAtPeriodEnd?: SortOrder
-    createdAt?: SortOrder
-    updatedAt?: SortOrder
-    _count?: StripeSubscriptionCountOrderByAggregateInput
-    _max?: StripeSubscriptionMaxOrderByAggregateInput
-    _min?: StripeSubscriptionMinOrderByAggregateInput
-  }
-
-  export type StripeSubscriptionScalarWhereWithAggregatesInput = {
-    AND?: StripeSubscriptionScalarWhereWithAggregatesInput | StripeSubscriptionScalarWhereWithAggregatesInput[]
-    OR?: StripeSubscriptionScalarWhereWithAggregatesInput[]
-    NOT?: StripeSubscriptionScalarWhereWithAggregatesInput | StripeSubscriptionScalarWhereWithAggregatesInput[]
-    id?: StringWithAggregatesFilter<"StripeSubscription"> | string
-    userId?: StringWithAggregatesFilter<"StripeSubscription"> | string
-    stripeCustomerId?: StringWithAggregatesFilter<"StripeSubscription"> | string
-    status?: StringWithAggregatesFilter<"StripeSubscription"> | string
-    priceId?: StringWithAggregatesFilter<"StripeSubscription"> | string
-    currentPeriodEnd?: DateTimeWithAggregatesFilter<"StripeSubscription"> | Date | string
-    cancelAtPeriodEnd?: BoolWithAggregatesFilter<"StripeSubscription"> | boolean
-    createdAt?: DateTimeWithAggregatesFilter<"StripeSubscription"> | Date | string
-    updatedAt?: DateTimeWithAggregatesFilter<"StripeSubscription"> | Date | string
-  }
-
   export type UserWhereInput = {
     AND?: UserWhereInput | UserWhereInput[]
     OR?: UserWhereInput[]
     NOT?: UserWhereInput | UserWhereInput[]
     id?: StringFilter<"User"> | string
     clerkUserId?: StringNullableFilter<"User"> | string | null
+    stripeCustomerId?: StringNullableFilter<"User"> | string | null
     email?: StringFilter<"User"> | string
     username?: StringFilter<"User"> | string
     role?: StringNullableFilter<"User"> | string | null
@@ -10656,14 +9298,13 @@ export namespace Prisma {
     updatedAt?: DateTimeFilter<"User"> | Date | string
     listings?: ListingListRelationFilter
     lists?: ListListRelationFilter
-    stripeCustomer?: XOR<StripeCustomerNullableRelationFilter, StripeCustomerWhereInput> | null
-    stripeSubscription?: XOR<StripeSubscriptionNullableRelationFilter, StripeSubscriptionWhereInput> | null
     profile?: XOR<UserProfileNullableRelationFilter, UserProfileWhereInput> | null
   }
 
   export type UserOrderByWithRelationInput = {
     id?: SortOrder
     clerkUserId?: SortOrderInput | SortOrder
+    stripeCustomerId?: SortOrderInput | SortOrder
     email?: SortOrder
     username?: SortOrder
     role?: SortOrderInput | SortOrder
@@ -10671,14 +9312,13 @@ export namespace Prisma {
     updatedAt?: SortOrder
     listings?: ListingOrderByRelationAggregateInput
     lists?: ListOrderByRelationAggregateInput
-    stripeCustomer?: StripeCustomerOrderByWithRelationInput
-    stripeSubscription?: StripeSubscriptionOrderByWithRelationInput
     profile?: UserProfileOrderByWithRelationInput
   }
 
   export type UserWhereUniqueInput = Prisma.AtLeast<{
     id?: string
     clerkUserId?: string
+    stripeCustomerId?: string
     email?: string
     username?: string
     AND?: UserWhereInput | UserWhereInput[]
@@ -10689,14 +9329,13 @@ export namespace Prisma {
     updatedAt?: DateTimeFilter<"User"> | Date | string
     listings?: ListingListRelationFilter
     lists?: ListListRelationFilter
-    stripeCustomer?: XOR<StripeCustomerNullableRelationFilter, StripeCustomerWhereInput> | null
-    stripeSubscription?: XOR<StripeSubscriptionNullableRelationFilter, StripeSubscriptionWhereInput> | null
     profile?: XOR<UserProfileNullableRelationFilter, UserProfileWhereInput> | null
-  }, "id" | "clerkUserId" | "email" | "username">
+  }, "id" | "clerkUserId" | "stripeCustomerId" | "email" | "username">
 
   export type UserOrderByWithAggregationInput = {
     id?: SortOrder
     clerkUserId?: SortOrderInput | SortOrder
+    stripeCustomerId?: SortOrderInput | SortOrder
     email?: SortOrder
     username?: SortOrder
     role?: SortOrderInput | SortOrder
@@ -10713,11 +9352,59 @@ export namespace Prisma {
     NOT?: UserScalarWhereWithAggregatesInput | UserScalarWhereWithAggregatesInput[]
     id?: StringWithAggregatesFilter<"User"> | string
     clerkUserId?: StringNullableWithAggregatesFilter<"User"> | string | null
+    stripeCustomerId?: StringNullableWithAggregatesFilter<"User"> | string | null
     email?: StringWithAggregatesFilter<"User"> | string
     username?: StringWithAggregatesFilter<"User"> | string
     role?: StringNullableWithAggregatesFilter<"User"> | string | null
     createdAt?: DateTimeWithAggregatesFilter<"User"> | Date | string
     updatedAt?: DateTimeWithAggregatesFilter<"User"> | Date | string
+  }
+
+  export type KeyValueWhereInput = {
+    AND?: KeyValueWhereInput | KeyValueWhereInput[]
+    OR?: KeyValueWhereInput[]
+    NOT?: KeyValueWhereInput | KeyValueWhereInput[]
+    key?: StringFilter<"KeyValue"> | string
+    value?: StringFilter<"KeyValue"> | string
+    createdAt?: DateTimeFilter<"KeyValue"> | Date | string
+    updatedAt?: DateTimeFilter<"KeyValue"> | Date | string
+  }
+
+  export type KeyValueOrderByWithRelationInput = {
+    key?: SortOrder
+    value?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+  }
+
+  export type KeyValueWhereUniqueInput = Prisma.AtLeast<{
+    key?: string
+    AND?: KeyValueWhereInput | KeyValueWhereInput[]
+    OR?: KeyValueWhereInput[]
+    NOT?: KeyValueWhereInput | KeyValueWhereInput[]
+    value?: StringFilter<"KeyValue"> | string
+    createdAt?: DateTimeFilter<"KeyValue"> | Date | string
+    updatedAt?: DateTimeFilter<"KeyValue"> | Date | string
+  }, "key">
+
+  export type KeyValueOrderByWithAggregationInput = {
+    key?: SortOrder
+    value?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+    _count?: KeyValueCountOrderByAggregateInput
+    _max?: KeyValueMaxOrderByAggregateInput
+    _min?: KeyValueMinOrderByAggregateInput
+  }
+
+  export type KeyValueScalarWhereWithAggregatesInput = {
+    AND?: KeyValueScalarWhereWithAggregatesInput | KeyValueScalarWhereWithAggregatesInput[]
+    OR?: KeyValueScalarWhereWithAggregatesInput[]
+    NOT?: KeyValueScalarWhereWithAggregatesInput | KeyValueScalarWhereWithAggregatesInput[]
+    key?: StringWithAggregatesFilter<"KeyValue"> | string
+    value?: StringWithAggregatesFilter<"KeyValue"> | string
+    createdAt?: DateTimeWithAggregatesFilter<"KeyValue"> | Date | string
+    updatedAt?: DateTimeWithAggregatesFilter<"KeyValue"> | Date | string
   }
 
   export type AhsListingCreateInput = {
@@ -11219,157 +9906,10 @@ export namespace Prisma {
     listingId?: NullableStringFieldUpdateOperationsInput | string | null
   }
 
-  export type StripeCustomerCreateInput = {
-    id: string
-    email: string
-    name: string
-    createdAt?: Date | string
-    updatedAt?: Date | string
-    user: UserCreateNestedOneWithoutStripeCustomerInput
-    stripeSubscription?: StripeSubscriptionCreateNestedOneWithoutCustomerInput
-  }
-
-  export type StripeCustomerUncheckedCreateInput = {
-    id: string
-    userId: string
-    email: string
-    name: string
-    createdAt?: Date | string
-    updatedAt?: Date | string
-    stripeSubscription?: StripeSubscriptionUncheckedCreateNestedOneWithoutCustomerInput
-  }
-
-  export type StripeCustomerUpdateInput = {
-    id?: StringFieldUpdateOperationsInput | string
-    email?: StringFieldUpdateOperationsInput | string
-    name?: StringFieldUpdateOperationsInput | string
-    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
-    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
-    user?: UserUpdateOneRequiredWithoutStripeCustomerNestedInput
-    stripeSubscription?: StripeSubscriptionUpdateOneWithoutCustomerNestedInput
-  }
-
-  export type StripeCustomerUncheckedUpdateInput = {
-    id?: StringFieldUpdateOperationsInput | string
-    userId?: StringFieldUpdateOperationsInput | string
-    email?: StringFieldUpdateOperationsInput | string
-    name?: StringFieldUpdateOperationsInput | string
-    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
-    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
-    stripeSubscription?: StripeSubscriptionUncheckedUpdateOneWithoutCustomerNestedInput
-  }
-
-  export type StripeCustomerCreateManyInput = {
-    id: string
-    userId: string
-    email: string
-    name: string
-    createdAt?: Date | string
-    updatedAt?: Date | string
-  }
-
-  export type StripeCustomerUpdateManyMutationInput = {
-    id?: StringFieldUpdateOperationsInput | string
-    email?: StringFieldUpdateOperationsInput | string
-    name?: StringFieldUpdateOperationsInput | string
-    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
-    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
-  }
-
-  export type StripeCustomerUncheckedUpdateManyInput = {
-    id?: StringFieldUpdateOperationsInput | string
-    userId?: StringFieldUpdateOperationsInput | string
-    email?: StringFieldUpdateOperationsInput | string
-    name?: StringFieldUpdateOperationsInput | string
-    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
-    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
-  }
-
-  export type StripeSubscriptionCreateInput = {
-    id: string
-    status: string
-    priceId: string
-    currentPeriodEnd: Date | string
-    cancelAtPeriodEnd?: boolean
-    createdAt?: Date | string
-    updatedAt?: Date | string
-    customer: StripeCustomerCreateNestedOneWithoutStripeSubscriptionInput
-    user: UserCreateNestedOneWithoutStripeSubscriptionInput
-  }
-
-  export type StripeSubscriptionUncheckedCreateInput = {
-    id: string
-    userId: string
-    stripeCustomerId: string
-    status: string
-    priceId: string
-    currentPeriodEnd: Date | string
-    cancelAtPeriodEnd?: boolean
-    createdAt?: Date | string
-    updatedAt?: Date | string
-  }
-
-  export type StripeSubscriptionUpdateInput = {
-    id?: StringFieldUpdateOperationsInput | string
-    status?: StringFieldUpdateOperationsInput | string
-    priceId?: StringFieldUpdateOperationsInput | string
-    currentPeriodEnd?: DateTimeFieldUpdateOperationsInput | Date | string
-    cancelAtPeriodEnd?: BoolFieldUpdateOperationsInput | boolean
-    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
-    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
-    customer?: StripeCustomerUpdateOneRequiredWithoutStripeSubscriptionNestedInput
-    user?: UserUpdateOneRequiredWithoutStripeSubscriptionNestedInput
-  }
-
-  export type StripeSubscriptionUncheckedUpdateInput = {
-    id?: StringFieldUpdateOperationsInput | string
-    userId?: StringFieldUpdateOperationsInput | string
-    stripeCustomerId?: StringFieldUpdateOperationsInput | string
-    status?: StringFieldUpdateOperationsInput | string
-    priceId?: StringFieldUpdateOperationsInput | string
-    currentPeriodEnd?: DateTimeFieldUpdateOperationsInput | Date | string
-    cancelAtPeriodEnd?: BoolFieldUpdateOperationsInput | boolean
-    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
-    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
-  }
-
-  export type StripeSubscriptionCreateManyInput = {
-    id: string
-    userId: string
-    stripeCustomerId: string
-    status: string
-    priceId: string
-    currentPeriodEnd: Date | string
-    cancelAtPeriodEnd?: boolean
-    createdAt?: Date | string
-    updatedAt?: Date | string
-  }
-
-  export type StripeSubscriptionUpdateManyMutationInput = {
-    id?: StringFieldUpdateOperationsInput | string
-    status?: StringFieldUpdateOperationsInput | string
-    priceId?: StringFieldUpdateOperationsInput | string
-    currentPeriodEnd?: DateTimeFieldUpdateOperationsInput | Date | string
-    cancelAtPeriodEnd?: BoolFieldUpdateOperationsInput | boolean
-    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
-    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
-  }
-
-  export type StripeSubscriptionUncheckedUpdateManyInput = {
-    id?: StringFieldUpdateOperationsInput | string
-    userId?: StringFieldUpdateOperationsInput | string
-    stripeCustomerId?: StringFieldUpdateOperationsInput | string
-    status?: StringFieldUpdateOperationsInput | string
-    priceId?: StringFieldUpdateOperationsInput | string
-    currentPeriodEnd?: DateTimeFieldUpdateOperationsInput | Date | string
-    cancelAtPeriodEnd?: BoolFieldUpdateOperationsInput | boolean
-    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
-    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
-  }
-
   export type UserCreateInput = {
     id?: string
     clerkUserId?: string | null
+    stripeCustomerId?: string | null
     email: string
     username: string
     role?: string | null
@@ -11377,14 +9917,13 @@ export namespace Prisma {
     updatedAt?: Date | string
     listings?: ListingCreateNestedManyWithoutUserInput
     lists?: ListCreateNestedManyWithoutUserInput
-    stripeCustomer?: StripeCustomerCreateNestedOneWithoutUserInput
-    stripeSubscription?: StripeSubscriptionCreateNestedOneWithoutUserInput
     profile?: UserProfileCreateNestedOneWithoutUserInput
   }
 
   export type UserUncheckedCreateInput = {
     id?: string
     clerkUserId?: string | null
+    stripeCustomerId?: string | null
     email: string
     username: string
     role?: string | null
@@ -11392,14 +9931,13 @@ export namespace Prisma {
     updatedAt?: Date | string
     listings?: ListingUncheckedCreateNestedManyWithoutUserInput
     lists?: ListUncheckedCreateNestedManyWithoutUserInput
-    stripeCustomer?: StripeCustomerUncheckedCreateNestedOneWithoutUserInput
-    stripeSubscription?: StripeSubscriptionUncheckedCreateNestedOneWithoutUserInput
     profile?: UserProfileUncheckedCreateNestedOneWithoutUserInput
   }
 
   export type UserUpdateInput = {
     id?: StringFieldUpdateOperationsInput | string
     clerkUserId?: NullableStringFieldUpdateOperationsInput | string | null
+    stripeCustomerId?: NullableStringFieldUpdateOperationsInput | string | null
     email?: StringFieldUpdateOperationsInput | string
     username?: StringFieldUpdateOperationsInput | string
     role?: NullableStringFieldUpdateOperationsInput | string | null
@@ -11407,14 +9945,13 @@ export namespace Prisma {
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     listings?: ListingUpdateManyWithoutUserNestedInput
     lists?: ListUpdateManyWithoutUserNestedInput
-    stripeCustomer?: StripeCustomerUpdateOneWithoutUserNestedInput
-    stripeSubscription?: StripeSubscriptionUpdateOneWithoutUserNestedInput
     profile?: UserProfileUpdateOneWithoutUserNestedInput
   }
 
   export type UserUncheckedUpdateInput = {
     id?: StringFieldUpdateOperationsInput | string
     clerkUserId?: NullableStringFieldUpdateOperationsInput | string | null
+    stripeCustomerId?: NullableStringFieldUpdateOperationsInput | string | null
     email?: StringFieldUpdateOperationsInput | string
     username?: StringFieldUpdateOperationsInput | string
     role?: NullableStringFieldUpdateOperationsInput | string | null
@@ -11422,14 +9959,13 @@ export namespace Prisma {
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     listings?: ListingUncheckedUpdateManyWithoutUserNestedInput
     lists?: ListUncheckedUpdateManyWithoutUserNestedInput
-    stripeCustomer?: StripeCustomerUncheckedUpdateOneWithoutUserNestedInput
-    stripeSubscription?: StripeSubscriptionUncheckedUpdateOneWithoutUserNestedInput
     profile?: UserProfileUncheckedUpdateOneWithoutUserNestedInput
   }
 
   export type UserCreateManyInput = {
     id?: string
     clerkUserId?: string | null
+    stripeCustomerId?: string | null
     email: string
     username: string
     role?: string | null
@@ -11440,6 +9976,7 @@ export namespace Prisma {
   export type UserUpdateManyMutationInput = {
     id?: StringFieldUpdateOperationsInput | string
     clerkUserId?: NullableStringFieldUpdateOperationsInput | string | null
+    stripeCustomerId?: NullableStringFieldUpdateOperationsInput | string | null
     email?: StringFieldUpdateOperationsInput | string
     username?: StringFieldUpdateOperationsInput | string
     role?: NullableStringFieldUpdateOperationsInput | string | null
@@ -11450,9 +9987,59 @@ export namespace Prisma {
   export type UserUncheckedUpdateManyInput = {
     id?: StringFieldUpdateOperationsInput | string
     clerkUserId?: NullableStringFieldUpdateOperationsInput | string | null
+    stripeCustomerId?: NullableStringFieldUpdateOperationsInput | string | null
     email?: StringFieldUpdateOperationsInput | string
     username?: StringFieldUpdateOperationsInput | string
     role?: NullableStringFieldUpdateOperationsInput | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type KeyValueCreateInput = {
+    key: string
+    value: string
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
+  export type KeyValueUncheckedCreateInput = {
+    key: string
+    value: string
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
+  export type KeyValueUpdateInput = {
+    key?: StringFieldUpdateOperationsInput | string
+    value?: StringFieldUpdateOperationsInput | string
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type KeyValueUncheckedUpdateInput = {
+    key?: StringFieldUpdateOperationsInput | string
+    value?: StringFieldUpdateOperationsInput | string
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type KeyValueCreateManyInput = {
+    key: string
+    value: string
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
+  export type KeyValueUpdateManyMutationInput = {
+    key?: StringFieldUpdateOperationsInput | string
+    value?: StringFieldUpdateOperationsInput | string
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type KeyValueUncheckedUpdateManyInput = {
+    key?: StringFieldUpdateOperationsInput | string
+    value?: StringFieldUpdateOperationsInput | string
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
@@ -11874,101 +10461,10 @@ export namespace Prisma {
     _max?: NestedIntFilter<$PrismaModel>
   }
 
-  export type StripeSubscriptionNullableRelationFilter = {
-    is?: StripeSubscriptionWhereInput | null
-    isNot?: StripeSubscriptionWhereInput | null
-  }
-
-  export type StripeCustomerCountOrderByAggregateInput = {
-    id?: SortOrder
-    userId?: SortOrder
-    email?: SortOrder
-    name?: SortOrder
-    createdAt?: SortOrder
-    updatedAt?: SortOrder
-  }
-
-  export type StripeCustomerMaxOrderByAggregateInput = {
-    id?: SortOrder
-    userId?: SortOrder
-    email?: SortOrder
-    name?: SortOrder
-    createdAt?: SortOrder
-    updatedAt?: SortOrder
-  }
-
-  export type StripeCustomerMinOrderByAggregateInput = {
-    id?: SortOrder
-    userId?: SortOrder
-    email?: SortOrder
-    name?: SortOrder
-    createdAt?: SortOrder
-    updatedAt?: SortOrder
-  }
-
-  export type BoolFilter<$PrismaModel = never> = {
-    equals?: boolean | BooleanFieldRefInput<$PrismaModel>
-    not?: NestedBoolFilter<$PrismaModel> | boolean
-  }
-
-  export type StripeCustomerRelationFilter = {
-    is?: StripeCustomerWhereInput
-    isNot?: StripeCustomerWhereInput
-  }
-
-  export type StripeSubscriptionCountOrderByAggregateInput = {
-    id?: SortOrder
-    userId?: SortOrder
-    stripeCustomerId?: SortOrder
-    status?: SortOrder
-    priceId?: SortOrder
-    currentPeriodEnd?: SortOrder
-    cancelAtPeriodEnd?: SortOrder
-    createdAt?: SortOrder
-    updatedAt?: SortOrder
-  }
-
-  export type StripeSubscriptionMaxOrderByAggregateInput = {
-    id?: SortOrder
-    userId?: SortOrder
-    stripeCustomerId?: SortOrder
-    status?: SortOrder
-    priceId?: SortOrder
-    currentPeriodEnd?: SortOrder
-    cancelAtPeriodEnd?: SortOrder
-    createdAt?: SortOrder
-    updatedAt?: SortOrder
-  }
-
-  export type StripeSubscriptionMinOrderByAggregateInput = {
-    id?: SortOrder
-    userId?: SortOrder
-    stripeCustomerId?: SortOrder
-    status?: SortOrder
-    priceId?: SortOrder
-    currentPeriodEnd?: SortOrder
-    cancelAtPeriodEnd?: SortOrder
-    createdAt?: SortOrder
-    updatedAt?: SortOrder
-  }
-
-  export type BoolWithAggregatesFilter<$PrismaModel = never> = {
-    equals?: boolean | BooleanFieldRefInput<$PrismaModel>
-    not?: NestedBoolWithAggregatesFilter<$PrismaModel> | boolean
-    _count?: NestedIntFilter<$PrismaModel>
-    _min?: NestedBoolFilter<$PrismaModel>
-    _max?: NestedBoolFilter<$PrismaModel>
-  }
-
   export type ListListRelationFilter = {
     every?: ListWhereInput
     some?: ListWhereInput
     none?: ListWhereInput
-  }
-
-  export type StripeCustomerNullableRelationFilter = {
-    is?: StripeCustomerWhereInput | null
-    isNot?: StripeCustomerWhereInput | null
   }
 
   export type ListOrderByRelationAggregateInput = {
@@ -11978,6 +10474,7 @@ export namespace Prisma {
   export type UserCountOrderByAggregateInput = {
     id?: SortOrder
     clerkUserId?: SortOrder
+    stripeCustomerId?: SortOrder
     email?: SortOrder
     username?: SortOrder
     role?: SortOrder
@@ -11988,6 +10485,7 @@ export namespace Prisma {
   export type UserMaxOrderByAggregateInput = {
     id?: SortOrder
     clerkUserId?: SortOrder
+    stripeCustomerId?: SortOrder
     email?: SortOrder
     username?: SortOrder
     role?: SortOrder
@@ -11998,9 +10496,31 @@ export namespace Prisma {
   export type UserMinOrderByAggregateInput = {
     id?: SortOrder
     clerkUserId?: SortOrder
+    stripeCustomerId?: SortOrder
     email?: SortOrder
     username?: SortOrder
     role?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+  }
+
+  export type KeyValueCountOrderByAggregateInput = {
+    key?: SortOrder
+    value?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+  }
+
+  export type KeyValueMaxOrderByAggregateInput = {
+    key?: SortOrder
+    value?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+  }
+
+  export type KeyValueMinOrderByAggregateInput = {
+    key?: SortOrder
+    value?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
   }
@@ -12307,84 +10827,6 @@ export namespace Prisma {
     update?: XOR<XOR<ListingUpdateToOneWithWhereWithoutImagesInput, ListingUpdateWithoutImagesInput>, ListingUncheckedUpdateWithoutImagesInput>
   }
 
-  export type UserCreateNestedOneWithoutStripeCustomerInput = {
-    create?: XOR<UserCreateWithoutStripeCustomerInput, UserUncheckedCreateWithoutStripeCustomerInput>
-    connectOrCreate?: UserCreateOrConnectWithoutStripeCustomerInput
-    connect?: UserWhereUniqueInput
-  }
-
-  export type StripeSubscriptionCreateNestedOneWithoutCustomerInput = {
-    create?: XOR<StripeSubscriptionCreateWithoutCustomerInput, StripeSubscriptionUncheckedCreateWithoutCustomerInput>
-    connectOrCreate?: StripeSubscriptionCreateOrConnectWithoutCustomerInput
-    connect?: StripeSubscriptionWhereUniqueInput
-  }
-
-  export type StripeSubscriptionUncheckedCreateNestedOneWithoutCustomerInput = {
-    create?: XOR<StripeSubscriptionCreateWithoutCustomerInput, StripeSubscriptionUncheckedCreateWithoutCustomerInput>
-    connectOrCreate?: StripeSubscriptionCreateOrConnectWithoutCustomerInput
-    connect?: StripeSubscriptionWhereUniqueInput
-  }
-
-  export type UserUpdateOneRequiredWithoutStripeCustomerNestedInput = {
-    create?: XOR<UserCreateWithoutStripeCustomerInput, UserUncheckedCreateWithoutStripeCustomerInput>
-    connectOrCreate?: UserCreateOrConnectWithoutStripeCustomerInput
-    upsert?: UserUpsertWithoutStripeCustomerInput
-    connect?: UserWhereUniqueInput
-    update?: XOR<XOR<UserUpdateToOneWithWhereWithoutStripeCustomerInput, UserUpdateWithoutStripeCustomerInput>, UserUncheckedUpdateWithoutStripeCustomerInput>
-  }
-
-  export type StripeSubscriptionUpdateOneWithoutCustomerNestedInput = {
-    create?: XOR<StripeSubscriptionCreateWithoutCustomerInput, StripeSubscriptionUncheckedCreateWithoutCustomerInput>
-    connectOrCreate?: StripeSubscriptionCreateOrConnectWithoutCustomerInput
-    upsert?: StripeSubscriptionUpsertWithoutCustomerInput
-    disconnect?: StripeSubscriptionWhereInput | boolean
-    delete?: StripeSubscriptionWhereInput | boolean
-    connect?: StripeSubscriptionWhereUniqueInput
-    update?: XOR<XOR<StripeSubscriptionUpdateToOneWithWhereWithoutCustomerInput, StripeSubscriptionUpdateWithoutCustomerInput>, StripeSubscriptionUncheckedUpdateWithoutCustomerInput>
-  }
-
-  export type StripeSubscriptionUncheckedUpdateOneWithoutCustomerNestedInput = {
-    create?: XOR<StripeSubscriptionCreateWithoutCustomerInput, StripeSubscriptionUncheckedCreateWithoutCustomerInput>
-    connectOrCreate?: StripeSubscriptionCreateOrConnectWithoutCustomerInput
-    upsert?: StripeSubscriptionUpsertWithoutCustomerInput
-    disconnect?: StripeSubscriptionWhereInput | boolean
-    delete?: StripeSubscriptionWhereInput | boolean
-    connect?: StripeSubscriptionWhereUniqueInput
-    update?: XOR<XOR<StripeSubscriptionUpdateToOneWithWhereWithoutCustomerInput, StripeSubscriptionUpdateWithoutCustomerInput>, StripeSubscriptionUncheckedUpdateWithoutCustomerInput>
-  }
-
-  export type StripeCustomerCreateNestedOneWithoutStripeSubscriptionInput = {
-    create?: XOR<StripeCustomerCreateWithoutStripeSubscriptionInput, StripeCustomerUncheckedCreateWithoutStripeSubscriptionInput>
-    connectOrCreate?: StripeCustomerCreateOrConnectWithoutStripeSubscriptionInput
-    connect?: StripeCustomerWhereUniqueInput
-  }
-
-  export type UserCreateNestedOneWithoutStripeSubscriptionInput = {
-    create?: XOR<UserCreateWithoutStripeSubscriptionInput, UserUncheckedCreateWithoutStripeSubscriptionInput>
-    connectOrCreate?: UserCreateOrConnectWithoutStripeSubscriptionInput
-    connect?: UserWhereUniqueInput
-  }
-
-  export type BoolFieldUpdateOperationsInput = {
-    set?: boolean
-  }
-
-  export type StripeCustomerUpdateOneRequiredWithoutStripeSubscriptionNestedInput = {
-    create?: XOR<StripeCustomerCreateWithoutStripeSubscriptionInput, StripeCustomerUncheckedCreateWithoutStripeSubscriptionInput>
-    connectOrCreate?: StripeCustomerCreateOrConnectWithoutStripeSubscriptionInput
-    upsert?: StripeCustomerUpsertWithoutStripeSubscriptionInput
-    connect?: StripeCustomerWhereUniqueInput
-    update?: XOR<XOR<StripeCustomerUpdateToOneWithWhereWithoutStripeSubscriptionInput, StripeCustomerUpdateWithoutStripeSubscriptionInput>, StripeCustomerUncheckedUpdateWithoutStripeSubscriptionInput>
-  }
-
-  export type UserUpdateOneRequiredWithoutStripeSubscriptionNestedInput = {
-    create?: XOR<UserCreateWithoutStripeSubscriptionInput, UserUncheckedCreateWithoutStripeSubscriptionInput>
-    connectOrCreate?: UserCreateOrConnectWithoutStripeSubscriptionInput
-    upsert?: UserUpsertWithoutStripeSubscriptionInput
-    connect?: UserWhereUniqueInput
-    update?: XOR<XOR<UserUpdateToOneWithWhereWithoutStripeSubscriptionInput, UserUpdateWithoutStripeSubscriptionInput>, UserUncheckedUpdateWithoutStripeSubscriptionInput>
-  }
-
   export type ListingCreateNestedManyWithoutUserInput = {
     create?: XOR<ListingCreateWithoutUserInput, ListingUncheckedCreateWithoutUserInput> | ListingCreateWithoutUserInput[] | ListingUncheckedCreateWithoutUserInput[]
     connectOrCreate?: ListingCreateOrConnectWithoutUserInput | ListingCreateOrConnectWithoutUserInput[]
@@ -12397,18 +10839,6 @@ export namespace Prisma {
     connectOrCreate?: ListCreateOrConnectWithoutUserInput | ListCreateOrConnectWithoutUserInput[]
     createMany?: ListCreateManyUserInputEnvelope
     connect?: ListWhereUniqueInput | ListWhereUniqueInput[]
-  }
-
-  export type StripeCustomerCreateNestedOneWithoutUserInput = {
-    create?: XOR<StripeCustomerCreateWithoutUserInput, StripeCustomerUncheckedCreateWithoutUserInput>
-    connectOrCreate?: StripeCustomerCreateOrConnectWithoutUserInput
-    connect?: StripeCustomerWhereUniqueInput
-  }
-
-  export type StripeSubscriptionCreateNestedOneWithoutUserInput = {
-    create?: XOR<StripeSubscriptionCreateWithoutUserInput, StripeSubscriptionUncheckedCreateWithoutUserInput>
-    connectOrCreate?: StripeSubscriptionCreateOrConnectWithoutUserInput
-    connect?: StripeSubscriptionWhereUniqueInput
   }
 
   export type UserProfileCreateNestedOneWithoutUserInput = {
@@ -12429,18 +10859,6 @@ export namespace Prisma {
     connectOrCreate?: ListCreateOrConnectWithoutUserInput | ListCreateOrConnectWithoutUserInput[]
     createMany?: ListCreateManyUserInputEnvelope
     connect?: ListWhereUniqueInput | ListWhereUniqueInput[]
-  }
-
-  export type StripeCustomerUncheckedCreateNestedOneWithoutUserInput = {
-    create?: XOR<StripeCustomerCreateWithoutUserInput, StripeCustomerUncheckedCreateWithoutUserInput>
-    connectOrCreate?: StripeCustomerCreateOrConnectWithoutUserInput
-    connect?: StripeCustomerWhereUniqueInput
-  }
-
-  export type StripeSubscriptionUncheckedCreateNestedOneWithoutUserInput = {
-    create?: XOR<StripeSubscriptionCreateWithoutUserInput, StripeSubscriptionUncheckedCreateWithoutUserInput>
-    connectOrCreate?: StripeSubscriptionCreateOrConnectWithoutUserInput
-    connect?: StripeSubscriptionWhereUniqueInput
   }
 
   export type UserProfileUncheckedCreateNestedOneWithoutUserInput = {
@@ -12475,26 +10893,6 @@ export namespace Prisma {
     update?: ListUpdateWithWhereUniqueWithoutUserInput | ListUpdateWithWhereUniqueWithoutUserInput[]
     updateMany?: ListUpdateManyWithWhereWithoutUserInput | ListUpdateManyWithWhereWithoutUserInput[]
     deleteMany?: ListScalarWhereInput | ListScalarWhereInput[]
-  }
-
-  export type StripeCustomerUpdateOneWithoutUserNestedInput = {
-    create?: XOR<StripeCustomerCreateWithoutUserInput, StripeCustomerUncheckedCreateWithoutUserInput>
-    connectOrCreate?: StripeCustomerCreateOrConnectWithoutUserInput
-    upsert?: StripeCustomerUpsertWithoutUserInput
-    disconnect?: StripeCustomerWhereInput | boolean
-    delete?: StripeCustomerWhereInput | boolean
-    connect?: StripeCustomerWhereUniqueInput
-    update?: XOR<XOR<StripeCustomerUpdateToOneWithWhereWithoutUserInput, StripeCustomerUpdateWithoutUserInput>, StripeCustomerUncheckedUpdateWithoutUserInput>
-  }
-
-  export type StripeSubscriptionUpdateOneWithoutUserNestedInput = {
-    create?: XOR<StripeSubscriptionCreateWithoutUserInput, StripeSubscriptionUncheckedCreateWithoutUserInput>
-    connectOrCreate?: StripeSubscriptionCreateOrConnectWithoutUserInput
-    upsert?: StripeSubscriptionUpsertWithoutUserInput
-    disconnect?: StripeSubscriptionWhereInput | boolean
-    delete?: StripeSubscriptionWhereInput | boolean
-    connect?: StripeSubscriptionWhereUniqueInput
-    update?: XOR<XOR<StripeSubscriptionUpdateToOneWithWhereWithoutUserInput, StripeSubscriptionUpdateWithoutUserInput>, StripeSubscriptionUncheckedUpdateWithoutUserInput>
   }
 
   export type UserProfileUpdateOneWithoutUserNestedInput = {
@@ -12533,26 +10931,6 @@ export namespace Prisma {
     update?: ListUpdateWithWhereUniqueWithoutUserInput | ListUpdateWithWhereUniqueWithoutUserInput[]
     updateMany?: ListUpdateManyWithWhereWithoutUserInput | ListUpdateManyWithWhereWithoutUserInput[]
     deleteMany?: ListScalarWhereInput | ListScalarWhereInput[]
-  }
-
-  export type StripeCustomerUncheckedUpdateOneWithoutUserNestedInput = {
-    create?: XOR<StripeCustomerCreateWithoutUserInput, StripeCustomerUncheckedCreateWithoutUserInput>
-    connectOrCreate?: StripeCustomerCreateOrConnectWithoutUserInput
-    upsert?: StripeCustomerUpsertWithoutUserInput
-    disconnect?: StripeCustomerWhereInput | boolean
-    delete?: StripeCustomerWhereInput | boolean
-    connect?: StripeCustomerWhereUniqueInput
-    update?: XOR<XOR<StripeCustomerUpdateToOneWithWhereWithoutUserInput, StripeCustomerUpdateWithoutUserInput>, StripeCustomerUncheckedUpdateWithoutUserInput>
-  }
-
-  export type StripeSubscriptionUncheckedUpdateOneWithoutUserNestedInput = {
-    create?: XOR<StripeSubscriptionCreateWithoutUserInput, StripeSubscriptionUncheckedCreateWithoutUserInput>
-    connectOrCreate?: StripeSubscriptionCreateOrConnectWithoutUserInput
-    upsert?: StripeSubscriptionUpsertWithoutUserInput
-    disconnect?: StripeSubscriptionWhereInput | boolean
-    delete?: StripeSubscriptionWhereInput | boolean
-    connect?: StripeSubscriptionWhereUniqueInput
-    update?: XOR<XOR<StripeSubscriptionUpdateToOneWithWhereWithoutUserInput, StripeSubscriptionUpdateWithoutUserInput>, StripeSubscriptionUncheckedUpdateWithoutUserInput>
   }
 
   export type UserProfileUncheckedUpdateOneWithoutUserNestedInput = {
@@ -12726,19 +11104,6 @@ export namespace Prisma {
     gt?: number | FloatFieldRefInput<$PrismaModel>
     gte?: number | FloatFieldRefInput<$PrismaModel>
     not?: NestedFloatFilter<$PrismaModel> | number
-  }
-
-  export type NestedBoolFilter<$PrismaModel = never> = {
-    equals?: boolean | BooleanFieldRefInput<$PrismaModel>
-    not?: NestedBoolFilter<$PrismaModel> | boolean
-  }
-
-  export type NestedBoolWithAggregatesFilter<$PrismaModel = never> = {
-    equals?: boolean | BooleanFieldRefInput<$PrismaModel>
-    not?: NestedBoolWithAggregatesFilter<$PrismaModel> | boolean
-    _count?: NestedIntFilter<$PrismaModel>
-    _min?: NestedBoolFilter<$PrismaModel>
-    _max?: NestedBoolFilter<$PrismaModel>
   }
 
   export type ListingCreateWithoutAhsListingInput = {
@@ -12920,28 +11285,26 @@ export namespace Prisma {
   export type UserCreateWithoutListingsInput = {
     id?: string
     clerkUserId?: string | null
+    stripeCustomerId?: string | null
     email: string
     username: string
     role?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
     lists?: ListCreateNestedManyWithoutUserInput
-    stripeCustomer?: StripeCustomerCreateNestedOneWithoutUserInput
-    stripeSubscription?: StripeSubscriptionCreateNestedOneWithoutUserInput
     profile?: UserProfileCreateNestedOneWithoutUserInput
   }
 
   export type UserUncheckedCreateWithoutListingsInput = {
     id?: string
     clerkUserId?: string | null
+    stripeCustomerId?: string | null
     email: string
     username: string
     role?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
     lists?: ListUncheckedCreateNestedManyWithoutUserInput
-    stripeCustomer?: StripeCustomerUncheckedCreateNestedOneWithoutUserInput
-    stripeSubscription?: StripeSubscriptionUncheckedCreateNestedOneWithoutUserInput
     profile?: UserProfileUncheckedCreateNestedOneWithoutUserInput
   }
 
@@ -13087,28 +11450,26 @@ export namespace Prisma {
   export type UserUpdateWithoutListingsInput = {
     id?: StringFieldUpdateOperationsInput | string
     clerkUserId?: NullableStringFieldUpdateOperationsInput | string | null
+    stripeCustomerId?: NullableStringFieldUpdateOperationsInput | string | null
     email?: StringFieldUpdateOperationsInput | string
     username?: StringFieldUpdateOperationsInput | string
     role?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     lists?: ListUpdateManyWithoutUserNestedInput
-    stripeCustomer?: StripeCustomerUpdateOneWithoutUserNestedInput
-    stripeSubscription?: StripeSubscriptionUpdateOneWithoutUserNestedInput
     profile?: UserProfileUpdateOneWithoutUserNestedInput
   }
 
   export type UserUncheckedUpdateWithoutListingsInput = {
     id?: StringFieldUpdateOperationsInput | string
     clerkUserId?: NullableStringFieldUpdateOperationsInput | string | null
+    stripeCustomerId?: NullableStringFieldUpdateOperationsInput | string | null
     email?: StringFieldUpdateOperationsInput | string
     username?: StringFieldUpdateOperationsInput | string
     role?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     lists?: ListUncheckedUpdateManyWithoutUserNestedInput
-    stripeCustomer?: StripeCustomerUncheckedUpdateOneWithoutUserNestedInput
-    stripeSubscription?: StripeSubscriptionUncheckedUpdateOneWithoutUserNestedInput
     profile?: UserProfileUncheckedUpdateOneWithoutUserNestedInput
   }
 
@@ -13150,28 +11511,26 @@ export namespace Prisma {
   export type UserCreateWithoutListsInput = {
     id?: string
     clerkUserId?: string | null
+    stripeCustomerId?: string | null
     email: string
     username: string
     role?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
     listings?: ListingCreateNestedManyWithoutUserInput
-    stripeCustomer?: StripeCustomerCreateNestedOneWithoutUserInput
-    stripeSubscription?: StripeSubscriptionCreateNestedOneWithoutUserInput
     profile?: UserProfileCreateNestedOneWithoutUserInput
   }
 
   export type UserUncheckedCreateWithoutListsInput = {
     id?: string
     clerkUserId?: string | null
+    stripeCustomerId?: string | null
     email: string
     username: string
     role?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
     listings?: ListingUncheckedCreateNestedManyWithoutUserInput
-    stripeCustomer?: StripeCustomerUncheckedCreateNestedOneWithoutUserInput
-    stripeSubscription?: StripeSubscriptionUncheckedCreateNestedOneWithoutUserInput
     profile?: UserProfileUncheckedCreateNestedOneWithoutUserInput
   }
 
@@ -13210,34 +11569,33 @@ export namespace Prisma {
   export type UserUpdateWithoutListsInput = {
     id?: StringFieldUpdateOperationsInput | string
     clerkUserId?: NullableStringFieldUpdateOperationsInput | string | null
+    stripeCustomerId?: NullableStringFieldUpdateOperationsInput | string | null
     email?: StringFieldUpdateOperationsInput | string
     username?: StringFieldUpdateOperationsInput | string
     role?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     listings?: ListingUpdateManyWithoutUserNestedInput
-    stripeCustomer?: StripeCustomerUpdateOneWithoutUserNestedInput
-    stripeSubscription?: StripeSubscriptionUpdateOneWithoutUserNestedInput
     profile?: UserProfileUpdateOneWithoutUserNestedInput
   }
 
   export type UserUncheckedUpdateWithoutListsInput = {
     id?: StringFieldUpdateOperationsInput | string
     clerkUserId?: NullableStringFieldUpdateOperationsInput | string | null
+    stripeCustomerId?: NullableStringFieldUpdateOperationsInput | string | null
     email?: StringFieldUpdateOperationsInput | string
     username?: StringFieldUpdateOperationsInput | string
     role?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     listings?: ListingUncheckedUpdateManyWithoutUserNestedInput
-    stripeCustomer?: StripeCustomerUncheckedUpdateOneWithoutUserNestedInput
-    stripeSubscription?: StripeSubscriptionUncheckedUpdateOneWithoutUserNestedInput
     profile?: UserProfileUncheckedUpdateOneWithoutUserNestedInput
   }
 
   export type UserCreateWithoutProfileInput = {
     id?: string
     clerkUserId?: string | null
+    stripeCustomerId?: string | null
     email: string
     username: string
     role?: string | null
@@ -13245,13 +11603,12 @@ export namespace Prisma {
     updatedAt?: Date | string
     listings?: ListingCreateNestedManyWithoutUserInput
     lists?: ListCreateNestedManyWithoutUserInput
-    stripeCustomer?: StripeCustomerCreateNestedOneWithoutUserInput
-    stripeSubscription?: StripeSubscriptionCreateNestedOneWithoutUserInput
   }
 
   export type UserUncheckedCreateWithoutProfileInput = {
     id?: string
     clerkUserId?: string | null
+    stripeCustomerId?: string | null
     email: string
     username: string
     role?: string | null
@@ -13259,8 +11616,6 @@ export namespace Prisma {
     updatedAt?: Date | string
     listings?: ListingUncheckedCreateNestedManyWithoutUserInput
     lists?: ListUncheckedCreateNestedManyWithoutUserInput
-    stripeCustomer?: StripeCustomerUncheckedCreateNestedOneWithoutUserInput
-    stripeSubscription?: StripeSubscriptionUncheckedCreateNestedOneWithoutUserInput
   }
 
   export type UserCreateOrConnectWithoutProfileInput = {
@@ -13309,6 +11664,7 @@ export namespace Prisma {
   export type UserUpdateWithoutProfileInput = {
     id?: StringFieldUpdateOperationsInput | string
     clerkUserId?: NullableStringFieldUpdateOperationsInput | string | null
+    stripeCustomerId?: NullableStringFieldUpdateOperationsInput | string | null
     email?: StringFieldUpdateOperationsInput | string
     username?: StringFieldUpdateOperationsInput | string
     role?: NullableStringFieldUpdateOperationsInput | string | null
@@ -13316,13 +11672,12 @@ export namespace Prisma {
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     listings?: ListingUpdateManyWithoutUserNestedInput
     lists?: ListUpdateManyWithoutUserNestedInput
-    stripeCustomer?: StripeCustomerUpdateOneWithoutUserNestedInput
-    stripeSubscription?: StripeSubscriptionUpdateOneWithoutUserNestedInput
   }
 
   export type UserUncheckedUpdateWithoutProfileInput = {
     id?: StringFieldUpdateOperationsInput | string
     clerkUserId?: NullableStringFieldUpdateOperationsInput | string | null
+    stripeCustomerId?: NullableStringFieldUpdateOperationsInput | string | null
     email?: StringFieldUpdateOperationsInput | string
     username?: StringFieldUpdateOperationsInput | string
     role?: NullableStringFieldUpdateOperationsInput | string | null
@@ -13330,8 +11685,6 @@ export namespace Prisma {
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     listings?: ListingUncheckedUpdateManyWithoutUserNestedInput
     lists?: ListUncheckedUpdateManyWithoutUserNestedInput
-    stripeCustomer?: StripeCustomerUncheckedUpdateOneWithoutUserNestedInput
-    stripeSubscription?: StripeSubscriptionUncheckedUpdateOneWithoutUserNestedInput
   }
 
   export type ImageUpsertWithWhereUniqueWithoutUserProfileInput = {
@@ -13478,262 +11831,6 @@ export namespace Prisma {
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
 
-  export type UserCreateWithoutStripeCustomerInput = {
-    id?: string
-    clerkUserId?: string | null
-    email: string
-    username: string
-    role?: string | null
-    createdAt?: Date | string
-    updatedAt?: Date | string
-    listings?: ListingCreateNestedManyWithoutUserInput
-    lists?: ListCreateNestedManyWithoutUserInput
-    stripeSubscription?: StripeSubscriptionCreateNestedOneWithoutUserInput
-    profile?: UserProfileCreateNestedOneWithoutUserInput
-  }
-
-  export type UserUncheckedCreateWithoutStripeCustomerInput = {
-    id?: string
-    clerkUserId?: string | null
-    email: string
-    username: string
-    role?: string | null
-    createdAt?: Date | string
-    updatedAt?: Date | string
-    listings?: ListingUncheckedCreateNestedManyWithoutUserInput
-    lists?: ListUncheckedCreateNestedManyWithoutUserInput
-    stripeSubscription?: StripeSubscriptionUncheckedCreateNestedOneWithoutUserInput
-    profile?: UserProfileUncheckedCreateNestedOneWithoutUserInput
-  }
-
-  export type UserCreateOrConnectWithoutStripeCustomerInput = {
-    where: UserWhereUniqueInput
-    create: XOR<UserCreateWithoutStripeCustomerInput, UserUncheckedCreateWithoutStripeCustomerInput>
-  }
-
-  export type StripeSubscriptionCreateWithoutCustomerInput = {
-    id: string
-    status: string
-    priceId: string
-    currentPeriodEnd: Date | string
-    cancelAtPeriodEnd?: boolean
-    createdAt?: Date | string
-    updatedAt?: Date | string
-    user: UserCreateNestedOneWithoutStripeSubscriptionInput
-  }
-
-  export type StripeSubscriptionUncheckedCreateWithoutCustomerInput = {
-    id: string
-    userId: string
-    status: string
-    priceId: string
-    currentPeriodEnd: Date | string
-    cancelAtPeriodEnd?: boolean
-    createdAt?: Date | string
-    updatedAt?: Date | string
-  }
-
-  export type StripeSubscriptionCreateOrConnectWithoutCustomerInput = {
-    where: StripeSubscriptionWhereUniqueInput
-    create: XOR<StripeSubscriptionCreateWithoutCustomerInput, StripeSubscriptionUncheckedCreateWithoutCustomerInput>
-  }
-
-  export type UserUpsertWithoutStripeCustomerInput = {
-    update: XOR<UserUpdateWithoutStripeCustomerInput, UserUncheckedUpdateWithoutStripeCustomerInput>
-    create: XOR<UserCreateWithoutStripeCustomerInput, UserUncheckedCreateWithoutStripeCustomerInput>
-    where?: UserWhereInput
-  }
-
-  export type UserUpdateToOneWithWhereWithoutStripeCustomerInput = {
-    where?: UserWhereInput
-    data: XOR<UserUpdateWithoutStripeCustomerInput, UserUncheckedUpdateWithoutStripeCustomerInput>
-  }
-
-  export type UserUpdateWithoutStripeCustomerInput = {
-    id?: StringFieldUpdateOperationsInput | string
-    clerkUserId?: NullableStringFieldUpdateOperationsInput | string | null
-    email?: StringFieldUpdateOperationsInput | string
-    username?: StringFieldUpdateOperationsInput | string
-    role?: NullableStringFieldUpdateOperationsInput | string | null
-    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
-    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
-    listings?: ListingUpdateManyWithoutUserNestedInput
-    lists?: ListUpdateManyWithoutUserNestedInput
-    stripeSubscription?: StripeSubscriptionUpdateOneWithoutUserNestedInput
-    profile?: UserProfileUpdateOneWithoutUserNestedInput
-  }
-
-  export type UserUncheckedUpdateWithoutStripeCustomerInput = {
-    id?: StringFieldUpdateOperationsInput | string
-    clerkUserId?: NullableStringFieldUpdateOperationsInput | string | null
-    email?: StringFieldUpdateOperationsInput | string
-    username?: StringFieldUpdateOperationsInput | string
-    role?: NullableStringFieldUpdateOperationsInput | string | null
-    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
-    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
-    listings?: ListingUncheckedUpdateManyWithoutUserNestedInput
-    lists?: ListUncheckedUpdateManyWithoutUserNestedInput
-    stripeSubscription?: StripeSubscriptionUncheckedUpdateOneWithoutUserNestedInput
-    profile?: UserProfileUncheckedUpdateOneWithoutUserNestedInput
-  }
-
-  export type StripeSubscriptionUpsertWithoutCustomerInput = {
-    update: XOR<StripeSubscriptionUpdateWithoutCustomerInput, StripeSubscriptionUncheckedUpdateWithoutCustomerInput>
-    create: XOR<StripeSubscriptionCreateWithoutCustomerInput, StripeSubscriptionUncheckedCreateWithoutCustomerInput>
-    where?: StripeSubscriptionWhereInput
-  }
-
-  export type StripeSubscriptionUpdateToOneWithWhereWithoutCustomerInput = {
-    where?: StripeSubscriptionWhereInput
-    data: XOR<StripeSubscriptionUpdateWithoutCustomerInput, StripeSubscriptionUncheckedUpdateWithoutCustomerInput>
-  }
-
-  export type StripeSubscriptionUpdateWithoutCustomerInput = {
-    id?: StringFieldUpdateOperationsInput | string
-    status?: StringFieldUpdateOperationsInput | string
-    priceId?: StringFieldUpdateOperationsInput | string
-    currentPeriodEnd?: DateTimeFieldUpdateOperationsInput | Date | string
-    cancelAtPeriodEnd?: BoolFieldUpdateOperationsInput | boolean
-    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
-    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
-    user?: UserUpdateOneRequiredWithoutStripeSubscriptionNestedInput
-  }
-
-  export type StripeSubscriptionUncheckedUpdateWithoutCustomerInput = {
-    id?: StringFieldUpdateOperationsInput | string
-    userId?: StringFieldUpdateOperationsInput | string
-    status?: StringFieldUpdateOperationsInput | string
-    priceId?: StringFieldUpdateOperationsInput | string
-    currentPeriodEnd?: DateTimeFieldUpdateOperationsInput | Date | string
-    cancelAtPeriodEnd?: BoolFieldUpdateOperationsInput | boolean
-    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
-    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
-  }
-
-  export type StripeCustomerCreateWithoutStripeSubscriptionInput = {
-    id: string
-    email: string
-    name: string
-    createdAt?: Date | string
-    updatedAt?: Date | string
-    user: UserCreateNestedOneWithoutStripeCustomerInput
-  }
-
-  export type StripeCustomerUncheckedCreateWithoutStripeSubscriptionInput = {
-    id: string
-    userId: string
-    email: string
-    name: string
-    createdAt?: Date | string
-    updatedAt?: Date | string
-  }
-
-  export type StripeCustomerCreateOrConnectWithoutStripeSubscriptionInput = {
-    where: StripeCustomerWhereUniqueInput
-    create: XOR<StripeCustomerCreateWithoutStripeSubscriptionInput, StripeCustomerUncheckedCreateWithoutStripeSubscriptionInput>
-  }
-
-  export type UserCreateWithoutStripeSubscriptionInput = {
-    id?: string
-    clerkUserId?: string | null
-    email: string
-    username: string
-    role?: string | null
-    createdAt?: Date | string
-    updatedAt?: Date | string
-    listings?: ListingCreateNestedManyWithoutUserInput
-    lists?: ListCreateNestedManyWithoutUserInput
-    stripeCustomer?: StripeCustomerCreateNestedOneWithoutUserInput
-    profile?: UserProfileCreateNestedOneWithoutUserInput
-  }
-
-  export type UserUncheckedCreateWithoutStripeSubscriptionInput = {
-    id?: string
-    clerkUserId?: string | null
-    email: string
-    username: string
-    role?: string | null
-    createdAt?: Date | string
-    updatedAt?: Date | string
-    listings?: ListingUncheckedCreateNestedManyWithoutUserInput
-    lists?: ListUncheckedCreateNestedManyWithoutUserInput
-    stripeCustomer?: StripeCustomerUncheckedCreateNestedOneWithoutUserInput
-    profile?: UserProfileUncheckedCreateNestedOneWithoutUserInput
-  }
-
-  export type UserCreateOrConnectWithoutStripeSubscriptionInput = {
-    where: UserWhereUniqueInput
-    create: XOR<UserCreateWithoutStripeSubscriptionInput, UserUncheckedCreateWithoutStripeSubscriptionInput>
-  }
-
-  export type StripeCustomerUpsertWithoutStripeSubscriptionInput = {
-    update: XOR<StripeCustomerUpdateWithoutStripeSubscriptionInput, StripeCustomerUncheckedUpdateWithoutStripeSubscriptionInput>
-    create: XOR<StripeCustomerCreateWithoutStripeSubscriptionInput, StripeCustomerUncheckedCreateWithoutStripeSubscriptionInput>
-    where?: StripeCustomerWhereInput
-  }
-
-  export type StripeCustomerUpdateToOneWithWhereWithoutStripeSubscriptionInput = {
-    where?: StripeCustomerWhereInput
-    data: XOR<StripeCustomerUpdateWithoutStripeSubscriptionInput, StripeCustomerUncheckedUpdateWithoutStripeSubscriptionInput>
-  }
-
-  export type StripeCustomerUpdateWithoutStripeSubscriptionInput = {
-    id?: StringFieldUpdateOperationsInput | string
-    email?: StringFieldUpdateOperationsInput | string
-    name?: StringFieldUpdateOperationsInput | string
-    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
-    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
-    user?: UserUpdateOneRequiredWithoutStripeCustomerNestedInput
-  }
-
-  export type StripeCustomerUncheckedUpdateWithoutStripeSubscriptionInput = {
-    id?: StringFieldUpdateOperationsInput | string
-    userId?: StringFieldUpdateOperationsInput | string
-    email?: StringFieldUpdateOperationsInput | string
-    name?: StringFieldUpdateOperationsInput | string
-    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
-    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
-  }
-
-  export type UserUpsertWithoutStripeSubscriptionInput = {
-    update: XOR<UserUpdateWithoutStripeSubscriptionInput, UserUncheckedUpdateWithoutStripeSubscriptionInput>
-    create: XOR<UserCreateWithoutStripeSubscriptionInput, UserUncheckedCreateWithoutStripeSubscriptionInput>
-    where?: UserWhereInput
-  }
-
-  export type UserUpdateToOneWithWhereWithoutStripeSubscriptionInput = {
-    where?: UserWhereInput
-    data: XOR<UserUpdateWithoutStripeSubscriptionInput, UserUncheckedUpdateWithoutStripeSubscriptionInput>
-  }
-
-  export type UserUpdateWithoutStripeSubscriptionInput = {
-    id?: StringFieldUpdateOperationsInput | string
-    clerkUserId?: NullableStringFieldUpdateOperationsInput | string | null
-    email?: StringFieldUpdateOperationsInput | string
-    username?: StringFieldUpdateOperationsInput | string
-    role?: NullableStringFieldUpdateOperationsInput | string | null
-    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
-    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
-    listings?: ListingUpdateManyWithoutUserNestedInput
-    lists?: ListUpdateManyWithoutUserNestedInput
-    stripeCustomer?: StripeCustomerUpdateOneWithoutUserNestedInput
-    profile?: UserProfileUpdateOneWithoutUserNestedInput
-  }
-
-  export type UserUncheckedUpdateWithoutStripeSubscriptionInput = {
-    id?: StringFieldUpdateOperationsInput | string
-    clerkUserId?: NullableStringFieldUpdateOperationsInput | string | null
-    email?: StringFieldUpdateOperationsInput | string
-    username?: StringFieldUpdateOperationsInput | string
-    role?: NullableStringFieldUpdateOperationsInput | string | null
-    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
-    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
-    listings?: ListingUncheckedUpdateManyWithoutUserNestedInput
-    lists?: ListUncheckedUpdateManyWithoutUserNestedInput
-    stripeCustomer?: StripeCustomerUncheckedUpdateOneWithoutUserNestedInput
-    profile?: UserProfileUncheckedUpdateOneWithoutUserNestedInput
-  }
-
   export type ListingCreateWithoutUserInput = {
     id?: string
     name: string
@@ -13796,56 +11893,6 @@ export namespace Prisma {
 
   export type ListCreateManyUserInputEnvelope = {
     data: ListCreateManyUserInput | ListCreateManyUserInput[]
-  }
-
-  export type StripeCustomerCreateWithoutUserInput = {
-    id: string
-    email: string
-    name: string
-    createdAt?: Date | string
-    updatedAt?: Date | string
-    stripeSubscription?: StripeSubscriptionCreateNestedOneWithoutCustomerInput
-  }
-
-  export type StripeCustomerUncheckedCreateWithoutUserInput = {
-    id: string
-    email: string
-    name: string
-    createdAt?: Date | string
-    updatedAt?: Date | string
-    stripeSubscription?: StripeSubscriptionUncheckedCreateNestedOneWithoutCustomerInput
-  }
-
-  export type StripeCustomerCreateOrConnectWithoutUserInput = {
-    where: StripeCustomerWhereUniqueInput
-    create: XOR<StripeCustomerCreateWithoutUserInput, StripeCustomerUncheckedCreateWithoutUserInput>
-  }
-
-  export type StripeSubscriptionCreateWithoutUserInput = {
-    id: string
-    status: string
-    priceId: string
-    currentPeriodEnd: Date | string
-    cancelAtPeriodEnd?: boolean
-    createdAt?: Date | string
-    updatedAt?: Date | string
-    customer: StripeCustomerCreateNestedOneWithoutStripeSubscriptionInput
-  }
-
-  export type StripeSubscriptionUncheckedCreateWithoutUserInput = {
-    id: string
-    stripeCustomerId: string
-    status: string
-    priceId: string
-    currentPeriodEnd: Date | string
-    cancelAtPeriodEnd?: boolean
-    createdAt?: Date | string
-    updatedAt?: Date | string
-  }
-
-  export type StripeSubscriptionCreateOrConnectWithoutUserInput = {
-    where: StripeSubscriptionWhereUniqueInput
-    create: XOR<StripeSubscriptionCreateWithoutUserInput, StripeSubscriptionUncheckedCreateWithoutUserInput>
   }
 
   export type UserProfileCreateWithoutUserInput = {
@@ -13918,68 +11965,6 @@ export namespace Prisma {
     bio?: StringNullableFilter<"List"> | string | null
     createdAt?: DateTimeFilter<"List"> | Date | string
     updatedAt?: DateTimeFilter<"List"> | Date | string
-  }
-
-  export type StripeCustomerUpsertWithoutUserInput = {
-    update: XOR<StripeCustomerUpdateWithoutUserInput, StripeCustomerUncheckedUpdateWithoutUserInput>
-    create: XOR<StripeCustomerCreateWithoutUserInput, StripeCustomerUncheckedCreateWithoutUserInput>
-    where?: StripeCustomerWhereInput
-  }
-
-  export type StripeCustomerUpdateToOneWithWhereWithoutUserInput = {
-    where?: StripeCustomerWhereInput
-    data: XOR<StripeCustomerUpdateWithoutUserInput, StripeCustomerUncheckedUpdateWithoutUserInput>
-  }
-
-  export type StripeCustomerUpdateWithoutUserInput = {
-    id?: StringFieldUpdateOperationsInput | string
-    email?: StringFieldUpdateOperationsInput | string
-    name?: StringFieldUpdateOperationsInput | string
-    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
-    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
-    stripeSubscription?: StripeSubscriptionUpdateOneWithoutCustomerNestedInput
-  }
-
-  export type StripeCustomerUncheckedUpdateWithoutUserInput = {
-    id?: StringFieldUpdateOperationsInput | string
-    email?: StringFieldUpdateOperationsInput | string
-    name?: StringFieldUpdateOperationsInput | string
-    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
-    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
-    stripeSubscription?: StripeSubscriptionUncheckedUpdateOneWithoutCustomerNestedInput
-  }
-
-  export type StripeSubscriptionUpsertWithoutUserInput = {
-    update: XOR<StripeSubscriptionUpdateWithoutUserInput, StripeSubscriptionUncheckedUpdateWithoutUserInput>
-    create: XOR<StripeSubscriptionCreateWithoutUserInput, StripeSubscriptionUncheckedCreateWithoutUserInput>
-    where?: StripeSubscriptionWhereInput
-  }
-
-  export type StripeSubscriptionUpdateToOneWithWhereWithoutUserInput = {
-    where?: StripeSubscriptionWhereInput
-    data: XOR<StripeSubscriptionUpdateWithoutUserInput, StripeSubscriptionUncheckedUpdateWithoutUserInput>
-  }
-
-  export type StripeSubscriptionUpdateWithoutUserInput = {
-    id?: StringFieldUpdateOperationsInput | string
-    status?: StringFieldUpdateOperationsInput | string
-    priceId?: StringFieldUpdateOperationsInput | string
-    currentPeriodEnd?: DateTimeFieldUpdateOperationsInput | Date | string
-    cancelAtPeriodEnd?: BoolFieldUpdateOperationsInput | boolean
-    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
-    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
-    customer?: StripeCustomerUpdateOneRequiredWithoutStripeSubscriptionNestedInput
-  }
-
-  export type StripeSubscriptionUncheckedUpdateWithoutUserInput = {
-    id?: StringFieldUpdateOperationsInput | string
-    stripeCustomerId?: StringFieldUpdateOperationsInput | string
-    status?: StringFieldUpdateOperationsInput | string
-    priceId?: StringFieldUpdateOperationsInput | string
-    currentPeriodEnd?: DateTimeFieldUpdateOperationsInput | Date | string
-    cancelAtPeriodEnd?: BoolFieldUpdateOperationsInput | boolean
-    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
-    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
 
   export type UserProfileUpsertWithoutUserInput = {
@@ -14321,17 +12306,13 @@ export namespace Prisma {
      */
     export type ImageArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = ImageDefaultArgs<ExtArgs>
     /**
-     * @deprecated Use StripeCustomerDefaultArgs instead
-     */
-    export type StripeCustomerArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = StripeCustomerDefaultArgs<ExtArgs>
-    /**
-     * @deprecated Use StripeSubscriptionDefaultArgs instead
-     */
-    export type StripeSubscriptionArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = StripeSubscriptionDefaultArgs<ExtArgs>
-    /**
      * @deprecated Use UserDefaultArgs instead
      */
     export type UserArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = UserDefaultArgs<ExtArgs>
+    /**
+     * @deprecated Use KeyValueDefaultArgs instead
+     */
+    export type KeyValueArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = KeyValueDefaultArgs<ExtArgs>
 
   /**
    * Batch Payload for updateMany & deleteMany & createMany

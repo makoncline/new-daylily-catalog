@@ -7,14 +7,6 @@ import { headers } from "next/headers";
 import { z } from "zod";
 
 export async function POST(req: Request) {
-  const WEBHOOK_SECRET = env.CLERK_WEBHOOK_SECRET;
-
-  if (!WEBHOOK_SECRET) {
-    throw new Error(
-      "Please add WEBHOOK_SECRET from Clerk Dashboard to .env or .env.local",
-    );
-  }
-
   const headerPayload = headers();
   const svix_id = headerPayload.get("svix-id");
   const svix_timestamp = headerPayload.get("svix-timestamp");
@@ -30,7 +22,7 @@ export async function POST(req: Request) {
   const payload = (await req.json()) as unknown;
   const body = JSON.stringify(payload);
 
-  const wh = new Webhook(WEBHOOK_SECRET);
+  const wh = new Webhook(env.CLERK_WEBHOOK_SECRET);
 
   let evt: WebhookEvent;
 
@@ -47,9 +39,8 @@ export async function POST(req: Request) {
 
   switch (evt.type) {
     case "user.created":
-      return await handleUserCreated(evt.data);
     case "user.updated":
-      return await handleUserUpdated(evt.data);
+      return await handleUpsertUser(evt.data);
     default:
       return NextResponse.json(
         { message: "Webhook received" },
@@ -70,7 +61,6 @@ const ClerkUserWebhookSchema = z.object({
   primary_email_address_id: z.string(),
 });
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const ValidatedUserDataSchema = z.object({
   clerkUserId: z.string(),
   email: z.string().email(),
@@ -117,7 +107,7 @@ function validateUserData(data: unknown): ValidatedUserData | NextResponse {
   };
 }
 
-async function handleUserCreated(data: WebhookEvent["data"]) {
+async function handleUpsertUser(data: WebhookEvent["data"]) {
   const validatedData = validateUserData(data);
 
   if (validatedData instanceof NextResponse) {
@@ -125,66 +115,22 @@ async function handleUserCreated(data: WebhookEvent["data"]) {
   }
 
   try {
-    const newUser = await db.user.create({
-      data: validatedData,
+    const user = await db.user.upsert({
+      where: { clerkUserId: validatedData.clerkUserId },
+      create: validatedData,
+      update: validatedData,
     });
 
-    console.log("User created:", newUser);
+    console.log("User upserted:", user);
     return NextResponse.json(
-      { message: "User created successfully" },
+      { message: "User upserted successfully" },
       { status: 200 },
     );
   } catch (error) {
-    console.error("Error creating user:", error);
-    return NextResponse.json({ error: "Error creating user" }, { status: 500 });
-  }
-}
-
-async function handleUserUpdated(data: WebhookEvent["data"]) {
-  const validatedData = validateUserData(data);
-
-  if (validatedData instanceof NextResponse) {
-    return validatedData;
-  }
-
-  try {
-    const existingUser = await db.user.findUnique({
-      where: { clerkUserId: validatedData.clerkUserId },
-    });
-
-    if (!existingUser) {
-      return NextResponse.json({ error: "User not found" }, { status: 404 });
-    }
-
-    const updateData: Partial<ValidatedUserData> = {};
-
-    if (existingUser.email !== validatedData.email) {
-      updateData.email = validatedData.email;
-    }
-    if (existingUser.username !== validatedData.username) {
-      updateData.username = validatedData.username;
-    }
-
-    if (Object.keys(updateData).length > 0) {
-      const updatedUser = await db.user.update({
-        where: { clerkUserId: validatedData.clerkUserId },
-        data: updateData,
-      });
-
-      console.log("User updated:", updatedUser);
-      return NextResponse.json(
-        { message: "User updated successfully" },
-        { status: 200 },
-      );
-    } else {
-      console.log("No changes detected for user:", validatedData.clerkUserId);
-      return NextResponse.json(
-        { message: "No updates required" },
-        { status: 200 },
-      );
-    }
-  } catch (error) {
-    console.error("Error updating user:", error);
-    return NextResponse.json({ error: "Error updating user" }, { status: 500 });
+    console.error("Error upserting user:", error);
+    return NextResponse.json(
+      { error: "Error upserting user" },
+      { status: 500 },
+    );
   }
 }

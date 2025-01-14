@@ -52,8 +52,6 @@ export const createTRPCContext = async () => {
 
   const user = clerkUserId ? await getOrCreateUser(clerkUserId) : null;
 
-  console.log("user createTRPCContext", user);
-
   return {
     db,
     user,

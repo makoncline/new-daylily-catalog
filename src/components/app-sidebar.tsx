@@ -14,10 +14,9 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
-import { Skeleton } from "@/components/ui/skeleton";
 import { useFeedbackUrl } from "@/hooks/use-feedback-url";
 import { NavSecondary } from "./nav-secondary";
-
+import { useUser } from "@clerk/nextjs";
 const navMainItems = [
   {
     title: "Listings",
@@ -34,6 +33,7 @@ const navMainItems = [
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const { data: user, isLoading } = api.user.getCurrentUser.useQuery();
+  const { user: clerkUser } = useUser();
   const feedbackUrl = useFeedbackUrl();
   const navSecondaryItems = [
     {
@@ -75,7 +75,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
             user={{
               name: user.username ?? "User",
               email: user.email ?? "",
-              avatar: user.imageUrl ?? "",
+              avatar: clerkUser?.imageUrl ?? "",
             }}
           />
         ) : null}

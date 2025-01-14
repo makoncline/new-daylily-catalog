@@ -17,7 +17,6 @@ export const env = createEnv({
    */
   server: {
     DATABASE_URL: z.string(),
-    POSTGRES_DATABASE_URL: z.string(),
     CLERK_SECRET_KEY: z.string(),
     CLERK_WEBHOOK_SECRET: z.string(),
     STRIPE_SECRET_KEY: z.string(),
@@ -48,7 +47,6 @@ export const env = createEnv({
    */
   runtimeEnv: {
     DATABASE_URL: process.env.DATABASE_URL,
-    POSTGRES_DATABASE_URL: process.env.POSTGRES_DATABASE_URL,
     CLERK_SECRET_KEY: process.env.CLERK_SECRET_KEY,
     CLERK_WEBHOOK_SECRET: process.env.CLERK_WEBHOOK_SECRET,
     NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY:

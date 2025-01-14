@@ -1,29 +1,16 @@
 import { publicProcedure } from "@/server/api/trpc";
 import { createTRPCRouter } from "@/server/api/trpc";
 import { type inferRouterOutputs } from "@trpc/server";
-import { currentUser } from "@clerk/nextjs/server";
-import { db } from "@/server/db";
 
 export const userRouter = createTRPCRouter({
-  getCurrentUser: publicProcedure.query(async () => {
-    const clerkUser = await currentUser();
+  getCurrentUser: publicProcedure.query(async ({ ctx }) => {
+    const user = ctx.user;
 
-    if (!clerkUser) {
+    if (!user) {
       return null;
     }
 
-    const dbUser = await db.user.findUnique({
-      where: { clerkUserId: clerkUser.id },
-    });
-
-    if (!dbUser) {
-      return null;
-    }
-
-    return {
-      ...dbUser,
-      imageUrl: clerkUser.imageUrl,
-    };
+    return user;
   }),
 });
 

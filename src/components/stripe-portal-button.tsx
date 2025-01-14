@@ -1,113 +1,80 @@
 "use client";
 
-import { useState } from "react";
 import { api } from "@/trpc/react";
-import { useAuth } from "@clerk/nextjs";
-import type Stripe from "stripe";
+import { useRouter } from "next/navigation";
+import { Sparkles } from "lucide-react";
+import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 
-type SubscriptionStatus = Stripe.Subscription.Status;
-
-const getMembershipStatus = (status: SubscriptionStatus | undefined) => {
-  if (!status) return false;
-
-  switch (status) {
-    case "active":
-    case "trialing":
-      return true;
-    case "canceled":
-    case "incomplete":
-    case "incomplete_expired":
-    case "past_due":
-    case "paused":
-    case "unpaid":
-      return false;
-    default:
-      return false;
-  }
-};
-
-export default function StripePortalButton() {
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const { userId, isLoaded: isAuthLoaded } = useAuth();
-  const { data: userData, isLoading: isSubscriptionLoading } =
-    api.stripe.getSubscription.useQuery(undefined, {
-      enabled: !!userId,
-      retry: false,
-    });
-  const createPortalSession = api.stripe.createPortalSession.useMutation();
-  const getSubscriptionLink = api.stripe.getSubscriptionLink.useMutation();
-
-  // Don't show anything while auth is loading or if no user ID
-  if (!isAuthLoaded || !userId) {
-    return null;
-  }
-
-  // Show loading state while subscription data is being fetched
-  if (isSubscriptionLoading) {
-    return (
-      <button
-        disabled
-        className="rounded bg-blue-500 px-4 py-2 text-white opacity-50"
-      >
-        Loading...
-      </button>
-    );
-  }
-
-  const hasActiveSubscription = getMembershipStatus(
-    userData?.subscription?.status as SubscriptionStatus | undefined,
-  );
+export function StripeCheckoutButton() {
+  const router = useRouter();
+  const generateCheckout = api.stripe.generateCheckout.useMutation();
 
   const handleClick = async () => {
-    setIsLoading(true);
-    setError(null);
     try {
-      if (hasActiveSubscription) {
-        const result = await createPortalSession.mutateAsync();
-        if (result.url) {
-          window.location.href = result.url;
-        }
-      } else {
-        const result = await getSubscriptionLink.mutateAsync();
-        if (result.url) {
-          window.location.href = result.url;
-        }
-      }
+      const { url } = await generateCheckout.mutateAsync();
+      router.push(url);
     } catch (error) {
-      console.error("Failed to create session:", error);
-      if (error instanceof Error) {
-        setError(error.message);
-      } else {
-        setError("An unknown error occurred");
-      }
-    } finally {
-      setIsLoading(false);
+      console.error("Failed to create checkout session", error);
     }
   };
 
-  if (error) {
+  return (
+    <DropdownMenuItem
+      onClick={handleClick}
+      disabled={generateCheckout.isPending}
+    >
+      <Sparkles className="mr-2 h-4 w-4" />
+      {generateCheckout.isPending ? "Loading..." : "Upgrade to Pro"}
+    </DropdownMenuItem>
+  );
+}
+
+export function StripePortalButton() {
+  const router = useRouter();
+  const getPortalSession = api.stripe.getPortalSession.useMutation();
+
+  const handleClick = async () => {
+    try {
+      const { url } = await getPortalSession.mutateAsync();
+
+      // First go to success page to sync data
+      router.push("/subscribe/success?redirect=" + encodeURIComponent(url));
+    } catch (error) {
+      console.error("Failed to get portal session", error);
+    }
+  };
+
+  return (
+    <DropdownMenuItem
+      onClick={handleClick}
+      disabled={getPortalSession.isPending}
+    >
+      <Sparkles className="mr-2 h-4 w-4" />
+      {getPortalSession.isPending ? "Loading..." : "Manage Subscription"}
+    </DropdownMenuItem>
+  );
+}
+
+// Smart component that shows either checkout or portal button based on subscription status
+export function StripeButton() {
+  const { data: subscription, isLoading } =
+    api.stripe.getSubscription.useQuery();
+
+  if (isLoading) {
     return (
-      <div>
-        <p className="text-red-500">{error}</p>
-      </div>
+      <DropdownMenuItem disabled>
+        <Sparkles className="mr-2 h-4 w-4" />
+        Loading...
+      </DropdownMenuItem>
     );
   }
 
-  return (
-    <div>
-      <button
-        onClick={handleClick}
-        disabled={isLoading}
-        className="rounded bg-blue-500 px-4 py-2 text-white hover:bg-blue-600 disabled:opacity-50"
-      >
-        {isLoading
-          ? "Loading..."
-          : hasActiveSubscription
-            ? "Manage Subscription"
-            : "Subscribe Now"}
-      </button>
-      {error && <p className="mt-2 text-red-500">{error}</p>}
-    </div>
-  );
+  const hasActiveSubscription =
+    subscription?.status === "active" || subscription?.status === "trialing";
+
+  if (hasActiveSubscription) {
+    return <StripePortalButton />;
+  }
+
+  return <StripeCheckoutButton />;
 }

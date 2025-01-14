@@ -1,0 +1,61 @@
+import { stripe as appStripe } from "@/server/stripe/client";
+import { kvStore as appKvStore } from "@/server/db/kvStore";
+import type Stripe from "stripe";
+
+export const DEFAULT_SUB_DATA = { status: "none" } as const;
+
+export const getStripeCustomerKey = (customerId: string) =>
+  `stripe:customer:${customerId}`;
+
+export async function syncStripeSubscriptionToKVBase(
+  customerId: string,
+  stripe: Stripe,
+  kvStore: typeof appKvStore,
+) {
+  // Fetch all subscriptions for this customer from Stripe
+  const subscriptions = await stripe.subscriptions.list({
+    customer: customerId,
+    limit: 1,
+    status: "all",
+    expand: ["data.default_payment_method"],
+  });
+
+  if (subscriptions.data.length === 0) {
+    const subData = DEFAULT_SUB_DATA;
+    await kvStore.set(getStripeCustomerKey(customerId), subData);
+    return subData;
+  }
+  // If a user can have multiple subscriptions, that's your problem
+  const subscription = subscriptions.data[0]!;
+
+  // Store complete subscription state
+  const subData = {
+    subscriptionId: subscription.id,
+    status: subscription.status,
+    priceId: subscription.items.data[0]?.price.id ?? null,
+    currentPeriodEnd: subscription.current_period_end,
+    currentPeriodStart: subscription.current_period_start,
+    cancelAtPeriodEnd: subscription.cancel_at_period_end,
+    paymentMethod:
+      subscription.default_payment_method &&
+      typeof subscription.default_payment_method !== "string"
+        ? {
+            brand: subscription.default_payment_method.card?.brand ?? null,
+            last4: subscription.default_payment_method.card?.last4 ?? null,
+          }
+        : null,
+  };
+
+  // Store the data in your KV
+  await kvStore.set(getStripeCustomerKey(customerId), subData);
+  return subData;
+}
+
+// Wrapper that uses app's default clients
+export async function syncStripeSubscriptionToKV(customerId: string) {
+  return syncStripeSubscriptionToKVBase(customerId, appStripe, appKvStore);
+}
+
+export type StripeSubCache = Awaited<
+  ReturnType<typeof syncStripeSubscriptionToKV>
+>;

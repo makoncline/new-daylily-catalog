@@ -5,11 +5,15 @@ import { z } from "zod";
 import { setTimeout } from "timers/promises";
 import Stripe from "stripe";
 import { env } from "../src/env.js";
+import { syncStripeSubscriptionToKVBase } from "../src/server/stripe/sync-subscription";
+import { kvStore } from "../src/server/db/kvStore";
+
+const stripe = new Stripe(process.env.PROD_STRIPE_SECRET_KEY!);
 
 const postgres = new PostgresClient({
   datasources: {
     db: {
-      url: env.POSTGRES_DATABASE_URL,
+      url: process.env.POSTGRES_DATABASE_URL!,
     },
   },
 });
@@ -73,6 +77,23 @@ async function getOrCreateClerkUser(
 
 const filterOutUserIds = [24, 153, 121, 62];
 
+async function getMigratableUserIds() {
+  const sqliteUsers = await sqlite.user.findMany({
+    select: { id: true },
+  });
+
+  // Filter for IDs that are numeric (from old postgres db)
+  const numericUserIds = sqliteUsers
+    .map((u) => parseInt(u.id))
+    .filter((id) => !isNaN(id));
+
+  console.log(
+    `Found ${numericUserIds.length} users to migrate (filtered out ${sqliteUsers.length - numericUserIds.length} UUID users)`,
+  );
+
+  return numericUserIds;
+}
+
 async function upsertUsers() {
   console.log("Starting user migration...");
   const users = await postgres.users.findMany({
@@ -88,7 +109,7 @@ async function upsertUsers() {
     include: {
       user_emails: true,
       stripe_customers: true,
-      lilies: true, // Include lilies information
+      lilies: true,
     },
     orderBy: [
       {
@@ -151,6 +172,7 @@ async function upsertUsers() {
         username: user.username,
         email: selectedEmail.email,
         role: user.is_admin ? "ADMIN" : "USER",
+        stripeCustomerId: user.stripe_customers?.id ?? null,
         createdAt: user.created_at,
         updatedAt: user.updated_at,
       };
@@ -233,10 +255,13 @@ async function upsertAhsListings() {
 
 async function upsertLists() {
   console.log("Starting lists migration...");
+
+  const validUserIds = await getMigratableUserIds();
+
   const lists = await postgres.lists.findMany({
     where: {
       user_id: {
-        notIn: filterOutUserIds,
+        in: validUserIds,
       },
     },
   });
@@ -277,10 +302,13 @@ async function upsertLists() {
 
 async function upsertListings() {
   console.log("Starting listings migration...");
+
+  const validUserIds = await getMigratableUserIds();
+
   const lilies = await postgres.lilies.findMany({
     where: {
       user_id: {
-        notIn: filterOutUserIds,
+        in: validUserIds,
       },
     },
   });
@@ -377,10 +405,13 @@ async function upsertListings() {
 
 async function upsertUserProfiles() {
   console.log("Starting user profiles migration...");
+
+  const validUserIds = await getMigratableUserIds();
+
   const users = await postgres.users.findMany({
     where: {
       id: {
-        notIn: filterOutUserIds,
+        in: validUserIds,
       },
     },
   });
@@ -473,105 +504,43 @@ async function upsertUserProfiles() {
   console.log(`Failed to create/update: ${imageErrorCount} images`);
 }
 
-const stripe = new Stripe(env.STRIPE_SECRET_KEY);
+async function upsertStripeSubscriptions() {
+  console.log("Upserting stripe subscriptions...");
 
-async function upsertStripeCustomers() {
-  console.log("Starting Stripe customers migration...");
-  const stripeCustomers = await postgres.stripe_customers.findMany({
-    include: {
-      users: true,
+  const validUserIds = await getMigratableUserIds();
+
+  const usersWithStripeCustomers = await sqlite.user.findMany({
+    where: {
+      id: { in: validUserIds.map((id) => id.toString()) },
+      stripeCustomerId: { not: null },
     },
   });
-  console.log(`Found ${stripeCustomers.length} Stripe customers to migrate.`);
 
-  let successCount = 0;
-  let errorCount = 0;
-
-  for (const customer of stripeCustomers) {
-    const customerId = customer.id;
-
-    try {
-      // Fetch additional data from Stripe
-      const stripeCustomer = (await stripe.customers.retrieve(
-        customerId,
-      )) as Stripe.Customer;
-
-      const customerData = {
-        id: customerId,
-        userId: customer.user_id.toString(),
-        email: stripeCustomer.email ?? "",
-        name: stripeCustomer.name ?? "",
-        createdAt: customer.created_at,
-        updatedAt: customer.updated_at,
-      };
-
-      await sqlite.stripeCustomer.upsert({
-        where: { id: customerId },
-        update: customerData,
-        create: customerData,
-      });
-      successCount++;
-    } catch (error) {
-      console.error(`Error migrating Stripe customer ${customerId}:`, error);
-      errorCount++;
-    }
-  }
-
-  console.log(`Stripe customers migration completed.`);
-  console.log(`Successfully migrated: ${successCount} customers`);
-  console.log(`Failed to migrate: ${errorCount} customers`);
-}
-
-async function upsertStripeSubscriptions() {
-  console.log("Starting Stripe subscriptions migration...");
-  const stripeSubscriptions = await postgres.stripe_subscriptions.findMany();
   console.log(
-    `Found ${stripeSubscriptions.length} Stripe subscriptions to migrate.`,
+    `Found ${usersWithStripeCustomers.length} users with stripe customers`,
   );
 
-  let successCount = 0;
-  let errorCount = 0;
-
-  for (const subscription of stripeSubscriptions) {
-    const subscriptionId = subscription.id;
+  for (const user of usersWithStripeCustomers) {
+    if (!user.stripeCustomerId) continue;
 
     try {
-      // Fetch additional data from Stripe
-      const stripeSubscription =
-        await stripe.subscriptions.retrieve(subscriptionId);
-
-      const subscriptionData = {
-        id: subscriptionId,
-        userId: subscription.user_id.toString(),
-        stripeCustomerId: subscription.customer_id,
-        status: stripeSubscription.status,
-        priceId: stripeSubscription.items.data[0]?.price.id ?? "",
-        currentPeriodEnd: new Date(
-          stripeSubscription.current_period_end * 1000,
-        ),
-        cancelAtPeriodEnd: stripeSubscription.cancel_at_period_end,
-        createdAt: subscription.created_at,
-        updatedAt: subscription.updated_at,
-      };
-
-      await sqlite.stripeSubscription.upsert({
-        where: { id: subscriptionId },
-        update: subscriptionData,
-        create: subscriptionData,
-      });
-      successCount++;
+      await syncStripeSubscriptionToKVBase(
+        user.stripeCustomerId,
+        stripe,
+        kvStore,
+      );
+      console.log(
+        `Synced subscription data for customer ${user.stripeCustomerId}`,
+      );
     } catch (error) {
       console.error(
-        `Error migrating Stripe subscription ${subscriptionId}:`,
+        `Error syncing subscription data for customer ${user.stripeCustomerId}:`,
         error,
       );
-      errorCount++;
     }
   }
 
-  console.log(`Stripe subscriptions migration completed.`);
-  console.log(`Successfully migrated: ${successCount} subscriptions`);
-  console.log(`Failed to migrate: ${errorCount} subscriptions`);
+  console.log("Done upserting stripe subscriptions");
 }
 
 async function main() {
@@ -584,7 +553,6 @@ async function main() {
   await upsertLists();
   await upsertListings();
   await upsertUserProfiles();
-  await upsertStripeCustomers();
   await upsertStripeSubscriptions();
 
   const endTime = Date.now();

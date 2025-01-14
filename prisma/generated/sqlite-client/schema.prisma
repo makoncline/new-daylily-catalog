@@ -104,42 +104,23 @@ model Image {
   @@index([listingId])
 }
 
-model StripeCustomer {
-  id                 String              @id
-  userId             String              @unique
-  email              String
-  name               String
-  createdAt          DateTime            @default(now())
-  updatedAt          DateTime            @updatedAt
-  user               User                @relation(fields: [userId], references: [id], onDelete: Cascade)
-  stripeSubscription StripeSubscription?
-}
-
-model StripeSubscription {
-  id                String         @id
-  userId            String         @unique
-  stripeCustomerId  String         @unique
-  status            String
-  priceId           String
-  currentPeriodEnd  DateTime
-  cancelAtPeriodEnd Boolean        @default(false)
-  createdAt         DateTime       @default(now())
-  updatedAt         DateTime       @updatedAt
-  customer          StripeCustomer @relation(fields: [stripeCustomerId], references: [id], onDelete: Cascade)
-  user              User           @relation(fields: [userId], references: [id], onDelete: Cascade)
-}
-
 model User {
-  id                 String              @id @default(cuid())
-  clerkUserId        String?             @unique // TODO: Make non-nullable after migration
-  email              String              @unique
-  username           String              @unique
-  role               String?             @default("USER")
-  createdAt          DateTime            @default(now())
-  updatedAt          DateTime            @updatedAt
-  listings           Listing[]
-  lists              List[]
-  stripeCustomer     StripeCustomer?
-  stripeSubscription StripeSubscription?
-  profile            UserProfile?
+  id               String       @id @default(cuid())
+  clerkUserId      String?      @unique
+  stripeCustomerId String?      @unique
+  email            String       @unique
+  username         String       @unique
+  role             String?      @default("USER")
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+  listings         Listing[]
+  lists            List[]
+  profile          UserProfile?
+}
+
+model KeyValue {
+  key       String   @id
+  value     String // Will store JSON stringified values
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
