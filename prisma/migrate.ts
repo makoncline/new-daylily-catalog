@@ -142,7 +142,6 @@ async function upsertUsers() {
 
   for (const user of sortedUsers) {
     const userId = user.id.toString();
-
     const verifiedPrimaryEmail = user.user_emails.find(
       (email) => email.is_primary && email.is_verified,
     );
