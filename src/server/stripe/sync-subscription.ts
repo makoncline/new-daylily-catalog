@@ -56,6 +56,26 @@ export async function syncStripeSubscriptionToKV(customerId: string) {
   return syncStripeSubscriptionToKVBase(customerId, appStripe, appKvStore);
 }
 
+export const getStripeSubscription = async (
+  stripeCustomerId: string | null | undefined,
+) => {
+  if (!stripeCustomerId) {
+    return DEFAULT_SUB_DATA;
+  }
+
+  // Try to get from cache first
+  const cachedData = (await appKvStore.get(
+    getStripeCustomerKey(stripeCustomerId),
+  )) as StripeSubCache;
+
+  if (cachedData) {
+    return cachedData;
+  }
+
+  // If not in cache, sync from Stripe and cache it
+  return syncStripeSubscriptionToKV(stripeCustomerId);
+};
+
 export type StripeSubCache = Awaited<
   ReturnType<typeof syncStripeSubscriptionToKV>
 >;

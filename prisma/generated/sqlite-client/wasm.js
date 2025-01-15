@@ -193,8 +193,6 @@ exports.Prisma.UserScalarFieldEnum = {
   id: 'id',
   clerkUserId: 'clerkUserId',
   stripeCustomerId: 'stripeCustomerId',
-  email: 'email',
-  username: 'username',
   role: 'role',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'

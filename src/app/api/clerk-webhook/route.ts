@@ -4,7 +4,28 @@ import { db } from "@/server/db";
 import { env } from "@/env";
 import { NextResponse } from "next/server";
 import { headers } from "next/headers";
-import { z } from "zod";
+import { syncClerkUserToKV } from "@/server/clerk/sync-user";
+
+// Only include events that are actually supported by Clerk
+const relevantEvents = new Set([
+  "user.created",
+  "user.updated",
+  "user.deleted",
+  "email.created",
+  "email.updated",
+  "email.deleted",
+  "profile.updated",
+  "username.updated",
+]);
+
+function getUserIdFromEvent(evt: WebhookEvent): string | null {
+  const { id } = evt.data;
+  if (!id) {
+    console.error("No user id found in event", evt.type);
+    return null;
+  }
+  return id;
+}
 
 export async function POST(req: Request) {
   const headerPayload = headers();
@@ -37,100 +58,38 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Error occurred" }, { status: 400 });
   }
 
-  switch (evt.type) {
-    case "user.created":
-    case "user.updated":
-      return await handleUpsertUser(evt.data);
-    default:
+  if (relevantEvents.has(evt.type)) {
+    try {
+      const clerkUserId = getUserIdFromEvent(evt);
+      if (!clerkUserId) {
+        return NextResponse.json(
+          { error: "No clerk user id found" },
+          { status: 400 },
+        );
+      }
+
+      // First ensure the user exists in our database
+      await db.user.upsert({
+        where: { clerkUserId },
+        create: { clerkUserId },
+        update: {},
+      });
+
+      // Then sync their data to KV store
+      await syncClerkUserToKV(clerkUserId);
+
       return NextResponse.json(
-        { message: "Webhook received" },
+        { message: "User processed successfully" },
         { status: 200 },
       );
-  }
-}
-
-const ClerkUserWebhookSchema = z.object({
-  id: z.string(),
-  username: z.string().nullable(),
-  email_addresses: z.array(
-    z.object({
-      id: z.string(),
-      email_address: z.string().email(),
-    }),
-  ),
-  primary_email_address_id: z.string(),
-});
-
-const ValidatedUserDataSchema = z.object({
-  clerkUserId: z.string(),
-  email: z.string().email(),
-  username: z.string(),
-});
-
-type ValidatedUserData = z.infer<typeof ValidatedUserDataSchema>;
-
-function validateUserData(data: unknown): ValidatedUserData | NextResponse {
-  const result = ClerkUserWebhookSchema.safeParse(data);
-
-  if (!result.success) {
-    console.error("Validation error:", result.error);
-    return NextResponse.json({ error: "Invalid user data" }, { status: 400 });
+    } catch (error) {
+      console.error("Error processing user:", error);
+      return NextResponse.json(
+        { error: "Error processing user" },
+        { status: 500 },
+      );
+    }
   }
 
-  const {
-    id: clerkUserId,
-    username,
-    email_addresses,
-    primary_email_address_id,
-  } = result.data;
-
-  const primaryEmail = email_addresses.find(
-    (email) => email.id === primary_email_address_id,
-  );
-
-  if (!primaryEmail) {
-    console.error("Primary email not found");
-    return NextResponse.json(
-      { error: "Primary email not found" },
-      { status: 400 },
-    );
-  }
-
-  if (!username) {
-    return NextResponse.json({ error: "Username not found" }, { status: 400 });
-  }
-
-  return {
-    clerkUserId,
-    email: primaryEmail.email_address,
-    username,
-  };
-}
-
-async function handleUpsertUser(data: WebhookEvent["data"]) {
-  const validatedData = validateUserData(data);
-
-  if (validatedData instanceof NextResponse) {
-    return validatedData;
-  }
-
-  try {
-    const user = await db.user.upsert({
-      where: { clerkUserId: validatedData.clerkUserId },
-      create: validatedData,
-      update: validatedData,
-    });
-
-    console.log("User upserted:", user);
-    return NextResponse.json(
-      { message: "User upserted successfully" },
-      { status: 200 },
-    );
-  } catch (error) {
-    console.error("Error upserting user:", error);
-    return NextResponse.json(
-      { error: "Error upserting user" },
-      { status: 500 },
-    );
-  }
+  return NextResponse.json({ message: "Webhook received" }, { status: 200 });
 }

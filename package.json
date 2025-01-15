@@ -10,10 +10,9 @@
     "lint": "next lint",
     "start": "next start",
     "start-tunnel": "lt --subdomain new-daylily-catalog-dev --port 3000",
-    "env": "dotenv -e",
-    "env:dev": "npm run env .env.development -- npx",
-    "env:prod": "npm run env .env.production -- npx",
-    "migrate": "tsx prisma/migrate.ts",
+    "env:dev": "npx dotenv -e .env.development -- ",
+    "env:prod": "npx dotenv -e .env.production -- ",
+    "migrate": "npx tsx prisma/migrate.ts",
     "db:push": "prisma db push",
     "db:generate": "prisma generate",
     "db:studio": "prisma studio"

@@ -106,13 +106,11 @@ model Image {
 
 model User {
   id               String       @id @default(cuid())
-  clerkUserId      String?     @unique
-  stripeCustomerId String?     @unique
-  email            String      @unique
-  username         String      @unique
-  role             String?     @default("USER")
-  createdAt        DateTime    @default(now())
-  updatedAt        DateTime    @updatedAt
+  clerkUserId      String?      @unique
+  stripeCustomerId String?      @unique
+  role             String?      @default("USER")
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
   listings         Listing[]
   lists            List[]
   profile          UserProfile?

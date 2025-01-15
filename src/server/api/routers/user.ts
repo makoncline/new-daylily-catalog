@@ -4,13 +4,7 @@ import { type inferRouterOutputs } from "@trpc/server";
 
 export const userRouter = createTRPCRouter({
   getCurrentUser: publicProcedure.query(async ({ ctx }) => {
-    const user = ctx.user;
-
-    if (!user) {
-      return null;
-    }
-
-    return user;
+    return ctx.user;
   }),
 });
 

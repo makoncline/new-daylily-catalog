@@ -6790,8 +6790,6 @@ export namespace Prisma {
     id: string | null
     clerkUserId: string | null
     stripeCustomerId: string | null
-    email: string | null
-    username: string | null
     role: string | null
     createdAt: Date | null
     updatedAt: Date | null
@@ -6801,8 +6799,6 @@ export namespace Prisma {
     id: string | null
     clerkUserId: string | null
     stripeCustomerId: string | null
-    email: string | null
-    username: string | null
     role: string | null
     createdAt: Date | null
     updatedAt: Date | null
@@ -6812,8 +6808,6 @@ export namespace Prisma {
     id: number
     clerkUserId: number
     stripeCustomerId: number
-    email: number
-    username: number
     role: number
     createdAt: number
     updatedAt: number
@@ -6825,8 +6819,6 @@ export namespace Prisma {
     id?: true
     clerkUserId?: true
     stripeCustomerId?: true
-    email?: true
-    username?: true
     role?: true
     createdAt?: true
     updatedAt?: true
@@ -6836,8 +6828,6 @@ export namespace Prisma {
     id?: true
     clerkUserId?: true
     stripeCustomerId?: true
-    email?: true
-    username?: true
     role?: true
     createdAt?: true
     updatedAt?: true
@@ -6847,8 +6837,6 @@ export namespace Prisma {
     id?: true
     clerkUserId?: true
     stripeCustomerId?: true
-    email?: true
-    username?: true
     role?: true
     createdAt?: true
     updatedAt?: true
@@ -6931,8 +6919,6 @@ export namespace Prisma {
     id: string
     clerkUserId: string | null
     stripeCustomerId: string | null
-    email: string
-    username: string
     role: string | null
     createdAt: Date
     updatedAt: Date
@@ -6959,8 +6945,6 @@ export namespace Prisma {
     id?: boolean
     clerkUserId?: boolean
     stripeCustomerId?: boolean
-    email?: boolean
-    username?: boolean
     role?: boolean
     createdAt?: boolean
     updatedAt?: boolean
@@ -6974,8 +6958,6 @@ export namespace Prisma {
     id?: boolean
     clerkUserId?: boolean
     stripeCustomerId?: boolean
-    email?: boolean
-    username?: boolean
     role?: boolean
     createdAt?: boolean
     updatedAt?: boolean
@@ -6985,8 +6967,6 @@ export namespace Prisma {
     id?: boolean
     clerkUserId?: boolean
     stripeCustomerId?: boolean
-    email?: boolean
-    username?: boolean
     role?: boolean
     createdAt?: boolean
     updatedAt?: boolean
@@ -7011,8 +6991,6 @@ export namespace Prisma {
       id: string
       clerkUserId: string | null
       stripeCustomerId: string | null
-      email: string
-      username: string
       role: string | null
       createdAt: Date
       updatedAt: Date
@@ -7415,8 +7393,6 @@ export namespace Prisma {
     readonly id: FieldRef<"User", 'String'>
     readonly clerkUserId: FieldRef<"User", 'String'>
     readonly stripeCustomerId: FieldRef<"User", 'String'>
-    readonly email: FieldRef<"User", 'String'>
-    readonly username: FieldRef<"User", 'String'>
     readonly role: FieldRef<"User", 'String'>
     readonly createdAt: FieldRef<"User", 'DateTime'>
     readonly updatedAt: FieldRef<"User", 'DateTime'>
@@ -8765,8 +8741,6 @@ export namespace Prisma {
     id: 'id',
     clerkUserId: 'clerkUserId',
     stripeCustomerId: 'stripeCustomerId',
-    email: 'email',
-    username: 'username',
     role: 'role',
     createdAt: 'createdAt',
     updatedAt: 'updatedAt'
@@ -9291,8 +9265,6 @@ export namespace Prisma {
     id?: StringFilter<"User"> | string
     clerkUserId?: StringNullableFilter<"User"> | string | null
     stripeCustomerId?: StringNullableFilter<"User"> | string | null
-    email?: StringFilter<"User"> | string
-    username?: StringFilter<"User"> | string
     role?: StringNullableFilter<"User"> | string | null
     createdAt?: DateTimeFilter<"User"> | Date | string
     updatedAt?: DateTimeFilter<"User"> | Date | string
@@ -9305,8 +9277,6 @@ export namespace Prisma {
     id?: SortOrder
     clerkUserId?: SortOrderInput | SortOrder
     stripeCustomerId?: SortOrderInput | SortOrder
-    email?: SortOrder
-    username?: SortOrder
     role?: SortOrderInput | SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
@@ -9319,8 +9289,6 @@ export namespace Prisma {
     id?: string
     clerkUserId?: string
     stripeCustomerId?: string
-    email?: string
-    username?: string
     AND?: UserWhereInput | UserWhereInput[]
     OR?: UserWhereInput[]
     NOT?: UserWhereInput | UserWhereInput[]
@@ -9330,14 +9298,12 @@ export namespace Prisma {
     listings?: ListingListRelationFilter
     lists?: ListListRelationFilter
     profile?: XOR<UserProfileNullableRelationFilter, UserProfileWhereInput> | null
-  }, "id" | "clerkUserId" | "stripeCustomerId" | "email" | "username">
+  }, "id" | "clerkUserId" | "stripeCustomerId">
 
   export type UserOrderByWithAggregationInput = {
     id?: SortOrder
     clerkUserId?: SortOrderInput | SortOrder
     stripeCustomerId?: SortOrderInput | SortOrder
-    email?: SortOrder
-    username?: SortOrder
     role?: SortOrderInput | SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
@@ -9353,8 +9319,6 @@ export namespace Prisma {
     id?: StringWithAggregatesFilter<"User"> | string
     clerkUserId?: StringNullableWithAggregatesFilter<"User"> | string | null
     stripeCustomerId?: StringNullableWithAggregatesFilter<"User"> | string | null
-    email?: StringWithAggregatesFilter<"User"> | string
-    username?: StringWithAggregatesFilter<"User"> | string
     role?: StringNullableWithAggregatesFilter<"User"> | string | null
     createdAt?: DateTimeWithAggregatesFilter<"User"> | Date | string
     updatedAt?: DateTimeWithAggregatesFilter<"User"> | Date | string
@@ -9910,8 +9874,6 @@ export namespace Prisma {
     id?: string
     clerkUserId?: string | null
     stripeCustomerId?: string | null
-    email: string
-    username: string
     role?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
@@ -9924,8 +9886,6 @@ export namespace Prisma {
     id?: string
     clerkUserId?: string | null
     stripeCustomerId?: string | null
-    email: string
-    username: string
     role?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
@@ -9938,8 +9898,6 @@ export namespace Prisma {
     id?: StringFieldUpdateOperationsInput | string
     clerkUserId?: NullableStringFieldUpdateOperationsInput | string | null
     stripeCustomerId?: NullableStringFieldUpdateOperationsInput | string | null
-    email?: StringFieldUpdateOperationsInput | string
-    username?: StringFieldUpdateOperationsInput | string
     role?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -9952,8 +9910,6 @@ export namespace Prisma {
     id?: StringFieldUpdateOperationsInput | string
     clerkUserId?: NullableStringFieldUpdateOperationsInput | string | null
     stripeCustomerId?: NullableStringFieldUpdateOperationsInput | string | null
-    email?: StringFieldUpdateOperationsInput | string
-    username?: StringFieldUpdateOperationsInput | string
     role?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -9966,8 +9922,6 @@ export namespace Prisma {
     id?: string
     clerkUserId?: string | null
     stripeCustomerId?: string | null
-    email: string
-    username: string
     role?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
@@ -9977,8 +9931,6 @@ export namespace Prisma {
     id?: StringFieldUpdateOperationsInput | string
     clerkUserId?: NullableStringFieldUpdateOperationsInput | string | null
     stripeCustomerId?: NullableStringFieldUpdateOperationsInput | string | null
-    email?: StringFieldUpdateOperationsInput | string
-    username?: StringFieldUpdateOperationsInput | string
     role?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -9988,8 +9940,6 @@ export namespace Prisma {
     id?: StringFieldUpdateOperationsInput | string
     clerkUserId?: NullableStringFieldUpdateOperationsInput | string | null
     stripeCustomerId?: NullableStringFieldUpdateOperationsInput | string | null
-    email?: StringFieldUpdateOperationsInput | string
-    username?: StringFieldUpdateOperationsInput | string
     role?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -10475,8 +10425,6 @@ export namespace Prisma {
     id?: SortOrder
     clerkUserId?: SortOrder
     stripeCustomerId?: SortOrder
-    email?: SortOrder
-    username?: SortOrder
     role?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
@@ -10486,8 +10434,6 @@ export namespace Prisma {
     id?: SortOrder
     clerkUserId?: SortOrder
     stripeCustomerId?: SortOrder
-    email?: SortOrder
-    username?: SortOrder
     role?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
@@ -10497,8 +10443,6 @@ export namespace Prisma {
     id?: SortOrder
     clerkUserId?: SortOrder
     stripeCustomerId?: SortOrder
-    email?: SortOrder
-    username?: SortOrder
     role?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
@@ -11286,8 +11230,6 @@ export namespace Prisma {
     id?: string
     clerkUserId?: string | null
     stripeCustomerId?: string | null
-    email: string
-    username: string
     role?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
@@ -11299,8 +11241,6 @@ export namespace Prisma {
     id?: string
     clerkUserId?: string | null
     stripeCustomerId?: string | null
-    email: string
-    username: string
     role?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
@@ -11451,8 +11391,6 @@ export namespace Prisma {
     id?: StringFieldUpdateOperationsInput | string
     clerkUserId?: NullableStringFieldUpdateOperationsInput | string | null
     stripeCustomerId?: NullableStringFieldUpdateOperationsInput | string | null
-    email?: StringFieldUpdateOperationsInput | string
-    username?: StringFieldUpdateOperationsInput | string
     role?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -11464,8 +11402,6 @@ export namespace Prisma {
     id?: StringFieldUpdateOperationsInput | string
     clerkUserId?: NullableStringFieldUpdateOperationsInput | string | null
     stripeCustomerId?: NullableStringFieldUpdateOperationsInput | string | null
-    email?: StringFieldUpdateOperationsInput | string
-    username?: StringFieldUpdateOperationsInput | string
     role?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -11512,8 +11448,6 @@ export namespace Prisma {
     id?: string
     clerkUserId?: string | null
     stripeCustomerId?: string | null
-    email: string
-    username: string
     role?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
@@ -11525,8 +11459,6 @@ export namespace Prisma {
     id?: string
     clerkUserId?: string | null
     stripeCustomerId?: string | null
-    email: string
-    username: string
     role?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
@@ -11570,8 +11502,6 @@ export namespace Prisma {
     id?: StringFieldUpdateOperationsInput | string
     clerkUserId?: NullableStringFieldUpdateOperationsInput | string | null
     stripeCustomerId?: NullableStringFieldUpdateOperationsInput | string | null
-    email?: StringFieldUpdateOperationsInput | string
-    username?: StringFieldUpdateOperationsInput | string
     role?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -11583,8 +11513,6 @@ export namespace Prisma {
     id?: StringFieldUpdateOperationsInput | string
     clerkUserId?: NullableStringFieldUpdateOperationsInput | string | null
     stripeCustomerId?: NullableStringFieldUpdateOperationsInput | string | null
-    email?: StringFieldUpdateOperationsInput | string
-    username?: StringFieldUpdateOperationsInput | string
     role?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -11596,8 +11524,6 @@ export namespace Prisma {
     id?: string
     clerkUserId?: string | null
     stripeCustomerId?: string | null
-    email: string
-    username: string
     role?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
@@ -11609,8 +11535,6 @@ export namespace Prisma {
     id?: string
     clerkUserId?: string | null
     stripeCustomerId?: string | null
-    email: string
-    username: string
     role?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
@@ -11665,8 +11589,6 @@ export namespace Prisma {
     id?: StringFieldUpdateOperationsInput | string
     clerkUserId?: NullableStringFieldUpdateOperationsInput | string | null
     stripeCustomerId?: NullableStringFieldUpdateOperationsInput | string | null
-    email?: StringFieldUpdateOperationsInput | string
-    username?: StringFieldUpdateOperationsInput | string
     role?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -11678,8 +11600,6 @@ export namespace Prisma {
     id?: StringFieldUpdateOperationsInput | string
     clerkUserId?: NullableStringFieldUpdateOperationsInput | string | null
     stripeCustomerId?: NullableStringFieldUpdateOperationsInput | string | null
-    email?: StringFieldUpdateOperationsInput | string
-    username?: StringFieldUpdateOperationsInput | string
     role?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string

@@ -3,32 +3,15 @@ import { stripe } from "@/server/stripe/client";
 import { TRPCError } from "@trpc/server";
 import { env } from "@/env";
 import { z } from "zod";
-import { kvStore } from "@/server/db/kvStore";
 import {
   syncStripeSubscriptionToKV,
-  getStripeCustomerKey,
-  DEFAULT_SUB_DATA,
-  StripeSubCache,
+  getStripeSubscription,
 } from "@/server/stripe/sync-subscription";
 
 export const stripeRouter = createTRPCRouter({
   getSubscription: protectedProcedure.query(async ({ ctx }) => {
     const { user } = ctx;
-    if (!user?.stripeCustomerId) {
-      return DEFAULT_SUB_DATA;
-    }
-
-    // Try to get from cache first
-    const cachedData = (await kvStore.get(
-      getStripeCustomerKey(user.stripeCustomerId),
-    )) as StripeSubCache;
-
-    if (cachedData) {
-      return cachedData;
-    }
-
-    // If not in cache, sync from Stripe and cache it
-    return syncStripeSubscriptionToKV(user.stripeCustomerId);
+    return getStripeSubscription(user.stripeCustomerId);
   }),
 
   // Generate checkout session for new subscription
@@ -40,7 +23,7 @@ export const stripeRouter = createTRPCRouter({
     // Create a new Stripe customer if one doesn't exist
     if (!stripeCustomerId) {
       const customer = await stripe.customers.create({
-        email: user.email,
+        email: user.clerk?.email,
         metadata: {
           userId: user.id,
         },

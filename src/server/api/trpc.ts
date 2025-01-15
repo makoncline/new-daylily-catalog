@@ -1,43 +1,28 @@
 import { initTRPC, TRPCError } from "@trpc/server";
-import { auth, currentUser } from "@clerk/nextjs/server";
+import { auth } from "@clerk/nextjs/server";
 import superjson from "superjson";
 import { db } from "@/server/db";
-import { type User } from "@prisma/client";
+import { getClerkUserData } from "@/server/clerk/sync-user";
 
 async function findUserByClerkId(clerkUserId: string) {
-  return db.user.findUnique({
+  const user = await db.user.findUnique({
     where: { clerkUserId },
-    include: {
-      stripeSubscription: true,
-    },
   });
+  if (!user) {
+    return null;
+  }
+  const clerkUserData = await getClerkUserData(user.clerkUserId);
+  return { ...user, clerk: clerkUserData };
 }
 
 async function createUserFromClerk(clerkUserId: string) {
-  const clerkUser = await currentUser();
-
-  if (!clerkUser) {
-    throw new Error("Current Clerk user not found");
-  }
-
-  const primaryEmail = clerkUser.emailAddresses.find(
-    (email) => email.id === clerkUser.primaryEmailAddressId,
-  )?.emailAddress;
-
-  if (!primaryEmail || !clerkUser.username) {
-    throw new Error("Missing required user data from Clerk");
-  }
-
-  return db.user.create({
+  const user = await db.user.create({
     data: {
       clerkUserId,
-      email: primaryEmail,
-      username: clerkUser.username,
-    },
-    include: {
-      stripeSubscription: true,
     },
   });
+  const clerkUserData = await getClerkUserData(user.clerkUserId);
+  return { ...user, clerk: clerkUserData };
 }
 
 async function getOrCreateUser(clerkUserId: string) {
@@ -69,8 +54,10 @@ export const createTRPCRouter = t.router;
 export const publicProcedure = t.procedure;
 
 const isAuthenticated = t.middleware((opts) => {
-  const { ctx } = opts;
-  if (!ctx.user) {
+  const {
+    ctx: { user },
+  } = opts;
+  if (!user) {
     throw new TRPCError({
       code: "UNAUTHORIZED",
       message: "Not authenticated",
@@ -79,7 +66,8 @@ const isAuthenticated = t.middleware((opts) => {
 
   return opts.next({
     ctx: {
-      user: ctx.user,
+      ...opts.ctx,
+      user,
     },
   });
 });

@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Command, Flower2, ListTodo, LifeBuoy, Send } from "lucide-react";
+import { Command, Flower2, ListTodo, Send } from "lucide-react";
 import { api } from "@/trpc/react";
 import { NavMain } from "@/components/nav-main";
 import { NavUser, NavUserSkeleton } from "@/components/nav-user";
@@ -16,7 +16,6 @@ import {
 } from "@/components/ui/sidebar";
 import { useFeedbackUrl } from "@/hooks/use-feedback-url";
 import { NavSecondary } from "./nav-secondary";
-import { useUser } from "@clerk/nextjs";
 const navMainItems = [
   {
     title: "Listings",
@@ -33,7 +32,6 @@ const navMainItems = [
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const { data: user, isLoading } = api.user.getCurrentUser.useQuery();
-  const { user: clerkUser } = useUser();
   const feedbackUrl = useFeedbackUrl();
   const navSecondaryItems = [
     {
@@ -73,9 +71,8 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         ) : user ? (
           <NavUser
             user={{
-              name: user.username ?? "User",
-              email: user.email ?? "",
-              avatar: clerkUser?.imageUrl ?? "",
+              email: user.clerk?.email ?? "",
+              avatar: user.clerk?.imageUrl ?? "",
             }}
           />
         ) : null}
