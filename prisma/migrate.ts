@@ -6,6 +6,7 @@ import { setTimeout } from "timers/promises";
 import Stripe from "stripe";
 import { env } from "../src/env.js";
 import { syncStripeSubscriptionToKVBase } from "../src/server/stripe/sync-subscription";
+import { syncClerkUserToKVBase } from "../src/server/clerk/sync-user";
 import { kvStore } from "../src/server/db/kvStore";
 
 const stripe = new Stripe(process.env.PROD_STRIPE_SECRET_KEY!);
@@ -35,7 +36,6 @@ const clerkUserSchema = z.object({
       emailAddress: z.string(),
     }),
   ),
-  username: z.string().nullable(),
 });
 
 async function fetchAllClerkUsers() {
@@ -47,21 +47,20 @@ async function fetchAllClerkUsers() {
 
 async function getOrCreateClerkUser(
   email: string,
-  username: string,
   allClerkUsers: z.infer<typeof clerkUserSchema>[],
 ) {
   try {
-    // Find the user in the list of Clerk users
-    let clerkUser = (allClerkUsers as User[]).find(
-      (user) => user.username === username.toLowerCase(),
+    // Find the user in the list of Clerk users by email
+    let clerkUser = (allClerkUsers as User[]).find((user) =>
+      user.emailAddresses.some((e) => e.emailAddress === email),
     );
+
     // If user doesn't exist in Clerk, create them
     if (!clerkUser) {
-      console.log(`Creating Clerk user for ${email} ${username}`);
+      console.log(`Creating Clerk user for ${email}`);
       await setTimeout(2000);
       clerkUser = await clerkClient.users.createUser({
         emailAddress: [email],
-        username: username,
       });
       console.log(`Created Clerk user for ${email}`);
     } else {
@@ -161,16 +160,14 @@ async function upsertUsers() {
 
     try {
       // Get or create Clerk user
-      const clerkUserId: string = await getOrCreateClerkUser(
+      const clerkUserId = await getOrCreateClerkUser(
         selectedEmail.email,
-        user.username,
         allClerkUsers,
       );
 
+      // Create base user data
       const userData = {
-        clerkUserId: clerkUserId,
-        username: user.username,
-        email: selectedEmail.email,
+        clerkUserId,
         role: user.is_admin ? "ADMIN" : "USER",
         stripeCustomerId: user.stripe_customers?.id ?? null,
         createdAt: user.created_at,
@@ -179,10 +176,13 @@ async function upsertUsers() {
 
       // Upsert user in SQLite
       await sqlite.user.upsert({
-        where: { email: selectedEmail.email },
+        where: { clerkUserId },
         update: userData,
         create: { id: userId, ...userData },
       });
+
+      // Sync Clerk data to KV store
+      await syncClerkUserToKVBase(clerkUserId, clerkClient, kvStore);
 
       successCount++;
     } catch (error) {

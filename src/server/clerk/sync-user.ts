@@ -1,5 +1,5 @@
-import { clerkClient } from "@clerk/nextjs/server";
-import type { EmailAddress, User } from "@clerk/nextjs/server";
+import type { User } from "@clerk/nextjs/server";
+import type { User as NodeClerkUser } from "@clerk/clerk-sdk-node";
 import { kvStore as appKvStore } from "@/server/db/kvStore";
 import { clerk } from "./client";
 
@@ -8,9 +8,15 @@ export const DEFAULT_USER_DATA = null;
 export const getClerkUserKey = (clerkUserId: string) =>
   `clerk:user:${clerkUserId}`;
 
+type ClerkClient = {
+  users: {
+    getUser: (userId: string) => Promise<User | NodeClerkUser>;
+  };
+};
+
 export async function syncClerkUserToKVBase(
   clerkUserId: string,
-  clerk: Awaited<ReturnType<typeof clerkClient>>,
+  clerk: ClerkClient,
   kvStore: typeof appKvStore,
 ) {
   try {
