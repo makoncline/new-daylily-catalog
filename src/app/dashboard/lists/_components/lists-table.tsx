@@ -4,10 +4,9 @@ import { type List } from "@prisma/client";
 import { type ColumnDef } from "@tanstack/react-table";
 import { ArrowUpDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { TooltipCell } from "@/app/dashboard/listings/_components/listings-table/tooltip-cell";
-import { DataTable } from "@/app/dashboard/listings/_components/listings-table/data-table";
 import { ListActions } from "./list-actions";
 import { TABLE_CONFIG } from "@/config/constants";
+import { DataTable, TooltipCell } from "@/components/data-table";
 
 interface ListsTableProps {
   initialLists: (List & {
