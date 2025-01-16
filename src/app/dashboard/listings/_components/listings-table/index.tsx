@@ -1,9 +1,9 @@
 "use client";
 
 import { type ListingGetOutput } from "@/server/api/routers/listing";
-import { DataTable } from "./data-table";
 import { getColumns } from "./columns";
 import { TABLE_CONFIG } from "@/config/constants";
+import { DataTable } from "@/components/data-table";
 
 interface ListingsTableProps {
   initialListings: ListingGetOutput[];
