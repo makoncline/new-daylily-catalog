@@ -7,8 +7,9 @@ export function useFeedbackUrl() {
   const feedbackUrl = new URL(FEEDBACK_CONFIG.FORM_URL);
   feedbackUrl.searchParams.set("board-slug", FEEDBACK_CONFIG.BOARD_SLUG);
 
-  if (user) {
-    feedbackUrl.searchParams.set("email", user.email);
+  if (user?.clerk?.email) {
+    feedbackUrl.searchParams.set("email", user.clerk.email);
   }
+
   return feedbackUrl.toString();
 }

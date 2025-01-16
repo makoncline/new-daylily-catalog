@@ -64,9 +64,9 @@ export const getStripeSubscription = async (
   }
 
   // Try to get from cache first
-  const cachedData = (await appKvStore.get(
+  const cachedData: StripeSubCache | null = await appKvStore.get(
     getStripeCustomerKey(stripeCustomerId),
-  )) as StripeSubCache;
+  );
 
   if (cachedData) {
     return cachedData;

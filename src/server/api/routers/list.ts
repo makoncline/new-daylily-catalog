@@ -4,6 +4,7 @@ import { TRPCError } from "@trpc/server";
 
 const listInclude = {
   id: true,
+  userId: true,
   name: true,
   intro: true,
   bio: true,

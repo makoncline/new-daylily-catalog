@@ -1,9 +1,8 @@
 import { NextResponse } from "next/server";
-import { headers } from "next/headers";
-import Stripe from "stripe";
 import { env } from "@/env";
 import { stripe } from "@/server/stripe/client";
-import { api } from "@/trpc/server";
+import type Stripe from "stripe";
+import { syncStripeSubscriptionToKV } from "@/server/stripe/sync-subscription";
 
 const relevantEvents = new Set<Stripe.Event.Type>([
   "checkout.session.completed",
@@ -28,7 +27,7 @@ const relevantEvents = new Set<Stripe.Event.Type>([
 
 export async function POST(req: Request) {
   const body = await req.text();
-  const signature = headers().get("stripe-signature");
+  const signature = req.headers.get("stripe-signature");
 
   if (!signature) {
     return NextResponse.json(
@@ -54,7 +53,7 @@ export async function POST(req: Request) {
     try {
       const customerId = getCustomerIdFromEvent(event);
       if (customerId) {
-        await api.stripe.syncStripeData.mutation({ customerId });
+        await syncStripeSubscriptionToKV(customerId);
       }
     } catch (error) {
       console.error("Error processing webhook:", error);

@@ -39,7 +39,7 @@ export function ListActions({ list }: ListActionsProps) {
   const [open, setOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [name, setName] = useState(list.name);
-  const [intro, setIntro] = useState(list.intro || "");
+  const [intro, setIntro] = useState(list.intro ?? "");
 
   const router = useRouter();
   const { toast } = useToast();

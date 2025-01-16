@@ -2,7 +2,7 @@
 
 import { DropdownMenuTrigger } from "@radix-ui/react-dropdown-menu";
 import { MixerHorizontalIcon, ResetIcon } from "@radix-ui/react-icons";
-import { Table } from "@tanstack/react-table";
+import { type Table } from "@tanstack/react-table";
 import { DragHandleDots2Icon } from "@radix-ui/react-icons";
 import {
   DndContext,
@@ -11,7 +11,7 @@ import {
   PointerSensor,
   useSensor,
   useSensors,
-  DragEndEvent,
+  type DragEndEvent,
 } from "@dnd-kit/core";
 import {
   arrayMove,

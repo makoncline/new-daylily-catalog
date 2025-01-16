@@ -119,11 +119,7 @@ export const listingRouter = createTRPCRouter({
   deleteImage: protectedProcedure
     .input(z.object({ imageId: z.string() }))
     .mutation(async ({ ctx, input }) => {
-      const image = await checkImageOwnership(
-        ctx.user.id,
-        input.imageId,
-        ctx.db,
-      );
+      await checkImageOwnership(ctx.user.id, input.imageId, ctx.db);
 
       await ctx.db.image.delete({
         where: { id: input.imageId },

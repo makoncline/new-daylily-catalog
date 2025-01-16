@@ -60,9 +60,9 @@ export async function getClerkUserData(clerkUserId: string | null | undefined) {
   }
 
   // Try to get from cache first
-  const cachedData = (await appKvStore.get(
+  const cachedData: ClerkUserData = await appKvStore.get(
     getClerkUserKey(clerkUserId),
-  )) as ClerkUserData;
+  );
 
   if (cachedData) {
     return cachedData;

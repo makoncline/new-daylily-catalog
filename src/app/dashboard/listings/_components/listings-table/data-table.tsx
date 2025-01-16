@@ -51,7 +51,6 @@ interface DataTableProps<TData> {
   };
   filterPlaceholder?: string;
   showTableOptions?: boolean;
-  onEdit?: (id: string | null) => void;
   onPaginationChange?: (pageIndex: number, pageSize: number) => void;
 }
 
@@ -61,7 +60,6 @@ export function DataTable<TData extends { id: string }>({
   options = { pinnedColumns: { left: 0, right: 0 } },
   filterPlaceholder,
   showTableOptions = true,
-  onEdit,
   onPaginationChange,
 }: DataTableProps<TData>) {
   const router = useRouter();
