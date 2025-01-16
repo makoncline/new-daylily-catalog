@@ -15,6 +15,7 @@ import {
   SidebarProvider,
   SidebarTrigger,
 } from "@/components/ui/sidebar";
+import { useLocalStorage } from "@/hooks/use-local-storage";
 import { usePathname } from "next/navigation";
 
 interface DashboardLayoutProps {
@@ -22,11 +23,12 @@ interface DashboardLayoutProps {
 }
 
 export default function DashboardLayout({ children }: DashboardLayoutProps) {
+  const [sidebarOpen, setSidebarOpen] = useLocalStorage("sidebar:state", true);
   const pathname = usePathname();
   const isListingsPage = pathname.includes("/dashboard/listings");
 
   return (
-    <SidebarProvider>
+    <SidebarProvider open={sidebarOpen} onOpenChange={setSidebarOpen}>
       <AppSidebar />
       <SidebarInset>
         <header className="flex h-16 shrink-0 items-center gap-2">

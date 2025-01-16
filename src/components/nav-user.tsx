@@ -31,6 +31,7 @@ export interface NavUserProps {
 export function NavUser({ user }: NavUserProps) {
   const { isMobile } = useSidebar();
   const { openUserProfile } = useClerk();
+  const { setOpenMobile } = useSidebar();
 
   return (
     <SidebarMenu>
@@ -78,7 +79,12 @@ export function NavUser({ user }: NavUserProps) {
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
             <DropdownMenuGroup>
-              <DropdownMenuItem onClick={() => openUserProfile()}>
+              <DropdownMenuItem
+                onClick={() => {
+                  setOpenMobile(false);
+                  openUserProfile();
+                }}
+              >
                 <BadgeCheck className="mr-2 h-4 w-4" />
                 Account
               </DropdownMenuItem>
