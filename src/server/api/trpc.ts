@@ -1,5 +1,5 @@
 import { initTRPC, TRPCError } from "@trpc/server";
-import { auth, getAuth } from "@clerk/nextjs/server";
+import { auth } from "@clerk/nextjs/server";
 import superjson from "superjson";
 import { db } from "@/server/db";
 import { getClerkUserData } from "@/server/clerk/sync-user";

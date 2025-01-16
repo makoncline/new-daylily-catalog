@@ -2,8 +2,8 @@
 
 import { useRouter, useSearchParams } from "next/navigation";
 import { api } from "@/trpc/react";
-import { ListingsTable } from "./_components/listings-table";
-import { CreateListingButton } from "./_components/create-listing-button";
+import { ListingsTable } from "./listings-table";
+import { CreateListingButton } from "./create-listing-button";
 import {
   Dialog,
   DialogContent,
@@ -12,9 +12,8 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { ListingForm } from "@/components/forms/listing-form";
-import { Suspense } from "react";
 
-async function ListingsContent() {
+export function ListingsContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const editingId = searchParams.get("editing");
@@ -83,13 +82,5 @@ async function ListingsContent() {
         </DialogContent>
       </Dialog>
     </div>
-  );
-}
-
-export default function ListingsPage() {
-  return (
-    <Suspense fallback={<div>Loading...</div>}>
-      <ListingsContent />
-    </Suspense>
   );
 }
