@@ -43,7 +43,6 @@ model Listing {
   price       Float?
   publicNote  String?
   privateNote String?
-  listId      String?
   ahsId       String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -51,11 +50,10 @@ model Listing {
   images Image[]
 
   ahsListing AhsListing? @relation(fields: [ahsId], references: [id])
-  list       List?       @relation(fields: [listId], references: [id])
+  lists      List[]      @relation("ListToListing")
   user       User        @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([ahsId])
-  @@index([listId])
   @@index([userId])
 }
 
@@ -67,7 +65,7 @@ model List {
   bio       String?
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
-  listings  Listing[]
+  listings  Listing[] @relation("ListToListing")
   user      User      @relation(fields: [userId], references: [id])
 
   @@index([userId])

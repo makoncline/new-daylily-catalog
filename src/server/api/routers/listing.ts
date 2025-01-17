@@ -1,6 +1,10 @@
 import { z } from "zod";
 import { createTRPCRouter, protectedProcedure } from "@/server/api/trpc";
-import { type inferRouterOutputs, TRPCError } from "@trpc/server";
+import {
+  type inferRouterInputs,
+  type inferRouterOutputs,
+  TRPCError,
+} from "@trpc/server";
 import { listingFormSchema } from "@/types/schemas/listing";
 import { type PrismaClient } from "@prisma/client";
 
@@ -57,6 +61,14 @@ async function checkImageOwnership(
   return image;
 }
 
+const listingInclude = {
+  ahsListing: true,
+  images: {
+    orderBy: { order: "asc" },
+  },
+  lists: true,
+} as const;
+
 export const listingRouter = createTRPCRouter({
   create: protectedProcedure.mutation(async ({ ctx }) => {
     const listing = await ctx.db.listing.create({
@@ -64,10 +76,7 @@ export const listingRouter = createTRPCRouter({
         name: "New Listing",
         userId: ctx.user.id,
       },
-      include: {
-        ahsListing: true,
-        images: true,
-      },
+      include: listingInclude,
     });
     return listing;
   }),
@@ -93,13 +102,14 @@ export const listingRouter = createTRPCRouter({
 
       const updatedListing = await ctx.db.listing.update({
         where: { id: input.id },
-        data: input.data,
-        include: {
-          ahsListing: true,
-          images: {
-            orderBy: { order: "asc" },
-          },
+        data: {
+          name: input.data.name,
+          price: input.data.price,
+          publicNote: input.data.publicNote,
+          privateNote: input.data.privateNote,
+          ahsId: input.data.ahsId,
         },
+        include: listingInclude,
       });
 
       return updatedListing;
@@ -196,12 +206,7 @@ export const listingRouter = createTRPCRouter({
     .query(async ({ ctx, input }) => {
       const listing = await ctx.db.listing.findUnique({
         where: { id: input.id },
-        include: {
-          ahsListing: true,
-          images: {
-            orderBy: { order: "asc" },
-          },
-        },
+        include: listingInclude,
       });
 
       if (!listing) {
@@ -217,12 +222,7 @@ export const listingRouter = createTRPCRouter({
   list: protectedProcedure.query(async ({ ctx }) => {
     return ctx.db.listing.findMany({
       where: { userId: ctx.user.id },
-      include: {
-        ahsListing: true,
-        images: {
-          orderBy: { order: "asc" },
-        },
-      },
+      include: listingInclude,
       orderBy: { updatedAt: "desc" },
     });
   }),
@@ -264,12 +264,7 @@ export const listingRouter = createTRPCRouter({
           ahsId: input.ahsId,
           name: input.syncName && ahsListing.name ? ahsListing.name : undefined,
         },
-        include: {
-          ahsListing: true,
-          images: {
-            orderBy: { order: "asc" },
-          },
-        },
+        include: listingInclude,
       });
 
       return updatedListing;
@@ -294,12 +289,7 @@ export const listingRouter = createTRPCRouter({
         data: {
           ahsId: null,
         },
-        include: {
-          ahsListing: true,
-          images: {
-            orderBy: { order: "asc" },
-          },
-        },
+        include: listingInclude,
       });
 
       return updatedListing;
@@ -325,12 +315,7 @@ export const listingRouter = createTRPCRouter({
         data: {
           name: listing.ahsListing.name,
         },
-        include: {
-          ahsListing: true,
-          images: {
-            orderBy: { order: "asc" },
-          },
-        },
+        include: listingInclude,
       });
 
       return updatedListing;
@@ -339,7 +324,14 @@ export const listingRouter = createTRPCRouter({
   getUserLists: protectedProcedure.query(async ({ ctx }) => {
     return ctx.db.list.findMany({
       where: { userId: ctx.user.id },
-      orderBy: { name: "asc" },
+      include: {
+        _count: {
+          select: {
+            listings: true,
+          },
+        },
+      },
+      orderBy: [{ listings: { _count: "desc" } }, { name: "asc" }],
     });
   }),
 
@@ -354,36 +346,34 @@ export const listingRouter = createTRPCRouter({
       });
     }),
 
-  updateListId: protectedProcedure
-    .input(z.object({ id: z.string(), listId: z.string().nullable() }))
+  updateLists: protectedProcedure
+    .input(z.object({ id: z.string(), listIds: z.array(z.string()) }))
     .mutation(async ({ ctx, input }) => {
       await checkListingOwnership(ctx.user.id, input.id, ctx.db);
 
-      if (input.listId) {
-        const list = await ctx.db.list.findUnique({
-          where: { id: input.listId },
-        });
+      // Verify all lists exist and belong to user
+      const lists = await ctx.db.list.findMany({
+        where: {
+          id: { in: input.listIds },
+          userId: ctx.user.id,
+        },
+      });
 
-        if (!list || list.userId !== ctx.user.id) {
-          throw new TRPCError({
-            code: "NOT_FOUND",
-            message: "List not found",
-          });
-        }
+      if (lists.length !== input.listIds.length) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "One or more lists not found",
+        });
       }
 
       const updatedListing = await ctx.db.listing.update({
         where: { id: input.id },
         data: {
-          listId: input.listId,
-        },
-        include: {
-          ahsListing: true,
-          images: {
-            orderBy: { order: "asc" },
+          lists: {
+            set: input.listIds.map((id) => ({ id })),
           },
-          list: true,
         },
+        include: listingInclude,
       });
 
       return updatedListing;
@@ -391,6 +381,8 @@ export const listingRouter = createTRPCRouter({
 });
 
 export type ListingRouter = typeof listingRouter;
+export type ListingRouterOutputs = inferRouterOutputs<ListingRouter>;
+export type ListingRouterInput = inferRouterInputs<ListingRouter>;
 
-export type ListingGetOutput = inferRouterOutputs<ListingRouter>["get"];
-export type ListingListOutput = inferRouterOutputs<ListingRouter>["list"];
+export type ListingGetOutput = ListingRouterOutputs["get"];
+export type ListingListOutput = ListingRouterInput["list"];

@@ -7,27 +7,25 @@ import {
 } from "@/components/data-table";
 import { COLUMN_NAMES } from "@/config/constants";
 import { formatPrice } from "@/lib/utils";
-import {
-  type ListingListOutput,
-  type ListingGetOutput,
-} from "@/server/api/routers/listing";
 import { type Row, type ColumnDef } from "@tanstack/react-table";
+import { type ListingRouterOutputs } from "@/server/api/routers/listing";
+import { TruncatedListBadge } from "@/components/data-table/truncated-list-badge";
+
+type ListingData = ListingRouterOutputs["list"][number];
+type ListingRow = Row<ListingData>;
 
 /**
  * Helper function to safely get string values from a row
  * Returns null if the value is not a string
  */
-const getStringValue = (
-  row: Row<ListingListOutput[number]>,
-  key: string,
-): string | null => {
+const getStringValue = (row: ListingRow, key: string): string | null => {
   const value = row.getValue(key);
   return typeof value === "string" ? value : null;
 };
 
 export function getColumns(
   onEdit?: (id: string | null) => void,
-): ColumnDef<ListingGetOutput>[] {
+): ColumnDef<ListingRouterOutputs["list"][number]>[] {
   return [
     {
       id: "name",
@@ -85,6 +83,36 @@ export function getColumns(
       ),
       enableSorting: true,
       enableHiding: true,
+    },
+    {
+      id: "lists",
+      accessorFn: (row) => row.lists.map((list) => list.id),
+      enableColumnFilter: true,
+      header: ({ column }) => (
+        <DataTableColumnHeader column={column} title="Lists" />
+      ),
+      cell: ({ row }) => {
+        const lists = row.original.lists;
+        if (!lists?.length) return null;
+
+        return (
+          <div className="flex flex-wrap gap-1">
+            {lists.map((list) => (
+              <TruncatedListBadge
+                key={list.id}
+                name={list.name}
+                className="text-xs font-normal"
+              />
+            ))}
+          </div>
+        );
+      },
+      filterFn: (row, id, filterValue) => {
+        const rowValue = row.original;
+        return rowValue.lists.some((list) =>
+          (filterValue as string[]).includes(list.id),
+        );
+      },
     },
 
     // AHS Listing columns

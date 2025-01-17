@@ -49,6 +49,12 @@ export const LISTING_CONFIG = {
   },
 } as const;
 
+export const LIST_CONFIG = {
+  BADGE: {
+    MAX_NAME_LENGTH: 20,
+  },
+} as const;
+
 export const FEEDBACK_CONFIG = {
   BOARD_SLUG: "daylily-catalog",
   FORM_URL: "https://coda.io/form/Ideas-Bugs_dWgu2I2WTqJ",

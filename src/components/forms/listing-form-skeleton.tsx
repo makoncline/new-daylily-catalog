@@ -2,7 +2,7 @@
 
 import { Skeleton } from "@/components/ui/skeleton";
 import { AhsListingLinkSkeleton } from "@/components/ahs-listing-link";
-import { ListSelectSkeleton } from "@/components/list-select";
+import { MultiListSelectSkeleton } from "@/components/multi-list-select";
 import { ImageManagerSkeleton } from "@/components/image-manager";
 
 export function ListingFormSkeleton() {
@@ -42,10 +42,10 @@ export function ListingFormSkeleton() {
         <Skeleton className="h-4 w-96" />
       </div>
 
-      {/* List field */}
+      {/* Lists field */}
       <div className="space-y-2">
         <Skeleton className="h-4 w-12" />
-        <ListSelectSkeleton />
+        <MultiListSelectSkeleton />
         <Skeleton className="h-4 w-64" />
       </div>
 

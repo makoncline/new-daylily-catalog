@@ -75,7 +75,7 @@ async function ListingsContent() {
                 </DialogDescription>
               </DialogHeader>
               <ListingForm
-                listing={editingListing}
+                initialListing={editingListing}
                 onDelete={() => setEditing(null)}
               />
             </>

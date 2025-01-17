@@ -1391,10 +1391,12 @@ export namespace Prisma {
 
   export type ListingCountOutputType = {
     images: number
+    lists: number
   }
 
   export type ListingCountOutputTypeSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     images?: boolean | ListingCountOutputTypeCountImagesArgs
+    lists?: boolean | ListingCountOutputTypeCountListsArgs
   }
 
   // Custom InputTypes
@@ -1413,6 +1415,13 @@ export namespace Prisma {
    */
   export type ListingCountOutputTypeCountImagesArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     where?: ImageWhereInput
+  }
+
+  /**
+   * ListingCountOutputType without action
+   */
+  export type ListingCountOutputTypeCountListsArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: ListWhereInput
   }
 
 
@@ -2711,7 +2720,6 @@ export namespace Prisma {
     price: number | null
     publicNote: string | null
     privateNote: string | null
-    listId: string | null
     ahsId: string | null
     createdAt: Date | null
     updatedAt: Date | null
@@ -2724,7 +2732,6 @@ export namespace Prisma {
     price: number | null
     publicNote: string | null
     privateNote: string | null
-    listId: string | null
     ahsId: string | null
     createdAt: Date | null
     updatedAt: Date | null
@@ -2737,7 +2744,6 @@ export namespace Prisma {
     price: number
     publicNote: number
     privateNote: number
-    listId: number
     ahsId: number
     createdAt: number
     updatedAt: number
@@ -2760,7 +2766,6 @@ export namespace Prisma {
     price?: true
     publicNote?: true
     privateNote?: true
-    listId?: true
     ahsId?: true
     createdAt?: true
     updatedAt?: true
@@ -2773,7 +2778,6 @@ export namespace Prisma {
     price?: true
     publicNote?: true
     privateNote?: true
-    listId?: true
     ahsId?: true
     createdAt?: true
     updatedAt?: true
@@ -2786,7 +2790,6 @@ export namespace Prisma {
     price?: true
     publicNote?: true
     privateNote?: true
-    listId?: true
     ahsId?: true
     createdAt?: true
     updatedAt?: true
@@ -2886,7 +2889,6 @@ export namespace Prisma {
     price: number | null
     publicNote: string | null
     privateNote: string | null
-    listId: string | null
     ahsId: string | null
     createdAt: Date
     updatedAt: Date
@@ -2918,13 +2920,12 @@ export namespace Prisma {
     price?: boolean
     publicNote?: boolean
     privateNote?: boolean
-    listId?: boolean
     ahsId?: boolean
     createdAt?: boolean
     updatedAt?: boolean
     images?: boolean | Listing$imagesArgs<ExtArgs>
     ahsListing?: boolean | Listing$ahsListingArgs<ExtArgs>
-    list?: boolean | Listing$listArgs<ExtArgs>
+    lists?: boolean | Listing$listsArgs<ExtArgs>
     user?: boolean | UserDefaultArgs<ExtArgs>
     _count?: boolean | ListingCountOutputTypeDefaultArgs<ExtArgs>
   }, ExtArgs["result"]["listing"]>
@@ -2936,12 +2937,10 @@ export namespace Prisma {
     price?: boolean
     publicNote?: boolean
     privateNote?: boolean
-    listId?: boolean
     ahsId?: boolean
     createdAt?: boolean
     updatedAt?: boolean
     ahsListing?: boolean | Listing$ahsListingArgs<ExtArgs>
-    list?: boolean | Listing$listArgs<ExtArgs>
     user?: boolean | UserDefaultArgs<ExtArgs>
   }, ExtArgs["result"]["listing"]>
 
@@ -2952,7 +2951,6 @@ export namespace Prisma {
     price?: boolean
     publicNote?: boolean
     privateNote?: boolean
-    listId?: boolean
     ahsId?: boolean
     createdAt?: boolean
     updatedAt?: boolean
@@ -2961,13 +2959,12 @@ export namespace Prisma {
   export type ListingInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     images?: boolean | Listing$imagesArgs<ExtArgs>
     ahsListing?: boolean | Listing$ahsListingArgs<ExtArgs>
-    list?: boolean | Listing$listArgs<ExtArgs>
+    lists?: boolean | Listing$listsArgs<ExtArgs>
     user?: boolean | UserDefaultArgs<ExtArgs>
     _count?: boolean | ListingCountOutputTypeDefaultArgs<ExtArgs>
   }
   export type ListingIncludeCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     ahsListing?: boolean | Listing$ahsListingArgs<ExtArgs>
-    list?: boolean | Listing$listArgs<ExtArgs>
     user?: boolean | UserDefaultArgs<ExtArgs>
   }
 
@@ -2976,7 +2973,7 @@ export namespace Prisma {
     objects: {
       images: Prisma.$ImagePayload<ExtArgs>[]
       ahsListing: Prisma.$AhsListingPayload<ExtArgs> | null
-      list: Prisma.$ListPayload<ExtArgs> | null
+      lists: Prisma.$ListPayload<ExtArgs>[]
       user: Prisma.$UserPayload<ExtArgs>
     }
     scalars: $Extensions.GetPayloadResult<{
@@ -2986,7 +2983,6 @@ export namespace Prisma {
       price: number | null
       publicNote: string | null
       privateNote: string | null
-      listId: string | null
       ahsId: string | null
       createdAt: Date
       updatedAt: Date
@@ -3356,7 +3352,7 @@ export namespace Prisma {
     readonly [Symbol.toStringTag]: "PrismaPromise"
     images<T extends Listing$imagesArgs<ExtArgs> = {}>(args?: Subset<T, Listing$imagesArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$ImagePayload<ExtArgs>, T, "findMany"> | Null>
     ahsListing<T extends Listing$ahsListingArgs<ExtArgs> = {}>(args?: Subset<T, Listing$ahsListingArgs<ExtArgs>>): Prisma__AhsListingClient<$Result.GetResult<Prisma.$AhsListingPayload<ExtArgs>, T, "findUniqueOrThrow"> | null, null, ExtArgs>
-    list<T extends Listing$listArgs<ExtArgs> = {}>(args?: Subset<T, Listing$listArgs<ExtArgs>>): Prisma__ListClient<$Result.GetResult<Prisma.$ListPayload<ExtArgs>, T, "findUniqueOrThrow"> | null, null, ExtArgs>
+    lists<T extends Listing$listsArgs<ExtArgs> = {}>(args?: Subset<T, Listing$listsArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$ListPayload<ExtArgs>, T, "findMany"> | Null>
     user<T extends UserDefaultArgs<ExtArgs> = {}>(args?: Subset<T, UserDefaultArgs<ExtArgs>>): Prisma__UserClient<$Result.GetResult<Prisma.$UserPayload<ExtArgs>, T, "findUniqueOrThrow"> | Null, Null, ExtArgs>
     /**
      * Attaches callbacks for the resolution and/or rejection of the Promise.
@@ -3393,7 +3389,6 @@ export namespace Prisma {
     readonly price: FieldRef<"Listing", 'Float'>
     readonly publicNote: FieldRef<"Listing", 'String'>
     readonly privateNote: FieldRef<"Listing", 'String'>
-    readonly listId: FieldRef<"Listing", 'String'>
     readonly ahsId: FieldRef<"Listing", 'String'>
     readonly createdAt: FieldRef<"Listing", 'DateTime'>
     readonly updatedAt: FieldRef<"Listing", 'DateTime'>
@@ -3748,9 +3743,9 @@ export namespace Prisma {
   }
 
   /**
-   * Listing.list
+   * Listing.lists
    */
-  export type Listing$listArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+  export type Listing$listsArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     /**
      * Select specific fields to fetch from the List
      */
@@ -3760,6 +3755,11 @@ export namespace Prisma {
      */
     include?: ListInclude<ExtArgs> | null
     where?: ListWhereInput
+    orderBy?: ListOrderByWithRelationInput | ListOrderByWithRelationInput[]
+    cursor?: ListWhereUniqueInput
+    take?: number
+    skip?: number
+    distinct?: ListScalarFieldEnum | ListScalarFieldEnum[]
   }
 
   /**
@@ -8688,7 +8688,6 @@ export namespace Prisma {
     price: 'price',
     publicNote: 'publicNote',
     privateNote: 'privateNote',
-    listId: 'listId',
     ahsId: 'ahsId',
     createdAt: 'createdAt',
     updatedAt: 'updatedAt'
@@ -8966,13 +8965,12 @@ export namespace Prisma {
     price?: FloatNullableFilter<"Listing"> | number | null
     publicNote?: StringNullableFilter<"Listing"> | string | null
     privateNote?: StringNullableFilter<"Listing"> | string | null
-    listId?: StringNullableFilter<"Listing"> | string | null
     ahsId?: StringNullableFilter<"Listing"> | string | null
     createdAt?: DateTimeFilter<"Listing"> | Date | string
     updatedAt?: DateTimeFilter<"Listing"> | Date | string
     images?: ImageListRelationFilter
     ahsListing?: XOR<AhsListingNullableRelationFilter, AhsListingWhereInput> | null
-    list?: XOR<ListNullableRelationFilter, ListWhereInput> | null
+    lists?: ListListRelationFilter
     user?: XOR<UserRelationFilter, UserWhereInput>
   }
 
@@ -8983,13 +8981,12 @@ export namespace Prisma {
     price?: SortOrderInput | SortOrder
     publicNote?: SortOrderInput | SortOrder
     privateNote?: SortOrderInput | SortOrder
-    listId?: SortOrderInput | SortOrder
     ahsId?: SortOrderInput | SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
     images?: ImageOrderByRelationAggregateInput
     ahsListing?: AhsListingOrderByWithRelationInput
-    list?: ListOrderByWithRelationInput
+    lists?: ListOrderByRelationAggregateInput
     user?: UserOrderByWithRelationInput
   }
 
@@ -9003,13 +9000,12 @@ export namespace Prisma {
     price?: FloatNullableFilter<"Listing"> | number | null
     publicNote?: StringNullableFilter<"Listing"> | string | null
     privateNote?: StringNullableFilter<"Listing"> | string | null
-    listId?: StringNullableFilter<"Listing"> | string | null
     ahsId?: StringNullableFilter<"Listing"> | string | null
     createdAt?: DateTimeFilter<"Listing"> | Date | string
     updatedAt?: DateTimeFilter<"Listing"> | Date | string
     images?: ImageListRelationFilter
     ahsListing?: XOR<AhsListingNullableRelationFilter, AhsListingWhereInput> | null
-    list?: XOR<ListNullableRelationFilter, ListWhereInput> | null
+    lists?: ListListRelationFilter
     user?: XOR<UserRelationFilter, UserWhereInput>
   }, "id">
 
@@ -9020,7 +9016,6 @@ export namespace Prisma {
     price?: SortOrderInput | SortOrder
     publicNote?: SortOrderInput | SortOrder
     privateNote?: SortOrderInput | SortOrder
-    listId?: SortOrderInput | SortOrder
     ahsId?: SortOrderInput | SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
@@ -9041,7 +9036,6 @@ export namespace Prisma {
     price?: FloatNullableWithAggregatesFilter<"Listing"> | number | null
     publicNote?: StringNullableWithAggregatesFilter<"Listing"> | string | null
     privateNote?: StringNullableWithAggregatesFilter<"Listing"> | string | null
-    listId?: StringNullableWithAggregatesFilter<"Listing"> | string | null
     ahsId?: StringNullableWithAggregatesFilter<"Listing"> | string | null
     createdAt?: DateTimeWithAggregatesFilter<"Listing"> | Date | string
     updatedAt?: DateTimeWithAggregatesFilter<"Listing"> | Date | string
@@ -9567,7 +9561,7 @@ export namespace Prisma {
     updatedAt?: Date | string
     images?: ImageCreateNestedManyWithoutListingInput
     ahsListing?: AhsListingCreateNestedOneWithoutLiliesInput
-    list?: ListCreateNestedOneWithoutListingsInput
+    lists?: ListCreateNestedManyWithoutListingsInput
     user: UserCreateNestedOneWithoutListingsInput
   }
 
@@ -9578,11 +9572,11 @@ export namespace Prisma {
     price?: number | null
     publicNote?: string | null
     privateNote?: string | null
-    listId?: string | null
     ahsId?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
     images?: ImageUncheckedCreateNestedManyWithoutListingInput
+    lists?: ListUncheckedCreateNestedManyWithoutListingsInput
   }
 
   export type ListingUpdateInput = {
@@ -9595,7 +9589,7 @@ export namespace Prisma {
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     images?: ImageUpdateManyWithoutListingNestedInput
     ahsListing?: AhsListingUpdateOneWithoutLiliesNestedInput
-    list?: ListUpdateOneWithoutListingsNestedInput
+    lists?: ListUpdateManyWithoutListingsNestedInput
     user?: UserUpdateOneRequiredWithoutListingsNestedInput
   }
 
@@ -9606,11 +9600,11 @@ export namespace Prisma {
     price?: NullableFloatFieldUpdateOperationsInput | number | null
     publicNote?: NullableStringFieldUpdateOperationsInput | string | null
     privateNote?: NullableStringFieldUpdateOperationsInput | string | null
-    listId?: NullableStringFieldUpdateOperationsInput | string | null
     ahsId?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     images?: ImageUncheckedUpdateManyWithoutListingNestedInput
+    lists?: ListUncheckedUpdateManyWithoutListingsNestedInput
   }
 
   export type ListingCreateManyInput = {
@@ -9620,7 +9614,6 @@ export namespace Prisma {
     price?: number | null
     publicNote?: string | null
     privateNote?: string | null
-    listId?: string | null
     ahsId?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
@@ -9643,7 +9636,6 @@ export namespace Prisma {
     price?: NullableFloatFieldUpdateOperationsInput | number | null
     publicNote?: NullableStringFieldUpdateOperationsInput | string | null
     privateNote?: NullableStringFieldUpdateOperationsInput | string | null
-    listId?: NullableStringFieldUpdateOperationsInput | string | null
     ahsId?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -9656,7 +9648,7 @@ export namespace Prisma {
     bio?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
-    listings?: ListingCreateNestedManyWithoutListInput
+    listings?: ListingCreateNestedManyWithoutListsInput
     user: UserCreateNestedOneWithoutListsInput
   }
 
@@ -9668,7 +9660,7 @@ export namespace Prisma {
     bio?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
-    listings?: ListingUncheckedCreateNestedManyWithoutListInput
+    listings?: ListingUncheckedCreateNestedManyWithoutListsInput
   }
 
   export type ListUpdateInput = {
@@ -9678,7 +9670,7 @@ export namespace Prisma {
     bio?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
-    listings?: ListingUpdateManyWithoutListNestedInput
+    listings?: ListingUpdateManyWithoutListsNestedInput
     user?: UserUpdateOneRequiredWithoutListsNestedInput
   }
 
@@ -9690,7 +9682,7 @@ export namespace Prisma {
     bio?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
-    listings?: ListingUncheckedUpdateManyWithoutListNestedInput
+    listings?: ListingUncheckedUpdateManyWithoutListsNestedInput
   }
 
   export type ListCreateManyInput = {
@@ -10196,9 +10188,10 @@ export namespace Prisma {
     isNot?: AhsListingWhereInput | null
   }
 
-  export type ListNullableRelationFilter = {
-    is?: ListWhereInput | null
-    isNot?: ListWhereInput | null
+  export type ListListRelationFilter = {
+    every?: ListWhereInput
+    some?: ListWhereInput
+    none?: ListWhereInput
   }
 
   export type UserRelationFilter = {
@@ -10210,6 +10203,10 @@ export namespace Prisma {
     _count?: SortOrder
   }
 
+  export type ListOrderByRelationAggregateInput = {
+    _count?: SortOrder
+  }
+
   export type ListingCountOrderByAggregateInput = {
     id?: SortOrder
     userId?: SortOrder
@@ -10217,7 +10214,6 @@ export namespace Prisma {
     price?: SortOrder
     publicNote?: SortOrder
     privateNote?: SortOrder
-    listId?: SortOrder
     ahsId?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
@@ -10234,7 +10230,6 @@ export namespace Prisma {
     price?: SortOrder
     publicNote?: SortOrder
     privateNote?: SortOrder
-    listId?: SortOrder
     ahsId?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
@@ -10247,7 +10242,6 @@ export namespace Prisma {
     price?: SortOrder
     publicNote?: SortOrder
     privateNote?: SortOrder
-    listId?: SortOrder
     ahsId?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
@@ -10411,16 +10405,6 @@ export namespace Prisma {
     _max?: NestedIntFilter<$PrismaModel>
   }
 
-  export type ListListRelationFilter = {
-    every?: ListWhereInput
-    some?: ListWhereInput
-    none?: ListWhereInput
-  }
-
-  export type ListOrderByRelationAggregateInput = {
-    _count?: SortOrder
-  }
-
   export type UserCountOrderByAggregateInput = {
     id?: SortOrder
     clerkUserId?: SortOrder
@@ -10536,10 +10520,10 @@ export namespace Prisma {
     connect?: AhsListingWhereUniqueInput
   }
 
-  export type ListCreateNestedOneWithoutListingsInput = {
-    create?: XOR<ListCreateWithoutListingsInput, ListUncheckedCreateWithoutListingsInput>
-    connectOrCreate?: ListCreateOrConnectWithoutListingsInput
-    connect?: ListWhereUniqueInput
+  export type ListCreateNestedManyWithoutListingsInput = {
+    create?: XOR<ListCreateWithoutListingsInput, ListUncheckedCreateWithoutListingsInput> | ListCreateWithoutListingsInput[] | ListUncheckedCreateWithoutListingsInput[]
+    connectOrCreate?: ListCreateOrConnectWithoutListingsInput | ListCreateOrConnectWithoutListingsInput[]
+    connect?: ListWhereUniqueInput | ListWhereUniqueInput[]
   }
 
   export type UserCreateNestedOneWithoutListingsInput = {
@@ -10553,6 +10537,12 @@ export namespace Prisma {
     connectOrCreate?: ImageCreateOrConnectWithoutListingInput | ImageCreateOrConnectWithoutListingInput[]
     createMany?: ImageCreateManyListingInputEnvelope
     connect?: ImageWhereUniqueInput | ImageWhereUniqueInput[]
+  }
+
+  export type ListUncheckedCreateNestedManyWithoutListingsInput = {
+    create?: XOR<ListCreateWithoutListingsInput, ListUncheckedCreateWithoutListingsInput> | ListCreateWithoutListingsInput[] | ListUncheckedCreateWithoutListingsInput[]
+    connectOrCreate?: ListCreateOrConnectWithoutListingsInput | ListCreateOrConnectWithoutListingsInput[]
+    connect?: ListWhereUniqueInput | ListWhereUniqueInput[]
   }
 
   export type NullableFloatFieldUpdateOperationsInput = {
@@ -10587,14 +10577,17 @@ export namespace Prisma {
     update?: XOR<XOR<AhsListingUpdateToOneWithWhereWithoutLiliesInput, AhsListingUpdateWithoutLiliesInput>, AhsListingUncheckedUpdateWithoutLiliesInput>
   }
 
-  export type ListUpdateOneWithoutListingsNestedInput = {
-    create?: XOR<ListCreateWithoutListingsInput, ListUncheckedCreateWithoutListingsInput>
-    connectOrCreate?: ListCreateOrConnectWithoutListingsInput
-    upsert?: ListUpsertWithoutListingsInput
-    disconnect?: ListWhereInput | boolean
-    delete?: ListWhereInput | boolean
-    connect?: ListWhereUniqueInput
-    update?: XOR<XOR<ListUpdateToOneWithWhereWithoutListingsInput, ListUpdateWithoutListingsInput>, ListUncheckedUpdateWithoutListingsInput>
+  export type ListUpdateManyWithoutListingsNestedInput = {
+    create?: XOR<ListCreateWithoutListingsInput, ListUncheckedCreateWithoutListingsInput> | ListCreateWithoutListingsInput[] | ListUncheckedCreateWithoutListingsInput[]
+    connectOrCreate?: ListCreateOrConnectWithoutListingsInput | ListCreateOrConnectWithoutListingsInput[]
+    upsert?: ListUpsertWithWhereUniqueWithoutListingsInput | ListUpsertWithWhereUniqueWithoutListingsInput[]
+    set?: ListWhereUniqueInput | ListWhereUniqueInput[]
+    disconnect?: ListWhereUniqueInput | ListWhereUniqueInput[]
+    delete?: ListWhereUniqueInput | ListWhereUniqueInput[]
+    connect?: ListWhereUniqueInput | ListWhereUniqueInput[]
+    update?: ListUpdateWithWhereUniqueWithoutListingsInput | ListUpdateWithWhereUniqueWithoutListingsInput[]
+    updateMany?: ListUpdateManyWithWhereWithoutListingsInput | ListUpdateManyWithWhereWithoutListingsInput[]
+    deleteMany?: ListScalarWhereInput | ListScalarWhereInput[]
   }
 
   export type UserUpdateOneRequiredWithoutListingsNestedInput = {
@@ -10619,10 +10612,22 @@ export namespace Prisma {
     deleteMany?: ImageScalarWhereInput | ImageScalarWhereInput[]
   }
 
-  export type ListingCreateNestedManyWithoutListInput = {
-    create?: XOR<ListingCreateWithoutListInput, ListingUncheckedCreateWithoutListInput> | ListingCreateWithoutListInput[] | ListingUncheckedCreateWithoutListInput[]
-    connectOrCreate?: ListingCreateOrConnectWithoutListInput | ListingCreateOrConnectWithoutListInput[]
-    createMany?: ListingCreateManyListInputEnvelope
+  export type ListUncheckedUpdateManyWithoutListingsNestedInput = {
+    create?: XOR<ListCreateWithoutListingsInput, ListUncheckedCreateWithoutListingsInput> | ListCreateWithoutListingsInput[] | ListUncheckedCreateWithoutListingsInput[]
+    connectOrCreate?: ListCreateOrConnectWithoutListingsInput | ListCreateOrConnectWithoutListingsInput[]
+    upsert?: ListUpsertWithWhereUniqueWithoutListingsInput | ListUpsertWithWhereUniqueWithoutListingsInput[]
+    set?: ListWhereUniqueInput | ListWhereUniqueInput[]
+    disconnect?: ListWhereUniqueInput | ListWhereUniqueInput[]
+    delete?: ListWhereUniqueInput | ListWhereUniqueInput[]
+    connect?: ListWhereUniqueInput | ListWhereUniqueInput[]
+    update?: ListUpdateWithWhereUniqueWithoutListingsInput | ListUpdateWithWhereUniqueWithoutListingsInput[]
+    updateMany?: ListUpdateManyWithWhereWithoutListingsInput | ListUpdateManyWithWhereWithoutListingsInput[]
+    deleteMany?: ListScalarWhereInput | ListScalarWhereInput[]
+  }
+
+  export type ListingCreateNestedManyWithoutListsInput = {
+    create?: XOR<ListingCreateWithoutListsInput, ListingUncheckedCreateWithoutListsInput> | ListingCreateWithoutListsInput[] | ListingUncheckedCreateWithoutListsInput[]
+    connectOrCreate?: ListingCreateOrConnectWithoutListsInput | ListingCreateOrConnectWithoutListsInput[]
     connect?: ListingWhereUniqueInput | ListingWhereUniqueInput[]
   }
 
@@ -10632,24 +10637,22 @@ export namespace Prisma {
     connect?: UserWhereUniqueInput
   }
 
-  export type ListingUncheckedCreateNestedManyWithoutListInput = {
-    create?: XOR<ListingCreateWithoutListInput, ListingUncheckedCreateWithoutListInput> | ListingCreateWithoutListInput[] | ListingUncheckedCreateWithoutListInput[]
-    connectOrCreate?: ListingCreateOrConnectWithoutListInput | ListingCreateOrConnectWithoutListInput[]
-    createMany?: ListingCreateManyListInputEnvelope
+  export type ListingUncheckedCreateNestedManyWithoutListsInput = {
+    create?: XOR<ListingCreateWithoutListsInput, ListingUncheckedCreateWithoutListsInput> | ListingCreateWithoutListsInput[] | ListingUncheckedCreateWithoutListsInput[]
+    connectOrCreate?: ListingCreateOrConnectWithoutListsInput | ListingCreateOrConnectWithoutListsInput[]
     connect?: ListingWhereUniqueInput | ListingWhereUniqueInput[]
   }
 
-  export type ListingUpdateManyWithoutListNestedInput = {
-    create?: XOR<ListingCreateWithoutListInput, ListingUncheckedCreateWithoutListInput> | ListingCreateWithoutListInput[] | ListingUncheckedCreateWithoutListInput[]
-    connectOrCreate?: ListingCreateOrConnectWithoutListInput | ListingCreateOrConnectWithoutListInput[]
-    upsert?: ListingUpsertWithWhereUniqueWithoutListInput | ListingUpsertWithWhereUniqueWithoutListInput[]
-    createMany?: ListingCreateManyListInputEnvelope
+  export type ListingUpdateManyWithoutListsNestedInput = {
+    create?: XOR<ListingCreateWithoutListsInput, ListingUncheckedCreateWithoutListsInput> | ListingCreateWithoutListsInput[] | ListingUncheckedCreateWithoutListsInput[]
+    connectOrCreate?: ListingCreateOrConnectWithoutListsInput | ListingCreateOrConnectWithoutListsInput[]
+    upsert?: ListingUpsertWithWhereUniqueWithoutListsInput | ListingUpsertWithWhereUniqueWithoutListsInput[]
     set?: ListingWhereUniqueInput | ListingWhereUniqueInput[]
     disconnect?: ListingWhereUniqueInput | ListingWhereUniqueInput[]
     delete?: ListingWhereUniqueInput | ListingWhereUniqueInput[]
     connect?: ListingWhereUniqueInput | ListingWhereUniqueInput[]
-    update?: ListingUpdateWithWhereUniqueWithoutListInput | ListingUpdateWithWhereUniqueWithoutListInput[]
-    updateMany?: ListingUpdateManyWithWhereWithoutListInput | ListingUpdateManyWithWhereWithoutListInput[]
+    update?: ListingUpdateWithWhereUniqueWithoutListsInput | ListingUpdateWithWhereUniqueWithoutListsInput[]
+    updateMany?: ListingUpdateManyWithWhereWithoutListsInput | ListingUpdateManyWithWhereWithoutListsInput[]
     deleteMany?: ListingScalarWhereInput | ListingScalarWhereInput[]
   }
 
@@ -10661,17 +10664,16 @@ export namespace Prisma {
     update?: XOR<XOR<UserUpdateToOneWithWhereWithoutListsInput, UserUpdateWithoutListsInput>, UserUncheckedUpdateWithoutListsInput>
   }
 
-  export type ListingUncheckedUpdateManyWithoutListNestedInput = {
-    create?: XOR<ListingCreateWithoutListInput, ListingUncheckedCreateWithoutListInput> | ListingCreateWithoutListInput[] | ListingUncheckedCreateWithoutListInput[]
-    connectOrCreate?: ListingCreateOrConnectWithoutListInput | ListingCreateOrConnectWithoutListInput[]
-    upsert?: ListingUpsertWithWhereUniqueWithoutListInput | ListingUpsertWithWhereUniqueWithoutListInput[]
-    createMany?: ListingCreateManyListInputEnvelope
+  export type ListingUncheckedUpdateManyWithoutListsNestedInput = {
+    create?: XOR<ListingCreateWithoutListsInput, ListingUncheckedCreateWithoutListsInput> | ListingCreateWithoutListsInput[] | ListingUncheckedCreateWithoutListsInput[]
+    connectOrCreate?: ListingCreateOrConnectWithoutListsInput | ListingCreateOrConnectWithoutListsInput[]
+    upsert?: ListingUpsertWithWhereUniqueWithoutListsInput | ListingUpsertWithWhereUniqueWithoutListsInput[]
     set?: ListingWhereUniqueInput | ListingWhereUniqueInput[]
     disconnect?: ListingWhereUniqueInput | ListingWhereUniqueInput[]
     delete?: ListingWhereUniqueInput | ListingWhereUniqueInput[]
     connect?: ListingWhereUniqueInput | ListingWhereUniqueInput[]
-    update?: ListingUpdateWithWhereUniqueWithoutListInput | ListingUpdateWithWhereUniqueWithoutListInput[]
-    updateMany?: ListingUpdateManyWithWhereWithoutListInput | ListingUpdateManyWithWhereWithoutListInput[]
+    update?: ListingUpdateWithWhereUniqueWithoutListsInput | ListingUpdateWithWhereUniqueWithoutListsInput[]
+    updateMany?: ListingUpdateManyWithWhereWithoutListsInput | ListingUpdateManyWithWhereWithoutListsInput[]
     deleteMany?: ListingScalarWhereInput | ListingScalarWhereInput[]
   }
 
@@ -11059,7 +11061,7 @@ export namespace Prisma {
     createdAt?: Date | string
     updatedAt?: Date | string
     images?: ImageCreateNestedManyWithoutListingInput
-    list?: ListCreateNestedOneWithoutListingsInput
+    lists?: ListCreateNestedManyWithoutListingsInput
     user: UserCreateNestedOneWithoutListingsInput
   }
 
@@ -11070,10 +11072,10 @@ export namespace Prisma {
     price?: number | null
     publicNote?: string | null
     privateNote?: string | null
-    listId?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
     images?: ImageUncheckedCreateNestedManyWithoutListingInput
+    lists?: ListUncheckedCreateNestedManyWithoutListingsInput
   }
 
   export type ListingCreateOrConnectWithoutAhsListingInput = {
@@ -11111,7 +11113,6 @@ export namespace Prisma {
     price?: FloatNullableFilter<"Listing"> | number | null
     publicNote?: StringNullableFilter<"Listing"> | string | null
     privateNote?: StringNullableFilter<"Listing"> | string | null
-    listId?: StringNullableFilter<"Listing"> | string | null
     ahsId?: StringNullableFilter<"Listing"> | string | null
     createdAt?: DateTimeFilter<"Listing"> | Date | string
     updatedAt?: DateTimeFilter<"Listing"> | Date | string
@@ -11345,35 +11346,33 @@ export namespace Prisma {
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
 
-  export type ListUpsertWithoutListingsInput = {
+  export type ListUpsertWithWhereUniqueWithoutListingsInput = {
+    where: ListWhereUniqueInput
     update: XOR<ListUpdateWithoutListingsInput, ListUncheckedUpdateWithoutListingsInput>
     create: XOR<ListCreateWithoutListingsInput, ListUncheckedCreateWithoutListingsInput>
-    where?: ListWhereInput
   }
 
-  export type ListUpdateToOneWithWhereWithoutListingsInput = {
-    where?: ListWhereInput
+  export type ListUpdateWithWhereUniqueWithoutListingsInput = {
+    where: ListWhereUniqueInput
     data: XOR<ListUpdateWithoutListingsInput, ListUncheckedUpdateWithoutListingsInput>
   }
 
-  export type ListUpdateWithoutListingsInput = {
-    id?: StringFieldUpdateOperationsInput | string
-    name?: StringFieldUpdateOperationsInput | string
-    intro?: NullableStringFieldUpdateOperationsInput | string | null
-    bio?: NullableStringFieldUpdateOperationsInput | string | null
-    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
-    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
-    user?: UserUpdateOneRequiredWithoutListsNestedInput
+  export type ListUpdateManyWithWhereWithoutListingsInput = {
+    where: ListScalarWhereInput
+    data: XOR<ListUpdateManyMutationInput, ListUncheckedUpdateManyWithoutListingsInput>
   }
 
-  export type ListUncheckedUpdateWithoutListingsInput = {
-    id?: StringFieldUpdateOperationsInput | string
-    userId?: StringFieldUpdateOperationsInput | string
-    name?: StringFieldUpdateOperationsInput | string
-    intro?: NullableStringFieldUpdateOperationsInput | string | null
-    bio?: NullableStringFieldUpdateOperationsInput | string | null
-    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
-    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  export type ListScalarWhereInput = {
+    AND?: ListScalarWhereInput | ListScalarWhereInput[]
+    OR?: ListScalarWhereInput[]
+    NOT?: ListScalarWhereInput | ListScalarWhereInput[]
+    id?: StringFilter<"List"> | string
+    userId?: StringFilter<"List"> | string
+    name?: StringFilter<"List"> | string
+    intro?: StringNullableFilter<"List"> | string | null
+    bio?: StringNullableFilter<"List"> | string | null
+    createdAt?: DateTimeFilter<"List"> | Date | string
+    updatedAt?: DateTimeFilter<"List"> | Date | string
   }
 
   export type UserUpsertWithoutListingsInput = {
@@ -11409,7 +11408,7 @@ export namespace Prisma {
     profile?: UserProfileUncheckedUpdateOneWithoutUserNestedInput
   }
 
-  export type ListingCreateWithoutListInput = {
+  export type ListingCreateWithoutListsInput = {
     id?: string
     name: string
     price?: number | null
@@ -11422,7 +11421,7 @@ export namespace Prisma {
     user: UserCreateNestedOneWithoutListingsInput
   }
 
-  export type ListingUncheckedCreateWithoutListInput = {
+  export type ListingUncheckedCreateWithoutListsInput = {
     id?: string
     userId: string
     name: string
@@ -11435,13 +11434,9 @@ export namespace Prisma {
     images?: ImageUncheckedCreateNestedManyWithoutListingInput
   }
 
-  export type ListingCreateOrConnectWithoutListInput = {
+  export type ListingCreateOrConnectWithoutListsInput = {
     where: ListingWhereUniqueInput
-    create: XOR<ListingCreateWithoutListInput, ListingUncheckedCreateWithoutListInput>
-  }
-
-  export type ListingCreateManyListInputEnvelope = {
-    data: ListingCreateManyListInput | ListingCreateManyListInput[]
+    create: XOR<ListingCreateWithoutListsInput, ListingUncheckedCreateWithoutListsInput>
   }
 
   export type UserCreateWithoutListsInput = {
@@ -11471,20 +11466,20 @@ export namespace Prisma {
     create: XOR<UserCreateWithoutListsInput, UserUncheckedCreateWithoutListsInput>
   }
 
-  export type ListingUpsertWithWhereUniqueWithoutListInput = {
+  export type ListingUpsertWithWhereUniqueWithoutListsInput = {
     where: ListingWhereUniqueInput
-    update: XOR<ListingUpdateWithoutListInput, ListingUncheckedUpdateWithoutListInput>
-    create: XOR<ListingCreateWithoutListInput, ListingUncheckedCreateWithoutListInput>
+    update: XOR<ListingUpdateWithoutListsInput, ListingUncheckedUpdateWithoutListsInput>
+    create: XOR<ListingCreateWithoutListsInput, ListingUncheckedCreateWithoutListsInput>
   }
 
-  export type ListingUpdateWithWhereUniqueWithoutListInput = {
+  export type ListingUpdateWithWhereUniqueWithoutListsInput = {
     where: ListingWhereUniqueInput
-    data: XOR<ListingUpdateWithoutListInput, ListingUncheckedUpdateWithoutListInput>
+    data: XOR<ListingUpdateWithoutListsInput, ListingUncheckedUpdateWithoutListsInput>
   }
 
-  export type ListingUpdateManyWithWhereWithoutListInput = {
+  export type ListingUpdateManyWithWhereWithoutListsInput = {
     where: ListingScalarWhereInput
-    data: XOR<ListingUpdateManyMutationInput, ListingUncheckedUpdateManyWithoutListInput>
+    data: XOR<ListingUpdateManyMutationInput, ListingUncheckedUpdateManyWithoutListsInput>
   }
 
   export type UserUpsertWithoutListsInput = {
@@ -11659,7 +11654,7 @@ export namespace Prisma {
     createdAt?: Date | string
     updatedAt?: Date | string
     ahsListing?: AhsListingCreateNestedOneWithoutLiliesInput
-    list?: ListCreateNestedOneWithoutListingsInput
+    lists?: ListCreateNestedManyWithoutListingsInput
     user: UserCreateNestedOneWithoutListingsInput
   }
 
@@ -11670,10 +11665,10 @@ export namespace Prisma {
     price?: number | null
     publicNote?: string | null
     privateNote?: string | null
-    listId?: string | null
     ahsId?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
+    lists?: ListUncheckedCreateNestedManyWithoutListingsInput
   }
 
   export type ListingCreateOrConnectWithoutImagesInput = {
@@ -11734,7 +11729,7 @@ export namespace Prisma {
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     ahsListing?: AhsListingUpdateOneWithoutLiliesNestedInput
-    list?: ListUpdateOneWithoutListingsNestedInput
+    lists?: ListUpdateManyWithoutListingsNestedInput
     user?: UserUpdateOneRequiredWithoutListingsNestedInput
   }
 
@@ -11745,10 +11740,10 @@ export namespace Prisma {
     price?: NullableFloatFieldUpdateOperationsInput | number | null
     publicNote?: NullableStringFieldUpdateOperationsInput | string | null
     privateNote?: NullableStringFieldUpdateOperationsInput | string | null
-    listId?: NullableStringFieldUpdateOperationsInput | string | null
     ahsId?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    lists?: ListUncheckedUpdateManyWithoutListingsNestedInput
   }
 
   export type ListingCreateWithoutUserInput = {
@@ -11761,7 +11756,7 @@ export namespace Prisma {
     updatedAt?: Date | string
     images?: ImageCreateNestedManyWithoutListingInput
     ahsListing?: AhsListingCreateNestedOneWithoutLiliesInput
-    list?: ListCreateNestedOneWithoutListingsInput
+    lists?: ListCreateNestedManyWithoutListingsInput
   }
 
   export type ListingUncheckedCreateWithoutUserInput = {
@@ -11770,11 +11765,11 @@ export namespace Prisma {
     price?: number | null
     publicNote?: string | null
     privateNote?: string | null
-    listId?: string | null
     ahsId?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
     images?: ImageUncheckedCreateNestedManyWithoutListingInput
+    lists?: ListUncheckedCreateNestedManyWithoutListingsInput
   }
 
   export type ListingCreateOrConnectWithoutUserInput = {
@@ -11793,7 +11788,7 @@ export namespace Prisma {
     bio?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
-    listings?: ListingCreateNestedManyWithoutListInput
+    listings?: ListingCreateNestedManyWithoutListsInput
   }
 
   export type ListUncheckedCreateWithoutUserInput = {
@@ -11803,7 +11798,7 @@ export namespace Prisma {
     bio?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
-    listings?: ListingUncheckedCreateNestedManyWithoutListInput
+    listings?: ListingUncheckedCreateNestedManyWithoutListsInput
   }
 
   export type ListCreateOrConnectWithoutUserInput = {
@@ -11874,19 +11869,6 @@ export namespace Prisma {
     data: XOR<ListUpdateManyMutationInput, ListUncheckedUpdateManyWithoutUserInput>
   }
 
-  export type ListScalarWhereInput = {
-    AND?: ListScalarWhereInput | ListScalarWhereInput[]
-    OR?: ListScalarWhereInput[]
-    NOT?: ListScalarWhereInput | ListScalarWhereInput[]
-    id?: StringFilter<"List"> | string
-    userId?: StringFilter<"List"> | string
-    name?: StringFilter<"List"> | string
-    intro?: StringNullableFilter<"List"> | string | null
-    bio?: StringNullableFilter<"List"> | string | null
-    createdAt?: DateTimeFilter<"List"> | Date | string
-    updatedAt?: DateTimeFilter<"List"> | Date | string
-  }
-
   export type UserProfileUpsertWithoutUserInput = {
     update: XOR<UserProfileUpdateWithoutUserInput, UserProfileUncheckedUpdateWithoutUserInput>
     create: XOR<UserProfileCreateWithoutUserInput, UserProfileUncheckedCreateWithoutUserInput>
@@ -11927,7 +11909,6 @@ export namespace Prisma {
     price?: number | null
     publicNote?: string | null
     privateNote?: string | null
-    listId?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
   }
@@ -11941,7 +11922,7 @@ export namespace Prisma {
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     images?: ImageUpdateManyWithoutListingNestedInput
-    list?: ListUpdateOneWithoutListingsNestedInput
+    lists?: ListUpdateManyWithoutListingsNestedInput
     user?: UserUpdateOneRequiredWithoutListingsNestedInput
   }
 
@@ -11952,10 +11933,10 @@ export namespace Prisma {
     price?: NullableFloatFieldUpdateOperationsInput | number | null
     publicNote?: NullableStringFieldUpdateOperationsInput | string | null
     privateNote?: NullableStringFieldUpdateOperationsInput | string | null
-    listId?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     images?: ImageUncheckedUpdateManyWithoutListingNestedInput
+    lists?: ListUncheckedUpdateManyWithoutListingsNestedInput
   }
 
   export type ListingUncheckedUpdateManyWithoutAhsListingInput = {
@@ -11965,7 +11946,6 @@ export namespace Prisma {
     price?: NullableFloatFieldUpdateOperationsInput | number | null
     publicNote?: NullableStringFieldUpdateOperationsInput | string | null
     privateNote?: NullableStringFieldUpdateOperationsInput | string | null
-    listId?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
@@ -12006,19 +11986,37 @@ export namespace Prisma {
     userProfileId?: NullableStringFieldUpdateOperationsInput | string | null
   }
 
-  export type ListingCreateManyListInput = {
-    id?: string
-    userId: string
-    name: string
-    price?: number | null
-    publicNote?: string | null
-    privateNote?: string | null
-    ahsId?: string | null
-    createdAt?: Date | string
-    updatedAt?: Date | string
+  export type ListUpdateWithoutListingsInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    intro?: NullableStringFieldUpdateOperationsInput | string | null
+    bio?: NullableStringFieldUpdateOperationsInput | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    user?: UserUpdateOneRequiredWithoutListsNestedInput
   }
 
-  export type ListingUpdateWithoutListInput = {
+  export type ListUncheckedUpdateWithoutListingsInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    userId?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    intro?: NullableStringFieldUpdateOperationsInput | string | null
+    bio?: NullableStringFieldUpdateOperationsInput | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type ListUncheckedUpdateManyWithoutListingsInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    userId?: StringFieldUpdateOperationsInput | string
+    name?: StringFieldUpdateOperationsInput | string
+    intro?: NullableStringFieldUpdateOperationsInput | string | null
+    bio?: NullableStringFieldUpdateOperationsInput | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type ListingUpdateWithoutListsInput = {
     id?: StringFieldUpdateOperationsInput | string
     name?: StringFieldUpdateOperationsInput | string
     price?: NullableFloatFieldUpdateOperationsInput | number | null
@@ -12031,7 +12029,7 @@ export namespace Prisma {
     user?: UserUpdateOneRequiredWithoutListingsNestedInput
   }
 
-  export type ListingUncheckedUpdateWithoutListInput = {
+  export type ListingUncheckedUpdateWithoutListsInput = {
     id?: StringFieldUpdateOperationsInput | string
     userId?: StringFieldUpdateOperationsInput | string
     name?: StringFieldUpdateOperationsInput | string
@@ -12044,7 +12042,7 @@ export namespace Prisma {
     images?: ImageUncheckedUpdateManyWithoutListingNestedInput
   }
 
-  export type ListingUncheckedUpdateManyWithoutListInput = {
+  export type ListingUncheckedUpdateManyWithoutListsInput = {
     id?: StringFieldUpdateOperationsInput | string
     userId?: StringFieldUpdateOperationsInput | string
     name?: StringFieldUpdateOperationsInput | string
@@ -12098,7 +12096,6 @@ export namespace Prisma {
     price?: number | null
     publicNote?: string | null
     privateNote?: string | null
-    listId?: string | null
     ahsId?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
@@ -12123,7 +12120,7 @@ export namespace Prisma {
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     images?: ImageUpdateManyWithoutListingNestedInput
     ahsListing?: AhsListingUpdateOneWithoutLiliesNestedInput
-    list?: ListUpdateOneWithoutListingsNestedInput
+    lists?: ListUpdateManyWithoutListingsNestedInput
   }
 
   export type ListingUncheckedUpdateWithoutUserInput = {
@@ -12132,11 +12129,11 @@ export namespace Prisma {
     price?: NullableFloatFieldUpdateOperationsInput | number | null
     publicNote?: NullableStringFieldUpdateOperationsInput | string | null
     privateNote?: NullableStringFieldUpdateOperationsInput | string | null
-    listId?: NullableStringFieldUpdateOperationsInput | string | null
     ahsId?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     images?: ImageUncheckedUpdateManyWithoutListingNestedInput
+    lists?: ListUncheckedUpdateManyWithoutListingsNestedInput
   }
 
   export type ListingUncheckedUpdateManyWithoutUserInput = {
@@ -12145,7 +12142,6 @@ export namespace Prisma {
     price?: NullableFloatFieldUpdateOperationsInput | number | null
     publicNote?: NullableStringFieldUpdateOperationsInput | string | null
     privateNote?: NullableStringFieldUpdateOperationsInput | string | null
-    listId?: NullableStringFieldUpdateOperationsInput | string | null
     ahsId?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -12158,7 +12154,7 @@ export namespace Prisma {
     bio?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
-    listings?: ListingUpdateManyWithoutListNestedInput
+    listings?: ListingUpdateManyWithoutListsNestedInput
   }
 
   export type ListUncheckedUpdateWithoutUserInput = {
@@ -12168,7 +12164,7 @@ export namespace Prisma {
     bio?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
-    listings?: ListingUncheckedUpdateManyWithoutListNestedInput
+    listings?: ListingUncheckedUpdateManyWithoutListsNestedInput
   }
 
   export type ListUncheckedUpdateManyWithoutUserInput = {

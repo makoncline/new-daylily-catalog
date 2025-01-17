@@ -1,6 +1,9 @@
 "use client";
 
 import { useState } from "react";
+import { type Image, type List } from "@prisma/client";
+import { type RouterOutputs } from "@/trpc/react";
+import { type ListingRouterOutputs } from "@/server/api/routers/listing";
 import {
   listingFormSchema,
   transformNullToUndefined,
@@ -21,28 +24,29 @@ import { Textarea } from "@/components/ui/textarea";
 import { ImageManager } from "@/components/image-manager";
 import { ImageUpload } from "@/components/image-upload";
 import { useToast } from "@/hooks/use-toast";
-import { type Image } from "@prisma/client";
-import { type ListingGetOutput } from "@/server/api/routers/listing";
 import { AhsListingLink } from "@/components/ahs-listing-link";
 import { api } from "@/trpc/react";
 import { DeleteConfirmDialog } from "@/components/delete-confirm-dialog";
 import { useZodForm } from "@/hooks/use-zod-form";
-import { ListSelect } from "@/components/list-select";
+import { MultiListSelect } from "@/components/multi-list-select";
 import { LISTING_CONFIG } from "@/config/constants";
 
 interface ListingFormProps {
-  listing: ListingGetOutput;
-  onDelete: () => void;
+  initialListing: ListingRouterOutputs["get"];
+  onClose?: () => void;
+  onDelete?: () => void;
 }
 
 export function ListingForm({
-  listing: initialListing,
+  initialListing,
+  onClose,
   onDelete,
 }: ListingFormProps) {
   const { toast } = useToast();
-  const [isPending, setIsPending] = useState(false);
   const [listing, setListing] = useState(initialListing);
-  const [images, setImages] = useState<Image[]>(initialListing.images);
+  const [images, setImages] = useState(initialListing.images);
+  const [lists, setLists] = useState(initialListing.lists);
+  const [isPending, setIsPending] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
 
   const updateListingMutation = api.listing.update.useMutation({
@@ -63,16 +67,17 @@ export function ListingForm({
     },
   });
 
-  const updateListIdMutation = api.listing.updateListId.useMutation({
+  const updateListsMutation = api.listing.updateLists.useMutation({
     onSuccess: (updatedListing) => {
       setListing(updatedListing);
+      setLists(updatedListing.lists);
       toast({
-        title: "List updated",
+        title: "Lists updated",
       });
     },
     onError: () => {
       toast({
-        title: "Failed to update list",
+        title: "Failed to update lists",
         variant: "destructive",
       });
     },
@@ -83,7 +88,7 @@ export function ListingForm({
       toast({
         title: "Listing deleted successfully",
       });
-      onDelete();
+      onClose?.();
     },
     onError: () => {
       toast({
@@ -238,19 +243,19 @@ export function ListingForm({
         </FormItem>
 
         <FormItem>
-          <FormLabel htmlFor="list-select">List</FormLabel>
-          <ListSelect
-            value={listing.listId}
-            onSelect={(listId) => {
+          <FormLabel htmlFor="list-select">Lists</FormLabel>
+          <MultiListSelect
+            values={lists.map((list) => list.id)}
+            onSelect={(listIds) => {
               setIsPending(true);
-              void updateListIdMutation
+              void updateListsMutation
                 .mutateAsync({
                   id: listing.id,
-                  listId,
+                  listIds,
                 })
                 .catch(() => {
                   toast({
-                    title: "Failed to update list",
+                    title: "Failed to update lists",
                     variant: "destructive",
                   });
                 })
@@ -261,7 +266,7 @@ export function ListingForm({
             disabled={isPending}
           />
           <FormDescription>
-            Optional. Add this listing to one of your lists.
+            Optional. Add this listing to one or more lists.
           </FormDescription>
         </FormItem>
 

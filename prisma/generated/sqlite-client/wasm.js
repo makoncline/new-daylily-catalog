@@ -152,7 +152,6 @@ exports.Prisma.ListingScalarFieldEnum = {
   price: 'price',
   publicNote: 'publicNote',
   privateNote: 'privateNote',
-  listId: 'listId',
   ahsId: 'ahsId',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'

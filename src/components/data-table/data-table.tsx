@@ -52,6 +52,11 @@ interface DataTableProps<TData> {
   filterPlaceholder?: string;
   showTableOptions?: boolean;
   onPaginationChange?: (pageIndex: number, pageSize: number) => void;
+  lists?: {
+    id: string;
+    name: string;
+    count?: number;
+  }[];
 }
 
 export function DataTable<TData extends { id: string }>({
@@ -61,6 +66,7 @@ export function DataTable<TData extends { id: string }>({
   filterPlaceholder,
   showTableOptions = true,
   onPaginationChange,
+  lists,
 }: DataTableProps<TData>) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -70,9 +76,6 @@ export function DataTable<TData extends { id: string }>({
   const [rowSelection, setRowSelection] = React.useState({});
   const [columnVisibility, setColumnVisibility] =
     useLocalStorage<VisibilityState>("listings-table-column-visibility", {});
-  const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>(
-    [],
-  );
   const [sorting, setSorting] = useLocalStorage<SortingState>(
     "listings-table-sorting",
     [],
@@ -82,18 +85,31 @@ export function DataTable<TData extends { id: string }>({
     [],
   );
 
-  // Get initial filter from URL
+  // Get initial filters from URL
   const initialFilter = searchParams.get("filter") ?? "";
+  const initialListFilter =
+    searchParams.get("lists")?.split(",").filter(Boolean) ?? [];
   const [globalFilter, setGlobalFilter] = React.useState<string>(initialFilter);
+  const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([
+    {
+      id: "lists",
+      value: initialListFilter,
+    },
+  ]);
 
-  // Update URL when filter changes
-  const updateFilterInUrl = React.useCallback(
-    (value: string) => {
+  // Update URL when filters change
+  const updateFiltersInUrl = React.useCallback(
+    (filter: string, listFilter: string[]) => {
       const params = new URLSearchParams(searchParams);
-      if (value) {
-        params.set("filter", value);
+      if (filter) {
+        params.set("filter", filter);
       } else {
         params.delete("filter");
+      }
+      if (listFilter.length > 0) {
+        params.set("lists", listFilter.join(","));
+      } else {
+        params.delete("lists");
       }
       // Preserve other params like editing, page, size
       router.replace(`?${params.toString()}`);
@@ -105,9 +121,30 @@ export function DataTable<TData extends { id: string }>({
   const handleFilterChange = React.useCallback(
     (value: string) => {
       setGlobalFilter(value);
-      updateFilterInUrl(value);
+      const listFilter =
+        (columnFilters.find((f) => f.id === "lists")?.value as string[]) ?? [];
+      updateFiltersInUrl(value, listFilter);
     },
-    [updateFilterInUrl],
+    [updateFiltersInUrl, columnFilters],
+  );
+
+  // Handle column filter changes
+  const handleColumnFiltersChange = React.useCallback(
+    (
+      updaterOrValue:
+        | ColumnFiltersState
+        | ((old: ColumnFiltersState) => ColumnFiltersState),
+    ) => {
+      const newFilters =
+        typeof updaterOrValue === "function"
+          ? updaterOrValue(columnFilters)
+          : updaterOrValue;
+      setColumnFilters(newFilters);
+      const listFilter =
+        (newFilters.find((f) => f.id === "lists")?.value as string[]) ?? [];
+      updateFiltersInUrl(globalFilter, listFilter);
+    },
+    [updateFiltersInUrl, globalFilter, columnFilters],
   );
 
   const table = useReactTable<TData>({
@@ -133,7 +170,7 @@ export function DataTable<TData extends { id: string }>({
     enableRowSelection: true,
     onRowSelectionChange: setRowSelection,
     onSortingChange: setSorting,
-    onColumnFiltersChange: setColumnFilters,
+    onColumnFiltersChange: handleColumnFiltersChange,
     onColumnVisibilityChange: setColumnVisibility,
     onColumnOrderChange: setColumnOrder,
     onGlobalFilterChange: handleFilterChange,
@@ -162,6 +199,7 @@ export function DataTable<TData extends { id: string }>({
         table={table}
         filterPlaceholder={filterPlaceholder}
         showTableOptions={showTableOptions}
+        lists={lists}
       />
       <div className="grid auto-rows-min rounded-md border">
         <div className="flex min-w-full">

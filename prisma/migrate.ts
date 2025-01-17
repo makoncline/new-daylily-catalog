@@ -50,21 +50,26 @@ async function getOrCreateClerkUser(
   allClerkUsers: z.infer<typeof clerkUserSchema>[],
 ) {
   try {
-    // Find the user in the list of Clerk users by email
+    // Convert email to lowercase for comparison
+    const normalizedEmail = email.toLowerCase();
+
+    // Find the user in the list of Clerk users by email (case-insensitive)
     let clerkUser = (allClerkUsers as User[]).find((user) =>
-      user.emailAddresses.some((e) => e.emailAddress === email),
+      user.emailAddresses.some(
+        (e) => e.emailAddress.toLowerCase() === normalizedEmail,
+      ),
     );
 
-    // If user doesn't exist in Clerk, create them
+    // If user doesn't exist in Clerk, create them with lowercase email
     if (!clerkUser) {
-      console.log(`Creating Clerk user for ${email}`);
+      console.log(`Creating Clerk user for ${normalizedEmail}`);
       await setTimeout(2000);
       clerkUser = await clerkClient.users.createUser({
-        emailAddress: [email],
+        emailAddress: [normalizedEmail],
       });
-      console.log(`Created Clerk user for ${email}`);
+      console.log(`Created Clerk user for ${normalizedEmail}`);
     } else {
-      console.log(`Found existing Clerk user for ${email}`);
+      console.log(`Found existing Clerk user for ${normalizedEmail}`);
     }
 
     return clerkUser.id;
@@ -327,10 +332,15 @@ async function upsertListings() {
       price: lily.price ? parseFloat(lily.price.toString()) : null,
       publicNote: lily.public_note,
       privateNote: lily.private_note,
-      listId: lily.list_id ? lily.list_id.toString() : null,
       ahsId: lily.ahs_ref ? lily.ahs_ref.toString() : null,
       createdAt: lily.created_at,
       updatedAt: lily.updated_at,
+      // Connect to lists if list_id exists
+      lists: lily.list_id
+        ? {
+            connect: [{ id: lily.list_id.toString() }],
+          }
+        : undefined,
     };
 
     try {
