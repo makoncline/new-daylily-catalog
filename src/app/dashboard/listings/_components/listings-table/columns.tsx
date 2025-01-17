@@ -96,14 +96,16 @@ export function getColumns(
         if (!lists?.length) return null;
 
         return (
-          <div className="flex flex-wrap gap-1">
-            {lists.map((list) => (
-              <TruncatedListBadge
-                key={list.id}
-                name={list.name}
-                className="text-xs font-normal"
-              />
-            ))}
+          <div className="max-w-[300px] overflow-x-auto">
+            <div className="flex gap-1 py-1">
+              {lists.map((list) => (
+                <TruncatedListBadge
+                  key={list.id}
+                  name={list.name}
+                  className="shrink-0 text-xs font-normal"
+                />
+              ))}
+            </div>
           </div>
         );
       },
