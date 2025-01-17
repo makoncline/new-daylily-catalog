@@ -3,6 +3,7 @@
 import * as React from "react";
 import { type Column } from "@tanstack/react-table";
 import { Check, PlusCircle } from "lucide-react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
@@ -39,13 +40,59 @@ export function DataTableFacetedFilter<TData, TValue>({
   title,
   options,
 }: DataTableFacetedFilterProps<TData, TValue>) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const facets = column?.getFacetedUniqueValues();
+
+  // Initialize filter state from URL
+  React.useEffect(() => {
+    const listsParam = searchParams.get("lists");
+    const filterValues = listsParam ? listsParam.split(",") : [];
+    column?.setFilterValue(filterValues.length ? filterValues : undefined);
+  }, [searchParams, column]);
+
   const selectedValues = new Set(column?.getFilterValue() as string[]);
+
+  const createQueryString = React.useCallback(
+    (params: { name: string; value: string | null }) => {
+      const newSearchParams = new URLSearchParams(searchParams?.toString());
+
+      if (params.value === null) {
+        newSearchParams.delete(params.name);
+      } else {
+        newSearchParams.set(params.name, params.value);
+      }
+
+      return newSearchParams.toString();
+    },
+    [searchParams],
+  );
+
+  const updateUrl = React.useCallback(
+    (filterValues: string[] | undefined) => {
+      const queryString = filterValues?.length
+        ? createQueryString({
+            name: "lists",
+            value: filterValues.join(","),
+          })
+        : createQueryString({ name: "lists", value: null });
+
+      router.push(pathname + (queryString ? `?${queryString}` : ""), {
+        scroll: false,
+      });
+    },
+    [createQueryString, pathname, router],
+  );
 
   return (
     <Popover>
       <PopoverTrigger asChild>
-        <Button variant="outline" size="sm" className="h-8 border-dashed">
+        <Button
+          variant="outline"
+          size="sm"
+          className="h-8 border-dashed hover:bg-muted/50"
+        >
           <PlusCircle className="mr-2 h-4 w-4" />
           {title}
           {selectedValues?.size > 0 && (
@@ -102,6 +149,7 @@ export function DataTableFacetedFilter<TData, TValue>({
                       column?.setFilterValue(
                         filterValues.length ? filterValues : undefined,
                       );
+                      updateUrl(filterValues.length ? filterValues : undefined);
                     }}
                     className="hover:bg-muted/50"
                   >
@@ -133,7 +181,10 @@ export function DataTableFacetedFilter<TData, TValue>({
                 <CommandSeparator />
                 <CommandGroup>
                   <CommandItem
-                    onSelect={() => column?.setFilterValue(undefined)}
+                    onSelect={() => {
+                      column?.setFilterValue(undefined);
+                      updateUrl(undefined);
+                    }}
                     className="justify-center text-center hover:bg-muted/50"
                   >
                     Clear filters

@@ -2,6 +2,7 @@
 
 import { Cross2Icon } from "@radix-ui/react-icons";
 import { type Table } from "@tanstack/react-table";
+import { useRouter, usePathname, useSearchParams } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -25,13 +26,20 @@ export function DataTableToolbar<TData>({
   showTableOptions = true,
   lists = [],
 }: DataTableToolbarProps<TData>) {
-  const globalFilter = table.getState().globalFilter as string | undefined;
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const globalFilter = table.getState().globalFilter as string;
   const listFilter = table
     .getState()
-    .columnFilters.find((f) => f.id === "lists")?.value as string[] | undefined;
-  const isFiltered =
-    (typeof globalFilter === "string" && globalFilter.length > 0) ||
-    (Array.isArray(listFilter) && listFilter.length > 0);
+    .columnFilters.find((f) => f.id === "lists")?.value as string[];
+  const isFiltered = Boolean(globalFilter?.length || listFilter?.length);
+
+  const handleReset = () => {
+    table.setGlobalFilter("");
+    table.getColumn("lists")?.setFilterValue(undefined);
+    router.push(pathname, { scroll: false });
+  };
 
   return (
     <div className="flex items-center justify-between">
@@ -56,10 +64,7 @@ export function DataTableToolbar<TData>({
         {isFiltered && (
           <Button
             variant="ghost"
-            onClick={() => {
-              table.getColumn("lists")?.setFilterValue(undefined);
-              table.setGlobalFilter("");
-            }}
+            onClick={handleReset}
             className="h-8 px-2 lg:px-3"
           >
             Reset
