@@ -1,12 +1,13 @@
-"use client";
+"use server";
 
-export default function DashboardPage() {
-  return (
-    <div className="flex flex-1 flex-col gap-4 p-4 pt-0">
-      <h1 className="text-4xl font-bold">Dashboard</h1>
-      <p className="text-muted-foreground">
-        Welcome to your daylily catalog dashboard
-      </p>
-    </div>
-  );
+import { api } from "@/trpc/server";
+import { DashboardPageClient } from "./_components/dashboard-page-client";
+
+export default async function DashboardPage() {
+  // Fetch initial data on the server (SSR)
+  const initialStats = await api.dashboard.getStats();
+
+  // Pass data to the client component for interactive UI
+  // The layout handles all the wrapping, we just provide the content
+  return <DashboardPageClient initialStats={initialStats} />;
 }

@@ -136,7 +136,7 @@ export function ListingForm({ initialListing, onClose }: ListingFormProps) {
 
   return (
     <Form {...form}>
-      <form className="space-y-8">
+      <form>
         <FormField
           control={form.control}
           name="name"

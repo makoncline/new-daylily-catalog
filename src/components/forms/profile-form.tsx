@@ -83,57 +83,60 @@ export function ProfileForm({ initialProfile }: ProfileFormProps) {
 
   return (
     <Form {...form}>
-      <FormItem>
-        <FormLabel>Profile Images</FormLabel>
-        <FormDescription>
-          Upload images to showcase your garden. You can reorder them by
-          dragging.
-        </FormDescription>
-        <ProfileImageManager initialProfile={profile} />
-      </FormItem>
-      <FormField
-        control={form.control}
-        name="intro"
-        render={({ field }) => (
-          <FormItem>
-            <FormLabel>Introduction</FormLabel>
-            <FormControl>
-              <Textarea
-                {...field}
-                value={field.value ?? ""}
-                onBlur={() => onFieldBlur("intro")}
-                disabled={isUpdating}
-              />
-            </FormControl>
-            <FormDescription>
-              A brief introduction that appears at the top of your profile.
-            </FormDescription>
-            <FormMessage />
-          </FormItem>
-        )}
-      />
-      <FormField
-        control={form.control}
-        name="userLocation"
-        render={({ field }) => (
-          <FormItem>
-            <FormLabel>Location</FormLabel>
-            <FormControl>
-              <Input
-                {...field}
-                value={field.value ?? ""}
-                onBlur={() => onFieldBlur("userLocation")}
-                disabled={isUpdating}
-              />
-            </FormControl>
-            <FormDescription>
-              Optional. Your city, state, or general location.
-            </FormDescription>
-            <FormMessage />
-          </FormItem>
-        )}
-      />
-      <BioManagerFormItem initialProfile={profile} />
+      <form>
+        <FormItem>
+          <FormLabel>Profile Images</FormLabel>
+          <FormDescription>
+            Upload images to showcase your garden. You can reorder them by
+            dragging.
+          </FormDescription>
+          <ProfileImageManager initialProfile={profile} />
+        </FormItem>
+
+        <FormField
+          control={form.control}
+          name="intro"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Introduction</FormLabel>
+              <FormControl>
+                <Textarea
+                  {...field}
+                  value={field.value ?? ""}
+                  onBlur={() => onFieldBlur("intro")}
+                  disabled={isUpdating}
+                />
+              </FormControl>
+              <FormDescription>
+                A brief introduction that appears at the top of your profile.
+              </FormDescription>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={form.control}
+          name="userLocation"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Location</FormLabel>
+              <FormControl>
+                <Input
+                  {...field}
+                  value={field.value ?? ""}
+                  onBlur={() => onFieldBlur("userLocation")}
+                  disabled={isUpdating}
+                />
+              </FormControl>
+              <FormDescription>
+                Optional. Your city, state, or general location.
+              </FormDescription>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <BioManagerFormItem initialProfile={profile} />
+      </form>
     </Form>
   );
 }

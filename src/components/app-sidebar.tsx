@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { Command, Flower2, ListTodo, Send, UserCircle } from "lucide-react";
-import { api } from "@/trpc/react";
+import { api, type RouterOutputs } from "@/trpc/react";
 import { NavMain } from "@/components/nav-main";
 import { NavUser, NavUserSkeleton } from "@/components/nav-user";
 import {
@@ -17,6 +17,12 @@ import {
 import { useFeedbackUrl } from "@/hooks/use-feedback-url";
 import { NavSecondary } from "./nav-secondary";
 import Link from "next/link";
+
+type User = RouterOutputs["user"]["getCurrentUser"];
+
+interface AppSidebarProps extends React.ComponentProps<typeof Sidebar> {
+  initialUser: User;
+}
 
 const navMainItems = [
   {
@@ -36,8 +42,21 @@ const navMainItems = [
   },
 ];
 
-export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
-  const { data: user, isLoading } = api.user.getCurrentUser.useQuery();
+export function AppSidebar({
+  initialUser,
+  className,
+  ...props
+}: AppSidebarProps) {
+  const {
+    data: user,
+    isLoading,
+    error,
+  } = api.user.getCurrentUser.useQuery(undefined, {
+    initialData: initialUser,
+    // Refetch every minute to keep session fresh
+    refetchInterval: 60000,
+  });
+
   const feedbackUrl = useFeedbackUrl();
   const navSecondaryItems = [
     {
@@ -46,8 +65,14 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       icon: Send,
     },
   ];
+
   return (
-    <Sidebar variant="floating" collapsible="icon" {...props}>
+    <Sidebar
+      variant="floating"
+      collapsible="icon"
+      className={className}
+      {...props}
+    >
       <SidebarHeader>
         <SidebarMenu>
           <SidebarMenuItem>
@@ -74,6 +99,11 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
       <SidebarFooter>
         {isLoading ? (
           <NavUserSkeleton />
+        ) : error ? (
+          // Show a minimal error state in the footer
+          <div className="px-4 py-2 text-xs text-destructive">
+            Failed to load user
+          </div>
         ) : user ? (
           <NavUser
             user={{

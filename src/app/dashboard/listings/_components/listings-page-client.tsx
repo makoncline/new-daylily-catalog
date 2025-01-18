@@ -3,7 +3,6 @@
 import { useRouter, useSearchParams } from "next/navigation";
 import { api, type RouterOutputs } from "@/trpc/react";
 import { ListingsTable } from "./listings-table";
-import { CreateListingButton } from "./create-listing-button";
 import {
   Dialog,
   DialogContent,
@@ -46,20 +45,8 @@ export function ListingsPageClient({
   };
 
   return (
-    <div className="p-8">
-      <div className="mb-8 flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">Listings</h1>
-          <p className="mt-2 text-muted-foreground">
-            Manage and showcase your daylilies.
-          </p>
-        </div>
-        <CreateListingButton />
-      </div>
-
-      <div className="mt-8">
-        <ListingsTable initialListings={initialListings} onEdit={setEditing} />
-      </div>
+    <>
+      <ListingsTable initialListings={initialListings} onEdit={setEditing} />
 
       <Dialog
         open={!!editingId}
@@ -82,6 +69,6 @@ export function ListingsPageClient({
           )}
         </DialogContent>
       </Dialog>
-    </div>
+    </>
   );
 }

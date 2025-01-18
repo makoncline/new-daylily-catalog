@@ -1,53 +1,43 @@
-"use client";
+"use server";
 
-import { usePathname } from "next/navigation";
-import { AppSidebar } from "@/components/app-sidebar";
-import { Breadcrumbs, type BreadcrumbItemType } from "@/components/breadcrumbs";
+import { auth } from "@clerk/nextjs/server";
+import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
 import {
-  SidebarInset,
   SidebarProvider,
+  SidebarInset,
   SidebarTrigger,
 } from "@/components/ui/sidebar";
 import { Separator } from "@/components/ui/separator";
-import { useLocalStorage } from "@/hooks/use-local-storage";
+import { AppSidebarWrapper } from "@/components/app-sidebar-wrapper";
+import { DashboardBreadcrumbs } from "./_components/dashboard-breadcrumbs";
 
-export default function DashboardLayout({
+export default async function DashboardLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const pathname = usePathname();
-  const [sidebarOpen, setSidebarOpen] = useLocalStorage("sidebar:state", true);
+  const { userId } = await auth();
 
-  // Generate breadcrumb items based on the current path
-  const getBreadcrumbItems = () => {
-    const items: BreadcrumbItemType[] = [
-      { title: "Dashboard", href: "/dashboard" },
-    ];
+  if (!userId) {
+    redirect("/sign-in");
+  }
 
-    if (pathname === "/dashboard/listings") {
-      items.push({ title: "Listings" });
-    } else if (pathname === "/dashboard/lists") {
-      items.push({ title: "Lists" });
-    } else if (pathname === "/dashboard/profile") {
-      items.push({ title: "Profile" });
-    }
-
-    return items;
-  };
+  const cookieStore = cookies();
+  const defaultOpen = cookieStore.get("sidebar:state")?.value === "true";
 
   return (
-    <SidebarProvider open={sidebarOpen} onOpenChange={setSidebarOpen}>
-      <AppSidebar />
+    <SidebarProvider defaultOpen={defaultOpen}>
+      <AppSidebarWrapper />
       <SidebarInset>
-        <header className="flex h-16 shrink-0 items-center gap-2">
+        <header className="flex h-16 shrink-0 items-center border-b transition-[width,height] ease-linear group-has-[[data-collapsible=icon]]/sidebar-wrapper:h-12">
           <div className="flex items-center gap-2 px-4">
             <SidebarTrigger className="-ml-1" />
             <Separator orientation="vertical" className="mr-2 h-4" />
-            <Breadcrumbs items={getBreadcrumbItems()} />
+            <DashboardBreadcrumbs />
           </div>
         </header>
-        <main>{children}</main>
+        <div className="flex-1 space-y-4 p-8">{children}</div>
       </SidebarInset>
     </SidebarProvider>
   );
