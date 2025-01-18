@@ -1,13 +1,17 @@
+"use client";
+
 import { useState } from "react";
-import { Button } from "@/components/ui/button";
 import { api } from "@/trpc/react";
 import { useToast } from "@/hooks/use-toast";
 import { LISTING_CONFIG } from "@/config/constants";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { AhsListingSelect } from "./ahs-listing-select";
+import { AhsListingDisplay } from "./ahs-listing-display";
 
 import type { ListingGetOutput } from "@/server/api/routers/listing";
 import type { AhsListing } from "@prisma/client";
-import { AhsListingSelect } from "./ahs-listing-select";
 
 interface AhsListingLinkProps {
   listing: ListingGetOutput;
@@ -123,44 +127,46 @@ export function AhsListingLink({
   return (
     <div className="space-y-2">
       {listing.ahsListing ? (
-        <div className="rounded-lg border p-4">
-          <div className="mb-2 flex items-center justify-between">
-            <h3 className="text-lg font-semibold">{listing.ahsListing.name}</h3>
-            <div className="flex gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => updateAhsListing(null, null)}
-                disabled={isPending}
-              >
-                {isPending ? "Unlinking..." : "Unlink"}
-              </Button>
-              {listing.name !== listing.ahsListing.name && (
+        <Card>
+          <CardContent className="pt-6">
+            <div className="mb-4 flex items-center justify-between">
+              <p className="text-sm text-muted-foreground">
+                Linked to{" "}
+                <a
+                  href={`https://daylilies.org/daylilies/${listing.ahsListing.id}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="font-medium text-foreground hover:underline"
+                >
+                  {listing.ahsListing.name}
+                </a>
+              </p>
+              <div className="flex gap-2">
+                {listing.name !== listing.ahsListing.name && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={syncName}
+                    disabled={isPending}
+                  >
+                    {isPending ? "Syncing..." : "Sync Name"}
+                  </Button>
+                )}
                 <Button
                   type="button"
                   variant="outline"
                   size="sm"
-                  onClick={syncName}
+                  onClick={() => updateAhsListing(null, null)}
                   disabled={isPending}
                 >
-                  {isPending ? "Syncing..." : "Sync Name"}
+                  {isPending ? "Unlinking..." : "Unlink"}
                 </Button>
-              )}
+              </div>
             </div>
-          </div>
-          <div className="text-sm text-muted-foreground">
-            Linked to{" "}
-            <a
-              href={`https://daylilies.org/daylilies/${listing.ahsListing.id}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="font-medium text-foreground hover:underline"
-            >
-              {listing.ahsListing.name}
-            </a>
-          </div>
-        </div>
+            <AhsListingDisplay ahsListing={listing.ahsListing} />
+          </CardContent>
+        </Card>
       ) : (
         <div>
           <AhsListingSelect
@@ -178,15 +184,17 @@ export function AhsListingLink({
 export function AhsListingLinkSkeleton() {
   return (
     <div className="space-y-2">
-      <div className="rounded-lg border p-4">
-        <div className="mb-2 flex items-center justify-between">
-          <Skeleton className="h-6 w-48" />
-          <Skeleton className="h-8 w-20" />
-        </div>
-        <div className="text-sm text-muted-foreground">
-          <Skeleton className="h-4 w-64" />
-        </div>
-      </div>
+      <Card>
+        <CardContent className="pt-6">
+          <div className="mb-4 flex items-center justify-between">
+            <Skeleton className="h-6 w-48" />
+            <Skeleton className="h-8 w-20" />
+          </div>
+          <div className="text-sm text-muted-foreground">
+            <Skeleton className="h-4 w-64" />
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }

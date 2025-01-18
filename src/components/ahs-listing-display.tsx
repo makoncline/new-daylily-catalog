@@ -1,0 +1,67 @@
+"use client";
+
+import { type AhsListing } from "@prisma/client";
+import { Separator } from "@/components/ui/separator";
+
+interface AhsListingDisplayProps {
+  ahsListing: AhsListing;
+  className?: string;
+}
+
+export function AhsListingDisplay({
+  ahsListing,
+  className,
+}: AhsListingDisplayProps) {
+  // Combine all fields into a single array for natural flow
+  const fields = [
+    { label: "Scape Height", value: ahsListing.scapeHeight },
+    { label: "Bloom Size", value: ahsListing.bloomSize },
+    { label: "Bloom Season", value: ahsListing.bloomSeason },
+    { label: "Form", value: ahsListing.form },
+    { label: "Ploidy", value: ahsListing.ploidy },
+    { label: "Foliage Type", value: ahsListing.foliageType },
+    { label: "Bloom Habit", value: ahsListing.bloomHabit },
+    { label: "Bud Count", value: ahsListing.budcount },
+    { label: "Branches", value: ahsListing.branches },
+    { label: "Sculpting", value: ahsListing.sculpting },
+    { label: "Foliage", value: ahsListing.foliage },
+    { label: "Flower", value: ahsListing.flower },
+    { label: "Fragrance", value: ahsListing.fragrance },
+    { label: "Parentage", value: ahsListing.parentage },
+    { label: "Color", value: ahsListing.color },
+  ].filter((field) => field.value);
+
+  return (
+    <div className={className}>
+      <div className="mb-4">
+        <h3 className="text-xl font-semibold">
+          {ahsListing.name}{" "}
+          <span className="text-base font-normal text-muted-foreground">
+            ({ahsListing.hybridizer}, {ahsListing.year})
+          </span>
+        </h3>
+      </div>
+
+      <div className="space-y-4">
+        {/* All fields in a natural flow */}
+        {fields.length > 0 && (
+          <div className="flex flex-wrap gap-y-1">
+            {fields.map((field, index) => (
+              <div key={field.label} className="flex items-center">
+                <div>
+                  <p className="text-xs font-extralight text-muted-foreground">
+                    {field.label}
+                  </p>
+                  <p className="text-sm font-light">{field.value}</p>
+                </div>
+                {index < fields.length - 1 && (
+                  <Separator orientation="vertical" className="mx-3 h-2/3" />
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
