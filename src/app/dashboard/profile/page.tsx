@@ -3,7 +3,6 @@
 import { Suspense } from "react";
 import { api } from "@/trpc/server";
 import { ProfileForm } from "@/components/forms/profile-form";
-import { BioManagerFormItem } from "@/components/forms/bio-form";
 
 export default async function ProfilePage() {
   return (

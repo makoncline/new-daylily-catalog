@@ -1,8 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { type Image, type List } from "@prisma/client";
-import { type RouterOutputs } from "@/trpc/react";
 import { type ListingRouterOutputs } from "@/server/api/routers/listing";
 import {
   listingFormSchema,
@@ -34,14 +32,9 @@ import { LISTING_CONFIG } from "@/config/constants";
 interface ListingFormProps {
   initialListing: ListingRouterOutputs["get"];
   onClose?: () => void;
-  onDelete?: () => void;
 }
 
-export function ListingForm({
-  initialListing,
-  onClose,
-  onDelete,
-}: ListingFormProps) {
+export function ListingForm({ initialListing, onClose }: ListingFormProps) {
   const { toast } = useToast();
   const [listing, setListing] = useState(initialListing);
   const [images, setImages] = useState(initialListing.images);

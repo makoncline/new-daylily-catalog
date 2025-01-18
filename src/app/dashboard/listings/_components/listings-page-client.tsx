@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter, useSearchParams } from "next/navigation";
-import { api } from "@/trpc/react";
+import { api, type RouterOutputs } from "@/trpc/react";
 import { ListingsTable } from "./listings-table";
 import { CreateListingButton } from "./create-listing-button";
 import {
@@ -12,19 +12,9 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { ListingForm } from "@/components/forms/listing-form";
-import { Loader2 } from "lucide-react";
-import { type Listing } from "@/types/schemas/listing";
 
 interface ListingsPageClientProps {
-  initialListings: Listing[];
-}
-
-function LoadingState() {
-  return (
-    <div className="flex h-[200px] items-center justify-center">
-      <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
-    </div>
-  );
+  initialListings: RouterOutputs["listing"]["list"];
 }
 
 export function ListingsPageClient({
@@ -86,7 +76,7 @@ export function ListingsPageClient({
               </DialogHeader>
               <ListingForm
                 initialListing={editingListing}
-                onDelete={() => setEditing(null)}
+                onClose={() => setEditing(null)}
               />
             </>
           )}

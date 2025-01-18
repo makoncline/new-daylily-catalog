@@ -10,7 +10,6 @@ import { parseEditorContent } from "@/lib/editor-utils";
 import { Loader2 } from "lucide-react";
 import { FormItem, FormLabel, FormDescription } from "../ui/form";
 import { useOnClickOutside } from "usehooks-ts";
-import { unknown } from "zod";
 import { type OutputData } from "@editorjs/editorjs";
 
 interface BioManagerFormProps {
