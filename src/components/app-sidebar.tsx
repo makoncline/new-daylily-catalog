@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Command, Flower2, ListTodo, Send } from "lucide-react";
+import { Command, Flower2, ListTodo, Send, UserCircle } from "lucide-react";
 import { api } from "@/trpc/react";
 import { NavMain } from "@/components/nav-main";
 import { NavUser, NavUserSkeleton } from "@/components/nav-user";
@@ -11,22 +11,27 @@ import {
   SidebarFooter,
   SidebarHeader,
   SidebarMenu,
-  SidebarMenuButton,
   SidebarMenuItem,
+  SidebarMenuButton,
 } from "@/components/ui/sidebar";
 import { useFeedbackUrl } from "@/hooks/use-feedback-url";
 import { NavSecondary } from "./nav-secondary";
+
 const navMainItems = [
   {
     title: "Listings",
     url: "/dashboard/listings",
     icon: Flower2,
-    isActive: true,
   },
   {
     title: "Lists",
     url: "/dashboard/lists",
     icon: ListTodo,
+  },
+  {
+    title: "Profile",
+    url: "/dashboard/profile",
+    icon: UserCircle,
   },
 ];
 
