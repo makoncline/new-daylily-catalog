@@ -9,17 +9,11 @@ import { cn } from "@/lib/utils";
 
 interface EditorProps {
   initialContent?: OutputData;
-  placeholder?: string;
   className?: string;
   editorRef: React.MutableRefObject<EditorJS | undefined>;
 }
 
-export function Editor({
-  initialContent,
-  placeholder,
-  className,
-  editorRef,
-}: EditorProps) {
+export function Editor({ initialContent, className, editorRef }: EditorProps) {
   const [isMounted, setIsMounted] = React.useState<boolean>(false);
 
   const initialContentRef = React.useRef(initialContent);
@@ -39,7 +33,7 @@ export function Editor({
       onReady() {
         editorRef.current = editor;
       },
-      placeholder: placeholder ?? "Type something...",
+      placeholder: "Type something...",
       inlineToolbar: true,
       data: initialContentRef.current,
       tools: {
@@ -50,7 +44,7 @@ export function Editor({
         table: Table,
       },
     });
-  }, [placeholder, editorRef]);
+  }, [editorRef]);
 
   React.useEffect(() => {
     if (typeof window !== "undefined") {
@@ -77,7 +71,7 @@ export function Editor({
 
   return (
     <div className={cn("grid w-full gap-10", className)}>
-      <div className="prose prose-stone dark:prose-invert mx-auto w-[800px]">
+      <div className="prose prose-stone dark:prose-invert mx-auto w-full">
         <div
           id="editor"
           className="min-h-[500px] rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"

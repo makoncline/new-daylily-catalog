@@ -134,7 +134,7 @@ export const userProfileRouter = createTRPCRouter({
   updateBio: protectedProcedure
     .input(
       z.object({
-        bio: z.unknown().optional().nullable(),
+        bio: z.string().nullable(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
@@ -142,7 +142,7 @@ export const userProfileRouter = createTRPCRouter({
         const profile = await db.userProfile.update({
           where: { userId: ctx.user.id },
           data: {
-            bio: input.bio ? JSON.stringify(input.bio) : null,
+            bio: input.bio,
           },
           include: profileInclude,
         });
