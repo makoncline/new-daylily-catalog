@@ -130,4 +130,30 @@ export const userProfileRouter = createTRPCRouter({
         });
       }
     }),
+
+  updateBio: protectedProcedure
+    .input(
+      z.object({
+        bio: z.unknown().optional().nullable(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      try {
+        const profile = await db.userProfile.update({
+          where: { userId: ctx.user.id },
+          data: {
+            bio: input.bio ? JSON.stringify(input.bio) : null,
+          },
+          include: profileInclude,
+        });
+
+        return profile;
+      } catch (error) {
+        console.error("Error updating bio", error);
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "Error updating bio",
+        });
+      }
+    }),
 });

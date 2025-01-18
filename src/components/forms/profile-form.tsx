@@ -1,12 +1,11 @@
 "use client";
 
-import { useState, useRef, useCallback } from "react";
+import { useState } from "react";
 import { type Image } from "@prisma/client";
 import { type RouterOutputs } from "@/trpc/react";
 import {
   profileFormSchema,
   type ProfileFormData,
-  type EditorJsData,
 } from "@/types/schemas/profile";
 import { Button } from "@/components/ui/button";
 import {
@@ -24,8 +23,6 @@ import { ImageUpload } from "@/components/image-upload";
 import { useToast } from "@/hooks/use-toast";
 import { api } from "@/trpc/react";
 import { useZodForm } from "@/hooks/use-zod-form";
-import { Editor } from "@/components/editor";
-import { Loader2 } from "lucide-react";
 
 type UserProfile = RouterOutputs["userProfile"]["get"];
 
@@ -33,53 +30,10 @@ interface ProfileFormProps {
   initialProfile: UserProfile;
 }
 
-// Convert plain text to EditorJS format
-function convertToEditorData(value: string | null | undefined): EditorJsData {
-  if (!value) {
-    return {
-      time: Date.now(),
-      blocks: [],
-      version: "2.28.2",
-    };
-  }
-
-  try {
-    // Try to parse as JSON first
-    const parsed = JSON.parse(value);
-    if (parsed.blocks && Array.isArray(parsed.blocks)) {
-      return parsed;
-    }
-  } catch {
-    // If parsing fails, treat as plain text
-    return {
-      time: Date.now(),
-      blocks: [
-        {
-          id: "legacy",
-          type: "paragraph",
-          data: {
-            text: value,
-          },
-        },
-      ],
-      version: "2.28.2",
-    };
-  }
-
-  // Fallback to empty editor
-  return {
-    time: Date.now(),
-    blocks: [],
-    version: "2.28.2",
-  };
-}
-
 export function ProfileForm({ initialProfile }: ProfileFormProps) {
   const { toast } = useToast();
   const [profile, setProfile] = useState(initialProfile);
   const [images, setImages] = useState(initialProfile.images);
-  const [isSaving, setIsSaving] = useState(false);
-  const editorRef = useRef<{ save: () => Promise<EditorJsData | null> }>(null);
   const [isUpdating, setIsUpdating] = useState(false);
 
   const updateProfileMutation = api.userProfile.update.useMutation({
@@ -129,34 +83,6 @@ export function ProfileForm({ initialProfile }: ProfileFormProps) {
     }
   };
 
-  // Handle bio save
-  const onBioSave = useCallback(async () => {
-    if (!editorRef.current) return;
-    setIsSaving(true);
-    try {
-      const data = await editorRef.current.save();
-      if (data) {
-        const updatedProfile = await updateProfileMutation.mutateAsync({
-          data: {
-            bio: JSON.stringify(data),
-          },
-        });
-        setProfile(updatedProfile);
-        toast({
-          title: "Bio saved successfully",
-        });
-      }
-    } catch (error) {
-      console.error("Error saving bio:", error);
-      toast({
-        title: "Failed to save bio",
-        variant: "destructive",
-      });
-    } finally {
-      setIsSaving(false);
-    }
-  }, [updateProfileMutation, toast]);
-
   return (
     <Form {...form}>
       <div className="space-y-8">
@@ -204,30 +130,6 @@ export function ProfileForm({ initialProfile }: ProfileFormProps) {
               </FormItem>
             )}
           />
-        </div>
-
-        <div className="space-y-3">
-          <div className="flex items-center justify-between">
-            <FormLabel>Bio</FormLabel>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={onBioSave}
-              disabled={isSaving || isUpdating}
-            >
-              {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Save Bio
-            </Button>
-          </div>
-          <Editor
-            ref={editorRef}
-            defaultValue={convertToEditorData(profile.bio)}
-            placeholder="Tell visitors about yourself and your garden..."
-          />
-          <FormDescription>
-            Tell visitors about yourself and your garden.
-          </FormDescription>
         </div>
 
         <FormItem>

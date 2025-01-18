@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { parse, HTMLElement } from "node-html-parser";
+import { parse, type HTMLElement } from "node-html-parser";
 
 // Helper function to fetch and parse metadata
 async function fetchMetadata(url: string) {

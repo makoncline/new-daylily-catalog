@@ -8,6 +8,10 @@ import { env } from "../src/env.js";
 import { syncStripeSubscriptionToKVBase } from "../src/server/stripe/sync-subscription";
 import { syncClerkUserToKVBase } from "../src/server/clerk/sync-user";
 import { kvStore } from "../src/server/db/kvStore";
+import {
+  convertMarkdownToEditorJS,
+  type EditorJSData,
+} from "../src/lib/mdToBlocks";
 
 const stripe = new Stripe(process.env.PROD_STRIPE_SECRET_KEY!);
 
@@ -434,11 +438,46 @@ async function upsertUserProfiles() {
   for (const user of users) {
     const userId = user.id.toString();
 
+    // Convert bio to EditorJS format if it exists
+    let processedBio: string | null = null;
+    if (user.bio) {
+      try {
+        // First try to parse as JSON (EditorJS format)
+        JSON.parse(user.bio);
+        processedBio = user.bio; // Already in correct format
+      } catch {
+        // If parsing fails, treat as markdown and convert
+        try {
+          const editorJSData = convertMarkdownToEditorJS(user.bio);
+          processedBio = JSON.stringify(editorJSData);
+          console.log(
+            `Converted markdown bio to EditorJS format for user ${userId}`,
+          );
+        } catch (error) {
+          console.error(`Error converting bio for user ${userId}:`, error);
+          // Fallback to simple paragraph
+          const fallbackData: EditorJSData = {
+            time: new Date().getTime(),
+            blocks: [
+              {
+                type: "paragraph",
+                data: {
+                  text: user.bio,
+                },
+              },
+            ],
+            version: "2.27.2",
+          };
+          processedBio = JSON.stringify(fallbackData);
+        }
+      }
+    }
+
     const profileData = {
       userId: userId,
       logoUrl: user.avatar_url,
       intro: user.intro,
-      bio: user.bio,
+      bio: processedBio,
       userLocation: user.user_location,
       createdAt: user.created_at,
       updatedAt: user.updated_at,
