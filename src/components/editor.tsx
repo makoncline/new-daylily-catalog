@@ -1,15 +1,17 @@
 "use client";
 
 import * as React from "react";
-import EditorJS from "@editorjs/editorjs";
 import { type EditorJsData } from "@/types/schemas/profile";
-import Header from "@editorjs/header";
-import List from "@editorjs/list";
-import LinkTool from "@editorjs/link";
-import InlineCode from "@editorjs/inline-code";
 import { cn } from "@/lib/utils";
 import "@/styles/editor.css";
 import { AlertCircle } from "lucide-react";
+
+// We need to import these types for initialization
+import type EditorJS from "@editorjs/editorjs";
+import type Header from "@editorjs/header";
+import type List from "@editorjs/list";
+import type LinkTool from "@editorjs/link";
+import type InlineCode from "@editorjs/inline-code";
 
 interface EditorProps {
   defaultValue?: EditorJsData;
@@ -29,6 +31,12 @@ export const Editor = React.forwardRef<EditorHandle, EditorProps>(
 
     const initializeEditor = React.useCallback(async () => {
       if (!editorRef.current) {
+        const EditorJS = (await import("@editorjs/editorjs")).default;
+        const Header = (await import("@editorjs/header")).default;
+        const List = (await import("@editorjs/list")).default;
+        const LinkTool = (await import("@editorjs/link")).default;
+        const InlineCode = (await import("@editorjs/inline-code")).default;
+
         const editor = new EditorJS({
           holder: "editor",
           onReady() {
@@ -82,9 +90,7 @@ export const Editor = React.forwardRef<EditorHandle, EditorProps>(
     }, [placeholder]);
 
     React.useEffect(() => {
-      if (typeof window !== "undefined") {
-        setIsMounted(true);
-      }
+      setIsMounted(true);
     }, []);
 
     React.useEffect(() => {
@@ -92,8 +98,10 @@ export const Editor = React.forwardRef<EditorHandle, EditorProps>(
         initializeEditor();
 
         return () => {
-          editorRef.current?.destroy();
-          editorRef.current = undefined;
+          if (editorRef.current) {
+            editorRef.current.destroy();
+            editorRef.current = undefined;
+          }
         };
       }
     }, [isMounted, initializeEditor]);
@@ -107,9 +115,11 @@ export const Editor = React.forwardRef<EditorHandle, EditorProps>(
         }
       };
 
-      window.addEventListener("beforeunload", handleBeforeUnload);
-      return () =>
-        window.removeEventListener("beforeunload", handleBeforeUnload);
+      if (typeof window !== "undefined") {
+        window.addEventListener("beforeunload", handleBeforeUnload);
+        return () =>
+          window.removeEventListener("beforeunload", handleBeforeUnload);
+      }
     }, [hasUnsavedChanges]);
 
     React.useImperativeHandle(
@@ -129,7 +139,11 @@ export const Editor = React.forwardRef<EditorHandle, EditorProps>(
     );
 
     if (!isMounted) {
-      return null;
+      return (
+        <div className="rounded-md border bg-background">
+          <div className="min-h-[200px] px-3 py-4" />
+        </div>
+      );
     }
 
     return (

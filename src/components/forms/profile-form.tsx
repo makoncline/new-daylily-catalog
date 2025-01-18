@@ -26,7 +26,6 @@ import { api } from "@/trpc/react";
 import { useZodForm } from "@/hooks/use-zod-form";
 import { Editor } from "@/components/editor";
 import { Loader2 } from "lucide-react";
-import { useRouter } from "next/navigation";
 
 type UserProfile = RouterOutputs["userProfile"]["get"];
 
@@ -79,10 +78,9 @@ export function ProfileForm({ initialProfile }: ProfileFormProps) {
   const { toast } = useToast();
   const [profile, setProfile] = useState(initialProfile);
   const [images, setImages] = useState(initialProfile.images);
-  const [isPending, setIsPending] = useState(false);
-  const editorRef = useRef<{ save: () => Promise<EditorJsData | null> }>(null);
   const [isSaving, setIsSaving] = useState(false);
-  const router = useRouter();
+  const editorRef = useRef<{ save: () => Promise<EditorJsData | null> }>(null);
+  const [isUpdating, setIsUpdating] = useState(false);
 
   const updateProfileMutation = api.userProfile.update.useMutation({
     onSuccess: (updatedProfile: UserProfile) => {
@@ -112,7 +110,7 @@ export function ProfileForm({ initialProfile }: ProfileFormProps) {
 
     // Only save if the value has changed
     if (value !== initialValue) {
-      setIsPending(true);
+      setIsUpdating(true);
       try {
         const updatedProfile = await updateProfileMutation.mutateAsync({
           data: {
@@ -120,8 +118,13 @@ export function ProfileForm({ initialProfile }: ProfileFormProps) {
           },
         });
         setProfile(updatedProfile);
+        toast({
+          title: "Changes saved",
+        });
+      } catch {
+        // Error is handled by the mutation
       } finally {
-        setIsPending(false);
+        setIsUpdating(false);
       }
     }
   };
@@ -169,6 +172,7 @@ export function ProfileForm({ initialProfile }: ProfileFormProps) {
                     {...field}
                     value={field.value ?? ""}
                     onBlur={() => onFieldBlur("intro")}
+                    disabled={isUpdating}
                   />
                 </FormControl>
                 <FormDescription>
@@ -190,6 +194,7 @@ export function ProfileForm({ initialProfile }: ProfileFormProps) {
                     {...field}
                     value={field.value ?? ""}
                     onBlur={() => onFieldBlur("userLocation")}
+                    disabled={isUpdating}
                   />
                 </FormControl>
                 <FormDescription>
@@ -209,7 +214,7 @@ export function ProfileForm({ initialProfile }: ProfileFormProps) {
               variant="outline"
               size="sm"
               onClick={onBioSave}
-              disabled={isSaving}
+              disabled={isSaving || isUpdating}
             >
               {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Save Bio
