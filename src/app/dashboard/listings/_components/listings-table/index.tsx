@@ -28,13 +28,23 @@ export function ListingsTable({ initialListings, onEdit }: ListingsTableProps) {
           pageSize: TABLE_CONFIG.PAGINATION.DEFAULT_PAGE_SIZE,
         },
       }}
-      lists={lists?.map((list) => ({
-        id: list.id,
-        name: list.name,
-        count: initialListings.filter((listing) =>
-          listing.lists.some((l) => l.id === list.id),
-        ).length,
-      }))}
+      filterableColumns={
+        lists
+          ? [
+              {
+                id: "lists",
+                title: "Lists",
+                options: lists.map((list) => ({
+                  label: list.name,
+                  value: list.id,
+                  count: initialListings.filter((listing) =>
+                    listing.lists.some((l) => l.id === list.id),
+                  ).length,
+                })),
+              },
+            ]
+          : undefined
+      }
     />
   );
 }

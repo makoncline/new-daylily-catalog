@@ -1,74 +1,60 @@
 "use client";
 
-import { Cross2Icon } from "@radix-ui/react-icons";
-import { type Table } from "@tanstack/react-table";
-import { useRouter, usePathname, useSearchParams } from "next/navigation";
-
+import * as React from "react";
+import type { Table } from "@tanstack/react-table";
+import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { DataTableViewOptions } from "./data-table-view-options";
-import { DataTableFacetedFilter } from "@/components/data-table/data-table-faceted-filter";
+import { DataTableFacetedFilter } from "./data-table-faceted-filter";
 
 interface DataTableToolbarProps<TData> {
   table: Table<TData>;
   filterPlaceholder?: string;
   showTableOptions?: boolean;
-  lists?: {
+  filterableColumns?: {
     id: string;
-    name: string;
-    count?: number;
+    title: string;
+    options: { label: string; value: string; count?: number }[];
   }[];
 }
 
 export function DataTableToolbar<TData>({
   table,
-  filterPlaceholder = "Filter listings...",
+  filterPlaceholder,
   showTableOptions = true,
-  lists = [],
+  filterableColumns,
 }: DataTableToolbarProps<TData>) {
-  const router = useRouter();
-  const pathname = usePathname();
-  const searchParams = useSearchParams();
-  const globalFilter = table.getState().globalFilter as string;
-  const listFilter = table
-    .getState()
-    .columnFilters.find((f) => f.id === "lists")?.value as string[];
-  const isFiltered = Boolean(globalFilter?.length || listFilter?.length);
-
-  const handleReset = () => {
-    table.setGlobalFilter("");
-    table.getColumn("lists")?.setFilterValue(undefined);
-    router.push(pathname, { scroll: false });
-  };
+  const isFiltered = table.getState().columnFilters.length > 0;
 
   return (
     <div className="flex items-center justify-between">
       <div className="flex flex-1 items-center space-x-2">
         <Input
-          placeholder={filterPlaceholder}
-          value={globalFilter ?? ""}
+          placeholder={filterPlaceholder ?? "Filter..."}
+          value={(table.getState().globalFilter as string) ?? ""}
           onChange={(event) => table.setGlobalFilter(event.target.value)}
           className="h-8 w-[150px] lg:w-[250px]"
         />
-        {lists.length > 0 && (
+        {filterableColumns?.map(({ id, title, options }) => (
           <DataTableFacetedFilter
-            column={table.getColumn("lists")}
-            title="Lists"
-            options={lists.map((list) => ({
-              label: list.name,
-              value: list.id,
-              count: list.count,
-            }))}
+            key={id}
+            column={table.getColumn(id)}
+            title={title}
+            options={options}
           />
-        )}
+        ))}
         {isFiltered && (
           <Button
             variant="ghost"
-            onClick={handleReset}
+            onClick={() => {
+              table.resetColumnFilters();
+              table.resetGlobalFilter();
+            }}
             className="h-8 px-2 lg:px-3"
           >
             Reset
-            <Cross2Icon className="ml-2 h-4 w-4" />
+            <X className="ml-2 h-4 w-4" />
           </Button>
         )}
       </div>

@@ -52,10 +52,10 @@ interface DataTableProps<TData> {
   filterPlaceholder?: string;
   showTableOptions?: boolean;
   onPaginationChange?: (pageIndex: number, pageSize: number) => void;
-  lists?: {
+  filterableColumns?: {
     id: string;
-    name: string;
-    count?: number;
+    title: string;
+    options: { label: string; value: string; count?: number }[];
   }[];
 }
 
@@ -66,7 +66,7 @@ export function DataTable<TData extends { id: string }>({
   filterPlaceholder,
   showTableOptions = true,
   onPaginationChange,
-  lists,
+  filterableColumns,
 }: DataTableProps<TData>) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -87,43 +87,58 @@ export function DataTable<TData extends { id: string }>({
 
   // Get initial filters from URL
   const initialFilter = searchParams.get("filter") ?? "";
-  const initialListFilter =
-    searchParams.get("lists")?.split(",").filter(Boolean) ?? [];
   const [globalFilter, setGlobalFilter] = React.useState<string>(initialFilter);
-  const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([
-    {
-      id: "lists",
-      value: initialListFilter,
-    },
-  ]);
+  const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>(
+    [],
+  );
 
   // Update URL when filters change
   const updateFiltersInUrl = React.useCallback(
-    (filter: string, listFilter: string[]) => {
+    (filter: string, columnFilters: ColumnFiltersState) => {
       const params = new URLSearchParams(searchParams);
       if (filter) {
         params.set("filter", filter);
       } else {
         params.delete("filter");
       }
-      if (listFilter.length > 0) {
-        params.set("lists", listFilter.join(","));
-      } else {
-        params.delete("lists");
-      }
-      // Preserve other params like editing, page, size
+
+      // Update column filters in URL
+      filterableColumns?.forEach(({ id }) => {
+        const filterValue = columnFilters.find((f) => f.id === id)
+          ?.value as string[];
+        if (filterValue?.length > 0) {
+          params.set(id, filterValue.join(","));
+        } else {
+          params.delete(id);
+        }
+      });
+
       router.replace(`?${params.toString()}`);
     },
-    [searchParams, router],
+    [searchParams, router, filterableColumns],
   );
+
+  // Initialize column filters from URL
+  React.useEffect(() => {
+    const initialColumnFilters: ColumnFiltersState = [];
+    filterableColumns?.forEach(({ id }) => {
+      const filterValue =
+        searchParams.get(id)?.split(",").filter(Boolean) ?? [];
+      if (filterValue.length > 0) {
+        initialColumnFilters.push({
+          id,
+          value: filterValue,
+        });
+      }
+    });
+    setColumnFilters(initialColumnFilters);
+  }, [searchParams, filterableColumns]);
 
   // Handle filter changes
   const handleFilterChange = React.useCallback(
     (value: string) => {
       setGlobalFilter(value);
-      const listFilter =
-        (columnFilters.find((f) => f.id === "lists")?.value as string[]) ?? [];
-      updateFiltersInUrl(value, listFilter);
+      updateFiltersInUrl(value, columnFilters);
     },
     [updateFiltersInUrl, columnFilters],
   );
@@ -140,9 +155,7 @@ export function DataTable<TData extends { id: string }>({
           ? updaterOrValue(columnFilters)
           : updaterOrValue;
       setColumnFilters(newFilters);
-      const listFilter =
-        (newFilters.find((f) => f.id === "lists")?.value as string[]) ?? [];
-      updateFiltersInUrl(globalFilter, listFilter);
+      updateFiltersInUrl(globalFilter, newFilters);
     },
     [updateFiltersInUrl, globalFilter, columnFilters],
   );
@@ -199,7 +212,7 @@ export function DataTable<TData extends { id: string }>({
         table={table}
         filterPlaceholder={filterPlaceholder}
         showTableOptions={showTableOptions}
-        lists={lists}
+        filterableColumns={filterableColumns}
       />
       <div className="grid auto-rows-min rounded-md border">
         <div className="flex min-w-full">
