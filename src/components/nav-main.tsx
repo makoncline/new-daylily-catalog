@@ -19,6 +19,7 @@ import {
   SidebarMenuSubItem,
 } from "@/components/ui/sidebar";
 import Link from "next/link";
+import { cn } from "@/lib/utils";
 
 export interface NavMainProps {
   items: {
@@ -41,9 +42,20 @@ export function NavMain({ items }: NavMainProps) {
         {items.map((item) => (
           <Collapsible key={item.title} asChild defaultOpen={item.isActive}>
             <SidebarMenuItem>
-              <SidebarMenuButton asChild tooltip={item.title}>
+              <SidebarMenuButton
+                asChild
+                tooltip={item.title}
+                className={cn(
+                  item.isActive && "bg-accent text-accent-foreground",
+                )}
+              >
                 <Link href={item.url}>
-                  <item.icon />
+                  <item.icon
+                    className={cn(
+                      "size-4",
+                      item.isActive && "text-accent-foreground",
+                    )}
+                  />
                   <span>{item.title}</span>
                 </Link>
               </SidebarMenuButton>

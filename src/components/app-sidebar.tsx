@@ -17,29 +17,13 @@ import {
 import { useFeedbackUrl } from "@/hooks/use-feedback-url";
 import { NavSecondary } from "./nav-secondary";
 import Link from "next/link";
-
-const navMainItems = [
-  {
-    title: "Listings",
-    url: "/dashboard/listings",
-    icon: Flower2,
-  },
-  {
-    title: "Lists",
-    url: "/dashboard/lists",
-    icon: ListTodo,
-  },
-  {
-    title: "Profile",
-    url: "/dashboard/profile",
-    icon: UserCircle,
-  },
-];
+import { usePathname } from "next/navigation";
 
 export function AppSidebar({
   className,
   ...props
 }: React.ComponentProps<typeof Sidebar>) {
+  const pathname = usePathname();
   const {
     data: user,
     isLoading,
@@ -50,6 +34,31 @@ export function AppSidebar({
   });
 
   const feedbackUrl = useFeedbackUrl();
+
+  const navMainItems = React.useMemo(
+    () => [
+      {
+        title: "Listings",
+        url: "/dashboard/listings",
+        icon: Flower2,
+        isActive: pathname.startsWith("/dashboard/listings"),
+      },
+      {
+        title: "Lists",
+        url: "/dashboard/lists",
+        icon: ListTodo,
+        isActive: pathname.startsWith("/dashboard/lists"),
+      },
+      {
+        title: "Profile",
+        url: "/dashboard/profile",
+        icon: UserCircle,
+        isActive: pathname.startsWith("/dashboard/profile"),
+      },
+    ],
+    [pathname],
+  );
+
   const navSecondaryItems = [
     {
       title: "Feedback",

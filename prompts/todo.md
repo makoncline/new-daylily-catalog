@@ -1,7 +1,9 @@
+- sidebar indicates which tab youre on
+- sidebar collapse button has tooltip with keyboard shortcut
 - use cloudflare for images
 - add public profiles for each user
+  - public router with queries that we cache for multiple minutes
 - add seo metatags on public pages
-
 - add ability to use subdomains like rolling-oaks-daylilies.daylilycatalog.com
 - add ability to use custom domains like rolling-oaks-daylilies.com
 - add ability to use custom domains for private listings
