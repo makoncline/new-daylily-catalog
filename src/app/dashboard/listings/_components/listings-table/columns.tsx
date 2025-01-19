@@ -24,7 +24,7 @@ const getStringValue = (row: ListingRow, key: string): string | null => {
 };
 
 export function getColumns(
-  onEdit?: (id: string | null) => void,
+  onEdit: (id: string) => void,
 ): ColumnDef<ListingRouterOutputs["list"][number]>[] {
   return [
     {

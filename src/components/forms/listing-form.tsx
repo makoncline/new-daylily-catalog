@@ -30,21 +30,20 @@ import { MultiListSelect } from "@/components/multi-list-select";
 import { LISTING_CONFIG } from "@/config/constants";
 
 interface ListingFormProps {
-  initialListing: ListingRouterOutputs["get"];
-  onClose?: () => void;
+  listingId: string;
+  onDelete: () => void;
 }
 
-export function ListingForm({ initialListing, onClose }: ListingFormProps) {
+export function ListingForm({ listingId, onDelete }: ListingFormProps) {
   const { toast } = useToast();
-  const [listing, setListing] = useState(initialListing);
-  const [images, setImages] = useState(initialListing.images);
-  const [lists, setLists] = useState(initialListing.lists);
+  const [listing] = api.listing.get.useSuspenseQuery({ id: listingId });
+  const [images, setImages] = useState(listing.images);
+  const [lists, setLists] = useState(listing.lists);
   const [isPending, setIsPending] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
 
   const updateListingMutation = api.listing.update.useMutation({
     onSuccess: (updatedListing) => {
-      setListing(updatedListing);
       toast({
         title: "Changes saved",
       });
@@ -62,7 +61,6 @@ export function ListingForm({ initialListing, onClose }: ListingFormProps) {
 
   const updateListsMutation = api.listing.updateLists.useMutation({
     onSuccess: (updatedListing) => {
-      setListing(updatedListing);
       setLists(updatedListing.lists);
       toast({
         title: "Lists updated",
@@ -81,7 +79,7 @@ export function ListingForm({ initialListing, onClose }: ListingFormProps) {
       toast({
         title: "Listing deleted successfully",
       });
-      onClose?.();
+      onDelete();
     },
     onError: () => {
       toast({
@@ -93,9 +91,7 @@ export function ListingForm({ initialListing, onClose }: ListingFormProps) {
 
   const form = useZodForm({
     schema: listingFormSchema,
-    defaultValues: transformNullToUndefined(
-      listingFormSchema.parse(initialListing),
-    ),
+    defaultValues: transformNullToUndefined(listingFormSchema.parse(listing)),
   });
 
   // Handle auto-save on blur
@@ -116,7 +112,6 @@ export function ListingForm({ initialListing, onClose }: ListingFormProps) {
             [field]: value,
           },
         });
-        setListing(updatedListing);
       } finally {
         setIsPending(false);
       }
@@ -224,10 +219,6 @@ export function ListingForm({ initialListing, onClose }: ListingFormProps) {
             listing={listing}
             onNameChange={(name) => {
               form.setValue("name", name);
-              setListing((prev) => ({ ...prev, name }));
-            }}
-            onUpdate={(updatedListing) => {
-              setListing(updatedListing);
             }}
           />
           <FormDescription>
@@ -273,13 +264,13 @@ export function ListingForm({ initialListing, onClose }: ListingFormProps) {
               type="listing"
               images={images}
               onImagesChange={setImages}
-              referenceId={listing.id}
+              referenceId={listingId}
             />
             {images.length < LISTING_CONFIG.IMAGES.MAX_COUNT && (
               <div className="p-4">
                 <ImageUpload
                   type="listing"
-                  referenceId={listing.id}
+                  referenceId={listingId}
                   onUploadComplete={(result) => {
                     if (result.success && result.image) {
                       setImages((prev) => [...prev, result.image]);

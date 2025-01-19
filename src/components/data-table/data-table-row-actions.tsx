@@ -19,7 +19,7 @@ import { DeleteConfirmDialog } from "@/components/delete-confirm-dialog";
 
 interface DataTableRowActionsProps<TData> {
   row: Row<TData>;
-  onEdit?: (id: string | null) => void;
+  onEdit: (id: string) => void;
 }
 
 export function DataTableRowActions<TData extends { id: string }>({
@@ -54,7 +54,7 @@ export function DataTableRowActions<TData extends { id: string }>({
           <DropdownMenuItem
             onClick={() => {
               setOpen(false);
-              onEdit?.(row.original.id);
+              onEdit(row.original.id);
             }}
           >
             <Pencil className="mr-2 h-4 w-4" />

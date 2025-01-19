@@ -1,23 +1,22 @@
 "use client";
 
-import { type ListingGetOutput } from "@/server/api/routers/listing";
 import { getColumns } from "./columns";
 import { TABLE_CONFIG } from "@/config/constants";
 import { DataTable } from "@/components/data-table";
 import { api } from "@/trpc/react";
+import { useEditListing } from "../edit-listing-dialog";
 
-interface ListingsTableProps {
-  initialListings: ListingGetOutput[];
-  onEdit?: (id: string | null) => void;
-}
-
-export function ListingsTable({ initialListings, onEdit }: ListingsTableProps) {
+export function ListingsTable() {
+  const { data: listings } = api.listing.list.useQuery();
   const { data: lists } = api.listing.getUserLists.useQuery();
+  const { editListing } = useEditListing();
+
+  if (!listings) return <div>Loading...</div>;
 
   return (
     <DataTable
-      columns={getColumns(onEdit)}
-      data={initialListings}
+      columns={getColumns(editListing)}
+      data={listings}
       options={{
         pinnedColumns: {
           left: 1,
@@ -37,7 +36,7 @@ export function ListingsTable({ initialListings, onEdit }: ListingsTableProps) {
                 options: lists.map((list) => ({
                   label: list.name,
                   value: list.id,
-                  count: initialListings.filter((listing) =>
+                  count: listings.filter((listing) =>
                     listing.lists.some((l) => l.id === list.id),
                   ).length,
                 })),

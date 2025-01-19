@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { Command, Flower2, ListTodo, Send, UserCircle } from "lucide-react";
-import { api, type RouterOutputs } from "@/trpc/react";
+import { api } from "@/trpc/react";
 import { NavMain } from "@/components/nav-main";
 import { NavUser, NavUserSkeleton } from "@/components/nav-user";
 import {
@@ -17,12 +17,6 @@ import {
 import { useFeedbackUrl } from "@/hooks/use-feedback-url";
 import { NavSecondary } from "./nav-secondary";
 import Link from "next/link";
-
-type User = RouterOutputs["user"]["getCurrentUser"];
-
-interface AppSidebarProps extends React.ComponentProps<typeof Sidebar> {
-  initialUser: User;
-}
 
 const navMainItems = [
   {
@@ -43,16 +37,14 @@ const navMainItems = [
 ];
 
 export function AppSidebar({
-  initialUser,
   className,
   ...props
-}: AppSidebarProps) {
+}: React.ComponentProps<typeof Sidebar>) {
   const {
     data: user,
     isLoading,
     error,
   } = api.user.getCurrentUser.useQuery(undefined, {
-    initialData: initialUser,
     // Refetch every minute to keep session fresh
     refetchInterval: 60000,
   });
