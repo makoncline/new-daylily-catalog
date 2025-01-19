@@ -8,6 +8,16 @@ import { api } from "@/trpc/react";
 import { ListsTableSkeleton } from "./lists-table-skeleton";
 import { CreateListButton } from "./create-list-button";
 
+function NoResults() {
+  return (
+    <EmptyState
+      title="No lists found"
+      description="Try adjusting your filters or create a new list"
+      action={<CreateListButton />}
+    />
+  );
+}
+
 export function ListsTable() {
   const { data: lists, isLoading } = api.list.list.useQuery();
 
@@ -35,6 +45,7 @@ export function ListsTable() {
           right: 1,
         },
       }}
+      noResults={<NoResults />}
     />
   );
 }

@@ -1,17 +1,29 @@
 "use client";
 
+import { type Listing } from "@prisma/client";
 import { DataTable } from "@/components/data-table";
 import { EmptyState } from "@/components/empty-state";
 import { getColumns } from "./columns";
 import { api } from "@/trpc/react";
 import { ListingsTableSkeleton } from "./listings-table-skeleton";
-import { useEditListing } from "../edit-listing-dialog";
 import { CreateListingButton } from "../create-listing-button";
+import { useEditListing } from "../edit-listing-dialog";
+
+function NoResults() {
+  return (
+    <EmptyState
+      title="No listings found"
+      description="Try adjusting your filters or create a new listing"
+      action={<CreateListingButton />}
+    />
+  );
+}
 
 export function ListingsTable() {
   const { data: listings, isLoading } = api.listing.list.useQuery();
-  const { data: lists } = api.listing.getUserLists.useQuery();
+  const { data: lists } = api.list.list.useQuery();
   const { editListing } = useEditListing();
+  const columns = getColumns(editListing);
 
   if (isLoading) {
     return <ListingsTableSkeleton />;
@@ -21,7 +33,7 @@ export function ListingsTable() {
     return (
       <EmptyState
         title="No listings"
-        description="Create your first daylily listing"
+        description="Create your first listing to start selling"
         action={<CreateListingButton />}
       />
     );
@@ -29,8 +41,7 @@ export function ListingsTable() {
 
   return (
     <DataTable
-      key="listings-table"
-      columns={getColumns(editListing)}
+      columns={columns}
       data={listings}
       options={{
         pinnedColumns: {
@@ -55,6 +66,7 @@ export function ListingsTable() {
             ]
           : undefined
       }
+      noResults={<NoResults />}
     />
   );
 }

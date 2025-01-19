@@ -110,10 +110,9 @@ export function getColumns(
         );
       },
       filterFn: (row, id, filterValue) => {
+        if (!filterValue?.length) return true;
         const rowValue = row.original;
-        return rowValue.lists.some((list) =>
-          (filterValue as string[]).includes(list.id),
-        );
+        return rowValue.lists.some((list) => filterValue.includes(list.id));
       },
     },
 
