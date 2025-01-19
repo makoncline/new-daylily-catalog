@@ -49,21 +49,35 @@ interface DataTablePinnedConfig {
   right?: number;
 }
 
+interface FilterableColumn {
+  id: string;
+  title: string;
+  options: {
+    label: string;
+    value: string;
+    count?: number;
+  }[];
+}
+
+interface DataTableOptions {
+  pinnedColumns?: DataTablePinnedConfig;
+  storageKey?: string;
+}
+
 interface DataTableProps<TData> {
   columns: ColumnDef<TData, unknown>[];
   data: TData[];
-  options?: {
-    pinnedColumns: DataTablePinnedConfig;
-  };
+  options?: DataTableOptions;
   filterPlaceholder?: string;
   showTableOptions?: boolean;
-  filterableColumns?: {
-    id: string;
-    title: string;
-    options: { label: string; value: string; count?: number }[];
-  }[];
+  filterableColumns?: FilterableColumn[];
   noResults?: React.ReactNode;
 }
+
+const DEFAULT_OPTIONS: Required<DataTableOptions> = {
+  pinnedColumns: { left: 0, right: 0 },
+  storageKey: "data-table",
+};
 
 function useTableUrlSync({
   pagination,
@@ -135,25 +149,28 @@ function useTableUrlSync({
 export function DataTable<TData extends { id: string }>({
   columns,
   data,
-  options = { pinnedColumns: { left: 0, right: 0 } },
+  options = DEFAULT_OPTIONS,
   filterPlaceholder,
   showTableOptions = true,
   filterableColumns,
   noResults,
 }: DataTableProps<TData>) {
   const searchParams = useSearchParams();
-  const { left: leftPinnedCount = 0, right: rightPinnedCount = 0 } =
-    options.pinnedColumns;
+  const mergedOptions = { ...DEFAULT_OPTIONS, ...options };
+  const {
+    pinnedColumns: { left: leftPinnedCount = 0, right: rightPinnedCount = 0 },
+    storageKey,
+  } = mergedOptions;
 
   const [rowSelection, setRowSelection] = React.useState({});
   const [columnVisibility, setColumnVisibility] =
-    useLocalStorage<VisibilityState>("listings-table-column-visibility", {});
+    useLocalStorage<VisibilityState>(`${storageKey}-column-visibility`, {});
   const [sorting, setSorting] = useLocalStorage<SortingState>(
-    "listings-table-sorting",
+    `${storageKey}-sorting`,
     [],
   );
   const [columnOrder, setColumnOrder] = useLocalStorage<ColumnOrderState>(
-    "listings-table-column-order",
+    `${storageKey}-column-order`,
     [],
   );
 

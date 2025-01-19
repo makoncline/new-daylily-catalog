@@ -48,6 +48,7 @@ export function ListingsTable() {
           left: 1,
           right: 1,
         },
+        storageKey: "listings-table",
       }}
       filterableColumns={
         lists

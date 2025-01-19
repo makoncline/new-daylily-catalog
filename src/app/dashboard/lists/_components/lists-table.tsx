@@ -1,6 +1,5 @@
 "use client";
 
-import { type List } from "@prisma/client";
 import { DataTable } from "@/components/data-table";
 import { EmptyState } from "@/components/empty-state";
 import { columns } from "./columns";
@@ -44,6 +43,7 @@ export function ListsTable() {
           left: 1,
           right: 1,
         },
+        storageKey: "lists-table",
       }}
       noResults={<NoResults />}
     />

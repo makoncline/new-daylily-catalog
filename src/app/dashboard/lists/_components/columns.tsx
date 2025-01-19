@@ -29,6 +29,8 @@ export const columns: ColumnDef<ListWithCount>[] = [
       );
     },
     cell: ({ row }) => <TooltipCell content={row.getValue("name")} />,
+    enableHiding: false,
+    enableSorting: true,
   },
   {
     id: "intro",
@@ -45,6 +47,7 @@ export const columns: ColumnDef<ListWithCount>[] = [
       );
     },
     cell: ({ row }) => <TooltipCell content={row.getValue("intro")} />,
+    enableSorting: true,
   },
   {
     id: "listingsCount",
@@ -63,6 +66,7 @@ export const columns: ColumnDef<ListWithCount>[] = [
     cell: ({ row }) => (
       <div className="text-center">{row.original._count.listings}</div>
     ),
+    enableSorting: true,
   },
   {
     id: "createdAt",
@@ -83,9 +87,12 @@ export const columns: ColumnDef<ListWithCount>[] = [
         {new Date(row.getValue("createdAt")).toLocaleDateString()}
       </div>
     ),
+    enableSorting: true,
   },
   {
     id: "actions",
     cell: ({ row }) => <DataTableRowActions list={row.original} />,
+    enableSorting: false,
+    enableHiding: false,
   },
 ];
