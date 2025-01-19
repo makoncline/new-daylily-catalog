@@ -31,6 +31,7 @@ import { DataTablePagination } from "./data-table-pagination";
 import { DataTableToolbar } from "./data-table-toolbar";
 import { fuzzyFilter } from "@/lib/table-utils";
 import { useLocalStorage } from "@/hooks/use-local-storage";
+import { TABLE_CONFIG } from "@/config/constants";
 
 interface DataTablePinnedConfig {
   left?: number;
@@ -40,6 +41,7 @@ interface DataTablePinnedConfig {
 interface DataTablePaginationConfig {
   pageIndex: number;
   pageSize: number;
+  totalCount: number;
 }
 
 interface DataTableProps<TData> {
@@ -70,6 +72,13 @@ export function DataTable<TData extends { id: string }>({
 }: DataTableProps<TData>) {
   const router = useRouter();
   const searchParams = useSearchParams();
+
+  // Read pagination state from URL (convert from 1-based to 0-based)
+  const pageSize =
+    Number(searchParams.get("size")) ||
+    TABLE_CONFIG.PAGINATION.DEFAULT_PAGE_SIZE;
+  const pageIndex = (Number(searchParams.get("page")) || 1) - 1;
+
   const { left: leftPinnedCount = 0, right: rightPinnedCount = 0 } =
     options.pinnedColumns;
 
@@ -84,66 +93,17 @@ export function DataTable<TData extends { id: string }>({
     "listings-table-column-order",
     [],
   );
-
-  // Get initial filters from URL
-  const initialFilter = searchParams.get("filter") ?? "";
-  const [globalFilter, setGlobalFilter] = React.useState<string>(initialFilter);
+  const [globalFilter, setGlobalFilter] = React.useState<string>(
+    searchParams.get("filter") ?? "",
+  );
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>(
     [],
   );
 
-  // Update URL when filters change
-  const updateFiltersInUrl = React.useCallback(
-    (filter: string, columnFilters: ColumnFiltersState) => {
-      const params = new URLSearchParams(searchParams);
-      if (filter) {
-        params.set("filter", filter);
-      } else {
-        params.delete("filter");
-      }
+  const handleFilterChange = React.useCallback((value: string) => {
+    setGlobalFilter(value);
+  }, []);
 
-      // Update column filters in URL
-      filterableColumns?.forEach(({ id }) => {
-        const filterValue = columnFilters.find((f) => f.id === id)
-          ?.value as string[];
-        if (filterValue?.length > 0) {
-          params.set(id, filterValue.join(","));
-        } else {
-          params.delete(id);
-        }
-      });
-
-      router.replace(`?${params.toString()}`);
-    },
-    [searchParams, router, filterableColumns],
-  );
-
-  // Initialize column filters from URL
-  React.useEffect(() => {
-    const initialColumnFilters: ColumnFiltersState = [];
-    filterableColumns?.forEach(({ id }) => {
-      const filterValue =
-        searchParams.get(id)?.split(",").filter(Boolean) ?? [];
-      if (filterValue.length > 0) {
-        initialColumnFilters.push({
-          id,
-          value: filterValue,
-        });
-      }
-    });
-    setColumnFilters(initialColumnFilters);
-  }, [searchParams, filterableColumns]);
-
-  // Handle filter changes
-  const handleFilterChange = React.useCallback(
-    (value: string) => {
-      setGlobalFilter(value);
-      updateFiltersInUrl(value, columnFilters);
-    },
-    [updateFiltersInUrl, columnFilters],
-  );
-
-  // Handle column filter changes
   const handleColumnFiltersChange = React.useCallback(
     (
       updaterOrValue:
@@ -155,9 +115,8 @@ export function DataTable<TData extends { id: string }>({
           ? updaterOrValue(columnFilters)
           : updaterOrValue;
       setColumnFilters(newFilters);
-      updateFiltersInUrl(globalFilter, newFilters);
     },
-    [updateFiltersInUrl, globalFilter, columnFilters],
+    [],
   );
 
   const table = useReactTable<TData>({
@@ -173,12 +132,10 @@ export function DataTable<TData extends { id: string }>({
       columnFilters,
       columnOrder,
       globalFilter,
-      pagination: options.pagination
-        ? {
-            pageIndex: options.pagination.pageIndex,
-            pageSize: options.pagination.pageSize,
-          }
-        : undefined,
+      pagination: {
+        pageIndex,
+        pageSize,
+      },
     },
     enableRowSelection: true,
     onRowSelectionChange: setRowSelection,
@@ -188,12 +145,25 @@ export function DataTable<TData extends { id: string }>({
     onColumnOrderChange: setColumnOrder,
     onGlobalFilterChange: handleFilterChange,
     onPaginationChange: (updater) => {
-      if (onPaginationChange && typeof updater === "function") {
-        const state = updater({
-          pageIndex: options.pagination?.pageIndex ?? 0,
-          pageSize: options.pagination?.pageSize ?? 10,
-        });
-        onPaginationChange(state.pageIndex, state.pageSize);
+      if (typeof updater === "function") {
+        const newState = updater({ pageIndex, pageSize });
+        const params = new URLSearchParams(searchParams);
+
+        if (newState.pageSize === TABLE_CONFIG.PAGINATION.DEFAULT_PAGE_SIZE) {
+          params.delete("size");
+        } else {
+          params.set("size", newState.pageSize.toString());
+        }
+
+        if (newState.pageIndex === TABLE_CONFIG.PAGINATION.DEFAULT_PAGE_INDEX) {
+          params.delete("page");
+        } else {
+          // Convert to 1-based for URL
+          params.set("page", (newState.pageIndex + 1).toString());
+        }
+
+        router.push(`?${params.toString()}`, { scroll: false });
+        onPaginationChange?.(newState.pageIndex, newState.pageSize);
       }
     },
     manualPagination: !!options.pagination,
@@ -439,7 +409,10 @@ export function DataTable<TData extends { id: string }>({
           )}
         </div>
       </div>
-      <DataTablePagination table={table} />
+      <DataTablePagination
+        table={table}
+        totalCount={options.pagination?.totalCount ?? 0}
+      />
     </div>
   );
 }

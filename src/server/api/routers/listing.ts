@@ -219,13 +219,32 @@ export const listingRouter = createTRPCRouter({
       return listing;
     }),
 
-  list: protectedProcedure.query(async ({ ctx }) => {
-    return ctx.db.listing.findMany({
-      where: { userId: ctx.user.id },
-      include: listingInclude,
-      orderBy: { updatedAt: "desc" },
-    });
-  }),
+  list: protectedProcedure
+    .input(
+      z.object({
+        pageIndex: z.number().default(0),
+        pageSize: z.number().default(10),
+      }),
+    )
+    .query(async ({ ctx, input }) => {
+      const [items, count] = await Promise.all([
+        ctx.db.listing.findMany({
+          where: { userId: ctx.user.id },
+          include: listingInclude,
+          orderBy: { updatedAt: "desc" },
+          skip: input.pageIndex * input.pageSize,
+          take: input.pageSize,
+        }),
+        ctx.db.listing.count({
+          where: { userId: ctx.user.id },
+        }),
+      ]);
+
+      return {
+        items,
+        count,
+      };
+    }),
 
   linkAhs: protectedProcedure
     .input(
