@@ -1,17 +1,22 @@
 "use client";
 
-import { getColumns } from "./columns";
-import { TABLE_CONFIG } from "@/config/constants";
 import { DataTable } from "@/components/data-table";
+import { getColumns } from "./columns";
 import { api } from "@/trpc/react";
+import { ListingsTableSkeleton } from "./listings-table-skeleton";
 import { useEditListing } from "../edit-listing-dialog";
+import { TABLE_CONFIG } from "@/config/constants";
 
 export function ListingsTable() {
-  const { data: listings } = api.listing.list.useQuery();
+  const { data: listings, isLoading } = api.listing.list.useQuery();
   const { data: lists } = api.listing.getUserLists.useQuery();
   const { editListing } = useEditListing();
 
-  if (!listings) return <div>Loading...</div>;
+  if (isLoading) {
+    return <ListingsTableSkeleton />;
+  }
+
+  if (!listings) return null;
 
   return (
     <DataTable

@@ -6,7 +6,9 @@ import { ListsTable } from "./_components/lists-table";
 import { PageHeader } from "../_components/page-header";
 
 export default async function ListsPage() {
-  const initialLists = await api.list.list();
+  // Prefetch the lists data
+  await api.list.list.prefetch();
+
   return (
     <>
       <PageHeader
@@ -16,7 +18,7 @@ export default async function ListsPage() {
         <CreateListButton />
       </PageHeader>
 
-      <ListsTable initialLists={initialLists} />
+      <ListsTable />
     </>
   );
 }

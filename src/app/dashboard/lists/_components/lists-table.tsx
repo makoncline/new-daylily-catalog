@@ -3,22 +3,22 @@
 import { type List } from "@prisma/client";
 import { DataTable } from "@/components/data-table";
 import { columns } from "./columns";
+import { api } from "@/trpc/react";
+import { ListsTableSkeleton } from "./lists-table-skeleton";
 
-interface ListsTableProps {
-  initialLists: Array<
-    List & {
-      _count: {
-        listings: number;
-      };
-    }
-  >;
-}
+export function ListsTable() {
+  const { data: lists, isLoading } = api.list.list.useQuery();
 
-export function ListsTable({ initialLists }: ListsTableProps) {
+  if (isLoading) {
+    return <ListsTableSkeleton />;
+  }
+
+  if (!lists) return null;
+
   return (
     <DataTable
       columns={columns}
-      data={initialLists}
+      data={lists}
       options={{
         pinnedColumns: {
           left: 1,
