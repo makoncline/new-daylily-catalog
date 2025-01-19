@@ -2,9 +2,11 @@
 
 import { type List } from "@prisma/client";
 import { DataTable } from "@/components/data-table";
+import { EmptyState } from "@/components/empty-state";
 import { columns } from "./columns";
 import { api } from "@/trpc/react";
 import { ListsTableSkeleton } from "./lists-table-skeleton";
+import { CreateListButton } from "./create-list-button";
 
 export function ListsTable() {
   const { data: lists, isLoading } = api.list.list.useQuery();
@@ -13,7 +15,15 @@ export function ListsTable() {
     return <ListsTableSkeleton />;
   }
 
-  if (!lists) return null;
+  if (!lists?.length) {
+    return (
+      <EmptyState
+        title="No lists"
+        description="Create a list to organize your daylilies"
+        action={<CreateListButton />}
+      />
+    );
+  }
 
   return (
     <DataTable
@@ -27,6 +37,7 @@ export function ListsTable() {
         pagination: {
           pageSize: 10,
           pageIndex: 0,
+          totalCount: lists.length,
         },
       }}
     />

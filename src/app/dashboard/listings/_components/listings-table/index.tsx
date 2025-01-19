@@ -3,10 +3,12 @@
 import { useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { DataTable } from "@/components/data-table";
+import { EmptyState } from "@/components/empty-state";
 import { getColumns } from "./columns";
 import { api } from "@/trpc/react";
 import { ListingsTableSkeleton } from "./listings-table-skeleton";
 import { useEditListing } from "../edit-listing-dialog";
+import { CreateListingButton } from "../create-listing-button";
 import { TABLE_CONFIG } from "@/config/constants";
 
 export function ListingsTable() {
@@ -39,7 +41,15 @@ export function ListingsTable() {
     return <ListingsTableSkeleton />;
   }
 
-  if (!listings) return null;
+  if (!listings?.items.length) {
+    return (
+      <EmptyState
+        title="No listings"
+        description="Create your first daylily listing"
+        action={<CreateListingButton />}
+      />
+    );
+  }
 
   return (
     <DataTable
