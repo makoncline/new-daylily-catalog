@@ -26,14 +26,18 @@ export function DataTableToolbar<TData>({
   filterableColumns,
 }: DataTableToolbarProps<TData>) {
   const isFiltered = table.getState().columnFilters.length > 0;
+  const globalFilter = table.getState().globalFilter as string;
 
   return (
     <div className="flex items-center justify-between">
       <div className="flex flex-1 items-center space-x-2">
         <Input
           placeholder={filterPlaceholder ?? "Filter..."}
-          value={(table.getState().globalFilter as string) ?? ""}
-          onChange={(event) => table.setGlobalFilter(event.target.value)}
+          value={globalFilter ?? ""}
+          onChange={(event) => {
+            table.setGlobalFilter(event.target.value);
+            table.resetPagination(true);
+          }}
           className="h-8 w-[150px] lg:w-[250px]"
         />
         {filterableColumns?.map(({ id, title, options }) => (
@@ -42,14 +46,15 @@ export function DataTableToolbar<TData>({
             column={table.getColumn(id)}
             title={title}
             options={options}
+            table={table}
           />
         ))}
         {isFiltered && (
           <Button
             variant="ghost"
             onClick={() => {
-              table.resetColumnFilters();
-              table.resetGlobalFilter();
+              table.resetColumnFilters(true);
+              table.resetGlobalFilter(true);
             }}
             className="h-8 px-2 lg:px-3"
           >

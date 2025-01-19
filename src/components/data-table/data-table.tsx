@@ -1,10 +1,9 @@
 "use client";
 
 import * as React from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import {
   type ColumnDef,
-  type ColumnFiltersState,
   type SortingState,
   type VisibilityState,
   flexRender,
@@ -16,7 +15,10 @@ import {
   getSortedRowModel,
   useReactTable,
   type ColumnOrderState,
+  FilterFn,
+  SortingFn,
 } from "@tanstack/react-table";
+import { useRouter, usePathname } from "next/navigation";
 
 import {
   Table,
@@ -29,19 +31,22 @@ import {
 
 import { DataTablePagination } from "./data-table-pagination";
 import { DataTableToolbar } from "./data-table-toolbar";
-import { fuzzyFilter } from "@/lib/table-utils";
+import { fuzzyFilter, fuzzySort } from "@/lib/table-utils";
 import { useLocalStorage } from "@/hooks/use-local-storage";
 import { TABLE_CONFIG } from "@/config/constants";
+
+declare module "@tanstack/table-core" {
+  interface FilterFns {
+    fuzzy: FilterFn<unknown>;
+  }
+  interface SortingFns {
+    fuzzySort: SortingFn<unknown>;
+  }
+}
 
 interface DataTablePinnedConfig {
   left?: number;
   right?: number;
-}
-
-interface DataTablePaginationConfig {
-  pageIndex: number;
-  pageSize: number;
-  totalCount: number;
 }
 
 interface DataTableProps<TData> {
@@ -49,16 +54,81 @@ interface DataTableProps<TData> {
   data: TData[];
   options?: {
     pinnedColumns: DataTablePinnedConfig;
-    pagination?: DataTablePaginationConfig;
   };
   filterPlaceholder?: string;
   showTableOptions?: boolean;
-  onPaginationChange?: (pageIndex: number, pageSize: number) => void;
   filterableColumns?: {
     id: string;
     title: string;
     options: { label: string; value: string; count?: number }[];
   }[];
+}
+
+function useTableUrlSync({
+  pagination,
+  columnFilters,
+  globalFilter,
+  filterableColumns,
+}: {
+  pagination: { pageSize: number; pageIndex: number };
+  columnFilters: { id: string; value: unknown }[];
+  globalFilter: string | undefined;
+  filterableColumns?: { id: string }[];
+}) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+
+  React.useEffect(() => {
+    const params = new URLSearchParams(searchParams);
+
+    // Sync pagination
+    if (pagination.pageIndex === TABLE_CONFIG.PAGINATION.DEFAULT_PAGE_INDEX) {
+      params.delete("page");
+    } else {
+      params.set("page", String(pagination.pageIndex + 1));
+    }
+
+    if (pagination.pageSize === TABLE_CONFIG.PAGINATION.DEFAULT_PAGE_SIZE) {
+      params.delete("size");
+    } else {
+      params.set("size", String(pagination.pageSize));
+    }
+
+    // First, remove all filterable column params that aren't in the current filters
+    filterableColumns?.forEach((column) => {
+      if (!columnFilters.some((filter) => filter.id === column.id)) {
+        params.delete(column.id);
+      }
+    });
+
+    // Then set the current column filters
+    columnFilters.forEach((filter) => {
+      const value = filter.value as string[];
+      if (!value?.length) {
+        params.delete(filter.id);
+      } else {
+        params.set(filter.id, value.join(","));
+      }
+    });
+
+    // Sync global filter
+    if (!globalFilter) {
+      params.delete("query");
+    } else {
+      params.set("query", globalFilter);
+    }
+
+    router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+  }, [
+    pagination,
+    columnFilters,
+    globalFilter,
+    filterableColumns,
+    pathname,
+    router,
+    searchParams,
+  ]);
 }
 
 export function DataTable<TData extends { id: string }>({
@@ -67,18 +137,9 @@ export function DataTable<TData extends { id: string }>({
   options = { pinnedColumns: { left: 0, right: 0 } },
   filterPlaceholder,
   showTableOptions = true,
-  onPaginationChange,
   filterableColumns,
 }: DataTableProps<TData>) {
-  const router = useRouter();
   const searchParams = useSearchParams();
-
-  // Read pagination state from URL (convert from 1-based to 0-based)
-  const pageSize =
-    Number(searchParams.get("size")) ||
-    TABLE_CONFIG.PAGINATION.DEFAULT_PAGE_SIZE;
-  const pageIndex = (Number(searchParams.get("page")) || 1) - 1;
-
   const { left: leftPinnedCount = 0, right: rightPinnedCount = 0 } =
     options.pinnedColumns;
 
@@ -93,31 +154,6 @@ export function DataTable<TData extends { id: string }>({
     "listings-table-column-order",
     [],
   );
-  const [globalFilter, setGlobalFilter] = React.useState<string>(
-    searchParams.get("filter") ?? "",
-  );
-  const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>(
-    [],
-  );
-
-  const handleFilterChange = React.useCallback((value: string) => {
-    setGlobalFilter(value);
-  }, []);
-
-  const handleColumnFiltersChange = React.useCallback(
-    (
-      updaterOrValue:
-        | ColumnFiltersState
-        | ((old: ColumnFiltersState) => ColumnFiltersState),
-    ) => {
-      const newFilters =
-        typeof updaterOrValue === "function"
-          ? updaterOrValue(columnFilters)
-          : updaterOrValue;
-      setColumnFilters(newFilters);
-    },
-    [],
-  );
 
   const table = useReactTable<TData>({
     data,
@@ -125,55 +161,56 @@ export function DataTable<TData extends { id: string }>({
     filterFns: {
       fuzzy: fuzzyFilter,
     },
+    sortingFns: {
+      fuzzySort,
+    },
+    initialState: {
+      pagination: {
+        pageIndex:
+          (Number(searchParams.get("page")) ||
+            TABLE_CONFIG.PAGINATION.DEFAULT_PAGE_INDEX + 1) - 1,
+        pageSize:
+          Number(searchParams.get("size")) ||
+          TABLE_CONFIG.PAGINATION.DEFAULT_PAGE_SIZE,
+      },
+      columnFilters:
+        filterableColumns?.map((column) => {
+          const filterValue = searchParams.get(column.id);
+          return {
+            id: column.id,
+            value: filterValue ? filterValue.split(",") : undefined,
+          };
+        }) ?? [],
+      globalFilter: searchParams.get("query") ?? undefined,
+    },
     state: {
       sorting,
       columnVisibility,
       rowSelection,
-      columnFilters,
       columnOrder,
-      globalFilter,
-      pagination: {
-        pageIndex,
-        pageSize,
-      },
     },
     enableRowSelection: true,
     onRowSelectionChange: setRowSelection,
     onSortingChange: setSorting,
-    onColumnFiltersChange: handleColumnFiltersChange,
     onColumnVisibilityChange: setColumnVisibility,
     onColumnOrderChange: setColumnOrder,
-    onGlobalFilterChange: handleFilterChange,
-    onPaginationChange: (updater) => {
-      if (typeof updater === "function") {
-        const newState = updater({ pageIndex, pageSize });
-        const params = new URLSearchParams(searchParams);
-
-        if (newState.pageSize === TABLE_CONFIG.PAGINATION.DEFAULT_PAGE_SIZE) {
-          params.delete("size");
-        } else {
-          params.set("size", newState.pageSize.toString());
-        }
-
-        if (newState.pageIndex === TABLE_CONFIG.PAGINATION.DEFAULT_PAGE_INDEX) {
-          params.delete("page");
-        } else {
-          // Convert to 1-based for URL
-          params.set("page", (newState.pageIndex + 1).toString());
-        }
-
-        router.push(`?${params.toString()}`, { scroll: false });
-        onPaginationChange?.(newState.pageIndex, newState.pageSize);
-      }
-    },
-    manualPagination: !!options.pagination,
-    globalFilterFn: fuzzyFilter,
     getCoreRowModel: getCoreRowModel(),
+    globalFilterFn: "fuzzy",
     getFilteredRowModel: getFilteredRowModel(),
+    autoResetPageIndex: false,
     getPaginationRowModel: getPaginationRowModel(),
     getSortedRowModel: getSortedRowModel(),
     getFacetedRowModel: getFacetedRowModel(),
     getFacetedUniqueValues: getFacetedUniqueValues(),
+  });
+
+  // Use unified URL sync hook
+  const { pagination, columnFilters, globalFilter } = table.getState();
+  useTableUrlSync({
+    pagination,
+    columnFilters,
+    globalFilter: globalFilter as string,
+    filterableColumns,
   });
 
   return (
@@ -409,10 +446,7 @@ export function DataTable<TData extends { id: string }>({
           )}
         </div>
       </div>
-      <DataTablePagination
-        table={table}
-        totalCount={options.pagination?.totalCount ?? 0}
-      />
+      <DataTablePagination table={table} totalCount={data.length} />
     </div>
   );
 }

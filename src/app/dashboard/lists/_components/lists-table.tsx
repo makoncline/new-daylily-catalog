@@ -34,11 +34,6 @@ export function ListsTable() {
           left: 1,
           right: 1,
         },
-        pagination: {
-          pageSize: 10,
-          pageIndex: 0,
-          totalCount: lists.length,
-        },
       }}
     />
   );

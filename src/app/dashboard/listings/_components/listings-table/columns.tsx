@@ -37,7 +37,7 @@ export function getColumns(
         const value = getStringValue(row, "name");
         return <TooltipCell content={value} />;
       },
-      enableSorting: false,
+      enableSorting: true,
       enableHiding: false,
     },
     {
