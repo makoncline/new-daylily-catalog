@@ -79,7 +79,7 @@ export function ListForm({ listId, onDelete }: ListFormProps) {
 
   return (
     <Form {...form}>
-      <form className="space-y-4">
+      <form className="space-y-6">
         <FormField
           control={form.control}
           name="name"

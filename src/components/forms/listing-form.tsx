@@ -131,7 +131,7 @@ export function ListingForm({ listingId, onDelete }: ListingFormProps) {
 
   return (
     <Form {...form}>
-      <form>
+      <form className="space-y-6">
         <FormField
           control={form.control}
           name="name"
@@ -141,119 +141,13 @@ export function ListingForm({ listingId, onDelete }: ListingFormProps) {
               <FormControl>
                 <Input {...field} onBlur={() => onFieldBlur("name")} />
               </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
-        <FormField
-          control={form.control}
-          name="price"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Price</FormLabel>
-              <FormControl>
-                <Input
-                  type="number"
-                  step="0.01"
-                  {...field}
-                  value={field.value ?? ""}
-                  onChange={(e) => {
-                    const value = e.target.value;
-                    field.onChange(value === "" ? undefined : Number(value));
-                  }}
-                  onBlur={() => onFieldBlur("price")}
-                />
-              </FormControl>
-              <FormDescription>Optional. Price in dollars.</FormDescription>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
-        <FormField
-          control={form.control}
-          name="publicNote"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Public Note</FormLabel>
-              <FormControl>
-                <Textarea
-                  {...field}
-                  value={field.value ?? ""}
-                  onBlur={() => onFieldBlur("publicNote")}
-                />
-              </FormControl>
               <FormDescription>
-                Optional. This note will be visible to everyone.
+                Required. This is the name of your listing.
               </FormDescription>
               <FormMessage />
             </FormItem>
           )}
         />
-
-        <FormField
-          control={form.control}
-          name="privateNote"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Private Note</FormLabel>
-              <FormControl>
-                <Textarea
-                  {...field}
-                  value={field.value ?? ""}
-                  onBlur={() => onFieldBlur("privateNote")}
-                />
-              </FormControl>
-              <FormDescription>
-                Optional. This note will only be visible to you.
-              </FormDescription>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-
-        <FormItem>
-          <FormLabel htmlFor="ahs-listing-select">AHS Listing</FormLabel>
-          <AhsListingLink
-            listing={listing}
-            onNameChange={(name) => {
-              form.setValue("name", name);
-            }}
-          />
-          <FormDescription>
-            Optional. Link this listing to an AHS listing to sync data.
-          </FormDescription>
-        </FormItem>
-
-        <FormItem>
-          <FormLabel htmlFor="list-select">Lists</FormLabel>
-          <MultiListSelect
-            values={lists.map((list) => list.id)}
-            onSelect={(listIds) => {
-              setIsPending(true);
-              void updateListsMutation
-                .mutateAsync({
-                  id: listing.id,
-                  listIds,
-                })
-                .catch(() => {
-                  toast({
-                    title: "Failed to update lists",
-                    variant: "destructive",
-                  });
-                })
-                .finally(() => {
-                  setIsPending(false);
-                });
-            }}
-            disabled={isPending}
-          />
-          <FormDescription>
-            Optional. Add this listing to one or more lists.
-          </FormDescription>
-        </FormItem>
-
         <FormItem>
           <FormLabel htmlFor="image-upload-input">Images</FormLabel>
           <FormDescription>
@@ -284,7 +178,115 @@ export function ListingForm({ listingId, onDelete }: ListingFormProps) {
             )}
           </div>
         </FormItem>
+        <FormField
+          control={form.control}
+          name="publicNote"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Description</FormLabel>
+              <FormControl>
+                <Textarea
+                  {...field}
+                  value={field.value ?? ""}
+                  onBlur={() => onFieldBlur("publicNote")}
+                />
+              </FormControl>
+              <FormDescription>
+                Optional. This description will be visible to everyone.
+              </FormDescription>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={form.control}
+          name="price"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Price</FormLabel>
+              <FormControl>
+                <Input
+                  type="number"
+                  step="0.01"
+                  {...field}
+                  value={field.value ?? ""}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    field.onChange(value === "" ? undefined : Number(value));
+                  }}
+                  onBlur={() => onFieldBlur("price")}
+                />
+              </FormControl>
+              <FormDescription>Optional. Price in dollars.</FormDescription>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
 
+        <FormField
+          control={form.control}
+          name="privateNote"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Private Notes</FormLabel>
+              <FormControl>
+                <Textarea
+                  {...field}
+                  value={field.value ?? ""}
+                  onBlur={() => onFieldBlur("privateNote")}
+                />
+              </FormControl>
+              <FormDescription>
+                Optional. This note will only be visible to you.
+              </FormDescription>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormItem>
+          <FormLabel htmlFor="list-select">Lists</FormLabel>
+          <MultiListSelect
+            values={lists.map((list) => list.id)}
+            onSelect={(listIds) => {
+              setIsPending(true);
+              void updateListsMutation
+                .mutateAsync({
+                  id: listing.id,
+                  listIds,
+                })
+                .catch(() => {
+                  toast({
+                    title: "Failed to update lists",
+                    variant: "destructive",
+                  });
+                })
+                .finally(() => {
+                  setIsPending(false);
+                });
+            }}
+            disabled={isPending}
+          />
+          <FormDescription>
+            Optional. Add this listing to one or more lists.
+          </FormDescription>
+        </FormItem>
+
+        <FormItem>
+          <FormLabel htmlFor="ahs-listing-select">
+            Link to Daylily Database Listing
+          </FormLabel>
+          <AhsListingLink
+            listing={listing}
+            onNameChange={(name) => {
+              form.setValue("name", name);
+            }}
+          />
+          <FormDescription>
+            Optional. Link your listing to a daylily databse listing to
+            automatically populate details like hybridizer, year, and photo from
+            our database.
+          </FormDescription>
+        </FormItem>
         <div className="flex justify-end">
           <Button
             type="button"

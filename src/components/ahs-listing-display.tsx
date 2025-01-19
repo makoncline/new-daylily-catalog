@@ -45,7 +45,7 @@ export function AhsListingDisplay({
       <div className="space-y-4">
         {/* All fields in a natural flow */}
         {fields.length > 0 && (
-          <div className="flex flex-wrap gap-y-1">
+          <div className="flex flex-wrap gap-y-3">
             {fields.map((field, index) => (
               <div key={field.label} className="flex items-center">
                 <div>
