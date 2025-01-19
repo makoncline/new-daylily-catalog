@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { createTRPCRouter, protectedProcedure } from "../trpc";
 import { TRPCError } from "@trpc/server";
+import { listFormSchema, listUpdateSchema } from "@/types/schemas/list";
 
 const listInclude = {
   id: true,
@@ -18,14 +19,34 @@ const listInclude = {
 };
 
 export const listRouter = createTRPCRouter({
+  get: protectedProcedure
+    .input(z.object({ id: z.string() }))
+    .query(async ({ ctx, input }) => {
+      try {
+        const list = await ctx.db.list.findUnique({
+          where: {
+            id: input.id,
+            userId: ctx.user.id,
+          },
+          select: listInclude,
+        });
+
+        if (!list) {
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "List not found",
+          });
+        }
+
+        return list;
+      } catch (error) {
+        console.error("Error fetching list:", error);
+        throw new Error("Failed to fetch list");
+      }
+    }),
+
   create: protectedProcedure
-    .input(
-      z.object({
-        name: z.string().min(1),
-        intro: z.string().optional(),
-        bio: z.string().optional(),
-      }),
-    )
+    .input(listFormSchema)
     .mutation(async ({ ctx, input }) => {
       try {
         const result = await ctx.db.list.create({
@@ -33,7 +54,6 @@ export const listRouter = createTRPCRouter({
             userId: ctx.user.id,
             name: input.name,
             intro: input.intro,
-            bio: input.bio,
           },
           select: listInclude,
         });
@@ -65,14 +85,7 @@ export const listRouter = createTRPCRouter({
   }),
 
   update: protectedProcedure
-    .input(
-      z.object({
-        id: z.string().min(1),
-        name: z.string().min(1),
-        intro: z.string().optional(),
-        bio: z.string().optional(),
-      }),
-    )
+    .input(listUpdateSchema)
     .mutation(async ({ ctx, input }) => {
       try {
         const result = await ctx.db.list.update({
@@ -81,9 +94,8 @@ export const listRouter = createTRPCRouter({
             userId: ctx.user.id,
           },
           data: {
-            name: input.name,
-            intro: input.intro,
-            bio: input.bio,
+            name: input.data.name,
+            intro: input.data.intro,
           },
           select: listInclude,
         });

@@ -4,6 +4,7 @@ import { api } from "@/trpc/server";
 import { CreateListButton } from "./_components/create-list-button";
 import { ListsTable } from "./_components/lists-table";
 import { PageHeader } from "../_components/page-header";
+import { EditListDialog } from "./_components/edit-list-dialog";
 
 export default async function ListsPage() {
   // Prefetch the lists data
@@ -19,6 +20,7 @@ export default async function ListsPage() {
       </PageHeader>
 
       <ListsTable />
+      <EditListDialog />
     </>
   );
 }

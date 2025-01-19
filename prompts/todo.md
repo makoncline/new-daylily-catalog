@@ -1,3 +1,12 @@
-- make listings on lists one to many
+- use cloudflare for images
+- add public profiles for each user
+- add seo metatags on public pages
+
 - add ability to use subdomains like rolling-oaks-daylilies.daylilycatalog.com
 - add ability to use custom domains like rolling-oaks-daylilies.com
+- add ability to use custom domains for private listings
+- add ability to use custom domains for public profiles
+- add ability to use custom domains for public listings
+- add ability to use custom domains for public lists
+- add ability to use custom domains for public categories
+- add ability to use custom domains for public tags

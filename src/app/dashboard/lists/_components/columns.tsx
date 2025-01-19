@@ -4,8 +4,8 @@ import { type List } from "@prisma/client";
 import { type ColumnDef } from "@tanstack/react-table";
 import { ArrowUpDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { ListActions } from "./list-actions";
 import { TooltipCell } from "@/components/data-table/tooltip-cell";
+import { DataTableRowActions } from "./row-actions";
 
 type ListWithCount = List & {
   _count: {
@@ -86,6 +86,6 @@ export const columns: ColumnDef<ListWithCount>[] = [
   },
   {
     id: "actions",
-    cell: ({ row }) => <ListActions list={row.original} />,
+    cell: ({ row }) => <DataTableRowActions list={row.original} />,
   },
 ];
