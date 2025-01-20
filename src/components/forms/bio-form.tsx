@@ -46,22 +46,24 @@ export function BioManagerFormItem({ initialProfile }: BioManagerFormProps) {
 
     try {
       const newBlocks = await editorRef.current.save();
-      // Extract the blocks field from the new data
-      const newBlocksOnly = newBlocks.blocks;
 
-      // Parse lastSaved if needed, then extract the blocks field
-      const oldData = (
-        typeof lastSaved === "string" ? JSON.parse(lastSaved) : lastSaved
-      ) as OutputData;
-      const oldBlocksOnly = oldData.blocks;
+      // Only compare if we have existing content
+      if (lastSaved) {
+        // Parse lastSaved if needed, then extract the blocks field
+        const oldData = (
+          typeof lastSaved === "string" ? JSON.parse(lastSaved) : lastSaved
+        ) as OutputData;
 
-      // Compare blocks only
-      if (JSON.stringify(newBlocksOnly) === JSON.stringify(oldBlocksOnly)) {
-        setIsSaving(false);
-        return; // No changes in blocks, skip saving
+        // Compare blocks only
+        if (
+          JSON.stringify(newBlocks.blocks) === JSON.stringify(oldData.blocks)
+        ) {
+          setIsSaving(false);
+          return; // No changes in blocks, skip saving
+        }
       }
 
-      // Save if changed
+      // Save if there was no previous content or if content changed
       const newData = JSON.stringify(newBlocks);
       await updateBioMutation.mutateAsync({ bio: newData });
       setLastSaved(newData);
