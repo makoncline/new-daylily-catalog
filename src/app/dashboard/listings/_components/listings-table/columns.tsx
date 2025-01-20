@@ -5,11 +5,19 @@ import {
   TooltipCell,
   DataTableRowActions,
 } from "@/components/data-table";
+import { ImagePreviewTooltip } from "@/components/data-table/image-preview-tooltip";
 import { COLUMN_NAMES } from "@/config/constants";
 import { formatPrice } from "@/lib/utils";
 import { type Row, type ColumnDef } from "@tanstack/react-table";
 import { type ListingRouterOutputs } from "@/server/api/routers/listing";
 import { TruncatedListBadge } from "@/components/data-table/truncated-list-badge";
+import { Image } from "lucide-react";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 type ListingData = ListingRouterOutputs["list"][number];
 type ListingRow = Row<ListingData>;
@@ -39,6 +47,37 @@ export function getColumns(
       },
       enableSorting: true,
       enableHiding: false,
+    },
+    {
+      id: "images",
+      accessorKey: "images",
+      accessorFn: (row) =>
+        (row.images?.length ?? 0) + (row.ahsListing?.ahsImageUrl ? 1 : 0),
+      header: ({ column }) => (
+        <DataTableColumnHeader
+          column={column}
+          title={
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger>
+                  <Image className="h-4 w-4 text-muted-foreground" />
+                </TooltipTrigger>
+                <TooltipContent>Sort by images</TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          }
+        />
+      ),
+      cell: ({ row }) => {
+        const images = row.original.images;
+        const ahsImageUrl = row.original.ahsListing?.ahsImageUrl;
+        if (!images?.length && !ahsImageUrl) return null;
+        return (
+          <ImagePreviewTooltip images={images} ahsImageUrl={ahsImageUrl} />
+        );
+      },
+      enableSorting: true,
+      enableHiding: true,
     },
     {
       id: "price",

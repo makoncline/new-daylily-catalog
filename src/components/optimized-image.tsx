@@ -23,7 +23,10 @@ const IMAGE_CONFIG = {
   FIT: "cover" as const,
   FORMAT: "auto" as const,
   DEBUG: {
-    BLUR_DELAY_MS: 1000, // Show blur for 1 second in development
+    BLUR_DELAY: {
+      MIN: 100,
+      MAX: 1000,
+    },
   },
 } as const;
 
@@ -124,10 +127,18 @@ export function OptimizedImage({
 
   const handleLoad = React.useCallback(() => {
     if (process.env.NODE_ENV === "development") {
-      // In development, delay the transition to see the blur effect
+      // Random delay between MIN and MAX in development
+      const randomDelay = Math.floor(
+        Math.random() *
+          (IMAGE_CONFIG.DEBUG.BLUR_DELAY.MAX -
+            IMAGE_CONFIG.DEBUG.BLUR_DELAY.MIN +
+            1) +
+          IMAGE_CONFIG.DEBUG.BLUR_DELAY.MIN,
+      );
+
       setTimeout(() => {
         setIsLoading(false);
-      }, IMAGE_CONFIG.DEBUG.BLUR_DELAY_MS);
+      }, randomDelay);
     } else {
       // In production, transition immediately
       setIsLoading(false);

@@ -2,6 +2,14 @@
 
 import { type AhsListing } from "@prisma/client";
 import { Separator } from "@/components/ui/separator";
+import Image from "next/image";
+import { ImageIcon } from "lucide-react";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 interface AhsListingDisplayProps {
   ahsListing: AhsListing;
@@ -34,7 +42,28 @@ export function AhsListingDisplay({
   return (
     <div className={className}>
       <div className="mb-4">
-        <h3 className="text-xl font-semibold">
+        <h3 className="flex items-center gap-2 text-xl font-semibold">
+          {ahsListing.ahsImageUrl && (
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger>
+                  <ImageIcon className="h-5 w-5 text-muted-foreground" />
+                </TooltipTrigger>
+                <TooltipContent side="right" className="p-2">
+                  <div className="h-[200px] w-[200px] overflow-hidden rounded-md border">
+                    <Image
+                      src={ahsListing.ahsImageUrl}
+                      alt={`${ahsListing.name} from AHS database`}
+                      width={200}
+                      height={200}
+                      className="h-full w-full object-cover"
+                      unoptimized
+                    />
+                  </div>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          )}
           {ahsListing.name}{" "}
           <span className="text-base font-normal text-muted-foreground">
             ({ahsListing.hybridizer}, {ahsListing.year})
