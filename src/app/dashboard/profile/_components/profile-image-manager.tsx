@@ -5,6 +5,7 @@ import { useState } from "react";
 import { type Image } from "@prisma/client";
 import { useToast } from "@/hooks/use-toast";
 import { type ImageUploadResponse } from "@/types/image";
+import { APP_CONFIG, LISTING_CONFIG } from "@/config/constants";
 
 interface ProfileImageManagerProps {
   initialProfile: RouterOutputs["userProfile"]["get"];
@@ -34,13 +35,15 @@ export function ProfileImageManager({
         onImagesChange={setImages}
         referenceId={referenceId}
       />
-      <div className="p-4">
-        <ImageUpload
-          type="profile"
-          referenceId={referenceId}
-          onUploadComplete={handleUploadComplete}
-        />
-      </div>
+      {images.length < APP_CONFIG.UPLOAD.MAX_IMAGES_PER_PROFILE && (
+        <div className="p-4">
+          <ImageUpload
+            type="profile"
+            referenceId={referenceId}
+            onUploadComplete={handleUploadComplete}
+          />
+        </div>
+      )}
     </div>
   );
 }

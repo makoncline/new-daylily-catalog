@@ -1,6 +1,7 @@
 export const UPLOAD_CONFIG = {
   MAX_FILE_SIZE: 5 * 1024 * 1024, // 5MB
   MAX_IMAGES_PER_LISTING: 4,
+  MAX_IMAGES_PER_PROFILE: 4,
 } as const;
 
 export const TABLE_CONFIG = {
