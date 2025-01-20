@@ -2,7 +2,7 @@
 
 import { Skeleton } from "@/components/ui/skeleton";
 
-export function ListsTableSkeleton() {
+export function ListingsTableSkeleton() {
   return (
     <div className="space-y-4">
       {/* Toolbar skeleton */}

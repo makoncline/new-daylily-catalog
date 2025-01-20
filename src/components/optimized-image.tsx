@@ -194,7 +194,7 @@ export function OptimizedImage({
           `object-${fit}`,
           isLoading ? "opacity-0" : "opacity-100",
         )}
-        onLoadingComplete={handleLoad}
+        onLoad={handleLoad}
         onError={handleError}
         priority={priority}
         unoptimized

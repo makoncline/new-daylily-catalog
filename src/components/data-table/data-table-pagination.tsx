@@ -21,22 +21,24 @@ const { PAGE_SIZE_OPTIONS } = TABLE_CONFIG.PAGINATION;
 
 interface DataTablePaginationProps<TData> {
   table: Table<TData>;
-  totalCount: number;
 }
 
 export function DataTablePagination<TData>({
   table,
-  totalCount,
 }: DataTablePaginationProps<TData>) {
   const { pageSize, pageIndex } = table.getState().pagination;
+  const numSelected = table.getFilteredSelectedRowModel().rows.length;
+  const totalCount = table.getFilteredRowModel().rows.length;
   const pageCount = Math.ceil(totalCount / pageSize);
 
   return (
     <div className="flex items-center justify-between px-2">
-      <div className="flex-1 text-sm text-muted-foreground">
-        {table.getFilteredSelectedRowModel().rows.length} of {totalCount} row(s)
-        selected.
-      </div>
+      {numSelected > 0 && (
+        <div className="flex-1 text-sm text-muted-foreground">
+          {numSelected} of {totalCount} row(s) selected.
+        </div>
+      )}
+      <div className="flex-1" />
       <div className="flex items-center space-x-6 lg:space-x-8">
         <div className="flex items-center space-x-2">
           <p className="text-sm font-medium">Rows per page</p>

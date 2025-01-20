@@ -1,6 +1,7 @@
 "use client";
 
-import { type List } from "@prisma/client";
+import { useState } from "react";
+import { type Row } from "@tanstack/react-table";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -9,90 +10,68 @@ import {
   DropdownMenuTrigger,
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
-import { MoreHorizontal, Pencil, Trash2, ExternalLink } from "lucide-react";
-import { useEditList } from "./edit-list-dialog";
+import { MoreHorizontal, Pencil, Trash2, Settings } from "lucide-react";
 import { api } from "@/trpc/react";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/hooks/use-toast";
-import { useState } from "react";
+import { type RouterOutputs } from "@/trpc/react";
 import { DeleteConfirmDialog } from "@/components/delete-confirm-dialog";
-import {
-  AlertDialog,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
+import Link from "next/link";
+import { useEditList } from "./edit-list-dialog";
+
+type List = RouterOutputs["list"]["list"][number];
 
 interface DataTableRowActionsProps {
-  list: List & {
-    _count: {
-      listings: number;
-    };
-  };
+  row: Row<List>;
 }
 
-export function DataTableRowActions({ list }: DataTableRowActionsProps) {
-  const { editList } = useEditList();
+export function DataTableRowActions({ row }: DataTableRowActionsProps) {
   const router = useRouter();
   const { toast } = useToast();
+  const { editList } = useEditList();
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
-  const [showListingsAlert, setShowListingsAlert] = useState(false);
 
   const deleteList = api.list.delete.useMutation({
     onSuccess: () => {
-      router.refresh();
       toast({
         title: "List deleted",
+        description: "The list has been deleted successfully.",
       });
-    },
-    onError: () => {
-      toast({
-        title: "Failed to delete list",
-        description: "An unexpected error occurred",
-        variant: "destructive",
-      });
+      setShowDeleteDialog(false);
+      router.refresh();
     },
   });
-
-  const handleDeleteClick = () => {
-    if (list._count.listings > 0) {
-      setShowListingsAlert(true);
-    } else {
-      setShowDeleteDialog(true);
-    }
-  };
 
   return (
     <>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="ghost" className="h-8 w-8 p-0">
-            <span className="sr-only">Open menu</span>
+          <Button
+            variant="ghost"
+            className="flex h-8 w-8 p-0 data-[state=open]:bg-muted"
+          >
             <MoreHorizontal className="h-4 w-4" />
+            <span className="sr-only">Open menu</span>
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end">
-          <DropdownMenuItem
-            onClick={() => router.push(`/dashboard/lists/${list.id}`)}
-          >
-            <ExternalLink className="mr-2 h-4 w-4" />
-            Manage
+        <DropdownMenuContent align="end" className="w-[160px]">
+          <DropdownMenuItem asChild>
+            <Link href={`/dashboard/lists/${row.original.id}`}>
+              <Settings className="mr-2 h-4 w-4" />
+              Manage
+            </Link>
           </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => editList(list.id)}>
+          <DropdownMenuItem onClick={() => editList(row.original.id)}>
             <Pencil className="mr-2 h-4 w-4" />
             Edit
           </DropdownMenuItem>
           <DropdownMenuSeparator />
           <DropdownMenuItem
-            onClick={handleDeleteClick}
-            disabled={deleteList.isPending}
-            className="text-destructive"
+            onClick={() => setShowDeleteDialog(true)}
+            className="text-destructive focus:text-destructive"
           >
             <Trash2 className="mr-2 h-4 w-4" />
-            {deleteList.isPending ? "Deleting..." : "Delete"}
+            Delete
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
@@ -101,28 +80,13 @@ export function DataTableRowActions({ list }: DataTableRowActionsProps) {
         open={showDeleteDialog}
         onOpenChange={setShowDeleteDialog}
         onConfirm={() => {
-          deleteList.mutate({ id: list.id });
-          setShowDeleteDialog(false);
+          deleteList.mutate({
+            id: row.original.id,
+          });
         }}
         title="Delete List"
         description="Are you sure you want to delete this list? This action cannot be undone."
       />
-
-      <AlertDialog open={showListingsAlert} onOpenChange={setShowListingsAlert}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Cannot Delete List</AlertDialogTitle>
-            <AlertDialogDescription>
-              This list has {list._count.listings} listing
-              {list._count.listings === 1 ? "" : "s"} associated with it. Remove
-              all listings first.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Close</AlertDialogCancel>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </>
   );
 }

@@ -30,7 +30,6 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
-import { COLUMN_NAMES } from "@/config/constants";
 import { cn } from "@/lib/utils";
 import { DeleteConfirmDialog } from "@/components/delete-confirm-dialog";
 import { useState } from "react";
@@ -86,22 +85,32 @@ export function DataTableViewOptions<TData>({
     }),
   );
 
-  // Get columns that can't be hidden (except actions which is always last)
+  // Get columns that can't be hidden
   const unhideableColumnIds = table
     .getAllColumns()
-    .filter((column) => !column.getCanHide() && column.id !== "actions")
+    .filter((column) => !column.getCanHide())
     .map((column) => column.id);
 
-  // Get hideable columns for the reorderable list
+  // Get pinned column IDs from meta
+  const leftPinnedColumns = table.options.meta?.pinnedColumns?.left ?? [];
+  const rightPinnedColumns = table.options.meta?.pinnedColumns?.right ?? [];
+  const pinnedColumnIds = [...leftPinnedColumns, ...rightPinnedColumns];
+
+  // Get hideable columns for the reorderable list, excluding pinned columns
   const hideableColumns = table
     .getAllColumns()
-    .filter((column) => column.getCanHide());
+    .filter(
+      (column) => column.getCanHide() && !pinnedColumnIds.includes(column.id),
+    );
 
   // Current order of hideable columns
-  const items = table.getState().columnOrder.length
+  const items = table.getState().columnOrder?.length
     ? table
         .getState()
-        .columnOrder.filter((id) => !unhideableColumnIds.includes(id))
+        .columnOrder.filter(
+          (id) =>
+            !unhideableColumnIds.includes(id) && !pinnedColumnIds.includes(id),
+        )
     : hideableColumns.map((column) => column.id);
 
   function handleDragEnd(event: DragEndEvent) {
@@ -113,7 +122,13 @@ export function DataTableViewOptions<TData>({
 
       if (oldIndex !== -1 && newIndex !== -1) {
         const newOrder = arrayMove(items, oldIndex, newIndex);
-        table.setColumnOrder([...unhideableColumnIds, ...newOrder]);
+
+        // Set new order maintaining pinned columns
+        table.setColumnOrder([
+          ...leftPinnedColumns,
+          ...newOrder,
+          ...rightPinnedColumns,
+        ]);
       }
     }
   }
@@ -204,9 +219,8 @@ export function DataTableViewOptions<TData>({
                             e.preventDefault();
                           }}
                         >
-                          {COLUMN_NAMES[
-                            columnId as keyof typeof COLUMN_NAMES
-                          ] ?? columnId}
+                          {table.options.meta?.getColumnLabel?.(column.id) ??
+                            column.id}
                         </DropdownMenuCheckboxItem>
                       </SortableItem>
                     );

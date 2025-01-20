@@ -1,41 +1,21 @@
 "use client";
 
 import * as React from "react";
-import { useSearchParams } from "next/navigation";
 import {
-  type ColumnDef,
-  type SortingState,
-  type VisibilityState,
   flexRender,
-  getCoreRowModel,
-  getFacetedRowModel,
-  getFacetedUniqueValues,
-  getFilteredRowModel,
-  getPaginationRowModel,
-  getSortedRowModel,
-  useReactTable,
-  type ColumnOrderState,
   type FilterFn,
   type SortingFn,
-  type Table as TableType,
+  type Table,
 } from "@tanstack/react-table";
-import { useRouter, usePathname } from "next/navigation";
-import { useState } from "react";
 
 import {
-  Table,
+  Table as UITable,
   TableBody,
   TableCell,
   TableHead,
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-
-import { DataTablePagination } from "./data-table-pagination";
-import { DataTableToolbar } from "./data-table-toolbar";
-import { fuzzyFilter, fuzzySort } from "@/lib/table-utils";
-import { useLocalStorage } from "@/hooks/use-local-storage";
-import { TABLE_CONFIG } from "@/config/constants";
 
 declare module "@tanstack/table-core" {
   interface FilterFns {
@@ -44,328 +24,68 @@ declare module "@tanstack/table-core" {
   interface SortingFns {
     fuzzySort: SortingFn<unknown>;
   }
-}
-
-interface DataTablePinnedConfig {
-  left?: number;
-  right?: number;
-}
-
-interface FilterableColumn {
-  id: string;
-  title: string;
-  options: {
-    label: string;
-    value: string;
-    count?: number;
-  }[];
-}
-
-interface DataTableOptions {
-  pinnedColumns?: DataTablePinnedConfig;
-  storageKey?: string;
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  interface TableMeta<TData> {
+    filterableColumns?: string[];
+    storageKey?: string;
+    pinnedColumns?: {
+      left?: string[];
+      right?: string[];
+    };
+    getColumnLabel?: (columnId: string) => string;
+  }
 }
 
 interface DataTableProps<TData> {
-  columns: ColumnDef<TData, unknown>[];
-  data: TData[];
-  options?: DataTableOptions;
-  filterPlaceholder?: string;
-  showTableOptions?: boolean;
-  filterableColumns?: FilterableColumn[];
-  noResults?: React.ReactNode;
-  selectedItemsActions?: (table: TableType<TData>) => React.ReactNode;
+  table: Table<TData>;
 }
 
-const DEFAULT_OPTIONS: Required<DataTableOptions> = {
-  pinnedColumns: { left: 0, right: 0 },
-  storageKey: "data-table",
-};
-
-function useTableUrlSync({
-  pagination,
-  columnFilters,
-  globalFilter,
-  filterableColumns,
-}: {
-  pagination: { pageSize: number; pageIndex: number };
-  columnFilters: { id: string; value: unknown }[];
-  globalFilter: string | undefined;
-  filterableColumns?: { id: string }[];
-}) {
-  const router = useRouter();
-  const pathname = usePathname();
-  const searchParams = useSearchParams();
-
-  React.useEffect(() => {
-    const params = new URLSearchParams(searchParams);
-
-    // Sync pagination
-    if (pagination.pageIndex === TABLE_CONFIG.PAGINATION.DEFAULT_PAGE_INDEX) {
-      params.delete("page");
-    } else {
-      params.set("page", String(pagination.pageIndex + 1));
-    }
-
-    if (pagination.pageSize === TABLE_CONFIG.PAGINATION.DEFAULT_PAGE_SIZE) {
-      params.delete("size");
-    } else {
-      params.set("size", String(pagination.pageSize));
-    }
-
-    // First, remove all filterable column params that aren't in the current filters
-    filterableColumns?.forEach((column) => {
-      if (!columnFilters.some((filter) => filter.id === column.id)) {
-        params.delete(column.id);
-      }
-    });
-
-    // Then set the current column filters
-    columnFilters.forEach((filter) => {
-      const value = filter.value as string[];
-      if (!value?.length) {
-        params.delete(filter.id);
-      } else {
-        params.set(filter.id, value.join(","));
-      }
-    });
-
-    // Sync global filter
-    if (!globalFilter) {
-      params.delete("query");
-    } else {
-      params.set("query", globalFilter);
-    }
-
-    router.replace(`${pathname}?${params.toString()}`, { scroll: false });
-  }, [
-    pagination,
-    columnFilters,
-    globalFilter,
-    filterableColumns,
-    pathname,
-    router,
-    searchParams,
-  ]);
-}
-
-export function DataTable<TData extends { id: string }>({
-  columns,
-  data,
-  options = DEFAULT_OPTIONS,
-  filterPlaceholder,
-  showTableOptions = true,
-  filterableColumns,
-  noResults,
-  selectedItemsActions,
-}: DataTableProps<TData>) {
-  const searchParams = useSearchParams();
-  const mergedOptions = { ...DEFAULT_OPTIONS, ...options };
-  const {
-    pinnedColumns: { left: leftPinnedCount = 0, right: rightPinnedCount = 0 },
-    storageKey,
-  } = mergedOptions;
-
-  const [rowSelection, setRowSelection] = useState<Record<string, boolean>>({});
-  const [columnVisibility, setColumnVisibility] =
-    useLocalStorage<VisibilityState>(`${storageKey}-column-visibility`, {});
-  const [sorting, setSorting] = useState<SortingState>([]);
-  const [columnOrder, setColumnOrder] = useLocalStorage<ColumnOrderState>(
-    `${storageKey}-column-order`,
-    [],
-  );
-
-  const table = useReactTable<TData>({
-    data,
-    columns,
-    filterFns: {
-      fuzzy: fuzzyFilter,
-    },
-    sortingFns: {
-      fuzzySort,
-    },
-    initialState: {
-      pagination: {
-        pageIndex:
-          (Number(searchParams.get("page")) ||
-            TABLE_CONFIG.PAGINATION.DEFAULT_PAGE_INDEX + 1) - 1,
-        pageSize:
-          Number(searchParams.get("size")) ||
-          TABLE_CONFIG.PAGINATION.DEFAULT_PAGE_SIZE,
-      },
-      columnFilters:
-        filterableColumns?.map((column) => {
-          const filterValue = searchParams.get(column.id);
-          return {
-            id: column.id,
-            value: filterValue ? filterValue.split(",") : [],
-          };
-        }) ?? [],
-      globalFilter: searchParams.get("query") ?? "",
-    },
-    state: {
-      sorting,
-      columnVisibility,
-      rowSelection,
-      columnOrder,
-    },
-    enableRowSelection: true,
-    onRowSelectionChange: setRowSelection,
-    onSortingChange: setSorting,
-    onColumnVisibilityChange: setColumnVisibility,
-    onColumnOrderChange: setColumnOrder,
-    getCoreRowModel: getCoreRowModel(),
-    globalFilterFn: "fuzzy",
-    getFilteredRowModel: getFilteredRowModel(),
-    autoResetPageIndex: false,
-    getPaginationRowModel: getPaginationRowModel(),
-    getSortedRowModel: getSortedRowModel(),
-    getFacetedRowModel: getFacetedRowModel(),
-    getFacetedUniqueValues: getFacetedUniqueValues(),
-  });
-
-  // Use unified URL sync hook
-  const state = table.getState();
-  const { pagination, columnFilters } = state;
-  const globalFilter = state.globalFilter as string | undefined;
-  useTableUrlSync({
-    pagination,
-    columnFilters,
-    globalFilter,
-    filterableColumns,
-  });
-
-  // If there's no data after filtering, show the no results component
-  if (table.getRowModel().rows.length === 0) {
-    return (
-      <div className="space-y-4">
-        <DataTableToolbar
-          table={table}
-          filterPlaceholder={filterPlaceholder}
-          showTableOptions={showTableOptions}
-          filterableColumns={filterableColumns}
-          selectedItemsActions={selectedItemsActions?.(table)}
-        />
-        {noResults ?? (
-          <div className="rounded-md border p-8 text-center">No results.</div>
-        )}
-      </div>
-    );
-  }
+export function DataTable<TData>({ table }: DataTableProps<TData>) {
+  const leftPinnedColumns = table.options.meta?.pinnedColumns?.left ?? [];
+  const rightPinnedColumns = table.options.meta?.pinnedColumns?.right ?? [];
 
   return (
-    <div className="space-y-4">
-      <DataTableToolbar
-        table={table}
-        filterPlaceholder={filterPlaceholder}
-        showTableOptions={showTableOptions}
-        filterableColumns={filterableColumns}
-        selectedItemsActions={selectedItemsActions?.(table)}
-      />
-      <div className="grid auto-rows-min rounded-md border">
-        <div className="flex min-w-full">
-          {/* Left pinned table */}
-          {leftPinnedCount > 0 && table.getHeaderGroups() && (
-            <div className="shrink-0 border-r bg-background">
-              <Table>
-                <TableHeader>
-                  {table.getHeaderGroups().map((headerGroup) => (
-                    <TableRow key={headerGroup.id}>
-                      {headerGroup.headers
-                        .slice(0, leftPinnedCount)
-                        .map((header) => (
-                          <TableHead
-                            key={header.id}
-                            colSpan={header.colSpan}
-                            className="h-12 whitespace-nowrap"
-                          >
-                            {header.isPlaceholder ? null : (
-                              <div
-                                {...{
-                                  className: header.column.getCanSort()
-                                    ? "flex cursor-pointer select-none items-center gap-2"
-                                    : "flex items-center gap-2",
-                                  onClick: header.column.getCanSort()
-                                    ? header.column.getToggleSortingHandler()
-                                    : undefined,
-                                }}
-                              >
-                                {flexRender(
-                                  header.column.columnDef.header,
-                                  header.getContext(),
-                                )}
-                              </div>
-                            )}
-                          </TableHead>
-                        ))}
-                    </TableRow>
-                  ))}
-                </TableHeader>
-                <TableBody>
-                  {table.getRowModel().rows.map((row) => (
-                    <TableRow
-                      key={row.id}
-                      data-state={row.getIsSelected() && "selected"}
-                    >
-                      {row
-                        .getVisibleCells()
-                        .slice(0, leftPinnedCount)
-                        .map((cell) => (
-                          <TableCell key={cell.id} className="h-12">
-                            {flexRender(
-                              cell.column.columnDef.cell,
-                              cell.getContext(),
-                            )}
-                          </TableCell>
-                        ))}
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          )}
-
-          {/* Center scrollable table */}
-          <div className="flex-1 overflow-auto">
-            <Table>
-              {table.getHeaderGroups() && (
-                <TableHeader>
-                  {table.getHeaderGroups().map((headerGroup) => (
-                    <TableRow key={headerGroup.id}>
-                      {headerGroup.headers
-                        .slice(
-                          leftPinnedCount,
-                          headerGroup.headers.length - rightPinnedCount,
-                        )
-                        .map((header) => (
-                          <TableHead
-                            key={header.id}
-                            colSpan={header.colSpan}
-                            className="h-12 whitespace-nowrap"
-                          >
-                            {header.isPlaceholder ? null : (
-                              <div
-                                {...{
-                                  className: header.column.getCanSort()
-                                    ? "flex cursor-pointer select-none items-center gap-2"
-                                    : "flex items-center gap-2",
-                                  onClick: header.column.getCanSort()
-                                    ? header.column.getToggleSortingHandler()
-                                    : undefined,
-                                }}
-                              >
-                                {flexRender(
-                                  header.column.columnDef.header,
-                                  header.getContext(),
-                                )}
-                              </div>
-                            )}
-                          </TableHead>
-                        ))}
-                    </TableRow>
-                  ))}
-                </TableHeader>
-              )}
+    <div className="grid auto-rows-min rounded-md border">
+      <div className="flex min-w-full">
+        {/* Left pinned table */}
+        {leftPinnedColumns.length > 0 && table.getHeaderGroups() && (
+          <div className="shrink-0 border-r bg-background">
+            <UITable>
+              <TableHeader>
+                {table.getHeaderGroups().map((headerGroup) => (
+                  <TableRow key={headerGroup.id}>
+                    {headerGroup.headers
+                      .filter((header) =>
+                        leftPinnedColumns.includes(header.column.id),
+                      )
+                      .map((header) => (
+                        <TableHead
+                          key={header.id}
+                          colSpan={header.colSpan}
+                          className="h-12 whitespace-nowrap"
+                        >
+                          {header.isPlaceholder ? null : (
+                            <div
+                              {...{
+                                className: header.column.getCanSort()
+                                  ? "flex cursor-pointer select-none items-center gap-2"
+                                  : "flex items-center gap-2",
+                                onClick: header.column.getCanSort()
+                                  ? header.column.getToggleSortingHandler()
+                                  : undefined,
+                              }}
+                            >
+                              {flexRender(
+                                header.column.columnDef.header,
+                                header.getContext(),
+                              )}
+                            </div>
+                          )}
+                        </TableHead>
+                      ))}
+                  </TableRow>
+                ))}
+              </TableHeader>
               <TableBody>
                 {table.getRowModel().rows.map((row) => (
                   <TableRow
@@ -374,9 +94,8 @@ export function DataTable<TData extends { id: string }>({
                   >
                     {row
                       .getVisibleCells()
-                      .slice(
-                        leftPinnedCount,
-                        row.getVisibleCells().length - rightPinnedCount,
+                      .filter((cell) =>
+                        leftPinnedColumns.includes(cell.column.id),
                       )
                       .map((cell) => (
                         <TableCell key={cell.id} className="h-12">
@@ -389,72 +108,144 @@ export function DataTable<TData extends { id: string }>({
                   </TableRow>
                 ))}
               </TableBody>
-            </Table>
+            </UITable>
           </div>
+        )}
 
-          {/* Right pinned table */}
-          {rightPinnedCount > 0 && table.getHeaderGroups() && (
-            <div className="shrink-0 border-l bg-background">
-              <Table>
-                <TableHeader>
-                  {table.getHeaderGroups().map((headerGroup) => (
-                    <TableRow key={headerGroup.id}>
-                      {headerGroup.headers
-                        .slice(-rightPinnedCount)
-                        .map((header) => (
-                          <TableHead
-                            key={header.id}
-                            colSpan={header.colSpan}
-                            className="h-12 whitespace-nowrap"
-                          >
-                            {header.isPlaceholder ? null : (
-                              <div
-                                {...{
-                                  className: header.column.getCanSort()
-                                    ? "flex cursor-pointer select-none items-center gap-2"
-                                    : "flex items-center gap-2",
-                                  onClick: header.column.getCanSort()
-                                    ? header.column.getToggleSortingHandler()
-                                    : undefined,
-                                }}
-                              >
-                                {flexRender(
-                                  header.column.columnDef.header,
-                                  header.getContext(),
-                                )}
-                              </div>
-                            )}
-                          </TableHead>
-                        ))}
-                    </TableRow>
-                  ))}
-                </TableHeader>
-                <TableBody>
-                  {table.getRowModel().rows.map((row) => (
-                    <TableRow
-                      key={row.id}
-                      data-state={row.getIsSelected() && "selected"}
-                    >
-                      {row
-                        .getVisibleCells()
-                        .slice(-rightPinnedCount)
-                        .map((cell) => (
-                          <TableCell key={cell.id} className="h-12">
-                            {flexRender(
-                              cell.column.columnDef.cell,
-                              cell.getContext(),
-                            )}
-                          </TableCell>
-                        ))}
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          )}
+        {/* Center scrollable table */}
+        <div className="flex-1 overflow-auto">
+          <UITable>
+            {table.getHeaderGroups() && (
+              <TableHeader>
+                {table.getHeaderGroups().map((headerGroup) => (
+                  <TableRow key={headerGroup.id}>
+                    {headerGroup.headers
+                      .filter(
+                        (header) =>
+                          !leftPinnedColumns.includes(header.column.id) &&
+                          !rightPinnedColumns.includes(header.column.id),
+                      )
+                      .map((header) => (
+                        <TableHead
+                          key={header.id}
+                          colSpan={header.colSpan}
+                          className="h-12 whitespace-nowrap"
+                        >
+                          {header.isPlaceholder ? null : (
+                            <div
+                              {...{
+                                className: header.column.getCanSort()
+                                  ? "flex cursor-pointer select-none items-center gap-2"
+                                  : "flex items-center gap-2",
+                                onClick: header.column.getCanSort()
+                                  ? header.column.getToggleSortingHandler()
+                                  : undefined,
+                              }}
+                            >
+                              {flexRender(
+                                header.column.columnDef.header,
+                                header.getContext(),
+                              )}
+                            </div>
+                          )}
+                        </TableHead>
+                      ))}
+                  </TableRow>
+                ))}
+              </TableHeader>
+            )}
+            <TableBody>
+              {table.getRowModel().rows.map((row) => (
+                <TableRow
+                  key={row.id}
+                  data-state={row.getIsSelected() && "selected"}
+                >
+                  {row
+                    .getVisibleCells()
+                    .filter(
+                      (cell) =>
+                        !leftPinnedColumns.includes(cell.column.id) &&
+                        !rightPinnedColumns.includes(cell.column.id),
+                    )
+                    .map((cell) => (
+                      <TableCell key={cell.id} className="h-12">
+                        {flexRender(
+                          cell.column.columnDef.cell,
+                          cell.getContext(),
+                        )}
+                      </TableCell>
+                    ))}
+                </TableRow>
+              ))}
+            </TableBody>
+          </UITable>
         </div>
+
+        {/* Right pinned table */}
+        {rightPinnedColumns.length > 0 && table.getHeaderGroups() && (
+          <div className="shrink-0 border-l bg-background">
+            <UITable>
+              <TableHeader>
+                {table.getHeaderGroups().map((headerGroup) => (
+                  <TableRow key={headerGroup.id}>
+                    {headerGroup.headers
+                      .filter((header) =>
+                        rightPinnedColumns.includes(header.column.id),
+                      )
+                      .map((header) => (
+                        <TableHead
+                          key={header.id}
+                          colSpan={header.colSpan}
+                          className="h-12 whitespace-nowrap"
+                        >
+                          {header.isPlaceholder ? null : (
+                            <div
+                              {...{
+                                className: header.column.getCanSort()
+                                  ? "flex cursor-pointer select-none items-center gap-2"
+                                  : "flex items-center gap-2",
+                                onClick: header.column.getCanSort()
+                                  ? header.column.getToggleSortingHandler()
+                                  : undefined,
+                              }}
+                            >
+                              {flexRender(
+                                header.column.columnDef.header,
+                                header.getContext(),
+                              )}
+                            </div>
+                          )}
+                        </TableHead>
+                      ))}
+                  </TableRow>
+                ))}
+              </TableHeader>
+              <TableBody>
+                {table.getRowModel().rows.map((row) => (
+                  <TableRow
+                    key={row.id}
+                    data-state={row.getIsSelected() && "selected"}
+                  >
+                    {row
+                      .getVisibleCells()
+                      .filter((cell) =>
+                        rightPinnedColumns.includes(cell.column.id),
+                      )
+                      .map((cell) => (
+                        <TableCell key={cell.id} className="h-12">
+                          {flexRender(
+                            cell.column.columnDef.cell,
+                            cell.getContext(),
+                          )}
+                        </TableCell>
+                      ))}
+                  </TableRow>
+                ))}
+              </TableBody>
+            </UITable>
+          </div>
+        )}
       </div>
-      <DataTablePagination table={table} totalCount={data.length} />
     </div>
   );
 }

@@ -5,6 +5,7 @@ import {
   sortingFns,
   type FilterFn,
   type SortingFn,
+  type Table,
 } from "@tanstack/react-table";
 import {
   compareItems,
@@ -12,6 +13,7 @@ import {
   type RankingInfo,
   rankings,
 } from "@tanstack/match-sorter-utils";
+import type { ColumnDef } from "@tanstack/react-table";
 
 interface FilterMetaWithRank {
   itemRank: RankingInfo;
@@ -46,3 +48,15 @@ export const fuzzySort: SortingFn<any> = (rowA, rowB, columnId) => {
   // Provide an alphanumeric fallback for when the item ranks are equal or missing
   return dir === 0 ? sortingFns.alphanumeric(rowA, rowB, columnId) : dir;
 };
+
+export function hasSelectedRows<TData>(table: Table<TData>): boolean {
+  return table.getFilteredSelectedRowModel().rows.length > 0;
+}
+
+export function getFilterableColumnIds<TData>(
+  columns: ColumnDef<TData, unknown>[],
+): string[] {
+  return columns
+    .filter((column) => column.id && column.filterFn)
+    .map((column) => column.id!);
+}

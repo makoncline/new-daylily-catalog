@@ -14,12 +14,14 @@ export const TABLE_CONFIG = {
   },
 } as const;
 
-export const COLUMN_NAMES = {
+export const LISTING_TABLE_COLUMN_NAMES = {
   // Core columns
   name: "Name",
+  images: "Images",
   price: "Price",
-  publicNote: "Public Note",
-  privateNote: "Private Note",
+  publicNote: "Description",
+  privateNote: "Private Notes",
+  lists: "Lists",
 
   // AHS Listing columns
   hybridizer: "Hybridizer",
@@ -37,6 +39,14 @@ export const COLUMN_NAMES = {
   branches: "Branches",
 
   // Metadata columns
+  createdAt: "Created",
+  updatedAt: "Updated",
+} as const;
+
+export const LIST_TABLE_COLUMN_NAMES = {
+  name: "Name",
+  intro: "Description",
+  listingsCount: "Listings",
   createdAt: "Created",
   updatedAt: "Updated",
 } as const;

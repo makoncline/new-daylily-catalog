@@ -6,7 +6,7 @@ import {
   DataTableRowActions,
 } from "@/components/data-table";
 import { ImagePreviewTooltip } from "@/components/data-table/image-preview-tooltip";
-import { COLUMN_NAMES } from "@/config/constants";
+import { LISTING_TABLE_COLUMN_NAMES } from "@/config/constants";
 import { formatPrice } from "@/lib/utils";
 import { type Row, type ColumnDef } from "@tanstack/react-table";
 import { TruncatedListBadge } from "@/components/data-table/truncated-list-badge";
@@ -39,7 +39,10 @@ export function getColumns(
       id: "name",
       accessorKey: "name",
       header: ({ column }) => (
-        <DataTableColumnHeader column={column} title={COLUMN_NAMES.name} />
+        <DataTableColumnHeader
+          column={column}
+          title={LISTING_TABLE_COLUMN_NAMES.name}
+        />
       ),
       cell: ({ row }) => {
         const value = getStringValue(row, "name");
@@ -88,7 +91,10 @@ export function getColumns(
       id: "price",
       accessorKey: "price",
       header: ({ column }) => (
-        <DataTableColumnHeader column={column} title={COLUMN_NAMES.price} />
+        <DataTableColumnHeader
+          column={column}
+          title={LISTING_TABLE_COLUMN_NAMES.price}
+        />
       ),
       cell: ({ row }) => {
         const price = row.getValue("price");
@@ -104,7 +110,7 @@ export function getColumns(
       header: ({ column }) => (
         <DataTableColumnHeader
           column={column}
-          title={COLUMN_NAMES.publicNote}
+          title={LISTING_TABLE_COLUMN_NAMES.publicNote}
         />
       ),
       cell: ({ row }) => (
@@ -119,7 +125,7 @@ export function getColumns(
       header: ({ column }) => (
         <DataTableColumnHeader
           column={column}
-          title={COLUMN_NAMES.privateNote}
+          title={LISTING_TABLE_COLUMN_NAMES.privateNote}
         />
       ),
       cell: ({ row }) => (
@@ -164,7 +170,7 @@ export function getColumns(
       header: ({ column }) => (
         <DataTableColumnHeader
           column={column}
-          title={COLUMN_NAMES.hybridizer}
+          title={LISTING_TABLE_COLUMN_NAMES.hybridizer}
         />
       ),
       cell: ({ row }) => {
@@ -179,7 +185,10 @@ export function getColumns(
       accessorKey: "ahsListing.year",
       accessorFn: (row) => row.ahsListing?.year ?? null,
       header: ({ column }) => (
-        <DataTableColumnHeader column={column} title={COLUMN_NAMES.year} />
+        <DataTableColumnHeader
+          column={column}
+          title={LISTING_TABLE_COLUMN_NAMES.year}
+        />
       ),
       cell: ({ row }) => {
         const value = row.original.ahsListing?.year;
@@ -195,7 +204,7 @@ export function getColumns(
       header: ({ column }) => (
         <DataTableColumnHeader
           column={column}
-          title={COLUMN_NAMES.scapeHeight}
+          title={LISTING_TABLE_COLUMN_NAMES.scapeHeight}
         />
       ),
       cell: ({ row }) => {
@@ -210,7 +219,10 @@ export function getColumns(
       accessorKey: "ahsListing.bloomSize",
       accessorFn: (row) => row.ahsListing?.bloomSize ?? null,
       header: ({ column }) => (
-        <DataTableColumnHeader column={column} title={COLUMN_NAMES.bloomSize} />
+        <DataTableColumnHeader
+          column={column}
+          title={LISTING_TABLE_COLUMN_NAMES.bloomSize}
+        />
       ),
       cell: ({ row }) => {
         const value = row.original.ahsListing?.bloomSize;
@@ -226,7 +238,7 @@ export function getColumns(
       header: ({ column }) => (
         <DataTableColumnHeader
           column={column}
-          title={COLUMN_NAMES.bloomSeason}
+          title={LISTING_TABLE_COLUMN_NAMES.bloomSeason}
         />
       ),
       cell: ({ row }) => {
@@ -241,7 +253,10 @@ export function getColumns(
       accessorKey: "ahsListing.ploidy",
       accessorFn: (row) => row.ahsListing?.ploidy ?? null,
       header: ({ column }) => (
-        <DataTableColumnHeader column={column} title={COLUMN_NAMES.ploidy} />
+        <DataTableColumnHeader
+          column={column}
+          title={LISTING_TABLE_COLUMN_NAMES.ploidy}
+        />
       ),
       cell: ({ row }) => {
         const value = row.original.ahsListing?.ploidy;
@@ -257,7 +272,7 @@ export function getColumns(
       header: ({ column }) => (
         <DataTableColumnHeader
           column={column}
-          title={COLUMN_NAMES.foliageType}
+          title={LISTING_TABLE_COLUMN_NAMES.foliageType}
         />
       ),
       cell: ({ row }) => {
@@ -274,7 +289,7 @@ export function getColumns(
       header: ({ column }) => (
         <DataTableColumnHeader
           column={column}
-          title={COLUMN_NAMES.bloomHabit}
+          title={LISTING_TABLE_COLUMN_NAMES.bloomHabit}
         />
       ),
       cell: ({ row }) => {
@@ -289,7 +304,10 @@ export function getColumns(
       accessorKey: "ahsListing.color",
       accessorFn: (row) => row.ahsListing?.color ?? null,
       header: ({ column }) => (
-        <DataTableColumnHeader column={column} title={COLUMN_NAMES.color} />
+        <DataTableColumnHeader
+          column={column}
+          title={LISTING_TABLE_COLUMN_NAMES.color}
+        />
       ),
       cell: ({ row }) => {
         const value = row.original.ahsListing?.color;
@@ -303,7 +321,10 @@ export function getColumns(
       accessorKey: "ahsListing.form",
       accessorFn: (row) => row.ahsListing?.form ?? null,
       header: ({ column }) => (
-        <DataTableColumnHeader column={column} title={COLUMN_NAMES.form} />
+        <DataTableColumnHeader
+          column={column}
+          title={LISTING_TABLE_COLUMN_NAMES.form}
+        />
       ),
       cell: ({ row }) => {
         const value = row.original.ahsListing?.form;
@@ -317,7 +338,10 @@ export function getColumns(
       accessorKey: "ahsListing.fragrance",
       accessorFn: (row) => row.ahsListing?.fragrance ?? null,
       header: ({ column }) => (
-        <DataTableColumnHeader column={column} title={COLUMN_NAMES.fragrance} />
+        <DataTableColumnHeader
+          column={column}
+          title={LISTING_TABLE_COLUMN_NAMES.fragrance}
+        />
       ),
       cell: ({ row }) => {
         const value = row.original.ahsListing?.fragrance;
@@ -331,7 +355,10 @@ export function getColumns(
       accessorKey: "ahsListing.budcount",
       accessorFn: (row) => row.ahsListing?.budcount ?? null,
       header: ({ column }) => (
-        <DataTableColumnHeader column={column} title={COLUMN_NAMES.budcount} />
+        <DataTableColumnHeader
+          column={column}
+          title={LISTING_TABLE_COLUMN_NAMES.budcount}
+        />
       ),
       cell: ({ row }) => {
         const value = row.original.ahsListing?.budcount;
@@ -345,7 +372,10 @@ export function getColumns(
       accessorKey: "ahsListing.branches",
       accessorFn: (row) => row.ahsListing?.branches ?? null,
       header: ({ column }) => (
-        <DataTableColumnHeader column={column} title={COLUMN_NAMES.branches} />
+        <DataTableColumnHeader
+          column={column}
+          title={LISTING_TABLE_COLUMN_NAMES.branches}
+        />
       ),
       cell: ({ row }) => {
         const value = row.original.ahsListing?.branches;
@@ -360,7 +390,10 @@ export function getColumns(
       id: "createdAt",
       accessorKey: "createdAt",
       header: ({ column }) => (
-        <DataTableColumnHeader column={column} title={COLUMN_NAMES.createdAt} />
+        <DataTableColumnHeader
+          column={column}
+          title={LISTING_TABLE_COLUMN_NAMES.createdAt}
+        />
       ),
       cell: ({ row }) => {
         const date = row.original.createdAt;
@@ -379,7 +412,10 @@ export function getColumns(
       id: "updatedAt",
       accessorKey: "updatedAt",
       header: ({ column }) => (
-        <DataTableColumnHeader column={column} title={COLUMN_NAMES.updatedAt} />
+        <DataTableColumnHeader
+          column={column}
+          title={LISTING_TABLE_COLUMN_NAMES.updatedAt}
+        />
       ),
       cell: ({ row }) => {
         const date = row.original.updatedAt;

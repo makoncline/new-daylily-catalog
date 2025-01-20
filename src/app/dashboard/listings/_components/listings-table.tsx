@@ -1,0 +1,121 @@
+"use client";
+
+import * as React from "react";
+import { DataTable } from "@/components/data-table/data-table";
+import { DataTableLayout } from "@/components/data-table/data-table-layout";
+import { DataTablePagination } from "@/components/data-table/data-table-pagination";
+import { EmptyState } from "@/components/empty-state";
+import { getColumns } from "./columns";
+import { api, type RouterOutputs } from "@/trpc/react";
+import { ListingsTableSkeleton } from "./listings-table-skeleton";
+import { CreateListingButton } from "./create-listing-button";
+import { useEditListing } from "./edit-listing-dialog";
+import { useDataTable } from "@/hooks/use-data-table";
+import { type Table } from "@tanstack/react-table";
+import { DataTableGlobalFilter } from "@/components/data-table/data-table-global-filter";
+import { DataTableFilterReset } from "@/components/data-table/data-table-filter-reset";
+import { DataTableViewOptions } from "@/components/data-table/data-table-view-options";
+import { DataTableFacetedFilter } from "@/components/data-table/data-table-faceted-filter";
+
+type List = RouterOutputs["list"]["list"][number];
+type Listing = RouterOutputs["listing"]["list"][number];
+
+interface ListingsTableToolbarProps {
+  table: Table<Listing>;
+  lists: List[];
+  listings: Listing[];
+}
+
+function ListingsTableToolbar({
+  table,
+  lists,
+  listings,
+}: ListingsTableToolbarProps) {
+  const listsColumn = table.getColumn("lists");
+  const listOptions = lists.map((list) => ({
+    label: list.name,
+    value: list.id,
+    count: listings?.filter((listing) =>
+      listing.lists.some(
+        (listingList: { id: string }) => listingList.id === list.id,
+      ),
+    ).length,
+  }));
+
+  return (
+    <div className="flex items-center justify-between">
+      <div className="flex flex-1 items-center space-x-2">
+        <DataTableGlobalFilter table={table} placeholder="Filter listings..." />
+        <DataTableFilterReset table={table} />
+        <DataTableFacetedFilter
+          column={listsColumn}
+          title="Lists"
+          options={listOptions}
+          table={table}
+        />
+        <div className="flex-1" />
+        <DataTableViewOptions table={table} />
+      </div>
+    </div>
+  );
+}
+
+export function ListingsTable() {
+  const { data: listings, isLoading } = api.listing.list.useQuery();
+  const { data: lists } = api.list.list.useQuery();
+  const { editListing } = useEditListing();
+
+  const columns = getColumns(editListing);
+
+  const table = useDataTable({
+    data: listings ?? [],
+    columns,
+    storageKey: "listings-table",
+    pinnedColumns: {
+      left: ["select", "name"],
+      right: ["actions"],
+    },
+    config: {
+      enableRowSelection: true,
+    },
+  });
+
+  if (isLoading) {
+    return <ListingsTableSkeleton />;
+  }
+
+  if (!listings?.length) {
+    return (
+      <EmptyState
+        title="No listings"
+        description="Create your first listing to start selling"
+        action={<CreateListingButton />}
+      />
+    );
+  }
+
+  return (
+    <DataTableLayout
+      table={table}
+      toolbar={
+        lists ? (
+          <ListingsTableToolbar
+            table={table}
+            lists={lists}
+            listings={listings}
+          />
+        ) : null
+      }
+      pagination={<DataTablePagination table={table} />}
+      noResults={
+        <EmptyState
+          title="No listings found"
+          description="Try adjusting your filters or create a new listing"
+          action={<CreateListingButton />}
+        />
+      }
+    >
+      <DataTable table={table} />
+    </DataTableLayout>
+  );
+}

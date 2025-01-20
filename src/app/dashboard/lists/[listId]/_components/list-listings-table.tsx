@@ -1,38 +1,122 @@
 "use client";
 
+import * as React from "react";
 import { DataTable } from "@/components/data-table/data-table";
+import { DataTableLayout } from "@/components/data-table/data-table-layout";
+import { DataTablePagination } from "@/components/data-table/data-table-pagination";
+import { EmptyState } from "@/components/empty-state";
 import { getColumns } from "./columns";
 import { api } from "@/trpc/react";
 import { ListingsTableSkeleton } from "./listings-table-skeleton";
-import { EmptyState } from "@/components/empty-state";
 import { Button } from "@/components/ui/button";
 import { Trash2 } from "lucide-react";
 import { toast } from "sonner";
-import type { Table, ColumnDef } from "@tanstack/react-table";
-import { useEditListing } from "@/app/dashboard/listings/_components/edit-listing-dialog";
-import { getColumns as getListingsColumns } from "@/app/dashboard/listings/_components/listings-table/columns";
+import { DeleteConfirmDialog } from "@/components/delete-confirm-dialog";
 import { Label } from "@/components/ui/label";
 import { useState } from "react";
-import { DeleteConfirmDialog } from "@/components/delete-confirm-dialog";
-import { type RouterOutputs } from "@/trpc/react";
-
-type ListingData = RouterOutputs["listing"]["list"][number];
+import { useEditListing } from "@/app/dashboard/listings/_components/edit-listing-dialog";
+import { getColumns as getListingsColumns } from "@/app/dashboard/listings/_components/columns";
+import { type Table } from "@tanstack/react-table";
+import { DataTableGlobalFilter } from "@/components/data-table/data-table-global-filter";
+import { DataTableFilterReset } from "@/components/data-table/data-table-filter-reset";
+import { DataTableViewOptions } from "@/components/data-table/data-table-view-options";
+import { type ListingData } from "./columns";
+import { useDataTable } from "@/hooks/use-data-table";
 
 interface ListListingsTableProps {
   listId: string;
 }
 
-export function ListListingsTable({ listId }: ListListingsTableProps) {
-  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
-  const [selectedTable, setSelectedTable] = useState<Table<ListingData>>();
+const tableOptions = {
+  pinnedColumns: {
+    left: ["select", "name"],
+    right: ["actions"],
+  },
+  storageKey: "list-listings-table",
+};
 
+function SelectedItemsActions({
+  table,
+  listId,
+}: {
+  table: Table<ListingData>;
+  listId: string;
+}) {
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const selectedRows = table.getFilteredSelectedRowModel().rows;
+
+  const removeListings = api.list.removeListings.useMutation({
+    onSuccess: () => {
+      toast.success("Listings removed from list");
+      table.resetRowSelection();
+      setShowDeleteDialog(false);
+    },
+  });
+
+  return (
+    <>
+      <Button
+        variant="destructive"
+        size="sm"
+        onClick={() => setShowDeleteDialog(true)}
+        disabled={removeListings.isPending}
+      >
+        <Trash2 className="mr-2 h-4 w-4" />
+        Remove {selectedRows.length} selected
+      </Button>
+
+      <DeleteConfirmDialog
+        open={showDeleteDialog}
+        onOpenChange={setShowDeleteDialog}
+        onConfirm={() => {
+          removeListings.mutate({
+            listId,
+            listingIds: selectedRows.map((row) => row.original.id),
+          });
+        }}
+        title="Remove Listings"
+        description={`Are you sure you want to remove ${selectedRows.length} listing${selectedRows.length === 1 ? "" : "s"} from this list? This action cannot be undone.`}
+      />
+    </>
+  );
+}
+
+interface ListingsTableToolbarProps {
+  table: Table<ListingData>;
+  listId: string;
+}
+
+function ListingsTableToolbar({ table, listId }: ListingsTableToolbarProps) {
+  const hasSelectedRows = table.getFilteredSelectedRowModel().rows.length > 0;
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <div className="flex flex-1 items-center space-x-2">
+          <DataTableGlobalFilter
+            table={table}
+            placeholder="Filter listings..."
+          />
+          <DataTableFilterReset table={table} />
+          {hasSelectedRows && (
+            <SelectedItemsActions table={table} listId={listId} />
+          )}
+          <div className="flex-1" />
+          <DataTableViewOptions table={table} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export function ListListingsTable({ listId }: ListListingsTableProps) {
   const { data: listings, isLoading } = api.list.getListings.useQuery({
     id: listId,
   });
+  const { editListing } = useEditListing();
 
   const excludedColumns = ["lists", "actions"] as const;
-  const { editListing } = useEditListing();
-  const columns: ColumnDef<ListingData>[] = [
+  const columns = [
     ...getColumns(),
     ...getListingsColumns(editListing).filter(
       (column) =>
@@ -42,12 +126,10 @@ export function ListListingsTable({ listId }: ListListingsTableProps) {
     ),
   ];
 
-  const removeListings = api.list.removeListings.useMutation({
-    onSuccess: () => {
-      toast.success("Listings removed from list");
-      selectedTable?.resetRowSelection();
-      setShowDeleteDialog(false);
-    },
+  const table = useDataTable({
+    data: listings ?? [],
+    columns,
+    ...tableOptions,
   });
 
   if (isLoading) {
@@ -73,51 +155,19 @@ export function ListListingsTable({ listId }: ListListingsTableProps) {
         </p>
       </div>
 
-      <DataTable
-        columns={columns}
-        data={listings}
-        options={{
-          pinnedColumns: {
-            left: 2,
-            right: 0,
-          },
-          storageKey: "list-listings-table",
-        }}
-        selectedItemsActions={(table: Table<ListingData>) => {
-          const selectedRows = table.getFilteredSelectedRowModel().rows;
-          return (
-            <Button
-              variant="destructive"
-              size="sm"
-              onClick={() => {
-                setSelectedTable(table);
-                setShowDeleteDialog(true);
-              }}
-              disabled={removeListings.isPending}
-            >
-              <Trash2 className="mr-2 h-4 w-4" />
-              Remove {selectedRows.length} selected
-            </Button>
-          );
-        }}
-      />
-
-      <DeleteConfirmDialog
-        open={showDeleteDialog}
-        onOpenChange={setShowDeleteDialog}
-        onConfirm={() => {
-          if (selectedTable) {
-            const selectedRows =
-              selectedTable.getFilteredSelectedRowModel().rows;
-            removeListings.mutate({
-              listId,
-              listingIds: selectedRows.map((row) => row.original.id),
-            });
-          }
-        }}
-        title="Remove Listings"
-        description={`Are you sure you want to remove ${selectedTable?.getFilteredSelectedRowModel().rows.length} listing${selectedTable?.getFilteredSelectedRowModel().rows.length === 1 ? "" : "s"} from this list? This action cannot be undone.`}
-      />
+      <DataTableLayout
+        table={table}
+        toolbar={<ListingsTableToolbar table={table} listId={listId} />}
+        pagination={<DataTablePagination table={table} />}
+        noResults={
+          <EmptyState
+            title="No listings found"
+            description="Try adjusting your filters"
+          />
+        }
+      >
+        <DataTable table={table} />
+      </DataTableLayout>
     </div>
   );
 }

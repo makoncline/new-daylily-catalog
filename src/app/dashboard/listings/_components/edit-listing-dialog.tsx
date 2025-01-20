@@ -18,20 +18,15 @@ import { logError } from "@/lib/error-utils";
 export const useEditListing = () => {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const params = new URLSearchParams(searchParams.toString());
 
   const setEditingId = (id: string | null) => {
-    // Create a new URL with the current pathname and search params
-    const url = new URL(window.location.href);
-
-    // Update the editing parameter
     if (id) {
-      url.searchParams.set("editing", id);
+      params.set("editing", id);
     } else {
-      url.searchParams.delete("editing");
+      params.delete("editing");
     }
-
-    // Use router.push to update the URL and trigger a client-side navigation
-    router.push(url.pathname + url.search);
+    router.push(`?${params.toString()}`);
   };
 
   const getEditingId = () => searchParams.get("editing");

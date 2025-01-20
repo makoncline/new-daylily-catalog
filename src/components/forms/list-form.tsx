@@ -17,6 +17,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { transformNullToUndefined } from "@/types/schemas/listing";
 import { type z } from "zod";
 import { useState } from "react";
+import { useToast } from "@/hooks/use-toast";
 
 interface ListFormProps {
   listId: string;
@@ -27,6 +28,7 @@ type FormValues = z.infer<typeof listFormSchema>;
 export function ListForm({ listId }: ListFormProps) {
   const [list] = api.list.get.useSuspenseQuery({ id: listId });
   const [isPending, setIsPending] = useState(false);
+  const { toast } = useToast();
 
   const form = useZodForm({
     schema: listFormSchema,
@@ -35,7 +37,16 @@ export function ListForm({ listId }: ListFormProps) {
 
   const updateList = api.list.update.useMutation({
     onSuccess: () => {
-      // No need to close dialog on save
+      toast({
+        title: "List updated",
+        description: "Your list has been updated successfully",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Failed to update list",
+        description: "An error occurred while updating your list",
+      });
     },
   });
 
