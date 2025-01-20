@@ -26,6 +26,7 @@ import { useToast } from "@/hooks/use-toast";
 import { api } from "@/trpc/react";
 import type { ImageType } from "@/types/image";
 import { Skeleton } from "@/components/ui/skeleton";
+import { OptimizedImage } from "@/components/optimized-image";
 
 interface ImageManagerProps {
   images: Image[];
@@ -61,10 +62,11 @@ function SortableImage({
 
   return (
     <div ref={setNodeRef} style={style} className="relative aspect-square">
-      <img
+      <OptimizedImage
         src={image.url}
-        alt="Image"
-        className="h-full w-full rounded-lg border object-cover"
+        alt="Daylily image"
+        size="thumbnail"
+        className="rounded-lg border"
       />
       {dragControls(attributes ?? {}, listeners ?? {})}
     </div>

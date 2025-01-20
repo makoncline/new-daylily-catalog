@@ -38,7 +38,7 @@ export const env = createEnv({
   client: {
     NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: z.string(),
     NEXT_PUBLIC_APP_URL: z.string(),
-    NEXT_PUBLIC_CLOUDFLARE_DELIVERY_URL: z.string(),
+    NEXT_PUBLIC_CLOUDFLARE_URL: z.string(),
   },
 
   /**
@@ -52,6 +52,7 @@ export const env = createEnv({
     NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY:
       process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY,
     NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL,
+    NEXT_PUBLIC_CLOUDFLARE_URL: process.env.NEXT_PUBLIC_CLOUDFLARE_URL,
     STRIPE_SECRET_KEY: process.env.STRIPE_SECRET_KEY,
     STRIPE_WEBHOOK_SECRET: process.env.STRIPE_WEBHOOK_SECRET,
     STRIPE_PAYMENT_LINK_ID: process.env.STRIPE_PAYMENT_LINK_ID,
@@ -61,8 +62,6 @@ export const env = createEnv({
     AWS_REGION: process.env.AWS_REGION,
     AWS_BUCKET_NAME: process.env.AWS_BUCKET_NAME,
     NODE_ENV: process.env.NODE_ENV,
-    NEXT_PUBLIC_CLOUDFLARE_DELIVERY_URL:
-      process.env.NEXT_PUBLIC_CLOUDFLARE_DELIVERY_URL,
   },
   /**
    * Run `build` or `dev` with `SKIP_ENV_VALIDATION` to skip env validation. This is especially

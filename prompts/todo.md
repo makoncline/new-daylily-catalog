@@ -1,5 +1,3 @@
-- sidebar indicates which tab youre on
-- sidebar collapse button has tooltip with keyboard shortcut
 - use cloudflare for images
 - add public profiles for each user
   - public router with queries that we cache for multiple minutes
