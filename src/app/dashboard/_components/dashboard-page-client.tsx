@@ -1,12 +1,11 @@
 "use client";
 
 import { Card } from "@/components/ui/card";
-import { api } from "@/trpc/react";
-import type { DashboardStats } from "@/types";
+import { api, type RouterOutputs } from "@/trpc/react";
 import { PageHeader } from "./page-header";
 
 interface DashboardPageClientProps {
-  initialStats: DashboardStats;
+  initialStats: RouterOutputs["dashboard"]["getStats"];
 }
 
 export function DashboardPageClient({

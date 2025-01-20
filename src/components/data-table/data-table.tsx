@@ -15,10 +15,12 @@ import {
   getSortedRowModel,
   useReactTable,
   type ColumnOrderState,
-  FilterFn,
-  SortingFn,
+  type FilterFn,
+  type SortingFn,
+  type Table as TableType,
 } from "@tanstack/react-table";
 import { useRouter, usePathname } from "next/navigation";
+import { useState } from "react";
 
 import {
   Table,
@@ -72,6 +74,7 @@ interface DataTableProps<TData> {
   showTableOptions?: boolean;
   filterableColumns?: FilterableColumn[];
   noResults?: React.ReactNode;
+  selectedItemsActions?: (table: TableType<TData>) => React.ReactNode;
 }
 
 const DEFAULT_OPTIONS: Required<DataTableOptions> = {
@@ -154,6 +157,7 @@ export function DataTable<TData extends { id: string }>({
   showTableOptions = true,
   filterableColumns,
   noResults,
+  selectedItemsActions,
 }: DataTableProps<TData>) {
   const searchParams = useSearchParams();
   const mergedOptions = { ...DEFAULT_OPTIONS, ...options };
@@ -162,13 +166,10 @@ export function DataTable<TData extends { id: string }>({
     storageKey,
   } = mergedOptions;
 
-  const [rowSelection, setRowSelection] = React.useState({});
+  const [rowSelection, setRowSelection] = useState<Record<string, boolean>>({});
   const [columnVisibility, setColumnVisibility] =
     useLocalStorage<VisibilityState>(`${storageKey}-column-visibility`, {});
-  const [sorting, setSorting] = useLocalStorage<SortingState>(
-    `${storageKey}-sorting`,
-    [],
-  );
+  const [sorting, setSorting] = useState<SortingState>([]);
   const [columnOrder, setColumnOrder] = useLocalStorage<ColumnOrderState>(
     `${storageKey}-column-order`,
     [],
@@ -197,10 +198,10 @@ export function DataTable<TData extends { id: string }>({
           const filterValue = searchParams.get(column.id);
           return {
             id: column.id,
-            value: filterValue ? filterValue.split(",") : undefined,
+            value: filterValue ? filterValue.split(",") : [],
           };
         }) ?? [],
-      globalFilter: searchParams.get("query") ?? undefined,
+      globalFilter: searchParams.get("query") ?? "",
     },
     state: {
       sorting,
@@ -224,11 +225,13 @@ export function DataTable<TData extends { id: string }>({
   });
 
   // Use unified URL sync hook
-  const { pagination, columnFilters, globalFilter } = table.getState();
+  const state = table.getState();
+  const { pagination, columnFilters } = state;
+  const globalFilter = state.globalFilter as string | undefined;
   useTableUrlSync({
     pagination,
     columnFilters,
-    globalFilter: globalFilter as string,
+    globalFilter,
     filterableColumns,
   });
 
@@ -241,6 +244,7 @@ export function DataTable<TData extends { id: string }>({
           filterPlaceholder={filterPlaceholder}
           showTableOptions={showTableOptions}
           filterableColumns={filterableColumns}
+          selectedItemsActions={selectedItemsActions?.(table)}
         />
         {noResults ?? (
           <div className="rounded-md border p-8 text-center">No results.</div>
@@ -256,6 +260,7 @@ export function DataTable<TData extends { id: string }>({
         filterPlaceholder={filterPlaceholder}
         showTableOptions={showTableOptions}
         filterableColumns={filterableColumns}
+        selectedItemsActions={selectedItemsActions?.(table)}
       />
       <div className="grid auto-rows-min rounded-md border">
         <div className="flex min-w-full">

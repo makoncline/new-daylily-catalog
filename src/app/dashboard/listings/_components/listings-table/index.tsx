@@ -1,6 +1,5 @@
 "use client";
 
-import { type Listing } from "@prisma/client";
 import { DataTable } from "@/components/data-table";
 import { EmptyState } from "@/components/empty-state";
 import { getColumns } from "./columns";
@@ -50,6 +49,7 @@ export function ListingsTable() {
         },
         storageKey: "listings-table",
       }}
+      filterPlaceholder="Filter listings..."
       filterableColumns={
         lists
           ? [

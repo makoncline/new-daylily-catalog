@@ -69,12 +69,14 @@ export function ListActions({ list }: ListActionsProps) {
     },
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     updateList.mutate({
       id: list.id,
-      name,
-      intro,
+      data: {
+        name,
+        intro,
+      },
     });
   };
 

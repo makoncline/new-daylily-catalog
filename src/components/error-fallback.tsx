@@ -1,17 +1,14 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { getErrorMessage } from "@/lib/error-utils";
 import { useFeedbackUrl } from "@/hooks/use-feedback-url";
 
 interface ErrorFallbackProps {
-  error: Error;
   resetErrorBoundary?: () => void;
   className?: string;
 }
 
 export function ErrorFallback({
-  error,
   resetErrorBoundary,
   className = "",
 }: ErrorFallbackProps) {
@@ -24,7 +21,7 @@ export function ErrorFallback({
       <div className="space-y-4">
         <h1 className="text-4xl font-bold">Oops, something went wrong!</h1>
         <p className="mx-auto max-w-md text-lg text-muted-foreground">
-          We're sorry, but an unexpected error has occurred.
+          We&apos;re sorry, but an unexpected error has occurred.
         </p>
       </div>
 

@@ -18,11 +18,6 @@ import { useFeedbackUrl } from "@/hooks/use-feedback-url";
 import { NavSecondary } from "./nav-secondary";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
 
 export function AppSidebar({
   className,

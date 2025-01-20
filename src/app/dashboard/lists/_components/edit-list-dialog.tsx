@@ -64,7 +64,7 @@ export function EditListDialog() {
         {editingId && (
           <ErrorBoundary FallbackComponent={ErrorFallback} onError={logError}>
             <Suspense fallback={<ListFormSkeleton />}>
-              <ListForm listId={editingId} onDelete={closeEditList} />
+              <ListForm listId={editingId} />
             </Suspense>
           </ErrorBoundary>
         )}

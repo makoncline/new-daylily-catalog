@@ -9,12 +9,11 @@ import {
   DropdownMenuTrigger,
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
-import { MoreHorizontal, Pencil, Trash2 } from "lucide-react";
+import { MoreHorizontal, Pencil, Trash2, ExternalLink } from "lucide-react";
 import { useEditList } from "./edit-list-dialog";
 import { api } from "@/trpc/react";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/hooks/use-toast";
-import { TRPCClientError } from "@trpc/client";
 import { useState } from "react";
 import { DeleteConfirmDialog } from "@/components/delete-confirm-dialog";
 import {
@@ -49,7 +48,7 @@ export function DataTableRowActions({ list }: DataTableRowActionsProps) {
         title: "List deleted",
       });
     },
-    onError: (error) => {
+    onError: () => {
       toast({
         title: "Failed to delete list",
         description: "An unexpected error occurred",
@@ -76,6 +75,12 @@ export function DataTableRowActions({ list }: DataTableRowActionsProps) {
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
+          <DropdownMenuItem
+            onClick={() => router.push(`/dashboard/lists/${list.id}`)}
+          >
+            <ExternalLink className="mr-2 h-4 w-4" />
+            Manage
+          </DropdownMenuItem>
           <DropdownMenuItem onClick={() => editList(list.id)}>
             <Pencil className="mr-2 h-4 w-4" />
             Edit

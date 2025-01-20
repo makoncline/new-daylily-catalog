@@ -11,6 +11,7 @@ import "react-image-crop/dist/ReactCrop.css";
 import { Button } from "./ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
+import Image from "next/image";
 
 async function getCroppedBlob(
   image: HTMLImageElement,
@@ -181,12 +182,15 @@ export function ImageCropper({
           )}
           style={{ display: "block" }}
         >
-          <img
+          <Image
             ref={imageRef}
             src={src}
             alt="Crop preview"
             onLoad={handleImageLoad}
             className="block max-h-[500px] w-full object-contain"
+            width={1920}
+            height={1080}
+            unoptimized
           />
         </ReactCrop>
       </div>

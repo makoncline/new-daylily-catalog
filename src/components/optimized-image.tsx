@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import Image from "next/image";
 import { env } from "@/env.js";
 import { cn } from "@/lib/utils";
 import { logError } from "@/lib/error-utils";
@@ -103,28 +104,6 @@ export function OptimizedImage({
       ? IMAGE_CONFIG.SIZES.THUMBNAIL
       : IMAGE_CONFIG.SIZES.FULL;
 
-  // Generate image URLs using the Cloudflare loader
-  const blurUrl = cloudflareLoader({
-    src,
-    width: IMAGE_CONFIG.BLUR.SIZE,
-    quality: IMAGE_CONFIG.BLUR.QUALITY,
-    fit,
-  });
-
-  const transformedUrl = cloudflareLoader({
-    src,
-    width: dimension,
-    // Use lower quality for thumbnails, high quality for full size
-    quality:
-      size === "thumbnail"
-        ? IMAGE_CONFIG.QUALITY.LOW
-        : IMAGE_CONFIG.QUALITY.HIGH,
-    fit,
-  });
-
-  // Use transformed URL first, fall back to original src if transform fails
-  const imageUrl = transformError ? src : transformedUrl;
-
   const handleLoad = React.useCallback(() => {
     if (process.env.NODE_ENV === "development") {
       // Random delay between MIN and MAX in development
@@ -145,69 +124,82 @@ export function OptimizedImage({
     }
   }, []);
 
-  const handleTransformError = React.useCallback(
-    (event: React.SyntheticEvent<HTMLImageElement>) => {
-      if (!transformError) {
-        setTransformError(true);
+  const handleError = React.useCallback(() => {
+    if (!transformError) {
+      setTransformError(true);
 
-        const error = new CloudflareTransformError(
-          "Cloudflare image transform failed",
-          {
-            src,
-            transformedUrl,
-            size,
-            fit,
-          },
-        );
+      const transformedUrl = cloudflareLoader({
+        src,
+        width: dimension,
+        quality:
+          size === "thumbnail"
+            ? IMAGE_CONFIG.QUALITY.LOW
+            : IMAGE_CONFIG.QUALITY.HIGH,
+        fit,
+      });
 
-        // Log with component stack trace
-        logError(error, {
-          componentStack: `
+      const cfError = new CloudflareTransformError(
+        "Cloudflare image transform failed",
+        {
+          src,
+          transformedUrl,
+          size,
+          fit,
+        },
+      );
+
+      logError(cfError, {
+        componentStack: `
           at OptimizedImage
-          at img (${(event.target as HTMLImageElement).src})
+          at Image (${src})
         `,
-        });
-      }
-    },
-    [transformError, src, transformedUrl, size, fit],
-  );
+      });
+    }
+  }, [transformError, src, dimension, size, fit]);
 
-  // Common image classes
-  const imageClasses = cn(
-    "h-full w-full transition-opacity duration-300",
-    `object-${fit}`,
-  );
+  // Get the transformed URL for the main image
+  const imageUrl = cloudflareLoader({
+    src,
+    width: dimension,
+    quality:
+      size === "thumbnail"
+        ? IMAGE_CONFIG.QUALITY.LOW
+        : IMAGE_CONFIG.QUALITY.HIGH,
+    fit,
+  });
+
+  // Get the transformed URL for the blur placeholder
+  const blurUrl = cloudflareLoader({
+    src,
+    width: IMAGE_CONFIG.BLUR.SIZE,
+    quality: IMAGE_CONFIG.BLUR.QUALITY,
+    fit,
+  });
 
   return (
     <div
       className={cn(
-        "relative overflow-hidden bg-muted",
-        size === "thumbnail" ? "h-[200px] w-[200px]" : "h-[800px] w-[800px]",
+        "relative aspect-square w-full overflow-hidden bg-muted",
         className,
       )}
       {...props}
     >
-      {/* Blur placeholder */}
-      <img
-        src={transformError ? src : blurUrl}
-        alt={alt}
-        className={cn(imageClasses, isLoading ? "opacity-100" : "opacity-0")}
-        aria-hidden="true"
-        onError={handleTransformError}
-      />
-
-      {/* Main image */}
-      <img
+      <Image
         src={imageUrl}
         alt={alt}
+        width={dimension}
+        height={dimension}
         className={cn(
-          imageClasses,
-          "absolute inset-0",
+          "h-full w-full transition-opacity duration-300",
+          `object-${fit}`,
           isLoading ? "opacity-0" : "opacity-100",
         )}
-        onLoad={handleLoad}
-        onError={handleTransformError}
-        loading={priority ? "eager" : "lazy"}
+        onLoadingComplete={handleLoad}
+        onError={handleError}
+        priority={priority}
+        unoptimized
+        placeholder="blur"
+        blurDataURL={blurUrl}
       />
     </div>
   );

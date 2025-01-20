@@ -26,7 +26,7 @@ export function CreateListButton() {
         intro: "",
       });
       editList(list.id);
-    } catch (error) {
+    } catch {
       // Error is already handled by the mutation's onError
     }
   };

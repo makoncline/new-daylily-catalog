@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { type Column } from "@tanstack/react-table";
+import { type Column, type Table } from "@tanstack/react-table";
 import { Check, PlusCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
@@ -23,34 +23,29 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { TruncatedListBadge } from "./truncated-list-badge";
 
-interface DataTableFacetedFilterProps<TData, TValue> {
-  column?: Column<TData, TValue>;
+interface DataTableFacetedFilterProps<TData> {
+  column?: Column<TData>;
   title?: string;
   options: {
     label: string;
     value: string;
     icon?: React.ComponentType<{ className?: string }>;
   }[];
-  table: any;
+  table: Table<TData>;
 }
 
-export function DataTableFacetedFilter<TData, TValue>({
+export function DataTableFacetedFilter<TData>({
   column,
   title,
   options,
   table,
-}: DataTableFacetedFilterProps<TData, TValue>) {
-  const facets = column?.getFacetedUniqueValues();
+}: DataTableFacetedFilterProps<TData>) {
   const selectedValues = new Set(column?.getFilterValue() as string[]);
 
   return (
     <Popover>
       <PopoverTrigger asChild>
-        <Button
-          variant="outline"
-          size="sm"
-          className="h-8 border-dashed hover:bg-muted/50"
-        >
+        <Button variant="outline" size="sm" className="h-8 border-dashed">
           <PlusCircle className="mr-2 h-4 w-4" />
           {title}
           {selectedValues?.size > 0 && (
@@ -107,9 +102,8 @@ export function DataTableFacetedFilter<TData, TValue>({
                       column?.setFilterValue(
                         filterValues.length ? filterValues : undefined,
                       );
-                      table.resetPagination(true);
+                      table.resetPagination();
                     }}
-                    className="hover:bg-muted/50"
                   >
                     <div
                       className={cn(
@@ -125,11 +119,6 @@ export function DataTableFacetedFilter<TData, TValue>({
                       <option.icon className="mr-2 h-4 w-4 text-muted-foreground" />
                     )}
                     <span>{option.label}</span>
-                    {facets?.get(option.value) && (
-                      <span className="ml-auto flex h-4 w-4 items-center justify-center font-mono text-xs">
-                        {facets.get(option.value)}
-                      </span>
-                    )}
                   </CommandItem>
                 );
               })}
@@ -141,9 +130,9 @@ export function DataTableFacetedFilter<TData, TValue>({
                   <CommandItem
                     onSelect={() => {
                       column?.setFilterValue(undefined);
-                      table.resetPagination(true);
+                      table.resetPagination();
                     }}
-                    className="justify-center text-center hover:bg-muted/50"
+                    className="justify-center text-center"
                   >
                     Clear filters
                   </CommandItem>

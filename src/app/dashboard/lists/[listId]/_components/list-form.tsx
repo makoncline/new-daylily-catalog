@@ -6,7 +6,6 @@ import { listFormSchema } from "@/types/schemas/list";
 import {
   Form,
   FormControl,
-  FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -79,23 +78,21 @@ export function ListForm({ listId }: ListFormProps) {
 
   return (
     <Form {...form}>
-      <form className="space-y-6">
+      <form className="space-y-4">
         <FormField
           control={form.control}
           name="name"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Name</FormLabel>
+              <FormLabel>List Name</FormLabel>
               <FormControl>
                 <Input
                   {...field}
                   onBlur={() => onFieldBlur("name")}
                   disabled={isPending}
+                  className="text-xl font-semibold"
                 />
               </FormControl>
-              <FormDescription>
-                Required: Add a name for your list.
-              </FormDescription>
               <FormMessage />
             </FormItem>
           )}
@@ -113,11 +110,9 @@ export function ListForm({ listId }: ListFormProps) {
                   onBlur={() => onFieldBlur("intro")}
                   placeholder="Add a description for your list..."
                   disabled={isPending}
+                  className="resize-none text-muted-foreground"
                 />
               </FormControl>
-              <FormDescription>
-                Optional: Add a description for your list.
-              </FormDescription>
               <FormMessage />
             </FormItem>
           )}

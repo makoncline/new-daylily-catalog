@@ -9,7 +9,6 @@ import { ImagePreviewTooltip } from "@/components/data-table/image-preview-toolt
 import { COLUMN_NAMES } from "@/config/constants";
 import { formatPrice } from "@/lib/utils";
 import { type Row, type ColumnDef } from "@tanstack/react-table";
-import { type ListingRouterOutputs } from "@/server/api/routers/listing";
 import { TruncatedListBadge } from "@/components/data-table/truncated-list-badge";
 import { Image } from "lucide-react";
 import {
@@ -18,8 +17,9 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { type RouterOutputs } from "@/trpc/react";
 
-type ListingData = ListingRouterOutputs["list"][number];
+type ListingData = RouterOutputs["listing"]["list"][number];
 type ListingRow = Row<ListingData>;
 
 /**
@@ -33,7 +33,7 @@ const getStringValue = (row: ListingRow, key: string): string | null => {
 
 export function getColumns(
   onEdit: (id: string) => void,
-): ColumnDef<ListingRouterOutputs["list"][number]>[] {
+): ColumnDef<ListingData>[] {
   return [
     {
       id: "name",
@@ -59,8 +59,13 @@ export function getColumns(
           title={
             <TooltipProvider>
               <Tooltip>
-                <TooltipTrigger>
-                  <Image className="h-4 w-4 text-muted-foreground" />
+                <TooltipTrigger asChild>
+                  <span className="flex items-center">
+                    <Image
+                      className="h-4 w-4 text-muted-foreground"
+                      aria-label="Sort by images"
+                    />
+                  </span>
                 </TooltipTrigger>
                 <TooltipContent>Sort by images</TooltipContent>
               </Tooltip>
@@ -125,34 +130,30 @@ export function getColumns(
     },
     {
       id: "lists",
-      accessorFn: (row) => row.lists.map((list) => list.id),
-      enableColumnFilter: true,
-      header: ({ column }) => (
-        <DataTableColumnHeader column={column} title="Lists" />
-      ),
+      accessorKey: "lists",
+      header: "Lists",
       cell: ({ row }) => {
         const lists = row.original.lists;
-        if (!lists?.length) return null;
+        if (!lists || lists.length === 0) return null;
 
         return (
-          <div className="max-w-[300px] overflow-x-auto">
-            <div className="flex gap-1 py-1">
-              {lists.map((list) => (
-                <TruncatedListBadge
-                  key={list.id}
-                  name={list.name}
-                  className="shrink-0 text-xs font-normal"
-                />
-              ))}
-            </div>
+          <div className="flex items-center gap-2">
+            {lists.map((list) => (
+              <TruncatedListBadge
+                key={list.id}
+                name={list.name}
+                className="shrink-0 text-xs font-normal"
+              />
+            ))}
           </div>
         );
       },
-      filterFn: (row, id, filterValue) => {
-        if (!filterValue?.length) return true;
-        const rowValue = row.original;
-        return rowValue.lists.some((list) => filterValue.includes(list.id));
+      filterFn: (row, id, filterValue: string[]) => {
+        if (!filterValue.length) return true;
+        return row.original.lists.some((list) => filterValue.includes(list.id));
       },
+      enableSorting: true,
+      enableHiding: true,
     },
 
     // AHS Listing columns

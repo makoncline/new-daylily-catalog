@@ -83,7 +83,7 @@ export function ProfileForm({ initialProfile }: ProfileFormProps) {
 
   return (
     <Form {...form}>
-      <form>
+      <form className="space-y-6">
         <FormItem>
           <FormLabel>Profile Images</FormLabel>
           <FormDescription>

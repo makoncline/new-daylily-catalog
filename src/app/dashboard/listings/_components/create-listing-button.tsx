@@ -23,7 +23,7 @@ export function CreateListingButton() {
     try {
       const listing = await createListing.mutateAsync();
       editListing(listing.id);
-    } catch (error) {
+    } catch {
       // Error is already handled by the mutation's onError
     }
   };

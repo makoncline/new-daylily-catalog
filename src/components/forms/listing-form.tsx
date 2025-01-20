@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { type ListingRouterOutputs } from "@/server/api/routers/listing";
 import {
   listingFormSchema,
   transformNullToUndefined,
@@ -43,7 +42,7 @@ export function ListingForm({ listingId, onDelete }: ListingFormProps) {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
 
   const updateListingMutation = api.listing.update.useMutation({
-    onSuccess: (updatedListing) => {
+    onSuccess: () => {
       toast({
         title: "Changes saved",
       });
@@ -106,7 +105,7 @@ export function ListingForm({ listingId, onDelete }: ListingFormProps) {
     if (value !== initialValue) {
       setIsPending(true);
       try {
-        const updatedListing = await updateListingMutation.mutateAsync({
+        await updateListingMutation.mutateAsync({
           id: listing.id,
           data: {
             [field]: value,

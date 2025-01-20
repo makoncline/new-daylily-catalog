@@ -61,7 +61,7 @@ async function checkImageOwnership(
   return image;
 }
 
-const listingInclude = {
+export const listingInclude = {
   ahsListing: true,
   images: {
     orderBy: { order: "asc" },

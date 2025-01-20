@@ -2,6 +2,7 @@ import { z } from "zod";
 import { createTRPCRouter, protectedProcedure } from "../trpc";
 import { TRPCError } from "@trpc/server";
 import { listFormSchema, listUpdateSchema } from "@/types/schemas/list";
+import { listingInclude } from "./listing";
 
 const listInclude = {
   id: true,
@@ -153,6 +154,98 @@ export const listRouter = createTRPCRouter({
         if (error instanceof TRPCError) throw error;
         console.error("Error deleting list:", error);
         throw new Error("Failed to delete list");
+      }
+    }),
+
+  getListings: protectedProcedure
+    .input(z.object({ id: z.string() }))
+    .query(async ({ ctx, input }) => {
+      try {
+        const list = await ctx.db.list.findUnique({
+          where: {
+            id: input.id,
+            userId: ctx.user.id,
+          },
+          include: {
+            listings: {
+              include: listingInclude,
+            },
+          },
+        });
+
+        if (!list) {
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "List not found",
+          });
+        }
+
+        return list.listings;
+      } catch (error) {
+        console.error("Error fetching list listings:", error);
+        throw new Error("Failed to fetch list listings");
+      }
+    }),
+
+  addListings: protectedProcedure
+    .input(
+      z.object({
+        listId: z.string(),
+        listingIds: z.array(z.string()),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      try {
+        const list = await ctx.db.list.update({
+          where: {
+            id: input.listId,
+            userId: ctx.user.id,
+          },
+          data: {
+            listings: {
+              connect: input.listingIds.map((id) => ({ id })),
+            },
+          },
+          include: {
+            listings: true,
+          },
+        });
+
+        return list.listings;
+      } catch (error) {
+        console.error("Error adding listings to list:", error);
+        throw new Error("Failed to add listings to list");
+      }
+    }),
+
+  removeListings: protectedProcedure
+    .input(
+      z.object({
+        listId: z.string(),
+        listingIds: z.array(z.string()),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      try {
+        const list = await ctx.db.list.update({
+          where: {
+            id: input.listId,
+            userId: ctx.user.id,
+          },
+          data: {
+            listings: {
+              disconnect: input.listingIds.map((id) => ({ id })),
+            },
+          },
+          include: {
+            listings: true,
+          },
+        });
+
+        return list.listings;
+      } catch (error) {
+        console.error("Error removing listings from list:", error);
+        throw new Error("Failed to remove listings from list");
       }
     }),
 });
