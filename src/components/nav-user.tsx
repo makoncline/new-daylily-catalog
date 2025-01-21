@@ -1,7 +1,7 @@
 "use client";
 
 import { BadgeCheck, ChevronsUpDown, LogOut } from "lucide-react";
-import { SignOutButton, useClerk } from "@clerk/nextjs";
+import { SignOutButton } from "@clerk/nextjs";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   DropdownMenu,
@@ -20,6 +20,8 @@ import {
 } from "@/components/ui/sidebar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { StripeButton } from "@/components/stripe-portal-button";
+import { useSetAtom } from "jotai";
+import { isClerkUserProfileOpenAtom } from "./clerk-user-profile-dialog";
 
 export interface NavUserProps {
   user: {
@@ -30,8 +32,7 @@ export interface NavUserProps {
 
 export function NavUser({ user }: NavUserProps) {
   const { isMobile } = useSidebar();
-  const { openUserProfile } = useClerk();
-  const { setOpenMobile } = useSidebar();
+  const setIsClerkUserProfileOpen = useSetAtom(isClerkUserProfileOpenAtom);
 
   return (
     <SidebarMenu>
@@ -81,8 +82,7 @@ export function NavUser({ user }: NavUserProps) {
             <DropdownMenuGroup>
               <DropdownMenuItem
                 onClick={() => {
-                  setOpenMobile(false);
-                  openUserProfile();
+                  setIsClerkUserProfileOpen(true);
                 }}
               >
                 <BadgeCheck className="mr-2 h-4 w-4" />
