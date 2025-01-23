@@ -5,9 +5,13 @@ import { SignInButton } from "@clerk/nextjs";
 import { SignedIn, SignedOut } from "@clerk/nextjs";
 import { Button } from "@/components/ui/button";
 
-export function DashboardNav() {
+export function PublicdNav() {
   return (
-    <div>
+    <div className="flex items-center gap-4">
+      <Button variant="ghost" asChild>
+        <Link href="/catalogs">Catalogs</Link>
+      </Button>
+
       <SignedIn>
         <Button asChild>
           <Link href="/dashboard">Dashboard</Link>

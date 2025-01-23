@@ -3,10 +3,15 @@
 import * as React from "react";
 import type { Table } from "@tanstack/react-table";
 import { Input } from "@/components/ui/input";
+import { Skeleton } from "@/components/ui/skeleton";
 
 interface DataTableGlobalFilterProps<TData> {
   table: Table<TData>;
   placeholder?: string;
+}
+
+export function DataTableGlobalFilterSkeleton() {
+  return <Skeleton className="h-8 w-[150px] lg:w-[250px]" />;
 }
 
 export function DataTableGlobalFilter<TData>({

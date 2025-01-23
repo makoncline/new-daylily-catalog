@@ -4,6 +4,7 @@ import { api } from "@/trpc/react";
 import { useRouter } from "next/navigation";
 import { Sparkles } from "lucide-react";
 import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
+import { hasActiveSubscription } from "@/server/stripe/subscription-utils";
 
 export function StripeCheckoutButton() {
   const router = useRouter();
@@ -69,10 +70,7 @@ export function StripeButton() {
     );
   }
 
-  const hasActiveSubscription =
-    subscription?.status === "active" || subscription?.status === "trialing";
-
-  if (hasActiveSubscription) {
+  if (hasActiveSubscription(subscription?.status)) {
     return <StripePortalButton />;
   }
 

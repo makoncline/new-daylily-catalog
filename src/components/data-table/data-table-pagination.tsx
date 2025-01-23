@@ -15,12 +15,38 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { TABLE_CONFIG } from "@/config/constants";
+import { Skeleton } from "@/components/ui/skeleton";
 
-const { PAGE_SIZE_OPTIONS } = TABLE_CONFIG.PAGINATION;
+const PAGE_SIZE_OPTIONS = [6, 12, 24, 36];
 
 interface DataTablePaginationProps<TData> {
   table: Table<TData>;
+}
+
+export function DataTablePaginationSkeleton() {
+  return (
+    <div className="flex items-center justify-between px-2">
+      <div className="flex-1" />
+      <div className="flex items-center space-x-6 lg:space-x-8">
+        {/* Page size dropdown */}
+        <div className="flex items-center space-x-2">
+          <Skeleton className="h-4 w-[100px]" />
+          <Skeleton className="h-8 w-[70px]" />
+        </div>
+
+        {/* Page info */}
+        <Skeleton className="h-4 w-[100px]" />
+
+        {/* Navigation buttons */}
+        <div className="flex items-center space-x-2">
+          <Skeleton className="hidden h-8 w-8 lg:flex" />
+          <Skeleton className="h-8 w-8" />
+          <Skeleton className="h-8 w-8" />
+          <Skeleton className="hidden h-8 w-8 lg:flex" />
+        </div>
+      </div>
+    </div>
+  );
 }
 
 export function DataTablePagination<TData>({

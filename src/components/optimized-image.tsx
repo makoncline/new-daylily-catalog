@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import Image from "next/image";
+import Image, { type ImageProps } from "next/image";
 import { env } from "@/env.js";
 import { cn } from "@/lib/utils";
 import { logError } from "@/lib/error-utils";
@@ -25,7 +25,7 @@ const IMAGE_CONFIG = {
   FORMAT: "auto" as const,
   DEBUG: {
     BLUR_DELAY: {
-      MIN: 100,
+      MIN: 500,
       MAX: 1000,
     },
   },
@@ -83,7 +83,7 @@ interface OptimizedImageProps extends React.HTMLAttributes<HTMLDivElement> {
   size?: "thumbnail" | "full";
   className?: string;
   priority?: boolean;
-  fit?: "scale-down" | "contain" | "cover" | "crop" | "pad";
+  fit?: "contain" | "cover";
 }
 
 export function OptimizedImage({
@@ -157,7 +157,7 @@ export function OptimizedImage({
     }
   }, [transformError, src, dimension, size, fit]);
 
-  // Get the transformed URL for the main image
+  // Get the transformed URLs
   const imageUrl = cloudflareLoader({
     src,
     width: dimension,
@@ -168,13 +168,23 @@ export function OptimizedImage({
     fit,
   });
 
-  // Get the transformed URL for the blur placeholder
   const blurUrl = cloudflareLoader({
     src,
     width: IMAGE_CONFIG.BLUR.SIZE,
     quality: IMAGE_CONFIG.BLUR.QUALITY,
     fit,
   });
+
+  // Props specific to main image
+  const sharedImageProps = {
+    priority,
+    style: { objectFit: fit },
+    width: dimension,
+    height: dimension,
+    unoptimized: true,
+    onLoad: handleLoad,
+    onError: handleError,
+  };
 
   return (
     <div
@@ -184,22 +194,26 @@ export function OptimizedImage({
       )}
       {...props}
     >
+      {/* Blur placeholder */}
       <Image
-        src={imageUrl}
+        {...sharedImageProps}
         alt={alt}
-        width={dimension}
-        height={dimension}
+        src={blurUrl}
         className={cn(
-          "h-full w-full transition-opacity duration-300",
-          `object-${fit}`,
+          "absolute inset-0 h-full w-full scale-110 transform-gpu blur-xl",
+          isLoading ? "opacity-100" : "opacity-0",
+        )}
+      />
+
+      {/* Main image */}
+      <Image
+        {...sharedImageProps}
+        alt={alt}
+        src={imageUrl}
+        className={cn(
+          "relative h-full w-full transition-opacity duration-300",
           isLoading ? "opacity-0" : "opacity-100",
         )}
-        onLoad={handleLoad}
-        onError={handleError}
-        priority={priority}
-        unoptimized
-        placeholder="blur"
-        blurDataURL={blurUrl}
       />
     </div>
   );

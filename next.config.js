@@ -5,6 +5,10 @@
 await import("./src/env.js");
 
 /** @type {import("next").NextConfig} */
-const config = {};
+const config = {
+  images: {
+    remotePatterns: [{ hostname: "daylilycatalog.com" }],
+  },
+};
 
 export default config;
