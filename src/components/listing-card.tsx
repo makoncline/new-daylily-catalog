@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { ImageIcon } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { OptimizedImage } from "@/components/optimized-image";
@@ -28,21 +29,20 @@ export function ListingCard({ listing }: ListingCardProps) {
     <Link href={`/catalogs/${listing.userId}/listings/${listing.id}`}>
       <Card className="group flex h-full flex-col overflow-hidden">
         <div className="relative">
-          {firstImage ? (
-            <OptimizedImage
-              src={firstImage.url}
-              alt={listing.name}
-              size="thumbnail"
-              className="aspect-square"
-            />
-          ) : (
-            <OptimizedImage
-              src="/images/placeholder.jpg"
-              alt="No image available"
-              size="thumbnail"
-              className="aspect-square"
-            />
-          )}
+          <div className="aspect-square">
+            {firstImage ? (
+              <OptimizedImage
+                src={firstImage.url}
+                alt={listing.name}
+                size="full"
+                className="object-cover"
+              />
+            ) : (
+              <div className="flex h-full w-full items-center justify-center bg-muted">
+                <ImageIcon className="h-10 w-10 text-muted-foreground" />
+              </div>
+            )}
+          </div>
           {listing.price && (
             <Badge className="absolute right-2 top-2">
               {formatPrice(listing.price)}

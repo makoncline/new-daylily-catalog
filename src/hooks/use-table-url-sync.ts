@@ -3,6 +3,7 @@
 import * as React from "react";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { TABLE_CONFIG } from "@/config/constants";
+import { Table } from "@tanstack/react-table";
 
 export function useUrlInitialTableState({
   filterableColumnIds,
@@ -42,70 +43,63 @@ export function useUrlInitialTableState({
   };
 }
 
-export function useTableUrlSync(state: {
-  pagination: { pageSize: number; pageIndex: number };
-  columnFilters: { id: string; value: unknown }[];
-  globalFilter: unknown;
-  meta?: {
-    filterableColumns?: string[];
-  };
-}) {
+export function useTableUrlSync<TData>(table: Table<TData>) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
-  React.useEffect(() => {
-    const params = new URLSearchParams(searchParams);
+  const { pagination, columnFilters, globalFilter } = table.getState();
+  const filterableColumns = table.options.meta?.filterableColumns;
 
-    // Sync pagination
-    if (
-      state.pagination.pageIndex === TABLE_CONFIG.PAGINATION.DEFAULT_PAGE_INDEX
-    ) {
-      params.delete("page");
+  React.useEffect(() => {
+    const url = new URL(window.location.href);
+
+    // Update only the search parameters
+    if (pagination.pageIndex === TABLE_CONFIG.PAGINATION.DEFAULT_PAGE_INDEX) {
+      url.searchParams.delete("page");
     } else {
-      params.set("page", String(state.pagination.pageIndex + 1));
+      url.searchParams.set("page", String(pagination.pageIndex + 1));
     }
 
-    if (
-      state.pagination.pageSize === TABLE_CONFIG.PAGINATION.DEFAULT_PAGE_SIZE
-    ) {
-      params.delete("size");
+    if (pagination.pageSize === TABLE_CONFIG.PAGINATION.DEFAULT_PAGE_SIZE) {
+      url.searchParams.delete("size");
     } else {
-      params.set("size", String(state.pagination.pageSize));
+      url.searchParams.set("size", String(pagination.pageSize));
     }
 
     // First, remove all filterable column params that aren't in the current filters
-    state.meta?.filterableColumns?.forEach((id) => {
-      if (!state.columnFilters.some((filter) => filter.id === id)) {
-        params.delete(id);
+    filterableColumns?.forEach((id) => {
+      if (!columnFilters.some((filter) => filter.id === id)) {
+        url.searchParams.delete(id);
       }
     });
 
     // Then set the current column filters
-    state.columnFilters.forEach((filter) => {
+    columnFilters.forEach((filter) => {
       const value = filter.value as string[];
       if (!value?.length) {
-        params.delete(filter.id);
+        url.searchParams.delete(filter.id);
       } else {
-        params.set(filter.id, value.join(","));
+        url.searchParams.set(filter.id, value.join(","));
       }
     });
 
     // Sync global filter
-    if (!state.globalFilter) {
-      params.delete("query");
+    if (!globalFilter) {
+      url.searchParams.delete("query");
     } else {
-      params.set("query", String(state.globalFilter));
+      url.searchParams.set("query", String(globalFilter));
     }
 
-    router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+    // Replace only the search params portion of the URL
+    router.push(url.href, { scroll: false });
   }, [
-    state.pagination,
-    state.columnFilters,
-    state.globalFilter,
-    state.meta?.filterableColumns,
     pathname,
     router,
     searchParams,
+    pagination,
+    columnFilters,
+    globalFilter,
+    filterableColumns,
   ]);
 }

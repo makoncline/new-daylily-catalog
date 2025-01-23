@@ -166,7 +166,7 @@ export const publicRouter = createTRPCRouter({
         listId: z.string().optional(),
       }),
     )
-    .query(async ({ input }) => {
+    .query(async ({ ctx, input }) => {
       try {
         const listings = await db.listing.findMany({
           where: {
@@ -187,6 +187,12 @@ export const publicRouter = createTRPCRouter({
             publicNote: true,
             price: true,
             userId: true,
+            lists: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
             ahsListing: {
               select: {
                 ahsImageUrl: true,

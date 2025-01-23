@@ -1,6 +1,6 @@
 "use client";
 
-import { MapPin, Flower2, ListChecks } from "lucide-react";
+import { MapPin, Flower2, ListChecks, ImageIcon } from "lucide-react";
 import { OptimizedImage } from "@/components/optimized-image";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -58,7 +58,6 @@ export function UserCard({
   hasActiveSubscription,
   priority = false,
 }: UserCardProps) {
-  const profileImage = images[0]?.url ?? "/placeholders/garden.jpg";
   const gardenName = name ?? "Unnamed Garden";
 
   return (
@@ -66,13 +65,19 @@ export function UserCard({
       <div className="relative">
         <Link href={`/catalogs/${id}`} className="block">
           <div className="aspect-square">
-            <OptimizedImage
-              src={profileImage}
-              alt={`${gardenName} profile image`}
-              size="full"
-              priority={priority}
-              className="object-cover"
-            />
+            {images[0]?.url ? (
+              <OptimizedImage
+                src={images[0].url}
+                alt={`${gardenName} profile image`}
+                size="full"
+                priority={priority}
+                className="object-cover"
+              />
+            ) : (
+              <div className="flex h-full w-full items-center justify-center bg-muted">
+                <ImageIcon className="h-10 w-10 text-muted-foreground" />
+              </div>
+            )}
           </div>
         </Link>
         {hasActiveSubscription && (

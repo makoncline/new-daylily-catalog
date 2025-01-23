@@ -62,7 +62,7 @@ export function useDataTable<TData>({
 
   // Sync table state
   const state = table.getState();
-  useTableUrlSync(state);
+  useTableUrlSync(table);
   useTableLocalStorageSync(state);
 
   return table;
