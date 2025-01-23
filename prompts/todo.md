@@ -1,4 +1,3 @@
-- use cloudflare for images
 - add public profiles for each user
   - public router with queries that we cache for multiple minutes
 - add seo metatags on public pages
