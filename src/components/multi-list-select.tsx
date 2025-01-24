@@ -39,7 +39,7 @@ export function MultiListSelect({
   });
 
   const filteredLists = lists?.filter((list) =>
-    list.name.toLowerCase().includes(searchValue.toLowerCase()),
+    list.title.toLowerCase().includes(searchValue.toLowerCase()),
   );
 
   const selectedLists = lists?.filter((list) => values.includes(list.id));
@@ -60,7 +60,7 @@ export function MultiListSelect({
               ? selectedLists.map((list) => (
                   <TruncatedListBadge
                     key={list.id}
-                    name={list.name}
+                    name={list.title}
                     className="text-xs font-normal"
                   />
                 ))
@@ -103,7 +103,7 @@ export function MultiListSelect({
               <Button
                 variant="ghost"
                 onClick={() => {
-                  createListMutation.mutate({ name: searchValue });
+                  createListMutation.mutate({ title: searchValue });
                 }}
                 className="relative w-full justify-start px-2 py-1.5 font-normal"
               >
@@ -129,7 +129,7 @@ export function MultiListSelect({
                     values.includes(list.id) ? "opacity-100" : "opacity-0",
                   )}
                 />
-                <span>{list.name}</span>
+                <span>{list.title}</span>
               </Button>
             ))}
           </div>

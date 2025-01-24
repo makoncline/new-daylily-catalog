@@ -74,8 +74,8 @@ export function ListActions({ list }: ListActionsProps) {
     updateList.mutate({
       id: list.id,
       data: {
-        name,
-        intro,
+        title: name,
+        description: intro,
       },
     });
   };

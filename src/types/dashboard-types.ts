@@ -1,4 +1,4 @@
-import type { RouterOutputs } from "@/trpc/shared";
+import type { RouterOutputs } from "@/trpc/react";
 import type { LucideIcon } from "lucide-react";
 
 export interface BaseStep {
@@ -9,7 +9,7 @@ export interface BaseStep {
 }
 
 export interface ProfileStep extends BaseStep {
-  id: "hasProfileImage" | "intro" | "bio" | "userLocation";
+  id: "hasProfileImage" | "description" | "content" | "location";
 }
 
 export interface CatalogStep extends BaseStep {

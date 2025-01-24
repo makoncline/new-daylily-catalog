@@ -53,13 +53,13 @@ export function ListForm({ listId }: ListFormProps) {
   // Handle auto-save on blur
   const onFieldBlur = async (field: keyof FormValues) => {
     const value = form.getValues(field);
-    const initialValue = field === "intro" ? (list[field] ?? "") : list[field];
+    const initialValue = field === "title" ? (list[field] ?? "") : list[field];
 
     // Only save if the value has changed
     if (value !== initialValue) {
       setIsPending(true);
       try {
-        if (field === "name") {
+        if (field === "title") {
           if (!value) {
             // Don't update if name is empty
             return;
@@ -68,8 +68,8 @@ export function ListForm({ listId }: ListFormProps) {
           await updateList.mutateAsync({
             id: listId,
             data: {
-              name: value,
-              intro: list.intro ?? undefined,
+              title: value,
+              description: list.description ?? undefined,
             },
           });
         } else {
@@ -77,8 +77,8 @@ export function ListForm({ listId }: ListFormProps) {
           await updateList.mutateAsync({
             id: listId,
             data: {
-              name: list.name,
-              intro: value ?? undefined,
+              title: list.title,
+              description: value ?? undefined,
             },
           });
         }
@@ -93,14 +93,14 @@ export function ListForm({ listId }: ListFormProps) {
       <form className="space-y-6">
         <FormField
           control={form.control}
-          name="name"
+          name="title"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Name</FormLabel>
+              <FormLabel>Title</FormLabel>
               <FormControl>
                 <Input
                   {...field}
-                  onBlur={() => onFieldBlur("name")}
+                  onBlur={() => onFieldBlur("title")}
                   disabled={isPending}
                 />
               </FormControl>
@@ -114,14 +114,14 @@ export function ListForm({ listId }: ListFormProps) {
 
         <FormField
           control={form.control}
-          name="intro"
+          name="description"
           render={({ field }) => (
             <FormItem>
               <FormLabel>Description</FormLabel>
               <FormControl>
                 <Textarea
                   {...field}
-                  onBlur={() => onFieldBlur("intro")}
+                  onBlur={() => onFieldBlur("description")}
                   placeholder="Add a description for your list..."
                   disabled={isPending}
                 />

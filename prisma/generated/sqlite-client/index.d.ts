@@ -2716,11 +2716,12 @@ export namespace Prisma {
   export type ListingMinAggregateOutputType = {
     id: string | null
     userId: string | null
-    name: string | null
+    title: string | null
     price: number | null
-    publicNote: string | null
+    description: string | null
     privateNote: string | null
     ahsId: string | null
+    status: string | null
     createdAt: Date | null
     updatedAt: Date | null
   }
@@ -2728,11 +2729,12 @@ export namespace Prisma {
   export type ListingMaxAggregateOutputType = {
     id: string | null
     userId: string | null
-    name: string | null
+    title: string | null
     price: number | null
-    publicNote: string | null
+    description: string | null
     privateNote: string | null
     ahsId: string | null
+    status: string | null
     createdAt: Date | null
     updatedAt: Date | null
   }
@@ -2740,11 +2742,12 @@ export namespace Prisma {
   export type ListingCountAggregateOutputType = {
     id: number
     userId: number
-    name: number
+    title: number
     price: number
-    publicNote: number
+    description: number
     privateNote: number
     ahsId: number
+    status: number
     createdAt: number
     updatedAt: number
     _all: number
@@ -2762,11 +2765,12 @@ export namespace Prisma {
   export type ListingMinAggregateInputType = {
     id?: true
     userId?: true
-    name?: true
+    title?: true
     price?: true
-    publicNote?: true
+    description?: true
     privateNote?: true
     ahsId?: true
+    status?: true
     createdAt?: true
     updatedAt?: true
   }
@@ -2774,11 +2778,12 @@ export namespace Prisma {
   export type ListingMaxAggregateInputType = {
     id?: true
     userId?: true
-    name?: true
+    title?: true
     price?: true
-    publicNote?: true
+    description?: true
     privateNote?: true
     ahsId?: true
+    status?: true
     createdAt?: true
     updatedAt?: true
   }
@@ -2786,11 +2791,12 @@ export namespace Prisma {
   export type ListingCountAggregateInputType = {
     id?: true
     userId?: true
-    name?: true
+    title?: true
     price?: true
-    publicNote?: true
+    description?: true
     privateNote?: true
     ahsId?: true
+    status?: true
     createdAt?: true
     updatedAt?: true
     _all?: true
@@ -2885,11 +2891,12 @@ export namespace Prisma {
   export type ListingGroupByOutputType = {
     id: string
     userId: string
-    name: string
+    title: string
     price: number | null
-    publicNote: string | null
+    description: string | null
     privateNote: string | null
     ahsId: string | null
+    status: string | null
     createdAt: Date
     updatedAt: Date
     _count: ListingCountAggregateOutputType | null
@@ -2916,11 +2923,12 @@ export namespace Prisma {
   export type ListingSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
     id?: boolean
     userId?: boolean
-    name?: boolean
+    title?: boolean
     price?: boolean
-    publicNote?: boolean
+    description?: boolean
     privateNote?: boolean
     ahsId?: boolean
+    status?: boolean
     createdAt?: boolean
     updatedAt?: boolean
     images?: boolean | Listing$imagesArgs<ExtArgs>
@@ -2933,11 +2941,12 @@ export namespace Prisma {
   export type ListingSelectCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
     id?: boolean
     userId?: boolean
-    name?: boolean
+    title?: boolean
     price?: boolean
-    publicNote?: boolean
+    description?: boolean
     privateNote?: boolean
     ahsId?: boolean
+    status?: boolean
     createdAt?: boolean
     updatedAt?: boolean
     ahsListing?: boolean | Listing$ahsListingArgs<ExtArgs>
@@ -2947,11 +2956,12 @@ export namespace Prisma {
   export type ListingSelectScalar = {
     id?: boolean
     userId?: boolean
-    name?: boolean
+    title?: boolean
     price?: boolean
-    publicNote?: boolean
+    description?: boolean
     privateNote?: boolean
     ahsId?: boolean
+    status?: boolean
     createdAt?: boolean
     updatedAt?: boolean
   }
@@ -2979,11 +2989,12 @@ export namespace Prisma {
     scalars: $Extensions.GetPayloadResult<{
       id: string
       userId: string
-      name: string
+      title: string
       price: number | null
-      publicNote: string | null
+      description: string | null
       privateNote: string | null
       ahsId: string | null
+      status: string | null
       createdAt: Date
       updatedAt: Date
     }, ExtArgs["result"]["listing"]>
@@ -3385,11 +3396,12 @@ export namespace Prisma {
   interface ListingFieldRefs {
     readonly id: FieldRef<"Listing", 'String'>
     readonly userId: FieldRef<"Listing", 'String'>
-    readonly name: FieldRef<"Listing", 'String'>
+    readonly title: FieldRef<"Listing", 'String'>
     readonly price: FieldRef<"Listing", 'Float'>
-    readonly publicNote: FieldRef<"Listing", 'String'>
+    readonly description: FieldRef<"Listing", 'String'>
     readonly privateNote: FieldRef<"Listing", 'String'>
     readonly ahsId: FieldRef<"Listing", 'String'>
+    readonly status: FieldRef<"Listing", 'String'>
     readonly createdAt: FieldRef<"Listing", 'DateTime'>
     readonly updatedAt: FieldRef<"Listing", 'DateTime'>
   }
@@ -3790,9 +3802,9 @@ export namespace Prisma {
   export type ListMinAggregateOutputType = {
     id: string | null
     userId: string | null
-    name: string | null
-    intro: string | null
-    bio: string | null
+    title: string | null
+    description: string | null
+    status: string | null
     createdAt: Date | null
     updatedAt: Date | null
   }
@@ -3800,9 +3812,9 @@ export namespace Prisma {
   export type ListMaxAggregateOutputType = {
     id: string | null
     userId: string | null
-    name: string | null
-    intro: string | null
-    bio: string | null
+    title: string | null
+    description: string | null
+    status: string | null
     createdAt: Date | null
     updatedAt: Date | null
   }
@@ -3810,9 +3822,9 @@ export namespace Prisma {
   export type ListCountAggregateOutputType = {
     id: number
     userId: number
-    name: number
-    intro: number
-    bio: number
+    title: number
+    description: number
+    status: number
     createdAt: number
     updatedAt: number
     _all: number
@@ -3822,9 +3834,9 @@ export namespace Prisma {
   export type ListMinAggregateInputType = {
     id?: true
     userId?: true
-    name?: true
-    intro?: true
-    bio?: true
+    title?: true
+    description?: true
+    status?: true
     createdAt?: true
     updatedAt?: true
   }
@@ -3832,9 +3844,9 @@ export namespace Prisma {
   export type ListMaxAggregateInputType = {
     id?: true
     userId?: true
-    name?: true
-    intro?: true
-    bio?: true
+    title?: true
+    description?: true
+    status?: true
     createdAt?: true
     updatedAt?: true
   }
@@ -3842,9 +3854,9 @@ export namespace Prisma {
   export type ListCountAggregateInputType = {
     id?: true
     userId?: true
-    name?: true
-    intro?: true
-    bio?: true
+    title?: true
+    description?: true
+    status?: true
     createdAt?: true
     updatedAt?: true
     _all?: true
@@ -3925,9 +3937,9 @@ export namespace Prisma {
   export type ListGroupByOutputType = {
     id: string
     userId: string
-    name: string
-    intro: string | null
-    bio: string | null
+    title: string
+    description: string | null
+    status: string | null
     createdAt: Date
     updatedAt: Date
     _count: ListCountAggregateOutputType | null
@@ -3952,9 +3964,9 @@ export namespace Prisma {
   export type ListSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
     id?: boolean
     userId?: boolean
-    name?: boolean
-    intro?: boolean
-    bio?: boolean
+    title?: boolean
+    description?: boolean
+    status?: boolean
     createdAt?: boolean
     updatedAt?: boolean
     listings?: boolean | List$listingsArgs<ExtArgs>
@@ -3965,9 +3977,9 @@ export namespace Prisma {
   export type ListSelectCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
     id?: boolean
     userId?: boolean
-    name?: boolean
-    intro?: boolean
-    bio?: boolean
+    title?: boolean
+    description?: boolean
+    status?: boolean
     createdAt?: boolean
     updatedAt?: boolean
     user?: boolean | UserDefaultArgs<ExtArgs>
@@ -3976,9 +3988,9 @@ export namespace Prisma {
   export type ListSelectScalar = {
     id?: boolean
     userId?: boolean
-    name?: boolean
-    intro?: boolean
-    bio?: boolean
+    title?: boolean
+    description?: boolean
+    status?: boolean
     createdAt?: boolean
     updatedAt?: boolean
   }
@@ -4001,9 +4013,9 @@ export namespace Prisma {
     scalars: $Extensions.GetPayloadResult<{
       id: string
       userId: string
-      name: string
-      intro: string | null
-      bio: string | null
+      title: string
+      description: string | null
+      status: string | null
       createdAt: Date
       updatedAt: Date
     }, ExtArgs["result"]["list"]>
@@ -4403,9 +4415,9 @@ export namespace Prisma {
   interface ListFieldRefs {
     readonly id: FieldRef<"List", 'String'>
     readonly userId: FieldRef<"List", 'String'>
-    readonly name: FieldRef<"List", 'String'>
-    readonly intro: FieldRef<"List", 'String'>
-    readonly bio: FieldRef<"List", 'String'>
+    readonly title: FieldRef<"List", 'String'>
+    readonly description: FieldRef<"List", 'String'>
+    readonly status: FieldRef<"List", 'String'>
     readonly createdAt: FieldRef<"List", 'DateTime'>
     readonly updatedAt: FieldRef<"List", 'DateTime'>
   }
@@ -4771,10 +4783,12 @@ export namespace Prisma {
   export type UserProfileMinAggregateOutputType = {
     id: string | null
     userId: string | null
+    title: string | null
+    slug: string | null
     logoUrl: string | null
-    intro: string | null
-    bio: string | null
-    userLocation: string | null
+    description: string | null
+    content: string | null
+    location: string | null
     createdAt: Date | null
     updatedAt: Date | null
   }
@@ -4782,10 +4796,12 @@ export namespace Prisma {
   export type UserProfileMaxAggregateOutputType = {
     id: string | null
     userId: string | null
+    title: string | null
+    slug: string | null
     logoUrl: string | null
-    intro: string | null
-    bio: string | null
-    userLocation: string | null
+    description: string | null
+    content: string | null
+    location: string | null
     createdAt: Date | null
     updatedAt: Date | null
   }
@@ -4793,10 +4809,12 @@ export namespace Prisma {
   export type UserProfileCountAggregateOutputType = {
     id: number
     userId: number
+    title: number
+    slug: number
     logoUrl: number
-    intro: number
-    bio: number
-    userLocation: number
+    description: number
+    content: number
+    location: number
     createdAt: number
     updatedAt: number
     _all: number
@@ -4806,10 +4824,12 @@ export namespace Prisma {
   export type UserProfileMinAggregateInputType = {
     id?: true
     userId?: true
+    title?: true
+    slug?: true
     logoUrl?: true
-    intro?: true
-    bio?: true
-    userLocation?: true
+    description?: true
+    content?: true
+    location?: true
     createdAt?: true
     updatedAt?: true
   }
@@ -4817,10 +4837,12 @@ export namespace Prisma {
   export type UserProfileMaxAggregateInputType = {
     id?: true
     userId?: true
+    title?: true
+    slug?: true
     logoUrl?: true
-    intro?: true
-    bio?: true
-    userLocation?: true
+    description?: true
+    content?: true
+    location?: true
     createdAt?: true
     updatedAt?: true
   }
@@ -4828,10 +4850,12 @@ export namespace Prisma {
   export type UserProfileCountAggregateInputType = {
     id?: true
     userId?: true
+    title?: true
+    slug?: true
     logoUrl?: true
-    intro?: true
-    bio?: true
-    userLocation?: true
+    description?: true
+    content?: true
+    location?: true
     createdAt?: true
     updatedAt?: true
     _all?: true
@@ -4912,10 +4936,12 @@ export namespace Prisma {
   export type UserProfileGroupByOutputType = {
     id: string
     userId: string
+    title: string | null
+    slug: string | null
     logoUrl: string | null
-    intro: string | null
-    bio: string | null
-    userLocation: string | null
+    description: string | null
+    content: string | null
+    location: string | null
     createdAt: Date
     updatedAt: Date
     _count: UserProfileCountAggregateOutputType | null
@@ -4940,10 +4966,12 @@ export namespace Prisma {
   export type UserProfileSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
     id?: boolean
     userId?: boolean
+    title?: boolean
+    slug?: boolean
     logoUrl?: boolean
-    intro?: boolean
-    bio?: boolean
-    userLocation?: boolean
+    description?: boolean
+    content?: boolean
+    location?: boolean
     createdAt?: boolean
     updatedAt?: boolean
     user?: boolean | UserDefaultArgs<ExtArgs>
@@ -4954,10 +4982,12 @@ export namespace Prisma {
   export type UserProfileSelectCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
     id?: boolean
     userId?: boolean
+    title?: boolean
+    slug?: boolean
     logoUrl?: boolean
-    intro?: boolean
-    bio?: boolean
-    userLocation?: boolean
+    description?: boolean
+    content?: boolean
+    location?: boolean
     createdAt?: boolean
     updatedAt?: boolean
     user?: boolean | UserDefaultArgs<ExtArgs>
@@ -4966,10 +4996,12 @@ export namespace Prisma {
   export type UserProfileSelectScalar = {
     id?: boolean
     userId?: boolean
+    title?: boolean
+    slug?: boolean
     logoUrl?: boolean
-    intro?: boolean
-    bio?: boolean
-    userLocation?: boolean
+    description?: boolean
+    content?: boolean
+    location?: boolean
     createdAt?: boolean
     updatedAt?: boolean
   }
@@ -4992,10 +5024,12 @@ export namespace Prisma {
     scalars: $Extensions.GetPayloadResult<{
       id: string
       userId: string
+      title: string | null
+      slug: string | null
       logoUrl: string | null
-      intro: string | null
-      bio: string | null
-      userLocation: string | null
+      description: string | null
+      content: string | null
+      location: string | null
       createdAt: Date
       updatedAt: Date
     }, ExtArgs["result"]["userProfile"]>
@@ -5395,10 +5429,12 @@ export namespace Prisma {
   interface UserProfileFieldRefs {
     readonly id: FieldRef<"UserProfile", 'String'>
     readonly userId: FieldRef<"UserProfile", 'String'>
+    readonly title: FieldRef<"UserProfile", 'String'>
+    readonly slug: FieldRef<"UserProfile", 'String'>
     readonly logoUrl: FieldRef<"UserProfile", 'String'>
-    readonly intro: FieldRef<"UserProfile", 'String'>
-    readonly bio: FieldRef<"UserProfile", 'String'>
-    readonly userLocation: FieldRef<"UserProfile", 'String'>
+    readonly description: FieldRef<"UserProfile", 'String'>
+    readonly content: FieldRef<"UserProfile", 'String'>
+    readonly location: FieldRef<"UserProfile", 'String'>
     readonly createdAt: FieldRef<"UserProfile", 'DateTime'>
     readonly updatedAt: FieldRef<"UserProfile", 'DateTime'>
   }
@@ -5777,6 +5813,7 @@ export namespace Prisma {
     order: number | null
     createdAt: Date | null
     updatedAt: Date | null
+    status: string | null
     userProfileId: string | null
     listingId: string | null
   }
@@ -5787,6 +5824,7 @@ export namespace Prisma {
     order: number | null
     createdAt: Date | null
     updatedAt: Date | null
+    status: string | null
     userProfileId: string | null
     listingId: string | null
   }
@@ -5797,6 +5835,7 @@ export namespace Prisma {
     order: number
     createdAt: number
     updatedAt: number
+    status: number
     userProfileId: number
     listingId: number
     _all: number
@@ -5817,6 +5856,7 @@ export namespace Prisma {
     order?: true
     createdAt?: true
     updatedAt?: true
+    status?: true
     userProfileId?: true
     listingId?: true
   }
@@ -5827,6 +5867,7 @@ export namespace Prisma {
     order?: true
     createdAt?: true
     updatedAt?: true
+    status?: true
     userProfileId?: true
     listingId?: true
   }
@@ -5837,6 +5878,7 @@ export namespace Prisma {
     order?: true
     createdAt?: true
     updatedAt?: true
+    status?: true
     userProfileId?: true
     listingId?: true
     _all?: true
@@ -5934,6 +5976,7 @@ export namespace Prisma {
     order: number
     createdAt: Date
     updatedAt: Date
+    status: string | null
     userProfileId: string | null
     listingId: string | null
     _count: ImageCountAggregateOutputType | null
@@ -5963,6 +6006,7 @@ export namespace Prisma {
     order?: boolean
     createdAt?: boolean
     updatedAt?: boolean
+    status?: boolean
     userProfileId?: boolean
     listingId?: boolean
     userProfile?: boolean | Image$userProfileArgs<ExtArgs>
@@ -5975,6 +6019,7 @@ export namespace Prisma {
     order?: boolean
     createdAt?: boolean
     updatedAt?: boolean
+    status?: boolean
     userProfileId?: boolean
     listingId?: boolean
     userProfile?: boolean | Image$userProfileArgs<ExtArgs>
@@ -5987,6 +6032,7 @@ export namespace Prisma {
     order?: boolean
     createdAt?: boolean
     updatedAt?: boolean
+    status?: boolean
     userProfileId?: boolean
     listingId?: boolean
   }
@@ -6012,6 +6058,7 @@ export namespace Prisma {
       order: number
       createdAt: Date
       updatedAt: Date
+      status: string | null
       userProfileId: string | null
       listingId: string | null
     }, ExtArgs["result"]["image"]>
@@ -6414,6 +6461,7 @@ export namespace Prisma {
     readonly order: FieldRef<"Image", 'Int'>
     readonly createdAt: FieldRef<"Image", 'DateTime'>
     readonly updatedAt: FieldRef<"Image", 'DateTime'>
+    readonly status: FieldRef<"Image", 'String'>
     readonly userProfileId: FieldRef<"Image", 'String'>
     readonly listingId: FieldRef<"Image", 'String'>
   }
@@ -8684,11 +8732,12 @@ export namespace Prisma {
   export const ListingScalarFieldEnum: {
     id: 'id',
     userId: 'userId',
-    name: 'name',
+    title: 'title',
     price: 'price',
-    publicNote: 'publicNote',
+    description: 'description',
     privateNote: 'privateNote',
     ahsId: 'ahsId',
+    status: 'status',
     createdAt: 'createdAt',
     updatedAt: 'updatedAt'
   };
@@ -8699,9 +8748,9 @@ export namespace Prisma {
   export const ListScalarFieldEnum: {
     id: 'id',
     userId: 'userId',
-    name: 'name',
-    intro: 'intro',
-    bio: 'bio',
+    title: 'title',
+    description: 'description',
+    status: 'status',
     createdAt: 'createdAt',
     updatedAt: 'updatedAt'
   };
@@ -8712,10 +8761,12 @@ export namespace Prisma {
   export const UserProfileScalarFieldEnum: {
     id: 'id',
     userId: 'userId',
+    title: 'title',
+    slug: 'slug',
     logoUrl: 'logoUrl',
-    intro: 'intro',
-    bio: 'bio',
-    userLocation: 'userLocation',
+    description: 'description',
+    content: 'content',
+    location: 'location',
     createdAt: 'createdAt',
     updatedAt: 'updatedAt'
   };
@@ -8729,6 +8780,7 @@ export namespace Prisma {
     order: 'order',
     createdAt: 'createdAt',
     updatedAt: 'updatedAt',
+    status: 'status',
     userProfileId: 'userProfileId',
     listingId: 'listingId'
   };
@@ -8961,11 +9013,12 @@ export namespace Prisma {
     NOT?: ListingWhereInput | ListingWhereInput[]
     id?: StringFilter<"Listing"> | string
     userId?: StringFilter<"Listing"> | string
-    name?: StringFilter<"Listing"> | string
+    title?: StringFilter<"Listing"> | string
     price?: FloatNullableFilter<"Listing"> | number | null
-    publicNote?: StringNullableFilter<"Listing"> | string | null
+    description?: StringNullableFilter<"Listing"> | string | null
     privateNote?: StringNullableFilter<"Listing"> | string | null
     ahsId?: StringNullableFilter<"Listing"> | string | null
+    status?: StringNullableFilter<"Listing"> | string | null
     createdAt?: DateTimeFilter<"Listing"> | Date | string
     updatedAt?: DateTimeFilter<"Listing"> | Date | string
     images?: ImageListRelationFilter
@@ -8977,11 +9030,12 @@ export namespace Prisma {
   export type ListingOrderByWithRelationInput = {
     id?: SortOrder
     userId?: SortOrder
-    name?: SortOrder
+    title?: SortOrder
     price?: SortOrderInput | SortOrder
-    publicNote?: SortOrderInput | SortOrder
+    description?: SortOrderInput | SortOrder
     privateNote?: SortOrderInput | SortOrder
     ahsId?: SortOrderInput | SortOrder
+    status?: SortOrderInput | SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
     images?: ImageOrderByRelationAggregateInput
@@ -8996,11 +9050,12 @@ export namespace Prisma {
     OR?: ListingWhereInput[]
     NOT?: ListingWhereInput | ListingWhereInput[]
     userId?: StringFilter<"Listing"> | string
-    name?: StringFilter<"Listing"> | string
+    title?: StringFilter<"Listing"> | string
     price?: FloatNullableFilter<"Listing"> | number | null
-    publicNote?: StringNullableFilter<"Listing"> | string | null
+    description?: StringNullableFilter<"Listing"> | string | null
     privateNote?: StringNullableFilter<"Listing"> | string | null
     ahsId?: StringNullableFilter<"Listing"> | string | null
+    status?: StringNullableFilter<"Listing"> | string | null
     createdAt?: DateTimeFilter<"Listing"> | Date | string
     updatedAt?: DateTimeFilter<"Listing"> | Date | string
     images?: ImageListRelationFilter
@@ -9012,11 +9067,12 @@ export namespace Prisma {
   export type ListingOrderByWithAggregationInput = {
     id?: SortOrder
     userId?: SortOrder
-    name?: SortOrder
+    title?: SortOrder
     price?: SortOrderInput | SortOrder
-    publicNote?: SortOrderInput | SortOrder
+    description?: SortOrderInput | SortOrder
     privateNote?: SortOrderInput | SortOrder
     ahsId?: SortOrderInput | SortOrder
+    status?: SortOrderInput | SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
     _count?: ListingCountOrderByAggregateInput
@@ -9032,11 +9088,12 @@ export namespace Prisma {
     NOT?: ListingScalarWhereWithAggregatesInput | ListingScalarWhereWithAggregatesInput[]
     id?: StringWithAggregatesFilter<"Listing"> | string
     userId?: StringWithAggregatesFilter<"Listing"> | string
-    name?: StringWithAggregatesFilter<"Listing"> | string
+    title?: StringWithAggregatesFilter<"Listing"> | string
     price?: FloatNullableWithAggregatesFilter<"Listing"> | number | null
-    publicNote?: StringNullableWithAggregatesFilter<"Listing"> | string | null
+    description?: StringNullableWithAggregatesFilter<"Listing"> | string | null
     privateNote?: StringNullableWithAggregatesFilter<"Listing"> | string | null
     ahsId?: StringNullableWithAggregatesFilter<"Listing"> | string | null
+    status?: StringNullableWithAggregatesFilter<"Listing"> | string | null
     createdAt?: DateTimeWithAggregatesFilter<"Listing"> | Date | string
     updatedAt?: DateTimeWithAggregatesFilter<"Listing"> | Date | string
   }
@@ -9047,9 +9104,9 @@ export namespace Prisma {
     NOT?: ListWhereInput | ListWhereInput[]
     id?: StringFilter<"List"> | string
     userId?: StringFilter<"List"> | string
-    name?: StringFilter<"List"> | string
-    intro?: StringNullableFilter<"List"> | string | null
-    bio?: StringNullableFilter<"List"> | string | null
+    title?: StringFilter<"List"> | string
+    description?: StringNullableFilter<"List"> | string | null
+    status?: StringNullableFilter<"List"> | string | null
     createdAt?: DateTimeFilter<"List"> | Date | string
     updatedAt?: DateTimeFilter<"List"> | Date | string
     listings?: ListingListRelationFilter
@@ -9059,9 +9116,9 @@ export namespace Prisma {
   export type ListOrderByWithRelationInput = {
     id?: SortOrder
     userId?: SortOrder
-    name?: SortOrder
-    intro?: SortOrderInput | SortOrder
-    bio?: SortOrderInput | SortOrder
+    title?: SortOrder
+    description?: SortOrderInput | SortOrder
+    status?: SortOrderInput | SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
     listings?: ListingOrderByRelationAggregateInput
@@ -9074,9 +9131,9 @@ export namespace Prisma {
     OR?: ListWhereInput[]
     NOT?: ListWhereInput | ListWhereInput[]
     userId?: StringFilter<"List"> | string
-    name?: StringFilter<"List"> | string
-    intro?: StringNullableFilter<"List"> | string | null
-    bio?: StringNullableFilter<"List"> | string | null
+    title?: StringFilter<"List"> | string
+    description?: StringNullableFilter<"List"> | string | null
+    status?: StringNullableFilter<"List"> | string | null
     createdAt?: DateTimeFilter<"List"> | Date | string
     updatedAt?: DateTimeFilter<"List"> | Date | string
     listings?: ListingListRelationFilter
@@ -9086,9 +9143,9 @@ export namespace Prisma {
   export type ListOrderByWithAggregationInput = {
     id?: SortOrder
     userId?: SortOrder
-    name?: SortOrder
-    intro?: SortOrderInput | SortOrder
-    bio?: SortOrderInput | SortOrder
+    title?: SortOrder
+    description?: SortOrderInput | SortOrder
+    status?: SortOrderInput | SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
     _count?: ListCountOrderByAggregateInput
@@ -9102,9 +9159,9 @@ export namespace Prisma {
     NOT?: ListScalarWhereWithAggregatesInput | ListScalarWhereWithAggregatesInput[]
     id?: StringWithAggregatesFilter<"List"> | string
     userId?: StringWithAggregatesFilter<"List"> | string
-    name?: StringWithAggregatesFilter<"List"> | string
-    intro?: StringNullableWithAggregatesFilter<"List"> | string | null
-    bio?: StringNullableWithAggregatesFilter<"List"> | string | null
+    title?: StringWithAggregatesFilter<"List"> | string
+    description?: StringNullableWithAggregatesFilter<"List"> | string | null
+    status?: StringNullableWithAggregatesFilter<"List"> | string | null
     createdAt?: DateTimeWithAggregatesFilter<"List"> | Date | string
     updatedAt?: DateTimeWithAggregatesFilter<"List"> | Date | string
   }
@@ -9115,10 +9172,12 @@ export namespace Prisma {
     NOT?: UserProfileWhereInput | UserProfileWhereInput[]
     id?: StringFilter<"UserProfile"> | string
     userId?: StringFilter<"UserProfile"> | string
+    title?: StringNullableFilter<"UserProfile"> | string | null
+    slug?: StringNullableFilter<"UserProfile"> | string | null
     logoUrl?: StringNullableFilter<"UserProfile"> | string | null
-    intro?: StringNullableFilter<"UserProfile"> | string | null
-    bio?: StringNullableFilter<"UserProfile"> | string | null
-    userLocation?: StringNullableFilter<"UserProfile"> | string | null
+    description?: StringNullableFilter<"UserProfile"> | string | null
+    content?: StringNullableFilter<"UserProfile"> | string | null
+    location?: StringNullableFilter<"UserProfile"> | string | null
     createdAt?: DateTimeFilter<"UserProfile"> | Date | string
     updatedAt?: DateTimeFilter<"UserProfile"> | Date | string
     user?: XOR<UserRelationFilter, UserWhereInput>
@@ -9128,10 +9187,12 @@ export namespace Prisma {
   export type UserProfileOrderByWithRelationInput = {
     id?: SortOrder
     userId?: SortOrder
+    title?: SortOrderInput | SortOrder
+    slug?: SortOrderInput | SortOrder
     logoUrl?: SortOrderInput | SortOrder
-    intro?: SortOrderInput | SortOrder
-    bio?: SortOrderInput | SortOrder
-    userLocation?: SortOrderInput | SortOrder
+    description?: SortOrderInput | SortOrder
+    content?: SortOrderInput | SortOrder
+    location?: SortOrderInput | SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
     user?: UserOrderByWithRelationInput
@@ -9141,26 +9202,30 @@ export namespace Prisma {
   export type UserProfileWhereUniqueInput = Prisma.AtLeast<{
     id?: string
     userId?: string
+    slug?: string
     AND?: UserProfileWhereInput | UserProfileWhereInput[]
     OR?: UserProfileWhereInput[]
     NOT?: UserProfileWhereInput | UserProfileWhereInput[]
+    title?: StringNullableFilter<"UserProfile"> | string | null
     logoUrl?: StringNullableFilter<"UserProfile"> | string | null
-    intro?: StringNullableFilter<"UserProfile"> | string | null
-    bio?: StringNullableFilter<"UserProfile"> | string | null
-    userLocation?: StringNullableFilter<"UserProfile"> | string | null
+    description?: StringNullableFilter<"UserProfile"> | string | null
+    content?: StringNullableFilter<"UserProfile"> | string | null
+    location?: StringNullableFilter<"UserProfile"> | string | null
     createdAt?: DateTimeFilter<"UserProfile"> | Date | string
     updatedAt?: DateTimeFilter<"UserProfile"> | Date | string
     user?: XOR<UserRelationFilter, UserWhereInput>
     images?: ImageListRelationFilter
-  }, "id" | "userId">
+  }, "id" | "userId" | "slug">
 
   export type UserProfileOrderByWithAggregationInput = {
     id?: SortOrder
     userId?: SortOrder
+    title?: SortOrderInput | SortOrder
+    slug?: SortOrderInput | SortOrder
     logoUrl?: SortOrderInput | SortOrder
-    intro?: SortOrderInput | SortOrder
-    bio?: SortOrderInput | SortOrder
-    userLocation?: SortOrderInput | SortOrder
+    description?: SortOrderInput | SortOrder
+    content?: SortOrderInput | SortOrder
+    location?: SortOrderInput | SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
     _count?: UserProfileCountOrderByAggregateInput
@@ -9174,10 +9239,12 @@ export namespace Prisma {
     NOT?: UserProfileScalarWhereWithAggregatesInput | UserProfileScalarWhereWithAggregatesInput[]
     id?: StringWithAggregatesFilter<"UserProfile"> | string
     userId?: StringWithAggregatesFilter<"UserProfile"> | string
+    title?: StringNullableWithAggregatesFilter<"UserProfile"> | string | null
+    slug?: StringNullableWithAggregatesFilter<"UserProfile"> | string | null
     logoUrl?: StringNullableWithAggregatesFilter<"UserProfile"> | string | null
-    intro?: StringNullableWithAggregatesFilter<"UserProfile"> | string | null
-    bio?: StringNullableWithAggregatesFilter<"UserProfile"> | string | null
-    userLocation?: StringNullableWithAggregatesFilter<"UserProfile"> | string | null
+    description?: StringNullableWithAggregatesFilter<"UserProfile"> | string | null
+    content?: StringNullableWithAggregatesFilter<"UserProfile"> | string | null
+    location?: StringNullableWithAggregatesFilter<"UserProfile"> | string | null
     createdAt?: DateTimeWithAggregatesFilter<"UserProfile"> | Date | string
     updatedAt?: DateTimeWithAggregatesFilter<"UserProfile"> | Date | string
   }
@@ -9191,6 +9258,7 @@ export namespace Prisma {
     order?: IntFilter<"Image"> | number
     createdAt?: DateTimeFilter<"Image"> | Date | string
     updatedAt?: DateTimeFilter<"Image"> | Date | string
+    status?: StringNullableFilter<"Image"> | string | null
     userProfileId?: StringNullableFilter<"Image"> | string | null
     listingId?: StringNullableFilter<"Image"> | string | null
     userProfile?: XOR<UserProfileNullableRelationFilter, UserProfileWhereInput> | null
@@ -9203,6 +9271,7 @@ export namespace Prisma {
     order?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
+    status?: SortOrderInput | SortOrder
     userProfileId?: SortOrderInput | SortOrder
     listingId?: SortOrderInput | SortOrder
     userProfile?: UserProfileOrderByWithRelationInput
@@ -9218,6 +9287,7 @@ export namespace Prisma {
     order?: IntFilter<"Image"> | number
     createdAt?: DateTimeFilter<"Image"> | Date | string
     updatedAt?: DateTimeFilter<"Image"> | Date | string
+    status?: StringNullableFilter<"Image"> | string | null
     userProfileId?: StringNullableFilter<"Image"> | string | null
     listingId?: StringNullableFilter<"Image"> | string | null
     userProfile?: XOR<UserProfileNullableRelationFilter, UserProfileWhereInput> | null
@@ -9230,6 +9300,7 @@ export namespace Prisma {
     order?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
+    status?: SortOrderInput | SortOrder
     userProfileId?: SortOrderInput | SortOrder
     listingId?: SortOrderInput | SortOrder
     _count?: ImageCountOrderByAggregateInput
@@ -9248,6 +9319,7 @@ export namespace Prisma {
     order?: IntWithAggregatesFilter<"Image"> | number
     createdAt?: DateTimeWithAggregatesFilter<"Image"> | Date | string
     updatedAt?: DateTimeWithAggregatesFilter<"Image"> | Date | string
+    status?: StringNullableWithAggregatesFilter<"Image"> | string | null
     userProfileId?: StringNullableWithAggregatesFilter<"Image"> | string | null
     listingId?: StringNullableWithAggregatesFilter<"Image"> | string | null
   }
@@ -9553,10 +9625,11 @@ export namespace Prisma {
 
   export type ListingCreateInput = {
     id?: string
-    name: string
+    title: string
     price?: number | null
-    publicNote?: string | null
+    description?: string | null
     privateNote?: string | null
+    status?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
     images?: ImageCreateNestedManyWithoutListingInput
@@ -9568,11 +9641,12 @@ export namespace Prisma {
   export type ListingUncheckedCreateInput = {
     id?: string
     userId: string
-    name: string
+    title: string
     price?: number | null
-    publicNote?: string | null
+    description?: string | null
     privateNote?: string | null
     ahsId?: string | null
+    status?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
     images?: ImageUncheckedCreateNestedManyWithoutListingInput
@@ -9581,10 +9655,11 @@ export namespace Prisma {
 
   export type ListingUpdateInput = {
     id?: StringFieldUpdateOperationsInput | string
-    name?: StringFieldUpdateOperationsInput | string
+    title?: StringFieldUpdateOperationsInput | string
     price?: NullableFloatFieldUpdateOperationsInput | number | null
-    publicNote?: NullableStringFieldUpdateOperationsInput | string | null
+    description?: NullableStringFieldUpdateOperationsInput | string | null
     privateNote?: NullableStringFieldUpdateOperationsInput | string | null
+    status?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     images?: ImageUpdateManyWithoutListingNestedInput
@@ -9596,11 +9671,12 @@ export namespace Prisma {
   export type ListingUncheckedUpdateInput = {
     id?: StringFieldUpdateOperationsInput | string
     userId?: StringFieldUpdateOperationsInput | string
-    name?: StringFieldUpdateOperationsInput | string
+    title?: StringFieldUpdateOperationsInput | string
     price?: NullableFloatFieldUpdateOperationsInput | number | null
-    publicNote?: NullableStringFieldUpdateOperationsInput | string | null
+    description?: NullableStringFieldUpdateOperationsInput | string | null
     privateNote?: NullableStringFieldUpdateOperationsInput | string | null
     ahsId?: NullableStringFieldUpdateOperationsInput | string | null
+    status?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     images?: ImageUncheckedUpdateManyWithoutListingNestedInput
@@ -9610,21 +9686,23 @@ export namespace Prisma {
   export type ListingCreateManyInput = {
     id?: string
     userId: string
-    name: string
+    title: string
     price?: number | null
-    publicNote?: string | null
+    description?: string | null
     privateNote?: string | null
     ahsId?: string | null
+    status?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
   }
 
   export type ListingUpdateManyMutationInput = {
     id?: StringFieldUpdateOperationsInput | string
-    name?: StringFieldUpdateOperationsInput | string
+    title?: StringFieldUpdateOperationsInput | string
     price?: NullableFloatFieldUpdateOperationsInput | number | null
-    publicNote?: NullableStringFieldUpdateOperationsInput | string | null
+    description?: NullableStringFieldUpdateOperationsInput | string | null
     privateNote?: NullableStringFieldUpdateOperationsInput | string | null
+    status?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
@@ -9632,20 +9710,21 @@ export namespace Prisma {
   export type ListingUncheckedUpdateManyInput = {
     id?: StringFieldUpdateOperationsInput | string
     userId?: StringFieldUpdateOperationsInput | string
-    name?: StringFieldUpdateOperationsInput | string
+    title?: StringFieldUpdateOperationsInput | string
     price?: NullableFloatFieldUpdateOperationsInput | number | null
-    publicNote?: NullableStringFieldUpdateOperationsInput | string | null
+    description?: NullableStringFieldUpdateOperationsInput | string | null
     privateNote?: NullableStringFieldUpdateOperationsInput | string | null
     ahsId?: NullableStringFieldUpdateOperationsInput | string | null
+    status?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
 
   export type ListCreateInput = {
     id?: string
-    name: string
-    intro?: string | null
-    bio?: string | null
+    title: string
+    description?: string | null
+    status?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
     listings?: ListingCreateNestedManyWithoutListsInput
@@ -9655,9 +9734,9 @@ export namespace Prisma {
   export type ListUncheckedCreateInput = {
     id?: string
     userId: string
-    name: string
-    intro?: string | null
-    bio?: string | null
+    title: string
+    description?: string | null
+    status?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
     listings?: ListingUncheckedCreateNestedManyWithoutListsInput
@@ -9665,9 +9744,9 @@ export namespace Prisma {
 
   export type ListUpdateInput = {
     id?: StringFieldUpdateOperationsInput | string
-    name?: StringFieldUpdateOperationsInput | string
-    intro?: NullableStringFieldUpdateOperationsInput | string | null
-    bio?: NullableStringFieldUpdateOperationsInput | string | null
+    title?: StringFieldUpdateOperationsInput | string
+    description?: NullableStringFieldUpdateOperationsInput | string | null
+    status?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     listings?: ListingUpdateManyWithoutListsNestedInput
@@ -9677,9 +9756,9 @@ export namespace Prisma {
   export type ListUncheckedUpdateInput = {
     id?: StringFieldUpdateOperationsInput | string
     userId?: StringFieldUpdateOperationsInput | string
-    name?: StringFieldUpdateOperationsInput | string
-    intro?: NullableStringFieldUpdateOperationsInput | string | null
-    bio?: NullableStringFieldUpdateOperationsInput | string | null
+    title?: StringFieldUpdateOperationsInput | string
+    description?: NullableStringFieldUpdateOperationsInput | string | null
+    status?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     listings?: ListingUncheckedUpdateManyWithoutListsNestedInput
@@ -9688,18 +9767,18 @@ export namespace Prisma {
   export type ListCreateManyInput = {
     id?: string
     userId: string
-    name: string
-    intro?: string | null
-    bio?: string | null
+    title: string
+    description?: string | null
+    status?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
   }
 
   export type ListUpdateManyMutationInput = {
     id?: StringFieldUpdateOperationsInput | string
-    name?: StringFieldUpdateOperationsInput | string
-    intro?: NullableStringFieldUpdateOperationsInput | string | null
-    bio?: NullableStringFieldUpdateOperationsInput | string | null
+    title?: StringFieldUpdateOperationsInput | string
+    description?: NullableStringFieldUpdateOperationsInput | string | null
+    status?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
@@ -9707,19 +9786,21 @@ export namespace Prisma {
   export type ListUncheckedUpdateManyInput = {
     id?: StringFieldUpdateOperationsInput | string
     userId?: StringFieldUpdateOperationsInput | string
-    name?: StringFieldUpdateOperationsInput | string
-    intro?: NullableStringFieldUpdateOperationsInput | string | null
-    bio?: NullableStringFieldUpdateOperationsInput | string | null
+    title?: StringFieldUpdateOperationsInput | string
+    description?: NullableStringFieldUpdateOperationsInput | string | null
+    status?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
 
   export type UserProfileCreateInput = {
     id?: string
+    title?: string | null
+    slug?: string | null
     logoUrl?: string | null
-    intro?: string | null
-    bio?: string | null
-    userLocation?: string | null
+    description?: string | null
+    content?: string | null
+    location?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
     user: UserCreateNestedOneWithoutProfileInput
@@ -9729,10 +9810,12 @@ export namespace Prisma {
   export type UserProfileUncheckedCreateInput = {
     id?: string
     userId: string
+    title?: string | null
+    slug?: string | null
     logoUrl?: string | null
-    intro?: string | null
-    bio?: string | null
-    userLocation?: string | null
+    description?: string | null
+    content?: string | null
+    location?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
     images?: ImageUncheckedCreateNestedManyWithoutUserProfileInput
@@ -9740,10 +9823,12 @@ export namespace Prisma {
 
   export type UserProfileUpdateInput = {
     id?: StringFieldUpdateOperationsInput | string
+    title?: NullableStringFieldUpdateOperationsInput | string | null
+    slug?: NullableStringFieldUpdateOperationsInput | string | null
     logoUrl?: NullableStringFieldUpdateOperationsInput | string | null
-    intro?: NullableStringFieldUpdateOperationsInput | string | null
-    bio?: NullableStringFieldUpdateOperationsInput | string | null
-    userLocation?: NullableStringFieldUpdateOperationsInput | string | null
+    description?: NullableStringFieldUpdateOperationsInput | string | null
+    content?: NullableStringFieldUpdateOperationsInput | string | null
+    location?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     user?: UserUpdateOneRequiredWithoutProfileNestedInput
@@ -9753,10 +9838,12 @@ export namespace Prisma {
   export type UserProfileUncheckedUpdateInput = {
     id?: StringFieldUpdateOperationsInput | string
     userId?: StringFieldUpdateOperationsInput | string
+    title?: NullableStringFieldUpdateOperationsInput | string | null
+    slug?: NullableStringFieldUpdateOperationsInput | string | null
     logoUrl?: NullableStringFieldUpdateOperationsInput | string | null
-    intro?: NullableStringFieldUpdateOperationsInput | string | null
-    bio?: NullableStringFieldUpdateOperationsInput | string | null
-    userLocation?: NullableStringFieldUpdateOperationsInput | string | null
+    description?: NullableStringFieldUpdateOperationsInput | string | null
+    content?: NullableStringFieldUpdateOperationsInput | string | null
+    location?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     images?: ImageUncheckedUpdateManyWithoutUserProfileNestedInput
@@ -9765,20 +9852,24 @@ export namespace Prisma {
   export type UserProfileCreateManyInput = {
     id?: string
     userId: string
+    title?: string | null
+    slug?: string | null
     logoUrl?: string | null
-    intro?: string | null
-    bio?: string | null
-    userLocation?: string | null
+    description?: string | null
+    content?: string | null
+    location?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
   }
 
   export type UserProfileUpdateManyMutationInput = {
     id?: StringFieldUpdateOperationsInput | string
+    title?: NullableStringFieldUpdateOperationsInput | string | null
+    slug?: NullableStringFieldUpdateOperationsInput | string | null
     logoUrl?: NullableStringFieldUpdateOperationsInput | string | null
-    intro?: NullableStringFieldUpdateOperationsInput | string | null
-    bio?: NullableStringFieldUpdateOperationsInput | string | null
-    userLocation?: NullableStringFieldUpdateOperationsInput | string | null
+    description?: NullableStringFieldUpdateOperationsInput | string | null
+    content?: NullableStringFieldUpdateOperationsInput | string | null
+    location?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
@@ -9786,10 +9877,12 @@ export namespace Prisma {
   export type UserProfileUncheckedUpdateManyInput = {
     id?: StringFieldUpdateOperationsInput | string
     userId?: StringFieldUpdateOperationsInput | string
+    title?: NullableStringFieldUpdateOperationsInput | string | null
+    slug?: NullableStringFieldUpdateOperationsInput | string | null
     logoUrl?: NullableStringFieldUpdateOperationsInput | string | null
-    intro?: NullableStringFieldUpdateOperationsInput | string | null
-    bio?: NullableStringFieldUpdateOperationsInput | string | null
-    userLocation?: NullableStringFieldUpdateOperationsInput | string | null
+    description?: NullableStringFieldUpdateOperationsInput | string | null
+    content?: NullableStringFieldUpdateOperationsInput | string | null
+    location?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
@@ -9800,6 +9893,7 @@ export namespace Prisma {
     order?: number
     createdAt?: Date | string
     updatedAt?: Date | string
+    status?: string | null
     userProfile?: UserProfileCreateNestedOneWithoutImagesInput
     listing?: ListingCreateNestedOneWithoutImagesInput
   }
@@ -9810,6 +9904,7 @@ export namespace Prisma {
     order?: number
     createdAt?: Date | string
     updatedAt?: Date | string
+    status?: string | null
     userProfileId?: string | null
     listingId?: string | null
   }
@@ -9820,6 +9915,7 @@ export namespace Prisma {
     order?: IntFieldUpdateOperationsInput | number
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    status?: NullableStringFieldUpdateOperationsInput | string | null
     userProfile?: UserProfileUpdateOneWithoutImagesNestedInput
     listing?: ListingUpdateOneWithoutImagesNestedInput
   }
@@ -9830,6 +9926,7 @@ export namespace Prisma {
     order?: IntFieldUpdateOperationsInput | number
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    status?: NullableStringFieldUpdateOperationsInput | string | null
     userProfileId?: NullableStringFieldUpdateOperationsInput | string | null
     listingId?: NullableStringFieldUpdateOperationsInput | string | null
   }
@@ -9840,6 +9937,7 @@ export namespace Prisma {
     order?: number
     createdAt?: Date | string
     updatedAt?: Date | string
+    status?: string | null
     userProfileId?: string | null
     listingId?: string | null
   }
@@ -9850,6 +9948,7 @@ export namespace Prisma {
     order?: IntFieldUpdateOperationsInput | number
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    status?: NullableStringFieldUpdateOperationsInput | string | null
   }
 
   export type ImageUncheckedUpdateManyInput = {
@@ -9858,6 +9957,7 @@ export namespace Prisma {
     order?: IntFieldUpdateOperationsInput | number
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    status?: NullableStringFieldUpdateOperationsInput | string | null
     userProfileId?: NullableStringFieldUpdateOperationsInput | string | null
     listingId?: NullableStringFieldUpdateOperationsInput | string | null
   }
@@ -10210,11 +10310,12 @@ export namespace Prisma {
   export type ListingCountOrderByAggregateInput = {
     id?: SortOrder
     userId?: SortOrder
-    name?: SortOrder
+    title?: SortOrder
     price?: SortOrder
-    publicNote?: SortOrder
+    description?: SortOrder
     privateNote?: SortOrder
     ahsId?: SortOrder
+    status?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
   }
@@ -10226,11 +10327,12 @@ export namespace Prisma {
   export type ListingMaxOrderByAggregateInput = {
     id?: SortOrder
     userId?: SortOrder
-    name?: SortOrder
+    title?: SortOrder
     price?: SortOrder
-    publicNote?: SortOrder
+    description?: SortOrder
     privateNote?: SortOrder
     ahsId?: SortOrder
+    status?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
   }
@@ -10238,11 +10340,12 @@ export namespace Prisma {
   export type ListingMinOrderByAggregateInput = {
     id?: SortOrder
     userId?: SortOrder
-    name?: SortOrder
+    title?: SortOrder
     price?: SortOrder
-    publicNote?: SortOrder
+    description?: SortOrder
     privateNote?: SortOrder
     ahsId?: SortOrder
+    status?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
   }
@@ -10270,9 +10373,9 @@ export namespace Prisma {
   export type ListCountOrderByAggregateInput = {
     id?: SortOrder
     userId?: SortOrder
-    name?: SortOrder
-    intro?: SortOrder
-    bio?: SortOrder
+    title?: SortOrder
+    description?: SortOrder
+    status?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
   }
@@ -10280,9 +10383,9 @@ export namespace Prisma {
   export type ListMaxOrderByAggregateInput = {
     id?: SortOrder
     userId?: SortOrder
-    name?: SortOrder
-    intro?: SortOrder
-    bio?: SortOrder
+    title?: SortOrder
+    description?: SortOrder
+    status?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
   }
@@ -10290,9 +10393,9 @@ export namespace Prisma {
   export type ListMinOrderByAggregateInput = {
     id?: SortOrder
     userId?: SortOrder
-    name?: SortOrder
-    intro?: SortOrder
-    bio?: SortOrder
+    title?: SortOrder
+    description?: SortOrder
+    status?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
   }
@@ -10300,10 +10403,12 @@ export namespace Prisma {
   export type UserProfileCountOrderByAggregateInput = {
     id?: SortOrder
     userId?: SortOrder
+    title?: SortOrder
+    slug?: SortOrder
     logoUrl?: SortOrder
-    intro?: SortOrder
-    bio?: SortOrder
-    userLocation?: SortOrder
+    description?: SortOrder
+    content?: SortOrder
+    location?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
   }
@@ -10311,10 +10416,12 @@ export namespace Prisma {
   export type UserProfileMaxOrderByAggregateInput = {
     id?: SortOrder
     userId?: SortOrder
+    title?: SortOrder
+    slug?: SortOrder
     logoUrl?: SortOrder
-    intro?: SortOrder
-    bio?: SortOrder
-    userLocation?: SortOrder
+    description?: SortOrder
+    content?: SortOrder
+    location?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
   }
@@ -10322,10 +10429,12 @@ export namespace Prisma {
   export type UserProfileMinOrderByAggregateInput = {
     id?: SortOrder
     userId?: SortOrder
+    title?: SortOrder
+    slug?: SortOrder
     logoUrl?: SortOrder
-    intro?: SortOrder
-    bio?: SortOrder
-    userLocation?: SortOrder
+    description?: SortOrder
+    content?: SortOrder
+    location?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
   }
@@ -10357,6 +10466,7 @@ export namespace Prisma {
     order?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
+    status?: SortOrder
     userProfileId?: SortOrder
     listingId?: SortOrder
   }
@@ -10371,6 +10481,7 @@ export namespace Prisma {
     order?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
+    status?: SortOrder
     userProfileId?: SortOrder
     listingId?: SortOrder
   }
@@ -10381,6 +10492,7 @@ export namespace Prisma {
     order?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
+    status?: SortOrder
     userProfileId?: SortOrder
     listingId?: SortOrder
   }
@@ -11054,10 +11166,11 @@ export namespace Prisma {
 
   export type ListingCreateWithoutAhsListingInput = {
     id?: string
-    name: string
+    title: string
     price?: number | null
-    publicNote?: string | null
+    description?: string | null
     privateNote?: string | null
+    status?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
     images?: ImageCreateNestedManyWithoutListingInput
@@ -11068,10 +11181,11 @@ export namespace Prisma {
   export type ListingUncheckedCreateWithoutAhsListingInput = {
     id?: string
     userId: string
-    name: string
+    title: string
     price?: number | null
-    publicNote?: string | null
+    description?: string | null
     privateNote?: string | null
+    status?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
     images?: ImageUncheckedCreateNestedManyWithoutListingInput
@@ -11109,11 +11223,12 @@ export namespace Prisma {
     NOT?: ListingScalarWhereInput | ListingScalarWhereInput[]
     id?: StringFilter<"Listing"> | string
     userId?: StringFilter<"Listing"> | string
-    name?: StringFilter<"Listing"> | string
+    title?: StringFilter<"Listing"> | string
     price?: FloatNullableFilter<"Listing"> | number | null
-    publicNote?: StringNullableFilter<"Listing"> | string | null
+    description?: StringNullableFilter<"Listing"> | string | null
     privateNote?: StringNullableFilter<"Listing"> | string | null
     ahsId?: StringNullableFilter<"Listing"> | string | null
+    status?: StringNullableFilter<"Listing"> | string | null
     createdAt?: DateTimeFilter<"Listing"> | Date | string
     updatedAt?: DateTimeFilter<"Listing"> | Date | string
   }
@@ -11124,6 +11239,7 @@ export namespace Prisma {
     order?: number
     createdAt?: Date | string
     updatedAt?: Date | string
+    status?: string | null
     userProfile?: UserProfileCreateNestedOneWithoutImagesInput
   }
 
@@ -11133,6 +11249,7 @@ export namespace Prisma {
     order?: number
     createdAt?: Date | string
     updatedAt?: Date | string
+    status?: string | null
     userProfileId?: string | null
   }
 
@@ -11204,9 +11321,9 @@ export namespace Prisma {
 
   export type ListCreateWithoutListingsInput = {
     id?: string
-    name: string
-    intro?: string | null
-    bio?: string | null
+    title: string
+    description?: string | null
+    status?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
     user: UserCreateNestedOneWithoutListsInput
@@ -11215,9 +11332,9 @@ export namespace Prisma {
   export type ListUncheckedCreateWithoutListingsInput = {
     id?: string
     userId: string
-    name: string
-    intro?: string | null
-    bio?: string | null
+    title: string
+    description?: string | null
+    status?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
   }
@@ -11279,6 +11396,7 @@ export namespace Prisma {
     order?: IntFilter<"Image"> | number
     createdAt?: DateTimeFilter<"Image"> | Date | string
     updatedAt?: DateTimeFilter<"Image"> | Date | string
+    status?: StringNullableFilter<"Image"> | string | null
     userProfileId?: StringNullableFilter<"Image"> | string | null
     listingId?: StringNullableFilter<"Image"> | string | null
   }
@@ -11368,9 +11486,9 @@ export namespace Prisma {
     NOT?: ListScalarWhereInput | ListScalarWhereInput[]
     id?: StringFilter<"List"> | string
     userId?: StringFilter<"List"> | string
-    name?: StringFilter<"List"> | string
-    intro?: StringNullableFilter<"List"> | string | null
-    bio?: StringNullableFilter<"List"> | string | null
+    title?: StringFilter<"List"> | string
+    description?: StringNullableFilter<"List"> | string | null
+    status?: StringNullableFilter<"List"> | string | null
     createdAt?: DateTimeFilter<"List"> | Date | string
     updatedAt?: DateTimeFilter<"List"> | Date | string
   }
@@ -11410,10 +11528,11 @@ export namespace Prisma {
 
   export type ListingCreateWithoutListsInput = {
     id?: string
-    name: string
+    title: string
     price?: number | null
-    publicNote?: string | null
+    description?: string | null
     privateNote?: string | null
+    status?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
     images?: ImageCreateNestedManyWithoutListingInput
@@ -11424,11 +11543,12 @@ export namespace Prisma {
   export type ListingUncheckedCreateWithoutListsInput = {
     id?: string
     userId: string
-    name: string
+    title: string
     price?: number | null
-    publicNote?: string | null
+    description?: string | null
     privateNote?: string | null
     ahsId?: string | null
+    status?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
     images?: ImageUncheckedCreateNestedManyWithoutListingInput
@@ -11548,6 +11668,7 @@ export namespace Prisma {
     order?: number
     createdAt?: Date | string
     updatedAt?: Date | string
+    status?: string | null
     listing?: ListingCreateNestedOneWithoutImagesInput
   }
 
@@ -11557,6 +11678,7 @@ export namespace Prisma {
     order?: number
     createdAt?: Date | string
     updatedAt?: Date | string
+    status?: string | null
     listingId?: string | null
   }
 
@@ -11620,10 +11742,12 @@ export namespace Prisma {
 
   export type UserProfileCreateWithoutImagesInput = {
     id?: string
+    title?: string | null
+    slug?: string | null
     logoUrl?: string | null
-    intro?: string | null
-    bio?: string | null
-    userLocation?: string | null
+    description?: string | null
+    content?: string | null
+    location?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
     user: UserCreateNestedOneWithoutProfileInput
@@ -11632,10 +11756,12 @@ export namespace Prisma {
   export type UserProfileUncheckedCreateWithoutImagesInput = {
     id?: string
     userId: string
+    title?: string | null
+    slug?: string | null
     logoUrl?: string | null
-    intro?: string | null
-    bio?: string | null
-    userLocation?: string | null
+    description?: string | null
+    content?: string | null
+    location?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
   }
@@ -11647,10 +11773,11 @@ export namespace Prisma {
 
   export type ListingCreateWithoutImagesInput = {
     id?: string
-    name: string
+    title: string
     price?: number | null
-    publicNote?: string | null
+    description?: string | null
     privateNote?: string | null
+    status?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
     ahsListing?: AhsListingCreateNestedOneWithoutLiliesInput
@@ -11661,11 +11788,12 @@ export namespace Prisma {
   export type ListingUncheckedCreateWithoutImagesInput = {
     id?: string
     userId: string
-    name: string
+    title: string
     price?: number | null
-    publicNote?: string | null
+    description?: string | null
     privateNote?: string | null
     ahsId?: string | null
+    status?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
     lists?: ListUncheckedCreateNestedManyWithoutListingsInput
@@ -11689,10 +11817,12 @@ export namespace Prisma {
 
   export type UserProfileUpdateWithoutImagesInput = {
     id?: StringFieldUpdateOperationsInput | string
+    title?: NullableStringFieldUpdateOperationsInput | string | null
+    slug?: NullableStringFieldUpdateOperationsInput | string | null
     logoUrl?: NullableStringFieldUpdateOperationsInput | string | null
-    intro?: NullableStringFieldUpdateOperationsInput | string | null
-    bio?: NullableStringFieldUpdateOperationsInput | string | null
-    userLocation?: NullableStringFieldUpdateOperationsInput | string | null
+    description?: NullableStringFieldUpdateOperationsInput | string | null
+    content?: NullableStringFieldUpdateOperationsInput | string | null
+    location?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     user?: UserUpdateOneRequiredWithoutProfileNestedInput
@@ -11701,10 +11831,12 @@ export namespace Prisma {
   export type UserProfileUncheckedUpdateWithoutImagesInput = {
     id?: StringFieldUpdateOperationsInput | string
     userId?: StringFieldUpdateOperationsInput | string
+    title?: NullableStringFieldUpdateOperationsInput | string | null
+    slug?: NullableStringFieldUpdateOperationsInput | string | null
     logoUrl?: NullableStringFieldUpdateOperationsInput | string | null
-    intro?: NullableStringFieldUpdateOperationsInput | string | null
-    bio?: NullableStringFieldUpdateOperationsInput | string | null
-    userLocation?: NullableStringFieldUpdateOperationsInput | string | null
+    description?: NullableStringFieldUpdateOperationsInput | string | null
+    content?: NullableStringFieldUpdateOperationsInput | string | null
+    location?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
@@ -11722,10 +11854,11 @@ export namespace Prisma {
 
   export type ListingUpdateWithoutImagesInput = {
     id?: StringFieldUpdateOperationsInput | string
-    name?: StringFieldUpdateOperationsInput | string
+    title?: StringFieldUpdateOperationsInput | string
     price?: NullableFloatFieldUpdateOperationsInput | number | null
-    publicNote?: NullableStringFieldUpdateOperationsInput | string | null
+    description?: NullableStringFieldUpdateOperationsInput | string | null
     privateNote?: NullableStringFieldUpdateOperationsInput | string | null
+    status?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     ahsListing?: AhsListingUpdateOneWithoutLiliesNestedInput
@@ -11736,11 +11869,12 @@ export namespace Prisma {
   export type ListingUncheckedUpdateWithoutImagesInput = {
     id?: StringFieldUpdateOperationsInput | string
     userId?: StringFieldUpdateOperationsInput | string
-    name?: StringFieldUpdateOperationsInput | string
+    title?: StringFieldUpdateOperationsInput | string
     price?: NullableFloatFieldUpdateOperationsInput | number | null
-    publicNote?: NullableStringFieldUpdateOperationsInput | string | null
+    description?: NullableStringFieldUpdateOperationsInput | string | null
     privateNote?: NullableStringFieldUpdateOperationsInput | string | null
     ahsId?: NullableStringFieldUpdateOperationsInput | string | null
+    status?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     lists?: ListUncheckedUpdateManyWithoutListingsNestedInput
@@ -11748,10 +11882,11 @@ export namespace Prisma {
 
   export type ListingCreateWithoutUserInput = {
     id?: string
-    name: string
+    title: string
     price?: number | null
-    publicNote?: string | null
+    description?: string | null
     privateNote?: string | null
+    status?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
     images?: ImageCreateNestedManyWithoutListingInput
@@ -11761,11 +11896,12 @@ export namespace Prisma {
 
   export type ListingUncheckedCreateWithoutUserInput = {
     id?: string
-    name: string
+    title: string
     price?: number | null
-    publicNote?: string | null
+    description?: string | null
     privateNote?: string | null
     ahsId?: string | null
+    status?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
     images?: ImageUncheckedCreateNestedManyWithoutListingInput
@@ -11783,9 +11919,9 @@ export namespace Prisma {
 
   export type ListCreateWithoutUserInput = {
     id?: string
-    name: string
-    intro?: string | null
-    bio?: string | null
+    title: string
+    description?: string | null
+    status?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
     listings?: ListingCreateNestedManyWithoutListsInput
@@ -11793,9 +11929,9 @@ export namespace Prisma {
 
   export type ListUncheckedCreateWithoutUserInput = {
     id?: string
-    name: string
-    intro?: string | null
-    bio?: string | null
+    title: string
+    description?: string | null
+    status?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
     listings?: ListingUncheckedCreateNestedManyWithoutListsInput
@@ -11812,10 +11948,12 @@ export namespace Prisma {
 
   export type UserProfileCreateWithoutUserInput = {
     id?: string
+    title?: string | null
+    slug?: string | null
     logoUrl?: string | null
-    intro?: string | null
-    bio?: string | null
-    userLocation?: string | null
+    description?: string | null
+    content?: string | null
+    location?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
     images?: ImageCreateNestedManyWithoutUserProfileInput
@@ -11823,10 +11961,12 @@ export namespace Prisma {
 
   export type UserProfileUncheckedCreateWithoutUserInput = {
     id?: string
+    title?: string | null
+    slug?: string | null
     logoUrl?: string | null
-    intro?: string | null
-    bio?: string | null
-    userLocation?: string | null
+    description?: string | null
+    content?: string | null
+    location?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
     images?: ImageUncheckedCreateNestedManyWithoutUserProfileInput
@@ -11882,10 +12022,12 @@ export namespace Prisma {
 
   export type UserProfileUpdateWithoutUserInput = {
     id?: StringFieldUpdateOperationsInput | string
+    title?: NullableStringFieldUpdateOperationsInput | string | null
+    slug?: NullableStringFieldUpdateOperationsInput | string | null
     logoUrl?: NullableStringFieldUpdateOperationsInput | string | null
-    intro?: NullableStringFieldUpdateOperationsInput | string | null
-    bio?: NullableStringFieldUpdateOperationsInput | string | null
-    userLocation?: NullableStringFieldUpdateOperationsInput | string | null
+    description?: NullableStringFieldUpdateOperationsInput | string | null
+    content?: NullableStringFieldUpdateOperationsInput | string | null
+    location?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     images?: ImageUpdateManyWithoutUserProfileNestedInput
@@ -11893,10 +12035,12 @@ export namespace Prisma {
 
   export type UserProfileUncheckedUpdateWithoutUserInput = {
     id?: StringFieldUpdateOperationsInput | string
+    title?: NullableStringFieldUpdateOperationsInput | string | null
+    slug?: NullableStringFieldUpdateOperationsInput | string | null
     logoUrl?: NullableStringFieldUpdateOperationsInput | string | null
-    intro?: NullableStringFieldUpdateOperationsInput | string | null
-    bio?: NullableStringFieldUpdateOperationsInput | string | null
-    userLocation?: NullableStringFieldUpdateOperationsInput | string | null
+    description?: NullableStringFieldUpdateOperationsInput | string | null
+    content?: NullableStringFieldUpdateOperationsInput | string | null
+    location?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     images?: ImageUncheckedUpdateManyWithoutUserProfileNestedInput
@@ -11905,20 +12049,22 @@ export namespace Prisma {
   export type ListingCreateManyAhsListingInput = {
     id?: string
     userId: string
-    name: string
+    title: string
     price?: number | null
-    publicNote?: string | null
+    description?: string | null
     privateNote?: string | null
+    status?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
   }
 
   export type ListingUpdateWithoutAhsListingInput = {
     id?: StringFieldUpdateOperationsInput | string
-    name?: StringFieldUpdateOperationsInput | string
+    title?: StringFieldUpdateOperationsInput | string
     price?: NullableFloatFieldUpdateOperationsInput | number | null
-    publicNote?: NullableStringFieldUpdateOperationsInput | string | null
+    description?: NullableStringFieldUpdateOperationsInput | string | null
     privateNote?: NullableStringFieldUpdateOperationsInput | string | null
+    status?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     images?: ImageUpdateManyWithoutListingNestedInput
@@ -11929,10 +12075,11 @@ export namespace Prisma {
   export type ListingUncheckedUpdateWithoutAhsListingInput = {
     id?: StringFieldUpdateOperationsInput | string
     userId?: StringFieldUpdateOperationsInput | string
-    name?: StringFieldUpdateOperationsInput | string
+    title?: StringFieldUpdateOperationsInput | string
     price?: NullableFloatFieldUpdateOperationsInput | number | null
-    publicNote?: NullableStringFieldUpdateOperationsInput | string | null
+    description?: NullableStringFieldUpdateOperationsInput | string | null
     privateNote?: NullableStringFieldUpdateOperationsInput | string | null
+    status?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     images?: ImageUncheckedUpdateManyWithoutListingNestedInput
@@ -11942,10 +12089,11 @@ export namespace Prisma {
   export type ListingUncheckedUpdateManyWithoutAhsListingInput = {
     id?: StringFieldUpdateOperationsInput | string
     userId?: StringFieldUpdateOperationsInput | string
-    name?: StringFieldUpdateOperationsInput | string
+    title?: StringFieldUpdateOperationsInput | string
     price?: NullableFloatFieldUpdateOperationsInput | number | null
-    publicNote?: NullableStringFieldUpdateOperationsInput | string | null
+    description?: NullableStringFieldUpdateOperationsInput | string | null
     privateNote?: NullableStringFieldUpdateOperationsInput | string | null
+    status?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
@@ -11956,6 +12104,7 @@ export namespace Prisma {
     order?: number
     createdAt?: Date | string
     updatedAt?: Date | string
+    status?: string | null
     userProfileId?: string | null
   }
 
@@ -11965,6 +12114,7 @@ export namespace Prisma {
     order?: IntFieldUpdateOperationsInput | number
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    status?: NullableStringFieldUpdateOperationsInput | string | null
     userProfile?: UserProfileUpdateOneWithoutImagesNestedInput
   }
 
@@ -11974,6 +12124,7 @@ export namespace Prisma {
     order?: IntFieldUpdateOperationsInput | number
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    status?: NullableStringFieldUpdateOperationsInput | string | null
     userProfileId?: NullableStringFieldUpdateOperationsInput | string | null
   }
 
@@ -11983,14 +12134,15 @@ export namespace Prisma {
     order?: IntFieldUpdateOperationsInput | number
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    status?: NullableStringFieldUpdateOperationsInput | string | null
     userProfileId?: NullableStringFieldUpdateOperationsInput | string | null
   }
 
   export type ListUpdateWithoutListingsInput = {
     id?: StringFieldUpdateOperationsInput | string
-    name?: StringFieldUpdateOperationsInput | string
-    intro?: NullableStringFieldUpdateOperationsInput | string | null
-    bio?: NullableStringFieldUpdateOperationsInput | string | null
+    title?: StringFieldUpdateOperationsInput | string
+    description?: NullableStringFieldUpdateOperationsInput | string | null
+    status?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     user?: UserUpdateOneRequiredWithoutListsNestedInput
@@ -11999,9 +12151,9 @@ export namespace Prisma {
   export type ListUncheckedUpdateWithoutListingsInput = {
     id?: StringFieldUpdateOperationsInput | string
     userId?: StringFieldUpdateOperationsInput | string
-    name?: StringFieldUpdateOperationsInput | string
-    intro?: NullableStringFieldUpdateOperationsInput | string | null
-    bio?: NullableStringFieldUpdateOperationsInput | string | null
+    title?: StringFieldUpdateOperationsInput | string
+    description?: NullableStringFieldUpdateOperationsInput | string | null
+    status?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
@@ -12009,19 +12161,20 @@ export namespace Prisma {
   export type ListUncheckedUpdateManyWithoutListingsInput = {
     id?: StringFieldUpdateOperationsInput | string
     userId?: StringFieldUpdateOperationsInput | string
-    name?: StringFieldUpdateOperationsInput | string
-    intro?: NullableStringFieldUpdateOperationsInput | string | null
-    bio?: NullableStringFieldUpdateOperationsInput | string | null
+    title?: StringFieldUpdateOperationsInput | string
+    description?: NullableStringFieldUpdateOperationsInput | string | null
+    status?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
 
   export type ListingUpdateWithoutListsInput = {
     id?: StringFieldUpdateOperationsInput | string
-    name?: StringFieldUpdateOperationsInput | string
+    title?: StringFieldUpdateOperationsInput | string
     price?: NullableFloatFieldUpdateOperationsInput | number | null
-    publicNote?: NullableStringFieldUpdateOperationsInput | string | null
+    description?: NullableStringFieldUpdateOperationsInput | string | null
     privateNote?: NullableStringFieldUpdateOperationsInput | string | null
+    status?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     images?: ImageUpdateManyWithoutListingNestedInput
@@ -12032,11 +12185,12 @@ export namespace Prisma {
   export type ListingUncheckedUpdateWithoutListsInput = {
     id?: StringFieldUpdateOperationsInput | string
     userId?: StringFieldUpdateOperationsInput | string
-    name?: StringFieldUpdateOperationsInput | string
+    title?: StringFieldUpdateOperationsInput | string
     price?: NullableFloatFieldUpdateOperationsInput | number | null
-    publicNote?: NullableStringFieldUpdateOperationsInput | string | null
+    description?: NullableStringFieldUpdateOperationsInput | string | null
     privateNote?: NullableStringFieldUpdateOperationsInput | string | null
     ahsId?: NullableStringFieldUpdateOperationsInput | string | null
+    status?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     images?: ImageUncheckedUpdateManyWithoutListingNestedInput
@@ -12045,11 +12199,12 @@ export namespace Prisma {
   export type ListingUncheckedUpdateManyWithoutListsInput = {
     id?: StringFieldUpdateOperationsInput | string
     userId?: StringFieldUpdateOperationsInput | string
-    name?: StringFieldUpdateOperationsInput | string
+    title?: StringFieldUpdateOperationsInput | string
     price?: NullableFloatFieldUpdateOperationsInput | number | null
-    publicNote?: NullableStringFieldUpdateOperationsInput | string | null
+    description?: NullableStringFieldUpdateOperationsInput | string | null
     privateNote?: NullableStringFieldUpdateOperationsInput | string | null
     ahsId?: NullableStringFieldUpdateOperationsInput | string | null
+    status?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
@@ -12060,6 +12215,7 @@ export namespace Prisma {
     order?: number
     createdAt?: Date | string
     updatedAt?: Date | string
+    status?: string | null
     listingId?: string | null
   }
 
@@ -12069,6 +12225,7 @@ export namespace Prisma {
     order?: IntFieldUpdateOperationsInput | number
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    status?: NullableStringFieldUpdateOperationsInput | string | null
     listing?: ListingUpdateOneWithoutImagesNestedInput
   }
 
@@ -12078,6 +12235,7 @@ export namespace Prisma {
     order?: IntFieldUpdateOperationsInput | number
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    status?: NullableStringFieldUpdateOperationsInput | string | null
     listingId?: NullableStringFieldUpdateOperationsInput | string | null
   }
 
@@ -12087,35 +12245,38 @@ export namespace Prisma {
     order?: IntFieldUpdateOperationsInput | number
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    status?: NullableStringFieldUpdateOperationsInput | string | null
     listingId?: NullableStringFieldUpdateOperationsInput | string | null
   }
 
   export type ListingCreateManyUserInput = {
     id?: string
-    name: string
+    title: string
     price?: number | null
-    publicNote?: string | null
+    description?: string | null
     privateNote?: string | null
     ahsId?: string | null
+    status?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
   }
 
   export type ListCreateManyUserInput = {
     id?: string
-    name: string
-    intro?: string | null
-    bio?: string | null
+    title: string
+    description?: string | null
+    status?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
   }
 
   export type ListingUpdateWithoutUserInput = {
     id?: StringFieldUpdateOperationsInput | string
-    name?: StringFieldUpdateOperationsInput | string
+    title?: StringFieldUpdateOperationsInput | string
     price?: NullableFloatFieldUpdateOperationsInput | number | null
-    publicNote?: NullableStringFieldUpdateOperationsInput | string | null
+    description?: NullableStringFieldUpdateOperationsInput | string | null
     privateNote?: NullableStringFieldUpdateOperationsInput | string | null
+    status?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     images?: ImageUpdateManyWithoutListingNestedInput
@@ -12125,11 +12286,12 @@ export namespace Prisma {
 
   export type ListingUncheckedUpdateWithoutUserInput = {
     id?: StringFieldUpdateOperationsInput | string
-    name?: StringFieldUpdateOperationsInput | string
+    title?: StringFieldUpdateOperationsInput | string
     price?: NullableFloatFieldUpdateOperationsInput | number | null
-    publicNote?: NullableStringFieldUpdateOperationsInput | string | null
+    description?: NullableStringFieldUpdateOperationsInput | string | null
     privateNote?: NullableStringFieldUpdateOperationsInput | string | null
     ahsId?: NullableStringFieldUpdateOperationsInput | string | null
+    status?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     images?: ImageUncheckedUpdateManyWithoutListingNestedInput
@@ -12138,20 +12300,21 @@ export namespace Prisma {
 
   export type ListingUncheckedUpdateManyWithoutUserInput = {
     id?: StringFieldUpdateOperationsInput | string
-    name?: StringFieldUpdateOperationsInput | string
+    title?: StringFieldUpdateOperationsInput | string
     price?: NullableFloatFieldUpdateOperationsInput | number | null
-    publicNote?: NullableStringFieldUpdateOperationsInput | string | null
+    description?: NullableStringFieldUpdateOperationsInput | string | null
     privateNote?: NullableStringFieldUpdateOperationsInput | string | null
     ahsId?: NullableStringFieldUpdateOperationsInput | string | null
+    status?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
 
   export type ListUpdateWithoutUserInput = {
     id?: StringFieldUpdateOperationsInput | string
-    name?: StringFieldUpdateOperationsInput | string
-    intro?: NullableStringFieldUpdateOperationsInput | string | null
-    bio?: NullableStringFieldUpdateOperationsInput | string | null
+    title?: StringFieldUpdateOperationsInput | string
+    description?: NullableStringFieldUpdateOperationsInput | string | null
+    status?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     listings?: ListingUpdateManyWithoutListsNestedInput
@@ -12159,9 +12322,9 @@ export namespace Prisma {
 
   export type ListUncheckedUpdateWithoutUserInput = {
     id?: StringFieldUpdateOperationsInput | string
-    name?: StringFieldUpdateOperationsInput | string
-    intro?: NullableStringFieldUpdateOperationsInput | string | null
-    bio?: NullableStringFieldUpdateOperationsInput | string | null
+    title?: StringFieldUpdateOperationsInput | string
+    description?: NullableStringFieldUpdateOperationsInput | string | null
+    status?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     listings?: ListingUncheckedUpdateManyWithoutListsNestedInput
@@ -12169,9 +12332,9 @@ export namespace Prisma {
 
   export type ListUncheckedUpdateManyWithoutUserInput = {
     id?: StringFieldUpdateOperationsInput | string
-    name?: StringFieldUpdateOperationsInput | string
-    intro?: NullableStringFieldUpdateOperationsInput | string | null
-    bio?: NullableStringFieldUpdateOperationsInput | string | null
+    title?: StringFieldUpdateOperationsInput | string
+    description?: NullableStringFieldUpdateOperationsInput | string | null
+    status?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }

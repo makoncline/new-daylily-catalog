@@ -52,7 +52,7 @@ export function AhsListingLink({
       if (ahsId && ahsListing?.name) {
         // When linking, update both ahsId and name if needed
         const shouldUpdateName =
-          !listing.name || listing.name === LISTING_CONFIG.DEFAULT_NAME;
+          !listing.title || listing.title === LISTING_CONFIG.DEFAULT_NAME;
 
         const data: { ahsId: string; name?: string } = {
           ahsId,
@@ -104,7 +104,7 @@ export function AhsListingLink({
       const updatedListing = await updateListingMutation({
         id: listing.id,
         data: {
-          name: listing.ahsListing?.name ?? undefined,
+          title: listing.ahsListing?.name ?? undefined,
         },
       });
       if (listing.ahsListing?.name) {
@@ -142,7 +142,7 @@ export function AhsListingLink({
                 </a>
               </p>
               <div className="flex gap-2">
-                {listing.name !== listing.ahsListing.name && (
+                {listing.title !== listing.ahsListing.name && (
                   <Button
                     type="button"
                     variant="outline"

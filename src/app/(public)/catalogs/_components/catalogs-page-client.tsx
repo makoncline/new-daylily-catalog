@@ -1,7 +1,7 @@
 "use client";
 
 import { UserCard, UserCardSkeleton } from "@/components/user-card";
-import { api } from "@/trpc/react";
+import { api, RouterOutputs } from "@/trpc/react";
 import type { PublicProfile } from "@/types/public-types";
 import { useDataTable } from "@/hooks/use-data-table";
 import { type ColumnDef, type TableOptions } from "@tanstack/react-table";
@@ -19,11 +19,11 @@ import { MainContent } from "@/app/(public)/_components/main-content";
 const columns: ColumnDef<PublicProfile>[] = [
   {
     id: "name",
-    accessorFn: (row) => row.name ?? "Unnamed Garden",
+    accessorFn: (row) => row.title ?? "Unnamed Garden",
   },
   {
     id: "intro",
-    accessorFn: (row) => row.intro ?? "",
+    accessorFn: (row) => row.description ?? "",
   },
   {
     id: "location",
@@ -31,42 +31,27 @@ const columns: ColumnDef<PublicProfile>[] = [
   },
 ];
 
-const config: Partial<TableOptions<PublicProfile>> = {
-  initialState: {
-    pagination: {
-      pageSize: 12,
-    },
-  },
-};
-
-function CatalogsGrid({ profiles }: { profiles: PublicProfile[] }) {
+function CatalogsGrid({
+  profiles,
+}: {
+  profiles: RouterOutputs["public"]["getPublicProfiles"];
+}) {
   const table = useDataTable({
     data: profiles,
     columns,
     storageKey: "catalogs-table",
-    config,
   });
 
   return (
     <>
-      <div className="flex items-center justify-end">
+      <div className="flex items-center">
         <DataTableGlobalFilter table={table} placeholder="Search catalogs..." />
       </div>
 
       <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
         {table.getRowModel().rows.map((row, index) => (
           <div key={row.original.id} className="mx-auto w-full max-w-[400px]">
-            <UserCard
-              id={row.original.id}
-              name={row.original.name}
-              intro={row.original.intro}
-              location={row.original.location}
-              images={row.original.images}
-              listingCount={row.original.listingCount}
-              listCount={row.original.listCount}
-              hasActiveSubscription={row.original.hasActiveSubscription}
-              priority={index < 6}
-            />
+            <UserCard {...row.original} priority={index < 6} />
           </div>
         ))}
       </div>

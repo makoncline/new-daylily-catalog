@@ -86,7 +86,7 @@ export function ListSelect({ value, onSelect, disabled }: ListSelectProps) {
               <Button
                 variant="ghost"
                 onClick={() => {
-                  createListMutation.mutate({ name: searchValue });
+                  createListMutation.mutate({ title: searchValue });
                 }}
                 className="relative w-full justify-start px-2 py-1.5 font-normal"
               >

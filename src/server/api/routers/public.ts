@@ -13,14 +13,18 @@ export const publicRouter = createTRPCRouter({
         select: {
           id: true,
           stripeCustomerId: true,
+          createdAt: true,
           profile: {
             select: {
-              intro: true,
-              userLocation: true,
+              title: true,
+              slug: true,
+              description: true,
+              location: true,
+              updatedAt: true,
               images: {
-                take: 1,
                 select: {
                   url: true,
+                  updatedAt: true,
                 },
                 orderBy: {
                   order: "asc",
@@ -32,6 +36,28 @@ export const publicRouter = createTRPCRouter({
             select: {
               listings: true,
               lists: true,
+            },
+          },
+          lists: {
+            select: {
+              id: true,
+              title: true,
+              updatedAt: true,
+              _count: {
+                select: {
+                  listings: true,
+                },
+              },
+            },
+            orderBy: {
+              listings: {
+                _count: "desc",
+              },
+            },
+          },
+          listings: {
+            select: {
+              updatedAt: true,
             },
           },
         },
@@ -56,18 +82,41 @@ export const publicRouter = createTRPCRouter({
 
       // Transform and sort the profiles
       const transformedProfiles = profilesWithSubs.map(
-        (profile): PublicProfile => ({
-          id: profile.id,
-          name: null, // We don't have names in the schema yet
-          intro: profile.profile?.intro ?? null,
-          location: profile.profile?.userLocation ?? null,
-          images: profile.profile?.images ?? [],
-          listingCount: profile._count.listings,
-          listCount: profile._count.lists,
-          hasActiveSubscription: hasActiveSubscription(
-            profile.subscriptionStatus,
-          ),
-        }),
+        (profile): PublicProfile => {
+          // Get the most recent update timestamp across all content
+          const timestamps = [
+            profile.profile?.updatedAt,
+            ...(profile.profile?.images?.map((img) => img.updatedAt) ?? []),
+            ...(profile.listings?.map((l) => l.updatedAt) ?? []),
+            ...(profile.lists?.map((l) => l.updatedAt) ?? []),
+          ].filter((date): date is Date => date !== null && date !== undefined);
+
+          const mostRecentUpdate =
+            timestamps.length > 0
+              ? new Date(Math.max(...timestamps.map((d) => d.getTime())))
+              : profile.createdAt;
+
+          return {
+            id: profile.id,
+            title: profile.profile?.title ?? null,
+            slug: profile.profile?.slug ?? null,
+            description: profile.profile?.description ?? null,
+            location: profile.profile?.location ?? null,
+            images: profile.profile?.images ?? [],
+            listingCount: profile._count.listings,
+            listCount: profile._count.lists,
+            hasActiveSubscription: hasActiveSubscription(
+              profile.subscriptionStatus,
+            ),
+            createdAt: profile.createdAt,
+            updatedAt: mostRecentUpdate,
+            lists: profile.lists.map((list) => ({
+              id: list.id,
+              title: list.title,
+              listingCount: list._count.listings,
+            })),
+          };
+        },
       );
 
       // Sort profiles: active subscriptions first, then by listing count
@@ -95,11 +144,15 @@ export const publicRouter = createTRPCRouter({
           select: {
             id: true,
             stripeCustomerId: true,
+            createdAt: true,
             profile: {
               select: {
-                intro: true,
-                bio: true,
-                userLocation: true,
+                title: true,
+                slug: true,
+                description: true,
+                content: true,
+                location: true,
+                updatedAt: true,
                 images: {
                   orderBy: {
                     order: "asc",
@@ -111,11 +164,16 @@ export const publicRouter = createTRPCRouter({
                 },
               },
             },
+            _count: {
+              select: {
+                listings: true,
+              },
+            },
             lists: {
               select: {
                 id: true,
-                name: true,
-                intro: true,
+                title: true,
+                description: true,
                 _count: {
                   select: {
                     listings: true,
@@ -135,17 +193,33 @@ export const publicRouter = createTRPCRouter({
 
         const sub = await getStripeSubscription(user.stripeCustomerId);
 
+        // Parse content if it exists
+        let parsedContent = null;
+        if (user.profile?.content) {
+          try {
+            parsedContent = JSON.parse(user.profile.content);
+          } catch (error) {
+            console.error("Error parsing profile content:", error);
+          }
+        }
+
         return {
           id: user.id,
-          name: null, // We don't have names in the schema yet
-          intro: user.profile?.intro ?? null,
-          bio: user.profile?.bio ?? null,
-          location: user.profile?.userLocation ?? null,
+          title: user.profile?.title ?? null,
+          slug: user.profile?.slug ?? null,
+          description: user.profile?.description ?? null,
+          content: parsedContent,
+          location: user.profile?.location ?? null,
           images: user.profile?.images ?? [],
+          createdAt: user.createdAt,
+          updatedAt: user.profile?.updatedAt ?? user.createdAt,
+          _count: {
+            listings: user._count.listings,
+          },
           lists: user.lists.map((list) => ({
             id: list.id,
-            name: list.name,
-            description: list.intro ?? null,
+            title: list.title,
+            description: list.description ?? null,
             listingCount: list._count.listings,
           })),
           hasActiveSubscription: hasActiveSubscription(sub.status),
@@ -183,14 +257,14 @@ export const publicRouter = createTRPCRouter({
           },
           select: {
             id: true,
-            name: true,
-            publicNote: true,
+            title: true,
+            description: true,
             price: true,
             userId: true,
             lists: {
               select: {
                 id: true,
-                name: true,
+                title: true,
               },
             },
             ahsListing: {

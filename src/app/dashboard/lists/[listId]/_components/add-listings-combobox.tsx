@@ -43,7 +43,7 @@ export function AddListingsCombobox({ listId }: AddListingsComboboxProps) {
     if (!listings) return [];
     return listings.filter((listing) => {
       if (!searchValue) return true;
-      return listing.name.toLowerCase().includes(searchValue.toLowerCase());
+      return listing.title.toLowerCase().includes(searchValue.toLowerCase());
     });
   }, [listings, searchValue]);
 
@@ -92,7 +92,7 @@ export function AddListingsCombobox({ listId }: AddListingsComboboxProps) {
                 disabled={addListingsMutation.isPending}
               >
                 <div className="flex w-full items-center justify-between">
-                  <span>{listing.name}</span>
+                  <span>{listing.title}</span>
                   {(listing.ahsListing?.hybridizer ??
                     listing.ahsListing?.year) && (
                     <span className="text-xs text-muted-foreground">

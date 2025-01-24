@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import type EditorJS from "@editorjs/editorjs";
-import { type OutputData } from "@editorjs/editorjs";
+import { ToolConstructable, type OutputData } from "@editorjs/editorjs";
 
 import "@/styles/editor.css";
 import { cn } from "@/lib/utils";
@@ -11,9 +11,15 @@ interface EditorProps {
   initialContent?: OutputData;
   className?: string;
   editorRef: React.MutableRefObject<EditorJS | undefined>;
+  readOnly?: boolean;
 }
 
-export function Editor({ initialContent, className, editorRef }: EditorProps) {
+export function Editor({
+  initialContent,
+  className,
+  editorRef,
+  readOnly,
+}: EditorProps) {
   const [isMounted, setIsMounted] = React.useState<boolean>(false);
 
   const initialContentRef = React.useRef(initialContent);
@@ -25,8 +31,8 @@ export function Editor({ initialContent, className, editorRef }: EditorProps) {
     const Header = (await import("@editorjs/header")).default;
     const Table = (await import("@editorjs/table")).default;
     const List = (await import("@editorjs/list")).default;
-    const Code = (await import("@editorjs/code")).default;
     const InlineCode = (await import("@editorjs/inline-code")).default;
+    const Paragraph = (await import("@editorjs/paragraph")).default;
 
     const editor = new EditorJS({
       holder: "editor",
@@ -35,16 +41,23 @@ export function Editor({ initialContent, className, editorRef }: EditorProps) {
       },
       placeholder: "Type something...",
       inlineToolbar: true,
+      readOnly: readOnly,
       data: initialContentRef.current,
       tools: {
-        header: Header,
+        header: {
+          class: Header as unknown as ToolConstructable,
+          inlineToolbar: true,
+          config: {
+            levels: [2, 3, 4, 5, 6],
+            defaultLevel: 2,
+          },
+        },
         list: List,
-        code: Code,
         inlineCode: InlineCode,
         table: Table,
       },
     });
-  }, [editorRef]);
+  }, [editorRef, readOnly]);
 
   React.useEffect(() => {
     if (typeof window !== "undefined") {
@@ -72,10 +85,7 @@ export function Editor({ initialContent, className, editorRef }: EditorProps) {
   return (
     <div className={cn("grid w-full gap-10", className)}>
       <div className="prose prose-stone dark:prose-invert mx-auto w-full">
-        <div
-          id="editor"
-          className="min-h-[500px] rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background"
-        />
+        <div id="editor" className="bg-background px-3 py-2 pb-8 text-sm" />
       </div>
     </div>
   );

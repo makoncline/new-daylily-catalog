@@ -35,13 +35,15 @@ export function TruncatedListBadge({
   return (
     <TooltipProvider>
       <Tooltip delayDuration={0}>
-        <TooltipTrigger>
-          <Badge
-            variant="secondary"
-            className={cn("whitespace-nowrap", className)}
-          >
-            {truncatedName}
-          </Badge>
+        <TooltipTrigger asChild>
+          <div>
+            <Badge
+              variant="secondary"
+              className={cn("whitespace-nowrap", className)}
+            >
+              {truncatedName}
+            </Badge>
+          </div>
         </TooltipTrigger>
         <TooltipContent side="top">
           <p className="text-xs">{name}</p>

@@ -56,8 +56,8 @@ export function ListForm({ listId }: ListFormProps) {
           await updateList.mutateAsync({
             id: listId,
             data: {
-              name: value,
-              intro: list.intro ?? undefined,
+              title: value,
+              description: list.intro ?? undefined,
             },
           });
         } else {
@@ -65,8 +65,8 @@ export function ListForm({ listId }: ListFormProps) {
           await updateList.mutateAsync({
             id: listId,
             data: {
-              name: list.name,
-              intro: value ?? undefined,
+              title: list.name,
+              description: value ?? undefined,
             },
           });
         }

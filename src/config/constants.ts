@@ -17,10 +17,10 @@ export const TABLE_CONFIG = {
 
 export const LISTING_TABLE_COLUMN_NAMES = {
   // Core columns
-  name: "Name",
+  title: "Title",
   images: "Images",
   price: "Price",
-  publicNote: "Description",
+  description: "Description",
   privateNote: "Private Notes",
   lists: "Lists",
 
@@ -45,8 +45,8 @@ export const LISTING_TABLE_COLUMN_NAMES = {
 } as const;
 
 export const LIST_TABLE_COLUMN_NAMES = {
-  name: "Name",
-  intro: "Description",
+  title: "Title",
+  description: "Description",
   listingsCount: "Listings",
   createdAt: "Created",
   updatedAt: "Updated",

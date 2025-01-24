@@ -58,7 +58,7 @@ export function ListsTable() {
     columns,
     storageKey: "lists-table",
     pinnedColumns: {
-      left: ["name"],
+      left: ["title"],
       right: ["actions"],
     },
     columnNames: LIST_TABLE_COLUMN_NAMES,

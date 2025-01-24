@@ -36,16 +36,16 @@ export function getColumns(
 ): ColumnDef<ListingData>[] {
   return [
     {
-      id: "name",
-      accessorKey: "name",
+      id: "title",
+      accessorKey: "title",
       header: ({ column }) => (
         <DataTableColumnHeader
           column={column}
-          title={LISTING_TABLE_COLUMN_NAMES.name}
+          title={LISTING_TABLE_COLUMN_NAMES.title}
         />
       ),
       cell: ({ row }) => {
-        const value = getStringValue(row, "name");
+        const value = getStringValue(row, "title");
         return <TooltipCell content={value} />;
       },
       enableSorting: true,
@@ -105,16 +105,16 @@ export function getColumns(
       enableHiding: true,
     },
     {
-      id: "publicNote",
-      accessorKey: "publicNote",
+      id: "description",
+      accessorKey: "description",
       header: ({ column }) => (
         <DataTableColumnHeader
           column={column}
-          title={LISTING_TABLE_COLUMN_NAMES.publicNote}
+          title={LISTING_TABLE_COLUMN_NAMES.description}
         />
       ),
       cell: ({ row }) => (
-        <TooltipCell content={getStringValue(row, "publicNote")} />
+        <TooltipCell content={getStringValue(row, "description")} />
       ),
       enableSorting: true,
       enableHiding: true,
@@ -147,7 +147,7 @@ export function getColumns(
             {lists.map((list) => (
               <TruncatedListBadge
                 key={list.id}
-                name={list.name}
+                name={list.title}
                 className="shrink-0 text-xs font-normal"
               />
             ))}

@@ -29,7 +29,7 @@ interface ListListingsTableProps {
 
 const tableOptions = {
   pinnedColumns: {
-    left: ["select", "name"],
+    left: ["select", "title"],
     right: ["actions"],
   },
   storageKey: "list-listings-table",

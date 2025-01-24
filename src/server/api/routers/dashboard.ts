@@ -63,9 +63,9 @@ export const dashboardRouter = createTRPCRouter({
       ctx.db.userProfile.findUnique({
         where: { userId: ctx.user.id },
         select: {
-          intro: true,
-          bio: true,
-          userLocation: true,
+          description: true,
+          content: true,
+          location: true,
         },
       }),
       ctx.db.list.findMany({
@@ -109,15 +109,15 @@ export const dashboardRouter = createTRPCRouter({
     // Calculate profile completion percentage
     const profileFields = [
       "hasProfileImage",
-      "intro",
-      "bio",
-      "userLocation",
+      "description",
+      "content",
+      "location",
     ] as const;
     const completedFields = [
       profileImages > 0,
-      hasContent(profile?.intro),
-      hasContent(profile?.bio),
-      hasContent(profile?.userLocation),
+      hasContent(profile?.description),
+      hasContent(profile?.content),
+      hasContent(profile?.location),
     ].filter(Boolean).length;
     const profileCompletion = (completedFields / profileFields.length) * 100;
 
@@ -144,9 +144,9 @@ export const dashboardRouter = createTRPCRouter({
         completionPercentage: profileCompletion,
         missingFields: [
           !profileImages && "hasProfileImage",
-          !hasContent(profile?.intro) && "intro",
-          !hasContent(profile?.bio) && "bio",
-          !hasContent(profile?.userLocation) && "userLocation",
+          !hasContent(profile?.description) && "description",
+          !hasContent(profile?.content) && "content",
+          !hasContent(profile?.location) && "location",
         ].filter((field): field is (typeof profileFields)[number] =>
           Boolean(field),
         ),

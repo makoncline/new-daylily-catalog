@@ -12,7 +12,7 @@ import { TruncatedText } from "@/components/truncated-text";
 interface ListingCardProps {
   listing: {
     id: string;
-    name: string;
+    title: string;
     price: number | null;
     images: {
       id: string;
@@ -33,7 +33,7 @@ export function ListingCard({ listing }: ListingCardProps) {
             {firstImage ? (
               <OptimizedImage
                 src={firstImage.url}
-                alt={listing.name}
+                alt={listing.title}
                 size="full"
                 className="object-cover"
               />
@@ -51,7 +51,7 @@ export function ListingCard({ listing }: ListingCardProps) {
         </div>
         <div className="flex flex-1 flex-col justify-between gap-2 p-4">
           <TruncatedText
-            text={listing.name}
+            text={listing.title}
             maxLength={50}
             className="text-lg font-semibold"
           />

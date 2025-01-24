@@ -22,8 +22,8 @@ export function CreateListButton() {
   const handleCreate = async () => {
     try {
       const list = await createList.mutateAsync({
-        name: "New List",
-        intro: "",
+        title: "New List",
+        description: "",
       });
       editList(list.id);
     } catch {

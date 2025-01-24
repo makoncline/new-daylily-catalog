@@ -7,9 +7,8 @@ import { listingInclude } from "./listing";
 const listInclude = {
   id: true,
   userId: true,
-  name: true,
-  intro: true,
-  bio: true,
+  title: true,
+  description: true,
   createdAt: true,
   updatedAt: true,
   _count: {
@@ -53,8 +52,8 @@ export const listRouter = createTRPCRouter({
         const result = await ctx.db.list.create({
           data: {
             userId: ctx.user.id,
-            name: input.name,
-            intro: input.intro,
+            title: input.title,
+            description: input.description,
           },
           select: listInclude,
         });
@@ -95,8 +94,8 @@ export const listRouter = createTRPCRouter({
             userId: ctx.user.id,
           },
           data: {
-            name: input.data.name,
-            intro: input.data.intro,
+            title: input.data.title,
+            description: input.data.description,
           },
           select: listInclude,
         });

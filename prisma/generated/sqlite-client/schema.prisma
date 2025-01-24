@@ -39,11 +39,12 @@ model AhsListing {
 model Listing {
   id          String   @id @default(cuid())
   userId      String
-  name        String
+  title       String
   price       Float?
-  publicNote  String?
+  description String?
   privateNote String?
   ahsId       String?
+  status      String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -58,29 +59,31 @@ model Listing {
 }
 
 model List {
-  id        String    @id @default(cuid())
-  userId    String
-  name      String
-  intro     String?
-  bio       String?
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  listings  Listing[] @relation("ListToListing")
-  user      User      @relation(fields: [userId], references: [id])
+  id          String    @id @default(cuid())
+  userId      String
+  title       String
+  description String?
+  status      String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  listings    Listing[] @relation("ListToListing")
+  user        User      @relation(fields: [userId], references: [id])
 
   @@index([userId])
 }
 
 model UserProfile {
-  id           String   @id @default(cuid())
-  userId       String   @unique
-  logoUrl      String?
-  intro        String?
-  bio          String?
-  userLocation String?
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id          String   @id @default(cuid())
+  userId      String   @unique
+  title       String?
+  slug        String?  @unique
+  logoUrl     String?
+  description String?
+  content     String?
+  location    String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   images Image[]
 }
@@ -91,6 +94,7 @@ model Image {
   order     Int      @default(0)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  status    String?
 
   userProfileId String?
   listingId     String?

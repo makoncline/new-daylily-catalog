@@ -33,7 +33,7 @@ function ListingsTableToolbar({
 }: ListingsTableToolbarProps) {
   const listsColumn = table.getColumn("lists");
   const listOptions = lists.map((list) => ({
-    label: list.name,
+    label: list.title,
     value: list.id,
     count: listings?.filter((listing) =>
       listing.lists.some(
@@ -72,7 +72,7 @@ export function ListingsTable() {
     columns,
     storageKey: "listings-table",
     pinnedColumns: {
-      left: ["select", "name"],
+      left: ["select", "title"],
       right: ["actions"],
     },
     config: {

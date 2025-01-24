@@ -148,11 +148,12 @@ exports.Prisma.AhsListingScalarFieldEnum = {
 exports.Prisma.ListingScalarFieldEnum = {
   id: 'id',
   userId: 'userId',
-  name: 'name',
+  title: 'title',
   price: 'price',
-  publicNote: 'publicNote',
+  description: 'description',
   privateNote: 'privateNote',
   ahsId: 'ahsId',
+  status: 'status',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
 };
@@ -160,9 +161,9 @@ exports.Prisma.ListingScalarFieldEnum = {
 exports.Prisma.ListScalarFieldEnum = {
   id: 'id',
   userId: 'userId',
-  name: 'name',
-  intro: 'intro',
-  bio: 'bio',
+  title: 'title',
+  description: 'description',
+  status: 'status',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
 };
@@ -170,10 +171,12 @@ exports.Prisma.ListScalarFieldEnum = {
 exports.Prisma.UserProfileScalarFieldEnum = {
   id: 'id',
   userId: 'userId',
+  title: 'title',
+  slug: 'slug',
   logoUrl: 'logoUrl',
-  intro: 'intro',
-  bio: 'bio',
-  userLocation: 'userLocation',
+  description: 'description',
+  content: 'content',
+  location: 'location',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
 };
@@ -184,6 +187,7 @@ exports.Prisma.ImageScalarFieldEnum = {
   order: 'order',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt',
+  status: 'status',
   userProfileId: 'userProfileId',
   listingId: 'listingId'
 };

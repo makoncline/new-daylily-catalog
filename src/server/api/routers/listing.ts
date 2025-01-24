@@ -7,6 +7,7 @@ import {
 } from "@trpc/server";
 import { listingFormSchema } from "@/types/schemas/listing";
 import { type PrismaClient } from "@prisma/client";
+import { APP_CONFIG } from "@/config/constants";
 
 async function checkListingOwnership(
   userId: string,
@@ -73,7 +74,7 @@ export const listingRouter = createTRPCRouter({
   create: protectedProcedure.mutation(async ({ ctx }) => {
     const listing = await ctx.db.listing.create({
       data: {
-        name: "New Listing",
+        title: APP_CONFIG.LISTING.DEFAULT_NAME,
         userId: ctx.user.id,
       },
       include: listingInclude,
@@ -103,9 +104,9 @@ export const listingRouter = createTRPCRouter({
       const updatedListing = await ctx.db.listing.update({
         where: { id: input.id },
         data: {
-          name: input.data.name,
+          title: input.data.title,
           price: input.data.price,
-          publicNote: input.data.publicNote,
+          description: input.data.description,
           privateNote: input.data.privateNote,
           ahsId: input.data.ahsId,
         },
@@ -264,7 +265,8 @@ export const listingRouter = createTRPCRouter({
         where: { id: input.id },
         data: {
           ahsId: input.ahsId,
-          name: input.syncName && ahsListing.name ? ahsListing.name : undefined,
+          title:
+            input.syncName && ahsListing.name ? ahsListing.name : undefined,
         },
         include: listingInclude,
       });
@@ -315,7 +317,7 @@ export const listingRouter = createTRPCRouter({
       const updatedListing = await ctx.db.listing.update({
         where: { id: input.id },
         data: {
-          name: listing.ahsListing.name,
+          title: listing.ahsListing.name,
         },
         include: listingInclude,
       });
@@ -333,16 +335,16 @@ export const listingRouter = createTRPCRouter({
           },
         },
       },
-      orderBy: [{ listings: { _count: "desc" } }, { name: "asc" }],
+      orderBy: [{ listings: { _count: "desc" } }, { title: "asc" }],
     });
   }),
 
   createList: protectedProcedure
-    .input(z.object({ name: z.string() }))
+    .input(z.object({ title: z.string() }))
     .mutation(async ({ ctx, input }) => {
       return ctx.db.list.create({
         data: {
-          name: input.name,
+          title: input.title,
           userId: ctx.user.id,
         },
       });

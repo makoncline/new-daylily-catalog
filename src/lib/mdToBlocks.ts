@@ -16,6 +16,24 @@ export function convertMarkdownToEditorJS(markdown: string): EditorJSData {
   const tokens = marked.lexer(markdown);
   const blocks: EditorJSBlock[] = [];
 
+  // Helper function to process inline formatting
+  function processInlineFormatting(text: string): string {
+    return (
+      text
+        // Links (process first to avoid conflicts with other patterns)
+        .replace(
+          /\[([^\]]+)\]\(([^)]+)\)/g,
+          '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>',
+        )
+        // Bold (both ** and __ syntax)
+        .replace(/(\*\*|__)(.*?)\1/g, "<b>$2</b>")
+        // Italic (both * and _ syntax)
+        .replace(/(\*|_)(.*?)\1/g, "<i>$2</i>")
+        // Inline code
+        .replace(/`([^`]+)`/g, '<code class="inline-code">$1</code>')
+    );
+  }
+
   for (const token of tokens) {
     switch (token.type) {
       case "paragraph": {
@@ -23,7 +41,7 @@ export function convertMarkdownToEditorJS(markdown: string): EditorJSData {
         blocks.push({
           type: "paragraph",
           data: {
-            text: paragraphToken.text,
+            text: processInlineFormatting(paragraphToken.text),
           },
         });
         break;
@@ -34,7 +52,7 @@ export function convertMarkdownToEditorJS(markdown: string): EditorJSData {
         blocks.push({
           type: "header",
           data: {
-            text: headingToken.text,
+            text: processInlineFormatting(headingToken.text),
             level: headingToken.depth,
           },
         });
@@ -47,7 +65,9 @@ export function convertMarkdownToEditorJS(markdown: string): EditorJSData {
           type: "list",
           data: {
             style: listToken.ordered ? "ordered" : "unordered",
-            items: listToken.items.map((item: Tokens.ListItem) => item.text),
+            items: listToken.items.map((item: Tokens.ListItem) =>
+              processInlineFormatting(item.text),
+            ),
           },
         });
         break;
@@ -56,9 +76,9 @@ export function convertMarkdownToEditorJS(markdown: string): EditorJSData {
       case "code": {
         const codeToken = token as Tokens.Code;
         blocks.push({
-          type: "code",
+          type: "paragraph",
           data: {
-            code: codeToken.text,
+            text: processInlineFormatting(codeToken.text),
           },
         });
         break;
@@ -69,7 +89,7 @@ export function convertMarkdownToEditorJS(markdown: string): EditorJSData {
         blocks.push({
           type: "paragraph",
           data: {
-            text: blockquoteToken.text,
+            text: processInlineFormatting(blockquoteToken.text),
           },
         });
         break;

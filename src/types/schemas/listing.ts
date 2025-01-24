@@ -14,9 +14,9 @@ export const transformNullToUndefined = <T>(value: T): T | undefined => {
 };
 
 export const listingFormSchema = z.object({
-  name: z.string().min(1, "Name is required").optional(),
+  title: z.string().min(1, "Name is required").optional(),
   price: z.number().min(0).optional().nullable(),
-  publicNote: z.string().optional().nullable(),
+  description: z.string().optional().nullable(),
   privateNote: z.string().optional().nullable(),
   ahsId: z.string().optional().nullable(),
 });

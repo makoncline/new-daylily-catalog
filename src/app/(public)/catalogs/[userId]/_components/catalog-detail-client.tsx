@@ -7,16 +7,16 @@ import { type ColumnDef } from "@tanstack/react-table";
 import { useDataTable } from "@/hooks/use-data-table";
 import { useTableUrlSync } from "@/hooks/use-table-url-sync";
 import { CatalogNav } from "./catalog-nav";
-import { ProfileSection } from "./profile-section";
-import { ImagesSection } from "./images-section";
-import { BioSection } from "./bio-section";
-import { ListsSection } from "./lists-section";
-import { ListingsToolbar } from "./listings-toolbar";
-import { ListingsTable } from "./listings-table";
-import { CatalogDetailSkeleton } from "./catalog-detail-skeleton";
-import { NoResults } from "./no-results";
 import { DataTableLayout } from "@/components/data-table/data-table-layout";
 import { DataTablePagination } from "@/components/data-table/data-table-pagination";
+import { ContentSection } from "./content-section";
+import { CatalogDetailSkeleton } from "./catalog-detail-skeleton";
+import { ImagesSection } from "./images-section";
+import { ListingsTable } from "./listings-table";
+import { ListingsToolbar } from "./listings-toolbar";
+import { ListsSection } from "./lists-section";
+import { NoResults } from "./no-results";
+import { ProfileSection } from "./profile-section";
 
 type Listing = RouterOutputs["public"]["getListings"][number];
 
@@ -34,8 +34,8 @@ const columns = [
     },
   },
   {
-    id: "name",
-    accessorFn: (row) => row.name,
+    id: "title",
+    accessorFn: (row) => row.title,
   },
 ] as ColumnDef<Listing>[];
 
@@ -80,7 +80,7 @@ export function CatalogDetailClient({ userId }: CatalogDetailClientProps) {
 
   const listsColumn = table.getColumn("lists");
   const listOptions = profile.lists.map((list) => ({
-    label: list.name,
+    label: list.title,
     value: list.id,
     count: listings?.filter((listing) =>
       listing.lists.some(
@@ -95,7 +95,7 @@ export function CatalogDetailClient({ userId }: CatalogDetailClientProps) {
         <CatalogNav />
         <ProfileSection profile={profile} />
         <ImagesSection images={profile.images} />
-        <BioSection bio={profile.bio} />
+        <ContentSection content={profile.content} />
         <ListsSection lists={profile.lists} table={table} />
 
         {/* Listings */}

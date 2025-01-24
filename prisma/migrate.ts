@@ -12,6 +12,7 @@ import {
   convertMarkdownToEditorJS,
   type EditorJSData,
 } from "../src/lib/mdToBlocks";
+import { transformToSlug } from "../src/lib/utils/slugify";
 
 const stripe = new Stripe(process.env.PROD_STRIPE_SECRET_KEY!);
 
@@ -283,9 +284,9 @@ async function upsertLists() {
 
     const listData = {
       userId: list.user_id.toString(),
-      name: list.name,
-      intro: list.intro,
-      bio: list.bio,
+      title: list.name,
+      description: list.intro || null, // Combine intro and bio into description
+      status: "PUBLISHED", // Default status for existing lists
       createdAt: list.created_at,
       updatedAt: list.updated_at,
     };
@@ -332,11 +333,12 @@ async function upsertListings() {
 
     const listingData = {
       userId: lily.user_id.toString(),
-      name: lily.name,
+      title: lily.name,
       price: lily.price ? parseFloat(lily.price.toString()) : null,
-      publicNote: lily.public_note,
+      description: lily.public_note,
       privateNote: lily.private_note,
       ahsId: lily.ahs_ref ? lily.ahs_ref.toString() : null,
+      status: "PUBLISHED", // Default status for existing listings
       createdAt: lily.created_at,
       updatedAt: lily.updated_at,
       // Connect to lists if list_id exists
@@ -373,6 +375,8 @@ async function upsertListings() {
                 url: imageUrl.trim(),
                 listingId: createdListing.id,
                 order: i,
+                createdAt: lily.created_at,
+                updatedAt: lily.updated_at,
               };
 
               if (existingImage) {
@@ -439,17 +443,17 @@ async function upsertUserProfiles() {
     const userId = user.id.toString();
 
     // Convert bio to EditorJS format if it exists
-    let processedBio: string | null = null;
+    let processedContent: string | null = null;
     if (user.bio) {
       try {
         // First try to parse as JSON (EditorJS format)
         JSON.parse(user.bio);
-        processedBio = user.bio; // Already in correct format
+        processedContent = user.bio; // Already in correct format
       } catch {
         // If parsing fails, treat as markdown and convert
         try {
           const editorJSData = convertMarkdownToEditorJS(user.bio);
-          processedBio = JSON.stringify(editorJSData);
+          processedContent = JSON.stringify(editorJSData);
           console.log(
             `Converted markdown bio to EditorJS format for user ${userId}`,
           );
@@ -468,17 +472,22 @@ async function upsertUserProfiles() {
             ],
             version: "2.27.2",
           };
-          processedBio = JSON.stringify(fallbackData);
+          processedContent = JSON.stringify(fallbackData);
         }
       }
     }
 
+    // Transform username to slug, fallback to userId if invalid
+    const slug = transformToSlug(user.username, userId);
+
     const profileData = {
       userId: userId,
+      title: user.username, // Use username as title (non-slugified)
+      slug, // Will be userId if username was invalid
       logoUrl: user.avatar_url,
-      intro: user.intro,
-      bio: processedBio,
-      userLocation: user.user_location,
+      description: user.intro,
+      content: processedContent,
+      location: user.user_location,
       createdAt: user.created_at,
       updatedAt: user.updated_at,
     };
@@ -509,6 +518,8 @@ async function upsertUserProfiles() {
                 url: imageUrl.trim(),
                 userProfileId: createdProfile.id,
                 order: i,
+                createdAt: user.created_at,
+                updatedAt: user.updated_at,
               };
 
               if (existingImage) {

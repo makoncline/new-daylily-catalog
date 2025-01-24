@@ -48,7 +48,7 @@ export function ListsSection({ lists, table }: ListsSectionProps) {
                 <div className="flex items-center space-x-2">
                   <ListIcon className="h-5 w-5 text-muted-foreground" />
                   <CardTitle className="text-lg font-semibold group-hover:text-primary">
-                    {list.name}
+                    {list.title}
                   </CardTitle>
                 </div>
                 <Badge variant="secondary" className="h-7">

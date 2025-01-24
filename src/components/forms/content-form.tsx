@@ -12,28 +12,32 @@ import { FormItem, FormLabel, FormDescription } from "../ui/form";
 import { useOnClickOutside } from "usehooks-ts";
 import { type OutputData } from "@editorjs/editorjs";
 
-interface BioManagerFormProps {
+interface ContentManagerFormProps {
   initialProfile: RouterOutputs["userProfile"]["get"];
 }
 
-export function BioManagerFormItem({ initialProfile }: BioManagerFormProps) {
+export function ContentManagerFormItem({
+  initialProfile,
+}: ContentManagerFormProps) {
   const { toast } = useToast();
   const [isSaving, setIsSaving] = React.useState(false);
-  const [lastSaved, setLastSaved] = React.useState(() => initialProfile.bio);
+  const [lastSaved, setLastSaved] = React.useState(
+    () => initialProfile.content,
+  );
   const editorRef = React.useRef<EditorJS>();
-  const bioRef = React.useRef<HTMLDivElement>(null);
+  const contentRef = React.useRef<HTMLDivElement>(null);
 
-  const updateBioMutation = api.userProfile.updateBio.useMutation({
+  const updateContentMutation = api.userProfile.updateContent.useMutation({
     onSuccess: () => {
       setIsSaving(false);
       toast({
-        title: "Bio saved",
+        title: "Content saved",
       });
     },
     onError: () => {
       setIsSaving(false);
       toast({
-        title: "Failed to save bio",
+        title: "Failed to save content",
         variant: "destructive",
       });
     },
@@ -65,7 +69,7 @@ export function BioManagerFormItem({ initialProfile }: BioManagerFormProps) {
 
       // Save if there was no previous content or if content changed
       const newData = JSON.stringify(newBlocks);
-      await updateBioMutation.mutateAsync({ bio: newData });
+      await updateContentMutation.mutateAsync({ content: newData });
       setLastSaved(newData);
     } catch (error) {
       console.error("Failed to save editor content", error);
@@ -73,7 +77,7 @@ export function BioManagerFormItem({ initialProfile }: BioManagerFormProps) {
     }
   }
 
-  useOnClickOutside(bioRef, () => {
+  useOnClickOutside(contentRef, () => {
     void handleSave();
   });
 
@@ -81,19 +85,22 @@ export function BioManagerFormItem({ initialProfile }: BioManagerFormProps) {
     <FormItem>
       <div className="flex w-full items-end justify-between">
         <div>
-          <FormLabel>Bio</FormLabel>
+          <FormLabel>Content</FormLabel>
           <FormDescription>
             Tell visitors about yourself and your garden.
           </FormDescription>
         </div>
         {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
       </div>
-      <div ref={bioRef} className="space-y-3">
-        <Editor
-          editorRef={editorRef}
-          initialContent={parseEditorContent(initialProfile.bio)}
-        />
+      <div ref={contentRef} className="space-y-3">
+        <div className="min-h-96 rounded-md border bg-background">
+          <Editor
+            editorRef={editorRef}
+            initialContent={parseEditorContent(initialProfile.content)}
+          />
+        </div>
       </div>
+      <div className="h-96" />
     </FormItem>
   );
 }

@@ -23,7 +23,7 @@ export default async function ListPage({ params }: ListPageProps) {
   return (
     <div className="space-y-6">
       <PageHeader
-        heading={`Manage List: ${list.name}`}
+        heading={`Manage List: ${list.title}`}
         text="Manage list details and organize your listings."
       />
       <ListForm listId={params.listId} />

@@ -11,28 +11,28 @@ export type List = RouterOutputs["list"]["list"][number];
 
 export const columns: ColumnDef<List>[] = [
   {
-    id: "name",
-    accessorKey: "name",
+    id: "title",
+    accessorKey: "title",
     header: ({ column }) => (
       <DataTableColumnHeader
         column={column}
-        title={LIST_TABLE_COLUMN_NAMES.name}
+        title={LIST_TABLE_COLUMN_NAMES.title}
       />
     ),
-    cell: ({ row }) => <TooltipCell content={row.getValue("name")} />,
+    cell: ({ row }) => <TooltipCell content={row.getValue("title")} />,
     enableHiding: false,
     enableSorting: true,
   },
   {
-    id: "intro",
-    accessorKey: "intro",
+    id: "description",
+    accessorKey: "description",
     header: ({ column }) => (
       <DataTableColumnHeader
         column={column}
-        title={LIST_TABLE_COLUMN_NAMES.intro}
+        title={LIST_TABLE_COLUMN_NAMES.description}
       />
     ),
-    cell: ({ row }) => <TooltipCell content={row.getValue("intro")} />,
+    cell: ({ row }) => <TooltipCell content={row.getValue("description")} />,
     enableSorting: true,
   },
   {

@@ -133,12 +133,12 @@ export function ListingForm({ listingId, onDelete }: ListingFormProps) {
       <form className="space-y-6">
         <FormField
           control={form.control}
-          name="name"
+          name="title"
           render={({ field }) => (
             <FormItem>
               <FormLabel>Name</FormLabel>
               <FormControl>
-                <Input {...field} onBlur={() => onFieldBlur("name")} />
+                <Input {...field} onBlur={() => onFieldBlur("title")} />
               </FormControl>
               <FormDescription>
                 Required. This is the name of your listing.
@@ -179,7 +179,7 @@ export function ListingForm({ listingId, onDelete }: ListingFormProps) {
         </FormItem>
         <FormField
           control={form.control}
-          name="publicNote"
+          name="description"
           render={({ field }) => (
             <FormItem>
               <FormLabel>Description</FormLabel>
@@ -187,7 +187,7 @@ export function ListingForm({ listingId, onDelete }: ListingFormProps) {
                 <Textarea
                   {...field}
                   value={field.value ?? ""}
-                  onBlur={() => onFieldBlur("publicNote")}
+                  onBlur={() => onFieldBlur("description")}
                 />
               </FormControl>
               <FormDescription>
@@ -277,7 +277,7 @@ export function ListingForm({ listingId, onDelete }: ListingFormProps) {
           <AhsListingLink
             listing={listing}
             onNameChange={(name) => {
-              form.setValue("name", name);
+              form.setValue("title", name);
             }}
           />
           <FormDescription>
