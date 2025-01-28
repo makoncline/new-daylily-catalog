@@ -97,6 +97,7 @@ export function ContentManagerFormItem({
           <Editor
             editorRef={editorRef}
             initialContent={parseEditorContent(initialProfile.content)}
+            className="px-3 py-2 pb-8"
           />
         </div>
       </div>

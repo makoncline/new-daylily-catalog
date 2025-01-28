@@ -32,7 +32,6 @@ export function Editor({
     const Table = (await import("@editorjs/table")).default;
     const List = (await import("@editorjs/list")).default;
     const InlineCode = (await import("@editorjs/inline-code")).default;
-    const Paragraph = (await import("@editorjs/paragraph")).default;
 
     const editor = new EditorJS({
       holder: "editor",
@@ -85,7 +84,7 @@ export function Editor({
   return (
     <div className={cn("grid w-full gap-10", className)}>
       <div className="prose prose-stone dark:prose-invert mx-auto w-full">
-        <div id="editor" className="bg-background px-3 py-2 pb-8 text-sm" />
+        <div id="editor" className="bg-background text-sm" />
       </div>
     </div>
   );

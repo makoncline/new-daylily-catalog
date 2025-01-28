@@ -17,6 +17,12 @@ import { ListingsToolbar } from "./listings-toolbar";
 import { ListsSection } from "./lists-section";
 import { NoResults } from "./no-results";
 import { ProfileSection } from "./profile-section";
+import {
+  LastUpdatedBadge,
+  LocationBadge,
+  MemberSince,
+} from "@/components/profile/profile-badges";
+import { Badge } from "@/components/ui/badge";
 
 type Listing = RouterOutputs["public"]["getListings"][number];
 
@@ -90,40 +96,49 @@ export function CatalogDetailClient({ userId }: CatalogDetailClientProps) {
   }));
 
   return (
-    <MainContent>
-      <div className="space-y-8">
-        <CatalogNav />
-        <ProfileSection profile={profile} />
-        <ImagesSection images={profile.images} />
-        <ContentSection content={profile.content} />
-        <ListsSection lists={profile.lists} table={table} />
-
-        {/* Listings */}
-        <div id="listings" className="space-y-4">
-          <h2 className="text-2xl font-semibold">Listings</h2>
-          <DataTableLayout
-            table={table}
-            toolbar={
-              <ListingsToolbar
-                table={table}
-                listsColumn={listsColumn}
-                listOptions={listOptions}
-              />
-            }
-            pagination={<DataTablePagination table={table} />}
-            noResults={
-              <NoResults
-                filtered={
-                  table.getState().globalFilter !== "" ||
-                  table.getState().columnFilters.length > 0
-                }
-              />
-            }
-          >
-            <ListingsTable table={table} />
-          </DataTableLayout>
+    <div className="space-y-6">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-12">
+        <div className="order-1 sm:order-2 sm:col-span-7">
+          <ProfileSection profile={profile} />
+        </div>
+        <div className="order-2 sm:col-span-12 sm:hidden">
+          <CatalogNav />
+        </div>
+        <div className="order-3 sm:order-1 sm:col-span-5">
+          <ImagesSection images={profile.images} />
         </div>
       </div>
-    </MainContent>
+      <div className="hidden sm:block">
+        <CatalogNav />
+      </div>
+      <ContentSection content={profile.content} />
+      <ListsSection lists={profile.lists} table={table} />
+
+      {/* Listings */}
+      <div id="listings" className="space-y-4">
+        <h2 className="text-2xl font-semibold">Listings</h2>
+        <DataTableLayout
+          table={table}
+          toolbar={
+            <ListingsToolbar
+              table={table}
+              listsColumn={listsColumn}
+              listOptions={listOptions}
+            />
+          }
+          pagination={<DataTablePagination table={table} />}
+          noResults={
+            <NoResults
+              filtered={
+                table.getState().globalFilter !== "" ||
+                table.getState().columnFilters.length > 0
+              }
+            />
+          }
+        >
+          <ListingsTable table={table} />
+        </DataTableLayout>
+      </div>
+    </div>
   );
 }

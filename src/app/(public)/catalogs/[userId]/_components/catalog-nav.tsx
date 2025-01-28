@@ -3,20 +3,15 @@
 import Link from "next/link";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
-import { useEffect, useState } from "react";
 
 const sections = [
-  {
-    name: "Profile",
-    href: "#profile",
-  },
   {
     name: "Images",
     href: "#images",
   },
   {
-    name: "Bio",
-    href: "#bio",
+    name: "About",
+    href: "#about",
   },
   {
     name: "Lists",
@@ -32,7 +27,7 @@ export function CatalogNav() {
   return (
     <div className="relative">
       <ScrollArea className="max-w-[600px] lg:max-w-none">
-        <div className={cn("mb-4 flex items-center")}>
+        <div className={cn("flex items-center gap-4")}>
           {sections.map((section) => {
             return (
               <NavLink key={section.href} section={section} isActive={false} />
@@ -56,7 +51,7 @@ function NavLink({
     <Link
       href={section.href}
       className={cn(
-        "flex h-7 items-center justify-center rounded-full px-4",
+        "flex h-7 items-center justify-center rounded-full",
         "text-center text-sm font-medium",
         "text-muted-foreground transition-colors hover:text-primary",
         "data-[active=true]:bg-muted data-[active=true]:text-primary",

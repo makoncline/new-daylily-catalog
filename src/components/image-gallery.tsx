@@ -46,7 +46,7 @@ export function ImageGallery({ images, className }: ImageGalleryProps) {
   if (!images.length || !selectedImage) return null;
 
   return (
-    <div className={cn("max-w-3xl space-y-4 p-4", className)}>
+    <div className={cn("max-w-[400px] space-y-2", className)}>
       <div className="overflow-hidden rounded-lg">
         <OptimizedImage
           src={selectedImage.url}
@@ -57,7 +57,7 @@ export function ImageGallery({ images, className }: ImageGalleryProps) {
         />
       </div>
 
-      <div className="grid grid-cols-3 gap-4 sm:grid-cols-6">
+      <div className="grid grid-cols-4 gap-2">
         {images.map((image) => (
           <Thumbnail
             key={image.id}

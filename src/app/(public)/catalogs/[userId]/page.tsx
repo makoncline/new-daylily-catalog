@@ -1,5 +1,6 @@
 "use server";
 
+import { MainContent } from "../../_components/main-content";
 import { CatalogDetailClient } from "./_components/catalog-detail-client";
 
 interface CatalogDetailPageProps {
@@ -11,5 +12,9 @@ interface CatalogDetailPageProps {
 export default async function CatalogDetailPage({
   params,
 }: CatalogDetailPageProps) {
-  return <CatalogDetailClient userId={params.userId} />;
+  return (
+    <MainContent>
+      <CatalogDetailClient userId={params.userId} />
+    </MainContent>
+  );
 }

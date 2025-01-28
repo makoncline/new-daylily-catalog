@@ -28,11 +28,8 @@ export function ContentSection({ content }: ContentSectionProps) {
   }
 
   return (
-    <div id="content" className="space-y-6">
-      <h2 className="text-2xl font-semibold">About</h2>
-      <div className="rounded-md border bg-background">
-        <Editor editorRef={editorRef} initialContent={parsedContent} readOnly />
-      </div>
+    <div id="about" className="">
+      <Editor editorRef={editorRef} initialContent={parsedContent} readOnly />
     </div>
   );
 }
