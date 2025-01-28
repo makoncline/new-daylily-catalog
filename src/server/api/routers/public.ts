@@ -137,7 +137,7 @@ export const publicRouter = createTRPCRouter({
 
   getProfile: publicProcedure
     .input(z.object({ userId: z.string() }))
-    .query(async ({ input }) => {
+    .query(async ({ ctx, input }) => {
       try {
         const user = await db.user.findUnique({
           where: { id: input.userId },
@@ -269,7 +269,10 @@ export const publicRouter = createTRPCRouter({
             },
             ahsListing: {
               select: {
+                name: true,
                 ahsImageUrl: true,
+                hybridizer: true,
+                year: true,
               },
             },
             images: {
@@ -301,7 +304,6 @@ export const publicRouter = createTRPCRouter({
                 ]
               : []),
           ],
-          ahsListing: undefined, // Remove the ahsListing from the response
         }));
       } catch (error) {
         console.error("Error fetching public listings:", error);
