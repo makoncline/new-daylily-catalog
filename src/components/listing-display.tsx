@@ -19,13 +19,9 @@ interface ListingDisplayProps {
 }
 
 export function ListingDisplay({ listingId, hideLink }: ListingDisplayProps) {
-  const { data: listing } = api.public.getListingById.useQuery({
+  const [listing] = api.public.getListingById.useSuspenseQuery({
     id: listingId,
   });
-
-  if (!listing) {
-    return null;
-  }
 
   return (
     <div className="space-y-8">
@@ -36,17 +32,11 @@ export function ListingDisplay({ listingId, hideLink }: ListingDisplayProps) {
       )}
       <div className="flex justify-between">
         <div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-4">
             <H2 className="border-b-0">{listing.title}</H2>
             {!hideLink && listing.slug && (
-              <Link
-                href={`/${listing.userSlug}/${listing.slug}`}
-                className={cn(
-                  "text-muted-foreground transition-colors hover:text-foreground",
-                  "h-5 w-5",
-                )}
-              >
-                <ExternalLink className="h-full w-full" />
+              <Link href={`/${listing.userSlug}/${listing.slug}`}>
+                <ExternalLink className="h-5 w-5 text-muted-foreground transition-colors hover:text-foreground" />
                 <span className="sr-only">View Listing Page</span>
               </Link>
             )}

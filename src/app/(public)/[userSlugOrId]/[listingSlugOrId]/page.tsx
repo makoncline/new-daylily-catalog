@@ -11,11 +11,117 @@ import { Suspense } from "react";
 import { ListingDisplaySkeleton } from "@/components/listing-display";
 import { cn } from "@/lib/utils";
 import { PublicBreadcrumbs } from "@/app/(public)/_components/public-breadcrumbs";
+import { type Metadata, type ResolvingMetadata } from "next";
 
 interface PageProps {
   params: {
     userSlugOrId: string;
     listingSlugOrId: string;
+  };
+}
+
+export async function generateMetadata(
+  { params }: PageProps,
+  parent: ResolvingMetadata,
+): Promise<Metadata> {
+  const { userSlugOrId, listingSlugOrId } = params;
+
+  // Fetch listing data
+  const listing = await api.public.getListing({
+    userSlugOrId,
+    listingSlugOrId,
+  });
+
+  if (!listing) {
+    return {
+      title: "Listing Not Found",
+      description: "The daylily listing you are looking for does not exist.",
+    };
+  }
+
+  const profile = await api.public.getProfile({
+    userSlugOrId,
+  });
+
+  // Get the first image URL if available
+  const imageUrl = listing.images?.[0]?.url ?? "/images/default-daylily.jpg";
+  const price = listing.price
+    ? `$${listing.price.toFixed(2)}`
+    : "Price on request";
+  const listingName =
+    listing.title ?? listing.ahsListing?.name ?? "Unnamed Daylily";
+
+  // Construct metadata
+  const title = `${listingName} Daylily | ${profile?.title ?? "Daylily Catalog"}`;
+  const description =
+    listing.description ??
+    `Beautiful ${listingName} daylily available from ${profile?.title ?? "Daylily Catalog"}. ${listing.ahsListing?.hybridizer ? `Hybridized by ${listing.ahsListing.hybridizer}` : ""}`.trim();
+
+  return {
+    title,
+    description,
+    openGraph: {
+      title,
+      description,
+      images: [imageUrl],
+      type: "website",
+    },
+    twitter: {
+      card: "summary_large_image",
+      title,
+      description,
+      images: [imageUrl],
+    },
+    other: {
+      // Product JSON-LD for rich results
+      "script:ld+json": JSON.stringify({
+        "@context": "https://schema.org",
+        "@type": "Product",
+        name: listingName,
+        description,
+        image: imageUrl,
+        ...(listing.price && {
+          offers: {
+            "@type": "Offer",
+            price: listing.price,
+            priceCurrency: "USD",
+            availability: "https://schema.org/InStock",
+            seller: {
+              "@type": "Organization",
+              name: profile?.title ?? "Daylily Catalog",
+            },
+          },
+        }),
+        ...(listing.ahsListing && {
+          brand: {
+            "@type": "Brand",
+            name: listing.ahsListing.hybridizer ?? "Unknown Hybridizer",
+          },
+          additionalProperty: [
+            {
+              "@type": "PropertyValue",
+              name: "Year",
+              value: listing.ahsListing.year,
+            },
+            {
+              "@type": "PropertyValue",
+              name: "Bloom Size",
+              value: listing.ahsListing.bloomSize,
+            },
+            {
+              "@type": "PropertyValue",
+              name: "Bloom Season",
+              value: listing.ahsListing.bloomSeason,
+            },
+            {
+              "@type": "PropertyValue",
+              name: "Form",
+              value: listing.ahsListing.form,
+            },
+          ].filter((prop) => prop.value),
+        }),
+      }),
+    },
   };
 }
 
