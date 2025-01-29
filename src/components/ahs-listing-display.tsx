@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/tooltip";
 import { type RouterOutputs } from "@/trpc/react";
 import { Skeleton } from "@/components/ui/skeleton";
+import { H3, P, Muted } from "@/components/typography";
 
 interface AhsListingDisplayProps {
   ahsListing: NonNullable<RouterOutputs["public"]["getListing"]["ahsListing"]>;
@@ -43,7 +44,7 @@ export function AhsListingDisplay({
   return (
     <div className={className}>
       <div className="mb-4">
-        <h3 className="flex items-center gap-2 text-xl font-semibold">
+        <H3 className="flex items-center gap-2 text-xl">
           {ahsListing.ahsImageUrl && (
             <TooltipProvider>
               <Tooltip>
@@ -69,7 +70,7 @@ export function AhsListingDisplay({
           <span className="text-base font-normal text-muted-foreground">
             ({ahsListing.hybridizer}, {ahsListing.year})
           </span>
-        </h3>
+        </H3>
       </div>
 
       <div className="space-y-4">
@@ -79,10 +80,12 @@ export function AhsListingDisplay({
             {fields.map((field, index) => (
               <div key={field.label} className="flex items-center">
                 <div>
-                  <p className="text-xs font-extralight text-muted-foreground">
+                  <Muted className="text-xs font-extralight">
                     {field.label}
-                  </p>
-                  <p className="text-sm font-light">{field.value}</p>
+                  </Muted>
+                  <div>
+                    <P className="text-sm font-light">{field.value}</P>
+                  </div>
                 </div>
                 {index < fields.length - 1 && (
                   <Separator orientation="vertical" className="mx-3 h-2/3" />

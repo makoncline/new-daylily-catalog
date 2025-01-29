@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Plus, Package, ListChecks, ImageIcon } from "lucide-react";
 import Link from "next/link";
 import type { RouterOutputs } from "@/trpc/react";
+import { H3, P, Muted } from "@/components/typography";
 
 interface StatsCardProps {
   stats: RouterOutputs["dashboard"]["getStats"];
@@ -15,36 +16,44 @@ export function ListingDetailsCard({ stats }: StatsCardProps) {
     <Card className="p-4">
       <div className="flex items-center gap-2">
         <Package className="h-4 w-4 text-muted-foreground" />
-        <h3 className="text-sm font-medium">Listing Details</h3>
+        <H3 className="text-sm font-medium">Listing Details</H3>
       </div>
       <div className="mt-2 space-y-1">
         <div className="flex justify-between text-sm">
-          <span className="text-muted-foreground">Total listings</span>
-          <span>{stats.totalListings}</span>
+          <Muted>Total listings</Muted>
+          <div>
+            <P>{stats.totalListings}</P>
+          </div>
         </div>
         <div className="flex justify-between text-sm">
-          <span className="text-muted-foreground">
-            With link to daylily database
-          </span>
-          <span>{stats.listingStats.withAhsData}</span>
+          <Muted>With link to daylily database</Muted>
+          <div>
+            <P>{stats.listingStats.withAhsData}</P>
+          </div>
         </div>
         <div className="flex justify-between text-sm">
-          <span className="text-muted-foreground">With images</span>
-          <span>{stats.listingStats.withImages}</span>
+          <Muted>With images</Muted>
+          <div>
+            <P>{stats.listingStats.withImages}</P>
+          </div>
         </div>
         <div className="flex justify-between text-sm">
-          <span className="text-muted-foreground">With price</span>
-          <span>
-            {stats.listingStats.averagePrice > 0 ? stats.totalListings : 0}
-          </span>
+          <Muted>With price</Muted>
+          <div>
+            <P>
+              {stats.listingStats.averagePrice > 0 ? stats.totalListings : 0}
+            </P>
+          </div>
         </div>
         <div className="flex justify-between text-sm">
-          <span className="text-muted-foreground">On lists</span>
-          <span>
-            {Math.floor(
-              stats.listStats.averageListingsPerList * stats.totalLists,
-            )}
-          </span>
+          <Muted>On lists</Muted>
+          <div>
+            <P>
+              {Math.floor(
+                stats.listStats.averageListingsPerList * stats.totalLists,
+              )}
+            </P>
+          </div>
         </div>
       </div>
     </Card>
@@ -56,12 +65,12 @@ export function TotalListingsCard({ stats }: StatsCardProps) {
     <Card className="p-4">
       <div className="flex items-center gap-2">
         <Package className="h-4 w-4 text-muted-foreground" />
-        <h3 className="text-sm font-medium">Total Listings</h3>
+        <H3 className="text-sm font-medium">Total Listings</H3>
       </div>
       <div className="mt-2 text-2xl font-bold">{stats.totalListings}</div>
-      <div className="mt-2 text-xs text-muted-foreground">
+      <Muted className="mt-2 text-xs">
         ${stats.listingStats.averagePrice.toFixed(2)} average price
-      </div>
+      </Muted>
       {stats.totalListings === 0 && (
         <Button variant="outline" size="sm" className="mt-4 w-full" asChild>
           <Link href="/dashboard/listings/new">
@@ -79,12 +88,12 @@ export function TotalListsCard({ stats }: StatsCardProps) {
     <Card className="p-4">
       <div className="flex items-center gap-2">
         <ListChecks className="h-4 w-4 text-muted-foreground" />
-        <h3 className="text-sm font-medium">Total Lists</h3>
+        <H3 className="text-sm font-medium">Total Lists</H3>
       </div>
       <div className="mt-2 text-2xl font-bold">{stats.totalLists}</div>
-      <div className="mt-2 text-xs text-muted-foreground">
+      <Muted className="mt-2 text-xs">
         {stats.listStats.averageListingsPerList.toFixed(1)} listings per list
-      </div>
+      </Muted>
       {stats.totalLists === 0 && (
         <Button variant="outline" size="sm" className="mt-4 w-full" asChild>
           <Link href="/dashboard/lists/new">
@@ -102,12 +111,12 @@ export function ImagesCard({ stats }: StatsCardProps) {
     <Card className="p-4">
       <div className="flex items-center gap-2">
         <ImageIcon className="h-4 w-4 text-muted-foreground" />
-        <h3 className="text-sm font-medium">Images</h3>
+        <H3 className="text-sm font-medium">Images</H3>
       </div>
       <div className="mt-2 text-2xl font-bold">{stats.imageStats.total}</div>
-      <div className="mt-2 text-xs text-muted-foreground">
+      <Muted className="mt-2 text-xs">
         {stats.listingStats.withImages} listings with images
-      </div>
+      </Muted>
     </Card>
   );
 }

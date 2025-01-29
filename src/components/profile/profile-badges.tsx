@@ -9,6 +9,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { TruncatedText } from "@/components/truncated-text";
+import { Muted } from "@/components/typography";
 
 export function LocationBadge({ location }: { location: string }) {
   return (
@@ -95,7 +96,7 @@ export function LastUpdatedBadge({ date }: { date: Date }) {
 
 export function MemberSince({ date }: { date: Date }) {
   const label = getMemberSinceLabel(date);
-  return <p className="text-xs text-muted-foreground">{label}</p>;
+  return <Muted className="text-xs">{label}</Muted>;
 }
 
 function getLastUpdatedLabel(date: Date) {

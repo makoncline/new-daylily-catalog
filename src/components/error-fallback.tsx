@@ -2,6 +2,7 @@
 
 import { Button } from "@/components/ui/button";
 import { useFeedbackUrl } from "@/hooks/use-feedback-url";
+import { H1, P } from "@/components/typography";
 
 interface ErrorFallbackProps {
   resetErrorBoundary?: () => void;
@@ -19,10 +20,10 @@ export function ErrorFallback({
       className={`flex min-h-[300px] w-full flex-col items-center justify-center gap-6 p-8 text-center ${className}`}
     >
       <div className="space-y-4">
-        <h1 className="text-4xl font-bold">Oops, something went wrong!</h1>
-        <p className="mx-auto max-w-md text-lg text-muted-foreground">
+        <H1 className="text-4xl">Oops, something went wrong!</H1>
+        <P className="mx-auto max-w-md text-lg text-muted-foreground">
           We&apos;re sorry, but an unexpected error has occurred.
-        </p>
+        </P>
       </div>
 
       <div className="flex flex-col gap-2">

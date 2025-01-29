@@ -5,7 +5,6 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogDescription,
 } from "@/components/ui/dialog";
 import { ListingForm } from "@/components/forms/listing-form";
 import { useSearchParams, useRouter } from "next/navigation";
@@ -14,6 +13,7 @@ import { ErrorBoundary } from "react-error-boundary";
 import { ListingFormSkeleton } from "@/components/forms/listing-form-skeleton";
 import { ErrorFallback } from "@/components/error-fallback";
 import { logError } from "@/lib/error-utils";
+import { P } from "@/components/typography";
 
 export const useEditListing = () => {
   const router = useRouter();
@@ -57,9 +57,9 @@ export function EditListingDialog() {
       <DialogContent className="max-h-[90vh] max-w-full overflow-y-auto sm:max-w-xl md:max-w-2xl lg:max-w-4xl">
         <DialogHeader>
           <DialogTitle>Edit Listing</DialogTitle>
-          <DialogDescription>
+          <P className="text-sm text-muted-foreground">
             Make changes to your listing here.
-          </DialogDescription>
+          </P>
         </DialogHeader>
         {editingId && (
           <ErrorBoundary

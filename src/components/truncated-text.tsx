@@ -1,25 +1,25 @@
-"use client";
-
-import * as React from "react";
+import { ElementType } from "react";
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
-} from "@/components/ui/tooltip";
+} from "./ui/tooltip";
 
-interface TruncatedTextProps extends React.HTMLAttributes<HTMLElement> {
+interface TruncatedTextProps<T extends ElementType = "span"> {
   text: string | null;
   maxLength: number;
-  as?: keyof JSX.IntrinsicElements;
+  as?: T;
+  className?: string;
+  [key: string]: any;
 }
 
-export function TruncatedText({
+export function TruncatedText<T extends ElementType>({
   text,
   maxLength,
-  as: Component = "span",
+  as: Component = "span" as T,
   ...props
-}: TruncatedTextProps) {
+}: TruncatedTextProps<T>) {
   if (!text) return null;
 
   const shouldTruncate = text.length > maxLength;
@@ -28,14 +28,14 @@ export function TruncatedText({
     : text;
 
   if (!shouldTruncate) {
-    return <Component {...props}>{text}</Component>;
+    return <Component {...(props as any)}>{text}</Component>;
   }
 
   return (
     <TooltipProvider>
       <Tooltip>
         <TooltipTrigger asChild>
-          <Component {...props}>{truncatedText}</Component>
+          <Component {...(props as any)}>{truncatedText}</Component>
         </TooltipTrigger>
         <TooltipContent className="max-w-[300px] whitespace-normal text-sm">
           {text}

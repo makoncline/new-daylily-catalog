@@ -17,6 +17,7 @@ import { ListsSection } from "./lists-section";
 import { NoResults } from "./no-results";
 import { ProfileSection } from "./profile-section";
 import { ViewListingDialog } from "@/components/view-listing-dialog";
+import { H2 } from "@/components/typography";
 
 type Listing = RouterOutputs["public"]["getListings"][number];
 
@@ -102,7 +103,7 @@ export function CatalogDetailClient({ userId }: CatalogDetailClientProps) {
 
       {/* Listings */}
       <div id="listings" className="space-y-4">
-        <h2 className="text-2xl font-semibold">Listings</h2>
+        <H2 className="text-2xl">Listings</H2>
         <DataTableLayout
           table={table}
           toolbar={

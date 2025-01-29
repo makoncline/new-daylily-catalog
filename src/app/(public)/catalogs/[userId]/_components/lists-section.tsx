@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { ListIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
+import { H2, P } from "@/components/typography";
 
 type Listing = RouterOutputs["public"]["getListings"][number];
 
@@ -23,7 +24,7 @@ export function ListsSection({ lists, table }: ListsSectionProps) {
 
   return (
     <div id="lists" className="space-y-6">
-      <h2 className="text-2xl font-semibold tracking-tight">Lists</h2>
+      <H2 className="text-2xl">Lists</H2>
       <div className="grid gap-4 sm:grid-cols-2">
         {lists.map((list) => {
           const isSelected = (
@@ -55,9 +56,9 @@ export function ListsSection({ lists, table }: ListsSectionProps) {
               </CardHeader>
               {list.description && (
                 <CardContent>
-                  <p className="line-clamp-2 leading-relaxed text-muted-foreground">
+                  <P className="line-clamp-2 leading-relaxed text-muted-foreground">
                     {list.description}
-                  </p>
+                  </P>
                 </CardContent>
               )}
             </Card>

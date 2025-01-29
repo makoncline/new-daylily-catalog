@@ -14,6 +14,7 @@ import {
 import Link from "next/link";
 import { type RouterOutputs } from "@/trpc/react";
 import { Skeleton } from "@/components/ui/skeleton";
+import { H3, P, Muted } from "@/components/typography";
 
 function UserImagesPreview({ images }: { images: { url: string }[] }) {
   if (!images.length) return null;
@@ -182,9 +183,9 @@ export function UserCard({
         <CardContent className="flex flex-1 flex-col p-4">
           <div className="flex flex-1 flex-col justify-between gap-4">
             <div className="space-y-2">
-              <h3 className="font-semibold">
+              <H3>
                 <TruncatedText text={gardenName} maxLength={30} />
-              </h3>
+              </H3>
 
               {location && (
                 <Badge
@@ -196,9 +197,7 @@ export function UserCard({
                 </Badge>
               )}
 
-              <p className="text-xs text-muted-foreground">
-                {memberSinceLabel}
-              </p>
+              <Muted className="text-xs">{memberSinceLabel}</Muted>
 
               {description && (
                 <TruncatedText

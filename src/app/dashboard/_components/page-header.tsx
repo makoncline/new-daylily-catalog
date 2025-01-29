@@ -1,5 +1,7 @@
 "use client";
 
+import { H1, Muted } from "@/components/typography";
+
 interface PageHeaderProps {
   heading: string;
   text?: string;
@@ -10,8 +12,8 @@ export function PageHeader({ heading, text, children }: PageHeaderProps) {
   return (
     <div className="mb-8 flex items-center justify-between">
       <div className="space-y-1">
-        <h1 className="text-2xl font-semibold tracking-tight">{heading}</h1>
-        {text && <p className="text-muted-foreground">{text}</p>}
+        <H1 className="text-2xl">{heading}</H1>
+        {text && <Muted>{text}</Muted>}
       </div>
       {children}
     </div>

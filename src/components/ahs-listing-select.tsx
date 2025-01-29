@@ -8,6 +8,7 @@ import {
 } from "@/components/ui/popover";
 import { api } from "@/trpc/react";
 import type { AhsListing } from "@prisma/client";
+import { Muted } from "@/components/typography";
 
 interface AhsListingSelectProps {
   onSelect: (ahsListing: AhsListing) => void;
@@ -61,14 +62,14 @@ export function AhsListingSelect({
               </p>
             )}
             {searchValue && ahsSearchQuery.isLoading && (
-              <p className="p-4 text-sm text-muted-foreground">Loading...</p>
+              <Muted className="p-4 text-sm">Loading...</Muted>
             )}
             {searchValue &&
               !ahsSearchQuery.isLoading &&
               ahsSearchQuery.data?.length === 0 && (
-                <p className="p-4 text-sm text-muted-foreground">
-                  No AHS listings found.
-                </p>
+                <Muted className="p-4 text-sm">
+                  No results found. Try searching for something else.
+                </Muted>
               )}
             {ahsSearchQuery.data?.map((ahsListing) => (
               <button

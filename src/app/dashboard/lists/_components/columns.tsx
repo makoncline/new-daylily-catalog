@@ -6,6 +6,7 @@ import { DataTableRowActions } from "./row-actions";
 import { type RouterOutputs } from "@/trpc/react";
 import { DataTableColumnHeader } from "@/components/data-table/data-table-column-header";
 import { LIST_TABLE_COLUMN_NAMES } from "@/config/constants";
+import { P } from "@/components/typography";
 
 export type List = RouterOutputs["list"]["list"][number];
 
@@ -57,9 +58,9 @@ export const columns: ColumnDef<List>[] = [
       />
     ),
     cell: ({ row }) => (
-      <div className="whitespace-nowrap">
+      <P className="whitespace-nowrap">
         {new Date(row.getValue("createdAt")).toLocaleDateString()}
-      </div>
+      </P>
     ),
     enableSorting: true,
   },
@@ -73,9 +74,9 @@ export const columns: ColumnDef<List>[] = [
       />
     ),
     cell: ({ row }) => (
-      <div className="whitespace-nowrap">
+      <P className="whitespace-nowrap">
         {new Date(row.getValue("updatedAt")).toLocaleDateString()}
-      </div>
+      </P>
     ),
     enableSorting: true,
   },

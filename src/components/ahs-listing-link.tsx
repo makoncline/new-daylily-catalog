@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { AhsListingSelect } from "./ahs-listing-select";
 import { AhsListingDisplay } from "./ahs-listing-display";
+import { Muted } from "@/components/typography";
 
 import type { ListingGetOutput } from "@/server/api/routers/listing";
 import type { AhsListing } from "@prisma/client";
@@ -130,7 +131,7 @@ export function AhsListingLink({
         <Card>
           <CardContent className="pt-6">
             <div className="mb-4 flex items-center justify-between">
-              <p className="text-sm text-muted-foreground">
+              <Muted>
                 Linked to{" "}
                 <a
                   href={`https://daylilies.org/daylilies/${listing.ahsListing.id}`}
@@ -140,7 +141,7 @@ export function AhsListingLink({
                 >
                   {listing.ahsListing.name}
                 </a>
-              </p>
+              </Muted>
               <div className="flex gap-2">
                 {listing.title !== listing.ahsListing.name && (
                   <Button

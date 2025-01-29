@@ -6,11 +6,12 @@ import {
   AhsListingDisplay,
   AhsListingDisplaySkeleton,
 } from "@/components/ahs-listing-display";
-import { formatPrice } from "@/lib/utils";
+import { cn, formatPrice } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { ImageIcon } from "lucide-react";
 import { Skeleton } from "./ui/skeleton";
+import { H2, H3, Muted, P, typography } from "@/components/typography";
 
 interface ListingDisplayProps {
   listingId: string;
@@ -34,7 +35,7 @@ export function ListingDisplay({ listingId }: ListingDisplayProps) {
       )}
       <div className="flex justify-between">
         <div>
-          <h2 className="text-2xl font-semibold">{listing.title}</h2>
+          <H2 className="border-b-0">{listing.title}</H2>
           {listing.lists.length > 0 && (
             <div className="flex flex-wrap gap-2">
               {listing.lists.map((list) => (
@@ -46,23 +47,21 @@ export function ListingDisplay({ listingId }: ListingDisplayProps) {
           )}
         </div>
         {listing.price && (
-          <p className="text-lg font-medium text-primary">
+          <P className="text-lg font-medium text-primary">
             {formatPrice(listing.price)}
-          </p>
+          </P>
         )}
       </div>
 
-      <p className="text-muted-foreground">
+      <P className="text-muted-foreground">
         {listing.description ?? "No description available"}
-      </p>
+      </P>
 
       {listing.ahsListing && (
         <>
           <Separator />
-          <div>
-            <h3 className="mb-4 text-lg font-medium">Daylily Database Data</h3>
-            <AhsListingDisplay ahsListing={listing.ahsListing} />
-          </div>
+          <Muted>Daylily Database Data</Muted>
+          <AhsListingDisplay ahsListing={listing.ahsListing} />
         </>
       )}
     </div>

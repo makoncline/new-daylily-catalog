@@ -24,6 +24,9 @@ import {
   Star,
 } from "lucide-react";
 import Link from "next/link";
+import { H1, H2, P, Muted } from "@/components/typography";
+import { useIsMounted } from "usehooks-ts";
+import { useEffect, useState } from "react";
 
 export const homePageContent = {
   hero: {
@@ -136,21 +139,35 @@ export const homePageContent = {
 } as const;
 
 function SignUpButton({ className }: { className?: string }) {
+  const [isMounted, setIsMounted] = useState(false);
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
+  const text = "Create your catalog";
+
+  if (!isMounted) {
+    return (
+      <Button size="lg" variant="gradient" className={className} disabled>
+        {text}
+      </Button>
+    );
+  }
+
   return (
-    <>
-      <SignedIn>
-        <Button size="lg" variant="gradient" className={className} asChild>
-          <Link href="/dashboard">Create your catalog</Link>
-        </Button>
-      </SignedIn>
-      <SignedOut>
-        <Button size="lg" variant="gradient" className={className} asChild>
+    <Button size="lg" variant="gradient" className={className} asChild>
+      <div>
+        <SignedIn>
+          <Link href="/dashboard">{text}</Link>
+        </SignedIn>
+        <SignedOut>
           <ClerkSignUpButton mode="modal" forceRedirectUrl="/dashboard">
-            Create your catalog
+            {text}
           </ClerkSignUpButton>
-        </Button>
-      </SignedOut>
-    </>
+        </SignedOut>
+      </div>
+    </Button>
   );
 }
 
@@ -168,6 +185,7 @@ export default function HomePage() {
             src={hero.backgroundImage.src}
             alt={hero.backgroundImage.alt}
             fill
+            sizes="100vw"
             className="object-cover object-center"
             priority
           />
@@ -178,7 +196,7 @@ export default function HomePage() {
           {/* Badge */}
           <div className="flex items-center gap-2 rounded-full bg-white/10 px-6 py-2 text-sm backdrop-blur-sm">
             <hero.badge.icon className="h-6 w-6" />
-            <div>
+            <div className="flex flex-col items-center">
               <span>{hero.badge.text}</span>
               <div className="flex gap-1">
                 {Array.from({ length: hero.badge.stars }, (_, i) => (
@@ -188,8 +206,8 @@ export default function HomePage() {
             </div>
           </div>
 
-          <h1 className="text-4xl font-bold sm:text-6xl">{hero.title}</h1>
-          <p className="text-lg text-white/90">{hero.description}</p>
+          <H1 className="text-4xl sm:text-6xl">{hero.title}</H1>
+          <P className="text-lg text-white/90">{hero.description}</P>
 
           {/* Feature List */}
           <div className="flex flex-col gap-4">
@@ -204,14 +222,10 @@ export default function HomePage() {
 
         {/* CTA Section */}
         <div className="relative z-20 flex w-full max-w-md flex-col gap-4 rounded-lg border-8 border-secondary bg-primary p-6 shadow-lg lg:w-1/3">
-          <h2 className="text-xl font-bold text-primary-foreground">
-            {hero.cta.title}
-          </h2>
+          <H2 className="text-xl text-primary-foreground">{hero.cta.title}</H2>
           <div className="flex flex-col items-center gap-2">
             <SignUpButton className="w-full" />
-            <p className="text-center text-xs text-muted-foreground">
-              {hero.cta.subtitle}
-            </p>
+            <Muted className="text-center text-xs">{hero.cta.subtitle}</Muted>
           </div>
         </div>
       </section>
@@ -219,10 +233,10 @@ export default function HomePage() {
       {/* Features Grid */}
       <section className="container mx-auto px-4 py-24">
         <div className="mb-12 text-center">
-          <h2 className="mb-4 text-3xl font-bold">{features.title}</h2>
-          <p className="mx-auto max-w-2xl text-lg text-muted-foreground">
+          <H2 className="mb-4 text-3xl">{features.title}</H2>
+          <P className="mx-auto max-w-2xl text-lg text-muted-foreground">
             {features.description}
-          </p>
+          </P>
         </div>
 
         <div className="grid gap-8 sm:grid-cols-2">
@@ -234,6 +248,7 @@ export default function HomePage() {
                     src={card.image.src}
                     alt={card.image.alt}
                     fill
+                    sizes="500px"
                     className="object-cover"
                   />
                 </div>
@@ -255,44 +270,42 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Database Integration Section */}
-      <section className="w-full bg-muted/50 py-24">
-        <div className="container mx-auto grid gap-12 px-4 lg:grid-cols-2 lg:items-center">
-          <div>
-            <h2 className="mb-4 text-3xl font-bold">{database.title}</h2>
-            <p className="mb-8 text-lg text-muted-foreground">
-              {database.description}
-            </p>
-            <SignUpButton />
-          </div>
-          <div className="relative aspect-video w-full overflow-hidden rounded-lg">
-            <Image
-              src={database.image.src}
-              alt={database.image.alt}
-              fill
-              className="object-cover"
-            />
-          </div>
+      {/* Database Section */}
+      <section className="container mx-auto px-4 py-24">
+        <div className="mb-12">
+          <H2 className="mb-4 text-3xl">{database.title}</H2>
+          <P className="mb-8 text-lg text-muted-foreground">
+            {database.description}
+          </P>
+        </div>
+
+        <div className="relative h-96 overflow-hidden rounded-lg">
+          <Image
+            src={database.image.src}
+            alt={database.image.alt}
+            fill
+            sizes="500px"
+            className="object-cover"
+          />
         </div>
       </section>
 
-      {/* CTA Section */}
-      <section className="relative flex min-h-[50vh] w-full flex-col items-center justify-center overflow-hidden">
+      {/* Final CTA */}
+      <section className="relative w-full py-24">
         <div className="absolute inset-0">
           <div className="absolute inset-0 z-10 bg-black/60 backdrop-blur-[2px]" />
           <Image
             src={finalCta.backgroundImage.src}
             alt={finalCta.backgroundImage.alt}
             fill
+            sizes="500px"
             className="object-cover object-center"
           />
         </div>
 
-        <div className="container relative z-20 mx-auto flex flex-col items-center px-4 text-center">
-          <h2 className="mb-4 text-3xl font-bold text-white">
-            {finalCta.title}
-          </h2>
-          <p className="mb-8 text-lg text-white/90">{finalCta.description}</p>
+        <div className="relative z-20 mx-auto max-w-4xl space-y-8 px-4 text-center text-white">
+          <H2 className="mb-4 text-3xl">{finalCta.title}</H2>
+          <P className="mb-8 text-lg text-white/90">{finalCta.description}</P>
           <SignUpButton />
         </div>
       </section>

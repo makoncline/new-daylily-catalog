@@ -18,6 +18,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { type RouterOutputs } from "@/trpc/react";
+import { P } from "@/components/typography";
 
 type ListingData = RouterOutputs["listing"]["list"][number];
 type ListingRow = Row<ListingData>;

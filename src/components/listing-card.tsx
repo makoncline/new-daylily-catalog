@@ -15,6 +15,7 @@ import { formatPrice } from "@/lib/utils";
 import { OptimizedImage } from "./optimized-image";
 import { useViewListing } from "@/components/view-listing-dialog";
 import { Skeleton } from "./ui/skeleton";
+import { H3 } from "@/components/typography";
 
 function ListingImagesPreview({ images }: { images: { url: string }[] }) {
   if (!images.length) return null;
@@ -135,9 +136,9 @@ export function ListingCard({ listing, priority = false }: ListingCardProps) {
         <div className="flex flex-1 flex-col justify-between gap-4">
           <div className="space-y-2">
             {/* Title */}
-            <h3 className="font-semibold">
+            <H3>
               <TruncatedText text={listing.title} maxLength={30} />
-            </h3>
+            </H3>
 
             {/* Hybridizer and Year */}
             {(listing.ahsListing?.hybridizer ?? listing.ahsListing?.year) && (

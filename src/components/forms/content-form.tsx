@@ -8,9 +8,10 @@ import { useToast } from "@/hooks/use-toast";
 import { Editor } from "@/components/editor";
 import { parseEditorContent } from "@/lib/editor-utils";
 import { Loader2 } from "lucide-react";
-import { FormItem, FormLabel, FormDescription } from "../ui/form";
+import { FormItem, FormLabel } from "../ui/form";
 import { useOnClickOutside } from "usehooks-ts";
 import { type OutputData } from "@editorjs/editorjs";
+import { Muted } from "@/components/typography";
 
 interface ContentManagerFormProps {
   initialProfile: RouterOutputs["userProfile"]["get"];
@@ -86,9 +87,9 @@ export function ContentManagerFormItem({
       <div className="flex w-full items-end justify-between">
         <div>
           <FormLabel>Content</FormLabel>
-          <FormDescription>
+          <Muted className="text-sm">
             Tell visitors about yourself and your garden.
-          </FormDescription>
+          </Muted>
         </div>
         {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
       </div>

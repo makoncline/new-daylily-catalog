@@ -1,6 +1,7 @@
 "use server";
 
 import { PublicdNav } from "@/components/public-nav";
+import { H1 } from "@/components/typography";
 
 export default async function PublicLayout({
   children,
@@ -11,7 +12,7 @@ export default async function PublicLayout({
     <div className="flex min-h-svh flex-col">
       <header className="flex h-16 items-center border-b px-4">
         <div className="flex-1">
-          <h1 className="text-xl font-semibold">Daylily Catalog</h1>
+          <H1 className="text-xl">Daylily Catalog</H1>
         </div>
         <PublicdNav />
       </header>

@@ -7,6 +7,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { TABLE_CONFIG } from "@/config/constants";
+import { P } from "@/components/typography";
 
 interface TooltipCellProps {
   /** The content to display in the cell. If null or "-", will display a dash */
@@ -51,7 +52,7 @@ export function TooltipCell({ content }: TooltipCellProps) {
           <div {...cellStyles}>{truncatedContent}</div>
         </TooltipTrigger>
         <TooltipContent>
-          <p>{content}</p>
+          <P>{content}</P>
         </TooltipContent>
       </Tooltip>
     </TooltipProvider>

@@ -25,6 +25,7 @@ import { Textarea } from "../ui/textarea";
 import slugify from "slugify";
 import { useDebouncedCallback } from "use-debounce";
 import { SLUG_INPUT_PATTERN } from "@/lib/utils/slugify";
+import { Muted } from "@/components/typography";
 
 type UserProfile = RouterOutputs["userProfile"]["get"];
 
@@ -183,10 +184,10 @@ export function ProfileForm({ initialProfile }: ProfileFormProps) {
                       </div>
                     )}
                   </div>
-                  <div className="text-sm text-muted-foreground">
+                  <Muted className="text-sm">
                     Your profile will be available at: www.app_url.com/catalog/
                     {field.value ?? profile.userId}
-                  </div>
+                  </Muted>
                 </div>
               </FormControl>
               <FormDescription>

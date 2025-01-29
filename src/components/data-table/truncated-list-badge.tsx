@@ -9,6 +9,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
+import { P } from "@/components/typography";
 
 interface TruncatedListBadgeProps {
   name: string;
@@ -46,7 +47,7 @@ export function TruncatedListBadge({
           </div>
         </TooltipTrigger>
         <TooltipContent side="top">
-          <p className="text-xs">{name}</p>
+          <P className="text-xs">{name}</P>
         </TooltipContent>
       </Tooltip>
     </TooltipProvider>

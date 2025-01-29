@@ -12,6 +12,7 @@ import {
 import { api } from "@/trpc/react";
 import { cn } from "@/lib/utils";
 import { TruncatedListBadge } from "@/components/data-table/truncated-list-badge";
+import { Muted } from "@/components/typography";
 
 interface MultiListSelectProps {
   values: string[];
@@ -95,9 +96,9 @@ export function MultiListSelect({
               </Button>
             )}
             {lists?.length === 0 && (
-              <p className="p-4 text-sm text-muted-foreground">
-                No lists found. Type to create one.
-              </p>
+              <Muted className="p-4 text-sm">
+                No lists found. Create a list first.
+              </Muted>
             )}
             {filteredLists?.length === 0 && searchValue && (
               <Button

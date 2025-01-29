@@ -2,6 +2,7 @@
 
 import { EditorOutput } from "@/components/editor/editor-output";
 import { type OutputData } from "@editorjs/editorjs";
+import { H2 } from "@/components/typography";
 
 interface ContentSectionProps {
   content?: string | OutputData | null;
@@ -12,7 +13,7 @@ export function ContentSection({ content }: ContentSectionProps) {
 
   return (
     <div id="content">
-      <h2 className="text-2xl font-semibold">About</h2>
+      <H2 className="text-2xl">About</H2>
       <EditorOutput
         content={
           typeof content === "string"

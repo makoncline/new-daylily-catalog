@@ -15,6 +15,7 @@ import {
   TotalListingsCard,
   TotalListsCard,
 } from "./stats-card";
+import { H2, H3, P, List, Muted, Lead } from "@/components/typography";
 
 interface DashboardPageClientProps {
   initialStats: RouterOutputs["dashboard"]["getStats"];
@@ -55,21 +56,17 @@ export function DashboardPageClient({
               <div className="border-b border-border bg-card p-6">
                 <div className="flex items-center justify-between">
                   <div className="space-y-1">
-                    <h2 className="scroll-m-20 pb-2 text-3xl font-semibold tracking-tight transition-colors first:mt-0">
-                      Complete Your Profile
-                    </h2>
-                    <p className="text-base text-muted-foreground">
+                    <H2 className="pb-2 text-3xl">Complete Your Profile</H2>
+                    <P className="text-base text-muted-foreground">
                       Follow these steps to create a professional profile that
                       will help you sell more daylilies.
-                    </p>
+                    </P>
                   </div>
                   <div className="text-right">
                     <div className="text-2xl font-bold">
                       {stats.profileStats.completionPercentage.toFixed(0)}%
                     </div>
-                    <div className="text-sm text-muted-foreground">
-                      Profile Completion
-                    </div>
+                    <Muted className="text-sm">Profile Completion</Muted>
                   </div>
                 </div>
                 <div className="relative mt-4 h-2 overflow-hidden rounded-full bg-secondary">
@@ -98,19 +95,17 @@ export function DashboardPageClient({
 
                   <div className="flex flex-1 flex-col gap-6 rounded-lg">
                     <div className="flex flex-col gap-4">
-                      <h3 className="scroll-m-20 text-2xl font-semibold tracking-tight">
-                        Why complete your profile?
-                      </h3>
-                      <p className="text-sm leading-7 text-muted-foreground">
+                      <H3 className="text-2xl">Why complete your profile?</H3>
+                      <P className="text-sm leading-7 text-muted-foreground">
                         Complete your profile to unlock all features and help
                         customers find your business.
-                      </p>
-                      <ul className="ml-6 list-disc [&>li]:mt-2">
+                      </P>
+                      <List>
                         <li>Help customers find and trust your business</li>
                         <li>Showcase your expertise in daylily growing</li>
                         <li>Improve your visibility in search results</li>
                         <li>Stand out from other sellers</li>
-                      </ul>
+                      </List>
                     </div>
                     <Button size="lg" asChild>
                       <Link href="/dashboard/profile">
@@ -132,13 +127,11 @@ export function DashboardPageClient({
               <div className="border-b border-border bg-card p-6">
                 <div className="flex items-center justify-between">
                   <div className="space-y-1">
-                    <h2 className="scroll-m-20 pb-2 text-3xl font-semibold tracking-tight transition-colors first:mt-0">
-                      Build Your Catalog
-                    </h2>
-                    <p className="text-base text-muted-foreground">
+                    <H2 className="border-b-0">Build Your Catalog</H2>
+                    <P className="text-muted-foreground">
                       Follow these steps to create your daylily catalog and
                       start selling.
-                    </p>
+                    </P>
                   </div>
                   <div className="text-right">
                     <div className="text-2xl font-bold">
@@ -150,9 +143,7 @@ export function DashboardPageClient({
                       ).toFixed(0)}
                       %
                     </div>
-                    <div className="text-sm text-muted-foreground">
-                      Catalog Progress
-                    </div>
+                    <Muted className="text-sm">Catalog Progress</Muted>
                   </div>
                 </div>
                 <div className="relative mt-4 h-2 overflow-hidden rounded-full bg-secondary">
@@ -183,20 +174,18 @@ export function DashboardPageClient({
                   </div>
 
                   <div className="flex flex-1 flex-col gap-6 rounded-lg">
-                    <div className="flex flex-col gap-4">
-                      <h3 className="scroll-m-20 text-2xl font-semibold tracking-tight">
-                        Why build your catalog?
-                      </h3>
-                      <p className="text-sm leading-7 text-muted-foreground">
+                    <div>
+                      <H3>Why build your catalog?</H3>
+                      <P className="text-muted-foreground">
                         A complete catalog helps you organize and sell your
                         daylilies effectively.
-                      </p>
-                      <ul className="ml-6 list-disc [&>li]:mt-2">
+                      </P>
+                      <List>
                         <li>Showcase your daylily collection</li>
                         <li>Organize listings into themed lists</li>
                         <li>Add beautiful photos of your flowers</li>
                         <li>Connect with the daylily database</li>
-                      </ul>
+                      </List>
                     </div>
                     <div className="flex flex-col gap-2">
                       <Button size="lg" asChild>

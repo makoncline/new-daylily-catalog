@@ -16,6 +16,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
+import { P, Muted } from "@/components/typography";
 
 const PAGE_SIZE_OPTIONS = [6, 12, 24, 36];
 
@@ -45,13 +46,13 @@ export function DataTablePagination<TData>({
   return (
     <div className="flex flex-col gap-4 px-2 sm:flex-row sm:items-center sm:justify-between">
       {numSelected > 0 && (
-        <div className="text-sm text-muted-foreground">
+        <Muted className="text-sm">
           {numSelected} of {totalCount} row(s) selected.
-        </div>
+        </Muted>
       )}
       <div className="flex flex-col items-center gap-4 sm:flex-row sm:gap-6 lg:gap-8">
         <div className="flex items-center space-x-2">
-          <p className="text-sm font-medium">Rows per page</p>
+          <P className="text-sm font-medium">Rows per page</P>
           <Select
             value={`${pageSize}`}
             onValueChange={(value) => {

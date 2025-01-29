@@ -26,6 +26,7 @@ import { api } from "@/trpc/react";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/hooks/use-toast";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { P } from "@/components/typography";
 
 interface ListActionsProps {
   list: List & {
@@ -38,8 +39,8 @@ interface ListActionsProps {
 export function ListActions({ list }: ListActionsProps) {
   const [open, setOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [name, setName] = useState(list.name);
-  const [intro, setIntro] = useState(list.intro ?? "");
+  const [name, setName] = useState(list.title);
+  const [intro, setIntro] = useState(list.description ?? "");
 
   const router = useRouter();
   const { toast } = useToast();
@@ -149,7 +150,7 @@ export function ListActions({ list }: ListActionsProps) {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Delete List</DialogTitle>
-            <DialogDescription>
+            <P className="text-sm text-muted-foreground">
               {hasListings ? (
                 <>
                   This list cannot be deleted because it has{" "}
@@ -160,7 +161,7 @@ export function ListActions({ list }: ListActionsProps) {
               ) : (
                 "Are you sure you want to delete this list? This action cannot be undone."
               )}
-            </DialogDescription>
+            </P>
           </DialogHeader>
 
           {hasListings && (

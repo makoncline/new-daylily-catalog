@@ -1,6 +1,7 @@
 "use client";
 
 import { FileX2 } from "lucide-react";
+import { H3, Muted } from "@/components/typography";
 
 interface EmptyStateProps {
   icon?: React.ReactNode;
@@ -19,10 +20,8 @@ export function EmptyState({
     <div className="flex min-h-[400px] flex-col items-center justify-center gap-4 rounded-md border border-dashed p-8 text-center animate-in fade-in-50">
       {icon}
       <div className="space-y-2">
-        <h3 className="text-2xl font-semibold">{title}</h3>
-        {description && (
-          <p className="text-sm text-muted-foreground">{description}</p>
-        )}
+        <H3 className="text-2xl">{title}</H3>
+        {description && <Muted className="text-sm">{description}</Muted>}
       </div>
       {action && <div className="mt-2">{action}</div>}
     </div>

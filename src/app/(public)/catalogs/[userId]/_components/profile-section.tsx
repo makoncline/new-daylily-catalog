@@ -10,6 +10,7 @@ import {
 } from "@/components/profile/profile-badges";
 import { type RouterOutputs } from "@/trpc/react";
 import { Skeleton } from "@/components/ui/skeleton";
+import { H1, P } from "@/components/typography";
 
 interface ProfileSectionProps {
   profile: RouterOutputs["public"]["getProfile"];
@@ -26,9 +27,7 @@ export function ProfileSection({ profile }: ProfileSectionProps) {
           <LastUpdatedBadge date={new Date(profile.updatedAt)} />
         )}
       </div>
-      <h1 className="text-3xl font-bold">
-        {profile.title ?? "Unnamed Garden"}
-      </h1>
+      <H1>{profile.title ?? "Unnamed Garden"}</H1>
       <div className="flex items-center gap-2">
         {profile.location && <LocationBadge location={profile.location} />}
         {profile.createdAt && (
@@ -37,7 +36,7 @@ export function ProfileSection({ profile }: ProfileSectionProps) {
       </div>
 
       {profile.description && (
-        <p className="text-lg text-muted-foreground">{profile.description}</p>
+        <P className="text-lg text-muted-foreground">{profile.description}</P>
       )}
 
       <div className="flex gap-2">
