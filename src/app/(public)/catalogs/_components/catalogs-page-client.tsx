@@ -15,6 +15,11 @@ import {
 } from "@/components/data-table/data-table-pagination";
 import { PageHeader } from "@/app/dashboard/_components/page-header";
 import { MainContent } from "@/app/(public)/_components/main-content";
+import { EmptyState } from "@/components/empty-state";
+import { Flower2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { DataTableFilterReset } from "@/components/data-table/data-table-filter-reset";
+import { useViewListing } from "@/components/view-listing-dialog";
 
 const columns: ColumnDef<PublicProfile>[] = [
   {
@@ -41,20 +46,37 @@ function CatalogsGrid({
     columns,
     storageKey: "catalogs-table",
   });
+  const { closeViewListing } = useViewListing();
+
+  const handleReset = () => {
+    table.resetColumnFilters(true);
+    table.resetGlobalFilter(true);
+    closeViewListing();
+  };
 
   return (
     <>
       <div className="flex items-center">
         <DataTableGlobalFilter table={table} placeholder="Search catalogs..." />
+        <DataTableFilterReset table={table} />
       </div>
 
-      <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-        {table.getRowModel().rows.map((row, index) => (
-          <div key={row.original.id} className="mx-auto w-full max-w-[400px]">
-            <UserCard {...row.original} priority={index < 6} />
-          </div>
-        ))}
-      </div>
+      {table.getRowModel().rows.length === 0 ? (
+        <EmptyState
+          icon={<Flower2 className="h-12 w-12 text-muted-foreground" />}
+          title="No Catalogs Found"
+          description="Try adjusting your filters or create a new listing"
+          action={<Button onClick={handleReset}>Reset Filters</Button>}
+        />
+      ) : (
+        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          {table.getRowModel().rows.map((row, index) => (
+            <div key={row.original.id} className="mx-auto w-full max-w-[400px]">
+              <UserCard {...row.original} priority={index < 6} />
+            </div>
+          ))}
+        </div>
+      )}
 
       <DataTablePagination table={table} />
     </>
@@ -96,9 +118,14 @@ export function CatalogsPageClient() {
       ) : profiles ? (
         <CatalogsGrid profiles={profiles} />
       ) : (
-        <div className="text-center text-muted-foreground">
-          No catalogs found
-        </div>
+        <EmptyState
+          icon={<Flower2 className="h-12 w-12 text-muted-foreground" />}
+          title="No Catalogs Found"
+          description="There are no daylily catalogs available at the moment."
+          action={
+            <Button onClick={() => window.location.reload()}>Refresh</Button>
+          }
+        />
       )}
     </MainContent>
   );

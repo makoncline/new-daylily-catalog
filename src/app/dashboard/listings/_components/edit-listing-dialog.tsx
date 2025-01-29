@@ -61,10 +61,10 @@ export function EditListingDialog() {
             Make changes to your listing here.
           </P>
         </DialogHeader>
+
         {editingId && (
           <ErrorBoundary
-            FallbackComponent={ErrorFallback}
-            onReset={closeEditListing}
+            fallback={<ErrorFallback resetErrorBoundary={closeEditListing} />}
             onError={logError}
           >
             <Suspense fallback={<ListingFormSkeleton />}>

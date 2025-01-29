@@ -21,15 +21,22 @@ import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
 export const useViewListing = () => {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const params = new URLSearchParams(searchParams.toString());
 
   const setViewingId = (id: string | null) => {
-    if (id) {
-      params.set("viewing", id);
-    } else {
-      params.delete("viewing");
+    try {
+      const url = new URL(window.location.href);
+
+      if (id) {
+        url.searchParams.set("viewing", id);
+      } else {
+        url.searchParams.delete("viewing");
+      }
+
+      // Use replace instead of push to avoid history stack issues
+      router.replace(url.pathname + url.search, { scroll: false });
+    } catch (error) {
+      console.error("Failed to update URL:", error);
     }
-    router.push(`?${params.toString()}`, { scroll: false });
   };
 
   const getViewingId = () => searchParams.get("viewing");
@@ -64,17 +71,14 @@ export function ViewListingDialog() {
             <DialogDescription>View your listing here.</DialogDescription>
           </DialogHeader>
         </VisuallyHidden>
-        {viewingId && (
-          <ErrorBoundary
-            FallbackComponent={ErrorFallback}
-            onReset={closeViewListing}
-            onError={logError}
-          >
-            <Suspense fallback={<ListingDisplaySkeleton />}>
-              <ListingDisplay listingId={viewingId} />
-            </Suspense>
-          </ErrorBoundary>
-        )}
+        <ErrorBoundary
+          fallback={<ErrorFallback resetErrorBoundary={closeViewListing} />}
+          onError={logError}
+        >
+          <Suspense fallback={<ListingDisplaySkeleton />}>
+            {viewingId && <ListingDisplay listingId={viewingId} />}
+          </Suspense>
+        </ErrorBoundary>
       </DialogContent>
     </Dialog>
   );

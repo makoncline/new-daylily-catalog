@@ -19,6 +19,10 @@ import { ProfileSection } from "./profile-section";
 import { ViewListingDialog } from "@/components/view-listing-dialog";
 import { H2 } from "@/components/typography";
 import { useRouter } from "next/navigation";
+import { EmptyState } from "@/components/empty-state";
+import { Button } from "@/components/ui/button";
+import { Flower2 } from "lucide-react";
+import Link from "next/link";
 
 type Listing = RouterOutputs["public"]["getListings"][number];
 
@@ -78,9 +82,16 @@ export function CatalogDetailClient({ slugOrId }: CatalogDetailClientProps) {
   if (!profile) {
     return (
       <MainContent>
-        <div className="text-center text-muted-foreground">
-          Catalog not found
-        </div>
+        <EmptyState
+          icon={<Flower2 className="h-12 w-12 text-muted-foreground" />}
+          title="Catalog Not Found"
+          description="The catalog you are looking for does not exist."
+          action={
+            <Button asChild>
+              <Link href="/catalogs">Browse Catalogs</Link>
+            </Button>
+          }
+        />
       </MainContent>
     );
   }

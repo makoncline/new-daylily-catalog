@@ -3,17 +3,19 @@
 import { Button } from "@/components/ui/button";
 import { useFeedbackUrl } from "@/hooks/use-feedback-url";
 import { H1, P } from "@/components/typography";
+import { FallbackProps } from "react-error-boundary";
 
-interface ErrorFallbackProps {
-  resetErrorBoundary?: () => void;
+interface ErrorFallbackProps extends Partial<FallbackProps> {
   className?: string;
 }
 
 export function ErrorFallback({
+  error,
   resetErrorBoundary,
   className = "",
 }: ErrorFallbackProps) {
   const feedbackUrl = useFeedbackUrl();
+  console.log("ErrorFallback rendered with:", { error, resetErrorBoundary });
 
   return (
     <div
@@ -28,7 +30,14 @@ export function ErrorFallback({
 
       <div className="flex flex-col gap-2">
         {resetErrorBoundary && (
-          <Button variant="default" size="lg" onClick={resetErrorBoundary}>
+          <Button
+            variant="default"
+            size="lg"
+            onClick={() => {
+              console.log("Try Again clicked");
+              resetErrorBoundary();
+            }}
+          >
             Try Again
           </Button>
         )}

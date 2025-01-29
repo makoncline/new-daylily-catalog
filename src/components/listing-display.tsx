@@ -2,16 +2,13 @@
 
 import { api } from "@/trpc/react";
 import { ImageGallery, ImageGallerySkeleton } from "@/components/image-gallery";
-import {
-  AhsListingDisplay,
-  AhsListingDisplaySkeleton,
-} from "@/components/ahs-listing-display";
-import { cn, formatPrice } from "@/lib/utils";
+import { AhsListingDisplay } from "@/components/ahs-listing-display";
+import { formatPrice } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { ImageIcon } from "lucide-react";
 import { Skeleton } from "./ui/skeleton";
-import { H2, H3, Muted, P, typography } from "@/components/typography";
+import { H2, Muted, P } from "@/components/typography";
 
 interface ListingDisplayProps {
   listingId: string;
