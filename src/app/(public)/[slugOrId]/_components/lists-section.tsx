@@ -10,9 +10,10 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { H2, P } from "@/components/typography";
 
 type Listing = RouterOutputs["public"]["getListings"][number];
+type List = RouterOutputs["public"]["getProfile"]["lists"][number];
 
 interface ListsSectionProps {
-  lists: RouterOutputs["public"]["getProfile"]["lists"];
+  lists: List[];
   table: Table<Listing>;
 }
 

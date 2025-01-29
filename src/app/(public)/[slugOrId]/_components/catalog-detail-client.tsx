@@ -18,11 +18,12 @@ import { NoResults } from "./no-results";
 import { ProfileSection } from "./profile-section";
 import { ViewListingDialog } from "@/components/view-listing-dialog";
 import { H2 } from "@/components/typography";
+import { useRouter } from "next/navigation";
 
 type Listing = RouterOutputs["public"]["getListings"][number];
 
 interface CatalogDetailClientProps {
-  userId: string;
+  slugOrId: string;
 }
 
 const columns = [
@@ -40,16 +41,29 @@ const columns = [
   },
 ] as ColumnDef<Listing>[];
 
-export function CatalogDetailClient({ userId }: CatalogDetailClientProps) {
+export function CatalogDetailClient({ slugOrId }: CatalogDetailClientProps) {
+  const router = useRouter();
   const { data: profile, isLoading: isLoadingProfile } =
-    api.public.getProfile.useQuery({ userId });
-  const { data: listings, isLoading: isLoadingListings } =
-    api.public.getListings.useQuery(
-      { userId },
+    api.public.getProfile.useQuery(
+      { slugOrId },
       {
-        enabled: !!userId,
+        enabled: !!slugOrId,
       },
     );
+  const { data: listings, isLoading: isLoadingListings } =
+    api.public.getListings.useQuery(
+      { slugOrId },
+      {
+        enabled: !!slugOrId,
+      },
+    );
+
+  // If we're using a userId and the profile has a slug, redirect to the slug URL
+  React.useEffect(() => {
+    if (profile?.slug && slugOrId !== profile.slug) {
+      router.replace(`/${profile.slug}`);
+    }
+  }, [profile?.slug, router, slugOrId]);
 
   const table = useDataTable({
     data: listings ?? [],

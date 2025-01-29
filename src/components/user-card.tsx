@@ -95,16 +95,18 @@ export function UserCard({
   createdAt,
   updatedAt,
   lists,
+  slug,
   priority = false,
 }: UserCardProps) {
   const gardenName = title ?? "Unnamed Garden";
   const lastUpdatedLabel = getLastUpdatedLabel(new Date(updatedAt));
   const memberSinceLabel = getMemberSinceLabel(new Date(createdAt));
+  const catalogPath = `/${slug ?? id}`;
 
   return (
     <Card className="group flex h-full flex-col overflow-hidden transition-all hover:border-primary">
       <div className="relative">
-        <Link href={`/catalogs/${id}`} className="block">
+        <Link href={catalogPath} className="block">
           <div className="aspect-square">
             {images[0]?.url ? (
               <OptimizedImage
@@ -179,7 +181,7 @@ export function UserCard({
         )}
       </div>
 
-      <Link href={`/catalogs/${id}`} className="flex flex-1 flex-col">
+      <Link href={catalogPath} className="flex flex-1 flex-col">
         <CardContent className="flex flex-1 flex-col p-4">
           <div className="flex flex-1 flex-col justify-between gap-4">
             <div className="space-y-2">
@@ -248,21 +250,22 @@ export function UserCardSkeleton() {
     <Card className="group flex h-full flex-col overflow-hidden">
       <div className="relative">
         <div className="aspect-square">
-          <Skeleton className="h-full w-full" />
+          <div className="flex h-full w-full items-center justify-center bg-muted">
+            <ImageIcon className="h-10 w-10 text-muted-foreground" />
+          </div>
         </div>
       </div>
-
       <CardContent className="flex flex-1 flex-col p-4">
         <div className="flex flex-1 flex-col justify-between gap-4">
           <div className="space-y-2">
             <Skeleton className="h-6 w-3/4" />
             <Skeleton className="h-5 w-1/2" />
-            <Skeleton className="h-4 w-full" />
+            <Skeleton className="h-4 w-1/3" />
+            <Skeleton className="h-16 w-full" />
           </div>
-
           <div className="flex gap-3">
-            <Skeleton className="h-4 w-24" />
-            <Skeleton className="h-4 w-20" />
+            <Skeleton className="h-6 w-24" />
+            <Skeleton className="h-6 w-20" />
           </div>
         </div>
       </CardContent>

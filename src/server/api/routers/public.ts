@@ -7,6 +7,34 @@ import { getStripeSubscription } from "@/server/stripe/sync-subscription";
 import { hasActiveSubscription } from "@/server/stripe/subscription-utils";
 import { type OutputData } from "@editorjs/editorjs";
 
+// Helper function to get userId from either slug or id
+async function getUserIdFromSlugOrId(slugOrId: string): Promise<string> {
+  // First try to find by slug
+  const profile = await db.userProfile.findUnique({
+    where: { slug: slugOrId },
+    select: { userId: true },
+  });
+
+  if (profile) {
+    return profile.userId;
+  }
+
+  // If not found by slug, check if it's a valid user id
+  const user = await db.user.findUnique({
+    where: { id: slugOrId },
+    select: { id: true },
+  });
+
+  if (user) {
+    return user.id;
+  }
+
+  throw new TRPCError({
+    code: "NOT_FOUND",
+    message: "User not found",
+  });
+}
+
 export const publicRouter = createTRPCRouter({
   getPublicProfiles: publicProcedure.query(async () => {
     try {
@@ -137,11 +165,12 @@ export const publicRouter = createTRPCRouter({
   }),
 
   getProfile: publicProcedure
-    .input(z.object({ userId: z.string() }))
+    .input(z.object({ slugOrId: z.string() }))
     .query(async ({ ctx, input }) => {
       try {
+        const userId = await getUserIdFromSlugOrId(input.slugOrId);
         const user = await db.user.findUnique({
-          where: { id: input.userId },
+          where: { id: userId },
           select: {
             id: true,
             stripeCustomerId: true,
@@ -238,15 +267,16 @@ export const publicRouter = createTRPCRouter({
   getListings: publicProcedure
     .input(
       z.object({
-        userId: z.string(),
+        slugOrId: z.string(),
         listId: z.string().optional(),
       }),
     )
     .query(async ({ ctx, input }) => {
       try {
+        const userId = await getUserIdFromSlugOrId(input.slugOrId);
         const listings = await db.listing.findMany({
           where: {
-            userId: input.userId,
+            userId,
             ...(input.listId
               ? {
                   lists: {
@@ -393,6 +423,73 @@ export const publicRouter = createTRPCRouter({
         throw new TRPCError({
           code: "INTERNAL_SERVER_ERROR",
           message: "Failed to fetch listing",
+        });
+      }
+    }),
+
+  getProfileBySlug: publicProcedure
+    .input(z.object({ slug: z.string() }))
+    .query(async ({ input }) => {
+      try {
+        const profile = await db.userProfile.findUnique({
+          where: { slug: input.slug },
+          select: {
+            userId: true,
+            title: true,
+            slug: true,
+            description: true,
+            content: true,
+            location: true,
+            updatedAt: true,
+            images: {
+              orderBy: {
+                order: "asc",
+              },
+              select: {
+                id: true,
+                url: true,
+              },
+            },
+            user: {
+              select: {
+                id: true,
+                stripeCustomerId: true,
+                createdAt: true,
+                _count: {
+                  select: {
+                    listings: true,
+                  },
+                },
+                lists: {
+                  select: {
+                    id: true,
+                    title: true,
+                    description: true,
+                    _count: {
+                      select: {
+                        listings: true,
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        });
+
+        if (!profile) {
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "Profile not found",
+          });
+        }
+
+        return profile;
+      } catch (error) {
+        console.error("Error fetching profile by slug:", error);
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "Failed to fetch profile",
         });
       }
     }),
