@@ -15,6 +15,7 @@ import Link from "next/link";
 import { type RouterOutputs } from "@/trpc/react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { H3, P, Muted } from "@/components/typography";
+import { ImagePlaceholder } from "./image-placeholder";
 
 function UserImagesPreview({ images }: { images: { url: string }[] }) {
   if (!images.length) return null;
@@ -107,21 +108,17 @@ export function UserCard({
     <Card className="group flex h-full flex-col overflow-hidden transition-all hover:border-primary">
       <div className="relative">
         <Link href={catalogPath} className="block">
-          <div className="aspect-square">
-            {images[0]?.url ? (
-              <OptimizedImage
-                src={images[0].url}
-                alt={`${gardenName} profile image`}
-                size="full"
-                priority={priority}
-                className="object-cover"
-              />
-            ) : (
-              <div className="flex h-full w-full items-center justify-center bg-muted">
-                <ImageIcon className="h-10 w-10 text-muted-foreground" />
-              </div>
-            )}
-          </div>
+          {images[0]?.url ? (
+            <OptimizedImage
+              src={images[0].url}
+              alt={`${gardenName} profile image`}
+              size="full"
+              priority={priority}
+              className="object-cover"
+            />
+          ) : (
+            <ImagePlaceholder />
+          )}
         </Link>
 
         <div className="absolute right-2 top-2">
@@ -249,11 +246,7 @@ export function UserCardSkeleton() {
   return (
     <Card className="group flex h-full flex-col overflow-hidden">
       <div className="relative">
-        <div className="aspect-square">
-          <div className="flex h-full w-full items-center justify-center bg-muted">
-            <ImageIcon className="h-10 w-10 text-muted-foreground" />
-          </div>
-        </div>
+        <ImagePlaceholder />
       </div>
       <CardContent className="flex flex-1 flex-col p-4">
         <div className="flex flex-1 flex-col justify-between gap-4">

@@ -9,6 +9,7 @@ import { Separator } from "@/components/ui/separator";
 import { ImageIcon } from "lucide-react";
 import { Skeleton } from "./ui/skeleton";
 import { H2, Muted, P } from "@/components/typography";
+import { ImagePlaceholder } from "./image-placeholder";
 
 interface ListingDisplayProps {
   listingId: string;
@@ -24,11 +25,7 @@ export function ListingDisplay({ listingId }: ListingDisplayProps) {
       {listing.images.length > 0 ? (
         <ImageGallery images={listing.images} className="max-w-full" />
       ) : (
-        <div className="aspect-square">
-          <div className="flex h-full w-full items-center justify-center bg-muted">
-            <ImageIcon className="h-10 w-10 text-muted-foreground" />
-          </div>
-        </div>
+        <ImagePlaceholder />
       )}
       <div className="flex justify-between">
         <div>

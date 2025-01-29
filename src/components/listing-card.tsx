@@ -16,6 +16,7 @@ import { OptimizedImage } from "./optimized-image";
 import { useViewListing } from "@/components/view-listing-dialog";
 import { Skeleton } from "./ui/skeleton";
 import { H3 } from "@/components/typography";
+import { ImagePlaceholder } from "./image-placeholder";
 
 function ListingImagesPreview({ images }: { images: { url: string }[] }) {
   if (!images.length) return null;
@@ -63,9 +64,7 @@ export function ListingCard({ listing, priority = false }: ListingCardProps) {
               className="object-cover"
             />
           ) : (
-            <div className="flex h-full w-full items-center justify-center bg-muted">
-              <ImageIcon className="h-10 w-10 text-muted-foreground" />
-            </div>
+            <ImagePlaceholder />
           )}
         </div>
 

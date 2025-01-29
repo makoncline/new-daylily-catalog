@@ -1,17 +1,16 @@
 "use client";
 
 import { ImageGallery } from "@/components/image-gallery";
+import { ImagePlaceholder } from "@/components/image-placeholder";
 
 interface ImagesSectionProps {
   images?: { id: string; url: string }[];
 }
 
 export function ImagesSection({ images }: ImagesSectionProps) {
-  if (!images?.length) return null;
-
   return (
     <div id="images">
-      <ImageGallery images={images} />
+      {images?.length ? <ImageGallery images={images} /> : <ImagePlaceholder />}
     </div>
   );
 }
