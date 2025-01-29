@@ -2717,6 +2717,7 @@ export namespace Prisma {
     id: string | null
     userId: string | null
     title: string | null
+    slug: string | null
     price: number | null
     description: string | null
     privateNote: string | null
@@ -2730,6 +2731,7 @@ export namespace Prisma {
     id: string | null
     userId: string | null
     title: string | null
+    slug: string | null
     price: number | null
     description: string | null
     privateNote: string | null
@@ -2743,6 +2745,7 @@ export namespace Prisma {
     id: number
     userId: number
     title: number
+    slug: number
     price: number
     description: number
     privateNote: number
@@ -2766,6 +2769,7 @@ export namespace Prisma {
     id?: true
     userId?: true
     title?: true
+    slug?: true
     price?: true
     description?: true
     privateNote?: true
@@ -2779,6 +2783,7 @@ export namespace Prisma {
     id?: true
     userId?: true
     title?: true
+    slug?: true
     price?: true
     description?: true
     privateNote?: true
@@ -2792,6 +2797,7 @@ export namespace Prisma {
     id?: true
     userId?: true
     title?: true
+    slug?: true
     price?: true
     description?: true
     privateNote?: true
@@ -2892,6 +2898,7 @@ export namespace Prisma {
     id: string
     userId: string
     title: string
+    slug: string
     price: number | null
     description: string | null
     privateNote: string | null
@@ -2924,6 +2931,7 @@ export namespace Prisma {
     id?: boolean
     userId?: boolean
     title?: boolean
+    slug?: boolean
     price?: boolean
     description?: boolean
     privateNote?: boolean
@@ -2942,6 +2950,7 @@ export namespace Prisma {
     id?: boolean
     userId?: boolean
     title?: boolean
+    slug?: boolean
     price?: boolean
     description?: boolean
     privateNote?: boolean
@@ -2957,6 +2966,7 @@ export namespace Prisma {
     id?: boolean
     userId?: boolean
     title?: boolean
+    slug?: boolean
     price?: boolean
     description?: boolean
     privateNote?: boolean
@@ -2990,6 +3000,7 @@ export namespace Prisma {
       id: string
       userId: string
       title: string
+      slug: string
       price: number | null
       description: string | null
       privateNote: string | null
@@ -3397,6 +3408,7 @@ export namespace Prisma {
     readonly id: FieldRef<"Listing", 'String'>
     readonly userId: FieldRef<"Listing", 'String'>
     readonly title: FieldRef<"Listing", 'String'>
+    readonly slug: FieldRef<"Listing", 'String'>
     readonly price: FieldRef<"Listing", 'Float'>
     readonly description: FieldRef<"Listing", 'String'>
     readonly privateNote: FieldRef<"Listing", 'String'>
@@ -8733,6 +8745,7 @@ export namespace Prisma {
     id: 'id',
     userId: 'userId',
     title: 'title',
+    slug: 'slug',
     price: 'price',
     description: 'description',
     privateNote: 'privateNote',
@@ -9014,6 +9027,7 @@ export namespace Prisma {
     id?: StringFilter<"Listing"> | string
     userId?: StringFilter<"Listing"> | string
     title?: StringFilter<"Listing"> | string
+    slug?: StringFilter<"Listing"> | string
     price?: FloatNullableFilter<"Listing"> | number | null
     description?: StringNullableFilter<"Listing"> | string | null
     privateNote?: StringNullableFilter<"Listing"> | string | null
@@ -9031,6 +9045,7 @@ export namespace Prisma {
     id?: SortOrder
     userId?: SortOrder
     title?: SortOrder
+    slug?: SortOrder
     price?: SortOrderInput | SortOrder
     description?: SortOrderInput | SortOrder
     privateNote?: SortOrderInput | SortOrder
@@ -9046,11 +9061,13 @@ export namespace Prisma {
 
   export type ListingWhereUniqueInput = Prisma.AtLeast<{
     id?: string
+    userId_slug?: ListingUserIdSlugCompoundUniqueInput
     AND?: ListingWhereInput | ListingWhereInput[]
     OR?: ListingWhereInput[]
     NOT?: ListingWhereInput | ListingWhereInput[]
     userId?: StringFilter<"Listing"> | string
     title?: StringFilter<"Listing"> | string
+    slug?: StringFilter<"Listing"> | string
     price?: FloatNullableFilter<"Listing"> | number | null
     description?: StringNullableFilter<"Listing"> | string | null
     privateNote?: StringNullableFilter<"Listing"> | string | null
@@ -9062,12 +9079,13 @@ export namespace Prisma {
     ahsListing?: XOR<AhsListingNullableRelationFilter, AhsListingWhereInput> | null
     lists?: ListListRelationFilter
     user?: XOR<UserRelationFilter, UserWhereInput>
-  }, "id">
+  }, "id" | "userId_slug">
 
   export type ListingOrderByWithAggregationInput = {
     id?: SortOrder
     userId?: SortOrder
     title?: SortOrder
+    slug?: SortOrder
     price?: SortOrderInput | SortOrder
     description?: SortOrderInput | SortOrder
     privateNote?: SortOrderInput | SortOrder
@@ -9089,6 +9107,7 @@ export namespace Prisma {
     id?: StringWithAggregatesFilter<"Listing"> | string
     userId?: StringWithAggregatesFilter<"Listing"> | string
     title?: StringWithAggregatesFilter<"Listing"> | string
+    slug?: StringWithAggregatesFilter<"Listing"> | string
     price?: FloatNullableWithAggregatesFilter<"Listing"> | number | null
     description?: StringNullableWithAggregatesFilter<"Listing"> | string | null
     privateNote?: StringNullableWithAggregatesFilter<"Listing"> | string | null
@@ -9626,6 +9645,7 @@ export namespace Prisma {
   export type ListingCreateInput = {
     id?: string
     title: string
+    slug: string
     price?: number | null
     description?: string | null
     privateNote?: string | null
@@ -9642,6 +9662,7 @@ export namespace Prisma {
     id?: string
     userId: string
     title: string
+    slug: string
     price?: number | null
     description?: string | null
     privateNote?: string | null
@@ -9656,6 +9677,7 @@ export namespace Prisma {
   export type ListingUpdateInput = {
     id?: StringFieldUpdateOperationsInput | string
     title?: StringFieldUpdateOperationsInput | string
+    slug?: StringFieldUpdateOperationsInput | string
     price?: NullableFloatFieldUpdateOperationsInput | number | null
     description?: NullableStringFieldUpdateOperationsInput | string | null
     privateNote?: NullableStringFieldUpdateOperationsInput | string | null
@@ -9672,6 +9694,7 @@ export namespace Prisma {
     id?: StringFieldUpdateOperationsInput | string
     userId?: StringFieldUpdateOperationsInput | string
     title?: StringFieldUpdateOperationsInput | string
+    slug?: StringFieldUpdateOperationsInput | string
     price?: NullableFloatFieldUpdateOperationsInput | number | null
     description?: NullableStringFieldUpdateOperationsInput | string | null
     privateNote?: NullableStringFieldUpdateOperationsInput | string | null
@@ -9687,6 +9710,7 @@ export namespace Prisma {
     id?: string
     userId: string
     title: string
+    slug: string
     price?: number | null
     description?: string | null
     privateNote?: string | null
@@ -9699,6 +9723,7 @@ export namespace Prisma {
   export type ListingUpdateManyMutationInput = {
     id?: StringFieldUpdateOperationsInput | string
     title?: StringFieldUpdateOperationsInput | string
+    slug?: StringFieldUpdateOperationsInput | string
     price?: NullableFloatFieldUpdateOperationsInput | number | null
     description?: NullableStringFieldUpdateOperationsInput | string | null
     privateNote?: NullableStringFieldUpdateOperationsInput | string | null
@@ -9711,6 +9736,7 @@ export namespace Prisma {
     id?: StringFieldUpdateOperationsInput | string
     userId?: StringFieldUpdateOperationsInput | string
     title?: StringFieldUpdateOperationsInput | string
+    slug?: StringFieldUpdateOperationsInput | string
     price?: NullableFloatFieldUpdateOperationsInput | number | null
     description?: NullableStringFieldUpdateOperationsInput | string | null
     privateNote?: NullableStringFieldUpdateOperationsInput | string | null
@@ -10307,10 +10333,16 @@ export namespace Prisma {
     _count?: SortOrder
   }
 
+  export type ListingUserIdSlugCompoundUniqueInput = {
+    userId: string
+    slug: string
+  }
+
   export type ListingCountOrderByAggregateInput = {
     id?: SortOrder
     userId?: SortOrder
     title?: SortOrder
+    slug?: SortOrder
     price?: SortOrder
     description?: SortOrder
     privateNote?: SortOrder
@@ -10328,6 +10360,7 @@ export namespace Prisma {
     id?: SortOrder
     userId?: SortOrder
     title?: SortOrder
+    slug?: SortOrder
     price?: SortOrder
     description?: SortOrder
     privateNote?: SortOrder
@@ -10341,6 +10374,7 @@ export namespace Prisma {
     id?: SortOrder
     userId?: SortOrder
     title?: SortOrder
+    slug?: SortOrder
     price?: SortOrder
     description?: SortOrder
     privateNote?: SortOrder
@@ -11167,6 +11201,7 @@ export namespace Prisma {
   export type ListingCreateWithoutAhsListingInput = {
     id?: string
     title: string
+    slug: string
     price?: number | null
     description?: string | null
     privateNote?: string | null
@@ -11182,6 +11217,7 @@ export namespace Prisma {
     id?: string
     userId: string
     title: string
+    slug: string
     price?: number | null
     description?: string | null
     privateNote?: string | null
@@ -11224,6 +11260,7 @@ export namespace Prisma {
     id?: StringFilter<"Listing"> | string
     userId?: StringFilter<"Listing"> | string
     title?: StringFilter<"Listing"> | string
+    slug?: StringFilter<"Listing"> | string
     price?: FloatNullableFilter<"Listing"> | number | null
     description?: StringNullableFilter<"Listing"> | string | null
     privateNote?: StringNullableFilter<"Listing"> | string | null
@@ -11529,6 +11566,7 @@ export namespace Prisma {
   export type ListingCreateWithoutListsInput = {
     id?: string
     title: string
+    slug: string
     price?: number | null
     description?: string | null
     privateNote?: string | null
@@ -11544,6 +11582,7 @@ export namespace Prisma {
     id?: string
     userId: string
     title: string
+    slug: string
     price?: number | null
     description?: string | null
     privateNote?: string | null
@@ -11774,6 +11813,7 @@ export namespace Prisma {
   export type ListingCreateWithoutImagesInput = {
     id?: string
     title: string
+    slug: string
     price?: number | null
     description?: string | null
     privateNote?: string | null
@@ -11789,6 +11829,7 @@ export namespace Prisma {
     id?: string
     userId: string
     title: string
+    slug: string
     price?: number | null
     description?: string | null
     privateNote?: string | null
@@ -11855,6 +11896,7 @@ export namespace Prisma {
   export type ListingUpdateWithoutImagesInput = {
     id?: StringFieldUpdateOperationsInput | string
     title?: StringFieldUpdateOperationsInput | string
+    slug?: StringFieldUpdateOperationsInput | string
     price?: NullableFloatFieldUpdateOperationsInput | number | null
     description?: NullableStringFieldUpdateOperationsInput | string | null
     privateNote?: NullableStringFieldUpdateOperationsInput | string | null
@@ -11870,6 +11912,7 @@ export namespace Prisma {
     id?: StringFieldUpdateOperationsInput | string
     userId?: StringFieldUpdateOperationsInput | string
     title?: StringFieldUpdateOperationsInput | string
+    slug?: StringFieldUpdateOperationsInput | string
     price?: NullableFloatFieldUpdateOperationsInput | number | null
     description?: NullableStringFieldUpdateOperationsInput | string | null
     privateNote?: NullableStringFieldUpdateOperationsInput | string | null
@@ -11883,6 +11926,7 @@ export namespace Prisma {
   export type ListingCreateWithoutUserInput = {
     id?: string
     title: string
+    slug: string
     price?: number | null
     description?: string | null
     privateNote?: string | null
@@ -11897,6 +11941,7 @@ export namespace Prisma {
   export type ListingUncheckedCreateWithoutUserInput = {
     id?: string
     title: string
+    slug: string
     price?: number | null
     description?: string | null
     privateNote?: string | null
@@ -12050,6 +12095,7 @@ export namespace Prisma {
     id?: string
     userId: string
     title: string
+    slug: string
     price?: number | null
     description?: string | null
     privateNote?: string | null
@@ -12061,6 +12107,7 @@ export namespace Prisma {
   export type ListingUpdateWithoutAhsListingInput = {
     id?: StringFieldUpdateOperationsInput | string
     title?: StringFieldUpdateOperationsInput | string
+    slug?: StringFieldUpdateOperationsInput | string
     price?: NullableFloatFieldUpdateOperationsInput | number | null
     description?: NullableStringFieldUpdateOperationsInput | string | null
     privateNote?: NullableStringFieldUpdateOperationsInput | string | null
@@ -12076,6 +12123,7 @@ export namespace Prisma {
     id?: StringFieldUpdateOperationsInput | string
     userId?: StringFieldUpdateOperationsInput | string
     title?: StringFieldUpdateOperationsInput | string
+    slug?: StringFieldUpdateOperationsInput | string
     price?: NullableFloatFieldUpdateOperationsInput | number | null
     description?: NullableStringFieldUpdateOperationsInput | string | null
     privateNote?: NullableStringFieldUpdateOperationsInput | string | null
@@ -12090,6 +12138,7 @@ export namespace Prisma {
     id?: StringFieldUpdateOperationsInput | string
     userId?: StringFieldUpdateOperationsInput | string
     title?: StringFieldUpdateOperationsInput | string
+    slug?: StringFieldUpdateOperationsInput | string
     price?: NullableFloatFieldUpdateOperationsInput | number | null
     description?: NullableStringFieldUpdateOperationsInput | string | null
     privateNote?: NullableStringFieldUpdateOperationsInput | string | null
@@ -12171,6 +12220,7 @@ export namespace Prisma {
   export type ListingUpdateWithoutListsInput = {
     id?: StringFieldUpdateOperationsInput | string
     title?: StringFieldUpdateOperationsInput | string
+    slug?: StringFieldUpdateOperationsInput | string
     price?: NullableFloatFieldUpdateOperationsInput | number | null
     description?: NullableStringFieldUpdateOperationsInput | string | null
     privateNote?: NullableStringFieldUpdateOperationsInput | string | null
@@ -12186,6 +12236,7 @@ export namespace Prisma {
     id?: StringFieldUpdateOperationsInput | string
     userId?: StringFieldUpdateOperationsInput | string
     title?: StringFieldUpdateOperationsInput | string
+    slug?: StringFieldUpdateOperationsInput | string
     price?: NullableFloatFieldUpdateOperationsInput | number | null
     description?: NullableStringFieldUpdateOperationsInput | string | null
     privateNote?: NullableStringFieldUpdateOperationsInput | string | null
@@ -12200,6 +12251,7 @@ export namespace Prisma {
     id?: StringFieldUpdateOperationsInput | string
     userId?: StringFieldUpdateOperationsInput | string
     title?: StringFieldUpdateOperationsInput | string
+    slug?: StringFieldUpdateOperationsInput | string
     price?: NullableFloatFieldUpdateOperationsInput | number | null
     description?: NullableStringFieldUpdateOperationsInput | string | null
     privateNote?: NullableStringFieldUpdateOperationsInput | string | null
@@ -12252,6 +12304,7 @@ export namespace Prisma {
   export type ListingCreateManyUserInput = {
     id?: string
     title: string
+    slug: string
     price?: number | null
     description?: string | null
     privateNote?: string | null
@@ -12273,6 +12326,7 @@ export namespace Prisma {
   export type ListingUpdateWithoutUserInput = {
     id?: StringFieldUpdateOperationsInput | string
     title?: StringFieldUpdateOperationsInput | string
+    slug?: StringFieldUpdateOperationsInput | string
     price?: NullableFloatFieldUpdateOperationsInput | number | null
     description?: NullableStringFieldUpdateOperationsInput | string | null
     privateNote?: NullableStringFieldUpdateOperationsInput | string | null
@@ -12287,6 +12341,7 @@ export namespace Prisma {
   export type ListingUncheckedUpdateWithoutUserInput = {
     id?: StringFieldUpdateOperationsInput | string
     title?: StringFieldUpdateOperationsInput | string
+    slug?: StringFieldUpdateOperationsInput | string
     price?: NullableFloatFieldUpdateOperationsInput | number | null
     description?: NullableStringFieldUpdateOperationsInput | string | null
     privateNote?: NullableStringFieldUpdateOperationsInput | string | null
@@ -12301,6 +12356,7 @@ export namespace Prisma {
   export type ListingUncheckedUpdateManyWithoutUserInput = {
     id?: StringFieldUpdateOperationsInput | string
     title?: StringFieldUpdateOperationsInput | string
+    slug?: StringFieldUpdateOperationsInput | string
     price?: NullableFloatFieldUpdateOperationsInput | number | null
     description?: NullableStringFieldUpdateOperationsInput | string | null
     privateNote?: NullableStringFieldUpdateOperationsInput | string | null

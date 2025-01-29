@@ -27,7 +27,7 @@ import Link from "next/link";
 type Listing = RouterOutputs["public"]["getListings"][number];
 
 interface CatalogDetailClientProps {
-  slugOrId: string;
+  userSlugOrId: string;
 }
 
 const columns = [
@@ -45,29 +45,31 @@ const columns = [
   },
 ] as ColumnDef<Listing>[];
 
-export function CatalogDetailClient({ slugOrId }: CatalogDetailClientProps) {
+export function CatalogDetailClient({
+  userSlugOrId: userSlugOrId,
+}: CatalogDetailClientProps) {
   const router = useRouter();
   const { data: profile, isLoading: isLoadingProfile } =
     api.public.getProfile.useQuery(
-      { slugOrId },
+      { userSlugOrId: userSlugOrId },
       {
-        enabled: !!slugOrId,
+        enabled: !!userSlugOrId,
       },
     );
   const { data: listings, isLoading: isLoadingListings } =
     api.public.getListings.useQuery(
-      { slugOrId },
+      { userSlugOrId: userSlugOrId },
       {
-        enabled: !!slugOrId,
+        enabled: !!userSlugOrId,
       },
     );
 
   // If we're using a userId and the profile has a slug, redirect to the slug URL
   React.useEffect(() => {
-    if (profile?.slug && slugOrId !== profile.slug) {
+    if (profile?.slug && userSlugOrId !== profile.slug) {
       router.replace(`/${profile.slug}`);
     }
-  }, [profile?.slug, router, slugOrId]);
+  }, [profile?.slug, router, userSlugOrId]);
 
   const table = useDataTable({
     data: listings ?? [],

@@ -23,7 +23,7 @@ function ImageGalleryLayout({
   thumbnailContent,
 }: ImageGalleryLayoutProps) {
   return (
-    <div className={cn("max-w-[400px] space-y-2", className)}>
+    <div className={cn("space-y-2", className)}>
       <div className="overflow-hidden rounded-lg">{mainContent}</div>
       {thumbnailContent && (
         <div className="grid grid-cols-4 gap-2">{thumbnailContent}</div>

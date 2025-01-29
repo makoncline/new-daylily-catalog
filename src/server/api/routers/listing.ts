@@ -8,6 +8,7 @@ import {
 import { listingFormSchema } from "@/types/schemas/listing";
 import { type PrismaClient } from "@prisma/client";
 import { APP_CONFIG } from "@/config/constants";
+import { generateUniqueSlug } from "@/lib/utils/slugify";
 
 async function checkListingOwnership(
   userId: string,
@@ -72,9 +73,13 @@ export const listingInclude = {
 
 export const listingRouter = createTRPCRouter({
   create: protectedProcedure.mutation(async ({ ctx }) => {
+    const title = APP_CONFIG.LISTING.DEFAULT_NAME;
+    const slug = await generateUniqueSlug(title, ctx.user.id);
+
     const listing = await ctx.db.listing.create({
       data: {
-        title: APP_CONFIG.LISTING.DEFAULT_NAME,
+        title,
+        slug,
         userId: ctx.user.id,
       },
       include: listingInclude,
@@ -101,10 +106,17 @@ export const listingRouter = createTRPCRouter({
         });
       }
 
+      // Generate new slug if title changed
+      const slug =
+        input.data.title && input.data.title !== listing.title
+          ? await generateUniqueSlug(input.data.title, ctx.user.id, listing.id)
+          : undefined;
+
       const updatedListing = await ctx.db.listing.update({
         where: { id: input.id },
         data: {
           title: input.data.title,
+          slug: slug,
           price: input.data.price,
           description: input.data.description,
           privateNote: input.data.privateNote,
@@ -381,6 +393,41 @@ export const listingRouter = createTRPCRouter({
       });
 
       return updatedListing;
+    }),
+
+  getBySlugOrId: protectedProcedure
+    .input(z.object({ slugOrId: z.string() }))
+    .query(async ({ ctx, input }) => {
+      // Try finding by slug first (case insensitive)
+      const listingBySlug = await ctx.db.listing.findFirst({
+        where: {
+          userId: ctx.user.id,
+          slug: input.slugOrId.toLowerCase(),
+        },
+        include: listingInclude,
+      });
+
+      if (listingBySlug) {
+        return listingBySlug;
+      }
+
+      // If not found by slug, try by ID
+      const listingById = await ctx.db.listing.findUnique({
+        where: {
+          id: input.slugOrId,
+          userId: ctx.user.id,
+        },
+        include: listingInclude,
+      });
+
+      if (!listingById) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Listing not found",
+        });
+      }
+
+      return listingById;
     }),
 });
 

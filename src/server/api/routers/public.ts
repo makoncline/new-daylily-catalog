@@ -6,6 +6,7 @@ import type { PublicProfile } from "@/types/public-types";
 import { getStripeSubscription } from "@/server/stripe/sync-subscription";
 import { hasActiveSubscription } from "@/server/stripe/subscription-utils";
 import { type OutputData } from "@editorjs/editorjs";
+import { type Listing, type Image, type AhsListing } from "@prisma/client";
 
 // Helper function to get userId from either slug or id
 async function getUserIdFromSlugOrId(slugOrId: string): Promise<string> {
@@ -35,6 +36,127 @@ async function getUserIdFromSlugOrId(slugOrId: string): Promise<string> {
     code: "NOT_FOUND",
     message: "User not found",
   });
+}
+
+// Helper function to get listing id from either slug or id
+async function getListingIdFromSlugOrId(
+  slugOrId: string,
+  userId: string,
+): Promise<string> {
+  // First try to find by slug (case insensitive)
+  const listingBySlug = await db.listing.findFirst({
+    where: {
+      userId,
+      slug: slugOrId.toLowerCase(),
+    },
+    select: { id: true },
+  });
+
+  if (listingBySlug) {
+    return listingBySlug.id;
+  }
+
+  // If not found by slug, check if it's a valid listing id
+  const listingById = await db.listing.findUnique({
+    where: {
+      id: slugOrId,
+      userId,
+    },
+    select: { id: true },
+  });
+
+  if (listingById) {
+    return listingById.id;
+  }
+
+  throw new TRPCError({
+    code: "NOT_FOUND",
+    message: "Listing not found",
+  });
+}
+
+// Helper function to get the full listing data with all relations
+async function getFullListingData(listingId: string) {
+  const listing = await db.listing.findUnique({
+    where: { id: listingId },
+    select: {
+      id: true,
+      title: true,
+      slug: true,
+      description: true,
+      price: true,
+      userId: true,
+      user: {
+        select: {
+          profile: {
+            select: {
+              slug: true,
+            },
+          },
+        },
+      },
+      lists: {
+        select: {
+          id: true,
+          title: true,
+        },
+      },
+      ahsListing: {
+        select: {
+          name: true,
+          ahsImageUrl: true,
+          hybridizer: true,
+          year: true,
+          scapeHeight: true,
+          bloomSize: true,
+          bloomSeason: true,
+          form: true,
+          ploidy: true,
+          foliageType: true,
+          bloomHabit: true,
+          budcount: true,
+          branches: true,
+          sculpting: true,
+          foliage: true,
+          flower: true,
+          fragrance: true,
+          parentage: true,
+          color: true,
+        },
+      },
+      images: {
+        select: {
+          id: true,
+          url: true,
+        },
+        orderBy: {
+          order: "asc",
+        },
+      },
+    },
+  });
+
+  if (!listing) {
+    throw new TRPCError({
+      code: "NOT_FOUND",
+      message: "Listing not found",
+    });
+  }
+
+  // Transform the listing to include AHS image if available
+  return {
+    ...listing,
+    userSlug: listing.user.profile?.slug ?? listing.userId,
+    images:
+      listing.images.length === 0 && listing.ahsListing?.ahsImageUrl
+        ? [
+            {
+              id: `ahs-${listing.id}`,
+              url: listing.ahsListing.ahsImageUrl,
+            },
+          ]
+        : listing.images,
+  };
 }
 
 export const publicRouter = createTRPCRouter({
@@ -167,10 +289,10 @@ export const publicRouter = createTRPCRouter({
   }),
 
   getProfile: publicProcedure
-    .input(z.object({ slugOrId: z.string() }))
+    .input(z.object({ userSlugOrId: z.string() }))
     .query(async ({ ctx, input }) => {
       try {
-        const userId = await getUserIdFromSlugOrId(input.slugOrId);
+        const userId = await getUserIdFromSlugOrId(input.userSlugOrId);
         const user = await db.user.findUnique({
           where: { id: userId },
           select: {
@@ -269,25 +391,15 @@ export const publicRouter = createTRPCRouter({
   getListings: publicProcedure
     .input(
       z.object({
-        slugOrId: z.string(),
-        listId: z.string().optional(),
+        userSlugOrId: z.string(),
       }),
     )
     .query(async ({ ctx, input }) => {
       try {
-        const userId = await getUserIdFromSlugOrId(input.slugOrId);
+        const userId = await getUserIdFromSlugOrId(input.userSlugOrId);
         const listings = await db.listing.findMany({
           where: {
             userId,
-            ...(input.listId
-              ? {
-                  lists: {
-                    some: {
-                      id: input.listId,
-                    },
-                  },
-                }
-              : {}),
           },
           select: {
             id: true,
@@ -346,81 +458,15 @@ export const publicRouter = createTRPCRouter({
       }
     }),
 
-  getListing: publicProcedure
+  getListingById: publicProcedure
     .input(z.object({ id: z.string() }))
-    .query(async ({ ctx, input }) => {
+    .query(async ({ input }) => {
       try {
-        const listing = await db.listing.findUnique({
-          where: { id: input.id },
-          select: {
-            id: true,
-            title: true,
-            description: true,
-            price: true,
-            userId: true,
-            lists: {
-              select: {
-                id: true,
-                title: true,
-              },
-            },
-            ahsListing: {
-              select: {
-                name: true,
-                ahsImageUrl: true,
-                hybridizer: true,
-                year: true,
-                scapeHeight: true,
-                bloomSize: true,
-                bloomSeason: true,
-                form: true,
-                ploidy: true,
-                foliageType: true,
-                bloomHabit: true,
-                budcount: true,
-                branches: true,
-                sculpting: true,
-                foliage: true,
-                flower: true,
-                fragrance: true,
-                parentage: true,
-                color: true,
-              },
-            },
-            images: {
-              select: {
-                id: true,
-                url: true,
-              },
-              orderBy: {
-                order: "asc",
-              },
-              take: 4,
-            },
-          },
-        });
-
-        if (!listing) {
-          throw new TRPCError({
-            code: "NOT_FOUND",
-            message: "Listing not found",
-          });
-        }
-
-        // Transform the listing to include AHS image if available
-        return {
-          ...listing,
-          images:
-            listing.images.length === 0 && listing.ahsListing?.ahsImageUrl
-              ? [
-                  {
-                    id: `ahs-${listing.id}`,
-                    url: listing.ahsListing.ahsImageUrl,
-                  },
-                ]
-              : listing.images,
-        };
+        return await getFullListingData(input.id);
       } catch (error) {
+        if (error instanceof TRPCError) {
+          throw error;
+        }
         console.error("Error fetching listing:", error);
         throw new TRPCError({
           code: "INTERNAL_SERVER_ERROR",
@@ -429,69 +475,30 @@ export const publicRouter = createTRPCRouter({
       }
     }),
 
-  getProfileBySlug: publicProcedure
-    .input(z.object({ slug: z.string() }))
+  getListing: publicProcedure
+    .input(
+      z.object({
+        userSlugOrId: z.string(),
+        listingSlugOrId: z.string(),
+      }),
+    )
     .query(async ({ input }) => {
       try {
-        const profile = await db.userProfile.findUnique({
-          where: { slug: input.slug },
-          select: {
-            userId: true,
-            title: true,
-            slug: true,
-            description: true,
-            content: true,
-            location: true,
-            updatedAt: true,
-            images: {
-              orderBy: {
-                order: "asc",
-              },
-              select: {
-                id: true,
-                url: true,
-              },
-            },
-            user: {
-              select: {
-                id: true,
-                stripeCustomerId: true,
-                createdAt: true,
-                _count: {
-                  select: {
-                    listings: true,
-                  },
-                },
-                lists: {
-                  select: {
-                    id: true,
-                    title: true,
-                    description: true,
-                    _count: {
-                      select: {
-                        listings: true,
-                      },
-                    },
-                  },
-                },
-              },
-            },
-          },
-        });
+        const userId = await getUserIdFromSlugOrId(input.userSlugOrId);
+        const listingId = await getListingIdFromSlugOrId(
+          input.listingSlugOrId,
+          userId,
+        );
 
-        if (!profile) {
-          throw new TRPCError({
-            code: "NOT_FOUND",
-            message: "Profile not found",
-          });
-        }
-
-        return profile;
+        return await getFullListingData(listingId);
       } catch (error) {
-        console.error("Error fetching profile by slug:", error);
+        if (error instanceof TRPCError) {
+          throw error;
+        }
+        console.error("Error fetching listing:", error);
         throw new TRPCError({
           code: "INTERNAL_SERVER_ERROR",
-          message: "Failed to fetch profile",
+          message: "Failed to fetch listing",
         });
       }
     }),

@@ -3,19 +3,17 @@
 import { Button } from "@/components/ui/button";
 import { useFeedbackUrl } from "@/hooks/use-feedback-url";
 import { H1, P } from "@/components/typography";
-import { FallbackProps } from "react-error-boundary";
+import type { FallbackProps } from "react-error-boundary";
 
 interface ErrorFallbackProps extends Partial<FallbackProps> {
   className?: string;
 }
 
 export function ErrorFallback({
-  error,
   resetErrorBoundary,
   className = "",
 }: ErrorFallbackProps) {
   const feedbackUrl = useFeedbackUrl();
-  console.log("ErrorFallback rendered with:", { error, resetErrorBoundary });
 
   return (
     <div

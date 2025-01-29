@@ -40,6 +40,7 @@ model Listing {
   id          String   @id @default(cuid())
   userId      String
   title       String
+  slug        String
   price       Float?
   description String?
   privateNote String?
@@ -54,8 +55,10 @@ model Listing {
   lists      List[]      @relation("ListToListing")
   user       User        @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  @@unique([userId, slug])
   @@index([ahsId])
   @@index([userId])
+  @@index([slug])
 }
 
 model List {
@@ -86,6 +89,8 @@ model UserProfile {
   user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   images Image[]
+
+  @@index([slug])
 }
 
 model Image {

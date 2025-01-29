@@ -1,14 +1,13 @@
 "use server";
 
-import { api } from "@/trpc/server";
-import { notFound } from "next/navigation";
 import * as React from "react";
 import { MainContent } from "../_components/main-content";
 import { CatalogDetailClient } from "./_components/catalog-detail-client";
+import { PublicBreadcrumbs } from "@/app/(public)/_components/public-breadcrumbs";
 
 interface CatalogDetailPageProps {
   params: {
-    slugOrId: string;
+    userSlugOrId: string;
   };
 }
 
@@ -17,7 +16,10 @@ export default async function CatalogDetailPage({
 }: CatalogDetailPageProps) {
   return (
     <MainContent>
-      <CatalogDetailClient slugOrId={params.slugOrId} />
+      <div className="mb-6">
+        <PublicBreadcrumbs />
+      </div>
+      <CatalogDetailClient userSlugOrId={params.userSlugOrId} />
     </MainContent>
   );
 }

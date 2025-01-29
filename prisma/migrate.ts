@@ -331,9 +331,15 @@ async function upsertListings() {
   for (const lily of lilies) {
     const listingId = lily.id.toString();
 
+    // Generate a slug from the name, falling back to the ID if the name is invalid
+    const baseSlug = transformToSlug(lily.name, listingId);
+    // Ensure we have a string by using the ID as ultimate fallback
+    const slug = baseSlug || listingId;
+
     const listingData = {
       userId: lily.user_id.toString(),
       title: lily.name,
+      slug,
       price: lily.price ? parseFloat(lily.price.toString()) : null,
       description: lily.public_note,
       privateNote: lily.private_note,
