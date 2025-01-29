@@ -2,10 +2,7 @@
 
 import { useState } from "react";
 import { type RouterOutputs } from "@/trpc/react";
-import {
-  profileFormSchema,
-  type ProfileFormData,
-} from "@/types/schemas/profile";
+import { profileFormSchema } from "@/types/schemas/profile";
 import {
   Form,
   FormControl,
@@ -21,8 +18,7 @@ import { api } from "@/trpc/react";
 import { useZodForm } from "@/hooks/use-zod-form";
 import { ProfileImageManager } from "@/app/dashboard/profile/_components/profile-image-manager";
 import { ContentManagerFormItem } from "./content-form";
-import { Textarea } from "../ui/textarea";
-import slugify from "slugify";
+import { Textarea } from "@/components/ui/textarea";
 import { useDebouncedCallback } from "use-debounce";
 import { SLUG_INPUT_PATTERN } from "@/lib/utils/slugify";
 import { Muted } from "@/components/typography";

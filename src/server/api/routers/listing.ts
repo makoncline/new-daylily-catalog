@@ -8,7 +8,7 @@ import {
 import { listingFormSchema } from "@/types/schemas/listing";
 import { type PrismaClient } from "@prisma/client";
 import { APP_CONFIG } from "@/config/constants";
-import { generateUniqueSlug } from "@/lib/utils/slugify";
+import { generateUniqueSlug } from "@/lib/utils/slugify-server";
 
 async function checkListingOwnership(
   userId: string,
