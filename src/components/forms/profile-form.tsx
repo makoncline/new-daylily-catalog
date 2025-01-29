@@ -22,6 +22,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useDebouncedCallback } from "use-debounce";
 import { SLUG_INPUT_PATTERN } from "@/lib/utils/slugify";
 import { Muted } from "@/components/typography";
+import { env } from "@/env";
 
 type UserProfile = RouterOutputs["userProfile"]["get"];
 
@@ -181,8 +182,8 @@ export function ProfileForm({ initialProfile }: ProfileFormProps) {
                     )}
                   </div>
                   <Muted className="text-sm">
-                    Your profile will be available at: www.app_url.com/catalog/
-                    {field.value ?? profile.userId}
+                    Your profile will be available at: {env.NEXT_PUBLIC_APP_URL}
+                    /{field.value ?? profile.userId}
                   </Muted>
                 </div>
               </FormControl>
