@@ -9,9 +9,11 @@ import { type OutputData } from "@editorjs/editorjs";
 
 // Helper function to get userId from either slug or id
 async function getUserIdFromSlugOrId(slugOrId: string): Promise<string> {
-  // First try to find by slug
-  const profile = await db.userProfile.findUnique({
-    where: { slug: slugOrId },
+  // First try to find by slug (case insensitive)
+  const profile = await db.userProfile.findFirst({
+    where: {
+      slug: slugOrId.toLowerCase(),
+    },
     select: { userId: true },
   });
 

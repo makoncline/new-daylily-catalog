@@ -26,10 +26,10 @@ async function checkSlugAvailability(slug: string | null, userId: string) {
     return false;
   }
 
-  // Check if slug is already taken by another user
+  // Check if slug is already taken by another user (case insensitive)
   const existingProfile = await db.userProfile.findFirst({
     where: {
-      slug,
+      slug: slug.toLowerCase(),
       NOT: {
         userId,
       },
@@ -76,7 +76,7 @@ export const userProfileRouter = createTRPCRouter({
     )
     .query(async ({ ctx, input }) => {
       // Convert undefined to null for the check
-      const slug = input.slug ?? null;
+      const slug = input.slug ? input.slug.toLowerCase() : null;
       const available = await checkSlugAvailability(slug, ctx.user.id);
       return { available };
     }),
@@ -105,10 +105,11 @@ export const userProfileRouter = createTRPCRouter({
             // If null or empty string, set to null
             slug = null;
           } else {
-            // If has value, validate it
-            const isSlugValid = isValidSlug(slugInput);
+            // If has value, validate it and convert to lowercase
+            const normalizedSlug = slugInput.toLowerCase();
+            const isSlugValid = isValidSlug(normalizedSlug);
             const isSlugAvailable = await checkSlugAvailability(
-              slugInput,
+              normalizedSlug,
               ctx.user.id,
             );
             if (!isSlugValid || !isSlugAvailable) {
@@ -118,7 +119,7 @@ export const userProfileRouter = createTRPCRouter({
                   "This URL slug is invalid or already taken. Please choose another one.",
               });
             }
-            slug = slugInput;
+            slug = normalizedSlug;
           }
         }
 
