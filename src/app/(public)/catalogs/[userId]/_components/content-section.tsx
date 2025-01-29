@@ -4,6 +4,7 @@ import { Editor } from "@/components/editor";
 import { type OutputData } from "@editorjs/editorjs";
 import { useRef } from "react";
 import type EditorJS from "@editorjs/editorjs";
+import { Skeleton } from "@/components/ui/skeleton";
 
 interface ContentSectionProps {
   content?: string | OutputData | null;
@@ -18,7 +19,7 @@ export function ContentSection({ content }: ContentSectionProps) {
 
   if (typeof content === "string") {
     try {
-      parsedContent = JSON.parse(content);
+      parsedContent = JSON.parse(content) as OutputData;
     } catch (error) {
       console.error("Error parsing content:", error);
       return null;
@@ -32,4 +33,8 @@ export function ContentSection({ content }: ContentSectionProps) {
       <Editor editorRef={editorRef} initialContent={parsedContent} readOnly />
     </div>
   );
+}
+
+export function ContentSectionSkeleton() {
+  return <Skeleton className="h-[300px] w-full" />;
 }

@@ -1,4 +1,6 @@
 import type { Table } from "@tanstack/react-table";
+import { DataTablePaginationSkeleton } from "./data-table-pagination";
+import { Skeleton } from "../ui/skeleton";
 
 interface DataTableLayoutProps<TData> {
   table: Table<TData>;
@@ -32,6 +34,16 @@ export function DataTableLayout<TData>({
       {toolbar}
       {children}
       {pagination}
+    </div>
+  );
+}
+
+export function DataTableLayoutSkeleton() {
+  return (
+    <div className="space-y-4">
+      <Skeleton className="h-8 w-[120px]" />
+      <Skeleton className="h-[400px]" />
+      <DataTablePaginationSkeleton />
     </div>
   );
 }

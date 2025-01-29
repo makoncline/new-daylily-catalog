@@ -1,6 +1,5 @@
 "use client";
 
-import { type AhsListing } from "@prisma/client";
 import { Separator } from "@/components/ui/separator";
 import Image from "next/image";
 import { ImageIcon } from "lucide-react";
@@ -10,9 +9,11 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { type RouterOutputs } from "@/trpc/react";
+import { Skeleton } from "@/components/ui/skeleton";
 
 interface AhsListingDisplayProps {
-  ahsListing: AhsListing;
+  ahsListing: NonNullable<RouterOutputs["public"]["getListing"]["ahsListing"]>;
   className?: string;
 }
 
@@ -91,6 +92,16 @@ export function AhsListingDisplay({
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+export function AhsListingDisplaySkeleton() {
+  return (
+    <div className="space-y-4">
+      <Skeleton className="h-8 w-2/3" />
+      <Skeleton className="h-4 w-1/4" />
+      <Skeleton className="h-20 w-full" />
     </div>
   );
 }

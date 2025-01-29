@@ -5,7 +5,6 @@ import { api, type RouterOutputs } from "@/trpc/react";
 import { MainContent } from "@/app/(public)/_components/main-content";
 import { type ColumnDef } from "@tanstack/react-table";
 import { useDataTable } from "@/hooks/use-data-table";
-import { useTableUrlSync } from "@/hooks/use-table-url-sync";
 import { CatalogNav } from "./catalog-nav";
 import { DataTableLayout } from "@/components/data-table/data-table-layout";
 import { DataTablePagination } from "@/components/data-table/data-table-pagination";
@@ -17,12 +16,7 @@ import { ListingsToolbar } from "./listings-toolbar";
 import { ListsSection } from "./lists-section";
 import { NoResults } from "./no-results";
 import { ProfileSection } from "./profile-section";
-import {
-  LastUpdatedBadge,
-  LocationBadge,
-  MemberSince,
-} from "@/components/profile/profile-badges";
-import { Badge } from "@/components/ui/badge";
+import { ViewListingDialog } from "@/components/view-listing-dialog";
 
 type Listing = RouterOutputs["public"]["getListings"][number];
 
@@ -60,15 +54,7 @@ export function CatalogDetailClient({ userId }: CatalogDetailClientProps) {
     data: listings ?? [],
     columns,
     storageKey: "catalog-listings-table",
-    config: {
-      enableFilters: true,
-      meta: {
-        filterableColumns: ["lists"],
-      },
-    },
   });
-
-  useTableUrlSync(table);
 
   if (isLoadingProfile || isLoadingListings) {
     return <CatalogDetailSkeleton />;
@@ -139,6 +125,8 @@ export function CatalogDetailClient({ userId }: CatalogDetailClientProps) {
           <ListingsTable table={table} />
         </DataTableLayout>
       </div>
+
+      <ViewListingDialog />
     </div>
   );
 }

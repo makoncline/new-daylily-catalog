@@ -1,5 +1,9 @@
 - add public profiles for each user
   - public router with queries that we cache for multiple minutes
+- add link to public profile on user dashboard
+- add link to view listing on public profile
+- add link to public site on user dashboard
+- unparsable user profile content should be put in a paragraph block
 - add seo metatags on public pages
 - add ability to use subdomains like rolling-oaks-daylilies.daylilycatalog.com
 - add ability to use custom domains like rolling-oaks-daylilies.com

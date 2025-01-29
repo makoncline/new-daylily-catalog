@@ -6,6 +6,7 @@ import { Card, CardHeader, CardContent, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { ListIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Skeleton } from "@/components/ui/skeleton";
 
 type Listing = RouterOutputs["public"]["getListings"][number];
 
@@ -45,12 +46,9 @@ export function ListsSection({ lists, table }: ListsSectionProps) {
               }}
             >
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
-                <div className="flex items-center space-x-2">
-                  <ListIcon className="h-5 w-5 text-muted-foreground" />
-                  <CardTitle className="text-lg font-semibold group-hover:text-primary">
-                    {list.title}
-                  </CardTitle>
-                </div>
+                <CardTitle className="text-lg font-semibold group-hover:text-primary">
+                  {list.title}
+                </CardTitle>
                 <Badge variant="secondary" className="h-7">
                   {list.listingCount} listings
                 </Badge>
@@ -65,6 +63,22 @@ export function ListsSection({ lists, table }: ListsSectionProps) {
             </Card>
           );
         })}
+      </div>
+    </div>
+  );
+}
+
+const ListCardSkeleton = () => {
+  return <Skeleton className="h-[120px] w-full" />;
+};
+
+export function ListsSectionSkeleton() {
+  return (
+    <div className="space-y-6">
+      <Skeleton className="h-8 w-[120px]" />
+      <div className="grid gap-4 sm:grid-cols-2">
+        <ListCardSkeleton />
+        <ListCardSkeleton />
       </div>
     </div>
   );

@@ -1,3 +1,5 @@
+"use client";
+
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { TruncatedText } from "@/components/truncated-text";
@@ -7,14 +9,12 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { ImageIcon, ListChecks, Clock, Link2 } from "lucide-react";
+import { ImageIcon, ListChecks, Link2 } from "lucide-react";
 import { type RouterOutputs } from "@/trpc/react";
-import { Skeleton } from "./ui/skeleton";
 import { formatPrice } from "@/lib/utils";
 import { OptimizedImage } from "./optimized-image";
-import Link from "next/link";
-
-type Listing = RouterOutputs["public"]["getListings"][number];
+import { useViewListing } from "@/components/view-listing-dialog";
+import { Skeleton } from "./ui/skeleton";
 
 function ListingImagesPreview({ images }: { images: { url: string }[] }) {
   if (!images.length) return null;
@@ -35,18 +35,22 @@ function ListingImagesPreview({ images }: { images: { url: string }[] }) {
   );
 }
 
-export function ListingCard({
-  listing,
-  priority = false,
-}: {
-  listing: Listing;
+type ListingCardProps = {
+  listing: RouterOutputs["public"]["getListings"][number];
+  className?: string;
   priority?: boolean;
-}) {
+};
+
+export function ListingCard({ listing, priority = false }: ListingCardProps) {
+  const { viewListing } = useViewListing();
   const firstImage = listing.images[0];
   const hasMultipleImages = listing.images.length > 1;
 
   return (
-    <Card className="group flex h-full flex-col overflow-hidden transition-all hover:border-primary">
+    <Card
+      className="group flex h-full flex-col overflow-hidden transition-all hover:border-primary"
+      onClick={() => viewListing(listing.id)}
+    >
       <div className="relative">
         <div className="aspect-square">
           {firstImage ? (
@@ -104,14 +108,12 @@ export function ListingCard({
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger>
-                  <div className="cursor-pointer">
-                    <Badge
-                      variant="secondary"
-                      className="backdrop-blur-sm hover:bg-secondary"
-                    >
-                      <Link2 className="h-3 w-3" />
-                    </Badge>
-                  </div>
+                  <Badge
+                    variant="secondary"
+                    className="backdrop-blur-sm hover:bg-secondary"
+                  >
+                    <Link2 className="h-3 w-3" />
+                  </Badge>
                 </TooltipTrigger>
                 <TooltipContent side="top" align="end" className="p-2">
                   <div className="flex flex-col gap-1">

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
+import { Skeleton } from "@/components/ui/skeleton";
 
 const sections = [
   {
@@ -60,5 +61,16 @@ function NavLink({
     >
       {section.name}
     </Link>
+  );
+}
+
+export function CatalogNavSkeleton() {
+  return (
+    <div className="flex items-center gap-4">
+      <Skeleton className="h-7 w-14" />
+      <Skeleton className="h-7 w-14" />
+      <Skeleton className="h-7 w-14" />
+      <Skeleton className="h-7 w-14" />
+    </div>
   );
 }

@@ -5,6 +5,7 @@ import { TRPCError } from "@trpc/server";
 import type { PublicProfile } from "@/types/public-types";
 import { getStripeSubscription } from "@/server/stripe/sync-subscription";
 import { hasActiveSubscription } from "@/server/stripe/subscription-utils";
+import { type OutputData } from "@editorjs/editorjs";
 
 export const publicRouter = createTRPCRouter({
   getPublicProfiles: publicProcedure.query(async () => {
@@ -197,9 +198,10 @@ export const publicRouter = createTRPCRouter({
         let parsedContent = null;
         if (user.profile?.content) {
           try {
-            parsedContent = JSON.parse(user.profile.content);
+            parsedContent = JSON.parse(user.profile.content) as OutputData;
           } catch (error) {
             console.error("Error parsing profile content:", error);
+            parsedContent = user.profile.content;
           }
         }
 
@@ -293,23 +295,104 @@ export const publicRouter = createTRPCRouter({
         // Transform the listings to include AHS image if available
         return listings.map((listing) => ({
           ...listing,
-          images: [
-            ...listing.images,
-            ...(listing.ahsListing?.ahsImageUrl
+          images:
+            listing.images.length === 0 && listing.ahsListing?.ahsImageUrl
               ? [
                   {
                     id: `ahs-${listing.id}`,
                     url: listing.ahsListing.ahsImageUrl,
                   },
                 ]
-              : []),
-          ],
+              : listing.images,
         }));
       } catch (error) {
         console.error("Error fetching public listings:", error);
         throw new TRPCError({
           code: "INTERNAL_SERVER_ERROR",
           message: "Failed to fetch public listings",
+        });
+      }
+    }),
+
+  getListing: publicProcedure
+    .input(z.object({ id: z.string() }))
+    .query(async ({ ctx, input }) => {
+      try {
+        const listing = await db.listing.findUnique({
+          where: { id: input.id },
+          select: {
+            id: true,
+            title: true,
+            description: true,
+            price: true,
+            userId: true,
+            lists: {
+              select: {
+                id: true,
+                title: true,
+              },
+            },
+            ahsListing: {
+              select: {
+                name: true,
+                ahsImageUrl: true,
+                hybridizer: true,
+                year: true,
+                scapeHeight: true,
+                bloomSize: true,
+                bloomSeason: true,
+                form: true,
+                ploidy: true,
+                foliageType: true,
+                bloomHabit: true,
+                budcount: true,
+                branches: true,
+                sculpting: true,
+                foliage: true,
+                flower: true,
+                fragrance: true,
+                parentage: true,
+                color: true,
+              },
+            },
+            images: {
+              select: {
+                id: true,
+                url: true,
+              },
+              orderBy: {
+                order: "asc",
+              },
+              take: 4,
+            },
+          },
+        });
+
+        if (!listing) {
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "Listing not found",
+          });
+        }
+
+        // Transform the listing to include AHS image if available
+        return {
+          ...listing,
+          images:
+            listing.images.length === 0 && listing.ahsListing?.ahsImageUrl
+              ? [
+                  {
+                    id: `ahs-${listing.id}`,
+                    url: listing.ahsListing.ahsImageUrl,
+                  },
+                ]
+              : listing.images,
+        };
+      } catch (error) {
+        console.error("Error fetching listing:", error);
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "Failed to fetch listing",
         });
       }
     }),

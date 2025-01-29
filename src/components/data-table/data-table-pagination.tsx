@@ -25,26 +25,11 @@ interface DataTablePaginationProps<TData> {
 
 export function DataTablePaginationSkeleton() {
   return (
-    <div className="flex items-center justify-between px-2">
+    <div className="flex items-center gap-4">
       <div className="flex-1" />
-      <div className="flex items-center space-x-6 lg:space-x-8">
-        {/* Page size dropdown */}
-        <div className="flex items-center space-x-2">
-          <Skeleton className="h-4 w-[100px]" />
-          <Skeleton className="h-8 w-[70px]" />
-        </div>
-
-        {/* Page info */}
-        <Skeleton className="h-4 w-[100px]" />
-
-        {/* Navigation buttons */}
-        <div className="flex items-center space-x-2">
-          <Skeleton className="hidden h-8 w-8 lg:flex" />
-          <Skeleton className="h-8 w-8" />
-          <Skeleton className="h-8 w-8" />
-          <Skeleton className="hidden h-8 w-8 lg:flex" />
-        </div>
-      </div>
+      <Skeleton className="h-8 w-36" />
+      <Skeleton className="h-8 w-12" />
+      <Skeleton className="h-8 w-12" />
     </div>
   );
 }
@@ -86,7 +71,7 @@ export function DataTablePagination<TData>({
           </Select>
         </div>
 
-        <div className="s flex items-center gap-2">
+        <div className="flex items-center gap-2">
           <div className="flex w-[100px] items-center justify-center text-sm font-medium">
             Page {pageIndex + 1} of {pageCount}
           </div>
