@@ -1,9 +1,9 @@
-"use server";
-
 import { api } from "@/trpc/server";
 import { CatalogsPageClient } from "./_components/catalogs-page-client";
 import { MainContent } from "../_components/main-content";
 import { type Metadata } from "next";
+
+export const revalidate = 3600;
 
 export async function generateMetadata(): Promise<Metadata> {
   return {

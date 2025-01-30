@@ -1,7 +1,7 @@
-"use server";
-
 import { type Metadata } from "next";
 import HomePageClient from "./_components/home-page-client";
+
+export const revalidate = 3600;
 
 export async function generateMetadata(): Promise<Metadata> {
   return {

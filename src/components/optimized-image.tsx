@@ -68,13 +68,7 @@ const cloudflareLoader = ({
 
   const paramsString = params.join(",");
 
-  // In development, use full URL
-  if (process.env.NODE_ENV === "development") {
-    return `${env.NEXT_PUBLIC_CLOUDFLARE_URL}/cdn-cgi/image/${paramsString}/${src}`;
-  }
-
-  // In production, use relative URL
-  return `/cdn-cgi/image/${paramsString}/${src}`;
+  return `${env.NEXT_PUBLIC_CLOUDFLARE_URL}/cdn-cgi/image/${paramsString}/${src}`;
 };
 
 interface OptimizedImageProps extends React.HTMLAttributes<HTMLDivElement> {

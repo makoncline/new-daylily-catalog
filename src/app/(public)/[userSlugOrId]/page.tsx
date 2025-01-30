@@ -1,5 +1,3 @@
-"use server";
-
 import { api } from "@/trpc/server";
 import { MainContent } from "@/app/(public)/_components/main-content";
 import { EmptyState } from "@/components/empty-state";
@@ -9,6 +7,8 @@ import Link from "next/link";
 import { CatalogDetailClient } from "./_components/catalog-detail-client";
 import { PublicBreadcrumbs } from "@/app/(public)/_components/public-breadcrumbs";
 import { type Metadata } from "next/types";
+
+export const revalidate = 3600;
 
 interface PageProps {
   params: {

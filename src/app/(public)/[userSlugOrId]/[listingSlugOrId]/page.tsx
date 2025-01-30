@@ -1,5 +1,3 @@
-"use server";
-
 import { api } from "@/trpc/server";
 import { MainContent } from "@/app/(public)/_components/main-content";
 import { EmptyState } from "@/components/empty-state";
@@ -11,6 +9,8 @@ import { Suspense } from "react";
 import { ListingDisplaySkeleton } from "@/components/listing-display";
 import { PublicBreadcrumbs } from "@/app/(public)/_components/public-breadcrumbs";
 import { type Metadata } from "next";
+
+export const revalidate = 3600;
 
 interface PageProps {
   params: {
