@@ -159,6 +159,52 @@ async function getFullListingData(listingId: string) {
   };
 }
 
+async function findUserListings(userId: string, cursor?: string) {
+  return db.listing.findMany({
+    take: 100,
+    where: {
+      userId,
+      OR: [{ status: null }, { NOT: { status: STATUS.HIDDEN } }],
+    },
+    cursor: cursor ? { id: cursor } : undefined,
+    select: {
+      id: true,
+      title: true,
+      description: true,
+      price: true,
+      userId: true,
+      lists: {
+        select: {
+          id: true,
+          title: true,
+        },
+      },
+      ahsListing: {
+        select: {
+          name: true,
+          ahsImageUrl: true,
+          hybridizer: true,
+          year: true,
+        },
+      },
+      images: {
+        select: {
+          id: true,
+          url: true,
+        },
+        orderBy: {
+          order: "asc",
+        },
+      },
+    },
+    orderBy: {
+      createdAt: "desc",
+    },
+  });
+}
+
+type UserListing = Awaited<ReturnType<typeof findUserListings>>[number];
+
 export const publicRouter = createTRPCRouter({
   getPublicProfiles: publicProcedure.query(async () => {
     try {
@@ -281,48 +327,23 @@ export const publicRouter = createTRPCRouter({
     .query(async ({ input }) => {
       try {
         const userId = await getUserIdFromSlugOrId(input.userSlugOrId);
-        const listings = await db.listing.findMany({
-          where: {
-            userId,
-            OR: [{ status: null }, { NOT: { status: STATUS.HIDDEN } }],
-          },
-          select: {
-            id: true,
-            title: true,
-            description: true,
-            price: true,
-            userId: true,
-            lists: {
-              select: {
-                id: true,
-                title: true,
-              },
-            },
-            ahsListing: {
-              select: {
-                name: true,
-                ahsImageUrl: true,
-                hybridizer: true,
-                year: true,
-              },
-            },
-            images: {
-              select: {
-                id: true,
-                url: true,
-              },
-              orderBy: {
-                order: "asc",
-              },
-            },
-          },
-          orderBy: {
-            createdAt: "desc",
-          },
-        });
+        let allListings: UserListing[] = [];
+        let hasMore = true;
+        let cursor: string | undefined;
 
-        // Transform the listings to include AHS image if available
-        return listings.map((listing) => ({
+        while (hasMore) {
+          const batch = await findUserListings(userId, cursor);
+
+          if (batch.length < 100) {
+            hasMore = false;
+          } else if (batch.length > 0) {
+            cursor = batch[batch.length - 1]?.id;
+          }
+
+          allListings = [...allListings, ...batch];
+        }
+
+        return allListings.map((listing) => ({
           ...listing,
           images:
             listing.images.length === 0 && listing.ahsListing?.ahsImageUrl
