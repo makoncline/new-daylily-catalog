@@ -233,7 +233,19 @@ async function upsertUsers() {
   console.log(`Failed to migrate: ${errorCount} users`);
 }
 
+async function shouldMigrateAhsListings() {
+  const existingCount = await sqlite.ahsListing.count();
+  return existingCount === 0;
+}
+
 async function upsertAhsListings() {
+  console.log("Checking if AHS listings need migration...");
+
+  if (!(await shouldMigrateAhsListings())) {
+    console.log("AHS listings already exist, skipping migration.");
+    return;
+  }
+
   console.log("Starting AHS listings migration...");
   const ahsData = await postgres.ahs_data.findMany();
   console.log(`Found ${ahsData.length} AHS listings to migrate.`);
@@ -270,10 +282,8 @@ async function upsertAhsListings() {
     };
 
     try {
-      await sqlite.ahsListing.upsert({
-        where: { id: listingId },
-        update: listingData,
-        create: { id: listingId, ...listingData },
+      await sqlite.ahsListing.create({
+        data: { id: listingId, ...listingData },
       });
       successCount++;
     } catch (error) {
@@ -303,24 +313,42 @@ async function upsertLists() {
 
   let successCount = 0;
   let errorCount = 0;
+  let skippedCount = 0;
 
   for (const list of lists) {
     const listId = list.id.toString();
 
-    const listData = {
-      userId: list.user_id.toString(),
-      title: list.name,
-      description: list.intro || null,
-      createdAt: list.created_at,
-      updatedAt: list.updated_at,
-    };
-
     try {
-      await sqlite.list.upsert({
+      // Check if list exists and if it has been updated
+      const existingList = await sqlite.list.findUnique({
         where: { id: listId },
-        update: listData,
-        create: { id: listId, ...listData },
+        select: { updatedAt: true },
       });
+
+      // Skip if list exists and hasn't been updated
+      if (existingList && existingList.updatedAt >= list.updated_at) {
+        skippedCount++;
+        continue;
+      }
+
+      const listData = {
+        userId: list.user_id.toString(),
+        title: list.name,
+        description: list.intro || null,
+        createdAt: list.created_at,
+        updatedAt: list.updated_at,
+      };
+
+      if (existingList) {
+        await sqlite.list.update({
+          where: { id: listId },
+          data: listData,
+        });
+      } else {
+        await sqlite.list.create({
+          data: { id: listId, ...listData },
+        });
+      }
       successCount++;
     } catch (error) {
       console.error(`Error migrating list ${listId}:`, error);
@@ -330,6 +358,7 @@ async function upsertLists() {
 
   console.log(`Lists migration completed.`);
   console.log(`Successfully migrated: ${successCount} lists`);
+  console.log(`Skipped unchanged: ${skippedCount} lists`);
   console.log(`Failed to migrate: ${errorCount} lists`);
 }
 
@@ -349,26 +378,31 @@ async function upsertListings() {
 
   let successCount = 0;
   let errorCount = 0;
+  let skippedCount = 0;
   let imageSuccessCount = 0;
   let imageErrorCount = 0;
+  let imageSkippedCount = 0;
 
   for (const lily of lilies) {
     const listingId = lily.id.toString();
     const userId = lily.user_id.toString();
 
     try {
-      // First check if listing already exists
+      // Check if listing exists and if it has been updated
       const existingListing = await sqlite.listing.findUnique({
         where: { id: listingId },
-        select: { slug: true },
+        select: { updatedAt: true, slug: true },
       });
 
-      // Generate a slug from the name, falling back to the ID if the name is invalid
-      const baseSlug = transformToSlug(lily.name, listingId);
-      // Ensure we have a string by using the ID as ultimate fallback
-      const initialSlug = baseSlug || listingId;
+      // Skip if listing exists and hasn't been updated
+      if (existingListing && existingListing.updatedAt >= lily.updated_at) {
+        skippedCount++;
+        continue;
+      }
 
-      // If listing exists, use its current slug, otherwise generate a unique one
+      // Generate or reuse slug
+      const baseSlug = transformToSlug(lily.name, listingId);
+      const initialSlug = baseSlug || listingId;
       const slug = existingListing
         ? existingListing.slug
         : await generateUniqueSlug(initialSlug, userId, undefined, sqlite);
@@ -383,7 +417,6 @@ async function upsertListings() {
         ahsId: lily.ahs_ref ? lily.ahs_ref.toString() : null,
         createdAt: lily.created_at,
         updatedAt: lily.updated_at,
-        // Connect to lists if list_id exists
         lists: lily.list_id
           ? {
               connect: [{ id: lily.list_id.toString() }],
@@ -391,26 +424,37 @@ async function upsertListings() {
           : undefined,
       };
 
-      const createdListing = await sqlite.listing.upsert({
-        where: { id: listingId },
-        update: listingData,
-        create: { id: listingId, ...listingData },
-      });
+      let createdListing;
+      if (existingListing) {
+        createdListing = await sqlite.listing.update({
+          where: { id: listingId },
+          data: listingData,
+        });
+      } else {
+        createdListing = await sqlite.listing.create({
+          data: { id: listingId, ...listingData },
+        });
+      }
 
-      // Create or update images for this listing
+      // Handle images
       if (lily.img_url && Array.isArray(lily.img_url)) {
         for (let i = 0; i < lily.img_url.length; i++) {
           const imageUrl = lily.img_url[i];
           if (typeof imageUrl === "string" && imageUrl.trim() !== "") {
             try {
-              // Check if an image already exists for this listing and order
               const existingImage = await sqlite.image.findFirst({
                 where: {
                   listingId: createdListing.id,
                   order: i,
                 },
-                select: { id: true },
+                select: { id: true, url: true, updatedAt: true },
               });
+
+              // Skip if image exists and URL hasn't changed
+              if (existingImage && existingImage.url === imageUrl.trim()) {
+                imageSkippedCount++;
+                continue;
+              }
 
               const imageData = {
                 url: imageUrl.trim(),
@@ -438,11 +482,6 @@ async function upsertListings() {
               );
               imageErrorCount++;
             }
-          } else {
-            console.warn(
-              `Invalid image URL for listing ${listingId} at index ${i}, skipping.`,
-            );
-            imageErrorCount++;
           }
         }
       }
@@ -456,9 +495,11 @@ async function upsertListings() {
 
   console.log(`Listings migration completed.`);
   console.log(`Successfully migrated: ${successCount} listings`);
+  console.log(`Skipped unchanged: ${skippedCount} listings`);
   console.log(`Failed to migrate: ${errorCount} listings`);
-  console.log(`Successfully created: ${imageSuccessCount} images`);
-  console.log(`Failed to create: ${imageErrorCount} images`);
+  console.log(`Successfully created/updated: ${imageSuccessCount} images`);
+  console.log(`Skipped unchanged: ${imageSkippedCount} images`);
+  console.log(`Failed to create/update: ${imageErrorCount} images`);
 }
 
 async function upsertUserProfiles() {
@@ -477,83 +518,101 @@ async function upsertUserProfiles() {
 
   let successCount = 0;
   let errorCount = 0;
+  let skippedCount = 0;
   let imageSuccessCount = 0;
   let imageErrorCount = 0;
+  let imageSkippedCount = 0;
 
   for (const user of users) {
     const userId = user.id.toString();
 
-    // Convert bio to EditorJS format if it exists
-    let processedContent: string | null = null;
-    if (user.bio) {
-      try {
-        // First try to parse as JSON (EditorJS format)
-        JSON.parse(user.bio);
-        processedContent = user.bio; // Already in correct format
-      } catch {
-        // If parsing fails, treat as markdown and convert
-        try {
-          const editorJSData = convertMarkdownToEditorJS(user.bio);
-          processedContent = JSON.stringify(editorJSData);
-          console.log(
-            `Converted markdown bio to EditorJS format for user ${userId}`,
-          );
-        } catch (error) {
-          console.error(`Error converting bio for user ${userId}:`, error);
-          // Fallback to simple paragraph
-          const fallbackData: EditorJSData = {
-            time: new Date().getTime(),
-            blocks: [
-              {
-                type: "paragraph",
-                data: {
-                  text: user.bio,
-                },
-              },
-            ],
-            version: "2.27.2",
-          };
-          processedContent = JSON.stringify(fallbackData);
-        }
-      }
-    }
-
-    // Transform username to slug, fallback to userId if invalid
-    const slug = transformToSlug(user.username, userId);
-
-    const profileData = {
-      userId: userId,
-      title: user.username, // Use username as title (non-slugified)
-      slug, // Will be userId if username was invalid
-      logoUrl: user.avatar_url,
-      description: user.intro,
-      content: processedContent,
-      location: user.user_location,
-      createdAt: user.created_at,
-      updatedAt: user.updated_at,
-    };
-
     try {
-      const createdProfile = await sqlite.userProfile.upsert({
-        where: { userId: userId },
-        update: profileData,
-        create: profileData,
+      // Check if profile exists and if it has been updated
+      const existingProfile = await sqlite.userProfile.findUnique({
+        where: { userId },
+        select: { updatedAt: true },
       });
 
-      // Handle image migration
+      // Skip if profile exists and hasn't been updated
+      if (existingProfile && existingProfile.updatedAt >= user.updated_at) {
+        skippedCount++;
+        continue;
+      }
+
+      // Convert bio to EditorJS format if it exists
+      let processedContent: string | null = null;
+      if (user.bio) {
+        try {
+          JSON.parse(user.bio);
+          processedContent = user.bio;
+        } catch {
+          try {
+            const editorJSData = convertMarkdownToEditorJS(user.bio);
+            processedContent = JSON.stringify(editorJSData);
+          } catch (error) {
+            console.error(`Error converting bio for user ${userId}:`, error);
+            const fallbackData: EditorJSData = {
+              time: new Date().getTime(),
+              blocks: [
+                {
+                  type: "paragraph",
+                  data: {
+                    text: user.bio,
+                  },
+                },
+              ],
+              version: "2.27.2",
+            };
+            processedContent = JSON.stringify(fallbackData);
+          }
+        }
+      }
+
+      const slug = transformToSlug(user.username, userId);
+
+      const profileData = {
+        userId: userId,
+        title: user.username,
+        slug,
+        logoUrl: user.avatar_url,
+        description: user.intro,
+        content: processedContent,
+        location: user.user_location,
+        createdAt: user.created_at,
+        updatedAt: user.updated_at,
+      };
+
+      let createdProfile;
+      if (existingProfile) {
+        createdProfile = await sqlite.userProfile.update({
+          where: { userId },
+          data: profileData,
+        });
+      } else {
+        createdProfile = await sqlite.userProfile.create({
+          data: profileData,
+        });
+      }
+
+      // Handle images
       if (user.img_urls && Array.isArray(user.img_urls)) {
         for (let i = 0; i < user.img_urls.length; i++) {
           const imageUrl = user.img_urls[i];
           if (typeof imageUrl === "string" && imageUrl.trim() !== "") {
             try {
-              // Check if an image already exists for this user profile and order
               const existingImage = await sqlite.image.findFirst({
                 where: {
                   userProfileId: createdProfile.id,
                   order: i,
                 },
-                select: { id: true },
+                select: { id: true, url: true },
               });
+
+              // Skip if image exists and URL hasn't changed
+              if (existingImage && existingImage.url === imageUrl.trim()) {
+                imageSkippedCount++;
+                continue;
+              }
 
               const imageData = {
                 url: imageUrl.trim(),
@@ -581,11 +640,6 @@ async function upsertUserProfiles() {
               );
               imageErrorCount++;
             }
-          } else {
-            console.warn(
-              `Invalid image URL for user profile ${userId} at index ${i}, skipping.`,
-            );
-            imageErrorCount++;
           }
         }
       }
@@ -599,8 +653,10 @@ async function upsertUserProfiles() {
 
   console.log(`User profiles migration completed.`);
   console.log(`Successfully migrated: ${successCount} user profiles`);
+  console.log(`Skipped unchanged: ${skippedCount} user profiles`);
   console.log(`Failed to migrate: ${errorCount} user profiles`);
   console.log(`Successfully created/updated: ${imageSuccessCount} images`);
+  console.log(`Skipped unchanged: ${imageSkippedCount} images`);
   console.log(`Failed to create/update: ${imageErrorCount} images`);
 }
 
@@ -649,7 +705,7 @@ async function main() {
   const startTime = Date.now();
 
   await upsertUsers();
-  // await upsertAhsListings(); // doesnt get updated by users
+  await upsertAhsListings();
   await upsertLists();
   await upsertListings();
   await upsertUserProfiles();

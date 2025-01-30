@@ -17,8 +17,8 @@
     "db:generate": "prisma generate",
     "db:studio": "prisma studio",
     "dump": "turso db shell $TURSO_DATABASE_NAME .dump > dump.sql && cat dump.sql | sqlite3 $LOCAL_DATABASE_FILE",
-    "migrate:generate": "npx prisma migrate dev --create-only",
-    "migrate:apply": "turso db shell $TURSO_DATABASE_NAME < $(ls -t prisma/migrations/*/migration.sql | head -n1)"
+    "migrate:generate": "npx prisma migrate dev",
+    "migrate:apply": "scripts/apply-migration.sh"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.717.0",

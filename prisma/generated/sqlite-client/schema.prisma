@@ -6,7 +6,7 @@ generator client {
 
 datasource db {
   provider = "sqlite"
-  url      = "file:./db-dev.sqlite"
+  url      = env("LOCAL_DATABASE_URL")
 }
 
 model AhsListing {

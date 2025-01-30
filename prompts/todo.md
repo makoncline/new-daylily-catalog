@@ -1,13 +1,8 @@
-- public routes with queries that we cache for multiple minutes
-- add link to public profile on user dashboard
+- better home page images
+- better public nav bar
+- nav bar logo should link to home page
+- public routes with queries that we cache for multiple minutes (hour)
+  - how do we test this?
 - unparsable user profile content should be put in a paragraph block
-
-- add seo metatags on public pages
 - add ability to use subdomains like rolling-oaks-daylilies.daylilycatalog.com
 - add ability to use custom domains like rolling-oaks-daylilies.com
-- add ability to use custom domains for private listings
-- add ability to use custom domains for public profiles
-- add ability to use custom domains for public listings
-- add ability to use custom domains for public lists
-- add ability to use custom domains for public categories
-- add ability to use custom domains for public tags
