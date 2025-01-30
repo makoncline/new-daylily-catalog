@@ -18,7 +18,7 @@ export const homePageContent = {
     description:
       "Create a stunning catalog for your daylily collection in minutes. Auto-populate listings from our database of 100,000+ registered cultivars, organize your garden, and share your passion with fellow enthusiasts.",
     backgroundImage: {
-      src: "/assets/DALL·E 2025-01-22 16.11.46 - A professional photograph of a stunning daylily garden at golden hour. The garden features various colorful daylilies in full bloom, including vibrant.webp",
+      src: "/assets/hero-garden.webp",
       alt: "Beautiful daylily garden at golden hour",
     },
     features: [
@@ -40,7 +40,7 @@ export const homePageContent = {
     cards: [
       {
         image: {
-          src: "/assets/DALL·E 2025-01-22 16.11.11 - Clean minimalist product photography of three different daylily blooms, each showcasing vibrant colors and ruffled petals, arranged against a pure whi.webp",
+          src: "/assets/catalog-blooms.webp",
           alt: "Professional daylily catalog interface",
         },
         title: "Professional Catalog",
@@ -54,7 +54,7 @@ export const homePageContent = {
       },
       {
         image: {
-          src: "/assets/DALL·E 2025-01-22 16.10.35 - Visual representation of daylily collection management in a clean modern digital interface. The screen shows cards and lists of daylily varieties, wit.webp",
+          src: "/assets/collection-management.webp",
           alt: "Daylily collection management interface",
         },
         title: "Smart Organization",
@@ -68,7 +68,7 @@ export const homePageContent = {
       },
       {
         image: {
-          src: "/assets/DALL·E 2025-01-22 16.10.20 - A professional gardener using a tablet in a beautiful daylily garden. The gardener is standing amidst vibrant flowers, managing a digital inventory on.webp",
+          src: "/assets/gardener-tablet.webp",
           alt: "Garden profile and bio interface",
         },
         title: "Garden Profile",
@@ -82,7 +82,7 @@ export const homePageContent = {
       },
       {
         image: {
-          src: "/assets/DALL·E 2025-01-22 16.11.00 - An organized grid of daylily photos displayed in a modern digital interface. Each photo features a unique daylily bloom with vibrant colors and detail.webp",
+          src: "/assets/cultivar-grid.webp",
           alt: "Daylily database interface",
         },
         title: "Cultivar Database",
@@ -101,7 +101,7 @@ export const homePageContent = {
     description:
       "Save time and ensure accuracy by connecting your listings to our extensive database of registered daylilies. Auto-populate details like hybridizer, registration year, bloom characteristics, and more.",
     image: {
-      src: "/assets/DALL·E 2025-01-22 16.10.52 - Split screen showing a beautiful daylily bloom on one side and its detailed catalog entry on the other. The catalog entry includes a modern web interf.webp",
+      src: "/assets/database-split.webp",
       alt: "Daylily database interface",
     },
   },
@@ -111,7 +111,7 @@ export const homePageContent = {
       "Join fellow daylily enthusiasts and create your professional online catalog today.",
     buttonText: "Create your catalog",
     backgroundImage: {
-      src: "/assets/DALL·E 2025-01-22 16.11.34 - Professional photograph of a stunning daylily garden at golden hour, with various colorful daylilies in bloom, shallow depth of field, soft natural li.webp",
+      src: "/assets/cta-garden.webp",
       alt: "Thriving daylily garden at sunset",
     },
   },
