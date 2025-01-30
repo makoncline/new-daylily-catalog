@@ -86,3 +86,8 @@ export const APP_CONFIG = {
   TABLE: TABLE_CONFIG,
   CACHE: CACHE_CONFIG,
 } as const;
+
+export const STATUS = {
+  PUBLISHED: "",
+  HIDDEN: "HIDDEN",
+} as const;

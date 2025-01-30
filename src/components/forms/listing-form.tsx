@@ -26,7 +26,7 @@ import { api } from "@/trpc/react";
 import { DeleteConfirmDialog } from "@/components/delete-confirm-dialog";
 import { useZodForm } from "@/hooks/use-zod-form";
 import { MultiListSelect } from "@/components/multi-list-select";
-import { LISTING_CONFIG } from "@/config/constants";
+import { LISTING_CONFIG, STATUS } from "@/config/constants";
 
 interface ListingFormProps {
   listingId: string;
@@ -238,8 +238,11 @@ export function ListingForm({ listingId, onDelete }: ListingFormProps) {
                   }}
                   onBlur={() => onFieldBlur("status")}
                 >
-                  <option value="">Published</option>
-                  <option value="HIDDEN">Hidden</option>
+                  {Object.entries(STATUS).map(([key, value]) => (
+                    <option key={key} value={value}>
+                      {value}
+                    </option>
+                  ))}
                 </select>
               </FormControl>
               <FormDescription>

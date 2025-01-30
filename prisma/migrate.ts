@@ -16,7 +16,6 @@ import { transformToSlug } from "../src/lib/utils/slugify";
 import { createClient } from "@libsql/client";
 import { PrismaLibSQL } from "@prisma/adapter-libsql";
 import { generateUniqueSlug } from "../src/lib/utils/slugify-server";
-
 const stripe = new Stripe(process.env.PROD_STRIPE_SECRET_KEY!);
 
 const USE_TURSO_DB = process.env.USE_TURSO_DB === "true";
@@ -312,7 +311,6 @@ async function upsertLists() {
       userId: list.user_id.toString(),
       title: list.name,
       description: list.intro || null,
-      status: "PUBLISHED", // Default status for existing lists
       createdAt: list.created_at,
       updatedAt: list.updated_at,
     };
@@ -383,7 +381,6 @@ async function upsertListings() {
         description: lily.public_note,
         privateNote: lily.private_note,
         ahsId: lily.ahs_ref ? lily.ahs_ref.toString() : null,
-        status: "PUBLISHED", // Default status for existing listings
         createdAt: lily.created_at,
         updatedAt: lily.updated_at,
         // Connect to lists if list_id exists

@@ -1,6 +1,7 @@
 import { db } from "@/server/db";
 import { hasActiveSubscription } from "../stripe/subscription-utils";
 import { getStripeSubscription } from "../stripe/sync-subscription";
+import { STATUS } from "@/config/constants";
 
 export async function getPublicProfiles() {
   try {
@@ -31,7 +32,7 @@ export async function getPublicProfiles() {
           select: {
             listings: {
               where: {
-                OR: [{ status: null }, { NOT: { status: "HIDDEN" } }],
+                OR: [{ status: null }, { NOT: { status: STATUS.HIDDEN } }],
               },
             },
             lists: true,
@@ -46,7 +47,7 @@ export async function getPublicProfiles() {
               select: {
                 listings: {
                   where: {
-                    OR: [{ status: null }, { NOT: { status: "HIDDEN" } }],
+                    OR: [{ status: null }, { NOT: { status: STATUS.HIDDEN } }],
                   },
                 },
               },
@@ -56,14 +57,14 @@ export async function getPublicProfiles() {
         },
         listings: {
           where: {
-            OR: [{ status: null }, { NOT: { status: "HIDDEN" } }],
+            OR: [{ status: null }, { NOT: { status: STATUS.HIDDEN } }],
           },
           select: { updatedAt: true },
         },
       },
       where: {
         listings: {
-          some: { OR: [{ status: null }, { NOT: { status: "HIDDEN" } }] },
+          some: { OR: [{ status: null }, { NOT: { status: STATUS.HIDDEN } }] },
         },
       },
     });

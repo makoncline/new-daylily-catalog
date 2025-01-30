@@ -6,6 +6,7 @@ import { getStripeSubscription } from "@/server/stripe/sync-subscription";
 import { hasActiveSubscription } from "@/server/stripe/subscription-utils";
 import { type OutputData } from "@editorjs/editorjs";
 import { getPublicProfiles } from "@/server/db/getPublicProfiles";
+import { STATUS } from "@/config/constants";
 
 // Helper function to get userId from either slug or id
 async function getUserIdFromSlugOrId(slugOrId: string): Promise<string> {
@@ -283,7 +284,7 @@ export const publicRouter = createTRPCRouter({
         const listings = await db.listing.findMany({
           where: {
             userId,
-            OR: [{ status: null }, { NOT: { status: "HIDDEN" } }],
+            OR: [{ status: null }, { NOT: { status: STATUS.HIDDEN } }],
           },
           select: {
             id: true,
