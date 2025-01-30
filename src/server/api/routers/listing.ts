@@ -121,6 +121,7 @@ export const listingRouter = createTRPCRouter({
           description: input.data.description,
           privateNote: input.data.privateNote,
           ahsId: input.data.ahsId,
+          status: input.data.status,
         },
         include: listingInclude,
       });

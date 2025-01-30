@@ -5,7 +5,7 @@ import { useState } from "react";
 import { type Image } from "@prisma/client";
 import { useToast } from "@/hooks/use-toast";
 import { type ImageUploadResponse } from "@/types/image";
-import { APP_CONFIG, LISTING_CONFIG } from "@/config/constants";
+import { APP_CONFIG } from "@/config/constants";
 
 interface ProfileImageManagerProps {
   initialProfile: RouterOutputs["userProfile"]["get"];

@@ -4,7 +4,6 @@ import { type RouterOutputs } from "@/trpc/react";
 import { type Table } from "@tanstack/react-table";
 import { Card, CardHeader, CardContent, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ListIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
 import { H2, P } from "@/components/typography";

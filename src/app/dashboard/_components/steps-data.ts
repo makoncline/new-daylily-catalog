@@ -1,6 +1,5 @@
 import { FileText, Image, ListChecks, MapPin, Package } from "lucide-react";
 import type { CatalogStep, ProfileStep } from "@/types/dashboard-types";
-import type { RouterOutputs } from "@/trpc/react";
 
 export const profileSteps: ProfileStep[] = [
   {
@@ -10,20 +9,20 @@ export const profileSteps: ProfileStep[] = [
     icon: Image,
   },
   {
-    id: "intro",
-    label: "Add your intro",
+    id: "description",
+    label: "Add your description",
     description: "Write a short introduction about your daylily business",
     icon: FileText,
   },
   {
-    id: "userLocation",
+    id: "location",
     label: "Add your location",
     description: "Help local customers find you",
     icon: MapPin,
   },
   {
-    id: "bio",
-    label: "Add your bio",
+    id: "content",
+    label: "Add your content",
     description: "Share your story and expertise with daylilies",
     icon: FileText,
   },

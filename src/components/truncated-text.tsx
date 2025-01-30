@@ -1,4 +1,5 @@
-import { ElementType } from "react";
+/* eslint-disable @typescript-eslint/no-explicit-any */
+import { type ElementType } from "react";
 import {
   Tooltip,
   TooltipContent,
@@ -28,7 +29,7 @@ export function TruncatedText<T extends ElementType>({
     : text;
 
   if (!shouldTruncate) {
-    return <Component {...(props as any)}>{text}</Component>;
+    return <Component {...(props as unknown as any)}>{text}</Component>;
   }
 
   return (

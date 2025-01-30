@@ -1,10 +1,10 @@
 "use client";
 
 import { UserCard, UserCardSkeleton } from "@/components/user-card";
-import { api, RouterOutputs } from "@/trpc/react";
+import { api, type RouterOutputs } from "@/trpc/react";
 import type { PublicProfile } from "@/types/public-types";
 import { useDataTable } from "@/hooks/use-data-table";
-import { type ColumnDef, type TableOptions } from "@tanstack/react-table";
+import { type ColumnDef } from "@tanstack/react-table";
 import {
   DataTableGlobalFilter,
   DataTableGlobalFilterSkeleton,

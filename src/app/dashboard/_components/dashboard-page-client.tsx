@@ -15,7 +15,7 @@ import {
   TotalListingsCard,
   TotalListsCard,
 } from "./stats-card";
-import { H2, H3, P, List, Muted, Lead } from "@/components/typography";
+import { H2, H3, P, List, Muted } from "@/components/typography";
 
 interface DashboardPageClientProps {
   initialStats: RouterOutputs["dashboard"]["getStats"];

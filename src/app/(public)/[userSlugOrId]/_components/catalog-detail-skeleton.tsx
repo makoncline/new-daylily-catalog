@@ -1,7 +1,5 @@
 "use client";
 
-import { MainContent } from "@/app/(public)/_components/main-content";
-import { Skeleton } from "@/components/ui/skeleton";
 import { ImageGallerySkeleton } from "@/components/image-gallery";
 import { ProfileSectionSkeleton } from "./profile-section";
 import { CatalogNavSkeleton } from "./catalog-nav";

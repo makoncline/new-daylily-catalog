@@ -11,7 +11,6 @@ import { H2, Muted, P } from "@/components/typography";
 import { ImagePlaceholder } from "./image-placeholder";
 import { ExternalLink } from "lucide-react";
 import Link from "next/link";
-import { cn } from "@/lib/utils";
 
 interface ListingDisplayProps {
   listingId: string;

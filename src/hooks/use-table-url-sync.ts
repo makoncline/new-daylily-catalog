@@ -3,7 +3,7 @@
 import * as React from "react";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { TABLE_CONFIG } from "@/config/constants";
-import { Table } from "@tanstack/react-table";
+import { type Table } from "@tanstack/react-table";
 
 export function useUrlInitialTableState({
   filterableColumnIds,
@@ -48,6 +48,7 @@ export function useTableUrlSync<TData>(table: Table<TData>) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
   const { pagination, columnFilters, globalFilter } = table.getState();
   const filterableColumns = table.options.meta?.filterableColumns;
 

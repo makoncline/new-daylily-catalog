@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import Image, { type ImageProps } from "next/image";
+import Image from "next/image";
 import { env } from "@/env.js";
 import { cn } from "@/lib/utils";
 import { logError } from "@/lib/error-utils";

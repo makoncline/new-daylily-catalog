@@ -14,7 +14,7 @@ import {
 import Link from "next/link";
 import { type RouterOutputs } from "@/trpc/react";
 import { Skeleton } from "@/components/ui/skeleton";
-import { H3, P, Muted } from "@/components/typography";
+import { H3, Muted } from "@/components/typography";
 import { ImagePlaceholder } from "./image-placeholder";
 
 function UserImagesPreview({ images }: { images: { url: string }[] }) {

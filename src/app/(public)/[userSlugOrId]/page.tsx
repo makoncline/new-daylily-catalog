@@ -8,6 +8,7 @@ import { Flower2 } from "lucide-react";
 import Link from "next/link";
 import { CatalogDetailClient } from "./_components/catalog-detail-client";
 import { PublicBreadcrumbs } from "@/app/(public)/_components/public-breadcrumbs";
+import { type Metadata } from "next/types";
 
 interface PageProps {
   params: {
@@ -15,10 +16,9 @@ interface PageProps {
   };
 }
 
-export async function generateMetadata(
-  { params }: PageProps,
-  parent: ResolvingMetadata,
-): Promise<Metadata> {
+export async function generateMetadata({
+  params,
+}: PageProps): Promise<Metadata> {
   const { userSlugOrId } = params;
 
   const profile = await api.public.getProfile({

@@ -23,6 +23,7 @@ import { EmptyState } from "@/components/empty-state";
 import { Button } from "@/components/ui/button";
 import { Flower2 } from "lucide-react";
 import Link from "next/link";
+import { baseListingColumns } from "@/app/dashboard/listings/_components/columns";
 
 type Listing = RouterOutputs["public"]["getListings"][number];
 
@@ -30,20 +31,7 @@ interface CatalogDetailClientProps {
   userSlugOrId: string;
 }
 
-const columns = [
-  {
-    id: "lists",
-    accessorKey: "lists",
-    filterFn: (row, id, filterValue: string[]) => {
-      if (!filterValue.length) return true;
-      return row.original.lists.some((list) => filterValue.includes(list.id));
-    },
-  },
-  {
-    id: "title",
-    accessorFn: (row) => row.title,
-  },
-] as ColumnDef<Listing>[];
+const columns = [...baseListingColumns] as ColumnDef<Listing>[];
 
 export function CatalogDetailClient({
   userSlugOrId: userSlugOrId,

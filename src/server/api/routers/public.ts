@@ -6,7 +6,6 @@ import type { PublicProfile } from "@/types/public-types";
 import { getStripeSubscription } from "@/server/stripe/sync-subscription";
 import { hasActiveSubscription } from "@/server/stripe/subscription-utils";
 import { type OutputData } from "@editorjs/editorjs";
-import { type Listing, type Image, type AhsListing } from "@prisma/client";
 
 // Helper function to get userId from either slug or id
 async function getUserIdFromSlugOrId(slugOrId: string): Promise<string> {
@@ -187,7 +186,13 @@ export const publicRouter = createTRPCRouter({
           },
           _count: {
             select: {
-              listings: true,
+              listings: {
+                where: {
+                  NOT: {
+                    status: "HIDDEN",
+                  },
+                },
+              },
               lists: true,
             },
           },
@@ -198,7 +203,13 @@ export const publicRouter = createTRPCRouter({
               updatedAt: true,
               _count: {
                 select: {
-                  listings: true,
+                  listings: {
+                    where: {
+                      NOT: {
+                        status: "HIDDEN",
+                      },
+                    },
+                  },
                 },
               },
             },
@@ -209,15 +220,24 @@ export const publicRouter = createTRPCRouter({
             },
           },
           listings: {
+            where: {
+              NOT: {
+                status: "HIDDEN",
+              },
+            },
             select: {
               updatedAt: true,
             },
           },
         },
         where: {
-          // Only include users with at least one listing
+          // Only include users with at least one non-hidden listing
           listings: {
-            some: {},
+            some: {
+              NOT: {
+                status: "HIDDEN",
+              },
+            },
           },
         },
       });
@@ -290,7 +310,7 @@ export const publicRouter = createTRPCRouter({
 
   getProfile: publicProcedure
     .input(z.object({ userSlugOrId: z.string() }))
-    .query(async ({ ctx, input }) => {
+    .query(async ({ input }) => {
       try {
         const userId = await getUserIdFromSlugOrId(input.userSlugOrId);
         const user = await db.user.findUnique({
@@ -394,12 +414,15 @@ export const publicRouter = createTRPCRouter({
         userSlugOrId: z.string(),
       }),
     )
-    .query(async ({ ctx, input }) => {
+    .query(async ({ input }) => {
       try {
         const userId = await getUserIdFromSlugOrId(input.userSlugOrId);
         const listings = await db.listing.findMany({
           where: {
             userId,
+            NOT: {
+              status: "HIDDEN",
+            },
           },
           select: {
             id: true,

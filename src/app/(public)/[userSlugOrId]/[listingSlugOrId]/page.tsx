@@ -9,9 +9,8 @@ import Link from "next/link";
 import { ListingDisplay } from "@/components/listing-display";
 import { Suspense } from "react";
 import { ListingDisplaySkeleton } from "@/components/listing-display";
-import { cn } from "@/lib/utils";
 import { PublicBreadcrumbs } from "@/app/(public)/_components/public-breadcrumbs";
-import { type Metadata, type ResolvingMetadata } from "next";
+import { type Metadata } from "next";
 
 interface PageProps {
   params: {
@@ -20,10 +19,9 @@ interface PageProps {
   };
 }
 
-export async function generateMetadata(
-  { params }: PageProps,
-  parent: ResolvingMetadata,
-): Promise<Metadata> {
+export async function generateMetadata({
+  params,
+}: PageProps): Promise<Metadata> {
   const { userSlugOrId, listingSlugOrId } = params;
 
   // Fetch listing data
@@ -45,9 +43,7 @@ export async function generateMetadata(
 
   // Get the first image URL if available
   const imageUrl = listing.images?.[0]?.url ?? "/images/default-daylily.jpg";
-  const price = listing.price
-    ? `$${listing.price.toFixed(2)}`
-    : "Price on request";
+  const price = listing.price ? `$${listing.price.toFixed(2)}` : "Display only";
   const listingName =
     listing.title ?? listing.ahsListing?.name ?? "Unnamed Daylily";
 
@@ -83,7 +79,7 @@ export async function generateMetadata(
         ...(listing.price && {
           offers: {
             "@type": "Offer",
-            price: listing.price,
+            price: price,
             priceCurrency: "USD",
             availability: "https://schema.org/InStock",
             seller: {

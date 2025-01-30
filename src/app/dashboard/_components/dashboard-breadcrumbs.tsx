@@ -26,7 +26,7 @@ export function DashboardBreadcrumbs() {
   } else if (pathname.startsWith("/dashboard/lists/")) {
     items.push(
       { title: "Lists", href: "/dashboard/lists" },
-      { title: list?.name ?? "Loading..." },
+      { title: list?.title ?? "Loading..." },
     );
   }
 
