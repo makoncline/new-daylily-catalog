@@ -16,9 +16,19 @@ import { transformToSlug } from "../src/lib/utils/slugify";
 import { createClient } from "@libsql/client";
 import { PrismaLibSQL } from "@prisma/adapter-libsql";
 import { generateUniqueSlug } from "../src/lib/utils/slugify-server";
-const stripe = new Stripe(process.env.PROD_STRIPE_SECRET_KEY!);
 
-const USE_TURSO_DB = process.env.USE_TURSO_DB === "true";
+const stripeKey =
+  env.NODE_ENV === "production"
+    ? env.STRIPE_SECRET_KEY
+    : process.env.PROD_STRIPE_SECRET_KEY!;
+
+const stripe = new Stripe(stripeKey);
+
+// Use Turso if explicitly set or if in production (unless explicitly disabled)
+const USE_TURSO_DB =
+  process.env.USE_TURSO_DB === "true" ||
+  (env.NODE_ENV === "production" && process.env.USE_TURSO_DB !== "false");
+
 const databaseUrl = USE_TURSO_DB
   ? env.TURSO_DATABASE_URL
   : env.LOCAL_DATABASE_URL;
@@ -216,6 +226,7 @@ async function upsertUsers() {
       });
 
       // Sync Clerk data to KV store
+      await setTimeout(1000);
       await syncClerkUserToKVBase(clerkUserId, clerkClient, kvStore);
 
       successCount++;

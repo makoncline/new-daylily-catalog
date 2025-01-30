@@ -3,15 +3,19 @@ import { PrismaLibSQL } from "@prisma/adapter-libsql";
 import { createClient } from "@libsql/client";
 import { env } from "@/env";
 
-const isProduction = env.NODE_ENV === "production";
+// Use Turso if explicitly set or if in production (unless explicitly disabled)
+const useTursoDb =
+  process.env.USE_TURSO_DB === "true" ||
+  (env.NODE_ENV === "production" && process.env.USE_TURSO_DB !== "false");
 
-const databaseUrl = isProduction
+const databaseUrl = useTursoDb
   ? env.TURSO_DATABASE_URL
   : env.LOCAL_DATABASE_URL;
 
+console.log("~~~databaseUrl", databaseUrl);
+
 const createPrismaClient = () => {
-  if (isProduction) {
-    // Use Turso in production
+  if (useTursoDb) {
     const libsql = createClient({
       url: env.TURSO_DATABASE_URL,
       authToken: env.TURSO_DATABASE_AUTH_TOKEN,
@@ -40,4 +44,4 @@ const globalForPrisma = globalThis as unknown as {
 
 export const db = globalForPrisma.prisma ?? createPrismaClient();
 
-if (!isProduction) globalForPrisma.prisma = db;
+if (env.NODE_ENV !== "production") globalForPrisma.prisma = db;
