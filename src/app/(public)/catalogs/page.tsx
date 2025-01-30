@@ -1,9 +1,10 @@
-import { api } from "@/trpc/server";
 import { CatalogsPageClient } from "./_components/catalogs-page-client";
 import { MainContent } from "../_components/main-content";
 import { type Metadata } from "next";
+import { getPublicProfiles } from "@/server/db/getPublicProfiles";
 
 export const revalidate = 3600;
+export const dynamic = "force-static";
 
 export async function generateMetadata(): Promise<Metadata> {
   return {
@@ -43,11 +44,13 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function CatalogsPage() {
-  void api.public.getPublicProfiles.prefetch();
+  const profiles = await getPublicProfiles();
+
+  console.log(profiles);
 
   return (
     <MainContent>
-      <CatalogsPageClient />
+      <CatalogsPageClient initialProfiles={profiles} />
     </MainContent>
   );
 }

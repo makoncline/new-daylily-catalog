@@ -18,6 +18,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { type RouterOutputs } from "@/trpc/react";
+import { Badge } from "@/components/ui/badge";
 
 type ListingData = RouterOutputs["listing"]["list"][number];
 type ListingRow = Row<ListingData>;
@@ -153,6 +154,26 @@ export const baseListingColumns: ColumnDef<ListingData>[] = [
       if (!filterValue.length) return true;
       return row.original.lists.some((list) => filterValue.includes(list.id));
     },
+    enableSorting: true,
+    enableHiding: true,
+  },
+  // status column. with status in a badge
+  {
+    id: "status",
+    accessorKey: "status",
+    accessorFn: (row) => row.status,
+    header: ({ column }) => (
+      <DataTableColumnHeader
+        column={column}
+        title={LISTING_TABLE_COLUMN_NAMES.status}
+      />
+    ),
+    cell: ({ row }) =>
+      row.original.status ? (
+        <Badge variant="secondary" className="text-xs font-normal">
+          {row.original.status}
+        </Badge>
+      ) : null,
     enableSorting: true,
     enableHiding: true,
   },

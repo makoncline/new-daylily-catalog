@@ -23,6 +23,7 @@ export const LISTING_TABLE_COLUMN_NAMES = {
   description: "Description",
   privateNote: "Private Notes",
   lists: "Lists",
+  status: "Status",
 
   // AHS Listing columns
   hybridizer: "Hybridizer",
@@ -71,10 +72,17 @@ export const FEEDBACK_CONFIG = {
   FORM_URL: "https://coda.io/form/Ideas-Bugs_dWgu2I2WTqJ",
 } as const;
 
+export const CACHE_CONFIG = {
+  PUBLIC_ROUTER: {
+    TTL_S: 60 * 60, // Time in seconds to cache public router data. 1 hour
+  },
+} as const;
+
 // Add more config objects as needed
 export const APP_CONFIG = {
   UPLOAD: UPLOAD_CONFIG,
   LISTING: LISTING_CONFIG,
   FEEDBACK: FEEDBACK_CONFIG,
   TABLE: TABLE_CONFIG,
+  CACHE: CACHE_CONFIG,
 } as const;

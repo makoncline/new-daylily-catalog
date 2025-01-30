@@ -9,8 +9,35 @@ import { Suspense } from "react";
 import { ListingDisplaySkeleton } from "@/components/listing-display";
 import { PublicBreadcrumbs } from "@/app/(public)/_components/public-breadcrumbs";
 import { type Metadata } from "next";
+import { getUserAndListingIdsAndSlugs } from "@/server/db/getUserAndListingIdsAndSlugs";
 
 export const revalidate = 3600;
+export const dynamicParams = true;
+
+export async function generateStaticParams() {
+  // Fetch user and listing data
+  const data = await getUserAndListingIdsAndSlugs();
+
+  // Generate params for all userSlugOrId and their corresponding listingSlugOrId
+  return data.flatMap((user) => {
+    const userIdentifiers = [user.id];
+    if (user.profile?.slug) userIdentifiers.push(user.profile.slug);
+
+    // Map each user identifier to its listings
+    return userIdentifiers.flatMap((userSlugOrId) =>
+      user.listings.flatMap((listing) => {
+        const listingIdentifiers = [listing.id];
+        if (listing.slug) listingIdentifiers.push(listing.slug);
+
+        // Return all combinations of userSlugOrId and listingSlugOrId
+        return listingIdentifiers.map((listingSlugOrId) => ({
+          userSlugOrId,
+          listingSlugOrId,
+        }));
+      }),
+    );
+  });
+}
 
 interface PageProps {
   params: {

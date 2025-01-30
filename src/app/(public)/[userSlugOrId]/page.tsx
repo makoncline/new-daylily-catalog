@@ -7,8 +7,24 @@ import Link from "next/link";
 import { CatalogDetailClient } from "./_components/catalog-detail-client";
 import { PublicBreadcrumbs } from "@/app/(public)/_components/public-breadcrumbs";
 import { type Metadata } from "next/types";
+import { getUserAndListingIdsAndSlugs } from "@/server/db/getUserAndListingIdsAndSlugs";
 
 export const revalidate = 3600;
+export const dynamicParams = true;
+
+export async function generateStaticParams() {
+  const data = await getUserAndListingIdsAndSlugs();
+
+  // Filter out null values and combine unique identifiers
+  return data.flatMap((user) => {
+    const identifiers = [user.id];
+    if (user.profile?.slug) identifiers.push(user.profile.slug);
+
+    return identifiers.map((slugOrId) => ({
+      userSlugOrId: slugOrId,
+    }));
+  });
+}
 
 interface PageProps {
   params: {

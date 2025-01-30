@@ -4,6 +4,7 @@ import { type NextRequest } from "next/server";
 import { env } from "@/env";
 import { appRouter } from "@/server/api/root";
 import { createTRPCContext } from "@/server/api/trpc";
+import { APP_CONFIG } from "@/config/constants";
 
 /**
  * This wraps the `createTRPCContext` helper and provides the required context for the tRPC API when
@@ -29,6 +30,34 @@ const handler = (req: NextRequest) =>
             );
           }
         : undefined,
+    responseMeta(opts) {
+      const { paths, type } = opts;
+
+      // Don't cache if no paths
+      if (!paths?.length) return {};
+
+      // Don't cache specific routes
+      const isPrivateRoute = paths.some(
+        (path) =>
+          path.includes("dashboard") ||
+          path.includes("api") ||
+          path.includes("subscribe"),
+      );
+
+      // Only cache queries that aren't private routes
+      const isQuery = type === "query";
+
+      if (!isPrivateRoute && isQuery) {
+        // Cache for 1 hour
+        const ONE_HOUR = APP_CONFIG.CACHE.PUBLIC_ROUTER.TTL_S;
+        return {
+          headers: {
+            "cache-control": `s-maxage=${ONE_HOUR}, stale-while-revalidate`,
+          },
+        };
+      }
+      return {};
+    },
   });
 
 export { handler as GET, handler as POST };

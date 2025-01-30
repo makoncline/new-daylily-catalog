@@ -20,6 +20,8 @@ import { Flower2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DataTableFilterReset } from "@/components/data-table/data-table-filter-reset";
 import { useViewListing } from "@/components/view-listing-dialog";
+import { APP_CONFIG } from "@/config/constants";
+import { type getPublicProfiles } from "@/server/db/getPublicProfiles";
 
 const columns: ColumnDef<PublicProfile>[] = [
   {
@@ -103,9 +105,18 @@ function CatalogsLoading() {
   );
 }
 
-export function CatalogsPageClient() {
-  const { data: profiles, isLoading } = api.public.getPublicProfiles.useQuery();
-
+export function CatalogsPageClient({
+  initialProfiles,
+}: {
+  initialProfiles: Awaited<ReturnType<typeof getPublicProfiles>>;
+}) {
+  const { data: profiles, isLoading } = api.public.getPublicProfiles.useQuery(
+    undefined,
+    {
+      initialData: initialProfiles,
+      // staleTime: APP_CONFIG.CACHE.PUBLIC_ROUTER.TTL_S * 1000,
+    },
+  );
   return (
     <MainContent>
       <PageHeader

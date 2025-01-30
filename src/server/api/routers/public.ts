@@ -2,10 +2,10 @@ import { z } from "zod";
 import { createTRPCRouter, publicProcedure } from "../trpc";
 import { db } from "@/server/db";
 import { TRPCError } from "@trpc/server";
-import type { PublicProfile } from "@/types/public-types";
 import { getStripeSubscription } from "@/server/stripe/sync-subscription";
 import { hasActiveSubscription } from "@/server/stripe/subscription-utils";
 import { type OutputData } from "@editorjs/editorjs";
+import { getPublicProfiles } from "@/server/db/getPublicProfiles";
 
 // Helper function to get userId from either slug or id
 async function getUserIdFromSlugOrId(slugOrId: string): Promise<string> {
@@ -161,146 +161,9 @@ async function getFullListingData(listingId: string) {
 export const publicRouter = createTRPCRouter({
   getPublicProfiles: publicProcedure.query(async () => {
     try {
-      const profiles = await db.user.findMany({
-        select: {
-          id: true,
-          stripeCustomerId: true,
-          createdAt: true,
-          profile: {
-            select: {
-              title: true,
-              slug: true,
-              description: true,
-              location: true,
-              updatedAt: true,
-              images: {
-                select: {
-                  url: true,
-                  updatedAt: true,
-                },
-                orderBy: {
-                  order: "asc",
-                },
-              },
-            },
-          },
-          _count: {
-            select: {
-              listings: {
-                where: {
-                  NOT: {
-                    status: "HIDDEN",
-                  },
-                },
-              },
-              lists: true,
-            },
-          },
-          lists: {
-            select: {
-              id: true,
-              title: true,
-              updatedAt: true,
-              _count: {
-                select: {
-                  listings: {
-                    where: {
-                      NOT: {
-                        status: "HIDDEN",
-                      },
-                    },
-                  },
-                },
-              },
-            },
-            orderBy: {
-              listings: {
-                _count: "desc",
-              },
-            },
-          },
-          listings: {
-            where: {
-              NOT: {
-                status: "HIDDEN",
-              },
-            },
-            select: {
-              updatedAt: true,
-            },
-          },
-        },
-        where: {
-          // Only include users with at least one non-hidden listing
-          listings: {
-            some: {
-              NOT: {
-                status: "HIDDEN",
-              },
-            },
-          },
-        },
-      });
-
-      // Get subscription status for each user
-      const profilesWithSubs = await Promise.all(
-        profiles.map(async (profile) => {
-          const sub = await getStripeSubscription(profile.stripeCustomerId);
-          return {
-            ...profile,
-            subscriptionStatus: sub.status,
-          };
-        }),
-      );
-
-      // Transform and sort the profiles
-      const transformedProfiles = profilesWithSubs.map(
-        (profile): PublicProfile => {
-          // Get the most recent update timestamp across all content
-          const timestamps = [
-            profile.profile?.updatedAt,
-            ...(profile.profile?.images?.map((img) => img.updatedAt) ?? []),
-            ...(profile.listings?.map((l) => l.updatedAt) ?? []),
-            ...(profile.lists?.map((l) => l.updatedAt) ?? []),
-          ].filter((date): date is Date => date !== null && date !== undefined);
-
-          const mostRecentUpdate =
-            timestamps.length > 0
-              ? new Date(Math.max(...timestamps.map((d) => d.getTime())))
-              : profile.createdAt;
-
-          return {
-            id: profile.id,
-            title: profile.profile?.title ?? null,
-            slug: profile.profile?.slug ?? null,
-            description: profile.profile?.description ?? null,
-            location: profile.profile?.location ?? null,
-            images: profile.profile?.images ?? [],
-            listingCount: profile._count.listings,
-            listCount: profile._count.lists,
-            hasActiveSubscription: hasActiveSubscription(
-              profile.subscriptionStatus,
-            ),
-            createdAt: profile.createdAt,
-            updatedAt: mostRecentUpdate,
-            lists: profile.lists.map((list) => ({
-              id: list.id,
-              title: list.title,
-              listingCount: list._count.listings,
-            })),
-          };
-        },
-      );
-
-      // Sort profiles: active subscriptions first, then by listing count
-      return transformedProfiles.sort((a, b) => {
-        if (a.hasActiveSubscription !== b.hasActiveSubscription) {
-          return a.hasActiveSubscription ? -1 : 1;
-        }
-        return b.listingCount - a.listingCount;
-      });
+      return await getPublicProfiles();
     } catch (error) {
-      console.error("Error fetching public profiles:", error);
+      console.error("TRPC Error fetching public profiles:", error);
       throw new TRPCError({
         code: "INTERNAL_SERVER_ERROR",
         message: "Failed to fetch public profiles",
@@ -420,9 +283,7 @@ export const publicRouter = createTRPCRouter({
         const listings = await db.listing.findMany({
           where: {
             userId,
-            NOT: {
-              status: "HIDDEN",
-            },
+            OR: [{ status: null }, { NOT: { status: "HIDDEN" } }],
           },
           select: {
             id: true,
