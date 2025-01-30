@@ -7,6 +7,7 @@ import { type Metadata } from "next";
 import { getPublicProfiles } from "@/server/db/getPublicProfiles";
 import { Suspense } from "react";
 import { PageHeader } from "@/app/dashboard/_components/page-header";
+import { getBaseUrl } from "@/lib/utils/getBaseUrl";
 
 export const revalidate = 3600;
 
@@ -35,7 +36,7 @@ export async function generateMetadata(): Promise<Metadata> {
         name: "Browse Daylily Catalogs",
         description:
           "Discover beautiful daylilies from growers across the country. Browse our curated collection of daylily catalogs featuring rare and popular varieties.",
-        url: `${process.env.NEXT_PUBLIC_APP_URL}/catalogs`,
+        url: `${getBaseUrl()}/catalogs`,
         about: {
           "@type": "Thing",
           name: "Daylilies",

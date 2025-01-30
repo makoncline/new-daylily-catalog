@@ -6,10 +6,10 @@ assumptions:
 - hosted db is empty
 
 reset local db
-npm run env:prod npx prisma migrate reset
+USE_TURSO_DB=false npm run env:prod npx prisma migrate reset
 
 run migrate script on local db
-npm run env:prod npm run migrate
+USE_TURSO_DB=false npm run env:prod npm run migrate
 
 dump the local db to a file
 sqlite3 prisma/db-prod.sqlite ".dump" > dump.sql

@@ -7,6 +7,7 @@ import {
   syncStripeSubscriptionToKV,
   getStripeSubscription,
 } from "@/server/stripe/sync-subscription";
+import { getBaseUrl } from "@/lib/utils/getBaseUrl";
 
 export const stripeRouter = createTRPCRouter({
   getSubscription: protectedProcedure.query(async ({ ctx }) => {
@@ -47,8 +48,8 @@ export const stripeRouter = createTRPCRouter({
           quantity: 1,
         },
       ],
-      success_url: `${env.NEXT_PUBLIC_APP_URL}/subscribe/success`,
-      cancel_url: `${env.NEXT_PUBLIC_APP_URL}/dashboard`,
+      success_url: `${getBaseUrl()}/subscribe/success`,
+      cancel_url: `${getBaseUrl()}/dashboard`,
       metadata: {
         userId: user.id,
       },
@@ -77,7 +78,7 @@ export const stripeRouter = createTRPCRouter({
 
     const session = await stripe.billingPortal.sessions.create({
       customer: user.stripeCustomerId,
-      return_url: `${env.NEXT_PUBLIC_APP_URL}/dashboard`,
+      return_url: `${getBaseUrl()}/dashboard`,
     });
 
     return { url: session.url };

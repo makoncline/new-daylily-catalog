@@ -1,10 +1,9 @@
 import { PublicdNav } from "@/components/public-nav";
 import { H1 } from "@/components/typography";
-import { env } from "@/env";
 import { type Metadata } from "next";
-
+import { getBaseUrl } from "@/lib/utils/getBaseUrl";
 export const metadata: Metadata = {
-  metadataBase: new URL(env.NEXT_PUBLIC_APP_URL),
+  metadataBase: new URL(getBaseUrl()),
 };
 
 export default async function PublicLayout({

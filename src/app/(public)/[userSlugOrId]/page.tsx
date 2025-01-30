@@ -8,6 +8,7 @@ import { CatalogDetailClient } from "./_components/catalog-detail-client";
 import { PublicBreadcrumbs } from "@/app/(public)/_components/public-breadcrumbs";
 import { type Metadata } from "next/types";
 import { getUserAndListingIdsAndSlugs } from "@/server/db/getUserAndListingIdsAndSlugs";
+import { getBaseUrl } from "@/lib/utils/getBaseUrl";
 
 export const revalidate = 3600;
 export const dynamicParams = true;
@@ -83,7 +84,7 @@ export async function generateMetadata({
             addressLocality: profile.location,
           },
         }),
-        url: `${process.env.NEXT_PUBLIC_APP_URL}/${profile.slug ?? profile.id}`,
+        url: `${getBaseUrl()}/${profile.slug ?? profile.id}`,
       }),
     },
   };

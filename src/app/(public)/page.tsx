@@ -1,6 +1,6 @@
 import { type Metadata } from "next";
 import HomePageClient from "./_components/home-page-client";
-
+import { getBaseUrl } from "@/lib/utils/getBaseUrl";
 export const revalidate = 3600;
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -47,12 +47,12 @@ export async function generateMetadata(): Promise<Metadata> {
         name: "Daylily Catalog",
         description:
           "Create a stunning catalog for your daylily collection. Auto-populate listings from our database of 100,000+ registered cultivars, organize your garden, and share your passion with fellow enthusiasts.",
-        url: process.env.NEXT_PUBLIC_APP_URL,
+        url: getBaseUrl(),
         potentialAction: {
           "@type": "SearchAction",
           target: {
             "@type": "EntryPoint",
-            urlTemplate: `${process.env.NEXT_PUBLIC_APP_URL}/catalogs?q={search_term_string}`,
+            urlTemplate: `${getBaseUrl()}/catalogs?q={search_term_string}`,
           },
           "query-input": "required name=search_term_string",
         },

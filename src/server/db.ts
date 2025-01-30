@@ -12,8 +12,6 @@ const databaseUrl = useTursoDb
   ? env.TURSO_DATABASE_URL
   : env.LOCAL_DATABASE_URL;
 
-console.log("~~~databaseUrl", databaseUrl);
-
 const createPrismaClient = () => {
   if (useTursoDb) {
     const libsql = createClient({
