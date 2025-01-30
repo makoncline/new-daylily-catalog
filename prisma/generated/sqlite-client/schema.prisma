@@ -1,11 +1,12 @@
 generator client {
-  provider = "prisma-client-js"
-  output   = "./generated/sqlite-client"
+  provider        = "prisma-client-js"
+  output          = "./generated/sqlite-client"
+  previewFeatures = ["driverAdapters"]
 }
 
 datasource db {
   provider = "sqlite"
-  url      = env("DATABASE_URL")
+  url      = "file:./db-dev.sqlite"
 }
 
 model AhsListing {

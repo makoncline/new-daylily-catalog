@@ -13,8 +13,39 @@ import {
   type EditorJSData,
 } from "../src/lib/mdToBlocks";
 import { transformToSlug } from "../src/lib/utils/slugify";
+import { createClient } from "@libsql/client";
+import { PrismaLibSQL } from "@prisma/adapter-libsql";
 
 const stripe = new Stripe(process.env.PROD_STRIPE_SECRET_KEY!);
+
+const USE_TURSO_DB = process.env.USE_TURSO_DB === "true";
+const databaseUrl = USE_TURSO_DB
+  ? env.TURSO_DATABASE_URL
+  : env.LOCAL_DATABASE_URL;
+
+const createDatabaseClient = () => {
+  if (USE_TURSO_DB) {
+    console.log("Using Turso database for migration...");
+    const libsql = createClient({
+      url: env.TURSO_DATABASE_URL,
+      authToken: env.TURSO_DATABASE_AUTH_TOKEN,
+    });
+
+    const adapter = new PrismaLibSQL(libsql);
+    return new SQLiteClient({
+      adapter,
+    });
+  }
+
+  console.log("Using local SQLite database for migration...");
+  return new SQLiteClient({
+    datasources: {
+      db: {
+        url: databaseUrl,
+      },
+    },
+  });
+};
 
 const postgres = new PostgresClient({
   datasources: {
@@ -24,13 +55,7 @@ const postgres = new PostgresClient({
   },
 });
 
-const sqlite = new SQLiteClient({
-  datasources: {
-    db: {
-      url: env.DATABASE_URL,
-    },
-  },
-});
+const sqlite = createDatabaseClient();
 
 const clerkUserSchema = z.object({
   id: z.string(),

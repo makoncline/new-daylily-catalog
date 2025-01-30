@@ -15,7 +15,10 @@
     "migrate": "npx tsx prisma/migrate.ts",
     "db:push": "prisma db push",
     "db:generate": "prisma generate",
-    "db:studio": "prisma studio"
+    "db:studio": "prisma studio",
+    "dump": "turso db shell $TURSO_DATABASE_NAME .dump > dump.sql && cat dump.sql | sqlite3 $LOCAL_DATABASE_FILE",
+    "migrate:generate": "npx prisma migrate dev --create-only",
+    "migrate:apply": "turso db shell $TURSO_DATABASE_NAME < $(ls -t prisma/migrations/*/migration.sql | head -n1)"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.717.0",
@@ -32,6 +35,8 @@
     "@editorjs/paragraph": "^2.11.7",
     "@editorjs/table": "^2.4.3",
     "@hookform/resolvers": "^3.9.1",
+    "@libsql/client": "^0.8.1",
+    "@prisma/adapter-libsql": "^6.3.0",
     "@prisma/client": "^5.14.0",
     "@radix-ui/react-accordion": "^1.2.2",
     "@radix-ui/react-alert-dialog": "^1.1.4",
