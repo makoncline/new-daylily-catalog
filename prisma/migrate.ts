@@ -15,6 +15,7 @@ import {
 import { transformToSlug } from "../src/lib/utils/slugify";
 import { createClient } from "@libsql/client";
 import { PrismaLibSQL } from "@prisma/adapter-libsql";
+import { generateUniqueSlug } from "../src/lib/utils/slugify-server";
 
 const stripe = new Stripe(process.env.PROD_STRIPE_SECRET_KEY!);
 
@@ -310,7 +311,7 @@ async function upsertLists() {
     const listData = {
       userId: list.user_id.toString(),
       title: list.name,
-      description: list.intro || null, // Combine intro and bio into description
+      description: list.intro || null,
       status: "PUBLISHED", // Default status for existing lists
       createdAt: list.created_at,
       updatedAt: list.updated_at,
@@ -355,32 +356,44 @@ async function upsertListings() {
 
   for (const lily of lilies) {
     const listingId = lily.id.toString();
-
-    // Generate a slug from the name, falling back to the ID if the name is invalid
-    const baseSlug = transformToSlug(lily.name, listingId);
-    // Ensure we have a string by using the ID as ultimate fallback
-    const slug = baseSlug || listingId;
-
-    const listingData = {
-      userId: lily.user_id.toString(),
-      title: lily.name,
-      slug,
-      price: lily.price ? parseFloat(lily.price.toString()) : null,
-      description: lily.public_note,
-      privateNote: lily.private_note,
-      ahsId: lily.ahs_ref ? lily.ahs_ref.toString() : null,
-      status: "PUBLISHED", // Default status for existing listings
-      createdAt: lily.created_at,
-      updatedAt: lily.updated_at,
-      // Connect to lists if list_id exists
-      lists: lily.list_id
-        ? {
-            connect: [{ id: lily.list_id.toString() }],
-          }
-        : undefined,
-    };
+    const userId = lily.user_id.toString();
 
     try {
+      // First check if listing already exists
+      const existingListing = await sqlite.listing.findUnique({
+        where: { id: listingId },
+        select: { slug: true },
+      });
+
+      // Generate a slug from the name, falling back to the ID if the name is invalid
+      const baseSlug = transformToSlug(lily.name, listingId);
+      // Ensure we have a string by using the ID as ultimate fallback
+      const initialSlug = baseSlug || listingId;
+
+      // If listing exists, use its current slug, otherwise generate a unique one
+      const slug = existingListing
+        ? existingListing.slug
+        : await generateUniqueSlug(initialSlug, userId, undefined, sqlite);
+
+      const listingData = {
+        userId: userId,
+        title: lily.name,
+        slug,
+        price: lily.price ? parseFloat(lily.price.toString()) : null,
+        description: lily.public_note,
+        privateNote: lily.private_note,
+        ahsId: lily.ahs_ref ? lily.ahs_ref.toString() : null,
+        status: "PUBLISHED", // Default status for existing listings
+        createdAt: lily.created_at,
+        updatedAt: lily.updated_at,
+        // Connect to lists if list_id exists
+        lists: lily.list_id
+          ? {
+              connect: [{ id: lily.list_id.toString() }],
+            }
+          : undefined,
+      };
+
       const createdListing = await sqlite.listing.upsert({
         where: { id: listingId },
         update: listingData,
