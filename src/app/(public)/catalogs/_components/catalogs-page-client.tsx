@@ -13,15 +13,13 @@ import {
   DataTablePagination,
   DataTablePaginationSkeleton,
 } from "@/components/data-table/data-table-pagination";
-import { PageHeader } from "@/app/dashboard/_components/page-header";
-import { MainContent } from "@/app/(public)/_components/main-content";
 import { EmptyState } from "@/components/empty-state";
 import { Flower2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DataTableFilterReset } from "@/components/data-table/data-table-filter-reset";
 import { useViewListing } from "@/components/view-listing-dialog";
-import { APP_CONFIG } from "@/config/constants";
 import { type getPublicProfiles } from "@/server/db/getPublicProfiles";
+import { APP_CONFIG } from "@/config/constants";
 
 const columns: ColumnDef<PublicProfile>[] = [
   {
@@ -85,7 +83,7 @@ function CatalogsGrid({
   );
 }
 
-function CatalogsLoading() {
+export function CatalogsLoading() {
   return (
     <>
       <div className="flex items-center justify-end">
@@ -114,16 +112,11 @@ export function CatalogsPageClient({
     undefined,
     {
       initialData: initialProfiles,
-      // staleTime: APP_CONFIG.CACHE.PUBLIC_ROUTER.TTL_S * 1000,
+      staleTime: APP_CONFIG.CACHE.PUBLIC_ROUTER.TTL_S * 1000,
     },
   );
   return (
-    <MainContent>
-      <PageHeader
-        heading="Daylily Catalogs"
-        text="Browse beautiful daylily collections from growers around the world."
-      />
-
+    <>
       {isLoading ? (
         <CatalogsLoading />
       ) : profiles ? (
@@ -138,6 +131,6 @@ export function CatalogsPageClient({
           }
         />
       )}
-    </MainContent>
+    </>
   );
 }

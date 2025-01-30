@@ -28,14 +28,7 @@ export function ErrorFallback({
 
       <div className="flex flex-col gap-2">
         {resetErrorBoundary && (
-          <Button
-            variant="default"
-            size="lg"
-            onClick={() => {
-              console.log("Try Again clicked");
-              resetErrorBoundary();
-            }}
-          >
+          <Button variant="default" size="lg" onClick={resetErrorBoundary}>
             Try Again
           </Button>
         )}

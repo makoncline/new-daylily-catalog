@@ -1,10 +1,14 @@
-import { CatalogsPageClient } from "./_components/catalogs-page-client";
+import {
+  CatalogsLoading,
+  CatalogsPageClient,
+} from "./_components/catalogs-page-client";
 import { MainContent } from "../_components/main-content";
 import { type Metadata } from "next";
 import { getPublicProfiles } from "@/server/db/getPublicProfiles";
+import { Suspense } from "react";
+import { PageHeader } from "@/app/dashboard/_components/page-header";
 
 export const revalidate = 3600;
-export const dynamic = "force-static";
 
 export async function generateMetadata(): Promise<Metadata> {
   return {
@@ -46,11 +50,15 @@ export async function generateMetadata(): Promise<Metadata> {
 export default async function CatalogsPage() {
   const profiles = await getPublicProfiles();
 
-  console.log(profiles);
-
   return (
     <MainContent>
-      <CatalogsPageClient initialProfiles={profiles} />
+      <PageHeader
+        heading="Daylily Catalogs"
+        text="Browse beautiful daylily collections from growers around the world."
+      />
+      <Suspense fallback={<CatalogsLoading />}>
+        <CatalogsPageClient initialProfiles={profiles} />
+      </Suspense>
     </MainContent>
   );
 }
