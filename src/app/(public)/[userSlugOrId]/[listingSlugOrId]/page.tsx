@@ -10,6 +10,9 @@ import { ListingDisplaySkeleton } from "@/components/listing-display";
 import { PublicBreadcrumbs } from "@/app/(public)/_components/public-breadcrumbs";
 import { type Metadata } from "next";
 import { getUserAndListingIdsAndSlugs } from "@/server/db/getUserAndListingIdsAndSlugs";
+import { IMAGES } from "@/lib/constants/images";
+import { METADATA_CONFIG } from "@/config/constants";
+import { getBaseUrl } from "@/lib/utils/getBaseUrl";
 
 export const revalidate = 3600;
 export const dynamicParams = true;
@@ -50,6 +53,7 @@ export async function generateMetadata({
   params,
 }: PageProps): Promise<Metadata> {
   const { userSlugOrId, listingSlugOrId } = params;
+  const url = getBaseUrl();
 
   // Fetch listing data
   const listing = await api.public.getListing({
@@ -61,6 +65,12 @@ export async function generateMetadata({
     return {
       title: "Listing Not Found",
       description: "The daylily listing you are looking for does not exist.",
+      openGraph: {
+        title: "Listing Not Found",
+        description: "The daylily listing you are looking for does not exist.",
+        siteName: METADATA_CONFIG.SITE_NAME,
+        locale: METADATA_CONFIG.LOCALE,
+      },
     };
   }
 
@@ -68,31 +78,43 @@ export async function generateMetadata({
     userSlugOrId,
   });
 
-  // Get the first image URL if available
-  const imageUrl = listing.images?.[0]?.url ?? "/images/default-daylily.jpg";
+  const imageUrl = listing.images?.[0]?.url ?? IMAGES.DEFAULT_LISTING;
   const price = listing.price ? `$${listing.price.toFixed(2)}` : "Display only";
   const listingName =
     listing.title ?? listing.ahsListing?.name ?? "Unnamed Daylily";
+  const pageUrl = `${url}/${userSlugOrId}/${listing.slug ?? listing.id}`;
 
   // Construct metadata
-  const title = `${listingName} Daylily | ${profile?.title ?? "Daylily Catalog"}`;
+  const title = `${listingName} Daylily | ${profile?.title ?? METADATA_CONFIG.SITE_NAME}`;
   const description =
     listing.description ??
-    `Beautiful ${listingName} daylily available from ${profile?.title ?? "Daylily Catalog"}. ${listing.ahsListing?.hybridizer ? `Hybridized by ${listing.ahsListing.hybridizer}` : ""}`.trim();
+    `Beautiful ${listingName} daylily available from ${profile?.title ?? METADATA_CONFIG.SITE_NAME}. ${listing.ahsListing?.hybridizer ? `Hybridized by ${listing.ahsListing.hybridizer}` : ""}`.trim();
 
   return {
     title,
     description,
+    metadataBase: new URL(url),
     openGraph: {
       title,
       description,
-      images: [imageUrl],
+      url: pageUrl,
+      siteName: METADATA_CONFIG.SITE_NAME,
+      locale: METADATA_CONFIG.LOCALE,
+      images: [
+        {
+          url: imageUrl,
+          width: 1200,
+          height: 630,
+          alt: "Daylily listing image",
+        },
+      ],
       type: "website",
     },
     twitter: {
-      card: "summary_large_image",
+      card: METADATA_CONFIG.TWITTER_CARD_TYPE,
       title,
       description,
+      site: METADATA_CONFIG.TWITTER_HANDLE,
       images: [imageUrl],
     },
     other: {
@@ -103,6 +125,7 @@ export async function generateMetadata({
         name: listingName,
         description,
         image: imageUrl,
+        url: pageUrl,
         ...(listing.price && {
           offers: {
             "@type": "Offer",
@@ -111,7 +134,7 @@ export async function generateMetadata({
             availability: "https://schema.org/InStock",
             seller: {
               "@type": "Organization",
-              name: profile?.title ?? "Daylily Catalog",
+              name: profile?.title ?? METADATA_CONFIG.SITE_NAME,
             },
           },
         }),

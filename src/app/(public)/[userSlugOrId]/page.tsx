@@ -9,6 +9,8 @@ import { PublicBreadcrumbs } from "@/app/(public)/_components/public-breadcrumbs
 import { type Metadata } from "next/types";
 import { getUserAndListingIdsAndSlugs } from "@/server/db/getUserAndListingIdsAndSlugs";
 import { getBaseUrl } from "@/lib/utils/getBaseUrl";
+import { IMAGES } from "@/lib/constants/images";
+import { METADATA_CONFIG } from "@/config/constants";
 
 export const revalidate = 3600;
 export const dynamicParams = true;
@@ -37,6 +39,7 @@ export async function generateMetadata({
   params,
 }: PageProps): Promise<Metadata> {
   const { userSlugOrId } = params;
+  const url = getBaseUrl();
 
   const profile = await api.public.getProfile({
     userSlugOrId,
@@ -46,6 +49,12 @@ export async function generateMetadata({
     return {
       title: "Catalog Not Found",
       description: "The daylily catalog you are looking for does not exist.",
+      openGraph: {
+        title: "Catalog Not Found",
+        description: "The daylily catalog you are looking for does not exist.",
+        siteName: METADATA_CONFIG.SITE_NAME,
+        locale: METADATA_CONFIG.LOCALE,
+      },
     };
   }
 
@@ -53,21 +62,35 @@ export async function generateMetadata({
   const description =
     profile.description ??
     `Browse our collection of beautiful daylilies. ${profile.location ? `Located in ${profile.location}.` : ""}`.trim();
-  const imageUrl = profile.images?.[0]?.url ?? "/images/default-catalog.jpg";
+
+  const imageUrl = profile.images?.[0]?.url ?? IMAGES.DEFAULT_CATALOG;
+  const pageUrl = `${url}/${profile.slug ?? profile.id}`;
 
   return {
-    title: `${title} | Daylily Catalog`,
+    title: `${title} | ${METADATA_CONFIG.SITE_NAME}`,
     description,
+    metadataBase: new URL(url),
     openGraph: {
-      title: `${title} | Daylily Catalog`,
+      title: `${title} | ${METADATA_CONFIG.SITE_NAME}`,
       description,
-      images: [imageUrl],
+      url: pageUrl,
+      siteName: METADATA_CONFIG.SITE_NAME,
+      locale: METADATA_CONFIG.LOCALE,
+      images: [
+        {
+          url: imageUrl,
+          width: 1200,
+          height: 630,
+          alt: "Daylily catalog cover image",
+        },
+      ],
       type: "website",
     },
     twitter: {
-      card: "summary_large_image",
-      title: `${title} | Daylily Catalog`,
+      card: METADATA_CONFIG.TWITTER_CARD_TYPE,
+      title: `${title} | ${METADATA_CONFIG.SITE_NAME}`,
       description,
+      site: METADATA_CONFIG.TWITTER_HANDLE,
       images: [imageUrl],
     },
     other: {
@@ -78,13 +101,13 @@ export async function generateMetadata({
         name: title,
         description,
         image: imageUrl,
+        url: pageUrl,
         ...(profile.location && {
           address: {
             "@type": "PostalAddress",
             addressLocality: profile.location,
           },
         }),
-        url: `${getBaseUrl()}/${profile.slug ?? profile.id}`,
       }),
     },
   };

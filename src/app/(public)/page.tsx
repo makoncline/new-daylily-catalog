@@ -1,13 +1,17 @@
 import { type Metadata } from "next";
 import HomePageClient from "./_components/home-page-client";
 import { getBaseUrl } from "@/lib/utils/getBaseUrl";
+import { IMAGES } from "@/lib/constants/images";
+import { METADATA_CONFIG } from "@/config/constants";
+
 export const revalidate = 3600;
 
 export async function generateMetadata(): Promise<Metadata> {
+  const url = getBaseUrl();
+
   return {
-    title: "Daylily Catalog | Create Your Professional Online Daylily Catalog",
-    description:
-      "Create a stunning catalog for your daylily collection. Auto-populate listings from our database of 100,000+ registered cultivars, organize your garden, and share your passion with fellow enthusiasts.",
+    title: METADATA_CONFIG.DEFAULT_TITLE,
+    description: METADATA_CONFIG.DEFAULT_DESCRIPTION,
     keywords: [
       "daylily",
       "hemerocallis",
@@ -16,50 +20,50 @@ export async function generateMetadata(): Promise<Metadata> {
       "daylily sales",
       "daylily collection",
     ],
+    metadataBase: new URL(url),
     openGraph: {
-      title: "Create Your Professional Online Daylily Catalog",
-      description:
-        "Create a stunning catalog for your daylily collection. Auto-populate listings from our database of 100,000+ registered cultivars, organize your garden, and share your passion with fellow enthusiasts.",
+      title: METADATA_CONFIG.DEFAULT_TITLE,
+      description: METADATA_CONFIG.DEFAULT_DESCRIPTION,
+      url,
+      siteName: METADATA_CONFIG.SITE_NAME,
+      locale: METADATA_CONFIG.LOCALE,
+      type: "website",
       images: [
         {
-          url: "/assets/DALL·E 2025-01-22 16.11.46 - A professional photograph of a stunning daylily garden at golden hour. The garden features various colorful daylilies in full bloom, including vibrant.webp",
+          url: IMAGES.DEFAULT_META,
           width: 1200,
           height: 630,
           alt: "Beautiful daylily garden at golden hour",
         },
       ],
-      type: "website",
     },
     twitter: {
-      card: "summary_large_image",
-      title: "Create Your Professional Online Daylily Catalog",
-      description:
-        "Create a stunning catalog for your daylily collection. Auto-populate listings from our database of 100,000+ registered cultivars, organize your garden, and share your passion with fellow enthusiasts.",
-      images: [
-        "/assets/DALL·E 2025-01-22 16.11.46 - A professional photograph of a stunning daylily garden at golden hour. The garden features various colorful daylilies in full bloom, including vibrant.webp",
-      ],
+      card: METADATA_CONFIG.TWITTER_CARD_TYPE,
+      title: METADATA_CONFIG.DEFAULT_TITLE,
+      description: METADATA_CONFIG.DEFAULT_DESCRIPTION,
+      site: METADATA_CONFIG.TWITTER_HANDLE,
+      images: [IMAGES.DEFAULT_META],
     },
     other: {
       // WebSite JSON-LD for rich results
       "script:ld+json": JSON.stringify({
         "@context": "https://schema.org",
         "@type": "WebSite",
-        name: "Daylily Catalog",
-        description:
-          "Create a stunning catalog for your daylily collection. Auto-populate listings from our database of 100,000+ registered cultivars, organize your garden, and share your passion with fellow enthusiasts.",
-        url: getBaseUrl(),
+        name: METADATA_CONFIG.SITE_NAME,
+        description: METADATA_CONFIG.DEFAULT_DESCRIPTION,
+        url,
         potentialAction: {
           "@type": "SearchAction",
           target: {
             "@type": "EntryPoint",
-            urlTemplate: `${getBaseUrl()}/catalogs?q={search_term_string}`,
+            urlTemplate: `${url}/catalogs?q={search_term_string}`,
           },
           "query-input": "required name=search_term_string",
         },
         // Add SoftwareApplication schema for app features
         application: {
           "@type": "SoftwareApplication",
-          name: "Daylily Catalog",
+          name: METADATA_CONFIG.SITE_NAME,
           applicationCategory: "BusinessApplication",
           operatingSystem: "Web",
           offers: {

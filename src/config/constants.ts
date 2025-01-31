@@ -78,6 +78,16 @@ export const CACHE_CONFIG = {
   },
 } as const;
 
+export const METADATA_CONFIG = {
+  SITE_NAME: "Daylily Catalog",
+  DEFAULT_TITLE: "Daylily Catalog | Create Your Online Daylily Catalog",
+  DEFAULT_DESCRIPTION:
+    "Create a stunning catalog for your daylily collection. Auto-populate listings from our database of 100,000+ registered cultivars, organize your garden, and share your passion with fellow enthusiasts.",
+  TWITTER_HANDLE: "@daylilycatalog",
+  TWITTER_CARD_TYPE: "summary_large_image",
+  LOCALE: "en_US",
+} as const;
+
 // Add more config objects as needed
 export const APP_CONFIG = {
   UPLOAD: UPLOAD_CONFIG,
@@ -85,6 +95,7 @@ export const APP_CONFIG = {
   FEEDBACK: FEEDBACK_CONFIG,
   TABLE: TABLE_CONFIG,
   CACHE: CACHE_CONFIG,
+  METADATA: METADATA_CONFIG,
 } as const;
 
 export const STATUS = {

@@ -8,35 +8,53 @@ import { getPublicProfiles } from "@/server/db/getPublicProfiles";
 import { Suspense } from "react";
 import { PageHeader } from "@/app/dashboard/_components/page-header";
 import { getBaseUrl } from "@/lib/utils/getBaseUrl";
+import { IMAGES } from "@/lib/constants/images";
+import { METADATA_CONFIG } from "@/config/constants";
 
 export const revalidate = 3600;
 
 export async function generateMetadata(): Promise<Metadata> {
+  const url = getBaseUrl();
+  const pageUrl = `${url}/catalogs`;
+  const title = "Browse Daylily Catalogs";
+  const description =
+    "Discover beautiful daylilies from growers across the country. Browse our curated collection of daylily catalogs featuring rare and popular varieties.";
+
   return {
-    title: "Browse Daylily Catalogs | Daylily Catalog",
-    description:
-      "Discover beautiful daylilies from growers across the country. Browse our curated collection of daylily catalogs featuring rare and popular varieties.",
+    title: `${title} | ${METADATA_CONFIG.SITE_NAME}`,
+    description,
+    metadataBase: new URL(url),
     openGraph: {
-      title: "Browse Daylily Catalogs | Daylily Catalog",
-      description:
-        "Discover beautiful daylilies from growers across the country. Browse our curated collection of daylily catalogs featuring rare and popular varieties.",
+      title: `${title} | ${METADATA_CONFIG.SITE_NAME}`,
+      description,
+      url: pageUrl,
+      siteName: METADATA_CONFIG.SITE_NAME,
+      locale: METADATA_CONFIG.LOCALE,
       type: "website",
+      images: [
+        {
+          url: IMAGES.DEFAULT_CATALOG,
+          width: 1200,
+          height: 630,
+          alt: "Collection of beautiful daylily catalogs",
+        },
+      ],
     },
     twitter: {
-      card: "summary_large_image",
-      title: "Browse Daylily Catalogs | Daylily Catalog",
-      description:
-        "Discover beautiful daylilies from growers across the country. Browse our curated collection of daylily catalogs featuring rare and popular varieties.",
+      card: METADATA_CONFIG.TWITTER_CARD_TYPE,
+      title: `${title} | ${METADATA_CONFIG.SITE_NAME}`,
+      description,
+      site: METADATA_CONFIG.TWITTER_HANDLE,
+      images: [IMAGES.DEFAULT_CATALOG],
     },
     other: {
       // CollectionPage JSON-LD for rich results
       "script:ld+json": JSON.stringify({
         "@context": "https://schema.org",
         "@type": "CollectionPage",
-        name: "Browse Daylily Catalogs",
-        description:
-          "Discover beautiful daylilies from growers across the country. Browse our curated collection of daylily catalogs featuring rare and popular varieties.",
-        url: `${getBaseUrl()}/catalogs`,
+        name: title,
+        description,
+        url: pageUrl,
         about: {
           "@type": "Thing",
           name: "Daylilies",
