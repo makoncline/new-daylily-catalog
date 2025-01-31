@@ -56,6 +56,7 @@ export function useDataTable<TData>({
       ...urlState,
       ...localStorageState,
       columnOrder: localStorageState.columnOrder ?? defaultColumnOrder,
+      sorting: urlState.globalFilter ? [{ id: "title", desc: false }] : [],
     },
     ...config,
   });

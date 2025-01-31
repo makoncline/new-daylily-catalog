@@ -41,7 +41,7 @@ export function ImagePopover({
     <Popover>
       <PopoverTrigger asChild>
         <Button
-          variant="ghost"
+          variant="secondary"
           size="icon"
           className={cn(buttonSize, "p-0", className)}
         >

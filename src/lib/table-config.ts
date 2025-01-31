@@ -17,11 +17,15 @@ declare module "@tanstack/table-core" {
   }
 }
 
+/**
+ * Default table configuration with fuzzy filtering and sorting
+ */
 export const defaultTableConfig = <TData>() =>
   ({
     filterFns: {
       fuzzy: fuzzyFilter,
     },
+    globalFilterFn: "fuzzy" as const,
     sortingFns: {
       fuzzySort,
     },
@@ -31,7 +35,6 @@ export const defaultTableConfig = <TData>() =>
     getSortedRowModel: getSortedRowModel<TData>(),
     getFacetedRowModel: getFacetedRowModel<TData>(),
     getFacetedUniqueValues: getFacetedUniqueValues<TData>(),
-    globalFilterFn: "fuzzy" as const,
   }) satisfies Partial<TableOptions<TData>>;
 
 export const DEFAULT_TABLE_OPTIONS = {

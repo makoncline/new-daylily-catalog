@@ -44,6 +44,7 @@ export const baseListingColumns: ColumnDef<ListingData>[] = [
       return <TooltipCell content={value} lines={3} />;
     },
     filterFn: fuzzyFilter,
+    sortingFn: "fuzzySort",
     enableSorting: true,
     enableHiding: false,
   },
