@@ -1,5 +1,4 @@
 import { PublicdNav } from "@/components/public-nav";
-import { H1 } from "@/components/typography";
 import { type Metadata } from "next";
 import { getBaseUrl } from "@/lib/utils/getBaseUrl";
 export const metadata: Metadata = {

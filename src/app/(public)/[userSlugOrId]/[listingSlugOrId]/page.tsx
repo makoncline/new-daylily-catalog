@@ -13,6 +13,7 @@ import { getUserAndListingIdsAndSlugs } from "@/server/db/getUserAndListingIdsAn
 import { IMAGES } from "@/lib/constants/images";
 import { METADATA_CONFIG } from "@/config/constants";
 import { getBaseUrl } from "@/lib/utils/getBaseUrl";
+import { getOptimizedMetaImageUrl } from "@/lib/utils/cloudflareLoader";
 
 export const revalidate = 3600;
 export const dynamicParams = true;
@@ -78,7 +79,8 @@ export async function generateMetadata({
     userSlugOrId,
   });
 
-  const imageUrl = listing.images?.[0]?.url ?? IMAGES.DEFAULT_LISTING;
+  const rawImageUrl = listing.images?.[0]?.url ?? IMAGES.DEFAULT_LISTING;
+  const imageUrl = getOptimizedMetaImageUrl(rawImageUrl);
   const price = listing.price ? `$${listing.price.toFixed(2)}` : "Display only";
   const listingName =
     listing.title ?? listing.ahsListing?.name ?? "Unnamed Daylily";

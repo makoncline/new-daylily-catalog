@@ -10,6 +10,7 @@ import { PageHeader } from "@/app/dashboard/_components/page-header";
 import { getBaseUrl } from "@/lib/utils/getBaseUrl";
 import { IMAGES } from "@/lib/constants/images";
 import { METADATA_CONFIG } from "@/config/constants";
+import { getOptimizedMetaImageUrl } from "@/lib/utils/cloudflareLoader";
 
 export const revalidate = 3600;
 
@@ -19,6 +20,7 @@ export async function generateMetadata(): Promise<Metadata> {
   const title = "Browse Daylily Catalogs";
   const description =
     "Discover beautiful daylilies from growers across the country. Browse our curated collection of daylily catalogs featuring rare and popular varieties.";
+  const optimizedImage = getOptimizedMetaImageUrl(IMAGES.DEFAULT_CATALOG);
 
   return {
     title: `${title} | ${METADATA_CONFIG.SITE_NAME}`,
@@ -33,7 +35,7 @@ export async function generateMetadata(): Promise<Metadata> {
       type: "website",
       images: [
         {
-          url: IMAGES.DEFAULT_CATALOG,
+          url: optimizedImage,
           width: 1200,
           height: 630,
           alt: "Collection of beautiful daylily catalogs",
@@ -45,7 +47,7 @@ export async function generateMetadata(): Promise<Metadata> {
       title: `${title} | ${METADATA_CONFIG.SITE_NAME}`,
       description,
       site: METADATA_CONFIG.TWITTER_HANDLE,
-      images: [IMAGES.DEFAULT_CATALOG],
+      images: [optimizedImage],
     },
     other: {
       // CollectionPage JSON-LD for rich results

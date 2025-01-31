@@ -3,11 +3,13 @@ import HomePageClient from "./_components/home-page-client";
 import { getBaseUrl } from "@/lib/utils/getBaseUrl";
 import { IMAGES } from "@/lib/constants/images";
 import { METADATA_CONFIG } from "@/config/constants";
+import { getOptimizedMetaImageUrl } from "@/lib/utils/cloudflareLoader";
 
 export const revalidate = 3600;
 
 export async function generateMetadata(): Promise<Metadata> {
   const url = getBaseUrl();
+  const optimizedImage = getOptimizedMetaImageUrl(IMAGES.DEFAULT_META);
 
   return {
     title: METADATA_CONFIG.DEFAULT_TITLE,
@@ -30,7 +32,7 @@ export async function generateMetadata(): Promise<Metadata> {
       type: "website",
       images: [
         {
-          url: IMAGES.DEFAULT_META,
+          url: optimizedImage,
           width: 1200,
           height: 630,
           alt: "Beautiful daylily garden at golden hour",
@@ -42,7 +44,7 @@ export async function generateMetadata(): Promise<Metadata> {
       title: METADATA_CONFIG.DEFAULT_TITLE,
       description: METADATA_CONFIG.DEFAULT_DESCRIPTION,
       site: METADATA_CONFIG.TWITTER_HANDLE,
-      images: [IMAGES.DEFAULT_META],
+      images: [optimizedImage],
     },
     other: {
       // WebSite JSON-LD for rich results

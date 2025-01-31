@@ -11,6 +11,7 @@ import { getUserAndListingIdsAndSlugs } from "@/server/db/getUserAndListingIdsAn
 import { getBaseUrl } from "@/lib/utils/getBaseUrl";
 import { IMAGES } from "@/lib/constants/images";
 import { METADATA_CONFIG } from "@/config/constants";
+import { getOptimizedMetaImageUrl } from "@/lib/utils/cloudflareLoader";
 
 export const revalidate = 3600;
 export const dynamicParams = true;
@@ -63,7 +64,8 @@ export async function generateMetadata({
     profile.description ??
     `Browse our collection of beautiful daylilies. ${profile.location ? `Located in ${profile.location}.` : ""}`.trim();
 
-  const imageUrl = profile.images?.[0]?.url ?? IMAGES.DEFAULT_CATALOG;
+  const rawImageUrl = profile.images?.[0]?.url ?? IMAGES.DEFAULT_CATALOG;
+  const imageUrl = getOptimizedMetaImageUrl(rawImageUrl);
   const pageUrl = `${url}/${profile.slug ?? profile.id}`;
 
   return {

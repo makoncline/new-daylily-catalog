@@ -1,5 +1,5 @@
-- better home page images
-- better public nav bar
+- add downlaod data as cvs button on listings page
+- add favicon
 - nav bar logo should link to home page
 - public routes with queries that we cache for multiple minutes (hour)
   - how do we test this?

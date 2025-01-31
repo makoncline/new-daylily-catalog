@@ -6,7 +6,7 @@ import { SignedIn, SignedOut } from "@clerk/nextjs";
 import { Button } from "@/components/ui/button";
 import { useEffect, useState } from "react";
 import { Flower2 } from "lucide-react";
-import { Muted, Small } from "@/components/typography";
+import { Small } from "@/components/typography";
 
 function DashboardButton({ className }: { className?: string }) {
   const [isMounted, setIsMounted] = useState(false);

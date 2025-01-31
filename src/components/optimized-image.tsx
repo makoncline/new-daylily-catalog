@@ -2,12 +2,12 @@
 
 import * as React from "react";
 import Image from "next/image";
-import { env } from "@/env.js";
 import { cn } from "@/lib/utils";
 import { logError } from "@/lib/error-utils";
+import { cloudflareLoader } from "@/lib/utils/cloudflareLoader";
 
 // Image configuration
-const IMAGE_CONFIG = {
+export const IMAGE_CONFIG = {
   BLUR: {
     SIZE: 20,
     QUALITY: 5, // Very low quality for blur placeholder
@@ -46,30 +46,6 @@ class CloudflareTransformError extends Error {
     this.name = "CloudflareTransformError";
   }
 }
-
-// Cloudflare image loader following their recommended pattern
-const cloudflareLoader = ({
-  src,
-  width,
-  quality,
-  fit = IMAGE_CONFIG.FIT,
-  format = IMAGE_CONFIG.FORMAT,
-}: {
-  src: string;
-  width: number;
-  quality?: number;
-  fit?: "scale-down" | "contain" | "cover" | "crop" | "pad";
-  format?: "auto" | "webp" | "avif" | "json";
-}) => {
-  const params = [`width=${width}`, `fit=${fit}`, `format=${format}`];
-  if (quality) {
-    params.push(`quality=${quality}`);
-  }
-
-  const paramsString = params.join(",");
-
-  return `${env.NEXT_PUBLIC_CLOUDFLARE_URL}/cdn-cgi/image/${paramsString}/${src}`;
-};
 
 interface OptimizedImageProps extends React.HTMLAttributes<HTMLDivElement> {
   src: string;
