@@ -1,9 +1,5 @@
 import { api } from "@/trpc/server";
 import { MainContent } from "@/app/(public)/_components/main-content";
-import { EmptyState } from "@/components/empty-state";
-import { Button } from "@/components/ui/button";
-import { Flower2 } from "lucide-react";
-import Link from "next/link";
 import { CatalogDetailClient } from "./_components/catalog-detail-client";
 import { PublicBreadcrumbs } from "@/app/(public)/_components/public-breadcrumbs";
 import { type Metadata } from "next/types";
@@ -117,27 +113,8 @@ export async function generateMetadata({
 
 export default async function Page({ params }: PageProps) {
   const { userSlugOrId } = params;
-
-  const profile = await api.public.getProfile({
-    userSlugOrId,
-  });
-
-  if (!profile) {
-    return (
-      <MainContent>
-        <EmptyState
-          icon={<Flower2 className="h-12 w-12 text-muted-foreground" />}
-          title="Catalog Not Found"
-          description="The catalog you are looking for does not exist."
-          action={
-            <Button asChild>
-              <Link href="/catalogs">Browse Catalogs</Link>
-            </Button>
-          }
-        />
-      </MainContent>
-    );
-  }
+  void api.public.getProfile.prefetch({ userSlugOrId });
+  void api.public.getListings.prefetch({ userSlugOrId });
 
   return (
     <MainContent>
