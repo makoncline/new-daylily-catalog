@@ -13,6 +13,8 @@ import { Image as ImageIcon } from "lucide-react";
 import { type RouterOutputs } from "@/trpc/react";
 import { Badge } from "@/components/ui/badge";
 import { TableImagePreview } from "@/components/data-table/table-image-preview";
+import React from "react";
+import { fuzzyFilter } from "@/lib/table-utils";
 
 type ListingData = RouterOutputs["listing"]["list"][number];
 type ListingRow = Row<ListingData>;
@@ -34,12 +36,14 @@ export const baseListingColumns: ColumnDef<ListingData>[] = [
       <DataTableColumnHeader
         column={column}
         title={LISTING_TABLE_COLUMN_NAMES.title}
+        enableFilter
       />
     ),
     cell: ({ row }) => {
       const value = getStringValue(row, "title");
       return <TooltipCell content={value} lines={3} />;
     },
+    filterFn: fuzzyFilter,
     enableSorting: true,
     enableHiding: false,
   },

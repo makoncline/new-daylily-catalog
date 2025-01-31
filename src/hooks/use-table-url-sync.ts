@@ -25,9 +25,19 @@ export function useUrlInitialTableState({
     ? filterableColumnIds
         .map((id) => {
           const value = searchParams.get(id);
-          return value ? { id, value: value.split(",") } : undefined;
+          if (!value) return undefined;
+          // If the value contains commas, treat it as an array
+          return value.includes(",")
+            ? { id, value: value.split(",") }
+            : { id, value };
         })
-        .filter((f): f is { id: string; value: string[] } => f !== undefined)
+        .filter(
+          (
+            f,
+          ): f is
+            | { id: string; value: string }
+            | { id: string; value: string[] } => f !== undefined,
+        )
     : [];
 
   return {
@@ -77,11 +87,13 @@ export function useTableUrlSync<TData>(table: Table<TData>) {
 
     // Then set the current column filters
     columnFilters.forEach((filter) => {
-      const value = filter.value as string[];
-      if (!value?.length) {
+      const value = filter.value;
+      if (!value) {
         url.searchParams.delete(filter.id);
-      } else {
+      } else if (Array.isArray(value)) {
         url.searchParams.set(filter.id, value.join(","));
+      } else {
+        url.searchParams.set(filter.id, String(value));
       }
     });
 
