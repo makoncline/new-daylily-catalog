@@ -73,7 +73,7 @@ export default async function CatalogsPage() {
     <MainContent>
       <PageHeader
         heading="Daylily Catalogs"
-        text="Browse beautiful daylily collections from growers around the world."
+        text="Discover beautiful daylily collections from growers across the country."
       />
       <Suspense fallback={<CatalogsLoading />}>
         <CatalogsPageClient initialProfiles={profiles} />

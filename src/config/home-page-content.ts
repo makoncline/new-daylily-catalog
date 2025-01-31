@@ -14,52 +14,52 @@ export const homePageContent = {
       text: "#1 Daylily App",
       stars: 5,
     },
-    title: "Your garden deserves a beautiful online home",
+    title: "Let Your Garden Bloom Online",
     description:
-      "Create a stunning catalog for your daylily collection in minutes. Auto-populate listings from our database of 100,000+ registered cultivars, organize your garden, and share your passion with fellow enthusiasts.",
+      "Your daylilies tell a story worth sharing. Create professional listings in minutes using our database of 100,000+ registered cultivars, organize your collection your way, and join a community of growers who see the beauty in every detail.",
     backgroundImage: {
       src: "/assets/hero-garden.webp",
       alt: "Beautiful daylily garden at golden hour",
     },
     features: [
-      { emoji: "📚", text: "Connect with 100,000+ official cultivars" },
-      { emoji: "🖼️", text: "Beautiful photo galleries for each listing" },
-      { emoji: "🗂️", text: "Organize collections into custom lists" },
-      { emoji: "🌱", text: "Share your garden's story" },
+      { emoji: "📚", text: "Tap into trusted cultivar knowledge" },
+      { emoji: "🖼️", text: "Showcase your garden's beauty" },
+      { emoji: "🗂️", text: "Organize with purpose" },
+      { emoji: "🌱", text: "Connect with fellow growers" },
     ],
     cta: {
-      title: "Get started for free",
+      title: "Ready to grow together?",
       buttonText: "Create your catalog",
       subtitle: "If you already have an account, we'll log you in",
     },
   },
   features: {
-    title: "Everything you need",
+    title: "Cultivate Your Digital Garden",
     description:
-      "Powerful tools to help you manage your daylily collection, create a professional catalog, and grow your business.",
+      "Transform your collection into a thriving digital showcase with tools that make organizing and sharing your daylilies feel as natural as growing them.",
     cards: [
       {
         image: {
           src: "/assets/catalog-blooms.webp",
           alt: "Professional daylily catalog interface",
         },
-        title: "Professional Catalog",
+        title: "Blooms in the Spotlight",
         description:
-          "Create beautiful, detailed listings with official cultivar data and high-quality photos.",
+          "Give each daylily its moment to shine with beautiful galleries and trusted data. Create listings that blend official records with your growing expertise.",
         features: [
-          { icon: Flower2, text: "Auto-populate with official data" },
+          { icon: Flower2, text: "Auto-fill from official records" },
           { icon: ImageIcon, text: "Multiple photos per listing" },
           { icon: Info, text: "Public and private notes" },
         ],
       },
       {
         image: {
-          src: "/assets/collection-management.webp",
+          src: "/assets/collage.png",
           alt: "Daylily collection management interface",
         },
-        title: "Smart Organization",
+        title: "Gardens Within Gardens",
         description:
-          "Group your daylilies into custom lists for gardens, sales, or seasonal collections.",
+          "Arrange your daylilies into collections that tell different stories - showcase gardens, seasonal displays, or curated sales lists. As intuitive as planning your next garden bed.",
         features: [
           { icon: ListChecks, text: "Create custom lists" },
           { icon: ArrowRight, text: "Quick filters and search" },
@@ -68,47 +68,47 @@ export const homePageContent = {
       },
       {
         image: {
-          src: "/assets/gardener-tablet.webp",
+          src: "/assets/wild.png",
           alt: "Garden profile and bio interface",
         },
-        title: "Garden Profile",
+        title: "A Place to Grow",
         description:
-          "Share your story and make it easy for customers to connect with you.",
+          "Turn your profile into a gathering place where fellow enthusiasts can discover your story, explore your collection, and connect with your garden's vision.",
         features: [
-          { icon: ImageIcon, text: "Showcase your garden" },
-          { icon: Info, text: "Professional bio" },
-          { icon: ArrowRight, text: "Contact information" },
+          { icon: ImageIcon, text: "Garden photo galleries" },
+          { icon: Info, text: "Professional profile" },
+          { icon: ArrowRight, text: "Easy contact options" },
         ],
       },
       {
         image: {
-          src: "/assets/cultivar-grid.webp",
+          src: "/assets/bouquet.png",
           alt: "Daylily database interface",
         },
-        title: "Cultivar Database",
+        title: "Instant Expertise",
         description:
-          "Access official data for over 100,000 registered daylilies to ensure accuracy.",
+          "Tap into our collection of 100,000+ registered cultivars. Add verified details to your listings in seconds, bringing authority and accuracy to every bloom you share.",
         features: [
-          { icon: Flower2, text: "Official cultivar data" },
-          { icon: ImageIcon, text: "Registration photos" },
-          { icon: Info, text: "Complete specifications" },
+          { icon: Flower2, text: "Complete cultivar data" },
+          { icon: ImageIcon, text: "Official photos" },
+          { icon: Info, text: "Detailed specifications" },
         ],
       },
     ],
   },
   database: {
-    title: "Access 100,000+ Registered Cultivars",
+    title: "Time to Share Your Blooms",
     description:
-      "Save time and ensure accuracy by connecting your listings to our extensive database of registered daylilies. Auto-populate details like hybridizer, registration year, bloom characteristics, and more.",
+      "You've cultivated something special. Now it's time to give your garden the digital home it deserves, alongside fellow growers who share your passion for perfect blooms.",
     image: {
-      src: "/assets/database-split.webp",
+      src: "/assets/windingPath.png",
       alt: "Daylily database interface",
     },
   },
   finalCta: {
-    title: "Ready to grow your garden's presence?",
+    title: "Let's Grow Something Beautiful",
     description:
-      "Join fellow daylily enthusiasts and create your professional online catalog today.",
+      "Your digital garden awaits. Join fellow enthusiasts who've discovered the perfect way to share their growing passion.",
     buttonText: "Create your catalog",
     backgroundImage: {
       src: "/assets/cta-garden.webp",

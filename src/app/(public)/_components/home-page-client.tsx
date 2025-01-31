@@ -175,7 +175,7 @@ export default function HomePageClient() {
       {/* Final CTA */}
       <section className="relative w-full py-24">
         <div className="absolute inset-0">
-          <div className="absolute inset-0 z-10 bg-black/60 backdrop-blur-[2px]" />
+          <div className="absolute inset-0 z-10 bg-black/60" />
           <Image
             src={finalCta.backgroundImage.src}
             alt={finalCta.backgroundImage.alt}
