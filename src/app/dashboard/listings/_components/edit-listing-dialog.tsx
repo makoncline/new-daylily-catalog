@@ -8,7 +8,7 @@ import {
 } from "@/components/ui/dialog";
 import { ListingForm } from "@/components/forms/listing-form";
 import { useSearchParams, useRouter } from "next/navigation";
-import { Suspense } from "react";
+import { Suspense, useRef } from "react";
 import { ErrorBoundary } from "react-error-boundary";
 import { ListingFormSkeleton } from "@/components/forms/listing-form-skeleton";
 import { ErrorFallback } from "@/components/error-fallback";
@@ -44,17 +44,20 @@ export const useEditListing = () => {
 
 export function EditListingDialog() {
   const { editingId, closeEditListing } = useEditListing();
+  const formRef = useRef<{ saveChanges: () => Promise<void> }>();
   const isOpen = !!editingId;
 
-  const handleOpenChange = (open: boolean) => {
+  const handleOpenChange = async (open: boolean) => {
     if (!open) {
+      // Save any pending changes before closing
+      await formRef.current?.saveChanges?.();
       closeEditListing();
     }
   };
 
   return (
     <Dialog open={isOpen} onOpenChange={handleOpenChange}>
-      <DialogContent className="max-h-[90vh] max-w-full overflow-y-auto sm:max-w-xl md:max-w-2xl lg:max-w-4xl">
+      <DialogContent className="h-[calc(100%+2rem)] max-w-[calc(100%+4rem)] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Edit Listing</DialogTitle>
           <P className="text-sm text-muted-foreground">
@@ -62,16 +65,22 @@ export function EditListingDialog() {
           </P>
         </DialogHeader>
 
-        {editingId && (
-          <ErrorBoundary
-            fallback={<ErrorFallback resetErrorBoundary={closeEditListing} />}
-            onError={logError}
-          >
-            <Suspense fallback={<ListingFormSkeleton />}>
-              <ListingForm listingId={editingId} onDelete={closeEditListing} />
-            </Suspense>
-          </ErrorBoundary>
-        )}
+        <div className="h-[calc(100%-4rem)]">
+          {editingId && (
+            <ErrorBoundary
+              fallback={<ErrorFallback resetErrorBoundary={closeEditListing} />}
+              onError={logError}
+            >
+              <Suspense fallback={<ListingFormSkeleton />}>
+                <ListingForm
+                  formRef={formRef}
+                  listingId={editingId}
+                  onDelete={closeEditListing}
+                />
+              </Suspense>
+            </ErrorBoundary>
+          )}
+        </div>
       </DialogContent>
     </Dialog>
   );

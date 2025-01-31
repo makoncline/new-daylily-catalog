@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import {
   listingFormSchema,
   transformNullToUndefined,
@@ -25,21 +25,30 @@ import { AhsListingLink } from "@/components/ahs-listing-link";
 import { api } from "@/trpc/react";
 import { DeleteConfirmDialog } from "@/components/delete-confirm-dialog";
 import { useZodForm } from "@/hooks/use-zod-form";
+import { useAutoResizeTextArea } from "@/hooks/use-auto-resize-textarea";
 import { MultiListSelect } from "@/components/multi-list-select";
 import { LISTING_CONFIG, STATUS } from "@/config/constants";
 
 interface ListingFormProps {
   listingId: string;
   onDelete: () => void;
+  formRef?: React.MutableRefObject<
+    { saveChanges: () => Promise<void> } | undefined
+  >;
 }
 
-export function ListingForm({ listingId, onDelete }: ListingFormProps) {
+export function ListingForm({
+  listingId,
+  onDelete,
+  formRef,
+}: ListingFormProps) {
   const { toast } = useToast();
   const [listing] = api.listing.get.useSuspenseQuery({ id: listingId });
   const [images, setImages] = useState(listing.images);
   const [lists, setLists] = useState(listing.lists);
   const [isPending, setIsPending] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const { textAreaRef, adjustHeight } = useAutoResizeTextArea();
 
   const updateListingMutation = api.listing.update.useMutation({
     onSuccess: () => {
@@ -93,27 +102,48 @@ export function ListingForm({ listingId, onDelete }: ListingFormProps) {
     defaultValues: transformNullToUndefined(listingFormSchema.parse(listing)),
   });
 
+  const saveChanges = useCallback(async () => {
+    if (!form.formState.isDirty) return;
+
+    setIsPending(true);
+    try {
+      const values = form.getValues();
+      await updateListingMutation.mutateAsync({
+        id: listing.id,
+        data: values,
+      });
+      form.reset({}, { keepValues: true, keepIsValid: true });
+    } finally {
+      setIsPending(false);
+    }
+  }, [form, listing.id, updateListingMutation]);
+
+  useEffect(() => {
+    if (formRef) {
+      formRef.current = { saveChanges };
+    }
+  }, [formRef, saveChanges]);
+
+  async function onSubmit() {
+    await saveChanges();
+  }
+
   // Handle auto-save on blur
   const onFieldBlur = async (field: keyof ListingFormData) => {
-    const value = form.getValues(field);
-    const initialValue =
-      field === "price"
-        ? (listing[field] ?? undefined)
-        : (listing[field] ?? "");
+    if (!form.formState.dirtyFields[field]) return;
 
-    // Only save if the value has changed
-    if (value !== initialValue) {
-      setIsPending(true);
-      try {
-        await updateListingMutation.mutateAsync({
-          id: listing.id,
-          data: {
-            [field]: value,
-          },
-        });
-      } finally {
-        setIsPending(false);
-      }
+    setIsPending(true);
+    try {
+      const value = form.getValues(field);
+      await updateListingMutation.mutateAsync({
+        id: listing.id,
+        data: {
+          [field]: value,
+        },
+      });
+      form.reset({}, { keepValues: true, keepIsValid: true });
+    } finally {
+      setIsPending(false);
     }
   };
 
@@ -130,7 +160,7 @@ export function ListingForm({ listingId, onDelete }: ListingFormProps) {
 
   return (
     <Form {...form}>
-      <form className="space-y-6">
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
         <FormField
           control={form.control}
           name="title"
@@ -186,8 +216,14 @@ export function ListingForm({ listingId, onDelete }: ListingFormProps) {
               <FormControl>
                 <Textarea
                   {...field}
+                  ref={textAreaRef}
                   value={field.value ?? ""}
+                  onChange={(e) => {
+                    field.onChange(e);
+                    adjustHeight();
+                  }}
                   onBlur={() => onFieldBlur("description")}
+                  className="min-h-[100px]"
                 />
               </FormControl>
               <FormDescription>
@@ -205,18 +241,28 @@ export function ListingForm({ listingId, onDelete }: ListingFormProps) {
               <FormLabel>Price</FormLabel>
               <FormControl>
                 <Input
-                  type="number"
-                  step="0.01"
+                  type="text"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
                   {...field}
-                  value={field.value ?? ""}
+                  value={field.value ? `$${field.value.toLocaleString()}` : ""}
                   onChange={(e) => {
-                    const value = e.target.value;
-                    field.onChange(value === "" ? undefined : Number(value));
+                    const value = e.target.value.replace(/[^0-9]/g, "");
+                    // Allow empty string or zero for clearing the field
+                    if (!value || value === "0") {
+                      field.onChange(null);
+                      return;
+                    }
+                    // Convert to integer and ensure it's positive
+                    const numValue = Math.floor(Math.abs(Number(value)));
+                    field.onChange(numValue);
                   }}
                   onBlur={() => onFieldBlur("price")}
                 />
               </FormControl>
-              <FormDescription>Optional. Price in dollars.</FormDescription>
+              <FormDescription>
+                Optional. Price in whole dollars (no cents).
+              </FormDescription>
               <FormMessage />
             </FormItem>
           )}
@@ -316,7 +362,14 @@ export function ListingForm({ listingId, onDelete }: ListingFormProps) {
             our database.
           </FormDescription>
         </FormItem>
-        <div className="flex justify-end">
+        <div className="flex justify-end gap-4">
+          <Button
+            type="button"
+            onClick={() => void onSubmit()}
+            disabled={isPending}
+          >
+            Save Changes
+          </Button>
           <Button
             type="button"
             variant="destructive"

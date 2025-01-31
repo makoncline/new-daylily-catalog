@@ -9,7 +9,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { ImageIcon, ListChecks, Link2 } from "lucide-react";
+import { ListChecks, Link2 } from "lucide-react";
 import { type RouterOutputs } from "@/trpc/react";
 import { formatPrice } from "@/lib/utils";
 import { OptimizedImage } from "./optimized-image";
@@ -17,25 +17,7 @@ import { useViewListing } from "@/components/view-listing-dialog";
 import { Skeleton } from "./ui/skeleton";
 import { H3 } from "@/components/typography";
 import { ImagePlaceholder } from "./image-placeholder";
-
-function ListingImagesPreview({ images }: { images: { url: string }[] }) {
-  if (!images.length) return null;
-
-  return (
-    <div className="grid grid-cols-2 gap-2 p-2">
-      {images.map((image, i) => (
-        <div key={i} className="overflow-hidden rounded-md">
-          <OptimizedImage
-            src={image.url}
-            alt={`Listing image ${i + 1}`}
-            size="thumbnail"
-            className="h-full w-full"
-          />
-        </div>
-      ))}
-    </div>
-  );
-}
+import { ImagePopover } from "@/components/image-popover";
 
 type ListingCardProps = {
   listing: RouterOutputs["public"]["getListings"][number];
@@ -79,26 +61,17 @@ export function ListingCard({ listing, priority = false }: ListingCardProps) {
           )}
         </div>
 
-        {/* Images Preview Tooltip */}
+        {/* Images Preview */}
         {hasMultipleImages && (
           <div className="absolute bottom-2 left-2">
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger>
-                  <div className="cursor-pointer">
-                    <Badge
-                      variant="secondary"
-                      className="backdrop-blur-sm hover:bg-secondary"
-                    >
-                      <ImageIcon className="h-3 w-3" />
-                    </Badge>
-                  </div>
-                </TooltipTrigger>
-                <TooltipContent className="p-0">
-                  <ListingImagesPreview images={listing.images} />
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
+            <ImagePopover
+              images={listing.images.map((img, i) => ({
+                url: img.url,
+                id: `listing-image-${i}`,
+              }))}
+              size="sm"
+              className="backdrop-blur-sm hover:bg-secondary"
+            />
           </div>
         )}
 
@@ -136,7 +109,7 @@ export function ListingCard({ listing, priority = false }: ListingCardProps) {
           <div className="space-y-2">
             {/* Title */}
             <H3>
-              <TruncatedText text={listing.title} maxLength={30} />
+              <TruncatedText text={listing.title} lines={1} />
             </H3>
 
             {/* Hybridizer and Year */}
@@ -147,7 +120,7 @@ export function ListingCard({ listing, priority = false }: ListingCardProps) {
               >
                 <TruncatedText
                   text={`${listing.ahsListing?.hybridizer ?? "Unknown"}, ${listing.ahsListing?.year ?? "Year Unknown"}`}
-                  maxLength={35}
+                  lines={1}
                 />
               </Badge>
             )}
@@ -156,8 +129,7 @@ export function ListingCard({ listing, priority = false }: ListingCardProps) {
             {listing.description && (
               <TruncatedText
                 text={listing.description}
-                maxLength={100}
-                as="p"
+                lines={3}
                 className="text-sm text-muted-foreground"
               />
             )}

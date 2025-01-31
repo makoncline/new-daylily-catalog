@@ -10,7 +10,7 @@ interface PageHeaderProps {
 
 export function PageHeader({ heading, text, children }: PageHeaderProps) {
   return (
-    <div className="mb-8 flex items-center justify-between">
+    <div className="mb-8 flex w-full flex-col items-start justify-between gap-4 sm:flex-row">
       <div className="space-y-1">
         <H1 className="text-2xl">{heading}</H1>
         {text && <Muted>{text}</Muted>}

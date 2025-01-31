@@ -1,7 +1,7 @@
 "use client";
 
 import { useSearchParams, useRouter } from "next/navigation";
-import { Suspense } from "react";
+import { Suspense, useRef } from "react";
 import {
   Dialog,
   DialogContent,
@@ -49,10 +49,13 @@ export const useEditList = () => {
 
 export function EditListDialog() {
   const { editingId, closeEditList } = useEditList();
+  const formRef = useRef<{ saveChanges: () => Promise<void> }>();
   const isOpen = !!editingId;
 
-  const handleOpenChange = (open: boolean) => {
+  const handleOpenChange = async (open: boolean) => {
     if (!open) {
+      // Save any pending changes before closing
+      await formRef.current?.saveChanges?.();
       closeEditList();
     }
   };
@@ -65,16 +68,22 @@ export function EditListDialog() {
           <DialogDescription>Make changes to your list here.</DialogDescription>
         </DialogHeader>
 
-        {editingId && (
-          <ErrorBoundary
-            fallback={<ErrorFallback resetErrorBoundary={closeEditList} />}
-            onError={logError}
-          >
-            <Suspense fallback={<ListFormSkeleton />}>
-              <ListForm listId={editingId} />
-            </Suspense>
-          </ErrorBoundary>
-        )}
+        <div className="h-[calc(100%-4rem)]">
+          {editingId && (
+            <ErrorBoundary
+              fallback={<ErrorFallback resetErrorBoundary={closeEditList} />}
+              onError={logError}
+            >
+              <Suspense fallback={<ListFormSkeleton />}>
+                <ListForm
+                  formRef={formRef}
+                  listId={editingId}
+                  onDelete={closeEditList}
+                />
+              </Suspense>
+            </ErrorBoundary>
+          )}
+        </div>
       </DialogContent>
     </Dialog>
   );

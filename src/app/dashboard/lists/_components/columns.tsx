@@ -20,7 +20,9 @@ export const columns: ColumnDef<List>[] = [
         title={LIST_TABLE_COLUMN_NAMES.title}
       />
     ),
-    cell: ({ row }) => <TooltipCell content={row.getValue("title")} />,
+    cell: ({ row }) => (
+      <TooltipCell content={row.getValue("title")} lines={3} />
+    ),
     enableHiding: false,
     enableSorting: true,
   },
@@ -33,7 +35,9 @@ export const columns: ColumnDef<List>[] = [
         title={LIST_TABLE_COLUMN_NAMES.description}
       />
     ),
-    cell: ({ row }) => <TooltipCell content={row.getValue("description")} />,
+    cell: ({ row }) => (
+      <TooltipCell content={row.getValue("description")} lines={3} />
+    ),
     enableSorting: true,
   },
   {

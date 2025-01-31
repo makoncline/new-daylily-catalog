@@ -1,47 +1,57 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-import { type ElementType } from "react";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "./ui/tooltip";
+"use client";
 
-interface TruncatedTextProps<T extends ElementType = "span"> {
-  text: string | null;
-  maxLength: number;
-  as?: T;
+import { useEffect, useRef } from "react";
+import { cn } from "@/lib/utils";
+
+interface TruncatedTextProps {
+  /** The text content to display */
+  text: string;
+  /** Number of lines to show before truncating. If 1, uses text-overflow ellipsis instead of line-clamp */
+  lines?: number;
+  /** Optional className to merge with default styles */
   className?: string;
-  [key: string]: any;
+  /** Optional callback to report if content is truncated */
+  onTruncated?: (isTruncated: boolean) => void;
 }
 
-export function TruncatedText<T extends ElementType>({
+/**
+ * A component that truncates text with ellipsis.
+ * - For single line (lines=1), uses text-overflow ellipsis
+ * - For multiple lines, uses line-clamp
+ * - Maintains consistent width behavior with w-max max-w-full
+ * - Reports truncation state via onTruncated callback
+ */
+export function TruncatedText({
   text,
-  maxLength,
-  as: Component = "span" as T,
-  ...props
-}: TruncatedTextProps<T>) {
+  lines = 1,
+  className,
+  onTruncated,
+}: TruncatedTextProps) {
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const element = ref.current;
+    if (!element || !onTruncated) return;
+
+    const isTruncated =
+      lines === 1
+        ? element.scrollWidth > element.clientWidth
+        : element.scrollHeight > element.clientHeight;
+
+    onTruncated(isTruncated);
+  }, [text, lines, onTruncated]);
+
   if (!text) return null;
 
-  const shouldTruncate = text.length > maxLength;
-  const truncatedText = shouldTruncate
-    ? `${text.slice(0, maxLength)}...`
-    : text;
-
-  if (!shouldTruncate) {
-    return <Component {...(props as unknown as any)}>{text}</Component>;
-  }
+  const baseClasses = "w-max max-w-full";
+  const truncateClasses =
+    lines === 1
+      ? "truncate whitespace-nowrap"
+      : cn("break-words", `line-clamp-${lines}`);
 
   return (
-    <TooltipProvider>
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <Component {...(props as any)}>{truncatedText}</Component>
-        </TooltipTrigger>
-        <TooltipContent className="max-w-[300px] whitespace-normal text-sm">
-          {text}
-        </TooltipContent>
-      </Tooltip>
-    </TooltipProvider>
+    <div ref={ref} className={cn(baseClasses, truncateClasses, className)}>
+      {text}
+    </div>
   );
 }

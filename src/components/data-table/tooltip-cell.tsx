@@ -1,60 +1,60 @@
 "use client";
 
 import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
-import { TABLE_CONFIG } from "@/config/constants";
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { P } from "@/components/typography";
+import { TruncatedText } from "@/components/truncated-text";
+import { useState } from "react";
 
 interface TooltipCellProps {
   /** The content to display in the cell. If null or "-", will display a dash */
   content: string | null;
+  /** Number of lines to show before truncating. Defaults to 1 */
+  lines?: number;
 }
 
 /**
- * A table cell component that shows a tooltip when content is truncated.
+ * A table cell component that shows a popover with full content when truncated.
  * - Shows a dash for null or "-" values
- * - Truncates content longer than TABLE_CONFIG.CELL_TEXT_LENGTH
- * - Shows full content in a tooltip on hover when truncated
- * - Maintains consistent column widths using TABLE_CONFIG
+ * - Truncates content based on available space
+ * - Shows full content in a popover on click (mobile-friendly)
+ * - Only renders popover if content is actually truncated
  */
-export function TooltipCell({ content }: TooltipCellProps) {
+export function TooltipCell({ content, lines = 1 }: TooltipCellProps) {
+  const [isTruncated, setIsTruncated] = useState(false);
+
   // Handle empty states
   if (!content || content === "-") return <div>{content ?? "-"}</div>;
 
-  const shouldShowTooltip = content.length > TABLE_CONFIG.CELL_TEXT_LENGTH;
-  const truncatedContent = shouldShowTooltip
-    ? `${content.slice(0, TABLE_CONFIG.CELL_TEXT_LENGTH)}...`
-    : content;
-
-  // Common styles for the cell container
-  const cellStyles = {
-    style: {
-      minWidth: `${TABLE_CONFIG.MIN_COLUMN_WIDTH}px`,
-      maxWidth: `${TABLE_CONFIG.MAX_COLUMN_WIDTH}px`,
-    },
-    className: "truncate",
-  };
-
-  // If content doesn't need truncation, just render it
-  if (!shouldShowTooltip) {
-    return <div {...cellStyles}>{content}</div>;
+  // If content isn't truncated, just show the text
+  if (!isTruncated) {
+    return (
+      <TruncatedText
+        text={content}
+        lines={lines}
+        onTruncated={setIsTruncated}
+      />
+    );
   }
 
-  // If content needs truncation, show with tooltip
+  // If content is truncated, show with popover
   return (
-    <TooltipProvider>
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <div {...cellStyles}>{truncatedContent}</div>
-        </TooltipTrigger>
-        <TooltipContent>
-          <P>{content}</P>
-        </TooltipContent>
-      </Tooltip>
-    </TooltipProvider>
+    <Popover>
+      <PopoverTrigger asChild>
+        <div className="cursor-pointer">
+          <TruncatedText
+            text={content}
+            lines={lines}
+            onTruncated={setIsTruncated}
+          />
+        </div>
+      </PopoverTrigger>
+      <PopoverContent className="max-w-sm">
+        <P>{content}</P>
+      </PopoverContent>
+    </Popover>
   );
 }

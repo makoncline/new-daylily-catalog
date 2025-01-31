@@ -9,6 +9,7 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
+import { TruncatedText } from "./truncated-text";
 
 export interface BreadcrumbItemType {
   title: string;
@@ -27,9 +28,13 @@ export function Breadcrumbs({ items }: BreadcrumbsProps) {
           <React.Fragment key={item.href ?? item.title}>
             <BreadcrumbItem>
               {item.href ? (
-                <BreadcrumbLink href={item.href}>{item.title}</BreadcrumbLink>
+                <BreadcrumbLink href={item.href} className="w-full max-w-40">
+                  <TruncatedText text={item.title} />
+                </BreadcrumbLink>
               ) : (
-                <BreadcrumbPage>{item.title}</BreadcrumbPage>
+                <BreadcrumbPage className="w-full max-w-40">
+                  <TruncatedText text={item.title} />
+                </BreadcrumbPage>
               )}
             </BreadcrumbItem>
             {index < items.length - 1 && <BreadcrumbSeparator />}

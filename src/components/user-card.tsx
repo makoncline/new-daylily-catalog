@@ -1,6 +1,6 @@
 "use client";
 
-import { ImageIcon, MapPin, Flower2, ListChecks, Clock } from "lucide-react";
+import { MapPin, Flower2, ListChecks, Clock } from "lucide-react";
 import { OptimizedImage } from "@/components/optimized-image";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -16,25 +16,8 @@ import { type RouterOutputs } from "@/trpc/react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { H3, Muted } from "@/components/typography";
 import { ImagePlaceholder } from "./image-placeholder";
-
-function UserImagesPreview({ images }: { images: { url: string }[] }) {
-  if (!images.length) return null;
-
-  return (
-    <div className="grid max-w-[300px] grid-cols-2 gap-2 p-2">
-      {images.map((image, i) => (
-        <div key={i} className="aspect-square overflow-hidden rounded-md">
-          <OptimizedImage
-            src={image.url}
-            alt={`Profile image ${i + 1}`}
-            size="thumbnail"
-            className="h-full w-full object-cover"
-          />
-        </div>
-      ))}
-    </div>
-  );
-}
+import { ImagePopover } from "@/components/image-popover";
+import { LocationBadge } from "./profile/profile-badges";
 
 function UserListsPreview({
   lists,
@@ -157,23 +140,14 @@ export function UserCard({
         {/* Images Preview Tooltip */}
         {images.length > 1 && (
           <div className="absolute bottom-2 left-2">
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger>
-                  <div className="cursor-pointer">
-                    <Badge
-                      variant="secondary"
-                      className="bg-background/80 backdrop-blur-sm"
-                    >
-                      <ImageIcon className="h-3 w-3" />
-                    </Badge>
-                  </div>
-                </TooltipTrigger>
-                <TooltipContent side="right" align="start" className="p-0">
-                  <UserImagesPreview images={images} />
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
+            <ImagePopover
+              images={images.map((img, i) => ({
+                url: img.url,
+                id: `user-image-${i}`,
+              }))}
+              size="sm"
+              className="bg-background/80 backdrop-blur-sm"
+            />
           </div>
         )}
       </div>
@@ -183,26 +157,17 @@ export function UserCard({
           <div className="flex flex-1 flex-col justify-between gap-4">
             <div className="space-y-2">
               <H3>
-                <TruncatedText text={gardenName} maxLength={30} />
+                <TruncatedText text={gardenName} lines={1} />
               </H3>
 
-              {location && (
-                <Badge
-                  variant="secondary"
-                  className="inline-flex items-center gap-1"
-                >
-                  <MapPin className="h-3 w-3" />
-                  <TruncatedText text={location} maxLength={35} />
-                </Badge>
-              )}
+              {location && <LocationBadge location={location} />}
 
               <Muted className="text-xs">{memberSinceLabel}</Muted>
 
               {description && (
                 <TruncatedText
                   text={description}
-                  maxLength={100}
-                  as="p"
+                  lines={3}
                   className="text-sm text-muted-foreground"
                 />
               )}

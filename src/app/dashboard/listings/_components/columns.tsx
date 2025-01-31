@@ -5,20 +5,14 @@ import {
   TooltipCell,
   DataTableRowActions,
 } from "@/components/data-table";
-import { ImagePreviewTooltip } from "@/components/data-table/image-preview-tooltip";
 import { LISTING_TABLE_COLUMN_NAMES } from "@/config/constants";
-import { formatPrice } from "@/lib/utils";
+import { formatPrice, formatAhsListingSummary } from "@/lib/utils";
 import { type Row, type ColumnDef } from "@tanstack/react-table";
 import { TruncatedListBadge } from "@/components/data-table/truncated-list-badge";
-import { Image } from "lucide-react";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+import { Image as ImageIcon } from "lucide-react";
 import { type RouterOutputs } from "@/trpc/react";
 import { Badge } from "@/components/ui/badge";
+import { TableImagePreview } from "@/components/data-table/table-image-preview";
 
 type ListingData = RouterOutputs["listing"]["list"][number];
 type ListingRow = Row<ListingData>;
@@ -44,7 +38,7 @@ export const baseListingColumns: ColumnDef<ListingData>[] = [
     ),
     cell: ({ row }) => {
       const value = getStringValue(row, "title");
-      return <TooltipCell content={value} />;
+      return <TooltipCell content={value} lines={3} />;
     },
     enableSorting: true,
     enableHiding: false,
@@ -58,19 +52,10 @@ export const baseListingColumns: ColumnDef<ListingData>[] = [
       <DataTableColumnHeader
         column={column}
         title={
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <span className="flex items-center">
-                  <Image
-                    className="h-4 w-4 text-muted-foreground"
-                    aria-label="Sort by images"
-                  />
-                </span>
-              </TooltipTrigger>
-              <TooltipContent>Sort by images</TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
+          <span className="flex items-center gap-2">
+            <ImageIcon className="h-4 w-4" />
+            <span className="sr-only">Images</span>
+          </span>
         }
       />
     ),
@@ -78,7 +63,7 @@ export const baseListingColumns: ColumnDef<ListingData>[] = [
       const images = row.original.images;
       const ahsImageUrl = row.original.ahsListing?.ahsImageUrl;
       if (!images?.length && !ahsImageUrl) return null;
-      return <ImagePreviewTooltip images={images} ahsImageUrl={ahsImageUrl} />;
+      return <TableImagePreview images={images} ahsImageUrl={ahsImageUrl} />;
     },
     enableSorting: true,
     enableHiding: true,
@@ -110,7 +95,7 @@ export const baseListingColumns: ColumnDef<ListingData>[] = [
       />
     ),
     cell: ({ row }) => (
-      <TooltipCell content={getStringValue(row, "description")} />
+      <TooltipCell content={getStringValue(row, "description")} lines={3} />
     ),
     enableSorting: true,
     enableHiding: true,
@@ -179,6 +164,19 @@ export const baseListingColumns: ColumnDef<ListingData>[] = [
   },
 
   // AHS Listing columns
+  {
+    id: "summary",
+    accessorFn: (row) => formatAhsListingSummary(row.ahsListing),
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title="Summary" />
+    ),
+    cell: ({ row }) => {
+      const value: string | null = row.getValue("summary");
+      return <TooltipCell content={value} lines={3} />;
+    },
+    enableSorting: true,
+    enableHiding: true,
+  },
   {
     id: "hybridizer",
     accessorKey: "ahsListing.hybridizer",
@@ -327,7 +325,7 @@ export const baseListingColumns: ColumnDef<ListingData>[] = [
     ),
     cell: ({ row }) => {
       const value = row.original.ahsListing?.color;
-      return <TooltipCell content={value ?? null} />;
+      return <TooltipCell content={value ?? null} lines={3} />;
     },
     enableSorting: true,
     enableHiding: true,

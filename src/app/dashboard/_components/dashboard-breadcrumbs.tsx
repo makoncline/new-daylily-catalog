@@ -1,7 +1,7 @@
 "use client";
 
 import { usePathname } from "next/navigation";
-import { Breadcrumbs, type BreadcrumbItemType } from "@/components/breadcrumbs";
+import { Breadcrumbs } from "@/components/breadcrumbs";
 import { api } from "@/trpc/react";
 
 export function DashboardBreadcrumbs() {
@@ -12,23 +12,24 @@ export function DashboardBreadcrumbs() {
     { enabled: pathname.startsWith("/dashboard/lists/") && !!listId },
   );
 
-  // Generate breadcrumb items based on the current path
-  const items: BreadcrumbItemType[] = [
-    { title: "Dashboard", href: "/dashboard" },
-  ];
-
-  if (pathname === "/dashboard/listings") {
-    items.push({ title: "Listings" });
-  } else if (pathname === "/dashboard/lists") {
-    items.push({ title: "Lists" });
-  } else if (pathname === "/dashboard/profile") {
-    items.push({ title: "Profile" });
-  } else if (pathname.startsWith("/dashboard/lists/")) {
-    items.push(
-      { title: "Lists", href: "/dashboard/lists" },
-      { title: list?.title ?? "Loading..." },
-    );
-  }
-
-  return <Breadcrumbs items={items} />;
+  return (
+    <Breadcrumbs
+      items={[
+        { title: "Home", href: "/" },
+        { title: "Dashboard", href: "/dashboard" },
+        ...(pathname === "/dashboard/listings"
+          ? [{ title: "Listings" }]
+          : pathname === "/dashboard/lists"
+            ? [{ title: "Lists" }]
+            : pathname === "/dashboard/profile"
+              ? [{ title: "Profile" }]
+              : pathname.startsWith("/dashboard/lists/")
+                ? [
+                    { title: "Lists", href: "/dashboard/lists" },
+                    { title: list?.title ?? "Loading..." },
+                  ]
+                : []),
+      ]}
+    />
+  );
 }

@@ -43,18 +43,35 @@ function ListingsTableToolbar({
   }));
 
   return (
-    <div className="flex items-center justify-between">
-      <div className="flex flex-1 items-center space-x-2">
-        <DataTableGlobalFilter table={table} placeholder="Filter listings..." />
-        <DataTableFilterReset table={table} />
-        <DataTableFacetedFilter
-          column={listsColumn}
-          title="Lists"
-          options={listOptions}
-          table={table}
-        />
-        <div className="flex-1" />
+    <div className="flex flex-col gap-2">
+      <div className="flex items-center justify-end sm:hidden">
         <DataTableViewOptions table={table} />
+      </div>
+
+      <div className="flex flex-1 flex-col items-start gap-2 sm:flex-row sm:items-center">
+        <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
+          <div className="flex items-center gap-2">
+            <DataTableGlobalFilter
+              table={table}
+              placeholder="Filter listings..."
+            />
+            <DataTableFacetedFilter
+              column={listsColumn}
+              title="Lists"
+              options={listOptions}
+              table={table}
+            />
+          </div>
+
+          <div className="flex items-center gap-2">
+            <DataTableFilterReset table={table} />
+          </div>
+        </div>
+
+        <div className="hidden flex-1 sm:block" />
+        <div className="hidden sm:block">
+          <DataTableViewOptions table={table} />
+        </div>
       </div>
     </div>
   );

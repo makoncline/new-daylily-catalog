@@ -50,7 +50,7 @@ export function DataTablePagination<TData>({
           {numSelected} of {totalCount} row(s) selected.
         </Muted>
       )}
-      <div className="flex flex-col items-center gap-4 sm:flex-row sm:gap-6 lg:gap-8">
+      <div className="flex flex-col items-end gap-4 sm:flex-row sm:gap-6 lg:gap-8">
         <div className="flex items-center space-x-2">
           <P className="text-sm font-medium">Rows per page</P>
           <Select

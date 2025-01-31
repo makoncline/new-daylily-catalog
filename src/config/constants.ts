@@ -5,9 +5,9 @@ export const UPLOAD_CONFIG = {
 } as const;
 
 export const TABLE_CONFIG = {
-  CELL_TEXT_LENGTH: 50, // Maximum characters to show in table cells before truncating
   MIN_COLUMN_WIDTH: 100,
   MAX_COLUMN_WIDTH: 300,
+  ROW_HEIGHT: 24, // h-12 = 3rem = 48px
   PAGINATION: {
     DEFAULT_PAGE_INDEX: 0,
     DEFAULT_PAGE_SIZE: 12,

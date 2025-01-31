@@ -98,7 +98,10 @@ export function DataTable<TData>({ table }: DataTableProps<TData>) {
                         leftPinnedColumns.includes(cell.column.id),
                       )
                       .map((cell) => (
-                        <TableCell key={cell.id} className="h-12">
+                        <TableCell
+                          key={cell.id}
+                          className="h-20 min-w-24 max-w-52"
+                        >
                           {flexRender(
                             cell.column.columnDef.cell,
                             cell.getContext(),
@@ -168,7 +171,10 @@ export function DataTable<TData>({ table }: DataTableProps<TData>) {
                         !rightPinnedColumns.includes(cell.column.id),
                     )
                     .map((cell) => (
-                      <TableCell key={cell.id} className="h-12">
+                      <TableCell
+                        key={cell.id}
+                        className="h-20 min-w-24 max-w-96"
+                      >
                         {flexRender(
                           cell.column.columnDef.cell,
                           cell.getContext(),
@@ -232,7 +238,7 @@ export function DataTable<TData>({ table }: DataTableProps<TData>) {
                         rightPinnedColumns.includes(cell.column.id),
                       )
                       .map((cell) => (
-                        <TableCell key={cell.id} className="h-12">
+                        <TableCell key={cell.id} className="h-20 max-w-96">
                           {flexRender(
                             cell.column.columnDef.cell,
                             cell.getContext(),
