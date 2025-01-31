@@ -54,36 +54,29 @@ export function ImagePopover({
       </PopoverTrigger>
       <PopoverContent
         side="right"
+        align="start"
+        sideOffset={8}
         className={cn(
-          "w-fit p-2",
-          !isSingleImage && "flex max-w-[320px] flex-wrap gap-2",
+          "w-fit p-2 shadow-lg",
+          !isSingleImage ? "grid grid-cols-2 gap-2" : "",
         )}
       >
         {images.map((image) => (
           <div
             key={image.id}
             className={cn(
-              "overflow-hidden rounded-md border",
-              isSingleImage ? "aspect-square w-[300px]" : "h-[100px] w-[100px]",
+              "overflow-hidden rounded-md",
+              isSingleImage
+                ? "aspect-square w-[300px]"
+                : "aspect-square w-[100px]",
             )}
           >
-            {image.url.includes("cloudflareimages.com") ? (
-              <OptimizedImage
-                src={image.url}
-                alt="Image preview"
-                size="thumbnail"
-                className="h-full w-full"
-              />
-            ) : (
-              <Image
-                src={image.url}
-                alt="Image preview"
-                width={isSingleImage ? 300 : 100}
-                height={isSingleImage ? 300 : 100}
-                className="h-full w-full object-cover"
-                unoptimized
-              />
-            )}
+            <OptimizedImage
+              src={image.url}
+              alt="Image preview"
+              size="thumbnail"
+              className="h-full w-full object-cover"
+            />
           </div>
         ))}
       </PopoverContent>

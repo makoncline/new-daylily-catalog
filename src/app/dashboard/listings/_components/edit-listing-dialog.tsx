@@ -57,7 +57,7 @@ export function EditListingDialog() {
 
   return (
     <Dialog open={isOpen} onOpenChange={handleOpenChange}>
-      <DialogContent className="h-[calc(100%+2rem)] max-w-[calc(100%+4rem)] overflow-y-auto">
+      <DialogContent className="max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Edit Listing</DialogTitle>
           <P className="text-sm text-muted-foreground">

@@ -13,10 +13,7 @@ import { Muted } from "@/components/typography";
 
 export function LocationBadge({ location }: { location: string }) {
   return (
-    <Badge
-      variant="secondary"
-      className="inline-flex w-full max-w-52 items-center gap-1"
-    >
+    <Badge variant="secondary" className="max-w-52 items-center gap-1">
       <MapPin className="h-3 w-3" />
       <TruncatedText text={location} />
     </Badge>
