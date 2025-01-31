@@ -1,6 +1,6 @@
 "use client";
 
-import { MapPin, Flower2, ListChecks, Clock } from "lucide-react";
+import { Flower2, ListChecks, Clock } from "lucide-react";
 import { OptimizedImage } from "@/components/optimized-image";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";

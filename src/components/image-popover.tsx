@@ -8,7 +8,6 @@ import {
 } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
 import { OptimizedImage } from "@/components/optimized-image";
-import Image from "next/image";
 import { cn } from "@/lib/utils";
 
 interface ImagePopoverProps {
