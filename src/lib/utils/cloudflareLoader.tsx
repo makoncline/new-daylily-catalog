@@ -1,9 +1,14 @@
 import { IMAGE_CONFIG } from "@/components/optimized-image";
 import { env } from "@/env";
 
-// Helper function for metadata image optimization
-
+// Helper function for metadata image optimization that handles both public and external images
 export const getOptimizedMetaImageUrl = (src: string) => {
+  // If the image is from our public folder (starts with /assets), return as is
+  if (src.startsWith("/assets")) {
+    return src;
+  }
+
+  // Otherwise, optimize through Cloudflare
   return cloudflareLoader({
     src,
     width: 1200,
@@ -12,6 +17,7 @@ export const getOptimizedMetaImageUrl = (src: string) => {
     fit: "cover",
   });
 };
+
 // Cloudflare image loader following their recommended pattern
 export const cloudflareLoader = ({
   src,
