@@ -337,13 +337,19 @@ export const publicRouter = createTRPCRouter({
           if (batch.length < 100) {
             hasMore = false;
           } else if (batch.length > 0) {
-            cursor = batch[batch.length - 1]?.id;
+            const lastListing = batch[batch.length - 1];
+            cursor = lastListing?.id;
           }
 
           allListings = [...allListings, ...batch];
         }
 
-        return allListings.map((listing) => ({
+        // Deduplicate listings by ID
+        const uniqueListings = Array.from(
+          new Map(allListings.map((listing) => [listing.id, listing])).values(),
+        );
+
+        return uniqueListings.map((listing) => ({
           ...listing,
           images:
             listing.images.length === 0 && listing.ahsListing?.ahsImageUrl
