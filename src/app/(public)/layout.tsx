@@ -14,9 +14,6 @@ export default async function PublicLayout({
   return (
     <div className="flex min-h-svh flex-col">
       <header className="flex h-16 items-center border-b px-4">
-        <div className="flex-1">
-          <H1 className="text-xl">Daylily Catalog</H1>
-        </div>
         <PublicdNav />
       </header>
       <main className="flex-1">{children}</main>
