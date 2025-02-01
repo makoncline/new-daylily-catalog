@@ -31,7 +31,7 @@ export default function RootLayout({
           </html>
         </TRPCReactProvider>
       </ClerkProvider>
-      <SpeedInsights />
+      {/* <SpeedInsights /> */}
     </>
   );
 }

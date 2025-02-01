@@ -54,6 +54,7 @@ export const useViewListing = () => {
 
 export function ViewListingDialog() {
   const { viewingId, closeViewListing } = useViewListing();
+  console.log("viewingId", viewingId);
   const isOpen = !!viewingId;
 
   const handleOpenChange = (open: boolean) => {

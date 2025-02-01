@@ -8,6 +8,7 @@ import { IMAGES } from "@/lib/constants/images";
 import { METADATA_CONFIG } from "@/config/constants";
 import { getOptimizedMetaImageUrl } from "@/lib/utils/cloudflareLoader";
 import { Suspense } from "react";
+import { ViewListingDialog } from "@/components/view-listing-dialog";
 import {
   ProfileAndContentSkeleton,
   ListingsSectionSkeleton,
@@ -146,6 +147,9 @@ export default async function Page({ params }: PageProps) {
           />
         </Suspense>
       </div>
+
+      {/* Shared Dialog */}
+      <ViewListingDialog />
     </MainContent>
   );
 }
