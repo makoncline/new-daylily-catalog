@@ -7,8 +7,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { useSearchParams, useRouter } from "next/navigation";
-import { Suspense } from "react";
+import { useSearchParams } from "next/navigation";
+import { Suspense, useRef } from "react";
 import { ErrorBoundary } from "react-error-boundary";
 import { ErrorFallback } from "@/components/error-fallback";
 import { reportError } from "@/lib/error-utils";
@@ -17,23 +17,25 @@ import {
   ListingDisplaySkeleton,
 } from "@/components/listing-display";
 import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
+import { type RouterOutputs } from "@/trpc/react";
+
+type Listing = RouterOutputs["public"]["getListings"][number];
 
 export const useViewListing = () => {
-  const router = useRouter();
   const searchParams = useSearchParams();
+  const listingRef = useRef<Listing | null>(null);
 
   const setViewingId = (id: string | null) => {
     try {
-      const url = new URL(window.location.href);
+      const params = new URLSearchParams(searchParams.toString());
 
       if (id) {
-        url.searchParams.set("viewing", id);
+        params.set("viewing", id);
       } else {
-        url.searchParams.delete("viewing");
+        params.delete("viewing");
       }
 
-      // Use replace instead of push to avoid history stack issues
-      router.replace(url.pathname + url.search, { scroll: false });
+      window.history.pushState(null, "", `?${params.toString()}`);
     } catch (error) {
       console.error("Failed to update URL:", error);
     }
@@ -42,10 +44,12 @@ export const useViewListing = () => {
   const getViewingId = () => searchParams.get("viewing");
 
   return {
-    viewListing: (id: string) => {
-      setViewingId(id);
+    viewListing: (listing: Listing) => {
+      listingRef.current = listing;
+      setViewingId(listing.id);
     },
     closeViewListing: () => {
+      listingRef.current = null;
       setViewingId(null);
     },
     viewingId: getViewingId(),
@@ -54,7 +58,6 @@ export const useViewListing = () => {
 
 export function ViewListingDialog() {
   const { viewingId, closeViewListing } = useViewListing();
-  console.log("viewingId", viewingId);
   const isOpen = !!viewingId;
 
   const handleOpenChange = (open: boolean) => {

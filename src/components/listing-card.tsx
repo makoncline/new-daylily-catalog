@@ -33,7 +33,7 @@ export function ListingCard({ listing, priority = false }: ListingCardProps) {
   return (
     <Card
       className="group flex h-full cursor-pointer flex-col overflow-hidden transition-all hover:border-primary"
-      onClick={() => viewListing(listing.id)}
+      onClick={() => viewListing(listing)}
     >
       <div className="relative">
         <div className="aspect-square">

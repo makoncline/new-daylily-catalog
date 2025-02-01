@@ -1,6 +1,6 @@
 "use client";
 
-import { api, type RouterOutputs } from "@/trpc/react";
+import { type RouterOutputs } from "@/trpc/react";
 import { type ColumnDef } from "@tanstack/react-table";
 import { useDataTable } from "@/hooks/use-data-table";
 import { DataTableLayout } from "@/components/data-table/data-table-layout";
@@ -10,14 +10,12 @@ import { ListingsToolbar } from "./listings-toolbar";
 import { NoResults } from "./no-results";
 import { H2 } from "@/components/typography";
 import { baseListingColumns } from "@/app/dashboard/listings/_components/columns";
-import { APP_CONFIG } from "@/config/constants";
 
 type Listing = RouterOutputs["public"]["getListings"][number];
 type Profile = RouterOutputs["public"]["getProfile"];
 type ProfileLists = NonNullable<Profile>["lists"];
 
 interface ListingsContentProps {
-  userSlugOrId: string;
   lists: ProfileLists;
   initialListings: RouterOutputs["public"]["getListings"];
 }
@@ -25,24 +23,11 @@ interface ListingsContentProps {
 const columns = [...baseListingColumns] as ColumnDef<Listing>[];
 
 export function ListingsContent({
-  userSlugOrId,
   lists,
   initialListings,
 }: ListingsContentProps) {
-  const [data] = api.public.getListings.useSuspenseQuery(
-    { userSlugOrId },
-    {
-      initialData: initialListings,
-      staleTime: APP_CONFIG.CACHE.PUBLIC_ROUTER.TTL_S * 1000,
-      refetchOnMount: false,
-      refetchOnWindowFocus: false,
-    },
-  );
-
-  const listings = data ?? initialListings;
-
   const table = useDataTable({
-    data: listings ?? [],
+    data: initialListings ?? [],
     columns,
     storageKey: "catalog-listings-table",
   });
@@ -51,7 +36,7 @@ export function ListingsContent({
   const listOptions = lists.map((list) => ({
     label: list.title,
     value: list.id,
-    count: listings?.filter((listing) =>
+    count: initialListings?.filter((listing) =>
       listing.lists.some(
         (listingList: { id: string }) => listingList.id === list.id,
       ),

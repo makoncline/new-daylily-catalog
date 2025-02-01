@@ -1,20 +1,18 @@
-import { api } from "@/trpc/server";
 import { MainContent } from "@/app/(public)/_components/main-content";
 import { PublicBreadcrumbs } from "@/app/(public)/_components/public-breadcrumbs";
-import { type Metadata } from "next/types";
 import { getUserAndListingIdsAndSlugs } from "@/server/db/getUserAndListingIdsAndSlugs";
-import { getBaseUrl } from "@/lib/utils/getBaseUrl";
-import { IMAGES } from "@/lib/constants/images";
-import { METADATA_CONFIG } from "@/config/constants";
-import { getOptimizedMetaImageUrl } from "@/lib/utils/cloudflareLoader";
-import { Suspense } from "react";
 import { ViewListingDialog } from "@/components/view-listing-dialog";
-import {
-  ProfileAndContentSkeleton,
-  ListingsSectionSkeleton,
-} from "./_components/catalog-detail-skeleton";
 import { ProfileContent } from "./_components/profile-content";
 import { ListingsContent } from "./_components/listings-content";
+import { unstable_cache } from "next/cache";
+import { getPublicProfile } from "@/server/db/getPublicProfile";
+import { getPublicListings } from "@/server/db/getPublicListings";
+import { Suspense } from "react";
+import { METADATA_CONFIG } from "@/config/constants";
+import { IMAGES } from "@/lib/constants/images";
+import { getOptimizedMetaImageUrl } from "@/lib/utils/cloudflareLoader";
+import { getBaseUrl } from "@/lib/utils/getBaseUrl";
+import { type Metadata } from "next";
 
 export const revalidate = 3600;
 export const dynamicParams = true;
@@ -34,20 +32,18 @@ export async function generateStaticParams() {
 }
 
 interface PageProps {
-  params: {
+  params: Promise<{
     userSlugOrId: string;
-  };
+  }>;
 }
 
 export async function generateMetadata({
   params,
 }: PageProps): Promise<Metadata> {
-  const { userSlugOrId } = params;
+  const { userSlugOrId } = await params;
   const url = getBaseUrl();
 
-  const profile = await api.public.getProfile({
-    userSlugOrId,
-  });
+  const profile = await getPublicProfile(userSlugOrId);
 
   if (!profile) {
     return {
@@ -119,10 +115,24 @@ export async function generateMetadata({
 }
 
 export default async function Page({ params }: PageProps) {
-  const { userSlugOrId } = params;
+  const { userSlugOrId } = await params;
 
-  const initialProfile = await api.public.getProfile({ userSlugOrId });
-  const initialListings = await api.public.getListings({ userSlugOrId });
+  const getProfile = unstable_cache(
+    async () => getPublicProfile(userSlugOrId),
+    ["profile", userSlugOrId],
+    { revalidate: 3600 },
+  );
+
+  const getListings = unstable_cache(
+    async () => getPublicListings(userSlugOrId),
+    ["listings", userSlugOrId],
+    { revalidate: 3600 },
+  );
+
+  const [initialProfile, initialListings] = await Promise.all([
+    getProfile(),
+    getListings(),
+  ]);
 
   return (
     <MainContent>
@@ -130,18 +140,12 @@ export default async function Page({ params }: PageProps) {
         <PublicBreadcrumbs />
       </div>
       <div className="space-y-6">
-        {/* Profile Section */}
-        <Suspense fallback={<ProfileAndContentSkeleton />}>
-          <ProfileContent
-            userSlugOrId={userSlugOrId}
-            initialProfile={initialProfile}
-          />
+        <Suspense>
+          <ProfileContent initialProfile={initialProfile} />
         </Suspense>
 
-        {/* Listings Section */}
-        <Suspense fallback={<ListingsSectionSkeleton />}>
+        <Suspense>
           <ListingsContent
-            userSlugOrId={userSlugOrId}
             lists={initialProfile.lists}
             initialListings={initialListings}
           />
@@ -149,7 +153,9 @@ export default async function Page({ params }: PageProps) {
       </div>
 
       {/* Shared Dialog */}
-      <ViewListingDialog />
+      <Suspense>
+        <ViewListingDialog />
+      </Suspense>
     </MainContent>
   );
 }

@@ -27,11 +27,11 @@ export default function RootLayout({
               <TooltipProvider>{children}</TooltipProvider>
               <Toaster />
               <ClerkUserProfileDialog />
+              <SpeedInsights />
             </body>
           </html>
         </TRPCReactProvider>
       </ClerkProvider>
-      {/* <SpeedInsights /> */}
     </>
   );
 }
