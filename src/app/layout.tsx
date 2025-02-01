@@ -7,6 +7,7 @@ import { TRPCReactProvider } from "@/trpc/react";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@radix-ui/react-tooltip";
 import { ClerkUserProfileDialog } from "@/components/clerk-user-profile-dialog";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 
 export const metadata: Metadata = {
   title: "Daylily Catalog",
@@ -18,16 +19,19 @@ export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <ClerkProvider>
-      <TRPCReactProvider>
-        <html lang="en" className={`${GeistSans.variable}`}>
-          <body className="flex min-h-svh flex-col">
-            <TooltipProvider>{children}</TooltipProvider>
-            <Toaster />
-            <ClerkUserProfileDialog />
-          </body>
-        </html>
-      </TRPCReactProvider>
-    </ClerkProvider>
+    <>
+      <ClerkProvider>
+        <TRPCReactProvider>
+          <html lang="en" className={`${GeistSans.variable}`}>
+            <body className="flex min-h-svh flex-col">
+              <TooltipProvider>{children}</TooltipProvider>
+              <Toaster />
+              <ClerkUserProfileDialog />
+            </body>
+          </html>
+        </TRPCReactProvider>
+      </ClerkProvider>
+      <SpeedInsights />
+    </>
   );
 }
