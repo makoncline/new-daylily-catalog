@@ -154,7 +154,7 @@ export default async function Page({ params }: PageProps) {
 
       {/* Shared Dialog */}
       <Suspense>
-        <ViewListingDialog />
+        <ViewListingDialog listings={initialListings} />
       </Suspense>
     </MainContent>
   );

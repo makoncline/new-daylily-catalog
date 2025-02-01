@@ -224,11 +224,11 @@ export default async function Page({ params }: PageProps) {
   return (
     <MainContent>
       <div className="mx-auto w-full max-w-lg">
-        <div className="mb-6">
+        <div className="space-y-6">
           <PublicBreadcrumbs />
         </div>
         <Suspense fallback={<ListingDisplaySkeleton />}>
-          <ListingDisplay listingId={listing.id} hideLink />
+          <ListingDisplay listing={listing} />
         </Suspense>
       </div>
     </MainContent>

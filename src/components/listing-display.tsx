@@ -1,6 +1,5 @@
 "use client";
 
-import { api } from "@/trpc/react";
 import { ImageGallery } from "@/components/image-gallery";
 import { AhsListingDisplay } from "@/components/ahs-listing-display";
 import { formatPrice } from "@/lib/utils";
@@ -11,17 +10,15 @@ import { H2, Muted, P } from "@/components/typography";
 import { ImagePlaceholder } from "./image-placeholder";
 import { ExternalLink } from "lucide-react";
 import Link from "next/link";
+import { type RouterOutputs } from "@/trpc/react";
 
-interface ListingDisplayProps {
-  listingId: string;
-  hideLink?: boolean;
+type Listing = RouterOutputs["public"]["getListings"][number];
+
+export interface ListingDisplayProps {
+  listing: Listing;
 }
 
-export function ListingDisplay({ listingId, hideLink }: ListingDisplayProps) {
-  const [listing] = api.public.getListingById.useSuspenseQuery({
-    id: listingId,
-  });
-
+export function ListingDisplay({ listing }: ListingDisplayProps) {
   return (
     <div className="space-y-8">
       {listing.images.length > 0 ? (
@@ -32,9 +29,9 @@ export function ListingDisplay({ listingId, hideLink }: ListingDisplayProps) {
       <div className="flex justify-between">
         <div>
           <div className="flex items-center gap-4">
-            <H2 className="border-b-0">{listing.title}</H2>
-            {!hideLink && listing.slug && (
-              <Link href={`/${listing.userSlug}/${listing.slug}`}>
+            <H2>{listing.title}</H2>
+            {listing.slug && (
+              <Link href={`/${listing.user.profile?.slug}/${listing.slug}`}>
                 <ExternalLink className="h-5 w-5 text-muted-foreground transition-colors hover:text-foreground" />
                 <span className="sr-only">View Listing Page</span>
               </Link>

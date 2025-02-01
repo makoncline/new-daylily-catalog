@@ -8,7 +8,7 @@ import { IMAGES } from "@/lib/constants/images";
 import { METADATA_CONFIG } from "@/config/constants";
 import { getOptimizedMetaImageUrl } from "@/lib/utils/cloudflareLoader";
 import {
-  CatalogsLoading,
+  CatalogsSkeleton,
   CatalogsPageClient,
 } from "./_components/catalogs-page-client";
 
@@ -69,7 +69,7 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function CatalogsPage() {
-  const profiles = await getPublicProfiles();
+  const catalogs = await getPublicProfiles();
 
   return (
     <MainContent>
@@ -77,8 +77,8 @@ export default async function CatalogsPage() {
         heading="Daylily Catalogs"
         text="Discover beautiful daylily collections from growers across the country."
       />
-      <Suspense fallback={<CatalogsLoading />}>
-        <CatalogsPageClient initialProfiles={profiles} />
+      <Suspense fallback={<CatalogsSkeleton />}>
+        <CatalogsPageClient catalogs={catalogs} />
       </Suspense>
     </MainContent>
   );

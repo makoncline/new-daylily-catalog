@@ -36,19 +36,19 @@ export function AhsListingDisplay({
 
   return (
     <div className={className}>
-      <div className="mb-4">
-        <H3 className="flex items-center gap-2 text-xl">
-          {ahsListing.ahsImageUrl && (
-            <ImagePopover
-              images={[{ url: ahsListing.ahsImageUrl, id: "ahs-image" }]}
-              size="sm"
-            />
-          )}
-          {ahsListing.name}{" "}
-          <span className="text-base font-normal text-muted-foreground">
+      <div className="mb-4 flex items-center gap-2">
+        {ahsListing.ahsImageUrl && (
+          <ImagePopover
+            images={[{ url: ahsListing.ahsImageUrl, id: "ahs-image" }]}
+            size="sm"
+          />
+        )}
+        <div className="flex flex-col">
+          <H3 className="text-[clamp(12px,_5vw,_24px)]">{ahsListing.name}</H3>
+          <Muted>
             ({ahsListing.hybridizer}, {ahsListing.year})
-          </span>
-        </H3>
+          </Muted>
+        </div>
       </div>
 
       <div className="space-y-4">

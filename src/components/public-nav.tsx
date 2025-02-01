@@ -19,38 +19,40 @@ function DashboardButton({ className }: { className?: string }) {
 
   if (!isMounted) {
     return (
-      <Button className={className} disabled>
+      <Button className={className} disabled size="sm">
         {text}
       </Button>
     );
   }
 
   return (
-    <Button className={className} asChild>
-      <div>
-        <SignedIn>
+    <>
+      <SignedIn>
+        <Button className={className} asChild size="sm">
           <Link href="/dashboard">{text}</Link>
-        </SignedIn>
-        <SignedOut>
+        </Button>
+      </SignedIn>
+      <SignedOut>
+        <Button className={className} size="sm">
           <SignInButton mode="modal" forceRedirectUrl="/dashboard">
             {text}
           </SignInButton>
-        </SignedOut>
-      </div>
-    </Button>
+        </Button>
+      </SignedOut>
+    </>
   );
 }
 
 export function PublicdNav() {
   return (
-    <nav className="flex w-full items-center justify-between px-4 py-3">
+    <nav className="flex w-full items-center justify-between py-3">
       <Link href="/" className="flex items-center gap-2 hover:opacity-90">
         <Flower2 className="h-5 w-5" />
-        <Small>Daylily Catalog</Small>
+        <Small className="hidden sm:block">Daylily Catalog</Small>
       </Link>
 
       <div className="flex items-center gap-4">
-        <Button variant="ghost" asChild>
+        <Button variant="ghost" asChild size="sm">
           <Link href="/catalogs">Catalogs</Link>
         </Button>
 

@@ -8,14 +8,11 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { useSearchParams } from "next/navigation";
-import { Suspense, useRef } from "react";
+import { useRef } from "react";
 import { ErrorBoundary } from "react-error-boundary";
 import { ErrorFallback } from "@/components/error-fallback";
 import { reportError } from "@/lib/error-utils";
-import {
-  ListingDisplay,
-  ListingDisplaySkeleton,
-} from "@/components/listing-display";
+import { ListingDisplay } from "@/components/listing-display";
 import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
 import { type RouterOutputs } from "@/trpc/react";
 
@@ -56,9 +53,17 @@ export const useViewListing = () => {
   };
 };
 
-export function ViewListingDialog() {
+interface ViewListingDialogProps {
+  listings: Listing[];
+}
+
+export function ViewListingDialog({ listings }: ViewListingDialogProps) {
   const { viewingId, closeViewListing } = useViewListing();
   const isOpen = !!viewingId;
+
+  const currentListing = viewingId
+    ? listings.find((listing) => listing.id === viewingId)
+    : null;
 
   const handleOpenChange = (open: boolean) => {
     if (!open) {
@@ -79,9 +84,11 @@ export function ViewListingDialog() {
           fallback={<ErrorFallback resetErrorBoundary={closeViewListing} />}
           onError={(error) => reportError({ error })}
         >
-          <Suspense fallback={<ListingDisplaySkeleton />}>
-            {viewingId && <ListingDisplay listingId={viewingId} />}
-          </Suspense>
+          {currentListing ? (
+            <ListingDisplay listing={currentListing} />
+          ) : (
+            <div className="py-4 text-center">Listing not found</div>
+          )}
         </ErrorBoundary>
       </DialogContent>
     </Dialog>
