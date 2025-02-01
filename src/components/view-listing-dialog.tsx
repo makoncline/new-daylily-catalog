@@ -11,7 +11,7 @@ import { useSearchParams, useRouter } from "next/navigation";
 import { Suspense } from "react";
 import { ErrorBoundary } from "react-error-boundary";
 import { ErrorFallback } from "@/components/error-fallback";
-import { logError } from "@/lib/error-utils";
+import { reportError } from "@/lib/error-utils";
 import {
   ListingDisplay,
   ListingDisplaySkeleton,
@@ -73,7 +73,7 @@ export function ViewListingDialog() {
         </VisuallyHidden>
         <ErrorBoundary
           fallback={<ErrorFallback resetErrorBoundary={closeViewListing} />}
-          onError={logError}
+          onError={(error) => reportError({ error })}
         >
           <Suspense fallback={<ListingDisplaySkeleton />}>
             {viewingId && <ListingDisplay listingId={viewingId} />}

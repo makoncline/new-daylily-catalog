@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/dialog";
 import { ErrorBoundary } from "react-error-boundary";
 import { ErrorFallback } from "@/components/error-fallback";
-import { logError } from "@/lib/error-utils";
+import { reportError } from "@/lib/error-utils";
 import { ListForm } from "@/components/forms/list-form";
 import { ListFormSkeleton } from "@/components/forms/list-form-skeleton";
 
@@ -72,7 +72,7 @@ export function EditListDialog() {
           {editingId && (
             <ErrorBoundary
               fallback={<ErrorFallback resetErrorBoundary={closeEditList} />}
-              onError={logError}
+              onError={(error) => reportError({ error })}
             >
               <Suspense fallback={<ListFormSkeleton />}>
                 <ListForm

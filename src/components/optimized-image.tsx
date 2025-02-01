@@ -3,7 +3,7 @@
 import * as React from "react";
 import Image from "next/image";
 import { cn } from "@/lib/utils";
-import { logError } from "@/lib/error-utils";
+import { reportError } from "@/lib/error-utils";
 import { cloudflareLoader } from "@/lib/utils/cloudflareLoader";
 
 // Image configuration
@@ -118,11 +118,9 @@ export function OptimizedImage({
         },
       );
 
-      logError(cfError, {
-        componentStack: `
-          at OptimizedImage
-          at Image (${src})
-        `,
+      reportError({
+        error: cfError,
+        context: { message: `at OptimizedImage at Image (${src})` },
       });
     }
   }, [transformError, src, dimension, size, fit]);

@@ -7,9 +7,9 @@ import { ListsSectionSkeleton } from "./lists-section";
 import { DataTableLayoutSkeleton } from "@/components/data-table/data-table-layout";
 import { EditorSkeleton } from "@/components/editor";
 
-export function CatalogDetailSkeleton() {
+export function ProfileAndContentSkeleton() {
   return (
-    <div className="space-y-6">
+    <>
       {/* Profile and Images Grid */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-12">
         {/* Profile Section */}
@@ -38,9 +38,19 @@ export function CatalogDetailSkeleton() {
 
       {/* Lists Section */}
       <ListsSectionSkeleton />
+    </>
+  );
+}
 
-      {/* Listings Section */}
-      <DataTableLayoutSkeleton />
+export function ListingsSectionSkeleton() {
+  return <DataTableLayoutSkeleton />;
+}
+
+export function CatalogDetailSkeleton() {
+  return (
+    <div className="space-y-6">
+      <ProfileAndContentSkeleton />
+      <ListingsSectionSkeleton />
     </div>
   );
 }

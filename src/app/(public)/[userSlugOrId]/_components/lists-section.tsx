@@ -1,69 +1,41 @@
 "use client";
 
+import { H2 } from "@/components/typography";
 import { type RouterOutputs } from "@/trpc/react";
-import { type Table } from "@tanstack/react-table";
-import { Card, CardHeader, CardContent, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
-import { H2, P } from "@/components/typography";
 
-type Listing = RouterOutputs["public"]["getListings"][number];
-type List = RouterOutputs["public"]["getProfile"]["lists"][number];
+type Profile = RouterOutputs["public"]["getProfile"];
 
 interface ListsSectionProps {
-  lists: List[];
-  table: Table<Listing>;
+  lists: NonNullable<Profile>["lists"];
 }
 
-export function ListsSection({ lists, table }: ListsSectionProps) {
-  if (!lists?.length) return null;
-
-  const listColumn = table.getColumn("lists");
-  if (!listColumn) return null;
+export function ListsSection({ lists }: ListsSectionProps) {
+  if (!lists.length) return null;
 
   return (
-    <div id="lists" className="space-y-6">
+    <div className="space-y-4">
       <H2 className="text-2xl">Lists</H2>
-      <div className="grid gap-4 sm:grid-cols-2">
-        {lists.map((list) => {
-          const isSelected = (
-            listColumn.getFilterValue() as string[]
-          )?.includes(list.id);
-
-          return (
-            <Card
-              key={list.id}
-              className={cn(
-                "group cursor-pointer transition-all hover:shadow-md",
-                isSelected && "bg-muted",
-              )}
-              onClick={() => {
-                if (isSelected) {
-                  listColumn.setFilterValue([]);
-                } else {
-                  listColumn.setFilterValue([list.id]);
-                }
-              }}
-            >
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
-                <CardTitle className="text-lg font-semibold group-hover:text-primary">
-                  {list.title}
-                </CardTitle>
-                <Badge variant="secondary" className="h-7">
-                  {list.listingCount} listings
-                </Badge>
-              </CardHeader>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        {lists.map((list) => (
+          <div
+            key={list.id}
+            className="rounded-lg border bg-card p-4 text-card-foreground shadow-sm"
+          >
+            <div className="space-y-2">
+              <h3 className="font-semibold">{list.title}</h3>
               {list.description && (
-                <CardContent>
-                  <P className="line-clamp-2 leading-relaxed text-muted-foreground">
-                    {list.description}
-                  </P>
-                </CardContent>
+                <p className="text-sm text-muted-foreground">
+                  {list.description}
+                </p>
               )}
-            </Card>
-          );
-        })}
+              <p className="text-sm text-muted-foreground">
+                {list.listingCount}{" "}
+                {list.listingCount === 1 ? "listing" : "listings"}
+              </p>
+            </div>
+          </div>
+        ))}
       </div>
     </div>
   );

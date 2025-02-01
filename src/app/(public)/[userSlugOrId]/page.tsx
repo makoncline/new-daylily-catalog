@@ -1,6 +1,5 @@
 import { api } from "@/trpc/server";
 import { MainContent } from "@/app/(public)/_components/main-content";
-import { CatalogDetailClient } from "./_components/catalog-detail-client";
 import { PublicBreadcrumbs } from "@/app/(public)/_components/public-breadcrumbs";
 import { type Metadata } from "next/types";
 import { getUserAndListingIdsAndSlugs } from "@/server/db/getUserAndListingIdsAndSlugs";
@@ -8,6 +7,13 @@ import { getBaseUrl } from "@/lib/utils/getBaseUrl";
 import { IMAGES } from "@/lib/constants/images";
 import { METADATA_CONFIG } from "@/config/constants";
 import { getOptimizedMetaImageUrl } from "@/lib/utils/cloudflareLoader";
+import { Suspense } from "react";
+import {
+  ProfileAndContentSkeleton,
+  ListingsSectionSkeleton,
+} from "./_components/catalog-detail-skeleton";
+import { ProfileContent } from "./_components/profile-content";
+import { ListingsContent } from "./_components/listings-content";
 
 export const revalidate = 3600;
 export const dynamicParams = true;
@@ -113,15 +119,33 @@ export async function generateMetadata({
 
 export default async function Page({ params }: PageProps) {
   const { userSlugOrId } = params;
-  void api.public.getProfile.prefetch({ userSlugOrId });
-  void api.public.getListings.prefetch({ userSlugOrId });
+
+  const initialProfile = await api.public.getProfile({ userSlugOrId });
+  const initialListings = await api.public.getListings({ userSlugOrId });
 
   return (
     <MainContent>
       <div className="mb-6">
         <PublicBreadcrumbs />
       </div>
-      <CatalogDetailClient userSlugOrId={params.userSlugOrId} />
+      <div className="space-y-6">
+        {/* Profile Section */}
+        <Suspense fallback={<ProfileAndContentSkeleton />}>
+          <ProfileContent
+            userSlugOrId={userSlugOrId}
+            initialProfile={initialProfile}
+          />
+        </Suspense>
+
+        {/* Listings Section */}
+        <Suspense fallback={<ListingsSectionSkeleton />}>
+          <ListingsContent
+            userSlugOrId={userSlugOrId}
+            lists={initialProfile.lists}
+            initialListings={initialListings}
+          />
+        </Suspense>
+      </div>
     </MainContent>
   );
 }

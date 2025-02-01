@@ -27,10 +27,6 @@ export function reportError({
   // etc.
 }
 
-export function logError(error: Error, info: ReactErrorInfo) {
-  reportError({ error, errorInfo: info });
-}
-
 export function getErrorMessage(error: unknown): string {
   if (error instanceof Error) {
     return error.message;

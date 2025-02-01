@@ -1,7 +1,3 @@
-import {
-  CatalogsLoading,
-  CatalogsPageClient,
-} from "./_components/catalogs-page-client";
 import { MainContent } from "../_components/main-content";
 import { type Metadata } from "next";
 import { getPublicProfiles } from "@/server/db/getPublicProfiles";
@@ -11,6 +7,10 @@ import { getBaseUrl } from "@/lib/utils/getBaseUrl";
 import { IMAGES } from "@/lib/constants/images";
 import { METADATA_CONFIG } from "@/config/constants";
 import { getOptimizedMetaImageUrl } from "@/lib/utils/cloudflareLoader";
+import {
+  CatalogsLoading,
+  CatalogsPageClient,
+} from "./_components/catalogs-page-client";
 
 export const revalidate = 3600;
 

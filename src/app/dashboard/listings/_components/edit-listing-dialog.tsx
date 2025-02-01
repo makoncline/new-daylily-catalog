@@ -12,7 +12,7 @@ import { Suspense, useRef } from "react";
 import { ErrorBoundary } from "react-error-boundary";
 import { ListingFormSkeleton } from "@/components/forms/listing-form-skeleton";
 import { ErrorFallback } from "@/components/error-fallback";
-import { logError } from "@/lib/error-utils";
+import { reportError } from "@/lib/error-utils";
 import { P } from "@/components/typography";
 
 export const useEditListing = () => {
@@ -69,7 +69,7 @@ export function EditListingDialog() {
           {editingId && (
             <ErrorBoundary
               fallback={<ErrorFallback resetErrorBoundary={closeEditListing} />}
-              onError={logError}
+              onError={(error) => reportError({ error })}
             >
               <Suspense fallback={<ListingFormSkeleton />}>
                 <ListingForm
