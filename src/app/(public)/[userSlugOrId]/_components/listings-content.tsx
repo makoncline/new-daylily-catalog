@@ -10,6 +10,7 @@ import { ListingsToolbar } from "./listings-toolbar";
 import { NoResults } from "./no-results";
 import { H2 } from "@/components/typography";
 import { baseListingColumns } from "@/app/dashboard/listings/_components/columns";
+import { ListsSection } from "./lists-section";
 
 type Listing = RouterOutputs["public"]["getListings"][number];
 type Profile = RouterOutputs["public"]["getProfile"];
@@ -29,7 +30,7 @@ export function ListingsContent({
   const table = useDataTable({
     data: initialListings ?? [],
     columns,
-    storageKey: "catalog-listings-table",
+    storageKey: "public-catalog-listings-table",
   });
 
   const listsColumn = table.getColumn("lists");
@@ -44,29 +45,33 @@ export function ListingsContent({
   }));
 
   return (
-    <div id="listings" className="space-y-4">
-      <H2 className="text-2xl">Listings</H2>
-      <DataTableLayout
-        table={table}
-        toolbar={
-          <ListingsToolbar
-            table={table}
-            listsColumn={listsColumn}
-            listOptions={listOptions}
-          />
-        }
-        pagination={<DataTablePagination table={table} />}
-        noResults={
-          <NoResults
-            filtered={
-              table.getState().globalFilter !== "" ||
-              table.getState().columnFilters.length > 0
-            }
-          />
-        }
-      >
-        <ListingsTable table={table} />
-      </DataTableLayout>
+    <div className="space-y-8">
+      <ListsSection lists={lists} column={listsColumn} table={table} />
+
+      <div id="listings" className="space-y-4">
+        <H2 className="text-2xl">Listings</H2>
+        <DataTableLayout
+          table={table}
+          toolbar={
+            <ListingsToolbar
+              table={table}
+              listsColumn={listsColumn}
+              listOptions={listOptions}
+            />
+          }
+          pagination={<DataTablePagination table={table} />}
+          noResults={
+            <NoResults
+              filtered={
+                table.getState().globalFilter !== "" ||
+                table.getState().columnFilters.length > 0
+              }
+            />
+          }
+        >
+          <ListingsTable table={table} />
+        </DataTableLayout>
+      </div>
     </div>
   );
 }

@@ -33,7 +33,7 @@ function DashboardButton({ className }: { className?: string }) {
         </Button>
       </SignedIn>
       <SignedOut>
-        <Button className={className} size="sm">
+        <Button className={className} size="sm" asChild>
           <SignInButton mode="modal" forceRedirectUrl="/dashboard">
             {text}
           </SignInButton>

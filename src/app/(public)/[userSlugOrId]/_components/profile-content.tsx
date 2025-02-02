@@ -6,16 +6,20 @@ import { useRouter } from "next/navigation";
 import { CatalogNav } from "./catalog-nav";
 import { ContentSection } from "./content-section";
 import { ImagesSection } from "./images-section";
-import { ListsSection } from "./lists-section";
 import { ProfileSection } from "./profile-section";
+import { ListingsContent } from "./listings-content";
 
 type Profile = RouterOutputs["public"]["getProfile"];
 
 interface ProfileContentProps {
   initialProfile: Profile;
+  initialListings: RouterOutputs["public"]["getListings"];
 }
 
-export function ProfileContent({ initialProfile }: ProfileContentProps) {
+export function ProfileContent({
+  initialProfile,
+  initialListings,
+}: ProfileContentProps) {
   const router = useRouter();
 
   // Handle redirect if we have a slug
@@ -24,6 +28,8 @@ export function ProfileContent({ initialProfile }: ProfileContentProps) {
       router.replace(`/${initialProfile.slug}`);
     }
   }, [initialProfile?.slug, router]);
+
+  if (!initialProfile) return null;
 
   return (
     <>
@@ -42,7 +48,6 @@ export function ProfileContent({ initialProfile }: ProfileContentProps) {
         <CatalogNav />
       </div>
       <ContentSection content={initialProfile.content} />
-      <ListsSection lists={initialProfile.lists} />
     </>
   );
 }

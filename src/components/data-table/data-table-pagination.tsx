@@ -1,5 +1,6 @@
 "use client";
 
+import * as React from "react";
 import {
   ChevronLeftIcon,
   ChevronRightIcon,
@@ -43,6 +44,11 @@ export function DataTablePagination<TData>({
   const totalCount = table.getFilteredRowModel().rows.length;
   const pageCount = Math.ceil(totalCount / pageSize);
 
+  const scrollToTable = React.useCallback(() => {
+    const tableElement = document.getElementById("data-table");
+    tableElement?.scrollIntoView({ behavior: "smooth" });
+  }, []);
+
   return (
     <div className="flex flex-col gap-4 px-2 sm:flex-row sm:items-center sm:justify-between">
       {numSelected > 0 && (
@@ -57,6 +63,7 @@ export function DataTablePagination<TData>({
             value={`${pageSize}`}
             onValueChange={(value) => {
               table.setPageSize(Number(value));
+              scrollToTable();
             }}
           >
             <SelectTrigger className="h-8 w-[70px]">
@@ -81,7 +88,10 @@ export function DataTablePagination<TData>({
             <Button
               variant="outline"
               className="hidden h-8 w-8 p-0 lg:flex"
-              onClick={() => table.firstPage()}
+              onClick={() => {
+                table.firstPage();
+                scrollToTable();
+              }}
               disabled={!table.getCanPreviousPage()}
             >
               <span className="sr-only">Go to first page</span>
@@ -90,7 +100,10 @@ export function DataTablePagination<TData>({
             <Button
               variant="outline"
               className="h-8 w-8 p-0"
-              onClick={() => table.previousPage()}
+              onClick={() => {
+                table.previousPage();
+                scrollToTable();
+              }}
               disabled={!table.getCanPreviousPage()}
             >
               <span className="sr-only">Go to previous page</span>
@@ -99,7 +112,10 @@ export function DataTablePagination<TData>({
             <Button
               variant="outline"
               className="h-8 w-8 p-0"
-              onClick={() => table.nextPage()}
+              onClick={() => {
+                table.nextPage();
+                scrollToTable();
+              }}
               disabled={!table.getCanNextPage()}
             >
               <span className="sr-only">Go to next page</span>
@@ -108,7 +124,10 @@ export function DataTablePagination<TData>({
             <Button
               variant="outline"
               className="hidden h-8 w-8 p-0 lg:flex"
-              onClick={() => table.lastPage()}
+              onClick={() => {
+                table.lastPage();
+                scrollToTable();
+              }}
               disabled={!table.getCanNextPage()}
             >
               <span className="sr-only">Go to last page</span>

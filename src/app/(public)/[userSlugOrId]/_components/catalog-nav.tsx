@@ -25,13 +25,28 @@ const sections = [
 ] as const;
 
 export function CatalogNav() {
+  const handleClick = (
+    e: React.MouseEvent<HTMLAnchorElement>,
+    href: string,
+  ) => {
+    e.preventDefault();
+    const sectionId = href.replace("#", "");
+    const section = document.getElementById(sectionId);
+    section?.scrollIntoView({ behavior: "smooth" });
+  };
+
   return (
     <div className="relative">
       <ScrollArea className="max-w-[600px] lg:max-w-none">
         <div className={cn("flex items-center gap-4")}>
           {sections.map((section) => {
             return (
-              <NavLink key={section.href} section={section} isActive={false} />
+              <NavLink
+                key={section.href}
+                section={section}
+                isActive={false}
+                onClick={(e) => handleClick(e, section.href)}
+              />
             );
           })}
         </div>
@@ -44,9 +59,11 @@ export function CatalogNav() {
 function NavLink({
   section,
   isActive,
+  onClick,
 }: {
   section: (typeof sections)[number];
   isActive: boolean;
+  onClick: (e: React.MouseEvent<HTMLAnchorElement>) => void;
 }) {
   return (
     <Link
@@ -58,6 +75,7 @@ function NavLink({
         "data-[active=true]:bg-muted data-[active=true]:text-primary",
       )}
       data-active={isActive}
+      onClick={onClick}
     >
       {section.name}
     </Link>

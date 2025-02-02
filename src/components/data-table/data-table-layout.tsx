@@ -30,7 +30,7 @@ export function DataTableLayout<TData>({
   }
 
   return (
-    <div className="space-y-4">
+    <div id="data-table" className="space-y-4">
       {toolbar}
       {children}
       {pagination}
