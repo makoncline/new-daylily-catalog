@@ -3,7 +3,7 @@ import { TRPCError } from "@trpc/server";
 import { STATUS } from "@/config/constants";
 import { getUserIdFromSlugOrId } from "./getPublicProfile";
 
-const listingSelect = {
+export const listingSelect = {
   id: true,
   title: true,
   slug: true,
@@ -59,22 +59,21 @@ const listingSelect = {
   },
 } as const;
 
-type ListingWithRelations = Awaited<
-  ReturnType<typeof findUserListings>
->[number];
+type ListingWithRelations = Awaited<ReturnType<typeof getListings>>[number];
 
-// Helper function to find listings with cursor-based pagination
-async function findUserListings(
-  userId: string,
-  cursor?: string,
-  take?: number,
-) {
-  const listings = await db.listing.findMany({
-    take,
-    cursor: cursor ? { id: cursor } : undefined,
-    skip: cursor ? 1 : 0,
+interface GetListingsArgs {
+  userId: string;
+  limit: number;
+  cursor?: string;
+}
+
+export async function getListings(args: GetListingsArgs) {
+  return db.listing.findMany({
+    take: args.limit + 1,
+    cursor: args.cursor ? { id: args.cursor } : undefined,
+    skip: args.cursor ? 1 : 0,
     where: {
-      userId,
+      userId: args.userId,
       OR: [{ status: null }, { NOT: { status: STATUS.HIDDEN } }],
     },
     select: listingSelect,
@@ -82,8 +81,6 @@ async function findUserListings(
       createdAt: "desc",
     },
   });
-
-  return listings;
 }
 
 // Helper function to transform listings with AHS image fallback
@@ -108,51 +105,13 @@ function transformListings(listings: ListingWithRelations[]) {
 export async function getInitialListings(userSlugOrId: string) {
   try {
     const userId = await getUserIdFromSlugOrId(userSlugOrId);
-    const items = await findUserListings(userId, undefined, 36); // Get initial batch
+    const items = await getListings({ userId, limit: 36 });
 
     return transformListings(items);
   } catch (error) {
     throw new TRPCError({
       code: "INTERNAL_SERVER_ERROR",
       message: "Failed to fetch initial listings",
-      cause: error,
-    });
-  }
-}
-
-// Get all listings - uses cursor-based pagination in batches
-export async function getPublicListings(userSlugOrId: string) {
-  try {
-    const userId = await getUserIdFromSlugOrId(userSlugOrId);
-    let allListings: ListingWithRelations[] = [];
-    let cursor: string | undefined;
-    let hasMore = true;
-    const batchSize = 100;
-    let batchNumber = 0;
-
-    while (hasMore) {
-      batchNumber++;
-      const batch = await findUserListings(userId, cursor, batchSize);
-
-      if (batch.length < batchSize) {
-        hasMore = false;
-      }
-
-      if (batch.length > 0) {
-        const lastItem = batch[batch.length - 1];
-        if (lastItem) {
-          cursor = lastItem.id;
-        }
-      }
-
-      allListings = [...allListings, ...batch];
-    }
-
-    return transformListings(allListings);
-  } catch (error) {
-    throw new TRPCError({
-      code: "INTERNAL_SERVER_ERROR",
-      message: "Failed to fetch all listings",
       cause: error,
     });
   }

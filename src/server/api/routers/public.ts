@@ -3,135 +3,13 @@ import { createTRPCRouter, publicProcedure } from "../trpc";
 import { db } from "@/server/db";
 import { TRPCError } from "@trpc/server";
 import { getPublicProfiles } from "@/server/db/getPublicProfiles";
-import { getPublicProfile } from "@/server/db/getPublicProfile";
 import {
-  getPublicListings,
-  getInitialListings,
-} from "@/server/db/getPublicListings";
-import { STATUS } from "@/config/constants";
-
-// Helper function to get userId from either slug or id
-async function getUserIdFromSlugOrId(slugOrId: string): Promise<string> {
-  // First try to find by slug (case insensitive)
-  const profile = await db.userProfile.findFirst({
-    where: {
-      slug: slugOrId.toLowerCase(),
-    },
-    select: { userId: true },
-  });
-
-  if (profile) {
-    return profile.userId;
-  }
-
-  // If not found by slug, check if it's a valid user id
-  const user = await db.user.findUnique({
-    where: { id: slugOrId },
-    select: { id: true },
-  });
-
-  if (user) {
-    return user.id;
-  }
-
-  throw new TRPCError({
-    code: "NOT_FOUND",
-    message: "User not found",
-  });
-}
-
-// Helper function to get listing id from either slug or id
-async function getListingIdFromSlugOrId(
-  slugOrId: string,
-  userId: string,
-): Promise<string> {
-  // First try to find by slug (case insensitive)
-  const listingBySlug = await db.listing.findFirst({
-    where: {
-      userId,
-      slug: slugOrId.toLowerCase(),
-    },
-    select: { id: true },
-  });
-
-  if (listingBySlug) {
-    return listingBySlug.id;
-  }
-
-  // If not found by slug, check if it's a valid listing id
-  const listingById = await db.listing.findUnique({
-    where: {
-      id: slugOrId,
-      userId,
-    },
-    select: { id: true },
-  });
-
-  if (listingById) {
-    return listingById.id;
-  }
-
-  throw new TRPCError({
-    code: "NOT_FOUND",
-    message: "Listing not found",
-  });
-}
-
-const listingSelect = {
-  id: true,
-  title: true,
-  slug: true,
-  description: true,
-  price: true,
-  userId: true,
-  user: {
-    select: {
-      profile: {
-        select: {
-          slug: true,
-        },
-      },
-    },
-  },
-  lists: {
-    select: {
-      id: true,
-      title: true,
-    },
-  },
-  ahsListing: {
-    select: {
-      name: true,
-      ahsImageUrl: true,
-      hybridizer: true,
-      year: true,
-      scapeHeight: true,
-      bloomSize: true,
-      bloomSeason: true,
-      form: true,
-      ploidy: true,
-      foliageType: true,
-      bloomHabit: true,
-      budcount: true,
-      branches: true,
-      sculpting: true,
-      foliage: true,
-      flower: true,
-      fragrance: true,
-      parentage: true,
-      color: true,
-    },
-  },
-  images: {
-    select: {
-      id: true,
-      url: true,
-    },
-    orderBy: {
-      order: "asc",
-    },
-  },
-} as const;
+  getListingIdFromSlugOrId,
+  getPublicProfile,
+  getUserIdFromSlugOrId,
+} from "@/server/db/getPublicProfile";
+import { unstable_cache } from "next/cache";
+import { getListings, listingSelect } from "@/server/db/getPublicListings";
 
 // Helper function to get the full listing data with all relations
 async function getFullListingData(listingId: string) {
@@ -183,6 +61,12 @@ function transformListings(
   }));
 }
 
+const getListingsCached = (userId: string) =>
+  unstable_cache(getListings, [], {
+    revalidate: 3600,
+    tags: [`listings-${userId}`],
+  });
+
 export const publicRouter = createTRPCRouter({
   getPublicProfiles: publicProcedure.query(async () => {
     try {
@@ -217,25 +101,17 @@ export const publicRouter = createTRPCRouter({
     .input(
       z.object({
         userSlugOrId: z.string(),
-        limit: z.number().min(1).max(100).default(36),
+        limit: z.number().min(1).default(36),
         cursor: z.string().optional(),
       }),
     )
     .query(async ({ input }) => {
       try {
         const userId = await getUserIdFromSlugOrId(input.userSlugOrId);
-        const items = await db.listing.findMany({
-          take: input.limit + 1,
-          cursor: input.cursor ? { id: input.cursor } : undefined,
-          skip: input.cursor ? 1 : 0,
-          where: {
-            userId,
-            OR: [{ status: null }, { NOT: { status: STATUS.HIDDEN } }],
-          },
-          select: listingSelect,
-          orderBy: {
-            createdAt: "desc",
-          },
+        const items = await getListingsCached(userId)({
+          userId,
+          limit: input.limit,
+          cursor: input.cursor,
         });
 
         return transformListings(items);

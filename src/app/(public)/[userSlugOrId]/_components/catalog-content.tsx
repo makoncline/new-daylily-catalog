@@ -29,18 +29,18 @@ export function CatalogContent({
     api.public.getListings.useInfiniteQuery(
       {
         userSlugOrId: params.userSlugOrId,
-        limit: 100,
+        limit: 500,
       },
       {
         getNextPageParam: (lastPage) => lastPage[lastPage.length - 1]?.id,
-        refetchOnWindowFocus: false,
-        refetchOnReconnect: false,
-        staleTime: TIME.HOUR_IN_MS,
-        gcTime: TIME.HOUR_IN_MS,
         initialData: {
           pages: [initialListings],
           pageParams: [undefined],
         },
+        refetchOnWindowFocus: false,
+        refetchOnReconnect: false,
+        staleTime: TIME.HOUR_IN_MS,
+        gcTime: TIME.HOUR_IN_MS,
         retry: false,
         refetchOnMount: false,
         refetchInterval: false,

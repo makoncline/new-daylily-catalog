@@ -37,11 +37,6 @@ export function ListingsContent({
     data: listings,
     columns,
     storageKey: "public-catalog-listings-table",
-    config: {
-      state: {
-        rowSelection: {},
-      },
-    },
   });
 
   const listsColumn = table.getColumn("lists");

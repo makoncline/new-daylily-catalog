@@ -34,6 +34,43 @@ export async function getUserIdFromSlugOrId(slugOrId: string): Promise<string> {
   });
 }
 
+// Helper function to get listing id from either slug or id
+export async function getListingIdFromSlugOrId(
+  slugOrId: string,
+  userId: string,
+): Promise<string> {
+  // First try to find by slug (case insensitive)
+  const listingBySlug = await db.listing.findFirst({
+    where: {
+      userId,
+      slug: slugOrId.toLowerCase(),
+    },
+    select: { id: true },
+  });
+
+  if (listingBySlug) {
+    return listingBySlug.id;
+  }
+
+  // If not found by slug, check if it's a valid listing id
+  const listingById = await db.listing.findUnique({
+    where: {
+      id: slugOrId,
+      userId,
+    },
+    select: { id: true },
+  });
+
+  if (listingById) {
+    return listingById.id;
+  }
+
+  throw new TRPCError({
+    code: "NOT_FOUND",
+    message: "Listing not found",
+  });
+}
+
 export async function getPublicProfile(userSlugOrId: string) {
   try {
     const userId = await getUserIdFromSlugOrId(userSlugOrId);
