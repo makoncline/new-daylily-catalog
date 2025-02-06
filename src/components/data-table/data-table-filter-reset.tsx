@@ -4,6 +4,7 @@ import * as React from "react";
 import type { Table } from "@tanstack/react-table";
 import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { resetTableState } from "@/lib/table-utils";
 
 interface DataTableFilterResetProps<TData> {
   table: Table<TData>;
@@ -21,10 +22,7 @@ export function DataTableFilterReset<TData>({
   return (
     <Button
       variant="ghost"
-      onClick={() => {
-        table.resetColumnFilters(true);
-        table.resetGlobalFilter(true);
-      }}
+      onClick={() => resetTableState(table)}
       className="h-8 px-2 lg:px-3"
     >
       Reset

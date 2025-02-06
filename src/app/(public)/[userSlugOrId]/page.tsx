@@ -3,7 +3,6 @@ import { PublicBreadcrumbs } from "@/app/(public)/_components/public-breadcrumbs
 import { getUserAndListingIdsAndSlugs } from "@/server/db/getUserAndListingIdsAndSlugs";
 import { ViewListingDialog } from "@/components/view-listing-dialog";
 import { ProfileContent } from "./_components/profile-content";
-import { ListingsContent } from "./_components/listings-content";
 import { unstable_cache } from "next/cache";
 import { getPublicProfile } from "@/server/db/getPublicProfile";
 import { getInitialListings } from "@/server/db/getPublicListings";
@@ -13,6 +12,7 @@ import { IMAGES } from "@/lib/constants/images";
 import { getOptimizedMetaImageUrl } from "@/lib/utils/cloudflareLoader";
 import { getBaseUrl } from "@/lib/utils/getBaseUrl";
 import { type Metadata } from "next";
+import { CatalogContent } from "./_components/catalog-content";
 
 export const revalidate = 3600;
 export const dynamicParams = true;
@@ -146,17 +146,12 @@ export default async function Page({ params }: PageProps) {
         </Suspense>
 
         <Suspense>
-          <ListingsContent
+          <CatalogContent
             lists={initialProfile.lists}
             initialListings={initialListings}
           />
         </Suspense>
       </div>
-
-      {/* Shared Dialog */}
-      <Suspense>
-        <ViewListingDialog listings={initialListings} />
-      </Suspense>
     </MainContent>
   );
 }

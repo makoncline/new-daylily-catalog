@@ -93,3 +93,33 @@ export function getFilterableColumnIds<TData>(
     .filter((column) => column.id && column.filterFn)
     .map((column) => column.id!);
 }
+
+export function resetTableState<TData>(
+  table: Table<TData>,
+  options?: {
+    keepColumnFilters?: boolean;
+    keepGlobalFilter?: boolean;
+    keepPagination?: boolean;
+    keepSorting?: boolean;
+  },
+) {
+  const {
+    keepColumnFilters = false,
+    keepGlobalFilter = false,
+    keepPagination = false,
+    keepSorting = false,
+  } = options ?? {};
+
+  if (!keepColumnFilters) {
+    table.resetColumnFilters(true);
+  }
+  if (!keepGlobalFilter) {
+    table.resetGlobalFilter(true);
+  }
+  if (!keepPagination) {
+    table.resetPageIndex(true);
+  }
+  if (!keepSorting) {
+    table.resetSorting(true);
+  }
+}
