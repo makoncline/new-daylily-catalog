@@ -4,7 +4,10 @@ import { db } from "@/server/db";
 import { TRPCError } from "@trpc/server";
 import { getPublicProfiles } from "@/server/db/getPublicProfiles";
 import { getPublicProfile } from "@/server/db/getPublicProfile";
-import { getPublicListings } from "@/server/db/getPublicListings";
+import {
+  getPublicListings,
+  getInitialListings,
+} from "@/server/db/getPublicListings";
 
 // Helper function to get userId from either slug or id
 async function getUserIdFromSlugOrId(slugOrId: string): Promise<string> {
@@ -206,6 +209,27 @@ export const publicRouter = createTRPCRouter({
         throw new TRPCError({
           code: "INTERNAL_SERVER_ERROR",
           message: "Failed to fetch public listings",
+        });
+      }
+    }),
+
+  getInitialListings: publicProcedure
+    .input(
+      z.object({
+        userSlugOrId: z.string(),
+      }),
+    )
+    .query(async ({ input }) => {
+      try {
+        return await getInitialListings(input.userSlugOrId);
+      } catch (error) {
+        if (error instanceof TRPCError) {
+          throw error;
+        }
+        console.error("Error fetching initial listings:", error);
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "Failed to fetch initial listings",
         });
       }
     }),

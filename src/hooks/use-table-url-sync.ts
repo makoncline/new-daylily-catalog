@@ -64,6 +64,7 @@ export function useTableUrlSync<TData>(table: Table<TData>) {
 
   React.useEffect(() => {
     const url = new URL(window.location.href);
+    const oldParams = new URLSearchParams(window.location.search);
 
     // Update only the search parameters
     if (pagination.pageIndex === TABLE_CONFIG.PAGINATION.DEFAULT_PAGE_INDEX) {
@@ -104,8 +105,16 @@ export function useTableUrlSync<TData>(table: Table<TData>) {
       url.searchParams.set("query", String(globalFilter));
     }
 
-    // Replace only the search params portion of the URL
-    router.push(url.href, { scroll: false });
+    const newParams = url.searchParams;
+    const hasChanges =
+      Array.from(oldParams.entries()).some(
+        ([key, value]) => newParams.get(key) !== value,
+      ) || Array.from(newParams.entries()).some(([key]) => !oldParams.has(key));
+
+    // Only update URL if parameters have actually changed
+    if (hasChanges) {
+      router.push(url.href, { scroll: false });
+    }
   }, [
     pathname,
     router,

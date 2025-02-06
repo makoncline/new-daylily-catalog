@@ -63,14 +63,20 @@ type ListingWithRelations = Awaited<
   ReturnType<typeof findUserListings>
 >[number];
 
-async function findUserListings(userId: string, cursor?: string) {
+// Helper function to find listings with cursor-based pagination
+async function findUserListings(
+  userId: string,
+  cursor?: string,
+  take?: number,
+) {
   return db.listing.findMany({
-    take: 100,
+    take,
+    cursor: cursor ? { id: cursor } : undefined,
+    skip: cursor ? 1 : 0, // Skip the cursor record when using cursor
     where: {
       userId,
       OR: [{ status: null }, { NOT: { status: STATUS.HIDDEN } }],
     },
-    cursor: cursor ? { id: cursor } : undefined,
     select: listingSelect,
     orderBy: {
       createdAt: "desc",
@@ -78,52 +84,74 @@ async function findUserListings(userId: string, cursor?: string) {
   });
 }
 
+// Helper function to transform listings with AHS image fallback
+function transformListings(listings: ListingWithRelations[]) {
+  return listings.map((listing) => ({
+    ...listing,
+    images:
+      listing.images.length === 0 && listing.ahsListing?.ahsImageUrl
+        ? [
+            {
+              id: `ahs-${listing.id}`,
+              url: listing.ahsListing.ahsImageUrl,
+            },
+          ]
+        : listing.images,
+  }));
+}
+
+// Get initial page data - optimized for fast first load
+export async function getInitialListings(userSlugOrId: string) {
+  try {
+    const userId = await getUserIdFromSlugOrId(userSlugOrId);
+    const items = await findUserListings(userId, undefined, 36);
+    return transformListings(items);
+  } catch (error) {
+    if (error instanceof Error) {
+      console.error("Error fetching initial listings:", error.message);
+    } else {
+      console.error("Error fetching initial listings:", error);
+    }
+    throw new TRPCError({
+      code: "INTERNAL_SERVER_ERROR",
+      message: "Failed to fetch initial listings",
+    });
+  }
+}
+
+// Get all listings - uses cursor-based pagination in batches
 export async function getPublicListings(userSlugOrId: string) {
   try {
     const userId = await getUserIdFromSlugOrId(userSlugOrId);
     let allListings: ListingWithRelations[] = [];
-    let hasMore = true;
     let cursor: string | undefined;
+    let hasMore = true;
+    const batchSize = 100;
 
     while (hasMore) {
-      const batch = await findUserListings(userId, cursor);
+      const batch = await findUserListings(userId, cursor, batchSize);
 
-      if (batch.length < 100) {
+      if (batch.length < batchSize) {
         hasMore = false;
-      } else if (batch.length > 0) {
-        const lastListing = batch[batch.length - 1];
-        cursor = lastListing?.id;
+      }
+
+      if (batch.length > 0) {
+        cursor = batch[batch.length - 1]?.id;
       }
 
       allListings = [...allListings, ...batch];
     }
 
-    // Deduplicate listings by ID
-    const uniqueListings = Array.from(
-      new Map(allListings.map((listing) => [listing.id, listing])).values(),
-    );
-
-    return uniqueListings.map((listing) => ({
-      ...listing,
-      images:
-        listing.images.length === 0 && listing.ahsListing?.ahsImageUrl
-          ? [
-              {
-                id: `ahs-${listing.id}`,
-                url: listing.ahsListing.ahsImageUrl,
-              },
-            ]
-          : listing.images,
-    }));
+    return transformListings(allListings);
   } catch (error) {
     if (error instanceof Error) {
-      console.error("Error fetching public listings:", error.message);
+      console.error("Error fetching all listings:", error.message);
     } else {
-      console.error("Error fetching public listings:", error);
+      console.error("Error fetching all listings:", error);
     }
     throw new TRPCError({
       code: "INTERNAL_SERVER_ERROR",
-      message: "Failed to fetch public listings",
+      message: "Failed to fetch all listings",
     });
   }
 }

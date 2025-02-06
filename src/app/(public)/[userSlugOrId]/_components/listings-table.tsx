@@ -11,10 +11,12 @@ interface ListingsTableProps {
 }
 
 export function ListingsTable({ table }: ListingsTableProps) {
+  const rows = table.getRowModel().rows;
+
   return (
     <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3">
-      {table.getRowModel().rows.map((row) => (
-        <div key={row.original.id} className="w-full">
+      {rows.map((row) => (
+        <div key={row.original.id}>
           <ListingCard listing={row.original} />
         </div>
       ))}

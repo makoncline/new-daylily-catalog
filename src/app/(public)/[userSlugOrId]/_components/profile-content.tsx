@@ -7,19 +7,14 @@ import { CatalogNav } from "./catalog-nav";
 import { ContentSection } from "./content-section";
 import { ImagesSection } from "./images-section";
 import { ProfileSection } from "./profile-section";
-import { ListingsContent } from "./listings-content";
 
 type Profile = RouterOutputs["public"]["getProfile"];
 
 interface ProfileContentProps {
   initialProfile: Profile;
-  initialListings: RouterOutputs["public"]["getListings"];
 }
 
-export function ProfileContent({
-  initialProfile,
-  initialListings,
-}: ProfileContentProps) {
+export function ProfileContent({ initialProfile }: ProfileContentProps) {
   const router = useRouter();
 
   // Handle redirect if we have a slug

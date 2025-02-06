@@ -3,7 +3,6 @@
 import { ImageGallerySkeleton } from "@/components/image-gallery";
 import { ProfileSectionSkeleton } from "./profile-section";
 import { CatalogNavSkeleton } from "./catalog-nav";
-import { ListsSectionSkeleton } from "./lists-section";
 import { DataTableLayoutSkeleton } from "@/components/data-table/data-table-layout";
 import { EditorSkeleton } from "@/components/editor";
 
@@ -37,7 +36,7 @@ export function ProfileAndContentSkeleton() {
       <EditorSkeleton />
 
       {/* Lists Section */}
-      <ListsSectionSkeleton />
+      <DataTableLayoutSkeleton />
     </>
   );
 }

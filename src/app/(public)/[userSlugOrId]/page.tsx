@@ -6,13 +6,14 @@ import { ProfileContent } from "./_components/profile-content";
 import { ListingsContent } from "./_components/listings-content";
 import { unstable_cache } from "next/cache";
 import { getPublicProfile } from "@/server/db/getPublicProfile";
-import { getPublicListings } from "@/server/db/getPublicListings";
+import { getInitialListings } from "@/server/db/getPublicListings";
 import { Suspense } from "react";
 import { METADATA_CONFIG } from "@/config/constants";
 import { IMAGES } from "@/lib/constants/images";
 import { getOptimizedMetaImageUrl } from "@/lib/utils/cloudflareLoader";
 import { getBaseUrl } from "@/lib/utils/getBaseUrl";
 import { type Metadata } from "next";
+import { api } from "@/trpc/server";
 
 export const revalidate = 3600;
 export const dynamicParams = true;
@@ -124,10 +125,13 @@ export default async function Page({ params }: PageProps) {
   );
 
   const getListings = unstable_cache(
-    async () => getPublicListings(userSlugOrId),
-    ["listings", userSlugOrId],
+    async () => getInitialListings(userSlugOrId),
+    ["listings", userSlugOrId, "initial"],
     { revalidate: 3600 },
   );
+
+  // Prefetch the full listings query
+  await api.public.getListings.prefetch({ userSlugOrId });
 
   const [initialProfile, initialListings] = await Promise.all([
     getProfile(),
