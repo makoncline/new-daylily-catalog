@@ -19,7 +19,7 @@ import {
   useSortable,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { Expand, GripVertical, Trash2 } from "lucide-react";
+import { GripVertical, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DeleteConfirmDialog } from "@/components/delete-confirm-dialog";
 import { useToast } from "@/hooks/use-toast";
@@ -27,6 +27,7 @@ import { api } from "@/trpc/react";
 import type { ImageType } from "@/types/image";
 import { Skeleton } from "@/components/ui/skeleton";
 import { OptimizedImage } from "@/components/optimized-image";
+import { ImagePreviewDialog } from "@/components/image-preview-dialog";
 
 interface ImageManagerProps {
   images: Image[];
@@ -186,22 +187,11 @@ export function ImageManager({
                         <GripVertical className="h-4 w-4" />
                         <span className="sr-only">Drag to reorder</span>
                       </Button>
-                      <Button
-                        type="button"
-                        variant="secondary"
-                        size="icon"
-                        className="absolute right-2 top-2 h-8 w-8 opacity-0 transition-opacity group-hover:opacity-100"
-                        asChild
-                      >
-                        <a
-                          href={image.url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                        >
-                          <Expand className="h-4 w-4" />
-                          <span className="sr-only">View full size</span>
-                        </a>
-                      </Button>
+                      <ImagePreviewDialog
+                        images={[image]}
+                        size="sm"
+                        className="absolute right-2 top-2 opacity-0 transition-opacity group-hover:opacity-100"
+                      />
                       <Button
                         type="button"
                         variant="destructive"
