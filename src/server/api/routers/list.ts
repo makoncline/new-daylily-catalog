@@ -248,4 +248,10 @@ export const listRouter = createTRPCRouter({
         throw new Error("Failed to remove listings from list");
       }
     }),
+
+  count: protectedProcedure.query(async ({ ctx }) => {
+    return ctx.db.list.count({
+      where: { userId: ctx.user.id },
+    });
+  }),
 });

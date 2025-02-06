@@ -5,27 +5,14 @@ import { useRouter } from "next/navigation";
 import { Sparkles } from "lucide-react";
 import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { hasActiveSubscription } from "@/server/stripe/subscription-utils";
+import { usePro } from "@/hooks/use-pro";
 
 export function StripeCheckoutButton() {
-  const router = useRouter();
-  const generateCheckout = api.stripe.generateCheckout.useMutation();
-
-  const handleClick = async () => {
-    try {
-      const { url } = await generateCheckout.mutateAsync();
-      router.push(url);
-    } catch (error) {
-      console.error("Failed to create checkout session", error);
-    }
-  };
-
+  const { sendToCheckout, isPending } = usePro();
   return (
-    <DropdownMenuItem
-      onClick={handleClick}
-      disabled={generateCheckout.isPending}
-    >
+    <DropdownMenuItem onClick={sendToCheckout} disabled={isPending}>
       <Sparkles className="mr-2 h-4 w-4" />
-      {generateCheckout.isPending ? "Loading..." : "Upgrade to Pro"}
+      {isPending ? "Loading..." : "Upgrade to Pro"}
     </DropdownMenuItem>
   );
 }
@@ -75,4 +62,20 @@ export function StripeButton() {
   }
 
   return <StripeCheckoutButton />;
+}
+
+// Shared upgrade function that can be used across components
+export async function handleUpgrade() {
+  const generateCheckout = api.stripe.generateCheckout.useMutation();
+
+  try {
+    const { url } = await generateCheckout.mutateAsync();
+    return { success: true as const, url };
+  } catch (error) {
+    console.error("Failed to create checkout session", error);
+    return {
+      success: false as const,
+      error: "Failed to start checkout. Please try again later.",
+    };
+  }
 }

@@ -23,6 +23,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { useDebouncedCallback } from "use-debounce";
 import { SLUG_INPUT_PATTERN } from "@/lib/utils/slugify";
 import { Muted } from "@/components/typography";
+import { usePro } from "@/hooks/use-pro";
+import { Sparkles } from "lucide-react";
+import { CheckoutButton } from "@/components/checkout-button";
 
 type UserProfile = RouterOutputs["userProfile"]["get"];
 
@@ -35,6 +38,7 @@ export function ProfileForm({ initialProfile }: ProfileFormProps) {
   const [profile, setProfile] = useState(initialProfile);
   const [isUpdating, setIsUpdating] = useState(false);
   const [isCheckingSlug, setIsCheckingSlug] = useState(false);
+  const { isPro } = usePro();
 
   const form = useZodForm({
     schema: profileFormSchema,
@@ -84,7 +88,6 @@ export function ProfileForm({ initialProfile }: ProfileFormProps) {
     },
     500, // Wait 500ms after typing stops
   );
-
   // Handle auto-save on blur
   const onFieldBlur = async (
     field: "title" | "slug" | "description" | "location" | "logoUrl",
@@ -138,7 +141,12 @@ export function ProfileForm({ initialProfile }: ProfileFormProps) {
           name="slug"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Profile URL</FormLabel>
+              <FormLabel className="flex items-center gap-2">
+                Profile URL
+                {!isPro && (
+                  <Sparkles className="h-4 w-4 text-muted-foreground" />
+                )}
+              </FormLabel>
               <FormControl>
                 <div className="flex flex-col gap-2">
                   <div className="relative">
@@ -172,7 +180,7 @@ export function ProfileForm({ initialProfile }: ProfileFormProps) {
                         debouncedCheckSlug(value);
                       }}
                       onBlur={() => onFieldBlur("slug")}
-                      disabled={isUpdating}
+                      disabled={isUpdating || !isPro}
                       placeholder={profile.userId}
                     />
                     {isCheckingSlug && (
@@ -188,10 +196,18 @@ export function ProfileForm({ initialProfile }: ProfileFormProps) {
                 </div>
               </FormControl>
               <FormDescription>
-                Choose a unique URL for your public profile (minimum 5
-                characters). Only letters, numbers, hyphens, and underscores are
-                allowed.
-                {!field.value && " If not set, your user ID will be used."}
+                {!isPro ? (
+                  <CheckoutButton variant="link" className="h-auto p-0 text-xs">
+                    Upgrade to Pro to customize your profile URL
+                  </CheckoutButton>
+                ) : (
+                  <>
+                    Choose a unique URL for your public profile (minimum 5
+                    characters). Only letters, numbers, hyphens, and underscores
+                    are allowed.
+                    {!field.value && " If not set, your user ID will be used."}
+                  </>
+                )}
               </FormDescription>
               <FormMessage />
             </FormItem>

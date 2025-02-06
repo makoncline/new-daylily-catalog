@@ -1,8 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
-import { Plus, Sparkles } from "lucide-react";
+import { Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -16,17 +15,16 @@ import { useToast } from "@/hooks/use-toast";
 import { api } from "@/trpc/react";
 import { useEditListing } from "./edit-listing-dialog";
 import { APP_CONFIG, PRO_FEATURES } from "@/config/constants";
-import { hasActiveSubscription } from "@/server/stripe/subscription-utils";
+import { usePro } from "@/hooks/use-pro";
+import { CheckoutButton } from "@/components/checkout-button";
 
 export function CreateListingButton() {
-  const router = useRouter();
   const { editListing } = useEditListing();
   const { toast } = useToast();
   const [showUpgradeDialog, setShowUpgradeDialog] = useState(false);
+  const { isPro } = usePro();
 
-  const { data: subscription } = api.stripe.getSubscription.useQuery();
   const { data: listingCount } = api.listing.count.useQuery();
-  const generateCheckout = api.stripe.generateCheckout.useMutation();
 
   const createListing = api.listing.create.useMutation({
     onError: () => {
@@ -39,7 +37,6 @@ export function CreateListingButton() {
 
   const handleCreate = async () => {
     // Check if user is on free tier and has reached the limit
-    const isPro = hasActiveSubscription(subscription?.status);
     const reachedLimit =
       !isPro &&
       (listingCount ?? 0) >= APP_CONFIG.LISTING.FREE_TIER_MAX_LISTINGS;
@@ -54,20 +51,6 @@ export function CreateListingButton() {
       editListing(listing.id);
     } catch {
       // Error is already handled by the mutation's onError
-    }
-  };
-
-  const handleUpgrade = async () => {
-    try {
-      const { url } = await generateCheckout.mutateAsync();
-      router.push(url);
-    } catch (error) {
-      console.error("Failed to create checkout session", error);
-      toast({
-        title: "Failed to start checkout",
-        description: "Please try again later",
-        variant: "destructive",
-      });
     }
   };
 
@@ -105,15 +88,7 @@ export function CreateListingButton() {
               </ul>
             </div>
 
-            <Button
-              size="lg"
-              variant="gradient"
-              onClick={handleUpgrade}
-              disabled={generateCheckout.isPending}
-            >
-              <Sparkles className="mr-2 h-4 w-4" />
-              {generateCheckout.isPending ? "Loading..." : "Upgrade to Pro"}
-            </Button>
+            <CheckoutButton size="lg" />
           </div>
         </DialogContent>
       </Dialog>

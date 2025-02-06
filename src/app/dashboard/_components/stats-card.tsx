@@ -6,11 +6,9 @@ import { Plus, Package, ListChecks, ImageIcon } from "lucide-react";
 import Link from "next/link";
 import type { RouterOutputs } from "@/trpc/react";
 import { H2, H3, P, Muted } from "@/components/typography";
-import { api } from "@/trpc/react";
-import { hasActiveSubscription } from "@/server/stripe/subscription-utils";
-import { useRouter } from "next/navigation";
-import { useToast } from "@/hooks/use-toast";
 import { PRO_FEATURES } from "@/config/constants";
+import { usePro } from "@/hooks/use-pro";
+import { CheckoutButton } from "@/components/checkout-button";
 
 interface StatsCardProps {
   stats: RouterOutputs["dashboard"]["getStats"];
@@ -127,30 +125,12 @@ export function ImagesCard({ stats }: StatsCardProps) {
 }
 
 export function ProMembershipCard() {
-  const router = useRouter();
-  const { toast } = useToast();
-  const { data: subscription, isLoading } =
-    api.stripe.getSubscription.useQuery();
-  const generateCheckout = api.stripe.generateCheckout.useMutation();
+  const { isPro, isLoading } = usePro();
 
   // Don't show if loading or if user is already a pro member
-  if (isLoading || hasActiveSubscription(subscription?.status)) {
+  if (isLoading || isPro) {
     return null;
   }
-
-  const handleUpgrade = async () => {
-    try {
-      const { url } = await generateCheckout.mutateAsync();
-      router.push(url);
-    } catch (error) {
-      console.error("Failed to create checkout session", error);
-      toast({
-        title: "Failed to start checkout",
-        description: "Please try again later",
-        variant: "destructive",
-      });
-    }
-  };
 
   return (
     <Card className="mb-4 overflow-hidden">
@@ -184,15 +164,7 @@ export function ProMembershipCard() {
             </ul>
           </div>
           <div className="flex flex-1 flex-col justify-end gap-6">
-            <Button
-              size="lg"
-              variant="gradient"
-              onClick={handleUpgrade}
-              disabled={generateCheckout.isPending}
-            >
-              <Plus className="mr-2 h-4 w-4" />
-              {generateCheckout.isPending ? "Loading..." : "Upgrade to Pro"}
-            </Button>
+            <CheckoutButton size="lg" />
           </div>
         </div>
       </div>
