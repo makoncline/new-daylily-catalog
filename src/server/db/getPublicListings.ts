@@ -108,7 +108,8 @@ function transformListings(listings: ListingWithRelations[]) {
 export async function getInitialListings(userSlugOrId: string) {
   try {
     const userId = await getUserIdFromSlugOrId(userSlugOrId);
-    const items = await findUserListings(userId, undefined, 36);
+    const items = await findUserListings(userId, undefined, 36); // Get initial batch
+
     return transformListings(items);
   } catch (error) {
     throw new TRPCError({
@@ -128,17 +129,12 @@ export async function getPublicListings(userSlugOrId: string) {
     let hasMore = true;
     const batchSize = 100;
     let batchNumber = 0;
-    const maxResults = 500;
 
-    while (hasMore && allListings.length < maxResults) {
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    while (hasMore) {
       batchNumber++;
-      const remainingNeeded = maxResults - allListings.length;
-      const currentBatchSize = Math.min(batchSize, remainingNeeded);
+      const batch = await findUserListings(userId, cursor, batchSize);
 
-      const batch = await findUserListings(userId, cursor, currentBatchSize);
-
-      if (batch.length < currentBatchSize) {
+      if (batch.length < batchSize) {
         hasMore = false;
       }
 

@@ -8,6 +8,7 @@ import {
   getPublicListings,
   getInitialListings,
 } from "@/server/db/getPublicListings";
+import { STATUS } from "@/config/constants";
 
 // Helper function to get userId from either slug or id
 async function getUserIdFromSlugOrId(slugOrId: string): Promise<string> {
@@ -162,6 +163,26 @@ async function getFullListingData(listingId: string) {
   };
 }
 
+// Helper function to transform listings with AHS image fallback
+function transformListings(
+  listings: Awaited<
+    ReturnType<typeof db.listing.findMany<{ select: typeof listingSelect }>>
+  >,
+) {
+  return listings.map((listing) => ({
+    ...listing,
+    images:
+      listing.images.length === 0 && listing.ahsListing?.ahsImageUrl
+        ? [
+            {
+              id: `ahs-${listing.id}`,
+              url: listing.ahsListing.ahsImageUrl,
+            },
+          ]
+        : listing.images,
+  }));
+}
+
 export const publicRouter = createTRPCRouter({
   getPublicProfiles: publicProcedure.query(async () => {
     try {
@@ -196,11 +217,28 @@ export const publicRouter = createTRPCRouter({
     .input(
       z.object({
         userSlugOrId: z.string(),
+        limit: z.number().min(1).max(100).default(36),
+        cursor: z.string().optional(),
       }),
     )
     .query(async ({ input }) => {
       try {
-        return await getPublicListings(input.userSlugOrId);
+        const userId = await getUserIdFromSlugOrId(input.userSlugOrId);
+        const items = await db.listing.findMany({
+          take: input.limit + 1,
+          cursor: input.cursor ? { id: input.cursor } : undefined,
+          skip: input.cursor ? 1 : 0,
+          where: {
+            userId,
+            OR: [{ status: null }, { NOT: { status: STATUS.HIDDEN } }],
+          },
+          select: listingSelect,
+          orderBy: {
+            createdAt: "desc",
+          },
+        });
+
+        return transformListings(items);
       } catch (error) {
         if (error instanceof TRPCError) {
           throw error;
@@ -208,27 +246,6 @@ export const publicRouter = createTRPCRouter({
         throw new TRPCError({
           code: "INTERNAL_SERVER_ERROR",
           message: "Failed to fetch public listings",
-          cause: error,
-        });
-      }
-    }),
-
-  getInitialListings: publicProcedure
-    .input(
-      z.object({
-        userSlugOrId: z.string(),
-      }),
-    )
-    .query(async ({ input }) => {
-      try {
-        return await getInitialListings(input.userSlugOrId);
-      } catch (error) {
-        if (error instanceof TRPCError) {
-          throw error;
-        }
-        throw new TRPCError({
-          code: "INTERNAL_SERVER_ERROR",
-          message: "Failed to fetch initial listings",
           cause: error,
         });
       }

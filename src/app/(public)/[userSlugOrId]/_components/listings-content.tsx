@@ -35,42 +35,57 @@ export function ListingsContent({
   initialListings,
 }: ListingsContentProps) {
   const params = useParams<{ userSlugOrId: string }>();
-  const [tableData, setTableData] = useState(initialListings);
+  const [tableData, setTableData] = useState<Listing[]>(initialListings ?? []);
 
   // Initialize table with initial listings
   const table = useDataTable({
     data: tableData,
     columns,
     storageKey: "public-catalog-listings-table",
+    config: {
+      state: {
+        rowSelection: {},
+      },
+    },
   });
 
-  // Fetch all listings in the background with caching
-  const { data: allListingsData, isLoading } = api.public.getListings.useQuery(
-    { userSlugOrId: params.userSlugOrId },
-    {
-      refetchOnWindowFocus: false,
-      refetchOnReconnect: false,
-      staleTime: HOUR_IN_MS,
-      gcTime: HOUR_IN_MS,
-    },
-  );
+  // Fetch listings with infinite query
+  const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading } =
+    api.public.getListings.useInfiniteQuery(
+      {
+        userSlugOrId: params.userSlugOrId,
+        limit: 100,
+      },
+      {
+        getNextPageParam: (lastPage) => lastPage[lastPage.length - 1]?.id,
+        refetchOnWindowFocus: false,
+        refetchOnReconnect: false,
+        staleTime: HOUR_IN_MS,
+        gcTime: HOUR_IN_MS,
+        initialData: initialListings
+          ? {
+              pages: [initialListings],
+              pageParams: [undefined],
+            }
+          : undefined,
+        retry: false,
+        refetchOnMount: false,
+        refetchInterval: false,
+      },
+    );
 
-  // Log version info when data changes
+  // Update table data when we get new pages
   useEffect(() => {
-    if (allListingsData) {
-      console.log("[listings-content] Query version: max 500 results", {
-        totalListings: allListingsData.length,
-        timestamp: new Date().toISOString(),
-      });
-    }
-  }, [allListingsData]);
+    if (data?.pages) {
+      const allItems = data.pages.flat();
+      setTableData(allItems);
 
-  // Update table data when we get all listings
-  useEffect(() => {
-    if (allListingsData && allListingsData.length >= tableData.length) {
-      setTableData(allListingsData);
+      // If there's more data, fetch it immediately
+      if (hasNextPage && !isFetchingNextPage) {
+        void fetchNextPage();
+      }
     }
-  }, [allListingsData, tableData.length]);
+  }, [data?.pages, hasNextPage, isFetchingNextPage, fetchNextPage]);
 
   const listsColumn = table.getColumn("lists");
 
@@ -79,14 +94,16 @@ export function ListingsContent({
     const listCounts = new Map<string, number>();
 
     // Count listings per list in a single pass
-    tableData.forEach((listing) => {
-      listing.lists.forEach((listingList) => {
-        const count = listCounts.get(listingList.id) ?? 0;
-        listCounts.set(listingList.id, count + 1);
+    tableData?.forEach((listing: Listing) => {
+      if (!listing?.lists) return;
+
+      listing.lists.forEach((list: { id: string; title: string }) => {
+        const count = listCounts.get(list.id) ?? 0;
+        listCounts.set(list.id, count + 1);
       });
     });
 
-    return lists.map((list) => ({
+    return (lists ?? []).map((list) => ({
       label: list.title,
       value: list.id,
       count: listCounts.get(list.id) ?? 0,
@@ -100,7 +117,7 @@ export function ListingsContent({
       <div id="listings" className="space-y-4">
         <div className="flex items-center justify-between">
           <H2 className="text-2xl">Listings</H2>
-          {isLoading && (
+          {(isLoading || isFetchingNextPage) && (
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <Loader2 className="h-4 w-4 animate-spin" />
               <span>Loading more listings...</span>

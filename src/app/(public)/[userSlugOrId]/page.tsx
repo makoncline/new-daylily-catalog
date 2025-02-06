@@ -139,6 +139,7 @@ export default async function Page({ params }: PageProps) {
       <div className="mb-6">
         <PublicBreadcrumbs />
       </div>
+
       <div className="space-y-6">
         <Suspense>
           <ProfileContent initialProfile={initialProfile} />

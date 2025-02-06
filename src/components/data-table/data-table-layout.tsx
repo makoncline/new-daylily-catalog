@@ -17,20 +17,31 @@ export function DataTableLayout<TData>({
   pagination,
   noResults,
 }: DataTableLayoutProps<TData>) {
-  // If there's no data after filtering, show the no results component
-  if (table.getRowModel().rows.length === 0) {
+  if (!table || typeof table.getRowModel !== "function") {
     return (
       <div className="space-y-4">
         {toolbar}
-        {noResults ?? (
-          <div className="rounded-md border p-8 text-center">No results.</div>
-        )}
+        {noResults}
+        {pagination}
+      </div>
+    );
+  }
+
+  const rowModel = table.getRowModel();
+  const rows = rowModel?.rows;
+
+  if (!rows || rows.length === 0) {
+    return (
+      <div className="space-y-4">
+        {toolbar}
+        {noResults}
+        {pagination}
       </div>
     );
   }
 
   return (
-    <div id="data-table" className="space-y-4">
+    <div className="space-y-4">
       {toolbar}
       {children}
       {pagination}
