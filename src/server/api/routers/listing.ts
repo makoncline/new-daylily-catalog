@@ -9,6 +9,7 @@ import { listingFormSchema } from "@/types/schemas/listing";
 import { type PrismaClient } from "@prisma/client";
 import { APP_CONFIG } from "@/config/constants";
 import { generateUniqueSlug } from "@/lib/utils/slugify-server";
+import { sortTitlesLettersBeforeNumbers } from "@/lib/utils/sort-utils";
 
 async function checkListingOwnership(
   userId: string,
@@ -237,10 +238,9 @@ export const listingRouter = createTRPCRouter({
     const items = await ctx.db.listing.findMany({
       where: { userId: ctx.user.id },
       include: listingInclude,
-      orderBy: { updatedAt: "desc" },
     });
 
-    return items;
+    return sortTitlesLettersBeforeNumbers(items);
   }),
 
   linkAhs: protectedProcedure
