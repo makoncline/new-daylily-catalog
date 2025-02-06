@@ -128,12 +128,17 @@ export async function getPublicListings(userSlugOrId: string) {
     let hasMore = true;
     const batchSize = 100;
     let batchNumber = 0;
+    const maxResults = 500;
 
-    while (hasMore) {
+    while (hasMore && allListings.length < maxResults) {
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       batchNumber++;
-      const batch = await findUserListings(userId, cursor, batchSize);
+      const remainingNeeded = maxResults - allListings.length;
+      const currentBatchSize = Math.min(batchSize, remainingNeeded);
 
-      if (batch.length < batchSize) {
+      const batch = await findUserListings(userId, cursor, currentBatchSize);
+
+      if (batch.length < currentBatchSize) {
         hasMore = false;
       }
 

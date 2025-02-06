@@ -55,6 +55,16 @@ export function ListingsContent({
     },
   );
 
+  // Log version info when data changes
+  useEffect(() => {
+    if (allListingsData) {
+      console.log("[listings-content] Query version: max 500 results", {
+        totalListings: allListingsData.length,
+        timestamp: new Date().toISOString(),
+      });
+    }
+  }, [allListingsData]);
+
   // Update table data when we get all listings
   useEffect(() => {
     if (allListingsData && allListingsData.length >= tableData.length) {
