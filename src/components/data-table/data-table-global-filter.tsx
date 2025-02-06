@@ -43,11 +43,11 @@ export function DataTableGlobalFilter<TData>({
     debouncedFiltering(newValue);
   };
 
+  const globalFilter = table.getState().globalFilter as string | undefined;
   // Keep local state in sync with table state
   React.useEffect(() => {
-    const globalFilter = table.getState().globalFilter as string | undefined;
     setValue(globalFilter ?? "");
-  }, [table]);
+  }, [globalFilter]);
 
   return (
     <Input

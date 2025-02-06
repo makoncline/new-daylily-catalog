@@ -32,6 +32,9 @@ export const baseListingColumns: ColumnDef<ListingData>[] = [
   {
     id: "title",
     accessorKey: "title",
+    meta: {
+      title: LISTING_TABLE_COLUMN_NAMES.title,
+    },
     header: ({ column }) => (
       <DataTableColumnHeader
         column={column}
@@ -51,6 +54,9 @@ export const baseListingColumns: ColumnDef<ListingData>[] = [
   {
     id: "images",
     accessorKey: "images",
+    meta: {
+      title: LISTING_TABLE_COLUMN_NAMES.images,
+    },
     accessorFn: (row) =>
       (row.images?.length ?? 0) + (row.ahsListing?.ahsImageUrl ? 1 : 0),
     header: ({ column }) => (
@@ -59,7 +65,7 @@ export const baseListingColumns: ColumnDef<ListingData>[] = [
         title={
           <span className="flex items-center gap-2">
             <ImageIcon className="h-4 w-4" />
-            <span className="sr-only">Images</span>
+            <span className="sr-only">{LISTING_TABLE_COLUMN_NAMES.images}</span>
           </span>
         }
       />
@@ -76,6 +82,9 @@ export const baseListingColumns: ColumnDef<ListingData>[] = [
   {
     id: "price",
     accessorKey: "price",
+    meta: {
+      title: LISTING_TABLE_COLUMN_NAMES.price,
+    },
     header: ({ column }) => (
       <DataTableColumnHeader
         column={column}
@@ -93,6 +102,9 @@ export const baseListingColumns: ColumnDef<ListingData>[] = [
   {
     id: "description",
     accessorKey: "description",
+    meta: {
+      title: LISTING_TABLE_COLUMN_NAMES.description,
+    },
     header: ({ column }) => (
       <DataTableColumnHeader
         column={column}
@@ -108,6 +120,9 @@ export const baseListingColumns: ColumnDef<ListingData>[] = [
   {
     id: "privateNote",
     accessorKey: "privateNote",
+    meta: {
+      title: LISTING_TABLE_COLUMN_NAMES.privateNote,
+    },
     header: ({ column }) => (
       <DataTableColumnHeader
         column={column}
@@ -123,7 +138,19 @@ export const baseListingColumns: ColumnDef<ListingData>[] = [
   {
     id: "lists",
     accessorKey: "lists",
-    header: "Lists",
+    meta: {
+      title: LISTING_TABLE_COLUMN_NAMES.lists,
+    },
+    accessorFn: (row) => {
+      if (!row.lists?.length) return "";
+      return row.lists.map((list) => list.title).join(", ");
+    },
+    header: ({ column }) => (
+      <DataTableColumnHeader
+        column={column}
+        title={LISTING_TABLE_COLUMN_NAMES.lists}
+      />
+    ),
     cell: ({ row }) => {
       const lists = row.original.lists;
       if (!lists || lists.length === 0) return null;
@@ -151,6 +178,9 @@ export const baseListingColumns: ColumnDef<ListingData>[] = [
   {
     id: "status",
     accessorKey: "status",
+    meta: {
+      title: LISTING_TABLE_COLUMN_NAMES.status,
+    },
     accessorFn: (row) => row.status,
     header: ({ column }) => (
       <DataTableColumnHeader
@@ -171,9 +201,15 @@ export const baseListingColumns: ColumnDef<ListingData>[] = [
   // AHS Listing columns
   {
     id: "summary",
+    meta: {
+      title: LISTING_TABLE_COLUMN_NAMES.summary,
+    },
     accessorFn: (row) => formatAhsListingSummary(row.ahsListing),
     header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Summary" />
+      <DataTableColumnHeader
+        column={column}
+        title={LISTING_TABLE_COLUMN_NAMES.summary}
+      />
     ),
     cell: ({ row }) => {
       const value: string | null = row.getValue("summary");
@@ -185,6 +221,9 @@ export const baseListingColumns: ColumnDef<ListingData>[] = [
   {
     id: "hybridizer",
     accessorKey: "ahsListing.hybridizer",
+    meta: {
+      title: LISTING_TABLE_COLUMN_NAMES.hybridizer,
+    },
     accessorFn: (row) => row.ahsListing?.hybridizer ?? null,
     header: ({ column }) => (
       <DataTableColumnHeader
@@ -202,6 +241,9 @@ export const baseListingColumns: ColumnDef<ListingData>[] = [
   {
     id: "year",
     accessorKey: "ahsListing.year",
+    meta: {
+      title: LISTING_TABLE_COLUMN_NAMES.year,
+    },
     accessorFn: (row) => row.ahsListing?.year ?? null,
     header: ({ column }) => (
       <DataTableColumnHeader
@@ -219,6 +261,9 @@ export const baseListingColumns: ColumnDef<ListingData>[] = [
   {
     id: "scapeHeight",
     accessorKey: "ahsListing.scapeHeight",
+    meta: {
+      title: LISTING_TABLE_COLUMN_NAMES.scapeHeight,
+    },
     accessorFn: (row) => row.ahsListing?.scapeHeight ?? null,
     header: ({ column }) => (
       <DataTableColumnHeader
@@ -236,6 +281,9 @@ export const baseListingColumns: ColumnDef<ListingData>[] = [
   {
     id: "bloomSize",
     accessorKey: "ahsListing.bloomSize",
+    meta: {
+      title: LISTING_TABLE_COLUMN_NAMES.bloomSize,
+    },
     accessorFn: (row) => row.ahsListing?.bloomSize ?? null,
     header: ({ column }) => (
       <DataTableColumnHeader
@@ -253,6 +301,9 @@ export const baseListingColumns: ColumnDef<ListingData>[] = [
   {
     id: "bloomSeason",
     accessorKey: "ahsListing.bloomSeason",
+    meta: {
+      title: LISTING_TABLE_COLUMN_NAMES.bloomSeason,
+    },
     accessorFn: (row) => row.ahsListing?.bloomSeason ?? null,
     header: ({ column }) => (
       <DataTableColumnHeader
@@ -270,6 +321,9 @@ export const baseListingColumns: ColumnDef<ListingData>[] = [
   {
     id: "ploidy",
     accessorKey: "ahsListing.ploidy",
+    meta: {
+      title: LISTING_TABLE_COLUMN_NAMES.ploidy,
+    },
     accessorFn: (row) => row.ahsListing?.ploidy ?? null,
     header: ({ column }) => (
       <DataTableColumnHeader
@@ -287,6 +341,9 @@ export const baseListingColumns: ColumnDef<ListingData>[] = [
   {
     id: "foliageType",
     accessorKey: "ahsListing.foliageType",
+    meta: {
+      title: LISTING_TABLE_COLUMN_NAMES.foliageType,
+    },
     accessorFn: (row) => row.ahsListing?.foliageType ?? null,
     header: ({ column }) => (
       <DataTableColumnHeader
@@ -304,6 +361,9 @@ export const baseListingColumns: ColumnDef<ListingData>[] = [
   {
     id: "bloomHabit",
     accessorKey: "ahsListing.bloomHabit",
+    meta: {
+      title: LISTING_TABLE_COLUMN_NAMES.bloomHabit,
+    },
     accessorFn: (row) => row.ahsListing?.bloomHabit ?? null,
     header: ({ column }) => (
       <DataTableColumnHeader
@@ -321,6 +381,9 @@ export const baseListingColumns: ColumnDef<ListingData>[] = [
   {
     id: "color",
     accessorKey: "ahsListing.color",
+    meta: {
+      title: LISTING_TABLE_COLUMN_NAMES.color,
+    },
     accessorFn: (row) => row.ahsListing?.color ?? null,
     header: ({ column }) => (
       <DataTableColumnHeader
@@ -338,6 +401,9 @@ export const baseListingColumns: ColumnDef<ListingData>[] = [
   {
     id: "form",
     accessorKey: "ahsListing.form",
+    meta: {
+      title: LISTING_TABLE_COLUMN_NAMES.form,
+    },
     accessorFn: (row) => row.ahsListing?.form ?? null,
     header: ({ column }) => (
       <DataTableColumnHeader
@@ -355,6 +421,9 @@ export const baseListingColumns: ColumnDef<ListingData>[] = [
   {
     id: "fragrance",
     accessorKey: "ahsListing.fragrance",
+    meta: {
+      title: LISTING_TABLE_COLUMN_NAMES.fragrance,
+    },
     accessorFn: (row) => row.ahsListing?.fragrance ?? null,
     header: ({ column }) => (
       <DataTableColumnHeader
@@ -372,6 +441,9 @@ export const baseListingColumns: ColumnDef<ListingData>[] = [
   {
     id: "budcount",
     accessorKey: "ahsListing.budcount",
+    meta: {
+      title: LISTING_TABLE_COLUMN_NAMES.budcount,
+    },
     accessorFn: (row) => row.ahsListing?.budcount ?? null,
     header: ({ column }) => (
       <DataTableColumnHeader
@@ -389,6 +461,9 @@ export const baseListingColumns: ColumnDef<ListingData>[] = [
   {
     id: "branches",
     accessorKey: "ahsListing.branches",
+    meta: {
+      title: LISTING_TABLE_COLUMN_NAMES.branches,
+    },
     accessorFn: (row) => row.ahsListing?.branches ?? null,
     header: ({ column }) => (
       <DataTableColumnHeader
@@ -408,6 +483,9 @@ export const baseListingColumns: ColumnDef<ListingData>[] = [
   {
     id: "createdAt",
     accessorKey: "createdAt",
+    meta: {
+      title: LISTING_TABLE_COLUMN_NAMES.createdAt,
+    },
     header: ({ column }) => (
       <DataTableColumnHeader
         column={column}
@@ -430,6 +508,9 @@ export const baseListingColumns: ColumnDef<ListingData>[] = [
   {
     id: "updatedAt",
     accessorKey: "updatedAt",
+    meta: {
+      title: LISTING_TABLE_COLUMN_NAMES.updatedAt,
+    },
     header: ({ column }) => (
       <DataTableColumnHeader
         column={column}

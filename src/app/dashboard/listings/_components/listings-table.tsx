@@ -16,6 +16,7 @@ import { DataTableGlobalFilter } from "@/components/data-table/data-table-global
 import { DataTableFilterReset } from "@/components/data-table/data-table-filter-reset";
 import { DataTableViewOptions } from "@/components/data-table/data-table-view-options";
 import { DataTableFacetedFilter } from "@/components/data-table/data-table-faceted-filter";
+import { DataTableDownload } from "@/components/data-table";
 
 type List = RouterOutputs["list"]["list"][number];
 type Listing = RouterOutputs["listing"]["list"][number];
@@ -123,7 +124,12 @@ export function ListingsTable() {
           />
         ) : null
       }
-      pagination={<DataTablePagination table={table} />}
+      pagination={
+        <>
+          <DataTablePagination table={table} />
+          <DataTableDownload table={table} filenamePrefix="listings" />
+        </>
+      }
       noResults={
         <EmptyState
           title="No listings found"

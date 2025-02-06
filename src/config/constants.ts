@@ -31,6 +31,7 @@ export const LISTING_TABLE_COLUMN_NAMES = {
   status: "Status",
 
   // AHS Listing columns
+  summary: "Daylily Database Description",
   hybridizer: "Hybridizer",
   year: "Year",
   scapeHeight: "Scape Height",

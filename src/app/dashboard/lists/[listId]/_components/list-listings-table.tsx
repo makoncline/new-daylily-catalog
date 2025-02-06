@@ -22,6 +22,8 @@ import { DataTableFilterReset } from "@/components/data-table/data-table-filter-
 import { DataTableViewOptions } from "@/components/data-table/data-table-view-options";
 import { type ListingData } from "./columns";
 import { useDataTable } from "@/hooks/use-data-table";
+import { DataTableDownload } from "@/components/data-table";
+import { slugify } from "@/lib/utils/slugify";
 
 interface ListListingsTableProps {
   listId: string;
@@ -110,6 +112,9 @@ function ListingsTableToolbar({ table, listId }: ListingsTableToolbarProps) {
 }
 
 export function ListListingsTable({ listId }: ListListingsTableProps) {
+  const { data: list } = api.list.get.useQuery({
+    id: listId,
+  });
   const { data: listings, isLoading } = api.list.getListings.useQuery({
     id: listId,
   });
@@ -158,7 +163,15 @@ export function ListListingsTable({ listId }: ListListingsTableProps) {
       <DataTableLayout
         table={table}
         toolbar={<ListingsTableToolbar table={table} listId={listId} />}
-        pagination={<DataTablePagination table={table} />}
+        pagination={
+          <>
+            <DataTablePagination table={table} />
+            <DataTableDownload
+              table={table}
+              filenamePrefix={`${slugify(list?.title ?? listId)}-listings`}
+            />
+          </>
+        }
         noResults={
           <EmptyState
             title="No listings found"

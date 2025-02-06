@@ -14,6 +14,9 @@ export const columns: ColumnDef<List>[] = [
   {
     id: "title",
     accessorKey: "title",
+    meta: {
+      title: LIST_TABLE_COLUMN_NAMES.title,
+    },
     header: ({ column }) => (
       <DataTableColumnHeader
         column={column}
@@ -29,6 +32,9 @@ export const columns: ColumnDef<List>[] = [
   {
     id: "description",
     accessorKey: "description",
+    meta: {
+      title: LIST_TABLE_COLUMN_NAMES.description,
+    },
     header: ({ column }) => (
       <DataTableColumnHeader
         column={column}
@@ -42,6 +48,9 @@ export const columns: ColumnDef<List>[] = [
   },
   {
     id: "listingsCount",
+    meta: {
+      title: LIST_TABLE_COLUMN_NAMES.listingsCount,
+    },
     header: ({ column }) => (
       <DataTableColumnHeader
         column={column}
@@ -55,6 +64,9 @@ export const columns: ColumnDef<List>[] = [
   {
     id: "createdAt",
     accessorKey: "createdAt",
+    meta: {
+      title: LIST_TABLE_COLUMN_NAMES.createdAt,
+    },
     header: ({ column }) => (
       <DataTableColumnHeader
         column={column}
@@ -71,6 +83,9 @@ export const columns: ColumnDef<List>[] = [
   {
     id: "updatedAt",
     accessorKey: "updatedAt",
+    meta: {
+      title: LIST_TABLE_COLUMN_NAMES.updatedAt,
+    },
     header: ({ column }) => (
       <DataTableColumnHeader
         column={column}

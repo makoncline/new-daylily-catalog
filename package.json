@@ -9,7 +9,7 @@
     "postinstall": "prisma generate",
     "lint": "next lint",
     "start": "next start",
-    "start-tunnel": "lt --subdomain new-daylily-catalog-dev --port 3000",
+    "start-tunnel": "cloudflared tunnel run local",
     "env:dev": "npx dotenv -e .env.development -- ",
     "env:prod": "npx dotenv -e .env.production -- ",
     "migrate": "npx tsx prisma/migrate.ts",

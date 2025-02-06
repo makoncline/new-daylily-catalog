@@ -40,7 +40,7 @@ export function AhsListingSelect({
           disabled={disabled}
           id="ahs-listing-select"
         >
-          Select AHS listing...
+          Select Daylily Database listing...
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
