@@ -69,10 +69,10 @@ async function findUserListings(
   cursor?: string,
   take?: number,
 ) {
-  return db.listing.findMany({
+  const listings = await db.listing.findMany({
     take,
     cursor: cursor ? { id: cursor } : undefined,
-    skip: cursor ? 1 : 0, // Skip the cursor record when using cursor
+    skip: cursor ? 1 : 0,
     where: {
       userId,
       OR: [{ status: null }, { NOT: { status: STATUS.HIDDEN } }],
@@ -82,11 +82,13 @@ async function findUserListings(
       createdAt: "desc",
     },
   });
+
+  return listings;
 }
 
 // Helper function to transform listings with AHS image fallback
 function transformListings(listings: ListingWithRelations[]) {
-  return listings.map((listing) => ({
+  const transformed = listings.map((listing) => ({
     ...listing,
     images:
       listing.images.length === 0 && listing.ahsListing?.ahsImageUrl
@@ -98,6 +100,8 @@ function transformListings(listings: ListingWithRelations[]) {
           ]
         : listing.images,
   }));
+
+  return transformed;
 }
 
 // Get initial page data - optimized for fast first load
@@ -107,14 +111,10 @@ export async function getInitialListings(userSlugOrId: string) {
     const items = await findUserListings(userId, undefined, 36);
     return transformListings(items);
   } catch (error) {
-    if (error instanceof Error) {
-      console.error("Error fetching initial listings:", error.message);
-    } else {
-      console.error("Error fetching initial listings:", error);
-    }
     throw new TRPCError({
       code: "INTERNAL_SERVER_ERROR",
       message: "Failed to fetch initial listings",
+      cause: error,
     });
   }
 }
@@ -127,8 +127,10 @@ export async function getPublicListings(userSlugOrId: string) {
     let cursor: string | undefined;
     let hasMore = true;
     const batchSize = 100;
+    let batchNumber = 0;
 
     while (hasMore) {
+      batchNumber++;
       const batch = await findUserListings(userId, cursor, batchSize);
 
       if (batch.length < batchSize) {
@@ -136,7 +138,10 @@ export async function getPublicListings(userSlugOrId: string) {
       }
 
       if (batch.length > 0) {
-        cursor = batch[batch.length - 1]?.id;
+        const lastItem = batch[batch.length - 1];
+        if (lastItem) {
+          cursor = lastItem.id;
+        }
       }
 
       allListings = [...allListings, ...batch];
@@ -144,14 +149,10 @@ export async function getPublicListings(userSlugOrId: string) {
 
     return transformListings(allListings);
   } catch (error) {
-    if (error instanceof Error) {
-      console.error("Error fetching all listings:", error.message);
-    } else {
-      console.error("Error fetching all listings:", error);
-    }
     throw new TRPCError({
       code: "INTERNAL_SERVER_ERROR",
       message: "Failed to fetch all listings",
+      cause: error,
     });
   }
 }

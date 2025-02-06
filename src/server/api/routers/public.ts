@@ -205,10 +205,10 @@ export const publicRouter = createTRPCRouter({
         if (error instanceof TRPCError) {
           throw error;
         }
-        console.error("Error fetching public listings:", error);
         throw new TRPCError({
           code: "INTERNAL_SERVER_ERROR",
           message: "Failed to fetch public listings",
+          cause: error,
         });
       }
     }),
@@ -226,10 +226,10 @@ export const publicRouter = createTRPCRouter({
         if (error instanceof TRPCError) {
           throw error;
         }
-        console.error("Error fetching initial listings:", error);
         throw new TRPCError({
           code: "INTERNAL_SERVER_ERROR",
           message: "Failed to fetch initial listings",
+          cause: error,
         });
       }
     }),

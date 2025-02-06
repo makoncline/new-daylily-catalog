@@ -13,7 +13,6 @@ import { IMAGES } from "@/lib/constants/images";
 import { getOptimizedMetaImageUrl } from "@/lib/utils/cloudflareLoader";
 import { getBaseUrl } from "@/lib/utils/getBaseUrl";
 import { type Metadata } from "next";
-import { api } from "@/trpc/server";
 
 export const revalidate = 3600;
 export const dynamicParams = true;
@@ -129,9 +128,6 @@ export default async function Page({ params }: PageProps) {
     ["listings", userSlugOrId, "initial"],
     { revalidate: 3600 },
   );
-
-  // Prefetch the full listings query
-  await api.public.getListings.prefetch({ userSlugOrId });
 
   const [initialProfile, initialListings] = await Promise.all([
     getProfile(),
