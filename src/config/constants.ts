@@ -1,3 +1,5 @@
+import { Package, Globe, Star, HeartHandshake } from "lucide-react";
+
 export const TIME = {
   HOUR_IN_MS: 1000 * 60 * 60,
   DAY_IN_MS: 1000 * 60 * 60 * 24,
@@ -65,6 +67,7 @@ export const LISTING_CONFIG = {
     MAX_COUNT: UPLOAD_CONFIG.MAX_IMAGES_PER_LISTING,
     MAX_SIZE: UPLOAD_CONFIG.MAX_FILE_SIZE,
   },
+  FREE_TIER_MAX_LISTINGS: 25,
 } as const;
 
 export const LIST_CONFIG = {
@@ -93,6 +96,29 @@ export const METADATA_CONFIG = {
   TWITTER_CARD_TYPE: "summary_large_image",
   LOCALE: "en_US",
 } as const;
+
+export const PRO_FEATURES = [
+  {
+    id: "listings",
+    text: "Unlimited listings and photos",
+    icon: Package,
+  },
+  {
+    id: "lists",
+    text: "Custom domain name",
+    icon: Globe,
+  },
+  {
+    id: "photos",
+    text: "Featured placement in the catalog",
+    icon: Star,
+  },
+  {
+    id: "domain",
+    text: "Priority customer support",
+    icon: HeartHandshake,
+  },
+] as const;
 
 // Add more config objects as needed
 export const APP_CONFIG = {

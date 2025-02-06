@@ -9,7 +9,11 @@ import {
   getUserIdFromSlugOrId,
 } from "@/server/db/getPublicProfile";
 import { unstable_cache } from "next/cache";
-import { getListings, listingSelect } from "@/server/db/getPublicListings";
+import {
+  getListings,
+  listingSelect,
+  transformListings,
+} from "@/server/db/getPublicListings";
 
 // Helper function to get the full listing data with all relations
 async function getFullListingData(listingId: string) {
@@ -39,26 +43,6 @@ async function getFullListingData(listingId: string) {
           ]
         : listing.images,
   };
-}
-
-// Helper function to transform listings with AHS image fallback
-function transformListings(
-  listings: Awaited<
-    ReturnType<typeof db.listing.findMany<{ select: typeof listingSelect }>>
-  >,
-) {
-  return listings.map((listing) => ({
-    ...listing,
-    images:
-      listing.images.length === 0 && listing.ahsListing?.ahsImageUrl
-        ? [
-            {
-              id: `ahs-${listing.id}`,
-              url: listing.ahsListing.ahsImageUrl,
-            },
-          ]
-        : listing.images,
-  }));
 }
 
 const getListingsCached = (userId: string) =>

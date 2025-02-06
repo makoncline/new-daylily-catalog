@@ -1,7 +1,6 @@
 import { MainContent } from "@/app/(public)/_components/main-content";
 import { PublicBreadcrumbs } from "@/app/(public)/_components/public-breadcrumbs";
 import { getUserAndListingIdsAndSlugs } from "@/server/db/getUserAndListingIdsAndSlugs";
-import { ViewListingDialog } from "@/components/view-listing-dialog";
 import { ProfileContent } from "./_components/profile-content";
 import { unstable_cache } from "next/cache";
 import { getPublicProfile } from "@/server/db/getPublicProfile";

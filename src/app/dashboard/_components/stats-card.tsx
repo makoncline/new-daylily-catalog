@@ -5,7 +5,12 @@ import { Button } from "@/components/ui/button";
 import { Plus, Package, ListChecks, ImageIcon } from "lucide-react";
 import Link from "next/link";
 import type { RouterOutputs } from "@/trpc/react";
-import { H3, P, Muted } from "@/components/typography";
+import { H2, H3, P, Muted } from "@/components/typography";
+import { api } from "@/trpc/react";
+import { hasActiveSubscription } from "@/server/stripe/subscription-utils";
+import { useRouter } from "next/navigation";
+import { useToast } from "@/hooks/use-toast";
+import { PRO_FEATURES } from "@/config/constants";
 
 interface StatsCardProps {
   stats: RouterOutputs["dashboard"]["getStats"];
@@ -26,6 +31,12 @@ export function ListingDetailsCard({ stats }: StatsCardProps) {
           </div>
         </div>
         <div className="flex justify-between text-sm">
+          <Muted>Published listings</Muted>
+          <div>
+            <P>{stats.publishedListings}</P>
+          </div>
+        </div>
+        <div className="flex justify-between text-sm">
           <Muted>With link to daylily database</Muted>
           <div>
             <P>{stats.listingStats.withAhsData}</P>
@@ -40,19 +51,13 @@ export function ListingDetailsCard({ stats }: StatsCardProps) {
         <div className="flex justify-between text-sm">
           <Muted>With price</Muted>
           <div>
-            <P>
-              {stats.listingStats.averagePrice > 0 ? stats.totalListings : 0}
-            </P>
+            <P>{stats.listingStats.withPrice}</P>
           </div>
         </div>
         <div className="flex justify-between text-sm">
           <Muted>On lists</Muted>
           <div>
-            <P>
-              {Math.floor(
-                stats.listStats.averageListingsPerList * stats.totalLists,
-              )}
-            </P>
+            <P>{stats.listingStats.inLists}</P>
           </div>
         </div>
       </div>
@@ -117,6 +122,80 @@ export function ImagesCard({ stats }: StatsCardProps) {
       <Muted className="mt-2 text-xs">
         {stats.listingStats.withImages} listings with images
       </Muted>
+    </Card>
+  );
+}
+
+export function ProMembershipCard() {
+  const router = useRouter();
+  const { toast } = useToast();
+  const { data: subscription, isLoading } =
+    api.stripe.getSubscription.useQuery();
+  const generateCheckout = api.stripe.generateCheckout.useMutation();
+
+  // Don't show if loading or if user is already a pro member
+  if (isLoading || hasActiveSubscription(subscription?.status)) {
+    return null;
+  }
+
+  const handleUpgrade = async () => {
+    try {
+      const { url } = await generateCheckout.mutateAsync();
+      router.push(url);
+    } catch (error) {
+      console.error("Failed to create checkout session", error);
+      toast({
+        title: "Failed to start checkout",
+        description: "Please try again later",
+        variant: "destructive",
+      });
+    }
+  };
+
+  return (
+    <Card className="mb-4 overflow-hidden">
+      <div className="border-b border-border bg-card p-6">
+        <div className="space-y-1">
+          <H2 className="pb-2 text-3xl">Become a Daylily Catalog Pro</H2>
+          <P className="text-base text-muted-foreground">
+            Take your daylily business to the next level with advanced features
+            and premium support.
+          </P>
+        </div>
+      </div>
+      <div className="bg-card/50 p-6">
+        <div className="flex flex-col gap-6 lg:flex-row">
+          <div className="flex flex-1 flex-col gap-4">
+            <H3 className="text-2xl">Why upgrade to Pro?</H3>
+            <P className="text-sm leading-7 text-muted-foreground">
+              Get access to premium features that help you grow your daylily
+              business.
+            </P>
+            <ul className="space-y-2 text-sm">
+              {PRO_FEATURES.map((feature) => {
+                const Icon = feature.icon;
+                return (
+                  <li key={feature.id} className="flex items-center">
+                    <Icon className="mr-2 h-4 w-4" />
+                    {feature.text}
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+          <div className="flex flex-1 flex-col justify-end gap-6">
+            <Button
+              size="lg"
+              variant="gradient"
+              onClick={handleUpgrade}
+              disabled={generateCheckout.isPending}
+            >
+              <Plus className="mr-2 h-4 w-4" />
+              {generateCheckout.isPending ? "Loading..." : "Upgrade to Pro"}
+            </Button>
+          </div>
+        </div>
+      </div>
     </Card>
   );
 }

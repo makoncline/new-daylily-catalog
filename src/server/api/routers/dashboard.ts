@@ -1,4 +1,5 @@
 import { createTRPCRouter, protectedProcedure } from "@/server/api/trpc";
+import { STATUS } from "@/config/constants";
 
 interface EditorBlock {
   id: string;
@@ -15,39 +16,53 @@ interface EditorContent {
   version: string;
 }
 
+// Helper to check if a listing is published
+const isPublished = (status: string | null) => {
+  return status === null || status !== STATUS.HIDDEN;
+};
+
 export const dashboardRouter = createTRPCRouter({
   getStats: protectedProcedure.query(async ({ ctx }) => {
     const [
-      totalListings,
+      allListings,
       totalLists,
       listingsWithImages,
       listingsWithAhs,
-      averagePrice,
+      priceStats,
       totalImages,
       profile,
       listsWithCounts,
       profileImages,
     ] = await Promise.all([
-      ctx.db.listing.count({
+      // Get all listings to calculate published count
+      ctx.db.listing.findMany({
         where: { userId: ctx.user.id },
+        select: { status: true },
       }),
       ctx.db.list.count({
         where: { userId: ctx.user.id },
       }),
+      // Count listings with images
       ctx.db.listing.count({
         where: {
           userId: ctx.user.id,
           images: { some: {} },
         },
       }),
+      // Count listings with AHS data
       ctx.db.listing.count({
         where: {
           userId: ctx.user.id,
           ahsId: { not: null },
         },
       }),
+      // Calculate price stats (only for listings with non-null prices)
       ctx.db.listing.aggregate({
-        where: { userId: ctx.user.id },
+        where: {
+          userId: ctx.user.id,
+          price: { not: null },
+        },
+        _count: true,
         _avg: {
           price: true,
         },
@@ -68,11 +83,14 @@ export const dashboardRouter = createTRPCRouter({
           location: true,
         },
       }),
+      // Get lists with counts of listings
       ctx.db.list.findMany({
         where: { userId: ctx.user.id },
         include: {
           _count: {
-            select: { listings: true },
+            select: {
+              listings: true,
+            },
           },
         },
       }),
@@ -82,6 +100,11 @@ export const dashboardRouter = createTRPCRouter({
         },
       }),
     ]);
+
+    // Calculate total published listings
+    const totalPublishedListings = allListings.filter((listing) =>
+      isPublished(listing.status),
+    ).length;
 
     // Helper to check if content exists and has length
     const hasContent = (content: string | null | undefined) => {
@@ -121,21 +144,24 @@ export const dashboardRouter = createTRPCRouter({
     ].filter(Boolean).length;
     const profileCompletion = (completedFields / profileFields.length) * 100;
 
-    // Calculate average listings per list
-    const totalListings2 = listsWithCounts.reduce(
+    // Calculate average listings per list and total listings in lists
+    const totalListingsInLists = listsWithCounts.reduce(
       (acc, list) => acc + list._count.listings,
       0,
     );
     const averageListingsPerList =
-      totalLists > 0 ? totalListings2 / totalLists : 0;
+      totalLists > 0 ? totalListingsInLists / totalLists : 0;
 
     return {
-      totalListings,
+      totalListings: allListings.length,
+      publishedListings: totalPublishedListings,
       totalLists,
       listingStats: {
         withImages: listingsWithImages,
         withAhsData: listingsWithAhs,
-        averagePrice: averagePrice._avg.price ?? 0,
+        withPrice: priceStats._count,
+        averagePrice: priceStats._avg.price ?? 0,
+        inLists: totalListingsInLists,
       },
       imageStats: {
         total: totalImages,

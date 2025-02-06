@@ -84,7 +84,7 @@ export async function getListings(args: GetListingsArgs) {
 }
 
 // Helper function to transform listings with AHS image fallback
-function transformListings(listings: ListingWithRelations[]) {
+export function transformListings(listings: ListingWithRelations[]) {
   const transformed = listings.map((listing) => ({
     ...listing,
     images:

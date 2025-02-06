@@ -32,7 +32,8 @@ export function CatalogContent({
         limit: 500,
       },
       {
-        getNextPageParam: (lastPage) => lastPage[lastPage.length - 1]?.id,
+        getNextPageParam: (lastPage: Listing[]): string | undefined =>
+          lastPage[lastPage.length - 1]?.id,
         initialData: {
           pages: [initialListings],
           pageParams: [undefined],

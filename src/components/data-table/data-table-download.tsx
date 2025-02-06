@@ -1,8 +1,7 @@
 "use client";
 
 import { Download } from "lucide-react";
-import { type Table, type ColumnMeta } from "@tanstack/react-table";
-import { flexRender } from "@tanstack/react-table";
+import { type Table } from "@tanstack/react-table";
 
 import { Button } from "@/components/ui/button";
 

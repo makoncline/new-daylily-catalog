@@ -430,6 +430,12 @@ export const listingRouter = createTRPCRouter({
 
       return listingById;
     }),
+
+  count: protectedProcedure.query(async ({ ctx }) => {
+    return ctx.db.listing.count({
+      where: { userId: ctx.user.id },
+    });
+  }),
 });
 
 export type ListingRouter = typeof listingRouter;
