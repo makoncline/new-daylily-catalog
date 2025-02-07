@@ -17,7 +17,6 @@ export const IMAGE_CONFIG = {
     FULL: 800,
   },
   QUALITY: {
-    LOW: 60, // Good for thumbnails, very compressed
     MEDIUM: 75, // Good balance for most images
     HIGH: 90, // High quality for full size images
   },
@@ -103,7 +102,7 @@ export function OptimizedImage({
         width: dimension,
         quality:
           size === "thumbnail"
-            ? IMAGE_CONFIG.QUALITY.LOW
+            ? IMAGE_CONFIG.QUALITY.MEDIUM
             : IMAGE_CONFIG.QUALITY.HIGH,
         fit,
       });
@@ -131,7 +130,7 @@ export function OptimizedImage({
     width: dimension,
     quality:
       size === "thumbnail"
-        ? IMAGE_CONFIG.QUALITY.LOW
+        ? IMAGE_CONFIG.QUALITY.MEDIUM
         : IMAGE_CONFIG.QUALITY.HIGH,
     fit,
   });
