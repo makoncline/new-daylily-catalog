@@ -57,7 +57,7 @@ export default function HomePageClient() {
   const { hero, features, database, finalCta } = homePageContent;
 
   return (
-    <div className="flex flex-col items-center">
+    <div className="flex flex-col items-center gap-24">
       {/* Hero Section */}
       <section className="relative flex min-h-[85vh] w-full flex-col items-center justify-center gap-6 p-8 lg:flex-row">
         {/* Background Image with Overlay */}
@@ -103,7 +103,7 @@ export default function HomePageClient() {
         </div>
 
         {/* CTA Section */}
-        <div className="relative z-20 flex w-full max-w-md flex-col gap-4 rounded-lg border-8 border-secondary bg-primary p-6 shadow-lg lg:w-1/3">
+        <div className="relative z-20 flex w-full max-w-md flex-col gap-4 rounded-lg border-8 border-secondary bg-neutral-900 p-6 shadow-lg lg:w-1/3">
           <H2 className="text-xl text-primary-foreground">{hero.cta.title}</H2>
           <div className="flex flex-col items-center gap-2">
             <SignUpButton className="w-full" />
@@ -113,7 +113,7 @@ export default function HomePageClient() {
       </section>
 
       {/* Features Grid */}
-      <section className="container mx-auto px-4 py-24">
+      <section className="container mx-auto">
         <div className="mb-12 text-center">
           <H2 className="mb-4 text-3xl">{features.title}</H2>
           <P className="mx-auto max-w-2xl text-lg text-muted-foreground">
@@ -153,7 +153,7 @@ export default function HomePageClient() {
       </section>
 
       {/* Database Section */}
-      <section className="container mx-auto px-4 py-24">
+      <section className="container mx-auto">
         <div className="mb-12">
           <H2 className="mb-4 text-3xl">{database.title}</H2>
           <P className="mb-8 text-lg text-muted-foreground">

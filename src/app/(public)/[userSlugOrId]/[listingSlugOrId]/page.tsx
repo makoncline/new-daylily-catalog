@@ -14,6 +14,7 @@ import { IMAGES } from "@/lib/constants/images";
 import { METADATA_CONFIG } from "@/config/constants";
 import { getBaseUrl } from "@/lib/utils/getBaseUrl";
 import { getOptimizedMetaImageUrl } from "@/lib/utils/cloudflareLoader";
+import { formatAhsListingSummary } from "@/lib/utils";
 
 export const revalidate = 3600;
 export const dynamicParams = true;
@@ -88,9 +89,9 @@ export async function generateMetadata({
 
   // Construct metadata
   const title = `${listingName} Daylily | ${profile?.title ?? METADATA_CONFIG.SITE_NAME}`;
-  const description =
-    listing.description ??
-    `Beautiful ${listingName} daylily available from ${profile?.title ?? METADATA_CONFIG.SITE_NAME}. ${listing.ahsListing?.hybridizer ? `Hybridized by ${listing.ahsListing.hybridizer}` : ""}`.trim();
+  const description = Boolean(listing.description?.trim())
+    ? listing.description!
+    : `${listingName} daylily available from ${profile?.title ?? METADATA_CONFIG.SITE_NAME}. ${formatAhsListingSummary(listing.ahsListing) ?? ""}`.trim();
 
   return {
     title,

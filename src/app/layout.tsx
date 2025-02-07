@@ -11,8 +11,7 @@ import { SpeedInsights } from "@vercel/speed-insights/next";
 
 export const metadata: Metadata = {
   title: "Daylily Catalog",
-  description: "",
-  icons: [{ rel: "icon", url: "/favicon.ico" }],
+  description: "A platform for daylily growers to showcase their collections",
 };
 
 export default function RootLayout({

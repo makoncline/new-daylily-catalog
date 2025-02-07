@@ -16,8 +16,8 @@ export function Step({
       {!isLast && (
         <div
           className={cn(
-            "absolute left-[17px] top-[30px] h-[calc(100%-20px)] w-[2px]",
-            completed ? "bg-green-600" : "bg-border",
+            "absolute left-[17px] top-[35px] h-[calc(100%-35px)] w-[2px]",
+            completed ? "bg-primary/70" : "bg-border",
           )}
         />
       )}
@@ -25,7 +25,7 @@ export function Step({
         className={cn(
           "flex h-9 w-9 shrink-0 items-center justify-center rounded-full border-2",
           completed
-            ? "border-green-600 bg-green-600 text-white"
+            ? "border-primary/70 bg-primary/90 text-white"
             : "border-border bg-background",
         )}
       >
@@ -39,7 +39,7 @@ export function Step({
         <span
           className={cn(
             "scroll-m-20 text-lg font-semibold tracking-tight",
-            completed ? "text-green-600" : "text-foreground",
+            "text-foreground",
           )}
         >
           {label}
