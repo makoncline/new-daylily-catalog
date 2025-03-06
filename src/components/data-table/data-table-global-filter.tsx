@@ -24,7 +24,9 @@ export function DataTableGlobalFilter<TData>({
   placeholder = "Filter...",
 }: DataTableGlobalFilterProps<TData>) {
   // Local state for immediate input updates
-  const [value, setValue] = React.useState<string>("");
+  const [value, setValue] = React.useState<string>(
+    (table.getState().globalFilter as string) ?? "",
+  );
 
   // Debounced function for expensive filtering operations
   const debouncedFiltering = useDebouncedCallback((filterValue: string) => {
@@ -43,11 +45,11 @@ export function DataTableGlobalFilter<TData>({
     debouncedFiltering(newValue);
   };
 
-  const globalFilter = table.getState().globalFilter as string | undefined;
   // Keep local state in sync with table state
   React.useEffect(() => {
+    const globalFilter = table.getState().globalFilter as string | undefined;
     setValue(globalFilter ?? "");
-  }, [globalFilter]);
+  }, [table]);
 
   return (
     <Input

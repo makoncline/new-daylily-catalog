@@ -42,6 +42,18 @@ export function useDataTable<TData>({
   const urlState = useUrlInitialTableState({ filterableColumnIds });
   const localStorageState = useLocalStorageInitialTableState({ storageKey });
 
+  // Merge states, prioritizing URL state for filters and pagination
+  const initialState = {
+    // Start with local storage state as base
+    ...localStorageState,
+    // Override with URL state for filters and pagination
+    ...urlState,
+    // Keep column order from local storage
+    columnOrder: localStorageState.columnOrder ?? defaultColumnOrder,
+    // Set sorting based on global filter
+    sorting: urlState.globalFilter ? [{ id: "title", desc: false }] : [],
+  };
+
   const table = useReactTable<TData>({
     ...defaultTableConfig<TData>(),
     data,
@@ -52,12 +64,7 @@ export function useDataTable<TData>({
       pinnedColumns,
       getColumnLabel: (columnId) => columnNames[columnId] ?? columnId,
     },
-    initialState: {
-      ...urlState,
-      ...localStorageState,
-      columnOrder: localStorageState.columnOrder ?? defaultColumnOrder,
-      sorting: urlState.globalFilter ? [{ id: "title", desc: false }] : [],
-    },
+    initialState,
     ...config,
   });
 

@@ -93,16 +93,37 @@ export function DataTableFacetedFilter<TData>({
                   <CommandItem
                     key={option.value}
                     onSelect={() => {
+                      // Get current filter state
+                      const currentFilters = table.getState().columnFilters;
+
+                      // Update selected values
                       if (isSelected) {
                         selectedValues.delete(option.value);
                       } else {
                         selectedValues.add(option.value);
                       }
                       const filterValues = Array.from(selectedValues);
-                      column?.setFilterValue(
-                        filterValues.length ? filterValues : undefined,
+
+                      // Update column filters while preserving others
+                      const otherFilters = currentFilters.filter(
+                        (f) => f.id !== column?.id,
                       );
-                      table.resetPagination();
+                      const newColumnFilters = [
+                        ...otherFilters,
+                        ...(filterValues.length
+                          ? [{ id: column?.id ?? "", value: filterValues }]
+                          : []),
+                      ];
+
+                      // Update state while preserving everything except what we're explicitly changing
+                      table.setState((old) => ({
+                        ...old,
+                        columnFilters: newColumnFilters,
+                        pagination: {
+                          ...old.pagination,
+                          pageIndex: 0,
+                        },
+                      }));
                     }}
                   >
                     <div
@@ -129,8 +150,23 @@ export function DataTableFacetedFilter<TData>({
                 <CommandGroup>
                   <CommandItem
                     onSelect={() => {
-                      column?.setFilterValue(undefined);
-                      table.resetPagination();
+                      // Get current filter state
+                      const currentFilters = table.getState().columnFilters;
+
+                      // Update column filters while preserving others
+                      const newColumnFilters = currentFilters.filter(
+                        (f) => f.id !== column?.id,
+                      );
+
+                      // Update state while preserving everything except what we're explicitly changing
+                      table.setState((old) => ({
+                        ...old,
+                        columnFilters: newColumnFilters,
+                        pagination: {
+                          ...old.pagination,
+                          pageIndex: 0,
+                        },
+                      }));
                     }}
                     className="justify-center text-center"
                   >

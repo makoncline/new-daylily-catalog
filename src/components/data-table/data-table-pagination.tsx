@@ -60,7 +60,9 @@ export function DataTablePagination<TData>({
         )}
         <div className="flex flex-col items-end gap-4 sm:flex-row sm:gap-6 lg:gap-8">
           <div className="flex items-center space-x-2">
-            <P className="text-sm font-medium">Rows per page</P>
+            <label htmlFor="page-size" className="text-sm font-medium">
+              Rows per page
+            </label>
             <Select
               value={`${pageSize}`}
               onValueChange={(value) => {
@@ -68,7 +70,7 @@ export function DataTablePagination<TData>({
                 scrollToTable();
               }}
             >
-              <SelectTrigger className="h-8 w-[70px]">
+              <SelectTrigger id="page-size" className="h-8 w-[70px]">
                 <SelectValue placeholder={pageSize} />
               </SelectTrigger>
               <SelectContent side="top">

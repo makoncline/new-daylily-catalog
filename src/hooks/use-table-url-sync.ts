@@ -12,15 +12,10 @@ export function useUrlInitialTableState({
 } = {}) {
   const searchParams = useSearchParams();
 
-  const pageIndex =
-    (Number(searchParams.get("page")) ||
-      TABLE_CONFIG.PAGINATION.DEFAULT_PAGE_INDEX + 1) - 1;
-  const pageSize =
-    Number(searchParams.get("size")) ||
-    TABLE_CONFIG.PAGINATION.DEFAULT_PAGE_SIZE;
+  // 1. Get global filter first
   const globalFilter = searchParams.get("query") ?? undefined;
 
-  // Get column filters from URL
+  // 2. Get column filters
   const columnFilters = filterableColumnIds
     ? filterableColumnIds
         .map((id) => {
@@ -40,13 +35,22 @@ export function useUrlInitialTableState({
         )
     : [];
 
+  // 3. Get pagination params
+  const pageIndex =
+    (Number(searchParams.get("page")) ||
+      TABLE_CONFIG.PAGINATION.DEFAULT_PAGE_INDEX + 1) - 1;
+  const pageSize =
+    Number(searchParams.get("size")) ||
+    TABLE_CONFIG.PAGINATION.DEFAULT_PAGE_SIZE;
+
+  // Return state in the same order as we sync it
   return {
+    globalFilter,
+    columnFilters,
     pagination: {
       pageIndex,
       pageSize,
     },
-    globalFilter,
-    columnFilters,
     meta: {
       filterableColumns: filterableColumnIds,
     },
@@ -58,54 +62,46 @@ export function useTableUrlSync<TData>(table: Table<TData>) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+  // Get current table state
   const { pagination, columnFilters, globalFilter } = table.getState();
   const filterableColumns = table.options.meta?.filterableColumns;
 
   React.useEffect(() => {
     const url = new URL(window.location.href);
     const oldParams = new URLSearchParams(window.location.search);
+    const newParams = new URLSearchParams();
 
-    // Update only the search parameters
-    if (pagination.pageIndex === TABLE_CONFIG.PAGINATION.DEFAULT_PAGE_INDEX) {
-      url.searchParams.delete("page");
-    } else {
-      url.searchParams.set("page", String(pagination.pageIndex + 1));
+    // Build up new params in specific order to ensure consistency
+
+    // 1. Add global filter first if it exists
+    if (globalFilter) {
+      newParams.set("query", String(globalFilter));
+    } else if (oldParams.has("query")) {
+      // Preserve existing query if it exists
+      newParams.set("query", oldParams.get("query")!);
     }
 
-    if (pagination.pageSize === TABLE_CONFIG.PAGINATION.DEFAULT_PAGE_SIZE) {
-      url.searchParams.delete("size");
-    } else {
-      url.searchParams.set("size", String(pagination.pageSize));
-    }
-
-    // First, remove all filterable column params that aren't in the current filters
-    filterableColumns?.forEach((id) => {
-      if (!columnFilters.some((filter) => filter.id === id)) {
-        url.searchParams.delete(id);
-      }
-    });
-
-    // Then set the current column filters
+    // 2. Add column filters
     columnFilters.forEach((filter) => {
       const value = filter.value;
-      if (!value) {
-        url.searchParams.delete(filter.id);
-      } else if (Array.isArray(value)) {
-        url.searchParams.set(filter.id, value.join(","));
-      } else {
-        url.searchParams.set(filter.id, String(value));
+      if (value) {
+        if (Array.isArray(value)) {
+          newParams.set(filter.id, value.join(","));
+        } else {
+          newParams.set(filter.id, String(value));
+        }
       }
     });
 
-    // Sync global filter
-    if (!globalFilter) {
-      url.searchParams.delete("query");
-    } else {
-      url.searchParams.set("query", String(globalFilter));
+    // 3. Add pagination params
+    if (pagination.pageIndex !== TABLE_CONFIG.PAGINATION.DEFAULT_PAGE_INDEX) {
+      newParams.set("page", String(pagination.pageIndex + 1));
+    }
+    if (pagination.pageSize !== TABLE_CONFIG.PAGINATION.DEFAULT_PAGE_SIZE) {
+      newParams.set("size", String(pagination.pageSize));
     }
 
-    const newParams = url.searchParams;
+    // Check if params have changed
     const hasChanges =
       Array.from(oldParams.entries()).some(
         ([key, value]) => newParams.get(key) !== value,
@@ -113,7 +109,8 @@ export function useTableUrlSync<TData>(table: Table<TData>) {
 
     // Only update URL if parameters have actually changed
     if (hasChanges) {
-      router.push(url.href, { scroll: false });
+      url.search = newParams.toString();
+      window.history.pushState(null, "", url.href);
     }
   }, [
     pathname,

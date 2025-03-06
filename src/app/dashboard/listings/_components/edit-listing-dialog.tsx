@@ -21,12 +21,18 @@ export const useEditListing = () => {
   const params = new URLSearchParams(searchParams.toString());
 
   const setEditingId = (id: string | null) => {
+    // Create a new URL with the current pathname and search params
+    const url = new URL(window.location.href);
+
+    // Update the editing parameter
     if (id) {
-      params.set("editing", id);
+      url.searchParams.set("editing", id);
     } else {
-      params.delete("editing");
+      url.searchParams.delete("editing");
     }
-    router.push(`?${params.toString()}`);
+
+    // Use router.push to update the URL and trigger a client-side navigation
+    router.push(url.pathname + url.search);
   };
 
   const getEditingId = () => searchParams.get("editing");

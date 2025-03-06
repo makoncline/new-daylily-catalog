@@ -22,13 +22,31 @@ export function ListsSection({ lists, column, table }: ListsSectionProps) {
   const handleListClick = React.useCallback(
     (listId: string) => {
       if (!column) return;
+
+      // Check if list is already selected
       const isSelected = (column.getFilterValue() as string[])?.includes(
         listId,
       );
-      column.setFilterValue(isSelected ? undefined : [listId]);
-      table.resetPagination();
 
-      // Navigate to listings section
+      // Update column filters while preserving others
+      const currentFilters = table.getState().columnFilters;
+      const otherFilters = currentFilters.filter((f) => f.id !== "lists");
+      const newColumnFilters = [
+        ...otherFilters,
+        ...(isSelected ? [] : [{ id: "lists", value: [listId] }]),
+      ];
+
+      // Update state while preserving everything except what we're explicitly changing
+      table.setState((old) => ({
+        ...old,
+        columnFilters: newColumnFilters,
+        pagination: {
+          ...old.pagination,
+          pageIndex: 0,
+        },
+      }));
+
+      // Navigate to listings section if selecting a list
       if (!isSelected) {
         const listingsSection = document.getElementById("listings");
         listingsSection?.scrollIntoView({ behavior: "smooth" });

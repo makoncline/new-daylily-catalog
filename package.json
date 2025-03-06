@@ -12,13 +12,16 @@
     "start-tunnel": "cloudflared tunnel run local",
     "env:dev": "npx dotenv -e .env.development -- ",
     "env:prod": "npx dotenv -e .env.production -- ",
+    "env:test": "npx dotenv -e .env.development -e .env.test --override -- ",
     "migrate": "npx tsx prisma/migrate.ts",
     "db:push": "prisma db push",
     "db:generate": "prisma generate",
     "db:studio": "prisma studio",
     "dump": "turso db shell $TURSO_DATABASE_NAME .dump > dump.sql && cat dump.sql | sqlite3 $LOCAL_DATABASE_FILE",
     "migrate:generate": "npx prisma migrate dev",
-    "migrate:apply": "scripts/apply-migration.sh"
+    "migrate:apply": "scripts/apply-migration.sh",
+    "initTestDb": "npx tsx scripts/init-test-db.ts",
+    "verify-env": "npx tsx scripts/verify-env.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.717.0",
