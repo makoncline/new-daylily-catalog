@@ -109,6 +109,9 @@ export async function getInitialListings(userSlugOrId: string) {
 
     return transformListings(items);
   } catch (error) {
+    if (error instanceof TRPCError && error.code === "NOT_FOUND") {
+      throw error;
+    }
     throw new TRPCError({
       code: "INTERNAL_SERVER_ERROR",
       message: "Failed to fetch initial listings",

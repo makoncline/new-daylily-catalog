@@ -42,7 +42,7 @@ export function ListsSection({ lists, column, table }: ListsSectionProps) {
   const filterValue = column.getFilterValue() as string[];
 
   return (
-    <div id="lists" className="space-y-6">
+    <div id="lists" data-testid="lists-section" className="space-y-6">
       <H2 className="text-2xl">Lists</H2>
       <div className="grid gap-4 sm:grid-cols-2">
         {lists.map((list) => {

@@ -20,7 +20,7 @@ export interface ListingDisplayProps {
 
 export function ListingDisplay({ listing }: ListingDisplayProps) {
   return (
-    <div className="space-y-8">
+    <div data-testid="listing-display" className="space-y-8">
       {listing.images.length > 0 ? (
         <ImageGallery images={listing.images} className="max-w-full" />
       ) : (
@@ -54,7 +54,7 @@ export function ListingDisplay({ listing }: ListingDisplayProps) {
         )}
       </div>
 
-      <P className="text-muted-foreground">
+      <P className="text-muted-foreground" data-testid="listing-details">
         {listing.description ?? "No description available"}
       </P>
 

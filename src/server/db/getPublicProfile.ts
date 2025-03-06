@@ -162,6 +162,9 @@ export async function getPublicProfile(userSlugOrId: string) {
     };
   } catch (error) {
     console.error("Error fetching public profile:", error);
+    if (error instanceof TRPCError) {
+      throw error;
+    }
     throw new TRPCError({
       code: "INTERNAL_SERVER_ERROR",
       message: "Failed to fetch public profile",

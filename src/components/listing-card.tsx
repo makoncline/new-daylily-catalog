@@ -23,9 +23,14 @@ type ListingCardProps = {
   listing: RouterOutputs["public"]["getListings"][number];
   className?: string;
   priority?: boolean;
+  "data-testid"?: string;
 };
 
-export function ListingCard({ listing, priority = false }: ListingCardProps) {
+export function ListingCard({
+  listing,
+  priority = false,
+  "data-testid": testId,
+}: ListingCardProps) {
   const { viewListing } = useViewListing();
   const firstImage = listing.images[0];
   const hasMultipleImages = listing.images.length > 1;
@@ -34,6 +39,7 @@ export function ListingCard({ listing, priority = false }: ListingCardProps) {
     <Card
       className="group flex h-full cursor-pointer flex-col overflow-hidden transition-all hover:border-primary"
       onClick={() => viewListing(listing)}
+      data-testid={testId}
     >
       <div className="relative">
         <div className="aspect-square">
@@ -108,7 +114,7 @@ export function ListingCard({ listing, priority = false }: ListingCardProps) {
         <div className="flex flex-1 flex-col justify-between gap-4">
           <div className="space-y-2">
             {/* Title */}
-            <H3>
+            <H3 data-testid="listing-title">
               <TruncatedText text={listing.title} lines={1} />
             </H3>
 
@@ -131,6 +137,7 @@ export function ListingCard({ listing, priority = false }: ListingCardProps) {
                 text={listing.description}
                 lines={3}
                 className="text-sm text-muted-foreground"
+                data-testid="listing-details"
               />
             )}
           </div>

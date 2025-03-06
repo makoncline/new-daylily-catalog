@@ -68,30 +68,32 @@ export function ImageGallery({ images, className }: ImageGalleryProps) {
   if (!images.length || !selectedImage) return null;
 
   return (
-    <ImageGalleryLayout
-      className={className}
-      mainContent={
-        <OptimizedImage
-          src={selectedImage.url}
-          alt={selectedImage.alt ?? "Gallery image"}
-          size="full"
-          priority
-          className="h-full w-full"
-        />
-      }
-      thumbnailContent={
-        images.length > 1
-          ? images.map((image) => (
-              <Thumbnail
-                key={image.id}
-                image={image}
-                isSelected={image.id === selectedImage.id}
-                onClick={() => setSelectedImage(image)}
-              />
-            ))
-          : undefined
-      }
-    />
+    <div data-testid="image-gallery" className={cn("relative", className)}>
+      <ImageGalleryLayout
+        className={className}
+        mainContent={
+          <OptimizedImage
+            src={selectedImage.url}
+            alt={selectedImage.alt ?? "Gallery image"}
+            size="full"
+            priority
+            className="h-full w-full"
+          />
+        }
+        thumbnailContent={
+          images.length > 1
+            ? images.map((image) => (
+                <Thumbnail
+                  key={image.id}
+                  image={image}
+                  isSelected={image.id === selectedImage.id}
+                  onClick={() => setSelectedImage(image)}
+                />
+              ))
+            : undefined
+        }
+      />
+    </div>
   );
 }
 

@@ -83,7 +83,10 @@ export function Editor({
 
   return (
     <div className={cn("grid w-full gap-10", className)}>
-      <div className="prose prose-stone dark:prose-invert mx-auto w-full">
+      <div
+        data-testid="editor-content"
+        className={cn("prose dark:prose-invert max-w-none", className)}
+      >
         <div id="editor" className="bg-background text-sm" />
       </div>
     </div>

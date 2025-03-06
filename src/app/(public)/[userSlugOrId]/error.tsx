@@ -34,6 +34,7 @@ export default function Error({
             </Button>
           </div>
         }
+        data-testid="error-state"
       />
     </MainContent>
   );

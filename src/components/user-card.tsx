@@ -18,6 +18,7 @@ import { H3, Muted } from "@/components/typography";
 import { ImagePlaceholder } from "./image-placeholder";
 import { ImagePopover } from "@/components/image-popover";
 import { LocationBadge } from "./profile/profile-badges";
+import { type PublicProfile } from "@/types/public-types";
 
 function UserListsPreview({
   lists,
@@ -63,9 +64,10 @@ function getMemberSinceLabel(date: Date) {
   return `Member for ${years} ${years === 1 ? "year" : "years"}`;
 }
 
-type UserCardProps = RouterOutputs["public"]["getPublicProfiles"][number] & {
-  priority: boolean;
-};
+interface UserCardProps extends PublicProfile {
+  priority?: boolean;
+  "data-testid"?: string;
+}
 
 export function UserCard({
   id,
@@ -81,6 +83,7 @@ export function UserCard({
   lists,
   slug,
   priority = false,
+  "data-testid": testId,
 }: UserCardProps) {
   const gardenName = title ?? "Unnamed Garden";
   const lastUpdatedLabel = getLastUpdatedLabel(new Date(updatedAt));
@@ -88,7 +91,10 @@ export function UserCard({
   const catalogPath = `/${slug ?? id}`;
 
   return (
-    <Card className="group flex h-full flex-col overflow-hidden transition-all hover:border-primary">
+    <Card
+      className="group flex h-full flex-col overflow-hidden transition-all hover:border-primary"
+      data-testid={testId}
+    >
       <div className="relative">
         <Link href={catalogPath} className="block">
           {images[0]?.url ? (

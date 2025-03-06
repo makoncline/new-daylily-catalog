@@ -75,7 +75,7 @@ export function ListingsContent({
     <div className="space-y-8">
       <ListsSection lists={lists} column={listsColumn} table={table} />
 
-      <div id="listings" className="space-y-4">
+      <div id="listings" data-testid="listings-section" className="space-y-4">
         <div className="flex items-center justify-between">
           <H2 className="text-2xl">Listings</H2>
           {isLoading && (

@@ -18,7 +18,7 @@ interface ProfileSectionProps {
 
 export function ProfileSection({ profile }: ProfileSectionProps) {
   return (
-    <div id="profile" className="space-y-2">
+    <div id="profile" data-testid="profile" className="space-y-2">
       <div className="flex items-center gap-2">
         {profile.hasActiveSubscription && (
           <Badge variant="secondary">Pro</Badge>
@@ -38,7 +38,12 @@ export function ProfileSection({ profile }: ProfileSectionProps) {
       </div>
 
       {profile.description && (
-        <P className="text-lg text-muted-foreground">{profile.description}</P>
+        <P
+          data-testid="catalog-description"
+          className="text-lg text-muted-foreground"
+        >
+          {profile.description}
+        </P>
       )}
 
       <div className="flex gap-2">

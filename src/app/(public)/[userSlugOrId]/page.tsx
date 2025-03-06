@@ -12,6 +12,11 @@ import { getOptimizedMetaImageUrl } from "@/lib/utils/cloudflareLoader";
 import { getBaseUrl } from "@/lib/utils/getBaseUrl";
 import { type Metadata } from "next";
 import { CatalogContent } from "./_components/catalog-content";
+import { EmptyState } from "@/components/empty-state";
+import { Button } from "@/components/ui/button";
+import Link from "next/link";
+import { Flower2 } from "lucide-react";
+import { TRPCError } from "@trpc/server";
 
 export const revalidate = 3600;
 export const dynamicParams = true;
@@ -42,82 +47,109 @@ export async function generateMetadata({
   const { userSlugOrId } = await params;
   const url = getBaseUrl();
 
-  const profile = await getPublicProfile(userSlugOrId);
+  try {
+    const profile = await getPublicProfile(userSlugOrId);
 
-  if (!profile) {
-    return {
-      title: "Catalog Not Found",
-      description: "The daylily catalog you are looking for does not exist.",
-      openGraph: {
+    if (!profile) {
+      return {
         title: "Catalog Not Found",
         description: "The daylily catalog you are looking for does not exist.",
+        openGraph: {
+          title: "Catalog Not Found",
+          description:
+            "The daylily catalog you are looking for does not exist.",
+          siteName: METADATA_CONFIG.SITE_NAME,
+          locale: METADATA_CONFIG.LOCALE,
+        },
+      };
+    }
+
+    const title = profile.title ?? "Daylily Catalog";
+    const description =
+      profile.description ??
+      `Browse our collection of beautiful daylilies. ${profile.location ? `Located in ${profile.location}.` : ""}`.trim();
+
+    const rawImageUrl = profile.images?.[0]?.url ?? IMAGES.DEFAULT_CATALOG;
+    const imageUrl = getOptimizedMetaImageUrl(rawImageUrl);
+    const pageUrl = `${url}/${profile.slug ?? profile.id}`;
+
+    return {
+      title: `${title} | ${METADATA_CONFIG.SITE_NAME}`,
+      description,
+      metadataBase: new URL(url),
+      openGraph: {
+        title: `${title} | ${METADATA_CONFIG.SITE_NAME}`,
+        description,
+        url: pageUrl,
         siteName: METADATA_CONFIG.SITE_NAME,
         locale: METADATA_CONFIG.LOCALE,
+        images: [
+          {
+            url: imageUrl,
+            width: 1200,
+            height: 630,
+            alt: "Daylily catalog cover image",
+          },
+        ],
+        type: "website",
+      },
+      twitter: {
+        card: METADATA_CONFIG.TWITTER_CARD_TYPE,
+        title: `${title} | ${METADATA_CONFIG.SITE_NAME}`,
+        description,
+        site: METADATA_CONFIG.TWITTER_HANDLE,
+        images: [imageUrl],
+      },
+      other: {
+        // Organization JSON-LD for rich results
+        "script:ld+json": JSON.stringify({
+          "@context": "https://schema.org",
+          "@type": "Organization",
+          name: title,
+          description,
+          image: imageUrl,
+          url: pageUrl,
+          ...(profile.location && {
+            address: {
+              "@type": "PostalAddress",
+              addressLocality: profile.location,
+            },
+          }),
+        }),
       },
     };
-  }
-
-  const title = profile.title ?? "Daylily Catalog";
-  const description =
-    profile.description ??
-    `Browse our collection of beautiful daylilies. ${profile.location ? `Located in ${profile.location}.` : ""}`.trim();
-
-  const rawImageUrl = profile.images?.[0]?.url ?? IMAGES.DEFAULT_CATALOG;
-  const imageUrl = getOptimizedMetaImageUrl(rawImageUrl);
-  const pageUrl = `${url}/${profile.slug ?? profile.id}`;
-
-  return {
-    title: `${title} | ${METADATA_CONFIG.SITE_NAME}`,
-    description,
-    metadataBase: new URL(url),
-    openGraph: {
-      title: `${title} | ${METADATA_CONFIG.SITE_NAME}`,
-      description,
-      url: pageUrl,
-      siteName: METADATA_CONFIG.SITE_NAME,
-      locale: METADATA_CONFIG.LOCALE,
-      images: [
-        {
-          url: imageUrl,
-          width: 1200,
-          height: 630,
-          alt: "Daylily catalog cover image",
+  } catch (error) {
+    if (error instanceof TRPCError && error.code === "NOT_FOUND") {
+      return {
+        title: "Catalog Not Found",
+        description: "The daylily catalog you are looking for does not exist.",
+        openGraph: {
+          title: "Catalog Not Found",
+          description:
+            "The daylily catalog you are looking for does not exist.",
+          siteName: METADATA_CONFIG.SITE_NAME,
+          locale: METADATA_CONFIG.LOCALE,
         },
-      ],
-      type: "website",
-    },
-    twitter: {
-      card: METADATA_CONFIG.TWITTER_CARD_TYPE,
-      title: `${title} | ${METADATA_CONFIG.SITE_NAME}`,
-      description,
-      site: METADATA_CONFIG.TWITTER_HANDLE,
-      images: [imageUrl],
-    },
-    other: {
-      // Organization JSON-LD for rich results
-      "script:ld+json": JSON.stringify({
-        "@context": "https://schema.org",
-        "@type": "Organization",
-        name: title,
-        description,
-        image: imageUrl,
-        url: pageUrl,
-        ...(profile.location && {
-          address: {
-            "@type": "PostalAddress",
-            addressLocality: profile.location,
-          },
-        }),
-      }),
-    },
-  };
+      };
+    }
+    throw error;
+  }
 }
 
 export default async function Page({ params }: PageProps) {
   const { userSlugOrId } = await params;
 
   const getProfile = unstable_cache(
-    async () => getPublicProfile(userSlugOrId),
+    async () => {
+      try {
+        return await getPublicProfile(userSlugOrId);
+      } catch (error) {
+        if (error instanceof TRPCError && error.code === "NOT_FOUND") {
+          return null;
+        }
+        throw error;
+      }
+    },
     ["profile", userSlugOrId],
     { revalidate: 3600 },
   );
@@ -132,6 +164,24 @@ export default async function Page({ params }: PageProps) {
     getProfile(),
     getListings(),
   ]);
+
+  if (!initialProfile) {
+    return (
+      <MainContent>
+        <EmptyState
+          icon={<Flower2 className="h-12 w-12 text-muted-foreground" />}
+          title="Catalog Not Found"
+          description="The catalog you are looking for does not exist."
+          action={
+            <Button asChild>
+              <Link href="/catalogs">Browse Catalogs</Link>
+            </Button>
+          }
+          data-testid="error-state"
+        />
+      </MainContent>
+    );
+  }
 
   return (
     <MainContent>

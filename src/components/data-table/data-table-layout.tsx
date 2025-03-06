@@ -8,6 +8,7 @@ interface DataTableLayoutProps<TData> {
   toolbar?: React.ReactNode;
   pagination?: React.ReactNode;
   noResults?: React.ReactNode;
+  "data-testid"?: string;
 }
 
 export function DataTableLayout<TData>({
@@ -16,6 +17,7 @@ export function DataTableLayout<TData>({
   toolbar,
   pagination,
   noResults,
+  "data-testid": testId,
 }: DataTableLayoutProps<TData>) {
   // If there's no data after filtering, show the no results component
   if (table.getRowModel().rows.length === 0) {
@@ -30,7 +32,7 @@ export function DataTableLayout<TData>({
   }
 
   return (
-    <div id="data-table" className="space-y-4">
+    <div id="data-table" data-testid={testId} className="space-y-4">
       {toolbar}
       {children}
       {pagination}

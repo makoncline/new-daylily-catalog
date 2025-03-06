@@ -15,9 +15,12 @@ export function ListingsTable({ table }: ListingsTableProps) {
 
   return (
     <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3">
-      {rows.map((row) => (
+      {rows.map((row, index) => (
         <div key={row.original.id}>
-          <ListingCard listing={row.original} />
+          <ListingCard
+            listing={row.original}
+            data-testid={index === 0 ? "listing-card" : undefined}
+          />
         </div>
       ))}
     </div>

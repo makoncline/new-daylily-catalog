@@ -55,6 +55,7 @@ export function CatalogsPageClient({
   return (
     <DataTableLayout
       table={table}
+      data-testid="catalogs-table"
       toolbar={
         <div className="flex items-center gap-2">
           <DataTableGlobalFilter
@@ -80,6 +81,7 @@ export function CatalogsPageClient({
             {...row.original}
             key={row.original.id}
             priority={index < 6}
+            data-testid={index === 0 ? "catalog-card" : undefined}
           />
         ))}
       </div>
