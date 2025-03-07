@@ -99,8 +99,8 @@ export function DataTableDownload<TData>({
         return columnMeta?.title ? String(columnMeta.title) : header.column.id;
       });
 
-    // Get visible rows and their cell values
-    const rows = table.getRowModel().rows.map((row) => {
+    // Get ALL rows and their cell values (not just visible ones)
+    const rows = table.getCoreRowModel().rows.map((row) => {
       return row
         .getVisibleCells()
         .filter((cell) => !excludedColumns.includes(cell.column.id))
