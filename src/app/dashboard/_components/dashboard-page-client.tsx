@@ -17,6 +17,7 @@ import {
   ProMembershipCard,
 } from "./stats-card";
 import { H2, H3, P, List, Muted } from "@/components/typography";
+import { TestAuthErrorButton } from "./test-auth-error-button";
 
 interface DashboardPageClientProps {
   initialStats: RouterOutputs["dashboard"]["getStats"];
@@ -223,6 +224,8 @@ export function DashboardPageClient({
           </>
         )}
       </div>
+
+      {process.env.NODE_ENV === "development" && <TestAuthErrorButton />}
     </>
   );
 }
