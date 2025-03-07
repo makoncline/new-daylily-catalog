@@ -3,10 +3,11 @@
 import { type RouterOutputs } from "@/trpc/react";
 import { api } from "@/trpc/react";
 import { useParams } from "next/navigation";
-import { useState, useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import { ListingsContent } from "./listings-content";
 import { ViewListingDialog } from "@/components/view-listing-dialog";
 import { TIME } from "@/config/constants";
+import { sortTitlesLettersBeforeNumbers } from "@/lib/utils/sort-utils";
 
 type Listing = RouterOutputs["public"]["getListings"][number];
 type Profile = RouterOutputs["public"]["getProfile"];
@@ -22,7 +23,6 @@ export function CatalogContent({
   initialListings,
 }: CatalogContentProps) {
   const params = useParams<{ userSlugOrId: string }>();
-  const [allListings, setAllListings] = useState<Listing[]>(initialListings);
 
   // Fetch listings with infinite query
   const { data, fetchNextPage, hasNextPage, isFetchingNextPage } =
@@ -48,28 +48,40 @@ export function CatalogContent({
       },
     );
 
-  // Update listings when we get new pages
+  // Auto-fetch next page if available
   useEffect(() => {
-    if (data?.pages) {
-      const allItems = data.pages.flat();
-      setAllListings(allItems);
-
-      // If there's more data, fetch it immediately
-      if (hasNextPage && !isFetchingNextPage) {
-        void fetchNextPage();
-      }
+    if (hasNextPage && !isFetchingNextPage) {
+      void fetchNextPage();
     }
-  }, [data?.pages, hasNextPage, isFetchingNextPage, fetchNextPage]);
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage]);
+
+  // Process listings - deduplicate and sort
+  const processedListings = useMemo(() => {
+    if (!data?.pages) return initialListings;
+
+    // Flatten all pages
+    const allItems = data.pages.flat();
+
+    // Deduplicate by ID
+    const uniqueMap = new Map<string, Listing>();
+    allItems.forEach((listing) => {
+      uniqueMap.set(listing.id, listing);
+    });
+
+    // Get unique listings and sort them
+    const uniqueListings = Array.from(uniqueMap.values());
+    return sortTitlesLettersBeforeNumbers(uniqueListings);
+  }, [data?.pages, initialListings]);
 
   return (
     <div className="space-y-6">
       <ListingsContent
         lists={lists}
-        listings={allListings}
+        listings={processedListings}
         isLoading={isFetchingNextPage}
       />
 
-      <ViewListingDialog listings={allListings} />
+      <ViewListingDialog listings={processedListings} />
     </div>
   );
 }

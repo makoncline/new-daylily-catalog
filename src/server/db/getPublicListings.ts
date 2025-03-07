@@ -2,6 +2,7 @@ import { db } from "@/server/db";
 import { TRPCError } from "@trpc/server";
 import { STATUS } from "@/config/constants";
 import { getUserIdFromSlugOrId } from "./getPublicProfile";
+import { sortTitlesLettersBeforeNumbers } from "@/lib/utils/sort-utils";
 
 export const listingSelect = {
   id: true,
@@ -78,7 +79,7 @@ export async function getListings(args: GetListingsArgs) {
     },
     select: listingSelect,
     orderBy: {
-      createdAt: "desc",
+      title: "asc",
     },
   });
 }
