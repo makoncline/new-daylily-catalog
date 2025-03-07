@@ -103,11 +103,15 @@ export default function HomePageClient() {
         </div>
 
         {/* CTA Section */}
-        <div className="relative z-20 flex w-full max-w-md flex-col gap-4 rounded-lg border-8 border-secondary bg-neutral-900 p-6 shadow-lg lg:w-1/3">
-          <H2 className="text-xl text-primary-foreground">{hero.cta.title}</H2>
-          <div className="flex flex-col items-center gap-2">
-            <SignUpButton className="w-full" />
-            <Muted className="text-center text-xs">{hero.cta.subtitle}</Muted>
+        <div className="relative z-20 flex w-full max-w-md rounded-lg bg-white p-2 shadow-lg lg:w-1/3">
+          <div className="flex w-full flex-col gap-4 rounded-md bg-neutral-900 p-6">
+            <H2 className="text-xl text-primary-foreground">
+              {hero.cta.title}
+            </H2>
+            <div className="flex flex-col items-center gap-2">
+              <SignUpButton className="w-full" />
+              <Muted className="text-center text-xs">{hero.cta.subtitle}</Muted>
+            </div>
           </div>
         </div>
       </section>
