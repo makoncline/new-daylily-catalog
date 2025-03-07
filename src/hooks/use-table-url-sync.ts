@@ -11,14 +11,15 @@ export function useUrlInitialTableState({
   filterableColumnIds?: string[];
 } = {}) {
   const searchParams = useSearchParams();
+  const pathname = usePathname();
 
   const pageIndex =
     (Number(searchParams.get("page")) ||
       TABLE_CONFIG.PAGINATION.DEFAULT_PAGE_INDEX + 1) - 1;
-  // if url contains dashboard, use the dashboard page size
+
   const pageSize =
     Number(searchParams.get("size")) ||
-    (window.location.pathname.includes("dashboard")
+    (pathname?.includes("dashboard")
       ? TABLE_CONFIG.PAGINATION.DASHBOARD_PAGE_SIZE_DEFAULT
       : TABLE_CONFIG.PAGINATION.DEFAULT_PAGE_SIZE);
   const globalFilter = searchParams.get("query") ?? undefined;
@@ -66,6 +67,8 @@ export function useTableUrlSync<TData>(table: Table<TData>) {
   const filterableColumns = table.options.meta?.filterableColumns;
 
   React.useEffect(() => {
+    if (typeof window === "undefined") return;
+
     const url = new URL(window.location.href);
     const oldParams = new URLSearchParams(window.location.search);
 

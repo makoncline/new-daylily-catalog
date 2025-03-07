@@ -5,19 +5,11 @@ import { SignInButton } from "@clerk/nextjs";
 import { Flower2 } from "lucide-react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { Suspense } from "react";
 
-export default function AuthErrorPage() {
+function AuthErrorContent() {
   const searchParams = useSearchParams();
-  const [returnTo, setReturnTo] = useState<string>("/dashboard");
-
-  // Get the returnTo parameter from the URL
-  useEffect(() => {
-    const returnToParam = searchParams.get("returnTo");
-    if (returnToParam) {
-      setReturnTo(returnToParam);
-    }
-  }, [searchParams]);
+  const returnTo = searchParams?.get("returnTo") ?? "/dashboard";
 
   return (
     <div className="flex min-h-screen flex-col items-center justify-center p-4 text-center">
@@ -49,5 +41,13 @@ export default function AuthErrorPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function AuthErrorPage() {
+  return (
+    <Suspense>
+      <AuthErrorContent />
+    </Suspense>
   );
 }

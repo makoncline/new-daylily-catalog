@@ -42,7 +42,6 @@ export function useDataTable<TData>({
   columnNames = LISTING_TABLE_COLUMN_NAMES,
 }: UseDataTableProps<TData>): Table<TData> {
   const filterableColumnIds = getFilterableColumnIds(columns);
-  const defaultColumnOrder = columns.map((column) => column.id!);
 
   // Get initial state from URL and local storage
   const urlState = useUrlInitialTableState({ filterableColumnIds });

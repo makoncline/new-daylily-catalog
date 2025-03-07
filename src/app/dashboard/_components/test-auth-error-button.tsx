@@ -10,9 +10,6 @@ export function TestAuthErrorButton() {
     // Hide the button to avoid multiple clicks
     setIsVisible(false);
 
-    // Get the current path to redirect back to after sign-in
-    const currentPath = window.location.pathname;
-
     // Force the browser to clear Clerk session
     document.cookie.split(";").forEach((cookie) => {
       const parts = cookie.trim().split("=");
