@@ -18,6 +18,7 @@ import { DataTableViewOptions } from "@/components/data-table/data-table-view-op
 import { DataTableFacetedFilter } from "@/components/data-table/data-table-faceted-filter";
 import { DataTableDownload } from "@/components/data-table";
 import { APP_CONFIG } from "@/config/constants";
+import { DataTableFilteredCount } from "@/components/data-table/data-table-filtered-count";
 
 type List = RouterOutputs["list"]["list"][number];
 type Listing = RouterOutputs["listing"]["list"][number];
@@ -66,6 +67,7 @@ function ListingsTableToolbar({
           </div>
 
           <div className="flex items-center gap-2">
+            <DataTableFilteredCount table={table} />
             <DataTableFilterReset table={table} />
           </div>
         </div>

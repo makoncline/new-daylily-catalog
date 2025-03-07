@@ -114,11 +114,13 @@ export const baseListingColumns: ColumnDef<ListingData>[] = [
       <DataTableColumnHeader
         column={column}
         title={LISTING_TABLE_COLUMN_NAMES.description}
+        enableFilter
       />
     ),
     cell: ({ row }) => (
       <TooltipCell content={getStringValue(row, "description")} lines={3} />
     ),
+    filterFn: fuzzyFilter,
     enableSorting: true,
     enableHiding: true,
   },
@@ -132,11 +134,13 @@ export const baseListingColumns: ColumnDef<ListingData>[] = [
       <DataTableColumnHeader
         column={column}
         title={LISTING_TABLE_COLUMN_NAMES.privateNote}
+        enableFilter
       />
     ),
     cell: ({ row }) => (
       <TooltipCell content={getStringValue(row, "privateNote")} />
     ),
+    filterFn: fuzzyFilter,
     enableSorting: true,
     enableHiding: true,
   },
@@ -214,12 +218,14 @@ export const baseListingColumns: ColumnDef<ListingData>[] = [
       <DataTableColumnHeader
         column={column}
         title={LISTING_TABLE_COLUMN_NAMES.summary}
+        enableFilter
       />
     ),
     cell: ({ row }) => {
       const value: string | null = row.getValue("summary");
       return <TooltipCell content={value} lines={3} />;
     },
+    filterFn: fuzzyFilter,
     enableSorting: true,
     enableHiding: true,
   },

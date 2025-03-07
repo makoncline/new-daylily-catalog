@@ -15,6 +15,8 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import React, { useState } from "react";
+import { useDebouncedCallback } from "use-debounce";
 
 interface DataTableColumnHeaderProps<TData, TValue> {
   column: Column<TData, TValue>;
@@ -29,6 +31,23 @@ export function DataTableColumnHeader<TData, TValue>({
   className,
   enableFilter,
 }: DataTableColumnHeaderProps<TData, TValue>) {
+  // Local state for immediate input updates
+  const [value, setValue] = useState<string>(
+    (column.getFilterValue() as string) || "",
+  );
+
+  // Debounced function for expensive filtering operations
+  const debouncedFiltering = useDebouncedCallback((filterValue: string) => {
+    column.setFilterValue(filterValue);
+  }, 200);
+
+  // Handle input changes - update UI immediately but debounce filtering
+  const handleChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const newValue = event.target.value;
+    setValue(newValue);
+    debouncedFiltering(newValue);
+  };
+
   if (!column.getCanSort() && !enableFilter) {
     return <div className={cn(className)}>{title}</div>;
   }
@@ -72,8 +91,8 @@ export function DataTableColumnHeader<TData, TValue>({
           <PopoverContent className="w-[200px] p-2" align="start">
             <Input
               placeholder={`Filter ${typeof title === "string" ? title.toLowerCase() : ""}...`}
-              value={(column.getFilterValue() as string) ?? ""}
-              onChange={(e) => column.setFilterValue(e.target.value)}
+              value={value}
+              onChange={handleChange}
               className="h-8"
             />
           </PopoverContent>

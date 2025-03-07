@@ -24,6 +24,7 @@ import { type ListingData } from "./columns";
 import { useDataTable } from "@/hooks/use-data-table";
 import { DataTableDownload } from "@/components/data-table";
 import { slugify } from "@/lib/utils/slugify";
+import { DataTableFilteredCount } from "@/components/data-table/data-table-filtered-count";
 
 interface ListListingsTableProps {
   listId: string;
@@ -99,6 +100,7 @@ function ListingsTableToolbar({ table, listId }: ListingsTableToolbarProps) {
             table={table}
             placeholder="Filter listings..."
           />
+          <DataTableFilteredCount table={table} />
           <DataTableFilterReset table={table} />
           {hasSelectedRows && (
             <SelectedItemsActions table={table} listId={listId} />
