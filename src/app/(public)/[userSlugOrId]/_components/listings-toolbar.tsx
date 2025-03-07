@@ -5,6 +5,8 @@ import { type Table, type Column } from "@tanstack/react-table";
 import { DataTableGlobalFilter } from "@/components/data-table/data-table-global-filter";
 import { DataTableFacetedFilter } from "@/components/data-table/data-table-faceted-filter";
 import { DataTableFilterReset } from "@/components/data-table/data-table-filter-reset";
+import { DataTableForSaleFilter } from "@/components/data-table/data-table-for-sale-filter";
+import { DataTableFilteredCount } from "@/components/data-table/data-table-filtered-count";
 
 type Listing = RouterOutputs["public"]["getListings"][number];
 
@@ -31,6 +33,8 @@ export function ListingsToolbar({
           options={listOptions}
           table={table}
         />
+        <DataTableForSaleFilter table={table} />
+        <DataTableFilteredCount table={table} />
         <DataTableFilterReset table={table} />
       </div>
     </div>

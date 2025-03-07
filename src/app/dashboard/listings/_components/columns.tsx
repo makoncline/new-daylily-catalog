@@ -96,6 +96,11 @@ export const baseListingColumns: ColumnDef<ListingData>[] = [
       if (typeof price !== "number") return "-";
       return <TooltipCell content={formatPrice(price)} />;
     },
+    filterFn: (row, id, filterValue) => {
+      if (!filterValue) return true;
+      const price = row.getValue(id);
+      return typeof price === "number" && price > 0;
+    },
     enableSorting: true,
     enableHiding: true,
   },
