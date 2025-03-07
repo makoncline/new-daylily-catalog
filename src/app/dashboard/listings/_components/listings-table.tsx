@@ -17,6 +17,7 @@ import { DataTableFilterReset } from "@/components/data-table/data-table-filter-
 import { DataTableViewOptions } from "@/components/data-table/data-table-view-options";
 import { DataTableFacetedFilter } from "@/components/data-table/data-table-faceted-filter";
 import { DataTableDownload } from "@/components/data-table";
+import { APP_CONFIG } from "@/config/constants";
 
 type List = RouterOutputs["list"]["list"][number];
 type Listing = RouterOutputs["listing"]["list"][number];
@@ -96,6 +97,11 @@ export function ListingsTable() {
     config: {
       enableRowSelection: true,
     },
+    initialStateOverrides: {
+      pagination: {
+        pageSize: APP_CONFIG.TABLE.PAGINATION.DASHBOARD_PAGE_SIZE_DEFAULT,
+      },
+    },
   });
 
   if (isLoading) {
@@ -126,7 +132,12 @@ export function ListingsTable() {
       }
       pagination={
         <>
-          <DataTablePagination table={table} />
+          <DataTablePagination
+            table={table}
+            pageSizeOptions={
+              APP_CONFIG.TABLE.PAGINATION.DASHBOARD_PAGE_SIZE_OPTIONS
+            }
+          />
           <DataTableDownload table={table} filenamePrefix="listings" />
         </>
       }

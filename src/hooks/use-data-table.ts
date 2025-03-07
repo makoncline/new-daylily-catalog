@@ -25,6 +25,11 @@ interface UseDataTableProps<TData> {
   };
   config?: Partial<TableOptions<TData>>;
   columnNames?: Record<string, string>;
+  initialStateOverrides?: Partial<TableOptions<TData>> & {
+    pagination?: {
+      pageSize?: number;
+    };
+  };
 }
 
 export function useDataTable<TData>({
@@ -32,6 +37,7 @@ export function useDataTable<TData>({
   columns,
   storageKey,
   pinnedColumns = { left: [], right: [] },
+  initialStateOverrides,
   config,
   columnNames = LISTING_TABLE_COLUMN_NAMES,
 }: UseDataTableProps<TData>): Table<TData> {
@@ -53,10 +59,10 @@ export function useDataTable<TData>({
       getColumnLabel: (columnId) => columnNames[columnId] ?? columnId,
     },
     initialState: {
+      sorting: urlState.globalFilter ? [{ id: "title", desc: false }] : [],
+      ...initialStateOverrides,
       ...urlState,
       ...localStorageState,
-      columnOrder: localStorageState.columnOrder ?? defaultColumnOrder,
-      sorting: urlState.globalFilter ? [{ id: "title", desc: false }] : [],
     },
     autoResetPageIndex: false,
     ...config,

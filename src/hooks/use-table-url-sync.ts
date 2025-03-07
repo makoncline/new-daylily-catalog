@@ -15,9 +15,12 @@ export function useUrlInitialTableState({
   const pageIndex =
     (Number(searchParams.get("page")) ||
       TABLE_CONFIG.PAGINATION.DEFAULT_PAGE_INDEX + 1) - 1;
+  // if url contains dashboard, use the dashboard page size
   const pageSize =
     Number(searchParams.get("size")) ||
-    TABLE_CONFIG.PAGINATION.DEFAULT_PAGE_SIZE;
+    (window.location.pathname.includes("dashboard")
+      ? TABLE_CONFIG.PAGINATION.DASHBOARD_PAGE_SIZE_DEFAULT
+      : TABLE_CONFIG.PAGINATION.DEFAULT_PAGE_SIZE);
   const globalFilter = searchParams.get("query") ?? undefined;
 
   // Get column filters from URL
@@ -73,7 +76,11 @@ export function useTableUrlSync<TData>(table: Table<TData>) {
       url.searchParams.set("page", String(pagination.pageIndex + 1));
     }
 
-    if (pagination.pageSize === TABLE_CONFIG.PAGINATION.DEFAULT_PAGE_SIZE) {
+    if (
+      pagination.pageSize === TABLE_CONFIG.PAGINATION.DEFAULT_PAGE_SIZE ||
+      pagination.pageSize ===
+        TABLE_CONFIG.PAGINATION.DASHBOARD_PAGE_SIZE_DEFAULT
+    ) {
       url.searchParams.delete("size");
     } else {
       url.searchParams.set("size", String(pagination.pageSize));

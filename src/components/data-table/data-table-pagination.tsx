@@ -18,11 +18,11 @@ import {
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { P, Muted } from "@/components/typography";
-
-const PAGE_SIZE_OPTIONS = [6, 12, 24, 36];
+import { APP_CONFIG } from "@/config/constants";
 
 interface DataTablePaginationProps<TData> {
   table: Table<TData>;
+  pageSizeOptions?: number[];
 }
 
 export function DataTablePaginationSkeleton() {
@@ -38,6 +38,7 @@ export function DataTablePaginationSkeleton() {
 
 export function DataTablePagination<TData>({
   table,
+  pageSizeOptions = APP_CONFIG.TABLE.PAGINATION.PAGE_SIZE_OPTIONS,
 }: DataTablePaginationProps<TData>) {
   const { pageSize, pageIndex } = table.getState().pagination;
   const numSelected = table.getFilteredSelectedRowModel().rows.length;
@@ -72,7 +73,7 @@ export function DataTablePagination<TData>({
                 <SelectValue placeholder={pageSize} />
               </SelectTrigger>
               <SelectContent side="top">
-                {PAGE_SIZE_OPTIONS.map((size) => (
+                {pageSizeOptions.map((size) => (
                   <SelectItem key={size} value={`${size}`}>
                     {size}
                   </SelectItem>

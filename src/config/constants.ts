@@ -18,7 +18,9 @@ export const TABLE_CONFIG = {
   PAGINATION: {
     DEFAULT_PAGE_INDEX: 0,
     DEFAULT_PAGE_SIZE: 12,
-    PAGE_SIZE_OPTIONS: [12, 24, 36, 48, 60],
+    PAGE_SIZE_OPTIONS: [12, 24, 36, 48, 60] as number[],
+    DASHBOARD_PAGE_SIZE_OPTIONS: [20, 50, 100, 200] as number[],
+    DASHBOARD_PAGE_SIZE_DEFAULT: 100,
   },
 } as const;
 
