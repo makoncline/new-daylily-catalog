@@ -1,6 +1,5 @@
-"use server";
+"use client";
 
-import { cookies } from "next/headers";
 import {
   SidebarProvider,
   SidebarInset,
@@ -9,26 +8,19 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { DashboardBreadcrumbs } from "./_components/dashboard-breadcrumbs";
 import { AppSidebar } from "@/components/app-sidebar";
-import { api } from "@/trpc/server";
 import { DashboardClientWrapper } from "./_components/dashboard-client-wrapper";
+import { useLocalStorage } from "@/hooks/use-local-storage";
 
-export default async function DashboardLayout({
+export default function DashboardLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  // prefetch dashboard page data
-  void api.user.getCurrentUser.prefetch();
-  void api.userProfile.get.prefetch();
-  void api.list.list.prefetch();
-  void api.listing.list.prefetch();
-
-  const cookieStore = cookies();
-  const defaultOpen = cookieStore.get("sidebar:state")?.value === "true";
+  const [sidebarOpen] = useLocalStorage<boolean>("sidebar:state", true);
 
   return (
     <DashboardClientWrapper>
-      <SidebarProvider defaultOpen={defaultOpen}>
+      <SidebarProvider defaultOpen={sidebarOpen}>
         <AppSidebar />
         <SidebarInset>
           <header className="flex h-16 shrink-0 items-center border-b transition-[width,height] ease-linear group-has-[[data-collapsible=icon]]/sidebar-wrapper:h-12">
