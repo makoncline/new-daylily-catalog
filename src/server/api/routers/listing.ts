@@ -73,20 +73,28 @@ export const listingInclude = {
 } as const;
 
 export const listingRouter = createTRPCRouter({
-  create: protectedProcedure.mutation(async ({ ctx }) => {
-    const title = APP_CONFIG.LISTING.DEFAULT_NAME;
-    const slug = await generateUniqueSlug(title, ctx.user.id);
+  create: protectedProcedure
+    .input(
+      z.object({
+        title: z.string().optional(),
+        ahsId: z.string().nullable().optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const title = input.title ?? APP_CONFIG.LISTING.DEFAULT_NAME;
+      const slug = await generateUniqueSlug(title, ctx.user.id);
 
-    const listing = await ctx.db.listing.create({
-      data: {
-        title,
-        slug,
-        userId: ctx.user.id,
-      },
-      include: listingInclude,
-    });
-    return listing;
-  }),
+      const listing = await ctx.db.listing.create({
+        data: {
+          title,
+          slug,
+          userId: ctx.user.id,
+          ahsId: input.ahsId,
+        },
+        include: listingInclude,
+      });
+      return listing;
+    }),
 
   update: protectedProcedure
     .input(
