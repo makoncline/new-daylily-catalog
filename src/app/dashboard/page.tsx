@@ -1,13 +1,18 @@
-"use server";
+"use client";
 
-import { api } from "@/trpc/server";
+import { api } from "@/trpc/react";
 import { DashboardPageClient } from "./_components/dashboard-page-client";
+import { DashboardPageSkeleton } from "./_components/dashboard-page-skeleton";
 
-export default async function DashboardPage() {
-  // Fetch initial data on the server (SSR)
-  const initialStats = await api.dashboard.getStats();
+export default function DashboardPage() {
+  // Fetch data on the client side instead of server side
+  const { data: initialStats, isLoading } = api.dashboard.getStats.useQuery();
+
+  // Show a loading UI while data is being fetched
+  if (isLoading || !initialStats) {
+    return <DashboardPageSkeleton />;
+  }
 
   // Pass data to the client component for interactive UI
-  // The layout handles all the wrapping, we just provide the content
   return <DashboardPageClient initialStats={initialStats} />;
 }
