@@ -4,22 +4,13 @@ import { QueryClientProvider, type QueryClient } from "@tanstack/react-query";
 import { loggerLink, unstable_httpBatchStreamLink } from "@trpc/client";
 import { createTRPCReact } from "@trpc/react-query";
 import { type inferRouterInputs, type inferRouterOutputs } from "@trpc/server";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import SuperJSON from "superjson";
+import { useAuth } from "@clerk/nextjs";
 
 import { type AppRouter } from "@/server/api/root";
 import { createQueryClient } from "./query-client";
 import { getBaseUrl } from "../lib/utils/getBaseUrl";
-
-let clientQueryClientSingleton: QueryClient | undefined = undefined;
-const getQueryClient = () => {
-  if (typeof window === "undefined") {
-    // Server: always make a new query client
-    return createQueryClient();
-  }
-  // Browser: use singleton pattern to keep the same query client
-  return (clientQueryClientSingleton ??= createQueryClient());
-};
 
 export const api = createTRPCReact<AppRouter>({
   overrides: {
@@ -39,6 +30,9 @@ export const api = createTRPCReact<AppRouter>({
   },
 });
 
+// Store QueryClients by user ID for complete isolation between users
+const userQueryClients: Record<string, QueryClient> = {};
+
 /**
  * Inference helper for inputs.
  *
@@ -54,7 +48,44 @@ export type RouterInputs = inferRouterInputs<AppRouter>;
 export type RouterOutputs = inferRouterOutputs<AppRouter>;
 
 export function TRPCReactProvider(props: { children: React.ReactNode }) {
-  const queryClient = getQueryClient();
+  const { userId } = useAuth();
+  const [queryClient, setQueryClient] = useState<QueryClient>(() =>
+    createQueryClient(),
+  );
+
+  // Update the query client when user changes
+  useEffect(() => {
+    if (userId) {
+      // Create or reuse a specific QueryClient for this user
+      if (!userQueryClients[userId]) {
+        if (process.env.NODE_ENV === "development") {
+          console.log(`Creating new QueryClient for user: ${userId}`);
+        }
+        userQueryClients[userId] = createQueryClient();
+      }
+      setQueryClient(userQueryClients[userId]);
+    } else {
+      // For unauthenticated users, use a fresh client
+      if (process.env.NODE_ENV === "development") {
+        console.log("Using anonymous QueryClient");
+      }
+      const anonClient = createQueryClient();
+      setQueryClient(anonClient);
+
+      // Clean up authenticated clients on logout for memory management
+      // and to prevent potential stale data if the same user logs in again
+      Object.keys(userQueryClients).forEach((key) => {
+        if (process.env.NODE_ENV === "development") {
+          console.log(`Clearing QueryClient for user: ${key}`);
+        }
+        const client = userQueryClients[key];
+        if (client) {
+          client.clear();
+        }
+        delete userQueryClients[key];
+      });
+    }
+  }, [userId]);
 
   const [trpcClient] = useState(() =>
     api.createClient({
@@ -70,6 +101,12 @@ export function TRPCReactProvider(props: { children: React.ReactNode }) {
           headers: () => {
             const headers = new Headers();
             headers.set("x-trpc-source", "nextjs-react");
+
+            // Include user ID in headers for server-side tracking
+            if (userId) {
+              headers.set("x-user-id", userId);
+            }
+
             return headers;
           },
         }),

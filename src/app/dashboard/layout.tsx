@@ -10,7 +10,6 @@ import { Separator } from "@/components/ui/separator";
 import { DashboardBreadcrumbs } from "./_components/dashboard-breadcrumbs";
 import { AppSidebar } from "@/components/app-sidebar";
 import { api } from "@/trpc/server";
-import { DashboardClientWrapper } from "./_components/dashboard-client-wrapper";
 
 export default async function DashboardLayout({
   children,
@@ -27,20 +26,18 @@ export default async function DashboardLayout({
   const defaultOpen = cookieStore.get("sidebar:state")?.value === "true";
 
   return (
-    <DashboardClientWrapper>
-      <SidebarProvider defaultOpen={defaultOpen}>
-        <AppSidebar />
-        <SidebarInset>
-          <header className="flex h-16 shrink-0 items-center border-b transition-[width,height] ease-linear group-has-[[data-collapsible=icon]]/sidebar-wrapper:h-12">
-            <div className="flex items-center gap-2 px-4">
-              <SidebarTrigger className="-ml-1" />
-              <Separator orientation="vertical" className="mr-2 h-4" />
-              <DashboardBreadcrumbs />
-            </div>
-          </header>
-          <div className="flex-1 space-y-4 p-8">{children}</div>
-        </SidebarInset>
-      </SidebarProvider>
-    </DashboardClientWrapper>
+    <SidebarProvider defaultOpen={defaultOpen}>
+      <AppSidebar />
+      <SidebarInset>
+        <header className="flex h-16 shrink-0 items-center border-b transition-[width,height] ease-linear group-has-[[data-collapsible=icon]]/sidebar-wrapper:h-12">
+          <div className="flex items-center gap-2 px-4">
+            <SidebarTrigger className="-ml-1" />
+            <Separator orientation="vertical" className="mr-2 h-4" />
+            <DashboardBreadcrumbs />
+          </div>
+        </header>
+        <div className="flex-1 space-y-4 p-8">{children}</div>
+      </SidebarInset>
+    </SidebarProvider>
   );
 }
