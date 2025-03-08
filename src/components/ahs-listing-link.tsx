@@ -55,12 +55,12 @@ export function AhsListingLink({
         const shouldUpdateName =
           !listing.title || listing.title === LISTING_CONFIG.DEFAULT_NAME;
 
-        const data: { ahsId: string; name?: string } = {
+        const data: { ahsId: string; title?: string } = {
           ahsId,
         };
 
         if (shouldUpdateName) {
-          data.name = ahsListing.name;
+          data.title = ahsListing.name;
         }
 
         const updatedListing = await updateListingMutation({
