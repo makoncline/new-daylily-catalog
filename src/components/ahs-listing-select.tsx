@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ChevronsUpDown, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -6,9 +6,16 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
 import { api } from "@/trpc/react";
 import type { AhsListing } from "@prisma/client";
-import { Muted } from "@/components/typography";
 
 interface AhsListingSelectProps {
   onSelect: (ahsListing: AhsListing) => void;
@@ -21,16 +28,35 @@ export function AhsListingSelect({
 }: AhsListingSelectProps) {
   const [open, setOpen] = useState(false);
   const [searchValue, setSearchValue] = useState("");
+  const [debouncedSearchValue, setDebouncedSearchValue] = useState("");
+
+  // Debounce search value to prevent excessive API calls
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchValue(searchValue);
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [searchValue]);
+
+  // Clear search when popover closes
+  const handleOpenChange = (isOpen: boolean) => {
+    setOpen(isOpen);
+    if (!isOpen) {
+      setSearchValue("");
+      setDebouncedSearchValue("");
+    }
+  };
 
   const ahsSearchQuery = api.ahs.search.useQuery(
-    { query: searchValue },
+    { query: debouncedSearchValue },
     {
-      enabled: searchValue.length > 0,
+      enabled: debouncedSearchValue.length > 0,
     },
   );
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
+    <Popover open={open} onOpenChange={handleOpenChange} modal={true}>
       <PopoverTrigger asChild>
         <Button
           variant="outline"
@@ -44,47 +70,52 @@ export function AhsListingSelect({
           <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-[400px] p-0">
-        <div className="border-none p-0">
-          <div className="flex items-center border-b px-3">
-            <Search className="mr-2 h-4 w-4 shrink-0 opacity-50" />
-            <input
-              className="flex h-11 w-full rounded-md bg-transparent py-3 text-sm outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50"
-              placeholder="Search AHS listings..."
-              value={searchValue}
-              onChange={(e) => setSearchValue(e.target.value)}
-            />
-          </div>
-          <div className="max-h-96 overflow-y-auto">
+      <PopoverContent className="w-[400px] p-0" align="start">
+        <Command shouldFilter={false}>
+          <CommandInput
+            placeholder="Search AHS listings..."
+            value={searchValue}
+            onValueChange={setSearchValue}
+          />
+          <CommandList className="h-[200px]">
             {!searchValue && (
-              <p className="p-4 text-sm text-muted-foreground">
-                Type to search AHS listings...
-              </p>
-            )}
-            {searchValue && ahsSearchQuery.isLoading && (
-              <Muted className="p-4 text-sm">Loading...</Muted>
+              <CommandEmpty>Type to search AHS listings...</CommandEmpty>
             )}
             {searchValue &&
+              (debouncedSearchValue !== searchValue ||
+                ahsSearchQuery.isLoading) && (
+                <div className="flex h-[200px] items-center justify-center">
+                  <p className="text-sm text-muted-foreground">Loading...</p>
+                </div>
+              )}
+            {searchValue &&
+              debouncedSearchValue === searchValue &&
               !ahsSearchQuery.isLoading &&
               ahsSearchQuery.data?.length === 0 && (
-                <Muted className="p-4 text-sm">
+                <CommandEmpty>
                   No results found. Try searching for something else.
-                </Muted>
+                </CommandEmpty>
               )}
-            {ahsSearchQuery.data?.map((ahsListing) => (
-              <button
-                key={ahsListing.id}
-                onClick={() => {
-                  setOpen(false);
-                  onSelect(ahsListing);
-                }}
-                className="relative flex w-full cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none hover:bg-accent hover:text-accent-foreground"
-              >
-                <span>{ahsListing.name}</span>
-              </button>
-            ))}
-          </div>
-        </div>
+            {debouncedSearchValue === searchValue &&
+              !ahsSearchQuery.isLoading &&
+              ahsSearchQuery.data &&
+              ahsSearchQuery.data.length > 0 && (
+                <CommandGroup>
+                  {ahsSearchQuery.data.map((ahsListing) => (
+                    <CommandItem
+                      key={ahsListing.id}
+                      onSelect={() => {
+                        onSelect(ahsListing);
+                        setOpen(false);
+                      }}
+                    >
+                      {ahsListing.name}
+                    </CommandItem>
+                  ))}
+                </CommandGroup>
+              )}
+          </CommandList>
+        </Command>
       </PopoverContent>
     </Popover>
   );
