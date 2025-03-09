@@ -34,7 +34,7 @@ export function DataTableFilteredCount<TData>({
 
   return (
     <InlineCode className="text-xs text-muted-foreground">
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2 whitespace-nowrap">
         <Eye className="h-3.5 w-3.5 text-muted-foreground" />
         {formattedFilteredCount} / {formattedTotalCount}
       </div>

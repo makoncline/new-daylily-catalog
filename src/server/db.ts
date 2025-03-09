@@ -2,6 +2,7 @@ import { PrismaClient } from "../../prisma/generated/sqlite-client";
 import { PrismaLibSQL } from "@prisma/adapter-libsql";
 import { createClient } from "@libsql/client";
 import { env } from "@/env";
+import { type Prisma } from "../../prisma/generated/sqlite-client";
 
 // Use Turso if explicitly set or if in production (unless explicitly disabled)
 const useTursoDb =
@@ -11,6 +12,12 @@ const useTursoDb =
 const databaseUrl = useTursoDb
   ? env.TURSO_DATABASE_URL
   : env.LOCAL_DATABASE_URL;
+
+// Determine which logs to show based on environment
+const logTypes: Prisma.LogLevel[] =
+  env.NODE_ENV === "development"
+    ? ["query", "error", "warn"]
+    : ["error", "warn"];
 
 const createPrismaClient = () => {
   if (useTursoDb) {
@@ -32,7 +39,7 @@ const createPrismaClient = () => {
         url: databaseUrl, // Uses local SQLite path
       },
     },
-    log: ["query", "error", "warn"],
+    log: logTypes,
   });
 };
 
