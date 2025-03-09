@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { createTRPCRouter, protectedProcedure } from "@/server/api/trpc";
 import { compareItems, rankings, rankItem } from "@tanstack/match-sorter-utils";
+import { TRPCError } from "@trpc/server";
 
 export const ahsRouter = createTRPCRouter({
   search: protectedProcedure
@@ -39,6 +40,49 @@ export const ahsRouter = createTRPCRouter({
       });
 
       return sortedResults;
+    }),
+
+  get: protectedProcedure
+    .input(
+      z.object({
+        id: z.string().min(1),
+      }),
+    )
+    .query(async ({ ctx, input }) => {
+      const ahsListing = await ctx.db.ahsListing.findUnique({
+        where: { id: input.id },
+        select: {
+          id: true,
+          name: true,
+          ahsImageUrl: true,
+          hybridizer: true,
+          year: true,
+          scapeHeight: true,
+          bloomSize: true,
+          bloomSeason: true,
+          form: true,
+          ploidy: true,
+          foliageType: true,
+          bloomHabit: true,
+          budcount: true,
+          branches: true,
+          sculpting: true,
+          foliage: true,
+          flower: true,
+          fragrance: true,
+          parentage: true,
+          color: true,
+        },
+      });
+
+      if (!ahsListing) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "AHS listing not found",
+        });
+      }
+
+      return ahsListing;
     }),
 });
 

@@ -18,14 +18,22 @@ import { usePro } from "@/hooks/use-pro";
 import { CheckoutButton } from "@/components/checkout-button";
 import { CreateListingDialog } from "./create-listing-dialog";
 
+/**
+ * Button component that launches the create listing dialog.
+ * Handles subscription tier checks and upgrade prompts for free tier users.
+ */
 export function CreateListingButton() {
-  const { toast } = useToast();
   const [showUpgradeDialog, setShowUpgradeDialog] = useState(false);
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const { isPro } = usePro();
 
+  // Get the count of user's listings for tier limit checking
   const { data: listingCount } = api.listing.count.useQuery();
 
+  /**
+   * Handles the create button click.
+   * Shows upgrade dialog if free tier limit reached, otherwise opens create dialog.
+   */
   const handleCreateClick = () => {
     // Check if user is on free tier and has reached the limit
     const reachedLimit =
@@ -37,18 +45,18 @@ export function CreateListingButton() {
       return;
     }
 
-    // Show the create dialog instead of immediately creating a listing
+    // Show the create dialog
     setShowCreateDialog(true);
   };
 
   return (
     <>
-      <Button onClick={handleCreateClick} className="w-full">
+      <Button onClick={handleCreateClick}>
         <Plus className="mr-2 h-4 w-4" />
         Create Listing
       </Button>
 
-      {/* Upgrade Dialog */}
+      {/* Upgrade Dialog - shown when free tier limit is reached */}
       <Dialog open={showUpgradeDialog} onOpenChange={setShowUpgradeDialog}>
         <DialogContent>
           <DialogHeader>
@@ -83,11 +91,14 @@ export function CreateListingButton() {
         </DialogContent>
       </Dialog>
 
-      {/* Create Listing Dialog */}
-      <CreateListingDialog
-        open={showCreateDialog}
-        onOpenChange={setShowCreateDialog}
-      />
+      {/* Conditionally render the create dialog */}
+      {showCreateDialog && (
+        <CreateListingDialog
+          onOpenChange={(open) => {
+            if (!open) setShowCreateDialog(false);
+          }}
+        />
+      )}
     </>
   );
 }

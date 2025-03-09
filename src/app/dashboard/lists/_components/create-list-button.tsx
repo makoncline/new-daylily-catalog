@@ -16,26 +16,17 @@ import { api } from "@/trpc/react";
 import { APP_CONFIG, PRO_FEATURES } from "@/config/constants";
 import { usePro } from "@/hooks/use-pro";
 import { CheckoutButton } from "@/components/checkout-button";
-import { useEditList } from "./edit-list-dialog";
+import { CreateListDialog } from "./create-list-dialog";
 
 export function CreateListButton() {
-  const { editList } = useEditList();
   const { toast } = useToast();
   const [showUpgradeDialog, setShowUpgradeDialog] = useState(false);
+  const [showCreateDialog, setShowCreateDialog] = useState(false);
   const { isPro } = usePro();
 
   const { data: listCount } = api.list.count.useQuery();
 
-  const createList = api.list.create.useMutation({
-    onError: () => {
-      toast({
-        title: "Failed to create list",
-        variant: "destructive",
-      });
-    },
-  });
-
-  const handleCreate = async () => {
+  const handleCreateClick = () => {
     // Check if user is on free tier and has reached the limit
     const reachedLimit =
       !isPro && (listCount ?? 0) >= APP_CONFIG.LIST.FREE_TIER_MAX_LISTS;
@@ -45,22 +36,15 @@ export function CreateListButton() {
       return;
     }
 
-    try {
-      const list = await createList.mutateAsync({
-        title: "New List",
-        description: "",
-      });
-      editList(list.id);
-    } catch {
-      // Error is already handled by the mutation's onError
-    }
+    // Show the create dialog
+    setShowCreateDialog(true);
   };
 
   return (
     <>
-      <Button onClick={handleCreate} disabled={createList.isPending}>
+      <Button onClick={handleCreateClick}>
         <Plus className="mr-2 h-4 w-4" />
-        {createList.isPending ? "Creating..." : "Create List"}
+        Create List
       </Button>
 
       <Dialog open={showUpgradeDialog} onOpenChange={setShowUpgradeDialog}>
@@ -94,6 +78,15 @@ export function CreateListButton() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Conditionally render the create dialog */}
+      {showCreateDialog && (
+        <CreateListDialog
+          onOpenChange={(open) => {
+            if (!open) setShowCreateDialog(false);
+          }}
+        />
+      )}
     </>
   );
 }
