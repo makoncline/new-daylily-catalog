@@ -42,7 +42,7 @@ export function CreateListingDialog({
   const setEditingId = useSetAtom(editingListingIdAtom);
 
   const { data: detailedAhsListing } = api.ahs.get.useQuery(
-    { id: selectedAhsListing?.id || "" },
+    { id: selectedAhsListing?.id ?? "" },
     {
       enabled: !!selectedAhsListing?.id,
       refetchOnWindowFocus: false,
@@ -79,7 +79,7 @@ export function CreateListingDialog({
   const handleAhsListingSelect = (ahsListing: AhsListing) => {
     setSelectedAhsListing(ahsListing);
     if (!title) {
-      setTitle(ahsListing.name || "");
+      setTitle(ahsListing.name ?? "");
     }
   };
 
@@ -88,7 +88,7 @@ export function CreateListingDialog({
    */
   const syncTitleWithAhs = () => {
     if (selectedAhsListing) {
-      setTitle(selectedAhsListing.name || "");
+      setTitle(selectedAhsListing.name ?? "");
     }
   };
 
@@ -99,7 +99,7 @@ export function CreateListingDialog({
   const handleCreate = async () => {
     setIsPending(true);
     try {
-      const finalTitle = title || selectedAhsListing?.name || "New Listing";
+      const finalTitle = title ?? selectedAhsListing?.name ?? "New Listing";
       await createListingMutation.mutateAsync({
         title: finalTitle,
         ahsId: selectedAhsListing?.id ?? null,
@@ -170,7 +170,7 @@ export function CreateListingDialog({
               id="title"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              placeholder={selectedAhsListing?.name || "Enter a title"}
+              placeholder={selectedAhsListing?.name ?? "Enter a title"}
               disabled={isPending}
             />
           </div>

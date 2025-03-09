@@ -11,7 +11,6 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { H3 } from "@/components/typography";
-import { useToast } from "@/hooks/use-toast";
 import { api } from "@/trpc/react";
 import { APP_CONFIG, PRO_FEATURES } from "@/config/constants";
 import { usePro } from "@/hooks/use-pro";

@@ -29,7 +29,6 @@ export function DataTableRowActions<TData extends { id: string }>({
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
-  const utils = api.useUtils();
 
   const deleteListing = api.listing.delete.useMutation({
     onSuccess: () => {

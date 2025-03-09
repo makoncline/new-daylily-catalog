@@ -16,7 +16,6 @@ interface ListPageProps {
 }
 
 export default function ListPage({ params }: ListPageProps) {
-  const router = useRouter();
   const { data: list, isLoading } = api.list.get.useQuery({
     id: params.listId,
   });

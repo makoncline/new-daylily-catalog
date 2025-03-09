@@ -19,7 +19,6 @@ import { CheckoutButton } from "@/components/checkout-button";
 import { CreateListDialog } from "./create-list-dialog";
 
 export function CreateListButton() {
-  const { toast } = useToast();
   const [showUpgradeDialog, setShowUpgradeDialog] = useState(false);
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const { isPro } = usePro();
