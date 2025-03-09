@@ -13,29 +13,28 @@ import {
 import { H3 } from "@/components/typography";
 import { useToast } from "@/hooks/use-toast";
 import { api } from "@/trpc/react";
-import { useEditListing } from "./edit-listing-dialog";
 import { APP_CONFIG, PRO_FEATURES } from "@/config/constants";
 import { usePro } from "@/hooks/use-pro";
 import { CheckoutButton } from "@/components/checkout-button";
+import { CreateListingDialog } from "./create-listing-dialog";
 
+/**
+ * Button component that launches the create listing dialog.
+ * Handles subscription tier checks and upgrade prompts for free tier users.
+ */
 export function CreateListingButton() {
-  const { editListing } = useEditListing();
-  const { toast } = useToast();
   const [showUpgradeDialog, setShowUpgradeDialog] = useState(false);
+  const [showCreateDialog, setShowCreateDialog] = useState(false);
   const { isPro } = usePro();
 
+  // Get the count of user's listings for tier limit checking
   const { data: listingCount } = api.listing.count.useQuery();
 
-  const createListing = api.listing.create.useMutation({
-    onError: () => {
-      toast({
-        title: "Failed to create listing",
-        variant: "destructive",
-      });
-    },
-  });
-
-  const handleCreate = async () => {
+  /**
+   * Handles the create button click.
+   * Shows upgrade dialog if free tier limit reached, otherwise opens create dialog.
+   */
+  const handleCreateClick = () => {
     // Check if user is on free tier and has reached the limit
     const reachedLimit =
       !isPro &&
@@ -46,52 +45,60 @@ export function CreateListingButton() {
       return;
     }
 
-    try {
-      const listing = await createListing.mutateAsync();
-      editListing(listing.id);
-    } catch {
-      // Error is already handled by the mutation's onError
-    }
+    // Show the create dialog
+    setShowCreateDialog(true);
   };
 
   return (
     <>
-      <Button onClick={handleCreate} disabled={createListing.isPending}>
+      <Button onClick={handleCreateClick}>
         <Plus className="mr-2 h-4 w-4" />
-        {createListing.isPending ? "Creating..." : "Create Listing"}
+        Create Listing
       </Button>
 
+      {/* Upgrade Dialog - shown when free tier limit is reached */}
       <Dialog open={showUpgradeDialog} onOpenChange={setShowUpgradeDialog}>
-        <DialogContent className="sm:max-w-[500px]">
+        <DialogContent>
           <DialogHeader>
-            <DialogTitle>Upgrade to Pro</DialogTitle>
+            <DialogTitle>Upgrade Required</DialogTitle>
             <DialogDescription>
-              You&apos;ve reached the free tier limit of{" "}
-              {APP_CONFIG.LISTING.FREE_TIER_MAX_LISTINGS} listings. Upgrade to
-              Pro for unlimited listings and more features.
+              You&apos;ve reached the limit of{" "}
+              {APP_CONFIG.LISTING.FREE_TIER_MAX_LISTINGS} listings for free
+              accounts.
             </DialogDescription>
           </DialogHeader>
-
-          <div className="flex flex-col gap-6">
-            <div className="flex flex-col gap-4">
-              <H3 className="text-xl">Pro Features</H3>
-              <ul className="space-y-2 text-sm">
-                {PRO_FEATURES.map((feature) => {
-                  const Icon = feature.icon;
-                  return (
-                    <li key={feature.id} className="flex items-center">
-                      <Icon className="mr-2 h-4 w-4" />
-                      {feature.text}
-                    </li>
-                  );
-                })}
-              </ul>
+          <div className="space-y-4">
+            <H3 className="text-center">Upgrade to Pro</H3>
+            <p className="text-center text-sm text-muted-foreground">
+              Upgrade to a Pro account to create unlimited listings and unlock
+              other premium features.
+            </p>
+            <ul className="space-y-2 text-sm">
+              {PRO_FEATURES.map((feature) => {
+                const Icon = feature.icon;
+                return (
+                  <li key={feature.id} className="flex items-center">
+                    <Icon className="mr-2 h-4 w-4" />
+                    {feature.text}
+                  </li>
+                );
+              })}
+            </ul>
+            <div className="flex justify-center">
+              <CheckoutButton />
             </div>
-
-            <CheckoutButton size="lg" />
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Conditionally render the create dialog */}
+      {showCreateDialog && (
+        <CreateListingDialog
+          onOpenChange={(open) => {
+            if (!open) setShowCreateDialog(false);
+          }}
+        />
+      )}
     </>
   );
 }

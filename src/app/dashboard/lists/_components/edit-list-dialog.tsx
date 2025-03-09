@@ -1,7 +1,5 @@
 "use client";
 
-import { useSearchParams, useRouter } from "next/navigation";
-import { Suspense, useRef } from "react";
 import {
   Dialog,
   DialogContent,
@@ -13,28 +11,56 @@ import { ErrorBoundary } from "react-error-boundary";
 import { ErrorFallback } from "@/components/error-fallback";
 import { reportError } from "@/lib/error-utils";
 import { ListForm } from "@/components/forms/list-form";
-import { ListFormSkeleton } from "@/components/forms/list-form-skeleton";
+import { useRef, useEffect } from "react";
+import { atom, useAtom } from "jotai";
+import { useRouter, useSearchParams } from "next/navigation";
+
+// Atom for editing state
+export const editingListIdAtom = atom<string | null>(null);
 
 export const useEditList = () => {
+  const [editingId, setEditingId] = useAtom(editingListIdAtom);
   const router = useRouter();
   const searchParams = useSearchParams();
+  const hasInitialized = useRef(false);
 
-  const setEditingId = (id: string | null) => {
-    // Create a new URL with the current pathname and search params
-    const url = new URL(window.location.href);
-
-    // Update the editing parameter
-    if (id) {
-      url.searchParams.set("editing", id);
-    } else {
-      url.searchParams.delete("editing");
+  // Sync atom state to URL for persistence
+  useEffect(() => {
+    if (!hasInitialized.current) {
+      return;
     }
 
-    // Use router.push to update the URL and trigger a client-side navigation
-    router.push(url.pathname + url.search);
-  };
+    const params = new URLSearchParams(searchParams.toString());
 
-  const getEditingId = () => searchParams.get("editing");
+    if (editingId) {
+      params.set("editing", editingId);
+    } else {
+      params.delete("editing");
+    }
+
+    const newUrl = `?${params.toString()}`;
+    const currentUrl = searchParams.toString()
+      ? `?${searchParams.toString()}`
+      : "";
+
+    if (newUrl !== currentUrl) {
+      router.push(newUrl);
+    }
+  }, [editingId, router, searchParams]);
+
+  // Initialize from URL on first load
+  useEffect(() => {
+    if (hasInitialized.current) {
+      return;
+    }
+
+    const urlEditingId = searchParams.get("editing");
+    if (urlEditingId) {
+      setEditingId(urlEditingId);
+    }
+
+    hasInitialized.current = true;
+  }, [searchParams, setEditingId]);
 
   return {
     editList: (id: string) => {
@@ -43,7 +69,7 @@ export const useEditList = () => {
     closeEditList: () => {
       setEditingId(null);
     },
-    editingId: getEditingId(),
+    editingId,
   };
 };
 
@@ -74,13 +100,11 @@ export function EditListDialog() {
               fallback={<ErrorFallback resetErrorBoundary={closeEditList} />}
               onError={(error) => reportError({ error })}
             >
-              <Suspense fallback={<ListFormSkeleton />}>
-                <ListForm
-                  formRef={formRef}
-                  listId={editingId}
-                  onDelete={closeEditList}
-                />
-              </Suspense>
+              <ListForm
+                formRef={formRef}
+                listId={editingId}
+                onDelete={closeEditList}
+              />
             </ErrorBoundary>
           )}
         </div>
