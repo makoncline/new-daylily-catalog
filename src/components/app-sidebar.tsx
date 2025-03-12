@@ -13,6 +13,7 @@ import {
   SidebarMenu,
   SidebarMenuItem,
   SidebarMenuButton,
+  useSidebar,
 } from "@/components/ui/sidebar";
 import { useFeedbackUrl } from "@/hooks/use-feedback-url";
 import { NavSecondary } from "./nav-secondary";
@@ -24,6 +25,13 @@ export function AppSidebar({
   ...props
 }: React.ComponentProps<typeof Sidebar>) {
   const pathname = usePathname();
+  const { setOpenMobile } = useSidebar();
+
+  // Function to close the sidebar on mobile
+  const handleNavClick = React.useCallback(() => {
+    setOpenMobile(false);
+  }, [setOpenMobile]);
+
   const {
     data: user,
     isLoading,
@@ -77,7 +85,12 @@ export function AppSidebar({
       <SidebarHeader>
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton size="lg" asChild tooltip="Dashboard">
+            <SidebarMenuButton
+              size="lg"
+              asChild
+              tooltip="Dashboard"
+              onClick={handleNavClick}
+            >
               <Link href="/dashboard">
                 <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
                   <Command className="size-4" />
@@ -94,8 +107,12 @@ export function AppSidebar({
         </SidebarMenu>
       </SidebarHeader>
       <SidebarContent>
-        <NavMain items={navMainItems} />
-        <NavSecondary items={navSecondaryItems} className="mt-auto" />
+        <NavMain items={navMainItems} onNavClick={handleNavClick} />
+        <NavSecondary
+          items={navSecondaryItems}
+          className="mt-auto"
+          onNavClick={handleNavClick}
+        />
       </SidebarContent>
       <SidebarFooter>
         {isLoading ? (

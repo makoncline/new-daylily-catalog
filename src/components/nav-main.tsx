@@ -32,9 +32,10 @@ export interface NavMainProps {
       url: string;
     }[];
   }[];
+  onNavClick?: () => void;
 }
 
-export function NavMain({ items }: NavMainProps) {
+export function NavMain({ items, onNavClick }: NavMainProps) {
   return (
     <SidebarGroup>
       <SidebarGroupLabel>Navigation</SidebarGroupLabel>
@@ -49,7 +50,7 @@ export function NavMain({ items }: NavMainProps) {
                   item.isActive && "bg-accent text-accent-foreground",
                 )}
               >
-                <Link href={item.url}>
+                <Link href={item.url} onClick={onNavClick}>
                   <item.icon
                     className={cn(
                       "size-4",
@@ -72,7 +73,7 @@ export function NavMain({ items }: NavMainProps) {
                       {item.items?.map((subItem) => (
                         <SidebarMenuSubItem key={subItem.title}>
                           <SidebarMenuSubButton asChild>
-                            <Link href={subItem.url}>
+                            <Link href={subItem.url} onClick={onNavClick}>
                               <span>{subItem.title}</span>
                             </Link>
                           </SidebarMenuSubButton>

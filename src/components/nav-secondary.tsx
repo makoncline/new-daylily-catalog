@@ -12,6 +12,7 @@ import Link from "next/link";
 
 export function NavSecondary({
   items,
+  onNavClick,
   ...props
 }: {
   items: {
@@ -19,6 +20,7 @@ export function NavSecondary({
     url: string;
     icon: LucideIcon;
   }[];
+  onNavClick?: () => void;
 } & React.ComponentPropsWithoutRef<typeof SidebarGroup>) {
   return (
     <SidebarGroup {...props}>
@@ -27,7 +29,12 @@ export function NavSecondary({
           {items.map((item) => (
             <SidebarMenuItem key={item.title}>
               <SidebarMenuButton asChild size="sm">
-                <Link href={item.url} target="_blank" rel="noopener noreferrer">
+                <Link
+                  href={item.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={onNavClick}
+                >
                   <item.icon />
                   <span>{item.title}</span>
                 </Link>
