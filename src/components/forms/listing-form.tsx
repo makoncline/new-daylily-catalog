@@ -28,6 +28,7 @@ import { useZodForm } from "@/hooks/use-zod-form";
 import { useAutoResizeTextArea } from "@/hooks/use-auto-resize-textarea";
 import { MultiListSelect } from "@/components/multi-list-select";
 import { LISTING_CONFIG, STATUS } from "@/config/constants";
+import { CurrencyInput } from "@/components/currency-input";
 
 interface ListingFormProps {
   listingId: string;
@@ -243,24 +244,10 @@ export function ListingForm({
             <FormItem>
               <FormLabel>Price</FormLabel>
               <FormControl>
-                <Input
-                  type="text"
-                  inputMode="numeric"
-                  pattern="[0-9]*"
-                  {...field}
-                  value={field.value ? `$${field.value.toLocaleString()}` : ""}
-                  onChange={(e) => {
-                    const value = e.target.value.replace(/[^0-9]/g, "");
-                    // Allow empty string or zero for clearing the field
-                    if (!value || value === "0") {
-                      field.onChange(null);
-                      return;
-                    }
-                    // Convert to integer and ensure it's positive
-                    const numValue = Math.floor(Math.abs(Number(value)));
-                    field.onChange(numValue);
-                  }}
-                  onBlur={() => onFieldBlur("price")}
+                <CurrencyInput
+                  value={field.value}
+                  onChange={field.onChange}
+                  onValueBlur={(value) => void onFieldBlur("price")}
                 />
               </FormControl>
               <FormDescription>
