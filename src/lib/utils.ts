@@ -6,7 +6,12 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-export function formatPrice(price: number) {
+/**
+ * Format a price to a currency string
+ * @param price - The price to format
+ * @returns The formatted price string
+ */
+export function formatPrice(price: number): string {
   return new Intl.NumberFormat("en-US", {
     style: "currency",
     currency: "USD",

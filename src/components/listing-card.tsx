@@ -18,6 +18,7 @@ import { Skeleton } from "./ui/skeleton";
 import { H3 } from "@/components/typography";
 import { ImagePlaceholder } from "./image-placeholder";
 import { ImagePopover } from "@/components/image-popover";
+import { AddToCartButton } from "@/components/add-to-cart-button";
 
 type ListingCardProps = {
   listing: RouterOutputs["public"]["getListings"][number];
@@ -135,39 +136,56 @@ export function ListingCard({ listing, priority = false }: ListingCardProps) {
             )}
           </div>
 
-          {/* Lists */}
-          {listing.lists.length > 0 && (
-            <div className="flex items-center gap-2">
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger>
-                    <Badge
-                      variant="secondary"
-                      className="flex cursor-pointer items-center gap-1 text-xs"
-                    >
-                      <ListChecks className="h-3 w-3" />
-                      <span>
-                        {listing.lists.length}{" "}
-                        {listing.lists.length === 1 ? "list" : "lists"}
-                      </span>
-                    </Badge>
-                  </TooltipTrigger>
-                  <TooltipContent side="top" align="start" className="p-0">
-                    <div className="flex max-w-[300px] flex-col gap-2 p-2">
-                      {listing.lists.map((list) => (
-                        <div
-                          key={list.id}
-                          className="flex items-center justify-between gap-4"
-                        >
-                          <span className="font-medium">{list.title}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-            </div>
-          )}
+          {/* Footer with Lists and Add to Cart Button */}
+          <div className="flex items-center justify-between">
+            {/* Lists */}
+            {listing.lists.length > 0 && (
+              <div className="flex items-center gap-2">
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger>
+                      <Badge
+                        variant="secondary"
+                        className="flex cursor-pointer items-center gap-1 text-xs"
+                      >
+                        <ListChecks className="h-3 w-3" />
+                        <span>
+                          {listing.lists.length}{" "}
+                          {listing.lists.length === 1 ? "list" : "lists"}
+                        </span>
+                      </Badge>
+                    </TooltipTrigger>
+                    <TooltipContent side="top" align="start" className="p-0">
+                      <div className="flex max-w-[300px] flex-col gap-2 p-2">
+                        {listing.lists.map((list) => (
+                          <div
+                            key={list.id}
+                            className="flex items-center justify-between gap-4"
+                          >
+                            <span className="font-medium">{list.title}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              </div>
+            )}
+
+            {/* Add to Cart Button - Only show if listing has a price */}
+            {listing.price !== null && (
+              <div onClick={(e) => e.stopPropagation()}>
+                <AddToCartButton
+                  listing={{
+                    id: listing.id,
+                    title: listing.title,
+                    price: listing.price,
+                    userId: listing.userId,
+                  }}
+                />
+              </div>
+            )}
+          </div>
         </div>
       </CardContent>
     </Card>

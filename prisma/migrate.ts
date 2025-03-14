@@ -716,7 +716,7 @@ async function main() {
   const startTime = Date.now();
 
   await upsertUsers();
-  await upsertAhsListings();
+  // await upsertAhsListings();
   await upsertLists();
   await upsertListings();
   await upsertUserProfiles();
