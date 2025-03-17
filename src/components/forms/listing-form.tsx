@@ -18,6 +18,13 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { ImageManager } from "@/components/image-manager";
 import { ImageUpload } from "@/components/image-upload";
 import { useToast } from "@/hooks/use-toast";
@@ -103,9 +110,29 @@ export function ListingForm({
     defaultValues: transformNullToUndefined(listingFormSchema.parse(listing)),
   });
 
-  const saveChanges = useCallback(async () => {
-    if (!form.formState.isDirty) return;
+  // Handle saving a single field - doesn't check for dirty state
+  const saveField = async <T extends keyof ListingFormData>(
+    field: T,
+    value: ListingFormData[T],
+  ) => {
+    setIsPending(true);
+    try {
+      await updateListingMutation.mutateAsync({
+        id: listing.id,
+        data: {
+          [field]: value,
+        },
+      });
+      form.reset({}, { keepValues: true, keepIsValid: true });
+    } catch (error) {
+      console.error(`Error saving ${field}:`, error);
+    } finally {
+      setIsPending(false);
+    }
+  };
 
+  // Always save all fields without checking dirty state
+  const saveChanges = useCallback(async () => {
     setIsPending(true);
     try {
       const values = form.getValues();
@@ -129,23 +156,14 @@ export function ListingForm({
     await saveChanges();
   }
 
-  // Handle auto-save on blur
+  // Handle auto-save on blur - checks for dirty state
   const onFieldBlur = async (field: keyof ListingFormData) => {
-    if (!form.formState.dirtyFields[field]) return;
-
-    setIsPending(true);
-    try {
-      const value = form.getValues(field);
-      await updateListingMutation.mutateAsync({
-        id: listing.id,
-        data: {
-          [field]: value,
-        },
-      });
-      form.reset({}, { keepValues: true, keepIsValid: true });
-    } finally {
-      setIsPending(false);
+    if (!form.formState.dirtyFields[field]) {
+      return;
     }
+
+    const value = form.getValues(field);
+    await saveField(field, value);
   };
 
   async function handleDelete() {
@@ -158,6 +176,21 @@ export function ListingForm({
       setIsPending(false);
     }
   }
+
+  // Add a helper function to correctly map database status to UI status
+  const getUIStatusValue = (dbValue: string | null | undefined): string => {
+    // For published status (which is empty string or null in the database)
+    if (
+      dbValue === STATUS.PUBLISHED ||
+      dbValue === "" ||
+      dbValue === null ||
+      dbValue === undefined
+    ) {
+      return "published";
+    }
+    // For other statuses (like HIDDEN), return as is
+    return dbValue;
+  };
 
   return (
     <Form {...form}>
@@ -263,24 +296,32 @@ export function ListingForm({
           render={({ field }) => (
             <FormItem>
               <FormLabel>Status</FormLabel>
-              <FormControl>
-                <select
-                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                  {...field}
-                  value={field.value ?? ""}
-                  onChange={(e) => {
-                    const value = e.target.value;
-                    field.onChange(value === "" ? null : value);
-                  }}
-                  onBlur={() => onFieldBlur("status")}
-                >
-                  {Object.entries(STATUS).map(([key, value]) => (
-                    <option key={key} value={value}>
-                      {value}
-                    </option>
-                  ))}
-                </select>
-              </FormControl>
+              <Select
+                onValueChange={(value) => {
+                  // Convert "published" placeholder to actual STATUS.PUBLISHED (empty string)
+                  const dbValue =
+                    value === "published" ? STATUS.PUBLISHED : value;
+
+                  // Update the form
+                  field.onChange(dbValue);
+
+                  // Save immediately without checking dirty state
+                  void saveField("status", dbValue);
+                }}
+                // Use the helper function to get the UI value
+                value={getUIStatusValue(field.value)}
+              >
+                <FormControl>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select status" />
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  {/* Use "published" as a non-empty placeholder for the UI */}
+                  <SelectItem value="published">Published</SelectItem>
+                  <SelectItem value={STATUS.HIDDEN}>Hidden</SelectItem>
+                </SelectContent>
+              </Select>
               <FormDescription>
                 Hidden listings will not be visible to the public.
               </FormDescription>

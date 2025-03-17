@@ -5,12 +5,12 @@ import {
   SidebarProvider,
   SidebarInset,
   SidebarTrigger,
+  SIDEBAR_COOKIE_NAME,
 } from "@/components/ui/sidebar";
 import { Separator } from "@/components/ui/separator";
 import { DashboardBreadcrumbs } from "./_components/dashboard-breadcrumbs";
 import { AppSidebar } from "@/components/app-sidebar";
 import { DashboardClientWrapper } from "./_components/dashboard-client-wrapper";
-import { useLocalStorage } from "@/hooks/use-local-storage";
 import { Skeleton } from "@/components/ui/skeleton";
 
 // Simple fallback loading state for the Suspense boundary
@@ -34,12 +34,21 @@ function DashboardFallback() {
 
 export const dynamic = "force-dynamic";
 
+function getCookie(name: string) {
+  if (typeof window === "undefined") {
+    return;
+  }
+  const value = `; ${document.cookie}`;
+  const parts = value.split(`; ${name}=`);
+  if (parts.length === 2) return parts.pop()?.split(";").shift();
+}
+
 export default function DashboardLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const [sidebarOpen] = useLocalStorage<boolean>("sidebar:state", true);
+  const sidebarOpen = getCookie(SIDEBAR_COOKIE_NAME as string) === "true";
 
   return (
     <DashboardClientWrapper>
