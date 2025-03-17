@@ -135,6 +135,6 @@ export const APP_CONFIG = {
 } as const;
 
 export const STATUS = {
-  PUBLISHED: "",
+  PUBLISHED: null,
   HIDDEN: "HIDDEN",
 } as const;
