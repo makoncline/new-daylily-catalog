@@ -3,11 +3,9 @@ import { getBaseUrl } from "@/lib/utils/getBaseUrl";
 
 export async function GET(_request: Request) {
   try {
-    console.log("Google Merchant Feed - Starting processing");
-
     const baseUrl = getBaseUrl();
 
-    // Simplified query - just get all listings with prices
+    // Query all listings with prices
     const where = { price: { not: null } };
     const include = {
       images: {
@@ -21,26 +19,10 @@ export async function GET(_request: Request) {
       },
     };
 
-    // Only log query in non-production environments
-    if (process.env.NODE_ENV !== "production") {
-      console.log(
-        "Google Merchant Feed - Running query:",
-        JSON.stringify(where),
-      );
-    }
-
     const listings = await db.listing.findMany({
       where,
       include,
     });
-
-    console.log(
-      `Google Merchant Feed - Found ${listings.length} listings with prices`,
-    );
-
-    if (!listings.length) {
-      console.log("No listings found that match criteria");
-    }
 
     // Generate the XML feed
     let xml = `<?xml version="1.0" encoding="UTF-8"?>
@@ -54,60 +36,25 @@ export async function GET(_request: Request) {
     let itemCount = 0;
     const errors: string[] = []; // Collect errors during processing
 
-    // Process listings without excessive logging
-    listings.forEach((listing, index) => {
-      // Only log every 10th item in production to reduce noise
-      const shouldLog =
-        process.env.NODE_ENV !== "production" || index % 10 === 0;
-
-      if (shouldLog) {
-        console.log(
-          `Processing listing ${index}/${listings.length}: ${listing.id}`,
-        );
-      }
-
+    // Process listings
+    listings.forEach((listing) => {
       try {
         const listingName =
           listing.title ?? listing.ahsListing?.name ?? "Unnamed Daylily";
-
-        // Very simple description to avoid XML issues - don't replace & here
         const description = listing.description ?? `${listingName} daylily`;
-
         const imageUrl = listing.images?.[0]?.url;
-        // Get additional images (up to 3 more)
         const additionalImages = listing.images?.slice(1, 4) ?? [];
-
         const productUrl = `${baseUrl}/${listing.userId}/${listing.id}`;
-
-        // Get catalog/seller name
         const catalogName =
           listing.user.profile?.title ?? `Daylily Catalog #${listing.userId}`;
-
-        // Merchant category for plants - use standard Google taxonomy
-        const category = "Home & Garden > Plants > Flowers";
-
-        // Brand is either the hybridizer or store name
-        const brand =
-          listing.ahsListing?.hybridizer ??
-          listing.user.profile?.title ??
-          "Daylily Catalog";
-
-        // MPN - use listing ID since we don't have a better alternative
         const mpn = listing.id;
-
-        // Enhanced product title with catalog info
         const enhancedTitle = `${listingName} - ${catalogName}`;
 
-        // Clean all text fields before escaping and using in XML
+        // Clean and prepare text
         const cleanTitle = cleanTextForXml(enhancedTitle);
         const cleanCatalogName = cleanTextForXml(catalogName);
         const cleanDescription = cleanTextForXml(description);
-
-        // Create full description
         const fullDescription = `${cleanDescription} Available from ${cleanCatalogName} on Daylily Catalog.`;
-
-        // Since we filtered for non-null prices in the database query, this is safe
-        // Even so, we'll add a fallback for type safety
         const priceFormatted = listing.price?.toFixed(2) ?? "0.00";
 
         // Build the item XML with all required Google Merchant fields
@@ -136,11 +83,7 @@ export async function GET(_request: Request) {
 </item>
 `;
 
-        console.log(`Adding XML for item ${listing.id}`);
         xml += itemXml;
-        if (shouldLog) {
-          console.log(`Added item ${listing.id} to feed`);
-        }
         itemCount++;
       } catch (error) {
         const errorMessage = `Error processing listing ${listing.id}: ${String(error)}`;
@@ -148,8 +91,6 @@ export async function GET(_request: Request) {
         errors.push(errorMessage);
       }
     });
-
-    console.log(`Added ${itemCount} items to feed`);
 
     // If we encountered errors, add a comment in the XML
     if (errors.length > 0) {
