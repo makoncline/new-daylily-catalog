@@ -132,16 +132,23 @@ export async function generateMetadata({
         description,
         image: imageUrl,
         url: pageUrl,
+        sku: listing.id,
         ...(listing.price && {
           offers: {
             "@type": "Offer",
-            price: price,
+            price: listing.price.toFixed(2),
             priceCurrency: "USD",
             availability: "https://schema.org/InStock",
+            priceValidUntil: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
+              .toISOString()
+              .split("T")[0], // 30 days from now
+            url: pageUrl,
             seller: {
               "@type": "Organization",
               name: profile?.title ?? METADATA_CONFIG.SITE_NAME,
+              url: `${url}/${profile?.id}`,
             },
+            itemCondition: "https://schema.org/NewCondition",
           },
         }),
         ...(listing.ahsListing && {
@@ -169,6 +176,11 @@ export async function generateMetadata({
               "@type": "PropertyValue",
               name: "Form",
               value: listing.ahsListing.form,
+            },
+            {
+              "@type": "PropertyValue",
+              name: "Flower Type",
+              value: "Daylily",
             },
           ].filter((prop) => prop.value),
         }),

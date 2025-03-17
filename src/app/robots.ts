@@ -16,6 +16,7 @@ export default function robots(): MetadataRoute.Robots {
         "/subscribe/success",
       ],
     },
-    sitemap: `${baseUrl}/sitemap`,
+    sitemap: `${baseUrl}/sitemap.xml`,
+    host: baseUrl,
   };
 }
