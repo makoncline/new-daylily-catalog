@@ -19,6 +19,7 @@ import { H3 } from "@/components/typography";
 import { ImagePlaceholder } from "./image-placeholder";
 import { ImagePopover } from "@/components/image-popover";
 import { AddToCartButton } from "@/components/add-to-cart-button";
+import { SEOLink } from "@/components/seo-link";
 
 type ListingCardProps = {
   listing: RouterOutputs["public"]["getListings"][number];
@@ -30,12 +31,21 @@ export function ListingCard({ listing, priority = false }: ListingCardProps) {
   const { viewListing } = useViewListing();
   const firstImage = listing.images[0];
   const hasMultipleImages = listing.images.length > 1;
+  const listingPath = `/${listing.user.profile?.slug ?? listing.userId}/${listing.slug ?? listing.id}`;
 
   return (
     <Card
-      className="group flex h-full cursor-pointer flex-col overflow-hidden transition-all hover:border-primary"
+      className="group relative flex h-full cursor-pointer flex-col overflow-hidden transition-all hover:border-primary"
       onClick={() => viewListing(listing)}
     >
+      {/* SEO-friendly link that's visually hidden but accessible to crawlers */}
+      <SEOLink
+        href={listingPath}
+        onCustomClick={() => viewListing(listing)}
+        ariaLabel={`View details for ${listing.title}`}
+        srText={`View ${listing.title}`}
+      />
+
       <div className="relative">
         <div className="aspect-square">
           {firstImage ? (
