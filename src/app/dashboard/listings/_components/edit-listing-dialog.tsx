@@ -7,8 +7,9 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { ListingForm } from "@/components/forms/listing-form";
+import { ListingFormSkeleton } from "@/components/forms/listing-form-skeleton";
 import { useSearchParams, useRouter } from "next/navigation";
-import { useRef, useEffect } from "react";
+import { useRef, useEffect, Suspense } from "react";
 import { ErrorBoundary } from "react-error-boundary";
 import { ErrorFallback } from "@/components/error-fallback";
 import { P } from "@/components/typography";
@@ -114,11 +115,13 @@ export function EditListingDialog() {
             <ErrorBoundary
               fallback={<ErrorFallback resetErrorBoundary={closeEditListing} />}
             >
-              <ListingForm
-                listingId={editingId}
-                onDelete={closeEditListing}
-                formRef={formRef}
-              />
+              <Suspense fallback={<ListingFormSkeleton />}>
+                <ListingForm
+                  listingId={editingId}
+                  onDelete={closeEditListing}
+                  formRef={formRef}
+                />
+              </Suspense>
             </ErrorBoundary>
           )}
         </div>

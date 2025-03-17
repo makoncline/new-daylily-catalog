@@ -19,6 +19,7 @@ import { DataTableFacetedFilter } from "@/components/data-table/data-table-facet
 import { DataTableDownload } from "@/components/data-table";
 import { APP_CONFIG } from "@/config/constants";
 import { DataTableFilteredCount } from "@/components/data-table/data-table-filtered-count";
+import { DataTableLayoutSkeleton } from "@/components/data-table/data-table-layout";
 
 type List = RouterOutputs["list"]["list"][number];
 type Listing = RouterOutputs["listing"]["list"][number];
@@ -82,8 +83,16 @@ function ListingsTableToolbar({
 }
 
 export function ListingsTable() {
-  const { data: listings, isLoading } = api.listing.list.useQuery();
-  const { data: lists } = api.list.list.useQuery();
+  const { data: listings, isLoading } = api.listing.list.useQuery(undefined, {
+    staleTime: Infinity,
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
+  });
+  const { data: lists } = api.list.list.useQuery(undefined, {
+    staleTime: Infinity,
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
+  });
   const { editListing } = useEditListing();
 
   const columns = getColumns(editListing);
@@ -107,7 +116,7 @@ export function ListingsTable() {
   });
 
   if (isLoading) {
-    return <ListingsTableSkeleton />;
+    return <DataTableLayoutSkeleton />;
   }
 
   if (!listings?.length) {
