@@ -1,11 +1,15 @@
 import { db } from "@/server/db";
 import { hasActiveSubscription } from "../stripe/subscription-utils";
-import { getStripeSubscription } from "../stripe/sync-subscription";
+import {
+  DEFAULT_SUB_DATA,
+  getStripeSubscription,
+  type StripeSubCache,
+} from "../stripe/sync-subscription";
 import { STATUS } from "@/config/constants";
 
 export async function getPublicProfiles() {
   try {
-    const profiles = await db.user.findMany({
+    const users = await db.user.findMany({
       select: {
         id: true,
         stripeCustomerId: true,
@@ -71,8 +75,18 @@ export async function getPublicProfiles() {
 
     // Get subscription status for each user
     const profilesWithSubs = await Promise.all(
-      profiles.map(async (profile) => {
-        const sub = await getStripeSubscription(profile.stripeCustomerId);
+      users.map(async (profile) => {
+        let sub: StripeSubCache = DEFAULT_SUB_DATA;
+        try {
+          sub = await getStripeSubscription(profile.stripeCustomerId);
+        } catch (error) {
+          console.error(
+            "Error fetching stripe subscription for user:",
+            profile.id,
+            " ",
+            error,
+          );
+        }
         return { ...profile, subscriptionStatus: sub.status };
       }),
     );
