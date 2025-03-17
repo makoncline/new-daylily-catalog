@@ -82,6 +82,9 @@ export async function generateMetadata({
     title: `${title} | ${METADATA_CONFIG.SITE_NAME}`,
     description,
     metadataBase: new URL(url),
+    alternates: {
+      canonical: `/${profile.id}`,
+    },
     openGraph: {
       title: `${title} | ${METADATA_CONFIG.SITE_NAME}`,
       description,

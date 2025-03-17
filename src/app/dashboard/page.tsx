@@ -6,7 +6,7 @@ import { DashboardPageSkeleton } from "./_components/dashboard-page-skeleton";
 
 export default function DashboardPage() {
   // Fetch data on the client side instead of server side
-  const { data: initialStats, isLoading } = api.dashboard.getStats.useQuery(
+  const { data: stats, isLoading } = api.dashboard.getStats.useQuery(
     undefined,
     {
       staleTime: Infinity,
@@ -16,10 +16,10 @@ export default function DashboardPage() {
   );
 
   // Show a loading UI while data is being fetched
-  if (isLoading || !initialStats) {
+  if (isLoading || !stats) {
     return <DashboardPageSkeleton />;
   }
 
   // Pass data to the client component for interactive UI
-  return <DashboardPageClient initialStats={initialStats} />;
+  return <DashboardPageClient initialStats={stats} />;
 }

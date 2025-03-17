@@ -6,7 +6,7 @@ import { formatPrice } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
-import { H2, Muted, P } from "@/components/typography";
+import { H1, H2, Muted, P } from "@/components/typography";
 import { ImagePlaceholder } from "./image-placeholder";
 import { ExternalLink } from "lucide-react";
 import Link from "next/link";
@@ -16,9 +16,16 @@ type Listing = RouterOutputs["public"]["getListings"][number];
 
 export interface ListingDisplayProps {
   listing: Listing;
+  variant?: "page" | "dialog";
 }
 
-export function ListingDisplay({ listing }: ListingDisplayProps) {
+export function ListingDisplay({
+  listing,
+  variant = "dialog",
+}: ListingDisplayProps) {
+  // Determine which heading component to use based on variant
+  const HeadingComponent = variant === "page" ? H1 : H2;
+
   return (
     <div className="space-y-8">
       {listing.images.length > 0 ? (
@@ -29,8 +36,8 @@ export function ListingDisplay({ listing }: ListingDisplayProps) {
       <div className="flex justify-between">
         <div>
           <div className="flex items-center gap-4">
-            <H2>{listing.title}</H2>
-            {listing.slug && (
+            <HeadingComponent>{listing.title}</HeadingComponent>
+            {listing.slug && variant !== "page" && (
               <Link href={`/${listing.user.profile?.slug}/${listing.slug}`}>
                 <ExternalLink className="h-5 w-5 text-muted-foreground transition-colors hover:text-foreground" />
                 <span className="sr-only">View Listing Page</span>
