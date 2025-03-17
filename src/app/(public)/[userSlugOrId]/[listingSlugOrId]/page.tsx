@@ -97,6 +97,9 @@ export async function generateMetadata({
     title,
     description,
     metadataBase: new URL(url),
+    alternates: {
+      canonical: `/${profile?.id}/${listing.id}`,
+    },
     openGraph: {
       title,
       description,
