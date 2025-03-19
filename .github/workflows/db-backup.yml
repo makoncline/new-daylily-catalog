@@ -23,7 +23,8 @@ jobs:
 
       - name: Install Turso CLI
         run: |
-          curl -sSfL https://get.turso.tech/install.sh | sh -s -- -b /usr/local/bin
+          curl -sSfL https://get.tur.so/install.sh | bash
+          export PATH="$HOME/.turso:$PATH"
           turso --version
 
       - name: Install zip
