@@ -25,6 +25,7 @@ jobs:
         run: |
           curl -sSfL https://get.tur.so/install.sh | bash || true
           echo "$HOME/.turso" >> $GITHUB_PATH
+          export PATH="$HOME/.turso:$PATH"
           turso --version
 
       - name: Install zip
