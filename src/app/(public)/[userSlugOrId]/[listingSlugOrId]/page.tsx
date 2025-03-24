@@ -15,6 +15,7 @@ import { METADATA_CONFIG } from "@/config/constants";
 import { getBaseUrl } from "@/lib/utils/getBaseUrl";
 import { getOptimizedMetaImageUrl } from "@/lib/utils/cloudflareLoader";
 import { formatAhsListingSummary } from "@/lib/utils";
+import { FloatingCartButton } from "@/components/floating-cart-button";
 
 export const revalidate = 3600;
 export const dynamicParams = true;
@@ -247,6 +248,11 @@ export default async function Page({ params }: PageProps) {
           <ListingDisplay listing={listing} variant="page" />
         </Suspense>
       </div>
+
+      <FloatingCartButton
+        userId={listing.userId}
+        userName={profile.title ?? undefined}
+      />
     </MainContent>
   );
 }

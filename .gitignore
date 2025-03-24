@@ -12,6 +12,7 @@
 db*.sqlite-journal
 db-dev.sqlite
 db-prod.sqlite
+*.db
 
 # next.js
 /.next/

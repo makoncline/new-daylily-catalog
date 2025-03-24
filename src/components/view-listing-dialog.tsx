@@ -73,7 +73,13 @@ export function ViewListingDialog({ listings }: ViewListingDialogProps) {
 
   return (
     <Dialog open={isOpen} onOpenChange={handleOpenChange}>
-      <DialogContent className="max-h-[90vh] max-w-lg overflow-y-auto">
+      <DialogContent
+        className="max-h-[90vh] max-w-lg overflow-y-auto"
+        onOpenAutoFocus={(e) => {
+          // Prevent default focus behavior
+          e.preventDefault();
+        }}
+      >
         <VisuallyHidden>
           <DialogHeader>
             <DialogTitle>View Listing</DialogTitle>

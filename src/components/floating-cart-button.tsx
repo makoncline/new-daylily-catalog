@@ -42,7 +42,7 @@ export function FloatingCartButton({
           )}
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[500px]">
+      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-[500px]">
         <DialogTitle>
           Contact {userName ?? "User"}
           {itemCount > 0 &&

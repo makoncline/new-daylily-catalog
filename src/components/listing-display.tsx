@@ -11,6 +11,7 @@ import { ImagePlaceholder } from "./image-placeholder";
 import { ExternalLink } from "lucide-react";
 import Link from "next/link";
 import { type RouterOutputs } from "@/trpc/react";
+import { AddToCartButton } from "@/components/add-to-cart-button";
 
 type Listing = RouterOutputs["public"]["getListings"][number];
 
@@ -33,31 +34,43 @@ export function ListingDisplay({
       ) : (
         <ImagePlaceholder />
       )}
-      <div className="flex justify-between">
-        <div>
-          <div className="flex items-center gap-4">
-            <HeadingComponent>{listing.title}</HeadingComponent>
-            {listing.slug && variant !== "page" && (
-              <Link href={`/${listing.user.profile?.slug}/${listing.slug}`}>
-                <ExternalLink className="h-5 w-5 text-muted-foreground transition-colors hover:text-foreground" />
-                <span className="sr-only">View Listing Page</span>
-              </Link>
-            )}
-          </div>
-          {listing.lists.length > 0 && (
-            <div className="flex flex-wrap gap-2">
-              {listing.lists.map((list) => (
-                <Badge key={list.id} variant="secondary">
-                  {list.title}
-                </Badge>
-              ))}
-            </div>
+
+      <div className="space-y-1">
+        {/* Title and external link */}
+        <div className="flex items-center justify-between gap-4">
+          <HeadingComponent>{listing.title}</HeadingComponent>
+          {listing.slug && variant !== "page" && (
+            <Link href={`/${listing.user.profile?.slug}/${listing.slug}`}>
+              <ExternalLink className="h-5 w-5 text-muted-foreground transition-colors hover:text-foreground" />
+              <span className="sr-only">View Listing Page</span>
+            </Link>
           )}
         </div>
+        {/* Price and Add to Cart */}
         {listing.price && (
-          <P className="text-lg font-medium text-primary">
-            {formatPrice(listing.price)}
-          </P>
+          <div className="flex flex-row items-center justify-between gap-4">
+            <P className="text-lg font-medium text-primary">
+              {formatPrice(listing.price)}
+            </P>
+            <AddToCartButton
+              listing={{
+                id: listing.id,
+                title: listing.title,
+                price: listing.price,
+                userId: listing.userId,
+              }}
+            />
+          </div>
+        )}
+        {/* Lists/Badges */}
+        {listing.lists.length > 0 && (
+          <div className="flex flex-wrap gap-2">
+            {listing.lists.map((list) => (
+              <Badge key={list.id} variant="secondary">
+                {list.title}
+              </Badge>
+            ))}
+          </div>
         )}
       </div>
 
