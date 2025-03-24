@@ -25,7 +25,7 @@ export function ListingsToolbar({
 
   return (
     <div className="flex items-center justify-between">
-      <div className="flex items-center gap-2">
+      <div className="flex flex-wrap items-center gap-2">
         <DataTableGlobalFilter table={table} placeholder="Search listings..." />
         <DataTableFacetedFilter
           column={listsColumn}
