@@ -184,7 +184,13 @@ export function ListingCard({ listing, priority = false }: ListingCardProps) {
 
             {/* Add to Cart Button - Only show if listing has a price */}
             {listing.price !== null && (
-              <div onClick={(e) => e.stopPropagation()}>
+              <div
+                onClick={(e) => {
+                  e.stopPropagation();
+                  e.preventDefault();
+                }}
+                className="z-10"
+              >
                 <AddToCartButton
                   listing={{
                     id: listing.id,
