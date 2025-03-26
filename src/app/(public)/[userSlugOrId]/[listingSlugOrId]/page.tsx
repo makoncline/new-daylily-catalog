@@ -83,7 +83,6 @@ export async function generateMetadata({
 
   const rawImageUrl = listing.images?.[0]?.url ?? IMAGES.DEFAULT_LISTING;
   const imageUrl = getOptimizedMetaImageUrl(rawImageUrl);
-  const price = listing.price ? `$${listing.price.toFixed(2)}` : "Display only";
   const listingName =
     listing.title ?? listing.ahsListing?.name ?? "Unnamed Daylily";
   const pageUrl = `${url}/${userSlugOrId}/${listing.slug ?? listing.id}`;

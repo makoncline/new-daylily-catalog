@@ -33,7 +33,6 @@ export async function GET(_request: Request) {
     <description>Daylily listings available for purchase</description>
 `;
 
-    let itemCount = 0;
     const errors: string[] = []; // Collect errors during processing
 
     // Process listings
@@ -84,7 +83,6 @@ export async function GET(_request: Request) {
 `;
 
         xml += itemXml;
-        itemCount++;
       } catch (error) {
         const errorMessage = `Error processing listing ${listing.id}: ${String(error)}`;
         console.error(errorMessage);

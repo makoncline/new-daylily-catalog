@@ -1,7 +1,7 @@
 "use client";
 
 import { Card } from "@/components/ui/card";
-import { api, type RouterOutputs } from "@/trpc/react";
+import { type RouterOutputs } from "@/trpc/react";
 import { PageHeader } from "./page-header";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";

@@ -29,7 +29,6 @@ interface AddToCartButtonProps {
 export function AddToCartButton({
   listing,
   variant = "secondary",
-  size = "default",
   className = "",
 }: AddToCartButtonProps) {
   const { items, addItem } = useCart(listing.userId);

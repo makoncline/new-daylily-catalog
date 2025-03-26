@@ -7,7 +7,6 @@ import { DataTablePagination } from "@/components/data-table/data-table-paginati
 import { EmptyState } from "@/components/empty-state";
 import { getColumns } from "./columns";
 import { api, type RouterOutputs } from "@/trpc/react";
-import { ListingsTableSkeleton } from "./listings-table-skeleton";
 import { CreateListingButton } from "./create-listing-button";
 import { useEditListing } from "./edit-listing-dialog";
 import { useDataTable } from "@/hooks/use-data-table";

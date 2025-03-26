@@ -280,7 +280,7 @@ export function ListingForm({
                 <CurrencyInput
                   value={field.value}
                   onChange={field.onChange}
-                  onValueBlur={(value) => void onFieldBlur("price")}
+                  onValueBlur={(_value) => void onFieldBlur("price")}
                 />
               </FormControl>
               <FormDescription>
