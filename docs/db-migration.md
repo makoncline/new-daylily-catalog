@@ -17,14 +17,30 @@ sqlite3 prisma/db-prod.sqlite ".dump" > dump.sql
 run the sql on the hosted db
 turso db shell daylily-catalog < dump.sql
 
+---
+
 ## keep data updated until launch by running migration script on hosted db
 
 USE_TURSO_DB=true npm run env:prod npm run migrate
 
+---
+
 ## schema changes
 
 generate a prisma migration
-npm run env:dev npm run migrate:generate
 
-apply the prisma migration to the turso db
+```
+npm run env:dev npm run migrate:generate
+```
+
+apply the prisma migration to the local turso db
+
+```
 npm run env:dev npm run migrate:apply -- 20250130184830_init
+```
+
+apply the prisma migration to the hosted turso db
+
+```
+turso db shell daylily-catalog < ./prisma/migrations/20250326011725_add_ahs_name_index/migration.sql
+```
