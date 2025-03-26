@@ -69,6 +69,7 @@
     "@radix-ui/react-toggle-group": "^1.1.1",
     "@radix-ui/react-tooltip": "^1.1.6",
     "@radix-ui/react-visually-hidden": "^1.1.1",
+    "@sentry/nextjs": "^9.9.0",
     "@t3-oss/env-nextjs": "^0.10.1",
     "@tailwindcss/line-clamp": "^0.4.4",
     "@tanstack/match-sorter-utils": "^8.19.4",
