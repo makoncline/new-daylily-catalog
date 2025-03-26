@@ -180,10 +180,7 @@ export const publicRouter = createTRPCRouter({
       }),
     )
     .mutation(
-      async ({
-        ctx,
-        input,
-      }): Promise<{ success: boolean; message: string }> => {
+      async ({ input }): Promise<{ success: boolean; message: string }> => {
         try {
           // Fetch the user's data
           const user = await db.user.findUnique({

@@ -2,7 +2,6 @@
 
 import { api } from "@/trpc/react";
 import { ListListingsTable } from "./_components/list-listings-table";
-import { useRouter } from "next/navigation";
 import { PageHeader } from "../../_components/page-header";
 import { ListForm } from "@/components/forms/list-form";
 import { AddListingsSection } from "./_components/add-listings-section";
