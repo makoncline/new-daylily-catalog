@@ -1,47 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { SignInButton } from "@clerk/nextjs";
-import { SignedIn, SignedOut } from "@clerk/nextjs";
 import { Button } from "@/components/ui/button";
-import { useEffect, useState } from "react";
 import { Flower2 } from "lucide-react";
 import { Small } from "@/components/typography";
-
-function DashboardButton({ className }: { className?: string }) {
-  const [isMounted, setIsMounted] = useState(false);
-
-  useEffect(() => {
-    setIsMounted(true);
-  }, []);
-
-  const text = "Dashboard";
-
-  if (!isMounted) {
-    return (
-      <Button className={className} disabled size="sm">
-        {text}
-      </Button>
-    );
-  }
-
-  return (
-    <>
-      <SignedIn>
-        <Button className={className} asChild size="sm">
-          <Link href="/dashboard">{text}</Link>
-        </Button>
-      </SignedIn>
-      <SignedOut>
-        <Button className={className} size="sm" asChild>
-          <SignInButton mode="modal" forceRedirectUrl="/dashboard">
-            {text}
-          </SignInButton>
-        </Button>
-      </SignedOut>
-    </>
-  );
-}
+import { DashboardButton } from "@/components/dashboard-button";
 
 export function PublicdNav() {
   return (

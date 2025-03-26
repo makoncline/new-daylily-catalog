@@ -33,13 +33,8 @@ const config = {
         permanent: true,
       },
       {
-        source: "/register",
-        destination: "/",
-        permanent: true,
-      },
-      {
-        source: "/login",
-        destination: "/",
+        source: "/sitemap",
+        destination: "/sitemap.xml",
         permanent: true,
       },
     ];

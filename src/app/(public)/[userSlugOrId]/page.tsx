@@ -12,6 +12,8 @@ import { getOptimizedMetaImageUrl } from "@/lib/utils/cloudflareLoader";
 import { getBaseUrl } from "@/lib/utils/getBaseUrl";
 import { type Metadata } from "next";
 import { CatalogContent } from "./_components/catalog-content";
+import { notFound } from "next/navigation";
+import { getErrorCode, tryCatch } from "@/lib/utils";
 
 // Client components need to be loaded dynamically since this is a server component
 import dynamic from "next/dynamic";
@@ -54,9 +56,9 @@ export async function generateMetadata({
   const { userSlugOrId } = await params;
   const url = getBaseUrl();
 
-  const profile = await getPublicProfile(userSlugOrId);
+  const result = await tryCatch(getPublicProfile(userSlugOrId));
 
-  if (!profile) {
+  if (!result.data) {
     return {
       title: "Catalog Not Found",
       description: "The daylily catalog you are looking for does not exist.",
@@ -69,6 +71,7 @@ export async function generateMetadata({
     };
   }
 
+  const profile = result.data;
   const title = profile.title ?? "Daylily Catalog";
   const description =
     profile.description ??
@@ -143,10 +146,25 @@ export default async function Page({ params }: PageProps) {
     { revalidate: 3600 },
   );
 
-  const [initialProfile, initialListings] = await Promise.all([
-    getProfile(),
-    getListings(),
+  // Use Promise.all with our tryCatch utility to fetch both in parallel
+  const [profileResult, listingsResult] = await Promise.all([
+    tryCatch(getProfile()),
+    tryCatch(getListings()),
   ]);
+
+  // Check for NOT_FOUND errors
+  if (getErrorCode(profileResult.error) === "NOT_FOUND") {
+    notFound();
+  }
+
+  // Rethrow other errors
+  if (profileResult.error) {
+    throw profileResult.error;
+  }
+
+  // Type safety - at this point we know we have data
+  const initialProfile = profileResult.data;
+  const initialListings = listingsResult.data ?? [];
 
   return (
     <MainContent>
@@ -168,12 +186,10 @@ export default async function Page({ params }: PageProps) {
       </div>
 
       {/* Add Floating Cart Button */}
-      {initialProfile && (
-        <ClientCartButton
-          userId={initialProfile.id}
-          userName={initialProfile.title ?? undefined}
-        />
-      )}
+      <ClientCartButton
+        userId={initialProfile.id}
+        userName={initialProfile.title ?? undefined}
+      />
     </MainContent>
   );
 }
