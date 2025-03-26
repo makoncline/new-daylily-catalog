@@ -16,14 +16,29 @@ const config = {
       {
         source: "/users/:userId",
         destination: "/:userId",
-        permanent: true, // 301 redirect for SEO
+        permanent: true,
       },
       {
         // Catalog redirects will be handled dynamically in middleware
         // This is a fallback for search engines
         source: "/catalog/:listingId",
         destination: "/api/legacy-redirect?listingId=:listingId",
-        permanent: true, // 301 redirect for SEO
+        permanent: true,
+      },
+      {
+        source: "/users",
+        destination: "/catalogs",
+        permanent: true,
+      },
+      {
+        source: "/register",
+        destination: "/",
+        permanent: true,
+      },
+      {
+        source: "/login",
+        destination: "/",
+        permanent: true,
       },
     ];
   },
