@@ -18,6 +18,43 @@ export function formatPrice(price: number): string {
   }).format(price);
 }
 
+// Types for the result object with discriminated union
+type Success<T> = {
+  data: T;
+  error: null;
+};
+
+type Failure<E> = {
+  data: null;
+  error: E;
+};
+
+type Result<T, E = Error> = Success<T> | Failure<E>;
+
+/**
+ * Safely extracts an error code from any error object
+ * @param error Any error object
+ * @returns The error code as a string, or undefined if no code exists
+ */
+export function getErrorCode(error: unknown): string | undefined {
+  if (error && typeof error === "object" && "code" in error && error.code) {
+    return String(error.code);
+  }
+  return undefined;
+}
+
+// Main wrapper function
+export async function tryCatch<T, E = Error>(
+  promise: Promise<T>,
+): Promise<Result<T, E>> {
+  try {
+    const data = await promise;
+    return { data, error: null };
+  } catch (error) {
+    return { data: null, error: error as E };
+  }
+}
+
 export async function uploadFileWithProgress({
   presignedUrl,
   file,

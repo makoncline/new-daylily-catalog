@@ -15,6 +15,7 @@ export const listingSelect = {
       profile: {
         select: {
           slug: true,
+          title: true,
         },
       },
     },

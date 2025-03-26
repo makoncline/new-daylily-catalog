@@ -1,9 +1,5 @@
 import { api } from "@/trpc/server";
 import { MainContent } from "@/app/(public)/_components/main-content";
-import { EmptyState } from "@/components/empty-state";
-import { Button } from "@/components/ui/button";
-import { Flower2 } from "lucide-react";
-import Link from "next/link";
 import { ListingDisplay } from "@/components/listing-display";
 import { Suspense } from "react";
 import { ListingDisplaySkeleton } from "@/components/listing-display";
@@ -14,8 +10,9 @@ import { IMAGES } from "@/lib/constants/images";
 import { METADATA_CONFIG } from "@/config/constants";
 import { getBaseUrl } from "@/lib/utils/getBaseUrl";
 import { getOptimizedMetaImageUrl } from "@/lib/utils/cloudflareLoader";
-import { formatAhsListingSummary } from "@/lib/utils";
+import { formatAhsListingSummary, getErrorCode, tryCatch } from "@/lib/utils";
 import { FloatingCartButton } from "@/components/floating-cart-button";
+import { notFound } from "next/navigation";
 
 export const revalidate = 3600;
 export const dynamicParams = true;
@@ -59,12 +56,14 @@ export async function generateMetadata({
   const url = getBaseUrl();
 
   // Fetch listing data
-  const listing = await api.public.getListing({
-    userSlugOrId,
-    listingSlugOrId,
-  });
+  const result = await tryCatch(
+    api.public.getListing({
+      userSlugOrId,
+      listingSlugOrId,
+    }),
+  );
 
-  if (!listing) {
+  if (!result.data) {
     return {
       title: "Listing Not Found",
       description: "The daylily listing you are looking for does not exist.",
@@ -77,29 +76,27 @@ export async function generateMetadata({
     };
   }
 
-  const profile = await api.public.getProfile({
-    userSlugOrId,
-  });
+  const listing = result.data;
+  const profileTitle = listing.user.profile?.title ?? METADATA_CONFIG.SITE_NAME;
 
   const rawImageUrl = listing.images?.[0]?.url ?? IMAGES.DEFAULT_LISTING;
   const imageUrl = getOptimizedMetaImageUrl(rawImageUrl);
-  const price = listing.price ? `$${listing.price.toFixed(2)}` : "Display only";
   const listingName =
     listing.title ?? listing.ahsListing?.name ?? "Unnamed Daylily";
   const pageUrl = `${url}/${userSlugOrId}/${listing.slug ?? listing.id}`;
 
   // Construct metadata
-  const title = `${listingName} Daylily | ${profile?.title ?? METADATA_CONFIG.SITE_NAME}`;
+  const title = `${listingName} Daylily | ${profileTitle}`;
   const description = Boolean(listing.description?.trim())
     ? listing.description!
-    : `${listingName} daylily available from ${profile?.title ?? METADATA_CONFIG.SITE_NAME}. ${formatAhsListingSummary(listing.ahsListing) ?? ""}`.trim();
+    : `${listingName} daylily available from ${profileTitle}. ${formatAhsListingSummary(listing.ahsListing) ?? ""}`.trim();
 
   return {
     title,
     description,
     metadataBase: new URL(url),
     alternates: {
-      canonical: `/${profile?.id}/${listing.id}`,
+      canonical: `/${listing.userId}/${listing.id}`,
     },
     openGraph: {
       title,
@@ -146,8 +143,8 @@ export async function generateMetadata({
             url: pageUrl,
             seller: {
               "@type": "Organization",
-              name: profile?.title ?? METADATA_CONFIG.SITE_NAME,
-              url: `${url}/${profile?.id}`,
+              name: profileTitle,
+              url: `${url}/${listing.userId}`,
             },
             itemCondition: "https://schema.org/NewCondition",
           },
@@ -193,49 +190,30 @@ export async function generateMetadata({
 export default async function Page({ params }: PageProps) {
   const { userSlugOrId, listingSlugOrId } = params;
 
-  // First check if the user exists
-  const profile = await api.public.getProfile({
-    userSlugOrId,
-  });
+  // Use tryCatch to handle listing fetch
+  const result = await tryCatch(
+    api.public.getListing({
+      userSlugOrId,
+      listingSlugOrId,
+    }),
+  );
 
-  if (!profile) {
-    return (
-      <MainContent>
-        <EmptyState
-          icon={<Flower2 className="h-12 w-12 text-muted-foreground" />}
-          title="Catalog Not Found"
-          description="The catalog you are looking for does not exist."
-          action={
-            <Button asChild>
-              <Link href="/catalogs">Browse Catalogs</Link>
-            </Button>
-          }
-        />
-      </MainContent>
-    );
+  // Check for errors
+  if (getErrorCode(result.error) === "NOT_FOUND") {
+    notFound();
   }
 
-  // Then check if the listing exists
-  const listing = await api.public.getListing({
-    userSlugOrId,
-    listingSlugOrId,
-  });
+  // Rethrow other errors
+  if (result.error) {
+    throw result.error;
+  }
 
+  // Type safety - at this point we know we have data
+  const listing = result.data;
+
+  // This is just for type safety, result.data should never be null at this point
   if (!listing) {
-    return (
-      <MainContent>
-        <EmptyState
-          icon={<Flower2 className="h-12 w-12 text-muted-foreground" />}
-          title="Listing Not Found"
-          description="The listing you are looking for does not exist or it was renamed."
-          action={
-            <Button asChild>
-              <Link href={`/${userSlugOrId}`}>View Catalog</Link>
-            </Button>
-          }
-        />
-      </MainContent>
-    );
+    notFound();
   }
 
   return (
@@ -251,7 +229,7 @@ export default async function Page({ params }: PageProps) {
 
       <FloatingCartButton
         userId={listing.userId}
-        userName={profile.title ?? undefined}
+        userName={listing.user.profile?.title ?? undefined}
       />
     </MainContent>
   );
