@@ -35,6 +35,8 @@ model AhsListing {
   updatedAt   DateTime @updatedAt
 
   lilies Listing[]
+
+  @@index([name])
 }
 
 model Listing {
