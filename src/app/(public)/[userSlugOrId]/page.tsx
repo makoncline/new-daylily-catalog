@@ -14,6 +14,8 @@ import { type Metadata } from "next";
 import { CatalogContent } from "./_components/catalog-content";
 import { notFound } from "next/navigation";
 import { getErrorCode, tryCatch } from "@/lib/utils";
+import { generateProfileMetadata } from "./_seo/metadata";
+import { generateOrganizationJsonLd } from "./_seo/json-ld";
 
 // Client components need to be loaded dynamically since this is a server component
 import dynamic from "next/dynamic";
@@ -72,31 +74,26 @@ export async function generateMetadata({
   }
 
   const profile = result.data;
-  const title = profile.title ?? "Daylily Catalog";
-  const description =
-    profile.description ??
-    `Browse our collection of beautiful daylilies. ${profile.location ? `Located in ${profile.location}.` : ""}`.trim();
 
-  const rawImageUrl = profile.images?.[0]?.url ?? IMAGES.DEFAULT_CATALOG;
-  const imageUrl = getOptimizedMetaImageUrl(rawImageUrl);
-  const pageUrl = `${url}/${profile.slug ?? profile.id}`;
+  // Generate profile metadata
+  const metadata = await generateProfileMetadata(profile, url);
 
   return {
-    title: `${title} | ${METADATA_CONFIG.SITE_NAME}`,
-    description,
+    title: `${metadata.title} | ${METADATA_CONFIG.SITE_NAME}`,
+    description: metadata.description,
     metadataBase: new URL(url),
     alternates: {
       canonical: `/${profile.id}`,
     },
     openGraph: {
-      title: `${title} | ${METADATA_CONFIG.SITE_NAME}`,
-      description,
-      url: pageUrl,
+      title: `${metadata.title} | ${METADATA_CONFIG.SITE_NAME}`,
+      description: metadata.description,
+      url: metadata.pageUrl,
       siteName: METADATA_CONFIG.SITE_NAME,
       locale: METADATA_CONFIG.LOCALE,
       images: [
         {
-          url: imageUrl,
+          url: metadata.imageUrl,
           width: 1200,
           height: 630,
           alt: "Daylily catalog cover image",
@@ -106,28 +103,12 @@ export async function generateMetadata({
     },
     twitter: {
       card: METADATA_CONFIG.TWITTER_CARD_TYPE,
-      title: `${title} | ${METADATA_CONFIG.SITE_NAME}`,
-      description,
+      title: `${metadata.title} | ${METADATA_CONFIG.SITE_NAME}`,
+      description: metadata.description,
       site: METADATA_CONFIG.TWITTER_HANDLE,
-      images: [imageUrl],
+      images: [metadata.imageUrl],
     },
-    other: {
-      // Organization JSON-LD for rich results
-      "script:ld+json": JSON.stringify({
-        "@context": "https://schema.org",
-        "@type": "Organization",
-        name: title,
-        description,
-        image: imageUrl,
-        url: pageUrl,
-        ...(profile.location && {
-          address: {
-            "@type": "PostalAddress",
-            addressLocality: profile.location,
-          },
-        }),
-      }),
-    },
+    // Remove the JSON-LD from here - we'll add it as a script tag in the page component
   };
 }
 
@@ -166,8 +147,19 @@ export default async function Page({ params }: PageProps) {
   const initialProfile = profileResult.data;
   const initialListings = listingsResult.data ?? [];
 
+  // Generate metadata and JSON-LD
+  const baseUrl = getBaseUrl();
+  const metadata = await generateProfileMetadata(initialProfile, baseUrl);
+  const jsonLd = await generateOrganizationJsonLd(initialProfile, metadata);
+
   return (
     <MainContent>
+      {/* Add JSON-LD structured data */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
+
       <div className="mb-6">
         <PublicBreadcrumbs />
       </div>
