@@ -1,5 +1,6 @@
 import { db } from "@/server/db";
 import { getBaseUrl } from "@/lib/utils/getBaseUrl";
+import { formatAhsListingSummary } from "@/lib/utils";
 
 export async function GET(_request: Request) {
   try {
@@ -40,20 +41,32 @@ export async function GET(_request: Request) {
       try {
         const listingName =
           listing.title ?? listing.ahsListing?.name ?? "Unnamed Daylily";
-        const description = listing.description ?? `${listingName} daylily`;
-        const imageUrl = listing.images?.[0]?.url;
+        // Combine descriptions
+        const userDescription = listing.description;
+        const ahsDescription = formatAhsListingSummary(listing.ahsListing);
+        let combinedDescription = "";
+        if (userDescription && ahsDescription) {
+          combinedDescription = `${userDescription}\n\n---\n\n${ahsDescription}`;
+        } else {
+          combinedDescription =
+            userDescription ?? ahsDescription ?? `${listingName} daylily`;
+        }
+
+        const imageUrl =
+          listing.images?.[0]?.url ?? listing.ahsListing?.ahsImageUrl;
         const additionalImages = listing.images?.slice(1, 4) ?? [];
         const productUrl = `${baseUrl}/${listing.userId}/${listing.id}`;
         const catalogName =
           listing.user.profile?.title ?? `Daylily Catalog #${listing.userId}`;
         const mpn = listing.id;
-        const enhancedTitle = `${listingName} - ${catalogName}`;
+        const enhancedTitle = `${listingName} Daylily`;
 
         // Clean and prepare text
         const cleanTitle = cleanTextForXml(enhancedTitle);
         const cleanCatalogName = cleanTextForXml(catalogName);
-        const cleanDescription = cleanTextForXml(description);
-        const fullDescription = `${cleanDescription} Available from ${cleanCatalogName} on Daylily Catalog.`;
+        const cleanCombinedDescription = cleanTextForXml(combinedDescription);
+        // Append seller info to the end
+        const fullDescription = `${cleanCombinedDescription}\n\n Available from ${cleanCatalogName} on Daylily Catalog.`;
         const priceFormatted = listing.price?.toFixed(2) ?? "0.00";
 
         // Build the item XML with all required Google Merchant fields
@@ -61,8 +74,10 @@ export async function GET(_request: Request) {
 <title>${escapeXml(cleanTitle)}</title>
 <g:title>${escapeXml(cleanTitle)}</g:title>
 <link>${escapeXml(productUrl)}</link>
-<description>${escapeXml(fullDescription)}</description>
+<description>${escapeXml(fullDescription.substring(0, 5000))}</description>
 <g:id>${escapeXml(listing.id)}</g:id>
+<g:brand>${escapeXml(cleanCatalogName)}</g:brand>
+<g:condition>new</g:condition>
 <g:price>${priceFormatted} USD</g:price>
 <g:availability>in_stock</g:availability>
 <g:google_product_category>Home &amp; Garden &gt; Plants &gt; Flowers</g:google_product_category>

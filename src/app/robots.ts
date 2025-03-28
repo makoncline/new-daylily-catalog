@@ -14,6 +14,7 @@ export default function robots(): MetadataRoute.Robots {
         "/trpc/",
         "/auth-error",
         "/subscribe/success",
+        "/catalog/",
       ],
     },
     sitemap: `${baseUrl}/sitemap.xml`,
