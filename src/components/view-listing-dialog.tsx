@@ -11,7 +11,7 @@ import { useSearchParams } from "next/navigation";
 import { useRef } from "react";
 import { ErrorBoundary } from "react-error-boundary";
 import { ErrorFallback } from "@/components/error-fallback";
-import { reportError } from "@/lib/error-utils";
+import { normalizeError, reportError } from "@/lib/error-utils";
 import { ListingDisplay } from "@/components/listing-display";
 import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
 import { type RouterOutputs } from "@/trpc/react";
@@ -88,7 +88,15 @@ export function ViewListingDialog({ listings }: ViewListingDialogProps) {
         </VisuallyHidden>
         <ErrorBoundary
           fallback={<ErrorFallback resetErrorBoundary={closeViewListing} />}
-          onError={(error) => reportError({ error })}
+          onError={(error, errorInfo) =>
+            reportError({
+              error: normalizeError(error),
+              context: {
+                source: "ViewListingDialog",
+                errorInfo,
+              },
+            })
+          }
         >
           {currentListing ? (
             <ListingDisplay listing={currentListing} />

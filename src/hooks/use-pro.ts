@@ -1,6 +1,6 @@
 import { api } from "@/trpc/react";
 import { hasActiveSubscription } from "@/server/stripe/subscription-utils";
-import { reportError } from "@/lib/error-utils";
+import { normalizeError, reportError } from "@/lib/error-utils";
 import { useRouter } from "next/navigation";
 
 export function usePro() {
@@ -17,10 +17,7 @@ export function usePro() {
       router.push(url);
     } catch (error) {
       reportError({
-        error:
-          error instanceof Error
-            ? error
-            : new Error("Failed to get checkout URL"),
+        error: normalizeError(error),
         context: { action: "sendToCheckout" },
       });
     }

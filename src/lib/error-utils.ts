@@ -2,7 +2,11 @@ import { captureException, setContext } from "@/lib/sentry";
 
 export interface ErrorReporterOptions {
   error: Error;
-  context?: Record<string, unknown>;
+  context?: {
+    source?: string;
+    errorInfo?: React.ErrorInfo | Record<string, unknown>;
+    [key: string]: unknown;
+  };
 }
 
 export function reportError({ error, context = {} }: ErrorReporterOptions) {
@@ -16,11 +20,10 @@ export function reportError({ error, context = {} }: ErrorReporterOptions) {
     }
 
     // Send error to Sentry
-    if (context?.componentStack) {
+    const componentStack = context?.errorInfo?.componentStack;
+    if (componentStack) {
       // Add React component stack as context
-      setContext("reactComponentStack", {
-        componentStack: context.componentStack,
-      });
+      setContext("reactComponentStack", { componentStack });
     }
 
     // Add any additional context

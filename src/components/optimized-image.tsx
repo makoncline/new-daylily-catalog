@@ -3,7 +3,7 @@
 import * as React from "react";
 import Image from "next/image";
 import { cn } from "@/lib/utils";
-import { reportError } from "@/lib/error-utils";
+import { normalizeError, reportError } from "@/lib/error-utils";
 import { cloudflareLoader } from "@/lib/utils/cloudflareLoader";
 
 // Image configuration
@@ -93,36 +93,36 @@ export function OptimizedImage({
     }
   }, []);
 
-  const handleError = React.useCallback(() => {
-    if (!transformError) {
-      setTransformError(true);
+  const handleError: React.ReactEventHandler<HTMLImageElement> =
+    React.useCallback(
+      (error) => {
+        if (!transformError) {
+          setTransformError(true);
 
-      const transformedUrl = cloudflareLoader({
-        src,
-        width: dimension,
-        quality:
-          size === "thumbnail"
-            ? IMAGE_CONFIG.QUALITY.MEDIUM
-            : IMAGE_CONFIG.QUALITY.HIGH,
-        fit,
-      });
+          const transformedUrl = cloudflareLoader({
+            src,
+            width: dimension,
+            quality:
+              size === "thumbnail"
+                ? IMAGE_CONFIG.QUALITY.MEDIUM
+                : IMAGE_CONFIG.QUALITY.HIGH,
+            fit,
+          });
 
-      const cfError = new CloudflareTransformError(
-        "Cloudflare image transform failed",
-        {
-          src,
-          transformedUrl,
-          size,
-          fit,
-        },
-      );
-
-      reportError({
-        error: cfError,
-        context: { message: `at OptimizedImage at Image (${src})` },
-      });
-    }
-  }, [transformError, src, dimension, size, fit]);
+          reportError({
+            error: normalizeError(error),
+            context: {
+              source: "OptimizedImage",
+              src,
+              transformedUrl,
+              size,
+              fit,
+            },
+          });
+        }
+      },
+      [transformError, src, dimension, size, fit],
+    );
 
   // Get the transformed URLs
   const imageUrl = cloudflareLoader({

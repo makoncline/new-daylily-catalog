@@ -98,7 +98,12 @@ export function EditListDialog() {
           {editingId && (
             <ErrorBoundary
               fallback={<ErrorFallback resetErrorBoundary={closeEditList} />}
-              onError={(error) => reportError({ error })}
+              onError={(error, errorInfo) =>
+                reportError({
+                  error,
+                  context: { source: "EditListDialog", errorInfo },
+                })
+              }
             >
               <ListForm
                 formRef={formRef}
