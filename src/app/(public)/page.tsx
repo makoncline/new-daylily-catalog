@@ -4,35 +4,32 @@ import { getBaseUrl } from "@/lib/utils/getBaseUrl";
 import { IMAGES } from "@/lib/constants/images";
 import { METADATA_CONFIG } from "@/config/constants";
 import { getOptimizedMetaImageUrl } from "@/lib/utils/cloudflareLoader";
+import { generateHomePageMetadata } from "./_seo/metadata";
+import { generateWebsiteJsonLd } from "./_seo/json-ld";
 
 export const revalidate = 3600;
 
 export async function generateMetadata(): Promise<Metadata> {
   const url = getBaseUrl();
-  const optimizedImage = getOptimizedMetaImageUrl(IMAGES.DEFAULT_META);
+
+  // Generate metadata
+  const metadata = await generateHomePageMetadata(url);
 
   return {
-    title: METADATA_CONFIG.DEFAULT_TITLE,
-    description: METADATA_CONFIG.DEFAULT_DESCRIPTION,
-    keywords: [
-      "daylily",
-      "hemerocallis",
-      "garden catalog",
-      "plant database",
-      "daylily sales",
-      "daylily collection",
-    ],
+    title: metadata.title,
+    description: metadata.description,
+    keywords: metadata.keywords,
     metadataBase: new URL(url),
     openGraph: {
-      title: METADATA_CONFIG.DEFAULT_TITLE,
-      description: METADATA_CONFIG.DEFAULT_DESCRIPTION,
+      title: metadata.title,
+      description: metadata.description,
       url,
       siteName: METADATA_CONFIG.SITE_NAME,
       locale: METADATA_CONFIG.LOCALE,
       type: "website",
       images: [
         {
-          url: optimizedImage,
+          url: metadata.imageUrl,
           width: 1200,
           height: 630,
           alt: "Beautiful daylily garden at golden hour",
@@ -41,51 +38,29 @@ export async function generateMetadata(): Promise<Metadata> {
     },
     twitter: {
       card: METADATA_CONFIG.TWITTER_CARD_TYPE,
-      title: METADATA_CONFIG.DEFAULT_TITLE,
-      description: METADATA_CONFIG.DEFAULT_DESCRIPTION,
+      title: metadata.title,
+      description: metadata.description,
       site: METADATA_CONFIG.TWITTER_HANDLE,
-      images: [optimizedImage],
+      images: [metadata.imageUrl],
     },
-    other: {
-      // WebSite JSON-LD for rich results
-      "script:ld+json": JSON.stringify({
-        "@context": "https://schema.org",
-        "@type": "WebSite",
-        name: METADATA_CONFIG.SITE_NAME,
-        description: METADATA_CONFIG.DEFAULT_DESCRIPTION,
-        url,
-        potentialAction: {
-          "@type": "SearchAction",
-          target: {
-            "@type": "EntryPoint",
-            urlTemplate: `${url}/catalogs?q={search_term_string}`,
-          },
-          "query-input": "required name=search_term_string",
-        },
-        // Add SoftwareApplication schema for app features
-        application: {
-          "@type": "SoftwareApplication",
-          name: METADATA_CONFIG.SITE_NAME,
-          applicationCategory: "BusinessApplication",
-          operatingSystem: "Web",
-          offers: {
-            "@type": "Offer",
-            price: "0",
-            priceCurrency: "USD",
-          },
-          featureList: [
-            "Auto-populate listings from 100,000+ registered cultivars",
-            "Professional photo galleries",
-            "Custom collection organization",
-            "Garden profile and bio",
-            "Official cultivar database access",
-          ],
-        },
-      }),
-    },
+    // Remove JSON-LD from metadata - it will be added as a script tag
   };
 }
 
 export default async function HomePage() {
-  return <HomePageClient />;
+  // Generate metadata and JSON-LD
+  const baseUrl = getBaseUrl();
+  const metadata = await generateHomePageMetadata(baseUrl);
+  const jsonLd = await generateWebsiteJsonLd(metadata);
+
+  return (
+    <>
+      {/* Add JSON-LD structured data */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
+      <HomePageClient />
+    </>
+  );
 }
