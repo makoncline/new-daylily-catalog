@@ -1,7 +1,8 @@
-import { captureException, setContext } from "@/lib/sentry";
+import { captureException, captureMessage, setContext } from "@/lib/sentry";
 
 export interface ErrorReporterOptions {
   error: Error;
+  level?: "error" | "warning" | "info" | "debug" | "log" | "fatal";
   context?: {
     source?: string;
     errorInfo?: React.ErrorInfo | Record<string, unknown>;
@@ -9,14 +10,38 @@ export interface ErrorReporterOptions {
   };
 }
 
-export function reportError({ error, context = {} }: ErrorReporterOptions) {
+export function reportError({
+  error,
+  level = "error",
+  context = {},
+}: ErrorReporterOptions) {
   try {
+    const message = error.message;
     // Log to console in development
     if (process.env.NODE_ENV === "development") {
-      console.group("Error Report");
-      console.error("Error:", error);
-      console.error("Additional Context:", context);
-      console.groupEnd();
+      const logArgs = [
+        `${level.toUpperCase()}:`,
+        message,
+        "\nAdditional Context:",
+        context,
+      ];
+      switch (level) {
+        case "fatal":
+        case "error":
+          console.error(...logArgs);
+          break;
+        case "warning":
+          console.warn(...logArgs);
+          break;
+        case "info":
+          console.info(...logArgs);
+          break;
+        case "log":
+        case "debug":
+        default:
+          console.log(...logArgs);
+          break;
+      }
     }
 
     // Send error to Sentry
@@ -31,8 +56,14 @@ export function reportError({ error, context = {} }: ErrorReporterOptions) {
       setContext("additionalContext", context);
     }
 
-    // Capture the exception in Sentry
-    captureException(error);
+    // Report based on level
+    if (level === "error" || level === "fatal") {
+      // For critical errors, use captureException
+      captureException(error);
+    } else {
+      // For warnings, info, etc., use captureMessage
+      captureMessage(message, level);
+    }
   } catch (error) {
     console.error("Report error failed:", error);
   }

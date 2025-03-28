@@ -3,7 +3,7 @@
 import * as React from "react";
 import Image from "next/image";
 import { cn } from "@/lib/utils";
-import { normalizeError, reportError } from "@/lib/error-utils";
+import { reportError } from "@/lib/error-utils";
 import { cloudflareLoader } from "@/lib/utils/cloudflareLoader";
 
 // Image configuration
@@ -29,22 +29,6 @@ export const IMAGE_CONFIG = {
     },
   },
 } as const;
-
-// Custom error class for transform failures
-class CloudflareTransformError extends Error {
-  constructor(
-    message: string,
-    public readonly context: {
-      src: string;
-      transformedUrl: string;
-      size?: "thumbnail" | "full";
-      fit?: string;
-    },
-  ) {
-    super(message);
-    this.name = "CloudflareTransformError";
-  }
-}
 
 interface OptimizedImageProps extends React.HTMLAttributes<HTMLDivElement> {
   src: string;
@@ -95,7 +79,7 @@ export function OptimizedImage({
 
   const handleError: React.ReactEventHandler<HTMLImageElement> =
     React.useCallback(
-      (error) => {
+      (_error) => {
         if (!transformError) {
           setTransformError(true);
 
@@ -109,8 +93,13 @@ export function OptimizedImage({
             fit,
           });
 
+          const imageLoadError = new Error(
+            `Failed to load optimized image resource: ${src}`,
+          );
+
           reportError({
-            error: normalizeError(error),
+            error: imageLoadError,
+            level: "warning",
             context: {
               source: "OptimizedImage",
               src,
