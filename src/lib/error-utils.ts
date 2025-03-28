@@ -1,41 +1,38 @@
-import { type ErrorInfo as ReactErrorInfo } from "react";
 import { captureException, setContext } from "@/lib/sentry";
 
 export interface ErrorReporterOptions {
   error: Error;
-  errorInfo?: ReactErrorInfo;
   context?: Record<string, unknown>;
 }
 
-export function reportError({
-  error,
-  errorInfo,
-  context = {},
-}: ErrorReporterOptions) {
-  // Log to console in development
-  if (process.env.NODE_ENV === "development") {
-    console.group("Error Report");
-    console.error("Error:", error);
-    console.error("Component Stack:", errorInfo?.componentStack);
-    console.error("Additional Context:", context);
-    console.groupEnd();
-  }
+export function reportError({ error, context = {} }: ErrorReporterOptions) {
+  try {
+    // Log to console in development
+    if (process.env.NODE_ENV === "development") {
+      console.group("Error Report");
+      console.error("Error:", error);
+      console.error("Additional Context:", context);
+      console.groupEnd();
+    }
 
-  // Send error to Sentry
-  if (errorInfo?.componentStack) {
-    // Add React component stack as context
-    setContext("reactComponentStack", {
-      componentStack: errorInfo.componentStack,
-    });
-  }
+    // Send error to Sentry
+    if (context?.componentStack) {
+      // Add React component stack as context
+      setContext("reactComponentStack", {
+        componentStack: context.componentStack,
+      });
+    }
 
-  // Add any additional context
-  if (Object.keys(context).length > 0) {
-    setContext("additionalContext", context);
-  }
+    // Add any additional context
+    if (Object.keys(context).length > 0) {
+      setContext("additionalContext", context);
+    }
 
-  // Capture the exception in Sentry
-  captureException(error);
+    // Capture the exception in Sentry
+    captureException(error);
+  } catch (error) {
+    console.error("Report error failed:", error);
+  }
 }
 
 export function getErrorMessage(error: unknown): string {
@@ -48,4 +45,9 @@ export function getErrorMessage(error: unknown): string {
   }
 
   return "An unexpected error occurred";
+}
+
+export function normalizeError(error: unknown): Error {
+  if (error instanceof Error) return error;
+  return new Error(getErrorMessage(error));
 }

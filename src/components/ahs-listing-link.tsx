@@ -13,6 +13,7 @@ import { Muted } from "@/components/typography";
 
 import type { ListingGetOutput } from "@/server/api/routers/listing";
 import type { AhsListing } from "@prisma/client";
+import { getErrorMessage, normalizeError } from "@/lib/error-utils";
 
 interface AhsListingLinkProps {
   listing: ListingGetOutput;
@@ -35,10 +36,15 @@ export function AhsListingLink({
           title: "Changes saved",
         });
       },
-      onError: () => {
+      onError: (error, errorInfo) => {
         toast({
           title: "Failed to save changes",
+          description: error.message,
           variant: "destructive",
+        });
+        reportError({
+          error: normalizeError(error),
+          context: { source: "AhsListingLink", errorInfo },
         });
       },
     },
@@ -89,10 +95,15 @@ export function AhsListingLink({
           ? "Listing linked successfully"
           : "Listing unlinked successfully",
       });
-    } catch {
+    } catch (error) {
       toast({
         title: ahsId ? "Failed to link listing" : "Failed to unlink listing",
+        description: getErrorMessage(error),
         variant: "destructive",
+      });
+      reportError({
+        error: normalizeError(error),
+        context: { source: "AhsListingLink" },
       });
     } finally {
       setIsPending(false);
@@ -115,10 +126,15 @@ export function AhsListingLink({
       toast({
         title: "Name synced successfully",
       });
-    } catch {
+    } catch (error) {
       toast({
         title: "Failed to sync name",
+        description: getErrorMessage(error),
         variant: "destructive",
+      });
+      reportError({
+        error: normalizeError(error),
+        context: { source: "AhsListingLink" },
       });
     } finally {
       setIsPending(false);

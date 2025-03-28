@@ -12,6 +12,7 @@ import { FormItem, FormLabel } from "../ui/form";
 import { useOnClickOutside } from "usehooks-ts";
 import { type OutputData } from "@editorjs/editorjs";
 import { Muted } from "@/components/typography";
+import { getErrorMessage, normalizeError } from "@/lib/error-utils";
 
 interface ContentManagerFormProps {
   initialProfile: RouterOutputs["userProfile"]["get"];
@@ -35,11 +36,16 @@ export function ContentManagerFormItem({
         title: "Content saved",
       });
     },
-    onError: () => {
+    onError: (error, errorInfo) => {
       setIsSaving(false);
       toast({
         title: "Failed to save content",
+        description: getErrorMessage(error),
         variant: "destructive",
+      });
+      reportError({
+        error: normalizeError(error),
+        context: { source: "ContentManagerFormItem", errorInfo },
       });
     },
   });

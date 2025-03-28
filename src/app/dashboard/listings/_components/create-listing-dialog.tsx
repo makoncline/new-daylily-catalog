@@ -19,6 +19,7 @@ import { AhsListingDisplay } from "@/components/ahs-listing-display";
 import { Separator } from "@/components/ui/separator";
 import { useSetAtom } from "jotai";
 import { editingListingIdAtom } from "./edit-listing-dialog";
+import { normalizeError, reportError } from "@/lib/error-utils";
 
 import type { AhsListing } from "@prisma/client";
 
@@ -63,11 +64,15 @@ export function CreateListingDialog({
       // Set edit id
       setEditingId(newListing.id);
     },
-    onError: (error) => {
+    onError: (error, errorInfo) => {
       toast({
         title: "Failed to create listing",
         description: error.message,
         variant: "destructive",
+      });
+      reportError({
+        error: normalizeError(error),
+        context: { source: "CreateListingDialog", errorInfo },
       });
     },
   });
