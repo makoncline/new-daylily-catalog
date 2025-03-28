@@ -130,17 +130,7 @@ export async function getPublicProfile(userSlugOrId: string) {
       });
     }
 
-    let sub: StripeSubCache = DEFAULT_SUB_DATA;
-    try {
-      sub = await getStripeSubscription(user.stripeCustomerId);
-    } catch (error) {
-      console.error(
-        "Error fetching stripe subscription for user:",
-        user.id,
-        " ",
-        error,
-      );
-    }
+    const sub = await getStripeSubscription(user.stripeCustomerId);
 
     // Parse content if it exists
     let parsedContent = null;
