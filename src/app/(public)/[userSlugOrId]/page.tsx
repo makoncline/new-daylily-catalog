@@ -7,8 +7,6 @@ import { getPublicProfile } from "@/server/db/getPublicProfile";
 import { getInitialListings } from "@/server/db/getPublicListings";
 import { Suspense } from "react";
 import { METADATA_CONFIG } from "@/config/constants";
-import { IMAGES } from "@/lib/constants/images";
-import { getOptimizedMetaImageUrl } from "@/lib/utils/cloudflareLoader";
 import { getBaseUrl } from "@/lib/utils/getBaseUrl";
 import { type Metadata } from "next";
 import { CatalogContent } from "./_components/catalog-content";

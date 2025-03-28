@@ -4,9 +4,7 @@ import { getPublicProfiles } from "@/server/db/getPublicProfiles";
 import { Suspense } from "react";
 import { PageHeader } from "@/app/dashboard/_components/page-header";
 import { getBaseUrl } from "@/lib/utils/getBaseUrl";
-import { IMAGES } from "@/lib/constants/images";
 import { METADATA_CONFIG } from "@/config/constants";
-import { getOptimizedMetaImageUrl } from "@/lib/utils/cloudflareLoader";
 import {
   CatalogsSkeleton,
   CatalogsPageClient,

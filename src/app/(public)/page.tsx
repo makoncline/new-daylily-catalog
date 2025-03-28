@@ -1,9 +1,7 @@
 import { type Metadata } from "next";
 import HomePageClient from "./_components/home-page-client";
 import { getBaseUrl } from "@/lib/utils/getBaseUrl";
-import { IMAGES } from "@/lib/constants/images";
 import { METADATA_CONFIG } from "@/config/constants";
-import { getOptimizedMetaImageUrl } from "@/lib/utils/cloudflareLoader";
 import { generateHomePageMetadata } from "./_seo/metadata";
 import { generateWebsiteJsonLd } from "./_seo/json-ld";
 
