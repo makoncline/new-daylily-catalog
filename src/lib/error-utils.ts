@@ -1,4 +1,5 @@
 import { type ErrorInfo as ReactErrorInfo } from "react";
+import { captureException, setContext } from "@/lib/sentry";
 
 export interface ErrorReporterOptions {
   error: Error;
@@ -20,11 +21,21 @@ export function reportError({
     console.groupEnd();
   }
 
-  // Here you can add additional error reporting services like:
-  // - Sentry
-  // - LogRocket
-  // - Application Insights
-  // etc.
+  // Send error to Sentry
+  if (errorInfo?.componentStack) {
+    // Add React component stack as context
+    setContext("reactComponentStack", {
+      componentStack: errorInfo.componentStack,
+    });
+  }
+
+  // Add any additional context
+  if (Object.keys(context).length > 0) {
+    setContext("additionalContext", context);
+  }
+
+  // Capture the exception in Sentry
+  captureException(error);
 }
 
 export function getErrorMessage(error: unknown): string {
