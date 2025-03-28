@@ -6,16 +6,23 @@ import { ListingDisplaySkeleton } from "@/components/listing-display";
 import { PublicBreadcrumbs } from "@/app/(public)/_components/public-breadcrumbs";
 import { type Metadata } from "next";
 import { getUserAndListingIdsAndSlugs } from "@/server/db/getUserAndListingIdsAndSlugs";
-import { IMAGES } from "@/lib/constants/images";
 import { METADATA_CONFIG } from "@/config/constants";
 import { getBaseUrl } from "@/lib/utils/getBaseUrl";
-import { getOptimizedMetaImageUrl } from "@/lib/utils/cloudflareLoader";
-import { formatAhsListingSummary, getErrorCode, tryCatch } from "@/lib/utils";
+import { getErrorCode, tryCatch } from "@/lib/utils";
 import { FloatingCartButton } from "@/components/floating-cart-button";
 import { notFound } from "next/navigation";
+import { generateListingMetadata } from "./_seo/metadata";
+import { generateJsonLd } from "./_seo/json-ld";
 
 export const revalidate = 3600;
 export const dynamicParams = true;
+
+interface PageProps {
+  params: {
+    userSlugOrId: string;
+    listingSlugOrId: string;
+  };
+}
 
 export async function generateStaticParams() {
   // Fetch user and listing data
@@ -40,13 +47,6 @@ export async function generateStaticParams() {
       }),
     );
   });
-}
-
-interface PageProps {
-  params: {
-    userSlugOrId: string;
-    listingSlugOrId: string;
-  };
 }
 
 export async function generateMetadata({
@@ -76,37 +76,25 @@ export async function generateMetadata({
     };
   }
 
-  const listing = result.data;
-  const profileTitle = listing.user.profile?.title ?? METADATA_CONFIG.SITE_NAME;
-
-  const rawImageUrl = listing.images?.[0]?.url ?? IMAGES.DEFAULT_LISTING;
-  const imageUrl = getOptimizedMetaImageUrl(rawImageUrl);
-  const listingName =
-    listing.title ?? listing.ahsListing?.name ?? "Unnamed Daylily";
-  const pageUrl = `${url}/${userSlugOrId}/${listing.slug ?? listing.id}`;
-
-  // Construct metadata
-  const title = `${listingName} Daylily | ${profileTitle}`;
-  const description = Boolean(listing.description?.trim())
-    ? listing.description!
-    : `${listingName} daylily available from ${profileTitle}. ${formatAhsListingSummary(listing.ahsListing) ?? ""}`.trim();
+  // Await the metadata promise
+  const metadata = await generateListingMetadata(result.data, url);
 
   return {
-    title,
-    description,
+    title: metadata.title,
+    description: metadata.description,
     metadataBase: new URL(url),
     alternates: {
-      canonical: `/${listing.userId}/${listing.id}`,
+      canonical: `/${result.data.userId}/${result.data.id}`,
     },
     openGraph: {
-      title,
-      description,
-      url: pageUrl,
+      title: metadata.title,
+      description: metadata.description,
+      url: metadata.pageUrl,
       siteName: METADATA_CONFIG.SITE_NAME,
       locale: METADATA_CONFIG.LOCALE,
       images: [
         {
-          url: imageUrl,
+          url: metadata.imageUrl,
           width: 1200,
           height: 630,
           alt: "Daylily listing image",
@@ -116,73 +104,10 @@ export async function generateMetadata({
     },
     twitter: {
       card: METADATA_CONFIG.TWITTER_CARD_TYPE,
-      title,
-      description,
+      title: metadata.title,
+      description: metadata.description,
       site: METADATA_CONFIG.TWITTER_HANDLE,
-      images: [imageUrl],
-    },
-    other: {
-      // Product JSON-LD for rich results
-      "script:ld+json": JSON.stringify({
-        "@context": "https://schema.org",
-        "@type": "Product",
-        name: listingName,
-        description,
-        image: imageUrl,
-        url: pageUrl,
-        sku: listing.id,
-        ...(listing.price && {
-          offers: {
-            "@type": "Offer",
-            price: listing.price.toFixed(2),
-            priceCurrency: "USD",
-            availability: "https://schema.org/InStock",
-            priceValidUntil: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
-              .toISOString()
-              .split("T")[0], // 30 days from now
-            url: pageUrl,
-            seller: {
-              "@type": "Organization",
-              name: profileTitle,
-              url: `${url}/${listing.userId}`,
-            },
-            itemCondition: "https://schema.org/NewCondition",
-          },
-        }),
-        ...(listing.ahsListing && {
-          brand: {
-            "@type": "Brand",
-            name: listing.ahsListing.hybridizer ?? "Unknown Hybridizer",
-          },
-          additionalProperty: [
-            {
-              "@type": "PropertyValue",
-              name: "Year",
-              value: listing.ahsListing.year,
-            },
-            {
-              "@type": "PropertyValue",
-              name: "Bloom Size",
-              value: listing.ahsListing.bloomSize,
-            },
-            {
-              "@type": "PropertyValue",
-              name: "Bloom Season",
-              value: listing.ahsListing.bloomSeason,
-            },
-            {
-              "@type": "PropertyValue",
-              name: "Form",
-              value: listing.ahsListing.form,
-            },
-            {
-              "@type": "PropertyValue",
-              name: "Flower Type",
-              value: "Daylily",
-            },
-          ].filter((prop) => prop.value),
-        }),
-      }),
+      images: [metadata.imageUrl],
     },
   };
 }
@@ -216,8 +141,17 @@ export default async function Page({ params }: PageProps) {
     notFound();
   }
 
+  // Generate metadata and JSON-LD - await the promises
+  const metadata = await generateListingMetadata(listing, getBaseUrl());
+  const jsonLd = await generateJsonLd(listing, metadata);
+
   return (
     <MainContent>
+      {/* Add JSON-LD structured data */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
       <div className="mx-auto flex w-full max-w-lg flex-col gap-6">
         <div className="space-y-6">
           <PublicBreadcrumbs />
