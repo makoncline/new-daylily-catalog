@@ -4,6 +4,7 @@ import { useToast } from "@/hooks/use-toast";
 import { uploadFileWithProgress } from "@/lib/utils";
 import { type ImageType } from "@/types/image";
 import { type Image } from "@prisma/client";
+import { getErrorMessage, normalizeError } from "@/lib/error-utils";
 
 interface UseImageUploadOptions {
   type: ImageType;
@@ -21,19 +22,29 @@ export function useImageUpload({
   const { toast } = useToast();
 
   const getPresignedUrlMutation = api.image.getPresignedUrl.useMutation({
-    onError: () => {
+    onError: (error, errorInfo) => {
       toast({
         title: "Failed to get upload URL",
+        description: getErrorMessage(error),
         variant: "destructive",
+      });
+      reportError({
+        error: normalizeError(error),
+        context: { source: "useImageUpload", errorInfo },
       });
     },
   });
 
   const createImageMutation = api.image.createImage.useMutation({
-    onError: () => {
+    onError: (error, errorInfo) => {
       toast({
         title: "Failed to save image",
+        description: getErrorMessage(error),
         variant: "destructive",
+      });
+      reportError({
+        error: normalizeError(error),
+        context: { source: "useImageUpload", errorInfo },
       });
     },
   });
@@ -76,12 +87,15 @@ export function useImageUpload({
         onSuccess?.(image);
         return image;
       } catch (error) {
-        console.error("Upload failed:", error);
         toast({
           title: "Failed to upload image",
+          description: getErrorMessage(error),
           variant: "destructive",
         });
-        throw error;
+        reportError({
+          error: normalizeError(error),
+          context: { source: "useImageUpload" },
+        });
       } finally {
         setIsUploading(false);
         setProgress(0);

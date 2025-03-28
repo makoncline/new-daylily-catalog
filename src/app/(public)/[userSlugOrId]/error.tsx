@@ -16,8 +16,7 @@ export default function Error({
   reset: () => void;
 }) {
   useEffect(() => {
-    // Log the error to an error reporting service
-    reportError({ error, errorInfo: { digest: error.digest } });
+    reportError({ error, context: { digest: error.digest } });
   }, [error]);
 
   return (

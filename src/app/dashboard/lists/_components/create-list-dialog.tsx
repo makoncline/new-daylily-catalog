@@ -16,6 +16,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { useSetAtom } from "jotai";
 import { editingListIdAtom } from "./edit-list-dialog";
+import { normalizeError } from "@/lib/error-utils";
 
 export function CreateListDialog({
   onOpenChange,
@@ -42,11 +43,15 @@ export function CreateListDialog({
       // Open edit dialog
       setEditingId(newList.id);
     },
-    onError: (error) => {
+    onError: (error, errorInfo) => {
       toast({
         title: "Failed to create list",
         description: error.message,
         variant: "destructive",
+      });
+      reportError({
+        error: normalizeError(error),
+        context: { source: "CreateListDialog", errorInfo },
       });
     },
   });

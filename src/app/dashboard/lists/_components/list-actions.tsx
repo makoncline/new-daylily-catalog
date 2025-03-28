@@ -26,6 +26,7 @@ import { useRouter } from "next/navigation";
 import { useToast } from "@/hooks/use-toast";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { P } from "@/components/typography";
+import { normalizeError } from "@/lib/error-utils";
 
 interface ListActionsProps {
   list: List & {
@@ -60,11 +61,15 @@ export function ListActions({ list }: ListActionsProps) {
         description: "Your list has been deleted successfully.",
       });
     },
-    onError: (error) => {
+    onError: (error, errorInfo) => {
       toast({
         variant: "destructive",
         title: "Error deleting list",
         description: error.message,
+      });
+      reportError({
+        error: normalizeError(error),
+        context: { source: "ListActions", errorInfo },
       });
     },
   });

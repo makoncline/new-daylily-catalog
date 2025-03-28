@@ -12,6 +12,7 @@ import { Button } from "./ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import Image from "next/image";
+import { getErrorMessage, normalizeError } from "@/lib/error-utils";
 
 async function getCroppedBlob(
   image: HTMLImageElement,
@@ -149,10 +150,14 @@ export function ImageCropper({
       const blob = await getCroppedBlob(img, pxCrop, mimeType);
       onCropComplete(blob);
     } catch (error) {
-      console.error("Failed to crop image:", error);
       toast({
-        title: error instanceof Error ? error.message : "Failed to crop image",
+        title: "Failed to crop image",
+        description: getErrorMessage(error),
         variant: "destructive",
+      });
+      reportError({
+        error: normalizeError(error),
+        context: { source: "ImageCropper" },
       });
     }
   };

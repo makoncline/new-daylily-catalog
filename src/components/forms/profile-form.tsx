@@ -27,6 +27,7 @@ import { usePro } from "@/hooks/use-pro";
 import { Sparkles } from "lucide-react";
 import { CheckoutButton } from "@/components/checkout-button";
 import { SlugChangeConfirmDialog } from "@/components/slug-change-confirm-dialog";
+import { getErrorMessage, normalizeError } from "@/lib/error-utils";
 
 type UserProfile = RouterOutputs["userProfile"]["get"];
 
@@ -62,10 +63,15 @@ export function ProfileForm({ initialProfile }: ProfileFormProps) {
     onSuccess: (updatedProfile: UserProfile) => {
       setProfile(updatedProfile);
     },
-    onError: () => {
+    onError: (error, errorInfo) => {
       toast({
         title: "Failed to save changes",
+        description: getErrorMessage(error),
         variant: "destructive",
+      });
+      reportError({
+        error: normalizeError(error),
+        context: { source: "ProfileForm", errorInfo },
       });
     },
   });

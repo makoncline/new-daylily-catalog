@@ -36,6 +36,7 @@ import { useAutoResizeTextArea } from "@/hooks/use-auto-resize-textarea";
 import { MultiListSelect } from "@/components/multi-list-select";
 import { LISTING_CONFIG, STATUS } from "@/config/constants";
 import { CurrencyInput } from "@/components/currency-input";
+import { getErrorMessage, normalizeError } from "@/lib/error-utils";
 
 interface ListingFormProps {
   listingId: string;
@@ -64,10 +65,15 @@ export function ListingForm({
         title: "Changes saved",
       });
     },
-    onError: () => {
+    onError: (error, errorInfo) => {
       toast({
         title: "Failed to save changes",
+        description: getErrorMessage(error),
         variant: "destructive",
+      });
+      reportError({
+        error: normalizeError(error),
+        context: { source: "ListingForm", errorInfo },
       });
     },
     meta: {
@@ -82,10 +88,15 @@ export function ListingForm({
         title: "Lists updated",
       });
     },
-    onError: () => {
+    onError: (error, errorInfo) => {
       toast({
         title: "Failed to update lists",
+        description: getErrorMessage(error),
         variant: "destructive",
+      });
+      reportError({
+        error: normalizeError(error),
+        context: { source: "ListingForm", errorInfo },
       });
     },
   });
@@ -97,10 +108,15 @@ export function ListingForm({
       });
       onDelete();
     },
-    onError: () => {
+    onError: (error, errorInfo) => {
       toast({
         title: "Failed to delete listing",
+        description: getErrorMessage(error),
         variant: "destructive",
+      });
+      reportError({
+        error: normalizeError(error),
+        context: { source: "ListingForm", errorInfo },
       });
     },
   });
@@ -360,10 +376,15 @@ export function ListingForm({
                   id: listing.id,
                   listIds,
                 })
-                .catch(() => {
+                .catch((error) => {
                   toast({
                     title: "Failed to update lists",
+                    description: getErrorMessage(error),
                     variant: "destructive",
+                  });
+                  reportError({
+                    error: normalizeError(error),
+                    context: { source: "ListingForm" },
                   });
                 })
                 .finally(() => {

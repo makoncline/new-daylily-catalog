@@ -28,6 +28,7 @@ import type { ImageType } from "@/types/image";
 import { Skeleton } from "@/components/ui/skeleton";
 import { OptimizedImage } from "@/components/optimized-image";
 import { ImagePreviewDialog } from "@/components/image-preview-dialog";
+import { getErrorMessage, normalizeError } from "@/lib/error-utils";
 
 interface ImageManagerProps {
   images: Image[];
@@ -90,10 +91,15 @@ export function ImageManager({
         title: "Image deleted successfully",
       });
     },
-    onError: () => {
+    onError: (error, errorInfo) => {
       toast({
         title: "Failed to delete image",
+        description: getErrorMessage(error),
         variant: "destructive",
+      });
+      reportError({
+        error: normalizeError(error),
+        context: { source: "ImageManager", errorInfo },
       });
     },
   });
@@ -104,10 +110,15 @@ export function ImageManager({
         title: "Image order updated",
       });
     },
-    onError: () => {
+    onError: (error, errorInfo) => {
       toast({
         title: "Failed to update image order",
+        description: getErrorMessage(error),
         variant: "destructive",
+      });
+      reportError({
+        error: normalizeError(error),
+        context: { source: "ImageManager", errorInfo },
       });
     },
   });
