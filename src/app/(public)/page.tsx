@@ -19,13 +19,7 @@ export default async function HomePage() {
   return (
     <>
       <HomePageSEO metadata={metadata} />
-      <MainContent>
-        <div className="mb-6">
-          <PublicBreadcrumbs />
-        </div>
-
-        <HomePageClient />
-      </MainContent>
+      <HomePageClient />
     </>
   );
 }
