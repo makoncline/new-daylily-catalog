@@ -1,5 +1,3 @@
-import { METADATA_CONFIG } from "@/config/constants";
-
 export interface Breadcrumb {
   name: string;
   url: string;

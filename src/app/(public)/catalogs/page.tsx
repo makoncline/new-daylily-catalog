@@ -56,9 +56,7 @@ export async function generateMetadata(): Promise<Metadata> {
 export default async function CatalogsPage() {
   const catalogs = await getPublicProfiles();
 
-  // Generate metadata
   const baseUrl = getBaseUrl();
-  const metadata = await generateCatalogsPageMetadata(baseUrl);
 
   // Create breadcrumb schema
   const breadcrumbSchema = createBreadcrumbListSchema(

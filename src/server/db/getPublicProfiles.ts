@@ -1,10 +1,6 @@
 import { db } from "@/server/db";
 import { hasActiveSubscription } from "../stripe/subscription-utils";
-import {
-  DEFAULT_SUB_DATA,
-  getStripeSubscription,
-  type StripeSubCache,
-} from "../stripe/sync-subscription";
+import { getStripeSubscription } from "../stripe/sync-subscription";
 import { STATUS } from "@/config/constants";
 
 export async function getPublicProfiles() {

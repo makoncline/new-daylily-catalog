@@ -1,22 +1,6 @@
 import { IMAGES } from "@/lib/constants/images";
-import { getOptimizedMetaImageUrl } from "@/lib/utils/cloudflareLoader";
 import { unstable_cache } from "next/cache";
-import { reportError } from "@/lib/error-utils";
 import { METADATA_CONFIG } from "@/config/constants";
-
-// Optimal meta description length
-const MIN_DESCRIPTION_LENGTH = 70;
-const MAX_DESCRIPTION_LENGTH = 160;
-
-// Default keywords for the home page
-const DEFAULT_KEYWORDS = [
-  "daylily",
-  "hemerocallis",
-  "garden catalog",
-  "plant database",
-  "daylily sales",
-  "daylily collection",
-];
 
 // Base function for generating metadata
 async function createHomePageMetadata(url: string) {

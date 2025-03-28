@@ -5,7 +5,9 @@ type MetadataInput = {
   description: string;
   title: string;
   imageUrl: string;
-  [key: string]: any;
+  openGraph?: Record<string, unknown>;
+  twitter?: Record<string, unknown>;
+  alternates?: Record<string, unknown>;
 };
 
 interface HomePageSEOProps {

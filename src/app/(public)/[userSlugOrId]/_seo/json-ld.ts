@@ -1,17 +1,18 @@
 import { unstable_cache } from "next/cache";
 import { reportError } from "@/lib/error-utils";
-import { type ProfileMetadata } from "./types";
-import { type RouterOutputs } from "@/trpc/react";
+import type { RouterOutputs } from "@/trpc/react";
+import { type generateProfileMetadata } from "./metadata";
 
 // Use the router output types instead of custom interface
 type PublicProfile = RouterOutputs["public"]["getProfile"];
 type PublicListing = RouterOutputs["public"]["getListings"][number];
+type Metadata = Awaited<ReturnType<typeof generateProfileMetadata>>;
 
 // Function to generate JSON-LD for ProfilePage schema
 async function createProfilePageJsonLd(
   profile: PublicProfile,
   listings: PublicListing[],
-  metadata: ProfileMetadata,
+  metadata: Metadata,
 ) {
   try {
     // Filter to only include listings with both prices AND images (required for valid Product schema)
@@ -102,7 +103,7 @@ async function createProfilePageJsonLd(
     };
 
     // Create the ProfilePage schema
-    const profileSchema: Record<string, any> = {
+    const profileSchema: Record<string, unknown> = {
       "@context": "https://schema.org",
       "@type": "ProfilePage",
       name: `${metadata.title} | Daylily Catalog`,
@@ -159,7 +160,7 @@ async function createProfilePageJsonLd(
 export function generateProfilePageJsonLd(
   profile: PublicProfile,
   listings: PublicListing[],
-  metadata: ProfileMetadata,
+  metadata: Metadata,
 ) {
   return unstable_cache(
     async () => createProfilePageJsonLd(profile, listings, metadata),

@@ -1,10 +1,13 @@
-import { type Listing } from "./utils";
-import { type ListingMetadata } from "./metadata";
+import type { Listing } from "./utils";
 import { unstable_cache } from "next/cache";
 import { normalizeError, reportError } from "@/lib/error-utils";
 
+// Infer the metadata type from the generateListingMetadata function
+import type { generateListingMetadata } from "./metadata";
+type Metadata = Awaited<ReturnType<typeof generateListingMetadata>>;
+
 // Base function for generating JSON-LD
-async function createJsonLd(listing: Listing, metadata: ListingMetadata) {
+async function createJsonLd(listing: Listing, metadata: Metadata) {
   try {
     // Basic Product schema with only actual data
     const productSchema = {
@@ -105,7 +108,7 @@ async function createJsonLd(listing: Listing, metadata: ListingMetadata) {
 }
 
 // Create a higher-order function that creates a cached function for each listing ID
-export function generateJsonLd(listing: Listing, metadata: ListingMetadata) {
+export function generateJsonLd(listing: Listing, metadata: Metadata) {
   // Use the unstable_cache with only time-based expiration
   return unstable_cache(
     async () => createJsonLd(listing, metadata),

@@ -6,7 +6,7 @@ import { METADATA_CONFIG } from "@/config/constants";
 type MetadataInput = {
   url: string;
   description: string;
-  [key: string]: any;
+  [key: string]: unknown;
 };
 
 // Function to generate JSON-LD for SoftwareApplication schema

@@ -1,11 +1,7 @@
 import { db } from "@/server/db";
 import { TRPCError } from "@trpc/server";
 import { type OutputData } from "@editorjs/editorjs";
-import {
-  DEFAULT_SUB_DATA,
-  getStripeSubscription,
-  type StripeSubCache,
-} from "@/server/stripe/sync-subscription";
+import { getStripeSubscription } from "@/server/stripe/sync-subscription";
 import { hasActiveSubscription } from "@/server/stripe/subscription-utils";
 
 // Helper function to get userId from either slug or id
