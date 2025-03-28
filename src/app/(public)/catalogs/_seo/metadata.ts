@@ -3,6 +3,7 @@ import { getOptimizedMetaImageUrl } from "@/lib/utils/cloudflareLoader";
 import { unstable_cache } from "next/cache";
 import { reportError } from "@/lib/error-utils";
 import { type CatalogsPageMetadata } from "./types";
+import { METADATA_CONFIG } from "@/config/constants";
 
 // Optimal meta description length
 const MIN_DESCRIPTION_LENGTH = 70;
@@ -13,8 +14,10 @@ async function createCatalogsPageMetadata(
   url: string,
 ): Promise<CatalogsPageMetadata> {
   try {
-    const title = "Browse Daylily Catalogs";
+    // Use the site defaults from config with catalog-specific title
+    const title = "Browse Daylily Catalogs | " + METADATA_CONFIG.SITE_NAME;
     const pageUrl = `${url}/catalogs`;
+    const baseUrl = url; // Add the base URL
 
     // Create a rich, descriptive text
     let description =
@@ -39,6 +42,7 @@ async function createCatalogsPageMetadata(
 
     return {
       url,
+      baseUrl,
       title,
       description: description.trim(),
       imageUrl,
@@ -59,10 +63,11 @@ async function createCatalogsPageMetadata(
     // Fallback values
     return {
       url,
-      title: "Browse Daylily Catalogs",
+      baseUrl: url,
+      title: "Browse Daylily Catalogs | " + METADATA_CONFIG.SITE_NAME,
       description:
-        "Discover beautiful daylilies from growers across the country.",
-      imageUrl: getOptimizedMetaImageUrl(IMAGES.DEFAULT_CATALOG),
+        "Discover beautiful daylilies from growers across the country. Browse our collection of premium daylily catalogs.",
+      imageUrl: getOptimizedMetaImageUrl(IMAGES.DEFAULT_META),
       pageUrl: `${url}/catalogs`,
     };
   }

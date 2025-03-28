@@ -6,14 +6,12 @@ import { unstable_cache } from "next/cache";
 import { getPublicProfile } from "@/server/db/getPublicProfile";
 import { getInitialListings } from "@/server/db/getPublicListings";
 import { Suspense } from "react";
-import { METADATA_CONFIG } from "@/config/constants";
 import { getBaseUrl } from "@/lib/utils/getBaseUrl";
-import { type Metadata } from "next";
-import { CatalogContent } from "./_components/catalog-content";
 import { notFound } from "next/navigation";
 import { getErrorCode, tryCatch } from "@/lib/utils";
 import { generateProfileMetadata } from "./_seo/metadata";
-import { generateOrganizationJsonLd } from "./_seo/json-ld";
+import { CatalogContent } from "./_components/catalog-content";
+import { ProfilePageSEO } from "./_components/profile-seo";
 
 // Client components need to be loaded dynamically since this is a server component
 import dynamic from "next/dynamic";
@@ -50,64 +48,17 @@ interface PageProps {
   }>;
 }
 
-export async function generateMetadata({
-  params,
-}: PageProps): Promise<Metadata> {
+export async function generateMetadata({ params }: PageProps) {
   const { userSlugOrId } = await params;
   const url = getBaseUrl();
 
   const result = await tryCatch(getPublicProfile(userSlugOrId));
 
   if (!result.data) {
-    return {
-      title: "Catalog Not Found",
-      description: "The daylily catalog you are looking for does not exist.",
-      openGraph: {
-        title: "Catalog Not Found",
-        description: "The daylily catalog you are looking for does not exist.",
-        siteName: METADATA_CONFIG.SITE_NAME,
-        locale: METADATA_CONFIG.LOCALE,
-      },
-    };
+    return generateProfileMetadata(null, url);
   }
 
-  const profile = result.data;
-
-  // Generate profile metadata
-  const metadata = await generateProfileMetadata(profile, url);
-
-  return {
-    title: `${metadata.title} | ${METADATA_CONFIG.SITE_NAME}`,
-    description: metadata.description,
-    metadataBase: new URL(url),
-    alternates: {
-      canonical: `/${profile.id}`,
-    },
-    openGraph: {
-      title: `${metadata.title} | ${METADATA_CONFIG.SITE_NAME}`,
-      description: metadata.description,
-      url: metadata.pageUrl,
-      siteName: METADATA_CONFIG.SITE_NAME,
-      locale: METADATA_CONFIG.LOCALE,
-      images: [
-        {
-          url: metadata.imageUrl,
-          width: 1200,
-          height: 630,
-          alt: "Daylily catalog cover image",
-        },
-      ],
-      type: "website",
-    },
-    twitter: {
-      card: METADATA_CONFIG.TWITTER_CARD_TYPE,
-      title: `${metadata.title} | ${METADATA_CONFIG.SITE_NAME}`,
-      description: metadata.description,
-      site: METADATA_CONFIG.TWITTER_HANDLE,
-      images: [metadata.imageUrl],
-    },
-    // Remove the JSON-LD from here - we'll add it as a script tag in the page component
-  };
+  return generateProfileMetadata(result.data, url);
 }
 
 export default async function Page({ params }: PageProps) {
@@ -145,41 +96,42 @@ export default async function Page({ params }: PageProps) {
   const initialProfile = profileResult.data;
   const initialListings = listingsResult.data ?? [];
 
-  // Generate metadata and JSON-LD
+  // Generate metadata
   const baseUrl = getBaseUrl();
   const metadata = await generateProfileMetadata(initialProfile, baseUrl);
-  const jsonLd = await generateOrganizationJsonLd(initialProfile, metadata);
 
   return (
-    <MainContent>
-      {/* Add JSON-LD structured data */}
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+    <>
+      <ProfilePageSEO
+        profile={initialProfile}
+        listings={initialListings}
+        metadata={metadata}
+        baseUrl={baseUrl}
       />
+      <MainContent>
+        <div className="mb-6">
+          <PublicBreadcrumbs />
+        </div>
 
-      <div className="mb-6">
-        <PublicBreadcrumbs />
-      </div>
+        <div className="space-y-6">
+          <Suspense>
+            <ProfileContent initialProfile={initialProfile} />
+          </Suspense>
 
-      <div className="space-y-6">
-        <Suspense>
-          <ProfileContent initialProfile={initialProfile} />
-        </Suspense>
+          <Suspense>
+            <CatalogContent
+              lists={initialProfile.lists}
+              initialListings={initialListings}
+            />
+          </Suspense>
+        </div>
 
-        <Suspense>
-          <CatalogContent
-            lists={initialProfile.lists}
-            initialListings={initialListings}
-          />
-        </Suspense>
-      </div>
-
-      {/* Add Floating Cart Button */}
-      <ClientCartButton
-        userId={initialProfile.id}
-        userName={initialProfile.title ?? undefined}
-      />
-    </MainContent>
+        {/* Add Floating Cart Button */}
+        <ClientCartButton
+          userId={initialProfile.id}
+          userName={initialProfile.title ?? undefined}
+        />
+      </MainContent>
+    </>
   );
 }

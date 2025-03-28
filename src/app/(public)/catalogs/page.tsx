@@ -10,7 +10,10 @@ import {
   CatalogsPageClient,
 } from "./_components/catalogs-page-client";
 import { generateCatalogsPageMetadata } from "./_seo/metadata";
-import { generateCollectionPageJsonLd } from "./_seo/json-ld";
+import {
+  createBreadcrumbListSchema,
+  createCatalogsBreadcrumbs,
+} from "@/lib/utils/breadcrumbs";
 
 export const revalidate = 3600;
 
@@ -47,24 +50,28 @@ export async function generateMetadata(): Promise<Metadata> {
       site: METADATA_CONFIG.TWITTER_HANDLE,
       images: [metadata.imageUrl],
     },
-    // Remove JSON-LD from metadata - it will be added as a script tag
   };
 }
 
 export default async function CatalogsPage() {
   const catalogs = await getPublicProfiles();
 
-  // Generate metadata and JSON-LD
+  // Generate metadata
   const baseUrl = getBaseUrl();
   const metadata = await generateCatalogsPageMetadata(baseUrl);
-  const jsonLd = await generateCollectionPageJsonLd(metadata);
+
+  // Create breadcrumb schema
+  const breadcrumbSchema = createBreadcrumbListSchema(
+    baseUrl,
+    createCatalogsBreadcrumbs(baseUrl),
+  );
 
   return (
     <MainContent>
-      {/* Add JSON-LD structured data */}
+      {/* Add breadcrumb schema - keeping only what works for rich results */}
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbSchema) }}
       />
 
       <PageHeader

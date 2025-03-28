@@ -4,15 +4,13 @@ import { ListingDisplay } from "@/components/listing-display";
 import { Suspense } from "react";
 import { ListingDisplaySkeleton } from "@/components/listing-display";
 import { PublicBreadcrumbs } from "@/app/(public)/_components/public-breadcrumbs";
-import { type Metadata } from "next";
 import { getUserAndListingIdsAndSlugs } from "@/server/db/getUserAndListingIdsAndSlugs";
-import { METADATA_CONFIG } from "@/config/constants";
 import { getBaseUrl } from "@/lib/utils/getBaseUrl";
 import { getErrorCode, tryCatch } from "@/lib/utils";
 import { FloatingCartButton } from "@/components/floating-cart-button";
 import { notFound } from "next/navigation";
 import { generateListingMetadata } from "./_seo/metadata";
-import { generateJsonLd } from "./_seo/json-ld";
+import { ListingPageSEO } from "./_components/listing-seo";
 
 export const revalidate = 3600;
 export const dynamicParams = true;
@@ -49,9 +47,7 @@ export async function generateStaticParams() {
   });
 }
 
-export async function generateMetadata({
-  params,
-}: PageProps): Promise<Metadata> {
+export async function generateMetadata({ params }: PageProps) {
   const { userSlugOrId, listingSlugOrId } = params;
   const url = getBaseUrl();
 
@@ -64,52 +60,10 @@ export async function generateMetadata({
   );
 
   if (!result.data) {
-    return {
-      title: "Listing Not Found",
-      description: "The daylily listing you are looking for does not exist.",
-      openGraph: {
-        title: "Listing Not Found",
-        description: "The daylily listing you are looking for does not exist.",
-        siteName: METADATA_CONFIG.SITE_NAME,
-        locale: METADATA_CONFIG.LOCALE,
-      },
-    };
+    return generateListingMetadata(null, url);
   }
 
-  // Await the metadata promise
-  const metadata = await generateListingMetadata(result.data, url);
-
-  return {
-    title: metadata.title,
-    description: metadata.description,
-    metadataBase: new URL(url),
-    alternates: {
-      canonical: `/${result.data.userId}/${result.data.id}`,
-    },
-    openGraph: {
-      title: metadata.title,
-      description: metadata.description,
-      url: metadata.pageUrl,
-      siteName: METADATA_CONFIG.SITE_NAME,
-      locale: METADATA_CONFIG.LOCALE,
-      images: [
-        {
-          url: metadata.imageUrl,
-          width: 1200,
-          height: 630,
-          alt: "Daylily listing image",
-        },
-      ],
-      type: "website",
-    },
-    twitter: {
-      card: METADATA_CONFIG.TWITTER_CARD_TYPE,
-      title: metadata.title,
-      description: metadata.description,
-      site: METADATA_CONFIG.TWITTER_HANDLE,
-      images: [metadata.imageUrl],
-    },
-  };
+  return generateListingMetadata(result.data, url);
 }
 
 export default async function Page({ params }: PageProps) {
@@ -141,30 +95,28 @@ export default async function Page({ params }: PageProps) {
     notFound();
   }
 
-  // Generate metadata and JSON-LD - await the promises
-  const metadata = await generateListingMetadata(listing, getBaseUrl());
-  const jsonLd = await generateJsonLd(listing, metadata);
+  // Generate metadata
+  const baseUrl = getBaseUrl();
+  const metadata = await generateListingMetadata(listing, baseUrl);
 
   return (
-    <MainContent>
-      {/* Add JSON-LD structured data */}
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
-      />
-      <div className="mx-auto flex w-full max-w-lg flex-col gap-6">
-        <div className="space-y-6">
-          <PublicBreadcrumbs />
+    <>
+      <ListingPageSEO listing={listing} metadata={metadata} baseUrl={baseUrl} />
+      <MainContent>
+        <div className="mx-auto flex w-full max-w-lg flex-col gap-6">
+          <div className="space-y-6">
+            <PublicBreadcrumbs />
+          </div>
+          <Suspense fallback={<ListingDisplaySkeleton />}>
+            <ListingDisplay listing={listing} variant="page" />
+          </Suspense>
         </div>
-        <Suspense fallback={<ListingDisplaySkeleton />}>
-          <ListingDisplay listing={listing} variant="page" />
-        </Suspense>
-      </div>
 
-      <FloatingCartButton
-        userId={listing.userId}
-        userName={listing.user.profile?.title ?? undefined}
-      />
-    </MainContent>
+        <FloatingCartButton
+          userId={listing.userId}
+          userName={listing.user.profile?.title ?? undefined}
+        />
+      </MainContent>
+    </>
   );
 }

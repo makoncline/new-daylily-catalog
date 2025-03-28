@@ -3,7 +3,6 @@ import { getOptimizedMetaImageUrl } from "@/lib/utils/cloudflareLoader";
 import { unstable_cache } from "next/cache";
 import { reportError } from "@/lib/error-utils";
 import { METADATA_CONFIG } from "@/config/constants";
-import { type HomePageMetadata } from "./types";
 
 // Optimal meta description length
 const MIN_DESCRIPTION_LENGTH = 70;
@@ -19,68 +18,49 @@ const DEFAULT_KEYWORDS = [
   "daylily collection",
 ];
 
-// Function to generate metadata for home page
-async function createHomePageMetadata(url: string): Promise<HomePageMetadata> {
-  try {
-    // Use the site defaults from config
-    const title = METADATA_CONFIG.DEFAULT_TITLE;
+// Base function for generating metadata
+async function createHomePageMetadata(url: string) {
+  const title = METADATA_CONFIG.SITE_NAME;
+  const description =
+    "Discover beautiful daylilies from growers across the country. Browse our collection of registered cultivars and connect with daylily enthusiasts.";
+  const imageUrl = IMAGES.DEFAULT_META;
 
-    // Start with the default description
-    let description = METADATA_CONFIG.DEFAULT_DESCRIPTION;
-
-    // Ensure description is within length limits
-    if (description.length > MAX_DESCRIPTION_LENGTH) {
-      description =
-        description.substring(0, MAX_DESCRIPTION_LENGTH - 3) + "...";
-    } else if (description.length < MIN_DESCRIPTION_LENGTH) {
-      // Add generic text if too short
-      description +=
-        " Share and sell your daylily collection with our specialized platform.";
-
-      // Truncate if it became too long
-      if (description.length > MAX_DESCRIPTION_LENGTH) {
-        description =
-          description.substring(0, MAX_DESCRIPTION_LENGTH - 3) + "...";
-      }
-    }
-
-    const imageUrl = getOptimizedMetaImageUrl(IMAGES.DEFAULT_META);
-
-    return {
-      url,
+  return {
+    url,
+    title,
+    description,
+    imageUrl,
+    openGraph: {
       title,
-      description: description.trim(),
-      imageUrl,
-      keywords: DEFAULT_KEYWORDS,
-    };
-  } catch (error) {
-    reportError({
-      error:
-        error instanceof Error
-          ? error
-          : new Error("Unknown error in home page metadata generation"),
-      level: "error",
-      context: {
-        function: "createHomePageMetadata",
-      },
-    });
-
-    // Fallback values
-    return {
+      description,
       url,
-      title: METADATA_CONFIG.SITE_NAME,
-      description:
-        "Discover and showcase daylilies with our specialized platform.",
-      imageUrl: getOptimizedMetaImageUrl(IMAGES.DEFAULT_META),
-      keywords: DEFAULT_KEYWORDS,
-    };
-  }
+      siteName: METADATA_CONFIG.SITE_NAME,
+      locale: METADATA_CONFIG.LOCALE,
+      images: [
+        {
+          url: imageUrl,
+          width: 1200,
+          height: 630,
+          alt: "Beautiful daylily garden at golden hour",
+        },
+      ],
+      type: "website",
+    },
+    twitter: {
+      card: METADATA_CONFIG.TWITTER_CARD_TYPE,
+      title,
+      description,
+      site: METADATA_CONFIG.TWITTER_HANDLE,
+      images: [imageUrl],
+    },
+    alternates: {
+      canonical: "/",
+    },
+  };
 }
 
 // Cached function to generate home page metadata
-export function generateHomePageMetadata(
-  url: string,
-): Promise<HomePageMetadata> {
+export function generateHomePageMetadata(url: string) {
   return unstable_cache(
     async () => createHomePageMetadata(url),
     ["home-page-metadata"],

@@ -6,7 +6,8 @@ import { normalizeError, reportError } from "@/lib/error-utils";
 // Base function for generating JSON-LD
 async function createJsonLd(listing: Listing, metadata: ListingMetadata) {
   try {
-    return {
+    // Basic Product schema with only actual data
+    const productSchema = {
       "@context": "https://schema.org",
       "@type": "Product",
       name: metadata.listingName,
@@ -30,6 +31,19 @@ async function createJsonLd(listing: Listing, metadata: ListingMetadata) {
             url: `${metadata.url}/${listing.userId}`,
           },
           itemCondition: "https://schema.org/NewCondition",
+          shippingDetails: {
+            "@type": "OfferShippingDetails",
+            shippingDestination: {
+              "@type": "DefinedRegion",
+              addressCountry: "US",
+            },
+          },
+          hasMerchantReturnPolicy: {
+            "@type": "MerchantReturnPolicy",
+            applicableCountry: "US",
+            returnPolicyCategory:
+              "https://schema.org/MerchantReturnNotPermitted",
+          },
         },
       }),
       ...(listing.ahsListing && {
@@ -66,6 +80,8 @@ async function createJsonLd(listing: Listing, metadata: ListingMetadata) {
         ].filter((prop) => prop.value),
       }),
     };
+
+    return productSchema;
   } catch (error) {
     reportError({
       error: normalizeError(error),
@@ -76,7 +92,7 @@ async function createJsonLd(listing: Listing, metadata: ListingMetadata) {
       },
     });
 
-    // Minimal valid product JSON-LD as fallback
+    // Minimal valid product JSON-LD as fallback - using only essential fields
     return {
       "@context": "https://schema.org",
       "@type": "Product",
