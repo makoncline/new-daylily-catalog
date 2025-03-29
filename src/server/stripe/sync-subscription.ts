@@ -1,6 +1,8 @@
 import { stripe as appStripe } from "@/server/stripe/client";
 import { kvStore as appKvStore } from "@/server/db/kvStore";
 import type Stripe from "stripe";
+import { tryCatch } from "@/lib/utils";
+import { reportError } from "@/lib/error-utils";
 
 export const DEFAULT_SUB_DATA = { status: "none" } as const;
 
@@ -73,7 +75,20 @@ export const getStripeSubscription = async (
   }
 
   // If not in cache, sync from Stripe and cache it
-  return syncStripeSubscriptionToKV(stripeCustomerId);
+  const result = await tryCatch(syncStripeSubscriptionToKV(stripeCustomerId));
+  if (result.error) {
+    reportError({
+      error: new Error(
+        `Error fetching stripe subscription for user ${stripeCustomerId}. ${result.error}`,
+      ),
+      context: {
+        source: "getStripeSubscription",
+        stripeCustomerId,
+      },
+    });
+    return DEFAULT_SUB_DATA;
+  }
+  return result.data;
 };
 
 export type StripeSubCache = Awaited<
