@@ -2,6 +2,9 @@ import { db } from "@/server/db";
 import { getBaseUrl } from "@/lib/utils/getBaseUrl";
 import { formatAhsListingSummary } from "@/lib/utils";
 
+// Constants for merchant feed configuration
+const SHIPPING_WEIGHT = "0.5 lb";
+
 export async function GET(_request: Request) {
   try {
     const baseUrl = getBaseUrl();
@@ -82,7 +85,8 @@ export async function GET(_request: Request) {
 <g:availability>in_stock</g:availability>
 <g:google_product_category>Home &amp; Garden &gt; Plants &gt; Flowers</g:google_product_category>
 <g:product_type>Daylily</g:product_type>
-<g:mpn>${escapeXml(mpn)}</g:mpn>${
+<g:mpn>${escapeXml(mpn)}</g:mpn>
+<g:shipping_weight>${SHIPPING_WEIGHT}</g:shipping_weight>${
           imageUrl
             ? `
 <g:image_link>${escapeXml(imageUrl)}</g:image_link>`
