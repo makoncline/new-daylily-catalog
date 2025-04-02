@@ -18,6 +18,7 @@ import { H3, Muted } from "@/components/typography";
 import { ImagePlaceholder } from "./image-placeholder";
 import { ImagePopover } from "@/components/image-popover";
 import { LocationBadge } from "./profile/profile-badges";
+import { SEOLink } from "@/components/seo-link";
 
 function UserListsPreview({
   lists,
@@ -85,12 +86,34 @@ export function UserCard({
   const gardenName = title ?? "Unnamed Garden";
   const lastUpdatedLabel = getLastUpdatedLabel(new Date(updatedAt));
   const memberSinceLabel = getMemberSinceLabel(new Date(createdAt));
-  const catalogPath = `/${slug ?? id}`;
+
+  // Generate all URL variants for SEO
+  const urlVariations = [
+    `/${id}`, // Canonical path (ID-based)
+  ];
+
+  // Add slug-based variant if it exists
+  if (slug) {
+    urlVariations.push(`/${slug}`);
+  }
+
+  // Use visible path based on slug if available, otherwise ID
+  const visiblePath = `/${slug ?? id}`;
 
   return (
     <Card className="group flex h-full flex-col overflow-hidden transition-all hover:border-primary">
+      {/* Add SEO links for all URL variants to prevent orphan pages */}
+      {urlVariations.map((url, index) => (
+        <SEOLink
+          key={`user-seo-link-${index}`}
+          href={url}
+          ariaLabel={`View ${gardenName}'s catalog`}
+          srText={`View ${gardenName}'s catalog`}
+        />
+      ))}
+
       <div className="relative">
-        <Link href={catalogPath} className="block">
+        <Link href={visiblePath} className="block">
           {images[0]?.url ? (
             <OptimizedImage
               src={images[0].url}
@@ -152,7 +175,7 @@ export function UserCard({
         )}
       </div>
 
-      <Link href={catalogPath} className="flex flex-1 flex-col">
+      <Link href={visiblePath} className="flex flex-1 flex-col">
         <CardContent className="flex flex-1 flex-col p-4">
           <div className="flex flex-1 flex-col justify-between gap-4">
             <div className="space-y-2">

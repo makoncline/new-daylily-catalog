@@ -21,7 +21,6 @@ export async function ListingPageSEO({
 }: ListingPageSEOProps) {
   const jsonLd = await generateJsonLd(listing, metadata);
 
-  // Create breadcrumb schema
   const breadcrumbSchema = createBreadcrumbListSchema(
     baseUrl,
     createListingBreadcrumbs(
@@ -30,6 +29,8 @@ export async function ListingPageSEO({
       listing.user.profile?.slug ?? listing.userId,
       listing.title ?? "Daylily Listing",
       listing.slug ?? listing.id,
+      listing.userId, // Pass canonical user ID
+      listing.id, // Pass canonical listing ID
     ),
   );
 

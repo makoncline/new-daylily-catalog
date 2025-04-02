@@ -31,20 +31,39 @@ export function ListingCard({ listing, priority = false }: ListingCardProps) {
   const { viewListing } = useViewListing();
   const firstImage = listing.images[0];
   const hasMultipleImages = listing.images.length > 1;
-  const listingPath = `/${listing.user.profile?.slug ?? listing.userId}/${listing.slug ?? listing.id}`;
+
+  // Generate all possible URL variations for SEO
+  const urlVariations = [
+    // Canonical path (always first)
+    `/${listing.userId}/${listing.id}`,
+  ];
+
+  // Add slug-based variants if they exist
+  if (listing.user.profile?.slug && listing.slug) {
+    urlVariations.push(`/${listing.user.profile.slug}/${listing.slug}`); // Slug/Slug
+  }
+  if (listing.user.profile?.slug) {
+    urlVariations.push(`/${listing.user.profile.slug}/${listing.id}`); // Slug/ID
+  }
+  if (listing.slug) {
+    urlVariations.push(`/${listing.userId}/${listing.slug}`); // ID/Slug
+  }
 
   return (
     <Card
       className="group relative flex h-full cursor-pointer flex-col overflow-hidden transition-all hover:border-primary"
       onClick={() => viewListing(listing)}
     >
-      {/* SEO-friendly link that's visually hidden but accessible to crawlers */}
-      <SEOLink
-        href={listingPath}
-        onCustomClick={() => viewListing(listing)}
-        ariaLabel={`View details for ${listing.title}`}
-        srText={`View ${listing.title}`}
-      />
+      {/* Create SEO links for each URL variation */}
+      {urlVariations.map((url, index) => (
+        <SEOLink
+          key={`seo-link-${index}`}
+          href={url}
+          onCustomClick={() => viewListing(listing)}
+          ariaLabel={`View details for ${listing.title}`}
+          srText={`View ${listing.title}`}
+        />
+      ))}
 
       <div className="relative">
         <div className="aspect-square">

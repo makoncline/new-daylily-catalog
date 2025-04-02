@@ -1,6 +1,7 @@
 export interface Breadcrumb {
   name: string;
   url: string;
+  canonicalUrl?: string;
 }
 
 /**
@@ -20,9 +21,9 @@ export function createBreadcrumbListSchema(
       "@type": "ListItem",
       position: index + 1,
       name: breadcrumb.name,
-      item: breadcrumb.url.startsWith("/")
-        ? `${baseUrl}${breadcrumb.url}`
-        : breadcrumb.url,
+      item: (breadcrumb.canonicalUrl ?? breadcrumb.url).startsWith("/")
+        ? `${baseUrl}${breadcrumb.canonicalUrl ?? breadcrumb.url}`
+        : (breadcrumb.canonicalUrl ?? breadcrumb.url),
     })),
   };
 }
@@ -59,12 +60,14 @@ export function createCatalogsBreadcrumbs(baseUrl: string): Breadcrumb[] {
  * @param baseUrl The base URL of the site
  * @param profileName The name of the profile
  * @param profileSlug The slug or ID of the profile
+ * @param userId The canonical user ID
  * @returns Array of breadcrumbs for the user profile page
  */
 export function createUserProfileBreadcrumbs(
   baseUrl: string,
   profileName: string,
   profileSlug: string,
+  userId: string,
 ): Breadcrumb[] {
   return [
     createHomeBreadcrumb(baseUrl),
@@ -75,6 +78,7 @@ export function createUserProfileBreadcrumbs(
     {
       name: profileName || "Daylily Catalog",
       url: `${baseUrl}/${profileSlug}`,
+      canonicalUrl: `${baseUrl}/${userId}`,
     },
   ];
 }
@@ -86,6 +90,8 @@ export function createUserProfileBreadcrumbs(
  * @param profileSlug The slug or ID of the profile
  * @param listingName The name of the listing
  * @param listingSlug The slug or ID of the listing
+ * @param userId The canonical user ID
+ * @param listingId The canonical listing ID
  * @returns Array of breadcrumbs for the listing page
  */
 export function createListingBreadcrumbs(
@@ -94,12 +100,15 @@ export function createListingBreadcrumbs(
   profileSlug: string,
   listingName: string,
   listingSlug: string,
+  userId: string,
+  listingId: string,
 ): Breadcrumb[] {
   return [
-    ...createUserProfileBreadcrumbs(baseUrl, profileName, profileSlug),
+    ...createUserProfileBreadcrumbs(baseUrl, profileName, profileSlug, userId),
     {
       name: listingName || "Daylily",
       url: `${baseUrl}/${profileSlug}/${listingSlug}`,
+      canonicalUrl: `${baseUrl}/${userId}/${listingId}`,
     },
   ];
 }
