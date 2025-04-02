@@ -37,6 +37,7 @@ import { MultiListSelect } from "@/components/multi-list-select";
 import { LISTING_CONFIG, STATUS } from "@/config/constants";
 import { CurrencyInput } from "@/components/currency-input";
 import { getErrorMessage, normalizeError } from "@/lib/error-utils";
+import { useUserData } from "@/components/user-data-context";
 
 interface ListingFormProps {
   listingId: string;
@@ -59,11 +60,15 @@ export function ListingForm({
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const { textAreaRef, adjustHeight } = useAutoResizeTextArea();
 
+  const { addListingToCache, removeListingFromCache } = useUserData();
+
   const updateListingMutation = api.listing.update.useMutation({
-    onSuccess: () => {
+    onSuccess: async (updatedListing) => {
       toast({
-        title: "Changes saved",
+        title: "Listing updated",
+        description: `${updatedListing.title} has been updated.`,
       });
+      void addListingToCache(listingId);
     },
     onError: (error, errorInfo) => {
       toast({
@@ -87,6 +92,7 @@ export function ListingForm({
       toast({
         title: "Lists updated",
       });
+      void addListingToCache(listingId);
     },
     onError: (error, errorInfo) => {
       toast({
@@ -102,11 +108,12 @@ export function ListingForm({
   });
 
   const deleteListingMutation = api.listing.delete.useMutation({
-    onSuccess: () => {
+    onSuccess: (_deletedListing, variables) => {
       toast({
         title: "Listing deleted successfully",
       });
       onDelete();
+      removeListingFromCache(variables.id);
     },
     onError: (error, errorInfo) => {
       toast({
@@ -406,6 +413,21 @@ export function ListingForm({
             listing={listing}
             onNameChange={(name) => {
               form.setValue("title", name);
+            }}
+            onUpdate={(updatedListing) => {
+              // Update the local listing state
+              if (updatedListing.ahsId !== listing.ahsId) {
+                // If AHS was removed, also refresh the form with updated values
+                if (!updatedListing.ahsId && form) {
+                  form.reset(
+                    transformNullToUndefined(
+                      listingFormSchema.parse(updatedListing),
+                    ),
+                    { keepValues: false },
+                  );
+                }
+                void addListingToCache(listingId);
+              }
             }}
           />
           <FormDescription>

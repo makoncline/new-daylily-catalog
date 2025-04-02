@@ -1,5 +1,15 @@
 import { createTRPCRouter, protectedProcedure } from "@/server/api/trpc";
 import { STATUS } from "@/config/constants";
+import {
+  getAhsListings,
+  getBaseListings,
+  getUserImages,
+  getListsAndEntries,
+  getUserAhsIds,
+  getListing,
+} from "@/server/db/user-data";
+import { z } from "zod";
+import { TRPCError } from "@trpc/server";
 
 interface EditorBlock {
   id: string;
@@ -22,6 +32,21 @@ const isPublished = (status: string | null) => {
 };
 
 export const dashboardRouter = createTRPCRouter({
+  getBaseListings: protectedProcedure.query(async ({ ctx }) => {
+    return getBaseListings(ctx.user.id, true);
+  }),
+  getUserImages: protectedProcedure.query(async ({ ctx }) => {
+    return getUserImages(ctx.user.id, true);
+  }),
+  getListsAndEntries: protectedProcedure.query(async ({ ctx }) => {
+    return getListsAndEntries(ctx.user.id, true);
+  }),
+  getAhsListings: protectedProcedure.query(async ({ ctx }) => {
+    const userId = ctx.user.id;
+    const ahsIds = await getUserAhsIds(userId);
+    const ahsListings = await getAhsListings(ahsIds);
+    return ahsListings;
+  }),
   getStats: protectedProcedure.query(async ({ ctx }) => {
     const [
       allListings,
@@ -182,4 +207,23 @@ export const dashboardRouter = createTRPCRouter({
       },
     };
   }),
+  getSingleListing: protectedProcedure
+    .input(z.object({ id: z.string() }))
+    .query(async ({ ctx, input }) => {
+      // The user is already available in the context because of protectedProcedure
+      const userId = ctx.user.id;
+
+      // Get the specified listing with full details
+      const listing = await getListing(input.id, true); // true = isOwner
+
+      // Check if this listing belongs to the current user
+      if (listing && listing.userId !== userId) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "You do not have access to this listing",
+        });
+      }
+
+      return listing;
+    }),
 });
