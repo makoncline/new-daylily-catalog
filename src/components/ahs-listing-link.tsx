@@ -10,6 +10,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { AhsListingSelect } from "./ahs-listing-select";
 import { AhsListingDisplay } from "./ahs-listing-display";
 import { Muted } from "@/components/typography";
+import { useUserData } from "@/components/user-data-context";
 
 import type { ListingGetOutput } from "@/server/api/routers/listing";
 import type { AhsListing } from "@prisma/client";
@@ -27,14 +28,17 @@ export function AhsListingLink({
   onNameChange,
 }: AhsListingLinkProps) {
   const { toast } = useToast();
+  const { addListingToCache } = useUserData();
   const [isPending, setIsPending] = useState(false);
 
   const { mutateAsync: updateListingMutation } = api.listing.update.useMutation(
     {
-      onSuccess: () => {
+      onSuccess: async (updatedListing) => {
         toast({
           title: "Changes saved",
         });
+        // Update the cache with the latest data
+        await addListingToCache(updatedListing.id);
       },
       onError: (error, errorInfo) => {
         toast({

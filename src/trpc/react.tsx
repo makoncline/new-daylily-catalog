@@ -32,15 +32,6 @@ export const api = createTRPCReact<AppRouter>({
          **/
         // Calls the `onSuccess` defined in the `useQuery()`-options:
         await opts.originalFn();
-
-        // Aggressively invalidate ALL queries in the react-query cache
-        // This ensures all data is always fresh after any mutation
-        await opts.queryClient.invalidateQueries({
-          type: "all",
-          refetchType: "all",
-          refetchActive: true,
-          refetchInactive: true,
-        });
       },
     },
   },

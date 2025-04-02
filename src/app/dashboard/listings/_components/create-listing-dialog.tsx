@@ -20,6 +20,7 @@ import { Separator } from "@/components/ui/separator";
 import { useSetAtom } from "jotai";
 import { editingListingIdAtom } from "./edit-listing-dialog";
 import { normalizeError, reportError } from "@/lib/error-utils";
+import { useUserData } from "@/components/user-data-context";
 
 import type { AhsListing } from "@prisma/client";
 
@@ -41,6 +42,7 @@ export function CreateListingDialog({
   const [isPending, setIsPending] = useState(false);
   const { toast } = useToast();
   const setEditingId = useSetAtom(editingListingIdAtom);
+  const { addListingToCache } = useUserData();
 
   const { data: detailedAhsListing } = api.ahs.get.useQuery(
     { id: selectedAhsListing?.id ?? "" },
@@ -51,7 +53,8 @@ export function CreateListingDialog({
   );
 
   const createListingMutation = api.listing.create.useMutation({
-    onSuccess: (newListing) => {
+    onSuccess: async (newListing) => {
+      // Show toast and handle UI
       toast({
         title: "Listing created",
         description: `${newListing.title} has been created.`,
@@ -63,6 +66,8 @@ export function CreateListingDialog({
 
       // Set edit id
       setEditingId(newListing.id);
+      // Add the listing to cache with complete data
+      await addListingToCache(newListing.id);
     },
     onError: (error, errorInfo) => {
       toast({

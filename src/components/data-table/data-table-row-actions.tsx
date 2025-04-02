@@ -10,12 +10,12 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { useRouter } from "next/navigation";
 import { api } from "@/trpc/react";
 import { toast } from "sonner";
 import { useState } from "react";
 import { Pencil, Trash2 } from "lucide-react";
 import { DeleteConfirmDialog } from "@/components/delete-confirm-dialog";
+import { useUserData } from "@/components/user-data-context";
 
 interface DataTableRowActionsProps<TData> {
   row: Row<TData>;
@@ -26,15 +26,16 @@ export function DataTableRowActions<TData extends { id: string }>({
   row,
   onEdit,
 }: DataTableRowActionsProps<TData>) {
-  const router = useRouter();
   const [open, setOpen] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
 
+  const { removeListingFromCache } = useUserData();
+
   const deleteListing = api.listing.delete.useMutation({
-    onSuccess: () => {
+    onSuccess: (_deletedListing, variables) => {
+      removeListingFromCache(variables.id);
       toast.success("Listing deleted successfully");
       setOpen(false);
-      router.refresh();
     },
     onError: () => {
       toast.error("Failed to delete listing");

@@ -6,7 +6,6 @@ import { DataTableLayout } from "@/components/data-table/data-table-layout";
 import { DataTablePagination } from "@/components/data-table/data-table-pagination";
 import { EmptyState } from "@/components/empty-state";
 import { getColumns } from "./columns";
-import { api, type RouterOutputs } from "@/trpc/react";
 import { CreateListingButton } from "./create-listing-button";
 import { useEditListing } from "./edit-listing-dialog";
 import { useDataTable } from "@/hooks/use-data-table";
@@ -19,9 +18,11 @@ import { DataTableDownload } from "@/components/data-table";
 import { APP_CONFIG } from "@/config/constants";
 import { DataTableFilteredCount } from "@/components/data-table/data-table-filtered-count";
 import { DataTableLayoutSkeleton } from "@/components/data-table/data-table-layout";
+import { useUserData } from "@/components/user-data-context";
+import { type ContextListing, type FullList } from "@/server/db/user-data";
 
-type List = RouterOutputs["list"]["list"][number];
-type Listing = RouterOutputs["listing"]["list"][number];
+type Listing = ContextListing;
+type List = FullList;
 
 interface ListingsTableToolbarProps {
   table: Table<Listing>;
@@ -39,9 +40,7 @@ function ListingsTableToolbar({
     label: list.title,
     value: list.id,
     count: listings?.filter((listing) =>
-      listing.lists.some(
-        (listingList: { id: string }) => listingList.id === list.id,
-      ),
+      listing.lists.some((listItem) => listItem.id === list.id),
     ).length,
   }));
 
@@ -82,16 +81,7 @@ function ListingsTableToolbar({
 }
 
 export function ListingsTable() {
-  const { data: listings, isLoading } = api.listing.list.useQuery(undefined, {
-    staleTime: Infinity,
-    refetchOnWindowFocus: false,
-    refetchOnMount: false,
-  });
-  const { data: lists } = api.list.list.useQuery(undefined, {
-    staleTime: Infinity,
-    refetchOnWindowFocus: false,
-    refetchOnMount: false,
-  });
+  const { listings, lists, isLoadingBaseListingData } = useUserData();
   const { editListing } = useEditListing();
 
   const columns = getColumns(editListing);
@@ -114,7 +104,7 @@ export function ListingsTable() {
     },
   });
 
-  if (isLoading) {
+  if (isLoadingBaseListingData) {
     return <DataTableLayoutSkeleton />;
   }
 

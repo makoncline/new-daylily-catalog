@@ -8,15 +8,15 @@ import {
 import { LISTING_TABLE_COLUMN_NAMES } from "@/config/constants";
 import { formatPrice, formatAhsListingSummary } from "@/lib/utils";
 import { type Row, type ColumnDef } from "@tanstack/react-table";
-import { TruncatedListBadge } from "@/components/data-table/truncated-list-badge";
 import { Image as ImageIcon } from "lucide-react";
-import { type RouterOutputs } from "@/trpc/react";
 import { Badge } from "@/components/ui/badge";
 import { TableImagePreview } from "@/components/data-table/table-image-preview";
 import React from "react";
 import { fuzzyFilter } from "@/lib/table-utils";
+import { type ContextListing } from "@/server/db/user-data";
+import { TruncatedListBadge } from "@/components/data-table/truncated-list-badge";
 
-type ListingData = RouterOutputs["listing"]["list"][number];
+type ListingData = ContextListing;
 type ListingRow = Row<ListingData>;
 
 /**
