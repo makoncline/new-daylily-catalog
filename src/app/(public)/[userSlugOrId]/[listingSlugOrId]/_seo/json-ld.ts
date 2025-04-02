@@ -34,13 +34,6 @@ async function createJsonLd(listing: Listing, metadata: Metadata) {
             url: `${metadata.url}/${listing.userId}`,
           },
           itemCondition: "https://schema.org/NewCondition",
-          shippingDetails: {
-            "@type": "OfferShippingDetails",
-            shippingDestination: {
-              "@type": "DefinedRegion",
-              addressCountry: "US",
-            },
-          },
           hasMerchantReturnPolicy: {
             "@type": "MerchantReturnPolicy",
             applicableCountry: "US",
