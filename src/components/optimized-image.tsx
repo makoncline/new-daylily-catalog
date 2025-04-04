@@ -94,7 +94,7 @@ export function OptimizedImage({
           });
 
           const imageLoadError = new Error(
-            `Failed to load optimized image resource: ${src}`,
+            `Failed to load optimized image resource`,
           );
 
           reportError({
