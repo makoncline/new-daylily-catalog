@@ -55,7 +55,7 @@ export function ListingCard({ listing, priority = false }: ListingCardProps) {
       onClick={() => viewListing(listing)}
     >
       {/* Create SEO links for each URL variation */}
-      {urlVariations.map((url, index) => (
+      {/* {urlVariations.map((url, index) => (
         <SEOLink
           key={`seo-link-${index}`}
           href={url}
@@ -63,7 +63,7 @@ export function ListingCard({ listing, priority = false }: ListingCardProps) {
           ariaLabel={`View details for ${listing.title}`}
           srText={`View ${listing.title}`}
         />
-      ))}
+      ))} */}
 
       <div className="relative">
         <div className="aspect-square">

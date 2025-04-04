@@ -103,14 +103,14 @@ export function UserCard({
   return (
     <Card className="group flex h-full flex-col overflow-hidden transition-all hover:border-primary">
       {/* Add SEO links for all URL variants to prevent orphan pages */}
-      {urlVariations.map((url, index) => (
+      {/* {urlVariations.map((url, index) => (
         <SEOLink
           key={`user-seo-link-${index}`}
           href={url}
           ariaLabel={`View ${gardenName}'s catalog`}
           srText={`View ${gardenName}'s catalog`}
         />
-      ))}
+      ))} */}
 
       <div className="relative">
         <Link href={visiblePath} className="block">
