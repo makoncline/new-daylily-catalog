@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect } from "./fixtures";
 
 test("should sign in and navigate to listings", async ({ page }) => {
   const formValues = {
