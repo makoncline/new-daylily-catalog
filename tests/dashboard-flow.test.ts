@@ -87,5 +87,5 @@ test("complete dashboard flow: login, create listing, edit", async ({
   await page.getByRole("button", { name: "Reset" }).click();
   console.log("✅ Reset filters");
 
-  await page.pause();
+  // TODO: work in progress
 });
