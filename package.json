@@ -6,6 +6,7 @@
   "scripts": {
     "build": "next build",
     "dev": "concurrently \"next dev\" \"npm run start-tunnel\"",
+    "dev:no-tunnel": "next dev",
     "postinstall": "prisma generate",
     "lint": "next lint",
     "start": "concurrently \"next start\" \"npm run start-tunnel\"",
@@ -19,7 +20,10 @@
     "dump": "turso db shell $TURSO_DATABASE_NAME .dump > dump.sql && cat dump.sql | sqlite3 $LOCAL_DATABASE_FILE",
     "migrate:generate": "npx prisma migrate dev",
     "migrate:apply": "scripts/apply-migration.sh",
-    "browser-tools-server": "npx @agentdeskai/browser-tools-server@1.2.0"
+    "browser-tools-server": "npx @agentdeskai/browser-tools-server@1.2.0",
+    "test": "playwright test",
+    "test:headed": "playwright test --headed",
+    "test:ui": "playwright test --ui"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.717.0",
