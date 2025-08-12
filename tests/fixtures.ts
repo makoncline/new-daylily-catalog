@@ -72,9 +72,20 @@ export const test = base.extend<
           PORT: port.toString(),
           SKIP_ENV_VALIDATION: "true",
           NODE_ENV: "test",
+          NEXT_TELEMETRY_DISABLED: "1",
         },
         stdio: "pipe",
       });
+
+      // Forward Next.js logs to CI output for debugging visibility
+      if (process.env.CI) {
+        server.stdout?.on("data", (d: Buffer) => {
+          process.stdout.write(`[next] ${d.toString()}`);
+        });
+        server.stderr?.on("data", (d: Buffer) => {
+          process.stderr.write(`[next] ${d.toString()}`);
+        });
+      }
 
       // Wait for the HTTP endpoint instead of relying on logs (works better on CI)
       await waitForServer(serverUrl, 120_000);
