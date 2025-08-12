@@ -5,8 +5,8 @@
   "type": "module",
   "scripts": {
     "build": "next build",
-    "dev": "concurrently \"next dev\" \"npm run start-tunnel\"",
-    "dev:no-tunnel": "next dev",
+    "dev": "next dev",
+    "tunnel": "npm run start-tunnel",
     "postinstall": "prisma generate",
     "lint": "next lint",
     "start": "concurrently \"next start\" \"npm run start-tunnel\"",
@@ -21,9 +21,10 @@
     "migrate:generate": "npx prisma migrate dev",
     "migrate:apply": "scripts/apply-migration.sh",
     "browser-tools-server": "npx @agentdeskai/browser-tools-server@1.2.0",
-    "test": "playwright test",
-    "test:headed": "playwright test --headed",
-    "test:ui": "playwright test --ui"
+    "test": "NODE_ENV=test npx dotenv -e .env.test -- playwright test",
+    "test:headed": "NODE_ENV=test npx dotenv -e .env.test -- playwright test --headed",
+    "test:ui": "NODE_ENV=test npx dotenv -e .env.test -- playwright test --ui",
+    "dev:test": "npx tsx scripts/dev-test.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.717.0",

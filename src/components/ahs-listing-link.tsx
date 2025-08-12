@@ -166,6 +166,7 @@ export function AhsListingLink({
                     size="sm"
                     onClick={syncName}
                     disabled={isPending}
+                    data-testid="sync-ahs-name"
                   >
                     {isPending ? "Syncing..." : "Sync Name"}
                   </Button>
@@ -176,6 +177,7 @@ export function AhsListingLink({
                   size="sm"
                   onClick={() => updateAhsListing(null, null)}
                   disabled={isPending}
+                  data-testid="unlink-ahs"
                 >
                   {isPending ? "Unlinking..." : "Unlink"}
                 </Button>

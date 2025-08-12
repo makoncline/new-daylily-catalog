@@ -60,6 +60,7 @@ export function DataTableColumnHeader<TData, TValue>({
           size="sm"
           className="-ml-1 h-8 data-[state=open]:bg-accent"
           onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+          data-testid={`sort-${String(column.id)}`}
         >
           <span>{title}</span>
           {column.getIsSorted() === "desc" ? (
@@ -94,6 +95,7 @@ export function DataTableColumnHeader<TData, TValue>({
               value={value}
               onChange={handleChange}
               className="h-8"
+              data-testid={`filter-${String(column.id)}`}
             />
           </PopoverContent>
         </Popover>

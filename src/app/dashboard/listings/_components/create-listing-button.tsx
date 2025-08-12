@@ -50,7 +50,7 @@ export function CreateListingButton() {
 
   return (
     <>
-      <Button onClick={handleCreateClick}>
+      <Button onClick={handleCreateClick} data-testid="create-listing-button">
         <Plus className="mr-2 h-4 w-4" />
         Create Listing
       </Button>

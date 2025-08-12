@@ -3,11 +3,8 @@ import { PrismaClient } from "./generated/sqlite-client";
 const db = new PrismaClient();
 
 // Test user constants
-const TEST_USER = {
-  email: "test_playwright+clerk_test@gmail.com",
-  clerkId: "user_2tNBvfz00pi17Kavs9M6wurk1VP",
-  stripeCustomerId: "cus_test_daylily_catalog",
-} as const;
+import { TEST_USER as TEST_USER_CONFIG } from "@/config/test-user";
+const TEST_USER = TEST_USER_CONFIG;
 
 async function main() {
   console.log("🧪 Seeding test database...");
@@ -29,7 +26,8 @@ async function main() {
       slug: "test-daylily-garden",
       description: "A test garden for E2E testing with beautiful daylilies",
       location: "Test City, TS",
-      content: "Welcome to our test daylily garden! We specialize in testing beautiful daylilies.",
+      content:
+        "Welcome to our test daylily garden! We specialize in testing beautiful daylilies.",
     },
   });
 
@@ -135,7 +133,8 @@ async function main() {
     {
       title: "Alabama Jubilee",
       price: 25,
-      description: "Beautiful red daylily with yellow throat, midseason bloomer",
+      description:
+        "Beautiful red daylily with yellow throat, midseason bloomer",
       privateNote: "From Jane's collection",
       ahsId: ahsListings[0].id,
       lists: [gardenList.id, salesList.id],
@@ -143,7 +142,8 @@ async function main() {
     {
       title: "Stella de Oro",
       price: 15,
-      description: "Popular repeat blooming yellow daylily, perfect for beginners",
+      description:
+        "Popular repeat blooming yellow daylily, perfect for beginners",
       privateNote: "Great for mass plantings",
       ahsId: ahsListings[1].id,
       lists: [gardenList.id, salesList.id, favoriteslist.id],
@@ -169,24 +169,49 @@ async function main() {
     },
   ];
 
-  for (let i = 0; i < testListings.length; i++) {
-    const listingData = testListings[i];
+  for (const listingData of testListings) {
     const listing = await db.listing.create({
       data: {
         userId: user.id,
         title: listingData.title,
-        slug: listingData.title.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, ''),
+        slug: listingData.title
+          .toLowerCase()
+          .replace(/\s+/g, "-")
+          .replace(/[^a-z0-9-]/g, ""),
         price: listingData.price,
         description: listingData.description,
         privateNote: listingData.privateNote,
         ahsId: listingData.ahsId,
         status: "ACTIVE",
         lists: {
-          connect: listingData.lists.map(listId => ({ id: listId })),
+          connect: listingData.lists.map((listId) => ({ id: listId })),
         },
       },
     });
     listings.push(listing);
+
+    // Seed placeholder images for one known listing to support image reordering tests
+    if (listingData.title === "Custom Purple Beauty") {
+      await db.image.createMany({
+        data: [
+          {
+            url: "https://via.placeholder.com/300?text=Purple+1",
+            order: 0,
+            listingId: listing.id,
+          },
+          {
+            url: "https://via.placeholder.com/300?text=Purple+2",
+            order: 1,
+            listingId: listing.id,
+          },
+          {
+            url: "https://via.placeholder.com/300?text=Purple+3",
+            order: 2,
+            listingId: listing.id,
+          },
+        ],
+      });
+    }
   }
 
   console.log(`✅ Test database seeded successfully:

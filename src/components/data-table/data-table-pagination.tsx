@@ -69,7 +69,7 @@ export function DataTablePagination<TData>({
                 scrollToTable();
               }}
             >
-              <SelectTrigger className="h-8 w-[70px]">
+              <SelectTrigger className="h-8 w-[70px]" data-testid="page-size">
                 <SelectValue placeholder={pageSize} />
               </SelectTrigger>
               <SelectContent side="top">
@@ -96,6 +96,7 @@ export function DataTablePagination<TData>({
                   scrollToTable();
                 }}
                 disabled={!table.getCanPreviousPage()}
+                data-testid="first-page"
               >
                 <span className="sr-only">Go to first page</span>
                 <DoubleArrowLeftIcon className="h-4 w-4" />
@@ -108,6 +109,7 @@ export function DataTablePagination<TData>({
                   scrollToTable();
                 }}
                 disabled={!table.getCanPreviousPage()}
+                data-testid="prev-page"
               >
                 <span className="sr-only">Go to previous page</span>
                 <ChevronLeftIcon className="h-4 w-4" />
@@ -120,6 +122,7 @@ export function DataTablePagination<TData>({
                   scrollToTable();
                 }}
                 disabled={!table.getCanNextPage()}
+                data-testid="next-page"
               >
                 <span className="sr-only">Go to next page</span>
                 <ChevronRightIcon className="h-4 w-4" />
@@ -132,6 +135,7 @@ export function DataTablePagination<TData>({
                   scrollToTable();
                 }}
                 disabled={!table.getCanNextPage()}
+                data-testid="last-page"
               >
                 <span className="sr-only">Go to last page</span>
                 <DoubleArrowRightIcon className="h-4 w-4" />

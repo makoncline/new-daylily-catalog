@@ -24,6 +24,18 @@ export function useUrlInitialTableState({
       : TABLE_CONFIG.PAGINATION.DEFAULT_PAGE_SIZE);
   const globalFilter = searchParams.get("query") ?? undefined;
 
+  // Sorting
+  const sortId = searchParams.get("sort") ?? undefined;
+  const sortDir = searchParams.get("dir") ?? undefined;
+  const sorting = sortId
+    ? [
+        {
+          id: sortId,
+          desc: sortDir === "desc",
+        },
+      ]
+    : [];
+
   // Get column filters from URL
   const columnFilters = filterableColumnIds
     ? filterableColumnIds
@@ -51,6 +63,7 @@ export function useUrlInitialTableState({
     },
     globalFilter,
     columnFilters,
+    sorting,
     meta: {
       filterableColumns: filterableColumnIds,
     },
@@ -63,7 +76,7 @@ export function useTableUrlSync<TData>(table: Table<TData>) {
   const searchParams = useSearchParams();
 
   // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-  const { pagination, columnFilters, globalFilter } = table.getState();
+  const { pagination, columnFilters, globalFilter, sorting } = table.getState();
   const filterableColumns = table.options.meta?.filterableColumns;
 
   React.useEffect(() => {
@@ -115,6 +128,15 @@ export function useTableUrlSync<TData>(table: Table<TData>) {
       url.searchParams.set("query", String(globalFilter));
     }
 
+    // Sync sorting (first sort only)
+    if (!sorting || sorting.length === 0) {
+      url.searchParams.delete("sort");
+      url.searchParams.delete("dir");
+    } else {
+      url.searchParams.set("sort", sorting[0]!.id);
+      url.searchParams.set("dir", sorting[0]!.desc ? "desc" : "asc");
+    }
+
     const newParams = url.searchParams;
     const hasChanges =
       Array.from(oldParams.entries()).some(
@@ -132,6 +154,7 @@ export function useTableUrlSync<TData>(table: Table<TData>) {
     pagination,
     columnFilters,
     globalFilter,
+    sorting,
     filterableColumns,
   ]);
 }

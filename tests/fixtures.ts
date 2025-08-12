@@ -1,109 +1,148 @@
-import { test as base, expect } from "@playwright/test";
+import { test as base } from "@playwright/test";
 import { spawn } from "child_process";
 import { PrismaClient } from "@prisma/client";
-import { createTestDatabase, setupTestDatabase, waitForServer, killProcessOnPort, TEST_USER } from "./test-utils";
+import {
+  createTestDatabase,
+  setupTestDatabase,
+  waitForServer,
+  killProcessOnPort,
+  TEST_USER,
+} from "./test-utils";
 
-export const test = base.extend<{ 
-  db: PrismaClient; 
-  serverUrl: string;
-  testUser: typeof TEST_USER;
-}>({
-  serverUrl: [
-    async ({}, use, testInfo) => {
-      const port = 3000;
-      const serverUrl = `http://localhost:${port}`;
-      
-      // Create isolated test database
+/**
+ * Custom Playwright fixtures used across the E2E test suite.
+ *
+ * Key goals:
+ * 1. A **single** deterministic SQLite database is created **once per worker**
+ *    and shared between the Next.js server and the `db` fixture. This removes
+ *    the double-database bug where the UI wrote to DB #1 while assertions were
+ *    performed against DB #2.
+ * 2. Next.js is started **once per worker** (scope: "worker") to keep perfect
+ *    isolation without paying the cost of a full boot before every individual
+ *    test. If you need stricter isolation you can always switch the scope back
+ *    to "test".
+ */
+export const test = base.extend<
+  {
+    /** Direct PrismaClient connected to the isolated test database. */
+    db: PrismaClient;
+    /** Convenience re-export of the seeded Clerk test user. */
+    testUser: typeof TEST_USER;
+  },
+  {
+    /** The SQLite connection URL of the isolated test database. */
+    databaseUrl: string;
+    /** Root URL of the started Next.js dev server (e.g. http://localhost:3000) */
+    serverUrl: string;
+  }
+>({
+  //--------------------------------------------------------------------------
+  // databaseUrl – create the database **once per worker** and seed it
+  //--------------------------------------------------------------------------
+  databaseUrl: [
+    async ({}, use) => {
       const { databaseUrl, cleanup } = await createTestDatabase();
-      
       try {
-        // Kill any existing process on port
-        await killProcessOnPort(port);
-        
-        // Setup database with schema and seed data
         await setupTestDatabase(databaseUrl);
-        
-        // Start the development server with test database
-        const server = spawn("npm", ["run", "dev:no-tunnel"], {
-          env: {
-            ...process.env,
-            LOCAL_DATABASE_URL: databaseUrl,
-            PORT: port.toString(),
-            SKIP_ENV_VALIDATION: "true",
-            // Disable tunnel for tests
-            NODE_ENV: "test",
-          },
-          stdio: "pipe",
-        });
-        
-        // Wait for Next.js to be ready
-        let serverReady = false;
-        server.stdout?.on("data", (data: Buffer) => {
-          const output = data.toString();
-          if (output.includes("Local:") || output.includes("Ready") || output.includes("started server")) {
-            serverReady = true;
-          }
-        });
-        
-        server.stderr?.on("data", (data: Buffer) => {
-          const output = data.toString();
-          if (output.includes("Local:") || output.includes("Ready") || output.includes("started server")) {
-            serverReady = true;
-          }
-        });
-        
-        // Wait for server to be ready
-        const start = Date.now();
-        while (!serverReady && Date.now() - start < 60000) {
-          await new Promise((r) => setTimeout(r, 500));
-        }
-        
-        if (!serverReady) {
-          throw new Error("Server failed to start within timeout");
-        }
-        
-        // Additional check that server is responding
-        await waitForServer(serverUrl);
-        
-        await use(serverUrl);
-        
-        // Clean up server
-        server.kill("SIGTERM");
-        await new Promise((r) => setTimeout(r, 2000));
-        server.kill("SIGKILL");
-        await killProcessOnPort(port);
-        
+        await use(databaseUrl);
       } finally {
+        // Always clean up the temporary SQLite file when the worker exits
         await cleanup();
       }
     },
-    { scope: "test" },
+    { scope: "worker" },
   ],
 
-  db: async ({ serverUrl }, use) => {
-    // This will use the same database as the server
-    // We'll create a separate client for direct database access in tests
-    const { databaseUrl, cleanup } = await createTestDatabase();
-    await setupTestDatabase(databaseUrl);
-    
+  //--------------------------------------------------------------------------
+  // serverUrl – start Next.js pointing at the same database
+  //--------------------------------------------------------------------------
+  serverUrl: [
+    async ({ databaseUrl }, use) => {
+      const port = 3000;
+      const serverUrl = `http://localhost:${port}`;
+
+      // Make sure the port is free first (especially important on CI)
+      await killProcessOnPort(port);
+
+      // Boot Next.js in dev mode without the Cloudflare tunnel
+      const server = spawn("npm", ["run", "dev"], {
+        env: {
+          ...process.env,
+          LOCAL_DATABASE_URL: databaseUrl,
+          PORT: port.toString(),
+          SKIP_ENV_VALIDATION: "true",
+          NODE_ENV: "test",
+        },
+        stdio: "pipe",
+      });
+
+      // Detect when the server is ready by listening to stdout / stderr
+      let serverReady = false;
+      const markReady = (data: Buffer) => {
+        const output = data.toString();
+        if (
+          output.includes("Local:") ||
+          output.includes("Ready") ||
+          output.includes("started server")
+        ) {
+          serverReady = true;
+        }
+      };
+      server.stdout?.on("data", markReady);
+      server.stderr?.on("data", markReady);
+
+      // Poll until the dev server says it's ready (max 60s)
+      const start = Date.now();
+      while (!serverReady && Date.now() - start < 60_000) {
+        await new Promise((r) => setTimeout(r, 500));
+      }
+      if (!serverReady) {
+        throw new Error("Next.js server failed to start within 60s");
+      }
+
+      // Double-check that the HTTP endpoint actually responds
+      await waitForServer(serverUrl);
+
+      // ✅ The server is up – expose the URL to the test and continue
+      await use(serverUrl);
+
+      // -------------------------------------------------------------------
+      // Teardown – kill the dev server and free the port
+      // -------------------------------------------------------------------
+      server.kill("SIGTERM");
+      await new Promise((r) => setTimeout(r, 2_000));
+      server.kill("SIGKILL");
+      await killProcessOnPort(port);
+    },
+    { scope: "worker" },
+  ],
+
+  //--------------------------------------------------------------------------
+  // db – lightweight Prisma client connected to the same database
+  //--------------------------------------------------------------------------
+  db: async ({ databaseUrl }, use) => {
     const prisma = new PrismaClient({
       datasources: { db: { url: databaseUrl } },
     });
-    
     try {
       await use(prisma);
     } finally {
       await prisma.$disconnect();
-      await cleanup();
     }
   },
 
+  //--------------------------------------------------------------------------
+  // testUser – helper to avoid importing TEST_USER everywhere
+  //--------------------------------------------------------------------------
   testUser: async ({}, use) => {
     await use(TEST_USER);
   },
-  
+
+  //--------------------------------------------------------------------------
+  // page – monkey-patch page.goto to automatically prepend the server URL so
+  // tests can use relative paths like page.goto("/dashboard")
+  //--------------------------------------------------------------------------
   page: async ({ page, serverUrl }, use) => {
-    // Override the page's goto method to use the dynamic server URL
     const originalGoto = page.goto.bind(page);
     page.goto = async (
       url: string,

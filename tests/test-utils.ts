@@ -3,13 +3,9 @@ import { randomUUID } from "crypto";
 import path from "path";
 import fs from "fs/promises";
 
-export const TEST_USER = {
-  email: "test_playwright+clerk_test@gmail.com",
-  clerkId: "user_2tNBvfz00pi17Kavs9M6wurk1VP",
-  stripeCustomerId: "cus_test_daylily_catalog",
-  name: "Test User",
-  slug: "test-daylily-garden",
-} as const;
+import { TEST_USER as TEST_USER_CONFIG } from "@/config/test-user";
+
+export const TEST_USER = TEST_USER_CONFIG;
 
 export interface TestDatabaseSetup {
   databaseUrl: string;
@@ -37,7 +33,7 @@ export async function createTestDatabase(): Promise<TestDatabaseSetup> {
       await fs.unlink(dbFile);
     } catch (error) {
       // Ignore cleanup errors
-      console.warn(`Failed to cleanup test database: ${error}`);
+      console.warn(`Failed to cleanup test database: ${String(error)}`);
     }
   };
 
@@ -97,7 +93,7 @@ export async function waitForServer(
       if (response.ok || response.status === 404) {
         return; // Server is responding
       }
-    } catch (error) {
+    } catch {
       // Server not ready yet, continue waiting
     }
 

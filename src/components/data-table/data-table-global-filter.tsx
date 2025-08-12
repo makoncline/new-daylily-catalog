@@ -55,6 +55,7 @@ export function DataTableGlobalFilter<TData>({
       value={value}
       onChange={handleChange}
       className="h-8 w-[150px] lg:w-[250px]"
+      data-testid="global-filter"
     />
   );
 }

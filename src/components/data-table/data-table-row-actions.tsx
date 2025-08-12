@@ -48,13 +48,21 @@ export function DataTableRowActions<TData extends { id: string }>({
           <Button
             variant="ghost"
             className="flex h-full w-full p-0 data-[state=open]:bg-muted"
+            data-testid="row-actions-trigger"
+            data-row-id={row.original.id}
+            data-row-title={(row.original as any).title}
           >
             <DotsHorizontalIcon className="h-4 w-4" />
             <span className="sr-only">Open menu</span>
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-[160px]">
+        <DropdownMenuContent
+          align="end"
+          className="w-[160px]"
+          data-testid="row-actions-menu"
+        >
           <DropdownMenuItem
+            data-testid="row-action-edit"
             onClick={() => {
               setOpen(false);
               onEdit(row.original.id);
@@ -65,6 +73,7 @@ export function DataTableRowActions<TData extends { id: string }>({
           </DropdownMenuItem>
           <DropdownMenuSeparator />
           <DropdownMenuItem
+            data-testid="row-action-delete"
             className="text-red-600"
             onClick={() => {
               setOpen(false);
