@@ -42,7 +42,7 @@ jobs:
           EOF
 
       - name: Run Playwright tests
-        run: npm run test --silent
+        run: npm run test
 
       - name: Upload Playwright report (on failure)
         if: failure()
