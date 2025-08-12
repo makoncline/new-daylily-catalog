@@ -42,7 +42,9 @@ jobs:
           EOF
 
       - name: Run Playwright tests
-        run: npm run test
+        run: npx playwright test
+        env:
+          NODE_ENV: test
 
       - name: Upload Playwright report (on failure)
         if: failure()
