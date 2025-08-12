@@ -3,8 +3,7 @@ import { spawn } from "child_process";
 import net from "node:net";
 import { PrismaClient } from "@prisma/client";
 import {
-  createTestDatabase,
-  setupTestDatabase,
+  createTestDatabaseFromSnapshot,
   waitForServer,
   killProcessOnPort,
   TEST_USER,
@@ -38,20 +37,18 @@ export const test = base.extend<
   }
 >({
   //--------------------------------------------------------------------------
-  // databaseUrl – create the database **once per worker** and seed it
+  // databaseUrl – create the database **per test** from a seeded snapshot
   //--------------------------------------------------------------------------
   databaseUrl: [
     async ({}, use) => {
-      const { databaseUrl, cleanup } = await createTestDatabase();
+      const { databaseUrl, cleanup } = await createTestDatabaseFromSnapshot();
       try {
-        await setupTestDatabase(databaseUrl);
         await use(databaseUrl);
       } finally {
-        // Always clean up the temporary SQLite file when the worker exits
         await cleanup();
       }
     },
-    { scope: "worker" },
+    { scope: "test" },
   ],
 
   //--------------------------------------------------------------------------
@@ -124,7 +121,7 @@ export const test = base.extend<
       server.kill("SIGKILL");
       await killProcessOnPort(port);
     },
-    { scope: "worker" },
+    { scope: "test" },
   ],
 
   //--------------------------------------------------------------------------

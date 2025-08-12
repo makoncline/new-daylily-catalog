@@ -45,6 +45,61 @@ export async function createTestDatabase(): Promise<TestDatabaseSetup> {
 }
 
 /**
+ * Ensure a seeded snapshot SQLite file exists we can clone quickly for each test
+ */
+async function ensureSeedSnapshot(): Promise<string> {
+  const seedDir = path.join(process.cwd(), "test-results");
+  const seedFile = path.join(seedDir, "seed.sqlite");
+  await fs.mkdir(seedDir, { recursive: true });
+  try {
+    // If snapshot already exists, reuse it
+    await fs.access(seedFile);
+    return seedFile;
+  } catch {}
+
+  const seedUrl = `file:${seedFile}`;
+  // Create schema and seed into the snapshot file once
+  execSync("npx prisma db push --schema=prisma/schema.prisma", {
+    env: {
+      ...process.env,
+      LOCAL_DATABASE_URL: seedUrl,
+      SKIP_ENV_VALIDATION: "true",
+    },
+    stdio: "pipe",
+  });
+  execSync("npx tsx prisma/test-seed.ts", {
+    env: {
+      ...process.env,
+      LOCAL_DATABASE_URL: seedUrl,
+      SKIP_ENV_VALIDATION: "true",
+    },
+    stdio: "pipe",
+  });
+  return seedFile;
+}
+
+/**
+ * Fast path: clone a pre-seeded snapshot file for an isolated per-test DB
+ */
+export async function createTestDatabaseFromSnapshot(): Promise<TestDatabaseSetup> {
+  const seedFile = await ensureSeedSnapshot();
+  const testId = randomUUID();
+  const dbFile = path.join(
+    process.cwd(),
+    "test-results",
+    `test-${testId}.sqlite`,
+  );
+  await fs.copyFile(seedFile, dbFile);
+  const databaseUrl = `file:${dbFile}`;
+  const cleanup = async () => {
+    try {
+      await fs.unlink(dbFile);
+    } catch {}
+  };
+  return { databaseUrl, dbFile, cleanup };
+}
+
+/**
  * Sets up a fresh database with schema and test data
  */
 export async function setupTestDatabase(databaseUrl: string): Promise<void> {

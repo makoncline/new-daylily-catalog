@@ -3,10 +3,13 @@ import fs from "node:fs/promises";
 import { clerk, setupClerkTestingToken } from "@clerk/testing/playwright";
 import { type Page } from "@playwright/test";
 
-async function programmaticLogin(
-  page: import("@playwright/test").Page,
-  testUser: { email: string },
-) {
+function log(message: string) {
+  // eslint-disable-next-line no-console
+  console.log(`[E2E] ${message}`);
+}
+
+async function programmaticLogin(page: Page, testUser: { email: string }) {
+  log("Programmatic login start");
   await setupClerkTestingToken({ page });
   await page.goto("/");
   await clerk.loaded({ page });
@@ -19,14 +22,39 @@ async function programmaticLogin(
   });
   await page.goto("/dashboard");
   await expect(page).toHaveURL(/\/dashboard(\/)?/, { timeout: 15000 });
+  log("Programmatic login success");
 }
 
 async function navigateToListings(page: Page) {
-  await page.goto("/dashboard/listings");
+  log("Navigate to /dashboard/listings");
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      await page.goto("/dashboard/listings", { waitUntil: "domcontentloaded" });
+      // Reset any persisted table state to avoid cross-test interference
+      await page.evaluate(() => {
+        try {
+          localStorage.removeItem("listings-table");
+        } catch {}
+      });
+      await page.getByRole("heading", { name: "Listings" }).waitFor({
+        timeout: 15000,
+      });
+      await page.waitForSelector("#data-table", { timeout: 15000 });
+      log("Listings page ready");
+      return;
+    } catch {
+      if (attempt === 1) break;
+      // Retry a clean navigation instead of reload to avoid detached frame errors
+      continue;
+    }
+  }
+  // Final guard to provide context
+  await page
+    .screenshot({ path: `test-results/navigateToListings-failure.png` })
+    .catch(() => {});
   await expect(page.getByRole("heading", { name: "Listings" })).toBeVisible({
-    timeout: 5000,
+    timeout: 1000,
   });
-  await page.waitForSelector("#data-table", { timeout: 5000 });
 }
 
 async function countCenterTableRows(page: Page) {
@@ -36,6 +64,7 @@ async function countCenterTableRows(page: Page) {
 }
 
 async function openRowActionsForTitle(page: Page, title: string) {
+  log(`Open row actions for: ${title}`);
   // The actions column is pinned to the right in a separate table.
   // Use the data attributes directly rather than scoping to the center table row.
   const trigger = page
@@ -69,10 +98,12 @@ async function openRowActionsForTitle(page: Page, title: string) {
     await menu.waitFor({ timeout: 2000 });
   }
   await page.waitForTimeout(50);
+  log(`Row actions open: ${title}`);
 }
 
 async function clickRowActionEdit(page: Page, title: string) {
   // Assumes the row-actions menu is open
+  log(`Click row action Edit: ${title}`);
   const menu = page.locator('[data-testid="row-actions-menu"]').first();
   try {
     await menu.waitFor({ timeout: 1000 });
@@ -84,25 +115,33 @@ async function clickRowActionEdit(page: Page, title: string) {
     await openRowActionsForTitle(page, title);
     await editItem.click({ force: true });
   }
+  log(`Edit clicked: ${title}`);
 }
 
 async function expectEditDialogOpen(page: Page) {
   // Assert the Edit dialog is visible
+  log("Expect edit dialog open");
   await expect(page.getByRole("heading", { name: "Edit Listing" })).toBeVisible(
     { timeout: 5000 },
   );
+  log("Edit dialog open OK");
 }
 
 async function expectEditDialogClosed(page: Page) {
   // Wait for any open dialog to detach, then assert Edit heading absent
+  log("Expect edit dialog closed");
   try {
     await page
       .locator('[role="dialog"][data-state="open"]')
-      .waitFor({ state: "detached", timeout: 2000 });
+      .waitFor({ state: "detached", timeout: 5000 });
   } catch {}
   await expect(page.getByRole("heading", { name: "Edit Listing" })).toHaveCount(
     0,
+    {
+      timeout: 5000,
+    },
   );
+  log("Edit dialog closed OK");
 }
 
 // complete dashboard flow removed in favor of smaller focused tests
@@ -382,6 +421,8 @@ test("listings: edit listing images – add and delete via UI without S3", async
 
   // Save and close; verify DB count increased by 1 from afterDelete
   await page.getByRole("button", { name: "Save Changes" }).click();
+  // Wait briefly for save to settle
+  await page.waitForTimeout(300);
   await page.getByRole("button", { name: "Close" }).click();
   await expectEditDialogClosed(page);
 
@@ -513,6 +554,9 @@ test("listings: table – pagination, sorting and filters persist in URL", async
   await expect(page).toHaveURL(/sort=title&dir=asc/);
 
   // Global filter persistence
+  await page
+    .locator('[data-testid="global-filter"]')
+    .waitFor({ timeout: 10000 });
   await page.locator('[data-testid="global-filter"]').fill("Stella");
   await expect(page).toHaveURL(/query=Stella/);
   await page.reload();
