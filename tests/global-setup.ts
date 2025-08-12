@@ -1,6 +1,11 @@
 import { clerkSetup } from "@clerk/testing/playwright";
+import * as dotenv from "dotenv";
+import path from "path";
 
 export default async function globalSetup() {
+  // Load .env.test so Clerk keys are available in the test runner
+  dotenv.config({ path: path.resolve(process.cwd(), ".env.test") });
+
   // Map common Next.js env var names to what @clerk/testing expects
   if (
     !process.env.CLERK_PUBLISHABLE_KEY &&
