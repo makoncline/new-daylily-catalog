@@ -1,5 +1,6 @@
 import { test as base } from "@playwright/test";
 import { spawn } from "child_process";
+import net from "node:net";
 import { PrismaClient } from "@prisma/client";
 import {
   createTestDatabase,
@@ -58,11 +59,33 @@ export const test = base.extend<
   //--------------------------------------------------------------------------
   serverUrl: [
     async ({ databaseUrl }, use) => {
-      const port = Number(process.env.PORT ?? 3000);
+      async function findFreePort(preferred: number): Promise<number> {
+        // Try preferred first; on failure fall back to ephemeral port
+        const tryPort = (portToTry: number) =>
+          new Promise<number>((resolve) => {
+            const srv = net.createServer();
+            srv.once("error", () => {
+              resolve(0);
+            });
+            srv.listen(portToTry, () => {
+              const addr = srv.address();
+              const portFound =
+                typeof addr === "object" && addr ? addr.port : portToTry;
+              srv.close(() => resolve(portFound));
+            });
+          });
+
+        const first = await tryPort(preferred);
+        if (first !== 0) return first;
+        const ephemeral = await tryPort(0);
+        return ephemeral || preferred;
+      }
+
+      const port = await findFreePort(Number(process.env.PORT ?? 3000));
       const serverUrl = `http://localhost:${port}`;
 
-      // Make sure the port is free first (especially important on CI)
-      await killProcessOnPort(port);
+      // Best practice: bind one server per worker on a free port. This avoids
+      // port conflicts and keeps test isolation while not restarting per test.
 
       // Boot Next.js in dev mode without the Cloudflare tunnel
       const server = spawn("npm", ["run", "dev"], {
