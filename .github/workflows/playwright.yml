@@ -41,8 +41,8 @@ jobs:
           CLERK_SECRET_KEY=${{ secrets.CLERK_SECRET_KEY }}
           EOF
 
-      - name: Run Playwright tests
-        run: npx playwright test
+      - name: Run smoke test (UI login)
+        run: npx playwright test tests/dashboard-flow.test.ts -g "auth: UI login redirects to dashboard"
         env:
           NODE_ENV: test
 

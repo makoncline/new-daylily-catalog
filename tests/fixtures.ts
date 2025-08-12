@@ -58,7 +58,7 @@ export const test = base.extend<
   //--------------------------------------------------------------------------
   serverUrl: [
     async ({ databaseUrl }, use) => {
-      const port = 3000;
+      const port = Number(process.env.PORT ?? 3000);
       const serverUrl = `http://localhost:${port}`;
 
       // Make sure the port is free first (especially important on CI)
@@ -76,32 +76,8 @@ export const test = base.extend<
         stdio: "pipe",
       });
 
-      // Detect when the server is ready by listening to stdout / stderr
-      let serverReady = false;
-      const markReady = (data: Buffer) => {
-        const output = data.toString();
-        if (
-          output.includes("Local:") ||
-          output.includes("Ready") ||
-          output.includes("started server")
-        ) {
-          serverReady = true;
-        }
-      };
-      server.stdout?.on("data", markReady);
-      server.stderr?.on("data", markReady);
-
-      // Poll until the dev server says it's ready (max 60s)
-      const start = Date.now();
-      while (!serverReady && Date.now() - start < 60_000) {
-        await new Promise((r) => setTimeout(r, 500));
-      }
-      if (!serverReady) {
-        throw new Error("Next.js server failed to start within 60s");
-      }
-
-      // Double-check that the HTTP endpoint actually responds
-      await waitForServer(serverUrl);
+      // Wait for the HTTP endpoint instead of relying on logs (works better on CI)
+      await waitForServer(serverUrl, 120_000);
 
       // ✅ The server is up – expose the URL to the test and continue
       await use(serverUrl);
