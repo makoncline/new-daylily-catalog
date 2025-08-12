@@ -4,150 +4,78 @@ import { clerk, setupClerkTestingToken } from "@clerk/testing/playwright";
 import { type Page } from "@playwright/test";
 
 function log(message: string) {
-  // eslint-disable-next-line no-console
   console.log(`[E2E] ${message}`);
 }
 
 async function programmaticLogin(page: Page, testUser: { email: string }) {
   log("Programmatic login start");
   await setupClerkTestingToken({ page });
+  // start on unauthenticated page
   await page.goto("/");
   await clerk.loaded({ page });
   await clerk.signIn({
     page,
-    signInParams: {
-      strategy: "email_code",
-      identifier: testUser.email,
-    },
+    signInParams: { strategy: "email_code", identifier: testUser.email },
   });
+  // navigate to authenticated page
   await page.goto("/dashboard");
-  await expect(page).toHaveURL(/\/dashboard(\/)?/, { timeout: 15000 });
+  await page.waitForURL(/\/dashboard\/?/);
+  await expect(
+    page.getByRole("heading", { level: 1, name: "Dashboard" }),
+  ).toBeVisible();
   log("Programmatic login success");
 }
 
 async function navigateToListings(page: Page) {
   log("Navigate to /dashboard/listings");
-  for (let attempt = 0; attempt < 2; attempt++) {
-    try {
-      await page.goto("/dashboard/listings", { waitUntil: "domcontentloaded" });
-      // Reset any persisted table state to avoid cross-test interference
-      await page.evaluate(() => {
-        try {
-          localStorage.removeItem("listings-table");
-        } catch {}
-      });
-      await page.getByRole("heading", { name: "Listings" }).waitFor({
-        timeout: 15000,
-      });
-      await page.waitForSelector("#data-table", { timeout: 15000 });
-      log("Listings page ready");
-      return;
-    } catch {
-      if (attempt === 1) break;
-      // Retry a clean navigation instead of reload to avoid detached frame errors
-      continue;
-    }
-  }
-  // Final guard to provide context
-  await page
-    .screenshot({ path: `test-results/navigateToListings-failure.png` })
-    .catch(() => {});
-  await expect(page.getByRole("heading", { name: "Listings" })).toBeVisible({
-    timeout: 1000,
-  });
+  await page.goto("/dashboard/listings");
+  // Verify Listings page title and table
+  await expect(page.getByTestId("listings-title")).toBeVisible();
+  await expect(page.getByTestId("listings-table")).toBeVisible();
+  log("Listings page ready");
 }
 
 async function countCenterTableRows(page: Page) {
   // Count rows in the center scrollable table body only
-  const rows = await page.$$(`#data-table .flex-1 table tbody tr`);
+  const rows = await page.$$(
+    '[data-testid="listings-table"] .flex-1 table tbody tr',
+  );
   return rows.length;
 }
 
 async function openRowActionsForTitle(page: Page, title: string) {
   log(`Open row actions for: ${title}`);
-  // The actions column is pinned to the right in a separate table.
-  // Use the data attributes directly rather than scoping to the center table row.
-  const trigger = page
-    .locator(`[data-testid="row-actions-trigger"][data-row-title="${title}"]`)
-    .first();
-  await trigger.waitFor({ timeout: 5000 });
-  // Dismiss any potential overlays that could intercept pointer events
-  try {
-    await page.keyboard.press("Escape");
-    await page
-      .locator('[role="dialog"][data-state="open"]')
-      .waitFor({ state: "detached", timeout: 1000 });
-  } catch {}
-  try {
-    await page
-      .locator('div.fixed.inset-0[data-state="open"]')
-      .waitFor({ state: "detached", timeout: 1000 });
-  } catch {}
-
-  try {
-    await trigger.click();
-  } catch {
-    await trigger.click({ force: true });
-  }
-  // Wait for the menu to appear; retry once if needed
-  const menu = page.locator('[data-testid="row-actions-menu"]').first();
-  try {
-    await menu.waitFor({ timeout: 1500 });
-  } catch {
-    await trigger.click({ force: true });
-    await menu.waitFor({ timeout: 2000 });
-  }
-  await page.waitForTimeout(50);
+  const trigger = page.locator(
+    `[data-testid="row-actions-trigger"][data-row-title="${title}"]`,
+  );
+  await trigger.click();
+  await expect(page.getByTestId("row-actions-menu")).toBeVisible();
   log(`Row actions open: ${title}`);
 }
 
 async function clickRowActionEdit(page: Page, title: string) {
-  // Assumes the row-actions menu is open
   log(`Click row action Edit: ${title}`);
-  const menu = page.locator('[data-testid="row-actions-menu"]').first();
-  try {
-    await menu.waitFor({ timeout: 1000 });
-  } catch {}
-  const editItem = page.locator('[data-testid="row-action-edit"]').first();
-  try {
-    await editItem.click({ timeout: 500 });
-  } catch {
-    await openRowActionsForTitle(page, title);
-    await editItem.click({ force: true });
-  }
+  const editItem = page.getByTestId("row-action-edit");
+  await expect(editItem).toBeVisible();
+  await editItem.click({ force: true }); // radix animations cause the element not to settle. must force.
   log(`Edit clicked: ${title}`);
 }
 
 async function expectEditDialogOpen(page: Page) {
-  // Assert the Edit dialog is visible
   log("Expect edit dialog open");
-  await expect(page.getByRole("heading", { name: "Edit Listing" })).toBeVisible(
-    { timeout: 5000 },
-  );
+  await expect(page.getByTestId("edit-listing-dialog")).toBeVisible();
   log("Edit dialog open OK");
 }
 
 async function expectEditDialogClosed(page: Page) {
-  // Wait for any open dialog to detach, then assert Edit heading absent
   log("Expect edit dialog closed");
-  try {
-    await page
-      .locator('[role="dialog"][data-state="open"]')
-      .waitFor({ state: "detached", timeout: 5000 });
-  } catch {}
-  await expect(page.getByRole("heading", { name: "Edit Listing" })).toHaveCount(
-    0,
-    {
-      timeout: 5000,
-    },
-  );
+  await expect(page.getByTestId("edit-listing-dialog")).not.toBeVisible();
   log("Edit dialog closed OK");
 }
 
-// complete dashboard flow removed in favor of smaller focused tests
-
 // Use mobile viewport and touch actions for all tests
 test.use({ viewport: { width: 390, height: 844 }, hasTouch: true });
+test.use({ contextOptions: { reducedMotion: "reduce" } });
 
 // Login via UI only: start at home, click Dashboard, complete OTP, assert auto-redirect
 test("auth: UI login redirects to dashboard", async ({ page, testUser }) => {
@@ -165,59 +93,11 @@ test("auth: UI login redirects to dashboard", async ({ page, testUser }) => {
 
   // No manual navigation here — rely on Clerk redirect
   await expect(page).toHaveURL(/\/dashboard(\/)?/, { timeout: 30000 });
+  // Also verify the Dashboard page title is visible
+  await expect(
+    page.getByRole("heading", { level: 1, name: "Dashboard" }),
+  ).toBeVisible();
 });
-
-// Login programmatically using Clerk helpers, then assert dashboard
-test("auth: programmatic login via clerk helpers", async ({
-  page,
-  testUser,
-}) => {
-  await setupClerkTestingToken({ page });
-
-  // Load Clerk on an unprotected page per docs
-  await page.goto("/");
-  await clerk.loaded({ page });
-
-  // Sign in using testing helpers (email_code with universal test code)
-  await clerk.signIn({
-    page,
-    signInParams: {
-      strategy: "email_code",
-      identifier: testUser.email,
-    },
-  });
-
-  // Refresh home to let the header reflect authenticated state
-  await page.goto("/");
-  await clerk.loaded({ page });
-
-  // Click Dashboard trigger (link or button), with a small wait and fallback
-  let navigated = false;
-  try {
-    const dashLink = page.getByRole("link", { name: "Dashboard", exact: true });
-    await dashLink.waitFor({ timeout: 3000 });
-    await dashLink.click();
-    navigated = true;
-  } catch {}
-  if (!navigated) {
-    try {
-      const dashBtn = page.getByRole("button", {
-        name: "Dashboard",
-        exact: true,
-      });
-      await dashBtn.waitFor({ timeout: 3000 });
-      await dashBtn.click();
-      navigated = true;
-    } catch {}
-  }
-  if (!navigated) {
-    // Final fallback
-    await page.goto("/dashboard");
-  }
-  await expect(page).toHaveURL(/\/dashboard(\/)?/, { timeout: 15000 });
-});
-
-// Split flows: each test focuses on a single feature on Listings
 
 test("listings: create custom listing", async ({ page, testUser, db }) => {
   await programmaticLogin(page, testUser);
@@ -231,7 +111,7 @@ test("listings: create custom listing", async ({ page, testUser, db }) => {
   await page.getByRole("button", { name: "Close" }).click();
   await expectEditDialogClosed(page);
   await page.getByPlaceholder("Filter listings...").fill(title);
-  await expect(page.locator("#data-table")).toContainText(title);
+  await expect(page.getByTestId("listings-table")).toContainText(title);
   const created = await db.listing.findFirst({ where: { title } });
   expect(created).not.toBeNull();
 });
@@ -249,68 +129,37 @@ test("listings: edit listing via row actions", async ({
 
   await page.getByPlaceholder("Filter listings...").fill(target);
   await openRowActionsForTitle(page, target);
-  // Prefer clicking explicit test id for reliability
-  // Click Edit reliably even if menu animates
-  const editItem = page.locator('[data-testid="row-action-edit"]').first();
-  try {
-    await editItem.click({ timeout: 500 });
-  } catch {
-    await openRowActionsForTitle(page, target);
-    await editItem.click({ force: true });
-  }
+  await clickRowActionEdit(page, target);
   await expectEditDialogOpen(page);
+
   // Field blur saves: Description
   const descValue = `Blur desc ${Date.now()}`;
   await page.getByLabel("Description").fill(descValue);
   await page.getByLabel("Price").click();
-  {
-    let ok = false;
-    for (let i = 0; i < 40; i++) {
-      const l = await db.listing.findFirst({ where: { title: target } });
-      if (l?.description === descValue) {
-        ok = true;
-        break;
-      }
-      await page.waitForTimeout(250);
-    }
-    expect(ok).toBe(true);
-  }
+  await page.waitForTimeout(250);
+  let l = await db.listing.findFirst({ where: { title: target } });
+  expect(l?.description).toBe(descValue);
+
   // Field blur saves: Price
   const priceValue = 77;
   await page.getByLabel("Price").fill(String(priceValue));
   await page.getByLabel("Name").click();
-  {
-    let ok = false;
-    for (let i = 0; i < 40; i++) {
-      const l = await db.listing.findFirst({ where: { title: target } });
-      if (l?.price === priceValue) {
-        ok = true;
-        break;
-      }
-      await page.waitForTimeout(250);
-    }
-    expect(ok).toBe(true);
-  }
+  await page.waitForTimeout(250);
+  l = await db.listing.findFirst({ where: { title: target } });
+  expect(l?.price).toBe(priceValue);
+
   // Last field: Private Notes, do not blur; close to save
   const privateNoteValue = `Close-save note ${Date.now()}`;
   await page.getByLabel("Private Notes").fill(privateNoteValue);
   await page.getByRole("button", { name: "Close" }).click();
   await expectEditDialogClosed(page);
-  {
-    let ok = false;
-    for (let i = 0; i < 15; i++) {
-      const l = await db.listing.findFirst({ where: { title: target } });
-      if (l?.privateNote === privateNoteValue) {
-        ok = true;
-        break;
-      }
-      await page.waitForTimeout(200);
-    }
-    expect(ok).toBe(true);
-  }
+  await page.waitForTimeout(250);
+  l = await db.listing.findFirst({ where: { title: target } });
+  expect(l?.privateNote).toBe(privateNoteValue);
+
   // UI verification
   await page.getByPlaceholder("Filter listings...").fill(target);
-  await expect(page.locator("#data-table")).toContainText(descValue);
+  await expect(page.getByTestId("listings-table")).toContainText(descValue);
 
   // Re-open the edit dialog to test image reordering
   await openRowActionsForTitle(page, target);
@@ -318,9 +167,9 @@ test("listings: edit listing via row actions", async ({
   await expectEditDialogOpen(page);
 
   // Drag last image to the first position using dnd-kit handles
-  const handles = page.locator(
-    'button:has([aria-hidden="true"]) >> text=Drag to reorder',
-  );
+  // const handles = page.locator(
+  //   'button:has([aria-hidden="true"]) >> text=Drag to reorder',
+  // );
   // Fallback: select the visible drag buttons in the image grid
   const dragButtons = page
     .locator("button:has(svg)")
@@ -455,7 +304,7 @@ test("listings: delete listing via row actions", async ({
 
   // Verify gone in table and DB
   await page.getByPlaceholder("Filter listings...").fill(title);
-  await expect(page.locator("#data-table")).not.toContainText(title);
+  await expect(page.getByTestId("listings-table")).not.toContainText(title);
 
   // DB verification via fixture
   const deleted = await db.listing.findFirst({ where: { title } });
@@ -485,7 +334,7 @@ test("listings: create from AHS and assign list", async ({
   await page.getByRole("button", { name: "Close" }).click();
 
   await page.getByPlaceholder("Filter listings...").fill(customName);
-  await expect(page.locator("#data-table")).toContainText("PW AHS List");
+  await expect(page.getByTestId("listings-table")).toContainText("PW AHS List");
 });
 
 test("listings: lists faceted filter", async ({ page, testUser }) => {
@@ -583,11 +432,13 @@ test("listings: table – pagination, sorting and filters persist in URL", async
       .click();
     await page.locator('[data-testid="filter-title"]').fill("");
     // Close the popover to avoid overlaying other controls
-    await page.keyboard.press("Escape").catch(() => {});
+    try {
+      await page.keyboard.press("Escape");
+    } catch {}
   } catch {
     // If the filter button isn't interactable, reset to a clean listings page
     await page.goto("/dashboard/listings");
-    await page.locator("#data-table").waitFor({ timeout: 5000 });
+    await page.getByTestId("listings-table").waitFor({ timeout: 5000 });
   }
   await page.locator('[data-testid="global-filter"]').fill("");
   await page.waitForTimeout(300);

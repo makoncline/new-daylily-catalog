@@ -63,8 +63,7 @@ export function DataTableRowActions<TData extends { id: string }>({
         >
           <DropdownMenuItem
             data-testid="row-action-edit"
-            onClick={() => {
-              setOpen(false);
+            onSelect={() => {
               onEdit(row.original.id);
             }}
           >
@@ -75,8 +74,7 @@ export function DataTableRowActions<TData extends { id: string }>({
           <DropdownMenuItem
             data-testid="row-action-delete"
             className="text-red-600"
-            onClick={() => {
-              setOpen(false);
+            onSelect={() => {
               setShowDeleteDialog(true);
             }}
           >

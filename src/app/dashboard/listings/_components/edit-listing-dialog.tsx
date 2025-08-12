@@ -102,9 +102,14 @@ export function EditListingDialog() {
 
   return (
     <Dialog open={isOpen} onOpenChange={handleOpenChange}>
-      <DialogContent className="max-h-[90vh] overflow-y-auto">
+      <DialogContent
+        className="max-h-[90vh] overflow-y-auto"
+        data-testid="edit-listing-dialog"
+      >
         <DialogHeader>
-          <DialogTitle>Edit Listing</DialogTitle>
+          <DialogTitle data-testid="edit-listing-title">
+            Edit Listing
+          </DialogTitle>
           <P className="text-sm text-muted-foreground">
             Make changes to your listing here.
           </P>
