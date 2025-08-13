@@ -3,7 +3,8 @@ import { spawn } from "child_process";
 import net from "node:net";
 import { PrismaClient } from "@prisma/client";
 import {
-  createTestDatabaseFromSnapshot,
+  createTestDatabase,
+  setupTestDatabase,
   waitForServer,
   killProcessOnPort,
   TEST_USER,
@@ -37,14 +38,16 @@ export const test = base.extend<
   }
 >({
   //--------------------------------------------------------------------------
-  // databaseUrl – create the database **per test** from a seeded snapshot
+  // databaseUrl – create the database **once per worker** and seed it
   //--------------------------------------------------------------------------
   databaseUrl: [
     async ({}, use) => {
-      const { databaseUrl, cleanup } = await createTestDatabaseFromSnapshot();
+      const { databaseUrl, cleanup } = await createTestDatabase();
       try {
+        await setupTestDatabase(databaseUrl);
         await use(databaseUrl);
       } finally {
+        // Always clean up the temporary SQLite file when the worker exits
         await cleanup();
       }
     },
@@ -94,18 +97,9 @@ export const test = base.extend<
           NODE_ENV: "test",
           NEXT_TELEMETRY_DISABLED: "1",
         },
-        stdio: "pipe",
+        // Stream server logs to the test output for better debugging visibility
+        stdio: "inherit",
       });
-
-      // Forward Next.js logs to CI output for debugging visibility
-      if (process.env.CI) {
-        server.stdout?.on("data", (d: Buffer) => {
-          process.stdout.write(`[next] ${d.toString()}`);
-        });
-        server.stderr?.on("data", (d: Buffer) => {
-          process.stderr.write(`[next] ${d.toString()}`);
-        });
-      }
 
       // Wait for the HTTP endpoint instead of relying on logs (works better on CI)
       await waitForServer(serverUrl, 120_000);
