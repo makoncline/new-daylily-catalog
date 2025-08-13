@@ -47,6 +47,14 @@ export function useDataTable<TData>({
   const urlState = useUrlInitialTableState({ filterableColumnIds });
   const localStorageState = useLocalStorageInitialTableState({ storageKey });
 
+  const mergedInitialState: Partial<TableOptions<TData>> & {
+    sorting?: { id: string; desc: boolean }[];
+  } = {
+    ...initialStateOverrides,
+    ...urlState,
+    ...localStorageState,
+  };
+
   const table = useReactTable<TData>({
     ...defaultTableConfig<TData>(),
     data,
@@ -58,10 +66,12 @@ export function useDataTable<TData>({
       getColumnLabel: (columnId) => columnNames[columnId] ?? columnId,
     },
     initialState: {
-      sorting: urlState.globalFilter ? [{ id: "title", desc: false }] : [],
-      ...initialStateOverrides,
-      ...urlState,
-      ...localStorageState,
+      ...mergedInitialState,
+      sorting: mergedInitialState.sorting
+        ? mergedInitialState.sorting
+        : urlState.globalFilter
+          ? [{ id: "title", desc: false }]
+          : undefined,
     },
     autoResetPageIndex: false,
     ...config,

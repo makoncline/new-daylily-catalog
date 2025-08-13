@@ -48,7 +48,7 @@ export const test = base.extend<
         await cleanup();
       }
     },
-    { scope: "test" },
+    { scope: "worker" },
   ],
 
   //--------------------------------------------------------------------------
@@ -121,7 +121,7 @@ export const test = base.extend<
       server.kill("SIGKILL");
       await killProcessOnPort(port);
     },
-    { scope: "test" },
+    { scope: "worker" },
   ],
 
   //--------------------------------------------------------------------------

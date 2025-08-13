@@ -50,7 +50,9 @@ export function DataTableRowActions<TData extends { id: string }>({
             className="flex h-full w-full p-0 data-[state=open]:bg-muted"
             data-testid="row-actions-trigger"
             data-row-id={row.original.id}
-            data-row-title={(row.original as any).title}
+            // @ts-expect-error - title is a string
+            // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+            data-row-title={row.original.title}
           >
             <DotsHorizontalIcon className="h-4 w-4" />
             <span className="sr-only">Open menu</span>
