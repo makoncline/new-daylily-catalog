@@ -137,6 +137,7 @@ export function DataTableDownload<TData>({
         size="sm"
         onClick={downloadAsCsv}
         className="h-8 px-2 lg:px-3"
+        data-testid="download-csv"
       >
         Download CSV
         <Download className="ml-2 h-4 w-4" />

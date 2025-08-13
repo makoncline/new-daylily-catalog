@@ -94,6 +94,7 @@ export function MultiListSelect({
         onValueChange={setSearchValue}
         autoFocus={true}
         className="border-none pl-3 focus:ring-0"
+        data-testid="lists-search"
       />
       <CommandList className="flex-1 overflow-y-auto overflow-x-hidden pb-2">
         {!searchValue && (
@@ -121,6 +122,7 @@ export function MultiListSelect({
           <CommandItem
             onSelect={handleCreateList}
             className="flex items-center px-2 py-1.5"
+            data-testid="lists-create"
           >
             <Plus className="mr-2 h-4 w-4" />
             <span>Create &quot;{searchValue}&quot;</span>
@@ -133,6 +135,7 @@ export function MultiListSelect({
               key={list.id}
               onSelect={() => handleToggleList(list.id)}
               className="px-6"
+              data-testid={`lists-option-${list.id}`}
             >
               <Check
                 className={cn(
@@ -157,6 +160,7 @@ export function MultiListSelect({
       aria-expanded={open}
       className="w-full justify-between"
       disabled={disabled}
+      data-testid="lists-combobox"
     >
       <div className="flex flex-wrap gap-1 truncate">
         {selectedLists?.length

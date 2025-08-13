@@ -77,6 +77,7 @@ export function AhsListingSelect({
         onValueChange={setSearchValue}
         autoFocus={true}
         className="border-none pl-3 focus:ring-0"
+        data-testid="ahs-search"
       />
       <CommandList className="flex-1 overflow-y-auto overflow-x-hidden pb-2">
         {!searchValue && (
@@ -107,6 +108,7 @@ export function AhsListingSelect({
                   key={ahsListing.id}
                   onSelect={() => handleSelect(ahsListing)}
                   className="px-6"
+                  data-testid={`ahs-option-${ahsListing.id}`}
                 >
                   {ahsListing.name}
                 </CommandItem>

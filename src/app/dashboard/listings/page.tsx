@@ -8,7 +8,11 @@ import { EditListingDialog } from "./_components/edit-listing-dialog";
 export default function ListingsPage() {
   return (
     <>
-      <PageHeader heading="Listings" text="Manage and showcase your daylilies.">
+      <PageHeader
+        heading="Listings"
+        text="Manage and showcase your daylilies."
+        dataTestId="listings-title"
+      >
         <CreateListingButton />
       </PageHeader>
 

@@ -221,7 +221,11 @@ export function ListingForm({
             <FormItem>
               <FormLabel>Name</FormLabel>
               <FormControl>
-                <Input {...field} onBlur={() => onFieldBlur("title")} />
+                <Input
+                  {...field}
+                  onBlur={() => onFieldBlur("title")}
+                  data-testid="listing-title-input"
+                />
               </FormControl>
               <FormDescription>
                 Required. This is the name of your listing.
@@ -241,6 +245,7 @@ export function ListingForm({
               images={images}
               onImagesChange={setImages}
               referenceId={listingId}
+              data-testid="image-manager"
             />
             {images.length < LISTING_CONFIG.IMAGES.MAX_COUNT && (
               <div className="p-4">
@@ -255,6 +260,7 @@ export function ListingForm({
                       });
                     }
                   }}
+                  data-testid="image-upload"
                 />
               </div>
             )}

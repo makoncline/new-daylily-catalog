@@ -37,6 +37,7 @@ yarn-error.log*
 .env
 .env.development
 .env.production
+.env.test
 
 # vercel
 .vercel
@@ -54,6 +55,9 @@ node_modules/
 /playwright-report/
 /blob-report/
 /playwright/.cache/
+
+# prisma generated client
+/prisma/generated/
 
 # Sentry Config File
 .env.sentry-build-plugin

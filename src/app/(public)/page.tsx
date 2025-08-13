@@ -1,5 +1,3 @@
-import { MainContent } from "./_components/main-content";
-import { PublicBreadcrumbs } from "./_components/public-breadcrumbs";
 import { HomePageSEO } from "./_components/home-seo";
 import { generateHomePageMetadata } from "./_seo/metadata";
 import { getBaseUrl } from "@/lib/utils/getBaseUrl";
