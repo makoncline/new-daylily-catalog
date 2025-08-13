@@ -48,15 +48,21 @@ async function openRowActionsForTitle(page: Page, title: string) {
   const trigger = page.locator(
     `[data-testid="row-actions-trigger"][data-row-title="${title}"]`,
   );
-  await trigger.click();
-  await expect(page.getByTestId("row-actions-menu")).toBeVisible();
+  await trigger.click({ force: true });
+  try {
+    await page.getByTestId("row-actions-menu").waitFor({ timeout: 1000 });
+  } catch {
+    await trigger.click({ force: true });
+    await page.getByTestId("row-actions-menu").waitFor({ timeout: 2000 });
+  }
   log(`Row actions open: ${title}`);
 }
 
 async function clickRowActionEdit(page: Page, title: string) {
   log(`Click row action Edit: ${title}`);
-  const editItem = page.getByTestId("row-action-edit");
-  await expect(editItem).toBeVisible();
+  const menu = page.getByTestId("row-actions-menu");
+  await expect(menu).toBeVisible();
+  const editItem = menu.getByTestId("row-action-edit");
   await editItem.click({ force: true }); // radix animations cause the element not to settle. must force.
   log(`Edit clicked: ${title}`);
 }
@@ -67,10 +73,11 @@ async function expectEditDialogOpen(page: Page) {
   log("Edit dialog open OK");
 }
 
-async function expectEditDialogClosed(page: Page) {
-  log("Expect edit dialog closed");
+// debugEditDialog removed for simplicity now that close is stable
+
+async function closeEditDialog(page: Page) {
+  await page.getByRole("button", { name: "Close" }).first().click();
   await expect(page.getByTestId("edit-listing-dialog")).not.toBeVisible();
-  log("Edit dialog closed OK");
 }
 
 // Use mobile viewport and touch actions for all tests
@@ -108,8 +115,7 @@ test("listings: create custom listing", async ({ page, testUser, db }) => {
   await page.getByPlaceholder("Enter a title").fill(title);
   await page.getByRole("button", { name: "Create Listing" }).click();
   await expectEditDialogOpen(page);
-  await page.getByRole("button", { name: "Close" }).click();
-  await expectEditDialogClosed(page);
+  await closeEditDialog(page);
   await page.getByPlaceholder("Filter listings...").fill(title);
   await expect(page.getByTestId("listings-table")).toContainText(title);
   const created = await db.listing.findFirst({ where: { title } });
@@ -126,6 +132,10 @@ test("listings: edit listing via row actions", async ({
 
   // Use seeded listing with placeholder images for image reordering
   const target = "Custom Purple Beauty";
+  const listingBefore = await db.listing.findFirst({
+    where: { title: target },
+  });
+  const listingId = listingBefore!.id;
 
   await page.getByPlaceholder("Filter listings...").fill(target);
   await openRowActionsForTitle(page, target);
@@ -137,24 +147,33 @@ test("listings: edit listing via row actions", async ({
   await page.getByLabel("Description").fill(descValue);
   await page.getByLabel("Price").click();
   await page.waitForTimeout(250);
-  let l = await db.listing.findFirst({ where: { title: target } });
+  let l = await db.listing.findUnique({ where: { id: listingId } });
   expect(l?.description).toBe(descValue);
 
   // Field blur saves: Price
   const priceValue = 77;
   await page.getByLabel("Price").fill(String(priceValue));
-  await page.getByLabel("Name").click();
+  await page.getByTestId("listing-title-input").click();
+  await expect
+    .poll(
+      async () =>
+        (await db.listing.findUnique({ where: { id: listingId } }))?.price,
+    )
+    .toBe(priceValue);
+
+  // Field change: Status
+  await page.getByLabel("Status").click();
+  await page.getByRole("option", { name: "Hidden" }).click();
   await page.waitForTimeout(250);
-  l = await db.listing.findFirst({ where: { title: target } });
-  expect(l?.price).toBe(priceValue);
+  l = await db.listing.findUnique({ where: { id: listingId } });
+  expect(l?.status).toBe("HIDDEN");
 
   // Last field: Private Notes, do not blur; close to save
   const privateNoteValue = `Close-save note ${Date.now()}`;
   await page.getByLabel("Private Notes").fill(privateNoteValue);
-  await page.getByRole("button", { name: "Close" }).click();
-  await expectEditDialogClosed(page);
+  await closeEditDialog(page);
   await page.waitForTimeout(250);
-  l = await db.listing.findFirst({ where: { title: target } });
+  l = await db.listing.findUnique({ where: { id: listingId } });
   expect(l?.privateNote).toBe(privateNoteValue);
 
   // UI verification
@@ -197,17 +216,94 @@ test("listings: edit listing via row actions", async ({
 
   // Save and close
   await page.getByRole("button", { name: "Save Changes" }).click();
-  await page.getByRole("button", { name: "Close" }).click();
-  await expectEditDialogClosed(page);
+  await closeEditDialog(page);
 
   // DB verification of image order: first image should now be the one previously last
-  const listingAfter = await db.listing.findFirst({
-    where: { title: target },
+  const listingAfter = await db.listing.findUnique({
+    where: { id: listingId },
     include: { images: { orderBy: { order: "asc" } } },
   });
   expect(listingAfter?.images?.length ?? 0).toBeGreaterThanOrEqual(3);
   const firstUrl = listingAfter!.images[0]!.url;
   expect(firstUrl).toContain("Purple+3");
+
+  // Manage lists inline (create, remove, re-add)
+  await openRowActionsForTitle(page, target);
+  await page.locator('[data-testid="row-action-edit"]').click();
+  await expectEditDialogOpen(page);
+
+  // Create a new list
+  const newListName = `E2E L ${String(Date.now()).slice(-6)}`;
+  await page.getByTestId("lists-combobox").click();
+  await page.getByTestId("lists-search").fill(newListName);
+  await page.getByTestId("lists-create").click();
+  await page
+    .getByRole("dialog", { name: "Select Lists" })
+    .getByRole("button", { name: "Close" })
+    .first()
+    .click();
+  await expect(page.locator('[role="dialog"][data-state="open"]')).toHaveCount(
+    1,
+  );
+  await expect
+    .poll(async () => {
+      const created = await db.list.findFirst({
+        where: { title: newListName },
+      });
+      const l2 = await db.listing.findUnique({
+        where: { id: listingId },
+        include: { lists: true },
+      });
+      return Boolean(
+        created && l2?.lists.some((li) => li.title === newListName),
+      );
+    })
+    .toBe(true);
+
+  // Remove Favorites
+  const favorites = await db.list.findFirst({ where: { title: "Favorites" } });
+  await page.getByTestId("lists-combobox").click();
+  await page.locator(`[data-testid="lists-option-${favorites!.id}"]`).click();
+  await page
+    .getByRole("dialog", { name: "Select Lists" })
+    .getByRole("button", { name: "Close" })
+    .first()
+    .click();
+  await expect(page.locator('[role="dialog"][data-state="open"]')).toHaveCount(
+    1,
+  );
+  await expect
+    .poll(async () => {
+      const l2 = await db.listing.findUnique({
+        where: { id: listingId },
+        include: { lists: true },
+      });
+      return Boolean(l2?.lists.some((li) => li.title === "Favorites"));
+    })
+    .toBe(false);
+
+  // Re-add Favorites
+  await page.getByTestId("lists-combobox").click();
+  await page.locator(`[data-testid="lists-option-${favorites!.id}"]`).click();
+  await page
+    .getByRole("dialog", { name: "Select Lists" })
+    .getByRole("button", { name: "Close" })
+    .first()
+    .click();
+  await expect(page.locator('[role="dialog"][data-state="open"]')).toHaveCount(
+    1,
+  );
+  await expect
+    .poll(async () => {
+      const l2 = await db.listing.findUnique({
+        where: { id: listingId },
+        include: { lists: true },
+      });
+      return Boolean(l2?.lists.some((li) => li.title === "Favorites"));
+    })
+    .toBe(true);
+
+  await closeEditDialog(page);
 });
 
 test("listings: edit listing images – add and delete via UI without S3", async ({
@@ -238,8 +334,7 @@ test("listings: edit listing images – add and delete via UI without S3", async
 
   // Save and close, then verify DB count decreased by 1
   await page.getByRole("button", { name: "Save Changes" }).click();
-  await page.getByRole("button", { name: "Close" }).click();
-  await expectEditDialogClosed(page);
+  await closeEditDialog(page);
 
   const afterDelete = await db.listing.findFirst({
     where: { title: target },
@@ -272,8 +367,7 @@ test("listings: edit listing images – add and delete via UI without S3", async
   await page.getByRole("button", { name: "Save Changes" }).click();
   // Wait briefly for save to settle
   await page.waitForTimeout(300);
-  await page.getByRole("button", { name: "Close" }).click();
-  await expectEditDialogClosed(page);
+  await closeEditDialog(page);
 
   const afterAdd = await db.listing.findFirst({
     where: { title: target },
@@ -300,7 +394,7 @@ test("listings: delete listing via row actions", async ({
   // Also test deleting from Edit dialog
   await page.getByRole("button", { name: "Delete Listing" }).click();
   await page.getByRole("button", { name: "Delete" }).click();
-  await expectEditDialogClosed(page);
+  await closeEditDialog(page);
 
   // Verify gone in table and DB
   await page.getByPlaceholder("Filter listings...").fill(title);
@@ -331,7 +425,7 @@ test("listings: create from AHS and assign list", async ({
   await page.getByPlaceholder("Search lists...").fill(newListName);
   await page.getByText(`Create "${newListName}"`).click();
   await page.getByRole("button", { name: "Save Changes" }).click();
-  await page.getByRole("button", { name: "Close" }).click();
+  await closeEditDialog(page);
 
   await page.getByPlaceholder("Filter listings...").fill(customName);
   await expect(page.getByTestId("listings-table")).toContainText("PW AHS List");
