@@ -71,7 +71,8 @@ async function createProfileMetadata(
 
     const rawImageUrl = profile.images?.[0]?.url ?? IMAGES.DEFAULT_CATALOG;
     const imageUrl = getOptimizedMetaImageUrl(rawImageUrl);
-    const pageUrl = `${url}/${profile.slug ?? profile.id}`;
+    // Always use the stable ID path for SEO/canonical signals.
+    const pageUrl = `${url}/${profile.id}`;
 
     return {
       url,
@@ -79,6 +80,8 @@ async function createProfileMetadata(
       description: description.trim(),
       imageUrl,
       pageUrl,
+      // Let Google show big thumbnails in Search/Discover.
+      robots: "index, follow, max-image-preview:large",
       openGraph: {
         title: `${title} | ${METADATA_CONFIG.SITE_NAME}`,
         description: description.trim(),
@@ -127,6 +130,8 @@ async function createProfileMetadata(
       description: "Browse our collection of beautiful daylilies.",
       imageUrl: IMAGES.DEFAULT_CATALOG,
       pageUrl: `${url}/${profile.id}`,
+      // Let Google show big thumbnails in Search/Discover.
+      robots: "index, follow, max-image-preview:large",
       openGraph: {
         title: "Daylily Catalog",
         description: "Browse our collection of beautiful daylilies.",

@@ -48,72 +48,14 @@ export function OptimizedImage({
   fit = IMAGE_CONFIG.FIT,
   ...props
 }: OptimizedImageProps) {
-  const [isLoading, setIsLoading] = React.useState(true);
+  const [loaded, setLoaded] = React.useState(false);
   const [transformError, setTransformError] = React.useState(false);
 
-  // Get dimensions based on size
   const dimension =
     size === "thumbnail"
       ? IMAGE_CONFIG.SIZES.THUMBNAIL
       : IMAGE_CONFIG.SIZES.FULL;
 
-  const handleLoad = React.useCallback(() => {
-    if (process.env.NODE_ENV === "development") {
-      // Random delay between MIN and MAX in development
-      const randomDelay = Math.floor(
-        Math.random() *
-          (IMAGE_CONFIG.DEBUG.BLUR_DELAY.MAX -
-            IMAGE_CONFIG.DEBUG.BLUR_DELAY.MIN +
-            1) +
-          IMAGE_CONFIG.DEBUG.BLUR_DELAY.MIN,
-      );
-
-      setTimeout(() => {
-        setIsLoading(false);
-      }, randomDelay);
-    } else {
-      // In production, transition immediately
-      setIsLoading(false);
-    }
-  }, []);
-
-  const handleError: React.ReactEventHandler<HTMLImageElement> =
-    React.useCallback(
-      (_error) => {
-        if (!transformError) {
-          setTransformError(true);
-
-          const transformedUrl = cloudflareLoader({
-            src,
-            width: dimension,
-            quality:
-              size === "thumbnail"
-                ? IMAGE_CONFIG.QUALITY.MEDIUM
-                : IMAGE_CONFIG.QUALITY.HIGH,
-            fit,
-          });
-
-          const imageLoadError = new Error(
-            `Failed to load optimized image resource`,
-          );
-
-          reportError({
-            error: imageLoadError,
-            level: "warning",
-            context: {
-              source: "OptimizedImage",
-              src,
-              transformedUrl,
-              size,
-              fit,
-            },
-          });
-        }
-      },
-      [transformError, src, dimension, size, fit],
-    );
-
-  // Get the transformed URLs
   const imageUrl = cloudflareLoader({
     src,
     width: dimension,
@@ -131,16 +73,42 @@ export function OptimizedImage({
     fit,
   });
 
-  // Props specific to main image
-  const sharedImageProps = {
-    priority,
-    style: { objectFit: fit },
-    width: dimension,
-    height: dimension,
-    unoptimized: true,
-    onLoad: handleLoad,
-    onError: handleError,
-  };
+  const handleError: React.ReactEventHandler<HTMLImageElement> =
+    React.useCallback(
+      (_error) => {
+        if (!transformError) {
+          setTransformError(true);
+          const imageLoadError = new Error(
+            `Failed to load optimized image resource`,
+          );
+          reportError({
+            error: imageLoadError,
+            level: "warning",
+            context: {
+              source: "OptimizedImage",
+              src,
+              transformedUrl: imageUrl,
+              size,
+              fit,
+            },
+          });
+        }
+      },
+      [transformError, imageUrl, src, size, fit],
+    );
+
+  const handleLoad: React.ReactEventHandler<HTMLImageElement> =
+    React.useCallback(() => {
+      // In development, hold the overlay a bit so you can observe the blur-up
+      if (process.env.NODE_ENV === "development") {
+        const { MIN, MAX } = IMAGE_CONFIG.DEBUG.BLUR_DELAY;
+        const ms = Math.floor(Math.random() * (MAX - MIN + 1)) + MIN;
+        const id = setTimeout(() => setLoaded(true), ms);
+        return () => clearTimeout(id);
+      }
+      // In production, fade overlay immediately after paint
+      setLoaded(true);
+    }, []);
 
   return (
     <div
@@ -150,27 +118,46 @@ export function OptimizedImage({
       )}
       {...props}
     >
-      {/* Blur placeholder */}
-      <Image
-        {...sharedImageProps}
-        alt={alt}
-        src={blurUrl}
+      {/* LQIP overlay as background image */}
+      <span
+        aria-hidden="true"
         className={cn(
-          "absolute inset-0 h-full w-full scale-110 transform-gpu blur-xl",
-          isLoading ? "opacity-100" : "opacity-0",
+          "absolute inset-0 scale-110 transform-gpu blur-2xl transition-opacity duration-300",
+          loaded ? "opacity-0" : "opacity-100",
         )}
+        style={{
+          backgroundImage: `url(${blurUrl})`,
+          backgroundSize: "cover",
+          backgroundPosition: "center",
+        }}
       />
 
-      {/* Main image */}
       <Image
-        {...sharedImageProps}
         alt={alt}
         src={imageUrl}
-        className={cn(
-          "relative h-full w-full transition-opacity duration-300",
-          isLoading ? "opacity-0" : "opacity-100",
-        )}
+        width={dimension}
+        height={dimension}
+        unoptimized
+        decoding="async"
+        style={{ objectFit: fit }}
+        className={cn("relative h-full w-full")}
+        loading={priority ? "eager" : "lazy"}
+        fetchPriority={priority ? "high" : "auto"}
+        onLoad={handleLoad}
+        onError={handleError}
       />
+
+      {/* Non-JS fallback ensures the real image is in the HTML for non-JS renderers */}
+      <noscript>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={imageUrl}
+          alt={alt}
+          width={dimension}
+          height={dimension}
+          style={{ objectFit: fit }}
+        />
+      </noscript>
     </div>
   );
 }

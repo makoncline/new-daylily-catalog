@@ -2,6 +2,7 @@ import { unstable_cache } from "next/cache";
 import { reportError } from "@/lib/error-utils";
 import type { RouterOutputs } from "@/trpc/react";
 import { type generateProfileMetadata } from "./metadata";
+import { getOptimizedMetaImageUrl } from "@/lib/utils/cloudflareLoader";
 
 // Use the router output types instead of custom interface
 type PublicProfile = RouterOutputs["public"]["getProfile"];
@@ -39,9 +40,10 @@ async function createProfilePageJsonLd(
             item: {
               "@type": "Product",
               name: listing.title ?? "Daylily",
-              url: `${metadata.pageUrl}/${listing.slug ?? listing.id}`,
-              // Image will always exist due to our filter
-              image: listing.images[0]?.url,
+              // Canonical product URL: /{userId}/{listingId}
+              url: `${metadata.pageUrl}/${listing.id}`,
+              // Optimized, cacheable image URL for Google Images
+              image: getOptimizedMetaImageUrl(listing.images[0]!.url),
               // Price will always exist due to our filter
               offers: {
                 "@type": "Offer",
@@ -76,9 +78,8 @@ async function createProfilePageJsonLd(
                   item: {
                     "@type": "Product",
                     name: listing.title ?? "Daylily",
-                    url: `${metadata.pageUrl}/${listing.slug ?? listing.id}`,
-                    // Image will always exist due to our filter
-                    image: listing.images[0]?.url,
+                    url: `${metadata.pageUrl}/${listing.id}`,
+                    image: getOptimizedMetaImageUrl(listing.images[0]!.url),
                     // Price will always exist due to our filter
                     offers: {
                       "@type": "Offer",
