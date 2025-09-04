@@ -34,8 +34,16 @@ export async function ListingPageSEO({
     ),
   );
 
+  const price = listing.price?.toFixed(2) ?? "0.00";
+
   return (
     <>
+      {/* Product-specific OpenGraph meta tags for social media platforms */}
+      <meta property="og:type" content="product" />
+      <meta property="product:price:amount" content={price} />
+      <meta property="product:price:currency" content="USD" />
+      <meta property="product:availability" content="in stock" />
+
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}

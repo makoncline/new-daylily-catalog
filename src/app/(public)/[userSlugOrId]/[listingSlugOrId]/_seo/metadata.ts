@@ -67,12 +67,7 @@ async function createListingMetadata(listing: Listing | null, url: string) {
             alt: "Daylily listing image",
           },
         ],
-        type: "product",
-      },
-      other: {
-        "product:price:amount": listing.price?.toFixed(2) ?? "0.00",
-        "product:price:currency": "USD",
-        "product:availability": "in stock",
+        type: "website",
       },
       twitter: {
         card: METADATA_CONFIG.TWITTER_CARD_TYPE,
