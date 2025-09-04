@@ -5,10 +5,10 @@
   "type": "module",
   "scripts": {
     "build": "next build",
-    "dev": "concurrently \"next dev\" \"npm run start-tunnel\"",
+    "dev": "next dev",
     "postinstall": "prisma generate",
     "lint": "next lint",
-    "start": "concurrently \"next start\" \"npm run start-tunnel\"",
+    "start": "next start",
     "start-tunnel": "cloudflared tunnel run local",
     "env:dev": "npx dotenv -e .env.development -- ",
     "env:prod": "npx dotenv -e .env.production -- ",
