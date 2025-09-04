@@ -20,9 +20,14 @@ jobs:
       - name: Alias to <hash>.deploy-preview.daylilycatalog.com
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_TEAM: ${{ secrets.VERCEL_TEAM }}
           URL: ${{ steps.vals.outputs.URL }}
           HASH: ${{ steps.vals.outputs.HASH }}
         run: |
           ALIAS="${HASH}.deploy-preview.daylilycatalog.com"
-          npx vercel alias set "$URL" "$ALIAS" --token "$VERCEL_TOKEN"
-          echo "ALIASED=$ALIAS"
+          # sanity check scope / login
+          npx vercel whoami --token "$VERCEL_TOKEN" --scope "$VERCEL_TEAM"
+          # optional: confirm domain is visible in this scope
+          npx vercel domains ls --token "$VERCEL_TOKEN" --scope "$VERCEL_TEAM"
+          # alias within the correct team
+          npx vercel alias set "$URL" "$ALIAS" --token "$VERCEL_TOKEN" --scope "$VERCEL_TEAM"
