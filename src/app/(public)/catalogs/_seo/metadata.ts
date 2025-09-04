@@ -15,7 +15,7 @@ async function createCatalogsPageMetadata(
 ): Promise<CatalogsPageMetadata> {
   try {
     // Use the site defaults from config with catalog-specific title
-    const title = "Browse Daylily Catalogs | " + METADATA_CONFIG.SITE_NAME;
+    const title = "Browse Daylily Catalogs";
     const pageUrl = `${url}/catalogs`;
     const baseUrl = url; // Add the base URL
 

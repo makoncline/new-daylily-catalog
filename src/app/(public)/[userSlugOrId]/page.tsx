@@ -110,7 +110,7 @@ export default async function Page({ params }: PageProps) {
       />
       <MainContent>
         <div className="mb-6">
-          <PublicBreadcrumbs />
+          <PublicBreadcrumbs profile={initialProfile} />
         </div>
 
         <div className="space-y-6">

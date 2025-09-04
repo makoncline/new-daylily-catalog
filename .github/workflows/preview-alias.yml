@@ -1,0 +1,33 @@
+name: Alias Vercel Preview
+
+on:
+  deployment_status:
+
+jobs:
+  alias:
+    if: >
+      github.event.deployment_status.state == 'success' &&
+      (github.event.deployment.environment == 'Preview' || github.event.deployment.environment == 'preview')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Compute values
+        id: vals
+        run: |
+          echo "URL=${{ github.event.deployment_status.environment_url }}" >> $GITHUB_OUTPUT
+          echo "SHA=${{ github.event.deployment.sha }}" >> $GITHUB_OUTPUT
+          echo "HASH=$(echo '${{ github.event.deployment.sha }}' | cut -c1-8)" >> $GITHUB_OUTPUT
+
+      - name: Alias to <hash>.deploy-preview.daylilycatalog.com
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_TEAM: ${{ secrets.VERCEL_TEAM }}
+          URL: ${{ steps.vals.outputs.URL }}
+          HASH: ${{ steps.vals.outputs.HASH }}
+        run: |
+          ALIAS="${HASH}.deploy-preview.daylilycatalog.com"
+          # sanity check scope / login
+          npx vercel whoami --token "$VERCEL_TOKEN" --scope "$VERCEL_TEAM"
+          # optional: confirm domain is visible in this scope
+          npx vercel domains ls --token "$VERCEL_TOKEN" --scope "$VERCEL_TEAM"
+          # alias within the correct team
+          npx vercel alias set "$URL" "$ALIAS" --token "$VERCEL_TOKEN" --scope "$VERCEL_TEAM"

@@ -1,0 +1,72 @@
+name: E2E on Vercel Preview
+
+on:
+  deployment_status:
+  workflow_dispatch:
+    inputs:
+      commit_sha:
+        description: "Commit SHA to test (first 8 chars, e.g., abc12345)"
+        required: true
+        type: string
+
+concurrency:
+  group: e2e-${{ github.event.deployment.sha || github.event.inputs.commit_sha }}
+  cancel-in-progress: true
+
+jobs:
+  e2e:
+    if: >
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.deployment_status.state == 'success' &&
+       (github.event.deployment.environment == 'Preview' || github.event.deployment.environment == 'preview'))
+    runs-on: ubuntu-latest
+    steps:
+      - name: Compute commit SHA
+        id: sha
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "COMMIT_SHA=${{ github.event.inputs.commit_sha }}" >> $GITHUB_OUTPUT
+          else
+            echo "COMMIT_SHA=${{ github.event.deployment.sha }}" >> $GITHUB_OUTPUT
+          fi
+
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.sha.outputs.COMMIT_SHA }}
+
+      - uses: actions/setup-node@v4
+        with: { node-version: 20 }
+
+      # swap to pnpm if you prefer:
+      - run: npm ci
+      - run: npx playwright install --with-deps
+
+      - name: Compute BASE_URL (alias)
+        id: url
+        run: |
+          HASH=$(echo '${{ steps.sha.outputs.COMMIT_SHA }}' | cut -c1-8)
+          echo "BASE_URL=https://${HASH}.deploy-preview.daylilycatalog.com" >> $GITHUB_ENV
+
+      # Optional: wait until alias responds 200 to avoid races
+      - name: Wait for ready
+        env:
+          BASE_URL: ${{ env.BASE_URL }}
+          VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
+        run: |
+          for i in {1..50}; do
+            if [ -n "$VERCEL_AUTOMATION_BYPASS_SECRET" ]; then
+              code=$(curl -Is -H "x-vercel-protection-bypass: $VERCEL_AUTOMATION_BYPASS_SECRET" "$BASE_URL" | head -n1 | awk '{print $2}')
+            else
+              code=$(curl -Is "$BASE_URL" | head -n1 | awk '{print $2}')
+            fi
+            if [ "$code" = "200" ] || [ "$code" = "302" ] || [ "$code" = "301" ]; then exit 0; fi
+            sleep 3
+          done
+          echo "Preview never went ready" >&2; exit 1
+
+      - name: Run Playwright
+        env:
+          BASE_URL: ${{ env.BASE_URL }}
+          # set only if you enabled Vercel Preview Protection
+          VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
+        run: npx playwright test

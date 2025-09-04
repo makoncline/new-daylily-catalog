@@ -51,6 +51,8 @@ async function createListingMetadata(listing: Listing | null, url: string) {
       pageUrl,
       title,
       description,
+      // Let Google show large thumbnails (Search/Discover).
+      robots: "index, follow, max-image-preview:large",
       openGraph: {
         title,
         description,

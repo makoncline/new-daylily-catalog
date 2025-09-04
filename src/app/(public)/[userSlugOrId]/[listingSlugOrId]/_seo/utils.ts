@@ -26,7 +26,8 @@ export function getListingName(listing: Listing): string {
 }
 
 export function getListingPageUrl(listing: Listing, baseUrl: string): string {
-  return `${baseUrl}/${listing.userId}/${listing.slug ?? listing.id}`;
+  // Always use the stable ID path for canonical/SEO.
+  return `${baseUrl}/${listing.userId}/${listing.id}`;
 }
 
 export function getListingDescription(

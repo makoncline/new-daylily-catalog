@@ -30,7 +30,12 @@ export function ListingDisplay({
   return (
     <div className="space-y-8">
       {listing.images.length > 0 ? (
-        <ImageGallery images={listing.images} className="max-w-full" />
+        <ImageGallery
+          images={listing.images}
+          className="max-w-full"
+          listingTitle={listing.title}
+          listingName={listing.ahsListing?.name ?? undefined}
+        />
       ) : (
         <ImagePlaceholder />
       )}

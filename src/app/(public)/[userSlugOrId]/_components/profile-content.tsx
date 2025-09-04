@@ -36,7 +36,10 @@ export function ProfileContent({ initialProfile }: ProfileContentProps) {
           <CatalogNav />
         </div>
         <div className="order-3 sm:order-1 sm:col-span-5">
-          <ImagesSection images={initialProfile.images} />
+          <ImagesSection
+            images={initialProfile.images}
+            profileTitle={initialProfile.title ?? undefined}
+          />
         </div>
       </div>
       <div className="hidden sm:block">
