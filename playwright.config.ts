@@ -9,10 +9,11 @@ export default defineConfig({
     baseURL,
     screenshot: "only-on-failure",
     bypassCSP: true,
-    ...(process.env.VERCEL_PROTECTION_BYPASS
+    ...(process.env.VERCEL_AUTOMATION_BYPASS_SECRET
       ? {
           extraHTTPHeaders: {
-            "x-vercel-protection-bypass": process.env.VERCEL_PROTECTION_BYPASS,
+            "x-vercel-protection-bypass":
+              process.env.VERCEL_AUTOMATION_BYPASS_SECRET,
           },
         }
       : {}),

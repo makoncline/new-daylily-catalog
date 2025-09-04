@@ -49,9 +49,16 @@ jobs:
 
       # Optional: wait until alias responds 200 to avoid races
       - name: Wait for ready
+        env:
+          BASE_URL: ${{ env.BASE_URL }}
+          VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
         run: |
           for i in {1..50}; do
-            code=$(curl -Is "$BASE_URL" | head -n1 | awk '{print $2}')
+            if [ -n "$VERCEL_AUTOMATION_BYPASS_SECRET" ]; then
+              code=$(curl -Is -H "x-vercel-protection-bypass: $VERCEL_AUTOMATION_BYPASS_SECRET" "$BASE_URL" | head -n1 | awk '{print $2}')
+            else
+              code=$(curl -Is "$BASE_URL" | head -n1 | awk '{print $2}')
+            fi
             if [ "$code" = "200" ] || [ "$code" = "302" ] || [ "$code" = "301" ]; then exit 0; fi
             sleep 3
           done
@@ -61,5 +68,5 @@ jobs:
         env:
           BASE_URL: ${{ env.BASE_URL }}
           # set only if you enabled Vercel Preview Protection
-          VERCEL_PROTECTION_BYPASS: ${{ secrets.VERCEL_PROTECTION_BYPASS }}
+          VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
         run: npx playwright test
