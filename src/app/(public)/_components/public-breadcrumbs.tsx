@@ -3,16 +3,30 @@
 import { usePathname } from "next/navigation";
 import { Breadcrumbs, type BreadcrumbItemType } from "@/components/breadcrumbs";
 import { api } from "@/trpc/react";
+import type { RouterOutputs } from "@/trpc/react";
 
-export function PublicBreadcrumbs() {
+type PublicProfile = RouterOutputs["public"]["getProfile"];
+
+interface PublicBreadcrumbsProps {
+  profile?: {
+    id?: string;
+    title?: string | null;
+    slug?: string | null;
+  };
+}
+
+export function PublicBreadcrumbs({ profile }: PublicBreadcrumbsProps) {
   const pathname = usePathname();
   const segments = pathname.split("/").filter(Boolean);
   const [userSlugOrId, listingSlugOrId] = segments;
 
-  const { data: profile } = api.public.getProfile.useQuery(
-    { userSlugOrId: userSlugOrId! },
-    { enabled: !!userSlugOrId },
-  );
+  // If we have server-rendered profile data, use it directly
+  const profileData =
+    profile ??
+    api.public.getProfile.useQuery(
+      { userSlugOrId: userSlugOrId! },
+      { enabled: !!userSlugOrId && !profile },
+    ).data;
 
   const { data: listing } = api.public.getListing.useQuery(
     { userSlugOrId: userSlugOrId!, listingSlugOrId: listingSlugOrId! },
@@ -24,10 +38,12 @@ export function PublicBreadcrumbs() {
     { title: "Catalogs", href: "/catalogs" },
   ];
 
-  if (userSlugOrId) {
+  if (userSlugOrId && profileData) {
+    // Use canonical ID path for consistency - use profile id if available, otherwise use userSlugOrId
+    const canonical = `/${profileData.id ?? userSlugOrId}`;
     items.push({
-      title: profile?.title ?? "Loading...",
-      href: `/${userSlugOrId}`,
+      title: profileData.title ?? "Untitled Catalog",
+      href: canonical,
     });
   }
 

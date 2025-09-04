@@ -29,30 +29,21 @@ async function createProfilePageJsonLd(
       description: metadata.description,
       image: metadata.imageUrl,
       url: metadata.pageUrl,
-      // Add makesOffer to show available products/listings - only include those with prices and images
+      // Add makesOffer as array of Offer objects for valid Schema.org
       ...(validListings.length > 0 && {
-        makesOffer: {
-          "@type": "ItemList",
-          numberOfItems: validListings.length,
-          itemListElement: validListings.map((listing, index) => ({
-            "@type": "ListItem",
-            position: index + 1,
-            item: {
-              "@type": "Product",
-              name: listing.title ?? "Daylily",
-              // Canonical product URL: /{userId}/{listingId}
-              url: `${metadata.pageUrl}/${listing.id}`,
-              // Optimized, cacheable image URL for Google Images
-              image: getOptimizedMetaImageUrl(listing.images[0]!.url),
-              // Price will always exist due to our filter
-              offers: {
-                "@type": "Offer",
-                price: listing.price!.toFixed(2),
-                priceCurrency: "USD",
-              },
-            },
-          })),
-        },
+        makesOffer: validListings.map((listing) => ({
+          "@type": "Offer",
+          price: listing.price!.toFixed(2),
+          priceCurrency: "USD",
+          url: `${metadata.pageUrl}/${listing.id}`,
+          itemOffered: {
+            "@type": "Product",
+            name: listing.title ?? "Daylily",
+            url: `${metadata.pageUrl}/${listing.id}`,
+            // Optimized, cacheable image URL for Google Images
+            image: getOptimizedMetaImageUrl(listing.images[0]!.url),
+          },
+        })),
       }),
       // Add user's lists as collections, also only using valid listings
       ...(profile.lists &&
@@ -64,7 +55,7 @@ async function createProfilePageJsonLd(
             );
 
             return {
-              "@type": "Collection",
+              "@type": "OfferCatalog",
               name: list.title,
               description:
                 list.description ?? `Collection of daylilies: ${list.title}`,

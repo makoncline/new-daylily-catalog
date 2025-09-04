@@ -105,7 +105,13 @@ export default async function Page({ params }: PageProps) {
       <MainContent>
         <div className="mx-auto flex w-full max-w-lg flex-col gap-6">
           <div className="space-y-6">
-            <PublicBreadcrumbs />
+            <PublicBreadcrumbs
+              profile={
+                listing.user.profile
+                  ? { ...listing.user.profile, id: listing.userId }
+                  : undefined
+              }
+            />
           </div>
           <Suspense fallback={<ListingDisplaySkeleton />}>
             <ListingDisplay listing={listing} variant="page" />

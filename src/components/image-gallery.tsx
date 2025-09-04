@@ -36,9 +36,15 @@ interface ThumbnailProps {
   image: ImageData;
   isSelected: boolean;
   onClick: () => void;
+  generateAltText: (isThumbnail?: boolean) => string;
 }
 
-function Thumbnail({ image, isSelected, onClick }: ThumbnailProps) {
+function Thumbnail({
+  image,
+  isSelected,
+  onClick,
+  generateAltText,
+}: ThumbnailProps) {
   return (
     <div
       className={cn(
@@ -49,7 +55,7 @@ function Thumbnail({ image, isSelected, onClick }: ThumbnailProps) {
     >
       <OptimizedImage
         src={image.url}
-        alt={image.alt ?? "Thumbnail"}
+        alt={image.alt ?? generateAltText(true)}
         size="thumbnail"
         className="h-full w-full"
       />
@@ -60,10 +66,35 @@ function Thumbnail({ image, isSelected, onClick }: ThumbnailProps) {
 interface ImageGalleryProps {
   images: ImageData[];
   className?: string;
+  profileTitle?: string;
+  listingTitle?: string;
+  listingName?: string;
 }
 
-export function ImageGallery({ images, className }: ImageGalleryProps) {
+export function ImageGallery({
+  images,
+  className,
+  profileTitle,
+  listingTitle,
+  listingName,
+}: ImageGalleryProps) {
   const [selectedImage, setSelectedImage] = React.useState(images[0] ?? null);
+
+  // Generate descriptive alt text based on available context
+  const generateAltText = (isThumbnail = false) => {
+    if (listingTitle || listingName) {
+      const displayName = listingTitle ?? listingName;
+      return isThumbnail
+        ? `${displayName} thumbnail`
+        : `${displayName} daylily bloom`;
+    }
+    if (profileTitle) {
+      return isThumbnail
+        ? `${profileTitle} thumbnail`
+        : `${profileTitle} garden image`;
+    }
+    return isThumbnail ? "Thumbnail" : "Gallery image";
+  };
 
   if (!images.length || !selectedImage) return null;
 
@@ -73,7 +104,7 @@ export function ImageGallery({ images, className }: ImageGalleryProps) {
       mainContent={
         <OptimizedImage
           src={selectedImage.url}
-          alt={selectedImage.alt ?? "Gallery image"}
+          alt={selectedImage.alt ?? generateAltText(false)}
           size="full"
           priority
           className="h-full w-full"
@@ -87,6 +118,7 @@ export function ImageGallery({ images, className }: ImageGalleryProps) {
                 image={image}
                 isSelected={image.id === selectedImage.id}
                 onClick={() => setSelectedImage(image)}
+                generateAltText={generateAltText}
               />
             ))
           : undefined
