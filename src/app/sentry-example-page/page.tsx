@@ -86,7 +86,7 @@ export default function Page() {
         <div className="rounded-lg border p-4">
           <h2 className="mb-4 text-xl font-semibold">Original Sentry Tests</h2>
           <button
-            className="mb-4 rounded bg-red-500 px-4 py-2 text-white hover:bg-red-600"
+            className="bg-destructive text-destructive-foreground hover:bg-destructive/90 mb-4 rounded px-4 py-2"
             onClick={async () => {
               await Sentry.startSpan(
                 {
@@ -109,7 +109,7 @@ export default function Page() {
             Check errors on the{" "}
             <a
               href="https://makon-dev.sentry.io/issues/?project=4508939597643776"
-              className="text-blue-500 underline"
+              className="text-primary underline"
             >
               Sentry Issues Page
             </a>
@@ -120,49 +120,49 @@ export default function Page() {
           <h2 className="mb-4 text-xl font-semibold">Utility Function Tests</h2>
           <div className="grid grid-cols-2 gap-2">
             <button
-              className="rounded bg-blue-500 px-3 py-1.5 text-sm text-white hover:bg-blue-600"
+              className="bg-primary text-primary-foreground hover:bg-primary/90 rounded px-3 py-1.5 text-sm"
               onClick={testCaptureException}
             >
               Test Exception
             </button>
             <button
-              className="rounded bg-blue-500 px-3 py-1.5 text-sm text-white hover:bg-blue-600"
+              className="bg-primary text-primary-foreground hover:bg-primary/90 rounded px-3 py-1.5 text-sm"
               onClick={testCaptureMessage}
             >
               Test Message
             </button>
             <button
-              className="rounded bg-blue-500 px-3 py-1.5 text-sm text-white hover:bg-blue-600"
+              className="bg-primary text-primary-foreground hover:bg-primary/90 rounded px-3 py-1.5 text-sm"
               onClick={testSetUser}
             >
               Set User
             </button>
             <button
-              className="rounded bg-blue-500 px-3 py-1.5 text-sm text-white hover:bg-blue-600"
+              className="bg-primary text-primary-foreground hover:bg-primary/90 rounded px-3 py-1.5 text-sm"
               onClick={testClearUser}
             >
               Clear User
             </button>
             <button
-              className="rounded bg-blue-500 px-3 py-1.5 text-sm text-white hover:bg-blue-600"
+              className="bg-primary text-primary-foreground hover:bg-primary/90 rounded px-3 py-1.5 text-sm"
               onClick={testBreadcrumb}
             >
               Add Breadcrumb
             </button>
             <button
-              className="rounded bg-blue-500 px-3 py-1.5 text-sm text-white hover:bg-blue-600"
+              className="bg-primary text-primary-foreground hover:bg-primary/90 rounded px-3 py-1.5 text-sm"
               onClick={testSetContext}
             >
               Set Context
             </button>
             <button
-              className="rounded bg-blue-500 px-3 py-1.5 text-sm text-white hover:bg-blue-600"
+              className="bg-primary text-primary-foreground hover:bg-primary/90 rounded px-3 py-1.5 text-sm"
               onClick={testSetTag}
             >
               Set Tag
             </button>
             <button
-              className="rounded bg-blue-500 px-3 py-1.5 text-sm text-white hover:bg-blue-600"
+              className="bg-primary text-primary-foreground hover:bg-primary/90 rounded px-3 py-1.5 text-sm"
               onClick={testWithSpan}
             >
               Test Span
@@ -171,25 +171,24 @@ export default function Page() {
         </div>
       </div>
 
-      <div className="rounded-lg border bg-gray-50 p-4">
+      <div className="bg-card rounded-lg border p-4">
         <h2 className="mb-2 text-xl font-semibold">Action Logs</h2>
-        <div className="h-48 overflow-y-auto rounded bg-gray-900 p-3 font-mono text-sm text-gray-200">
+        <div className="bg-foreground text-background h-48 overflow-y-auto rounded p-3 font-mono text-sm">
           {logs.length === 0 ? (
-            <p className="text-gray-400">
+            <p className="text-muted-foreground">
               Click buttons above to test Sentry functionality...
             </p>
           ) : (
             logs.map((log, index) => (
               <div key={index} className="mb-1">
-                <span className="text-green-400">[{log.type}]</span>{" "}
-                {log.message}
+                <span className="text-primary">[{log.type}]</span> {log.message}
               </div>
             ))
           )}
         </div>
         <div className="mt-2 text-right">
           <button
-            className="rounded bg-gray-200 px-2 py-1 text-sm text-gray-800"
+            className="bg-muted text-foreground rounded px-2 py-1 text-sm"
             onClick={() => setLogs([])}
           >
             Clear Logs
@@ -197,7 +196,7 @@ export default function Page() {
         </div>
       </div>
 
-      <div className="mt-6 text-sm text-gray-500">
+      <div className="text-muted-foreground mt-6 text-sm">
         <p>
           When Sentry is disabled (NEXT_PUBLIC_SENTRY_ENABLED=false), actions
           will log to console but not to Sentry. Check your browser console to

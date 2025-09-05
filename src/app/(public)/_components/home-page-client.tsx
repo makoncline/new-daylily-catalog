@@ -62,7 +62,7 @@ export default function HomePageClient() {
       <section className="relative flex w-full flex-col items-center justify-center gap-6 p-6 py-8 md:py-16 lg:flex-row">
         {/* Background Image with Overlay */}
         <div className="absolute inset-0">
-          <div className="absolute inset-0 z-10 bg-black/60 backdrop-blur-[2px]" />
+          <div className="bg-foreground/60 absolute inset-0 z-10 backdrop-blur-[2px]" />
           <Image
             src={hero.backgroundImage.src}
             alt={hero.backgroundImage.alt}
@@ -74,9 +74,9 @@ export default function HomePageClient() {
         </div>
 
         {/* Content */}
-        <div className="relative z-20 flex max-w-2xl flex-col items-start gap-4 text-white">
+        <div className="text-background relative z-20 flex max-w-2xl flex-col items-start gap-4">
           {/* Badge */}
-          <div className="flex items-center gap-2 rounded-full bg-white/10 px-6 py-2 text-sm backdrop-blur-sm">
+          <div className="bg-foreground/10 flex items-center gap-2 rounded-full px-6 py-2 text-sm backdrop-blur-sm">
             <hero.badge.icon className="h-6 w-6" />
             <div className="flex flex-col items-center">
               <span>{hero.badge.text}</span>
@@ -89,7 +89,7 @@ export default function HomePageClient() {
           </div>
 
           <H1 className="text-4xl sm:text-6xl">{hero.title}</H1>
-          <P className="text-lg text-white/90">{hero.description}</P>
+          <P className="text-background/90 text-lg">{hero.description}</P>
 
           {/* Feature List */}
           <div className="flex flex-col gap-4">
@@ -103,8 +103,8 @@ export default function HomePageClient() {
         </div>
 
         {/* CTA Section */}
-        <div className="relative z-20 flex w-full max-w-md rounded-lg bg-white p-2 shadow-lg lg:w-1/3">
-          <div className="flex w-full flex-col gap-4 rounded-md bg-neutral-900 p-6">
+        <div className="bg-card relative z-20 flex w-full max-w-md rounded-lg p-2 shadow-lg lg:w-1/3">
+          <div className="bg-foreground text-primary-foreground flex w-full flex-col gap-4 rounded-md p-6">
             <H2 className="text-primary-foreground text-xl">
               {hero.cta.title}
             </H2>
@@ -179,7 +179,7 @@ export default function HomePageClient() {
       {/* Final CTA */}
       <section className="relative w-full py-24">
         <div className="absolute inset-0">
-          <div className="absolute inset-0 z-10 bg-black/60" />
+          <div className="bg-foreground/60 absolute inset-0 z-10" />
           <Image
             src={finalCta.backgroundImage.src}
             alt={finalCta.backgroundImage.alt}
@@ -189,9 +189,11 @@ export default function HomePageClient() {
           />
         </div>
 
-        <div className="relative z-20 mx-auto max-w-4xl space-y-8 px-4 text-center text-white">
+        <div className="text-background relative z-20 mx-auto max-w-4xl space-y-8 px-4 text-center">
           <H2 className="mb-4 text-3xl">{finalCta.title}</H2>
-          <P className="mb-8 text-lg text-white/90">{finalCta.description}</P>
+          <P className="text-background/90 mb-8 text-lg">
+            {finalCta.description}
+          </P>
           <SignUpButton />
         </div>
       </section>

@@ -47,7 +47,7 @@ export function DataTableRowActions<TData extends { id: string }>({
         <DropdownMenuTrigger asChild>
           <Button
             variant="ghost"
-            className="flex h-full w-full p-0 data-[state=open]:bg-muted"
+            className="data-[state=open]:bg-muted flex h-full w-full p-0"
           >
             <DotsHorizontalIcon className="h-4 w-4" />
             <span className="sr-only">Open menu</span>
@@ -65,7 +65,7 @@ export function DataTableRowActions<TData extends { id: string }>({
           </DropdownMenuItem>
           <DropdownMenuSeparator />
           <DropdownMenuItem
-            className="text-red-600"
+            className="text-destructive"
             onClick={() => {
               setOpen(false);
               setShowDeleteDialog(true);
