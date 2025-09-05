@@ -105,7 +105,7 @@ export default function HomePageClient() {
         {/* CTA Section */}
         <div className="relative z-20 flex w-full max-w-md rounded-lg bg-white p-2 shadow-lg lg:w-1/3">
           <div className="flex w-full flex-col gap-4 rounded-md bg-neutral-900 p-6">
-            <H2 className="text-xl text-primary-foreground">
+            <H2 className="text-primary-foreground text-xl">
               {hero.cta.title}
             </H2>
             <div className="flex flex-col items-center gap-2">
@@ -120,7 +120,7 @@ export default function HomePageClient() {
       <section className="container mx-auto">
         <div className="mb-12 text-center">
           <H2 className="mb-4 text-3xl">{features.title}</H2>
-          <P className="mx-auto max-w-2xl text-lg text-muted-foreground">
+          <P className="text-muted-foreground mx-auto max-w-2xl text-lg">
             {features.description}
           </P>
         </div>
@@ -142,7 +142,7 @@ export default function HomePageClient() {
                 <CardDescription>{card.description}</CardDescription>
               </CardHeader>
               <CardContent>
-                <ul className="grid gap-2 text-sm text-muted-foreground">
+                <ul className="text-muted-foreground grid gap-2 text-sm">
                   {card.features.map((feature, featureIndex) => (
                     <li key={featureIndex} className="flex items-center gap-2">
                       <feature.icon className="h-4 w-4" />
@@ -160,7 +160,7 @@ export default function HomePageClient() {
       <section className="container mx-auto">
         <div className="mb-12">
           <H2 className="mb-4 text-3xl">{database.title}</H2>
-          <P className="mb-8 text-lg text-muted-foreground">
+          <P className="text-muted-foreground mb-8 text-lg">
             {database.description}
           </P>
         </div>

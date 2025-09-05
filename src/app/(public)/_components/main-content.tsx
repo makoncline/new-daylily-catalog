@@ -11,7 +11,7 @@ export function MainContent({ children, className = "" }: MainContentProps) {
   return (
     <div
       className={cn(
-        "mx-auto mb-12 max-w-screen-lg flex-1 space-y-4 p-2 md:p-6",
+        "mx-auto mb-12 max-w-(--breakpoint-lg) flex-1 space-y-4 p-2 md:p-6",
         className,
       )}
     >
