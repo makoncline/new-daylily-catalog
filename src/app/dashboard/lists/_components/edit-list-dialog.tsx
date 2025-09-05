@@ -75,7 +75,7 @@ export const useEditList = () => {
 
 export function EditListDialog() {
   const { editingId, closeEditList } = useEditList();
-  const formRef = useRef<{ saveChanges: () => Promise<void> }>();
+  const formRef = useRef<{ saveChanges: () => Promise<void> } | null>(null);
   const isOpen = !!editingId;
 
   const handleOpenChange = async (open: boolean) => {

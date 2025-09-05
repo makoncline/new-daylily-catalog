@@ -23,9 +23,7 @@ import { DeleteConfirmDialog } from "@/components/delete-confirm-dialog";
 interface ListFormProps {
   listId: string;
   onDelete?: () => void;
-  formRef?: React.MutableRefObject<
-    { saveChanges: () => Promise<void> } | undefined
-  >;
+  formRef?: React.RefObject<{ saveChanges: () => Promise<void> } | null>;
 }
 
 type FormValues = z.infer<typeof listFormSchema>;

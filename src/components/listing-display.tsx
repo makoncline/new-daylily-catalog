@@ -97,7 +97,7 @@ export function ListingDisplay({
 export function ListingDisplaySkeleton() {
   return (
     <div className="space-y-8">
-      <Skeleton className="aspect-[3/2] w-full rounded-lg" />
+      <Skeleton className="aspect-3/2 w-full rounded-lg" />
       <div className="space-y-4">
         <Skeleton className="h-8 w-2/3" />
         <Skeleton className="h-4 w-1/3" />

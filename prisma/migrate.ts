@@ -249,65 +249,6 @@ async function shouldMigrateAhsListings() {
   return existingCount === 0;
 }
 
-async function upsertAhsListings() {
-  console.log("Checking if AHS listings need migration...");
-
-  if (!(await shouldMigrateAhsListings())) {
-    console.log("AHS listings already exist, skipping migration.");
-    return;
-  }
-
-  console.log("Starting AHS listings migration...");
-  const ahsData = await postgres.ahs_data.findMany();
-  console.log(`Found ${ahsData.length} AHS listings to migrate.`);
-
-  let successCount = 0;
-  let errorCount = 0;
-
-  for (const listing of ahsData) {
-    const listingId = listing.ahs_id.toString();
-
-    const listingData = {
-      name: listing.name,
-      hybridizer: listing.hybridizer,
-      year: listing.year,
-      scapeHeight: listing.scape_height,
-      bloomSize: listing.bloom_size,
-      bloomSeason: listing.bloom_season,
-      ploidy: listing.ploidy,
-      foliageType: listing.foliage_type,
-      bloomHabit: listing.bloom_habit,
-      seedlingNum: listing.seedling_num,
-      color: listing.color,
-      form: listing.form,
-      parentage: listing.parentage,
-      ahsImageUrl: listing.image,
-      fragrance: listing.fragrance,
-      budcount: listing.budcount,
-      branches: listing.branches,
-      sculpting: listing.sculpting,
-      foliage: listing.foliage,
-      flower: listing.flower,
-      createdAt: listing.created_at,
-      updatedAt: listing.updated_at,
-    };
-
-    try {
-      await sqlite.ahsListing.create({
-        data: { id: listingId, ...listingData },
-      });
-      successCount++;
-    } catch (error) {
-      console.error(`Error migrating AHS listing ${listingId}:`, error);
-      errorCount++;
-    }
-  }
-
-  console.log(`AHS listings migration completed.`);
-  console.log(`Successfully migrated: ${successCount} listings`);
-  console.log(`Failed to migrate: ${errorCount} listings`);
-}
-
 async function upsertLists() {
   console.log("Starting lists migration...");
 

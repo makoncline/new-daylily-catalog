@@ -171,7 +171,7 @@ export const Muted = ({
 <h3 className={typography.h2}>H3 element with H2 styles</h3>
 
 // Combining styles:
-<h4 className={cn(typography.h3, "text-blue-500")}>
+<h4 className={cn(typography.h3, "text-primary")}>
   H4 with H3 styles plus custom color
 </h4>
 

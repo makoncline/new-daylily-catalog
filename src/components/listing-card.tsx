@@ -19,7 +19,6 @@ import { H3 } from "@/components/typography";
 import { ImagePlaceholder } from "./image-placeholder";
 import { ImagePopover } from "@/components/image-popover";
 import { AddToCartButton } from "@/components/add-to-cart-button";
-import { SEOLink } from "@/components/seo-link";
 
 type ListingCardProps = {
   listing: RouterOutputs["public"]["getListings"][number];

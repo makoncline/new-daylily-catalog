@@ -28,7 +28,7 @@ function getUserIdFromEvent(evt: WebhookEvent): string | null {
 }
 
 export async function POST(req: Request) {
-  const headerPayload = headers();
+  const headerPayload = await headers();
   const svix_id = headerPayload.get("svix-id");
   const svix_timestamp = headerPayload.get("svix-timestamp");
   const svix_signature = headerPayload.get("svix-signature");
@@ -54,7 +54,8 @@ export async function POST(req: Request) {
       "svix-signature": svix_signature,
     }) as WebhookEvent;
   } catch (err) {
-    console.error("Error verifying webhook:", err);
+    const error = err as Error;
+    console.error("Error verifying webhook:", error?.message || error);
     return NextResponse.json({ error: "Error occurred" }, { status: 400 });
   }
 
@@ -83,7 +84,8 @@ export async function POST(req: Request) {
         { status: 200 },
       );
     } catch (error) {
-      console.error("Error processing user:", error);
+      const err = error as Error;
+      console.error("Error processing user:", err?.message || err);
       return NextResponse.json(
         { error: "Error processing user" },
         { status: 500 },

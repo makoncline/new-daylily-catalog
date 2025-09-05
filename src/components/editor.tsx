@@ -10,7 +10,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 interface EditorProps {
   initialContent?: OutputData;
   className?: string;
-  editorRef: React.MutableRefObject<EditorJS | undefined>;
+  editorRef: React.RefObject<EditorJS | null>;
   readOnly?: boolean;
 }
 
@@ -71,7 +71,7 @@ export function Editor({
       return () => {
         if (editorRef.current) {
           editorRef.current.destroy();
-          editorRef.current = undefined;
+          editorRef.current = null;
         }
       };
     }

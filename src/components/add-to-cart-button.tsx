@@ -84,7 +84,7 @@ export function AddToCartButton({
             disabled={isAdding}
           >
             <ShoppingCart className="h-1 w-1" />
-            <div className="h-3 w-[1px] bg-current opacity-30" />
+            <div className="h-3 w-px bg-current opacity-30" />
             {isInCart ? (
               <Check className="h-1 w-1" />
             ) : (

@@ -1,8 +1,8 @@
-import { captureException, captureMessage, setContext } from "@/lib/sentry";
+import * as Sentry from "@sentry/nextjs";
 
 export interface ErrorReporterOptions {
-  error: Error;
-  level?: "error" | "warning" | "info" | "debug" | "log" | "fatal";
+  error: unknown;
+  level?: Sentry.SeverityLevel;
   context?: {
     source?: string;
     errorInfo?: React.ErrorInfo | Record<string, unknown>;
@@ -16,8 +16,9 @@ export function reportError({
   context = {},
 }: ErrorReporterOptions) {
   try {
-    const message = error.message;
-    // Log to console in development
+    const err = normalizeError(error);
+    const message = err.message;
+
     if (process.env.NODE_ENV === "development") {
       const logArgs = [
         `${level.toUpperCase()}:`,
@@ -25,47 +26,43 @@ export function reportError({
         "\nAdditional Context:",
         context,
       ];
-      switch (level) {
-        case "fatal":
-        case "error":
-          console.error(...logArgs);
-          break;
-        case "warning":
-          console.warn(...logArgs);
-          break;
-        case "info":
-          console.info(...logArgs);
-          break;
-        case "log":
-        case "debug":
-        default:
-          console.log(...logArgs);
-          break;
+      if (level === "fatal" || level === "error") {
+        console.error(...logArgs);
+      } else if (level === "warning") {
+        console.warn(...logArgs);
+      } else if (level === "info") {
+        console.info(...logArgs);
+      } else {
+        console.log(...logArgs);
       }
     }
 
-    // Send error to Sentry
+    // Build per-event context
     const componentStack = context?.errorInfo?.componentStack;
-    if (componentStack) {
-      // Add React component stack as context
-      setContext("reactComponentStack", { componentStack });
-    }
+    const { source, ...extraRest } = context;
 
-    // Add any additional context
-    if (Object.keys(context).length > 0) {
-      setContext("additionalContext", context);
-    }
+    const captureOptions = {
+      level,
+      // structured block for the React stack (shows under Contexts)
+      contexts: componentStack
+        ? { reactComponentStack: { componentStack } }
+        : undefined,
+      // arbitrary key/values (shows under Additional Data)
+      extra: Object.keys(extraRest).length ? extraRest : undefined,
+      // indexed metadata for filtering in Sentry UI
+      tags: source ? { source: String(source) } : undefined,
+    };
 
-    // Report based on level
-    if (level === "error" || level === "fatal") {
-      // For critical errors, use captureException
-      captureException(error);
-    } else {
-      // For warnings, info, etc., use captureMessage
-      captureMessage(message, level);
-    }
-  } catch (error) {
-    console.error("Report error failed:", error);
+    // Capture and return eventId for correlation if you want to log it
+    const eventId =
+      level === "error" || level === "fatal"
+        ? Sentry.captureException(err, captureOptions)
+        : Sentry.captureMessage(message, captureOptions);
+
+    return eventId;
+  } catch (e) {
+    console.error("Report error failed:", e);
+    return undefined;
   }
 }
 

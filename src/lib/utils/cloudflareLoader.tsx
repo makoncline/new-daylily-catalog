@@ -1,5 +1,4 @@
 import { IMAGE_CONFIG } from "@/components/optimized-image";
-import { env } from "@/env";
 
 // Helper function for metadata image optimization that handles both public and external images
 export const getOptimizedMetaImageUrl = (src: string) => {
@@ -39,5 +38,5 @@ export const cloudflareLoader = ({
 
   const paramsString = params.join(",");
 
-  return `${env.NEXT_PUBLIC_CLOUDFLARE_URL}/cdn-cgi/image/${paramsString}/${src}`;
+  return `${process.env.NEXT_PUBLIC_CLOUDFLARE_URL}/cdn-cgi/image/${paramsString}/${src}`;
 };

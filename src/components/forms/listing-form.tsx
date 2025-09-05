@@ -41,9 +41,7 @@ import { getErrorMessage, normalizeError } from "@/lib/error-utils";
 interface ListingFormProps {
   listingId: string;
   onDelete: () => void;
-  formRef?: React.MutableRefObject<
-    { saveChanges: () => Promise<void> } | undefined
-  >;
+  formRef?: React.RefObject<{ saveChanges: () => Promise<void> } | null>;
 }
 
 export function ListingForm({

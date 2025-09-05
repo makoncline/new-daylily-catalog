@@ -16,10 +16,10 @@ export const revalidate = 3600;
 export const dynamicParams = true;
 
 interface PageProps {
-  params: {
+  params: Promise<{
     userSlugOrId: string;
     listingSlugOrId: string;
-  };
+  }>;
 }
 
 export async function generateStaticParams() {
@@ -48,7 +48,7 @@ export async function generateStaticParams() {
 }
 
 export async function generateMetadata({ params }: PageProps) {
-  const { userSlugOrId, listingSlugOrId } = params;
+  const { userSlugOrId, listingSlugOrId } = await params;
   const url = getBaseUrl();
 
   // Fetch listing data
@@ -67,7 +67,7 @@ export async function generateMetadata({ params }: PageProps) {
 }
 
 export default async function Page({ params }: PageProps) {
-  const { userSlugOrId, listingSlugOrId } = params;
+  const { userSlugOrId, listingSlugOrId } = await params;
 
   // Use tryCatch to handle listing fetch
   const result = await tryCatch(

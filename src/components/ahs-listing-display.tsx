@@ -44,7 +44,7 @@ export function AhsListingDisplay({
           />
         )}
         <div className="flex flex-col">
-          <H3 className="text-[clamp(12px,_5vw,_24px)]">{ahsListing.name}</H3>
+          <H3 className="text-[clamp(12px,5vw,24px)]">{ahsListing.name}</H3>
           <Muted>
             ({ahsListing.hybridizer}, {ahsListing.year})
           </Muted>

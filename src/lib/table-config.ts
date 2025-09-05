@@ -9,7 +9,7 @@ import {
 } from "@tanstack/react-table";
 import { fuzzyFilter, fuzzySort } from "@/lib/table-utils";
 
-declare module "@tanstack/table-core" {
+declare module "@tanstack/react-table" {
   // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-constraint, @typescript-eslint/no-unused-vars
   interface TableMeta<TData extends unknown> {
     filterableColumns?: string[];

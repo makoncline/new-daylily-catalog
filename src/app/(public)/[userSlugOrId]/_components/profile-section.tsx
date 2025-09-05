@@ -27,7 +27,7 @@ export function ProfileSection({ profile }: ProfileSectionProps) {
           <LastUpdatedBadge date={new Date(profile.updatedAt)} />
         )}
       </div>
-      <H1 className="text-[clamp(24px,_5vw,_48px)]">
+      <H1 className="text-[clamp(24px,5vw,48px)]">
         {profile.title ?? "Unnamed Garden"}
       </H1>
       <div className="flex items-center gap-2">

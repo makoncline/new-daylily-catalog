@@ -3,10 +3,6 @@
 import { usePathname } from "next/navigation";
 import { Breadcrumbs, type BreadcrumbItemType } from "@/components/breadcrumbs";
 import { api } from "@/trpc/react";
-import type { RouterOutputs } from "@/trpc/react";
-
-type PublicProfile = RouterOutputs["public"]["getProfile"];
-
 interface PublicBreadcrumbsProps {
   profile?: {
     id?: string;

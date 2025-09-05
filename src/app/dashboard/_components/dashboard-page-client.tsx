@@ -56,7 +56,7 @@ export function DashboardPageClient({
               <div className="relative mt-4 h-2 overflow-hidden rounded-full bg-secondary">
                 <Progress
                   value={stats.profileStats.completionPercentage}
-                  className="h-full bg-gradient-to-r transition-all duration-500"
+                  className="h-full bg-linear-to-r transition-all duration-500"
                 />
               </div>
             </div>
@@ -138,7 +138,7 @@ export function DashboardPageClient({
                       catalogSteps.length) *
                     100
                   }
-                  className="h-full bg-gradient-to-r transition-all duration-500"
+                  className="h-full bg-linear-to-r transition-all duration-500"
                 />
               </div>
             </div>

@@ -1,5 +1,6 @@
 "use client";
 
+import React from "react";
 import { api } from "@/trpc/react";
 import { ListListingsTable } from "./_components/list-listings-table";
 import { PageHeader } from "../../_components/page-header";
@@ -9,14 +10,15 @@ import { ListFormSkeleton } from "@/components/forms/list-form-skeleton";
 import { DataTableLayoutSkeleton } from "@/components/data-table/data-table-layout";
 
 interface ListPageProps {
-  params: {
+  params: Promise<{
     listId: string;
-  };
+  }>;
 }
 
 export default function ListPage({ params }: ListPageProps) {
+  const { listId } = React.use(params);
   const { data: list, isLoading } = api.list.get.useQuery({
-    id: params.listId,
+    id: listId,
   });
 
   if (isLoading) {
@@ -41,9 +43,9 @@ export default function ListPage({ params }: ListPageProps) {
         heading={`Manage List: ${list.title}`}
         text="Manage list details and organize your listings."
       />
-      <ListForm listId={params.listId} />
-      <AddListingsSection listId={params.listId} />
-      <ListListingsTable listId={params.listId} />
+      <ListForm listId={listId} />
+      <AddListingsSection listId={listId} />
+      <ListListingsTable listId={listId} />
     </div>
   );
 }

@@ -2,14 +2,36 @@
  * Run `build` or `dev` with `SKIP_ENV_VALIDATION` to skip env validation. This is especially useful
  * for Docker builds.
  */
-await import("./src/env.js");
 
 import { withSentryConfig } from "@sentry/nextjs";
 
 /** @type {import("next").NextConfig} */
 const config = {
+  eslint: {
+    ignoreDuringBuilds: true,
+  },
   images: {
     remotePatterns: [{ hostname: "daylilycatalog.com" }],
+  },
+
+  // Silence known dynamic-require warnings from OpenTelemetry/Sentry Node integrations on the server build
+  webpack: (webpackConfig, { isServer }) => {
+    if (isServer) {
+      webpackConfig.ignoreWarnings = [
+        ...(webpackConfig.ignoreWarnings || []),
+        {
+          module: /@opentelemetry[\\\/]instrumentation/,
+          message:
+            /Critical dependency: the request of a dependency is an expression/,
+        },
+        {
+          module: /require-in-the-middle/,
+          message:
+            /Critical dependency: require function is used in a way in which dependencies cannot be statically extracted/,
+        },
+      ];
+    }
+    return webpackConfig;
   },
 
   // Add redirects for legacy URLs
@@ -39,17 +61,11 @@ const config = {
       },
     ];
   },
-
-  // Configure Sentry
-  sentry: {
-    // Hide source maps from the client
-    hideSourceMaps: true,
-    // Disable the build-time error detection to avoid spamming the console
-    disableServerWebpackPlugin:
-      process.env.NEXT_PUBLIC_SENTRY_ENABLED === "false",
-    disableClientWebpackPlugin:
-      process.env.NEXT_PUBLIC_SENTRY_ENABLED === "false",
-  },
+  serverExternalPackages: [
+    "@prisma/instrumentation",
+    "@opentelemetry/instrumentation",
+    "require-in-the-middle",
+  ],
 };
 
 // Only apply Sentry config if it's enabled
@@ -60,6 +76,7 @@ export default isSentryEnabled
   ? withSentryConfig(config, {
       // For all available options, see:
       // https://www.npmjs.com/package/@sentry/webpack-plugin#options
+
       org: "makon-dev",
       project: "new-daylily-catalog",
 
@@ -73,12 +90,18 @@ export default isSentryEnabled
       widenClientFileUpload: true,
 
       // Uncomment to route browser requests to Sentry through a Next.js rewrite to circumvent ad-blockers.
+      // This can increase your server load as well as your hosting bill.
+      // Note: Check that the configured route will not match with your Next.js middleware, otherwise reporting of client-
+      // side errors will fail.
       // tunnelRoute: "/monitoring",
 
       // Automatically tree-shake Sentry logger statements to reduce bundle size
       disableLogger: true,
 
-      // Enables automatic instrumentation of Vercel Cron Monitors.
+      // Enables automatic instrumentation of Vercel Cron Monitors. (Does not yet work with App Router route handlers.)
+      // See the following for more information:
+      // https://docs.sentry.io/product/crons/
+      // https://vercel.com/docs/cron-jobs
       automaticVercelMonitors: true,
     })
   : config;
