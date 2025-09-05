@@ -12,6 +12,26 @@ const config = {
     remotePatterns: [{ hostname: "daylilycatalog.com" }],
   },
 
+  // Silence known dynamic-require warnings from OpenTelemetry/Sentry Node integrations on the server build
+  webpack: (webpackConfig, { isServer }) => {
+    if (isServer) {
+      webpackConfig.ignoreWarnings = [
+        ...(webpackConfig.ignoreWarnings || []),
+        {
+          module: /@opentelemetry[\\\/]instrumentation/,
+          message:
+            /Critical dependency: the request of a dependency is an expression/,
+        },
+        {
+          module: /require-in-the-middle/,
+          message:
+            /Critical dependency: require function is used in a way in which dependencies cannot be statically extracted/,
+        },
+      ];
+    }
+    return webpackConfig;
+  },
+
   // Add redirects for legacy URLs
   async redirects() {
     return [

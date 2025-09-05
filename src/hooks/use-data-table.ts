@@ -55,7 +55,8 @@ export function useDataTable<TData>({
       filterableColumns: filterableColumnIds,
       storageKey,
       pinnedColumns,
-      getColumnLabel: (columnId) => columnNames[columnId] ?? columnId,
+      getColumnLabel: (columnId) =>
+        (columnNames[columnId] as unknown as string) ?? columnId,
     },
     initialState: {
       sorting: urlState.globalFilter ? [{ id: "title", desc: false }] : [],

@@ -26,8 +26,8 @@ export function ContentManagerFormItem({
   const [lastSaved, setLastSaved] = React.useState(
     () => initialProfile.content,
   );
-  const editorRef = React.useRef<EditorJS>();
-  const contentRef = React.useRef<HTMLDivElement>(null);
+  const editorRef = React.useRef<EditorJS | null>(null);
+  const contentRef = React.useRef<HTMLDivElement | null>(null);
 
   const updateContentMutation = api.userProfile.updateContent.useMutation({
     onSuccess: () => {
@@ -84,7 +84,7 @@ export function ContentManagerFormItem({
     }
   }
 
-  useOnClickOutside(contentRef, () => {
+  useOnClickOutside(contentRef as React.RefObject<HTMLElement>, () => {
     void handleSave();
   });
 

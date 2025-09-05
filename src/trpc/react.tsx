@@ -38,8 +38,6 @@ export const api = createTRPCReact<AppRouter>({
         await opts.queryClient.invalidateQueries({
           type: "all",
           refetchType: "all",
-          refetchActive: true,
-          refetchInactive: true,
         });
       },
     },

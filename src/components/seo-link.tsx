@@ -48,7 +48,7 @@ export function SEOLink({
       onClick={handleClick}
       aria-label={ariaLabel}
     >
-      {children ? children : <span className="sr-only">{srText}</span>}
+      {children ?? <span className="sr-only">{srText}</span>}
     </Link>
   );
 }

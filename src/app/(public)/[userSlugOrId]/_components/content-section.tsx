@@ -11,7 +11,7 @@ interface ContentSectionProps {
 }
 
 export function ContentSection({ content }: ContentSectionProps) {
-  const editorRef = useRef<EditorJS>();
+  const editorRef = useRef<EditorJS | null>(null);
 
   if (!content) return null;
 
