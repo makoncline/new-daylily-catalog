@@ -5,12 +5,16 @@
 
 import * as Sentry from "@sentry/nextjs";
 
-Sentry.init({
-  dsn: "https://b3773458fec6aa0c594a9c1c73ed046a@o1136137.ingest.us.sentry.io/4508939597643776",
+const isSentryEnabled = process.env.NEXT_PUBLIC_SENTRY_ENABLED !== "false";
 
-  // Enable logs to be sent to Sentry
-  enableLogs: true,
+if (isSentryEnabled) {
+  Sentry.init({
+    dsn: "https://b3773458fec6aa0c594a9c1c73ed046a@o1136137.ingest.us.sentry.io/4508939597643776",
 
-  // Setting this option to true will print useful information to the console while you're setting up Sentry.
-  debug: false,
-});
+    // Enable logs to be sent to Sentry
+    enableLogs: true,
+
+    // Setting this option to true will print useful information to the console while you're setting up Sentry.
+    debug: false,
+  });
+}
