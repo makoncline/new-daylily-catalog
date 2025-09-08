@@ -19,19 +19,14 @@ export interface CurrencyInputProps
 /**
  * Simple currency input that handles formatting and only accepts whole numbers
  */
-export const CurrencyInput = (
-  {
-    ref,
-    value,
-    onChange,
-    onValueBlur,
-    currency = "$",
-    className,
-    ...props
-  }: CurrencyInputProps & {
-    ref: React.RefObject<HTMLInputElement>;
-  }
-) => {
+export function CurrencyInput({
+  value,
+  onChange,
+  onValueBlur,
+  currency = "$",
+  className,
+  ...props
+}: CurrencyInputProps) {
   // Handle display formatting
   const displayValue = value ? value.toString() : "";
 
@@ -55,7 +50,7 @@ export const CurrencyInput = (
 
   return (
     <div className="relative">
-      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
+      <span className="text-muted-foreground absolute top-1/2 left-3 -translate-y-1/2">
         {currency}
       </span>
       <Input
@@ -63,7 +58,6 @@ export const CurrencyInput = (
         inputMode="numeric"
         pattern="[0-9]*"
         className={cn("pl-7", className)}
-        ref={ref}
         value={displayValue}
         onChange={handleChange}
         onBlur={handleBlur}
@@ -71,6 +65,6 @@ export const CurrencyInput = (
       />
     </div>
   );
-};
+}
 
 CurrencyInput.displayName = "CurrencyInput";
