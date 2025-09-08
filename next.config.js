@@ -7,31 +7,8 @@ import { withSentryConfig } from "@sentry/nextjs";
 
 /** @type {import("next").NextConfig} */
 const config = {
-  eslint: {
-    ignoreDuringBuilds: true,
-  },
   images: {
     remotePatterns: [{ hostname: "daylilycatalog.com" }],
-  },
-
-  // Silence known dynamic-require warnings from OpenTelemetry/Sentry Node integrations on the server build
-  webpack: (webpackConfig, { isServer }) => {
-    if (isServer) {
-      webpackConfig.ignoreWarnings = [
-        ...(webpackConfig.ignoreWarnings || []),
-        {
-          module: /@opentelemetry[\\\/]instrumentation/,
-          message:
-            /Critical dependency: the request of a dependency is an expression/,
-        },
-        {
-          module: /require-in-the-middle/,
-          message:
-            /Critical dependency: require function is used in a way in which dependencies cannot be statically extracted/,
-        },
-      ];
-    }
-    return webpackConfig;
   },
 
   // Add redirects for legacy URLs
@@ -61,11 +38,18 @@ const config = {
       },
     ];
   },
-  serverExternalPackages: [
-    "@prisma/instrumentation",
-    "@opentelemetry/instrumentation",
-    "require-in-the-middle",
-  ],
+  // This is to ignore the opentelemetry warning
+  // @opentelemetry/instrumentation/build/esm/platform/node/instrumentation.js
+  // Critical dependency: the request of a dependency is an expression
+  webpack: (
+    config,
+    { buildId, dev, isServer, defaultLoaders, nextRuntime, webpack },
+  ) => {
+    if (isServer) {
+      config.ignoreWarnings = [{ module: /opentelemetry/ }];
+    }
+    return config;
+  },
 };
 
 // Only apply Sentry config if it's enabled

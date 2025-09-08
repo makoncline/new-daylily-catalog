@@ -56,17 +56,17 @@ h4.ce-header {
 
 /* Inline code styles */
 .inline-code {
-  @apply rounded bg-muted px-[0.3rem] py-[0.2rem] font-mono text-sm;
+  @apply bg-muted rounded px-[0.3rem] py-[0.2rem] font-mono text-sm;
 }
 
 /* Editor UI styles */
 .ce-toolbar__plus,
 .ce-toolbar__settings-btn {
-  @apply border border-border bg-background hover:bg-accent hover:text-accent-foreground;
+  @apply border-border bg-background hover:bg-accent hover:text-accent-foreground border;
 }
 
 .ce-popover {
-  @apply border border-border bg-popover text-popover-foreground shadow-md;
+  @apply border-border bg-popover text-popover-foreground border shadow-md;
 }
 
 .ce-popover-item {
@@ -78,7 +78,7 @@ h4.ce-header {
 }
 
 .ce-inline-toolbar {
-  @apply border border-border bg-background;
+  @apply border-border bg-background border;
 }
 
 .ce-inline-toolbar__buttons {
