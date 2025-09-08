@@ -22,7 +22,7 @@ import { CSS } from "@dnd-kit/utilities";
 import { GripVertical, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DeleteConfirmDialog } from "@/components/delete-confirm-dialog";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { api } from "@/trpc/react";
 import type { ImageType } from "@/types/image";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -81,21 +81,16 @@ export function ImageManager({
   referenceId,
   type,
 }: ImageManagerProps) {
-  const { toast } = useToast();
   const [isPending, setIsPending] = useState(false);
   const [imageToDelete, setImageToDelete] = useState<Image | null>(null);
 
   const deleteImageMutation = api.image.deleteImage.useMutation({
     onSuccess: () => {
-      toast({
-        title: "Image deleted successfully",
-      });
+      toast.success("Image deleted successfully");
     },
     onError: (error, errorInfo) => {
-      toast({
-        title: "Failed to delete image",
+      toast.error("Failed to delete image", {
         description: getErrorMessage(error),
-        variant: "destructive",
       });
       reportError({
         error: normalizeError(error),
@@ -106,15 +101,11 @@ export function ImageManager({
 
   const reorderImagesMutation = api.image.reorderImages.useMutation({
     onSuccess: () => {
-      toast({
-        title: "Image order updated",
-      });
+      toast.success("Image order updated");
     },
     onError: (error, errorInfo) => {
-      toast({
-        title: "Failed to update image order",
+      toast.error("Failed to update image order", {
         description: getErrorMessage(error),
-        variant: "destructive",
       });
       reportError({
         error: normalizeError(error),
@@ -191,7 +182,7 @@ export function ImageManager({
                         type="button"
                         variant="secondary"
                         size="icon"
-                        className="absolute left-2 top-2 h-8 w-8 cursor-grab touch-none opacity-0 transition-opacity group-hover:opacity-100"
+                        className="absolute top-2 left-2 h-8 w-8 cursor-grab touch-none opacity-0 transition-opacity group-hover:opacity-100"
                         {...attributes}
                         {...listeners}
                       >
@@ -201,14 +192,14 @@ export function ImageManager({
                       <ImagePreviewDialog
                         images={[image]}
                         size="sm"
-                        className="absolute right-2 top-2 opacity-0 transition-opacity group-hover:opacity-100"
+                        className="absolute top-2 right-2 opacity-0 transition-opacity group-hover:opacity-100"
                       />
                       <Button
                         type="button"
                         variant="destructive"
                         size="icon"
                         disabled={isPending}
-                        className="absolute bottom-2 right-2 h-8 w-8 opacity-0 transition-opacity group-hover:opacity-100"
+                        className="absolute right-2 bottom-2 h-8 w-8 opacity-0 transition-opacity group-hover:opacity-100"
                         onClick={() => setImageToDelete(image)}
                       >
                         <Trash2 className="h-4 w-4" />

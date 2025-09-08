@@ -1,6 +1,6 @@
 import { useState, useCallback } from "react";
 import { api } from "@/trpc/react";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { uploadFileWithProgress } from "@/lib/utils";
 import { type ImageType } from "@/types/image";
 import { type Image } from "@prisma/client";
@@ -19,14 +19,11 @@ export function useImageUpload({
 }: UseImageUploadOptions) {
   const [progress, setProgress] = useState(0);
   const [isUploading, setIsUploading] = useState(false);
-  const { toast } = useToast();
 
   const getPresignedUrlMutation = api.image.getPresignedUrl.useMutation({
     onError: (error, errorInfo) => {
-      toast({
-        title: "Failed to get upload URL",
+      toast.error("Failed to get upload URL", {
         description: getErrorMessage(error),
-        variant: "destructive",
       });
       reportError({
         error: normalizeError(error),
@@ -37,10 +34,8 @@ export function useImageUpload({
 
   const createImageMutation = api.image.createImage.useMutation({
     onError: (error, errorInfo) => {
-      toast({
-        title: "Failed to save image",
+      toast.error("Failed to save image", {
         description: getErrorMessage(error),
-        variant: "destructive",
       });
       reportError({
         error: normalizeError(error),
@@ -80,17 +75,13 @@ export function useImageUpload({
           key,
         });
 
-        toast({
-          title: "Image uploaded successfully",
-        });
+        toast.success("Image uploaded successfully");
 
         onSuccess?.(image);
         return image;
       } catch (error) {
-        toast({
-          title: "Failed to upload image",
+        toast.error("Failed to upload image", {
           description: getErrorMessage(error),
-          variant: "destructive",
         });
         reportError({
           error: normalizeError(error),
@@ -106,7 +97,6 @@ export function useImageUpload({
       referenceId,
       getPresignedUrlMutation,
       createImageMutation,
-      toast,
       onSuccess,
     ],
   );

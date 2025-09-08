@@ -16,7 +16,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { type z } from "zod";
 import { useState, useEffect, useCallback } from "react";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { DeleteConfirmDialog } from "@/components/delete-confirm-dialog";
 
@@ -29,7 +29,6 @@ interface ListFormProps {
 type FormValues = z.infer<typeof listFormSchema>;
 
 export function ListForm({ listId, onDelete, formRef }: ListFormProps) {
-  const { toast } = useToast();
   const [list] = api.list.get.useSuspenseQuery({ id: listId });
   const [isPending, setIsPending] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
@@ -44,14 +43,12 @@ export function ListForm({ listId, onDelete, formRef }: ListFormProps) {
 
   const updateList = api.list.update.useMutation({
     onSuccess: () => {
-      toast({
-        title: "List updated",
+      toast.success("List updated", {
         description: "Your list has been updated successfully",
       });
     },
     onError: () => {
-      toast({
-        title: "Failed to update list",
+      toast.error("Failed to update list", {
         description: "An error occurred while updating your list",
       });
     },
@@ -59,14 +56,12 @@ export function ListForm({ listId, onDelete, formRef }: ListFormProps) {
 
   const deleteList = api.list.delete.useMutation({
     onSuccess: () => {
-      toast({
-        title: "List deleted",
+      toast.success("List deleted", {
         description: "Your list has been deleted successfully",
       });
     },
     onError: () => {
-      toast({
-        title: "Failed to delete list",
+      toast.error("Failed to delete list", {
         description: "An error occurred while deleting your list",
       });
     },

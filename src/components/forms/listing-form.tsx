@@ -27,7 +27,7 @@ import {
 } from "@/components/ui/select";
 import { ImageManager } from "@/components/image-manager";
 import { ImageUpload } from "@/components/image-upload";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { AhsListingLink } from "@/components/ahs-listing-link";
 import { api } from "@/trpc/react";
 import { DeleteConfirmDialog } from "@/components/delete-confirm-dialog";
@@ -49,7 +49,6 @@ export function ListingForm({
   onDelete,
   formRef,
 }: ListingFormProps) {
-  const { toast } = useToast();
   const [listing] = api.listing.get.useSuspenseQuery({ id: listingId });
   const [images, setImages] = useState(listing.images);
   const [lists, setLists] = useState(listing.lists);
@@ -59,15 +58,11 @@ export function ListingForm({
 
   const updateListingMutation = api.listing.update.useMutation({
     onSuccess: () => {
-      toast({
-        title: "Changes saved",
-      });
+      toast.success("Changes saved");
     },
     onError: (error, errorInfo) => {
-      toast({
-        title: "Failed to save changes",
+      toast.error("Failed to save changes", {
         description: getErrorMessage(error),
-        variant: "destructive",
       });
       reportError({
         error: normalizeError(error),
@@ -82,15 +77,11 @@ export function ListingForm({
   const updateListsMutation = api.listing.updateLists.useMutation({
     onSuccess: (updatedListing) => {
       setLists(updatedListing.lists);
-      toast({
-        title: "Lists updated",
-      });
+      toast.success("Lists updated");
     },
     onError: (error, errorInfo) => {
-      toast({
-        title: "Failed to update lists",
+      toast.error("Failed to update lists", {
         description: getErrorMessage(error),
-        variant: "destructive",
       });
       reportError({
         error: normalizeError(error),
@@ -101,16 +92,12 @@ export function ListingForm({
 
   const deleteListingMutation = api.listing.delete.useMutation({
     onSuccess: () => {
-      toast({
-        title: "Listing deleted successfully",
-      });
+      toast.success("Listing deleted successfully");
       onDelete();
     },
     onError: (error, errorInfo) => {
-      toast({
-        title: "Failed to delete listing",
+      toast.error("Failed to delete listing", {
         description: getErrorMessage(error),
-        variant: "destructive",
       });
       reportError({
         error: normalizeError(error),
@@ -248,9 +235,7 @@ export function ListingForm({
                   onUploadComplete={(result) => {
                     if (result.success && result.image) {
                       setImages((prev) => [...prev, result.image]);
-                      toast({
-                        title: "Image added successfully",
-                      });
+                      toast.success("Image added successfully");
                     }
                   }}
                 />
@@ -375,10 +360,8 @@ export function ListingForm({
                   listIds,
                 })
                 .catch((error) => {
-                  toast({
-                    title: "Failed to update lists",
+                  toast.error("Failed to update lists", {
                     description: getErrorMessage(error),
-                    variant: "destructive",
                   });
                   reportError({
                     error: normalizeError(error),

@@ -23,7 +23,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { MoreHorizontal, Pencil, Trash, AlertCircle } from "lucide-react";
 import { api } from "@/trpc/react";
 import { useRouter } from "next/navigation";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { P } from "@/components/typography";
 import { normalizeError } from "@/lib/error-utils";
@@ -43,7 +43,6 @@ export function ListActions({ list }: ListActionsProps) {
   const [intro, setIntro] = useState(list.description ?? "");
 
   const router = useRouter();
-  const { toast } = useToast();
 
   const updateList = api.list.update.useMutation({
     onSuccess: () => {
@@ -56,17 +55,12 @@ export function ListActions({ list }: ListActionsProps) {
     onSuccess: () => {
       setDeleteDialogOpen(false);
       router.refresh();
-      toast({
-        title: "List deleted",
+      toast.success("List deleted", {
         description: "Your list has been deleted successfully.",
       });
     },
     onError: (error, errorInfo) => {
-      toast({
-        variant: "destructive",
-        title: "Error deleting list",
-        description: error.message,
-      });
+      toast.error("Error deleting list", { description: error.message });
       reportError({
         error: normalizeError(error),
         context: { source: "ListActions", errorInfo },
@@ -154,7 +148,7 @@ export function ListActions({ list }: ListActionsProps) {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Delete List</DialogTitle>
-            <P className="text-sm text-muted-foreground">
+            <P className="text-muted-foreground text-sm">
               {hasListings ? (
                 <>
                   This list cannot be deleted because it has{" "}

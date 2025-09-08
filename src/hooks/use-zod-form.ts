@@ -3,12 +3,12 @@ import { useId } from "react";
 import { useForm, type UseFormProps } from "react-hook-form";
 import type { z } from "zod";
 
-export function useZodForm<TSchema extends z.ZodType>(
-  props: Omit<UseFormProps<z.infer<TSchema>>, "resolver"> & {
+export function useZodForm<TSchema extends z.ZodType<Record<string, unknown>>>(
+  props: Omit<UseFormProps<z.output<TSchema>>, "resolver"> & {
     schema: TSchema;
   },
 ) {
-  const form = useForm<z.infer<TSchema>>({
+  const form = useForm<z.output<TSchema>, object, z.output<TSchema>>({
     ...props,
     resolver: zodResolver(props.schema, undefined, {
       raw: true, // Prevents double transform

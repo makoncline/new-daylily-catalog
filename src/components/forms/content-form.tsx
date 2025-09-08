@@ -4,7 +4,7 @@ import * as React from "react";
 import type EditorJS from "@editorjs/editorjs";
 import { type RouterOutputs } from "@/trpc/react";
 import { api } from "@/trpc/react";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { Editor } from "@/components/editor";
 import { parseEditorContent } from "@/lib/editor-utils";
 import { Loader2 } from "lucide-react";
@@ -21,7 +21,6 @@ interface ContentManagerFormProps {
 export function ContentManagerFormItem({
   initialProfile,
 }: ContentManagerFormProps) {
-  const { toast } = useToast();
   const [isSaving, setIsSaving] = React.useState(false);
   const [lastSaved, setLastSaved] = React.useState(
     () => initialProfile.content,
@@ -32,16 +31,12 @@ export function ContentManagerFormItem({
   const updateContentMutation = api.userProfile.updateContent.useMutation({
     onSuccess: () => {
       setIsSaving(false);
-      toast({
-        title: "Content saved",
-      });
+      toast.success("Content saved");
     },
     onError: (error, errorInfo) => {
       setIsSaving(false);
-      toast({
-        title: "Failed to save content",
+      toast.error("Failed to save content", {
         description: getErrorMessage(error),
-        variant: "destructive",
       });
       reportError({
         error: normalizeError(error),
@@ -100,7 +95,7 @@ export function ContentManagerFormItem({
         {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
       </div>
       <div ref={contentRef} className="space-y-3">
-        <div className="min-h-96 rounded-md border bg-background">
+        <div className="bg-background min-h-96 rounded-md border">
           <Editor
             editorRef={editorRef}
             initialContent={parseEditorContent(initialProfile.content)}

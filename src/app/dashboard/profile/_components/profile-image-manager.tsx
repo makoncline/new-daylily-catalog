@@ -3,7 +3,7 @@ import { ImageUpload } from "@/components/image-upload";
 import { type RouterOutputs } from "@/trpc/react";
 import { useState } from "react";
 import { type Image } from "@prisma/client";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { type ImageUploadResponse } from "@/types/image";
 import { APP_CONFIG } from "@/config/constants";
 
@@ -16,14 +16,11 @@ export function ProfileImageManager({
 }: ProfileImageManagerProps) {
   const { id: referenceId } = initialProfile;
   const [images, setImages] = useState(initialProfile.images);
-  const { toast } = useToast();
 
   const handleUploadComplete = (result: ImageUploadResponse) => {
     if (result.success && result.image) {
       setImages((prev: Image[]) => [...prev, result.image]);
-      toast({
-        title: "Image added successfully",
-      });
+      toast.success("Image added successfully");
     }
   };
 
