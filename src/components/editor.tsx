@@ -4,7 +4,6 @@ import * as React from "react";
 import type EditorJS from "@editorjs/editorjs";
 import { type ToolConstructable, type OutputData } from "@editorjs/editorjs";
 
-import "@/styles/editor.css";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
 interface EditorProps {
