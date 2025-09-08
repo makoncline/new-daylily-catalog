@@ -12,18 +12,7 @@ import { getErrorCode, tryCatch } from "@/lib/utils";
 import { generateProfileMetadata } from "./_seo/metadata";
 import { CatalogContent } from "./_components/catalog-content";
 import { ProfilePageSEO } from "./_components/profile-seo";
-
-// Client components need to be loaded dynamically since this is a server component
-import dynamic from "next/dynamic";
-
-// Dynamically import the FloatingCartButton with no SSR
-const ClientCartButton = dynamic(
-  () =>
-    import("@/components/floating-cart-button").then(
-      (mod) => mod.FloatingCartButton,
-    ),
-  { ssr: false },
-);
+import { FloatingCartButton } from "@/components/floating-cart-button";
 
 export const revalidate = 3600;
 export const dynamicParams = true;
@@ -127,7 +116,7 @@ export default async function Page({ params }: PageProps) {
         </div>
 
         {/* Add Floating Cart Button */}
-        <ClientCartButton
+        <FloatingCartButton
           userId={initialProfile.id}
           userName={initialProfile.title ?? undefined}
         />

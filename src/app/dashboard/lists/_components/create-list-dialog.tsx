@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { api } from "@/trpc/react";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import {
   Dialog,
   DialogContent,
@@ -26,13 +26,12 @@ export function CreateListDialog({
   const [open, setOpen] = useState(true);
   const [title, setTitle] = useState("");
   const [isPending, setIsPending] = useState(false);
-  const { toast } = useToast();
+
   const setEditingId = useSetAtom(editingListIdAtom);
 
   const createListMutation = api.list.create.useMutation({
     onSuccess: (newList) => {
-      toast({
-        title: "List created",
+      toast.success("List created", {
         description: `${newList.title} has been created.`,
       });
 
@@ -44,11 +43,7 @@ export function CreateListDialog({
       setEditingId(newList.id);
     },
     onError: (error, errorInfo) => {
-      toast({
-        title: "Failed to create list",
-        description: error.message,
-        variant: "destructive",
-      });
+      toast.error("Failed to create list", { description: error.message });
       reportError({
         error: normalizeError(error),
         context: { source: "CreateListDialog", errorInfo },
@@ -58,10 +53,8 @@ export function CreateListDialog({
 
   const handleCreate = async () => {
     if (!title.trim()) {
-      toast({
-        title: "Title required",
+      toast.error("Title required", {
         description: "Please enter a title for your list.",
-        variant: "destructive",
       });
       return;
     }
@@ -94,7 +87,7 @@ export function CreateListDialog({
       <DialogContent className="top-[20%] sm:top-[30%]">
         <DialogHeader>
           <DialogTitle>Create New List</DialogTitle>
-          <P className="text-sm text-muted-foreground">
+          <P className="text-muted-foreground text-sm">
             Create a new list to organize your daylilies.
           </P>
         </DialogHeader>

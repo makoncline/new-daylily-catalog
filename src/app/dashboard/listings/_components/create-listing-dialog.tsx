@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { api } from "@/trpc/react";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import {
   Dialog,
   DialogContent,
@@ -39,7 +39,7 @@ export function CreateListingDialog({
   const [selectedAhsListing, setSelectedAhsListing] =
     useState<AhsListing | null>(null);
   const [isPending, setIsPending] = useState(false);
-  const { toast } = useToast();
+
   const setEditingId = useSetAtom(editingListingIdAtom);
 
   const { data: detailedAhsListing } = api.ahs.get.useQuery(
@@ -52,8 +52,7 @@ export function CreateListingDialog({
 
   const createListingMutation = api.listing.create.useMutation({
     onSuccess: (newListing) => {
-      toast({
-        title: "Listing created",
+      toast.success("Listing created", {
         description: `${newListing.title} has been created.`,
       });
 
@@ -65,11 +64,7 @@ export function CreateListingDialog({
       setEditingId(newListing.id);
     },
     onError: (error, errorInfo) => {
-      toast({
-        title: "Failed to create listing",
-        description: error.message,
-        variant: "destructive",
-      });
+      toast.error("Failed to create listing", { description: error.message });
       reportError({
         error: normalizeError(error),
         context: { source: "CreateListingDialog", errorInfo },
@@ -131,7 +126,7 @@ export function CreateListingDialog({
       <DialogContent className="max-w-3xl">
         <DialogHeader>
           <DialogTitle>Create New Listing</DialogTitle>
-          <P className="text-sm text-muted-foreground">
+          <P className="text-muted-foreground text-sm">
             Create a new daylily listing by providing a title or selecting from
             the AHS database.
           </P>

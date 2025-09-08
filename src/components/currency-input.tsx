@@ -1,6 +1,6 @@
 "use client";
 
-import React, { forwardRef } from "react";
+import React from "react";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 
@@ -19,51 +19,52 @@ export interface CurrencyInputProps
 /**
  * Simple currency input that handles formatting and only accepts whole numbers
  */
-export const CurrencyInput = forwardRef<HTMLInputElement, CurrencyInputProps>(
-  (
-    { value, onChange, onValueBlur, currency = "$", className, ...props },
-    ref,
-  ) => {
-    // Handle display formatting
-    const displayValue = value ? value.toString() : "";
+export function CurrencyInput({
+  value,
+  onChange,
+  onValueBlur,
+  currency = "$",
+  className,
+  ...props
+}: CurrencyInputProps) {
+  // Handle display formatting
+  const displayValue = value ? value.toString() : "";
 
-    // Clean and parse input
-    const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-      const cleanValue = e.target.value.replace(/\D/g, "");
-      const numValue = cleanValue ? parseInt(cleanValue, 10) : null;
-      onChange(numValue);
-    };
+  // Clean and parse input
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const cleanValue = e.target.value.replace(/\D/g, "");
+    const numValue = cleanValue ? parseInt(cleanValue, 10) : null;
+    onChange(numValue);
+  };
 
-    // Format on blur and trigger save if needed
-    const handleBlur = (e: React.FocusEvent<HTMLInputElement>) => {
-      if (value !== null && value !== undefined) {
-        e.target.value = value.toLocaleString();
-      }
+  // Format on blur and trigger save if needed
+  const handleBlur = (e: React.FocusEvent<HTMLInputElement>) => {
+    if (value !== null && value !== undefined) {
+      e.target.value = value.toLocaleString();
+    }
 
-      if (onValueBlur) {
-        onValueBlur(value ?? null);
-      }
-    };
+    if (onValueBlur) {
+      onValueBlur(value ?? null);
+    }
+  };
 
-    return (
-      <div className="relative">
-        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
-          {currency}
-        </span>
-        <Input
-          type="text"
-          inputMode="numeric"
-          pattern="[0-9]*"
-          className={cn("pl-7", className)}
-          ref={ref}
-          value={displayValue}
-          onChange={handleChange}
-          onBlur={handleBlur}
-          {...props}
-        />
-      </div>
-    );
-  },
-);
+  return (
+    <div className="relative">
+      <span className="text-muted-foreground absolute top-1/2 left-3 -translate-y-1/2">
+        {currency}
+      </span>
+      <Input
+        type="text"
+        inputMode="numeric"
+        pattern="[0-9]*"
+        className={cn("pl-7", className)}
+        value={displayValue}
+        onChange={handleChange}
+        onBlur={handleBlur}
+        {...props}
+      />
+    </div>
+  );
+}
 
 CurrencyInput.displayName = "CurrencyInput";

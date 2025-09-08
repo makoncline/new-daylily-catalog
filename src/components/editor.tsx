@@ -4,13 +4,12 @@ import * as React from "react";
 import type EditorJS from "@editorjs/editorjs";
 import { type ToolConstructable, type OutputData } from "@editorjs/editorjs";
 
-import "@/styles/editor.css";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
 interface EditorProps {
   initialContent?: OutputData;
   className?: string;
-  editorRef: React.MutableRefObject<EditorJS | undefined>;
+  editorRef: React.RefObject<EditorJS | null>;
   readOnly?: boolean;
 }
 
@@ -71,7 +70,7 @@ export function Editor({
       return () => {
         if (editorRef.current) {
           editorRef.current.destroy();
-          editorRef.current = undefined;
+          editorRef.current = null;
         }
       };
     }

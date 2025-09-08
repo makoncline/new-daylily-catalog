@@ -55,7 +55,7 @@ export function DataTableDownload<TData>({
       return namedItem.name ?? titledItem.title ?? "";
     }
 
-    return String(value);
+    return JSON.stringify(value);
   };
 
   const escapeCSV = (value: string): string => {

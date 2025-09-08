@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react";
 
 export function useAutoResizeTextArea() {
-  const textAreaRef = useRef<HTMLTextAreaElement>(null);
+  const textAreaRef = useRef<HTMLTextAreaElement | null>(null);
 
   const adjustHeight = () => {
     const textarea = textAreaRef.current;

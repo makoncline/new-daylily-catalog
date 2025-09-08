@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { type CartItem } from "@/types";
 import { ShoppingCart, Check, Plus } from "lucide-react";
 import { useState, useEffect } from "react";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import {
   Tooltip,
   TooltipContent,
@@ -32,7 +32,6 @@ export function AddToCartButton({
   className = "",
 }: AddToCartButtonProps) {
   const { items, addItem } = useCart(listing.userId);
-  const { toast } = useToast();
   const [isInCart, setIsInCart] = useState(false);
   const [isAdding, setIsAdding] = useState(false);
 
@@ -59,8 +58,7 @@ export function AddToCartButton({
     addItem(cartItem);
 
     // Show toast notification
-    toast({
-      title: "Added to cart",
+    toast.success("Added to cart", {
       description: `${listing.title} has been added to your cart.`,
     });
 
@@ -84,7 +82,7 @@ export function AddToCartButton({
             disabled={isAdding}
           >
             <ShoppingCart className="h-1 w-1" />
-            <div className="h-3 w-[1px] bg-current opacity-30" />
+            <div className="h-3 w-px bg-current opacity-30" />
             {isInCart ? (
               <Check className="h-1 w-1" />
             ) : (

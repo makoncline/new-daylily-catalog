@@ -29,7 +29,7 @@ export function TableImagePreview({
       <DialogTrigger asChild>
         <button
           className={cn(
-            "group relative -m-1 flex aspect-square h-[calc(100%+1rem)] items-center justify-center rounded-md border bg-muted/50",
+            "group bg-muted/50 relative -m-1 flex aspect-square h-[calc(100%_+_1rem)] items-center justify-center rounded-md border",
           )}
         >
           <div className="absolute overflow-hidden rounded-[4px]">

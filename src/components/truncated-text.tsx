@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, type CSSProperties } from "react";
 import { cn } from "@/lib/utils";
 
 interface TruncatedTextProps {
@@ -27,7 +27,7 @@ export function TruncatedText({
   className,
   onTruncated,
 }: TruncatedTextProps) {
-  const ref = useRef<HTMLDivElement>(null);
+  const ref = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     const element = ref.current;
@@ -46,11 +46,20 @@ export function TruncatedText({
   const baseClasses = "w-max max-w-full";
   const truncateClasses =
     lines === 1
-      ? "truncate whitespace-nowrap"
-      : cn("break-words", `line-clamp-${lines}`);
+      ? "overflow-hidden text-ellipsis whitespace-nowrap"
+      : cn("break-words line-clamp-(--lines)");
+
+  const styleVars =
+    lines > 1
+      ? ({ ["--lines"]: String(lines) } as unknown as CSSProperties)
+      : undefined;
 
   return (
-    <div ref={ref} className={cn(baseClasses, truncateClasses, className)}>
+    <div
+      ref={ref}
+      className={cn(baseClasses, truncateClasses, className)}
+      style={styleVars}
+    >
       {text}
     </div>
   );

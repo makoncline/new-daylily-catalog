@@ -104,7 +104,7 @@ export function useTableUrlSync<TData>(table: Table<TData>) {
       } else if (Array.isArray(value)) {
         url.searchParams.set(filter.id, value.join(","));
       } else {
-        url.searchParams.set(filter.id, String(value));
+        url.searchParams.set(filter.id, JSON.stringify(value));
       }
     });
 

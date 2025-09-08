@@ -38,7 +38,7 @@ type Result<T, E = Error> = Success<T> | Failure<E>;
  */
 export function getErrorCode(error: unknown): string | undefined {
   if (error && typeof error === "object" && "code" in error && error.code) {
-    return String(error.code);
+    return JSON.stringify(error.code);
   }
   return undefined;
 }

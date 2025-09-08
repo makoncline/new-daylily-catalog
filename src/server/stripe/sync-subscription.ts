@@ -29,14 +29,15 @@ export async function syncStripeSubscriptionToKVBase(
   }
   // If a user can have multiple subscriptions, that's your problem
   const subscription = subscriptions.data[0]!;
+  const subscriptionItem = subscription.items.data[0]!;
 
   // Store complete subscription state
   const subData = {
     subscriptionId: subscription.id,
     status: subscription.status,
-    priceId: subscription.items.data[0]?.price.id ?? null,
-    currentPeriodEnd: subscription.current_period_end,
-    currentPeriodStart: subscription.current_period_start,
+    priceId: subscriptionItem.price.id ?? null,
+    currentPeriodEnd: subscriptionItem.current_period_end,
+    currentPeriodStart: subscriptionItem.current_period_start,
     cancelAtPeriodEnd: subscription.cancel_at_period_end,
     paymentMethod:
       subscription.default_payment_method &&

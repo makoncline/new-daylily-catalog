@@ -5,7 +5,7 @@ import { type VisibilityState } from "@tanstack/react-table";
 import { z } from "zod";
 
 const localStorageStateSchema = z.object({
-  columnVisibility: z.record(z.boolean()).optional(),
+  columnVisibility: z.record(z.string(), z.boolean()).optional(),
   columnOrder: z.array(z.string()).optional(),
 });
 

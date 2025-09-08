@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { api } from "@/trpc/react";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { LISTING_CONFIG } from "@/config/constants";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
@@ -26,22 +26,15 @@ export function AhsListingLink({
   onUpdate,
   onNameChange,
 }: AhsListingLinkProps) {
-  const { toast } = useToast();
   const [isPending, setIsPending] = useState(false);
 
   const { mutateAsync: updateListingMutation } = api.listing.update.useMutation(
     {
       onSuccess: () => {
-        toast({
-          title: "Changes saved",
-        });
+        toast.success("Changes saved");
       },
       onError: (error, errorInfo) => {
-        toast({
-          title: "Failed to save changes",
-          description: error.message,
-          variant: "destructive",
-        });
+        toast.error("Failed to save changes", { description: error.message });
         reportError({
           error: normalizeError(error),
           context: { source: "AhsListingLink", errorInfo },
@@ -90,17 +83,14 @@ export function AhsListingLink({
         onUpdate?.(updatedListing);
       }
 
-      toast({
-        title: ahsId
-          ? "Listing linked successfully"
-          : "Listing unlinked successfully",
-      });
+      toast.success(
+        ahsId ? "Listing linked successfully" : "Listing unlinked successfully",
+      );
     } catch (error) {
-      toast({
-        title: ahsId ? "Failed to link listing" : "Failed to unlink listing",
-        description: getErrorMessage(error),
-        variant: "destructive",
-      });
+      toast.error(
+        ahsId ? "Failed to link listing" : "Failed to unlink listing",
+        { description: getErrorMessage(error) },
+      );
       reportError({
         error: normalizeError(error),
         context: { source: "AhsListingLink" },
@@ -123,14 +113,10 @@ export function AhsListingLink({
         onNameChange?.(listing.ahsListing.name);
       }
       onUpdate?.(updatedListing);
-      toast({
-        title: "Name synced successfully",
-      });
+      toast.success("Name synced successfully");
     } catch (error) {
-      toast({
-        title: "Failed to sync name",
+      toast.error("Failed to sync name", {
         description: getErrorMessage(error),
-        variant: "destructive",
       });
       reportError({
         error: normalizeError(error),
@@ -153,7 +139,7 @@ export function AhsListingLink({
                   href={`https://daylilies.org/daylilies/${listing.ahsListing.id}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="font-medium text-foreground hover:underline"
+                  className="text-foreground font-medium hover:underline"
                 >
                   {listing.ahsListing.name}
                 </a>
@@ -207,7 +193,7 @@ export function AhsListingLinkSkeleton() {
             <Skeleton className="h-6 w-48" />
             <Skeleton className="h-8 w-20" />
           </div>
-          <div className="text-sm text-muted-foreground">
+          <div className="text-muted-foreground text-sm">
             <Skeleton className="h-4 w-64" />
           </div>
         </CardContent>

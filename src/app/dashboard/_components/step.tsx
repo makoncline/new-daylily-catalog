@@ -16,7 +16,7 @@ export function Step({
       {!isLast && (
         <div
           className={cn(
-            "absolute left-[17px] top-[35px] h-[calc(100%-35px)] w-[2px]",
+            "absolute top-[35px] left-[17px] h-[calc(100%-35px)] w-[2px]",
             completed ? "bg-primary/70" : "bg-border",
           )}
         />
@@ -25,14 +25,14 @@ export function Step({
         className={cn(
           "flex h-9 w-9 shrink-0 items-center justify-center rounded-full border-2",
           completed
-            ? "border-primary/70 bg-primary/90 text-white"
+            ? "border-primary/70 bg-primary/90 text-primary-foreground"
             : "border-border bg-background",
         )}
       >
         {completed ? (
           <Check className="h-4 w-4" />
         ) : (
-          <Icon className="h-4 w-4 text-muted-foreground" />
+          <Icon className="text-muted-foreground h-4 w-4" />
         )}
       </div>
       <div className="flex flex-col">
@@ -44,7 +44,7 @@ export function Step({
         >
           {label}
         </span>
-        <span className="text-sm leading-7 text-muted-foreground">
+        <span className="text-muted-foreground text-sm leading-7">
           {description}
         </span>
       </div>

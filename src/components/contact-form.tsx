@@ -14,7 +14,7 @@ import { api } from "@/trpc/react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { Loader2, MinusCircle, PlusCircle, Trash2 } from "lucide-react";
 import { formatPrice } from "@/lib/utils";
 import {
@@ -46,15 +46,13 @@ export function ContactForm({ userId, onSubmitSuccess }: ContactFormProps) {
   const { items, updateQuantity, removeItem, clearCart, total } =
     useCart(userId);
   const { customerInfo, updateCustomerInfo } = useCustomerInfo();
-  const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showClearCartDialog, setShowClearCartDialog] = useState(false);
   const hasItems = items.length > 0;
 
   const sendMessage = api.public.sendMessage.useMutation({
     onSuccess: () => {
-      toast({
-        title: "Message sent",
+      toast.success("Message sent", {
         description: "Your message has been sent successfully.",
       });
 
@@ -66,10 +64,8 @@ export function ContactForm({ userId, onSubmitSuccess }: ContactFormProps) {
       }
     },
     onError: (error, errorInfo) => {
-      toast({
-        title: "Error sending message",
+      toast.error("Error sending message", {
         description: getErrorMessage(error),
-        variant: "destructive",
       });
       reportError({
         error: normalizeError(error),
@@ -215,7 +211,7 @@ export function ContactForm({ userId, onSubmitSuccess }: ContactFormProps) {
             />
 
             {items.length > 0 && (
-              <div className="rounded-md border border-border p-4">
+              <div className="border-border rounded-md border p-4">
                 <h3 className="mb-2 font-medium">Cart Items</h3>
                 <div className="space-y-3">
                   {items.map((item) => (
@@ -226,11 +222,11 @@ export function ContactForm({ userId, onSubmitSuccess }: ContactFormProps) {
                       onRemove={removeItem}
                     />
                   ))}
-                  <div className="flex items-center justify-between border-t border-border pt-2">
+                  <div className="border-border flex items-center justify-between border-t pt-2">
                     <span className="font-medium">Subtotal:</span>
                     <span className="font-medium">{formatPrice(total)}</span>
                   </div>
-                  <p className="mt-2 text-xs text-muted-foreground">
+                  <p className="text-muted-foreground mt-2 text-xs">
                     This is an estimated subtotal. Final pricing, shipping, and
                     handling costs may vary and will be determined by the
                     seller.
@@ -294,7 +290,7 @@ function CartItemRow({ item, onQuantityChange, onRemove }: CartItemRowProps) {
       <div className="flex-1">
         <p className="font-medium">{item.title}</p>
         {item.price && (
-          <p className="text-sm text-muted-foreground">
+          <p className="text-muted-foreground text-sm">
             {formatPrice(item.price)}
           </p>
         )}

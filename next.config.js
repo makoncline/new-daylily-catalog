@@ -2,7 +2,6 @@
  * Run `build` or `dev` with `SKIP_ENV_VALIDATION` to skip env validation. This is especially useful
  * for Docker builds.
  */
-await import("./src/env.js");
 
 import { withSentryConfig } from "@sentry/nextjs";
 
@@ -39,16 +38,17 @@ const config = {
       },
     ];
   },
-
-  // Configure Sentry
-  sentry: {
-    // Hide source maps from the client
-    hideSourceMaps: true,
-    // Disable the build-time error detection to avoid spamming the console
-    disableServerWebpackPlugin:
-      process.env.NEXT_PUBLIC_SENTRY_ENABLED === "false",
-    disableClientWebpackPlugin:
-      process.env.NEXT_PUBLIC_SENTRY_ENABLED === "false",
+  // This is to ignore the opentelemetry warning
+  // @opentelemetry/instrumentation/build/esm/platform/node/instrumentation.js
+  // Critical dependency: the request of a dependency is an expression
+  webpack: (
+    config,
+    { buildId, dev, isServer, defaultLoaders, nextRuntime, webpack },
+  ) => {
+    if (isServer) {
+      config.ignoreWarnings = [{ module: /opentelemetry/ }];
+    }
+    return config;
   },
 };
 
@@ -60,6 +60,7 @@ export default isSentryEnabled
   ? withSentryConfig(config, {
       // For all available options, see:
       // https://www.npmjs.com/package/@sentry/webpack-plugin#options
+
       org: "makon-dev",
       project: "new-daylily-catalog",
 
@@ -73,12 +74,18 @@ export default isSentryEnabled
       widenClientFileUpload: true,
 
       // Uncomment to route browser requests to Sentry through a Next.js rewrite to circumvent ad-blockers.
+      // This can increase your server load as well as your hosting bill.
+      // Note: Check that the configured route will not match with your Next.js middleware, otherwise reporting of client-
+      // side errors will fail.
       // tunnelRoute: "/monitoring",
 
       // Automatically tree-shake Sentry logger statements to reduce bundle size
       disableLogger: true,
 
-      // Enables automatic instrumentation of Vercel Cron Monitors.
+      // Enables automatic instrumentation of Vercel Cron Monitors. (Does not yet work with App Router route handlers.)
+      // See the following for more information:
+      // https://docs.sentry.io/product/crons/
+      // https://vercel.com/docs/cron-jobs
       automaticVercelMonitors: true,
     })
   : config;

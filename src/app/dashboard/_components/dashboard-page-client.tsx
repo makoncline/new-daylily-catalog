@@ -37,11 +37,11 @@ export function DashboardPageClient({
       <div className="space-y-4">
         {stats.profileStats.completionPercentage < 100 && (
           <Card className="mb-4 overflow-hidden">
-            <div className="border-b border-border bg-card p-6">
+            <div className="border-border bg-card border-b p-6">
               <div className="flex items-center justify-between">
                 <div className="space-y-1">
                   <H2 className="pb-2 text-3xl">Complete Your Profile</H2>
-                  <P className="text-base text-muted-foreground">
+                  <P className="text-muted-foreground text-base">
                     Follow these steps to create a professional profile that
                     will help you sell more daylilies.
                   </P>
@@ -53,10 +53,10 @@ export function DashboardPageClient({
                   <Muted className="text-sm">Profile Completion</Muted>
                 </div>
               </div>
-              <div className="relative mt-4 h-2 overflow-hidden rounded-full bg-secondary">
+              <div className="bg-secondary relative mt-4 h-2 overflow-hidden rounded-full">
                 <Progress
                   value={stats.profileStats.completionPercentage}
-                  className="h-full bg-gradient-to-r transition-all duration-500"
+                  className="h-full bg-linear-to-r transition-all duration-500"
                 />
               </div>
             </div>
@@ -80,7 +80,7 @@ export function DashboardPageClient({
                 <div className="flex flex-1 flex-col gap-6 rounded-lg">
                   <div className="flex flex-col gap-4">
                     <H3 className="text-2xl">Why complete your profile?</H3>
-                    <P className="text-sm leading-7 text-muted-foreground">
+                    <P className="text-muted-foreground text-sm leading-7">
                       Complete your profile to unlock all features and help
                       customers find your business.
                     </P>
@@ -108,7 +108,7 @@ export function DashboardPageClient({
           100 <
           100 && (
           <Card className="mb-4 overflow-hidden">
-            <div className="border-b border-border bg-card p-6">
+            <div className="border-border bg-card border-b p-6">
               <div className="flex items-center justify-between">
                 <div className="space-y-1">
                   <H2 className="border-b-0">Build Your Catalog</H2>
@@ -130,7 +130,7 @@ export function DashboardPageClient({
                   <Muted className="text-sm">Catalog Progress</Muted>
                 </div>
               </div>
-              <div className="relative mt-4 h-2 overflow-hidden rounded-full bg-secondary">
+              <div className="bg-secondary relative mt-4 h-2 overflow-hidden rounded-full">
                 <Progress
                   value={
                     (catalogSteps.filter((step) => step.isComplete(stats))
@@ -138,7 +138,7 @@ export function DashboardPageClient({
                       catalogSteps.length) *
                     100
                   }
-                  className="h-full bg-gradient-to-r transition-all duration-500"
+                  className="h-full bg-linear-to-r transition-all duration-500"
                 />
               </div>
             </div>

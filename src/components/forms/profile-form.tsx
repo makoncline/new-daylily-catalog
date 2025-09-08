@@ -14,7 +14,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { api } from "@/trpc/react";
 import { useZodForm } from "@/hooks/use-zod-form";
 import { ProfileImageManager } from "@/app/dashboard/profile/_components/profile-image-manager";
@@ -36,7 +36,6 @@ interface ProfileFormProps {
 }
 
 export function ProfileForm({ initialProfile }: ProfileFormProps) {
-  const { toast } = useToast();
   const [profile, setProfile] = useState(initialProfile);
   const [isUpdating, setIsUpdating] = useState(false);
   const [isCheckingSlug, setIsCheckingSlug] = useState(false);
@@ -64,10 +63,8 @@ export function ProfileForm({ initialProfile }: ProfileFormProps) {
       setProfile(updatedProfile);
     },
     onError: (error, errorInfo) => {
-      toast({
-        title: "Failed to save changes",
+      toast.error("Failed to save changes", {
         description: getErrorMessage(error),
-        variant: "destructive",
       });
       reportError({
         error: normalizeError(error),
@@ -140,8 +137,7 @@ export function ProfileForm({ initialProfile }: ProfileFormProps) {
         data: { slug: pendingSlugValue },
       });
       setProfile(updatedProfile);
-      toast({
-        title: "Profile URL updated",
+      toast.success("Profile URL updated", {
         description: "Your profile URL has been successfully updated.",
       });
     } catch {
@@ -196,7 +192,7 @@ export function ProfileForm({ initialProfile }: ProfileFormProps) {
                 <FormLabel className="flex items-center gap-2">
                   Profile URL
                   {!isPro && (
-                    <Sparkles className="h-4 w-4 text-muted-foreground" />
+                    <Sparkles className="text-muted-foreground h-4 w-4" />
                   )}
                 </FormLabel>
                 <FormControl>
@@ -236,8 +232,8 @@ export function ProfileForm({ initialProfile }: ProfileFormProps) {
                         placeholder={profile.userId}
                       />
                       {isCheckingSlug && (
-                        <div className="absolute right-3 top-2.5">
-                          <div className="h-4 w-4 animate-spin rounded-full border-2 border-muted-foreground border-t-transparent" />
+                        <div className="absolute top-2.5 right-3">
+                          <div className="border-muted-foreground h-4 w-4 animate-spin rounded-full border-2 border-t-transparent" />
                         </div>
                       )}
                     </div>

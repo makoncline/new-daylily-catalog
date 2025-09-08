@@ -9,7 +9,7 @@ import ReactCrop, {
 } from "react-image-crop";
 import "react-image-crop/dist/ReactCrop.css";
 import { Button } from "./ui/button";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import Image from "next/image";
 import { getErrorMessage, normalizeError } from "@/lib/error-utils";
@@ -76,7 +76,6 @@ export function ImageCropper({
   const [displayDims, setDisplayDims] = useState({ w: 0, h: 0 });
   const imageRef = useRef<HTMLImageElement | null>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
-  const { toast } = useToast();
 
   // Measure displayed image on load and create a large centered square crop in %.
   const handleImageLoad = useCallback(
@@ -150,10 +149,8 @@ export function ImageCropper({
       const blob = await getCroppedBlob(img, pxCrop, mimeType);
       onCropComplete(blob);
     } catch (error) {
-      toast({
-        title: "Failed to crop image",
+      toast.error("Failed to crop image", {
         description: getErrorMessage(error),
-        variant: "destructive",
       });
       reportError({
         error: normalizeError(error),

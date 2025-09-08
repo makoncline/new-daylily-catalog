@@ -18,7 +18,6 @@ import { H3, Muted } from "@/components/typography";
 import { ImagePlaceholder } from "./image-placeholder";
 import { ImagePopover } from "@/components/image-popover";
 import { LocationBadge } from "./profile/profile-badges";
-import { SEOLink } from "@/components/seo-link";
 
 function UserListsPreview({
   lists,

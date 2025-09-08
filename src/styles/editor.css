@@ -40,6 +40,14 @@ h4.ce-header {
   @apply text-xl;
 }
 
+h5.ce-header {
+  @apply text-lg;
+}
+
+h6.ce-header {
+  @apply text-base;
+}
+
 /* List styles */
 .cdx-list {
   @apply pl-6;
@@ -56,17 +64,17 @@ h4.ce-header {
 
 /* Inline code styles */
 .inline-code {
-  @apply rounded bg-muted px-[0.3rem] py-[0.2rem] font-mono text-sm;
+  @apply bg-muted rounded px-[0.3rem] py-[0.2rem] font-mono text-sm;
 }
 
 /* Editor UI styles */
 .ce-toolbar__plus,
 .ce-toolbar__settings-btn {
-  @apply border border-border bg-background hover:bg-accent hover:text-accent-foreground;
+  @apply border-border bg-background hover:bg-accent hover:text-accent-foreground border;
 }
 
 .ce-popover {
-  @apply border border-border bg-popover text-popover-foreground shadow-md;
+  @apply border-border bg-popover text-popover-foreground border shadow-md;
 }
 
 .ce-popover-item {
@@ -78,7 +86,7 @@ h4.ce-header {
 }
 
 .ce-inline-toolbar {
-  @apply border border-border bg-background;
+  @apply border-border bg-background border;
 }
 
 .ce-inline-toolbar__buttons {
@@ -108,9 +116,9 @@ h4.ce-header {
 .dark .cdx-button,
 .dark .ce-popover,
 .dark .ce-toolbar__plus:hover {
-  background: theme("colors.popover.DEFAULT");
+  background: var(--color-popover);
   color: inherit;
-  border-color: theme("colors.border");
+  border-color: var(--color-border);
 }
 
 .dark .ce-inline-tool,
@@ -123,18 +131,18 @@ h4.ce-header {
 
 .dark .ce-popover__item-icon,
 .dark .ce-conversion-tool__icon {
-  background-color: theme("colors.muted.DEFAULT");
+  background-color: var(--color-muted);
   box-shadow: none;
 }
 
 .dark .cdx-search-field {
-  border-color: theme("colors.border");
-  background: theme("colors.input");
+  border-color: var(--color-border);
+  background: var(--color-input);
   color: inherit;
 }
 
 .dark ::selection {
-  background: theme("colors.accent.DEFAULT");
+  background: var(--color-accent);
 }
 
 .dark .cdx-settings-button:hover,
@@ -147,12 +155,12 @@ h4.ce-header {
 .dark .ce-popover__item:hover,
 .dark .ce-conversion-tool:hover,
 .dark .ce-toolbar__settings-btn:hover {
-  background-color: theme("colors.accent.DEFAULT");
-  color: theme("colors.accent.foreground");
+  background-color: var(--color-accent);
+  color: var(--color-accent-foreground);
 }
 
 .dark .cdx-notify--error {
-  background: theme("colors.destructive.DEFAULT") !important;
+  background: var(--color-destructive) !important;
 }
 
 .dark .cdx-notify__cross::after,

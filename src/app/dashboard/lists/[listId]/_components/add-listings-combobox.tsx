@@ -21,7 +21,7 @@ import {
 import { api } from "@/trpc/react";
 import type { inferRouterOutputs } from "@trpc/server";
 import type { listingRouter } from "@/server/api/routers/listing";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "sonner";
 import { useKeyboardStatus } from "@/hooks/use-keyboard-status";
 import { useVisualViewportHeight } from "@/hooks/use-visual-viewport-height";
 import { cn } from "@/lib/utils";
@@ -36,7 +36,7 @@ interface AddListingsComboboxProps {
 export function AddListingsCombobox({ listId }: AddListingsComboboxProps) {
   const [open, setOpen] = useState(false);
   const [searchValue, setSearchValue] = useState("");
-  const { toast } = useToast();
+
   const keyboardOpen = useKeyboardStatus();
   const viewportHeight = useVisualViewportHeight();
 
@@ -45,9 +45,7 @@ export function AddListingsCombobox({ listId }: AddListingsComboboxProps) {
 
   const addListingsMutation = api.list.addListings.useMutation({
     onSuccess: () => {
-      toast({
-        title: "Listing added to list",
-      });
+      toast.success("Listing added to list");
       void utils.list.getListings.invalidate({ id: listId });
       setOpen(false);
       setSearchValue("");
@@ -79,10 +77,10 @@ export function AddListingsCombobox({ listId }: AddListingsComboboxProps) {
         autoFocus={true}
         className="border-none pl-3 focus:ring-0"
       />
-      <CommandList className="flex-1 overflow-y-auto overflow-x-hidden pb-2">
+      <CommandList className="flex-1 overflow-x-hidden overflow-y-auto pb-2">
         {listings?.length === 0 && (
           <CommandEmpty>
-            <p className="p-2 text-sm text-muted-foreground">
+            <p className="text-muted-foreground p-2 text-sm">
               No listings found.
             </p>
           </CommandEmpty>
@@ -104,7 +102,7 @@ export function AddListingsCombobox({ listId }: AddListingsComboboxProps) {
                 <span>{listing.title}</span>
                 {(listing.ahsListing?.hybridizer ??
                   listing.ahsListing?.year) && (
-                  <span className="text-xs text-muted-foreground">
+                  <span className="text-muted-foreground text-xs">
                     (
                     {listing.ahsListing.hybridizer && listing.ahsListing.year
                       ? `${listing.ahsListing.hybridizer}, ${listing.ahsListing.year}`
@@ -157,7 +155,7 @@ export function AddListingsCombobox({ listId }: AddListingsComboboxProps) {
         }
       >
         <div className="flex h-full flex-col overflow-hidden">
-          <DialogHeader className="shrink-0 px-4 pb-2 pt-4">
+          <DialogHeader className="shrink-0 px-4 pt-4 pb-2">
             <DialogTitle>Add Listings to List</DialogTitle>
           </DialogHeader>
           <div className="flex-1 overflow-hidden">{renderContent()}</div>

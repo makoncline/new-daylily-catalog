@@ -30,16 +30,22 @@ jobs:
             echo "COMMIT_SHA=${{ github.event.deployment.sha }}" >> $GITHUB_OUTPUT
           fi
 
+      - name: Enable corepack
+        run: corepack enable
+
       - uses: actions/checkout@v4
         with:
           ref: ${{ steps.sha.outputs.COMMIT_SHA }}
 
       - uses: actions/setup-node@v4
-        with: { node-version: 20 }
+        with:
+          node-version: 20
+          cache: "pnpm"
+          cache-dependency-path: pnpm-lock.yaml
 
-      # swap to pnpm if you prefer:
-      - run: npm ci
-      - run: npx playwright install --with-deps
+      - run: pnpm fetch
+      - run: pnpm install --frozen-lockfile --prefer-offline
+      - run: pnpm exec playwright install --with-deps
 
       - name: Compute BASE_URL (alias)
         id: url
@@ -69,4 +75,4 @@ jobs:
           BASE_URL: ${{ env.BASE_URL }}
           # set only if you enabled Vercel Preview Protection
           VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
-        run: npx playwright test
+        run: pnpm exec playwright test
