@@ -102,29 +102,27 @@ export function EditListingDialog() {
 
   return (
     <Dialog open={isOpen} onOpenChange={handleOpenChange}>
-      <DialogContent className="max-h-[90vh] overflow-y-auto">
+      <DialogContent>
         <DialogHeader>
           <DialogTitle>Edit Listing</DialogTitle>
-          <P className="text-sm text-muted-foreground">
+          <P className="text-muted-foreground text-sm">
             Make changes to your listing here.
           </P>
         </DialogHeader>
 
-        <div className="h-[calc(100%-4rem)]">
-          {editingId && (
-            <ErrorBoundary
-              fallback={<ErrorFallback resetErrorBoundary={closeEditListing} />}
-            >
-              <Suspense fallback={<ListingFormSkeleton />}>
-                <ListingForm
-                  listingId={editingId}
-                  onDelete={closeEditListing}
-                  formRef={formRef}
-                />
-              </Suspense>
-            </ErrorBoundary>
-          )}
-        </div>
+        {editingId && (
+          <ErrorBoundary
+            fallback={<ErrorFallback resetErrorBoundary={closeEditListing} />}
+          >
+            <Suspense fallback={<ListingFormSkeleton />}>
+              <ListingForm
+                listingId={editingId}
+                onDelete={closeEditListing}
+                formRef={formRef}
+              />
+            </Suspense>
+          </ErrorBoundary>
+        )}
       </DialogContent>
     </Dialog>
   );
