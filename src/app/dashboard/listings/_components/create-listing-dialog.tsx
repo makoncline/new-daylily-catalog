@@ -123,7 +123,7 @@ export function CreateListingDialog({
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="max-w-3xl">
+      <DialogContent>
         <DialogHeader>
           <DialogTitle>Create New Listing</DialogTitle>
           <P className="text-muted-foreground text-sm">
@@ -131,7 +131,6 @@ export function CreateListingDialog({
             the AHS database.
           </P>
         </DialogHeader>
-
         <div className="space-y-4 py-4">
           {/* AHS Listing Selection */}
           <div className="space-y-2">

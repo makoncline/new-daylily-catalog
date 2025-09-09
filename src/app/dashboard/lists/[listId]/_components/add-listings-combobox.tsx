@@ -37,9 +37,6 @@ export function AddListingsCombobox({ listId }: AddListingsComboboxProps) {
   const [open, setOpen] = useState(false);
   const [searchValue, setSearchValue] = useState("");
 
-  const keyboardOpen = useKeyboardStatus();
-  const viewportHeight = useVisualViewportHeight();
-
   const utils = api.useUtils();
   const { data: listings } = api.listing.list.useQuery();
 
@@ -137,23 +134,7 @@ export function AddListingsCombobox({ listId }: AddListingsComboboxProps) {
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>{triggerButton}</DialogTrigger>
-      <DialogContent
-        className={cn(
-          "overflow-hidden p-0 sm:max-w-md",
-          !keyboardOpen && "max-h-[50vh] min-h-[400px]",
-        )}
-        style={
-          keyboardOpen
-            ? {
-                top: 0,
-                left: "50%",
-                transform: "translateX(-50%)",
-                height: `${viewportHeight}px`,
-                maxHeight: `${viewportHeight}px`,
-              }
-            : undefined
-        }
-      >
+      <DialogContent>
         <div className="flex h-full flex-col overflow-hidden">
           <DialogHeader className="shrink-0 px-4 pt-4 pb-2">
             <DialogTitle>Add Listings to List</DialogTitle>
