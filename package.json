@@ -4,8 +4,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "next build",
-    "dev": "next dev",
+    "build": "next build --turbopack",
+    "dev": "next dev --turbopack",
     "postinstall": "prisma generate",
     "lint": "next lint",
     "start": "next start",
@@ -113,6 +113,7 @@
     "superjson": "^2.2.2",
     "svix": "^1.76.1",
     "tailwind-merge": "^3.3.1",
+    "tailwindcss-animate": "^1.0.7",
     "typescript-eslint": "^8.43.0",
     "use-debounce": "^10.0.6",
     "usehooks-ts": "^3.1.1",

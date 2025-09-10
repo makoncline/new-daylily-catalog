@@ -24,8 +24,6 @@ import { api } from "@/trpc/react";
 import { cn } from "@/lib/utils";
 import { TruncatedListBadge } from "@/components/data-table/truncated-list-badge";
 import { Muted } from "@/components/typography";
-import { useKeyboardStatus } from "@/hooks/use-keyboard-status";
-import { useVisualViewportHeight } from "@/hooks/use-visual-viewport-height";
 
 interface MultiListSelectProps {
   values: string[];

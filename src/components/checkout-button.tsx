@@ -3,10 +3,9 @@
 import { Button } from "@/components/ui/button";
 import { Sparkles } from "lucide-react";
 import { usePro } from "@/hooks/use-pro";
-import { type ButtonProps } from "@/components/ui/button";
 
 interface CheckoutButtonProps
-  extends Omit<ButtonProps, "onClick" | "disabled"> {
+  extends Omit<React.ComponentProps<typeof Button>, "onClick" | "disabled"> {
   children?: React.ReactNode;
 }
 

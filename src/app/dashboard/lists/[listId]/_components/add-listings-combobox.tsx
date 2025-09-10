@@ -22,9 +22,6 @@ import { api } from "@/trpc/react";
 import type { inferRouterOutputs } from "@trpc/server";
 import type { listingRouter } from "@/server/api/routers/listing";
 import { toast } from "sonner";
-import { useKeyboardStatus } from "@/hooks/use-keyboard-status";
-import { useVisualViewportHeight } from "@/hooks/use-visual-viewport-height";
-import { cn } from "@/lib/utils";
 
 type ListingRouterOutputs = inferRouterOutputs<typeof listingRouter>;
 type ListingData = ListingRouterOutputs["list"][number];

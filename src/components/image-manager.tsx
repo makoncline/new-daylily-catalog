@@ -182,7 +182,7 @@ export function ImageManager({
                         type="button"
                         variant="secondary"
                         size="icon"
-                        className="absolute top-2 left-2 h-8 w-8 cursor-grab touch-none opacity-0 transition-opacity group-hover:opacity-100"
+                        className="absolute top-2 left-2 size-8 cursor-grab touch-none"
                         {...attributes}
                         {...listeners}
                       >
@@ -192,14 +192,14 @@ export function ImageManager({
                       <ImagePreviewDialog
                         images={[image]}
                         size="sm"
-                        className="absolute top-2 right-2 opacity-0 transition-opacity group-hover:opacity-100"
+                        className="absolute top-2 right-2"
                       />
                       <Button
                         type="button"
                         variant="destructive"
                         size="icon"
                         disabled={isPending}
-                        className="absolute right-2 bottom-2 h-8 w-8 opacity-0 transition-opacity group-hover:opacity-100"
+                        className="absolute right-2 bottom-2 size-8"
                         onClick={() => setImageToDelete(image)}
                       >
                         <Trash2 className="h-4 w-4" />
