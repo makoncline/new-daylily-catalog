@@ -1,17 +1,15 @@
-"use client";
-
 import { Suspense } from "react";
 import {
   SidebarProvider,
   SidebarInset,
   SidebarTrigger,
-  SIDEBAR_COOKIE_NAME,
 } from "@/components/ui/sidebar";
 import { Separator } from "@/components/ui/separator";
 import { DashboardBreadcrumbs } from "./_components/dashboard-breadcrumbs";
 import { AppSidebar } from "@/components/app-sidebar";
 import { DashboardClientWrapper } from "./_components/dashboard-client-wrapper";
 import { Skeleton } from "@/components/ui/skeleton";
+import { cookies } from "next/headers";
 
 // Simple fallback loading state for the Suspense boundary
 function DashboardFallback() {
@@ -34,25 +32,17 @@ function DashboardFallback() {
 
 export const dynamic = "force-dynamic";
 
-function getCookie(name: string) {
-  if (typeof window === "undefined") {
-    return;
-  }
-  const value = `; ${document.cookie}`;
-  const parts = value.split(`; ${name}=`);
-  if (parts.length === 2) return parts.pop()?.split(";").shift();
-}
-
-export default function DashboardLayout({
+export default async function DashboardLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const sidebarOpen = getCookie(SIDEBAR_COOKIE_NAME as string) === "true";
+  const cookieStore = await cookies();
+  const defaultOpen = cookieStore.get("sidebar_state")?.value === "true";
 
   return (
     <DashboardClientWrapper>
-      <SidebarProvider defaultOpen={sidebarOpen}>
+      <SidebarProvider defaultOpen={defaultOpen}>
         <AppSidebar />
         <SidebarInset>
           <header className="flex h-16 shrink-0 items-center border-b transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12">

@@ -18,9 +18,6 @@ import {
 } from "@/components/ui/command";
 import { api } from "@/trpc/react";
 import type { AhsListing } from "@prisma/client";
-import { useKeyboardStatus } from "@/hooks/use-keyboard-status";
-import { useVisualViewportHeight } from "@/hooks/use-visual-viewport-height";
-import { cn } from "@/lib/utils";
 
 interface AhsListingSelectProps {
   onSelect: (ahsListing: AhsListing) => void;
