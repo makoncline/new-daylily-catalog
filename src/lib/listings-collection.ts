@@ -106,3 +106,23 @@ export async function updateListing({
 export async function deleteListing({ id }: { id: string }) {
   listingsCollection.delete(id);
 }
+
+export async function initializeListingsCollection() {
+  const trpc = getTrpcClient();
+  const queryClient = getQueryClient();
+
+  // Fetch the full set of listings
+  const listings = await trpc.dashboardTwo.getListings.query();
+
+  // Seed the query cache used by the collection's queryFn
+  queryClient.setQueryData<ListingCollectionItem[]>(
+    ["dashboard-two", "listings"],
+    listings,
+  );
+
+  // Advance the sync cursor so the next incremental sync only fetches changes
+  localStorage.setItem(CURSOR_KEY, new Date().toISOString());
+
+  // Kick off reconciliation to hydrate the collection from the cache immediately
+  // listingsCollection.startSyncImmediate();
+}

@@ -4,6 +4,7 @@ import { useLiveQuery } from "@tanstack/react-db";
 import { useCallback, useState } from "react";
 import { SignedIn } from "@clerk/nextjs";
 import React from "react";
+import { DashboardProvider } from "./_components/listings-init-provider";
 import { listingsCollection as listingCollection } from "@/lib/listings-collection";
 import {
   insertListing,
@@ -16,7 +17,9 @@ import { insertList, updateList, deleteList } from "@/lib/lists-collection";
 export default function Page() {
   return (
     <SignedIn>
-      <PageContent />
+      <DashboardProvider>
+        <PageContent />
+      </DashboardProvider>
     </SignedIn>
   );
 }
@@ -29,7 +32,9 @@ function PageContent() {
   );
 
   const { data: allLists = [] } = useLiveQuery((q) =>
-    q.from({ list: listsCollection }).orderBy(({ list }) => list.createdAt ?? "", "desc"),
+    q
+      .from({ list: listsCollection })
+      .orderBy(({ list }) => list.createdAt ?? "", "desc"),
   );
 
   const addListing = async () => {
@@ -186,7 +191,7 @@ function PageContent() {
         ))}
       </div>
 
-      <div className="h-px w-full bg-muted/60" />
+      <div className="bg-muted/60 h-px w-full" />
 
       <div className="text-xl font-semibold">TanStack DB List Example</div>
 
@@ -200,7 +205,9 @@ function PageContent() {
           Add List
         </div>
 
-        <div className="text-muted-foreground text-sm">Total: {allLists.length}</div>
+        <div className="text-muted-foreground text-sm">
+          Total: {allLists.length}
+        </div>
       </div>
 
       <div className="grid grid-cols-1 gap-3">

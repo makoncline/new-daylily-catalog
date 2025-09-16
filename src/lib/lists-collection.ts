@@ -35,7 +35,8 @@ export const listsCollection = createCollection(
     queryKey: ["dashboard-two", "lists"],
     getKey: (row) => row.id,
     queryFn: async ({ queryKey, client }) => {
-      const existingData: ListCollectionItem[] = client.getQueryData(queryKey) ?? [];
+      const existingData: ListCollectionItem[] =
+        client.getQueryData(queryKey) ?? [];
 
       const lastSyncTime = localStorage.getItem(CURSOR_KEY);
       const newData = await getTrpcClient().dashboardTwo.syncLists.query({
@@ -90,13 +91,7 @@ export async function insertList({ title }: { title?: string }) {
   });
 }
 
-export async function updateList({
-  id,
-  title,
-}: {
-  id: string;
-  title: string;
-}) {
+export async function updateList({ id, title }: { id: string; title: string }) {
   listsCollection.update(id, (draft) => {
     draft.title = title;
   });
@@ -106,3 +101,21 @@ export async function deleteList({ id }: { id: string }) {
   listsCollection.delete(id);
 }
 
+export async function initializeListsCollection() {
+  const trpc = getTrpcClient();
+  const queryClient = getQueryClient();
+
+  // Fetch the full set of lists
+  const lists = await trpc.dashboardTwo.getLists.query();
+
+  // Seed the query cache used by the collection's queryFn
+  queryClient.setQueryData<ListCollectionItem[]>(
+    ["dashboard-two", "lists"],
+    lists,
+  );
+
+  // Advance the sync cursor so the next incremental sync only fetches changes
+  localStorage.setItem(CURSOR_KEY, new Date().toISOString());
+
+  // Intentionally do not start sync here; caller controls sync behavior
+}
