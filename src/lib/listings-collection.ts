@@ -22,7 +22,7 @@ const CURSOR_KEY = "listings:maxUpdatedAt";
 // In-memory tombstones to prevent re-adding deleted items during incremental merges
 const DELETED_IDS = new Set<string>();
 
-type ListingItem = Optional<
+export type ListingCollectionItem = Optional<
   RouterOutputs["dashboardTwo"]["getListings"][number]
 > & {
   id: string;
@@ -30,12 +30,13 @@ type ListingItem = Optional<
 };
 
 export const listingsCollection = createCollection(
-  queryCollectionOptions<ListingItem>({
+  queryCollectionOptions<ListingCollectionItem>({
     queryClient: getQueryClient(),
     queryKey: ["dashboard-two", "listings"],
     getKey: (row) => row.id,
     queryFn: async ({ queryKey, client }) => {
-      const existingData: ListingItem[] = client.getQueryData(queryKey) ?? [];
+      const existingData: ListingCollectionItem[] =
+        client.getQueryData(queryKey) ?? [];
       console.log("~~existingData", existingData);
 
       const lastSyncTime = localStorage.getItem(CURSOR_KEY);
@@ -83,8 +84,6 @@ export const listingsCollection = createCollection(
     },
   }),
 );
-
-export type ListingCollectionItem = ListingItem;
 
 export async function insertListing({ title }: { title?: string }) {
   const tempId = `temp:${crypto.randomUUID()}`;

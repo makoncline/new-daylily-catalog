@@ -2,29 +2,43 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import React from "react";
 import { render, screen, waitFor, act } from "@testing-library/react";
 import { useLiveQuery } from "@tanstack/react-db";
+import { QueryClient } from "@tanstack/react-query";
+import type { RouterInputs, RouterOutputs } from "@/trpc/react";
 
-// --- mocks ---------------------------------------------------------------
-vi.mock("@/trpc/client", () => {
-  const { QueryClient } = require("@tanstack/query-core");
-  const queryClient = new QueryClient();
-  const syncMock = vi.fn();
-  const insertMock = vi.fn();
-  const updateMock = vi.fn();
-  const deleteMock = vi.fn();
-  return {
-    getQueryClient: vi.fn(() => queryClient),
-    getTrpcClient: () => ({
-      dashboardTwo: {
-        syncListings: { query: syncMock },
-        insertListing: { mutate: insertMock },
-        updateListing: { mutate: updateMock },
-        deleteListing: { mutate: deleteMock },
-      },
-    }),
-    __mocks: { queryClient, syncMock, insertMock, updateMock, deleteMock },
-  };
+type SyncInput = RouterInputs["dashboardTwo"]["syncListings"];
+type SyncOutput = RouterOutputs["dashboardTwo"]["syncListings"];
+type InsertInput = RouterInputs["dashboardTwo"]["insertListing"];
+type UpdateInput = RouterInputs["dashboardTwo"]["updateListing"];
+type DeleteInput = RouterInputs["dashboardTwo"]["deleteListing"];
+
+type ListingRecord = SyncOutput[number];
+type MinimalListing = Pick<ListingRecord, "id" | "title"> &
+  Partial<ListingRecord>;
+
+const toListingRecord = (partial: MinimalListing): ListingRecord => ({
+  id: partial.id,
+  title: partial.title,
+  userId: partial.userId ?? "user-1",
+  slug:
+    partial.slug ??
+    partial.title.toLowerCase().replace(/\s+/g, "-").slice(0, 32),
+  price: partial.price ?? null,
+  description: partial.description ?? null,
+  privateNote: partial.privateNote ?? null,
+  ahsId: partial.ahsId ?? null,
+  status: partial.status ?? null,
+  createdAt: partial.createdAt ?? new Date(0),
+  updatedAt: partial.updatedAt ?? new Date(0),
 });
-import { __mocks as trpcClientMocks } from "@/trpc/client";
+
+const trpcClientMocks = vi.hoisted(() => {
+  let queryClient!: QueryClient;
+  const syncMock = vi.fn<(input: SyncInput) => Promise<SyncOutput>>();
+  const insertMock = vi.fn<(input: InsertInput) => void | Promise<void>>();
+  const updateMock = vi.fn<(input: UpdateInput) => void | Promise<void>>();
+  const deleteMock = vi.fn<(input: DeleteInput) => void | Promise<void>>();
+  return { queryClient, syncMock, insertMock, updateMock, deleteMock };
+});
 import {
   listingsCollection,
   insertListing,
@@ -32,14 +46,29 @@ import {
   deleteListing,
 } from "@/lib/listings-collection";
 
-// --- types & test utilities ------------------------------------------------------
-type Item = { id: string; title?: string };
+vi.mock("@/trpc/client", () => ({
+  getQueryClient: vi.fn(() => {
+    const client = new QueryClient();
+    trpcClientMocks.queryClient = client;
+    return client;
+  }),
+  getTrpcClient: () => ({
+    dashboardTwo: {
+      syncListings: { query: trpcClientMocks.syncMock },
+      insertListing: { mutate: trpcClientMocks.insertMock },
+      updateListing: { mutate: trpcClientMocks.updateMock },
+      deleteListing: { mutate: trpcClientMocks.deleteMock },
+    },
+  }),
+}));
 
-const setNextSync = (items: Array<Item>) =>
-  trpcClientMocks.syncMock.mockResolvedValueOnce(items);
+// --- types & test utilities ------------------------------------------------------
+
+const setNextSync = (items: MinimalListing[]) =>
+  trpcClientMocks.syncMock.mockResolvedValueOnce(items.map(toListingRecord));
 const expectUI = async (count: number, titles: string) => {
   await waitFor(() => {
-    expect(screen.getByTestId("count")).toHaveTextContent(String(count));
+    expect(screen.getByTestId("count").textContent).toBe(String(count));
     expect(screen.getByTestId("titles").textContent).toBe(titles);
   });
 };
@@ -51,7 +80,7 @@ const renderAndStart = async () =>
 
 // Minimal viewer to assert live state
 function ListingsViewer() {
-  const { data: items = [] } = useLiveQuery<Item>((q) =>
+  const { data: items = [] } = useLiveQuery((q) =>
     q
       .from({ row: listingsCollection })
       .orderBy(({ row }) => (row.title ?? "") as string, "asc"),
@@ -66,15 +95,9 @@ function ListingsViewer() {
 
 beforeEach(() => {
   localStorage.clear();
+  trpcClientMocks.queryClient = new QueryClient();
   trpcClientMocks.queryClient.clear();
-  vi.clearAllMocks(); // resets sync/insert/update/delete mocks
-});
-
-afterEach(() => {
-  // Stop any background sync work to prevent cross-test leakage
-  if (listingsCollection.stopSync) {
-    listingsCollection.stopSync();
-  }
+  vi.clearAllMocks();
 });
 
 describe("listingsCollection flow: empty → insert → update → delete", () => {
@@ -83,8 +106,8 @@ describe("listingsCollection flow: empty → insert → update → delete", () =
     await renderAndStart();
 
     await waitFor(() => expect(trpcClientMocks.syncMock).toHaveBeenCalled());
-    const [[params]] = trpcClientMocks.syncMock.mock.calls;
-    expect(params).toEqual(expect.objectContaining({ since: null }));
+    const firstCall = trpcClientMocks.syncMock.mock.calls[0];
+    expect(firstCall?.[0]).toEqual(expect.objectContaining({ since: null }));
     await expectUI(0, "");
 
     // Insert
