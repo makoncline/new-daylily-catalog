@@ -61,6 +61,54 @@ export const dashboardTwoRouter = createTRPCRouter({
       });
       return listing;
     }),
+  getLists: protectedProcedure.query(async ({ ctx }) => {
+    return ctx.db.list.findMany({
+      where: { userId: ctx.user.id },
+    });
+  }),
+  syncLists: protectedProcedure
+    .input(z.object({ since: z.iso.datetime().nullable() }))
+    .query(async ({ ctx, input }) => {
+      const since = input.since ? new Date(input.since) : undefined;
+      const upserts = await ctx.db.list.findMany({
+        where: {
+          userId: ctx.user.id,
+          ...(since ? { updatedAt: { gte: since } } : {}), // inclusive
+        },
+        orderBy: { updatedAt: "asc" },
+      });
+      // NOTE: Does not include deletions
+      return upserts;
+    }),
+  insertList: protectedProcedure
+    .input(z.object({ title: z.string().optional() }))
+    .mutation(async ({ ctx, input }) => {
+      const title = input.title ?? "New List";
+      const list = await ctx.db.list.create({
+        data: {
+          title,
+          userId: ctx.user.id,
+        },
+      });
+      return list;
+    }),
+  updateList: protectedProcedure
+    .input(z.object({ id: z.string(), title: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      const list = await ctx.db.list.update({
+        where: { id: input.id },
+        data: { title: input.title },
+      });
+      return list;
+    }),
+  deleteList: protectedProcedure
+    .input(z.object({ id: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      const list = await ctx.db.list.delete({
+        where: { id: input.id },
+      });
+      return list;
+    }),
 });
 
 export type DashbordTwoRouterOutputs = RouterOutputs["dashboardTwo"];
