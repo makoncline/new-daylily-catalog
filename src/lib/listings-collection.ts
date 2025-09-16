@@ -37,13 +37,11 @@ export const listingsCollection = createCollection(
     queryFn: async ({ queryKey, client }) => {
       const existingData: ListingCollectionItem[] =
         client.getQueryData(queryKey) ?? [];
-      console.log("~~existingData", existingData);
 
       const lastSyncTime = localStorage.getItem(CURSOR_KEY);
       const newData = await getTrpcClient().dashboardTwo.syncListings.query({
         since: lastSyncTime ?? null,
       });
-      console.log("~~newData", newData);
 
       const existingMap = new Map(existingData.map((item) => [item.id, item]));
 
