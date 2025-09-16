@@ -1,15 +1,18 @@
 "use client";
 
 import { QueryClientProvider, type QueryClient } from "@tanstack/react-query";
-import { loggerLink, unstable_httpBatchStreamLink } from "@trpc/client";
+// Links created in client-links
 import { createTRPCReact } from "@trpc/react-query";
 import { type inferRouterInputs, type inferRouterOutputs } from "@trpc/server";
 import { useState } from "react";
-import SuperJSON from "superjson";
+// Transformer configured in client-links
 
+import {
+  createQueryClient,
+  getQueryClient as getQueryClientSingleton,
+} from "./query-client";
+import { createClientLinks } from "./client-links";
 import { type AppRouter } from "@/server/api/root";
-import { createQueryClient } from "./query-client";
-import { getBaseUrl } from "../lib/utils/getBaseUrl";
 
 let clientQueryClientSingleton: QueryClient | undefined = undefined;
 const getQueryClient = () => {
@@ -18,31 +21,12 @@ const getQueryClient = () => {
     return createQueryClient();
   }
   // Browser: use singleton pattern to keep the same query client
-  return (clientQueryClientSingleton ??= createQueryClient());
+  clientQueryClientSingleton ??= getQueryClientSingleton();
+
+  return clientQueryClientSingleton;
 };
 
-export const api = createTRPCReact<AppRouter>({
-  overrides: {
-    useMutation: {
-      async onSuccess(opts) {
-        /**
-         * @note that order here matters:
-         * The order here allows route changes in `onSuccess` without
-         * having a flash of content change whilst redirecting.
-         **/
-        // Calls the `onSuccess` defined in the `useQuery()`-options:
-        await opts.originalFn();
-
-        // Aggressively invalidate ALL queries in the react-query cache
-        // This ensures all data is always fresh after any mutation
-        await opts.queryClient.invalidateQueries({
-          type: "all",
-          refetchType: "all",
-        });
-      },
-    },
-  },
-});
+export const api = createTRPCReact<AppRouter>();
 
 /**
  * Inference helper for inputs.
@@ -62,26 +46,7 @@ export function TRPCReactProvider(props: { children: React.ReactNode }) {
   const queryClient = getQueryClient();
 
   const [trpcClient] = useState(() =>
-    api.createClient({
-      links: [
-        loggerLink({
-          enabled: (op) =>
-            process.env.NODE_ENV === "development" ||
-            (op.direction === "down" && op.result instanceof Error),
-        }),
-        unstable_httpBatchStreamLink({
-          transformer: SuperJSON,
-          url: getBaseUrl() + "/api/trpc",
-          maxItems: 10,
-          maxURLLength: 2000,
-          headers: () => {
-            const headers = new Headers();
-            headers.set("x-trpc-source", "nextjs-react");
-            return headers;
-          },
-        }),
-      ],
-    }),
+    api.createClient({ links: createClientLinks() }),
   );
 
   return (

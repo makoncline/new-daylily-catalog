@@ -1,7 +1,8 @@
 import { APP_CONFIG } from "@/config/constants";
 import { generateUniqueSlug } from "@/lib/utils/slugify-server";
 import { createTRPCRouter, protectedProcedure } from "@/server/api/trpc";
-import z from "zod";
+import { type RouterOutputs } from "@/trpc/react";
+import { z } from "zod";
 
 export const dashboardTwoRouter = createTRPCRouter({
   getListings: protectedProcedure.query(async ({ ctx }) => {
@@ -9,7 +10,22 @@ export const dashboardTwoRouter = createTRPCRouter({
       where: { userId: ctx.user.id },
     });
   }),
-  createListing: protectedProcedure
+  syncListings: protectedProcedure
+    .input(z.object({ since: z.iso.datetime().nullable() }))
+    .query(async ({ ctx, input }) => {
+      const since = input.since ? new Date(input.since) : undefined;
+      const upserts = await ctx.db.listing.findMany({
+        where: {
+          userId: ctx.user.id,
+          ...(since ? { updatedAt: { gte: since } } : {}), // inclusive
+        },
+        orderBy: { updatedAt: "asc" },
+      });
+      // NOTE: Does not include deletions
+      // would need to do soft deletes (deletedAt), or add an event log with the deletion time
+      return upserts;
+    }),
+  insertListing: protectedProcedure
     .input(
       z.object({
         title: z.string().optional(),
@@ -46,3 +62,5 @@ export const dashboardTwoRouter = createTRPCRouter({
       return listing;
     }),
 });
+
+export type DashbordTwoRouterOutputs = RouterOutputs["dashboardTwo"];
