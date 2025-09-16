@@ -26,7 +26,28 @@ const getQueryClient = () => {
   return clientQueryClientSingleton;
 };
 
-export const api = createTRPCReact<AppRouter>();
+export const api = createTRPCReact<AppRouter>({
+  overrides: {
+    useMutation: {
+      async onSuccess(opts) {
+        /**
+         * @note that order here matters:
+         * The order here allows route changes in `onSuccess` without
+         * having a flash of content change whilst redirecting.
+         **/
+        // Calls the `onSuccess` defined in the `useQuery()`-options:
+        await opts.originalFn();
+
+        // Aggressively invalidate ALL queries in the react-query cache
+        // This ensures all data is always fresh after any mutation
+        await opts.queryClient.invalidateQueries({
+          type: "all",
+          refetchType: "all",
+        });
+      },
+    },
+  },
+});
 
 /**
  * Inference helper for inputs.
