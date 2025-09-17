@@ -1,4 +1,3 @@
-// tests/listings-collection-temp.test.tsx
 import React from "react";
 import { describe, it, expect, beforeEach } from "vitest";
 import { render, screen, act, waitFor } from "@testing-library/react";
@@ -9,7 +8,7 @@ beforeEach(() => {
   localStorage.clear();
 });
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
+/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-return, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-assignment */
 function ListingsViewer({ listingsCollection }: { listingsCollection: any }) {
   const { data: items = [] } = useLiveQuery((q: any) => {
     return q
@@ -24,7 +23,6 @@ function ListingsViewer({ listingsCollection }: { listingsCollection: any }) {
     </div>
   );
 }
-/* eslint-enable @typescript-eslint/no-explicit-any */
 
 describe("listingsCollection flow: empty → insert → update → delete", () => {
   it("renders live state via useLiveQuery (no manual refetches)", async () => {
@@ -40,7 +38,6 @@ describe("listingsCollection flow: empty → insert → update → delete", () =
 
       await act(async () => {
         render(<ListingsViewer listingsCollection={listingsCollection} />);
-        listingsCollection.startSyncImmediate(); // keep reconciliation running
       });
 
       // starts empty
@@ -95,6 +92,38 @@ describe("listingsCollection flow: empty → insert → update → delete", () =
         expect(screen.getByTestId("count").textContent).toBe("0");
         expect(screen.getByTestId("titles").textContent).toBe("");
         expect(screen.getByTestId("ids").textContent).toBe("");
+      });
+    });
+  });
+});
+
+describe("listingsCollection bulk inserts", () => {
+  it("adds 10 listings sequentially and shows correct count", async () => {
+    await withTempAppDb(async () => {
+      const { listingsCollection, insertListing } = await import(
+        "@/lib/listings-collection"
+      );
+
+      await act(async () => {
+        render(<ListingsViewer listingsCollection={listingsCollection} />);
+      });
+
+      // starts empty
+      expect(screen.getByTestId("count").textContent).toBe("0");
+
+      for (let i = 0; i < 10; i++) {
+        // Insert one-by-one to simulate rapid user adds
+        // and ensure reconciliation handles temp→real id swaps correctly
+        await act(async () => {
+          await insertListing({ title: "Hello" });
+        });
+      }
+
+      await waitFor(() => {
+        expect(screen.getByTestId("count").textContent).toBe("10");
+        const idsText = screen.getByTestId("ids").textContent ?? "";
+        const ids = idsText ? idsText.split(",").filter(Boolean) : [];
+        expect(new Set(ids).size).toBe(10);
       });
     });
   });

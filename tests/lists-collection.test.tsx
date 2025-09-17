@@ -29,15 +29,13 @@ function ListsViewer({ listsCollection }: { listsCollection: any }) {
 describe("listsCollection flow: empty → insert → update → delete", () => {
   it("renders live state via useLiveQuery (no manual refetches)", async () => {
     await withTempAppDb(async () => {
-      const { listsCollection, insertList, updateList, deleteList } = await import(
-        "@/lib/lists-collection"
-      );
+      const { listsCollection, insertList, updateList, deleteList } =
+        await import("@/lib/lists-collection");
       const { getTrpcClient } = await import("@/trpc/client");
       const client = getTrpcClient();
 
       await act(async () => {
         render(<ListsViewer listsCollection={listsCollection} />);
-        listsCollection.startSyncImmediate(); // keep reconciliation running
       });
 
       // starts empty
@@ -97,3 +95,34 @@ describe("listsCollection flow: empty → insert → update → delete", () => {
   });
 });
 
+describe("listsCollection bulk inserts", () => {
+  it("adds 10 lists sequentially and shows correct count", async () => {
+    await withTempAppDb(async () => {
+      const { listsCollection, insertList } = await import(
+        "@/lib/lists-collection"
+      );
+
+      await act(async () => {
+        render(<ListsViewer listsCollection={listsCollection} />);
+      });
+
+      // starts empty
+      expect(screen.getByTestId("count").textContent).toBe("0");
+
+      for (let i = 0; i < 10; i++) {
+        // Insert one-by-one to simulate rapid user adds
+        // and ensure reconciliation handles temp→real id swaps correctly
+        await act(async () => {
+          await insertList({ title: "Hello" });
+        });
+      }
+
+      await waitFor(() => {
+        expect(screen.getByTestId("count").textContent).toBe("10");
+        const idsText = screen.getByTestId("ids").textContent ?? "";
+        const ids = idsText ? idsText.split(",").filter(Boolean) : [];
+        expect(new Set(ids).size).toBe(10);
+      });
+    });
+  });
+});

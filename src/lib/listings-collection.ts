@@ -5,11 +5,12 @@ import { queryCollectionOptions } from "@tanstack/query-db-collection";
 
 import { type Optional } from "prisma/generated/sqlite-client/runtime/library";
 import type { QueryClient } from "@tanstack/query-core";
-import type { RouterOutputs } from "@/trpc/react";
+import type { RouterInputs, RouterOutputs } from "@/trpc/react";
 import {
   getQueryClient as getClientQueryClient,
   getTrpcClient,
 } from "@/trpc/client";
+import { makeInsertWithSwap } from "./utils/collection-utils";
 
 let _queryClient: QueryClient | undefined = undefined;
 const getQueryClient = () => {
@@ -56,55 +57,67 @@ export const listingsCollection = createCollection(
 
       return Array.from(existingMap.values());
     },
-    onInsert: async ({ transaction }) => {
-      const { modified: tempListing } = transaction.mutations[0];
-
-      await getTrpcClient().dashboardTwo.insertListing.mutate({
-        title: tempListing.title,
-      });
+    onInsert: async () => {
+      // Server create handled by insertListing() with direct write swap
+      return { refetch: false };
     },
-    onUpdate: async ({ transaction }) => {
-      const { modified: tempListing } = transaction.mutations[0];
-
-      await getTrpcClient().dashboardTwo.updateListing.mutate({
-        id: tempListing.id,
-        title: tempListing.title,
-      });
+    onUpdate: async () => {
+      // Server update handled by updateListing() with direct writes
+      return { refetch: false };
     },
-    onDelete: async ({ transaction }) => {
-      const { modified: tempListing } = transaction.mutations[0];
-
-      await getTrpcClient().dashboardTwo.deleteListing.mutate({
-        id: tempListing.id,
-      });
-
-      DELETED_IDS.add(tempListing.id);
+    onDelete: async () => {
+      // Server delete handled by deleteListing() with direct writes
+      return { refetch: false };
     },
   }),
 );
 
-export async function insertListing({ title }: { title?: string }) {
-  const tempId = `temp:${crypto.randomUUID()}`;
-  listingsCollection.insert({
-    id: tempId,
-    title: title ?? `New Listing`,
+type InsertListingDraft = RouterInputs["dashboardTwo"]["insertListing"];
+export async function insertListing(listingDraft: InsertListingDraft) {
+  const run = makeInsertWithSwap<InsertListingDraft, ListingCollectionItem>({
+    collection: listingsCollection,
+    makeTemp: (listingDraft) => ({
+      id: `temp:${crypto.randomUUID()}`,
+      ...listingDraft,
+    }),
+    serverInsert: async (listingDraft) =>
+      getTrpcClient().dashboardTwo.insertListing.mutate(listingDraft),
   });
+
+  return run(listingDraft);
 }
 
-export async function updateListing({
-  id,
-  title,
-}: {
-  id: string;
-  title: string;
-}) {
-  listingsCollection.update(id, (draft) => {
-    draft.title = title;
-  });
+type UpdateListingDraft = RouterInputs["dashboardTwo"]["updateListing"];
+export async function updateListing(listingDraft: UpdateListingDraft) {
+  // Optimistic update directly on sync store
+  const previous = listingsCollection.get(listingDraft.id);
+  listingsCollection.utils.writeUpdate(listingDraft);
+
+  try {
+    await getTrpcClient().dashboardTwo.updateListing.mutate(listingDraft);
+  } catch (error) {
+    // Rollback on failure
+    if (previous) {
+      listingsCollection.utils.writeUpdate(previous);
+    }
+    throw error;
+  }
 }
 
 export async function deleteListing({ id }: { id: string }) {
-  listingsCollection.delete(id);
+  // Optimistic delete on sync store
+  const previous = listingsCollection.get(id);
+  listingsCollection.utils.writeDelete(id);
+
+  try {
+    await getTrpcClient().dashboardTwo.deleteListing.mutate({ id });
+  } catch (error) {
+    // Rollback on failure
+    if (previous) {
+      listingsCollection.utils.writeInsert(previous);
+    }
+    throw error;
+  }
 }
 
 export async function initializeListingsCollection() {
@@ -122,7 +135,4 @@ export async function initializeListingsCollection() {
 
   // Advance the sync cursor so the next incremental sync only fetches changes
   localStorage.setItem(CURSOR_KEY, new Date().toISOString());
-
-  // Kick off reconciliation to hydrate the collection from the cache immediately
-  // listingsCollection.startSyncImmediate();
 }

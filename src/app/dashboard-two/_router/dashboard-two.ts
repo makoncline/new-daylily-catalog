@@ -28,11 +28,11 @@ export const dashboardTwoRouter = createTRPCRouter({
   insertListing: protectedProcedure
     .input(
       z.object({
-        title: z.string().optional(),
+        title: z.string(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      const title = input.title ?? APP_CONFIG.LISTING.DEFAULT_NAME;
+      const title = input.title;
       const slug = await generateUniqueSlug(title, ctx.user.id);
 
       const listing = await ctx.db.listing.create({
@@ -81,7 +81,7 @@ export const dashboardTwoRouter = createTRPCRouter({
       return upserts;
     }),
   insertList: protectedProcedure
-    .input(z.object({ title: z.string().optional() }))
+    .input(z.object({ title: z.string() }))
     .mutation(async ({ ctx, input }) => {
       const title = input.title ?? "New List";
       const list = await ctx.db.list.create({
