@@ -1,4 +1,3 @@
-import { APP_CONFIG } from "@/config/constants";
 import { generateUniqueSlug } from "@/lib/utils/slugify-server";
 import { createTRPCRouter, protectedProcedure } from "@/server/api/trpc";
 import { type RouterOutputs } from "@/trpc/react";
@@ -64,6 +63,7 @@ export const dashboardTwoRouter = createTRPCRouter({
   getLists: protectedProcedure.query(async ({ ctx }) => {
     return ctx.db.list.findMany({
       where: { userId: ctx.user.id },
+      include: { listings: { select: { id: true } } },
     });
   }),
   syncLists: protectedProcedure
@@ -76,9 +76,34 @@ export const dashboardTwoRouter = createTRPCRouter({
           ...(since ? { updatedAt: { gte: since } } : {}), // inclusive
         },
         orderBy: { updatedAt: "asc" },
+        include: { listings: { select: { id: true } } },
       });
       // NOTE: Does not include deletions
       return upserts;
+    }),
+  addListingToList: protectedProcedure
+    .input(z.object({ listId: z.string(), listingId: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      const updated = await ctx.db.list.update({
+        where: { id: input.listId, userId: ctx.user.id },
+        data: {
+          listings: { connect: { id: input.listingId } },
+        },
+        include: { listings: { select: { id: true } } },
+      });
+      return updated;
+    }),
+  removeListingFromList: protectedProcedure
+    .input(z.object({ listId: z.string(), listingId: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      const updated = await ctx.db.list.update({
+        where: { id: input.listId, userId: ctx.user.id },
+        data: {
+          listings: { disconnect: { id: input.listingId } },
+        },
+        include: { listings: { select: { id: true } } },
+      });
+      return updated;
     }),
   insertList: protectedProcedure
     .input(z.object({ title: z.string() }))

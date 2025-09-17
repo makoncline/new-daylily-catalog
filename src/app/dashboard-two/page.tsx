@@ -12,7 +12,13 @@ import {
   deleteListing,
 } from "@/lib/listings-collection";
 import { listsCollection } from "@/lib/lists-collection";
-import { insertList, updateList, deleteList } from "@/lib/lists-collection";
+import {
+  insertList,
+  updateList,
+  deleteList,
+  addListingToList,
+  removeListingFromList,
+} from "@/lib/lists-collection";
 
 export default function Page() {
   return (
@@ -139,11 +145,73 @@ function PageContent() {
               ) : (
                 <div>
                   {item.title} {item.id}
+                  <div className="text-muted-foreground text-xs">
+                    {(() => {
+                      const memberLists = allLists.filter((l) =>
+                        (l.listings ?? []).some((x) => x.id === item.id),
+                      );
+                      return memberLists.length
+                        ? `Lists: ${memberLists.map((l) => l.title).join(", ")}`
+                        : "Lists: (none)";
+                    })()}
+                  </div>
                 </div>
               )}
             </div>
 
             <div className="flex items-center gap-2">
+              <div
+                className="cursor-pointer rounded-md px-3 py-1 text-purple-600 select-none hover:bg-purple-600/10"
+                onClick={async () => {
+                  const candidates = allLists.filter(
+                    (l) => !(l.listings ?? []).some((x) => x.id === item.id),
+                  );
+                  if (!candidates.length) {
+                    console.error("No lists available to add to.");
+                    return;
+                  }
+                  const chosenIndex = Math.floor(
+                    Math.random() * candidates.length,
+                  );
+                  const chosen = candidates[chosenIndex];
+                  if (!chosen) {
+                    console.error("No lists available to add to.");
+                    return;
+                  }
+                  await addListingToList({
+                    listId: chosen.id,
+                    listingId: item.id,
+                  });
+                }}
+                role="button"
+                tabIndex={0}
+                title="Add to random list"
+              >
+                Add List
+              </div>
+
+              <div
+                className="cursor-pointer rounded-md px-3 py-1 text-amber-600 select-none hover:bg-amber-600/10"
+                onClick={async () => {
+                  const member = allLists.find((l) =>
+                    (l.listings ?? []).some((x) => x.id === item.id),
+                  );
+                  if (!member) {
+                    console.error("Listing is not in any list to remove from.");
+                    return;
+                  }
+                  await removeListingFromList({
+                    listId: member.id,
+                    listingId: item.id,
+                  });
+                }}
+                role="button"
+                tabIndex={0}
+                title="Remove from first list"
+              >
+                Remove
+              </div>
+
               {editingId === item.id ? (
                 <>
                   <div
@@ -228,11 +296,78 @@ function PageContent() {
               ) : (
                 <div>
                   {item.title} {item.id}
+                  <div className="text-muted-foreground text-xs">
+                    {(() => {
+                      const titles = (item.listings ?? [])
+                        .map(
+                          ({ id }) =>
+                            allListings.find((l) => l.id === id)?.title,
+                        )
+                        .filter(Boolean)
+                        .join(", ");
+                      return titles
+                        ? `Listings: ${titles}`
+                        : "Listings: (none)";
+                    })()}
+                  </div>
                 </div>
               )}
             </div>
 
             <div className="flex items-center gap-2">
+              <div
+                className="cursor-pointer rounded-md px-3 py-1 text-purple-600 select-none hover:bg-purple-600/10"
+                onClick={async () => {
+                  const currentIds = new Set(
+                    (item.listings ?? []).map((x) => x.id),
+                  );
+                  const candidates = allListings.filter(
+                    (l) => !currentIds.has(l.id),
+                  );
+                  if (!candidates.length) {
+                    console.error("No listings available to add to this list.");
+                    return;
+                  }
+                  const chosenIndex = Math.floor(
+                    Math.random() * candidates.length,
+                  );
+                  const chosen = candidates[chosenIndex];
+                  if (!chosen) {
+                    console.error("No listings available to add to this list.");
+                    return;
+                  }
+                  await addListingToList({
+                    listId: item.id,
+                    listingId: chosen.id,
+                  });
+                }}
+                role="button"
+                tabIndex={0}
+                title="Add random listing to this list"
+              >
+                Add Listing
+              </div>
+
+              <div
+                className="cursor-pointer rounded-md px-3 py-1 text-amber-600 select-none hover:bg-amber-600/10"
+                onClick={async () => {
+                  const first = (item.listings ?? [])[0];
+                  if (!first) {
+                    console.error("No listings in this list to remove.");
+                    return;
+                  }
+                  await removeListingFromList({
+                    listId: item.id,
+                    listingId: first.id,
+                  });
+                }}
+                role="button"
+                tabIndex={0}
+                title="Remove first listing from this list"
+              >
+                Remove Listing
+              </div>
+
               {editingListId === item.id ? (
                 <>
                   <div

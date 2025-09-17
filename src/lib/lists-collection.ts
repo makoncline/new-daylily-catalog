@@ -28,6 +28,7 @@ export type ListCollectionItem = Optional<
 > & {
   id: string;
   title: string;
+  listings?: { id: string }[];
 };
 
 export const listsCollection = createCollection(
@@ -117,6 +118,60 @@ export async function deleteList({ id }: { id: string }) {
     if (previous) {
       listsCollection.utils.writeInsert(previous);
     }
+    throw error;
+  }
+}
+
+export async function addListingToList({
+  listId,
+  listingId,
+}: {
+  listId: string;
+  listingId: string;
+}) {
+  const previous = listsCollection.get(listId);
+
+  listsCollection.utils.writeUpdate({
+    id: listId,
+    listings: [
+      ...((previous?.listings as { id: string }[] | undefined) ?? []),
+      { id: listingId },
+    ].filter((v, i, a) => a.findIndex((x) => x.id === v.id) === i),
+  });
+
+  try {
+    await getTrpcClient().dashboardTwo.addListingToList.mutate({
+      listId,
+      listingId,
+    });
+  } catch (error) {
+    if (previous) listsCollection.utils.writeUpdate(previous);
+    throw error;
+  }
+}
+
+export async function removeListingFromList({
+  listId,
+  listingId,
+}: {
+  listId: string;
+  listingId: string;
+}) {
+  const previous = listsCollection.get(listId);
+
+  const nextListings = (
+    (previous?.listings as { id: string }[] | undefined) ?? []
+  ).filter((x) => x.id !== listingId);
+
+  listsCollection.utils.writeUpdate({ id: listId, listings: nextListings });
+
+  try {
+    await getTrpcClient().dashboardTwo.removeListingFromList.mutate({
+      listId,
+      listingId,
+    });
+  } catch (error) {
+    if (previous) listsCollection.utils.writeUpdate(previous);
     throw error;
   }
 }
