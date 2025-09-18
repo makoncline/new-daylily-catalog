@@ -27,6 +27,7 @@ export const ahsCollection = createCollection(
   queryCollectionOptions<AhsCollectionItem>({
     queryClient: getQueryClient(),
     queryKey: ["dashboard-two", "ahs"],
+    enabled: false,
     getKey: (row) => row.id,
     queryFn: async ({ queryKey, client }) => {
       const existingData: AhsCollectionItem[] =

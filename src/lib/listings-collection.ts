@@ -35,6 +35,7 @@ export const listingsCollection = createCollection(
   queryCollectionOptions<ListingCollectionItem>({
     queryClient: getQueryClient(),
     queryKey: ["dashboard-two", "listings"],
+    enabled: false,
     getKey: (row) => row.id,
     queryFn: async ({ queryKey, client }) => {
       const existingData: ListingCollectionItem[] =

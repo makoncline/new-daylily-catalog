@@ -35,6 +35,7 @@ export const listsCollection = createCollection(
   queryCollectionOptions<ListCollectionItem>({
     queryClient: getQueryClient(),
     queryKey: ["dashboard-two", "lists"],
+    enabled: false,
     getKey: (row) => row.id,
     queryFn: async ({ queryKey, client }) => {
       const existingData: ListCollectionItem[] =

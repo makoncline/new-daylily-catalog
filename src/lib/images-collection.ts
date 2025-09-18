@@ -34,6 +34,7 @@ export const imagesCollection = createCollection(
   queryCollectionOptions<ImageCollectionItem>({
     queryClient: getQueryClient(),
     queryKey: ["dashboard-two", "images"],
+    enabled: false,
     getKey: (row) => row.id,
     queryFn: async ({ queryKey, client }) => {
       const existingData: ImageCollectionItem[] =
