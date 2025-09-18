@@ -58,4 +58,13 @@ export const listingsProcedures = {
       });
       return listing;
     }),
+  setListingAhsId: protectedProcedure
+    .input(z.object({ id: z.string(), ahsId: z.string().nullable() }))
+    .mutation(async ({ ctx, input }) => {
+      const updated = await ctx.db.listing.update({
+        where: { id: input.id, userId: ctx.user.id },
+        data: { ahsId: input.ahsId },
+      });
+      return updated;
+    }),
 } as const;

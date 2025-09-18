@@ -1,7 +1,7 @@
 "use client";
 
 import { useLiveQuery } from "@tanstack/react-db";
-import { useCallback, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { SignedIn } from "@clerk/nextjs";
 import React from "react";
 import { DashboardProvider } from "./_components/listings-init-provider";
@@ -10,6 +10,7 @@ import {
   insertListing,
   updateListing,
   deleteListing,
+  setListingAhsId,
 } from "@/lib/listings-collection";
 import { listsCollection } from "@/lib/lists-collection";
 import {
@@ -19,6 +20,7 @@ import {
   addListingToList,
   removeListingFromList,
 } from "@/lib/lists-collection";
+import { api } from "@/trpc/react";
 
 export default function Page() {
   return (
@@ -51,6 +53,9 @@ function PageContent() {
 
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editingValue, setEditingValue] = useState<string>("");
+
+  // Per-listing temporary input for linking an AHS id
+  const [linkInputs, setLinkInputs] = useState<Record<string, string>>({});
 
   const startRename = useCallback((id: string, currentTitle: string) => {
     setEditingId(id);
@@ -110,6 +115,8 @@ function PageContent() {
 
   return (
     <div className="flex w-full flex-col gap-6 p-6">
+      <AhsSearchBar />
+
       <div className="text-xl font-semibold">TanStack DB Listing Example</div>
 
       <div className="flex items-center gap-4">
@@ -155,11 +162,45 @@ function PageContent() {
                         : "Lists: (none)";
                     })()}
                   </div>
+                  {item.ahsId ? <AhsDetails id={item.ahsId} /> : null}
                 </div>
               )}
             </div>
 
             <div className="flex items-center gap-2">
+              {/* Simple AHS link input/button for demo */}
+              <input
+                className="w-48 rounded-md border px-2 py-1 text-xs"
+                placeholder="Enter AHS ID"
+                value={linkInputs[item.id] ?? ""}
+                onChange={(e) =>
+                  setLinkInputs((prev) => ({
+                    ...prev,
+                    [item.id]: e.target.value,
+                  }))
+                }
+              />
+              <div
+                className="cursor-pointer rounded-md px-3 py-1 text-xs text-purple-700 select-none hover:bg-purple-700/10"
+                onClick={async () => {
+                  const ahsId = (linkInputs[item.id] ?? "").trim();
+                  if (!ahsId) {
+                    console.error("Please enter an AHS ID to link.");
+                    return;
+                  }
+                  try {
+                    await setListingAhsId({ id: item.id, ahsId });
+                  } catch (err) {
+                    console.error("Failed to link AHS ID:", err);
+                  }
+                }}
+                role="button"
+                tabIndex={0}
+                title="Link AHS ID"
+              >
+                Link AHS
+              </div>
+
               <div
                 className="cursor-pointer rounded-md px-3 py-1 text-purple-600 select-none hover:bg-purple-600/10"
                 onClick={async () => {
@@ -419,6 +460,70 @@ function PageContent() {
         Based on TanStack DB Quick Start. See docs:
         https://tanstack.com/db/latest/docs/quick-start
       </div>
+    </div>
+  );
+}
+
+function AhsDetails({ id }: { id: string }) {
+  const { data } = api.ahs.get.useQuery(
+    { id },
+    {
+      staleTime: 1000 * 60 * 60 * 24 * 7,
+      gcTime: 1000 * 60 * 60 * 24 * 14,
+    },
+  );
+
+  if (!data) return null;
+
+  return (
+    <div className="text-muted-foreground mt-1 text-xs">
+      {data.name ? `${data.name}` : "Unnamed"}
+      {data.hybridizer ? ` • ${data.hybridizer}` : ""}
+      {data.year ? ` • ${data.year}` : ""}
+    </div>
+  );
+}
+
+function AhsSearchBar() {
+  const [value, setValue] = useState("");
+  const enabled = value.trim().length >= 3;
+  const { data = [], isLoading } = api.dashboardTwo.searchAhs.useQuery(
+    { query: value.trim() },
+    { enabled },
+  );
+
+  const results = useMemo(() => data ?? [], [data]);
+
+  return (
+    <div className="flex flex-col gap-2">
+      <input
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+        placeholder="Search AHS (name)..."
+        className="w-full rounded-md border px-3 py-2"
+      />
+      {enabled && (
+        <div className="rounded-md border p-2 text-sm">
+          {isLoading ? (
+            <div className="text-muted-foreground">Loading…</div>
+          ) : results.length ? (
+            <ul className="space-y-1">
+              {results.map((r) => (
+                <li key={r.id} className="flex items-center justify-between">
+                  <div>
+                    <span className="font-medium">{r.name ?? "(no name)"}</span>
+                    <span className="text-muted-foreground ml-2 text-xs">
+                      {r.id}
+                    </span>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <div className="text-muted-foreground">No results</div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

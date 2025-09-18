@@ -11,6 +11,7 @@ import {
   getTrpcClient,
 } from "@/trpc/client";
 import { makeInsertWithSwap } from "./utils/collection-utils";
+import { ensureAhsCached } from "./ahs-collection";
 
 let _queryClient: QueryClient | undefined = undefined;
 const getQueryClient = () => {
@@ -116,6 +117,27 @@ export async function deleteListing({ id }: { id: string }) {
     if (previous) {
       listingsCollection.utils.writeInsert(previous);
     }
+    throw error;
+  }
+}
+
+type SetListingAhsIdDraft = RouterInputs["dashboardTwo"]["setListingAhsId"];
+export async function setListingAhsId(draft: SetListingAhsIdDraft) {
+  const previous = listingsCollection.get(draft.id);
+  listingsCollection.utils.writeUpdate({
+    id: draft.id,
+    ahsId: draft.ahsId,
+  });
+
+  try {
+    await getTrpcClient().dashboardTwo.setListingAhsId.mutate(draft);
+    if (draft.ahsId) {
+      try {
+        await ensureAhsCached([draft.ahsId]);
+      } catch {}
+    }
+  } catch (error) {
+    if (previous) listingsCollection.utils.writeUpdate(previous);
     throw error;
   }
 }
