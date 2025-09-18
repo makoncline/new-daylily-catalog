@@ -3,6 +3,8 @@
 import React, { createContext, useContext, useEffect } from "react";
 import { initializeListingsCollection } from "@/lib/listings-collection";
 import { initializeListsCollection } from "@/lib/lists-collection";
+import { initializeImagesCollection } from "@/lib/images-collection";
+import { initializeAhsCollection } from "@/lib/ahs-collection";
 
 type DashboardContextValue = object;
 
@@ -13,6 +15,8 @@ export function DashboardProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     void initializeListingsCollection();
     void initializeListsCollection();
+    void initializeImagesCollection();
+    void initializeAhsCollection();
   }, []);
 
   return (

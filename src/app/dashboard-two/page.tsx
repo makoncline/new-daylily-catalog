@@ -12,6 +12,12 @@ import {
   deleteListing,
   setListingAhsId,
 } from "@/lib/listings-collection";
+import { imagesCollection } from "@/lib/images-collection";
+import {
+  createImage as createListingImage,
+  deleteImage as deleteListingImage,
+  reorderImages as reorderListingImages,
+} from "@/lib/images-collection";
 import { listsCollection } from "@/lib/lists-collection";
 import {
   insertList,
@@ -43,6 +49,12 @@ function PageContent() {
     q
       .from({ list: listsCollection })
       .orderBy(({ list }) => list.createdAt ?? "", "desc"),
+  );
+
+  const { data: allImages = [] } = useLiveQuery((q) =>
+    q
+      .from({ img: imagesCollection })
+      .orderBy(({ img }) => (img.order ?? 0) as number, "asc"),
   );
 
   const addListing = async () => {
@@ -163,11 +175,167 @@ function PageContent() {
                     })()}
                   </div>
                   {item.ahsId ? <AhsDetails id={item.ahsId} /> : null}
+                  {/* List images with per-image reorder button */}
+                  <div className="mt-2 space-y-1 text-xs">
+                    <div className="text-muted-foreground">Images:</div>
+                    {(() => {
+                      const listingImages = allImages
+                        .filter((img) => img.listingId === item.id)
+                        .sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+                      if (!listingImages.length) {
+                        return (
+                          <div className="text-muted-foreground">(none)</div>
+                        );
+                      }
+                      return (
+                        <div className="space-y-1">
+                          {listingImages.map((img, idx) => (
+                            <div
+                              key={img.id}
+                              className="flex items-center gap-2"
+                            >
+                              <span className="max-w-[260px] truncate">
+                                {img.id}
+                              </span>
+                              <span className="text-muted-foreground">
+                                #{img.order ?? idx}
+                              </span>
+                              <div
+                                className="cursor-pointer rounded-md px-2 py-0.5 text-[10px] text-blue-700 select-none hover:bg-blue-700/10"
+                                onClick={async () => {
+                                  try {
+                                    if (idx === 0) {
+                                      console.error(
+                                        "No previous image to move before.",
+                                      );
+                                      return;
+                                    }
+                                    const prev = listingImages[idx - 1];
+                                    if (!prev) {
+                                      console.error("Previous image missing.");
+                                      return;
+                                    }
+                                    await reorderListingImages({
+                                      listingId: item.id,
+                                      images: [
+                                        {
+                                          id: img.id,
+                                          order: prev.order ?? idx - 1,
+                                        },
+                                        {
+                                          id: prev.id,
+                                          order: img.order ?? idx,
+                                        },
+                                      ],
+                                    });
+                                  } catch (err) {
+                                    console.error(
+                                      "Failed to move image left:",
+                                      err,
+                                    );
+                                  }
+                                }}
+                                role="button"
+                                tabIndex={0}
+                                title="Move this image left"
+                              >
+                                Left
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      );
+                    })()}
+                  </div>
                 </div>
               )}
             </div>
 
             <div className="flex items-center gap-2">
+              {/* Images demo controls */}
+              <div
+                className="cursor-pointer rounded-md px-3 py-1 text-xs text-purple-700 select-none hover:bg-purple-700/10"
+                onClick={async () => {
+                  try {
+                    await createListingImage({
+                      listingId: item.id,
+                      url: "https://placehold.co/200",
+                    });
+                  } catch (err) {
+                    console.error("Failed to add placeholder image:", err);
+                  }
+                }}
+                role="button"
+                tabIndex={0}
+                title="Add placeholder image"
+              >
+                Add Img
+              </div>
+
+              <div
+                className="cursor-pointer rounded-md px-3 py-1 text-xs text-amber-700 select-none hover:bg-amber-700/10"
+                onClick={async () => {
+                  try {
+                    const listingImages = allImages.filter(
+                      (img) => img.listingId === item.id,
+                    );
+                    if (!listingImages.length) {
+                      console.error("No images to delete for this listing.");
+                      return;
+                    }
+                    const firstImg = listingImages[0];
+                    if (!firstImg) {
+                      console.error("No images found.");
+                      return;
+                    }
+                    await deleteListingImage({ id: firstImg.id });
+                  } catch (err) {
+                    console.error("Failed to delete image:", err);
+                  }
+                }}
+                role="button"
+                tabIndex={0}
+                title="Delete first image"
+              >
+                Del Img
+              </div>
+
+              <div
+                className="cursor-pointer rounded-md px-3 py-1 text-xs text-blue-700 select-none hover:bg-blue-700/10"
+                onClick={async () => {
+                  try {
+                    const listingImages = allImages
+                      .filter((img) => img.listingId === item.id)
+                      .sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+                    if (listingImages.length < 2) {
+                      console.error("Need at least 2 images to reorder.");
+                      return;
+                    }
+                    // Swap first two images' orders (simple left move demo)
+                    const i0 = listingImages[0];
+                    const i1 = listingImages[1];
+                    if (!i0 || !i1) {
+                      console.error("Insufficient images to reorder.");
+                      return;
+                    }
+                    await reorderListingImages({
+                      listingId: item.id,
+                      images: [
+                        { id: i1.id, order: i0.order ?? 0 },
+                        { id: i0.id, order: i1.order ?? 1 },
+                      ],
+                    });
+                  } catch (err) {
+                    console.error("Failed to reorder images:", err);
+                  }
+                }}
+                role="button"
+                tabIndex={0}
+                title="Move left (swap first two)"
+              >
+                Left
+              </div>
+
               {/* Simple AHS link input/button for demo */}
               <input
                 className="w-48 rounded-md border px-2 py-1 text-xs"
