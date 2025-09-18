@@ -10,7 +10,9 @@ export default defineConfig({
     exclude: [
       "**/node_modules/**",
       "**/dist/**",
-      "tests/basic.test.ts", // Playwright test, not for Vitest
+      // Exclude Playwright e2e specs by pattern
+      "tests/**/*.e2e.ts",
+      "tests/**/*.e2e.tsx",
     ],
   },
   resolve: {
