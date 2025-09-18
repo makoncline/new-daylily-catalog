@@ -53,12 +53,12 @@ describe("imagesCollection: create → reorder → delete", () => {
         reorderImages,
         deleteImage,
         initializeImagesCollection,
-      } = await import("@/lib/images-collection");
+      } = await import("@/app/dashboard-two/_lib/images-collection");
       const {
         insertListing,
         initializeListingsCollection,
         listingsCollection,
-      } = await import("@/lib/listings-collection");
+      } = await import("@/app/dashboard-two/_lib/listings-collection");
       const { getTrpcClient } = await import("@/trpc/client");
       const client = getTrpcClient();
 
@@ -149,12 +149,12 @@ describe("imagesCollection: create → reorder → delete", () => {
         createImage,
         deleteImage,
         initializeImagesCollection,
-      } = await import("@/lib/images-collection");
+      } = await import("@/app/dashboard-two/_lib/images-collection");
       const {
         insertListing,
         initializeListingsCollection,
         listingsCollection,
-      } = await import("@/lib/listings-collection");
+      } = await import("@/app/dashboard-two/_lib/listings-collection");
       const { getTrpcClient } = await import("@/trpc/client");
       const client = getTrpcClient();
 

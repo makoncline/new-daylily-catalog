@@ -32,7 +32,7 @@ describe("listingsCollection flow: empty → insert → update → delete", () =
         insertListing,
         updateListing,
         deleteListing,
-      } = await import("@/lib/listings-collection");
+      } = await import("@/app/dashboard-two/_lib/listings-collection");
       const { getTrpcClient } = await import("@/trpc/client");
       const client = getTrpcClient();
 
@@ -101,7 +101,7 @@ describe("listingsCollection bulk inserts", () => {
   it("adds 10 listings sequentially and shows correct count", async () => {
     await withTempAppDb(async () => {
       const { listingsCollection, insertListing } = await import(
-        "@/lib/listings-collection"
+        "@/app/dashboard-two/_lib/listings-collection"
       );
 
       await act(async () => {

@@ -2,7 +2,7 @@
 
 import { Card } from "@/components/ui/card";
 import { type RouterOutputs } from "@/trpc/react";
-import { PageHeader } from "./page-header";
+import { PageHeader } from "@/components/dashboard/page-header";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";

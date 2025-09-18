@@ -5,27 +5,27 @@ import { useCallback, useMemo, useState } from "react";
 import { SignedIn } from "@clerk/nextjs";
 import React from "react";
 import { DashboardProvider } from "./_components/listings-init-provider";
-import { listingsCollection as listingCollection } from "@/lib/listings-collection";
+import { listingsCollection as listingCollection } from "@/app/dashboard-two/_lib/listings-collection";
 import {
   insertListing,
   updateListing,
   deleteListing,
   setListingAhsId,
-} from "@/lib/listings-collection";
-import { imagesCollection } from "@/lib/images-collection";
+} from "@/app/dashboard-two/_lib/listings-collection";
+import { imagesCollection } from "@/app/dashboard-two/_lib/images-collection";
 import {
   createImage as createListingImage,
   deleteImage as deleteListingImage,
   reorderImages as reorderListingImages,
-} from "@/lib/images-collection";
-import { listsCollection } from "@/lib/lists-collection";
+} from "@/app/dashboard-two/_lib/images-collection";
+import { listsCollection } from "@/app/dashboard-two/_lib/lists-collection";
 import {
   insertList,
   updateList,
   deleteList,
   addListingToList,
   removeListingFromList,
-} from "@/lib/lists-collection";
+} from "@/app/dashboard-two/_lib/lists-collection";
 import { api } from "@/trpc/react";
 
 export default function Page() {

@@ -30,7 +30,7 @@ describe("listsCollection flow: empty → insert → update → delete", () => {
   it("renders live state via useLiveQuery (no manual refetches)", async () => {
     await withTempAppDb(async () => {
       const { listsCollection, insertList, updateList, deleteList } =
-        await import("@/lib/lists-collection");
+        await import("@/app/dashboard-two/_lib/lists-collection");
       const { getTrpcClient } = await import("@/trpc/client");
       const client = getTrpcClient();
 
@@ -99,7 +99,7 @@ describe("listsCollection bulk inserts", () => {
   it("adds 10 lists sequentially and shows correct count", async () => {
     await withTempAppDb(async () => {
       const { listsCollection, insertList } = await import(
-        "@/lib/lists-collection"
+        "@/app/dashboard-two/_lib/lists-collection"
       );
 
       await act(async () => {

@@ -56,8 +56,10 @@ describe("listing ↔ AHS linking shows derived AHS data", () => {
       });
 
       const { listingsCollection, insertListing, setListingAhsId } =
-        await import("@/lib/listings-collection");
-      const { ahsCollection } = await import("@/lib/ahs-collection");
+        await import("@/app/dashboard-two/_lib/listings-collection");
+      const { ahsCollection } = await import(
+        "@/app/dashboard-two/_lib/ahs-collection"
+      );
       const { getTrpcClient } = await import("@/trpc/client");
       const client = getTrpcClient();
 

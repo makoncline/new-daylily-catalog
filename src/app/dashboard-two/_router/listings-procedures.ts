@@ -50,6 +50,26 @@ export const listingsProcedures = {
       });
       return listing;
     }),
+  updateListingFields: protectedProcedure
+    .input(
+      z.object({
+        id: z.string(),
+        data: z.object({
+          title: z.string().optional(),
+          description: z.string().nullable().optional(),
+          price: z.number().nullable().optional(),
+          status: z.string().nullable().optional(),
+          privateNote: z.string().nullable().optional(),
+        }),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const listing = await ctx.db.listing.update({
+        where: { id: input.id, userId: ctx.user.id },
+        data: input.data,
+      });
+      return listing;
+    }),
   deleteListing: protectedProcedure
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {

@@ -3,7 +3,7 @@
 import { api } from "@/trpc/react";
 import { CreateListButton } from "./_components/create-list-button";
 import { ListsTable } from "./_components/lists-table";
-import { PageHeader } from "../_components/page-header";
+import { PageHeader } from "@/components/dashboard/page-header";
 import { EditListDialog } from "./_components/edit-list-dialog";
 import { DataTableLayoutSkeleton } from "@/components/data-table/data-table-layout";
 

@@ -78,9 +78,9 @@ describe("list↔listing membership: add/remove and live derivations", () => {
         insertList,
         addListingToList,
         removeListingFromList,
-      } = await import("@/lib/lists-collection");
+      } = await import("@/app/dashboard-two/_lib/lists-collection");
       const { listingsCollection, insertListing } = await import(
-        "@/lib/listings-collection"
+        "@/app/dashboard-two/_lib/listings-collection"
       );
       const { getTrpcClient } = await import("@/trpc/client");
       const client = getTrpcClient();

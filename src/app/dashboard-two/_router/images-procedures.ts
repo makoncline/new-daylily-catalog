@@ -1,7 +1,56 @@
 import { protectedProcedure } from "@/server/api/trpc";
 import { z } from "zod";
+import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
+import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
+import path from "path";
+import crypto from "crypto";
+import { env } from "@/env";
+import { APP_CONFIG } from "@/config/constants";
 
 export const imagesProcedures = {
+  getPresignedUrl: protectedProcedure
+    .input(
+      z.object({
+        listingId: z.string(),
+        fileName: z.string(),
+        contentType: z.string(),
+        size: z.number().max(APP_CONFIG.UPLOAD.MAX_FILE_SIZE),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      // Validate ownership
+      const listing = await ctx.db.listing.findFirst({
+        where: { id: input.listingId, userId: ctx.user.id },
+        select: { id: true },
+      });
+      if (!listing) throw new Error("Listing not found or not owned by user");
+
+      const s3Client = new S3Client({
+        region: env.AWS_REGION,
+        credentials: {
+          accessKeyId: env.AWS_ACCESS_KEY_ID,
+          secretAccessKey: env.AWS_SECRET_ACCESS_KEY,
+        },
+      });
+
+      const ext = path.extname(input.fileName);
+      const fileId = crypto.randomBytes(4).toString("hex");
+      const key = `${ctx.user.id}/${input.listingId}/${fileId}${ext}`;
+
+      const command = new PutObjectCommand({
+        Bucket: env.AWS_BUCKET_NAME,
+        Key: key,
+        ContentType: input.contentType,
+      });
+
+      const url = await getSignedUrl(s3Client, command, { expiresIn: 3600 });
+
+      return {
+        presignedUrl: url,
+        key,
+        url: `https://${env.AWS_BUCKET_NAME}.s3.${env.AWS_REGION}.amazonaws.com/${key}`,
+      } as const;
+    }),
   getImages: protectedProcedure.query(async ({ ctx }) => {
     return ctx.db.image.findMany({
       where: {

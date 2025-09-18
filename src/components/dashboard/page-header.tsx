@@ -1,5 +1,6 @@
 "use client";
 
+import React from "react";
 import { H1, Muted } from "@/components/typography";
 
 interface PageHeaderProps {

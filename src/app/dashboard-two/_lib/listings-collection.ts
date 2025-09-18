@@ -10,7 +10,7 @@ import {
   getQueryClient as getClientQueryClient,
   getTrpcClient,
 } from "@/trpc/client";
-import { makeInsertWithSwap } from "./utils/collection-utils";
+import { makeInsertWithSwap } from "../../../lib/utils/collection-utils";
 import { ensureAhsCached } from "./ahs-collection";
 
 let _queryClient: QueryClient | undefined = undefined;

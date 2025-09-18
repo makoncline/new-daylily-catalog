@@ -1,10 +1,10 @@
 "use client";
 
 import React, { createContext, useContext, useEffect } from "react";
-import { initializeListingsCollection } from "@/lib/listings-collection";
-import { initializeListsCollection } from "@/lib/lists-collection";
-import { initializeImagesCollection } from "@/lib/images-collection";
-import { initializeAhsCollection } from "@/lib/ahs-collection";
+import { initializeListingsCollection } from "@/app/dashboard-two/_lib/listings-collection";
+import { initializeListsCollection } from "@/app/dashboard-two/_lib/lists-collection";
+import { initializeImagesCollection } from "@/app/dashboard-two/_lib/images-collection";
+import { initializeAhsCollection } from "@/app/dashboard-two/_lib/ahs-collection";
 
 type DashboardContextValue = object;
 
