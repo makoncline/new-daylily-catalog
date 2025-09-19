@@ -20,6 +20,8 @@
     "migrate:generate": "npx prisma migrate dev",
     "migrate:apply": "scripts/apply-migration.sh",
     "test": "vitest run",
+    "test:e2e": "playwright test",
+    "test:e2e:local": "BASE_URL=http://localhost:3000 playwright test",
     "test:watch": "vitest",
     "browser-tools-server": "npx @agentdeskai/browser-tools-server@1.2.0"
   },
