@@ -1,6 +1,8 @@
 import path from "node:path";
 import fs from "node:fs";
+import dotenv from "dotenv";
 import type { FullConfig } from "@playwright/test";
+import { clerkSetup } from "@clerk/testing/playwright";
 import {
   createTempSqliteUrl,
   prepareDbFromTemplate,
@@ -11,6 +13,16 @@ import {
 export default async function globalSetup(_config: FullConfig) {
   // If BASE_URL is provided, we're attaching to an existing server/DB. Skip temp DB.
   if (process.env.BASE_URL) return;
+
+  // Load dev env for Clerk keys if available
+  dotenv.config({ path: path.resolve(process.cwd(), ".env.development"), override: false });
+  // Map publishable key name for Clerk testing helper
+  if (!process.env.CLERK_PUBLISHABLE_KEY && process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY) {
+    process.env.CLERK_PUBLISHABLE_KEY = process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY;
+  }
+  // Prepare Clerk testing token & FAPI for Playwright helpers
+  // Requires CLERK_PUBLISHABLE_KEY and CLERK_SECRET_KEY
+  await clerkSetup();
 
   // Mark this run explicitly as local e2e so helpers may enforce guards
   process.env.PLAYWRIGHT_LOCAL_E2E = "true";

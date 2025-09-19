@@ -1,11 +1,8 @@
 import { test, expect } from "@playwright/test";
 import { withTempE2EDb } from "../../src/lib/test-utils/e2e-db";
 
-let seeded = false;
-
-// Seed only when running against the local temp DB; no-op otherwise
 test.beforeAll(async () => {
-  const didSeed = await withTempE2EDb(async (db) => {
+  await withTempE2EDb(async (db) => {
     const userId = "3";
     await db.user.create({ data: { id: userId } });
     await db.userProfile.create({
@@ -24,9 +21,7 @@ test.beforeAll(async () => {
         slug: "coffee-frenzy",
       },
     });
-    return true;
   });
-  seeded = !!didSeed;
 });
 
 test("public page smoke test", async ({ page }) => {

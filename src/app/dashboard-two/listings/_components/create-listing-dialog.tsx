@@ -125,7 +125,10 @@ export function CreateListingDialog({
               <div className="mt-4">
                 <Separator className="my-4" />
                 {selectedAhsDetailed && (
-                  <div className="rounded-xl border bg-card text-card-foreground shadow-sm">
+                  <div
+                    className="rounded-xl border bg-card text-card-foreground shadow-sm"
+                    data-testid="linked-ahs-card"
+                  >
                     <div className="p-6">
                       <AhsListingDisplayTwo
                         ahsListing={{
