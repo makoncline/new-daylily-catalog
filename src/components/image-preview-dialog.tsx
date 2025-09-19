@@ -1,6 +1,5 @@
 "use client";
 
-import { type Image as ImageType } from "@prisma/client";
 import { Expand } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
@@ -8,7 +7,11 @@ import { ImageGallery } from "@/components/image-gallery";
 import { cn } from "@/lib/utils";
 
 interface ImagePreviewDialogProps {
-  images: ImageType[];
+  images: Array<{
+    id: string;
+    url: string;
+    alt?: string;
+  }>;
   className?: string;
   size?: "sm" | "md";
 }

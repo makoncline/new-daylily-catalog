@@ -1,4 +1,5 @@
 import { protectedProcedure } from "@/server/api/trpc";
+import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 
 export const listsProcedures = {
@@ -26,6 +27,17 @@ export const listsProcedures = {
   addListingToList: protectedProcedure
     .input(z.object({ listId: z.string(), listingId: z.string() }))
     .mutation(async ({ ctx, input }) => {
+      // Verify both resources belong to the current user
+      const listing = await ctx.db.listing.findFirst({
+        where: { id: input.listingId, userId: ctx.user.id },
+        select: { id: true },
+      });
+      if (!listing) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Listing not found",
+        });
+      }
       const updated = await ctx.db.list.update({
         where: { id: input.listId, userId: ctx.user.id },
         data: {
@@ -38,6 +50,17 @@ export const listsProcedures = {
   removeListingFromList: protectedProcedure
     .input(z.object({ listId: z.string(), listingId: z.string() }))
     .mutation(async ({ ctx, input }) => {
+      // Verify listing ownership as well
+      const listing = await ctx.db.listing.findFirst({
+        where: { id: input.listingId, userId: ctx.user.id },
+        select: { id: true },
+      });
+      if (!listing) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Listing not found",
+        });
+      }
       const updated = await ctx.db.list.update({
         where: { id: input.listId, userId: ctx.user.id },
         data: {
@@ -48,9 +71,9 @@ export const listsProcedures = {
       return updated;
     }),
   insertList: protectedProcedure
-    .input(z.object({ title: z.string() }))
+    .input(z.object({ title: z.string().trim().min(1).max(200) }))
     .mutation(async ({ ctx, input }) => {
-      const title = input.title ?? "New List";
+      const title = input.title;
       const list = await ctx.db.list.create({
         data: {
           title,
@@ -60,20 +83,37 @@ export const listsProcedures = {
       return list;
     }),
   updateList: protectedProcedure
-    .input(z.object({ id: z.string(), title: z.string() }))
+    .input(
+      z.object({ id: z.string(), title: z.string().trim().min(1).max(200) }),
+    )
     .mutation(async ({ ctx, input }) => {
-      const list = await ctx.db.list.update({
-        where: { id: input.id },
+      const result = await ctx.db.list.updateMany({
+        where: { id: input.id, userId: ctx.user.id },
         data: { title: input.title },
       });
-      return list;
+      if (result.count === 0) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "List not found or not owned by user",
+        });
+      }
+      return ctx.db.list.findFirst({
+        where: { id: input.id, userId: ctx.user.id },
+        include: { listings: { select: { id: true } } },
+      });
     }),
   deleteList: protectedProcedure
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
-      const list = await ctx.db.list.delete({
-        where: { id: input.id },
+      const result = await ctx.db.list.deleteMany({
+        where: { id: input.id, userId: ctx.user.id },
       });
-      return list;
+      if (result.count === 0) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "List not found or not owned by user",
+        });
+      }
+      return { id: input.id } as const;
     }),
 } as const;

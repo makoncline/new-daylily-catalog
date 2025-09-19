@@ -1,21 +1,31 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
-import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
 import { useDashboardTwoListings } from "./listings-provider";
-import { api } from "@/trpc/react";
-import { AhsListingDisplayTwo } from "./ahs-listing-display-two";
 import { AhsListingLinkTwo } from "./ahs-listing-link-two";
 import { MultiListSelectTwo } from "./multi-list-select-two";
 import { ImageUploadTwo } from "./image-upload-two";
 import { ImageManagerTwo } from "./image-manager-two";
+import { fromDbStatus, toDbStatus } from "./status";
+import type { UiStatus, ListingRow } from "./types";
 
 export function EditListingDialog({
   listingId,
@@ -32,49 +42,61 @@ export function EditListingDialog({
     updateListing,
     deleteListing,
     updateListingLists,
-    setListingAhsId,
-    createImage: createListingImage,
     deleteImage: deleteListingImage,
     reorderImages: reorderListingImages,
     createList,
   } = useDashboardTwoListings();
 
-  const listing = useMemo(() => listings.find((l) => l.id === listingId) ?? null, [listings, listingId]);
+  const listing = useMemo(
+    () => listings.find((l) => l.id === listingId) ?? null,
+    [listings, listingId],
+  );
 
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
-  const [price, setPrice] = useState<number | "">("");
-  const [status, setStatus] = useState<string>("published");
+  const [price, setPrice] = useState<string>("");
+  const [status, setStatus] = useState<UiStatus>("published");
   const [privateNote, setPrivateNote] = useState("");
   const [listIds, setListIds] = useState<string[]>([]);
-  const [newImageUrl, setNewImageUrl] = useState("");
+
   const saveAll = async () => {
     if (!listing) return;
     await updateListing({
       id: listing.id,
-      title,
-      description,
-      price: price === "" ? null : Number(price),
-      status: status === "published" ? "" : status,
-      privateNote,
-    } as any);
+      data: {
+        title,
+        description,
+        price: (() => {
+          const p = price.trim() === "" ? null : Number(price);
+          return Number.isFinite(p as number) ? (p as number) : null;
+        })(),
+        status: toDbStatus(status),
+        privateNote,
+      },
+    });
     toast.success("Changes saved");
   };
 
   useEffect(() => {
     if (!listing) return;
     setTitle(listing.title ?? "");
-    setDescription((listing.description ?? "") as string);
-    setPrice(typeof listing.price === "number" ? listing.price : "");
-    const dbStatus = listing.status ?? "";
-    setStatus(dbStatus === "" ? "published" : dbStatus);
-    setPrivateNote((listing.privateNote ?? "") as string);
+    setDescription(listing.description ?? "");
+    setPrice(listing.price ? String(listing.price) : "");
+    setStatus(fromDbStatus(listing.status));
+    setPrivateNote(listing.privateNote ?? "");
     setListIds(listing.lists.map((l) => l.id));
   }, [listing]);
 
-  const saveField = async (data: Partial<{ title: string; description: string; price: number | null; status: string | null; privateNote: string | null }>) => {
+  const saveField = async (
+    data: Partial<
+      Pick<
+        ListingRow,
+        "title" | "description" | "price" | "status" | "privateNote"
+      >
+    >,
+  ) => {
     if (!listing) return;
-    await updateListing({ id: listing.id, ...data } as any);
+    await updateListing({ id: listing.id, data });
     toast.success("Saved");
   };
 
@@ -91,19 +113,6 @@ export function EditListingDialog({
     await updateListingLists({ id: listing.id, listIds: ids });
   };
 
-  // AHS search/link
-  const [search, setSearch] = useState("");
-  const enabled = search.trim().length >= 3;
-  const { data: searchResults = [], isLoading: isSearching } = api.dashboardTwo.searchAhs.useQuery(
-    { query: search.trim() },
-    { enabled },
-  );
-
-  const clearAhs = async () => {
-    if (!listing) return;
-    await setListingAhsId({ id: listing.id, ahsId: null });
-  };
-
   if (!listing) {
     return (
       <Dialog open={open} onOpenChange={onOpenChange}>
@@ -111,7 +120,9 @@ export function EditListingDialog({
           <DialogHeader>
             <DialogTitle>Edit Listing</DialogTitle>
           </DialogHeader>
-          <div className="text-sm text-muted-foreground">No listing selected.</div>
+          <div className="text-muted-foreground text-sm">
+            No listing selected.
+          </div>
         </DialogContent>
       </Dialog>
     );
@@ -139,9 +150,16 @@ export function EditListingDialog({
           <div className="space-y-2">
             <Label>Images</Label>
             <ImageManagerTwo
-              images={listing.images as any}
-              onDeleteImage={async (imageId) => void deleteListingImage({ id: imageId })}
-              onReorderImages={async (imgs) => void reorderListingImages({ listingId: listing.id, images: imgs })}
+              images={listing.images}
+              onDeleteImage={async (imageId) =>
+                void deleteListingImage({ id: imageId })
+              }
+              onReorderImages={async (imgs) =>
+                void reorderListingImages({
+                  listingId: listing.id,
+                  images: imgs,
+                })
+              }
             />
             <ImageUploadTwo listingId={listing.id} />
           </div>
@@ -163,18 +181,27 @@ export function EditListingDialog({
             <Input
               id="price"
               type="number"
+              min={0}
+              step="0.01"
               value={price}
-              onChange={(e) => setPrice(e.target.value === "" ? "" : Number(e.target.value))}
-              onBlur={() => void saveField({ price: price === "" ? null : Number(price) })}
+              onChange={(e) => setPrice(e.target.value)}
+              onBlur={() =>
+                void saveField({
+                  price: (() => {
+                    const p = price.trim() === "" ? null : Number(price);
+                    return Number.isFinite(p as number) ? (p as number) : null;
+                  })(),
+                })
+              }
             />
           </div>
           <div className="space-y-2">
             <Label htmlFor="status">Status</Label>
             <Select
               value={status}
-              onValueChange={(val) => {
+              onValueChange={(val: UiStatus) => {
                 setStatus(val);
-                void saveField({ status: val === "published" ? "" : val });
+                void saveField({ status: toDbStatus(val) });
               }}
             >
               <SelectTrigger id="status">
@@ -209,13 +236,20 @@ export function EditListingDialog({
 
           <div className="space-y-2">
             <Label>Link to Daylily Database Listing</Label>
-            <AhsListingLinkTwo listing={listing} onNameChange={(name) => setTitle(name)} />
+            <AhsListingLinkTwo
+              listing={listing}
+              onNameChange={(name) => setTitle(name)}
+            />
           </div>
 
           <div className="flex justify-end gap-3">
             <Button onClick={() => void saveAll()}>Save Changes</Button>
-            <Button variant="destructive" onClick={() => void onDelete()}>Delete</Button>
-            <Button variant="outline" onClick={() => onOpenChange(false)}>Close</Button>
+            <Button variant="destructive" onClick={() => void onDelete()}>
+              Delete
+            </Button>
+            <Button variant="outline" onClick={() => onOpenChange(false)}>
+              Close
+            </Button>
           </div>
         </div>
       </DialogContent>

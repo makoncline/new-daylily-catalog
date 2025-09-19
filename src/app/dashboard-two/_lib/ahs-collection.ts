@@ -2,51 +2,40 @@
 
 import { createCollection } from "@tanstack/react-db";
 import { queryCollectionOptions } from "@tanstack/query-db-collection";
-
-import type { QueryClient } from "@tanstack/query-core";
 import type { RouterOutputs } from "@/trpc/react";
 import {
   getQueryClient as getClientQueryClient,
   getTrpcClient,
 } from "@/trpc/client";
+import { cursorKey, getUserCursorKey } from "@/lib/utils/cursor";
 
-let _queryClient: QueryClient | undefined = undefined;
-const getQueryClient = () => {
-  if (_queryClient) return _queryClient;
-  _queryClient = getClientQueryClient();
-  return _queryClient;
-};
-
-const CURSOR_KEY = "ahs:maxUpdatedAt";
-const DELETED_IDS = new Set<string>();
+const CURSOR_BASE = "ahs:maxUpdatedAt";
 
 export type AhsCollectionItem =
   RouterOutputs["dashboardTwo"]["getAhsForUserListings"][number];
 
+// We only ever cache AHS rows referenced by the user's listings.
+// No tombstones are needed: unlinking simply leaves the extra rows harmlessly cached.
 export const ahsCollection = createCollection(
   queryCollectionOptions<AhsCollectionItem>({
-    queryClient: getQueryClient(),
+    queryClient: getClientQueryClient(),
     queryKey: ["dashboard-two", "ahs"],
     enabled: false,
     getKey: (row) => row.id,
     queryFn: async ({ queryKey, client }) => {
-      const existingData: AhsCollectionItem[] =
-        client.getQueryData(queryKey) ?? [];
+      const existing: AhsCollectionItem[] = client.getQueryData(queryKey) ?? [];
 
-      // Fetch only the user's referenced AHS rows
+      // Fetch fresh set of *referenced* AHS rows and merge by id
       const trpc = getTrpcClient();
-      const newData = await trpc.dashboardTwo.getAhsForUserListings.query();
+      const fresh = await trpc.dashboardTwo.getAhsForUserListings.query();
 
-      const existingMap = new Map(existingData.map((item) => [item.id, item]));
-      newData.forEach((item) => {
-        existingMap.set(item.id, item);
-      });
-      DELETED_IDS.forEach((id) => existingMap.delete(id));
+      const map = new Map(existing.map((i) => [i.id, i]));
+      fresh.forEach((i) => map.set(i.id, i));
 
-      // Cursor not used anymore; still bump to mark a run
-      localStorage.setItem(CURSOR_KEY, new Date().toISOString());
-
-      return Array.from(existingMap.values());
+      // Cursor not functionally used (no incremental endpoint), but we keep it to mark runs
+      const cursorKeyToUse = getUserCursorKey(CURSOR_BASE);
+      localStorage.setItem(cursorKeyToUse, new Date().toISOString());
+      return Array.from(map.values());
     },
     onInsert: async () => ({ refetch: false }),
     onUpdate: async () => ({ refetch: false }),
@@ -54,24 +43,36 @@ export const ahsCollection = createCollection(
   }),
 );
 
-export async function initializeAhsCollection() {
+/**
+ * Seed the cache once, used by the page init flow.
+ */
+export async function initializeAhsCollection(userId: string) {
   const trpc = getTrpcClient();
-  const queryClient = getQueryClient();
+  const qc = getClientQueryClient();
   const rows = await trpc.dashboardTwo.getAhsForUserListings.query();
-  queryClient.setQueryData<AhsCollectionItem[]>(["dashboard-two", "ahs"], rows);
-  localStorage.setItem(CURSOR_KEY, new Date().toISOString());
+  qc.setQueryData<AhsCollectionItem[]>(["dashboard-two", "ahs"], rows);
+  const cursorKeyToUse = cursorKey(CURSOR_BASE, userId);
+  localStorage.setItem(cursorKeyToUse, new Date().toISOString());
 }
 
+/**
+ * Ensure specific AHS ids are present in the cache (used when linking a listing).
+ * No-ops for already-cached ids.
+ */
 export async function ensureAhsCached(ids: string[]) {
   if (!ids.length) return [] as AhsCollectionItem[];
+
   const missing = ids.filter((id) => !ahsCollection.get(id));
   if (missing.length === 0) return [] as AhsCollectionItem[];
+
   const trpc = getTrpcClient();
   const rows = (await trpc.dashboardTwo.getAhsByIds.query({
     ids: missing,
   })) as AhsCollectionItem[];
   if (rows.length) {
-    ahsCollection.utils.writeInsert(rows);
+    ahsCollection.utils.writeBatch(() => {
+      rows.forEach((r) => ahsCollection.utils.writeInsert(r));
+    });
   }
   return rows;
 }

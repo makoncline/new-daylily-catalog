@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { type Image } from "@prisma/client";
+import type { DbImage } from "./types";
 import {
   DndContext,
   closestCenter,
@@ -27,24 +27,41 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { OptimizedImage } from "@/components/optimized-image";
 import { ImagePreviewDialog } from "@/components/image-preview-dialog";
 
+// Infer the listeners type directly from useSortable
+type SortableListeners = ReturnType<typeof useSortable>["listeners"];
+
 interface ImageManagerTwoProps {
-  images: Image[];
-  onImagesChange?: (images: Image[]) => void;
+  images: DbImage[];
+  onImagesChange?: (images: DbImage[]) => void;
   onDeleteImage: (imageId: string) => Promise<void>;
   onReorderImages: (images: { id: string; order: number }[]) => Promise<void>;
 }
+
+// Type for images passed to ImagePreviewDialog
+type PreviewImage = {
+  id: string;
+  url: string;
+  alt?: string;
+};
 
 function SortableImage({
   image,
   dragControls,
 }: {
-  image: Image;
-  dragControls: (
-    attributes: DraggableAttributes,
-    listeners: Record<string, unknown>,
-  ) => React.ReactNode;
+  image: DbImage;
+  dragControls: (args: {
+    attributes: DraggableAttributes;
+    listeners: SortableListeners;
+  }) => React.ReactNode;
 }) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: image.id });
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: image.id });
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -54,22 +71,34 @@ function SortableImage({
 
   return (
     <div ref={setNodeRef} style={style} className="relative aspect-square">
-      <OptimizedImage src={image.url} alt="Daylily image" size="thumbnail" className="rounded-lg border" />
-      {dragControls(attributes ?? {}, listeners ?? {})}
+      <OptimizedImage
+        src={image.url}
+        alt={image.url.split("/").pop() ?? "Daylily image"}
+        size="thumbnail"
+        className="rounded-lg border"
+      />
+      {dragControls({ attributes, listeners })}
     </div>
   );
 }
 
-export function ImageManagerTwo({ images, onImagesChange, onDeleteImage, onReorderImages }: ImageManagerTwoProps) {
+export function ImageManagerTwo({
+  images,
+  onImagesChange,
+  onDeleteImage,
+  onReorderImages,
+}: ImageManagerTwoProps) {
   const [isPending, setIsPending] = useState(false);
-  const [imageToDelete, setImageToDelete] = useState<Image | null>(null);
+  const [imageToDelete, setImageToDelete] = useState<DbImage | null>(null);
 
   const sensors = useSensors(
     useSensor(PointerSensor),
-    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    }),
   );
 
-  async function handleImageDelete(image: Image) {
+  async function handleImageDelete(image: DbImage) {
     setIsPending(true);
     try {
       await onDeleteImage(image.id);
@@ -83,17 +112,31 @@ export function ImageManagerTwo({ images, onImagesChange, onDeleteImage, onReord
 
   async function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event;
-    if (!over || active.id === over.id) return;
+    if (!over) return;
 
-    const newImages = arrayMove(
-      images,
-      images.findIndex((img) => img.id === active.id),
-      images.findIndex((img) => img.id === over.id),
-    );
+    const fromId = String(active.id);
+    const toId = String(over.id);
+    if (fromId === toId) return;
 
+    const from = images.findIndex((img) => img.id === fromId);
+    const to = images.findIndex((img) => img.id === toId);
+    if (from < 0 || to < 0) return;
+
+    const newImages = arrayMove(images, from, to);
+
+    // optimistic UI
     onImagesChange?.(newImages);
-    await onReorderImages(newImages.map((img, index) => ({ id: img.id, order: index })));
-    toast.success("Image order updated");
+
+    try {
+      await onReorderImages(
+        newImages.map((img, index) => ({ id: img.id, order: index })),
+      );
+      toast.success("Image order updated");
+    } catch {
+      // rollback
+      onImagesChange?.(images);
+      toast.error("Failed to update image order");
+    }
   }
 
   if (images.length === 0) return null;
@@ -101,19 +144,39 @@ export function ImageManagerTwo({ images, onImagesChange, onDeleteImage, onReord
   return (
     <div className="space-y-4">
       <div className="grid max-w-[800px] grid-cols-2 gap-4 md:grid-cols-4">
-        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragEnd={handleDragEnd}
+        >
           <SortableContext items={images.map((img) => img.id)}>
             {images.map((image) => (
               <div key={image.id} className="group relative aspect-square">
                 <SortableImage
                   image={image}
-                  dragControls={(attributes, listeners) => (
+                  dragControls={({ attributes, listeners }) => (
                     <>
-                      <Button type="button" variant="secondary" size="icon" className="absolute top-2 left-2 size-8 cursor-grab touch-none" {...attributes} {...listeners}>
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        size="icon"
+                        className="absolute top-2 left-2 size-8 cursor-grab touch-none"
+                        {...attributes}
+                        {...(listeners ?? {})}
+                      >
                         <GripVertical className="h-4 w-4" />
                         <span className="sr-only">Drag to reorder</span>
                       </Button>
-                      <ImagePreviewDialog images={[image]} size="sm" className="absolute top-2 right-2" />
+                      <ImagePreviewDialog
+                        images={[
+                          {
+                            id: image.id,
+                            url: image.url,
+                          } satisfies PreviewImage,
+                        ]}
+                        size="sm"
+                        className="absolute top-2 right-2"
+                      />
                       <Button
                         type="button"
                         variant="destructive"
@@ -158,4 +221,3 @@ export function ImageManagerTwoSkeleton() {
     </div>
   );
 }
-

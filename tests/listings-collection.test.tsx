@@ -76,7 +76,7 @@ describe("listingsCollection flow: empty → insert → update → delete", () =
 
       // UPDATE (using canonical id)
       await act(async () => {
-        await updateListing({ id: realId, title: "Hello Updated" });
+        await updateListing({ id: realId, data: { title: "Hello Updated" } });
       });
       await waitFor(() => {
         expect(screen.getByTestId("count").textContent).toBe("1");

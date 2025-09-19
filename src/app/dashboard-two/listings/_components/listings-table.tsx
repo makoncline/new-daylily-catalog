@@ -16,20 +16,26 @@ import { DataTableDownload } from "@/components/data-table";
 import { APP_CONFIG } from "@/config/constants";
 import { DataTableFilteredCount } from "@/components/data-table/data-table-filtered-count";
 import { DataTableLayoutSkeleton } from "@/components/data-table/data-table-layout";
-import type { TwoListingRow, TwoListRef } from "./listings-provider";
+import type { ListingRow } from "./types";
 
 interface ListingsTableToolbarProps {
-  table: Table<TwoListingRow>;
-  lists: TwoListRef[];
-  listings: TwoListingRow[];
+  table: Table<ListingRow>;
+  lists: ListingRow["lists"];
+  listings: ListingRow[];
 }
 
-function ListingsTableToolbar({ table, lists, listings }: ListingsTableToolbarProps) {
+function ListingsTableToolbar({
+  table,
+  lists,
+  listings,
+}: ListingsTableToolbarProps) {
   const listsColumn = table.getColumn("lists");
   const listOptions = lists.map((list) => ({
     label: list.title,
     value: list.id,
-    count: listings?.filter((listing) => listing.lists.some((ll) => ll.id === list.id)).length,
+    count: listings?.filter((listing) =>
+      listing.lists.some((ll) => ll.id === list.id),
+    ).length,
   }));
 
   return (
@@ -41,8 +47,16 @@ function ListingsTableToolbar({ table, lists, listings }: ListingsTableToolbarPr
       <div className="flex flex-1 flex-col items-start gap-2 sm:flex-row sm:items-center">
         <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
           <div className="flex items-center gap-2">
-            <DataTableGlobalFilter table={table} placeholder="Filter listings..." />
-            <DataTableFacetedFilter column={listsColumn} title="Lists" options={listOptions} table={table} />
+            <DataTableGlobalFilter
+              table={table}
+              placeholder="Filter listings..."
+            />
+            <DataTableFacetedFilter
+              column={listsColumn}
+              title="Lists"
+              options={listOptions}
+              table={table}
+            />
           </div>
           <div className="flex items-center gap-2">
             <DataTableFilteredCount table={table} />
@@ -66,14 +80,17 @@ export function ListingsTable({
   onDelete,
   storageKey = "listings-table-two",
 }: {
-  data: TwoListingRow[];
-  lists: TwoListRef[];
+  data: ListingRow[];
+  lists: ListingRow["lists"];
   isLoading?: boolean;
   onEdit: (id: string) => void;
   onDelete: (id: string) => Promise<void>;
   storageKey?: string;
 }) {
-  const columns = React.useMemo(() => getColumns(onEdit, onDelete), [onEdit, onDelete]);
+  const columns = React.useMemo(
+    () => getColumns(onEdit, onDelete),
+    [onEdit, onDelete],
+  );
 
   const table = useDataTable({
     data: data ?? [],
@@ -109,12 +126,20 @@ export function ListingsTable({
   return (
     <DataTableLayout
       table={table}
-      toolbar={<ListingsTableToolbar table={table} lists={lists ?? []} listings={data ?? []} />}
+      toolbar={
+        <ListingsTableToolbar
+          table={table}
+          lists={lists ?? []}
+          listings={data ?? []}
+        />
+      }
       pagination={
         <>
           <DataTablePagination
             table={table}
-            pageSizeOptions={APP_CONFIG.TABLE.PAGINATION.DASHBOARD_PAGE_SIZE_OPTIONS}
+            pageSizeOptions={
+              APP_CONFIG.TABLE.PAGINATION.DASHBOARD_PAGE_SIZE_OPTIONS
+            }
           />
           <DataTableDownload table={table} filenamePrefix="listings" />
         </>

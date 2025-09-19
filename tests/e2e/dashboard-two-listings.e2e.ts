@@ -65,9 +65,14 @@ test("dashboard-two listings: create + edit listing flow", async ({
   // linked AHS card should not be shown before linking
   await expect(page.getByTestId("linked-ahs-card")).toHaveCount(0);
 
-  // Click daylily database listing: search and pick Coffee Frenzy
-  await page.getByLabel(/AHS Database Listing/).fill("coffee");
-  await page.getByRole("listitem").filter({ hasText: "Coffee Frenzy" }).click();
+  // Click daylily database listing button to open search dialog
+  await page.getByLabel(/AHS Database Listing/).click();
+
+  // Fill search input in the dialog
+  await page.getByPlaceholder("Search AHS listings...").fill("coffee");
+
+  // Select Coffee Frenzy from the results
+  await page.getByRole("option").filter({ hasText: "Coffee Frenzy" }).click();
 
   // linked AHS card should now be visible and contain the correct title
   const linkedCard = page.getByTestId("linked-ahs-card");

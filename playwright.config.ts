@@ -23,7 +23,7 @@ if (!process.env.BASE_URL) {
   process.env.PLAYWRIGHT_LOCAL_E2E = "true";
 
   // Ensure the DB file exists with schema and is empty before server starts
-  const dbFile = process.env.LOCAL_DATABASE_URL!.replace(/^file:/, "");
+  const dbFile = process.env.LOCAL_DATABASE_URL.replace(/^file:/, "");
   const templateDb = path.join(process.cwd(), "prisma", "db-dev.sqlite");
   if (fs.existsSync(templateDb)) {
     try {
@@ -51,6 +51,7 @@ export default defineConfig({
   // Use global setup/teardown to provision a temp DB when BASE_URL is not set
   globalSetup: "./e2e/global-setup.ts",
   globalTeardown: "./e2e/global-teardown.ts",
+  workers: 1,
   use: {
     baseURL,
     screenshot: "only-on-failure",

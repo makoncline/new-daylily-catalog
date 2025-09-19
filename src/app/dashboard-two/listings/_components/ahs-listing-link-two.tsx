@@ -9,38 +9,53 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Muted } from "@/components/typography";
 import { AhsListingSelectTwo } from "./ahs-listing-select-two";
 import { AhsListingDisplayTwo } from "./ahs-listing-display-two";
-import type { TwoListingRow } from "./listings-provider";
+import type { ListingRow } from "./types";
 import { useDashboardTwoListings } from "./listings-provider";
-import type { AhsListing } from "@prisma/client";
+import type { RouterOutputs } from "@/trpc/react";
+
+type AhsSearchRow = RouterOutputs["dashboardTwo"]["searchAhs"][number];
 
 interface AhsListingLinkTwoProps {
-  listing: TwoListingRow;
-  onUpdate?: (updated: Partial<TwoListingRow>) => void;
+  listing: ListingRow;
+  onUpdate?: (updated: Partial<ListingRow>) => void;
   onNameChange?: (name: string) => void;
 }
 
-export function AhsListingLinkTwo({ listing, onUpdate, onNameChange }: AhsListingLinkTwoProps) {
+export function AhsListingLinkTwo({
+  listing,
+  onUpdate,
+  onNameChange,
+}: AhsListingLinkTwoProps) {
   const [isPending, setIsPending] = useState(false);
   const { setListingAhsId, updateListing } = useDashboardTwoListings();
 
-  async function updateAhsListing(ahsId: string | null, ahsListing: AhsListing | null) {
+  async function updateAhsListing(
+    ahsId: string | null,
+    selected: AhsSearchRow | null,
+  ) {
     setIsPending(true);
     try {
-      if (ahsId && ahsListing?.name) {
-        const shouldUpdateName = !listing.title || listing.title === LISTING_CONFIG.DEFAULT_NAME;
-        await setListingAhsId({ id: listing.id, ahsId });
+      await setListingAhsId({ id: listing.id, ahsId });
+      if (ahsId && selected?.name) {
+        const shouldUpdateName =
+          !listing.title || listing.title === LISTING_CONFIG.DEFAULT_NAME;
         if (shouldUpdateName) {
-          await updateListing({ id: listing.id, title: ahsListing.name });
-          onNameChange?.(ahsListing.name);
+          await updateListing({
+            id: listing.id,
+            data: { title: selected.name },
+          });
+          onNameChange?.(selected.name);
         }
-        onUpdate?.({ ahsListing: (listing.ahsListing ?? null) as any });
       } else {
-        await setListingAhsId({ id: listing.id, ahsId: null });
         onUpdate?.({ ahsListing: null });
       }
-      toast.success(ahsId ? "Listing linked successfully" : "Listing unlinked successfully");
+      toast.success(
+        ahsId ? "Listing linked successfully" : "Listing unlinked successfully",
+      );
     } catch (error) {
-      toast.error(ahsId ? "Failed to link listing" : "Failed to unlink listing");
+      toast.error(
+        ahsId ? "Failed to link listing" : "Failed to unlink listing",
+      );
     } finally {
       setIsPending(false);
     }
@@ -50,7 +65,7 @@ export function AhsListingLinkTwo({ listing, onUpdate, onNameChange }: AhsListin
     setIsPending(true);
     try {
       const name = listing.ahsListing?.name ?? "";
-      await updateListing({ id: listing.id, title: name });
+      await updateListing({ id: listing.id, data: { title: name } });
       if (name) onNameChange?.(name);
       onUpdate?.({ title: name });
       toast.success("Name synced successfully");
@@ -80,11 +95,23 @@ export function AhsListingLinkTwo({ listing, onUpdate, onNameChange }: AhsListin
               </Muted>
               <div className="flex gap-2">
                 {listing.title !== (listing.ahsListing.name ?? "") && (
-                  <Button type="button" variant="outline" size="sm" onClick={syncName} disabled={isPending}>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={syncName}
+                    disabled={isPending}
+                  >
                     {isPending ? "Syncing..." : "Sync Name"}
                   </Button>
                 )}
-                <Button type="button" variant="outline" size="sm" onClick={() => updateAhsListing(null, null)} disabled={isPending}>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => updateAhsListing(null, null)}
+                  disabled={isPending}
+                >
                   {isPending ? "Unlinking..." : "Unlink"}
                 </Button>
               </div>
@@ -94,7 +121,10 @@ export function AhsListingLinkTwo({ listing, onUpdate, onNameChange }: AhsListin
         </Card>
       ) : (
         <div>
-          <AhsListingSelectTwo onSelect={(ahs) => updateAhsListing(ahs.id, ahs)} disabled={isPending} />
+          <AhsListingSelectTwo
+            onSelect={(selected) => updateAhsListing(selected.id, selected)}
+            disabled={isPending}
+          />
         </div>
       )}
     </div>
@@ -118,4 +148,3 @@ export function AhsListingLinkTwoSkeleton() {
     </div>
   );
 }
-

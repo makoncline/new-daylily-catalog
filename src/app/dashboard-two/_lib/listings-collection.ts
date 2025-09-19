@@ -2,186 +2,145 @@
 
 import { createCollection } from "@tanstack/react-db";
 import { queryCollectionOptions } from "@tanstack/query-db-collection";
-
-import { type Optional } from "prisma/generated/sqlite-client/runtime/library";
-import type { QueryClient } from "@tanstack/query-core";
 import type { RouterInputs, RouterOutputs } from "@/trpc/react";
 import {
   getQueryClient as getClientQueryClient,
   getTrpcClient,
 } from "@/trpc/client";
 import { makeInsertWithSwap } from "../../../lib/utils/collection-utils";
+import { omitUndefined } from "../../../lib/utils/omit-undefined";
 import { ensureAhsCached } from "./ahs-collection";
+import { cursorKey, getUserCursorKey } from "@/lib/utils/cursor";
 
-let _queryClient: QueryClient | undefined = undefined;
-const getQueryClient = () => {
-  if (_queryClient) return _queryClient;
-  _queryClient = getClientQueryClient();
-  return _queryClient;
-};
-
-const CURSOR_KEY = "listings:maxUpdatedAt";
-// In-memory tombstones to prevent re-adding deleted items during incremental merges
+const CURSOR_BASE = "listings:maxUpdatedAt";
 const DELETED_IDS = new Set<string>();
 
-export type ListingCollectionItem = Optional<
-  RouterOutputs["dashboardTwo"]["getListings"][number]
-> & {
-  id: string;
-  title: string;
-};
+export type ListingCollectionItem =
+  RouterOutputs["dashboardTwo"]["getListings"][number];
 
 export const listingsCollection = createCollection(
   queryCollectionOptions<ListingCollectionItem>({
-    queryClient: getQueryClient(),
+    queryClient: getClientQueryClient(),
     queryKey: ["dashboard-two", "listings"],
     enabled: false,
     getKey: (row) => row.id,
     queryFn: async ({ queryKey, client }) => {
-      const existingData: ListingCollectionItem[] =
+      const existing: ListingCollectionItem[] =
         client.getQueryData(queryKey) ?? [];
 
-      const lastSyncTime = localStorage.getItem(CURSOR_KEY);
-      const newData = await getTrpcClient().dashboardTwo.syncListings.query({
-        since: lastSyncTime ?? null,
+      const cursorKeyToUse = getUserCursorKey(CURSOR_BASE);
+      const last = localStorage.getItem(cursorKeyToUse);
+      const upserts = await getTrpcClient().dashboardTwo.syncListings.query({
+        since: last ?? null,
       });
 
-      const existingMap = new Map(existingData.map((item) => [item.id, item]));
+      const map = new Map(existing.map((i) => [i.id, i]));
+      upserts.forEach((i) => map.set(i.id, i));
+      // prevent re-adding recently deleted items during incremental merge
+      DELETED_IDS.forEach((id) => map.delete(id));
 
-      newData.forEach((item) => {
-        existingMap.set(item.id, item);
-      });
-
-      // Remove any locally deleted items from the merged result
-      DELETED_IDS.forEach((id) => existingMap.delete(id));
-
-      localStorage.setItem(CURSOR_KEY, new Date().toISOString());
-
-      return Array.from(existingMap.values());
+      localStorage.setItem(cursorKeyToUse, new Date().toISOString());
+      return Array.from(map.values());
     },
-    onInsert: async () => {
-      // Server create handled by insertListing() with direct write swap
-      return { refetch: false };
-    },
-    onUpdate: async () => {
-      // Server update handled by updateListing() with direct writes
-      return { refetch: false };
-    },
-    onDelete: async () => {
-      // Server delete handled by deleteListing() with direct writes
-      return { refetch: false };
-    },
+    onInsert: async () => ({ refetch: false }),
+    onUpdate: async () => ({ refetch: false }),
+    onDelete: async () => ({ refetch: false }),
   }),
 );
 
+// INSERT
+
 type InsertListingDraft = RouterInputs["dashboardTwo"]["insertListing"];
-export async function insertListing(listingDraft: InsertListingDraft) {
+export async function insertListing(draft: InsertListingDraft) {
   const run = makeInsertWithSwap<InsertListingDraft, ListingCollectionItem>({
     collection: listingsCollection,
-    makeTemp: (listingDraft) => ({
+    makeTemp: (d) => ({
       id: `temp:${crypto.randomUUID()}`,
-      ...listingDraft,
+      title: d.title,
+      ahsId: d.ahsId ?? null,
+      description: null,
+      price: null,
+      status: null,
+      privateNote: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      userId: "",
+      slug: "",
     }),
-    serverInsert: async (listingDraft) =>
-      getTrpcClient().dashboardTwo.insertListing.mutate(listingDraft),
+    serverInsert: (d) => getTrpcClient().dashboardTwo.insertListing.mutate(d),
   });
 
-  return run(listingDraft);
+  const created = await run(draft);
+  if (draft.ahsId) {
+    try {
+      await ensureAhsCached([draft.ahsId]);
+    } catch {}
+  }
+  return created;
 }
 
-type UpdateListingDraft = RouterInputs["dashboardTwo"]["updateListing"];
-export async function updateListing(
-  listingDraft:
-    | UpdateListingDraft
-    | (Partial<ListingCollectionItem> & { id: string }),
-) {
-  // Optimistic update directly on sync store
-  const previous = listingsCollection.get(listingDraft.id);
-  const data =
-    "data" in listingDraft && listingDraft.data
-      ? listingDraft.data
-      : (() => {
-          const draft = listingDraft as Partial<ListingCollectionItem> & {
-            id: string;
-          };
-          const obj: Record<string, unknown> = {};
-          ["title", "description", "price", "status", "privateNote"].forEach(
-            (k) => {
-              if ((draft as any)[k] !== undefined) obj[k] = (draft as any)[k];
-            },
-          );
-          return obj;
-        })();
+// UPDATE
 
+type UpdateListingDraft = RouterInputs["dashboardTwo"]["updateListing"];
+export async function updateListing(draft: UpdateListingDraft) {
+  const previous = listingsCollection.get(draft.id);
+
+  // Optimistic: apply only defined keys; nulls still mean "clear"
   listingsCollection.utils.writeUpdate({
-    id: listingDraft.id,
-    ...(data as any),
+    id: draft.id,
+    ...omitUndefined(draft.data),
   });
 
   try {
-    await getTrpcClient().dashboardTwo.updateListing.mutate({
-      id: listingDraft.id,
-      data,
-    } as UpdateListingDraft);
-  } catch (error) {
-    // Rollback on failure
-    if (previous) {
-      listingsCollection.utils.writeUpdate(previous);
-    }
-    throw error;
+    await getTrpcClient().dashboardTwo.updateListing.mutate(draft);
+  } catch (err) {
+    if (previous) listingsCollection.utils.writeUpdate(previous);
+    throw err;
   }
 }
 
+// DELETE (with tombstone)
+
 export async function deleteListing({ id }: { id: string }) {
-  // Optimistic delete on sync store
   const previous = listingsCollection.get(id);
+  DELETED_IDS.add(id);
   listingsCollection.utils.writeDelete(id);
 
   try {
     await getTrpcClient().dashboardTwo.deleteListing.mutate({ id });
-  } catch (error) {
-    // Rollback on failure
-    if (previous) {
-      listingsCollection.utils.writeInsert(previous);
-    }
-    throw error;
+  } catch (err) {
+    if (previous) listingsCollection.utils.writeInsert(previous);
+    DELETED_IDS.delete(id);
+    throw err;
   }
 }
+
+// LINK/UNLINK AHS
 
 type SetListingAhsIdDraft = RouterInputs["dashboardTwo"]["setListingAhsId"];
 export async function setListingAhsId(draft: SetListingAhsIdDraft) {
   const previous = listingsCollection.get(draft.id);
-  listingsCollection.utils.writeUpdate({
-    id: draft.id,
-    ahsId: draft.ahsId,
-  });
+  listingsCollection.utils.writeUpdate({ id: draft.id, ahsId: draft.ahsId });
 
   try {
     await getTrpcClient().dashboardTwo.setListingAhsId.mutate(draft);
     if (draft.ahsId) {
-      try {
-        await ensureAhsCached([draft.ahsId]);
-      } catch {}
+      await ensureAhsCached([draft.ahsId]);
     }
-  } catch (error) {
+  } catch (err) {
     if (previous) listingsCollection.utils.writeUpdate(previous);
-    throw error;
+    throw err;
   }
 }
 
-export async function initializeListingsCollection() {
+// INIT
+
+export async function initializeListingsCollection(userId: string) {
   const trpc = getTrpcClient();
-  const queryClient = getQueryClient();
-
-  // Fetch the full set of listings
-  const listings = await trpc.dashboardTwo.getListings.query();
-
-  // Seed the query cache used by the collection's queryFn
-  queryClient.setQueryData<ListingCollectionItem[]>(
-    ["dashboard-two", "listings"],
-    listings,
-  );
-
-  // Advance the sync cursor so the next incremental sync only fetches changes
-  localStorage.setItem(CURSOR_KEY, new Date().toISOString());
+  const qc = getClientQueryClient();
+  const rows = await trpc.dashboardTwo.getListings.query();
+  qc.setQueryData<ListingCollectionItem[]>(["dashboard-two", "listings"], rows);
+  const cursorKeyToUse = cursorKey(CURSOR_BASE, userId);
+  localStorage.setItem(cursorKeyToUse, new Date().toISOString());
+  DELETED_IDS.clear(); // optional: clear stale tombstones on fresh seed
 }

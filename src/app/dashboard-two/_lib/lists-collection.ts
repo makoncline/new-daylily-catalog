@@ -3,37 +3,23 @@
 import { createCollection } from "@tanstack/react-db";
 import { queryCollectionOptions } from "@tanstack/query-db-collection";
 
-import { type Optional } from "prisma/generated/sqlite-client/runtime/library";
-import type { QueryClient } from "@tanstack/query-core";
 import type { RouterInputs, RouterOutputs } from "@/trpc/react";
 import {
   getQueryClient as getClientQueryClient,
   getTrpcClient,
 } from "@/trpc/client";
 import { makeInsertWithSwap } from "../../../lib/utils/collection-utils";
+import { cursorKey, getUserCursorKey } from "@/lib/utils/cursor";
 
-let _queryClient: QueryClient | undefined = undefined;
-const getQueryClient = () => {
-  if (_queryClient) return _queryClient;
-  _queryClient = getClientQueryClient();
-  return _queryClient;
-};
-
-const CURSOR_KEY = "lists:maxUpdatedAt";
-// In-memory tombstones to prevent re-adding deleted items during incremental merges
+const CURSOR_BASE = "lists:maxUpdatedAt";
 const DELETED_IDS = new Set<string>();
 
-export type ListCollectionItem = Optional<
-  RouterOutputs["dashboardTwo"]["getLists"][number]
-> & {
-  id: string;
-  title: string;
-  listings?: { id: string }[];
-};
+export type ListCollectionItem =
+  RouterOutputs["dashboardTwo"]["getLists"][number];
 
 export const listsCollection = createCollection(
   queryCollectionOptions<ListCollectionItem>({
-    queryClient: getQueryClient(),
+    queryClient: getClientQueryClient(),
     queryKey: ["dashboard-two", "lists"],
     enabled: false,
     getKey: (row) => row.id,
@@ -41,36 +27,24 @@ export const listsCollection = createCollection(
       const existingData: ListCollectionItem[] =
         client.getQueryData(queryKey) ?? [];
 
-      const lastSyncTime = localStorage.getItem(CURSOR_KEY);
+      const cursorKeyToUse = getUserCursorKey(CURSOR_BASE);
+      const lastSyncTime = localStorage.getItem(cursorKeyToUse);
       const newData = await getTrpcClient().dashboardTwo.syncLists.query({
         since: lastSyncTime ?? null,
       });
 
-      const existingMap = new Map(existingData.map((item) => [item.id, item]));
+      const map = new Map(existingData.map((item) => [item.id, item]));
+      newData.forEach((item) => map.set(item.id, item));
 
-      newData.forEach((item) => {
-        existingMap.set(item.id, item);
-      });
+      // apply tombstones so deleted items don't get re-added by incremental merges
+      DELETED_IDS.forEach((id) => map.delete(id));
 
-      // Remove any locally deleted items from the merged result
-      DELETED_IDS.forEach((id) => existingMap.delete(id));
-
-      localStorage.setItem(CURSOR_KEY, new Date().toISOString());
-
-      return Array.from(existingMap.values());
+      localStorage.setItem(cursorKeyToUse, new Date().toISOString());
+      return Array.from(map.values());
     },
-    onInsert: async () => {
-      // Server create handled by insertList() with direct write swap
-      return { refetch: false };
-    },
-    onUpdate: async () => {
-      // Server update handled by updateList() with direct writes
-      return { refetch: false };
-    },
-    onDelete: async () => {
-      // Server delete handled by deleteList() with direct writes
-      return { refetch: false };
-    },
+    onInsert: async () => ({ refetch: false }),
+    onUpdate: async () => ({ refetch: false }),
+    onDelete: async () => ({ refetch: false }),
   }),
 );
 
@@ -78,13 +52,22 @@ type InsertListDraft = RouterInputs["dashboardTwo"]["insertList"];
 export async function insertList(listDraft: InsertListDraft) {
   const run = makeInsertWithSwap<InsertListDraft, ListCollectionItem>({
     collection: listsCollection,
-    makeTemp: (listDraft) => ({
+    makeTemp: (d) => ({
       id: `temp:${crypto.randomUUID()}`,
-      ...listDraft,
-      title: listDraft.title,
+      title: d.title,
+      userId: "",
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      description: null,
+      status: null,
+      listings: [],
     }),
-    serverInsert: async (listDraft) =>
-      getTrpcClient().dashboardTwo.insertList.mutate(listDraft),
+    serverInsert: async (d) => {
+      const serverResult =
+        await getTrpcClient().dashboardTwo.insertList.mutate(d);
+      // Merge server result with expected shape (listings will be populated on next sync)
+      return { ...serverResult, listings: [] };
+    },
   });
 
   return run(listDraft);
@@ -92,33 +75,35 @@ export async function insertList(listDraft: InsertListDraft) {
 
 type UpdateListDraft = RouterInputs["dashboardTwo"]["updateList"];
 export async function updateList(listDraft: UpdateListDraft) {
-  // Optimistic update directly on sync store
   const previous = listsCollection.get(listDraft.id);
-  listsCollection.utils.writeUpdate(listDraft);
+
+  // Optimistic: just update the single mutable field
+  listsCollection.utils.writeUpdate({
+    id: listDraft.id,
+    title: listDraft.title,
+  });
 
   try {
     await getTrpcClient().dashboardTwo.updateList.mutate(listDraft);
   } catch (error) {
-    // Rollback on failure
-    if (previous) {
-      listsCollection.utils.writeUpdate(previous);
-    }
+    if (previous) listsCollection.utils.writeUpdate(previous);
     throw error;
   }
 }
 
 export async function deleteList({ id }: { id: string }) {
-  // Optimistic delete on sync store
   const previous = listsCollection.get(id);
+
+  // optimistic delete + mark tombstone
+  DELETED_IDS.add(id);
   listsCollection.utils.writeDelete(id);
 
   try {
     await getTrpcClient().dashboardTwo.deleteList.mutate({ id });
   } catch (error) {
-    // Rollback on failure
-    if (previous) {
-      listsCollection.utils.writeInsert(previous);
-    }
+    // rollback: restore row and clear tombstone
+    if (previous) listsCollection.utils.writeInsert(previous);
+    DELETED_IDS.delete(id);
     throw error;
   }
 }
@@ -131,13 +116,13 @@ export async function addListingToList({
   listingId: string;
 }) {
   const previous = listsCollection.get(listId);
+  const prevListings = previous?.listings ?? [];
 
   listsCollection.utils.writeUpdate({
     id: listId,
-    listings: [
-      ...((previous?.listings as { id: string }[] | undefined) ?? []),
-      { id: listingId },
-    ].filter((v, i, a) => a.findIndex((x) => x.id === v.id) === i),
+    listings: [...prevListings, { id: listingId }].filter(
+      (v, i, a) => a.findIndex((x) => x.id === v.id) === i,
+    ),
   });
 
   try {
@@ -159,10 +144,9 @@ export async function removeListingFromList({
   listingId: string;
 }) {
   const previous = listsCollection.get(listId);
+  const prevListings = previous?.listings ?? [];
 
-  const nextListings = (
-    (previous?.listings as { id: string }[] | undefined) ?? []
-  ).filter((x) => x.id !== listingId);
+  const nextListings = prevListings.filter((x) => x.id !== listingId);
 
   listsCollection.utils.writeUpdate({ id: listId, listings: nextListings });
 
@@ -177,9 +161,9 @@ export async function removeListingFromList({
   }
 }
 
-export async function initializeListsCollection() {
+export async function initializeListsCollection(userId: string) {
   const trpc = getTrpcClient();
-  const queryClient = getQueryClient();
+  const queryClient = getClientQueryClient();
 
   // Fetch the full set of lists
   const lists = await trpc.dashboardTwo.getLists.query();
@@ -191,7 +175,9 @@ export async function initializeListsCollection() {
   );
 
   // Advance the sync cursor so the next incremental sync only fetches changes
-  localStorage.setItem(CURSOR_KEY, new Date().toISOString());
+  const cursorKeyToUse = cursorKey(CURSOR_BASE, userId);
+  localStorage.setItem(cursorKeyToUse, new Date().toISOString());
 
-  // Intentionally do not start sync here; caller controls sync behavior
+  // Clear stale tombstones on fresh seed
+  DELETED_IDS.clear();
 }

@@ -52,19 +52,14 @@ export const listingsProcedures = {
     .input(
       z.object({
         id: z.cuid(),
-        data: z
-          .object({
-            title: z.string().trim().min(1).max(200).optional(),
-            description: z.string().trim().max(10_000).nullable().optional(),
-            price: z.coerce.number().nonnegative().nullable().optional(),
-            // Status: null (published) or "HIDDEN"
-            status: z.enum(["HIDDEN"]).nullable().optional(),
-            privateNote: z.string().trim().max(10_000).nullable().optional(),
-          })
-          .strict()
-          .refine((v) => Object.keys(v).length > 0, {
-            message: "No fields to update",
-          }),
+        data: z.object({
+          title: z.string().trim().min(1).max(200).optional(),
+          description: z.string().trim().max(10_000).nullable().optional(),
+          price: z.number().nonnegative().nullable().optional(),
+          // Status: null (published) or "HIDDEN"
+          status: z.enum(["HIDDEN"]).nullable().optional(),
+          privateNote: z.string().trim().max(10_000).nullable().optional(),
+        }),
       }),
     )
     .mutation(async ({ ctx, input }) => {

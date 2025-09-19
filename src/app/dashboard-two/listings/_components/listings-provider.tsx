@@ -6,63 +6,50 @@ import { listingsCollection } from "@/app/dashboard-two/_lib/listings-collection
 import { listsCollection } from "@/app/dashboard-two/_lib/lists-collection";
 import { imagesCollection } from "@/app/dashboard-two/_lib/images-collection";
 import { ahsCollection } from "@/app/dashboard-two/_lib/ahs-collection";
-import { insertListing, deleteListing as deleteListingMutation, setListingAhsId } from "@/app/dashboard-two/_lib/listings-collection";
+import {
+  insertListing,
+  deleteListing as deleteListingMutation,
+  setListingAhsId,
+  updateListing as updateListingMutation,
+} from "@/app/dashboard-two/_lib/listings-collection";
 import {
   createImage,
   deleteImage,
   reorderImages,
 } from "@/app/dashboard-two/_lib/images-collection";
-import { addListingToList, removeListingFromList, insertList as createListMutation } from "@/app/dashboard-two/_lib/lists-collection";
-import { getTrpcClient } from "@/trpc/client";
+import {
+  addListingToList,
+  removeListingFromList,
+  insertList as createListMutation,
+} from "@/app/dashboard-two/_lib/lists-collection";
+import type { ListingRow } from "./types";
+import type { RouterInputs } from "@/trpc/react";
 // Note: Avoid importing legacy TRPC-backed utilities here. Keep this page
 // fully on dashboard-two routers + collections.
 
-export type TwoImage = { id: string; url: string; order?: number | null };
-export type TwoListRef = { id: string; title: string };
-export type TwoAhs = {
-  id: string;
-  name?: string | null;
-  hybridizer?: string | null;
-  year?: number | string | null;
-  scapeHeight?: string | null;
-  bloomSize?: string | null;
-  bloomSeason?: string | null;
-  ploidy?: string | null;
-  foliageType?: string | null;
-  budcount?: string | number | null;
-  branches?: string | number | null;
-  color?: string | null;
-  form?: string | null;
-  fragrance?: string | null;
-  ahsImageUrl?: string | null;
-} | null;
-
-export type TwoListingRow = {
-  id: string;
-  title: string;
-  description?: string | null;
-  price?: number | null;
-  privateNote?: string | null;
-  status?: string | null;
-  createdAt?: string | Date | null;
-  updatedAt?: string | Date | null;
-  images: TwoImage[];
-  lists: TwoListRef[];
-  ahsListing: TwoAhs;
-};
-
 type ContextValue = {
-  listings: TwoListingRow[];
-  lists: TwoListRef[];
+  listings: ListingRow[];
+  lists: ListingRow["lists"];
   listingCount: number;
   isLoading: boolean;
+  isPro: boolean;
   // handlers
-  createListing: (input: { title: string; ahsId?: string | null }) => Promise<{ id: string }>;
-  editListing: (id: string) => void;
-  updateListing: (input: { id: string } & Partial<TwoListingRow>) => Promise<void>;
+  createListing: (input: {
+    title: string;
+    ahsId?: string | null;
+  }) => Promise<{ id: string }>;
+  updateListing: (
+    input: RouterInputs["dashboardTwo"]["updateListing"],
+  ) => Promise<void>;
   deleteListing: (id: string) => Promise<void>;
-  updateListingLists: (input: { id: string; listIds: string[] }) => Promise<void>;
-  setListingAhsId: (input: { id: string; ahsId: string | null }) => Promise<void>;
+  updateListingLists: (input: {
+    id: string;
+    listIds: string[];
+  }) => Promise<void>;
+  setListingAhsId: (input: {
+    id: string;
+    ahsId: string | null;
+  }) => Promise<void>;
   createImage: (input: { listingId: string; url: string }) => Promise<void>;
   deleteImage: (input: { id: string }) => Promise<void>;
   reorderImages: (input: {
@@ -70,7 +57,6 @@ type ContextValue = {
     images: { id: string; order: number }[];
   }) => Promise<void>;
   createList: (title: string) => Promise<{ id: string; title: string }>;
-  isPro: boolean;
 };
 
 const ListingsContext = createContext<ContextValue | null>(null);
@@ -90,73 +76,51 @@ export function DashboardTwoListingsProvider({
   );
 
   const { data: rawLists = [], status: listsStatus } = useLiveQuery((q) =>
-    q.from({ list: listsCollection }).orderBy(({ list }) => list.title ?? "", "asc"),
+    q
+      .from({ list: listsCollection })
+      .orderBy(({ list }) => list.title ?? "", "asc"),
   );
 
   const { data: rawImages = [], status: imagesStatus } = useLiveQuery((q) =>
     q
       .from({ img: imagesCollection })
-      .orderBy(({ img }) => (img.order ?? 0) as number, "asc"),
+      .orderBy(({ img }) => img.order ?? 0, "asc"),
   );
 
   const { data: rawAhs = [], status: ahsStatus } = useLiveQuery((q) =>
     q.from({ ahs: ahsCollection }),
   );
 
-  const lists: TwoListRef[] = useMemo(
+  const lists = useMemo(
     () => rawLists.map((l) => ({ id: l.id, title: l.title })),
     [rawLists],
   );
 
-  const listings: TwoListingRow[] = useMemo(() => {
+  const listings: ListingRow[] = useMemo(() => {
     return rawListings.map((l) => {
-      const images = rawImages
-        .filter((img) => img.listingId === l.id)
-        .map((img) => ({ id: img.id, url: img.url, order: img.order })) as TwoImage[];
+      const images = rawImages.filter((img) => img.listingId === l.id);
 
-      const memberLists: TwoListRef[] = rawLists
+      const memberLists = rawLists
         .filter((lst) => (lst.listings ?? []).some((x) => x.id === l.id))
         .map((lst) => ({ id: lst.id, title: lst.title }));
 
-      const ahs = l.ahsId ? rawAhs.find((a) => a.id === l.ahsId) ?? null : null;
-      const ahsListing: TwoAhs = ahs
-        ? {
-            id: (ahs as any).id,
-            name: (ahs as any).name ?? null,
-            hybridizer: (ahs as any).hybridizer ?? null,
-            year: (ahs as any).year ?? null,
-            scapeHeight: (ahs as any).scapeHeight ?? null,
-            bloomSize: (ahs as any).bloomSize ?? null,
-            bloomSeason: (ahs as any).bloomSeason ?? null,
-            form: (ahs as any).form ?? null,
-            ploidy: (ahs as any).ploidy ?? null,
-            foliageType: (ahs as any).foliageType ?? null,
-            bloomHabit: (ahs as any).bloomHabit ?? null,
-            budcount: (ahs as any).budcount ?? null,
-            branches: (ahs as any).branches ?? null,
-            sculpting: (ahs as any).sculpting ?? null,
-            foliage: (ahs as any).foliage ?? null,
-            flower: (ahs as any).flower ?? null,
-            fragrance: (ahs as any).fragrance ?? null,
-            parentage: (ahs as any).parentage ?? null,
-            color: (ahs as any).color ?? null,
-            ahsImageUrl: (ahs as any).ahsImageUrl ?? null,
-          }
+      const ahs = l.ahsId
+        ? (rawAhs.find((a) => a.id === l.ahsId) ?? null)
         : null;
 
       return {
         id: l.id,
         title: l.title ?? "",
-        description: (l as any).description ?? null,
-        price: (l as any).price ?? null,
-        privateNote: (l as any).privateNote ?? null,
-        status: (l as any).status ?? null,
-        createdAt: (l as any).createdAt ?? null,
-        updatedAt: (l as any).updatedAt ?? null,
+        description: l.description ?? null,
+        price: l.price ?? null,
+        privateNote: l.privateNote ?? null,
+        status: l.status ?? null,
+        createdAt: l.createdAt ?? null,
+        updatedAt: l.updatedAt ?? null,
         images,
         lists: memberLists,
-        ahsListing,
-      } as TwoListingRow;
+        ahsListing: ahs ?? null,
+      };
     });
   }, [rawListings, rawImages, rawLists, rawAhs]);
 
@@ -173,34 +137,23 @@ export function DashboardTwoListingsProvider({
     isLoading,
     isPro,
     createListing: async ({ title, ahsId }) => {
-      const created = await insertListing({ title });
-      if (ahsId) {
-        await setListingAhsId({ id: created.id, ahsId });
-      }
+      const created = await insertListing(ahsId ? { title, ahsId } : { title });
       return { id: created.id };
     },
-    // Editing via legacy dialog is not wired on this page to avoid TRPC.
-    editListing: (_id: string) => {},
-    updateListing: async ({ id, ...rest }) => {
-      const previous = listingsCollection.get(id);
-      listingsCollection.utils.writeUpdate({ id, ...rest } as any);
-      try {
-        const data: any = {};
-        ["title", "description", "price", "status", "privateNote"].forEach((k) => {
-          if ((rest as any)[k] !== undefined) data[k] = (rest as any)[k];
-        });
-        await getTrpcClient().dashboardTwo.updateListingFields.mutate({ id, data });
-      } catch (err) {
-        if (previous) listingsCollection.utils.writeUpdate(previous);
-        throw err;
-      }
+    updateListing: async ({ id, data }) => {
+      await updateListingMutation({
+        id,
+        data,
+      });
     },
     deleteListing: async (id: string) => {
       await deleteListingMutation({ id });
     },
     updateListingLists: async ({ id, listIds }) => {
       // Compute diffs and apply via list mutations
-      const current = rawLists.filter((lst) => (lst.listings ?? []).some((x) => x.id === id));
+      const current = rawLists.filter((lst) =>
+        (lst.listings ?? []).some((x) => x.id === id),
+      );
       const currentIds = new Set(current.map((l) => l.id));
       const wanted = new Set(listIds);
 
@@ -209,7 +162,9 @@ export function DashboardTwoListingsProvider({
 
       await Promise.all([
         ...toAdd.map((lid) => addListingToList({ listId: lid, listingId: id })),
-        ...toRemove.map((lid) => removeListingFromList({ listId: lid, listingId: id })),
+        ...toRemove.map((lid) =>
+          removeListingFromList({ listId: lid, listingId: id }),
+        ),
       ]);
     },
     setListingAhsId: async ({ id, ahsId }) => {
@@ -231,12 +186,15 @@ export function DashboardTwoListingsProvider({
   };
 
   return (
-    <ListingsContext.Provider value={value}>{children}</ListingsContext.Provider>
+    <ListingsContext.Provider value={value}>
+      {children}
+    </ListingsContext.Provider>
   );
 }
 
 export function useDashboardTwoListings() {
   const ctx = useContext(ListingsContext);
-  if (!ctx) throw new Error("useDashboardTwoListings must be used within provider");
+  if (!ctx)
+    throw new Error("useDashboardTwoListings must be used within provider");
   return ctx;
 }

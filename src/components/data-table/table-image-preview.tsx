@@ -1,13 +1,14 @@
 "use client";
 
-import { type Image as ImageType } from "@prisma/client";
 import { OptimizedImage } from "@/components/optimized-image";
 import { cn } from "@/lib/utils";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import { ImageGallery } from "@/components/image-gallery";
 
+type PreviewImg = { id: string; url: string };
+
 interface TableImagePreviewProps {
-  images: ImageType[];
+  images: PreviewImg[];
   ahsImageUrl?: string | null;
 }
 

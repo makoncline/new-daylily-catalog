@@ -57,6 +57,7 @@ export const imagesProcedures = {
         listing: { userId: ctx.user.id },
       },
       orderBy: [{ listingId: "asc" }, { order: "asc" }],
+      select: { id: true, url: true, order: true, listingId: true },
     });
   }),
 
@@ -70,6 +71,7 @@ export const imagesProcedures = {
           ...(since ? { updatedAt: { gte: since } } : {}),
         },
         orderBy: { updatedAt: "asc" },
+        select: { id: true, url: true, order: true, listingId: true },
       });
       // NOTE: Does not include deletions
       return upserts;
@@ -95,6 +97,7 @@ export const imagesProcedures = {
           order: currentCount,
           listingId: input.listingId,
         },
+        select: { id: true, url: true, order: true, listingId: true },
       });
       return image;
     }),
@@ -117,14 +120,22 @@ export const imagesProcedures = {
       if (!listing) throw new Error("Listing not found or not owned by user");
 
       // Update provided images; any others will maintain their order
-      await ctx.db.$transaction(
+      const results = await ctx.db.$transaction(
         input.images.map((img) =>
-          ctx.db.image.update({
-            where: { id: img.id },
-            data: { order: img.order },
+          ctx.db.image.updateMany({
+            where: {
+              id: img.id,
+              listingId: input.listingId,
+              listing: { userId: ctx.user.id },
+            },
+            data: { order: img.order, updatedAt: new Date() },
           }),
         ),
       );
+      // If any update didn't match (0), something is off.
+      if (results.some((r) => r.count === 0)) {
+        throw new Error("One or more images not found or not owned by user");
+      }
       return { success: true } as const;
     }),
 
@@ -151,7 +162,7 @@ export const imagesProcedures = {
         remaining.map((img, index) =>
           ctx.db.image.update({
             where: { id: img.id },
-            data: { order: index },
+            data: { order: index, updatedAt: new Date() },
           }),
         ),
       );

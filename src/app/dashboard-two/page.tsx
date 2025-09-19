@@ -59,7 +59,7 @@ function PageContent() {
 
   const addListing = async () => {
     await insertListing({
-      title: `New Listing ${crypto.randomUUID().slice(0, 6)}`,
+      title: `New Listing ${Math.random().toString(36).substring(2, 8)}`,
     });
   };
 
@@ -83,7 +83,7 @@ function PageContent() {
     if (!editingId) return;
 
     try {
-      await updateListing({ id: editingId, title: editingValue });
+      await updateListing({ id: editingId, data: { title: editingValue } });
     } finally {
       setEditingId(null);
       setEditingValue("");
@@ -95,7 +95,9 @@ function PageContent() {
   };
 
   const addList = async () => {
-    await insertList({ title: `New List ${crypto.randomUUID().slice(0, 6)}` });
+    await insertList({
+      title: `New List ${Math.random().toString(36).substring(2, 8)}`,
+    });
   };
 
   const [editingListId, setEditingListId] = useState<string | null>(null);
