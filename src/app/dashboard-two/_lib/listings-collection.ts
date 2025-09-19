@@ -90,13 +90,39 @@ export async function insertListing(listingDraft: InsertListingDraft) {
 }
 
 type UpdateListingDraft = RouterInputs["dashboardTwo"]["updateListing"];
-export async function updateListing(listingDraft: UpdateListingDraft) {
+export async function updateListing(
+  listingDraft:
+    | UpdateListingDraft
+    | (Partial<ListingCollectionItem> & { id: string }),
+) {
   // Optimistic update directly on sync store
   const previous = listingsCollection.get(listingDraft.id);
-  listingsCollection.utils.writeUpdate(listingDraft);
+  const data =
+    "data" in listingDraft && listingDraft.data
+      ? listingDraft.data
+      : (() => {
+          const draft = listingDraft as Partial<ListingCollectionItem> & {
+            id: string;
+          };
+          const obj: Record<string, unknown> = {};
+          ["title", "description", "price", "status", "privateNote"].forEach(
+            (k) => {
+              if ((draft as any)[k] !== undefined) obj[k] = (draft as any)[k];
+            },
+          );
+          return obj;
+        })();
+
+  listingsCollection.utils.writeUpdate({
+    id: listingDraft.id,
+    ...(data as any),
+  });
 
   try {
-    await getTrpcClient().dashboardTwo.updateListing.mutate(listingDraft);
+    await getTrpcClient().dashboardTwo.updateListing.mutate({
+      id: listingDraft.id,
+      data,
+    } as UpdateListingDraft);
   } catch (error) {
     // Rollback on failure
     if (previous) {
