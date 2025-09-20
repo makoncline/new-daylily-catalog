@@ -70,7 +70,9 @@ export const baseListingColumns: ColumnDef<ListingData>[] = [
       />
     ),
     cell: ({ row }) => (
-      <TooltipCell content={getStringValue(row, "title")} lines={3} />
+      <div data-column="title">
+        <TooltipCell content={getStringValue(row, "title")} lines={3} />
+      </div>
     ),
     filterFn: fuzzyFilter,
     sortingFn: "fuzzySort",
@@ -98,7 +100,12 @@ export const baseListingColumns: ColumnDef<ListingData>[] = [
       const ahsImageUrl = row.original.ahsListing?.ahsImageUrl;
       if (!images?.length && !ahsImageUrl) return null;
       return (
-        <TableImagePreview images={images} ahsImageUrl={ahsImageUrl ?? null} />
+        <div data-column="images">
+          <TableImagePreview
+            images={images}
+            ahsImageUrl={ahsImageUrl ?? null}
+          />
+        </div>
       );
     },
     enableSorting: true,
@@ -117,7 +124,11 @@ export const baseListingColumns: ColumnDef<ListingData>[] = [
     cell: ({ row }) => {
       const price = row.original.price;
       if (typeof price !== "number") return "-";
-      return <TooltipCell content={formatPrice(price)} />;
+      return (
+        <div data-column="price">
+          <TooltipCell content={formatPrice(price)} />
+        </div>
+      );
     },
     filterFn: (row, _id, filterValue: boolean) => {
       if (!filterValue) return true;
@@ -139,7 +150,9 @@ export const baseListingColumns: ColumnDef<ListingData>[] = [
       />
     ),
     cell: ({ row }) => (
-      <TooltipCell content={getStringValue(row, "description")} lines={3} />
+      <div data-column="description">
+        <TooltipCell content={getStringValue(row, "description")} lines={3} />
+      </div>
     ),
     filterFn: fuzzyFilter,
     enableSorting: true,
@@ -212,9 +225,11 @@ export const baseListingColumns: ColumnDef<ListingData>[] = [
       const uiStatus = fromDbStatus(status);
       const displayText = uiStatus === "hidden" ? "Hidden" : "Published";
       return (
-        <Badge variant="secondary" className="text-xs font-normal">
-          {displayText}
-        </Badge>
+        <div data-column="status">
+          <Badge variant="secondary" className="text-xs font-normal">
+            {displayText}
+          </Badge>
+        </div>
       );
     },
     enableSorting: true,
@@ -234,7 +249,11 @@ export const baseListingColumns: ColumnDef<ListingData>[] = [
     ),
     cell: ({ row }) => {
       const value = row.getValue<string | null>("summary");
-      return <TooltipCell content={value ?? null} lines={3} />;
+      return (
+        <div data-column="summary">
+          <TooltipCell content={value ?? null} lines={3} />
+        </div>
+      );
     },
     filterFn: fuzzyFilter,
     enableSorting: true,
@@ -255,10 +274,12 @@ export const baseListingColumns: ColumnDef<ListingData>[] = [
         const ahsListing = row.original.ahsListing;
         const value = ahsListing ? ahsListing[key] : null;
         return (
-          <TooltipCell
-            content={value}
-            lines={key === "color" ? 3 : undefined}
-          />
+          <div data-column={key}>
+            <TooltipCell
+              content={value}
+              lines={key === "color" ? 3 : undefined}
+            />
+          </div>
         );
       },
       enableSorting: true,

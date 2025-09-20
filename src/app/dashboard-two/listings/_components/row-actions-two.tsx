@@ -35,6 +35,7 @@ export function RowActionsTwo({
           <Button
             variant="ghost"
             className="data-[state=open]:bg-muted flex h-full w-full p-0"
+            aria-label="Open menu"
           >
             <DotsHorizontalIcon className="h-4 w-4" />
             <span className="sr-only">Open menu</span>
