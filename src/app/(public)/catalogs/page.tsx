@@ -2,7 +2,7 @@ import { MainContent } from "../_components/main-content";
 import { type Metadata } from "next";
 import { getPublicProfiles } from "@/server/db/getPublicProfiles";
 import { Suspense } from "react";
-import { PageHeader } from "@/app/dashboard/_components/page-header";
+import { PageHeader } from "@/components/dashboard/page-header";
 import { getBaseUrl } from "@/lib/utils/getBaseUrl";
 import { METADATA_CONFIG } from "@/config/constants";
 import {

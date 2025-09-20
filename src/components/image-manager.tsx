@@ -28,7 +28,11 @@ import type { ImageType } from "@/types/image";
 import { Skeleton } from "@/components/ui/skeleton";
 import { OptimizedImage } from "@/components/optimized-image";
 import { ImagePreviewDialog } from "@/components/image-preview-dialog";
-import { getErrorMessage, normalizeError } from "@/lib/error-utils";
+import {
+  getErrorMessage,
+  normalizeError,
+  reportError,
+} from "@/lib/error-utils";
 
 interface ImageManagerProps {
   images: Image[];

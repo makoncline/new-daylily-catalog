@@ -3,7 +3,7 @@
 import React from "react";
 import { api } from "@/trpc/react";
 import { ListListingsTable } from "./_components/list-listings-table";
-import { PageHeader } from "../../_components/page-header";
+import { PageHeader } from "@/components/dashboard/page-header";
 import { ListForm } from "@/components/forms/list-form";
 import { AddListingsSection } from "./_components/add-listings-section";
 import { ListFormSkeleton } from "@/components/forms/list-form-skeleton";
