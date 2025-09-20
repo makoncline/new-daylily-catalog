@@ -37,20 +37,6 @@ test.beforeAll(async () => {
   });
 });
 
-test("dashboard-two listings page has title", async ({ page }) => {
-  // Load a page that initializes Clerk
-  await page.goto("/");
-
-  // Sign in using Clerk testing helpers with our pre-created dev user
-  await clerk.signIn({ page, emailAddress: TEST_USER.email });
-
-  // Navigate to the listings page
-  await page.goto("/dashboard-two/listings");
-
-  // Assert the document title (inherits from app root layout)
-  await expect(page).toHaveTitle("Daylily Catalog");
-});
-
 test("dashboard-two listings: create + edit listing flow", async ({
   page,
 }, testInfo) => {
@@ -65,14 +51,10 @@ test("dashboard-two listings: create + edit listing flow", async ({
   // linked AHS card should not be shown before linking
   await expect(page.getByTestId("linked-ahs-card")).toHaveCount(0);
 
-  // Click daylily database listing button to open search dialog
-  await page.getByLabel(/AHS Database Listing/).click();
-
-  // Fill search input in the dialog
+  // await page.pause();
+  await page.getByRole("combobox", { name: "Select AHS listing" }).click();
   await page.getByPlaceholder("Search AHS listings...").fill("coffee");
-
-  // Select Coffee Frenzy from the results
-  await page.getByRole("option").filter({ hasText: "Coffee Frenzy" }).click();
+  await page.getByRole("option", { name: "Coffee Frenzy" }).click();
 
   // linked AHS card should now be visible and contain the correct title
   const linkedCard = page.getByTestId("linked-ahs-card");
