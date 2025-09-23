@@ -43,6 +43,11 @@ function ListingsPageContent() {
 
   const onOpenCreate = useCallback(() => setShowCreateDialog(true), []);
 
+  const onEdit = useCallback((id: string) => editListing(id), [editListing]);
+  const onDelete = useCallback(async (id: string) => {
+    await deleteListing(id);
+  }, [deleteListing]);
+
   return (
     <>
       <PageHeader heading="Listings" text="Manage and showcase your daylilies.">
@@ -57,10 +62,8 @@ function ListingsPageContent() {
         data={listings}
         lists={lists}
         isLoading={isLoading}
-        onEdit={(id) => editListing(id)}
-        onDelete={async (id) => {
-          await deleteListing(id);
-        }}
+        onEdit={onEdit}
+        onDelete={onDelete}
       />
 
       <CreateListingDialog

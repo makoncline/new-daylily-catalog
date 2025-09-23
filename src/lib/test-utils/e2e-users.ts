@@ -7,10 +7,11 @@ export const TEST_USER = {
 } as const;
 
 export async function createAuthedUser(db: PrismaClient) {
-  await db.user.create({
+  const user = await db.user.create({
     data: {
       clerkUserId: TEST_USER.clerkId,
       stripeCustomerId: TEST_USER.stripeCustomerId,
     },
   });
+  return user;
 }

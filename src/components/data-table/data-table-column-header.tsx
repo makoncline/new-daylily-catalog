@@ -58,7 +58,7 @@ export function DataTableColumnHeader<TData, TValue>({
         <Button
           variant="ghost"
           size="sm"
-          className="-ml-1 h-8 data-[state=open]:bg-accent"
+          className="data-[state=open]:bg-accent -ml-1 h-8"
           onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
         >
           <span>{title}</span>
@@ -80,7 +80,7 @@ export function DataTableColumnHeader<TData, TValue>({
             <Button
               variant="ghost"
               size="sm"
-              className="h-8 w-8 p-0 hover:bg-muted"
+              className="hover:bg-muted h-8 w-8 p-0"
             >
               <Search className="h-4 w-4" />
               <span className="sr-only">

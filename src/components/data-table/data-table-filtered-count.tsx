@@ -27,16 +27,22 @@ export function DataTableFilteredCount<TData>({
     (table.getState().globalFilter !== undefined &&
       table.getState().globalFilter !== "");
 
-  // Only show counts if filters are applied and they've changed the visible rows
-  const showCounts = hasFilters && filteredRowsCount !== totalRowsCount;
-
-  if (!showCounts) return null;
+  // Always show counts (filtered / total) for better UX
+  const showCounts = true;
 
   return (
-    <InlineCode className="text-xs text-muted-foreground">
+    <InlineCode
+      className={hasFilters ? "text-xs" : "text-muted-foreground text-xs"}
+    >
       <div className="flex items-center gap-2 whitespace-nowrap">
-        <Eye className="h-3.5 w-3.5 text-muted-foreground" />
-        {formattedFilteredCount} / {formattedTotalCount}
+        <Eye
+          className={
+            hasFilters ? "h-3.5 w-3.5" : "text-muted-foreground h-3.5 w-3.5"
+          }
+        />
+        <span data-testid="filtered-rows-count">
+          {formattedFilteredCount} / {formattedTotalCount}
+        </span>
       </div>
     </InlineCode>
   );

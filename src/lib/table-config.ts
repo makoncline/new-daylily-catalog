@@ -7,7 +7,7 @@ import {
   getFacetedUniqueValues,
   type TableOptions,
 } from "@tanstack/react-table";
-import { fuzzyFilter, fuzzySort } from "@/lib/table-utils";
+import { fuzzyFilter, fuzzyGlobalFilter, fuzzySort } from "@/lib/table-utils";
 
 declare module "@tanstack/react-table" {
   // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-constraint, @typescript-eslint/no-unused-vars
@@ -25,7 +25,7 @@ export const defaultTableConfig = <TData>() =>
     filterFns: {
       fuzzy: fuzzyFilter,
     },
-    globalFilterFn: "fuzzy" as const,
+    globalFilterFn: fuzzyGlobalFilter,
     sortingFns: {
       fuzzySort,
     },

@@ -1,6 +1,7 @@
 "use client";
 
 import { DataTableColumnHeader, TooltipCell } from "@/components/data-table";
+import { normalizeForSearch } from "@/lib/table-utils";
 import { RowActionsTwo } from "./row-actions-two";
 import { LISTING_TABLE_COLUMN_NAMES } from "@/config/constants";
 import { formatPrice, formatAhsListingSummary } from "@/lib/utils";
@@ -27,6 +28,7 @@ const getStringValue = <K extends keyof ListingData>(
 
 // Typed AHS field keys
 const AHS_KEYS = [
+  "name",
   "hybridizer",
   "year",
   "scapeHeight",
@@ -43,6 +45,7 @@ const AHS_KEYS = [
 
 // Strongly-typed titles for AHS columns (no casting)
 const AHS_COLUMN_TITLES: Record<(typeof AHS_KEYS)[number], string> = {
+  name: "Daylily Name",
   hybridizer: LISTING_TABLE_COLUMN_NAMES.hybridizer,
   year: LISTING_TABLE_COLUMN_NAMES.year,
   scapeHeight: LISTING_TABLE_COLUMN_NAMES.scapeHeight,
@@ -119,6 +122,7 @@ export const baseListingColumns: ColumnDef<ListingData>[] = [
       <DataTableColumnHeader
         column={column}
         title={LISTING_TABLE_COLUMN_NAMES.price}
+        enableFilter
       />
     ),
     cell: ({ row }) => {
@@ -130,10 +134,16 @@ export const baseListingColumns: ColumnDef<ListingData>[] = [
         </div>
       );
     },
-    filterFn: (row, _id, filterValue: boolean) => {
+    filterFn: (row, _id, filterValue: string) => {
       if (!filterValue) return true;
+      const trimmedFilter = filterValue.trim();
+      if (!trimmedFilter) return true;
       const price = row.original.price;
-      return typeof price === "number" && price > 0;
+      if (typeof price !== "number") return false;
+      return (
+        price.toString().includes(trimmedFilter) ||
+        formatPrice(price).includes(trimmedFilter)
+      );
     },
     enableSorting: true,
     enableHiding: true,
@@ -185,6 +195,7 @@ export const baseListingColumns: ColumnDef<ListingData>[] = [
       <DataTableColumnHeader
         column={column}
         title={LISTING_TABLE_COLUMN_NAMES.lists}
+        enableFilter
       />
     ),
     cell: ({ row }) => {
@@ -202,9 +213,22 @@ export const baseListingColumns: ColumnDef<ListingData>[] = [
         </div>
       );
     },
-    filterFn: (row, id, filterValue: string[]) => {
-      if (!filterValue.length) return true;
-      return row.original.lists.some((list) => filterValue.includes(list.id));
+    filterFn: (row, id, filterValue: string | string[]) => {
+      // Always read lists from the row's original data (or accessor if provided)
+      const lists = row.original.lists ?? row.getValue(id) ?? [];
+
+      // Handle faceted filter (array of selected list IDs)
+      if (Array.isArray(filterValue)) {
+        if (filterValue.length === 0) return true;
+        const ids = lists.map((l) => l.id);
+        return filterValue.some((selectedId) => ids.includes(selectedId));
+      }
+
+      // Handle column filter (string for substring search)
+      if (!filterValue) return true;
+
+      const q = normalizeForSearch(filterValue);
+      return lists.some((l) => normalizeForSearch(l.title).includes(q));
     },
     enableSorting: true,
     enableHiding: true,
@@ -268,7 +292,11 @@ export const baseListingColumns: ColumnDef<ListingData>[] = [
         return ahsListing ? ahsListing[key] : null;
       },
       header: ({ column }) => (
-        <DataTableColumnHeader column={column} title={AHS_COLUMN_TITLES[key]} />
+        <DataTableColumnHeader
+          column={column}
+          title={AHS_COLUMN_TITLES[key]}
+          enableFilter
+        />
       ),
       cell: ({ row }) => {
         const ahsListing = row.original.ahsListing;
@@ -282,6 +310,7 @@ export const baseListingColumns: ColumnDef<ListingData>[] = [
           </div>
         );
       },
+      filterFn: fuzzyFilter,
       enableSorting: true,
       enableHiding: true,
     }),

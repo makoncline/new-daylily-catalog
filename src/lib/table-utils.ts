@@ -19,13 +19,41 @@ interface FilterMetaWithRank {
   itemRank: RankingInfo;
 }
 
+// Normalizes text for fuzzy matching:
+// - NFKD decomposes accents, then strip combining marks
+// - Unify apostrophes (’, ', ʼ, ', ', ` -> ')
+// - Normalize dashes (‐–—―− -> -)
+// - Remove zero-width chars
+// - Collapse internal whitespace, lowercase, trim
+export const normalizeForSearch = (s: string): string =>
+  s
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[\u2019\u2018\u02BC\u2032\u00B4\u0060\u0091\u0092]/g, "'")
+    .replace(/[\u2010-\u2015\u2212]/g, "-")
+    .replace(/[\u200B-\u200D\uFEFF]/g, "")
+    .replace(/\s+/g, " ")
+    .toLocaleLowerCase("en")
+    .trim();
+
 /**
  * Fuzzy filter function that ranks items and stores ranking info in meta
  */
 export const fuzzyFilter: FilterFn<any> = (row, columnId, value, addMeta) => {
-  // Rank the item with stricter threshold
-  const itemRank = rankItem(row.getValue(columnId), value, {
-    threshold: rankings.ACRONYM,
+  // Get the raw value
+  const rawValue = row.getValue(columnId);
+  if (rawValue == null || rawValue === "") return false;
+
+  // Normalize both the data value and search value for consistent matching
+  const normalizedData = normalizeForSearch(String(rawValue));
+  const normalizedValue = normalizeForSearch(value);
+
+  // If normalized search value is empty, no match
+  if (!normalizedValue) return false;
+
+  // Rank the item
+  const itemRank = rankItem(normalizedData, normalizedValue, {
+    threshold: rankings.CONTAINS,
   });
 
   // Store the ranking info for use in sorting
@@ -35,6 +63,57 @@ export const fuzzyFilter: FilterFn<any> = (row, columnId, value, addMeta) => {
 
   // Return if the item should be filtered in/out
   return itemRank.passed;
+};
+
+// Global fuzzy filter that searches across selected columns.
+// Keep the existing list or derive from column meta if you have it;
+// minimal change here: compute normalizedValue once.
+export const fuzzyGlobalFilter: FilterFn<any> = (
+  row,
+  _columnId,
+  value,
+  addMeta,
+) => {
+  const searchableColumns = [
+    "title",
+    "description",
+    "privateNote",
+    "price",
+    "summary",
+    "name",
+    "hybridizer",
+    "year",
+    "scapeHeight",
+    "bloomSize",
+    "bloomSeason",
+    "ploidy",
+    "foliageType",
+    "color",
+    "form",
+    "fragrance",
+    "budcount",
+    "branches",
+  ];
+
+  const normalizedValue = normalizeForSearch(value);
+  if (!normalizedValue) return false;
+
+  let bestRank: RankingInfo | null = null;
+  for (const colId of searchableColumns) {
+    const raw = row.getValue(colId);
+    if (raw == null || raw === "") continue;
+    const normalizedData = normalizeForSearch(String(raw));
+    const itemRank = rankItem(normalizedData, normalizedValue, {
+      threshold: rankings.CONTAINS,
+    });
+    if (itemRank.passed && (!bestRank || compareItems(itemRank, bestRank) > 0))
+      bestRank = itemRank;
+  }
+  if (bestRank) {
+    addMeta({ itemRank: bestRank });
+    return true;
+  }
+  return false;
 };
 
 /**
@@ -55,8 +134,15 @@ export const fuzzySort: SortingFn<any> = (rowA, rowB, columnId) => {
     const titleB = rowB.getValue("title") as string;
 
     if (titleA || titleB) {
-      const titleARank = rankItem(titleA || "", globalFilter);
-      const titleBRank = rankItem(titleB || "", globalFilter);
+      const normalizedGlobalFilter = normalizeForSearch(globalFilter);
+      const titleARank = rankItem(
+        normalizeForSearch(titleA || ""),
+        normalizedGlobalFilter,
+      );
+      const titleBRank = rankItem(
+        normalizeForSearch(titleB || ""),
+        normalizedGlobalFilter,
+      );
 
       // If one has a title match and the other doesn't, prioritize the title match
       if (titleARank.passed !== titleBRank.passed) {
