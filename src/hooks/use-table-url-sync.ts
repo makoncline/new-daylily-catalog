@@ -22,7 +22,7 @@ export function useUrlInitialTableState({
     (pathname?.includes("dashboard")
       ? TABLE_CONFIG.PAGINATION.DASHBOARD_PAGE_SIZE_DEFAULT
       : TABLE_CONFIG.PAGINATION.DEFAULT_PAGE_SIZE);
-  const globalFilter = searchParams.get("query") ?? undefined;
+  const globalFilter = searchParams.get("q") ?? undefined;
 
   // Get column filters from URL
   const columnFilters = filterableColumnIds
@@ -62,58 +62,74 @@ export function useTableUrlSync<TData>(table: Table<TData>) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
+  // Read reactive pagination values (TanStack Table v8 causes rerenders when state changes)
+  const pageIndex = table.getState().pagination.pageIndex; // 0-based
+  const pageSize = table.getState().pagination.pageSize;
+
   // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-  const { pagination, columnFilters, globalFilter } = table.getState();
+  const { columnFilters, globalFilter } = table.getState();
   const filterableColumns = table.options.meta?.filterableColumns;
 
   React.useEffect(() => {
     if (typeof window === "undefined") return;
 
+    const pageCount = table.getPageCount();
+    const maxPageIndex = pageCount > 0 ? pageCount - 1 : 0;
+    const totalRows = table.getCoreRowModel().rows.length;
+
+    if (pageIndex < 0) {
+      table.setPageIndex(0);
+      return;
+    }
+
+    if (pageCount === 0) {
+      if (totalRows > 0 && pageIndex !== 0) {
+        table.setPageIndex(0);
+        return;
+      }
+    } else if (pageIndex > maxPageIndex) {
+      table.setPageIndex(maxPageIndex);
+      return;
+    }
+
     const url = new URL(window.location.href);
     const oldParams = new URLSearchParams(window.location.search);
 
     // Update only the search parameters
-    if (pagination.pageIndex === TABLE_CONFIG.PAGINATION.DEFAULT_PAGE_INDEX) {
+    if (pageIndex === TABLE_CONFIG.PAGINATION.DEFAULT_PAGE_INDEX) {
       url.searchParams.delete("page");
     } else {
-      url.searchParams.set("page", String(pagination.pageIndex + 1));
+      url.searchParams.set("page", String(pageIndex + 1));
     }
 
     if (
-      pagination.pageSize === TABLE_CONFIG.PAGINATION.DEFAULT_PAGE_SIZE ||
-      pagination.pageSize ===
-        TABLE_CONFIG.PAGINATION.DASHBOARD_PAGE_SIZE_DEFAULT
+      pageSize === TABLE_CONFIG.PAGINATION.DEFAULT_PAGE_SIZE ||
+      pageSize === TABLE_CONFIG.PAGINATION.DASHBOARD_PAGE_SIZE_DEFAULT
     ) {
       url.searchParams.delete("size");
     } else {
-      url.searchParams.set("size", String(pagination.pageSize));
+      url.searchParams.set("size", String(pageSize));
     }
 
-    // First, remove all filterable column params that aren't in the current filters
-    filterableColumns?.forEach((id) => {
-      if (!columnFilters.some((filter) => filter.id === id)) {
-        url.searchParams.delete(id);
-      }
-    });
-
-    // Then set the current column filters
-    columnFilters.forEach((filter) => {
-      const value = filter.value;
-      if (!value) {
-        url.searchParams.delete(filter.id);
-      } else if (Array.isArray(value)) {
-        url.searchParams.set(filter.id, value.join(","));
-      } else {
-        url.searchParams.set(filter.id, JSON.stringify(value));
-      }
-    });
-
-    // Sync global filter
-    if (!globalFilter) {
-      url.searchParams.delete("query");
-    } else {
-      url.searchParams.set("query", String(globalFilter));
+    // column filters (remove stale first)
+    if (Array.isArray(filterableColumns)) {
+      for (const key of filterableColumns) url.searchParams.delete(key);
     }
+    for (const f of columnFilters ?? []) {
+      if (f.value != null && f.value !== "") {
+        if (Array.isArray(f.value)) {
+          url.searchParams.set(String(f.id), f.value.join(","));
+        } else {
+          // Safely convert to string for URL params
+          // eslint-disable-next-line @typescript-eslint/no-base-to-string
+          url.searchParams.set(String(f.id), String(f.value));
+        }
+      }
+    }
+
+    // global filter
+    if (globalFilter) url.searchParams.set("q", String(globalFilter));
+    else url.searchParams.delete("q");
 
     const newParams = url.searchParams;
     const hasChanges =
@@ -126,10 +142,11 @@ export function useTableUrlSync<TData>(table: Table<TData>) {
       router.push(url.href, { scroll: false });
     }
   }, [
+    pageIndex,
+    pageSize,
     pathname,
     router,
     searchParams,
-    pagination,
     columnFilters,
     globalFilter,
     filterableColumns,

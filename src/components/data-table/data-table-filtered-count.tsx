@@ -13,6 +13,7 @@ export function DataTableFilteredCount<TData>({
   table,
 }: DataTableFilteredCountProps<TData>) {
   // Calculate the number of rows that match the current filters
+  // Show total FILTERED rows (not per-page) to preserve original semantics
   const filteredRowsCount = table.getFilteredRowModel().rows.length;
   // Get the total number of rows
   const totalRowsCount = table.getCoreRowModel().rows.length;
@@ -28,7 +29,6 @@ export function DataTableFilteredCount<TData>({
       table.getState().globalFilter !== "");
 
   // Always show counts (filtered / total) for better UX
-  const showCounts = true;
 
   return (
     <InlineCode
