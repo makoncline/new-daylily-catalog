@@ -208,7 +208,7 @@ const config = {
       "value": "prisma-client-js"
     },
     "output": {
-      "value": "/Users/makon/dev/apps/new-daylily-catalog/prisma/generated/sqlite-client",
+      "value": "/vercel/sandbox/primary/prisma/generated/sqlite-client",
       "fromEnvVar": null
     },
     "config": {
@@ -217,14 +217,14 @@ const config = {
     "binaryTargets": [
       {
         "fromEnvVar": null,
-        "value": "darwin-arm64",
+        "value": "rhel-openssl-3.0.x",
         "native": true
       }
     ],
     "previewFeatures": [
       "driverAdapters"
     ],
-    "sourceFilePath": "/Users/makon/dev/apps/new-daylily-catalog/prisma/schema.prisma",
+    "sourceFilePath": "/vercel/sandbox/primary/prisma/schema.prisma",
     "isCustomOutput": true
   },
   "relativeEnvPaths": {
