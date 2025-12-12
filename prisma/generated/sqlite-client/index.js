@@ -209,7 +209,7 @@ const config = {
       "value": "prisma-client-js"
     },
     "output": {
-      "value": "/Users/makon/dev/apps/new-daylily-catalog/prisma/generated/sqlite-client",
+      "value": "/vercel/sandbox/primary/prisma/generated/sqlite-client",
       "fromEnvVar": null
     },
     "config": {
@@ -218,14 +218,14 @@ const config = {
     "binaryTargets": [
       {
         "fromEnvVar": null,
-        "value": "darwin-arm64",
+        "value": "rhel-openssl-3.0.x",
         "native": true
       }
     ],
     "previewFeatures": [
       "driverAdapters"
     ],
-    "sourceFilePath": "/Users/makon/dev/apps/new-daylily-catalog/prisma/schema.prisma",
+    "sourceFilePath": "/vercel/sandbox/primary/prisma/schema.prisma",
     "isCustomOutput": true
   },
   "relativeEnvPaths": {
@@ -286,8 +286,8 @@ exports.PrismaClient = PrismaClient
 Object.assign(exports, Prisma)
 
 // file annotations for bundling tools to include these files
-path.join(__dirname, "libquery_engine-darwin-arm64.dylib.node");
-path.join(process.cwd(), "prisma/generated/sqlite-client/libquery_engine-darwin-arm64.dylib.node")
+path.join(__dirname, "libquery_engine-rhel-openssl-3.0.x.so.node");
+path.join(process.cwd(), "prisma/generated/sqlite-client/libquery_engine-rhel-openssl-3.0.x.so.node")
 // file annotations for bundling tools to include these files
 path.join(__dirname, "schema.prisma");
 path.join(process.cwd(), "prisma/generated/sqlite-client/schema.prisma")
