@@ -2,7 +2,7 @@
 
 import { api } from "@/trpc/react";
 import { ProfileForm } from "@/components/forms/profile-form";
-import { PageHeader } from "../_components/page-header";
+import { PageHeader } from "@/components/dashboard/page-header";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { MainContent } from "@/app/(public)/_components/main-content";

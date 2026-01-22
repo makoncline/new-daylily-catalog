@@ -1,6 +1,6 @@
 "use client";
 
-import { PageHeader } from "../_components/page-header";
+import { PageHeader } from "@/components/dashboard/page-header";
 import { CreateListingButton } from "./_components/create-listing-button";
 import { ListingsTable } from "./_components/listings-table";
 import { EditListingDialog } from "./_components/edit-listing-dialog";

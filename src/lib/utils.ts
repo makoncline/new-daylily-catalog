@@ -1,6 +1,6 @@
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
-import { type AhsListing } from "@prisma/client";
+import type { AhsRow } from "@/app/dashboard-two/listings/_components/types";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -83,7 +83,7 @@ export async function uploadFileWithProgress({
 }
 
 export function formatAhsListingSummary(
-  ahs: Partial<AhsListing> | null,
+  ahs: AhsRow | Partial<AhsListing> | null,
 ): string | null {
   if (!ahs) return null;
 

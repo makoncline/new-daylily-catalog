@@ -49,7 +49,7 @@ export function DataTable<TData>({ table }: DataTableProps<TData>) {
       <div className="flex min-w-full">
         {/* Left pinned table */}
         {leftPinnedColumns.length > 0 && table.getHeaderGroups() && (
-          <div className="shrink-0 border-r bg-background">
+          <div className="bg-background shrink-0 border-r">
             <UITable>
               <TableHeader>
                 {table.getHeaderGroups().map((headerGroup) => (
@@ -87,7 +87,7 @@ export function DataTable<TData>({ table }: DataTableProps<TData>) {
                 ))}
               </TableHeader>
               <TableBody>
-                {table.getRowModel().rows.map((row) => (
+                {table.getPaginationRowModel().rows.map((row) => (
                   <TableRow
                     key={row.id}
                     data-state={row.getIsSelected() && "selected"}
@@ -100,7 +100,7 @@ export function DataTable<TData>({ table }: DataTableProps<TData>) {
                       .map((cell) => (
                         <TableCell
                           key={cell.id}
-                          className="h-20 min-w-24 max-w-52"
+                          className="h-20 max-w-52 min-w-24"
                         >
                           {flexRender(
                             cell.column.columnDef.cell,
@@ -158,7 +158,7 @@ export function DataTable<TData>({ table }: DataTableProps<TData>) {
               </TableHeader>
             )}
             <TableBody>
-              {table.getRowModel().rows.map((row) => (
+              {table.getPaginationRowModel().rows.map((row) => (
                 <TableRow
                   key={row.id}
                   data-state={row.getIsSelected() && "selected"}
@@ -173,7 +173,7 @@ export function DataTable<TData>({ table }: DataTableProps<TData>) {
                     .map((cell) => (
                       <TableCell
                         key={cell.id}
-                        className="h-20 min-w-24 max-w-96"
+                        className="h-20 max-w-96 min-w-24"
                       >
                         {flexRender(
                           cell.column.columnDef.cell,
@@ -189,7 +189,7 @@ export function DataTable<TData>({ table }: DataTableProps<TData>) {
 
         {/* Right pinned table */}
         {rightPinnedColumns.length > 0 && table.getHeaderGroups() && (
-          <div className="shrink-0 border-l bg-background">
+          <div className="bg-background shrink-0 border-l">
             <UITable>
               <TableHeader>
                 {table.getHeaderGroups().map((headerGroup) => (
@@ -227,7 +227,7 @@ export function DataTable<TData>({ table }: DataTableProps<TData>) {
                 ))}
               </TableHeader>
               <TableBody>
-                {table.getRowModel().rows.map((row) => (
+                {table.getPaginationRowModel().rows.map((row) => (
                   <TableRow
                     key={row.id}
                     data-state={row.getIsSelected() && "selected"}
