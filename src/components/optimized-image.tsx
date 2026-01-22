@@ -30,6 +30,8 @@ export const IMAGE_CONFIG = {
   },
 } as const;
 
+const reportedImageErrors = new Set<string>();
+
 interface OptimizedImageProps extends React.HTMLAttributes<HTMLDivElement> {
   src: string;
   alt: string;
@@ -49,7 +51,6 @@ export function OptimizedImage({
   ...props
 }: OptimizedImageProps) {
   const [loaded, setLoaded] = React.useState(false);
-  const [transformError, setTransformError] = React.useState(false);
 
   const dimension =
     size === "thumbnail"
@@ -72,30 +73,6 @@ export function OptimizedImage({
     quality: IMAGE_CONFIG.BLUR.QUALITY,
     fit,
   });
-
-  const handleError: React.ReactEventHandler<HTMLImageElement> =
-    React.useCallback(
-      (_error) => {
-        if (!transformError) {
-          setTransformError(true);
-          const imageLoadError = new Error(
-            `Failed to load optimized image resource`,
-          );
-          reportError({
-            error: imageLoadError,
-            level: "warning",
-            context: {
-              source: "OptimizedImage",
-              src,
-              transformedUrl: imageUrl,
-              size,
-              fit,
-            },
-          });
-        }
-      },
-      [transformError, imageUrl, src, size, fit],
-    );
 
   const handleLoad: React.ReactEventHandler<HTMLImageElement> =
     React.useCallback(() => {
@@ -132,19 +109,16 @@ export function OptimizedImage({
         }}
       />
 
-      <Image
+      <OptimizedImageInner
+        key={imageUrl}
         alt={alt}
-        src={imageUrl}
-        width={dimension}
-        height={dimension}
-        unoptimized
-        decoding="async"
-        style={{ objectFit: fit }}
-        className={cn("relative h-full w-full")}
-        loading={priority ? "eager" : "lazy"}
-        fetchPriority={priority ? "high" : "auto"}
+        src={src}
+        imageUrl={imageUrl}
+        dimension={dimension}
+        fit={fit}
+        size={size}
+        priority={priority}
         onLoad={handleLoad}
-        onError={handleError}
       />
 
       {/* Non-JS fallback ensures the real image is in the HTML for non-JS renderers */}
@@ -159,5 +133,75 @@ export function OptimizedImage({
         />
       </noscript>
     </div>
+  );
+}
+
+interface OptimizedImageInnerProps {
+  alt: string;
+  src: string;
+  imageUrl: string;
+  dimension: number;
+  fit: "contain" | "cover";
+  size: "thumbnail" | "full";
+  priority: boolean;
+  onLoad: React.ReactEventHandler<HTMLImageElement>;
+}
+
+function OptimizedImageInner({
+  alt,
+  src,
+  imageUrl,
+  dimension,
+  fit,
+  size,
+  priority,
+  onLoad,
+}: OptimizedImageInnerProps) {
+  const [currentSrc, setCurrentSrc] = React.useState(imageUrl);
+
+  const handleError: React.ReactEventHandler<HTMLImageElement> =
+    React.useCallback(
+      (_error) => {
+        if (currentSrc !== src && imageUrl !== src) {
+          setCurrentSrc(src);
+          return;
+        }
+
+        const reportKey = `${src}::${imageUrl}`;
+        if (reportedImageErrors.has(reportKey)) return;
+        reportedImageErrors.add(reportKey);
+
+        const imageLoadError = new Error(`Failed to load image resource`);
+        reportError({
+          error: imageLoadError,
+          level: "warning",
+          context: {
+            source: "OptimizedImage",
+            src,
+            transformedUrl: imageUrl,
+            attemptedSrc: currentSrc,
+            size,
+            fit,
+          },
+        });
+      },
+      [currentSrc, imageUrl, src, size, fit],
+    );
+
+  return (
+    <Image
+      alt={alt}
+      src={currentSrc}
+      width={dimension}
+      height={dimension}
+      unoptimized
+      decoding="async"
+      style={{ objectFit: fit }}
+      className={cn("relative h-full w-full")}
+      loading={priority ? "eager" : "lazy"}
+      fetchPriority={priority ? "high" : "auto"}
+      onLoad={onLoad}
+      onError={handleError}
+    />
   );
 }

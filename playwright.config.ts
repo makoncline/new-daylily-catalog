@@ -4,7 +4,7 @@ import { defineConfig, devices } from "@playwright/test";
 const baseURL = process.env.BASE_URL ?? "http://localhost:3000";
 
 export default defineConfig({
-  testDir: "./tests",
+  testMatch: /.*\.e2e\.ts$/,
   use: {
     baseURL,
     screenshot: "only-on-failure",
