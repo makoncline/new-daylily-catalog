@@ -17,5 +17,15 @@ export async function createAuthedUser(db: E2EPrismaClient) {
       stripeCustomerId: TEST_USER.stripeCustomerId,
     },
   });
+  if (TEST_USER.stripeCustomerId) {
+    await db.keyValue.upsert({
+      where: { key: `stripe:customer:${TEST_USER.stripeCustomerId}` },
+      update: { value: JSON.stringify({ status: "none" }) },
+      create: {
+        key: `stripe:customer:${TEST_USER.stripeCustomerId}`,
+        value: JSON.stringify({ status: "none" }),
+      },
+    });
+  }
   return user;
 }

@@ -3,6 +3,15 @@ import { withTempE2EDb } from "../../src/lib/test-utils/e2e-db";
 import { TEST_USER, createAuthedUser } from "../../src/lib/test-utils/e2e-users";
 
 test.describe("manual sign-in @local", () => {
+  test.afterEach(async ({ page }, testInfo) => {
+    if (testInfo.status !== testInfo.expectedStatus) {
+      await testInfo.attach("page.html", {
+        body: await page.content(),
+        contentType: "text/html",
+      });
+    }
+  });
+
   test.beforeAll(async () => {
     await withTempE2EDb(async (db) => {
       await createAuthedUser(db);
@@ -30,6 +39,6 @@ test.describe("manual sign-in @local", () => {
     await expect(page).toHaveURL(/\/dashboard/, { timeout: 15000 });
     await expect(
       page.getByRole("heading", { name: "Dashboard" }),
-    ).toBeVisible({ timeout: 5000 });
+    ).toBeVisible();
   });
 });
