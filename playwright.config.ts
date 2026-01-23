@@ -63,6 +63,7 @@ export default defineConfig({
         command: "scripts/e2e-dev-server.sh",
         url: `http://localhost:${e2ePort}`,
         reuseExistingServer: false,
+        timeout: 120000, // 2 minutes for CI (server startup can be slow)
         env: {
           ...process.env,
           PORT: e2ePort,
