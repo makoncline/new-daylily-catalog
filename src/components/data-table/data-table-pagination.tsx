@@ -69,7 +69,7 @@ export function DataTablePagination<TData>({
                 scrollToTable();
               }}
             >
-              <SelectTrigger className="h-8 w-[70px]">
+              <SelectTrigger className="h-8 w-[70px]" data-testid="pager-per-page">
                 <SelectValue placeholder={pageSize} />
               </SelectTrigger>
               <SelectContent side="top">
@@ -83,7 +83,10 @@ export function DataTablePagination<TData>({
           </div>
 
           <div className="flex items-center gap-2">
-            <div className="flex w-[100px] items-center justify-center text-sm font-medium">
+            <div
+              className="flex w-[100px] items-center justify-center text-sm font-medium"
+              data-testid="pager-page-indicator"
+            >
               Page {pageIndex + 1} of {pageCount}
             </div>
 
@@ -96,6 +99,7 @@ export function DataTablePagination<TData>({
                   scrollToTable();
                 }}
                 disabled={!table.getCanPreviousPage()}
+                data-testid="pager-first"
               >
                 <span className="sr-only">Go to first page</span>
                 <DoubleArrowLeftIcon className="h-4 w-4" />
@@ -108,6 +112,7 @@ export function DataTablePagination<TData>({
                   scrollToTable();
                 }}
                 disabled={!table.getCanPreviousPage()}
+                data-testid="pager-prev"
               >
                 <span className="sr-only">Go to previous page</span>
                 <ChevronLeftIcon className="h-4 w-4" />
@@ -120,6 +125,7 @@ export function DataTablePagination<TData>({
                   scrollToTable();
                 }}
                 disabled={!table.getCanNextPage()}
+                data-testid="pager-next"
               >
                 <span className="sr-only">Go to next page</span>
                 <ChevronRightIcon className="h-4 w-4" />
@@ -132,6 +138,7 @@ export function DataTablePagination<TData>({
                   scrollToTable();
                 }}
                 disabled={!table.getCanNextPage()}
+                data-testid="pager-last"
               >
                 <span className="sr-only">Go to last page</span>
                 <DoubleArrowRightIcon className="h-4 w-4" />
