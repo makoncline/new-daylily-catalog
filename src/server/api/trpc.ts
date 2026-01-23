@@ -17,8 +17,11 @@ export async function getUserByClerkId(clerkUserId: string) {
 }
 
 async function createUserFromClerk(clerkUserId: string) {
-  const user = await db.user.create({
-    data: {
+  // Use upsert to handle case where user already exists (e.g., from test seeding)
+  const user = await db.user.upsert({
+    where: { clerkUserId },
+    update: {},
+    create: {
       clerkUserId,
     },
   });
