@@ -38,8 +38,11 @@ export default defineConfig({
   reporter: [["list"], ["html", { open: "never" }]],
   // Single worker for local mode (shared temp DB); allow parallelization in attach mode
   workers: process.env.BASE_URL ? undefined : 1,
-  // Exclude @local tests when attaching to BASE_URL (no local DB seeding available)
-  grepInvert: process.env.BASE_URL ? /@local/ : undefined,
+  // Tag rules:
+  // - @preview runs only on preview (BASE_URL set)
+  // - @local runs only locally (BASE_URL not set)
+  // - untagged runs in both
+  grepInvert: process.env.BASE_URL ? /@local/ : /@preview/,
   use: {
     baseURL,
     screenshot: "only-on-failure",

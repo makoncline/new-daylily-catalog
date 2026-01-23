@@ -1,7 +1,7 @@
 import { test, expect } from "@playwright/test";
 import { withTempE2EDb } from "../../src/lib/test-utils/e2e-db";
 
-test.describe("guest user tour @local", () => {
+test.describe("guest user tour @preview", () => {
   test.beforeAll(async () => {
     await withTempE2EDb(async (db) => {
       const userId = "3";
