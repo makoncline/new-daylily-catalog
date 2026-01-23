@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect } from "../../e2e/test-setup";
 import { withTempE2EDb } from "../../src/lib/test-utils/e2e-db";
 import { TEST_USER, createAuthedUser } from "../../src/lib/test-utils/e2e-users";
 

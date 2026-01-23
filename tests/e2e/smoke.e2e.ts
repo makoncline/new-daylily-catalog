@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect } from "../../e2e/test-setup";
 
 test.describe("guest user tour @preview", () => {
   test("navigates through unauthed pages", async ({ page }) => {
