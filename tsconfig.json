@@ -21,6 +21,7 @@
     "moduleResolution": "Bundler",
     "jsx": "preserve",
     "plugins": [{ "name": "next" }],
+    "types": ["vitest/globals"],
     "incremental": true,
 
     /* Path Aliases */

@@ -37,6 +37,7 @@ export const cloudflareLoader = ({
   }
 
   const paramsString = params.join(",");
+  const encodedSrc = encodeURI(src);
 
-  return `${process.env.NEXT_PUBLIC_CLOUDFLARE_URL}/cdn-cgi/image/${paramsString}/${src}`;
+  return `${process.env.NEXT_PUBLIC_CLOUDFLARE_URL}/cdn-cgi/image/${paramsString}/${encodedSrc}`;
 };
