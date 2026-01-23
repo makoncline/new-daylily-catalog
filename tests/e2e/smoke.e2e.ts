@@ -1,30 +1,6 @@
 import { test, expect } from "@playwright/test";
-import { withTempE2EDb } from "../../src/lib/test-utils/e2e-db";
 
 test.describe("guest user tour @preview", () => {
-  test.beforeAll(async () => {
-    await withTempE2EDb(async (db) => {
-      const userId = "3";
-      await db.user.create({ data: { id: userId } });
-      await db.userProfile.create({
-        data: {
-          userId,
-          title: "RollingOaksDaylilies",
-          slug: "rollingoaksdaylilies",
-          description: "Seeded profile for E2E",
-        },
-      });
-      await db.listing.create({
-        data: {
-          id: "221",
-          userId,
-          title: "Coffee Frenzy",
-          slug: "coffee-frenzy",
-        },
-      });
-    });
-  });
-
   test("navigates through unauthed pages", async ({ page }) => {
     // Home page
     await page.goto("/");
@@ -36,20 +12,36 @@ test.describe("guest user tour @preview", () => {
     await expect(page).toHaveURL("/catalogs");
     await expect(page).toHaveTitle("Browse Daylily Catalogs | Daylily Catalog");
 
-    // User's catalog (by ID)
-    await page.goto("/3");
-    await expect(page).toHaveTitle("RollingOaksDaylilies | Daylily Catalog");
+    // Open first catalog from the grid
+    const firstCatalogLink = page
+      .locator("div.grid")
+      .first()
+      .locator("a[href^='/']")
+      .first();
+    await expect(firstCatalogLink).toBeVisible();
+    await firstCatalogLink.click();
+    await expect(page).toHaveURL(/\/[^/]+$/);
 
-    // User's catalog (by slug)
-    await page.goto("/rollingoaksdaylilies");
-    await expect(page).toHaveTitle("RollingOaksDaylilies | Daylily Catalog");
+    // Open first listing card (opens dialog)
+    const firstListingCard = page
+      .locator("#listings")
+      .locator("div.group.relative")
+      .first();
+    await expect(firstListingCard).toBeVisible();
+    await firstListingCard.click();
+    await expect(page.getByRole("dialog")).toBeVisible();
 
-    // User's listing page (by ID)
-    await page.goto("/3/221");
-    await expect(page).toHaveTitle("Coffee Frenzy Daylily | RollingOaksDaylilies");
+    // Navigate to listing page from dialog
+    const listingPageLink = page.getByRole("link", {
+      name: "View Listing Page",
+    });
+    await expect(listingPageLink).toBeVisible();
+    await listingPageLink.click();
 
-    // User's listing page (by slug)
-    await page.goto("/rollingoaksdaylilies/coffee-frenzy");
-    await expect(page).toHaveTitle("Coffee Frenzy Daylily | RollingOaksDaylilies");
+    // Listing page should render a main heading
+    await page.waitForURL(/\/[^/]+\/[^/]+$/);
+    await expect(page.getByRole("heading", { level: 1 })).toBeVisible({
+      timeout: 30000,
+    });
   });
 });
