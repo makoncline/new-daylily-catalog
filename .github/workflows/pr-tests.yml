@@ -87,7 +87,9 @@ jobs:
 
       - name: Generate template DB for E2E
         env:
-          LOCAL_DATABASE_URL: "file:./prisma/db-dev.sqlite"
+          # Prisma resolves relative sqlite URLs from the schema directory (prisma/)
+          # Use file:./db-dev.sqlite so the file is created at prisma/db-dev.sqlite
+          LOCAL_DATABASE_URL: "file:./db-dev.sqlite"
         run: |
           mkdir -p prisma
           pnpm db:push --accept-data-loss
