@@ -23,23 +23,29 @@ This document tracks high-priority errors from Sentry, organized by severity and
 
 ---
 
-## 🔴 High Priority
-
 ### [NEW-DAYLILY-CATALOG-2J] ZodError
-**Status:** 🔴 Unresolved  
+**Status:** ✅ Fixed  
 **Events:** 110  
 **Last Seen:** 10 minutes ago  
 **Culprit:** `/:userSlugOrId`  
 **Priority:** High
 
-**Issue:** Zod validation errors occurring on user catalog pages.
+**Issue:** Unhandled promise rejections from Zod validation errors in the contact form. The form was using `zodResolver` with `mode: "onChange"`, which caused validation errors to be thrown as unhandled promise rejections when:
+- Form initialized with invalid default values
+- Cart items changed and `void form.trigger("message")` was called
+- Fields were changed with invalid values
 
-**Next Steps:**
-- Investigate which Zod schemas are failing
-- Check input validation for user slug/ID routes
-- Review error context in Sentry for specific validation failures
+**Solution:**
+- Changed validation mode to `onBlur` with `reValidateMode: onChange` to validate on blur instead of every keystroke
+- Updated cart items useEffect to use `shouldValidate: true` option when setting `hasItems`
+- Added unit tests to verify no unhandled promise rejections occur during validation
+- Validation errors are now properly handled as field errors instead of thrown exceptions
+
+**Status:** Fixed in branch `fix/contact-form-validation-error`
 
 ---
+
+## 🔴 High Priority
 
 ### [NEW-DAYLILY-CATALOG-2H] ZodError
 **Status:** 🔴 Unresolved  
@@ -204,14 +210,14 @@ This document tracks high-priority errors from Sentry, organized by severity and
 ## Summary
 
 - **Total Issues:** 12
-- **Fixed:** 1 (NEW-DAYLILY-CATALOG-Z)
-- **High Priority:** 3 (ZodError variants)
+- **Fixed:** 2 (NEW-DAYLILY-CATALOG-Z, NEW-DAYLILY-CATALOG-2J)
+- **High Priority:** 2 (ZodError variants)
 - **Medium Priority:** 5 (AbortErrors, Server Component errors, chunk loading)
 - **Low Priority:** 3 (Unclear errors, low event counts)
 
 ## Next Steps
 
-1. **Investigate ZodError issues** - These are the highest priority unresolved errors
+1. **Investigate remaining ZodError issues** - NEW-DAYLILY-CATALOG-2H and NEW-DAYLILY-CATALOG-2M still need investigation
 2. **Review AbortError patterns** - Determine if these are expected or need handling
 3. **Monitor chunk loading** - May be resolved with recent deployments
 4. **Clarify unclear errors** - Get more context on `e.from` and `<unknown>` errors
