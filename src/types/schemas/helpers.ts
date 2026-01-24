@@ -1,7 +1,10 @@
 import { z } from "zod";
 
 export const nullableText = () =>
-  z.preprocess((v) => (v === "" ? null : v), z.string().optional().nullable());
+  z.preprocess(
+    (v: string | null | undefined) => (v === "" ? null : v),
+    z.string().optional().nullable(),
+  );
 
 export const nullableSlug = (
   pattern: RegExp,
@@ -10,7 +13,7 @@ export const nullableSlug = (
   regexMessage = "Only letters, numbers, and hyphens are allowed",
 ) =>
   z.preprocess(
-    (v) => (v === "" ? null : v),
+    (v: string | null | undefined) => (v === "" ? null : v),
     z
       .string()
       .min(min, minMessage)

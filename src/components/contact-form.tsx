@@ -86,7 +86,8 @@ export function ContactForm({ userId, onSubmitSuccess }: ContactFormProps) {
       userId,
       hasItems,
     },
-    mode: "onChange",
+    mode: "onBlur",
+    reValidateMode: "onChange",
   });
 
   // Get formState to check form validity
@@ -104,9 +105,11 @@ export function ContactForm({ userId, onSubmitSuccess }: ContactFormProps) {
 
   // Update form when cart items change
   useEffect(() => {
-    form.setValue("hasItems", items.length > 0);
-    // Re-trigger validation
-    void form.trigger("message");
+    form.setValue("hasItems", items.length > 0, {
+      shouldDirty: false,
+      shouldTouch: false,
+      shouldValidate: true,
+    });
   }, [items.length, form]);
 
   const onSubmit = (data: ContactFormWithCartData) => {
