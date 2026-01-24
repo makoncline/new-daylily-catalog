@@ -9,9 +9,13 @@ interface PublicBreadcrumbsProps {
     title?: string | null;
     slug?: string | null;
   };
+  listingTitle?: string | null;
 }
 
-export function PublicBreadcrumbs({ profile }: PublicBreadcrumbsProps) {
+export function PublicBreadcrumbs({
+  profile,
+  listingTitle,
+}: PublicBreadcrumbsProps) {
   const pathname = usePathname();
   const segments = pathname.split("/").filter(Boolean);
   const [userSlugOrId, listingSlugOrId] = segments;
@@ -24,9 +28,12 @@ export function PublicBreadcrumbs({ profile }: PublicBreadcrumbsProps) {
       { enabled: !!userSlugOrId && !profile },
     ).data;
 
+  const hasListingTitleProp = listingTitle !== undefined;
+  const shouldFetchListing =
+    !!userSlugOrId && !!listingSlugOrId && !hasListingTitleProp;
   const { data: listing } = api.public.getListing.useQuery(
     { userSlugOrId: userSlugOrId!, listingSlugOrId: listingSlugOrId! },
-    { enabled: !!userSlugOrId && !!listingSlugOrId },
+    { enabled: shouldFetchListing },
   );
 
   // Generate breadcrumb items based on the current path
@@ -43,9 +50,10 @@ export function PublicBreadcrumbs({ profile }: PublicBreadcrumbsProps) {
     });
   }
 
-  if (listingSlugOrId && listing) {
+  const resolvedListingTitle = listingTitle ?? listing?.title ?? undefined;
+  if (listingSlugOrId && (hasListingTitleProp || listing)) {
     items.push({
-      title: listing.title ?? "Untitled Listing",
+      title: resolvedListingTitle ?? "Untitled Listing",
     });
   }
 

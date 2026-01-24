@@ -111,6 +111,7 @@ export default async function Page({ params }: PageProps) {
                   ? { ...listing.user.profile, id: listing.userId }
                   : undefined
               }
+              listingTitle={listing.title ?? null}
             />
           </div>
           <Suspense fallback={<ListingDisplaySkeleton />}>
