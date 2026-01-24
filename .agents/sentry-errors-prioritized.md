@@ -4,6 +4,25 @@ This document tracks high-priority errors from Sentry, organized by severity and
 
 ## ✅ Completed
 
+### [NEW-DAYLILY-CATALOG-2N] AbortError: The operation was aborted
+**Status:** ✅ Fixed  
+**PR:** (local) commit `9d01a34`  
+**Events:** 61  
+**Last Seen:** 1 day ago  
+**Culprit:** `/:userSlugOrId/:listingSlugOrId`  
+**Priority:** Medium
+
+**Issue:** Safari-heavy AbortErrors from query cancellation on listing detail pages. Public breadcrumbs refetched listing data on the client even when server-rendered data already existed.
+
+**Solution:**
+- Pass listing title into `PublicBreadcrumbs` and skip the listing query when already provided
+- Filter AbortErrors in Sentry `beforeSend` and record a breadcrumb instead of creating an issue
+- Add unit tests to ensure the listing query is disabled when listing data is present
+
+**Status:** Fixed in branch `fix/sentry-abort-breadcrumbs` (pending merge)
+
+---
+
 ### [NEW-DAYLILY-CATALOG-Z] Failed to load optimized image resource
 **Status:** ✅ Fixed  
 **PR:** [#25](https://github.com/makoncline/new-daylily-catalog/pull/25)  
@@ -41,26 +60,30 @@ This document tracks high-priority errors from Sentry, organized by severity and
 - Added unit tests to verify no unhandled promise rejections occur during validation
 - Validation errors are now properly handled as field errors instead of thrown exceptions
 
-**Status:** Fixed in branch `fix/contact-form-validation-error`
+**Status:** Fixed in branch `fix/contact-form-validation-error` (merged)
+
+---
+
+### [NEW-DAYLILY-CATALOG-2H] ZodError
+**Status:** ✅ Fixed  
+**Events:** 35  
+**Last Seen:** 1 day ago  
+**Culprit:** `/:userSlugOrId`  
+**Priority:** High
+
+**Issue:** Zod validation error on user catalog pages - same root cause as NEW-DAYLILY-CATALOG-2J. Unhandled promise rejections from Zod validation errors in the contact form.
+
+**Solution:**
+- Fixed by the same solution as NEW-DAYLILY-CATALOG-2J
+- Changed validation mode to `onBlur` with `reValidateMode: onChange`
+- Updated cart items useEffect to use `shouldValidate: true` option
+- Validation errors are now properly handled as field errors instead of thrown exceptions
+
+**Status:** Fixed in branch `fix/contact-form-validation-error` (merged)
 
 ---
 
 ## 🔴 High Priority
-
-### [NEW-DAYLILY-CATALOG-2H] ZodError
-**Status:** 🔴 Unresolved  
-**Events:** 34  
-**Last Seen:** 10 minutes ago  
-**Culprit:** `/:userSlugOrId`  
-**Priority:** High
-
-**Issue:** Another Zod validation error on user catalog pages.
-
-**Next Steps:**
-- Compare with NEW-DAYLILY-CATALOG-2J to see if related
-- Review validation schemas for user routes
-
----
 
 ### [NEW-DAYLILY-CATALOG-2M] ZodError
 **Status:** 🔴 Unresolved  
@@ -78,22 +101,6 @@ This document tracks high-priority errors from Sentry, organized by severity and
 ---
 
 ## 🟡 Medium Priority
-
-### [NEW-DAYLILY-CATALOG-2N] AbortError: The operation was aborted
-**Status:** 🟡 Unresolved  
-**Events:** 61  
-**Last Seen:** 1 day ago  
-**Culprit:** `/:userSlugOrId/:listingSlugOrId`  
-**Priority:** Medium
-
-**Issue:** Network requests being aborted, likely due to navigation or component unmounting.
-
-**Next Steps:**
-- Review request cancellation logic
-- Check if cleanup is needed in useEffect hooks
-- Consider if these are expected (user navigation) vs unexpected
-
----
 
 ### [NEW-DAYLILY-CATALOG-2P] AbortError: Fetch is aborted
 **Status:** 🟡 Unresolved  
@@ -210,14 +217,14 @@ This document tracks high-priority errors from Sentry, organized by severity and
 ## Summary
 
 - **Total Issues:** 12
-- **Fixed:** 2 (NEW-DAYLILY-CATALOG-Z, NEW-DAYLILY-CATALOG-2J)
-- **High Priority:** 2 (ZodError variants)
+- **Fixed:** 4 (NEW-DAYLILY-CATALOG-Z, NEW-DAYLILY-CATALOG-2J, NEW-DAYLILY-CATALOG-2H, NEW-DAYLILY-CATALOG-2N)
+- **High Priority:** 1 (ZodError on listing pages)
 - **Medium Priority:** 5 (AbortErrors, Server Component errors, chunk loading)
 - **Low Priority:** 3 (Unclear errors, low event counts)
 
 ## Next Steps
 
-1. **Investigate remaining ZodError issues** - NEW-DAYLILY-CATALOG-2H and NEW-DAYLILY-CATALOG-2M still need investigation
+1. **Investigate remaining ZodError issue** - NEW-DAYLILY-CATALOG-2M on listing detail pages still needs investigation
 2. **Review AbortError patterns** - Determine if these are expected or need handling
 3. **Monitor chunk loading** - May be resolved with recent deployments
 4. **Clarify unclear errors** - Get more context on `e.from` and `<unknown>` errors
