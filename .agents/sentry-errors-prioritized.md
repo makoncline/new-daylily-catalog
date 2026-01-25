@@ -16,10 +16,10 @@ This document tracks high-priority errors from Sentry, organized by severity and
 
 **Solution:**
 - Pass listing title into `PublicBreadcrumbs` and skip the listing query when already provided
-- Filter AbortErrors in Sentry `beforeSend` and record a breadcrumb instead of creating an issue
+- Suppress AbortError noise via Sentry `ignoreErrors` with a minimal AbortError type fallback (client)
 - Add unit tests to ensure the listing query is disabled when listing data is present
 
-**Status:** Fixed in branch `fix/sentry-abort-breadcrumbs` (pending merge)
+**Status:** Fixed in PR #30 (pending merge)
 
 ---
 
@@ -83,52 +83,59 @@ This document tracks high-priority errors from Sentry, organized by severity and
 
 ---
 
-## 🔴 High Priority
-
 ### [NEW-DAYLILY-CATALOG-2M] ZodError
-**Status:** 🔴 Unresolved  
+**Status:** ✅ Fixed  
 **Events:** 37  
-**Last Seen:** 7 days ago  
+**Last Seen:** 2026-01-15  
 **Culprit:** `/:userSlugOrId/:listingSlugOrId`  
 **Priority:** High
 
 **Issue:** Zod validation errors on listing detail pages.
 
-**Next Steps:**
-- Investigate listing route validation
-- Check if related to AHS listing data integration
+**Solution:**
+- Same root cause as NEW-DAYLILY-CATALOG-2J / 2H (contact form validation mode)
+- Fixed by the contact form validation change (PR #29)
+
+**Status:** Fixed in PR #29 (contact form validation)
 
 ---
-
-## 🟡 Medium Priority
 
 ### [NEW-DAYLILY-CATALOG-2P] AbortError: Fetch is aborted
-**Status:** 🟡 Unresolved  
-**Events:** 54  
-**Last Seen:** 2 days ago  
-**Culprit:** `/:userSlugOrId`  
+**Status:** ✅ Fixed  
+**PR:** [#30](https://github.com/makoncline/new-daylily-catalog/pull/30)  
+**Events:** 55  
+**Last Seen:** 2026-01-23  
+**Culprit:** `/:userSlugOrId/:listingSlugOrId`  
 **Priority:** Medium
 
-**Issue:** Fetch requests being aborted on user catalog pages.
+**Issue:** Fetch requests being aborted on listing and user catalog pages.
 
-**Next Steps:**
-- Similar to NEW-DAYLILY-CATALOG-2N - investigate abort patterns
-- Check if related to React Query or tRPC request cancellation
+**Solution:**
+- Suppress AbortError variants via Sentry `ignoreErrors` with a minimal AbortError type fallback
+
+**Status:** Fixed in PR #30 (pending merge)
 
 ---
+
+## 🔴 High Priority
+
+No active high-priority issues right now. Next focus is NEW-DAYLILY-CATALOG-2Q (Medium).
+
+## 🟡 Medium Priority
 
 ### [NEW-DAYLILY-CATALOG-2Q] AbortError: abort pipeTo from signal
 **Status:** 🟡 Unresolved  
 **Events:** 37  
-**Last Seen:** 2 days ago  
+**Last Seen:** 2026-01-20  
 **Culprit:** `/:userSlugOrId`  
 **Priority:** Medium
 
 **Issue:** Stream/pipe operations being aborted.
 
 **Next Steps:**
-- Investigate streaming operations (image loading, data fetching)
-- Check if related to Cloudflare image optimization
+- Likely normal aborts during navigation/streaming (iOS in-app browsers show up here)
+- Filter abort message variant "abort pipeTo from signal" like other AbortErrors
+- Deploy and verify the issue stops appearing
 
 ---
 
@@ -217,14 +224,14 @@ This document tracks high-priority errors from Sentry, organized by severity and
 ## Summary
 
 - **Total Issues:** 12
-- **Fixed:** 4 (NEW-DAYLILY-CATALOG-Z, NEW-DAYLILY-CATALOG-2J, NEW-DAYLILY-CATALOG-2H, NEW-DAYLILY-CATALOG-2N)
-- **High Priority:** 1 (ZodError on listing pages)
-- **Medium Priority:** 5 (AbortErrors, Server Component errors, chunk loading)
+- **Fixed:** 6 (NEW-DAYLILY-CATALOG-Z, NEW-DAYLILY-CATALOG-2J, NEW-DAYLILY-CATALOG-2H, NEW-DAYLILY-CATALOG-2M, NEW-DAYLILY-CATALOG-2N, NEW-DAYLILY-CATALOG-2P)
+- **High Priority:** 0
+- **Medium Priority:** 4 (AbortErrors, Server Component errors, chunk loading)
 - **Low Priority:** 3 (Unclear errors, low event counts)
 
 ## Next Steps
 
-1. **Investigate remaining ZodError issue** - NEW-DAYLILY-CATALOG-2M on listing detail pages still needs investigation
-2. **Review AbortError patterns** - Determine if these are expected or need handling
-3. **Monitor chunk loading** - May be resolved with recent deployments
+1. **Review AbortError patterns** - NEW-DAYLILY-CATALOG-2Q
+2. **Investigate Server Components render errors** - NEW-DAYLILY-CATALOG-2S
+3. **Monitor chunk loading** - NEW-DAYLILY-CATALOG-2R may be resolved with recent deployments
 4. **Clarify unclear errors** - Get more context on `e.from` and `<unknown>` errors
