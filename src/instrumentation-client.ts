@@ -6,30 +6,6 @@ import * as Sentry from "@sentry/nextjs";
 
 const isSentryEnabled = process.env.NEXT_PUBLIC_SENTRY_ENABLED !== "false";
 
-const isAbortError = (error: unknown) => {
-  if (!error) return false;
-  if (typeof DOMException !== "undefined" && error instanceof DOMException) {
-    return error.name === "AbortError" || error.code === 20;
-  }
-  if (error instanceof Error) {
-    return error.name === "AbortError" || error.message.includes("AbortError");
-  }
-  return false;
-};
-
-const hasAbortException = (event: Sentry.Event) => {
-  const values = event.exception?.values ?? [];
-  return values.some((exception) => {
-    const type = exception.type ?? "";
-    const value = exception.value ?? "";
-    return (
-      type === "AbortError" ||
-      (type === "DOMException" && value.includes("AbortError")) ||
-      value.includes("AbortError")
-    );
-  });
-};
-
 if (isSentryEnabled) {
   Sentry.init({
     dsn: "https://b3773458fec6aa0c594a9c1c73ed046a@o1136137.ingest.us.sentry.io/4508939597643776",
@@ -49,20 +25,19 @@ if (isSentryEnabled) {
 
     // Setting this option to true will print useful information to the console while you're setting up Sentry.
     debug: false,
+    ignoreErrors: [
+      /\baborterror\b/i,
+      /\bfetch is aborted\b/i,
+      /\bthe operation was aborted\b/i,
+      /\babort\b.*\bpipeTo\b.*\bsignal\b/i,
+    ],
     beforeSend(event, hint) {
-      if (isAbortError(hint?.originalException) || hasAbortException(event)) {
-        Sentry.addBreadcrumb({
-          category: "network",
-          level: "info",
-          message: "Request aborted",
-          data: {
-            source: "AbortError",
-            transaction: event.transaction,
-          },
-        });
-        return null;
-      }
-      return event;
+      const hasAbortType = event.exception?.values?.some(
+        (value) => value.type === "AbortError",
+      );
+      const original = hint?.originalException as { name?: string } | undefined;
+      const hasAbortName = original?.name === "AbortError";
+      return hasAbortType || hasAbortName ? null : event;
     },
   });
 }
