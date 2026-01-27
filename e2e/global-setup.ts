@@ -25,7 +25,6 @@ export default async function globalSetup(_config: FullConfig) {
   if (process.env.BASE_URL) return;
 
   // Write DB path for tests to read
-  // DB provisioning + clearing is done by e2e-dev-server.sh before server starts
   const url = process.env.LOCAL_DATABASE_URL;
   if (!url) {
     throw new Error("LOCAL_DATABASE_URL must be set by playwright.config.ts");

@@ -5,24 +5,57 @@ import { PrismaClient } from "../../../prisma/generated/sqlite-client/index.js";
 // Export the Prisma client type for use in e2e helpers/tests
 export type E2EPrismaClient = PrismaClient;
 
-function assertSafeTestDbUrl(sqliteUrl: string) {
+const SCHEMA_DIR = path.resolve(process.cwd(), "prisma");
+
+function normalizeDbPath(sqliteUrl: string) {
+  const p = sqliteUrl.replace(/^file:/, "");
+  return path.isAbsolute(p) ? p : path.resolve(SCHEMA_DIR, p);
+}
+
+export const DEFAULT_TEMP_DB_PATH = path.join(
+  "tests",
+  ".tmp",
+  "ui-listings.sqlite",
+);
+
+export function resolveTempDbUrl(pathOrUrl?: string) {
+  const value = pathOrUrl ?? DEFAULT_TEMP_DB_PATH;
+  if (value.startsWith("file:")) return value;
+  return path.isAbsolute(value) ? `file:${value}` : `file:${value}`;
+}
+
+export function resolveTempDbPath(pathOrUrl?: string) {
+  return normalizeDbPath(resolveTempDbUrl(pathOrUrl));
+}
+
+export function assertSafeTestDbUrl(sqliteUrl: string) {
   if (process.env.NODE_ENV === "production") {
     throw new Error("Refusing to run e2e DB helpers in production.");
   }
   if (!sqliteUrl.startsWith("file:")) {
     throw new Error(`Test DB URL must start with "file:". Got: ${sqliteUrl}`);
   }
-  const p = sqliteUrl.replace(/^file:/, "");
-  const absolute = path.isAbsolute(p) ? p : path.resolve(process.cwd(), p);
-  const mustBeUnder = path.resolve(process.cwd(), "tests", ".tmp") + path.sep;
-  if (!absolute.startsWith(mustBeUnder)) {
+  const absolute = normalizeDbPath(sqliteUrl);
+  const allowedRoots = [
+    path.resolve(process.cwd(), "tests", ".tmp") + path.sep,
+    path.resolve(process.cwd(), "prisma", "tests", ".tmp") + path.sep,
+  ];
+  const isAllowed = allowedRoots.some((root) => absolute.startsWith(root));
+  if (!isAllowed) {
     throw new Error(
-      `Test DB path must be under tests/.tmp. Got: ${absolute}. Expected prefix: ${mustBeUnder}`,
+      `Test DB path must be under tests/.tmp. Got: ${absolute}.`,
     );
   }
 }
 
-export function ensureLocalTempDbSafety() {
+export function getTempDbUrl(url?: string) {
+  const resolved = url ?? process.env.LOCAL_DATABASE_URL;
+  if (!resolved) throw new Error("LOCAL_DATABASE_URL is not set");
+  assertSafeTestDbUrl(resolved);
+  return resolved;
+}
+
+export function ensureLocalTempDbSafety(url?: string) {
   if (process.env.BASE_URL) {
     throw new Error(
       "ensureLocalTempDbSafety: BASE_URL set; should not seed/clear in URL mode.",
@@ -33,71 +66,7 @@ export function ensureLocalTempDbSafety() {
       "ensureLocalTempDbSafety: USE_TURSO_DB=true is not allowed in local e2e mode.",
     );
   }
-  const url = process.env.LOCAL_DATABASE_URL;
-  if (!url) throw new Error("LOCAL_DATABASE_URL is not set");
-  assertSafeTestDbUrl(url);
-}
-
-export async function connectDb() {
-  const url = process.env.LOCAL_DATABASE_URL!;
-  assertSafeTestDbUrl(url);
-  const db = new PrismaClient({ datasources: { db: { url } }, log: ["error"] });
-  await db.$connect();
-  return db;
-}
-
-export async function clearDb() {
-  ensureLocalTempDbSafety();
-  const db = await connectDb();
-  try {
-    // Delete in dependency order to satisfy foreign keys
-    await db.image.deleteMany();
-    // Clear join table BEFORE parent tables (schema guarantees this table exists)
-    await db.$executeRaw`DELETE FROM "_ListToListing"`;
-    await db.list.deleteMany();
-    await db.listing.deleteMany();
-    await db.userProfile.deleteMany();
-    await db.ahsListing.deleteMany();
-    await db.keyValue.deleteMany();
-    await db.user.deleteMany();
-  } finally {
-    await db.$disconnect();
-  }
-}
-
-export async function seedBaseData() {
-  ensureLocalTempDbSafety();
-  const db = await connectDb();
-  try {
-    // Seed user with id "3" and profile with slug "rollingoaksdaylilies"
-    const userId = "3";
-    await db.user.create({ data: { id: userId } });
-    await db.userProfile.create({
-      data: {
-        userId,
-        title: "RollingOaksDaylilies",
-        slug: "rollingoaksdaylilies",
-        description: "Seeded profile for E2E",
-      },
-    });
-
-    // Seed listing with id "221" and slug "coffee-frenzy"
-    await db.listing.create({
-      data: {
-        id: "221",
-        userId,
-        title: "Coffee Frenzy",
-        slug: "coffee-frenzy",
-      },
-    });
-  } finally {
-    await db.$disconnect();
-  }
-}
-
-export async function resetAndSeed() {
-  await clearDb();
-  await seedBaseData();
+  getTempDbUrl(url);
 }
 
 export async function withTempE2EDb<T>(
@@ -106,7 +75,12 @@ export async function withTempE2EDb<T>(
 ): Promise<T> {
   // If LOCAL_DATABASE_URL is not set, try to read it from the file written by global-setup
   if (!process.env.LOCAL_DATABASE_URL) {
-    const metaFile = path.join(process.cwd(), "tests", ".tmp", "e2e-db-path.txt");
+    const metaFile = path.join(
+      process.cwd(),
+      "tests",
+      ".tmp",
+      "e2e-db-path.txt",
+    );
     try {
       const dbPath = fs.readFileSync(metaFile, "utf8").trim();
       if (dbPath) {
@@ -124,12 +98,25 @@ export async function withTempE2EDb<T>(
   // Fail fast if safety requirements not met (e.g., BASE_URL mode, wrong DB path)
   ensureLocalTempDbSafety();
 
-  if (opts?.clearFirst !== false) {
-    await clearDb();
-  }
-
-  const db = await connectDb();
+  const safeUrl = getTempDbUrl();
+  const db = new PrismaClient({
+    datasources: { db: { url: safeUrl } },
+    log: ["error"],
+  });
+  await db.$connect();
   try {
+    if (opts?.clearFirst !== false) {
+      // Delete in dependency order to satisfy foreign keys
+      await db.image.deleteMany();
+      // Clear join table BEFORE parent tables (schema guarantees this table exists)
+      await db.$executeRaw`DELETE FROM "_ListToListing"`;
+      await db.list.deleteMany();
+      await db.listing.deleteMany();
+      await db.userProfile.deleteMany();
+      await db.ahsListing.deleteMany();
+      await db.keyValue.deleteMany();
+      await db.user.deleteMany();
+    }
     return await fn(db);
   } finally {
     await db.$disconnect();
