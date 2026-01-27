@@ -20,7 +20,7 @@ npx tsx scripts/create-temp-db.ts
 ```
 - Seed the temp DB:
 ```sh
-npx tsx scripts/seed-ui-listings.ts
+npx tsx scripts/seed-temp-db-example.ts
 ```
 - Run the app against the temp DB:
 ```sh
@@ -33,7 +33,7 @@ npx tsx scripts/create-temp-db.ts
 - Example with a custom path:
 ```sh
 npx tsx scripts/create-temp-db.ts --db tests/.tmp/custom-temp.sqlite
-npx tsx scripts/seed-ui-listings.ts --db tests/.tmp/custom-temp.sqlite
+npx tsx scripts/seed-temp-db-example.ts --db tests/.tmp/custom-temp.sqlite
 LOCAL_DATABASE_URL="file:tests/.tmp/custom-temp.sqlite" npm run dev
 ```
 
