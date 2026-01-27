@@ -85,19 +85,6 @@ jobs:
       - name: Install sqlite3
         run: sudo apt-get update && sudo apt-get install -y sqlite3
 
-      - name: Generate template DB for E2E
-        env:
-          # Prisma resolves relative sqlite URLs from the schema directory (prisma/)
-          # Use file:./db-dev.sqlite so the file is created at prisma/db-dev.sqlite
-          LOCAL_DATABASE_URL: "file:./db-dev.sqlite"
-        run: |
-          mkdir -p prisma
-          pnpm db:push --accept-data-loss
-          ls -la prisma/db-dev.sqlite || echo "Template DB not created"
-
-      - name: Make e2e script executable
-        run: chmod +x scripts/e2e-dev-server.sh
-
       - name: Run E2E tests
         run: pnpm test:e2e
 
