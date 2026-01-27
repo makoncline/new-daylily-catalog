@@ -25,6 +25,7 @@ if (!process.env.BASE_URL) {
     process.env.LOCAL_DATABASE_URL = `file:${abs}`;
   }
 
+  process.env.E2E_TEST_DB_URL = process.env.LOCAL_DATABASE_URL;
   process.env.USE_TURSO_DB = "false";
   process.env.SKIP_ENV_VALIDATION = "1";
   process.env.PLAYWRIGHT_LOCAL_E2E = "true";
@@ -56,7 +57,7 @@ export default defineConfig({
     ? undefined
     : {
         command:
-          "npx tsx scripts/create-temp-db.ts --db $LOCAL_DATABASE_URL && npm run dev",
+          "npx tsx scripts/create-temp-db.ts --db $E2E_TEST_DB_URL && npm run dev",
         url: `http://localhost:${e2ePort}`,
         reuseExistingServer: false,
         timeout: 120000, // 2 minutes for CI (server startup can be slow)
@@ -65,6 +66,7 @@ export default defineConfig({
           PORT: e2ePort,
           USE_TURSO_DB: "false",
           LOCAL_DATABASE_URL: process.env.LOCAL_DATABASE_URL!,
+          E2E_TEST_DB_URL: process.env.E2E_TEST_DB_URL!,
           SKIP_ENV_VALIDATION: "1",
           PLAYWRIGHT_LOCAL_E2E: "true",
         },
