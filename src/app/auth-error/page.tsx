@@ -30,7 +30,11 @@ function AuthErrorContent() {
           </p>
           <div className="flex flex-col gap-4 pt-4 sm:flex-row sm:justify-center">
             <Button asChild size="lg">
-              <SignInButton mode="modal" forceRedirectUrl={returnTo}>
+              <SignInButton
+                mode="modal"
+                forceRedirectUrl={returnTo}
+                signUpForceRedirectUrl={returnTo}
+              >
                 Sign In
               </SignInButton>
             </Button>
