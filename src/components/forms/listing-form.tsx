@@ -16,6 +16,7 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
+import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -216,10 +217,10 @@ export function ListingForm({
           )}
         />
         <FormItem>
-          <FormLabel htmlFor="image-upload-input">Images</FormLabel>
-          <FormDescription>
+          <Label htmlFor="image-upload-input">Images</Label>
+          <p className="text-muted-foreground text-[0.8rem]">
             Upload images of your listing. You can reorder them by dragging.
-          </FormDescription>
+          </p>
           <div className="space-y-4">
             <ImageManager
               type="listing"
@@ -349,7 +350,7 @@ export function ListingForm({
           )}
         />
         <FormItem>
-          <FormLabel htmlFor="list-select">Lists</FormLabel>
+          <Label htmlFor="list-select">Lists</Label>
           <MultiListSelect
             values={lists.map((list) => list.id)}
             onSelect={(listIds) => {
@@ -374,26 +375,26 @@ export function ListingForm({
             }}
             disabled={isPending}
           />
-          <FormDescription>
+          <p className="text-muted-foreground text-[0.8rem]">
             Optional. Add this listing to one or more lists.
-          </FormDescription>
+          </p>
         </FormItem>
 
         <FormItem>
-          <FormLabel htmlFor="ahs-listing-select">
+          <Label htmlFor="ahs-listing-select">
             Link to Daylily Database Listing
-          </FormLabel>
+          </Label>
           <AhsListingLink
             listing={listing}
             onNameChange={(name) => {
               form.setValue("title", name);
             }}
           />
-          <FormDescription>
+          <p className="text-muted-foreground text-[0.8rem]">
             Optional. Link your listing to a daylily databse listing to
             automatically populate details like hybridizer, year, and photo from
             our database.
-          </FormDescription>
+          </p>
         </FormItem>
         <div className="flex justify-end gap-4">
           <Button
