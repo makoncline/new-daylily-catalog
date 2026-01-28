@@ -6,6 +6,7 @@ export class DashboardHome {
   readonly catalogProgressPercentage: Locator;
   readonly upgradeToProButton: Locator;
   readonly completeProfileButton: Locator;
+  readonly completeProfileCard: Locator;
   readonly heading: Locator;
   readonly content: Locator;
 
@@ -23,6 +24,9 @@ export class DashboardHome {
     this.completeProfileButton = page.getByRole("link", {
       name: "Complete Your Profile",
     });
+    this.completeProfileCard = page.getByTestId(
+      "dashboard-profile-completion-card",
+    );
   }
 
   async waitForLoaded() {

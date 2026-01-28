@@ -3,6 +3,7 @@ import type { Locator, Page } from "@playwright/test";
 export class DashboardProfile {
   readonly page: Page;
   readonly heading: Locator;
+  readonly gardenNameInput: Locator;
   readonly descriptionInput: Locator;
   readonly locationInput: Locator;
   readonly contentEditor: Locator;
@@ -11,6 +12,7 @@ export class DashboardProfile {
   constructor(page: Page) {
     this.page = page;
     this.heading = page.getByRole("heading", { name: "Profile" });
+    this.gardenNameInput = page.getByLabel("Garden Name");
     this.descriptionInput = page.getByLabel("Description");
     this.locationInput = page.getByLabel("Location");
     // EditorJS editor has id="editor"
@@ -21,7 +23,28 @@ export class DashboardProfile {
   async isReady() {
     await this.heading.waitFor({ state: "visible", timeout: 30000 });
     // Wait for form to be ready
+    await this.gardenNameInput.waitFor({ state: "visible", timeout: 10000 });
     await this.descriptionInput.waitFor({ state: "visible", timeout: 10000 });
+  }
+
+  /**
+   * Fill garden name field and wait for auto-save
+   */
+  async fillGardenName(text: string) {
+    const selectAll = process.platform === "darwin" ? "Meta+A" : "Control+A";
+    const saveResponse = this.page.waitForResponse(
+      (response) =>
+        response.url().includes("/api/trpc/userProfile.update") &&
+        response.request().method() === "POST",
+    );
+
+    await this.gardenNameInput.click();
+    await this.gardenNameInput.press(selectAll);
+    await this.gardenNameInput.press("Backspace");
+    await this.gardenNameInput.type(text);
+    await this.descriptionInput.click();
+
+    await saveResponse;
   }
 
   async goto() {

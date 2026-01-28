@@ -17,3 +17,12 @@ export async function deleteClerkUserByEmail(email: string): Promise<void> {
     // Don't throw - cleanup failures shouldn't break tests
   }
 }
+
+export async function getClerkUserIdByEmail(
+  email: string,
+): Promise<string | null> {
+  const users = await clerkClient.users.getUserList({
+    emailAddress: [email],
+  });
+  return users.data[0]?.id ?? null;
+}

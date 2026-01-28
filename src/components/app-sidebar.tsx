@@ -91,8 +91,8 @@ export function AppSidebar({
               tooltip="Dashboard"
               onClick={handleNavClick}
             >
-              <Link href="/dashboard">
-                <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
+              <Link href="/dashboard" data-testid="dashboard-nav-home">
+                <div className="bg-sidebar-primary text-sidebar-primary-foreground flex aspect-square size-8 items-center justify-center rounded-lg">
                   <Command className="size-4" />
                 </div>
                 <div className="grid flex-1 text-left text-sm leading-tight">
@@ -119,7 +119,7 @@ export function AppSidebar({
           <NavUserSkeleton />
         ) : error ? (
           // Show a minimal error state in the footer
-          <div className="px-4 py-2 text-xs text-destructive">
+          <div className="text-destructive px-4 py-2 text-xs">
             Failed to load user
           </div>
         ) : user ? (

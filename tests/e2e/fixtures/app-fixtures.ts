@@ -3,11 +3,13 @@ import { HomePage } from "../pages/home-page";
 import { DashboardHome } from "../pages/dashboard-home";
 import { DashboardProfile } from "../pages/dashboard-profile";
 import { ClerkAuthModal } from "../pages/clerk-auth-modal";
+import { DashboardShell } from "../pages/dashboard-shell";
 
 export const test = base.extend<{
   homePage: HomePage;
   dashboardHome: DashboardHome;
   dashboardProfile: DashboardProfile;
+  dashboardShell: DashboardShell;
   clerkAuthModal: ClerkAuthModal;
 }>({
   homePage: async ({ page }, apply) => {
@@ -18,6 +20,9 @@ export const test = base.extend<{
   },
   dashboardProfile: async ({ page }, apply) => {
     await apply(new DashboardProfile(page));
+  },
+  dashboardShell: async ({ page }, apply) => {
+    await apply(new DashboardShell(page));
   },
   clerkAuthModal: async ({ page }, apply) => {
     await apply(new ClerkAuthModal(page));
