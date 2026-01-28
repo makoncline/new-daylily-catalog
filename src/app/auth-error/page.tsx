@@ -20,7 +20,7 @@ function AuthErrorContent() {
         </Link>
       </div>
 
-      <div className="mx-auto max-w-md space-y-6 rounded-lg border bg-card p-8 shadow-sm">
+      <div className="bg-card mx-auto max-w-md space-y-6 rounded-lg border p-8 shadow-sm">
         <h1 className="text-3xl font-bold">Authentication Required</h1>
 
         <div className="space-y-4">

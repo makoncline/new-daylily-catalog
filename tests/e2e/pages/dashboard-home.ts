@@ -5,6 +5,7 @@ export class DashboardHome {
   readonly profileCompletionPercentage: Locator;
   readonly catalogProgressPercentage: Locator;
   readonly upgradeToProButton: Locator;
+  readonly completeProfileButton: Locator;
   readonly heading: Locator;
   readonly content: Locator;
 
@@ -19,6 +20,9 @@ export class DashboardHome {
       "dashboard-catalog-progress-percent",
     );
     this.upgradeToProButton = page.getByTestId("dashboard-upgrade-to-pro");
+    this.completeProfileButton = page.getByRole("link", {
+      name: "Complete Your Profile",
+    });
   }
 
   async waitForLoaded() {
