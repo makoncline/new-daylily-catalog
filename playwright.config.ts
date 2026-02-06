@@ -36,7 +36,6 @@ export default defineConfig({
   testMatch: "**/*.e2e.{ts,tsx}",
   globalSetup: "./e2e/global-setup.ts",
   globalTeardown: "./e2e/global-teardown.ts",
-  retries: process.env.CI ? 2 : 0,
   reporter: [["list"], ["html", { open: "never" }]],
   // Single worker for local mode (shared temp DB); allow parallelization in attach mode
   workers: process.env.BASE_URL ? undefined : 1,
