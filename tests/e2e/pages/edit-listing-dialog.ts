@@ -1,5 +1,7 @@
 import type { Locator, Page } from "@playwright/test";
 
+type ListingStatus = "Published" | "Hidden";
+
 export class EditListingDialog {
   readonly page: Page;
   readonly dialog: Locator;
@@ -10,6 +12,10 @@ export class EditListingDialog {
   readonly privateNoteInput: Locator;
   readonly statusSelect: Locator;
   readonly syncNameButton: Locator;
+  readonly saveChangesButton: Locator;
+  readonly deleteListingButton: Locator;
+  readonly unlinkAhsButton: Locator;
+  readonly ahsListingSelectButton: Locator;
 
   constructor(page: Page) {
     this.page = page;
@@ -25,9 +31,20 @@ export class EditListingDialog {
     this.priceInput = this.dialog.getByLabel("Price");
     this.privateNoteInput = this.dialog.getByLabel("Private Notes");
     this.statusSelect = this.dialog.getByLabel("Status");
-    // Sync name button (only visible when title doesn't match AHS listing name)
+    // AHS actions
     this.syncNameButton = this.dialog.getByRole("button", {
       name: "Sync Name",
+    });
+    this.unlinkAhsButton = this.dialog.getByRole("button", {
+      name: /Unlink/,
+    });
+    this.ahsListingSelectButton = this.dialog.locator("#ahs-listing-select");
+    // Footer actions
+    this.saveChangesButton = this.dialog.getByRole("button", {
+      name: "Save Changes",
+    });
+    this.deleteListingButton = this.dialog.getByRole("button", {
+      name: "Delete Listing",
     });
   }
 
@@ -67,6 +84,18 @@ export class EditListingDialog {
     return this.waitForTrpcMutation("listing.createList");
   }
 
+  private listDialog(): Locator {
+    return this.page.getByRole("dialog").filter({ hasText: "Select Lists" });
+  }
+
+  private ahsDialog(): Locator {
+    return this.page.getByRole("dialog").filter({
+      has: this.page.getByRole("heading", {
+        name: "Select Daylily Database Listing",
+      }),
+    });
+  }
+
   private async fillAndBlurWithOptionalSave(field: Locator, text: string) {
     const saveResponse = this.waitForListingUpdateMutation();
     await field.fill(text);
@@ -88,46 +117,12 @@ export class EditListingDialog {
     return urlObj.searchParams.get("editing");
   }
 
-  /**
-   * Creates a new list by typing the name and clicking create
-   */
-  async createList(listName: string) {
-    // Click the list select button to open the dialog
-    await this.listSelectButton.click();
-
-    // Wait for the list select dialog to open
-    const listDialog = this.page
-      .getByRole("dialog")
-      .filter({ hasText: "Select Lists" });
-    await listDialog.waitFor({ state: "visible", timeout: 10000 });
-
-    // Find the search input
-    const searchInput = listDialog.getByPlaceholder("Search lists...");
-    await searchInput.waitFor({ state: "visible", timeout: 5000 });
-
-    // Type the list name
-    await searchInput.fill(listName);
-
-    // Wait for the "Create" option to appear
-    const createOption = listDialog.getByRole("option", {
-      name: `Create "${listName}"`,
-    });
-    await createOption.waitFor({ state: "visible", timeout: 5000 });
-
-    const createListResponse = this.waitForCreateListMutation();
-    const updateListsResponse = this.waitForUpdateListsMutation();
-
-    // Click the create option
-    await createOption.click();
-    await createListResponse;
-    await updateListsResponse;
-
-    // Wait for the dialog to close and the list to be added
-    await listDialog.waitFor({ state: "hidden", timeout: 5000 });
+  async getEditingParamFromUrl(): Promise<string | null> {
+    return this.getListingIdFromUrl();
   }
 
-  selectedListChip(listName: string): Locator {
-    return this.listSelectButton.getByText(listName);
+  async fillTitle(text: string) {
+    await this.fillAndBlurWithOptionalSave(this.titleInput, text);
   }
 
   /**
@@ -144,6 +139,10 @@ export class EditListingDialog {
     await this.fillAndBlurWithOptionalSave(this.descriptionInput, text);
   }
 
+  async typeDescriptionWithoutBlur(text: string) {
+    await this.descriptionInput.fill(text);
+  }
+
   /**
    * Fills the price field
    */
@@ -158,18 +157,85 @@ export class EditListingDialog {
     await this.fillAndBlurWithOptionalSave(this.privateNoteInput, text);
   }
 
+  async typePrivateNoteWithoutBlur(text: string) {
+    await this.privateNoteInput.fill(text);
+  }
+
+  async setStatusTo(status: ListingStatus) {
+    await this.statusSelect.click();
+
+    const option = this.page.getByRole("option", { name: status });
+    await option.waitFor({ state: "visible", timeout: 5000 });
+
+    const saveResponse = this.waitForListingUpdateMutation();
+    await option.click();
+    await this.waitForMutationOrNoop(saveResponse);
+  }
+
   /**
    * Sets the status to hidden
    */
   async setStatusToHidden() {
-    await this.statusSelect.click();
+    await this.setStatusTo("Hidden");
+  }
 
-    const hiddenOption = this.page.getByRole("option", { name: "Hidden" });
-    await hiddenOption.waitFor({ state: "visible", timeout: 5000 });
+  async setStatusToPublished() {
+    await this.setStatusTo("Published");
+  }
 
-    const saveResponse = this.waitForListingUpdateMutation();
-    await hiddenOption.click();
-    await this.waitForMutationOrNoop(saveResponse);
+  async openListsPicker() {
+    await this.listSelectButton.click();
+    await this.listDialog().waitFor({ state: "visible", timeout: 10000 });
+  }
+
+  async closeListsPicker() {
+    await this.page.keyboard.press("Escape");
+    await this.listDialog().waitFor({ state: "hidden", timeout: 10000 });
+  }
+
+  async toggleListByName(listName: string) {
+    const option = this.listDialog().getByRole("option", { name: listName });
+    await option.waitFor({ state: "visible", timeout: 5000 });
+    const updateListsResponse = this.waitForUpdateListsMutation();
+    await option.click();
+    await this.waitForMutationOrNoop(updateListsResponse);
+  }
+
+  async clearAllLists() {
+    const noneOption = this.listDialog().getByRole("option", { name: "None" });
+    await noneOption.waitFor({ state: "visible", timeout: 5000 });
+    const updateListsResponse = this.waitForUpdateListsMutation();
+    await noneOption.click();
+    await this.waitForMutationOrNoop(updateListsResponse);
+    await this.listDialog().waitFor({ state: "hidden", timeout: 5000 });
+  }
+
+  /**
+   * Creates a new list by typing the name and clicking create
+   */
+  async createList(listName: string) {
+    await this.openListsPicker();
+
+    const searchInput = this.listDialog().getByPlaceholder("Search lists...");
+    await searchInput.waitFor({ state: "visible", timeout: 5000 });
+    await searchInput.fill(listName);
+
+    const createOption = this.listDialog().getByRole("option", {
+      name: `Create "${listName}"`,
+    });
+    await createOption.waitFor({ state: "visible", timeout: 5000 });
+
+    const createListResponse = this.waitForCreateListMutation();
+    const updateListsResponse = this.waitForUpdateListsMutation();
+    await createOption.click();
+    await createListResponse;
+    await updateListsResponse;
+
+    await this.listDialog().waitFor({ state: "hidden", timeout: 5000 });
+  }
+
+  selectedListChip(listName: string): Locator {
+    return this.listSelectButton.getByText(listName);
   }
 
   /**
@@ -178,19 +244,72 @@ export class EditListingDialog {
   async syncName() {
     const saveResponse = this.waitForListingUpdateMutation();
     await this.syncNameButton.click();
-    await saveResponse;
+    await this.waitForMutationOrNoop(saveResponse);
+  }
+
+  async syncAhsName() {
+    await this.syncName();
+  }
+
+  linkedAhsText(listingName: string): Locator {
+    return this.dialog.getByText(`Linked to ${listingName}`);
+  }
+
+  async unlinkAhs() {
+    const saveResponse = this.waitForListingUpdateMutation();
+    await this.unlinkAhsButton.click();
+    await this.waitForMutationOrNoop(saveResponse);
+  }
+
+  async relinkAhs(searchQuery: string, expectedListingName: string) {
+    await this.ahsListingSelectButton.click();
+    await this.ahsDialog().waitFor({ state: "visible", timeout: 10000 });
+
+    const searchInput = this.ahsDialog().getByPlaceholder("Search AHS listings...");
+    await searchInput.waitFor({ state: "visible", timeout: 5000 });
+    await searchInput.fill(searchQuery);
+
+    const listingOption = this.ahsDialog()
+      .locator('[data-slot="command-item"]')
+      .filter({ hasText: expectedListingName })
+      .first();
+    await listingOption.waitFor({ state: "visible", timeout: 10000 });
+
+    const saveResponse = this.waitForListingUpdateMutation();
+    await listingOption.click();
+    await this.waitForMutationOrNoop(saveResponse);
+    await this.ahsDialog().waitFor({ state: "hidden", timeout: 10000 });
+  }
+
+  async clickSaveChanges() {
+    const saveResponse = this.waitForListingUpdateMutation();
+    await this.saveChangesButton.click();
+    await this.waitForMutationOrNoop(saveResponse);
+  }
+
+  async clickDeleteListing() {
+    await this.deleteListingButton.click();
+  }
+
+  async confirmDeleteListing() {
+    await this.page
+      .getByRole("alertdialog")
+      .getByRole("button", { name: "Delete" })
+      .click();
   }
 
   /**
    * Closes the edit listing dialog
    */
   async close() {
-    // Find the close button (X button) in the dialog header
     const closeButton = this.dialog
       .locator('button[aria-label="Close"]')
       .or(this.dialog.getByRole("button", { name: /close/i }).first());
     await closeButton.click();
-    // Wait for dialog to close
     await this.dialog.waitFor({ state: "hidden", timeout: 5000 });
+  }
+
+  async closeWithHeaderX() {
+    await this.close();
   }
 }
