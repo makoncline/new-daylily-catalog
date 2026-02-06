@@ -50,7 +50,7 @@ export function CreateListingButton() {
 
   return (
     <>
-      <Button onClick={handleCreateClick}>
+      <Button onClick={handleCreateClick} data-testid="create-listing-button">
         <Plus className="mr-2 h-4 w-4" />
         Create Listing
       </Button>
@@ -68,7 +68,7 @@ export function CreateListingButton() {
           </DialogHeader>
           <div className="space-y-4">
             <H3 className="text-center">Upgrade to Pro</H3>
-            <p className="text-center text-sm text-muted-foreground">
+            <p className="text-muted-foreground text-center text-sm">
               Upgrade to a Pro account to create unlimited listings and unlock
               other premium features.
             </p>

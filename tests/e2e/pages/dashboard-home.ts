@@ -7,6 +7,9 @@ export class DashboardHome {
   readonly upgradeToProButton: Locator;
   readonly completeProfileButton: Locator;
   readonly completeProfileCard: Locator;
+  readonly catalogProgressCard: Locator;
+  readonly proMembershipCard: Locator;
+  readonly manageListingsButton: Locator;
   readonly heading: Locator;
   readonly content: Locator;
 
@@ -27,6 +30,13 @@ export class DashboardHome {
     this.completeProfileCard = page.getByTestId(
       "dashboard-profile-completion-card",
     );
+    this.catalogProgressCard = page.getByTestId(
+      "dashboard-catalog-progress-card",
+    );
+    this.proMembershipCard = page.getByTestId("dashboard-pro-membership-card");
+    this.manageListingsButton = page.getByRole("link", {
+      name: "Manage Listings",
+    });
   }
 
   async waitForLoaded() {

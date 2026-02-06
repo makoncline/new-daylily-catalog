@@ -133,7 +133,7 @@ export function ProMembershipCard() {
   }
 
   return (
-    <Card className="mb-4 overflow-hidden">
+    <Card className="mb-4 overflow-hidden" data-testid="dashboard-pro-membership-card">
       <div className="border-border bg-card border-b p-6">
         <div className="space-y-1">
           <H2 className="pb-2 text-3xl">Become a Daylily Catalog Pro</H2>

@@ -1,8 +1,8 @@
-import { PrismaClient } from "../../prisma/generated/sqlite-client";
+import { PrismaClient } from "../../prisma/generated/sqlite-client/index.js";
 import { PrismaLibSQL } from "@prisma/adapter-libsql";
 import { createClient } from "@libsql/client";
 import { env } from "@/env";
-import { type Prisma } from "../../prisma/generated/sqlite-client";
+import { type Prisma } from "../../prisma/generated/sqlite-client/index.js";
 
 // Use Turso if explicitly set or if in production (unless explicitly disabled)
 const useTursoDb =

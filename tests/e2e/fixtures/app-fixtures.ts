@@ -2,6 +2,10 @@ import { test as base } from "../../../e2e/test-setup";
 import { HomePage } from "../pages/home-page";
 import { DashboardHome } from "../pages/dashboard-home";
 import { DashboardProfile } from "../pages/dashboard-profile";
+import { DashboardListings } from "../pages/dashboard-listings";
+import { CreateListingDialog } from "../pages/create-listing-dialog";
+import { EditListingDialog } from "../pages/edit-listing-dialog";
+import { StripeCheckout } from "../pages/stripe-checkout";
 import { ClerkAuthModal } from "../pages/clerk-auth-modal";
 import { DashboardShell } from "../pages/dashboard-shell";
 
@@ -9,6 +13,10 @@ export const test = base.extend<{
   homePage: HomePage;
   dashboardHome: DashboardHome;
   dashboardProfile: DashboardProfile;
+  dashboardListings: DashboardListings;
+  createListingDialog: CreateListingDialog;
+  editListingDialog: EditListingDialog;
+  stripeCheckout: StripeCheckout;
   dashboardShell: DashboardShell;
   clerkAuthModal: ClerkAuthModal;
 }>({
@@ -20,6 +28,18 @@ export const test = base.extend<{
   },
   dashboardProfile: async ({ page }, apply) => {
     await apply(new DashboardProfile(page));
+  },
+  dashboardListings: async ({ page }, apply) => {
+    await apply(new DashboardListings(page));
+  },
+  createListingDialog: async ({ page }, apply) => {
+    await apply(new CreateListingDialog(page));
+  },
+  editListingDialog: async ({ page }, apply) => {
+    await apply(new EditListingDialog(page));
+  },
+  stripeCheckout: async ({ page }, apply) => {
+    await apply(new StripeCheckout(page));
   },
   dashboardShell: async ({ page }, apply) => {
     await apply(new DashboardShell(page));

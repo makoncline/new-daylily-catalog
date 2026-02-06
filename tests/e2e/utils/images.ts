@@ -37,3 +37,25 @@ export async function addProfileImageForUser({
     },
   });
 }
+
+interface AddListingImageInput {
+  db: E2EPrismaClient;
+  listingId: string;
+  imageUrl: string;
+  order?: number;
+}
+
+export async function addListingImage({
+  db,
+  listingId,
+  imageUrl,
+  order = 0,
+}: AddListingImageInput) {
+  return db.image.create({
+    data: {
+      url: imageUrl,
+      listingId,
+      order,
+    },
+  });
+}
