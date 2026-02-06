@@ -90,13 +90,15 @@ export function ListsTable() {
   }
 
   return (
-    <DataTableLayout
-      table={table}
-      toolbar={<ListsTableToolbar table={table} />}
-      pagination={<DataTablePagination table={table} />}
-      noResults={<NoResults filtered />}
-    >
-      <DataTable table={table} />
-    </DataTableLayout>
+    <div data-testid="list-table">
+      <DataTableLayout
+        table={table}
+        toolbar={<ListsTableToolbar table={table} />}
+        pagination={<DataTablePagination table={table} />}
+        noResults={<NoResults filtered />}
+      >
+        <DataTable table={table} />
+      </DataTableLayout>
+    </div>
   );
 }
