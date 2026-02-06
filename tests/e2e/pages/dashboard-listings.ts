@@ -12,6 +12,7 @@ export class DashboardListings {
   readonly createListingButton: Locator;
   readonly listingsTable: Locator;
   readonly globalSearchInput: Locator;
+  readonly listingTableReady: Locator;
   readonly listsFilterButton: Locator;
   readonly pagerFirstButton: Locator;
   readonly pagerPrevButton: Locator;
@@ -30,6 +31,7 @@ export class DashboardListings {
       .first();
     // The left-pinned table contains title rows.
     this.listingsTable = page.locator("table").first();
+    this.listingTableReady = page.getByTestId("listing-table");
     this.globalSearchInput = page.getByPlaceholder("Filter listings...");
     this.listsFilterButton = page
       .getByRole("button", { name: "Lists" })

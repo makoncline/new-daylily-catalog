@@ -129,37 +129,39 @@ export function ListingsTable() {
   }
 
   return (
-    <DataTableLayout
-      table={table}
-      toolbar={
-        lists ? (
-          <ListingsTableToolbar
-            table={table}
-            lists={lists}
-            listings={listings}
+    <div data-testid="listing-table">
+      <DataTableLayout
+        table={table}
+        toolbar={
+          lists ? (
+            <ListingsTableToolbar
+              table={table}
+              lists={lists}
+              listings={listings}
+            />
+          ) : null
+        }
+        pagination={
+          <>
+            <DataTablePagination
+              table={table}
+              pageSizeOptions={
+                APP_CONFIG.TABLE.PAGINATION.DASHBOARD_PAGE_SIZE_OPTIONS
+              }
+            />
+            <DataTableDownload table={table} filenamePrefix="listings" />
+          </>
+        }
+        noResults={
+          <EmptyState
+            title="No listings found"
+            description="Try adjusting your filters or create a new listing"
+            action={<CreateListingButton />}
           />
-        ) : null
-      }
-      pagination={
-        <>
-          <DataTablePagination
-            table={table}
-            pageSizeOptions={
-              APP_CONFIG.TABLE.PAGINATION.DASHBOARD_PAGE_SIZE_OPTIONS
-            }
-          />
-          <DataTableDownload table={table} filenamePrefix="listings" />
-        </>
-      }
-      noResults={
-        <EmptyState
-          title="No listings found"
-          description="Try adjusting your filters or create a new listing"
-          action={<CreateListingButton />}
-        />
-      }
-    >
-      <DataTable table={table} />
-    </DataTableLayout>
+        }
+      >
+        <DataTable table={table} />
+      </DataTableLayout>
+    </div>
   );
 }

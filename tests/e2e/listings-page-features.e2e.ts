@@ -61,34 +61,6 @@ test.describe("listings page features @local", () => {
       );
     };
 
-    const waitForListingsSurfaceHydrated = async () => {
-      await expect
-        .poll(
-          async () => {
-            if (await dashboardListings.pageIndicator().isVisible()) {
-              return "table";
-            }
-            if (
-              await page
-                .getByRole("heading", { name: "No listings" })
-                .isVisible()
-            ) {
-              return "empty";
-            }
-            if (
-              await page
-                .getByRole("heading", { name: "No listings found" })
-                .isVisible()
-            ) {
-              return "empty-filtered";
-            }
-            return "loading";
-          },
-          { timeout: 30000 },
-        )
-        .not.toBe("loading");
-    };
-
     const resetAndVerifyBaseline = async () => {
       await dashboardListings.resetToolbarFiltersIfVisible();
       await expect(dashboardListings.filteredCount()).toBeHidden();
@@ -155,7 +127,9 @@ test.describe("listings page features @local", () => {
     await dashboardListings.goto();
     await expect(page).toHaveURL(/\/dashboard\/listings/);
     await dashboardListings.isReady();
-    await waitForListingsSurfaceHydrated();
+    await expect(dashboardListings.listingTableReady).toBeVisible({
+      timeout: 30000,
+    });
     await expectBaselineUrlParams();
 
     // Phase 2: baseline table and pagination behavior
