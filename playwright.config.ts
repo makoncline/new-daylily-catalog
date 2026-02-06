@@ -37,6 +37,8 @@ export default defineConfig({
   globalSetup: "./e2e/global-setup.ts",
   globalTeardown: "./e2e/global-teardown.ts",
   reporter: [["list"], ["html", { open: "never" }]],
+  // Retries only in CI to reduce flake without slowing local feedback loops.
+  retries: process.env.CI ? 3 : 0,
   // Single worker for local mode (shared temp DB); allow parallelization in attach mode
   workers: process.env.BASE_URL ? undefined : 1,
   // Tag rules:
