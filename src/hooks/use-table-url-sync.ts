@@ -5,6 +5,22 @@ import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { TABLE_CONFIG } from "@/config/constants";
 import { type Table } from "@tanstack/react-table";
 
+function getDefaultPageSize(pathname: string | null): number {
+  if (!pathname) {
+    return TABLE_CONFIG.PAGINATION.DEFAULT_PAGE_SIZE;
+  }
+
+  if (pathname.includes("/dashboard/lists")) {
+    return TABLE_CONFIG.PAGINATION.LISTS_PAGE_SIZE_DEFAULT;
+  }
+
+  if (pathname.includes("/dashboard")) {
+    return TABLE_CONFIG.PAGINATION.DASHBOARD_PAGE_SIZE_DEFAULT;
+  }
+
+  return TABLE_CONFIG.PAGINATION.DEFAULT_PAGE_SIZE;
+}
+
 export function useUrlInitialTableState({
   filterableColumnIds,
 }: {
@@ -17,11 +33,7 @@ export function useUrlInitialTableState({
     (Number(searchParams.get("page")) ||
       TABLE_CONFIG.PAGINATION.DEFAULT_PAGE_INDEX + 1) - 1;
 
-  const pageSize =
-    Number(searchParams.get("size")) ||
-    (pathname?.includes("dashboard")
-      ? TABLE_CONFIG.PAGINATION.DASHBOARD_PAGE_SIZE_DEFAULT
-      : TABLE_CONFIG.PAGINATION.DEFAULT_PAGE_SIZE);
+  const pageSize = Number(searchParams.get("size")) || getDefaultPageSize(pathname);
   const globalFilter = searchParams.get("query") ?? undefined;
 
   // Get column filters from URL
@@ -71,6 +83,7 @@ export function useTableUrlSync<TData>(table: Table<TData>) {
 
     const url = new URL(window.location.href);
     const oldParams = new URLSearchParams(window.location.search);
+    const defaultPageSize = getDefaultPageSize(pathname);
 
     // Update only the search parameters
     if (pagination.pageIndex === TABLE_CONFIG.PAGINATION.DEFAULT_PAGE_INDEX) {
@@ -79,11 +92,7 @@ export function useTableUrlSync<TData>(table: Table<TData>) {
       url.searchParams.set("page", String(pagination.pageIndex + 1));
     }
 
-    if (
-      pagination.pageSize === TABLE_CONFIG.PAGINATION.DEFAULT_PAGE_SIZE ||
-      pagination.pageSize ===
-        TABLE_CONFIG.PAGINATION.DASHBOARD_PAGE_SIZE_DEFAULT
-    ) {
+    if (pagination.pageSize === defaultPageSize) {
       url.searchParams.delete("size");
     } else {
       url.searchParams.set("size", String(pagination.pageSize));

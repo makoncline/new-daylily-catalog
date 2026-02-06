@@ -15,7 +15,7 @@ import { DataTableGlobalFilter } from "@/components/data-table/data-table-global
 import { DataTableFilterReset } from "@/components/data-table/data-table-filter-reset";
 import { DataTableViewOptions } from "@/components/data-table/data-table-view-options";
 import { useDataTable } from "@/hooks/use-data-table";
-import { LIST_TABLE_COLUMN_NAMES } from "@/config/constants";
+import { APP_CONFIG, LIST_TABLE_COLUMN_NAMES } from "@/config/constants";
 
 type List = RouterOutputs["list"]["list"][number];
 
@@ -90,13 +90,22 @@ export function ListsTable() {
   }
 
   return (
-    <DataTableLayout
-      table={table}
-      toolbar={<ListsTableToolbar table={table} />}
-      pagination={<DataTablePagination table={table} />}
-      noResults={<NoResults filtered />}
-    >
-      <DataTable table={table} />
-    </DataTableLayout>
+    <div data-testid="list-table">
+      <DataTableLayout
+        table={table}
+        toolbar={<ListsTableToolbar table={table} />}
+        pagination={
+          <DataTablePagination
+            table={table}
+            pageSizeOptions={
+              APP_CONFIG.TABLE.PAGINATION.DASHBOARD_PAGE_SIZE_OPTIONS
+            }
+          />
+        }
+        noResults={<NoResults filtered />}
+      >
+        <DataTable table={table} />
+      </DataTableLayout>
+    </div>
   );
 }
