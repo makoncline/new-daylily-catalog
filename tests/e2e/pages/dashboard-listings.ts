@@ -42,7 +42,7 @@ export class DashboardListings {
 
   async isReady() {
     await this.heading.waitFor({ state: "visible", timeout: 30000 });
-    await this.globalSearchInput.waitFor({ state: "visible", timeout: 30000 });
+    await this.createListingButton.waitFor({ state: "visible", timeout: 30000 });
   }
 
   async goto() {
@@ -81,6 +81,7 @@ export class DashboardListings {
   }
 
   async setGlobalSearch(value: string) {
+    await this.globalSearchInput.waitFor({ state: "visible", timeout: 10000 });
     await this.globalSearchInput.fill(value);
   }
 
