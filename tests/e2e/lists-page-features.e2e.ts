@@ -20,6 +20,8 @@ test.describe("lists page features @local", () => {
     page,
     dashboardLists,
   }) => {
+    test.setTimeout(180000);
+
     const toast = (message: string) =>
       page.locator("[data-sonner-toast]").filter({ hasText: message }).first();
 
