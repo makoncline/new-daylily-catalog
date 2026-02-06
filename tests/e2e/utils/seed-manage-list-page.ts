@@ -1,5 +1,6 @@
 import type { E2EPrismaClient } from "../../../src/lib/test-utils/e2e-db";
 import { createAuthedUser } from "../../../src/lib/test-utils/e2e-users";
+import { TABLE_CONFIG } from "../../../src/config/constants";
 
 interface SeedManageListPageInput {
   db: E2EPrismaClient;
@@ -31,7 +32,7 @@ export interface ManageListPageSeedMeta {
 }
 
 const TOTAL_LINKED_LISTINGS = 102;
-const DEFAULT_PAGE_SIZE = 100;
+const DEFAULT_PAGE_SIZE = TABLE_CONFIG.PAGINATION.LISTS_PAGE_SIZE_DEFAULT;
 
 function pad(value: number) {
   return String(value).padStart(3, "0");
@@ -146,15 +147,29 @@ export async function seedManageListPageData({
     },
   });
 
+  const expectedPageCountBeforeAdd = Math.ceil(beforeAddCount / DEFAULT_PAGE_SIZE);
+  const totalListListingsAfterAdd = beforeAddCount + 1;
+  const expectedPageCountAfterAdd = Math.ceil(
+    totalListListingsAfterAdd / DEFAULT_PAGE_SIZE,
+  );
+  const expectedSecondPageRowsBeforeAdd = Math.min(
+    DEFAULT_PAGE_SIZE,
+    Math.max(beforeAddCount - DEFAULT_PAGE_SIZE, 0),
+  );
+  const expectedSecondPageRowsAfterAdd = Math.min(
+    DEFAULT_PAGE_SIZE,
+    Math.max(totalListListingsAfterAdd - DEFAULT_PAGE_SIZE, 0),
+  );
+
   return {
     listId: list.id,
     totalListListingsBeforeAdd: beforeAddCount,
-    totalListListingsAfterAdd: beforeAddCount + 1,
+    totalListListingsAfterAdd,
     defaultPageSize: DEFAULT_PAGE_SIZE,
-    expectedPageCountBeforeAdd: 2,
-    expectedPageCountAfterAdd: 2,
-    expectedSecondPageRowsBeforeAdd: beforeAddCount - DEFAULT_PAGE_SIZE,
-    expectedSecondPageRowsAfterAdd: beforeAddCount + 1 - DEFAULT_PAGE_SIZE,
+    expectedPageCountBeforeAdd,
+    expectedPageCountAfterAdd,
+    expectedSecondPageRowsBeforeAdd,
+    expectedSecondPageRowsAfterAdd,
     addableListingTitle,
     addableListingToken,
     sortToken,
