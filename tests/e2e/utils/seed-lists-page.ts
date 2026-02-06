@@ -1,5 +1,6 @@
 import type { E2EPrismaClient } from "../../../src/lib/test-utils/e2e-db";
 import { createAuthedUser } from "../../../src/lib/test-utils/e2e-users";
+import { TABLE_CONFIG } from "../../../src/config/constants";
 
 interface SeedListsPageInput {
   db: E2EPrismaClient;
@@ -34,8 +35,8 @@ export interface ListsPageSeedMeta {
 }
 
 const TOTAL_BULK_LISTS = 107;
-const TOTAL_LISTS = 115;
-const DEFAULT_PAGE_SIZE = 20;
+const EXPECTED_TOTAL_LISTS = 115;
+const DEFAULT_PAGE_SIZE = TABLE_CONFIG.PAGINATION.LISTS_PAGE_SIZE_DEFAULT;
 
 function pad(value: number) {
   return String(value).padStart(3, "0");
@@ -163,15 +164,20 @@ export async function seedListsPageData({
   const count = await db.list.count({
     where: { userId: user.id },
   });
-  if (count !== TOTAL_LISTS) {
-    throw new Error(`Expected ${TOTAL_LISTS} lists in seed, but found ${count}`);
+  if (count !== EXPECTED_TOTAL_LISTS) {
+    throw new Error(
+      `Expected ${EXPECTED_TOTAL_LISTS} lists in seed, but found ${count}`,
+    );
   }
 
   return {
-    totalLists: TOTAL_LISTS,
+    totalLists: count,
     defaultPageSize: DEFAULT_PAGE_SIZE,
-    expectedPageCount: Math.ceil(TOTAL_LISTS / DEFAULT_PAGE_SIZE),
-    expectedSecondPageRows: DEFAULT_PAGE_SIZE,
+    expectedPageCount: Math.ceil(count / DEFAULT_PAGE_SIZE),
+    expectedSecondPageRows: Math.min(
+      DEFAULT_PAGE_SIZE,
+      Math.max(count - DEFAULT_PAGE_SIZE, 0),
+    ),
     globalSearchToken,
     globalSearchTitle,
     sortToken,

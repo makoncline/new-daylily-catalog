@@ -153,7 +153,7 @@ export function ListListingsTable({ listId }: ListListingsTableProps) {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4" data-testid="manage-list-table">
       <div>
         <Label>Listings</Label>
         <p className="text-[0.8rem] text-muted-foreground">

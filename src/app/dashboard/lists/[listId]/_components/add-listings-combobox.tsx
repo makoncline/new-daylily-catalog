@@ -70,6 +70,7 @@ export function AddListingsCombobox({ listId }: AddListingsComboboxProps) {
         onValueChange={setSearchValue}
         autoFocus={true}
         className="border-none pl-3 focus:ring-0"
+        data-testid="add-listings-search-input"
       />
       <CommandList className="flex-1 overflow-x-hidden overflow-y-auto pb-2">
         {listings?.length === 0 && (
@@ -121,6 +122,7 @@ export function AddListingsCombobox({ listId }: AddListingsComboboxProps) {
       aria-expanded={open}
       className="w-full justify-between"
       disabled={addListingsMutation.isPending}
+      data-testid="add-listings-trigger"
     >
       Search your listings...
       <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
