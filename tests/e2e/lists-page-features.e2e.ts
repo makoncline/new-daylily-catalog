@@ -202,6 +202,7 @@ test.describe("lists page features @local", () => {
 
     // Phase 5: row actions (manage link + edit + delete)
     await dashboardLists.setGlobalSearch(seedMeta.editTargetTitle);
+    await expectUrlParam("query", seedMeta.editTargetTitle);
     await expect.poll(async () => dashboardLists.visibleRowCount()).toBe(1);
     await expect(
       dashboardLists.listRow(seedMeta.editTargetTitle),
@@ -227,7 +228,6 @@ test.describe("lists page features @local", () => {
     await dashboardLists.saveChangesButton().click();
     await expect(toast("List updated")).toBeVisible({ timeout: 10000 });
 
-    await page.pause();
     await dashboardLists.closeEditDialog();
     await expectUrlParam("editing", null);
 

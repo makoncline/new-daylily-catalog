@@ -66,7 +66,9 @@ export class DashboardLists {
   }
 
   async setGlobalSearch(value: string) {
-    await this.globalSearchInput.fill(value);
+    await this.globalSearchInput.click();
+    await this.globalSearchInput.fill("");
+    await this.globalSearchInput.type(value, { delay: 20 });
   }
 
   async sortByColumn(columnLabel: string) {
@@ -106,19 +108,36 @@ export class DashboardLists {
   }
 
   async openFirstVisibleRowActions() {
-    await this.page.getByRole("button", { name: "Open menu" }).first().click();
+    const firstActionRow = this.page
+      .getByTestId("list-table")
+      .locator("table")
+      .last()
+      .locator("tbody tr")
+      .first();
+    await firstActionRow.getByRole("button", { name: "Open menu" }).click();
   }
 
   async chooseRowActionEdit() {
-    await this.page.getByRole("menuitem", { name: "Edit" }).first().click();
+    await this.page
+      .locator('[data-slot="dropdown-menu-content"]:visible')
+      .last()
+      .getByRole("menuitem", { name: "Edit" })
+      .click();
   }
 
   async chooseRowActionDelete() {
-    await this.page.getByRole("menuitem", { name: "Delete" }).first().click();
+    await this.page
+      .locator('[data-slot="dropdown-menu-content"]:visible')
+      .last()
+      .getByRole("menuitem", { name: "Delete" })
+      .click();
   }
 
   manageRowAction(): Locator {
-    return this.page.getByRole("menuitem", { name: "Manage" }).first();
+    return this.page
+      .locator('[data-slot="dropdown-menu-content"]:visible')
+      .last()
+      .getByRole("menuitem", { name: "Manage" });
   }
 
   async manageRowActionHref(): Promise<string | null> {
