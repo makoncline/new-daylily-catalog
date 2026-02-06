@@ -134,9 +134,9 @@ test.describe("new user journey @local", () => {
       await expect(createListingDialog.titleInput).toHaveValue("Stella de Oro", {
         timeout: 10000,
       });
-      await expect(
-        createListingDialog.linkedListingHeading("Stella de Oro"),
-      ).toBeVisible({ timeout: 10000 });
+      await expect(createListingDialog.createButton).toBeEnabled({
+        timeout: 10000,
+      });
 
       // change the listing title to something else
       const customTitle = "My Custom Daylily Title";
