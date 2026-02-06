@@ -4,6 +4,7 @@ import { DashboardHome } from "../pages/dashboard-home";
 import { DashboardProfile } from "../pages/dashboard-profile";
 import { DashboardListings } from "../pages/dashboard-listings";
 import { DashboardLists } from "../pages/dashboard-lists";
+import { ManageListPage } from "../pages/manage-list-page";
 import { CreateListingDialog } from "../pages/create-listing-dialog";
 import { EditListingDialog } from "../pages/edit-listing-dialog";
 import { StripeCheckout } from "../pages/stripe-checkout";
@@ -16,6 +17,7 @@ export const test = base.extend<{
   dashboardProfile: DashboardProfile;
   dashboardListings: DashboardListings;
   dashboardLists: DashboardLists;
+  manageListPage: ManageListPage;
   createListingDialog: CreateListingDialog;
   editListingDialog: EditListingDialog;
   stripeCheckout: StripeCheckout;
@@ -36,6 +38,9 @@ export const test = base.extend<{
   },
   dashboardLists: async ({ page }, apply) => {
     await apply(new DashboardLists(page));
+  },
+  manageListPage: async ({ page }, apply) => {
+    await apply(new ManageListPage(page));
   },
   createListingDialog: async ({ page }, apply) => {
     await apply(new CreateListingDialog(page));
