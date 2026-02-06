@@ -1,5 +1,7 @@
-import { getStripeCustomerKey } from "@/server/stripe/sync-subscription";
 import type { E2EPrismaClient } from "../../../src/lib/test-utils/e2e-db";
+
+const getStripeCustomerKey = (customerId: string) =>
+  `stripe:customer:${customerId}`;
 
 interface SetStripeSubscriptionStatusInput {
   db: E2EPrismaClient;
