@@ -18,7 +18,7 @@ export function ListingDetailsCard({ stats }: StatsCardProps) {
   return (
     <Card className="p-4">
       <div className="flex items-center gap-2">
-        <Package className="h-4 w-4 text-muted-foreground" />
+        <Package className="text-muted-foreground h-4 w-4" />
         <H3 className="text-sm font-medium">Listing Details</H3>
       </div>
       <div className="mt-2 space-y-1">
@@ -67,7 +67,7 @@ export function TotalListingsCard({ stats }: StatsCardProps) {
   return (
     <Card className="p-4">
       <div className="flex items-center gap-2">
-        <Package className="h-4 w-4 text-muted-foreground" />
+        <Package className="text-muted-foreground h-4 w-4" />
         <H3 className="text-sm font-medium">Total Listings</H3>
       </div>
       <div className="mt-2 text-2xl font-bold">{stats.totalListings}</div>
@@ -90,7 +90,7 @@ export function TotalListsCard({ stats }: StatsCardProps) {
   return (
     <Card className="p-4">
       <div className="flex items-center gap-2">
-        <ListChecks className="h-4 w-4 text-muted-foreground" />
+        <ListChecks className="text-muted-foreground h-4 w-4" />
         <H3 className="text-sm font-medium">Total Lists</H3>
       </div>
       <div className="mt-2 text-2xl font-bold">{stats.totalLists}</div>
@@ -113,7 +113,7 @@ export function ImagesCard({ stats }: StatsCardProps) {
   return (
     <Card className="p-4">
       <div className="flex items-center gap-2">
-        <ImageIcon className="h-4 w-4 text-muted-foreground" />
+        <ImageIcon className="text-muted-foreground h-4 w-4" />
         <H3 className="text-sm font-medium">Images</H3>
       </div>
       <div className="mt-2 text-2xl font-bold">{stats.imageStats.total}</div>
@@ -133,11 +133,11 @@ export function ProMembershipCard() {
   }
 
   return (
-    <Card className="mb-4 overflow-hidden">
-      <div className="border-b border-border bg-card p-6">
+    <Card className="mb-4 overflow-hidden" data-testid="dashboard-pro-membership-card">
+      <div className="border-border bg-card border-b p-6">
         <div className="space-y-1">
           <H2 className="pb-2 text-3xl">Become a Daylily Catalog Pro</H2>
-          <P className="text-base text-muted-foreground">
+          <P className="text-muted-foreground text-base">
             Take your daylily business to the next level with advanced features
             and premium support.
           </P>
@@ -147,7 +147,7 @@ export function ProMembershipCard() {
         <div className="flex flex-col gap-6 lg:flex-row">
           <div className="flex flex-1 flex-col gap-4">
             <H3 className="text-2xl">Why upgrade to Pro?</H3>
-            <P className="text-sm leading-7 text-muted-foreground">
+            <P className="text-muted-foreground text-sm leading-7">
               Get access to premium features that help you grow your daylily
               business.
             </P>
@@ -164,7 +164,7 @@ export function ProMembershipCard() {
             </ul>
           </div>
           <div className="flex flex-1 flex-col justify-end gap-6">
-            <CheckoutButton size="lg" />
+            <CheckoutButton size="lg" data-testid="dashboard-upgrade-to-pro" />
           </div>
         </div>
       </div>

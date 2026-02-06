@@ -37,7 +37,11 @@ export function DashboardButton({
       </SignedIn>
       <SignedOut>
         <Button className={className} size="sm" asChild variant={variant}>
-          <SignInButton mode="modal" forceRedirectUrl="/dashboard">
+          <SignInButton
+            mode="modal"
+            forceRedirectUrl="/dashboard"
+            signUpForceRedirectUrl="/dashboard"
+          >
             Dashboard
           </SignInButton>
         </Button>

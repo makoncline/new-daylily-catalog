@@ -12,6 +12,12 @@ function getNpxCommand() {
 }
 
 function runPrismaDbPush(url: string) {
+  const rustLog = process.env.RUST_LOG;
+  const effectiveRustLog =
+    rustLog === "warn" || rustLog === "error" || rustLog === "off"
+      ? "info"
+      : (rustLog ?? "info");
+
   const args = ["prisma", "db", "push", "--skip-generate"];
   execFileSync(
     getNpxCommand(),
@@ -21,6 +27,9 @@ function runPrismaDbPush(url: string) {
       env: {
         ...process.env,
         NODE_OPTIONS: "",
+        // Work around schema-engine startup failures seen in some local runtimes.
+        // Keeping this at info still avoids noisy trace output.
+        RUST_LOG: effectiveRustLog,
         LOCAL_DATABASE_URL: url,
       },
     },

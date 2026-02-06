@@ -20,6 +20,8 @@ jobs:
       (github.event.deployment_status.state == 'success' &&
        (github.event.deployment.environment == 'Preview' || github.event.deployment.environment == 'preview'))
     runs-on: ubuntu-latest
+    env:
+      SKIP_ENV_VALIDATION: "1"
     steps:
       - name: Compute commit SHA
         id: sha

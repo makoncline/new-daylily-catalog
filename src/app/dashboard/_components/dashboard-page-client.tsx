@@ -33,10 +33,14 @@ export function DashboardPageClient({
       <PageHeader
         heading="Dashboard"
         text="Welcome to your daylily catalog dashboard"
+        headingTestId="dashboard-heading"
       />
-      <div className="space-y-4">
+      <div className="space-y-4" data-testid="dashboard-content">
         {stats.profileStats.completionPercentage < 100 && (
-          <Card className="mb-4 overflow-hidden">
+          <Card
+            className="mb-4 overflow-hidden"
+            data-testid="dashboard-profile-completion-card"
+          >
             <div className="border-border bg-card border-b p-6">
               <div className="flex items-center justify-between">
                 <div className="space-y-1">
@@ -47,7 +51,10 @@ export function DashboardPageClient({
                   </P>
                 </div>
                 <div className="text-right">
-                  <div className="text-2xl font-bold">
+                  <div
+                    className="text-2xl font-bold"
+                    data-testid="dashboard-profile-completion-percent"
+                  >
                     {stats.profileStats.completionPercentage.toFixed(0)}%
                   </div>
                   <Muted className="text-sm">Profile Completion</Muted>
@@ -107,7 +114,10 @@ export function DashboardPageClient({
           catalogSteps.length) *
           100 <
           100 && (
-          <Card className="mb-4 overflow-hidden">
+          <Card
+            className="mb-4 overflow-hidden"
+            data-testid="dashboard-catalog-progress-card"
+          >
             <div className="border-border bg-card border-b p-6">
               <div className="flex items-center justify-between">
                 <div className="space-y-1">
@@ -118,7 +128,10 @@ export function DashboardPageClient({
                   </P>
                 </div>
                 <div className="text-right">
-                  <div className="text-2xl font-bold">
+                  <div
+                    className="text-2xl font-bold"
+                    data-testid="dashboard-catalog-progress-percent"
+                  >
                     {(
                       (catalogSteps.filter((step) => step.isComplete(stats))
                         .length /

@@ -11,6 +11,10 @@ const config = {
     remotePatterns: [{ hostname: "daylilycatalog.com" }],
   },
 
+  devIndicators: {
+    position: "bottom-right",
+  },
+
   // Add redirects for legacy URLs
   async redirects() {
     return [
