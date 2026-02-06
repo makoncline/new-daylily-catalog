@@ -165,7 +165,10 @@ export function ImageManager({
 
   return (
     <div className="space-y-4">
-      <div className="grid max-w-[800px] grid-cols-2 gap-4 md:grid-cols-4">
+      <div
+        className="grid max-w-[800px] grid-cols-2 gap-4 md:grid-cols-4"
+        data-testid="image-manager-grid"
+      >
         <DndContext
           sensors={sensors}
           collisionDetection={closestCenter}
@@ -173,7 +176,12 @@ export function ImageManager({
         >
           <SortableContext items={images.map((img) => img.id)}>
             {images.map((image) => (
-              <div key={image.id} className="group relative aspect-square">
+              <div
+                key={image.id}
+                className="group relative aspect-square"
+                data-testid="image-item"
+                data-image-id={image.id}
+              >
                 <SortableImage
                   image={image}
                   dragControls={(attributes, listeners) => (
@@ -183,6 +191,8 @@ export function ImageManager({
                         variant="secondary"
                         size="icon"
                         className="absolute top-2 left-2 size-8 cursor-grab touch-none"
+                        data-testid="image-drag-handle"
+                        data-image-id={image.id}
                         {...attributes}
                         {...listeners}
                       >
@@ -200,6 +210,8 @@ export function ImageManager({
                         size="icon"
                         disabled={isPending}
                         className="absolute right-2 bottom-2 size-8"
+                        data-testid="image-delete-button"
+                        data-image-id={image.id}
                         onClick={() => setImageToDelete(image)}
                       >
                         <Trash2 className="h-4 w-4" />

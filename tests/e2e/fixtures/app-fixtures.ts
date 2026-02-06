@@ -8,6 +8,7 @@ import { EditListingDialog } from "../pages/edit-listing-dialog";
 import { StripeCheckout } from "../pages/stripe-checkout";
 import { ClerkAuthModal } from "../pages/clerk-auth-modal";
 import { DashboardShell } from "../pages/dashboard-shell";
+import { ImageManager } from "../pages/image-manager";
 
 export const test = base.extend<{
   homePage: HomePage;
@@ -16,6 +17,7 @@ export const test = base.extend<{
   dashboardListings: DashboardListings;
   createListingDialog: CreateListingDialog;
   editListingDialog: EditListingDialog;
+  imageManager: ImageManager;
   stripeCheckout: StripeCheckout;
   dashboardShell: DashboardShell;
   clerkAuthModal: ClerkAuthModal;
@@ -37,6 +39,9 @@ export const test = base.extend<{
   },
   editListingDialog: async ({ page }, apply) => {
     await apply(new EditListingDialog(page));
+  },
+  imageManager: async ({ page }, apply) => {
+    await apply(new ImageManager(page));
   },
   stripeCheckout: async ({ page }, apply) => {
     await apply(new StripeCheckout(page));
