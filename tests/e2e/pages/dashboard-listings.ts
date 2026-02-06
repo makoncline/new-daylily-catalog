@@ -155,7 +155,15 @@ export class DashboardListings {
   }
 
   async chooseRowActionDelete() {
-    await this.page.getByRole("menuitem", { name: "Delete" }).click();
+    const menuItem = this.page.getByRole("menuitem", { name: "Delete" }).first();
+    await menuItem.waitFor({ state: "visible", timeout: 5000 });
+    await menuItem.click({ force: true });
+  }
+
+  async chooseRowActionEdit() {
+    const menuItem = this.page.getByRole("menuitem", { name: "Edit" }).first();
+    await menuItem.waitFor({ state: "visible", timeout: 5000 });
+    await menuItem.click({ force: true });
   }
 
   async confirmDelete() {
@@ -170,6 +178,10 @@ export class DashboardListings {
     if (await resetButton.isVisible()) {
       await resetButton.click();
     }
+  }
+
+  statusCell(status: string): Locator {
+    return this.page.locator("td").filter({ hasText: status }).first();
   }
 
   /**
