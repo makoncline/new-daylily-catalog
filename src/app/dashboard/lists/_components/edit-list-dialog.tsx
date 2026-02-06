@@ -11,7 +11,8 @@ import { ErrorBoundary } from "react-error-boundary";
 import { ErrorFallback } from "@/components/error-fallback";
 import { reportError } from "@/lib/error-utils";
 import { ListForm } from "@/components/forms/list-form";
-import { useRef, useEffect } from "react";
+import { ListFormSkeleton } from "@/components/forms/list-form-skeleton";
+import { useRef, useEffect, Suspense } from "react";
 import { atom, useAtom } from "jotai";
 import { useRouter, useSearchParams } from "next/navigation";
 
@@ -105,11 +106,13 @@ export function EditListDialog() {
                 })
               }
             >
-              <ListForm
-                formRef={formRef}
-                listId={editingId}
-                onDelete={closeEditList}
-              />
+              <Suspense fallback={<ListFormSkeleton />}>
+                <ListForm
+                  formRef={formRef}
+                  listId={editingId}
+                  onDelete={closeEditList}
+                />
+              </Suspense>
             </ErrorBoundary>
           )}
         </div>

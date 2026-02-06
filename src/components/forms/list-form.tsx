@@ -30,6 +30,7 @@ type FormValues = z.infer<typeof listFormSchema>;
 
 export function ListForm({ listId, onDelete, formRef }: ListFormProps) {
   const [list] = api.list.get.useSuspenseQuery({ id: listId });
+  const utils = api.useUtils();
   const [isPending, setIsPending] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
 
@@ -42,7 +43,9 @@ export function ListForm({ listId, onDelete, formRef }: ListFormProps) {
   });
 
   const updateList = api.list.update.useMutation({
-    onSuccess: () => {
+    onSuccess: async () => {
+      await utils.list.list.invalidate();
+      await utils.list.get.invalidate({ id: listId });
       toast.success("List updated", {
         description: "Your list has been updated successfully",
       });
@@ -55,7 +58,8 @@ export function ListForm({ listId, onDelete, formRef }: ListFormProps) {
   });
 
   const deleteList = api.list.delete.useMutation({
-    onSuccess: () => {
+    onSuccess: async () => {
+      await utils.list.list.invalidate();
       toast.success("List deleted", {
         description: "Your list has been deleted successfully",
       });
@@ -77,11 +81,8 @@ export function ListForm({ listId, onDelete, formRef }: ListFormProps) {
       await updateList.mutateAsync({
         id: listId,
         data: {
-          title: field === "title" ? values.title : list.title,
-          description:
-            field === "description"
-              ? values.description
-              : (list.description ?? undefined),
+          title: values.title,
+          description: values.description ?? undefined,
         },
       });
       form.reset({}, { keepValues: true, keepIsValid: true });

@@ -35,7 +35,7 @@ export interface ListsPageSeedMeta {
 
 const TOTAL_BULK_LISTS = 107;
 const TOTAL_LISTS = 115;
-const DEFAULT_PAGE_SIZE = 100;
+const DEFAULT_PAGE_SIZE = 20;
 
 function pad(value: number) {
   return String(value).padStart(3, "0");
@@ -170,8 +170,8 @@ export async function seedListsPageData({
   return {
     totalLists: TOTAL_LISTS,
     defaultPageSize: DEFAULT_PAGE_SIZE,
-    expectedPageCount: 2,
-    expectedSecondPageRows: TOTAL_LISTS - DEFAULT_PAGE_SIZE,
+    expectedPageCount: Math.ceil(TOTAL_LISTS / DEFAULT_PAGE_SIZE),
+    expectedSecondPageRows: DEFAULT_PAGE_SIZE,
     globalSearchToken,
     globalSearchTitle,
     sortToken,

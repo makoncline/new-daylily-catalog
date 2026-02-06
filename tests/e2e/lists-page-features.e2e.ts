@@ -20,15 +20,13 @@ test.describe("lists page features @local", () => {
     page,
     dashboardLists,
   }) => {
-    test.setTimeout(180000);
-
     const toast = (message: string) =>
       page.locator("[data-sonner-toast]").filter({ hasText: message }).first();
 
     const expectUrlParam = async (key: string, expected: string | null) => {
-      await expect.poll(() => new URL(page.url()).searchParams.get(key)).toBe(
-        expected,
-      );
+      await expect
+        .poll(() => new URL(page.url()).searchParams.get(key))
+        .toBe(expected);
     };
 
     const expectBaselineUrlParams = async () => {
@@ -38,8 +36,13 @@ test.describe("lists page features @local", () => {
       await expectUrlParam("editing", null);
     };
 
-    const expectPageIndicator = async (currentPage: number, totalPages: number) => {
-      await expect(dashboardLists.pageIndicator()).toBeVisible({ timeout: 30000 });
+    const expectPageIndicator = async (
+      currentPage: number,
+      totalPages: number,
+    ) => {
+      await expect(dashboardLists.pageIndicator()).toBeVisible({
+        timeout: 30000,
+      });
       await expect(dashboardLists.pageIndicator()).toHaveText(
         `Page ${currentPage} of ${totalPages}`,
         { timeout: 30000 },
@@ -52,9 +55,9 @@ test.describe("lists page features @local", () => {
 
     const resetAndVerifyBaseline = async () => {
       await dashboardLists.resetToolbarFiltersIfVisible();
-      await expect.poll(async () => dashboardLists.visibleRowCount()).toBe(
-        seedMeta.defaultPageSize,
-      );
+      await expect
+        .poll(async () => dashboardLists.visibleRowCount())
+        .toBe(seedMeta.defaultPageSize);
       await expectPageIndicator(1, seedMeta.expectedPageCount);
       await expectBaselineUrlParams();
     };
@@ -67,13 +70,15 @@ test.describe("lists page features @local", () => {
       let firstToggleTitle = "";
 
       await dashboardLists.sortByColumn(columnLabel);
-      await expect.poll(async () => {
-        firstToggleTitle = await dashboardLists.firstRowTitle();
-        return (
-          firstToggleTitle === ascFirstTitle ||
-          firstToggleTitle === descFirstTitle
-        );
-      }).toBe(true);
+      await expect
+        .poll(async () => {
+          firstToggleTitle = await dashboardLists.firstRowTitle();
+          return (
+            firstToggleTitle === ascFirstTitle ||
+            firstToggleTitle === descFirstTitle
+          );
+        })
+        .toBe(true);
 
       const oppositeExpectedTitle =
         firstToggleTitle === ascFirstTitle ? descFirstTitle : ascFirstTitle;
@@ -105,9 +110,9 @@ test.describe("lists page features @local", () => {
     await expectBaselineUrlParams();
 
     // Phase 2: baseline table and pagination behavior
-    await expect.poll(async () => dashboardLists.visibleRowCount()).toBe(
-      seedMeta.defaultPageSize,
-    );
+    await expect
+      .poll(async () => dashboardLists.visibleRowCount())
+      .toBe(seedMeta.defaultPageSize);
     await expectPageIndicator(1, seedMeta.expectedPageCount);
 
     const firstPageFirstTitle = await dashboardLists.firstRowTitle();
@@ -115,9 +120,9 @@ test.describe("lists page features @local", () => {
     await dashboardLists.goToNextPage();
     await expectPageIndicator(2, seedMeta.expectedPageCount);
     await expectUrlParam("page", "2");
-    await expect.poll(async () => dashboardLists.visibleRowCount()).toBe(
-      seedMeta.expectedSecondPageRows,
-    );
+    await expect
+      .poll(async () => dashboardLists.visibleRowCount())
+      .toBe(seedMeta.expectedSecondPageRows);
 
     const secondPageFirstTitle = await dashboardLists.firstRowTitle();
     expect(secondPageFirstTitle).not.toBe(firstPageFirstTitle);
@@ -127,17 +132,20 @@ test.describe("lists page features @local", () => {
     await expectUrlParam("page", null);
 
     await dashboardLists.goToLastPage();
-    await expectPageIndicator(2, seedMeta.expectedPageCount);
-    await expectUrlParam("page", "2");
+    await expectPageIndicator(
+      seedMeta.expectedPageCount,
+      seedMeta.expectedPageCount,
+    );
+    await expectUrlParam("page", String(seedMeta.expectedPageCount));
 
     await dashboardLists.goToFirstPage();
     await expectPageIndicator(1, seedMeta.expectedPageCount);
     await expectUrlParam("page", null);
 
-    await dashboardLists.setRowsPerPage(60);
-    await expectPageIndicator(1, 2);
-    await expectUrlParam("size", "60");
-    await expect.poll(async () => dashboardLists.visibleRowCount()).toBe(60);
+    await dashboardLists.setRowsPerPage(50);
+    await expectPageIndicator(1, 3);
+    await expectUrlParam("size", "50");
+    await expect.poll(async () => dashboardLists.visibleRowCount()).toBe(50);
 
     await page.evaluate(() => {
       localStorage.removeItem("table-state-lists-table");
@@ -146,15 +154,17 @@ test.describe("lists page features @local", () => {
     await dashboardLists.isReady();
     await expectPageIndicator(1, seedMeta.expectedPageCount);
     await expectBaselineUrlParams();
-    await expect.poll(async () => dashboardLists.visibleRowCount()).toBe(
-      seedMeta.defaultPageSize,
-    );
+    await expect
+      .poll(async () => dashboardLists.visibleRowCount())
+      .toBe(seedMeta.defaultPageSize);
 
     // Phase 3: global search
     await dashboardLists.setGlobalSearch(seedMeta.globalSearchToken);
     await expectUrlParam("query", seedMeta.globalSearchToken);
     await expect.poll(async () => dashboardLists.visibleRowCount()).toBe(1);
-    await expect(dashboardLists.listRow(seedMeta.globalSearchTitle)).toBeVisible();
+    await expect(
+      dashboardLists.listRow(seedMeta.globalSearchTitle),
+    ).toBeVisible();
     await resetAndVerifyBaseline();
 
     // Phase 4: representative sorting checks on isolated fixture rows
@@ -193,7 +203,9 @@ test.describe("lists page features @local", () => {
     // Phase 5: row actions (manage link + edit + delete)
     await dashboardLists.setGlobalSearch(seedMeta.editTargetTitle);
     await expect.poll(async () => dashboardLists.visibleRowCount()).toBe(1);
-    await expect(dashboardLists.listRow(seedMeta.editTargetTitle)).toBeVisible();
+    await expect(
+      dashboardLists.listRow(seedMeta.editTargetTitle),
+    ).toBeVisible();
 
     await dashboardLists.openFirstVisibleRowActions();
     await expect(dashboardLists.manageRowAction()).toBeVisible();
@@ -202,36 +214,47 @@ test.describe("lists page features @local", () => {
 
     await dashboardLists.chooseRowActionEdit();
     await expect(dashboardLists.editDialog()).toBeVisible();
-    await expect.poll(() => new URL(page.url()).searchParams.get("editing")).not.toBe(
-      null,
-    );
+    await expect
+      .poll(() => new URL(page.url()).searchParams.get("editing"))
+      .not.toBe(null);
 
     await dashboardLists.editTitleInput().fill(seedMeta.editTargetUpdatedTitle);
-    await dashboardLists.editDescriptionInput().fill(
-      `Updated description ${seedMeta.editTargetUpdatedDescriptionToken}`,
-    );
+    await dashboardLists
+      .editDescriptionInput()
+      .fill(
+        `Updated description ${seedMeta.editTargetUpdatedDescriptionToken}`,
+      );
     await dashboardLists.saveChangesButton().click();
     await expect(toast("List updated")).toBeVisible({ timeout: 10000 });
 
+    await page.pause();
     await dashboardLists.closeEditDialog();
     await expectUrlParam("editing", null);
 
     await dashboardLists.setGlobalSearch(seedMeta.editTargetUpdatedTitle);
     await expectUrlParam("query", seedMeta.editTargetUpdatedTitle);
     await expect.poll(async () => dashboardLists.visibleRowCount()).toBe(1);
-    await expect(dashboardLists.listRow(seedMeta.editTargetUpdatedTitle)).toBeVisible();
+    await expect(
+      dashboardLists.listRow(seedMeta.editTargetUpdatedTitle),
+    ).toBeVisible();
 
     await dashboardLists.setGlobalSearch(seedMeta.deleteTargetTitle);
     await expectUrlParam("query", seedMeta.deleteTargetTitle);
     await expect.poll(async () => dashboardLists.visibleRowCount()).toBe(1);
-    await expect(dashboardLists.listRow(seedMeta.deleteTargetTitle)).toBeVisible();
+    await expect(
+      dashboardLists.listRow(seedMeta.deleteTargetTitle),
+    ).toBeVisible();
 
     await dashboardLists.openFirstVisibleRowActions();
     await dashboardLists.chooseRowActionDelete();
     await dashboardLists.confirmDelete();
     await expect(toast("List deleted")).toBeVisible({ timeout: 10000 });
 
-    await expect(page.getByRole("heading", { name: "No lists found" })).toBeVisible();
-    await expect(dashboardLists.listRow(seedMeta.deleteTargetTitle)).toHaveCount(0);
+    await expect(
+      page.getByRole("heading", { name: "No lists found" }),
+    ).toBeVisible();
+    await expect(
+      dashboardLists.listRow(seedMeta.deleteTargetTitle),
+    ).toHaveCount(0);
   });
 });
