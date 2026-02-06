@@ -51,15 +51,51 @@ test.describe("listings page features @local", () => {
       );
     };
 
+    const expectPageIndicator = async (page: number, total: number) => {
+      await expect(dashboardListings.pageIndicator()).toBeVisible({
+        timeout: 30000,
+      });
+      await expect(dashboardListings.pageIndicator()).toHaveText(
+        `Page ${page} of ${total}`,
+        { timeout: 30000 },
+      );
+    };
+
+    const waitForListingsSurfaceHydrated = async () => {
+      await expect
+        .poll(
+          async () => {
+            if (await dashboardListings.pageIndicator().isVisible()) {
+              return "table";
+            }
+            if (
+              await page
+                .getByRole("heading", { name: "No listings" })
+                .isVisible()
+            ) {
+              return "empty";
+            }
+            if (
+              await page
+                .getByRole("heading", { name: "No listings found" })
+                .isVisible()
+            ) {
+              return "empty-filtered";
+            }
+            return "loading";
+          },
+          { timeout: 30000 },
+        )
+        .not.toBe("loading");
+    };
+
     const resetAndVerifyBaseline = async () => {
       await dashboardListings.resetToolbarFiltersIfVisible();
       await expect(dashboardListings.filteredCount()).toBeHidden();
       await expect.poll(async () => dashboardListings.visibleRowCount()).toBe(
         seedMeta.defaultPageSize,
       );
-      await expect(dashboardListings.pageIndicator()).toHaveText(
-        `Page 1 of ${seedMeta.expectedPageCount}`,
-      );
+      await expectPageIndicator(1, seedMeta.expectedPageCount);
       await expectBaselineUrlParams();
     };
 
@@ -119,22 +155,19 @@ test.describe("listings page features @local", () => {
     await dashboardListings.goto();
     await expect(page).toHaveURL(/\/dashboard\/listings/);
     await dashboardListings.isReady();
+    await waitForListingsSurfaceHydrated();
     await expectBaselineUrlParams();
 
     // Phase 2: baseline table and pagination behavior
-    await expect(dashboardListings.pageIndicator()).toHaveText(
-      `Page 1 of ${seedMeta.expectedPageCount}`,
-    );
     await expect.poll(async () => dashboardListings.visibleRowCount()).toBe(
       seedMeta.defaultPageSize,
     );
+    await expectPageIndicator(1, seedMeta.expectedPageCount);
 
     const firstPageFirstTitle = await dashboardListings.firstRowTitle();
 
     await dashboardListings.goToNextPage();
-    await expect(dashboardListings.pageIndicator()).toHaveText(
-      `Page 2 of ${seedMeta.expectedPageCount}`,
-    );
+    await expectPageIndicator(2, seedMeta.expectedPageCount);
     await expectUrlParam("page", "2");
     await expect.poll(async () => dashboardListings.visibleRowCount()).toBe(
       seedMeta.expectedSecondPageRows,
@@ -144,21 +177,15 @@ test.describe("listings page features @local", () => {
     expect(secondPageFirstTitle).not.toBe(firstPageFirstTitle);
 
     await dashboardListings.goToPrevPage();
-    await expect(dashboardListings.pageIndicator()).toHaveText(
-      `Page 1 of ${seedMeta.expectedPageCount}`,
-    );
+    await expectPageIndicator(1, seedMeta.expectedPageCount);
     await expectUrlParam("page", null);
 
     await dashboardListings.goToLastPage();
-    await expect(dashboardListings.pageIndicator()).toHaveText(
-      `Page 2 of ${seedMeta.expectedPageCount}`,
-    );
+    await expectPageIndicator(2, seedMeta.expectedPageCount);
     await expectUrlParam("page", "2");
 
     await dashboardListings.goToFirstPage();
-    await expect(dashboardListings.pageIndicator()).toHaveText(
-      `Page 1 of ${seedMeta.expectedPageCount}`,
-    );
+    await expectPageIndicator(1, seedMeta.expectedPageCount);
     await expectUrlParam("page", null);
 
     // Phase 3: global search
