@@ -42,18 +42,6 @@ const config = {
       },
     ];
   },
-  // This is to ignore the opentelemetry warning
-  // @opentelemetry/instrumentation/build/esm/platform/node/instrumentation.js
-  // Critical dependency: the request of a dependency is an expression
-  webpack: (
-    config,
-    { buildId, dev, isServer, defaultLoaders, nextRuntime, webpack },
-  ) => {
-    if (isServer) {
-      config.ignoreWarnings = [{ module: /opentelemetry/ }];
-    }
-    return config;
-  },
 };
 
 // Only apply Sentry config if it's enabled
