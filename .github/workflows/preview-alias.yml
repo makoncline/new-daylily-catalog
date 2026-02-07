@@ -3,6 +3,11 @@ name: Alias Vercel Preview
 on:
   deployment_status:
 
+permissions:
+  contents: read
+  issues: write
+  pull-requests: write
+
 jobs:
   alias:
     if: >
@@ -31,3 +36,12 @@ jobs:
           npx vercel domains ls --token "$VERCEL_TOKEN" --scope "$VERCEL_TEAM"
           # alias within the correct team
           npx vercel alias set "$URL" "$ALIAS" --token "$VERCEL_TOKEN" --scope "$VERCEL_TEAM"
+
+      - name: Comment alias URL on PR
+        uses: mshick/add-pr-comment@v2
+        with:
+          repo-token: ${{ github.token }}
+          message-id: preview-alias-url
+          message: |
+            <!-- preview-alias-url -->
+            Preview alias is ready: https://${{ steps.vals.outputs.HASH }}.deploy-preview.daylilycatalog.com
