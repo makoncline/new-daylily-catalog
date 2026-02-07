@@ -13,7 +13,7 @@ export class StripeCheckout {
    */
   async isReady() {
     // Wait for Stripe checkout page to load
-    await this.page.waitForURL(/checkout\.stripe\.com/, { timeout: 15000 });
+    await this.page.waitForURL(/checkout\.stripe\.com/);
     // Wait for the page to be fully loaded
     await this.page.waitForLoadState("domcontentloaded");
   }

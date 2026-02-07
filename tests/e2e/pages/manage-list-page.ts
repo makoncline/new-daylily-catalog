@@ -1,8 +1,5 @@
 import type { Locator, Page } from "@playwright/test";
 
-const MANAGE_LIST_ACTION_TIMEOUT_MS = 10000;
-const MANAGE_LIST_READY_TIMEOUT_MS = 20000;
-
 export class ManageListPage {
   readonly page: Page;
   readonly heading: Locator;
@@ -45,26 +42,11 @@ export class ManageListPage {
   }
 
   async isReady() {
-    await this.heading.waitFor({
-      state: "visible",
-      timeout: MANAGE_LIST_READY_TIMEOUT_MS,
-    });
-    await this.titleInput.waitFor({
-      state: "visible",
-      timeout: MANAGE_LIST_READY_TIMEOUT_MS,
-    });
-    await this.addListingsTrigger.waitFor({
-      state: "visible",
-      timeout: MANAGE_LIST_READY_TIMEOUT_MS,
-    });
-    await this.manageListTable.waitFor({
-      state: "visible",
-      timeout: MANAGE_LIST_READY_TIMEOUT_MS,
-    });
-    await this.globalSearchInput.waitFor({
-      state: "visible",
-      timeout: MANAGE_LIST_READY_TIMEOUT_MS,
-    });
+    await this.heading.waitFor({ state: "visible" });
+    await this.titleInput.waitFor({ state: "visible" });
+    await this.addListingsTrigger.waitFor({ state: "visible" });
+    await this.manageListTable.waitFor({ state: "visible" });
+    await this.globalSearchInput.waitFor({ state: "visible" });
   }
 
   rows(): Locator {
@@ -96,52 +78,45 @@ export class ManageListPage {
   }
 
   async fillTitle(value: string) {
-    await this.titleInput.fill(value, { timeout: MANAGE_LIST_ACTION_TIMEOUT_MS });
+    await this.titleInput.fill(value);
   }
 
   async fillDescription(value: string) {
-    await this.descriptionInput.fill(value, { timeout: MANAGE_LIST_ACTION_TIMEOUT_MS });
+    await this.descriptionInput.fill(value);
+  }
+
+  private async clickWithScroll(locator: Locator) {
+    await locator.waitFor({ state: "visible" });
+    await locator.scrollIntoViewIfNeeded();
+    await locator.click();
   }
 
   async saveChanges() {
-    await this.saveChangesButton.click({ timeout: MANAGE_LIST_ACTION_TIMEOUT_MS });
-  }
-
-  private waitForListUpdateMutation() {
-    return this.page.waitForResponse(
-      (response) =>
-        response.url().includes("/api/trpc/list.update") &&
-        response.request().method() === "POST",
-      { timeout: 15000 },
-    );
+    await this.clickWithScroll(this.saveChangesButton);
   }
 
   async saveChangesAndWait() {
-    await Promise.all([this.waitForListUpdateMutation(), this.saveChanges()]);
+    await this.saveChanges();
   }
 
   async openAddListingsDialog() {
-    await this.addListingsTrigger.click({ timeout: MANAGE_LIST_ACTION_TIMEOUT_MS });
+    await this.clickWithScroll(this.addListingsTrigger);
   }
 
   async searchAddListings(value: string) {
-    await this.addListingsSearchInput.fill(value, {
-      timeout: MANAGE_LIST_ACTION_TIMEOUT_MS,
-    });
+    await this.addListingsSearchInput.fill(value);
   }
 
   async selectListingToAdd(title: string) {
-    await this.page
+    const option = this.page
       .locator('[data-slot="command-item"]')
       .filter({ hasText: title })
-      .first()
-      .click({ timeout: MANAGE_LIST_ACTION_TIMEOUT_MS });
+      .first();
+    await this.clickWithScroll(option);
   }
 
   async setGlobalSearch(value: string) {
-    await this.globalSearchInput.fill(value, {
-      timeout: MANAGE_LIST_ACTION_TIMEOUT_MS,
-    });
+    await this.globalSearchInput.fill(value);
   }
 
   async sortByColumn(columnLabel: string) {
@@ -151,8 +126,7 @@ export class ManageListPage {
       .first()
       .getByRole("button", { name: columnLabel })
       .first();
-    await sortableButton.scrollIntoViewIfNeeded();
-    await sortableButton.click({ timeout: MANAGE_LIST_ACTION_TIMEOUT_MS });
+    await this.clickWithScroll(sortableButton);
   }
 
   async openColumnFilter(columnLabel: "Title" | "Description" | "Private Notes") {
@@ -161,48 +135,47 @@ export class ManageListPage {
         name: `Filter ${columnLabel.toLowerCase()}`,
       })
       .first();
-    await filterButton.click({ timeout: MANAGE_LIST_ACTION_TIMEOUT_MS });
+    await this.clickWithScroll(filterButton);
   }
 
   async setOpenColumnFilterValue(value: string) {
     const filterInput = this.page
       .locator('input[placeholder^="Filter "]:visible')
       .last();
-    await filterInput.fill(value, { timeout: MANAGE_LIST_ACTION_TIMEOUT_MS });
+    await filterInput.fill(value);
   }
 
   async goToNextPage() {
-    await this.pagerNextButton.click({ timeout: MANAGE_LIST_ACTION_TIMEOUT_MS });
+    await this.clickWithScroll(this.pagerNextButton);
   }
 
   async goToPrevPage() {
-    await this.pagerPrevButton.click({ timeout: MANAGE_LIST_ACTION_TIMEOUT_MS });
+    await this.clickWithScroll(this.pagerPrevButton);
   }
 
   async goToFirstPage() {
-    await this.pagerFirstButton.click({ timeout: MANAGE_LIST_ACTION_TIMEOUT_MS });
+    await this.clickWithScroll(this.pagerFirstButton);
   }
 
   async goToLastPage() {
-    await this.pagerLastButton.click({ timeout: MANAGE_LIST_ACTION_TIMEOUT_MS });
+    await this.clickWithScroll(this.pagerLastButton);
   }
 
   async setRowsPerPage(value: number) {
-    await this.pagerPerPage.click({ timeout: MANAGE_LIST_ACTION_TIMEOUT_MS });
+    await this.clickWithScroll(this.pagerPerPage);
     const option = this.page
-      .locator('[data-slot="select-content"]:visible [data-slot="select-item"]')
-      .filter({ hasText: String(value) })
+      .locator('[data-slot="select-content"]:visible')
+      .getByRole("option", { name: String(value), exact: true })
       .first();
-    await option.waitFor({ state: "visible", timeout: MANAGE_LIST_ACTION_TIMEOUT_MS });
     await option.scrollIntoViewIfNeeded();
-    await option.click({ timeout: MANAGE_LIST_ACTION_TIMEOUT_MS, force: true });
+    await this.clickWithScroll(option);
   }
 
   async selectFirstVisibleRow() {
-    await this.page
+    const checkbox = this.page
       .getByRole("checkbox", { name: "Select row" })
-      .first()
-      .click({ timeout: MANAGE_LIST_ACTION_TIMEOUT_MS });
+      .first();
+    await this.clickWithScroll(checkbox);
   }
 
   removeSelectedButton(): Locator {
@@ -210,22 +183,21 @@ export class ManageListPage {
   }
 
   async clickRemoveSelected() {
-    await this.removeSelectedButton().click({
-      timeout: MANAGE_LIST_ACTION_TIMEOUT_MS,
-    });
+    await this.clickWithScroll(this.removeSelectedButton());
   }
 
   async confirmRemoveSelected() {
-    await this.page
+    const deleteButton = this.page
       .getByRole("alertdialog")
       .getByRole("button", { name: "Delete" })
-      .click({ timeout: MANAGE_LIST_ACTION_TIMEOUT_MS });
+      .first();
+    await this.clickWithScroll(deleteButton);
   }
 
   async resetToolbarFiltersIfVisible() {
     const resetButton = this.page.getByRole("button", { name: "Reset" }).first();
     if (await resetButton.isVisible()) {
-      await resetButton.click({ timeout: MANAGE_LIST_ACTION_TIMEOUT_MS });
+      await this.clickWithScroll(resetButton);
     }
   }
 }

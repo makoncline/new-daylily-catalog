@@ -76,7 +76,7 @@ export class DashboardHome {
   }
 
   async isReady() {
-    await this.heading.waitFor({ state: "visible", timeout: 30000 });
-    await this.content.waitFor({ state: "visible", timeout: 30000 });
+    await this.heading.waitFor({ state: "visible" });
+    await this.content.waitFor({ state: "visible" });
   }
 }

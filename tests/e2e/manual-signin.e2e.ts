@@ -45,21 +45,25 @@ test.describe("manual sign-in @local", () => {
     await page.getByRole("button", { name: "Dashboard" }).click();
 
     const emailInput = page.getByLabel(/email/i).first();
-    await expect(emailInput).toBeVisible({ timeout: 10000 });
+    await expect(emailInput).toBeVisible();
     await emailInput.fill(TEST_USER.email);
 
     await page.getByRole("button", { name: /continue/i }).click();
 
-    await page.waitForTimeout(1000);
     const codeInput = page
       .getByRole("textbox", { name: /enter verification code/i })
       .first();
-    await expect(codeInput).toBeVisible({ timeout: 10000 });
-    await codeInput.fill("424242");
+    await expect(codeInput).toBeVisible();
+    await expect(codeInput).toBeEnabled();
+    const sendCodeWarning = page.getByText(
+      "You need to send a verification code before attempting to verify.",
+    );
+    if (await sendCodeWarning.isVisible().catch(() => false)) {
+      await page.getByRole("button", { name: /continue/i }).last().click();
+    }
+    await codeInput.type("424242", { delay: 100 });
 
-    await expect(page).toHaveURL(/\/dashboard/, { timeout: 15000 });
-    await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible({
-      timeout: 30000,
-    });
+    await expect(page).toHaveURL(/\/dashboard/);
+    await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible();
   });
 });

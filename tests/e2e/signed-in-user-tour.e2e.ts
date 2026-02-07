@@ -50,9 +50,7 @@ test.describe("signed-in user tour @local", () => {
     // Dashboard home
     await page.goto("/dashboard");
     await expect(page).toHaveURL("/dashboard");
-    await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible({
-      timeout: 10000,
-    });
+    await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible();
 
     // Listings page
     await page.goto("/dashboard/listings");

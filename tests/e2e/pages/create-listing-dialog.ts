@@ -39,11 +39,8 @@ export class CreateListingDialog {
   }
 
   async isReady() {
-    await this.dialog.waitFor({ state: "visible", timeout: 10000 });
-    await this.ahsListingSelectButton.waitFor({
-      state: "visible",
-      timeout: 10000,
-    });
+    await this.dialog.waitFor({ state: "visible" });
+    await this.ahsListingSelectButton.waitFor({ state: "visible" });
   }
 
   async isCreateEnabled(): Promise<boolean> {
@@ -52,7 +49,7 @@ export class CreateListingDialog {
 
   async openAhsPicker() {
     await this.ahsListingSelectButton.click();
-    await this.ahsDialog.waitFor({ state: "visible", timeout: 10000 });
+    await this.ahsDialog.waitFor({ state: "visible" });
   }
 
   /**
@@ -68,7 +65,7 @@ export class CreateListingDialog {
 
     // Find the search input in the AHS dialog
     const searchInput = this.ahsDialog.getByPlaceholder("Search AHS listings...");
-    await searchInput.waitFor({ state: "visible", timeout: 5000 });
+    await searchInput.waitFor({ state: "visible" });
 
     // Type the search query (partial name)
     await searchInput.fill(searchQuery);
@@ -78,11 +75,11 @@ export class CreateListingDialog {
     const listingOption = this.ahsDialog
       .locator('[data-slot="command-item"]')
       .filter({ hasText: expectedListingName });
-    await listingOption.waitFor({ state: "visible", timeout: 10000 });
+    await listingOption.waitFor({ state: "visible" });
 
     // Click the listing option to select it
     await listingOption.click();
-    await this.ahsDialog.waitFor({ state: "hidden", timeout: 10000 });
+    await this.ahsDialog.waitFor({ state: "hidden" });
   }
 
   linkedAhsCardOrHeading(listingName: string): Locator {
@@ -117,6 +114,6 @@ export class CreateListingDialog {
 
   async cancel() {
     await this.cancelButton.click();
-    await this.dialog.waitFor({ state: "hidden", timeout: 10000 });
+    await this.dialog.waitFor({ state: "hidden" });
   }
 }

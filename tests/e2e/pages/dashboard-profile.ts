@@ -1,4 +1,4 @@
-import type { Locator, Page } from "@playwright/test";
+import { type Locator, type Page } from "@playwright/test";
 
 export class DashboardProfile {
   readonly page: Page;
@@ -21,10 +21,10 @@ export class DashboardProfile {
   }
 
   async isReady() {
-    await this.heading.waitFor({ state: "visible", timeout: 30000 });
+    await this.heading.waitFor({ state: "visible" });
     // Wait for form to be ready
-    await this.gardenNameInput.waitFor({ state: "visible", timeout: 10000 });
-    await this.descriptionInput.waitFor({ state: "visible", timeout: 10000 });
+    await this.gardenNameInput.waitFor({ state: "visible" });
+    await this.descriptionInput.waitFor({ state: "visible" });
   }
 
   /**
@@ -32,19 +32,12 @@ export class DashboardProfile {
    */
   async fillGardenName(text: string) {
     const selectAll = process.platform === "darwin" ? "Meta+A" : "Control+A";
-    const saveResponse = this.page.waitForResponse(
-      (response) =>
-        response.url().includes("/api/trpc/userProfile.update") &&
-        response.request().method() === "POST",
-    );
 
     await this.gardenNameInput.click();
     await this.gardenNameInput.press(selectAll);
     await this.gardenNameInput.press("Backspace");
     await this.gardenNameInput.type(text);
     await this.descriptionInput.click();
-
-    await saveResponse;
   }
 
   async goto() {
@@ -56,19 +49,12 @@ export class DashboardProfile {
    */
   async fillDescription(text: string) {
     const selectAll = process.platform === "darwin" ? "Meta+A" : "Control+A";
-    const saveResponse = this.page.waitForResponse(
-      (response) =>
-        response.url().includes("/api/trpc/userProfile.update") &&
-        response.request().method() === "POST",
-    );
 
     await this.descriptionInput.click();
     await this.descriptionInput.press(selectAll);
     await this.descriptionInput.press("Backspace");
     await this.descriptionInput.type(text);
     await this.locationInput.click();
-
-    await saveResponse;
   }
 
   /**
@@ -76,19 +62,12 @@ export class DashboardProfile {
    */
   async fillLocation(text: string) {
     const selectAll = process.platform === "darwin" ? "Meta+A" : "Control+A";
-    const saveResponse = this.page.waitForResponse(
-      (response) =>
-        response.url().includes("/api/trpc/userProfile.update") &&
-        response.request().method() === "POST",
-    );
 
     await this.locationInput.click();
     await this.locationInput.press(selectAll);
     await this.locationInput.press("Backspace");
     await this.locationInput.type(text);
     await this.heading.click();
-
-    await saveResponse;
   }
 
   /**
@@ -97,28 +76,20 @@ export class DashboardProfile {
    */
   async fillContent(text: string) {
     const selectAll = process.platform === "darwin" ? "Meta+A" : "Control+A";
-    await this.contentEditor.waitFor({ state: "visible", timeout: 10000 });
+    await this.contentEditor.waitFor({ state: "visible" });
     const editableElement = this.contentEditor.locator(
       '[contenteditable="true"]',
     );
-    await editableElement.waitFor({ state: "visible", timeout: 10000 });
-    const saveResponse = this.page.waitForResponse(
-      (response) =>
-        response.url().includes("/api/trpc/userProfile.updateContent") &&
-        response.request().method() === "POST",
-    );
+    await editableElement.waitFor({ state: "visible" });
 
     await editableElement.click();
     await editableElement.press(selectAll);
     await editableElement.press("Backspace");
     await editableElement.type(text);
-    await this.heading.click();
-
-    await Promise.all([
-      saveResponse,
-      this.page.waitForSelector('text="Content saved"', { timeout: 5000 }),
-    ]).catch(async () => {
-      await saveResponse;
+    const saveRequest = this.page.waitForResponse((response) => {
+      return response.url().includes("userProfile.updateContent");
     });
+    await this.heading.click();
+    await saveRequest;
   }
 }

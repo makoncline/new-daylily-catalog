@@ -43,8 +43,8 @@ export class DashboardListings {
   }
 
   async isReady() {
-    await this.heading.waitFor({ state: "visible", timeout: 30000 });
-    await this.createListingButton.waitFor({ state: "visible", timeout: 30000 });
+    await this.heading.waitFor({ state: "visible" });
+    await this.createListingButton.waitFor({ state: "visible" });
   }
 
   async goto() {
@@ -83,11 +83,13 @@ export class DashboardListings {
   }
 
   async setGlobalSearch(value: string) {
-    await this.globalSearchInput.waitFor({ state: "visible", timeout: 10000 });
+    await this.globalSearchInput.waitFor({ state: "visible" });
+    await this.globalSearchInput.scrollIntoViewIfNeeded();
     await this.globalSearchInput.fill(value);
   }
 
   async openListsFilter() {
+    await this.listsFilterButton.scrollIntoViewIfNeeded();
     await this.listsFilterButton.click();
   }
 
@@ -96,15 +98,17 @@ export class DashboardListings {
       .locator('[data-slot="command-item"]')
       .filter({ hasText: label })
       .first();
+    await option.scrollIntoViewIfNeeded();
     await option.click();
   }
 
   async clearListsFilterInPopover() {
-    await this.page
+    const clearFilters = this.page
       .locator('[data-slot="command-item"]')
       .filter({ hasText: "Clear filters" })
-      .first()
-      .click();
+      .first();
+    await clearFilters.scrollIntoViewIfNeeded();
+    await clearFilters.click();
   }
 
   async openColumnFilter(columnLabel: FilterableColumnLabel) {
@@ -135,34 +139,51 @@ export class DashboardListings {
   }
 
   async goToNextPage() {
+    await this.pagerNextButton.scrollIntoViewIfNeeded();
     await this.pagerNextButton.click();
   }
 
   async goToPrevPage() {
+    await this.pagerPrevButton.scrollIntoViewIfNeeded();
     await this.pagerPrevButton.click();
   }
 
   async goToFirstPage() {
+    await this.pagerFirstButton.scrollIntoViewIfNeeded();
     await this.pagerFirstButton.click();
   }
 
   async goToLastPage() {
+    await this.pagerLastButton.scrollIntoViewIfNeeded();
     await this.pagerLastButton.click();
   }
 
   async openFirstVisibleRowActions() {
-    await this.page.getByRole("button", { name: "Open menu" }).first().click();
+    const rowActionButton = this.page.getByRole("button", { name: "Open menu" }).first();
+    await rowActionButton.click();
   }
 
   async chooseRowActionDelete() {
-    const menuItem = this.page.getByRole("menuitem", { name: "Delete" }).first();
-    await menuItem.waitFor({ state: "visible", timeout: 5000 });
+    const menuItem = this.page
+      .locator('[data-slot="dropdown-menu-content"]:visible')
+      .last()
+      .getByRole("menuitem", { name: "Delete" });
+    if ((await menuItem.count()) === 0) {
+      await this.openFirstVisibleRowActions();
+    }
+    await menuItem.waitFor({ state: "visible" });
     await menuItem.click({ force: true });
   }
 
   async chooseRowActionEdit() {
-    const menuItem = this.page.getByRole("menuitem", { name: "Edit" }).first();
-    await menuItem.waitFor({ state: "visible", timeout: 5000 });
+    const menuItem = this.page
+      .locator('[data-slot="dropdown-menu-content"]:visible')
+      .last()
+      .getByRole("menuitem", { name: "Edit" });
+    if ((await menuItem.count()) === 0) {
+      await this.openFirstVisibleRowActions();
+    }
+    await menuItem.waitFor({ state: "visible" });
     await menuItem.click({ force: true });
   }
 
