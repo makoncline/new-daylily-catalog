@@ -1,6 +1,9 @@
 import { test, expect } from "../../e2e/test-setup";
 import { withTempE2EDb } from "../../src/lib/test-utils/e2e-db";
-import { TEST_USER, createAuthedUser } from "../../src/lib/test-utils/e2e-users";
+import {
+  TEST_USER,
+  createAuthedUser,
+} from "../../src/lib/test-utils/e2e-users";
 
 test.describe("manual sign-in @local", () => {
   let consoleMessages: string[] = [];
@@ -47,13 +50,16 @@ test.describe("manual sign-in @local", () => {
 
     await page.getByRole("button", { name: /continue/i }).click();
 
-    const codeInput = page.getByLabel(/code/i).first();
+    await page.waitForTimeout(1000);
+    const codeInput = page
+      .getByRole("textbox", { name: /enter verification code/i })
+      .first();
     await expect(codeInput).toBeVisible({ timeout: 10000 });
     await codeInput.fill("424242");
 
     await expect(page).toHaveURL(/\/dashboard/, { timeout: 15000 });
-    await expect(
-      page.getByRole("heading", { name: "Dashboard" }),
-    ).toBeVisible({ timeout: 30000 });
+    await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible({
+      timeout: 30000,
+    });
   });
 });

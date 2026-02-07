@@ -16,7 +16,9 @@ export class ClerkAuthModal {
     });
     this.emailInput = page.getByLabel(/email/i).first();
     this.continueButton = page.getByRole("button", { name: /continue/i });
-    this.codeInput = page.getByLabel(/code/i).first();
+    this.codeInput = page
+      .getByRole("textbox", { name: /enter verification code/i })
+      .first();
   }
 
   async startSignUp() {
@@ -36,5 +38,16 @@ export class ClerkAuthModal {
     await this.page.waitForTimeout(300);
     await this.codeInput.waitFor({ state: "visible", timeout: 10000 });
     await this.codeInput.fill(code);
+    await this.codeInput.press("Enter");
+
+    // Some Clerk flows auto-submit once the full code is entered.
+    // Click Continue only when a submit button remains visible.
+    const continueAfterCode = this.page
+      .getByRole("button", { name: /continue/i })
+      .last();
+    await this.page.waitForTimeout(200);
+    if (await continueAfterCode.isVisible().catch(() => false)) {
+      await continueAfterCode.click();
+    }
   }
 }

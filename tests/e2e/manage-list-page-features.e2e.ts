@@ -20,15 +20,15 @@ test.describe("manage list page features @local", () => {
     page,
     manageListPage,
   }) => {
-    test.setTimeout(180000);
+    test.setTimeout(60000);
 
     const toast = (message: string) =>
       page.locator("[data-sonner-toast]").filter({ hasText: message }).first();
 
     const expectUrlParam = async (key: string, expected: string | null) => {
-      await expect.poll(() => new URL(page.url()).searchParams.get(key)).toBe(
-        expected,
-      );
+      await expect
+        .poll(() => new URL(page.url()).searchParams.get(key))
+        .toBe(expected);
     };
 
     const expectBaselineUrlParams = async () => {
@@ -38,7 +38,10 @@ test.describe("manage list page features @local", () => {
       await expectUrlParam("title", null);
     };
 
-    const expectPageIndicator = async (currentPage: number, totalPages: number) => {
+    const expectPageIndicator = async (
+      currentPage: number,
+      totalPages: number,
+    ) => {
       await expect(manageListPage.pageIndicator()).toHaveText(
         `Page ${currentPage} of ${totalPages}`,
       );
@@ -56,13 +59,15 @@ test.describe("manage list page features @local", () => {
       let firstToggleTitle = "";
 
       await manageListPage.sortByColumn(columnLabel);
-      await expect.poll(async () => {
-        firstToggleTitle = await manageListPage.firstRowTitle();
-        return (
-          firstToggleTitle === ascFirstTitle ||
-          firstToggleTitle === descFirstTitle
-        );
-      }).toBe(true);
+      await expect
+        .poll(async () => {
+          firstToggleTitle = await manageListPage.firstRowTitle();
+          return (
+            firstToggleTitle === ascFirstTitle ||
+            firstToggleTitle === descFirstTitle
+          );
+        })
+        .toBe(true);
 
       const oppositeExpectedTitle =
         firstToggleTitle === ascFirstTitle ? descFirstTitle : ascFirstTitle;
@@ -89,7 +94,9 @@ test.describe("manage list page features @local", () => {
 
     await manageListPage.goto(seedMeta.listId);
     await manageListPage.isReady();
-    await expect(page).toHaveURL(new RegExp(`/dashboard/lists/${seedMeta.listId}`));
+    await expect(page).toHaveURL(
+      new RegExp(`/dashboard/lists/${seedMeta.listId}`),
+    );
     await expectBaselineUrlParams();
 
     // Phase 2: list form edit + persistence
@@ -98,17 +105,17 @@ test.describe("manage list page features @local", () => {
     await manageListPage.saveChangesAndWait();
 
     // Phase 3: baseline table + pagination
-    await expect.poll(async () => manageListPage.visibleRowCount()).toBe(
-      seedMeta.defaultPageSize,
-    );
+    await expect
+      .poll(async () => manageListPage.visibleRowCount())
+      .toBe(seedMeta.defaultPageSize);
     await expectPageIndicator(1, seedMeta.expectedPageCountBeforeAdd);
 
     await manageListPage.goToNextPage();
     await expectPageIndicator(2, seedMeta.expectedPageCountBeforeAdd);
     await expectUrlParam("page", "2");
-    await expect.poll(async () => manageListPage.visibleRowCount()).toBe(
-      seedMeta.expectedSecondPageRowsBeforeAdd,
-    );
+    await expect
+      .poll(async () => manageListPage.visibleRowCount())
+      .toBe(seedMeta.expectedSecondPageRowsBeforeAdd);
 
     await manageListPage.goToFirstPage();
     await expectPageIndicator(1, seedMeta.expectedPageCountBeforeAdd);
@@ -131,12 +138,16 @@ test.describe("manage list page features @local", () => {
     await manageListPage.openAddListingsDialog();
     await manageListPage.searchAddListings(seedMeta.addableListingToken);
     await manageListPage.selectListingToAdd(seedMeta.addableListingTitle);
-    await expect(toast("Listing added to list")).toBeVisible({ timeout: 10000 });
+    await expect(toast("Listing added to list")).toBeVisible({
+      timeout: 10000,
+    });
 
     await manageListPage.setGlobalSearch(seedMeta.addableListingTitle);
     await expectUrlParam("query", seedMeta.addableListingTitle);
     await expect.poll(async () => manageListPage.visibleRowCount()).toBe(1);
-    await expect(manageListPage.listingRow(seedMeta.addableListingTitle)).toBeVisible();
+    await expect(
+      manageListPage.listingRow(seedMeta.addableListingTitle),
+    ).toBeVisible();
     await expect(manageListPage.filteredCount()).toHaveText(
       new RegExp(`1\\s*/\\s*${seedMeta.totalListListingsAfterAdd}`),
     );
@@ -181,7 +192,9 @@ test.describe("manage list page features @local", () => {
     await expect(toast("Listings removed from list")).toBeVisible({
       timeout: 10000,
     });
-    await expect(page.getByRole("heading", { name: "No listings found" })).toBeVisible();
+    await expect(
+      page.getByRole("heading", { name: "No listings found" }),
+    ).toBeVisible();
     await expect(manageListPage.filteredCount()).toHaveText(
       new RegExp(`0\\s*/\\s*${seedMeta.totalListListingsBeforeAdd}`),
     );

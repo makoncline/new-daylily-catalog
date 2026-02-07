@@ -3,6 +3,38 @@ import { createTRPCRouter, protectedProcedure } from "@/server/api/trpc";
 import { compareItems, rankings, rankItem } from "@tanstack/match-sorter-utils";
 import { TRPCError } from "@trpc/server";
 import { unstable_cache } from "next/cache";
+import type { PrismaClient } from "@prisma/client";
+
+async function runAhsSearchQuery(db: PrismaClient, query: string) {
+  const results = await db.ahsListing.findMany({
+    where: {
+      name: {
+        startsWith: query,
+      },
+    },
+    take: 25,
+    orderBy: {
+      name: "asc",
+    },
+  });
+
+  // Sort the results based on the ranking of how closely they match the input.
+  return results.sort((a, b) => {
+    const aRank = rankItem(a.name, query, {
+      threshold: rankings.WORD_STARTS_WITH,
+    });
+    const bRank = rankItem(b.name, query, {
+      threshold: rankings.WORD_STARTS_WITH,
+    });
+
+    // Prioritize items that pass the match criteria.
+    if (aRank.passed && !bRank.passed) return -1;
+    if (!aRank.passed && bRank.passed) return 1;
+
+    // Otherwise, sort by rank (lower rank indicate a closer match).
+    return compareItems(aRank, bRank);
+  });
+}
 
 export const ahsRouter = createTRPCRouter({
   search: protectedProcedure
@@ -12,38 +44,16 @@ export const ahsRouter = createTRPCRouter({
       }),
     )
     .query(async ({ ctx, input }) => {
+      const isPlaywrightLocalRun = process.env.PLAYWRIGHT_LOCAL_E2E === "true";
+      const shouldCacheSearch =
+        process.env.NODE_ENV === "production" && !isPlaywrightLocalRun;
+
+      if (!shouldCacheSearch) {
+        return runAhsSearchQuery(ctx.db, input.query);
+      }
+
       return await unstable_cache(
-        async () => {
-          const results = await ctx.db.ahsListing.findMany({
-            where: {
-              name: {
-                startsWith: input.query,
-              },
-            },
-            take: 25,
-            orderBy: {
-              name: "asc",
-            },
-          });
-          // Sort the results based on the ranking of how closely they match the input.
-          const sortedResults = results.sort((a, b) => {
-            const aRank = rankItem(a.name, input.query, {
-              threshold: rankings.WORD_STARTS_WITH,
-            });
-            const bRank = rankItem(b.name, input.query, {
-              threshold: rankings.WORD_STARTS_WITH,
-            });
-
-            // Prioritize items that pass the match criteria.
-            if (aRank.passed && !bRank.passed) return -1;
-            if (!aRank.passed && bRank.passed) return 1;
-
-            // Otherwise, sort by rank (lower rank indicate a closer match).
-            return compareItems(aRank, bRank);
-          });
-
-          return sortedResults;
-        },
+        async () => runAhsSearchQuery(ctx.db, input.query),
         [`ahs-search-${input.query.toLowerCase()}`],
         {
           // Cache for 3 days since data hardly changes

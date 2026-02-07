@@ -131,9 +131,12 @@ test.describe("new user journey @local", () => {
         "Stella de Oro",
       );
 
-      await expect(createListingDialog.titleInput).toHaveValue("Stella de Oro", {
-        timeout: 10000,
-      });
+      await expect(createListingDialog.titleInput).toHaveValue(
+        "Stella de Oro",
+        {
+          timeout: 10000,
+        },
+      );
       await expect(createListingDialog.createButton).toBeEnabled({
         timeout: 10000,
       });
@@ -157,7 +160,9 @@ test.describe("new user journey @local", () => {
       // create a list by typing the name and clicking create
       const testListName = "My Test List";
       await editListingDialog.createList(testListName);
-      await expect(editListingDialog.selectedListChip(testListName)).toBeVisible({
+      await expect(
+        editListingDialog.selectedListChip(testListName),
+      ).toBeVisible({
         timeout: 10000,
       });
 
@@ -236,12 +241,16 @@ test.describe("new user journey @local", () => {
       await dashboardListings.isReady();
 
       // check for them in the listings table
-      await expect(dashboardListings.listingRow("Beautiful Daylily")).toBeVisible({
+      await expect(
+        dashboardListings.listingRow("Beautiful Daylily"),
+      ).toBeVisible({
         timeout: 10000,
       });
-      await expect(dashboardListings.listingRow("Garden Favorite")).toBeVisible({
-        timeout: 10000,
-      });
+      await expect(dashboardListings.listingRow("Garden Favorite")).toBeVisible(
+        {
+          timeout: 10000,
+        },
+      );
 
       // navigate back to dashboard home
       await page.goto("/dashboard");

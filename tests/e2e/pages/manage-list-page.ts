@@ -1,5 +1,8 @@
 import type { Locator, Page } from "@playwright/test";
 
+const MANAGE_LIST_ACTION_TIMEOUT_MS = 10000;
+const MANAGE_LIST_READY_TIMEOUT_MS = 20000;
+
 export class ManageListPage {
   readonly page: Page;
   readonly heading: Locator;
@@ -42,11 +45,26 @@ export class ManageListPage {
   }
 
   async isReady() {
-    await this.heading.waitFor({ state: "visible", timeout: 30000 });
-    await this.titleInput.waitFor({ state: "visible", timeout: 30000 });
-    await this.addListingsTrigger.waitFor({ state: "visible", timeout: 30000 });
-    await this.manageListTable.waitFor({ state: "visible", timeout: 30000 });
-    await this.globalSearchInput.waitFor({ state: "visible", timeout: 30000 });
+    await this.heading.waitFor({
+      state: "visible",
+      timeout: MANAGE_LIST_READY_TIMEOUT_MS,
+    });
+    await this.titleInput.waitFor({
+      state: "visible",
+      timeout: MANAGE_LIST_READY_TIMEOUT_MS,
+    });
+    await this.addListingsTrigger.waitFor({
+      state: "visible",
+      timeout: MANAGE_LIST_READY_TIMEOUT_MS,
+    });
+    await this.manageListTable.waitFor({
+      state: "visible",
+      timeout: MANAGE_LIST_READY_TIMEOUT_MS,
+    });
+    await this.globalSearchInput.waitFor({
+      state: "visible",
+      timeout: MANAGE_LIST_READY_TIMEOUT_MS,
+    });
   }
 
   rows(): Locator {
@@ -78,15 +96,15 @@ export class ManageListPage {
   }
 
   async fillTitle(value: string) {
-    await this.titleInput.fill(value);
+    await this.titleInput.fill(value, { timeout: MANAGE_LIST_ACTION_TIMEOUT_MS });
   }
 
   async fillDescription(value: string) {
-    await this.descriptionInput.fill(value);
+    await this.descriptionInput.fill(value, { timeout: MANAGE_LIST_ACTION_TIMEOUT_MS });
   }
 
   async saveChanges() {
-    await this.saveChangesButton.click();
+    await this.saveChangesButton.click({ timeout: MANAGE_LIST_ACTION_TIMEOUT_MS });
   }
 
   private waitForListUpdateMutation() {
@@ -103,11 +121,13 @@ export class ManageListPage {
   }
 
   async openAddListingsDialog() {
-    await this.addListingsTrigger.click();
+    await this.addListingsTrigger.click({ timeout: MANAGE_LIST_ACTION_TIMEOUT_MS });
   }
 
   async searchAddListings(value: string) {
-    await this.addListingsSearchInput.fill(value);
+    await this.addListingsSearchInput.fill(value, {
+      timeout: MANAGE_LIST_ACTION_TIMEOUT_MS,
+    });
   }
 
   async selectListingToAdd(title: string) {
@@ -115,11 +135,13 @@ export class ManageListPage {
       .locator('[data-slot="command-item"]')
       .filter({ hasText: title })
       .first()
-      .click();
+      .click({ timeout: MANAGE_LIST_ACTION_TIMEOUT_MS });
   }
 
   async setGlobalSearch(value: string) {
-    await this.globalSearchInput.fill(value);
+    await this.globalSearchInput.fill(value, {
+      timeout: MANAGE_LIST_ACTION_TIMEOUT_MS,
+    });
   }
 
   async sortByColumn(columnLabel: string) {
@@ -130,7 +152,7 @@ export class ManageListPage {
       .getByRole("button", { name: columnLabel })
       .first();
     await sortableButton.scrollIntoViewIfNeeded();
-    await sortableButton.click();
+    await sortableButton.click({ timeout: MANAGE_LIST_ACTION_TIMEOUT_MS });
   }
 
   async openColumnFilter(columnLabel: "Title" | "Description" | "Private Notes") {
@@ -139,43 +161,48 @@ export class ManageListPage {
         name: `Filter ${columnLabel.toLowerCase()}`,
       })
       .first();
-    await filterButton.click();
+    await filterButton.click({ timeout: MANAGE_LIST_ACTION_TIMEOUT_MS });
   }
 
   async setOpenColumnFilterValue(value: string) {
     const filterInput = this.page
       .locator('input[placeholder^="Filter "]:visible')
       .last();
-    await filterInput.fill(value);
+    await filterInput.fill(value, { timeout: MANAGE_LIST_ACTION_TIMEOUT_MS });
   }
 
   async goToNextPage() {
-    await this.pagerNextButton.click();
+    await this.pagerNextButton.click({ timeout: MANAGE_LIST_ACTION_TIMEOUT_MS });
   }
 
   async goToPrevPage() {
-    await this.pagerPrevButton.click();
+    await this.pagerPrevButton.click({ timeout: MANAGE_LIST_ACTION_TIMEOUT_MS });
   }
 
   async goToFirstPage() {
-    await this.pagerFirstButton.click();
+    await this.pagerFirstButton.click({ timeout: MANAGE_LIST_ACTION_TIMEOUT_MS });
   }
 
   async goToLastPage() {
-    await this.pagerLastButton.click();
+    await this.pagerLastButton.click({ timeout: MANAGE_LIST_ACTION_TIMEOUT_MS });
   }
 
   async setRowsPerPage(value: number) {
-    await this.pagerPerPage.click();
-    await this.page
-      .locator('[data-slot="select-item"]')
+    await this.pagerPerPage.click({ timeout: MANAGE_LIST_ACTION_TIMEOUT_MS });
+    const option = this.page
+      .locator('[data-slot="select-content"]:visible [data-slot="select-item"]')
       .filter({ hasText: String(value) })
-      .first()
-      .click();
+      .first();
+    await option.waitFor({ state: "visible", timeout: MANAGE_LIST_ACTION_TIMEOUT_MS });
+    await option.scrollIntoViewIfNeeded();
+    await option.click({ timeout: MANAGE_LIST_ACTION_TIMEOUT_MS, force: true });
   }
 
   async selectFirstVisibleRow() {
-    await this.page.getByRole("checkbox", { name: "Select row" }).first().click();
+    await this.page
+      .getByRole("checkbox", { name: "Select row" })
+      .first()
+      .click({ timeout: MANAGE_LIST_ACTION_TIMEOUT_MS });
   }
 
   removeSelectedButton(): Locator {
@@ -183,20 +210,22 @@ export class ManageListPage {
   }
 
   async clickRemoveSelected() {
-    await this.removeSelectedButton().click();
+    await this.removeSelectedButton().click({
+      timeout: MANAGE_LIST_ACTION_TIMEOUT_MS,
+    });
   }
 
   async confirmRemoveSelected() {
     await this.page
       .getByRole("alertdialog")
       .getByRole("button", { name: "Delete" })
-      .click();
+      .click({ timeout: MANAGE_LIST_ACTION_TIMEOUT_MS });
   }
 
   async resetToolbarFiltersIfVisible() {
     const resetButton = this.page.getByRole("button", { name: "Reset" }).first();
     if (await resetButton.isVisible()) {
-      await resetButton.click();
+      await resetButton.click({ timeout: MANAGE_LIST_ACTION_TIMEOUT_MS });
     }
   }
 }
