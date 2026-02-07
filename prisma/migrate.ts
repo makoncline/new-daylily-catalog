@@ -1,6 +1,6 @@
 import { PrismaClient as PostgresClient } from "./generated/postgres-client";
 import { PrismaClient as SQLiteClient } from "./generated/sqlite-client";
-import { clerkClient, type User } from "@clerk/clerk-sdk-node";
+import { createClerkClient, type User } from "@clerk/backend";
 import { z } from "zod";
 import { setTimeout } from "timers/promises";
 import Stripe from "stripe";
@@ -23,6 +23,10 @@ const stripeKey =
     : process.env.PROD_STRIPE_SECRET_KEY!;
 
 const stripe = new Stripe(stripeKey);
+
+const clerkClient = createClerkClient({
+  secretKey: env.CLERK_SECRET_KEY,
+});
 
 // Use Turso if explicitly set or if in production (unless explicitly disabled)
 const USE_TURSO_DB =

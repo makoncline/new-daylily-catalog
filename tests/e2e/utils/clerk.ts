@@ -1,4 +1,8 @@
-import { clerkClient } from "@clerk/clerk-sdk-node";
+import { createClerkClient } from "@clerk/backend";
+
+const clerkClient = createClerkClient({
+  secretKey: process.env.CLERK_SECRET_KEY,
+});
 
 /**
  * Delete a Clerk user by email address

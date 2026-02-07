@@ -1,5 +1,4 @@
 import type { User } from "@clerk/nextjs/server";
-import type { User as NodeClerkUser } from "@clerk/clerk-sdk-node";
 import { kvStore as appKvStore } from "@/server/db/kvStore";
 import { clerk } from "./client";
 
@@ -10,7 +9,7 @@ export const getClerkUserKey = (clerkUserId: string) =>
 
 type ClerkClient = {
   users: {
-    getUser: (userId: string) => Promise<User | NodeClerkUser>;
+    getUser: (userId: string) => Promise<User>;
   };
 };
 

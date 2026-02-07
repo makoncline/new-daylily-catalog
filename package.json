@@ -29,7 +29,7 @@
     "@aws-sdk/client-s3": "^3.882.0",
     "@aws-sdk/client-ses": "^3.882.0",
     "@aws-sdk/s3-request-presigner": "^3.882.0",
-    "@clerk/nextjs": "^6.31.9",
+    "@clerk/nextjs": "^6.37.3",
     "@dnd-kit/core": "^6.3.1",
     "@dnd-kit/sortable": "^10.0.0",
     "@dnd-kit/utilities": "^3.2.2",
@@ -126,8 +126,8 @@
     "zod": "^4.1.5"
   },
   "devDependencies": {
-    "@clerk/clerk-sdk-node": "^5.1.6",
-    "@clerk/testing": "^1.12.4",
+    "@clerk/backend": "^2.30.1",
+    "@clerk/testing": "^1.13.35",
     "@eslint/eslintrc": "^3.3.1",
     "@playwright/test": "^1.55.0",
     "@tailwindcss/postcss": "^4.1.13",
