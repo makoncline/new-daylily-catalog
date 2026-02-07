@@ -76,7 +76,11 @@ test.describe("listing image manager @local", () => {
     await imageManager.dragImageBefore(firstImageId, thirdImageId);
     await expectToast("Image order updated");
 
-    const reorderedIds = [secondImageId, thirdImageId, firstImageId];
+    const reorderedIds: [string, string, string] = [
+      secondImageId,
+      thirdImageId,
+      firstImageId,
+    ];
     await expectImageOrder(reorderedIds);
 
     // Reorder persistence after reload
@@ -87,19 +91,13 @@ test.describe("listing image manager @local", () => {
 
     // Delete middle image
     const deletedImageId = reorderedIds[1];
-    if (!deletedImageId) {
-      throw new Error("Expected a middle image id for delete test");
-    }
     await imageManager.imageDeleteButtonById(deletedImageId).click();
     await imageManager.confirmImageDelete();
     await expectToast("Image deleted successfully");
     await expect(imageManager.imageItems()).toHaveCount(2);
     await expect(imageManager.imageItemById(deletedImageId)).toHaveCount(0);
 
-    const remainingIds = [reorderedIds[0], reorderedIds[2]];
-    if (!remainingIds[0] || !remainingIds[1]) {
-      throw new Error("Expected 2 remaining image ids after delete");
-    }
+    const remainingIds: [string, string] = [reorderedIds[0], reorderedIds[2]];
     await expectImageOrder(remainingIds);
 
     // Delete persistence after reload
