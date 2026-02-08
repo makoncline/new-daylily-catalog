@@ -158,33 +158,50 @@ export class DashboardListings {
     await this.pagerLastButton.click();
   }
 
+  private firstVisibleRowActionButton(): Locator {
+    return this.page
+      .getByTestId("listing-table")
+      .getByTestId("listing-row-actions-trigger")
+      .first();
+  }
+
+  private rowActionMenu(): Locator {
+    return this.page
+      .locator('[data-slot="dropdown-menu-content"][data-state="open"]')
+      .last();
+  }
+
+  private rowActionMenuItem(actionName: "Delete" | "Edit"): Locator {
+    const testId =
+      actionName === "Edit" ? "listing-row-action-edit" : "listing-row-action-delete";
+    return this.rowActionMenu().getByTestId(testId);
+  }
+
   async openFirstVisibleRowActions() {
-    const rowActionButton = this.page.getByRole("button", { name: "Open menu" }).first();
+    const rowActionButton = this.firstVisibleRowActionButton();
+    await rowActionButton.waitFor({ state: "visible" });
+    await rowActionButton.scrollIntoViewIfNeeded();
     await rowActionButton.click();
+    await this.rowActionMenu().waitFor({ state: "visible" });
+    await this.rowActionMenuItem("Edit").waitFor({ state: "visible" });
+  }
+
+  private async chooseRowAction(actionName: "Delete" | "Edit") {
+    if (actionName === "Edit") {
+      await this.page.keyboard.press("ArrowDown");
+      await this.page.keyboard.press("Enter");
+      return;
+    }
+
+    await this.rowActionMenuItem("Delete").click();
   }
 
   async chooseRowActionDelete() {
-    const menuItem = this.page
-      .locator('[data-slot="dropdown-menu-content"]:visible')
-      .last()
-      .getByRole("menuitem", { name: "Delete" });
-    if ((await menuItem.count()) === 0) {
-      await this.openFirstVisibleRowActions();
-    }
-    await menuItem.waitFor({ state: "visible" });
-    await menuItem.click({ force: true });
+    await this.chooseRowAction("Delete");
   }
 
   async chooseRowActionEdit() {
-    const menuItem = this.page
-      .locator('[data-slot="dropdown-menu-content"]:visible')
-      .last()
-      .getByRole("menuitem", { name: "Edit" });
-    if ((await menuItem.count()) === 0) {
-      await this.openFirstVisibleRowActions();
-    }
-    await menuItem.waitFor({ state: "visible" });
-    await menuItem.click({ force: true });
+    await this.chooseRowAction("Edit");
   }
 
   async confirmDelete() {

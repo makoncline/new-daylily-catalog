@@ -27,13 +27,11 @@ export function DataTableRowActions<TData extends { id: string }>({
   onEdit,
 }: DataTableRowActionsProps<TData>) {
   const router = useRouter();
-  const [open, setOpen] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
 
   const deleteListing = api.listing.delete.useMutation({
     onSuccess: () => {
       toast.success("Listing deleted successfully");
-      setOpen(false);
       router.refresh();
     },
     onError: () => {
@@ -43,11 +41,12 @@ export function DataTableRowActions<TData extends { id: string }>({
 
   return (
     <>
-      <DropdownMenu open={open} onOpenChange={setOpen}>
+      <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button
             variant="ghost"
-            className="data-[state=open]:bg-muted flex h-full w-full p-0"
+            className="data-[state=open]:bg-muted flex h-8 w-8 p-0"
+            data-testid="listing-row-actions-trigger"
           >
             <DotsHorizontalIcon className="h-4 w-4" />
             <span className="sr-only">Open menu</span>
@@ -55,10 +54,8 @@ export function DataTableRowActions<TData extends { id: string }>({
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-[160px]">
           <DropdownMenuItem
-            onClick={() => {
-              setOpen(false);
-              onEdit(row.original.id);
-            }}
+            onSelect={() => onEdit(row.original.id)}
+            data-testid="listing-row-action-edit"
           >
             <Pencil className="mr-2 h-4 w-4" />
             Edit
@@ -66,10 +63,8 @@ export function DataTableRowActions<TData extends { id: string }>({
           <DropdownMenuSeparator />
           <DropdownMenuItem
             className="text-destructive"
-            onClick={() => {
-              setOpen(false);
-              setShowDeleteDialog(true);
-            }}
+            onSelect={() => setShowDeleteDialog(true)}
+            data-testid="listing-row-action-delete"
           >
             <Trash2 className="mr-2 h-4 w-4" />
             Delete

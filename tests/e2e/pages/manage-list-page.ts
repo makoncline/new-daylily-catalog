@@ -163,12 +163,14 @@ export class ManageListPage {
 
   async setRowsPerPage(value: number) {
     await this.clickWithScroll(this.pagerPerPage);
-    const option = this.page
-      .locator('[data-slot="select-content"]:visible')
+    const selectContent = this.page.locator('[data-slot="select-content"]:visible').last();
+    await selectContent.waitFor({ state: "visible" });
+    const option = selectContent
       .getByRole("option", { name: String(value), exact: true })
       .first();
+    await option.waitFor({ state: "visible" });
     await option.scrollIntoViewIfNeeded();
-    await this.clickWithScroll(option);
+    await option.click({ timeout: 5000 });
   }
 
   async selectFirstVisibleRow() {
