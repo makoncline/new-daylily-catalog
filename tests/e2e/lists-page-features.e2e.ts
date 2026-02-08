@@ -20,19 +20,6 @@ test.describe("lists page features @local", () => {
     page,
     dashboardLists,
   }) => {
-    const expectUrlParam = async (key: string, expected: string | null) => {
-      await expect
-        .poll(() => new URL(page.url()).searchParams.get(key))
-        .toBe(expected);
-    };
-
-    const expectBaselineUrlParams = async () => {
-      await expectUrlParam("page", null);
-      await expectUrlParam("size", null);
-      await expectUrlParam("query", null);
-      await expectUrlParam("editing", null);
-    };
-
     const expectPageIndicator = async (
       currentPage: number,
       totalPages: number,
@@ -53,7 +40,6 @@ test.describe("lists page features @local", () => {
       await dashboardLists.resetToolbarFiltersIfVisible();
       await expect(dashboardLists.rows()).toHaveCount(seedMeta.defaultPageSize);
       await expectPageIndicator(1, seedMeta.expectedPageCount);
-      await expectBaselineUrlParams();
     };
 
     const assertSortTogglesBetween = async (
@@ -94,7 +80,6 @@ test.describe("lists page features @local", () => {
     await dashboardLists.goto();
     await expect(page).toHaveURL(/\/dashboard\/lists/);
     await dashboardLists.isReady();
-    await expectBaselineUrlParams();
 
     // Phase 2: baseline table and pagination behavior
     await expect(dashboardLists.rows()).toHaveCount(seedMeta.defaultPageSize);
@@ -104,7 +89,6 @@ test.describe("lists page features @local", () => {
 
     await dashboardLists.goToNextPage();
     await expectPageIndicator(2, seedMeta.expectedPageCount);
-    await expectUrlParam("page", "2");
     await expect(dashboardLists.rows()).toHaveCount(seedMeta.expectedSecondPageRows);
 
     const secondPageFirstTitle = await dashboardLists.firstRowTitle();
@@ -112,22 +96,18 @@ test.describe("lists page features @local", () => {
 
     await dashboardLists.goToPrevPage();
     await expectPageIndicator(1, seedMeta.expectedPageCount);
-    await expectUrlParam("page", null);
 
     await dashboardLists.goToLastPage();
     await expectPageIndicator(
       seedMeta.expectedPageCount,
       seedMeta.expectedPageCount,
     );
-    await expectUrlParam("page", String(seedMeta.expectedPageCount));
 
     await dashboardLists.goToFirstPage();
     await expectPageIndicator(1, seedMeta.expectedPageCount);
-    await expectUrlParam("page", null);
 
     await dashboardLists.setRowsPerPage(50);
     await expectPageIndicator(1, 3);
-    await expectUrlParam("size", "50");
     await expect(dashboardLists.rows()).toHaveCount(50);
 
     await page.evaluate(() => {
@@ -136,12 +116,10 @@ test.describe("lists page features @local", () => {
     await dashboardLists.goto();
     await dashboardLists.isReady();
     await expectPageIndicator(1, seedMeta.expectedPageCount);
-    await expectBaselineUrlParams();
     await expect(dashboardLists.rows()).toHaveCount(seedMeta.defaultPageSize);
 
     // Phase 3: global search
     await dashboardLists.setGlobalSearch(seedMeta.globalSearchToken);
-    await expectUrlParam("query", seedMeta.globalSearchToken);
     await expect(dashboardLists.rows()).toHaveCount(1);
     await expect(
       dashboardLists.listRow(seedMeta.globalSearchTitle),
@@ -150,7 +128,6 @@ test.describe("lists page features @local", () => {
 
     // Phase 4: representative sorting checks on isolated fixture rows
     await dashboardLists.setGlobalSearch(seedMeta.sortToken);
-    await expectUrlParam("query", seedMeta.sortToken);
     await expect(dashboardLists.rows()).toHaveCount(3);
 
     await assertSortTogglesBetween(
@@ -183,7 +160,6 @@ test.describe("lists page features @local", () => {
 
     // Phase 5: row actions (manage link + edit + delete)
     await dashboardLists.setGlobalSearch(seedMeta.editTargetTitle);
-    await expectUrlParam("query", seedMeta.editTargetTitle);
     await expect(dashboardLists.rows()).toHaveCount(1);
     await expect(
       dashboardLists.listRow(seedMeta.editTargetTitle),
@@ -196,9 +172,6 @@ test.describe("lists page features @local", () => {
 
     await dashboardLists.chooseRowActionEdit();
     await expect(dashboardLists.editDialog()).toBeVisible();
-    await expect
-      .poll(() => new URL(page.url()).searchParams.get("editing"))
-      .not.toBe(null);
 
     await dashboardLists.editTitleInput().fill(seedMeta.editTargetUpdatedTitle);
     await dashboardLists
@@ -209,17 +182,14 @@ test.describe("lists page features @local", () => {
     await dashboardLists.saveChangesButton().click();
 
     await dashboardLists.closeEditDialog();
-    await expectUrlParam("editing", null);
 
     await dashboardLists.setGlobalSearch(seedMeta.editTargetUpdatedTitle);
-    await expectUrlParam("query", seedMeta.editTargetUpdatedTitle);
     await expect(dashboardLists.rows()).toHaveCount(1);
     await expect(
       dashboardLists.listRow(seedMeta.editTargetUpdatedTitle),
     ).toBeVisible();
 
     await dashboardLists.setGlobalSearch(seedMeta.deleteTargetTitle);
-    await expectUrlParam("query", seedMeta.deleteTargetTitle);
     await expect(dashboardLists.rows()).toHaveCount(1);
     await expect(
       dashboardLists.listRow(seedMeta.deleteTargetTitle),

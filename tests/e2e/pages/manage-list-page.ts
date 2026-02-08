@@ -28,7 +28,7 @@ export class ManageListPage {
     this.addListingsTrigger = page.getByTestId("add-listings-trigger");
     this.addListingsSearchInput = page.getByTestId("add-listings-search-input");
     this.manageListTable = page.getByTestId("manage-list-table");
-    this.listingsTable = page.locator("table").first();
+    this.listingsTable = this.manageListTable.locator("table").first();
     this.globalSearchInput = page.getByPlaceholder("Filter listings...");
     this.pagerFirstButton = page.getByTestId("pager-first");
     this.pagerPrevButton = page.getByTestId("pager-prev");
@@ -86,8 +86,7 @@ export class ManageListPage {
   }
 
   private async clickWithScroll(locator: Locator) {
-    await locator.waitFor({ state: "visible" });
-    await locator.scrollIntoViewIfNeeded();
+    await locator.scrollIntoViewIfNeeded().catch(() => undefined);
     await locator.click();
   }
 
@@ -168,13 +167,12 @@ export class ManageListPage {
     const option = selectContent
       .getByRole("option", { name: String(value), exact: true })
       .first();
-    await option.waitFor({ state: "visible" });
-    await option.scrollIntoViewIfNeeded();
-    await option.click({ timeout: 5000 });
+    await this.clickWithScroll(option);
   }
 
   async selectFirstVisibleRow() {
-    const checkbox = this.page
+    const checkbox = this.rows()
+      .first()
       .getByRole("checkbox", { name: "Select row" })
       .first();
     await this.clickWithScroll(checkbox);

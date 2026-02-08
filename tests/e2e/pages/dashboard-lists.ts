@@ -18,7 +18,7 @@ export class DashboardLists {
     this.heading = page.locator("h1").filter({ hasText: "Lists" }).first();
     this.createListButton = page.getByRole("button", { name: "Create List" }).first();
     this.listsTableReady = page.getByTestId("list-table");
-    this.listsTable = page.locator("table").first();
+    this.listsTable = this.listsTableReady.locator("table").first();
     this.globalSearchInput = page.getByPlaceholder("Filter lists...");
     this.pagerFirstButton = page.getByTestId("pager-first");
     this.pagerPrevButton = page.getByTestId("pager-prev");
