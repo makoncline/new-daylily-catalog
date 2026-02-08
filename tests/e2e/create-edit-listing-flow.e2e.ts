@@ -22,13 +22,13 @@ test.describe("create/edit listing flow @local", () => {
     createListingDialog,
     editListingDialog,
   }, testInfo) => {
-    test.setTimeout(180000);
+    test.slow();
 
     const toast = (message: string) =>
       page.locator("[data-sonner-toast]").filter({ hasText: message });
 
     const expectToast = async (message: string) => {
-      await expect(toast(message).first()).toBeVisible({ timeout: 10000 });
+      await expect(toast(message).first()).toBeVisible();
     };
 
     const captureCheckpoint = async (name: string) => {
@@ -40,9 +40,7 @@ test.describe("create/edit listing flow @local", () => {
     };
 
     const expectUrlParam = async (key: string, expected: string | null) => {
-      await expect.poll(() => new URL(page.url()).searchParams.get(key)).toBe(
-        expected,
-      );
+      await expect(page).toHaveURL((url) => url.searchParams.get(key) === expected);
     };
 
     const expectTableParamsCleared = async () => {
@@ -78,9 +76,7 @@ test.describe("create/edit listing flow @local", () => {
     await createListingDialog.isReady();
     await captureCheckpoint("create-dialog-initial");
 
-    await expect
-      .poll(async () => createListingDialog.isCreateEnabled())
-      .toBe(false);
+    await expect(createListingDialog.createButton).toBeDisabled();
 
     await createListingDialog.searchAndSelectAhsListing(
       seedMeta.createAhsSearch,
@@ -218,6 +214,7 @@ test.describe("create/edit listing flow @local", () => {
     await expectTableParamsCleared();
 
     await dashboardListings.setGlobalSearch(seedMeta.relinkAhsName);
+    await expectUrlParam("query", seedMeta.relinkAhsName);
     await expect(dashboardListings.listingRow(seedMeta.relinkAhsName)).toBeVisible();
     await captureCheckpoint("listings-table-final-row-state");
 
@@ -225,9 +222,7 @@ test.describe("create/edit listing flow @local", () => {
     await dashboardListings.openFirstVisibleRowActions();
     await dashboardListings.chooseRowActionEdit();
     await editListingDialog.isReady();
-    await expect
-      .poll(async () => editListingDialog.getEditingParamFromUrl())
-      .not.toBeNull();
+    await expect(page).toHaveURL(/editing=/);
 
     await editListingDialog.clickDeleteListing();
     await editListingDialog.confirmDeleteListing();

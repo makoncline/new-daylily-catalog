@@ -48,6 +48,7 @@ export function DataTableRowActions<TData extends { id: string }>({
           <Button
             variant="ghost"
             className="data-[state=open]:bg-muted flex h-full w-full p-0"
+            data-testid="listing-row-actions-trigger"
           >
             <DotsHorizontalIcon className="h-4 w-4" />
             <span className="sr-only">Open menu</span>
@@ -59,6 +60,7 @@ export function DataTableRowActions<TData extends { id: string }>({
               setOpen(false);
               onEdit(row.original.id);
             }}
+            data-testid="listing-row-action-edit"
           >
             <Pencil className="mr-2 h-4 w-4" />
             Edit
@@ -70,6 +72,7 @@ export function DataTableRowActions<TData extends { id: string }>({
               setOpen(false);
               setShowDeleteDialog(true);
             }}
+            data-testid="listing-row-action-delete"
           >
             <Trash2 className="mr-2 h-4 w-4" />
             Delete

@@ -6,17 +6,10 @@ import { addProfileImageForUser, addListingImage } from "./utils/images";
 import { seedAhsListing } from "./utils/ahs-listings";
 import { createListing } from "./utils/listings";
 
-const TEST_EMAIL = "newuser+clerk_test@gmail.com";
+const TEST_EMAIL_PREFIX = "newuser+clerk_test";
 const TEST_CODE = "424242";
 
 test.describe("new user journey @local", () => {
-  test.beforeAll(async () => {
-    await deleteClerkUserByEmail(TEST_EMAIL);
-  });
-  test.afterAll(async () => {
-    await deleteClerkUserByEmail(TEST_EMAIL);
-  });
-
   test("new user can sign up through dashboard button", async ({
     page,
     homePage,
@@ -28,9 +21,12 @@ test.describe("new user journey @local", () => {
     stripeCheckout,
     dashboardShell,
     clerkAuthModal,
-  }) => {
-    test.setTimeout(120000); // 2 minutes for this long journey test
-    await withTempE2EDb(async (db) => {
+  }, testInfo) => {
+    test.slow();
+    const testEmail = `${TEST_EMAIL_PREFIX}+${Date.now()}-${testInfo.repeatEachIndex}@gmail.com`;
+
+    try {
+      await withTempE2EDb(async (db) => {
       // Phase 1: auth and profile completion
       // arrive on the home page
       await homePage.goto();
@@ -38,11 +34,11 @@ test.describe("new user journey @local", () => {
 
       // sign up
       await homePage.openDashboard();
-      await clerkAuthModal.signUpWithEmail(TEST_EMAIL, TEST_CODE);
+      await clerkAuthModal.signUpWithEmail(testEmail, TEST_CODE);
 
       // redirect to the dashboard after sign up
-      await expect(page).toHaveURL(/\/dashboard/, { timeout: 15000 });
       await dashboardHome.waitForLoaded();
+      await expect(page).toHaveURL(/\/dashboard/);
 
       // check the profile completion percentage
       const profilePercentage =
@@ -51,7 +47,7 @@ test.describe("new user journey @local", () => {
 
       // go to the profile page
       await dashboardHome.completeProfileButton.click();
-      await expect(page).toHaveURL(/\/dashboard\/profile/, { timeout: 10000 });
+      await expect(page).toHaveURL(/\/dashboard\/profile/);
       await dashboardProfile.isReady();
 
       // fill in the profile fields
@@ -67,7 +63,7 @@ test.describe("new user journey @local", () => {
       await dashboardProfile.fillContent(testContent);
 
       // add a profile image. too hard to mock so we just add it to the database directly
-      const clerkUserId = await getClerkUserIdByEmail(TEST_EMAIL);
+      const clerkUserId = await getClerkUserIdByEmail(testEmail);
       if (!clerkUserId) {
         throw new Error("Clerk user not found");
       }
@@ -93,7 +89,7 @@ test.describe("new user journey @local", () => {
 
       // Navigate back to dashboard via breadcrumbs
       await dashboardShell.goToDashboard();
-      await expect(page).toHaveURL(/\/dashboard$/, { timeout: 10000 });
+      await expect(page).toHaveURL(/\/dashboard$/);
       await dashboardHome.waitForLoaded();
 
       // Assert that "Complete Your Profile" card is no longer shown once profile is complete
@@ -107,7 +103,7 @@ test.describe("new user journey @local", () => {
 
       // click the "Manage Listings" button on the catalog progress card
       await dashboardHome.manageListingsButton.click();
-      await expect(page).toHaveURL(/\/dashboard\/listings/, { timeout: 10000 });
+      await expect(page).toHaveURL(/\/dashboard\/listings/);
       await dashboardListings.isReady();
 
       // seed some AHS listings for testing
@@ -131,12 +127,8 @@ test.describe("new user journey @local", () => {
         "Stella de Oro",
       );
 
-      await expect(createListingDialog.titleInput).toHaveValue("Stella de Oro", {
-        timeout: 10000,
-      });
-      await expect(createListingDialog.createButton).toBeEnabled({
-        timeout: 10000,
-      });
+      await expect(createListingDialog.titleInput).toHaveValue("Stella de Oro");
+      await expect(createListingDialog.createButton).toBeEnabled();
 
       // change the listing title to something else
       const customTitle = "My Custom Daylily Title";
@@ -157,9 +149,9 @@ test.describe("new user journey @local", () => {
       // create a list by typing the name and clicking create
       const testListName = "My Test List";
       await editListingDialog.createList(testListName);
-      await expect(editListingDialog.selectedListChip(testListName)).toBeVisible({
-        timeout: 10000,
-      });
+      await expect(
+        editListingDialog.selectedListChip(testListName),
+      ).toBeVisible();
 
       // programmatically add an image to the listing
       const testListingImageUrl = "/assets/bouquet.png";
@@ -190,9 +182,7 @@ test.describe("new user journey @local", () => {
       await editListingDialog.syncName();
 
       // check that the name matches the linked listing after sync
-      await expect(editListingDialog.titleInput).toHaveValue("Stella de Oro", {
-        timeout: 10000,
-      });
+      await expect(editListingDialog.titleInput).toHaveValue("Stella de Oro");
 
       // close the dialog
       await editListingDialog.close();
@@ -236,38 +226,26 @@ test.describe("new user journey @local", () => {
       await dashboardListings.isReady();
 
       // check for them in the listings table
-      await expect(dashboardListings.listingRow("Beautiful Daylily")).toBeVisible({
-        timeout: 10000,
-      });
-      await expect(dashboardListings.listingRow("Garden Favorite")).toBeVisible({
-        timeout: 10000,
-      });
+      await expect(
+        dashboardListings.listingRow("Beautiful Daylily"),
+      ).toBeVisible();
+      await expect(dashboardListings.listingRow("Garden Favorite")).toBeVisible();
 
       // navigate back to dashboard home
       await page.goto("/dashboard");
-      await expect(page).toHaveURL(/\/dashboard$/, { timeout: 15000 });
-      // Wait for page to be ready
-      await page.waitForLoadState("domcontentloaded");
+      await expect(page).toHaveURL(/\/dashboard$/);
       await dashboardHome.waitForLoaded();
 
       // confirm that the catalog progress card is no longer present
       await expect(dashboardHome.catalogProgressCard).not.toBeVisible();
 
       // check for the Become a Daylily Catalog Pro card
-      await expect(dashboardHome.proMembershipCard).toBeVisible({
-        timeout: 10000,
-      });
+      await expect(dashboardHome.proMembershipCard).toBeVisible();
 
       // Phase 3: become pro flow
-      // press upgrade to pro button (wait for it to be visible)
-      await dashboardHome.upgradeToProButton.waitFor({
-        state: "visible",
-        timeout: 10000,
-      });
+      // press upgrade to pro button
+      await expect(dashboardHome.upgradeToProButton).toBeVisible();
       await dashboardHome.upgradeToProButton.click();
-
-      // Wait for navigation to Stripe checkout page
-      await page.waitForURL(/checkout\.stripe\.com/, { timeout: 15000 });
 
       // Verify we landed on Stripe checkout
       await stripeCheckout.isReady();
@@ -290,12 +268,15 @@ test.describe("new user journey @local", () => {
 
       // Navigate back to dashboard (simulating successful checkout)
       await page.goto("/dashboard");
-      await expect(page).toHaveURL(/\/dashboard/, { timeout: 15000 });
+      await expect(page).toHaveURL(/\/dashboard/);
 
       await dashboardHome.waitForLoaded();
 
       // Assert the Become a Pro card is no longer shown now that we have a subscription
       await expect(dashboardHome.proMembershipCard).not.toBeVisible();
-    });
+      });
+    } finally {
+      await deleteClerkUserByEmail(testEmail);
+    }
   });
 });

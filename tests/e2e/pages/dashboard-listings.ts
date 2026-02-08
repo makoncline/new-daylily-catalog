@@ -1,4 +1,4 @@
-import type { Locator, Page } from "@playwright/test";
+import { expect, type Locator, type Page } from "@playwright/test";
 
 type FilterableColumnLabel =
   | "Title"
@@ -43,8 +43,8 @@ export class DashboardListings {
   }
 
   async isReady() {
-    await this.heading.waitFor({ state: "visible", timeout: 30000 });
-    await this.createListingButton.waitFor({ state: "visible", timeout: 30000 });
+    await this.heading.waitFor({ state: "visible" });
+    await this.createListingButton.waitFor({ state: "visible" });
   }
 
   async goto() {
@@ -83,11 +83,13 @@ export class DashboardListings {
   }
 
   async setGlobalSearch(value: string) {
-    await this.globalSearchInput.waitFor({ state: "visible", timeout: 10000 });
+    await this.globalSearchInput.waitFor({ state: "visible" });
+    await this.globalSearchInput.scrollIntoViewIfNeeded();
     await this.globalSearchInput.fill(value);
   }
 
   async openListsFilter() {
+    await this.listsFilterButton.scrollIntoViewIfNeeded();
     await this.listsFilterButton.click();
   }
 
@@ -96,15 +98,17 @@ export class DashboardListings {
       .locator('[data-slot="command-item"]')
       .filter({ hasText: label })
       .first();
+    await option.scrollIntoViewIfNeeded();
     await option.click();
   }
 
   async clearListsFilterInPopover() {
-    await this.page
+    const clearFilters = this.page
       .locator('[data-slot="command-item"]')
       .filter({ hasText: "Clear filters" })
-      .first()
-      .click();
+      .first();
+    await clearFilters.scrollIntoViewIfNeeded();
+    await clearFilters.click();
   }
 
   async openColumnFilter(columnLabel: FilterableColumnLabel) {
@@ -135,35 +139,77 @@ export class DashboardListings {
   }
 
   async goToNextPage() {
+    await this.pagerNextButton.scrollIntoViewIfNeeded();
     await this.pagerNextButton.click();
   }
 
   async goToPrevPage() {
+    await this.pagerPrevButton.scrollIntoViewIfNeeded();
     await this.pagerPrevButton.click();
   }
 
   async goToFirstPage() {
+    await this.pagerFirstButton.scrollIntoViewIfNeeded();
     await this.pagerFirstButton.click();
   }
 
   async goToLastPage() {
+    await this.pagerLastButton.scrollIntoViewIfNeeded();
     await this.pagerLastButton.click();
   }
 
+  private firstVisibleRowActionButton(): Locator {
+    return this.page
+      .getByTestId("listing-table")
+      .locator('[data-testid="listing-row-actions-trigger"]:visible')
+      .first();
+  }
+
+  private rowActionMenu(): Locator {
+    return this.page
+      .locator('[data-slot="dropdown-menu-content"][data-state="open"]')
+      .last();
+  }
+
+  private rowActionMenuItem(actionName: "Delete" | "Edit"): Locator {
+    const testId =
+      actionName === "Edit" ? "listing-row-action-edit" : "listing-row-action-delete";
+    return this.page.locator(`[data-testid="${testId}"]:visible`).first();
+  }
+
+  private async clickRowActionTriggerAndWaitOpen() {
+    const rowActionButton = this.firstVisibleRowActionButton();
+    await rowActionButton.click();
+    if ((await rowActionButton.getAttribute("aria-expanded")) !== "true") {
+      await rowActionButton.click();
+    }
+    await expect(rowActionButton).toHaveAttribute("aria-expanded", "true");
+  }
+
+  private async ensureRowActionMenuOpen() {
+    if (await this.rowActionMenu().isVisible()) {
+      return;
+    }
+
+    await this.clickRowActionTriggerAndWaitOpen();
+  }
+
   async openFirstVisibleRowActions() {
-    await this.page.getByRole("button", { name: "Open menu" }).first().click();
+    await this.clickRowActionTriggerAndWaitOpen();
+    await this.rowActionMenuItem("Edit").waitFor({ state: "visible" });
+  }
+
+  private async chooseRowAction(actionName: "Delete" | "Edit") {
+    await this.ensureRowActionMenuOpen();
+    await this.rowActionMenuItem(actionName).click();
   }
 
   async chooseRowActionDelete() {
-    const menuItem = this.page.getByRole("menuitem", { name: "Delete" }).first();
-    await menuItem.waitFor({ state: "visible", timeout: 5000 });
-    await menuItem.click({ force: true });
+    await this.chooseRowAction("Delete");
   }
 
   async chooseRowActionEdit() {
-    const menuItem = this.page.getByRole("menuitem", { name: "Edit" }).first();
-    await menuItem.waitFor({ state: "visible", timeout: 5000 });
-    await menuItem.click({ force: true });
+    await this.chooseRowAction("Edit");
   }
 
   async confirmDelete() {

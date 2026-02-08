@@ -48,8 +48,8 @@ export class ImageManager {
     const sourceHandle = this.imageDragHandleById(sourceId);
     const targetHandle = this.imageDragHandleById(targetId);
 
-    await sourceHandle.waitFor({ state: "visible", timeout: 10000 });
-    await targetHandle.waitFor({ state: "visible", timeout: 10000 });
+    await sourceHandle.waitFor({ state: "visible" });
+    await targetHandle.waitFor({ state: "visible" });
     await sourceHandle.scrollIntoViewIfNeeded();
     await targetHandle.scrollIntoViewIfNeeded();
 

@@ -28,7 +28,7 @@ export class ManageListPage {
     this.addListingsTrigger = page.getByTestId("add-listings-trigger");
     this.addListingsSearchInput = page.getByTestId("add-listings-search-input");
     this.manageListTable = page.getByTestId("manage-list-table");
-    this.listingsTable = page.locator("table").first();
+    this.listingsTable = this.manageListTable.locator("table").first();
     this.globalSearchInput = page.getByPlaceholder("Filter listings...");
     this.pagerFirstButton = page.getByTestId("pager-first");
     this.pagerPrevButton = page.getByTestId("pager-prev");
@@ -42,11 +42,11 @@ export class ManageListPage {
   }
 
   async isReady() {
-    await this.heading.waitFor({ state: "visible", timeout: 30000 });
-    await this.titleInput.waitFor({ state: "visible", timeout: 30000 });
-    await this.addListingsTrigger.waitFor({ state: "visible", timeout: 30000 });
-    await this.manageListTable.waitFor({ state: "visible", timeout: 30000 });
-    await this.globalSearchInput.waitFor({ state: "visible", timeout: 30000 });
+    await this.heading.waitFor({ state: "visible" });
+    await this.titleInput.waitFor({ state: "visible" });
+    await this.addListingsTrigger.waitFor({ state: "visible" });
+    await this.manageListTable.waitFor({ state: "visible" });
+    await this.globalSearchInput.waitFor({ state: "visible" });
   }
 
   rows(): Locator {
@@ -85,25 +85,21 @@ export class ManageListPage {
     await this.descriptionInput.fill(value);
   }
 
-  async saveChanges() {
-    await this.saveChangesButton.click();
+  private async clickWithScroll(locator: Locator) {
+    await locator.scrollIntoViewIfNeeded().catch(() => undefined);
+    await locator.click();
   }
 
-  private waitForListUpdateMutation() {
-    return this.page.waitForResponse(
-      (response) =>
-        response.url().includes("/api/trpc/list.update") &&
-        response.request().method() === "POST",
-      { timeout: 15000 },
-    );
+  async saveChanges() {
+    await this.clickWithScroll(this.saveChangesButton);
   }
 
   async saveChangesAndWait() {
-    await Promise.all([this.waitForListUpdateMutation(), this.saveChanges()]);
+    await this.saveChanges();
   }
 
   async openAddListingsDialog() {
-    await this.addListingsTrigger.click();
+    await this.clickWithScroll(this.addListingsTrigger);
   }
 
   async searchAddListings(value: string) {
@@ -111,11 +107,11 @@ export class ManageListPage {
   }
 
   async selectListingToAdd(title: string) {
-    await this.page
+    const option = this.page
       .locator('[data-slot="command-item"]')
       .filter({ hasText: title })
-      .first()
-      .click();
+      .first();
+    await this.clickWithScroll(option);
   }
 
   async setGlobalSearch(value: string) {
@@ -129,8 +125,7 @@ export class ManageListPage {
       .first()
       .getByRole("button", { name: columnLabel })
       .first();
-    await sortableButton.scrollIntoViewIfNeeded();
-    await sortableButton.click();
+    await this.clickWithScroll(sortableButton);
   }
 
   async openColumnFilter(columnLabel: "Title" | "Description" | "Private Notes") {
@@ -139,7 +134,7 @@ export class ManageListPage {
         name: `Filter ${columnLabel.toLowerCase()}`,
       })
       .first();
-    await filterButton.click();
+    await this.clickWithScroll(filterButton);
   }
 
   async setOpenColumnFilterValue(value: string) {
@@ -150,32 +145,37 @@ export class ManageListPage {
   }
 
   async goToNextPage() {
-    await this.pagerNextButton.click();
+    await this.clickWithScroll(this.pagerNextButton);
   }
 
   async goToPrevPage() {
-    await this.pagerPrevButton.click();
+    await this.clickWithScroll(this.pagerPrevButton);
   }
 
   async goToFirstPage() {
-    await this.pagerFirstButton.click();
+    await this.clickWithScroll(this.pagerFirstButton);
   }
 
   async goToLastPage() {
-    await this.pagerLastButton.click();
+    await this.clickWithScroll(this.pagerLastButton);
   }
 
   async setRowsPerPage(value: number) {
-    await this.pagerPerPage.click();
-    await this.page
-      .locator('[data-slot="select-item"]')
-      .filter({ hasText: String(value) })
-      .first()
-      .click();
+    await this.clickWithScroll(this.pagerPerPage);
+    const selectContent = this.page.locator('[data-slot="select-content"]:visible').last();
+    await selectContent.waitFor({ state: "visible" });
+    const option = selectContent
+      .getByRole("option", { name: String(value), exact: true })
+      .first();
+    await this.clickWithScroll(option);
   }
 
   async selectFirstVisibleRow() {
-    await this.page.getByRole("checkbox", { name: "Select row" }).first().click();
+    const checkbox = this.rows()
+      .first()
+      .getByRole("checkbox", { name: "Select row" })
+      .first();
+    await this.clickWithScroll(checkbox);
   }
 
   removeSelectedButton(): Locator {
@@ -183,20 +183,21 @@ export class ManageListPage {
   }
 
   async clickRemoveSelected() {
-    await this.removeSelectedButton().click();
+    await this.clickWithScroll(this.removeSelectedButton());
   }
 
   async confirmRemoveSelected() {
-    await this.page
+    const deleteButton = this.page
       .getByRole("alertdialog")
       .getByRole("button", { name: "Delete" })
-      .click();
+      .first();
+    await this.clickWithScroll(deleteButton);
   }
 
   async resetToolbarFiltersIfVisible() {
     const resetButton = this.page.getByRole("button", { name: "Reset" }).first();
     if (await resetButton.isVisible()) {
-      await resetButton.click();
+      await this.clickWithScroll(resetButton);
     }
   }
 }

@@ -16,8 +16,8 @@ export class HomePage {
   }
 
   async isReady() {
-    await this.heroHeading.waitFor({ state: "visible", timeout: 10000 });
-    await this.dashboardButton.waitFor({ state: "visible", timeout: 10000 });
+    await this.heroHeading.waitFor({ state: "visible" });
+    await this.dashboardButton.waitFor({ state: "visible" });
   }
 
   async openDashboard() {

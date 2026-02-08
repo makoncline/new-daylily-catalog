@@ -22,19 +22,26 @@ test.describe("listing image manager @local", () => {
     editListingDialog,
     imageManager,
   }) => {
-    test.setTimeout(120000);
-
     const toast = (message: string) =>
       page.locator("[data-sonner-toast]").filter({ hasText: message }).first();
 
     const expectToast = async (message: string) => {
-      await expect(toast(message)).toBeVisible({ timeout: 10000 });
+      await expect(toast(message)).toBeVisible();
     };
 
     const expectEditingParam = async (expected: string | null) => {
-      await expect.poll(() => new URL(page.url()).searchParams.get("editing")).toBe(
-        expected,
+      await expect(page).toHaveURL(
+        (url) => url.searchParams.get("editing") === expected,
       );
+    };
+    const expectImageOrder = async (ids: string[]) => {
+      await expect(imageManager.imageItems()).toHaveCount(ids.length);
+      for (const [index, id] of ids.entries()) {
+        await expect(imageManager.imageItems().nth(index)).toHaveAttribute(
+          "data-image-id",
+          id,
+        );
+      }
     };
 
     const [firstImageId, secondImageId, thirdImageId] = seedMeta.imageIds;
@@ -57,9 +64,7 @@ test.describe("listing image manager @local", () => {
 
     // Baseline state
     await expect(imageManager.imageItems()).toHaveCount(3);
-    await expect.poll(async () => imageManager.imageOrderIds()).toEqual(
-      seedMeta.imageIds,
-    );
+    await expectImageOrder(seedMeta.imageIds);
 
     // Preview
     await imageManager.openImagePreviewById(firstImageId);
@@ -71,46 +76,34 @@ test.describe("listing image manager @local", () => {
     await imageManager.dragImageBefore(firstImageId, thirdImageId);
     await expectToast("Image order updated");
 
-    const reorderedIds = [secondImageId, thirdImageId, firstImageId];
-    await expect.poll(async () => imageManager.imageOrderIds()).toEqual(
-      reorderedIds,
-    );
+    const reorderedIds: [string, string, string] = [
+      secondImageId,
+      thirdImageId,
+      firstImageId,
+    ];
+    await expectImageOrder(reorderedIds);
 
     // Reorder persistence after reload
     await page.reload();
     await dashboardListings.isReady();
     await editListingDialog.isReady();
-    await expect(imageManager.imageItems()).toHaveCount(3);
-    await expect.poll(async () => imageManager.imageOrderIds()).toEqual(
-      reorderedIds,
-    );
+    await expectImageOrder(reorderedIds);
 
     // Delete middle image
     const deletedImageId = reorderedIds[1];
-    if (!deletedImageId) {
-      throw new Error("Expected a middle image id for delete test");
-    }
     await imageManager.imageDeleteButtonById(deletedImageId).click();
     await imageManager.confirmImageDelete();
     await expectToast("Image deleted successfully");
     await expect(imageManager.imageItems()).toHaveCount(2);
     await expect(imageManager.imageItemById(deletedImageId)).toHaveCount(0);
 
-    const remainingIds = [reorderedIds[0], reorderedIds[2]];
-    if (!remainingIds[0] || !remainingIds[1]) {
-      throw new Error("Expected 2 remaining image ids after delete");
-    }
-    await expect.poll(async () => imageManager.imageOrderIds()).toEqual(
-      remainingIds,
-    );
+    const remainingIds: [string, string] = [reorderedIds[0], reorderedIds[2]];
+    await expectImageOrder(remainingIds);
 
     // Delete persistence after reload
     await page.reload();
     await dashboardListings.isReady();
     await editListingDialog.isReady();
-    await expect(imageManager.imageItems()).toHaveCount(2);
-    await expect.poll(async () => imageManager.imageOrderIds()).toEqual(
-      remainingIds,
-    );
+    await expectImageOrder(remainingIds);
   });
 });

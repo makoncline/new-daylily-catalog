@@ -40,8 +40,6 @@ test.describe("guest user tour @preview", () => {
 
     // Listing page should render a main heading
     await page.waitForURL(/\/[^/]+\/[^/]+$/);
-    await expect(page.getByRole("heading", { level: 1 })).toBeVisible({
-      timeout: 30000,
-    });
+    await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
   });
 });

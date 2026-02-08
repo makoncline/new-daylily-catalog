@@ -1,0 +1,39 @@
+# Napkin
+
+## Log
+
+- 2026-02-07 - e2e cleanup - Full suite stabilized after removing most custom timeout/retry/poll code and validating with repeats.
+- 2026-02-07 - e2e issue - Profile content sometimes disappeared after reload due autosave race; fixed by waiting for `userProfile.updateContent` response after blur.
+- 2026-02-07 - e2e issue - Clerk modal has variant state: after email click `Continue`; after code entry do not submit again (auto-submit). If warning says code wasn't sent, click `Continue` once.
+- 2026-02-07 - e2e issue - Select/popup items can be outside viewport; `scrollIntoViewIfNeeded()` before click fixed intermittent failures.
+- 2026-02-07 - e2e issue - Listings row-action dropdown was flaky in CI/local when relying on generic role selectors or `force: true`; stable approach is explicit row-action test IDs + menu-open assertions (trigger `aria-expanded`) before clicking action items.
+- 2026-02-08 - e2e issue - Listings row-action still flaked when search query updates were still propagating; fix was to wait for URL query state (`expectUrlParam("query", value)`) before opening row actions.
+- 2026-02-08 - e2e issue - `scrollIntoViewIfNeeded()` on row-action trigger can throw `Element is not attached to the DOM` during table re-render; direct locator `.click()` was more stable for this trigger.
+- 2026-02-08 - e2e issue - URL-param assertions (`expect.poll` on `page.url()`) were flaky in CI/act despite correct UI behavior; replacing with table/page-indicator assertions removed false negatives.
+- 2026-02-08 - e2e issue - `page.locator("table").first()` is brittle when pages render multiple tables; scope all row locators to container test ids (`list-table`, `manage-list-table`) to avoid wrong-table clicks and detach.
+
+## Preferences
+
+- Use the term `napkin` (not `codex napkin`).
+- Keep E2E tests UI-only; if UI behavior fails, test should fail (don't hide with non-UI shortcuts).
+
+## Patterns That Work
+
+- Simplify first: remove stability scaffolding, then re-add only minimal waits tied to real UI/events when failures prove necessary.
+- Use `--repeat-each` to prove changes: spec-level `--repeat-each 3` while iterating, then suite-level `tests/e2e/*.e2e.ts --repeat-each 2`.
+- Prefer UI signals (visible/enabled/url/assertions) over polling and explicit timeouts.
+- For Radix dropdown interactions in table rows, use open-menu assertions (`data-state=\"open\"`) and action-specific selectors instead of structural table locators (`table.last()`, `aria-controls`).
+- Scope table interactions to test-id containers first, then table internals (avoid global `table.first()` selectors).
+
+## Patterns That Fail
+
+- Preemptive "stability" code (long custom timeouts, retry loops, blanket force-clicks) made tests harder to reason about.
+- Reloading immediately after EditorJS typing without waiting for save completion caused flaky assertions.
+- Pressing submit after entering Clerk verification code added instability; code field completion should auto-submit.
+- Row-action flows tied to table re-renders can detach menu items mid-click; generic `getByRole(\"menuitem\")` across the page is brittle.
+- `scrollIntoViewIfNeeded()` is not universally safer; on rapidly rerendering table rows it can increase detach failures.
+- URL-state polling as a primary assertion layer can fail even when the visible table state is correct.
+
+## Domain Notes
+
+- Occasional server-side `ECONNRESET` or transient tRPC errors may appear during runs; prioritize actual test assertion failures over noisy logs.
