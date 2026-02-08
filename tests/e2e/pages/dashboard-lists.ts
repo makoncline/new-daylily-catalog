@@ -1,4 +1,4 @@
-import type { Locator, Page } from "@playwright/test";
+import { expect, type Locator, type Page } from "@playwright/test";
 
 export class DashboardLists {
   readonly page: Page;
@@ -118,24 +118,45 @@ export class DashboardLists {
   private firstVisibleRowActionButton(): Locator {
     return this.page
       .getByTestId("list-table")
-      .getByTestId("list-row-actions-trigger")
+      .locator('[data-testid="list-row-actions-trigger"]:visible')
       .first();
   }
 
-  private rowActionMenuItem(actionName: "Edit" | "Delete" | "Manage"): Locator {
-    const menu = this.page
+  private rowActionMenu(): Locator {
+    return this.page
       .locator('[data-slot="dropdown-menu-content"][data-state="open"]')
       .last();
+  }
+
+  private rowActionMenuItem(actionName: "Edit" | "Delete" | "Manage"): Locator {
     const testId =
       actionName === "Manage"
         ? "list-row-action-manage"
         : actionName === "Edit"
           ? "list-row-action-edit"
           : "list-row-action-delete";
-    return menu.getByTestId(testId);
+    return this.page.locator(`[data-testid="${testId}"]:visible`).first();
+  }
+
+  private async clickRowActionTriggerAndWaitOpen() {
+    const actionButton = this.firstVisibleRowActionButton();
+    await actionButton.click();
+    if ((await actionButton.getAttribute("aria-expanded")) !== "true") {
+      await actionButton.click();
+    }
+    await expect(actionButton).toHaveAttribute("aria-expanded", "true");
+  }
+
+  private async ensureRowActionMenuOpen() {
+    if (await this.rowActionMenu().isVisible()) {
+      return;
+    }
+
+    await this.clickRowActionTriggerAndWaitOpen();
   }
 
   private async chooseRowAction(actionName: "Edit" | "Delete") {
+    await this.ensureRowActionMenuOpen();
     const item = this.rowActionMenuItem(actionName);
     await item.click();
   }
@@ -149,10 +170,7 @@ export class DashboardLists {
   }
 
   async openFirstVisibleRowActions() {
-    const actionButton = this.firstVisibleRowActionButton();
-    await actionButton.waitFor({ state: "visible" });
-    await actionButton.scrollIntoViewIfNeeded();
-    await actionButton.click();
+    await this.clickRowActionTriggerAndWaitOpen();
     await this.rowActionMenuItem("Edit").waitFor({ state: "visible" });
   }
 

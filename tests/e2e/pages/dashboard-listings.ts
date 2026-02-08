@@ -1,4 +1,4 @@
-import type { Locator, Page } from "@playwright/test";
+import { expect, type Locator, type Page } from "@playwright/test";
 
 type FilterableColumnLabel =
   | "Title"
@@ -161,7 +161,7 @@ export class DashboardListings {
   private firstVisibleRowActionButton(): Locator {
     return this.page
       .getByTestId("listing-table")
-      .getByTestId("listing-row-actions-trigger")
+      .locator('[data-testid="listing-row-actions-trigger"]:visible')
       .first();
   }
 
@@ -174,26 +174,34 @@ export class DashboardListings {
   private rowActionMenuItem(actionName: "Delete" | "Edit"): Locator {
     const testId =
       actionName === "Edit" ? "listing-row-action-edit" : "listing-row-action-delete";
-    return this.rowActionMenu().getByTestId(testId);
+    return this.page.locator(`[data-testid="${testId}"]:visible`).first();
+  }
+
+  private async clickRowActionTriggerAndWaitOpen() {
+    const rowActionButton = this.firstVisibleRowActionButton();
+    await rowActionButton.click();
+    if ((await rowActionButton.getAttribute("aria-expanded")) !== "true") {
+      await rowActionButton.click();
+    }
+    await expect(rowActionButton).toHaveAttribute("aria-expanded", "true");
+  }
+
+  private async ensureRowActionMenuOpen() {
+    if (await this.rowActionMenu().isVisible()) {
+      return;
+    }
+
+    await this.clickRowActionTriggerAndWaitOpen();
   }
 
   async openFirstVisibleRowActions() {
-    const rowActionButton = this.firstVisibleRowActionButton();
-    await rowActionButton.waitFor({ state: "visible" });
-    await rowActionButton.scrollIntoViewIfNeeded();
-    await rowActionButton.click();
-    await this.rowActionMenu().waitFor({ state: "visible" });
+    await this.clickRowActionTriggerAndWaitOpen();
     await this.rowActionMenuItem("Edit").waitFor({ state: "visible" });
   }
 
   private async chooseRowAction(actionName: "Delete" | "Edit") {
-    if (actionName === "Edit") {
-      await this.page.keyboard.press("ArrowDown");
-      await this.page.keyboard.press("Enter");
-      return;
-    }
-
-    await this.rowActionMenuItem("Delete").click();
+    await this.ensureRowActionMenuOpen();
+    await this.rowActionMenuItem(actionName).click();
   }
 
   async chooseRowActionDelete() {

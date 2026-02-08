@@ -214,6 +214,7 @@ test.describe("create/edit listing flow @local", () => {
     await expectTableParamsCleared();
 
     await dashboardListings.setGlobalSearch(seedMeta.relinkAhsName);
+    await expectUrlParam("query", seedMeta.relinkAhsName);
     await expect(dashboardListings.listingRow(seedMeta.relinkAhsName)).toBeVisible();
     await captureCheckpoint("listings-table-final-row-state");
 

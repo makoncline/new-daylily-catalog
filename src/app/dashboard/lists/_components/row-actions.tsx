@@ -53,7 +53,11 @@ export function DataTableRowActions({ row }: DataTableRowActionsProps) {
             <span className="sr-only">Open menu</span>
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-[160px]">
+        <DropdownMenuContent
+          align="end"
+          forceMount
+          className="w-[160px] data-[state=closed]:animate-none data-[state=open]:animate-none"
+        >
           <DropdownMenuItem asChild data-testid="list-row-action-manage">
             <Link href={`/dashboard/lists/${row.original.id}`}>
               <Settings className="mr-2 h-4 w-4" />

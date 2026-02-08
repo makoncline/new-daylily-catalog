@@ -52,7 +52,11 @@ export function DataTableRowActions<TData extends { id: string }>({
             <span className="sr-only">Open menu</span>
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-[160px]">
+        <DropdownMenuContent
+          align="end"
+          forceMount
+          className="w-[160px] data-[state=closed]:animate-none data-[state=open]:animate-none"
+        >
           <DropdownMenuItem
             onSelect={() => onEdit(row.original.id)}
             data-testid="listing-row-action-edit"
