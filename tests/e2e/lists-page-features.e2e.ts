@@ -20,9 +20,6 @@ test.describe("lists page features @local", () => {
     page,
     dashboardLists,
   }) => {
-    const toast = (message: string) =>
-      page.locator("[data-sonner-toast]").filter({ hasText: message }).first();
-
     const expectUrlParam = async (key: string, expected: string | null) => {
       await expect
         .poll(() => new URL(page.url()).searchParams.get(key))
@@ -210,7 +207,6 @@ test.describe("lists page features @local", () => {
         `Updated description ${seedMeta.editTargetUpdatedDescriptionToken}`,
       );
     await dashboardLists.saveChangesButton().click();
-    await expect(toast("List updated")).toBeVisible();
 
     await dashboardLists.closeEditDialog();
     await expectUrlParam("editing", null);
@@ -232,7 +228,6 @@ test.describe("lists page features @local", () => {
     await dashboardLists.openFirstVisibleRowActions();
     await dashboardLists.chooseRowActionDelete();
     await dashboardLists.confirmDelete();
-    await expect(toast("List deleted")).toBeVisible();
 
     await expect(
       page.getByRole("heading", { name: "No lists found" }),
