@@ -53,11 +53,7 @@ export function DataTableRowActions({ row }: DataTableRowActionsProps) {
             <span className="sr-only">Open menu</span>
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent
-          align="end"
-          forceMount
-          className="w-[160px] data-[state=closed]:animate-none data-[state=open]:animate-none"
-        >
+        <DropdownMenuContent align="end" className="w-[160px]">
           <DropdownMenuItem asChild data-testid="list-row-action-manage">
             <Link href={`/dashboard/lists/${row.original.id}`}>
               <Settings className="mr-2 h-4 w-4" />
@@ -65,7 +61,7 @@ export function DataTableRowActions({ row }: DataTableRowActionsProps) {
             </Link>
           </DropdownMenuItem>
           <DropdownMenuItem
-            onSelect={() => editList(row.original.id)}
+            onClick={() => editList(row.original.id)}
             data-testid="list-row-action-edit"
           >
             <Pencil className="mr-2 h-4 w-4" />
@@ -73,7 +69,7 @@ export function DataTableRowActions({ row }: DataTableRowActionsProps) {
           </DropdownMenuItem>
           <DropdownMenuSeparator />
           <DropdownMenuItem
-            onSelect={() => setShowDeleteDialog(true)}
+            onClick={() => setShowDeleteDialog(true)}
             className="text-destructive focus:text-destructive"
             data-testid="list-row-action-delete"
           >

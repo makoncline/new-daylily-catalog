@@ -1,8 +1,8 @@
 import { z } from "zod";
 import { createTRPCRouter, protectedProcedure } from "@/server/api/trpc";
+import { unstableCacheUnlessE2E } from "@/lib/next-cache-utils";
 import { compareItems, rankings, rankItem } from "@tanstack/match-sorter-utils";
 import { TRPCError } from "@trpc/server";
-import { unstable_cache } from "next/cache";
 import type { PrismaClient } from "@prisma/client";
 
 async function runAhsSearchQuery(db: PrismaClient, query: string) {
@@ -44,22 +44,16 @@ export const ahsRouter = createTRPCRouter({
       }),
     )
     .query(async ({ ctx, input }) => {
-      const isPlaywrightLocalRun = process.env.PLAYWRIGHT_LOCAL_E2E === "true";
-      const shouldCacheSearch =
-        process.env.NODE_ENV === "production" && !isPlaywrightLocalRun;
-
-      if (!shouldCacheSearch) {
-        return runAhsSearchQuery(ctx.db, input.query);
-      }
-
-      return await unstable_cache(
+      const getAhsSearchResults = unstableCacheUnlessE2E(
         async () => runAhsSearchQuery(ctx.db, input.query),
         [`ahs-search-${input.query.toLowerCase()}`],
         {
           // Cache for 3 days since data hardly changes
           revalidate: 60 * 60 * 24 * 3,
         },
-      )();
+      );
+
+      return getAhsSearchResults();
     }),
 
   get: protectedProcedure

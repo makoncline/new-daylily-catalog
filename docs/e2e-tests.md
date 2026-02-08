@@ -12,6 +12,22 @@ End-to-end tests live in `tests/e2e/` and use Playwright.
   - `pnpm exec playwright test --ui`
   - `pnpm exec playwright test --ui tests/e2e`
 
+## Run PR E2E Job Locally with `act`
+
+Use this when you want to reproduce the GitHub Actions E2E job (`.github/workflows/pr-tests.yml`, job `e2e`) locally.
+
+- Baseline run:
+  - `act pull_request -W .github/workflows/pr-tests.yml -j e2e --secret-file .env.development`
+- Faster repeat runs (reuse existing deps/actions/browsers from prior `act` runs):
+  - `act pull_request -W .github/workflows/pr-tests.yml -j e2e --secret-file .env.development --reuse --action-offline-mode`
+
+Notes:
+
+- First run is slow (image pulls, Playwright browsers, apt packages).
+- `--reuse` keeps successful job containers so subsequent runs can reuse installed dependencies.
+- `--action-offline-mode` avoids re-fetching actions when already cached.
+- Using OrbStack as your Docker runtime works with the same commands (no extra flags required).
+
 ## Preview vs Local (Tagging)
 
 Tag rules are enforced in `playwright.config.ts`:

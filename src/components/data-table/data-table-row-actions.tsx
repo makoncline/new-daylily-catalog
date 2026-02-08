@@ -27,11 +27,13 @@ export function DataTableRowActions<TData extends { id: string }>({
   onEdit,
 }: DataTableRowActionsProps<TData>) {
   const router = useRouter();
+  const [open, setOpen] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
 
   const deleteListing = api.listing.delete.useMutation({
     onSuccess: () => {
       toast.success("Listing deleted successfully");
+      setOpen(false);
       router.refresh();
     },
     onError: () => {
@@ -41,24 +43,23 @@ export function DataTableRowActions<TData extends { id: string }>({
 
   return (
     <>
-      <DropdownMenu>
+      <DropdownMenu open={open} onOpenChange={setOpen}>
         <DropdownMenuTrigger asChild>
           <Button
             variant="ghost"
-            className="data-[state=open]:bg-muted flex h-8 w-8 p-0"
+            className="data-[state=open]:bg-muted flex h-full w-full p-0"
             data-testid="listing-row-actions-trigger"
           >
             <DotsHorizontalIcon className="h-4 w-4" />
             <span className="sr-only">Open menu</span>
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent
-          align="end"
-          forceMount
-          className="w-[160px] data-[state=closed]:animate-none data-[state=open]:animate-none"
-        >
+        <DropdownMenuContent align="end" className="w-[160px]">
           <DropdownMenuItem
-            onSelect={() => onEdit(row.original.id)}
+            onClick={() => {
+              setOpen(false);
+              onEdit(row.original.id);
+            }}
             data-testid="listing-row-action-edit"
           >
             <Pencil className="mr-2 h-4 w-4" />
@@ -67,7 +68,10 @@ export function DataTableRowActions<TData extends { id: string }>({
           <DropdownMenuSeparator />
           <DropdownMenuItem
             className="text-destructive"
-            onSelect={() => setShowDeleteDialog(true)}
+            onClick={() => {
+              setOpen(false);
+              setShowDeleteDialog(true);
+            }}
             data-testid="listing-row-action-delete"
           >
             <Trash2 className="mr-2 h-4 w-4" />
