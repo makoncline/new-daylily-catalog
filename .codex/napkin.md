@@ -2,6 +2,9 @@
 
 ## Log
 
+- 2026-02-09 - conversion UX - Reused `FloatingCartButton` dialog state for a new top-of-profile `Contact Seller` CTA while keeping the bottom-right floating button.
+- 2026-02-09 - product review correction - Public listing has a bottom-right floating contact/cart action; it was easy to miss in snapshots because icon-only controls lacked clear labels in the accessibility tree.
+- 2026-02-09 - product review - When asked for customer-value feedback, run Playwright on public flows (home -> catalogs -> catalog -> listing -> auth modal) and prioritize activation, conversion, and retention gaps with concrete examples.
 - 2026-02-09 - e2e observability - Force `NEXT_PUBLIC_SENTRY_ENABLED=false` in Playwright local config and `webServer.env` so local E2E never initializes Sentry.
 - 2026-02-07 - e2e cleanup - Full suite stabilized after removing most custom timeout/retry/poll code and validating with repeats.
 - 2026-02-07 - e2e issue - Profile content sometimes disappeared after reload due autosave race; fixed by waiting for `userProfile.updateContent` response after blur.
@@ -19,6 +22,7 @@
 
 - Use the term `napkin` (not `codex napkin`).
 - Keep E2E tests UI-only; if UI behavior fails, test should fail (don't hide with non-UI shortcuts).
+- For product-feedback asks, return prioritized recommendations tied to activation, conversion, and retention.
 
 ## Patterns That Work
 

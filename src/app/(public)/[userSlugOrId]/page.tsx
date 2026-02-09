@@ -12,7 +12,6 @@ import { getErrorCode, tryCatch } from "@/lib/utils";
 import { generateProfileMetadata } from "./_seo/metadata";
 import { CatalogContent } from "./_components/catalog-content";
 import { ProfilePageSEO } from "./_components/profile-seo";
-import { FloatingCartButton } from "@/components/floating-cart-button";
 
 export const revalidate = 3600;
 export const dynamicParams = true;
@@ -114,12 +113,6 @@ export default async function Page({ params }: PageProps) {
             />
           </Suspense>
         </div>
-
-        {/* Add Floating Cart Button */}
-        <FloatingCartButton
-          userId={initialProfile.id}
-          userName={initialProfile.title ?? undefined}
-        />
       </MainContent>
     </>
   );
