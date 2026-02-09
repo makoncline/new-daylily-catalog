@@ -15,6 +15,10 @@ export default defineConfig({
       // Exclude Playwright e2e specs by pattern
       "tests/**/*.e2e.ts",
       "tests/**/*.e2e.tsx",
+      // Exclude browser-mode specs (run via vitest.browser.config.ts)
+      "tests/**/*.browser.test.ts",
+      "tests/**/*.browser.test.tsx",
+      "tests/browser/**",
     ],
   },
   resolve: {

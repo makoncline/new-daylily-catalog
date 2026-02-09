@@ -48,6 +48,7 @@
     "prisma/generated/**/*",
     "prisma/schema.postgres.prisma",
     "playwright-report",
+    "public/mockServiceWorker.js",
     "src/components/ui/**/*"
   ]
 }

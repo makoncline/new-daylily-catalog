@@ -6,7 +6,7 @@ export default defineConfig({
   plugins: [react()],
   test: {
     globals: true,
-    setupFiles: ["./vitest.setup.ts"],
+    setupFiles: ["./vitest.setup.ts", "./tests/browser/setup-browser.ts"],
     include: ["tests/browser/**/*.browser.test.tsx"],
     exclude: ["**/node_modules/**", "**/dist/**"],
     browser: {
@@ -24,6 +24,7 @@ export default defineConfig({
         "prisma/generated/sqlite-client",
       ),
       "@/env": path.resolve(__dirname, "src/env.js"),
+      "next/image": path.resolve(__dirname, "tests/browser/mocks/next-image.tsx"),
     },
   },
 });

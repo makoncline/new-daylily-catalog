@@ -36,6 +36,32 @@ jobs:
       - name: Unit Tests
         run: pnpm test
 
+  browser:
+    name: Browser Tests (Vitest)
+    runs-on: ubuntu-latest
+    env:
+      SKIP_ENV_VALIDATION: "1"
+    steps:
+      - name: Enable corepack
+        run: corepack enable
+
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: "pnpm"
+          cache-dependency-path: pnpm-lock.yaml
+
+      - run: pnpm fetch
+      - run: pnpm install --frozen-lockfile --prefer-offline
+
+      - name: Install Playwright browsers
+        run: pnpm exec playwright install --with-deps chromium
+
+      - name: Browser Tests
+        run: pnpm test:browser
+
   e2e:
     name: E2E Tests
     runs-on: ubuntu-latest

@@ -23,7 +23,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:browser": "vitest --config vitest.browser.config.ts run",
-    "test:browser:watch": "vitest --config vitest.browser.config.ts",
+    "test:browser:headed": "vitest --config vitest.browser.config.ts --browser.headless=false run",
     "test:e2e": "playwright test",
     "test:e2e:attach": "BASE_URL=http://localhost:3000 playwright test"
   },
@@ -149,6 +149,7 @@
     "eslint": "^9.35.0",
     "eslint-config-next": "^15.5.2",
     "jsdom": "^26.1.0",
+    "msw": "^2.12.9",
     "playwright": "^1.58.2",
     "postcss": "^8.5.6",
     "prettier": "^3.6.2",
@@ -163,5 +164,8 @@
   "ct3aMetadata": {
     "initVersion": "7.37.0"
   },
-  "packageManager": "pnpm@9.12.0"
+  "packageManager": "pnpm@9.12.0",
+  "msw": {
+    "workerDirectory": "public"
+  }
 }
