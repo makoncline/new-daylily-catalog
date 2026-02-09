@@ -10,6 +10,7 @@ import { AppSidebar } from "@/components/app-sidebar";
 import { DashboardClientWrapper } from "./_components/dashboard-client-wrapper";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cookies } from "next/headers";
+import { type Metadata } from "next";
 
 // Simple fallback loading state for the Suspense boundary
 function DashboardFallback() {
@@ -31,6 +32,18 @@ function DashboardFallback() {
 }
 
 export const dynamic = "force-dynamic";
+export const metadata: Metadata = {
+  robots: {
+    index: false,
+    follow: false,
+    nocache: true,
+    googleBot: {
+      index: false,
+      follow: false,
+      noimageindex: true,
+    },
+  },
+};
 
 export default async function DashboardLayout({
   children,

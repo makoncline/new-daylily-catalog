@@ -32,6 +32,7 @@ async function createProfileMetadata(
       description: "The daylily catalog you are looking for does not exist.",
       imageUrl: IMAGES.DEFAULT_CATALOG,
       pageUrl: url,
+      robots: "noindex, nofollow",
       openGraph: {
         title: "Catalog Not Found",
         description: "The daylily catalog you are looking for does not exist.",
@@ -130,8 +131,8 @@ async function createProfileMetadata(
       description: "Browse our collection of beautiful daylilies.",
       imageUrl: IMAGES.DEFAULT_CATALOG,
       pageUrl: `${url}/${profile.id}`,
-      // Let Google show big thumbnails in Search/Discover.
-      robots: "index, follow, max-image-preview:large",
+      // Avoid indexing metadata generated from fallback errors.
+      robots: "noindex, nofollow",
       openGraph: {
         title: "Daylily Catalog",
         description: "Browse our collection of beautiful daylilies.",
