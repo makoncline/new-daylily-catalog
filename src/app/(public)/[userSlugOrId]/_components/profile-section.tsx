@@ -8,6 +8,7 @@ import {
   LastUpdatedBadge,
   MemberSince,
 } from "@/components/profile/profile-badges";
+import { FloatingCartButton } from "@/components/floating-cart-button";
 import { type RouterOutputs } from "@/trpc/react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { H1, P } from "@/components/typography";
@@ -45,6 +46,12 @@ export function ProfileSection({ profile }: ProfileSectionProps) {
         <ListingCountBadge count={profile._count.listings} />
         <ListCountBadge count={profile.lists.length} lists={profile.lists} />
       </div>
+
+      <FloatingCartButton
+        userId={profile.id}
+        userName={profile.title ?? undefined}
+        showTopButton
+      />
     </div>
   );
 }
