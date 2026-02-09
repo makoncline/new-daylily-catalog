@@ -4,6 +4,7 @@ import path from "node:path";
 
 const e2ePort = process.env.E2E_PORT ?? "3100";
 const baseURL = process.env.BASE_URL ?? `http://localhost:${e2ePort}`;
+process.env.NEXT_PUBLIC_SENTRY_ENABLED = "false";
 
 // Pre-provision temp DB path when running locally (not attaching to BASE_URL)
 // DB template copy and clearing is handled by global-setup.ts
@@ -66,6 +67,7 @@ export default defineConfig({
         env: {
           ...process.env,
           PORT: e2ePort,
+          NEXT_PUBLIC_SENTRY_ENABLED: "false",
           USE_TURSO_DB: "false",
           LOCAL_DATABASE_URL: process.env.LOCAL_DATABASE_URL!,
           E2E_TEST_DB_URL: process.env.E2E_TEST_DB_URL!,
