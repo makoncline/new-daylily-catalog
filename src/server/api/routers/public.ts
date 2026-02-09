@@ -17,6 +17,7 @@ import {
 import { SESClient, SendEmailCommand } from "@aws-sdk/client-ses";
 import { env } from "@/env";
 import { cartItemSchema } from "@/types";
+import { STATUS } from "@/config/constants";
 
 // Initialize SES client
 const ses = new SESClient({
@@ -29,8 +30,12 @@ const ses = new SESClient({
 
 // Helper function to get the full listing data with all relations
 async function getFullListingData(listingId: string) {
-  const listing = await db.listing.findUnique({
-    where: { id: listingId },
+  const publicListingVisibilityFilter = {
+    OR: [{ status: null }, { NOT: { status: STATUS.HIDDEN } }],
+  };
+
+  const listing = await db.listing.findFirst({
+    where: { id: listingId, ...publicListingVisibilityFilter },
     select: listingSelect,
   });
 

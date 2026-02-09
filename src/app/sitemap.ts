@@ -1,13 +1,17 @@
 import { db } from "@/server/db";
 import { getBaseUrl } from "@/lib/utils/getBaseUrl";
 import { type MetadataRoute } from "next";
+import { STATUS } from "@/config/constants";
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const baseUrl = getBaseUrl();
   const sitemap: MetadataRoute.Sitemap = [];
+  const publicListingVisibilityFilter = {
+    OR: [{ status: null }, { NOT: { status: STATUS.HIDDEN } }],
+  };
 
   // Add static pages
-  const staticPages = ["", "/catalogs", "/auth-error"];
+  const staticPages = ["", "/catalogs"];
 
   staticPages.forEach((path) => {
     sitemap.push({
@@ -26,6 +30,11 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         select: {
           updatedAt: true,
         },
+      },
+    },
+    where: {
+      listings: {
+        some: publicListingVisibilityFilter,
       },
     },
   });
@@ -47,6 +56,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       userId: true,
       updatedAt: true,
     },
+    where: publicListingVisibilityFilter,
   });
 
   listings.forEach((listing) => {

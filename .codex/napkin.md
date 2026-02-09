@@ -11,6 +11,8 @@
 - 2026-02-08 - e2e issue - `scrollIntoViewIfNeeded()` on row-action trigger can throw `Element is not attached to the DOM` during table re-render; direct locator `.click()` was more stable for this trigger.
 - 2026-02-08 - e2e issue - URL-param assertions (`expect.poll` on `page.url()`) were flaky in CI/act despite correct UI behavior; replacing with table/page-indicator assertions removed false negatives.
 - 2026-02-08 - e2e issue - `page.locator("table").first()` is brittle when pages render multiple tables; scope all row locators to container test ids (`list-table`, `manage-list-table`) to avoid wrong-table clicks and detach.
+- 2026-02-09 - seo/public routes - Avoid `as const` on Prisma `where` filter objects (`OR` arrays become readonly and break Prisma + no-unsafe typing across route outputs).
+- 2026-02-09 - tooling - `pnpm install` runs `prisma generate` and may rewrite generated client paths/binary targets to local machine values; revert generated noise before finalizing changes.
 
 ## Preferences
 

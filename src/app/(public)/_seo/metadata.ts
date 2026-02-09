@@ -14,6 +14,14 @@ async function createHomePageMetadata(url: string) {
     title,
     description,
     imageUrl,
+    robots: "index, follow, max-image-preview:large",
+    keywords: [
+      "daylily catalog",
+      "daylily database",
+      "daylily growers",
+      "daylily listings",
+      "garden catalog",
+    ],
     openGraph: {
       title,
       description,

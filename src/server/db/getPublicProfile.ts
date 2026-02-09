@@ -3,6 +3,7 @@ import { TRPCError } from "@trpc/server";
 import { type OutputData } from "@editorjs/editorjs";
 import { getStripeSubscription } from "@/server/stripe/sync-subscription";
 import { hasActiveSubscription } from "@/server/stripe/subscription-utils";
+import { STATUS } from "@/config/constants";
 
 // Helper function to get userId from either slug or id
 export async function getUserIdFromSlugOrId(slugOrId: string): Promise<string> {
@@ -39,11 +40,16 @@ export async function getListingIdFromSlugOrId(
   slugOrId: string,
   userId: string,
 ): Promise<string> {
+  const publicListingVisibilityFilter = {
+    OR: [{ status: null }, { NOT: { status: STATUS.HIDDEN } }],
+  };
+
   // First try to find by slug (case insensitive)
   const listingBySlug = await db.listing.findFirst({
     where: {
       userId,
       slug: slugOrId.toLowerCase(),
+      ...publicListingVisibilityFilter,
     },
     select: { id: true },
   });
@@ -53,10 +59,11 @@ export async function getListingIdFromSlugOrId(
   }
 
   // If not found by slug, check if it's a valid listing id
-  const listingById = await db.listing.findUnique({
+  const listingById = await db.listing.findFirst({
     where: {
       id: slugOrId,
       userId,
+      ...publicListingVisibilityFilter,
     },
     select: { id: true },
   });

@@ -22,6 +22,7 @@ async function createListingMetadata(listing: Listing | null, url: string) {
       pageUrl: url,
       title: "Listing Not Found",
       description: "The daylily listing you are looking for does not exist.",
+      robots: "noindex, nofollow",
       openGraph: {
         title: "Listing Not Found",
         description: "The daylily listing you are looking for does not exist.",
@@ -99,6 +100,7 @@ async function createListingMetadata(listing: Listing | null, url: string) {
       pageUrl: `${url}/${listing.userId}/${listing.id}`,
       title: "Daylily | Daylily Catalog",
       description: "View this daylily from our catalog",
+      robots: "noindex, nofollow",
       openGraph: {
         title: "Daylily | Daylily Catalog",
         description: "View this daylily from our catalog",
