@@ -8,7 +8,8 @@ import { toast } from "sonner";
 import { Editor } from "@/components/editor";
 import { parseEditorContent } from "@/lib/editor-utils";
 import { Loader2 } from "lucide-react";
-import { FormItem, FormLabel } from "../ui/form";
+import { FormItem } from "../ui/form";
+import { Label } from "../ui/label";
 import { useOnClickOutside } from "usehooks-ts";
 import { type OutputData } from "@editorjs/editorjs";
 import { Muted } from "@/components/typography";
@@ -87,7 +88,7 @@ export function ContentManagerFormItem({
     <FormItem>
       <div className="flex w-full items-end justify-between">
         <div>
-          <FormLabel>Content</FormLabel>
+          <Label>Content</Label>
           <Muted className="text-sm">
             Tell visitors about yourself and your garden.
           </Muted>

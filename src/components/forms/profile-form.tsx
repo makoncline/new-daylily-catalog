@@ -13,6 +13,7 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
+import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { api } from "@/trpc/react";
@@ -267,11 +268,11 @@ export function ProfileForm({ initialProfile }: ProfileFormProps) {
           />
 
           <FormItem>
-            <FormLabel>Profile Images</FormLabel>
-            <FormDescription>
+            <Label>Profile Images</Label>
+            <p className="text-muted-foreground text-[0.8rem]">
               Upload images to showcase your garden. You can reorder them by
               dragging.
-            </FormDescription>
+            </p>
             <ProfileImageManager initialProfile={profile} />
           </FormItem>
 
