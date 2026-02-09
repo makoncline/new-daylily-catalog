@@ -100,7 +100,7 @@ export function DataTable<TData>({ table }: DataTableProps<TData>) {
                       .map((cell) => (
                         <TableCell
                           key={cell.id}
-                          className="h-20 min-w-24 max-w-52"
+                          className="h-20 min-w-24 max-w-52 overflow-hidden whitespace-nowrap"
                         >
                           {flexRender(
                             cell.column.columnDef.cell,
@@ -116,7 +116,7 @@ export function DataTable<TData>({ table }: DataTableProps<TData>) {
         )}
 
         {/* Center scrollable table */}
-        <div className="flex-1 overflow-auto">
+        <div className="min-w-0 flex-1 overflow-hidden">
           <UITable>
             {table.getHeaderGroups() && (
               <TableHeader>
@@ -173,7 +173,7 @@ export function DataTable<TData>({ table }: DataTableProps<TData>) {
                     .map((cell) => (
                       <TableCell
                         key={cell.id}
-                        className="h-20 min-w-24 max-w-96"
+                        className="h-20 min-w-24 max-w-96 overflow-hidden whitespace-nowrap"
                       >
                         {flexRender(
                           cell.column.columnDef.cell,
@@ -238,7 +238,10 @@ export function DataTable<TData>({ table }: DataTableProps<TData>) {
                         rightPinnedColumns.includes(cell.column.id),
                       )
                       .map((cell) => (
-                        <TableCell key={cell.id} className="h-20 max-w-96">
+                        <TableCell
+                          key={cell.id}
+                          className="h-20 max-w-96 overflow-hidden whitespace-nowrap"
+                        >
                           {flexRender(
                             cell.column.columnDef.cell,
                             cell.getContext(),
