@@ -2,6 +2,7 @@
 
 ## Log
 
+- 2026-02-09 - e2e observability - Force `NEXT_PUBLIC_SENTRY_ENABLED=false` in Playwright local config and `webServer.env` so local E2E never initializes Sentry.
 - 2026-02-07 - e2e cleanup - Full suite stabilized after removing most custom timeout/retry/poll code and validating with repeats.
 - 2026-02-07 - e2e issue - Profile content sometimes disappeared after reload due autosave race; fixed by waiting for `userProfile.updateContent` response after blur.
 - 2026-02-07 - e2e issue - Clerk modal has variant state: after email click `Continue`; after code entry do not submit again (auto-submit). If warning says code wasn't sent, click `Continue` once.
