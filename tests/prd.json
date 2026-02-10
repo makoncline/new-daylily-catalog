@@ -58,7 +58,7 @@
     {
       "step": 5,
       "id": "support-create-listing-with-cultivar-reference-id",
-      "completed": false,
+      "completed": true,
       "change": "Update listing create flow to pass and accept `cultivarReferenceId` from create dialog. Derive `ahsId` server-side as transitional back-compat if needed.",
       "files": [
         "src/app/dashboard/listings/_components/create-listing-dialog.tsx",

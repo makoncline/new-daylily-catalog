@@ -21,7 +21,7 @@ import { useSetAtom } from "jotai";
 import { editingListingIdAtom } from "./edit-listing-dialog";
 import { normalizeError, reportError } from "@/lib/error-utils";
 
-import type { AhsListing } from "@prisma/client";
+import type { AhsSearchResult } from "@/types";
 
 /**
  * Dialog for creating a new daylily listing.
@@ -36,16 +36,16 @@ export function CreateListingDialog({
   // Always initialize as open
   const [open, setOpen] = useState(true);
   const [title, setTitle] = useState("");
-  const [selectedAhsListing, setSelectedAhsListing] =
-    useState<AhsListing | null>(null);
+  const [selectedResult, setSelectedResult] =
+    useState<AhsSearchResult | null>(null);
   const [isPending, setIsPending] = useState(false);
 
   const setEditingId = useSetAtom(editingListingIdAtom);
 
   const { data: detailedAhsListing } = api.ahs.get.useQuery(
-    { id: selectedAhsListing?.id ?? "" },
+    { id: selectedResult?.id ?? "" },
     {
-      enabled: !!selectedAhsListing?.id,
+      enabled: !!selectedResult?.id,
       refetchOnWindowFocus: false,
     },
   );
@@ -72,37 +72,26 @@ export function CreateListingDialog({
     },
   });
 
-  /**
-   * Handles selection of an AHS listing.
-   * If title is empty, automatically uses the AHS listing name.
-   */
-  const handleAhsListingSelect = (ahsListing: AhsListing) => {
-    setSelectedAhsListing(ahsListing);
+  const handleAhsListingSelect = (result: AhsSearchResult) => {
+    setSelectedResult(result);
     if (!title) {
-      setTitle(ahsListing.name ?? "");
+      setTitle(result.name ?? "");
     }
   };
 
-  /**
-   * Syncs the title input with the selected AHS listing name.
-   */
   const syncTitleWithAhs = () => {
-    if (selectedAhsListing) {
-      setTitle(selectedAhsListing.name ?? "");
+    if (selectedResult) {
+      setTitle(selectedResult.name ?? "");
     }
   };
 
-  /**
-   * Handles the create button click.
-   * Submits form data to create a new listing.
-   */
   const handleCreate = async () => {
     setIsPending(true);
     try {
-      const finalTitle = title ?? selectedAhsListing?.name ?? "New Listing";
+      const finalTitle = title ?? selectedResult?.name ?? "New Listing";
       await createListingMutation.mutateAsync({
         title: finalTitle,
-        ahsId: selectedAhsListing?.id ?? null,
+        cultivarReferenceId: selectedResult?.cultivarReferenceId ?? null,
       });
     } finally {
       setIsPending(false);
@@ -140,7 +129,7 @@ export function CreateListingDialog({
               disabled={isPending}
             />
 
-            {selectedAhsListing && detailedAhsListing && (
+            {selectedResult && detailedAhsListing && (
               <div className="mt-4">
                 <Separator className="my-4" />
                 <AhsListingDisplay ahsListing={detailedAhsListing} />
@@ -153,7 +142,7 @@ export function CreateListingDialog({
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <Label htmlFor="title">Listing Title</Label>
-              {selectedAhsListing && (
+              {selectedResult && (
                 <Button
                   type="button"
                   variant="ghost"
@@ -169,7 +158,7 @@ export function CreateListingDialog({
               id="title"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              placeholder={selectedAhsListing?.name ?? "Enter a title"}
+              placeholder={selectedResult?.name ?? "Enter a title"}
               disabled={isPending}
             />
           </div>
@@ -181,7 +170,7 @@ export function CreateListingDialog({
           </Button>
           <Button
             onClick={handleCreate}
-            disabled={isPending || (!title && !selectedAhsListing)}
+            disabled={isPending || (!title && !selectedResult)}
           >
             Create Listing
           </Button>

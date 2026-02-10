@@ -122,22 +122,37 @@ export const listingRouter = createTRPCRouter({
     .input(
       z.object({
         title: z.string().optional(),
+        cultivarReferenceId: z.string().nullable().optional(),
         ahsId: z.string().nullable().optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
       const title = input.title ?? APP_CONFIG.LISTING.DEFAULT_NAME;
       const slug = await generateUniqueSlug(title, ctx.user.id);
-      const cultivarReferenceId = input.ahsId
-        ? await getCultivarReferenceIdForAhs(ctx.db, input.ahsId)
-        : null;
+
+      let ahsId: string | null = null;
+      let cultivarReferenceId: string | null = null;
+
+      if (input.cultivarReferenceId) {
+        cultivarReferenceId = input.cultivarReferenceId;
+        ahsId = await getAhsIdForCultivarReference(
+          ctx.db,
+          input.cultivarReferenceId,
+        );
+      } else if (input.ahsId) {
+        ahsId = input.ahsId;
+        cultivarReferenceId = await getCultivarReferenceIdForAhs(
+          ctx.db,
+          input.ahsId,
+        );
+      }
 
       const listing = await ctx.db.listing.create({
         data: {
           title,
           slug,
           userId: ctx.user.id,
-          ahsId: input.ahsId,
+          ahsId,
           cultivarReferenceId,
         },
         include: listingInclude,
