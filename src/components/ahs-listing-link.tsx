@@ -29,11 +29,14 @@ export function AhsListingLink({
   onAhsIdChange,
 }: AhsListingLinkProps) {
   const [isPending, setIsPending] = useState(false);
+  const utils = api.useUtils();
 
   const { mutateAsync: updateListingMutation } = api.listing.update.useMutation(
     {
-      onSuccess: () => {
+      onSuccess: (data) => {
         toast.success("Changes saved");
+        // Invalidate the listing query so parent components get fresh data
+        utils.listing.get.invalidate({ id: data.id });
       },
       onError: (error, errorInfo) => {
         toast.error("Failed to save changes", { description: error.message });
