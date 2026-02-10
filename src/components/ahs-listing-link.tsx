@@ -70,13 +70,13 @@ export function AhsListingLink({
   async function updateAhsListing(selected: AhsSearchResult | null) {
     setIsPending(true);
     try {
-      if (selected?.name) {
+      if (selected?.name && selected.cultivarReferenceId) {
         const shouldUpdateName =
           !listing.title || listing.title === LISTING_CONFIG.DEFAULT_NAME;
 
         await linkAhsMutation({
           id: listing.id,
-          ahsId: selected.id,
+          cultivarReferenceId: selected.cultivarReferenceId,
           syncName: shouldUpdateName,
         });
 

@@ -53,11 +53,21 @@ vi.mock("@/components/ahs-listing-select", () => ({
   AhsListingSelect: ({
     onSelect,
   }: {
-    onSelect: (ahsListing: { id: string; name: string }) => void;
+    onSelect: (result: {
+      id: string;
+      name: string;
+      cultivarReferenceId: string | null;
+    }) => void;
   }) => (
     <button
       type="button"
-      onClick={() => onSelect({ id: "ahs-2", name: "Coffee Two" })}
+      onClick={() =>
+        onSelect({
+          id: "ahs-2",
+          name: "Coffee Two",
+          cultivarReferenceId: "cr-2",
+        })
+      }
     >
       Select AHS
     </button>
@@ -102,7 +112,7 @@ describe("AhsListingLink", () => {
     });
   });
 
-  it("calls linkAhs mutation with ahsId and syncName when linking", async () => {
+  it("calls linkAhs mutation with cultivarReferenceId and syncName when linking", async () => {
     mockLinkAhsMutateAsync.mockResolvedValue(createListing({ ahsId: "ahs-2" }));
 
     render(
@@ -116,7 +126,7 @@ describe("AhsListingLink", () => {
     await waitFor(() => {
       expect(mockLinkAhsMutateAsync).toHaveBeenCalledWith({
         id: "listing-1",
-        ahsId: "ahs-2",
+        cultivarReferenceId: "cr-2",
         syncName: true,
       });
     });

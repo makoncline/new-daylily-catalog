@@ -47,7 +47,7 @@
     {
       "step": 4,
       "id": "switch-link-unlink-ui-flow-to-cultivar-reference",
-      "completed": false,
+      "completed": true,
       "change": "Update `AhsListingLink` to call `listing.linkAhs` using `cultivarReferenceId` only. Keep unlink unchanged (it should clear both linkage fields).",
       "files": ["src/components/ahs-listing-link.tsx"],
       "success_criteria": [
