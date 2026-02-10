@@ -16,6 +16,7 @@
     "db:push": "prisma db push",
     "db:generate": "prisma generate",
     "db:studio": "prisma studio",
+    "db:seed:local-dev": "npx tsx scripts/seed-local-dev-db.ts",
     "dump": "turso db shell $TURSO_DATABASE_NAME .dump > dump.sql && cat dump.sql | sqlite3 $LOCAL_DATABASE_FILE",
     "migrate:generate": "npx prisma migrate dev",
     "migrate:apply": "scripts/apply-migration.sh",

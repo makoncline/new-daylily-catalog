@@ -15,6 +15,7 @@ db-prod.sqlite
 *.db
 *.bak
 *.bak-*
+prisma/local-dev.sqlite
 tests/.tmp/
 .tmp/
 prisma/prisma/

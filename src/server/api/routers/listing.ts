@@ -64,6 +64,65 @@ async function checkImageOwnership(
   return image;
 }
 
+function normalizeCultivarName(name: string | null | undefined): string | null {
+  const trimmed = name?.trim();
+  if (!trimmed) return null;
+  return trimmed.toLowerCase();
+}
+
+async function getOrCreateCultivarReferenceId(
+  db: PrismaClient,
+  ahsId: string,
+): Promise<string> {
+  const ahsListing = await db.ahsListing.findUnique({
+    where: { id: ahsId },
+  });
+  if (!ahsListing) {
+    throw new TRPCError({
+      code: "NOT_FOUND",
+      message: "AHS listing not found",
+    });
+  }
+  const cultivarReferenceId = `cr-ahs-${ahsId}`;
+  await db.$executeRawUnsafe(
+    `
+      INSERT INTO "CultivarReference" (
+        "id",
+        "ahsId",
+        "normalizedName",
+        "createdAt",
+        "updatedAt"
+      )
+      VALUES (?1, ?2, ?3, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+      ON CONFLICT("ahsId")
+      DO UPDATE SET
+        "normalizedName" = excluded."normalizedName",
+        "updatedAt" = CURRENT_TIMESTAMP
+    `,
+    cultivarReferenceId,
+    ahsId,
+    normalizeCultivarName(ahsListing.name),
+  );
+
+  return cultivarReferenceId;
+}
+
+async function setListingCultivarReferenceId(
+  db: PrismaClient,
+  listingId: string,
+  cultivarReferenceId: string | null,
+) {
+  await db.$executeRawUnsafe(
+    `
+      UPDATE "Listing"
+      SET "cultivarReferenceId" = ?1
+      WHERE "id" = ?2
+    `,
+    cultivarReferenceId,
+    listingId,
+  );
+}
+
 export const listingInclude = {
   ahsListing: true,
   images: {
@@ -93,6 +152,19 @@ export const listingRouter = createTRPCRouter({
         },
         include: listingInclude,
       });
+
+      if (input.ahsId) {
+        const cultivarReferenceId = await getOrCreateCultivarReferenceId(
+          ctx.db,
+          input.ahsId,
+        );
+        await setListingCultivarReferenceId(
+          ctx.db,
+          listing.id,
+          cultivarReferenceId,
+        );
+      }
+
       return listing;
     }),
 
@@ -121,6 +193,17 @@ export const listingRouter = createTRPCRouter({
           ? await generateUniqueSlug(input.data.title, ctx.user.id, listing.id)
           : undefined;
 
+      const ahsUpdateData =
+        input.data.ahsId === undefined
+          ? {}
+          : input.data.ahsId === null
+            ? {
+                ahsId: null,
+              }
+            : {
+                ahsId: input.data.ahsId,
+              };
+
       const updatedListing = await ctx.db.listing.update({
         where: { id: input.id },
         data: {
@@ -129,11 +212,25 @@ export const listingRouter = createTRPCRouter({
           price: input.data.price,
           description: input.data.description,
           privateNote: input.data.privateNote,
-          ahsId: input.data.ahsId,
           status: input.data.status,
+          ...ahsUpdateData,
         },
         include: listingInclude,
       });
+
+      if (input.data.ahsId === null) {
+        await setListingCultivarReferenceId(ctx.db, input.id, null);
+      } else if (input.data.ahsId) {
+        const cultivarReferenceId = await getOrCreateCultivarReferenceId(
+          ctx.db,
+          input.data.ahsId,
+        );
+        await setListingCultivarReferenceId(
+          ctx.db,
+          input.id,
+          cultivarReferenceId,
+        );
+      }
 
       return updatedListing;
     }),
@@ -282,6 +379,11 @@ export const listingRouter = createTRPCRouter({
         });
       }
 
+      const cultivarReferenceId = await getOrCreateCultivarReferenceId(
+        ctx.db,
+        input.ahsId,
+      );
+
       const updatedListing = await ctx.db.listing.update({
         where: { id: input.id },
         data: {
@@ -291,6 +393,8 @@ export const listingRouter = createTRPCRouter({
         },
         include: listingInclude,
       });
+
+      await setListingCultivarReferenceId(ctx.db, input.id, cultivarReferenceId);
 
       return updatedListing;
     }),
@@ -316,6 +420,8 @@ export const listingRouter = createTRPCRouter({
         },
         include: listingInclude,
       });
+
+      await setListingCultivarReferenceId(ctx.db, input.id, null);
 
       return updatedListing;
     }),
