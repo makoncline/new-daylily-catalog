@@ -13,7 +13,11 @@ db*.sqlite-journal
 db-dev.sqlite
 db-prod.sqlite
 *.db
+*.bak
+*.bak-*
 tests/.tmp/
+.tmp/
+prisma/prisma/
 
 # next.js
 /.next/

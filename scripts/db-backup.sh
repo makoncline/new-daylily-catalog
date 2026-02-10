@@ -58,22 +58,43 @@ fi
 # Step 4: Verify the backup locally (only in local environment)
 if [ "$CI" != "true" ]; then
   echo "Verifying the backup locally..."
-  
-  # Decompress the dump file
-  unzip "$ZIP_FILE"
-  if [ $? -ne 0 ]; then
-    echo "Error: Failed to decompress the dump file."
-    rm "$DUMP_FILE" "$ZIP_FILE"
+
+  TEMP_DIR=$(mktemp -d)
+  TEMP_LOCAL_DB="${LOCAL_DB}.tmp-${TIMESTAMP}"
+  LOCAL_DB_BACKUP="${LOCAL_DB}.bak-${TIMESTAMP}"
+
+  cleanup_local_temp() {
+    rm -rf "$TEMP_DIR"
+    rm -f "$TEMP_LOCAL_DB" "${TEMP_LOCAL_DB}-wal" "${TEMP_LOCAL_DB}-shm"
+  }
+
+  trap cleanup_local_temp EXIT
+
+  # Extract in a temp dir to avoid interactive overwrite prompts in the repo root.
+  unzip -q "$ZIP_FILE" -d "$TEMP_DIR"
+  SQL_FILE=$(find "$TEMP_DIR" -type f -name "*.sql" | head -n 1)
+  if [ -z "$SQL_FILE" ]; then
+    echo "Error: No SQL file found in backup archive."
     exit 1
   fi
 
-  # Create a local SQLite database from the dump
-  cat "$DUMP_FILE" | sqlite3 "$LOCAL_DB"
-  if [ $? -ne 0 ]; then
-    echo "Error: Failed to create local SQLite database."
-    rm "$DUMP_FILE" "$ZIP_FILE" "$LOCAL_DB"
-    exit 1
+  # Build the restored DB as a temp file first to avoid partial writes on failure.
+  sqlite3 "$TEMP_LOCAL_DB" < "$SQL_FILE"
+
+  if [ -f "$LOCAL_DB" ]; then
+    mv "$LOCAL_DB" "$LOCAL_DB_BACKUP"
+    if [ -f "${LOCAL_DB}-wal" ]; then
+      mv "${LOCAL_DB}-wal" "${LOCAL_DB_BACKUP}-wal"
+    fi
+    if [ -f "${LOCAL_DB}-shm" ]; then
+      mv "${LOCAL_DB}-shm" "${LOCAL_DB_BACKUP}-shm"
+    fi
+    echo "Existing local DB moved to $LOCAL_DB_BACKUP"
   fi
+
+  mv "$TEMP_LOCAL_DB" "$LOCAL_DB"
+  trap - EXIT
+  cleanup_local_temp
 
   echo "Local verification completed successfully."
 fi
