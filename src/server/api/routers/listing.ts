@@ -111,11 +111,18 @@ async function getAhsIdForCultivarReference(
 
 export const listingInclude = {
   ahsListing: true,
+  cultivarReference: { include: { ahsListing: true } },
   images: {
     orderBy: { order: "asc" },
   },
   lists: true,
 } as const;
+
+function ahsListingForDisplay<T extends { cultivarReference?: { ahsListing: unknown } | null; ahsListing?: unknown }>(
+  listing: T,
+): T["ahsListing"] {
+  return listing.cultivarReference?.ahsListing ?? listing.ahsListing;
+}
 
 export const listingRouter = createTRPCRouter({
   create: protectedProcedure
@@ -303,7 +310,10 @@ export const listingRouter = createTRPCRouter({
         });
       }
 
-      return listing;
+      return {
+        ...listing,
+        ahsListing: ahsListingForDisplay(listing),
+      };
     }),
 
   list: protectedProcedure.query(async ({ ctx }) => {
@@ -312,7 +322,12 @@ export const listingRouter = createTRPCRouter({
       include: listingInclude,
     });
 
-    return sortTitlesLettersBeforeNumbers(items);
+    return sortTitlesLettersBeforeNumbers(
+      items.map((item) => ({
+        ...item,
+        ahsListing: ahsListingForDisplay(item),
+      })),
+    );
   }),
 
   linkAhs: protectedProcedure
@@ -411,10 +426,11 @@ export const listingRouter = createTRPCRouter({
     .mutation(async ({ ctx, input }) => {
       const listing = await ctx.db.listing.findUnique({
         where: { id: input.id },
-        include: { ahsListing: true },
+        include: listingInclude,
       });
 
-      if (!listing?.ahsListing?.name) {
+      const displayAhs = listing ? ahsListingForDisplay(listing) : null;
+      if (!displayAhs?.name) {
         throw new TRPCError({
           code: "NOT_FOUND",
           message: "No AHS listing linked",
@@ -424,7 +440,7 @@ export const listingRouter = createTRPCRouter({
       const updatedListing = await ctx.db.listing.update({
         where: { id: input.id },
         data: {
-          title: listing.ahsListing.name,
+          title: displayAhs.name,
         },
         include: listingInclude,
       });
@@ -503,10 +519,12 @@ export const listingRouter = createTRPCRouter({
       });
 
       if (listingBySlug) {
-        return listingBySlug;
+        return {
+          ...listingBySlug,
+          ahsListing: ahsListingForDisplay(listingBySlug),
+        };
       }
 
-      // If not found by slug, try by ID
       const listingById = await ctx.db.listing.findUnique({
         where: {
           id: input.slugOrId,
@@ -522,7 +540,10 @@ export const listingRouter = createTRPCRouter({
         });
       }
 
-      return listingById;
+      return {
+        ...listingById,
+        ahsListing: ahsListingForDisplay(listingById),
+      };
     }),
 
   count: protectedProcedure.query(async ({ ctx }) => {

@@ -72,7 +72,7 @@
     {
       "step": 6,
       "id": "move-read-paths-to-cultivar-reference-source-of-truth",
-      "completed": false,
+      "completed": true,
       "change": "For listing fetch/query includes, prefer `cultivarReference -> ahsListing` for display data. Keep fallback to legacy `listing.ahsListing` only where needed during transition.",
       "files": [
         "src/server/api/routers/listing.ts",

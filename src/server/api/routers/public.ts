@@ -46,16 +46,19 @@ async function getFullListingData(listingId: string) {
     });
   }
 
-  // Transform the listing to include AHS image if available
+  const displayAhs =
+    listing.cultivarReference?.ahsListing ?? listing.ahsListing;
+
   return {
     ...listing,
+    ahsListing: displayAhs,
     userSlug: listing.user.profile?.slug ?? listing.userId,
     images:
-      listing.images.length === 0 && listing.ahsListing?.ahsImageUrl
+      listing.images.length === 0 && displayAhs?.ahsImageUrl
         ? [
             {
               id: `ahs-${listing.id}`,
-              url: listing.ahsListing.ahsImageUrl,
+              url: displayAhs.ahsImageUrl,
             },
           ]
         : listing.images,

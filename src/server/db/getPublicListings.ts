@@ -49,6 +49,33 @@ export const listingSelect = {
       color: true,
     },
   },
+  cultivarReference: {
+    select: {
+      ahsListing: {
+        select: {
+          name: true,
+          ahsImageUrl: true,
+          hybridizer: true,
+          year: true,
+          scapeHeight: true,
+          bloomSize: true,
+          bloomSeason: true,
+          form: true,
+          ploidy: true,
+          foliageType: true,
+          bloomHabit: true,
+          budcount: true,
+          branches: true,
+          sculpting: true,
+          foliage: true,
+          flower: true,
+          fragrance: true,
+          parentage: true,
+          color: true,
+        },
+      },
+    },
+  },
   images: {
     select: {
       id: true,
@@ -84,20 +111,30 @@ export async function getListings(args: GetListingsArgs) {
   });
 }
 
+function displayAhsListing<T extends { cultivarReference?: { ahsListing: T["ahsListing"] } | null; ahsListing?: unknown }>(
+  listing: T,
+): T["ahsListing"] {
+  return listing.cultivarReference?.ahsListing ?? listing.ahsListing;
+}
+
 // Helper function to transform listings with AHS image fallback
 export function transformListings(listings: ListingWithRelations[]) {
-  const transformed = listings.map((listing) => ({
-    ...listing,
-    images:
-      listing.images.length === 0 && listing.ahsListing?.ahsImageUrl
-        ? [
-            {
-              id: `ahs-${listing.id}`,
-              url: listing.ahsListing.ahsImageUrl,
-            },
-          ]
-        : listing.images,
-  }));
+  const transformed = listings.map((listing) => {
+    const ahs = displayAhsListing(listing);
+    return {
+      ...listing,
+      ahsListing: ahs,
+      images:
+        listing.images.length === 0 && ahs?.ahsImageUrl
+          ? [
+              {
+                id: `ahs-${listing.id}`,
+                url: ahs.ahsImageUrl,
+              },
+            ]
+          : listing.images,
+    };
+  });
 
   return transformed;
 }
