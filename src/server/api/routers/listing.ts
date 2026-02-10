@@ -168,6 +168,7 @@ export const listingRouter = createTRPCRouter({
       return listing;
     }),
 
+  // Form-only; AHS link is updated only via linkAhs/unlinkAhs.
   update: protectedProcedure
     .input(
       z.object({

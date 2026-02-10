@@ -87,7 +87,7 @@
     {
       "step": 7,
       "id": "remove-ahsid-from-listing-update-api-surface",
-      "completed": false,
+      "completed": true,
       "change": "Ensure `listing.update` remains strictly form-only (`listingFormSchema`), with no `ahsId` branch logic.",
       "files": [
         "src/server/api/routers/listing.ts",
