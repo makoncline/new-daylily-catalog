@@ -34,32 +34,50 @@ model AhsListing {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  lilies Listing[]
+  cultivarReference CultivarReference?
+  lilies            Listing[]
 
   @@index([name])
 }
 
+model CultivarReference {
+  id             String   @id @default(cuid())
+  ahsId          String?  @unique
+  normalizedName String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  ahsListing AhsListing? @relation(fields: [ahsId], references: [id], onDelete: SetNull)
+  listings   Listing[]
+
+  @@index([ahsId])
+  @@index([normalizedName])
+}
+
 model Listing {
-  id          String   @id @default(cuid())
-  userId      String
-  title       String
-  slug        String
-  price       Float?
-  description String?
-  privateNote String?
-  ahsId       String?
-  status      String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id                  String   @id @default(cuid())
+  userId              String
+  title               String
+  slug                String
+  price               Float?
+  description         String?
+  privateNote         String?
+  ahsId               String?
+  cultivarReferenceId String?
+  status              String?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
 
   images Image[]
 
-  ahsListing AhsListing? @relation(fields: [ahsId], references: [id])
-  lists      List[]      @relation("ListToListing")
-  user       User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  ahsListing        AhsListing?        @relation(fields: [ahsId], references: [id])
+  cultivarReference CultivarReference? @relation(fields: [cultivarReferenceId], references: [id], onDelete: SetNull)
+  lists             List[]             @relation("ListToListing")
+  user              User               @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, slug])
   @@index([ahsId])
+  @@index([cultivarReferenceId])
   @@index([userId])
   @@index([slug])
 }

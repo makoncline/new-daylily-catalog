@@ -19,6 +19,11 @@ export type PrismaPromise<T> = $Public.PrismaPromise<T>
  */
 export type AhsListing = $Result.DefaultSelection<Prisma.$AhsListingPayload>
 /**
+ * Model CultivarReference
+ * 
+ */
+export type CultivarReference = $Result.DefaultSelection<Prisma.$CultivarReferencePayload>
+/**
  * Model Listing
  * 
  */
@@ -181,6 +186,16 @@ export class PrismaClient<
     * ```
     */
   get ahsListing(): Prisma.AhsListingDelegate<ExtArgs>;
+
+  /**
+   * `prisma.cultivarReference`: Exposes CRUD operations for the **CultivarReference** model.
+    * Example usage:
+    * ```ts
+    * // Fetch zero or more CultivarReferences
+    * const cultivarReferences = await prisma.cultivarReference.findMany()
+    * ```
+    */
+  get cultivarReference(): Prisma.CultivarReferenceDelegate<ExtArgs>;
 
   /**
    * `prisma.listing`: Exposes CRUD operations for the **Listing** model.
@@ -683,6 +698,7 @@ export namespace Prisma {
 
   export const ModelName: {
     AhsListing: 'AhsListing',
+    CultivarReference: 'CultivarReference',
     Listing: 'Listing',
     List: 'List',
     UserProfile: 'UserProfile',
@@ -704,7 +720,7 @@ export namespace Prisma {
 
   export type TypeMap<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs, ClientOptions = {}> = {
     meta: {
-      modelProps: "ahsListing" | "listing" | "list" | "userProfile" | "image" | "user" | "keyValue"
+      modelProps: "ahsListing" | "cultivarReference" | "listing" | "list" | "userProfile" | "image" | "user" | "keyValue"
       txIsolationLevel: Prisma.TransactionIsolationLevel
     }
     model: {
@@ -775,6 +791,76 @@ export namespace Prisma {
           count: {
             args: Prisma.AhsListingCountArgs<ExtArgs>
             result: $Utils.Optional<AhsListingCountAggregateOutputType> | number
+          }
+        }
+      }
+      CultivarReference: {
+        payload: Prisma.$CultivarReferencePayload<ExtArgs>
+        fields: Prisma.CultivarReferenceFieldRefs
+        operations: {
+          findUnique: {
+            args: Prisma.CultivarReferenceFindUniqueArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$CultivarReferencePayload> | null
+          }
+          findUniqueOrThrow: {
+            args: Prisma.CultivarReferenceFindUniqueOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$CultivarReferencePayload>
+          }
+          findFirst: {
+            args: Prisma.CultivarReferenceFindFirstArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$CultivarReferencePayload> | null
+          }
+          findFirstOrThrow: {
+            args: Prisma.CultivarReferenceFindFirstOrThrowArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$CultivarReferencePayload>
+          }
+          findMany: {
+            args: Prisma.CultivarReferenceFindManyArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$CultivarReferencePayload>[]
+          }
+          create: {
+            args: Prisma.CultivarReferenceCreateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$CultivarReferencePayload>
+          }
+          createMany: {
+            args: Prisma.CultivarReferenceCreateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          createManyAndReturn: {
+            args: Prisma.CultivarReferenceCreateManyAndReturnArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$CultivarReferencePayload>[]
+          }
+          delete: {
+            args: Prisma.CultivarReferenceDeleteArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$CultivarReferencePayload>
+          }
+          update: {
+            args: Prisma.CultivarReferenceUpdateArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$CultivarReferencePayload>
+          }
+          deleteMany: {
+            args: Prisma.CultivarReferenceDeleteManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          updateMany: {
+            args: Prisma.CultivarReferenceUpdateManyArgs<ExtArgs>
+            result: BatchPayload
+          }
+          upsert: {
+            args: Prisma.CultivarReferenceUpsertArgs<ExtArgs>
+            result: $Utils.PayloadToResult<Prisma.$CultivarReferencePayload>
+          }
+          aggregate: {
+            args: Prisma.CultivarReferenceAggregateArgs<ExtArgs>
+            result: $Utils.Optional<AggregateCultivarReference>
+          }
+          groupBy: {
+            args: Prisma.CultivarReferenceGroupByArgs<ExtArgs>
+            result: $Utils.Optional<CultivarReferenceGroupByOutputType>[]
+          }
+          count: {
+            args: Prisma.CultivarReferenceCountArgs<ExtArgs>
+            result: $Utils.Optional<CultivarReferenceCountAggregateOutputType> | number
           }
         }
       }
@@ -1390,6 +1476,37 @@ export namespace Prisma {
 
 
   /**
+   * Count Type CultivarReferenceCountOutputType
+   */
+
+  export type CultivarReferenceCountOutputType = {
+    listings: number
+  }
+
+  export type CultivarReferenceCountOutputTypeSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    listings?: boolean | CultivarReferenceCountOutputTypeCountListingsArgs
+  }
+
+  // Custom InputTypes
+  /**
+   * CultivarReferenceCountOutputType without action
+   */
+  export type CultivarReferenceCountOutputTypeDefaultArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the CultivarReferenceCountOutputType
+     */
+    select?: CultivarReferenceCountOutputTypeSelect<ExtArgs> | null
+  }
+
+  /**
+   * CultivarReferenceCountOutputType without action
+   */
+  export type CultivarReferenceCountOutputTypeCountListingsArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: ListingWhereInput
+  }
+
+
+  /**
    * Count Type ListingCountOutputType
    */
 
@@ -1843,6 +1960,7 @@ export namespace Prisma {
     flower?: boolean
     createdAt?: boolean
     updatedAt?: boolean
+    cultivarReference?: boolean | AhsListing$cultivarReferenceArgs<ExtArgs>
     lilies?: boolean | AhsListing$liliesArgs<ExtArgs>
     _count?: boolean | AhsListingCountOutputTypeDefaultArgs<ExtArgs>
   }, ExtArgs["result"]["ahsListing"]>
@@ -1900,6 +2018,7 @@ export namespace Prisma {
   }
 
   export type AhsListingInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    cultivarReference?: boolean | AhsListing$cultivarReferenceArgs<ExtArgs>
     lilies?: boolean | AhsListing$liliesArgs<ExtArgs>
     _count?: boolean | AhsListingCountOutputTypeDefaultArgs<ExtArgs>
   }
@@ -1908,6 +2027,7 @@ export namespace Prisma {
   export type $AhsListingPayload<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     name: "AhsListing"
     objects: {
+      cultivarReference: Prisma.$CultivarReferencePayload<ExtArgs> | null
       lilies: Prisma.$ListingPayload<ExtArgs>[]
     }
     scalars: $Extensions.GetPayloadResult<{
@@ -2298,6 +2418,7 @@ export namespace Prisma {
    */
   export interface Prisma__AhsListingClient<T, Null = never, ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> extends Prisma.PrismaPromise<T> {
     readonly [Symbol.toStringTag]: "PrismaPromise"
+    cultivarReference<T extends AhsListing$cultivarReferenceArgs<ExtArgs> = {}>(args?: Subset<T, AhsListing$cultivarReferenceArgs<ExtArgs>>): Prisma__CultivarReferenceClient<$Result.GetResult<Prisma.$CultivarReferencePayload<ExtArgs>, T, "findUniqueOrThrow"> | null, null, ExtArgs>
     lilies<T extends AhsListing$liliesArgs<ExtArgs> = {}>(args?: Subset<T, AhsListing$liliesArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$ListingPayload<ExtArgs>, T, "findMany"> | Null>
     /**
      * Attaches callbacks for the resolution and/or rejection of the Promise.
@@ -2663,6 +2784,21 @@ export namespace Prisma {
   }
 
   /**
+   * AhsListing.cultivarReference
+   */
+  export type AhsListing$cultivarReferenceArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the CultivarReference
+     */
+    select?: CultivarReferenceSelect<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: CultivarReferenceInclude<ExtArgs> | null
+    where?: CultivarReferenceWhereInput
+  }
+
+  /**
    * AhsListing.lilies
    */
   export type AhsListing$liliesArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
@@ -2698,6 +2834,978 @@ export namespace Prisma {
 
 
   /**
+   * Model CultivarReference
+   */
+
+  export type AggregateCultivarReference = {
+    _count: CultivarReferenceCountAggregateOutputType | null
+    _min: CultivarReferenceMinAggregateOutputType | null
+    _max: CultivarReferenceMaxAggregateOutputType | null
+  }
+
+  export type CultivarReferenceMinAggregateOutputType = {
+    id: string | null
+    ahsId: string | null
+    normalizedName: string | null
+    createdAt: Date | null
+    updatedAt: Date | null
+  }
+
+  export type CultivarReferenceMaxAggregateOutputType = {
+    id: string | null
+    ahsId: string | null
+    normalizedName: string | null
+    createdAt: Date | null
+    updatedAt: Date | null
+  }
+
+  export type CultivarReferenceCountAggregateOutputType = {
+    id: number
+    ahsId: number
+    normalizedName: number
+    createdAt: number
+    updatedAt: number
+    _all: number
+  }
+
+
+  export type CultivarReferenceMinAggregateInputType = {
+    id?: true
+    ahsId?: true
+    normalizedName?: true
+    createdAt?: true
+    updatedAt?: true
+  }
+
+  export type CultivarReferenceMaxAggregateInputType = {
+    id?: true
+    ahsId?: true
+    normalizedName?: true
+    createdAt?: true
+    updatedAt?: true
+  }
+
+  export type CultivarReferenceCountAggregateInputType = {
+    id?: true
+    ahsId?: true
+    normalizedName?: true
+    createdAt?: true
+    updatedAt?: true
+    _all?: true
+  }
+
+  export type CultivarReferenceAggregateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which CultivarReference to aggregate.
+     */
+    where?: CultivarReferenceWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of CultivarReferences to fetch.
+     */
+    orderBy?: CultivarReferenceOrderByWithRelationInput | CultivarReferenceOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the start position
+     */
+    cursor?: CultivarReferenceWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` CultivarReferences from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` CultivarReferences.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Count returned CultivarReferences
+    **/
+    _count?: true | CultivarReferenceCountAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the minimum value
+    **/
+    _min?: CultivarReferenceMinAggregateInputType
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/aggregations Aggregation Docs}
+     * 
+     * Select which fields to find the maximum value
+    **/
+    _max?: CultivarReferenceMaxAggregateInputType
+  }
+
+  export type GetCultivarReferenceAggregateType<T extends CultivarReferenceAggregateArgs> = {
+        [P in keyof T & keyof AggregateCultivarReference]: P extends '_count' | 'count'
+      ? T[P] extends true
+        ? number
+        : GetScalarType<T[P], AggregateCultivarReference[P]>
+      : GetScalarType<T[P], AggregateCultivarReference[P]>
+  }
+
+
+
+
+  export type CultivarReferenceGroupByArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    where?: CultivarReferenceWhereInput
+    orderBy?: CultivarReferenceOrderByWithAggregationInput | CultivarReferenceOrderByWithAggregationInput[]
+    by: CultivarReferenceScalarFieldEnum[] | CultivarReferenceScalarFieldEnum
+    having?: CultivarReferenceScalarWhereWithAggregatesInput
+    take?: number
+    skip?: number
+    _count?: CultivarReferenceCountAggregateInputType | true
+    _min?: CultivarReferenceMinAggregateInputType
+    _max?: CultivarReferenceMaxAggregateInputType
+  }
+
+  export type CultivarReferenceGroupByOutputType = {
+    id: string
+    ahsId: string | null
+    normalizedName: string | null
+    createdAt: Date
+    updatedAt: Date
+    _count: CultivarReferenceCountAggregateOutputType | null
+    _min: CultivarReferenceMinAggregateOutputType | null
+    _max: CultivarReferenceMaxAggregateOutputType | null
+  }
+
+  type GetCultivarReferenceGroupByPayload<T extends CultivarReferenceGroupByArgs> = Prisma.PrismaPromise<
+    Array<
+      PickEnumerable<CultivarReferenceGroupByOutputType, T['by']> &
+        {
+          [P in ((keyof T) & (keyof CultivarReferenceGroupByOutputType))]: P extends '_count'
+            ? T[P] extends boolean
+              ? number
+              : GetScalarType<T[P], CultivarReferenceGroupByOutputType[P]>
+            : GetScalarType<T[P], CultivarReferenceGroupByOutputType[P]>
+        }
+      >
+    >
+
+
+  export type CultivarReferenceSelect<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    ahsId?: boolean
+    normalizedName?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+    ahsListing?: boolean | CultivarReference$ahsListingArgs<ExtArgs>
+    listings?: boolean | CultivarReference$listingsArgs<ExtArgs>
+    _count?: boolean | CultivarReferenceCountOutputTypeDefaultArgs<ExtArgs>
+  }, ExtArgs["result"]["cultivarReference"]>
+
+  export type CultivarReferenceSelectCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = $Extensions.GetSelect<{
+    id?: boolean
+    ahsId?: boolean
+    normalizedName?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+    ahsListing?: boolean | CultivarReference$ahsListingArgs<ExtArgs>
+  }, ExtArgs["result"]["cultivarReference"]>
+
+  export type CultivarReferenceSelectScalar = {
+    id?: boolean
+    ahsId?: boolean
+    normalizedName?: boolean
+    createdAt?: boolean
+    updatedAt?: boolean
+  }
+
+  export type CultivarReferenceInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    ahsListing?: boolean | CultivarReference$ahsListingArgs<ExtArgs>
+    listings?: boolean | CultivarReference$listingsArgs<ExtArgs>
+    _count?: boolean | CultivarReferenceCountOutputTypeDefaultArgs<ExtArgs>
+  }
+  export type CultivarReferenceIncludeCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    ahsListing?: boolean | CultivarReference$ahsListingArgs<ExtArgs>
+  }
+
+  export type $CultivarReferencePayload<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    name: "CultivarReference"
+    objects: {
+      ahsListing: Prisma.$AhsListingPayload<ExtArgs> | null
+      listings: Prisma.$ListingPayload<ExtArgs>[]
+    }
+    scalars: $Extensions.GetPayloadResult<{
+      id: string
+      ahsId: string | null
+      normalizedName: string | null
+      createdAt: Date
+      updatedAt: Date
+    }, ExtArgs["result"]["cultivarReference"]>
+    composites: {}
+  }
+
+  type CultivarReferenceGetPayload<S extends boolean | null | undefined | CultivarReferenceDefaultArgs> = $Result.GetResult<Prisma.$CultivarReferencePayload, S>
+
+  type CultivarReferenceCountArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = 
+    Omit<CultivarReferenceFindManyArgs, 'select' | 'include' | 'distinct'> & {
+      select?: CultivarReferenceCountAggregateInputType | true
+    }
+
+  export interface CultivarReferenceDelegate<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> {
+    [K: symbol]: { types: Prisma.TypeMap<ExtArgs>['model']['CultivarReference'], meta: { name: 'CultivarReference' } }
+    /**
+     * Find zero or one CultivarReference that matches the filter.
+     * @param {CultivarReferenceFindUniqueArgs} args - Arguments to find a CultivarReference
+     * @example
+     * // Get one CultivarReference
+     * const cultivarReference = await prisma.cultivarReference.findUnique({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUnique<T extends CultivarReferenceFindUniqueArgs>(args: SelectSubset<T, CultivarReferenceFindUniqueArgs<ExtArgs>>): Prisma__CultivarReferenceClient<$Result.GetResult<Prisma.$CultivarReferencePayload<ExtArgs>, T, "findUnique"> | null, null, ExtArgs>
+
+    /**
+     * Find one CultivarReference that matches the filter or throw an error with `error.code='P2025'` 
+     * if no matches were found.
+     * @param {CultivarReferenceFindUniqueOrThrowArgs} args - Arguments to find a CultivarReference
+     * @example
+     * // Get one CultivarReference
+     * const cultivarReference = await prisma.cultivarReference.findUniqueOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findUniqueOrThrow<T extends CultivarReferenceFindUniqueOrThrowArgs>(args: SelectSubset<T, CultivarReferenceFindUniqueOrThrowArgs<ExtArgs>>): Prisma__CultivarReferenceClient<$Result.GetResult<Prisma.$CultivarReferencePayload<ExtArgs>, T, "findUniqueOrThrow">, never, ExtArgs>
+
+    /**
+     * Find the first CultivarReference that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {CultivarReferenceFindFirstArgs} args - Arguments to find a CultivarReference
+     * @example
+     * // Get one CultivarReference
+     * const cultivarReference = await prisma.cultivarReference.findFirst({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirst<T extends CultivarReferenceFindFirstArgs>(args?: SelectSubset<T, CultivarReferenceFindFirstArgs<ExtArgs>>): Prisma__CultivarReferenceClient<$Result.GetResult<Prisma.$CultivarReferencePayload<ExtArgs>, T, "findFirst"> | null, null, ExtArgs>
+
+    /**
+     * Find the first CultivarReference that matches the filter or
+     * throw `PrismaKnownClientError` with `P2025` code if no matches were found.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {CultivarReferenceFindFirstOrThrowArgs} args - Arguments to find a CultivarReference
+     * @example
+     * // Get one CultivarReference
+     * const cultivarReference = await prisma.cultivarReference.findFirstOrThrow({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     */
+    findFirstOrThrow<T extends CultivarReferenceFindFirstOrThrowArgs>(args?: SelectSubset<T, CultivarReferenceFindFirstOrThrowArgs<ExtArgs>>): Prisma__CultivarReferenceClient<$Result.GetResult<Prisma.$CultivarReferencePayload<ExtArgs>, T, "findFirstOrThrow">, never, ExtArgs>
+
+    /**
+     * Find zero or more CultivarReferences that matches the filter.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {CultivarReferenceFindManyArgs} args - Arguments to filter and select certain fields only.
+     * @example
+     * // Get all CultivarReferences
+     * const cultivarReferences = await prisma.cultivarReference.findMany()
+     * 
+     * // Get first 10 CultivarReferences
+     * const cultivarReferences = await prisma.cultivarReference.findMany({ take: 10 })
+     * 
+     * // Only select the `id`
+     * const cultivarReferenceWithIdOnly = await prisma.cultivarReference.findMany({ select: { id: true } })
+     * 
+     */
+    findMany<T extends CultivarReferenceFindManyArgs>(args?: SelectSubset<T, CultivarReferenceFindManyArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$CultivarReferencePayload<ExtArgs>, T, "findMany">>
+
+    /**
+     * Create a CultivarReference.
+     * @param {CultivarReferenceCreateArgs} args - Arguments to create a CultivarReference.
+     * @example
+     * // Create one CultivarReference
+     * const CultivarReference = await prisma.cultivarReference.create({
+     *   data: {
+     *     // ... data to create a CultivarReference
+     *   }
+     * })
+     * 
+     */
+    create<T extends CultivarReferenceCreateArgs>(args: SelectSubset<T, CultivarReferenceCreateArgs<ExtArgs>>): Prisma__CultivarReferenceClient<$Result.GetResult<Prisma.$CultivarReferencePayload<ExtArgs>, T, "create">, never, ExtArgs>
+
+    /**
+     * Create many CultivarReferences.
+     * @param {CultivarReferenceCreateManyArgs} args - Arguments to create many CultivarReferences.
+     * @example
+     * // Create many CultivarReferences
+     * const cultivarReference = await prisma.cultivarReference.createMany({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     *     
+     */
+    createMany<T extends CultivarReferenceCreateManyArgs>(args?: SelectSubset<T, CultivarReferenceCreateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Create many CultivarReferences and returns the data saved in the database.
+     * @param {CultivarReferenceCreateManyAndReturnArgs} args - Arguments to create many CultivarReferences.
+     * @example
+     * // Create many CultivarReferences
+     * const cultivarReference = await prisma.cultivarReference.createManyAndReturn({
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * 
+     * // Create many CultivarReferences and only return the `id`
+     * const cultivarReferenceWithIdOnly = await prisma.cultivarReference.createManyAndReturn({ 
+     *   select: { id: true },
+     *   data: [
+     *     // ... provide data here
+     *   ]
+     * })
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * 
+     */
+    createManyAndReturn<T extends CultivarReferenceCreateManyAndReturnArgs>(args?: SelectSubset<T, CultivarReferenceCreateManyAndReturnArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$CultivarReferencePayload<ExtArgs>, T, "createManyAndReturn">>
+
+    /**
+     * Delete a CultivarReference.
+     * @param {CultivarReferenceDeleteArgs} args - Arguments to delete one CultivarReference.
+     * @example
+     * // Delete one CultivarReference
+     * const CultivarReference = await prisma.cultivarReference.delete({
+     *   where: {
+     *     // ... filter to delete one CultivarReference
+     *   }
+     * })
+     * 
+     */
+    delete<T extends CultivarReferenceDeleteArgs>(args: SelectSubset<T, CultivarReferenceDeleteArgs<ExtArgs>>): Prisma__CultivarReferenceClient<$Result.GetResult<Prisma.$CultivarReferencePayload<ExtArgs>, T, "delete">, never, ExtArgs>
+
+    /**
+     * Update one CultivarReference.
+     * @param {CultivarReferenceUpdateArgs} args - Arguments to update one CultivarReference.
+     * @example
+     * // Update one CultivarReference
+     * const cultivarReference = await prisma.cultivarReference.update({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    update<T extends CultivarReferenceUpdateArgs>(args: SelectSubset<T, CultivarReferenceUpdateArgs<ExtArgs>>): Prisma__CultivarReferenceClient<$Result.GetResult<Prisma.$CultivarReferencePayload<ExtArgs>, T, "update">, never, ExtArgs>
+
+    /**
+     * Delete zero or more CultivarReferences.
+     * @param {CultivarReferenceDeleteManyArgs} args - Arguments to filter CultivarReferences to delete.
+     * @example
+     * // Delete a few CultivarReferences
+     * const { count } = await prisma.cultivarReference.deleteMany({
+     *   where: {
+     *     // ... provide filter here
+     *   }
+     * })
+     * 
+     */
+    deleteMany<T extends CultivarReferenceDeleteManyArgs>(args?: SelectSubset<T, CultivarReferenceDeleteManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Update zero or more CultivarReferences.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {CultivarReferenceUpdateManyArgs} args - Arguments to update one or more rows.
+     * @example
+     * // Update many CultivarReferences
+     * const cultivarReference = await prisma.cultivarReference.updateMany({
+     *   where: {
+     *     // ... provide filter here
+     *   },
+     *   data: {
+     *     // ... provide data here
+     *   }
+     * })
+     * 
+     */
+    updateMany<T extends CultivarReferenceUpdateManyArgs>(args: SelectSubset<T, CultivarReferenceUpdateManyArgs<ExtArgs>>): Prisma.PrismaPromise<BatchPayload>
+
+    /**
+     * Create or update one CultivarReference.
+     * @param {CultivarReferenceUpsertArgs} args - Arguments to update or create a CultivarReference.
+     * @example
+     * // Update or create a CultivarReference
+     * const cultivarReference = await prisma.cultivarReference.upsert({
+     *   create: {
+     *     // ... data to create a CultivarReference
+     *   },
+     *   update: {
+     *     // ... in case it already exists, update
+     *   },
+     *   where: {
+     *     // ... the filter for the CultivarReference we want to update
+     *   }
+     * })
+     */
+    upsert<T extends CultivarReferenceUpsertArgs>(args: SelectSubset<T, CultivarReferenceUpsertArgs<ExtArgs>>): Prisma__CultivarReferenceClient<$Result.GetResult<Prisma.$CultivarReferencePayload<ExtArgs>, T, "upsert">, never, ExtArgs>
+
+
+    /**
+     * Count the number of CultivarReferences.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {CultivarReferenceCountArgs} args - Arguments to filter CultivarReferences to count.
+     * @example
+     * // Count the number of CultivarReferences
+     * const count = await prisma.cultivarReference.count({
+     *   where: {
+     *     // ... the filter for the CultivarReferences we want to count
+     *   }
+     * })
+    **/
+    count<T extends CultivarReferenceCountArgs>(
+      args?: Subset<T, CultivarReferenceCountArgs>,
+    ): Prisma.PrismaPromise<
+      T extends $Utils.Record<'select', any>
+        ? T['select'] extends true
+          ? number
+          : GetScalarType<T['select'], CultivarReferenceCountAggregateOutputType>
+        : number
+    >
+
+    /**
+     * Allows you to perform aggregations operations on a CultivarReference.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {CultivarReferenceAggregateArgs} args - Select which aggregations you would like to apply and on what fields.
+     * @example
+     * // Ordered by age ascending
+     * // Where email contains prisma.io
+     * // Limited to the 10 users
+     * const aggregations = await prisma.user.aggregate({
+     *   _avg: {
+     *     age: true,
+     *   },
+     *   where: {
+     *     email: {
+     *       contains: "prisma.io",
+     *     },
+     *   },
+     *   orderBy: {
+     *     age: "asc",
+     *   },
+     *   take: 10,
+     * })
+    **/
+    aggregate<T extends CultivarReferenceAggregateArgs>(args: Subset<T, CultivarReferenceAggregateArgs>): Prisma.PrismaPromise<GetCultivarReferenceAggregateType<T>>
+
+    /**
+     * Group by CultivarReference.
+     * Note, that providing `undefined` is treated as the value not being there.
+     * Read more here: https://pris.ly/d/null-undefined
+     * @param {CultivarReferenceGroupByArgs} args - Group by arguments.
+     * @example
+     * // Group by city, order by createdAt, get count
+     * const result = await prisma.user.groupBy({
+     *   by: ['city', 'createdAt'],
+     *   orderBy: {
+     *     createdAt: true
+     *   },
+     *   _count: {
+     *     _all: true
+     *   },
+     * })
+     * 
+    **/
+    groupBy<
+      T extends CultivarReferenceGroupByArgs,
+      HasSelectOrTake extends Or<
+        Extends<'skip', Keys<T>>,
+        Extends<'take', Keys<T>>
+      >,
+      OrderByArg extends True extends HasSelectOrTake
+        ? { orderBy: CultivarReferenceGroupByArgs['orderBy'] }
+        : { orderBy?: CultivarReferenceGroupByArgs['orderBy'] },
+      OrderFields extends ExcludeUnderscoreKeys<Keys<MaybeTupleToUnion<T['orderBy']>>>,
+      ByFields extends MaybeTupleToUnion<T['by']>,
+      ByValid extends Has<ByFields, OrderFields>,
+      HavingFields extends GetHavingFields<T['having']>,
+      HavingValid extends Has<ByFields, HavingFields>,
+      ByEmpty extends T['by'] extends never[] ? True : False,
+      InputErrors extends ByEmpty extends True
+      ? `Error: "by" must not be empty.`
+      : HavingValid extends False
+      ? {
+          [P in HavingFields]: P extends ByFields
+            ? never
+            : P extends string
+            ? `Error: Field "${P}" used in "having" needs to be provided in "by".`
+            : [
+                Error,
+                'Field ',
+                P,
+                ` in "having" needs to be provided in "by"`,
+              ]
+        }[HavingFields]
+      : 'take' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "take", you also need to provide "orderBy"'
+      : 'skip' extends Keys<T>
+      ? 'orderBy' extends Keys<T>
+        ? ByValid extends True
+          ? {}
+          : {
+              [P in OrderFields]: P extends ByFields
+                ? never
+                : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+            }[OrderFields]
+        : 'Error: If you provide "skip", you also need to provide "orderBy"'
+      : ByValid extends True
+      ? {}
+      : {
+          [P in OrderFields]: P extends ByFields
+            ? never
+            : `Error: Field "${P}" in "orderBy" needs to be provided in "by"`
+        }[OrderFields]
+    >(args: SubsetIntersection<T, CultivarReferenceGroupByArgs, OrderByArg> & InputErrors): {} extends InputErrors ? GetCultivarReferenceGroupByPayload<T> : Prisma.PrismaPromise<InputErrors>
+  /**
+   * Fields of the CultivarReference model
+   */
+  readonly fields: CultivarReferenceFieldRefs;
+  }
+
+  /**
+   * The delegate class that acts as a "Promise-like" for CultivarReference.
+   * Why is this prefixed with `Prisma__`?
+   * Because we want to prevent naming conflicts as mentioned in
+   * https://github.com/prisma/prisma-client-js/issues/707
+   */
+  export interface Prisma__CultivarReferenceClient<T, Null = never, ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> extends Prisma.PrismaPromise<T> {
+    readonly [Symbol.toStringTag]: "PrismaPromise"
+    ahsListing<T extends CultivarReference$ahsListingArgs<ExtArgs> = {}>(args?: Subset<T, CultivarReference$ahsListingArgs<ExtArgs>>): Prisma__AhsListingClient<$Result.GetResult<Prisma.$AhsListingPayload<ExtArgs>, T, "findUniqueOrThrow"> | null, null, ExtArgs>
+    listings<T extends CultivarReference$listingsArgs<ExtArgs> = {}>(args?: Subset<T, CultivarReference$listingsArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$ListingPayload<ExtArgs>, T, "findMany"> | Null>
+    /**
+     * Attaches callbacks for the resolution and/or rejection of the Promise.
+     * @param onfulfilled The callback to execute when the Promise is resolved.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of which ever callback is executed.
+     */
+    then<TResult1 = T, TResult2 = never>(onfulfilled?: ((value: T) => TResult1 | PromiseLike<TResult1>) | undefined | null, onrejected?: ((reason: any) => TResult2 | PromiseLike<TResult2>) | undefined | null): $Utils.JsPromise<TResult1 | TResult2>
+    /**
+     * Attaches a callback for only the rejection of the Promise.
+     * @param onrejected The callback to execute when the Promise is rejected.
+     * @returns A Promise for the completion of the callback.
+     */
+    catch<TResult = never>(onrejected?: ((reason: any) => TResult | PromiseLike<TResult>) | undefined | null): $Utils.JsPromise<T | TResult>
+    /**
+     * Attaches a callback that is invoked when the Promise is settled (fulfilled or rejected). The
+     * resolved value cannot be modified from the callback.
+     * @param onfinally The callback to execute when the Promise is settled (fulfilled or rejected).
+     * @returns A Promise for the completion of the callback.
+     */
+    finally(onfinally?: (() => void) | undefined | null): $Utils.JsPromise<T>
+  }
+
+
+
+
+  /**
+   * Fields of the CultivarReference model
+   */ 
+  interface CultivarReferenceFieldRefs {
+    readonly id: FieldRef<"CultivarReference", 'String'>
+    readonly ahsId: FieldRef<"CultivarReference", 'String'>
+    readonly normalizedName: FieldRef<"CultivarReference", 'String'>
+    readonly createdAt: FieldRef<"CultivarReference", 'DateTime'>
+    readonly updatedAt: FieldRef<"CultivarReference", 'DateTime'>
+  }
+    
+
+  // Custom InputTypes
+  /**
+   * CultivarReference findUnique
+   */
+  export type CultivarReferenceFindUniqueArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the CultivarReference
+     */
+    select?: CultivarReferenceSelect<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: CultivarReferenceInclude<ExtArgs> | null
+    /**
+     * Filter, which CultivarReference to fetch.
+     */
+    where: CultivarReferenceWhereUniqueInput
+  }
+
+  /**
+   * CultivarReference findUniqueOrThrow
+   */
+  export type CultivarReferenceFindUniqueOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the CultivarReference
+     */
+    select?: CultivarReferenceSelect<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: CultivarReferenceInclude<ExtArgs> | null
+    /**
+     * Filter, which CultivarReference to fetch.
+     */
+    where: CultivarReferenceWhereUniqueInput
+  }
+
+  /**
+   * CultivarReference findFirst
+   */
+  export type CultivarReferenceFindFirstArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the CultivarReference
+     */
+    select?: CultivarReferenceSelect<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: CultivarReferenceInclude<ExtArgs> | null
+    /**
+     * Filter, which CultivarReference to fetch.
+     */
+    where?: CultivarReferenceWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of CultivarReferences to fetch.
+     */
+    orderBy?: CultivarReferenceOrderByWithRelationInput | CultivarReferenceOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for CultivarReferences.
+     */
+    cursor?: CultivarReferenceWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` CultivarReferences from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` CultivarReferences.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of CultivarReferences.
+     */
+    distinct?: CultivarReferenceScalarFieldEnum | CultivarReferenceScalarFieldEnum[]
+  }
+
+  /**
+   * CultivarReference findFirstOrThrow
+   */
+  export type CultivarReferenceFindFirstOrThrowArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the CultivarReference
+     */
+    select?: CultivarReferenceSelect<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: CultivarReferenceInclude<ExtArgs> | null
+    /**
+     * Filter, which CultivarReference to fetch.
+     */
+    where?: CultivarReferenceWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of CultivarReferences to fetch.
+     */
+    orderBy?: CultivarReferenceOrderByWithRelationInput | CultivarReferenceOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for searching for CultivarReferences.
+     */
+    cursor?: CultivarReferenceWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` CultivarReferences from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` CultivarReferences.
+     */
+    skip?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/distinct Distinct Docs}
+     * 
+     * Filter by unique combinations of CultivarReferences.
+     */
+    distinct?: CultivarReferenceScalarFieldEnum | CultivarReferenceScalarFieldEnum[]
+  }
+
+  /**
+   * CultivarReference findMany
+   */
+  export type CultivarReferenceFindManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the CultivarReference
+     */
+    select?: CultivarReferenceSelect<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: CultivarReferenceInclude<ExtArgs> | null
+    /**
+     * Filter, which CultivarReferences to fetch.
+     */
+    where?: CultivarReferenceWhereInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/sorting Sorting Docs}
+     * 
+     * Determine the order of CultivarReferences to fetch.
+     */
+    orderBy?: CultivarReferenceOrderByWithRelationInput | CultivarReferenceOrderByWithRelationInput[]
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination#cursor-based-pagination Cursor Docs}
+     * 
+     * Sets the position for listing CultivarReferences.
+     */
+    cursor?: CultivarReferenceWhereUniqueInput
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Take `±n` CultivarReferences from the position of the cursor.
+     */
+    take?: number
+    /**
+     * {@link https://www.prisma.io/docs/concepts/components/prisma-client/pagination Pagination Docs}
+     * 
+     * Skip the first `n` CultivarReferences.
+     */
+    skip?: number
+    distinct?: CultivarReferenceScalarFieldEnum | CultivarReferenceScalarFieldEnum[]
+  }
+
+  /**
+   * CultivarReference create
+   */
+  export type CultivarReferenceCreateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the CultivarReference
+     */
+    select?: CultivarReferenceSelect<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: CultivarReferenceInclude<ExtArgs> | null
+    /**
+     * The data needed to create a CultivarReference.
+     */
+    data: XOR<CultivarReferenceCreateInput, CultivarReferenceUncheckedCreateInput>
+  }
+
+  /**
+   * CultivarReference createMany
+   */
+  export type CultivarReferenceCreateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to create many CultivarReferences.
+     */
+    data: CultivarReferenceCreateManyInput | CultivarReferenceCreateManyInput[]
+  }
+
+  /**
+   * CultivarReference createManyAndReturn
+   */
+  export type CultivarReferenceCreateManyAndReturnArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the CultivarReference
+     */
+    select?: CultivarReferenceSelectCreateManyAndReturn<ExtArgs> | null
+    /**
+     * The data used to create many CultivarReferences.
+     */
+    data: CultivarReferenceCreateManyInput | CultivarReferenceCreateManyInput[]
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: CultivarReferenceIncludeCreateManyAndReturn<ExtArgs> | null
+  }
+
+  /**
+   * CultivarReference update
+   */
+  export type CultivarReferenceUpdateArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the CultivarReference
+     */
+    select?: CultivarReferenceSelect<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: CultivarReferenceInclude<ExtArgs> | null
+    /**
+     * The data needed to update a CultivarReference.
+     */
+    data: XOR<CultivarReferenceUpdateInput, CultivarReferenceUncheckedUpdateInput>
+    /**
+     * Choose, which CultivarReference to update.
+     */
+    where: CultivarReferenceWhereUniqueInput
+  }
+
+  /**
+   * CultivarReference updateMany
+   */
+  export type CultivarReferenceUpdateManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * The data used to update CultivarReferences.
+     */
+    data: XOR<CultivarReferenceUpdateManyMutationInput, CultivarReferenceUncheckedUpdateManyInput>
+    /**
+     * Filter which CultivarReferences to update
+     */
+    where?: CultivarReferenceWhereInput
+  }
+
+  /**
+   * CultivarReference upsert
+   */
+  export type CultivarReferenceUpsertArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the CultivarReference
+     */
+    select?: CultivarReferenceSelect<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: CultivarReferenceInclude<ExtArgs> | null
+    /**
+     * The filter to search for the CultivarReference to update in case it exists.
+     */
+    where: CultivarReferenceWhereUniqueInput
+    /**
+     * In case the CultivarReference found by the `where` argument doesn't exist, create a new CultivarReference with this data.
+     */
+    create: XOR<CultivarReferenceCreateInput, CultivarReferenceUncheckedCreateInput>
+    /**
+     * In case the CultivarReference was found with the provided `where` argument, update it with this data.
+     */
+    update: XOR<CultivarReferenceUpdateInput, CultivarReferenceUncheckedUpdateInput>
+  }
+
+  /**
+   * CultivarReference delete
+   */
+  export type CultivarReferenceDeleteArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the CultivarReference
+     */
+    select?: CultivarReferenceSelect<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: CultivarReferenceInclude<ExtArgs> | null
+    /**
+     * Filter which CultivarReference to delete.
+     */
+    where: CultivarReferenceWhereUniqueInput
+  }
+
+  /**
+   * CultivarReference deleteMany
+   */
+  export type CultivarReferenceDeleteManyArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Filter which CultivarReferences to delete
+     */
+    where?: CultivarReferenceWhereInput
+  }
+
+  /**
+   * CultivarReference.ahsListing
+   */
+  export type CultivarReference$ahsListingArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the AhsListing
+     */
+    select?: AhsListingSelect<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: AhsListingInclude<ExtArgs> | null
+    where?: AhsListingWhereInput
+  }
+
+  /**
+   * CultivarReference.listings
+   */
+  export type CultivarReference$listingsArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the Listing
+     */
+    select?: ListingSelect<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: ListingInclude<ExtArgs> | null
+    where?: ListingWhereInput
+    orderBy?: ListingOrderByWithRelationInput | ListingOrderByWithRelationInput[]
+    cursor?: ListingWhereUniqueInput
+    take?: number
+    skip?: number
+    distinct?: ListingScalarFieldEnum | ListingScalarFieldEnum[]
+  }
+
+  /**
+   * CultivarReference without action
+   */
+  export type CultivarReferenceDefaultArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the CultivarReference
+     */
+    select?: CultivarReferenceSelect<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: CultivarReferenceInclude<ExtArgs> | null
+  }
+
+
+  /**
    * Model Listing
    */
 
@@ -2726,6 +3834,7 @@ export namespace Prisma {
     description: string | null
     privateNote: string | null
     ahsId: string | null
+    cultivarReferenceId: string | null
     status: string | null
     createdAt: Date | null
     updatedAt: Date | null
@@ -2740,6 +3849,7 @@ export namespace Prisma {
     description: string | null
     privateNote: string | null
     ahsId: string | null
+    cultivarReferenceId: string | null
     status: string | null
     createdAt: Date | null
     updatedAt: Date | null
@@ -2754,6 +3864,7 @@ export namespace Prisma {
     description: number
     privateNote: number
     ahsId: number
+    cultivarReferenceId: number
     status: number
     createdAt: number
     updatedAt: number
@@ -2778,6 +3889,7 @@ export namespace Prisma {
     description?: true
     privateNote?: true
     ahsId?: true
+    cultivarReferenceId?: true
     status?: true
     createdAt?: true
     updatedAt?: true
@@ -2792,6 +3904,7 @@ export namespace Prisma {
     description?: true
     privateNote?: true
     ahsId?: true
+    cultivarReferenceId?: true
     status?: true
     createdAt?: true
     updatedAt?: true
@@ -2806,6 +3919,7 @@ export namespace Prisma {
     description?: true
     privateNote?: true
     ahsId?: true
+    cultivarReferenceId?: true
     status?: true
     createdAt?: true
     updatedAt?: true
@@ -2907,6 +4021,7 @@ export namespace Prisma {
     description: string | null
     privateNote: string | null
     ahsId: string | null
+    cultivarReferenceId: string | null
     status: string | null
     createdAt: Date
     updatedAt: Date
@@ -2940,11 +4055,13 @@ export namespace Prisma {
     description?: boolean
     privateNote?: boolean
     ahsId?: boolean
+    cultivarReferenceId?: boolean
     status?: boolean
     createdAt?: boolean
     updatedAt?: boolean
     images?: boolean | Listing$imagesArgs<ExtArgs>
     ahsListing?: boolean | Listing$ahsListingArgs<ExtArgs>
+    cultivarReference?: boolean | Listing$cultivarReferenceArgs<ExtArgs>
     lists?: boolean | Listing$listsArgs<ExtArgs>
     user?: boolean | UserDefaultArgs<ExtArgs>
     _count?: boolean | ListingCountOutputTypeDefaultArgs<ExtArgs>
@@ -2959,10 +4076,12 @@ export namespace Prisma {
     description?: boolean
     privateNote?: boolean
     ahsId?: boolean
+    cultivarReferenceId?: boolean
     status?: boolean
     createdAt?: boolean
     updatedAt?: boolean
     ahsListing?: boolean | Listing$ahsListingArgs<ExtArgs>
+    cultivarReference?: boolean | Listing$cultivarReferenceArgs<ExtArgs>
     user?: boolean | UserDefaultArgs<ExtArgs>
   }, ExtArgs["result"]["listing"]>
 
@@ -2975,6 +4094,7 @@ export namespace Prisma {
     description?: boolean
     privateNote?: boolean
     ahsId?: boolean
+    cultivarReferenceId?: boolean
     status?: boolean
     createdAt?: boolean
     updatedAt?: boolean
@@ -2983,12 +4103,14 @@ export namespace Prisma {
   export type ListingInclude<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     images?: boolean | Listing$imagesArgs<ExtArgs>
     ahsListing?: boolean | Listing$ahsListingArgs<ExtArgs>
+    cultivarReference?: boolean | Listing$cultivarReferenceArgs<ExtArgs>
     lists?: boolean | Listing$listsArgs<ExtArgs>
     user?: boolean | UserDefaultArgs<ExtArgs>
     _count?: boolean | ListingCountOutputTypeDefaultArgs<ExtArgs>
   }
   export type ListingIncludeCreateManyAndReturn<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
     ahsListing?: boolean | Listing$ahsListingArgs<ExtArgs>
+    cultivarReference?: boolean | Listing$cultivarReferenceArgs<ExtArgs>
     user?: boolean | UserDefaultArgs<ExtArgs>
   }
 
@@ -2997,6 +4119,7 @@ export namespace Prisma {
     objects: {
       images: Prisma.$ImagePayload<ExtArgs>[]
       ahsListing: Prisma.$AhsListingPayload<ExtArgs> | null
+      cultivarReference: Prisma.$CultivarReferencePayload<ExtArgs> | null
       lists: Prisma.$ListPayload<ExtArgs>[]
       user: Prisma.$UserPayload<ExtArgs>
     }
@@ -3009,6 +4132,7 @@ export namespace Prisma {
       description: string | null
       privateNote: string | null
       ahsId: string | null
+      cultivarReferenceId: string | null
       status: string | null
       createdAt: Date
       updatedAt: Date
@@ -3378,6 +4502,7 @@ export namespace Prisma {
     readonly [Symbol.toStringTag]: "PrismaPromise"
     images<T extends Listing$imagesArgs<ExtArgs> = {}>(args?: Subset<T, Listing$imagesArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$ImagePayload<ExtArgs>, T, "findMany"> | Null>
     ahsListing<T extends Listing$ahsListingArgs<ExtArgs> = {}>(args?: Subset<T, Listing$ahsListingArgs<ExtArgs>>): Prisma__AhsListingClient<$Result.GetResult<Prisma.$AhsListingPayload<ExtArgs>, T, "findUniqueOrThrow"> | null, null, ExtArgs>
+    cultivarReference<T extends Listing$cultivarReferenceArgs<ExtArgs> = {}>(args?: Subset<T, Listing$cultivarReferenceArgs<ExtArgs>>): Prisma__CultivarReferenceClient<$Result.GetResult<Prisma.$CultivarReferencePayload<ExtArgs>, T, "findUniqueOrThrow"> | null, null, ExtArgs>
     lists<T extends Listing$listsArgs<ExtArgs> = {}>(args?: Subset<T, Listing$listsArgs<ExtArgs>>): Prisma.PrismaPromise<$Result.GetResult<Prisma.$ListPayload<ExtArgs>, T, "findMany"> | Null>
     user<T extends UserDefaultArgs<ExtArgs> = {}>(args?: Subset<T, UserDefaultArgs<ExtArgs>>): Prisma__UserClient<$Result.GetResult<Prisma.$UserPayload<ExtArgs>, T, "findUniqueOrThrow"> | Null, Null, ExtArgs>
     /**
@@ -3417,6 +4542,7 @@ export namespace Prisma {
     readonly description: FieldRef<"Listing", 'String'>
     readonly privateNote: FieldRef<"Listing", 'String'>
     readonly ahsId: FieldRef<"Listing", 'String'>
+    readonly cultivarReferenceId: FieldRef<"Listing", 'String'>
     readonly status: FieldRef<"Listing", 'String'>
     readonly createdAt: FieldRef<"Listing", 'DateTime'>
     readonly updatedAt: FieldRef<"Listing", 'DateTime'>
@@ -3768,6 +4894,21 @@ export namespace Prisma {
      */
     include?: AhsListingInclude<ExtArgs> | null
     where?: AhsListingWhereInput
+  }
+
+  /**
+   * Listing.cultivarReference
+   */
+  export type Listing$cultivarReferenceArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = {
+    /**
+     * Select specific fields to fetch from the CultivarReference
+     */
+    select?: CultivarReferenceSelect<ExtArgs> | null
+    /**
+     * Choose, which related nodes to fetch as well
+     */
+    include?: CultivarReferenceInclude<ExtArgs> | null
+    where?: CultivarReferenceWhereInput
   }
 
   /**
@@ -8745,6 +9886,17 @@ export namespace Prisma {
   export type AhsListingScalarFieldEnum = (typeof AhsListingScalarFieldEnum)[keyof typeof AhsListingScalarFieldEnum]
 
 
+  export const CultivarReferenceScalarFieldEnum: {
+    id: 'id',
+    ahsId: 'ahsId',
+    normalizedName: 'normalizedName',
+    createdAt: 'createdAt',
+    updatedAt: 'updatedAt'
+  };
+
+  export type CultivarReferenceScalarFieldEnum = (typeof CultivarReferenceScalarFieldEnum)[keyof typeof CultivarReferenceScalarFieldEnum]
+
+
   export const ListingScalarFieldEnum: {
     id: 'id',
     userId: 'userId',
@@ -8754,6 +9906,7 @@ export namespace Prisma {
     description: 'description',
     privateNote: 'privateNote',
     ahsId: 'ahsId',
+    cultivarReferenceId: 'cultivarReferenceId',
     status: 'status',
     createdAt: 'createdAt',
     updatedAt: 'updatedAt'
@@ -8906,6 +10059,7 @@ export namespace Prisma {
     flower?: StringNullableFilter<"AhsListing"> | string | null
     createdAt?: DateTimeFilter<"AhsListing"> | Date | string
     updatedAt?: DateTimeFilter<"AhsListing"> | Date | string
+    cultivarReference?: XOR<CultivarReferenceNullableRelationFilter, CultivarReferenceWhereInput> | null
     lilies?: ListingListRelationFilter
   }
 
@@ -8933,6 +10087,7 @@ export namespace Prisma {
     flower?: SortOrderInput | SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
+    cultivarReference?: CultivarReferenceOrderByWithRelationInput
     lilies?: ListingOrderByRelationAggregateInput
   }
 
@@ -8963,6 +10118,7 @@ export namespace Prisma {
     flower?: StringNullableFilter<"AhsListing"> | string | null
     createdAt?: DateTimeFilter<"AhsListing"> | Date | string
     updatedAt?: DateTimeFilter<"AhsListing"> | Date | string
+    cultivarReference?: XOR<CultivarReferenceNullableRelationFilter, CultivarReferenceWhereInput> | null
     lilies?: ListingListRelationFilter
   }, "id">
 
@@ -9024,6 +10180,64 @@ export namespace Prisma {
     updatedAt?: DateTimeWithAggregatesFilter<"AhsListing"> | Date | string
   }
 
+  export type CultivarReferenceWhereInput = {
+    AND?: CultivarReferenceWhereInput | CultivarReferenceWhereInput[]
+    OR?: CultivarReferenceWhereInput[]
+    NOT?: CultivarReferenceWhereInput | CultivarReferenceWhereInput[]
+    id?: StringFilter<"CultivarReference"> | string
+    ahsId?: StringNullableFilter<"CultivarReference"> | string | null
+    normalizedName?: StringNullableFilter<"CultivarReference"> | string | null
+    createdAt?: DateTimeFilter<"CultivarReference"> | Date | string
+    updatedAt?: DateTimeFilter<"CultivarReference"> | Date | string
+    ahsListing?: XOR<AhsListingNullableRelationFilter, AhsListingWhereInput> | null
+    listings?: ListingListRelationFilter
+  }
+
+  export type CultivarReferenceOrderByWithRelationInput = {
+    id?: SortOrder
+    ahsId?: SortOrderInput | SortOrder
+    normalizedName?: SortOrderInput | SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+    ahsListing?: AhsListingOrderByWithRelationInput
+    listings?: ListingOrderByRelationAggregateInput
+  }
+
+  export type CultivarReferenceWhereUniqueInput = Prisma.AtLeast<{
+    id?: string
+    ahsId?: string
+    AND?: CultivarReferenceWhereInput | CultivarReferenceWhereInput[]
+    OR?: CultivarReferenceWhereInput[]
+    NOT?: CultivarReferenceWhereInput | CultivarReferenceWhereInput[]
+    normalizedName?: StringNullableFilter<"CultivarReference"> | string | null
+    createdAt?: DateTimeFilter<"CultivarReference"> | Date | string
+    updatedAt?: DateTimeFilter<"CultivarReference"> | Date | string
+    ahsListing?: XOR<AhsListingNullableRelationFilter, AhsListingWhereInput> | null
+    listings?: ListingListRelationFilter
+  }, "id" | "ahsId">
+
+  export type CultivarReferenceOrderByWithAggregationInput = {
+    id?: SortOrder
+    ahsId?: SortOrderInput | SortOrder
+    normalizedName?: SortOrderInput | SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+    _count?: CultivarReferenceCountOrderByAggregateInput
+    _max?: CultivarReferenceMaxOrderByAggregateInput
+    _min?: CultivarReferenceMinOrderByAggregateInput
+  }
+
+  export type CultivarReferenceScalarWhereWithAggregatesInput = {
+    AND?: CultivarReferenceScalarWhereWithAggregatesInput | CultivarReferenceScalarWhereWithAggregatesInput[]
+    OR?: CultivarReferenceScalarWhereWithAggregatesInput[]
+    NOT?: CultivarReferenceScalarWhereWithAggregatesInput | CultivarReferenceScalarWhereWithAggregatesInput[]
+    id?: StringWithAggregatesFilter<"CultivarReference"> | string
+    ahsId?: StringNullableWithAggregatesFilter<"CultivarReference"> | string | null
+    normalizedName?: StringNullableWithAggregatesFilter<"CultivarReference"> | string | null
+    createdAt?: DateTimeWithAggregatesFilter<"CultivarReference"> | Date | string
+    updatedAt?: DateTimeWithAggregatesFilter<"CultivarReference"> | Date | string
+  }
+
   export type ListingWhereInput = {
     AND?: ListingWhereInput | ListingWhereInput[]
     OR?: ListingWhereInput[]
@@ -9036,11 +10250,13 @@ export namespace Prisma {
     description?: StringNullableFilter<"Listing"> | string | null
     privateNote?: StringNullableFilter<"Listing"> | string | null
     ahsId?: StringNullableFilter<"Listing"> | string | null
+    cultivarReferenceId?: StringNullableFilter<"Listing"> | string | null
     status?: StringNullableFilter<"Listing"> | string | null
     createdAt?: DateTimeFilter<"Listing"> | Date | string
     updatedAt?: DateTimeFilter<"Listing"> | Date | string
     images?: ImageListRelationFilter
     ahsListing?: XOR<AhsListingNullableRelationFilter, AhsListingWhereInput> | null
+    cultivarReference?: XOR<CultivarReferenceNullableRelationFilter, CultivarReferenceWhereInput> | null
     lists?: ListListRelationFilter
     user?: XOR<UserRelationFilter, UserWhereInput>
   }
@@ -9054,11 +10270,13 @@ export namespace Prisma {
     description?: SortOrderInput | SortOrder
     privateNote?: SortOrderInput | SortOrder
     ahsId?: SortOrderInput | SortOrder
+    cultivarReferenceId?: SortOrderInput | SortOrder
     status?: SortOrderInput | SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
     images?: ImageOrderByRelationAggregateInput
     ahsListing?: AhsListingOrderByWithRelationInput
+    cultivarReference?: CultivarReferenceOrderByWithRelationInput
     lists?: ListOrderByRelationAggregateInput
     user?: UserOrderByWithRelationInput
   }
@@ -9076,11 +10294,13 @@ export namespace Prisma {
     description?: StringNullableFilter<"Listing"> | string | null
     privateNote?: StringNullableFilter<"Listing"> | string | null
     ahsId?: StringNullableFilter<"Listing"> | string | null
+    cultivarReferenceId?: StringNullableFilter<"Listing"> | string | null
     status?: StringNullableFilter<"Listing"> | string | null
     createdAt?: DateTimeFilter<"Listing"> | Date | string
     updatedAt?: DateTimeFilter<"Listing"> | Date | string
     images?: ImageListRelationFilter
     ahsListing?: XOR<AhsListingNullableRelationFilter, AhsListingWhereInput> | null
+    cultivarReference?: XOR<CultivarReferenceNullableRelationFilter, CultivarReferenceWhereInput> | null
     lists?: ListListRelationFilter
     user?: XOR<UserRelationFilter, UserWhereInput>
   }, "id" | "userId_slug">
@@ -9094,6 +10314,7 @@ export namespace Prisma {
     description?: SortOrderInput | SortOrder
     privateNote?: SortOrderInput | SortOrder
     ahsId?: SortOrderInput | SortOrder
+    cultivarReferenceId?: SortOrderInput | SortOrder
     status?: SortOrderInput | SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
@@ -9116,6 +10337,7 @@ export namespace Prisma {
     description?: StringNullableWithAggregatesFilter<"Listing"> | string | null
     privateNote?: StringNullableWithAggregatesFilter<"Listing"> | string | null
     ahsId?: StringNullableWithAggregatesFilter<"Listing"> | string | null
+    cultivarReferenceId?: StringNullableWithAggregatesFilter<"Listing"> | string | null
     status?: StringNullableWithAggregatesFilter<"Listing"> | string | null
     createdAt?: DateTimeWithAggregatesFilter<"Listing"> | Date | string
     updatedAt?: DateTimeWithAggregatesFilter<"Listing"> | Date | string
@@ -9484,6 +10706,7 @@ export namespace Prisma {
     flower?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
+    cultivarReference?: CultivarReferenceCreateNestedOneWithoutAhsListingInput
     lilies?: ListingCreateNestedManyWithoutAhsListingInput
   }
 
@@ -9511,6 +10734,7 @@ export namespace Prisma {
     flower?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
+    cultivarReference?: CultivarReferenceUncheckedCreateNestedOneWithoutAhsListingInput
     lilies?: ListingUncheckedCreateNestedManyWithoutAhsListingInput
   }
 
@@ -9538,6 +10762,7 @@ export namespace Prisma {
     flower?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    cultivarReference?: CultivarReferenceUpdateOneWithoutAhsListingNestedInput
     lilies?: ListingUpdateManyWithoutAhsListingNestedInput
   }
 
@@ -9565,6 +10790,7 @@ export namespace Prisma {
     flower?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    cultivarReference?: CultivarReferenceUncheckedUpdateOneWithoutAhsListingNestedInput
     lilies?: ListingUncheckedUpdateManyWithoutAhsListingNestedInput
   }
 
@@ -9646,6 +10872,65 @@ export namespace Prisma {
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
 
+  export type CultivarReferenceCreateInput = {
+    id?: string
+    normalizedName?: string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    ahsListing?: AhsListingCreateNestedOneWithoutCultivarReferenceInput
+    listings?: ListingCreateNestedManyWithoutCultivarReferenceInput
+  }
+
+  export type CultivarReferenceUncheckedCreateInput = {
+    id?: string
+    ahsId?: string | null
+    normalizedName?: string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    listings?: ListingUncheckedCreateNestedManyWithoutCultivarReferenceInput
+  }
+
+  export type CultivarReferenceUpdateInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    normalizedName?: NullableStringFieldUpdateOperationsInput | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    ahsListing?: AhsListingUpdateOneWithoutCultivarReferenceNestedInput
+    listings?: ListingUpdateManyWithoutCultivarReferenceNestedInput
+  }
+
+  export type CultivarReferenceUncheckedUpdateInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    ahsId?: NullableStringFieldUpdateOperationsInput | string | null
+    normalizedName?: NullableStringFieldUpdateOperationsInput | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    listings?: ListingUncheckedUpdateManyWithoutCultivarReferenceNestedInput
+  }
+
+  export type CultivarReferenceCreateManyInput = {
+    id?: string
+    ahsId?: string | null
+    normalizedName?: string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
+  export type CultivarReferenceUpdateManyMutationInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    normalizedName?: NullableStringFieldUpdateOperationsInput | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type CultivarReferenceUncheckedUpdateManyInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    ahsId?: NullableStringFieldUpdateOperationsInput | string | null
+    normalizedName?: NullableStringFieldUpdateOperationsInput | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
   export type ListingCreateInput = {
     id?: string
     title: string
@@ -9658,6 +10943,7 @@ export namespace Prisma {
     updatedAt?: Date | string
     images?: ImageCreateNestedManyWithoutListingInput
     ahsListing?: AhsListingCreateNestedOneWithoutLiliesInput
+    cultivarReference?: CultivarReferenceCreateNestedOneWithoutListingsInput
     lists?: ListCreateNestedManyWithoutListingsInput
     user: UserCreateNestedOneWithoutListingsInput
   }
@@ -9671,6 +10957,7 @@ export namespace Prisma {
     description?: string | null
     privateNote?: string | null
     ahsId?: string | null
+    cultivarReferenceId?: string | null
     status?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
@@ -9690,6 +10977,7 @@ export namespace Prisma {
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     images?: ImageUpdateManyWithoutListingNestedInput
     ahsListing?: AhsListingUpdateOneWithoutLiliesNestedInput
+    cultivarReference?: CultivarReferenceUpdateOneWithoutListingsNestedInput
     lists?: ListUpdateManyWithoutListingsNestedInput
     user?: UserUpdateOneRequiredWithoutListingsNestedInput
   }
@@ -9703,6 +10991,7 @@ export namespace Prisma {
     description?: NullableStringFieldUpdateOperationsInput | string | null
     privateNote?: NullableStringFieldUpdateOperationsInput | string | null
     ahsId?: NullableStringFieldUpdateOperationsInput | string | null
+    cultivarReferenceId?: NullableStringFieldUpdateOperationsInput | string | null
     status?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -9719,6 +11008,7 @@ export namespace Prisma {
     description?: string | null
     privateNote?: string | null
     ahsId?: string | null
+    cultivarReferenceId?: string | null
     status?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
@@ -9745,6 +11035,7 @@ export namespace Prisma {
     description?: NullableStringFieldUpdateOperationsInput | string | null
     privateNote?: NullableStringFieldUpdateOperationsInput | string | null
     ahsId?: NullableStringFieldUpdateOperationsInput | string | null
+    cultivarReferenceId?: NullableStringFieldUpdateOperationsInput | string | null
     status?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -10155,6 +11446,11 @@ export namespace Prisma {
     not?: NestedDateTimeFilter<$PrismaModel> | Date | string
   }
 
+  export type CultivarReferenceNullableRelationFilter = {
+    is?: CultivarReferenceWhereInput | null
+    isNot?: CultivarReferenceWhereInput | null
+  }
+
   export type ListingListRelationFilter = {
     every?: ListingWhereInput
     some?: ListingWhereInput
@@ -10296,6 +11592,35 @@ export namespace Prisma {
     _max?: NestedDateTimeFilter<$PrismaModel>
   }
 
+  export type AhsListingNullableRelationFilter = {
+    is?: AhsListingWhereInput | null
+    isNot?: AhsListingWhereInput | null
+  }
+
+  export type CultivarReferenceCountOrderByAggregateInput = {
+    id?: SortOrder
+    ahsId?: SortOrder
+    normalizedName?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+  }
+
+  export type CultivarReferenceMaxOrderByAggregateInput = {
+    id?: SortOrder
+    ahsId?: SortOrder
+    normalizedName?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+  }
+
+  export type CultivarReferenceMinOrderByAggregateInput = {
+    id?: SortOrder
+    ahsId?: SortOrder
+    normalizedName?: SortOrder
+    createdAt?: SortOrder
+    updatedAt?: SortOrder
+  }
+
   export type FloatNullableFilter<$PrismaModel = never> = {
     equals?: number | FloatFieldRefInput<$PrismaModel> | null
     in?: number[] | null
@@ -10311,11 +11636,6 @@ export namespace Prisma {
     every?: ImageWhereInput
     some?: ImageWhereInput
     none?: ImageWhereInput
-  }
-
-  export type AhsListingNullableRelationFilter = {
-    is?: AhsListingWhereInput | null
-    isNot?: AhsListingWhereInput | null
   }
 
   export type ListListRelationFilter = {
@@ -10351,6 +11671,7 @@ export namespace Prisma {
     description?: SortOrder
     privateNote?: SortOrder
     ahsId?: SortOrder
+    cultivarReferenceId?: SortOrder
     status?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
@@ -10369,6 +11690,7 @@ export namespace Prisma {
     description?: SortOrder
     privateNote?: SortOrder
     ahsId?: SortOrder
+    cultivarReferenceId?: SortOrder
     status?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
@@ -10383,6 +11705,7 @@ export namespace Prisma {
     description?: SortOrder
     privateNote?: SortOrder
     ahsId?: SortOrder
+    cultivarReferenceId?: SortOrder
     status?: SortOrder
     createdAt?: SortOrder
     updatedAt?: SortOrder
@@ -10603,11 +11926,23 @@ export namespace Prisma {
     updatedAt?: SortOrder
   }
 
+  export type CultivarReferenceCreateNestedOneWithoutAhsListingInput = {
+    create?: XOR<CultivarReferenceCreateWithoutAhsListingInput, CultivarReferenceUncheckedCreateWithoutAhsListingInput>
+    connectOrCreate?: CultivarReferenceCreateOrConnectWithoutAhsListingInput
+    connect?: CultivarReferenceWhereUniqueInput
+  }
+
   export type ListingCreateNestedManyWithoutAhsListingInput = {
     create?: XOR<ListingCreateWithoutAhsListingInput, ListingUncheckedCreateWithoutAhsListingInput> | ListingCreateWithoutAhsListingInput[] | ListingUncheckedCreateWithoutAhsListingInput[]
     connectOrCreate?: ListingCreateOrConnectWithoutAhsListingInput | ListingCreateOrConnectWithoutAhsListingInput[]
     createMany?: ListingCreateManyAhsListingInputEnvelope
     connect?: ListingWhereUniqueInput | ListingWhereUniqueInput[]
+  }
+
+  export type CultivarReferenceUncheckedCreateNestedOneWithoutAhsListingInput = {
+    create?: XOR<CultivarReferenceCreateWithoutAhsListingInput, CultivarReferenceUncheckedCreateWithoutAhsListingInput>
+    connectOrCreate?: CultivarReferenceCreateOrConnectWithoutAhsListingInput
+    connect?: CultivarReferenceWhereUniqueInput
   }
 
   export type ListingUncheckedCreateNestedManyWithoutAhsListingInput = {
@@ -10629,6 +11964,16 @@ export namespace Prisma {
     set?: Date | string
   }
 
+  export type CultivarReferenceUpdateOneWithoutAhsListingNestedInput = {
+    create?: XOR<CultivarReferenceCreateWithoutAhsListingInput, CultivarReferenceUncheckedCreateWithoutAhsListingInput>
+    connectOrCreate?: CultivarReferenceCreateOrConnectWithoutAhsListingInput
+    upsert?: CultivarReferenceUpsertWithoutAhsListingInput
+    disconnect?: CultivarReferenceWhereInput | boolean
+    delete?: CultivarReferenceWhereInput | boolean
+    connect?: CultivarReferenceWhereUniqueInput
+    update?: XOR<XOR<CultivarReferenceUpdateToOneWithWhereWithoutAhsListingInput, CultivarReferenceUpdateWithoutAhsListingInput>, CultivarReferenceUncheckedUpdateWithoutAhsListingInput>
+  }
+
   export type ListingUpdateManyWithoutAhsListingNestedInput = {
     create?: XOR<ListingCreateWithoutAhsListingInput, ListingUncheckedCreateWithoutAhsListingInput> | ListingCreateWithoutAhsListingInput[] | ListingUncheckedCreateWithoutAhsListingInput[]
     connectOrCreate?: ListingCreateOrConnectWithoutAhsListingInput | ListingCreateOrConnectWithoutAhsListingInput[]
@@ -10641,6 +11986,16 @@ export namespace Prisma {
     update?: ListingUpdateWithWhereUniqueWithoutAhsListingInput | ListingUpdateWithWhereUniqueWithoutAhsListingInput[]
     updateMany?: ListingUpdateManyWithWhereWithoutAhsListingInput | ListingUpdateManyWithWhereWithoutAhsListingInput[]
     deleteMany?: ListingScalarWhereInput | ListingScalarWhereInput[]
+  }
+
+  export type CultivarReferenceUncheckedUpdateOneWithoutAhsListingNestedInput = {
+    create?: XOR<CultivarReferenceCreateWithoutAhsListingInput, CultivarReferenceUncheckedCreateWithoutAhsListingInput>
+    connectOrCreate?: CultivarReferenceCreateOrConnectWithoutAhsListingInput
+    upsert?: CultivarReferenceUpsertWithoutAhsListingInput
+    disconnect?: CultivarReferenceWhereInput | boolean
+    delete?: CultivarReferenceWhereInput | boolean
+    connect?: CultivarReferenceWhereUniqueInput
+    update?: XOR<XOR<CultivarReferenceUpdateToOneWithWhereWithoutAhsListingInput, CultivarReferenceUpdateWithoutAhsListingInput>, CultivarReferenceUncheckedUpdateWithoutAhsListingInput>
   }
 
   export type ListingUncheckedUpdateManyWithoutAhsListingNestedInput = {
@@ -10657,6 +12012,64 @@ export namespace Prisma {
     deleteMany?: ListingScalarWhereInput | ListingScalarWhereInput[]
   }
 
+  export type AhsListingCreateNestedOneWithoutCultivarReferenceInput = {
+    create?: XOR<AhsListingCreateWithoutCultivarReferenceInput, AhsListingUncheckedCreateWithoutCultivarReferenceInput>
+    connectOrCreate?: AhsListingCreateOrConnectWithoutCultivarReferenceInput
+    connect?: AhsListingWhereUniqueInput
+  }
+
+  export type ListingCreateNestedManyWithoutCultivarReferenceInput = {
+    create?: XOR<ListingCreateWithoutCultivarReferenceInput, ListingUncheckedCreateWithoutCultivarReferenceInput> | ListingCreateWithoutCultivarReferenceInput[] | ListingUncheckedCreateWithoutCultivarReferenceInput[]
+    connectOrCreate?: ListingCreateOrConnectWithoutCultivarReferenceInput | ListingCreateOrConnectWithoutCultivarReferenceInput[]
+    createMany?: ListingCreateManyCultivarReferenceInputEnvelope
+    connect?: ListingWhereUniqueInput | ListingWhereUniqueInput[]
+  }
+
+  export type ListingUncheckedCreateNestedManyWithoutCultivarReferenceInput = {
+    create?: XOR<ListingCreateWithoutCultivarReferenceInput, ListingUncheckedCreateWithoutCultivarReferenceInput> | ListingCreateWithoutCultivarReferenceInput[] | ListingUncheckedCreateWithoutCultivarReferenceInput[]
+    connectOrCreate?: ListingCreateOrConnectWithoutCultivarReferenceInput | ListingCreateOrConnectWithoutCultivarReferenceInput[]
+    createMany?: ListingCreateManyCultivarReferenceInputEnvelope
+    connect?: ListingWhereUniqueInput | ListingWhereUniqueInput[]
+  }
+
+  export type AhsListingUpdateOneWithoutCultivarReferenceNestedInput = {
+    create?: XOR<AhsListingCreateWithoutCultivarReferenceInput, AhsListingUncheckedCreateWithoutCultivarReferenceInput>
+    connectOrCreate?: AhsListingCreateOrConnectWithoutCultivarReferenceInput
+    upsert?: AhsListingUpsertWithoutCultivarReferenceInput
+    disconnect?: AhsListingWhereInput | boolean
+    delete?: AhsListingWhereInput | boolean
+    connect?: AhsListingWhereUniqueInput
+    update?: XOR<XOR<AhsListingUpdateToOneWithWhereWithoutCultivarReferenceInput, AhsListingUpdateWithoutCultivarReferenceInput>, AhsListingUncheckedUpdateWithoutCultivarReferenceInput>
+  }
+
+  export type ListingUpdateManyWithoutCultivarReferenceNestedInput = {
+    create?: XOR<ListingCreateWithoutCultivarReferenceInput, ListingUncheckedCreateWithoutCultivarReferenceInput> | ListingCreateWithoutCultivarReferenceInput[] | ListingUncheckedCreateWithoutCultivarReferenceInput[]
+    connectOrCreate?: ListingCreateOrConnectWithoutCultivarReferenceInput | ListingCreateOrConnectWithoutCultivarReferenceInput[]
+    upsert?: ListingUpsertWithWhereUniqueWithoutCultivarReferenceInput | ListingUpsertWithWhereUniqueWithoutCultivarReferenceInput[]
+    createMany?: ListingCreateManyCultivarReferenceInputEnvelope
+    set?: ListingWhereUniqueInput | ListingWhereUniqueInput[]
+    disconnect?: ListingWhereUniqueInput | ListingWhereUniqueInput[]
+    delete?: ListingWhereUniqueInput | ListingWhereUniqueInput[]
+    connect?: ListingWhereUniqueInput | ListingWhereUniqueInput[]
+    update?: ListingUpdateWithWhereUniqueWithoutCultivarReferenceInput | ListingUpdateWithWhereUniqueWithoutCultivarReferenceInput[]
+    updateMany?: ListingUpdateManyWithWhereWithoutCultivarReferenceInput | ListingUpdateManyWithWhereWithoutCultivarReferenceInput[]
+    deleteMany?: ListingScalarWhereInput | ListingScalarWhereInput[]
+  }
+
+  export type ListingUncheckedUpdateManyWithoutCultivarReferenceNestedInput = {
+    create?: XOR<ListingCreateWithoutCultivarReferenceInput, ListingUncheckedCreateWithoutCultivarReferenceInput> | ListingCreateWithoutCultivarReferenceInput[] | ListingUncheckedCreateWithoutCultivarReferenceInput[]
+    connectOrCreate?: ListingCreateOrConnectWithoutCultivarReferenceInput | ListingCreateOrConnectWithoutCultivarReferenceInput[]
+    upsert?: ListingUpsertWithWhereUniqueWithoutCultivarReferenceInput | ListingUpsertWithWhereUniqueWithoutCultivarReferenceInput[]
+    createMany?: ListingCreateManyCultivarReferenceInputEnvelope
+    set?: ListingWhereUniqueInput | ListingWhereUniqueInput[]
+    disconnect?: ListingWhereUniqueInput | ListingWhereUniqueInput[]
+    delete?: ListingWhereUniqueInput | ListingWhereUniqueInput[]
+    connect?: ListingWhereUniqueInput | ListingWhereUniqueInput[]
+    update?: ListingUpdateWithWhereUniqueWithoutCultivarReferenceInput | ListingUpdateWithWhereUniqueWithoutCultivarReferenceInput[]
+    updateMany?: ListingUpdateManyWithWhereWithoutCultivarReferenceInput | ListingUpdateManyWithWhereWithoutCultivarReferenceInput[]
+    deleteMany?: ListingScalarWhereInput | ListingScalarWhereInput[]
+  }
+
   export type ImageCreateNestedManyWithoutListingInput = {
     create?: XOR<ImageCreateWithoutListingInput, ImageUncheckedCreateWithoutListingInput> | ImageCreateWithoutListingInput[] | ImageUncheckedCreateWithoutListingInput[]
     connectOrCreate?: ImageCreateOrConnectWithoutListingInput | ImageCreateOrConnectWithoutListingInput[]
@@ -10668,6 +12081,12 @@ export namespace Prisma {
     create?: XOR<AhsListingCreateWithoutLiliesInput, AhsListingUncheckedCreateWithoutLiliesInput>
     connectOrCreate?: AhsListingCreateOrConnectWithoutLiliesInput
     connect?: AhsListingWhereUniqueInput
+  }
+
+  export type CultivarReferenceCreateNestedOneWithoutListingsInput = {
+    create?: XOR<CultivarReferenceCreateWithoutListingsInput, CultivarReferenceUncheckedCreateWithoutListingsInput>
+    connectOrCreate?: CultivarReferenceCreateOrConnectWithoutListingsInput
+    connect?: CultivarReferenceWhereUniqueInput
   }
 
   export type ListCreateNestedManyWithoutListingsInput = {
@@ -10725,6 +12144,16 @@ export namespace Prisma {
     delete?: AhsListingWhereInput | boolean
     connect?: AhsListingWhereUniqueInput
     update?: XOR<XOR<AhsListingUpdateToOneWithWhereWithoutLiliesInput, AhsListingUpdateWithoutLiliesInput>, AhsListingUncheckedUpdateWithoutLiliesInput>
+  }
+
+  export type CultivarReferenceUpdateOneWithoutListingsNestedInput = {
+    create?: XOR<CultivarReferenceCreateWithoutListingsInput, CultivarReferenceUncheckedCreateWithoutListingsInput>
+    connectOrCreate?: CultivarReferenceCreateOrConnectWithoutListingsInput
+    upsert?: CultivarReferenceUpsertWithoutListingsInput
+    disconnect?: CultivarReferenceWhereInput | boolean
+    delete?: CultivarReferenceWhereInput | boolean
+    connect?: CultivarReferenceWhereUniqueInput
+    update?: XOR<XOR<CultivarReferenceUpdateToOneWithWhereWithoutListingsInput, CultivarReferenceUpdateWithoutListingsInput>, CultivarReferenceUncheckedUpdateWithoutListingsInput>
   }
 
   export type ListUpdateManyWithoutListingsNestedInput = {
@@ -11202,6 +12631,27 @@ export namespace Prisma {
     not?: NestedFloatFilter<$PrismaModel> | number
   }
 
+  export type CultivarReferenceCreateWithoutAhsListingInput = {
+    id?: string
+    normalizedName?: string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    listings?: ListingCreateNestedManyWithoutCultivarReferenceInput
+  }
+
+  export type CultivarReferenceUncheckedCreateWithoutAhsListingInput = {
+    id?: string
+    normalizedName?: string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    listings?: ListingUncheckedCreateNestedManyWithoutCultivarReferenceInput
+  }
+
+  export type CultivarReferenceCreateOrConnectWithoutAhsListingInput = {
+    where: CultivarReferenceWhereUniqueInput
+    create: XOR<CultivarReferenceCreateWithoutAhsListingInput, CultivarReferenceUncheckedCreateWithoutAhsListingInput>
+  }
+
   export type ListingCreateWithoutAhsListingInput = {
     id?: string
     title: string
@@ -11213,6 +12663,7 @@ export namespace Prisma {
     createdAt?: Date | string
     updatedAt?: Date | string
     images?: ImageCreateNestedManyWithoutListingInput
+    cultivarReference?: CultivarReferenceCreateNestedOneWithoutListingsInput
     lists?: ListCreateNestedManyWithoutListingsInput
     user: UserCreateNestedOneWithoutListingsInput
   }
@@ -11225,6 +12676,7 @@ export namespace Prisma {
     price?: number | null
     description?: string | null
     privateNote?: string | null
+    cultivarReferenceId?: string | null
     status?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
@@ -11239,6 +12691,33 @@ export namespace Prisma {
 
   export type ListingCreateManyAhsListingInputEnvelope = {
     data: ListingCreateManyAhsListingInput | ListingCreateManyAhsListingInput[]
+  }
+
+  export type CultivarReferenceUpsertWithoutAhsListingInput = {
+    update: XOR<CultivarReferenceUpdateWithoutAhsListingInput, CultivarReferenceUncheckedUpdateWithoutAhsListingInput>
+    create: XOR<CultivarReferenceCreateWithoutAhsListingInput, CultivarReferenceUncheckedCreateWithoutAhsListingInput>
+    where?: CultivarReferenceWhereInput
+  }
+
+  export type CultivarReferenceUpdateToOneWithWhereWithoutAhsListingInput = {
+    where?: CultivarReferenceWhereInput
+    data: XOR<CultivarReferenceUpdateWithoutAhsListingInput, CultivarReferenceUncheckedUpdateWithoutAhsListingInput>
+  }
+
+  export type CultivarReferenceUpdateWithoutAhsListingInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    normalizedName?: NullableStringFieldUpdateOperationsInput | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    listings?: ListingUpdateManyWithoutCultivarReferenceNestedInput
+  }
+
+  export type CultivarReferenceUncheckedUpdateWithoutAhsListingInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    normalizedName?: NullableStringFieldUpdateOperationsInput | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    listings?: ListingUncheckedUpdateManyWithoutCultivarReferenceNestedInput
   }
 
   export type ListingUpsertWithWhereUniqueWithoutAhsListingInput = {
@@ -11269,9 +12748,191 @@ export namespace Prisma {
     description?: StringNullableFilter<"Listing"> | string | null
     privateNote?: StringNullableFilter<"Listing"> | string | null
     ahsId?: StringNullableFilter<"Listing"> | string | null
+    cultivarReferenceId?: StringNullableFilter<"Listing"> | string | null
     status?: StringNullableFilter<"Listing"> | string | null
     createdAt?: DateTimeFilter<"Listing"> | Date | string
     updatedAt?: DateTimeFilter<"Listing"> | Date | string
+  }
+
+  export type AhsListingCreateWithoutCultivarReferenceInput = {
+    id?: string
+    name?: string | null
+    hybridizer?: string | null
+    year?: string | null
+    scapeHeight?: string | null
+    bloomSize?: string | null
+    bloomSeason?: string | null
+    ploidy?: string | null
+    foliageType?: string | null
+    bloomHabit?: string | null
+    seedlingNum?: string | null
+    color?: string | null
+    form?: string | null
+    parentage?: string | null
+    ahsImageUrl?: string | null
+    fragrance?: string | null
+    budcount?: string | null
+    branches?: string | null
+    sculpting?: string | null
+    foliage?: string | null
+    flower?: string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    lilies?: ListingCreateNestedManyWithoutAhsListingInput
+  }
+
+  export type AhsListingUncheckedCreateWithoutCultivarReferenceInput = {
+    id?: string
+    name?: string | null
+    hybridizer?: string | null
+    year?: string | null
+    scapeHeight?: string | null
+    bloomSize?: string | null
+    bloomSeason?: string | null
+    ploidy?: string | null
+    foliageType?: string | null
+    bloomHabit?: string | null
+    seedlingNum?: string | null
+    color?: string | null
+    form?: string | null
+    parentage?: string | null
+    ahsImageUrl?: string | null
+    fragrance?: string | null
+    budcount?: string | null
+    branches?: string | null
+    sculpting?: string | null
+    foliage?: string | null
+    flower?: string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    lilies?: ListingUncheckedCreateNestedManyWithoutAhsListingInput
+  }
+
+  export type AhsListingCreateOrConnectWithoutCultivarReferenceInput = {
+    where: AhsListingWhereUniqueInput
+    create: XOR<AhsListingCreateWithoutCultivarReferenceInput, AhsListingUncheckedCreateWithoutCultivarReferenceInput>
+  }
+
+  export type ListingCreateWithoutCultivarReferenceInput = {
+    id?: string
+    title: string
+    slug: string
+    price?: number | null
+    description?: string | null
+    privateNote?: string | null
+    status?: string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    images?: ImageCreateNestedManyWithoutListingInput
+    ahsListing?: AhsListingCreateNestedOneWithoutLiliesInput
+    lists?: ListCreateNestedManyWithoutListingsInput
+    user: UserCreateNestedOneWithoutListingsInput
+  }
+
+  export type ListingUncheckedCreateWithoutCultivarReferenceInput = {
+    id?: string
+    userId: string
+    title: string
+    slug: string
+    price?: number | null
+    description?: string | null
+    privateNote?: string | null
+    ahsId?: string | null
+    status?: string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    images?: ImageUncheckedCreateNestedManyWithoutListingInput
+    lists?: ListUncheckedCreateNestedManyWithoutListingsInput
+  }
+
+  export type ListingCreateOrConnectWithoutCultivarReferenceInput = {
+    where: ListingWhereUniqueInput
+    create: XOR<ListingCreateWithoutCultivarReferenceInput, ListingUncheckedCreateWithoutCultivarReferenceInput>
+  }
+
+  export type ListingCreateManyCultivarReferenceInputEnvelope = {
+    data: ListingCreateManyCultivarReferenceInput | ListingCreateManyCultivarReferenceInput[]
+  }
+
+  export type AhsListingUpsertWithoutCultivarReferenceInput = {
+    update: XOR<AhsListingUpdateWithoutCultivarReferenceInput, AhsListingUncheckedUpdateWithoutCultivarReferenceInput>
+    create: XOR<AhsListingCreateWithoutCultivarReferenceInput, AhsListingUncheckedCreateWithoutCultivarReferenceInput>
+    where?: AhsListingWhereInput
+  }
+
+  export type AhsListingUpdateToOneWithWhereWithoutCultivarReferenceInput = {
+    where?: AhsListingWhereInput
+    data: XOR<AhsListingUpdateWithoutCultivarReferenceInput, AhsListingUncheckedUpdateWithoutCultivarReferenceInput>
+  }
+
+  export type AhsListingUpdateWithoutCultivarReferenceInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    name?: NullableStringFieldUpdateOperationsInput | string | null
+    hybridizer?: NullableStringFieldUpdateOperationsInput | string | null
+    year?: NullableStringFieldUpdateOperationsInput | string | null
+    scapeHeight?: NullableStringFieldUpdateOperationsInput | string | null
+    bloomSize?: NullableStringFieldUpdateOperationsInput | string | null
+    bloomSeason?: NullableStringFieldUpdateOperationsInput | string | null
+    ploidy?: NullableStringFieldUpdateOperationsInput | string | null
+    foliageType?: NullableStringFieldUpdateOperationsInput | string | null
+    bloomHabit?: NullableStringFieldUpdateOperationsInput | string | null
+    seedlingNum?: NullableStringFieldUpdateOperationsInput | string | null
+    color?: NullableStringFieldUpdateOperationsInput | string | null
+    form?: NullableStringFieldUpdateOperationsInput | string | null
+    parentage?: NullableStringFieldUpdateOperationsInput | string | null
+    ahsImageUrl?: NullableStringFieldUpdateOperationsInput | string | null
+    fragrance?: NullableStringFieldUpdateOperationsInput | string | null
+    budcount?: NullableStringFieldUpdateOperationsInput | string | null
+    branches?: NullableStringFieldUpdateOperationsInput | string | null
+    sculpting?: NullableStringFieldUpdateOperationsInput | string | null
+    foliage?: NullableStringFieldUpdateOperationsInput | string | null
+    flower?: NullableStringFieldUpdateOperationsInput | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    lilies?: ListingUpdateManyWithoutAhsListingNestedInput
+  }
+
+  export type AhsListingUncheckedUpdateWithoutCultivarReferenceInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    name?: NullableStringFieldUpdateOperationsInput | string | null
+    hybridizer?: NullableStringFieldUpdateOperationsInput | string | null
+    year?: NullableStringFieldUpdateOperationsInput | string | null
+    scapeHeight?: NullableStringFieldUpdateOperationsInput | string | null
+    bloomSize?: NullableStringFieldUpdateOperationsInput | string | null
+    bloomSeason?: NullableStringFieldUpdateOperationsInput | string | null
+    ploidy?: NullableStringFieldUpdateOperationsInput | string | null
+    foliageType?: NullableStringFieldUpdateOperationsInput | string | null
+    bloomHabit?: NullableStringFieldUpdateOperationsInput | string | null
+    seedlingNum?: NullableStringFieldUpdateOperationsInput | string | null
+    color?: NullableStringFieldUpdateOperationsInput | string | null
+    form?: NullableStringFieldUpdateOperationsInput | string | null
+    parentage?: NullableStringFieldUpdateOperationsInput | string | null
+    ahsImageUrl?: NullableStringFieldUpdateOperationsInput | string | null
+    fragrance?: NullableStringFieldUpdateOperationsInput | string | null
+    budcount?: NullableStringFieldUpdateOperationsInput | string | null
+    branches?: NullableStringFieldUpdateOperationsInput | string | null
+    sculpting?: NullableStringFieldUpdateOperationsInput | string | null
+    foliage?: NullableStringFieldUpdateOperationsInput | string | null
+    flower?: NullableStringFieldUpdateOperationsInput | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    lilies?: ListingUncheckedUpdateManyWithoutAhsListingNestedInput
+  }
+
+  export type ListingUpsertWithWhereUniqueWithoutCultivarReferenceInput = {
+    where: ListingWhereUniqueInput
+    update: XOR<ListingUpdateWithoutCultivarReferenceInput, ListingUncheckedUpdateWithoutCultivarReferenceInput>
+    create: XOR<ListingCreateWithoutCultivarReferenceInput, ListingUncheckedCreateWithoutCultivarReferenceInput>
+  }
+
+  export type ListingUpdateWithWhereUniqueWithoutCultivarReferenceInput = {
+    where: ListingWhereUniqueInput
+    data: XOR<ListingUpdateWithoutCultivarReferenceInput, ListingUncheckedUpdateWithoutCultivarReferenceInput>
+  }
+
+  export type ListingUpdateManyWithWhereWithoutCultivarReferenceInput = {
+    where: ListingScalarWhereInput
+    data: XOR<ListingUpdateManyMutationInput, ListingUncheckedUpdateManyWithoutCultivarReferenceInput>
   }
 
   export type ImageCreateWithoutListingInput = {
@@ -11327,6 +12988,7 @@ export namespace Prisma {
     flower?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
+    cultivarReference?: CultivarReferenceCreateNestedOneWithoutAhsListingInput
   }
 
   export type AhsListingUncheckedCreateWithoutLiliesInput = {
@@ -11353,11 +13015,33 @@ export namespace Prisma {
     flower?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
+    cultivarReference?: CultivarReferenceUncheckedCreateNestedOneWithoutAhsListingInput
   }
 
   export type AhsListingCreateOrConnectWithoutLiliesInput = {
     where: AhsListingWhereUniqueInput
     create: XOR<AhsListingCreateWithoutLiliesInput, AhsListingUncheckedCreateWithoutLiliesInput>
+  }
+
+  export type CultivarReferenceCreateWithoutListingsInput = {
+    id?: string
+    normalizedName?: string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+    ahsListing?: AhsListingCreateNestedOneWithoutCultivarReferenceInput
+  }
+
+  export type CultivarReferenceUncheckedCreateWithoutListingsInput = {
+    id?: string
+    ahsId?: string | null
+    normalizedName?: string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
+  export type CultivarReferenceCreateOrConnectWithoutListingsInput = {
+    where: CultivarReferenceWhereUniqueInput
+    create: XOR<CultivarReferenceCreateWithoutListingsInput, CultivarReferenceUncheckedCreateWithoutListingsInput>
   }
 
   export type ListCreateWithoutListingsInput = {
@@ -11477,6 +13161,7 @@ export namespace Prisma {
     flower?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    cultivarReference?: CultivarReferenceUpdateOneWithoutAhsListingNestedInput
   }
 
   export type AhsListingUncheckedUpdateWithoutLiliesInput = {
@@ -11501,6 +13186,34 @@ export namespace Prisma {
     sculpting?: NullableStringFieldUpdateOperationsInput | string | null
     foliage?: NullableStringFieldUpdateOperationsInput | string | null
     flower?: NullableStringFieldUpdateOperationsInput | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    cultivarReference?: CultivarReferenceUncheckedUpdateOneWithoutAhsListingNestedInput
+  }
+
+  export type CultivarReferenceUpsertWithoutListingsInput = {
+    update: XOR<CultivarReferenceUpdateWithoutListingsInput, CultivarReferenceUncheckedUpdateWithoutListingsInput>
+    create: XOR<CultivarReferenceCreateWithoutListingsInput, CultivarReferenceUncheckedCreateWithoutListingsInput>
+    where?: CultivarReferenceWhereInput
+  }
+
+  export type CultivarReferenceUpdateToOneWithWhereWithoutListingsInput = {
+    where?: CultivarReferenceWhereInput
+    data: XOR<CultivarReferenceUpdateWithoutListingsInput, CultivarReferenceUncheckedUpdateWithoutListingsInput>
+  }
+
+  export type CultivarReferenceUpdateWithoutListingsInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    normalizedName?: NullableStringFieldUpdateOperationsInput | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    ahsListing?: AhsListingUpdateOneWithoutCultivarReferenceNestedInput
+  }
+
+  export type CultivarReferenceUncheckedUpdateWithoutListingsInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    ahsId?: NullableStringFieldUpdateOperationsInput | string | null
+    normalizedName?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
   }
@@ -11579,6 +13292,7 @@ export namespace Prisma {
     updatedAt?: Date | string
     images?: ImageCreateNestedManyWithoutListingInput
     ahsListing?: AhsListingCreateNestedOneWithoutLiliesInput
+    cultivarReference?: CultivarReferenceCreateNestedOneWithoutListingsInput
     user: UserCreateNestedOneWithoutListingsInput
   }
 
@@ -11591,6 +13305,7 @@ export namespace Prisma {
     description?: string | null
     privateNote?: string | null
     ahsId?: string | null
+    cultivarReferenceId?: string | null
     status?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
@@ -11825,6 +13540,7 @@ export namespace Prisma {
     createdAt?: Date | string
     updatedAt?: Date | string
     ahsListing?: AhsListingCreateNestedOneWithoutLiliesInput
+    cultivarReference?: CultivarReferenceCreateNestedOneWithoutListingsInput
     lists?: ListCreateNestedManyWithoutListingsInput
     user: UserCreateNestedOneWithoutListingsInput
   }
@@ -11838,6 +13554,7 @@ export namespace Prisma {
     description?: string | null
     privateNote?: string | null
     ahsId?: string | null
+    cultivarReferenceId?: string | null
     status?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
@@ -11908,6 +13625,7 @@ export namespace Prisma {
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     ahsListing?: AhsListingUpdateOneWithoutLiliesNestedInput
+    cultivarReference?: CultivarReferenceUpdateOneWithoutListingsNestedInput
     lists?: ListUpdateManyWithoutListingsNestedInput
     user?: UserUpdateOneRequiredWithoutListingsNestedInput
   }
@@ -11921,6 +13639,7 @@ export namespace Prisma {
     description?: NullableStringFieldUpdateOperationsInput | string | null
     privateNote?: NullableStringFieldUpdateOperationsInput | string | null
     ahsId?: NullableStringFieldUpdateOperationsInput | string | null
+    cultivarReferenceId?: NullableStringFieldUpdateOperationsInput | string | null
     status?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -11939,6 +13658,7 @@ export namespace Prisma {
     updatedAt?: Date | string
     images?: ImageCreateNestedManyWithoutListingInput
     ahsListing?: AhsListingCreateNestedOneWithoutLiliesInput
+    cultivarReference?: CultivarReferenceCreateNestedOneWithoutListingsInput
     lists?: ListCreateNestedManyWithoutListingsInput
   }
 
@@ -11950,6 +13670,7 @@ export namespace Prisma {
     description?: string | null
     privateNote?: string | null
     ahsId?: string | null
+    cultivarReferenceId?: string | null
     status?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
@@ -12103,6 +13824,7 @@ export namespace Prisma {
     price?: number | null
     description?: string | null
     privateNote?: string | null
+    cultivarReferenceId?: string | null
     status?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
@@ -12119,6 +13841,7 @@ export namespace Prisma {
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     images?: ImageUpdateManyWithoutListingNestedInput
+    cultivarReference?: CultivarReferenceUpdateOneWithoutListingsNestedInput
     lists?: ListUpdateManyWithoutListingsNestedInput
     user?: UserUpdateOneRequiredWithoutListingsNestedInput
   }
@@ -12131,6 +13854,7 @@ export namespace Prisma {
     price?: NullableFloatFieldUpdateOperationsInput | number | null
     description?: NullableStringFieldUpdateOperationsInput | string | null
     privateNote?: NullableStringFieldUpdateOperationsInput | string | null
+    cultivarReferenceId?: NullableStringFieldUpdateOperationsInput | string | null
     status?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -12146,6 +13870,67 @@ export namespace Prisma {
     price?: NullableFloatFieldUpdateOperationsInput | number | null
     description?: NullableStringFieldUpdateOperationsInput | string | null
     privateNote?: NullableStringFieldUpdateOperationsInput | string | null
+    cultivarReferenceId?: NullableStringFieldUpdateOperationsInput | string | null
+    status?: NullableStringFieldUpdateOperationsInput | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+  }
+
+  export type ListingCreateManyCultivarReferenceInput = {
+    id?: string
+    userId: string
+    title: string
+    slug: string
+    price?: number | null
+    description?: string | null
+    privateNote?: string | null
+    ahsId?: string | null
+    status?: string | null
+    createdAt?: Date | string
+    updatedAt?: Date | string
+  }
+
+  export type ListingUpdateWithoutCultivarReferenceInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    title?: StringFieldUpdateOperationsInput | string
+    slug?: StringFieldUpdateOperationsInput | string
+    price?: NullableFloatFieldUpdateOperationsInput | number | null
+    description?: NullableStringFieldUpdateOperationsInput | string | null
+    privateNote?: NullableStringFieldUpdateOperationsInput | string | null
+    status?: NullableStringFieldUpdateOperationsInput | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    images?: ImageUpdateManyWithoutListingNestedInput
+    ahsListing?: AhsListingUpdateOneWithoutLiliesNestedInput
+    lists?: ListUpdateManyWithoutListingsNestedInput
+    user?: UserUpdateOneRequiredWithoutListingsNestedInput
+  }
+
+  export type ListingUncheckedUpdateWithoutCultivarReferenceInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    userId?: StringFieldUpdateOperationsInput | string
+    title?: StringFieldUpdateOperationsInput | string
+    slug?: StringFieldUpdateOperationsInput | string
+    price?: NullableFloatFieldUpdateOperationsInput | number | null
+    description?: NullableStringFieldUpdateOperationsInput | string | null
+    privateNote?: NullableStringFieldUpdateOperationsInput | string | null
+    ahsId?: NullableStringFieldUpdateOperationsInput | string | null
+    status?: NullableStringFieldUpdateOperationsInput | string | null
+    createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
+    images?: ImageUncheckedUpdateManyWithoutListingNestedInput
+    lists?: ListUncheckedUpdateManyWithoutListingsNestedInput
+  }
+
+  export type ListingUncheckedUpdateManyWithoutCultivarReferenceInput = {
+    id?: StringFieldUpdateOperationsInput | string
+    userId?: StringFieldUpdateOperationsInput | string
+    title?: StringFieldUpdateOperationsInput | string
+    slug?: StringFieldUpdateOperationsInput | string
+    price?: NullableFloatFieldUpdateOperationsInput | number | null
+    description?: NullableStringFieldUpdateOperationsInput | string | null
+    privateNote?: NullableStringFieldUpdateOperationsInput | string | null
+    ahsId?: NullableStringFieldUpdateOperationsInput | string | null
     status?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -12233,6 +14018,7 @@ export namespace Prisma {
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     images?: ImageUpdateManyWithoutListingNestedInput
     ahsListing?: AhsListingUpdateOneWithoutLiliesNestedInput
+    cultivarReference?: CultivarReferenceUpdateOneWithoutListingsNestedInput
     user?: UserUpdateOneRequiredWithoutListingsNestedInput
   }
 
@@ -12245,6 +14031,7 @@ export namespace Prisma {
     description?: NullableStringFieldUpdateOperationsInput | string | null
     privateNote?: NullableStringFieldUpdateOperationsInput | string | null
     ahsId?: NullableStringFieldUpdateOperationsInput | string | null
+    cultivarReferenceId?: NullableStringFieldUpdateOperationsInput | string | null
     status?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -12260,6 +14047,7 @@ export namespace Prisma {
     description?: NullableStringFieldUpdateOperationsInput | string | null
     privateNote?: NullableStringFieldUpdateOperationsInput | string | null
     ahsId?: NullableStringFieldUpdateOperationsInput | string | null
+    cultivarReferenceId?: NullableStringFieldUpdateOperationsInput | string | null
     status?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -12313,6 +14101,7 @@ export namespace Prisma {
     description?: string | null
     privateNote?: string | null
     ahsId?: string | null
+    cultivarReferenceId?: string | null
     status?: string | null
     createdAt?: Date | string
     updatedAt?: Date | string
@@ -12339,6 +14128,7 @@ export namespace Prisma {
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
     images?: ImageUpdateManyWithoutListingNestedInput
     ahsListing?: AhsListingUpdateOneWithoutLiliesNestedInput
+    cultivarReference?: CultivarReferenceUpdateOneWithoutListingsNestedInput
     lists?: ListUpdateManyWithoutListingsNestedInput
   }
 
@@ -12350,6 +14140,7 @@ export namespace Prisma {
     description?: NullableStringFieldUpdateOperationsInput | string | null
     privateNote?: NullableStringFieldUpdateOperationsInput | string | null
     ahsId?: NullableStringFieldUpdateOperationsInput | string | null
+    cultivarReferenceId?: NullableStringFieldUpdateOperationsInput | string | null
     status?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -12365,6 +14156,7 @@ export namespace Prisma {
     description?: NullableStringFieldUpdateOperationsInput | string | null
     privateNote?: NullableStringFieldUpdateOperationsInput | string | null
     ahsId?: NullableStringFieldUpdateOperationsInput | string | null
+    cultivarReferenceId?: NullableStringFieldUpdateOperationsInput | string | null
     status?: NullableStringFieldUpdateOperationsInput | string | null
     createdAt?: DateTimeFieldUpdateOperationsInput | Date | string
     updatedAt?: DateTimeFieldUpdateOperationsInput | Date | string
@@ -12409,6 +14201,10 @@ export namespace Prisma {
      */
     export type AhsListingCountOutputTypeArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = AhsListingCountOutputTypeDefaultArgs<ExtArgs>
     /**
+     * @deprecated Use CultivarReferenceCountOutputTypeDefaultArgs instead
+     */
+    export type CultivarReferenceCountOutputTypeArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = CultivarReferenceCountOutputTypeDefaultArgs<ExtArgs>
+    /**
      * @deprecated Use ListingCountOutputTypeDefaultArgs instead
      */
     export type ListingCountOutputTypeArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = ListingCountOutputTypeDefaultArgs<ExtArgs>
@@ -12428,6 +14224,10 @@ export namespace Prisma {
      * @deprecated Use AhsListingDefaultArgs instead
      */
     export type AhsListingArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = AhsListingDefaultArgs<ExtArgs>
+    /**
+     * @deprecated Use CultivarReferenceDefaultArgs instead
+     */
+    export type CultivarReferenceArgs<ExtArgs extends $Extensions.InternalArgs = $Extensions.DefaultArgs> = CultivarReferenceDefaultArgs<ExtArgs>
     /**
      * @deprecated Use ListingDefaultArgs instead
      */
