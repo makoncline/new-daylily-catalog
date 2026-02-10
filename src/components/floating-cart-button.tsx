@@ -15,21 +15,44 @@ import { useState } from "react";
 interface FloatingCartButtonProps {
   userId: string;
   userName?: string;
+  showTopButton?: boolean;
 }
 
 export function FloatingCartButton({
   userId,
   userName,
+  showTopButton = false,
 }: FloatingCartButtonProps) {
   const { itemCount } = useCart(userId);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
 
   return (
     <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+      {showTopButton && (
+        <Button
+          type="button"
+          className="w-full sm:w-auto"
+          onClick={() => setIsDialogOpen(true)}
+        >
+          <MessageCircle className="h-4 w-4" />
+          <span>
+            Contact Seller
+            {itemCount > 0 &&
+              ` (${itemCount} ${itemCount === 1 ? "item" : "items"})`}
+          </span>
+        </Button>
+      )}
+
       <DialogTrigger asChild>
         <Button
+          type="button"
           className="fixed bottom-4 right-4 z-50 flex items-center gap-2 rounded-full shadow-md"
           variant="default"
+          aria-label={
+            itemCount > 0
+              ? `Contact seller and view cart (${itemCount} ${itemCount === 1 ? "item" : "items"})`
+              : "Contact seller"
+          }
         >
           {itemCount > 0 ? (
             <>
