@@ -114,7 +114,7 @@
     {
       "step": 9,
       "id": "update-e2e-seeds-and-create-edit-flow",
-      "completed": false,
+      "completed": true,
       "change": "Ensure E2E seeds provide valid cultivar references and keep create/edit flow assertion that unlink remains unlinked after Save.",
       "files": [
         "tests/e2e/utils/seed-create-edit-listing.ts",
