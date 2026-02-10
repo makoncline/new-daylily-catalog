@@ -92,6 +92,23 @@ async function getCultivarReferenceIdForAhs(
   return cultivarReference.id;
 }
 
+async function getAhsIdForCultivarReference(
+  db: PrismaClient,
+  cultivarReferenceId: string,
+): Promise<string> {
+  const ref = await db.cultivarReference.findUnique({
+    where: { id: cultivarReferenceId },
+    select: { ahsId: true },
+  });
+  if (!ref?.ahsId) {
+    throw new TRPCError({
+      code: "NOT_FOUND",
+      message: "Cultivar reference not found or not linked to an AHS listing",
+    });
+  }
+  return ref.ahsId;
+}
+
 export const listingInclude = {
   ahsListing: true,
   images: {
@@ -285,11 +302,17 @@ export const listingRouter = createTRPCRouter({
 
   linkAhs: protectedProcedure
     .input(
-      z.object({
-        id: z.string(),
-        ahsId: z.string(),
-        syncName: z.boolean().default(false),
-      }),
+      z
+        .object({
+          id: z.string(),
+          cultivarReferenceId: z.string().optional(),
+          ahsId: z.string().optional(),
+          syncName: z.boolean().default(false),
+        })
+        .refine(
+          (data) => !!data.cultivarReferenceId || !!data.ahsId,
+          "Provide either cultivarReferenceId or ahsId",
+        ),
     )
     .mutation(async ({ ctx, input }) => {
       const listing = await ctx.db.listing.findUnique({
@@ -303,8 +326,22 @@ export const listingRouter = createTRPCRouter({
         });
       }
 
+      let ahsId: string;
+      let cultivarReferenceId: string;
+
+      if (input.cultivarReferenceId) {
+        cultivarReferenceId = input.cultivarReferenceId;
+        ahsId = await getAhsIdForCultivarReference(
+          ctx.db,
+          input.cultivarReferenceId,
+        );
+      } else {
+        ahsId = input.ahsId!;
+        cultivarReferenceId = await getCultivarReferenceIdForAhs(ctx.db, ahsId);
+      }
+
       const ahsListing = await ctx.db.ahsListing.findUnique({
-        where: { id: input.ahsId },
+        where: { id: ahsId },
       });
 
       if (!ahsListing) {
@@ -314,15 +351,10 @@ export const listingRouter = createTRPCRouter({
         });
       }
 
-      const cultivarReferenceId = await getCultivarReferenceIdForAhs(
-        ctx.db,
-        input.ahsId,
-      );
-
       const updatedListing = await ctx.db.listing.update({
         where: { id: input.id },
         data: {
-          ahsId: input.ahsId,
+          ahsId,
           cultivarReferenceId,
           title:
             input.syncName && ahsListing.name ? ahsListing.name : undefined,
