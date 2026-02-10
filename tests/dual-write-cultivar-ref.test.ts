@@ -73,29 +73,6 @@ describe("listing dual-write cultivar reference", () => {
     expect(db.cultivarReference.findUnique).not.toHaveBeenCalled();
   });
 
-  it("linkAhs with ahsId writes both ahsId and cultivarReferenceId", async () => {
-    const db = createMockDb();
-    db.listing.findUnique.mockResolvedValue({ id: "listing-1" });
-    db.ahsListing.findUnique.mockResolvedValue({
-      id: "ahs-1",
-      name: "Coffee Frenzy",
-    });
-    db.cultivarReference.findUnique.mockResolvedValue({ id: "cr-ahs-ahs-1" });
-    db.listing.update.mockResolvedValue({ id: "listing-1" });
-
-    const caller = createCaller(db);
-    await caller.linkAhs({ id: "listing-1", ahsId: "ahs-1", syncName: false });
-
-    expect(db.listing.update).toHaveBeenCalledWith(
-      expect.objectContaining({
-        data: expect.objectContaining({
-          ahsId: "ahs-1",
-          cultivarReferenceId: "cr-ahs-ahs-1",
-        }),
-      }),
-    );
-  });
-
   it("linkAhs with cultivarReferenceId writes both ahsId and cultivarReferenceId", async () => {
     const db = createMockDb();
     db.listing.findUnique.mockResolvedValue({ id: "listing-1" });
@@ -146,22 +123,22 @@ describe("listing dual-write cultivar reference", () => {
     );
   });
 
-  it("throws a clear error when cultivar reference rows are missing", async () => {
+  it("throws when cultivar reference is missing", async () => {
     const db = createMockDb();
     db.listing.findUnique.mockResolvedValue({ id: "listing-1", title: "Old" });
-    db.ahsListing.findUnique.mockResolvedValue({
-      id: "ahs-1",
-      name: "Coffee Frenzy",
-    });
     db.cultivarReference.findUnique.mockResolvedValue(null);
 
     const caller = createCaller(db);
 
     await expect(
-      caller.linkAhs({ id: "listing-1", ahsId: "ahs-1", syncName: false }),
+      caller.linkAhs({
+        id: "listing-1",
+        cultivarReferenceId: "cr-missing",
+        syncName: false,
+      }),
     ).rejects.toMatchObject({
-      code: "INTERNAL_SERVER_ERROR",
-      message: expect.stringContaining("Cultivar reference missing"),
+      code: "NOT_FOUND",
+      message: expect.stringContaining("Cultivar reference not found"),
     });
   });
 });
