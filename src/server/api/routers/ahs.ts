@@ -16,10 +16,13 @@ async function runAhsSearchQuery(db: PrismaClient, query: string) {
     orderBy: {
       name: "asc",
     },
+    include: {
+      cultivarReference: { select: { id: true } },
+    },
   });
 
   // Sort the results based on the ranking of how closely they match the input.
-  return results.sort((a, b) => {
+  const sorted = results.sort((a, b) => {
     const aRank = rankItem(a.name, query, {
       threshold: rankings.WORD_STARTS_WITH,
     });
@@ -34,6 +37,11 @@ async function runAhsSearchQuery(db: PrismaClient, query: string) {
     // Otherwise, sort by rank (lower rank indicate a closer match).
     return compareItems(aRank, bRank);
   });
+
+  return sorted.map(({ cultivarReference, ...row }) => ({
+    ...row,
+    cultivarReferenceId: cultivarReference?.id ?? null,
+  }));
 }
 
 export const ahsRouter = createTRPCRouter({

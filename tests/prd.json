@@ -22,7 +22,7 @@
     {
       "step": 2,
       "id": "update-ahs-search-to-return-cultivar-reference-id",
-      "completed": false,
+      "completed": true,
       "change": "Change `ahs.search` response shape to include `cultivarReferenceId` for each selectable row. Keep existing display fields (`name`, etc.).",
       "files": ["src/server/api/routers/ahs.ts", "src/types/index.ts"],
       "success_criteria": [
