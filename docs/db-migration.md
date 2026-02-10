@@ -75,7 +75,7 @@ prisma/data-migrations/20260209_populate_cultivar_reference_from_ahs.sql
 prisma/data-migrations/20260209_backfill_listing_cultivar_reference_id.sql
 ```
 
-## Step 3: Apply Locally (Same Order as Production)
+## Step 3: Apply Locally (Same Order as Stage/Production)
 
 Use the local copy DB for verification:
 
@@ -87,7 +87,113 @@ sqlite3 prisma/local-prod-copy-daylily-catalog.db < prisma/data-migrations/<seco
 
 Run validation queries after apply (counts, coverage, orphan checks, etc.).
 
-## Step 4: Apply to Production (After Local Validation)
+### Validation Checklist (Local, Stage, and Production)
+
+Run these queries after applying structural + data SQL. Keep a copy of the
+results in your PR/deploy notes.
+
+```sql
+-- 1) Total AHS rows vs CultivarReference rows
+SELECT COUNT(*) AS ahs_count FROM "AhsListing";
+SELECT COUNT(*) AS cultivar_reference_count FROM "CultivarReference";
+```
+
+Expected:
+- `cultivar_reference_count` should equal `ahs_count` (or be very close if
+  known bad source rows were intentionally skipped).
+
+```sql
+-- 2) Duplicate safety check (should be impossible with unique index)
+SELECT "ahsId", COUNT(*) AS duplicate_count
+FROM "CultivarReference"
+WHERE "ahsId" IS NOT NULL
+GROUP BY "ahsId"
+HAVING COUNT(*) > 1;
+```
+
+Expected:
+- No rows returned.
+
+```sql
+-- 3) Listings currently linked to AHS
+SELECT COUNT(*) AS listings_with_ahs
+FROM "Listing"
+WHERE "ahsId" IS NOT NULL;
+
+-- 4) Listings with AHS that now also have cultivarReferenceId
+SELECT COUNT(*) AS listings_with_ahs_and_cultivar_ref
+FROM "Listing"
+WHERE "ahsId" IS NOT NULL
+  AND "cultivarReferenceId" IS NOT NULL;
+```
+
+Expected:
+- `listings_with_ahs_and_cultivar_ref` should match `listings_with_ahs`
+  (or differ only for known edge cases you explicitly document).
+
+```sql
+-- 5) Orphan check: Listing.cultivarReferenceId points to missing reference
+SELECT COUNT(*) AS orphaned_listing_cultivar_refs
+FROM "Listing" l
+LEFT JOIN "CultivarReference" cr ON cr."id" = l."cultivarReferenceId"
+WHERE l."cultivarReferenceId" IS NOT NULL
+  AND cr."id" IS NULL;
+```
+
+Expected:
+- `orphaned_listing_cultivar_refs = 0`.
+
+```sql
+-- 6) Consistency check: linked listing should point to same ahsId via reference
+SELECT COUNT(*) AS ahs_mismatch_count
+FROM "Listing" l
+JOIN "CultivarReference" cr ON cr."id" = l."cultivarReferenceId"
+WHERE l."ahsId" IS NOT NULL
+  AND cr."ahsId" IS NOT NULL
+  AND l."ahsId" != cr."ahsId";
+```
+
+Expected:
+- `ahs_mismatch_count = 0`.
+
+```sql
+-- 7) Spot-check normalizedName transformation
+SELECT "id", "name"
+FROM "AhsListing"
+WHERE "name" IS NOT NULL
+ORDER BY RANDOM()
+LIMIT 10;
+
+SELECT "ahsId", "normalizedName"
+FROM "CultivarReference"
+WHERE "ahsId" IN (
+  -- paste sampled ids from query above
+);
+```
+
+Expected:
+- `normalizedName` is lowercased + trimmed version of source `AhsListing.name`.
+- Null/blank source names map to `normalizedName = NULL`.
+
+## Step 4: Apply to Stage (After Local Validation)
+
+Stage database details:
+
+- Turso URL: `libsql://daylily-catalog-stage-makoncline.aws-us-east-1.turso.io`
+- Turso DB name: `daylily-catalog-stage`
+
+Apply the exact same SQL files in the exact same order:
+
+```bash
+turso db shell daylily-catalog-stage < prisma/migrations/<timestamp>_<migration_name>/migration.sql
+turso db shell daylily-catalog-stage < prisma/data-migrations/<first_data_sql>.sql
+turso db shell daylily-catalog-stage < prisma/data-migrations/<second_data_sql>.sql
+```
+
+Run validation queries on stage after apply (counts, coverage, orphan checks, etc.).
+Do not continue to production until stage validation passes.
+
+## Step 5: Apply to Production (After Stage Validation)
 
 Take a fresh backup first:
 
