@@ -154,19 +154,6 @@ export const listingRouter = createTRPCRouter({
           ? await generateUniqueSlug(input.data.title, ctx.user.id, listing.id)
           : undefined;
 
-      const ahsUpdateData =
-        input.data.ahsId === undefined
-          ? {}
-          : input.data.ahsId === null
-            ? { ahsId: null, cultivarReferenceId: null }
-            : {
-                ahsId: input.data.ahsId,
-                cultivarReferenceId: await getCultivarReferenceIdForAhs(
-                  ctx.db,
-                  input.data.ahsId,
-                ),
-              };
-
       const updatedListing = await ctx.db.listing.update({
         where: { id: input.id },
         data: {
@@ -176,7 +163,6 @@ export const listingRouter = createTRPCRouter({
           description: input.data.description,
           privateNote: input.data.privateNote,
           status: input.data.status,
-          ...ahsUpdateData,
         },
         include: listingInclude,
       });

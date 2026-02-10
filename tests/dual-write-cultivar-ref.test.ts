@@ -72,49 +72,6 @@ describe("listing dual-write cultivar reference", () => {
     expect(db.cultivarReference.findUnique).not.toHaveBeenCalled();
   });
 
-  it("sets both ahsId and cultivarReferenceId when ahsId is provided in update", async () => {
-    const db = createMockDb();
-    db.listing.findUnique.mockResolvedValue({ id: "listing-1", title: "Old" });
-    db.ahsListing.findUnique.mockResolvedValue({
-      id: "ahs-1",
-      name: "  Coffee Frenzy  ",
-    });
-    db.cultivarReference.findUnique.mockResolvedValue({ id: "cr-ahs-ahs-1" });
-    db.listing.update.mockResolvedValue({ id: "listing-1" });
-
-    const caller = createCaller(db);
-    await caller.update({ id: "listing-1", data: { ahsId: "ahs-1" } });
-
-    expect(db.listing.update).toHaveBeenCalledWith(
-      expect.objectContaining({
-        data: expect.objectContaining({
-          ahsId: "ahs-1",
-          cultivarReferenceId: "cr-ahs-ahs-1",
-        }),
-      }),
-    );
-  });
-
-  it("clears both fields when ahsId is explicitly set to null in update", async () => {
-    const db = createMockDb();
-    db.listing.findUnique.mockResolvedValue({ id: "listing-1", title: "Old" });
-    db.listing.update.mockResolvedValue({ id: "listing-1" });
-
-    const caller = createCaller(db);
-    await caller.update({ id: "listing-1", data: { ahsId: null } });
-
-    expect(db.listing.update).toHaveBeenCalledWith(
-      expect.objectContaining({
-        data: expect.objectContaining({
-          ahsId: null,
-          cultivarReferenceId: null,
-        }),
-      }),
-    );
-    expect(db.ahsListing.findUnique).not.toHaveBeenCalled();
-    expect(db.cultivarReference.findUnique).not.toHaveBeenCalled();
-  });
-
   it("linkAhs writes both ahsId and cultivarReferenceId", async () => {
     const db = createMockDb();
     db.listing.findUnique.mockResolvedValue({ id: "listing-1" });
@@ -168,7 +125,7 @@ describe("listing dual-write cultivar reference", () => {
     const caller = createCaller(db);
 
     await expect(
-      caller.update({ id: "listing-1", data: { ahsId: "ahs-1" } }),
+      caller.linkAhs({ id: "listing-1", ahsId: "ahs-1", syncName: false }),
     ).rejects.toMatchObject({
       code: "INTERNAL_SERVER_ERROR",
       message: expect.stringContaining("Cultivar reference missing"),

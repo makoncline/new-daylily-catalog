@@ -21,6 +21,8 @@
 - 2026-02-10 - dual-write - User prefers Prisma ORM writes over raw SQL for dual-write paths; if cultivar reference rows are missing, throw explicit runtime error instead of auto-creating with raw SQL.
 - 2026-02-10 - migration docs - For migration follow-ups, provide task breakdown as JSON with explicit `completed` boolean fields so lower-context agents can execute safely.
 - 2026-02-10 - edit dialog bug - Unlinking AHS in `AhsListingLink` can be reverted on dialog close if `ListingForm` still holds stale `ahsId`; sync `ahsId` into form state on link/unlink success to prevent close-save from re-linking.
+- 2026-02-10 - unlink/save regression - Better fix was decoupling: keep `ahsId` out of form schema/state and allow router `update` input to accept optional `ahsId` for link/unlink component calls only; this prevents Save from re-linking stale AHS data.
+- 2026-02-10 - api boundary cleanup - Final simplification: `AhsListingLink` should call `listing.linkAhs`/`listing.unlinkAhs` directly; then `listing.update` can stay form-only (`listingFormSchema`) with no `ahsId` handling.
 
 ## Preferences
 

@@ -3,16 +3,28 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { ListingGetOutput } from "@/server/api/routers/listing";
 import { AhsListingLink } from "@/components/ahs-listing-link";
 
-const mockMutateAsync = vi.hoisted(() => vi.fn());
+const mockLinkAhsMutateAsync = vi.hoisted(() => vi.fn());
+const mockUnlinkAhsMutateAsync = vi.hoisted(() => vi.fn());
+const mockSyncAhsNameMutateAsync = vi.hoisted(() => vi.fn());
 const mockToastSuccess = vi.hoisted(() => vi.fn());
 const mockToastError = vi.hoisted(() => vi.fn());
 
 vi.mock("@/trpc/react", () => ({
   api: {
     listing: {
-      update: {
+      linkAhs: {
         useMutation: () => ({
-          mutateAsync: mockMutateAsync,
+          mutateAsync: mockLinkAhsMutateAsync,
+        }),
+      },
+      unlinkAhs: {
+        useMutation: () => ({
+          mutateAsync: mockUnlinkAhsMutateAsync,
+        }),
+      },
+      syncAhsName: {
+        useMutation: () => ({
+          mutateAsync: mockSyncAhsNameMutateAsync,
         }),
       },
     },
@@ -74,8 +86,8 @@ describe("AhsListingLink", () => {
     vi.clearAllMocks();
   });
 
-  it("calls mutation with null ahsId when unlinking", async () => {
-    mockMutateAsync.mockResolvedValue(
+  it("calls unlinkAhs mutation when unlinking", async () => {
+    mockUnlinkAhsMutateAsync.mockResolvedValue(
       createListing({ ahsId: null, ahsListing: null }),
     );
 
@@ -84,15 +96,14 @@ describe("AhsListingLink", () => {
     fireEvent.click(screen.getByRole("button", { name: "Unlink" }));
 
     await waitFor(() => {
-      expect(mockMutateAsync).toHaveBeenCalledWith({
+      expect(mockUnlinkAhsMutateAsync).toHaveBeenCalledWith({
         id: "listing-1",
-        data: { ahsId: null },
       });
     });
   });
 
-  it("calls mutation with ahsId and title when linking", async () => {
-    mockMutateAsync.mockResolvedValue(createListing({ ahsId: "ahs-2" }));
+  it("calls linkAhs mutation with ahsId and syncName when linking", async () => {
+    mockLinkAhsMutateAsync.mockResolvedValue(createListing({ ahsId: "ahs-2" }));
 
     render(
       <AhsListingLink
@@ -103,12 +114,10 @@ describe("AhsListingLink", () => {
     fireEvent.click(screen.getByRole("button", { name: "Select AHS" }));
 
     await waitFor(() => {
-      expect(mockMutateAsync).toHaveBeenCalledWith({
+      expect(mockLinkAhsMutateAsync).toHaveBeenCalledWith({
         id: "listing-1",
-        data: {
-          ahsId: "ahs-2",
-          title: "Coffee Two",
-        },
+        ahsId: "ahs-2",
+        syncName: true,
       });
     });
   });
