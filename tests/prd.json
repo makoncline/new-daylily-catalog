@@ -33,7 +33,7 @@
     {
       "step": 3,
       "id": "wire-ahs-select-to-emit-cultivar-reference-id",
-      "completed": false,
+      "completed": true,
       "change": "Update AHS select component callback payload so selection provides `cultivarReferenceId` and display metadata.",
       "files": [
         "src/components/ahs-listing-select.tsx",

@@ -12,7 +12,7 @@ import { AhsListingDisplay } from "./ahs-listing-display";
 import { Muted } from "@/components/typography";
 
 import type { ListingGetOutput } from "@/server/api/routers/listing";
-import type { AhsListing } from "@prisma/client";
+import type { AhsSearchResult } from "@/types";
 import { getErrorMessage, normalizeError } from "@/lib/error-utils";
 
 interface AhsListingLinkProps {
@@ -67,26 +67,21 @@ export function AhsListingLink({
       },
     });
 
-  async function updateAhsListing(
-    ahsId: string | null,
-    ahsListing: AhsListing | null,
-  ) {
+  async function updateAhsListing(selected: AhsSearchResult | null) {
     setIsPending(true);
     try {
-      if (ahsId && ahsListing?.name) {
-        // When linking, update both ahsId and name if needed
+      if (selected?.name) {
         const shouldUpdateName =
           !listing.title || listing.title === LISTING_CONFIG.DEFAULT_NAME;
 
         await linkAhsMutation({
           id: listing.id,
-          ahsId,
+          ahsId: selected.id,
           syncName: shouldUpdateName,
         });
 
-        // Notify parent about name change
         if (shouldUpdateName) {
-          onNameChange?.(ahsListing.name);
+          onNameChange?.(selected.name);
         }
       } else {
         await unlinkAhsMutation({
@@ -95,11 +90,13 @@ export function AhsListingLink({
       }
 
       toast.success(
-        ahsId ? "Listing linked successfully" : "Listing unlinked successfully",
+        selected
+          ? "Listing linked successfully"
+          : "Listing unlinked successfully",
       );
     } catch (error) {
       toast.error(
-        ahsId ? "Failed to link listing" : "Failed to unlink listing",
+        selected ? "Failed to link listing" : "Failed to unlink listing",
         { description: getErrorMessage(error) },
       );
       reportError({
@@ -167,7 +164,7 @@ export function AhsListingLink({
                   type="button"
                   variant="outline"
                   size="sm"
-                  onClick={() => updateAhsListing(null, null)}
+                  onClick={() => updateAhsListing(null)}
                   disabled={isPending}
                 >
                   {isPending ? "Unlinking..." : "Unlink"}
@@ -180,9 +177,7 @@ export function AhsListingLink({
       ) : (
         <div>
           <AhsListingSelect
-            onSelect={(ahsListing: AhsListing) =>
-              updateAhsListing(ahsListing.id, ahsListing)
-            }
+            onSelect={(result) => updateAhsListing(result)}
             disabled={isPending}
           />
         </div>

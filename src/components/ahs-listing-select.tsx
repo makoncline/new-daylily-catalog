@@ -17,10 +17,10 @@ import {
   CommandList,
 } from "@/components/ui/command";
 import { api } from "@/trpc/react";
-import type { AhsListing } from "@prisma/client";
+import type { AhsSearchResult } from "@/types";
 
 interface AhsListingSelectProps {
-  onSelect: (ahsListing: AhsListing) => void;
+  onSelect: (result: AhsSearchResult) => void;
   disabled?: boolean;
 }
 
@@ -57,9 +57,8 @@ export function AhsListingSelect({
     },
   );
 
-  // Handler for selecting an item
-  const handleSelect = (ahsListing: AhsListing) => {
-    onSelect(ahsListing);
+  const handleSelect = (result: AhsSearchResult) => {
+    onSelect(result);
     setOpen(false);
   };
 
@@ -97,13 +96,13 @@ export function AhsListingSelect({
           ahsSearchQuery.data &&
           ahsSearchQuery.data.length > 0 && (
             <CommandGroup>
-              {ahsSearchQuery.data.map((ahsListing) => (
+              {ahsSearchQuery.data.map((result) => (
                 <CommandItem
-                  key={ahsListing.id}
-                  onSelect={() => handleSelect(ahsListing)}
+                  key={result.id}
+                  onSelect={() => handleSelect(result)}
                   className="px-6"
                 >
-                  {ahsListing.name}
+                  {result.name}
                 </CommandItem>
               ))}
             </CommandGroup>
