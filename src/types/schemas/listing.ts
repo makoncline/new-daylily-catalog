@@ -18,8 +18,9 @@ export const listingFormSchema = z.object({
   price: z.number().min(0).optional().nullable(),
   description: z.string().optional().nullable(),
   privateNote: z.string().optional().nullable(),
-  ahsId: z.string().optional().nullable(),
   status: z.string().optional().nullable(),
+  // ahsId is handled separately by AhsListingLink component, not part of form
+  ahsId: z.string().optional().nullable(),
 });
 
 export type ListingFormData = z.infer<typeof listingFormSchema>;

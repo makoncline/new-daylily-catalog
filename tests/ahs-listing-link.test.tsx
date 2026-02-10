@@ -16,6 +16,13 @@ vi.mock("@/trpc/react", () => ({
         }),
       },
     },
+    useUtils: () => ({
+      listing: {
+        get: {
+          invalidate: vi.fn(),
+        },
+      },
+    }),
   },
 }));
 
@@ -67,18 +74,12 @@ describe("AhsListingLink", () => {
     vi.clearAllMocks();
   });
 
-  it("propagates null ahsId after unlink", async () => {
+  it("calls mutation with null ahsId when unlinking", async () => {
     mockMutateAsync.mockResolvedValue(
       createListing({ ahsId: null, ahsListing: null }),
     );
-    const onAhsIdChange = vi.fn();
 
-    render(
-      <AhsListingLink
-        listing={createListing()}
-        onAhsIdChange={onAhsIdChange}
-      />,
-    );
+    render(<AhsListingLink listing={createListing()} />);
 
     fireEvent.click(screen.getByRole("button", { name: "Unlink" }));
 
@@ -88,19 +89,14 @@ describe("AhsListingLink", () => {
         data: { ahsId: null },
       });
     });
-    expect(onAhsIdChange).toHaveBeenCalledWith(null);
   });
 
-  it("propagates new ahsId after link", async () => {
-    mockMutateAsync.mockResolvedValue(
-      createListing({ ahsId: "ahs-2" }),
-    );
-    const onAhsIdChange = vi.fn();
+  it("calls mutation with ahsId and title when linking", async () => {
+    mockMutateAsync.mockResolvedValue(createListing({ ahsId: "ahs-2" }));
 
     render(
       <AhsListingLink
         listing={createListing({ ahsId: null, ahsListing: null })}
-        onAhsIdChange={onAhsIdChange}
       />,
     );
 
@@ -115,6 +111,5 @@ describe("AhsListingLink", () => {
         },
       });
     });
-    expect(onAhsIdChange).toHaveBeenCalledWith("ahs-2");
   });
 });

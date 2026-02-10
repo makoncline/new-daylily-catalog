@@ -40,7 +40,9 @@ test.describe("create/edit listing flow @local", () => {
     };
 
     const expectUrlParam = async (key: string, expected: string | null) => {
-      await expect(page).toHaveURL((url) => url.searchParams.get(key) === expected);
+      await expect(page).toHaveURL(
+        (url) => url.searchParams.get(key) === expected,
+      );
     };
 
     const expectTableParamsCleared = async () => {
@@ -82,16 +84,22 @@ test.describe("create/edit listing flow @local", () => {
       seedMeta.createAhsSearch,
       seedMeta.createAhsName,
     );
-    await expect(createListingDialog.titleInput).toHaveValue(seedMeta.createAhsName);
+    await expect(createListingDialog.titleInput).toHaveValue(
+      seedMeta.createAhsName,
+    );
     await captureCheckpoint("create-dialog-ahs-selected");
 
     await createListingDialog.changeTitle("Temporary Create Override");
     await createListingDialog.syncTitleWithAhs();
-    await expect(createListingDialog.titleInput).toHaveValue(seedMeta.createAhsName);
+    await expect(createListingDialog.titleInput).toHaveValue(
+      seedMeta.createAhsName,
+    );
 
     await createListingDialog.changeTitle(seedMeta.createCustomTitle);
     await createListingDialog.cancel();
-    await expect(dashboardListings.listingRow(seedMeta.createCustomTitle)).toHaveCount(0);
+    await expect(
+      dashboardListings.listingRow(seedMeta.createCustomTitle),
+    ).toHaveCount(0);
 
     await dashboardListings.createListingButton.click();
     await createListingDialog.isReady();
@@ -127,26 +135,40 @@ test.describe("create/edit listing flow @local", () => {
     await editListingDialog.toggleListByName(seedMeta.existingListTitle);
     await editListingDialog.closeListsPicker();
     await expectToast("Lists updated");
-    await expect(editListingDialog.selectedListChip(seedMeta.existingListTitle)).toBeVisible();
+    await expect(
+      editListingDialog.selectedListChip(seedMeta.existingListTitle),
+    ).toBeVisible();
 
     await editListingDialog.createList(seedMeta.listAName);
-    await expect(editListingDialog.selectedListChip(seedMeta.listAName)).toBeVisible();
+    await expect(
+      editListingDialog.selectedListChip(seedMeta.listAName),
+    ).toBeVisible();
 
     await editListingDialog.createList(seedMeta.listBName);
-    await expect(editListingDialog.selectedListChip(seedMeta.listBName)).toBeVisible();
+    await expect(
+      editListingDialog.selectedListChip(seedMeta.listBName),
+    ).toBeVisible();
 
     await editListingDialog.openListsPicker();
     await editListingDialog.toggleListByName(seedMeta.listAName);
     await editListingDialog.closeListsPicker();
     await expectToast("Lists updated");
-    await expect(editListingDialog.selectedListChip(seedMeta.existingListTitle)).toBeVisible();
-    await expect(editListingDialog.selectedListChip(seedMeta.listBName)).toBeVisible();
-    await expect(editListingDialog.selectedListChip(seedMeta.listAName)).toHaveCount(0);
+    await expect(
+      editListingDialog.selectedListChip(seedMeta.existingListTitle),
+    ).toBeVisible();
+    await expect(
+      editListingDialog.selectedListChip(seedMeta.listBName),
+    ).toBeVisible();
+    await expect(
+      editListingDialog.selectedListChip(seedMeta.listAName),
+    ).toHaveCount(0);
 
     await editListingDialog.fillTitle("Manual Title Before AHS Sync");
     await editListingDialog.syncAhsName();
     await expectToast("Name synced successfully");
-    await expect(editListingDialog.titleInput).toHaveValue(seedMeta.createAhsName);
+    await expect(editListingDialog.titleInput).toHaveValue(
+      seedMeta.createAhsName,
+    );
 
     await editListingDialog.unlinkAhs();
     await expectToast("Listing unlinked successfully");
@@ -158,13 +180,17 @@ test.describe("create/edit listing flow @local", () => {
       seedMeta.relinkAhsName,
     );
     await expectToast("Listing linked successfully");
-    await expect(editListingDialog.linkedAhsText(seedMeta.relinkAhsName)).toBeVisible();
+    await expect(
+      editListingDialog.linkedAhsText(seedMeta.relinkAhsName),
+    ).toBeVisible();
     await captureCheckpoint("edit-dialog-ahs-relinked");
 
     await editListingDialog.fillTitle("Relink Manual Title Override");
     await editListingDialog.syncAhsName();
     await expectToast("Name synced successfully");
-    await expect(editListingDialog.titleInput).toHaveValue(seedMeta.relinkAhsName);
+    await expect(editListingDialog.titleInput).toHaveValue(
+      seedMeta.relinkAhsName,
+    );
 
     await editListingDialog.typePrivateNoteWithoutBlur(pendingPrivateNote);
     await editListingDialog.closeWithHeaderX();
@@ -174,29 +200,42 @@ test.describe("create/edit listing flow @local", () => {
     // Phase D: table propagation checks
     await dashboardListings.setGlobalSearch(seedMeta.relinkAhsName);
     await expectUrlParam("query", seedMeta.relinkAhsName);
-    await expect(dashboardListings.listingRow(seedMeta.relinkAhsName)).toBeVisible();
+    await expect(
+      dashboardListings.listingRow(seedMeta.relinkAhsName),
+    ).toBeVisible();
     await expect(dashboardListings.statusCell("HIDDEN")).toBeVisible();
 
     await dashboardListings.openColumnFilter("Description");
     await dashboardListings.setOpenColumnFilterValue(seedMeta.descriptionToken);
-    await expectUrlParam("description", JSON.stringify(seedMeta.descriptionToken));
-    await expect(dashboardListings.listingRow(seedMeta.relinkAhsName)).toBeVisible();
+    await expectUrlParam(
+      "description",
+      JSON.stringify(seedMeta.descriptionToken),
+    );
+    await expect(
+      dashboardListings.listingRow(seedMeta.relinkAhsName),
+    ).toBeVisible();
     await closeColumnFilterAndReset();
 
     await dashboardListings.openColumnFilter("Private Notes");
-    await dashboardListings.setOpenColumnFilterValue(seedMeta.pendingPrivateNoteToken);
+    await dashboardListings.setOpenColumnFilterValue(
+      seedMeta.pendingPrivateNoteToken,
+    );
     await expectUrlParam(
       "privateNote",
       JSON.stringify(seedMeta.pendingPrivateNoteToken),
     );
-    await expect(dashboardListings.listingRow(seedMeta.relinkAhsName)).toBeVisible();
+    await expect(
+      dashboardListings.listingRow(seedMeta.relinkAhsName),
+    ).toBeVisible();
     await closeColumnFilterAndReset();
 
     await dashboardListings.openListsFilter();
     await dashboardListings.toggleListFilterOption(seedMeta.existingListTitle);
     await page.keyboard.press("Escape");
     await expectUrlParam("lists", seedMeta.existingListId);
-    await expect(dashboardListings.listingRow(seedMeta.relinkAhsName)).toBeVisible();
+    await expect(
+      dashboardListings.listingRow(seedMeta.relinkAhsName),
+    ).toBeVisible();
     await dashboardListings.openListsFilter();
     await dashboardListings.clearListsFilterInPopover();
     await page.keyboard.press("Escape");
@@ -206,7 +245,9 @@ test.describe("create/edit listing flow @local", () => {
     await dashboardListings.openListsFilter();
     await dashboardListings.toggleListFilterOption(seedMeta.listAName);
     await page.keyboard.press("Escape");
-    await expect(page.getByRole("heading", { name: "No listings" })).toBeVisible();
+    await expect(
+      page.getByRole("heading", { name: "No listings" }),
+    ).toBeVisible();
     await dashboardListings.openListsFilter();
     await dashboardListings.clearListsFilterInPopover();
     await page.keyboard.press("Escape");
@@ -215,7 +256,9 @@ test.describe("create/edit listing flow @local", () => {
 
     await dashboardListings.setGlobalSearch(seedMeta.relinkAhsName);
     await expectUrlParam("query", seedMeta.relinkAhsName);
-    await expect(dashboardListings.listingRow(seedMeta.relinkAhsName)).toBeVisible();
+    await expect(
+      dashboardListings.listingRow(seedMeta.relinkAhsName),
+    ).toBeVisible();
     await captureCheckpoint("listings-table-final-row-state");
 
     // Phase E: delete from edit dialog
@@ -229,8 +272,12 @@ test.describe("create/edit listing flow @local", () => {
     await expectToast("Listing deleted successfully");
     await expectUrlParam("editing", null);
 
-    await expect(page.getByRole("heading", { name: "No listings" })).toBeVisible();
-    await expect(dashboardListings.listingRow(seedMeta.relinkAhsName)).toHaveCount(0);
+    await expect(
+      page.getByRole("heading", { name: "No listings" }),
+    ).toBeVisible();
+    await expect(
+      dashboardListings.listingRow(seedMeta.relinkAhsName),
+    ).toHaveCount(0);
     await captureCheckpoint("post-delete-table-state");
   });
 });

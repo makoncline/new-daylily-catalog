@@ -389,9 +389,6 @@ export function ListingForm({
             onNameChange={(name) => {
               form.setValue("title", name);
             }}
-            onAhsIdChange={(ahsId) => {
-              form.setValue("ahsId", ahsId, { shouldDirty: false });
-            }}
           />
           <p className="text-muted-foreground text-[0.8rem]">
             Optional. Link your listing to a daylily databse listing to

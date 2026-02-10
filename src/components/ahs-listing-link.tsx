@@ -17,17 +17,10 @@ import { getErrorMessage, normalizeError } from "@/lib/error-utils";
 
 interface AhsListingLinkProps {
   listing: ListingGetOutput;
-  onUpdate?: (updatedListing: ListingGetOutput) => void;
   onNameChange?: (name: string) => void;
-  onAhsIdChange?: (ahsId: string | null) => void;
 }
 
-export function AhsListingLink({
-  listing,
-  onUpdate,
-  onNameChange,
-  onAhsIdChange,
-}: AhsListingLinkProps) {
+export function AhsListingLink({ listing, onNameChange }: AhsListingLinkProps) {
   const [isPending, setIsPending] = useState(false);
   const utils = api.useUtils();
 
@@ -67,27 +60,23 @@ export function AhsListingLink({
           data.title = ahsListing.name;
         }
 
-        const updatedListing = await updateListingMutation({
+        await updateListingMutation({
           id: listing.id,
           data,
         });
-        onAhsIdChange?.(updatedListing.ahsId ?? null);
 
         // Notify parent about name change
         if (shouldUpdateName) {
           onNameChange?.(ahsListing.name);
         }
-        onUpdate?.(updatedListing);
       } else {
         // When unlinking, only update ahsId
-        const updatedListing = await updateListingMutation({
+        await updateListingMutation({
           id: listing.id,
           data: {
             ahsId: null,
           },
         });
-        onAhsIdChange?.(updatedListing.ahsId ?? null);
-        onUpdate?.(updatedListing);
       }
 
       toast.success(
@@ -110,7 +99,7 @@ export function AhsListingLink({
   async function syncName() {
     setIsPending(true);
     try {
-      const updatedListing = await updateListingMutation({
+      await updateListingMutation({
         id: listing.id,
         data: {
           title: listing.ahsListing?.name ?? undefined,
@@ -119,7 +108,6 @@ export function AhsListingLink({
       if (listing.ahsListing?.name) {
         onNameChange?.(listing.ahsListing.name);
       }
-      onUpdate?.(updatedListing);
       toast.success("Name synced successfully");
     } catch (error) {
       toast.error("Failed to sync name", {
