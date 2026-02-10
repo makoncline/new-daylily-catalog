@@ -17,21 +17,46 @@ import { getErrorMessage, normalizeError } from "@/lib/error-utils";
 
 interface AhsListingLinkProps {
   listing: ListingGetOutput;
-  onUpdate?: (updatedListing: ListingGetOutput) => void;
   onNameChange?: (name: string) => void;
 }
 
 export function AhsListingLink({
   listing,
-  onUpdate,
   onNameChange,
 }: AhsListingLinkProps) {
   const [isPending, setIsPending] = useState(false);
+  const utils = api.useUtils();
 
-  const { mutateAsync: updateListingMutation } = api.listing.update.useMutation(
-    {
-      onSuccess: () => {
-        toast.success("Changes saved");
+  const { mutateAsync: linkAhsMutation } = api.listing.linkAhs.useMutation({
+    onSuccess: (data) => {
+      void utils.listing.get.invalidate({ id: data.id });
+    },
+    onError: (error, errorInfo) => {
+      toast.error("Failed to save changes", { description: error.message });
+      reportError({
+        error: normalizeError(error),
+        context: { source: "AhsListingLink", errorInfo },
+      });
+    },
+  });
+
+  const { mutateAsync: unlinkAhsMutation } = api.listing.unlinkAhs.useMutation({
+    onSuccess: (data) => {
+      void utils.listing.get.invalidate({ id: data.id });
+    },
+    onError: (error, errorInfo) => {
+      toast.error("Failed to save changes", { description: error.message });
+      reportError({
+        error: normalizeError(error),
+        context: { source: "AhsListingLink", errorInfo },
+      });
+    },
+  });
+
+  const { mutateAsync: syncAhsNameMutation } =
+    api.listing.syncAhsName.useMutation({
+      onSuccess: (data) => {
+        void utils.listing.get.invalidate({ id: data.id });
       },
       onError: (error, errorInfo) => {
         toast.error("Failed to save changes", { description: error.message });
@@ -40,8 +65,7 @@ export function AhsListingLink({
           context: { source: "AhsListingLink", errorInfo },
         });
       },
-    },
-  );
+    });
 
   async function updateAhsListing(
     ahsId: string | null,
@@ -54,33 +78,20 @@ export function AhsListingLink({
         const shouldUpdateName =
           !listing.title || listing.title === LISTING_CONFIG.DEFAULT_NAME;
 
-        const data: { ahsId: string; title?: string } = {
-          ahsId,
-        };
-
-        if (shouldUpdateName) {
-          data.title = ahsListing.name;
-        }
-
-        const updatedListing = await updateListingMutation({
+        await linkAhsMutation({
           id: listing.id,
-          data,
+          ahsId,
+          syncName: shouldUpdateName,
         });
 
         // Notify parent about name change
         if (shouldUpdateName) {
           onNameChange?.(ahsListing.name);
         }
-        onUpdate?.(updatedListing);
       } else {
-        // When unlinking, only update ahsId
-        const updatedListing = await updateListingMutation({
+        await unlinkAhsMutation({
           id: listing.id,
-          data: {
-            ahsId: null,
-          },
         });
-        onUpdate?.(updatedListing);
       }
 
       toast.success(
@@ -103,16 +114,12 @@ export function AhsListingLink({
   async function syncName() {
     setIsPending(true);
     try {
-      const updatedListing = await updateListingMutation({
+      await syncAhsNameMutation({
         id: listing.id,
-        data: {
-          title: listing.ahsListing?.name ?? undefined,
-        },
       });
       if (listing.ahsListing?.name) {
         onNameChange?.(listing.ahsListing.name);
       }
-      onUpdate?.(updatedListing);
       toast.success("Name synced successfully");
     } catch (error) {
       toast.error("Failed to sync name", {
