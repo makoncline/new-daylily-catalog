@@ -1,5 +1,6 @@
 import type { E2EPrismaClient } from "../../../src/lib/test-utils/e2e-db";
 import { createAuthedUser } from "../../../src/lib/test-utils/e2e-users";
+import { seedAhsListing } from "./ahs-listings";
 
 interface SeedListingsPageInput {
   db: E2EPrismaClient;
@@ -87,29 +88,26 @@ export async function seedListingsPageData({
   const sortBravoTitle = "Sort Bravo token-sort-pack";
   const sortCharlieTitle = "Sort Charlie token-sort-pack";
 
-  const sortAhsAlpha = await db.ahsListing.create({
-    data: {
-      id: "ahs-sort-alpha",
-      name: "Sort Alpha AHS",
-      hybridizer: "Zeta",
-      year: "2021",
-    },
+  const sortAhsAlpha = await seedAhsListing({
+    db,
+    id: "ahs-sort-alpha",
+    name: "Sort Alpha AHS",
+    hybridizer: "Zeta",
+    year: "2021",
   });
-  const sortAhsBravo = await db.ahsListing.create({
-    data: {
-      id: "ahs-sort-bravo",
-      name: "Sort Bravo AHS",
-      hybridizer: "Alpha",
-      year: "2020",
-    },
+  const sortAhsBravo = await seedAhsListing({
+    db,
+    id: "ahs-sort-bravo",
+    name: "Sort Bravo AHS",
+    hybridizer: "Alpha",
+    year: "2020",
   });
-  const sortAhsCharlie = await db.ahsListing.create({
-    data: {
-      id: "ahs-sort-charlie",
-      name: "Sort Charlie AHS",
-      hybridizer: "Mu",
-      year: "2022",
-    },
+  const sortAhsCharlie = await seedAhsListing({
+    db,
+    id: "ahs-sort-charlie",
+    name: "Sort Charlie AHS",
+    hybridizer: "Mu",
+    year: "2022",
   });
 
   await db.listing.create({
@@ -198,15 +196,14 @@ export async function seedListingsPageData({
 
   const summaryFilterToken = "token-summary-listings";
   const summaryFilterTitle = "Summary Filter Fixture";
-  const summaryAhs = await db.ahsListing.create({
-    data: {
-      id: "ahs-summary-fixture",
-      name: `Summary Name ${summaryFilterToken}`,
-      hybridizer: "Summary Breeder",
-      year: "2019",
-      color: "Orange",
-      bloomSeason: "M",
-    },
+  const summaryAhs = await seedAhsListing({
+    db,
+    id: "ahs-summary-fixture",
+    name: `Summary Name ${summaryFilterToken}`,
+    hybridizer: "Summary Breeder",
+    year: "2019",
+    color: "Orange",
+    bloomSeason: "M",
   });
   await db.listing.create({
     data: {

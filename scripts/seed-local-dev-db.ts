@@ -3,6 +3,7 @@ import path from "node:path";
 import { execFileSync } from "node:child_process";
 import { PrismaClient } from "../prisma/generated/sqlite-client/index.js";
 import { createAuthedUser } from "../src/lib/test-utils/e2e-users";
+import { normalizeCultivarName } from "../src/lib/utils/cultivar-utils";
 
 const DEFAULT_DB_PATH = path.join("prisma", "local-dev.sqlite");
 const LISTINGS_COUNT = 120;
@@ -58,15 +59,6 @@ function runPrismaDbPush(dbUrl: string) {
       RUST_LOG: effectiveRustLog,
     },
   });
-}
-
-function normalizeCultivarName(name: string | null | undefined) {
-  const trimmed = name?.trim();
-  if (!trimmed) {
-    return null;
-  }
-
-  return trimmed.toLowerCase();
 }
 
 async function upsertCultivarReference(

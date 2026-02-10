@@ -1,5 +1,6 @@
 import type { E2EPrismaClient } from "../../../src/lib/test-utils/e2e-db";
 import { createAuthedUser } from "../../../src/lib/test-utils/e2e-users";
+import { seedAhsListing } from "./ahs-listings";
 
 interface SeedCreateEditListingInput {
   db: E2EPrismaClient;
@@ -40,34 +41,31 @@ export async function seedCreateEditListingData({
   const relinkAhsName = "AHS Relink Bloom 2002";
   const extraAhsName = "AHS Spare Bloom 3003";
 
-  await db.ahsListing.create({
-    data: {
-      id: "ahs-create-flow-1001",
-      name: createAhsName,
-      hybridizer: "CreateHybridizer",
-      year: "2011",
-      color: "Yellow",
-    },
+  await seedAhsListing({
+    db,
+    id: "ahs-create-flow-1001",
+    name: createAhsName,
+    hybridizer: "CreateHybridizer",
+    year: "2011",
+    color: "Yellow",
   });
 
-  await db.ahsListing.create({
-    data: {
-      id: "ahs-relink-flow-2002",
-      name: relinkAhsName,
-      hybridizer: "RelinkHybridizer",
-      year: "2018",
-      color: "Purple",
-    },
+  await seedAhsListing({
+    db,
+    id: "ahs-relink-flow-2002",
+    name: relinkAhsName,
+    hybridizer: "RelinkHybridizer",
+    year: "2018",
+    color: "Purple",
   });
 
-  await db.ahsListing.create({
-    data: {
-      id: "ahs-extra-flow-3003",
-      name: extraAhsName,
-      hybridizer: "SpareHybridizer",
-      year: "2020",
-      color: "Orange",
-    },
+  await seedAhsListing({
+    db,
+    id: "ahs-extra-flow-3003",
+    name: extraAhsName,
+    hybridizer: "SpareHybridizer",
+    year: "2020",
+    color: "Orange",
   });
 
   return {
