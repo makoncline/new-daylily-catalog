@@ -23,7 +23,7 @@ import { Separator } from "@/components/ui/separator";
 import { useSetAtom } from "jotai";
 import { editingListingIdAtom } from "./edit-listing-dialog";
 import { normalizeError, reportError } from "@/lib/error-utils";
-import { isCultivarReferenceLinkingEnabled } from "@/lib/cultivar-reference-linking";
+import { useCultivarReferenceLinkingEnabled } from "@/hooks/use-cultivar-reference-linking-enabled";
 
 /**
  * Dialog for creating a new daylily listing.
@@ -42,11 +42,15 @@ export function CreateListingDialog({
     null,
   );
   const [isPending, setIsPending] = useState(false);
+  const isCultivarReferenceLinkingEnabled = useCultivarReferenceLinkingEnabled();
 
   const setEditingId = useSetAtom(editingListingIdAtom);
 
   const { data: detailedAhsListing } = api.ahs.get.useQuery(
-    { id: selectedResult?.id ?? "" },
+    {
+      id: selectedResult?.id ?? "",
+      useCultivarReferenceLookup: isCultivarReferenceLinkingEnabled,
+    },
     {
       enabled: !!selectedResult?.id,
       refetchOnWindowFocus: false,
@@ -104,7 +108,7 @@ export function CreateListingDialog({
     try {
       const finalTitle = title ?? selectedResult?.name ?? "New Listing";
 
-      if (isCultivarReferenceLinkingEnabled()) {
+      if (isCultivarReferenceLinkingEnabled) {
         if (selectedResult && !selectedResult.cultivarReferenceId) {
           toast.error("Selected listing is not available for cultivar link.");
           return;

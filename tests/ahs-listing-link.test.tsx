@@ -2,6 +2,7 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { ListingGetOutput } from "@/server/api/routers/listing";
 import { AhsListingLink } from "@/components/ahs-listing-link";
+import { CULTIVAR_REFERENCE_LINKING_OVERRIDE_STORAGE_KEY } from "@/lib/cultivar-reference-linking";
 
 const mockLinkAhsMutateAsync = vi.hoisted(() => vi.fn());
 const mockUnlinkAhsMutateAsync = vi.hoisted(() => vi.fn());
@@ -95,7 +96,9 @@ describe("AhsListingLink", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     delete process.env.NEXT_PUBLIC_CULTIVAR_REFERENCE_LINKING_ENABLED;
-    window.history.replaceState({}, "", "/");
+    window.sessionStorage.removeItem(
+      CULTIVAR_REFERENCE_LINKING_OVERRIDE_STORAGE_KEY,
+    );
   });
 
   it("calls unlinkAhs mutation when unlinking", async () => {
@@ -155,12 +158,11 @@ describe("AhsListingLink", () => {
     });
   });
 
-  it("uses query param override when set to true", async () => {
+  it("uses session override when set to true", async () => {
     process.env.NEXT_PUBLIC_CULTIVAR_REFERENCE_LINKING_ENABLED = "false";
-    window.history.replaceState(
-      {},
-      "",
-      "/?cultivarReferenceLinking=true",
+    window.sessionStorage.setItem(
+      CULTIVAR_REFERENCE_LINKING_OVERRIDE_STORAGE_KEY,
+      "true",
     );
     mockLinkAhsMutateAsync.mockResolvedValue(createListing({ ahsId: "ahs-2" }));
 
@@ -181,12 +183,11 @@ describe("AhsListingLink", () => {
     });
   });
 
-  it("uses query param override when set to false", async () => {
+  it("uses session override when set to false", async () => {
     process.env.NEXT_PUBLIC_CULTIVAR_REFERENCE_LINKING_ENABLED = "true";
-    window.history.replaceState(
-      {},
-      "",
-      "/?cultivarReferenceLinking=false",
+    window.sessionStorage.setItem(
+      CULTIVAR_REFERENCE_LINKING_OVERRIDE_STORAGE_KEY,
+      "false",
     );
     mockLinkAhsMutateAsync.mockResolvedValue(createListing({ ahsId: "ahs-2" }));
 

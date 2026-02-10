@@ -1,6 +1,8 @@
 import { clerk } from "@clerk/testing/playwright";
 import { withTempE2EDb } from "../../src/lib/test-utils/e2e-db";
 import { TEST_USER } from "../../src/lib/test-utils/e2e-users";
+import { toSentenceCaseCultivarName } from "../../src/lib/utils/cultivar-utils";
+import { getCultivarReferenceLinkingEnvDefault } from "../../src/lib/cultivar-reference-linking";
 import { test, expect } from "./fixtures/app-fixtures";
 import {
   seedCreateEditListingData,
@@ -62,6 +64,15 @@ test.describe("create/edit listing flow @local", () => {
       await expectTableParamsCleared();
     };
 
+    const createAhsSearchDisplayName = getCultivarReferenceLinkingEnvDefault()
+      ? (toSentenceCaseCultivarName(seedMeta.createAhsName) ??
+        seedMeta.createAhsName)
+      : seedMeta.createAhsName;
+    const relinkAhsSearchDisplayName = getCultivarReferenceLinkingEnvDefault()
+      ? (toSentenceCaseCultivarName(seedMeta.relinkAhsName) ??
+        seedMeta.relinkAhsName)
+      : seedMeta.relinkAhsName;
+
     // Phase A: auth + listings entry
     await page.goto("/");
     await clerk.signIn({ page, emailAddress: TEST_USER.email });
@@ -82,17 +93,17 @@ test.describe("create/edit listing flow @local", () => {
 
     await createListingDialog.searchAndSelectAhsListing(
       seedMeta.createAhsSearch,
-      seedMeta.createAhsName,
+      createAhsSearchDisplayName,
     );
     await expect(createListingDialog.titleInput).toHaveValue(
-      seedMeta.createAhsName,
+      createAhsSearchDisplayName,
     );
     await captureCheckpoint("create-dialog-ahs-selected");
 
     await createListingDialog.changeTitle("Temporary Create Override");
     await createListingDialog.syncTitleWithAhs();
     await expect(createListingDialog.titleInput).toHaveValue(
-      seedMeta.createAhsName,
+      createAhsSearchDisplayName,
     );
 
     await createListingDialog.changeTitle(seedMeta.createCustomTitle);
@@ -105,7 +116,7 @@ test.describe("create/edit listing flow @local", () => {
     await createListingDialog.isReady();
     await createListingDialog.searchAndSelectAhsListing(
       seedMeta.createAhsSearch,
-      seedMeta.createAhsName,
+      createAhsSearchDisplayName,
     );
     await createListingDialog.changeTitle(seedMeta.createCustomTitle);
     await createListingDialog.createListing();
@@ -187,7 +198,7 @@ test.describe("create/edit listing flow @local", () => {
 
     await editListingDialog.relinkAhs(
       seedMeta.relinkAhsSearch,
-      seedMeta.relinkAhsName,
+      relinkAhsSearchDisplayName,
     );
     await expectToast("Listing linked successfully");
     await expect(

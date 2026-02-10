@@ -1,6 +1,7 @@
 import { db } from "@/server/db";
 import { getBaseUrl } from "@/lib/utils/getBaseUrl";
 import { formatAhsListingSummary } from "@/lib/utils";
+import { getDisplayAhsListing } from "@/lib/utils/ahs-display";
 
 // Constants for merchant feed configuration
 const SHIPPING_WEIGHT = "0.5 lb";
@@ -16,6 +17,11 @@ export async function GET(_request: Request) {
         take: 4, // Get up to 4 images (1 main + 3 additional)
       },
       ahsListing: true,
+      cultivarReference: {
+        include: {
+          ahsListing: true,
+        },
+      },
       user: {
         include: {
           profile: true,
@@ -42,11 +48,12 @@ export async function GET(_request: Request) {
     // Process listings
     listings.forEach((listing) => {
       try {
+        const displayAhsListing = getDisplayAhsListing(listing);
         const listingName =
-          listing.title ?? listing.ahsListing?.name ?? "Unnamed Daylily";
+          listing.title ?? displayAhsListing?.name ?? "Unnamed Daylily";
         // Combine descriptions
         const userDescription = listing.description;
-        const ahsDescription = formatAhsListingSummary(listing.ahsListing);
+        const ahsDescription = formatAhsListingSummary(displayAhsListing);
         let combinedDescription = "";
         if (userDescription && ahsDescription) {
           combinedDescription = `${userDescription}\n\n---\n\n${ahsDescription}`;
@@ -56,7 +63,7 @@ export async function GET(_request: Request) {
         }
 
         const imageUrl =
-          listing.images?.[0]?.url ?? listing.ahsListing?.ahsImageUrl;
+          listing.images?.[0]?.url ?? displayAhsListing?.ahsImageUrl;
         const additionalImages = listing.images?.slice(1, 4) ?? [];
         const productUrl = `${baseUrl}/${listing.userId}/${listing.id}`;
         const catalogName =

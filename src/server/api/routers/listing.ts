@@ -68,14 +68,6 @@ async function getCultivarReferenceIdForAhs(
   db: PrismaClient,
   ahsId: string,
 ): Promise<string> {
-  const ahsListing = await db.ahsListing.findUnique({ where: { id: ahsId } });
-  if (!ahsListing) {
-    throw new TRPCError({
-      code: "NOT_FOUND",
-      message: "AHS listing not found",
-    });
-  }
-
   const cultivarReference = await db.cultivarReference.findUnique({
     where: { ahsId },
     select: { id: true },
@@ -113,6 +105,11 @@ async function getAhsIdForCultivarReference(
 
 export const listingInclude = {
   ahsListing: true,
+  cultivarReference: {
+    include: {
+      ahsListing: true,
+    },
+  },
   images: {
     orderBy: { order: "asc" },
   },
@@ -357,15 +354,27 @@ export const listingRouter = createTRPCRouter({
         });
       }
 
-      const ahsListing = await ctx.db.ahsListing.findUnique({
-        where: { id: ahsId },
-      });
-
-      if (!ahsListing) {
-        throw new TRPCError({
-          code: "NOT_FOUND",
-          message: "AHS listing not found",
+      let syncedTitle: string | undefined;
+      if (input.syncName) {
+        const cultivarReference = await ctx.db.cultivarReference.findUnique({
+          where: { id: cultivarReferenceId },
+          select: {
+            ahsListing: {
+              select: {
+                name: true,
+              },
+            },
+          },
         });
+
+        if (!cultivarReference?.ahsListing?.name) {
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "AHS listing not found",
+          });
+        }
+
+        syncedTitle = cultivarReference.ahsListing.name;
       }
 
       const updatedListing = await ctx.db.listing.update({
@@ -373,8 +382,7 @@ export const listingRouter = createTRPCRouter({
         data: {
           ahsId,
           cultivarReferenceId,
-          title:
-            input.syncName && ahsListing.name ? ahsListing.name : undefined,
+          title: syncedTitle,
         },
         include: listingInclude,
       });
@@ -413,10 +421,16 @@ export const listingRouter = createTRPCRouter({
     .mutation(async ({ ctx, input }) => {
       const listing = await ctx.db.listing.findUnique({
         where: { id: input.id },
-        include: { ahsListing: true },
+        include: {
+          cultivarReference: {
+            include: {
+              ahsListing: true,
+            },
+          },
+        },
       });
 
-      if (!listing?.ahsListing?.name) {
+      if (!listing?.cultivarReference?.ahsListing?.name) {
         throw new TRPCError({
           code: "NOT_FOUND",
           message: "No AHS listing linked",
@@ -426,7 +440,7 @@ export const listingRouter = createTRPCRouter({
       const updatedListing = await ctx.db.listing.update({
         where: { id: input.id },
         data: {
-          title: listing.ahsListing.name,
+          title: listing.cultivarReference.ahsListing.name,
         },
         include: listingInclude,
       });

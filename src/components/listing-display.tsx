@@ -12,6 +12,7 @@ import { ExternalLink } from "lucide-react";
 import Link from "next/link";
 import { type RouterOutputs } from "@/trpc/react";
 import { AddToCartButton } from "@/components/add-to-cart-button";
+import { useDisplayAhsListing } from "@/hooks/use-display-ahs-listing";
 
 type Listing = RouterOutputs["public"]["getListings"][number];
 
@@ -24,6 +25,8 @@ export function ListingDisplay({
   listing,
   variant = "dialog",
 }: ListingDisplayProps) {
+  const displayAhsListing = useDisplayAhsListing(listing);
+
   // Determine which heading component to use based on variant
   const HeadingComponent = variant === "page" ? H1 : H2;
 
@@ -34,7 +37,7 @@ export function ListingDisplay({
           images={listing.images}
           className="max-w-full"
           listingTitle={listing.title}
-          listingName={listing.ahsListing?.name ?? undefined}
+          listingName={displayAhsListing?.name ?? undefined}
         />
       ) : (
         <ImagePlaceholder />
@@ -83,11 +86,11 @@ export function ListingDisplay({
         {listing.description ?? "No description available"}
       </P>
 
-      {listing.ahsListing && (
+      {displayAhsListing && (
         <>
           <Separator />
           <Muted>Daylily Database Data</Muted>
-          <AhsListingDisplay ahsListing={listing.ahsListing} />
+          <AhsListingDisplay ahsListing={displayAhsListing} />
         </>
       )}
     </div>

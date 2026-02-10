@@ -19,6 +19,7 @@ import { DataTableDownload } from "@/components/data-table";
 import { APP_CONFIG } from "@/config/constants";
 import { DataTableFilteredCount } from "@/components/data-table/data-table-filtered-count";
 import { DataTableLayoutSkeleton } from "@/components/data-table/data-table-layout";
+import { useListingsWithDisplayAhs } from "@/hooks/use-display-ahs-listing";
 
 type List = RouterOutputs["list"]["list"][number];
 type Listing = RouterOutputs["listing"]["list"][number];
@@ -93,11 +94,12 @@ export function ListingsTable() {
     refetchOnMount: false,
   });
   const { editListing } = useEditListing();
+  const displayListings = useListingsWithDisplayAhs(listings);
 
   const columns = getColumns(editListing);
 
   const table = useDataTable({
-    data: listings ?? [],
+    data: displayListings,
     columns,
     storageKey: "listings-table",
     pinnedColumns: {
@@ -137,7 +139,7 @@ export function ListingsTable() {
             <ListingsTableToolbar
               table={table}
               lists={lists}
-              listings={listings}
+              listings={displayListings}
             />
           ) : null
         }

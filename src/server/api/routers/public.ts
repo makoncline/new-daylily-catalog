@@ -18,6 +18,7 @@ import { SESClient, SendEmailCommand } from "@aws-sdk/client-ses";
 import { env } from "@/env";
 import { cartItemSchema } from "@/types";
 import { STATUS } from "@/config/constants";
+import { getDisplayAhsListing } from "@/lib/utils/ahs-display";
 
 // Initialize SES client
 const ses = new SESClient({
@@ -46,16 +47,19 @@ async function getFullListingData(listingId: string) {
     });
   }
 
+  const displayAhsListing = getDisplayAhsListing(listing);
+
   // Transform the listing to include AHS image if available
   return {
     ...listing,
+    ahsListing: displayAhsListing,
     userSlug: listing.user.profile?.slug ?? listing.userId,
     images:
-      listing.images.length === 0 && listing.ahsListing?.ahsImageUrl
+      listing.images.length === 0 && displayAhsListing?.ahsImageUrl
         ? [
             {
               id: `ahs-${listing.id}`,
-              url: listing.ahsListing.ahsImageUrl,
+              url: displayAhsListing.ahsImageUrl,
             },
           ]
         : listing.images,

@@ -19,6 +19,7 @@ import { H3 } from "@/components/typography";
 import { ImagePlaceholder } from "./image-placeholder";
 import { ImagePopover } from "@/components/image-popover";
 import { AddToCartButton } from "@/components/add-to-cart-button";
+import { useDisplayAhsListing } from "@/hooks/use-display-ahs-listing";
 
 type ListingCardProps = {
   listing: RouterOutputs["public"]["getListings"][number];
@@ -28,6 +29,7 @@ type ListingCardProps = {
 
 export function ListingCard({ listing, priority = false }: ListingCardProps) {
   const { viewListing } = useViewListing();
+  const displayAhsListing = useDisplayAhsListing(listing);
   const firstImage = listing.images[0];
   const hasMultipleImages = listing.images.length > 1;
 
@@ -105,7 +107,7 @@ export function ListingCard({ listing, priority = false }: ListingCardProps) {
         )}
 
         {/* AHS Link Badge */}
-        {listing.ahsListing && (
+        {displayAhsListing && (
           <div className="absolute bottom-2 right-2">
             <TooltipProvider>
               <Tooltip>
@@ -123,7 +125,7 @@ export function ListingCard({ listing, priority = false }: ListingCardProps) {
                       linked to
                     </span>
                     <span className="font-medium">
-                      {listing.ahsListing.name}
+                      {displayAhsListing.name}
                     </span>
                   </div>
                 </TooltipContent>
@@ -142,13 +144,13 @@ export function ListingCard({ listing, priority = false }: ListingCardProps) {
             </H3>
 
             {/* Hybridizer and Year */}
-            {(listing.ahsListing?.hybridizer ?? listing.ahsListing?.year) && (
+            {(displayAhsListing?.hybridizer ?? displayAhsListing?.year) && (
               <Badge
                 variant="secondary"
                 className="inline-flex items-center gap-1"
               >
                 <TruncatedText
-                  text={`${listing.ahsListing?.hybridizer ?? "Unknown"}, ${listing.ahsListing?.year ?? "Year Unknown"}`}
+                  text={`${displayAhsListing?.hybridizer ?? "Unknown"}, ${displayAhsListing?.year ?? "Year Unknown"}`}
                   lines={1}
                 />
               </Badge>
