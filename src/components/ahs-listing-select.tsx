@@ -17,7 +17,12 @@ import {
   CommandList,
 } from "@/components/ui/command";
 import { api } from "@/trpc/react";
-import type { AhsSearchResult } from "@/types";
+
+export interface AhsSearchResult {
+  id: string;
+  name: string | null;
+  cultivarReferenceId: string | null;
+}
 
 interface AhsListingSelectProps {
   onSelect: (result: AhsSearchResult) => void;
@@ -57,6 +62,7 @@ export function AhsListingSelect({
     },
   );
 
+  // Handler for selecting an item
   const handleSelect = (result: AhsSearchResult) => {
     onSelect(result);
     setOpen(false);

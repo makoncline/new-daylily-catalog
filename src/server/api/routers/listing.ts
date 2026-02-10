@@ -64,50 +64,73 @@ async function checkImageOwnership(
   return image;
 }
 
+async function getCultivarReferenceIdForAhs(
+  db: PrismaClient,
+  ahsId: string,
+): Promise<string> {
+  const ahsListing = await db.ahsListing.findUnique({ where: { id: ahsId } });
+  if (!ahsListing) {
+    throw new TRPCError({
+      code: "NOT_FOUND",
+      message: "AHS listing not found",
+    });
+  }
+
+  const cultivarReference = await db.cultivarReference.findUnique({
+    where: { ahsId },
+    select: { id: true },
+  });
+
+  if (!cultivarReference) {
+    throw new TRPCError({
+      code: "INTERNAL_SERVER_ERROR",
+      message:
+        "Cultivar reference missing for linked AHS listing. Run the cultivar reference data migration (or local dev seed).",
+    });
+  }
+
+  return cultivarReference.id;
+}
+
 async function getAhsIdForCultivarReference(
   db: PrismaClient,
   cultivarReferenceId: string,
 ): Promise<string> {
-  const ref = await db.cultivarReference.findUnique({
+  const cultivarReference = await db.cultivarReference.findUnique({
     where: { id: cultivarReferenceId },
     select: { ahsId: true },
   });
-  if (!ref?.ahsId) {
+
+  if (!cultivarReference?.ahsId) {
     throw new TRPCError({
       code: "NOT_FOUND",
       message: "Cultivar reference not found or not linked to an AHS listing",
     });
   }
-  return ref.ahsId;
+
+  return cultivarReference.ahsId;
 }
 
 export const listingInclude = {
   ahsListing: true,
-  cultivarReference: { include: { ahsListing: true } },
   images: {
     orderBy: { order: "asc" },
   },
   lists: true,
 } as const;
 
-function ahsListingForDisplay<T extends { cultivarReference?: { ahsListing: unknown } | null; ahsListing?: unknown }>(
-  listing: T,
-): T["ahsListing"] {
-  return listing.cultivarReference?.ahsListing ?? listing.ahsListing;
-}
-
 export const listingRouter = createTRPCRouter({
   create: protectedProcedure
     .input(
       z.object({
         title: z.string().optional(),
+        ahsId: z.string().nullable().optional(),
         cultivarReferenceId: z.string().nullable().optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
       const title = input.title ?? APP_CONFIG.LISTING.DEFAULT_NAME;
       const slug = await generateUniqueSlug(title, ctx.user.id);
-
       let ahsId: string | null = null;
       let cultivarReferenceId: string | null = null;
 
@@ -116,6 +139,12 @@ export const listingRouter = createTRPCRouter({
         ahsId = await getAhsIdForCultivarReference(
           ctx.db,
           input.cultivarReferenceId,
+        );
+      } else if (input.ahsId) {
+        ahsId = input.ahsId;
+        cultivarReferenceId = await getCultivarReferenceIdForAhs(
+          ctx.db,
+          input.ahsId,
         );
       }
 
@@ -133,7 +162,6 @@ export const listingRouter = createTRPCRouter({
       return listing;
     }),
 
-  // Form-only; AHS link is updated only via linkAhs/unlinkAhs.
   update: protectedProcedure
     .input(
       z.object({
@@ -276,10 +304,7 @@ export const listingRouter = createTRPCRouter({
         });
       }
 
-      return {
-        ...listing,
-        ahsListing: ahsListingForDisplay(listing),
-      };
+      return listing;
     }),
 
   list: protectedProcedure.query(async ({ ctx }) => {
@@ -288,21 +313,21 @@ export const listingRouter = createTRPCRouter({
       include: listingInclude,
     });
 
-    return sortTitlesLettersBeforeNumbers(
-      items.map((item) => ({
-        ...item,
-        ahsListing: ahsListingForDisplay(item),
-      })),
-    );
+    return sortTitlesLettersBeforeNumbers(items);
   }),
 
   linkAhs: protectedProcedure
     .input(
-      z.object({
-        id: z.string(),
-        cultivarReferenceId: z.string(),
-        syncName: z.boolean().default(false),
-      }),
+      z
+        .object({
+          id: z.string(),
+          ahsId: z.string().optional(),
+          cultivarReferenceId: z.string().optional(),
+          syncName: z.boolean().default(false),
+        })
+        .refine((value) => Boolean(value.ahsId ?? value.cultivarReferenceId), {
+          message: "Either ahsId or cultivarReferenceId is required",
+        }),
     )
     .mutation(async ({ ctx, input }) => {
       const listing = await ctx.db.listing.findUnique({
@@ -316,10 +341,21 @@ export const listingRouter = createTRPCRouter({
         });
       }
 
-      const ahsId = await getAhsIdForCultivarReference(
-        ctx.db,
-        input.cultivarReferenceId,
-      );
+      let ahsId = input.ahsId ?? null;
+      let cultivarReferenceId = input.cultivarReferenceId ?? null;
+
+      if (cultivarReferenceId) {
+        ahsId = await getAhsIdForCultivarReference(ctx.db, cultivarReferenceId);
+      } else if (ahsId) {
+        cultivarReferenceId = await getCultivarReferenceIdForAhs(ctx.db, ahsId);
+      }
+
+      if (!ahsId || !cultivarReferenceId) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Could not resolve AHS link inputs",
+        });
+      }
 
       const ahsListing = await ctx.db.ahsListing.findUnique({
         where: { id: ahsId },
@@ -336,7 +372,7 @@ export const listingRouter = createTRPCRouter({
         where: { id: input.id },
         data: {
           ahsId,
-          cultivarReferenceId: input.cultivarReferenceId,
+          cultivarReferenceId,
           title:
             input.syncName && ahsListing.name ? ahsListing.name : undefined,
         },
@@ -377,11 +413,10 @@ export const listingRouter = createTRPCRouter({
     .mutation(async ({ ctx, input }) => {
       const listing = await ctx.db.listing.findUnique({
         where: { id: input.id },
-        include: listingInclude,
+        include: { ahsListing: true },
       });
 
-      const displayAhs = listing ? ahsListingForDisplay(listing) : null;
-      if (!displayAhs?.name) {
+      if (!listing?.ahsListing?.name) {
         throw new TRPCError({
           code: "NOT_FOUND",
           message: "No AHS listing linked",
@@ -391,7 +426,7 @@ export const listingRouter = createTRPCRouter({
       const updatedListing = await ctx.db.listing.update({
         where: { id: input.id },
         data: {
-          title: displayAhs.name,
+          title: listing.ahsListing.name,
         },
         include: listingInclude,
       });
@@ -470,12 +505,10 @@ export const listingRouter = createTRPCRouter({
       });
 
       if (listingBySlug) {
-        return {
-          ...listingBySlug,
-          ahsListing: ahsListingForDisplay(listingBySlug),
-        };
+        return listingBySlug;
       }
 
+      // If not found by slug, try by ID
       const listingById = await ctx.db.listing.findUnique({
         where: {
           id: input.slugOrId,
@@ -491,10 +524,7 @@ export const listingRouter = createTRPCRouter({
         });
       }
 
-      return {
-        ...listingById,
-        ahsListing: ahsListingForDisplay(listingById),
-      };
+      return listingById;
     }),
 
   count: protectedProcedure.query(async ({ ctx }) => {

@@ -14,14 +14,16 @@ import { Button } from "@/components/ui/button";
 import { P } from "@/components/typography";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { AhsListingSelect } from "@/components/ahs-listing-select";
+import {
+  AhsListingSelect,
+  type AhsSearchResult,
+} from "@/components/ahs-listing-select";
 import { AhsListingDisplay } from "@/components/ahs-listing-display";
 import { Separator } from "@/components/ui/separator";
 import { useSetAtom } from "jotai";
 import { editingListingIdAtom } from "./edit-listing-dialog";
 import { normalizeError, reportError } from "@/lib/error-utils";
-
-import type { AhsSearchResult } from "@/types";
+import { isCultivarReferenceLinkingEnabled } from "@/lib/cultivar-reference-linking";
 
 /**
  * Dialog for creating a new daylily listing.
@@ -36,8 +38,9 @@ export function CreateListingDialog({
   // Always initialize as open
   const [open, setOpen] = useState(true);
   const [title, setTitle] = useState("");
-  const [selectedResult, setSelectedResult] =
-    useState<AhsSearchResult | null>(null);
+  const [selectedResult, setSelectedResult] = useState<AhsSearchResult | null>(
+    null,
+  );
   const [isPending, setIsPending] = useState(false);
 
   const setEditingId = useSetAtom(editingListingIdAtom);
@@ -72,6 +75,10 @@ export function CreateListingDialog({
     },
   });
 
+  /**
+   * Handles selection of an AHS listing.
+   * If title is empty, automatically uses the AHS listing name.
+   */
   const handleAhsListingSelect = (result: AhsSearchResult) => {
     setSelectedResult(result);
     if (!title) {
@@ -79,20 +86,40 @@ export function CreateListingDialog({
     }
   };
 
+  /**
+   * Syncs the title input with the selected AHS listing name.
+   */
   const syncTitleWithAhs = () => {
     if (selectedResult) {
       setTitle(selectedResult.name ?? "");
     }
   };
 
+  /**
+   * Handles the create button click.
+   * Submits form data to create a new listing.
+   */
   const handleCreate = async () => {
     setIsPending(true);
     try {
       const finalTitle = title ?? selectedResult?.name ?? "New Listing";
-      await createListingMutation.mutateAsync({
-        title: finalTitle,
-        cultivarReferenceId: selectedResult?.cultivarReferenceId ?? null,
-      });
+
+      if (isCultivarReferenceLinkingEnabled()) {
+        if (selectedResult && !selectedResult.cultivarReferenceId) {
+          toast.error("Selected listing is not available for cultivar link.");
+          return;
+        }
+
+        await createListingMutation.mutateAsync({
+          title: finalTitle,
+          cultivarReferenceId: selectedResult?.cultivarReferenceId ?? null,
+        });
+      } else {
+        await createListingMutation.mutateAsync({
+          title: finalTitle,
+          ahsId: selectedResult?.id ?? null,
+        });
+      }
     } finally {
       setIsPending(false);
     }

@@ -12,8 +12,9 @@ import { AhsListingDisplay } from "./ahs-listing-display";
 import { Muted } from "@/components/typography";
 
 import type { ListingGetOutput } from "@/server/api/routers/listing";
-import type { AhsSearchResult } from "@/types";
+import type { AhsSearchResult } from "./ahs-listing-select";
 import { getErrorMessage, normalizeError } from "@/lib/error-utils";
+import { isCultivarReferenceLinkingEnabled } from "@/lib/cultivar-reference-linking";
 
 interface AhsListingLinkProps {
   listing: ListingGetOutput;
@@ -70,16 +71,31 @@ export function AhsListingLink({
   async function updateAhsListing(selected: AhsSearchResult | null) {
     setIsPending(true);
     try {
-      if (selected?.name && selected.cultivarReferenceId) {
+      if (selected?.name) {
+        // When linking, update both ahsId and name if needed
         const shouldUpdateName =
           !listing.title || listing.title === LISTING_CONFIG.DEFAULT_NAME;
 
-        await linkAhsMutation({
-          id: listing.id,
-          cultivarReferenceId: selected.cultivarReferenceId,
-          syncName: shouldUpdateName,
-        });
+        if (isCultivarReferenceLinkingEnabled()) {
+          if (!selected.cultivarReferenceId) {
+            toast.error("Selected listing is not available for cultivar link.");
+            return;
+          }
 
+          await linkAhsMutation({
+            id: listing.id,
+            cultivarReferenceId: selected.cultivarReferenceId,
+            syncName: shouldUpdateName,
+          });
+        } else {
+          await linkAhsMutation({
+            id: listing.id,
+            ahsId: selected.id,
+            syncName: shouldUpdateName,
+          });
+        }
+
+        // Notify parent about name change
         if (shouldUpdateName) {
           onNameChange?.(selected.name);
         }
