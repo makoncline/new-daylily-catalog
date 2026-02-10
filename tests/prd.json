@@ -101,7 +101,7 @@
     {
       "step": 8,
       "id": "update-unit-tests-for-new-contract",
-      "completed": false,
+      "completed": true,
       "change": "Adjust unit tests to assert link behavior through `linkAhs` + `cultivarReferenceId` path and ensure update mutation does not own AHS link state.",
       "files": [
         "tests/dual-write-cultivar-ref.test.ts",

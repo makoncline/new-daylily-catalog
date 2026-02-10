@@ -68,11 +68,12 @@ describe("listing dual-write cultivar reference", () => {
 
     const updateArgs = db.listing.update.mock.calls[0]?.[0];
     expect(updateArgs?.data).not.toHaveProperty("ahsId");
+    expect(updateArgs?.data).not.toHaveProperty("cultivarReferenceId");
     expect(db.ahsListing.findUnique).not.toHaveBeenCalled();
     expect(db.cultivarReference.findUnique).not.toHaveBeenCalled();
   });
 
-  it("linkAhs writes both ahsId and cultivarReferenceId", async () => {
+  it("linkAhs with ahsId writes both ahsId and cultivarReferenceId", async () => {
     const db = createMockDb();
     db.listing.findUnique.mockResolvedValue({ id: "listing-1" });
     db.ahsListing.findUnique.mockResolvedValue({
@@ -90,6 +91,38 @@ describe("listing dual-write cultivar reference", () => {
         data: expect.objectContaining({
           ahsId: "ahs-1",
           cultivarReferenceId: "cr-ahs-ahs-1",
+        }),
+      }),
+    );
+  });
+
+  it("linkAhs with cultivarReferenceId writes both ahsId and cultivarReferenceId", async () => {
+    const db = createMockDb();
+    db.listing.findUnique.mockResolvedValue({ id: "listing-1" });
+    db.cultivarReference.findUnique.mockImplementation((args: { where: { id?: string; ahsId?: string } }) => {
+      if ("id" in args.where && args.where.id === "cr-1") {
+        return Promise.resolve({ ahsId: "ahs-1" });
+      }
+      return Promise.resolve(null);
+    });
+    db.ahsListing.findUnique.mockResolvedValue({
+      id: "ahs-1",
+      name: "Coffee Frenzy",
+    });
+    db.listing.update.mockResolvedValue({ id: "listing-1" });
+
+    const caller = createCaller(db);
+    await caller.linkAhs({
+      id: "listing-1",
+      cultivarReferenceId: "cr-1",
+      syncName: false,
+    });
+
+    expect(db.listing.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          ahsId: "ahs-1",
+          cultivarReferenceId: "cr-1",
         }),
       }),
     );
