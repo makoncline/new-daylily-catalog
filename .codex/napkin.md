@@ -18,12 +18,15 @@
 - 2026-02-08 - e2e issue - `page.locator("table").first()` is brittle when pages render multiple tables; scope all row locators to container test ids (`list-table`, `manage-list-table`) to avoid wrong-table clicks and detach.
 - 2026-02-09 - seo/public routes - Avoid `as const` on Prisma `where` filter objects (`OR` arrays become readonly and break Prisma + no-unsafe typing across route outputs).
 - 2026-02-09 - tooling - `pnpm install` runs `prisma generate` and may rewrite generated client paths/binary targets to local machine values; revert generated noise before finalizing changes.
+- 2026-02-10 - dual-write - User prefers Prisma ORM writes over raw SQL for dual-write paths; if cultivar reference rows are missing, throw explicit runtime error instead of auto-creating with raw SQL.
+- 2026-02-10 - migration docs - For migration follow-ups, provide task breakdown as JSON with explicit `completed` boolean fields so lower-context agents can execute safely.
 
 ## Preferences
 
 - Use the term `napkin` (not `codex napkin`).
 - Keep E2E tests UI-only; if UI behavior fails, test should fail (don't hide with non-UI shortcuts).
 - Use a 3-step DB rollout for this repo's AHS migration work: Prisma structural migration, then generated SQL file for reference-table data load, then generated SQL file for listing backfill.
+- Avoid `executeRawUnsafe` in application and migration-adjacent app code when Prisma ORM operations can do the job.
 - For product-feedback asks, return prioritized recommendations tied to activation, conversion, and retention.
 
 ## Patterns That Work

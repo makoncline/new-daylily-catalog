@@ -1,0 +1,56 @@
+{
+  "name": "ahs-v2-migration-todo",
+  "updatedAt": "2026-02-10",
+  "tasks": [
+    {
+      "id": "swap-ahs-search-to-cultivar-reference",
+      "title": "Read AHS search from CultivarReference instead of AhsListing",
+      "completed": false,
+      "priority": "high",
+      "goal": "Keep current AHS link UX while making CultivarReference the main search surface used by create/edit listing dialogs.",
+      "files": [
+        "src/server/api/routers/ahs.ts",
+        "src/components/ahs-listing-select.tsx",
+        "src/types/index.ts",
+        "tests/dual-write-cultivar-ref.test.ts"
+      ],
+      "implementationSteps": [
+        "Add a small query helper in ahs router that searches CultivarReference rows by normalized name and returns top 25 IDs.",
+        "Join back to AhsListing (by cultivarReference.ahsId) for the display payload required by the select dialog (id + name at minimum).",
+        "Keep response shape backwards compatible for ahs-listing-select so no UI rewrite is required in this step.",
+        "Add explicit filtering to exclude CultivarReference rows where ahsId is null for now (future datasets will use other source IDs).",
+        "Preserve existing ranking behavior (word-start ranking) so search quality does not regress."
+      ],
+      "acceptanceCriteria": [
+        "Searching from create/edit listing dialogs still returns expected AHS rows.",
+        "No raw SQL is introduced.",
+        "Unit test coverage exists for search path and includes the null-ahsId exclusion."
+      ],
+      "notes": "When this is complete, search no longer depends on direct AhsListing name scan."
+    },
+    {
+      "id": "extend-cultivar-reference-for-multi-source",
+      "title": "Prepare CultivarReference for additional external datasets",
+      "completed": false,
+      "priority": "medium",
+      "goal": "Support cultivar references that have no AHS ID and are linked to non-AHS providers.",
+      "files": [
+        "prisma/schema.prisma",
+        "docs/db-migration.md",
+        "scripts/generate-cultivar-reference-data-sql.ts"
+      ],
+      "implementationSteps": [
+        "Design provider model fields (for example sourceType + sourceCultivarId) on CultivarReference with uniqueness rules per provider.",
+        "Keep ahsId optional and preserve current AHS behavior.",
+        "Add deterministic data migration SQL generation for any backfill required by new provider fields.",
+        "Document rollout and verification queries in db-migration.md."
+      ],
+      "acceptanceCriteria": [
+        "A CultivarReference can exist with ahsId = null and still be uniquely identified by provider fields.",
+        "Current AHS migration path and dual-write behavior continue to pass existing tests.",
+        "Migration documentation includes local, stage, and prod command sequence."
+      ],
+      "notes": "Do not cut over listing reads to provider fields in the same PR; keep changes incremental."
+    }
+  ]
+}

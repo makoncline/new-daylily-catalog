@@ -15,12 +15,14 @@ beforeAll(async () => {
 });
 
 interface MockDb {
-  $executeRawUnsafe: ReturnType<typeof vi.fn>;
   listing: {
     findUnique: ReturnType<typeof vi.fn>;
     update: ReturnType<typeof vi.fn>;
   };
   ahsListing: {
+    findUnique: ReturnType<typeof vi.fn>;
+  };
+  cultivarReference: {
     findUnique: ReturnType<typeof vi.fn>;
   };
 }
@@ -34,7 +36,9 @@ function createMockDb(): MockDb {
     ahsListing: {
       findUnique: vi.fn(),
     },
-    $executeRawUnsafe: vi.fn(),
+    cultivarReference: {
+      findUnique: vi.fn(),
+    },
   };
 }
 
@@ -64,7 +68,8 @@ describe("listing dual-write cultivar reference", () => {
 
     const updateArgs = db.listing.update.mock.calls[0]?.[0];
     expect(updateArgs?.data).not.toHaveProperty("ahsId");
-    expect(db.$executeRawUnsafe).not.toHaveBeenCalled();
+    expect(db.ahsListing.findUnique).not.toHaveBeenCalled();
+    expect(db.cultivarReference.findUnique).not.toHaveBeenCalled();
   });
 
   it("sets both ahsId and cultivarReferenceId when ahsId is provided in update", async () => {
@@ -74,8 +79,8 @@ describe("listing dual-write cultivar reference", () => {
       id: "ahs-1",
       name: "  Coffee Frenzy  ",
     });
+    db.cultivarReference.findUnique.mockResolvedValue({ id: "cr-ahs-ahs-1" });
     db.listing.update.mockResolvedValue({ id: "listing-1" });
-    db.$executeRawUnsafe.mockResolvedValue(1);
 
     const caller = createCaller(db);
     await caller.update({ id: "listing-1", data: { ahsId: "ahs-1" } });
@@ -84,18 +89,16 @@ describe("listing dual-write cultivar reference", () => {
       expect.objectContaining({
         data: expect.objectContaining({
           ahsId: "ahs-1",
+          cultivarReferenceId: "cr-ahs-ahs-1",
         }),
       }),
     );
-    expect(db.$executeRawUnsafe).toHaveBeenCalledTimes(2);
-    expect(db.$executeRawUnsafe.mock.calls[1]?.[1]).toBe("cr-ahs-ahs-1");
   });
 
   it("clears both fields when ahsId is explicitly set to null in update", async () => {
     const db = createMockDb();
     db.listing.findUnique.mockResolvedValue({ id: "listing-1", title: "Old" });
     db.listing.update.mockResolvedValue({ id: "listing-1" });
-    db.$executeRawUnsafe.mockResolvedValue(1);
 
     const caller = createCaller(db);
     await caller.update({ id: "listing-1", data: { ahsId: null } });
@@ -104,11 +107,12 @@ describe("listing dual-write cultivar reference", () => {
       expect.objectContaining({
         data: expect.objectContaining({
           ahsId: null,
+          cultivarReferenceId: null,
         }),
       }),
     );
-    expect(db.$executeRawUnsafe).toHaveBeenCalledTimes(1);
-    expect(db.$executeRawUnsafe.mock.calls[0]?.[1]).toBeNull();
+    expect(db.ahsListing.findUnique).not.toHaveBeenCalled();
+    expect(db.cultivarReference.findUnique).not.toHaveBeenCalled();
   });
 
   it("linkAhs writes both ahsId and cultivarReferenceId", async () => {
@@ -118,8 +122,8 @@ describe("listing dual-write cultivar reference", () => {
       id: "ahs-1",
       name: "Coffee Frenzy",
     });
+    db.cultivarReference.findUnique.mockResolvedValue({ id: "cr-ahs-ahs-1" });
     db.listing.update.mockResolvedValue({ id: "listing-1" });
-    db.$executeRawUnsafe.mockResolvedValue(1);
 
     const caller = createCaller(db);
     await caller.linkAhs({ id: "listing-1", ahsId: "ahs-1", syncName: false });
@@ -128,18 +132,16 @@ describe("listing dual-write cultivar reference", () => {
       expect.objectContaining({
         data: expect.objectContaining({
           ahsId: "ahs-1",
+          cultivarReferenceId: "cr-ahs-ahs-1",
         }),
       }),
     );
-    expect(db.$executeRawUnsafe).toHaveBeenCalledTimes(2);
-    expect(db.$executeRawUnsafe.mock.calls[1]?.[1]).toBe("cr-ahs-ahs-1");
   });
 
   it("unlinkAhs clears both ahsId and cultivarReferenceId", async () => {
     const db = createMockDb();
     db.listing.findUnique.mockResolvedValue({ id: "listing-1" });
     db.listing.update.mockResolvedValue({ id: "listing-1" });
-    db.$executeRawUnsafe.mockResolvedValue(1);
 
     const caller = createCaller(db);
     await caller.unlinkAhs({ id: "listing-1" });
@@ -148,10 +150,28 @@ describe("listing dual-write cultivar reference", () => {
       expect.objectContaining({
         data: {
           ahsId: null,
+          cultivarReferenceId: null,
         },
       }),
     );
-    expect(db.$executeRawUnsafe).toHaveBeenCalledTimes(1);
-    expect(db.$executeRawUnsafe.mock.calls[0]?.[1]).toBeNull();
+  });
+
+  it("throws a clear error when cultivar reference rows are missing", async () => {
+    const db = createMockDb();
+    db.listing.findUnique.mockResolvedValue({ id: "listing-1", title: "Old" });
+    db.ahsListing.findUnique.mockResolvedValue({
+      id: "ahs-1",
+      name: "Coffee Frenzy",
+    });
+    db.cultivarReference.findUnique.mockResolvedValue(null);
+
+    const caller = createCaller(db);
+
+    await expect(
+      caller.update({ id: "listing-1", data: { ahsId: "ahs-1" } }),
+    ).rejects.toMatchObject({
+      code: "INTERNAL_SERVER_ERROR",
+      message: expect.stringContaining("Cultivar reference missing"),
+    });
   });
 });

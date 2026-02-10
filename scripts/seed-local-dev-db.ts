@@ -74,43 +74,20 @@ async function upsertCultivarReference(
   ahsId: string,
   name: string | null | undefined,
 ) {
-  const cultivarReferenceId = `cr-ahs-${ahsId}`;
-  await db.$executeRawUnsafe(
-    `
-      INSERT INTO "CultivarReference" (
-        "id",
-        "ahsId",
-        "normalizedName",
-        "createdAt",
-        "updatedAt"
-      )
-      VALUES (?1, ?2, ?3, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-      ON CONFLICT("ahsId")
-      DO UPDATE SET
-        "normalizedName" = excluded."normalizedName",
-        "updatedAt" = CURRENT_TIMESTAMP
-    `,
-    cultivarReferenceId,
-    ahsId,
-    normalizeCultivarName(name),
-  );
-  return cultivarReferenceId;
-}
+  const cultivarReference = await db.cultivarReference.upsert({
+    where: { ahsId },
+    update: {
+      normalizedName: normalizeCultivarName(name),
+    },
+    create: {
+      id: `cr-ahs-${ahsId}`,
+      ahsId,
+      normalizedName: normalizeCultivarName(name),
+    },
+    select: { id: true },
+  });
 
-async function setListingCultivarReferenceId(
-  db: PrismaClient,
-  listingId: string,
-  cultivarReferenceId: string,
-) {
-  await db.$executeRawUnsafe(
-    `
-      UPDATE "Listing"
-      SET "cultivarReferenceId" = ?1
-      WHERE "id" = ?2
-    `,
-    cultivarReferenceId,
-    listingId,
-  );
+  return cultivarReference.id;
 }
 
 function pad(value: number, length = 3) {
@@ -199,7 +176,7 @@ async function seed(dbUrl: string) {
       listingIds.push(listing.id);
     }
 
-    const linkedListing = await db.listing.create({
+    await db.listing.create({
       data: {
         userId: user.id,
         title: ahs.name ?? "Coffee Frenzy",
@@ -208,13 +185,9 @@ async function seed(dbUrl: string) {
         description: "Linked to AHS example.",
         status: "PUBLISHED",
         ahsId: ahs.id,
+        cultivarReferenceId,
       },
     });
-    await setListingCultivarReferenceId(
-      db,
-      linkedListing.id,
-      cultivarReferenceId,
-    );
 
     const listIds: string[] = [];
     for (let i = 1; i <= LISTS_COUNT; i++) {

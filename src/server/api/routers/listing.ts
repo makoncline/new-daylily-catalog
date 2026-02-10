@@ -6,7 +6,7 @@ import {
   TRPCError,
 } from "@trpc/server";
 import { listingFormSchema } from "@/types/schemas/listing";
-import { type PrismaClient } from "@prisma/client";
+import { type PrismaClient } from "../../../../prisma/generated/sqlite-client/index.js";
 import { APP_CONFIG } from "@/config/constants";
 import { generateUniqueSlug } from "@/lib/utils/slugify-server";
 import { sortTitlesLettersBeforeNumbers } from "@/lib/utils/sort-utils";
@@ -64,63 +64,32 @@ async function checkImageOwnership(
   return image;
 }
 
-function normalizeCultivarName(name: string | null | undefined): string | null {
-  const trimmed = name?.trim();
-  if (!trimmed) return null;
-  return trimmed.toLowerCase();
-}
-
-async function getOrCreateCultivarReferenceId(
+async function getCultivarReferenceIdForAhs(
   db: PrismaClient,
   ahsId: string,
 ): Promise<string> {
-  const ahsListing = await db.ahsListing.findUnique({
-    where: { id: ahsId },
-  });
+  const ahsListing = await db.ahsListing.findUnique({ where: { id: ahsId } });
   if (!ahsListing) {
     throw new TRPCError({
       code: "NOT_FOUND",
       message: "AHS listing not found",
     });
   }
-  const cultivarReferenceId = `cr-ahs-${ahsId}`;
-  await db.$executeRawUnsafe(
-    `
-      INSERT INTO "CultivarReference" (
-        "id",
-        "ahsId",
-        "normalizedName",
-        "createdAt",
-        "updatedAt"
-      )
-      VALUES (?1, ?2, ?3, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-      ON CONFLICT("ahsId")
-      DO UPDATE SET
-        "normalizedName" = excluded."normalizedName",
-        "updatedAt" = CURRENT_TIMESTAMP
-    `,
-    cultivarReferenceId,
-    ahsId,
-    normalizeCultivarName(ahsListing.name),
-  );
 
-  return cultivarReferenceId;
-}
+  const cultivarReference = await db.cultivarReference.findUnique({
+    where: { ahsId },
+    select: { id: true },
+  });
 
-async function setListingCultivarReferenceId(
-  db: PrismaClient,
-  listingId: string,
-  cultivarReferenceId: string | null,
-) {
-  await db.$executeRawUnsafe(
-    `
-      UPDATE "Listing"
-      SET "cultivarReferenceId" = ?1
-      WHERE "id" = ?2
-    `,
-    cultivarReferenceId,
-    listingId,
-  );
+  if (!cultivarReference) {
+    throw new TRPCError({
+      code: "INTERNAL_SERVER_ERROR",
+      message:
+        "Cultivar reference missing for linked AHS listing. Run the cultivar reference data migration (or local dev seed).",
+    });
+  }
+
+  return cultivarReference.id;
 }
 
 export const listingInclude = {
@@ -142,6 +111,9 @@ export const listingRouter = createTRPCRouter({
     .mutation(async ({ ctx, input }) => {
       const title = input.title ?? APP_CONFIG.LISTING.DEFAULT_NAME;
       const slug = await generateUniqueSlug(title, ctx.user.id);
+      const cultivarReferenceId = input.ahsId
+        ? await getCultivarReferenceIdForAhs(ctx.db, input.ahsId)
+        : null;
 
       const listing = await ctx.db.listing.create({
         data: {
@@ -149,21 +121,10 @@ export const listingRouter = createTRPCRouter({
           slug,
           userId: ctx.user.id,
           ahsId: input.ahsId,
+          cultivarReferenceId,
         },
         include: listingInclude,
       });
-
-      if (input.ahsId) {
-        const cultivarReferenceId = await getOrCreateCultivarReferenceId(
-          ctx.db,
-          input.ahsId,
-        );
-        await setListingCultivarReferenceId(
-          ctx.db,
-          listing.id,
-          cultivarReferenceId,
-        );
-      }
 
       return listing;
     }),
@@ -197,11 +158,13 @@ export const listingRouter = createTRPCRouter({
         input.data.ahsId === undefined
           ? {}
           : input.data.ahsId === null
-            ? {
-                ahsId: null,
-              }
+            ? { ahsId: null, cultivarReferenceId: null }
             : {
                 ahsId: input.data.ahsId,
+                cultivarReferenceId: await getCultivarReferenceIdForAhs(
+                  ctx.db,
+                  input.data.ahsId,
+                ),
               };
 
       const updatedListing = await ctx.db.listing.update({
@@ -217,20 +180,6 @@ export const listingRouter = createTRPCRouter({
         },
         include: listingInclude,
       });
-
-      if (input.data.ahsId === null) {
-        await setListingCultivarReferenceId(ctx.db, input.id, null);
-      } else if (input.data.ahsId) {
-        const cultivarReferenceId = await getOrCreateCultivarReferenceId(
-          ctx.db,
-          input.data.ahsId,
-        );
-        await setListingCultivarReferenceId(
-          ctx.db,
-          input.id,
-          cultivarReferenceId,
-        );
-      }
 
       return updatedListing;
     }),
@@ -379,7 +328,7 @@ export const listingRouter = createTRPCRouter({
         });
       }
 
-      const cultivarReferenceId = await getOrCreateCultivarReferenceId(
+      const cultivarReferenceId = await getCultivarReferenceIdForAhs(
         ctx.db,
         input.ahsId,
       );
@@ -388,13 +337,12 @@ export const listingRouter = createTRPCRouter({
         where: { id: input.id },
         data: {
           ahsId: input.ahsId,
+          cultivarReferenceId,
           title:
             input.syncName && ahsListing.name ? ahsListing.name : undefined,
         },
         include: listingInclude,
       });
-
-      await setListingCultivarReferenceId(ctx.db, input.id, cultivarReferenceId);
 
       return updatedListing;
     }),
@@ -417,11 +365,10 @@ export const listingRouter = createTRPCRouter({
         where: { id: input.id },
         data: {
           ahsId: null,
+          cultivarReferenceId: null,
         },
         include: listingInclude,
       });
-
-      await setListingCultivarReferenceId(ctx.db, input.id, null);
 
       return updatedListing;
     }),
