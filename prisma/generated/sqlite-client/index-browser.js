@@ -145,14 +145,6 @@ exports.Prisma.AhsListingScalarFieldEnum = {
   updatedAt: 'updatedAt'
 };
 
-exports.Prisma.CultivarReferenceScalarFieldEnum = {
-  id: 'id',
-  ahsId: 'ahsId',
-  normalizedName: 'normalizedName',
-  createdAt: 'createdAt',
-  updatedAt: 'updatedAt'
-};
-
 exports.Prisma.ListingScalarFieldEnum = {
   id: 'id',
   userId: 'userId',
@@ -162,7 +154,6 @@ exports.Prisma.ListingScalarFieldEnum = {
   description: 'description',
   privateNote: 'privateNote',
   ahsId: 'ahsId',
-  cultivarReferenceId: 'cultivarReferenceId',
   status: 'status',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
@@ -231,7 +222,6 @@ exports.Prisma.NullsOrder = {
 
 exports.Prisma.ModelName = {
   AhsListing: 'AhsListing',
-  CultivarReference: 'CultivarReference',
   Listing: 'Listing',
   List: 'List',
   UserProfile: 'UserProfile',
