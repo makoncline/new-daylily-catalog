@@ -20,6 +20,7 @@
 - 2026-02-09 - tooling - `pnpm install` runs `prisma generate` and may rewrite generated client paths/binary targets to local machine values; revert generated noise before finalizing changes.
 - 2026-02-10 - dual-write - User prefers Prisma ORM writes over raw SQL for dual-write paths; if cultivar reference rows are missing, throw explicit runtime error instead of auto-creating with raw SQL.
 - 2026-02-10 - migration docs - For migration follow-ups, provide task breakdown as JSON with explicit `completed` boolean fields so lower-context agents can execute safely.
+- 2026-02-10 - edit dialog bug - Unlinking AHS in `AhsListingLink` can be reverted on dialog close if `ListingForm` still holds stale `ahsId`; sync `ahsId` into form state on link/unlink success to prevent close-save from re-linking.
 
 ## Preferences
 

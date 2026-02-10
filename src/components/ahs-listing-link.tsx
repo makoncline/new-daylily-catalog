@@ -19,12 +19,14 @@ interface AhsListingLinkProps {
   listing: ListingGetOutput;
   onUpdate?: (updatedListing: ListingGetOutput) => void;
   onNameChange?: (name: string) => void;
+  onAhsIdChange?: (ahsId: string | null) => void;
 }
 
 export function AhsListingLink({
   listing,
   onUpdate,
   onNameChange,
+  onAhsIdChange,
 }: AhsListingLinkProps) {
   const [isPending, setIsPending] = useState(false);
 
@@ -66,6 +68,7 @@ export function AhsListingLink({
           id: listing.id,
           data,
         });
+        onAhsIdChange?.(updatedListing.ahsId ?? null);
 
         // Notify parent about name change
         if (shouldUpdateName) {
@@ -80,6 +83,7 @@ export function AhsListingLink({
             ahsId: null,
           },
         });
+        onAhsIdChange?.(updatedListing.ahsId ?? null);
         onUpdate?.(updatedListing);
       }
 
