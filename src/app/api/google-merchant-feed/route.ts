@@ -16,7 +16,6 @@ export async function GET(_request: Request) {
       images: {
         take: 4, // Get up to 4 images (1 main + 3 additional)
       },
-      ahsListing: true,
       cultivarReference: {
         include: {
           ahsListing: true,

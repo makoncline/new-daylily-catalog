@@ -14,7 +14,6 @@ import { Muted } from "@/components/typography";
 import type { ListingGetOutput } from "@/server/api/routers/listing";
 import type { AhsSearchResult } from "./ahs-listing-select";
 import { getErrorMessage, normalizeError } from "@/lib/error-utils";
-import { useCultivarReferenceLinkingEnabled } from "@/hooks/use-cultivar-reference-linking-enabled";
 import { useDisplayAhsListing } from "@/hooks/use-display-ahs-listing";
 
 interface AhsListingLinkProps {
@@ -27,7 +26,6 @@ export function AhsListingLink({
   onNameChange,
 }: AhsListingLinkProps) {
   const [isPending, setIsPending] = useState(false);
-  const isCultivarReferenceLinkingEnabled = useCultivarReferenceLinkingEnabled();
   const utils = api.useUtils();
   const linkedAhs = useDisplayAhsListing(listing);
 
@@ -75,28 +73,19 @@ export function AhsListingLink({
     setIsPending(true);
     try {
       if (selected?.name) {
-        // When linking, update both ahsId and name if needed
+        if (!selected.cultivarReferenceId) {
+          toast.error("Selected listing is not available for cultivar link.");
+          return;
+        }
+
         const shouldUpdateName =
           !listing.title || listing.title === LISTING_CONFIG.DEFAULT_NAME;
 
-        if (isCultivarReferenceLinkingEnabled) {
-          if (!selected.cultivarReferenceId) {
-            toast.error("Selected listing is not available for cultivar link.");
-            return;
-          }
-
-          await linkAhsMutation({
-            id: listing.id,
-            cultivarReferenceId: selected.cultivarReferenceId,
-            syncName: shouldUpdateName,
-          });
-        } else {
-          await linkAhsMutation({
-            id: listing.id,
-            ahsId: selected.id,
-            syncName: shouldUpdateName,
-          });
-        }
+        await linkAhsMutation({
+          id: listing.id,
+          cultivarReferenceId: selected.cultivarReferenceId,
+          syncName: shouldUpdateName,
+        });
 
         // Notify parent about name change
         if (shouldUpdateName) {

@@ -19,7 +19,6 @@ vi.mock("@/trpc/react", () => ({
         }) => ({
           mutateAsync: async (input: {
             title: string;
-            ahsId?: string | null;
             cultivarReferenceId?: string | null;
           }) => {
             mockCreateListingMutateAsync(input);
@@ -40,10 +39,6 @@ vi.mock("jotai", async (importOriginal) => {
     useSetAtom: () => mockSetEditingId,
   };
 });
-
-vi.mock("@/hooks/use-cultivar-reference-linking-enabled", () => ({
-  useCultivarReferenceLinkingEnabled: () => false,
-}));
 
 vi.mock("@/components/ahs-listing-select", () => ({
   AhsListingSelect: ({
@@ -104,7 +99,7 @@ describe("CreateListingDialog", () => {
     await waitFor(() => {
       expect(mockCreateListingMutateAsync).toHaveBeenCalledWith({
         title: "Coffee Two",
-        ahsId: "ahs-2",
+        cultivarReferenceId: "cr-ahs-2",
       });
     });
   });

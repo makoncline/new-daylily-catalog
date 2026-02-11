@@ -4,6 +4,7 @@ import {
   withTempE2EDb,
 } from "../src/lib/test-utils/e2e-db";
 import { createAuthedUser } from "../src/lib/test-utils/e2e-users";
+import { normalizeCultivarName } from "../src/lib/utils/cultivar-utils";
 
 function readDbArg() {
   const args = process.argv.slice(2);
@@ -76,6 +77,17 @@ async function seed() {
         ahsImageUrl: "/assets/catalog-blooms.webp",
       },
     });
+    const cultivarReference = await db.cultivarReference.upsert({
+      where: { ahsId: ahs.id },
+      create: {
+        id: `cr-ahs-${ahs.id}`,
+        ahsId: ahs.id,
+        normalizedName: normalizeCultivarName(ahs.name),
+      },
+      update: {
+        normalizedName: normalizeCultivarName(ahs.name),
+      },
+    });
 
     await db.listing.create({
       data: {
@@ -101,7 +113,7 @@ async function seed() {
         price: 30,
         description: "Linked to AHS example.",
         status: "PUBLISHED",
-        ahsId: ahs.id,
+        cultivarReferenceId: cultivarReference.id,
       },
     });
   }, { clearFirst: true });

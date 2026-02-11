@@ -23,7 +23,6 @@ import { Separator } from "@/components/ui/separator";
 import { useSetAtom } from "jotai";
 import { editingListingIdAtom } from "./edit-listing-dialog";
 import { normalizeError, reportError } from "@/lib/error-utils";
-import { useCultivarReferenceLinkingEnabled } from "@/hooks/use-cultivar-reference-linking-enabled";
 import { APP_CONFIG } from "@/config/constants";
 
 /**
@@ -43,14 +42,12 @@ export function CreateListingDialog({
     null,
   );
   const [isPending, setIsPending] = useState(false);
-  const isCultivarReferenceLinkingEnabled = useCultivarReferenceLinkingEnabled();
 
   const setEditingId = useSetAtom(editingListingIdAtom);
 
   const { data: detailedAhsListing } = api.ahs.get.useQuery(
     {
       id: selectedResult?.id ?? "",
-      useCultivarReferenceLookup: isCultivarReferenceLinkingEnabled,
     },
     {
       enabled: !!selectedResult?.id,
@@ -116,22 +113,15 @@ export function CreateListingDialog({
             ? selectedName
             : APP_CONFIG.LISTING.DEFAULT_NAME;
 
-      if (isCultivarReferenceLinkingEnabled) {
-        if (selectedResult && !selectedResult.cultivarReferenceId) {
-          toast.error("Selected listing is not available for cultivar link.");
-          return;
-        }
-
-        await createListingMutation.mutateAsync({
-          title: finalTitle,
-          cultivarReferenceId: selectedResult?.cultivarReferenceId ?? null,
-        });
-      } else {
-        await createListingMutation.mutateAsync({
-          title: finalTitle,
-          ahsId: selectedResult?.id ?? null,
-        });
+      if (selectedResult && !selectedResult.cultivarReferenceId) {
+        toast.error("Selected listing is not available for cultivar link.");
+        return;
       }
+
+      await createListingMutation.mutateAsync({
+        title: finalTitle,
+        cultivarReferenceId: selectedResult?.cultivarReferenceId ?? null,
+      });
     } finally {
       setIsPending(false);
     }

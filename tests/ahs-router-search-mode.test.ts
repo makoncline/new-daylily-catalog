@@ -8,6 +8,12 @@ process.env.TURSO_DATABASE_URL ??= "libsql://unit-test-db";
 process.env.TURSO_DATABASE_AUTH_TOKEN ??= "unit-test-token";
 process.env.PLAYWRIGHT_LOCAL_E2E = "true";
 
+const mockReportError = vi.hoisted(() => vi.fn());
+
+vi.mock("@/lib/error-utils", () => ({
+  reportError: mockReportError,
+}));
+
 type AhsRouterModule = typeof import("@/server/api/routers/ahs");
 let ahsRouter: AhsRouterModule["ahsRouter"];
 
@@ -16,10 +22,6 @@ beforeAll(async () => {
 });
 
 interface MockDb {
-  ahsListing: {
-    findMany: ReturnType<typeof vi.fn>;
-    findUnique: ReturnType<typeof vi.fn>;
-  };
   cultivarReference: {
     findMany: ReturnType<typeof vi.fn>;
     findUnique: ReturnType<typeof vi.fn>;
@@ -28,10 +30,6 @@ interface MockDb {
 
 function createMockDb(): MockDb {
   return {
-    ahsListing: {
-      findMany: vi.fn(),
-      findUnique: vi.fn(),
-    },
     cultivarReference: {
       findMany: vi.fn(),
       findUnique: vi.fn(),
@@ -47,108 +45,82 @@ function createCaller(db: MockDb) {
   });
 }
 
-describe("ahs router search and lookup modes", () => {
+describe("ahs router cultivar reference paths", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  it("uses legacy AHS search when cultivar search flag is false", async () => {
-    const db = createMockDb();
-    db.ahsListing.findMany.mockResolvedValue([
-      {
-        id: "ahs-1",
-        name: "Coffee Two",
-        cultivarReference: { id: "cr-1" },
-      },
-    ]);
-
-    const caller = createCaller(db);
-    const results = await caller.search({
-      query: "Coffee",
-      useCultivarReferenceSearch: false,
-    });
-
-    expect(db.ahsListing.findMany).toHaveBeenCalledTimes(1);
-    expect(db.cultivarReference.findMany).not.toHaveBeenCalled();
-    expect(results).toEqual([
-      {
-        id: "ahs-1",
-        name: "Coffee Two",
-        cultivarReferenceId: "cr-1",
-      },
-    ]);
-  });
-
-  it("uses cultivar-reference search when cultivar search flag is true", async () => {
+  it("searches by cultivar reference normalized name", async () => {
     const db = createMockDb();
     db.cultivarReference.findMany.mockResolvedValue([
       {
         id: "cr-1",
+        ahsId: "ahs-1",
         normalizedName: "happy returns",
-        ahsListing: { id: "ahs-1" },
+        ahsListing: { name: "Happy Returns (AHS)" },
       },
     ]);
 
     const caller = createCaller(db);
     const results = await caller.search({
       query: "Happy",
-      useCultivarReferenceSearch: true,
     });
 
     expect(db.cultivarReference.findMany).toHaveBeenCalledTimes(1);
-    expect(db.ahsListing.findMany).not.toHaveBeenCalled();
     expect(results).toEqual([
       {
         id: "ahs-1",
-        name: "Happy returns",
+        name: "Happy Returns (AHS)",
         cultivarReferenceId: "cr-1",
       },
     ]);
+    expect(mockReportError).not.toHaveBeenCalled();
   });
 
-  it("uses legacy AHS lookup when cultivar lookup flag is false", async () => {
+  it("reports and falls back to normalized name when ahs display name is missing", async () => {
     const db = createMockDb();
-    db.ahsListing.findUnique.mockResolvedValue({
-      id: "ahs-1",
-      name: "Legacy Name",
-      ahsImageUrl: null,
-      hybridizer: null,
-      year: null,
-      scapeHeight: null,
-      bloomSize: null,
-      bloomSeason: null,
-      form: null,
-      ploidy: null,
-      foliageType: null,
-      bloomHabit: null,
-      budcount: null,
-      branches: null,
-      sculpting: null,
-      foliage: null,
-      flower: null,
-      fragrance: null,
-      parentage: null,
-      color: null,
-    });
+    db.cultivarReference.findMany.mockResolvedValue([
+      {
+        id: "cr-2",
+        ahsId: "ahs-2",
+        normalizedName: "fall back name",
+        ahsListing: { name: null },
+      },
+    ]);
 
     const caller = createCaller(db);
-    const result = await caller.get({
-      id: "ahs-1",
-      useCultivarReferenceLookup: false,
+    const results = await caller.search({
+      query: "fall",
     });
 
-    expect(db.ahsListing.findUnique).toHaveBeenCalledTimes(1);
-    expect(db.cultivarReference.findUnique).not.toHaveBeenCalled();
-    expect(result.name).toBe("Legacy Name");
+    expect(results).toEqual([
+      {
+        id: "ahs-2",
+        name: "fall back name",
+        cultivarReferenceId: "cr-2",
+      },
+    ]);
+
+    expect(mockReportError).toHaveBeenCalledTimes(1);
+    expect(mockReportError).toHaveBeenCalledWith(
+      expect.objectContaining({
+        level: "warning",
+        context: expect.objectContaining({
+          source: "ahsRouter.search",
+          cultivarReferenceId: "cr-2",
+          ahsId: "ahs-2",
+          normalizedName: "fall back name",
+        }),
+      }),
+    );
   });
 
-  it("uses cultivar-reference lookup when cultivar lookup flag is true", async () => {
+  it("looks up detail by cultivar reference ahsId relation", async () => {
     const db = createMockDb();
     db.cultivarReference.findUnique.mockResolvedValue({
-      normalizedName: "happy returns",
       ahsListing: {
         id: "ahs-1",
-        name: null,
+        name: "Happy Returns (AHS)",
         ahsImageUrl: null,
         hybridizer: null,
         year: null,
@@ -173,11 +145,9 @@ describe("ahs router search and lookup modes", () => {
     const caller = createCaller(db);
     const result = await caller.get({
       id: "ahs-1",
-      useCultivarReferenceLookup: true,
     });
 
     expect(db.cultivarReference.findUnique).toHaveBeenCalledTimes(1);
-    expect(db.ahsListing.findUnique).not.toHaveBeenCalled();
-    expect(result.name).toBe("Happy returns");
+    expect(result.name).toBe("Happy Returns (AHS)");
   });
 });

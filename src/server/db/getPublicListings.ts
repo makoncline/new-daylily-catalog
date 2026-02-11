@@ -49,9 +49,6 @@ export const listingSelect = {
       title: true,
     },
   },
-  ahsListing: {
-    select: ahsListingSelect,
-  },
   cultivarReference: {
     select: {
       ahsListing: {
