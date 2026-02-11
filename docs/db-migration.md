@@ -175,6 +175,49 @@ Expected:
 - `normalizedName` is lowercased + trimmed version of source `AhsListing.name`.
 - Null/blank source names map to `normalizedName = NULL`.
 
+### Invariant Gates Required Before Enabling Cultivar Linking
+
+Run these checks in each environment before enabling cultivar-reference linking.
+
+```sql
+-- 1) Legacy AHS link without cultivar reference (must be zero)
+SELECT COUNT(*)
+FROM "Listing"
+WHERE "ahsId" IS NOT NULL
+  AND "cultivarReferenceId" IS NULL;
+```
+
+Expected:
+- `0`
+
+```sql
+-- 2) Listing ahsId must agree with linked cultivar reference ahsId (must be zero)
+SELECT COUNT(*)
+FROM "Listing" l
+LEFT JOIN "CultivarReference" cr ON cr."id" = l."cultivarReferenceId"
+WHERE l."ahsId" IS NOT NULL
+  AND (cr."id" IS NULL OR cr."ahsId" IS NULL OR cr."ahsId" != l."ahsId");
+```
+
+Expected:
+- `0`
+
+```sql
+-- 3) Orphaned listing cultivar references (must be zero)
+SELECT COUNT(*)
+FROM "Listing" l
+LEFT JOIN "CultivarReference" cr ON cr."id" = l."cultivarReferenceId"
+WHERE l."cultivarReferenceId" IS NOT NULL
+  AND cr."id" IS NULL;
+```
+
+Expected:
+- `0`
+
+If any invariant check fails, do not enable the feature flag in that
+environment. Re-run the reference populate/backfill migration scripts and
+re-verify all counts before continuing.
+
 ## Step 4: Apply to Stage (After Local Validation)
 
 Stage database details:

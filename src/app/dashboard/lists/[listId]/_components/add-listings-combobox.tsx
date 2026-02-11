@@ -22,6 +22,7 @@ import { api } from "@/trpc/react";
 import type { inferRouterOutputs } from "@trpc/server";
 import type { listingRouter } from "@/server/api/routers/listing";
 import { toast } from "sonner";
+import { useListingsWithDisplayAhs } from "@/hooks/use-display-ahs-listing";
 
 type ListingRouterOutputs = inferRouterOutputs<typeof listingRouter>;
 type ListingData = ListingRouterOutputs["list"][number];
@@ -36,6 +37,7 @@ export function AddListingsCombobox({ listId }: AddListingsComboboxProps) {
 
   const utils = api.useUtils();
   const { data: listings } = api.listing.list.useQuery();
+  const displayListings = useListingsWithDisplayAhs(listings);
 
   const addListingsMutation = api.list.addListings.useMutation({
     onSuccess: () => {
@@ -47,12 +49,11 @@ export function AddListingsCombobox({ listId }: AddListingsComboboxProps) {
   });
 
   const filteredListings = useMemo(() => {
-    if (!listings) return [];
-    return listings.filter((listing) => {
+    return displayListings.filter((listing) => {
       if (!searchValue) return true;
       return listing.title.toLowerCase().includes(searchValue.toLowerCase());
     });
-  }, [listings, searchValue]);
+  }, [displayListings, searchValue]);
 
   const handleOpenChange = (isOpen: boolean) => {
     setOpen(isOpen);
@@ -73,7 +74,7 @@ export function AddListingsCombobox({ listId }: AddListingsComboboxProps) {
         data-testid="add-listings-search-input"
       />
       <CommandList className="flex-1 overflow-x-hidden overflow-y-auto pb-2">
-        {listings?.length === 0 && (
+        {displayListings.length === 0 && (
           <CommandEmpty>
             <p className="text-muted-foreground p-2 text-sm">
               No listings found.

@@ -12,8 +12,10 @@ import { AhsListingDisplay } from "./ahs-listing-display";
 import { Muted } from "@/components/typography";
 
 import type { ListingGetOutput } from "@/server/api/routers/listing";
-import type { AhsListing } from "@prisma/client";
+import type { AhsSearchResult } from "./ahs-listing-select";
 import { getErrorMessage, normalizeError } from "@/lib/error-utils";
+import { useCultivarReferenceLinkingEnabled } from "@/hooks/use-cultivar-reference-linking-enabled";
+import { useDisplayAhsListing } from "@/hooks/use-display-ahs-listing";
 
 interface AhsListingLinkProps {
   listing: ListingGetOutput;
@@ -25,7 +27,9 @@ export function AhsListingLink({
   onNameChange,
 }: AhsListingLinkProps) {
   const [isPending, setIsPending] = useState(false);
+  const isCultivarReferenceLinkingEnabled = useCultivarReferenceLinkingEnabled();
   const utils = api.useUtils();
+  const linkedAhs = useDisplayAhsListing(listing);
 
   const { mutateAsync: linkAhsMutation } = api.listing.linkAhs.useMutation({
     onSuccess: (data) => {
@@ -67,26 +71,36 @@ export function AhsListingLink({
       },
     });
 
-  async function updateAhsListing(
-    ahsId: string | null,
-    ahsListing: AhsListing | null,
-  ) {
+  async function updateAhsListing(selected: AhsSearchResult | null) {
     setIsPending(true);
     try {
-      if (ahsId && ahsListing?.name) {
+      if (selected?.name) {
         // When linking, update both ahsId and name if needed
         const shouldUpdateName =
           !listing.title || listing.title === LISTING_CONFIG.DEFAULT_NAME;
 
-        await linkAhsMutation({
-          id: listing.id,
-          ahsId,
-          syncName: shouldUpdateName,
-        });
+        if (isCultivarReferenceLinkingEnabled) {
+          if (!selected.cultivarReferenceId) {
+            toast.error("Selected listing is not available for cultivar link.");
+            return;
+          }
+
+          await linkAhsMutation({
+            id: listing.id,
+            cultivarReferenceId: selected.cultivarReferenceId,
+            syncName: shouldUpdateName,
+          });
+        } else {
+          await linkAhsMutation({
+            id: listing.id,
+            ahsId: selected.id,
+            syncName: shouldUpdateName,
+          });
+        }
 
         // Notify parent about name change
         if (shouldUpdateName) {
-          onNameChange?.(ahsListing.name);
+          onNameChange?.(selected.name);
         }
       } else {
         await unlinkAhsMutation({
@@ -95,11 +109,13 @@ export function AhsListingLink({
       }
 
       toast.success(
-        ahsId ? "Listing linked successfully" : "Listing unlinked successfully",
+        selected
+          ? "Listing linked successfully"
+          : "Listing unlinked successfully",
       );
     } catch (error) {
       toast.error(
-        ahsId ? "Failed to link listing" : "Failed to unlink listing",
+        selected ? "Failed to link listing" : "Failed to unlink listing",
         { description: getErrorMessage(error) },
       );
       reportError({
@@ -114,11 +130,11 @@ export function AhsListingLink({
   async function syncName() {
     setIsPending(true);
     try {
-      await syncAhsNameMutation({
+      const updatedListing = await syncAhsNameMutation({
         id: listing.id,
       });
-      if (listing.ahsListing?.name) {
-        onNameChange?.(listing.ahsListing.name);
+      if (updatedListing.title) {
+        onNameChange?.(updatedListing.title);
       }
       toast.success("Name synced successfully");
     } catch (error) {
@@ -136,23 +152,23 @@ export function AhsListingLink({
 
   return (
     <div className="space-y-2">
-      {listing.ahsListing ? (
+      {linkedAhs ? (
         <Card>
           <CardContent className="pt-6">
             <div className="mb-4 flex items-center justify-between">
               <Muted>
                 Linked to{" "}
                 <a
-                  href={`https://daylilies.org/daylilies/${listing.ahsListing.id}`}
+                  href={`https://daylilies.org/daylilies/${linkedAhs.id}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-foreground font-medium hover:underline"
                 >
-                  {listing.ahsListing.name}
+                  {linkedAhs.name}
                 </a>
               </Muted>
               <div className="flex gap-2">
-                {listing.title !== listing.ahsListing.name && (
+                {listing.title !== linkedAhs.name && (
                   <Button
                     type="button"
                     variant="outline"
@@ -167,22 +183,20 @@ export function AhsListingLink({
                   type="button"
                   variant="outline"
                   size="sm"
-                  onClick={() => updateAhsListing(null, null)}
+                  onClick={() => updateAhsListing(null)}
                   disabled={isPending}
                 >
                   {isPending ? "Unlinking..." : "Unlink"}
                 </Button>
               </div>
             </div>
-            <AhsListingDisplay ahsListing={listing.ahsListing} />
+            <AhsListingDisplay ahsListing={linkedAhs} />
           </CardContent>
         </Card>
       ) : (
         <div>
           <AhsListingSelect
-            onSelect={(ahsListing: AhsListing) =>
-              updateAhsListing(ahsListing.id, ahsListing)
-            }
+            onSelect={(result) => updateAhsListing(result)}
             disabled={isPending}
           />
         </div>

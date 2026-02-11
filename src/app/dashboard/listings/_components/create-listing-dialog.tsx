@@ -14,14 +14,17 @@ import { Button } from "@/components/ui/button";
 import { P } from "@/components/typography";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { AhsListingSelect } from "@/components/ahs-listing-select";
+import {
+  AhsListingSelect,
+  type AhsSearchResult,
+} from "@/components/ahs-listing-select";
 import { AhsListingDisplay } from "@/components/ahs-listing-display";
 import { Separator } from "@/components/ui/separator";
 import { useSetAtom } from "jotai";
 import { editingListingIdAtom } from "./edit-listing-dialog";
 import { normalizeError, reportError } from "@/lib/error-utils";
-
-import type { AhsListing } from "@prisma/client";
+import { useCultivarReferenceLinkingEnabled } from "@/hooks/use-cultivar-reference-linking-enabled";
+import { APP_CONFIG } from "@/config/constants";
 
 /**
  * Dialog for creating a new daylily listing.
@@ -36,16 +39,21 @@ export function CreateListingDialog({
   // Always initialize as open
   const [open, setOpen] = useState(true);
   const [title, setTitle] = useState("");
-  const [selectedAhsListing, setSelectedAhsListing] =
-    useState<AhsListing | null>(null);
+  const [selectedResult, setSelectedResult] = useState<AhsSearchResult | null>(
+    null,
+  );
   const [isPending, setIsPending] = useState(false);
+  const isCultivarReferenceLinkingEnabled = useCultivarReferenceLinkingEnabled();
 
   const setEditingId = useSetAtom(editingListingIdAtom);
 
   const { data: detailedAhsListing } = api.ahs.get.useQuery(
-    { id: selectedAhsListing?.id ?? "" },
     {
-      enabled: !!selectedAhsListing?.id,
+      id: selectedResult?.id ?? "",
+      useCultivarReferenceLookup: isCultivarReferenceLinkingEnabled,
+    },
+    {
+      enabled: !!selectedResult?.id,
       refetchOnWindowFocus: false,
     },
   );
@@ -76,10 +84,10 @@ export function CreateListingDialog({
    * Handles selection of an AHS listing.
    * If title is empty, automatically uses the AHS listing name.
    */
-  const handleAhsListingSelect = (ahsListing: AhsListing) => {
-    setSelectedAhsListing(ahsListing);
+  const handleAhsListingSelect = (result: AhsSearchResult) => {
+    setSelectedResult(result);
     if (!title) {
-      setTitle(ahsListing.name ?? "");
+      setTitle(result.name ?? "");
     }
   };
 
@@ -87,8 +95,8 @@ export function CreateListingDialog({
    * Syncs the title input with the selected AHS listing name.
    */
   const syncTitleWithAhs = () => {
-    if (selectedAhsListing) {
-      setTitle(selectedAhsListing.name ?? "");
+    if (selectedResult) {
+      setTitle(selectedResult.name ?? "");
     }
   };
 
@@ -99,11 +107,31 @@ export function CreateListingDialog({
   const handleCreate = async () => {
     setIsPending(true);
     try {
-      const finalTitle = title ?? selectedAhsListing?.name ?? "New Listing";
-      await createListingMutation.mutateAsync({
-        title: finalTitle,
-        ahsId: selectedAhsListing?.id ?? null,
-      });
+      const normalizedTitle = title.trim();
+      const selectedName = selectedResult?.name?.trim();
+      const finalTitle =
+        normalizedTitle.length > 0
+          ? normalizedTitle
+          : (selectedName?.length ?? 0) > 0
+            ? selectedName
+            : APP_CONFIG.LISTING.DEFAULT_NAME;
+
+      if (isCultivarReferenceLinkingEnabled) {
+        if (selectedResult && !selectedResult.cultivarReferenceId) {
+          toast.error("Selected listing is not available for cultivar link.");
+          return;
+        }
+
+        await createListingMutation.mutateAsync({
+          title: finalTitle,
+          cultivarReferenceId: selectedResult?.cultivarReferenceId ?? null,
+        });
+      } else {
+        await createListingMutation.mutateAsync({
+          title: finalTitle,
+          ahsId: selectedResult?.id ?? null,
+        });
+      }
     } finally {
       setIsPending(false);
     }
@@ -140,7 +168,7 @@ export function CreateListingDialog({
               disabled={isPending}
             />
 
-            {selectedAhsListing && detailedAhsListing && (
+            {selectedResult && detailedAhsListing && (
               <div className="mt-4">
                 <Separator className="my-4" />
                 <AhsListingDisplay ahsListing={detailedAhsListing} />
@@ -153,7 +181,7 @@ export function CreateListingDialog({
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <Label htmlFor="title">Listing Title</Label>
-              {selectedAhsListing && (
+              {selectedResult && (
                 <Button
                   type="button"
                   variant="ghost"
@@ -169,7 +197,7 @@ export function CreateListingDialog({
               id="title"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              placeholder={selectedAhsListing?.name ?? "Enter a title"}
+              placeholder={selectedResult?.name ?? "Enter a title"}
               disabled={isPending}
             />
           </div>
@@ -181,7 +209,7 @@ export function CreateListingDialog({
           </Button>
           <Button
             onClick={handleCreate}
-            disabled={isPending || (!title && !selectedAhsListing)}
+            disabled={isPending || (!title.trim() && !selectedResult)}
           >
             Create Listing
           </Button>

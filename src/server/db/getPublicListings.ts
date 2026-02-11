@@ -2,6 +2,29 @@ import { db } from "@/server/db";
 import { TRPCError } from "@trpc/server";
 import { STATUS } from "@/config/constants";
 import { getUserIdFromSlugOrId } from "./getPublicProfile";
+import { getDisplayAhsListing } from "@/lib/utils/ahs-display";
+
+const ahsListingSelect = {
+  name: true,
+  ahsImageUrl: true,
+  hybridizer: true,
+  year: true,
+  scapeHeight: true,
+  bloomSize: true,
+  bloomSeason: true,
+  form: true,
+  ploidy: true,
+  foliageType: true,
+  bloomHabit: true,
+  budcount: true,
+  branches: true,
+  sculpting: true,
+  foliage: true,
+  flower: true,
+  fragrance: true,
+  parentage: true,
+  color: true,
+} as const;
 
 export const listingSelect = {
   id: true,
@@ -27,26 +50,13 @@ export const listingSelect = {
     },
   },
   ahsListing: {
+    select: ahsListingSelect,
+  },
+  cultivarReference: {
     select: {
-      name: true,
-      ahsImageUrl: true,
-      hybridizer: true,
-      year: true,
-      scapeHeight: true,
-      bloomSize: true,
-      bloomSeason: true,
-      form: true,
-      ploidy: true,
-      foliageType: true,
-      bloomHabit: true,
-      budcount: true,
-      branches: true,
-      sculpting: true,
-      foliage: true,
-      flower: true,
-      fragrance: true,
-      parentage: true,
-      color: true,
+      ahsListing: {
+        select: ahsListingSelect,
+      },
     },
   },
   images: {
@@ -86,18 +96,23 @@ export async function getListings(args: GetListingsArgs) {
 
 // Helper function to transform listings with AHS image fallback
 export function transformListings(listings: ListingWithRelations[]) {
-  const transformed = listings.map((listing) => ({
-    ...listing,
-    images:
-      listing.images.length === 0 && listing.ahsListing?.ahsImageUrl
-        ? [
-            {
-              id: `ahs-${listing.id}`,
-              url: listing.ahsListing.ahsImageUrl,
-            },
-          ]
-        : listing.images,
-  }));
+  const transformed = listings.map((listing) => {
+    const displayAhsListing = getDisplayAhsListing(listing);
+
+    return {
+      ...listing,
+      ahsListing: displayAhsListing,
+      images:
+        listing.images.length === 0 && displayAhsListing?.ahsImageUrl
+          ? [
+              {
+                id: `ahs-${listing.id}`,
+                url: displayAhsListing.ahsImageUrl,
+              },
+            ]
+          : listing.images,
+    };
+  });
 
   return transformed;
 }
