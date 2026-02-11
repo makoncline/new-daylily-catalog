@@ -2,6 +2,10 @@
 
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
+process.env.SKIP_ENV_VALIDATION = "1";
+process.env.LOCAL_DATABASE_URL ??= "file:./tests/.tmp/ahs-router-unit.sqlite";
+process.env.TURSO_DATABASE_URL ??= "libsql://unit-test-db";
+process.env.TURSO_DATABASE_AUTH_TOKEN ??= "unit-test-token";
 process.env.PLAYWRIGHT_LOCAL_E2E = "true";
 
 type AhsRouterModule = typeof import("@/server/api/routers/ahs");
