@@ -99,6 +99,10 @@ export function CultivarReferenceLinkingAdminMenu() {
             <div className="text-muted-foreground text-xs">
               Env default: {envDefault ? "ON" : "OFF"}
             </div>
+            <div className="text-muted-foreground text-xs">
+              Session override affects client display/search/link flows only.
+              Server-only outputs still use the env default.
+            </div>
           </div>
 
           <div className="flex flex-wrap gap-2">

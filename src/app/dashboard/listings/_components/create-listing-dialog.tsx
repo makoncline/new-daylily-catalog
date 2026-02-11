@@ -24,6 +24,7 @@ import { useSetAtom } from "jotai";
 import { editingListingIdAtom } from "./edit-listing-dialog";
 import { normalizeError, reportError } from "@/lib/error-utils";
 import { useCultivarReferenceLinkingEnabled } from "@/hooks/use-cultivar-reference-linking-enabled";
+import { APP_CONFIG } from "@/config/constants";
 
 /**
  * Dialog for creating a new daylily listing.
@@ -106,7 +107,14 @@ export function CreateListingDialog({
   const handleCreate = async () => {
     setIsPending(true);
     try {
-      const finalTitle = title ?? selectedResult?.name ?? "New Listing";
+      const normalizedTitle = title.trim();
+      const selectedName = selectedResult?.name?.trim();
+      const finalTitle =
+        normalizedTitle.length > 0
+          ? normalizedTitle
+          : (selectedName?.length ?? 0) > 0
+            ? selectedName
+            : APP_CONFIG.LISTING.DEFAULT_NAME;
 
       if (isCultivarReferenceLinkingEnabled) {
         if (selectedResult && !selectedResult.cultivarReferenceId) {
@@ -201,7 +209,7 @@ export function CreateListingDialog({
           </Button>
           <Button
             onClick={handleCreate}
-            disabled={isPending || (!title && !selectedResult)}
+            disabled={isPending || (!title.trim() && !selectedResult)}
           >
             Create Listing
           </Button>

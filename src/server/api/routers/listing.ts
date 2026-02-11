@@ -121,6 +121,8 @@ export const listingRouter = createTRPCRouter({
     .input(
       z.object({
         title: z.string().optional(),
+        // Baseline-cutover cleanup:
+        // Remove legacy ahsId input and accept only cultivarReferenceId.
         ahsId: z.string().nullable().optional(),
         cultivarReferenceId: z.string().nullable().optional(),
       }),
@@ -318,6 +320,8 @@ export const listingRouter = createTRPCRouter({
       z
         .object({
           id: z.string(),
+          // Baseline-cutover cleanup:
+          // Remove legacy ahsId input and require cultivarReferenceId only.
           ahsId: z.string().optional(),
           cultivarReferenceId: z.string().optional(),
           syncName: z.boolean().default(false),

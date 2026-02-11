@@ -23,6 +23,8 @@
 - 2026-02-10 - edit dialog bug - Unlinking AHS in `AhsListingLink` can be reverted on dialog close if `ListingForm` still holds stale `ahsId`; sync `ahsId` into form state on link/unlink success to prevent close-save from re-linking.
 - 2026-02-10 - unlink/save regression - Better fix was decoupling: keep `ahsId` out of form schema/state and allow router `update` input to accept optional `ahsId` for link/unlink component calls only; this prevents Save from re-linking stale AHS data.
 - 2026-02-10 - api boundary cleanup - Final simplification: `AhsListingLink` should call `listing.linkAhs`/`listing.unlinkAhs` directly; then `listing.update` can stay form-only (`listingFormSchema`) with no `ahsId` handling.
+- 2026-02-11 - pre-merge stabilization - For AHS V2 flagged rollout, keep `syncAhsName` strict canonical (`cultivarReference.ahsListing` only), keep secret menu override client-only, and enforce data invariants with SQL checks in migration docs.
+- 2026-02-11 - create dialog regression - Empty/whitespace title must fall back to selected AHS name (then default listing name) so create payload never sends blank titles.
 
 ## Preferences
 
@@ -31,6 +33,7 @@
 - Use a 3-step DB rollout for this repo's AHS migration work: Prisma structural migration, then generated SQL file for reference-table data load, then generated SQL file for listing backfill.
 - Avoid `executeRawUnsafe` in application and migration-adjacent app code when Prisma ORM operations can do the job.
 - For product-feedback asks, return prioritized recommendations tied to activation, conversion, and retention.
+- During AHS V2 rollout, keep API inputs backward-compatible (`ahsId` + `cultivarReferenceId`) until post-cutover cleanup.
 
 ## Patterns That Work
 
