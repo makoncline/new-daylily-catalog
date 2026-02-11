@@ -24,7 +24,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
-    "test:e2e:attach": "BASE_URL=http://localhost:3000 playwright test"
+    "test:e2e:attach": "BASE_URL=http://localhost:3000 playwright test",
+    "db:sync:seed": "bash scripts/sync-seeded-daylily-catalog-from-local.sh"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.882.0",
