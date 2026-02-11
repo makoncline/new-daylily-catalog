@@ -103,7 +103,7 @@ async function createCultivarListing({
       data: {
         listingId: listing.id,
         order,
-        url: `/assets/bouquet.png?seed=${listing.id}-${order}`,
+        url: "/assets/bouquet.png",
       },
     });
   }
@@ -207,7 +207,7 @@ test.describe("cultivar guest flow @local", () => {
         data: {
           userProfileId: topCatalog.profile.id,
           order: 1,
-          url: "/assets/bouquet.png?profile=top",
+          url: "/assets/bouquet.png",
         },
       });
 
@@ -215,7 +215,7 @@ test.describe("cultivar guest flow @local", () => {
         data: {
           userProfileId: betaCatalog.profile.id,
           order: 0,
-          url: "/assets/bouquet.png?profile=beta",
+          url: "/assets/bouquet.png",
         },
       });
 

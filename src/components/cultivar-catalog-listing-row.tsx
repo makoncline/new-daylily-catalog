@@ -1,10 +1,8 @@
-"use client";
-
 import Link from "next/link";
+import Image from "next/image";
 import { ArrowUpRight } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { OptimizedImage } from "@/components/optimized-image";
 import { formatPrice } from "@/lib/utils";
 import { H3 } from "@/components/typography";
 import type { CultivarPageCatalogListing } from "@/types";
@@ -37,11 +35,17 @@ export function CultivarCatalogListingRow({
       data-listing-id={listing.id}
     >
       {listing.previewImageUrl && (
-        <Link href={listingHref} className="w-24 shrink-0 overflow-hidden rounded-md">
-          <OptimizedImage
+        <Link
+          href={listingHref}
+          className="relative h-24 w-24 shrink-0 overflow-hidden rounded-md"
+        >
+          <Image
             src={listing.previewImageUrl}
             alt={`${listing.title} image`}
-            className="h-24"
+            fill
+            className="object-cover"
+            sizes="96px"
+            unoptimized
           />
         </Link>
       )}

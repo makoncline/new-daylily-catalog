@@ -1,5 +1,6 @@
 import { notFound, permanentRedirect } from "next/navigation";
 import { type Metadata } from "next";
+import { cache } from "react";
 import { MainContent } from "@/app/(public)/_components/main-content";
 import { Breadcrumbs } from "@/components/breadcrumbs";
 import { CultivarCatalogCard } from "@/components/cultivar-catalog-card";
@@ -21,6 +22,7 @@ import { CultivarPageAhsDisplay } from "./_components/cultivar-page-ahs-display"
 
 export const revalidate = 3600;
 export const dynamicParams = true;
+const getPublicCultivarPageCached = cache(getPublicCultivarPage);
 
 interface PageProps {
   params: Promise<{
@@ -38,7 +40,7 @@ export async function generateStaticParams() {
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { cultivarNormalizedName } = await params;
-  const cultivarPage = await getPublicCultivarPage(cultivarNormalizedName);
+  const cultivarPage = await getPublicCultivarPageCached(cultivarNormalizedName);
 
   if (!cultivarPage) {
     return {
@@ -99,7 +101,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
 export default async function CultivarPage({ params }: PageProps) {
   const { cultivarNormalizedName } = await params;
-  const cultivarPage = await getPublicCultivarPage(cultivarNormalizedName);
+  const cultivarPage = await getPublicCultivarPageCached(cultivarNormalizedName);
 
   if (!cultivarPage) {
     notFound();

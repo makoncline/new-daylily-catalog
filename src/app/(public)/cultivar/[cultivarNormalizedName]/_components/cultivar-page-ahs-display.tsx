@@ -1,6 +1,4 @@
-"use client";
-
-import { OptimizedImage } from "@/components/optimized-image";
+import Image from "next/image";
 import { H1, Muted, P } from "@/components/typography";
 import type { CultivarPageAhsListing } from "@/types";
 
@@ -32,13 +30,14 @@ export function CultivarPageAhsDisplay({
   return (
     <div className="space-y-5">
       {ahsListing.ahsImageUrl && (
-        <div className="w-full max-w-2xl overflow-hidden rounded-md">
-          <OptimizedImage
+        <div className="relative aspect-[4/3] w-full max-w-2xl overflow-hidden rounded-md">
+          <Image
             src={ahsListing.ahsImageUrl}
             alt={ahsListing.name ? `${ahsListing.name} AHS image` : "AHS image"}
-            size="full"
-            fit="cover"
-            className="aspect-[4/3]"
+            fill
+            className="object-cover"
+            sizes="(max-width: 768px) 100vw, 672px"
+            unoptimized
           />
         </div>
       )}
