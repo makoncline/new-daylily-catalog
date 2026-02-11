@@ -26,6 +26,7 @@
 - 2026-02-11 - pre-merge stabilization - For AHS V2 flagged rollout, keep `syncAhsName` strict canonical (`cultivarReference.ahsListing` only), keep secret menu override client-only, and enforce data invariants with SQL checks in migration docs.
 - 2026-02-11 - create dialog regression - Empty/whitespace title must fall back to selected AHS name (then default listing name) so create payload never sends blank titles.
 - 2026-02-11 - type alignment - When router responses add derived `ahsListing` via `withDisplayAhsListing(s)`, hook return types must use `WithDisplayAhsListing<T>` and sibling routers (e.g. `list.getListings`) should return the same derived shape to avoid table generic mismatches.
+- 2026-02-11 - e2e temp-db reset - `withTempE2EDb` must clear `CultivarReference` before `AhsListing`; otherwise retries leave orphaned refs (`ahsId` null) and deterministic seed upserts can fail unique on `CultivarReference.id`.
 
 ## Preferences
 
