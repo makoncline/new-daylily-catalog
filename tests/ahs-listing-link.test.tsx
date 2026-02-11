@@ -2,7 +2,6 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { ListingGetOutput } from "@/server/api/routers/listing";
 import { AhsListingLink } from "@/components/ahs-listing-link";
-import { CULTIVAR_REFERENCE_LINKING_OVERRIDE_STORAGE_KEY } from "@/lib/cultivar-reference-linking";
 
 const mockLinkAhsMutateAsync = vi.hoisted(() => vi.fn());
 const mockUnlinkAhsMutateAsync = vi.hoisted(() => vi.fn());
@@ -81,10 +80,17 @@ function createListing(
   return {
     id: "listing-1",
     title: "New Listing",
-    ahsId: "ahs-1",
+    cultivarReferenceId: "cr-ahs-1",
     ahsListing: {
       id: "ahs-1",
       name: "Coffee Frenzy",
+    },
+    cultivarReference: {
+      id: "cr-ahs-1",
+      ahsListing: {
+        id: "ahs-1",
+        name: "Coffee Frenzy",
+      },
     },
     images: [],
     lists: [],
@@ -95,15 +101,15 @@ function createListing(
 describe("AhsListingLink", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    delete process.env.NEXT_PUBLIC_CULTIVAR_REFERENCE_LINKING_ENABLED;
-    window.sessionStorage.removeItem(
-      CULTIVAR_REFERENCE_LINKING_OVERRIDE_STORAGE_KEY,
-    );
   });
 
   it("calls unlinkAhs mutation when unlinking", async () => {
     mockUnlinkAhsMutateAsync.mockResolvedValue(
-      createListing({ ahsId: null, ahsListing: null }),
+      createListing({
+        cultivarReferenceId: null,
+        cultivarReference: null,
+        ahsListing: null,
+      }),
     );
 
     render(<AhsListingLink listing={createListing()} />);
@@ -117,33 +123,27 @@ describe("AhsListingLink", () => {
     });
   });
 
-  it("calls linkAhs mutation with ahsId and syncName when linking", async () => {
-    mockLinkAhsMutateAsync.mockResolvedValue(createListing({ ahsId: "ahs-2" }));
-
-    render(
-      <AhsListingLink
-        listing={createListing({ ahsId: null, ahsListing: null })}
-      />,
+  it("calls linkAhs mutation with cultivarReferenceId when linking", async () => {
+    mockLinkAhsMutateAsync.mockResolvedValue(
+      createListing({
+        cultivarReferenceId: "cr-ahs-2",
+        cultivarReference: {
+          id: "cr-ahs-2",
+          ahsListing: {
+            id: "ahs-2",
+            name: "Coffee Two",
+          },
+        } as unknown as ListingGetOutput["cultivarReference"],
+      }),
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "Select AHS" }));
-
-    await waitFor(() => {
-      expect(mockLinkAhsMutateAsync).toHaveBeenCalledWith({
-        id: "listing-1",
-        ahsId: "ahs-2",
-        syncName: true,
-      });
-    });
-  });
-
-  it("calls linkAhs mutation with cultivarReferenceId when feature flag is enabled", async () => {
-    process.env.NEXT_PUBLIC_CULTIVAR_REFERENCE_LINKING_ENABLED = "true";
-    mockLinkAhsMutateAsync.mockResolvedValue(createListing({ ahsId: "ahs-2" }));
-
     render(
       <AhsListingLink
-        listing={createListing({ ahsId: null, ahsListing: null })}
+        listing={createListing({
+          cultivarReferenceId: null,
+          cultivarReference: null,
+          ahsListing: null,
+        })}
       />,
     );
 
@@ -153,56 +153,6 @@ describe("AhsListingLink", () => {
       expect(mockLinkAhsMutateAsync).toHaveBeenCalledWith({
         id: "listing-1",
         cultivarReferenceId: "cr-ahs-2",
-        syncName: true,
-      });
-    });
-  });
-
-  it("uses session override when set to true", async () => {
-    process.env.NEXT_PUBLIC_CULTIVAR_REFERENCE_LINKING_ENABLED = "false";
-    window.sessionStorage.setItem(
-      CULTIVAR_REFERENCE_LINKING_OVERRIDE_STORAGE_KEY,
-      "true",
-    );
-    mockLinkAhsMutateAsync.mockResolvedValue(createListing({ ahsId: "ahs-2" }));
-
-    render(
-      <AhsListingLink
-        listing={createListing({ ahsId: null, ahsListing: null })}
-      />,
-    );
-
-    fireEvent.click(screen.getByRole("button", { name: "Select AHS" }));
-
-    await waitFor(() => {
-      expect(mockLinkAhsMutateAsync).toHaveBeenCalledWith({
-        id: "listing-1",
-        cultivarReferenceId: "cr-ahs-2",
-        syncName: true,
-      });
-    });
-  });
-
-  it("uses session override when set to false", async () => {
-    process.env.NEXT_PUBLIC_CULTIVAR_REFERENCE_LINKING_ENABLED = "true";
-    window.sessionStorage.setItem(
-      CULTIVAR_REFERENCE_LINKING_OVERRIDE_STORAGE_KEY,
-      "false",
-    );
-    mockLinkAhsMutateAsync.mockResolvedValue(createListing({ ahsId: "ahs-2" }));
-
-    render(
-      <AhsListingLink
-        listing={createListing({ ahsId: null, ahsListing: null })}
-      />,
-    );
-
-    fireEvent.click(screen.getByRole("button", { name: "Select AHS" }));
-
-    await waitFor(() => {
-      expect(mockLinkAhsMutateAsync).toHaveBeenCalledWith({
-        id: "listing-1",
-        ahsId: "ahs-2",
         syncName: true,
       });
     });

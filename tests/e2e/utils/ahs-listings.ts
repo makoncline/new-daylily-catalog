@@ -32,7 +32,7 @@ export async function seedAhsListing({
   });
 
   // Auto-create corresponding CultivarReference to keep dual-write in sync
-  await db.cultivarReference.upsert({
+  const cultivarReference = await db.cultivarReference.upsert({
     where: { ahsId: ahsListing.id },
     create: {
       id: `cr-ahs-${ahsListing.id}`,
@@ -44,5 +44,8 @@ export async function seedAhsListing({
     },
   });
 
-  return ahsListing;
+  return {
+    ahsListing,
+    cultivarReferenceId: cultivarReference.id,
+  };
 }

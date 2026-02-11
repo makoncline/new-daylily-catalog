@@ -4,6 +4,7 @@ import { TRPCError } from "@trpc/server";
 import { listFormSchema, listUpdateSchema } from "@/types/schemas/list";
 import { listingInclude } from "./listing";
 import { sortTitlesLettersBeforeNumbers } from "@/lib/utils/sort-utils";
+import { withDisplayAhsListings } from "@/lib/utils/ahs-display";
 
 const listInclude = {
   id: true,
@@ -180,7 +181,9 @@ export const listRouter = createTRPCRouter({
           });
         }
 
-        return sortTitlesLettersBeforeNumbers(list.listings);
+        return sortTitlesLettersBeforeNumbers(
+          withDisplayAhsListings(list.listings),
+        );
       } catch (error) {
         console.error("Error fetching list listings:", error);
         throw new Error("Failed to fetch list listings");

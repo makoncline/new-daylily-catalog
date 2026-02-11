@@ -9,9 +9,6 @@ const DEFAULT_DB_PATH = path.join("prisma", "local-dev.sqlite");
 const LISTINGS_COUNT = 120;
 const LISTS_COUNT = 25;
 const PROFILE_SLUG = "seeded-daylily";
-const TOGGLE_DEMO_SLUG = "toggle-source-demo";
-const TOGGLE_DEMO_LEGACY_NAME = "Legacy Toggle Bloom";
-const TOGGLE_DEMO_CULTIVAR_NAME = "Cultivar Toggle Bloom";
 
 function readDbArg() {
   const args = process.argv.slice(2);
@@ -156,39 +153,6 @@ async function seed(dbUrl: string) {
       ahs.name,
     );
 
-    const legacyToggleAhs = await db.ahsListing.create({
-      data: {
-        id: "ahs-toggle-legacy",
-        name: TOGGLE_DEMO_LEGACY_NAME,
-        hybridizer: "LegacyHybridizer",
-        year: "2001",
-        bloomSeason: "E",
-        color: "Golden apricot",
-      },
-    });
-
-    const cultivarToggleAhs = await db.ahsListing.create({
-      data: {
-        id: "ahs-toggle-cultivar",
-        name: TOGGLE_DEMO_CULTIVAR_NAME,
-        hybridizer: "CultivarHybridizer",
-        year: "2019",
-        bloomSeason: "L",
-        color: "Lavender rose",
-      },
-    });
-
-    const legacyToggleCultivarReferenceId = await upsertCultivarReference(
-      db,
-      legacyToggleAhs.id,
-      legacyToggleAhs.name,
-    );
-    const cultivarToggleCultivarReferenceId = await upsertCultivarReference(
-      db,
-      cultivarToggleAhs.id,
-      cultivarToggleAhs.name,
-    );
-
     const listingIds: string[] = [];
     for (let i = 1; i <= LISTINGS_COUNT; i++) {
       const n = pad(i);
@@ -212,35 +176,7 @@ async function seed(dbUrl: string) {
         price: 30,
         description: "Linked to AHS example.",
         status: "PUBLISHED",
-        ahsId: ahs.id,
         cultivarReferenceId,
-      },
-    });
-
-    // Demo listing intentionally points legacy and cultivar-reference sources at different AHS rows.
-    await db.listing.create({
-      data: {
-        userId: user.id,
-        title: "Toggle Source Demo",
-        slug: TOGGLE_DEMO_SLUG,
-        description:
-          "Use Cmd+Option+X feature toggle menu to switch visible AHS source.",
-        ahsId: legacyToggleAhs.id,
-        cultivarReferenceId: cultivarToggleCultivarReferenceId,
-        status: "PUBLISHED",
-      },
-    });
-
-    // Keep one fully aligned listing for comparison.
-    await db.listing.create({
-      data: {
-        userId: user.id,
-        title: "Aligned Cultivar Demo",
-        slug: "aligned-cultivar-demo",
-        description: "Control listing where ahsId and cultivar reference agree.",
-        ahsId: legacyToggleAhs.id,
-        cultivarReferenceId: legacyToggleCultivarReferenceId,
-        status: "PUBLISHED",
       },
     });
 
@@ -292,16 +228,7 @@ async function main() {
   console.log("[seed-local-dev-db] Log in with: makon+clerk_test@hey.com");
   console.log("[seed-local-dev-db] Profile slug: " + PROFILE_SLUG);
   console.log(
-    "[seed-local-dev-db] Listings: " +
-      (LISTINGS_COUNT + 3) +
-      ", Lists: " +
-      LISTS_COUNT,
-  );
-  console.log(
-    `[seed-local-dev-db] Toggle demo listing slug: ${TOGGLE_DEMO_SLUG}`,
-  );
-  console.log(
-    `[seed-local-dev-db] Toggle OFF shows: ${TOGGLE_DEMO_LEGACY_NAME} | Toggle ON shows: ${TOGGLE_DEMO_CULTIVAR_NAME}`,
+    "[seed-local-dev-db] Listings: " + (LISTINGS_COUNT + 1) + ", Lists: " + LISTS_COUNT,
   );
 }
 

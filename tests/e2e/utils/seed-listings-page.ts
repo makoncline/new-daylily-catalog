@@ -117,7 +117,7 @@ export async function seedListingsPageData({
       slug: "sort-alpha-token-pack",
       price: 30,
       description: "Sort fixture alpha",
-      ahsId: sortAhsAlpha.id,
+      cultivarReferenceId: sortAhsAlpha.cultivarReferenceId,
       createdAt: new Date("2024-01-10T00:00:00.000Z"),
       updatedAt: new Date("2024-01-10T00:00:00.000Z"),
       lists: {
@@ -133,7 +133,7 @@ export async function seedListingsPageData({
       slug: "sort-bravo-token-pack",
       price: 10,
       description: "Sort fixture bravo",
-      ahsId: sortAhsBravo.id,
+      cultivarReferenceId: sortAhsBravo.cultivarReferenceId,
       createdAt: new Date("2024-02-10T00:00:00.000Z"),
       updatedAt: new Date("2024-02-10T00:00:00.000Z"),
     },
@@ -146,7 +146,7 @@ export async function seedListingsPageData({
       slug: "sort-charlie-token-pack",
       price: 20,
       description: "Sort fixture charlie",
-      ahsId: sortAhsCharlie.id,
+      cultivarReferenceId: sortAhsCharlie.cultivarReferenceId,
       createdAt: new Date("2024-03-10T00:00:00.000Z"),
       updatedAt: new Date("2024-03-10T00:00:00.000Z"),
     },
@@ -210,7 +210,7 @@ export async function seedListingsPageData({
       userId: user.id,
       title: summaryFilterTitle,
       slug: "summary-filter-fixture",
-      ahsId: summaryAhs.id,
+      cultivarReferenceId: summaryAhs.cultivarReferenceId,
     },
   });
 

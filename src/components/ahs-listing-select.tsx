@@ -17,7 +17,6 @@ import {
   CommandList,
 } from "@/components/ui/command";
 import { api } from "@/trpc/react";
-import { useCultivarReferenceLinkingEnabled } from "@/hooks/use-cultivar-reference-linking-enabled";
 
 export interface AhsSearchResult {
   id: string;
@@ -34,7 +33,6 @@ export function AhsListingSelect({
   onSelect,
   disabled,
 }: AhsListingSelectProps) {
-  const useCultivarReferenceSearch = useCultivarReferenceLinkingEnabled();
   const [open, setOpen] = useState(false);
   const [searchValue, setSearchValue] = useState("");
   const [debouncedSearchValue, setDebouncedSearchValue] = useState("");
@@ -60,7 +58,6 @@ export function AhsListingSelect({
   const ahsSearchQuery = api.ahs.search.useQuery(
     {
       query: debouncedSearchValue,
-      useCultivarReferenceSearch,
     },
     {
       enabled: debouncedSearchValue.length > 0,

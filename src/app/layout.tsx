@@ -8,7 +8,7 @@ import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@radix-ui/react-tooltip";
 import { ClerkUserProfileDialog } from "@/components/clerk-user-profile-dialog";
 import { SpeedInsights } from "@vercel/speed-insights/next";
-import { CultivarReferenceLinkingAdminMenu } from "@/components/cultivar-reference-linking-admin-menu";
+import { AdminMenu } from "@/components/admin-menu";
 
 export const metadata: Metadata = {
   title: "Daylily Catalog",
@@ -27,7 +27,7 @@ export default function RootLayout({
               <TooltipProvider>{children}</TooltipProvider>
               <Toaster />
               <ClerkUserProfileDialog />
-              <CultivarReferenceLinkingAdminMenu />
+              <AdminMenu />
               <SpeedInsights />
             </body>
           </html>
