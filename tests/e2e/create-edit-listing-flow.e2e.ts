@@ -1,8 +1,6 @@
 import { clerk } from "@clerk/testing/playwright";
 import { withTempE2EDb } from "../../src/lib/test-utils/e2e-db";
 import { TEST_USER } from "../../src/lib/test-utils/e2e-users";
-import { toSentenceCaseCultivarName } from "../../src/lib/utils/cultivar-utils";
-import { getCultivarReferenceLinkingEnvDefault } from "../../src/lib/cultivar-reference-linking";
 import { test, expect } from "./fixtures/app-fixtures";
 import {
   seedCreateEditListingData,
@@ -64,14 +62,8 @@ test.describe("create/edit listing flow @local", () => {
       await expectTableParamsCleared();
     };
 
-    const createAhsSearchDisplayName = getCultivarReferenceLinkingEnvDefault()
-      ? (toSentenceCaseCultivarName(seedMeta.createAhsName) ??
-        seedMeta.createAhsName)
-      : seedMeta.createAhsName;
-    const relinkAhsSearchDisplayName = getCultivarReferenceLinkingEnvDefault()
-      ? (toSentenceCaseCultivarName(seedMeta.relinkAhsName) ??
-        seedMeta.relinkAhsName)
-      : seedMeta.relinkAhsName;
+    const createAhsSearchDisplayName = seedMeta.createAhsName;
+    const relinkAhsSearchDisplayName = seedMeta.relinkAhsName;
 
     // Phase A: auth + listings entry
     await page.goto("/");

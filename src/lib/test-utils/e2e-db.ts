@@ -113,6 +113,7 @@ export async function withTempE2EDb<T>(
       await db.list.deleteMany();
       await db.listing.deleteMany();
       await db.userProfile.deleteMany();
+      await db.cultivarReference.deleteMany();
       await db.ahsListing.deleteMany();
       await db.keyValue.deleteMany();
       await db.user.deleteMany();

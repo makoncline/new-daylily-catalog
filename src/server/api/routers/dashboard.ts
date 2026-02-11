@@ -53,7 +53,7 @@ export const dashboardRouter = createTRPCRouter({
       ctx.db.listing.count({
         where: {
           userId: ctx.user.id,
-          ahsId: { not: null },
+          cultivarReferenceId: { not: null },
         },
       }),
       // Calculate price stats (only for listings with non-null prices)
