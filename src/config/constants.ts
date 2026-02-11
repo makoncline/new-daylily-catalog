@@ -101,6 +101,12 @@ export const METADATA_CONFIG = {
   LOCALE: "en_US",
 } as const;
 
+export const PUBLIC_ROUTES_CONFIG = {
+  // Default: only prebuild cultivar pages that currently have linked listings.
+  // Set to true and redeploy to prebuild pages for all cultivar references.
+  GENERATE_ALL_CULTIVAR_PAGES: false,
+} as const;
+
 export const PRO_FEATURES = [
   {
     id: "listings",
@@ -133,6 +139,7 @@ export const APP_CONFIG = {
   TABLE: TABLE_CONFIG,
   CACHE: CACHE_CONFIG,
   METADATA: METADATA_CONFIG,
+  PUBLIC_ROUTES: PUBLIC_ROUTES_CONFIG,
 } as const;
 
 export const STATUS = {

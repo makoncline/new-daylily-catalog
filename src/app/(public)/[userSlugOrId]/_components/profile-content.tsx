@@ -2,7 +2,6 @@
 
 import * as React from "react";
 import { type RouterOutputs } from "@/trpc/react";
-import { useRouter } from "next/navigation";
 import { CatalogNav } from "./catalog-nav";
 import { ContentSection } from "./content-section";
 import { ImagesSection } from "./images-section";
@@ -15,15 +14,6 @@ interface ProfileContentProps {
 }
 
 export function ProfileContent({ initialProfile }: ProfileContentProps) {
-  const router = useRouter();
-
-  // Handle redirect if we have a slug
-  React.useEffect(() => {
-    if (initialProfile?.slug) {
-      router.replace(`/${initialProfile.slug}`);
-    }
-  }, [initialProfile?.slug, router]);
-
   if (!initialProfile) return null;
 
   return (

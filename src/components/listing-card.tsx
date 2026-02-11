@@ -33,23 +33,6 @@ export function ListingCard({ listing, priority = false }: ListingCardProps) {
   const firstImage = listing.images[0];
   const hasMultipleImages = listing.images.length > 1;
 
-  // Generate all possible URL variations for SEO
-  const urlVariations = [
-    // Canonical path (always first)
-    `/${listing.userId}/${listing.id}`,
-  ];
-
-  // Add slug-based variants if they exist
-  if (listing.user.profile?.slug && listing.slug) {
-    urlVariations.push(`/${listing.user.profile.slug}/${listing.slug}`); // Slug/Slug
-  }
-  if (listing.user.profile?.slug) {
-    urlVariations.push(`/${listing.user.profile.slug}/${listing.id}`); // Slug/ID
-  }
-  if (listing.slug) {
-    urlVariations.push(`/${listing.userId}/${listing.slug}`); // ID/Slug
-  }
-
   return (
     <Card
       className="group relative flex h-full cursor-pointer flex-col overflow-hidden transition-all hover:border-primary"

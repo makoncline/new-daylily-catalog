@@ -14,6 +14,7 @@ import {
   listingSelect,
   transformListings,
 } from "@/server/db/getPublicListings";
+import { getPublicCultivarPage } from "@/server/db/getPublicCultivars";
 import { SESClient, SendEmailCommand } from "@aws-sdk/client-ses";
 import { env } from "@/env";
 import { cartItemSchema } from "@/types";
@@ -173,6 +174,27 @@ export const publicRouter = createTRPCRouter({
         throw new TRPCError({
           code: "INTERNAL_SERVER_ERROR",
           message: "Failed to fetch listing",
+        });
+      }
+    }),
+
+  getCultivarPage: publicProcedure
+    .input(
+      z.object({
+        cultivarNormalizedName: z.string(),
+      }),
+    )
+    .query(async ({ input }) => {
+      try {
+        return await getPublicCultivarPage(input.cultivarNormalizedName);
+      } catch (error) {
+        if (error instanceof TRPCError) {
+          throw error;
+        }
+        console.error("Error fetching cultivar page:", error);
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "Failed to fetch cultivar page",
         });
       }
     }),

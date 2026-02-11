@@ -7,7 +7,7 @@ import { getPublicProfile } from "@/server/db/getPublicProfile";
 import { getInitialListings } from "@/server/db/getPublicListings";
 import { Suspense } from "react";
 import { getBaseUrl } from "@/lib/utils/getBaseUrl";
-import { notFound } from "next/navigation";
+import { notFound, permanentRedirect } from "next/navigation";
 import { getErrorCode, tryCatch } from "@/lib/utils";
 import { generateProfileMetadata } from "./_seo/metadata";
 import { CatalogContent } from "./_components/catalog-content";
@@ -83,6 +83,11 @@ export default async function Page({ params }: PageProps) {
   // Type safety - at this point we know we have data
   const initialProfile = profileResult.data;
   const initialListings = listingsResult.data ?? [];
+
+  const canonicalUserSlug = initialProfile.slug ?? initialProfile.id;
+  if (userSlugOrId !== canonicalUserSlug) {
+    permanentRedirect(`/${canonicalUserSlug}`);
+  }
 
   // Generate metadata
   const baseUrl = getBaseUrl();

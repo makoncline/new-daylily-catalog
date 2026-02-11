@@ -42,7 +42,7 @@ export async function ProfilePageSEO({
       baseUrl,
       profile.title ?? "Daylily Catalog",
       profile.slug ?? profile.id,
-      profile.id,
+      profile.slug ?? profile.id,
     ),
   );
 
