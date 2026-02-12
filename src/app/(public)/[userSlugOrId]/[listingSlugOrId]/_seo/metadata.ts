@@ -9,6 +9,7 @@ import {
 import { unstable_cache } from "next/cache";
 import { normalizeError, reportError } from "@/lib/error-utils";
 import { METADATA_CONFIG } from "@/config/constants";
+import { PUBLIC_CACHE_CONFIG } from "@/config/public-cache-config";
 
 // Base function for generating metadata
 async function createListingMetadata(listing: Listing | null, url: string) {
@@ -118,7 +119,7 @@ export function generateListingMetadata(listing: Listing | null, url: string) {
     async () => createListingMetadata(listing, url),
     [`metadata-${listing?.id ?? "not-found"}`], // Cache key specific to this listing
     {
-      revalidate: 3600, // Match page revalidation setting
+      revalidate: PUBLIC_CACHE_CONFIG.REVALIDATE_SECONDS.DATA.LISTING_METADATA,
     },
   )();
 }

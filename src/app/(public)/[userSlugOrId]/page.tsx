@@ -12,8 +12,9 @@ import { getErrorCode, tryCatch } from "@/lib/utils";
 import { generateProfileMetadata } from "./_seo/metadata";
 import { CatalogContent } from "./_components/catalog-content";
 import { ProfilePageSEO } from "./_components/profile-seo";
+import { PUBLIC_CACHE_CONFIG } from "@/config/public-cache-config";
 
-export const revalidate = 3600;
+export const revalidate = 86400;
 export const dynamicParams = true;
 
 export async function generateStaticParams() {
@@ -57,13 +58,13 @@ export default async function Page({ params, searchParams }: PageProps) {
   const getProfile = unstable_cache(
     async () => getPublicProfile(userSlugOrId),
     ["profile", userSlugOrId],
-    { revalidate: 3600 },
+    { revalidate: PUBLIC_CACHE_CONFIG.REVALIDATE_SECONDS.PAGE.PROFILE },
   );
 
   const getListings = unstable_cache(
     async () => getInitialListings(userSlugOrId),
     ["listings", userSlugOrId, "initial"],
-    { revalidate: 3600 },
+    { revalidate: PUBLIC_CACHE_CONFIG.REVALIDATE_SECONDS.PAGE.PROFILE },
   );
 
   // Use Promise.all with our tryCatch utility to fetch both in parallel

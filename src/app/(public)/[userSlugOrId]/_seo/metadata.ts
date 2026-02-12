@@ -3,6 +3,7 @@ import { getOptimizedMetaImageUrl } from "@/lib/utils/cloudflareLoader";
 import { unstable_cache } from "next/cache";
 import { reportError } from "@/lib/error-utils";
 import { METADATA_CONFIG } from "@/config/constants";
+import { PUBLIC_CACHE_CONFIG } from "@/config/public-cache-config";
 
 // Optimal meta description length
 const MIN_DESCRIPTION_LENGTH = 70;
@@ -151,6 +152,6 @@ export function generateProfileMetadata(
   return unstable_cache(
     async () => createProfileMetadata(profile, url),
     [`profile-metadata-${profile?.id ?? "not-found"}`],
-    { revalidate: 3600 },
+    { revalidate: PUBLIC_CACHE_CONFIG.REVALIDATE_SECONDS.DATA.PROFILE_METADATA },
   )();
 }

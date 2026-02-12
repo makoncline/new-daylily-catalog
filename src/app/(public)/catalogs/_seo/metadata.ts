@@ -4,6 +4,7 @@ import { unstable_cache } from "next/cache";
 import { reportError } from "@/lib/error-utils";
 import { type CatalogsPageMetadata } from "./types";
 import { METADATA_CONFIG } from "@/config/constants";
+import { PUBLIC_CACHE_CONFIG } from "@/config/public-cache-config";
 
 // Optimal meta description length
 const MIN_DESCRIPTION_LENGTH = 70;
@@ -80,6 +81,6 @@ export function generateCatalogsPageMetadata(
   return unstable_cache(
     async () => createCatalogsPageMetadata(url),
     ["catalogs-page-metadata"],
-    { revalidate: 3600 },
+    { revalidate: PUBLIC_CACHE_CONFIG.REVALIDATE_SECONDS.DATA.CATALOGS_METADATA },
   )();
 }

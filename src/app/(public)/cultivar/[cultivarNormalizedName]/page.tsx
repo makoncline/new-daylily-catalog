@@ -20,7 +20,7 @@ import { CultivarOffersSection } from "./_components/cultivar-offers-section";
 import { CultivarRelatedSection } from "./_components/cultivar-related-section";
 import { Muted } from "@/components/typography";
 
-export const revalidate = 3600;
+export const revalidate = 86400;
 export const dynamicParams = true;
 
 const getCultivarRouteSegmentsCached = cache(getCultivarRouteSegments);
