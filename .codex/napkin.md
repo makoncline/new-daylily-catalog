@@ -2,6 +2,7 @@
 
 ## Log
 
+- 2026-02-12 - prisma artifacts - Do not commit generated Prisma client output (`prisma/generated/sqlite-client`) or SQLite DB files; commit schema + migration/source changes only.
 - 2026-02-12 - next route config - Route-segment exports like `export const revalidate` and `export const dynamicParams` must stay literal in the page file; imported config/object property values can fail static parsing.
 - 2026-02-12 - profile deep-link UX - For `?viewing=` on public profile, avoid transient “Listing not found”; fetch `public.getListing` when the ID is not in loaded pages and show a loading state until query resolves.
 - 2026-02-12 - cleanup preference - For agent cleanup passes, user prefers concise readable code with minimal defensive noise; keep composition explicit and align tests to current data contracts (e.g. AHS-only hero images).
