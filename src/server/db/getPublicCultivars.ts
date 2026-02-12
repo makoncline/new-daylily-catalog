@@ -11,6 +11,22 @@ const publicListingVisibilityFilter = {
   OR: [{ status: null }, { NOT: { status: STATUS.HIDDEN } }],
 };
 
+const getCultivarReferenceWhereClause = () =>
+  APP_CONFIG.PUBLIC_ROUTES.GENERATE_ALL_CULTIVAR_PAGES
+    ? {
+        normalizedName: {
+          not: null,
+        },
+      }
+    : {
+        normalizedName: {
+          not: null,
+        },
+        listings: {
+          some: publicListingVisibilityFilter,
+        },
+      };
+
 const cultivarAhsListingSelect = {
   id: true,
   name: true,
@@ -36,20 +52,7 @@ const cultivarAhsListingSelect = {
 
 export async function getCultivarRouteSegments(): Promise<string[]> {
   const cultivars = await db.cultivarReference.findMany({
-    where: APP_CONFIG.PUBLIC_ROUTES.GENERATE_ALL_CULTIVAR_PAGES
-      ? {
-          normalizedName: {
-            not: null,
-          },
-        }
-      : {
-          normalizedName: {
-            not: null,
-          },
-          listings: {
-            some: publicListingVisibilityFilter,
-          },
-        },
+    where: getCultivarReferenceWhereClause(),
     select: {
       normalizedName: true,
     },
@@ -65,6 +68,68 @@ export async function getCultivarRouteSegments(): Promise<string[]> {
   });
 
   return Array.from(uniqueSegments).sort();
+}
+
+export async function getCultivarSitemapEntries(): Promise<
+  Array<{
+    segment: string;
+    lastModified?: Date;
+  }>
+> {
+  const cultivars = await db.cultivarReference.findMany({
+    where: getCultivarReferenceWhereClause(),
+    select: {
+      normalizedName: true,
+      updatedAt: true,
+      listings: {
+        where: publicListingVisibilityFilter,
+        orderBy: {
+          updatedAt: "desc",
+        },
+        take: 1,
+        select: {
+          updatedAt: true,
+        },
+      },
+    },
+  });
+
+  const segmentMap = new Map<
+    string,
+    {
+      segment: string;
+      lastModified?: Date;
+    }
+  >();
+
+  cultivars.forEach((cultivar) => {
+    const segment = toCultivarRouteSegment(cultivar.normalizedName);
+    if (!segment) {
+      return;
+    }
+
+    const linkedListingUpdatedAt = cultivar.listings[0]?.updatedAt;
+    const cultivarLastModified =
+      linkedListingUpdatedAt &&
+      linkedListingUpdatedAt.getTime() > cultivar.updatedAt.getTime()
+        ? linkedListingUpdatedAt
+        : cultivar.updatedAt;
+
+    const existingSegmentEntry = segmentMap.get(segment);
+    if (
+      !existingSegmentEntry?.lastModified ||
+      cultivarLastModified.getTime() > existingSegmentEntry.lastModified.getTime()
+    ) {
+      segmentMap.set(segment, {
+        segment,
+        lastModified: cultivarLastModified,
+      });
+    }
+  });
+
+  return Array.from(segmentMap.values()).sort((a, b) =>
+    a.segment.localeCompare(b.segment),
+  );
 }
 
 export async function getPublicCultivarPage(

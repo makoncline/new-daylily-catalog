@@ -5,6 +5,8 @@ import { MainContent } from "@/app/(public)/_components/main-content";
 import { Breadcrumbs } from "@/components/breadcrumbs";
 import { CultivarCatalogCard } from "@/components/cultivar-catalog-card";
 import { METADATA_CONFIG } from "@/config/constants";
+import { IMAGES } from "@/lib/constants/images";
+import { getOptimizedMetaImageUrl } from "@/lib/utils/cloudflareLoader";
 import { getBaseUrl } from "@/lib/utils/getBaseUrl";
 import {
   toCultivarRouteSegment,
@@ -82,6 +84,9 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   );
   const description = `${cultivarName} available across ${cultivarPage.catalogs.length} pro ${cultivarPage.catalogs.length === 1 ? "catalog" : "catalogs"} with ${listingCount} linked ${listingCount === 1 ? "listing" : "listings"}.`;
   const pageUrl = `${baseUrl}/cultivar/${canonicalSegment}`;
+  const rawImageUrl =
+    cultivarPage.cultivar.ahsListing?.ahsImageUrl ?? IMAGES.DEFAULT_META;
+  const imageUrl = getOptimizedMetaImageUrl(rawImageUrl);
 
   return {
     title,
@@ -96,12 +101,21 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
       siteName: METADATA_CONFIG.SITE_NAME,
       locale: METADATA_CONFIG.LOCALE,
       type: "website",
+      images: [
+        {
+          url: imageUrl,
+          width: 1200,
+          height: 630,
+          alt: `${cultivarName} daylily cultivar`,
+        },
+      ],
     },
     twitter: {
       card: METADATA_CONFIG.TWITTER_CARD_TYPE,
       title,
       description,
       site: METADATA_CONFIG.TWITTER_HANDLE,
+      images: [imageUrl],
     },
   };
 }

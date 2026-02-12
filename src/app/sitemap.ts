@@ -2,7 +2,7 @@ import { db } from "@/server/db";
 import { getBaseUrl } from "@/lib/utils/getBaseUrl";
 import { type MetadataRoute } from "next";
 import { STATUS } from "@/config/constants";
-import { getCultivarRouteSegments } from "@/server/db/getPublicCultivars";
+import { getCultivarSitemapEntries } from "@/server/db/getPublicCultivars";
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const baseUrl = getBaseUrl();
@@ -51,11 +51,15 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     });
   });
 
-  const cultivarSegments = await getCultivarRouteSegments();
-  cultivarSegments.forEach((segment) => {
+  const cultivarEntries = await getCultivarSitemapEntries();
+  cultivarEntries.forEach((cultivar) => {
     sitemap.push({
-      url: `${baseUrl}/cultivar/${segment}`,
-      lastModified: new Date(),
+      url: `${baseUrl}/cultivar/${cultivar.segment}`,
+      ...(cultivar.lastModified
+        ? {
+            lastModified: cultivar.lastModified,
+          }
+        : {}),
       changeFrequency: "weekly",
       priority: 0.7,
     });

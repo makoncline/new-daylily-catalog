@@ -26,7 +26,10 @@ vi.mock("@/server/stripe/sync-subscription", () => ({
     mockGetStripeSubscription(...args),
 }));
 
-import { getPublicCultivarPage } from "@/server/db/getPublicCultivars";
+import {
+  getCultivarSitemapEntries,
+  getPublicCultivarPage,
+} from "@/server/db/getPublicCultivars";
 
 describe("getPublicCultivarPage", () => {
   beforeEach(() => {
@@ -252,5 +255,44 @@ describe("getPublicCultivarPage", () => {
         catalog.cultivarListings.map((listing) => listing.id),
       ),
     ).not.toContain("listing-non-pro");
+  });
+});
+
+describe("getCultivarSitemapEntries", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("uses cultivar/listing updated times and keeps canonical slug ordering stable", async () => {
+    mockDb.cultivarReference.findMany.mockResolvedValue([
+      {
+        normalizedName: "coffee frenzy",
+        updatedAt: new Date("2026-01-01T00:00:00.000Z"),
+        listings: [{ updatedAt: new Date("2026-01-03T00:00:00.000Z") }],
+      },
+      {
+        normalizedName: "coffee-frenzy",
+        updatedAt: new Date("2026-01-02T00:00:00.000Z"),
+        listings: [],
+      },
+      {
+        normalizedName: "apple blossom",
+        updatedAt: new Date("2026-01-05T00:00:00.000Z"),
+        listings: [{ updatedAt: new Date("2026-01-04T00:00:00.000Z") }],
+      },
+    ]);
+
+    const result = await getCultivarSitemapEntries();
+
+    expect(result).toEqual([
+      {
+        segment: "apple-blossom",
+        lastModified: new Date("2026-01-05T00:00:00.000Z"),
+      },
+      {
+        segment: "coffee-frenzy",
+        lastModified: new Date("2026-01-03T00:00:00.000Z"),
+      },
+    ]);
   });
 });
