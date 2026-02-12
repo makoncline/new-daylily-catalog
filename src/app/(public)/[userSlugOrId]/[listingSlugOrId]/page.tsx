@@ -1,5 +1,8 @@
-import { STATUS } from "@/config/constants";
 import { db } from "@/server/db";
+import {
+  getListingIdFromSlugOrId,
+  getUserIdFromSlugOrId,
+} from "@/server/db/getPublicProfile";
 import { notFound, permanentRedirect } from "next/navigation";
 
 interface PageProps {
@@ -9,16 +12,21 @@ interface PageProps {
   }>;
 }
 
-const publicListingVisibilityFilter = {
-  OR: [{ status: null }, { NOT: { status: STATUS.HIDDEN } }],
-};
-
 export default async function LegacyListingRedirectPage({ params }: PageProps) {
   const { userSlugOrId, listingSlugOrId } = await params;
 
-  // Only redirect canonical legacy listing paths: /:userId/:listingId
+  let userId: string;
+  let listingId: string;
+
+  try {
+    userId = await getUserIdFromSlugOrId(userSlugOrId);
+    listingId = await getListingIdFromSlugOrId(listingSlugOrId, userId);
+  } catch {
+    notFound();
+  }
+
   const user = await db.user.findUnique({
-    where: { id: userSlugOrId },
+    where: { id: userId },
     select: {
       id: true,
       profile: {
@@ -33,21 +41,6 @@ export default async function LegacyListingRedirectPage({ params }: PageProps) {
     notFound();
   }
 
-  const listing = await db.listing.findFirst({
-    where: {
-      id: listingSlugOrId,
-      userId: user.id,
-      ...publicListingVisibilityFilter,
-    },
-    select: {
-      id: true,
-    },
-  });
-
-  if (!listing) {
-    notFound();
-  }
-
   const canonicalUserSlug = user.profile?.slug ?? user.id;
-  permanentRedirect(`/${canonicalUserSlug}?viewing=${listing.id}`);
+  permanentRedirect(`/${canonicalUserSlug}?viewing=${listingId}`);
 }

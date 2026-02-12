@@ -3,6 +3,7 @@ import { type E2EPrismaClient, withTempE2EDb } from "../../src/lib/test-utils/e2
 import { seedAhsListing } from "./utils/ahs-listings";
 
 const CULTIVAR_SEGMENT = "coffee-frenzy";
+let topCatalogUserId = "";
 
 async function seedSubscription(
   db: E2EPrismaClient,
@@ -163,6 +164,7 @@ test.describe("cultivar guest flow @local", () => {
         location: "Picayune Mississippi",
         isPro: true,
       });
+      topCatalogUserId = topCatalog.user.id;
 
       const alphaCatalog = await createCatalogUser({
         db,
@@ -412,5 +414,17 @@ test.describe("cultivar guest flow @local", () => {
     await expect(page).toHaveURL(
       /\/top-pro\?lists=(list-top-show|%22list-top-show%22)#listings$/,
     );
+
+    await page.goto("/top-pro/listing-top-prime");
+    await expect(page).toHaveURL(/\/top-pro\?viewing=listing-top-prime$/);
+
+    await page.goto("/top-pro/coffee-frenzy-prime-fan");
+    await expect(page).toHaveURL(/\/top-pro\?viewing=listing-top-prime$/);
+
+    await page.goto(`/${topCatalogUserId}/listing-top-prime`);
+    await expect(page).toHaveURL(/\/top-pro\?viewing=listing-top-prime$/);
+
+    await page.goto(`/${topCatalogUserId}/coffee-frenzy-prime-fan`);
+    await expect(page).toHaveURL(/\/top-pro\?viewing=listing-top-prime$/);
   });
 });
