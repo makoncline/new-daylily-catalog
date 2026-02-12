@@ -34,44 +34,44 @@ export function CultivarCard({
   return (
     <Link
       href={cultivarUrl}
-      className={cn("block h-full w-full max-w-[80vw] md:w-[300px]", className)}
+      className={cn("block h-full w-[220px] min-w-[220px]", className)}
     >
-      <Card className="group hover:border-primary relative flex h-full cursor-pointer flex-row overflow-hidden transition-all">
-        <div className="relative shrink-0 self-stretch">
+      <Card className="group hover:border-primary relative flex h-full cursor-pointer flex-col overflow-hidden transition-all">
+        <div className="relative aspect-square w-full">
           {cultivar.imageUrl ? (
-            <div className="h-full aspect-square overflow-hidden">
+            <div className="h-full w-full overflow-hidden">
               <OptimizedImage
                 src={cultivar.imageUrl}
                 alt={cultivar.name}
-                size="thumbnail"
+                size="full"
                 priority={priority}
                 className="h-full w-full object-cover"
               />
             </div>
           ) : (
-            <div className="bg-muted/20 h-full aspect-square" />
+            <div className="bg-muted/20 h-full w-full" />
           )}
         </div>
 
-        <CardContent className="flex flex-1 flex-col p-4">
-          <div className="flex flex-1 flex-col justify-between gap-4">
-            <div className="space-y-2">
-              <H3>
-                <TruncatedText text={cultivar.name} lines={1} />
-              </H3>
+        <CardContent className="flex flex-1 flex-col p-3">
+          <div className="space-y-2">
+            <H3 className="text-2xl leading-tight">
+              <TruncatedText text={cultivar.name} lines={1} />
+            </H3>
 
-              {secondaryLine && (
-                <Badge variant="secondary" className="inline-flex items-center">
-                  <TruncatedText text={secondaryLine} lines={1} />
-                </Badge>
-              )}
+            {secondaryLine && (
+              <Badge variant="secondary" className="inline-flex items-center text-xs">
+                <TruncatedText text={secondaryLine} lines={1} />
+              </Badge>
+            )}
 
-              {description && (
-                <p className="text-muted-foreground text-sm break-words">
-                  {description}
-                </p>
-              )}
-            </div>
+            {description && (
+              <TruncatedText
+                text={description}
+                lines={2}
+                className="text-muted-foreground text-xs"
+              />
+            )}
           </div>
         </CardContent>
       </Card>
@@ -81,11 +81,11 @@ export function CultivarCard({
 
 export function CultivarCardSkeleton() {
   return (
-    <Card className="group flex h-full max-w-[200px] flex-col overflow-hidden">
+    <Card className="group flex h-full w-[220px] min-w-[220px] flex-col overflow-hidden">
       <div className="relative">
         <div className="bg-muted aspect-square" />
       </div>
-      <CardContent className="flex flex-1 flex-col p-4">
+      <CardContent className="flex flex-1 flex-col p-3">
         <div className="flex flex-1 flex-col justify-between gap-4">
           <div className="space-y-2">
             <div className="bg-muted h-6 w-3/4 rounded" />
