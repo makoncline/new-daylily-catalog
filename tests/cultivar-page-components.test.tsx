@@ -1,5 +1,5 @@
 import { fireEvent, render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { CultivarGallery } from "@/app/(public)/cultivar/[cultivarNormalizedName]/_components/cultivar-gallery";
 import { CultivarQuickSpecs } from "@/app/(public)/cultivar/[cultivarNormalizedName]/_components/cultivar-quick-specs";
 import {
@@ -17,6 +17,17 @@ type QuickSpec = CultivarPageOutput["quickSpecs"]["all"][number];
 type Offer = CultivarPageOutput["offers"]["gardenCards"][number]["offers"][number];
 
 describe("cultivar page components", () => {
+  beforeEach(() => {
+    if (!navigator.clipboard) {
+      Object.defineProperty(navigator, "clipboard", {
+        value: { writeText: vi.fn() },
+        configurable: true,
+      });
+    }
+
+    vi.spyOn(navigator.clipboard, "writeText").mockResolvedValue();
+  });
+
   it("swaps the hero image when a thumbnail is clicked", () => {
     const images: HeroImage[] = [
       {
@@ -48,7 +59,7 @@ describe("cultivar page components", () => {
     expect(screen.getAllByRole("img", { name: /listing image/i })[0]).toBeVisible();
   });
 
-  it("expands quick specs to show all fields", () => {
+  it("expands quick specs and copy includes summary details + all fields", async () => {
     const topSpecs: QuickSpec[] = [
       { label: "Bloom Season", value: "Midseason" },
       { label: "Ploidy", value: "Tet" },
@@ -60,7 +71,15 @@ describe("cultivar page components", () => {
       { label: "Branches", value: "5" },
     ];
 
-    render(<CultivarQuickSpecs topSpecs={topSpecs} allSpecs={allSpecs} />);
+    render(
+      <CultivarQuickSpecs
+        cultivarName="Coffee Frenzy"
+        hybridizer="Reed"
+        year="2012"
+        topSpecs={topSpecs}
+        allSpecs={allSpecs}
+      />,
+    );
 
     expect(screen.queryByText("Fragrance")).not.toBeInTheDocument();
 
@@ -68,6 +87,21 @@ describe("cultivar page components", () => {
 
     expect(screen.getByText("Fragrance")).toBeVisible();
     expect(screen.getByText("Branches")).toBeVisible();
+
+    fireEvent.click(screen.getByRole("button", { name: /copy specs/i }));
+
+    expect(navigator.clipboard.writeText).toHaveBeenCalledWith(
+      expect.stringContaining("Name: Coffee Frenzy"),
+    );
+    expect(navigator.clipboard.writeText).toHaveBeenCalledWith(
+      expect.stringContaining("Hybridizer: Reed"),
+    );
+    expect(navigator.clipboard.writeText).toHaveBeenCalledWith(
+      expect.stringContaining("Year: 2012"),
+    );
+    expect(navigator.clipboard.writeText).toHaveBeenCalledWith(
+      expect.stringContaining("Fragrance: Light"),
+    );
   });
 
   it("builds offer links and does not render add-to-cart controls", () => {
@@ -100,6 +134,7 @@ describe("cultivar page components", () => {
       "href",
       "/seeded-daylily?lists=list-1#listings",
     );
+    expect(screen.queryByRole("link", { name: /contact/i })).not.toBeInTheDocument();
     expect(screen.queryByText(/add to cart/i)).not.toBeInTheDocument();
   });
 
@@ -120,7 +155,7 @@ describe("cultivar page components", () => {
       />,
     );
 
-    expect(screen.getByRole("heading", { level: 2, name: /photos in gardens/i })).toBeVisible();
+    expect(screen.getByRole("heading", { level: 2, name: /photos in catalogs/i })).toBeVisible();
     expect(screen.queryByText(/add a photo/i)).not.toBeInTheDocument();
   });
 });

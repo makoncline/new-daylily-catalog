@@ -22,6 +22,9 @@ export function CultivarHeroSection({ cultivarPage }: CultivarHeroSectionProps) 
       <div className="space-y-6 lg:col-span-6">
         <CultivarSummaryPanel summary={cultivarPage.summary} />
         <CultivarQuickSpecs
+          cultivarName={cultivarPage.summary.name}
+          hybridizer={cultivarPage.summary.hybridizer}
+          year={cultivarPage.summary.year}
           topSpecs={cultivarPage.quickSpecs.top}
           allSpecs={cultivarPage.quickSpecs.all}
         />

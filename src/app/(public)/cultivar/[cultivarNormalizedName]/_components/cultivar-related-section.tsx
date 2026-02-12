@@ -42,7 +42,7 @@ export function CultivarRelatedSection({
               src={cultivar.imageUrl}
               alt={`${cultivar.name} cultivar image`}
               size="full"
-              className="h-44 w-full object-cover transition-transform duration-200 group-hover:scale-[1.03]"
+              className="aspect-square w-full object-cover transition-transform duration-200 group-hover:scale-[1.03]"
             />
 
             <div className="space-y-2 p-3">

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowUpRight, MessageCircleMore } from "lucide-react";
+import { ArrowUpRight } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { OptimizedImage } from "@/components/optimized-image";
@@ -31,24 +31,24 @@ export function CultivarOfferRow({ sellerSlug, offer }: CultivarOfferRowProps) {
 
   return (
     <div
-      className="grid gap-4 rounded-lg border p-4 lg:grid-cols-[110px_1fr_auto]"
+      className="flex items-start gap-4 rounded-lg border p-4"
       data-testid="cultivar-offer-row"
       data-listing-id={offer.id}
     >
       {offer.previewImageUrl ? (
-        <Link href={listingHref} className="overflow-hidden rounded-md border">
+        <Link href={listingHref} className="h-24 w-24 shrink-0 overflow-hidden rounded-md border">
           <OptimizedImage
             src={offer.previewImageUrl}
             alt={`${offer.title} listing image`}
-            className="h-24 w-full object-cover"
+            className="h-24 w-24 object-cover"
             size="thumbnail"
           />
         </Link>
       ) : (
-        <div className="h-24 rounded-md border bg-muted/20" />
+        <div className="h-24 w-24 shrink-0 rounded-md border bg-muted/20" />
       )}
 
-      <div className="space-y-3">
+      <div className="min-w-0 flex-1 space-y-3">
         <div className="space-y-2">
           <Link href={listingHref} className="text-2xl font-semibold leading-tight hover:underline">
             {offer.title}
@@ -88,18 +88,11 @@ export function CultivarOfferRow({ sellerSlug, offer }: CultivarOfferRowProps) {
         )}
       </div>
 
-      <div className="flex items-start gap-2 lg:flex-col">
+      <div className="shrink-0">
         <Button asChild variant="outline" size="sm">
           <Link href={listingHref}>
             View Details
             <ArrowUpRight className="h-4 w-4" />
-          </Link>
-        </Button>
-
-        <Button asChild size="sm">
-          <Link href={listingHref}>
-            Contact
-            <MessageCircleMore className="h-4 w-4" />
           </Link>
         </Button>
       </div>

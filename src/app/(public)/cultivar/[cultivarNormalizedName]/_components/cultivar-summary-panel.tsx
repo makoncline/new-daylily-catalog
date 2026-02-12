@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { ArrowRight, Share2 } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { H1, Muted } from "@/components/typography";
 import { type RouterOutputs } from "@/trpc/react";
@@ -42,21 +41,11 @@ export function CultivarSummaryPanel({ summary }: CultivarSummaryPanelProps) {
         )}
       </div>
 
-      {summary.traitChips.length > 0 && (
-        <div className="flex flex-wrap gap-2">
-          {summary.traitChips.slice(0, 10).map((chip) => (
-            <Badge key={chip} variant="secondary" className="text-sm font-medium">
-              {chip}
-            </Badge>
-          ))}
-        </div>
-      )}
-
       <div className="flex flex-wrap items-center gap-3">
         <Button asChild size="lg" className="min-w-64 justify-between">
           <Link href="#offers">
             <span>
-              Available from {summary.gardensCount} {summary.gardensCount === 1 ? "garden" : "gardens"}
+              Available from {summary.gardensCount} {summary.gardensCount === 1 ? "catalog" : "catalogs"}
             </span>
             <ArrowRight className="h-4 w-4" />
           </Link>
@@ -67,8 +56,6 @@ export function CultivarSummaryPanel({ summary }: CultivarSummaryPanelProps) {
           <span className="sr-only">Share cultivar page</span>
         </Button>
       </div>
-
-      <Muted className="text-base">Specs from AHS data • Photos from gardens</Muted>
     </section>
   );
 }

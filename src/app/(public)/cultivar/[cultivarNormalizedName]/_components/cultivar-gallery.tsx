@@ -32,7 +32,7 @@ export function CultivarGallery({ images, cultivarName }: CultivarGalleryProps) 
           alt={selectedImage.alt ?? `${cultivarName} image`}
           size="full"
           priority
-          className="max-h-[560px] w-full object-cover"
+          className="aspect-square w-full object-cover"
         />
       </div>
 

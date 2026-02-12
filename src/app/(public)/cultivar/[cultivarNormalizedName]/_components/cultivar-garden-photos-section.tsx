@@ -19,7 +19,7 @@ export function CultivarGardenPhotosSection({
 
   return (
     <section id="photos" aria-label="Photos" className="space-y-4">
-      <H2>Photos in Gardens</H2>
+      <H2>Photos in Catalogs</H2>
 
       <div className="grid gap-3 grid-cols-2 sm:grid-cols-3 lg:grid-cols-4">
         {photos.map((photo) => {
@@ -32,12 +32,12 @@ export function CultivarGardenPhotosSection({
               className="group space-y-2"
               aria-label={`View ${photo.listingTitle} from ${photo.sellerTitle}`}
             >
-              <div className="overflow-hidden rounded-lg border">
+              <div className="aspect-square overflow-hidden rounded-lg border">
                 <OptimizedImage
                   src={photo.url}
                   alt={`${photo.listingTitle} from ${photo.sellerTitle}`}
                   size="full"
-                  className="h-36 w-full object-cover transition-transform duration-200 group-hover:scale-[1.03]"
+                  className="h-full w-full object-cover transition-transform duration-200 group-hover:scale-[1.03]"
                 />
               </div>
 

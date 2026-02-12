@@ -380,12 +380,12 @@ test.describe("cultivar guest flow @local", () => {
     await expect(page.getByText("Bloom Season")).toBeVisible();
 
     await expect(
-      page.getByRole("heading", { level: 2, name: "Photos in Gardens" }),
+      page.getByRole("heading", { level: 2, name: "Photos in Catalogs" }),
     ).toBeVisible();
     await expect(page.getByText(/add a photo/i)).toHaveCount(0);
 
     await expect(
-      page.getByRole("heading", { level: 2, name: "Available in Gardens" }),
+      page.getByRole("heading", { level: 2, name: "Available in Catalogs" }),
     ).toBeVisible();
 
     const gardenOrder = await page

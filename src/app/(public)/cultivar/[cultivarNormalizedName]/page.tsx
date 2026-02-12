@@ -63,7 +63,7 @@ function getCultivarJsonLd(
     "@context": "https://schema.org",
     "@type": "Product",
     name: cultivarPage.summary.name,
-    description: `${cultivarPage.summary.name} cultivar page with specs and public garden offers.`,
+    description: `${cultivarPage.summary.name} cultivar page with specs and public catalog offers.`,
     url: pageUrl,
     image: cultivarPage.heroImages.map((image) => image.url),
     category: "Daylily Cultivar",
@@ -122,7 +122,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   }
 
   const title = `${cultivarPage.summary.name} | ${METADATA_CONFIG.SITE_NAME}`;
-  const description = `${cultivarPage.summary.name} with ${cultivarPage.offers.summary.offersCount} public offers across ${cultivarPage.offers.summary.gardensCount} pro gardens.`;
+  const description = `${cultivarPage.summary.name} with ${cultivarPage.offers.summary.offersCount} public offers across ${cultivarPage.offers.summary.gardensCount} pro catalogs.`;
   const pageUrl = `${baseUrl}/cultivar/${canonicalSegment}`;
   const rawImageUrl = cultivarPage.heroImages[0]?.url ?? IMAGES.DEFAULT_META;
   const imageUrl = getOptimizedMetaImageUrl(rawImageUrl);

@@ -65,10 +65,10 @@ export function CultivarOffersSection({ offers }: CultivarOffersSectionProps) {
     <section id="offers" aria-label="Offers" className="space-y-4">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div className="space-y-2">
-          <H2>Available in Gardens</H2>
+          <H2>Available in Catalogs</H2>
           <Muted>
             {filtered.offersCount} {filtered.offersCount === 1 ? "offer" : "offers"} • {" "}
-            {filtered.gardens.length} {filtered.gardens.length === 1 ? "garden" : "gardens"}
+            {filtered.gardens.length} {filtered.gardens.length === 1 ? "catalog" : "catalogs"}
           </Muted>
         </div>
 

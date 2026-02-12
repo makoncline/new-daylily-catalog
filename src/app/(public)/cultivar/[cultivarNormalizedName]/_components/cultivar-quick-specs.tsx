@@ -11,29 +11,54 @@ type CultivarPageOutput = NonNullable<RouterOutputs["public"]["getCultivarPage"]
 type QuickSpec = CultivarPageOutput["quickSpecs"]["all"][number];
 
 interface CultivarQuickSpecsProps {
+  cultivarName: string;
+  hybridizer: string | null;
+  year: string | null;
   topSpecs: QuickSpec[];
   allSpecs: QuickSpec[];
 }
 
 export function CultivarQuickSpecs({
+  cultivarName,
+  hybridizer,
+  year,
   topSpecs,
   allSpecs,
 }: CultivarQuickSpecsProps) {
   const [expanded, setExpanded] = useState(false);
   const [copied, setCopied] = useState(false);
 
-  const visibleSpecs = expanded ? allSpecs : topSpecs;
-
-  const copyValue = useMemo(
-    () => allSpecs.map((spec) => `${spec.label}: ${spec.value}`).join("\n"),
-    [allSpecs],
+  const summarySpecs = useMemo(
+    () =>
+      [
+        { label: "Name", value: cultivarName },
+        { label: "Hybridizer", value: hybridizer },
+        { label: "Year", value: year },
+      ].filter((spec): spec is { label: string; value: string } => Boolean(spec.value)),
+    [cultivarName, hybridizer, year],
   );
 
-  if (allSpecs.length === 0) {
+  const topWithSummary = useMemo(
+    () => [...summarySpecs, ...topSpecs],
+    [summarySpecs, topSpecs],
+  );
+  const allWithSummary = useMemo(
+    () => [...summarySpecs, ...allSpecs],
+    [summarySpecs, allSpecs],
+  );
+
+  const visibleSpecs = expanded ? allWithSummary : topWithSummary;
+
+  const copyValue = useMemo(
+    () => allWithSummary.map((spec) => `${spec.label}: ${spec.value}`).join("\n"),
+    [allWithSummary],
+  );
+
+  if (allWithSummary.length === 0) {
     return null;
   }
 
-  const canExpand = allSpecs.length > topSpecs.length;
+  const canExpand = allWithSummary.length > topWithSummary.length;
 
   const onCopy = async () => {
     await navigator.clipboard.writeText(copyValue);
