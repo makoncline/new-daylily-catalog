@@ -288,6 +288,31 @@ describe("getPublicCultivarPage", () => {
       new Date("2026-01-15T00:00:00.000Z"),
     );
   });
+
+  it("resolves slugified segments back to punctuation-heavy cultivar names", async () => {
+    mockDb.cultivarReference.findFirst
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce({
+        id: "cultivar-punctuated",
+        normalizedName: "a cowgirl's heart",
+        updatedAt: new Date("2026-01-05T00:00:00.000Z"),
+        ahsListing: null,
+      });
+
+    mockDb.cultivarReference.findMany.mockResolvedValue([
+      {
+        normalizedName: "a cowgirl's heart",
+      },
+    ]);
+
+    mockDb.listing.findMany.mockResolvedValue([]);
+    mockDb.user.findMany.mockResolvedValue([]);
+
+    const result = await getPublicCultivarPage("a-cowgirls-heart");
+
+    expect(result?.cultivar.normalizedName).toBe("a cowgirl's heart");
+    expect(mockDb.cultivarReference.findFirst).toHaveBeenCalledTimes(2);
+  });
 });
 
 describe("getCultivarSitemapEntries", () => {
@@ -312,11 +337,29 @@ describe("getCultivarSitemapEntries", () => {
         updatedAt: new Date("2026-01-05T00:00:00.000Z"),
         listings: [{ updatedAt: new Date("2026-01-04T00:00:00.000Z") }],
       },
+      {
+        normalizedName: "aerial appliqué",
+        updatedAt: new Date("2026-01-06T00:00:00.000Z"),
+        listings: [],
+      },
+      {
+        normalizedName: "50,000 watts",
+        updatedAt: new Date("2026-01-07T00:00:00.000Z"),
+        listings: [],
+      },
     ]);
 
     const result = await getCultivarSitemapEntries();
 
     expect(result).toEqual([
+      {
+        segment: "50000-watts",
+        lastModified: new Date("2026-01-07T00:00:00.000Z"),
+      },
+      {
+        segment: "aerial-applique",
+        lastModified: new Date("2026-01-06T00:00:00.000Z"),
+      },
       {
         segment: "apple-blossom",
         lastModified: new Date("2026-01-05T00:00:00.000Z"),

@@ -9,6 +9,9 @@ import {
 describe("cultivar route segment helpers", () => {
   it("slugifies normalized cultivar names for path usage", () => {
     expect(toCultivarRouteSegment(" Happy Returns ")).toBe("happy-returns");
+    expect(toCultivarRouteSegment("A Cowgirl's Heart")).toBe("a-cowgirls-heart");
+    expect(toCultivarRouteSegment("50,000 Watts")).toBe("50000-watts");
+    expect(toCultivarRouteSegment("Aerial Appliqué")).toBe("aerial-applique");
   });
 
   it("normalizes hyphenated route segments back to cultivar names", () => {

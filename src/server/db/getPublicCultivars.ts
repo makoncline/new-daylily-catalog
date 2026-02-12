@@ -212,6 +212,58 @@ function getSortableYear(year: string | null) {
   return Number.isNaN(parsedYear) ? 0 : parsedYear;
 }
 
+async function getCultivarNormalizedNamesForSegment(segment: string) {
+  const cultivars = await db.cultivarReference.findMany({
+    where: getCultivarReferenceWhereClause(),
+    select: {
+      normalizedName: true,
+    },
+  });
+
+  return cultivars.flatMap((cultivar) => {
+    const normalizedName = cultivar.normalizedName;
+    if (!normalizedName) {
+      return [];
+    }
+
+    return toCultivarRouteSegment(normalizedName) === segment
+      ? [normalizedName]
+      : [];
+  });
+}
+
+async function findCultivarReferenceByNormalizedNames(
+  normalizedNames: string[],
+) {
+  if (normalizedNames.length === 0) {
+    return null;
+  }
+
+  return db.cultivarReference.findFirst({
+    where: {
+      AND: [
+        getCultivarReferenceWhereClause(),
+        {
+          normalizedName: {
+            in: normalizedNames,
+          },
+        },
+      ],
+    },
+    select: {
+      id: true,
+      normalizedName: true,
+      updatedAt: true,
+      ahsListing: {
+        select: cultivarAhsListingSelect,
+      },
+    },
+    orderBy: {
+      updatedAt: "desc",
+    },
+  });
+}
+
 export async function getCultivarRouteSegments(): Promise<string[]> {
   const cultivars = await db.cultivarReference.findMany({
     where: getCultivarReferenceWhereClause(),
@@ -296,40 +348,42 @@ export async function getCultivarSitemapEntries(): Promise<
 }
 
 export async function getPublicCultivarPage(cultivarSegment: string) {
-  const normalizedCultivarNames = getCultivarRouteCandidates(cultivarSegment);
-
-  if (normalizedCultivarNames.length === 0) {
+  const canonicalSegment = toCultivarRouteSegment(cultivarSegment);
+  if (!canonicalSegment) {
     return null;
   }
 
-  const cultivarReference = await db.cultivarReference.findFirst({
-    where: {
-      normalizedName: {
-        in: normalizedCultivarNames,
-      },
-    },
-    select: {
-      id: true,
-      normalizedName: true,
-      updatedAt: true,
-      ahsListing: {
-        select: cultivarAhsListingSelect,
-      },
-    },
-    orderBy: {
-      updatedAt: "desc",
-    },
-  });
+  const normalizedCultivarNames = getCultivarRouteCandidates(cultivarSegment);
+  const matchedNormalizedNames = new Set(normalizedCultivarNames);
+
+  let cultivarReference = await findCultivarReferenceByNormalizedNames(
+    normalizedCultivarNames,
+  );
+
+  if (!cultivarReference) {
+    const normalizedNamesFromSlug =
+      await getCultivarNormalizedNamesForSegment(canonicalSegment);
+
+    normalizedNamesFromSlug.forEach((name) => matchedNormalizedNames.add(name));
+
+    cultivarReference = await findCultivarReferenceByNormalizedNames(
+      normalizedNamesFromSlug,
+    );
+  }
 
   if (!cultivarReference) {
     return null;
+  }
+
+  if (cultivarReference.normalizedName) {
+    matchedNormalizedNames.add(cultivarReference.normalizedName);
   }
 
   const listingRows = await db.listing.findMany({
     where: {
       cultivarReference: {
         normalizedName: {
-          in: normalizedCultivarNames,
+          in: Array.from(matchedNormalizedNames),
         },
       },
       ...publicListingVisibilityFilter,

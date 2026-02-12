@@ -1,3 +1,5 @@
+import { slugify } from "@/lib/utils/slugify";
+
 /**
  * Normalizes a cultivar name for consistent storage and searching.
  * - Trims whitespace
@@ -37,8 +39,12 @@ export function toCultivarRouteSegment(
     return null;
   }
 
-  const slug = normalized.replace(/\s+/g, "-").replace(/-+/g, "-");
-  return encodeURIComponent(slug);
+  const asciiNormalized = normalized
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "");
+  const segment = slugify(asciiNormalized);
+
+  return segment || null;
 }
 
 export function getCultivarRouteCandidates(
@@ -65,6 +71,18 @@ export function getCultivarRouteCandidates(
   const normalizedWithSpaces = normalizeCultivarName(decoded.replace(/-+/g, " "));
   if (normalizedWithSpaces) {
     candidates.add(normalizedWithSpaces);
+  }
+
+  const canonicalSegment = toCultivarRouteSegment(decoded);
+  if (canonicalSegment) {
+    candidates.add(canonicalSegment);
+
+    const canonicalAsSpaces = normalizeCultivarName(
+      canonicalSegment.replace(/-+/g, " "),
+    );
+    if (canonicalAsSpaces) {
+      candidates.add(canonicalAsSpaces);
+    }
   }
 
   return Array.from(candidates);
