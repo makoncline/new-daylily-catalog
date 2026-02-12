@@ -6,7 +6,6 @@ import {
 import { db } from "@/server/db";
 import { hasActiveSubscription } from "@/server/stripe/subscription-utils";
 import { getStripeSubscription } from "@/server/stripe/sync-subscription";
-import type { CultivarPageData } from "@/types";
 
 const publicListingVisibilityFilter = {
   OR: [{ status: null }, { NOT: { status: STATUS.HIDDEN } }],
@@ -70,7 +69,7 @@ export async function getCultivarRouteSegments(): Promise<string[]> {
 
 export async function getPublicCultivarPage(
   cultivarSegment: string,
-): Promise<CultivarPageData | null> {
+) {
   const normalizedCultivarNames = getCultivarRouteCandidates(cultivarSegment);
 
   if (normalizedCultivarNames.length === 0) {

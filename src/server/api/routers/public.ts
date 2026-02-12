@@ -14,7 +14,10 @@ import {
   listingSelect,
   transformListings,
 } from "@/server/db/getPublicListings";
-import { getPublicCultivarPage } from "@/server/db/getPublicCultivars";
+import {
+  getCultivarRouteSegments,
+  getPublicCultivarPage,
+} from "@/server/db/getPublicCultivars";
 import { SESClient, SendEmailCommand } from "@aws-sdk/client-ses";
 import { env } from "@/env";
 import { cartItemSchema } from "@/types";
@@ -198,6 +201,21 @@ export const publicRouter = createTRPCRouter({
         });
       }
     }),
+
+  getCultivarRouteSegments: publicProcedure.query(async () => {
+    try {
+      return await getCultivarRouteSegments();
+    } catch (error) {
+      if (error instanceof TRPCError) {
+        throw error;
+      }
+      console.error("Error fetching cultivar route segments:", error);
+      throw new TRPCError({
+        code: "INTERNAL_SERVER_ERROR",
+        message: "Failed to fetch cultivar route segments",
+      });
+    }
+  }),
 
   // Message sending functionality
   sendMessage: publicProcedure

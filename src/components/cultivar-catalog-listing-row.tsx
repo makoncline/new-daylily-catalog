@@ -1,11 +1,14 @@
 import Link from "next/link";
-import Image from "next/image";
 import { ArrowUpRight } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { OptimizedImage } from "@/components/optimized-image";
 import { formatPrice } from "@/lib/utils";
 import { H3 } from "@/components/typography";
-import type { CultivarPageCatalogListing } from "@/types";
+import { type RouterOutputs } from "@/trpc/react";
+
+type CultivarPageOutput = NonNullable<RouterOutputs["public"]["getCultivarPage"]>;
+type CultivarPageCatalogListing = CultivarPageOutput["catalogs"][number]["cultivarListings"][number];
 
 export function getCultivarListingHref(sellerSlug: string, listingId: string) {
   const params = new URLSearchParams({ viewing: listingId });
@@ -37,15 +40,12 @@ export function CultivarCatalogListingRow({
       {listing.previewImageUrl && (
         <Link
           href={listingHref}
-          className="relative h-24 w-24 shrink-0 overflow-hidden rounded-md"
+          className="h-24 w-24 shrink-0 overflow-hidden rounded-md"
         >
-          <Image
+          <OptimizedImage
             src={listing.previewImageUrl}
             alt={`${listing.title} image`}
-            fill
-            className="object-cover"
-            sizes="96px"
-            unoptimized
+            className="h-24"
           />
         </Link>
       )}

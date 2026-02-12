@@ -6,7 +6,11 @@ import {
   getCultivarListingHref,
 } from "@/components/cultivar-catalog-listing-row";
 import { CultivarCatalogCard } from "@/components/cultivar-catalog-card";
-import type { CultivarPageCatalog, CultivarPageCatalogListing } from "@/types";
+import { type RouterOutputs } from "@/trpc/react";
+
+type CultivarPageOutput = NonNullable<RouterOutputs["public"]["getCultivarPage"]>;
+type CultivarPageCatalog = CultivarPageOutput["catalogs"][number];
+type CultivarPageCatalogListing = CultivarPageCatalog["cultivarListings"][number];
 
 const listing: CultivarPageCatalogListing = {
   id: "listing-1",

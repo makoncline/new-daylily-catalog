@@ -6,7 +6,10 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { H3, Muted, P } from "@/components/typography";
-import type { CultivarPageCatalog } from "@/types";
+import { type RouterOutputs } from "@/trpc/react";
+
+type CultivarPageOutput = NonNullable<RouterOutputs["public"]["getCultivarPage"]>;
+type CultivarPageCatalog = CultivarPageOutput["catalogs"][number];
 
 interface CultivarCatalogCardProps {
   catalog: CultivarPageCatalog;

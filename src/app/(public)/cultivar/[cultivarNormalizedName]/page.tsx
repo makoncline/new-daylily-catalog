@@ -10,6 +10,7 @@ import {
   toCultivarRouteSegment,
   toSentenceCaseCultivarName,
 } from "@/lib/utils/cultivar-utils";
+import { api } from "@/trpc/server";
 import {
   getCultivarRouteSegments,
   getPublicCultivarPage,
@@ -22,7 +23,11 @@ import { CultivarPageAhsDisplay } from "./_components/cultivar-page-ahs-display"
 
 export const revalidate = 3600;
 export const dynamicParams = true;
-const getPublicCultivarPageCached = cache(getPublicCultivarPage);
+const getCultivarRouteSegmentsCached = cache(getCultivarRouteSegments);
+const getPublicCultivarPageMetadataCached = cache(getPublicCultivarPage);
+const getCultivarPageFromTrpcCached = cache((cultivarNormalizedName: string) =>
+  api.public.getCultivarPage({ cultivarNormalizedName }),
+);
 
 interface PageProps {
   params: Promise<{
@@ -31,7 +36,7 @@ interface PageProps {
 }
 
 export async function generateStaticParams() {
-  const cultivarSegments = await getCultivarRouteSegments();
+  const cultivarSegments = await getCultivarRouteSegmentsCached();
 
   return cultivarSegments.map((cultivarNormalizedName) => ({
     cultivarNormalizedName,
@@ -40,7 +45,9 @@ export async function generateStaticParams() {
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { cultivarNormalizedName } = await params;
-  const cultivarPage = await getPublicCultivarPageCached(cultivarNormalizedName);
+  const cultivarPage = await getPublicCultivarPageMetadataCached(
+    cultivarNormalizedName,
+  );
 
   if (!cultivarPage) {
     return {
@@ -101,7 +108,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
 export default async function CultivarPage({ params }: PageProps) {
   const { cultivarNormalizedName } = await params;
-  const cultivarPage = await getPublicCultivarPageCached(cultivarNormalizedName);
+  const cultivarPage = await getCultivarPageFromTrpcCached(cultivarNormalizedName);
 
   if (!cultivarPage) {
     notFound();

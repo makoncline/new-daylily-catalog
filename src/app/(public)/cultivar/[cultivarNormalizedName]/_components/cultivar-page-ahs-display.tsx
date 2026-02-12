@@ -1,6 +1,9 @@
-import Image from "next/image";
+import { OptimizedImage } from "@/components/optimized-image";
 import { H1, Muted, P } from "@/components/typography";
-import type { CultivarPageAhsListing } from "@/types";
+import { type RouterOutputs } from "@/trpc/react";
+
+type CultivarPageOutput = NonNullable<RouterOutputs["public"]["getCultivarPage"]>;
+type CultivarPageAhsListing = NonNullable<CultivarPageOutput["cultivar"]["ahsListing"]>;
 
 interface CultivarPageAhsDisplayProps {
   ahsListing: CultivarPageAhsListing;
@@ -30,14 +33,13 @@ export function CultivarPageAhsDisplay({
   return (
     <div className="space-y-5">
       {ahsListing.ahsImageUrl && (
-        <div className="relative aspect-[4/3] w-full max-w-2xl overflow-hidden rounded-md">
-          <Image
+        <div className="w-full max-w-2xl overflow-hidden rounded-md">
+          <OptimizedImage
             src={ahsListing.ahsImageUrl}
             alt={ahsListing.name ? `${ahsListing.name} AHS image` : "AHS image"}
-            fill
-            className="object-cover"
-            sizes="(max-width: 768px) 100vw, 672px"
-            unoptimized
+            size="full"
+            fit="cover"
+            className="aspect-[4/3]"
           />
         </div>
       )}
