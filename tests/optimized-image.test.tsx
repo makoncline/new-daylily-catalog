@@ -22,14 +22,37 @@ describe("OptimizedImage", () => {
     process.env.NEXT_PUBLIC_CLOUDFLARE_URL = "https://cf.daylilycatalog.com";
   });
 
-  it("falls back to original src after optimized load fails and reports once", () => {
-    const src = "https://example.com/images/witches poison apple.jpg";
+  it("applies cloudflare transform only for daylily-catalog-images hosts", () => {
+    const internalSrc =
+      "https://daylily-catalog-images.s3.amazonaws.com/lily/63/ed27a857-1e93-4aa4-add9-15bcb12e2208";
+    const externalSrc =
+      "https://www.daylilydatabase.org/AHSPhoto/C/ChinaBlushCherylDay_1584735345.jpg";
+
+    const { rerender } = render(
+      <OptimizedImage alt="Internal" src={internalSrc} size="full" />,
+    );
+
+    const transformedImage = screen.getByRole("img");
+    expect(transformedImage).toHaveAttribute(
+      "src",
+      "https://cf.daylilycatalog.com/cdn-cgi/image/width=800,fit=cover,format=auto,quality=90/https://daylily-catalog-images.s3.amazonaws.com/lily/63/ed27a857-1e93-4aa4-add9-15bcb12e2208",
+    );
+
+    rerender(<OptimizedImage alt="External" src={externalSrc} size="full" />);
+
+    const originalImage = screen.getByRole("img");
+    expect(originalImage).toHaveAttribute("src", externalSrc);
+  });
+
+  it("falls back to original src after transformed load fails and reports once", () => {
+    const src =
+      "https://daylily-catalog-images.s3.amazonaws.com/lily/87/de9f9b7f-4e96-41e3-966c-e14062cf0458";
     render(<OptimizedImage alt="Test" src={src} size="full" />);
 
     const image = screen.getByRole("img");
     expect(image).toHaveAttribute(
       "src",
-      "https://cf.daylilycatalog.com/cdn-cgi/image/width=800,fit=cover,format=auto,quality=90/https://example.com/images/witches%20poison%20apple.jpg",
+      "https://cf.daylilycatalog.com/cdn-cgi/image/width=800,fit=cover,format=auto,quality=90/https://daylily-catalog-images.s3.amazonaws.com/lily/87/de9f9b7f-4e96-41e3-966c-e14062cf0458",
     );
 
     fireEvent.error(image);
