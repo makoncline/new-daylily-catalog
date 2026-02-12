@@ -50,6 +50,158 @@ const cultivarAhsListingSelect = {
   color: true,
 } as const;
 
+const CULTIVAR_SPEC_FIELDS = [
+  ["Bloom Season", "bloomSeason"],
+  ["Foliage Type", "foliageType"],
+  ["Color", "color"],
+  ["Bloom Size", "bloomSize"],
+  ["Ploidy", "ploidy"],
+  ["Scape Height", "scapeHeight"],
+  ["Bud Count", "budcount"],
+  ["Branches", "branches"],
+  ["Form", "form"],
+  ["Fragrance", "fragrance"],
+  ["Bloom Habit", "bloomHabit"],
+  ["Sculpting", "sculpting"],
+  ["Flower", "flower"],
+  ["Foliage", "foliage"],
+  ["Parentage", "parentage"],
+] as const;
+
+const TOP_QUICK_SPEC_LABELS = new Set([
+  "Bloom Season",
+  "Foliage Type",
+  "Color",
+  "Bloom Size",
+  "Ploidy",
+  "Scape Height",
+]);
+
+type CultivarAhsListing = {
+  id: string;
+  name: string | null;
+  ahsImageUrl: string | null;
+  hybridizer: string | null;
+  year: string | null;
+  scapeHeight: string | null;
+  bloomSize: string | null;
+  bloomSeason: string | null;
+  form: string | null;
+  ploidy: string | null;
+  foliageType: string | null;
+  bloomHabit: string | null;
+  budcount: string | null;
+  branches: string | null;
+  sculpting: string | null;
+  foliage: string | null;
+  flower: string | null;
+  fragrance: string | null;
+  parentage: string | null;
+  color: string | null;
+};
+
+function getCultivarDisplayName(
+  normalizedName: string | null,
+  ahsListing: CultivarAhsListing | null,
+) {
+  return ahsListing?.name ?? normalizedName ?? "Unknown Cultivar";
+}
+
+function getCultivarTraitChips(ahsListing: CultivarAhsListing | null) {
+  if (!ahsListing) {
+    return [];
+  }
+
+  return [
+    ahsListing.color,
+    ahsListing.bloomSeason,
+    ahsListing.ploidy,
+    ahsListing.foliageType,
+    ahsListing.bloomSize,
+    ahsListing.scapeHeight,
+  ].filter((value): value is string => Boolean(value));
+}
+
+function getCultivarSpecs(ahsListing: CultivarAhsListing | null) {
+  if (!ahsListing) {
+    return {
+      top: [] as Array<{ label: string; value: string }>,
+      all: [] as Array<{ label: string; value: string }>,
+    };
+  }
+
+  const all = CULTIVAR_SPEC_FIELDS.flatMap(([label, key]) => {
+    const value = ahsListing[key];
+
+    return value ? [{ label, value }] : [];
+  });
+
+  const top = all.filter((spec) => TOP_QUICK_SPEC_LABELS.has(spec.label));
+
+  return {
+    top,
+    all,
+  };
+}
+
+function getMaxDate(dates: Array<Date | undefined>): Date | undefined {
+  return dates.reduce<Date | undefined>((latest, value) => {
+    if (!value) {
+      return latest;
+    }
+
+    if (!latest || value.getTime() > latest.getTime()) {
+      return value;
+    }
+
+    return latest;
+  }, undefined);
+}
+
+function getBestMatchScore(offer: {
+  price: number | null;
+  imageCount: number;
+  updatedAt: Date;
+}) {
+  return {
+    forSale: offer.price !== null ? 1 : 0,
+    imageCount: offer.imageCount,
+    updatedAt: offer.updatedAt.getTime(),
+  };
+}
+
+function sortOffersBestMatch(
+  a: {
+    price: number | null;
+    imageCount: number;
+    updatedAt: Date;
+    title: string;
+  },
+  b: {
+    price: number | null;
+    imageCount: number;
+    updatedAt: Date;
+    title: string;
+  },
+) {
+  const scoreA = getBestMatchScore(a);
+  const scoreB = getBestMatchScore(b);
+
+  if (scoreA.forSale !== scoreB.forSale) {
+    return scoreB.forSale - scoreA.forSale;
+  }
+
+  if (scoreA.imageCount !== scoreB.imageCount) {
+    return scoreB.imageCount - scoreA.imageCount;
+  }
+
+  if (scoreA.updatedAt !== scoreB.updatedAt) {
+    return scoreB.updatedAt - scoreA.updatedAt;
+  }
+
+  return a.title.localeCompare(b.title);
+}
+
 export async function getCultivarRouteSegments(): Promise<string[]> {
   const cultivars = await db.cultivarReference.findMany({
     where: getCultivarReferenceWhereClause(),
@@ -132,9 +284,7 @@ export async function getCultivarSitemapEntries(): Promise<
   );
 }
 
-export async function getPublicCultivarPage(
-  cultivarSegment: string,
-) {
+export async function getPublicCultivarPage(cultivarSegment: string) {
   const normalizedCultivarNames = getCultivarRouteCandidates(cultivarSegment);
 
   if (normalizedCultivarNames.length === 0) {
@@ -150,6 +300,7 @@ export async function getPublicCultivarPage(
     select: {
       id: true,
       normalizedName: true,
+      updatedAt: true,
       ahsListing: {
         select: cultivarAhsListingSelect,
       },
@@ -184,6 +335,7 @@ export async function getPublicCultivarPage(
         select: {
           id: true,
           url: true,
+          updatedAt: true,
         },
         orderBy: {
           order: "asc",
@@ -245,6 +397,7 @@ export async function getPublicCultivarPage(
   const usersWithSubscription = await Promise.all(
     users.map(async (user) => {
       const subscription = await getStripeSubscription(user.stripeCustomerId);
+
       return {
         ...user,
         hasActiveSubscription: hasActiveSubscription(subscription.status),
@@ -275,7 +428,7 @@ export async function getPublicCultivarPage(
     ]),
   );
 
-  const catalogsMap = new Map<
+  const gardenCardsMap = new Map<
     string,
     {
       userId: string;
@@ -289,8 +442,7 @@ export async function getPublicCultivarPage(
       listCount: number;
       hasActiveSubscription: boolean;
       profileImages: Array<{ id: string; url: string }>;
-      cultivarUploadedImageCount: number;
-      cultivarListings: Array<{
+      offers: Array<{
         id: string;
         title: string;
         slug: string;
@@ -304,72 +456,233 @@ export async function getPublicCultivarPage(
     }
   >();
 
-  listingRows.forEach((listing) => {
-    const user = userById.get(listing.userId);
+  const photoRows: Array<{
+    id: string;
+    url: string;
+    updatedAt: Date;
+    listingId: string;
+    listingTitle: string;
+    sellerSlug: string;
+    sellerTitle: string;
+  }> = [];
 
-    // Cultivar pages only include Pro catalogs.
-    if (!user?.hasActiveSubscription) {
+  listingRows.forEach((listing) => {
+    const seller = userById.get(listing.userId);
+
+    // Cultivar offers are limited to Pro catalogs.
+    if (!seller?.hasActiveSubscription) {
       return;
     }
 
-    if (!catalogsMap.has(listing.userId)) {
-      catalogsMap.set(listing.userId, {
-        ...user,
-        cultivarUploadedImageCount: 0,
-        cultivarListings: [],
+    if (!gardenCardsMap.has(listing.userId)) {
+      gardenCardsMap.set(listing.userId, {
+        ...seller,
+        offers: [],
       });
     }
 
-    const catalog = catalogsMap.get(listing.userId);
-    if (!catalog) {
+    const gardenCard = gardenCardsMap.get(listing.userId);
+    if (!gardenCard) {
       return;
     }
 
-    const imageCount = listing.images.length;
-
-    catalog.cultivarUploadedImageCount += imageCount;
-    catalog.cultivarListings.push({
+    gardenCard.offers.push({
       id: listing.id,
       title: listing.title,
       slug: listing.slug,
       price: listing.price,
       description: listing.description,
       updatedAt: listing.updatedAt,
-      imageCount,
+      imageCount: listing.images.length,
       previewImageUrl: listing.images[0]?.url ?? null,
       lists: listing.lists,
     });
+
+    listing.images.forEach((image) => {
+      photoRows.push({
+        id: image.id,
+        url: image.url,
+        updatedAt: image.updatedAt,
+        listingId: listing.id,
+        listingTitle: listing.title,
+        sellerSlug: seller.slug,
+        sellerTitle: seller.title,
+      });
+    });
   });
 
-  const catalogs = Array.from(catalogsMap.values())
-    .map((catalog) => ({
-      ...catalog,
-      cultivarListings: catalog.cultivarListings.sort((a, b) => {
-        const aForSale = a.price !== null ? 1 : 0;
-        const bForSale = b.price !== null ? 1 : 0;
-
-        if (aForSale !== bForSale) {
-          return bForSale - aForSale;
-        }
-
-        if (a.imageCount !== b.imageCount) {
-          return b.imageCount - a.imageCount;
-        }
-
-        return b.updatedAt.getTime() - a.updatedAt.getTime();
-      }),
+  const gardenCards = Array.from(gardenCardsMap.values())
+    .map((gardenCard) => ({
+      ...gardenCard,
+      offers: gardenCard.offers.sort(sortOffersBestMatch),
     }))
-    .sort((a, b) => {
-      if (a.cultivarUploadedImageCount !== b.cultivarUploadedImageCount) {
-        return b.cultivarUploadedImageCount - a.cultivarUploadedImageCount;
+    .sort((a, b) => a.title.localeCompare(b.title));
+
+  const allOffers = gardenCards.flatMap((gardenCard) => gardenCard.offers);
+
+  const gardensCount = gardenCards.length;
+  const offersCount = allOffers.length;
+  const forSaleCount = allOffers.filter((offer) => offer.price !== null).length;
+  const prices = allOffers
+    .map((offer) => offer.price)
+    .filter((price): price is number => price !== null);
+
+  const gardenPhotos = photoRows
+    .sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime())
+    .slice(0, 12)
+    .map((image) => ({
+      id: image.id,
+      url: image.url,
+      listingId: image.listingId,
+      listingTitle: image.listingTitle,
+      sellerSlug: image.sellerSlug,
+      sellerTitle: image.sellerTitle,
+      updatedAt: image.updatedAt,
+    }));
+
+  const heroImages = [
+    ...(cultivarReference.ahsListing?.ahsImageUrl
+      ? [
+          {
+            id: `ahs-${cultivarReference.ahsListing.id}`,
+            url: cultivarReference.ahsListing.ahsImageUrl,
+            alt:
+              cultivarReference.ahsListing.name
+                ? `${cultivarReference.ahsListing.name} AHS image`
+                : "AHS cultivar image",
+            source: "ahs" as const,
+            listingId: null,
+            sellerSlug: null,
+            sellerTitle: null,
+          },
+        ]
+      : []),
+    ...gardenPhotos.slice(0, 8).map((image) => ({
+      id: image.id,
+      url: image.url,
+      alt: `${image.listingTitle} from ${image.sellerTitle}`,
+      source: "listing" as const,
+      listingId: image.listingId,
+      sellerSlug: image.sellerSlug,
+      sellerTitle: image.sellerTitle,
+    })),
+  ];
+
+  const allSpecs = getCultivarSpecs(cultivarReference.ahsListing);
+
+  const relatedByHybridizer =
+    cultivarReference.ahsListing?.hybridizer
+      ? await db.cultivarReference.findMany({
+          where: {
+            id: {
+              not: cultivarReference.id,
+            },
+            ...getCultivarReferenceWhereClause(),
+            ahsListing: {
+              is: {
+                hybridizer: cultivarReference.ahsListing.hybridizer,
+              },
+            },
+            OR: [
+              {
+                ahsListing: {
+                  is: {
+                    ahsImageUrl: {
+                      not: null,
+                    },
+                  },
+                },
+              },
+              {
+                listings: {
+                  some: {
+                    ...publicListingVisibilityFilter,
+                    images: {
+                      some: {},
+                    },
+                  },
+                },
+              },
+            ],
+          },
+          select: {
+            normalizedName: true,
+            ahsListing: {
+              select: {
+                id: true,
+                name: true,
+                ahsImageUrl: true,
+                hybridizer: true,
+                year: true,
+                bloomSeason: true,
+                color: true,
+              },
+            },
+            listings: {
+              where: {
+                ...publicListingVisibilityFilter,
+                images: {
+                  some: {},
+                },
+              },
+              orderBy: {
+                updatedAt: "desc",
+              },
+              take: 1,
+              select: {
+                images: {
+                  orderBy: {
+                    order: "asc",
+                  },
+                  take: 1,
+                  select: {
+                    url: true,
+                  },
+                },
+              },
+            },
+          },
+          take: 24,
+        })
+      : [];
+
+  const relatedCultivars = relatedByHybridizer
+    .map((relatedCultivar) => {
+      const segment = toCultivarRouteSegment(relatedCultivar.normalizedName);
+      const imageUrl =
+        relatedCultivar.ahsListing?.ahsImageUrl ??
+        relatedCultivar.listings[0]?.images[0]?.url ??
+        null;
+
+      if (!segment || !imageUrl) {
+        return null;
       }
 
-      if (a.listingCount !== b.listingCount) {
-        return b.listingCount - a.listingCount;
-      }
+      return {
+        segment,
+        normalizedName: relatedCultivar.normalizedName,
+        name:
+          relatedCultivar.ahsListing?.name ??
+          relatedCultivar.normalizedName ??
+          "Unknown Cultivar",
+        hybridizer: relatedCultivar.ahsListing?.hybridizer ?? null,
+        year: relatedCultivar.ahsListing?.year ?? null,
+        bloomSeason: relatedCultivar.ahsListing?.bloomSeason ?? null,
+        color: relatedCultivar.ahsListing?.color ?? null,
+        imageUrl,
+      };
+    })
+    .filter((cultivar): cultivar is NonNullable<typeof cultivar> => Boolean(cultivar))
+    .sort((a, b) => a.name.localeCompare(b.name))
+    .slice(0, 12);
 
-      return a.title.localeCompare(b.title);
-    });
+  const cultivarName = getCultivarDisplayName(
+    cultivarReference.normalizedName,
+    cultivarReference.ahsListing,
+  );
+
+  const offerUpdatedAt = getMaxDate(allOffers.map((offer) => offer.updatedAt));
+  const photoUpdatedAt = getMaxDate(gardenPhotos.map((photo) => photo.updatedAt));
 
   return {
     cultivar: {
@@ -377,6 +690,35 @@ export async function getPublicCultivarPage(
       normalizedName: cultivarReference.normalizedName,
       ahsListing: cultivarReference.ahsListing,
     },
-    catalogs,
+    heroImages,
+    summary: {
+      name: cultivarName,
+      hybridizer: cultivarReference.ahsListing?.hybridizer ?? null,
+      year: cultivarReference.ahsListing?.year ?? null,
+      traitChips: getCultivarTraitChips(cultivarReference.ahsListing),
+      gardensCount,
+      offersCount,
+    },
+    quickSpecs: {
+      top: allSpecs.top,
+      all: allSpecs.all,
+    },
+    gardenPhotos,
+    offers: {
+      summary: {
+        gardensCount,
+        offersCount,
+        forSaleCount,
+        minPrice: prices.length > 0 ? Math.min(...prices) : null,
+        maxPrice: prices.length > 0 ? Math.max(...prices) : null,
+      },
+      gardenCards,
+    },
+    relatedByHybridizer: relatedCultivars,
+    freshness: {
+      cultivarUpdatedAt: cultivarReference.updatedAt,
+      offersUpdatedAt: offerUpdatedAt ?? null,
+      photosUpdatedAt: photoUpdatedAt ?? null,
+    },
   };
 }

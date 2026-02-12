@@ -1,26 +1,17 @@
 import { type ReactNode } from "react";
-import { H2 } from "@/components/typography";
 
 interface CultivarPageRootProps {
   children: ReactNode;
 }
 
 export function CultivarPageRoot({ children }: CultivarPageRootProps) {
-  return <div className="space-y-8">{children}</div>;
+  return <div className="space-y-10">{children}</div>;
 }
 
-interface CultivarCatalogsSectionProps {
+interface CultivarPageSectionProps {
   children: ReactNode;
 }
 
-export function CultivarCatalogsSection({
-  children,
-}: CultivarCatalogsSectionProps) {
-  return (
-    <div className="space-y-6">
-      <H2>Catalogs Carrying This Cultivar</H2>
-
-      {children}
-    </div>
-  );
+export function CultivarPageSection({ children }: CultivarPageSectionProps) {
+  return <div className="space-y-4">{children}</div>;
 }

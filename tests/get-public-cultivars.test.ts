@@ -36,113 +36,107 @@ describe("getPublicCultivarPage", () => {
     vi.clearAllMocks();
   });
 
-  it("groups by catalog, filters to pro users, and applies catalog/listing ordering", async () => {
+  it("returns conversion-ready cultivar payload and excludes non-pro offers", async () => {
     mockDb.cultivarReference.findFirst.mockResolvedValue({
       id: "cultivar-1",
       normalizedName: "coffee frenzy",
+      updatedAt: new Date("2026-01-05T00:00:00.000Z"),
       ahsListing: {
         id: "ahs-1",
         name: "Coffee Frenzy",
         ahsImageUrl: "https://example.com/ahs.jpg",
+        hybridizer: "Reed",
+        year: "2012",
+        scapeHeight: "36 inches",
+        bloomSize: "6 inches",
+        bloomSeason: "Midseason",
+        form: "Single",
+        ploidy: "Tet",
+        foliageType: "Dormant",
+        bloomHabit: "Diurnal",
+        budcount: "24",
+        branches: "5",
+        sculpting: "Ruffled",
+        foliage: "Green",
+        flower: "Cocoa brown with gold throat",
+        fragrance: "Light",
+        parentage: "(A x B)",
+        color: "Coffee brown",
       },
     });
 
     mockDb.listing.findMany.mockResolvedValue([
       {
-        id: "listing-top-sale-older",
-        title: "Top Sale Older",
-        slug: "top-sale-older",
-        price: 15,
-        description: null,
-        updatedAt: new Date("2026-01-01T00:00:00.000Z"),
-        userId: "user-top",
-        images: [{ id: "img-1", url: "https://example.com/top-older.jpg" }],
-        lists: [{ id: "list-1", title: "Top List" }],
-      },
-      {
-        id: "listing-top-not-sale",
-        title: "Top Not For Sale",
-        slug: "top-not-sale",
-        price: null,
-        description: null,
-        updatedAt: new Date("2026-01-03T00:00:00.000Z"),
-        userId: "user-top",
-        images: [
-          { id: "img-2", url: "https://example.com/top-not-sale-a.jpg" },
-          { id: "img-3", url: "https://example.com/top-not-sale-b.jpg" },
-          { id: "img-4", url: "https://example.com/top-not-sale-c.jpg" },
-          { id: "img-5", url: "https://example.com/top-not-sale-d.jpg" },
-          { id: "img-6", url: "https://example.com/top-not-sale-e.jpg" },
-        ],
-        lists: [],
-      },
-      {
-        id: "listing-top-sale-newer",
-        title: "Top Sale Newer",
-        slug: "top-sale-newer",
-        price: 25,
-        description: null,
-        updatedAt: new Date("2026-01-02T00:00:00.000Z"),
-        userId: "user-top",
-        images: [{ id: "img-7", url: "https://example.com/top-newer.jpg" }],
-        lists: [],
-      },
-      {
-        id: "listing-alpha-sale",
-        title: "Alpha Sale",
-        slug: "alpha-sale",
+        id: "listing-top-a",
+        title: "Coffee Frenzy Prime Fan",
+        slug: "coffee-frenzy-prime-fan",
         price: 30,
-        description: null,
-        updatedAt: new Date("2026-01-01T00:00:00.000Z"),
-        userId: "user-alpha",
+        description: "Prime",
+        updatedAt: new Date("2026-01-11T00:00:00.000Z"),
+        userId: "user-top",
         images: [
-          { id: "img-8", url: "https://example.com/alpha-a.jpg" },
-          { id: "img-9", url: "https://example.com/alpha-b.jpg" },
+          {
+            id: "img-top-a",
+            url: "https://example.com/top-a.jpg",
+            updatedAt: new Date("2026-01-11T00:00:00.000Z"),
+          },
+          {
+            id: "img-top-b",
+            url: "https://example.com/top-b.jpg",
+            updatedAt: new Date("2026-01-10T00:00:00.000Z"),
+          },
         ],
-        lists: [],
+        lists: [{ id: "list-show", title: "Show Winners" }],
       },
       {
-        id: "listing-alpha-not-sale",
-        title: "Alpha Not Sale",
-        slug: "alpha-not-sale",
+        id: "listing-top-b",
+        title: "Coffee Frenzy Display",
+        slug: "coffee-frenzy-display",
         price: null,
-        description: null,
-        updatedAt: new Date("2026-01-04T00:00:00.000Z"),
+        description: "Display",
+        updatedAt: new Date("2026-01-15T00:00:00.000Z"),
+        userId: "user-top",
+        images: [
+          {
+            id: "img-top-c",
+            url: "https://example.com/top-c.jpg",
+            updatedAt: new Date("2026-01-15T00:00:00.000Z"),
+          },
+        ],
+        lists: [],
+      },
+      {
+        id: "listing-alpha-a",
+        title: "Alpha Coffee Frenzy",
+        slug: "alpha-coffee-frenzy",
+        price: 24,
+        description: "Alpha",
+        updatedAt: new Date("2026-01-13T00:00:00.000Z"),
         userId: "user-alpha",
         images: [
-          { id: "img-10", url: "https://example.com/alpha-c.jpg" },
-          { id: "img-11", url: "https://example.com/alpha-d.jpg" },
+          {
+            id: "img-alpha-a",
+            url: "https://example.com/alpha-a.jpg",
+            updatedAt: new Date("2026-01-13T00:00:00.000Z"),
+          },
         ],
         lists: [],
       },
       {
-        id: "listing-beta-sale",
-        title: "Beta Sale",
-        slug: "beta-sale",
-        price: 20,
-        description: null,
-        updatedAt: new Date("2026-01-01T00:00:00.000Z"),
-        userId: "user-beta",
+        id: "listing-hobby-a",
+        title: "Hobby Coffee Frenzy",
+        slug: "hobby-coffee-frenzy",
+        price: 10,
+        description: "Hobby",
+        updatedAt: new Date("2026-01-20T00:00:00.000Z"),
+        userId: "user-hobby",
         images: [
-          { id: "img-12", url: "https://example.com/beta-a.jpg" },
-          { id: "img-13", url: "https://example.com/beta-b.jpg" },
-          { id: "img-14", url: "https://example.com/beta-c.jpg" },
-          { id: "img-15", url: "https://example.com/beta-d.jpg" },
+          {
+            id: "img-hobby-a",
+            url: "https://example.com/hobby-a.jpg",
+            updatedAt: new Date("2026-01-20T00:00:00.000Z"),
+          },
         ],
-        lists: [],
-      },
-      {
-        id: "listing-non-pro",
-        title: "Non Pro Listing",
-        slug: "non-pro-listing",
-        price: 99,
-        description: null,
-        updatedAt: new Date("2026-01-01T00:00:00.000Z"),
-        userId: "user-non-pro",
-        images: Array.from({ length: 12 }, (_, index) => ({
-          id: `img-non-pro-${index}`,
-          url: `https://example.com/non-pro-${index}.jpg`,
-        })),
         lists: [],
       },
     ]);
@@ -150,65 +144,51 @@ describe("getPublicCultivarPage", () => {
     mockDb.user.findMany.mockResolvedValue([
       {
         id: "user-top",
-        createdAt: new Date("2020-01-01T00:00:00.000Z"),
+        createdAt: new Date("2019-01-01T00:00:00.000Z"),
         stripeCustomerId: "cus-top",
         profile: {
           slug: "top-pro",
           title: "Top Pro Garden",
-          description: "Top pro description",
-          location: "Picayune Mississippi",
-          updatedAt: new Date("2026-02-11T00:00:00.000Z"),
-          images: [{ id: "profile-1", url: "https://example.com/profile-1.jpg" }],
+          description: "Top catalog",
+          location: "Mississippi",
+          updatedAt: new Date("2026-01-14T00:00:00.000Z"),
+          images: [{ id: "profile-top", url: "https://example.com/profile-top.jpg" }],
         },
-        _count: { listings: 2, lists: 7 },
+        _count: { listings: 10, lists: 4 },
       },
       {
         id: "user-alpha",
-        createdAt: new Date("2021-01-01T00:00:00.000Z"),
+        createdAt: new Date("2020-01-01T00:00:00.000Z"),
         stripeCustomerId: "cus-alpha",
         profile: {
           slug: "alpha-pro",
-          title: "Alpha Garden",
-          description: "Alpha description",
-          location: "Alabama",
-          updatedAt: new Date("2026-02-10T00:00:00.000Z"),
-          images: [],
-        },
-        _count: { listings: 8, lists: 5 },
-      },
-      {
-        id: "user-beta",
-        createdAt: new Date("2022-01-01T00:00:00.000Z"),
-        stripeCustomerId: "cus-beta",
-        profile: {
-          slug: "beta-pro",
-          title: "Beta Garden",
-          description: "Beta description",
+          title: "Alpha Pro Garden",
+          description: "Alpha catalog",
           location: "Georgia",
-          updatedAt: new Date("2026-02-09T00:00:00.000Z"),
+          updatedAt: new Date("2026-01-12T00:00:00.000Z"),
           images: [],
         },
-        _count: { listings: 8, lists: 4 },
+        _count: { listings: 8, lists: 3 },
       },
       {
-        id: "user-non-pro",
-        createdAt: new Date("2023-01-01T00:00:00.000Z"),
-        stripeCustomerId: "cus-non-pro",
+        id: "user-hobby",
+        createdAt: new Date("2021-01-01T00:00:00.000Z"),
+        stripeCustomerId: "cus-hobby",
         profile: {
-          slug: "non-pro",
-          title: "Non Pro Garden",
+          slug: "hobby-grower",
+          title: "Hobby Grower",
           description: null,
           location: null,
-          updatedAt: new Date("2026-02-01T00:00:00.000Z"),
+          updatedAt: new Date("2026-01-21T00:00:00.000Z"),
           images: [],
         },
-        _count: { listings: 99, lists: 1 },
+        _count: { listings: 2, lists: 1 },
       },
     ]);
 
     mockGetStripeSubscription.mockImplementation(
       async (stripeCustomerId: string) => {
-        if (stripeCustomerId === "cus-non-pro") {
+        if (stripeCustomerId === "cus-hobby") {
           return { status: "none" };
         }
 
@@ -216,45 +196,89 @@ describe("getPublicCultivarPage", () => {
       },
     );
 
+    mockDb.cultivarReference.findMany.mockResolvedValue([
+      {
+        normalizedName: "isle of wight",
+        ahsListing: {
+          id: "ahs-isle",
+          name: "Isle of Wight",
+          ahsImageUrl: "https://example.com/isle.jpg",
+          hybridizer: "Reed",
+          year: "2007",
+          bloomSeason: "Early",
+          color: "Peach",
+        },
+        listings: [],
+      },
+      {
+        normalizedName: "goldenzelle",
+        ahsListing: {
+          id: "ahs-golden",
+          name: "Goldenzelle",
+          ahsImageUrl: null,
+          hybridizer: "Reed",
+          year: "2002",
+          bloomSeason: "Mid",
+          color: "Apricot",
+        },
+        listings: [
+          {
+            images: [{ url: "https://example.com/goldenzelle.jpg" }],
+          },
+        ],
+      },
+      {
+        normalizedName: "no image cultivar",
+        ahsListing: {
+          id: "ahs-none",
+          name: "No Image",
+          ahsImageUrl: null,
+          hybridizer: "Reed",
+          year: "2015",
+          bloomSeason: null,
+          color: null,
+        },
+        listings: [],
+      },
+    ]);
+
     const result = await getPublicCultivarPage("coffee-frenzy");
 
     expect(result).not.toBeNull();
-    expect(result?.cultivar.ahsListing?.ahsImageUrl).toBe(
-      "https://example.com/ahs.jpg",
-    );
+    expect(result?.summary.name).toBe("Coffee Frenzy");
+    expect(result?.summary.gardensCount).toBe(2);
+    expect(result?.summary.offersCount).toBe(3);
 
-    expect(result?.catalogs.map((catalog) => catalog.slug)).toEqual([
-      "top-pro",
+    expect(result?.offers.gardenCards.map((garden) => garden.slug)).toEqual([
       "alpha-pro",
-      "beta-pro",
+      "top-pro",
     ]);
 
-    expect(
-      result?.catalogs.every((catalog) => catalog.hasActiveSubscription),
-    ).toBe(true);
-
-    expect(result?.catalogs[0]?.cultivarUploadedImageCount).toBe(7);
-    expect(result?.catalogs[1]?.cultivarUploadedImageCount).toBe(4);
-    expect(result?.catalogs[2]?.cultivarUploadedImageCount).toBe(4);
-
-    expect(result?.catalogs[0]?.cultivarListings.map((listing) => listing.id)).toEqual([
-      "listing-top-sale-newer",
-      "listing-top-sale-older",
-      "listing-top-not-sale",
+    expect(result?.offers.gardenCards[1]?.offers.map((offer) => offer.id)).toEqual([
+      "listing-top-a",
+      "listing-top-b",
     ]);
 
-    expect(result?.catalogs[0]?.cultivarListings[0]?.previewImageUrl).toBe(
-      "https://example.com/top-newer.jpg",
-    );
-    expect(result?.catalogs[0]?.cultivarListings[2]?.previewImageUrl).toBe(
-      "https://example.com/top-not-sale-a.jpg",
+    expect(result?.heroImages[0]).toMatchObject({
+      source: "ahs",
+      url: "https://example.com/ahs.jpg",
+    });
+    expect(result?.heroImages.some((image) => image.id === "img-hobby-a")).toBe(false);
+
+    expect(result?.quickSpecs.top.map((spec) => spec.label)).toEqual(
+      expect.arrayContaining(["Bloom Season", "Ploidy", "Scape Height"]),
     );
 
-    expect(
-      result?.catalogs.flatMap((catalog) =>
-        catalog.cultivarListings.map((listing) => listing.id),
-      ),
-    ).not.toContain("listing-non-pro");
+    expect(result?.gardenPhotos.map((photo) => photo.id)).not.toContain("img-hobby-a");
+
+    expect(result?.relatedByHybridizer.map((cultivar) => cultivar.segment)).toEqual([
+      "goldenzelle",
+      "isle-of-wight",
+    ]);
+
+    expect(result?.freshness.offersUpdatedAt).toEqual(
+      new Date("2026-01-15T00:00:00.000Z"),
+    );
   });
 });
 
