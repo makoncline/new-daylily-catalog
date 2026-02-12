@@ -122,9 +122,8 @@ export default async function CultivarPage({ params }: PageProps) {
   const canonicalSegment = toCultivarRouteSegment(
     cultivarPage.cultivar.normalizedName,
   );
-  const requestSegment = toCultivarRouteSegment(cultivarNormalizedName);
 
-  if (canonicalSegment && requestSegment && canonicalSegment !== requestSegment) {
+  if (canonicalSegment && cultivarNormalizedName !== canonicalSegment) {
     permanentRedirect(`/cultivar/${canonicalSegment}`);
   }
 

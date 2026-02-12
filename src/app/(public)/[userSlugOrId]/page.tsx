@@ -34,6 +34,7 @@ interface PageProps {
   params: Promise<{
     userSlugOrId: string;
   }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }
 
 export async function generateMetadata({ params }: PageProps) {
@@ -49,8 +50,9 @@ export async function generateMetadata({ params }: PageProps) {
   return generateProfileMetadata(result.data, url);
 }
 
-export default async function Page({ params }: PageProps) {
+export default async function Page({ params, searchParams }: PageProps) {
   const { userSlugOrId } = await params;
+  const queryParams = await searchParams;
 
   const getProfile = unstable_cache(
     async () => getPublicProfile(userSlugOrId),
@@ -86,7 +88,25 @@ export default async function Page({ params }: PageProps) {
 
   const canonicalUserSlug = initialProfile.slug ?? initialProfile.id;
   if (userSlugOrId !== canonicalUserSlug) {
-    permanentRedirect(`/${canonicalUserSlug}`);
+    const query = new URLSearchParams();
+
+    Object.entries(queryParams).forEach(([key, value]) => {
+      if (typeof value === "string") {
+        query.append(key, value);
+        return;
+      }
+
+      if (Array.isArray(value)) {
+        value.forEach((entry) => query.append(key, entry));
+      }
+    });
+
+    const queryString = query.toString();
+    permanentRedirect(
+      queryString
+        ? `/${canonicalUserSlug}?${queryString}`
+        : `/${canonicalUserSlug}`,
+    );
   }
 
   // Generate metadata

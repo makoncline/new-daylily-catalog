@@ -426,5 +426,15 @@ test.describe("cultivar guest flow @local", () => {
 
     await page.goto(`/${topCatalogUserId}/coffee-frenzy-prime-fan`);
     await expect(page).toHaveURL(/\/top-pro\?viewing=listing-top-prime$/);
+
+    await page.goto(
+      `/${topCatalogUserId}?viewing=listing-top-prime&utm_source=e2e-test`,
+    );
+    await expect(page).toHaveURL(
+      (url) =>
+        url.pathname === "/top-pro" &&
+        url.searchParams.get("viewing") === "listing-top-prime" &&
+        url.searchParams.get("utm_source") === "e2e-test",
+    );
   });
 });
