@@ -7,12 +7,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { useSearchParams } from "next/navigation";
+import { api } from "@/trpc/react";
+import { useParams, useSearchParams } from "next/navigation";
 import { useRef } from "react";
 import { ErrorBoundary } from "react-error-boundary";
 import { ErrorFallback } from "@/components/error-fallback";
 import { normalizeError, reportError } from "@/lib/error-utils";
-import { ListingDisplay } from "@/components/listing-display";
+import {
+  ListingDisplay,
+  ListingDisplaySkeleton,
+} from "@/components/listing-display";
 import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
 import { type RouterOutputs } from "@/trpc/react";
 
@@ -59,11 +63,30 @@ interface ViewListingDialogProps {
 
 export function ViewListingDialog({ listings }: ViewListingDialogProps) {
   const { viewingId, closeViewListing } = useViewListing();
+  const params = useParams<{ userSlugOrId: string }>();
   const isOpen = !!viewingId;
 
   const currentListing = viewingId
     ? listings.find((listing) => listing.id === viewingId)
     : null;
+  const shouldFetchViewingListing =
+    Boolean(viewingId) && !currentListing && Boolean(params.userSlugOrId);
+
+  const listingQuery = api.public.getListing.useQuery(
+    {
+      userSlugOrId: params.userSlugOrId ?? "",
+      listingSlugOrId: viewingId ?? "",
+    },
+    {
+      enabled: shouldFetchViewingListing,
+      retry: false,
+      refetchOnWindowFocus: false,
+      refetchOnReconnect: false,
+      refetchOnMount: false,
+    },
+  );
+
+  const displayListing = currentListing ?? listingQuery.data ?? null;
 
   const handleOpenChange = (open: boolean) => {
     if (!open) {
@@ -98,8 +121,10 @@ export function ViewListingDialog({ listings }: ViewListingDialogProps) {
             })
           }
         >
-          {currentListing ? (
-            <ListingDisplay listing={currentListing} />
+          {displayListing ? (
+            <ListingDisplay listing={displayListing} />
+          ) : shouldFetchViewingListing && !listingQuery.error ? (
+            <ListingDisplaySkeleton />
           ) : (
             <div className="py-4 text-center">Listing not found</div>
           )}

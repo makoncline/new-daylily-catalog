@@ -53,7 +53,7 @@ export function CultivarOfferGardenCard({
       data-garden-slug={gardenCard.slug}
     >
       <CardHeader className="space-y-4">
-        <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
           <div className="min-w-0 flex-1 space-y-3">
             <div className="flex items-center gap-2">
               {gardenCard.profileImages.length > 0 && (
@@ -72,19 +72,6 @@ export function CultivarOfferGardenCard({
             </div>
 
             <div className="flex flex-wrap items-center gap-2">
-              {gardenCard.hasActiveSubscription && (
-                <Badge variant="secondary">Pro</Badge>
-              )}
-              <Badge
-                variant="outline"
-                className="flex items-center gap-1 text-xs"
-              >
-                <Clock className="h-3 w-3" />
-                <span>{updatedLabel}</span>
-              </Badge>
-            </div>
-
-            <div className="flex flex-wrap items-center gap-2">
               {gardenCard.location && (
                 <LocationBadge location={gardenCard.location} />
               )}
@@ -100,14 +87,14 @@ export function CultivarOfferGardenCard({
             <div className="flex flex-wrap items-center gap-2">
               <Badge
                 variant="secondary"
-                className="flex items-center gap-1 text-xs"
+                className="flex items-center gap-1 text-xs whitespace-nowrap"
               >
                 <Flower2 className="h-3 w-3" />
                 <span>{gardenCard.listingCount} listings</span>
               </Badge>
               <Badge
                 variant="secondary"
-                className="flex items-center gap-1 text-xs"
+                className="flex items-center gap-1 text-xs whitespace-nowrap"
               >
                 <ListChecks className="h-3 w-3" />
                 <span>{gardenCard.listCount} lists</span>
@@ -115,20 +102,30 @@ export function CultivarOfferGardenCard({
             </div>
           </div>
 
-          <Button asChild size="sm" variant="outline">
+          <Button
+            asChild
+            size="sm"
+            variant="outline"
+            className="w-full md:w-auto"
+          >
             <Link href={catalogHref}>View Catalog</Link>
           </Button>
         </div>
       </CardHeader>
 
-      <CardContent className="space-y-3">
-        {gardenCard.offers.map((offer) => (
-          <CultivarOfferRow
-            key={offer.id}
-            sellerSlug={gardenCard.slug}
-            offer={offer}
-          />
-        ))}
+      <CardContent>
+        <div className="overflow-x-auto pb-2">
+          <div className="flex w-max gap-3">
+            {gardenCard.offers.map((offer) => (
+              <div
+                key={offer.id}
+                className="w-[82vw] min-w-[82vw] md:w-[520px] md:min-w-[520px]"
+              >
+                <CultivarOfferRow sellerSlug={gardenCard.slug} offer={offer} />
+              </div>
+            ))}
+          </div>
+        </div>
       </CardContent>
     </Card>
   );

@@ -32,7 +32,7 @@ export function CultivarRelatedSection({
       </H2>
 
       <div className="overflow-x-auto pb-2">
-        <div className="grid grid-rows-2 grid-flow-col gap-4 w-max">
+        <div className="flex w-max gap-4">
           {relatedCultivars.map((cultivar) => (
             <CultivarCard key={cultivar.segment} cultivar={cultivar} />
           ))}
