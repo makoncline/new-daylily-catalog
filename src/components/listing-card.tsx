@@ -35,7 +35,7 @@ export function ListingCard({ listing, priority = false }: ListingCardProps) {
 
   return (
     <Card
-      className="group relative flex h-full cursor-pointer flex-col overflow-hidden transition-all hover:border-primary"
+      className="group hover:border-primary relative flex h-full cursor-pointer flex-col overflow-hidden transition-all"
       onClick={() => viewListing(listing)}
     >
       {/* Create SEO links for each URL variation */}
@@ -64,11 +64,11 @@ export function ListingCard({ listing, priority = false }: ListingCardProps) {
           )}
         </div>
 
-        <div className="absolute right-2 top-2">
+        <div className="absolute top-2 right-2">
           {listing.price && (
             <Badge
               variant="secondary"
-              className="backdrop-blur-sm hover:bg-secondary"
+              className="hover:bg-secondary backdrop-blur-sm"
             >
               {formatPrice(listing.price)}
             </Badge>
@@ -84,27 +84,27 @@ export function ListingCard({ listing, priority = false }: ListingCardProps) {
                 id: `listing-image-${i}`,
               }))}
               size="sm"
-              className="backdrop-blur-sm hover:bg-secondary"
+              className="hover:bg-secondary backdrop-blur-sm"
             />
           </div>
         )}
 
         {/* AHS Link Badge */}
         {displayAhsListing && (
-          <div className="absolute bottom-2 right-2">
+          <div className="absolute right-2 bottom-2">
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger>
                   <Badge
                     variant="secondary"
-                    className="backdrop-blur-sm hover:bg-secondary"
+                    className="hover:bg-secondary backdrop-blur-sm"
                   >
                     <Link2 className="h-3 w-3" />
                   </Badge>
                 </TooltipTrigger>
                 <TooltipContent side="top" align="end" className="p-2">
                   <div className="flex flex-col gap-1">
-                    <span className="text-xs text-muted-foreground">
+                    <span className="text-muted-foreground text-xs">
                       linked to
                     </span>
                     <span className="font-medium">
@@ -121,7 +121,6 @@ export function ListingCard({ listing, priority = false }: ListingCardProps) {
       <CardContent className="flex flex-1 flex-col p-4">
         <div className="flex flex-1 flex-col justify-between gap-4">
           <div className="space-y-2">
-            {/* Title */}
             <H3>
               <TruncatedText text={listing.title} lines={1} />
             </H3>
@@ -144,7 +143,7 @@ export function ListingCard({ listing, priority = false }: ListingCardProps) {
               <TruncatedText
                 text={listing.description}
                 lines={3}
-                className="text-sm text-muted-foreground"
+                className="text-muted-foreground text-sm"
               />
             )}
           </div>

@@ -51,8 +51,10 @@ export AWS_ACCESS_KEY_ID="your_aws_access_key"
 export AWS_SECRET_ACCESS_KEY="your_aws_secret_key"
 export CI="false"  # Set to true to upload to S3, false for local verification only
 
-# Run the backup script
-bash scripts/db-backup.sh
+# Run the backup script using the development environment variables
+pnpm env:dev bash scripts/db-backup.sh
+# start the dev server pointing to the local-prod-copy-daylily-catalog.db database
+LOCAL_DATABASE_URL="file:./local-prod-copy-daylily-catalog.db" pnpm dev
 ```
 
 If `CI` is set to `false`, the script will verify the backup by creating a local copy of the database at `prisma/local-prod-copy-daylily-catalog.db` which you can use for testing.

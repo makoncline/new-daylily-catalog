@@ -2,6 +2,7 @@
 
 ## Log
 
+- 2026-02-12 - cleanup preference - For agent cleanup passes, user prefers concise readable code with minimal defensive noise; keep composition explicit and align tests to current data contracts (e.g. AHS-only hero images).
 - 2026-02-11 - cultivar page revamp - User wants cultivar pages grouped by pro catalogs (not flat listings), with AHS hero image, no add-to-cart, and listing deep links via `/:slug?viewing=:listingId`.
 - 2026-02-11 - routing migration - User chose global cultivar canonicals (`/cultivar/:normalizedName`) with cultivar pages showing all sellers, while legacy listing route should only redirect canonical `/:userId/:listingId` to `/:userSlug?viewing=:listingId`.
 - 2026-02-12 - seo/crawling - For cultivar sitemap entries, avoid `lastModified: new Date()` noise; use real entity timestamps (cultivar/listing `updatedAt`) and include AHS image in cultivar OG/Twitter metadata when present.

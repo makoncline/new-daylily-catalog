@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { CultivarGallery } from "@/app/(public)/cultivar/[cultivarNormalizedName]/_components/cultivar-gallery";
 import { CultivarQuickSpecs } from "@/app/(public)/cultivar/[cultivarNormalizedName]/_components/cultivar-quick-specs";
@@ -42,11 +42,11 @@ describe("cultivar page components", () => {
       {
         id: "hero-2",
         url: "/assets/bouquet.png",
-        alt: "Coffee Frenzy listing image",
-        source: "listing",
-        listingId: "listing-1",
-        sellerSlug: "seeded-daylily",
-        sellerTitle: "Seeded Daylily",
+        alt: "Coffee Frenzy alternate image",
+        source: "ahs",
+        listingId: null,
+        sellerSlug: null,
+        sellerTitle: null,
       },
     ];
 
@@ -54,9 +54,9 @@ describe("cultivar page components", () => {
 
     expect(screen.getAllByRole("img", { name: /AHS image/i })[0]).toBeVisible();
 
-    fireEvent.click(screen.getByRole("button", { name: /listing image/i }));
+    fireEvent.click(screen.getByRole("button", { name: /alternate image/i }));
 
-    expect(screen.getAllByRole("img", { name: /listing image/i })[0]).toBeVisible();
+    expect(screen.getAllByRole("img", { name: /alternate image/i })[0]).toBeVisible();
   });
 
   it("expands quick specs and copy includes summary details + all fields", async () => {
@@ -88,7 +88,9 @@ describe("cultivar page components", () => {
     expect(screen.getByText("Fragrance")).toBeVisible();
     expect(screen.getByText("Branches")).toBeVisible();
 
-    fireEvent.click(screen.getByRole("button", { name: /copy specs/i }));
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /copy specs/i }));
+    });
 
     expect(navigator.clipboard.writeText).toHaveBeenCalledWith(
       expect.stringContaining("Name: Coffee Frenzy"),

@@ -5,11 +5,14 @@ import { ArrowUpRight } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { OptimizedImage } from "@/components/optimized-image";
-import { formatPrice } from "@/lib/utils";
+import { formatPrice, formatRelativeDate } from "@/lib/utils";
 import { type RouterOutputs } from "@/trpc/react";
 
-type CultivarPageOutput = NonNullable<RouterOutputs["public"]["getCultivarPage"]>;
-type OfferRow = CultivarPageOutput["offers"]["gardenCards"][number]["offers"][number];
+type CultivarPageOutput = NonNullable<
+  RouterOutputs["public"]["getCultivarPage"]
+>;
+type OfferRow =
+  CultivarPageOutput["offers"]["gardenCards"][number]["offers"][number];
 
 export function getOfferViewingHref(sellerSlug: string, listingId: string) {
   const params = new URLSearchParams({ viewing: listingId });
@@ -36,7 +39,10 @@ export function CultivarOfferRow({ sellerSlug, offer }: CultivarOfferRowProps) {
       data-listing-id={offer.id}
     >
       {offer.previewImageUrl ? (
-        <Link href={listingHref} className="h-24 w-24 shrink-0 overflow-hidden rounded-md border">
+        <Link
+          href={listingHref}
+          className="h-24 w-24 shrink-0 overflow-hidden rounded-md border"
+        >
           <OptimizedImage
             src={offer.previewImageUrl}
             alt={`${offer.title} listing image`}
@@ -45,12 +51,15 @@ export function CultivarOfferRow({ sellerSlug, offer }: CultivarOfferRowProps) {
           />
         </Link>
       ) : (
-        <div className="h-24 w-24 shrink-0 rounded-md border bg-muted/20" />
+        <div className="bg-muted/20 h-24 w-24 shrink-0 rounded-md border" />
       )}
 
       <div className="min-w-0 flex-1 space-y-3">
         <div className="space-y-2">
-          <Link href={listingHref} className="text-2xl font-semibold leading-tight hover:underline">
+          <Link
+            href={listingHref}
+            className="text-2xl leading-tight font-semibold hover:underline"
+          >
             {offer.title}
           </Link>
 
@@ -64,13 +73,7 @@ export function CultivarOfferRow({ sellerSlug, offer }: CultivarOfferRowProps) {
             )}
 
             <Badge variant="outline" className="text-xs">
-              Updated {new Intl.RelativeTimeFormat("en", { numeric: "auto" }).format(
-                -Math.max(
-                  0,
-                  Math.floor((Date.now() - new Date(offer.updatedAt).getTime()) / (1000 * 60 * 60 * 24)),
-                ),
-                "day",
-              )}
+              {formatRelativeDate(new Date(offer.updatedAt))}
             </Badge>
           </div>
         </div>

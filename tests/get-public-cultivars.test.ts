@@ -266,14 +266,22 @@ describe("getPublicCultivarPage", () => {
     expect(result?.heroImages.some((image) => image.id === "img-hobby-a")).toBe(false);
 
     expect(result?.quickSpecs.top.map((spec) => spec.label)).toEqual(
-      expect.arrayContaining(["Bloom Season", "Ploidy", "Scape Height"]),
+      expect.arrayContaining([
+        "Scape Height",
+        "Bloom Size",
+        "Ploidy",
+        "Bud Count",
+        "Branches",
+        "Parentage",
+        "Color",
+      ]),
     );
 
     expect(result?.gardenPhotos.map((photo) => photo.id)).not.toContain("img-hobby-a");
 
     expect(result?.relatedByHybridizer.map((cultivar) => cultivar.segment)).toEqual([
-      "goldenzelle",
       "isle-of-wight",
+      "goldenzelle",
     ]);
 
     expect(result?.freshness.offersUpdatedAt).toEqual(

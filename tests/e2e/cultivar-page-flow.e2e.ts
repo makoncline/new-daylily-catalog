@@ -377,7 +377,7 @@ test.describe("cultivar guest flow @local", () => {
     await expect(page.getByRole("navigation").getByText("Cultivars")).toBeVisible();
 
     await expect(page.getByText("Quick Specs")).toBeVisible();
-    await expect(page.getByText("Bloom Season")).toBeVisible();
+    await expect(page.getByText("Scape Height")).toBeVisible();
 
     await expect(
       page.getByRole("heading", { level: 2, name: "Photos in Catalogs" }),

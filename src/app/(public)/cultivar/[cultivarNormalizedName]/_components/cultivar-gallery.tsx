@@ -5,7 +5,9 @@ import { OptimizedImage } from "@/components/optimized-image";
 import { cn } from "@/lib/utils";
 import { type RouterOutputs } from "@/trpc/react";
 
-type CultivarPageOutput = NonNullable<RouterOutputs["public"]["getCultivarPage"]>;
+type CultivarPageOutput = NonNullable<
+  RouterOutputs["public"]["getCultivarPage"]
+>;
 type HeroImage = CultivarPageOutput["heroImages"][number];
 
 interface CultivarGalleryProps {
@@ -13,12 +15,22 @@ interface CultivarGalleryProps {
   cultivarName: string;
 }
 
-export function CultivarGallery({ images, cultivarName }: CultivarGalleryProps) {
-  const safeImages = useMemo(() => images.filter((image) => Boolean(image.url)), [images]);
-  const [selectedImageId, setSelectedImageId] = useState(safeImages[0]?.id ?? null);
+export function CultivarGallery({
+  images,
+  cultivarName,
+}: CultivarGalleryProps) {
+  const safeImages = useMemo(
+    () => images.filter((image) => Boolean(image.url)),
+    [images],
+  );
+  const [selectedImageId, setSelectedImageId] = useState(
+    safeImages[0]?.id ?? null,
+  );
 
   const selectedImage =
-    safeImages.find((image) => image.id === selectedImageId) ?? safeImages[0] ?? null;
+    safeImages.find((image) => image.id === selectedImageId) ??
+    safeImages[0] ??
+    null;
 
   if (!selectedImage) {
     return null;
@@ -26,7 +38,7 @@ export function CultivarGallery({ images, cultivarName }: CultivarGalleryProps) 
 
   return (
     <section aria-label="Cultivar gallery" className="space-y-3">
-      <div className="overflow-hidden rounded-xl border bg-muted/20">
+      <div className="bg-muted/20 max-w-[400px] overflow-hidden rounded-xl border">
         <OptimizedImage
           src={selectedImage.url}
           alt={selectedImage.alt ?? `${cultivarName} image`}
@@ -47,8 +59,10 @@ export function CultivarGallery({ images, cultivarName }: CultivarGalleryProps) 
                 type="button"
                 onClick={() => setSelectedImageId(image.id)}
                 className={cn(
-                  "overflow-hidden rounded-md border focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2",
-                  isActive ? "ring-2 ring-primary ring-offset-2" : "hover:border-primary/60",
+                  "focus-visible:ring-primary overflow-hidden rounded-md border focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none",
+                  isActive
+                    ? "ring-primary ring-2 ring-offset-2"
+                    : "hover:border-primary/60",
                 )}
                 aria-label={`Show image ${image.alt ?? image.id}`}
                 aria-pressed={isActive}

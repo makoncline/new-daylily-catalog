@@ -5,9 +5,12 @@ import { Copy, CopyCheck, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Muted, P } from "@/components/typography";
+import { cn } from "@/lib/utils";
 import { type RouterOutputs } from "@/trpc/react";
 
-type CultivarPageOutput = NonNullable<RouterOutputs["public"]["getCultivarPage"]>;
+type CultivarPageOutput = NonNullable<
+  RouterOutputs["public"]["getCultivarPage"]
+>;
 type QuickSpec = CultivarPageOutput["quickSpecs"]["all"][number];
 
 interface CultivarQuickSpecsProps {
@@ -34,31 +37,33 @@ export function CultivarQuickSpecs({
         { label: "Name", value: cultivarName },
         { label: "Hybridizer", value: hybridizer },
         { label: "Year", value: year },
-      ].filter((spec): spec is { label: string; value: string } => Boolean(spec.value)),
+      ].filter((spec): spec is { label: string; value: string } =>
+        Boolean(spec.value),
+      ),
     [cultivarName, hybridizer, year],
   );
 
-  const topWithSummary = useMemo(
-    () => [...summarySpecs, ...topSpecs],
-    [summarySpecs, topSpecs],
-  );
-  const allWithSummary = useMemo(
+  const keySpecs = useMemo(() => topSpecs, [topSpecs]);
+  const allSpecsWithSummary = useMemo(
     () => [...summarySpecs, ...allSpecs],
     [summarySpecs, allSpecs],
   );
 
-  const visibleSpecs = expanded ? allWithSummary : topWithSummary;
+  const visibleSpecs = expanded ? allSpecsWithSummary : keySpecs;
 
   const copyValue = useMemo(
-    () => allWithSummary.map((spec) => `${spec.label}: ${spec.value}`).join("\n"),
-    [allWithSummary],
+    () =>
+      allSpecsWithSummary
+        .map((spec) => `${spec.label}: ${spec.value}`)
+        .join("\n"),
+    [allSpecsWithSummary],
   );
 
-  if (allWithSummary.length === 0) {
+  if (allSpecsWithSummary.length === 0) {
     return null;
   }
 
-  const canExpand = allWithSummary.length > topWithSummary.length;
+  const canExpand = allSpecsWithSummary.length > keySpecs.length;
 
   const onCopy = async () => {
     await navigator.clipboard.writeText(copyValue);
@@ -73,8 +78,17 @@ export function CultivarQuickSpecs({
           <CardTitle className="text-3xl">Quick Specs</CardTitle>
 
           <div className="flex items-center gap-2">
-            <Button type="button" variant="ghost" size="sm" onClick={() => void onCopy()}>
-              {copied ? <CopyCheck className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => void onCopy()}
+            >
+              {copied ? (
+                <CopyCheck className="h-4 w-4" />
+              ) : (
+                <Copy className="h-4 w-4" />
+              )}
               <span>{copied ? "Copied" : "Copy specs"}</span>
             </Button>
           </div>
@@ -83,8 +97,16 @@ export function CultivarQuickSpecs({
         <CardContent className="space-y-4">
           <div className="grid gap-3 sm:grid-cols-2">
             {visibleSpecs.map((spec) => (
-              <div key={spec.label} className="space-y-1 border-b pb-2 last:border-none">
-                <Muted className="text-xs uppercase tracking-wide">{spec.label}</Muted>
+              <div
+                key={spec.label}
+                className={cn(
+                  "space-y-1 border-b pb-2 last:border-none",
+                  spec.label === "Color" && "sm:col-span-2",
+                )}
+              >
+                <Muted className="text-xs tracking-wide uppercase">
+                  {spec.label}
+                </Muted>
                 <P className="text-base font-medium">{spec.value}</P>
               </div>
             ))}
