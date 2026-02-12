@@ -3,7 +3,7 @@ import { generateHomePageMetadata } from "./_seo/metadata";
 import { getBaseUrl } from "@/lib/utils/getBaseUrl";
 import HomePageClient from "./_components/home-page-client";
 
-export const revalidate = 3600;
+export const revalidate = 86400;
 
 export async function generateMetadata() {
   const url = getBaseUrl();

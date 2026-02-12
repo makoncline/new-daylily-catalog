@@ -2,6 +2,7 @@ import { db } from "@/server/db";
 import { getBaseUrl } from "@/lib/utils/getBaseUrl";
 import { type MetadataRoute } from "next";
 import { STATUS } from "@/config/constants";
+import { getCultivarSitemapEntries } from "@/server/db/getPublicCultivars";
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const baseUrl = getBaseUrl();
@@ -22,12 +23,13 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     });
   });
 
-  // Add user profiles - only canonical versions (by ID)
+  // Add user profiles - canonical versions by slug when available.
   const users = await db.user.findMany({
     select: {
       id: true,
       profile: {
         select: {
+          slug: true,
           updatedAt: true,
         },
       },
@@ -40,30 +42,24 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   });
 
   users.forEach((user) => {
-    // Only add canonical user page (by ID)
+    const canonicalUserSlug = user.profile?.slug ?? user.id;
     sitemap.push({
-      url: `${baseUrl}/${user.id}`,
+      url: `${baseUrl}/${canonicalUserSlug}`,
       lastModified: user.profile?.updatedAt ?? new Date(),
       changeFrequency: "weekly",
       priority: 0.7,
     });
   });
 
-  // Add listings - only canonical versions (user ID/listing ID)
-  const listings = await db.listing.findMany({
-    select: {
-      id: true,
-      userId: true,
-      updatedAt: true,
-    },
-    where: publicListingVisibilityFilter,
-  });
-
-  listings.forEach((listing) => {
-    // Only add canonical listing URL (user ID/listing ID)
+  const cultivarEntries = await getCultivarSitemapEntries();
+  cultivarEntries.forEach((cultivar) => {
     sitemap.push({
-      url: `${baseUrl}/${listing.userId}/${listing.id}`,
-      lastModified: listing.updatedAt,
+      url: `${baseUrl}/cultivar/${cultivar.segment}`,
+      ...(cultivar.lastModified
+        ? {
+            lastModified: cultivar.lastModified,
+          }
+        : {}),
       changeFrequency: "weekly",
       priority: 0.7,
     });

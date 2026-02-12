@@ -15,7 +15,7 @@ import {
   createCatalogsBreadcrumbs,
 } from "@/lib/utils/breadcrumbs";
 
-export const revalidate = 3600;
+export const revalidate = 86400;
 
 export async function generateMetadata(): Promise<Metadata> {
   const url = getBaseUrl();

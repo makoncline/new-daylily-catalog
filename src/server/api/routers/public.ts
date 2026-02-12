@@ -14,10 +14,15 @@ import {
   listingSelect,
   transformListings,
 } from "@/server/db/getPublicListings";
+import {
+  getCultivarRouteSegments,
+  getPublicCultivarPage,
+} from "@/server/db/getPublicCultivars";
 import { SESClient, SendEmailCommand } from "@aws-sdk/client-ses";
 import { env } from "@/env";
 import { cartItemSchema } from "@/types";
 import { STATUS } from "@/config/constants";
+import { PUBLIC_CACHE_CONFIG } from "@/config/public-cache-config";
 import { getDisplayAhsListing } from "@/lib/utils/ahs-display";
 
 // Initialize SES client
@@ -68,7 +73,7 @@ async function getFullListingData(listingId: string) {
 
 const getListingsCached = (userId: string) =>
   unstable_cache(getListings, [], {
-    revalidate: 3600,
+    revalidate: PUBLIC_CACHE_CONFIG.REVALIDATE_SECONDS.DATA.PUBLIC_ROUTER_LISTINGS,
     tags: [`listings-${userId}`],
   });
 
@@ -176,6 +181,42 @@ export const publicRouter = createTRPCRouter({
         });
       }
     }),
+
+  getCultivarPage: publicProcedure
+    .input(
+      z.object({
+        cultivarNormalizedName: z.string(),
+      }),
+    )
+    .query(async ({ input }) => {
+      try {
+        return await getPublicCultivarPage(input.cultivarNormalizedName);
+      } catch (error) {
+        if (error instanceof TRPCError) {
+          throw error;
+        }
+        console.error("Error fetching cultivar page:", error);
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "Failed to fetch cultivar page",
+        });
+      }
+    }),
+
+  getCultivarRouteSegments: publicProcedure.query(async () => {
+    try {
+      return await getCultivarRouteSegments();
+    } catch (error) {
+      if (error instanceof TRPCError) {
+        throw error;
+      }
+      console.error("Error fetching cultivar route segments:", error);
+      throw new TRPCError({
+        code: "INTERNAL_SERVER_ERROR",
+        message: "Failed to fetch cultivar route segments",
+      });
+    }
+  }),
 
   // Message sending functionality
   sendMessage: publicProcedure

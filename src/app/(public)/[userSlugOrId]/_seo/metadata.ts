@@ -3,6 +3,7 @@ import { getOptimizedMetaImageUrl } from "@/lib/utils/cloudflareLoader";
 import { unstable_cache } from "next/cache";
 import { reportError } from "@/lib/error-utils";
 import { METADATA_CONFIG } from "@/config/constants";
+import { PUBLIC_CACHE_CONFIG } from "@/config/public-cache-config";
 
 // Optimal meta description length
 const MIN_DESCRIPTION_LENGTH = 70;
@@ -72,8 +73,8 @@ async function createProfileMetadata(
 
     const rawImageUrl = profile.images?.[0]?.url ?? IMAGES.DEFAULT_CATALOG;
     const imageUrl = getOptimizedMetaImageUrl(rawImageUrl);
-    // Always use the stable ID path for SEO/canonical signals.
-    const pageUrl = `${url}/${profile.id}`;
+    const canonicalUserSlug = profile.slug ?? profile.id;
+    const pageUrl = `${url}/${canonicalUserSlug}`;
 
     return {
       url,
@@ -107,7 +108,7 @@ async function createProfileMetadata(
         images: [imageUrl],
       },
       alternates: {
-        canonical: `/${profile.id}`,
+        canonical: `/${canonicalUserSlug}`,
       },
     };
   } catch (error) {
@@ -130,7 +131,7 @@ async function createProfileMetadata(
       title: "Daylily Catalog",
       description: "Browse our collection of beautiful daylilies.",
       imageUrl: IMAGES.DEFAULT_CATALOG,
-      pageUrl: `${url}/${profile.id}`,
+      pageUrl: `${url}/${profile.slug ?? profile.id}`,
       // Avoid indexing metadata generated from fallback errors.
       robots: "noindex, nofollow",
       openGraph: {
@@ -151,6 +152,6 @@ export function generateProfileMetadata(
   return unstable_cache(
     async () => createProfileMetadata(profile, url),
     [`profile-metadata-${profile?.id ?? "not-found"}`],
-    { revalidate: 3600 },
+    { revalidate: PUBLIC_CACHE_CONFIG.REVALIDATE_SECONDS.DATA.PROFILE_METADATA },
   )();
 }

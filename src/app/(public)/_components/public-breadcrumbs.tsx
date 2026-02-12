@@ -42,8 +42,7 @@ export function PublicBreadcrumbs({
   ];
 
   if (userSlugOrId && profileData) {
-    // Use canonical ID path for consistency - use profile id if available, otherwise use userSlugOrId
-    const canonical = `/${profileData.id ?? userSlugOrId}`;
+    const canonical = `/${profileData.slug ?? profileData.id ?? userSlugOrId}`;
     items.push({
       title: profileData.title ?? "Untitled Catalog",
       href: canonical,

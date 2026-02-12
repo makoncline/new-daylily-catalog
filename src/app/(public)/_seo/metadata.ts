@@ -1,6 +1,7 @@
 import { IMAGES } from "@/lib/constants/images";
 import { unstable_cache } from "next/cache";
 import { METADATA_CONFIG } from "@/config/constants";
+import { PUBLIC_CACHE_CONFIG } from "@/config/public-cache-config";
 
 // Base function for generating metadata
 async function createHomePageMetadata(url: string) {
@@ -56,6 +57,6 @@ export function generateHomePageMetadata(url: string) {
   return unstable_cache(
     async () => createHomePageMetadata(url),
     ["home-page-metadata"],
-    { revalidate: 3600 },
+    { revalidate: PUBLIC_CACHE_CONFIG.REVALIDATE_SECONDS.DATA.HOME_METADATA },
   )();
 }

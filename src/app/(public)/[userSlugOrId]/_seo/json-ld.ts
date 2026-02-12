@@ -3,6 +3,7 @@ import { reportError } from "@/lib/error-utils";
 import type { RouterOutputs } from "@/trpc/react";
 import { type generateProfileMetadata } from "./metadata";
 import { getOptimizedMetaImageUrl } from "@/lib/utils/cloudflareLoader";
+import { PUBLIC_CACHE_CONFIG } from "@/config/public-cache-config";
 
 // Use the router output types instead of custom interface
 type PublicProfile = RouterOutputs["public"]["getProfile"];
@@ -157,6 +158,6 @@ export function generateProfilePageJsonLd(
   return unstable_cache(
     async () => createProfilePageJsonLd(profile, listings, metadata),
     [`profile-jsonld-${profile.id}`],
-    { revalidate: 3600 },
+    { revalidate: PUBLIC_CACHE_CONFIG.REVALIDATE_SECONDS.DATA.PROFILE_JSON_LD },
   )();
 }

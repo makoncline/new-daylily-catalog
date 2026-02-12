@@ -51,6 +51,7 @@ export const listingSelect = {
   },
   cultivarReference: {
     select: {
+      normalizedName: true,
       ahsListing: {
         select: ahsListingSelect,
       },

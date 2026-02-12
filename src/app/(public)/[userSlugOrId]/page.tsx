@@ -7,13 +7,14 @@ import { getPublicProfile } from "@/server/db/getPublicProfile";
 import { getInitialListings } from "@/server/db/getPublicListings";
 import { Suspense } from "react";
 import { getBaseUrl } from "@/lib/utils/getBaseUrl";
-import { notFound } from "next/navigation";
+import { notFound, permanentRedirect } from "next/navigation";
 import { getErrorCode, tryCatch } from "@/lib/utils";
 import { generateProfileMetadata } from "./_seo/metadata";
 import { CatalogContent } from "./_components/catalog-content";
 import { ProfilePageSEO } from "./_components/profile-seo";
+import { PUBLIC_CACHE_CONFIG } from "@/config/public-cache-config";
 
-export const revalidate = 3600;
+export const revalidate = 86400;
 export const dynamicParams = true;
 
 export async function generateStaticParams() {
@@ -34,6 +35,7 @@ interface PageProps {
   params: Promise<{
     userSlugOrId: string;
   }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }
 
 export async function generateMetadata({ params }: PageProps) {
@@ -49,19 +51,20 @@ export async function generateMetadata({ params }: PageProps) {
   return generateProfileMetadata(result.data, url);
 }
 
-export default async function Page({ params }: PageProps) {
+export default async function Page({ params, searchParams }: PageProps) {
   const { userSlugOrId } = await params;
+  const queryParams = await searchParams;
 
   const getProfile = unstable_cache(
     async () => getPublicProfile(userSlugOrId),
     ["profile", userSlugOrId],
-    { revalidate: 3600 },
+    { revalidate: PUBLIC_CACHE_CONFIG.REVALIDATE_SECONDS.PAGE.PROFILE },
   );
 
   const getListings = unstable_cache(
     async () => getInitialListings(userSlugOrId),
     ["listings", userSlugOrId, "initial"],
-    { revalidate: 3600 },
+    { revalidate: PUBLIC_CACHE_CONFIG.REVALIDATE_SECONDS.PAGE.PROFILE },
   );
 
   // Use Promise.all with our tryCatch utility to fetch both in parallel
@@ -83,6 +86,29 @@ export default async function Page({ params }: PageProps) {
   // Type safety - at this point we know we have data
   const initialProfile = profileResult.data;
   const initialListings = listingsResult.data ?? [];
+
+  const canonicalUserSlug = initialProfile.slug ?? initialProfile.id;
+  if (userSlugOrId !== canonicalUserSlug) {
+    const query = new URLSearchParams();
+
+    Object.entries(queryParams).forEach(([key, value]) => {
+      if (typeof value === "string") {
+        query.append(key, value);
+        return;
+      }
+
+      if (Array.isArray(value)) {
+        value.forEach((entry) => query.append(key, entry));
+      }
+    });
+
+    const queryString = query.toString();
+    permanentRedirect(
+      queryString
+        ? `/${canonicalUserSlug}?${queryString}`
+        : `/${canonicalUserSlug}`,
+    );
+  }
 
   // Generate metadata
   const baseUrl = getBaseUrl();

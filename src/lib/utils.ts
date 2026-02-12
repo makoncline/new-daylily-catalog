@@ -18,6 +18,30 @@ export function formatPrice(price: number): string {
   }).format(price);
 }
 
+export function formatRelativeDate(date: Date, prefix = "Updated"): string {
+  const now = new Date();
+  const days = Math.max(
+    0,
+    Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60 * 24)),
+  );
+
+  if (days < 1) {
+    return `${prefix} today`;
+  }
+
+  if (days < 30) {
+    return `${prefix} ${days} day${days === 1 ? "" : "s"} ago`;
+  }
+
+  const months = Math.floor(days / 30);
+  if (months < 12) {
+    return `${prefix} ${months} month${months === 1 ? "" : "s"} ago`;
+  }
+
+  const years = Math.floor(months / 12);
+  return `${prefix} ${years} year${years === 1 ? "" : "s"} ago`;
+}
+
 // Types for the result object with discriminated union
 type Success<T> = {
   data: T;
@@ -85,58 +109,78 @@ export async function uploadFileWithProgress({
 export function formatAhsListingSummary(
   ahs: Partial<AhsListing> | null,
 ): string | null {
+  return formatAhsSummary(ahs, true);
+}
+
+export function formatAhsListingSummaryForCard(
+  ahs: Partial<AhsListing> | null,
+): string | null {
+  return formatAhsSummary(ahs, false);
+}
+
+function formatAhsSummary(
+  ahs: Partial<AhsListing> | null,
+  includeIdentity: boolean,
+): string | null {
   if (!ahs) return null;
 
-  const parts = [];
+  const parts: string[] = [];
 
-  // Name, hybridizer and year
-  if (ahs.name || ahs.hybridizer || ahs.year) {
-    const name = ahs.name ?? "";
-    const hybridizer = ahs.hybridizer ? `(${ahs.hybridizer}` : "";
-    const year = ahs.year ? `, ${ahs.year})` : hybridizer ? ")" : "";
-    parts.push([name, hybridizer + year].filter(Boolean).join(" "));
+  if (includeIdentity) {
+    const identity = getAhsIdentityLine(ahs);
+    if (identity) {
+      parts.push(identity);
+    }
   }
 
-  // Height and bloom size
-  if (ahs.scapeHeight || ahs.bloomSize) {
-    const height = ahs.scapeHeight ? `height ${ahs.scapeHeight}` : "";
-    const bloom = ahs.bloomSize ? `bloom ${ahs.bloomSize}` : "";
-    parts.push([height, bloom].filter(Boolean).join(", "));
-  }
+  pushJoined(parts, [
+    ahs.scapeHeight ? `height ${ahs.scapeHeight}` : null,
+    ahs.bloomSize ? `bloom ${ahs.bloomSize}` : null,
+  ]);
 
-  // Season and bloom habit
-  if (ahs.bloomSeason || ahs.bloomHabit) {
-    const season = ahs.bloomSeason ? `season ${ahs.bloomSeason}` : "";
-    const habit = ahs.bloomHabit ?? "";
-    parts.push([season, habit].filter(Boolean).join(", "));
-  }
+  pushJoined(parts, [
+    ahs.bloomSeason ? `season ${ahs.bloomSeason}` : null,
+    ahs.bloomHabit,
+  ]);
 
-  // Foliage and ploidy
-  if (ahs.foliageType || ahs.ploidy) {
-    const foliage = ahs.foliageType ?? "";
-    const ploidy = ahs.ploidy ?? "";
-    parts.push([foliage, ploidy].filter(Boolean).join(", "));
-  }
+  pushJoined(parts, [ahs.foliageType, ahs.ploidy]);
 
-  // Buds and branches
-  if (ahs.budcount || ahs.branches) {
-    const buds = ahs.budcount ? `${ahs.budcount} buds` : "";
-    const branches = ahs.branches ? `${ahs.branches} branches` : "";
-    parts.push([buds, branches].filter(Boolean).join(", "));
-  }
+  pushJoined(parts, [
+    ahs.budcount ? `${ahs.budcount} buds` : null,
+    ahs.branches ? `${ahs.branches} branches` : null,
+  ]);
 
-  // Color and form
-  if (ahs.color || ahs.form) {
-    const color = ahs.color ?? "";
-    const form = ahs.form ? `${ahs.form}` : "";
-    parts.push([color, form].filter(Boolean).join(", "));
-  }
+  pushJoined(parts, [ahs.color, ahs.form]);
 
-  // Parentage
   if (ahs.parentage) {
     parts.push(`(${ahs.parentage})`);
   }
 
   const summary = parts.filter(Boolean).join(", ");
   return summary || null;
+}
+
+function getAhsIdentityLine(ahs: Partial<AhsListing>) {
+  if (!ahs.name && !ahs.hybridizer && !ahs.year) {
+    return null;
+  }
+
+  const details = [ahs.hybridizer, ahs.year].filter(Boolean).join(", ");
+
+  if (ahs.name && details) {
+    return `${ahs.name} (${details})`;
+  }
+
+  if (ahs.name) {
+    return ahs.name;
+  }
+
+  return details ? `(${details})` : null;
+}
+
+function pushJoined(target: string[], values: Array<string | null | undefined>) {
+  const joined = values.filter(Boolean).join(", ");
+  if (joined) {
+    target.push(joined);
+  }
 }

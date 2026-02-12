@@ -31,15 +31,15 @@ test.describe("guest user tour @preview", () => {
     await firstListingCard.click();
     await expect(page.getByRole("dialog")).toBeVisible();
 
-    // Navigate to listing page from dialog
+    // Navigate to cultivar page from dialog
     const listingPageLink = page.getByRole("link", {
-      name: "View Listing Page",
+      name: "View Cultivar Page",
     });
     await expect(listingPageLink).toBeVisible();
     await listingPageLink.click();
 
-    // Listing page should render a main heading
-    await page.waitForURL(/\/[^/]+\/[^/]+$/);
+    // Cultivar page should render a main heading
+    await page.waitForURL(/\/cultivar\/[^/]+$/);
     await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
   });
 });

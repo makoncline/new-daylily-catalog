@@ -13,6 +13,7 @@ import Link from "next/link";
 import { type RouterOutputs } from "@/trpc/react";
 import { AddToCartButton } from "@/components/add-to-cart-button";
 import { useDisplayAhsListing } from "@/hooks/use-display-ahs-listing";
+import { toCultivarRouteSegment } from "@/lib/utils/cultivar-utils";
 
 type Listing = RouterOutputs["public"]["getListings"][number];
 
@@ -26,6 +27,9 @@ export function ListingDisplay({
   variant = "dialog",
 }: ListingDisplayProps) {
   const displayAhsListing = useDisplayAhsListing(listing);
+  const cultivarRouteSegment = toCultivarRouteSegment(
+    listing.cultivarReference?.normalizedName,
+  );
 
   // Determine which heading component to use based on variant
   const HeadingComponent = variant === "page" ? H1 : H2;
@@ -47,10 +51,10 @@ export function ListingDisplay({
         {/* Title and external link */}
         <div className="flex items-center justify-between gap-4">
           <HeadingComponent>{listing.title}</HeadingComponent>
-          {listing.slug && variant !== "page" && (
-            <Link href={`/${listing.user.profile?.slug}/${listing.slug}`}>
+          {cultivarRouteSegment && variant !== "page" && (
+            <Link href={`/cultivar/${cultivarRouteSegment}`}>
               <ExternalLink className="h-5 w-5 text-muted-foreground transition-colors hover:text-foreground" />
-              <span className="sr-only">View Listing Page</span>
+              <span className="sr-only">View Cultivar Page</span>
             </Link>
           )}
         </div>

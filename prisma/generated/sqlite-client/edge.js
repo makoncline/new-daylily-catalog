@@ -218,7 +218,7 @@ const config = {
       "value": "prisma-client-js"
     },
     "output": {
-      "value": "/Users/makon/.codex/worktrees/af14/new-daylily-catalog/prisma/generated/sqlite-client",
+      "value": "/Users/makon/.codex/worktrees/31a8/new-daylily-catalog/prisma/generated/sqlite-client",
       "fromEnvVar": null
     },
     "config": {
@@ -234,7 +234,7 @@ const config = {
     "previewFeatures": [
       "driverAdapters"
     ],
-    "sourceFilePath": "/Users/makon/.codex/worktrees/af14/new-daylily-catalog/prisma/schema.prisma",
+    "sourceFilePath": "/Users/makon/.codex/worktrees/31a8/new-daylily-catalog/prisma/schema.prisma",
     "isCustomOutput": true
   },
   "relativeEnvPaths": {

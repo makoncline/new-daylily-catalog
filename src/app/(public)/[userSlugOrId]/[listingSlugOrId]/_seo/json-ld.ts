@@ -1,6 +1,7 @@
 import type { Listing } from "./utils";
 import { unstable_cache } from "next/cache";
 import { normalizeError, reportError } from "@/lib/error-utils";
+import { PUBLIC_CACHE_CONFIG } from "@/config/public-cache-config";
 
 // Infer the metadata type from the generateListingMetadata function
 import type { generateListingMetadata } from "./metadata";
@@ -107,7 +108,7 @@ export function generateJsonLd(listing: Listing, metadata: Metadata) {
     async () => createJsonLd(listing, metadata),
     [`jsonld-${listing.id}`], // Cache key specific to this listing
     {
-      revalidate: 3600, // Match page revalidation setting
+      revalidate: PUBLIC_CACHE_CONFIG.REVALIDATE_SECONDS.DATA.LISTING_JSON_LD,
     },
   )();
 }
