@@ -8,14 +8,21 @@ const args = process.argv.slice(2);
 
 const rootDir = process.cwd();
 const vercelEnv = process.env.VERCEL_ENV;
-const isVercelProd = vercelEnv === "production";
 
 const defaultTursoDbName = "daylily-catalog";
 
-function defaultSnapshotPathForEnv(envName, dbName) {
-  if (envName === "production") return `local-prod-copy-${dbName}.db`;
-  if (envName === "preview") return `local-preview-copy-${dbName}.db`;
-  return `local-copy-${dbName}.db`;
+function resolveLocalDbPathFromUrl(localDatabaseUrl) {
+  if (!localDatabaseUrl) return null;
+  if (!localDatabaseUrl.startsWith("file:")) return null;
+
+  // Supports file:./relative.db and file:/absolute.db
+  const raw = localDatabaseUrl.slice("file:".length);
+  if (!raw) return null;
+
+  if (path.isAbsolute(raw)) return raw;
+
+  // Prisma tends to resolve relative SQLite paths from prisma/schema.prisma; use prisma/ as the base.
+  return path.resolve(rootDir, "prisma", raw);
 }
 
 function execOrThrow(command, commandArgs, options = {}) {
@@ -28,15 +35,6 @@ function execOrThrow(command, commandArgs, options = {}) {
   if (typeof result.status === "number" && result.status !== 0) {
     process.exit(result.status);
   }
-}
-
-function execOk(command, commandArgs, options = {}) {
-  const result = spawnSync(command, commandArgs, {
-    stdio: "inherit",
-    ...options,
-  });
-
-  return result.status === 0;
 }
 
 function canExec(shellCmd, env) {
@@ -52,17 +50,12 @@ function ensureTursoCli(env) {
   if (canExec("command -v turso >/dev/null 2>&1", env)) return env;
 
   if (!canExec("command -v curl >/dev/null 2>&1", env)) {
-    console.warn(
-      "Vercel prod build: turso CLI not found and curl is missing; falling back to remote DB for build.",
-    );
-    return env;
+    console.error("Vercel build: turso CLI not found and curl is missing.");
+    process.exit(1);
   }
 
   console.log("Vercel prod build: installing turso CLI...");
-  const installed = execOk("bash", ["-lc", "curl -sSfL https://get.tur.so/install.sh | bash"], {
-    env,
-  });
-  if (!installed) return env;
+  execOrThrow("bash", ["-lc", "curl -sSfL https://get.tur.so/install.sh | bash"], { env });
 
   const home = env.HOME ?? process.env.HOME;
   if (!home) return env;
@@ -74,21 +67,19 @@ function ensureTursoCli(env) {
 
 function snapshotProdDb(env, snapshotPath, dbName) {
   if (!env.TURSO_API_TOKEN) {
-    console.warn(
-      "Vercel prod build: TURSO_API_TOKEN not set; falling back to remote DB for build.",
-    );
-    return false;
+    console.error("Vercel build: TURSO_API_TOKEN is not set (required for local DB snapshot).");
+    process.exit(1);
   }
 
   const tursoEnv = ensureTursoCli(env);
   if (!canExec("command -v turso >/dev/null 2>&1", tursoEnv)) {
-    console.warn("Vercel prod build: turso CLI unavailable; falling back to remote DB for build.");
-    return false;
+    console.error("Vercel build: turso CLI unavailable after install attempt.");
+    process.exit(1);
   }
 
   if (!canExec("command -v sqlite3 >/dev/null 2>&1", tursoEnv)) {
-    console.warn("Vercel prod build: sqlite3 missing; falling back to remote DB for build.");
-    return false;
+    console.error("Vercel build: sqlite3 is missing (required for local DB snapshot).");
+    process.exit(1);
   }
 
   console.log(
@@ -100,7 +91,7 @@ function snapshotProdDb(env, snapshotPath, dbName) {
 
   // db-backup.sh treats CI=true as "upload to S3" and skips local restore. On Vercel, CI is often true,
   // so force it off for this command.
-  const ok = execOk("bash", ["scripts/db-backup.sh"], {
+  execOrThrow("bash", ["scripts/db-backup.sh"], {
     env: {
       ...tursoEnv,
       CI: "false",
@@ -109,17 +100,12 @@ function snapshotProdDb(env, snapshotPath, dbName) {
     },
   });
 
-  if (!ok) {
-    console.warn("Vercel build: local DB snapshot failed; falling back to remote DB for build.");
-    return false;
-  }
-
   return true;
 }
 
 function runNextBuild(envOverrides = {}) {
-  const nextBin = path.resolve(rootDir, "node_modules/.bin/next");
-  const env = { ...process.env, ...envOverrides };
+const nextBin = path.resolve(rootDir, "node_modules/.bin/next");
+const env = { ...process.env, ...envOverrides };
 
   if (!fs.existsSync(nextBin)) {
     // pnpm should have installed deps already, but keep a clear error if build runs without install.
@@ -130,28 +116,38 @@ function runNextBuild(envOverrides = {}) {
   execOrThrow(nextBin, ["build", "--turbopack", ...args], { env });
 }
 
-const useLocalSnapshotForBuild =
-  process.env.USE_LOCAL_DB_SNAPSHOT_FOR_BUILD === "true" ||
-  (process.env.USE_LOCAL_DB_SNAPSHOT_FOR_BUILD !== "false" && isVercelProd);
+const isVercelBuild = vercelEnv === "production" || vercelEnv === "preview";
+const isLocalProductionBuild = process.env.NODE_ENV === "production";
+const wantsTursoForBuild = process.env.USE_TURSO_DB_FOR_BUILD === "true";
 
-if (!useLocalSnapshotForBuild) {
+// Snapshot builds are intended for Vercel prod/preview, but allow local verification by running with NODE_ENV=production.
+const shouldUseSnapshotBuild = (isVercelBuild || isLocalProductionBuild) && !wantsTursoForBuild;
+
+if (!shouldUseSnapshotBuild) {
   runNextBuild();
   process.exit(0);
 }
 
-const snapshotDbName = process.env.BUILD_SNAPSHOT_TURSO_DB_NAME ?? defaultTursoDbName;
-const snapshotPath = path.resolve(
-  rootDir,
-  process.env.BUILD_SNAPSHOT_OUTPUT_DB_PATH ??
-    defaultSnapshotPathForEnv(vercelEnv, snapshotDbName),
-);
+const localDbPath = resolveLocalDbPathFromUrl(process.env.LOCAL_DATABASE_URL);
+if (!localDbPath) {
+  console.error(
+    "Vercel build: LOCAL_DATABASE_URL must be set to a SQLite file url (e.g. file:./local-build.db) to use snapshot builds.",
+  );
+  process.exit(1);
+}
+
+const snapshotDbName = process.env.TURSO_SNAPSHOT_DB_NAME ?? defaultTursoDbName;
+const snapshotPath = localDbPath;
 
 const hasSnapshot = fs.existsSync(snapshotPath);
-const didPull = hasSnapshot ? true : snapshotProdDb(process.env, snapshotPath, snapshotDbName);
-
-if (!didPull) {
-  runNextBuild();
-  process.exit(0);
+if (!hasSnapshot) {
+  snapshotProdDb(process.env, snapshotPath, snapshotDbName);
+  if (!fs.existsSync(snapshotPath)) {
+    console.error(
+      `Vercel build: expected snapshot DB at ${path.relative(rootDir, snapshotPath)} but it does not exist.`,
+    );
+    process.exit(1);
+  }
 }
 
 runNextBuild({

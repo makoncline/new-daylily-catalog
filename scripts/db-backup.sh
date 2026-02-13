@@ -11,7 +11,7 @@ DATABASE_NAME="${TURSO_SNAPSHOT_DB_NAME:-daylily-catalog}"
 TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
 DUMP_FILE="${DATABASE_NAME}_${TIMESTAMP}.sql"
 ZIP_FILE="${DUMP_FILE}.zip"
-LOCAL_DB="${TURSO_SNAPSHOT_OUTPUT_DB_PATH:-local-prod-copy-${DATABASE_NAME}.db}"
+LOCAL_DB="${TURSO_SNAPSHOT_OUTPUT_DB_PATH:-prisma/local-prod-copy-${DATABASE_NAME}.db}"
 S3_BUCKET="daylily-catalog-db-backup"
 AWS_REGION="us-east-1"
 
