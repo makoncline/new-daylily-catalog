@@ -2,6 +2,7 @@
 
 ## Log
 
+- 2026-02-13 - vercel build snapshot - Avoid downloading sqlite tools by scraping sqlite.org; use OS package install (Vercel/Amazon Linux via `dnf install sqlite`) or fail clearly. Build snapshot uses `USE_TURSO_DB_FOR_BUILD` and must not change runtime `USE_TURSO_DB`.
 - 2026-02-12 - prisma artifacts - Do not commit generated Prisma client output (`prisma/generated/sqlite-client`) or SQLite DB files; commit schema + migration/source changes only.
 - 2026-02-12 - next route config - Route-segment exports like `export const revalidate` and `export const dynamicParams` must stay literal in the page file; imported config/object property values can fail static parsing.
 - 2026-02-12 - profile deep-link UX - For `?viewing=` on public profile, avoid transient “Listing not found”; fetch `public.getListing` when the ID is not in loaded pages and show a loading state until query resolves.
