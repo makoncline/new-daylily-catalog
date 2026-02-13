@@ -44,7 +44,7 @@ export function DataTableColumnHeader<TData, TValue>({
   // Debounced function for expensive filtering operations
   const debouncedFiltering = useDebouncedCallback((filterValue: string) => {
     column.setFilterValue(filterValue);
-  }, 200);
+  }, 200, { leading: true });
 
   // Handle input changes - update UI immediately but debounce filtering
   const handleChange = (event: React.ChangeEvent<HTMLInputElement>) => {

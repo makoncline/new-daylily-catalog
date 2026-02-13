@@ -17,6 +17,8 @@ export class ManageListPage {
   readonly pagerNextButton: Locator;
   readonly pagerLastButton: Locator;
   readonly pagerPerPage: Locator;
+  private openColumnFilterLabel: "Title" | "Description" | "Private Notes" | null =
+    null;
 
   constructor(page: Page) {
     this.page = page;
@@ -129,6 +131,7 @@ export class ManageListPage {
   }
 
   async openColumnFilter(columnLabel: "Title" | "Description" | "Private Notes") {
+    this.openColumnFilterLabel = columnLabel;
     const filterButton = this.manageListTable
       .getByRole("button", {
         name: `Filter ${columnLabel.toLowerCase()}`,
@@ -138,11 +141,29 @@ export class ManageListPage {
   }
 
   async setOpenColumnFilterValue(value: string) {
-    const filterInput = this.page.locator(
-      'input[placeholder^="Filter "]:not([placeholder="Filter listings..."]):visible',
+    const columnLabel = this.openColumnFilterLabel ?? "Title";
+    let lastError: unknown;
+
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        const filterInput = this.page
+          .getByPlaceholder(`Filter ${columnLabel.toLowerCase()}...`)
+          .first();
+        await filterInput.waitFor({ state: "visible", timeout: 5000 });
+        await filterInput.fill(value, { timeout: 5000 });
+        return;
+      } catch (error) {
+        lastError = error;
+        // Popover content can detach during table rerenders; reopen and retry.
+        await this.page.keyboard.press("Escape").catch(() => undefined);
+        await this.openColumnFilter(columnLabel);
+      }
+    }
+
+    const message = lastError instanceof Error ? lastError.message : String(lastError);
+    throw new Error(
+      `Failed to set column filter "${columnLabel}" after 3 attempts: ${message}`,
     );
-    await filterInput.first().waitFor({ state: "visible" });
-    await filterInput.first().fill(value);
   }
 
   async goToNextPage() {

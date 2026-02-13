@@ -4,6 +4,7 @@ import { dashboardDbImageRouter } from "./image";
 import { dashboardDbListRouter } from "./list";
 import { dashboardDbListingRouter } from "./listing";
 import { dashboardDbUserRouter } from "./user";
+import { dashboardDbUserProfileRouter } from "./user-profile";
 
 export const dashboardDbRouter = createTRPCRouter({
   listing: dashboardDbListingRouter,
@@ -11,4 +12,5 @@ export const dashboardDbRouter = createTRPCRouter({
   image: dashboardDbImageRouter,
   ahs: dashboardDbAhsRouter,
   user: dashboardDbUserRouter,
+  userProfile: dashboardDbUserProfileRouter,
 });

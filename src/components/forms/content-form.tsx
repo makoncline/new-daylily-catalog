@@ -13,10 +13,10 @@ import { Label } from "../ui/label";
 import { useOnClickOutside } from "usehooks-ts";
 import { type OutputData } from "@editorjs/editorjs";
 import { Muted } from "@/components/typography";
-import { getErrorMessage, normalizeError } from "@/lib/error-utils";
+import { getErrorMessage, normalizeError, reportError } from "@/lib/error-utils";
 
 interface ContentManagerFormProps {
-  initialProfile: RouterOutputs["userProfile"]["get"];
+  initialProfile: RouterOutputs["dashboardDb"]["userProfile"]["get"];
 }
 
 export function ContentManagerFormItem({
@@ -29,7 +29,7 @@ export function ContentManagerFormItem({
   const editorRef = React.useRef<EditorJS | null>(null);
   const contentRef = React.useRef<HTMLDivElement | null>(null);
 
-  const updateContentMutation = api.userProfile.updateContent.useMutation({
+  const updateContentMutation = api.dashboardDb.userProfile.updateContent.useMutation({
     onSuccess: () => {
       setIsSaving(false);
       toast.success("Content saved");

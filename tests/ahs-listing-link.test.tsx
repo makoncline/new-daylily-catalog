@@ -115,7 +115,7 @@ describe("AhsListingLink", () => {
             id: "ahs-2",
             name: "Coffee Two",
           },
-        },
+        } as Listing["cultivarReference"],
       }),
     );
 
@@ -139,4 +139,3 @@ describe("AhsListingLink", () => {
     });
   });
 });
-
