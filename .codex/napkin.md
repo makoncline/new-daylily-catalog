@@ -2,6 +2,7 @@
 
 ## Log
 
+- 2026-02-13 - vercel build snapshot - Avoid downloading sqlite tools by scraping sqlite.org; use OS package install (Vercel/Amazon Linux via `dnf install sqlite`) or fail clearly. Build snapshot uses `USE_TURSO_DB_FOR_BUILD` and must not change runtime `USE_TURSO_DB`.
 - 2026-02-12 - prisma artifacts - Do not commit generated Prisma client output (`prisma/generated/sqlite-client`) or SQLite DB files; commit schema + migration/source changes only.
 - 2026-02-12 - next route config - Route-segment exports like `export const revalidate` and `export const dynamicParams` must stay literal in the page file; imported config/object property values can fail static parsing.
 - 2026-02-12 - profile deep-link UX - For `?viewing=` on public profile, avoid transient “Listing not found”; fetch `public.getListing` when the ID is not in loaded pages and show a loading state until query resolves.
@@ -43,6 +44,7 @@
 - Use composition patterns for new UI components (prefer explicit composed sections over boolean-mode props).
 - Use the term `napkin` (not `codex napkin`).
 - Keep E2E tests UI-only; if UI behavior fails, test should fail (don't hide with non-UI shortcuts).
+- For Vercel production builds, prefer building against a local snapshot of the prod DB (to avoid slow remote Turso queries); preview builds can keep using Turso.
 - Use a 3-step DB rollout for this repo's AHS migration work: Prisma structural migration, then generated SQL file for reference-table data load, then generated SQL file for listing backfill.
 - Avoid `executeRawUnsafe` in application and migration-adjacent app code when Prisma ORM operations can do the job.
 - For product-feedback asks, return prioritized recommendations tied to activation, conversion, and retention.

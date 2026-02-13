@@ -4,7 +4,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "next build --turbopack",
+    "build": "node scripts/vercel-build.mjs",
+    "build:next": "next build --turbopack",
     "dev": "next dev --turbopack",
     "postinstall": "prisma generate",
     "lint": "next lint",
