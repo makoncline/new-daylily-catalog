@@ -64,20 +64,104 @@ function ensureTursoCli(env) {
   return { ...env, PATH: nextPath };
 }
 
+function ensureSqlite3Cli(env) {
+  if (canExec("command -v sqlite3 >/dev/null 2>&1", env)) return env;
+
+  if (!canExec("command -v curl >/dev/null 2>&1", env)) {
+    console.error("Build: sqlite3 is missing and curl is not available to install it.");
+    process.exit(1);
+  }
+
+  const home = env.HOME ?? process.env.HOME;
+  if (!home) {
+    console.error("Build: HOME is not set; cannot install sqlite3 tools.");
+    process.exit(1);
+  }
+
+  // Resolve the current Linux x64 sqlite-tools URL from the official download page.
+  // This avoids hardcoding versions/years.
+  const getRelativeUrlCmd =
+    "curl -sSfL https://www.sqlite.org/download.html | tr -d '\\r' | " +
+    "awk -F, '/^PRODUCT,[0-9]+,[^,]*sqlite-tools-linux-x64-[0-9]+\\\\.zip,/{print $3; exit}'";
+
+  const relativeUrlResult = spawnSync("bash", ["-lc", getRelativeUrlCmd], {
+    encoding: "utf8",
+    env,
+  });
+
+  const relativeUrl = (relativeUrlResult.stdout ?? "").trim();
+  if (!relativeUrl) {
+    console.error("Build: failed to resolve sqlite-tools download URL from sqlite.org.");
+    process.exit(1);
+  }
+
+  const canUseUnzip = canExec("command -v unzip >/dev/null 2>&1", env);
+  const canUsePython3 = canExec("command -v python3 >/dev/null 2>&1", env);
+  const canUsePython = canExec("command -v python >/dev/null 2>&1", env);
+  if (!canUseUnzip && !canUsePython3 && !canUsePython) {
+    console.error(
+      "Build: neither unzip nor python is available (required to extract sqlite-tools).",
+    );
+    process.exit(1);
+  }
+
+  const cacheDir = path.join(home, ".cache", "sqlite-tools");
+  const zipPath = path.join(cacheDir, "sqlite-tools-linux-x64.zip");
+  const extractDir = path.join(cacheDir, "extract");
+  const fullUrl = `https://www.sqlite.org/${relativeUrl.replace(/^\/+/, "")}`;
+
+  console.log(`Build: installing sqlite3 CLI from ${fullUrl}...`);
+
+  execOrThrow("bash", ["-lc", `mkdir -p "${cacheDir}" "${extractDir}"`], { env });
+  execOrThrow("bash", ["-lc", `rm -f "${zipPath}"`], { env });
+  execOrThrow("bash", ["-lc", `curl -sSfL "${fullUrl}" -o "${zipPath}"`], { env });
+
+  if (canUseUnzip) {
+    execOrThrow("bash", ["-lc", `unzip -qo "${zipPath}" -d "${extractDir}"`], { env });
+  } else {
+    const pythonCmd = canUsePython3 ? "python3" : "python";
+    const extractCmd =
+      `${pythonCmd} - <<'PY'\n` +
+      `import zipfile\n` +
+      `with zipfile.ZipFile(${JSON.stringify(zipPath)}) as z:\n` +
+      `  z.extractall(${JSON.stringify(extractDir)})\n` +
+      `PY`;
+    execOrThrow("bash", ["-lc", extractCmd], { env });
+  }
+
+  const findSqlite3Cmd = `find "${extractDir}" -maxdepth 3 -type f -name sqlite3 | head -n 1`;
+  const sqlite3PathResult = spawnSync("bash", ["-lc", findSqlite3Cmd], {
+    encoding: "utf8",
+    env,
+  });
+  const sqlite3Path = (sqlite3PathResult.stdout ?? "").trim();
+  if (!sqlite3Path) {
+    console.error("Build: sqlite3 binary not found after extracting sqlite-tools.");
+    process.exit(1);
+  }
+
+  execOrThrow("bash", ["-lc", `chmod +x "${sqlite3Path}"`], { env });
+
+  const sqliteBinDir = path.dirname(sqlite3Path);
+  const nextEnv = { ...env, PATH: `${sqliteBinDir}:${env.PATH ?? process.env.PATH ?? ""}` };
+
+  if (!canExec("command -v sqlite3 >/dev/null 2>&1", nextEnv)) {
+    console.error("Build: sqlite3 still not available after install attempt.");
+    process.exit(1);
+  }
+
+  return nextEnv;
+}
+
 function snapshotProdDb(env, snapshotPath, dbName) {
   if (!env.TURSO_API_TOKEN) {
     console.error("Build: TURSO_API_TOKEN is not set (required for local DB snapshot).");
     process.exit(1);
   }
 
-  const tursoEnv = ensureTursoCli(env);
+  const tursoEnv = ensureSqlite3Cli(ensureTursoCli(env));
   if (!canExec("command -v turso >/dev/null 2>&1", tursoEnv)) {
     console.error("Build: turso CLI unavailable after install attempt.");
-    process.exit(1);
-  }
-
-  if (!canExec("command -v sqlite3 >/dev/null 2>&1", tursoEnv)) {
-    console.error("Build: sqlite3 is missing (required for local DB snapshot).");
     process.exit(1);
   }
 
@@ -100,8 +184,8 @@ function snapshotProdDb(env, snapshotPath, dbName) {
 }
 
 function runNextBuild(envOverrides = {}) {
-const nextBin = path.resolve(rootDir, "node_modules/.bin/next");
-const env = { ...process.env, ...envOverrides };
+  const nextBin = path.resolve(rootDir, "node_modules/.bin/next");
+  const env = { ...process.env, ...envOverrides };
 
   if (!fs.existsSync(nextBin)) {
     // pnpm should have installed deps already, but keep a clear error if build runs without install.
