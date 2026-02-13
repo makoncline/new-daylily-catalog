@@ -3,7 +3,6 @@
 import { spawnSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
-import { inflateRawSync } from "node:zlib";
 
 const args = process.argv.slice(2);
 
@@ -54,6 +53,21 @@ function ensureTursoCli(env) {
     process.exit(1);
   }
 
+  // Turso's installer extracts an xz-compressed tarball.
+  if (!canExec("command -v xz >/dev/null 2>&1", env)) {
+    console.error(
+      "Build: xz is missing (required to install Turso CLI). Install it via the Vercel Install Command (e.g. dnf install -y xz).",
+    );
+    process.exit(1);
+  }
+
+  if (!canExec("command -v tar >/dev/null 2>&1", env)) {
+    console.error(
+      "Build: tar is missing (required to install Turso CLI). Install it via the Vercel Install Command.",
+    );
+    process.exit(1);
+  }
+
   console.log("Build: installing turso CLI...");
   execOrThrow(
     "bash",
@@ -72,181 +86,10 @@ function ensureTursoCli(env) {
 function ensureSqlite3Cli(env) {
   if (canExec("command -v sqlite3 >/dev/null 2>&1", env)) return env;
 
-  if (!canExec("command -v curl >/dev/null 2>&1", env)) {
-    console.error(
-      "Build: sqlite3 is missing and curl is not available to install it.",
-    );
-    process.exit(1);
-  }
-
-  const home = env.HOME ?? process.env.HOME;
-  if (!home) {
-    console.error("Build: HOME is not set; cannot install sqlite3 tools.");
-    process.exit(1);
-  }
-
-  const toolArch = "x64";
-
-  // Resolve the current sqlite-tools URL from the official download page.
-  // The page typically links something like:
-  //   <a href="2025/sqlite-tools-linux-x64-3480000.zip">...</a>
-  const downloadPageResult = spawnSync(
-    "bash",
-    ["-lc", "curl -sSfL https://www.sqlite.org/download.html"],
-    { encoding: "utf8", env },
+  console.error(
+    "Build: sqlite3 is missing. Install it via the Vercel Install Command (e.g. dnf install -y sqlite).",
   );
-
-  if (downloadPageResult.status !== 0) {
-    const stderr = (downloadPageResult.stderr ?? "").trim();
-    console.error(
-      `Build: failed to fetch sqlite download page (exit ${downloadPageResult.status}).`,
-    );
-    if (stderr) console.error(stderr);
-    process.exit(1);
-  }
-
-  const downloadPageHtml = downloadPageResult.stdout ?? "";
-  const hrefRe = new RegExp(
-    `href=[\"']([^\"']*sqlite-tools-linux-${toolArch}-[0-9]+\\\\.zip)[\"']`,
-    "i",
-  );
-
-  const match = downloadPageHtml.match(hrefRe);
-  const relativeUrl = match?.[1]?.trim();
-  if (!relativeUrl) {
-    console.error(
-      "Build: failed to resolve sqlite-tools download URL from sqlite.org.",
-    );
-    process.exit(1);
-  }
-
-  const cacheDir = path.join(home, ".cache", "sqlite-tools");
-  const zipPath = path.join(cacheDir, `sqlite-tools-linux-${toolArch}.zip`);
-  const binDir = path.join(cacheDir, "bin");
-  const cachedSqlite3Path = path.join(binDir, "sqlite3");
-  const fullUrl = relativeUrl.startsWith("http")
-    ? relativeUrl
-    : `https://www.sqlite.org/${relativeUrl.replace(/^\/+/, "")}`;
-
-  if (fs.existsSync(cachedSqlite3Path)) {
-    const nextEnv = {
-      ...env,
-      PATH: `${binDir}:${env.PATH ?? process.env.PATH ?? ""}`,
-    };
-    if (canExec("command -v sqlite3 >/dev/null 2>&1", nextEnv)) return nextEnv;
-  }
-
-  console.log(`Build: installing sqlite3 CLI from ${fullUrl}...`);
-
-  execOrThrow("bash", ["-lc", `mkdir -p "${cacheDir}" "${binDir}"`], {
-    env,
-  });
-  execOrThrow("bash", ["-lc", `rm -f "${zipPath}"`], { env });
-  execOrThrow("bash", ["-lc", `curl -sSfL "${fullUrl}" -o "${zipPath}"`], {
-    env,
-  });
-
-  const zipData = fs.readFileSync(zipPath);
-
-  const eocdSig = 0x06054b50;
-  const cdSig = 0x02014b50;
-  const lfSig = 0x04034b50;
-
-  function findEocdOffset(buf) {
-    // EOCD is at most 65,557 bytes from the end (64KB comment + 22B header).
-    const min = Math.max(0, buf.length - 65557);
-    for (let i = buf.length - 22; i >= min; i--) {
-      if (buf.readUInt32LE(i) === eocdSig) return i;
-    }
-    return -1;
-  }
-
-  const eocdOffset = findEocdOffset(zipData);
-  if (eocdOffset < 0) {
-    console.error("Build: invalid sqlite-tools zip (EOCD not found).");
-    process.exit(1);
-  }
-
-  const centralDirSize = zipData.readUInt32LE(eocdOffset + 12);
-  const centralDirOffset = zipData.readUInt32LE(eocdOffset + 16);
-
-  let cursor = centralDirOffset;
-  const centralDirEnd = centralDirOffset + centralDirSize;
-
-  let sqliteEntry = null;
-  while (cursor < centralDirEnd) {
-    if (zipData.readUInt32LE(cursor) !== cdSig) break;
-
-    const compressionMethod = zipData.readUInt16LE(cursor + 10);
-    const compressedSize = zipData.readUInt32LE(cursor + 20);
-    const uncompressedSize = zipData.readUInt32LE(cursor + 24);
-    const fileNameLength = zipData.readUInt16LE(cursor + 28);
-    const extraLength = zipData.readUInt16LE(cursor + 30);
-    const commentLength = zipData.readUInt16LE(cursor + 32);
-    const localHeaderOffset = zipData.readUInt32LE(cursor + 42);
-
-    const nameStart = cursor + 46;
-    const nameEnd = nameStart + fileNameLength;
-    const name = zipData.toString("utf8", nameStart, nameEnd);
-
-    if (name.endsWith("/sqlite3") || name === "sqlite3") {
-      sqliteEntry = {
-        name,
-        compressionMethod,
-        compressedSize,
-        uncompressedSize,
-        localHeaderOffset,
-      };
-      break;
-    }
-
-    cursor = nameEnd + extraLength + commentLength;
-  }
-
-  if (!sqliteEntry) {
-    console.error("Build: sqlite3 binary not found inside sqlite-tools zip.");
-    process.exit(1);
-  }
-
-  const lh = sqliteEntry.localHeaderOffset;
-  if (zipData.readUInt32LE(lh) !== lfSig) {
-    console.error("Build: invalid sqlite-tools zip (local header not found).");
-    process.exit(1);
-  }
-
-  const fileNameLength = zipData.readUInt16LE(lh + 26);
-  const extraLength = zipData.readUInt16LE(lh + 28);
-  const dataOffset = lh + 30 + fileNameLength + extraLength;
-
-  const compressed = zipData.subarray(dataOffset, dataOffset + sqliteEntry.compressedSize);
-  let uncompressed;
-  if (sqliteEntry.compressionMethod === 0) {
-    uncompressed = compressed;
-  } else if (sqliteEntry.compressionMethod === 8) {
-    uncompressed = inflateRawSync(compressed);
-  } else {
-    console.error(`Build: unsupported zip compression method: ${sqliteEntry.compressionMethod}`);
-    process.exit(1);
-  }
-
-  if (sqliteEntry.uncompressedSize && uncompressed.length !== sqliteEntry.uncompressedSize) {
-    console.error("Build: sqlite3 binary size mismatch after extraction.");
-    process.exit(1);
-  }
-
-  fs.writeFileSync(cachedSqlite3Path, uncompressed, { mode: 0o755 });
-
-  const nextEnv = {
-    ...env,
-    PATH: `${binDir}:${env.PATH ?? process.env.PATH ?? ""}`,
-  };
-
-  if (!canExec("command -v sqlite3 >/dev/null 2>&1", nextEnv)) {
-    console.error("Build: sqlite3 still not available after install attempt.");
-    process.exit(1);
-  }
-
-  return nextEnv;
+  process.exit(1);
 }
 
 function snapshotProdDb(env, snapshotPath, dbName) {
