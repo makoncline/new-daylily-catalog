@@ -8,13 +8,35 @@ const args = process.argv.slice(2);
 
 const rootDir = process.cwd();
 
-const defaultTursoDbName = "daylily-catalog";
+function run(cmd, cmdArgs, opts = {}) {
+  const result = spawnSync(cmd, cmdArgs, { stdio: "inherit", ...opts });
+  if (result.error) throw result.error;
+  if (typeof result.status === "number" && result.status !== 0) {
+    process.exit(result.status);
+  }
+}
 
-function resolveLocalDbPathFromUrl(localDatabaseUrl) {
-  if (!localDatabaseUrl) return null;
-  if (!localDatabaseUrl.startsWith("file:")) return null;
+function canExec(shellCmd, env = process.env) {
+  return (
+    spawnSync("bash", ["-lc", shellCmd], { stdio: "ignore", env }).status === 0
+  );
+}
 
-  // Supports file:./relative.db and file:/absolute.db
+function nextBuild(envOverrides = {}) {
+  const nextBin = path.resolve(rootDir, "node_modules/.bin/next");
+  if (!fs.existsSync(nextBin)) {
+    console.error("Error: next binary not found (deps not installed?)");
+    process.exit(1);
+  }
+
+  run(nextBin, ["build", "--turbopack", ...args], {
+    env: { ...process.env, ...envOverrides },
+  });
+}
+
+function resolveSqliteFilePath(localDatabaseUrl) {
+  if (!localDatabaseUrl?.startsWith("file:")) return null;
+
   const raw = localDatabaseUrl.slice("file:".length);
   if (!raw) return null;
 
@@ -24,155 +46,80 @@ function resolveLocalDbPathFromUrl(localDatabaseUrl) {
   return path.resolve(rootDir, "prisma", raw);
 }
 
-function execOrThrow(command, commandArgs, options = {}) {
-  const result = spawnSync(command, commandArgs, {
-    stdio: "inherit",
-    ...options,
-  });
-
-  if (result.error) throw result.error;
-  if (typeof result.status === "number" && result.status !== 0) {
-    process.exit(result.status);
-  }
-}
-
-function canExec(shellCmd, env) {
-  const result = spawnSync("bash", ["-lc", shellCmd], {
-    stdio: "ignore",
-    env,
-  });
-
-  return result.status === 0;
-}
-
-function ensureTursoCli(env) {
-  if (canExec("command -v turso >/dev/null 2>&1", env)) return env;
-
-  if (!canExec("command -v curl >/dev/null 2>&1", env)) {
-    console.error("Build: turso CLI not found and curl is missing.");
-    process.exit(1);
-  }
-
-  // Turso's installer extracts an xz-compressed tarball.
-  if (!canExec("command -v xz >/dev/null 2>&1", env)) {
-    console.error(
-      "Build: xz is missing (required to install Turso CLI). Install it via the Vercel Install Command (e.g. dnf install -y xz).",
-    );
-    process.exit(1);
-  }
-
-  if (!canExec("command -v tar >/dev/null 2>&1", env)) {
-    console.error(
-      "Build: tar is missing (required to install Turso CLI). Install it via the Vercel Install Command.",
-    );
-    process.exit(1);
-  }
-
-  console.log("Build: installing turso CLI...");
-  execOrThrow(
-    "bash",
-    ["-lc", "curl -sSfL https://get.tur.so/install.sh | bash"],
-    { env },
-  );
-
-  const home = env.HOME ?? process.env.HOME;
-  if (!home) return env;
-
-  const tursoDir = path.join(home, ".turso");
-  const nextPath = `${tursoDir}:${env.PATH ?? process.env.PATH ?? ""}`;
-  return { ...env, PATH: nextPath };
-}
-
-function ensureSqlite3Cli(env) {
-  if (canExec("command -v sqlite3 >/dev/null 2>&1", env)) return env;
-
-  console.error(
-    "Build: sqlite3 is missing. Install it via the Vercel Install Command (e.g. dnf install -y sqlite).",
-  );
-  process.exit(1);
-}
-
-function snapshotProdDb(env, snapshotPath, dbName) {
-  if (!env.TURSO_API_TOKEN) {
-    console.error(
-      "Build: TURSO_API_TOKEN is not set (required for local DB snapshot).",
-    );
-    process.exit(1);
-  }
-
-  const tursoEnv = ensureSqlite3Cli(ensureTursoCli(env));
-  if (!canExec("command -v turso >/dev/null 2>&1", tursoEnv)) {
-    console.error("Build: turso CLI unavailable after install attempt.");
-    process.exit(1);
-  }
-
-  console.log(
-    `Build: pulling Turso DB '${dbName}' snapshot to ${path.relative(rootDir, snapshotPath)}...`,
-  );
-
-  // db-backup.sh treats CI=true as "upload to S3" and skips local restore. On Vercel, CI is often true,
-  // so force it off for this command.
-  execOrThrow("bash", ["scripts/db-backup.sh"], {
-    env: {
-      ...tursoEnv,
-      CI: "false",
-      TURSO_SNAPSHOT_DB_NAME: dbName,
-      TURSO_SNAPSHOT_OUTPUT_DB_PATH: snapshotPath,
-    },
-  });
-
-  return true;
-}
-
-function runNextBuild(envOverrides = {}) {
-  const nextBin = path.resolve(rootDir, "node_modules/.bin/next");
-  const env = { ...process.env, ...envOverrides };
-
-  if (!fs.existsSync(nextBin)) {
-    // pnpm should have installed deps already, but keep a clear error if build runs without install.
-    console.error("Error: next binary not found. Did you run pnpm install?");
-    process.exit(1);
-  }
-
-  execOrThrow(nextBin, ["build", "--turbopack", ...args], { env });
-}
-
-// Only use snapshots when explicitly opted in.
-// - USE_TURSO_DB_FOR_BUILD=true (or unset): build against remote Turso.
-// - USE_TURSO_DB_FOR_BUILD=false: build against local SQLite snapshot.
-const useSnapshotBuild = process.env.USE_TURSO_DB_FOR_BUILD === "false";
-if (!useSnapshotBuild) {
-  runNextBuild();
+// Default behavior: normal build (remote Turso or whatever your app uses).
+if (process.env.USE_TURSO_DB_FOR_BUILD !== "false") {
+  nextBuild();
   process.exit(0);
 }
 
-console.log(
-  "[build] using local SQLite snapshot (USE_TURSO_DB_FOR_BUILD=false)",
-);
+console.log("[build] using local SQLite snapshot (USE_TURSO_DB_FOR_BUILD=false)");
 
-const localDbPath = resolveLocalDbPathFromUrl(process.env.LOCAL_DATABASE_URL);
+const localDbPath = resolveSqliteFilePath(process.env.LOCAL_DATABASE_URL);
 if (!localDbPath) {
   console.error(
-    "Build: LOCAL_DATABASE_URL must be set to a SQLite file url (e.g. file:./local-build.db) to use snapshot builds.",
+    "Build: LOCAL_DATABASE_URL must be a sqlite file url like file:./build-snapshot.db",
   );
   process.exit(1);
 }
 
-const snapshotDbName = process.env.TURSO_SNAPSHOT_DB_NAME ?? defaultTursoDbName;
-const snapshotPath = localDbPath;
+if (!process.env.TURSO_API_TOKEN) {
+  console.error(
+    "Build: TURSO_API_TOKEN is required when USE_TURSO_DB_FOR_BUILD=false",
+  );
+  process.exit(1);
+}
 
-const hasSnapshot = fs.existsSync(snapshotPath);
-if (!hasSnapshot) {
-  snapshotProdDb(process.env, snapshotPath, snapshotDbName);
-  if (!fs.existsSync(snapshotPath)) {
-    console.error(
-      `Build: expected snapshot DB at ${path.relative(rootDir, snapshotPath)} but it does not exist.`,
-    );
+const dbName = process.env.TURSO_SNAPSHOT_DB_NAME || "daylily-catalog";
+
+// Expect sqlite3 from vercel installCommand; fail fast if missing.
+if (!canExec("command -v sqlite3 >/dev/null")) {
+  console.error(
+    "Build: sqlite3 missing (check vercel installCommand: dnf install -y sqlite ...)",
+  );
+  process.exit(1);
+}
+
+// Install Turso CLI if needed (expects curl/tar/xz from installCommand).
+if (!canExec("command -v turso >/dev/null")) {
+  run("bash", ["-lc", "curl -sSfL https://get.tur.so/install.sh | bash"]);
+
+  const home = process.env.HOME;
+  if (home) {
+    process.env.PATH = `${path.join(home, ".turso")}:${process.env.PATH ?? ""}`;
+  }
+
+  if (!canExec("command -v turso >/dev/null")) {
+    console.error("Build: turso CLI unavailable after install attempt.");
     process.exit(1);
   }
 }
 
-runNextBuild({
-  LOCAL_DATABASE_URL: `file:${snapshotPath}`,
+// Pull snapshot only if not already present.
+if (!fs.existsSync(localDbPath)) {
+  console.log(
+    `Build: pulling Turso DB '${dbName}' snapshot to ${path.relative(rootDir, localDbPath)}...`,
+  );
+
+  // db-backup.sh treats CI=true as "upload to S3" and skips local restore. On Vercel, CI is often true.
+  run("bash", ["scripts/db-backup.sh"], {
+    env: {
+      ...process.env,
+      CI: "false",
+      TURSO_SNAPSHOT_DB_NAME: dbName,
+      TURSO_SNAPSHOT_OUTPUT_DB_PATH: localDbPath,
+    },
+  });
+}
+
+if (!fs.existsSync(localDbPath)) {
+  console.error(
+    `Build: expected snapshot DB at ${path.relative(rootDir, localDbPath)} but it does not exist.`,
+  );
+  process.exit(1);
+}
+
+// Build against local sqlite snapshot; runtime env remains unchanged.
+nextBuild({
   USE_TURSO_DB: "false",
+  LOCAL_DATABASE_URL: `file:${localDbPath}`,
 });
