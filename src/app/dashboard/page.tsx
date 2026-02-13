@@ -5,8 +5,7 @@ import { DashboardPageClient } from "./_components/dashboard-page-client";
 import { DashboardPageSkeleton } from "./_components/dashboard-page-skeleton";
 
 export default function DashboardPage() {
-  // Fetch data on the client side instead of server side
-  const { data: stats, isLoading } = api.dashboard.getStats.useQuery(
+  const { data: stats, isLoading } = api.dashboardDb.dashboard.getStats.useQuery(
     undefined,
     {
       staleTime: Infinity,

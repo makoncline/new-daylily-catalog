@@ -11,7 +11,7 @@ import { usePro } from "@/hooks/use-pro";
 import { CheckoutButton } from "@/components/checkout-button";
 
 interface StatsCardProps {
-  stats: RouterOutputs["dashboard"]["getStats"];
+  stats: RouterOutputs["dashboardDb"]["dashboard"]["getStats"];
 }
 
 export function ListingDetailsCard({ stats }: StatsCardProps) {

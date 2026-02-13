@@ -14,7 +14,7 @@ export interface ProfileStep extends BaseStep {
 
 export interface CatalogStep extends BaseStep {
   target: string;
-  isComplete: (stats: RouterOutputs["dashboard"]["getStats"]) => boolean;
+  isComplete: (stats: RouterOutputs["dashboardDb"]["dashboard"]["getStats"]) => boolean;
 }
 
 export interface StepProps {
