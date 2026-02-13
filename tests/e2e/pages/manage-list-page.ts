@@ -129,7 +129,7 @@ export class ManageListPage {
   }
 
   async openColumnFilter(columnLabel: "Title" | "Description" | "Private Notes") {
-    const filterButton = this.page
+    const filterButton = this.manageListTable
       .getByRole("button", {
         name: `Filter ${columnLabel.toLowerCase()}`,
       })
@@ -138,10 +138,11 @@ export class ManageListPage {
   }
 
   async setOpenColumnFilterValue(value: string) {
-    const filterInput = this.page
-      .locator('input[placeholder^="Filter "]:visible')
-      .last();
-    await filterInput.fill(value);
+    const filterInput = this.page.locator(
+      'input[placeholder^="Filter "]:not([placeholder="Filter listings..."]):visible',
+    );
+    await filterInput.first().waitFor({ state: "visible" });
+    await filterInput.first().fill(value);
   }
 
   async goToNextPage() {

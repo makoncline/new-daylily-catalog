@@ -1,3 +1,5 @@
+"use client";
+
 import { useEffect, useState } from "react";
 import { ChevronsUpDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -55,7 +57,7 @@ export function AhsListingSelect({
     }
   };
 
-  const ahsSearchQuery = api.ahs.search.useQuery(
+  const ahsSearchQuery = api.dashboardDb.ahs.search.useQuery(
     {
       query: debouncedSearchValue,
     },

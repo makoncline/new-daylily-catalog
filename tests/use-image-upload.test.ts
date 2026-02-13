@@ -2,10 +2,11 @@ import { renderHook, act, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const getPresignedUrlMutateAsyncMock = vi.hoisted(() => vi.fn());
-const createImageMutateAsyncMock = vi.hoisted(() => vi.fn());
+const createImageMock = vi.hoisted(() => vi.fn());
 const uploadFileWithProgressMock = vi.hoisted(() => vi.fn());
 const toastSuccessMock = vi.hoisted(() => vi.fn());
 const toastErrorMock = vi.hoisted(() => vi.fn());
+const reportErrorMock = vi.hoisted(() => vi.fn());
 const getErrorMessageMock = vi.hoisted(() =>
   vi.fn((error: unknown) =>
     error instanceof Error ? error.message : String(error ?? "Unknown error"),
@@ -14,19 +15,20 @@ const getErrorMessageMock = vi.hoisted(() =>
 
 vi.mock("@/trpc/react", () => ({
   api: {
-    image: {
-      getPresignedUrl: {
-        useMutation: () => ({
-          mutateAsync: getPresignedUrlMutateAsyncMock,
-        }),
-      },
-      createImage: {
-        useMutation: () => ({
-          mutateAsync: createImageMutateAsyncMock,
-        }),
+    dashboardDb: {
+      image: {
+        getPresignedUrl: {
+          useMutation: () => ({
+            mutateAsync: getPresignedUrlMutateAsyncMock,
+          }),
+        },
       },
     },
   },
+}));
+
+vi.mock("@/app/dashboard/_lib/dashboard-db/images-collection", () => ({
+  createImage: createImageMock,
 }));
 
 vi.mock("@/lib/utils", () => ({
@@ -43,6 +45,7 @@ vi.mock("sonner", () => ({
 vi.mock("@/lib/error-utils", () => ({
   getErrorMessage: getErrorMessageMock,
   normalizeError: (error: unknown) => error,
+  reportError: reportErrorMock,
 }));
 
 import { useImageUpload } from "@/hooks/use-image-upload";
@@ -50,7 +53,6 @@ import { useImageUpload } from "@/hooks/use-image-upload";
 describe("useImageUpload", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.stubGlobal("reportError", vi.fn());
   });
 
   it("uploads successfully and resets state", async () => {
@@ -74,7 +76,7 @@ describe("useImageUpload", () => {
         onProgress(100);
       },
     );
-    createImageMutateAsyncMock.mockResolvedValue(uploadedImage);
+    createImageMock.mockResolvedValue(uploadedImage);
 
     const onSuccess = vi.fn();
     const { result } = renderHook(() =>
@@ -107,7 +109,7 @@ describe("useImageUpload", () => {
         onProgress: expect.any(Function),
       }),
     );
-    expect(createImageMutateAsyncMock).toHaveBeenCalledWith({
+    expect(createImageMock).toHaveBeenCalledWith({
       type: "listing",
       referenceId: "listing-1",
       url: uploadedImage.url,
@@ -141,9 +143,9 @@ describe("useImageUpload", () => {
     });
 
     expect(uploadFileWithProgressMock).not.toHaveBeenCalled();
-    expect(createImageMutateAsyncMock).not.toHaveBeenCalled();
+    expect(createImageMock).not.toHaveBeenCalled();
     expect(returned).toBeUndefined();
-    expect(toastErrorMock).toHaveBeenCalledWith("Failed to upload image", {
+    expect(toastErrorMock).toHaveBeenCalledWith("Failed to get upload URL", {
       description: "Presign failed",
     });
 
@@ -175,7 +177,7 @@ describe("useImageUpload", () => {
       returned = await result.current.upload(file);
     });
 
-    expect(createImageMutateAsyncMock).not.toHaveBeenCalled();
+    expect(createImageMock).not.toHaveBeenCalled();
     expect(returned).toBeUndefined();
     expect(toastErrorMock).toHaveBeenCalledWith("Failed to upload image", {
       description: "Upload failed",
@@ -194,7 +196,7 @@ describe("useImageUpload", () => {
       url: "https://example.com/images/img-1.jpg",
     });
     uploadFileWithProgressMock.mockResolvedValue(undefined);
-    createImageMutateAsyncMock.mockRejectedValue(new Error("Create failed"));
+    createImageMock.mockRejectedValue(new Error("Create failed"));
 
     const { result } = renderHook(() =>
       useImageUpload({
@@ -211,7 +213,7 @@ describe("useImageUpload", () => {
     });
 
     expect(returned).toBeUndefined();
-    expect(toastErrorMock).toHaveBeenCalledWith("Failed to upload image", {
+    expect(toastErrorMock).toHaveBeenCalledWith("Failed to save image", {
       description: "Create failed",
     });
 

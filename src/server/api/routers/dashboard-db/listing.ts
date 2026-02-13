@@ -19,6 +19,7 @@ const listingSelect = {
     select: {
       id: true,
       ahsId: true,
+      ahsListing: true,
     },
   },
 } as const;
@@ -98,6 +99,114 @@ export const dashboardDbListingRouter = createTRPCRouter({
       });
     }),
 
+  linkAhs: protectedProcedure
+    .input(
+      z.object({
+        id: z.string(),
+        cultivarReferenceId: z.string(),
+        syncName: z.boolean().default(false),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const listing = await ctx.db.listing.findFirst({
+        where: { id: input.id, userId: ctx.user.id },
+        select: { id: true },
+      });
+      if (!listing) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Listing not found" });
+      }
+
+      const cultivarReference = await ctx.db.cultivarReference.findUnique({
+        where: { id: input.cultivarReferenceId },
+        select: {
+          id: true,
+          ahsListing: { select: { name: true } },
+        },
+      });
+      if (!cultivarReference) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Cultivar reference not found",
+        });
+      }
+
+      const nextTitle = input.syncName
+        ? cultivarReference.ahsListing?.name
+        : undefined;
+      if (input.syncName && !nextTitle) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "AHS listing not found",
+        });
+      }
+
+      const nextSlug = nextTitle
+        ? await generateUniqueSlug(nextTitle, ctx.user.id, listing.id, ctx.db)
+        : undefined;
+
+      return ctx.db.listing.update({
+        where: { id: listing.id },
+        data: {
+          cultivarReferenceId: cultivarReference.id,
+          ...(nextTitle ? { title: nextTitle } : {}),
+          ...(nextSlug ? { slug: nextSlug } : {}),
+        },
+        select: listingSelect,
+      });
+    }),
+
+  unlinkAhs: protectedProcedure
+    .input(z.object({ id: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      const listing = await ctx.db.listing.findFirst({
+        where: { id: input.id, userId: ctx.user.id },
+        select: { id: true },
+      });
+      if (!listing) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Listing not found" });
+      }
+
+      return ctx.db.listing.update({
+        where: { id: listing.id },
+        data: { cultivarReferenceId: null },
+        select: listingSelect,
+      });
+    }),
+
+  syncAhsName: protectedProcedure
+    .input(z.object({ id: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      const listing = await ctx.db.listing.findFirst({
+        where: { id: input.id, userId: ctx.user.id },
+        select: {
+          id: true,
+          cultivarReference: {
+            select: { ahsListing: { select: { name: true } } },
+          },
+        },
+      });
+      const name = listing?.cultivarReference?.ahsListing?.name;
+      if (!listing?.id || !name) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "No AHS listing linked",
+        });
+      }
+
+      const nextSlug = await generateUniqueSlug(
+        name,
+        ctx.user.id,
+        listing.id,
+        ctx.db,
+      );
+
+      return ctx.db.listing.update({
+        where: { id: listing.id },
+        data: { title: name, slug: nextSlug },
+        select: listingSelect,
+      });
+    }),
+
   update: protectedProcedure
     .input(
       z.object({
@@ -165,4 +274,3 @@ export const dashboardDbListingRouter = createTRPCRouter({
     return ctx.db.listing.count({ where: { userId: ctx.user.id } });
   }),
 });
-

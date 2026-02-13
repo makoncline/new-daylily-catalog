@@ -8,8 +8,8 @@ import {
 } from "@/components/ui/dialog";
 import { ListingForm } from "@/components/forms/listing-form";
 import { ListingFormSkeleton } from "@/components/forms/listing-form-skeleton";
-import { useSearchParams, useRouter } from "next/navigation";
-import { useRef, useEffect, Suspense } from "react";
+import { usePathname, useSearchParams, useRouter } from "next/navigation";
+import { Suspense, useEffect, useRef, useState } from "react";
 import { ErrorBoundary } from "react-error-boundary";
 import { ErrorFallback } from "@/components/error-fallback";
 import { P } from "@/components/typography";
@@ -29,13 +29,14 @@ export const editingListingIdAtom = atom<string | null>(null);
  */
 export const useEditListing = () => {
   const router = useRouter();
+  const pathname = usePathname();
   const searchParams = useSearchParams();
   const [editingId, setEditingId] = useAtom(editingListingIdAtom);
-  const hasInitialized = useRef(false);
+  const [hasInitialized, setHasInitialized] = useState(false);
 
   // Sync atom state to URL for persistence
   useEffect(() => {
-    if (!hasInitialized.current) {
+    if (!hasInitialized) {
       return;
     }
 
@@ -47,19 +48,20 @@ export const useEditListing = () => {
       params.delete("editing");
     }
 
-    const newUrl = `?${params.toString()}`;
-    const currentUrl = searchParams.toString()
-      ? `?${searchParams.toString()}`
-      : "";
+    const nextQuery = params.toString();
+    const newUrl = nextQuery ? `${pathname}?${nextQuery}` : pathname;
+
+    const currentQuery = searchParams.toString();
+    const currentUrl = currentQuery ? `${pathname}?${currentQuery}` : pathname;
 
     if (newUrl !== currentUrl) {
       router.push(newUrl);
     }
-  }, [editingId, router, searchParams]);
+  }, [editingId, hasInitialized, pathname, router, searchParams]);
 
   // Initialize from URL on first load
   useEffect(() => {
-    if (hasInitialized.current) {
+    if (hasInitialized) {
       return;
     }
 
@@ -68,8 +70,8 @@ export const useEditListing = () => {
       setEditingId(urlEditingId);
     }
 
-    hasInitialized.current = true;
-  }, [searchParams, setEditingId]);
+    setHasInitialized(true);
+  }, [hasInitialized, searchParams, setEditingId]);
 
   return {
     editListing: (id: string) => {

@@ -22,8 +22,9 @@ import { AhsListingDisplay } from "@/components/ahs-listing-display";
 import { Separator } from "@/components/ui/separator";
 import { useSetAtom } from "jotai";
 import { editingListingIdAtom } from "./edit-listing-dialog";
-import { normalizeError, reportError } from "@/lib/error-utils";
+import { getErrorMessage, normalizeError, reportError } from "@/lib/error-utils";
 import { APP_CONFIG } from "@/config/constants";
+import { insertListing } from "@/app/dashboard/_lib/dashboard-db/listings-collection";
 
 /**
  * Dialog for creating a new daylily listing.
@@ -45,7 +46,7 @@ export function CreateListingDialog({
 
   const setEditingId = useSetAtom(editingListingIdAtom);
 
-  const { data: detailedAhsListing } = api.ahs.get.useQuery(
+  const { data: detailedAhsListing } = api.dashboardDb.ahs.get.useQuery(
     {
       id: selectedResult?.id ?? "",
     },
@@ -54,28 +55,6 @@ export function CreateListingDialog({
       refetchOnWindowFocus: false,
     },
   );
-
-  const createListingMutation = api.listing.create.useMutation({
-    onSuccess: (newListing) => {
-      toast.success("Listing created", {
-        description: `${newListing.title} has been created.`,
-      });
-
-      // Close dialog
-      setOpen(false);
-      onOpenChange(false);
-
-      // Set edit id
-      setEditingId(newListing.id);
-    },
-    onError: (error, errorInfo) => {
-      toast.error("Failed to create listing", { description: error.message });
-      reportError({
-        error: normalizeError(error),
-        context: { source: "CreateListingDialog", errorInfo },
-      });
-    },
-  });
 
   /**
    * Handles selection of an AHS listing.
@@ -109,7 +88,7 @@ export function CreateListingDialog({
       const finalTitle =
         normalizedTitle.length > 0
           ? normalizedTitle
-          : (selectedName?.length ?? 0) > 0
+          : selectedName && selectedName.length > 0
             ? selectedName
             : APP_CONFIG.LISTING.DEFAULT_NAME;
 
@@ -118,9 +97,25 @@ export function CreateListingDialog({
         return;
       }
 
-      await createListingMutation.mutateAsync({
+      const newListing = await insertListing({
         title: finalTitle,
         cultivarReferenceId: selectedResult?.cultivarReferenceId ?? null,
+      });
+
+      toast.success("Listing created", {
+        description: `${newListing.title} has been created.`,
+      });
+
+      setOpen(false);
+      onOpenChange(false);
+      setEditingId(newListing.id);
+    } catch (error) {
+      toast.error("Failed to create listing", {
+        description: getErrorMessage(error),
+      });
+      reportError({
+        error: normalizeError(error),
+        context: { source: "CreateListingDialog" },
       });
     } finally {
       setIsPending(false);

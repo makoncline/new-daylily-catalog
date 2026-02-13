@@ -70,6 +70,7 @@ export async function createImage(draft: CreateDraft) {
     userProfileId: draft.type === "profile" ? draft.referenceId : null,
     createdAt: new Date(),
     updatedAt: new Date(),
+    status: null,
   };
 
   imagesCollection.utils.writeInsert(temp);

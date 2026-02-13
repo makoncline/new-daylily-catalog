@@ -18,7 +18,7 @@ export const listingFormSchema = z.object({
   price: z.number().min(0).optional().nullable(),
   description: z.string().optional().nullable(),
   privateNote: z.string().optional().nullable(),
-  status: z.string().optional().nullable(),
+  status: z.enum(["HIDDEN"]).nullable().optional(),
 });
 
 export type ListingFormData = z.infer<typeof listingFormSchema>;

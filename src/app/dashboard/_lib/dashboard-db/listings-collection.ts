@@ -107,6 +107,32 @@ export async function deleteListing({ id }: { id: string }) {
   }
 }
 
+type LinkAhsDraft = RouterInputs["dashboardDb"]["listing"]["linkAhs"];
+export async function linkAhs(draft: LinkAhsDraft) {
+  const updated = await getTrpcClient().dashboardDb.listing.linkAhs.mutate(
+    draft,
+  );
+  listingsCollection.utils.writeUpdate(updated);
+  return updated;
+}
+
+type UnlinkAhsDraft = RouterInputs["dashboardDb"]["listing"]["unlinkAhs"];
+export async function unlinkAhs(draft: UnlinkAhsDraft) {
+  const updated = await getTrpcClient().dashboardDb.listing.unlinkAhs.mutate(
+    draft,
+  );
+  listingsCollection.utils.writeUpdate(updated);
+  return updated;
+}
+
+type SyncAhsNameDraft = RouterInputs["dashboardDb"]["listing"]["syncAhsName"];
+export async function syncAhsName(draft: SyncAhsNameDraft) {
+  const updated =
+    await getTrpcClient().dashboardDb.listing.syncAhsName.mutate(draft);
+  listingsCollection.utils.writeUpdate(updated);
+  return updated;
+}
+
 export async function initializeListingsCollection(userId: string) {
   setCurrentUserId(userId);
 

@@ -18,6 +18,7 @@ const imageSelect = {
   userProfileId: true,
   createdAt: true,
   updatedAt: true,
+  status: true,
 } as const;
 
 type DbClient = typeof db;

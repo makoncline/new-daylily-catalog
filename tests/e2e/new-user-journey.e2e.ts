@@ -141,6 +141,9 @@ test.describe("new user journey @local", () => {
 
         // wait for the edit listing dialog to open
         await editListingDialog.isReady();
+        await expect(page).toHaveURL(
+          (url) => url.searchParams.get("editing") !== null,
+        );
 
         // get the listing ID from the URL query param
         const listingId = await editListingDialog.getListingIdFromUrl();
@@ -153,6 +156,12 @@ test.describe("new user journey @local", () => {
         await editListingDialog.createList(testListName);
         await expect(
           editListingDialog.selectedListChip(testListName),
+        ).toBeVisible();
+        await expect(
+          page
+            .locator("[data-sonner-toast]")
+            .filter({ hasText: "Lists updated" })
+            .first(),
         ).toBeVisible();
 
         // programmatically add an image to the listing

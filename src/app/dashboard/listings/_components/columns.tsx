@@ -15,8 +15,20 @@ import { Badge } from "@/components/ui/badge";
 import { TableImagePreview } from "@/components/data-table/table-image-preview";
 import React from "react";
 import { fuzzyFilter } from "@/lib/table-utils";
+import type { Image } from "@prisma/client";
+import type { WithDisplayAhsListing } from "@/lib/utils/ahs-display";
 
-type ListingData = RouterOutputs["listing"]["list"][number];
+interface ListingListRef {
+  id: string;
+  title: string;
+}
+
+export type ListingData = WithDisplayAhsListing<
+  RouterOutputs["dashboardDb"]["listing"]["list"][number] & {
+    images: Image[];
+    lists: ListingListRef[];
+  }
+>;
 type ListingRow = Row<ListingData>;
 
 /**
