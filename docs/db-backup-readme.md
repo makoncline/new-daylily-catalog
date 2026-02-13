@@ -85,7 +85,7 @@ The snapshot flow shells out to `sqlite3` and installs the Turso CLI via `curl`,
 Recommended Vercel Install Command (Dashboard):
 
 ```bash
-dnf install -y sqlite curl tar xz && corepack enable && pnpm install --frozen-lockfile
+dnf install -y sqlite curl-minimal tar xz && corepack enable && pnpm install --frozen-lockfile
 ```
 
 Alternatively, commit a `vercel.json` with an `installCommand` that does the same.

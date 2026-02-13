@@ -1,4 +1,4 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "installCommand": "dnf install -y sqlite curl tar xz && corepack enable && pnpm install --frozen-lockfile"
+  "installCommand": "dnf install -y sqlite curl-minimal tar xz && corepack enable && pnpm install --frozen-lockfile"
 }

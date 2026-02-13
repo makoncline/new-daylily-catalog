@@ -36,7 +36,7 @@ set -euo pipefail
 dnf install -y \
   nodejs22 \
   sqlite \
-  curl \
+  curl-minimal \
   tar \
   xz \
   git \
@@ -51,4 +51,3 @@ pnpm install --frozen-lockfile
 
 pnpm build
 '
-
