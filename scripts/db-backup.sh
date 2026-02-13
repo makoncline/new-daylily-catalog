@@ -7,11 +7,11 @@
 # CI
 
 # Variables
-DATABASE_NAME="daylily-catalog"
+DATABASE_NAME="${TURSO_SNAPSHOT_DB_NAME:-daylily-catalog}"
 TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
 DUMP_FILE="${DATABASE_NAME}_${TIMESTAMP}.sql"
 ZIP_FILE="${DUMP_FILE}.zip"
-LOCAL_DB="prisma/local-prod-copy-${DATABASE_NAME}.db"
+LOCAL_DB="${TURSO_SNAPSHOT_OUTPUT_DB_PATH:-local-prod-copy-${DATABASE_NAME}.db}"
 S3_BUCKET="daylily-catalog-db-backup"
 AWS_REGION="us-east-1"
 
@@ -35,13 +35,24 @@ if head -n 3 "$DUMP_FILE" | grep -qi "You are not logged in"; then
   exit 1
 fi
 
-# Step 2: Compress the dump file
-echo "Compressing the dump file..."
-zip "$ZIP_FILE" "$DUMP_FILE"
-if [ $? -ne 0 ]; then
-  echo "Error: Failed to compress the dump file."
-  rm "$DUMP_FILE"
-  exit 1
+# Step 2: Compress the dump file (only needed for CI uploads)
+ZIP_CREATED="false"
+if [ "$CI" = "true" ]; then
+  if ! command -v zip >/dev/null 2>&1; then
+    echo "Error: zip is required when CI=true (upload step)."
+    rm "$DUMP_FILE"
+    exit 1
+  fi
+
+  echo "Compressing the dump file..."
+  zip "$ZIP_FILE" "$DUMP_FILE"
+  if [ $? -ne 0 ]; then
+    echo "Error: Failed to compress the dump file."
+    rm "$DUMP_FILE"
+    exit 1
+  fi
+
+  ZIP_CREATED="true"
 fi
 
 # Step 3: Upload the compressed file to S3 (only in CI/CD environment)
@@ -59,24 +70,16 @@ fi
 if [ "$CI" != "true" ]; then
   echo "Verifying the backup locally..."
 
-  TEMP_DIR=$(mktemp -d)
   TEMP_LOCAL_DB="${LOCAL_DB}.tmp-${TIMESTAMP}"
   LOCAL_DB_BACKUP="${LOCAL_DB}.bak-${TIMESTAMP}"
 
   cleanup_local_temp() {
-    rm -rf "$TEMP_DIR"
     rm -f "$TEMP_LOCAL_DB" "${TEMP_LOCAL_DB}-wal" "${TEMP_LOCAL_DB}-shm"
   }
 
   trap cleanup_local_temp EXIT
 
-  # Extract in a temp dir to avoid interactive overwrite prompts in the repo root.
-  unzip -q "$ZIP_FILE" -d "$TEMP_DIR"
-  SQL_FILE=$(find "$TEMP_DIR" -type f -name "*.sql" | head -n 1)
-  if [ -z "$SQL_FILE" ]; then
-    echo "Error: No SQL file found in backup archive."
-    exit 1
-  fi
+  SQL_FILE="$DUMP_FILE"
 
   # Build the restored DB as a temp file first to avoid partial writes on failure.
   sqlite3 "$TEMP_LOCAL_DB" < "$SQL_FILE"
@@ -101,6 +104,9 @@ fi
 
 # Cleanup
 echo "Cleaning up..."
-rm "$DUMP_FILE" "$ZIP_FILE"
+rm "$DUMP_FILE"
+if [ "$ZIP_CREATED" = "true" ]; then
+  rm "$ZIP_FILE"
+fi
 
 echo "Backup process completed successfully."

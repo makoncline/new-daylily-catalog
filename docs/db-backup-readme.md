@@ -57,4 +57,23 @@ pnpm env:dev bash scripts/db-backup.sh
 LOCAL_DATABASE_URL="file:./local-prod-copy-daylily-catalog.db" pnpm dev
 ```
 
-If `CI` is set to `false`, the script will verify the backup by creating a local copy of the database at `prisma/local-prod-copy-daylily-catalog.db` which you can use for testing.
+If `CI` is set to `false`, the script will verify the backup by creating a local copy of the database at `local-prod-copy-daylily-catalog.db` which you can use for testing.
+
+## Faster Vercel Production Builds (Local Snapshot During Build)
+
+The `pnpm build` script is a wrapper that can optionally pull a local SQLite snapshot of a Turso DB at build time and force the build to use that local DB (by setting `USE_TURSO_DB=false` and `LOCAL_DATABASE_URL=file:...`).
+
+Defaults:
+- Runs the snapshot step only on Vercel `production` builds.
+- Uses Turso DB name `daylily-catalog`.
+- Writes `local-prod-copy-daylily-catalog.db` into the repo root.
+
+Vercel env vars:
+- `USE_LOCAL_DB_SNAPSHOT_FOR_BUILD=true` to enable snapshot builds (defaults to enabled for `production`, disabled elsewhere).
+- `BUILD_SNAPSHOT_TURSO_DB_NAME` to override the Turso DB name (useful for preview).
+- `BUILD_SNAPSHOT_OUTPUT_DB_PATH` to override output DB path (useful for preview).
+- `TURSO_API_TOKEN` is required for the snapshot pull step.
+
+Backup script overrides (used by the build wrapper):
+- `TURSO_SNAPSHOT_DB_NAME` overrides the Turso database name used by `scripts/db-backup.sh`.
+- `TURSO_SNAPSHOT_OUTPUT_DB_PATH` overrides the output SQLite path created by `scripts/db-backup.sh`.
