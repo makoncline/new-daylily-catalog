@@ -7,7 +7,6 @@ import path from "node:path";
 const args = process.argv.slice(2);
 
 const rootDir = process.cwd();
-const vercelEnv = process.env.VERCEL_ENV;
 
 const defaultTursoDbName = "daylily-catalog";
 
@@ -50,11 +49,11 @@ function ensureTursoCli(env) {
   if (canExec("command -v turso >/dev/null 2>&1", env)) return env;
 
   if (!canExec("command -v curl >/dev/null 2>&1", env)) {
-    console.error("Vercel build: turso CLI not found and curl is missing.");
+    console.error("Build: turso CLI not found and curl is missing.");
     process.exit(1);
   }
 
-  console.log("Vercel prod build: installing turso CLI...");
+  console.log("Build: installing turso CLI...");
   execOrThrow("bash", ["-lc", "curl -sSfL https://get.tur.so/install.sh | bash"], { env });
 
   const home = env.HOME ?? process.env.HOME;
@@ -67,26 +66,23 @@ function ensureTursoCli(env) {
 
 function snapshotProdDb(env, snapshotPath, dbName) {
   if (!env.TURSO_API_TOKEN) {
-    console.error("Vercel build: TURSO_API_TOKEN is not set (required for local DB snapshot).");
+    console.error("Build: TURSO_API_TOKEN is not set (required for local DB snapshot).");
     process.exit(1);
   }
 
   const tursoEnv = ensureTursoCli(env);
   if (!canExec("command -v turso >/dev/null 2>&1", tursoEnv)) {
-    console.error("Vercel build: turso CLI unavailable after install attempt.");
+    console.error("Build: turso CLI unavailable after install attempt.");
     process.exit(1);
   }
 
   if (!canExec("command -v sqlite3 >/dev/null 2>&1", tursoEnv)) {
-    console.error("Vercel build: sqlite3 is missing (required for local DB snapshot).");
+    console.error("Build: sqlite3 is missing (required for local DB snapshot).");
     process.exit(1);
   }
 
   console.log(
-    `Vercel ${vercelEnv ?? "unknown"} build: pulling Turso DB '${dbName}' snapshot to ${path.relative(
-      rootDir,
-      snapshotPath,
-    )}...`,
+    `Build: pulling Turso DB '${dbName}' snapshot to ${path.relative(rootDir, snapshotPath)}...`,
   );
 
   // db-backup.sh treats CI=true as "upload to S3" and skips local restore. On Vercel, CI is often true,
@@ -116,22 +112,21 @@ const env = { ...process.env, ...envOverrides };
   execOrThrow(nextBin, ["build", "--turbopack", ...args], { env });
 }
 
-const isVercelBuild = vercelEnv === "production" || vercelEnv === "preview";
-const isLocalProductionBuild = process.env.NODE_ENV === "production";
-const wantsTursoForBuild = process.env.USE_TURSO_DB_FOR_BUILD === "true";
-
-// Snapshot builds are intended for Vercel prod/preview, but allow local verification by running with NODE_ENV=production.
-const shouldUseSnapshotBuild = (isVercelBuild || isLocalProductionBuild) && !wantsTursoForBuild;
-
-if (!shouldUseSnapshotBuild) {
+// Only use snapshots when explicitly opted in.
+// - USE_TURSO_DB_FOR_BUILD=true (or unset): build against remote Turso.
+// - USE_TURSO_DB_FOR_BUILD=false: build against local SQLite snapshot.
+const useSnapshotBuild = process.env.USE_TURSO_DB_FOR_BUILD === "false";
+if (!useSnapshotBuild) {
   runNextBuild();
   process.exit(0);
 }
 
+console.log("[build] using local SQLite snapshot (USE_TURSO_DB_FOR_BUILD=false)");
+
 const localDbPath = resolveLocalDbPathFromUrl(process.env.LOCAL_DATABASE_URL);
 if (!localDbPath) {
   console.error(
-    "Vercel build: LOCAL_DATABASE_URL must be set to a SQLite file url (e.g. file:./local-build.db) to use snapshot builds.",
+    "Build: LOCAL_DATABASE_URL must be set to a SQLite file url (e.g. file:./local-build.db) to use snapshot builds.",
   );
   process.exit(1);
 }
@@ -144,7 +139,7 @@ if (!hasSnapshot) {
   snapshotProdDb(process.env, snapshotPath, snapshotDbName);
   if (!fs.existsSync(snapshotPath)) {
     console.error(
-      `Vercel build: expected snapshot DB at ${path.relative(rootDir, snapshotPath)} but it does not exist.`,
+      `Build: expected snapshot DB at ${path.relative(rootDir, snapshotPath)} but it does not exist.`,
     );
     process.exit(1);
   }
