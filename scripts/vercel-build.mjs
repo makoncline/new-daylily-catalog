@@ -54,7 +54,11 @@ function ensureTursoCli(env) {
   }
 
   console.log("Build: installing turso CLI...");
-  execOrThrow("bash", ["-lc", "curl -sSfL https://get.tur.so/install.sh | bash"], { env });
+  execOrThrow(
+    "bash",
+    ["-lc", "curl -sSfL https://get.tur.so/install.sh | bash"],
+    { env },
+  );
 
   const home = env.HOME ?? process.env.HOME;
   if (!home) return env;
@@ -68,7 +72,9 @@ function ensureSqlite3Cli(env) {
   if (canExec("command -v sqlite3 >/dev/null 2>&1", env)) return env;
 
   if (!canExec("command -v curl >/dev/null 2>&1", env)) {
-    console.error("Build: sqlite3 is missing and curl is not available to install it.");
+    console.error(
+      "Build: sqlite3 is missing and curl is not available to install it.",
+    );
     process.exit(1);
   }
 
@@ -91,7 +97,9 @@ function ensureSqlite3Cli(env) {
 
   const relativeUrl = (relativeUrlResult.stdout ?? "").trim();
   if (!relativeUrl) {
-    console.error("Build: failed to resolve sqlite-tools download URL from sqlite.org.");
+    console.error(
+      "Build: failed to resolve sqlite-tools download URL from sqlite.org.",
+    );
     process.exit(1);
   }
 
@@ -112,12 +120,18 @@ function ensureSqlite3Cli(env) {
 
   console.log(`Build: installing sqlite3 CLI from ${fullUrl}...`);
 
-  execOrThrow("bash", ["-lc", `mkdir -p "${cacheDir}" "${extractDir}"`], { env });
+  execOrThrow("bash", ["-lc", `mkdir -p "${cacheDir}" "${extractDir}"`], {
+    env,
+  });
   execOrThrow("bash", ["-lc", `rm -f "${zipPath}"`], { env });
-  execOrThrow("bash", ["-lc", `curl -sSfL "${fullUrl}" -o "${zipPath}"`], { env });
+  execOrThrow("bash", ["-lc", `curl -sSfL "${fullUrl}" -o "${zipPath}"`], {
+    env,
+  });
 
   if (canUseUnzip) {
-    execOrThrow("bash", ["-lc", `unzip -qo "${zipPath}" -d "${extractDir}"`], { env });
+    execOrThrow("bash", ["-lc", `unzip -qo "${zipPath}" -d "${extractDir}"`], {
+      env,
+    });
   } else {
     const pythonCmd = canUsePython3 ? "python3" : "python";
     const extractCmd =
@@ -136,14 +150,19 @@ function ensureSqlite3Cli(env) {
   });
   const sqlite3Path = (sqlite3PathResult.stdout ?? "").trim();
   if (!sqlite3Path) {
-    console.error("Build: sqlite3 binary not found after extracting sqlite-tools.");
+    console.error(
+      "Build: sqlite3 binary not found after extracting sqlite-tools.",
+    );
     process.exit(1);
   }
 
   execOrThrow("bash", ["-lc", `chmod +x "${sqlite3Path}"`], { env });
 
   const sqliteBinDir = path.dirname(sqlite3Path);
-  const nextEnv = { ...env, PATH: `${sqliteBinDir}:${env.PATH ?? process.env.PATH ?? ""}` };
+  const nextEnv = {
+    ...env,
+    PATH: `${sqliteBinDir}:${env.PATH ?? process.env.PATH ?? ""}`,
+  };
 
   if (!canExec("command -v sqlite3 >/dev/null 2>&1", nextEnv)) {
     console.error("Build: sqlite3 still not available after install attempt.");
@@ -155,7 +174,9 @@ function ensureSqlite3Cli(env) {
 
 function snapshotProdDb(env, snapshotPath, dbName) {
   if (!env.TURSO_API_TOKEN) {
-    console.error("Build: TURSO_API_TOKEN is not set (required for local DB snapshot).");
+    console.error(
+      "Build: TURSO_API_TOKEN is not set (required for local DB snapshot).",
+    );
     process.exit(1);
   }
 
@@ -205,7 +226,9 @@ if (!useSnapshotBuild) {
   process.exit(0);
 }
 
-console.log("[build] using local SQLite snapshot (USE_TURSO_DB_FOR_BUILD=false)");
+console.log(
+  "[build] using local SQLite snapshot (USE_TURSO_DB_FOR_BUILD=false)",
+);
 
 const localDbPath = resolveLocalDbPathFromUrl(process.env.LOCAL_DATABASE_URL);
 if (!localDbPath) {
