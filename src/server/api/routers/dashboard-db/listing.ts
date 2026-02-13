@@ -1,0 +1,168 @@
+import { z } from "zod";
+import { TRPCError } from "@trpc/server";
+import { protectedProcedure, createTRPCRouter } from "@/server/api/trpc";
+import { generateUniqueSlug } from "@/lib/utils/slugify-server";
+
+const listingSelect = {
+  id: true,
+  userId: true,
+  title: true,
+  slug: true,
+  price: true,
+  description: true,
+  privateNote: true,
+  status: true,
+  createdAt: true,
+  updatedAt: true,
+  cultivarReferenceId: true,
+  cultivarReference: {
+    select: {
+      id: true,
+      ahsId: true,
+    },
+  },
+} as const;
+
+export const dashboardDbListingRouter = createTRPCRouter({
+  create: protectedProcedure
+    .input(
+      z.object({
+        title: z.string().trim().min(1).max(200),
+        cultivarReferenceId: z.string().trim().min(1).nullable().optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      if (input.cultivarReferenceId) {
+        const exists = await ctx.db.cultivarReference.findUnique({
+          where: { id: input.cultivarReferenceId },
+          select: { id: true },
+        });
+        if (!exists) {
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "Cultivar reference not found",
+          });
+        }
+      }
+
+      const slug = await generateUniqueSlug(
+        input.title,
+        ctx.user.id,
+        undefined,
+        ctx.db,
+      );
+
+      return ctx.db.listing.create({
+        data: {
+          userId: ctx.user.id,
+          title: input.title,
+          slug,
+          cultivarReferenceId: input.cultivarReferenceId ?? null,
+        },
+        select: listingSelect,
+      });
+    }),
+
+  get: protectedProcedure
+    .input(z.object({ id: z.string() }))
+    .query(async ({ ctx, input }) => {
+      const listing = await ctx.db.listing.findFirst({
+        where: { id: input.id, userId: ctx.user.id },
+        select: listingSelect,
+      });
+      if (!listing) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Listing not found" });
+      }
+      return listing;
+    }),
+
+  list: protectedProcedure.query(async ({ ctx }) => {
+    return ctx.db.listing.findMany({
+      where: { userId: ctx.user.id },
+      select: listingSelect,
+      orderBy: { createdAt: "desc" },
+    });
+  }),
+
+  sync: protectedProcedure
+    .input(z.object({ since: z.iso.datetime().nullable() }))
+    .query(async ({ ctx, input }) => {
+      const since = input.since ? new Date(input.since) : undefined;
+      return ctx.db.listing.findMany({
+        where: {
+          userId: ctx.user.id,
+          ...(since ? { updatedAt: { gte: since } } : {}),
+        },
+        select: listingSelect,
+        orderBy: { updatedAt: "asc" },
+      });
+    }),
+
+  update: protectedProcedure
+    .input(
+      z.object({
+        id: z.string(),
+        data: z.object({
+          title: z.string().trim().min(1).max(200).optional(),
+          description: z.string().trim().max(10_000).nullable().optional(),
+          price: z.number().nonnegative().nullable().optional(),
+          status: z.enum(["HIDDEN"]).nullable().optional(),
+          privateNote: z.string().trim().max(10_000).nullable().optional(),
+        }),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const existing = await ctx.db.listing.findFirst({
+        where: { id: input.id, userId: ctx.user.id },
+        select: { id: true, title: true },
+      });
+      if (!existing) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Listing not found" });
+      }
+
+      const shouldRegenerateSlug =
+        typeof input.data.title === "string" && input.data.title !== existing.title;
+      const nextSlug = shouldRegenerateSlug
+        ? await generateUniqueSlug(
+            input.data.title!,
+            ctx.user.id,
+            existing.id,
+            ctx.db,
+          )
+        : undefined;
+
+      const result = await ctx.db.listing.updateMany({
+        where: { id: input.id, userId: ctx.user.id },
+        data: {
+          ...input.data,
+          ...(nextSlug ? { slug: nextSlug } : {}),
+        },
+      });
+      if (result.count === 0) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Listing not found" });
+      }
+
+      const updated = await ctx.db.listing.findUnique({
+        where: { id: input.id },
+        select: listingSelect,
+      });
+      return updated!;
+    }),
+
+  delete: protectedProcedure
+    .input(z.object({ id: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      const result = await ctx.db.listing.deleteMany({
+        where: { id: input.id, userId: ctx.user.id },
+      });
+      if (result.count === 0) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Listing not found" });
+      }
+      return { id: input.id } as const;
+    }),
+
+  count: protectedProcedure.query(async ({ ctx }) => {
+    return ctx.db.listing.count({ where: { userId: ctx.user.id } });
+  }),
+});
+

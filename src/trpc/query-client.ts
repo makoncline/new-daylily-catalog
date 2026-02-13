@@ -23,3 +23,14 @@ export const createQueryClient = () =>
       },
     },
   });
+
+let clientQueryClientSingleton: QueryClient | undefined;
+
+export function getQueryClient() {
+  if (typeof window === "undefined") {
+    return createQueryClient();
+  }
+
+  clientQueryClientSingleton ??= createQueryClient();
+  return clientQueryClientSingleton;
+}
