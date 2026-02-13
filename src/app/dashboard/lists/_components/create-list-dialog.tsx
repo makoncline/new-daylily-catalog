@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { api } from "@/trpc/react";
 import { toast } from "sonner";
 import {
   Dialog,
@@ -16,7 +15,8 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { useSetAtom } from "jotai";
 import { editingListIdAtom } from "./edit-list-dialog";
-import { normalizeError } from "@/lib/error-utils";
+import { normalizeError, reportError } from "@/lib/error-utils";
+import { insertList } from "@/app/dashboard/_lib/dashboard-db/lists-collection";
 
 export function CreateListDialog({
   onOpenChange,
@@ -29,28 +29,6 @@ export function CreateListDialog({
 
   const setEditingId = useSetAtom(editingListIdAtom);
 
-  const createListMutation = api.list.create.useMutation({
-    onSuccess: (newList) => {
-      toast.success("List created", {
-        description: `${newList.title} has been created.`,
-      });
-
-      // Close dialog
-      setOpen(false);
-      onOpenChange(false);
-
-      // Open edit dialog
-      setEditingId(newList.id);
-    },
-    onError: (error, errorInfo) => {
-      toast.error("Failed to create list", { description: error.message });
-      reportError({
-        error: normalizeError(error),
-        context: { source: "CreateListDialog", errorInfo },
-      });
-    },
-  });
-
   const handleCreate = async () => {
     if (!title.trim()) {
       toast.error("Title required", {
@@ -61,9 +39,23 @@ export function CreateListDialog({
 
     setIsPending(true);
     try {
-      await createListMutation.mutateAsync({
+      const newList = await insertList({
         title: title.trim(),
         description: "",
+      });
+
+      toast.success("List created", {
+        description: `${newList.title} has been created.`,
+      });
+
+      setOpen(false);
+      onOpenChange(false);
+      setEditingId(newList.id);
+    } catch (error) {
+      toast.error("Failed to create list");
+      reportError({
+        error: normalizeError(error),
+        context: { source: "CreateListDialog" },
       });
     } finally {
       setIsPending(false);

@@ -11,34 +11,42 @@ import {
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import { MoreHorizontal, Pencil, Trash2, Settings } from "lucide-react";
-import { api } from "@/trpc/react";
-import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { type RouterOutputs } from "@/trpc/react";
 import { DeleteConfirmDialog } from "@/components/delete-confirm-dialog";
 import Link from "next/link";
 import { useEditList } from "./edit-list-dialog";
+import { deleteList } from "@/app/dashboard/_lib/dashboard-db/lists-collection";
 
-type List = RouterOutputs["list"]["list"][number];
+type List = RouterOutputs["dashboardDb"]["list"]["list"][number];
 
 interface DataTableRowActionsProps {
   row: Row<List>;
 }
 
 export function DataTableRowActions({ row }: DataTableRowActionsProps) {
-  const router = useRouter();
   const { editList } = useEditList();
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
-  const deleteList = api.list.delete.useMutation({
-    onSuccess: () => {
+  const handleDelete = async () => {
+    if (isDeleting) return;
+
+    setIsDeleting(true);
+    try {
+      await deleteList({ id: row.original.id });
       toast.success("List deleted", {
         description: "The list has been deleted successfully.",
       });
       setShowDeleteDialog(false);
-      router.refresh();
-    },
-  });
+    } catch {
+      toast.error("Failed to delete list", {
+        description: "An error occurred while deleting your list",
+      });
+    } finally {
+      setIsDeleting(false);
+    }
+  };
 
   return (
     <>
@@ -48,6 +56,7 @@ export function DataTableRowActions({ row }: DataTableRowActionsProps) {
             variant="ghost"
             className="data-[state=open]:bg-muted flex h-8 w-8 p-0"
             data-testid="list-row-actions-trigger"
+            disabled={isDeleting}
           >
             <MoreHorizontal className="h-4 w-4" />
             <span className="sr-only">Open menu</span>
@@ -82,11 +91,7 @@ export function DataTableRowActions({ row }: DataTableRowActionsProps) {
       <DeleteConfirmDialog
         open={showDeleteDialog}
         onOpenChange={setShowDeleteDialog}
-        onConfirm={() => {
-          deleteList.mutate({
-            id: row.original.id,
-          });
-        }}
+        onConfirm={handleDelete}
         title="Delete List"
         description="Are you sure you want to delete this list? This action cannot be undone."
       />

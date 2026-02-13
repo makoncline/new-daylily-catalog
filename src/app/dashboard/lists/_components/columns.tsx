@@ -8,7 +8,7 @@ import { DataTableColumnHeader } from "@/components/data-table/data-table-column
 import { LIST_TABLE_COLUMN_NAMES } from "@/config/constants";
 import { P } from "@/components/typography";
 
-export type List = RouterOutputs["list"]["list"][number];
+export type List = RouterOutputs["dashboardDb"]["list"]["list"][number];
 
 export const columns: ColumnDef<List>[] = [
   {
@@ -57,8 +57,10 @@ export const columns: ColumnDef<List>[] = [
         title={LIST_TABLE_COLUMN_NAMES.listingsCount}
       />
     ),
-    accessorFn: (row) => row._count.listings,
-    cell: ({ row }) => <div className="">{row.original._count.listings}</div>,
+    accessorFn: (row) => row.listings.length,
+    cell: ({ row }) => (
+      <div className="whitespace-nowrap">{row.original.listings.length}</div>
+    ),
     enableSorting: true,
   },
   {
