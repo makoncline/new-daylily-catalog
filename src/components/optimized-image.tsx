@@ -31,6 +31,18 @@ export const IMAGE_CONFIG = {
 } as const;
 
 const reportedImageErrors = new Set<string>();
+const TRANSFORM_ELIGIBLE_HOST_PREFIX = "daylily-catalog-images";
+
+function shouldUseCloudflareTransform(src: string): boolean {
+  try {
+    const parsedUrl = new URL(src);
+    return parsedUrl.hostname
+      .toLowerCase()
+      .startsWith(TRANSFORM_ELIGIBLE_HOST_PREFIX);
+  } catch {
+    return false;
+  }
+}
 
 interface OptimizedImageProps extends React.HTMLAttributes<HTMLDivElement> {
   src: string;
@@ -51,28 +63,33 @@ export function OptimizedImage({
   ...props
 }: OptimizedImageProps) {
   const [loaded, setLoaded] = React.useState(false);
+  const shouldTransform = shouldUseCloudflareTransform(src);
 
   const dimension =
     size === "thumbnail"
       ? IMAGE_CONFIG.SIZES.THUMBNAIL
       : IMAGE_CONFIG.SIZES.FULL;
 
-  const imageUrl = cloudflareLoader({
-    src,
-    width: dimension,
-    quality:
-      size === "thumbnail"
-        ? IMAGE_CONFIG.QUALITY.MEDIUM
-        : IMAGE_CONFIG.QUALITY.HIGH,
-    fit,
-  });
+  const imageUrl = shouldTransform
+    ? cloudflareLoader({
+        src,
+        width: dimension,
+        quality:
+          size === "thumbnail"
+            ? IMAGE_CONFIG.QUALITY.MEDIUM
+            : IMAGE_CONFIG.QUALITY.HIGH,
+        fit,
+      })
+    : src;
 
-  const blurUrl = cloudflareLoader({
-    src,
-    width: IMAGE_CONFIG.BLUR.SIZE,
-    quality: IMAGE_CONFIG.BLUR.QUALITY,
-    fit,
-  });
+  const blurUrl = shouldTransform
+    ? cloudflareLoader({
+        src,
+        width: IMAGE_CONFIG.BLUR.SIZE,
+        quality: IMAGE_CONFIG.BLUR.QUALITY,
+        fit,
+      })
+    : src;
 
   const handleLoad: React.ReactEventHandler<HTMLImageElement> =
     React.useCallback(() => {
