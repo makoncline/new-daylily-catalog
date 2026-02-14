@@ -254,13 +254,39 @@ export const dashboardDbListingRouter = createTRPCRouter({
   delete: protectedProcedure
     .input(z.object({ id: z.string() }))
     .mutation(async ({ ctx, input }) => {
-      const result = await ctx.db.listing.deleteMany({
+      const listing = await ctx.db.listing.findFirst({
         where: { id: input.id, userId: ctx.user.id },
+        select: { id: true },
       });
-      if (result.count === 0) {
+      if (!listing) {
         throw new TRPCError({ code: "NOT_FOUND", message: "Listing not found" });
       }
-      return { id: input.id } as const;
+
+      // Deleting a listing clears join rows, but does not automatically bump List.updatedAt.
+      // We touch affected lists so incremental `list.sync({ since })` can't retain dead listing ids.
+      const affectedLists = await ctx.db.list.findMany({
+        where: {
+          userId: ctx.user.id,
+          listings: { some: { id: listing.id } },
+        },
+        select: { id: true },
+      });
+
+      await ctx.db.$transaction(async (tx) => {
+        await tx.listing.delete({ where: { id: listing.id } });
+
+        if (affectedLists.length) {
+          await tx.list.updateMany({
+            where: {
+              userId: ctx.user.id,
+              id: { in: affectedLists.map((l) => l.id) },
+            },
+            data: { updatedAt: new Date() },
+          });
+        }
+      });
+
+      return { id: listing.id } as const;
     }),
 
   count: protectedProcedure.query(async ({ ctx }) => {
