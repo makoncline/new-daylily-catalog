@@ -8,6 +8,7 @@ import React, {
   useState,
 } from "react";
 import { api } from "@/trpc/react";
+import { getQueryClient } from "@/trpc/query-client";
 import {
   imagesCollection,
   initializeImagesCollection,
@@ -25,6 +26,7 @@ import {
   initializeCultivarReferencesCollection,
 } from "@/app/dashboard/_lib/dashboard-db/cultivar-references-collection";
 import { setCurrentUserId } from "@/lib/utils/cursor";
+import { Skeleton } from "@/components/ui/skeleton";
 
 type DashboardDbStatus = "idle" | "loading" | "ready" | "error";
 
@@ -34,6 +36,33 @@ interface DashboardDbState {
 }
 
 const DashboardDbContext = createContext<DashboardDbState | null>(null);
+
+function DashboardDbLoadingScreen({ status }: { status: DashboardDbStatus }) {
+  return (
+    <div className="flex min-h-dvh w-full items-center justify-center">
+      <div className="w-full max-w-md space-y-6 px-8 py-10">
+        <div className="space-y-1">
+          <div className="text-lg font-semibold">
+            {status === "error"
+              ? "Unable to load dashboard data"
+              : "Loading your dashboard data..."}
+          </div>
+          <div className="text-muted-foreground text-sm">
+            {status === "error"
+              ? "Please refresh the page."
+              : "This can take a moment for large catalogs."}
+          </div>
+        </div>
+
+        <div className="space-y-3">
+          <Skeleton className="h-9 w-full" />
+          <Skeleton className="h-9 w-5/6" />
+          <Skeleton className="h-9 w-2/3" />
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export function useDashboardDb() {
   const value = useContext(DashboardDbContext);
@@ -66,6 +95,7 @@ export function DashboardDbProvider({ children }: { children: React.ReactNode })
 
     if (isError || !userId) {
       setCurrentUserId(null);
+      getQueryClient().removeQueries({ queryKey: ["dashboard-db"] });
       void Promise.allSettled([
         listingsCollection.cleanup(),
         listsCollection.cleanup(),
@@ -107,7 +137,11 @@ export function DashboardDbProvider({ children }: { children: React.ReactNode })
 
   return (
     <DashboardDbContext.Provider value={value}>
-      {children}
+      {state.status === "ready" ? (
+        children
+      ) : (
+        <DashboardDbLoadingScreen status={state.status} />
+      )}
     </DashboardDbContext.Provider>
   );
 }
