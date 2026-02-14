@@ -27,6 +27,11 @@ import {
 } from "@/app/dashboard/_lib/dashboard-db/cultivar-references-collection";
 import { setCurrentUserId } from "@/lib/utils/cursor";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  persistDashboardDbToPersistence,
+  revalidateDashboardDbInBackground,
+  tryHydrateDashboardDbFromPersistence,
+} from "@/app/dashboard/_lib/dashboard-db/dashboard-db-persistence";
 
 type DashboardDbStatus = "idle" | "loading" | "ready" | "error";
 
@@ -112,16 +117,27 @@ export function DashboardDbProvider({ children }: { children: React.ReactNode })
 
     void (async () => {
       try {
-        await Promise.all([
-          initializeListingsCollection(userId),
-          initializeListsCollection(userId),
-          initializeImagesCollection(userId),
-          initializeCultivarReferencesCollection(userId),
-          utils.dashboardDb.dashboard.getStats.prefetch(),
-          utils.dashboardDb.userProfile.get.prefetch(),
-        ]);
+        const hydrated = await tryHydrateDashboardDbFromPersistence(userId);
 
-        if (!cancelled) setState({ status: "ready", userId });
+        if (hydrated) {
+          void revalidateDashboardDbInBackground(userId);
+          void utils.dashboardDb.dashboard.getStats.prefetch();
+          void utils.dashboardDb.userProfile.get.prefetch();
+        } else {
+          await Promise.all([
+            initializeListingsCollection(userId),
+            initializeListsCollection(userId),
+            initializeImagesCollection(userId),
+            initializeCultivarReferencesCollection(userId),
+            utils.dashboardDb.dashboard.getStats.prefetch(),
+            utils.dashboardDb.userProfile.get.prefetch(),
+          ]);
+          void persistDashboardDbToPersistence(userId);
+        }
+
+        if (!cancelled) {
+          setState({ status: "ready", userId });
+        }
       } catch {
         if (!cancelled) setState({ status: "error", userId });
       }
@@ -141,13 +157,11 @@ export function DashboardDbProvider({ children }: { children: React.ReactNode })
 
   return (
     <DashboardDbContext.Provider value={value}>
-      <React.Suspense fallback={<DashboardDbLoadingScreen status="loading" />}>
-        {state.status === "ready" ? (
-          children
-        ) : (
-          <DashboardDbLoadingScreen status={state.status} />
-        )}
-      </React.Suspense>
+      {state.status === "ready" ? (
+        children
+      ) : (
+        <DashboardDbLoadingScreen status={state.status} />
+      )}
     </DashboardDbContext.Provider>
   );
 }

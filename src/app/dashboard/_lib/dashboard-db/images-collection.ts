@@ -6,6 +6,7 @@ import type { RouterInputs, RouterOutputs } from "@/trpc/react";
 import { getQueryClient } from "@/trpc/query-client";
 import { getTrpcClient } from "@/trpc/client";
 import { getUserCursorKey } from "@/lib/utils/cursor";
+import { schedulePersistDashboardDbForCurrentUser } from "@/app/dashboard/_lib/dashboard-db/dashboard-db-persistence";
 import {
   bootstrapDashboardDbCollection,
   writeCursorFromRows,
@@ -86,6 +87,7 @@ export async function createImage(draft: CreateDraft) {
       if (!realExists) imagesCollection.utils.writeInsert(created);
     });
 
+    schedulePersistDashboardDbForCurrentUser();
     return created;
   } catch (error) {
     try {
@@ -113,6 +115,7 @@ export async function reorderImages(draft: ReorderDraft) {
 
   try {
     await getTrpcClient().dashboardDb.image.reorder.mutate(draft);
+    schedulePersistDashboardDbForCurrentUser();
   } catch (error) {
     imagesCollection.utils.writeBatch(() => {
       previous.forEach((img) => {
@@ -154,6 +157,7 @@ export async function deleteImage(draft: DeleteDraft) {
 
   try {
     await getTrpcClient().dashboardDb.image.delete.mutate(draft);
+    schedulePersistDashboardDbForCurrentUser({ delayMs: 0 });
   } catch (error) {
     if (previous) imagesCollection.utils.writeInsert(previous);
     DELETED_IDS.delete(draft.imageId);

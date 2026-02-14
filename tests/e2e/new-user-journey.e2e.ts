@@ -73,8 +73,8 @@ test.describe("new user journey @local", () => {
           imageUrl: testImageUrl,
         });
 
-        // reload the page and check changes persist
-        await page.reload();
+        // refresh to pick up the profile image inserted directly in the database
+        await dashboardShell.refreshDashboardData();
         await dashboardProfile.isReady();
 
         await expect(dashboardProfile.gardenNameInput).toHaveValue(
@@ -172,8 +172,11 @@ test.describe("new user journey @local", () => {
           imageUrl: testListingImageUrl,
         });
 
-        // reload the page to see the image
-        await page.reload();
+        // refresh to pick up the listing image inserted directly in the database
+        await editListingDialog.close();
+        await dashboardShell.refreshDashboardData();
+        await dashboardListings.isReady();
+        await dashboardListings.chooseRowActionEdit();
         await editListingDialog.isReady();
 
         // fill the other fields
@@ -232,8 +235,8 @@ test.describe("new user journey @local", () => {
           });
         }
 
-        // reload the page to see the new listings
-        await page.reload();
+        // refresh to pick up the new listings inserted directly in the database
+        await dashboardShell.refreshDashboardData();
         await dashboardListings.isReady();
 
         // check for them in the listings table
@@ -245,7 +248,7 @@ test.describe("new user journey @local", () => {
         ).toBeVisible();
 
         // navigate back to dashboard home
-        await page.goto("/dashboard");
+        await dashboardShell.goToDashboard();
         await expect(page).toHaveURL(/\/dashboard$/);
         await dashboardHome.waitForLoaded();
 
@@ -280,6 +283,7 @@ test.describe("new user journey @local", () => {
         });
 
         // Navigate back to dashboard (simulating successful checkout)
+        // Note: Stripe checkout is an external page, so this must be a full navigation.
         await page.goto("/dashboard");
         await expect(page).toHaveURL(/\/dashboard/);
 

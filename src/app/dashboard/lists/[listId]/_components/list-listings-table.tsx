@@ -6,7 +6,6 @@ import { DataTableLayout } from "@/components/data-table/data-table-layout";
 import { DataTablePagination } from "@/components/data-table/data-table-pagination";
 import { EmptyState } from "@/components/empty-state";
 import { getColumns } from "./columns";
-import { ListingsTableSkeleton } from "./listings-table-skeleton";
 import { Button } from "@/components/ui/button";
 import { Trash2 } from "lucide-react";
 import { toast } from "sonner";
@@ -26,8 +25,10 @@ import { eq, useLiveQuery } from "@tanstack/react-db";
 import {
   listsCollection,
   removeListingFromList,
+  type ListCollectionItem,
 } from "@/app/dashboard/_lib/dashboard-db/lists-collection";
 import { listingsCollection } from "@/app/dashboard/_lib/dashboard-db/listings-collection";
+import { getQueryClient } from "@/trpc/query-client";
 
 interface ListListingsTableProps {
   listId: string;
@@ -125,18 +126,31 @@ function ListingsTableToolbar({ table, listId }: ListingsTableToolbarProps) {
 }
 
 export function ListListingsTable({ listId }: ListListingsTableProps) {
-  const { data: lists = [], isReady: isListsReady } = useLiveQuery(
+  const { data: liveLists = [], isReady: isListsReady } = useLiveQuery(
     (q) =>
       q.from({ list: listsCollection }).where(({ list }) => eq(list.id, listId)),
     [listId],
   );
-  const list = lists[0] ?? null;
+  const liveList = liveLists[0] ?? null;
 
-  const { data: allListings = [], isReady: isListingsReady } = useLiveQuery((q) =>
-    q
-      .from({ listing: listingsCollection })
-      .orderBy(({ listing }) => listing.createdAt, "desc"),
+  const { data: liveListings = [], isReady: isListingsReady } = useLiveQuery(
+    (q) =>
+      q
+        .from({ listing: listingsCollection })
+        .orderBy(({ listing }) => listing.createdAt, "desc"),
   );
+
+  const queryClient = getQueryClient();
+  const seededLists =
+    queryClient.getQueryData<ListCollectionItem[]>(["dashboard-db", "lists"]) ??
+    [];
+  const seededList = seededLists.find((row) => row.id === listId) ?? null;
+
+  const list = isListsReady ? (liveList ?? seededList) : seededList;
+
+  const seededListings =
+    queryClient.getQueryData<ListingData[]>(["dashboard-db", "listings"]) ?? [];
+  const allListings = isListingsReady ? liveListings : seededListings;
 
   const listings = React.useMemo(() => {
     if (!list?.listings?.length) return [];
@@ -152,10 +166,6 @@ export function ListListingsTable({ listId }: ListListingsTableProps) {
     columns,
     ...tableOptions,
   });
-
-  if (!isListsReady || !isListingsReady) {
-    return <ListingsTableSkeleton />;
-  }
 
   if (!listings?.length) {
     return (

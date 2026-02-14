@@ -11,6 +11,7 @@ import {
   ensureCultivarReferencesCached,
 } from "@/app/dashboard/_lib/dashboard-db/cultivar-references-collection";
 import { getUserCursorKey } from "@/lib/utils/cursor";
+import { schedulePersistDashboardDbForCurrentUser } from "@/app/dashboard/_lib/dashboard-db/dashboard-db-persistence";
 import {
   bootstrapDashboardDbCollection,
   writeCursorFromRows,
@@ -80,6 +81,7 @@ export async function insertListing(draft: InsertDraft) {
     } catch {}
   }
 
+  schedulePersistDashboardDbForCurrentUser();
   return created;
 }
 
@@ -97,6 +99,7 @@ export async function updateListing(draft: UpdateDraft) {
       draft,
     );
     listingsCollection.utils.writeUpdate(updated);
+    schedulePersistDashboardDbForCurrentUser();
   } catch (error) {
     if (previous) listingsCollection.utils.writeUpdate(previous);
     throw error;
@@ -110,6 +113,7 @@ export async function deleteListing({ id }: { id: string }) {
 
   try {
     await getTrpcClient().dashboardDb.listing.delete.mutate({ id });
+    schedulePersistDashboardDbForCurrentUser({ delayMs: 0 });
   } catch (error) {
     if (previous) listingsCollection.utils.writeInsert(previous);
     DELETED_IDS.delete(id);
@@ -130,6 +134,7 @@ export async function linkAhs(draft: LinkAhsDraft) {
     } catch {}
   }
 
+  schedulePersistDashboardDbForCurrentUser();
   return updated;
 }
 
@@ -139,6 +144,7 @@ export async function unlinkAhs(draft: UnlinkAhsDraft) {
     draft,
   );
   listingsCollection.utils.writeUpdate(updated);
+  schedulePersistDashboardDbForCurrentUser();
   return updated;
 }
 
@@ -147,6 +153,7 @@ export async function syncAhsName(draft: SyncAhsNameDraft) {
   const updated =
     await getTrpcClient().dashboardDb.listing.syncAhsName.mutate(draft);
   listingsCollection.utils.writeUpdate(updated);
+  schedulePersistDashboardDbForCurrentUser();
   return updated;
 }
 

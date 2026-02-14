@@ -76,6 +76,10 @@ export function CultivarOfferGardenCard({
                 <LocationBadge location={gardenCard.location} />
               )}
               <Muted className="text-xs">{memberSinceLabel}</Muted>
+              <Muted className="flex items-center gap-1 text-xs">
+                <Clock className="h-3 w-3" />
+                <span>Updated {updatedLabel}</span>
+              </Muted>
             </div>
 
             {gardenCard.description && (

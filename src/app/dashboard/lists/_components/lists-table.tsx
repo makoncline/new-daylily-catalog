@@ -7,7 +7,6 @@ import { DataTableLayout } from "@/components/data-table/data-table-layout";
 import { DataTablePagination } from "@/components/data-table/data-table-pagination";
 import { EmptyState } from "@/components/empty-state";
 import { columns } from "./columns";
-import { ListsTableSkeleton } from "./lists-table-skeleton";
 import { CreateListButton } from "./create-list-button";
 import { type Table } from "@tanstack/react-table";
 import { DataTableGlobalFilter } from "@/components/data-table/data-table-global-filter";
@@ -19,6 +18,7 @@ import {
   listsCollection,
   type ListCollectionItem,
 } from "@/app/dashboard/_lib/dashboard-db/lists-collection";
+import { getQueryClient } from "@/trpc/query-client";
 
 type List = ListCollectionItem;
 
@@ -71,11 +71,17 @@ function NoResults({ filtered = false }) {
 }
 
 function ListsTableLive() {
-  const { data: lists = [], isReady } = useLiveQuery((q) =>
+  const { data: baseLists = [], isReady } = useLiveQuery((q) =>
     q
       .from({ list: listsCollection })
       .orderBy(({ list }) => list.createdAt, "desc"),
   );
+
+  const queryClient = getQueryClient();
+  const seededLists =
+    queryClient.getQueryData<List[]>(["dashboard-db", "lists"]) ?? [];
+
+  const lists = isReady ? baseLists : seededLists;
 
   const table = useDataTable({
     data: lists,
@@ -87,10 +93,6 @@ function ListsTableLive() {
     },
     columnNames: LIST_TABLE_COLUMN_NAMES,
   });
-
-  if (!isReady) {
-    return <ListsTableSkeleton />;
-  }
 
   if (!lists.length) {
     return <NoResults />;

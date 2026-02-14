@@ -6,9 +6,11 @@ import { ListListingsTable } from "./_components/list-listings-table";
 import { PageHeader } from "../../_components/page-header";
 import { ListForm } from "@/components/forms/list-form";
 import { AddListingsSection } from "./_components/add-listings-section";
-import { ListFormSkeleton } from "@/components/forms/list-form-skeleton";
-import { DataTableLayoutSkeleton } from "@/components/data-table/data-table-layout";
-import { listsCollection } from "@/app/dashboard/_lib/dashboard-db/lists-collection";
+import {
+  listsCollection,
+  type ListCollectionItem,
+} from "@/app/dashboard/_lib/dashboard-db/lists-collection";
+import { getQueryClient } from "@/trpc/query-client";
 
 interface ListPageProps {
   params: Promise<{
@@ -23,23 +25,19 @@ export default function ListPage({ params }: ListPageProps) {
 }
 
 function ManageListPageLive({ listId }: { listId: string }) {
-  const { data: lists = [], isReady } = useLiveQuery(
+  const { data: liveLists = [], isReady } = useLiveQuery(
     (q) =>
       q.from({ list: listsCollection }).where(({ list }) => eq(list.id, listId)),
     [listId],
   );
 
-  const list = lists[0] ?? null;
+  const queryClient = getQueryClient();
+  const seededLists =
+    queryClient.getQueryData<ListCollectionItem[]>(["dashboard-db", "lists"]) ??
+    [];
+  const seededList = seededLists.find((row) => row.id === listId) ?? null;
 
-  if (!isReady) {
-    return (
-      <div className="space-y-6">
-        <PageHeader heading="Manage List" text="Loading list details..." />
-        <ListFormSkeleton />
-        <DataTableLayoutSkeleton />
-      </div>
-    );
-  }
+  const list = isReady ? (liveLists[0] ?? seededList) : seededList;
 
   if (!list) {
     return <div className="p-4">List not found</div>;

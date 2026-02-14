@@ -8,6 +8,7 @@ import { getTrpcClient } from "@/trpc/client";
 import { makeInsertWithSwap } from "@/lib/utils/collection-utils";
 import { omitUndefined } from "@/lib/utils/omit-undefined";
 import { getUserCursorKey } from "@/lib/utils/cursor";
+import { schedulePersistDashboardDbForCurrentUser } from "@/app/dashboard/_lib/dashboard-db/dashboard-db-persistence";
 import {
   bootstrapDashboardDbCollection,
   writeCursorFromRows,
@@ -65,7 +66,9 @@ export async function insertList(draft: InsertDraft) {
     serverInsert: (d) => getTrpcClient().dashboardDb.list.create.mutate(d),
   });
 
-  return run(draft);
+  const created = await run(draft);
+  schedulePersistDashboardDbForCurrentUser();
+  return created;
 }
 
 type UpdateDraft = RouterInputs["dashboardDb"]["list"]["update"];
@@ -76,6 +79,7 @@ export async function updateList(draft: UpdateDraft) {
   try {
     const updated = await getTrpcClient().dashboardDb.list.update.mutate(draft);
     if (updated) listsCollection.utils.writeUpdate(updated);
+    schedulePersistDashboardDbForCurrentUser();
   } catch (error) {
     if (previous) listsCollection.utils.writeUpdate(previous);
     throw error;
@@ -89,6 +93,7 @@ export async function deleteList({ id }: { id: string }) {
 
   try {
     await getTrpcClient().dashboardDb.list.delete.mutate({ id });
+    schedulePersistDashboardDbForCurrentUser({ delayMs: 0 });
   } catch (error) {
     if (previous) listsCollection.utils.writeInsert(previous);
     DELETED_IDS.delete(id);
@@ -114,6 +119,7 @@ export async function addListingToList(args: {
       args,
     );
     listsCollection.utils.writeUpdate(updated);
+    schedulePersistDashboardDbForCurrentUser();
   } catch (error) {
     if (previous) listsCollection.utils.writeUpdate(previous);
     throw error;
@@ -135,6 +141,7 @@ export async function removeListingFromList(args: {
     const updated =
       await getTrpcClient().dashboardDb.list.removeListingFromList.mutate(args);
     listsCollection.utils.writeUpdate(updated);
+    schedulePersistDashboardDbForCurrentUser();
   } catch (error) {
     if (previous) listsCollection.utils.writeUpdate(previous);
     throw error;

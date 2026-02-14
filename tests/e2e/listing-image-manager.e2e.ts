@@ -21,6 +21,7 @@ test.describe("listing image manager @local", () => {
     dashboardListings,
     editListingDialog,
     imageManager,
+    dashboardShell,
   }) => {
     const toast = (message: string) =>
       page.locator("[data-sonner-toast]").filter({ hasText: message }).first();
@@ -83,10 +84,13 @@ test.describe("listing image manager @local", () => {
     ];
     await expectImageOrder(reorderedIds);
 
-    // Reorder persistence after reload
-    await page.reload();
-    await dashboardListings.isReady();
+    // Reorder persistence after refresh
+    await editListingDialog.close();
+    await dashboardShell.refreshDashboardData();
+    await dashboardListings.setGlobalSearch("Image Manager Seed Listing");
+    await dashboardListings.chooseRowActionEdit();
     await editListingDialog.isReady();
+    await expect(imageManager.imageGrid()).toBeVisible();
     await expectImageOrder(reorderedIds);
 
     // Delete middle image
@@ -100,10 +104,13 @@ test.describe("listing image manager @local", () => {
     const remainingIds: [string, string] = [reorderedIds[0], reorderedIds[2]];
     await expectImageOrder(remainingIds);
 
-    // Delete persistence after reload
-    await page.reload();
-    await dashboardListings.isReady();
+    // Delete persistence after refresh
+    await editListingDialog.close();
+    await dashboardShell.refreshDashboardData();
+    await dashboardListings.setGlobalSearch("Image Manager Seed Listing");
+    await dashboardListings.chooseRowActionEdit();
     await editListingDialog.isReady();
+    await expect(imageManager.imageGrid()).toBeVisible();
     await expectImageOrder(remainingIds);
   });
 });
