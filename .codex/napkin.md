@@ -2,6 +2,12 @@
 
 ## Log
 
+- 2026-02-14 - dashboardDb cultivar refs - For main dashboard TanStack DB cutover, prefer cultivar-reference cache option (1): cache only refs referenced by the user's listings; keep listing payloads small (only `cultivarReferenceId`) and join locally for AHS display. Do not expose `ahsId` as a standalone field (nested `ahsListing` is OK for now).
+- 2026-02-14 - dashboardDb persisted SWR - For faster reloads, hydrate dashboardDb collections from a per-user IndexedDB snapshot (toggle via a single const) then revalidate in background. Because sync endpoints are upserts-only (no deletions), schedule snapshot persistence after key mutations (especially deletes) to prevent resurrecting deleted rows on reload.
+- 2026-02-14 - dashboardDb hardening - Provider should gate rendering on collection readiness (prevents "write before sync context" crashes) and purge `["dashboard-db"]` query cache + collection cleanup on logout/auth change to avoid cross-user flashes during debugging.
+- 2026-02-14 - dashboardDb bootstrap - Factor the repeated init sequence (set current user, seed query cache, set cursor, clear tombstones, preload) into `bootstrapDashboardDbCollection` so it stays consistent across collections and is harder to regress.
+- 2026-02-14 - dashboardDb cursors - For incremental sync, advance cursors to the max `updatedAt` observed in returned rows (and keep previous cursor on empty results). Setting cursor to "now" can permanently skip writes that occur during the sync window. Also: `collection.utils.refetch()` won't run if the underlying TanStack Query is disabled; keep query-collections `enabled: true`.
+- 2026-02-14 - legacy listing status - Treat any legacy `status` values other than `STATUS.HIDDEN` as published/null so forms don't crash on `"published"` or `""`.
 - 2026-02-13 - vercel build snapshot - Avoid downloading sqlite tools by scraping sqlite.org; use OS package install (Vercel/Amazon Linux via `dnf install sqlite`) or fail clearly. Build snapshot uses `USE_TURSO_DB_FOR_BUILD` and must not change runtime `USE_TURSO_DB`.
 - 2026-02-12 - prisma artifacts - Do not commit generated Prisma client output (`prisma/generated/sqlite-client`) or SQLite DB files; commit schema + migration/source changes only.
 - 2026-02-12 - next route config - Route-segment exports like `export const revalidate` and `export const dynamicParams` must stay literal in the page file; imported config/object property values can fail static parsing.
@@ -37,9 +43,17 @@
 - 2026-02-11 - create dialog regression - Empty/whitespace title must fall back to selected AHS name (then default listing name) so create payload never sends blank titles.
 - 2026-02-11 - type alignment - When router responses add derived `ahsListing` via `withDisplayAhsListing(s)`, hook return types must use `WithDisplayAhsListing<T>` and sibling routers (e.g. `list.getListings`) should return the same derived shape to avoid table generic mismatches.
 - 2026-02-11 - e2e temp-db reset - `withTempE2EDb` must clear `CultivarReference` before `AhsListing`; otherwise retries leave orphaned refs (`ahsId` null) and deterministic seed upserts can fail unique on `CultivarReference.id`.
+- 2026-02-13 - prisma db push - Prisma schema engine can fail to start when `RUST_LOG=warn`; set `RUST_LOG=info` (and clear `NODE_OPTIONS`) for `prisma db push` in scripts/tests.
+- 2026-02-13 - tanstack db collections - `@tanstack/query-db-collection` write utils require sync context; start collection sync via `useLiveQuery` subscription or `await collection.preload()` (after seeding query cache) before calling `utils.writeInsert`/`writeUpdate`/`writeDelete`.
+- 2026-02-13 - tanstack db SSR - Next can server-render client components; `useLiveQuery` can warn (`Missing getServerSnapshot`) if it hits SSR. Fix by rendering live-query components client-only (dynamic import `ssr:false` or mount-gate and put `useLiveQuery` in a child rendered only after `useEffect`).
+- 2026-02-13 - data-table column filters - `useDataTable` URL-sync only tracks columns with `filterFn`; if a column shows a filter UI, ensure it sets `filterFn` (e.g. `fuzzyFilter`) or the filter can be dropped on search-param navigation.
+- 2026-02-13 - e2e popover filters - Radix popover filter inputs can detach during URL-sync/table rerenders; in Playwright, target by exact placeholder and retry after `Escape` + reopen.
+- 2026-02-13 - unit test env - Importing the full `appRouter` can eagerly construct clients (e.g. Stripe) and crash if env vars are missing even with `SKIP_ENV_VALIDATION=1`; set minimal placeholder env vars or import routers directly.
 
 ## Preferences
 
+- Write tests, not too many, mostly integration, hapy path e2e.
+- TanStack DB dashboard migration: keep procedures under new `dashboardDb` router, migrate main `/dashboard` page-by-page, and run `pnpm lint`, `npx tsc --noEmit`, `pnpm test`, `pnpm test:e2e` before each incremental commit.
 - Cultivar pages should be catalog-centric (catalog cards with nested cultivar listing rows), not listing-card grids.
 - Use composition patterns for new UI components (prefer explicit composed sections over boolean-mode props).
 - Use the term `napkin` (not `codex napkin`).

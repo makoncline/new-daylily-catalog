@@ -2,33 +2,25 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { CreateListingDialog } from "@/app/dashboard/listings/_components/create-listing-dialog";
 
-const mockCreateListingMutateAsync = vi.hoisted(() => vi.fn());
+const mockInsertListing = vi.hoisted(() => vi.fn());
 const mockSetEditingId = vi.hoisted(() => vi.fn());
 
 vi.mock("@/trpc/react", () => ({
   api: {
-    ahs: {
-      get: {
-        useQuery: () => ({ data: null }),
+    dashboardDb: {
+      ahs: {
+        get: {
+          useQuery: () => ({ data: null }),
+        },
       },
     },
-    listing: {
-      create: {
-        useMutation: (options: {
-          onSuccess?: (listing: { id: string; title: string }) => void;
-        }) => ({
-          mutateAsync: async (input: {
-            title: string;
-            cultivarReferenceId?: string | null;
-          }) => {
-            mockCreateListingMutateAsync(input);
-            const createdListing = { id: "listing-1", title: input.title };
-            options.onSuccess?.(createdListing);
-            return createdListing;
-          },
-        }),
-      },
-    },
+  },
+}));
+
+vi.mock("@/app/dashboard/_lib/dashboard-db/listings-collection", () => ({
+  insertListing: async (input: { title: string; cultivarReferenceId: string | null }) => {
+    mockInsertListing(input);
+    return { id: "listing-1", title: input.title };
   },
 }));
 
@@ -77,6 +69,9 @@ vi.mock("sonner", () => ({
 }));
 
 vi.mock("@/lib/error-utils", () => ({
+  getErrorMessage: vi.fn((error: unknown) =>
+    error instanceof Error ? error.message : String(error ?? "Unknown error"),
+  ),
   normalizeError: vi.fn((error) => error),
   reportError: vi.fn(),
 }));
@@ -97,7 +92,7 @@ describe("CreateListingDialog", () => {
     fireEvent.click(screen.getByRole("button", { name: "Create Listing" }));
 
     await waitFor(() => {
-      expect(mockCreateListingMutateAsync).toHaveBeenCalledWith({
+      expect(mockInsertListing).toHaveBeenCalledWith({
         title: "Coffee Two",
         cultivarReferenceId: "cr-ahs-2",
       });

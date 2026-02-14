@@ -53,26 +53,38 @@ test.describe("signed-in user tour @local", () => {
     await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible();
 
     // Listings page
-    await page.goto("/dashboard/listings");
+    await page.getByTestId("dashboard-nav-listings").click();
     await expect(page).toHaveURL("/dashboard/listings");
     await expect(
       page.getByRole("heading", { name: "Listings" }),
     ).toBeVisible();
 
     // Lists page
-    await page.goto("/dashboard/lists");
+    await page.getByTestId("dashboard-nav-lists").click();
     await expect(page).toHaveURL("/dashboard/lists");
     await expect(page.getByRole("heading", { name: "Lists" })).toBeVisible();
 
-    // List detail page (use the seeded list ID)
-    await page.goto(`/dashboard/lists/${testListId}`);
-    await expect(page).toHaveURL(`/dashboard/lists/${testListId}`);
+    // List detail page (navigate via row actions -> Manage)
+    await page.getByPlaceholder("Filter lists...").fill("Tour Test List");
+    await expect(page).toHaveURL(/\/dashboard\/lists\?query=Tour\+Test\+List/);
+    await expect(page.getByTestId("list-table")).toContainText("Tour Test List");
+
+    await page.getByTestId("list-row-actions-trigger").first().click();
+    const manageItem = page.getByTestId("list-row-action-manage");
+    await expect(manageItem).toBeVisible();
+    await Promise.all([
+      page.waitForURL(`/dashboard/lists/${testListId}`, {
+        waitUntil: "domcontentloaded",
+      }),
+      manageItem.click(),
+    ]);
+
     await expect(
       page.getByRole("heading", { name: /Tour Test List/ }),
     ).toBeVisible();
 
     // Profile page
-    await page.goto("/dashboard/profile");
+    await page.getByTestId("dashboard-nav-profile").click();
     await expect(page).toHaveURL("/dashboard/profile");
     await expect(page.getByRole("heading", { name: "Profile" })).toBeVisible();
   });

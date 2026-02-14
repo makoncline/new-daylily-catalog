@@ -23,16 +23,19 @@ import { GripVertical, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DeleteConfirmDialog } from "@/components/delete-confirm-dialog";
 import { toast } from "sonner";
-import { api } from "@/trpc/react";
 import type { ImageType } from "@/types/image";
 import { Skeleton } from "@/components/ui/skeleton";
 import { OptimizedImage } from "@/components/optimized-image";
 import { ImagePreviewDialog } from "@/components/image-preview-dialog";
-import { getErrorMessage, normalizeError } from "@/lib/error-utils";
+import { getErrorMessage, normalizeError, reportError } from "@/lib/error-utils";
+import {
+  deleteImage,
+  reorderImages,
+} from "@/app/dashboard/_lib/dashboard-db/images-collection";
 
 interface ImageManagerProps {
   images: Image[];
-  onImagesChange: (images: Image[]) => void;
+  onImagesChange?: (images: Image[]) => void;
   referenceId: string;
   type: ImageType;
 }
@@ -84,36 +87,6 @@ export function ImageManager({
   const [isPending, setIsPending] = useState(false);
   const [imageToDelete, setImageToDelete] = useState<Image | null>(null);
 
-  const deleteImageMutation = api.image.deleteImage.useMutation({
-    onSuccess: () => {
-      toast.success("Image deleted successfully");
-    },
-    onError: (error, errorInfo) => {
-      toast.error("Failed to delete image", {
-        description: getErrorMessage(error),
-      });
-      reportError({
-        error: normalizeError(error),
-        context: { source: "ImageManager", errorInfo },
-      });
-    },
-  });
-
-  const reorderImagesMutation = api.image.reorderImages.useMutation({
-    onSuccess: () => {
-      toast.success("Image order updated");
-    },
-    onError: (error, errorInfo) => {
-      toast.error("Failed to update image order", {
-        description: getErrorMessage(error),
-      });
-      reportError({
-        error: normalizeError(error),
-        context: { source: "ImageManager", errorInfo },
-      });
-    },
-  });
-
   const sensors = useSensors(
     useSensor(PointerSensor),
     useSensor(KeyboardSensor, {
@@ -124,12 +97,21 @@ export function ImageManager({
   async function handleImageDelete(image: Image) {
     setIsPending(true);
     try {
-      await deleteImageMutation.mutateAsync({
+      await deleteImage({
         type,
         referenceId,
         imageId: image.id,
       });
-      onImagesChange(images.filter((img) => img.id !== image.id));
+      onImagesChange?.(images.filter((img) => img.id !== image.id));
+      toast.success("Image deleted successfully");
+    } catch (error) {
+      toast.error("Failed to delete image", {
+        description: getErrorMessage(error),
+      });
+      reportError({
+        error: normalizeError(error),
+        context: { source: "ImageManager" },
+      });
     } finally {
       setIsPending(false);
       setImageToDelete(null);
@@ -146,17 +128,28 @@ export function ImageManager({
       images.findIndex((img) => img.id === over.id),
     );
 
-    onImagesChange(newImages);
+    onImagesChange?.(newImages);
 
     // Save the new order
-    reorderImagesMutation.mutate({
-      type,
-      referenceId,
-      images: newImages.map((img, index) => ({
-        id: img.id,
-        order: index,
-      })),
-    });
+    try {
+      await reorderImages({
+        type,
+        referenceId,
+        images: newImages.map((img, index) => ({
+          id: img.id,
+          order: index,
+        })),
+      });
+      toast.success("Image order updated");
+    } catch (error) {
+      toast.error("Failed to update image order", {
+        description: getErrorMessage(error),
+      });
+      reportError({
+        error: normalizeError(error),
+        context: { source: "ImageManager" },
+      });
+    }
   }
 
   if (images.length === 0) {
@@ -229,7 +222,10 @@ export function ImageManager({
       <DeleteConfirmDialog
         open={!!imageToDelete}
         onOpenChange={() => setImageToDelete(null)}
-        onConfirm={() => imageToDelete && handleImageDelete(imageToDelete)}
+        onConfirm={() => {
+          if (!imageToDelete) return;
+          void handleImageDelete(imageToDelete);
+        }}
         title="Delete Image"
         description="Are you sure you want to delete this image? This action cannot be undone."
       />

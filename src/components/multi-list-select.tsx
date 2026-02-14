@@ -20,10 +20,15 @@ import {
   CommandList,
   CommandSeparator,
 } from "@/components/ui/command";
-import { api } from "@/trpc/react";
 import { cn } from "@/lib/utils";
 import { TruncatedListBadge } from "@/components/data-table/truncated-list-badge";
 import { Muted } from "@/components/typography";
+import { useLiveQuery } from "@tanstack/react-db";
+import {
+  insertList,
+  listsCollection,
+} from "@/app/dashboard/_lib/dashboard-db/lists-collection";
+import { toast } from "sonner";
 
 interface MultiListSelectProps {
   values: string[];
@@ -39,16 +44,9 @@ export function MultiListSelect({
   const [open, setOpen] = useState(false);
   const [searchValue, setSearchValue] = useState("");
 
-  const utils = api.useUtils();
-  const { data: lists } = api.listing.getUserLists.useQuery();
-  const createListMutation = api.listing.createList.useMutation({
-    onSuccess: (newList) => {
-      onSelect([...values, newList.id]);
-      setOpen(false);
-      setSearchValue("");
-      void utils.listing.getUserLists.invalidate();
-    },
-  });
+  const { data: lists = [] } = useLiveQuery((q) =>
+    q.from({ list: listsCollection }).orderBy(({ list }) => list.title, "asc"),
+  );
 
   const filteredLists = lists?.filter((list) =>
     list.title.toLowerCase().includes(searchValue.toLowerCase()),
@@ -76,9 +74,17 @@ export function MultiListSelect({
   };
 
   const handleCreateList = () => {
-    if (searchValue) {
-      createListMutation.mutate({ title: searchValue });
-    }
+    if (!searchValue) return;
+
+    void insertList({ title: searchValue })
+      .then((newList) => {
+        onSelect([...values, newList.id]);
+        setOpen(false);
+        setSearchValue("");
+      })
+      .catch(() => {
+        toast.error("Failed to create list");
+      });
   };
 
   // Render the list content

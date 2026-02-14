@@ -1,10 +1,11 @@
-import { useState, useCallback } from "react";
+import { useCallback, useState } from "react";
 import { api } from "@/trpc/react";
 import { toast } from "sonner";
 import { uploadFileWithProgress } from "@/lib/utils";
 import { type ImageType } from "@/types/image";
 import { type Image } from "@prisma/client";
-import { getErrorMessage, normalizeError } from "@/lib/error-utils";
+import { getErrorMessage, normalizeError, reportError } from "@/lib/error-utils";
+import { createImage } from "@/app/dashboard/_lib/dashboard-db/images-collection";
 
 interface UseImageUploadOptions {
   type: ImageType;
@@ -20,37 +21,17 @@ export function useImageUpload({
   const [progress, setProgress] = useState(0);
   const [isUploading, setIsUploading] = useState(false);
 
-  const getPresignedUrlMutation = api.image.getPresignedUrl.useMutation({
-    onError: (error, errorInfo) => {
-      toast.error("Failed to get upload URL", {
-        description: getErrorMessage(error),
-      });
-      reportError({
-        error: normalizeError(error),
-        context: { source: "useImageUpload", errorInfo },
-      });
-    },
-  });
-
-  const createImageMutation = api.image.createImage.useMutation({
-    onError: (error, errorInfo) => {
-      toast.error("Failed to save image", {
-        description: getErrorMessage(error),
-      });
-      reportError({
-        error: normalizeError(error),
-        context: { source: "useImageUpload", errorInfo },
-      });
-    },
-  });
+  const getPresignedUrlMutation =
+    api.dashboardDb.image.getPresignedUrl.useMutation();
 
   const upload = useCallback(
     async (file: Blob) => {
+      let step: "presign" | "upload" | "create" = "presign";
+
       try {
         setIsUploading(true);
         setProgress(0);
 
-        // Get presigned URL
         const { presignedUrl, key, url } =
           await getPresignedUrlMutation.mutateAsync({
             type,
@@ -60,15 +41,15 @@ export function useImageUpload({
             referenceId,
           });
 
-        // Upload to S3
+        step = "upload";
         await uploadFileWithProgress({
           presignedUrl,
           file,
           onProgress: setProgress,
         });
 
-        // Create database record
-        const image = await createImageMutation.mutateAsync({
+        step = "create";
+        const image = await createImage({
           type,
           referenceId,
           url,
@@ -80,25 +61,26 @@ export function useImageUpload({
         onSuccess?.(image);
         return image;
       } catch (error) {
-        toast.error("Failed to upload image", {
-          description: getErrorMessage(error),
-        });
+        toast.error(
+          step === "presign"
+            ? "Failed to get upload URL"
+            : step === "upload"
+              ? "Failed to upload image"
+              : "Failed to save image",
+          {
+            description: getErrorMessage(error),
+          },
+        );
         reportError({
           error: normalizeError(error),
-          context: { source: "useImageUpload" },
+          context: { source: "useImageUpload", step },
         });
       } finally {
         setIsUploading(false);
         setProgress(0);
       }
     },
-    [
-      type,
-      referenceId,
-      getPresignedUrlMutation,
-      createImageMutation,
-      onSuccess,
-    ],
+    [type, referenceId, getPresignedUrlMutation, onSuccess],
   );
 
   return {
@@ -107,3 +89,4 @@ export function useImageUpload({
     isUploading,
   };
 }
+

@@ -1,8 +1,14 @@
 "use client";
 
-import { api } from "@/trpc/react";
 import { useZodForm } from "@/hooks/use-zod-form";
 import { listFormSchema } from "@/types/schemas/list";
+import { useLiveQuery, eq } from "@tanstack/react-db";
+import {
+  deleteList,
+  listsCollection,
+  updateList,
+  type ListCollectionItem,
+} from "@/app/dashboard/_lib/dashboard-db/lists-collection";
 import {
   Form,
   FormControl,
@@ -19,6 +25,7 @@ import { useState, useEffect, useCallback } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { DeleteConfirmDialog } from "@/components/delete-confirm-dialog";
+import { ListFormSkeleton } from "@/components/forms/list-form-skeleton";
 
 interface ListFormProps {
   listId: string;
@@ -28,9 +35,17 @@ interface ListFormProps {
 
 type FormValues = z.infer<typeof listFormSchema>;
 
-export function ListForm({ listId, onDelete, formRef }: ListFormProps) {
-  const [list] = api.list.get.useSuspenseQuery({ id: listId });
-  const utils = api.useUtils();
+function ListFormInner({
+  list,
+  listId,
+  onDelete,
+  formRef,
+}: {
+  list: ListCollectionItem;
+  listId: string;
+  onDelete?: () => void;
+  formRef?: React.RefObject<{ saveChanges: () => Promise<void> } | null>;
+}) {
   const [isPending, setIsPending] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
 
@@ -42,43 +57,13 @@ export function ListForm({ listId, onDelete, formRef }: ListFormProps) {
     },
   });
 
-  const updateList = api.list.update.useMutation({
-    onSuccess: async () => {
-      await utils.list.list.invalidate();
-      await utils.list.get.invalidate({ id: listId });
-      toast.success("List updated", {
-        description: "Your list has been updated successfully",
-      });
-    },
-    onError: () => {
-      toast.error("Failed to update list", {
-        description: "An error occurred while updating your list",
-      });
-    },
-  });
-
-  const deleteList = api.list.delete.useMutation({
-    onSuccess: async () => {
-      await utils.list.list.invalidate();
-      toast.success("List deleted", {
-        description: "Your list has been deleted successfully",
-      });
-    },
-    onError: () => {
-      toast.error("Failed to delete list", {
-        description: "An error occurred while deleting your list",
-      });
-    },
-  });
-
-  // Handle auto-save on blur
   const onFieldBlur = async (field: keyof FormValues) => {
     if (!form.formState.dirtyFields[field]) return;
 
     setIsPending(true);
     try {
       const values = form.getValues();
-      await updateList.mutateAsync({
+      await updateList({
         id: listId,
         data: {
           title: values.title,
@@ -86,6 +71,13 @@ export function ListForm({ listId, onDelete, formRef }: ListFormProps) {
         },
       });
       form.reset({}, { keepValues: true, keepIsValid: true });
+      toast.success("List updated", {
+        description: "Your list has been updated successfully",
+      });
+    } catch {
+      toast.error("Failed to update list", {
+        description: "An error occurred while updating your list",
+      });
     } finally {
       setIsPending(false);
     }
@@ -97,7 +89,7 @@ export function ListForm({ listId, onDelete, formRef }: ListFormProps) {
     setIsPending(true);
     try {
       const values = form.getValues();
-      await updateList.mutateAsync({
+      await updateList({
         id: listId,
         data: {
           title: values.title,
@@ -105,10 +97,17 @@ export function ListForm({ listId, onDelete, formRef }: ListFormProps) {
         },
       });
       form.reset({}, { keepValues: true, keepIsValid: true });
+      toast.success("List updated", {
+        description: "Your list has been updated successfully",
+      });
+    } catch {
+      toast.error("Failed to update list", {
+        description: "An error occurred while updating your list",
+      });
     } finally {
       setIsPending(false);
     }
-  }, [form, listId, updateList]);
+  }, [form, listId]);
 
   async function onSubmit() {
     await saveChanges();
@@ -117,16 +116,20 @@ export function ListForm({ listId, onDelete, formRef }: ListFormProps) {
   async function handleDelete() {
     setIsPending(true);
     try {
-      await deleteList.mutateAsync({
-        id: listId,
+      await deleteList({ id: listId });
+      toast.success("List deleted", {
+        description: "Your list has been deleted successfully",
       });
       onDelete?.();
+    } catch {
+      toast.error("Failed to delete list", {
+        description: "An error occurred while deleting your list",
+      });
     } finally {
       setIsPending(false);
     }
   }
 
-  // Expose saveChanges to parent via ref
   useEffect(() => {
     if (formRef) {
       formRef.current = { saveChanges };
@@ -209,4 +212,32 @@ export function ListForm({ listId, onDelete, formRef }: ListFormProps) {
       />
     </Form>
   );
+}
+
+function ListFormLive({ listId, onDelete, formRef }: ListFormProps) {
+  const { data: lists = [], isReady } = useLiveQuery(
+    (q) =>
+      q.from({ list: listsCollection }).where(({ list }) => eq(list.id, listId)),
+    [listId],
+  );
+
+  const list = lists[0] ?? null;
+
+  if (!isReady || !list) {
+    return <ListFormSkeleton />;
+  }
+
+  return (
+    <ListFormInner
+      key={listId}
+      list={list}
+      listId={listId}
+      onDelete={onDelete}
+      formRef={formRef}
+    />
+  );
+}
+
+export function ListForm(props: ListFormProps) {
+  return <ListFormLive {...props} />;
 }

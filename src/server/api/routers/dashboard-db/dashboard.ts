@@ -16,12 +16,26 @@ interface EditorContent {
   version: string;
 }
 
-// Helper to check if a listing is published
-const isPublished = (status: string | null) => {
+function isPublished(status: string | null) {
   return status === null || status !== STATUS.HIDDEN;
-};
+}
 
-export const dashboardRouter = createTRPCRouter({
+function hasContent(content: string | null | undefined) {
+  if (!content) return false;
+
+  try {
+    const parsed = JSON.parse(content) as EditorContent;
+    if (!parsed.blocks || parsed.blocks.length === 0) return false;
+
+    return parsed.blocks.some((block) => {
+      return block.data.text && block.data.text.trim().length > 0;
+    });
+  } catch {
+    return content.trim().length > 0;
+  }
+}
+
+export const dashboardDbDashboardRouter = createTRPCRouter({
   getStats: protectedProcedure.query(async ({ ctx }) => {
     const [
       allListings,
@@ -34,7 +48,6 @@ export const dashboardRouter = createTRPCRouter({
       listsWithCounts,
       profileImages,
     ] = await Promise.all([
-      // Get all listings to calculate published count
       ctx.db.listing.findMany({
         where: { userId: ctx.user.id },
         select: { status: true },
@@ -42,21 +55,18 @@ export const dashboardRouter = createTRPCRouter({
       ctx.db.list.count({
         where: { userId: ctx.user.id },
       }),
-      // Count listings with images
       ctx.db.listing.count({
         where: {
           userId: ctx.user.id,
           images: { some: {} },
         },
       }),
-      // Count listings with AHS data
       ctx.db.listing.count({
         where: {
           userId: ctx.user.id,
           cultivarReferenceId: { not: null },
         },
       }),
-      // Calculate price stats (only for listings with non-null prices)
       ctx.db.listing.aggregate({
         where: {
           userId: ctx.user.id,
@@ -83,7 +93,6 @@ export const dashboardRouter = createTRPCRouter({
           location: true,
         },
       }),
-      // Get lists with counts of listings
       ctx.db.list.findMany({
         where: { userId: ctx.user.id },
         include: {
@@ -101,35 +110,10 @@ export const dashboardRouter = createTRPCRouter({
       }),
     ]);
 
-    // Calculate total published listings
     const totalPublishedListings = allListings.filter((listing) =>
       isPublished(listing.status),
     ).length;
 
-    // Helper to check if content exists and has length
-    const hasContent = (content: string | null | undefined) => {
-      if (!content) return false;
-
-      // For JSON content (like bio), check if it has blocks with text
-      try {
-        const parsed = JSON.parse(content) as EditorContent;
-        // Check if we have blocks array and it's not empty
-        if (!parsed.blocks || parsed.blocks.length === 0) return false;
-
-        // Check if any block has text content in its data
-        const hasText = parsed.blocks.some((block) => {
-          return block.data.text && block.data.text.trim().length > 0;
-        });
-
-        return hasText;
-      } catch {
-        // For plain text content
-        const hasText = content.trim().length > 0;
-        return hasText;
-      }
-    };
-
-    // Calculate profile completion percentage
     const profileFields = [
       "hasProfileImage",
       "description",
@@ -144,7 +128,6 @@ export const dashboardRouter = createTRPCRouter({
     ].filter(Boolean).length;
     const profileCompletion = (completedFields / profileFields.length) * 100;
 
-    // Calculate average listings per list and total listings in lists
     const totalListingsInLists = listsWithCounts.reduce(
       (acc, list) => acc + list._count.listings,
       0,
@@ -173,9 +156,7 @@ export const dashboardRouter = createTRPCRouter({
           !hasContent(profile?.description) && "description",
           !hasContent(profile?.content) && "content",
           !hasContent(profile?.location) && "location",
-        ].filter((field): field is (typeof profileFields)[number] =>
-          Boolean(field),
-        ),
+        ].filter((field): field is (typeof profileFields)[number] => Boolean(field)),
       },
       listStats: {
         averageListingsPerList,
@@ -183,3 +164,4 @@ export const dashboardRouter = createTRPCRouter({
     };
   }),
 });
+

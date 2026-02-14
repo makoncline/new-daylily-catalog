@@ -1,46 +1,52 @@
-import { ImageManager } from "@/components/image-manager";
+"use client";
+
+import React from "react";
+import { eq, useLiveQuery } from "@tanstack/react-db";
 import { ImageUpload } from "@/components/image-upload";
-import { type RouterOutputs } from "@/trpc/react";
-import { useState } from "react";
-import { type Image } from "@prisma/client";
-import { toast } from "sonner";
-import { type ImageUploadResponse } from "@/types/image";
 import { APP_CONFIG } from "@/config/constants";
+import { ImageManager } from "@/components/image-manager";
+import {
+  imagesCollection,
+  type ImageCollectionItem,
+} from "@/app/dashboard/_lib/dashboard-db/images-collection";
+import { getQueryClient } from "@/trpc/query-client";
 
-interface ProfileImageManagerProps {
-  initialProfile: RouterOutputs["userProfile"]["get"];
-}
+function ProfileImageManagerLive({ profileId }: { profileId: string }) {
+  const { data: liveImages = [], isReady } = useLiveQuery(
+    (q) =>
+      q
+        .from({ img: imagesCollection })
+        .where(({ img }) => eq(img.userProfileId, profileId))
+        .orderBy(({ img }) => img.order, "asc"),
+    [profileId],
+  );
 
-export function ProfileImageManager({
-  initialProfile,
-}: ProfileImageManagerProps) {
-  const { id: referenceId } = initialProfile;
-  const [images, setImages] = useState(initialProfile.images);
+  const queryClient = getQueryClient();
+  const seededImages =
+    queryClient.getQueryData<ImageCollectionItem[]>(["dashboard-db", "images"]) ??
+    [];
+  const seededProfileImages = seededImages
+    .filter((img) => img.userProfileId === profileId)
+    .sort((a, b) => a.order - b.order);
 
-  const handleUploadComplete = (result: ImageUploadResponse) => {
-    if (result.success && result.image) {
-      setImages((prev: Image[]) => [...prev, result.image]);
-      toast.success("Image added successfully");
-    }
-  };
+  const images = isReady ? liveImages : seededProfileImages;
 
   return (
     <div className="space-y-4">
       <ImageManager
         type="profile"
         images={images}
-        onImagesChange={setImages}
-        referenceId={referenceId}
+        referenceId={profileId}
       />
       {images.length < APP_CONFIG.UPLOAD.MAX_IMAGES_PER_PROFILE && (
         <div className="p-4">
-          <ImageUpload
-            type="profile"
-            referenceId={referenceId}
-            onUploadComplete={handleUploadComplete}
-          />
+          <ImageUpload type="profile" referenceId={profileId} />
         </div>
       )}
     </div>
   );
+}
+
+export function ProfileImageManager({ profileId }: { profileId: string }) {
+  return <ProfileImageManagerLive profileId={profileId} />;
 }

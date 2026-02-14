@@ -22,10 +22,9 @@ export function CreateListButton() {
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const { isPro } = usePro();
 
-  const { data: listCount } = api.list.count.useQuery();
+  const { data: listCount } = api.dashboardDb.list.count.useQuery();
 
   const handleCreateClick = () => {
-    // Check if user is on free tier and has reached the limit
     const reachedLimit =
       !isPro && (listCount ?? 0) >= APP_CONFIG.LIST.FREE_TIER_MAX_LISTS;
 
@@ -34,7 +33,6 @@ export function CreateListButton() {
       return;
     }
 
-    // Show the create dialog
     setShowCreateDialog(true);
   };
 
@@ -77,7 +75,6 @@ export function CreateListButton() {
         </DialogContent>
       </Dialog>
 
-      {/* Conditionally render the create dialog */}
       {showCreateDialog && (
         <CreateListDialog
           onOpenChange={(open) => {

@@ -28,9 +28,9 @@ import { usePro } from "@/hooks/use-pro";
 import { Sparkles } from "lucide-react";
 import { CheckoutButton } from "@/components/checkout-button";
 import { SlugChangeConfirmDialog } from "@/components/slug-change-confirm-dialog";
-import { getErrorMessage, normalizeError } from "@/lib/error-utils";
+import { getErrorMessage, normalizeError, reportError } from "@/lib/error-utils";
 
-type UserProfile = RouterOutputs["userProfile"]["get"];
+type UserProfile = RouterOutputs["dashboardDb"]["userProfile"]["get"];
 
 interface ProfileFormProps {
   initialProfile: UserProfile;
@@ -59,7 +59,7 @@ export function ProfileForm({ initialProfile }: ProfileFormProps) {
     },
   });
 
-  const updateProfileMutation = api.userProfile.update.useMutation({
+  const updateProfileMutation = api.dashboardDb.userProfile.update.useMutation({
     onSuccess: (updatedProfile: UserProfile) => {
       setProfile(updatedProfile);
     },
@@ -74,7 +74,7 @@ export function ProfileForm({ initialProfile }: ProfileFormProps) {
     },
   });
 
-  const checkSlug = api.userProfile.checkSlug.useQuery(
+  const checkSlug = api.dashboardDb.userProfile.checkSlug.useQuery(
     { slug: form.watch("slug") ?? undefined },
     {
       enabled: false, // Don't run automatically
@@ -273,7 +273,7 @@ export function ProfileForm({ initialProfile }: ProfileFormProps) {
               Upload images to showcase your garden. You can reorder them by
               dragging.
             </p>
-            <ProfileImageManager initialProfile={profile} />
+            <ProfileImageManager profileId={profile.id} />
           </FormItem>
 
           <FormField

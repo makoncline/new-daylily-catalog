@@ -1,11 +1,19 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { eq, useLiveQuery } from "@tanstack/react-db";
+import { type Image } from "@prisma/client";
+import { toast } from "sonner";
+
 import {
   listingFormSchema,
   transformNullToUndefined,
   type ListingFormData,
 } from "@/types/schemas/listing";
+import { useZodForm } from "@/hooks/use-zod-form";
+import { useAutoResizeTextArea } from "@/hooks/use-auto-resize-textarea";
+import { getErrorMessage, normalizeError, reportError } from "@/lib/error-utils";
+
 import { Button } from "@/components/ui/button";
 import {
   Form,
@@ -26,18 +34,33 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { CurrencyInput } from "@/components/currency-input";
+import { DeleteConfirmDialog } from "@/components/delete-confirm-dialog";
+import { ListingFormSkeleton } from "@/components/forms/listing-form-skeleton";
 import { ImageManager } from "@/components/image-manager";
 import { ImageUpload } from "@/components/image-upload";
-import { toast } from "sonner";
-import { AhsListingLink } from "@/components/ahs-listing-link";
-import { api } from "@/trpc/react";
-import { DeleteConfirmDialog } from "@/components/delete-confirm-dialog";
-import { useZodForm } from "@/hooks/use-zod-form";
-import { useAutoResizeTextArea } from "@/hooks/use-auto-resize-textarea";
 import { MultiListSelect } from "@/components/multi-list-select";
+import { AhsListingLink } from "@/components/ahs-listing-link";
+
 import { LISTING_CONFIG, STATUS } from "@/config/constants";
-import { CurrencyInput } from "@/components/currency-input";
-import { getErrorMessage, normalizeError } from "@/lib/error-utils";
+import {
+  type ListingCollectionItem,
+  deleteListing,
+  listingsCollection,
+  updateListing,
+} from "@/app/dashboard/_lib/dashboard-db/listings-collection";
+import {
+  cultivarReferencesCollection,
+  type CultivarReferenceCollectionItem,
+} from "@/app/dashboard/_lib/dashboard-db/cultivar-references-collection";
+import { imagesCollection } from "@/app/dashboard/_lib/dashboard-db/images-collection";
+import {
+  addListingToList,
+  listsCollection,
+  removeListingFromList,
+} from "@/app/dashboard/_lib/dashboard-db/lists-collection";
+
+type LinkedAhsListing = CultivarReferenceCollectionItem["ahsListing"];
 
 interface ListingFormProps {
   listingId: string;
@@ -45,108 +68,91 @@ interface ListingFormProps {
   formRef?: React.RefObject<{ saveChanges: () => Promise<void> } | null>;
 }
 
-export function ListingForm({
+function ListingFormInner({
   listingId,
+  listing,
+  linkedAhs,
+  images,
+  selectedListIds,
   onDelete,
   formRef,
-}: ListingFormProps) {
-  const [listing] = api.listing.get.useSuspenseQuery({ id: listingId });
-  const [images, setImages] = useState(listing.images);
-  const [lists, setLists] = useState(listing.lists);
+}: {
+  listingId: string;
+  listing: ListingCollectionItem;
+  linkedAhs: LinkedAhsListing | null;
+  images: Image[];
+  selectedListIds: string[];
+  onDelete: () => void;
+  formRef?: React.RefObject<{ saveChanges: () => Promise<void> } | null>;
+}) {
   const [isPending, setIsPending] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const { textAreaRef, adjustHeight } = useAutoResizeTextArea();
 
-  const updateListingMutation = api.listing.update.useMutation({
-    onSuccess: () => {
-      toast.success("Changes saved");
-    },
-    onError: (error, errorInfo) => {
-      toast.error("Failed to save changes", {
-        description: getErrorMessage(error),
-      });
-      reportError({
-        error: normalizeError(error),
-        context: { source: "ListingForm", errorInfo },
-      });
-    },
-    meta: {
-      path: "/listings",
-    },
-  });
-
-  const updateListsMutation = api.listing.updateLists.useMutation({
-    onSuccess: (updatedListing) => {
-      setLists(updatedListing.lists);
-      toast.success("Lists updated");
-    },
-    onError: (error, errorInfo) => {
-      toast.error("Failed to update lists", {
-        description: getErrorMessage(error),
-      });
-      reportError({
-        error: normalizeError(error),
-        context: { source: "ListingForm", errorInfo },
-      });
-    },
-  });
-
-  const deleteListingMutation = api.listing.delete.useMutation({
-    onSuccess: () => {
-      toast.success("Listing deleted successfully");
-      onDelete();
-    },
-    onError: (error, errorInfo) => {
-      toast.error("Failed to delete listing", {
-        description: getErrorMessage(error),
-      });
-      reportError({
-        error: normalizeError(error),
-        context: { source: "ListingForm", errorInfo },
-      });
-    },
-  });
+  const normalizedStatus =
+    listing.status === STATUS.HIDDEN ? STATUS.HIDDEN : null;
 
   const form = useZodForm({
     schema: listingFormSchema,
-    defaultValues: transformNullToUndefined(listingFormSchema.parse(listing)),
+    defaultValues: transformNullToUndefined(
+      listingFormSchema.parse({
+        ...listing,
+        status: normalizedStatus,
+      }),
+    ),
   });
 
-  // Handle saving a single field - doesn't check for dirty state
   const saveField = async <T extends keyof ListingFormData>(
     field: T,
     value: ListingFormData[T],
   ) => {
     setIsPending(true);
     try {
-      await updateListingMutation.mutateAsync({
+      await updateListing({
         id: listing.id,
         data: {
           [field]: value,
         },
       });
+
       form.reset({}, { keepValues: true, keepIsValid: true });
+      toast.success("Changes saved");
     } catch (error) {
-      console.error(`Error saving ${field}:`, error);
+      toast.error("Failed to save changes", {
+        description: getErrorMessage(error),
+      });
+      reportError({
+        error: normalizeError(error),
+        context: { source: "ListingForm", field },
+      });
     } finally {
       setIsPending(false);
     }
   };
 
-  // Always save all fields without checking dirty state
   const saveChanges = useCallback(async () => {
     setIsPending(true);
     try {
       const values = form.getValues();
-      await updateListingMutation.mutateAsync({
+      await updateListing({
         id: listing.id,
         data: values,
       });
+
       form.reset({}, { keepValues: true, keepIsValid: true });
+      toast.success("Changes saved");
+    } catch (error) {
+      toast.error("Failed to save changes", {
+        description: getErrorMessage(error),
+      });
+      reportError({
+        error: normalizeError(error),
+        context: { source: "ListingForm" },
+      });
     } finally {
       setIsPending(false);
     }
-  }, [form, listing.id, updateListingMutation]);
+  }, [form, listing.id]);
 
   useEffect(() => {
     if (formRef) {
@@ -158,40 +164,63 @@ export function ListingForm({
     await saveChanges();
   }
 
-  // Handle auto-save on blur - checks for dirty state
   const onFieldBlur = async (field: keyof ListingFormData) => {
-    if (!form.formState.dirtyFields[field]) {
-      return;
-    }
+    if (!form.formState.dirtyFields[field]) return;
 
     const value = form.getValues(field);
     await saveField(field, value);
   };
 
+  const handleUpdateLists = async (nextListIds: string[]) => {
+    setIsPending(true);
+    const prev = new Set(selectedListIds);
+    const next = new Set(nextListIds);
+
+    const toAdd = nextListIds.filter((id) => !prev.has(id));
+    const toRemove = selectedListIds.filter((id) => !next.has(id));
+
+    try {
+      await Promise.all([
+        ...toAdd.map((listId) => addListingToList({ listId, listingId })),
+        ...toRemove.map((listId) =>
+          removeListingFromList({ listId, listingId }),
+        ),
+      ]);
+      toast.success("Lists updated");
+    } catch (error) {
+      toast.error("Failed to update lists", {
+        description: getErrorMessage(error),
+      });
+      reportError({
+        error: normalizeError(error),
+        context: { source: "ListingForm" },
+      });
+    } finally {
+      setIsPending(false);
+    }
+  };
+
   async function handleDelete() {
     setIsPending(true);
     try {
-      await deleteListingMutation.mutateAsync({
-        id: listing.id,
+      await deleteListing({ id: listing.id });
+      toast.success("Listing deleted successfully");
+      onDelete();
+    } catch (error) {
+      toast.error("Failed to delete listing", {
+        description: getErrorMessage(error),
+      });
+      reportError({
+        error: normalizeError(error),
+        context: { source: "ListingForm" },
       });
     } finally {
       setIsPending(false);
     }
   }
 
-  // Add a helper function to correctly map database status to UI status
   const getUIStatusValue = (dbValue: string | null | undefined): string => {
-    // For published status (which is empty string or null in the database)
-    if (
-      dbValue === STATUS.PUBLISHED ||
-      dbValue === "" ||
-      dbValue === null ||
-      dbValue === undefined
-    ) {
-      return "published";
-    }
-    // For other statuses (like HIDDEN), return as is
-    return dbValue;
+    return dbValue === STATUS.HIDDEN ? STATUS.HIDDEN : "published";
   };
 
   return (
@@ -207,7 +236,11 @@ export function ListingForm({
             <FormItem>
               <FormLabel>Name</FormLabel>
               <FormControl>
-                <Input {...field} onBlur={() => onFieldBlur("title")} />
+                <Input
+                  {...field}
+                  onBlur={() => void onFieldBlur("title")}
+                  disabled={isPending}
+                />
               </FormControl>
               <FormDescription>
                 Required. This is the name of your listing.
@@ -216,6 +249,7 @@ export function ListingForm({
             </FormItem>
           )}
         />
+
         <FormItem>
           <Label htmlFor="image-upload-input">Images</Label>
           <p className="text-muted-foreground text-[0.8rem]">
@@ -225,25 +259,16 @@ export function ListingForm({
             <ImageManager
               type="listing"
               images={images}
-              onImagesChange={setImages}
               referenceId={listingId}
             />
             {images.length < LISTING_CONFIG.IMAGES.MAX_COUNT && (
               <div className="p-4">
-                <ImageUpload
-                  type="listing"
-                  referenceId={listingId}
-                  onUploadComplete={(result) => {
-                    if (result.success && result.image) {
-                      setImages((prev) => [...prev, result.image]);
-                      toast.success("Image added successfully");
-                    }
-                  }}
-                />
+                <ImageUpload type="listing" referenceId={listingId} />
               </div>
             )}
           </div>
         </FormItem>
+
         <FormField
           control={form.control}
           name="description"
@@ -259,8 +284,9 @@ export function ListingForm({
                     field.onChange(e);
                     adjustHeight();
                   }}
-                  onBlur={() => onFieldBlur("description")}
+                  onBlur={() => void onFieldBlur("description")}
                   className="min-h-[100px]"
+                  disabled={isPending}
                 />
               </FormControl>
               <FormDescription>
@@ -270,6 +296,7 @@ export function ListingForm({
             </FormItem>
           )}
         />
+
         <FormField
           control={form.control}
           name="price"
@@ -280,7 +307,8 @@ export function ListingForm({
                 <CurrencyInput
                   value={field.value}
                   onChange={field.onChange}
-                  onValueBlur={(_value) => void onFieldBlur("price")}
+                  onValueBlur={() => void onFieldBlur("price")}
+                  disabled={isPending}
                 />
               </FormControl>
               <FormDescription>
@@ -290,6 +318,7 @@ export function ListingForm({
             </FormItem>
           )}
         />
+
         <FormField
           control={form.control}
           name="status"
@@ -298,18 +327,14 @@ export function ListingForm({
               <FormLabel>Status</FormLabel>
               <Select
                 onValueChange={(value) => {
-                  // Convert "published" placeholder to actual STATUS.PUBLISHED (empty string)
                   const dbValue =
-                    value === "published" ? STATUS.PUBLISHED : value;
+                    value === "published" ? STATUS.PUBLISHED : STATUS.HIDDEN;
 
-                  // Update the form
                   field.onChange(dbValue);
-
-                  // Save immediately without checking dirty state
                   void saveField("status", dbValue);
                 }}
-                // Use the helper function to get the UI value
                 value={getUIStatusValue(field.value)}
+                disabled={isPending}
               >
                 <FormControl>
                   <SelectTrigger>
@@ -317,7 +342,6 @@ export function ListingForm({
                   </SelectTrigger>
                 </FormControl>
                 <SelectContent>
-                  {/* Use "published" as a non-empty placeholder for the UI */}
                   <SelectItem value="published">Published</SelectItem>
                   <SelectItem value={STATUS.HIDDEN}>Hidden</SelectItem>
                 </SelectContent>
@@ -329,6 +353,7 @@ export function ListingForm({
             </FormItem>
           )}
         />
+
         <FormField
           control={form.control}
           name="privateNote"
@@ -339,7 +364,8 @@ export function ListingForm({
                 <Textarea
                   {...field}
                   value={field.value ?? ""}
-                  onBlur={() => onFieldBlur("privateNote")}
+                  onBlur={() => void onFieldBlur("privateNote")}
+                  disabled={isPending}
                 />
               </FormControl>
               <FormDescription>
@@ -349,30 +375,12 @@ export function ListingForm({
             </FormItem>
           )}
         />
+
         <FormItem>
           <Label htmlFor="list-select">Lists</Label>
           <MultiListSelect
-            values={lists.map((list) => list.id)}
-            onSelect={(listIds) => {
-              setIsPending(true);
-              void updateListsMutation
-                .mutateAsync({
-                  id: listing.id,
-                  listIds,
-                })
-                .catch((error) => {
-                  toast.error("Failed to update lists", {
-                    description: getErrorMessage(error),
-                  });
-                  reportError({
-                    error: normalizeError(error),
-                    context: { source: "ListingForm" },
-                  });
-                })
-                .finally(() => {
-                  setIsPending(false);
-                });
-            }}
+            values={selectedListIds}
+            onSelect={(listIds) => void handleUpdateLists(listIds)}
             disabled={isPending}
           />
           <p className="text-muted-foreground text-[0.8rem]">
@@ -386,16 +394,18 @@ export function ListingForm({
           </Label>
           <AhsListingLink
             listing={listing}
+            linkedAhs={linkedAhs}
             onNameChange={(name) => {
               form.setValue("title", name);
             }}
           />
           <p className="text-muted-foreground text-[0.8rem]">
-            Optional. Link your listing to a daylily databse listing to
+            Optional. Link your listing to a daylily database listing to
             automatically populate details like hybridizer, year, and photo from
             our database.
           </p>
         </FormItem>
+
         <div className="flex justify-end gap-4">
           <Button
             type="button"
@@ -424,4 +434,80 @@ export function ListingForm({
       />
     </Form>
   );
+}
+
+function ListingFormLive({ listingId, onDelete, formRef }: ListingFormProps) {
+  const { data: listings = [], isReady: isListingReady } = useLiveQuery(
+    (q) =>
+      q
+        .from({ listing: listingsCollection })
+        .where(({ listing }) => eq(listing.id, listingId)),
+    [listingId],
+  );
+  const listing = listings[0] ?? null;
+
+  const {
+    data: cultivarReferences = [],
+    isReady: isCultivarReferencesReady,
+  } = useLiveQuery((q) =>
+    q
+      .from({ ref: cultivarReferencesCollection })
+      .orderBy(({ ref }) => ref.updatedAt, "asc"),
+  );
+
+  const { data: images = [], isReady: isImagesReady } = useLiveQuery(
+    (q) =>
+      q
+        .from({ img: imagesCollection })
+        .where(({ img }) => eq(img.listingId, listingId))
+        .orderBy(({ img }) => img.order, "asc"),
+    [listingId],
+  );
+
+  const { data: lists = [], isReady: isListsReady } = useLiveQuery((q) =>
+    q.from({ list: listsCollection }).orderBy(({ list }) => list.title, "asc"),
+  );
+
+  const selectedListIds = useMemo(() => {
+    if (!lists.length) return [];
+
+    return lists
+      .filter((list) => list.listings.some(({ id }) => id === listingId))
+      .map((list) => list.id);
+  }, [lists, listingId]);
+
+  const linkedAhs = useMemo(() => {
+    if (!listing?.cultivarReferenceId) return null;
+
+    const ref = cultivarReferences.find(
+      (row) => row.id === listing.cultivarReferenceId,
+    );
+    return ref?.ahsListing ?? null;
+  }, [cultivarReferences, listing?.cultivarReferenceId]);
+
+  if (
+    !isListingReady ||
+    !isImagesReady ||
+    !isListsReady ||
+    !isCultivarReferencesReady ||
+    !listing
+  ) {
+    return <ListingFormSkeleton />;
+  }
+
+  return (
+    <ListingFormInner
+      listingId={listingId}
+      listing={listing}
+      linkedAhs={linkedAhs}
+      images={images}
+      selectedListIds={selectedListIds}
+      onDelete={onDelete}
+      formRef={formRef}
+    />
+  );
+}
+
+export function ListingForm(props: ListingFormProps) {
+  return <ListingFormLive {...props} />;
 }

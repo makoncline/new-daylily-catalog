@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { api } from "@/trpc/react";
 import { toast } from "sonner";
 import { LISTING_CONFIG } from "@/config/constants";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -11,63 +10,30 @@ import { AhsListingSelect } from "./ahs-listing-select";
 import { AhsListingDisplay } from "./ahs-listing-display";
 import { Muted } from "@/components/typography";
 
-import type { ListingGetOutput } from "@/server/api/routers/listing";
 import type { AhsSearchResult } from "./ahs-listing-select";
-import { getErrorMessage, normalizeError } from "@/lib/error-utils";
-import { useDisplayAhsListing } from "@/hooks/use-display-ahs-listing";
+import { getErrorMessage, normalizeError, reportError } from "@/lib/error-utils";
+import type { RouterOutputs } from "@/trpc/react";
+import {
+  linkAhs,
+  syncAhsName,
+  unlinkAhs,
+} from "@/app/dashboard/_lib/dashboard-db/listings-collection";
+
+type CultivarReferenceAhsListing =
+  RouterOutputs["dashboardDb"]["cultivarReference"]["listForUserListings"][number]["ahsListing"];
 
 interface AhsListingLinkProps {
-  listing: ListingGetOutput;
+  listing: RouterOutputs["dashboardDb"]["listing"]["list"][number];
+  linkedAhs: CultivarReferenceAhsListing | null;
   onNameChange?: (name: string) => void;
 }
 
 export function AhsListingLink({
   listing,
+  linkedAhs,
   onNameChange,
 }: AhsListingLinkProps) {
   const [isPending, setIsPending] = useState(false);
-  const utils = api.useUtils();
-  const linkedAhs = useDisplayAhsListing(listing);
-
-  const { mutateAsync: linkAhsMutation } = api.listing.linkAhs.useMutation({
-    onSuccess: (data) => {
-      void utils.listing.get.invalidate({ id: data.id });
-    },
-    onError: (error, errorInfo) => {
-      toast.error("Failed to save changes", { description: error.message });
-      reportError({
-        error: normalizeError(error),
-        context: { source: "AhsListingLink", errorInfo },
-      });
-    },
-  });
-
-  const { mutateAsync: unlinkAhsMutation } = api.listing.unlinkAhs.useMutation({
-    onSuccess: (data) => {
-      void utils.listing.get.invalidate({ id: data.id });
-    },
-    onError: (error, errorInfo) => {
-      toast.error("Failed to save changes", { description: error.message });
-      reportError({
-        error: normalizeError(error),
-        context: { source: "AhsListingLink", errorInfo },
-      });
-    },
-  });
-
-  const { mutateAsync: syncAhsNameMutation } =
-    api.listing.syncAhsName.useMutation({
-      onSuccess: (data) => {
-        void utils.listing.get.invalidate({ id: data.id });
-      },
-      onError: (error, errorInfo) => {
-        toast.error("Failed to save changes", { description: error.message });
-        reportError({
-          error: normalizeError(error),
-          context: { source: "AhsListingLink", errorInfo },
-        });
-      },
-    });
 
   async function updateAhsListing(selected: AhsSearchResult | null) {
     setIsPending(true);
@@ -81,7 +47,7 @@ export function AhsListingLink({
         const shouldUpdateName =
           !listing.title || listing.title === LISTING_CONFIG.DEFAULT_NAME;
 
-        await linkAhsMutation({
+        await linkAhs({
           id: listing.id,
           cultivarReferenceId: selected.cultivarReferenceId,
           syncName: shouldUpdateName,
@@ -92,7 +58,7 @@ export function AhsListingLink({
           onNameChange?.(selected.name);
         }
       } else {
-        await unlinkAhsMutation({
+        await unlinkAhs({
           id: listing.id,
         });
       }
@@ -119,7 +85,7 @@ export function AhsListingLink({
   async function syncName() {
     setIsPending(true);
     try {
-      const updatedListing = await syncAhsNameMutation({
+      const updatedListing = await syncAhsName({
         id: listing.id,
       });
       if (updatedListing.title) {

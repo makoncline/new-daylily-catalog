@@ -10,12 +10,11 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { useRouter } from "next/navigation";
-import { api } from "@/trpc/react";
 import { toast } from "sonner";
 import { useState } from "react";
 import { Pencil, Trash2 } from "lucide-react";
 import { DeleteConfirmDialog } from "@/components/delete-confirm-dialog";
+import { deleteListing as deleteListingFromDb } from "@/app/dashboard/_lib/dashboard-db/listings-collection";
 
 interface DataTableRowActionsProps<TData> {
   row: Row<TData>;
@@ -26,20 +25,24 @@ export function DataTableRowActions<TData extends { id: string }>({
   row,
   onEdit,
 }: DataTableRowActionsProps<TData>) {
-  const router = useRouter();
   const [open, setOpen] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [isPending, setIsPending] = useState(false);
 
-  const deleteListing = api.listing.delete.useMutation({
-    onSuccess: () => {
+  const handleDelete = async () => {
+    if (isPending) return;
+    setIsPending(true);
+    try {
+      await deleteListingFromDb({ id: row.original.id });
       toast.success("Listing deleted successfully");
       setOpen(false);
-      router.refresh();
-    },
-    onError: () => {
+      setShowDeleteDialog(false);
+    } catch {
       toast.error("Failed to delete listing");
-    },
-  });
+    } finally {
+      setIsPending(false);
+    }
+  };
 
   return (
     <>
@@ -83,9 +86,7 @@ export function DataTableRowActions<TData extends { id: string }>({
       <DeleteConfirmDialog
         open={showDeleteDialog}
         onOpenChange={setShowDeleteDialog}
-        onConfirm={() => {
-          deleteListing.mutate({ id: row.original.id });
-        }}
+        onConfirm={() => void handleDelete()}
         title="Delete Listing"
         description="Are you sure you want to delete this listing? This action cannot be undone."
       />

@@ -6,16 +6,12 @@ import { DataTableLayout } from "@/components/data-table/data-table-layout";
 import { DataTablePagination } from "@/components/data-table/data-table-pagination";
 import { EmptyState } from "@/components/empty-state";
 import { getColumns } from "./columns";
-import { api } from "@/trpc/react";
-import { ListingsTableSkeleton } from "./listings-table-skeleton";
 import { Button } from "@/components/ui/button";
 import { Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { DeleteConfirmDialog } from "@/components/delete-confirm-dialog";
 import { Label } from "@/components/ui/label";
 import { useState } from "react";
-import { useEditListing } from "@/app/dashboard/listings/_components/edit-listing-dialog";
-import { getColumns as getListingsColumns } from "@/app/dashboard/listings/_components/columns";
 import { type Table } from "@tanstack/react-table";
 import { DataTableGlobalFilter } from "@/components/data-table/data-table-global-filter";
 import { DataTableFilterReset } from "@/components/data-table/data-table-filter-reset";
@@ -25,6 +21,14 @@ import { useDataTable } from "@/hooks/use-data-table";
 import { DataTableDownload } from "@/components/data-table";
 import { slugify } from "@/lib/utils/slugify";
 import { DataTableFilteredCount } from "@/components/data-table/data-table-filtered-count";
+import { eq, useLiveQuery } from "@tanstack/react-db";
+import {
+  listsCollection,
+  removeListingFromList,
+  type ListCollectionItem,
+} from "@/app/dashboard/_lib/dashboard-db/lists-collection";
+import { listingsCollection } from "@/app/dashboard/_lib/dashboard-db/listings-collection";
+import { getQueryClient } from "@/trpc/query-client";
 
 interface ListListingsTableProps {
   listId: string;
@@ -33,7 +37,7 @@ interface ListListingsTableProps {
 const tableOptions = {
   pinnedColumns: {
     left: ["select", "title"],
-    right: ["actions"],
+    right: [],
   },
   storageKey: "list-listings-table",
 };
@@ -46,15 +50,28 @@ function SelectedItemsActions({
   listId: string;
 }) {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [isPending, setIsPending] = useState(false);
   const selectedRows = table.getFilteredSelectedRowModel().rows;
+  const selectedListingIds = selectedRows.map((row) => row.original.id);
 
-  const removeListings = api.list.removeListings.useMutation({
-    onSuccess: () => {
+  const handleRemoveSelected = async () => {
+    if (!selectedListingIds.length || isPending) return;
+
+    setIsPending(true);
+    try {
+      for (const listingId of selectedListingIds) {
+        await removeListingFromList({ listId, listingId });
+      }
+
       toast.success("Listings removed from list");
       table.resetRowSelection();
       setShowDeleteDialog(false);
-    },
-  });
+    } catch {
+      toast.error("Failed to remove listings from list");
+    } finally {
+      setIsPending(false);
+    }
+  };
 
   return (
     <>
@@ -62,7 +79,7 @@ function SelectedItemsActions({
         variant="destructive"
         size="sm"
         onClick={() => setShowDeleteDialog(true)}
-        disabled={removeListings.isPending}
+        disabled={isPending}
       >
         <Trash2 className="mr-2 h-4 w-4" />
         Remove {selectedRows.length} selected
@@ -71,12 +88,7 @@ function SelectedItemsActions({
       <DeleteConfirmDialog
         open={showDeleteDialog}
         onOpenChange={setShowDeleteDialog}
-        onConfirm={() => {
-          removeListings.mutate({
-            listId,
-            listingIds: selectedRows.map((row) => row.original.id),
-          });
-        }}
+        onConfirm={() => void handleRemoveSelected()}
         title="Remove Listings"
         description={`Are you sure you want to remove ${selectedRows.length} listing${selectedRows.length === 1 ? "" : "s"} from this list? This action cannot be undone.`}
       />
@@ -114,34 +126,46 @@ function ListingsTableToolbar({ table, listId }: ListingsTableToolbarProps) {
 }
 
 export function ListListingsTable({ listId }: ListListingsTableProps) {
-  const { data: list } = api.list.get.useQuery({
-    id: listId,
-  });
-  const { data: listings, isLoading } = api.list.getListings.useQuery({
-    id: listId,
-  });
-  const { editListing } = useEditListing();
+  const { data: liveLists = [], isReady: isListsReady } = useLiveQuery(
+    (q) =>
+      q.from({ list: listsCollection }).where(({ list }) => eq(list.id, listId)),
+    [listId],
+  );
+  const liveList = liveLists[0] ?? null;
 
-  const excludedColumns = ["lists", "actions"] as const;
-  const columns = [
-    ...getColumns(),
-    ...getListingsColumns(editListing).filter(
-      (column) =>
-        !excludedColumns.includes(
-          column.id as (typeof excludedColumns)[number],
-        ),
-    ),
-  ];
+  const { data: liveListings = [], isReady: isListingsReady } = useLiveQuery(
+    (q) =>
+      q
+        .from({ listing: listingsCollection })
+        .orderBy(({ listing }) => listing.createdAt, "desc"),
+  );
+
+  const queryClient = getQueryClient();
+  const seededLists =
+    queryClient.getQueryData<ListCollectionItem[]>(["dashboard-db", "lists"]) ??
+    [];
+  const seededList = seededLists.find((row) => row.id === listId) ?? null;
+
+  const list = isListsReady ? (liveList ?? seededList) : seededList;
+
+  const seededListings =
+    queryClient.getQueryData<ListingData[]>(["dashboard-db", "listings"]) ?? [];
+  const allListings = isListingsReady ? liveListings : seededListings;
+
+  const listings = React.useMemo(() => {
+    if (!list?.listings?.length) return [];
+
+    const ids = new Set(list.listings.map(({ id }) => id));
+    return allListings.filter((listing) => ids.has(listing.id));
+  }, [allListings, list]);
+
+  const columns = getColumns();
 
   const table = useDataTable({
     data: listings ?? [],
     columns,
     ...tableOptions,
   });
-
-  if (isLoading) {
-    return <ListingsTableSkeleton />;
-  }
 
   if (!listings?.length) {
     return (

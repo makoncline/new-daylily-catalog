@@ -1,13 +1,8 @@
 import { createTRPCRouter, createCallerFactory } from "@/server/api/trpc";
 import { stripeRouter } from "@/server/api/routers/stripe";
-import { imageRouter } from "./routers/image";
-import { listingRouter } from "./routers/listing";
-import { ahsRouter } from "./routers/ahs";
 import { userRouter } from "@/server/api/routers/user";
-import { listRouter } from "./routers/list";
-import { userProfileRouter } from "@/server/api/routers/user-profile";
-import { dashboardRouter } from "./routers/dashboard";
 import { publicRouter } from "./routers/public";
+import { dashboardDbRouter } from "./routers/dashboard-db";
 
 /**
  * This is the primary router for your server.
@@ -16,14 +11,9 @@ import { publicRouter } from "./routers/public";
  */
 export const appRouter = createTRPCRouter({
   stripe: stripeRouter,
-  image: imageRouter,
-  listing: listingRouter,
-  ahs: ahsRouter,
   user: userRouter,
-  list: listRouter,
-  userProfile: userProfileRouter,
-  dashboard: dashboardRouter,
   public: publicRouter,
+  dashboardDb: dashboardDbRouter,
 });
 
 // export type definition of API

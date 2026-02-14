@@ -1,41 +1,18 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { ListingGetOutput } from "@/server/api/routers/listing";
+import type { RouterOutputs } from "@/trpc/react";
 import { AhsListingLink } from "@/components/ahs-listing-link";
 
-const mockLinkAhsMutateAsync = vi.hoisted(() => vi.fn());
-const mockUnlinkAhsMutateAsync = vi.hoisted(() => vi.fn());
-const mockSyncAhsNameMutateAsync = vi.hoisted(() => vi.fn());
+const mockLinkAhs = vi.hoisted(() => vi.fn());
+const mockUnlinkAhs = vi.hoisted(() => vi.fn());
+const mockSyncAhsName = vi.hoisted(() => vi.fn());
 const mockToastSuccess = vi.hoisted(() => vi.fn());
 const mockToastError = vi.hoisted(() => vi.fn());
 
-vi.mock("@/trpc/react", () => ({
-  api: {
-    listing: {
-      linkAhs: {
-        useMutation: () => ({
-          mutateAsync: mockLinkAhsMutateAsync,
-        }),
-      },
-      unlinkAhs: {
-        useMutation: () => ({
-          mutateAsync: mockUnlinkAhsMutateAsync,
-        }),
-      },
-      syncAhsName: {
-        useMutation: () => ({
-          mutateAsync: mockSyncAhsNameMutateAsync,
-        }),
-      },
-    },
-    useUtils: () => ({
-      listing: {
-        get: {
-          invalidate: vi.fn(),
-        },
-      },
-    }),
-  },
+vi.mock("@/app/dashboard/_lib/dashboard-db/listings-collection", () => ({
+  linkAhs: mockLinkAhs,
+  unlinkAhs: mockUnlinkAhs,
+  syncAhsName: mockSyncAhsName,
 }));
 
 vi.mock("sonner", () => ({
@@ -74,28 +51,56 @@ vi.mock("@/components/ahs-listing-select", () => ({
   ),
 }));
 
-function createListing(
-  overrides: Partial<ListingGetOutput> = {},
-): ListingGetOutput {
+type Listing = RouterOutputs["dashboardDb"]["listing"]["list"][number];
+type CultivarReferenceAhsListing = NonNullable<
+  RouterOutputs["dashboardDb"]["cultivarReference"]["listForUserListings"][number]["ahsListing"]
+>;
+
+function createLinkedAhs(
+  overrides: Partial<CultivarReferenceAhsListing> = {},
+): CultivarReferenceAhsListing {
+  return {
+    id: "ahs-1",
+    name: "Coffee Frenzy",
+    ahsImageUrl: null,
+    hybridizer: null,
+    year: null,
+    scapeHeight: null,
+    bloomSize: null,
+    bloomSeason: null,
+    form: null,
+    ploidy: null,
+    foliageType: null,
+    bloomHabit: null,
+    budcount: null,
+    branches: null,
+    sculpting: null,
+    foliage: null,
+    flower: null,
+    fragrance: null,
+    parentage: null,
+    color: null,
+    ...overrides,
+  };
+}
+
+function createListing(overrides: Partial<Listing> = {}): Listing {
+  const now = new Date();
+
   return {
     id: "listing-1",
+    userId: "user-1",
     title: "New Listing",
+    slug: "new-listing",
+    price: null,
+    description: null,
+    privateNote: null,
+    status: null,
+    createdAt: now,
+    updatedAt: now,
     cultivarReferenceId: "cr-ahs-1",
-    ahsListing: {
-      id: "ahs-1",
-      name: "Coffee Frenzy",
-    },
-    cultivarReference: {
-      id: "cr-ahs-1",
-      ahsListing: {
-        id: "ahs-1",
-        name: "Coffee Frenzy",
-      },
-    },
-    images: [],
-    lists: [],
     ...overrides,
-  } as unknown as ListingGetOutput;
+  } as Listing;
 }
 
 describe("AhsListingLink", () => {
@@ -103,37 +108,30 @@ describe("AhsListingLink", () => {
     vi.clearAllMocks();
   });
 
-  it("calls unlinkAhs mutation when unlinking", async () => {
-    mockUnlinkAhsMutateAsync.mockResolvedValue(
+  it("calls unlinkAhs when unlinking", async () => {
+    mockUnlinkAhs.mockResolvedValue(
       createListing({
         cultivarReferenceId: null,
-        cultivarReference: null,
-        ahsListing: null,
       }),
     );
 
-    render(<AhsListingLink listing={createListing()} />);
+    render(
+      <AhsListingLink listing={createListing()} linkedAhs={createLinkedAhs()} />,
+    );
 
     fireEvent.click(screen.getByRole("button", { name: "Unlink" }));
 
     await waitFor(() => {
-      expect(mockUnlinkAhsMutateAsync).toHaveBeenCalledWith({
+      expect(mockUnlinkAhs).toHaveBeenCalledWith({
         id: "listing-1",
       });
     });
   });
 
-  it("calls linkAhs mutation with cultivarReferenceId when linking", async () => {
-    mockLinkAhsMutateAsync.mockResolvedValue(
+  it("calls linkAhs with cultivarReferenceId when linking", async () => {
+    mockLinkAhs.mockResolvedValue(
       createListing({
         cultivarReferenceId: "cr-ahs-2",
-        cultivarReference: {
-          id: "cr-ahs-2",
-          ahsListing: {
-            id: "ahs-2",
-            name: "Coffee Two",
-          },
-        } as unknown as ListingGetOutput["cultivarReference"],
       }),
     );
 
@@ -141,16 +139,15 @@ describe("AhsListingLink", () => {
       <AhsListingLink
         listing={createListing({
           cultivarReferenceId: null,
-          cultivarReference: null,
-          ahsListing: null,
         })}
+        linkedAhs={null}
       />,
     );
 
     fireEvent.click(screen.getByRole("button", { name: "Select AHS" }));
 
     await waitFor(() => {
-      expect(mockLinkAhsMutateAsync).toHaveBeenCalledWith({
+      expect(mockLinkAhs).toHaveBeenCalledWith({
         id: "listing-1",
         cultivarReferenceId: "cr-ahs-2",
         syncName: true,

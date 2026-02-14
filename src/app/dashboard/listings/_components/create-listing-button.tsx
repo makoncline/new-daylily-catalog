@@ -27,7 +27,7 @@ export function CreateListingButton() {
   const { isPro } = usePro();
 
   // Get the count of user's listings for tier limit checking
-  const { data: listingCount } = api.listing.count.useQuery();
+  const { data: listingCount } = api.dashboardDb.listing.count.useQuery();
 
   /**
    * Handles the create button click.

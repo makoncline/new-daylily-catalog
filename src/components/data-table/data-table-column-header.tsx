@@ -31,15 +31,20 @@ export function DataTableColumnHeader<TData, TValue>({
   className,
   enableFilter,
 }: DataTableColumnHeaderProps<TData, TValue>) {
+  const columnFilterValue = column.getFilterValue();
   // Local state for immediate input updates
   const [value, setValue] = useState<string>(
-    (column.getFilterValue() as string) || "",
+    typeof columnFilterValue === "string" ? columnFilterValue : "",
   );
+
+  React.useEffect(() => {
+    setValue(typeof columnFilterValue === "string" ? columnFilterValue : "");
+  }, [columnFilterValue]);
 
   // Debounced function for expensive filtering operations
   const debouncedFiltering = useDebouncedCallback((filterValue: string) => {
     column.setFilterValue(filterValue);
-  }, 200);
+  }, 200, { leading: true });
 
   // Handle input changes - update UI immediately but debounce filtering
   const handleChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -59,7 +64,10 @@ export function DataTableColumnHeader<TData, TValue>({
           variant="ghost"
           size="sm"
           className="-ml-1 h-8 data-[state=open]:bg-accent"
-          onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}
+          onClick={(event) => {
+            event.stopPropagation();
+            column.toggleSorting(column.getIsSorted() === "asc");
+          }}
         >
           <span>{title}</span>
           {column.getIsSorted() === "desc" ? (
@@ -81,6 +89,9 @@ export function DataTableColumnHeader<TData, TValue>({
               variant="ghost"
               size="sm"
               className="h-8 w-8 p-0 hover:bg-muted"
+              onClick={(event) => {
+                event.stopPropagation();
+              }}
             >
               <Search className="h-4 w-4" />
               <span className="sr-only">

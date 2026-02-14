@@ -7,7 +7,7 @@ import { api } from "@/trpc/react";
 export function DashboardBreadcrumbs() {
   const pathname = usePathname();
   const listId = pathname.split("/").pop();
-  const { data: list } = api.list.get.useQuery(
+  const { data: list } = api.dashboardDb.list.get.useQuery(
     { id: listId! },
     { enabled: pathname.startsWith("/dashboard/lists/") && !!listId },
   );

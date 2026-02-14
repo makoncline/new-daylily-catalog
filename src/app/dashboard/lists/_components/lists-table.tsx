@@ -1,23 +1,26 @@
 "use client";
 
 import * as React from "react";
+import { useLiveQuery } from "@tanstack/react-db";
 import { DataTable } from "@/components/data-table/data-table";
 import { DataTableLayout } from "@/components/data-table/data-table-layout";
 import { DataTablePagination } from "@/components/data-table/data-table-pagination";
 import { EmptyState } from "@/components/empty-state";
 import { columns } from "./columns";
-import { api } from "@/trpc/react";
-import { ListsTableSkeleton } from "./lists-table-skeleton";
 import { CreateListButton } from "./create-list-button";
 import { type Table } from "@tanstack/react-table";
-import { type RouterOutputs } from "@/trpc/react";
 import { DataTableGlobalFilter } from "@/components/data-table/data-table-global-filter";
 import { DataTableFilterReset } from "@/components/data-table/data-table-filter-reset";
 import { DataTableViewOptions } from "@/components/data-table/data-table-view-options";
 import { useDataTable } from "@/hooks/use-data-table";
 import { APP_CONFIG, LIST_TABLE_COLUMN_NAMES } from "@/config/constants";
+import {
+  listsCollection,
+  type ListCollectionItem,
+} from "@/app/dashboard/_lib/dashboard-db/lists-collection";
+import { getQueryClient } from "@/trpc/query-client";
 
-type List = RouterOutputs["list"]["list"][number];
+type List = ListCollectionItem;
 
 interface ListsTableToolbarProps {
   table: Table<List>;
@@ -67,11 +70,21 @@ function NoResults({ filtered = false }) {
   );
 }
 
-export function ListsTable() {
-  const { data: lists, isLoading } = api.list.list.useQuery();
+function ListsTableLive() {
+  const { data: baseLists = [], isReady } = useLiveQuery((q) =>
+    q
+      .from({ list: listsCollection })
+      .orderBy(({ list }) => list.createdAt, "desc"),
+  );
+
+  const queryClient = getQueryClient();
+  const seededLists =
+    queryClient.getQueryData<List[]>(["dashboard-db", "lists"]) ?? [];
+
+  const lists = isReady ? baseLists : seededLists;
 
   const table = useDataTable({
-    data: lists ?? [],
+    data: lists,
     columns,
     storageKey: "lists-table",
     pinnedColumns: {
@@ -81,11 +94,7 @@ export function ListsTable() {
     columnNames: LIST_TABLE_COLUMN_NAMES,
   });
 
-  if (isLoading) {
-    return <ListsTableSkeleton />;
-  }
-
-  if (!lists?.length) {
+  if (!lists.length) {
     return <NoResults />;
   }
 
@@ -108,4 +117,8 @@ export function ListsTable() {
       </DataTableLayout>
     </div>
   );
+}
+
+export function ListsTable() {
+  return <ListsTableLive />;
 }
