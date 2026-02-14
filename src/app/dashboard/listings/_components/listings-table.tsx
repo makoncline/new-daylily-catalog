@@ -17,7 +17,6 @@ import { DataTableFacetedFilter } from "@/components/data-table/data-table-facet
 import { DataTableDownload } from "@/components/data-table";
 import { APP_CONFIG } from "@/config/constants";
 import { DataTableFilteredCount } from "@/components/data-table/data-table-filtered-count";
-import { DataTableLayoutSkeleton } from "@/components/data-table/data-table-layout";
 import { useLiveQuery } from "@tanstack/react-db";
 import type { Image } from "@prisma/client";
 import { listingsCollection } from "@/app/dashboard/_lib/dashboard-db/listings-collection";
@@ -25,8 +24,12 @@ import { listsCollection } from "@/app/dashboard/_lib/dashboard-db/lists-collect
 import { imagesCollection } from "@/app/dashboard/_lib/dashboard-db/images-collection";
 import { cultivarReferencesCollection } from "@/app/dashboard/_lib/dashboard-db/cultivar-references-collection";
 import { getColumns, type ListingData } from "./columns";
+import { getQueryClient } from "@/trpc/query-client";
 
 type List = RouterOutputs["dashboardDb"]["list"]["list"][number];
+type Listing = RouterOutputs["dashboardDb"]["listing"]["list"][number];
+type CultivarReference =
+  RouterOutputs["dashboardDb"]["cultivarReference"]["listForUserListings"][number];
 
 interface ListingsTableToolbarProps {
   table: Table<ListingData>;
@@ -109,10 +112,32 @@ function ListingsTableLive() {
     );
   const { editListing } = useEditListing();
 
+  const queryClient = getQueryClient();
+  const seededListings =
+    queryClient.getQueryData<Listing[]>(["dashboard-db", "listings"]) ?? [];
+  const seededLists =
+    queryClient.getQueryData<List[]>(["dashboard-db", "lists"]) ?? [];
+  const seededImages =
+    queryClient.getQueryData<Image[]>(["dashboard-db", "images"]) ?? [];
+  const seededCultivarReferences =
+    queryClient.getQueryData<CultivarReference[]>([
+      "dashboard-db",
+      "cultivar-references",
+    ]) ?? [];
+
+  // `useLiveQuery` can report `isReady=false` briefly on mount even if the collections
+  // are already preloaded. Fall back to the seeded react-query cache to prevent skeleton flashes.
+  const effectiveListings = isListingsReady ? baseListings : seededListings;
+  const effectiveLists = isListsReady ? lists : seededLists;
+  const effectiveImages = isImagesReady ? images : seededImages;
+  const effectiveCultivarReferences = isCultivarReferencesReady
+    ? cultivarReferences
+    : seededCultivarReferences;
+
   const listsByListingId = React.useMemo(() => {
     const map = new Map<string, Array<Pick<List, "id" | "title">>>();
 
-    for (const list of lists) {
+    for (const list of effectiveLists) {
       for (const { id: listingId } of list.listings) {
         const row = map.get(listingId) ?? [];
         row.push({ id: list.id, title: list.title });
@@ -121,12 +146,12 @@ function ListingsTableLive() {
     }
 
     return map;
-  }, [lists]);
+  }, [effectiveLists]);
 
   const imagesByListingId = React.useMemo(() => {
     const map = new Map<string, Image[]>();
 
-    for (const img of images) {
+    for (const img of effectiveImages) {
       if (!img.listingId) continue;
       const row = map.get(img.listingId) ?? [];
       row.push(img);
@@ -138,16 +163,16 @@ function ListingsTableLive() {
     }
 
     return map;
-  }, [images]);
+  }, [effectiveImages]);
 
   const cultivarReferenceById = React.useMemo(() => {
-    const map = new Map<string, (typeof cultivarReferences)[number]>();
-    cultivarReferences.forEach((row) => map.set(row.id, row));
+    const map = new Map<string, CultivarReference>();
+    effectiveCultivarReferences.forEach((row) => map.set(row.id, row));
     return map;
-  }, [cultivarReferences]);
+  }, [effectiveCultivarReferences]);
 
   const listings = React.useMemo<ListingData[]>(() => {
-    return baseListings.map((listing) => {
+    return effectiveListings.map((listing) => {
       const ref = listing.cultivarReferenceId
         ? cultivarReferenceById.get(listing.cultivarReferenceId)
         : null;
@@ -159,7 +184,12 @@ function ListingsTableLive() {
         ahsListing: ref?.ahsListing ?? null,
       };
     });
-  }, [baseListings, cultivarReferenceById, imagesByListingId, listsByListingId]);
+  }, [
+    cultivarReferenceById,
+    effectiveListings,
+    imagesByListingId,
+    listsByListingId,
+  ]);
 
   const columns = getColumns(editListing);
 
@@ -181,16 +211,7 @@ function ListingsTableLive() {
     },
   });
 
-  if (
-    !isListingsReady ||
-    !isListsReady ||
-    !isImagesReady ||
-    !isCultivarReferencesReady
-  ) {
-    return <DataTableLayoutSkeleton />;
-  }
-
-  if (!baseListings.length) {
+  if (!effectiveListings.length) {
     return (
       <EmptyState
         title="No listings"
@@ -207,7 +228,7 @@ function ListingsTableLive() {
         toolbar={
           <ListingsTableToolbar
             table={table}
-            lists={lists}
+            lists={effectiveLists}
             listings={listings}
           />
         }
