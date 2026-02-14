@@ -58,3 +58,47 @@ LOCAL_DATABASE_URL="file:./local-prod-copy-daylily-catalog.db" pnpm dev
 ```
 
 If `CI` is set to `false`, the script will verify the backup by creating a local copy of the database at `prisma/local-prod-copy-daylily-catalog.db` which you can use for testing.
+
+## Faster Vercel Production Builds (Local Snapshot During Build)
+
+The `pnpm build` script is a wrapper that can optionally pull a local SQLite snapshot of a Turso DB at build time and force the build to use that local DB (by setting `USE_TURSO_DB=false` for the build subprocess).
+
+Defaults:
+- Snapshot builds are disabled by default.
+- Pulls from Turso DB name `daylily-catalog` unless overridden.
+- Writes to the file path implied by `LOCAL_DATABASE_URL`.
+
+Build env vars:
+- `USE_TURSO_DB_FOR_BUILD=false` enables snapshot builds. (If unset or `true`, build uses remote Turso.)
+- `TURSO_API_TOKEN` is required for the snapshot pull step.
+- `TURSO_SNAPSHOT_DB_NAME` overrides which Turso DB name to pull the dump from (useful for preview).
+- `LOCAL_DATABASE_URL` must be set to a SQLite file url (e.g. `file:./local-preview-copy-daylily-catalog.db`). Prisma typically resolves relative paths from `prisma/`, so this will create `prisma/local-preview-copy-daylily-catalog.db`.
+
+### Vercel Prereqs (Install Command)
+
+The snapshot flow shells out to `sqlite3` and installs the Turso CLI via `curl`, so your Vercel build environment must have:
+- `sqlite3`
+- `curl`
+- `tar`
+- `xz`
+
+Recommended Vercel Install Command (Dashboard):
+
+```bash
+dnf install -y sqlite curl-minimal tar xz && corepack enable && pnpm install --frozen-lockfile
+```
+
+Alternatively, commit a `vercel.json` with an `installCommand` that does the same.
+
+### Local Container Test (Vercel-like)
+
+To reproduce Vercel build behavior locally (Amazon Linux 2023 + `dnf`), run:
+
+```bash
+./scripts/test-vercel-build-container.sh
+```
+
+This uses your `.env.development` (follows symlinks) as a Docker `--env-file` and runs `NODE_ENV=production pnpm build` in an `amazonlinux:2023` container.
+
+Backup script overrides (used by the build wrapper):
+- `TURSO_SNAPSHOT_DB_NAME` overrides the Turso database name used by `scripts/db-backup.sh`.

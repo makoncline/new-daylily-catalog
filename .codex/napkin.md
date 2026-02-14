@@ -8,6 +8,7 @@
 - 2026-02-14 - dashboardDb bootstrap - Factor the repeated init sequence (set current user, seed query cache, set cursor, clear tombstones, preload) into `bootstrapDashboardDbCollection` so it stays consistent across collections and is harder to regress.
 - 2026-02-14 - dashboardDb cursors - For incremental sync, advance cursors to the max `updatedAt` observed in returned rows (and keep previous cursor on empty results). Setting cursor to "now" can permanently skip writes that occur during the sync window. Also: `collection.utils.refetch()` won't run if the underlying TanStack Query is disabled; keep query-collections `enabled: true`.
 - 2026-02-14 - legacy listing status - Treat any legacy `status` values other than `STATUS.HIDDEN` as published/null so forms don't crash on `"published"` or `""`.
+- 2026-02-13 - vercel build snapshot - Avoid downloading sqlite tools by scraping sqlite.org; use OS package install (Vercel/Amazon Linux via `dnf install sqlite`) or fail clearly. Build snapshot uses `USE_TURSO_DB_FOR_BUILD` and must not change runtime `USE_TURSO_DB`.
 - 2026-02-12 - prisma artifacts - Do not commit generated Prisma client output (`prisma/generated/sqlite-client`) or SQLite DB files; commit schema + migration/source changes only.
 - 2026-02-12 - next route config - Route-segment exports like `export const revalidate` and `export const dynamicParams` must stay literal in the page file; imported config/object property values can fail static parsing.
 - 2026-02-12 - profile deep-link UX - For `?viewing=` on public profile, avoid transient “Listing not found”; fetch `public.getListing` when the ID is not in loaded pages and show a loading state until query resolves.
@@ -57,6 +58,7 @@
 - Use composition patterns for new UI components (prefer explicit composed sections over boolean-mode props).
 - Use the term `napkin` (not `codex napkin`).
 - Keep E2E tests UI-only; if UI behavior fails, test should fail (don't hide with non-UI shortcuts).
+- For Vercel production builds, prefer building against a local snapshot of the prod DB (to avoid slow remote Turso queries); preview builds can keep using Turso.
 - Use a 3-step DB rollout for this repo's AHS migration work: Prisma structural migration, then generated SQL file for reference-table data load, then generated SQL file for listing backfill.
 - Avoid `executeRawUnsafe` in application and migration-adjacent app code when Prisma ORM operations can do the job.
 - For product-feedback asks, return prioritized recommendations tied to activation, conversion, and retention.
