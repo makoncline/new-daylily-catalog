@@ -8,7 +8,10 @@ import { getTrpcClient } from "@/trpc/client";
 import {
   getUserCursorKey,
 } from "@/lib/utils/cursor";
-import { bootstrapDashboardDbCollection } from "@/app/dashboard/_lib/dashboard-db/collection-bootstrap";
+import {
+  bootstrapDashboardDbCollection,
+  writeCursorFromRows,
+} from "@/app/dashboard/_lib/dashboard-db/collection-bootstrap";
 
 const CURSOR_BASE = "dashboard-db:cultivar-references:maxUpdatedAt";
 
@@ -19,11 +22,11 @@ export const cultivarReferencesCollection = createCollection(
   queryCollectionOptions<CultivarReferenceCollectionItem>({
     queryClient: getQueryClient(),
     queryKey: ["dashboard-db", "cultivar-references"],
-    enabled: false,
+    enabled: true,
     getKey: (row) => row.id,
-    queryFn: async ({ queryKey, client }) => {
+    queryFn: async ({ queryKey }) => {
       const existing: CultivarReferenceCollectionItem[] =
-        client.getQueryData(queryKey) ?? [];
+        getQueryClient().getQueryData(queryKey) ?? [];
 
       const cursorKeyToUse = getUserCursorKey(CURSOR_BASE);
       const last = localStorage.getItem(cursorKeyToUse);
@@ -34,7 +37,7 @@ export const cultivarReferencesCollection = createCollection(
       const map = new Map(existing.map((row) => [row.id, row]));
       upserts.forEach((row) => map.set(row.id, row));
 
-      localStorage.setItem(cursorKeyToUse, new Date().toISOString());
+      writeCursorFromRows({ cursorStorageKey: cursorKeyToUse, rows: upserts });
       return Array.from(map.values());
     },
     onInsert: async () => ({ refetch: false }),

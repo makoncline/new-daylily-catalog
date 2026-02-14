@@ -2,7 +2,10 @@ import React from "react";
 import { beforeEach, describe, expect, it } from "vitest";
 import { act, render, screen, waitFor } from "@testing-library/react";
 import { useLiveQuery } from "@tanstack/react-db";
-import { withTempAppDb } from "@/lib/test-utils/app-test-db";
+import { createTRPCProxyClient, type TRPCLink } from "@trpc/client";
+import { observable } from "@trpc/server/observable";
+import type { AppRouter } from "@/server/api/root";
+import { callerLink, withTempAppDb } from "@/lib/test-utils/app-test-db";
 
 beforeEach(() => {
   localStorage.clear();
@@ -112,6 +115,28 @@ function MembershipViewer({
   );
 }
 
+function ListTitlesViewer({
+  listsCollection,
+}: {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  listsCollection: any;
+}) {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: items = [] } = useLiveQuery((q: any) =>
+    q
+      .from({ list: listsCollection })
+      .orderBy(({ list }: any) => (list.title ?? "") as string, "asc"),
+  );
+
+  return (
+    <div data-testid="list-titles">
+      {items
+        .map((l: any) => (typeof l.title === "string" ? l.title : "__INVALID__"))
+        .join(",")}
+    </div>
+  );
+}
+
 function ImagesViewer({
   imagesCollection,
   listingId,
@@ -139,6 +164,129 @@ function ImagesViewer({
 }
 
 describe("dashboardDb TanStack DB collections", () => {
+  it("listings: cursor does not skip writes that happen during a sync window", async () => {
+    await withTempAppDb(async ({ user }) => {
+      const { db } = await import("@/server/db");
+
+      await db.listing.create({
+        data: {
+          userId: user.id,
+          title: "A",
+          slug: `a-${crypto.randomUUID()}`,
+        },
+      });
+
+      let didInsertDuringSync = false;
+      let syncCallCount = 0;
+      const { createCaller } = await import("@/server/api/root");
+      const caller = createCaller(async () => {
+        return {
+          db,
+          headers: new Headers(),
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          user: { id: user.id } as any,
+        };
+      });
+
+      const insertDuringSyncLink: TRPCLink<AppRouter> = () => {
+        return ({ op, next }) =>
+          observable((emit) => {
+            let pending = Promise.resolve();
+
+            const sub = next(op).subscribe({
+              next: (value) => {
+                pending = pending.then(async () => {
+                  if (op.path === "dashboardDb.listing.sync") {
+                    syncCallCount++;
+
+                    if (!didInsertDuringSync) {
+                      didInsertDuringSync = true;
+
+                      await db.listing.create({
+                        data: {
+                          userId: user.id,
+                          title: "B",
+                          slug: `b-${crypto.randomUUID()}`,
+                        },
+                      });
+
+                      // Ensure the client advances its cursor *after* this write's updatedAt.
+                      await new Promise((r) => setTimeout(r, 10));
+                    }
+                  }
+
+                  emit.next(value);
+                });
+              },
+              error: (err) => emit.error(err),
+              complete: () => {
+                void pending.then(() => emit.complete());
+              },
+            });
+
+            return () => sub.unsubscribe();
+          });
+      };
+
+      const clientLike = createTRPCProxyClient<AppRouter>({
+        links: [insertDuringSyncLink, callerLink(caller)],
+      });
+
+      const { setTestTrpcClient } = await import("@/trpc/client");
+      setTestTrpcClient(clientLike);
+
+      const {
+        listingsCollection,
+        initializeListingsCollection,
+      } = await import("@/app/dashboard/_lib/dashboard-db/listings-collection");
+
+      await act(async () => {
+        await initializeListingsCollection(user.id);
+        render(<ListingsViewer listingsCollection={listingsCollection} />);
+      });
+
+      await waitFor(() => {
+        expect(screen.getByTestId("count").textContent).toBe("1");
+        expect(screen.getByTestId("titles").textContent).toBe("A");
+      });
+
+      const { getQueryClient } = await import("@/trpc/query-client");
+      const qc = getQueryClient();
+      const q = qc.getQueryCache().find({
+        queryKey: ["dashboard-db", "listings"],
+      });
+      expect(q).toBeTruthy();
+      expect(q?.getObserversCount()).toBeGreaterThan(0);
+      expect(q?.isDisabled()).toBe(false);
+
+      // The first sync inserts B *after* the server read snapshot.
+      // A correct cursor should still allow a later sync to pick it up.
+      await act(async () => {
+        await listingsCollection.utils.refetch();
+      });
+
+      expect(syncCallCount).toBeGreaterThan(0);
+
+      const titlesInDb = (
+        await db.listing.findMany({
+          where: { userId: user.id },
+          select: { title: true },
+          orderBy: { title: "asc" },
+        })
+      ).map((r) => r.title);
+      expect(titlesInDb).toEqual(["A", "B"]);
+
+      await act(async () => {
+        await listingsCollection.utils.refetch();
+      });
+
+      await waitFor(() => {
+        expect(screen.getByTestId("count").textContent).toBe("2");
+        expect(screen.getByTestId("titles").textContent).toBe("A,B");
+      });
+    });
+  });
+
   it("listings: insert -> update -> delete live updates", async () => {
     await withTempAppDb(async () => {
       const {
@@ -183,6 +331,112 @@ describe("dashboardDb TanStack DB collections", () => {
 
       await waitFor(() => {
         expect(screen.getByTestId("count").textContent).toBe("0");
+      });
+    });
+  });
+
+  it("lists: update ignores undefined fields (no optimistic wipe)", async () => {
+    await withTempAppDb(async ({ user }) => {
+      const { db } = await import("@/server/db");
+      const { createCaller } = await import("@/server/api/root");
+      const caller = createCaller(async () => {
+        return {
+          db,
+          headers: new Headers(),
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          user: { id: user.id } as any,
+        };
+      });
+
+      let releaseUpdate: (() => void) | undefined;
+      const updateGate = new Promise<void>((resolve) => {
+        releaseUpdate = () => resolve();
+      });
+
+      const delayUpdateLink: TRPCLink<AppRouter> = () => {
+        return ({ op, next }) =>
+          observable((emit) => {
+            let pending = Promise.resolve();
+
+            const sub = next(op).subscribe({
+              next: (value) => {
+                pending = pending.then(async () => {
+                  if (op.path === "dashboardDb.list.update") {
+                    await updateGate;
+                  }
+
+                  emit.next(value);
+                });
+              },
+              error: (err) => emit.error(err),
+              complete: () => {
+                void pending.then(() => emit.complete());
+              },
+            });
+
+            return () => sub.unsubscribe();
+          });
+      };
+
+      const clientLike = createTRPCProxyClient<AppRouter>({
+        links: [delayUpdateLink, callerLink(caller)],
+      });
+
+      const { setTestTrpcClient } = await import("@/trpc/client");
+      setTestTrpcClient(clientLike);
+
+      const { listsCollection, updateList, initializeListsCollection } =
+        await import("@/app/dashboard/_lib/dashboard-db/lists-collection");
+
+      const seeded = await db.list.create({
+        data: { userId: user.id, title: "Alpha" },
+        select: { id: true },
+      });
+      expect(
+        await db.list.findUnique({
+          where: { id: seeded.id },
+          select: { id: true, userId: true },
+        }),
+      ).toMatchObject({ id: seeded.id, userId: user.id });
+      expect(await caller.dashboardDb.list.get({ id: seeded.id })).toMatchObject({
+        id: seeded.id,
+      });
+
+      await act(async () => {
+        await initializeListsCollection(user.id);
+        render(<ListTitlesViewer listsCollection={listsCollection} />);
+      });
+
+      await waitFor(() => {
+        expect(screen.getByTestId("list-titles").textContent).toBe("Alpha");
+      });
+
+      let updatePromise: Promise<void> | null = null;
+      try {
+        await act(async () => {
+          updatePromise = updateList({
+            id: seeded.id,
+            data: {
+              title: undefined,
+              description: "Updated description",
+            },
+          });
+        });
+
+        await waitFor(() => {
+          expect(screen.getByTestId("list-titles").textContent).toBe("Alpha");
+        });
+      } finally {
+        releaseUpdate?.();
+        if (updatePromise) {
+          await act(async () => {
+            await updatePromise;
+          });
+        }
+      }
+
+      await waitFor(() => {
+        expect(screen.getByTestId("list-titles").textContent).toBe("Alpha");
       });
     });
   });

@@ -11,7 +11,10 @@ import {
   ensureCultivarReferencesCached,
 } from "@/app/dashboard/_lib/dashboard-db/cultivar-references-collection";
 import { getUserCursorKey } from "@/lib/utils/cursor";
-import { bootstrapDashboardDbCollection } from "@/app/dashboard/_lib/dashboard-db/collection-bootstrap";
+import {
+  bootstrapDashboardDbCollection,
+  writeCursorFromRows,
+} from "@/app/dashboard/_lib/dashboard-db/collection-bootstrap";
 
 const CURSOR_BASE = "dashboard-db:listings:maxUpdatedAt";
 const DELETED_IDS = new Set<string>();
@@ -23,11 +26,11 @@ export const listingsCollection = createCollection(
   queryCollectionOptions<ListingCollectionItem>({
     queryClient: getQueryClient(),
     queryKey: ["dashboard-db", "listings"],
-    enabled: false,
+    enabled: true,
     getKey: (row) => row.id,
-    queryFn: async ({ queryKey, client }) => {
+    queryFn: async ({ queryKey }) => {
       const existing: ListingCollectionItem[] =
-        client.getQueryData(queryKey) ?? [];
+        getQueryClient().getQueryData(queryKey) ?? [];
 
       const cursorKeyToUse = getUserCursorKey(CURSOR_BASE);
       const last = localStorage.getItem(cursorKeyToUse);
@@ -40,7 +43,7 @@ export const listingsCollection = createCollection(
       upserts.forEach((i) => map.set(i.id, i));
       DELETED_IDS.forEach((id) => map.delete(id));
 
-      localStorage.setItem(cursorKeyToUse, new Date().toISOString());
+      writeCursorFromRows({ cursorStorageKey: cursorKeyToUse, rows: upserts });
       return Array.from(map.values());
     },
     onInsert: async () => ({ refetch: false }),

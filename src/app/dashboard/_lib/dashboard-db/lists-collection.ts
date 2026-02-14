@@ -6,8 +6,12 @@ import type { RouterInputs, RouterOutputs } from "@/trpc/react";
 import { getQueryClient } from "@/trpc/query-client";
 import { getTrpcClient } from "@/trpc/client";
 import { makeInsertWithSwap } from "@/lib/utils/collection-utils";
+import { omitUndefined } from "@/lib/utils/omit-undefined";
 import { getUserCursorKey } from "@/lib/utils/cursor";
-import { bootstrapDashboardDbCollection } from "@/app/dashboard/_lib/dashboard-db/collection-bootstrap";
+import {
+  bootstrapDashboardDbCollection,
+  writeCursorFromRows,
+} from "@/app/dashboard/_lib/dashboard-db/collection-bootstrap";
 
 const CURSOR_BASE = "dashboard-db:lists:maxUpdatedAt";
 const DELETED_IDS = new Set<string>();
@@ -19,10 +23,11 @@ export const listsCollection = createCollection(
   queryCollectionOptions<ListCollectionItem>({
     queryClient: getQueryClient(),
     queryKey: ["dashboard-db", "lists"],
-    enabled: false,
+    enabled: true,
     getKey: (row) => row.id,
-    queryFn: async ({ queryKey, client }) => {
-      const existing: ListCollectionItem[] = client.getQueryData(queryKey) ?? [];
+    queryFn: async ({ queryKey }) => {
+      const existing: ListCollectionItem[] =
+        getQueryClient().getQueryData(queryKey) ?? [];
 
       const cursorKeyToUse = getUserCursorKey(CURSOR_BASE);
       const last = localStorage.getItem(cursorKeyToUse);
@@ -34,7 +39,7 @@ export const listsCollection = createCollection(
       upserts.forEach((i) => map.set(i.id, i));
       DELETED_IDS.forEach((id) => map.delete(id));
 
-      localStorage.setItem(cursorKeyToUse, new Date().toISOString());
+      writeCursorFromRows({ cursorStorageKey: cursorKeyToUse, rows: upserts });
       return Array.from(map.values());
     },
     onInsert: async () => ({ refetch: false }),
@@ -66,7 +71,7 @@ export async function insertList(draft: InsertDraft) {
 type UpdateDraft = RouterInputs["dashboardDb"]["list"]["update"];
 export async function updateList(draft: UpdateDraft) {
   const previous = listsCollection.get(draft.id);
-  listsCollection.utils.writeUpdate({ id: draft.id, ...draft.data });
+  listsCollection.utils.writeUpdate({ id: draft.id, ...omitUndefined(draft.data) });
 
   try {
     const updated = await getTrpcClient().dashboardDb.list.update.mutate(draft);

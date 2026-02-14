@@ -7,7 +7,26 @@ type PreloadableCollection = {
   preload: () => Promise<void>;
 };
 
-export async function bootstrapDashboardDbCollection<TItem>(args: {
+type HasUpdatedAt = {
+  updatedAt: Date;
+};
+
+export function writeCursorFromRows(args: {
+  cursorStorageKey: string;
+  rows: readonly HasUpdatedAt[];
+}) {
+  if (args.rows.length === 0) return;
+
+  let max = args.rows[0]!.updatedAt;
+  for (let i = 1; i < args.rows.length; i++) {
+    const next = args.rows[i]!.updatedAt;
+    if (next > max) max = next;
+  }
+
+  localStorage.setItem(args.cursorStorageKey, max.toISOString());
+}
+
+export async function bootstrapDashboardDbCollection<TItem extends HasUpdatedAt>(args: {
   userId: string;
   queryKey: readonly unknown[];
   cursorBase: string;
@@ -20,13 +39,12 @@ export async function bootstrapDashboardDbCollection<TItem>(args: {
   const rows = await args.fetchSeed();
   getQueryClient().setQueryData<TItem[]>(args.queryKey, rows);
 
-  localStorage.setItem(
-    cursorKey(args.cursorBase, args.userId),
-    new Date().toISOString(),
-  );
+  writeCursorFromRows({
+    cursorStorageKey: cursorKey(args.cursorBase, args.userId),
+    rows,
+  });
 
   args.onSeeded?.();
 
   await args.collection.preload();
 }
-

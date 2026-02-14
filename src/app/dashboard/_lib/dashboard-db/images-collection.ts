@@ -6,7 +6,10 @@ import type { RouterInputs, RouterOutputs } from "@/trpc/react";
 import { getQueryClient } from "@/trpc/query-client";
 import { getTrpcClient } from "@/trpc/client";
 import { getUserCursorKey } from "@/lib/utils/cursor";
-import { bootstrapDashboardDbCollection } from "@/app/dashboard/_lib/dashboard-db/collection-bootstrap";
+import {
+  bootstrapDashboardDbCollection,
+  writeCursorFromRows,
+} from "@/app/dashboard/_lib/dashboard-db/collection-bootstrap";
 
 const CURSOR_BASE = "dashboard-db:images:maxUpdatedAt";
 const DELETED_IDS = new Set<string>();
@@ -18,10 +21,11 @@ export const imagesCollection = createCollection(
   queryCollectionOptions<ImageCollectionItem>({
     queryClient: getQueryClient(),
     queryKey: ["dashboard-db", "images"],
-    enabled: false,
+    enabled: true,
     getKey: (row) => row.id,
-    queryFn: async ({ queryKey, client }) => {
-      const existing: ImageCollectionItem[] = client.getQueryData(queryKey) ?? [];
+    queryFn: async ({ queryKey }) => {
+      const existing: ImageCollectionItem[] =
+        getQueryClient().getQueryData(queryKey) ?? [];
 
       const cursorKeyToUse = getUserCursorKey(CURSOR_BASE);
       const last = localStorage.getItem(cursorKeyToUse);
@@ -33,7 +37,7 @@ export const imagesCollection = createCollection(
       upserts.forEach((i) => map.set(i.id, i));
       DELETED_IDS.forEach((id) => map.delete(id));
 
-      localStorage.setItem(cursorKeyToUse, new Date().toISOString());
+      writeCursorFromRows({ cursorStorageKey: cursorKeyToUse, rows: upserts });
       return Array.from(map.values());
     },
     onInsert: async () => ({ refetch: false }),
