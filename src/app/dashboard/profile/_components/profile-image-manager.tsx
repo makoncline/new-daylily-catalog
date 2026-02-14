@@ -27,7 +27,6 @@ function ProfileImageManagerLive({ profileId }: { profileId: string }) {
       <ImageManager
         type="profile"
         images={images}
-        onImagesChange={() => undefined}
         referenceId={profileId}
       />
       {images.length < APP_CONFIG.UPLOAD.MAX_IMAGES_PER_PROFILE && (

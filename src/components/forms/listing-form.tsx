@@ -90,12 +90,15 @@ function ListingFormInner({
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const { textAreaRef, adjustHeight } = useAutoResizeTextArea();
 
+  const normalizedStatus =
+    listing.status === STATUS.HIDDEN ? STATUS.HIDDEN : null;
+
   const form = useZodForm({
     schema: listingFormSchema,
     defaultValues: transformNullToUndefined(
       listingFormSchema.parse({
         ...listing,
-        status: listing.status === "" ? null : listing.status,
+        status: normalizedStatus,
       }),
     ),
   });
@@ -218,16 +221,7 @@ function ListingFormInner({
   }
 
   const getUIStatusValue = (dbValue: string | null | undefined): string => {
-    if (
-      dbValue === STATUS.PUBLISHED ||
-      dbValue === "" ||
-      dbValue === null ||
-      dbValue === undefined
-    ) {
-      return "published";
-    }
-
-    return dbValue;
+    return dbValue === STATUS.HIDDEN ? STATUS.HIDDEN : "published";
   };
 
   return (
@@ -266,7 +260,6 @@ function ListingFormInner({
             <ImageManager
               type="listing"
               images={images}
-              onImagesChange={() => undefined}
               referenceId={listingId}
             />
             {images.length < LISTING_CONFIG.IMAGES.MAX_COUNT && (

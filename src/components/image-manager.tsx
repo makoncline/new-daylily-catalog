@@ -35,7 +35,7 @@ import {
 
 interface ImageManagerProps {
   images: Image[];
-  onImagesChange: (images: Image[]) => void;
+  onImagesChange?: (images: Image[]) => void;
   referenceId: string;
   type: ImageType;
 }
@@ -102,7 +102,7 @@ export function ImageManager({
         referenceId,
         imageId: image.id,
       });
-      onImagesChange(images.filter((img) => img.id !== image.id));
+      onImagesChange?.(images.filter((img) => img.id !== image.id));
       toast.success("Image deleted successfully");
     } catch (error) {
       toast.error("Failed to delete image", {
@@ -128,7 +128,7 @@ export function ImageManager({
       images.findIndex((img) => img.id === over.id),
     );
 
-    onImagesChange(newImages);
+    onImagesChange?.(newImages);
 
     // Save the new order
     try {
