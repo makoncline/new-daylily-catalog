@@ -141,11 +141,13 @@ export function DashboardDbProvider({ children }: { children: React.ReactNode })
 
   return (
     <DashboardDbContext.Provider value={value}>
-      {state.status === "ready" ? (
-        children
-      ) : (
-        <DashboardDbLoadingScreen status={state.status} />
-      )}
+      <React.Suspense fallback={<DashboardDbLoadingScreen status="loading" />}>
+        {state.status === "ready" ? (
+          children
+        ) : (
+          <DashboardDbLoadingScreen status={state.status} />
+        )}
+      </React.Suspense>
     </DashboardDbContext.Provider>
   );
 }
