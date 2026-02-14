@@ -6,11 +6,8 @@ import type { RouterInputs, RouterOutputs } from "@/trpc/react";
 import { getQueryClient } from "@/trpc/query-client";
 import { getTrpcClient } from "@/trpc/client";
 import { makeInsertWithSwap } from "@/lib/utils/collection-utils";
-import {
-  cursorKey,
-  getUserCursorKey,
-  setCurrentUserId,
-} from "@/lib/utils/cursor";
+import { getUserCursorKey } from "@/lib/utils/cursor";
+import { bootstrapDashboardDbCollection } from "@/app/dashboard/_lib/dashboard-db/collection-bootstrap";
 
 const CURSOR_BASE = "dashboard-db:lists:maxUpdatedAt";
 const DELETED_IDS = new Set<string>();
@@ -140,16 +137,14 @@ export async function removeListingFromList(args: {
 }
 
 export async function initializeListsCollection(userId: string) {
-  setCurrentUserId(userId);
-
-  const rows = await getTrpcClient().dashboardDb.list.list.query();
-  getQueryClient().setQueryData<ListCollectionItem[]>(
-    ["dashboard-db", "lists"],
-    rows,
-  );
-
-  localStorage.setItem(cursorKey(CURSOR_BASE, userId), new Date().toISOString());
-  DELETED_IDS.clear();
-
-  await listsCollection.preload();
+  await bootstrapDashboardDbCollection<ListCollectionItem>({
+    userId,
+    queryKey: ["dashboard-db", "lists"],
+    cursorBase: CURSOR_BASE,
+    collection: listsCollection,
+    fetchSeed: () => getTrpcClient().dashboardDb.list.list.query(),
+    onSeeded: () => {
+      DELETED_IDS.clear();
+    },
+  });
 }

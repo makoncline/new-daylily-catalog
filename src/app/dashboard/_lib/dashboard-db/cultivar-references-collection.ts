@@ -6,10 +6,9 @@ import type { RouterOutputs } from "@/trpc/react";
 import { getQueryClient } from "@/trpc/query-client";
 import { getTrpcClient } from "@/trpc/client";
 import {
-  cursorKey,
   getUserCursorKey,
-  setCurrentUserId,
 } from "@/lib/utils/cursor";
+import { bootstrapDashboardDbCollection } from "@/app/dashboard/_lib/dashboard-db/collection-bootstrap";
 
 const CURSOR_BASE = "dashboard-db:cultivar-references:maxUpdatedAt";
 
@@ -45,18 +44,14 @@ export const cultivarReferencesCollection = createCollection(
 );
 
 export async function initializeCultivarReferencesCollection(userId: string) {
-  setCurrentUserId(userId);
-
-  const rows =
-    await getTrpcClient().dashboardDb.cultivarReference.listForUserListings.query();
-  getQueryClient().setQueryData<CultivarReferenceCollectionItem[]>(
-    ["dashboard-db", "cultivar-references"],
-    rows,
-  );
-
-  localStorage.setItem(cursorKey(CURSOR_BASE, userId), new Date().toISOString());
-
-  await cultivarReferencesCollection.preload();
+  await bootstrapDashboardDbCollection<CultivarReferenceCollectionItem>({
+    userId,
+    queryKey: ["dashboard-db", "cultivar-references"],
+    cursorBase: CURSOR_BASE,
+    collection: cultivarReferencesCollection,
+    fetchSeed: () =>
+      getTrpcClient().dashboardDb.cultivarReference.listForUserListings.query(),
+  });
 }
 
 export async function ensureCultivarReferencesCached(ids: string[]) {
@@ -82,4 +77,3 @@ export async function ensureCultivarReferencesCached(ids: string[]) {
 
   return rows;
 }
-

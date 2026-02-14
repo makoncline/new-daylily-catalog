@@ -10,11 +10,8 @@ import { omitUndefined } from "@/lib/utils/omit-undefined";
 import {
   ensureCultivarReferencesCached,
 } from "@/app/dashboard/_lib/dashboard-db/cultivar-references-collection";
-import {
-  cursorKey,
-  getUserCursorKey,
-  setCurrentUserId,
-} from "@/lib/utils/cursor";
+import { getUserCursorKey } from "@/lib/utils/cursor";
+import { bootstrapDashboardDbCollection } from "@/app/dashboard/_lib/dashboard-db/collection-bootstrap";
 
 const CURSOR_BASE = "dashboard-db:listings:maxUpdatedAt";
 const DELETED_IDS = new Set<string>();
@@ -151,16 +148,14 @@ export async function syncAhsName(draft: SyncAhsNameDraft) {
 }
 
 export async function initializeListingsCollection(userId: string) {
-  setCurrentUserId(userId);
-
-  const rows = await getTrpcClient().dashboardDb.listing.list.query();
-  getQueryClient().setQueryData<ListingCollectionItem[]>(
-    ["dashboard-db", "listings"],
-    rows,
-  );
-
-  localStorage.setItem(cursorKey(CURSOR_BASE, userId), new Date().toISOString());
-  DELETED_IDS.clear();
-
-  await listingsCollection.preload();
+  await bootstrapDashboardDbCollection<ListingCollectionItem>({
+    userId,
+    queryKey: ["dashboard-db", "listings"],
+    cursorBase: CURSOR_BASE,
+    collection: listingsCollection,
+    fetchSeed: () => getTrpcClient().dashboardDb.listing.list.query(),
+    onSeeded: () => {
+      DELETED_IDS.clear();
+    },
+  });
 }

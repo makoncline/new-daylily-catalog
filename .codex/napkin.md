@@ -4,6 +4,7 @@
 
 - 2026-02-14 - dashboardDb cultivar refs - For main dashboard TanStack DB cutover, prefer cultivar-reference cache option (1): cache only refs referenced by the user's listings; keep listing payloads small (only `cultivarReferenceId`) and join locally for AHS display. Do not expose `ahsId` as a standalone field (nested `ahsListing` is OK for now).
 - 2026-02-14 - dashboardDb hardening - Provider should gate rendering on collection readiness (prevents "write before sync context" crashes) and purge `["dashboard-db"]` query cache + collection cleanup on logout/auth change to avoid cross-user flashes during debugging.
+- 2026-02-14 - dashboardDb bootstrap - Factor the repeated init sequence (set current user, seed query cache, set cursor, clear tombstones, preload) into `bootstrapDashboardDbCollection` so it stays consistent across collections and is harder to regress.
 - 2026-02-14 - legacy listing status - Treat any legacy `status` values other than `STATUS.HIDDEN` as published/null so forms don't crash on `"published"` or `""`.
 - 2026-02-12 - prisma artifacts - Do not commit generated Prisma client output (`prisma/generated/sqlite-client`) or SQLite DB files; commit schema + migration/source changes only.
 - 2026-02-12 - next route config - Route-segment exports like `export const revalidate` and `export const dynamicParams` must stay literal in the page file; imported config/object property values can fail static parsing.

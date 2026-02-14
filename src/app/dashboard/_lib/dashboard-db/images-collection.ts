@@ -5,11 +5,8 @@ import { queryCollectionOptions } from "@tanstack/query-db-collection";
 import type { RouterInputs, RouterOutputs } from "@/trpc/react";
 import { getQueryClient } from "@/trpc/query-client";
 import { getTrpcClient } from "@/trpc/client";
-import {
-  cursorKey,
-  getUserCursorKey,
-  setCurrentUserId,
-} from "@/lib/utils/cursor";
+import { getUserCursorKey } from "@/lib/utils/cursor";
+import { bootstrapDashboardDbCollection } from "@/app/dashboard/_lib/dashboard-db/collection-bootstrap";
 
 const CURSOR_BASE = "dashboard-db:images:maxUpdatedAt";
 const DELETED_IDS = new Set<string>();
@@ -166,16 +163,14 @@ export async function deleteImage(draft: DeleteDraft) {
 }
 
 export async function initializeImagesCollection(userId: string) {
-  setCurrentUserId(userId);
-
-  const rows = await getTrpcClient().dashboardDb.image.list.query();
-  getQueryClient().setQueryData<ImageCollectionItem[]>(
-    ["dashboard-db", "images"],
-    rows,
-  );
-
-  localStorage.setItem(cursorKey(CURSOR_BASE, userId), new Date().toISOString());
-  DELETED_IDS.clear();
-
-  await imagesCollection.preload();
+  await bootstrapDashboardDbCollection<ImageCollectionItem>({
+    userId,
+    queryKey: ["dashboard-db", "images"],
+    cursorBase: CURSOR_BASE,
+    collection: imagesCollection,
+    fetchSeed: () => getTrpcClient().dashboardDb.image.list.query(),
+    onSeeded: () => {
+      DELETED_IDS.clear();
+    },
+  });
 }
