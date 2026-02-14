@@ -19,7 +19,6 @@ import {
   listsCollection,
   type ListCollectionItem,
 } from "@/app/dashboard/_lib/dashboard-db/lists-collection";
-import { ClientOnly } from "@/components/client-only";
 
 type List = ListCollectionItem;
 
@@ -119,9 +118,5 @@ function ListsTableLive() {
 }
 
 export function ListsTable() {
-  return (
-    <ClientOnly fallback={<ListsTableSkeleton />}>
-      <ListsTableLive />
-    </ClientOnly>
-  );
+  return <ListsTableLive />;
 }

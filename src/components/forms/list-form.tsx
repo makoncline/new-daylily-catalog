@@ -26,7 +26,6 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { DeleteConfirmDialog } from "@/components/delete-confirm-dialog";
 import { ListFormSkeleton } from "@/components/forms/list-form-skeleton";
-import { ClientOnly } from "@/components/client-only";
 
 interface ListFormProps {
   listId: string;
@@ -240,9 +239,5 @@ function ListFormLive({ listId, onDelete, formRef }: ListFormProps) {
 }
 
 export function ListForm(props: ListFormProps) {
-  return (
-    <ClientOnly fallback={<ListFormSkeleton />}>
-      <ListFormLive {...props} />
-    </ClientOnly>
-  );
+  return <ListFormLive {...props} />;
 }

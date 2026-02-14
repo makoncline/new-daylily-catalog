@@ -73,6 +73,7 @@ export function useDashboardDb() {
 }
 
 export function DashboardDbProvider({ children }: { children: React.ReactNode }) {
+  const utils = api.useUtils();
   const { data: user, isLoading, isError } =
     api.dashboardDb.user.getCurrentUser.useQuery(undefined, {
       staleTime: Infinity,
@@ -116,6 +117,8 @@ export function DashboardDbProvider({ children }: { children: React.ReactNode })
           initializeListsCollection(userId),
           initializeImagesCollection(userId),
           initializeCultivarReferencesCollection(userId),
+          utils.dashboardDb.dashboard.getStats.prefetch(),
+          utils.dashboardDb.userProfile.get.prefetch(),
         ]);
 
         if (!cancelled) setState({ status: "ready", userId });
@@ -131,6 +134,7 @@ export function DashboardDbProvider({ children }: { children: React.ReactNode })
     isError,
     isLoading,
     userId,
+    utils,
   ]);
 
   const value = useMemo(() => state, [state]);

@@ -36,7 +36,6 @@ import {
 } from "@/components/ui/select";
 import { CurrencyInput } from "@/components/currency-input";
 import { DeleteConfirmDialog } from "@/components/delete-confirm-dialog";
-import { ClientOnly } from "@/components/client-only";
 import { ListingFormSkeleton } from "@/components/forms/listing-form-skeleton";
 import { ImageManager } from "@/components/image-manager";
 import { ImageUpload } from "@/components/image-upload";
@@ -510,9 +509,5 @@ function ListingFormLive({ listingId, onDelete, formRef }: ListingFormProps) {
 }
 
 export function ListingForm(props: ListingFormProps) {
-  return (
-    <ClientOnly fallback={<ListingFormSkeleton />}>
-      <ListingFormLive {...props} />
-    </ClientOnly>
-  );
+  return <ListingFormLive {...props} />;
 }

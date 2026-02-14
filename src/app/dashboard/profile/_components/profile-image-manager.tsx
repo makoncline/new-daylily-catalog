@@ -5,7 +5,6 @@ import { eq, useLiveQuery } from "@tanstack/react-db";
 import { ImageUpload } from "@/components/image-upload";
 import { APP_CONFIG } from "@/config/constants";
 import { ImageManager, ImageManagerSkeleton } from "@/components/image-manager";
-import { ClientOnly } from "@/components/client-only";
 import { imagesCollection } from "@/app/dashboard/_lib/dashboard-db/images-collection";
 
 function ProfileImageManagerLive({ profileId }: { profileId: string }) {
@@ -39,9 +38,5 @@ function ProfileImageManagerLive({ profileId }: { profileId: string }) {
 }
 
 export function ProfileImageManager({ profileId }: { profileId: string }) {
-  return (
-    <ClientOnly fallback={<ImageManagerSkeleton />}>
-      <ProfileImageManagerLive profileId={profileId} />
-    </ClientOnly>
-  );
+  return <ProfileImageManagerLive profileId={profileId} />;
 }

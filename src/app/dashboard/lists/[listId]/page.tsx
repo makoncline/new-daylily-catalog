@@ -9,7 +9,6 @@ import { AddListingsSection } from "./_components/add-listings-section";
 import { ListFormSkeleton } from "@/components/forms/list-form-skeleton";
 import { DataTableLayoutSkeleton } from "@/components/data-table/data-table-layout";
 import { listsCollection } from "@/app/dashboard/_lib/dashboard-db/lists-collection";
-import { ClientOnly } from "@/components/client-only";
 
 interface ListPageProps {
   params: Promise<{
@@ -20,19 +19,7 @@ interface ListPageProps {
 export default function ListPage({ params }: ListPageProps) {
   const { listId } = React.use(params);
 
-  return (
-    <ClientOnly
-      fallback={
-        <div className="space-y-6">
-          <PageHeader heading="Manage List" text="Loading list details..." />
-          <ListFormSkeleton />
-          <DataTableLayoutSkeleton />
-        </div>
-      }
-    >
-      <ManageListPageLive listId={listId} />
-    </ClientOnly>
-  );
+  return <ManageListPageLive listId={listId} />;
 }
 
 function ManageListPageLive({ listId }: { listId: string }) {

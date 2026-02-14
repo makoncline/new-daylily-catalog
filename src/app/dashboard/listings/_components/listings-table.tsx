@@ -25,7 +25,6 @@ import { listsCollection } from "@/app/dashboard/_lib/dashboard-db/lists-collect
 import { imagesCollection } from "@/app/dashboard/_lib/dashboard-db/images-collection";
 import { cultivarReferencesCollection } from "@/app/dashboard/_lib/dashboard-db/cultivar-references-collection";
 import { getColumns, type ListingData } from "./columns";
-import { ClientOnly } from "@/components/client-only";
 
 type List = RouterOutputs["dashboardDb"]["list"]["list"][number];
 
@@ -238,9 +237,5 @@ function ListingsTableLive() {
 }
 
 export function ListingsTable() {
-  return (
-    <ClientOnly fallback={<DataTableLayoutSkeleton />}>
-      <ListingsTableLive />
-    </ClientOnly>
-  );
+  return <ListingsTableLive />;
 }
