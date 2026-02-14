@@ -50,12 +50,18 @@ import {
   listingsCollection,
   updateListing,
 } from "@/app/dashboard/_lib/dashboard-db/listings-collection";
+import {
+  cultivarReferencesCollection,
+  type CultivarReferenceCollectionItem,
+} from "@/app/dashboard/_lib/dashboard-db/cultivar-references-collection";
 import { imagesCollection } from "@/app/dashboard/_lib/dashboard-db/images-collection";
 import {
   addListingToList,
   listsCollection,
   removeListingFromList,
 } from "@/app/dashboard/_lib/dashboard-db/lists-collection";
+
+type LinkedAhsListing = CultivarReferenceCollectionItem["ahsListing"];
 
 interface ListingFormProps {
   listingId: string;
@@ -66,6 +72,7 @@ interface ListingFormProps {
 function ListingFormInner({
   listingId,
   listing,
+  linkedAhs,
   images,
   selectedListIds,
   onDelete,
@@ -73,6 +80,7 @@ function ListingFormInner({
 }: {
   listingId: string;
   listing: ListingCollectionItem;
+  linkedAhs: LinkedAhsListing | null;
   images: Image[];
   selectedListIds: string[];
   onDelete: () => void;
@@ -394,6 +402,7 @@ function ListingFormInner({
           </Label>
           <AhsListingLink
             listing={listing}
+            linkedAhs={linkedAhs}
             onNameChange={(name) => {
               form.setValue("title", name);
             }}
@@ -445,6 +454,15 @@ function ListingFormLive({ listingId, onDelete, formRef }: ListingFormProps) {
   );
   const listing = listings[0] ?? null;
 
+  const {
+    data: cultivarReferences = [],
+    isReady: isCultivarReferencesReady,
+  } = useLiveQuery((q) =>
+    q
+      .from({ ref: cultivarReferencesCollection })
+      .orderBy(({ ref }) => ref.updatedAt, "asc"),
+  );
+
   const { data: images = [], isReady: isImagesReady } = useLiveQuery(
     (q) =>
       q
@@ -466,7 +484,22 @@ function ListingFormLive({ listingId, onDelete, formRef }: ListingFormProps) {
       .map((list) => list.id);
   }, [lists, listingId]);
 
-  if (!isListingReady || !isImagesReady || !isListsReady || !listing) {
+  const linkedAhs = useMemo(() => {
+    if (!listing?.cultivarReferenceId) return null;
+
+    const ref = cultivarReferences.find(
+      (row) => row.id === listing.cultivarReferenceId,
+    );
+    return ref?.ahsListing ?? null;
+  }, [cultivarReferences, listing?.cultivarReferenceId]);
+
+  if (
+    !isListingReady ||
+    !isImagesReady ||
+    !isListsReady ||
+    !isCultivarReferencesReady ||
+    !listing
+  ) {
     return <ListingFormSkeleton />;
   }
 
@@ -474,6 +507,7 @@ function ListingFormLive({ listingId, onDelete, formRef }: ListingFormProps) {
     <ListingFormInner
       listingId={listingId}
       listing={listing}
+      linkedAhs={linkedAhs}
       images={images}
       selectedListIds={selectedListIds}
       onDelete={onDelete}

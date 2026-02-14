@@ -20,6 +20,10 @@ import {
   initializeListsCollection,
   listsCollection,
 } from "@/app/dashboard/_lib/dashboard-db/lists-collection";
+import {
+  cultivarReferencesCollection,
+  initializeCultivarReferencesCollection,
+} from "@/app/dashboard/_lib/dashboard-db/cultivar-references-collection";
 import { setCurrentUserId } from "@/lib/utils/cursor";
 
 type DashboardDbStatus = "idle" | "loading" | "ready" | "error";
@@ -66,6 +70,7 @@ export function DashboardDbProvider({ children }: { children: React.ReactNode })
         listingsCollection.cleanup(),
         listsCollection.cleanup(),
         imagesCollection.cleanup(),
+        cultivarReferencesCollection.cleanup(),
       ]);
       setState({ status: isError ? "error" : "idle", userId: null });
       return;
@@ -80,6 +85,7 @@ export function DashboardDbProvider({ children }: { children: React.ReactNode })
           initializeListingsCollection(userId),
           initializeListsCollection(userId),
           initializeImagesCollection(userId),
+          initializeCultivarReferencesCollection(userId),
         ]);
 
         if (!cancelled) setState({ status: "ready", userId });

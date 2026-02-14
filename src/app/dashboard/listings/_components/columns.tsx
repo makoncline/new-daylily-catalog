@@ -16,19 +16,22 @@ import { TableImagePreview } from "@/components/data-table/table-image-preview";
 import React from "react";
 import { fuzzyFilter } from "@/lib/table-utils";
 import type { Image } from "@prisma/client";
-import type { WithDisplayAhsListing } from "@/lib/utils/ahs-display";
 
 interface ListingListRef {
   id: string;
   title: string;
 }
 
-export type ListingData = WithDisplayAhsListing<
-  RouterOutputs["dashboardDb"]["listing"]["list"][number] & {
-    images: Image[];
-    lists: ListingListRef[];
-  }
->;
+type ListingBase = RouterOutputs["dashboardDb"]["listing"]["list"][number];
+type CultivarReference =
+  RouterOutputs["dashboardDb"]["cultivarReference"]["listForUserListings"][number];
+type CultivarReferenceAhsListing = CultivarReference["ahsListing"];
+
+export type ListingData = ListingBase & {
+  images: Image[];
+  lists: ListingListRef[];
+  ahsListing: CultivarReferenceAhsListing | null;
+};
 type ListingRow = Row<ListingData>;
 
 /**

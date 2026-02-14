@@ -15,13 +15,6 @@ const listingSelect = {
   createdAt: true,
   updatedAt: true,
   cultivarReferenceId: true,
-  cultivarReference: {
-    select: {
-      id: true,
-      ahsId: true,
-      ahsListing: true,
-    },
-  },
 } as const;
 
 export const dashboardDbListingRouter = createTRPCRouter({

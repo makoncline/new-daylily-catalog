@@ -8,6 +8,9 @@ import { getTrpcClient } from "@/trpc/client";
 import { makeInsertWithSwap } from "@/lib/utils/collection-utils";
 import { omitUndefined } from "@/lib/utils/omit-undefined";
 import {
+  ensureCultivarReferencesCached,
+} from "@/app/dashboard/_lib/dashboard-db/cultivar-references-collection";
+import {
   cursorKey,
   getUserCursorKey,
   setCurrentUserId,
@@ -65,12 +68,19 @@ export async function insertListing(draft: InsertDraft) {
       createdAt: new Date(),
       updatedAt: new Date(),
       cultivarReferenceId: d.cultivarReferenceId ?? null,
-      cultivarReference: null,
     }),
     serverInsert: (d) => getTrpcClient().dashboardDb.listing.create.mutate(d),
   });
 
-  return run(draft);
+  const created = await run(draft);
+
+  if (draft.cultivarReferenceId) {
+    try {
+      await ensureCultivarReferencesCached([draft.cultivarReferenceId]);
+    } catch {}
+  }
+
+  return created;
 }
 
 type UpdateDraft = RouterInputs["dashboardDb"]["listing"]["update"];
@@ -113,6 +123,13 @@ export async function linkAhs(draft: LinkAhsDraft) {
     draft,
   );
   listingsCollection.utils.writeUpdate(updated);
+
+  if (updated.cultivarReferenceId) {
+    try {
+      await ensureCultivarReferencesCached([updated.cultivarReferenceId]);
+    } catch {}
+  }
+
   return updated;
 }
 

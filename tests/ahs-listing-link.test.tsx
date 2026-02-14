@@ -52,6 +52,37 @@ vi.mock("@/components/ahs-listing-select", () => ({
 }));
 
 type Listing = RouterOutputs["dashboardDb"]["listing"]["list"][number];
+type CultivarReferenceAhsListing = NonNullable<
+  RouterOutputs["dashboardDb"]["cultivarReference"]["listForUserListings"][number]["ahsListing"]
+>;
+
+function createLinkedAhs(
+  overrides: Partial<CultivarReferenceAhsListing> = {},
+): CultivarReferenceAhsListing {
+  return {
+    id: "ahs-1",
+    name: "Coffee Frenzy",
+    ahsImageUrl: null,
+    hybridizer: null,
+    year: null,
+    scapeHeight: null,
+    bloomSize: null,
+    bloomSeason: null,
+    form: null,
+    ploidy: null,
+    foliageType: null,
+    bloomHabit: null,
+    budcount: null,
+    branches: null,
+    sculpting: null,
+    foliage: null,
+    flower: null,
+    fragrance: null,
+    parentage: null,
+    color: null,
+    ...overrides,
+  };
+}
 
 function createListing(overrides: Partial<Listing> = {}): Listing {
   const now = new Date();
@@ -68,14 +99,6 @@ function createListing(overrides: Partial<Listing> = {}): Listing {
     createdAt: now,
     updatedAt: now,
     cultivarReferenceId: "cr-ahs-1",
-    cultivarReference: {
-      id: "cr-ahs-1",
-      ahsId: "ahs-1",
-      ahsListing: {
-        id: "ahs-1",
-        name: "Coffee Frenzy",
-      },
-    },
     ...overrides,
   } as Listing;
 }
@@ -89,11 +112,12 @@ describe("AhsListingLink", () => {
     mockUnlinkAhs.mockResolvedValue(
       createListing({
         cultivarReferenceId: null,
-        cultivarReference: null,
       }),
     );
 
-    render(<AhsListingLink listing={createListing()} />);
+    render(
+      <AhsListingLink listing={createListing()} linkedAhs={createLinkedAhs()} />,
+    );
 
     fireEvent.click(screen.getByRole("button", { name: "Unlink" }));
 
@@ -108,14 +132,6 @@ describe("AhsListingLink", () => {
     mockLinkAhs.mockResolvedValue(
       createListing({
         cultivarReferenceId: "cr-ahs-2",
-        cultivarReference: {
-          id: "cr-ahs-2",
-          ahsId: "ahs-2",
-          ahsListing: {
-            id: "ahs-2",
-            name: "Coffee Two",
-          },
-        } as Listing["cultivarReference"],
       }),
     );
 
@@ -123,8 +139,8 @@ describe("AhsListingLink", () => {
       <AhsListingLink
         listing={createListing({
           cultivarReferenceId: null,
-          cultivarReference: null,
         })}
+        linkedAhs={null}
       />,
     );
 

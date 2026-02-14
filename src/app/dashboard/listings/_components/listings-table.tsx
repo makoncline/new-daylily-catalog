@@ -18,21 +18,16 @@ import { DataTableDownload } from "@/components/data-table";
 import { APP_CONFIG } from "@/config/constants";
 import { DataTableFilteredCount } from "@/components/data-table/data-table-filtered-count";
 import { DataTableLayoutSkeleton } from "@/components/data-table/data-table-layout";
-import { useListingsWithDisplayAhs } from "@/hooks/use-display-ahs-listing";
 import { useLiveQuery } from "@tanstack/react-db";
 import type { Image } from "@prisma/client";
 import { listingsCollection } from "@/app/dashboard/_lib/dashboard-db/listings-collection";
 import { listsCollection } from "@/app/dashboard/_lib/dashboard-db/lists-collection";
 import { imagesCollection } from "@/app/dashboard/_lib/dashboard-db/images-collection";
+import { cultivarReferencesCollection } from "@/app/dashboard/_lib/dashboard-db/cultivar-references-collection";
 import { getColumns, type ListingData } from "./columns";
 import { ClientOnly } from "@/components/client-only";
 
 type List = RouterOutputs["dashboardDb"]["list"]["list"][number];
-type ListingBase = RouterOutputs["dashboardDb"]["listing"]["list"][number];
-type ListingSource = ListingBase & {
-  images: Image[];
-  lists: Array<Pick<List, "id" | "title">>;
-};
 
 interface ListingsTableToolbarProps {
   table: Table<ListingData>;
@@ -107,6 +102,12 @@ function ListingsTableLive() {
       .from({ img: imagesCollection })
       .orderBy(({ img }) => img.updatedAt, "asc"),
   );
+  const { data: cultivarReferences = [], isReady: isCultivarReferencesReady } =
+    useLiveQuery((q) =>
+      q
+        .from({ ref: cultivarReferencesCollection })
+        .orderBy(({ ref }) => ref.updatedAt, "asc"),
+    );
   const { editListing } = useEditListing();
 
   const listsByListingId = React.useMemo(() => {
@@ -140,20 +141,31 @@ function ListingsTableLive() {
     return map;
   }, [images]);
 
-  const listings = React.useMemo<ListingSource[]>(() => {
-    return baseListings.map((listing) => ({
-      ...listing,
-      images: imagesByListingId.get(listing.id) ?? [],
-      lists: listsByListingId.get(listing.id) ?? [],
-    }));
-  }, [baseListings, imagesByListingId, listsByListingId]);
+  const cultivarReferenceById = React.useMemo(() => {
+    const map = new Map<string, (typeof cultivarReferences)[number]>();
+    cultivarReferences.forEach((row) => map.set(row.id, row));
+    return map;
+  }, [cultivarReferences]);
 
-  const displayListings = useListingsWithDisplayAhs(listings);
+  const listings = React.useMemo<ListingData[]>(() => {
+    return baseListings.map((listing) => {
+      const ref = listing.cultivarReferenceId
+        ? cultivarReferenceById.get(listing.cultivarReferenceId)
+        : null;
+
+      return {
+        ...listing,
+        images: imagesByListingId.get(listing.id) ?? [],
+        lists: listsByListingId.get(listing.id) ?? [],
+        ahsListing: ref?.ahsListing ?? null,
+      };
+    });
+  }, [baseListings, cultivarReferenceById, imagesByListingId, listsByListingId]);
 
   const columns = getColumns(editListing);
 
   const table = useDataTable({
-    data: displayListings,
+    data: listings,
     columns,
     storageKey: "listings-table",
     pinnedColumns: {
@@ -170,7 +182,12 @@ function ListingsTableLive() {
     },
   });
 
-  if (!isListingsReady || !isListsReady || !isImagesReady) {
+  if (
+    !isListingsReady ||
+    !isListsReady ||
+    !isImagesReady ||
+    !isCultivarReferencesReady
+  ) {
     return <DataTableLayoutSkeleton />;
   }
 
@@ -192,7 +209,7 @@ function ListingsTableLive() {
           <ListingsTableToolbar
             table={table}
             lists={lists}
-            listings={displayListings}
+            listings={listings}
           />
         }
         pagination={

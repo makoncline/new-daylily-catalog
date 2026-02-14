@@ -12,7 +12,6 @@ import { Muted } from "@/components/typography";
 
 import type { AhsSearchResult } from "./ahs-listing-select";
 import { getErrorMessage, normalizeError, reportError } from "@/lib/error-utils";
-import { useDisplayAhsListing } from "@/hooks/use-display-ahs-listing";
 import type { RouterOutputs } from "@/trpc/react";
 import {
   linkAhs,
@@ -20,17 +19,21 @@ import {
   unlinkAhs,
 } from "@/app/dashboard/_lib/dashboard-db/listings-collection";
 
+type CultivarReferenceAhsListing =
+  RouterOutputs["dashboardDb"]["cultivarReference"]["listForUserListings"][number]["ahsListing"];
+
 interface AhsListingLinkProps {
   listing: RouterOutputs["dashboardDb"]["listing"]["list"][number];
+  linkedAhs: CultivarReferenceAhsListing | null;
   onNameChange?: (name: string) => void;
 }
 
 export function AhsListingLink({
   listing,
+  linkedAhs,
   onNameChange,
 }: AhsListingLinkProps) {
   const [isPending, setIsPending] = useState(false);
-  const linkedAhs = useDisplayAhsListing(listing);
 
   async function updateAhsListing(selected: AhsSearchResult | null) {
     setIsPending(true);
