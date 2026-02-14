@@ -1,5 +1,6 @@
 import { createTRPCRouter } from "@/server/api/trpc";
 import { dashboardDbAhsRouter } from "./ahs";
+import { dashboardDbCultivarReferenceRouter } from "./cultivar-reference";
 import { dashboardDbDashboardRouter } from "./dashboard";
 import { dashboardDbImageRouter } from "./image";
 import { dashboardDbListRouter } from "./list";
@@ -13,6 +14,7 @@ export const dashboardDbRouter = createTRPCRouter({
   list: dashboardDbListRouter,
   image: dashboardDbImageRouter,
   ahs: dashboardDbAhsRouter,
+  cultivarReference: dashboardDbCultivarReferenceRouter,
   user: dashboardDbUserRouter,
   userProfile: dashboardDbUserProfileRouter,
 });
