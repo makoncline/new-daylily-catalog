@@ -29,6 +29,44 @@ function ListingsViewer({
   );
 }
 
+function CultivarJoinViewer({
+  listingsCollection,
+  cultivarReferencesCollection,
+}: {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  listingsCollection: any;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  cultivarReferencesCollection: any;
+}) {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: listings = [] } = useLiveQuery((q: any) =>
+    q
+      .from({ listing: listingsCollection })
+      .orderBy(({ listing }: any) => (listing.title ?? "") as string, "asc"),
+  );
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: cultivarRefs = [] } = useLiveQuery((q: any) =>
+    q
+      .from({ ref: cultivarReferencesCollection })
+      .orderBy(({ ref }: any) => ref.updatedAt as Date, "asc"),
+  );
+
+  const refById = new Map(cultivarRefs.map((r: any) => [r.id, r]));
+
+  const joined = listings
+    .map((l: any) => {
+      const ref = l.cultivarReferenceId
+        ? refById.get(l.cultivarReferenceId)
+        : null;
+      const name = ref?.ahsListing?.name ?? "";
+      return `${l.title}:${name}`;
+    })
+    .join(",");
+
+  return <div data-testid="joined">{joined}</div>;
+}
+
 function MembershipViewer({
   listsCollection,
   listingsCollection,
@@ -288,6 +326,68 @@ describe("dashboardDb TanStack DB collections", () => {
         expect(screen.getByTestId("count").textContent).toBe("1");
         expect(screen.getByTestId("urls").textContent).toBe("u1");
         expect(screen.getByTestId("orders").textContent).toBe("0");
+      });
+    });
+  });
+
+  it("cultivar refs: linking updates live joined AHS fields", async () => {
+    await withTempAppDb(async () => {
+      const { db } = await import("@/server/db");
+
+      const ahs = await db.ahsListing.create({
+        data: { name: "AHS-Alpha" },
+      });
+      const cultivarRef = await db.cultivarReference.create({
+        data: {
+          ahsId: ahs.id,
+          normalizedName: "ahs-alpha",
+        },
+      });
+
+      const {
+        listingsCollection,
+        insertListing,
+        linkAhs,
+        initializeListingsCollection,
+      } = await import("@/app/dashboard/_lib/dashboard-db/listings-collection");
+      const {
+        cultivarReferencesCollection,
+        initializeCultivarReferencesCollection,
+      } = await import(
+        "@/app/dashboard/_lib/dashboard-db/cultivar-references-collection"
+      );
+
+      await act(async () => {
+        await initializeListingsCollection("test-user");
+        await initializeCultivarReferencesCollection("test-user");
+        render(
+          <CultivarJoinViewer
+            listingsCollection={listingsCollection}
+            cultivarReferencesCollection={cultivarReferencesCollection}
+          />,
+        );
+      });
+
+      let listingId = "";
+      await act(async () => {
+        const created = await insertListing({ title: "L1" });
+        listingId = created.id;
+      });
+
+      await waitFor(() => {
+        expect(screen.getByTestId("joined").textContent).toBe("L1:");
+      });
+
+      await act(async () => {
+        await linkAhs({
+          id: listingId,
+          cultivarReferenceId: cultivarRef.id,
+          syncName: false,
+        });
+      });
+
+      await waitFor(() => {
+        expect(screen.getByTestId("joined").textContent).toBe("L1:AHS-Alpha");
       });
     });
   });
