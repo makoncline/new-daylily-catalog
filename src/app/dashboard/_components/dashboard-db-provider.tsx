@@ -143,7 +143,7 @@ function DashboardDbLoadingScreen({
         setPhraseIndex((i) => (i + 1) % funPhrases.length);
         setIsFadingPhrase(false);
       }, 250);
-    }, 5000);
+    }, 1500);
 
     return () => {
       window.clearInterval(id);
