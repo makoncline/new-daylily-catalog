@@ -4,17 +4,8 @@ import { useEffect, useState } from "react";
 
 export type DashboardDbStatus = "idle" | "loading" | "ready" | "error";
 
-const DEFAULT_SPRITE_FRAME = { x: 1, y: 1, w: 1024, h: 1536 };
-
-const SPRITE_FRAMES = [
-  { x: 1, y: 1, w: 1024, h: 1536 },
-  { x: 1027, y: 1, w: 1024, h: 1536 },
-  { x: 2053, y: 1, w: 1024, h: 1536 },
-  { x: 3079, y: 1, w: 1024, h: 1536 },
-  { x: 4105, y: 1, w: 1024, h: 1536 },
-];
-
-const SPRITE_SEQUENCE = [0, 0, 0, 1, 2, 3, 4, 4, 4, 3, 2, 1, 0, 0, 0];
+const SPRITE_FRAME_WIDTH = 1024;
+const SPRITE_FRAME_HEIGHT = 1536;
 
 const FUN_PHRASES = [
   "Pruning the daylilies...",
@@ -50,27 +41,9 @@ const FUN_PHRASES = [
 ];
 
 function DaylilyBloomSprite() {
-  const [sequenceIndex, setSequenceIndex] = useState(0);
-  const frameIndex = SPRITE_SEQUENCE[sequenceIndex] ?? 0;
-  const frame = SPRITE_FRAMES[frameIndex] ?? DEFAULT_SPRITE_FRAME;
-
   const displayWidth = 112;
   const displayHeight = 168;
-  const scale = displayWidth / frame.w;
-
-  useEffect(() => {
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
-      return;
-    }
-
-    const id = window.setInterval(() => {
-      setSequenceIndex((prev) => (prev + 1) % SPRITE_SEQUENCE.length);
-    }, 120);
-
-    return () => {
-      window.clearInterval(id);
-    };
-  }, []);
+  const scale = displayWidth / SPRITE_FRAME_WIDTH;
 
   return (
     <div
@@ -82,13 +55,10 @@ function DaylilyBloomSprite() {
       }}
     >
       <div
+        className="daylily-bloom-sprite"
         style={{
-          width: `${frame.w}px`,
-          height: `${frame.h}px`,
-          backgroundImage: 'url("/assets/spritesheet.png")',
-          backgroundRepeat: "no-repeat",
-          backgroundSize: "5130px 1538px",
-          backgroundPosition: `${-frame.x}px ${-frame.y}px`,
+          width: `${SPRITE_FRAME_WIDTH}px`,
+          height: `${SPRITE_FRAME_HEIGHT}px`,
           transform: `scale(${scale})`,
           transformOrigin: "top left",
         }}

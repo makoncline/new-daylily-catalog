@@ -170,3 +170,56 @@
     @apply bg-background text-foreground;
   }
 }
+
+@keyframes daylily-bloom-ping-pong {
+  0%,
+  19.999% {
+    background-position: -1px -1px;
+  }
+  20%,
+  26.666% {
+    background-position: -1027px -1px;
+  }
+  26.667%,
+  33.333% {
+    background-position: -2053px -1px;
+  }
+  33.334%,
+  40% {
+    background-position: -3079px -1px;
+  }
+  40.001%,
+  59.999% {
+    background-position: -4105px -1px;
+  }
+  60%,
+  66.666% {
+    background-position: -3079px -1px;
+  }
+  66.667%,
+  73.333% {
+    background-position: -2053px -1px;
+  }
+  73.334%,
+  80% {
+    background-position: -1027px -1px;
+  }
+  80.001%,
+  100% {
+    background-position: -1px -1px;
+  }
+}
+
+.daylily-bloom-sprite {
+  background-image: url("/assets/spritesheet.png");
+  background-repeat: no-repeat;
+  background-size: 5130px 1538px;
+  background-position: -1px -1px;
+  animation: daylily-bloom-ping-pong 1.8s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .daylily-bloom-sprite {
+    animation: none;
+  }
+}
