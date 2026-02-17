@@ -20,7 +20,8 @@ import { CultivarRelatedSection } from "./_components/cultivar-related-section";
 import { Muted } from "@/components/typography";
 
 export const revalidate = 86400;
-export const dynamicParams = true;
+export const dynamic = "force-static";
+export const dynamicParams = false;
 
 const getCultivarRouteSegmentsCached = cache(getCultivarRouteSegments);
 const getPublicCultivarPageCached = cache(getPublicCultivarPage);
@@ -29,7 +30,6 @@ interface PageProps {
   params: Promise<{
     cultivarNormalizedName: string;
   }>;
-  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }
 
 function getCultivarJsonLd(
@@ -155,9 +155,8 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   };
 }
 
-export default async function CultivarPage({ params, searchParams }: PageProps) {
+export default async function CultivarPage({ params }: PageProps) {
   const { cultivarNormalizedName } = await params;
-  const queryParams = await searchParams;
 
   const cultivarPage = await getPublicCultivarPageCached(cultivarNormalizedName);
 
@@ -168,25 +167,7 @@ export default async function CultivarPage({ params, searchParams }: PageProps) 
   const canonicalSegment = toCultivarRouteSegment(cultivarPage.cultivar.normalizedName);
 
   if (canonicalSegment && cultivarNormalizedName !== canonicalSegment) {
-    const query = new URLSearchParams();
-
-    Object.entries(queryParams).forEach(([key, value]) => {
-      if (typeof value === "string") {
-        query.append(key, value);
-        return;
-      }
-
-      if (Array.isArray(value)) {
-        value.forEach((entry) => query.append(key, entry));
-      }
-    });
-
-    const queryString = query.toString();
-    permanentRedirect(
-      queryString
-        ? `/cultivar/${canonicalSegment}?${queryString}`
-        : `/cultivar/${canonicalSegment}`,
-    );
+    permanentRedirect(`/cultivar/${canonicalSegment}`);
   }
 
   const baseUrl = getBaseUrl();

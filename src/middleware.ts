@@ -1,11 +1,35 @@
 import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
+import { toCultivarRouteSegment } from "@/lib/utils/cultivar-utils";
 
 const isProtectedRoute = createRouteMatcher(["/dashboard(.*)"]);
 
 export default clerkMiddleware(async (auth, req) => {
   const { userId } = await auth();
   const { pathname } = req.nextUrl;
+
+  const cultivarMatch = /^\/cultivar\/([^\/]+)$/.exec(pathname);
+  if (cultivarMatch?.[1]) {
+    const rawCultivarSegment = cultivarMatch[1];
+    let decodedCultivarSegment = rawCultivarSegment;
+
+    try {
+      decodedCultivarSegment = decodeURIComponent(rawCultivarSegment);
+    } catch {}
+
+    const canonicalCultivarSegment = toCultivarRouteSegment(
+      decodedCultivarSegment,
+    );
+
+    if (
+      canonicalCultivarSegment &&
+      rawCultivarSegment !== canonicalCultivarSegment
+    ) {
+      const canonicalUrl = req.nextUrl.clone();
+      canonicalUrl.pathname = `/cultivar/${canonicalCultivarSegment}`;
+      return NextResponse.redirect(canonicalUrl, 308);
+    }
+  }
 
   // Handle redirects for old URLs
 
