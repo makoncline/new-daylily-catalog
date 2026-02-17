@@ -35,7 +35,11 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { getErrorMessage, normalizeError } from "@/lib/error-utils";
+import {
+  getErrorMessage,
+  normalizeError,
+  reportError,
+} from "@/lib/error-utils";
 
 interface ContactFormProps {
   userId: string;
@@ -67,10 +71,13 @@ export function ContactForm({ userId, onSubmitSuccess }: ContactFormProps) {
       toast.error("Error sending message", {
         description: getErrorMessage(error),
       });
-      reportError({
-        error: normalizeError(error),
-        context: { source: "ContactForm", errorInfo },
-      });
+      const code = (error as { data?: { code?: string } }).data?.code;
+      if (code !== "BAD_REQUEST") {
+        reportError({
+          error: normalizeError(error),
+          context: { source: "ContactForm", errorInfo },
+        });
+      }
     },
     onSettled: () => {
       setIsSubmitting(false);

@@ -184,6 +184,8 @@ function OptimizedImageInner({
           return;
         }
 
+        if (!shouldUseCloudflareTransform(src)) return;
+
         const reportKey = `${src}::${imageUrl}`;
         if (reportedImageErrors.has(reportKey)) return;
         reportedImageErrors.add(reportKey);

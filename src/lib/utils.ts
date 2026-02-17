@@ -61,9 +61,19 @@ type Result<T, E = Error> = Success<T> | Failure<E>;
  * @returns The error code as a string, or undefined if no code exists
  */
 export function getErrorCode(error: unknown): string | undefined {
-  if (error && typeof error === "object" && "code" in error && error.code) {
-    return JSON.stringify(error.code);
+  if (!error || typeof error !== "object" || !("code" in error)) {
+    return undefined;
   }
+
+  const code = (error as { code?: unknown }).code;
+  if (typeof code === "string" && code.length > 0) {
+    return code;
+  }
+
+  if (typeof code === "number" || typeof code === "bigint") {
+    return String(code);
+  }
+
   return undefined;
 }
 
