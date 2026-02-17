@@ -65,4 +65,15 @@ describe("OptimizedImage", () => {
     fireEvent.error(image);
     expect(reportErrorMock).toHaveBeenCalledTimes(1);
   });
+
+  it("does not report external host load failures", () => {
+    const externalSrc =
+      "https://www.daylilydatabase.org/AHSPhoto/C/ChinaBlushCherylDay_1584735345.jpg";
+    render(<OptimizedImage alt="External" src={externalSrc} size="full" />);
+
+    const image = screen.getByRole("img");
+    fireEvent.error(image);
+
+    expect(reportErrorMock).not.toHaveBeenCalled();
+  });
 });
