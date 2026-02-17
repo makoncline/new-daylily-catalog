@@ -313,6 +313,109 @@ describe("getPublicCultivarPage", () => {
     expect(result?.cultivar.normalizedName).toBe("a cowgirl's heart");
     expect(mockDb.cultivarReference.findFirst).toHaveBeenCalledTimes(2);
   });
+
+  it("treats subscription lookup failures as non-pro instead of failing cultivar response", async () => {
+    mockDb.cultivarReference.findFirst.mockResolvedValue({
+      id: "cultivar-1",
+      normalizedName: "coffee frenzy",
+      updatedAt: new Date("2026-01-05T00:00:00.000Z"),
+      ahsListing: {
+        id: "ahs-1",
+        name: "Coffee Frenzy",
+        ahsImageUrl: "https://example.com/ahs.jpg",
+        hybridizer: "Reed",
+        year: "2012",
+        scapeHeight: null,
+        bloomSize: null,
+        bloomSeason: null,
+        form: null,
+        ploidy: null,
+        foliageType: null,
+        bloomHabit: null,
+        budcount: null,
+        branches: null,
+        sculpting: null,
+        foliage: null,
+        flower: null,
+        fragrance: null,
+        parentage: null,
+        color: null,
+      },
+    });
+
+    mockDb.listing.findMany.mockResolvedValue([
+      {
+        id: "listing-ok",
+        title: "Coffee Frenzy Pro",
+        slug: "coffee-frenzy-pro",
+        price: 20,
+        description: "Available",
+        updatedAt: new Date("2026-01-10T00:00:00.000Z"),
+        userId: "user-ok",
+        images: [],
+        lists: [],
+      },
+      {
+        id: "listing-failing-sub",
+        title: "Coffee Frenzy Failing Sub",
+        slug: "coffee-frenzy-failing-sub",
+        price: 18,
+        description: "Available",
+        updatedAt: new Date("2026-01-10T00:00:00.000Z"),
+        userId: "user-failing-sub",
+        images: [],
+        lists: [],
+      },
+    ]);
+
+    mockDb.user.findMany.mockResolvedValue([
+      {
+        id: "user-ok",
+        createdAt: new Date("2019-01-01T00:00:00.000Z"),
+        stripeCustomerId: "cus-ok",
+        profile: {
+          slug: "ok-pro",
+          title: "OK Pro Garden",
+          description: null,
+          location: null,
+          updatedAt: new Date("2026-01-10T00:00:00.000Z"),
+          images: [],
+        },
+        _count: { listings: 4, lists: 1 },
+      },
+      {
+        id: "user-failing-sub",
+        createdAt: new Date("2020-01-01T00:00:00.000Z"),
+        stripeCustomerId: "cus-failing-sub",
+        profile: {
+          slug: "failing-pro",
+          title: "Failing Pro Garden",
+          description: null,
+          location: null,
+          updatedAt: new Date("2026-01-10T00:00:00.000Z"),
+          images: [],
+        },
+        _count: { listings: 4, lists: 1 },
+      },
+    ]);
+
+    mockGetStripeSubscription.mockImplementation(
+      async (stripeCustomerId: string) => {
+        if (stripeCustomerId === "cus-failing-sub") {
+          throw new Error("kv unavailable");
+        }
+
+        return { status: "active" };
+      },
+    );
+
+    mockDb.cultivarReference.findMany.mockResolvedValue([]);
+
+    const result = await getPublicCultivarPage("coffee-frenzy");
+
+    expect(result).not.toBeNull();
+    expect(result?.offers.gardenCards.map((garden) => garden.slug)).toEqual(["ok-pro"]);
+  });
 });
 
 describe("getCultivarSitemapEntries", () => {
