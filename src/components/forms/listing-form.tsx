@@ -68,7 +68,7 @@ interface ListingFormProps {
   formRef?: React.RefObject<{ saveChanges: () => Promise<void> } | null>;
 }
 
-export function ListingFormInner({
+function ListingFormInner({
   listingId,
   listing,
   linkedAhs,

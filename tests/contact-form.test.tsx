@@ -4,15 +4,9 @@ import { ContactForm } from "@/components/contact-form";
 
 // Mock hooks
 let cartItems: Array<{ id: string }> = [];
-const mutationHandlers = vi.hoisted(
-  () =>
-    ({
-      onError: undefined as
-        | ((error: unknown, errorInfo: unknown) => void)
-        | undefined,
-    }) satisfies {
-      onError: ((error: unknown, errorInfo: unknown) => void) | undefined;
-    },
+type MutationOnError = (error: unknown, errorInfo: unknown) => void;
+const mutationOnError = vi.hoisted(
+  () => ({ current: undefined as MutationOnError | undefined }),
 );
 const reportErrorMock = vi.hoisted(() => vi.fn());
 
@@ -48,7 +42,7 @@ vi.mock("@/trpc/react", () => ({
             onError?: (error: unknown, errorInfo: unknown) => void;
           } = {},
         ) => {
-          mutationHandlers.onError = opts.onError;
+          mutationOnError.current = opts.onError;
           return {
             mutate: mockSendMessage,
             isPending: false,
@@ -183,7 +177,7 @@ describe("ContactForm", () => {
     render(<ContactForm userId="test-user-id" />);
 
     await act(async () => {
-      mutationHandlers.onError?.(
+      mutationOnError.current?.(
         {
           message: "Name is required",
           data: { code: "BAD_REQUEST" },

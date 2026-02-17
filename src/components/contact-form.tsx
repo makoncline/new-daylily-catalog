@@ -41,15 +41,6 @@ import {
   reportError,
 } from "@/lib/error-utils";
 
-function isExpectedValidationError(error: unknown): boolean {
-  if (!error || typeof error !== "object" || !("data" in error)) {
-    return false;
-  }
-
-  const data = (error as { data?: { code?: string } }).data;
-  return data?.code === "BAD_REQUEST";
-}
-
 interface ContactFormProps {
   userId: string;
   onSubmitSuccess?: () => void;
@@ -80,7 +71,8 @@ export function ContactForm({ userId, onSubmitSuccess }: ContactFormProps) {
       toast.error("Error sending message", {
         description: getErrorMessage(error),
       });
-      if (!isExpectedValidationError(error)) {
+      const code = (error as { data?: { code?: string } }).data?.code;
+      if (code !== "BAD_REQUEST") {
         reportError({
           error: normalizeError(error),
           context: { source: "ContactForm", errorInfo },
