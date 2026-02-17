@@ -1,11 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useId, useState } from "react";
 
 export type DashboardDbStatus = "idle" | "loading" | "ready" | "error";
 
 const SPRITE_FRAME_WIDTH = 1024;
 const SPRITE_FRAME_HEIGHT = 1536;
+const PHRASE_CYCLE_MS = 1500;
+const PHRASE_FADE_MS = 300;
 
 const FUN_PHRASES = [
   "Pruning the daylilies...",
@@ -27,7 +29,7 @@ const FUN_PHRASES = [
   "Bee count...",
   "Admiring the blooms...",
   "Watering break...",
-  '"Just one more plant"...',
+  "Just one more plant...",
   "Tag hunt...",
   "Scape count...",
   "Bud watch...",
@@ -74,6 +76,8 @@ export function DashboardDbLoadingScreen({
   status: DashboardDbStatus;
   isExiting: boolean;
 }) {
+  const titleId = useId();
+  const descriptionId = useId();
   const [phraseIndex, setPhraseIndex] = useState(() => {
     const seed = Math.floor(Date.now() / 1000);
     return seed % FUN_PHRASES.length;
@@ -81,16 +85,19 @@ export function DashboardDbLoadingScreen({
   const [isFadingPhrase, setIsFadingPhrase] = useState(false);
 
   useEffect(() => {
-    if (status === "error") return;
+    if (status === "error" || isExiting) return;
+
+    const previousHtmlOverflow = document.documentElement.style.overflow;
+    const previousBodyOverflow = document.body.style.overflow;
 
     document.documentElement.style.overflow = "hidden";
     document.body.style.overflow = "hidden";
 
     return () => {
-      document.documentElement.style.overflow = "";
-      document.body.style.overflow = "";
+      document.documentElement.style.overflow = previousHtmlOverflow;
+      document.body.style.overflow = previousBodyOverflow;
     };
-  }, [status]);
+  }, [isExiting, status]);
 
   useEffect(() => {
     if (status === "error") return;
@@ -102,8 +109,8 @@ export function DashboardDbLoadingScreen({
       fadeResetId = window.setTimeout(() => {
         setPhraseIndex((index) => (index + 1) % FUN_PHRASES.length);
         setIsFadingPhrase(false);
-      }, 250);
-    }, 1500);
+      }, PHRASE_FADE_MS);
+    }, PHRASE_CYCLE_MS);
 
     return () => {
       window.clearInterval(phraseId);
@@ -119,31 +126,40 @@ export function DashboardDbLoadingScreen({
         "bg-background fixed inset-0 flex min-h-dvh w-full items-center justify-center overflow-hidden px-6 transition-opacity duration-200 ease-out" +
         (isExiting ? " opacity-0" : " opacity-100")
       }
-      role="status"
-      aria-live="polite"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby={titleId}
+      aria-describedby={descriptionId}
     >
       <div className="bg-background/80 w-full max-w-sm rounded-2xl border px-8 py-10 shadow-sm backdrop-blur">
         <div className="flex flex-col items-center gap-3 text-center">
           <DaylilyBloomSprite />
 
-          <div className="text-base font-semibold tracking-tight">
+          <div id={titleId} className="text-base font-semibold tracking-tight">
             {status === "error"
               ? "Unable to load dashboard data"
               : "Fetching your catalog..."}
           </div>
 
-          <div className="text-muted-foreground min-h-[2.5rem] text-sm leading-5">
+          <div
+            id={descriptionId}
+            className="text-muted-foreground min-h-[2.5rem] text-sm leading-5"
+          >
             {status === "error" ? (
               "Please refresh the page."
             ) : (
-              <span
-                className={
-                  "inline-block transition-opacity duration-300 motion-reduce:transition-none" +
-                  (isFadingPhrase ? " opacity-0" : " opacity-100")
-                }
-              >
-                {FUN_PHRASES[phraseIndex]}
-              </span>
+              <>
+                <span
+                  aria-hidden
+                  className={
+                    "inline-block transition-opacity duration-300 motion-reduce:transition-none" +
+                    (isFadingPhrase ? " opacity-0" : " opacity-100")
+                  }
+                >
+                  {FUN_PHRASES[phraseIndex]}
+                </span>
+                <span className="sr-only">Loading your catalog.</span>
+              </>
             )}
           </div>
         </div>

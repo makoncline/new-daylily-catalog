@@ -4,7 +4,7 @@ name = "new-daylily-catalog"
 
 [setup]
 script = '''
-ln -sf /Users/makon/dev/apps/new-daylily-catalog/.env.development .env.development
+ln -sf /Users/makon/dev/new-daylily-catalog/.env.development .env.development
 pnpm install
 pnpm db:seed:local-dev
 '''

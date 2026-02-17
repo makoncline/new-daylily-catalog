@@ -174,47 +174,74 @@
 @keyframes daylily-bloom-ping-pong {
   0%,
   19.999% {
-    background-position: -1px -1px;
+    background-position: calc(-1 * var(--daylily-frame-pad))
+      calc(-1 * var(--daylily-frame-pad));
   }
   20%,
   26.666% {
-    background-position: -1027px -1px;
+    background-position: calc(
+        -1 * (var(--daylily-frame-pad) + var(--daylily-frame-step))
+      )
+      calc(-1 * var(--daylily-frame-pad));
   }
   26.667%,
   33.333% {
-    background-position: -2053px -1px;
+    background-position: calc(
+        -1 * (var(--daylily-frame-pad) + (2 * var(--daylily-frame-step)))
+      )
+      calc(-1 * var(--daylily-frame-pad));
   }
   33.334%,
   40% {
-    background-position: -3079px -1px;
+    background-position: calc(
+        -1 * (var(--daylily-frame-pad) + (3 * var(--daylily-frame-step)))
+      )
+      calc(-1 * var(--daylily-frame-pad));
   }
   40.001%,
   59.999% {
-    background-position: -4105px -1px;
+    background-position: calc(
+        -1 * (var(--daylily-frame-pad) + (4 * var(--daylily-frame-step)))
+      )
+      calc(-1 * var(--daylily-frame-pad));
   }
   60%,
   66.666% {
-    background-position: -3079px -1px;
+    background-position: calc(
+        -1 * (var(--daylily-frame-pad) + (3 * var(--daylily-frame-step)))
+      )
+      calc(-1 * var(--daylily-frame-pad));
   }
   66.667%,
   73.333% {
-    background-position: -2053px -1px;
+    background-position: calc(
+        -1 * (var(--daylily-frame-pad) + (2 * var(--daylily-frame-step)))
+      )
+      calc(-1 * var(--daylily-frame-pad));
   }
   73.334%,
   80% {
-    background-position: -1027px -1px;
+    background-position: calc(
+        -1 * (var(--daylily-frame-pad) + var(--daylily-frame-step))
+      )
+      calc(-1 * var(--daylily-frame-pad));
   }
   80.001%,
   100% {
-    background-position: -1px -1px;
+    background-position: calc(-1 * var(--daylily-frame-pad))
+      calc(-1 * var(--daylily-frame-pad));
   }
 }
 
 .daylily-bloom-sprite {
+  /* spritesheet.png: 5 frames packed in one row with 1px outer padding and 1026px x-step */
+  --daylily-frame-pad: 1px;
+  --daylily-frame-step: 1026px;
   background-image: url("/assets/spritesheet.png");
   background-repeat: no-repeat;
   background-size: 5130px 1538px;
-  background-position: -1px -1px;
+  background-position: calc(-1 * var(--daylily-frame-pad))
+    calc(-1 * var(--daylily-frame-pad));
   animation: daylily-bloom-ping-pong 1.8s linear infinite;
 }
 
