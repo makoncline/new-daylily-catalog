@@ -4,7 +4,6 @@ import React, {
   createContext,
   useContext,
   useEffect,
-  useMemo,
   useState,
 } from "react";
 import { api } from "@/trpc/react";
@@ -26,14 +25,15 @@ import {
   initializeCultivarReferencesCollection,
 } from "@/app/dashboard/_lib/dashboard-db/cultivar-references-collection";
 import { setCurrentUserId } from "@/lib/utils/cursor";
-import { Skeleton } from "@/components/ui/skeleton";
 import {
   persistDashboardDbToPersistence,
   revalidateDashboardDbInBackground,
   tryHydrateDashboardDbFromPersistence,
 } from "@/app/dashboard/_lib/dashboard-db/dashboard-db-persistence";
-
-type DashboardDbStatus = "idle" | "loading" | "ready" | "error";
+import {
+  DashboardDbLoadingScreen,
+  type DashboardDbStatus,
+} from "@/app/dashboard/_components/dashboard-db-loading-screen";
 
 interface DashboardDbState {
   status: DashboardDbStatus;
@@ -41,33 +41,6 @@ interface DashboardDbState {
 }
 
 const DashboardDbContext = createContext<DashboardDbState | null>(null);
-
-function DashboardDbLoadingScreen({ status }: { status: DashboardDbStatus }) {
-  return (
-    <div className="flex min-h-dvh w-full items-center justify-center">
-      <div className="w-full max-w-md space-y-6 px-8 py-10">
-        <div className="space-y-1">
-          <div className="text-lg font-semibold">
-            {status === "error"
-              ? "Unable to load dashboard data"
-              : "Loading your dashboard data..."}
-          </div>
-          <div className="text-muted-foreground text-sm">
-            {status === "error"
-              ? "Please refresh the page."
-              : "This can take a moment for large catalogs."}
-          </div>
-        </div>
-
-        <div className="space-y-3">
-          <Skeleton className="h-9 w-full" />
-          <Skeleton className="h-9 w-5/6" />
-          <Skeleton className="h-9 w-2/3" />
-        </div>
-      </div>
-    </div>
-  );
-}
 
 export function useDashboardDb() {
   const value = useContext(DashboardDbContext);
@@ -77,14 +50,21 @@ export function useDashboardDb() {
   return value;
 }
 
-export function DashboardDbProvider({ children }: { children: React.ReactNode }) {
+export function DashboardDbProvider({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   const utils = api.useUtils();
-  const { data: user, isLoading, isError } =
-    api.dashboardDb.user.getCurrentUser.useQuery(undefined, {
-      staleTime: Infinity,
-      refetchOnWindowFocus: false,
-      refetchOnMount: false,
-    });
+  const {
+    data: user,
+    isLoading,
+    isError,
+  } = api.dashboardDb.user.getCurrentUser.useQuery(undefined, {
+    staleTime: Infinity,
+    refetchOnWindowFocus: false,
+    refetchOnMount: false,
+  });
 
   const userId = user?.id ?? null;
 
@@ -92,6 +72,26 @@ export function DashboardDbProvider({ children }: { children: React.ReactNode })
     status: "idle",
     userId: null,
   });
+
+  const [hideLoadingScreen, setHideLoadingScreen] = useState(false);
+  const [isExitingLoadingScreen, setIsExitingLoadingScreen] = useState(false);
+
+  useEffect(() => {
+    if (state.status !== "ready") {
+      setHideLoadingScreen(false);
+      setIsExitingLoadingScreen(false);
+      return;
+    }
+
+    setIsExitingLoadingScreen(true);
+    const id = window.setTimeout(() => {
+      setHideLoadingScreen(true);
+    }, 200);
+
+    return () => {
+      window.clearTimeout(id);
+    };
+  }, [state.status]);
 
   useEffect(() => {
     if (isLoading) {
@@ -146,21 +146,17 @@ export function DashboardDbProvider({ children }: { children: React.ReactNode })
     return () => {
       cancelled = true;
     };
-  }, [
-    isError,
-    isLoading,
-    userId,
-    utils,
-  ]);
-
-  const value = useMemo(() => state, [state]);
+  }, [isError, isLoading, userId, utils]);
 
   return (
-    <DashboardDbContext.Provider value={value}>
-      {state.status === "ready" ? (
-        children
-      ) : (
-        <DashboardDbLoadingScreen status={state.status} />
+    <DashboardDbContext.Provider value={state}>
+      {state.status === "ready" ? children : null}
+
+      {hideLoadingScreen ? null : (
+        <DashboardDbLoadingScreen
+          status={state.status}
+          isExiting={isExitingLoadingScreen}
+        />
       )}
     </DashboardDbContext.Provider>
   );
