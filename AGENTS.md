@@ -52,6 +52,40 @@ seed script for e2e, QA, or demos.
 Playwright local runs auto-provision a temp DB and start `pnpm dev` unless
 `BASE_URL` is set. Local E2E uses `E2E_PORT` (default `3100`).
 
+## Local "Prod" Build Workflow (with Production Data Snapshot)
+
+Use this when you need production-mode behavior locally with a local copy of
+production data.
+
+```sh
+# Pull local copy of prod DB to file
+pnpm env:dev bash scripts/db-backup.sh
+
+# Build in production mode against local prod DB copy
+LOCAL_DATABASE_URL="file:./local-prod-copy-daylily-catalog.db" USE_TURSO_DB=false NODE_ENV=production pnpm env:dev pnpm build
+
+# Run production server locally against local prod DB copy
+LOCAL_DATABASE_URL="file:./local-prod-copy-daylily-catalog.db" USE_TURSO_DB=false NODE_ENV=production pnpm env:dev pnpm start
+```
+
+## Static Public Pages + Search Params
+
+For SEO-focused public routes, keep the server render static and treat query
+params as client-only UI state.
+
+- Public SEO pages should render as static/ISR (not request-time dynamic).
+- Do not read `searchParams` in server `page.tsx`, `layout.tsx`, or
+  `generateMetadata` for static public routes.
+- Canonical URLs should be query-free (base path only).
+- Parse and apply query params in client components only (for sort/filter/toggle
+  UX via `useSearchParams` + `router.replace`).
+- Query params should not change server data fetching, metadata, or structured
+  data for static public pages.
+- For routes that should only serve build-known slugs, use
+  `dynamic = "force-static"` and `dynamicParams = false`.
+- Verify behavior with the local prod workflow and check headers for static
+  pages (`x-nextjs-cache: HIT` and `Cache-Control: s-maxage=...`).
+
 ## Repo Structure (High-Level)
 
 - `src/app/` Next.js App Router (routes + route-level `_components`)
