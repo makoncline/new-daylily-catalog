@@ -1,9 +1,20 @@
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent, act } from "@testing-library/react";
 import { vi, describe, it, expect, beforeEach } from "vitest";
 import { ContactForm } from "@/components/contact-form";
 
 // Mock hooks
 let cartItems: Array<{ id: string }> = [];
+const mutationHandlers = vi.hoisted(
+  () =>
+    ({
+      onError: undefined as
+        | ((error: unknown, errorInfo: unknown) => void)
+        | undefined,
+    }) satisfies {
+      onError: ((error: unknown, errorInfo: unknown) => void) | undefined;
+    },
+);
+const reportErrorMock = vi.hoisted(() => vi.fn());
 
 const mockUseCart = vi.fn(() => ({
   items: cartItems,
@@ -32,10 +43,17 @@ vi.mock("@/trpc/react", () => ({
   api: {
     public: {
       sendMessage: {
-        useMutation: () => ({
-          mutate: mockSendMessage,
-          isPending: false,
-        }),
+        useMutation: (
+          opts: {
+            onError?: (error: unknown, errorInfo: unknown) => void;
+          } = {},
+        ) => {
+          mutationHandlers.onError = opts.onError;
+          return {
+            mutate: mockSendMessage,
+            isPending: false,
+          };
+        },
       },
     },
   },
@@ -54,7 +72,7 @@ vi.mock("sonner", () => ({
 vi.mock("@/lib/error-utils", () => ({
   getErrorMessage: vi.fn((e) => e.message),
   normalizeError: vi.fn((e) => e),
-  reportError: vi.fn(),
+  reportError: reportErrorMock,
 }));
 
 describe("ContactForm", () => {
@@ -159,5 +177,21 @@ describe("ContactForm", () => {
     }
 
     expect(t.reasons).toHaveLength(0);
+  });
+
+  it("does not report expected BAD_REQUEST validation errors", async () => {
+    render(<ContactForm userId="test-user-id" />);
+
+    await act(async () => {
+      mutationHandlers.onError?.(
+        {
+          message: "Name is required",
+          data: { code: "BAD_REQUEST" },
+        },
+        {},
+      );
+    });
+
+    expect(reportErrorMock).not.toHaveBeenCalled();
   });
 });
