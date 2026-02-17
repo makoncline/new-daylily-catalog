@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useState } from "react";
+import { useEffect, useState } from "react";
 
 export type DashboardDbStatus = "idle" | "loading" | "ready" | "error";
 
@@ -76,8 +76,6 @@ export function DashboardDbLoadingScreen({
   status: DashboardDbStatus;
   isExiting: boolean;
 }) {
-  const titleId = useId();
-  const descriptionId = useId();
   const [phraseIndex, setPhraseIndex] = useState(() => {
     const seed = Math.floor(Date.now() / 1000);
     return seed % FUN_PHRASES.length;
@@ -126,23 +124,21 @@ export function DashboardDbLoadingScreen({
         "bg-background fixed inset-0 flex min-h-dvh w-full items-center justify-center overflow-hidden px-6 transition-opacity duration-200 ease-out" +
         (isExiting ? " opacity-0" : " opacity-100")
       }
-      role="dialog"
-      aria-modal="true"
-      aria-labelledby={titleId}
-      aria-describedby={descriptionId}
+      role="status"
+      aria-live="polite"
+      aria-atomic="true"
     >
       <div className="bg-background/80 w-full max-w-sm rounded-2xl border px-8 py-10 shadow-sm backdrop-blur">
         <div className="flex flex-col items-center gap-3 text-center">
           <DaylilyBloomSprite />
 
-          <div id={titleId} className="text-base font-semibold tracking-tight">
+          <div className="text-base font-semibold tracking-tight">
             {status === "error"
               ? "Unable to load dashboard data"
               : "Fetching your catalog..."}
           </div>
 
           <div
-            id={descriptionId}
             className="text-muted-foreground min-h-[2.5rem] text-sm leading-5"
           >
             {status === "error" ? (
