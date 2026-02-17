@@ -8,7 +8,6 @@ import { IMAGES } from "@/lib/constants/images";
 import { getOptimizedMetaImageUrl } from "@/lib/utils/cloudflareLoader";
 import { getBaseUrl } from "@/lib/utils/getBaseUrl";
 import { toCultivarRouteSegment } from "@/lib/utils/cultivar-utils";
-import { api } from "@/trpc/server";
 import {
   getCultivarRouteSegments,
   getPublicCultivarPage,
@@ -24,10 +23,7 @@ export const revalidate = 86400;
 export const dynamicParams = true;
 
 const getCultivarRouteSegmentsCached = cache(getCultivarRouteSegments);
-const getPublicCultivarPageMetadataCached = cache(getPublicCultivarPage);
-const getCultivarPageFromTrpcCached = cache((cultivarNormalizedName: string) =>
-  api.public.getCultivarPage({ cultivarNormalizedName }),
-);
+const getPublicCultivarPageCached = cache(getPublicCultivarPage);
 
 interface PageProps {
   params: Promise<{
@@ -100,7 +96,7 @@ export async function generateStaticParams() {
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { cultivarNormalizedName } = await params;
-  const cultivarPage = await getPublicCultivarPageMetadataCached(cultivarNormalizedName);
+  const cultivarPage = await getPublicCultivarPageCached(cultivarNormalizedName);
 
   if (!cultivarPage) {
     return {
@@ -163,7 +159,7 @@ export default async function CultivarPage({ params, searchParams }: PageProps) 
   const { cultivarNormalizedName } = await params;
   const queryParams = await searchParams;
 
-  const cultivarPage = await getCultivarPageFromTrpcCached(cultivarNormalizedName);
+  const cultivarPage = await getPublicCultivarPageCached(cultivarNormalizedName);
 
   if (!cultivarPage) {
     notFound();

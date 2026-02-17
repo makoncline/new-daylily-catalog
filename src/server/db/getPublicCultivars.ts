@@ -463,11 +463,18 @@ export async function getPublicCultivarPage(cultivarSegment: string) {
 
   const usersWithSubscription = await Promise.all(
     users.map(async (user) => {
-      const subscription = await getStripeSubscription(user.stripeCustomerId);
+      let hasSubscription = false;
+
+      try {
+        const subscription = await getStripeSubscription(user.stripeCustomerId);
+        hasSubscription = hasActiveSubscription(subscription.status);
+      } catch (error) {
+        console.error("Failed to resolve subscription for cultivar page:", error);
+      }
 
       return {
         ...user,
-        hasActiveSubscription: hasActiveSubscription(subscription.status),
+        hasActiveSubscription: hasSubscription,
       };
     }),
   );
