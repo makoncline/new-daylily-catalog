@@ -68,7 +68,7 @@ interface ListingFormProps {
   formRef?: React.RefObject<{ saveChanges: () => Promise<void> } | null>;
 }
 
-function ListingFormInner({
+export function ListingFormInner({
   listingId,
   listing,
   linkedAhs,
@@ -166,6 +166,9 @@ function ListingFormInner({
 
   const onFieldBlur = async (field: keyof ListingFormData) => {
     if (!form.formState.dirtyFields[field]) return;
+
+    const isValid = await form.trigger(field);
+    if (!isValid) return;
 
     const value = form.getValues(field);
     await saveField(field, value);
