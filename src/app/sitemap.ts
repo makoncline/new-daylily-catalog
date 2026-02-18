@@ -1,15 +1,11 @@
-import { db } from "@/server/db";
 import { getBaseUrl } from "@/lib/utils/getBaseUrl";
 import { type MetadataRoute } from "next";
-import { STATUS } from "@/config/constants";
 import { getCultivarSitemapEntries } from "@/server/db/getPublicCultivars";
+import { getPublicCatalogRouteEntries } from "@/server/db/getPublicListings";
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const baseUrl = getBaseUrl();
   const sitemap: MetadataRoute.Sitemap = [];
-  const publicListingVisibilityFilter = {
-    OR: [{ status: null }, { NOT: { status: STATUS.HIDDEN } }],
-  };
 
   // Add static pages
   const staticPages = ["", "/catalogs"];
@@ -23,32 +19,23 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     });
   });
 
-  // Add user profiles - canonical versions by slug when available.
-  const users = await db.user.findMany({
-    select: {
-      id: true,
-      profile: {
-        select: {
-          slug: true,
-          updatedAt: true,
-        },
-      },
-    },
-    where: {
-      listings: {
-        some: publicListingVisibilityFilter,
-      },
-    },
-  });
-
-  users.forEach((user) => {
-    const canonicalUserSlug = user.profile?.slug ?? user.id;
+  const publicCatalogEntries = await getPublicCatalogRouteEntries();
+  publicCatalogEntries.forEach((entry) => {
     sitemap.push({
-      url: `${baseUrl}/${canonicalUserSlug}`,
-      lastModified: user.profile?.updatedAt ?? new Date(),
+      url: `${baseUrl}/${entry.slug}`,
+      lastModified: entry.lastModified,
       changeFrequency: "weekly",
       priority: 0.7,
     });
+
+    for (let page = 2; page <= entry.totalPages; page += 1) {
+      sitemap.push({
+        url: `${baseUrl}/${entry.slug}?page=${page}`,
+        lastModified: entry.lastModified,
+        changeFrequency: "weekly",
+        priority: 0.6,
+      });
+    }
   });
 
   const cultivarEntries = await getCultivarSitemapEntries();

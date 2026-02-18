@@ -4,9 +4,91 @@ import { toCultivarRouteSegment } from "@/lib/utils/cultivar-utils";
 
 const isProtectedRoute = createRouteMatcher(["/dashboard(.*)"]);
 
+function parsePositiveInteger(value: string | null | undefined, fallback = 1) {
+  if (!value) {
+    return fallback;
+  }
+
+  const parsed = Number.parseInt(value, 10);
+  if (!Number.isFinite(parsed) || parsed < 1) {
+    return fallback;
+  }
+
+  return parsed;
+}
+
+function hasNonPageParams(params: URLSearchParams) {
+  return Array.from(params.keys()).some((key) => key !== "page");
+}
+
+const RESERVED_TOP_LEVEL_SEGMENTS = new Set([
+  "api",
+  "auth-error",
+  "catalog",
+  "catalogs",
+  "cultivar",
+  "dashboard",
+  "subscribe",
+  "trpc",
+  "users",
+]);
+
+function isLegacyProfileSegment(segment: string) {
+  if (RESERVED_TOP_LEVEL_SEGMENTS.has(segment)) {
+    return false;
+  }
+
+  return /^[A-Za-z0-9-]+$/.test(segment);
+}
+
 export default clerkMiddleware(async (auth, req) => {
   const { userId } = await auth();
   const { pathname } = req.nextUrl;
+
+  const legacyProfileInternalPageMatch = /^\/([^/]+)\/page\/(\d+)$/.exec(
+    pathname,
+  );
+  if (
+    legacyProfileInternalPageMatch?.[1] &&
+    legacyProfileInternalPageMatch[2] &&
+    isLegacyProfileSegment(legacyProfileInternalPageMatch[1])
+  ) {
+    const requestedPage = parsePositiveInteger(legacyProfileInternalPageMatch[2], 1);
+    const redirectUrl = req.nextUrl.clone();
+    redirectUrl.pathname = `/${legacyProfileInternalPageMatch[1]}`;
+
+    if (requestedPage > 1) {
+      redirectUrl.searchParams.set("page", String(requestedPage));
+    } else {
+      redirectUrl.searchParams.delete("page");
+    }
+
+    return NextResponse.redirect(redirectUrl, 308);
+  }
+
+  const legacyProfileMatch = /^\/([^/]+)$/.exec(pathname);
+  if (legacyProfileMatch?.[1] && isLegacyProfileSegment(legacyProfileMatch[1])) {
+    const pageParam = req.nextUrl.searchParams.get("page");
+    const requestedPage = parsePositiveInteger(pageParam, 1);
+    const hasNonPageRequestParams = hasNonPageParams(req.nextUrl.searchParams);
+
+    if (requestedPage > 1) {
+      const rewriteUrl = req.nextUrl.clone();
+      rewriteUrl.pathname = `/${legacyProfileMatch[1]}/page/${requestedPage}`;
+
+      const response = NextResponse.rewrite(rewriteUrl);
+      if (hasNonPageRequestParams) {
+        response.headers.set("x-robots-tag", "noindex, nofollow");
+      }
+      return response;
+    }
+
+    if (hasNonPageRequestParams) {
+      const response = NextResponse.next();
+      response.headers.set("x-robots-tag", "noindex, nofollow");
+      return response;
+    }
+  }
 
   const cultivarMatch = /^\/cultivar\/([^\/]+)$/.exec(pathname);
   if (cultivarMatch?.[1]) {

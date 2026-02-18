@@ -152,7 +152,7 @@ export const dashboardDbImageRouter = createTRPCRouter({
 
       const currentCount = await ctx.db.image.count({ where: whereClause });
 
-      return ctx.db.image.create({
+      const createdImage = await ctx.db.image.create({
         data: {
           url: input.url,
           order: currentCount,
@@ -162,6 +162,8 @@ export const dashboardDbImageRouter = createTRPCRouter({
         },
         select: imageSelect,
       });
+
+      return createdImage;
     }),
 
   reorder: protectedProcedure

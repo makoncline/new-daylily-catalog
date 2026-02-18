@@ -46,7 +46,7 @@ export const dashboardDbListingRouter = createTRPCRouter({
         ctx.db,
       );
 
-      return ctx.db.listing.create({
+      const createdListing = await ctx.db.listing.create({
         data: {
           userId: ctx.user.id,
           title: input.title,
@@ -55,6 +55,8 @@ export const dashboardDbListingRouter = createTRPCRouter({
         },
         select: listingSelect,
       });
+
+      return createdListing;
     }),
 
   get: protectedProcedure
@@ -137,7 +139,7 @@ export const dashboardDbListingRouter = createTRPCRouter({
         ? await generateUniqueSlug(nextTitle, ctx.user.id, listing.id, ctx.db)
         : undefined;
 
-      return ctx.db.listing.update({
+      const updatedListing = await ctx.db.listing.update({
         where: { id: listing.id },
         data: {
           cultivarReferenceId: cultivarReference.id,
@@ -146,6 +148,8 @@ export const dashboardDbListingRouter = createTRPCRouter({
         },
         select: listingSelect,
       });
+
+      return updatedListing;
     }),
 
   unlinkAhs: protectedProcedure
@@ -159,11 +163,13 @@ export const dashboardDbListingRouter = createTRPCRouter({
         throw new TRPCError({ code: "NOT_FOUND", message: "Listing not found" });
       }
 
-      return ctx.db.listing.update({
+      const updatedListing = await ctx.db.listing.update({
         where: { id: listing.id },
         data: { cultivarReferenceId: null },
         select: listingSelect,
       });
+
+      return updatedListing;
     }),
 
   syncAhsName: protectedProcedure
@@ -193,11 +199,13 @@ export const dashboardDbListingRouter = createTRPCRouter({
         ctx.db,
       );
 
-      return ctx.db.listing.update({
+      const updatedListing = await ctx.db.listing.update({
         where: { id: listing.id },
         data: { title: name, slug: nextSlug },
         select: listingSelect,
       });
+
+      return updatedListing;
     }),
 
   update: protectedProcedure

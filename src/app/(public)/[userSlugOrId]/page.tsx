@@ -1,97 +1,100 @@
 import { MainContent } from "@/app/(public)/_components/main-content";
 import { PublicBreadcrumbs } from "@/app/(public)/_components/public-breadcrumbs";
-import { getUserAndListingIdsAndSlugs } from "@/server/db/getUserAndListingIdsAndSlugs";
 import { ProfileContent } from "./_components/profile-content";
 import { unstable_cache } from "next/cache";
-import { getPublicProfile } from "@/server/db/getPublicProfile";
-import { getInitialListings } from "@/server/db/getPublicListings";
 import { Suspense } from "react";
 import { getBaseUrl } from "@/lib/utils/getBaseUrl";
 import { notFound, permanentRedirect } from "next/navigation";
 import { getErrorCode, tryCatch } from "@/lib/utils";
 import { generateProfileMetadata } from "./_seo/metadata";
-import { CatalogContent } from "./_components/catalog-content";
 import { ProfilePageSEO } from "./_components/profile-seo";
 import { PUBLIC_CACHE_CONFIG } from "@/config/public-cache-config";
+import {
+  hasNonPageProfileParams,
+  parsePositiveInteger,
+  toPublicCatalogSearchParams,
+  type PublicCatalogSearchParamRecord,
+} from "@/lib/public-catalog-url-state";
+import {
+  getPublicProfilePageData,
+  getPublicProfileStaticParams,
+} from "./_lib/public-profile-route";
+import { generatePaginatedProfileMetadata } from "./_seo/paginated-metadata";
+import { CatalogSeoListings } from "./_components/catalog-seo-listings";
 
 export const revalidate = 86400;
+export const dynamic = "force-static";
 export const dynamicParams = true;
 
 export async function generateStaticParams() {
-  const data = await getUserAndListingIdsAndSlugs();
-
-  // Filter out null values and combine unique identifiers
-  return data.flatMap((user) => {
-    const identifiers = [user.id];
-    if (user.profile?.slug) identifiers.push(user.profile.slug);
-
-    return identifiers.map((slugOrId) => ({
-      userSlugOrId: slugOrId,
-    }));
-  });
+  return getPublicProfileStaticParams();
 }
 
 interface PageProps {
   params: Promise<{
     userSlugOrId: string;
   }>;
-  searchParams: Promise<Record<string, string | string[] | undefined>>;
+  searchParams?: Promise<PublicCatalogSearchParamRecord>;
 }
 
-export async function generateMetadata({ params }: PageProps) {
+export async function generateMetadata({ params, searchParams }: PageProps) {
   const { userSlugOrId } = await params;
+  const resolvedSearchParams = await searchParams;
+  const paramsAsUrlSearch = toPublicCatalogSearchParams(resolvedSearchParams);
+  const page = parsePositiveInteger(paramsAsUrlSearch.get("page"), 1);
+  const hasNonPageStateParams = hasNonPageProfileParams(paramsAsUrlSearch);
   const url = getBaseUrl();
 
-  const result = await tryCatch(getPublicProfile(userSlugOrId));
+  const result = await tryCatch(getPublicProfilePageData(userSlugOrId, page));
 
   if (!result.data) {
     return generateProfileMetadata(null, url);
   }
 
-  return generateProfileMetadata(result.data, url);
+  const baseMetadata = await generateProfileMetadata(result.data.profile, url);
+  const canonicalUserSlug = result.data.profile.slug ?? result.data.profile.id;
+
+  return generatePaginatedProfileMetadata({
+    baseMetadata,
+    profileSlug: canonicalUserSlug,
+    page,
+    hasNonPageStateParams,
+  });
 }
 
 export default async function Page({ params, searchParams }: PageProps) {
   const { userSlugOrId } = await params;
   const queryParams = await searchParams;
+  const pageSearchParams = toPublicCatalogSearchParams(queryParams);
+  const requestedPage = parsePositiveInteger(pageSearchParams.get("page"), 1);
 
-  const getProfile = unstable_cache(
-    async () => getPublicProfile(userSlugOrId),
-    ["profile", userSlugOrId],
+  const getPageData = unstable_cache(
+    async () => getPublicProfilePageData(userSlugOrId, requestedPage),
+    ["profile-listings-page", userSlugOrId, String(requestedPage)],
     { revalidate: PUBLIC_CACHE_CONFIG.REVALIDATE_SECONDS.PAGE.PROFILE },
   );
 
-  const getListings = unstable_cache(
-    async () => getInitialListings(userSlugOrId),
-    ["listings", userSlugOrId, "initial"],
-    { revalidate: PUBLIC_CACHE_CONFIG.REVALIDATE_SECONDS.PAGE.PROFILE },
-  );
+  const pageDataResult = await tryCatch(getPageData());
 
-  // Use Promise.all with our tryCatch utility to fetch both in parallel
-  const [profileResult, listingsResult] = await Promise.all([
-    tryCatch(getProfile()),
-    tryCatch(getListings()),
-  ]);
-
-  // Check for NOT_FOUND errors
-  if (getErrorCode(profileResult.error) === "NOT_FOUND") {
+  if (getErrorCode(pageDataResult.error) === "NOT_FOUND") {
     notFound();
   }
 
-  // Rethrow other errors
-  if (profileResult.error) {
-    throw profileResult.error;
+  if (pageDataResult.error) {
+    throw pageDataResult.error;
   }
 
-  // Type safety - at this point we know we have data
-  const initialProfile = profileResult.data;
-  const initialListings = listingsResult.data ?? [];
+  const initialProfile = pageDataResult.data.profile;
+  const initialListings = pageDataResult.data.items;
+  const activePage = pageDataResult.data.page;
+  const totalPages = pageDataResult.data.totalPages;
+  const totalCount = pageDataResult.data.totalCount;
 
   const canonicalUserSlug = initialProfile.slug ?? initialProfile.id;
   if (userSlugOrId !== canonicalUserSlug) {
     const query = new URLSearchParams();
 
-    Object.entries(queryParams).forEach(([key, value]) => {
+    Object.entries(queryParams ?? {}).forEach(([key, value]) => {
       if (typeof value === "string") {
         query.append(key, value);
         return;
@@ -110,9 +113,19 @@ export default async function Page({ params, searchParams }: PageProps) {
     );
   }
 
+  if (requestedPage !== activePage) {
+    notFound();
+  }
+
   // Generate metadata
   const baseUrl = getBaseUrl();
-  const metadata = await generateProfileMetadata(initialProfile, baseUrl);
+  const baseMetadata = await generateProfileMetadata(initialProfile, baseUrl);
+  const metadata = generatePaginatedProfileMetadata({
+    baseMetadata,
+    profileSlug: canonicalUserSlug,
+    page: activePage,
+    hasNonPageStateParams: hasNonPageProfileParams(pageSearchParams),
+  });
 
   return (
     <>
@@ -133,9 +146,14 @@ export default async function Page({ params, searchParams }: PageProps) {
           </Suspense>
 
           <Suspense>
-            <CatalogContent
-              lists={initialProfile.lists}
-              initialListings={initialListings}
+            <CatalogSeoListings
+              canonicalUserSlug={canonicalUserSlug}
+              listings={initialListings}
+              profileLists={initialProfile.lists}
+              page={activePage}
+              totalPages={totalPages}
+              totalCount={totalCount}
+              searchQueryString={pageSearchParams.toString()}
             />
           </Suspense>
         </div>

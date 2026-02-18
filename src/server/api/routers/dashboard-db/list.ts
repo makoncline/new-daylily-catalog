@@ -26,7 +26,7 @@ export const dashboardDbListRouter = createTRPCRouter({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      return ctx.db.list.create({
+      const createdList = await ctx.db.list.create({
         data: {
           userId: ctx.user.id,
           title: input.title,
@@ -34,6 +34,8 @@ export const dashboardDbListRouter = createTRPCRouter({
         },
         select: listSelect,
       });
+
+      return createdList;
     }),
 
   get: protectedProcedure
@@ -89,10 +91,12 @@ export const dashboardDbListRouter = createTRPCRouter({
       if (result.count === 0) {
         throw new TRPCError({ code: "NOT_FOUND", message: "List not found" });
       }
-      return ctx.db.list.findUnique({
+      const updatedList = await ctx.db.list.findUnique({
         where: { id: input.id },
         select: listSelect,
       });
+
+      return updatedList;
     }),
 
   delete: protectedProcedure
@@ -141,13 +145,15 @@ export const dashboardDbListRouter = createTRPCRouter({
         throw new TRPCError({ code: "NOT_FOUND", message: "List not found" });
       }
 
-      return ctx.db.list.update({
+      const updatedList = await ctx.db.list.update({
         where: { id: list.id },
         data: {
           listings: { connect: { id: listing.id } },
         },
         select: listSelect,
       });
+
+      return updatedList;
     }),
 
   removeListingFromList: protectedProcedure
@@ -172,17 +178,18 @@ export const dashboardDbListRouter = createTRPCRouter({
         throw new TRPCError({ code: "NOT_FOUND", message: "List not found" });
       }
 
-      return ctx.db.list.update({
+      const updatedList = await ctx.db.list.update({
         where: { id: list.id },
         data: {
           listings: { disconnect: { id: listing.id } },
         },
         select: listSelect,
       });
+
+      return updatedList;
     }),
 
   count: protectedProcedure.query(async ({ ctx }) => {
     return ctx.db.list.count({ where: { userId: ctx.user.id } });
   }),
 });
-

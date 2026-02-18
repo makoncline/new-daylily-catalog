@@ -114,7 +114,7 @@ export const dashboardDbUserProfileRouter = createTRPCRouter({
         }
       }
 
-      return ctx.db.userProfile.upsert({
+      const updatedProfile = await ctx.db.userProfile.upsert({
         where: { userId: ctx.user.id },
         create: {
           userId: ctx.user.id,
@@ -133,12 +133,14 @@ export const dashboardDbUserProfileRouter = createTRPCRouter({
         },
         select: profileSelect,
       });
+
+      return updatedProfile;
     }),
 
   updateContent: protectedProcedure
     .input(z.object({ content: z.string().nullable() }))
     .mutation(async ({ ctx, input }) => {
-      return ctx.db.userProfile.upsert({
+      const updatedProfile = await ctx.db.userProfile.upsert({
         where: { userId: ctx.user.id },
         create: {
           userId: ctx.user.id,
@@ -150,5 +152,7 @@ export const dashboardDbUserProfileRouter = createTRPCRouter({
         },
         select: profileSelect,
       });
+
+      return updatedProfile;
     }),
 });
