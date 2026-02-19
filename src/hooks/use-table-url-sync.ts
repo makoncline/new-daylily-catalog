@@ -4,6 +4,10 @@ import * as React from "react";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { TABLE_CONFIG } from "@/config/constants";
 import { type Table } from "@tanstack/react-table";
+import {
+  parseTableUrlColumnFilterValue,
+  toTableUrlColumnFilterParamValue,
+} from "@/lib/table-url-filters";
 
 function getDefaultPageSize(pathname: string | null): number {
   if (!pathname) {
@@ -33,27 +37,25 @@ export function useUrlInitialTableState({
     (Number(searchParams.get("page")) ||
       TABLE_CONFIG.PAGINATION.DEFAULT_PAGE_INDEX + 1) - 1;
 
-  const pageSize = Number(searchParams.get("size")) || getDefaultPageSize(pathname);
+  const pageSize =
+    Number(searchParams.get("size")) || getDefaultPageSize(pathname);
   const globalFilter = searchParams.get("query") ?? undefined;
 
   // Get column filters from URL
   const columnFilters = filterableColumnIds
-    ? filterableColumnIds
-        .map((id) => {
-          const value = searchParams.get(id);
-          if (!value) return undefined;
-          // If the value contains commas, treat it as an array
-          return value.includes(",")
-            ? { id, value: value.split(",") }
-            : { id, value };
-        })
-        .filter(
-          (
-            f,
-          ): f is
-            | { id: string; value: string }
-            | { id: string; value: string[] } => f !== undefined,
-        )
+    ? filterableColumnIds.flatMap((id) => {
+        const rawValue = searchParams.get(id);
+        if (!rawValue) {
+          return [];
+        }
+
+        return [
+          {
+            id,
+            value: parseTableUrlColumnFilterValue(id, rawValue),
+          },
+        ];
+      })
     : [];
 
   return {
@@ -108,12 +110,19 @@ export function useTableUrlSync<TData>(table: Table<TData>) {
     // Then set the current column filters
     columnFilters.forEach((filter) => {
       const value = filter.value;
-      if (!value) {
+      const isEmptyValue =
+        value === undefined ||
+        value === null ||
+        (typeof value === "string" && value.length === 0) ||
+        (Array.isArray(value) && value.length === 0);
+
+      if (isEmptyValue) {
         url.searchParams.delete(filter.id);
-      } else if (Array.isArray(value)) {
-        url.searchParams.set(filter.id, value.join(","));
       } else {
-        url.searchParams.set(filter.id, JSON.stringify(value));
+        url.searchParams.set(
+          filter.id,
+          toTableUrlColumnFilterParamValue(value),
+        );
       }
     });
 

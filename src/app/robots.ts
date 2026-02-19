@@ -10,6 +10,10 @@ export default function robots(): MetadataRoute.Robots {
     "/auth-error",
     "/subscribe/success",
     "/catalog/",
+    "/*/catalog",
+    "/*/catalog?*",
+    "/*/search",
+    "/*/search?*",
   ];
 
   return {

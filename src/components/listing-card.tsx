@@ -12,6 +12,7 @@ import {
 import { ListChecks, Link2 } from "lucide-react";
 import { type RouterOutputs } from "@/trpc/react";
 import { formatPrice } from "@/lib/utils";
+import { toCultivarRouteSegment } from "@/lib/utils/cultivar-utils";
 import { OptimizedImage } from "./optimized-image";
 import { useViewListing } from "@/components/view-listing-dialog";
 import { Skeleton } from "./ui/skeleton";
@@ -20,6 +21,7 @@ import { ImagePlaceholder } from "./image-placeholder";
 import { ImagePopover } from "@/components/image-popover";
 import { AddToCartButton } from "@/components/add-to-cart-button";
 import { useDisplayAhsListing } from "@/hooks/use-display-ahs-listing";
+import Link from "next/link";
 
 type ListingCardProps = {
   listing: RouterOutputs["public"]["getListings"][number];
@@ -30,6 +32,9 @@ type ListingCardProps = {
 export function ListingCard({ listing, priority = false }: ListingCardProps) {
   const { viewListing } = useViewListing();
   const displayAhsListing = useDisplayAhsListing(listing);
+  const cultivarRouteSegment = toCultivarRouteSegment(
+    listing.cultivarReference?.normalizedName,
+  );
   const firstImage = listing.images[0];
   const hasMultipleImages = listing.images.length > 1;
 
@@ -94,13 +99,30 @@ export function ListingCard({ listing, priority = false }: ListingCardProps) {
           <div className="absolute right-2 bottom-2">
             <TooltipProvider>
               <Tooltip>
-                <TooltipTrigger>
-                  <Badge
-                    variant="secondary"
-                    className="hover:bg-secondary backdrop-blur-sm"
-                  >
-                    <Link2 className="h-3 w-3" />
-                  </Badge>
+                <TooltipTrigger asChild>
+                  {cultivarRouteSegment ? (
+                    <Link
+                      href={`/cultivar/${cultivarRouteSegment}`}
+                      onClick={(event) => event.stopPropagation()}
+                    >
+                      <Badge
+                        variant="secondary"
+                        className="hover:bg-secondary backdrop-blur-sm"
+                      >
+                        <Link2 className="h-3 w-3" />
+                        <span className="sr-only">
+                          View linked cultivar page
+                        </span>
+                      </Badge>
+                    </Link>
+                  ) : (
+                    <Badge
+                      variant="secondary"
+                      className="hover:bg-secondary backdrop-blur-sm"
+                    >
+                      <Link2 className="h-3 w-3" />
+                    </Badge>
+                  )}
                 </TooltipTrigger>
                 <TooltipContent side="top" align="end" className="p-2">
                   <div className="flex flex-col gap-1">

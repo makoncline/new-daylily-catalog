@@ -15,6 +15,7 @@ interface ProfileContentProps {
 
 export function ProfileContent({ initialProfile }: ProfileContentProps) {
   if (!initialProfile) return null;
+  const canonicalUserSlug = initialProfile.slug ?? initialProfile.id;
 
   return (
     <>
@@ -23,9 +24,9 @@ export function ProfileContent({ initialProfile }: ProfileContentProps) {
           <ProfileSection profile={initialProfile} />
         </div>
         <div className="order-2 sm:col-span-12 sm:hidden">
-          <CatalogNav />
+          <CatalogNav canonicalUserSlug={canonicalUserSlug} />
         </div>
-        <div className="order-3 sm:order-1 sm:col-span-5">
+        <div className="hidden sm:order-1 sm:col-span-5 sm:block">
           <ImagesSection
             images={initialProfile.images}
             profileTitle={initialProfile.title ?? undefined}
@@ -33,7 +34,7 @@ export function ProfileContent({ initialProfile }: ProfileContentProps) {
         </div>
       </div>
       <div className="hidden sm:block">
-        <CatalogNav />
+        <CatalogNav canonicalUserSlug={canonicalUserSlug} />
       </div>
       <ContentSection content={initialProfile.content} />
     </>

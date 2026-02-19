@@ -1,16 +1,16 @@
 "use client";
 
-import { type RouterOutputs } from "@/trpc/react";
 import { type Table } from "@tanstack/react-table";
 import { ListingCard } from "@/components/listing-card";
+import { type PublicCatalogListing } from "./public-catalog-search-types";
 
-type Listing = RouterOutputs["public"]["getListings"][number];
-
-interface ListingsTableProps {
-  table: Table<Listing>;
+interface PublicCatalogSearchTableProps {
+  table: Table<PublicCatalogListing>;
 }
 
-export function ListingsTable({ table }: ListingsTableProps) {
+export function PublicCatalogSearchTable({
+  table,
+}: PublicCatalogSearchTableProps) {
   const rows = table.getRowModel().rows;
 
   return (
