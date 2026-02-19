@@ -24,12 +24,32 @@ const CHAR_VARIANT_REGEX =
 const APOSTROPHE_REGEX = /['\u02BC]/g;
 const WHITESPACE_REGEX = /\s+/g;
 
+function toSearchableText(value: unknown): string {
+  if (typeof value === "string") {
+    return value;
+  }
+  if (
+    typeof value === "number" ||
+    typeof value === "boolean" ||
+    typeof value === "bigint"
+  ) {
+    return String(value);
+  }
+  if (typeof value === "symbol") {
+    return value.description ?? "";
+  }
+  if (value instanceof Date) {
+    return value.toISOString();
+  }
+  return "";
+}
+
 export function normalizeSearchText(value: unknown): string {
   if (value == null) {
     return "";
   }
 
-  let normalized = String(value).normalize("NFKC");
+  let normalized = toSearchableText(value).normalize("NFKC");
   normalized = normalized.replace(
     CHAR_VARIANT_REGEX,
     (character) => CHAR_VARIANT_MAP[character] ?? character,
