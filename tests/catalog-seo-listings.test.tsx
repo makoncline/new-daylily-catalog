@@ -79,5 +79,13 @@ describe("CatalogSeoListings", () => {
       "href",
       "/rollingoaksdaylilies?page=4#listings",
     );
+    expect(screen.getByTestId("legacy-top-page-prev")).toHaveAttribute(
+      "href",
+      "/rollingoaksdaylilies?page=2#listings",
+    );
+    expect(screen.getByTestId("legacy-top-page-next")).toHaveAttribute(
+      "href",
+      "/rollingoaksdaylilies?page=4#listings",
+    );
   });
 });

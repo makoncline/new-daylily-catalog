@@ -2,8 +2,7 @@ import { type Metadata } from "next";
 import { unstable_cache } from "next/cache";
 import { notFound, permanentRedirect } from "next/navigation";
 import { MainContent } from "@/app/(public)/_components/main-content";
-import { ImagesSection } from "@/app/(public)/[userSlugOrId]/_components/images-section";
-import { ProfileSection } from "@/app/(public)/[userSlugOrId]/_components/profile-section";
+import { CatalogSearchHeader } from "@/app/(public)/[userSlugOrId]/_components/catalog-search-header";
 import { Breadcrumbs } from "@/components/breadcrumbs";
 import { PublicCatalogSearchClient } from "@/components/public-catalog-search/public-catalog-search-client";
 import { PUBLIC_CACHE_CONFIG } from "@/config/public-cache-config";
@@ -121,18 +120,12 @@ export default async function CatalogSearchPage({
       </div>
 
       <div className="space-y-6">
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-12">
-          <div className="order-1 sm:order-2 sm:col-span-7">
-            <ProfileSection profile={profile} />
-          </div>
-
-          <div className="hidden sm:order-1 sm:col-span-5 sm:block">
-            <ImagesSection
-              images={profile.images}
-              profileTitle={profile.title ?? undefined}
-            />
-          </div>
-        </div>
+        <CatalogSearchHeader
+          profile={{
+            id: profile.id,
+            title: profile.title ?? null,
+          }}
+        />
 
         <PublicCatalogSearchClient
           userId={profile.id}
