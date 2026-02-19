@@ -14,6 +14,7 @@ import {
   rankings,
 } from "@tanstack/match-sorter-utils";
 import type { ColumnDef } from "@tanstack/react-table";
+import { normalizeSearchText } from "@/lib/search-normalization";
 
 interface FilterMetaWithRank {
   itemRank: RankingInfo;
@@ -23,8 +24,11 @@ interface FilterMetaWithRank {
  * Fuzzy filter function that ranks items and stores ranking info in meta
  */
 export const fuzzyFilter: FilterFn<any> = (row, columnId, value, addMeta) => {
+  const normalizedRowValue = normalizeSearchText(row.getValue(columnId));
+  const normalizedFilterValue = normalizeSearchText(value);
+
   // Rank the item with stricter threshold
-  const itemRank = rankItem(row.getValue(columnId), value, {
+  const itemRank = rankItem(normalizedRowValue, normalizedFilterValue, {
     threshold: rankings.ACRONYM,
   });
 
@@ -48,15 +52,18 @@ export const fuzzySort: SortingFn<any> = (rowA, rowB, columnId) => {
 
   // Get the global filter value
   const globalFilter = (rowA as any).table?.getState().globalFilter as string;
+  const normalizedGlobalFilter = normalizeSearchText(globalFilter);
 
-  if (globalFilter) {
+  if (normalizedGlobalFilter) {
     // Check title matches first
     const titleA = rowA.getValue("title") as string;
     const titleB = rowB.getValue("title") as string;
+    const normalizedTitleA = normalizeSearchText(titleA);
+    const normalizedTitleB = normalizeSearchText(titleB);
 
     if (titleA || titleB) {
-      const titleARank = rankItem(titleA || "", globalFilter);
-      const titleBRank = rankItem(titleB || "", globalFilter);
+      const titleARank = rankItem(normalizedTitleA, normalizedGlobalFilter);
+      const titleBRank = rankItem(normalizedTitleB, normalizedGlobalFilter);
 
       // If one has a title match and the other doesn't, prioritize the title match
       if (titleARank.passed !== titleBRank.passed) {
