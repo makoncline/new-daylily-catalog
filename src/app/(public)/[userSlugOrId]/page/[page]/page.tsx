@@ -1,16 +1,10 @@
 import { type Metadata } from "next";
 import { unstable_cache } from "next/cache";
 import { notFound, permanentRedirect } from "next/navigation";
-import { Suspense } from "react";
 import { MainContent } from "@/app/(public)/_components/main-content";
 import { PublicBreadcrumbs } from "@/app/(public)/_components/public-breadcrumbs";
 import { PUBLIC_CACHE_CONFIG } from "@/config/public-cache-config";
-import {
-  hasNonPageProfileParams,
-  parsePositiveInteger,
-  toPublicCatalogSearchParams,
-  type PublicCatalogSearchParamRecord,
-} from "@/lib/public-catalog-url-state";
+import { parsePositiveInteger } from "@/lib/public-catalog-url-state";
 import { getBaseUrl } from "@/lib/utils/getBaseUrl";
 import { getErrorCode, tryCatch } from "@/lib/utils";
 import { CatalogSeoListings } from "../../_components/catalog-seo-listings";
@@ -33,7 +27,6 @@ interface ProfilePaginatedPageProps {
     userSlugOrId: string;
     page: string;
   }>;
-  searchParams?: Promise<PublicCatalogSearchParamRecord>;
 }
 
 export async function generateStaticParams() {
@@ -42,7 +35,6 @@ export async function generateStaticParams() {
 
 export async function generateMetadata({
   params,
-  searchParams,
 }: ProfilePaginatedPageProps): Promise<Metadata> {
   const { userSlugOrId, page } = await params;
   const parsedPage = parsePositiveInteger(page, 1);
@@ -53,9 +45,6 @@ export async function generateMetadata({
     };
   }
 
-  const resolvedSearchParams = await searchParams;
-  const paramsAsUrlSearch = toPublicCatalogSearchParams(resolvedSearchParams);
-  const hasNonPageStateParams = hasNonPageProfileParams(paramsAsUrlSearch);
   const baseUrl = getBaseUrl();
   const profileResult = await tryCatch(
     getPublicProfilePageData(userSlugOrId, parsedPage),
@@ -80,13 +69,12 @@ export async function generateMetadata({
     baseMetadata,
     profileSlug: canonicalUserSlug,
     page: parsedPage,
-    hasNonPageStateParams,
+    hasNonPageStateParams: false,
   });
 }
 
 export default async function ProfilePaginatedPage({
   params,
-  searchParams,
 }: ProfilePaginatedPageProps) {
   const { userSlugOrId, page } = await params;
   const parsedPage = parsePositiveInteger(page, 1);
@@ -94,9 +82,6 @@ export default async function ProfilePaginatedPage({
   if (parsedPage < 2) {
     notFound();
   }
-
-  const pageDataQueryParams = await searchParams;
-  const pageDataSearchParams = toPublicCatalogSearchParams(pageDataQueryParams);
 
   const getPageData = unstable_cache(
     async () => getPublicProfilePageData(userSlugOrId, parsedPage),
@@ -122,9 +107,7 @@ export default async function ProfilePaginatedPage({
   const canonicalUserSlug = profile.slug ?? profile.id;
 
   if (userSlugOrId !== canonicalUserSlug) {
-    const query = new URLSearchParams(pageDataSearchParams.toString());
-    query.set("page", String(parsedPage));
-    permanentRedirect(`/${canonicalUserSlug}?${query.toString()}`);
+    permanentRedirect(`/${canonicalUserSlug}?page=${parsedPage}`);
   }
 
   const baseUrl = getBaseUrl();
@@ -133,12 +116,8 @@ export default async function ProfilePaginatedPage({
     baseMetadata,
     profileSlug: canonicalUserSlug,
     page: pageDataResult.data.page,
-    hasNonPageStateParams: hasNonPageProfileParams(pageDataSearchParams),
+    hasNonPageStateParams: false,
   });
-
-  if (!pageDataSearchParams.get("page")) {
-    pageDataSearchParams.set("page", String(parsedPage));
-  }
 
   return (
     <>
@@ -155,20 +134,16 @@ export default async function ProfilePaginatedPage({
         </div>
 
         <div className="space-y-6">
-          <Suspense>
-            <ProfileContent initialProfile={profile} />
-          </Suspense>
+          <ProfileContent initialProfile={profile} />
 
-          <Suspense>
-            <CatalogSeoListings
-              canonicalUserSlug={canonicalUserSlug}
-              listings={pageDataResult.data.items}
-              profileLists={profile.lists}
-              page={pageDataResult.data.page}
-              totalPages={pageDataResult.data.totalPages}
-              totalCount={pageDataResult.data.totalCount}
-            />
-          </Suspense>
+          <CatalogSeoListings
+            canonicalUserSlug={canonicalUserSlug}
+            listings={pageDataResult.data.items}
+            profileLists={profile.lists}
+            page={pageDataResult.data.page}
+            totalPages={pageDataResult.data.totalPages}
+            totalCount={pageDataResult.data.totalCount}
+          />
 
           <CatalogSearchPrefetch
             userId={profile.id}

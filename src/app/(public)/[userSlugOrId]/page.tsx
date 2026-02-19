@@ -1,15 +1,8 @@
-import { Suspense } from "react";
 import { unstable_cache } from "next/cache";
 import { notFound, permanentRedirect } from "next/navigation";
 import { MainContent } from "@/app/(public)/_components/main-content";
 import { PublicBreadcrumbs } from "@/app/(public)/_components/public-breadcrumbs";
 import { PUBLIC_CACHE_CONFIG } from "@/config/public-cache-config";
-import {
-  hasNonPageProfileParams,
-  parsePositiveInteger,
-  toPublicCatalogSearchParams,
-  type PublicCatalogSearchParamRecord,
-} from "@/lib/public-catalog-url-state";
 import { getBaseUrl } from "@/lib/utils/getBaseUrl";
 import { getErrorCode, tryCatch } from "@/lib/utils";
 import { CatalogSeoListings } from "./_components/catalog-seo-listings";
@@ -35,15 +28,11 @@ interface PageProps {
   params: Promise<{
     userSlugOrId: string;
   }>;
-  searchParams?: Promise<PublicCatalogSearchParamRecord>;
 }
 
-export async function generateMetadata({ params, searchParams }: PageProps) {
+export async function generateMetadata({ params }: PageProps) {
   const { userSlugOrId } = await params;
-  const resolvedSearchParams = await searchParams;
-  const paramsAsUrlSearch = toPublicCatalogSearchParams(resolvedSearchParams);
-  const page = parsePositiveInteger(paramsAsUrlSearch.get("page"), 1);
-  const hasNonPageStateParams = hasNonPageProfileParams(paramsAsUrlSearch);
+  const page = 1;
   const baseUrl = getBaseUrl();
 
   const result = await tryCatch(getPublicProfilePageData(userSlugOrId, page));
@@ -62,15 +51,13 @@ export async function generateMetadata({ params, searchParams }: PageProps) {
     baseMetadata,
     profileSlug: canonicalUserSlug,
     page,
-    hasNonPageStateParams,
+    hasNonPageStateParams: false,
   });
 }
 
-export default async function Page({ params, searchParams }: PageProps) {
+export default async function Page({ params }: PageProps) {
   const { userSlugOrId } = await params;
-  const queryParams = await searchParams;
-  const pageSearchParams = toPublicCatalogSearchParams(queryParams);
-  const requestedPage = parsePositiveInteger(pageSearchParams.get("page"), 1);
+  const requestedPage = 1;
 
   const getPageData = unstable_cache(
     async () => getPublicProfilePageData(userSlugOrId, requestedPage),
@@ -96,25 +83,7 @@ export default async function Page({ params, searchParams }: PageProps) {
 
   const canonicalUserSlug = initialProfile.slug ?? initialProfile.id;
   if (userSlugOrId !== canonicalUserSlug) {
-    const query = new URLSearchParams();
-
-    Object.entries(queryParams ?? {}).forEach(([key, value]) => {
-      if (typeof value === "string") {
-        query.append(key, value);
-        return;
-      }
-
-      if (Array.isArray(value)) {
-        value.forEach((entry) => query.append(key, entry));
-      }
-    });
-
-    const queryString = query.toString();
-    permanentRedirect(
-      queryString
-        ? `/${canonicalUserSlug}?${queryString}`
-        : `/${canonicalUserSlug}`,
-    );
+    permanentRedirect(`/${canonicalUserSlug}`);
   }
 
   if (requestedPage !== activePage) {
@@ -127,7 +96,7 @@ export default async function Page({ params, searchParams }: PageProps) {
     baseMetadata,
     profileSlug: canonicalUserSlug,
     page: activePage,
-    hasNonPageStateParams: hasNonPageProfileParams(pageSearchParams),
+    hasNonPageStateParams: false,
   });
 
   return (
@@ -145,20 +114,16 @@ export default async function Page({ params, searchParams }: PageProps) {
         </div>
 
         <div className="space-y-6">
-          <Suspense>
-            <ProfileContent initialProfile={initialProfile} />
-          </Suspense>
+          <ProfileContent initialProfile={initialProfile} />
 
-          <Suspense>
-            <CatalogSeoListings
-              canonicalUserSlug={canonicalUserSlug}
-              listings={initialListings}
-              profileLists={initialProfile.lists}
-              page={activePage}
-              totalPages={totalPages}
-              totalCount={totalCount}
-            />
-          </Suspense>
+          <CatalogSeoListings
+            canonicalUserSlug={canonicalUserSlug}
+            listings={initialListings}
+            profileLists={initialProfile.lists}
+            page={activePage}
+            totalPages={totalPages}
+            totalCount={totalCount}
+          />
 
           <CatalogSearchPrefetch
             userId={initialProfile.id}
