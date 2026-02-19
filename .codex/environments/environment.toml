@@ -4,7 +4,8 @@ name = "new-daylily-catalog"
 
 [setup]
 script = '''
-ln -sf /Users/makon/dev/new-daylily-catalog/.env.development .env.development
+ln -sfn "$(git worktree list --porcelain | awk '/^worktree /{print $2; exit}')/.env.development" .env.development
 pnpm install
+pnpm exec playwright install
 pnpm db:seed:local-dev
 '''
