@@ -1,34 +1,75 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname, useSearchParams } from "next/navigation";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
+import { parsePositiveInteger } from "@/lib/public-catalog-url-state";
 import { Skeleton } from "@/components/ui/skeleton";
 
-const sections = [
-  {
-    name: "Images",
-    href: "#images",
-  },
-  {
-    name: "About",
-    href: "#about",
-  },
-  {
-    name: "Lists",
-    href: "#lists",
-  },
-  {
-    name: "Listings",
-    href: "#listings",
-  },
-] as const;
+interface CatalogNavProps {
+  canonicalUserSlug: string;
+}
 
-export function CatalogNav() {
+function getPageFromPathname(pathname: string | null) {
+  if (!pathname) {
+    return null;
+  }
+
+  const match = /\/page\/(\d+)\/?$/.exec(pathname);
+  if (!match) {
+    return null;
+  }
+
+  return parsePositiveInteger(match[1], 1);
+}
+
+function getCatalogSearchHref(canonicalUserSlug: string, page: number) {
+  if (page > 1) {
+    return `/${canonicalUserSlug}/search?page=${page}`;
+  }
+
+  return `/${canonicalUserSlug}/search`;
+}
+
+export function CatalogNav({ canonicalUserSlug }: CatalogNavProps) {
+  const searchParams = useSearchParams();
+  const pathname = usePathname();
+  const pageFromPathname = getPageFromPathname(pathname);
+  const pageFromQuery = parsePositiveInteger(searchParams.get("page"), 1);
+  const currentPage = pageFromPathname ?? pageFromQuery;
+  const searchHref = getCatalogSearchHref(canonicalUserSlug, currentPage);
+  const sections = [
+    {
+      name: "Images",
+      href: "#images",
+    },
+    {
+      name: "About",
+      href: "#about",
+    },
+    {
+      name: "Lists",
+      href: "#lists",
+    },
+    {
+      name: "Listings",
+      href: "#listings",
+    },
+    {
+      name: "Search/filter",
+      href: searchHref,
+    },
+  ] as const;
+
   const handleClick = (
     e: React.MouseEvent<HTMLAnchorElement>,
     href: string,
   ) => {
+    if (!href.startsWith("#")) {
+      return;
+    }
+
     e.preventDefault();
     const sectionId = href.replace("#", "");
     const section = document.getElementById(sectionId);
@@ -61,7 +102,7 @@ function NavLink({
   isActive,
   onClick,
 }: {
-  section: (typeof sections)[number];
+  section: { name: string; href: string };
   isActive: boolean;
   onClick: (e: React.MouseEvent<HTMLAnchorElement>) => void;
 }) {
@@ -89,6 +130,7 @@ export function CatalogNavSkeleton() {
       <Skeleton className="h-7 w-14" />
       <Skeleton className="h-7 w-14" />
       <Skeleton className="h-7 w-14" />
+      <Skeleton className="h-7 w-24" />
     </div>
   );
 }
