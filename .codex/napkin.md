@@ -3,6 +3,8 @@
 ## Log
 
 - 2026-02-19 - static user pages redo - Re-implement PR #67 behavior from scratch on a fresh branch; use PR diff only as reference, keep component composition explicit, and avoid effect-driven derived state (follow React "You Might Not Need an Effect").
+- 2026-02-19 - e2e URL expectations - Dashboard listings filters now write plain query-string values (not JSON-quoted), so e2e `expectUrlParam` assertions should compare against raw tokens. Also with `force-static` profile page canonical redirects from `/{userId}` to `/{slug}` can drop non-page query params; tests should not assume `viewing`/`utm_*` survive that redirect.
+- 2026-02-19 - e2e timeout flake - `manage-list-page-features` can timeout on first `page.goto('/dashboard/lists/:id')` during full-suite dev-server compile churn (passes in isolation). Mark the test `test.slow()` to align timeout budget with heavier route compile cost.
 - 2026-02-19 - infinite query page params - `useInfiniteQuery` initial data in this repo expects `pageParams` with `undefined`, while `utils.public.getListings.setInfiniteData` expects `string | null`; avoid forcing one shape globally and let snapshot creation accept both (`string | null | undefined`), normalizing persisted values.
 - 2026-02-19 - requestIdleCallback narrowing - In TS with DOM libs, checking `"requestIdleCallback" in window` can narrow the fallback branch to `never`; use global `setTimeout`/`clearTimeout` in fallback instead of `window.setTimeout`.
 - 2026-02-19 - lint gotcha - `@typescript-eslint/no-empty-function` flags no-op cleanup lambdas; return `() => undefined` for intentional no-op cleanup in client helpers.

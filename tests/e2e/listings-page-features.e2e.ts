@@ -76,7 +76,7 @@ test.describe("listings page features @local", () => {
       await expectFilteredCount(1, seedMeta.totalListings);
       await expect(dashboardListings.rows()).toHaveCount(1);
       await expect(dashboardListings.listingRow(expectedTitle)).toBeVisible();
-      await expectUrlParam(urlKey, JSON.stringify(token));
+      await expectUrlParam(urlKey, token);
 
       await page.keyboard.press("Escape");
       await resetAndVerifyBaseline();
