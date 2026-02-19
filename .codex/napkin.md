@@ -2,6 +2,11 @@
 
 ## Log
 
+- 2026-02-19 - test dependency assumption - `@testing-library/user-event` is not installed in this repo; use `fireEvent` from `@testing-library/react` for integration UI tests unless dependency is explicitly added.
+- 2026-02-19 - jsdom popover gotcha - `cmdk`/Radix popover flows require a `ResizeObserver` polyfill in Vitest jsdom tests; add a minimal mock in the test when using faceted filters.
+- 2026-02-19 - jsdom cmdk scroll gotcha - Faceted filter popovers may call `scrollIntoView`; add a no-op `HTMLElement.prototype.scrollIntoView` polyfill in the test when absent.
+- 2026-02-19 - jsdom radix slider gotcha - Dual-thumb Radix slider key interactions can be inconsistent for exact step-value assertions in jsdom; keep integration assertions looser (range param exists) and verify exact range values in Playwright e2e.
+- 2026-02-19 - TS test fixture inference - Unannotated fixture objects initialized with `null` infer `null`-only property types; declare an explicit interface (`string | null`) before using `Partial<...>` overrides.
 - 2026-02-19 - static user pages redo - Re-implement PR #67 behavior from scratch on a fresh branch; use PR diff only as reference, keep component composition explicit, and avoid effect-driven derived state (follow React "You Might Not Need an Effect").
 - 2026-02-19 - static SEO route pitfall - Reading `searchParams` in server `/{slug}` and `/{slug}/page/[page]` page/metadata made responses `private, no-store` at runtime even with `force-static`. For crawl-first static behavior, keep those server files query-agnostic and handle `?page` through middleware rewrite + `/page/[page]` params only.
 - 2026-02-19 - suspense shell pitfall - Wrapping SEO profile/listings sections in `Suspense` without fallback produced shell-only initial body (`template B:*` + hidden stream payload) until JS applied it. Remove those wrappers on SEO pages when you want full content directly visible in first HTML response.
@@ -65,6 +70,9 @@
 - 2026-02-13 - e2e popover filters - Radix popover filter inputs can detach during URL-sync/table rerenders; in Playwright, target by exact placeholder and retry after `Escape` + reopen.
 - 2026-02-13 - unit test env - Importing the full `appRouter` can eagerly construct clients (e.g. Stripe) and crash if env vars are missing even with `SKIP_ENV_VALIDATION=1`; set minimal placeholder env vars or import routers directly.
 
+- 2026-02-19 - advanced search UX pattern - Range sliders should include paired number inputs (commit on blur/Enter) for precise value entry; accordion filter sections start collapsed with active-filter badge counts on triggers; removable filter chips bar between quick-filters and accordions replaces bottom reset/count footer; singleton controls (e.g. Lists) belong in the quick-filter row, not their own accordion.
+- 2026-02-19 - search mode toggle - Replaced dual Basic/Advanced buttons with a single Switch toggle inside the filter card; the sidebar panel now renders in both modes (basic shows single input + quick filters, advanced adds accordions). This keeps the search UI always visible in a sidebar layout.
+
 ## Preferences
 
 - Write tests, not too many, mostly integration, hapy path e2e.
@@ -90,6 +98,7 @@
 - Hide profile image panel on mobile for public profile header layouts (`/{slug}` and `/{slug}/search`) to prioritize text/actions and reduce above-the-fold height.
 - Route naming update: public interactive search page uses `/{slug}/search`; keep `/{slug}/catalog` as a compatibility redirect.
 - Updated preference: do not keep `/{slug}/catalog` compatibility redirect since it was introduced and removed within this PR; keep only `/{slug}/search`.
+- Search UX preference: `/{slug}/search` should provide both all-fields search and title-only search, and pressing `Enter` in the search form should scroll to the listings summary so the `x / n listings` context stays visible.
 
 ## Patterns That Work
 
