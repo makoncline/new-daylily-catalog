@@ -21,18 +21,26 @@ import { useDataTable } from "@/hooks/use-data-table";
 import { DataTableDownload } from "@/components/data-table";
 import { slugify } from "@/lib/utils/slugify";
 import { DataTableFilteredCount } from "@/components/data-table/data-table-filtered-count";
-import { eq, useLiveQuery } from "@tanstack/react-db";
+import { useLiveQuery } from "@tanstack/react-db";
 import {
   listsCollection,
   removeListingFromList,
-  type ListCollectionItem,
 } from "@/app/dashboard/_lib/dashboard-db/lists-collection";
 import { listingsCollection } from "@/app/dashboard/_lib/dashboard-db/listings-collection";
+import { imagesCollection } from "@/app/dashboard/_lib/dashboard-db/images-collection";
+import { cultivarReferencesCollection } from "@/app/dashboard/_lib/dashboard-db/cultivar-references-collection";
 import { getQueryClient } from "@/trpc/query-client";
+import { type RouterOutputs } from "@/trpc/react";
+import type { Image } from "@prisma/client";
 
 interface ListListingsTableProps {
   listId: string;
 }
+
+type List = RouterOutputs["dashboardDb"]["list"]["list"][number];
+type Listing = RouterOutputs["dashboardDb"]["listing"]["list"][number];
+type CultivarReference =
+  RouterOutputs["dashboardDb"]["cultivarReference"]["listForUserListings"][number];
 
 const tableOptions = {
   pinnedColumns: {
@@ -126,38 +134,118 @@ function ListingsTableToolbar({ table, listId }: ListingsTableToolbarProps) {
 }
 
 export function ListListingsTable({ listId }: ListListingsTableProps) {
-  const { data: liveLists = [], isReady: isListsReady } = useLiveQuery(
+  const { data: lists = [], isReady: isListsReady } = useLiveQuery(
     (q) =>
-      q.from({ list: listsCollection }).where(({ list }) => eq(list.id, listId)),
-    [listId],
+      q
+        .from({ list: listsCollection })
+        .orderBy(({ list }) => list.createdAt, "desc"),
   );
-  const liveList = liveLists[0] ?? null;
-
-  const { data: liveListings = [], isReady: isListingsReady } = useLiveQuery(
+  const { data: baseListings = [], isReady: isListingsReady } = useLiveQuery(
     (q) =>
       q
         .from({ listing: listingsCollection })
         .orderBy(({ listing }) => listing.createdAt, "desc"),
   );
+  const { data: images = [], isReady: isImagesReady } = useLiveQuery((q) =>
+    q
+      .from({ img: imagesCollection })
+      .orderBy(({ img }) => img.updatedAt, "asc"),
+  );
+  const { data: cultivarReferences = [], isReady: isCultivarReferencesReady } =
+    useLiveQuery((q) =>
+      q
+        .from({ ref: cultivarReferencesCollection })
+        .orderBy(({ ref }) => ref.updatedAt, "asc"),
+    );
 
   const queryClient = getQueryClient();
   const seededLists =
-    queryClient.getQueryData<ListCollectionItem[]>(["dashboard-db", "lists"]) ??
-    [];
-  const seededList = seededLists.find((row) => row.id === listId) ?? null;
-
-  const list = isListsReady ? (liveList ?? seededList) : seededList;
-
+    queryClient.getQueryData<List[]>(["dashboard-db", "lists"]) ?? [];
   const seededListings =
-    queryClient.getQueryData<ListingData[]>(["dashboard-db", "listings"]) ?? [];
-  const allListings = isListingsReady ? liveListings : seededListings;
+    queryClient.getQueryData<Listing[]>(["dashboard-db", "listings"]) ?? [];
+  const seededImages =
+    queryClient.getQueryData<Image[]>(["dashboard-db", "images"]) ?? [];
+  const seededCultivarReferences =
+    queryClient.getQueryData<CultivarReference[]>([
+      "dashboard-db",
+      "cultivar-references",
+    ]) ?? [];
 
-  const listings = React.useMemo(() => {
-    if (!list?.listings?.length) return [];
+  const effectiveLists = isListsReady ? lists : seededLists;
+  const effectiveListings = isListingsReady ? baseListings : seededListings;
+  const effectiveImages = isImagesReady ? images : seededImages;
+  const effectiveCultivarReferences = isCultivarReferencesReady
+    ? cultivarReferences
+    : seededCultivarReferences;
 
-    const ids = new Set(list.listings.map(({ id }) => id));
-    return allListings.filter((listing) => ids.has(listing.id));
-  }, [allListings, list]);
+  const list = effectiveLists.find((row) => row.id === listId) ?? null;
+
+  const listingIdsInList = React.useMemo(() => {
+    if (!list?.listings?.length) return new Set<string>();
+    return new Set(list.listings.map(({ id }) => id));
+  }, [list]);
+
+  const listsByListingId = React.useMemo(() => {
+    const map = new Map<string, Array<Pick<List, "id" | "title">>>();
+
+    for (const listRow of effectiveLists) {
+      for (const { id: listingId } of listRow.listings) {
+        const row = map.get(listingId) ?? [];
+        row.push({ id: listRow.id, title: listRow.title });
+        map.set(listingId, row);
+      }
+    }
+
+    return map;
+  }, [effectiveLists]);
+
+  const imagesByListingId = React.useMemo(() => {
+    const map = new Map<string, Image[]>();
+
+    for (const img of effectiveImages) {
+      if (!img.listingId) continue;
+      const row = map.get(img.listingId) ?? [];
+      row.push(img);
+      map.set(img.listingId, row);
+    }
+
+    for (const row of map.values()) {
+      row.sort((a, b) => a.order - b.order);
+    }
+
+    return map;
+  }, [effectiveImages]);
+
+  const cultivarReferenceById = React.useMemo(() => {
+    const map = new Map<string, CultivarReference>();
+    effectiveCultivarReferences.forEach((row) => map.set(row.id, row));
+    return map;
+  }, [effectiveCultivarReferences]);
+
+  const listings = React.useMemo<ListingData[]>(() => {
+    if (!listingIdsInList.size) return [];
+
+    return effectiveListings
+      .filter((listing) => listingIdsInList.has(listing.id))
+      .map((listing) => {
+        const ref = listing.cultivarReferenceId
+          ? cultivarReferenceById.get(listing.cultivarReferenceId)
+          : null;
+
+        return {
+          ...listing,
+          images: imagesByListingId.get(listing.id) ?? [],
+          lists: listsByListingId.get(listing.id) ?? [],
+          ahsListing: ref?.ahsListing ?? null,
+        };
+      });
+  }, [
+    cultivarReferenceById,
+    effectiveListings,
+    imagesByListingId,
+    listingIdsInList,
+    listsByListingId,
+  ]);
 
   const columns = getColumns();
 
