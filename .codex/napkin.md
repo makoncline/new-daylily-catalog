@@ -142,3 +142,6 @@
 ## Domain Notes
 
 - Occasional server-side `ECONNRESET` or transient tRPC errors may appear during runs; prioritize actual test assertion failures over noisy logs.
+- 2026-02-20 - repeat globbing self-miss - I still triggered zsh `no matches found` by running `rg/sed` against unquoted App Router paths with `[listId]`; quote dynamic segment paths every time in shell commands.
+- 2026-02-20 - column parity pattern - To prevent dashboard/manage-list divergence, compose manage-list columns from `baseListingColumns` and only add local utility columns like `select`.
+- 2026-02-20 - globbing recurrence - I repeated the `[listId]` quoting miss again during `git diff`; always quote these paths even in final status/diff commands.
