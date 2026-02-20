@@ -1,10 +1,12 @@
 import { createAuthedUser } from "../../src/lib/test-utils/e2e-users";
 import { withTempE2EDb } from "../../src/lib/test-utils/e2e-db";
+import { PUBLIC_PROFILE_LISTINGS_PAGE_SIZE } from "../../src/config/constants";
 import { test, expect } from "./fixtures/app-fixtures";
 
 const PROFILE_SLUG = "static-first-response-farm";
 const PROFILE_TITLE = "Static First Response Farm";
 const LISTING_TITLE_PREFIX = "Static First Listing";
+const LISTING_COUNT_FOR_TWO_PAGES = PUBLIC_PROFILE_LISTINGS_PAGE_SIZE + 1;
 
 function pad(value: number) {
   return String(value).padStart(3, "0");
@@ -25,7 +27,7 @@ test.describe("public profile first-response content @local", () => {
         },
       });
 
-      for (let i = 1; i <= 13; i++) {
+      for (let i = 1; i <= LISTING_COUNT_FOR_TWO_PAGES; i++) {
         const suffix = pad(i);
         await db.listing.create({
           data: {
@@ -57,6 +59,8 @@ test.describe("public profile first-response content @local", () => {
   test("first HTML response contains profile and listing content for page 1 and page 2", async ({
     request,
   }) => {
+    const page2FirstListingTitle = `${LISTING_TITLE_PREFIX} ${pad(LISTING_COUNT_FOR_TWO_PAGES)}`;
+
     const page1Response = await request.get(`/${PROFILE_SLUG}`);
     expect(page1Response.status()).toBe(200);
     const page1Html = await page1Response.text();
@@ -65,7 +69,7 @@ test.describe("public profile first-response content @local", () => {
     const page2Response = await request.get(`/${PROFILE_SLUG}?page=2`);
     expect(page2Response.status()).toBe(200);
     const page2Html = await page2Response.text();
-    await assertFirstDocumentContent(page2Html, `${LISTING_TITLE_PREFIX} 013`);
+    await assertFirstDocumentContent(page2Html, page2FirstListingTitle);
 
     const page1Prerender = page1Response.headers()["x-nextjs-prerender"];
     const page2Prerender = page2Response.headers()["x-nextjs-prerender"];
