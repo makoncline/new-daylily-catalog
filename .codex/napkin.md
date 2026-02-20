@@ -113,6 +113,7 @@
 - Search UX preference: `/{slug}/search` should provide both all-fields search and title-only search, and pressing `Enter` in the search form should scroll to the listings summary so the `x / n listings` context stays visible.
 - Listing card UX preference: on `/{slug}` and `/{slug}/search`, titles should wrap and shrink before truncation, with middle truncation only past a hard upper-length cap.
 - `/{slug}` lists section preference: show a `For Sale` list card when the catalog has any for-sale listings, linking to `/{slug}/search?price=true`.
+- `/{slug}` SEO listings pagination preference: sort for-sale listings first, then keep the existing alphabetical ordering rules within that group.
 
 ## Patterns That Work
 

@@ -84,21 +84,46 @@ const publicListingVisibilityFilter: Prisma.ListingWhereInput = {
   OR: [{ status: null }, { NOT: { status: STATUS.HIDDEN } }],
 };
 
-async function getSortedPublicListingIds(userId: string): Promise<string[]> {
-  const rows = await db.$queryRaw<Array<{ id: string }>>(Prisma.sql`
-    SELECT "id"
-    FROM "Listing"
-    WHERE "userId" = ${userId}
-      AND ("status" IS NULL OR "status" <> ${STATUS.HIDDEN})
-    ORDER BY
-      CASE
-        WHEN LTRIM("title") GLOB '[A-Za-z]*' THEN 0
-        WHEN LTRIM("title") GLOB '[0-9]*' THEN 1
-        ELSE 2
-      END,
-      LTRIM("title") COLLATE NOCASE ASC,
-      "id" ASC
-  `);
+async function getSortedPublicListingIds(
+  userId: string,
+  options?: {
+    forSaleFirst?: boolean;
+  },
+): Promise<string[]> {
+  const forSaleFirst = options?.forSaleFirst ?? false;
+  const rows = forSaleFirst
+    ? await db.$queryRaw<Array<{ id: string }>>(Prisma.sql`
+        SELECT "id"
+        FROM "Listing"
+        WHERE "userId" = ${userId}
+          AND ("status" IS NULL OR "status" <> ${STATUS.HIDDEN})
+        ORDER BY
+          CASE
+            WHEN COALESCE("price", 0) > 0 THEN 0
+            ELSE 1
+          END,
+          CASE
+            WHEN LTRIM("title") GLOB '[A-Za-z]*' THEN 0
+            WHEN LTRIM("title") GLOB '[0-9]*' THEN 1
+            ELSE 2
+          END,
+          LTRIM("title") COLLATE NOCASE ASC,
+          "id" ASC
+      `)
+    : await db.$queryRaw<Array<{ id: string }>>(Prisma.sql`
+        SELECT "id"
+        FROM "Listing"
+        WHERE "userId" = ${userId}
+          AND ("status" IS NULL OR "status" <> ${STATUS.HIDDEN})
+        ORDER BY
+          CASE
+            WHEN LTRIM("title") GLOB '[A-Za-z]*' THEN 0
+            WHEN LTRIM("title") GLOB '[0-9]*' THEN 1
+            ELSE 2
+          END,
+          LTRIM("title") COLLATE NOCASE ASC,
+          "id" ASC
+      `);
 
   return rows.map((row) => row.id);
 }
@@ -184,7 +209,9 @@ export async function getPublicListingsPage({
   pageSize = PUBLIC_PROFILE_LISTINGS_PAGE_SIZE,
 }: GetPublicListingsPageArgs) {
   const userId = await getUserIdFromSlugOrId(userSlugOrId);
-  const sortedIds = await getSortedPublicListingIds(userId);
+  const sortedIds = await getSortedPublicListingIds(userId, {
+    forSaleFirst: true,
+  });
   const totalCount = sortedIds.length;
   const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
   const boundedPage = Math.min(Math.max(page, 1), totalPages);
