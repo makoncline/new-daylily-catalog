@@ -6,7 +6,7 @@ import { PageHeader } from "./page-header";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
-import { Package, ListChecks, User } from "lucide-react";
+import { Package, ListChecks, Tag, User } from "lucide-react";
 import { Step } from "./step";
 import { catalogSteps, profileSteps } from "./steps-data";
 import {
@@ -195,6 +195,12 @@ export function DashboardPageClient({
                       <Link href="/dashboard/lists">
                         <ListChecks className="mr-2 h-4 w-4" />
                         Manage Lists
+                      </Link>
+                    </Button>
+                    <Button size="lg" variant="outline" asChild>
+                      <Link href="/dashboard/tags">
+                        <Tag className="mr-2 h-4 w-4" />
+                        Print Tags
                       </Link>
                     </Button>
                   </div>

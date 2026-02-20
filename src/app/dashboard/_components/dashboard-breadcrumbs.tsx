@@ -18,9 +18,11 @@ export function DashboardBreadcrumbs() {
         { title: "Home", href: "/" },
         { title: "Dashboard", href: "/dashboard" },
         ...(pathname === "/dashboard/listings"
-          ? [{ title: "Listings" }]
+            ? [{ title: "Listings" }]
           : pathname === "/dashboard/lists"
             ? [{ title: "Lists" }]
+            : pathname === "/dashboard/tags"
+              ? [{ title: "Tags" }]
             : pathname === "/dashboard/profile"
               ? [{ title: "Profile" }]
               : pathname.startsWith("/dashboard/lists/")
