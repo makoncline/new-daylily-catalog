@@ -2,6 +2,7 @@ import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { protectedProcedure, createTRPCRouter } from "@/server/api/trpc";
 import { generateUniqueSlug } from "@/lib/utils/slugify-server";
+import { revalidatePublicCatalogRoutes } from "@/server/cache/revalidate-public-catalog-routes";
 
 const listingSelect = {
   id: true,
@@ -46,7 +47,7 @@ export const dashboardDbListingRouter = createTRPCRouter({
         ctx.db,
       );
 
-      return ctx.db.listing.create({
+      const createdListing = await ctx.db.listing.create({
         data: {
           userId: ctx.user.id,
           title: input.title,
@@ -55,6 +56,13 @@ export const dashboardDbListingRouter = createTRPCRouter({
         },
         select: listingSelect,
       });
+
+      await revalidatePublicCatalogRoutes({
+        db: ctx.db,
+        userId: ctx.user.id,
+      });
+
+      return createdListing;
     }),
 
   get: protectedProcedure
@@ -137,7 +145,7 @@ export const dashboardDbListingRouter = createTRPCRouter({
         ? await generateUniqueSlug(nextTitle, ctx.user.id, listing.id, ctx.db)
         : undefined;
 
-      return ctx.db.listing.update({
+      const updatedListing = await ctx.db.listing.update({
         where: { id: listing.id },
         data: {
           cultivarReferenceId: cultivarReference.id,
@@ -146,6 +154,13 @@ export const dashboardDbListingRouter = createTRPCRouter({
         },
         select: listingSelect,
       });
+
+      await revalidatePublicCatalogRoutes({
+        db: ctx.db,
+        userId: ctx.user.id,
+      });
+
+      return updatedListing;
     }),
 
   unlinkAhs: protectedProcedure
@@ -159,11 +174,18 @@ export const dashboardDbListingRouter = createTRPCRouter({
         throw new TRPCError({ code: "NOT_FOUND", message: "Listing not found" });
       }
 
-      return ctx.db.listing.update({
+      const updatedListing = await ctx.db.listing.update({
         where: { id: listing.id },
         data: { cultivarReferenceId: null },
         select: listingSelect,
       });
+
+      await revalidatePublicCatalogRoutes({
+        db: ctx.db,
+        userId: ctx.user.id,
+      });
+
+      return updatedListing;
     }),
 
   syncAhsName: protectedProcedure
@@ -193,11 +215,18 @@ export const dashboardDbListingRouter = createTRPCRouter({
         ctx.db,
       );
 
-      return ctx.db.listing.update({
+      const updatedListing = await ctx.db.listing.update({
         where: { id: listing.id },
         data: { title: name, slug: nextSlug },
         select: listingSelect,
       });
+
+      await revalidatePublicCatalogRoutes({
+        db: ctx.db,
+        userId: ctx.user.id,
+      });
+
+      return updatedListing;
     }),
 
   update: protectedProcedure
@@ -248,6 +277,12 @@ export const dashboardDbListingRouter = createTRPCRouter({
         where: { id: input.id },
         select: listingSelect,
       });
+
+      await revalidatePublicCatalogRoutes({
+        db: ctx.db,
+        userId: ctx.user.id,
+      });
+
       return updated!;
     }),
 
@@ -284,6 +319,11 @@ export const dashboardDbListingRouter = createTRPCRouter({
             data: { updatedAt: new Date() },
           });
         }
+      });
+
+      await revalidatePublicCatalogRoutes({
+        db: ctx.db,
+        userId: ctx.user.id,
       });
 
       return { id: listing.id } as const;

@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { protectedProcedure, createTRPCRouter } from "@/server/api/trpc";
+import { revalidatePublicCatalogRoutes } from "@/server/cache/revalidate-public-catalog-routes";
 
 const listSelect = {
   id: true,
@@ -26,7 +27,7 @@ export const dashboardDbListRouter = createTRPCRouter({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      return ctx.db.list.create({
+      const createdList = await ctx.db.list.create({
         data: {
           userId: ctx.user.id,
           title: input.title,
@@ -34,6 +35,13 @@ export const dashboardDbListRouter = createTRPCRouter({
         },
         select: listSelect,
       });
+
+      await revalidatePublicCatalogRoutes({
+        db: ctx.db,
+        userId: ctx.user.id,
+      });
+
+      return createdList;
     }),
 
   get: protectedProcedure
@@ -89,10 +97,17 @@ export const dashboardDbListRouter = createTRPCRouter({
       if (result.count === 0) {
         throw new TRPCError({ code: "NOT_FOUND", message: "List not found" });
       }
-      return ctx.db.list.findUnique({
+      const updatedList = await ctx.db.list.findUnique({
         where: { id: input.id },
         select: listSelect,
       });
+
+      await revalidatePublicCatalogRoutes({
+        db: ctx.db,
+        userId: ctx.user.id,
+      });
+
+      return updatedList;
     }),
 
   delete: protectedProcedure
@@ -116,6 +131,12 @@ export const dashboardDbListRouter = createTRPCRouter({
       }
 
       await ctx.db.list.delete({ where: { id: list.id } });
+
+      await revalidatePublicCatalogRoutes({
+        db: ctx.db,
+        userId: ctx.user.id,
+      });
+
       return { id: list.id } as const;
     }),
 
@@ -141,13 +162,20 @@ export const dashboardDbListRouter = createTRPCRouter({
         throw new TRPCError({ code: "NOT_FOUND", message: "List not found" });
       }
 
-      return ctx.db.list.update({
+      const updatedList = await ctx.db.list.update({
         where: { id: list.id },
         data: {
           listings: { connect: { id: listing.id } },
         },
         select: listSelect,
       });
+
+      await revalidatePublicCatalogRoutes({
+        db: ctx.db,
+        userId: ctx.user.id,
+      });
+
+      return updatedList;
     }),
 
   removeListingFromList: protectedProcedure
@@ -172,17 +200,23 @@ export const dashboardDbListRouter = createTRPCRouter({
         throw new TRPCError({ code: "NOT_FOUND", message: "List not found" });
       }
 
-      return ctx.db.list.update({
+      const updatedList = await ctx.db.list.update({
         where: { id: list.id },
         data: {
           listings: { disconnect: { id: listing.id } },
         },
         select: listSelect,
       });
+
+      await revalidatePublicCatalogRoutes({
+        db: ctx.db,
+        userId: ctx.user.id,
+      });
+
+      return updatedList;
     }),
 
   count: protectedProcedure.query(async ({ ctx }) => {
     return ctx.db.list.count({ where: { userId: ctx.user.id } });
   }),
 });
-

@@ -9,6 +9,7 @@ import crypto from "node:crypto";
 import path from "node:path";
 import { imageTypeSchema } from "@/types/image";
 import type { db } from "@/server/db";
+import { revalidatePublicCatalogRoutes } from "@/server/cache/revalidate-public-catalog-routes";
 
 const imageSelect = {
   id: true,
@@ -152,7 +153,7 @@ export const dashboardDbImageRouter = createTRPCRouter({
 
       const currentCount = await ctx.db.image.count({ where: whereClause });
 
-      return ctx.db.image.create({
+      const createdImage = await ctx.db.image.create({
         data: {
           url: input.url,
           order: currentCount,
@@ -162,6 +163,13 @@ export const dashboardDbImageRouter = createTRPCRouter({
         },
         select: imageSelect,
       });
+
+      await revalidatePublicCatalogRoutes({
+        db: ctx.db,
+        userId: ctx.user.id,
+      });
+
+      return createdImage;
     }),
 
   reorder: protectedProcedure
@@ -212,6 +220,11 @@ export const dashboardDbImageRouter = createTRPCRouter({
         ),
       );
 
+      await revalidatePublicCatalogRoutes({
+        db: ctx.db,
+        userId: ctx.user.id,
+      });
+
       return { success: true } as const;
     }),
 
@@ -252,6 +265,11 @@ export const dashboardDbImageRouter = createTRPCRouter({
             }),
           ),
         );
+      });
+
+      await revalidatePublicCatalogRoutes({
+        db: ctx.db,
+        userId: ctx.user.id,
       });
 
       return { success: true } as const;

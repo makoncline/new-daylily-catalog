@@ -4,6 +4,7 @@ import { createTRPCRouter, protectedProcedure } from "@/server/api/trpc";
 import { slugSchema } from "@/types/schemas/profile";
 import { isValidSlug } from "@/lib/utils/slugify";
 import type { PrismaClient } from "@prisma/client";
+import { revalidatePublicCatalogRoutes } from "@/server/cache/revalidate-public-catalog-routes";
 
 const profileSelect = {
   id: true,
@@ -87,6 +88,15 @@ export const dashboardDbUserProfileRouter = createTRPCRouter({
       }),
     )
     .mutation(async ({ ctx, input }) => {
+      const currentProfile = await ctx.db.userProfile.findUnique({
+        where: {
+          userId: ctx.user.id,
+        },
+        select: {
+          slug: true,
+        },
+      });
+
       const shouldProcessSlug = Object.prototype.hasOwnProperty.call(
         input.data,
         "slug",
@@ -114,7 +124,7 @@ export const dashboardDbUserProfileRouter = createTRPCRouter({
         }
       }
 
-      return ctx.db.userProfile.upsert({
+      const updatedProfile = await ctx.db.userProfile.upsert({
         where: { userId: ctx.user.id },
         create: {
           userId: ctx.user.id,
@@ -133,12 +143,22 @@ export const dashboardDbUserProfileRouter = createTRPCRouter({
         },
         select: profileSelect,
       });
+
+      await revalidatePublicCatalogRoutes({
+        db: ctx.db,
+        userId: ctx.user.id,
+        additionalUserSegments: currentProfile?.slug
+          ? [currentProfile.slug]
+          : undefined,
+      });
+
+      return updatedProfile;
     }),
 
   updateContent: protectedProcedure
     .input(z.object({ content: z.string().nullable() }))
     .mutation(async ({ ctx, input }) => {
-      return ctx.db.userProfile.upsert({
+      const updatedProfile = await ctx.db.userProfile.upsert({
         where: { userId: ctx.user.id },
         create: {
           userId: ctx.user.id,
@@ -150,5 +170,12 @@ export const dashboardDbUserProfileRouter = createTRPCRouter({
         },
         select: profileSelect,
       });
+
+      await revalidatePublicCatalogRoutes({
+        db: ctx.db,
+        userId: ctx.user.id,
+      });
+
+      return updatedProfile;
     }),
 });
