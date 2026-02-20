@@ -1,22 +1,13 @@
 import { type Metadata } from "next";
-import { unstable_cache } from "next/cache";
 import { notFound, permanentRedirect } from "next/navigation";
-import { MainContent } from "@/app/(public)/_components/main-content";
-import { PublicBreadcrumbs } from "@/app/(public)/_components/public-breadcrumbs";
-import { PUBLIC_CACHE_CONFIG } from "@/config/public-cache-config";
 import { parsePositiveInteger } from "@/lib/public-catalog-url-state";
-import { getBaseUrl } from "@/lib/utils/getBaseUrl";
 import { getErrorCode, tryCatch } from "@/lib/utils";
-import { CatalogSeoListings } from "../../_components/catalog-seo-listings";
-import { CatalogSearchPrefetch } from "../../_components/catalog-search-prefetch";
-import { ProfileContent } from "../../_components/profile-content";
-import { ProfilePageSEO } from "../../_components/profile-seo";
+import { PublicProfilePageShell } from "../../_components/public-profile-page-shell";
+import { buildPublicProfilePageModel } from "../../_lib/public-profile-model";
 import {
   getPublicProfilePageData,
   getPublicProfilePaginatedStaticParams,
 } from "../../_lib/public-profile-route";
-import { generatePaginatedProfileMetadata } from "../../_seo/paginated-metadata";
-import { generateProfileMetadata } from "../../_seo/metadata";
 
 export const revalidate = 86400;
 export const dynamic = "force-static";
@@ -45,7 +36,6 @@ export async function generateMetadata({
     };
   }
 
-  const baseUrl = getBaseUrl();
   const profileResult = await tryCatch(
     getPublicProfilePageData(userSlugOrId, parsedPage),
   );
@@ -58,19 +48,8 @@ export async function generateMetadata({
     };
   }
 
-  const baseMetadata = await generateProfileMetadata(
-    profileResult.data.profile,
-    baseUrl,
-  );
-  const canonicalUserSlug =
-    profileResult.data.profile.slug ?? profileResult.data.profile.id;
-
-  return generatePaginatedProfileMetadata({
-    baseMetadata,
-    profileSlug: canonicalUserSlug,
-    page: parsedPage,
-    hasNonPageStateParams: false,
-  });
+  const model = await buildPublicProfilePageModel(profileResult.data);
+  return model.seo.metadata;
 }
 
 export default async function ProfilePaginatedPage({
@@ -83,13 +62,9 @@ export default async function ProfilePaginatedPage({
     notFound();
   }
 
-  const getPageData = unstable_cache(
-    async () => getPublicProfilePageData(userSlugOrId, parsedPage),
-    ["profile-listings-page", userSlugOrId, String(parsedPage)],
-    { revalidate: PUBLIC_CACHE_CONFIG.REVALIDATE_SECONDS.PAGE.PROFILE },
+  const pageDataResult = await tryCatch(
+    getPublicProfilePageData(userSlugOrId, parsedPage),
   );
-
-  const pageDataResult = await tryCatch(getPageData());
 
   if (getErrorCode(pageDataResult.error) === "NOT_FOUND") {
     notFound();
@@ -103,55 +78,13 @@ export default async function ProfilePaginatedPage({
     notFound();
   }
 
-  const profile = pageDataResult.data.profile;
-  const canonicalUserSlug = profile.slug ?? profile.id;
+  const pageData = pageDataResult.data;
+  const model = await buildPublicProfilePageModel(pageData);
+  const canonicalUserSlug = model.canonicalUserSlug;
 
   if (userSlugOrId !== canonicalUserSlug) {
     permanentRedirect(`/${canonicalUserSlug}?page=${parsedPage}`);
   }
 
-  const baseUrl = getBaseUrl();
-  const baseMetadata = await generateProfileMetadata(profile, baseUrl);
-  const metadata = generatePaginatedProfileMetadata({
-    baseMetadata,
-    profileSlug: canonicalUserSlug,
-    page: pageDataResult.data.page,
-    hasNonPageStateParams: false,
-  });
-
-  return (
-    <>
-      <ProfilePageSEO
-        profile={profile}
-        listings={pageDataResult.data.items}
-        metadata={metadata}
-        baseUrl={baseUrl}
-      />
-
-      <MainContent>
-        <div className="mb-6">
-          <PublicBreadcrumbs profile={profile} />
-        </div>
-
-        <div className="space-y-6">
-          <ProfileContent initialProfile={profile} />
-
-          <CatalogSeoListings
-            canonicalUserSlug={canonicalUserSlug}
-            listings={pageDataResult.data.items}
-            profileLists={profile.lists}
-            page={pageDataResult.data.page}
-            totalPages={pageDataResult.data.totalPages}
-            totalCount={pageDataResult.data.totalCount}
-            forSaleCount={pageDataResult.data.forSaleCount}
-          />
-
-          <CatalogSearchPrefetch
-            userId={profile.id}
-            userSlugOrId={canonicalUserSlug}
-          />
-        </div>
-      </MainContent>
-    </>
-  );
+  return <PublicProfilePageShell model={model} />;
 }

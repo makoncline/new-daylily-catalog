@@ -1,7 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import { type RouterOutputs } from "@/trpc/react";
 import { ProfileContent } from "@/app/(public)/[userSlugOrId]/_components/profile-content";
+import { type ProfileSectionData } from "@/app/(public)/[userSlugOrId]/_components/profile-section";
 
 vi.mock("@/app/(public)/[userSlugOrId]/_components/profile-section", () => ({
   ProfileSection: () => <div data-testid="profile-section" />,
@@ -23,13 +23,11 @@ vi.mock("@/app/(public)/[userSlugOrId]/_components/catalog-nav", () => ({
 
 describe("ProfileContent", () => {
   it("keeps image panel visible in mobile layout classes", () => {
-    const profile: RouterOutputs["public"]["getProfile"] = {
+    const profileSection: ProfileSectionData = {
       id: "user-1",
-      slug: "seeded-daylily",
       title: "Seeded Daylily Garden",
       description: null,
       location: null,
-      images: [],
       createdAt: new Date("2025-01-01T00:00:00.000Z"),
       updatedAt: new Date("2025-01-02T00:00:00.000Z"),
       _count: {
@@ -37,10 +35,17 @@ describe("ProfileContent", () => {
       },
       lists: [],
       hasActiveSubscription: false,
-      content: null,
     };
 
-    render(<ProfileContent initialProfile={profile} />);
+    render(
+      <ProfileContent
+        canonicalUserSlug="seeded-daylily"
+        profileSection={profileSection}
+        images={[]}
+        profileTitle="Seeded Daylily Garden"
+        content={null}
+      />,
+    );
 
     const imageWrapper = screen.getByTestId("images-section").parentElement;
 

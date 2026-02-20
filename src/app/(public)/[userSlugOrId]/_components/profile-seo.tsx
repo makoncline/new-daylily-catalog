@@ -4,12 +4,11 @@ import {
   createUserProfileBreadcrumbs,
 } from "@/lib/utils/breadcrumbs";
 
-// Define types using types from the functions directly
 type Profile = Parameters<typeof generateProfilePageJsonLd>[0];
 type Listings = Parameters<typeof generateProfilePageJsonLd>[1];
 type Metadata = Parameters<typeof generateProfilePageJsonLd>[2];
 
-interface ProfilePageSEOProps {
+export interface ProfilePageSEOProps {
   profile: Profile;
   listings: Listings;
   metadata: Metadata;

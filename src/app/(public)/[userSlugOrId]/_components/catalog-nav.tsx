@@ -1,14 +1,29 @@
 "use client";
 
+import type { MouseEvent } from "react";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
+import { Skeleton } from "@/components/ui/skeleton";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
-import { parsePositiveInteger } from "@/lib/public-catalog-url-state";
-import { Skeleton } from "@/components/ui/skeleton";
+import {
+  getPublicCatalogSearchPath,
+  parsePositiveInteger,
+} from "@/lib/public-catalog-url-state";
 
 interface CatalogNavProps {
   canonicalUserSlug: string;
+}
+
+interface CatalogNavSection {
+  name: string;
+  href: string;
+  isActive: boolean;
+}
+
+export interface CatalogNavViewProps {
+  sections: CatalogNavSection[];
+  onSectionClick: (e: MouseEvent<HTMLAnchorElement>, href: string) => void;
 }
 
 function getPageFromPathname(pathname: string | null) {
@@ -24,58 +39,63 @@ function getPageFromPathname(pathname: string | null) {
   return parsePositiveInteger(match[1], 1);
 }
 
-function getCatalogSearchHref(canonicalUserSlug: string, page: number) {
-  if (page > 1) {
-    return `/${canonicalUserSlug}/search?page=${page}`;
-  }
-
-  return `/${canonicalUserSlug}/search`;
-}
-
-export function CatalogNav({ canonicalUserSlug }: CatalogNavProps) {
+export function useCatalogNavViewProps({
+  canonicalUserSlug,
+}: CatalogNavProps): CatalogNavViewProps {
   const searchParams = useSearchParams();
   const pathname = usePathname();
   const pageFromPathname = getPageFromPathname(pathname);
   const pageFromQuery = parsePositiveInteger(searchParams.get("page"), 1);
   const currentPage = pageFromPathname ?? pageFromQuery;
-  const searchHref = getCatalogSearchHref(canonicalUserSlug, currentPage);
+  const searchHref = getPublicCatalogSearchPath(canonicalUserSlug, currentPage);
   const sections = [
     {
       name: "Images",
       href: "#images",
+      isActive: false,
     },
     {
       name: "About",
       href: "#about",
+      isActive: false,
     },
     {
       name: "Lists",
       href: "#lists",
+      isActive: false,
     },
     {
       name: "Listings",
       href: "#listings",
+      isActive: false,
     },
     {
       name: "Search/filter",
       href: searchHref,
+      // Keep only route-level active state for the cross-page link.
+      isActive: pathname.startsWith(`/${canonicalUserSlug}/search`),
     },
-  ] as const;
+  ];
 
-  const handleClick = (
-    e: React.MouseEvent<HTMLAnchorElement>,
-    href: string,
-  ) => {
-    if (!href.startsWith("#")) {
-      return;
-    }
+  return {
+    sections,
+    onSectionClick: (e: MouseEvent<HTMLAnchorElement>, href: string) => {
+      if (!href.startsWith("#")) {
+        return;
+      }
 
-    e.preventDefault();
-    const sectionId = href.replace("#", "");
-    const section = document.getElementById(sectionId);
-    section?.scrollIntoView({ behavior: "smooth" });
+      e.preventDefault();
+      const sectionId = href.replace("#", "");
+      const section = document.getElementById(sectionId);
+      section?.scrollIntoView({ behavior: "smooth" });
+    },
   };
+}
 
+export function CatalogNavView({
+  sections,
+  onSectionClick,
+}: CatalogNavViewProps) {
   return (
     <div className="relative">
       <ScrollArea className="max-w-[600px] lg:max-w-none">
@@ -85,8 +105,7 @@ export function CatalogNav({ canonicalUserSlug }: CatalogNavProps) {
               <NavLink
                 key={section.href}
                 section={section}
-                isActive={false}
-                onClick={(e) => handleClick(e, section.href)}
+                onClick={(e) => onSectionClick(e, section.href)}
               />
             );
           })}
@@ -97,14 +116,18 @@ export function CatalogNav({ canonicalUserSlug }: CatalogNavProps) {
   );
 }
 
+export function CatalogNav({ canonicalUserSlug }: CatalogNavProps) {
+  const viewProps = useCatalogNavViewProps({ canonicalUserSlug });
+
+  return <CatalogNavView {...viewProps} />;
+}
+
 function NavLink({
   section,
-  isActive,
   onClick,
 }: {
-  section: { name: string; href: string };
-  isActive: boolean;
-  onClick: (e: React.MouseEvent<HTMLAnchorElement>) => void;
+  section: CatalogNavSection;
+  onClick: (e: MouseEvent<HTMLAnchorElement>) => void;
 }) {
   return (
     <Link
@@ -115,7 +138,7 @@ function NavLink({
         "text-muted-foreground transition-colors hover:text-primary",
         "data-[active=true]:bg-muted data-[active=true]:text-primary",
       )}
-      data-active={isActive}
+      data-active={section.isActive}
       onClick={onClick}
     >
       {section.name}

@@ -53,3 +53,32 @@ export function getPublicProfilePagePath(slug: string, page: number) {
 
   return `/${slug}?page=${page}`;
 }
+
+export function getPublicCatalogSearchPath(slug: string, page: number) {
+  if (page <= 1) {
+    return `/${slug}/search`;
+  }
+
+  return `/${slug}/search?page=${page}`;
+}
+
+export function getPublicCatalogForSaleSearchPath(slug: string) {
+  return `/${slug}/search?price=true`;
+}
+
+export function getPublicCatalogListSearchPath(slug: string, listId: string) {
+  return `/${slug}/search?lists=${encodeURIComponent(listId)}`;
+}
+
+export function getPublicProfilePaginationHref(
+  slug: string,
+  page: number,
+  anchor = "listings",
+) {
+  const pagePath = getPublicProfilePagePath(slug, page);
+  if (!anchor) {
+    return pagePath;
+  }
+
+  return `${pagePath}#${anchor}`;
+}

@@ -1,5 +1,15 @@
 // Basic test environment setup for jsdom
 import "@testing-library/jest-dom/vitest";
+import { vi } from "vitest";
+
+vi.mock("next/cache", () => ({
+  unstable_cache:
+    <TArgs extends unknown[], TResult>(
+      callback: (...args: TArgs) => TResult,
+    ) =>
+    (...args: TArgs) =>
+      callback(...args),
+}));
 
 // jsdom doesn't always provide crypto.randomUUID; TanStack DB temp IDs use it.
 let uuidCounter = 0;
