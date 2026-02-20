@@ -2,6 +2,7 @@
 
 ## Log
 
+- 2026-02-20 - next-lint codemod gotcha - `@next/codemod next-lint-to-eslint-cli` updated this repo's `eslint.config.js` import but left `...compat.extends(...)`, causing `compat is not defined`; keep `FlatCompat` for the current `tseslint.config(...)` setup and migrate the npm script to scoped ESLint CLI targets (here `eslint src`) instead of blanket `eslint .`.
 - 2026-02-19 - test fixture typing - `RouterOutputs["public"]["getProfile"]` in unit tests rejects partial literal + direct cast; provide the full object shape (or intentionally cast via `unknown`) to keep `tsc --noEmit` green.
 - 2026-02-19 - route path shell globbing - Unquoted paths containing `[...]` failed in zsh (`no matches found`). Quote route paths when reading/editing files under App Router dynamic segments.
 - 2026-02-19 - header/mobile UX correction - User wants `/{slug}/search` header simplified (garden name + search/filter subheading + contact CTA) and wants mobile image panel restored on `/{slug}`.
