@@ -71,6 +71,7 @@
 ## Preferences
 
 - Write tests, not too many, mostly integration, hapy path e2e.
+- CI preference: if lint/unit or Vercel deploy fails, cancel other in-progress GitHub Actions workflows for that commit.
 - TanStack DB dashboard migration: keep procedures under new `dashboardDb` router, migrate main `/dashboard` page-by-page, and run `pnpm lint`, `npx tsc --noEmit`, `pnpm test`, `pnpm test:e2e` before each incremental commit.
 - Cultivar pages should be catalog-centric (catalog cards with nested cultivar listing rows), not listing-card grids.
 - Use composition patterns for new UI components (prefer explicit composed sections over boolean-mode props).

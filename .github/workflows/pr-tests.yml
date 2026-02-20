@@ -38,6 +38,7 @@ jobs:
 
   e2e:
     name: E2E Tests
+    needs: lint-typecheck-unit
     runs-on: ubuntu-latest
     # Skip E2E on forked PRs (secrets not available)
     if: github.event.pull_request.head.repo.fork != true
