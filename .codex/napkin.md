@@ -7,6 +7,10 @@
 - 2026-02-20 - posthog wizard backend flake - Wizard can fail after successful OAuth with `No chunk id map found` and repeated `401 Authentication required`; use manual Next.js integration as fallback.
 - 2026-02-20 - posthog prod-only guard - Gate both `instrumentation-client.ts` init and `capturePosthogEvent` helper by `process.env.NODE_ENV === "production"` so dev/local never emit analytics even if a key appears.
 - 2026-02-20 - posthog ownership cleanup - Keep PostHog initialization in `instrumentation-client.ts` only; `capturePosthogEvent` should just gate and call `posthog.capture` to avoid duplicate init logic.
+- 2026-02-20 - ordering guard - For the public `/{slug}` Lists section, keep the synthetic `For Sale` card first in DOM order so it appears first in the grid; back this with a test to prevent regressions.
+- 2026-02-20 - db path correction - For local prod snapshot checks in this worktree, the usable DB is `prisma/local-prod-copy-daylily-catalog.db` (the repo-root `local-prod-copy-daylily-catalog.db` may exist as an empty placeholder).
+- 2026-02-20 - patch regression self-check - While adding new props to JSX I briefly rendered `PublicCatalogSearchTable` twice; after structural patches, always scan the edited block for accidental duplicate component lines before running tests.
+- 2026-02-20 - command quoting self-miss - I retriggered zsh glob expansion (`no matches found`) by reading App Router paths with `(...)` and `[...]` unquoted; always single-quote those paths in shell commands.
 - 2026-02-20 - next-lint codemod gotcha - `@next/codemod next-lint-to-eslint-cli` updated this repo's `eslint.config.js` import but left `...compat.extends(...)`, causing `compat is not defined`; keep `FlatCompat` for the current `tseslint.config(...)` setup and migrate the npm script to scoped ESLint CLI targets (here `eslint src`) instead of blanket `eslint .`.
 - 2026-02-20 - test env typing gotcha - `process.env.NODE_ENV` can be readonly in this TS setup; in tests mutate via `const mutableEnv = process.env as Record<string, string | undefined>` instead of direct assignment/delete.
 - 2026-02-19 - test dependency assumption - `@testing-library/user-event` is not installed in this repo; use `fireEvent` from `@testing-library/react` for integration UI tests unless dependency is explicitly added.
@@ -113,6 +117,9 @@
 - Route naming update: public interactive search page uses `/{slug}/search`; keep `/{slug}/catalog` as a compatibility redirect.
 - Updated preference: do not keep `/{slug}/catalog` compatibility redirect since it was introduced and removed within this PR; keep only `/{slug}/search`.
 - Search UX preference: `/{slug}/search` should provide both all-fields search and title-only search, and pressing `Enter` in the search form should scroll to the listings summary so the `x / n listings` context stays visible.
+- Listing card UX preference: on `/{slug}` and `/{slug}/search`, titles should wrap and shrink before truncation, with middle truncation only past a hard upper-length cap.
+- `/{slug}` lists section preference: show a `For Sale` list card when the catalog has any for-sale listings, linking to `/{slug}/search?price=true`.
+- `/{slug}` SEO listings pagination preference: sort for-sale listings first, then keep the existing alphabetical ordering rules within that group.
 
 ## Patterns That Work
 

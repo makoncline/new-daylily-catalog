@@ -191,7 +191,10 @@ export function PublicCatalogSearchContent({
               <NoResults filtered={hasFilters} />
             ) : (
               <>
-                <PublicCatalogSearchTable table={table} />
+                <PublicCatalogSearchTable
+                  table={table}
+                  desktopColumns={panelCollapsed ? 3 : 2}
+                />
                 <DataTablePagination table={table} />
               </>
             )}

@@ -2,11 +2,13 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mockGetPublicCatalogRouteEntries = vi.fn();
 const mockGetPublicListingsPage = vi.fn();
+const mockGetPublicForSaleListingsCount = vi.fn();
 const mockGetPublicProfile = vi.fn();
 
 vi.mock("@/server/db/getPublicListings", () => ({
   getPublicCatalogRouteEntries: mockGetPublicCatalogRouteEntries,
   getPublicListingsPage: mockGetPublicListingsPage,
+  getPublicForSaleListingsCount: mockGetPublicForSaleListingsCount,
 }));
 
 vi.mock("@/server/db/getPublicProfile", () => ({
@@ -17,6 +19,7 @@ describe("public profile route helpers", () => {
   beforeEach(() => {
     mockGetPublicCatalogRouteEntries.mockReset();
     mockGetPublicListingsPage.mockReset();
+    mockGetPublicForSaleListingsCount.mockReset();
     mockGetPublicProfile.mockReset();
   });
 
@@ -61,6 +64,7 @@ describe("public profile route helpers", () => {
       totalCount: 0,
       totalPages: 1,
     });
+    mockGetPublicForSaleListingsCount.mockResolvedValue(11);
 
     const { PUBLIC_PROFILE_LISTINGS_PAGE_SIZE } = await import(
       "@/config/constants"
@@ -69,12 +73,14 @@ describe("public profile route helpers", () => {
       "@/app/(public)/[userSlugOrId]/_lib/public-profile-route"
     );
 
-    await getPublicProfilePageData("alpha-garden", 1);
+    const pageData = await getPublicProfilePageData("alpha-garden", 1);
 
     expect(mockGetPublicListingsPage).toHaveBeenCalledWith({
       userSlugOrId: "alpha-garden",
       page: 1,
       pageSize: PUBLIC_PROFILE_LISTINGS_PAGE_SIZE,
     });
+    expect(mockGetPublicForSaleListingsCount).toHaveBeenCalledWith("user-1");
+    expect(pageData.forSaleCount).toBe(11);
   });
 });

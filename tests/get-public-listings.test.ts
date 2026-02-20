@@ -29,6 +29,19 @@ import {
   getPublicListingsPage,
 } from "@/server/db/getPublicListings";
 
+function getQueryText(query: unknown): string {
+  if (
+    query &&
+    typeof query === "object" &&
+    "strings" in query &&
+    Array.isArray((query as { strings: unknown }).strings)
+  ) {
+    return ((query as { strings: string[] }).strings ?? []).join(" ");
+  }
+
+  return String(query);
+}
+
 function createListing(id: string, title: string) {
   return {
     id,
@@ -139,5 +152,30 @@ describe("getPublicListings helpers", () => {
     expect(page.totalPages).toBe(2);
     expect(page.totalCount).toBe(4);
     expect(page.items.map((row) => row.id)).toEqual(["id-c", "id-d"]);
+  });
+
+  it("uses for-sale-first sorting for SEO page ids only", async () => {
+    mockGetUserIdFromSlugOrId.mockResolvedValue("user-1");
+    mockDb.$queryRaw.mockResolvedValue([]);
+
+    await getPublicListingsPage({
+      userSlugOrId: "grower",
+      page: 1,
+      pageSize: 2,
+    });
+
+    const seoQuery = getQueryText(mockDb.$queryRaw.mock.calls[0]?.[0]);
+    expect(seoQuery).toMatch(/COALESCE\("price", 0\) > 0/);
+
+    mockDb.$queryRaw.mockClear();
+    mockDb.$queryRaw.mockResolvedValue([]);
+
+    await getListings({
+      userId: "user-1",
+      limit: 2,
+    });
+
+    const searchQuery = getQueryText(mockDb.$queryRaw.mock.calls[0]?.[0]);
+    expect(searchQuery).not.toMatch(/COALESCE\("price", 0\) > 0/);
   });
 });

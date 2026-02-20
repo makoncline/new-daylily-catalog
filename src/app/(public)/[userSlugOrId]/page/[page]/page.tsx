@@ -143,6 +143,7 @@ export default async function ProfilePaginatedPage({
             page={pageDataResult.data.page}
             totalPages={pageDataResult.data.totalPages}
             totalCount={pageDataResult.data.totalCount}
+            forSaleCount={pageDataResult.data.forSaleCount}
           />
 
           <CatalogSearchPrefetch
