@@ -35,7 +35,7 @@ describe("revalidatePublicCatalogRoutes", () => {
     expect(mockRevalidatePath).not.toHaveBeenCalled();
   });
 
-  it("revalidates only concrete cultivar paths for provided normalized names", () => {
+  it("skips cultivar-path revalidation while global revalidation is disabled", () => {
     revalidateCultivarRoutesByNormalizedNames([
       "Coffee Frenzy",
       "coffee frenzy",
@@ -43,8 +43,6 @@ describe("revalidatePublicCatalogRoutes", () => {
       "Bela Lugosi",
     ]);
 
-    expect(mockRevalidatePath).toHaveBeenCalledWith("/cultivar/coffee-frenzy");
-    expect(mockRevalidatePath).toHaveBeenCalledWith("/cultivar/bela-lugosi");
-    expect(mockRevalidatePath).toHaveBeenCalledTimes(2);
+    expect(mockRevalidatePath).not.toHaveBeenCalled();
   });
 });
