@@ -38,6 +38,10 @@ describe("revalidatePublicCatalogRoutes", () => {
       "/[userSlugOrId]/page/[page]",
       "page",
     );
+    expect(mockRevalidatePath).toHaveBeenCalledWith(
+      "/cultivar/[cultivarNormalizedName]",
+      "page",
+    );
     expect(mockRevalidatePath).toHaveBeenCalledWith("/catalogs");
     expect(mockRevalidatePath).toHaveBeenCalledWith("/sitemap.xml");
   });

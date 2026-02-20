@@ -8,10 +8,7 @@ import { IMAGES } from "@/lib/constants/images";
 import { getOptimizedMetaImageUrl } from "@/lib/utils/cloudflareLoader";
 import { getBaseUrl } from "@/lib/utils/getBaseUrl";
 import { toCultivarRouteSegment } from "@/lib/utils/cultivar-utils";
-import {
-  getCultivarRouteSegments,
-  getPublicCultivarPage,
-} from "@/server/db/getPublicCultivars";
+import { getPublicCultivarPage } from "@/server/db/getPublicCultivars";
 import { CultivarPageRoot, CultivarPageSection } from "./_components/cultivar-page-layout";
 import { CultivarHeroSection } from "./_components/cultivar-hero-section";
 import { CultivarGardenPhotosSection } from "./_components/cultivar-garden-photos-section";
@@ -21,9 +18,6 @@ import { Muted } from "@/components/typography";
 
 export const revalidate = 86400;
 export const dynamic = "force-static";
-export const dynamicParams = false;
-
-const getCultivarRouteSegmentsCached = cache(getCultivarRouteSegments);
 const getPublicCultivarPageCached = cache(getPublicCultivarPage);
 
 interface PageProps {
@@ -84,14 +78,6 @@ function getCultivarJsonLd(
       image: cultivar.imageUrl,
     })),
   };
-}
-
-export async function generateStaticParams() {
-  const cultivarSegments = await getCultivarRouteSegmentsCached();
-
-  return cultivarSegments.map((cultivarNormalizedName) => ({
-    cultivarNormalizedName,
-  }));
 }
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {

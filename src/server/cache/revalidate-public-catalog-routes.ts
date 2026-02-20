@@ -41,6 +41,7 @@ export async function revalidatePublicCatalogRoutes({
   }
 
   revalidatePath("/[userSlugOrId]/page/[page]", "page");
+  revalidatePath("/cultivar/[cultivarNormalizedName]", "page");
   revalidatePath("/catalogs");
   revalidatePath("/sitemap.xml");
 }
