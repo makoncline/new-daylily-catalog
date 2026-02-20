@@ -1,10 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import {
   SignUpButton as ClerkSignUpButton,
-  SignedIn,
-  SignedOut,
+  useAuth,
 } from "@clerk/nextjs";
 import { Button } from "@/components/ui/button";
 import Image from "next/image";
@@ -22,20 +20,10 @@ import { homePageContent } from "@/config/home-page-content";
 import { capturePosthogEvent } from "@/lib/analytics/posthog";
 
 function SignUpButton({ className }: { className?: string }) {
-  const [isMounted, setIsMounted] = useState(false);
-
-  useEffect(() => {
-    setIsMounted(true);
-  }, []);
-
+  const { isLoaded, userId } = useAuth();
   const text = "Create your catalog";
-  const handleClick = () => {
-    capturePosthogEvent("home_signup_cta_clicked", {
-      source: "home-page",
-    });
-  };
 
-  if (!isMounted) {
+  if (!isLoaded) {
     return (
       <Button size="lg" variant="gradient" className={className} disabled>
         {text}
@@ -43,25 +31,40 @@ function SignUpButton({ className }: { className?: string }) {
     );
   }
 
+  if (userId) {
+    return (
+      <Button size="lg" variant="gradient" className={className} asChild>
+        <Link
+          href="/dashboard"
+          onClick={() => {
+            capturePosthogEvent("home_signup_cta_clicked", {
+              source: "home-page",
+              auth_state: "signed_in",
+            });
+          }}
+        >
+          {text}
+        </Link>
+      </Button>
+    );
+  }
+
   return (
-    <Button
-      size="lg"
-      variant="gradient"
-      className={className}
-      onClick={handleClick}
-      asChild
-    >
-      <div>
-        <SignedIn>
-          <Link href="/dashboard">{text}</Link>
-        </SignedIn>
-        <SignedOut>
-          <ClerkSignUpButton mode="modal" forceRedirectUrl="/dashboard">
-            {text}
-          </ClerkSignUpButton>
-        </SignedOut>
-      </div>
-    </Button>
+    <ClerkSignUpButton mode="modal" forceRedirectUrl="/dashboard">
+      <Button
+        size="lg"
+        variant="gradient"
+        className={className}
+        onClick={() => {
+          capturePosthogEvent("home_signup_cta_clicked", {
+            source: "home-page",
+            auth_state: "signed_out",
+          });
+        }}
+      >
+        {text}
+      </Button>
+    </ClerkSignUpButton>
   );
 }
 

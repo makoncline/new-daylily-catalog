@@ -1,6 +1,6 @@
 "use client";
 
-import { type FormEvent, useEffect, useState } from "react";
+import { type FormEvent } from "react";
 import { useDebouncedCallback } from "use-debounce";
 import { DataTableFacetedFilter } from "@/components/data-table/data-table-faceted-filter";
 import { DataTableFilterReset } from "@/components/data-table/data-table-filter-reset";
@@ -16,9 +16,7 @@ export function PublicCatalogSearchToolbar({
   onSearchSubmit,
 }: PublicCatalogSearchToolbarProps) {
   const globalFilter = table.getState().globalFilter as unknown;
-  const [searchValue, setSearchValue] = useState<string>(
-    typeof globalFilter === "string" ? globalFilter : "",
-  );
+  const searchValue = typeof globalFilter === "string" ? globalFilter : "";
 
   const debouncedFilter = useDebouncedCallback((value: string) => {
     table.setGlobalFilter(value);
@@ -27,10 +25,6 @@ export function PublicCatalogSearchToolbar({
     }
     table.resetPageIndex(true);
   }, 200);
-
-  useEffect(() => {
-    setSearchValue(typeof globalFilter === "string" ? globalFilter : "");
-  }, [globalFilter]);
 
   if (!listsColumn) {
     return null;
@@ -47,14 +41,13 @@ export function PublicCatalogSearchToolbar({
       <div className="flex flex-wrap items-center gap-2">
         <form onSubmit={handleSubmit} data-testid="search-query-form">
           <Input
+            key={`search-${searchValue}`}
             placeholder="Search listings..."
-            value={searchValue}
+            defaultValue={searchValue}
             className="h-8 w-[200px] sm:w-[260px]"
             data-testid="search-all-fields-input"
             onChange={(event) => {
-              const next = event.target.value;
-              setSearchValue(next);
-              debouncedFilter(next);
+              debouncedFilter(event.target.value);
             }}
           />
         </form>

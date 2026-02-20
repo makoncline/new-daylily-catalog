@@ -4,7 +4,7 @@ import { useCart } from "@/hooks/use-cart";
 import { Button } from "@/components/ui/button";
 import { type CartItem } from "@/types";
 import { ShoppingCart, Check, Plus } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { toast } from "sonner";
 import {
   Tooltip,
@@ -32,14 +32,8 @@ export function AddToCartButton({
   className = "",
 }: AddToCartButtonProps) {
   const { items, addItem } = useCart(listing.userId);
-  const [isInCart, setIsInCart] = useState(false);
+  const isInCart = items.some((item) => item.id === listing.id);
   const [isAdding, setIsAdding] = useState(false);
-
-  // Check if this listing is already in the cart
-  useEffect(() => {
-    const itemInCart = items.find((item) => item.id === listing.id);
-    setIsInCart(!!itemInCart);
-  }, [items, listing.id]);
 
   const handleAddToCart = () => {
     setIsAdding(true);

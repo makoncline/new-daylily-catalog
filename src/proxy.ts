@@ -28,7 +28,7 @@ function isLegacyProfileSegment(segment: string) {
   return /^[A-Za-z0-9-]+$/.test(segment);
 }
 
-export default clerkMiddleware(async (auth, req) => {
+export const proxy = clerkMiddleware(async (auth, req) => {
   const { userId } = await auth();
   const { pathname } = req.nextUrl;
 
@@ -118,7 +118,7 @@ export default clerkMiddleware(async (auth, req) => {
   }
 
   // Redirect /catalog/{listingId} to legacy-redirect API
-  // Using the API instead of direct DB access in middleware to avoid Edge Runtime issues
+  // Using the API instead of direct DB access in proxy to avoid Edge Runtime issues
   const catalogMatch = /^\/catalog\/([^\/]+)$/.exec(pathname);
   if (catalogMatch?.[1]) {
     const listingId = catalogMatch[1];
@@ -136,6 +136,8 @@ export default clerkMiddleware(async (auth, req) => {
     );
   }
 });
+
+export default proxy;
 
 export const config = {
   matcher: [

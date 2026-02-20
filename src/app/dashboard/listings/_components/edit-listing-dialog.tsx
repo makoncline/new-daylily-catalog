@@ -9,7 +9,7 @@ import {
 import { ListingForm } from "@/components/forms/listing-form";
 import { ListingFormSkeleton } from "@/components/forms/listing-form-skeleton";
 import { usePathname, useSearchParams, useRouter } from "next/navigation";
-import { Suspense, useEffect, useRef, useState } from "react";
+import { Suspense, useEffect, useRef } from "react";
 import { ErrorBoundary } from "react-error-boundary";
 import { ErrorFallback } from "@/components/error-fallback";
 import { P } from "@/components/typography";
@@ -32,11 +32,11 @@ export const useEditListing = () => {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const [editingId, setEditingId] = useAtom(editingListingIdAtom);
-  const [hasInitialized, setHasInitialized] = useState(false);
+  const hasInitializedRef = useRef(false);
 
   // Sync atom state to URL for persistence
   useEffect(() => {
-    if (!hasInitialized) {
+    if (!hasInitializedRef.current) {
       return;
     }
 
@@ -57,11 +57,11 @@ export const useEditListing = () => {
     if (newUrl !== currentUrl) {
       router.push(newUrl);
     }
-  }, [editingId, hasInitialized, pathname, router, searchParams]);
+  }, [editingId, pathname, router, searchParams]);
 
   // Initialize from URL on first load
   useEffect(() => {
-    if (hasInitialized) {
+    if (hasInitializedRef.current) {
       return;
     }
 
@@ -70,8 +70,8 @@ export const useEditListing = () => {
       setEditingId(urlEditingId);
     }
 
-    setHasInitialized(true);
-  }, [hasInitialized, searchParams, setEditingId]);
+    hasInitializedRef.current = true;
+  }, [searchParams, setEditingId]);
 
   return {
     editListing: (id: string) => {

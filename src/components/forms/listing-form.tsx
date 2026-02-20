@@ -479,14 +479,10 @@ function ListingFormLive({ listingId, onDelete, formRef }: ListingFormProps) {
       .map((list) => list.id);
   }, [lists, listingId]);
 
-  const linkedAhs = useMemo(() => {
-    if (!listing?.cultivarReferenceId) return null;
-
-    const ref = cultivarReferences.find(
-      (row) => row.id === listing.cultivarReferenceId,
-    );
-    return ref?.ahsListing ?? null;
-  }, [cultivarReferences, listing?.cultivarReferenceId]);
+  const linkedAhs = listing?.cultivarReferenceId
+    ? cultivarReferences.find((row) => row.id === listing.cultivarReferenceId)
+        ?.ahsListing ?? null
+    : null;
 
   if (
     !isListingReady ||

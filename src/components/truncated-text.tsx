@@ -23,13 +23,43 @@ export function TruncatedText({
     const element = ref.current;
     if (!element) return;
 
-    const checkTruncated =
-      lines === 1
-        ? element.scrollWidth > element.clientWidth
-        : element.scrollHeight > element.clientHeight;
+    const updateTruncation = () => {
+      const nextIsTruncated =
+        lines === 1
+          ? element.scrollWidth > element.clientWidth
+          : element.scrollHeight > element.clientHeight;
 
-    setIsTruncated(checkTruncated);
-    onTruncated?.(checkTruncated);
+      setIsTruncated((current) =>
+        current === nextIsTruncated ? current : nextIsTruncated,
+      );
+      onTruncated?.(nextIsTruncated);
+    };
+
+    const observer =
+      typeof ResizeObserver === "undefined"
+        ? null
+        : new ResizeObserver(() => {
+            updateTruncation();
+          });
+
+    observer?.observe(element);
+
+    const frameId = window.requestAnimationFrame(updateTruncation);
+    const handleResize = () => {
+      updateTruncation();
+    };
+
+    if (!observer) {
+      window.addEventListener("resize", handleResize);
+    }
+
+    return () => {
+      window.cancelAnimationFrame(frameId);
+      observer?.disconnect();
+      if (!observer) {
+        window.removeEventListener("resize", handleResize);
+      }
+    };
   }, [text, lines, onTruncated]);
 
   if (!text) return null;
