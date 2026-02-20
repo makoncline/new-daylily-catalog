@@ -2,6 +2,7 @@
 
 ## Log
 
+- 2026-02-20 - next-lint codemod gotcha - `@next/codemod next-lint-to-eslint-cli` updated this repo's `eslint.config.js` import but left `...compat.extends(...)`, causing `compat is not defined`; keep `FlatCompat` for the current `tseslint.config(...)` setup and migrate the npm script to scoped ESLint CLI targets (here `eslint src`) instead of blanket `eslint .`.
 - 2026-02-19 - test dependency assumption - `@testing-library/user-event` is not installed in this repo; use `fireEvent` from `@testing-library/react` for integration UI tests unless dependency is explicitly added.
 - 2026-02-19 - jsdom popover gotcha - `cmdk`/Radix popover flows require a `ResizeObserver` polyfill in Vitest jsdom tests; add a minimal mock in the test when using faceted filters.
 - 2026-02-19 - jsdom cmdk scroll gotcha - Faceted filter popovers may call `scrollIntoView`; add a no-op `HTMLElement.prototype.scrollIntoView` polyfill in the test when absent.
