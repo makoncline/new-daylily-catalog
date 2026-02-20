@@ -43,6 +43,11 @@ export const env = createEnv({
       .union([z.literal("true"), z.literal("false")])
       .optional()
       .default("true"),
+    NEXT_PUBLIC_POSTHOG_KEY: z.string().optional().default(""),
+    NEXT_PUBLIC_POSTHOG_HOST: z
+      .string()
+      .optional()
+      .default("https://us.i.posthog.com"),
   },
 
   /**
@@ -67,6 +72,8 @@ export const env = createEnv({
     AWS_BUCKET_NAME: process.env.AWS_BUCKET_NAME,
     NODE_ENV: process.env.NODE_ENV,
     NEXT_PUBLIC_SENTRY_ENABLED: process.env.NEXT_PUBLIC_SENTRY_ENABLED,
+    NEXT_PUBLIC_POSTHOG_KEY: process.env.NEXT_PUBLIC_POSTHOG_KEY,
+    NEXT_PUBLIC_POSTHOG_HOST: process.env.NEXT_PUBLIC_POSTHOG_HOST,
   },
   /**
    * Run `build` or `dev` with `SKIP_ENV_VALIDATION` to skip env validation. This is especially

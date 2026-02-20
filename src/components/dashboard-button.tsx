@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { SignInButton, SignedIn, SignedOut } from "@clerk/nextjs";
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { capturePosthogEvent } from "@/lib/analytics/posthog";
 
 interface DashboardButtonProps {
   className?: string;
@@ -32,19 +33,37 @@ export function DashboardButton({
     <>
       <SignedIn>
         <Button className={className} asChild size="sm" variant={variant}>
-          <Link href="/dashboard">Dashboard</Link>
+          <Link
+            href="/dashboard"
+            onClick={() => {
+              capturePosthogEvent("public_nav_dashboard_clicked", {
+                auth_state: "signed_in",
+              });
+            }}
+          >
+            Dashboard
+          </Link>
         </Button>
       </SignedIn>
       <SignedOut>
-        <Button className={className} size="sm" asChild variant={variant}>
-          <SignInButton
-            mode="modal"
-            forceRedirectUrl="/dashboard"
-            signUpForceRedirectUrl="/dashboard"
+        <SignInButton
+          mode="modal"
+          forceRedirectUrl="/dashboard"
+          signUpForceRedirectUrl="/dashboard"
+        >
+          <Button
+            className={className}
+            size="sm"
+            variant={variant}
+            onClick={() => {
+              capturePosthogEvent("public_nav_dashboard_clicked", {
+                auth_state: "signed_out",
+              });
+            }}
           >
             Dashboard
-          </SignInButton>
-        </Button>
+          </Button>
+        </SignInButton>
       </SignedOut>
     </>
   );
