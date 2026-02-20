@@ -19,6 +19,7 @@ import { Star } from "lucide-react";
 import Link from "next/link";
 import { H1, H2, P, Muted } from "@/components/typography";
 import { homePageContent } from "@/config/home-page-content";
+import { capturePosthogEvent } from "@/lib/analytics/posthog";
 
 function SignUpButton({ className }: { className?: string }) {
   const [isMounted, setIsMounted] = useState(false);
@@ -28,6 +29,11 @@ function SignUpButton({ className }: { className?: string }) {
   }, []);
 
   const text = "Create your catalog";
+  const handleClick = () => {
+    capturePosthogEvent("home_signup_cta_clicked", {
+      source: "home-page",
+    });
+  };
 
   if (!isMounted) {
     return (
@@ -38,7 +44,13 @@ function SignUpButton({ className }: { className?: string }) {
   }
 
   return (
-    <Button size="lg" variant="gradient" className={className} asChild>
+    <Button
+      size="lg"
+      variant="gradient"
+      className={className}
+      onClick={handleClick}
+      asChild
+    >
       <div>
         <SignedIn>
           <Link href="/dashboard">{text}</Link>

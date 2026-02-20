@@ -2,6 +2,11 @@
 
 ## Log
 
+- 2026-02-20 - posthog verification pattern - Fastest proof path is Playwright with `localStorage.ph_debug=true` and checking console for `[PostHog.js] send "event_name"` plus `browser_network_requests` showing `https://us.i.posthog.com/e` `200`.
+- 2026-02-20 - agent-browser click flake - In this repo/session, some `agent-browser click` calls on cursor-interactive refs stalled with no output; fall back to Playwright MCP tools for deterministic network-level verification.
+- 2026-02-20 - posthog wizard backend flake - Wizard can fail after successful OAuth with `No chunk id map found` and repeated `401 Authentication required`; use manual Next.js integration as fallback.
+- 2026-02-20 - posthog prod-only guard - Gate both `instrumentation-client.ts` init and `capturePosthogEvent` helper by `process.env.NODE_ENV === "production"` so dev/local never emit analytics even if a key appears.
+- 2026-02-20 - posthog ownership cleanup - Keep PostHog initialization in `instrumentation-client.ts` only; `capturePosthogEvent` should just gate and call `posthog.capture` to avoid duplicate init logic.
 - 2026-02-19 - test fixture typing - `RouterOutputs["public"]["getProfile"]` in unit tests rejects partial literal + direct cast; provide the full object shape (or intentionally cast via `unknown`) to keep `tsc --noEmit` green.
 - 2026-02-19 - route path shell globbing - Unquoted paths containing `[...]` failed in zsh (`no matches found`). Quote route paths when reading/editing files under App Router dynamic segments.
 - 2026-02-19 - header/mobile UX correction - User wants `/{slug}/search` header simplified (garden name + search/filter subheading + contact CTA) and wants mobile image panel restored on `/{slug}`.

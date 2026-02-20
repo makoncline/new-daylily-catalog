@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const initMock = vi.hoisted(() => vi.fn());
+const posthogInitMock = vi.hoisted(() => vi.fn());
 
 vi.mock("@sentry/nextjs", () => ({
   init: initMock,
@@ -8,22 +9,74 @@ vi.mock("@sentry/nextjs", () => ({
   captureRouterTransitionStart: vi.fn(),
 }));
 
+vi.mock("posthog-js", () => ({
+  default: {
+    init: posthogInitMock,
+  },
+}));
+
 describe("instrumentation-client", () => {
-  let previousEnv: string | undefined;
+  let previousNodeEnv: string | undefined;
+  let previousSentryEnabled: string | undefined;
+  let previousPosthogKey: string | undefined;
+  let previousPosthogHost: string | undefined;
 
   beforeEach(() => {
     initMock.mockClear();
-    previousEnv = process.env.NEXT_PUBLIC_SENTRY_ENABLED;
+    posthogInitMock.mockClear();
+    previousNodeEnv = process.env.NODE_ENV;
+    previousSentryEnabled = process.env.NEXT_PUBLIC_SENTRY_ENABLED;
+    previousPosthogKey = process.env.NEXT_PUBLIC_POSTHOG_KEY;
+    previousPosthogHost = process.env.NEXT_PUBLIC_POSTHOG_HOST;
+    process.env.NODE_ENV = "production";
     process.env.NEXT_PUBLIC_SENTRY_ENABLED = "true";
+    process.env.NEXT_PUBLIC_POSTHOG_KEY = "phc_test_key";
+    process.env.NEXT_PUBLIC_POSTHOG_HOST = "https://us.i.posthog.com";
     vi.resetModules();
   });
 
   afterEach(() => {
-    if (previousEnv === undefined) {
+    if (previousNodeEnv === undefined) {
+      delete process.env.NODE_ENV;
+    } else {
+      process.env.NODE_ENV = previousNodeEnv;
+    }
+
+    if (previousSentryEnabled === undefined) {
       delete process.env.NEXT_PUBLIC_SENTRY_ENABLED;
     } else {
-      process.env.NEXT_PUBLIC_SENTRY_ENABLED = previousEnv;
+      process.env.NEXT_PUBLIC_SENTRY_ENABLED = previousSentryEnabled;
     }
+
+    if (previousPosthogKey === undefined) {
+      delete process.env.NEXT_PUBLIC_POSTHOG_KEY;
+    } else {
+      process.env.NEXT_PUBLIC_POSTHOG_KEY = previousPosthogKey;
+    }
+
+    if (previousPosthogHost === undefined) {
+      delete process.env.NEXT_PUBLIC_POSTHOG_HOST;
+    } else {
+      process.env.NEXT_PUBLIC_POSTHOG_HOST = previousPosthogHost;
+    }
+  });
+
+  it("initializes posthog using public env config", async () => {
+    await import("@/instrumentation-client");
+
+    expect(posthogInitMock).toHaveBeenCalledTimes(1);
+    expect(posthogInitMock).toHaveBeenCalledWith("phc_test_key", {
+      api_host: "https://us.i.posthog.com",
+      defaults: "2026-01-30",
+    });
+  });
+
+  it("does not initialize posthog outside production", async () => {
+    process.env.NODE_ENV = "development";
+
+    await import("@/instrumentation-client");
+
+    expect(posthogInitMock).not.toHaveBeenCalled();
   });
 
   it("configures ignoreErrors for abort variants", async () => {
