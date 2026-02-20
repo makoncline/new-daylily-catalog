@@ -318,7 +318,7 @@ function sanitizeTagFields(input: TagFieldConfig[]) {
       include: Boolean(field.include),
       showLabel: Boolean(field.showLabel),
       slot: field.slot === "right" ? "right" : "left",
-      textAlign: (field as TagFieldConfig).textAlign === "right" ? "right" : "left",
+      textAlign: field.textAlign === "right" ? "right" : "left",
       fontSize: clamp(Number(field.fontSize) || defaults.fontSize, 8, 24),
       bold: Boolean(field.bold),
       italic: Boolean(field.italic),
