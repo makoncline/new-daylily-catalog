@@ -2,6 +2,11 @@
 
 ## Log
 
+- 2026-02-20 - cultivar ISR pattern - To cut Next 16 build payload for high-cardinality cultivar pages, remove `generateStaticParams` and `dynamicParams=false` from `/cultivar/[cultivarNormalizedName]`, keep `dynamic=\"force-static\"` + `revalidate`, and invalidate with `revalidatePath(\"/cultivar/[cultivarNormalizedName]\", \"page\")` on catalog mutations.
+- 2026-02-20 - manual revalidate guardrail - For admin-triggered cache busts, post the current `pathname` to a server route that requires Clerk auth and rejects `/api` paths; normalize to pathname-only before `revalidatePath` to avoid query-string noise.
+- 2026-02-20 - cache header visibility - In `pnpm dev`, public route cache headers are typically absent (`x-nextjs-cache`/`age` often missing), so admin cache timestamp probes should show unknown/dev-note; verify cache metadata under local `build+start` or deployed Vercel.
+- 2026-02-20 - next16 cache-components gate - `use cache` fails build unless `next.config.js` enables `cacheComponents`; enabling it then requires removing route-segment exports (`dynamic`, `dynamicParams`, `revalidate`) across the app before builds pass.
+- 2026-02-20 - migration sequencing - For this repo, start Next 16 rollout with mutation invalidation wiring first, then do cache-components compatibility cleanup, then page-by-page cache migration commits.
 - 2026-02-20 - posthog verification pattern - Fastest proof path is Playwright with `localStorage.ph_debug=true` and checking console for `[PostHog.js] send "event_name"` plus `browser_network_requests` showing `https://us.i.posthog.com/e` `200`.
 - 2026-02-20 - agent-browser click flake - In this repo/session, some `agent-browser click` calls on cursor-interactive refs stalled with no output; fall back to Playwright MCP tools for deterministic network-level verification.
 - 2026-02-20 - posthog wizard backend flake - Wizard can fail after successful OAuth with `No chunk id map found` and repeated `401 Authentication required`; use manual Next.js integration as fallback.
