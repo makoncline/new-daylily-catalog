@@ -20,9 +20,10 @@ export function TruncatedListBadge({
   name,
   className,
 }: TruncatedListBadgeProps) {
-  const shouldTruncate = name.length > LIST_CONFIG.BADGE.MAX_NAME_LENGTH;
+  const maxLen = LIST_CONFIG.BADGE.MAX_NAME_LENGTH;
+  const shouldTruncate = name.length > maxLen;
   const truncatedName = shouldTruncate
-    ? `${name.slice(0, LIST_CONFIG.BADGE.MAX_NAME_LENGTH)}...`
+    ? `${name.slice(0, maxLen - 6)}…${name.slice(-5)}`
     : name;
 
   if (!shouldTruncate) {
