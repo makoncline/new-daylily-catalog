@@ -48,8 +48,7 @@ export async function revalidatePublicCatalogRoutes({
     revalidatePath(toUserSearchPath(userSegment));
   }
 
-  revalidatePath("/[userSlugOrId]/page/[page]", "page");
-  revalidatePath("/cultivar/[cultivarNormalizedName]", "page");
+  // Never use route patterns here. Revalidate exact paths only.
   revalidatePath("/catalogs");
   revalidatePath("/sitemap.xml");
 }

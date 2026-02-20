@@ -63,3 +63,6 @@ This gives dedupe + debounce naturally because each path key is unique.
 - Never use in-memory debounce for this on serverless; it is not durable.
 - Keep manual admin revalidation for urgent cache refreshes.
 - Scope queue entries to exact paths when possible to avoid broad invalidation.
+- Do not call `revalidatePath` with dynamic route patterns like
+  `"/cultivar/[cultivarNormalizedName]"`; use concrete paths such as
+  `"/cultivar/coffee-frenzy"` only.
