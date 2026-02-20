@@ -108,7 +108,11 @@ export async function getPublicProfile(userSlugOrId: string) {
         },
         _count: {
           select: {
-            listings: true,
+            listings: {
+              where: {
+                OR: [{ status: null }, { status: { not: STATUS.HIDDEN } }],
+              },
+            },
           },
         },
         lists: {
@@ -118,7 +122,14 @@ export async function getPublicProfile(userSlugOrId: string) {
             description: true,
             _count: {
               select: {
-                listings: true,
+                listings: {
+                  where: {
+                    OR: [
+                      { status: null },
+                      { status: { not: STATUS.HIDDEN } },
+                    ],
+                  },
+                },
               },
             },
           },

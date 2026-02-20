@@ -79,10 +79,24 @@ export function CatalogSeoListings({
             </div>
           </div>
 
-          <div className="flex flex-wrap items-center gap-3">
-            <Button asChild size="sm" variant="outline">
-              <Link href={searchHref}>Search and filter listings</Link>
-            </Button>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex flex-wrap items-center gap-3">
+              <Button asChild size="sm" variant="outline">
+                <Link href={searchHref}>Search and filter listings</Link>
+              </Button>
+            </div>
+
+            <div className="flex justify-start sm:justify-end">
+              <CatalogSeoPagination
+                canonicalUserSlug={canonicalUserSlug}
+                page={page}
+                totalPages={totalPages}
+                prevTestId="legacy-top-page-prev"
+                indicatorTestId="legacy-top-page-indicator"
+                nextTestId="legacy-top-page-next"
+                goToPageTestId="legacy-top-page-go-to"
+              />
+            </div>
           </div>
         </div>
 

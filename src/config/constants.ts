@@ -25,6 +25,8 @@ export const TABLE_CONFIG = {
   },
 } as const;
 
+export const PUBLIC_PROFILE_LISTINGS_PAGE_SIZE = 50;
+
 export const LISTING_TABLE_COLUMN_NAMES = {
   // Core columns
   title: "Title",

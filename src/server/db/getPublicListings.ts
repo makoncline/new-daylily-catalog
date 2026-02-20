@@ -1,6 +1,6 @@
 import { db } from "@/server/db";
 import { TRPCError } from "@trpc/server";
-import { STATUS, TABLE_CONFIG } from "@/config/constants";
+import { PUBLIC_PROFILE_LISTINGS_PAGE_SIZE, STATUS } from "@/config/constants";
 import { getUserIdFromSlugOrId } from "./getPublicProfile";
 import { getDisplayAhsListing } from "@/lib/utils/ahs-display";
 import { Prisma } from "@prisma/client";
@@ -181,7 +181,7 @@ interface GetPublicListingsPageArgs {
 export async function getPublicListingsPage({
   userSlugOrId,
   page,
-  pageSize = TABLE_CONFIG.PAGINATION.DEFAULT_PAGE_SIZE,
+  pageSize = PUBLIC_PROFILE_LISTINGS_PAGE_SIZE,
 }: GetPublicListingsPageArgs) {
   const userId = await getUserIdFromSlugOrId(userSlugOrId);
   const sortedIds = await getSortedPublicListingIds(userId);
@@ -250,7 +250,7 @@ export async function getPublicCatalogRouteEntries(): Promise<
     const listingCount = countByUserId.get(user.id) ?? 0;
     const totalPages = Math.max(
       1,
-      Math.ceil(listingCount / TABLE_CONFIG.PAGINATION.DEFAULT_PAGE_SIZE),
+      Math.ceil(listingCount / PUBLIC_PROFILE_LISTINGS_PAGE_SIZE),
     );
 
     return {

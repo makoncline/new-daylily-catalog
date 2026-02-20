@@ -1,4 +1,4 @@
-import { TABLE_CONFIG } from "@/config/constants";
+import { PUBLIC_PROFILE_LISTINGS_PAGE_SIZE } from "@/config/constants";
 import {
   getPublicCatalogRouteEntries,
   getPublicListingsPage,
@@ -37,7 +37,7 @@ export async function getPublicProfilePageData(
   const listingPage = await getPublicListingsPage({
     userSlugOrId,
     page,
-    pageSize: TABLE_CONFIG.PAGINATION.DEFAULT_PAGE_SIZE,
+    pageSize: PUBLIC_PROFILE_LISTINGS_PAGE_SIZE,
   });
 
   return {

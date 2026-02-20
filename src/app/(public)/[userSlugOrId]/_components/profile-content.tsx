@@ -26,7 +26,7 @@ export function ProfileContent({ initialProfile }: ProfileContentProps) {
         <div className="order-2 sm:col-span-12 sm:hidden">
           <CatalogNav canonicalUserSlug={canonicalUserSlug} />
         </div>
-        <div className="hidden sm:order-1 sm:col-span-5 sm:block">
+        <div className="order-3 sm:order-1 sm:col-span-5">
           <ImagesSection
             images={initialProfile.images}
             profileTitle={initialProfile.title ?? undefined}

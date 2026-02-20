@@ -2,6 +2,9 @@
 
 ## Log
 
+- 2026-02-19 - test fixture typing - `RouterOutputs["public"]["getProfile"]` in unit tests rejects partial literal + direct cast; provide the full object shape (or intentionally cast via `unknown`) to keep `tsc --noEmit` green.
+- 2026-02-19 - route path shell globbing - Unquoted paths containing `[...]` failed in zsh (`no matches found`). Quote route paths when reading/editing files under App Router dynamic segments.
+- 2026-02-19 - header/mobile UX correction - User wants `/{slug}/search` header simplified (garden name + search/filter subheading + contact CTA) and wants mobile image panel restored on `/{slug}`.
 - 2026-02-19 - static user pages redo - Re-implement PR #67 behavior from scratch on a fresh branch; use PR diff only as reference, keep component composition explicit, and avoid effect-driven derived state (follow React "You Might Not Need an Effect").
 - 2026-02-19 - static SEO route pitfall - Reading `searchParams` in server `/{slug}` and `/{slug}/page/[page]` page/metadata made responses `private, no-store` at runtime even with `force-static`. For crawl-first static behavior, keep those server files query-agnostic and handle `?page` through middleware rewrite + `/page/[page]` params only.
 - 2026-02-19 - suspense shell pitfall - Wrapping SEO profile/listings sections in `Suspense` without fallback produced shell-only initial body (`template B:*` + hidden stream payload) until JS applied it. Remove those wrappers on SEO pages when you want full content directly visible in first HTML response.
@@ -88,6 +91,8 @@
 - Follow-up UX correction: `/{slug}/search` header also needs the profile image panel (not just text/stats/buttons), matching the `/user` header layout.
 - On public `/{slug}` section nav, include a `Search/filter` link to `/{slug}/search`, carrying only the `page` param when present.
 - Hide profile image panel on mobile for public profile header layouts (`/{slug}` and `/{slug}/search`) to prioritize text/actions and reduce above-the-fold height.
+- Updated UX preference: `/{slug}/search` should use a lean search-focused header (garden name + search/filter subheading + Contact Seller button), and `/{slug}` should show the profile image panel on mobile again.
+- Updated pagination preference: use a dedicated `/{slug}` listings page-size constant (set to 100) instead of shared table defaults, and show pagination both above and below listings (top control to the right of search CTA on larger screens, below it on small screens).
 - Route naming update: public interactive search page uses `/{slug}/search`; keep `/{slug}/catalog` as a compatibility redirect.
 - Updated preference: do not keep `/{slug}/catalog` compatibility redirect since it was introduced and removed within this PR; keep only `/{slug}/search`.
 
