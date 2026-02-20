@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const captureMock = vi.hoisted(() => vi.fn());
+const mutableEnv = process.env as Record<string, string | undefined>;
 
 vi.mock("posthog-js", () => ({
   default: {
@@ -16,15 +17,15 @@ describe("posthog analytics helper", () => {
     captureMock.mockClear();
     previousNodeEnv = process.env.NODE_ENV;
     previousPosthogKey = process.env.NEXT_PUBLIC_POSTHOG_KEY;
-    process.env.NODE_ENV = "production";
+    mutableEnv.NODE_ENV = "production";
     vi.resetModules();
   });
 
   afterEach(() => {
     if (previousNodeEnv === undefined) {
-      delete process.env.NODE_ENV;
+      delete mutableEnv.NODE_ENV;
     } else {
-      process.env.NODE_ENV = previousNodeEnv;
+      mutableEnv.NODE_ENV = previousNodeEnv;
     }
 
     if (previousPosthogKey === undefined) {
@@ -59,7 +60,7 @@ describe("posthog analytics helper", () => {
   });
 
   it("does not capture events outside production", async () => {
-    process.env.NODE_ENV = "development";
+    mutableEnv.NODE_ENV = "development";
     process.env.NEXT_PUBLIC_POSTHOG_KEY = "phc_test_key";
     const { capturePosthogEvent } = await import("@/lib/analytics/posthog");
 

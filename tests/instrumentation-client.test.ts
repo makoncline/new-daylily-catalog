@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const initMock = vi.hoisted(() => vi.fn());
 const posthogInitMock = vi.hoisted(() => vi.fn());
+const mutableEnv = process.env as Record<string, string | undefined>;
 
 vi.mock("@sentry/nextjs", () => ({
   init: initMock,
@@ -28,7 +29,7 @@ describe("instrumentation-client", () => {
     previousSentryEnabled = process.env.NEXT_PUBLIC_SENTRY_ENABLED;
     previousPosthogKey = process.env.NEXT_PUBLIC_POSTHOG_KEY;
     previousPosthogHost = process.env.NEXT_PUBLIC_POSTHOG_HOST;
-    process.env.NODE_ENV = "production";
+    mutableEnv.NODE_ENV = "production";
     process.env.NEXT_PUBLIC_SENTRY_ENABLED = "true";
     process.env.NEXT_PUBLIC_POSTHOG_KEY = "phc_test_key";
     process.env.NEXT_PUBLIC_POSTHOG_HOST = "https://us.i.posthog.com";
@@ -37,9 +38,9 @@ describe("instrumentation-client", () => {
 
   afterEach(() => {
     if (previousNodeEnv === undefined) {
-      delete process.env.NODE_ENV;
+      delete mutableEnv.NODE_ENV;
     } else {
-      process.env.NODE_ENV = previousNodeEnv;
+      mutableEnv.NODE_ENV = previousNodeEnv;
     }
 
     if (previousSentryEnabled === undefined) {
@@ -72,7 +73,7 @@ describe("instrumentation-client", () => {
   });
 
   it("does not initialize posthog outside production", async () => {
-    process.env.NODE_ENV = "development";
+    mutableEnv.NODE_ENV = "development";
 
     await import("@/instrumentation-client");
 
