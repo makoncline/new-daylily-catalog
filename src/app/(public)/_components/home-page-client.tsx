@@ -17,14 +17,16 @@ import { Star } from "lucide-react";
 import Link from "next/link";
 import { H1, H2, P, Muted } from "@/components/typography";
 import { homePageContent } from "@/config/home-page-content";
+import { capturePosthogEvent } from "@/lib/analytics/posthog";
 
 function SignUpButton({ className }: { className?: string }) {
   const { isLoaded, userId } = useAuth();
+  const text = "Create your catalog";
 
   if (!isLoaded) {
     return (
       <Button size="lg" variant="gradient" className={className} disabled>
-        Create your catalog
+        {text}
       </Button>
     );
   }
@@ -32,19 +34,37 @@ function SignUpButton({ className }: { className?: string }) {
   if (userId) {
     return (
       <Button size="lg" variant="gradient" className={className} asChild>
-        <Link href="/dashboard">Create your catalog</Link>
+        <Link
+          href="/dashboard"
+          onClick={() => {
+            capturePosthogEvent("home_signup_cta_clicked", {
+              source: "home-page",
+              auth_state: "signed_in",
+            });
+          }}
+        >
+          {text}
+        </Link>
       </Button>
     );
   }
 
   return (
-    <Button size="lg" variant="gradient" className={className} asChild>
-      <div>
-        <ClerkSignUpButton mode="modal" forceRedirectUrl="/dashboard">
-          Create your catalog
-        </ClerkSignUpButton>
-      </div>
-    </Button>
+    <ClerkSignUpButton mode="modal" forceRedirectUrl="/dashboard">
+      <Button
+        size="lg"
+        variant="gradient"
+        className={className}
+        onClick={() => {
+          capturePosthogEvent("home_signup_cta_clicked", {
+            source: "home-page",
+            auth_state: "signed_out",
+          });
+        }}
+      >
+        {text}
+      </Button>
+    </ClerkSignUpButton>
   );
 }
 

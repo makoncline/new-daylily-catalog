@@ -2,11 +2,18 @@
 
 ## Log
 
+- 2026-02-20 - posthog verification pattern - Fastest proof path is Playwright with `localStorage.ph_debug=true` and checking console for `[PostHog.js] send "event_name"` plus `browser_network_requests` showing `https://us.i.posthog.com/e` `200`.
+- 2026-02-20 - agent-browser click flake - In this repo/session, some `agent-browser click` calls on cursor-interactive refs stalled with no output; fall back to Playwright MCP tools for deterministic network-level verification.
+- 2026-02-20 - posthog wizard backend flake - Wizard can fail after successful OAuth with `No chunk id map found` and repeated `401 Authentication required`; use manual Next.js integration as fallback.
+- 2026-02-20 - posthog prod-only guard - Gate both `instrumentation-client.ts` init and `capturePosthogEvent` helper by `process.env.NODE_ENV === "production"` so dev/local never emit analytics even if a key appears.
+- 2026-02-20 - posthog ownership cleanup - Keep PostHog initialization in `instrumentation-client.ts` only; `capturePosthogEvent` should just gate and call `posthog.capture` to avoid duplicate init logic.
 - 2026-02-20 - ordering guard - For the public `/{slug}` Lists section, keep the synthetic `For Sale` card first in DOM order so it appears first in the grid; back this with a test to prevent regressions.
 - 2026-02-20 - db path correction - For local prod snapshot checks in this worktree, the usable DB is `prisma/local-prod-copy-daylily-catalog.db` (the repo-root `local-prod-copy-daylily-catalog.db` may exist as an empty placeholder).
 - 2026-02-20 - patch regression self-check - While adding new props to JSX I briefly rendered `PublicCatalogSearchTable` twice; after structural patches, always scan the edited block for accidental duplicate component lines before running tests.
 - 2026-02-20 - command quoting self-miss - I retriggered zsh glob expansion (`no matches found`) by reading App Router paths with `(...)` and `[...]` unquoted; always single-quote those paths in shell commands.
 - 2026-02-20 - next-lint codemod gotcha - `@next/codemod next-lint-to-eslint-cli` updated this repo's `eslint.config.js` import but left `...compat.extends(...)`, causing `compat is not defined`; keep `FlatCompat` for the current `tseslint.config(...)` setup and migrate the npm script to scoped ESLint CLI targets (here `eslint src`) instead of blanket `eslint .`.
+- 2026-02-20 - test env typing gotcha - `process.env.NODE_ENV` can be readonly in this TS setup; in tests mutate via `const mutableEnv = process.env as Record<string, string | undefined>` instead of direct assignment/delete.
+- 2026-02-20 - dashboard button regression - Wrapping Clerk `SignInButton` with shadcn `Button asChild` and an inner `span` can render non-interactive dashboard text; keep a real `Button` as the child of `SignInButton` to preserve clickable role semantics.
 - 2026-02-19 - test dependency assumption - `@testing-library/user-event` is not installed in this repo; use `fireEvent` from `@testing-library/react` for integration UI tests unless dependency is explicitly added.
 - 2026-02-19 - jsdom popover gotcha - `cmdk`/Radix popover flows require a `ResizeObserver` polyfill in Vitest jsdom tests; add a minimal mock in the test when using faceted filters.
 - 2026-02-19 - jsdom cmdk scroll gotcha - Faceted filter popovers may call `scrollIntoView`; add a no-op `HTMLElement.prototype.scrollIntoView` polyfill in the test when absent.
