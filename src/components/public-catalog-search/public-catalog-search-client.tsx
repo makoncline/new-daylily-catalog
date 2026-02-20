@@ -54,7 +54,6 @@ export function PublicCatalogSearchClient({
 
   useEffect(() => {
     if (!PUBLIC_CATALOG_SEARCH_PERSISTED_SWR.enabled) {
-      setIsSnapshotCheckDone(true);
       return;
     }
 
@@ -119,12 +118,13 @@ export function PublicCatalogSearchClient({
     void writePublicCatalogSearchSnapshot(snapshot);
   }, [data, hasNextPage, isFetchingNextPage, userId, userSlugOrId]);
 
-  const listings = useMemo(() => {
-    if (!data?.pages) {
+  const dataPages = data?.pages;
+  const listings = (() => {
+    if (!dataPages) {
       return initialListings;
     }
 
-    const allListings = data.pages.flat();
+    const allListings = dataPages.flat();
     const uniqueListings = new Map<string, (typeof allListings)[number]>();
 
     allListings.forEach((listing) => {
@@ -132,7 +132,7 @@ export function PublicCatalogSearchClient({
     });
 
     return sortTitlesLettersBeforeNumbers(Array.from(uniqueListings.values()));
-  }, [data?.pages, initialListings]);
+  })();
 
   return (
     <div className="space-y-6">

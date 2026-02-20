@@ -75,15 +75,37 @@ export function DashboardDbProvider({
 
   const [hideLoadingScreen, setHideLoadingScreen] = useState(false);
   const [isExitingLoadingScreen, setIsExitingLoadingScreen] = useState(false);
+  const setDashboardDbState = (nextState: DashboardDbState) => {
+    queueMicrotask(() => {
+      setState((current) =>
+        current.status === nextState.status && current.userId === nextState.userId
+          ? current
+          : nextState,
+      );
+    });
+  };
+  const setLoadingScreenState = ({
+    hide,
+    exiting,
+  }: {
+    hide: boolean;
+    exiting: boolean;
+  }) => {
+    queueMicrotask(() => {
+      setHideLoadingScreen((current) => (current === hide ? current : hide));
+      setIsExitingLoadingScreen((current) =>
+        current === exiting ? current : exiting,
+      );
+    });
+  };
 
   useEffect(() => {
     if (state.status !== "ready") {
-      setHideLoadingScreen(false);
-      setIsExitingLoadingScreen(false);
+      setLoadingScreenState({ hide: false, exiting: false });
       return;
     }
 
-    setIsExitingLoadingScreen(true);
+    setLoadingScreenState({ hide: false, exiting: true });
     const id = window.setTimeout(() => {
       setHideLoadingScreen(true);
     }, 200);
@@ -95,7 +117,7 @@ export function DashboardDbProvider({
 
   useEffect(() => {
     if (isLoading) {
-      setState({ status: "loading", userId: null });
+      setDashboardDbState({ status: "loading", userId: null });
       return;
     }
 
@@ -108,12 +130,12 @@ export function DashboardDbProvider({
         imagesCollection.cleanup(),
         cultivarReferencesCollection.cleanup(),
       ]);
-      setState({ status: isError ? "error" : "idle", userId: null });
+      setDashboardDbState({ status: isError ? "error" : "idle", userId: null });
       return;
     }
 
     let cancelled = false;
-    setState({ status: "loading", userId });
+    setDashboardDbState({ status: "loading", userId });
 
     void (async () => {
       try {

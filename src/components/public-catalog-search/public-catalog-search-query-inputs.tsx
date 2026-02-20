@@ -1,7 +1,7 @@
 "use client";
 
 import { type Table } from "@tanstack/react-table";
-import { type FormEvent, useEffect, useState } from "react";
+import { type FormEvent } from "react";
 import { useDebouncedCallback } from "use-debounce";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
@@ -21,13 +21,9 @@ export function PublicCatalogSearchQueryInputs({
   const titleColumn = table.getColumn("title") ?? null;
   const globalFilter = table.getState().globalFilter as unknown;
   const titleFilter = titleColumn?.getFilterValue();
-
-  const [allFieldsValue, setAllFieldsValue] = useState<string>(
-    typeof globalFilter === "string" ? globalFilter : "",
-  );
-  const [titleOnlyValue, setTitleOnlyValue] = useState<string>(
-    typeof titleFilter === "string" ? titleFilter : "",
-  );
+  const allFieldsValue =
+    typeof globalFilter === "string" ? globalFilter : "";
+  const titleOnlyValue = typeof titleFilter === "string" ? titleFilter : "";
 
   const debouncedGlobalFilter = useDebouncedCallback((filterValue: string) => {
     table.setGlobalFilter(filterValue);
@@ -43,14 +39,6 @@ export function PublicCatalogSearchQueryInputs({
     titleColumn?.setFilterValue(filterValue.length > 0 ? filterValue : undefined);
     table.resetPagination();
   }, 200);
-
-  useEffect(() => {
-    setAllFieldsValue(typeof globalFilter === "string" ? globalFilter : "");
-  }, [globalFilter]);
-
-  useEffect(() => {
-    setTitleOnlyValue(typeof titleFilter === "string" ? titleFilter : "");
-  }, [titleFilter]);
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -70,26 +58,24 @@ export function PublicCatalogSearchQueryInputs({
         )}
       >
         <Input
+          key={`all-fields-${allFieldsValue}`}
           placeholder="Search all fields..."
-          value={allFieldsValue}
+          defaultValue={allFieldsValue}
           className={layout === "inline" ? "h-8" : "h-9"}
           data-testid="search-all-fields-input"
           onChange={(event) => {
-            const nextValue = event.target.value;
-            setAllFieldsValue(nextValue);
-            debouncedGlobalFilter(nextValue);
+            debouncedGlobalFilter(event.target.value);
           }}
         />
 
         <Input
+          key={`title-only-${titleOnlyValue}`}
           placeholder="Search title only..."
-          value={titleOnlyValue}
+          defaultValue={titleOnlyValue}
           className={layout === "inline" ? "h-8" : "h-9"}
           data-testid="search-title-only-input"
           onChange={(event) => {
-            const nextValue = event.target.value;
-            setTitleOnlyValue(nextValue);
-            debouncedTitleFilter(nextValue);
+            debouncedTitleFilter(event.target.value);
           }}
         />
       </div>

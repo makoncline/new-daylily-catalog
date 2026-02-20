@@ -1,10 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import {
   SignUpButton as ClerkSignUpButton,
-  SignedIn,
-  SignedOut,
+  useAuth,
 } from "@clerk/nextjs";
 import { Button } from "@/components/ui/button";
 import Image from "next/image";
@@ -21,18 +19,20 @@ import { H1, H2, P, Muted } from "@/components/typography";
 import { homePageContent } from "@/config/home-page-content";
 
 function SignUpButton({ className }: { className?: string }) {
-  const [isMounted, setIsMounted] = useState(false);
+  const { isLoaded, userId } = useAuth();
 
-  useEffect(() => {
-    setIsMounted(true);
-  }, []);
-
-  const text = "Create your catalog";
-
-  if (!isMounted) {
+  if (!isLoaded) {
     return (
       <Button size="lg" variant="gradient" className={className} disabled>
-        {text}
+        Create your catalog
+      </Button>
+    );
+  }
+
+  if (userId) {
+    return (
+      <Button size="lg" variant="gradient" className={className} asChild>
+        <Link href="/dashboard">Create your catalog</Link>
       </Button>
     );
   }
@@ -40,14 +40,9 @@ function SignUpButton({ className }: { className?: string }) {
   return (
     <Button size="lg" variant="gradient" className={className} asChild>
       <div>
-        <SignedIn>
-          <Link href="/dashboard">{text}</Link>
-        </SignedIn>
-        <SignedOut>
-          <ClerkSignUpButton mode="modal" forceRedirectUrl="/dashboard">
-            {text}
-          </ClerkSignUpButton>
-        </SignedOut>
+        <ClerkSignUpButton mode="modal" forceRedirectUrl="/dashboard">
+          Create your catalog
+        </ClerkSignUpButton>
       </div>
     </Button>
   );

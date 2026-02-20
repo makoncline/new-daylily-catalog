@@ -76,7 +76,7 @@
     "@radix-ui/react-toggle-group": "^1.1.11",
     "@radix-ui/react-tooltip": "^1.2.8",
     "@radix-ui/react-visually-hidden": "^1.2.3",
-    "@sentry/nextjs": "^10.10.0",
+    "@sentry/nextjs": "^10.39.0",
     "@t3-oss/env-nextjs": "^0.13.8",
     "@tailwindcss/line-clamp": "^0.4.4",
     "@tanstack/match-sorter-utils": "^8.19.4",
@@ -103,12 +103,12 @@
     "lucide-react": "^0.542.0",
     "markdown-it": "^14.1.0",
     "marked": "^16.2.1",
-    "next": "15.5.8",
+    "next": "16.1.6",
     "next-themes": "^0.4.6",
     "node-html-parser": "^7.0.1",
-    "react": "^19.1.1",
+    "react": "19.2.4",
     "react-day-picker": "^9.13.0",
-    "react-dom": "^19.1.1",
+    "react-dom": "19.2.4",
     "react-dropzone": "^14.3.8",
     "react-error-boundary": "^6.0.0",
     "react-hook-form": "^7.62.0",
@@ -143,15 +143,15 @@
     "@types/lodash.deburr": "^4.1.9",
     "@types/markdown-it": "^14.1.2",
     "@types/node": "^24.3.1",
-    "@types/react": "^19.1.12",
-    "@types/react-dom": "^19.1.9",
+    "@types/react": "19.2.14",
+    "@types/react-dom": "19.2.3",
     "@typescript-eslint/eslint-plugin": "^8.42.0",
     "@typescript-eslint/parser": "^8.42.0",
     "@vitejs/plugin-react": "^5.1.2",
     "concurrently": "^9.2.1",
     "dotenv": "^17.2.2",
     "eslint": "^9.35.0",
-    "eslint-config-next": "^15.5.2",
+    "eslint-config-next": "16.1.6",
     "jsdom": "^26.1.0",
     "postcss": "^8.5.6",
     "prettier": "^3.6.2",
@@ -166,5 +166,11 @@
   "ct3aMetadata": {
     "initVersion": "7.37.0"
   },
-  "packageManager": "pnpm@9.12.0"
+  "packageManager": "pnpm@9.12.0",
+  "pnpm": {
+    "overrides": {
+      "@types/react": "19.2.14",
+      "@types/react-dom": "19.2.3"
+    }
+  }
 }

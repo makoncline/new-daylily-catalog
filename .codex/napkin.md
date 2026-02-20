@@ -135,3 +135,5 @@
 ## Domain Notes
 
 - Occasional server-side `ECONNRESET` or transient tRPC errors may appear during runs; prioritize actual test assertion failures over noisy logs.
+- 2026-02-20 - codemod version detection gotcha - `@next/codemod upgrade` can treat the installed `node_modules` Next version as current even if `package.json` is older; run `pnpm install` first when package files were reverted without reinstalling.
+- 2026-02-20 - next16 lint migration pattern - Moving to `eslint-config-next@16` with flat config surfaces `react-hooks/set-state-in-effect`; resolving by deriving state / ref-based guards (instead of disabling the rule) keeps lint clean with Next 16 recommendations.

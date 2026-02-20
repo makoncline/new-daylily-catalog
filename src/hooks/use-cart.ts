@@ -2,7 +2,7 @@
 
 import { useLocalStorage } from "@/hooks/use-local-storage";
 import { type CartItem } from "@/types";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo } from "react";
 
 // Create a custom event name for cart updates
 const CART_UPDATED_EVENT = "cart_updated";
@@ -19,21 +19,14 @@ interface CartUpdateEventDetail {
  */
 export function useCart(userId: string) {
   const [items, setItems] = useLocalStorage<CartItem[]>(`cart_${userId}`, []);
-  const [itemCountState, setItemCountState] = useState(0);
-  const [totalState, setTotalState] = useState(0);
-
-  // Initial calculation of itemCount and total
-  useEffect(() => {
-    // Calculate itemCount and total from items
-    const count = items.reduce((count, item) => count + item.quantity, 0);
-    const sum = items.reduce(
-      (sum, item) => sum + (item.price ?? 0) * item.quantity,
-      0,
-    );
-
-    setItemCountState(count);
-    setTotalState(sum);
-  }, [items]);
+  const itemCount = useMemo(
+    () => items.reduce((count, item) => count + item.quantity, 0),
+    [items],
+  );
+  const total = useMemo(
+    () => items.reduce((sum, item) => sum + (item.price ?? 0) * item.quantity, 0),
+    [items],
+  );
 
   // Listen for cart update events from other components
   useEffect(() => {
@@ -101,19 +94,6 @@ export function useCart(userId: string) {
         updatedItems = [...prevItems, item];
       }
 
-      // Recalculate count and total
-      const newCount = updatedItems.reduce(
-        (count, item) => count + item.quantity,
-        0,
-      );
-      const newTotal = updatedItems.reduce(
-        (sum, item) => sum + (item.price ?? 0) * item.quantity,
-        0,
-      );
-
-      setItemCountState(newCount);
-      setTotalState(newTotal);
-
       // Broadcast the update
       setTimeout(broadcastCartUpdated, 0);
 
@@ -128,19 +108,6 @@ export function useCart(userId: string) {
   const removeItem = (itemId: string) => {
     setItems((prevItems) => {
       const updatedItems = prevItems.filter((item) => item.id !== itemId);
-
-      // Recalculate count and total
-      const newCount = updatedItems.reduce(
-        (count, item) => count + item.quantity,
-        0,
-      );
-      const newTotal = updatedItems.reduce(
-        (sum, item) => sum + (item.price ?? 0) * item.quantity,
-        0,
-      );
-
-      setItemCountState(newCount);
-      setTotalState(newTotal);
 
       // Broadcast the update
       setTimeout(broadcastCartUpdated, 0);
@@ -165,19 +132,6 @@ export function useCart(userId: string) {
         item.id === itemId ? { ...item, quantity } : item,
       );
 
-      // Recalculate count and total
-      const newCount = updatedItems.reduce(
-        (count, item) => count + item.quantity,
-        0,
-      );
-      const newTotal = updatedItems.reduce(
-        (sum, item) => sum + (item.price ?? 0) * item.quantity,
-        0,
-      );
-
-      setItemCountState(newCount);
-      setTotalState(newTotal);
-
       // Broadcast the update
       setTimeout(broadcastCartUpdated, 0);
 
@@ -190,8 +144,6 @@ export function useCart(userId: string) {
    */
   const clearCart = () => {
     setItems([]);
-    setItemCountState(0);
-    setTotalState(0);
 
     // Broadcast the update
     setTimeout(broadcastCartUpdated, 0);
@@ -203,7 +155,7 @@ export function useCart(userId: string) {
     removeItem,
     updateQuantity,
     clearCart,
-    itemCount: itemCountState,
-    total: totalState,
+    itemCount,
+    total,
   };
 }
