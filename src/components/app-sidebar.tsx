@@ -1,7 +1,14 @@
 "use client";
 
 import * as React from "react";
-import { Command, Flower2, ListTodo, Send, UserCircle } from "lucide-react";
+import {
+  Command,
+  Flower2,
+  ListTodo,
+  Send,
+  Tag,
+  UserCircle,
+} from "lucide-react";
 import { api } from "@/trpc/react";
 import { NavMain } from "@/components/nav-main";
 import { NavUser, NavUserSkeleton } from "@/components/nav-user";
@@ -62,6 +69,12 @@ export function AppSidebar({
         url: "/dashboard/profile",
         icon: UserCircle,
         isActive: pathname.startsWith("/dashboard/profile"),
+      },
+      {
+        title: "Tags",
+        url: "/dashboard/tags",
+        icon: Tag,
+        isActive: pathname.startsWith("/dashboard/tags"),
       },
     ],
     [pathname],

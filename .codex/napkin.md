@@ -2,6 +2,11 @@
 
 ## Log
 
+- 2026-02-20 - scope correction self-miss - I first added tag printing as a selected-row action on manage-list, then user clarified it must be a dedicated dashboard page; when feature placement is ambiguous, confirm page-level scope early.
+- 2026-02-20 - tags UX correction - For `/dashboard/tags`, keep the tag designer inline at the top of the page (not in a dialog), with per-field style controls (font size + basic text styles), editable labels, left/right slot placement, and move up/down ordering.
+- 2026-02-20 - print reliability pattern - Browser popup flows can fail for print; a hidden iframe + `contentWindow.print()` from the click handler is a more reliable print trigger than `window.open(...).print()`.
+- 2026-02-20 - test rerun pattern - `pnpm test` showed a transient `tests/dashboard-db-collections.test.tsx` failure (`AbortSignal` + timeout) once, then passed on immediate rerun; if this recurs, rerun the single file and then full suite before treating it as deterministic.
+- 2026-02-20 - lint blocker - `@typescript-eslint/no-unnecessary-type-assertion` flagged `(field as TagFieldConfig).textAlign`; use `field.textAlign` directly.
 - 2026-02-20 - posthog verification pattern - Fastest proof path is Playwright with `localStorage.ph_debug=true` and checking console for `[PostHog.js] send "event_name"` plus `browser_network_requests` showing `https://us.i.posthog.com/e` `200`.
 - 2026-02-20 - agent-browser click flake - In this repo/session, some `agent-browser click` calls on cursor-interactive refs stalled with no output; fall back to Playwright MCP tools for deterministic network-level verification.
 - 2026-02-20 - posthog wizard backend flake - Wizard can fail after successful OAuth with `No chunk id map found` and repeated `401 Authentication required`; use manual Next.js integration as fallback.
@@ -93,6 +98,7 @@
 ## Preferences
 
 - Write tests, not too many, mostly integration, hapy path e2e.
+- Tag-printing should ship as a dedicated dashboard page (`/dashboard/tags`), not as an embedded manage-list action.
 - TanStack DB dashboard migration: keep procedures under new `dashboardDb` router, migrate main `/dashboard` page-by-page, and run `pnpm lint`, `npx tsc --noEmit`, `pnpm test`, `pnpm test:e2e` before each incremental commit.
 - Cultivar pages should be catalog-centric (catalog cards with nested cultivar listing rows), not listing-card grids.
 - Use composition patterns for new UI components (prefer explicit composed sections over boolean-mode props).
@@ -147,3 +153,6 @@
 - 2026-02-20 - repeat globbing self-miss - I still triggered zsh `no matches found` by running `rg/sed` against unquoted App Router paths with `[listId]`; quote dynamic segment paths every time in shell commands.
 - 2026-02-20 - column parity pattern - To prevent dashboard/manage-list divergence, compose manage-list columns from `baseListingColumns` and only add local utility columns like `select`.
 - 2026-02-20 - globbing recurrence - I repeated the `[listId]` quoting miss again during `git diff`; always quote these paths even in final status/diff commands.
+- 2026-02-20 - tag designer compaction - Refactored 9 always-visible full-width field cards into two-tier layout: compact checkbox grid for inclusion, inline settings row only for included fields. ~70% vertical space reduction with defaults.
+- 2026-02-20 - print iframe blank fix - Two issues: (1) zero-dimension + `visibility:hidden` skips layout, fix with off-screen positioning at real dims; (2) `iframe.onload` fires for the initial `about:blank` page before `document.write` adds content, causing `didPrint` to latch true and print a blank page. Fix by removing the premature `onload` handler and using only a single `setTimeout` after `document.close()`.
+- 2026-02-20 - tag field settings grid - Converted flex-wrap field settings rows to CSS grid with Fragment-based rows so columns align vertically across fields. Added per-field `textAlign` property for independent left/right justify on printed tags.
