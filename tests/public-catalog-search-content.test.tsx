@@ -1,9 +1,10 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { PublicCatalogSearchContent } from "@/components/public-catalog-search/public-catalog-search-content";
 
 const mockSearchParamGet = vi.fn();
 const mockScrollIntoView = vi.fn();
+const mockPublicCatalogSearchTable = vi.fn();
 
 const mockTitleColumn = {
   getFilterValue: vi.fn(() => undefined),
@@ -54,7 +55,20 @@ vi.mock("@/components/data-table/data-table-pagination", () => ({
 }));
 
 vi.mock("@/components/public-catalog-search/public-catalog-search-table", () => ({
-  PublicCatalogSearchTable: () => <div data-testid="catalog-table" />,
+  PublicCatalogSearchTable: ({
+    desktopColumns,
+  }: {
+    desktopColumns: 2 | 3;
+  }) => {
+    mockPublicCatalogSearchTable({ desktopColumns });
+
+    return (
+      <div
+        data-testid="catalog-table"
+        data-desktop-columns={String(desktopColumns)}
+      />
+    );
+  },
 }));
 
 describe("PublicCatalogSearchContent", () => {
@@ -123,5 +137,37 @@ describe("PublicCatalogSearchContent", () => {
 
     expect(mockScrollIntoView).toHaveBeenCalled();
     scrollElement.remove();
+  });
+
+  it("uses 2 columns with expanded search panel and 3 columns when collapsed", () => {
+    mockSearchParamGet.mockImplementation(() => null);
+
+    render(
+      <PublicCatalogSearchContent
+        lists={[]}
+        listings={[]}
+        isLoading={false}
+        totalListingsCount={8}
+      />,
+    );
+
+    expect(screen.getByTestId("catalog-table")).toHaveAttribute(
+      "data-desktop-columns",
+      "2",
+    );
+    expect(mockPublicCatalogSearchTable).toHaveBeenLastCalledWith({
+      desktopColumns: 2,
+    });
+
+    fireEvent.click(screen.getByTestId("search-panel-collapse"));
+
+    expect(screen.getByTestId("search-panel-expand")).toBeVisible();
+    expect(screen.getByTestId("catalog-table")).toHaveAttribute(
+      "data-desktop-columns",
+      "3",
+    );
+    expect(mockPublicCatalogSearchTable).toHaveBeenLastCalledWith({
+      desktopColumns: 3,
+    });
   });
 });

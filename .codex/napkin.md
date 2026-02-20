@@ -2,6 +2,9 @@
 
 ## Log
 
+- 2026-02-20 - db path correction - For local prod snapshot checks in this worktree, the usable DB is `prisma/local-prod-copy-daylily-catalog.db` (the repo-root `local-prod-copy-daylily-catalog.db` may exist as an empty placeholder).
+- 2026-02-20 - patch regression self-check - While adding new props to JSX I briefly rendered `PublicCatalogSearchTable` twice; after structural patches, always scan the edited block for accidental duplicate component lines before running tests.
+- 2026-02-20 - command quoting self-miss - I retriggered zsh glob expansion (`no matches found`) by reading App Router paths with `(...)` and `[...]` unquoted; always single-quote those paths in shell commands.
 - 2026-02-20 - next-lint codemod gotcha - `@next/codemod next-lint-to-eslint-cli` updated this repo's `eslint.config.js` import but left `...compat.extends(...)`, causing `compat is not defined`; keep `FlatCompat` for the current `tseslint.config(...)` setup and migrate the npm script to scoped ESLint CLI targets (here `eslint src`) instead of blanket `eslint .`.
 - 2026-02-19 - test dependency assumption - `@testing-library/user-event` is not installed in this repo; use `fireEvent` from `@testing-library/react` for integration UI tests unless dependency is explicitly added.
 - 2026-02-19 - jsdom popover gotcha - `cmdk`/Radix popover flows require a `ResizeObserver` polyfill in Vitest jsdom tests; add a minimal mock in the test when using faceted filters.
@@ -107,6 +110,7 @@
 - Route naming update: public interactive search page uses `/{slug}/search`; keep `/{slug}/catalog` as a compatibility redirect.
 - Updated preference: do not keep `/{slug}/catalog` compatibility redirect since it was introduced and removed within this PR; keep only `/{slug}/search`.
 - Search UX preference: `/{slug}/search` should provide both all-fields search and title-only search, and pressing `Enter` in the search form should scroll to the listings summary so the `x / n listings` context stays visible.
+- Listing card UX preference: on `/{slug}` and `/{slug}/search`, titles should wrap and shrink before truncation, with middle truncation only past a hard upper-length cap.
 
 ## Patterns That Work
 

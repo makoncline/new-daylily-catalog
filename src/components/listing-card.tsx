@@ -11,16 +11,19 @@ import {
 } from "@/components/ui/tooltip";
 import { ListChecks, Link2 } from "lucide-react";
 import { type RouterOutputs } from "@/trpc/react";
-import { formatPrice } from "@/lib/utils";
+import { cn, formatPrice } from "@/lib/utils";
 import { toCultivarRouteSegment } from "@/lib/utils/cultivar-utils";
 import { OptimizedImage } from "./optimized-image";
 import { useViewListing } from "@/components/view-listing-dialog";
 import { Skeleton } from "./ui/skeleton";
-import { H3 } from "@/components/typography";
 import { ImagePlaceholder } from "./image-placeholder";
 import { ImagePopover } from "@/components/image-popover";
 import { AddToCartButton } from "@/components/add-to-cart-button";
 import { useDisplayAhsListing } from "@/hooks/use-display-ahs-listing";
+import {
+  formatListingCardTitle,
+  getListingCardTitleSizeClass,
+} from "@/components/listing-card-title";
 import Link from "next/link";
 
 type ListingCardProps = {
@@ -32,6 +35,9 @@ type ListingCardProps = {
 export function ListingCard({ listing, priority = false }: ListingCardProps) {
   const { viewListing } = useViewListing();
   const displayAhsListing = useDisplayAhsListing(listing);
+  const displayTitle = formatListingCardTitle(listing.title);
+  const titleSizeClass = getListingCardTitleSizeClass(displayTitle.length);
+  const titleWasTruncated = displayTitle !== listing.title;
   const cultivarRouteSegment = toCultivarRouteSegment(
     listing.cultivarReference?.normalizedName,
   );
@@ -143,9 +149,15 @@ export function ListingCard({ listing, priority = false }: ListingCardProps) {
       <CardContent className="flex flex-1 flex-col p-4">
         <div className="flex flex-1 flex-col justify-between gap-4">
           <div className="space-y-2">
-            <H3>
-              <TruncatedText text={listing.title} lines={1} />
-            </H3>
+            <h3
+              className={cn(
+                "font-semibold tracking-tight whitespace-normal break-words",
+                titleSizeClass,
+              )}
+              title={titleWasTruncated ? listing.title : undefined}
+            >
+              {displayTitle}
+            </h3>
 
             {/* Hybridizer and Year */}
             {(displayAhsListing?.hybridizer ?? displayAhsListing?.year) && (
