@@ -75,6 +75,8 @@
 
 - 2026-02-19 - advanced search UX pattern - Range sliders should include paired number inputs (commit on blur/Enter) for precise value entry; accordion filter sections start collapsed with active-filter badge counts on triggers; removable filter chips bar between quick-filters and accordions replaces bottom reset/count footer; singleton controls (e.g. Lists) belong in the quick-filter row, not their own accordion.
 - 2026-02-19 - search mode toggle - Replaced dual Basic/Advanced buttons with a single Switch toggle inside the filter card; the sidebar panel now renders in both modes (basic shows single input + quick filters, advanced adds accordions). This keeps the search UI always visible in a sidebar layout.
+- 2026-02-20 - advanced search e2e maintenance - For `public-catalog-advanced-search.e2e.ts`, target behavior-level controls (mode switch, search input, accordion trigger labels, visible results/URL state) and avoid assuming sections are open by default.
+- 2026-02-20 - stripe kv seeding for e2e - Seed `keyValue` entry `stripe:customer:<id>` in temp-db setup (use `setStripeSubscriptionStatus`) to avoid noisy Stripe fallback lookups for synthetic customer ids.
 
 ## Preferences
 

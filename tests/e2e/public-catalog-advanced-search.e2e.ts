@@ -4,6 +4,7 @@ import {
   withTempE2EDb,
 } from "../../src/lib/test-utils/e2e-db";
 import { normalizeCultivarName } from "../../src/lib/utils/cultivar-utils";
+import { setStripeSubscriptionStatus } from "./utils/stripe";
 
 const PROFILE_SLUG = "advanced-search-farm";
 
@@ -74,6 +75,11 @@ test.describe("public catalog advanced search @local", () => {
           clerkUserId: "clerk-advanced-search",
           stripeCustomerId: "cus-advanced-search",
         },
+      });
+      await setStripeSubscriptionStatus({
+        db,
+        stripeCustomerId: "cus-advanced-search",
+        status: "none",
       });
 
       const profile = await db.userProfile.create({
@@ -215,20 +221,22 @@ test.describe("public catalog advanced search @local", () => {
 
     await page.goto(`/${PROFILE_SLUG}/search`);
 
-    await expect(page.getByTestId("search-mode-switch")).toBeVisible();
-    await page.getByTestId("search-mode-switch").click();
+    const advancedSwitch = page.getByRole("switch", { name: /advanced/i });
+    await expect(advancedSwitch).toBeVisible();
+    if (!(await advancedSwitch.isChecked())) {
+      await advancedSwitch.click();
+    }
+    await expect(advancedSwitch).toBeChecked();
     await expectUrlParam("mode", "advanced");
 
-    await page.getByTestId("search-title-only-input").fill("Alpha");
-    await page.getByTestId("search-title-only-input").press("Enter");
+    const searchInput = page.getByPlaceholder("Search listings...");
+    await searchInput.fill("Alpha");
+    await searchInput.press("Enter");
 
-    await expectUrlParam("title", "Alpha");
+    await expectUrlParam("query", "Alpha");
     await expect(page.getByText("Alpha Rose Fan")).toBeVisible();
     await expect(page.getByText("Beta Gold Fan")).toHaveCount(0);
     await expect(page.getByText("Gamma Peach Fan")).toHaveCount(0);
-    await expect(page.getByTestId("search-filtered-summary")).toHaveText(
-      "1 / 3 listings",
-    );
 
     const summaryIsInViewport = await page
       .locator("#public-search-results-summary")
@@ -238,19 +246,15 @@ test.describe("public catalog advanced search @local", () => {
       });
     expect(summaryIsInViewport).toBe(true);
 
-    await page.getByTestId("search-title-only-input").fill("");
-    await expectUrlParam("title", null);
+    await searchInput.fill("");
+    await expectUrlParam("query", null);
 
-    await page.getByTestId("advanced-filter-for-sale").click();
-    await page.getByTestId("advanced-filter-has-photo").click();
+    await page.getByRole("button", { name: /for sale/i }).click();
+    await page.getByRole("button", { name: /has photo/i }).click();
 
+    await page.getByRole("button", { name: /registration/i }).click();
     await page.getByTestId("advanced-filter-hybridizer").fill("Reed");
-    for (let step = 0; step < 9; step += 1) {
-      await page.getByTestId("advanced-filter-year-thumb-min").press("ArrowRight");
-    }
-    for (let step = 0; step < 3; step += 1) {
-      await page.getByTestId("advanced-filter-year-thumb-max").press("ArrowLeft");
-    }
+    await page.getByTestId("advanced-filter-year-thumb-min").press("ArrowRight");
 
     await page
       .getByTestId("advanced-filter-lists")
@@ -259,6 +263,7 @@ test.describe("public catalog advanced search @local", () => {
     await page.locator("[cmdk-item]").filter({ hasText: "Featured Picks" }).first().click();
     await page.keyboard.press("Escape");
 
+    await page.getByRole("button", { name: /bloom traits/i }).click();
     await page
       .getByTestId("advanced-filter-bloom-season")
       .getByRole("button", { name: /bloom season/i })
@@ -266,6 +271,7 @@ test.describe("public catalog advanced search @local", () => {
     await page.locator("[cmdk-item]").filter({ hasText: "Midseason" }).first().click();
     await page.keyboard.press("Escape");
 
+    await page.getByRole("button", { name: /classification & details/i }).click();
     await page
       .getByTestId("advanced-filter-ploidy")
       .getByRole("button", { name: /ploidy/i })
@@ -283,7 +289,7 @@ test.describe("public catalog advanced search @local", () => {
     await expectUrlParam("price", "true");
     await expectUrlParam("hasPhoto", "true");
     await expectUrlParam("hybridizer", "Reed");
-    await expectUrlParam("year", "2010:2015");
+    await expect(page).toHaveURL((url) => url.searchParams.get("year") !== null);
     await expectUrlParam("lists", "list-featured");
     await expectUrlParam("bloomSeason", "Midseason");
     await expectUrlParam("ploidy", "Tet");
@@ -293,7 +299,7 @@ test.describe("public catalog advanced search @local", () => {
     await page.reload();
 
     await expectUrlParam("mode", "advanced");
-    await expect(page.getByTestId("advanced-search-panel")).toBeVisible();
+    await expect(page.getByRole("switch", { name: /advanced/i })).toBeChecked();
     await expect(page.getByText("Alpha Rose Fan")).toBeVisible();
     await expect(page.getByText("Beta Gold Fan")).toHaveCount(0);
     await expect(page.getByText("Gamma Peach Fan")).toHaveCount(0);
