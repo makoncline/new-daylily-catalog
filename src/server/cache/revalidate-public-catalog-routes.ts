@@ -1,6 +1,8 @@
 import { revalidatePath } from "next/cache";
 import type { PrismaClient } from "@prisma/client";
 
+const ENABLE_PUBLIC_ROUTE_REVALIDATION = false;
+
 interface RevalidatePublicCatalogRoutesInput {
   db: PrismaClient;
   userId: string;
@@ -20,6 +22,12 @@ export async function revalidatePublicCatalogRoutes({
   userId,
   additionalUserSegments = [],
 }: RevalidatePublicCatalogRoutesInput) {
+  // Temporarily disabled: keep mutation flow intact while we design a
+  // debounced/deduplicated queue-based revalidation system.
+  if (!ENABLE_PUBLIC_ROUTE_REVALIDATION) {
+    return;
+  }
+
   const profile = await db.userProfile.findUnique({
     where: {
       userId,

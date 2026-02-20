@@ -15,7 +15,7 @@ describe("revalidatePublicCatalogRoutes", () => {
     vi.clearAllMocks();
   });
 
-  it("revalidates canonical, legacy, and shared public catalog paths", async () => {
+  it("skips route revalidation while the helper is globally disabled", async () => {
     const db = {
       userProfile: {
         findUnique: vi.fn().mockResolvedValue({ slug: "sunrise-daylilies" }),
@@ -28,21 +28,7 @@ describe("revalidatePublicCatalogRoutes", () => {
       additionalUserSegments: ["old-slug"],
     });
 
-    expect(mockRevalidatePath).toHaveBeenCalledWith("/sunrise-daylilies");
-    expect(mockRevalidatePath).toHaveBeenCalledWith("/sunrise-daylilies/search");
-    expect(mockRevalidatePath).toHaveBeenCalledWith("/user-123");
-    expect(mockRevalidatePath).toHaveBeenCalledWith("/user-123/search");
-    expect(mockRevalidatePath).toHaveBeenCalledWith("/old-slug");
-    expect(mockRevalidatePath).toHaveBeenCalledWith("/old-slug/search");
-    expect(mockRevalidatePath).toHaveBeenCalledWith(
-      "/[userSlugOrId]/page/[page]",
-      "page",
-    );
-    expect(mockRevalidatePath).toHaveBeenCalledWith(
-      "/cultivar/[cultivarNormalizedName]",
-      "page",
-    );
-    expect(mockRevalidatePath).toHaveBeenCalledWith("/catalogs");
-    expect(mockRevalidatePath).toHaveBeenCalledWith("/sitemap.xml");
+    expect(db.userProfile.findUnique).not.toHaveBeenCalled();
+    expect(mockRevalidatePath).not.toHaveBeenCalled();
   });
 });
