@@ -1,6 +1,10 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
+import { Loader2 } from "lucide-react";
+import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -19,7 +23,11 @@ function getShortcutLabel() {
 
 export function AdminMenu() {
   const [isOpen, setIsOpen] = useState(false);
+  const [isRevalidatingCurrentPage, setIsRevalidatingCurrentPage] =
+    useState(false);
   const shortcutLabel = useMemo(() => getShortcutLabel(), []);
+  const pathname = usePathname();
+  const router = useRouter();
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -40,6 +48,49 @@ export function AdminMenu() {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, []);
 
+  const currentPathname = pathname ?? "/";
+
+  const handleRevalidateCurrentPage = async () => {
+    if (isRevalidatingCurrentPage) {
+      return;
+    }
+
+    setIsRevalidatingCurrentPage(true);
+
+    try {
+      const response = await fetch("/api/admin/revalidate-path", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          path: currentPathname,
+        }),
+      });
+
+      const responseBody =
+        (await response.json().catch(() => null)) as
+          | { error?: string; revalidatedPath?: string }
+          | null;
+
+      if (!response.ok) {
+        throw new Error(responseBody?.error ?? "Revalidation request failed");
+      }
+
+      toast.success("Revalidated current page", {
+        description: responseBody?.revalidatedPath ?? currentPathname,
+      });
+      router.refresh();
+    } catch (error) {
+      toast.error("Failed to revalidate current page", {
+        description:
+          error instanceof Error ? error.message : "Unexpected error",
+      });
+    } finally {
+      setIsRevalidatingCurrentPage(false);
+    }
+  };
+
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <DialogContent>
@@ -50,8 +101,26 @@ export function AdminMenu() {
           </DialogDescription>
         </DialogHeader>
 
-        <div className="text-muted-foreground text-sm">
-          No active experimental flags in this build.
+        <div className="space-y-3">
+          <Button
+            type="button"
+            onClick={handleRevalidateCurrentPage}
+            disabled={isRevalidatingCurrentPage}
+            className="w-full"
+          >
+            {isRevalidatingCurrentPage ? (
+              <>
+                <Loader2 className="size-4 animate-spin" />
+                Revalidating...
+              </>
+            ) : (
+              "Revalidate current page"
+            )}
+          </Button>
+
+          <div className="text-muted-foreground text-xs">
+            Current path: {currentPathname}
+          </div>
         </div>
       </DialogContent>
     </Dialog>
