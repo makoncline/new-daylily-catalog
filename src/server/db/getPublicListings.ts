@@ -201,6 +201,18 @@ export async function getPublicListingsPage({
   };
 }
 
+export async function getPublicForSaleListingsCount(userId: string) {
+  return db.listing.count({
+    where: {
+      userId,
+      price: {
+        gt: 0,
+      },
+      ...publicListingVisibilityFilter,
+    },
+  });
+}
+
 interface PublicCatalogRouteEntry {
   slug: string;
   totalPages: number;

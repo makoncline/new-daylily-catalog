@@ -1,5 +1,6 @@
 import { PUBLIC_PROFILE_LISTINGS_PAGE_SIZE } from "@/config/constants";
 import {
+  getPublicForSaleListingsCount,
   getPublicCatalogRouteEntries,
   getPublicListingsPage,
 } from "@/server/db/getPublicListings";
@@ -39,6 +40,7 @@ export async function getPublicProfilePageData(
     page,
     pageSize: PUBLIC_PROFILE_LISTINGS_PAGE_SIZE,
   });
+  const forSaleCount = await getPublicForSaleListingsCount(profile.id);
 
   return {
     profile,
@@ -47,5 +49,6 @@ export async function getPublicProfilePageData(
     pageSize: listingPage.pageSize,
     totalCount: listingPage.totalCount,
     totalPages: listingPage.totalPages,
+    forSaleCount,
   };
 }

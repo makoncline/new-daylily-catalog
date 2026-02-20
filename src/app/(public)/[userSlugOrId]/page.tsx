@@ -80,6 +80,7 @@ export default async function Page({ params }: PageProps) {
   const activePage = pageDataResult.data.page;
   const totalPages = pageDataResult.data.totalPages;
   const totalCount = pageDataResult.data.totalCount;
+  const forSaleCount = pageDataResult.data.forSaleCount;
 
   const canonicalUserSlug = initialProfile.slug ?? initialProfile.id;
   if (userSlugOrId !== canonicalUserSlug) {
@@ -123,6 +124,7 @@ export default async function Page({ params }: PageProps) {
             page={activePage}
             totalPages={totalPages}
             totalCount={totalCount}
+            forSaleCount={forSaleCount}
           />
 
           <CatalogSearchPrefetch
