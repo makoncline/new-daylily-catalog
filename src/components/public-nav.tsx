@@ -1,10 +1,25 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Flower2 } from "lucide-react";
 import { Small } from "@/components/typography";
-import { DashboardButton } from "@/components/dashboard-button";
+
+const DashboardButton = dynamic(
+  () =>
+    import("@/components/dashboard-button").then(
+      (module) => module.DashboardButton,
+    ),
+  {
+    ssr: false,
+    loading: () => (
+      <Button disabled size="sm">
+        Dashboard
+      </Button>
+    ),
+  },
+);
 
 export function PublicdNav() {
   return (

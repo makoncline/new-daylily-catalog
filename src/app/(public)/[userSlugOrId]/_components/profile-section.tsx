@@ -9,12 +9,31 @@ import {
   MemberSince,
 } from "@/components/profile/profile-badges";
 import { FloatingCartButton } from "@/components/floating-cart-button";
-import { type RouterOutputs } from "@/trpc/react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { H1, P } from "@/components/typography";
 
-interface ProfileSectionProps {
-  profile: RouterOutputs["public"]["getProfile"];
+export interface ProfileListSummary {
+  id: string;
+  title: string;
+  listingCount: number;
+}
+
+export interface ProfileSectionData {
+  id: string;
+  title: string | null;
+  description: string | null;
+  location: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+  hasActiveSubscription: boolean;
+  _count: {
+    listings: number;
+  };
+  lists: ProfileListSummary[];
+}
+
+export interface ProfileSectionProps {
+  profile: ProfileSectionData;
 }
 
 export function ProfileSection({ profile }: ProfileSectionProps) {

@@ -1,9 +1,9 @@
 import { db } from "@/server/db";
 import { TRPCError } from "@trpc/server";
-import { type OutputData } from "@editorjs/editorjs";
 import { getStripeSubscription } from "@/server/stripe/sync-subscription";
 import { hasActiveSubscription } from "@/server/stripe/subscription-utils";
 import { STATUS } from "@/config/constants";
+import { parsePublicProfileContent } from "./parse-public-profile-content";
 
 // Helper function to get userId from either slug or id
 export async function getUserIdFromSlugOrId(slugOrId: string): Promise<string> {
@@ -146,16 +146,7 @@ export async function getPublicProfile(userSlugOrId: string) {
 
     const sub = await getStripeSubscription(user.stripeCustomerId);
 
-    // Parse content if it exists
-    let parsedContent = null;
-    if (user.profile?.content) {
-      try {
-        parsedContent = JSON.parse(user.profile.content) as OutputData;
-      } catch (error) {
-        console.error("Error parsing profile content:", error);
-        parsedContent = user.profile.content;
-      }
-    }
+    const parsedContent = parsePublicProfileContent(user.profile?.content);
 
     return {
       id: user.id,

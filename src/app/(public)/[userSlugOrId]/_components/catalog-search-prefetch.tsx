@@ -6,7 +6,7 @@ import {
   PUBLIC_CATALOG_SEARCH_PERSISTED_SWR,
 } from "@/lib/public-catalog-search-persistence";
 
-interface CatalogSearchPrefetchProps {
+export interface CatalogSearchPrefetchProps {
   userId: string;
   userSlugOrId: string;
 }

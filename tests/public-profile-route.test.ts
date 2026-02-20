@@ -56,7 +56,10 @@ describe("public profile route helpers", () => {
   });
 
   it("uses dedicated public profile page size for paginated profile data", async () => {
-    mockGetPublicProfile.mockResolvedValue({ id: "user-1", slug: "alpha-garden" });
+    mockGetPublicProfile.mockResolvedValue({
+      id: "user-1",
+      slug: "alpha-garden",
+    });
     mockGetPublicListingsPage.mockResolvedValue({
       items: [],
       page: 1,
@@ -81,6 +84,14 @@ describe("public profile route helpers", () => {
       pageSize: PUBLIC_PROFILE_LISTINGS_PAGE_SIZE,
     });
     expect(mockGetPublicForSaleListingsCount).toHaveBeenCalledWith("user-1");
-    expect(pageData.forSaleCount).toBe(11);
+    expect(pageData).toMatchObject({
+      profile: { id: "user-1", slug: "alpha-garden" },
+      items: [],
+      page: 1,
+      pageSize: 100,
+      totalCount: 0,
+      totalPages: 1,
+      forSaleCount: 11,
+    });
   });
 });

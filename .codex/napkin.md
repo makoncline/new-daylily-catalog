@@ -2,6 +2,11 @@
 
 ## Log
 
+- 2026-02-20 - public slug refactor pattern - Keep `/{slug}` and `/{slug}?page=` behavior aligned by centralizing shared render in a server shell component and centralizing data fetch/cache policy in route lib helpers.
+- 2026-02-20 - unstable_cache test harness gotcha - Vitest/jsdom route tests can throw `incrementalCache missing` when calling `unstable_cache`; mock `next/cache` with an identity `unstable_cache` wrapper in unit/integration tests for these modules.
+- 2026-02-20 - apply_patch hunk overlap self-miss - Large replacement in `catalog-seo-listings.tsx` left trailing duplicate JSX after a partial hunk match; always reopen edited files immediately after multi-section patches to catch leftover blocks before test runs.
+- 2026-02-20 - zsh path quoting recurrence - I retriggered glob expansion with unquoted `src/app/(public)/[userSlugOrId]` in `rg`; keep App Router paths in single quotes for every shell command.
+- 2026-02-20 - model-first refactor pattern - For public profile routes, a server `buildPublicProfilePageModel` helper made UI sections simpler, moved URL derivations out of views, and made unit tests cleaner than context-heavy compound wrappers.
 - 2026-02-20 - posthog verification pattern - Fastest proof path is Playwright with `localStorage.ph_debug=true` and checking console for `[PostHog.js] send "event_name"` plus `browser_network_requests` showing `https://us.i.posthog.com/e` `200`.
 - 2026-02-20 - agent-browser click flake - In this repo/session, some `agent-browser click` calls on cursor-interactive refs stalled with no output; fall back to Playwright MCP tools for deterministic network-level verification.
 - 2026-02-20 - posthog wizard backend flake - Wizard can fail after successful OAuth with `No chunk id map found` and repeated `401 Authentication required`; use manual Next.js integration as fallback.
@@ -147,3 +152,12 @@
 - 2026-02-20 - repeat globbing self-miss - I still triggered zsh `no matches found` by running `rg/sed` against unquoted App Router paths with `[listId]`; quote dynamic segment paths every time in shell commands.
 - 2026-02-20 - column parity pattern - To prevent dashboard/manage-list divergence, compose manage-list columns from `baseListingColumns` and only add local utility columns like `select`.
 - 2026-02-20 - globbing recurrence - I repeated the `[listId]` quoting miss again during `git diff`; always quote these paths even in final status/diff commands.
+- 2026-02-20 - model-props alias lint - `interface X extends Y {}` triggers `@typescript-eslint/no-empty-object-type`; use `type X = Y` for pure prop aliases when adopting shared view-model contracts.
+- 2026-02-20 - seo metadata type coupling - `next` `Metadata` is too broad for `generateProfilePageJsonLd`; keep `ProfileSeoModel.metadata` typed from `Parameters<typeof generateProfilePageJsonLd>[2]` (or `generateProfileMetadata` return type) to preserve strict shape compatibility.
+- 2026-02-20 - view-props hook pattern - For client composition consistency, `use*ViewProps` hooks that return the exact `*ViewProps` object keep wrappers mechanical and make dataflow obvious (used in `CatalogNav` and `CatalogSeoPagination`).
+- 2026-02-20 - deterministic server labels - For server-built count labels, use a fixed formatter (`Intl.NumberFormat("en-US")`) instead of default-locale `toLocaleString()` to avoid runtime-dependent text drift.
+- 2026-02-20 - editorjs boundary guard - Public profile content parsing should validate minimal EditorJS shape (`blocks` array) and return null on bad JSON/wrong shape; testing this as a small utility keeps DB route tests lean.
+- 2026-02-20 - static public nav hydration guard - On static public routes, auth-dependent client branches (`useAuth`) can SSR as disabled buttons but hydrate as links for signed-in users; load auth-variant nav controls with `next/dynamic(..., { ssr:false })` and a stable fallback to avoid anchor/button mismatches.
+- 2026-02-20 - radix id hydration mismatch pattern - Radix `Dialog`/`Select` can emit differing `aria-controls` ids across SSR/client when the `useId` sequence diverges in complex static pages; wrapping those controls in `ClientOnly` with a stable fallback prevents console hydration mismatch while preserving server-rendered SEO content.
+- 2026-02-20 - component-local type preference - In this repo, keep route-component prop/data interfaces near the component files; if a shared model builder needs those shapes, import the component types type-only from `_components` instead of centralizing all view-model types in `_lib`.
+- 2026-02-20 - migration doc pattern - Capture refactor conventions as a reusable checklist doc in `docs/` with concrete route/model/client/hydration examples so future migrations can follow one template.
