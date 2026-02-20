@@ -7,6 +7,12 @@
 - 2026-02-20 - posthog wizard backend flake - Wizard can fail after successful OAuth with `No chunk id map found` and repeated `401 Authentication required`; use manual Next.js integration as fallback.
 - 2026-02-20 - posthog prod-only guard - Gate both `instrumentation-client.ts` init and `capturePosthogEvent` helper by `process.env.NODE_ENV === "production"` so dev/local never emit analytics even if a key appears.
 - 2026-02-20 - posthog ownership cleanup - Keep PostHog initialization in `instrumentation-client.ts` only; `capturePosthogEvent` should just gate and call `posthog.capture` to avoid duplicate init logic.
+- 2026-02-20 - next-lint codemod gotcha - `@next/codemod next-lint-to-eslint-cli` updated this repo's `eslint.config.js` import but left `...compat.extends(...)`, causing `compat is not defined`; keep `FlatCompat` for the current `tseslint.config(...)` setup and migrate the npm script to scoped ESLint CLI targets (here `eslint src`) instead of blanket `eslint .`.
+- 2026-02-19 - test dependency assumption - `@testing-library/user-event` is not installed in this repo; use `fireEvent` from `@testing-library/react` for integration UI tests unless dependency is explicitly added.
+- 2026-02-19 - jsdom popover gotcha - `cmdk`/Radix popover flows require a `ResizeObserver` polyfill in Vitest jsdom tests; add a minimal mock in the test when using faceted filters.
+- 2026-02-19 - jsdom cmdk scroll gotcha - Faceted filter popovers may call `scrollIntoView`; add a no-op `HTMLElement.prototype.scrollIntoView` polyfill in the test when absent.
+- 2026-02-19 - jsdom radix slider gotcha - Dual-thumb Radix slider key interactions can be inconsistent for exact step-value assertions in jsdom; keep integration assertions looser (range param exists) and verify exact range values in Playwright e2e.
+- 2026-02-19 - TS test fixture inference - Unannotated fixture objects initialized with `null` infer `null`-only property types; declare an explicit interface (`string | null`) before using `Partial<...>` overrides.
 - 2026-02-19 - test fixture typing - `RouterOutputs["public"]["getProfile"]` in unit tests rejects partial literal + direct cast; provide the full object shape (or intentionally cast via `unknown`) to keep `tsc --noEmit` green.
 - 2026-02-19 - route path shell globbing - Unquoted paths containing `[...]` failed in zsh (`no matches found`). Quote route paths when reading/editing files under App Router dynamic segments.
 - 2026-02-19 - header/mobile UX correction - User wants `/{slug}/search` header simplified (garden name + search/filter subheading + contact CTA) and wants mobile image panel restored on `/{slug}`.
@@ -73,6 +79,11 @@
 - 2026-02-13 - e2e popover filters - Radix popover filter inputs can detach during URL-sync/table rerenders; in Playwright, target by exact placeholder and retry after `Escape` + reopen.
 - 2026-02-13 - unit test env - Importing the full `appRouter` can eagerly construct clients (e.g. Stripe) and crash if env vars are missing even with `SKIP_ENV_VALIDATION=1`; set minimal placeholder env vars or import routers directly.
 
+- 2026-02-19 - advanced search UX pattern - Range sliders should include paired number inputs (commit on blur/Enter) for precise value entry; accordion filter sections start collapsed with active-filter badge counts on triggers; removable filter chips bar between quick-filters and accordions replaces bottom reset/count footer; singleton controls (e.g. Lists) belong in the quick-filter row, not their own accordion.
+- 2026-02-19 - search mode toggle - Replaced dual Basic/Advanced buttons with a single Switch toggle inside the filter card; the sidebar panel now renders in both modes (basic shows single input + quick filters, advanced adds accordions). This keeps the search UI always visible in a sidebar layout.
+- 2026-02-20 - advanced search e2e maintenance - For `public-catalog-advanced-search.e2e.ts`, target behavior-level controls (mode switch, search input, accordion trigger labels, visible results/URL state) and avoid assuming sections are open by default.
+- 2026-02-20 - stripe kv seeding for e2e - Seed `keyValue` entry `stripe:customer:<id>` in temp-db setup (use `setStripeSubscriptionStatus`) to avoid noisy Stripe fallback lookups for synthetic customer ids.
+
 ## Preferences
 
 - Write tests, not too many, mostly integration, hapy path e2e.
@@ -100,6 +111,7 @@
 - Updated pagination preference: use a dedicated `/{slug}` listings page-size constant (set to 100) instead of shared table defaults, and show pagination both above and below listings (top control to the right of search CTA on larger screens, below it on small screens).
 - Route naming update: public interactive search page uses `/{slug}/search`; keep `/{slug}/catalog` as a compatibility redirect.
 - Updated preference: do not keep `/{slug}/catalog` compatibility redirect since it was introduced and removed within this PR; keep only `/{slug}/search`.
+- Search UX preference: `/{slug}/search` should provide both all-fields search and title-only search, and pressing `Enter` in the search form should scroll to the listings summary so the `x / n listings` context stays visible.
 
 ## Patterns That Work
 
