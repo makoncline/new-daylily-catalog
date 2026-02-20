@@ -15,10 +15,6 @@ export function PublicCatalogSearchToolbar({
   listOptions,
   onSearchSubmit,
 }: PublicCatalogSearchToolbarProps) {
-  if (!listsColumn) {
-    return null;
-  }
-
   const globalFilter = table.getState().globalFilter as unknown;
   const [searchValue, setSearchValue] = useState<string>(
     typeof globalFilter === "string" ? globalFilter : "",
@@ -35,6 +31,10 @@ export function PublicCatalogSearchToolbar({
   useEffect(() => {
     setSearchValue(typeof globalFilter === "string" ? globalFilter : "");
   }, [globalFilter]);
+
+  if (!listsColumn) {
+    return null;
+  }
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
