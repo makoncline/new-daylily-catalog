@@ -81,6 +81,7 @@ describe("AdminMenu", () => {
         },
       );
     });
+    expect(fetch).toHaveBeenCalledTimes(1);
 
     expect(screen.getByText("Cache status: HIT")).toBeInTheDocument();
     expect(

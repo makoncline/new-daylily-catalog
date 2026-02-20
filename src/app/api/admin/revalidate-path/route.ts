@@ -14,11 +14,20 @@ const revalidatePathInputSchema = z.object({
 });
 
 function toNormalizedPath(path: string) {
+  if (path.includes("\r") || path.includes("\n")) {
+    return null;
+  }
+
   if (!path.startsWith("/")) {
     return null;
   }
 
   if (path.startsWith("//")) {
+    return null;
+  }
+
+  const pathWithoutQueryOrHash = path.split(/[?#]/, 1)[0] ?? path;
+  if (/(^|\/)\.\.(\/|$)/.test(pathWithoutQueryOrHash)) {
     return null;
   }
 

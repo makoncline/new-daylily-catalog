@@ -2,7 +2,10 @@ import { revalidatePath } from "next/cache";
 import type { PrismaClient } from "@prisma/client";
 import { toCultivarRouteSegment } from "@/lib/utils/cultivar-utils";
 
+// Broad mutation-triggered public route revalidation.
 const ENABLE_PUBLIC_ROUTE_REVALIDATION = false;
+// Intentional narrow exception: keep cultivar link/unlink freshness.
+const ENABLE_CULTIVAR_LINK_REVALIDATION = true;
 
 interface RevalidatePublicCatalogRoutesInput {
   db: PrismaClient;
@@ -25,6 +28,10 @@ function toCultivarPath(cultivarSegment: string) {
 export function revalidateCultivarRoutesByNormalizedNames(
   normalizedNames: Array<string | null | undefined>,
 ) {
+  if (!ENABLE_CULTIVAR_LINK_REVALIDATION) {
+    return;
+  }
+
   const cultivarSegments = new Set<string>();
 
   for (const normalizedName of normalizedNames) {

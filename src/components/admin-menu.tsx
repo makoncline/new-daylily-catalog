@@ -91,20 +91,20 @@ export function AdminMenu() {
       }
 
       event.preventDefault();
-      setIsOpen((previous) => {
-        const nextOpen = !previous;
-
-        if (nextOpen) {
-          void loadCurrentPageCacheMetadata();
-        }
-
-        return nextOpen;
-      });
+      setIsOpen((previous) => !previous);
     };
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [loadCurrentPageCacheMetadata]);
+
+  useEffect(() => {
+    if (!isOpen) {
+      return;
+    }
+
+    void loadCurrentPageCacheMetadata();
+  }, [isOpen, loadCurrentPageCacheMetadata]);
 
   const handleRevalidateCurrentPage = async () => {
     if (isRevalidatingCurrentPage) {
@@ -150,10 +150,6 @@ export function AdminMenu() {
 
   const handleOpenChange = (nextOpen: boolean) => {
     setIsOpen(nextOpen);
-
-    if (nextOpen) {
-      void loadCurrentPageCacheMetadata();
-    }
   };
 
   return (

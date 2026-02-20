@@ -6,7 +6,9 @@ Automatic public-route revalidation on dashboard mutations is temporarily
 disabled.
 
 - Helper: `src/server/cache/revalidate-public-catalog-routes.ts`
-- Flag: `ENABLE_PUBLIC_ROUTE_REVALIDATION = false`
+- Flags:
+  - `ENABLE_PUBLIC_ROUTE_REVALIDATION = false` (broad mutation invalidation)
+  - `ENABLE_CULTIVAR_LINK_REVALIDATION = true` (link/unlink cultivar exception)
 - Result: dashboard mutations no longer call `revalidatePath(...)` in practice.
 - Exception: `dashboardDb.listing.linkAhs` and `dashboardDb.listing.unlinkAhs`
   still invalidate exact cultivar paths to keep linked/unlinked cultivar pages

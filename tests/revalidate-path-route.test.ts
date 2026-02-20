@@ -62,6 +62,42 @@ describe("/api/admin/revalidate-path", () => {
     });
   });
 
+  it("rejects suspicious path traversal segments", async () => {
+    mockAuth.mockResolvedValue({ userId: "user-1" });
+
+    const request = new Request(
+      "https://daylilycatalog.test/api/admin/revalidate-path",
+      {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ path: "/cultivar/../dashboard" }),
+      },
+    );
+
+    const response = await POST(request);
+
+    expect(response.status).toBe(400);
+    expect(mockRevalidatePath).not.toHaveBeenCalled();
+  });
+
+  it("rejects paths containing newline characters", async () => {
+    mockAuth.mockResolvedValue({ userId: "user-1" });
+
+    const request = new Request(
+      "https://daylilycatalog.test/api/admin/revalidate-path",
+      {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ path: "/cultivar/coffee\n-frenzy" }),
+      },
+    );
+
+    const response = await POST(request);
+
+    expect(response.status).toBe(400);
+    expect(mockRevalidatePath).not.toHaveBeenCalled();
+  });
+
   it("returns cache metadata for the requested current page", async () => {
     mockAuth.mockResolvedValue({ userId: "user-1" });
     vi.stubGlobal(
