@@ -46,23 +46,24 @@ export function DashboardButton({
         </Button>
       </SignedIn>
       <SignedOut>
-        <Button className={className} size="sm" asChild variant={variant}>
-          <SignInButton
-            mode="modal"
-            forceRedirectUrl="/dashboard"
-            signUpForceRedirectUrl="/dashboard"
+        <SignInButton
+          mode="modal"
+          forceRedirectUrl="/dashboard"
+          signUpForceRedirectUrl="/dashboard"
+        >
+          <Button
+            className={className}
+            size="sm"
+            variant={variant}
+            onClick={() => {
+              capturePosthogEvent("public_nav_dashboard_clicked", {
+                auth_state: "signed_out",
+              });
+            }}
           >
-            <span
-              onClick={() => {
-                capturePosthogEvent("public_nav_dashboard_clicked", {
-                  auth_state: "signed_out",
-                });
-              }}
-            >
-              Dashboard
-            </span>
-          </SignInButton>
-        </Button>
+            Dashboard
+          </Button>
+        </SignInButton>
       </SignedOut>
     </>
   );
