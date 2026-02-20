@@ -26,14 +26,69 @@ describe("AdminMenu", () => {
     vi.clearAllMocks();
     vi.stubGlobal(
       "fetch",
-      vi.fn().mockResolvedValue({
-        ok: true,
-        json: async () => ({
-          ok: true,
-          revalidatedPath: "/cultivar/coffee-frenzy",
-        }),
+      vi.fn().mockImplementation((input: string, init?: RequestInit) => {
+        if (input.startsWith("/api/admin/revalidate-path?path=")) {
+          return Promise.resolve({
+            ok: true,
+            json: async () => ({
+              ok: true,
+              path: "/cultivar/coffee-frenzy",
+              cacheStatus: "HIT",
+              cachedAtIso: "2026-02-20T18:00:00.000Z",
+              cachedAtSource: "date-age",
+            }),
+          });
+        }
+
+        if (
+          input === "/api/admin/revalidate-path" &&
+          init?.method === "POST"
+        ) {
+          return Promise.resolve({
+            ok: true,
+            json: async () => ({
+              ok: true,
+              revalidatedPath: "/cultivar/coffee-frenzy",
+            }),
+          });
+        }
+
+        return Promise.resolve({
+          ok: false,
+          json: async () => ({
+            error: "Unexpected fetch call",
+          }),
+        });
       }),
     );
+  });
+
+  it("shows cache metadata for the current page when the menu opens", async () => {
+    render(<AdminMenu />);
+
+    fireEvent.keyDown(window, {
+      code: "KeyX",
+      ctrlKey: true,
+      altKey: true,
+    });
+
+    await waitFor(() => {
+      expect(fetch).toHaveBeenCalledWith(
+        "/api/admin/revalidate-path?path=%2Fcultivar%2Fcoffee-frenzy",
+        {
+          method: "GET",
+          cache: "no-store",
+        },
+      );
+    });
+
+    expect(screen.getByText("Cache status: HIT")).toBeInTheDocument();
+    expect(
+      screen.getByText("Cached at: 2026-02-20T18:00:00.000Z"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("Cache timestamp source: date-age"),
+    ).toBeInTheDocument();
   });
 
   it("revalidates the current page from the keyboard-opened admin menu", async () => {

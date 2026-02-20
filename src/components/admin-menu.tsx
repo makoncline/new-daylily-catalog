@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
@@ -25,9 +25,59 @@ export function AdminMenu() {
   const [isOpen, setIsOpen] = useState(false);
   const [isRevalidatingCurrentPage, setIsRevalidatingCurrentPage] =
     useState(false);
+  const [isLoadingCurrentPageCacheMetadata, setIsLoadingCurrentPageCacheMetadata] =
+    useState(false);
+  const [currentPageCachedAtIso, setCurrentPageCachedAtIso] = useState<string | null>(
+    null,
+  );
+  const [currentPageCacheStatus, setCurrentPageCacheStatus] = useState<string | null>(
+    null,
+  );
+  const [currentPageCacheSource, setCurrentPageCacheSource] = useState<string | null>(
+    null,
+  );
   const shortcutLabel = useMemo(() => getShortcutLabel(), []);
   const pathname = usePathname();
   const router = useRouter();
+  const currentPathname = pathname ?? "/";
+
+  const loadCurrentPageCacheMetadata = useCallback(async () => {
+    setIsLoadingCurrentPageCacheMetadata(true);
+
+    try {
+      const response = await fetch(
+        `/api/admin/revalidate-path?path=${encodeURIComponent(currentPathname)}`,
+        {
+          method: "GET",
+          cache: "no-store",
+        },
+      );
+
+      const responseBody =
+        (await response.json().catch(() => null)) as
+          | {
+              error?: string;
+              cachedAtIso?: string | null;
+              cacheStatus?: string | null;
+              cachedAtSource?: string | null;
+            }
+          | null;
+
+      if (!response.ok) {
+        throw new Error(responseBody?.error ?? "Failed to load page cache info");
+      }
+
+      setCurrentPageCachedAtIso(responseBody?.cachedAtIso ?? null);
+      setCurrentPageCacheStatus(responseBody?.cacheStatus ?? null);
+      setCurrentPageCacheSource(responseBody?.cachedAtSource ?? null);
+    } catch {
+      setCurrentPageCachedAtIso(null);
+      setCurrentPageCacheStatus(null);
+      setCurrentPageCacheSource(null);
+    } finally {
+      setIsLoadingCurrentPageCacheMetadata(false);
+    }
+  }, [currentPathname]);
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -41,14 +91,20 @@ export function AdminMenu() {
       }
 
       event.preventDefault();
-      setIsOpen((previous) => !previous);
+      setIsOpen((previous) => {
+        const nextOpen = !previous;
+
+        if (nextOpen) {
+          void loadCurrentPageCacheMetadata();
+        }
+
+        return nextOpen;
+      });
     };
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, []);
-
-  const currentPathname = pathname ?? "/";
+  }, [loadCurrentPageCacheMetadata]);
 
   const handleRevalidateCurrentPage = async () => {
     if (isRevalidatingCurrentPage) {
@@ -68,10 +124,10 @@ export function AdminMenu() {
         }),
       });
 
-      const responseBody =
-        (await response.json().catch(() => null)) as
-          | { error?: string; revalidatedPath?: string }
-          | null;
+      const responseBody = (await response.json().catch(() => null)) as {
+        error?: string;
+        revalidatedPath?: string;
+      } | null;
 
       if (!response.ok) {
         throw new Error(responseBody?.error ?? "Revalidation request failed");
@@ -81,6 +137,7 @@ export function AdminMenu() {
         description: responseBody?.revalidatedPath ?? currentPathname,
       });
       router.refresh();
+      await loadCurrentPageCacheMetadata();
     } catch (error) {
       toast.error("Failed to revalidate current page", {
         description:
@@ -91,8 +148,16 @@ export function AdminMenu() {
     }
   };
 
+  const handleOpenChange = (nextOpen: boolean) => {
+    setIsOpen(nextOpen);
+
+    if (nextOpen) {
+      void loadCurrentPageCacheMetadata();
+    }
+  };
+
   return (
-    <Dialog open={isOpen} onOpenChange={setIsOpen}>
+    <Dialog open={isOpen} onOpenChange={handleOpenChange}>
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Admin Menu</DialogTitle>
@@ -118,8 +183,32 @@ export function AdminMenu() {
             )}
           </Button>
 
-          <div className="text-muted-foreground text-xs">
-            Current path: {currentPathname}
+          <div className="text-muted-foreground space-y-1 text-xs">
+            <div>Current path: {currentPathname}</div>
+            <div>
+              Cache status:{" "}
+              {isLoadingCurrentPageCacheMetadata
+                ? "Loading..."
+                : currentPageCacheStatus ?? "Unknown"}
+            </div>
+            <div>
+              Cached at:{" "}
+              {isLoadingCurrentPageCacheMetadata
+                ? "Loading..."
+                : currentPageCachedAtIso ?? "Unavailable"}
+            </div>
+            <div>
+              Cache timestamp source:{" "}
+              {isLoadingCurrentPageCacheMetadata
+                ? "Loading..."
+                : currentPageCacheSource ?? "Unknown"}
+            </div>
+            {process.env.NODE_ENV !== "production" ? (
+              <div>
+                Dev mode note: cache metadata is usually unavailable until running
+                a production build.
+              </div>
+            ) : null}
           </div>
         </div>
       </DialogContent>

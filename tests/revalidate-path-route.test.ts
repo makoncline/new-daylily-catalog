@@ -1,6 +1,6 @@
 // @vitest-environment node
 
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const mockAuth = vi.hoisted(() => vi.fn());
 const mockRevalidatePath = vi.hoisted(() => vi.fn());
@@ -13,11 +13,15 @@ vi.mock("next/cache", () => ({
   revalidatePath: mockRevalidatePath,
 }));
 
-import { POST } from "@/app/api/admin/revalidate-path/route";
+import { GET, POST } from "@/app/api/admin/revalidate-path/route";
 
-describe("POST /api/admin/revalidate-path", () => {
+describe("/api/admin/revalidate-path", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
   });
 
   it("returns 401 when the request is unauthenticated", async () => {
@@ -55,6 +59,77 @@ describe("POST /api/admin/revalidate-path", () => {
     expect(payload).toEqual({
       ok: true,
       revalidatedPath: "/cultivar/coffee-frenzy",
+    });
+  });
+
+  it("returns cache metadata for the requested current page", async () => {
+    mockAuth.mockResolvedValue({ userId: "user-1" });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        new Response(null, {
+          status: 200,
+          headers: {
+            "x-nextjs-cache": "HIT",
+            "cache-control": "s-maxage=86400, stale-while-revalidate",
+            date: "Fri, 20 Feb 2026 18:10:00 GMT",
+            age: "120",
+          },
+        }),
+      ),
+    );
+
+    const request = new Request(
+      "https://daylilycatalog.test/api/admin/revalidate-path?path=%2Fcultivar%2Fcoffee-frenzy",
+      {
+        method: "GET",
+      },
+    );
+
+    const response = await GET(request);
+    const payload = (await response.json()) as {
+      ok: boolean;
+      path: string;
+      probeStatus: number;
+      cacheStatus: string;
+      cachedAtIso: string;
+      cachedAtSource: string;
+    };
+
+    expect(response.status).toBe(200);
+    expect(fetch).toHaveBeenCalledTimes(1);
+    const fetchMock = vi.mocked(fetch);
+    const firstCall = fetchMock.mock.calls[0];
+
+    expect(firstCall).toBeDefined();
+
+    if (!firstCall) {
+      throw new Error("Expected fetch to be called once");
+    }
+
+    const [requestUrl, requestInit] = firstCall;
+    const requestUrlValue =
+      typeof requestUrl === "string"
+        ? requestUrl
+        : requestUrl instanceof URL
+          ? requestUrl.toString()
+          : requestUrl.url;
+
+    expect(requestUrlValue).toBe("https://daylilycatalog.test/cultivar/coffee-frenzy");
+    expect(requestInit).toEqual({
+      method: "HEAD",
+      cache: "no-store",
+      headers: {
+        "x-admin-cache-probe": "1",
+      },
+    });
+    expect(payload).toMatchObject({
+      ok: true,
+      path: "/cultivar/coffee-frenzy",
+      probeStatus: 200,
+      cacheStatus: "HIT",
+      cachedAtIso: "2026-02-20T18:08:00.000Z",
+      cachedAtSource: "date-age",
     });
   });
 });
