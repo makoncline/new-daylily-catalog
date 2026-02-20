@@ -2,7 +2,10 @@ import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { protectedProcedure, createTRPCRouter } from "@/server/api/trpc";
 import { generateUniqueSlug } from "@/lib/utils/slugify-server";
-import { revalidatePublicCatalogRoutes } from "@/server/cache/revalidate-public-catalog-routes";
+import {
+  revalidateCultivarRoutesByNormalizedNames,
+  revalidatePublicCatalogRoutes,
+} from "@/server/cache/revalidate-public-catalog-routes";
 
 const listingSelect = {
   id: true,
@@ -111,7 +114,14 @@ export const dashboardDbListingRouter = createTRPCRouter({
     .mutation(async ({ ctx, input }) => {
       const listing = await ctx.db.listing.findFirst({
         where: { id: input.id, userId: ctx.user.id },
-        select: { id: true },
+        select: {
+          id: true,
+          cultivarReference: {
+            select: {
+              normalizedName: true,
+            },
+          },
+        },
       });
       if (!listing) {
         throw new TRPCError({ code: "NOT_FOUND", message: "Listing not found" });
@@ -121,6 +131,7 @@ export const dashboardDbListingRouter = createTRPCRouter({
         where: { id: input.cultivarReferenceId },
         select: {
           id: true,
+          normalizedName: true,
           ahsListing: { select: { name: true } },
         },
       });
@@ -155,6 +166,11 @@ export const dashboardDbListingRouter = createTRPCRouter({
         select: listingSelect,
       });
 
+      revalidateCultivarRoutesByNormalizedNames([
+        listing.cultivarReference?.normalizedName,
+        cultivarReference.normalizedName,
+      ]);
+
       await revalidatePublicCatalogRoutes({
         db: ctx.db,
         userId: ctx.user.id,
@@ -168,7 +184,14 @@ export const dashboardDbListingRouter = createTRPCRouter({
     .mutation(async ({ ctx, input }) => {
       const listing = await ctx.db.listing.findFirst({
         where: { id: input.id, userId: ctx.user.id },
-        select: { id: true },
+        select: {
+          id: true,
+          cultivarReference: {
+            select: {
+              normalizedName: true,
+            },
+          },
+        },
       });
       if (!listing) {
         throw new TRPCError({ code: "NOT_FOUND", message: "Listing not found" });
@@ -179,6 +202,10 @@ export const dashboardDbListingRouter = createTRPCRouter({
         data: { cultivarReferenceId: null },
         select: listingSelect,
       });
+
+      revalidateCultivarRoutesByNormalizedNames([
+        listing.cultivarReference?.normalizedName,
+      ]);
 
       await revalidatePublicCatalogRoutes({
         db: ctx.db,

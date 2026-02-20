@@ -5,9 +5,14 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const mockRevalidatePublicCatalogRoutes = vi.hoisted(() =>
   vi.fn().mockResolvedValue(undefined),
 );
+const mockRevalidateCultivarRoutesByNormalizedNames = vi.hoisted(() =>
+  vi.fn(),
+);
 
 vi.mock("@/server/cache/revalidate-public-catalog-routes", () => ({
   revalidatePublicCatalogRoutes: mockRevalidatePublicCatalogRoutes,
+  revalidateCultivarRoutesByNormalizedNames:
+    mockRevalidateCultivarRoutesByNormalizedNames,
 }));
 import { dashboardDbImageRouter } from "@/server/api/routers/dashboard-db/image";
 import { dashboardDbListRouter } from "@/server/api/routers/dashboard-db/list";
@@ -169,6 +174,92 @@ describe("dashboardDb public revalidation hooks", () => {
       db,
       userId: "user-1",
       additionalUserSegments: ["old-slug"],
+    });
+  });
+
+  it("listing.linkAhs revalidates both previous and next cultivar pages", async () => {
+    const now = new Date("2026-02-20T00:00:00.000Z");
+    const db = {
+      listing: {
+        findFirst: vi.fn().mockResolvedValue({
+          id: "listing-1",
+          cultivarReference: { normalizedName: "Old Cultivar" },
+        }),
+        update: vi.fn().mockResolvedValue({
+          id: "listing-1",
+          userId: "user-1",
+          title: "Old",
+          slug: "old",
+          price: null,
+          description: null,
+          privateNote: null,
+          status: null,
+          createdAt: now,
+          updatedAt: now,
+          cultivarReferenceId: "cultivar-2",
+        }),
+      },
+      cultivarReference: {
+        findUnique: vi.fn().mockResolvedValue({
+          id: "cultivar-2",
+          normalizedName: "New Cultivar",
+          ahsListing: { name: "New Cultivar" },
+        }),
+      },
+    };
+
+    const caller = dashboardDbListingRouter.createCaller(createBaseContext(db));
+
+    await caller.linkAhs({
+      id: "listing-1",
+      cultivarReferenceId: "cultivar-2",
+      syncName: false,
+    });
+
+    expect(mockRevalidateCultivarRoutesByNormalizedNames).toHaveBeenCalledWith([
+      "Old Cultivar",
+      "New Cultivar",
+    ]);
+    expect(mockRevalidatePublicCatalogRoutes).toHaveBeenCalledWith({
+      db,
+      userId: "user-1",
+    });
+  });
+
+  it("listing.unlinkAhs revalidates previous cultivar page", async () => {
+    const now = new Date("2026-02-20T00:00:00.000Z");
+    const db = {
+      listing: {
+        findFirst: vi.fn().mockResolvedValue({
+          id: "listing-1",
+          cultivarReference: { normalizedName: "Old Cultivar" },
+        }),
+        update: vi.fn().mockResolvedValue({
+          id: "listing-1",
+          userId: "user-1",
+          title: "Old",
+          slug: "old",
+          price: null,
+          description: null,
+          privateNote: null,
+          status: null,
+          createdAt: now,
+          updatedAt: now,
+          cultivarReferenceId: null,
+        }),
+      },
+    };
+
+    const caller = dashboardDbListingRouter.createCaller(createBaseContext(db));
+
+    await caller.unlinkAhs({ id: "listing-1" });
+
+    expect(mockRevalidateCultivarRoutesByNormalizedNames).toHaveBeenCalledWith([
+      "Old Cultivar",
+    ]);
+    expect(mockRevalidatePublicCatalogRoutes).toHaveBeenCalledWith({
+      db,
+      userId: "user-1",
     });
   });
 });

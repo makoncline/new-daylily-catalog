@@ -1,5 +1,6 @@
 import { revalidatePath } from "next/cache";
 import type { PrismaClient } from "@prisma/client";
+import { toCultivarRouteSegment } from "@/lib/utils/cultivar-utils";
 
 const ENABLE_PUBLIC_ROUTE_REVALIDATION = false;
 
@@ -15,6 +16,28 @@ function toUserPath(userSegment: string) {
 
 function toUserSearchPath(userSegment: string) {
   return `/${userSegment}/search`;
+}
+
+function toCultivarPath(cultivarSegment: string) {
+  return `/cultivar/${cultivarSegment}`;
+}
+
+export function revalidateCultivarRoutesByNormalizedNames(
+  normalizedNames: Array<string | null | undefined>,
+) {
+  const cultivarSegments = new Set<string>();
+
+  for (const normalizedName of normalizedNames) {
+    const cultivarSegment = toCultivarRouteSegment(normalizedName);
+
+    if (cultivarSegment) {
+      cultivarSegments.add(cultivarSegment);
+    }
+  }
+
+  for (const cultivarSegment of cultivarSegments) {
+    revalidatePath(toCultivarPath(cultivarSegment));
+  }
 }
 
 export async function revalidatePublicCatalogRoutes({
@@ -50,5 +73,4 @@ export async function revalidatePublicCatalogRoutes({
 
   // Never use route patterns here. Revalidate exact paths only.
   revalidatePath("/catalogs");
-  revalidatePath("/sitemap.xml");
 }

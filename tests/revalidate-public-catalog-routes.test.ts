@@ -8,7 +8,10 @@ vi.mock("next/cache", () => ({
   revalidatePath: mockRevalidatePath,
 }));
 
-import { revalidatePublicCatalogRoutes } from "@/server/cache/revalidate-public-catalog-routes";
+import {
+  revalidateCultivarRoutesByNormalizedNames,
+  revalidatePublicCatalogRoutes,
+} from "@/server/cache/revalidate-public-catalog-routes";
 
 describe("revalidatePublicCatalogRoutes", () => {
   beforeEach(() => {
@@ -30,5 +33,18 @@ describe("revalidatePublicCatalogRoutes", () => {
 
     expect(db.userProfile.findUnique).not.toHaveBeenCalled();
     expect(mockRevalidatePath).not.toHaveBeenCalled();
+  });
+
+  it("revalidates only concrete cultivar paths for provided normalized names", () => {
+    revalidateCultivarRoutesByNormalizedNames([
+      "Coffee Frenzy",
+      "coffee frenzy",
+      null,
+      "Bela Lugosi",
+    ]);
+
+    expect(mockRevalidatePath).toHaveBeenCalledWith("/cultivar/coffee-frenzy");
+    expect(mockRevalidatePath).toHaveBeenCalledWith("/cultivar/bela-lugosi");
+    expect(mockRevalidatePath).toHaveBeenCalledTimes(2);
   });
 });

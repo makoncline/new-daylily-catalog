@@ -8,6 +8,9 @@ disabled.
 - Helper: `src/server/cache/revalidate-public-catalog-routes.ts`
 - Flag: `ENABLE_PUBLIC_ROUTE_REVALIDATION = false`
 - Result: dashboard mutations no longer call `revalidatePath(...)` in practice.
+- Exception: `dashboardDb.listing.linkAhs` and `dashboardDb.listing.unlinkAhs`
+  still invalidate exact cultivar paths to keep linked/unlinked cultivar pages
+  fresh.
 
 Manual revalidation is still available from the admin menu.
 
@@ -66,3 +69,4 @@ This gives dedupe + debounce naturally because each path key is unique.
 - Do not call `revalidatePath` with dynamic route patterns like
   `"/cultivar/[cultivarNormalizedName]"`; use concrete paths such as
   `"/cultivar/coffee-frenzy"` only.
+- Do not revalidate `/sitemap.xml` from mutation hooks.
