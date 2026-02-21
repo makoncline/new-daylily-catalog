@@ -4,18 +4,33 @@ import * as React from "react";
 import {
   ArrowDown,
   ArrowUp,
+  Check,
+  ChevronsUpDown,
   Download,
   Plus,
   Printer,
   RotateCcw,
+  Share2,
   Trash2,
   X,
 } from "lucide-react";
 import qrcodeGenerator from "qrcode-generator";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import {
+  Command,
+  CommandGroup,
+  CommandItem,
+  CommandList,
+  CommandSeparator,
+} from "@/components/ui/command";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { useLocalStorage } from "@/hooks/use-local-storage";
 import { getBaseUrl } from "@/lib/utils/getBaseUrl";
 import { cn } from "@/lib/utils";
@@ -88,6 +103,7 @@ export interface TagListingData {
 
 const PLACEHOLDER_LISTING: TagListingData = {
   id: "__placeholder__",
+  userId: "example-garden-user",
   title: "Sample Cultivar Name",
   price: 12.99,
   privateNote: "Example note",
@@ -195,6 +211,23 @@ const QR_RESERVED_RIGHT_INCHES =
   QR_SIZE_INCHES + QR_OFFSET_INCHES + QR_TEXT_GAP_INCHES;
 const QR_RESERVED_BOTTOM_INCHES =
   QR_SIZE_INCHES + QR_OFFSET_INCHES + QR_TEXT_GAP_INCHES;
+const TAG_TEMPLATE_LIBRARY_STORAGE_KEY = "tag-designer-templates-v1";
+const TEMPLATE_DEFAULT_ID = "default-template";
+const TEMPLATE_CUSTOM_ID = "custom-template";
+const TEMPLATE_IMPORT_ID = "import-template";
+const TEMPLATE_NAME_QR_ID = "template-name-qr";
+const TEMPLATE_FULL_DETAIL_ID = "template-full-detail";
+
+interface StoredTagLayoutTemplate {
+  id: string;
+  name: string;
+  layout: TagDesignerState;
+}
+
+interface ResolvedTagLayoutTemplate extends StoredTagLayoutTemplate {
+  isBuiltin: boolean;
+  signature: string;
+}
 
 const TAG_SIZE_PRESETS: TagSizePreset[] = [
   {
@@ -359,6 +392,165 @@ const DEFAULT_TAG_DESIGNER_STATE: TagDesignerState = {
   showQrCode: true,
   rows: DEFAULT_ROWS,
 };
+
+function createTemplateCell(
+  fieldId: TagFieldId,
+  overrides: Partial<TagCell> = {},
+): TagCell {
+  const defaults = FIELD_DEFAULTS[fieldId];
+  return {
+    fieldId,
+    width: 1,
+    textAlign: fieldId === "title" ? "center" : "left",
+    fontSize: defaults.fontSize,
+    overflow: false,
+    fit: true,
+    wrap: false,
+    bold: defaults.bold,
+    italic: false,
+    underline: false,
+    label: "",
+    ...overrides,
+  };
+}
+
+const BUILTIN_TAG_LAYOUT_TEMPLATES: Array<
+  Omit<ResolvedTagLayoutTemplate, "isBuiltin" | "signature">
+> = [
+  {
+    id: TEMPLATE_DEFAULT_ID,
+    name: "name + hybridizer + year + ploidy + qr",
+    layout: DEFAULT_TAG_DESIGNER_STATE,
+  },
+  {
+    id: TEMPLATE_NAME_QR_ID,
+    name: "name + qr",
+    layout: {
+      sizePresetId: "brother-tze-1",
+      customWidthInches: 3.5,
+      customHeightInches: 1,
+      showQrCode: true,
+      rows: [
+        {
+          id: "name-qr-row",
+          cells: [createTemplateCell("title", { fontSize: 22, textAlign: "left" })],
+        },
+      ],
+    },
+  },
+  {
+    id: TEMPLATE_FULL_DETAIL_ID,
+    name: "full detail",
+    layout: {
+      sizePresetId: "brother-tze-1",
+      customWidthInches: 3.5,
+      customHeightInches: 1,
+      showQrCode: true,
+      rows: [
+        {
+          id: "full-detail-row-0",
+          cells: [createTemplateCell("title", { textAlign: "center" })],
+        },
+        {
+          id: "full-detail-row-1",
+          cells: [
+            createTemplateCell("hybridizer", {
+              label: "",
+              textAlign: "center",
+              fontSize: 16,
+            }),
+            createTemplateCell("year", {
+              width: 1,
+              label: "",
+              textAlign: "left",
+              fontSize: 16,
+            }),
+            createTemplateCell("ploidy", {
+              width: 1,
+              label: "",
+              textAlign: "center",
+              fontSize: 16,
+            }),
+          ],
+        },
+        {
+          id: "full-detail-row-2",
+          cells: [
+            createTemplateCell("bloomSize", {
+              width: 1,
+              textAlign: "left",
+              fontSize: 12,
+              label: "Bloom Size",
+              fit: false,
+            }),
+            createTemplateCell("color", {
+              width: 1,
+              textAlign: "right",
+              fontSize: 16,
+              bold: true,
+            }),
+          ],
+        },
+        {
+          id: "full-detail-row-3",
+          cells: [
+            createTemplateCell("scapeHeight", {
+              width: 1,
+              textAlign: "left",
+              fontSize: 12,
+              label: "Scape Height",
+              fit: false,
+            }),
+            createTemplateCell("form", {
+              width: 1,
+              textAlign: "right",
+              fontSize: 16,
+              bold: true,
+            }),
+          ],
+        },
+        {
+          id: "full-detail-row-4",
+          cells: [
+            createTemplateCell("budcount", {
+              width: 1,
+              textAlign: "left",
+              fontSize: 12,
+              label: "Buds",
+              fit: false,
+            }),
+            createTemplateCell("bloomSeason", {
+              width: 1,
+              textAlign: "right",
+              fontSize: 12,
+              label: "",
+              italic: true,
+            }),
+          ],
+        },
+        {
+          id: "full-detail-row-5",
+          cells: [
+            createTemplateCell("branches", {
+              width: 1,
+              textAlign: "left",
+              fontSize: 12,
+              label: "Branches",
+              fit: false,
+            }),
+            createTemplateCell("bloomHabit", {
+              width: 1,
+              textAlign: "right",
+              fontSize: 12,
+              label: "",
+              italic: true,
+            }),
+          ],
+        },
+      ],
+    },
+  },
+];
 
 // ---------------------------------------------------------------------------
 // Utilities
@@ -594,6 +786,55 @@ function sanitizeTagDesignerState(state: TagDesignerState): TagDesignerState {
   };
 }
 
+function createLayoutSignature(layout: TagDesignerState) {
+  const normalized = sanitizeTagDesignerState(layout);
+  return JSON.stringify({
+    sizePresetId: normalized.sizePresetId,
+    customWidthInches: Number(normalized.customWidthInches.toFixed(2)),
+    customHeightInches: Number(normalized.customHeightInches.toFixed(2)),
+    showQrCode: normalized.showQrCode,
+    rows: normalized.rows.map((row) => ({
+      cells: row.cells.map((cell) => ({
+        fieldId: cell.fieldId,
+        width: cell.width,
+        textAlign: cell.textAlign,
+        fontSize: Number(cell.fontSize.toFixed(2)),
+        overflow: cell.overflow,
+        fit: cell.fit,
+        wrap: cell.wrap,
+        bold: cell.bold,
+        italic: cell.italic,
+        underline: cell.underline,
+        label: cell.label,
+      })),
+    })),
+  });
+}
+
+function sanitizeStoredTemplate(
+  candidate: unknown,
+): StoredTagLayoutTemplate | null {
+  if (!candidate || typeof candidate !== "object") return null;
+
+  const record = candidate as Record<string, unknown>;
+  if (typeof record.id !== "string" || typeof record.name !== "string") {
+    return null;
+  }
+
+  if (!record.layout || typeof record.layout !== "object") {
+    return null;
+  }
+
+  const name = record.name.trim();
+  if (name.length === 0) return null;
+
+  return {
+    id: record.id,
+    name: name.slice(0, 120),
+    layout: sanitizeTagDesignerState(record.layout as TagDesignerState),
+  };
+}
+
 // ---------------------------------------------------------------------------
 // Build resolved rows for a listing
 // ---------------------------------------------------------------------------
@@ -613,8 +854,7 @@ export function buildResolvedRowsForListing(
         text = cell.label ?? "";
       } else {
         const value = resolveFieldValue(listing, cell.fieldId);
-        if (!value) continue;
-        text = cell.label ? `${cell.label}: ${value}` : value;
+        text = value ? (cell.label ? `${cell.label}: ${value}` : value) : "";
       }
 
       resolved.push({
@@ -1210,6 +1450,12 @@ export function TagDesignerPanel({ listings }: { listings: TagListingData[] }) {
     TAG_DESIGNER_STORAGE_KEY,
     DEFAULT_TAG_DESIGNER_STATE,
   );
+  const [storedUserTemplates, setStoredUserTemplates] = useLocalStorage<
+    StoredTagLayoutTemplate[]
+  >(
+    TAG_TEMPLATE_LIBRARY_STORAGE_KEY,
+    [],
+  );
   const baseUrl = React.useMemo(() => getBaseUrl(), []);
 
   const state = React.useMemo(
@@ -1226,6 +1472,222 @@ export function TagDesignerPanel({ listings }: { listings: TagListingData[] }) {
     },
     [setStoredState],
   );
+
+  const userTemplates = React.useMemo(() => {
+    if (!Array.isArray(storedUserTemplates)) return [];
+    return storedUserTemplates
+      .map((template) => sanitizeStoredTemplate(template))
+      .filter((template): template is StoredTagLayoutTemplate => template !== null);
+  }, [storedUserTemplates]);
+
+  const builtinTemplates = React.useMemo<ResolvedTagLayoutTemplate[]>(
+    () =>
+      BUILTIN_TAG_LAYOUT_TEMPLATES.map((template) => ({
+        ...template,
+        layout: sanitizeTagDesignerState(template.layout),
+        isBuiltin: true,
+        signature: createLayoutSignature(template.layout),
+      })),
+    [],
+  );
+
+  const allTemplates = React.useMemo<ResolvedTagLayoutTemplate[]>(
+    () => [
+      ...builtinTemplates,
+      ...userTemplates.map((template) => ({
+        ...template,
+        isBuiltin: false,
+        signature: createLayoutSignature(template.layout),
+      })),
+    ],
+    [builtinTemplates, userTemplates],
+  );
+
+  const matchedTemplate = React.useMemo(() => {
+    const signature = createLayoutSignature(state);
+    return allTemplates.find((template) => template.signature === signature) ?? null;
+  }, [allTemplates, state]);
+
+  const [isTemplatePickerOpen, setIsTemplatePickerOpen] = React.useState(false);
+  const matchedTemplateName = matchedTemplate?.name ?? "custom";
+  const isCustomLayout = matchedTemplate === null;
+
+  const handleShareTemplate = React.useCallback(async () => {
+    const templatePayload = JSON.stringify({
+      version: 1,
+      layout: sanitizeTagDesignerState(state),
+    });
+
+    try {
+      if (
+        typeof navigator !== "undefined" &&
+        typeof navigator.clipboard?.writeText === "function"
+      ) {
+        await navigator.clipboard.writeText(templatePayload);
+        toast.success("Layout template copied as JSON.");
+        return;
+      }
+    } catch (error) {
+      console.error("Failed to copy layout template to clipboard", error);
+    }
+
+    window.prompt("Copy template JSON", templatePayload);
+  }, [state]);
+
+  const handleImportTemplate = React.useCallback(() => {
+    const input = window.prompt("Paste shared template JSON");
+    if (input === null) return;
+
+    const trimmed = input.trim();
+    if (trimmed.length === 0) {
+      toast.error("Template JSON is empty.");
+      return;
+    }
+
+    try {
+      const parsed = JSON.parse(trimmed) as unknown;
+      let candidate = parsed;
+
+      if (parsed && typeof parsed === "object") {
+        const record = parsed as Record<string, unknown>;
+        if ("layout" in record) {
+          candidate = record.layout;
+        } else if ("state" in record) {
+          candidate = record.state;
+        }
+      }
+
+      if (!candidate || typeof candidate !== "object") {
+        throw new Error("Template must be an object.");
+      }
+
+      if (!Array.isArray((candidate as Record<string, unknown>).rows)) {
+        throw new Error("Template must include rows.");
+      }
+
+      setStoredState(sanitizeTagDesignerState(candidate as TagDesignerState));
+      toast.success("Template imported.");
+    } catch (error) {
+      console.error("Failed to import template JSON", error);
+      toast.error("Invalid template JSON.");
+    }
+  }, [setStoredState]);
+
+  const handleTemplateSelectChange = React.useCallback(
+    (nextTemplateId: string) => {
+      if (nextTemplateId === TEMPLATE_IMPORT_ID) {
+        handleImportTemplate();
+        return;
+      }
+
+      if (nextTemplateId === TEMPLATE_CUSTOM_ID) return;
+
+      const template = allTemplates.find(
+        (candidate) => candidate.id === nextTemplateId,
+      );
+      if (!template) return;
+
+      setStoredState(sanitizeTagDesignerState(template.layout));
+      toast.success(`Applied template: ${template.name}.`);
+    },
+    [allTemplates, handleImportTemplate, setStoredState],
+  );
+
+  const handleSaveTemplate = React.useCallback(() => {
+    const suggestedName =
+      matchedTemplate && !matchedTemplate.isBuiltin ? matchedTemplate.name : "";
+    const inputName = window.prompt(
+      "Template name",
+      suggestedName || "My template",
+    );
+    if (inputName === null) return;
+
+    const name = inputName.trim();
+    if (!name) {
+      toast.error("Template name is required.");
+      return;
+    }
+
+    const existingByName =
+      userTemplates.find(
+        (template) => template.name.toLowerCase() === name.toLowerCase(),
+      ) ??
+      (matchedTemplate && !matchedTemplate.isBuiltin ? matchedTemplate : null);
+    const templateId =
+      existingByName?.id ?? `user-template-${Date.now().toString(36)}`;
+    const layout = sanitizeTagDesignerState(state);
+
+    setStoredUserTemplates((previous) => {
+      const sanitizedPrevious = (Array.isArray(previous) ? previous : [])
+        .map((template) => sanitizeStoredTemplate(template))
+        .filter(
+          (template): template is StoredTagLayoutTemplate => template !== null,
+        );
+
+      if (existingByName) {
+        return sanitizedPrevious.map((template) =>
+          template.id === existingByName.id
+            ? { ...template, name, layout }
+            : template,
+        );
+      }
+
+      return [...sanitizedPrevious, { id: templateId, name, layout }];
+    });
+
+    toast.success(existingByName ? "Template updated." : "Template saved.");
+  }, [matchedTemplate, setStoredUserTemplates, state, userTemplates]);
+
+  const handleDeleteTemplate = React.useCallback(
+    (templateId: string, templateName: string) => {
+      const shouldDelete = window.confirm(`Delete template "${templateName}"?`);
+      if (!shouldDelete) return;
+
+      setStoredUserTemplates((previous) =>
+        (Array.isArray(previous) ? previous : [])
+          .map((template) => sanitizeStoredTemplate(template))
+          .filter(
+            (template): template is StoredTagLayoutTemplate =>
+              template !== null && template.id !== templateId,
+          ),
+      );
+      toast.success("Template deleted.");
+    },
+    [setStoredUserTemplates],
+  );
+
+  const handleTemplateRowDeleteClick = React.useCallback(
+    (
+      event: React.MouseEvent<HTMLButtonElement>,
+      templateId: string,
+      templateName: string,
+    ) => {
+      event.preventDefault();
+      event.stopPropagation();
+      handleDeleteTemplate(templateId, templateName);
+    },
+    [handleDeleteTemplate],
+  );
+
+  const handleTemplateRowDeleteMouseDown = React.useCallback(
+    (event: React.MouseEvent<HTMLButtonElement>) => {
+      event.preventDefault();
+      event.stopPropagation();
+    },
+    [],
+  );
+
+  const applyTemplateFromPicker = React.useCallback(
+    (templateId: string) => {
+      setIsTemplatePickerOpen(false);
+      handleTemplateSelectChange(templateId);
+    },
+    [handleTemplateSelectChange],
+  );
+
+  const selectedTemplateId = matchedTemplate?.id ?? TEMPLATE_CUSTOM_ID;
+
+  const selectedTemplateLabel = matchedTemplate?.name ?? "Custom";
 
   const activeSizePreset =
     TAG_SIZE_PRESETS.find((p) => p.id === state.sizePresetId) ??
@@ -1362,7 +1824,7 @@ export function TagDesignerPanel({ listings }: { listings: TagListingData[] }) {
         </div>
       </div>
 
-      <div className="border-border grid gap-3 rounded-md border p-3 md:grid-cols-[260px_1fr]">
+      <div className="border-border grid gap-3 rounded-md border p-3 md:grid-cols-[260px_260px_1fr]">
         <div className="space-y-2">
           <Label htmlFor="tag-size-select">Tag Size</Label>
           <select
@@ -1382,6 +1844,107 @@ export function TagDesignerPanel({ listings }: { listings: TagListingData[] }) {
               </option>
             ))}
           </select>
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="template-picker">Templates</Label>
+          <Popover
+            open={isTemplatePickerOpen}
+            onOpenChange={setIsTemplatePickerOpen}
+          >
+            <PopoverTrigger asChild>
+              <Button
+                id="template-picker"
+                type="button"
+                variant="outline"
+                role="combobox"
+                aria-expanded={isTemplatePickerOpen}
+                className="h-9 w-full justify-between"
+              >
+                <span className="truncate">{selectedTemplateLabel}</span>
+                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-[320px] p-0" align="start">
+              <Command>
+                <CommandList>
+                  <CommandGroup heading="Built-in">
+                    {builtinTemplates.map((template) => (
+                      <CommandItem
+                        key={template.id}
+                        onSelect={() => applyTemplateFromPicker(template.id)}
+                        className="px-2"
+                      >
+                        <Check
+                          className={cn(
+                            "mr-2 h-4 w-4",
+                            template.id === selectedTemplateId
+                              ? "opacity-100"
+                              : "opacity-0",
+                          )}
+                        />
+                        <span className="truncate">{template.name}</span>
+                      </CommandItem>
+                    ))}
+                  </CommandGroup>
+
+                  {userTemplates.length > 0 && (
+                    <>
+                      <CommandSeparator />
+                      <CommandGroup heading="Saved">
+                        {userTemplates.map((template) => (
+                          <CommandItem
+                            key={template.id}
+                            onSelect={() => applyTemplateFromPicker(template.id)}
+                            className="px-2"
+                          >
+                            <Check
+                              className={cn(
+                                "mr-2 h-4 w-4",
+                                template.id === selectedTemplateId
+                                  ? "opacity-100"
+                                  : "opacity-0",
+                              )}
+                            />
+                            <div className="flex min-w-0 flex-1 items-center justify-between gap-2">
+                              <span className="truncate">{template.name}</span>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon"
+                                className="text-muted-foreground hover:text-destructive h-6 w-6 shrink-0"
+                                onMouseDown={handleTemplateRowDeleteMouseDown}
+                                onClick={(event) =>
+                                  handleTemplateRowDeleteClick(
+                                    event,
+                                    template.id,
+                                    template.name,
+                                  )
+                                }
+                                aria-label={`Delete template ${template.name}`}
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </Button>
+                            </div>
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    </>
+                  )}
+
+                  <CommandSeparator />
+                  <CommandGroup>
+                    <CommandItem
+                      onSelect={() => applyTemplateFromPicker(TEMPLATE_IMPORT_ID)}
+                      className="px-2"
+                    >
+                      Import shared template...
+                    </CommandItem>
+                  </CommandGroup>
+                </CommandList>
+              </Command>
+            </PopoverContent>
+          </Popover>
         </div>
 
         <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-end">
@@ -1453,8 +2016,35 @@ export function TagDesignerPanel({ listings }: { listings: TagListingData[] }) {
 
       <div className="space-y-3">
         <div className="flex items-center justify-between">
-          <h3 className="text-sm font-medium">Layout</h3>
+          <h3 className="text-sm font-medium">
+            Layout{" "}
+            <span className="text-muted-foreground font-normal">
+              {matchedTemplateName}
+            </span>
+          </h3>
           <div className="flex items-center gap-2">
+            {isCustomLayout && (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={handleSaveTemplate}
+              >
+                Save as template
+              </Button>
+            )}
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                void handleShareTemplate();
+              }}
+              title="Copy layout template JSON"
+            >
+              <Share2 className="mr-1 h-3 w-3" />
+              Share
+            </Button>
             <Button
               type="button"
               variant="ghost"

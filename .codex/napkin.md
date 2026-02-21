@@ -2,6 +2,10 @@
 
 ## Log
 
+- 2026-02-21 - tags selection + full-detail adjustment - Add `Remove all` control in selected-listings area, and for `full detail` template keep first/second rows same as default (title row, then hybridizer/year/ploidy row with ploidy moved off the title line).
+- 2026-02-21 - tags template set update - Built-in templates should be narrowed to three options: renamed default (`name + hybridizer + year + ploidy + qr`), `name + qr`, and `full detail` inspired by the example photo layout while staying on the default 1x3.5 tag size preset.
+- 2026-02-21 - tags empty-cell spacing - In `/dashboard/tags`, empty field values must still render their configured cells so each tag keeps identical row/column geometry; do not drop cells based on missing content.
+- 2026-02-21 - tags template controls refinement - User wants template picker to be non-native (shadcn-style), with delete action on each saved-template row in the picker, and "Save as template" moved into Layout actions only when layout is custom.
 - 2026-02-21 - tags text handling update - For `/dashboard/tags`, user wants overflow instead of truncation, plus an explicit `fit` mode that shrinks text to available cell width.
 - 2026-02-21 - tags overflow/fit scope correction - Overflow/fit must be per-cell controls (checkboxes), not a global tag-level selector; defaults are overflow off, fit on.
 - 2026-02-21 - tags defaults + wrap update - `/dashboard/tags` cells should align on row baselines, default font sizes are title 22 and all other fields 16, and each cell needs a Wrap toggle defaulting off.
@@ -11,6 +15,9 @@
 - 2026-02-21 - tags dimension constraint - Tag dimensions must remain exact even when QR is enabled; use fixed `height` (not `min-height`) for preview and print tag containers.
 - 2026-02-21 - tags QR fit correction - When QR is shown, fit-size calculations must subtract the reserved right-side QR area or text will still clip into the QR zone.
 - 2026-02-21 - tags QR default - Layout-level QR toggle should default enabled (`showQrCode: true`), including fallback for older saved state without that field.
+- 2026-02-21 - tags template flow - Add layout-level templates select with default + import, share current layout as JSON from Layout section, and set placeholder sample `userId` so QR is visible in sample preview mode.
+- 2026-02-21 - tags template expansion - Added built-in templates (default, big-name+metadata, name/year/hybridizer/ploidy, name+QR, minimal), plus save/delete for user templates and exact-match label beside Layout title (`custom` when unmatched).
+- 2026-02-21 - self-mistake parse guard - Large JSX callback patch introduced an extra closing `);`; after complex edits run lint immediately and inspect the exact line before further changes.
 - 2026-02-20 - scope correction self-miss - I first added tag printing as a selected-row action on manage-list, then user clarified it must be a dedicated dashboard page; when feature placement is ambiguous, confirm page-level scope early.
 - 2026-02-20 - tags UX correction - For `/dashboard/tags`, keep the tag designer inline at the top of the page (not in a dialog), with per-field style controls (font size + basic text styles), editable labels, left/right slot placement, and move up/down ordering.
 - 2026-02-20 - print reliability pattern - Browser popup flows can fail for print; a hidden iframe + `contentWindow.print()` from the click handler is a more reliable print trigger than `window.open(...).print()`.
@@ -108,6 +115,9 @@
 
 - Write tests, not too many, mostly integration, hapy path e2e.
 - During quick UI iteration, skip writing/running tests until behavior is settled.
+- Template controls on `/dashboard/tags` should use a shadcn-style picker (not native select), include per-row delete for saved templates inside the picker, and only show "Save as template" when current layout is custom.
+- Built-in tag templates should be: `name + hybridizer + year + ploidy + qr` (default), `name + qr`, and `full detail` matching the photographed information structure.
+- In `/dashboard/tags`, keep layout geometry deterministic across listings by rendering empty cells as blank text rather than omitting those cells.
 - Tag-printing should ship as a dedicated dashboard page (`/dashboard/tags`), not as an embedded manage-list action.
 - TanStack DB dashboard migration: keep procedures under new `dashboardDb` router, migrate main `/dashboard` page-by-page, and run `pnpm lint`, `npx tsc --noEmit`, `pnpm test`, `pnpm test:e2e` before each incremental commit.
 - Cultivar pages should be catalog-centric (catalog cards with nested cultivar listing rows), not listing-card grids.

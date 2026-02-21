@@ -6,6 +6,7 @@ import { type ColumnDef, type Table } from "@tanstack/react-table";
 import { useLiveQuery } from "@tanstack/react-db";
 import type { Image } from "@prisma/client";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { EmptyState } from "@/components/empty-state";
 import { DataTable } from "@/components/data-table/data-table";
@@ -84,6 +85,15 @@ function SelectedListingsBadges({ table, listingsById }: SelectedListingsBadgesP
       <span className="text-muted-foreground shrink-0 text-xs font-medium">
         Selected ({selectedIds.length}):
       </span>
+      <Button
+        type="button"
+        variant="ghost"
+        size="sm"
+        className="h-6 px-2 text-xs"
+        onClick={() => table.setRowSelection({})}
+      >
+        Remove all
+      </Button>
       {selectedIds.map((id) => {
         const listing = listingsById.get(id);
         const title = listing?.title ?? "(Unknown)";
