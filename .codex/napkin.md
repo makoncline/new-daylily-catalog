@@ -2,6 +2,15 @@
 
 ## Log
 
+- 2026-02-21 - tags text handling update - For `/dashboard/tags`, user wants overflow instead of truncation, plus an explicit `fit` mode that shrinks text to available cell width.
+- 2026-02-21 - tags overflow/fit scope correction - Overflow/fit must be per-cell controls (checkboxes), not a global tag-level selector; defaults are overflow off, fit on.
+- 2026-02-21 - tags defaults + wrap update - `/dashboard/tags` cells should align on row baselines, default font sizes are title 22 and all other fields 16, and each cell needs a Wrap toggle defaulting off.
+- 2026-02-21 - tags mode exclusivity update - Overflow/Fit/Wrap checkboxes should behave as mutually exclusive per-cell modes; checking one clears the others.
+- 2026-02-21 - tags default layout update - Default layout should be Title row first, then Hybridizer/Year/Ploidy second row; title size 22 centered, others size 16 with Hybridizer + Ploidy centered and Year left.
+- 2026-02-21 - tags QR link stability - QR links on dashboard tags should target `/{userId}?viewing={listingId}` (stable id route), not slug-based URLs.
+- 2026-02-21 - tags dimension constraint - Tag dimensions must remain exact even when QR is enabled; use fixed `height` (not `min-height`) for preview and print tag containers.
+- 2026-02-21 - tags QR fit correction - When QR is shown, fit-size calculations must subtract the reserved right-side QR area or text will still clip into the QR zone.
+- 2026-02-21 - tags QR default - Layout-level QR toggle should default enabled (`showQrCode: true`), including fallback for older saved state without that field.
 - 2026-02-20 - scope correction self-miss - I first added tag printing as a selected-row action on manage-list, then user clarified it must be a dedicated dashboard page; when feature placement is ambiguous, confirm page-level scope early.
 - 2026-02-20 - tags UX correction - For `/dashboard/tags`, keep the tag designer inline at the top of the page (not in a dialog), with per-field style controls (font size + basic text styles), editable labels, left/right slot placement, and move up/down ordering.
 - 2026-02-20 - print reliability pattern - Browser popup flows can fail for print; a hidden iframe + `contentWindow.print()` from the click handler is a more reliable print trigger than `window.open(...).print()`.
@@ -98,6 +107,7 @@
 ## Preferences
 
 - Write tests, not too many, mostly integration, hapy path e2e.
+- During quick UI iteration, skip writing/running tests until behavior is settled.
 - Tag-printing should ship as a dedicated dashboard page (`/dashboard/tags`), not as an embedded manage-list action.
 - TanStack DB dashboard migration: keep procedures under new `dashboardDb` router, migrate main `/dashboard` page-by-page, and run `pnpm lint`, `npx tsc --noEmit`, `pnpm test`, `pnpm test:e2e` before each incremental commit.
 - Cultivar pages should be catalog-centric (catalog cards with nested cultivar listing rows), not listing-card grids.

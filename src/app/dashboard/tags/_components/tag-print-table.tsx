@@ -298,6 +298,7 @@ export function TagPrintTable() {
     .getFilteredSelectedRowModel()
     .rows.map((row) => ({
       id: row.original.id,
+      userId: row.original.userId,
       title: row.original.title,
       price: row.original.price,
       privateNote: row.original.privateNote,

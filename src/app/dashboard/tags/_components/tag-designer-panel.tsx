@@ -11,11 +11,13 @@ import {
   Trash2,
   X,
 } from "lucide-react";
+import qrcodeGenerator from "qrcode-generator";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useLocalStorage } from "@/hooks/use-local-storage";
+import { getBaseUrl } from "@/lib/utils/getBaseUrl";
 import { cn } from "@/lib/utils";
 
 // ---------------------------------------------------------------------------
@@ -76,6 +78,7 @@ interface TagAhsListingData {
 
 export interface TagListingData {
   id: string;
+  userId?: string | null;
   title: string;
   price?: number | null;
   privateNote?: string | null;
@@ -119,6 +122,9 @@ interface TagCell {
   width: number;
   textAlign: TagTextAlign;
   fontSize: number;
+  overflow: boolean;
+  fit: boolean;
+  wrap: boolean;
   bold: boolean;
   italic: boolean;
   underline: boolean;
@@ -134,6 +140,7 @@ interface TagDesignerState {
   sizePresetId: string;
   customWidthInches: number;
   customHeightInches: number;
+  showQrCode: boolean;
   rows: TagRow[];
 }
 
@@ -147,6 +154,9 @@ interface ResolvedCell {
   width: number;
   textAlign: TagTextAlign;
   fontSize: number;
+  overflow?: boolean;
+  fit?: boolean;
+  wrap?: boolean;
   bold: boolean;
   italic: boolean;
   underline: boolean;
@@ -160,6 +170,7 @@ interface ResolvedRow {
 interface TagPreviewData {
   id: string;
   rows: ResolvedRow[];
+  qrCodeUrl?: string | null;
 }
 
 // ---------------------------------------------------------------------------
@@ -171,6 +182,19 @@ const MIN_TAG_WIDTH_INCHES = 1;
 const MAX_TAG_WIDTH_INCHES = 6;
 const MIN_TAG_HEIGHT_INCHES = 0.5;
 const MAX_TAG_HEIGHT_INCHES = 4;
+const CSS_PIXELS_PER_INCH = 96;
+const TAG_HORIZONTAL_PADDING_INCHES = 0.16;
+const TAG_COLUMN_GAP_INCHES = 0.06;
+const MIN_FIT_FONT_SIZE_PX = 6;
+const AVERAGE_CHARACTER_WIDTH_EM = 0.56;
+const FIT_FONT_SCALE_BUFFER = 0.95;
+const QR_SIZE_INCHES = 0.5;
+const QR_OFFSET_INCHES = 0.06;
+const QR_TEXT_GAP_INCHES = 0.04;
+const QR_RESERVED_RIGHT_INCHES =
+  QR_SIZE_INCHES + QR_OFFSET_INCHES + QR_TEXT_GAP_INCHES;
+const QR_RESERVED_BOTTOM_INCHES =
+  QR_SIZE_INCHES + QR_OFFSET_INCHES + QR_TEXT_GAP_INCHES;
 
 const TAG_SIZE_PRESETS: TagSizePreset[] = [
   {
@@ -234,28 +258,28 @@ const FIELD_DEFAULTS: Record<
   TagFieldId,
   Pick<TagCell, "label" | "bold" | "fontSize">
 > = {
-  title: { label: "", bold: true, fontSize: 13 },
-  hybridizer: { label: "Hybridizer", bold: false, fontSize: 10 },
-  year: { label: "", bold: false, fontSize: 10 },
-  price: { label: "", bold: true, fontSize: 10 },
-  ploidy: { label: "", bold: false, fontSize: 9 },
-  bloomSize: { label: "Bloom Size", bold: false, fontSize: 10 },
-  scapeHeight: { label: "Scape Height", bold: false, fontSize: 10 },
-  bloomSeason: { label: "Bloom Season", bold: false, fontSize: 10 },
-  bloomHabit: { label: "Bloom Habit", bold: false, fontSize: 10 },
-  color: { label: "", bold: false, fontSize: 10 },
-  form: { label: "", bold: false, fontSize: 10 },
-  foliageType: { label: "Foliage Type", bold: false, fontSize: 10 },
-  fragrance: { label: "Fragrance", bold: false, fontSize: 9 },
-  budcount: { label: "Bud Count", bold: false, fontSize: 10 },
-  branches: { label: "Branches", bold: false, fontSize: 10 },
-  parentage: { label: "Parentage", bold: false, fontSize: 9 },
-  sculpting: { label: "Sculpting", bold: false, fontSize: 9 },
-  foliage: { label: "Foliage", bold: false, fontSize: 9 },
-  flower: { label: "Flower", bold: false, fontSize: 9 },
-  privateNote: { label: "Note", bold: false, fontSize: 9 },
-  listName: { label: "List", bold: false, fontSize: 9 },
-  customText: { label: "", bold: false, fontSize: 10 },
+  title: { label: "", bold: true, fontSize: 22 },
+  hybridizer: { label: "Hybridizer", bold: false, fontSize: 16 },
+  year: { label: "", bold: false, fontSize: 16 },
+  price: { label: "", bold: true, fontSize: 16 },
+  ploidy: { label: "", bold: false, fontSize: 16 },
+  bloomSize: { label: "Bloom Size", bold: false, fontSize: 16 },
+  scapeHeight: { label: "Scape Height", bold: false, fontSize: 16 },
+  bloomSeason: { label: "Bloom Season", bold: false, fontSize: 16 },
+  bloomHabit: { label: "Bloom Habit", bold: false, fontSize: 16 },
+  color: { label: "", bold: false, fontSize: 16 },
+  form: { label: "", bold: false, fontSize: 16 },
+  foliageType: { label: "Foliage Type", bold: false, fontSize: 16 },
+  fragrance: { label: "Fragrance", bold: false, fontSize: 16 },
+  budcount: { label: "Bud Count", bold: false, fontSize: 16 },
+  branches: { label: "Branches", bold: false, fontSize: 16 },
+  parentage: { label: "Parentage", bold: false, fontSize: 16 },
+  sculpting: { label: "Sculpting", bold: false, fontSize: 16 },
+  foliage: { label: "Foliage", bold: false, fontSize: 16 },
+  flower: { label: "Flower", bold: false, fontSize: 16 },
+  privateNote: { label: "Note", bold: false, fontSize: 16 },
+  listName: { label: "List", bold: false, fontSize: 16 },
+  customText: { label: "", bold: false, fontSize: 16 },
 };
 
 let _nextRowId = 0;
@@ -271,7 +295,10 @@ const DEFAULT_ROWS: TagRow[] = [
         fieldId: "title",
         width: 1,
         textAlign: "center",
-        fontSize: 20,
+        fontSize: 22,
+        overflow: false,
+        fit: true,
+        wrap: false,
         bold: true,
         italic: false,
         underline: false,
@@ -285,8 +312,11 @@ const DEFAULT_ROWS: TagRow[] = [
       {
         fieldId: "hybridizer",
         width: 1,
-        textAlign: "right",
-        fontSize: 14,
+        textAlign: "center",
+        fontSize: 16,
+        overflow: false,
+        fit: true,
+        wrap: false,
         bold: false,
         italic: false,
         underline: false,
@@ -296,7 +326,23 @@ const DEFAULT_ROWS: TagRow[] = [
         fieldId: "year",
         width: 1,
         textAlign: "left",
-        fontSize: 14,
+        fontSize: 16,
+        overflow: false,
+        fit: true,
+        wrap: false,
+        bold: false,
+        italic: false,
+        underline: false,
+        label: "",
+      },
+      {
+        fieldId: "ploidy",
+        width: 1,
+        textAlign: "center",
+        fontSize: 16,
+        overflow: false,
+        fit: true,
+        wrap: false,
         bold: false,
         italic: false,
         underline: false,
@@ -310,6 +356,7 @@ const DEFAULT_TAG_DESIGNER_STATE: TagDesignerState = {
   sizePresetId: "brother-tze-1",
   customWidthInches: 3.5,
   customHeightInches: 1,
+  showQrCode: true,
   rows: DEFAULT_ROWS,
 };
 
@@ -338,6 +385,64 @@ function toNonEmptyString(value: string | null | undefined) {
   return trimmed;
 }
 
+function trimTrailingSlash(value: string) {
+  return value.replace(/\/+$/, "");
+}
+
+function buildPublicListingUrl(
+  baseUrl: string,
+  userId: string,
+  listingId: string,
+) {
+  return `${trimTrailingSlash(baseUrl)}/${encodeURIComponent(
+    userId,
+  )}?viewing=${encodeURIComponent(listingId)}`;
+}
+
+function buildQrCodeSvgMarkup(url: string) {
+  const qrCode = qrcodeGenerator(0, "M");
+  qrCode.addData(url);
+  qrCode.make();
+  return qrCode.createSvgTag({
+    cellSize: 1,
+    margin: 0,
+    scalable: true,
+  });
+}
+
+function normalizeCellTextMode({
+  overflow,
+  fit,
+  wrap,
+}: {
+  overflow?: boolean;
+  fit?: boolean;
+  wrap?: boolean;
+}) {
+  const hasOverflow = Boolean(overflow);
+  const hasFit = typeof fit === "boolean" ? fit : true;
+  const hasWrap = typeof wrap === "boolean" ? wrap : false;
+
+  if (hasWrap) {
+    return { overflow: false, fit: false, wrap: true };
+  }
+  if (hasOverflow) {
+    return { overflow: true, fit: false, wrap: false };
+  }
+  if (hasFit) {
+    return { overflow: false, fit: true, wrap: false };
+  }
+  return { overflow: false, fit: false, wrap: false };
+}
+
+function normalizePloidy(value: string | null | undefined) {
+  const normalized = toNonEmptyString(value);
+  if (!normalized) return null;
+  if (normalized.toLowerCase() === "tetraploid") return "tet";
+  if (normalized.toLowerCase() === "diploid") return "dip";
+  return normalized;
+}
+
 function resolveFieldValue(
   listing: TagListingData,
   fieldId: TagFieldId,
@@ -354,7 +459,7 @@ function resolveFieldValue(
         ? `$${listing.price.toFixed(2)}`
         : null;
     case "ploidy":
-      return toNonEmptyString(listing.ahsListing?.ploidy);
+      return normalizePloidy(listing.ahsListing?.ploidy);
     case "bloomSize":
       return toNonEmptyString(listing.ahsListing?.bloomSize);
     case "scapeHeight":
@@ -414,6 +519,11 @@ function sanitizeCell(cell: Partial<TagCell>): TagCell | null {
 
   const fieldId = cell.fieldId;
   const defaults = FIELD_DEFAULTS[fieldId];
+  const textMode = normalizeCellTextMode({
+    overflow: cell.overflow,
+    fit: cell.fit,
+    wrap: cell.wrap,
+  });
 
   return {
     fieldId,
@@ -422,6 +532,9 @@ function sanitizeCell(cell: Partial<TagCell>): TagCell | null {
       ? cell.textAlign!
       : "left",
     fontSize: clamp(Number(cell.fontSize) || defaults.fontSize, 6, 28),
+    overflow: textMode.overflow,
+    fit: textMode.fit,
+    wrap: textMode.wrap,
     bold: typeof cell.bold === "boolean" ? cell.bold : defaults.bold,
     italic: Boolean(cell.italic),
     underline: Boolean(cell.underline),
@@ -473,6 +586,10 @@ function sanitizeTagDesignerState(state: TagDesignerState): TagDesignerState {
       MIN_TAG_HEIGHT_INCHES,
       MAX_TAG_HEIGHT_INCHES,
     ),
+    showQrCode:
+      typeof state.showQrCode === "boolean"
+        ? state.showQrCode
+        : DEFAULT_TAG_DESIGNER_STATE.showQrCode,
     rows: rows.length > 0 ? rows : DEFAULT_TAG_DESIGNER_STATE.rows,
   };
 }
@@ -506,6 +623,9 @@ export function buildResolvedRowsForListing(
         width: cell.width,
         textAlign: cell.textAlign,
         fontSize: cell.fontSize,
+        overflow: cell.overflow,
+        fit: cell.fit,
+        wrap: cell.wrap,
         bold: cell.bold,
         italic: cell.italic,
         underline: cell.underline,
@@ -528,6 +648,9 @@ export function buildResolvedRowsForListing(
             width: 1,
             textAlign: "left",
             fontSize: 10,
+            overflow: false,
+            fit: true,
+            wrap: false,
             bold: false,
             italic: true,
             underline: false,
@@ -551,7 +674,51 @@ function cellStyleAsCss(cell: ResolvedCell) {
     `font-style: ${cell.italic ? "italic" : "normal"}`,
     `text-decoration: ${cell.underline ? "underline" : "none"}`,
     `text-align: ${cell.textAlign}`,
+    `overflow: ${cell.overflow ? "visible" : "hidden"}`,
+    `white-space: ${cell.wrap ? "normal" : "nowrap"}`,
+    `overflow-wrap: ${cell.wrap ? "anywhere" : "normal"}`,
   ].join("; ");
+}
+
+function resolveCellFontSizePx(
+  cell: ResolvedCell,
+  row: ResolvedRow,
+  tagWidthInches: number,
+  hasQrCode: boolean,
+) {
+  const shouldFit = cell.fit ?? true;
+  if (cell.wrap) return cell.fontSize;
+  if (!shouldFit) return cell.fontSize;
+
+  const rowTotalWidthUnits = row.cells.reduce(
+    (total, rowCell) => total + rowCell.width,
+    0,
+  );
+  if (rowTotalWidthUnits <= 0) return cell.fontSize;
+
+  const innerWidthInches =
+    tagWidthInches -
+    TAG_HORIZONTAL_PADDING_INCHES -
+    (hasQrCode ? QR_RESERVED_RIGHT_INCHES : 0) -
+    TAG_COLUMN_GAP_INCHES * Math.max(row.cells.length - 1, 0);
+  if (innerWidthInches <= 0) return cell.fontSize;
+
+  const cellWidthInches = innerWidthInches * (cell.width / rowTotalWidthUnits);
+  const cellWidthPx = Math.max(cellWidthInches * CSS_PIXELS_PER_INCH, 1);
+  const estimatedTextWidthPx =
+    Math.max(cell.text.length, 1) * cell.fontSize * AVERAGE_CHARACTER_WIDTH_EM;
+
+  if (estimatedTextWidthPx <= cellWidthPx) return cell.fontSize;
+
+  return Number(
+    clamp(
+      (cellWidthPx / estimatedTextWidthPx) *
+        cell.fontSize *
+        FIT_FONT_SCALE_BUFFER,
+      MIN_FIT_FONT_SIZE_PX,
+      cell.fontSize,
+    ).toFixed(2),
+  );
 }
 
 export function createTagPrintDocumentHtml({
@@ -565,20 +732,36 @@ export function createTagPrintDocumentHtml({
 }) {
   const tagMarkup = tags
     .map((tag) => {
+      const hasQrCode = Boolean(tag.qrCodeUrl);
       const rowsHtml = tag.rows
         .map((row) => {
           const cols = row.cells.map((c) => `${c.width}fr`).join(" ");
           const cellsHtml = row.cells
-            .map(
-              (cell) =>
-                `<div class="cell" style="${cellStyleAsCss(cell)}">${escapeHtml(cell.text)}</div>`,
-            )
+            .map((cell) => {
+              const fittedCell = {
+                ...cell,
+                fontSize: resolveCellFontSizePx(
+                  cell,
+                  row,
+                  widthInches,
+                  hasQrCode,
+                ),
+              };
+              return `<div class="cell" style="${cellStyleAsCss(fittedCell)}">${escapeHtml(cell.text)}</div>`;
+            })
             .join("");
           return `<div class="row" style="grid-template-columns: ${cols};">${cellsHtml}</div>`;
         })
         .join("");
 
-      return `<article class="tag">${rowsHtml}</article>`;
+      const qrSvgMarkup =
+        tag.qrCodeUrl !== null && tag.qrCodeUrl !== undefined
+          ? buildQrCodeSvgMarkup(tag.qrCodeUrl)
+          : "";
+      const qrHtml = qrSvgMarkup ? `<div class="qr">${qrSvgMarkup}</div>` : "";
+      const hasQrClass = hasQrCode ? " has-qr" : "";
+
+      return `<article class="tag${hasQrClass}"><div class="tag-content">${rowsHtml}</div>${qrHtml}</article>`;
     })
     .join("");
 
@@ -603,15 +786,21 @@ export function createTagPrintDocumentHtml({
       }
       .tag {
         width: ${widthInches}in;
-        min-height: ${heightInches}in;
+        height: ${heightInches}in;
         border: 1px solid #000;
         padding: 0.06in 0.08in;
         overflow: hidden;
+        position: relative;
         page-break-inside: avoid;
+      }
+      .tag.has-qr .tag-content {
+        padding-right: ${QR_RESERVED_RIGHT_INCHES}in;
+        padding-bottom: ${QR_RESERVED_BOTTOM_INCHES}in;
       }
       .row {
         display: grid;
         column-gap: 0.06in;
+        align-items: baseline;
       }
       .row + .row {
         margin-top: 1px;
@@ -620,7 +809,20 @@ export function createTagPrintDocumentHtml({
         line-height: 1.2;
         white-space: nowrap;
         overflow: hidden;
-        text-overflow: ellipsis;
+        text-overflow: clip;
+      }
+      .qr {
+        position: absolute;
+        right: ${QR_OFFSET_INCHES}in;
+        bottom: ${QR_OFFSET_INCHES}in;
+        width: ${QR_SIZE_INCHES}in;
+        height: ${QR_SIZE_INCHES}in;
+        background: #fff;
+      }
+      .qr svg {
+        display: block;
+        width: 100%;
+        height: 100%;
       }
     </style>
   </head>
@@ -670,7 +872,7 @@ function printTagDocument(html: string) {
     iframeWindow.focus();
     iframeWindow.print();
     window.setTimeout(cleanup, 1000);
-  }, 400);
+  }, 200);
 }
 
 // ---------------------------------------------------------------------------
@@ -741,6 +943,9 @@ function createDefaultCell(existingRows: TagRow[]): TagCell {
     width: 1,
     textAlign: "left",
     fontSize: defaults.fontSize,
+    overflow: false,
+    fit: true,
+    wrap: false,
     bold: defaults.bold,
     italic: false,
     underline: false,
@@ -753,7 +958,7 @@ function createDefaultCell(existingRows: TagRow[]): TagCell {
 // ---------------------------------------------------------------------------
 
 const CELL_GRID =
-  "grid grid-cols-[3rem_7rem_5rem_2.5rem_3rem_3rem_max-content_1.5rem] items-center justify-items-start gap-x-1.5";
+  "grid grid-cols-[3rem_7rem_5rem_2.5rem_3rem_3rem_8rem_max-content_1.5rem] items-center justify-items-start gap-x-1.5";
 
 interface TagCellEditorProps {
   cell: TagCell;
@@ -877,6 +1082,54 @@ function TagCellEditor({
         title="Font size (px)"
       />
 
+      <div className="flex items-center gap-2 text-[10px] leading-none">
+        <label className="flex items-center gap-1">
+          <input
+            type="checkbox"
+            checked={cell.overflow}
+            onChange={(e) =>
+              patch(
+                e.target.checked
+                  ? { overflow: true, fit: false, wrap: false }
+                  : { overflow: false },
+              )
+            }
+            className="h-3 w-3"
+          />
+          Ov
+        </label>
+        <label className="flex items-center gap-1">
+          <input
+            type="checkbox"
+            checked={cell.fit}
+            onChange={(e) =>
+              patch(
+                e.target.checked
+                  ? { overflow: false, fit: true, wrap: false }
+                  : { fit: false },
+              )
+            }
+            className="h-3 w-3"
+          />
+          Fit
+        </label>
+        <label className="flex items-center gap-1">
+          <input
+            type="checkbox"
+            checked={cell.wrap}
+            onChange={(e) =>
+              patch(
+                e.target.checked
+                  ? { overflow: false, fit: false, wrap: true }
+                  : { wrap: false },
+              )
+            }
+            className="h-3 w-3"
+          />
+          Wrap
+        </label>
+      </div>
+
       <div className="flex items-center gap-0.5">
         <Button
           type="button"
@@ -924,6 +1177,30 @@ function TagCellEditor({
   );
 }
 
+function QrCodeSvg({
+  qrCodeUrl,
+  className,
+  style,
+}: {
+  qrCodeUrl: string;
+  className?: string;
+  style?: React.CSSProperties;
+}) {
+  const qrSvgMarkup = React.useMemo(
+    () => buildQrCodeSvgMarkup(qrCodeUrl),
+    [qrCodeUrl],
+  );
+
+  return (
+    <div
+      aria-hidden="true"
+      className={className}
+      style={style}
+      dangerouslySetInnerHTML={{ __html: qrSvgMarkup }}
+    />
+  );
+}
+
 // ---------------------------------------------------------------------------
 // Main designer panel
 // ---------------------------------------------------------------------------
@@ -933,6 +1210,7 @@ export function TagDesignerPanel({ listings }: { listings: TagListingData[] }) {
     TAG_DESIGNER_STORAGE_KEY,
     DEFAULT_TAG_DESIGNER_STATE,
   );
+  const baseUrl = React.useMemo(() => getBaseUrl(), []);
 
   const state = React.useMemo(
     () => sanitizeTagDesignerState(storedState),
@@ -961,17 +1239,17 @@ export function TagDesignerPanel({ listings }: { listings: TagListingData[] }) {
       ? state.customHeightInches
       : activeSizePreset.heightInches;
 
-  const previewTags = React.useMemo<TagPreviewData[]>(
-    () => {
-      const toPreview =
-        listings.length > 0 ? listings : [PLACEHOLDER_LISTING];
-      return toPreview.map((listing) => ({
-        id: listing.id,
-        rows: buildResolvedRowsForListing(listing, state.rows),
-      }));
-    },
-    [listings, state.rows],
-  );
+  const previewTags = React.useMemo<TagPreviewData[]>(() => {
+    const toPreview = listings.length > 0 ? listings : [PLACEHOLDER_LISTING];
+    return toPreview.map((listing) => ({
+      id: listing.id,
+      rows: buildResolvedRowsForListing(listing, state.rows),
+      qrCodeUrl:
+        state.showQrCode && listing.userId
+          ? buildPublicListingUrl(baseUrl, listing.userId, listing.id)
+          : null,
+    }));
+  }, [baseUrl, listings, state.rows, state.showQrCode]);
 
   const visiblePreviewTags = previewTags.slice(0, 8);
 
@@ -1084,7 +1362,7 @@ export function TagDesignerPanel({ listings }: { listings: TagListingData[] }) {
         </div>
       </div>
 
-      <div className="border-border grid gap-3 rounded-md border p-3 md:grid-cols-[260px,1fr]">
+      <div className="border-border grid gap-3 rounded-md border p-3 md:grid-cols-[260px_1fr]">
         <div className="space-y-2">
           <Label htmlFor="tag-size-select">Tag Size</Label>
           <select
@@ -1106,7 +1384,23 @@ export function TagDesignerPanel({ listings }: { listings: TagListingData[] }) {
           </select>
         </div>
 
-        <div className="flex flex-col gap-3 md:flex-row md:items-end">
+        <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-end">
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              id="layout-qr-toggle"
+              type="checkbox"
+              checked={state.showQrCode}
+              onChange={(e) =>
+                updateState((prev) => ({
+                  ...prev,
+                  showQrCode: e.target.checked,
+                }))
+              }
+              className="h-4 w-4"
+            />
+            <span>QR code</span>
+          </label>
+
           {state.sizePresetId === "custom" && (
             <>
               <div className="space-y-1">
@@ -1183,7 +1477,7 @@ export function TagDesignerPanel({ listings }: { listings: TagListingData[] }) {
             <div
               className={cn(
                 CELL_GRID,
-                "text-muted-foreground min-w-[480px] text-[10px]",
+                "text-muted-foreground min-w-[640px] text-[10px]",
               )}
             >
               <span />
@@ -1192,7 +1486,7 @@ export function TagDesignerPanel({ listings }: { listings: TagListingData[] }) {
               <span>Width</span>
               <span>Align</span>
               <span>Size</span>
-              <span />
+              <span>Fit</span>
               <span>Style</span>
               <span />
             </div>
@@ -1246,7 +1540,7 @@ export function TagDesignerPanel({ listings }: { listings: TagListingData[] }) {
               </div>
 
               <div className="overflow-x-auto">
-                <div className="min-w-[480px] space-y-1">
+                <div className="min-w-[640px] space-y-1">
                   {row.cells.map((cell, cellIndex) => (
                     <TagCellEditor
                       key={`${row.id}-${cellIndex}`}
@@ -1301,8 +1595,8 @@ export function TagDesignerPanel({ listings }: { listings: TagListingData[] }) {
             {listings.length > 0 &&
               previewTags.length > visiblePreviewTags.length && (
                 <p className="text-muted-foreground text-xs">
-                  Showing first {visiblePreviewTags.length} of {previewTags.length}{" "}
-                  tags
+                  Showing first {visiblePreviewTags.length} of{" "}
+                  {previewTags.length} tags
                 </p>
               )}
           </div>
@@ -1313,41 +1607,78 @@ export function TagDesignerPanel({ listings }: { listings: TagListingData[] }) {
             {visiblePreviewTags.map((tag) => (
               <article
                 key={tag.id}
-                className="border-border bg-background rounded-md border border-dashed p-2"
+                className="border-border bg-background relative overflow-hidden rounded-md border border-dashed p-2"
                 style={{
                   width: `${widthInches}in`,
-                  minHeight: `${heightInches}in`,
+                  height: `${heightInches}in`,
                 }}
               >
-                {tag.rows.map((row) => (
-                  <div
-                    key={row.id}
-                    className="grid gap-x-2"
+                <div
+                  style={{
+                    paddingRight: tag.qrCodeUrl
+                      ? `${QR_RESERVED_RIGHT_INCHES}in`
+                      : undefined,
+                    paddingBottom: tag.qrCodeUrl
+                      ? `${QR_RESERVED_BOTTOM_INCHES}in`
+                      : undefined,
+                  }}
+                >
+                  {tag.rows.map((row) => (
+                    <div
+                      key={row.id}
+                      className="grid items-baseline gap-x-2"
+                      style={{
+                        gridTemplateColumns: row.cells
+                          .map((c) => `${c.width}fr`)
+                          .join(" "),
+                      }}
+                    >
+                      {row.cells.map((cell) => (
+                        <p
+                          key={cell.id}
+                          className={cn(
+                            "min-w-0 leading-tight",
+                            cell.wrap
+                              ? "break-words whitespace-normal"
+                              : "whitespace-nowrap",
+                            cell.overflow
+                              ? "overflow-visible"
+                              : "overflow-hidden",
+                            cell.bold && "font-semibold",
+                            cell.italic && "italic",
+                            cell.underline && "underline",
+                            cell.textAlign === "center" && "text-center",
+                            cell.textAlign === "right" && "text-right",
+                            cell.textAlign === "left" && "text-left",
+                          )}
+                          style={{
+                            fontSize: `${resolveCellFontSizePx(
+                              cell,
+                              row,
+                              widthInches,
+                              Boolean(tag.qrCodeUrl),
+                            )}px`,
+                          }}
+                        >
+                          {cell.text}
+                        </p>
+                      ))}
+                    </div>
+                  ))}
+                </div>
+
+                {tag.qrCodeUrl ? (
+                  <QrCodeSvg
+                    qrCodeUrl={tag.qrCodeUrl}
+                    className="absolute bg-white [&_svg]:block [&_svg]:h-full [&_svg]:w-full"
                     style={{
-                      gridTemplateColumns: row.cells
-                        .map((c) => `${c.width}fr`)
-                        .join(" "),
+                      right: `${QR_OFFSET_INCHES}in`,
+                      bottom: `${QR_OFFSET_INCHES}in`,
+                      width: `${QR_SIZE_INCHES}in`,
+                      height: `${QR_SIZE_INCHES}in`,
                     }}
-                  >
-                    {row.cells.map((cell) => (
-                      <p
-                        key={cell.id}
-                        className={cn(
-                          "min-w-0 truncate leading-tight",
-                          cell.bold && "font-semibold",
-                          cell.italic && "italic",
-                          cell.underline && "underline",
-                          cell.textAlign === "center" && "text-center",
-                          cell.textAlign === "right" && "text-right",
-                          cell.textAlign === "left" && "text-left",
-                        )}
-                        style={{ fontSize: `${cell.fontSize}px` }}
-                      >
-                        {cell.text}
-                      </p>
-                    ))}
-                  </div>
-                ))}
+                  />
+                ) : null}
               </article>
             ))}
           </div>
