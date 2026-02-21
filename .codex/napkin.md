@@ -2,6 +2,10 @@
 
 ## Log
 
+- 2026-02-21 - id-format assumption self-miss - I initially gated proxy canonical lookup to numeric IDs only; this app also uses non-numeric `User.id` values in tests/fixtures, so query-preserving canonical redirects must not assume numeric IDs.
+- 2026-02-21 - seo redirect preference update - User wants `/{userId}` -> `/{slug}` canonicalization to stay server-side for SEO; preserve query params in proxy/server redirect path instead of client `router.replace`.
+- 2026-02-21 - force-static redirect gotcha self-miss - Adding `searchParams` to `src/app/(public)/[userSlugOrId]/page.tsx` did not preserve query params on canonical redirect (`/{id}` still became `/{slug}` without query); handle query-preserving canonicalization in proxy instead of server page props.
+- 2026-02-21 - redirect query preservation correction - User expects canonical redirect from `/{userId}` to `/{slug}` to keep incoming query params (e.g. `viewing`, `utm_*`); previous behavior dropped them.
 - 2026-02-20 - scope correction self-miss - I first added tag printing as a selected-row action on manage-list, then user clarified it must be a dedicated dashboard page; when feature placement is ambiguous, confirm page-level scope early.
 - 2026-02-20 - tags UX correction - For `/dashboard/tags`, keep the tag designer inline at the top of the page (not in a dialog), with per-field style controls (font size + basic text styles), editable labels, left/right slot placement, and move up/down ordering.
 - 2026-02-20 - print reliability pattern - Browser popup flows can fail for print; a hidden iframe + `contentWindow.print()` from the click handler is a more reliable print trigger than `window.open(...).print()`.
@@ -97,6 +101,8 @@
 
 ## Preferences
 
+- Keep query params when redirecting public profile routes from `/{userId}` to `/{slug}`.
+- Keep `/{userId}` -> `/{slug}` canonical redirects server-side (SEO), not client-side.
 - Write tests, not too many, mostly integration, hapy path e2e.
 - Tag-printing should ship as a dedicated dashboard page (`/dashboard/tags`), not as an embedded manage-list action.
 - TanStack DB dashboard migration: keep procedures under new `dashboardDb` router, migrate main `/dashboard` page-by-page, and run `pnpm lint`, `npx tsc --noEmit`, `pnpm test`, `pnpm test:e2e` before each incremental commit.
