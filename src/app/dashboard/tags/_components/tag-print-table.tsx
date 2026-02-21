@@ -1,9 +1,11 @@
 "use client";
 
 import * as React from "react";
+import { X } from "lucide-react";
 import { type ColumnDef, type Table } from "@tanstack/react-table";
 import { useLiveQuery } from "@tanstack/react-db";
 import type { Image } from "@prisma/client";
+import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { EmptyState } from "@/components/empty-state";
 import { DataTable } from "@/components/data-table/data-table";
@@ -63,6 +65,57 @@ const tagPrintColumns: ColumnDef<ListingData>[] = [
   },
   ...baseListingColumns,
 ];
+
+interface SelectedListingsBadgesProps {
+  table: Table<ListingData>;
+  listingsById: Map<string, ListingData>;
+}
+
+function SelectedListingsBadges({ table, listingsById }: SelectedListingsBadgesProps) {
+  const rowSelection = table.getState().rowSelection ?? {};
+  const selectedIds = Object.entries(rowSelection)
+    .filter(([, selected]) => selected)
+    .map(([id]) => id);
+
+  if (selectedIds.length === 0) return null;
+
+  return (
+    <div className="flex flex-wrap items-center gap-2 rounded-lg border border-border bg-muted/30 px-3 py-2">
+      <span className="text-muted-foreground shrink-0 text-xs font-medium">
+        Selected ({selectedIds.length}):
+      </span>
+      {selectedIds.map((id) => {
+        const listing = listingsById.get(id);
+        const title = listing?.title ?? "(Unknown)";
+        return (
+          <Badge
+            key={id}
+            variant="secondary"
+            className="group flex items-center gap-1 pr-1"
+          >
+            <span className="max-w-[12rem] truncate" title={title}>
+              {title}
+            </span>
+            <button
+              type="button"
+              onClick={() => {
+                table.setRowSelection((prev) => {
+                  const next = { ...prev };
+                  delete next[id];
+                  return next;
+                });
+              }}
+              className="hover:bg-muted rounded p-0.5 transition-colors"
+              aria-label={`Deselect ${title}`}
+            >
+              <X className="h-3 w-3" />
+            </button>
+          </Badge>
+        );
+      })}
+    </div>
+  );
+}
 
 interface TagPrintToolbarProps {
   table: Table<ListingData>;
@@ -217,6 +270,11 @@ export function TagPrintTable() {
     listsByListingId,
   ]);
 
+  const listingsById = React.useMemo(
+    () => new Map(listings.map((l) => [l.id, l])),
+    [listings],
+  );
+
   const table = useDataTable({
     data: listings,
     columns: tagPrintColumns,
@@ -227,6 +285,7 @@ export function TagPrintTable() {
     },
     config: {
       enableRowSelection: true,
+      getRowId: (row) => row.id,
     },
     initialStateOverrides: {
       pagination: {
@@ -258,6 +317,8 @@ export function TagPrintTable() {
   return (
     <div className="space-y-4">
       <TagDesignerPanel listings={selectedListings} />
+
+      <SelectedListingsBadges table={table} listingsById={listingsById} />
 
       <DataTableLayout
         table={table}
