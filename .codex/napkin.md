@@ -2,6 +2,10 @@
 
 ## Log
 
+- 2026-02-21 - id-format assumption self-miss - I initially gated proxy canonical lookup to numeric IDs only; this app also uses non-numeric `User.id` values in tests/fixtures, so query-preserving canonical redirects must not assume numeric IDs.
+- 2026-02-21 - seo redirect preference update - User wants `/{userId}` -> `/{slug}` canonicalization to stay server-side for SEO; preserve query params in proxy/server redirect path instead of client `router.replace`.
+- 2026-02-21 - force-static redirect gotcha self-miss - Adding `searchParams` to `src/app/(public)/[userSlugOrId]/page.tsx` did not preserve query params on canonical redirect (`/{id}` still became `/{slug}` without query); handle query-preserving canonicalization in proxy instead of server page props.
+- 2026-02-21 - redirect query preservation correction - User expects canonical redirect from `/{userId}` to `/{slug}` to keep incoming query params (e.g. `viewing`, `utm_*`); previous behavior dropped them.
 - 2026-02-21 - tags composition pass - Refactored `TagDesignerPanel` from one monolithic render into explicit composed sections (`Header`, `Controls`, `Layout`, `Preview`) and extracted template/custom-size blocks as dedicated components to reduce inline branching and prop-mode complexity.
 - 2026-02-21 - first-response e2e mismatch - `tests/e2e/public-profile-first-response.e2e.ts` can fail on `expect(html).not.toMatch(/template id="B:\\d+"/)` because first HTML now includes React streaming markers (`B:*`/`S:*`) while still containing page content; unrelated to `/dashboard/tags` changes.
 - 2026-02-21 - tags print border preference - Printed tags should have no outer border in the print document CSS.
@@ -117,6 +121,8 @@
 
 ## Preferences
 
+- Keep query params when redirecting public profile routes from `/{userId}` to `/{slug}`.
+- Keep `/{userId}` -> `/{slug}` canonical redirects server-side (SEO), not client-side.
 - Write tests, not too many, mostly integration, hapy path e2e.
 - During quick UI iteration, skip writing/running tests until behavior is settled.
 - Template controls on `/dashboard/tags` should use a shadcn-style picker (not native select), include per-row delete for saved templates inside the picker, and only show "Save as template" when current layout is custom.
