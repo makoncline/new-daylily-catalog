@@ -2,6 +2,8 @@
 
 ## Log
 
+- 2026-02-21 - tags composition pass - Refactored `TagDesignerPanel` from one monolithic render into explicit composed sections (`Header`, `Controls`, `Layout`, `Preview`) and extracted template/custom-size blocks as dedicated components to reduce inline branching and prop-mode complexity.
+- 2026-02-21 - first-response e2e mismatch - `tests/e2e/public-profile-first-response.e2e.ts` can fail on `expect(html).not.toMatch(/template id="B:\\d+"/)` because first HTML now includes React streaming markers (`B:*`/`S:*`) while still containing page content; unrelated to `/dashboard/tags` changes.
 - 2026-02-21 - tags print border preference - Printed tags should have no outer border in the print document CSS.
 - 2026-02-21 - tags print sizing mode - User wants print output as one tag per page with page dimensions exactly matching the selected tag size; implement with dynamic `@page size` and forced page breaks per tag.
 - 2026-02-21 - tags selection + full-detail adjustment - Add `Remove all` control in selected-listings area, and for `full detail` template keep first/second rows same as default (title row, then hybridizer/year/ploidy row with ploidy moved off the title line).
