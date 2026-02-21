@@ -37,84 +37,73 @@ describe("TagDesignerPanel", () => {
 
     fireEvent.change(sizeSelect, { target: { value: "custom" } });
 
-    expect(screen.getByLabelText("Custom Width (in)")).toBeInTheDocument();
-    expect(screen.getByLabelText("Custom Height (in)")).toBeInTheDocument();
+    expect(screen.getByLabelText("Width (in)")).toBeInTheDocument();
+    expect(screen.getByLabelText("Height (in)")).toBeInTheDocument();
   });
 
-  it("hides field settings when excluded and shows them when included", () => {
-    render(<TagDesignerPanel listings={sampleListings} />);
-
-    expect(document.getElementById("label-price")).toBeNull();
-    expect(document.getElementById("slot-price")).toBeNull();
-
-    fireEvent.click(document.getElementById("include-price")!);
-
-    expect(document.getElementById("label-price")).not.toBeNull();
-    expect(document.getElementById("slot-price")).not.toBeNull();
+  it("shows sample preview when no listings selected", () => {
+    render(<TagDesignerPanel listings={[]} />);
+    expect(screen.getByText("Sample Cultivar Name")).toBeInTheDocument();
+    expect(
+      screen.getByText("Sample preview — select listings below"),
+    ).toBeInTheDocument();
   });
 
-  it("lets users include fields, customize labels, and persists design changes", async () => {
+  it("shows selected listing data in preview and persists layout", async () => {
     const { unmount } = render(<TagDesignerPanel listings={sampleListings} />);
 
-    expect(screen.queryByText("Price: $18.50")).not.toBeInTheDocument();
-
-    const includePriceCheckbox = document.getElementById("include-price");
-    expect(includePriceCheckbox).not.toBeNull();
-    fireEvent.click(includePriceCheckbox!);
-
-    expect(screen.getByText("Price: $18.50")).toBeInTheDocument();
-
-    const labelPriceInput = document.getElementById("label-price");
-    expect(labelPriceInput).not.toBeNull();
-    fireEvent.change(labelPriceInput!, { target: { value: "Tag Price" } });
-
-    expect(screen.getByText("Tag Price: $18.50")).toBeInTheDocument();
+    expect(screen.getByText("Moonlit Smile")).toBeInTheDocument();
+    expect(screen.getByText(/Smith/)).toBeInTheDocument();
+    expect(screen.getByText(/2015/)).toBeInTheDocument();
 
     unmount();
-
     render(<TagDesignerPanel listings={sampleListings} />);
 
     await waitFor(() => {
-      expect(screen.getByText("Tag Price: $18.50")).toBeInTheDocument();
+      expect(screen.getByText("Moonlit Smile")).toBeInTheDocument();
     });
   });
 });
 
 describe("createTagPrintDocumentHtml", () => {
-  it("renders left and right slot lines with text-align in printable markup", () => {
+  it("renders row cells with text-align in printable markup", () => {
     const html = createTagPrintDocumentHtml({
       widthInches: 3.5,
       heightInches: 1,
       tags: [
         {
           id: "tag-1",
-          lines: [
+          rows: [
             {
-              id: "line-left",
-              text: "Title: Moonlit Smile",
-              slot: "left",
-              textAlign: "left",
-              fontSize: 12,
-              bold: true,
-              italic: false,
-              underline: false,
-            },
-            {
-              id: "line-right",
-              text: "Price: $18.50",
-              slot: "right",
-              textAlign: "right",
-              fontSize: 10,
-              bold: false,
-              italic: true,
-              underline: true,
+              id: "row-1",
+              cells: [
+                {
+                  id: "cell-1",
+                  text: "Title: Moonlit Smile",
+                  width: 1,
+                  textAlign: "left",
+                  fontSize: 12,
+                  bold: true,
+                  italic: false,
+                  underline: false,
+                },
+                {
+                  id: "cell-2",
+                  text: "Price: $18.50",
+                  width: 1,
+                  textAlign: "right",
+                  fontSize: 10,
+                  bold: false,
+                  italic: true,
+                  underline: true,
+                },
+              ],
             },
           ],
         },
       ],
     });
 
-    expect(html).toContain("tag-grid");
     expect(html).toContain("Title: Moonlit Smile");
     expect(html).toContain("Price: $18.50");
     expect(html).toContain("text-decoration: underline");

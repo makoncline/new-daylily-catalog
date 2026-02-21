@@ -1,27 +1,58 @@
 "use client";
 
 import * as React from "react";
-import { ArrowDown, ArrowUp, Download, Printer } from "lucide-react";
+import {
+  ArrowDown,
+  ArrowUp,
+  Download,
+  Plus,
+  Printer,
+  RotateCcw,
+  Trash2,
+  X,
+} from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useLocalStorage } from "@/hooks/use-local-storage";
 import { cn } from "@/lib/utils";
 
-type TagFieldId =
-  | "title"
-  | "hybridizer"
-  | "year"
-  | "price"
-  | "bloomSize"
-  | "scapeHeight"
-  | "bloomSeason"
-  | "privateNote"
-  | "listName";
+// ---------------------------------------------------------------------------
+// Field IDs – every AHS field + listing-level fields
+// ---------------------------------------------------------------------------
 
-type TagFieldSlot = "left" | "right";
+const ALL_FIELD_IDS = [
+  "title",
+  "hybridizer",
+  "year",
+  "price",
+  "ploidy",
+  "bloomSize",
+  "scapeHeight",
+  "bloomSeason",
+  "bloomHabit",
+  "color",
+  "form",
+  "foliageType",
+  "fragrance",
+  "budcount",
+  "branches",
+  "parentage",
+  "sculpting",
+  "foliage",
+  "flower",
+  "privateNote",
+  "listName",
+  "customText",
+] as const;
+
+type TagFieldId = (typeof ALL_FIELD_IDS)[number];
+type TagTextAlign = "left" | "center" | "right";
+
+// ---------------------------------------------------------------------------
+// Data interfaces
+// ---------------------------------------------------------------------------
 
 interface TagAhsListingData {
   hybridizer?: string | null;
@@ -29,6 +60,18 @@ interface TagAhsListingData {
   bloomSize?: string | null;
   scapeHeight?: string | null;
   bloomSeason?: string | null;
+  ploidy?: string | null;
+  foliageType?: string | null;
+  bloomHabit?: string | null;
+  color?: string | null;
+  form?: string | null;
+  parentage?: string | null;
+  fragrance?: string | null;
+  budcount?: string | null;
+  branches?: string | null;
+  sculpting?: string | null;
+  foliage?: string | null;
+  flower?: string | null;
 }
 
 export interface TagListingData {
@@ -40,6 +83,30 @@ export interface TagListingData {
   ahsListing?: TagAhsListingData | null;
 }
 
+const PLACEHOLDER_LISTING: TagListingData = {
+  id: "__placeholder__",
+  title: "Sample Cultivar Name",
+  price: 12.99,
+  privateNote: "Example note",
+  listName: "For Sale",
+  ahsListing: {
+    hybridizer: "Smith",
+    year: "2023",
+    bloomSize: '6"',
+    scapeHeight: '28"',
+    bloomSeason: "E-M",
+    ploidy: "Tet",
+    bloomHabit: "Dormant",
+    color: "Yellow",
+    form: "Single",
+    foliageType: "Dormant",
+  },
+};
+
+// ---------------------------------------------------------------------------
+// Designer state
+// ---------------------------------------------------------------------------
+
 interface TagSizePreset {
   id: string;
   label: string;
@@ -47,32 +114,37 @@ interface TagSizePreset {
   heightInches: number;
 }
 
-type TagTextAlign = "left" | "right";
-
-interface TagFieldConfig {
-  id: TagFieldId;
-  include: boolean;
-  label: string;
-  showLabel: boolean;
-  slot: TagFieldSlot;
+interface TagCell {
+  fieldId: TagFieldId;
+  width: number;
   textAlign: TagTextAlign;
   fontSize: number;
   bold: boolean;
   italic: boolean;
   underline: boolean;
+  label: string;
+}
+
+interface TagRow {
+  id: string;
+  cells: TagCell[];
 }
 
 interface TagDesignerState {
   sizePresetId: string;
   customWidthInches: number;
   customHeightInches: number;
-  fields: TagFieldConfig[];
+  rows: TagRow[];
 }
 
-interface TagLine {
+// ---------------------------------------------------------------------------
+// Resolved types for preview / print
+// ---------------------------------------------------------------------------
+
+interface ResolvedCell {
   id: string;
   text: string;
-  slot: TagFieldSlot;
+  width: number;
   textAlign: TagTextAlign;
   fontSize: number;
   bold: boolean;
@@ -80,35 +152,50 @@ interface TagLine {
   underline: boolean;
 }
 
-interface TagPreviewData {
+interface ResolvedRow {
   id: string;
-  lines: TagLine[];
+  cells: ResolvedCell[];
 }
 
-const TAG_DESIGNER_STORAGE_KEY = "tag-designer-state-v1";
+interface TagPreviewData {
+  id: string;
+  rows: ResolvedRow[];
+}
+
+// ---------------------------------------------------------------------------
+// Constants
+// ---------------------------------------------------------------------------
+
+const TAG_DESIGNER_STORAGE_KEY = "tag-designer-state-v2";
 const MIN_TAG_WIDTH_INCHES = 1;
-const MAX_TAG_WIDTH_INCHES = 3.5;
+const MAX_TAG_WIDTH_INCHES = 6;
 const MIN_TAG_HEIGHT_INCHES = 0.5;
-const MAX_TAG_HEIGHT_INCHES = 3.5;
+const MAX_TAG_HEIGHT_INCHES = 4;
 
 const TAG_SIZE_PRESETS: TagSizePreset[] = [
   {
     id: "brother-tze-1",
-    label: 'Brother TZe 1.00" x 3.50"',
+    label: 'Brother TZe 1.00" × 3.50"',
     widthInches: 3.5,
     heightInches: 1,
   },
   {
     id: "compact-0.75",
-    label: 'Compact 0.75" x 3.00"',
+    label: 'Compact 0.75" × 3.00"',
     widthInches: 3,
     heightInches: 0.75,
   },
   {
     id: "roomy-1.25",
-    label: 'Roomy 1.25" x 3.50"',
+    label: 'Roomy 1.25" × 3.50"',
     widthInches: 3.5,
     heightInches: 1.25,
+  },
+  {
+    id: "card-2x3.5",
+    label: 'Card 2.00" × 3.50"',
+    widthInches: 3.5,
+    heightInches: 2,
   },
   {
     id: "custom",
@@ -118,114 +205,104 @@ const TAG_SIZE_PRESETS: TagSizePreset[] = [
   },
 ];
 
-const DEFAULT_FIELDS: TagFieldConfig[] = [
+const FIELD_DISPLAY_NAMES: Record<TagFieldId, string> = {
+  title: "Title",
+  hybridizer: "Hybridizer",
+  year: "Year",
+  price: "Price",
+  ploidy: "Ploidy",
+  bloomSize: "Bloom Size",
+  scapeHeight: "Scape Height",
+  bloomSeason: "Bloom Season",
+  bloomHabit: "Bloom Habit",
+  color: "Color",
+  form: "Form",
+  foliageType: "Foliage Type",
+  fragrance: "Fragrance",
+  budcount: "Bud Count",
+  branches: "Branches",
+  parentage: "Parentage",
+  sculpting: "Sculpting",
+  foliage: "Foliage",
+  flower: "Flower",
+  privateNote: "Private Note",
+  listName: "List Name",
+  customText: "Free text",
+};
+
+const FIELD_DEFAULTS: Record<
+  TagFieldId,
+  Pick<TagCell, "label" | "bold" | "fontSize">
+> = {
+  title: { label: "", bold: true, fontSize: 13 },
+  hybridizer: { label: "Hybridizer", bold: false, fontSize: 10 },
+  year: { label: "", bold: false, fontSize: 10 },
+  price: { label: "", bold: true, fontSize: 10 },
+  ploidy: { label: "", bold: false, fontSize: 9 },
+  bloomSize: { label: "Bloom Size", bold: false, fontSize: 10 },
+  scapeHeight: { label: "Scape Height", bold: false, fontSize: 10 },
+  bloomSeason: { label: "Bloom Season", bold: false, fontSize: 10 },
+  bloomHabit: { label: "Bloom Habit", bold: false, fontSize: 10 },
+  color: { label: "", bold: false, fontSize: 10 },
+  form: { label: "", bold: false, fontSize: 10 },
+  foliageType: { label: "Foliage Type", bold: false, fontSize: 10 },
+  fragrance: { label: "Fragrance", bold: false, fontSize: 9 },
+  budcount: { label: "Bud Count", bold: false, fontSize: 10 },
+  branches: { label: "Branches", bold: false, fontSize: 10 },
+  parentage: { label: "Parentage", bold: false, fontSize: 9 },
+  sculpting: { label: "Sculpting", bold: false, fontSize: 9 },
+  foliage: { label: "Foliage", bold: false, fontSize: 9 },
+  flower: { label: "Flower", bold: false, fontSize: 9 },
+  privateNote: { label: "Note", bold: false, fontSize: 9 },
+  listName: { label: "List", bold: false, fontSize: 9 },
+  customText: { label: "", bold: false, fontSize: 10 },
+};
+
+let _nextRowId = 0;
+function generateRowId() {
+  return `r-${Date.now()}-${_nextRowId++}`;
+}
+
+const DEFAULT_ROWS: TagRow[] = [
   {
-    id: "title",
-    include: true,
-    label: "Title",
-    showLabel: false,
-    slot: "left",
-    textAlign: "left",
-    fontSize: 13,
-    bold: true,
-    italic: false,
-    underline: false,
+    id: "d0",
+    cells: [
+      {
+        fieldId: "title",
+        width: 1,
+        textAlign: "center",
+        fontSize: 20,
+        bold: true,
+        italic: false,
+        underline: false,
+        label: "",
+      },
+    ],
   },
   {
-    id: "hybridizer",
-    include: true,
-    label: "Hybridizer",
-    showLabel: true,
-    slot: "left",
-    textAlign: "left",
-    fontSize: 10,
-    bold: false,
-    italic: false,
-    underline: false,
-  },
-  {
-    id: "year",
-    include: true,
-    label: "Year",
-    showLabel: true,
-    slot: "left",
-    textAlign: "left",
-    fontSize: 10,
-    bold: false,
-    italic: false,
-    underline: false,
-  },
-  {
-    id: "price",
-    include: false,
-    label: "Price",
-    showLabel: true,
-    slot: "right",
-    textAlign: "right",
-    fontSize: 10,
-    bold: true,
-    italic: false,
-    underline: false,
-  },
-  {
-    id: "bloomSize",
-    include: false,
-    label: "Bloom",
-    showLabel: true,
-    slot: "right",
-    textAlign: "right",
-    fontSize: 10,
-    bold: false,
-    italic: false,
-    underline: false,
-  },
-  {
-    id: "scapeHeight",
-    include: false,
-    label: "Scape",
-    showLabel: true,
-    slot: "right",
-    textAlign: "right",
-    fontSize: 10,
-    bold: false,
-    italic: false,
-    underline: false,
-  },
-  {
-    id: "bloomSeason",
-    include: false,
-    label: "Season",
-    showLabel: true,
-    slot: "right",
-    textAlign: "right",
-    fontSize: 10,
-    bold: false,
-    italic: false,
-    underline: false,
-  },
-  {
-    id: "privateNote",
-    include: false,
-    label: "Note",
-    showLabel: true,
-    slot: "left",
-    textAlign: "left",
-    fontSize: 10,
-    bold: false,
-    italic: true,
-    underline: false,
-  },
-  {
-    id: "listName",
-    include: false,
-    label: "List",
-    showLabel: true,
-    slot: "right",
-    textAlign: "right",
-    fontSize: 10,
-    bold: false,
-    italic: false,
-    underline: false,
+    id: "d1",
+    cells: [
+      {
+        fieldId: "hybridizer",
+        width: 1,
+        textAlign: "right",
+        fontSize: 14,
+        bold: false,
+        italic: false,
+        underline: false,
+        label: "",
+      },
+      {
+        fieldId: "year",
+        width: 1,
+        textAlign: "left",
+        fontSize: 14,
+        bold: false,
+        italic: false,
+        underline: false,
+        label: "",
+      },
+    ],
   },
 ];
 
@@ -233,42 +310,38 @@ const DEFAULT_TAG_DESIGNER_STATE: TagDesignerState = {
   sizePresetId: "brother-tze-1",
   customWidthInches: 3.5,
   customHeightInches: 1,
-  fields: DEFAULT_FIELDS,
+  rows: DEFAULT_ROWS,
 };
 
-const FIELD_DISPLAY_NAMES: Record<TagFieldId, string> = {
-  title: "Title",
-  hybridizer: "Hybridizer",
-  year: "Year",
-  price: "Price",
-  bloomSize: "Bloom Size",
-  scapeHeight: "Scape Height",
-  bloomSeason: "Bloom Season",
-  privateNote: "Private Note",
-  listName: "List Name",
-};
+// ---------------------------------------------------------------------------
+// Utilities
+// ---------------------------------------------------------------------------
 
 function clamp(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value));
 }
 
-function parseInches(input: string, fallback: number, min: number, max: number) {
+function parseInches(
+  input: string,
+  fallback: number,
+  min: number,
+  max: number,
+) {
   const parsed = Number.parseFloat(input);
-  if (!Number.isFinite(parsed)) {
-    return fallback;
-  }
+  if (!Number.isFinite(parsed)) return fallback;
   return Number.parseFloat(clamp(parsed, min, max).toFixed(2));
 }
 
 function toNonEmptyString(value: string | null | undefined) {
   const trimmed = value?.trim();
-  if (!trimmed || trimmed.length === 0) {
-    return null;
-  }
+  if (!trimmed || trimmed.length === 0) return null;
   return trimmed;
 }
 
-function resolveFieldValue(listing: TagListingData, fieldId: TagFieldId): string | null {
+function resolveFieldValue(
+  listing: TagListingData,
+  fieldId: TagFieldId,
+): string | null {
   switch (fieldId) {
     case "title":
       return toNonEmptyString(listing.title);
@@ -277,13 +350,39 @@ function resolveFieldValue(listing: TagListingData, fieldId: TagFieldId): string
     case "year":
       return listing.ahsListing?.year ? String(listing.ahsListing.year) : null;
     case "price":
-      return typeof listing.price === "number" ? `$${listing.price.toFixed(2)}` : null;
+      return typeof listing.price === "number"
+        ? `$${listing.price.toFixed(2)}`
+        : null;
+    case "ploidy":
+      return toNonEmptyString(listing.ahsListing?.ploidy);
     case "bloomSize":
       return toNonEmptyString(listing.ahsListing?.bloomSize);
     case "scapeHeight":
       return toNonEmptyString(listing.ahsListing?.scapeHeight);
     case "bloomSeason":
       return toNonEmptyString(listing.ahsListing?.bloomSeason);
+    case "bloomHabit":
+      return toNonEmptyString(listing.ahsListing?.bloomHabit);
+    case "color":
+      return toNonEmptyString(listing.ahsListing?.color);
+    case "form":
+      return toNonEmptyString(listing.ahsListing?.form);
+    case "foliageType":
+      return toNonEmptyString(listing.ahsListing?.foliageType);
+    case "fragrance":
+      return toNonEmptyString(listing.ahsListing?.fragrance);
+    case "budcount":
+      return toNonEmptyString(listing.ahsListing?.budcount);
+    case "branches":
+      return toNonEmptyString(listing.ahsListing?.branches);
+    case "parentage":
+      return toNonEmptyString(listing.ahsListing?.parentage);
+    case "sculpting":
+      return toNonEmptyString(listing.ahsListing?.sculpting);
+    case "foliage":
+      return toNonEmptyString(listing.ahsListing?.foliage);
+    case "flower":
+      return toNonEmptyString(listing.ahsListing?.flower);
     case "privateNote":
       return toNonEmptyString(listing.privateNote);
     case "listName":
@@ -302,106 +401,156 @@ function escapeHtml(value: string) {
     .replaceAll("'", "&#39;");
 }
 
-function sanitizeTagFields(input: TagFieldConfig[]) {
-  const defaultsById = new Map(DEFAULT_FIELDS.map((field) => [field.id, field]));
-  const seen = new Set<TagFieldId>();
-  const result: TagFieldConfig[] = [];
+// ---------------------------------------------------------------------------
+// Sanitization
+// ---------------------------------------------------------------------------
 
-  for (const field of input) {
-    const defaults = defaultsById.get(field.id);
-    if (!defaults || seen.has(field.id)) continue;
-    seen.add(field.id);
+const VALID_TEXT_ALIGNS = new Set<TagTextAlign>(["left", "center", "right"]);
+const VALID_FIELD_IDS = new Set<string>(ALL_FIELD_IDS);
 
-    result.push({
-      ...defaults,
-      ...field,
-      include: Boolean(field.include),
-      showLabel: Boolean(field.showLabel),
-      slot: field.slot === "right" ? "right" : "left",
-      textAlign: field.textAlign === "right" ? "right" : "left",
-      fontSize: clamp(Number(field.fontSize) || defaults.fontSize, 8, 24),
-      bold: Boolean(field.bold),
-      italic: Boolean(field.italic),
-      underline: Boolean(field.underline),
-      label: typeof field.label === "string" && field.label.trim() ? field.label : defaults.label,
-    });
+function sanitizeCell(cell: Partial<TagCell>): TagCell | null {
+  if (!cell || typeof cell !== "object") return null;
+  if (!cell.fieldId || !VALID_FIELD_IDS.has(cell.fieldId)) return null;
+
+  const fieldId = cell.fieldId;
+  const defaults = FIELD_DEFAULTS[fieldId];
+
+  return {
+    fieldId,
+    width: clamp(Math.round(Number(cell.width) || 1), 1, 12),
+    textAlign: VALID_TEXT_ALIGNS.has(cell.textAlign!)
+      ? cell.textAlign!
+      : "left",
+    fontSize: clamp(Number(cell.fontSize) || defaults.fontSize, 6, 28),
+    bold: typeof cell.bold === "boolean" ? cell.bold : defaults.bold,
+    italic: Boolean(cell.italic),
+    underline: Boolean(cell.underline),
+    label: typeof cell.label === "string" ? cell.label : defaults.label,
+  };
+}
+
+function sanitizeRow(row: Partial<TagRow>): TagRow | null {
+  if (!row || typeof row !== "object" || !Array.isArray(row.cells)) return null;
+
+  const cells = (row.cells as Partial<TagCell>[])
+    .map((c) => sanitizeCell(c))
+    .filter((c): c is TagCell => c !== null);
+
+  if (cells.length === 0) return null;
+
+  return {
+    id: typeof row.id === "string" && row.id ? row.id : generateRowId(),
+    cells,
+  };
+}
+
+function sanitizeTagDesignerState(state: TagDesignerState): TagDesignerState {
+  if (!Array.isArray((state as unknown as Record<string, unknown>).rows)) {
+    return { ...DEFAULT_TAG_DESIGNER_STATE };
   }
 
-  for (const defaults of DEFAULT_FIELDS) {
-    if (seen.has(defaults.id)) continue;
-    result.push(defaults);
+  const presetExists = TAG_SIZE_PRESETS.some(
+    (p) => p.id === state.sizePresetId,
+  );
+
+  const rows = (state.rows as Partial<TagRow>[])
+    .map((r) => sanitizeRow(r))
+    .filter((r): r is TagRow => r !== null);
+
+  return {
+    sizePresetId: presetExists
+      ? state.sizePresetId
+      : DEFAULT_TAG_DESIGNER_STATE.sizePresetId,
+    customWidthInches: clamp(
+      Number(state.customWidthInches) ||
+        DEFAULT_TAG_DESIGNER_STATE.customWidthInches,
+      MIN_TAG_WIDTH_INCHES,
+      MAX_TAG_WIDTH_INCHES,
+    ),
+    customHeightInches: clamp(
+      Number(state.customHeightInches) ||
+        DEFAULT_TAG_DESIGNER_STATE.customHeightInches,
+      MIN_TAG_HEIGHT_INCHES,
+      MAX_TAG_HEIGHT_INCHES,
+    ),
+    rows: rows.length > 0 ? rows : DEFAULT_TAG_DESIGNER_STATE.rows,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Build resolved rows for a listing
+// ---------------------------------------------------------------------------
+
+export function buildResolvedRowsForListing(
+  listing: TagListingData,
+  rows: TagRow[],
+): ResolvedRow[] {
+  const result: ResolvedRow[] = [];
+
+  for (const row of rows) {
+    const resolved: ResolvedCell[] = [];
+
+    for (const cell of row.cells) {
+      let text: string;
+      if (cell.fieldId === "customText") {
+        text = cell.label ?? "";
+      } else {
+        const value = resolveFieldValue(listing, cell.fieldId);
+        if (!value) continue;
+        text = cell.label ? `${cell.label}: ${value}` : value;
+      }
+
+      resolved.push({
+        id: `${listing.id}-${row.id}-${cell.fieldId}`,
+        text,
+        width: cell.width,
+        textAlign: cell.textAlign,
+        fontSize: cell.fontSize,
+        bold: cell.bold,
+        italic: cell.italic,
+        underline: cell.underline,
+      });
+    }
+
+    if (resolved.length > 0) {
+      result.push({ id: `${listing.id}-${row.id}`, cells: resolved });
+    }
+  }
+
+  if (result.length === 0) {
+    return [
+      {
+        id: `${listing.id}-placeholder`,
+        cells: [
+          {
+            id: `${listing.id}-placeholder-cell`,
+            text: "No fields with values",
+            width: 1,
+            textAlign: "left",
+            fontSize: 10,
+            bold: false,
+            italic: true,
+            underline: false,
+          },
+        ],
+      },
+    ];
   }
 
   return result;
 }
 
-function sanitizeTagDesignerState(state: TagDesignerState): TagDesignerState {
-  const presetExists = TAG_SIZE_PRESETS.some((preset) => preset.id === state.sizePresetId);
+// ---------------------------------------------------------------------------
+// Print document HTML
+// ---------------------------------------------------------------------------
 
-  return {
-    sizePresetId: presetExists ? state.sizePresetId : DEFAULT_TAG_DESIGNER_STATE.sizePresetId,
-    customWidthInches: clamp(
-      Number(state.customWidthInches) || DEFAULT_TAG_DESIGNER_STATE.customWidthInches,
-      MIN_TAG_WIDTH_INCHES,
-      MAX_TAG_WIDTH_INCHES,
-    ),
-    customHeightInches: clamp(
-      Number(state.customHeightInches) || DEFAULT_TAG_DESIGNER_STATE.customHeightInches,
-      MIN_TAG_HEIGHT_INCHES,
-      MAX_TAG_HEIGHT_INCHES,
-    ),
-    fields: sanitizeTagFields(state.fields),
-  };
-}
-
-export function buildTagLinesForListing(
-  listing: TagListingData,
-  fields: TagFieldConfig[],
-): TagLine[] {
-  const lines: TagLine[] = [];
-
-  for (const field of fields) {
-    if (!field.include) continue;
-    const value = resolveFieldValue(listing, field.id);
-    if (!value) continue;
-
-    lines.push({
-      id: `${listing.id}-${field.id}`,
-      text: field.showLabel ? `${field.label}: ${value}` : value,
-      slot: field.slot,
-      textAlign: field.textAlign,
-      fontSize: field.fontSize,
-      bold: field.bold,
-      italic: field.italic,
-      underline: field.underline,
-    });
-  }
-
-  if (lines.length > 0) {
-    return lines;
-  }
-
+function cellStyleAsCss(cell: ResolvedCell) {
   return [
-    {
-      id: `${listing.id}-placeholder`,
-      text: "No included fields with values",
-      slot: "left",
-      textAlign: "left",
-      fontSize: 10,
-      bold: false,
-      italic: true,
-      underline: false,
-    },
-  ];
-}
-
-function lineStyleAsCss(line: TagLine) {
-  return [
-    `font-size: ${line.fontSize}px`,
-    `font-weight: ${line.bold ? 700 : 400}`,
-    `font-style: ${line.italic ? "italic" : "normal"}`,
-    `text-decoration: ${line.underline ? "underline" : "none"}`,
-    `text-align: ${line.textAlign}`,
+    `font-size: ${cell.fontSize}px`,
+    `font-weight: ${cell.bold ? 700 : 400}`,
+    `font-style: ${cell.italic ? "italic" : "normal"}`,
+    `text-decoration: ${cell.underline ? "underline" : "none"}`,
+    `text-align: ${cell.textAlign}`,
   ].join("; ");
 }
 
@@ -416,23 +565,20 @@ export function createTagPrintDocumentHtml({
 }) {
   const tagMarkup = tags
     .map((tag) => {
-      const leftLines = tag.lines
-        .filter((line) => line.slot === "left")
-        .map(
-          (line) =>
-            `<div class="line" style="${lineStyleAsCss(line)}">${escapeHtml(line.text)}</div>`,
-        )
+      const rowsHtml = tag.rows
+        .map((row) => {
+          const cols = row.cells.map((c) => `${c.width}fr`).join(" ");
+          const cellsHtml = row.cells
+            .map(
+              (cell) =>
+                `<div class="cell" style="${cellStyleAsCss(cell)}">${escapeHtml(cell.text)}</div>`,
+            )
+            .join("");
+          return `<div class="row" style="grid-template-columns: ${cols};">${cellsHtml}</div>`;
+        })
         .join("");
 
-      const rightLines = tag.lines
-        .filter((line) => line.slot === "right")
-        .map(
-          (line) =>
-            `<div class="line" style="${lineStyleAsCss(line)}">${escapeHtml(line.text)}</div>`,
-        )
-        .join("");
-
-      return `<article class="tag"><div class="tag-grid"><div class="slot">${leftLines}</div><div class="slot">${rightLines}</div></div></article>`;
+      return `<article class="tag">${rowsHtml}</article>`;
     })
     .join("");
 
@@ -463,20 +609,18 @@ export function createTagPrintDocumentHtml({
         overflow: hidden;
         page-break-inside: avoid;
       }
-      .tag-grid {
+      .row {
         display: grid;
-        grid-template-columns: 1fr 1fr;
-        column-gap: 0.08in;
-        height: 100%;
+        column-gap: 0.06in;
       }
-      .slot {
-        min-height: 100%;
+      .row + .row {
+        margin-top: 1px;
       }
-      .line {
+      .cell {
         line-height: 1.2;
-      }
-      .line + .line {
-        margin-top: 2px;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
       }
     </style>
   </head>
@@ -485,6 +629,10 @@ export function createTagPrintDocumentHtml({
   </body>
 </html>`;
 }
+
+// ---------------------------------------------------------------------------
+// Print via hidden iframe
+// ---------------------------------------------------------------------------
 
 function printTagDocument(html: string) {
   const iframe = document.createElement("iframe");
@@ -496,9 +644,7 @@ function printTagDocument(html: string) {
   iframe.style.height = "11in";
   iframe.style.border = "0";
 
-  const cleanup = () => {
-    iframe.remove();
-  };
+  const cleanup = () => iframe.remove();
 
   document.body.appendChild(iframe);
 
@@ -527,6 +673,10 @@ function printTagDocument(html: string) {
   }, 400);
 }
 
+// ---------------------------------------------------------------------------
+// CSV download
+// ---------------------------------------------------------------------------
+
 function escapeCsvCell(value: string) {
   if (/[",\n\r]/.test(value)) {
     return `"${value.replaceAll('"', '""')}"`;
@@ -536,20 +686,31 @@ function escapeCsvCell(value: string) {
 
 function downloadSelectedListingsCsv(
   listings: TagListingData[],
-  fields: TagFieldConfig[],
+  rows: TagRow[],
 ) {
-  const includedFields = fields.filter((f) => f.include);
+  const usedFieldIds = new Set<TagFieldId>();
+  for (const row of rows) {
+    for (const cell of row.cells) {
+      usedFieldIds.add(cell.fieldId);
+    }
+  }
+
+  const includedFields = ALL_FIELD_IDS.filter(
+    (id) => usedFieldIds.has(id) && id !== "customText",
+  );
   if (!includedFields.length || !listings.length) return;
 
-  const header = includedFields.map((f) => escapeCsvCell(FIELD_DISPLAY_NAMES[f.id]));
-  const rows = listings.map((listing) =>
-    includedFields.map((f) => {
-      const raw = resolveFieldValue(listing, f.id);
+  const header = includedFields.map((id) =>
+    escapeCsvCell(FIELD_DISPLAY_NAMES[id]),
+  );
+  const csvRows = listings.map((listing) =>
+    includedFields.map((id) => {
+      const raw = resolveFieldValue(listing, id);
       return raw ? escapeCsvCell(raw) : "";
     }),
   );
 
-  const csv = [header, ...rows].map((r) => r.join(",")).join("\n");
+  const csv = [header, ...csvRows].map((r) => r.join(",")).join("\n");
   const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
   const url = URL.createObjectURL(blob);
   const anchor = document.createElement("a");
@@ -559,55 +720,74 @@ function downloadSelectedListingsCsv(
   URL.revokeObjectURL(url);
 }
 
-const GRID_COLUMN_HEADERS = [
-  "Order",
-  "Field",
-  "Label",
-  "Show",
-  "Slot",
-  "Align",
-  "Size",
-  "Style",
-] as const;
+// ---------------------------------------------------------------------------
+// Cell default factory
+// ---------------------------------------------------------------------------
 
-interface TagFieldSettingsRowProps {
-  field: TagFieldConfig;
+function createDefaultCell(existingRows: TagRow[]): TagCell {
+  const usedFields = new Set<TagFieldId>();
+  for (const row of existingRows) {
+    for (const cell of row.cells) {
+      usedFields.add(cell.fieldId);
+    }
+  }
+
+  const nextFieldId =
+    ALL_FIELD_IDS.find((id) => !usedFields.has(id)) ?? "title";
+  const defaults = FIELD_DEFAULTS[nextFieldId];
+
+  return {
+    fieldId: nextFieldId,
+    width: 1,
+    textAlign: "left",
+    fontSize: defaults.fontSize,
+    bold: defaults.bold,
+    italic: false,
+    underline: false,
+    label: defaults.label,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Cell editor component
+// ---------------------------------------------------------------------------
+
+const CELL_GRID =
+  "grid grid-cols-[3rem_7rem_5rem_2.5rem_3rem_3rem_max-content_1.5rem] items-center justify-items-start gap-x-1.5";
+
+interface TagCellEditorProps {
+  cell: TagCell;
   isFirst: boolean;
   isLast: boolean;
-  onLabelChange: (label: string) => void;
-  onToggleShowLabel: (showLabel: boolean) => void;
-  onSlotChange: (slot: TagFieldSlot) => void;
-  onTextAlignChange: (textAlign: TagTextAlign) => void;
-  onFontSizeChange: (fontSize: number) => void;
-  onToggleStyle: (styleKey: "bold" | "italic" | "underline") => void;
+  onUpdate: (cell: TagCell) => void;
+  onRemove: () => void;
   onMoveUp: () => void;
   onMoveDown: () => void;
 }
 
-function TagFieldSettingsRow({
-  field,
+function TagCellEditor({
+  cell,
   isFirst,
   isLast,
-  onLabelChange,
-  onToggleShowLabel,
-  onSlotChange,
-  onTextAlignChange,
-  onFontSizeChange,
-  onToggleStyle,
+  onUpdate,
+  onRemove,
   onMoveUp,
   onMoveDown,
-}: TagFieldSettingsRowProps) {
+}: TagCellEditorProps) {
+  const patch = (partial: Partial<TagCell>) =>
+    onUpdate({ ...cell, ...partial });
+
   return (
-    <>
+    <div className={CELL_GRID}>
       <div className="flex items-center gap-0.5">
         <Button
           type="button"
           variant="ghost"
           size="sm"
-          className="h-7 w-7 px-0"
+          className="h-6 w-6 px-0"
           disabled={isFirst}
           onClick={onMoveUp}
-          title="Move up"
+          title="Move cell left"
         >
           <ArrowUp className="h-3 w-3" />
         </Button>
@@ -615,118 +795,145 @@ function TagFieldSettingsRow({
           type="button"
           variant="ghost"
           size="sm"
-          className="h-7 w-7 px-0"
+          className="h-6 w-6 px-0"
           disabled={isLast}
           onClick={onMoveDown}
-          title="Move down"
+          title="Move cell right"
         >
           <ArrowDown className="h-3 w-3" />
         </Button>
       </div>
 
-      <span className="text-sm font-medium">
-        {FIELD_DISPLAY_NAMES[field.id]}
-      </span>
+      <select
+        className="border-border bg-background h-7 w-full rounded border px-1 text-xs"
+        value={cell.fieldId}
+        onChange={(e) => {
+          const newId = e.target.value as TagFieldId;
+          const defaults = FIELD_DEFAULTS[newId];
+          onUpdate({
+            ...cell,
+            fieldId: newId,
+            label: defaults.label,
+            bold: defaults.bold,
+            fontSize: defaults.fontSize,
+          });
+        }}
+      >
+        {ALL_FIELD_IDS.map((id) => (
+          <option key={id} value={id}>
+            {FIELD_DISPLAY_NAMES[id]}
+          </option>
+        ))}
+      </select>
 
       <Input
-        id={`label-${field.id}`}
-        value={field.label}
-        onChange={(event) => onLabelChange(event.target.value)}
-        placeholder={FIELD_DISPLAY_NAMES[field.id]}
-        className="h-8"
+        value={cell.label}
+        onChange={(e) => patch({ label: e.target.value })}
+        placeholder={cell.fieldId === "customText" ? "Text" : "Label"}
+        className="h-7 px-1 text-xs"
+        title={
+          cell.fieldId === "customText"
+            ? "Static text (leave empty for blank cell)"
+            : "Label prefix (leave empty for no label)"
+        }
       />
 
-      <div className="flex items-center gap-1.5">
-        <Checkbox
-          id={`show-label-${field.id}`}
-          checked={field.showLabel}
-          onCheckedChange={(value) => onToggleShowLabel(Boolean(value))}
-          className="h-3.5 w-3.5"
-        />
-        <Label
-          htmlFor={`show-label-${field.id}`}
-          className="text-xs text-muted-foreground"
-        >
-          Label
-        </Label>
-      </div>
+      <Input
+        type="number"
+        min={1}
+        max={12}
+        value={cell.width}
+        onChange={(e) =>
+          patch({
+            width: clamp(Number.parseInt(e.target.value, 10) || 1, 1, 12),
+          })
+        }
+        className="h-7 px-1 text-center text-xs"
+        title="Column width (fr units)"
+      />
 
       <select
-        id={`slot-${field.id}`}
-        className="h-8 rounded-md border border-border bg-background px-1.5 text-xs"
-        value={field.slot}
-        onChange={(event) => onSlotChange(event.target.value as TagFieldSlot)}
+        className="border-border bg-background h-7 w-full rounded border px-0.5 text-xs"
+        value={cell.textAlign}
+        onChange={(e) => patch({ textAlign: e.target.value as TagTextAlign })}
+        title="Text alignment"
       >
         <option value="left">L</option>
+        <option value="center">C</option>
         <option value="right">R</option>
       </select>
 
-      <select
-        id={`text-align-${field.id}`}
-        className="h-8 rounded-md border border-border bg-background px-1.5 text-xs"
-        value={field.textAlign}
-        onChange={(event) => onTextAlignChange(event.target.value as TagTextAlign)}
-      >
-        <option value="left">Left</option>
-        <option value="right">Right</option>
-      </select>
-
-      <div className="flex items-center gap-1">
-        <Input
-          id={`font-size-${field.id}`}
-          type="number"
-          min={8}
-          max={24}
-          value={field.fontSize}
-          onChange={(event) =>
-            onFontSizeChange(clamp(Number.parseInt(event.target.value, 10) || 10, 8, 24))
-          }
-          className="h-8 w-14"
-        />
-        <span className="text-xs text-muted-foreground">px</span>
-      </div>
+      <Input
+        type="number"
+        min={6}
+        max={28}
+        value={cell.fontSize}
+        onChange={(e) =>
+          patch({
+            fontSize: clamp(Number.parseInt(e.target.value, 10) || 10, 6, 28),
+          })
+        }
+        className="h-7 px-1 text-center text-xs"
+        title="Font size (px)"
+      />
 
       <div className="flex items-center gap-0.5">
         <Button
           type="button"
-          variant={field.bold ? "default" : "outline"}
+          variant={cell.bold ? "default" : "outline"}
           size="sm"
-          className="h-7 w-7 px-0"
-          onClick={() => onToggleStyle("bold")}
+          className="h-6 w-6 px-0 text-xs"
+          onClick={() => patch({ bold: !cell.bold })}
           title="Bold"
         >
           B
         </Button>
         <Button
           type="button"
-          variant={field.italic ? "default" : "outline"}
+          variant={cell.italic ? "default" : "outline"}
           size="sm"
-          className="h-7 w-7 px-0 italic"
-          onClick={() => onToggleStyle("italic")}
+          className="h-6 w-6 px-0 text-xs italic"
+          onClick={() => patch({ italic: !cell.italic })}
           title="Italic"
         >
           I
         </Button>
         <Button
           type="button"
-          variant={field.underline ? "default" : "outline"}
+          variant={cell.underline ? "default" : "outline"}
           size="sm"
-          className="h-7 w-7 px-0 underline"
-          onClick={() => onToggleStyle("underline")}
+          className="h-6 w-6 px-0 text-xs underline"
+          onClick={() => patch({ underline: !cell.underline })}
           title="Underline"
         >
           U
         </Button>
       </div>
-    </>
+
+      <Button
+        type="button"
+        variant="ghost"
+        size="sm"
+        className="h-6 w-6 px-0"
+        onClick={onRemove}
+        title="Remove cell"
+      >
+        <X className="h-3 w-3" />
+      </Button>
+    </div>
   );
 }
+
+// ---------------------------------------------------------------------------
+// Main designer panel
+// ---------------------------------------------------------------------------
 
 export function TagDesignerPanel({ listings }: { listings: TagListingData[] }) {
   const [storedState, setStoredState] = useLocalStorage<TagDesignerState>(
     TAG_DESIGNER_STORAGE_KEY,
     DEFAULT_TAG_DESIGNER_STATE,
   );
+
   const state = React.useMemo(
     () => sanitizeTagDesignerState(storedState),
     [storedState],
@@ -743,7 +950,8 @@ export function TagDesignerPanel({ listings }: { listings: TagListingData[] }) {
   );
 
   const activeSizePreset =
-    TAG_SIZE_PRESETS.find((preset) => preset.id === state.sizePresetId) ?? TAG_SIZE_PRESETS[0]!;
+    TAG_SIZE_PRESETS.find((p) => p.id === state.sizePresetId) ??
+    TAG_SIZE_PRESETS[0]!;
   const widthInches =
     activeSizePreset.id === "custom"
       ? state.customWidthInches
@@ -754,43 +962,81 @@ export function TagDesignerPanel({ listings }: { listings: TagListingData[] }) {
       : activeSizePreset.heightInches;
 
   const previewTags = React.useMemo<TagPreviewData[]>(
-    () =>
-      listings.map((listing) => ({
+    () => {
+      const toPreview =
+        listings.length > 0 ? listings : [PLACEHOLDER_LISTING];
+      return toPreview.map((listing) => ({
         id: listing.id,
-        lines: buildTagLinesForListing(listing, state.fields),
-      })),
-    [listings, state.fields],
+        rows: buildResolvedRowsForListing(listing, state.rows),
+      }));
+    },
+    [listings, state.rows],
   );
 
   const visiblePreviewTags = previewTags.slice(0, 8);
 
-  const updateField = (
-    fieldId: TagFieldId,
-    updater: (field: TagFieldConfig) => TagFieldConfig,
-  ) => {
-    updateState((previous) => ({
-      ...previous,
-      fields: previous.fields.map((field) =>
-        field.id === fieldId ? updater(field) : field,
+  // -- Row mutations --
+
+  const updateRow = (rowIndex: number, updater: (row: TagRow) => TagRow) => {
+    updateState((prev) => ({
+      ...prev,
+      rows: prev.rows.map((r, i) => (i === rowIndex ? updater(r) : r)),
+    }));
+  };
+
+  const addRow = () => {
+    updateState((prev) => ({
+      ...prev,
+      rows: [
+        ...prev.rows,
+        { id: generateRowId(), cells: [createDefaultCell(prev.rows)] },
+      ],
+    }));
+  };
+
+  const removeRow = (index: number) => {
+    updateState((prev) => ({
+      ...prev,
+      rows: prev.rows.filter((_, i) => i !== index),
+    }));
+  };
+
+  const moveRow = (index: number, direction: -1 | 1) => {
+    updateState((prev) => {
+      const next = index + direction;
+      if (next < 0 || next >= prev.rows.length) return prev;
+      const rows = [...prev.rows];
+      const tmp = rows[index]!;
+      rows[index] = rows[next]!;
+      rows[next] = tmp;
+      return { ...prev, rows };
+    });
+  };
+
+  const addCellToRow = (rowIndex: number) => {
+    updateState((prev) => ({
+      ...prev,
+      rows: prev.rows.map((r, i) =>
+        i === rowIndex
+          ? { ...r, cells: [...r.cells, createDefaultCell(prev.rows)] }
+          : r,
       ),
     }));
   };
 
-  const moveField = (index: number, direction: -1 | 1) => {
-    updateState((previous) => {
-      const nextIndex = index + direction;
-      if (nextIndex < 0 || nextIndex >= previous.fields.length) {
-        return previous;
-      }
-
-      const fields = [...previous.fields];
-      const current = fields[index];
-      fields[index] = fields[nextIndex]!;
-      fields[nextIndex] = current!;
-
+  const moveCell = (rowIndex: number, cellIndex: number, direction: -1 | 1) => {
+    updateState((prev) => {
+      const row = prev.rows[rowIndex];
+      if (!row) return prev;
+      const nextIndex = cellIndex + direction;
+      if (nextIndex < 0 || nextIndex >= row.cells.length) return prev;
+      const cells = [...row.cells];
+      const tmp = cells[cellIndex]!;
+      cells[cellIndex] = cells[nextIndex]!;
+      cells[nextIndex] = tmp;
       return {
-        ...previous,
-        fields,
+        ...prev,
+        rows: prev.rows.map((r, i) => (i === rowIndex ? { ...r, cells } : r)),
       };
     });
   };
@@ -811,44 +1057,44 @@ export function TagDesignerPanel({ listings }: { listings: TagListingData[] }) {
   };
 
   return (
-    <section className="space-y-4 rounded-lg border border-border bg-card p-4">
+    <section className="border-border bg-card mx-auto max-w-5xl space-y-4 rounded-lg border p-4">
       <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
         <div>
           <h2 className="text-lg font-semibold">Tag Designer</h2>
-          <p className="text-sm text-muted-foreground">
-            {listings.length} selected listing{listings.length === 1 ? "" : "s"}.
-            Configure fields once and it will persist in this browser.
+          <p className="text-muted-foreground text-sm">
+            {listings.length} selected listing
+            {listings.length === 1 ? "" : "s"}. Build your tag layout
+            row-by-row.
           </p>
         </div>
 
         <div className="flex items-center gap-2">
           <Button
             variant="outline"
-            onClick={() => downloadSelectedListingsCsv(listings, state.fields)}
+            onClick={() => downloadSelectedListingsCsv(listings, state.rows)}
             disabled={!listings.length}
           >
             <Download className="mr-2 h-4 w-4" />
-            Download CSV
+            CSV
           </Button>
-
           <Button onClick={handlePrint} disabled={!listings.length}>
             <Printer className="mr-2 h-4 w-4" />
-            Print Tags
+            Print
           </Button>
         </div>
       </div>
 
-      <div className="grid gap-3 rounded-md border border-border p-3 md:grid-cols-[260px,1fr]">
+      <div className="border-border grid gap-3 rounded-md border p-3 md:grid-cols-[260px,1fr]">
         <div className="space-y-2">
           <Label htmlFor="tag-size-select">Tag Size</Label>
           <select
             id="tag-size-select"
-            className="h-9 w-full rounded-md border border-border bg-background px-2 text-sm"
+            className="border-border bg-background h-9 w-full rounded-md border px-2 text-sm"
             value={state.sizePresetId}
-            onChange={(event) =>
-              updateState((previous) => ({
-                ...previous,
-                sizePresetId: event.target.value,
+            onChange={(e) =>
+              updateState((prev) => ({
+                ...prev,
+                sizePresetId: e.target.value,
               }))
             }
           >
@@ -864,17 +1110,17 @@ export function TagDesignerPanel({ listings }: { listings: TagListingData[] }) {
           {state.sizePresetId === "custom" && (
             <>
               <div className="space-y-1">
-                <Label htmlFor="custom-width-input">Custom Width (in)</Label>
+                <Label htmlFor="custom-width-input">Width (in)</Label>
                 <Input
                   id="custom-width-input"
                   inputMode="decimal"
                   value={state.customWidthInches.toFixed(2)}
-                  onChange={(event) =>
-                    updateState((previous) => ({
-                      ...previous,
+                  onChange={(e) =>
+                    updateState((prev) => ({
+                      ...prev,
                       customWidthInches: parseInches(
-                        event.target.value,
-                        previous.customWidthInches,
+                        e.target.value,
+                        prev.customWidthInches,
                         MIN_TAG_WIDTH_INCHES,
                         MAX_TAG_WIDTH_INCHES,
                       ),
@@ -883,17 +1129,17 @@ export function TagDesignerPanel({ listings }: { listings: TagListingData[] }) {
                 />
               </div>
               <div className="space-y-1">
-                <Label htmlFor="custom-height-input">Custom Height (in)</Label>
+                <Label htmlFor="custom-height-input">Height (in)</Label>
                 <Input
                   id="custom-height-input"
                   inputMode="decimal"
                   value={state.customHeightInches.toFixed(2)}
-                  onChange={(event) =>
-                    updateState((previous) => ({
-                      ...previous,
+                  onChange={(e) =>
+                    updateState((prev) => ({
+                      ...prev,
                       customHeightInches: parseInches(
-                        event.target.value,
-                        previous.customHeightInches,
+                        e.target.value,
+                        prev.customHeightInches,
                         MIN_TAG_HEIGHT_INCHES,
                         MAX_TAG_HEIGHT_INCHES,
                       ),
@@ -904,151 +1150,209 @@ export function TagDesignerPanel({ listings }: { listings: TagListingData[] }) {
             </>
           )}
 
-          <p className="text-xs text-muted-foreground">
-            Active size: {widthInches.toFixed(2)}&quot; x {heightInches.toFixed(2)}&quot;
-            (max width {MAX_TAG_WIDTH_INCHES.toFixed(2)}&quot;)
+          <p className="text-muted-foreground text-xs">
+            Active: {widthInches.toFixed(2)}&quot; × {heightInches.toFixed(2)}
+            &quot;
           </p>
         </div>
       </div>
 
       <div className="space-y-3">
-        <h3 className="text-sm font-medium">Fields</h3>
-        <div className="grid grid-cols-2 gap-x-4 gap-y-2 sm:grid-cols-3 md:grid-cols-5">
-          {state.fields.map((field) => (
-            <div key={field.id} className="flex items-center gap-2">
-              <Checkbox
-                checked={field.include}
-                onCheckedChange={(value) =>
-                  updateField(field.id, (current) => ({
-                    ...current,
-                    include: Boolean(value),
-                  }))
-                }
-                id={`include-${field.id}`}
-              />
-              <Label htmlFor={`include-${field.id}`} className="text-sm">
-                {FIELD_DISPLAY_NAMES[field.id]}
-              </Label>
-            </div>
-          ))}
+        <div className="flex items-center justify-between">
+          <h3 className="text-sm font-medium">Layout</h3>
+          <div className="flex items-center gap-2">
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => setStoredState(DEFAULT_TAG_DESIGNER_STATE)}
+              title="Reset to default layout"
+            >
+              <RotateCcw className="mr-1 h-3 w-3" />
+              Reset
+            </Button>
+            <Button type="button" variant="outline" size="sm" onClick={addRow}>
+              <Plus className="mr-1 h-3 w-3" />
+              Add Row
+            </Button>
+          </div>
         </div>
 
-        {state.fields.some((f) => f.include) && (
-          <div className="overflow-x-auto rounded-md border border-border px-3 py-2">
-            <div className="grid min-w-[640px] grid-cols-[auto_5rem_7rem_auto_auto_auto_auto_auto] items-center gap-x-3 gap-y-2">
-              {GRID_COLUMN_HEADERS.map((title) => (
-                <span
-                  key={title}
-                  className="border-b border-border pb-1 text-xs font-medium text-muted-foreground"
-                >
-                  {title}
-                </span>
-              ))}
-
-              {state.fields.map(
-                (field, index) =>
-                  field.include && (
-                    <TagFieldSettingsRow
-                      key={field.id}
-                      field={field}
-                      isFirst={index === 0}
-                      isLast={index === state.fields.length - 1}
-                      onLabelChange={(label) =>
-                        updateField(field.id, (current) => ({ ...current, label }))
-                      }
-                      onToggleShowLabel={(showLabel) =>
-                        updateField(field.id, (current) => ({ ...current, showLabel }))
-                      }
-                      onSlotChange={(slot) =>
-                        updateField(field.id, (current) => ({ ...current, slot }))
-                      }
-                      onTextAlignChange={(textAlign) =>
-                        updateField(field.id, (current) => ({ ...current, textAlign }))
-                      }
-                      onFontSizeChange={(fontSize) =>
-                        updateField(field.id, (current) => ({ ...current, fontSize }))
-                      }
-                      onToggleStyle={(styleKey) =>
-                        updateField(field.id, (current) => ({
-                          ...current,
-                          [styleKey]: !current[styleKey],
-                        }))
-                      }
-                      onMoveUp={() => moveField(index, -1)}
-                      onMoveDown={() => moveField(index, 1)}
-                    />
-                  ),
+        {state.rows.length > 0 && (
+          <div className="overflow-x-auto px-3 pb-1">
+            <div
+              className={cn(
+                CELL_GRID,
+                "text-muted-foreground min-w-[480px] text-[10px]",
               )}
+            >
+              <span />
+              <span>Field</span>
+              <span>Label</span>
+              <span>Width</span>
+              <span>Align</span>
+              <span>Size</span>
+              <span />
+              <span>Style</span>
+              <span />
             </div>
           </div>
         )}
+
+        <div className="space-y-2">
+          {state.rows.map((row, rowIndex) => (
+            <div
+              key={row.id}
+              className="border-border space-y-1.5 rounded-md border px-3 py-2"
+            >
+              <div className="flex items-center justify-start gap-3">
+                <div className="flex items-center gap-0.5">
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="h-6 w-6 px-0"
+                    disabled={rowIndex === 0}
+                    onClick={() => moveRow(rowIndex, -1)}
+                    title="Move row up"
+                  >
+                    <ArrowUp className="h-3 w-3" />
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="h-6 w-6 px-0"
+                    disabled={rowIndex === state.rows.length - 1}
+                    onClick={() => moveRow(rowIndex, 1)}
+                    title="Move row down"
+                  >
+                    <ArrowDown className="h-3 w-3" />
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="text-destructive h-6 w-6 px-0"
+                    onClick={() => removeRow(rowIndex)}
+                    title="Remove row"
+                  >
+                    <Trash2 className="h-3 w-3" />
+                  </Button>
+                </div>
+                <span className="text-muted-foreground text-xs font-medium">
+                  Row {rowIndex + 1}
+                </span>
+              </div>
+
+              <div className="overflow-x-auto">
+                <div className="min-w-[480px] space-y-1">
+                  {row.cells.map((cell, cellIndex) => (
+                    <TagCellEditor
+                      key={`${row.id}-${cellIndex}`}
+                      cell={cell}
+                      isFirst={cellIndex === 0}
+                      isLast={cellIndex === row.cells.length - 1}
+                      onUpdate={(updated) =>
+                        updateRow(rowIndex, (r) => ({
+                          ...r,
+                          cells: r.cells.map((c, i) =>
+                            i === cellIndex ? updated : c,
+                          ),
+                        }))
+                      }
+                      onRemove={() =>
+                        updateRow(rowIndex, (r) => ({
+                          ...r,
+                          cells: r.cells.filter((_, i) => i !== cellIndex),
+                        }))
+                      }
+                      onMoveUp={() => moveCell(rowIndex, cellIndex, -1)}
+                      onMoveDown={() => moveCell(rowIndex, cellIndex, 1)}
+                    />
+                  ))}
+                </div>
+              </div>
+
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="h-6 text-xs"
+                onClick={() => addCellToRow(rowIndex)}
+              >
+                <Plus className="mr-1 h-3 w-3" />
+                Cell
+              </Button>
+            </div>
+          ))}
+        </div>
       </div>
 
       <div className="space-y-3">
         <div className="flex items-center justify-between">
           <h3 className="text-sm font-medium">Preview</h3>
-          {previewTags.length > visiblePreviewTags.length && (
-            <p className="text-xs text-muted-foreground">
-              Showing first {visiblePreviewTags.length} of {previewTags.length} tags
-            </p>
-          )}
+          <div className="flex items-center gap-2">
+            {listings.length === 0 && (
+              <p className="text-muted-foreground text-xs">
+                Sample preview — select listings below
+              </p>
+            )}
+            {listings.length > 0 &&
+              previewTags.length > visiblePreviewTags.length && (
+                <p className="text-muted-foreground text-xs">
+                  Showing first {visiblePreviewTags.length} of {previewTags.length}{" "}
+                  tags
+                </p>
+              )}
+          </div>
         </div>
 
         {visiblePreviewTags.length > 0 ? (
           <div className="flex flex-wrap gap-3">
-            {visiblePreviewTags.map((tag) => {
-              const leftLines = tag.lines.filter((line) => line.slot === "left");
-              const rightLines = tag.lines.filter((line) => line.slot === "right");
-
-              return (
-                <article
-                  key={tag.id}
-                  className="rounded-md border border-dashed border-border bg-background p-2"
-                  style={{
-                    width: `${widthInches}in`,
-                    minHeight: `${heightInches}in`,
-                  }}
-                >
-                  <div className="grid h-full grid-cols-2 gap-3">
-                    <div className="space-y-1">
-                      {leftLines.map((line) => (
-                        <p
-                          key={line.id}
-                          className={cn(
-                            line.bold && "font-semibold",
-                            line.italic && "italic",
-                            line.underline && "underline",
-                            line.textAlign === "right" ? "text-right" : "text-left",
-                          )}
-                          style={{ fontSize: `${line.fontSize}px` }}
-                        >
-                          {line.text}
-                        </p>
-                      ))}
-                    </div>
-                    <div className="space-y-1">
-                      {rightLines.map((line) => (
-                        <p
-                          key={line.id}
-                          className={cn(
-                            line.bold && "font-semibold",
-                            line.italic && "italic",
-                            line.underline && "underline",
-                            line.textAlign === "right" ? "text-right" : "text-left",
-                          )}
-                          style={{ fontSize: `${line.fontSize}px` }}
-                        >
-                          {line.text}
-                        </p>
-                      ))}
-                    </div>
+            {visiblePreviewTags.map((tag) => (
+              <article
+                key={tag.id}
+                className="border-border bg-background rounded-md border border-dashed p-2"
+                style={{
+                  width: `${widthInches}in`,
+                  minHeight: `${heightInches}in`,
+                }}
+              >
+                {tag.rows.map((row) => (
+                  <div
+                    key={row.id}
+                    className="grid gap-x-2"
+                    style={{
+                      gridTemplateColumns: row.cells
+                        .map((c) => `${c.width}fr`)
+                        .join(" "),
+                    }}
+                  >
+                    {row.cells.map((cell) => (
+                      <p
+                        key={cell.id}
+                        className={cn(
+                          "min-w-0 truncate leading-tight",
+                          cell.bold && "font-semibold",
+                          cell.italic && "italic",
+                          cell.underline && "underline",
+                          cell.textAlign === "center" && "text-center",
+                          cell.textAlign === "right" && "text-right",
+                          cell.textAlign === "left" && "text-left",
+                        )}
+                        style={{ fontSize: `${cell.fontSize}px` }}
+                      >
+                        {cell.text}
+                      </p>
+                    ))}
                   </div>
-                </article>
-              );
-            })}
+                ))}
+              </article>
+            ))}
           </div>
         ) : (
-          <p className="text-sm text-muted-foreground">
+          <p className="text-muted-foreground text-sm">
             Select listings from the table below to preview and print tags.
           </p>
         )}
