@@ -2,6 +2,8 @@
 
 ## Log
 
+- 2026-02-21 - tags print border preference - Printed tags should have no outer border in the print document CSS.
+- 2026-02-21 - tags print sizing mode - User wants print output as one tag per page with page dimensions exactly matching the selected tag size; implement with dynamic `@page size` and forced page breaks per tag.
 - 2026-02-21 - tags selection + full-detail adjustment - Add `Remove all` control in selected-listings area, and for `full detail` template keep first/second rows same as default (title row, then hybridizer/year/ploidy row with ploidy moved off the title line).
 - 2026-02-21 - tags template set update - Built-in templates should be narrowed to three options: renamed default (`name + hybridizer + year + ploidy + qr`), `name + qr`, and `full detail` inspired by the example photo layout while staying on the default 1x3.5 tag size preset.
 - 2026-02-21 - tags empty-cell spacing - In `/dashboard/tags`, empty field values must still render their configured cells so each tag keeps identical row/column geometry; do not drop cells based on missing content.

@@ -1012,26 +1012,36 @@ export function createTagPrintDocumentHtml({
     <title>Daylily Tag Print</title>
     <style>
       * { box-sizing: border-box; }
-      @page { margin: 0.2in; }
-      body {
+      @page {
+        size: ${widthInches}in ${heightInches}in;
         margin: 0;
-        padding: 0.15in;
+      }
+      html, body {
+        margin: 0;
+        padding: 0;
+      }
+      body {
         font-family: Arial, sans-serif;
         color: #111;
       }
       .sheet {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 0.1in;
+        margin: 0;
+        padding: 0;
       }
       .tag {
         width: ${widthInches}in;
         height: ${heightInches}in;
-        border: 1px solid #000;
         padding: 0.06in 0.08in;
         overflow: hidden;
         position: relative;
         page-break-inside: avoid;
+        break-inside: avoid;
+        page-break-after: always;
+        break-after: page;
+      }
+      .tag:last-of-type {
+        page-break-after: auto;
+        break-after: auto;
       }
       .tag.has-qr .tag-content {
         padding-right: ${QR_RESERVED_RIGHT_INCHES}in;
