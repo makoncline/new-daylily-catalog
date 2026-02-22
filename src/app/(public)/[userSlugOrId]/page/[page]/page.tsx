@@ -8,7 +8,6 @@ import { parsePositiveInteger } from "@/lib/public-catalog-url-state";
 import { getBaseUrl } from "@/lib/utils/getBaseUrl";
 import { getErrorCode, tryCatch } from "@/lib/utils";
 import { CatalogSeoListings } from "../../_components/catalog-seo-listings";
-import { CatalogSearchPrefetch } from "../../_components/catalog-search-prefetch";
 import { ProfileContent } from "../../_components/profile-content";
 import { ProfilePageSEO } from "../../_components/profile-seo";
 import {
@@ -146,10 +145,6 @@ export default async function ProfilePaginatedPage({
             forSaleCount={pageDataResult.data.forSaleCount}
           />
 
-          <CatalogSearchPrefetch
-            userId={profile.id}
-            userSlugOrId={canonicalUserSlug}
-          />
         </div>
       </MainContent>
     </>
