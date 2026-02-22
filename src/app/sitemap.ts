@@ -3,7 +3,7 @@ import { type MetadataRoute } from "next";
 import { getCultivarSitemapEntries } from "@/server/db/getPublicCultivars";
 import { getPublicCatalogRouteEntries } from "@/server/db/getPublicListings";
 
-export const revalidate = 60 * 60 * 24 * 7;
+export const revalidate = 604800;
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const baseUrl = getBaseUrl();
