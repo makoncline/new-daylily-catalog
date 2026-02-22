@@ -3,21 +3,24 @@ import { type MetadataRoute } from "next";
 import { getCultivarSitemapEntries } from "@/server/db/getPublicCultivars";
 import { getPublicCatalogRouteEntries } from "@/server/db/getPublicListings";
 
+export const revalidate = 60 * 60 * 24 * 7;
+
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const baseUrl = getBaseUrl();
   const sitemap: MetadataRoute.Sitemap = [];
 
-  // Add static pages
-  const staticPages = ["", "/catalogs"];
-
-  staticPages.forEach((path) => {
-    sitemap.push({
-      url: `${baseUrl}${path}`,
-      lastModified: new Date(),
+  sitemap.push(
+    {
+      url: `${baseUrl}`,
       changeFrequency: "monthly",
-      priority: path === "" ? 1.0 : 0.8,
-    });
-  });
+      priority: 1.0,
+    },
+    {
+      url: `${baseUrl}/catalogs`,
+      changeFrequency: "monthly",
+      priority: 0.8,
+    },
+  );
 
   const publicCatalogEntries = await getPublicCatalogRouteEntries();
   publicCatalogEntries.forEach((entry) => {
@@ -27,15 +30,6 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       changeFrequency: "weekly",
       priority: 0.7,
     });
-
-    for (let page = 2; page <= entry.totalPages; page += 1) {
-      sitemap.push({
-        url: `${baseUrl}/${entry.slug}?page=${page}`,
-        lastModified: entry.lastModified,
-        changeFrequency: "weekly",
-        priority: 0.6,
-      });
-    }
   });
 
   const cultivarEntries = await getCultivarSitemapEntries();

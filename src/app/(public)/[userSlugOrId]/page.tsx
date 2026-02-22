@@ -6,7 +6,6 @@ import { PUBLIC_CACHE_CONFIG } from "@/config/public-cache-config";
 import { getBaseUrl } from "@/lib/utils/getBaseUrl";
 import { getErrorCode, tryCatch } from "@/lib/utils";
 import { CatalogSeoListings } from "./_components/catalog-seo-listings";
-import { CatalogSearchPrefetch } from "./_components/catalog-search-prefetch";
 import { ProfileContent } from "./_components/profile-content";
 import { ProfilePageSEO } from "./_components/profile-seo";
 import {
@@ -127,10 +126,6 @@ export default async function Page({ params }: PageProps) {
             forSaleCount={forSaleCount}
           />
 
-          <CatalogSearchPrefetch
-            userId={initialProfile.id}
-            userSlugOrId={canonicalUserSlug}
-          />
         </div>
       </MainContent>
     </>
