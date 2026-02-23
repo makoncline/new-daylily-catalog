@@ -12,6 +12,7 @@ import {
   FileImage,
   FileText,
   LayoutGrid,
+  Minus,
   Plus,
   Printer,
   RotateCcw,
@@ -615,17 +616,6 @@ function parseInches(
   return Number.parseFloat(clamp(parsed, min, max).toFixed(2));
 }
 
-function parseWholeNumber(
-  input: string,
-  fallback: number,
-  min: number,
-  max: number,
-) {
-  const parsed = Number.parseInt(input, 10);
-  if (!Number.isFinite(parsed)) return fallback;
-  return clamp(parsed, min, max);
-}
-
 function normalizeInches(value: number) {
   return Number(value.toFixed(2));
 }
@@ -633,6 +623,34 @@ function normalizeInches(value: number) {
 function toFiniteNumber(value: unknown) {
   const parsed = typeof value === "number" ? value : Number(value);
   return Number.isFinite(parsed) ? parsed : null;
+}
+
+function formatSheetNumberForInput(value: number, decimals: number) {
+  if (decimals === 0) return String(Math.round(value));
+  return value.toFixed(decimals);
+}
+
+function parseSheetNumberInput(input: string, decimals: number) {
+  const parsed =
+    decimals === 0
+      ? Number.parseInt(input, 10)
+      : Number.parseFloat(input);
+  if (!Number.isFinite(parsed)) return null;
+  if (decimals === 0 && !Number.isInteger(parsed)) return null;
+  return parsed;
+}
+
+function normalizeSheetNumber(
+  value: number,
+  min: number,
+  max: number,
+  decimals: number,
+) {
+  const clamped = clamp(value, min, max);
+  if (decimals === 0) {
+    return Math.round(clamped);
+  }
+  return Number(clamped.toFixed(decimals));
 }
 
 function toNonEmptyString(value: string | null | undefined) {
@@ -2425,6 +2443,134 @@ type UpdateTagSheetCreatorState = (
   updater: (previous: TagSheetCreatorState) => TagSheetCreatorState,
 ) => void;
 
+interface SheetNumberFieldProps {
+  id: string;
+  label: string;
+  value: number;
+  min: number;
+  max: number;
+  step: number;
+  decimals: number;
+  onCommit: (nextValue: number) => void;
+}
+
+function SheetNumberField({
+  id,
+  label,
+  value,
+  min,
+  max,
+  step,
+  decimals,
+  onCommit,
+}: SheetNumberFieldProps) {
+  const [draftValue, setDraftValue] = React.useState(() =>
+    formatSheetNumberForInput(value, decimals),
+  );
+  const [errorMessage, setErrorMessage] = React.useState<string | null>(null);
+
+  const rangeText = React.useMemo(() => {
+    const minText = formatSheetNumberForInput(min, decimals);
+    const maxText = formatSheetNumberForInput(max, decimals);
+    const prefix = decimals === 0 ? "whole number" : "number";
+    return `Enter a ${prefix} between ${minText} and ${maxText}.`;
+  }, [decimals, max, min]);
+
+  React.useEffect(() => {
+    setDraftValue(formatSheetNumberForInput(value, decimals));
+    setErrorMessage(null);
+  }, [decimals, value]);
+
+  const commitDraftValue = React.useCallback(() => {
+    const trimmedValue = draftValue.trim();
+    const parsedValue = parseSheetNumberInput(trimmedValue, decimals);
+    if (parsedValue === null || parsedValue < min || parsedValue > max) {
+      setErrorMessage(`${rangeText} Type a value and leave the field.`);
+      return;
+    }
+
+    const normalizedValue = normalizeSheetNumber(parsedValue, min, max, decimals);
+    onCommit(normalizedValue);
+    setDraftValue(formatSheetNumberForInput(normalizedValue, decimals));
+    setErrorMessage(null);
+  }, [decimals, draftValue, max, min, onCommit, rangeText]);
+
+  const stepValue = React.useCallback(
+    (direction: -1 | 1) => {
+      const nextValue = normalizeSheetNumber(
+        value + step * direction,
+        min,
+        max,
+        decimals,
+      );
+      onCommit(nextValue);
+      setDraftValue(formatSheetNumberForInput(nextValue, decimals));
+      setErrorMessage(null);
+    },
+    [decimals, max, min, onCommit, step, value],
+  );
+
+  return (
+    <div className="space-y-1">
+      <Label htmlFor={id}>{label}</Label>
+      <div className="flex items-center gap-2">
+        <Button
+          type="button"
+          variant="outline"
+          size="icon"
+          className="h-9 w-9 shrink-0"
+          aria-label={`Decrease ${label}`}
+          onClick={() => stepValue(-1)}
+        >
+          <Minus className="h-4 w-4" />
+        </Button>
+
+        <Input
+          id={id}
+          type="text"
+          inputMode={decimals === 0 ? "numeric" : "decimal"}
+          value={draftValue}
+          onChange={(event) => {
+            setDraftValue(event.target.value);
+            if (errorMessage) setErrorMessage(null);
+          }}
+          onBlur={commitDraftValue}
+          onKeyDown={(event) => {
+            if (event.key === "Enter") {
+              event.currentTarget.blur();
+            }
+            if (event.key === "Escape") {
+              setDraftValue(formatSheetNumberForInput(value, decimals));
+              setErrorMessage(null);
+              event.currentTarget.blur();
+            }
+          }}
+          className={cn(errorMessage ? "border-destructive" : undefined)}
+          aria-invalid={errorMessage ? "true" : "false"}
+          aria-describedby={errorMessage ? `${id}-error` : undefined}
+        />
+
+        <Button
+          type="button"
+          variant="outline"
+          size="icon"
+          className="h-9 w-9 shrink-0"
+          aria-label={`Increase ${label}`}
+          onClick={() => stepValue(1)}
+        >
+          <Plus className="h-4 w-4" />
+        </Button>
+      </div>
+
+      {errorMessage ? (
+        <p id={`${id}-error`} className="text-destructive text-xs">
+          {errorMessage}
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
 interface TagSheetCreatorDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -2489,189 +2635,133 @@ function TagSheetCreatorDialog({
         </DialogHeader>
 
         <div className="grid gap-3 md:grid-cols-2">
-          <div className="space-y-1">
-            <Label htmlFor="sheet-page-width">Page width (in)</Label>
-            <Input
-              id="sheet-page-width"
-              type="number"
-              min={MIN_SHEET_PAGE_WIDTH_INCHES}
-              max={MAX_SHEET_PAGE_WIDTH_INCHES}
-              step={0.01}
-              value={sheetState.pageWidthInches.toFixed(2)}
-              onChange={(event) =>
-                updateSheetState((previous) => ({
-                  ...previous,
-                  pageWidthInches: parseInches(
-                    event.target.value,
-                    previous.pageWidthInches,
-                    MIN_SHEET_PAGE_WIDTH_INCHES,
-                    MAX_SHEET_PAGE_WIDTH_INCHES,
-                  ),
-                }))
-              }
-            />
-          </div>
+          <SheetNumberField
+            id="sheet-page-width"
+            label="Page width (in)"
+            value={sheetState.pageWidthInches}
+            min={MIN_SHEET_PAGE_WIDTH_INCHES}
+            max={MAX_SHEET_PAGE_WIDTH_INCHES}
+            step={0.01}
+            decimals={2}
+            onCommit={(nextValue) =>
+              updateSheetState((previous) => ({
+                ...previous,
+                pageWidthInches: nextValue,
+              }))
+            }
+          />
 
-          <div className="space-y-1">
-            <Label htmlFor="sheet-page-height">Page height (in)</Label>
-            <Input
-              id="sheet-page-height"
-              type="number"
-              min={MIN_SHEET_PAGE_HEIGHT_INCHES}
-              max={MAX_SHEET_PAGE_HEIGHT_INCHES}
-              step={0.01}
-              value={sheetState.pageHeightInches.toFixed(2)}
-              onChange={(event) =>
-                updateSheetState((previous) => ({
-                  ...previous,
-                  pageHeightInches: parseInches(
-                    event.target.value,
-                    previous.pageHeightInches,
-                    MIN_SHEET_PAGE_HEIGHT_INCHES,
-                    MAX_SHEET_PAGE_HEIGHT_INCHES,
-                  ),
-                }))
-              }
-            />
-          </div>
+          <SheetNumberField
+            id="sheet-page-height"
+            label="Page height (in)"
+            value={sheetState.pageHeightInches}
+            min={MIN_SHEET_PAGE_HEIGHT_INCHES}
+            max={MAX_SHEET_PAGE_HEIGHT_INCHES}
+            step={0.01}
+            decimals={2}
+            onCommit={(nextValue) =>
+              updateSheetState((previous) => ({
+                ...previous,
+                pageHeightInches: nextValue,
+              }))
+            }
+          />
 
-          <div className="space-y-1">
-            <Label htmlFor="sheet-rows">Rows</Label>
-            <Input
-              id="sheet-rows"
-              type="number"
-              min={MIN_SHEET_ROWS}
-              max={MAX_SHEET_ROWS}
-              step={1}
-              value={sheetState.rows}
-              onChange={(event) =>
-                updateSheetState((previous) => ({
-                  ...previous,
-                  rows: parseWholeNumber(
-                    event.target.value,
-                    previous.rows,
-                    MIN_SHEET_ROWS,
-                    MAX_SHEET_ROWS,
-                  ),
-                }))
-              }
-            />
-          </div>
+          <SheetNumberField
+            id="sheet-rows"
+            label="Rows"
+            value={sheetState.rows}
+            min={MIN_SHEET_ROWS}
+            max={MAX_SHEET_ROWS}
+            step={1}
+            decimals={0}
+            onCommit={(nextValue) =>
+              updateSheetState((previous) => ({
+                ...previous,
+                rows: nextValue,
+              }))
+            }
+          />
 
-          <div className="space-y-1">
-            <Label htmlFor="sheet-columns">Columns</Label>
-            <Input
-              id="sheet-columns"
-              type="number"
-              min={MIN_SHEET_COLUMNS}
-              max={MAX_SHEET_COLUMNS}
-              step={1}
-              value={sheetState.columns}
-              onChange={(event) =>
-                updateSheetState((previous) => ({
-                  ...previous,
-                  columns: parseWholeNumber(
-                    event.target.value,
-                    previous.columns,
-                    MIN_SHEET_COLUMNS,
-                    MAX_SHEET_COLUMNS,
-                  ),
-                }))
-              }
-            />
-          </div>
+          <SheetNumberField
+            id="sheet-columns"
+            label="Columns"
+            value={sheetState.columns}
+            min={MIN_SHEET_COLUMNS}
+            max={MAX_SHEET_COLUMNS}
+            step={1}
+            decimals={0}
+            onCommit={(nextValue) =>
+              updateSheetState((previous) => ({
+                ...previous,
+                columns: nextValue,
+              }))
+            }
+          />
 
-          <div className="space-y-1">
-            <Label htmlFor="sheet-margin-x">Page margin X (in)</Label>
-            <Input
-              id="sheet-margin-x"
-              type="number"
-              min={MIN_SHEET_MARGIN_INCHES}
-              max={MAX_SHEET_MARGIN_INCHES}
-              step={0.01}
-              value={sheetState.marginXInches.toFixed(2)}
-              onChange={(event) =>
-                updateSheetState((previous) => ({
-                  ...previous,
-                  marginXInches: parseInches(
-                    event.target.value,
-                    previous.marginXInches,
-                    MIN_SHEET_MARGIN_INCHES,
-                    MAX_SHEET_MARGIN_INCHES,
-                  ),
-                }))
-              }
-            />
-          </div>
+          <SheetNumberField
+            id="sheet-margin-x"
+            label="Page margin X (in)"
+            value={sheetState.marginXInches}
+            min={MIN_SHEET_MARGIN_INCHES}
+            max={MAX_SHEET_MARGIN_INCHES}
+            step={0.01}
+            decimals={2}
+            onCommit={(nextValue) =>
+              updateSheetState((previous) => ({
+                ...previous,
+                marginXInches: nextValue,
+              }))
+            }
+          />
 
-          <div className="space-y-1">
-            <Label htmlFor="sheet-margin-y">Page margin Y (in)</Label>
-            <Input
-              id="sheet-margin-y"
-              type="number"
-              min={MIN_SHEET_MARGIN_INCHES}
-              max={MAX_SHEET_MARGIN_INCHES}
-              step={0.01}
-              value={sheetState.marginYInches.toFixed(2)}
-              onChange={(event) =>
-                updateSheetState((previous) => ({
-                  ...previous,
-                  marginYInches: parseInches(
-                    event.target.value,
-                    previous.marginYInches,
-                    MIN_SHEET_MARGIN_INCHES,
-                    MAX_SHEET_MARGIN_INCHES,
-                  ),
-                }))
-              }
-            />
-          </div>
+          <SheetNumberField
+            id="sheet-margin-y"
+            label="Page margin Y (in)"
+            value={sheetState.marginYInches}
+            min={MIN_SHEET_MARGIN_INCHES}
+            max={MAX_SHEET_MARGIN_INCHES}
+            step={0.01}
+            decimals={2}
+            onCommit={(nextValue) =>
+              updateSheetState((previous) => ({
+                ...previous,
+                marginYInches: nextValue,
+              }))
+            }
+          />
 
-          <div className="space-y-1">
-            <Label htmlFor="sheet-padding-x">Tag padding X (in)</Label>
-            <Input
-              id="sheet-padding-x"
-              type="number"
-              min={MIN_SHEET_PADDING_INCHES}
-              max={MAX_SHEET_PADDING_INCHES}
-              step={0.01}
-              value={sheetState.paddingXInches.toFixed(2)}
-              onChange={(event) =>
-                updateSheetState((previous) => ({
-                  ...previous,
-                  paddingXInches: parseInches(
-                    event.target.value,
-                    previous.paddingXInches,
-                    MIN_SHEET_PADDING_INCHES,
-                    MAX_SHEET_PADDING_INCHES,
-                  ),
-                }))
-              }
-            />
-          </div>
+          <SheetNumberField
+            id="sheet-padding-x"
+            label="Tag padding X (in)"
+            value={sheetState.paddingXInches}
+            min={MIN_SHEET_PADDING_INCHES}
+            max={MAX_SHEET_PADDING_INCHES}
+            step={0.01}
+            decimals={2}
+            onCommit={(nextValue) =>
+              updateSheetState((previous) => ({
+                ...previous,
+                paddingXInches: nextValue,
+              }))
+            }
+          />
 
-          <div className="space-y-1">
-            <Label htmlFor="sheet-padding-y">Tag padding Y (in)</Label>
-            <Input
-              id="sheet-padding-y"
-              type="number"
-              min={MIN_SHEET_PADDING_INCHES}
-              max={MAX_SHEET_PADDING_INCHES}
-              step={0.01}
-              value={sheetState.paddingYInches.toFixed(2)}
-              onChange={(event) =>
-                updateSheetState((previous) => ({
-                  ...previous,
-                  paddingYInches: parseInches(
-                    event.target.value,
-                    previous.paddingYInches,
-                    MIN_SHEET_PADDING_INCHES,
-                    MAX_SHEET_PADDING_INCHES,
-                  ),
-                }))
-              }
-            />
-          </div>
+          <SheetNumberField
+            id="sheet-padding-y"
+            label="Tag padding Y (in)"
+            value={sheetState.paddingYInches}
+            min={MIN_SHEET_PADDING_INCHES}
+            max={MAX_SHEET_PADDING_INCHES}
+            step={0.01}
+            decimals={2}
+            onCommit={(nextValue) =>
+              updateSheetState((previous) => ({
+                ...previous,
+                paddingYInches: nextValue,
+              }))
+            }
+          />
 
           <div className="md:col-span-2">
             <label

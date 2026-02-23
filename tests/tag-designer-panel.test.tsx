@@ -87,15 +87,37 @@ describe("TagDesignerPanel", () => {
     expect(
       screen.getByRole("heading", { name: "Sheet Creator" }),
     ).toBeInTheDocument();
-    expect(screen.getByLabelText("Rows")).toHaveValue(1);
-    expect(screen.getByLabelText("Columns")).toHaveValue(1);
-    expect(screen.getByLabelText("Page width (in)")).toHaveValue(3.5);
-    expect(screen.getByLabelText("Page height (in)")).toHaveValue(1);
+    expect(screen.getByLabelText("Rows")).toHaveValue("1");
+    expect(screen.getByLabelText("Columns")).toHaveValue("1");
+    expect(screen.getByLabelText("Page width (in)")).toHaveValue("3.50");
+    expect(screen.getByLabelText("Page height (in)")).toHaveValue("1.00");
     expect(screen.getByLabelText("Print dashed borders")).not.toBeChecked();
     expect(
       screen.getByRole("heading", { name: "Sheet Preview" }),
     ).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Print Sheets" })).toBeEnabled();
+  });
+
+  it("defers numeric validation until blur and supports +/- buttons", () => {
+    render(<TagDesignerPanel listings={sampleListings} />);
+    fireEvent.click(screen.getByRole("button", { name: "Make Sheet" }));
+
+    const rowsInput = screen.getByLabelText("Rows");
+    fireEvent.change(rowsInput, { target: { value: "" } });
+    expect(
+      screen.queryByText(/Enter a whole number between 1 and 20/i),
+    ).not.toBeInTheDocument();
+
+    fireEvent.blur(rowsInput);
+    expect(
+      screen.getByText(/Enter a whole number between 1 and 20/i),
+    ).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Increase Rows" }));
+    expect(rowsInput).toHaveValue("2");
+    expect(
+      screen.queryByText(/Enter a whole number between 1 and 20/i),
+    ).not.toBeInTheDocument();
   });
 });
 
