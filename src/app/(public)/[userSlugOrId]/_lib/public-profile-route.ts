@@ -1,10 +1,42 @@
 import { PUBLIC_PROFILE_LISTINGS_PAGE_SIZE } from "@/config/constants";
+import { CACHE_CONFIG } from "@/config/cache-config";
+import { createServerCache } from "@/lib/cache/server-cache";
 import {
-  getCachedPublicCatalogRouteEntries,
-  getCachedPublicForSaleListingsCount,
-  getCachedPublicListingsPage,
-  getCachedPublicProfile,
-} from "@/server/db/public-cache";
+  getPublicForSaleListingsCount,
+  getPublicCatalogRouteEntries,
+  getPublicListingsPage,
+} from "@/server/db/getPublicListings";
+import { getPublicProfile } from "@/server/db/getPublicProfile";
+
+const getCachedPublicCatalogRouteEntries = createServerCache(
+  getPublicCatalogRouteEntries,
+  {
+    key: "public:catalog-routes",
+    revalidateSeconds: CACHE_CONFIG.PUBLIC.STATIC_REVALIDATE_SECONDS,
+    tags: [CACHE_CONFIG.TAGS.PUBLIC_CATALOG_ROUTES],
+  },
+);
+
+const getCachedPublicProfile = createServerCache(getPublicProfile, {
+  key: "public:profile",
+  revalidateSeconds: CACHE_CONFIG.PUBLIC.SEARCH.SERVER_REVALIDATE_SECONDS,
+  tags: [CACHE_CONFIG.TAGS.PUBLIC_PROFILE],
+});
+
+const getCachedPublicListingsPage = createServerCache(getPublicListingsPage, {
+  key: "public:listings:page",
+  revalidateSeconds: CACHE_CONFIG.PUBLIC.STATIC_REVALIDATE_SECONDS,
+  tags: [CACHE_CONFIG.TAGS.PUBLIC_LISTINGS_PAGE],
+});
+
+const getCachedPublicForSaleListingsCount = createServerCache(
+  getPublicForSaleListingsCount,
+  {
+    key: "public:listings:for-sale-count",
+    revalidateSeconds: CACHE_CONFIG.PUBLIC.STATIC_REVALIDATE_SECONDS,
+    tags: [CACHE_CONFIG.TAGS.PUBLIC_FOR_SALE_COUNT],
+  },
+);
 
 export async function getPublicProfileStaticParams() {
   const entries = await getCachedPublicCatalogRouteEntries();

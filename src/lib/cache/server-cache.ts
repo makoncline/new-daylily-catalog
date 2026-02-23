@@ -1,5 +1,3 @@
-import "server-only";
-
 import { unstable_cache } from "next/cache";
 import { CACHE_CONFIG } from "@/config/cache-config";
 
@@ -13,6 +11,10 @@ export function createServerCache<Args extends unknown[], Result>(
   fn: (...args: Args) => Promise<Result>,
   options: CreateServerCacheOptions,
 ) {
+  if (process.env.NODE_ENV === "test" || process.env.VITEST === "true") {
+    return (...args: Args) => fn(...args);
+  }
+
   const cached = unstable_cache(fn, [options.key], {
     revalidate:
       options.revalidateSeconds ?? CACHE_CONFIG.SERVER.DEFAULT_REVALIDATE_SECONDS,

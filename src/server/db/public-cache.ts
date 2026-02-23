@@ -1,5 +1,3 @@
-import "server-only";
-
 import { CACHE_CONFIG } from "@/config/cache-config";
 import { createServerCache } from "@/lib/cache/server-cache";
 import { getPublicCultivarPage, getCultivarRouteSegments, getCultivarSitemapEntries } from "@/server/db/getPublicCultivars";

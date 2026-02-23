@@ -46,6 +46,11 @@ function restorePageParamsForRuntime(
   return pageParams.map((param) => (typeof param === "string" ? param : null));
 }
 
+function getPersistedAtMs(snapshot: PublicCatalogSearchPersistedSnapshot) {
+  const ms = new Date(snapshot.persistedAt).getTime();
+  return Number.isNaN(ms) ? null : ms;
+}
+
 export function isPublicCatalogSearchSnapshotUsable(
   snapshot: PublicCatalogSearchPersistedSnapshot,
 ) {
@@ -58,15 +63,36 @@ export function isPublicCatalogSearchSnapshotUsable(
 }
 
 export function isPublicCatalogSearchSnapshotFresh(
-  _snapshot: PublicCatalogSearchPersistedSnapshot,
+  snapshot: PublicCatalogSearchPersistedSnapshot,
 ) {
-  return false;
+  if (!isPublicCatalogSearchSnapshotUsable(snapshot)) {
+    return false;
+  }
+
+  const persistedAtMs = getPersistedAtMs(snapshot);
+  if (persistedAtMs === null) {
+    return false;
+  }
+
+  return Date.now() - persistedAtMs < PUBLIC_CATALOG_SEARCH_PERSISTED_SWR.ttlMs;
 }
 
 export function shouldRevalidatePublicCatalogSearchSnapshot(
-  _snapshot: PublicCatalogSearchPersistedSnapshot,
+  snapshot: PublicCatalogSearchPersistedSnapshot,
 ) {
-  return false;
+  if (!isPublicCatalogSearchSnapshotUsable(snapshot)) {
+    return false;
+  }
+
+  const persistedAtMs = getPersistedAtMs(snapshot);
+  if (persistedAtMs === null) {
+    return true;
+  }
+
+  return (
+    Date.now() - persistedAtMs >=
+    PUBLIC_CATALOG_SEARCH_PERSISTED_SWR.revalidateAfterMs
+  );
 }
 
 export function createPublicCatalogSearchSnapshotFromInfiniteData(args: {
