@@ -1,6 +1,7 @@
 "use client";
 
 import { type InfiniteData } from "@tanstack/react-query";
+import { TIME } from "@/config/constants";
 import { getTrpcClient } from "@/trpc/client";
 import { type RouterOutputs } from "@/trpc/react";
 
@@ -17,6 +18,7 @@ export const PUBLIC_CATALOG_SEARCH_PERSISTED_SWR = {
   enabled: true,
   version: 1,
   ttlMs: 14 * 24 * 60 * 60 * 1000,
+  revalidateAfterMs: TIME.DAY_IN_MS,
   queryLimit: 500,
   maxPagesToPrefetch: 2000,
 } as const;
@@ -145,6 +147,24 @@ export function isPublicCatalogSearchSnapshotFresh(
   }
 
   return Date.now() - persistedAtMs < PUBLIC_CATALOG_SEARCH_PERSISTED_SWR.ttlMs;
+}
+
+export function shouldRevalidatePublicCatalogSearchSnapshot(
+  snapshot: PublicCatalogSearchPersistedSnapshot,
+) {
+  if (!isPublicCatalogSearchSnapshotUsable(snapshot)) {
+    return false;
+  }
+
+  const persistedAtMs = getPersistedAtMs(snapshot);
+  if (persistedAtMs === null) {
+    return true;
+  }
+
+  return (
+    Date.now() - persistedAtMs >=
+    PUBLIC_CATALOG_SEARCH_PERSISTED_SWR.revalidateAfterMs
+  );
 }
 
 export function createPublicCatalogSearchSnapshotFromInfiniteData(args: {
