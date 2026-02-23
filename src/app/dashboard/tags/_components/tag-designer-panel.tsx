@@ -5,8 +5,12 @@ import {
   ArrowDown,
   ArrowUp,
   Check,
+  ChevronDown,
   ChevronsUpDown,
   Download,
+  FileDown,
+  FileImage,
+  FileText,
   Plus,
   Printer,
   RotateCcw,
@@ -26,6 +30,12 @@ import {
 } from "@/components/ui/command";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   Popover,
   PopoverContent,
@@ -965,11 +975,20 @@ export function createTagPrintDocumentHtml({
   tags,
   widthInches,
   heightInches,
+  mode = "print",
 }: {
   tags: TagPreviewData[];
   widthInches: number;
   heightInches: number;
+  mode?: "print" | "raster";
 }) {
+  const isRasterMode = mode === "raster";
+  const rowAlignItems = isRasterMode ? "start" : "baseline";
+  const rowMarginTopPixels = isRasterMode ? 2 : 1;
+  const cellLineHeight = isRasterMode ? 1.28 : 1.2;
+  const cellPaddingTop = isRasterMode ? "0.03em" : "0";
+  const cellPaddingBottom = isRasterMode ? "0.08em" : "0";
+
   const tagMarkup = tags
     .map((tag) => {
       const hasQrCode = Boolean(tag.qrCodeUrl);
@@ -1050,13 +1069,15 @@ export function createTagPrintDocumentHtml({
       .row {
         display: grid;
         column-gap: 0.06in;
-        align-items: baseline;
+        align-items: ${rowAlignItems};
       }
       .row + .row {
-        margin-top: 1px;
+        margin-top: ${rowMarginTopPixels}px;
       }
       .cell {
-        line-height: 1.2;
+        line-height: ${cellLineHeight};
+        padding-top: ${cellPaddingTop};
+        padding-bottom: ${cellPaddingBottom};
         white-space: nowrap;
         overflow: hidden;
         text-overflow: clip;
@@ -1086,7 +1107,13 @@ export function createTagPrintDocumentHtml({
 // Print via hidden iframe
 // ---------------------------------------------------------------------------
 
-function printTagDocument(html: string) {
+interface PreparedTagDocumentFrame {
+  iframe: HTMLIFrameElement;
+  iframeWindow: Window;
+  cleanup: () => void;
+}
+
+function prepareTagDocumentFrame(html: string): PreparedTagDocumentFrame | null {
   const iframe = document.createElement("iframe");
   iframe.setAttribute("aria-hidden", "true");
   iframe.style.position = "fixed";
@@ -1101,28 +1128,283 @@ function printTagDocument(html: string) {
   document.body.appendChild(iframe);
 
   const frameDocument = iframe.contentDocument;
-  if (!frameDocument) {
+  const iframeWindow = iframe.contentWindow;
+  if (!frameDocument || !iframeWindow) {
     cleanup();
     toast.error("Unable to prepare tag document.");
-    return;
+    return null;
   }
 
   frameDocument.open();
   frameDocument.write(html);
   frameDocument.close();
 
+  return { iframe, iframeWindow, cleanup };
+}
+
+function printTagDocument(html: string) {
+  const preparedFrame = prepareTagDocumentFrame(html);
+  if (!preparedFrame) return;
+
   window.setTimeout(() => {
-    const iframeWindow = iframe.contentWindow;
-    if (!iframeWindow) {
-      cleanup();
-      toast.error("Unable to print tag document.");
-      return;
+    preparedFrame.iframeWindow.focus();
+    preparedFrame.iframeWindow.print();
+    window.setTimeout(preparedFrame.cleanup, 1000);
+  }, 200);
+}
+
+// ---------------------------------------------------------------------------
+// Export downloads
+// ---------------------------------------------------------------------------
+
+function waitForFrameRender(frameWindow: Window) {
+  return new Promise<void>((resolve) => {
+    frameWindow.requestAnimationFrame(() => resolve());
+  });
+}
+
+function buildTagExportDateStamp() {
+  const now = new Date();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+  return `${now.getFullYear()}${month}${day}`;
+}
+
+function buildTagsHtmlFilename() {
+  return `daylily-tags-${buildTagExportDateStamp()}.html`;
+}
+
+function buildTagsPdfFilename() {
+  return `daylily-tags-${buildTagExportDateStamp()}.pdf`;
+}
+
+function buildTagImagesZipFilename() {
+  return `daylily-tag-images-${buildTagExportDateStamp()}.zip`;
+}
+
+function triggerBlobDownload(blob: Blob, filename: string) {
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = filename;
+  anchor.click();
+  URL.revokeObjectURL(url);
+}
+
+function downloadTagDocumentHtml(html: string) {
+  const blob = new Blob([html], { type: "text/html;charset=utf-8;" });
+  triggerBlobDownload(blob, buildTagsHtmlFilename());
+}
+
+type Html2CanvasRenderer = (
+  element: HTMLElement,
+  options: {
+    backgroundColor: string;
+    scale: number;
+    foreignObjectRendering: boolean;
+    logging: boolean;
+    useCORS: boolean;
+    width: number;
+    height: number;
+  },
+) => Promise<HTMLCanvasElement>;
+
+async function renderSingleTagCanvas({
+  tag,
+  widthInches,
+  heightInches,
+  html2canvas,
+}: {
+  tag: TagPreviewData;
+  widthInches: number;
+  heightInches: number;
+  html2canvas: Html2CanvasRenderer;
+}) {
+  const html = createTagPrintDocumentHtml({
+    tags: [tag],
+    widthInches,
+    heightInches,
+    mode: "raster",
+  });
+  const preparedFrame = prepareTagDocumentFrame(html);
+  if (!preparedFrame) return null;
+
+  try {
+    const frameDocument = preparedFrame.iframe.contentDocument;
+    if (!frameDocument) return null;
+
+    if (frameDocument.fonts) {
+      await frameDocument.fonts.ready;
+    }
+    await waitForFrameRender(preparedFrame.iframeWindow);
+    await waitForFrameRender(preparedFrame.iframeWindow);
+
+    const tagElement = frameDocument.querySelector<HTMLElement>(".tag");
+    if (!tagElement) return null;
+
+    const canvas = await html2canvas(tagElement, {
+      backgroundColor: "#ffffff",
+      scale: 3,
+      foreignObjectRendering: true,
+      logging: false,
+      useCORS: true,
+      width: tagElement.offsetWidth,
+      height: tagElement.offsetHeight,
+    });
+
+    return canvas;
+  } finally {
+    preparedFrame.cleanup();
+  }
+}
+
+async function renderTagCanvasesForExport({
+  tags,
+  widthInches,
+  heightInches,
+}: {
+  tags: TagPreviewData[];
+  widthInches: number;
+  heightInches: number;
+}) {
+  if (!tags.length) return null;
+
+  try {
+    const { default: html2canvas } = await import("html2canvas");
+    const canvases: HTMLCanvasElement[] = [];
+
+    for (const tag of tags) {
+      const canvas = await renderSingleTagCanvas({
+        tag,
+        widthInches,
+        heightInches,
+        html2canvas,
+      });
+      if (!canvas) {
+        toast.error("Unable to prepare tag export.");
+        return null;
+      }
+
+      canvases.push(canvas);
     }
 
-    iframeWindow.focus();
-    iframeWindow.print();
-    window.setTimeout(cleanup, 1000);
-  }, 200);
+    return canvases;
+  } catch (error) {
+    console.error("Failed to render tag canvases for export", error);
+    toast.error("Unable to render tag export.");
+    return null;
+  }
+}
+
+function canvasToPngBlob(canvas: HTMLCanvasElement) {
+  return new Promise<Blob>((resolve, reject) => {
+    canvas.toBlob(
+      (blob) => {
+        if (blob) {
+          resolve(blob);
+          return;
+        }
+        reject(new Error("Canvas toBlob returned null"));
+      },
+      "image/png",
+      1,
+    );
+  });
+}
+
+async function downloadTagDocumentPdf({
+  tags,
+  widthInches,
+  heightInches,
+}: {
+  tags: TagPreviewData[];
+  widthInches: number;
+  heightInches: number;
+}) {
+  const canvases = await renderTagCanvasesForExport({
+    tags,
+    widthInches,
+    heightInches,
+  });
+  if (!canvases || canvases.length === 0) return false;
+
+  try {
+    const { jsPDF } = await import("jspdf");
+    const pageWidthPoints = Number((widthInches * 72).toFixed(2));
+    const pageHeightPoints = Number((heightInches * 72).toFixed(2));
+    const pdf = new jsPDF({
+      orientation:
+        pageWidthPoints >= pageHeightPoints ? "landscape" : "portrait",
+      unit: "pt",
+      format: [pageWidthPoints, pageHeightPoints],
+      compress: true,
+    });
+
+    canvases.forEach((canvas, index) => {
+      if (index > 0) {
+        pdf.addPage([pageWidthPoints, pageHeightPoints]);
+      }
+      pdf.addImage(
+        canvas.toDataURL("image/png"),
+        "PNG",
+        0,
+        0,
+        pageWidthPoints,
+        pageHeightPoints,
+        undefined,
+        "FAST",
+      );
+    });
+
+    pdf.save(buildTagsPdfFilename());
+    return true;
+  } catch (error) {
+    console.error("Failed to export tags as PDF", error);
+    toast.error("Unable to export PDF.");
+    return false;
+  }
+}
+
+async function downloadTagImagesZip({
+  tags,
+  widthInches,
+  heightInches,
+}: {
+  tags: TagPreviewData[];
+  widthInches: number;
+  heightInches: number;
+}) {
+  const canvases = await renderTagCanvasesForExport({
+    tags,
+    widthInches,
+    heightInches,
+  });
+  if (!canvases || canvases.length === 0) return false;
+
+  try {
+    const { default: JSZip } = await import("jszip");
+    const zip = new JSZip();
+    const folder = zip.folder("daylily-tags");
+
+    for (const [index, canvas] of canvases.entries()) {
+      const fileName = `tag-${String(index + 1).padStart(3, "0")}.png`;
+      const blob = await canvasToPngBlob(canvas);
+      folder?.file(fileName, blob);
+    }
+
+    const zipBlob = await zip.generateAsync({
+      type: "blob",
+      compression: "DEFLATE",
+      compressionOptions: { level: 6 },
+    });
+
+    triggerBlobDownload(zipBlob, buildTagImagesZipFilename());
+    return true;
+  } catch (error) {
+    console.error("Failed to export tag images zip", error);
+    toast.error("Unable to export images.");
+    return false;
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -1458,13 +1740,21 @@ type UpdateTagDesignerState = (
 interface TagDesignerHeaderProps {
   selectedListingCount: number;
   onDownloadCsv: () => void;
+  onDownloadPages: () => void;
+  onDownloadPdf: () => void;
+  onDownloadImages: () => void;
   onPrint: () => void;
+  isPreparingDownload: boolean;
 }
 
 function TagDesignerHeader({
   selectedListingCount,
   onDownloadCsv,
+  onDownloadPages,
+  onDownloadPdf,
+  onDownloadImages,
   onPrint,
+  isPreparingDownload,
 }: TagDesignerHeaderProps) {
   const hasListings = selectedListingCount > 0;
 
@@ -1480,10 +1770,45 @@ function TagDesignerHeader({
       </div>
 
       <div className="flex items-center gap-2">
-        <Button variant="outline" onClick={onDownloadCsv} disabled={!hasListings}>
-          <Download className="mr-2 h-4 w-4" />
-          CSV
-        </Button>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="outline" disabled={!hasListings || isPreparingDownload}>
+              <Download className="mr-2 h-4 w-4" />
+              {isPreparingDownload ? "Preparing..." : "Download"}
+              <ChevronDown className="ml-2 h-3.5 w-3.5" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-44">
+            <DropdownMenuItem
+              onSelect={() => onDownloadPages()}
+              disabled={isPreparingDownload}
+            >
+              <FileDown className="h-4 w-4" />
+              Pages (.html)
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onSelect={() => onDownloadPdf()}
+              disabled={isPreparingDownload}
+            >
+              <FileText className="h-4 w-4" />
+              PDF (.pdf)
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onSelect={() => onDownloadImages()}
+              disabled={isPreparingDownload}
+            >
+              <FileImage className="h-4 w-4" />
+              Images (.zip)
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onSelect={() => onDownloadCsv()}
+              disabled={isPreparingDownload}
+            >
+              <Download className="h-4 w-4" />
+              CSV
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
         <Button onClick={onPrint} disabled={!hasListings}>
           <Printer className="mr-2 h-4 w-4" />
           Print
@@ -2058,6 +2383,7 @@ function TagDesignerPreview({
 // ---------------------------------------------------------------------------
 
 export function TagDesignerPanel({ listings }: { listings: TagListingData[] }) {
+  const [isPreparingDownload, setIsPreparingDownload] = React.useState(false);
   const [storedState, setStoredState] = useLocalStorage<TagDesignerState>(
     TAG_DESIGNER_STORAGE_KEY,
     DEFAULT_TAG_DESIGNER_STATE,
@@ -2423,7 +2749,7 @@ export function TagDesignerPanel({ listings }: { listings: TagListingData[] }) {
   }, [setStoredState]);
 
   const handlePrint = () => {
-    if (!previewTags.length) {
+    if (!listings.length) {
       toast.error("Select at least one listing in the table before printing.");
       return;
     }
@@ -2437,12 +2763,88 @@ export function TagDesignerPanel({ listings }: { listings: TagListingData[] }) {
     printTagDocument(html);
   };
 
+  const handleDownloadPages = React.useCallback(() => {
+    if (isPreparingDownload) return;
+    if (!listings.length) {
+      toast.error("Select at least one listing in the table before downloading.");
+      return;
+    }
+
+    const html = createTagPrintDocumentHtml({
+      tags: previewTags,
+      widthInches,
+      heightInches,
+    });
+    downloadTagDocumentHtml(html);
+    toast.success("Pages download started.");
+  }, [heightInches, isPreparingDownload, listings.length, previewTags, widthInches]);
+
+  const handleDownloadPdf = React.useCallback(async () => {
+    if (isPreparingDownload) return;
+    if (!listings.length) {
+      toast.error("Select at least one listing in the table before downloading.");
+      return;
+    }
+
+    setIsPreparingDownload(true);
+    try {
+      const didDownload = await downloadTagDocumentPdf({
+        tags: previewTags,
+        widthInches,
+        heightInches,
+      });
+      if (didDownload) {
+        toast.success("PDF download started.");
+      }
+    } finally {
+      setIsPreparingDownload(false);
+    }
+  }, [
+    heightInches,
+    isPreparingDownload,
+    listings.length,
+    previewTags,
+    widthInches,
+  ]);
+
+  const handleDownloadImages = React.useCallback(async () => {
+    if (isPreparingDownload) return;
+    if (!listings.length) {
+      toast.error("Select at least one listing in the table before downloading.");
+      return;
+    }
+
+    setIsPreparingDownload(true);
+    try {
+      const didDownload = await downloadTagImagesZip({
+        tags: previewTags,
+        widthInches,
+        heightInches,
+      });
+      if (didDownload) {
+        toast.success("Images download started.");
+      }
+    } finally {
+      setIsPreparingDownload(false);
+    }
+  }, [
+    heightInches,
+    isPreparingDownload,
+    listings.length,
+    previewTags,
+    widthInches,
+  ]);
+
   return (
     <section className="border-border bg-card mx-auto max-w-5xl space-y-4 rounded-lg border p-4">
       <TagDesignerHeader
         selectedListingCount={listings.length}
         onDownloadCsv={() => downloadSelectedListingsCsv(listings, state.rows)}
+        onDownloadPages={handleDownloadPages}
+        onDownloadPdf={() => void handleDownloadPdf()}
+        onDownloadImages={() => void handleDownloadImages()}
         onPrint={handlePrint}
+        isPreparingDownload={isPreparingDownload}
       />
 
       <TagDesignerControls

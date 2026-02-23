@@ -28,6 +28,18 @@ describe("TagDesignerPanel", () => {
     localStorage.clear();
   });
 
+  it("shows a single download button that is enabled when listings are selected", () => {
+    const { rerender } = render(<TagDesignerPanel listings={[]} />);
+    const disabledDownloadButton = screen.getByRole("button", {
+      name: "Download",
+    });
+    expect(disabledDownloadButton).toBeDisabled();
+
+    rerender(<TagDesignerPanel listings={sampleListings} />);
+    const downloadButton = screen.getByRole("button", { name: "Download" });
+    expect(downloadButton).toBeEnabled();
+  });
+
   it("shows tag sizes in a select and reveals custom size inputs", () => {
     render(<TagDesignerPanel listings={sampleListings} />);
 
