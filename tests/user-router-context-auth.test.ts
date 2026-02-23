@@ -38,12 +38,12 @@ describe("user router context auth resolution", () => {
   it("returns preloaded user without calling auth", async () => {
     const preloadedUser = { id: "user-1", clerk: { email: "a@example.com" } };
 
-    const caller = userRouter.createCaller({
-      ...createCallerContext({
+    const caller = userRouter.createCaller(
+      createCallerContext({
         _authUser:
           preloadedUser as unknown as TRPCInternalContext["_authUser"],
       }),
-    });
+    );
 
     const result = await caller.getCurrentUser();
 
@@ -52,13 +52,24 @@ describe("user router context auth resolution", () => {
   });
 
   it("throws unauthorized when user is missing", async () => {
-    const caller = userRouter.createCaller({
-      ...createCallerContext(),
-    });
+    const caller = userRouter.createCaller(createCallerContext());
 
     await expect(caller.getCurrentUser()).rejects.toMatchObject({
       code: "UNAUTHORIZED",
     });
     expect(authMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("treats preloaded null auth sentinel as resolved unauthenticated", async () => {
+    const caller = userRouter.createCaller(
+      createCallerContext({
+        _authUser: null,
+      }),
+    );
+
+    await expect(caller.getCurrentUser()).rejects.toMatchObject({
+      code: "UNAUTHORIZED",
+    });
+    expect(authMock).not.toHaveBeenCalled();
   });
 });

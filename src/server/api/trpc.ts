@@ -44,7 +44,14 @@ export interface TRPCContext {
 }
 
 export interface TRPCInternalContext extends TRPCContext {
+  /**
+   * Auth sentinel:
+   * - `undefined`: not resolved yet for this request
+   * - `null`: resolved and unauthenticated
+   * - object: resolved authenticated user
+   */
   _authUser?: TRPCContextUser | null;
+  _authUserPromise?: Promise<TRPCContextUser | null>;
 }
 
 /**
@@ -151,10 +158,12 @@ async function resolveAuthenticatedUser() {
 }
 
 const isAuthenticated = t.middleware(async (opts) => {
-  const user =
-    typeof opts.ctx._authUser === "undefined"
-      ? await resolveAuthenticatedUser()
-      : opts.ctx._authUser;
+  if (typeof opts.ctx._authUser === "undefined") {
+    opts.ctx._authUserPromise ??= resolveAuthenticatedUser();
+    opts.ctx._authUser = await opts.ctx._authUserPromise;
+  }
+
+  const user = opts.ctx._authUser;
 
   if (!user) {
     throw new TRPCError({
@@ -172,4 +181,4 @@ const isAuthenticated = t.middleware(async (opts) => {
   });
 });
 
-export const protectedProcedure = t.procedure.use(isAuthenticated);
+export const protectedProcedure = publicProcedure.use(isAuthenticated);
