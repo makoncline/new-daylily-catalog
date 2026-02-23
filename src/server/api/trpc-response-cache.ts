@@ -56,7 +56,13 @@ export function shouldCachePublicTrpcResponse(meta: TrpcResponseMetaLike) {
   }
 
   const paths = getRequestedPaths(meta);
-  return paths.length === 1 && TRPC_PUBLIC_CACHEABLE_QUERY_PATH_SET.has(paths[0] ?? "");
+  const [path] = paths;
+
+  return (
+    paths.length === 1 &&
+    typeof path === "string" &&
+    TRPC_PUBLIC_CACHEABLE_QUERY_PATH_SET.has(path)
+  );
 }
 
 export function getTrpcResponseCacheHeaders(meta: TrpcResponseMetaLike) {

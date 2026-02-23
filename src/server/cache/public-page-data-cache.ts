@@ -7,13 +7,25 @@ import { getPublicProfiles } from "@/server/db/getPublicProfiles";
 import { getPublicProfilePageData } from "@/app/(public)/[userSlugOrId]/_lib/public-profile-route";
 import { toCultivarRouteSegment } from "@/lib/utils/cultivar-utils";
 
-const PUBLIC_PAGE_DATA_REVALIDATE_SECONDS =
+const PUBLIC_CATALOGS_PAGE_REVALIDATE_SECONDS =
   PUBLIC_CACHE_CONFIG.REVALIDATE_SECONDS.PAGE.CATALOGS;
+const PUBLIC_PROFILE_PAGE_REVALIDATE_SECONDS =
+  PUBLIC_CACHE_CONFIG.REVALIDATE_SECONDS.PAGE.PROFILE;
+const PUBLIC_CULTIVAR_PAGE_REVALIDATE_SECONDS =
+  PUBLIC_CACHE_CONFIG.REVALIDATE_SECONDS.PAGE.CULTIVAR;
 
 const PUBLIC_PAGE_DATA_CACHE_KEY_PREFIX = "public-page-data";
 const PUBLIC_ROUTE_PROFILE_TAG_PREFIX = "public-route:profile";
 const PUBLIC_ROUTE_CULTIVAR_TAG_PREFIX = "public-route:cultivar";
 const PUBLIC_ROUTE_CATALOGS_TAG = "public-route:catalogs";
+
+function normalizeCultivarSegment(cultivarSegment: string) {
+  return toCultivarRouteSegment(cultivarSegment) ?? cultivarSegment;
+}
+
+function getPublicCultivarRouteTagFromNormalizedSegment(normalizedSegment: string) {
+  return `${PUBLIC_ROUTE_CULTIVAR_TAG_PREFIX}:${normalizedSegment}`;
+}
 
 interface PublicCacheInvalidationDb {
   userProfile: {
@@ -35,9 +47,8 @@ export function getPublicProfileRouteTag(userSlugOrId: string) {
 }
 
 export function getPublicCultivarRouteTag(cultivarSegment: string) {
-  const normalizedSegment =
-    toCultivarRouteSegment(cultivarSegment) ?? cultivarSegment;
-  return `${PUBLIC_ROUTE_CULTIVAR_TAG_PREFIX}:${normalizedSegment}`;
+  const normalizedSegment = normalizeCultivarSegment(cultivarSegment);
+  return getPublicCultivarRouteTagFromNormalizedSegment(normalizedSegment);
 }
 
 export function invalidatePublicCatalogsRouteCache() {
@@ -109,7 +120,7 @@ export function getCachedPublicProfiles() {
     async () => getPublicProfiles(),
     [PUBLIC_PAGE_DATA_CACHE_KEY_PREFIX, "public-profiles"],
     {
-      revalidate: PUBLIC_PAGE_DATA_REVALIDATE_SECONDS,
+      revalidate: PUBLIC_CATALOGS_PAGE_REVALIDATE_SECONDS,
       tags: [PUBLIC_ROUTE_CATALOGS_TAG],
     },
   )();
@@ -120,7 +131,7 @@ export function getCachedPublicProfile(userSlugOrId: string) {
     async () => getPublicProfile(userSlugOrId),
     [PUBLIC_PAGE_DATA_CACHE_KEY_PREFIX, "public-profile", userSlugOrId],
     {
-      revalidate: PUBLIC_PAGE_DATA_REVALIDATE_SECONDS,
+      revalidate: PUBLIC_PROFILE_PAGE_REVALIDATE_SECONDS,
       tags: [getPublicProfileRouteTag(userSlugOrId)],
     },
   )();
@@ -131,7 +142,7 @@ export function getCachedInitialListings(userSlugOrId: string) {
     async () => getInitialListings(userSlugOrId),
     [PUBLIC_PAGE_DATA_CACHE_KEY_PREFIX, "initial-listings", userSlugOrId],
     {
-      revalidate: PUBLIC_PAGE_DATA_REVALIDATE_SECONDS,
+      revalidate: PUBLIC_PROFILE_PAGE_REVALIDATE_SECONDS,
       tags: [getPublicProfileRouteTag(userSlugOrId)],
     },
   )();
@@ -150,19 +161,21 @@ export function getCachedPublicProfilePageData(
       String(page),
     ],
     {
-      revalidate: PUBLIC_PAGE_DATA_REVALIDATE_SECONDS,
+      revalidate: PUBLIC_PROFILE_PAGE_REVALIDATE_SECONDS,
       tags: [getPublicProfileRouteTag(userSlugOrId)],
     },
   )();
 }
 
 export function getCachedPublicCultivarPage(cultivarSegment: string) {
+  const normalizedSegment = normalizeCultivarSegment(cultivarSegment);
+
   return unstable_cache(
-    async () => getPublicCultivarPage(cultivarSegment),
-    [PUBLIC_PAGE_DATA_CACHE_KEY_PREFIX, "public-cultivar-page", cultivarSegment],
+    async () => getPublicCultivarPage(normalizedSegment),
+    [PUBLIC_PAGE_DATA_CACHE_KEY_PREFIX, "public-cultivar-page", normalizedSegment],
     {
-      revalidate: PUBLIC_PAGE_DATA_REVALIDATE_SECONDS,
-      tags: [getPublicCultivarRouteTag(cultivarSegment)],
+      revalidate: PUBLIC_CULTIVAR_PAGE_REVALIDATE_SECONDS,
+      tags: [getPublicCultivarRouteTagFromNormalizedSegment(normalizedSegment)],
     },
   )();
 }
