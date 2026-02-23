@@ -2,6 +2,13 @@
 
 ## Log
 
+- 2026-02-23 - sheet export parity correction - Sheet Creator download control should match primary export formats; provide a shadcn download menu with `HTML Sheets (.html)`, `PDF (.pdf)`, and `Images (.zip)` from the sheet layout.
+- 2026-02-23 - sheet sizing rule update - User expects sheet tags to always stay at active tag dimensions; rows/columns now define count, and page settings are validated against required sheet area instead of scaling tag size.
+- 2026-02-23 - sheet border styling - Tag cards on sheet output should include a muted dashed border for placement guidance in both preview and exported sheet documents.
+- 2026-02-23 - sheet border print correction - User wants dashed borders visible in the Sheet Creator preview but not in printed/exported sheet output; keep preview-only dashed outlines and omit border in generated sheet HTML.
+- 2026-02-23 - sheet border toggle preference - User wants an explicit Sheet Creator checkbox to include dashed borders in printed/exported sheets; default must remain off.
+- 2026-02-23 - sheet creator UX follow-up - User expects a live sheet preview in the modal; render a scaled first-sheet preview tied directly to current rows/columns/margins/padding settings.
+- 2026-02-23 - tag sheet creator defaults - For `/dashboard/tags` sheet mode, initialize defaults to current tag dimensions on first modal open when no sheet settings exist; persist subsequent edits in `tag-sheet-creator-state-v1`.
 - 2026-02-23 - self-miss stale callsites - After refactoring export function signatures, I initially left handler calls passing old `html` args; always re-check all call sites after interface changes in large files.
 - 2026-02-23 - export blank-pages root cause - Capturing all `.tag` elements from one long raster document caused page 2+ blank outputs; robust approach is rendering each tag in its own single-tag document, rasterizing individually, then combining canvases into PDF/ZIP.
 - 2026-02-23 - raster clipping mitigation - For PDF/image exports on `/dashboard/tags`, add a raster-specific print HTML mode (`mode: "raster"`) with safer row/cell metrics and capture via `html2canvas` `foreignObjectRendering` + explicit element width/height to reduce glyph clipping.

@@ -2,6 +2,7 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it } from "vitest";
 import {
   createTagPrintDocumentHtml,
+  createTagSheetDocumentHtml,
   TagDesignerPanel,
   type TagListingData,
 } from "@/app/dashboard/tags/_components/tag-designer-panel";
@@ -45,7 +46,9 @@ describe("TagDesignerPanel", () => {
 
     const sizeSelect = screen.getByLabelText("Tag Size");
     expect(sizeSelect).toBeInTheDocument();
-    expect(screen.getByRole("option", { name: /Brother TZe/i })).toBeInTheDocument();
+    expect(
+      screen.getByRole("option", { name: /Brother TZe/i }),
+    ).toBeInTheDocument();
 
     fireEvent.change(sizeSelect, { target: { value: "custom" } });
 
@@ -74,6 +77,25 @@ describe("TagDesignerPanel", () => {
     await waitFor(() => {
       expect(screen.getByText("Moonlit Smile")).toBeInTheDocument();
     });
+  });
+
+  it("opens sheet creator dialog from Make Sheet with one-tag defaults", () => {
+    render(<TagDesignerPanel listings={sampleListings} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Make Sheet" }));
+
+    expect(
+      screen.getByRole("heading", { name: "Sheet Creator" }),
+    ).toBeInTheDocument();
+    expect(screen.getByLabelText("Rows")).toHaveValue(1);
+    expect(screen.getByLabelText("Columns")).toHaveValue(1);
+    expect(screen.getByLabelText("Page width (in)")).toHaveValue(3.5);
+    expect(screen.getByLabelText("Page height (in)")).toHaveValue(1);
+    expect(screen.getByLabelText("Print dashed borders")).not.toBeChecked();
+    expect(
+      screen.getByRole("heading", { name: "Sheet Preview" }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Print Sheets" })).toBeEnabled();
   });
 });
 
@@ -121,5 +143,110 @@ describe("createTagPrintDocumentHtml", () => {
     expect(html).toContain("text-decoration: underline");
     expect(html).toContain("text-align: left");
     expect(html).toContain("text-align: right");
+  });
+
+  it("renders sheet pages with configured rows and columns", () => {
+    const html = createTagSheetDocumentHtml({
+      tags: [
+        {
+          id: "tag-1",
+          rows: [
+            {
+              id: "row-1",
+              cells: [
+                {
+                  id: "cell-1",
+                  text: "Moonlit Smile",
+                  width: 1,
+                  textAlign: "left",
+                  fontSize: 12,
+                  bold: true,
+                  italic: false,
+                  underline: false,
+                },
+              ],
+            },
+          ],
+        },
+        {
+          id: "tag-2",
+          rows: [
+            {
+              id: "row-2",
+              cells: [
+                {
+                  id: "cell-2",
+                  text: "Second Tag",
+                  width: 1,
+                  textAlign: "left",
+                  fontSize: 12,
+                  bold: true,
+                  italic: false,
+                  underline: false,
+                },
+              ],
+            },
+          ],
+        },
+        {
+          id: "tag-3",
+          rows: [
+            {
+              id: "row-3",
+              cells: [
+                {
+                  id: "cell-3",
+                  text: "Third Tag",
+                  width: 1,
+                  textAlign: "left",
+                  fontSize: 12,
+                  bold: true,
+                  italic: false,
+                  underline: false,
+                },
+              ],
+            },
+          ],
+        },
+      ],
+      sheetState: {
+        pageWidthInches: 7,
+        pageHeightInches: 2,
+        rows: 1,
+        columns: 2,
+        marginXInches: 0,
+        marginYInches: 0,
+        paddingXInches: 0,
+        paddingYInches: 0,
+        printDashedBorders: false,
+      },
+      tagWidthInches: 3.5,
+      tagHeightInches: 1,
+    });
+
+    expect(html).not.toBeNull();
+    expect(html).toContain("grid-template-columns: repeat(2, 3.5in)");
+    expect(html).toContain("border: none");
+    expect(html).toContain("Moonlit Smile");
+    expect(html).toContain("Third Tag");
+    expect(html?.match(/class=\"sheet-page\"/g)).toHaveLength(2);
+
+    const htmlWithDashedBorders = createTagSheetDocumentHtml({
+      tags: [],
+      sheetState: {
+        pageWidthInches: 3.5,
+        pageHeightInches: 1,
+        rows: 1,
+        columns: 1,
+        marginXInches: 0,
+        marginYInches: 0,
+        paddingXInches: 0,
+        paddingYInches: 0,
+        printDashedBorders: true,
+      },
+      tagWidthInches: 3.5,
+      tagHeightInches: 1,
+    });
+    expect(htmlWithDashedBorders).toContain("border: 1px dashed #d4d4d8");
   });
 });
