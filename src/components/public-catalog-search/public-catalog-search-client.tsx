@@ -10,6 +10,7 @@ import {
   PUBLIC_CATALOG_SEARCH_PERSISTED_SWR,
   readPublicCatalogSearchSnapshot,
   snapshotToInfiniteData,
+  shouldRevalidatePublicCatalogSearchSnapshot,
   writePublicCatalogSearchSnapshot,
 } from "@/lib/public-catalog-search-persistence";
 import { sortTitlesLettersBeforeNumbers } from "@/lib/utils/sort-utils";
@@ -65,19 +66,21 @@ export function PublicCatalogSearchClient({
           snapshotToInfiniteData(snapshot),
         );
 
-        void prefetchAndPersistPublicCatalogSearchSnapshot({
-          userId,
-          userSlugOrId,
-          force: true,
-        }).then((revalidatedSnapshot) => {
-          if (cancelled || !revalidatedSnapshot) {
-            return;
-          }
+        if (shouldRevalidatePublicCatalogSearchSnapshot(snapshot)) {
+          void prefetchAndPersistPublicCatalogSearchSnapshot({
+            userId,
+            userSlugOrId,
+            force: true,
+          }).then((revalidatedSnapshot) => {
+            if (cancelled || !revalidatedSnapshot) {
+              return;
+            }
 
-          utils.public.getListings.setInfiniteData(queryInput, () =>
-            snapshotToInfiniteData(revalidatedSnapshot),
-          );
-        });
+            utils.public.getListings.setInfiniteData(queryInput, () =>
+              snapshotToInfiniteData(revalidatedSnapshot),
+            );
+          });
+        }
       }
 
       if (!cancelled) {

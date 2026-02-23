@@ -5,6 +5,7 @@ import {
   isPublicCatalogSearchSnapshotUsable,
   PUBLIC_CATALOG_SEARCH_PERSISTED_SWR,
   snapshotToInfiniteData,
+  shouldRevalidatePublicCatalogSearchSnapshot,
   type PublicCatalogInfiniteData,
 } from "@/lib/public-catalog-search-persistence";
 
@@ -60,5 +61,35 @@ describe("public catalog search persistence", () => {
 
     expect(isPublicCatalogSearchSnapshotUsable(staleSnapshot)).toBe(true);
     expect(isPublicCatalogSearchSnapshotFresh(staleSnapshot)).toBe(false);
+  });
+
+  it("revalidates snapshots only when older than 24 hours", () => {
+    const listing = {
+      id: "listing-1",
+      title: "Alpha",
+    } as PublicCatalogInfiniteData["pages"][number][number];
+
+    const recentSnapshot = createPublicCatalogSearchSnapshotFromInfiniteData({
+      userId: "user-1",
+      userSlugOrId: "seeded-daylily",
+      data: {
+        pages: [[listing]],
+        pageParams: [null],
+      },
+    });
+
+    const staleForRevalidateSnapshot = {
+      ...recentSnapshot,
+      persistedAt: new Date(
+        Date.now() - PUBLIC_CATALOG_SEARCH_PERSISTED_SWR.revalidateAfterMs - 1000,
+      ).toISOString(),
+    };
+
+    expect(shouldRevalidatePublicCatalogSearchSnapshot(recentSnapshot)).toBe(
+      false,
+    );
+    expect(
+      shouldRevalidatePublicCatalogSearchSnapshot(staleForRevalidateSnapshot),
+    ).toBe(true);
   });
 });
