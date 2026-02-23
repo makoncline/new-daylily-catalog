@@ -1,19 +1,15 @@
-import { unstable_cache } from "next/cache";
 import { notFound, permanentRedirect } from "next/navigation";
 import { MainContent } from "@/app/(public)/_components/main-content";
 import { PublicBreadcrumbs } from "@/app/(public)/_components/public-breadcrumbs";
-import { PUBLIC_CACHE_CONFIG } from "@/config/public-cache-config";
 import { getBaseUrl } from "@/lib/utils/getBaseUrl";
 import { getErrorCode, tryCatch } from "@/lib/utils";
 import { CatalogSeoListings } from "./_components/catalog-seo-listings";
 import { ProfileContent } from "./_components/profile-content";
 import { ProfilePageSEO } from "./_components/profile-seo";
-import {
-  getPublicProfilePageData,
-  getPublicProfileStaticParams,
-} from "./_lib/public-profile-route";
+import { getPublicProfileStaticParams } from "./_lib/public-profile-route";
 import { generatePaginatedProfileMetadata } from "./_seo/paginated-metadata";
 import { generateProfileMetadata } from "./_seo/metadata";
+import { getCachedPublicProfilePageData } from "@/server/cache/public-page-data-cache";
 
 export const revalidate = 86400;
 export const dynamic = "force-static";
@@ -34,7 +30,9 @@ export async function generateMetadata({ params }: PageProps) {
   const page = 1;
   const baseUrl = getBaseUrl();
 
-  const result = await tryCatch(getPublicProfilePageData(userSlugOrId, page));
+  const result = await tryCatch(
+    getCachedPublicProfilePageData(userSlugOrId, page),
+  );
 
   if (!result.data) {
     return generateProfileMetadata(null, baseUrl);
@@ -58,13 +56,9 @@ export default async function Page({ params }: PageProps) {
   const { userSlugOrId } = await params;
   const requestedPage = 1;
 
-  const getPageData = unstable_cache(
-    async () => getPublicProfilePageData(userSlugOrId, requestedPage),
-    ["profile-listings-page", userSlugOrId, String(requestedPage)],
-    { revalidate: PUBLIC_CACHE_CONFIG.REVALIDATE_SECONDS.PAGE.PROFILE },
+  const pageDataResult = await tryCatch(
+    getCachedPublicProfilePageData(userSlugOrId, requestedPage),
   );
-
-  const pageDataResult = await tryCatch(getPageData());
 
   if (getErrorCode(pageDataResult.error) === "NOT_FOUND") {
     notFound();

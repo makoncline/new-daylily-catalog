@@ -1,6 +1,5 @@
 import { MainContent } from "../_components/main-content";
 import { type Metadata } from "next";
-import { getPublicProfiles } from "@/server/db/getPublicProfiles";
 import { Suspense } from "react";
 import { PageHeader } from "@/app/dashboard/_components/page-header";
 import { getBaseUrl } from "@/lib/utils/getBaseUrl";
@@ -14,6 +13,7 @@ import {
   createBreadcrumbListSchema,
   createCatalogsBreadcrumbs,
 } from "@/lib/utils/breadcrumbs";
+import { getCachedPublicProfiles } from "@/server/cache/public-page-data-cache";
 
 export const revalidate = 86400;
 
@@ -58,7 +58,7 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function CatalogsPage() {
-  const catalogs = await getPublicProfiles();
+  const catalogs = await getCachedPublicProfiles();
 
   const baseUrl = getBaseUrl();
   const catalogsUrl = `${baseUrl}/catalogs`;
