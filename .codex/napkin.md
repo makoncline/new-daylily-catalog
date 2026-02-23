@@ -2,6 +2,25 @@
 
 ## Log
 
+- 2026-02-23 - sheet export parity correction - Sheet Creator download control should match primary export formats; provide a shadcn download menu with `HTML Sheets (.html)`, `PDF (.pdf)`, and `Images (.zip)` from the sheet layout.
+- 2026-02-23 - sheet sizing rule update - User expects sheet tags to always stay at active tag dimensions; rows/columns now define count, and page settings are validated against required sheet area instead of scaling tag size.
+- 2026-02-23 - sheet border styling - Tag cards on sheet output should include a muted dashed border for placement guidance in both preview and exported sheet documents.
+- 2026-02-23 - sheet border print correction - User wants dashed borders visible in the Sheet Creator preview but not in printed/exported sheet output; keep preview-only dashed outlines and omit border in generated sheet HTML.
+- 2026-02-23 - sheet border toggle preference - User wants an explicit Sheet Creator checkbox to include dashed borders in printed/exported sheets; default must remain off.
+- 2026-02-23 - sheet creator UX follow-up - User expects a live sheet preview in the modal; render a scaled first-sheet preview tied directly to current rows/columns/margins/padding settings.
+- 2026-02-23 - tag sheet creator defaults - For `/dashboard/tags` sheet mode, initialize defaults to current tag dimensions on first modal open when no sheet settings exist; persist subsequent edits in `tag-sheet-creator-state-v1`.
+- 2026-02-23 - self-miss stale callsites - After refactoring export function signatures, I initially left handler calls passing old `html` args; always re-check all call sites after interface changes in large files.
+- 2026-02-23 - export blank-pages root cause - Capturing all `.tag` elements from one long raster document caused page 2+ blank outputs; robust approach is rendering each tag in its own single-tag document, rasterizing individually, then combining canvases into PDF/ZIP.
+- 2026-02-23 - raster clipping mitigation - For PDF/image exports on `/dashboard/tags`, add a raster-specific print HTML mode (`mode: "raster"`) with safer row/cell metrics and capture via `html2canvas` `foreignObjectRendering` + explicit element width/height to reduce glyph clipping.
+- 2026-02-23 - tags export expansion - User requested keeping Pages HTML export and adding both `PDF` and image-bundle download options from the same download menu.
+- 2026-02-23 - jsdom dropdown test gotcha - Radix `DropdownMenu` in this test setup did not open via simple `fireEvent` interactions; keep unit assertions focused on stable button state and verify menu behavior in browser/e2e if needed.
+- 2026-02-23 - tags download menu request - User wants `/dashboard/tags` downloads grouped under a single button using a shadcn menu, with options for `Pages (.html)` and `CSV`.
+- 2026-02-23 - tags export fallback - Replaced unstable client PDF generation with downloadable print-ready HTML pages (`.html`) that preserve existing `@page`/page-break behavior (one tag per page) and can be printed/saved by the browser.
+- 2026-02-23 - tags pdf multipage failure - `html2canvas` + `jspdf` export rendered only the first tag reliably and blanked later pages in some browsers; prefer simpler print-HTML export for deterministic one-tag-per-page output.
+- 2026-02-23 - tags pdf text clipping fix - PDF export could clip text glyphs; improved reliability by using a PDF-specific render mode (`mode: "pdf"` with safer row/cell metrics), waiting for iframe fonts readiness, and increasing `html2canvas` quality (`scale: 4`, `foreignObjectRendering: true`).
+- 2026-02-23 - tags pdf export pattern - For `/dashboard/tags`, reusing the existing print HTML in an off-screen iframe and rasterizing `.tag` nodes with `html2canvas` into `jspdf` pages preserves current layout/QR behavior while enabling direct PDF download.
+- 2026-02-23 - self-miss patch anchor - Initial `apply_patch` failed after stale context matching near `TagDesignerPanel`; re-read exact file slices before patching large files to avoid mismatched anchors.
+- 2026-02-23 - tags export request - User asked for a dedicated PDF download button on `/dashboard/tags` (in addition to print/CSV) so tags can be saved/exported directly.
 - 2026-02-21 - id-format assumption self-miss - I initially gated proxy canonical lookup to numeric IDs only; this app also uses non-numeric `User.id` values in tests/fixtures, so query-preserving canonical redirects must not assume numeric IDs.
 - 2026-02-21 - seo redirect preference update - User wants `/{userId}` -> `/{slug}` canonicalization to stay server-side for SEO; preserve query params in proxy/server redirect path instead of client `router.replace`.
 - 2026-02-21 - force-static redirect gotcha self-miss - Adding `searchParams` to `src/app/(public)/[userSlugOrId]/page.tsx` did not preserve query params on canonical redirect (`/{id}` still became `/{slug}` without query); handle query-preserving canonicalization in proxy instead of server page props.
@@ -128,6 +147,7 @@
 - Template controls on `/dashboard/tags` should use a shadcn-style picker (not native select), include per-row delete for saved templates inside the picker, and only show "Save as template" when current layout is custom.
 - Built-in tag templates should be: `name + hybridizer + year + ploidy + qr` (default), `name + qr`, and `full detail` matching the photographed information structure.
 - In `/dashboard/tags`, keep layout geometry deterministic across listings by rendering empty cells as blank text rather than omitting those cells.
+- Updated preference: on `/dashboard/tags`, use a shadcn download menu button and include `Pages (.html)`, `PDF (.pdf)`, `Images (.zip)`, and `CSV`.
 - Tag-printing should ship as a dedicated dashboard page (`/dashboard/tags`), not as an embedded manage-list action.
 - TanStack DB dashboard migration: keep procedures under new `dashboardDb` router, migrate main `/dashboard` page-by-page, and run `pnpm lint`, `npx tsc --noEmit`, `pnpm test`, `pnpm test:e2e` before each incremental commit.
 - Cultivar pages should be catalog-centric (catalog cards with nested cultivar listing rows), not listing-card grids.

@@ -5,8 +5,13 @@ import {
   ArrowDown,
   ArrowUp,
   Check,
+  ChevronDown,
   ChevronsUpDown,
   Download,
+  FileDown,
+  FileImage,
+  FileText,
+  LayoutGrid,
   Plus,
   Printer,
   RotateCcw,
@@ -26,6 +31,20 @@ import {
 } from "@/components/ui/command";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   Popover,
   PopoverContent,
@@ -160,6 +179,18 @@ interface TagDesignerState {
   rows: TagRow[];
 }
 
+interface TagSheetCreatorState {
+  pageWidthInches: number;
+  pageHeightInches: number;
+  rows: number;
+  columns: number;
+  marginXInches: number;
+  marginYInches: number;
+  paddingXInches: number;
+  paddingYInches: number;
+  printDashedBorders: boolean;
+}
+
 // ---------------------------------------------------------------------------
 // Resolved types for preview / print
 // ---------------------------------------------------------------------------
@@ -212,11 +243,24 @@ const QR_RESERVED_RIGHT_INCHES =
 const QR_RESERVED_BOTTOM_INCHES =
   QR_SIZE_INCHES + QR_OFFSET_INCHES + QR_TEXT_GAP_INCHES;
 const TAG_TEMPLATE_LIBRARY_STORAGE_KEY = "tag-designer-templates-v1";
+const TAG_SHEET_CREATOR_STORAGE_KEY = "tag-sheet-creator-state-v1";
 const TEMPLATE_DEFAULT_ID = "default-template";
 const TEMPLATE_CUSTOM_ID = "custom-template";
 const TEMPLATE_IMPORT_ID = "import-template";
 const TEMPLATE_NAME_QR_ID = "template-name-qr";
 const TEMPLATE_FULL_DETAIL_ID = "template-full-detail";
+const MIN_SHEET_PAGE_WIDTH_INCHES = MIN_TAG_WIDTH_INCHES;
+const MAX_SHEET_PAGE_WIDTH_INCHES = 24;
+const MIN_SHEET_PAGE_HEIGHT_INCHES = MIN_TAG_HEIGHT_INCHES;
+const MAX_SHEET_PAGE_HEIGHT_INCHES = 24;
+const MIN_SHEET_ROWS = 1;
+const MAX_SHEET_ROWS = 20;
+const MIN_SHEET_COLUMNS = 1;
+const MAX_SHEET_COLUMNS = 20;
+const MIN_SHEET_MARGIN_INCHES = 0;
+const MAX_SHEET_MARGIN_INCHES = 6;
+const MIN_SHEET_PADDING_INCHES = 0;
+const MAX_SHEET_PADDING_INCHES = 6;
 
 interface StoredTagLayoutTemplate {
   id: string;
@@ -571,6 +615,26 @@ function parseInches(
   return Number.parseFloat(clamp(parsed, min, max).toFixed(2));
 }
 
+function parseWholeNumber(
+  input: string,
+  fallback: number,
+  min: number,
+  max: number,
+) {
+  const parsed = Number.parseInt(input, 10);
+  if (!Number.isFinite(parsed)) return fallback;
+  return clamp(parsed, min, max);
+}
+
+function normalizeInches(value: number) {
+  return Number(value.toFixed(2));
+}
+
+function toFiniteNumber(value: unknown) {
+  const parsed = typeof value === "number" ? value : Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
 function toNonEmptyString(value: string | null | undefined) {
   const trimmed = value?.trim();
   if (!trimmed || trimmed.length === 0) return null;
@@ -786,6 +850,159 @@ function sanitizeTagDesignerState(state: TagDesignerState): TagDesignerState {
   };
 }
 
+function createDefaultSheetCreatorState({
+  tagWidthInches,
+  tagHeightInches,
+}: {
+  tagWidthInches: number;
+  tagHeightInches: number;
+}): TagSheetCreatorState {
+  return {
+    pageWidthInches: normalizeInches(tagWidthInches),
+    pageHeightInches: normalizeInches(tagHeightInches),
+    rows: 1,
+    columns: 1,
+    marginXInches: 0,
+    marginYInches: 0,
+    paddingXInches: 0,
+    paddingYInches: 0,
+    printDashedBorders: false,
+  };
+}
+
+function sanitizeTagSheetCreatorState(
+  state: TagSheetCreatorState | null | undefined,
+  {
+    tagWidthInches,
+    tagHeightInches,
+  }: {
+    tagWidthInches: number;
+    tagHeightInches: number;
+  },
+): TagSheetCreatorState {
+  const fallback = createDefaultSheetCreatorState({
+    tagWidthInches,
+    tagHeightInches,
+  });
+  if (!state || typeof state !== "object") return fallback;
+
+  const pageWidthInches = toFiniteNumber(state.pageWidthInches);
+  const pageHeightInches = toFiniteNumber(state.pageHeightInches);
+  const rows = toFiniteNumber(state.rows);
+  const columns = toFiniteNumber(state.columns);
+  const marginXInches = toFiniteNumber(state.marginXInches);
+  const marginYInches = toFiniteNumber(state.marginYInches);
+  const paddingXInches = toFiniteNumber(state.paddingXInches);
+  const paddingYInches = toFiniteNumber(state.paddingYInches);
+
+  return {
+    pageWidthInches: normalizeInches(
+      clamp(
+        pageWidthInches ?? fallback.pageWidthInches,
+        MIN_SHEET_PAGE_WIDTH_INCHES,
+        MAX_SHEET_PAGE_WIDTH_INCHES,
+      ),
+    ),
+    pageHeightInches: normalizeInches(
+      clamp(
+        pageHeightInches ?? fallback.pageHeightInches,
+        MIN_SHEET_PAGE_HEIGHT_INCHES,
+        MAX_SHEET_PAGE_HEIGHT_INCHES,
+      ),
+    ),
+    rows: clamp(
+      Math.round(rows ?? fallback.rows),
+      MIN_SHEET_ROWS,
+      MAX_SHEET_ROWS,
+    ),
+    columns: clamp(
+      Math.round(columns ?? fallback.columns),
+      MIN_SHEET_COLUMNS,
+      MAX_SHEET_COLUMNS,
+    ),
+    marginXInches: normalizeInches(
+      clamp(
+        marginXInches ?? fallback.marginXInches,
+        MIN_SHEET_MARGIN_INCHES,
+        MAX_SHEET_MARGIN_INCHES,
+      ),
+    ),
+    marginYInches: normalizeInches(
+      clamp(
+        marginYInches ?? fallback.marginYInches,
+        MIN_SHEET_MARGIN_INCHES,
+        MAX_SHEET_MARGIN_INCHES,
+      ),
+    ),
+    paddingXInches: normalizeInches(
+      clamp(
+        paddingXInches ?? fallback.paddingXInches,
+        MIN_SHEET_PADDING_INCHES,
+        MAX_SHEET_PADDING_INCHES,
+      ),
+    ),
+    paddingYInches: normalizeInches(
+      clamp(
+        paddingYInches ?? fallback.paddingYInches,
+        MIN_SHEET_PADDING_INCHES,
+        MAX_SHEET_PADDING_INCHES,
+      ),
+    ),
+    printDashedBorders:
+      typeof state.printDashedBorders === "boolean"
+        ? state.printDashedBorders
+        : fallback.printDashedBorders,
+  };
+}
+
+interface ResolvedSheetMetrics {
+  tagsPerSheet: number;
+  slotWidthInches: number;
+  slotHeightInches: number;
+  requiredWidthInches: number;
+  requiredHeightInches: number;
+  isValid: boolean;
+}
+
+function resolveSheetMetrics(
+  sheetState: TagSheetCreatorState,
+  {
+    tagWidthInches,
+    tagHeightInches,
+  }: {
+    tagWidthInches: number;
+    tagHeightInches: number;
+  },
+): ResolvedSheetMetrics {
+  const tagsPerSheet = sheetState.rows * sheetState.columns;
+  const slotWidthInches = tagWidthInches;
+  const slotHeightInches = tagHeightInches;
+  const requiredWidthInches =
+    sheetState.marginXInches * 2 +
+    slotWidthInches * sheetState.columns +
+    sheetState.paddingXInches * Math.max(sheetState.columns - 1, 0);
+  const requiredHeightInches =
+    sheetState.marginYInches * 2 +
+    slotHeightInches * sheetState.rows +
+    sheetState.paddingYInches * Math.max(sheetState.rows - 1, 0);
+
+  return {
+    tagsPerSheet,
+    slotWidthInches,
+    slotHeightInches,
+    requiredWidthInches,
+    requiredHeightInches,
+    isValid:
+      tagsPerSheet > 0 &&
+      Number.isFinite(slotWidthInches) &&
+      Number.isFinite(slotHeightInches) &&
+      slotWidthInches > 0 &&
+      slotHeightInches > 0 &&
+      sheetState.pageWidthInches >= requiredWidthInches &&
+      sheetState.pageHeightInches >= requiredHeightInches,
+  };
+}
+
 function createLayoutSignature(layout: TagDesignerState) {
   const normalized = sanitizeTagDesignerState(layout);
   return JSON.stringify({
@@ -965,11 +1182,20 @@ export function createTagPrintDocumentHtml({
   tags,
   widthInches,
   heightInches,
+  mode = "print",
 }: {
   tags: TagPreviewData[];
   widthInches: number;
   heightInches: number;
+  mode?: "print" | "raster";
 }) {
+  const isRasterMode = mode === "raster";
+  const rowAlignItems = isRasterMode ? "start" : "baseline";
+  const rowMarginTopPixels = isRasterMode ? 2 : 1;
+  const cellLineHeight = isRasterMode ? 1.28 : 1.2;
+  const cellPaddingTop = isRasterMode ? "0.03em" : "0";
+  const cellPaddingBottom = isRasterMode ? "0.08em" : "0";
+
   const tagMarkup = tags
     .map((tag) => {
       const hasQrCode = Boolean(tag.qrCodeUrl);
@@ -1050,13 +1276,15 @@ export function createTagPrintDocumentHtml({
       .row {
         display: grid;
         column-gap: 0.06in;
-        align-items: baseline;
+        align-items: ${rowAlignItems};
       }
       .row + .row {
-        margin-top: 1px;
+        margin-top: ${rowMarginTopPixels}px;
       }
       .cell {
-        line-height: 1.2;
+        line-height: ${cellLineHeight};
+        padding-top: ${cellPaddingTop};
+        padding-bottom: ${cellPaddingBottom};
         white-space: nowrap;
         overflow: hidden;
         text-overflow: clip;
@@ -1082,11 +1310,177 @@ export function createTagPrintDocumentHtml({
 </html>`;
 }
 
+export function createTagSheetDocumentHtml({
+  tags,
+  sheetState,
+  tagWidthInches,
+  tagHeightInches,
+}: {
+  tags: TagPreviewData[];
+  sheetState: TagSheetCreatorState;
+  tagWidthInches: number;
+  tagHeightInches: number;
+}) {
+  const sheetMetrics = resolveSheetMetrics(sheetState, {
+    tagWidthInches,
+    tagHeightInches,
+  });
+  if (!sheetMetrics.isValid) return null;
+
+  const rowAlignItems = "baseline";
+  const rowMarginTopPixels = 1;
+  const cellLineHeight = 1.2;
+  const cellPaddingTop = "0";
+  const cellPaddingBottom = "0";
+  const tagBorderCss = sheetState.printDashedBorders
+    ? "1px dashed #d4d4d8"
+    : "none";
+  const slotWidthInches = sheetMetrics.slotWidthInches;
+  const slotHeightInches = sheetMetrics.slotHeightInches;
+
+  const sheetTags: TagPreviewData[][] = [];
+  for (let index = 0; index < tags.length; index += sheetMetrics.tagsPerSheet) {
+    sheetTags.push(tags.slice(index, index + sheetMetrics.tagsPerSheet));
+  }
+
+  const sheetMarkup = sheetTags
+    .map((sheetTagList) => {
+      const tagMarkup = sheetTagList
+        .map((tag) => {
+          const hasQrCode = Boolean(tag.qrCodeUrl);
+          const rowsHtml = tag.rows
+            .map((row) => {
+              const cols = row.cells.map((c) => `${c.width}fr`).join(" ");
+              const cellsHtml = row.cells
+                .map((cell) => {
+                  const fittedCell = {
+                    ...cell,
+                    fontSize: resolveCellFontSizePx(
+                      cell,
+                      row,
+                      slotWidthInches,
+                      hasQrCode,
+                    ),
+                  };
+                  return `<div class="cell" style="${cellStyleAsCss(fittedCell)}">${escapeHtml(cell.text)}</div>`;
+                })
+                .join("");
+              return `<div class="row" style="grid-template-columns: ${cols};">${cellsHtml}</div>`;
+            })
+            .join("");
+
+          const qrSvgMarkup =
+            tag.qrCodeUrl !== null && tag.qrCodeUrl !== undefined
+              ? buildQrCodeSvgMarkup(tag.qrCodeUrl)
+              : "";
+          const qrHtml = qrSvgMarkup ? `<div class="qr">${qrSvgMarkup}</div>` : "";
+          const hasQrClass = hasQrCode ? " has-qr" : "";
+
+          return `<article class="tag${hasQrClass}"><div class="tag-content">${rowsHtml}</div>${qrHtml}</article>`;
+        })
+        .join("");
+
+      return `<section class="sheet-page">${tagMarkup}</section>`;
+    })
+    .join("");
+
+  return `<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Daylily Tag Sheets</title>
+    <style>
+      * { box-sizing: border-box; }
+      @page {
+        size: ${sheetState.pageWidthInches}in ${sheetState.pageHeightInches}in;
+        margin: 0;
+      }
+      html, body {
+        margin: 0;
+        padding: 0;
+      }
+      body {
+        font-family: Arial, sans-serif;
+        color: #111;
+      }
+      .sheet-page {
+        width: ${sheetState.pageWidthInches}in;
+        height: ${sheetState.pageHeightInches}in;
+        padding: ${sheetState.marginYInches}in ${sheetState.marginXInches}in;
+        display: grid;
+        grid-template-columns: repeat(${sheetState.columns}, ${slotWidthInches}in);
+        grid-template-rows: repeat(${sheetState.rows}, ${slotHeightInches}in);
+        column-gap: ${sheetState.paddingXInches}in;
+        row-gap: ${sheetState.paddingYInches}in;
+        justify-content: start;
+        align-content: start;
+        page-break-after: always;
+        break-after: page;
+      }
+      .sheet-page:last-of-type {
+        page-break-after: auto;
+        break-after: auto;
+      }
+      .tag {
+        width: ${slotWidthInches}in;
+        height: ${slotHeightInches}in;
+        padding: 0.06in 0.08in;
+        border: ${tagBorderCss};
+        overflow: hidden;
+        position: relative;
+      }
+      .tag.has-qr .tag-content {
+        padding-right: ${QR_RESERVED_RIGHT_INCHES}in;
+        padding-bottom: ${QR_RESERVED_BOTTOM_INCHES}in;
+      }
+      .row {
+        display: grid;
+        column-gap: 0.06in;
+        align-items: ${rowAlignItems};
+      }
+      .row + .row {
+        margin-top: ${rowMarginTopPixels}px;
+      }
+      .cell {
+        line-height: ${cellLineHeight};
+        padding-top: ${cellPaddingTop};
+        padding-bottom: ${cellPaddingBottom};
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: clip;
+      }
+      .qr {
+        position: absolute;
+        right: ${QR_OFFSET_INCHES}in;
+        bottom: ${QR_OFFSET_INCHES}in;
+        width: ${QR_SIZE_INCHES}in;
+        height: ${QR_SIZE_INCHES}in;
+        background: #fff;
+      }
+      .qr svg {
+        display: block;
+        width: 100%;
+        height: 100%;
+      }
+    </style>
+  </head>
+  <body>
+    ${sheetMarkup}
+  </body>
+</html>`;
+}
+
 // ---------------------------------------------------------------------------
 // Print via hidden iframe
 // ---------------------------------------------------------------------------
 
-function printTagDocument(html: string) {
+interface PreparedTagDocumentFrame {
+  iframe: HTMLIFrameElement;
+  iframeWindow: Window;
+  cleanup: () => void;
+}
+
+function prepareTagDocumentFrame(html: string): PreparedTagDocumentFrame | null {
   const iframe = document.createElement("iframe");
   iframe.setAttribute("aria-hidden", "true");
   iframe.style.position = "fixed";
@@ -1101,28 +1495,508 @@ function printTagDocument(html: string) {
   document.body.appendChild(iframe);
 
   const frameDocument = iframe.contentDocument;
-  if (!frameDocument) {
+  const iframeWindow = iframe.contentWindow;
+  if (!frameDocument || !iframeWindow) {
     cleanup();
     toast.error("Unable to prepare tag document.");
-    return;
+    return null;
   }
 
   frameDocument.open();
   frameDocument.write(html);
   frameDocument.close();
 
+  return { iframe, iframeWindow, cleanup };
+}
+
+function printTagDocument(html: string) {
+  const preparedFrame = prepareTagDocumentFrame(html);
+  if (!preparedFrame) return;
+
   window.setTimeout(() => {
-    const iframeWindow = iframe.contentWindow;
-    if (!iframeWindow) {
-      cleanup();
-      toast.error("Unable to print tag document.");
-      return;
+    preparedFrame.iframeWindow.focus();
+    preparedFrame.iframeWindow.print();
+    window.setTimeout(preparedFrame.cleanup, 1000);
+  }, 200);
+}
+
+// ---------------------------------------------------------------------------
+// Export downloads
+// ---------------------------------------------------------------------------
+
+function waitForFrameRender(frameWindow: Window) {
+  return new Promise<void>((resolve) => {
+    frameWindow.requestAnimationFrame(() => resolve());
+  });
+}
+
+function buildTagExportDateStamp() {
+  const now = new Date();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+  return `${now.getFullYear()}${month}${day}`;
+}
+
+function buildTagsHtmlFilename() {
+  return `daylily-tags-${buildTagExportDateStamp()}.html`;
+}
+
+function buildTagSheetsHtmlFilename() {
+  return `daylily-tag-sheets-${buildTagExportDateStamp()}.html`;
+}
+
+function buildTagSheetsPdfFilename() {
+  return `daylily-tag-sheets-${buildTagExportDateStamp()}.pdf`;
+}
+
+function buildTagSheetImagesZipFilename() {
+  return `daylily-tag-sheet-images-${buildTagExportDateStamp()}.zip`;
+}
+
+function buildTagsPdfFilename() {
+  return `daylily-tags-${buildTagExportDateStamp()}.pdf`;
+}
+
+function buildTagImagesZipFilename() {
+  return `daylily-tag-images-${buildTagExportDateStamp()}.zip`;
+}
+
+function triggerBlobDownload(blob: Blob, filename: string) {
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = filename;
+  anchor.click();
+  URL.revokeObjectURL(url);
+}
+
+function downloadTagDocumentHtml(
+  html: string,
+  filename: string = buildTagsHtmlFilename(),
+) {
+  const blob = new Blob([html], { type: "text/html;charset=utf-8;" });
+  triggerBlobDownload(blob, filename);
+}
+
+type Html2CanvasRenderer = (
+  element: HTMLElement,
+  options: {
+    backgroundColor: string;
+    scale: number;
+    foreignObjectRendering: boolean;
+    logging: boolean;
+    useCORS: boolean;
+    width: number;
+    height: number;
+  },
+) => Promise<HTMLCanvasElement>;
+
+async function renderSingleTagCanvas({
+  tag,
+  widthInches,
+  heightInches,
+  html2canvas,
+}: {
+  tag: TagPreviewData;
+  widthInches: number;
+  heightInches: number;
+  html2canvas: Html2CanvasRenderer;
+}) {
+  const html = createTagPrintDocumentHtml({
+    tags: [tag],
+    widthInches,
+    heightInches,
+    mode: "raster",
+  });
+  const preparedFrame = prepareTagDocumentFrame(html);
+  if (!preparedFrame) return null;
+
+  try {
+    const frameDocument = preparedFrame.iframe.contentDocument;
+    if (!frameDocument) return null;
+
+    if (frameDocument.fonts) {
+      await frameDocument.fonts.ready;
+    }
+    await waitForFrameRender(preparedFrame.iframeWindow);
+    await waitForFrameRender(preparedFrame.iframeWindow);
+
+    const tagElement = frameDocument.querySelector<HTMLElement>(".tag");
+    if (!tagElement) return null;
+
+    const canvas = await html2canvas(tagElement, {
+      backgroundColor: "#ffffff",
+      scale: 3,
+      foreignObjectRendering: true,
+      logging: false,
+      useCORS: true,
+      width: tagElement.offsetWidth,
+      height: tagElement.offsetHeight,
+    });
+
+    return canvas;
+  } finally {
+    preparedFrame.cleanup();
+  }
+}
+
+async function renderTagCanvasesForExport({
+  tags,
+  widthInches,
+  heightInches,
+}: {
+  tags: TagPreviewData[];
+  widthInches: number;
+  heightInches: number;
+}) {
+  if (!tags.length) return null;
+
+  try {
+    const { default: html2canvas } = await import("html2canvas");
+    const canvases: HTMLCanvasElement[] = [];
+
+    for (const tag of tags) {
+      const canvas = await renderSingleTagCanvas({
+        tag,
+        widthInches,
+        heightInches,
+        html2canvas,
+      });
+      if (!canvas) {
+        toast.error("Unable to prepare tag export.");
+        return null;
+      }
+
+      canvases.push(canvas);
     }
 
-    iframeWindow.focus();
-    iframeWindow.print();
-    window.setTimeout(cleanup, 1000);
-  }, 200);
+    return canvases;
+  } catch (error) {
+    console.error("Failed to render tag canvases for export", error);
+    toast.error("Unable to render tag export.");
+    return null;
+  }
+}
+
+function chunkTags<T>(items: T[], chunkSize: number): T[][] {
+  if (chunkSize <= 0) return [];
+  const chunks: T[][] = [];
+  for (let index = 0; index < items.length; index += chunkSize) {
+    chunks.push(items.slice(index, index + chunkSize));
+  }
+  return chunks;
+}
+
+async function renderSingleSheetCanvas({
+  sheetTags,
+  sheetState,
+  tagWidthInches,
+  tagHeightInches,
+  html2canvas,
+}: {
+  sheetTags: TagPreviewData[];
+  sheetState: TagSheetCreatorState;
+  tagWidthInches: number;
+  tagHeightInches: number;
+  html2canvas: Html2CanvasRenderer;
+}) {
+  const html = createTagSheetDocumentHtml({
+    tags: sheetTags,
+    sheetState,
+    tagWidthInches,
+    tagHeightInches,
+  });
+  if (!html) return null;
+
+  const preparedFrame = prepareTagDocumentFrame(html);
+  if (!preparedFrame) return null;
+
+  try {
+    const frameDocument = preparedFrame.iframe.contentDocument;
+    if (!frameDocument) return null;
+
+    if (frameDocument.fonts) {
+      await frameDocument.fonts.ready;
+    }
+    await waitForFrameRender(preparedFrame.iframeWindow);
+    await waitForFrameRender(preparedFrame.iframeWindow);
+
+    const sheetElement = frameDocument.querySelector<HTMLElement>(".sheet-page");
+    if (!sheetElement) return null;
+
+    const canvas = await html2canvas(sheetElement, {
+      backgroundColor: "#ffffff",
+      scale: 2,
+      foreignObjectRendering: true,
+      logging: false,
+      useCORS: true,
+      width: sheetElement.offsetWidth,
+      height: sheetElement.offsetHeight,
+    });
+
+    return canvas;
+  } finally {
+    preparedFrame.cleanup();
+  }
+}
+
+async function renderSheetCanvasesForExport({
+  tags,
+  sheetState,
+  tagWidthInches,
+  tagHeightInches,
+}: {
+  tags: TagPreviewData[];
+  sheetState: TagSheetCreatorState;
+  tagWidthInches: number;
+  tagHeightInches: number;
+}) {
+  if (!tags.length) return null;
+
+  const metrics = resolveSheetMetrics(sheetState, {
+    tagWidthInches,
+    tagHeightInches,
+  });
+  if (!metrics.isValid) return null;
+
+  try {
+    const { default: html2canvas } = await import("html2canvas");
+    const canvases: HTMLCanvasElement[] = [];
+    const sheets = chunkTags(tags, metrics.tagsPerSheet);
+
+    for (const sheetTags of sheets) {
+      const canvas = await renderSingleSheetCanvas({
+        sheetTags,
+        sheetState,
+        tagWidthInches,
+        tagHeightInches,
+        html2canvas,
+      });
+      if (!canvas) {
+        toast.error("Unable to prepare sheet export.");
+        return null;
+      }
+      canvases.push(canvas);
+    }
+
+    return canvases;
+  } catch (error) {
+    console.error("Failed to render sheet canvases for export", error);
+    toast.error("Unable to render sheet export.");
+    return null;
+  }
+}
+
+function canvasToPngBlob(canvas: HTMLCanvasElement) {
+  return new Promise<Blob>((resolve, reject) => {
+    canvas.toBlob(
+      (blob) => {
+        if (blob) {
+          resolve(blob);
+          return;
+        }
+        reject(new Error("Canvas toBlob returned null"));
+      },
+      "image/png",
+      1,
+    );
+  });
+}
+
+async function downloadTagDocumentPdf({
+  tags,
+  widthInches,
+  heightInches,
+}: {
+  tags: TagPreviewData[];
+  widthInches: number;
+  heightInches: number;
+}) {
+  const canvases = await renderTagCanvasesForExport({
+    tags,
+    widthInches,
+    heightInches,
+  });
+  if (!canvases || canvases.length === 0) return false;
+
+  try {
+    const { jsPDF } = await import("jspdf");
+    const pageWidthPoints = Number((widthInches * 72).toFixed(2));
+    const pageHeightPoints = Number((heightInches * 72).toFixed(2));
+    const pdf = new jsPDF({
+      orientation:
+        pageWidthPoints >= pageHeightPoints ? "landscape" : "portrait",
+      unit: "pt",
+      format: [pageWidthPoints, pageHeightPoints],
+      compress: true,
+    });
+
+    canvases.forEach((canvas, index) => {
+      if (index > 0) {
+        pdf.addPage([pageWidthPoints, pageHeightPoints]);
+      }
+      pdf.addImage(
+        canvas.toDataURL("image/png"),
+        "PNG",
+        0,
+        0,
+        pageWidthPoints,
+        pageHeightPoints,
+        undefined,
+        "FAST",
+      );
+    });
+
+    pdf.save(buildTagsPdfFilename());
+    return true;
+  } catch (error) {
+    console.error("Failed to export tags as PDF", error);
+    toast.error("Unable to export PDF.");
+    return false;
+  }
+}
+
+async function downloadTagImagesZip({
+  tags,
+  widthInches,
+  heightInches,
+}: {
+  tags: TagPreviewData[];
+  widthInches: number;
+  heightInches: number;
+}) {
+  const canvases = await renderTagCanvasesForExport({
+    tags,
+    widthInches,
+    heightInches,
+  });
+  if (!canvases || canvases.length === 0) return false;
+
+  try {
+    const { default: JSZip } = await import("jszip");
+    const zip = new JSZip();
+    const folder = zip.folder("daylily-tags");
+
+    for (const [index, canvas] of canvases.entries()) {
+      const fileName = `tag-${String(index + 1).padStart(3, "0")}.png`;
+      const blob = await canvasToPngBlob(canvas);
+      folder?.file(fileName, blob);
+    }
+
+    const zipBlob = await zip.generateAsync({
+      type: "blob",
+      compression: "DEFLATE",
+      compressionOptions: { level: 6 },
+    });
+
+    triggerBlobDownload(zipBlob, buildTagImagesZipFilename());
+    return true;
+  } catch (error) {
+    console.error("Failed to export tag images zip", error);
+    toast.error("Unable to export images.");
+    return false;
+  }
+}
+
+async function downloadTagSheetsPdf({
+  tags,
+  sheetState,
+  tagWidthInches,
+  tagHeightInches,
+}: {
+  tags: TagPreviewData[];
+  sheetState: TagSheetCreatorState;
+  tagWidthInches: number;
+  tagHeightInches: number;
+}) {
+  const canvases = await renderSheetCanvasesForExport({
+    tags,
+    sheetState,
+    tagWidthInches,
+    tagHeightInches,
+  });
+  if (!canvases || canvases.length === 0) return false;
+
+  try {
+    const { jsPDF } = await import("jspdf");
+    const pageWidthPoints = Number((sheetState.pageWidthInches * 72).toFixed(2));
+    const pageHeightPoints = Number((sheetState.pageHeightInches * 72).toFixed(2));
+    const pdf = new jsPDF({
+      orientation:
+        pageWidthPoints >= pageHeightPoints ? "landscape" : "portrait",
+      unit: "pt",
+      format: [pageWidthPoints, pageHeightPoints],
+      compress: true,
+    });
+
+    canvases.forEach((canvas, index) => {
+      if (index > 0) {
+        pdf.addPage([pageWidthPoints, pageHeightPoints]);
+      }
+      pdf.addImage(
+        canvas.toDataURL("image/png"),
+        "PNG",
+        0,
+        0,
+        pageWidthPoints,
+        pageHeightPoints,
+        undefined,
+        "FAST",
+      );
+    });
+
+    pdf.save(buildTagSheetsPdfFilename());
+    return true;
+  } catch (error) {
+    console.error("Failed to export tag sheets as PDF", error);
+    toast.error("Unable to export sheet PDF.");
+    return false;
+  }
+}
+
+async function downloadTagSheetImagesZip({
+  tags,
+  sheetState,
+  tagWidthInches,
+  tagHeightInches,
+}: {
+  tags: TagPreviewData[];
+  sheetState: TagSheetCreatorState;
+  tagWidthInches: number;
+  tagHeightInches: number;
+}) {
+  const canvases = await renderSheetCanvasesForExport({
+    tags,
+    sheetState,
+    tagWidthInches,
+    tagHeightInches,
+  });
+  if (!canvases || canvases.length === 0) return false;
+
+  try {
+    const { default: JSZip } = await import("jszip");
+    const zip = new JSZip();
+    const folder = zip.folder("daylily-tag-sheets");
+
+    for (const [index, canvas] of canvases.entries()) {
+      const fileName = `sheet-${String(index + 1).padStart(3, "0")}.png`;
+      const blob = await canvasToPngBlob(canvas);
+      folder?.file(fileName, blob);
+    }
+
+    const zipBlob = await zip.generateAsync({
+      type: "blob",
+      compression: "DEFLATE",
+      compressionOptions: { level: 6 },
+    });
+
+    triggerBlobDownload(zipBlob, buildTagSheetImagesZipFilename());
+    return true;
+  } catch (error) {
+    console.error("Failed to export tag sheet images zip", error);
+    toast.error("Unable to export sheet images.");
+    return false;
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -1458,13 +2332,23 @@ type UpdateTagDesignerState = (
 interface TagDesignerHeaderProps {
   selectedListingCount: number;
   onDownloadCsv: () => void;
+  onDownloadPages: () => void;
+  onDownloadPdf: () => void;
+  onDownloadImages: () => void;
+  onOpenSheetCreator: () => void;
   onPrint: () => void;
+  isPreparingDownload: boolean;
 }
 
 function TagDesignerHeader({
   selectedListingCount,
   onDownloadCsv,
+  onDownloadPages,
+  onDownloadPdf,
+  onDownloadImages,
+  onOpenSheetCreator,
   onPrint,
+  isPreparingDownload,
 }: TagDesignerHeaderProps) {
   const hasListings = selectedListingCount > 0;
 
@@ -1480,9 +2364,53 @@ function TagDesignerHeader({
       </div>
 
       <div className="flex items-center gap-2">
-        <Button variant="outline" onClick={onDownloadCsv} disabled={!hasListings}>
-          <Download className="mr-2 h-4 w-4" />
-          CSV
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="outline" disabled={!hasListings || isPreparingDownload}>
+              <Download className="mr-2 h-4 w-4" />
+              {isPreparingDownload ? "Preparing..." : "Download"}
+              <ChevronDown className="ml-2 h-3.5 w-3.5" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-44">
+            <DropdownMenuItem
+              onSelect={() => onDownloadPages()}
+              disabled={isPreparingDownload}
+            >
+              <FileDown className="h-4 w-4" />
+              Pages (.html)
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onSelect={() => onDownloadPdf()}
+              disabled={isPreparingDownload}
+            >
+              <FileText className="h-4 w-4" />
+              PDF (.pdf)
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onSelect={() => onDownloadImages()}
+              disabled={isPreparingDownload}
+            >
+              <FileImage className="h-4 w-4" />
+              Images (.zip)
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onSelect={() => onDownloadCsv()}
+              disabled={isPreparingDownload}
+            >
+              <Download className="h-4 w-4" />
+              CSV
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+        <Button
+          type="button"
+          variant="outline"
+          onClick={onOpenSheetCreator}
+          disabled={!hasListings}
+        >
+          <LayoutGrid className="mr-2 h-4 w-4" />
+          Make Sheet
         </Button>
         <Button onClick={onPrint} disabled={!hasListings}>
           <Printer className="mr-2 h-4 w-4" />
@@ -1490,6 +2418,486 @@ function TagDesignerHeader({
         </Button>
       </div>
     </div>
+  );
+}
+
+type UpdateTagSheetCreatorState = (
+  updater: (previous: TagSheetCreatorState) => TagSheetCreatorState,
+) => void;
+
+interface TagSheetCreatorDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  selectedListingCount: number;
+  previewTags: TagPreviewData[];
+  sheetState: TagSheetCreatorState;
+  sheetMetrics: ResolvedSheetMetrics;
+  updateSheetState: UpdateTagSheetCreatorState;
+  onDownloadSheetPages: () => void;
+  onDownloadSheetPdf: () => void;
+  onDownloadSheetImages: () => void;
+  onPrintSheets: () => void;
+  onResetToSingleTag: () => void;
+  isPreparingDownload: boolean;
+}
+
+function TagSheetCreatorDialog({
+  open,
+  onOpenChange,
+  selectedListingCount,
+  previewTags,
+  sheetState,
+  sheetMetrics,
+  updateSheetState,
+  onDownloadSheetPages,
+  onDownloadSheetPdf,
+  onDownloadSheetImages,
+  onPrintSheets,
+  onResetToSingleTag,
+  isPreparingDownload,
+}: TagSheetCreatorDialogProps) {
+  const estimatedSheetCount =
+    sheetMetrics.tagsPerSheet > 0
+      ? Math.ceil(selectedListingCount / sheetMetrics.tagsPerSheet)
+      : 0;
+  const firstSheetPreviewTags = React.useMemo(
+    () => previewTags.slice(0, sheetMetrics.tagsPerSheet),
+    [previewTags, sheetMetrics.tagsPerSheet],
+  );
+  const pageWidthPx = sheetState.pageWidthInches * CSS_PIXELS_PER_INCH;
+  const pageHeightPx = sheetState.pageHeightInches * CSS_PIXELS_PER_INCH;
+  const slotWidthPx = sheetMetrics.slotWidthInches * CSS_PIXELS_PER_INCH;
+  const slotHeightPx = sheetMetrics.slotHeightInches * CSS_PIXELS_PER_INCH;
+  const marginXPx = sheetState.marginXInches * CSS_PIXELS_PER_INCH;
+  const marginYPx = sheetState.marginYInches * CSS_PIXELS_PER_INCH;
+  const paddingXPx = sheetState.paddingXInches * CSS_PIXELS_PER_INCH;
+  const paddingYPx = sheetState.paddingYInches * CSS_PIXELS_PER_INCH;
+  const previewMaxWidthPx = 560;
+  const previewScale =
+    pageWidthPx > 0 ? Math.min(previewMaxWidthPx / pageWidthPx, 1) : 1;
+  const canExport = sheetMetrics.isValid && selectedListingCount > 0;
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-2xl">
+        <DialogHeader>
+          <DialogTitle>Sheet Creator</DialogTitle>
+          <DialogDescription>
+            Arrange selected tags onto printable sheets. Use the print dialog to
+            print on paper or Save as PDF.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="grid gap-3 md:grid-cols-2">
+          <div className="space-y-1">
+            <Label htmlFor="sheet-page-width">Page width (in)</Label>
+            <Input
+              id="sheet-page-width"
+              type="number"
+              min={MIN_SHEET_PAGE_WIDTH_INCHES}
+              max={MAX_SHEET_PAGE_WIDTH_INCHES}
+              step={0.01}
+              value={sheetState.pageWidthInches.toFixed(2)}
+              onChange={(event) =>
+                updateSheetState((previous) => ({
+                  ...previous,
+                  pageWidthInches: parseInches(
+                    event.target.value,
+                    previous.pageWidthInches,
+                    MIN_SHEET_PAGE_WIDTH_INCHES,
+                    MAX_SHEET_PAGE_WIDTH_INCHES,
+                  ),
+                }))
+              }
+            />
+          </div>
+
+          <div className="space-y-1">
+            <Label htmlFor="sheet-page-height">Page height (in)</Label>
+            <Input
+              id="sheet-page-height"
+              type="number"
+              min={MIN_SHEET_PAGE_HEIGHT_INCHES}
+              max={MAX_SHEET_PAGE_HEIGHT_INCHES}
+              step={0.01}
+              value={sheetState.pageHeightInches.toFixed(2)}
+              onChange={(event) =>
+                updateSheetState((previous) => ({
+                  ...previous,
+                  pageHeightInches: parseInches(
+                    event.target.value,
+                    previous.pageHeightInches,
+                    MIN_SHEET_PAGE_HEIGHT_INCHES,
+                    MAX_SHEET_PAGE_HEIGHT_INCHES,
+                  ),
+                }))
+              }
+            />
+          </div>
+
+          <div className="space-y-1">
+            <Label htmlFor="sheet-rows">Rows</Label>
+            <Input
+              id="sheet-rows"
+              type="number"
+              min={MIN_SHEET_ROWS}
+              max={MAX_SHEET_ROWS}
+              step={1}
+              value={sheetState.rows}
+              onChange={(event) =>
+                updateSheetState((previous) => ({
+                  ...previous,
+                  rows: parseWholeNumber(
+                    event.target.value,
+                    previous.rows,
+                    MIN_SHEET_ROWS,
+                    MAX_SHEET_ROWS,
+                  ),
+                }))
+              }
+            />
+          </div>
+
+          <div className="space-y-1">
+            <Label htmlFor="sheet-columns">Columns</Label>
+            <Input
+              id="sheet-columns"
+              type="number"
+              min={MIN_SHEET_COLUMNS}
+              max={MAX_SHEET_COLUMNS}
+              step={1}
+              value={sheetState.columns}
+              onChange={(event) =>
+                updateSheetState((previous) => ({
+                  ...previous,
+                  columns: parseWholeNumber(
+                    event.target.value,
+                    previous.columns,
+                    MIN_SHEET_COLUMNS,
+                    MAX_SHEET_COLUMNS,
+                  ),
+                }))
+              }
+            />
+          </div>
+
+          <div className="space-y-1">
+            <Label htmlFor="sheet-margin-x">Page margin X (in)</Label>
+            <Input
+              id="sheet-margin-x"
+              type="number"
+              min={MIN_SHEET_MARGIN_INCHES}
+              max={MAX_SHEET_MARGIN_INCHES}
+              step={0.01}
+              value={sheetState.marginXInches.toFixed(2)}
+              onChange={(event) =>
+                updateSheetState((previous) => ({
+                  ...previous,
+                  marginXInches: parseInches(
+                    event.target.value,
+                    previous.marginXInches,
+                    MIN_SHEET_MARGIN_INCHES,
+                    MAX_SHEET_MARGIN_INCHES,
+                  ),
+                }))
+              }
+            />
+          </div>
+
+          <div className="space-y-1">
+            <Label htmlFor="sheet-margin-y">Page margin Y (in)</Label>
+            <Input
+              id="sheet-margin-y"
+              type="number"
+              min={MIN_SHEET_MARGIN_INCHES}
+              max={MAX_SHEET_MARGIN_INCHES}
+              step={0.01}
+              value={sheetState.marginYInches.toFixed(2)}
+              onChange={(event) =>
+                updateSheetState((previous) => ({
+                  ...previous,
+                  marginYInches: parseInches(
+                    event.target.value,
+                    previous.marginYInches,
+                    MIN_SHEET_MARGIN_INCHES,
+                    MAX_SHEET_MARGIN_INCHES,
+                  ),
+                }))
+              }
+            />
+          </div>
+
+          <div className="space-y-1">
+            <Label htmlFor="sheet-padding-x">Tag padding X (in)</Label>
+            <Input
+              id="sheet-padding-x"
+              type="number"
+              min={MIN_SHEET_PADDING_INCHES}
+              max={MAX_SHEET_PADDING_INCHES}
+              step={0.01}
+              value={sheetState.paddingXInches.toFixed(2)}
+              onChange={(event) =>
+                updateSheetState((previous) => ({
+                  ...previous,
+                  paddingXInches: parseInches(
+                    event.target.value,
+                    previous.paddingXInches,
+                    MIN_SHEET_PADDING_INCHES,
+                    MAX_SHEET_PADDING_INCHES,
+                  ),
+                }))
+              }
+            />
+          </div>
+
+          <div className="space-y-1">
+            <Label htmlFor="sheet-padding-y">Tag padding Y (in)</Label>
+            <Input
+              id="sheet-padding-y"
+              type="number"
+              min={MIN_SHEET_PADDING_INCHES}
+              max={MAX_SHEET_PADDING_INCHES}
+              step={0.01}
+              value={sheetState.paddingYInches.toFixed(2)}
+              onChange={(event) =>
+                updateSheetState((previous) => ({
+                  ...previous,
+                  paddingYInches: parseInches(
+                    event.target.value,
+                    previous.paddingYInches,
+                    MIN_SHEET_PADDING_INCHES,
+                    MAX_SHEET_PADDING_INCHES,
+                  ),
+                }))
+              }
+            />
+          </div>
+
+          <div className="md:col-span-2">
+            <label
+              htmlFor="sheet-print-dashed-borders"
+              className="flex items-center gap-2 text-sm"
+            >
+              <input
+                id="sheet-print-dashed-borders"
+                type="checkbox"
+                checked={sheetState.printDashedBorders}
+                onChange={(event) =>
+                  updateSheetState((previous) => ({
+                    ...previous,
+                    printDashedBorders: event.target.checked,
+                  }))
+                }
+                className="h-4 w-4"
+              />
+              <span>Print dashed borders</span>
+            </label>
+          </div>
+        </div>
+
+        <div className="space-y-1 text-sm">
+          <p className="text-muted-foreground">
+            Tag size on sheet (fixed to active tag size):{" "}
+            {sheetMetrics.slotWidthInches.toFixed(2)}&quot; ×{" "}
+            {sheetMetrics.slotHeightInches.toFixed(2)}&quot;
+          </p>
+          <p className="text-muted-foreground">
+            {sheetMetrics.tagsPerSheet} tag
+            {sheetMetrics.tagsPerSheet === 1 ? "" : "s"} per sheet,{" "}
+            {estimatedSheetCount} sheet
+            {estimatedSheetCount === 1 ? "" : "s"} for {selectedListingCount}{" "}
+            selected.
+          </p>
+          {!sheetMetrics.isValid ? (
+            <p className="text-destructive">
+              Page too small for this layout. Required:{" "}
+              {sheetMetrics.requiredWidthInches.toFixed(2)}&quot; ×{" "}
+              {sheetMetrics.requiredHeightInches.toFixed(2)}&quot;.
+            </p>
+          ) : null}
+        </div>
+
+        <div className="space-y-2">
+          <h4 className="text-sm font-medium">Sheet Preview</h4>
+          {sheetMetrics.isValid && firstSheetPreviewTags.length > 0 ? (
+            <>
+              <div className="border-border bg-muted/20 overflow-auto rounded-md border p-3">
+                <div
+                  className="mx-auto"
+                  style={{
+                    width: `${pageWidthPx * previewScale}px`,
+                    height: `${pageHeightPx * previewScale}px`,
+                  }}
+                >
+                  <div
+                    className="origin-top-left"
+                    style={{
+                      width: `${pageWidthPx}px`,
+                      height: `${pageHeightPx}px`,
+                      transform: `scale(${previewScale})`,
+                    }}
+                  >
+                    <div
+                      className="bg-background border-border h-full w-full border"
+                      style={{
+                        padding: `${marginYPx}px ${marginXPx}px`,
+                        display: "grid",
+                        gridTemplateColumns: `repeat(${sheetState.columns}, ${slotWidthPx}px)`,
+                        gridTemplateRows: `repeat(${sheetState.rows}, ${slotHeightPx}px)`,
+                        columnGap: `${paddingXPx}px`,
+                        rowGap: `${paddingYPx}px`,
+                        alignContent: "start",
+                        justifyContent: "start",
+                      }}
+                    >
+                      {firstSheetPreviewTags.map((tag) => (
+                        <article
+                          key={`sheet-preview-${tag.id}`}
+                          className="border-muted-foreground/40 bg-background relative overflow-hidden border border-dashed p-2"
+                          style={{
+                            width: `${sheetMetrics.slotWidthInches}in`,
+                            height: `${sheetMetrics.slotHeightInches}in`,
+                          }}
+                        >
+                          <div
+                            style={{
+                              paddingRight: tag.qrCodeUrl
+                                ? `${QR_RESERVED_RIGHT_INCHES}in`
+                                : undefined,
+                              paddingBottom: tag.qrCodeUrl
+                                ? `${QR_RESERVED_BOTTOM_INCHES}in`
+                                : undefined,
+                            }}
+                          >
+                            {tag.rows.map((row) => (
+                              <div
+                                key={row.id}
+                                className="grid items-baseline gap-x-2"
+                                style={{
+                                  gridTemplateColumns: row.cells
+                                    .map((cell) => `${cell.width}fr`)
+                                    .join(" "),
+                                }}
+                              >
+                                {row.cells.map((cell) => (
+                                  <p
+                                    key={cell.id}
+                                    className={cn(
+                                      "min-w-0 leading-tight",
+                                      cell.wrap
+                                        ? "break-words whitespace-normal"
+                                        : "whitespace-nowrap",
+                                      cell.overflow
+                                        ? "overflow-visible"
+                                        : "overflow-hidden",
+                                      cell.bold && "font-semibold",
+                                      cell.italic && "italic",
+                                      cell.underline && "underline",
+                                      cell.textAlign === "center" &&
+                                        "text-center",
+                                      cell.textAlign === "right" && "text-right",
+                                      cell.textAlign === "left" && "text-left",
+                                    )}
+                                    style={{
+                                      fontSize: `${resolveCellFontSizePx(
+                                        cell,
+                                        row,
+                                        sheetMetrics.slotWidthInches,
+                                        Boolean(tag.qrCodeUrl),
+                                      )}px`,
+                                    }}
+                                  >
+                                    {cell.text}
+                                  </p>
+                                ))}
+                              </div>
+                            ))}
+                          </div>
+
+                          {tag.qrCodeUrl ? (
+                            <QrCodeSvg
+                              qrCodeUrl={tag.qrCodeUrl}
+                              className="absolute bg-white [&_svg]:block [&_svg]:h-full [&_svg]:w-full"
+                              style={{
+                                right: `${QR_OFFSET_INCHES}in`,
+                                bottom: `${QR_OFFSET_INCHES}in`,
+                                width: `${QR_SIZE_INCHES}in`,
+                                height: `${QR_SIZE_INCHES}in`,
+                              }}
+                            />
+                          ) : null}
+                        </article>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+              {estimatedSheetCount > 1 ? (
+                <p className="text-muted-foreground text-xs">
+                  Preview shows the first sheet only.
+                </p>
+              ) : null}
+            </>
+          ) : (
+            <p className="text-muted-foreground text-sm">
+              {selectedListingCount === 0
+                ? "Select listings below to preview sheet output."
+                : "Adjust settings so the selected page can fit the tag grid."}
+            </p>
+          )}
+        </div>
+
+        <DialogFooter className="gap-2">
+          <Button type="button" variant="ghost" onClick={onResetToSingleTag}>
+            Reset to 1 Tag
+          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                type="button"
+                variant="outline"
+                disabled={!canExport || isPreparingDownload}
+              >
+                <Download className="mr-2 h-4 w-4" />
+                {isPreparingDownload ? "Preparing..." : "Download"}
+                <ChevronDown className="ml-2 h-3.5 w-3.5" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-48">
+              <DropdownMenuItem
+                onSelect={() => onDownloadSheetPages()}
+                disabled={isPreparingDownload}
+              >
+                <FileDown className="h-4 w-4" />
+                HTML Sheets (.html)
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onSelect={() => onDownloadSheetPdf()}
+                disabled={isPreparingDownload}
+              >
+                <FileText className="h-4 w-4" />
+                PDF (.pdf)
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onSelect={() => onDownloadSheetImages()}
+                disabled={isPreparingDownload}
+              >
+                <FileImage className="h-4 w-4" />
+                Images (.zip)
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+          <Button
+            type="button"
+            onClick={onPrintSheets}
+            disabled={!canExport}
+          >
+            <Printer className="mr-2 h-4 w-4" />
+            Print Sheets
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -2058,6 +3466,8 @@ function TagDesignerPreview({
 // ---------------------------------------------------------------------------
 
 export function TagDesignerPanel({ listings }: { listings: TagListingData[] }) {
+  const [isPreparingDownload, setIsPreparingDownload] = React.useState(false);
+  const [isSheetCreatorOpen, setIsSheetCreatorOpen] = React.useState(false);
   const [storedState, setStoredState] = useLocalStorage<TagDesignerState>(
     TAG_DESIGNER_STORAGE_KEY,
     DEFAULT_TAG_DESIGNER_STATE,
@@ -2068,6 +3478,14 @@ export function TagDesignerPanel({ listings }: { listings: TagListingData[] }) {
     TAG_TEMPLATE_LIBRARY_STORAGE_KEY,
     [],
   );
+  const [storedSheetState, setStoredSheetState] =
+    useLocalStorage<TagSheetCreatorState>(
+      TAG_SHEET_CREATOR_STORAGE_KEY,
+      createDefaultSheetCreatorState({
+        tagWidthInches: DEFAULT_TAG_DESIGNER_STATE.customWidthInches,
+        tagHeightInches: DEFAULT_TAG_DESIGNER_STATE.customHeightInches,
+      }),
+    );
   const baseUrl = React.useMemo(() => getBaseUrl(), []);
 
   const state = React.useMemo(
@@ -2313,6 +3731,40 @@ export function TagDesignerPanel({ listings }: { listings: TagListingData[] }) {
       ? state.customHeightInches
       : activeSizePreset.heightInches;
 
+  const sheetState = React.useMemo(
+    () =>
+      sanitizeTagSheetCreatorState(storedSheetState, {
+        tagWidthInches: widthInches,
+        tagHeightInches: heightInches,
+      }),
+    [heightInches, storedSheetState, widthInches],
+  );
+
+  const updateSheetState = React.useCallback(
+    (updater: (previous: TagSheetCreatorState) => TagSheetCreatorState) => {
+      setStoredSheetState((previous) => {
+        const normalized = sanitizeTagSheetCreatorState(previous, {
+          tagWidthInches: widthInches,
+          tagHeightInches: heightInches,
+        });
+        return sanitizeTagSheetCreatorState(updater(normalized), {
+          tagWidthInches: widthInches,
+          tagHeightInches: heightInches,
+        });
+      });
+    },
+    [heightInches, setStoredSheetState, widthInches],
+  );
+
+  const sheetMetrics = React.useMemo(
+    () =>
+      resolveSheetMetrics(sheetState, {
+        tagWidthInches: widthInches,
+        tagHeightInches: heightInches,
+      }),
+    [heightInches, sheetState, widthInches],
+  );
+
   const previewTags = React.useMemo<TagPreviewData[]>(() => {
     const toPreview = listings.length > 0 ? listings : [PLACEHOLDER_LISTING];
     return toPreview.map((listing) => ({
@@ -2422,8 +3874,71 @@ export function TagDesignerPanel({ listings }: { listings: TagListingData[] }) {
     setStoredState(DEFAULT_TAG_DESIGNER_STATE);
   }, [setStoredState]);
 
+  const handleOpenSheetCreator = React.useCallback(() => {
+    if (typeof window !== "undefined") {
+      const existingSheetState = window.localStorage.getItem(
+        TAG_SHEET_CREATOR_STORAGE_KEY,
+      );
+      if (!existingSheetState) {
+        setStoredSheetState(
+          createDefaultSheetCreatorState({
+            tagWidthInches: widthInches,
+            tagHeightInches: heightInches,
+          }),
+        );
+      }
+    }
+    setIsSheetCreatorOpen(true);
+  }, [heightInches, setStoredSheetState, widthInches]);
+
+  const handleResetSheetToSingleTag = React.useCallback(() => {
+    setStoredSheetState(
+      createDefaultSheetCreatorState({
+        tagWidthInches: widthInches,
+        tagHeightInches: heightInches,
+      }),
+    );
+  }, [heightInches, setStoredSheetState, widthInches]);
+
+  const createSheetHtml = React.useCallback(() => {
+    if (!listings.length) {
+      toast.error("Select at least one listing in the table before printing.");
+      return null;
+    }
+    if (!sheetMetrics.isValid) {
+      toast.error("Adjust sheet settings so the tag grid fits the page.");
+      return null;
+    }
+
+    return createTagSheetDocumentHtml({
+      tags: previewTags,
+      sheetState,
+      tagWidthInches: widthInches,
+      tagHeightInches: heightInches,
+    });
+  }, [
+    heightInches,
+    listings.length,
+    previewTags,
+    sheetMetrics.isValid,
+    sheetState,
+    widthInches,
+  ]);
+
+  const isSheetExportReady = React.useCallback(() => {
+    if (!listings.length) {
+      toast.error("Select at least one listing in the table before downloading.");
+      return false;
+    }
+    if (!sheetMetrics.isValid) {
+      toast.error("Adjust sheet settings so the tag grid fits the page.");
+      return false;
+    }
+    return true;
+  }, [listings.length, sheetMetrics.isValid]);
+
   const handlePrint = () => {
-    if (!previewTags.length) {
+    if (!listings.length) {
       toast.error("Select at least one listing in the table before printing.");
       return;
     }
@@ -2437,12 +3952,176 @@ export function TagDesignerPanel({ listings }: { listings: TagListingData[] }) {
     printTagDocument(html);
   };
 
+  const handleDownloadSheetPages = React.useCallback(() => {
+    if (isPreparingDownload) return;
+    const html = createSheetHtml();
+    if (!html) return;
+
+    downloadTagDocumentHtml(html, buildTagSheetsHtmlFilename());
+    toast.success("Sheet pages download started.");
+  }, [createSheetHtml, isPreparingDownload]);
+
+  const handleDownloadSheetPdf = React.useCallback(async () => {
+    if (isPreparingDownload) return;
+    if (!isSheetExportReady()) return;
+
+    setIsPreparingDownload(true);
+    try {
+      const didDownload = await downloadTagSheetsPdf({
+        tags: previewTags,
+        sheetState,
+        tagWidthInches: widthInches,
+        tagHeightInches: heightInches,
+      });
+      if (didDownload) {
+        toast.success("Sheet PDF download started.");
+      }
+    } finally {
+      setIsPreparingDownload(false);
+    }
+  }, [
+    heightInches,
+    isPreparingDownload,
+    isSheetExportReady,
+    previewTags,
+    sheetState,
+    widthInches,
+  ]);
+
+  const handleDownloadSheetImages = React.useCallback(async () => {
+    if (isPreparingDownload) return;
+    if (!isSheetExportReady()) return;
+
+    setIsPreparingDownload(true);
+    try {
+      const didDownload = await downloadTagSheetImagesZip({
+        tags: previewTags,
+        sheetState,
+        tagWidthInches: widthInches,
+        tagHeightInches: heightInches,
+      });
+      if (didDownload) {
+        toast.success("Sheet images download started.");
+      }
+    } finally {
+      setIsPreparingDownload(false);
+    }
+  }, [
+    heightInches,
+    isPreparingDownload,
+    isSheetExportReady,
+    previewTags,
+    sheetState,
+    widthInches,
+  ]);
+
+  const handlePrintSheets = React.useCallback(() => {
+    if (!isSheetExportReady()) return;
+    const html = createSheetHtml();
+    if (!html) return;
+
+    printTagDocument(html);
+  }, [createSheetHtml, isSheetExportReady]);
+
+  const handleDownloadPages = React.useCallback(() => {
+    if (isPreparingDownload) return;
+    if (!listings.length) {
+      toast.error("Select at least one listing in the table before downloading.");
+      return;
+    }
+
+    const html = createTagPrintDocumentHtml({
+      tags: previewTags,
+      widthInches,
+      heightInches,
+    });
+    downloadTagDocumentHtml(html);
+    toast.success("Pages download started.");
+  }, [heightInches, isPreparingDownload, listings.length, previewTags, widthInches]);
+
+  const handleDownloadPdf = React.useCallback(async () => {
+    if (isPreparingDownload) return;
+    if (!listings.length) {
+      toast.error("Select at least one listing in the table before downloading.");
+      return;
+    }
+
+    setIsPreparingDownload(true);
+    try {
+      const didDownload = await downloadTagDocumentPdf({
+        tags: previewTags,
+        widthInches,
+        heightInches,
+      });
+      if (didDownload) {
+        toast.success("PDF download started.");
+      }
+    } finally {
+      setIsPreparingDownload(false);
+    }
+  }, [
+    heightInches,
+    isPreparingDownload,
+    listings.length,
+    previewTags,
+    widthInches,
+  ]);
+
+  const handleDownloadImages = React.useCallback(async () => {
+    if (isPreparingDownload) return;
+    if (!listings.length) {
+      toast.error("Select at least one listing in the table before downloading.");
+      return;
+    }
+
+    setIsPreparingDownload(true);
+    try {
+      const didDownload = await downloadTagImagesZip({
+        tags: previewTags,
+        widthInches,
+        heightInches,
+      });
+      if (didDownload) {
+        toast.success("Images download started.");
+      }
+    } finally {
+      setIsPreparingDownload(false);
+    }
+  }, [
+    heightInches,
+    isPreparingDownload,
+    listings.length,
+    previewTags,
+    widthInches,
+  ]);
+
   return (
     <section className="border-border bg-card mx-auto max-w-5xl space-y-4 rounded-lg border p-4">
       <TagDesignerHeader
         selectedListingCount={listings.length}
         onDownloadCsv={() => downloadSelectedListingsCsv(listings, state.rows)}
+        onDownloadPages={handleDownloadPages}
+        onDownloadPdf={() => void handleDownloadPdf()}
+        onDownloadImages={() => void handleDownloadImages()}
+        onOpenSheetCreator={handleOpenSheetCreator}
         onPrint={handlePrint}
+        isPreparingDownload={isPreparingDownload}
+      />
+
+      <TagSheetCreatorDialog
+        open={isSheetCreatorOpen}
+        onOpenChange={setIsSheetCreatorOpen}
+        selectedListingCount={listings.length}
+        previewTags={listings.length > 0 ? previewTags : []}
+        sheetState={sheetState}
+        sheetMetrics={sheetMetrics}
+        updateSheetState={updateSheetState}
+        onDownloadSheetPages={handleDownloadSheetPages}
+        onDownloadSheetPdf={() => void handleDownloadSheetPdf()}
+        onDownloadSheetImages={() => void handleDownloadSheetImages()}
+        onPrintSheets={handlePrintSheets}
+        onResetToSingleTag={handleResetSheetToSingleTag}
+        isPreparingDownload={isPreparingDownload}
       />
 
       <TagDesignerControls
