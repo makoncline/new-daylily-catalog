@@ -2,6 +2,18 @@
 
 ## Log
 
+- 2026-02-23 - cache dedupe pattern - To avoid duplicated public profile cache wrappers without pulling broad public-cache deps into route tests, add a narrow shared module (`src/server/db/public-profile-cache.ts`) and re-export it from `public-cache.ts`.
+- 2026-02-23 - local e2e cache bypass policy - Even when local Playwright passes with cache enabled, keeping `PLAYWRIGHT_LOCAL_E2E` bypass in `createServerCache` preserves deterministic no-cache test runs and previous repo behavior.
+- 2026-02-23 - t3 baseline cache default - create-t3-app template `query-client.ts` uses `staleTime: 30 * 1000` by default (SSR anti-refetch baseline); our experiment override to `staleTime: 0`, `gcTime: 0`, and always-refetch is intentionally more aggressive and should be treated as a policy decision, not assumed template behavior.
+- 2026-02-23 - public catalog test typing - `PublicCatalogSearchClient` tests need `PublicCatalogListing[]`; minimal `{id,title}` fixtures should go through a local typed factory (`as PublicCatalogListing`) to keep behavior-focused tests small while passing `tsc --noEmit`.
+- 2026-02-23 - dashboard test timing verification - Re-checked `tests/dashboard-db-list-membership-sync.test.tsx` without timeout: it passes alone (~3.7s) but times out at 5s when run with other dashboard DB integration tests; timeout bump is for runtime variance, not assertion changes.
+- 2026-02-23 - test strategy correction - I started adapting production code to satisfy snapshot-implementation tests; user clarified tests should be updated for intended behavior of new caching strategy instead of preserving old implementation-detail assertions.
+- 2026-02-23 - integration timing flake - `tests/dashboard-db-list-membership-sync.test.tsx` is stable in isolation but can exceed default 5s in full suite; scoped timeout increase to 10s fixed suite reliability without changing assertions.
+- 2026-02-23 - next segment-config self-miss - I switched route `revalidate` exports to imported config constants and Next 16 build failed with `Invalid segment configuration export`; keep route segment config as literals and annotate with searchable `CACHE_LITERAL_REF` comments.
+- 2026-02-23 - shell glob self-miss - I hit `zsh: missing delimiter for 'u' glob qualifier` by running `rg` against `src/app/(public)` without quoting; always quote App Router paths with parentheses/brackets in shell commands.
+- 2026-02-23 - public caching target definition - User wants static/ISR (24h) for `/`, `/catalogs`, `/{slug}`, `/{slug}?page=n`, and `/cultivar/{slug}`; `/{slug}/search` must stay non-static, non-robots, and use 24h stale-while-revalidate behavior.
+- 2026-02-23 - dashboard refresh scope decision - User confirmed dashboard strategy: keep incremental `since` sync triggers and manual full refresh path, remove global tRPC mutate invalidate-all, remove sidebar 60s polling.
+- 2026-02-23 - cache scope correction - I started removing dashboard TanStack DB cursor sync state as "cache"; user clarified TanStack DB internals should not count for this experiment, so keep those mechanisms unchanged.
 - 2026-02-23 - cache-removal experiment pattern - For "remove caching" requests in this repo, strip `unstable_cache`/React `cache()` wrappers, remove query prefetch warmups, disable persistence modules with no-op exports, and keep only route-level ISR `revalidate` exports on static pages.
 - 2026-02-21 - id-format assumption self-miss - I initially gated proxy canonical lookup to numeric IDs only; this app also uses non-numeric `User.id` values in tests/fixtures, so query-preserving canonical redirects must not assume numeric IDs.
 - 2026-02-21 - seo redirect preference update - User wants `/{userId}` -> `/{slug}` canonicalization to stay server-side for SEO; preserve query params in proxy/server redirect path instead of client `router.replace`.
@@ -122,7 +134,11 @@
 
 ## Preferences
 
+- For caching-related test updates, prioritize behavior-level assertions over implementation details; only update tests for intended behavior changes.
+- For Next route segment config values that must remain literal (`revalidate`), include a searchable inline marker comment pointing to the canonical config constant (`CACHE_LITERAL_REF: ...`).
+- Public pages caching target: static/ISR 24h for `/`, `/catalogs`, `/{slug}`, `/{slug}?page=n`, `/cultivar/{slug}`; keep `/{slug}/search` non-static + noindex with 24h SWR.
 - Skip tests while caching behavior is being iterated experimentally unless explicitly asked to run or update them.
+- TanStack DB internals should not be treated as cache for this experiment.
 - Keep query params when redirecting public profile routes from `/{userId}` to `/{slug}`.
 - Keep `/{userId}` -> `/{slug}` canonical redirects server-side (SEO), not client-side.
 - Write tests, not too many, mostly integration, hapy path e2e.

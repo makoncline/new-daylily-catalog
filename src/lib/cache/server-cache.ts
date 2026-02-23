@@ -11,7 +11,11 @@ export function createServerCache<Args extends unknown[], Result>(
   fn: (...args: Args) => Promise<Result>,
   options: CreateServerCacheOptions,
 ) {
-  if (process.env.NODE_ENV === "test" || process.env.VITEST === "true") {
+  if (
+    process.env.NODE_ENV === "test" ||
+    process.env.VITEST === "true" ||
+    process.env.PLAYWRIGHT_LOCAL_E2E === "true"
+  ) {
     return (...args: Args) => fn(...args);
   }
 

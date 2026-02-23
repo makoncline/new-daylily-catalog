@@ -1,6 +1,7 @@
 import { render, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { PublicCatalogSearchClient } from "@/components/public-catalog-search/public-catalog-search-client";
+import { type PublicCatalogListing } from "@/components/public-catalog-search/public-catalog-search-types";
 
 const mockUseInfiniteQuery = vi.hoisted(() => vi.fn());
 const mockFetchNextPage = vi.hoisted(() => vi.fn());
@@ -39,6 +40,10 @@ function getRenderedContentProps() {
   };
 }
 
+function createListing(id: string, title: string): PublicCatalogListing {
+  return { id, title } as PublicCatalogListing;
+}
+
 describe("PublicCatalogSearchClient", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -53,8 +58,8 @@ describe("PublicCatalogSearchClient", () => {
 
   it("falls back to initial listings when query data is not available", () => {
     const initialListings = [
-      { id: "listing-1", title: "Alpha" },
-      { id: "listing-2", title: "Beta" },
+      createListing("listing-1", "Alpha"),
+      createListing("listing-2", "Beta"),
     ];
 
     render(
@@ -79,10 +84,10 @@ describe("PublicCatalogSearchClient", () => {
       data: {
         pages: [
           [
-            { id: "listing-b", title: "Beta" },
-            { id: "listing-a", title: "Alpha" },
+            createListing("listing-b", "Beta"),
+            createListing("listing-a", "Alpha"),
           ],
-          [{ id: "listing-a", title: "Alpha" }],
+          [createListing("listing-a", "Alpha")],
         ],
         pageParams: [undefined, "listing-a"],
       },
@@ -111,7 +116,7 @@ describe("PublicCatalogSearchClient", () => {
   it("fetches the next page when another page is available", async () => {
     mockUseInfiniteQuery.mockReturnValue({
       data: {
-        pages: [[{ id: "listing-1", title: "Alpha" }]],
+        pages: [[createListing("listing-1", "Alpha")]],
         pageParams: [undefined],
       },
       fetchNextPage: mockFetchNextPage,
