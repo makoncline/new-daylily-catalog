@@ -5,7 +5,7 @@ import { vi } from "vitest";
 import { createTRPCProxyClient, type TRPCLink } from "@trpc/client";
 import { observable } from "@trpc/server/observable";
 import type { AppRouter } from "@/server/api/root";
-import type { createTRPCContext } from "@/server/api/trpc";
+import type { TRPCInternalContext } from "@/server/api/trpc";
 
 const TMP_DIR = path.join(process.cwd(), "tests", ".tmp");
 
@@ -68,7 +68,6 @@ export function prismaDbPush(sqliteUrl: string) {
 }
 
 type AnyCaller = Record<string, unknown>;
-type TRPCContext = Awaited<ReturnType<typeof createTRPCContext>>;
 
 export function callerLink(caller: AnyCaller): TRPCLink<AppRouter> {
   return () =>
@@ -148,8 +147,8 @@ export async function withTempAppDb<T>(
       return {
         db,
         headers: new Headers(),
-        user: { id: user.id } as unknown as TRPCContext["user"],
-      } satisfies TRPCContext;
+        _authUser: { id: user.id } as unknown as TRPCInternalContext["_authUser"],
+      } satisfies TRPCInternalContext;
     });
 
     const clientLike = createTRPCProxyClient<AppRouter>({

@@ -1,6 +1,7 @@
 // @vitest-environment node
 
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import type { TRPCInternalContext } from "@/server/api/trpc";
 
 process.env.SKIP_ENV_VALIDATION = "1";
 process.env.LOCAL_DATABASE_URL ??= "file:./tests/.tmp/ahs-router-unit.sqlite";
@@ -39,8 +40,8 @@ function createMockDb(): MockDb {
 
 function createCaller(db: MockDb) {
   return ahsRouter.createCaller({
-    db: db as never,
-    user: { id: "user-1" } as never,
+    db: db as unknown as TRPCInternalContext["db"],
+    _authUser: { id: "user-1" } as unknown as TRPCInternalContext["_authUser"],
     headers: new Headers(),
   });
 }
