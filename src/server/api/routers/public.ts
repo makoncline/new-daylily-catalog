@@ -8,7 +8,6 @@ import {
   getPublicProfile,
   getUserIdFromSlugOrId,
 } from "@/server/db/getPublicProfile";
-import { unstable_cache } from "next/cache";
 import {
   getListings,
   listingSelect,
@@ -22,7 +21,6 @@ import { SESClient, SendEmailCommand } from "@aws-sdk/client-ses";
 import { env } from "@/env";
 import { cartItemSchema } from "@/types";
 import { STATUS } from "@/config/constants";
-import { PUBLIC_CACHE_CONFIG } from "@/config/public-cache-config";
 import { getDisplayAhsListing } from "@/lib/utils/ahs-display";
 
 // Initialize SES client
@@ -71,12 +69,6 @@ async function getFullListingData(listingId: string) {
   };
 }
 
-const getListingsCached = (userId: string) =>
-  unstable_cache(getListings, [], {
-    revalidate: PUBLIC_CACHE_CONFIG.REVALIDATE_SECONDS.DATA.PUBLIC_ROUTER_LISTINGS,
-    tags: [`listings-${userId}`],
-  });
-
 export const publicRouter = createTRPCRouter({
   getPublicProfiles: publicProcedure.query(async () => {
     try {
@@ -118,7 +110,7 @@ export const publicRouter = createTRPCRouter({
     .query(async ({ input }) => {
       try {
         const userId = await getUserIdFromSlugOrId(input.userSlugOrId);
-        const items = await getListingsCached(userId)({
+        const items = await getListings({
           userId,
           limit: input.limit,
           cursor: input.cursor,

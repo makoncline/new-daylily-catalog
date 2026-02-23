@@ -2,6 +2,7 @@
 
 ## Log
 
+- 2026-02-23 - cache-removal experiment pattern - For "remove caching" requests in this repo, strip `unstable_cache`/React `cache()` wrappers, remove query prefetch warmups, disable persistence modules with no-op exports, and keep only route-level ISR `revalidate` exports on static pages.
 - 2026-02-21 - id-format assumption self-miss - I initially gated proxy canonical lookup to numeric IDs only; this app also uses non-numeric `User.id` values in tests/fixtures, so query-preserving canonical redirects must not assume numeric IDs.
 - 2026-02-21 - seo redirect preference update - User wants `/{userId}` -> `/{slug}` canonicalization to stay server-side for SEO; preserve query params in proxy/server redirect path instead of client `router.replace`.
 - 2026-02-21 - force-static redirect gotcha self-miss - Adding `searchParams` to `src/app/(public)/[userSlugOrId]/page.tsx` did not preserve query params on canonical redirect (`/{id}` still became `/{slug}` without query); handle query-preserving canonicalization in proxy instead of server page props.
@@ -121,6 +122,7 @@
 
 ## Preferences
 
+- Skip tests while caching behavior is being iterated experimentally unless explicitly asked to run or update them.
 - Keep query params when redirecting public profile routes from `/{userId}` to `/{slug}`.
 - Keep `/{userId}` -> `/{slug}` canonical redirects server-side (SEO), not client-side.
 - Write tests, not too many, mostly integration, hapy path e2e.

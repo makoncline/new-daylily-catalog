@@ -1,11 +1,9 @@
 import { type Metadata } from "next";
-import { unstable_cache } from "next/cache";
 import { notFound, permanentRedirect } from "next/navigation";
 import { MainContent } from "@/app/(public)/_components/main-content";
 import { CatalogSearchHeader } from "@/app/(public)/[userSlugOrId]/_components/catalog-search-header";
 import { Breadcrumbs } from "@/components/breadcrumbs";
 import { PublicCatalogSearchClient } from "@/components/public-catalog-search/public-catalog-search-client";
-import { PUBLIC_CACHE_CONFIG } from "@/config/public-cache-config";
 import {
   toPublicCatalogSearchParams,
   type PublicCatalogSearchParamRecord,
@@ -66,21 +64,9 @@ export default async function CatalogSearchPage({
   const rawSearchParams = await searchParams;
   const searchParamsAsUrl = toPublicCatalogSearchParams(rawSearchParams);
 
-  const getProfile = unstable_cache(
-    async () => getPublicProfile(userSlugOrId),
-    ["profile", userSlugOrId, "catalog-search"],
-    { revalidate: PUBLIC_CACHE_CONFIG.REVALIDATE_SECONDS.PAGE.PROFILE },
-  );
-
-  const getListings = unstable_cache(
-    async () => getInitialListings(userSlugOrId),
-    ["listings", userSlugOrId, "catalog-search", "initial"],
-    { revalidate: PUBLIC_CACHE_CONFIG.REVALIDATE_SECONDS.PAGE.PROFILE },
-  );
-
   const [profileResult, listingsResult] = await Promise.all([
-    tryCatch(getProfile()),
-    tryCatch(getListings()),
+    tryCatch(getPublicProfile(userSlugOrId)),
+    tryCatch(getInitialListings(userSlugOrId)),
   ]);
 
   if (getErrorCode(profileResult.error) === "NOT_FOUND") {

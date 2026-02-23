@@ -1,7 +1,6 @@
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { createTRPCRouter, protectedProcedure } from "@/server/api/trpc";
-import { unstableCacheUnlessE2E } from "@/lib/next-cache-utils";
 import { compareItems, rankings, rankItem } from "@tanstack/match-sorter-utils";
 import { normalizeCultivarName } from "@/lib/utils/cultivar-utils";
 import { reportError } from "@/lib/error-utils";
@@ -84,14 +83,9 @@ async function runCultivarReferenceSearchQuery(db: PrismaClient, query: string) 
 export const dashboardDbAhsRouter = createTRPCRouter({
   search: protectedProcedure
     .input(z.object({ query: z.string().min(1) }))
-    .query(async ({ ctx, input }) => {
-      const getAhsSearchResults = unstableCacheUnlessE2E(
-        async () => runCultivarReferenceSearchQuery(ctx.db, input.query),
-        [`dashboard-db-ahs-search-${input.query.toLowerCase()}`],
-        { revalidate: 60 * 60 * 24 * 3 },
-      );
-      return getAhsSearchResults();
-    }),
+    .query(async ({ ctx, input }) =>
+      runCultivarReferenceSearchQuery(ctx.db, input.query),
+    ),
 
   get: protectedProcedure
     .input(z.object({ id: z.string().min(1) }))
@@ -137,4 +131,3 @@ export const dashboardDbAhsRouter = createTRPCRouter({
       return ahsListing;
     }),
 });
-

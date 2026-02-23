@@ -1,7 +1,5 @@
 import type { Listing } from "./utils";
-import { unstable_cache } from "next/cache";
 import { normalizeError, reportError } from "@/lib/error-utils";
-import { PUBLIC_CACHE_CONFIG } from "@/config/public-cache-config";
 
 // Infer the metadata type from the generateListingMetadata function
 import type { generateListingMetadata } from "./metadata";
@@ -101,14 +99,6 @@ async function createJsonLd(listing: Listing, metadata: Metadata) {
   }
 }
 
-// Create a higher-order function that creates a cached function for each listing ID
 export function generateJsonLd(listing: Listing, metadata: Metadata) {
-  // Use the unstable_cache with only time-based expiration
-  return unstable_cache(
-    async () => createJsonLd(listing, metadata),
-    [`jsonld-${listing.id}`], // Cache key specific to this listing
-    {
-      revalidate: PUBLIC_CACHE_CONFIG.REVALIDATE_SECONDS.DATA.LISTING_JSON_LD,
-    },
-  )();
+  return createJsonLd(listing, metadata);
 }

@@ -1,7 +1,5 @@
-import { unstable_cache } from "next/cache";
 import { reportError } from "@/lib/error-utils";
 import { METADATA_CONFIG } from "@/config/constants";
-import { PUBLIC_CACHE_CONFIG } from "@/config/public-cache-config";
 
 // Define minimal metadata shape needed for JSON-LD
 type MetadataInput = {
@@ -126,13 +124,6 @@ async function createSoftwareApplicationJsonLd(metadata: MetadataInput) {
   }
 }
 
-export const generateSoftwareApplicationJsonLd = unstable_cache(
-  async (metadata: MetadataInput) => {
-    return createSoftwareApplicationJsonLd(metadata);
-  },
-  ["software-application-jsonld"],
-  {
-    revalidate: PUBLIC_CACHE_CONFIG.REVALIDATE_SECONDS.DATA.HOME_JSON_LD,
-    tags: ["home-page"],
-  },
-);
+export async function generateSoftwareApplicationJsonLd(metadata: MetadataInput) {
+  return createSoftwareApplicationJsonLd(metadata);
+}

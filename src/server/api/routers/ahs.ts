@@ -1,6 +1,5 @@
 import { z } from "zod";
 import { createTRPCRouter, protectedProcedure } from "@/server/api/trpc";
-import { unstableCacheUnlessE2E } from "@/lib/next-cache-utils";
 import { compareItems, rankings, rankItem } from "@tanstack/match-sorter-utils";
 import { TRPCError } from "@trpc/server";
 import type { PrismaClient } from "@prisma/client";
@@ -117,18 +116,9 @@ export const ahsRouter = createTRPCRouter({
         query: z.string().min(1),
       }),
     )
-    .query(async ({ ctx, input }) => {
-      const getAhsSearchResults = unstableCacheUnlessE2E(
-        async () => runCultivarReferenceSearchQuery(ctx.db, input.query),
-        [`ahs-search-${input.query.toLowerCase()}-cultivar`],
-        {
-          // Cache for 3 days since data hardly changes
-          revalidate: 60 * 60 * 24 * 3,
-        },
-      );
-
-      return getAhsSearchResults();
-    }),
+    .query(async ({ ctx, input }) =>
+      runCultivarReferenceSearchQuery(ctx.db, input.query),
+    ),
 
   get: protectedProcedure
     .input(

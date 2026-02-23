@@ -26,11 +26,6 @@ import {
 } from "@/app/dashboard/_lib/dashboard-db/cultivar-references-collection";
 import { setCurrentUserId } from "@/lib/utils/cursor";
 import {
-  persistDashboardDbToPersistence,
-  revalidateDashboardDbInBackground,
-  tryHydrateDashboardDbFromPersistence,
-} from "@/app/dashboard/_lib/dashboard-db/dashboard-db-persistence";
-import {
   DashboardDbLoadingScreen,
   type DashboardDbStatus,
 } from "@/app/dashboard/_components/dashboard-db-loading-screen";
@@ -55,16 +50,11 @@ export function DashboardDbProvider({
 }: {
   children: React.ReactNode;
 }) {
-  const utils = api.useUtils();
   const {
     data: user,
     isLoading,
     isError,
-  } = api.dashboardDb.user.getCurrentUser.useQuery(undefined, {
-    staleTime: Infinity,
-    refetchOnWindowFocus: false,
-    refetchOnMount: false,
-  });
+  } = api.dashboardDb.user.getCurrentUser.useQuery();
 
   const userId = user?.id ?? null;
 
@@ -139,23 +129,12 @@ export function DashboardDbProvider({
 
     void (async () => {
       try {
-        const hydrated = await tryHydrateDashboardDbFromPersistence(userId);
-
-        if (hydrated) {
-          void revalidateDashboardDbInBackground(userId);
-          void utils.dashboardDb.dashboard.getStats.prefetch();
-          void utils.dashboardDb.userProfile.get.prefetch();
-        } else {
-          await Promise.all([
-            initializeListingsCollection(userId),
-            initializeListsCollection(userId),
-            initializeImagesCollection(userId),
-            initializeCultivarReferencesCollection(userId),
-            utils.dashboardDb.dashboard.getStats.prefetch(),
-            utils.dashboardDb.userProfile.get.prefetch(),
-          ]);
-          void persistDashboardDbToPersistence(userId);
-        }
+        await Promise.all([
+          initializeListingsCollection(userId),
+          initializeListsCollection(userId),
+          initializeImagesCollection(userId),
+          initializeCultivarReferencesCollection(userId),
+        ]);
 
         if (!cancelled) {
           setState({ status: "ready", userId });
@@ -168,7 +147,7 @@ export function DashboardDbProvider({
     return () => {
       cancelled = true;
     };
-  }, [isError, isLoading, userId, utils]);
+  }, [isError, isLoading, userId]);
 
   return (
     <DashboardDbContext.Provider value={state}>

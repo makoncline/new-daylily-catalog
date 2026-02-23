@@ -52,7 +52,6 @@ export function CreateListingDialog({
     },
     {
       enabled: !!selectedResult?.id,
-      refetchOnWindowFocus: false,
     },
   );
 

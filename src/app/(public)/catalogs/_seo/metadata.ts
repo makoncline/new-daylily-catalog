@@ -1,10 +1,8 @@
 import { IMAGES } from "@/lib/constants/images";
 import { getOptimizedMetaImageUrl } from "@/lib/utils/cloudflareLoader";
-import { unstable_cache } from "next/cache";
 import { reportError } from "@/lib/error-utils";
 import { type CatalogsPageMetadata } from "./types";
 import { METADATA_CONFIG } from "@/config/constants";
-import { PUBLIC_CACHE_CONFIG } from "@/config/public-cache-config";
 
 // Optimal meta description length
 const MIN_DESCRIPTION_LENGTH = 70;
@@ -74,13 +72,8 @@ async function createCatalogsPageMetadata(
   }
 }
 
-// Cached function to generate catalogs page metadata
 export function generateCatalogsPageMetadata(
   url: string,
 ): Promise<CatalogsPageMetadata> {
-  return unstable_cache(
-    async () => createCatalogsPageMetadata(url),
-    ["catalogs-page-metadata"],
-    { revalidate: PUBLIC_CACHE_CONFIG.REVALIDATE_SECONDS.DATA.CATALOGS_METADATA },
-  )();
+  return createCatalogsPageMetadata(url);
 }

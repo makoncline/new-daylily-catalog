@@ -80,9 +80,6 @@ export function ViewListingDialog({ listings }: ViewListingDialogProps) {
     {
       enabled: shouldFetchViewingListing,
       retry: false,
-      refetchOnWindowFocus: false,
-      refetchOnReconnect: false,
-      refetchOnMount: false,
     },
   );
 
