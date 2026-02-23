@@ -5,6 +5,7 @@ import { useLiveQuery } from "@tanstack/react-db";
 import { createTRPCProxyClient, type TRPCLink } from "@trpc/client";
 import { observable } from "@trpc/server/observable";
 import type { AppRouter } from "@/server/api/root";
+import type { TRPCInternalContext } from "@/server/api/trpc";
 import { callerLink, withTempAppDb } from "@/lib/test-utils/app-test-db";
 
 beforeEach(() => {
@@ -183,8 +184,8 @@ describe("dashboardDb TanStack DB collections", () => {
         return {
           db,
           headers: new Headers(),
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          user: { id: user.id } as any,
+          _authUser:
+            { id: user.id } as unknown as TRPCInternalContext["_authUser"],
         };
       });
 
@@ -343,8 +344,8 @@ describe("dashboardDb TanStack DB collections", () => {
         return {
           db,
           headers: new Headers(),
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          user: { id: user.id } as any,
+          _authUser:
+            { id: user.id } as unknown as TRPCInternalContext["_authUser"],
         };
       });
 

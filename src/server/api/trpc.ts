@@ -36,6 +36,24 @@ async function getOrCreateUser(clerkUserId: string) {
   return createUserFromClerk(clerkUserId);
 }
 
+type TRPCContextUser = Awaited<ReturnType<typeof getOrCreateUser>>;
+
+export interface TRPCContext {
+  headers: Headers;
+  db: typeof db;
+}
+
+export interface TRPCInternalContext extends TRPCContext {
+  /**
+   * Auth sentinel:
+   * - `undefined`: not resolved yet for this request
+   * - `null`: resolved and unauthenticated
+   * - object: resolved authenticated user
+   */
+  _authUser?: TRPCContextUser | null;
+  _authUserPromise?: Promise<TRPCContextUser | null>;
+}
+
 /**
  * 1. CONTEXT
  *
@@ -48,13 +66,12 @@ async function getOrCreateUser(clerkUserId: string) {
  *
  * @see https://trpc.io/docs/server/context
  */
-export const createTRPCContext = async (opts: { headers: Headers }) => {
-  const { userId: clerkUserId } = await auth();
-  const user = clerkUserId ? await getOrCreateUser(clerkUserId) : null;
+export const createTRPCContext = async (
+  opts: { headers: Headers },
+): Promise<TRPCContext> => {
   return {
     ...opts,
     db,
-    user,
   };
 };
 
@@ -65,7 +82,7 @@ export const createTRPCContext = async (opts: { headers: Headers }) => {
  * ZodErrors so that you get typesafety on the frontend if your procedure fails due to validation
  * errors on the backend.
  */
-export const t = initTRPC.context<typeof createTRPCContext>().create({
+export const t = initTRPC.context<TRPCInternalContext>().create({
   transformer: superjson,
   errorFormatter({ shape, error }) {
     return {
@@ -87,17 +104,6 @@ export const t = initTRPC.context<typeof createTRPCContext>().create({
 export const createCallerFactory = t.createCallerFactory;
 
 /**
- * 3. ROUTER & PROCEDURE (THE IMPORTANT BIT)
- *
- * These are the pieces you use to build your tRPC API. You should import these a lot in the
- * "/src/server/api/routers" directory.
- */
-
-/**
- * This is how you create new routers and sub-routers in your tRPC API.
- *
- * @see https://trpc.io/docs/router
- *//**
  * 3. ROUTER & PROCEDURE (THE IMPORTANT BIT)
  *
  * These are the pieces you use to build your tRPC API. You should import these a lot in the
@@ -137,16 +143,28 @@ const timingMiddleware = t.middleware(async ({ next, path }) => {
 /**
  * Public (unauthenticated) procedure
  *
- * This is the base piece you use to build new queries and mutations on your tRPC API. It does not
- * guarantee that a user querying is authorized, but you can still access user session data if they
- * are logged in.
+ * This is the base piece you use to build new queries and mutations on your tRPC API.
  */
 export const publicProcedure = t.procedure.use(timingMiddleware);
 
-const isAuthenticated = t.middleware((opts) => {
-  const {
-    ctx: { user },
-  } = opts;
+async function resolveAuthenticatedUser() {
+  const { userId: clerkUserId } = await auth();
+
+  if (!clerkUserId) {
+    return null;
+  }
+
+  return getOrCreateUser(clerkUserId);
+}
+
+const isAuthenticated = t.middleware(async (opts) => {
+  if (typeof opts.ctx._authUser === "undefined") {
+    opts.ctx._authUserPromise ??= resolveAuthenticatedUser();
+    opts.ctx._authUser = await opts.ctx._authUserPromise;
+  }
+
+  const user = opts.ctx._authUser;
+
   if (!user) {
     throw new TRPCError({
       code: "UNAUTHORIZED",
@@ -157,9 +175,10 @@ const isAuthenticated = t.middleware((opts) => {
   return opts.next({
     ctx: {
       ...opts.ctx,
+      _authUser: user,
       user,
     },
   });
 });
 
-export const protectedProcedure = t.procedure.use(isAuthenticated);
+export const protectedProcedure = publicProcedure.use(isAuthenticated);

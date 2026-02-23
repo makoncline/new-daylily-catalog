@@ -69,7 +69,6 @@ async function resolveCanonicalUserSlug(
 }
 
 export const proxy = clerkMiddleware(async (auth, req) => {
-  const { userId } = await auth();
   const { pathname } = req.nextUrl;
 
   const legacyProfileInternalPageMatch = /^\/([^/]+)\/page\/(\d+)$/.exec(
@@ -186,12 +185,16 @@ export const proxy = clerkMiddleware(async (auth, req) => {
   }
 
   // Handle authentication protection
-  if (!userId && isProtectedRoute(req)) {
-    // Redirect to our custom auth error page instead of Clerk's sign-in page
-    const returnTo = encodeURIComponent(req.nextUrl.pathname);
-    return NextResponse.redirect(
-      new URL(`/auth-error?returnTo=${returnTo}`, req.url),
-    );
+  if (isProtectedRoute(req)) {
+    const { userId } = await auth();
+
+    if (!userId) {
+      // Redirect to our custom auth error page instead of Clerk's sign-in page
+      const returnTo = encodeURIComponent(req.nextUrl.pathname);
+      return NextResponse.redirect(
+        new URL(`/auth-error?returnTo=${returnTo}`, req.url),
+      );
+    }
   }
 });
 
