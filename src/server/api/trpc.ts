@@ -36,6 +36,15 @@ async function getOrCreateUser(clerkUserId: string) {
   return createUserFromClerk(clerkUserId);
 }
 
+type TRPCContextUser = Awaited<ReturnType<typeof getOrCreateUser>>;
+
+export interface TRPCContext {
+  headers: Headers;
+  db: typeof db;
+  user: TRPCContextUser | null;
+  resolveUser?: () => Promise<TRPCContextUser | null>;
+}
+
 /**
  * 1. CONTEXT
  *
@@ -48,13 +57,31 @@ async function getOrCreateUser(clerkUserId: string) {
  *
  * @see https://trpc.io/docs/server/context
  */
-export const createTRPCContext = async (opts: { headers: Headers }) => {
-  const { userId: clerkUserId } = await auth();
-  const user = clerkUserId ? await getOrCreateUser(clerkUserId) : null;
+export const createTRPCContext = async (
+  opts: { headers: Headers },
+): Promise<TRPCContext> => {
+  let resolvedUser: TRPCContextUser | null | undefined;
+
+  const resolveUser = async (): Promise<TRPCContextUser | null> => {
+    if (resolvedUser !== undefined) {
+      return resolvedUser;
+    }
+
+    const { userId: clerkUserId } = await auth();
+    if (!clerkUserId) {
+      resolvedUser = null;
+      return null;
+    }
+
+    resolvedUser = await getOrCreateUser(clerkUserId);
+    return resolvedUser;
+  };
+
   return {
     ...opts,
     db,
-    user,
+    user: null,
+    resolveUser,
   };
 };
 
@@ -143,10 +170,11 @@ const timingMiddleware = t.middleware(async ({ next, path }) => {
  */
 export const publicProcedure = t.procedure.use(timingMiddleware);
 
-const isAuthenticated = t.middleware((opts) => {
-  const {
-    ctx: { user },
-  } = opts;
+const isAuthenticated = t.middleware(async (opts) => {
+  const user =
+    opts.ctx.user ??
+    (opts.ctx.resolveUser ? await opts.ctx.resolveUser() : null);
+
   if (!user) {
     throw new TRPCError({
       code: "UNAUTHORIZED",
