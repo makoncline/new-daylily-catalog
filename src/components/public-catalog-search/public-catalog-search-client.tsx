@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo } from "react";
 import { ViewListingDialog } from "@/components/view-listing-dialog";
+import { withPublicClientQueryCache } from "@/lib/cache/client-cache";
 import { sortTitlesLettersBeforeNumbers } from "@/lib/utils/sort-utils";
 import { api } from "@/trpc/react";
 import { PublicCatalogSearchContent } from "./public-catalog-search-content";
@@ -22,10 +23,13 @@ export function PublicCatalogSearchClient({
   );
 
   const { data, fetchNextPage, hasNextPage, isFetchingNextPage } =
-    api.public.getListings.useInfiniteQuery(queryInput, {
-      getNextPageParam: (lastPage) => lastPage[lastPage.length - 1]?.id,
-      retry: false,
-    });
+    api.public.getListings.useInfiniteQuery(
+      queryInput,
+      withPublicClientQueryCache({
+        getNextPageParam: (lastPage) => lastPage[lastPage.length - 1]?.id,
+        retry: false,
+      }),
+    );
 
   useEffect(() => {
     if (hasNextPage && !isFetchingNextPage) {

@@ -1,4 +1,5 @@
 import { Package, Globe, Star, HeartHandshake } from "lucide-react";
+import { CACHE_CONFIG } from "@/config/cache-config";
 
 export const TIME = {
   HOUR_IN_MS: 1000 * 60 * 60,
@@ -85,12 +86,6 @@ export const LIST_CONFIG = {
 export const FEEDBACK_CONFIG = {
   BOARD_SLUG: "daylily-catalog",
   FORM_URL: "https://coda.io/form/Ideas-Bugs_dWgu2I2WTqJ",
-} as const;
-
-export const CACHE_CONFIG = {
-  PUBLIC_ROUTER: {
-    TTL_S: 60 * 60, // Time in seconds to cache public router data. 1 hour
-  },
 } as const;
 
 export const METADATA_CONFIG = {

@@ -19,6 +19,7 @@ import {
 } from "@/components/listing-display";
 import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
 import { type RouterOutputs } from "@/trpc/react";
+import { withPublicClientQueryCache } from "@/lib/cache/client-cache";
 
 type Listing = RouterOutputs["public"]["getListings"][number];
 
@@ -77,10 +78,10 @@ export function ViewListingDialog({ listings }: ViewListingDialogProps) {
       userSlugOrId: params.userSlugOrId ?? "",
       listingSlugOrId: viewingId ?? "",
     },
-    {
+    withPublicClientQueryCache({
       enabled: shouldFetchViewingListing,
       retry: false,
-    },
+    }),
   );
 
   const displayListing = currentListing ?? listingQuery.data ?? null;

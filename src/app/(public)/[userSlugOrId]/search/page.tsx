@@ -9,13 +9,12 @@ import {
   type PublicCatalogSearchParamRecord,
 } from "@/lib/public-catalog-url-state";
 import { getErrorCode, tryCatch } from "@/lib/utils";
-import { getInitialListings } from "@/server/db/getPublicListings";
-import { getPublicProfile } from "@/server/db/getPublicProfile";
-import { getPublicProfileStaticParams } from "../_lib/public-profile-route";
+import {
+  getCachedInitialListings,
+  getCachedPublicProfile,
+} from "@/server/db/public-cache";
 
-export const revalidate = 86400;
-export const dynamic = "force-static";
-export const dynamicParams = true;
+export const dynamic = "force-dynamic";
 
 interface CatalogSearchPageProps {
   params: Promise<{
@@ -24,15 +23,11 @@ interface CatalogSearchPageProps {
   searchParams?: Promise<PublicCatalogSearchParamRecord>;
 }
 
-export async function generateStaticParams() {
-  return getPublicProfileStaticParams();
-}
-
 export async function generateMetadata({
   params,
 }: CatalogSearchPageProps): Promise<Metadata> {
   const { userSlugOrId } = await params;
-  const profileResult = await tryCatch(getPublicProfile(userSlugOrId));
+  const profileResult = await tryCatch(getCachedPublicProfile(userSlugOrId));
 
   if (!profileResult.data) {
     return {
@@ -65,8 +60,8 @@ export default async function CatalogSearchPage({
   const searchParamsAsUrl = toPublicCatalogSearchParams(rawSearchParams);
 
   const [profileResult, listingsResult] = await Promise.all([
-    tryCatch(getPublicProfile(userSlugOrId)),
-    tryCatch(getInitialListings(userSlugOrId)),
+    tryCatch(getCachedPublicProfile(userSlugOrId)),
+    tryCatch(getCachedInitialListings(userSlugOrId)),
   ]);
 
   if (getErrorCode(profileResult.error) === "NOT_FOUND") {

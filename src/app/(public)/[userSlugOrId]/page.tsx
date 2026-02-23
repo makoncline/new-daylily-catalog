@@ -13,6 +13,7 @@ import {
 import { generatePaginatedProfileMetadata } from "./_seo/paginated-metadata";
 import { generateProfileMetadata } from "./_seo/metadata";
 
+// CACHE_LITERAL_REF: CACHE_CONFIG.PUBLIC.STATIC_REVALIDATE_SECONDS
 export const revalidate = 86400;
 export const dynamic = "force-static";
 export const dynamicParams = true;

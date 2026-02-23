@@ -2,26 +2,28 @@ import { z } from "zod";
 import { createTRPCRouter, publicProcedure } from "../trpc";
 import { db } from "@/server/db";
 import { TRPCError } from "@trpc/server";
-import { getPublicProfiles } from "@/server/db/getPublicProfiles";
 import {
   getListingIdFromSlugOrId,
-  getPublicProfile,
   getUserIdFromSlugOrId,
 } from "@/server/db/getPublicProfile";
 import {
-  getListings,
   listingSelect,
   transformListings,
 } from "@/server/db/getPublicListings";
 import {
-  getCultivarRouteSegments,
-  getPublicCultivarPage,
-} from "@/server/db/getPublicCultivars";
+  getCachedCultivarRouteSegments,
+  getCachedPublicCultivarPage,
+  getCachedPublicListings,
+  getCachedPublicProfile,
+  getCachedPublicProfiles,
+} from "@/server/db/public-cache";
 import { SESClient, SendEmailCommand } from "@aws-sdk/client-ses";
 import { env } from "@/env";
 import { cartItemSchema } from "@/types";
 import { STATUS } from "@/config/constants";
 import { getDisplayAhsListing } from "@/lib/utils/ahs-display";
+import { createServerCache } from "@/lib/cache/server-cache";
+import { CACHE_CONFIG } from "@/config/cache-config";
 
 // Initialize SES client
 const ses = new SESClient({
@@ -69,10 +71,16 @@ async function getFullListingData(listingId: string) {
   };
 }
 
+const getCachedFullListingData = createServerCache(getFullListingData, {
+  key: "public:listing-detail",
+  revalidateSeconds: CACHE_CONFIG.PUBLIC.SEARCH.SERVER_REVALIDATE_SECONDS,
+  tags: [CACHE_CONFIG.TAGS.PUBLIC_LISTING_DETAIL],
+});
+
 export const publicRouter = createTRPCRouter({
   getPublicProfiles: publicProcedure.query(async () => {
     try {
-      return await getPublicProfiles();
+      return await getCachedPublicProfiles();
     } catch (error) {
       console.error("TRPC Error fetching public profiles:", error);
       throw new TRPCError({
@@ -86,7 +94,7 @@ export const publicRouter = createTRPCRouter({
     .input(z.object({ userSlugOrId: z.string() }))
     .query(async ({ input }) => {
       try {
-        return await getPublicProfile(input.userSlugOrId);
+        return await getCachedPublicProfile(input.userSlugOrId);
       } catch (error) {
         if (error instanceof TRPCError) {
           throw error;
@@ -110,7 +118,7 @@ export const publicRouter = createTRPCRouter({
     .query(async ({ input }) => {
       try {
         const userId = await getUserIdFromSlugOrId(input.userSlugOrId);
-        const items = await getListings({
+        const items = await getCachedPublicListings({
           userId,
           limit: input.limit,
           cursor: input.cursor,
@@ -133,7 +141,7 @@ export const publicRouter = createTRPCRouter({
     .input(z.object({ id: z.string() }))
     .query(async ({ input }) => {
       try {
-        return await getFullListingData(input.id);
+        return await getCachedFullListingData(input.id);
       } catch (error) {
         if (error instanceof TRPCError) {
           throw error;
@@ -161,7 +169,7 @@ export const publicRouter = createTRPCRouter({
           userId,
         );
 
-        return await getFullListingData(listingId);
+        return await getCachedFullListingData(listingId);
       } catch (error) {
         if (error instanceof TRPCError) {
           throw error;
@@ -182,7 +190,7 @@ export const publicRouter = createTRPCRouter({
     )
     .query(async ({ input }) => {
       try {
-        return await getPublicCultivarPage(input.cultivarNormalizedName);
+        return await getCachedPublicCultivarPage(input.cultivarNormalizedName);
       } catch (error) {
         if (error instanceof TRPCError) {
           throw error;
@@ -197,7 +205,7 @@ export const publicRouter = createTRPCRouter({
 
   getCultivarRouteSegments: publicProcedure.query(async () => {
     try {
-      return await getCultivarRouteSegments();
+      return await getCachedCultivarRouteSegments();
     } catch (error) {
       if (error instanceof TRPCError) {
         throw error;

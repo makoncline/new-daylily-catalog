@@ -2,6 +2,7 @@
 
 import { usePathname } from "next/navigation";
 import { Breadcrumbs, type BreadcrumbItemType } from "@/components/breadcrumbs";
+import { withPublicClientQueryCache } from "@/lib/cache/client-cache";
 import { api } from "@/trpc/react";
 interface PublicBreadcrumbsProps {
   profile?: {
@@ -25,7 +26,7 @@ export function PublicBreadcrumbs({
     profile ??
     api.public.getProfile.useQuery(
       { userSlugOrId: userSlugOrId! },
-      { enabled: !!userSlugOrId && !profile },
+      withPublicClientQueryCache({ enabled: !!userSlugOrId && !profile }),
     ).data;
 
   const hasListingTitleProp = listingTitle !== undefined;
@@ -33,7 +34,7 @@ export function PublicBreadcrumbs({
     !!userSlugOrId && !!listingSlugOrId && !hasListingTitleProp;
   const { data: listing } = api.public.getListing.useQuery(
     { userSlugOrId: userSlugOrId!, listingSlugOrId: listingSlugOrId! },
-    { enabled: shouldFetchListing },
+    withPublicClientQueryCache({ enabled: shouldFetchListing }),
   );
 
   // Generate breadcrumb items based on the current path

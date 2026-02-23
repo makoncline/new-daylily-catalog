@@ -7,7 +7,7 @@ import { IMAGES } from "@/lib/constants/images";
 import { getOptimizedMetaImageUrl } from "@/lib/utils/cloudflareLoader";
 import { getBaseUrl } from "@/lib/utils/getBaseUrl";
 import { toCultivarRouteSegment } from "@/lib/utils/cultivar-utils";
-import { getPublicCultivarPage } from "@/server/db/getPublicCultivars";
+import { getCachedPublicCultivarPage } from "@/server/db/public-cache";
 import { CultivarPageRoot, CultivarPageSection } from "./_components/cultivar-page-layout";
 import { CultivarHeroSection } from "./_components/cultivar-hero-section";
 import { CultivarGardenPhotosSection } from "./_components/cultivar-garden-photos-section";
@@ -15,6 +15,7 @@ import { CultivarOffersSection } from "./_components/cultivar-offers-section";
 import { CultivarRelatedSection } from "./_components/cultivar-related-section";
 import { Muted } from "@/components/typography";
 
+// CACHE_LITERAL_REF: CACHE_CONFIG.PUBLIC.STATIC_REVALIDATE_SECONDS
 export const revalidate = 86400;
 export const dynamic = "force-static";
 
@@ -27,7 +28,9 @@ interface PageProps {
 function getCultivarJsonLd(
   baseUrl: string,
   canonicalSegment: string,
-  cultivarPage: NonNullable<Awaited<ReturnType<typeof getPublicCultivarPage>>>,
+  cultivarPage: NonNullable<
+    Awaited<ReturnType<typeof getCachedPublicCultivarPage>>
+  >,
 ) {
   const pageUrl = `${baseUrl}/cultivar/${canonicalSegment}`;
   const productOffers = cultivarPage.offers.gardenCards.flatMap((garden) =>
@@ -80,7 +83,7 @@ function getCultivarJsonLd(
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { cultivarNormalizedName } = await params;
-  const cultivarPage = await getPublicCultivarPage(cultivarNormalizedName);
+  const cultivarPage = await getCachedPublicCultivarPage(cultivarNormalizedName);
 
   if (!cultivarPage) {
     return {
@@ -142,7 +145,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 export default async function CultivarPage({ params }: PageProps) {
   const { cultivarNormalizedName } = await params;
 
-  const cultivarPage = await getPublicCultivarPage(cultivarNormalizedName);
+  const cultivarPage = await getCachedPublicCultivarPage(cultivarNormalizedName);
 
   if (!cultivarPage) {
     notFound();

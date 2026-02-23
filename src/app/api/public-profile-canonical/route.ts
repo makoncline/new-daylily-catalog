@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { getErrorCode, tryCatch } from "@/lib/utils";
-import { getPublicProfile } from "@/server/db/getPublicProfile";
+import { getCachedPublicProfile } from "@/server/db/public-cache";
 
 export async function GET(request: NextRequest) {
   const userSlugOrId = request.nextUrl.searchParams.get("userSlugOrId");
@@ -12,7 +12,7 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  const profileResult = await tryCatch(getPublicProfile(userSlugOrId));
+  const profileResult = await tryCatch(getCachedPublicProfile(userSlugOrId));
 
   if (getErrorCode(profileResult.error) === "NOT_FOUND") {
     return NextResponse.json({ error: "Profile not found" }, { status: 404 });
