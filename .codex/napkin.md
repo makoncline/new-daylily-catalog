@@ -2,7 +2,6 @@
 
 ## Log
 
-<<<<<<< codex/revisit-caching
 - 2026-02-23 - cache dedupe pattern - To avoid duplicated public profile cache wrappers without pulling broad public-cache deps into route tests, add a narrow shared module (`src/server/db/public-profile-cache.ts`) and re-export it from `public-cache.ts`.
 - 2026-02-23 - local e2e cache bypass policy - Even when local Playwright passes with cache enabled, keeping `PLAYWRIGHT_LOCAL_E2E` bypass in `createServerCache` preserves deterministic no-cache test runs and previous repo behavior.
 - 2026-02-23 - t3 baseline cache default - create-t3-app template `query-client.ts` uses `staleTime: 30 * 1000` by default (SSR anti-refetch baseline); our experiment override to `staleTime: 0`, `gcTime: 0`, and always-refetch is intentionally more aggressive and should be treated as a policy decision, not assumed template behavior.
@@ -16,7 +15,10 @@
 - 2026-02-23 - dashboard refresh scope decision - User confirmed dashboard strategy: keep incremental `since` sync triggers and manual full refresh path, remove global tRPC mutate invalidate-all, remove sidebar 60s polling.
 - 2026-02-23 - cache scope correction - I started removing dashboard TanStack DB cursor sync state as "cache"; user clarified TanStack DB internals should not count for this experiment, so keep those mechanisms unchanged.
 - 2026-02-23 - cache-removal experiment pattern - For "remove caching" requests in this repo, strip `unstable_cache`/React `cache()` wrappers, remove query prefetch warmups, disable persistence modules with no-op exports, and keep only route-level ISR `revalidate` exports on static pages.
-=======
+- 2026-02-24 - tags print selection source correction - In `/dashboard/tags`, selected items for print/sheet output must be derived from table `rowSelection` IDs (same source as selected badges), not `getFilteredSelectedRowModel`, so selected rows remain printable when filtered/paged out of the current table view.
+- 2026-02-24 - sheet copies-per-label UX - Sheet Creator now needs a `Copies of each label` control that resets to `1` each open, duplicates each selected label contiguously before moving to the next label, and shows an explicit summary line: `X labels selected, X copies of each, X total labels.`
+- 2026-02-24 - sheet copies visibility follow-up - User could miss copies control when it lived among page/grid settings; keep copies control in a dedicated top "Print quantity" section to make multi-copy behavior obvious.
+- 2026-02-24 - sheet quantity placement correction - User wants print quantity placed directly under `Print dashed borders` and collapsed by default; implement as a collapsible section that resets closed when the dialog opens.
 - 2026-02-23 - sheet export parity correction - Sheet Creator download control should match primary export formats; provide a shadcn download menu with `HTML Sheets (.html)`, `PDF (.pdf)`, and `Images (.zip)` from the sheet layout.
 - 2026-02-23 - sheet sizing rule update - User expects sheet tags to always stay at active tag dimensions; rows/columns now define count, and page settings are validated against required sheet area instead of scaling tag size.
 - 2026-02-23 - sheet border styling - Tag cards on sheet output should include a muted dashed border for placement guidance in both preview and exported sheet documents.
@@ -37,7 +39,6 @@
 - 2026-02-23 - tags pdf export pattern - For `/dashboard/tags`, reusing the existing print HTML in an off-screen iframe and rasterizing `.tag` nodes with `html2canvas` into `jspdf` pages preserves current layout/QR behavior while enabling direct PDF download.
 - 2026-02-23 - self-miss patch anchor - Initial `apply_patch` failed after stale context matching near `TagDesignerPanel`; re-read exact file slices before patching large files to avoid mismatched anchors.
 - 2026-02-23 - tags export request - User asked for a dedicated PDF download button on `/dashboard/tags` (in addition to print/CSV) so tags can be saved/exported directly.
->>>>>>> main
 - 2026-02-21 - id-format assumption self-miss - I initially gated proxy canonical lookup to numeric IDs only; this app also uses non-numeric `User.id` values in tests/fixtures, so query-preserving canonical redirects must not assume numeric IDs.
 - 2026-02-21 - seo redirect preference update - User wants `/{userId}` -> `/{slug}` canonicalization to stay server-side for SEO; preserve query params in proxy/server redirect path instead of client `router.replace`.
 - 2026-02-21 - force-static redirect gotcha self-miss - Adding `searchParams` to `src/app/(public)/[userSlugOrId]/page.tsx` did not preserve query params on canonical redirect (`/{id}` still became `/{slug}` without query); handle query-preserving canonicalization in proxy instead of server page props.

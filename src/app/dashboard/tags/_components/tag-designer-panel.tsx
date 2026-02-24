@@ -51,6 +51,11 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 import { useLocalStorage } from "@/hooks/use-local-storage";
 import { getBaseUrl } from "@/lib/utils/getBaseUrl";
 import { cn } from "@/lib/utils";
@@ -262,6 +267,8 @@ const MIN_SHEET_MARGIN_INCHES = 0;
 const MAX_SHEET_MARGIN_INCHES = 6;
 const MIN_SHEET_PADDING_INCHES = 0;
 const MAX_SHEET_PADDING_INCHES = 6;
+const MIN_SHEET_COPIES_PER_LABEL = 1;
+const MAX_SHEET_COPIES_PER_LABEL = 500;
 
 interface StoredTagLayoutTemplate {
   id: string;
@@ -1705,6 +1712,30 @@ function chunkTags<T>(items: T[], chunkSize: number): T[][] {
   return chunks;
 }
 
+function duplicateTagsForSheetLabels(
+  tags: TagPreviewData[],
+  copiesPerLabel: number,
+) {
+  if (!tags.length) return [];
+  const normalizedCopies = Math.max(
+    MIN_SHEET_COPIES_PER_LABEL,
+    Math.floor(copiesPerLabel),
+  );
+  if (normalizedCopies <= 1) return tags;
+
+  const duplicatedTags: TagPreviewData[] = [];
+  for (const tag of tags) {
+    for (let copyIndex = 0; copyIndex < normalizedCopies; copyIndex += 1) {
+      duplicatedTags.push({
+        ...tag,
+        id: `${tag.id}--copy-${copyIndex + 1}`,
+      });
+    }
+  }
+
+  return duplicatedTags;
+}
+
 async function renderSingleSheetCanvas({
   sheetTags,
   sheetState,
@@ -2574,7 +2605,9 @@ function SheetNumberField({
 interface TagSheetCreatorDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  selectedListingCount: number;
+  selectedLabelCount: number;
+  copiesPerLabel: number;
+  onCopiesPerLabelChange: (nextCopiesPerLabel: number) => void;
   previewTags: TagPreviewData[];
   sheetState: TagSheetCreatorState;
   sheetMetrics: ResolvedSheetMetrics;
@@ -2590,7 +2623,9 @@ interface TagSheetCreatorDialogProps {
 function TagSheetCreatorDialog({
   open,
   onOpenChange,
-  selectedListingCount,
+  selectedLabelCount,
+  copiesPerLabel,
+  onCopiesPerLabelChange,
   previewTags,
   sheetState,
   sheetMetrics,
@@ -2602,9 +2637,17 @@ function TagSheetCreatorDialog({
   onResetToSingleTag,
   isPreparingDownload,
 }: TagSheetCreatorDialogProps) {
+  const [isPrintQuantityOpen, setIsPrintQuantityOpen] = React.useState(false);
+
+  React.useEffect(() => {
+    if (!open) return;
+    setIsPrintQuantityOpen(false);
+  }, [open]);
+
+  const totalLabelCount = selectedLabelCount * copiesPerLabel;
   const estimatedSheetCount =
     sheetMetrics.tagsPerSheet > 0
-      ? Math.ceil(selectedListingCount / sheetMetrics.tagsPerSheet)
+      ? Math.ceil(totalLabelCount / sheetMetrics.tagsPerSheet)
       : 0;
   const firstSheetPreviewTags = React.useMemo(
     () => previewTags.slice(0, sheetMetrics.tagsPerSheet),
@@ -2621,7 +2664,7 @@ function TagSheetCreatorDialog({
   const previewMaxWidthPx = 560;
   const previewScale =
     pageWidthPx > 0 ? Math.min(previewMaxWidthPx / pageWidthPx, 1) : 1;
-  const canExport = sheetMetrics.isValid && selectedListingCount > 0;
+  const canExport = sheetMetrics.isValid && totalLabelCount > 0;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -2783,6 +2826,45 @@ function TagSheetCreatorDialog({
               <span>Print dashed borders</span>
             </label>
           </div>
+
+          <div className="md:col-span-2">
+            <Collapsible
+              open={isPrintQuantityOpen}
+              onOpenChange={setIsPrintQuantityOpen}
+            >
+              <CollapsibleTrigger asChild>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full justify-between"
+                >
+                  <span>Print quantity</span>
+                  <ChevronDown
+                    className={cn(
+                      "h-4 w-4 transition-transform",
+                      isPrintQuantityOpen && "rotate-180",
+                    )}
+                  />
+                </Button>
+              </CollapsibleTrigger>
+              <CollapsibleContent className="border-border bg-muted/20 mt-3 space-y-2 rounded-md border p-3">
+                <SheetNumberField
+                  id="sheet-copies-per-label"
+                  label="Copies of each selected label"
+                  value={copiesPerLabel}
+                  min={MIN_SHEET_COPIES_PER_LABEL}
+                  max={MAX_SHEET_COPIES_PER_LABEL}
+                  step={1}
+                  decimals={0}
+                  onCommit={onCopiesPerLabelChange}
+                />
+                <p className="text-muted-foreground text-xs">
+                  The same label is repeated together before printing the next
+                  label.
+                </p>
+              </CollapsibleContent>
+            </Collapsible>
+          </div>
         </div>
 
         <div className="space-y-1 text-sm">
@@ -2791,12 +2873,17 @@ function TagSheetCreatorDialog({
             {sheetMetrics.slotWidthInches.toFixed(2)}&quot; ×{" "}
             {sheetMetrics.slotHeightInches.toFixed(2)}&quot;
           </p>
+          <p className="font-medium">
+            {selectedLabelCount} label{selectedLabelCount === 1 ? "" : "s"}{" "}
+            selected, {copiesPerLabel} cop{copiesPerLabel === 1 ? "y" : "ies"}{" "}
+            of each, {totalLabelCount} total label
+            {totalLabelCount === 1 ? "" : "s"}.
+          </p>
           <p className="text-muted-foreground">
             {sheetMetrics.tagsPerSheet} tag
             {sheetMetrics.tagsPerSheet === 1 ? "" : "s"} per sheet,{" "}
             {estimatedSheetCount} sheet
-            {estimatedSheetCount === 1 ? "" : "s"} for {selectedListingCount}{" "}
-            selected.
+            {estimatedSheetCount === 1 ? "" : "s"} needed.
           </p>
           {!sheetMetrics.isValid ? (
             <p className="text-destructive">
@@ -2930,7 +3017,7 @@ function TagSheetCreatorDialog({
             </>
           ) : (
             <p className="text-muted-foreground text-sm">
-              {selectedListingCount === 0
+              {selectedLabelCount === 0
                 ? "Select listings below to preview sheet output."
                 : "Adjust settings so the selected page can fit the tag grid."}
             </p>
@@ -3558,6 +3645,9 @@ function TagDesignerPreview({
 export function TagDesignerPanel({ listings }: { listings: TagListingData[] }) {
   const [isPreparingDownload, setIsPreparingDownload] = React.useState(false);
   const [isSheetCreatorOpen, setIsSheetCreatorOpen] = React.useState(false);
+  const [sheetCopiesPerLabel, setSheetCopiesPerLabel] = React.useState(
+    MIN_SHEET_COPIES_PER_LABEL,
+  );
   const [storedState, setStoredState] = useLocalStorage<TagDesignerState>(
     TAG_DESIGNER_STORAGE_KEY,
     DEFAULT_TAG_DESIGNER_STATE,
@@ -3855,7 +3945,7 @@ export function TagDesignerPanel({ listings }: { listings: TagListingData[] }) {
     [heightInches, sheetState, widthInches],
   );
 
-  const previewTags = React.useMemo<TagPreviewData[]>(() => {
+  const basePreviewTags = React.useMemo<TagPreviewData[]>(() => {
     const toPreview = listings.length > 0 ? listings : [PLACEHOLDER_LISTING];
     return toPreview.map((listing) => ({
       id: listing.id,
@@ -3867,7 +3957,16 @@ export function TagDesignerPanel({ listings }: { listings: TagListingData[] }) {
     }));
   }, [baseUrl, listings, state.rows, state.showQrCode]);
 
-  const visiblePreviewTags = previewTags.slice(0, 8);
+  const sheetPreviewTags = React.useMemo(
+    () =>
+      duplicateTagsForSheetLabels(
+        listings.length > 0 ? basePreviewTags : [],
+        sheetCopiesPerLabel,
+      ),
+    [basePreviewTags, listings.length, sheetCopiesPerLabel],
+  );
+
+  const visiblePreviewTags = basePreviewTags.slice(0, 8);
 
   // -- Row mutations --
 
@@ -3965,6 +4064,7 @@ export function TagDesignerPanel({ listings }: { listings: TagListingData[] }) {
   }, [setStoredState]);
 
   const handleOpenSheetCreator = React.useCallback(() => {
+    setSheetCopiesPerLabel(MIN_SHEET_COPIES_PER_LABEL);
     if (typeof window !== "undefined") {
       const existingSheetState = window.localStorage.getItem(
         TAG_SHEET_CREATOR_STORAGE_KEY,
@@ -3980,6 +4080,21 @@ export function TagDesignerPanel({ listings }: { listings: TagListingData[] }) {
     }
     setIsSheetCreatorOpen(true);
   }, [heightInches, setStoredSheetState, widthInches]);
+
+  const handleSheetCopiesPerLabelChange = React.useCallback(
+    (nextCopiesPerLabel: number) => {
+      setSheetCopiesPerLabel(
+        Math.min(
+          MAX_SHEET_COPIES_PER_LABEL,
+          Math.max(
+            MIN_SHEET_COPIES_PER_LABEL,
+            Math.floor(nextCopiesPerLabel),
+          ),
+        ),
+      );
+    },
+    [],
+  );
 
   const handleResetSheetToSingleTag = React.useCallback(() => {
     setStoredSheetState(
@@ -4001,7 +4116,7 @@ export function TagDesignerPanel({ listings }: { listings: TagListingData[] }) {
     }
 
     return createTagSheetDocumentHtml({
-      tags: previewTags,
+      tags: sheetPreviewTags,
       sheetState,
       tagWidthInches: widthInches,
       tagHeightInches: heightInches,
@@ -4009,7 +4124,7 @@ export function TagDesignerPanel({ listings }: { listings: TagListingData[] }) {
   }, [
     heightInches,
     listings.length,
-    previewTags,
+    sheetPreviewTags,
     sheetMetrics.isValid,
     sheetState,
     widthInches,
@@ -4034,7 +4149,7 @@ export function TagDesignerPanel({ listings }: { listings: TagListingData[] }) {
     }
 
     const html = createTagPrintDocumentHtml({
-      tags: previewTags,
+      tags: basePreviewTags,
       widthInches,
       heightInches,
     });
@@ -4058,7 +4173,7 @@ export function TagDesignerPanel({ listings }: { listings: TagListingData[] }) {
     setIsPreparingDownload(true);
     try {
       const didDownload = await downloadTagSheetsPdf({
-        tags: previewTags,
+        tags: sheetPreviewTags,
         sheetState,
         tagWidthInches: widthInches,
         tagHeightInches: heightInches,
@@ -4073,7 +4188,7 @@ export function TagDesignerPanel({ listings }: { listings: TagListingData[] }) {
     heightInches,
     isPreparingDownload,
     isSheetExportReady,
-    previewTags,
+    sheetPreviewTags,
     sheetState,
     widthInches,
   ]);
@@ -4085,7 +4200,7 @@ export function TagDesignerPanel({ listings }: { listings: TagListingData[] }) {
     setIsPreparingDownload(true);
     try {
       const didDownload = await downloadTagSheetImagesZip({
-        tags: previewTags,
+        tags: sheetPreviewTags,
         sheetState,
         tagWidthInches: widthInches,
         tagHeightInches: heightInches,
@@ -4100,7 +4215,7 @@ export function TagDesignerPanel({ listings }: { listings: TagListingData[] }) {
     heightInches,
     isPreparingDownload,
     isSheetExportReady,
-    previewTags,
+    sheetPreviewTags,
     sheetState,
     widthInches,
   ]);
@@ -4121,13 +4236,19 @@ export function TagDesignerPanel({ listings }: { listings: TagListingData[] }) {
     }
 
     const html = createTagPrintDocumentHtml({
-      tags: previewTags,
+      tags: basePreviewTags,
       widthInches,
       heightInches,
     });
     downloadTagDocumentHtml(html);
     toast.success("Pages download started.");
-  }, [heightInches, isPreparingDownload, listings.length, previewTags, widthInches]);
+  }, [
+    basePreviewTags,
+    heightInches,
+    isPreparingDownload,
+    listings.length,
+    widthInches,
+  ]);
 
   const handleDownloadPdf = React.useCallback(async () => {
     if (isPreparingDownload) return;
@@ -4139,7 +4260,7 @@ export function TagDesignerPanel({ listings }: { listings: TagListingData[] }) {
     setIsPreparingDownload(true);
     try {
       const didDownload = await downloadTagDocumentPdf({
-        tags: previewTags,
+        tags: basePreviewTags,
         widthInches,
         heightInches,
       });
@@ -4153,7 +4274,7 @@ export function TagDesignerPanel({ listings }: { listings: TagListingData[] }) {
     heightInches,
     isPreparingDownload,
     listings.length,
-    previewTags,
+    basePreviewTags,
     widthInches,
   ]);
 
@@ -4167,7 +4288,7 @@ export function TagDesignerPanel({ listings }: { listings: TagListingData[] }) {
     setIsPreparingDownload(true);
     try {
       const didDownload = await downloadTagImagesZip({
-        tags: previewTags,
+        tags: basePreviewTags,
         widthInches,
         heightInches,
       });
@@ -4181,7 +4302,7 @@ export function TagDesignerPanel({ listings }: { listings: TagListingData[] }) {
     heightInches,
     isPreparingDownload,
     listings.length,
-    previewTags,
+    basePreviewTags,
     widthInches,
   ]);
 
@@ -4201,8 +4322,10 @@ export function TagDesignerPanel({ listings }: { listings: TagListingData[] }) {
       <TagSheetCreatorDialog
         open={isSheetCreatorOpen}
         onOpenChange={setIsSheetCreatorOpen}
-        selectedListingCount={listings.length}
-        previewTags={listings.length > 0 ? previewTags : []}
+        selectedLabelCount={listings.length}
+        copiesPerLabel={sheetCopiesPerLabel}
+        onCopiesPerLabelChange={handleSheetCopiesPerLabelChange}
+        previewTags={sheetPreviewTags}
         sheetState={sheetState}
         sheetMetrics={sheetMetrics}
         updateSheetState={updateSheetState}
@@ -4250,7 +4373,7 @@ export function TagDesignerPanel({ listings }: { listings: TagListingData[] }) {
 
       <TagDesignerPreview
         listingsCount={listings.length}
-        previewTags={previewTags}
+        previewTags={basePreviewTags}
         visiblePreviewTags={visiblePreviewTags}
         widthInches={widthInches}
         heightInches={heightInches}
