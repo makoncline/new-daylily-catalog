@@ -7,6 +7,7 @@
 - 2026-02-23 - sheet border styling - Tag cards on sheet output should include a muted dashed border for placement guidance in both preview and exported sheet documents.
 - 2026-02-23 - sheet border print correction - User wants dashed borders visible in the Sheet Creator preview but not in printed/exported sheet output; keep preview-only dashed outlines and omit border in generated sheet HTML.
 - 2026-02-23 - sheet border toggle preference - User wants an explicit Sheet Creator checkbox to include dashed borders in printed/exported sheets; default must remain off.
+- 2026-02-23 - mobile numeric input usability - In Sheet Creator, eagerly clamping/parsing number inputs on each keystroke blocks backspace/editing on iPad/iPhone; use text input drafts + blur-time validation with explicit +/- step buttons.
 - 2026-02-23 - sheet creator UX follow-up - User expects a live sheet preview in the modal; render a scaled first-sheet preview tied directly to current rows/columns/margins/padding settings.
 - 2026-02-23 - tag sheet creator defaults - For `/dashboard/tags` sheet mode, initialize defaults to current tag dimensions on first modal open when no sheet settings exist; persist subsequent edits in `tag-sheet-creator-state-v1`.
 - 2026-02-23 - self-miss stale callsites - After refactoring export function signatures, I initially left handler calls passing old `html` args; always re-check all call sites after interface changes in large files.
