@@ -1,6 +1,8 @@
 import { Package, Globe, Star, HeartHandshake } from "lucide-react";
 import { CACHE_CONFIG } from "@/config/cache-config";
 
+export { CACHE_CONFIG } from "@/config/cache-config";
+
 export const TIME = {
   HOUR_IN_MS: 1000 * 60 * 60,
   DAY_IN_MS: 1000 * 60 * 60 * 24,

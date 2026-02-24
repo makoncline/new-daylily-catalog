@@ -5,13 +5,25 @@ import {
   getPublicForSaleListingsCount,
   getPublicListingsPage,
 } from "@/server/db/getPublicListings";
-import { getPublicProfile } from "@/server/db/getPublicProfile";
+import {
+  getPublicProfile,
+  getUserIdFromSlugOrId,
+} from "@/server/db/getPublicProfile";
 
 export const getCachedPublicProfile = createServerCache(getPublicProfile, {
   key: "public:profile",
   revalidateSeconds: CACHE_CONFIG.PUBLIC.SEARCH.SERVER_REVALIDATE_SECONDS,
   tags: [CACHE_CONFIG.TAGS.PUBLIC_PROFILE],
 });
+
+export const getCachedPublicUserIdFromSlugOrId = createServerCache(
+  getUserIdFromSlugOrId,
+  {
+    key: "public:profile:user-id",
+    revalidateSeconds: CACHE_CONFIG.PUBLIC.SEARCH.SERVER_REVALIDATE_SECONDS,
+    tags: [CACHE_CONFIG.TAGS.PUBLIC_PROFILE],
+  },
+);
 
 export const getCachedPublicListingsPage = createServerCache(
   getPublicListingsPage,

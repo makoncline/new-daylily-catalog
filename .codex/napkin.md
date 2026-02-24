@@ -2,6 +2,11 @@
 
 ## Log
 
+- 2026-02-24 - public slug-id cache correction - Caching a derived profile identity object for slug/id resolution increased cache-miss cost (extra DB read). Prefer a dedicated cached `getUserIdFromSlugOrId` helper so first miss is one query and paginated follow-ups avoid repeated lookups.
+- 2026-02-24 - tooling self-miss - I used a quick Python one-liner for URL checks where shell commands would have been sufficient; prefer direct shell utilities in this repo unless Python is truly necessary.
+- 2026-02-24 - trpc server helper correction - `src/trpc/server.ts` is currently unused by call sites, but we restored it with React `cache()` memoization to keep default create-t3-app server-call plumbing available for future RSC tRPC usage.
+- 2026-02-24 - public search query hydration - `PublicCatalogSearchClient` should pass `initialData` to `useInfiniteQuery` so SSR `initialListings` seed query cache and avoid duplicate page-1 fetch on mount.
+- 2026-02-23 - shell runner quirks - In this Codex shell, multi-line `zsh` scripts may not have expected PATH for common tools (`curl`, `rm`, `jq`) and `status` is read-only; use absolute binaries (`/usr/bin/curl`, `/bin/rm`, `/opt/homebrew/bin/jq`) and avoid `status` as a variable.
 - 2026-02-23 - cache dedupe pattern - To avoid duplicated public profile cache wrappers without pulling broad public-cache deps into route tests, add a narrow shared module (`src/server/db/public-profile-cache.ts`) and re-export it from `public-cache.ts`.
 - 2026-02-23 - local e2e cache bypass policy - Even when local Playwright passes with cache enabled, keeping `PLAYWRIGHT_LOCAL_E2E` bypass in `createServerCache` preserves deterministic no-cache test runs and previous repo behavior.
 - 2026-02-23 - t3 baseline cache default - create-t3-app template `query-client.ts` uses `staleTime: 30 * 1000` by default (SSR anti-refetch baseline); our experiment override to `staleTime: 0`, `gcTime: 0`, and always-refetch is intentionally more aggressive and should be treated as a policy decision, not assumed template behavior.

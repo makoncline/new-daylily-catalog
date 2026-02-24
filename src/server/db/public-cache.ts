@@ -11,6 +11,7 @@ export {
   getCachedPublicForSaleListingsCount,
   getCachedPublicListingsPage,
   getCachedPublicProfile,
+  getCachedPublicUserIdFromSlugOrId,
 } from "@/server/db/public-profile-cache";
 
 export const getCachedPublicProfiles = createServerCache(getPublicProfiles, {

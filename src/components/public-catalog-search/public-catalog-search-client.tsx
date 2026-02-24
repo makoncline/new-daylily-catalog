@@ -27,6 +27,10 @@ export function PublicCatalogSearchClient({
       queryInput,
       withPublicClientQueryCache({
         getNextPageParam: (lastPage) => lastPage[lastPage.length - 1]?.id,
+        initialData: {
+          pages: [initialListings],
+          pageParams: [undefined],
+        },
         retry: false,
       }),
     );

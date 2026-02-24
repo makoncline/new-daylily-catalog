@@ -4,7 +4,6 @@ import { db } from "@/server/db";
 import { TRPCError } from "@trpc/server";
 import {
   getListingIdFromSlugOrId,
-  getUserIdFromSlugOrId,
 } from "@/server/db/getPublicProfile";
 import {
   listingSelect,
@@ -15,6 +14,7 @@ import {
   getCachedPublicCultivarPage,
   getCachedPublicListings,
   getCachedPublicProfile,
+  getCachedPublicUserIdFromSlugOrId,
   getCachedPublicProfiles,
 } from "@/server/db/public-cache";
 import { SESClient, SendEmailCommand } from "@aws-sdk/client-ses";
@@ -117,7 +117,9 @@ export const publicRouter = createTRPCRouter({
     )
     .query(async ({ input }) => {
       try {
-        const userId = await getUserIdFromSlugOrId(input.userSlugOrId);
+        const userId = await getCachedPublicUserIdFromSlugOrId(
+          input.userSlugOrId,
+        );
         const items = await getCachedPublicListings({
           userId,
           limit: input.limit,
@@ -163,7 +165,9 @@ export const publicRouter = createTRPCRouter({
     )
     .query(async ({ input }) => {
       try {
-        const userId = await getUserIdFromSlugOrId(input.userSlugOrId);
+        const userId = await getCachedPublicUserIdFromSlugOrId(
+          input.userSlugOrId,
+        );
         const listingId = await getListingIdFromSlugOrId(
           input.listingSlugOrId,
           userId,
