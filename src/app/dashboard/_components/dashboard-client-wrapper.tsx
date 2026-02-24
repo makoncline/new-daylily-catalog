@@ -3,6 +3,7 @@
 import { AuthHandler } from "@/components/auth-handler";
 import { type ReactNode } from "react";
 import { DashboardDbProvider } from "./dashboard-db-provider";
+import { DashboardNavigationGuardProvider } from "@/hooks/use-dashboard-navigation-guard";
 
 interface DashboardClientWrapperProps {
   children: ReactNode;
@@ -21,7 +22,9 @@ export function DashboardClientWrapper({
       <AuthHandler />
 
       {/* Dashboard content */}
-      <DashboardDbProvider>{children}</DashboardDbProvider>
+      <DashboardNavigationGuardProvider>
+        <DashboardDbProvider>{children}</DashboardDbProvider>
+      </DashboardNavigationGuardProvider>
     </>
   );
 }

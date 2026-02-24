@@ -15,77 +15,175 @@ import { type OutputData } from "@editorjs/editorjs";
 import { Muted } from "@/components/typography";
 import { getErrorMessage, normalizeError, reportError } from "@/lib/error-utils";
 
+export type ContentManagerSaveReason = "outside" | "manual" | "navigate";
+
+export interface ContentManagerFormHandle {
+  saveChanges: (reason: ContentManagerSaveReason) => Promise<boolean>;
+  hasPendingChanges: () => boolean;
+}
+
 interface ContentManagerFormProps {
   initialProfile: RouterOutputs["dashboardDb"]["userProfile"]["get"];
+  formRef?: React.RefObject<ContentManagerFormHandle | null>;
 }
 
 export function ContentManagerFormItem({
   initialProfile,
+  formRef,
 }: ContentManagerFormProps) {
   const [isSaving, setIsSaving] = React.useState(false);
-  const [lastSaved, setLastSaved] = React.useState(
-    () => initialProfile.content,
-  );
+  const [lastSaved, setLastSaved] = React.useState(() => initialProfile.content);
+  const [isDirty, setIsDirty] = React.useState(false);
   const editorRef = React.useRef<EditorJS | null>(null);
   const contentRef = React.useRef<HTMLDivElement | null>(null);
+  const inFlightSaveRef = React.useRef<Promise<boolean> | null>(null);
+  const isDirtyRef = React.useRef(isDirty);
+  const lastSavedRef = React.useRef(lastSaved);
+  isDirtyRef.current = isDirty;
+  lastSavedRef.current = lastSaved;
   const utils = api.useUtils();
 
-  const updateContentMutation = api.dashboardDb.userProfile.updateContent.useMutation({
-    onSuccess: (updatedProfile) => {
-      utils.dashboardDb.userProfile.get.setData(undefined, updatedProfile);
-      void utils.dashboardDb.userProfile.get.invalidate();
-      setIsSaving(false);
-      toast.success("Content saved");
-    },
-    onError: (error, errorInfo) => {
-      setIsSaving(false);
-      toast.error("Failed to save content", {
-        description: getErrorMessage(error),
-      });
-      reportError({
-        error: normalizeError(error),
-        context: { source: "ContentManagerFormItem", errorInfo },
-      });
-    },
-  });
+  const updateContentMutation = api.dashboardDb.userProfile.updateContent.useMutation();
 
-  async function handleSave() {
-    if (!editorRef.current) return;
+  const markDirty = React.useCallback(() => {
+    if (isDirtyRef.current) {
+      return;
+    }
 
-    setIsSaving(true);
+    isDirtyRef.current = true;
+    setIsDirty(true);
+  }, []);
 
-    try {
-      const newBlocks = await editorRef.current.save();
+  const hasPendingChanges = React.useCallback(() => {
+    return isDirtyRef.current;
+  }, []);
 
-      // Only compare if we have existing content
-      if (lastSaved) {
-        // Parse lastSaved if needed, then extract the blocks field
-        const oldData = (
-          typeof lastSaved === "string" ? JSON.parse(lastSaved) : lastSaved
-        ) as OutputData;
-
-        // Compare blocks only
-        if (
-          JSON.stringify(newBlocks.blocks) === JSON.stringify(oldData.blocks)
-        ) {
-          setIsSaving(false);
-          return; // No changes in blocks, skip saving
-        }
+  const saveChanges = React.useCallback(
+    async (reason: ContentManagerSaveReason): Promise<boolean> => {
+      if (inFlightSaveRef.current) {
+        return inFlightSaveRef.current;
       }
 
-      // Save if there was no previous content or if content changed
-      const newData = JSON.stringify(newBlocks);
-      await updateContentMutation.mutateAsync({ content: newData });
-      setLastSaved(newData);
-    } catch (error) {
-      console.error("Failed to save editor content", error);
-      setIsSaving(false);
+      const shouldUpdateUi = reason !== "navigate";
+
+      const editor = editorRef.current;
+
+      if (!editor || !isDirtyRef.current) {
+        return true;
+      }
+
+      const savePromise = (async (): Promise<boolean> => {
+        if (shouldUpdateUi) {
+          setIsSaving(true);
+        }
+
+        try {
+          const newBlocks = await editor.save();
+          const previousContent = lastSavedRef.current;
+
+          if (previousContent) {
+            try {
+              const oldData = (
+                typeof previousContent === "string"
+                  ? JSON.parse(previousContent)
+                  : previousContent
+              ) as OutputData;
+
+              if (
+                JSON.stringify(newBlocks.blocks) === JSON.stringify(oldData.blocks)
+              ) {
+                isDirtyRef.current = false;
+                if (shouldUpdateUi) {
+                  setIsDirty(false);
+                }
+                return true;
+              }
+            } catch {
+              // If old content cannot be parsed, continue and save the current content.
+            }
+          }
+
+          const newData = JSON.stringify(newBlocks);
+          const updatedProfile = await updateContentMutation.mutateAsync({
+            content: newData,
+          });
+
+          utils.dashboardDb.userProfile.get.setData(undefined, updatedProfile);
+          if (shouldUpdateUi) {
+            void utils.dashboardDb.userProfile.get.invalidate();
+          }
+
+          lastSavedRef.current = newData;
+          if (shouldUpdateUi) {
+            setLastSaved(newData);
+          }
+
+          isDirtyRef.current = false;
+          if (shouldUpdateUi) {
+            setIsDirty(false);
+          }
+
+          if (reason === "outside") {
+            toast.success("Content saved");
+          }
+
+          return true;
+        } catch (error) {
+          if (reason === "outside") {
+            toast.error("Failed to save content", {
+              description: getErrorMessage(error),
+            });
+          }
+
+          reportError({
+            error: normalizeError(error),
+            context: { source: "ContentManagerFormItem", reason },
+          });
+          return false;
+        } finally {
+          if (shouldUpdateUi) {
+            setIsSaving(false);
+          }
+        }
+      })();
+
+      inFlightSaveRef.current = savePromise;
+      try {
+        return await savePromise;
+      } finally {
+        if (inFlightSaveRef.current === savePromise) {
+          inFlightSaveRef.current = null;
+        }
+      }
+    },
+    [updateContentMutation, utils],
+  );
+
+  React.useEffect(() => {
+    if (!formRef) {
+      return;
     }
-  }
+
+    formRef.current = {
+      saveChanges,
+      hasPendingChanges,
+    };
+  }, [formRef, hasPendingChanges, saveChanges]);
+
+  React.useEffect(() => {
+    if (isDirtyRef.current) {
+      return;
+    }
+
+    lastSavedRef.current = initialProfile.content;
+    setLastSaved(initialProfile.content);
+  }, [initialProfile.content]);
 
   useOnClickOutside(contentRef as React.RefObject<HTMLElement>, () => {
-    void handleSave();
+    void saveChanges("outside");
   });
+
+  const isPendingIndicatorVisible = isSaving || updateContentMutation.isPending;
 
   return (
     <FormItem>
@@ -96,14 +194,18 @@ export function ContentManagerFormItem({
             Tell visitors about yourself and your garden.
           </Muted>
         </div>
-        {isSaving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+        {isPendingIndicatorVisible && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
       </div>
       <div ref={contentRef} className="space-y-3">
-        <div className="bg-background min-h-96 rounded-md border">
+        <div
+          className="bg-background min-h-96 rounded-md border"
+          onInputCapture={markDirty}
+        >
           <Editor
             editorRef={editorRef}
             initialContent={parseEditorContent(initialProfile.content)}
             className="px-3 py-2 pb-8"
+            onChange={markDirty}
           />
         </div>
       </div>

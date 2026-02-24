@@ -41,10 +41,6 @@ test.describe("profile save on navigate @local", () => {
     dashboardShell,
   }) => {
     const updatedGardenName = `Navigate Save ${Date.now()}`;
-    const saveToast = page
-      .locator("[data-sonner-toast]")
-      .filter({ hasText: "Changes saved" })
-      .first();
 
     await page.goto("/");
     await clerk.signIn({ page, emailAddress: TEST_USER.email });
@@ -56,7 +52,6 @@ test.describe("profile save on navigate @local", () => {
 
     await dashboardShell.goToListings();
     await expect(page).toHaveURL(/\/dashboard\/listings/);
-    await expect(saveToast).toBeVisible();
 
     await dashboardShell.goToProfile();
     await expect(page).toHaveURL(/\/dashboard\/profile/);
@@ -74,10 +69,6 @@ test.describe("profile save on navigate @local", () => {
   }) => {
     const updatedSlug = `profile-${Date.now()}`;
     const slugInput = page.locator('input[name="slug"]');
-    const saveToast = page
-      .locator("[data-sonner-toast]")
-      .filter({ hasText: "Changes saved" })
-      .first();
 
     await page.goto("/");
     await clerk.signIn({ page, emailAddress: TEST_USER.email });
@@ -116,7 +107,6 @@ test.describe("profile save on navigate @local", () => {
 
     await dashboardShell.goToListings();
     await expect(page).toHaveURL(/\/dashboard\/listings/);
-    await expect(saveToast).toBeVisible();
 
     await dashboardShell.goToProfile();
     await expect(page).toHaveURL(/\/dashboard\/profile/);

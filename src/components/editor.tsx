@@ -11,6 +11,7 @@ interface EditorProps {
   className?: string;
   editorRef: React.RefObject<EditorJS | null>;
   readOnly?: boolean;
+  onChange?: () => void;
 }
 
 export function Editor({
@@ -18,6 +19,7 @@ export function Editor({
   className,
   editorRef,
   readOnly,
+  onChange,
 }: EditorProps) {
   const [isMounted, setIsMounted] = React.useState<boolean>(false);
 
@@ -37,6 +39,9 @@ export function Editor({
       onReady() {
         editorRef.current = editor;
       },
+      onChange() {
+        onChange?.();
+      },
       placeholder: "Type something...",
       inlineToolbar: true,
       readOnly: readOnly,
@@ -55,7 +60,7 @@ export function Editor({
         table: Table,
       },
     });
-  }, [editorRef, readOnly]);
+  }, [editorRef, onChange, readOnly]);
 
   React.useEffect(() => {
     if (typeof window !== "undefined") {

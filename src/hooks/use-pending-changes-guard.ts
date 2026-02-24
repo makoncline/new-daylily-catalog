@@ -1,57 +1,36 @@
 "use client";
 
 import { useEffect, useRef, type RefObject } from "react";
+import {
+  useDashboardNavigationGuardContext,
+  type PendingChangesGuardHandle,
+} from "@/hooks/use-dashboard-navigation-guard";
 
-interface PendingChangesGuardHandle<TReason extends string> {
-  hasPendingChanges: () => boolean;
-  saveChanges: (reason: TReason) => Promise<boolean>;
-}
+export type { PendingChangesGuardHandle } from "@/hooks/use-dashboard-navigation-guard";
 
 export function usePendingChangesGuard<TReason extends string>(
   formRef: RefObject<PendingChangesGuardHandle<TReason> | null>,
   navigateReason: TReason,
   enabled = true,
 ) {
-  const enabledRef = useRef(enabled);
-  const navigateReasonRef = useRef(navigateReason);
+  const navigationGuard = useDashboardNavigationGuardContext();
+  const sourceIdRef = useRef(Symbol("pending-changes-source"));
 
   useEffect(() => {
-    enabledRef.current = enabled;
-    navigateReasonRef.current = navigateReason;
-  }, [enabled, navigateReason]);
+    if (!navigationGuard) {
+      return;
+    }
 
-  useEffect(() => {
-    const handleBeforeUnload = (event: BeforeUnloadEvent) => {
-      if (!enabledRef.current) {
-        return;
-      }
+    const sourceId = sourceIdRef.current;
 
-      if (!formRef.current?.hasPendingChanges()) {
-        return;
-      }
+    navigationGuard.registerSource(sourceId, {
+      formRef,
+      navigateReason,
+      enabled,
+    });
 
-      event.preventDefault();
-      event.returnValue = "";
-    };
-
-    window.addEventListener("beforeunload", handleBeforeUnload);
     return () => {
-      window.removeEventListener("beforeunload", handleBeforeUnload);
+      navigationGuard.unregisterSource(sourceId);
     };
-  }, [formRef]);
-
-  useEffect(() => {
-    return () => {
-      if (!enabledRef.current) {
-        return;
-      }
-
-      if (!formRef.current?.hasPendingChanges()) {
-        return;
-      }
-
-      // eslint-disable-next-line react-hooks/exhaustive-deps
-      void formRef.current.saveChanges(navigateReasonRef.current);
-    };
-  }, [formRef]);
+  }, [enabled, formRef, navigateReason, navigationGuard]);
 }

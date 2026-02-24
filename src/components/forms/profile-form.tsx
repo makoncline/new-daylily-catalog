@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { useDebouncedCallback } from "use-debounce";
 import { type RouterOutputs } from "@/trpc/react";
 import { api } from "@/trpc/react";
+import { getTrpcClient } from "@/trpc/client";
 import { getBaseUrl } from "@/lib/utils/getBaseUrl";
 import {
   profileFormSchema,
@@ -32,7 +33,10 @@ import { Muted } from "@/components/typography";
 import { CheckoutButton } from "@/components/checkout-button";
 import { SlugChangeConfirmDialog } from "@/components/slug-change-confirm-dialog";
 import { ProfileImageManager } from "@/app/dashboard/profile/_components/profile-image-manager";
-import { ContentManagerFormItem } from "./content-form";
+import {
+  ContentManagerFormItem,
+  type ContentManagerFormHandle,
+} from "./content-form";
 
 type UserProfile = RouterOutputs["dashboardDb"]["userProfile"]["get"];
 
@@ -48,6 +52,20 @@ interface ProfileFormProps {
   formRef?: React.RefObject<ProfileFormHandle | null>;
 }
 
+const SLUG_ALLOWED_CONTROL_KEYS = new Set([
+  "Backspace",
+  "Delete",
+  "ArrowLeft",
+  "ArrowRight",
+  "ArrowUp",
+  "ArrowDown",
+  "Home",
+  "End",
+  "Tab",
+  "Enter",
+  "Escape",
+]);
+
 function toFormValues(profile: UserProfile): ProfileFormData {
   return {
     title: profile.title ?? undefined,
@@ -56,6 +74,19 @@ function toFormValues(profile: UserProfile): ProfileFormData {
     location: profile.location ?? undefined,
     logoUrl: profile.logoUrl ?? undefined,
   };
+}
+
+function areProfileValuesEqual(
+  a: ProfileFormData,
+  b: ProfileFormData,
+): boolean {
+  return (
+    a.title === b.title &&
+    a.slug === b.slug &&
+    a.description === b.description &&
+    a.location === b.location &&
+    a.logoUrl === b.logoUrl
+  );
 }
 
 export function ProfileForm({ initialProfile, formRef }: ProfileFormProps) {
@@ -68,6 +99,7 @@ export function ProfileForm({ initialProfile, formRef }: ProfileFormProps) {
     useState(false);
   const [isSlugEditingUnlocked, setIsSlugEditingUnlocked] = useState(false);
   const slugInputRef = useRef<HTMLInputElement | null>(null);
+  const contentFormRef = useRef<ContentManagerFormHandle | null>(null);
   const { isPro } = usePro();
   const utils = api.useUtils();
 
@@ -77,6 +109,8 @@ export function ProfileForm({ initialProfile, formRef }: ProfileFormProps) {
     schema: profileFormSchema,
     defaultValues: toFormValues(profile),
   });
+  const hasExternalUnsavedChangesRef = useRef(hasExternalUnsavedChanges);
+  hasExternalUnsavedChangesRef.current = hasExternalUnsavedChanges;
 
   const updateProfileMutation = api.dashboardDb.userProfile.update.useMutation({
     onError: (error, errorInfo) => {
@@ -121,55 +155,117 @@ export function ProfileForm({ initialProfile, formRef }: ProfileFormProps) {
   );
 
   const markExternalUnsavedChanges = useCallback(() => {
+    hasExternalUnsavedChangesRef.current = true;
     setHasExternalUnsavedChanges(true);
   }, []);
 
   const hasPendingChanges = useCallback(() => {
-    return form.formState.isDirty || hasExternalUnsavedChanges;
-  }, [form.formState.isDirty, hasExternalUnsavedChanges]);
+    const values = form.getValues();
+    const committedValues = toFormValues(profile);
+    const hasContentPending = contentFormRef.current?.hasPendingChanges() ?? false;
+
+    return (
+      !areProfileValuesEqual(values, committedValues) ||
+      hasExternalUnsavedChangesRef.current ||
+      hasContentPending
+    );
+  }, [form, profile]);
 
   const saveChangesInternal = useCallback(
-    async (): Promise<boolean> => {
-      if (!hasPendingChanges()) {
-        return true;
-      }
-
-      const isValid = await form.trigger();
-      if (!isValid) {
-        return false;
-      }
-
+    async (reason: ProfileFormSaveReason): Promise<boolean> => {
       const values = form.getValues();
+      const committedValues = toFormValues(profile);
+      const hasFieldPending = !areProfileValuesEqual(values, committedValues);
+      const hasExternalPending = hasExternalUnsavedChangesRef.current;
+      const hasContentPending = contentFormRef.current?.hasPendingChanges() ?? false;
 
-      setIsUpdating(true);
+      if (!hasFieldPending && !hasExternalPending && !hasContentPending) {
+        return true;
+      }
+
+      if (hasFieldPending) {
+        if (reason !== "navigate") {
+          const isValid = await form.trigger();
+          if (!isValid) {
+            return false;
+          }
+        } else {
+          const parsed = profileFormSchema.safeParse(values);
+          if (!parsed.success) {
+            return false;
+          }
+        }
+      }
+      const shouldUpdateUi = reason !== "navigate";
+
+      if (shouldUpdateUi) {
+        setIsUpdating(true);
+      }
+
       try {
-        const updatedProfile = await updateProfileMutation.mutateAsync({
-          data: values,
-        });
+        if (hasContentPending) {
+          const didSaveContent = await contentFormRef.current?.saveChanges(reason);
+          if (didSaveContent === false) {
+            if (shouldUpdateUi) {
+              toast.error("Failed to save changes", {
+                description: "Failed to save profile content",
+              });
+            }
+            return false;
+          }
+        }
+
+        if (!hasFieldPending && !hasExternalPending) {
+          if (shouldUpdateUi) {
+            toast.success("Changes saved");
+          }
+          return true;
+        }
+
+        const updatedProfile = shouldUpdateUi
+          ? await updateProfileMutation.mutateAsync({
+              data: values,
+            })
+          : await getTrpcClient().dashboardDb.userProfile.update.mutate({
+              data: values,
+            });
+
         utils.dashboardDb.userProfile.get.setData(undefined, updatedProfile);
-        setProfile(updatedProfile);
-        form.reset(toFormValues(updatedProfile), { keepIsValid: true });
-        setHasExternalUnsavedChanges(false);
-        toast.success("Changes saved");
+
+        if (shouldUpdateUi) {
+          setProfile(updatedProfile);
+          form.reset(toFormValues(updatedProfile), { keepIsValid: true });
+          hasExternalUnsavedChangesRef.current = false;
+          setHasExternalUnsavedChanges(false);
+          toast.success("Changes saved");
+        }
 
         return true;
-      } catch {
+      } catch (error) {
+        if (!shouldUpdateUi) {
+          reportError({
+            error: normalizeError(error),
+            context: { source: "ProfileForm", reason },
+          });
+        }
         return false;
       } finally {
-        setIsUpdating(false);
+        if (shouldUpdateUi) {
+          setIsUpdating(false);
+        }
       }
     },
     [
       form,
-      hasPendingChanges,
+      profile,
       updateProfileMutation,
       utils,
     ],
   );
 
   const saveChanges = useCallback(
-    async (_reason: ProfileFormSaveReason): Promise<boolean> => {
-      return saveChangesInternal();
+    async (reason: ProfileFormSaveReason): Promise<boolean> => {
+      return saveChangesInternal(reason);
     },
     [saveChangesInternal],
   );
@@ -275,19 +371,23 @@ export function ProfileForm({ initialProfile, formRef }: ProfileFormProps) {
                         onPointerDown={handleSlugPointerDown}
                         onFocus={handleSlugFocus}
                         onKeyDown={(e) => {
-                          if (
-                            e.key === "Backspace" ||
-                            e.key === "Delete" ||
-                            e.key === "ArrowLeft" ||
-                            e.key === "ArrowRight" ||
-                            e.key === "Tab" ||
-                            e.ctrlKey ||
-                            e.metaKey
-                          ) {
+                          if (e.ctrlKey || e.metaKey || e.altKey) {
                             return;
                           }
 
-                          const newValue = e.currentTarget.value + e.key;
+                          if (SLUG_ALLOWED_CONTROL_KEYS.has(e.key)) {
+                            return;
+                          }
+
+                          if (e.key.length !== 1) {
+                            return;
+                          }
+
+                          const { value, selectionStart, selectionEnd } =
+                            e.currentTarget;
+                          const start = selectionStart ?? value.length;
+                          const end = selectionEnd ?? value.length;
+                          const newValue = `${value.slice(0, start)}${e.key}${value.slice(end)}`;
                           if (!SLUG_INPUT_PATTERN.test(newValue)) {
                             e.preventDefault();
                           }
@@ -296,6 +396,17 @@ export function ProfileForm({ initialProfile, formRef }: ProfileFormProps) {
                           const value = e.target.value;
                           field.onChange(value);
                           debouncedCheckSlug(value);
+                        }}
+                        onPaste={(e) => {
+                          const pastedText = e.clipboardData.getData("text");
+                          const { value, selectionStart, selectionEnd } =
+                            e.currentTarget;
+                          const start = selectionStart ?? value.length;
+                          const end = selectionEnd ?? value.length;
+                          const newValue = `${value.slice(0, start)}${pastedText}${value.slice(end)}`;
+                          if (!SLUG_INPUT_PATTERN.test(newValue)) {
+                            e.preventDefault();
+                          }
                         }}
                         onBlur={field.onBlur}
                         readOnly={!isSlugEditingUnlocked}
@@ -397,7 +508,7 @@ export function ProfileForm({ initialProfile, formRef }: ProfileFormProps) {
             </Button>
           </div>
 
-          <ContentManagerFormItem initialProfile={profile} />
+          <ContentManagerFormItem initialProfile={profile} formRef={contentFormRef} />
         </form>
       </Form>
 

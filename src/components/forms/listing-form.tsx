@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { eq, useLiveQuery } from "@tanstack/react-db";
 import { type Image } from "@prisma/client";
 import { toast } from "sonner";
@@ -109,14 +109,19 @@ function ListingFormInner({
       }),
     ),
   });
+  const isFormDirtyRef = useRef(form.formState.isDirty);
+  const hasExternalUnsavedChangesRef = useRef(hasExternalUnsavedChanges);
+  isFormDirtyRef.current = form.formState.isDirty;
+  hasExternalUnsavedChangesRef.current = hasExternalUnsavedChanges;
 
   const markExternalUnsavedChanges = useCallback(() => {
+    hasExternalUnsavedChangesRef.current = true;
     setHasExternalUnsavedChanges(true);
   }, []);
 
   const hasPendingChanges = useCallback(() => {
-    return form.formState.isDirty || hasExternalUnsavedChanges;
-  }, [form.formState.isDirty, hasExternalUnsavedChanges]);
+    return isFormDirtyRef.current || hasExternalUnsavedChangesRef.current;
+  }, []);
 
   const saveChanges = useCallback(
     async (reason: ListingFormSaveReason): Promise<boolean> => {
@@ -124,34 +129,53 @@ function ListingFormInner({
         return true;
       }
 
-      const isValid = await form.trigger();
-      if (!isValid) {
-        return false;
+      const values = form.getValues();
+
+      if (reason !== "navigate") {
+        const isValid = await form.trigger();
+        if (!isValid) {
+          return false;
+        }
+      } else {
+        const parsed = listingFormSchema.safeParse(values);
+        if (!parsed.success) {
+          return false;
+        }
       }
 
-      setIsPending(true);
+      const shouldUpdateUi = reason !== "navigate";
+
+      if (shouldUpdateUi) {
+        setIsPending(true);
+      }
       try {
-        const values = form.getValues();
         await updateListing({
           id: listing.id,
           data: values,
         });
 
-        form.reset(values, { keepIsValid: true });
-        setHasExternalUnsavedChanges(false);
-        toast.success("Changes saved");
+        if (shouldUpdateUi) {
+          form.reset(values, { keepIsValid: true });
+          hasExternalUnsavedChangesRef.current = false;
+          setHasExternalUnsavedChanges(false);
+          toast.success("Changes saved");
+        }
         return true;
       } catch (error) {
-        toast.error("Failed to save changes", {
-          description: getErrorMessage(error),
-        });
-        reportError({
-          error: normalizeError(error),
-          context: { source: "ListingForm", reason },
-        });
+        if (shouldUpdateUi) {
+          toast.error("Failed to save changes", {
+            description: getErrorMessage(error),
+          });
+          reportError({
+            error: normalizeError(error),
+            context: { source: "ListingForm", reason },
+          });
+        }
         return false;
       } finally {
-        setIsPending(false);
+        if (shouldUpdateUi) {
+          setIsPending(false);
+        }
       }
     },
     [form, hasPendingChanges, listing.id],

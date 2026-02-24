@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useLiveQuery, eq } from "@tanstack/react-db";
 import { useZodForm } from "@/hooks/use-zod-form";
 import { listFormSchema } from "@/types/schemas/list";
@@ -70,25 +70,41 @@ function ListFormInner({
     schema: listFormSchema,
     defaultValues: toFormValues(list),
   });
+  const isFormDirtyRef = useRef(form.formState.isDirty);
+  const hasExternalUnsavedChangesRef = useRef(hasExternalUnsavedChanges);
+  isFormDirtyRef.current = form.formState.isDirty;
+  hasExternalUnsavedChangesRef.current = hasExternalUnsavedChanges;
 
   const hasPendingChanges = useCallback(() => {
-    return form.formState.isDirty || hasExternalUnsavedChanges;
-  }, [form.formState.isDirty, hasExternalUnsavedChanges]);
+    return isFormDirtyRef.current || hasExternalUnsavedChangesRef.current;
+  }, []);
 
   const saveChanges = useCallback(
-    async (_reason: ListFormSaveReason): Promise<boolean> => {
+    async (reason: ListFormSaveReason): Promise<boolean> => {
       if (!hasPendingChanges()) {
         return true;
       }
 
-      const isValid = await form.trigger();
-      if (!isValid) {
-        return false;
+      const values = form.getValues();
+
+      if (reason !== "navigate") {
+        const isValid = await form.trigger();
+        if (!isValid) {
+          return false;
+        }
+      } else {
+        const parsed = listFormSchema.safeParse(values);
+        if (!parsed.success) {
+          return false;
+        }
       }
 
-      setIsPending(true);
+      const shouldUpdateUi = reason !== "navigate";
+
+      if (shouldUpdateUi) {
+        setIsPending(true);
+      }
       try {
-        const values = form.getValues();
         await updateList({
           id: listId,
           data: {
@@ -96,19 +112,26 @@ function ListFormInner({
             description: values.description ?? undefined,
           },
         });
-        form.reset(values, { keepIsValid: true });
-        onExternalChangesSaved?.();
-        toast.success("List updated", {
-          description: "Your list has been updated successfully",
-        });
+
+        if (shouldUpdateUi) {
+          form.reset(values, { keepIsValid: true });
+          onExternalChangesSaved?.();
+          toast.success("List updated", {
+            description: "Your list has been updated successfully",
+          });
+        }
         return true;
       } catch {
-        toast.error("Failed to update list", {
-          description: "An error occurred while updating your list",
-        });
+        if (shouldUpdateUi) {
+          toast.error("Failed to update list", {
+            description: "An error occurred while updating your list",
+          });
+        }
         return false;
       } finally {
-        setIsPending(false);
+        if (shouldUpdateUi) {
+          setIsPending(false);
+        }
       }
     },
     [form, hasPendingChanges, listId, onExternalChangesSaved],

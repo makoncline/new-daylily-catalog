@@ -2,6 +2,16 @@
 
 ## Log
 
+- 2026-02-24 - content save callback deps - Do not include stable refs like `inFlightSaveRef` in `useCallback` deps; keep deps limited to reactive inputs to avoid misleading callback invalidation semantics.
+- 2026-02-24 - navigate-save cache churn control - For profile content `saveChanges("navigate")`, keep mutation + `setData` but skip `invalidate()` to reduce transition-time refetch/rerender churn while leaving the page.
+- 2026-02-24 - guard click filter hardening - Global dashboard anchor interception should skip `data-no-nav-guard`, `href="#"`/hash-only links, and same-path+search URL changes to avoid unnecessary boundary saves on in-page anchors/UI toggles.
+- 2026-02-24 - content navigate-save robustness - For editor content boundary saves, use singleflight (`inFlightSaveRef`) and avoid React UI state updates on `reason === "navigate"`; still commit mutation and cache updates.
+- 2026-02-24 - self-miss jsdom hash assertion - Hash-only anchor behavior is not reliable to assert via `window.location.hash` in this test setup; assert guard behavior directly (`saveChanges`/`router.push` not called) instead.
+- 2026-02-24 - profile content dirty race - EditorJS `onChange` can lag right after typing; if navigate happens immediately, pending detection may miss content edits. Mark content dirty on editor container `onInputCapture` to make navigate-save deterministic.
+- 2026-02-24 - profile content e2e semantics - `DashboardProfile.fillContent` should not wait for immediate `userProfile.updateContent` network calls; content now persists reliably at boundary save (navigate/manual), so helper should only edit/blur.
+- 2026-02-24 - playwright repeat command nuance - `pnpm test:e2e -- ... --grep ...` can be parsed unexpectedly in this repo; use direct `pnpm exec playwright test <file> --grep '...' --repeat-each N` for focused repeat runs.
+- 2026-02-24 - navigate-save race root cause - Unmount-cleanup autosave is nondeterministic for Next in-app transitions; keystroke/form state can race teardown so updates intermittently drop.
+- 2026-02-24 - deterministic in-app autosave pattern - Use `usePendingChangesGuard` to intercept internal `<a>` clicks in capture phase, await `saveChanges("navigate")`, then call `router.push(...)`; keep `beforeunload` for browser close/reload.
 - 2026-02-24 - slug warning keyboard entry - Gating slug edits on `onPointerDown` alone misses keyboard/tab access; add `onFocus` guard that blurs and opens the same warning dialog when edit is still locked.
 - 2026-02-24 - tab-order test robustness - Profile page tab order is not stable enough for one-step assumptions; in e2e keyboard-focus checks, tab in a short loop until the target warning appears.
 - 2026-02-24 - profile slug UX simplification - Best behavior is a one-time pre-edit warning gate on slug input click: cancel keeps focus away, confirm unlocks and focuses field, then slug behaves like any normal deferred-save field (no blur/save special-casing).
