@@ -1,23 +1,38 @@
 "use client";
 
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ViewListingDialog } from "@/components/view-listing-dialog";
 import { withPublicClientQueryCache } from "@/lib/cache/client-cache";
+import {
+  createPublicCatalogSearchSnapshotFromInfiniteData,
+  isPublicCatalogSearchSnapshotUsable,
+  prefetchAndPersistPublicCatalogSearchSnapshot,
+  PUBLIC_CATALOG_SEARCH_PERSISTED_SWR,
+  readPublicCatalogSearchSnapshot,
+  snapshotToInfiniteData,
+  shouldRevalidatePublicCatalogSearchSnapshot,
+  writePublicCatalogSearchSnapshot,
+} from "@/lib/public-catalog-search-persistence";
 import { sortTitlesLettersBeforeNumbers } from "@/lib/utils/sort-utils";
 import { api } from "@/trpc/react";
 import { PublicCatalogSearchContent } from "./public-catalog-search-content";
 import { type PublicCatalogSearchClientProps } from "./public-catalog-search-types";
 
 export function PublicCatalogSearchClient({
+  userId,
   userSlugOrId,
   lists,
   initialListings,
   totalListingsCount,
 }: PublicCatalogSearchClientProps) {
+  const utils = api.useUtils();
+  const [isSnapshotCheckDone, setIsSnapshotCheckDone] = useState(
+    !PUBLIC_CATALOG_SEARCH_PERSISTED_SWR.enabled,
+  );
   const queryInput = useMemo(
     () => ({
       userSlugOrId,
-      limit: 500,
+      limit: PUBLIC_CATALOG_SEARCH_PERSISTED_SWR.queryLimit,
     }),
     [userSlugOrId],
   );
@@ -36,10 +51,72 @@ export function PublicCatalogSearchClient({
     );
 
   useEffect(() => {
+    if (!PUBLIC_CATALOG_SEARCH_PERSISTED_SWR.enabled) {
+      return;
+    }
+
+    let cancelled = false;
+    void (async () => {
+      const snapshot = await readPublicCatalogSearchSnapshot(userId);
+      if (snapshot && isPublicCatalogSearchSnapshotUsable(snapshot)) {
+        utils.public.getListings.setInfiniteData(queryInput, () =>
+          snapshotToInfiniteData(snapshot),
+        );
+
+        if (shouldRevalidatePublicCatalogSearchSnapshot(snapshot)) {
+          void prefetchAndPersistPublicCatalogSearchSnapshot({
+            userId,
+            userSlugOrId,
+            force: true,
+          }).then((revalidatedSnapshot) => {
+            if (cancelled || !revalidatedSnapshot) {
+              return;
+            }
+
+            utils.public.getListings.setInfiniteData(queryInput, () =>
+              snapshotToInfiniteData(revalidatedSnapshot),
+            );
+          });
+        }
+      }
+
+      if (!cancelled) {
+        setIsSnapshotCheckDone(true);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [queryInput, userId, userSlugOrId, utils]);
+
+  useEffect(() => {
+    if (!isSnapshotCheckDone) {
+      return;
+    }
+
     if (hasNextPage && !isFetchingNextPage) {
       void fetchNextPage();
     }
-  }, [fetchNextPage, hasNextPage, isFetchingNextPage]);
+  }, [fetchNextPage, hasNextPage, isFetchingNextPage, isSnapshotCheckDone]);
+
+  useEffect(() => {
+    if (!PUBLIC_CATALOG_SEARCH_PERSISTED_SWR.enabled) {
+      return;
+    }
+
+    if (!data?.pages?.length || hasNextPage || isFetchingNextPage) {
+      return;
+    }
+
+    const snapshot = createPublicCatalogSearchSnapshotFromInfiniteData({
+      userId,
+      userSlugOrId,
+      data,
+    });
+
+    void writePublicCatalogSearchSnapshot(snapshot);
+  }, [data, hasNextPage, isFetchingNextPage, userId, userSlugOrId]);
 
   const dataPages = data?.pages;
   const listings = (() => {

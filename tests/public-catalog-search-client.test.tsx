@@ -6,15 +6,37 @@ import { type PublicCatalogListing } from "@/components/public-catalog-search/pu
 const mockUseInfiniteQuery = vi.hoisted(() => vi.fn());
 const mockFetchNextPage = vi.hoisted(() => vi.fn());
 const mockRenderSearchContent = vi.hoisted(() => vi.fn());
+const mockSetInfiniteData = vi.hoisted(() => vi.fn());
 
 vi.mock("@/trpc/react", () => ({
   api: {
+    useUtils: () => ({
+      public: {
+        getListings: {
+          setInfiniteData: mockSetInfiniteData,
+        },
+      },
+    }),
     public: {
       getListings: {
         useInfiniteQuery: (...args: unknown[]) => mockUseInfiniteQuery(...args),
       },
     },
   },
+}));
+
+vi.mock("@/lib/public-catalog-search-persistence", () => ({
+  PUBLIC_CATALOG_SEARCH_PERSISTED_SWR: {
+    enabled: false,
+    queryLimit: 500,
+  },
+  readPublicCatalogSearchSnapshot: vi.fn(),
+  isPublicCatalogSearchSnapshotUsable: vi.fn(),
+  shouldRevalidatePublicCatalogSearchSnapshot: vi.fn(),
+  prefetchAndPersistPublicCatalogSearchSnapshot: vi.fn(),
+  snapshotToInfiniteData: vi.fn(),
+  createPublicCatalogSearchSnapshotFromInfiniteData: vi.fn(),
+  writePublicCatalogSearchSnapshot: vi.fn(),
 }));
 
 vi.mock("@/components/public-catalog-search/public-catalog-search-content", () => ({
@@ -54,6 +76,7 @@ describe("PublicCatalogSearchClient", () => {
       hasNextPage: false,
       isFetchingNextPage: false,
     });
+    mockSetInfiniteData.mockReset();
   });
 
   it("falls back to initial listings when query data is not available", () => {

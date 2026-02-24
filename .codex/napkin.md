@@ -2,6 +2,8 @@
 
 ## Log
 
+- 2026-02-24 - profile cache TTL alignment - Avoid implicit coupling by adding `CACHE_CONFIG.PUBLIC.PROFILE_REVALIDATE_SECONDS` and using it for `getCachedPublicProfile` + cached slug/id->userId lookup, so profile-route freshness can be tuned independently without SEARCH key drift.
+- 2026-02-24 - persistence scope correction - Dashboard DB and public catalog search persistence were unintentionally left as no-op stubs after cache-removal changes; restore full IndexedDB snapshot/hydration behavior (dashboard + public search) when persistence is still required.
 - 2026-02-24 - public slug-id cache correction - Caching a derived profile identity object for slug/id resolution increased cache-miss cost (extra DB read). Prefer a dedicated cached `getUserIdFromSlugOrId` helper so first miss is one query and paginated follow-ups avoid repeated lookups.
 - 2026-02-24 - tooling self-miss - I used a quick Python one-liner for URL checks where shell commands would have been sufficient; prefer direct shell utilities in this repo unless Python is truly necessary.
 - 2026-02-24 - trpc server helper correction - `src/trpc/server.ts` is currently unused by call sites, but we restored it with React `cache()` memoization to keep default create-t3-app server-call plumbing available for future RSC tRPC usage.

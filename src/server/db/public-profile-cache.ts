@@ -12,7 +12,7 @@ import {
 
 export const getCachedPublicProfile = createServerCache(getPublicProfile, {
   key: "public:profile",
-  revalidateSeconds: CACHE_CONFIG.PUBLIC.SEARCH.SERVER_REVALIDATE_SECONDS,
+  revalidateSeconds: CACHE_CONFIG.PUBLIC.PROFILE_REVALIDATE_SECONDS,
   tags: [CACHE_CONFIG.TAGS.PUBLIC_PROFILE],
 });
 
@@ -20,7 +20,7 @@ export const getCachedPublicUserIdFromSlugOrId = createServerCache(
   getUserIdFromSlugOrId,
   {
     key: "public:profile:user-id",
-    revalidateSeconds: CACHE_CONFIG.PUBLIC.SEARCH.SERVER_REVALIDATE_SECONDS,
+    revalidateSeconds: CACHE_CONFIG.PUBLIC.PROFILE_REVALIDATE_SECONDS,
     tags: [CACHE_CONFIG.TAGS.PUBLIC_PROFILE],
   },
 );
