@@ -2,6 +2,10 @@
 
 ## Log
 
+- 2026-02-24 - tags print selection source correction - In `/dashboard/tags`, selected items for print/sheet output must be derived from table `rowSelection` IDs (same source as selected badges), not `getFilteredSelectedRowModel`, so selected rows remain printable when filtered/paged out of the current table view.
+- 2026-02-24 - sheet copies-per-label UX - Sheet Creator now needs a `Copies of each label` control that resets to `1` each open, duplicates each selected label contiguously before moving to the next label, and shows an explicit summary line: `X labels selected, X copies of each, X total labels.`
+- 2026-02-24 - sheet copies visibility follow-up - User could miss copies control when it lived among page/grid settings; keep copies control in a dedicated top "Print quantity" section to make multi-copy behavior obvious.
+- 2026-02-24 - sheet quantity placement correction - User wants print quantity placed directly under `Print dashed borders` and collapsed by default; implement as a collapsible section that resets closed when the dialog opens.
 - 2026-02-23 - sheet export parity correction - Sheet Creator download control should match primary export formats; provide a shadcn download menu with `HTML Sheets (.html)`, `PDF (.pdf)`, and `Images (.zip)` from the sheet layout.
 - 2026-02-23 - sheet sizing rule update - User expects sheet tags to always stay at active tag dimensions; rows/columns now define count, and page settings are validated against required sheet area instead of scaling tag size.
 - 2026-02-23 - sheet border styling - Tag cards on sheet output should include a muted dashed border for placement guidance in both preview and exported sheet documents.

@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it } from "vitest";
 import {
   createTagPrintDocumentHtml,
@@ -20,6 +20,24 @@ const sampleListings: TagListingData[] = [
       bloomSize: '6"',
       scapeHeight: '32"',
       bloomSeason: "M",
+    },
+  },
+];
+
+const multipleListings: TagListingData[] = [
+  ...sampleListings,
+  {
+    id: "listing-2",
+    title: "Solar Echo",
+    price: 22,
+    privateNote: "Display bed",
+    listName: "Garden Mix",
+    ahsListing: {
+      hybridizer: "Jones",
+      year: "2018",
+      bloomSize: '7"',
+      scapeHeight: '34"',
+      bloomSeason: "M-L",
     },
   },
 ];
@@ -89,13 +107,84 @@ describe("TagDesignerPanel", () => {
     ).toBeInTheDocument();
     expect(screen.getByLabelText("Rows")).toHaveValue("1");
     expect(screen.getByLabelText("Columns")).toHaveValue("1");
+    expect(
+      screen.queryByLabelText("Copies of each selected label"),
+    ).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Print quantity" }));
+    expect(screen.getByLabelText("Copies of each selected label")).toHaveValue("1");
     expect(screen.getByLabelText("Page width (in)")).toHaveValue("3.50");
     expect(screen.getByLabelText("Page height (in)")).toHaveValue("1.00");
     expect(screen.getByLabelText("Print dashed borders")).not.toBeChecked();
     expect(
+      screen.getByText("1 label selected, 1 copy of each, 1 total label."),
+    ).toBeInTheDocument();
+    expect(
       screen.getByRole("heading", { name: "Sheet Preview" }),
     ).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Print Sheets" })).toBeEnabled();
+  });
+
+  it("resets copies per label to 1 each time the sheet dialog opens", async () => {
+    render(<TagDesignerPanel listings={sampleListings} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Make Sheet" }));
+    const dialog = screen.getByRole("dialog");
+    fireEvent.click(within(dialog).getByRole("button", { name: "Print quantity" }));
+    const copiesInput = within(dialog).getByLabelText(
+      "Copies of each selected label",
+    );
+    fireEvent.change(copiesInput, { target: { value: "4" } });
+    fireEvent.blur(copiesInput);
+    expect(copiesInput).toHaveValue("4");
+
+    fireEvent.click(within(dialog).getByRole("button", { name: "Close" }));
+
+    fireEvent.click(screen.getByRole("button", { name: "Make Sheet" }));
+    const reopenedDialog = screen.getByRole("dialog");
+    fireEvent.click(
+      within(reopenedDialog).getByRole("button", { name: "Print quantity" }),
+    );
+
+    await waitFor(() => {
+      expect(
+        within(reopenedDialog).getByLabelText("Copies of each selected label"),
+      ).toHaveValue("1");
+    });
+  });
+
+  it("shows copy totals and groups the same label first in sheet preview", async () => {
+    render(<TagDesignerPanel listings={multipleListings} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Make Sheet" }));
+    const dialog = screen.getByRole("dialog");
+
+    const columnsInput = within(dialog).getByLabelText("Columns");
+    fireEvent.change(columnsInput, { target: { value: "2" } });
+    fireEvent.blur(columnsInput);
+
+    const pageWidthInput = within(dialog).getByLabelText("Page width (in)");
+    fireEvent.change(pageWidthInput, { target: { value: "7" } });
+    fireEvent.blur(pageWidthInput);
+
+    fireEvent.click(within(dialog).getByRole("button", { name: "Print quantity" }));
+    const copiesInput = within(dialog).getByLabelText(
+      "Copies of each selected label",
+    );
+    fireEvent.change(copiesInput, { target: { value: "2" } });
+    fireEvent.blur(copiesInput);
+
+    await waitFor(() => {
+      expect(
+        within(dialog).getByText(
+          "2 labels selected, 2 copies of each, 4 total labels.",
+        ),
+      ).toBeInTheDocument();
+    });
+
+    await waitFor(() => {
+      expect(within(dialog).getAllByText("Moonlit Smile")).toHaveLength(2);
+      expect(within(dialog).queryByText("Solar Echo")).not.toBeInTheDocument();
+    });
   });
 
   it("defers numeric validation until blur and supports +/- buttons", () => {

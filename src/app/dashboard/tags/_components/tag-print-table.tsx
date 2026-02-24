@@ -2,7 +2,11 @@
 
 import * as React from "react";
 import { X } from "lucide-react";
-import { type ColumnDef, type Table } from "@tanstack/react-table";
+import {
+  type ColumnDef,
+  type RowSelectionState,
+  type Table,
+} from "@tanstack/react-table";
 import { useLiveQuery } from "@tanstack/react-db";
 import type { Image } from "@prisma/client";
 import { Badge } from "@/components/ui/badge";
@@ -67,6 +71,44 @@ const tagPrintColumns: ColumnDef<ListingData>[] = [
   ...baseListingColumns,
 ];
 
+function getSelectedIdsFromRowSelection(rowSelection: RowSelectionState) {
+  return Object.entries(rowSelection)
+    .filter(([, selected]) => selected)
+    .map(([id]) => id);
+}
+
+interface TagPrintSelectableListing {
+  id: string;
+  userId?: string | null;
+  title: string;
+  price?: number | null;
+  privateNote?: string | null;
+  ahsListing: ListingData["ahsListing"];
+  lists: ListingData["lists"];
+}
+
+export function buildSelectedTagListingsForPrint({
+  listings,
+  rowSelection,
+}: {
+  listings: TagPrintSelectableListing[];
+  rowSelection: RowSelectionState;
+}): TagListingData[] {
+  const selectedIdSet = new Set(getSelectedIdsFromRowSelection(rowSelection));
+
+  return listings
+    .filter((listing) => selectedIdSet.has(listing.id))
+    .map((listing) => ({
+      id: listing.id,
+      userId: listing.userId,
+      title: listing.title,
+      price: listing.price,
+      privateNote: listing.privateNote,
+      ahsListing: listing.ahsListing,
+      listName: listing.lists.map((list) => list.title).join(", "),
+    }));
+}
+
 interface SelectedListingsBadgesProps {
   table: Table<ListingData>;
   listingsById: Map<string, ListingData>;
@@ -74,9 +116,7 @@ interface SelectedListingsBadgesProps {
 
 function SelectedListingsBadges({ table, listingsById }: SelectedListingsBadgesProps) {
   const rowSelection = table.getState().rowSelection ?? {};
-  const selectedIds = Object.entries(rowSelection)
-    .filter(([, selected]) => selected)
-    .map(([id]) => id);
+  const selectedIds = getSelectedIdsFromRowSelection(rowSelection);
 
   if (selectedIds.length === 0) return null;
 
@@ -304,17 +344,11 @@ export function TagPrintTable() {
     },
   });
 
-  const selectedListings: TagListingData[] = table
-    .getFilteredSelectedRowModel()
-    .rows.map((row) => ({
-      id: row.original.id,
-      userId: row.original.userId,
-      title: row.original.title,
-      price: row.original.price,
-      privateNote: row.original.privateNote,
-      ahsListing: row.original.ahsListing,
-      listName: row.original.lists.map((list) => list.title).join(", "),
-    }));
+  const rowSelection = table.getState().rowSelection ?? {};
+  const selectedListings = buildSelectedTagListingsForPrint({
+    listings,
+    rowSelection,
+  });
 
   if (!effectiveListings.length) {
     return (
