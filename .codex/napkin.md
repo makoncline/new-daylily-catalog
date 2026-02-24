@@ -2,6 +2,9 @@
 
 ## Log
 
+- 2026-02-24 - PR cache strategy summary - Public SEO routes use static/ISR with 24h revalidation, while `/{slug}/search` stays dynamic + noindex with 24h server/client freshness controls.
+- 2026-02-24 - PR cache implementation summary - Cache timings are centralized in `cache-config.ts`; server/client cache helpers are shared; `src/trpc/server.ts` is restored for future RSC calls; public slug/id lookup uses cached `getUserIdFromSlugOrId` with dedicated profile TTL.
+- 2026-02-24 - PR scope boundaries - TanStack DB internals are out of cache-removal scope; dashboard DB and public catalog search IndexedDB persistence remain enabled; profile-page client prefetch warmup stays removed.
 - 2026-02-24 - self-miss hook deps lint - Wrapping simple local input-commit handlers in `useCallback` around a non-memoized `patch` helper triggered `react-hooks/exhaustive-deps`; simplest fix is plain inline functions when memoization is unnecessary.
 - 2026-02-24 - tags effects simplification preference - User prefers avoiding derived-state `useEffect` syncing for `/dashboard/tags` numeric inputs; use uncontrolled number inputs (`defaultValue`) with blur-time commit/reset handlers instead.
 - 2026-02-24 - self-miss TagCell key field - `TagCell` has no `id`; when forcing input remount keys, derive from existing stable fields (for example `fieldId` + value) instead of assuming an ID.
@@ -153,6 +156,8 @@
 
 ## Preferences
 
+- Caching PR preference: keep public route policy simple (24h static/ISR for SEO routes, dynamic + noindex for `/{slug}/search`) and keep segment-config literals annotated with `CACHE_LITERAL_REF` comments.
+- Caching PR preference: keep TanStack DB internals out of cache-removal scope and prioritize behavior-level test assertions over cache implementation details.
 - Keep query params when redirecting public profile routes from `/{userId}` to `/{slug}`.
 - Keep `/{userId}` -> `/{slug}` canonical redirects server-side (SEO), not client-side.
 - Write tests, not too many, mostly integration, hapy path e2e.

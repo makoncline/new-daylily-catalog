@@ -1,8 +1,11 @@
 import { getBaseUrl } from "@/lib/utils/getBaseUrl";
 import { type MetadataRoute } from "next";
-import { getCultivarSitemapEntries } from "@/server/db/getPublicCultivars";
-import { getPublicCatalogRouteEntries } from "@/server/db/getPublicListings";
+import {
+  getCachedCultivarSitemapEntries,
+  getCachedPublicCatalogRouteEntries,
+} from "@/server/db/public-cache";
 
+// CACHE_LITERAL_REF: CACHE_CONFIG.PUBLIC.SITEMAP_REVALIDATE_SECONDS
 export const revalidate = 604800;
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
@@ -22,7 +25,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     },
   );
 
-  const publicCatalogEntries = await getPublicCatalogRouteEntries();
+  const publicCatalogEntries = await getCachedPublicCatalogRouteEntries();
   publicCatalogEntries.forEach((entry) => {
     sitemap.push({
       url: `${baseUrl}/${entry.slug}`,
@@ -32,7 +35,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     });
   });
 
-  const cultivarEntries = await getCultivarSitemapEntries();
+  const cultivarEntries = await getCachedCultivarSitemapEntries();
   cultivarEntries.forEach((cultivar) => {
     sitemap.push({
       url: `${baseUrl}/cultivar/${cultivar.segment}`,

@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { ViewListingDialog } from "@/components/view-listing-dialog";
-import { TIME } from "@/config/constants";
+import { withPublicClientQueryCache } from "@/lib/cache/client-cache";
 import {
   createPublicCatalogSearchSnapshotFromInfiniteData,
   isPublicCatalogSearchSnapshotUsable,
@@ -38,20 +38,17 @@ export function PublicCatalogSearchClient({
   );
 
   const { data, fetchNextPage, hasNextPage, isFetchingNextPage } =
-    api.public.getListings.useInfiniteQuery(queryInput, {
-      getNextPageParam: (lastPage) => lastPage[lastPage.length - 1]?.id,
-      initialData: {
-        pages: [initialListings],
-        pageParams: [undefined],
-      },
-      refetchOnWindowFocus: false,
-      refetchOnReconnect: false,
-      staleTime: TIME.HOUR_IN_MS,
-      gcTime: TIME.HOUR_IN_MS,
-      retry: false,
-      refetchOnMount: false,
-      refetchInterval: false,
-    });
+    api.public.getListings.useInfiniteQuery(
+      queryInput,
+      withPublicClientQueryCache({
+        getNextPageParam: (lastPage) => lastPage[lastPage.length - 1]?.id,
+        initialData: {
+          pages: [initialListings],
+          pageParams: [undefined],
+        },
+        retry: false,
+      }),
+    );
 
   useEffect(() => {
     if (!PUBLIC_CATALOG_SEARCH_PERSISTED_SWR.enabled) {

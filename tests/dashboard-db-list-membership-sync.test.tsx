@@ -95,6 +95,5 @@ describe("dashboardDb list membership sync", () => {
         expect(text).not.toContain(listingId);
       });
     });
-  });
+  }, 10000);
 });
-

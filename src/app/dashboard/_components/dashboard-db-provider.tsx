@@ -60,11 +60,7 @@ export function DashboardDbProvider({
     data: user,
     isLoading,
     isError,
-  } = api.dashboardDb.user.getCurrentUser.useQuery(undefined, {
-    staleTime: Infinity,
-    refetchOnWindowFocus: false,
-    refetchOnMount: false,
-  });
+  } = api.dashboardDb.user.getCurrentUser.useQuery();
 
   const userId = user?.id ?? null;
 
@@ -121,7 +117,7 @@ export function DashboardDbProvider({
       return;
     }
 
-    if (isError || !userId) {
+    if (!userId) {
       setCurrentUserId(null);
       getQueryClient().removeQueries({ queryKey: ["dashboard-db"] });
       void Promise.allSettled([
@@ -130,7 +126,11 @@ export function DashboardDbProvider({
         imagesCollection.cleanup(),
         cultivarReferencesCollection.cleanup(),
       ]);
-      setDashboardDbState({ status: isError ? "error" : "idle", userId: null });
+      setDashboardDbState({ status: "idle", userId: null });
+      return;
+    }
+
+    if (isError) {
       return;
     }
 

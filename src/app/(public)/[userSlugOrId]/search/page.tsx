@@ -1,23 +1,20 @@
 import { type Metadata } from "next";
-import { unstable_cache } from "next/cache";
 import { notFound, permanentRedirect } from "next/navigation";
 import { MainContent } from "@/app/(public)/_components/main-content";
 import { CatalogSearchHeader } from "@/app/(public)/[userSlugOrId]/_components/catalog-search-header";
 import { Breadcrumbs } from "@/components/breadcrumbs";
 import { PublicCatalogSearchClient } from "@/components/public-catalog-search/public-catalog-search-client";
-import { PUBLIC_CACHE_CONFIG } from "@/config/public-cache-config";
 import {
   toPublicCatalogSearchParams,
   type PublicCatalogSearchParamRecord,
 } from "@/lib/public-catalog-url-state";
 import { getErrorCode, tryCatch } from "@/lib/utils";
-import { getInitialListings } from "@/server/db/getPublicListings";
-import { getPublicProfile } from "@/server/db/getPublicProfile";
-import { getPublicProfileStaticParams } from "../_lib/public-profile-route";
+import {
+  getCachedInitialListings,
+  getCachedPublicProfile,
+} from "@/server/db/public-cache";
 
-export const revalidate = 86400;
-export const dynamic = "force-static";
-export const dynamicParams = true;
+export const dynamic = "force-dynamic";
 
 interface CatalogSearchPageProps {
   params: Promise<{
@@ -26,15 +23,11 @@ interface CatalogSearchPageProps {
   searchParams?: Promise<PublicCatalogSearchParamRecord>;
 }
 
-export async function generateStaticParams() {
-  return getPublicProfileStaticParams();
-}
-
 export async function generateMetadata({
   params,
 }: CatalogSearchPageProps): Promise<Metadata> {
   const { userSlugOrId } = await params;
-  const profileResult = await tryCatch(getPublicProfile(userSlugOrId));
+  const profileResult = await tryCatch(getCachedPublicProfile(userSlugOrId));
 
   if (!profileResult.data) {
     return {
@@ -66,21 +59,9 @@ export default async function CatalogSearchPage({
   const rawSearchParams = await searchParams;
   const searchParamsAsUrl = toPublicCatalogSearchParams(rawSearchParams);
 
-  const getProfile = unstable_cache(
-    async () => getPublicProfile(userSlugOrId),
-    ["profile", userSlugOrId, "catalog-search"],
-    { revalidate: PUBLIC_CACHE_CONFIG.REVALIDATE_SECONDS.PAGE.PROFILE },
-  );
-
-  const getListings = unstable_cache(
-    async () => getInitialListings(userSlugOrId),
-    ["listings", userSlugOrId, "catalog-search", "initial"],
-    { revalidate: PUBLIC_CACHE_CONFIG.REVALIDATE_SECONDS.PAGE.PROFILE },
-  );
-
   const [profileResult, listingsResult] = await Promise.all([
-    tryCatch(getProfile()),
-    tryCatch(getListings()),
+    tryCatch(getCachedPublicProfile(userSlugOrId)),
+    tryCatch(getCachedInitialListings(userSlugOrId)),
   ]);
 
   if (getErrorCode(profileResult.error) === "NOT_FOUND") {

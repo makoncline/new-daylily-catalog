@@ -1,8 +1,6 @@
-import { unstable_cache } from "next/cache";
 import { notFound, permanentRedirect } from "next/navigation";
 import { MainContent } from "@/app/(public)/_components/main-content";
 import { PublicBreadcrumbs } from "@/app/(public)/_components/public-breadcrumbs";
-import { PUBLIC_CACHE_CONFIG } from "@/config/public-cache-config";
 import { getBaseUrl } from "@/lib/utils/getBaseUrl";
 import { getErrorCode, tryCatch } from "@/lib/utils";
 import { CatalogSeoListings } from "./_components/catalog-seo-listings";
@@ -15,6 +13,7 @@ import {
 import { generatePaginatedProfileMetadata } from "./_seo/paginated-metadata";
 import { generateProfileMetadata } from "./_seo/metadata";
 
+// CACHE_LITERAL_REF: CACHE_CONFIG.PUBLIC.STATIC_REVALIDATE_SECONDS
 export const revalidate = 86400;
 export const dynamic = "force-static";
 export const dynamicParams = true;
@@ -57,14 +56,9 @@ export async function generateMetadata({ params }: PageProps) {
 export default async function Page({ params }: PageProps) {
   const { userSlugOrId } = await params;
   const requestedPage = 1;
-
-  const getPageData = unstable_cache(
-    async () => getPublicProfilePageData(userSlugOrId, requestedPage),
-    ["profile-listings-page", userSlugOrId, String(requestedPage)],
-    { revalidate: PUBLIC_CACHE_CONFIG.REVALIDATE_SECONDS.PAGE.PROFILE },
+  const pageDataResult = await tryCatch(
+    getPublicProfilePageData(userSlugOrId, requestedPage),
   );
-
-  const pageDataResult = await tryCatch(getPageData());
 
   if (getErrorCode(pageDataResult.error) === "NOT_FOUND") {
     notFound();

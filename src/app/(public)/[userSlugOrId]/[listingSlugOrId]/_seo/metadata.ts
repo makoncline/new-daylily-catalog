@@ -6,10 +6,8 @@ import {
   getListingDescription,
   type Listing,
 } from "./utils";
-import { unstable_cache } from "next/cache";
 import { normalizeError, reportError } from "@/lib/error-utils";
 import { METADATA_CONFIG } from "@/config/constants";
-import { PUBLIC_CACHE_CONFIG } from "@/config/public-cache-config";
 
 // Base function for generating metadata
 async function createListingMetadata(listing: Listing | null, url: string) {
@@ -112,14 +110,6 @@ async function createListingMetadata(listing: Listing | null, url: string) {
   }
 }
 
-// Create a higher-order function that creates a cached function for each listing ID
 export function generateListingMetadata(listing: Listing | null, url: string) {
-  // Use the unstable_cache with only time-based expiration
-  return unstable_cache(
-    async () => createListingMetadata(listing, url),
-    [`metadata-${listing?.id ?? "not-found"}`], // Cache key specific to this listing
-    {
-      revalidate: PUBLIC_CACHE_CONFIG.REVALIDATE_SECONDS.DATA.LISTING_METADATA,
-    },
-  )();
+  return createListingMetadata(listing, url);
 }

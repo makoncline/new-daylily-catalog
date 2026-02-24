@@ -43,10 +43,7 @@ export function AppSidebar({
     data: user,
     isLoading,
     error,
-  } = api.user.getCurrentUser.useQuery(undefined, {
-    // Refetch every minute to keep session fresh
-    refetchInterval: 60000,
-  });
+  } = api.user.getCurrentUser.useQuery();
 
   const feedbackUrl = useFeedbackUrl();
 
