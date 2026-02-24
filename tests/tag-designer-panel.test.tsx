@@ -266,7 +266,7 @@ describe("TagDesignerPanel", () => {
     ).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Increase Rows" }));
-    expect(rowsInput).toHaveValue(2);
+    expect(screen.getByLabelText("Rows")).toHaveValue(2);
     expect(
       screen.queryByText(/Enter a whole number between 1 and 20/i),
     ).not.toBeInTheDocument();

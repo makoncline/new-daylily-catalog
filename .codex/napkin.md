@@ -2,6 +2,9 @@
 
 ## Log
 
+- 2026-02-24 - self-miss hook deps lint - Wrapping simple local input-commit handlers in `useCallback` around a non-memoized `patch` helper triggered `react-hooks/exhaustive-deps`; simplest fix is plain inline functions when memoization is unnecessary.
+- 2026-02-24 - tags effects simplification preference - User prefers avoiding derived-state `useEffect` syncing for `/dashboard/tags` numeric inputs; use uncontrolled number inputs (`defaultValue`) with blur-time commit/reset handlers instead.
+- 2026-02-24 - self-miss TagCell key field - `TagCell` has no `id`; when forcing input remount keys, derive from existing stable fields (for example `fieldId` + value) instead of assuming an ID.
 - 2026-02-24 - tags numeric spinner preference - User wants native number input arrows preserved on `/dashboard/tags`; keep `type="number"` while still using draft-state + blur-only commit to allow clear-then-type editing.
 - 2026-02-24 - tags custom size blur validation - Main `/dashboard/tags` custom size inputs (`Width (in)`, `Height (in)`) must follow the same draft + blur-commit pattern as other numeric controls; eager parse on `onChange` blocks clear-then-type editing.
 - 2026-02-24 - tags numeric verification pattern - For `/dashboard/tags`, one integration sweep test over all `SheetNumberField` labels plus print-quantity copies gives reliable coverage that every sheet numeric field allows empty drafts and commits on blur.

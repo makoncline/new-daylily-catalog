@@ -2144,35 +2144,22 @@ function TagCellEditor({
   const patch = (partial: Partial<TagCell>) =>
     onUpdate({ ...cell, ...partial });
 
-  const [widthDraft, setWidthDraft] = React.useState(() => String(cell.width));
-  const [fontSizeDraft, setFontSizeDraft] = React.useState(() =>
-    String(cell.fontSize),
-  );
-
-  React.useEffect(() => {
-    setWidthDraft(String(cell.width));
-  }, [cell.width]);
-
-  React.useEffect(() => {
-    setFontSizeDraft(String(cell.fontSize));
-  }, [cell.fontSize]);
-
-  const commitWidthDraft = () => {
-    const parsedWidth = Number.parseInt(widthDraft.trim(), 10);
+  const commitWidthDraft = (inputElement: HTMLInputElement) => {
+    const parsedWidth = Number.parseInt(inputElement.value.trim(), 10);
     const nextWidth = Number.isFinite(parsedWidth)
       ? clamp(parsedWidth, 1, 12)
       : cell.width;
     patch({ width: nextWidth });
-    setWidthDraft(String(nextWidth));
+    inputElement.value = String(nextWidth);
   };
 
-  const commitFontSizeDraft = () => {
-    const parsedFontSize = Number.parseInt(fontSizeDraft.trim(), 10);
+  const commitFontSizeDraft = (inputElement: HTMLInputElement) => {
+    const parsedFontSize = Number.parseInt(inputElement.value.trim(), 10);
     const nextFontSize = Number.isFinite(parsedFontSize)
       ? clamp(parsedFontSize, 6, 28)
       : cell.fontSize;
     patch({ fontSize: nextFontSize });
-    setFontSizeDraft(String(nextFontSize));
+    inputElement.value = String(nextFontSize);
   };
 
   return (
@@ -2237,14 +2224,14 @@ function TagCellEditor({
       />
 
       <Input
+        key={`cell-width-${cell.fieldId}-${cell.width}`}
         type="number"
         inputMode="numeric"
         min={1}
         max={12}
         step={1}
-        value={widthDraft}
-        onChange={(e) => setWidthDraft(e.target.value)}
-        onBlur={commitWidthDraft}
+        defaultValue={cell.width}
+        onBlur={(event) => commitWidthDraft(event.currentTarget)}
         onKeyDown={(event) => {
           if (event.key === "Enter") {
             event.currentTarget.blur();
@@ -2266,14 +2253,14 @@ function TagCellEditor({
       </select>
 
       <Input
+        key={`cell-font-${cell.fieldId}-${cell.fontSize}`}
         type="number"
         inputMode="numeric"
         min={6}
         max={28}
         step={1}
-        value={fontSizeDraft}
-        onChange={(e) => setFontSizeDraft(e.target.value)}
-        onBlur={commitFontSizeDraft}
+        defaultValue={cell.fontSize}
+        onBlur={(event) => commitFontSizeDraft(event.currentTarget)}
         onKeyDown={(event) => {
           if (event.key === "Enter") {
             event.currentTarget.blur();
@@ -2523,9 +2510,6 @@ function SheetNumberField({
   decimals,
   onCommit,
 }: SheetNumberFieldProps) {
-  const [draftValue, setDraftValue] = React.useState(() =>
-    formatSheetNumberForInput(value, decimals),
-  );
   const [errorMessage, setErrorMessage] = React.useState<string | null>(null);
 
   const rangeText = React.useMemo(() => {
@@ -2535,24 +2519,27 @@ function SheetNumberField({
     return `Enter a ${prefix} between ${minText} and ${maxText}.`;
   }, [decimals, max, min]);
 
-  React.useEffect(() => {
-    setDraftValue(formatSheetNumberForInput(value, decimals));
-    setErrorMessage(null);
-  }, [decimals, value]);
+  const commitDraftValue = React.useCallback(
+    (inputElement: HTMLInputElement) => {
+      const trimmedValue = inputElement.value.trim();
+      const parsedValue = parseSheetNumberInput(trimmedValue, decimals);
+      if (parsedValue === null || parsedValue < min || parsedValue > max) {
+        setErrorMessage(`${rangeText} Type a value and leave the field.`);
+        return;
+      }
 
-  const commitDraftValue = React.useCallback(() => {
-    const trimmedValue = draftValue.trim();
-    const parsedValue = parseSheetNumberInput(trimmedValue, decimals);
-    if (parsedValue === null || parsedValue < min || parsedValue > max) {
-      setErrorMessage(`${rangeText} Type a value and leave the field.`);
-      return;
-    }
-
-    const normalizedValue = normalizeSheetNumber(parsedValue, min, max, decimals);
-    onCommit(normalizedValue);
-    setDraftValue(formatSheetNumberForInput(normalizedValue, decimals));
-    setErrorMessage(null);
-  }, [decimals, draftValue, max, min, onCommit, rangeText]);
+      const normalizedValue = normalizeSheetNumber(
+        parsedValue,
+        min,
+        max,
+        decimals,
+      );
+      onCommit(normalizedValue);
+      inputElement.value = formatSheetNumberForInput(normalizedValue, decimals);
+      setErrorMessage(null);
+    },
+    [decimals, max, min, onCommit, rangeText],
+  );
 
   const stepValue = React.useCallback(
     (direction: -1 | 1) => {
@@ -2563,7 +2550,6 @@ function SheetNumberField({
         decimals,
       );
       onCommit(nextValue);
-      setDraftValue(formatSheetNumberForInput(nextValue, decimals));
       setErrorMessage(null);
     },
     [decimals, max, min, onCommit, step, value],
@@ -2585,24 +2571,27 @@ function SheetNumberField({
         </Button>
 
         <Input
+          key={`${id}-${value}`}
           id={id}
           type="number"
           min={min}
           max={max}
           step={step}
           inputMode={decimals === 0 ? "numeric" : "decimal"}
-          value={draftValue}
-          onChange={(event) => {
-            setDraftValue(event.target.value);
+          defaultValue={formatSheetNumberForInput(value, decimals)}
+          onChange={() => {
             if (errorMessage) setErrorMessage(null);
           }}
-          onBlur={commitDraftValue}
+          onBlur={(event) => commitDraftValue(event.currentTarget)}
           onKeyDown={(event) => {
             if (event.key === "Enter") {
               event.currentTarget.blur();
             }
             if (event.key === "Escape") {
-              setDraftValue(formatSheetNumberForInput(value, decimals));
+              event.currentTarget.value = formatSheetNumberForInput(
+                value,
+                decimals,
+              );
               setErrorMessage(null);
               event.currentTarget.blur();
             }
@@ -3248,81 +3237,75 @@ function TagDesignerCustomSizeInputs({
   customHeightInches,
   updateState,
 }: TagDesignerCustomSizeInputsProps) {
-  const [widthDraft, setWidthDraft] = React.useState(() =>
-    formatSheetNumberForInput(customWidthInches, 2),
+  const commitWidthDraft = React.useCallback(
+    (inputElement: HTMLInputElement) => {
+      const parsedValue = parseSheetNumberInput(inputElement.value.trim(), 2);
+      if (parsedValue === null) {
+        inputElement.value = formatSheetNumberForInput(customWidthInches, 2);
+        return;
+      }
+
+      const normalizedValue = normalizeSheetNumber(
+        parsedValue,
+        MIN_TAG_WIDTH_INCHES,
+        MAX_TAG_WIDTH_INCHES,
+        2,
+      );
+      updateState((previous) => ({
+        ...previous,
+        customWidthInches: normalizedValue,
+      }));
+      inputElement.value = formatSheetNumberForInput(normalizedValue, 2);
+    },
+    [customWidthInches, updateState],
   );
-  const [heightDraft, setHeightDraft] = React.useState(() =>
-    formatSheetNumberForInput(customHeightInches, 2),
+
+  const commitHeightDraft = React.useCallback(
+    (inputElement: HTMLInputElement) => {
+      const parsedValue = parseSheetNumberInput(inputElement.value.trim(), 2);
+      if (parsedValue === null) {
+        inputElement.value = formatSheetNumberForInput(customHeightInches, 2);
+        return;
+      }
+
+      const normalizedValue = normalizeSheetNumber(
+        parsedValue,
+        MIN_TAG_HEIGHT_INCHES,
+        MAX_TAG_HEIGHT_INCHES,
+        2,
+      );
+      updateState((previous) => ({
+        ...previous,
+        customHeightInches: normalizedValue,
+      }));
+      inputElement.value = formatSheetNumberForInput(normalizedValue, 2);
+    },
+    [customHeightInches, updateState],
   );
-
-  React.useEffect(() => {
-    setWidthDraft(formatSheetNumberForInput(customWidthInches, 2));
-  }, [customWidthInches]);
-
-  React.useEffect(() => {
-    setHeightDraft(formatSheetNumberForInput(customHeightInches, 2));
-  }, [customHeightInches]);
-
-  const commitWidthDraft = React.useCallback(() => {
-    const parsedValue = parseSheetNumberInput(widthDraft.trim(), 2);
-    if (parsedValue === null) {
-      setWidthDraft(formatSheetNumberForInput(customWidthInches, 2));
-      return;
-    }
-
-    const normalizedValue = normalizeSheetNumber(
-      parsedValue,
-      MIN_TAG_WIDTH_INCHES,
-      MAX_TAG_WIDTH_INCHES,
-      2,
-    );
-    updateState((previous) => ({
-      ...previous,
-      customWidthInches: normalizedValue,
-    }));
-    setWidthDraft(formatSheetNumberForInput(normalizedValue, 2));
-  }, [customWidthInches, updateState, widthDraft]);
-
-  const commitHeightDraft = React.useCallback(() => {
-    const parsedValue = parseSheetNumberInput(heightDraft.trim(), 2);
-    if (parsedValue === null) {
-      setHeightDraft(formatSheetNumberForInput(customHeightInches, 2));
-      return;
-    }
-
-    const normalizedValue = normalizeSheetNumber(
-      parsedValue,
-      MIN_TAG_HEIGHT_INCHES,
-      MAX_TAG_HEIGHT_INCHES,
-      2,
-    );
-    updateState((previous) => ({
-      ...previous,
-      customHeightInches: normalizedValue,
-    }));
-    setHeightDraft(formatSheetNumberForInput(normalizedValue, 2));
-  }, [customHeightInches, heightDraft, updateState]);
 
   return (
     <>
       <div className="space-y-1">
         <Label htmlFor="custom-width-input">Width (in)</Label>
         <Input
+          key={`custom-width-${customWidthInches}`}
           id="custom-width-input"
           type="number"
           min={MIN_TAG_WIDTH_INCHES}
           max={MAX_TAG_WIDTH_INCHES}
           step={0.01}
           inputMode="decimal"
-          value={widthDraft}
-          onChange={(event) => setWidthDraft(event.target.value)}
-          onBlur={commitWidthDraft}
+          defaultValue={formatSheetNumberForInput(customWidthInches, 2)}
+          onBlur={(event) => commitWidthDraft(event.currentTarget)}
           onKeyDown={(event) => {
             if (event.key === "Enter") {
               event.currentTarget.blur();
             }
             if (event.key === "Escape") {
-              setWidthDraft(formatSheetNumberForInput(customWidthInches, 2));
+              event.currentTarget.value = formatSheetNumberForInput(
+                customWidthInches,
+                2,
+              );
               event.currentTarget.blur();
             }
           }}
@@ -3331,21 +3314,24 @@ function TagDesignerCustomSizeInputs({
       <div className="space-y-1">
         <Label htmlFor="custom-height-input">Height (in)</Label>
         <Input
+          key={`custom-height-${customHeightInches}`}
           id="custom-height-input"
           type="number"
           min={MIN_TAG_HEIGHT_INCHES}
           max={MAX_TAG_HEIGHT_INCHES}
           step={0.01}
           inputMode="decimal"
-          value={heightDraft}
-          onChange={(event) => setHeightDraft(event.target.value)}
-          onBlur={commitHeightDraft}
+          defaultValue={formatSheetNumberForInput(customHeightInches, 2)}
+          onBlur={(event) => commitHeightDraft(event.currentTarget)}
           onKeyDown={(event) => {
             if (event.key === "Enter") {
               event.currentTarget.blur();
             }
             if (event.key === "Escape") {
-              setHeightDraft(formatSheetNumberForInput(customHeightInches, 2));
+              event.currentTarget.value = formatSheetNumberForInput(
+                customHeightInches,
+                2,
+              );
               event.currentTarget.blur();
             }
           }}
