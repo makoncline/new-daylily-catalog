@@ -416,7 +416,7 @@ function ListingFormInner({
           <Button
             type="button"
             onClick={() => void onSubmit()}
-            disabled={isPending}
+            disabled={isPending || !hasPendingChanges()}
           >
             Save Changes
           </Button>

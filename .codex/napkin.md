@@ -2,6 +2,16 @@
 
 ## Log
 
+- 2026-02-24 - self-miss e2e setup path - I tried `tests/e2e/test-setup.ts` but this repo keeps it at `e2e/test-setup.ts`; check top-level `e2e/` before assuming setup files live under `tests/e2e/`.
+- 2026-02-24 - listing edit unsaved guard pattern - When exposing modal form handles via `ref`, clear the handle on unmount; stale closures can keep `hasPendingChanges()` truthy and cause incorrect `beforeunload` prompts after dialog close.
+- 2026-02-24 - Next 16 cache invalidation signature - `revalidateTag` now requires two args in this codebase (`revalidateTag(tag, "max")`); single-arg calls fail typecheck.
+- 2026-02-24 - listing edit e2e pattern - For deferred-save modal flows, page-object fill helpers should avoid implicit blur behavior; assert persistence at explicit save boundaries (`Save Changes` or dialog close).
+- 2026-02-24 - revalidateTag test-context guard - `revalidateTag` can throw `Invariant: static generation store missing` in Vitest tRPC caller tests; guard invalidation in `NODE_ENV=test` / `VITEST=true` / `PLAYWRIGHT_LOCAL_E2E=true`.
+- 2026-02-24 - staging preference for listing edit work - User wants app behavior changes landed first and cache invalidation/revalidation wired in a separate follow-up pass.
+- 2026-02-24 - profile deferred-save pattern - For `/dashboard/profile`, move field persistence to explicit `Save Changes`; keep instant image mutations but mark a pending commit flag and expose a form handle so page-level `beforeunload`/navigate-away hooks can call a single `userProfile.update` commit path.
+- 2026-02-24 - profile navigate-save cache regression - E2E repro: edit garden name, navigate to listings (auto-save toast appears), navigate back to profile, field still shows stale cached value until hard refresh; add focused spec `tests/e2e/profile-save-on-navigate.e2e.ts` to lock this behavior before fixing query cache invalidation/sync.
+- 2026-02-24 - profile navigate-save cache fix - For `/dashboard/profile` deferred-save mutations, write the returned profile into `utils.dashboardDb.userProfile.get` cache (and invalidate) inside the mutation success path so profile fields reflect saved values immediately after route navigation, without refresh.
+- 2026-02-24 - profile content/image cache sync follow-up - Apply the same immediate cache-sync strategy to `userProfile.updateContent`; for dashboard image collection mutations (`create/reorder/delete`), invalidate the `["dashboard-db","images"]` query key after success to prevent stale image state on return navigation.
 - 2026-02-24 - PR cache strategy summary - Public SEO routes use static/ISR with 24h revalidation, while `/{slug}/search` stays dynamic + noindex with 24h server/client freshness controls.
 - 2026-02-24 - PR cache implementation summary - Cache timings are centralized in `cache-config.ts`; server/client cache helpers are shared; `src/trpc/server.ts` is restored for future RSC calls; public slug/id lookup uses cached `getUserIdFromSlugOrId` with dedicated profile TTL.
 - 2026-02-24 - PR scope boundaries - TanStack DB internals are out of cache-removal scope; dashboard DB and public catalog search IndexedDB persistence remain enabled; profile-page client prefetch warmup stays removed.
