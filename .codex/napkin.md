@@ -2,6 +2,11 @@
 
 ## Log
 
+- 2026-02-24 - tags numeric spinner preference - User wants native number input arrows preserved on `/dashboard/tags`; keep `type="number"` while still using draft-state + blur-only commit to allow clear-then-type editing.
+- 2026-02-24 - tags custom size blur validation - Main `/dashboard/tags` custom size inputs (`Width (in)`, `Height (in)`) must follow the same draft + blur-commit pattern as other numeric controls; eager parse on `onChange` blocks clear-then-type editing.
+- 2026-02-24 - tags numeric verification pattern - For `/dashboard/tags`, one integration sweep test over all `SheetNumberField` labels plus print-quantity copies gives reliable coverage that every sheet numeric field allows empty drafts and commits on blur.
+- 2026-02-24 - self-miss strict test indexing - This repo uses `noUncheckedIndexedAccess`; `screen.getAllBy...()[0]` is `T | undefined` in tests. Use non-null assertion (`[0]!`) or explicit guard before passing elements to `fireEvent`.
+- 2026-02-24 - tags cell-option numeric input UX - On `/dashboard/tags`, cell option number fields (like width/font size) must allow temporary empty drafts while typing; parse/clamp only on blur so backspace-then-type editing works.
 - 2026-02-24 - tags print selection source correction - In `/dashboard/tags`, selected items for print/sheet output must be derived from table `rowSelection` IDs (same source as selected badges), not `getFilteredSelectedRowModel`, so selected rows remain printable when filtered/paged out of the current table view.
 - 2026-02-24 - sheet copies-per-label UX - Sheet Creator now needs a `Copies of each label` control that resets to `1` each open, duplicates each selected label contiguously before moving to the next label, and shows an explicit summary line: `X labels selected, X copies of each, X total labels.`
 - 2026-02-24 - sheet copies visibility follow-up - User could miss copies control when it lived among page/grid settings; keep copies control in a dedicated top "Print quantity" section to make multi-copy behavior obvious.
