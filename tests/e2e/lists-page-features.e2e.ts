@@ -172,6 +172,7 @@ test.describe("lists page features @local", () => {
 
     await dashboardLists.chooseRowActionEdit();
     await expect(dashboardLists.editDialog()).toBeVisible();
+    await expect(dashboardLists.saveChangesButton()).toBeDisabled();
 
     await dashboardLists.editTitleInput().fill(seedMeta.editTargetUpdatedTitle);
     await dashboardLists
@@ -179,7 +180,7 @@ test.describe("lists page features @local", () => {
       .fill(
         `Updated description ${seedMeta.editTargetUpdatedDescriptionToken}`,
       );
-    await dashboardLists.saveChangesButton().click();
+    await expect(dashboardLists.saveChangesButton()).toBeEnabled();
 
     await dashboardLists.closeEditDialog();
 

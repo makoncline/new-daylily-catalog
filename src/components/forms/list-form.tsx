@@ -1,8 +1,9 @@
 "use client";
 
+import { useCallback, useEffect, useState } from "react";
+import { useLiveQuery, eq } from "@tanstack/react-db";
 import { useZodForm } from "@/hooks/use-zod-form";
 import { listFormSchema } from "@/types/schemas/list";
-import { useLiveQuery, eq } from "@tanstack/react-db";
 import {
   deleteList,
   listsCollection,
@@ -20,8 +21,6 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { type z } from "zod";
-import { useState, useEffect, useCallback } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { DeleteConfirmDialog } from "@/components/delete-confirm-dialog";
@@ -30,87 +29,107 @@ import { ListFormSkeleton } from "@/components/forms/list-form-skeleton";
 interface ListFormProps {
   listId: string;
   onDelete?: () => void;
-  formRef?: React.RefObject<{ saveChanges: () => Promise<void> } | null>;
+  formRef?: React.RefObject<ListFormHandle | null>;
+  hasExternalUnsavedChanges?: boolean;
+  onExternalChangesSaved?: () => void;
 }
 
-type FormValues = z.infer<typeof listFormSchema>;
+export type ListFormSaveReason = "manual" | "close" | "navigate";
+
+export interface ListFormHandle {
+  saveChanges: (reason: ListFormSaveReason) => Promise<boolean>;
+  hasPendingChanges: () => boolean;
+}
+
+function toFormValues(list: ListCollectionItem) {
+  return {
+    title: list.title,
+    description: list.description ?? undefined,
+  };
+}
 
 function ListFormInner({
   list,
   listId,
   onDelete,
   formRef,
+  hasExternalUnsavedChanges = false,
+  onExternalChangesSaved,
 }: {
   list: ListCollectionItem;
   listId: string;
   onDelete?: () => void;
-  formRef?: React.RefObject<{ saveChanges: () => Promise<void> } | null>;
+  formRef?: React.RefObject<ListFormHandle | null>;
+  hasExternalUnsavedChanges?: boolean;
+  onExternalChangesSaved?: () => void;
 }) {
   const [isPending, setIsPending] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
 
   const form = useZodForm({
     schema: listFormSchema,
-    defaultValues: {
-      title: list.title,
-      description: list.description ?? undefined,
-    },
+    defaultValues: toFormValues(list),
   });
 
-  const onFieldBlur = async (field: keyof FormValues) => {
-    if (!form.formState.dirtyFields[field]) return;
+  const hasPendingChanges = useCallback(() => {
+    return form.formState.isDirty || hasExternalUnsavedChanges;
+  }, [form.formState.isDirty, hasExternalUnsavedChanges]);
 
-    setIsPending(true);
-    try {
-      const values = form.getValues();
-      await updateList({
-        id: listId,
-        data: {
-          title: values.title,
-          description: values.description ?? undefined,
-        },
-      });
-      form.reset({}, { keepValues: true, keepIsValid: true });
-      toast.success("List updated", {
-        description: "Your list has been updated successfully",
-      });
-    } catch {
-      toast.error("Failed to update list", {
-        description: "An error occurred while updating your list",
-      });
-    } finally {
-      setIsPending(false);
+  const saveChanges = useCallback(
+    async (_reason: ListFormSaveReason): Promise<boolean> => {
+      if (!hasPendingChanges()) {
+        return true;
+      }
+
+      const isValid = await form.trigger();
+      if (!isValid) {
+        return false;
+      }
+
+      setIsPending(true);
+      try {
+        const values = form.getValues();
+        await updateList({
+          id: listId,
+          data: {
+            title: values.title,
+            description: values.description ?? undefined,
+          },
+        });
+        form.reset(values, { keepIsValid: true });
+        onExternalChangesSaved?.();
+        toast.success("List updated", {
+          description: "Your list has been updated successfully",
+        });
+        return true;
+      } catch {
+        toast.error("Failed to update list", {
+          description: "An error occurred while updating your list",
+        });
+        return false;
+      } finally {
+        setIsPending(false);
+      }
+    },
+    [form, hasPendingChanges, listId, onExternalChangesSaved],
+  );
+
+  useEffect(() => {
+    if (!formRef) {
+      return;
     }
-  };
 
-  const saveChanges = useCallback(async () => {
-    if (!form.formState.isDirty) return;
+    formRef.current = { saveChanges, hasPendingChanges };
 
-    setIsPending(true);
-    try {
-      const values = form.getValues();
-      await updateList({
-        id: listId,
-        data: {
-          title: values.title,
-          description: values.description ?? undefined,
-        },
-      });
-      form.reset({}, { keepValues: true, keepIsValid: true });
-      toast.success("List updated", {
-        description: "Your list has been updated successfully",
-      });
-    } catch {
-      toast.error("Failed to update list", {
-        description: "An error occurred while updating your list",
-      });
-    } finally {
-      setIsPending(false);
-    }
-  }, [form, listId]);
+    return () => {
+      if (formRef.current?.saveChanges === saveChanges) {
+        formRef.current = null;
+      }
+    };
+  }, [formRef, hasPendingChanges, saveChanges]);
 
   async function onSubmit() {
-    await saveChanges();
+    await saveChanges("manual");
   }
 
   async function handleDelete() {
@@ -130,12 +149,6 @@ function ListFormInner({
     }
   }
 
-  useEffect(() => {
-    if (formRef) {
-      formRef.current = { saveChanges };
-    }
-  }, [formRef, saveChanges]);
-
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
@@ -146,11 +159,7 @@ function ListFormInner({
             <FormItem>
               <FormLabel>Title</FormLabel>
               <FormControl>
-                <Input
-                  {...field}
-                  onBlur={() => onFieldBlur("title")}
-                  disabled={isPending}
-                />
+                <Input {...field} disabled={isPending} />
               </FormControl>
               <FormDescription>
                 Required: Add a name for your list.
@@ -169,7 +178,6 @@ function ListFormInner({
               <FormControl>
                 <Textarea
                   {...field}
-                  onBlur={() => onFieldBlur("description")}
                   placeholder="Add a description for your list..."
                   disabled={isPending}
                 />
@@ -186,7 +194,7 @@ function ListFormInner({
           <Button
             type="button"
             onClick={() => void onSubmit()}
-            disabled={isPending}
+            disabled={isPending || !hasPendingChanges()}
           >
             Save Changes
           </Button>
@@ -214,7 +222,13 @@ function ListFormInner({
   );
 }
 
-function ListFormLive({ listId, onDelete, formRef }: ListFormProps) {
+function ListFormLive({
+  listId,
+  onDelete,
+  formRef,
+  hasExternalUnsavedChanges,
+  onExternalChangesSaved,
+}: ListFormProps) {
   const { data: lists = [], isReady } = useLiveQuery(
     (q) =>
       q.from({ list: listsCollection }).where(({ list }) => eq(list.id, listId)),
@@ -234,6 +248,8 @@ function ListFormLive({ listId, onDelete, formRef }: ListFormProps) {
       listId={listId}
       onDelete={onDelete}
       formRef={formRef}
+      hasExternalUnsavedChanges={hasExternalUnsavedChanges}
+      onExternalChangesSaved={onExternalChangesSaved}
     />
   );
 }

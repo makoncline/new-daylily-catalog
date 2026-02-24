@@ -13,8 +13,7 @@ import { Button } from "@/components/ui/button";
 import { P } from "@/components/typography";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { useSetAtom } from "jotai";
-import { editingListIdAtom } from "./edit-list-dialog";
+import { useEditList } from "./edit-list-dialog";
 import { normalizeError, reportError } from "@/lib/error-utils";
 import { insertList } from "@/app/dashboard/_lib/dashboard-db/lists-collection";
 
@@ -27,7 +26,7 @@ export function CreateListDialog({
   const [title, setTitle] = useState("");
   const [isPending, setIsPending] = useState(false);
 
-  const setEditingId = useSetAtom(editingListIdAtom);
+  const { editList } = useEditList();
 
   const handleCreate = async () => {
     if (!title.trim()) {
@@ -50,7 +49,7 @@ export function CreateListDialog({
 
       setOpen(false);
       onOpenChange(false);
-      setEditingId(newList.id);
+      editList(newList.id);
     } catch (error) {
       toast.error("Failed to create list");
       reportError({

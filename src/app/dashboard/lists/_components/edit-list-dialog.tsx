@@ -10,58 +10,36 @@ import {
 import { ErrorBoundary } from "react-error-boundary";
 import { ErrorFallback } from "@/components/error-fallback";
 import { reportError } from "@/lib/error-utils";
-import { ListForm } from "@/components/forms/list-form";
+import {
+  ListForm,
+  type ListFormHandle,
+} from "@/components/forms/list-form";
 import { ListFormSkeleton } from "@/components/forms/list-form-skeleton";
 import { useRef, useEffect, Suspense } from "react";
-import { atom, useAtom } from "jotai";
-import { useRouter, useSearchParams } from "next/navigation";
-
-// Atom for editing state
-export const editingListIdAtom = atom<string | null>(null);
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 
 export const useEditList = () => {
-  const [editingId, setEditingId] = useAtom(editingListIdAtom);
   const router = useRouter();
+  const pathname = usePathname();
   const searchParams = useSearchParams();
-  const hasInitialized = useRef(false);
+  const editingId = searchParams.get("editing");
 
-  // Sync atom state to URL for persistence
-  useEffect(() => {
-    if (!hasInitialized.current) {
-      return;
-    }
-
+  const setEditingId = (nextEditingId: string | null) => {
     const params = new URLSearchParams(searchParams.toString());
-
-    if (editingId) {
-      params.set("editing", editingId);
+    if (nextEditingId) {
+      params.set("editing", nextEditingId);
     } else {
       params.delete("editing");
     }
 
-    const newUrl = `?${params.toString()}`;
-    const currentUrl = searchParams.toString()
-      ? `?${searchParams.toString()}`
-      : "";
-
-    if (newUrl !== currentUrl) {
-      router.push(newUrl);
-    }
-  }, [editingId, router, searchParams]);
-
-  // Initialize from URL on first load
-  useEffect(() => {
-    if (hasInitialized.current) {
+    const nextSearch = params.toString();
+    if (nextSearch === searchParams.toString()) {
       return;
     }
 
-    const urlEditingId = searchParams.get("editing");
-    if (urlEditingId) {
-      setEditingId(urlEditingId);
-    }
-
-    hasInitialized.current = true;
-  }, [searchParams, setEditingId]);
+    const nextUrl = nextSearch ? `${pathname}?${nextSearch}` : pathname;
+    router.push(nextUrl);
+  };
 
   return {
     editList: (id: string) => {
@@ -76,16 +54,46 @@ export const useEditList = () => {
 
 export function EditListDialog() {
   const { editingId, closeEditList } = useEditList();
-  const formRef = useRef<{ saveChanges: () => Promise<void> } | null>(null);
+  const formRef = useRef<ListFormHandle | null>(null);
   const isOpen = !!editingId;
 
   const handleOpenChange = async (open: boolean) => {
     if (!open) {
-      // Save any pending changes before closing
-      await formRef.current?.saveChanges?.();
+      const didSave = await formRef.current?.saveChanges("close");
+      if (didSave === false) {
+        return;
+      }
       closeEditList();
     }
   };
+
+  useEffect(() => {
+    const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+      if (!formRef.current?.hasPendingChanges()) {
+        return;
+      }
+
+      event.preventDefault();
+      event.returnValue = "";
+    };
+
+    window.addEventListener("beforeunload", handleBeforeUnload);
+
+    return () => {
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+    };
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (!formRef.current?.hasPendingChanges()) {
+        return;
+      }
+
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+      void formRef.current.saveChanges("navigate");
+    };
+  }, []);
 
   return (
     <Dialog open={isOpen} onOpenChange={handleOpenChange}>
