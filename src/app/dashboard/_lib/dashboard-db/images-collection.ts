@@ -13,6 +13,7 @@ import {
 } from "@/app/dashboard/_lib/dashboard-db/collection-bootstrap";
 
 const CURSOR_BASE = "dashboard-db:images:maxUpdatedAt";
+const IMAGES_QUERY_KEY = ["dashboard-db", "images"] as const;
 const DELETED_IDS = new Set<string>();
 
 export type ImageCollectionItem =
@@ -21,7 +22,7 @@ export type ImageCollectionItem =
 export const imagesCollection = createCollection(
   queryCollectionOptions<ImageCollectionItem>({
     queryClient: getQueryClient(),
-    queryKey: ["dashboard-db", "images"],
+    queryKey: IMAGES_QUERY_KEY,
     enabled: true,
     getKey: (row) => row.id,
     queryFn: async ({ queryKey }) => {
@@ -50,10 +51,7 @@ export const imagesCollection = createCollection(
 type CreateDraft = RouterInputs["dashboardDb"]["image"]["create"];
 export async function createImage(draft: CreateDraft) {
   const cache =
-    getQueryClient().getQueryData<ImageCollectionItem[]>([
-      "dashboard-db",
-      "images",
-    ]) ?? [];
+    getQueryClient().getQueryData<ImageCollectionItem[]>(IMAGES_QUERY_KEY) ?? [];
 
   const nextOrder =
     cache
@@ -88,6 +86,7 @@ export async function createImage(draft: CreateDraft) {
     });
 
     schedulePersistDashboardDbForCurrentUser();
+    void getQueryClient().invalidateQueries({ queryKey: IMAGES_QUERY_KEY });
     return created;
   } catch (error) {
     try {
@@ -116,6 +115,7 @@ export async function reorderImages(draft: ReorderDraft) {
   try {
     await getTrpcClient().dashboardDb.image.reorder.mutate(draft);
     schedulePersistDashboardDbForCurrentUser();
+    void getQueryClient().invalidateQueries({ queryKey: IMAGES_QUERY_KEY });
   } catch (error) {
     imagesCollection.utils.writeBatch(() => {
       previous.forEach((img) => {
@@ -132,10 +132,7 @@ export async function deleteImage(draft: DeleteDraft) {
   DELETED_IDS.add(draft.imageId);
 
   const cache =
-    getQueryClient().getQueryData<ImageCollectionItem[]>([
-      "dashboard-db",
-      "images",
-    ]) ?? [];
+    getQueryClient().getQueryData<ImageCollectionItem[]>(IMAGES_QUERY_KEY) ?? [];
 
   const before = cache
     .filter((i) =>
@@ -158,6 +155,7 @@ export async function deleteImage(draft: DeleteDraft) {
   try {
     await getTrpcClient().dashboardDb.image.delete.mutate(draft);
     schedulePersistDashboardDbForCurrentUser({ delayMs: 0 });
+    void getQueryClient().invalidateQueries({ queryKey: IMAGES_QUERY_KEY });
   } catch (error) {
     if (previous) imagesCollection.utils.writeInsert(previous);
     DELETED_IDS.delete(draft.imageId);

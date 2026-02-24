@@ -1,7 +1,11 @@
 "use client";
 
+import { useEffect, useRef } from "react";
 import { api } from "@/trpc/react";
-import { ProfileForm } from "@/components/forms/profile-form";
+import {
+  ProfileForm,
+  type ProfileFormHandle,
+} from "@/components/forms/profile-form";
 import { PageHeader } from "../_components/page-header";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -9,7 +13,36 @@ import { MainContent } from "@/app/(public)/_components/main-content";
 import { Skeleton } from "@/components/ui/skeleton";
 
 export default function ProfilePage() {
+  const formRef = useRef<ProfileFormHandle | null>(null);
   const { data: profile, isLoading } = api.dashboardDb.userProfile.get.useQuery();
+
+  useEffect(() => {
+    const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+      if (!formRef.current?.hasPendingChanges()) {
+        return;
+      }
+
+      event.preventDefault();
+      event.returnValue = "";
+    };
+
+    window.addEventListener("beforeunload", handleBeforeUnload);
+
+    return () => {
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+    };
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (!formRef.current?.hasPendingChanges()) {
+        return;
+      }
+
+      // eslint-disable-next-line react-hooks/exhaustive-deps -- needs latest imperative form handle on page unmount.
+      void formRef.current.saveChanges("navigate");
+    };
+  }, []);
 
   if (isLoading || !profile) {
     return (
@@ -46,7 +79,10 @@ export default function ProfilePage() {
           <Link href={`/${publicSlug}`}>View Public Profile</Link>
         </Button>
       </PageHeader>
-      <ProfileForm initialProfile={profile} />
+      <ProfileForm
+        initialProfile={profile}
+        formRef={formRef}
+      />
     </MainContent>
   );
 }

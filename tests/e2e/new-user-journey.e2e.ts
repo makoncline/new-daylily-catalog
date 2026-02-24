@@ -65,6 +65,8 @@ test.describe("new user journey @local", () => {
         await dashboardProfile.fillGardenName(testGardenName);
         await dashboardProfile.fillDescription(testDescription);
         await dashboardProfile.fillLocation(testLocation);
+        await dashboardProfile.saveChanges();
+        await expectToast("Changes saved");
         await dashboardProfile.fillContent(testContent);
 
         // add a profile image. too hard to mock so we just add it to the database directly

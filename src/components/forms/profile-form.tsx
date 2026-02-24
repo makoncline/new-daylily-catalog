@@ -1,9 +1,20 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import { Sparkles } from "lucide-react";
+import { toast } from "sonner";
+import { useDebouncedCallback } from "use-debounce";
 import { type RouterOutputs } from "@/trpc/react";
+import { api } from "@/trpc/react";
 import { getBaseUrl } from "@/lib/utils/getBaseUrl";
-import { profileFormSchema } from "@/types/schemas/profile";
+import {
+  profileFormSchema,
+  type ProfileFormData,
+} from "@/types/schemas/profile";
+import { useZodForm } from "@/hooks/use-zod-form";
+import { usePro } from "@/hooks/use-pro";
+import { SLUG_INPUT_PATTERN } from "@/lib/utils/slugify";
+import { getErrorMessage, normalizeError, reportError } from "@/lib/error-utils";
 import {
   Form,
   FormControl,
@@ -15,54 +26,59 @@ import {
 } from "@/components/ui/form";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { toast } from "sonner";
-import { api } from "@/trpc/react";
-import { useZodForm } from "@/hooks/use-zod-form";
-import { ProfileImageManager } from "@/app/dashboard/profile/_components/profile-image-manager";
-import { ContentManagerFormItem } from "./content-form";
 import { Textarea } from "@/components/ui/textarea";
-import { useDebouncedCallback } from "use-debounce";
-import { SLUG_INPUT_PATTERN } from "@/lib/utils/slugify";
+import { Button } from "@/components/ui/button";
 import { Muted } from "@/components/typography";
-import { usePro } from "@/hooks/use-pro";
-import { Sparkles } from "lucide-react";
 import { CheckoutButton } from "@/components/checkout-button";
 import { SlugChangeConfirmDialog } from "@/components/slug-change-confirm-dialog";
-import { getErrorMessage, normalizeError, reportError } from "@/lib/error-utils";
+import { ProfileImageManager } from "@/app/dashboard/profile/_components/profile-image-manager";
+import { ContentManagerFormItem } from "./content-form";
 
 type UserProfile = RouterOutputs["dashboardDb"]["userProfile"]["get"];
 
-interface ProfileFormProps {
-  initialProfile: UserProfile;
+export type ProfileFormSaveReason = "manual" | "navigate";
+
+export interface ProfileFormHandle {
+  saveChanges: (reason: ProfileFormSaveReason) => Promise<boolean>;
+  hasPendingChanges: () => boolean;
 }
 
-export function ProfileForm({ initialProfile }: ProfileFormProps) {
+interface ProfileFormProps {
+  initialProfile: UserProfile;
+  formRef?: React.RefObject<ProfileFormHandle | null>;
+}
+
+function toFormValues(profile: UserProfile): ProfileFormData {
+  return {
+    title: profile.title ?? undefined,
+    slug: profile.slug ?? undefined,
+    description: profile.description ?? undefined,
+    location: profile.location ?? undefined,
+    logoUrl: profile.logoUrl ?? undefined,
+  };
+}
+
+export function ProfileForm({ initialProfile, formRef }: ProfileFormProps) {
   const [profile, setProfile] = useState(initialProfile);
   const [isUpdating, setIsUpdating] = useState(false);
   const [isCheckingSlug, setIsCheckingSlug] = useState(false);
-  const { isPro } = usePro();
+  const [hasExternalUnsavedChanges, setHasExternalUnsavedChanges] =
+    useState(false);
   const [showSlugChangeDialog, setShowSlugChangeDialog] = useState(false);
   const [pendingSlugValue, setPendingSlugValue] = useState<string | undefined>(
     undefined,
   );
+  const { isPro } = usePro();
+  const utils = api.useUtils();
 
   const cleanBaseUrl = getBaseUrl().replace(/^https?:\/\//, "");
 
   const form = useZodForm({
     schema: profileFormSchema,
-    defaultValues: {
-      title: profile.title ?? undefined,
-      slug: profile.slug ?? undefined,
-      description: profile.description ?? undefined,
-      location: profile.location ?? undefined,
-      logoUrl: profile.logoUrl ?? undefined,
-    },
+    defaultValues: toFormValues(profile),
   });
 
   const updateProfileMutation = api.dashboardDb.userProfile.update.useMutation({
-    onSuccess: (updatedProfile: UserProfile) => {
-      setProfile(updatedProfile);
-    },
     onError: (error, errorInfo) => {
       toast.error("Failed to save changes", {
         description: getErrorMessage(error),
@@ -77,7 +93,7 @@ export function ProfileForm({ initialProfile }: ProfileFormProps) {
   const checkSlug = api.dashboardDb.userProfile.checkSlug.useQuery(
     { slug: form.watch("slug") ?? undefined },
     {
-      enabled: false, // Don't run automatically
+      enabled: false,
       retry: false,
     },
   );
@@ -88,6 +104,10 @@ export function ProfileForm({ initialProfile }: ProfileFormProps) {
         setIsCheckingSlug(true);
         void checkSlug.refetch().then((result) => {
           setIsCheckingSlug(false);
+          if (result.data?.available) {
+            form.clearErrors("slug");
+            return;
+          }
           if (result.data && !result.data.available) {
             form.setError("slug", {
               type: "manual",
@@ -97,72 +117,123 @@ export function ProfileForm({ initialProfile }: ProfileFormProps) {
         });
       }
     },
-    500, // Wait 500ms after typing stops
+    500,
   );
-  // Handle auto-save on blur
-  const onFieldBlur = async (
-    field: "title" | "slug" | "description" | "location" | "logoUrl",
-  ) => {
-    const value = form.getValues(field);
-    const currentValue = profile[field];
 
-    // Only update if the value has changed
-    if (value !== currentValue) {
-      // If the field is slug, show confirmation dialog
-      if (field === "slug") {
-        setPendingSlugValue(value ?? undefined);
+  const markExternalUnsavedChanges = useCallback(() => {
+    setHasExternalUnsavedChanges(true);
+  }, []);
+
+  const hasPendingChanges = useCallback(() => {
+    return form.formState.isDirty || hasExternalUnsavedChanges;
+  }, [form.formState.isDirty, hasExternalUnsavedChanges]);
+
+  const saveChangesInternal = useCallback(
+    async (
+      reason: ProfileFormSaveReason,
+      options?: { skipSlugConfirm?: boolean },
+    ): Promise<boolean> => {
+      if (!hasPendingChanges()) {
+        return true;
+      }
+
+      const isValid = await form.trigger();
+      if (!isValid) {
+        return false;
+      }
+
+      const values = form.getValues();
+      const previousSlug = profile.slug ?? undefined;
+      const nextSlug = values.slug ?? undefined;
+      const isSlugChanged = nextSlug !== previousSlug;
+
+      if (
+        reason === "manual" &&
+        isSlugChanged &&
+        !options?.skipSlugConfirm
+      ) {
+        setPendingSlugValue(nextSlug);
         setShowSlugChangeDialog(true);
-        return;
+        return false;
       }
 
       setIsUpdating(true);
       try {
         const updatedProfile = await updateProfileMutation.mutateAsync({
-          data: { [field]: value },
+          data: values,
         });
+        utils.dashboardDb.userProfile.get.setData(undefined, updatedProfile);
+        void utils.dashboardDb.userProfile.get.invalidate();
         setProfile(updatedProfile);
+        form.reset(toFormValues(updatedProfile), { keepIsValid: true });
+        setHasExternalUnsavedChanges(false);
+
+        if (isSlugChanged) {
+          toast.success("Profile URL updated", {
+            description: "Your profile URL has been successfully updated.",
+          });
+        } else {
+          toast.success("Changes saved");
+        }
+
+        return true;
       } catch {
-        // Error is handled by the mutation
+        return false;
       } finally {
         setIsUpdating(false);
       }
-    }
-  };
+    },
+    [form, hasPendingChanges, profile.slug, updateProfileMutation, utils],
+  );
 
-  // Handle confirm slug change
-  const handleConfirmSlugChange = async () => {
-    setIsUpdating(true);
-    setShowSlugChangeDialog(false);
-    try {
-      const updatedProfile = await updateProfileMutation.mutateAsync({
-        data: { slug: pendingSlugValue },
-      });
-      setProfile(updatedProfile);
-      toast.success("Profile URL updated", {
-        description: "Your profile URL has been successfully updated.",
-      });
-    } catch {
-      // Error is handled by the mutation
-    } finally {
-      setIsUpdating(false);
-      setPendingSlugValue(undefined);
-    }
-  };
+  const saveChanges = useCallback(
+    async (reason: ProfileFormSaveReason): Promise<boolean> => {
+      return saveChangesInternal(reason);
+    },
+    [saveChangesInternal],
+  );
 
-  // Handle cancel slug change
-  const handleCancelSlugChange = () => {
+  useEffect(() => {
+    if (!formRef) {
+      return;
+    }
+
+    formRef.current = { saveChanges, hasPendingChanges };
+
+    return () => {
+      if (formRef.current?.saveChanges === saveChanges) {
+        formRef.current = null;
+      }
+    };
+  }, [formRef, hasPendingChanges, saveChanges]);
+
+  async function onSubmit() {
+    await saveChanges("manual");
+  }
+
+  async function handleConfirmSlugChange() {
     setShowSlugChangeDialog(false);
-    // Reset form value to current profile slug
-    if (pendingSlugValue !== profile.slug) {
-      form.setValue("slug", profile.slug ?? undefined);
+    setPendingSlugValue(undefined);
+    await saveChangesInternal("manual", { skipSlugConfirm: true });
+  }
+
+  function handleCancelSlugChange() {
+    setShowSlugChangeDialog(false);
+    const profileSlug = profile.slug ?? undefined;
+    if (pendingSlugValue !== profileSlug) {
+      form.setValue("slug", profileSlug);
+      form.clearErrors("slug");
     }
     setPendingSlugValue(undefined);
-  };
+  }
 
   return (
     <>
       <Form {...form}>
-        <form className="space-y-6">
+        <form
+          onSubmit={form.handleSubmit(onSubmit)}
+          className="space-y-6"
+        >
           <FormField
             control={form.control}
             name="title"
@@ -173,7 +244,6 @@ export function ProfileForm({ initialProfile }: ProfileFormProps) {
                   <Input
                     {...field}
                     value={field.value ?? ""}
-                    onBlur={() => onFieldBlur("title")}
                     disabled={isUpdating}
                   />
                 </FormControl>
@@ -204,7 +274,6 @@ export function ProfileForm({ initialProfile }: ProfileFormProps) {
                         value={field.value ?? ""}
                         pattern={SLUG_INPUT_PATTERN.source}
                         onKeyDown={(e) => {
-                          // Allow special keys (backspace, delete, arrows, etc)
                           if (
                             e.key === "Backspace" ||
                             e.key === "Delete" ||
@@ -217,7 +286,6 @@ export function ProfileForm({ initialProfile }: ProfileFormProps) {
                             return;
                           }
 
-                          // Test if the new value would match our pattern
                           const newValue = e.currentTarget.value + e.key;
                           if (!SLUG_INPUT_PATTERN.test(newValue)) {
                             e.preventDefault();
@@ -228,7 +296,6 @@ export function ProfileForm({ initialProfile }: ProfileFormProps) {
                           field.onChange(value);
                           debouncedCheckSlug(value);
                         }}
-                        onBlur={() => onFieldBlur("slug")}
                         disabled={isUpdating || !isPro}
                         placeholder={profile.userId}
                       />
@@ -273,7 +340,10 @@ export function ProfileForm({ initialProfile }: ProfileFormProps) {
               Upload images to showcase your garden. You can reorder them by
               dragging.
             </p>
-            <ProfileImageManager profileId={profile.id} />
+            <ProfileImageManager
+              profileId={profile.id}
+              onMutationSuccess={markExternalUnsavedChanges}
+            />
           </FormItem>
 
           <FormField
@@ -286,7 +356,6 @@ export function ProfileForm({ initialProfile }: ProfileFormProps) {
                   <Textarea
                     {...field}
                     value={field.value ?? ""}
-                    onBlur={() => onFieldBlur("description")}
                     disabled={isUpdating}
                   />
                 </FormControl>
@@ -297,6 +366,7 @@ export function ProfileForm({ initialProfile }: ProfileFormProps) {
               </FormItem>
             )}
           />
+
           <FormField
             control={form.control}
             name="location"
@@ -307,7 +377,6 @@ export function ProfileForm({ initialProfile }: ProfileFormProps) {
                   <Input
                     {...field}
                     value={field.value ?? ""}
-                    onBlur={() => onFieldBlur("location")}
                     disabled={isUpdating}
                   />
                 </FormControl>
@@ -318,6 +387,13 @@ export function ProfileForm({ initialProfile }: ProfileFormProps) {
               </FormItem>
             )}
           />
+
+          <div className="flex justify-end">
+            <Button type="submit" disabled={isUpdating || !hasPendingChanges()}>
+              Save Changes
+            </Button>
+          </div>
+
           <ContentManagerFormItem initialProfile={profile} />
         </form>
       </Form>
@@ -325,7 +401,9 @@ export function ProfileForm({ initialProfile }: ProfileFormProps) {
       <SlugChangeConfirmDialog
         open={showSlugChangeDialog}
         onOpenChange={setShowSlugChangeDialog}
-        onConfirm={handleConfirmSlugChange}
+        onConfirm={() => {
+          void handleConfirmSlugChange();
+        }}
         onCancel={handleCancelSlugChange}
         oldSlug={profile.slug ?? profile.userId}
         newSlug={pendingSlugValue ?? profile.userId}

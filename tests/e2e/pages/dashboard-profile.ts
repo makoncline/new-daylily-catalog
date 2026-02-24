@@ -6,6 +6,7 @@ export class DashboardProfile {
   readonly gardenNameInput: Locator;
   readonly descriptionInput: Locator;
   readonly locationInput: Locator;
+  readonly saveChangesButton: Locator;
   readonly contentEditor: Locator;
   readonly profileImage: Locator;
 
@@ -15,6 +16,7 @@ export class DashboardProfile {
     this.gardenNameInput = page.getByLabel("Garden Name");
     this.descriptionInput = page.getByLabel("Description");
     this.locationInput = page.getByLabel("Location");
+    this.saveChangesButton = page.getByRole("button", { name: "Save Changes" });
     // EditorJS editor has id="editor"
     this.contentEditor = page.locator("#editor");
     this.profileImage = page.getByAltText("Daylily image");
@@ -27,9 +29,6 @@ export class DashboardProfile {
     await this.descriptionInput.waitFor({ state: "visible" });
   }
 
-  /**
-   * Fill garden name field and wait for auto-save
-   */
   async fillGardenName(text: string) {
     const selectAll = process.platform === "darwin" ? "Meta+A" : "Control+A";
 
@@ -37,16 +36,12 @@ export class DashboardProfile {
     await this.gardenNameInput.press(selectAll);
     await this.gardenNameInput.press("Backspace");
     await this.gardenNameInput.type(text);
-    await this.descriptionInput.click();
   }
 
   async goto() {
     await this.page.goto("/dashboard/profile");
   }
 
-  /**
-   * Fill description field and wait for auto-save
-   */
   async fillDescription(text: string) {
     const selectAll = process.platform === "darwin" ? "Meta+A" : "Control+A";
 
@@ -54,12 +49,8 @@ export class DashboardProfile {
     await this.descriptionInput.press(selectAll);
     await this.descriptionInput.press("Backspace");
     await this.descriptionInput.type(text);
-    await this.locationInput.click();
   }
 
-  /**
-   * Fill location field and wait for auto-save
-   */
   async fillLocation(text: string) {
     const selectAll = process.platform === "darwin" ? "Meta+A" : "Control+A";
 
@@ -67,7 +58,10 @@ export class DashboardProfile {
     await this.locationInput.press(selectAll);
     await this.locationInput.press("Backspace");
     await this.locationInput.type(text);
-    await this.heading.click();
+  }
+
+  async saveChanges() {
+    await this.saveChangesButton.click();
   }
 
   /**

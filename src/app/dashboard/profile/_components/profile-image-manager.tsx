@@ -11,7 +11,15 @@ import {
 } from "@/app/dashboard/_lib/dashboard-db/images-collection";
 import { getQueryClient } from "@/trpc/query-client";
 
-function ProfileImageManagerLive({ profileId }: { profileId: string }) {
+interface ProfileImageManagerProps {
+  profileId: string;
+  onMutationSuccess?: () => void;
+}
+
+function ProfileImageManagerLive({
+  profileId,
+  onMutationSuccess,
+}: ProfileImageManagerProps) {
   const { data: liveImages = [], isReady } = useLiveQuery(
     (q) =>
       q
@@ -37,16 +45,21 @@ function ProfileImageManagerLive({ profileId }: { profileId: string }) {
         type="profile"
         images={images}
         referenceId={profileId}
+        onMutationSuccess={onMutationSuccess}
       />
       {images.length < APP_CONFIG.UPLOAD.MAX_IMAGES_PER_PROFILE && (
         <div className="p-4">
-          <ImageUpload type="profile" referenceId={profileId} />
+          <ImageUpload
+            type="profile"
+            referenceId={profileId}
+            onUploadComplete={onMutationSuccess}
+          />
         </div>
       )}
     </div>
   );
 }
 
-export function ProfileImageManager({ profileId }: { profileId: string }) {
-  return <ProfileImageManagerLive profileId={profileId} />;
+export function ProfileImageManager(props: ProfileImageManagerProps) {
+  return <ProfileImageManagerLive {...props} />;
 }

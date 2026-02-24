@@ -28,9 +28,12 @@ export function ContentManagerFormItem({
   );
   const editorRef = React.useRef<EditorJS | null>(null);
   const contentRef = React.useRef<HTMLDivElement | null>(null);
+  const utils = api.useUtils();
 
   const updateContentMutation = api.dashboardDb.userProfile.updateContent.useMutation({
-    onSuccess: () => {
+    onSuccess: (updatedProfile) => {
+      utils.dashboardDb.userProfile.get.setData(undefined, updatedProfile);
+      void utils.dashboardDb.userProfile.get.invalidate();
       setIsSaving(false);
       toast.success("Content saved");
     },
