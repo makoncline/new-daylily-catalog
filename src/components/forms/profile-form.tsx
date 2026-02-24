@@ -195,6 +195,20 @@ export function ProfileForm({ initialProfile, formRef }: ProfileFormProps) {
     setShowSlugEditWarningDialog(true);
   }
 
+  function handleSlugFocus(e: React.FocusEvent<HTMLInputElement>) {
+    if (
+      !isPro ||
+      isUpdating ||
+      isSlugEditingUnlocked ||
+      showSlugEditWarningDialog
+    ) {
+      return;
+    }
+
+    e.currentTarget.blur();
+    setShowSlugEditWarningDialog(true);
+  }
+
   function handleConfirmSlugEditWarning() {
     setShowSlugEditWarningDialog(false);
     setIsSlugEditingUnlocked(true);
@@ -259,6 +273,7 @@ export function ProfileForm({ initialProfile, formRef }: ProfileFormProps) {
                         value={field.value ?? ""}
                         pattern={SLUG_INPUT_PATTERN.source}
                         onPointerDown={handleSlugPointerDown}
+                        onFocus={handleSlugFocus}
                         onKeyDown={(e) => {
                           if (
                             e.key === "Backspace" ||
@@ -283,6 +298,7 @@ export function ProfileForm({ initialProfile, formRef }: ProfileFormProps) {
                           debouncedCheckSlug(value);
                         }}
                         onBlur={field.onBlur}
+                        readOnly={!isSlugEditingUnlocked}
                         disabled={isUpdating || !isPro}
                         placeholder={profile.userId}
                       />

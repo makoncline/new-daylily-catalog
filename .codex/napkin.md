@@ -2,6 +2,17 @@
 
 ## Log
 
+- 2026-02-24 - slug warning keyboard entry - Gating slug edits on `onPointerDown` alone misses keyboard/tab access; add `onFocus` guard that blurs and opens the same warning dialog when edit is still locked.
+- 2026-02-24 - tab-order test robustness - Profile page tab order is not stable enough for one-step assumptions; in e2e keyboard-focus checks, tab in a short loop until the target warning appears.
+- 2026-02-24 - profile slug UX simplification - Best behavior is a one-time pre-edit warning gate on slug input click: cancel keeps focus away, confirm unlocks and focuses field, then slug behaves like any normal deferred-save field (no blur/save special-casing).
+- 2026-02-24 - self-miss slug flow complexity - Confirm-on-blur plus navigate-time skip logic was too complex and led to real save regressions; prefer explicit pre-edit confirmation with no downstream save exceptions.
+- 2026-02-24 - profile slug navigate semantics update - If slug change is confirmed in blur dialog, navigate-away autosave should persist slug (do not force-skip slug on `reason === "navigate"` when the current slug value is already confirmed).
+- 2026-02-24 - profile slug e2e selector - In profile form e2e flows, `getByLabel("Profile URL")` is unreliable; use `input[name="slug"]` for stable interaction.
+- 2026-02-24 - profile navigate content regression check - `tests/e2e/profile-save-on-navigate.e2e.ts` currently fails the content case deterministically (garden name + images pass), so profile content navigate-save remains a separate issue while working on slug-confirm UX.
+- 2026-02-24 - playwright attach local-tag trap - With `BASE_URL` set, Playwright config excludes `@local` tests (`grepInvert`), so `profile-save-on-navigate.e2e.ts` reports "No tests found"; run local-tag specs without `BASE_URL` unless config is adjusted.
+- 2026-02-24 - local e2e lock source - Running `next dev` in this worktree can block Playwright local webServer startup with `.next/dev/lock`; stop the existing dev server before local e2e runs that auto-start Next.
+- 2026-02-24 - profile content cache sync nuance - `dashboardDb.userProfile.updateContent` cannot reliably be `setData`-only for navigate-away editor flows; keep targeted `utils.dashboardDb.userProfile.get.invalidate()` after `setData` or `profile-save-on-navigate` content test regresses.
+- 2026-02-24 - unsaved guard reliability - Parent-level unmount autosave can race with child ref cleanup; avoid clearing form handle refs on child unmount when parent unmount cleanup depends on that handle.
 - 2026-02-24 - shared unsaved-guard hook pattern - `beforeunload` + unmount autosave logic should live in a reusable hook (`usePendingChangesGuard`) and be consumed by profile/listing/list surfaces to avoid drift.
 - 2026-02-24 - self-miss hook typing - A generic hook constrained to `saveChanges(reason: string)` is too wide for literal-union reason handlers; define the hook as generic over `TReason` and pass `"navigate"` as that union member.
 - 2026-02-24 - pro-status invalidation anchor - Add an explicit invalidation TODO at `src/app/subscribe/success/page.tsx` right after `syncStripeSubscriptionToKV(...)`; pro visibility changes are Stripe-sync driven, not only profile/listing/list edit commits.

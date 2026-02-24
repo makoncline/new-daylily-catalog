@@ -86,26 +86,31 @@ test.describe("profile save on navigate @local", () => {
     await dashboardProfile.isReady();
 
     const slugWarningDialog = page.getByRole("alertdialog");
+    const slugWarningHeading = slugWarningDialog.getByRole("heading", {
+      name: "Before You Edit Your URL",
+    });
+    await expect(slugInput).toBeEnabled();
+    await expect(slugInput).toHaveJSProperty("readOnly", true);
 
-    await slugInput.click();
-    await expect(
-      slugWarningDialog.getByRole("heading", {
-        name: "Before You Edit Your URL",
-      }),
-    ).toBeVisible();
+    await dashboardProfile.gardenNameInput.focus();
+    for (let index = 0; index < 20; index += 1) {
+      await page.keyboard.press("Tab");
+      if (await slugWarningHeading.isVisible()) {
+        break;
+      }
+    }
+
+    await expect(slugWarningHeading).toBeVisible();
     await slugWarningDialog.getByRole("button", { name: "Cancel" }).click();
     await expect(slugWarningDialog).not.toBeVisible();
     await expect(slugInput).not.toBeFocused();
 
     await slugInput.click();
-    await expect(
-      slugWarningDialog.getByRole("heading", {
-        name: "Before You Edit Your URL",
-      }),
-    ).toBeVisible();
+    await expect(slugWarningHeading).toBeVisible();
     await slugWarningDialog.getByRole("button", { name: "Continue" }).click();
     await expect(slugWarningDialog).not.toBeVisible();
     await expect(slugInput).toBeFocused();
+    await expect(slugInput).toHaveJSProperty("readOnly", false);
 
     await slugInput.fill(updatedSlug);
 
