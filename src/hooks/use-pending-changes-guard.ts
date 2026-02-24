@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, type RefObject } from "react";
+import { useEffect, useRef, type RefObject } from "react";
 
 interface PendingChangesGuardHandle<TReason extends string> {
   hasPendingChanges: () => boolean;
@@ -10,9 +10,22 @@ interface PendingChangesGuardHandle<TReason extends string> {
 export function usePendingChangesGuard<TReason extends string>(
   formRef: RefObject<PendingChangesGuardHandle<TReason> | null>,
   navigateReason: TReason,
+  enabled = true,
 ) {
+  const enabledRef = useRef(enabled);
+  const navigateReasonRef = useRef(navigateReason);
+
+  useEffect(() => {
+    enabledRef.current = enabled;
+    navigateReasonRef.current = navigateReason;
+  }, [enabled, navigateReason]);
+
   useEffect(() => {
     const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+      if (!enabledRef.current) {
+        return;
+      }
+
       if (!formRef.current?.hasPendingChanges()) {
         return;
       }
@@ -29,12 +42,16 @@ export function usePendingChangesGuard<TReason extends string>(
 
   useEffect(() => {
     return () => {
+      if (!enabledRef.current) {
+        return;
+      }
+
       if (!formRef.current?.hasPendingChanges()) {
         return;
       }
 
       // eslint-disable-next-line react-hooks/exhaustive-deps
-      void formRef.current.saveChanges(navigateReason);
+      void formRef.current.saveChanges(navigateReasonRef.current);
     };
-  }, [formRef, navigateReason]);
+  }, [formRef]);
 }

@@ -163,12 +163,6 @@ function ListingFormInner({
     }
 
     formRef.current = { saveChanges, hasPendingChanges };
-
-    return () => {
-      if (formRef.current?.saveChanges === saveChanges) {
-        formRef.current = null;
-      }
-    };
   }, [formRef, hasPendingChanges, saveChanges]);
 
   async function onSubmit() {

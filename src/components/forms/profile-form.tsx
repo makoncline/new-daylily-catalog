@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { useDebouncedCallback } from "use-debounce";
@@ -64,10 +64,10 @@ export function ProfileForm({ initialProfile, formRef }: ProfileFormProps) {
   const [isCheckingSlug, setIsCheckingSlug] = useState(false);
   const [hasExternalUnsavedChanges, setHasExternalUnsavedChanges] =
     useState(false);
-  const [showSlugChangeDialog, setShowSlugChangeDialog] = useState(false);
-  const [pendingSlugValue, setPendingSlugValue] = useState<string | undefined>(
-    undefined,
-  );
+  const [showSlugEditWarningDialog, setShowSlugEditWarningDialog] =
+    useState(false);
+  const [isSlugEditingUnlocked, setIsSlugEditingUnlocked] = useState(false);
+  const slugInputRef = useRef<HTMLInputElement | null>(null);
   const { isPro } = usePro();
   const utils = api.useUtils();
 
@@ -129,10 +129,7 @@ export function ProfileForm({ initialProfile, formRef }: ProfileFormProps) {
   }, [form.formState.isDirty, hasExternalUnsavedChanges]);
 
   const saveChangesInternal = useCallback(
-    async (
-      reason: ProfileFormSaveReason,
-      options?: { skipSlugConfirm?: boolean },
-    ): Promise<boolean> => {
+    async (): Promise<boolean> => {
       if (!hasPendingChanges()) {
         return true;
       }
@@ -143,19 +140,6 @@ export function ProfileForm({ initialProfile, formRef }: ProfileFormProps) {
       }
 
       const values = form.getValues();
-      const previousSlug = profile.slug ?? undefined;
-      const nextSlug = values.slug ?? undefined;
-      const isSlugChanged = nextSlug !== previousSlug;
-
-      if (
-        reason === "manual" &&
-        isSlugChanged &&
-        !options?.skipSlugConfirm
-      ) {
-        setPendingSlugValue(nextSlug);
-        setShowSlugChangeDialog(true);
-        return false;
-      }
 
       setIsUpdating(true);
       try {
@@ -163,18 +147,10 @@ export function ProfileForm({ initialProfile, formRef }: ProfileFormProps) {
           data: values,
         });
         utils.dashboardDb.userProfile.get.setData(undefined, updatedProfile);
-        void utils.dashboardDb.userProfile.get.invalidate();
         setProfile(updatedProfile);
         form.reset(toFormValues(updatedProfile), { keepIsValid: true });
         setHasExternalUnsavedChanges(false);
-
-        if (isSlugChanged) {
-          toast.success("Profile URL updated", {
-            description: "Your profile URL has been successfully updated.",
-          });
-        } else {
-          toast.success("Changes saved");
-        }
+        toast.success("Changes saved");
 
         return true;
       } catch {
@@ -183,12 +159,17 @@ export function ProfileForm({ initialProfile, formRef }: ProfileFormProps) {
         setIsUpdating(false);
       }
     },
-    [form, hasPendingChanges, profile.slug, updateProfileMutation, utils],
+    [
+      form,
+      hasPendingChanges,
+      updateProfileMutation,
+      utils,
+    ],
   );
 
   const saveChanges = useCallback(
-    async (reason: ProfileFormSaveReason): Promise<boolean> => {
-      return saveChangesInternal(reason);
+    async (_reason: ProfileFormSaveReason): Promise<boolean> => {
+      return saveChangesInternal();
     },
     [saveChangesInternal],
   );
@@ -199,32 +180,32 @@ export function ProfileForm({ initialProfile, formRef }: ProfileFormProps) {
     }
 
     formRef.current = { saveChanges, hasPendingChanges };
-
-    return () => {
-      if (formRef.current?.saveChanges === saveChanges) {
-        formRef.current = null;
-      }
-    };
   }, [formRef, hasPendingChanges, saveChanges]);
 
   async function onSubmit() {
     await saveChanges("manual");
   }
 
-  async function handleConfirmSlugChange() {
-    setShowSlugChangeDialog(false);
-    setPendingSlugValue(undefined);
-    await saveChangesInternal("manual", { skipSlugConfirm: true });
+  function handleSlugPointerDown(e: React.PointerEvent<HTMLInputElement>) {
+    if (!isPro || isUpdating || isSlugEditingUnlocked) {
+      return;
+    }
+
+    e.preventDefault();
+    setShowSlugEditWarningDialog(true);
   }
 
-  function handleCancelSlugChange() {
-    setShowSlugChangeDialog(false);
-    const profileSlug = profile.slug ?? undefined;
-    if (pendingSlugValue !== profileSlug) {
-      form.setValue("slug", profileSlug);
-      form.clearErrors("slug");
-    }
-    setPendingSlugValue(undefined);
+  function handleConfirmSlugEditWarning() {
+    setShowSlugEditWarningDialog(false);
+    setIsSlugEditingUnlocked(true);
+    requestAnimationFrame(() => {
+      slugInputRef.current?.focus();
+    });
+  }
+
+  function handleCancelSlugEditWarning() {
+    setShowSlugEditWarningDialog(false);
+    setIsSlugEditingUnlocked(false);
   }
 
   return (
@@ -270,9 +251,14 @@ export function ProfileForm({ initialProfile, formRef }: ProfileFormProps) {
                   <div className="flex flex-col gap-2">
                     <div className="relative">
                       <Input
-                        {...field}
+                        name={field.name}
+                        ref={(element) => {
+                          field.ref(element);
+                          slugInputRef.current = element;
+                        }}
                         value={field.value ?? ""}
                         pattern={SLUG_INPUT_PATTERN.source}
+                        onPointerDown={handleSlugPointerDown}
                         onKeyDown={(e) => {
                           if (
                             e.key === "Backspace" ||
@@ -296,6 +282,7 @@ export function ProfileForm({ initialProfile, formRef }: ProfileFormProps) {
                           field.onChange(value);
                           debouncedCheckSlug(value);
                         }}
+                        onBlur={field.onBlur}
                         disabled={isUpdating || !isPro}
                         placeholder={profile.userId}
                       />
@@ -399,14 +386,11 @@ export function ProfileForm({ initialProfile, formRef }: ProfileFormProps) {
       </Form>
 
       <SlugChangeConfirmDialog
-        open={showSlugChangeDialog}
-        onOpenChange={setShowSlugChangeDialog}
-        onConfirm={() => {
-          void handleConfirmSlugChange();
-        }}
-        onCancel={handleCancelSlugChange}
-        oldSlug={profile.slug ?? profile.userId}
-        newSlug={pendingSlugValue ?? profile.userId}
+        open={showSlugEditWarningDialog}
+        onOpenChange={setShowSlugEditWarningDialog}
+        onConfirm={handleConfirmSlugEditWarning}
+        onCancel={handleCancelSlugEditWarning}
+        currentSlug={profile.slug ?? profile.userId}
         baseUrl={cleanBaseUrl}
       />
     </>

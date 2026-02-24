@@ -5,11 +5,17 @@ import {
   TEST_USER,
   createAuthedUser,
 } from "../../src/lib/test-utils/e2e-users";
+import { setStripeSubscriptionStatus } from "./utils/stripe";
 
 test.describe("profile save on navigate @local", () => {
   test.beforeAll(async () => {
     await withTempE2EDb(async (db) => {
       const user = await createAuthedUser(db);
+      await setStripeSubscriptionStatus({
+        db,
+        stripeCustomerId: TEST_USER.stripeCustomerId,
+      });
+
       const profile = await db.userProfile.upsert({
         where: { userId: user.id },
         update: {},
@@ -59,6 +65,62 @@ test.describe("profile save on navigate @local", () => {
     await expect(dashboardProfile.gardenNameInput).toHaveValue(
       updatedGardenName,
     );
+  });
+
+  test("slug warning gates edit and slug saves on navigate-away autosave", async ({
+    page,
+    dashboardProfile,
+    dashboardShell,
+  }) => {
+    const updatedSlug = `profile-${Date.now()}`;
+    const slugInput = page.locator('input[name="slug"]');
+    const saveToast = page
+      .locator("[data-sonner-toast]")
+      .filter({ hasText: "Changes saved" })
+      .first();
+
+    await page.goto("/");
+    await clerk.signIn({ page, emailAddress: TEST_USER.email });
+
+    await dashboardProfile.goto();
+    await dashboardProfile.isReady();
+
+    const slugWarningDialog = page.getByRole("alertdialog");
+
+    await slugInput.click();
+    await expect(
+      slugWarningDialog.getByRole("heading", {
+        name: "Before You Edit Your URL",
+      }),
+    ).toBeVisible();
+    await slugWarningDialog.getByRole("button", { name: "Cancel" }).click();
+    await expect(slugWarningDialog).not.toBeVisible();
+    await expect(slugInput).not.toBeFocused();
+
+    await slugInput.click();
+    await expect(
+      slugWarningDialog.getByRole("heading", {
+        name: "Before You Edit Your URL",
+      }),
+    ).toBeVisible();
+    await slugWarningDialog.getByRole("button", { name: "Continue" }).click();
+    await expect(slugWarningDialog).not.toBeVisible();
+    await expect(slugInput).toBeFocused();
+
+    await slugInput.fill(updatedSlug);
+
+    await dashboardShell.goToListings();
+    await expect(page).toHaveURL(/\/dashboard\/listings/);
+    await expect(saveToast).toBeVisible();
+
+    await dashboardShell.goToProfile();
+    await expect(page).toHaveURL(/\/dashboard\/profile/);
+    await dashboardProfile.isReady();
+    await expect(slugInput).toHaveValue(updatedSlug);
+
+    await page.reload();
+    await dashboardProfile.isReady();
+    await expect(slugInput).toHaveValue(updatedSlug);
   });
 
   test("content is visible immediately after navigate-away autosave", async ({

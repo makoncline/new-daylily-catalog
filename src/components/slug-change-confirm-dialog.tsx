@@ -14,8 +14,7 @@ interface SlugChangeConfirmDialogProps {
   onOpenChange: (open: boolean) => void;
   onConfirm: () => void;
   onCancel: () => void;
-  oldSlug: string;
-  newSlug: string;
+  currentSlug: string;
   baseUrl: string;
 }
 
@@ -24,8 +23,7 @@ export function SlugChangeConfirmDialog({
   onOpenChange,
   onConfirm,
   onCancel,
-  oldSlug,
-  newSlug,
+  currentSlug,
   baseUrl,
 }: SlugChangeConfirmDialogProps) {
   const cleanBaseUrl = baseUrl.replace(/^https?:\/\//, "");
@@ -34,7 +32,7 @@ export function SlugChangeConfirmDialog({
     <AlertDialog open={open} onOpenChange={onOpenChange}>
       <AlertDialogContent>
         <AlertDialogHeader>
-          <AlertDialogTitle>Confirm URL Change</AlertDialogTitle>
+          <AlertDialogTitle>Before You Edit Your URL</AlertDialogTitle>
         </AlertDialogHeader>
 
         <div className="space-y-4">
@@ -47,18 +45,12 @@ export function SlugChangeConfirmDialog({
               <div>
                 <span className="font-medium">Current URL: </span>
                 <InlineCode>
-                  {cleanBaseUrl}/{oldSlug}
-                </InlineCode>
-              </div>
-              <div>
-                <span className="font-medium">New URL: </span>
-                <InlineCode>
-                  {cleanBaseUrl}/{newSlug}
+                  {cleanBaseUrl}/{currentSlug}
                 </InlineCode>
               </div>
             </Muted>
           </div>
-          <P>Are you sure you want to change your profile URL?</P>
+          <P>Continue to edit your profile URL?</P>
         </div>
 
         <AlertDialogFooter>
@@ -66,7 +58,7 @@ export function SlugChangeConfirmDialog({
             <Button variant="outline">Cancel</Button>
           </AlertDialogCancel>
           <Button onClick={onConfirm} variant="destructive">
-            Change URL
+            Continue
           </Button>
         </AlertDialogFooter>
       </AlertDialogContent>

@@ -57,7 +57,7 @@ export function EditListDialog() {
   const { editingId, closeEditList } = useEditList();
   const formRef = useRef<ListFormHandle | null>(null);
   const isOpen = !!editingId;
-  usePendingChangesGuard(formRef, "navigate");
+  usePendingChangesGuard(formRef, "navigate", isOpen);
 
   const handleOpenChange = async (open: boolean) => {
     if (!open) {
