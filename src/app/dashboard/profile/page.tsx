@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useRef } from "react";
 import { api } from "@/trpc/react";
 import {
   ProfileForm,
@@ -11,38 +11,13 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { MainContent } from "@/app/(public)/_components/main-content";
 import { Skeleton } from "@/components/ui/skeleton";
+import { usePendingChangesGuard } from "@/hooks/use-pending-changes-guard";
 
 export default function ProfilePage() {
   const formRef = useRef<ProfileFormHandle | null>(null);
   const { data: profile, isLoading } = api.dashboardDb.userProfile.get.useQuery();
 
-  useEffect(() => {
-    const handleBeforeUnload = (event: BeforeUnloadEvent) => {
-      if (!formRef.current?.hasPendingChanges()) {
-        return;
-      }
-
-      event.preventDefault();
-      event.returnValue = "";
-    };
-
-    window.addEventListener("beforeunload", handleBeforeUnload);
-
-    return () => {
-      window.removeEventListener("beforeunload", handleBeforeUnload);
-    };
-  }, []);
-
-  useEffect(() => {
-    return () => {
-      if (!formRef.current?.hasPendingChanges()) {
-        return;
-      }
-
-      // eslint-disable-next-line react-hooks/exhaustive-deps -- needs latest imperative form handle on page unmount.
-      void formRef.current.saveChanges("navigate");
-    };
-  }, []);
+  usePendingChangesGuard(formRef, "navigate");
 
   if (isLoading || !profile) {
     return (

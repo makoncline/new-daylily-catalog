@@ -2,6 +2,8 @@
 
 ## Log
 
+- 2026-02-24 - shared unsaved-guard hook pattern - `beforeunload` + unmount autosave logic should live in a reusable hook (`usePendingChangesGuard`) and be consumed by profile/listing/list surfaces to avoid drift.
+- 2026-02-24 - self-miss hook typing - A generic hook constrained to `saveChanges(reason: string)` is too wide for literal-union reason handlers; define the hook as generic over `TReason` and pass `"navigate"` as that union member.
 - 2026-02-24 - pro-status invalidation anchor - Add an explicit invalidation TODO at `src/app/subscribe/success/page.tsx` right after `syncStripeSubscriptionToKV(...)`; pro visibility changes are Stripe-sync driven, not only profile/listing/list edit commits.
 - 2026-02-24 - invalidation scope marker pattern - Keep future public invalidation TODO markers only on commit-boundary mutations (`dashboardDb.userProfile.update`, `dashboardDb.listing.update`, `dashboardDb.list.update`) to avoid spreading invalidation across instant helper mutations.
 - 2026-02-24 - lists edit dialog loop root cause - `useEditList` used `useEffect` to mirror atom -> URL and built `newUrl` as `?${params.toString()}`; with empty params it pushed `"?"` repeatedly, causing apparent infinite navigation/re-render loop even when dialog closed. Fix by making URL the source of truth and updating it only in explicit edit/close handlers (no sync effect).

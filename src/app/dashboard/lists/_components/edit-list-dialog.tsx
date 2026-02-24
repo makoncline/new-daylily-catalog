@@ -15,8 +15,9 @@ import {
   type ListFormHandle,
 } from "@/components/forms/list-form";
 import { ListFormSkeleton } from "@/components/forms/list-form-skeleton";
-import { useRef, useEffect, Suspense } from "react";
+import { useRef, Suspense } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { usePendingChangesGuard } from "@/hooks/use-pending-changes-guard";
 
 export const useEditList = () => {
   const router = useRouter();
@@ -56,6 +57,7 @@ export function EditListDialog() {
   const { editingId, closeEditList } = useEditList();
   const formRef = useRef<ListFormHandle | null>(null);
   const isOpen = !!editingId;
+  usePendingChangesGuard(formRef, "navigate");
 
   const handleOpenChange = async (open: boolean) => {
     if (!open) {
@@ -66,34 +68,6 @@ export function EditListDialog() {
       closeEditList();
     }
   };
-
-  useEffect(() => {
-    const handleBeforeUnload = (event: BeforeUnloadEvent) => {
-      if (!formRef.current?.hasPendingChanges()) {
-        return;
-      }
-
-      event.preventDefault();
-      event.returnValue = "";
-    };
-
-    window.addEventListener("beforeunload", handleBeforeUnload);
-
-    return () => {
-      window.removeEventListener("beforeunload", handleBeforeUnload);
-    };
-  }, []);
-
-  useEffect(() => {
-    return () => {
-      if (!formRef.current?.hasPendingChanges()) {
-        return;
-      }
-
-      // eslint-disable-next-line react-hooks/exhaustive-deps
-      void formRef.current.saveChanges("navigate");
-    };
-  }, []);
 
   return (
     <Dialog open={isOpen} onOpenChange={handleOpenChange}>

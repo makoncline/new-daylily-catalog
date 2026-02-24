@@ -14,6 +14,7 @@ import {
   type ListCollectionItem,
 } from "@/app/dashboard/_lib/dashboard-db/lists-collection";
 import { getQueryClient } from "@/trpc/query-client";
+import { usePendingChangesGuard } from "@/hooks/use-pending-changes-guard";
 
 interface ListPageProps {
   params: Promise<{
@@ -29,6 +30,7 @@ export default function ListPage({ params }: ListPageProps) {
 
 function ManageListPageLive({ listId }: { listId: string }) {
   const formRef = React.useRef<ListFormHandle | null>(null);
+  usePendingChangesGuard(formRef, "navigate");
   const [hasExternalUnsavedChanges, setHasExternalUnsavedChanges] =
     React.useState(false);
   const { data: liveLists = [], isReady } = useLiveQuery(
@@ -54,34 +56,6 @@ function ManageListPageLive({ listId }: { listId: string }) {
   React.useEffect(() => {
     setHasExternalUnsavedChanges(false);
   }, [listId]);
-
-  React.useEffect(() => {
-    const handleBeforeUnload = (event: BeforeUnloadEvent) => {
-      if (!formRef.current?.hasPendingChanges()) {
-        return;
-      }
-
-      event.preventDefault();
-      event.returnValue = "";
-    };
-
-    window.addEventListener("beforeunload", handleBeforeUnload);
-
-    return () => {
-      window.removeEventListener("beforeunload", handleBeforeUnload);
-    };
-  }, []);
-
-  React.useEffect(() => {
-    return () => {
-      if (!formRef.current?.hasPendingChanges()) {
-        return;
-      }
-
-      // eslint-disable-next-line react-hooks/exhaustive-deps
-      void formRef.current.saveChanges("navigate");
-    };
-  }, []);
 
   if (!list) {
     return <div className="p-4">List not found</div>;

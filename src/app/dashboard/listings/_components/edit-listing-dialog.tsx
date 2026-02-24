@@ -17,6 +17,7 @@ import { ErrorBoundary } from "react-error-boundary";
 import { ErrorFallback } from "@/components/error-fallback";
 import { P } from "@/components/typography";
 import { atom, useAtom } from "jotai";
+import { usePendingChangesGuard } from "@/hooks/use-pending-changes-guard";
 
 /**
  * Atom for editing state
@@ -96,6 +97,7 @@ export function EditListingDialog() {
   const { editingId, closeEditListing } = useEditListing();
   const formRef = useRef<ListingFormHandle | null>(null);
   const isOpen = !!editingId;
+  usePendingChangesGuard(formRef, "navigate");
 
   const handleOpenChange = async (open: boolean) => {
     if (!open) {
@@ -107,34 +109,6 @@ export function EditListingDialog() {
       closeEditListing();
     }
   };
-
-  useEffect(() => {
-    const handleBeforeUnload = (event: BeforeUnloadEvent) => {
-      if (!formRef.current?.hasPendingChanges()) {
-        return;
-      }
-
-      event.preventDefault();
-      event.returnValue = "";
-    };
-
-    window.addEventListener("beforeunload", handleBeforeUnload);
-
-    return () => {
-      window.removeEventListener("beforeunload", handleBeforeUnload);
-    };
-  }, []);
-
-  useEffect(() => {
-    return () => {
-      if (!formRef.current?.hasPendingChanges()) {
-        return;
-      }
-
-      // eslint-disable-next-line react-hooks/exhaustive-deps -- needs latest imperative form handle on route unmount.
-      void formRef.current.saveChanges("navigate");
-    };
-  }, []);
 
   return (
     <Dialog open={isOpen} onOpenChange={handleOpenChange}>
