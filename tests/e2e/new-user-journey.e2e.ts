@@ -24,6 +24,11 @@ test.describe("new user journey @local", () => {
   }, testInfo) => {
     test.slow();
     const testEmail = `${TEST_EMAIL_PREFIX}+${Date.now()}-${testInfo.repeatEachIndex}@gmail.com`;
+    const toast = (message: string) =>
+      page.locator("[data-sonner-toast]").filter({ hasText: message }).first();
+    const expectToast = async (message: string) => {
+      await expect(toast(message)).toBeVisible();
+    };
 
     try {
       await withTempE2EDb(async (db) => {
@@ -157,12 +162,7 @@ test.describe("new user journey @local", () => {
         await expect(
           editListingDialog.selectedListChip(testListName),
         ).toBeVisible();
-        await expect(
-          page
-            .locator("[data-sonner-toast]")
-            .filter({ hasText: "Lists updated" })
-            .first(),
-        ).toBeVisible();
+        await expectToast("Lists updated");
 
         // programmatically add an image to the listing
         const testListingImageUrl = "/assets/bouquet.png";
@@ -200,6 +200,7 @@ test.describe("new user journey @local", () => {
 
         // close the dialog
         await editListingDialog.close();
+        await expectToast("Changes saved");
 
         // programmatically add 2 more listings with different names
         // Get the user ID first (reuse the clerkUserId from earlier)

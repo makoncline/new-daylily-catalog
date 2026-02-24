@@ -60,9 +60,8 @@ export class EditListingDialog {
     });
   }
 
-  private async fillAndBlur(field: Locator, text: string) {
+  private async fillField(field: Locator, text: string) {
     await field.fill(text);
-    await field.blur();
   }
 
   async isReady() {
@@ -84,7 +83,7 @@ export class EditListingDialog {
   }
 
   async fillTitle(text: string) {
-    await this.fillAndBlur(this.titleInput, text);
+    await this.fillField(this.titleInput, text);
   }
 
   /**
@@ -98,29 +97,21 @@ export class EditListingDialog {
    * Fills the description field
    */
   async fillDescription(text: string) {
-    await this.fillAndBlur(this.descriptionInput, text);
-  }
-
-  async typeDescriptionWithoutBlur(text: string) {
-    await this.descriptionInput.fill(text);
+    await this.fillField(this.descriptionInput, text);
   }
 
   /**
    * Fills the price field
    */
   async fillPrice(price: number) {
-    await this.fillAndBlur(this.priceInput, price.toString());
+    await this.fillField(this.priceInput, price.toString());
   }
 
   /**
    * Fills the private note field
    */
   async fillPrivateNote(text: string) {
-    await this.fillAndBlur(this.privateNoteInput, text);
-  }
-
-  async typePrivateNoteWithoutBlur(text: string) {
-    await this.privateNoteInput.fill(text);
+    await this.fillField(this.privateNoteInput, text);
   }
 
   async setStatusTo(status: ListingStatus) {

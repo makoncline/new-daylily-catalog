@@ -8,7 +8,6 @@ import { toast } from "sonner";
 import {
   listingFormSchema,
   transformNullToUndefined,
-  type ListingFormData,
 } from "@/types/schemas/listing";
 import { useZodForm } from "@/hooks/use-zod-form";
 import { useAutoResizeTextArea } from "@/hooks/use-auto-resize-textarea";
@@ -65,7 +64,14 @@ type LinkedAhsListing = CultivarReferenceCollectionItem["ahsListing"];
 interface ListingFormProps {
   listingId: string;
   onDelete: () => void;
-  formRef?: React.RefObject<{ saveChanges: () => Promise<void> } | null>;
+  formRef?: React.RefObject<ListingFormHandle | null>;
+}
+
+export type ListingFormSaveReason = "manual" | "close" | "navigate";
+
+export interface ListingFormHandle {
+  saveChanges: (reason: ListingFormSaveReason) => Promise<boolean>;
+  hasPendingChanges: () => boolean;
 }
 
 function ListingFormInner({
@@ -83,10 +89,12 @@ function ListingFormInner({
   images: Image[];
   selectedListIds: string[];
   onDelete: () => void;
-  formRef?: React.RefObject<{ saveChanges: () => Promise<void> } | null>;
+  formRef?: React.RefObject<ListingFormHandle | null>;
 }) {
   const [isPending, setIsPending] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [hasExternalUnsavedChanges, setHasExternalUnsavedChanges] =
+    useState(false);
   const { textAreaRef, adjustHeight } = useAutoResizeTextArea();
 
   const normalizedStatus =
@@ -102,93 +110,87 @@ function ListingFormInner({
     ),
   });
 
-  const saveField = async <T extends keyof ListingFormData>(
-    field: T,
-    value: ListingFormData[T],
-  ) => {
-    setIsPending(true);
-    try {
-      await updateListing({
-        id: listing.id,
-        data: {
-          [field]: value,
-        },
-      });
+  const markExternalUnsavedChanges = useCallback(() => {
+    setHasExternalUnsavedChanges(true);
+  }, []);
 
-      form.reset({}, { keepValues: true, keepIsValid: true });
-      toast.success("Changes saved");
-    } catch (error) {
-      toast.error("Failed to save changes", {
-        description: getErrorMessage(error),
-      });
-      reportError({
-        error: normalizeError(error),
-        context: { source: "ListingForm", field },
-      });
-    } finally {
-      setIsPending(false);
-    }
-  };
+  const hasPendingChanges = useCallback(() => {
+    return form.formState.isDirty || hasExternalUnsavedChanges;
+  }, [form.formState.isDirty, hasExternalUnsavedChanges]);
 
-  const saveChanges = useCallback(async () => {
-    setIsPending(true);
-    try {
-      const values = form.getValues();
-      await updateListing({
-        id: listing.id,
-        data: values,
-      });
+  const saveChanges = useCallback(
+    async (reason: ListingFormSaveReason): Promise<boolean> => {
+      if (!hasPendingChanges()) {
+        return true;
+      }
 
-      form.reset({}, { keepValues: true, keepIsValid: true });
-      toast.success("Changes saved");
-    } catch (error) {
-      toast.error("Failed to save changes", {
-        description: getErrorMessage(error),
-      });
-      reportError({
-        error: normalizeError(error),
-        context: { source: "ListingForm" },
-      });
-    } finally {
-      setIsPending(false);
-    }
-  }, [form, listing.id]);
+      const isValid = await form.trigger();
+      if (!isValid) {
+        return false;
+      }
+
+      setIsPending(true);
+      try {
+        const values = form.getValues();
+        await updateListing({
+          id: listing.id,
+          data: values,
+        });
+
+        form.reset(values, { keepIsValid: true });
+        setHasExternalUnsavedChanges(false);
+        toast.success("Changes saved");
+        return true;
+      } catch (error) {
+        toast.error("Failed to save changes", {
+          description: getErrorMessage(error),
+        });
+        reportError({
+          error: normalizeError(error),
+          context: { source: "ListingForm", reason },
+        });
+        return false;
+      } finally {
+        setIsPending(false);
+      }
+    },
+    [form, hasPendingChanges, listing.id],
+  );
 
   useEffect(() => {
-    if (formRef) {
-      formRef.current = { saveChanges };
+    if (!formRef) {
+      return;
     }
-  }, [formRef, saveChanges]);
+
+    formRef.current = { saveChanges, hasPendingChanges };
+
+    return () => {
+      if (formRef.current?.saveChanges === saveChanges) {
+        formRef.current = null;
+      }
+    };
+  }, [formRef, hasPendingChanges, saveChanges]);
 
   async function onSubmit() {
-    await saveChanges();
+    await saveChanges("manual");
   }
-
-  const onFieldBlur = async (field: keyof ListingFormData) => {
-    if (!form.formState.dirtyFields[field]) return;
-
-    const isValid = await form.trigger(field);
-    if (!isValid) return;
-
-    const value = form.getValues(field);
-    await saveField(field, value);
-  };
 
   const handleUpdateLists = async (nextListIds: string[]) => {
     setIsPending(true);
-    const prev = new Set(selectedListIds);
-    const next = new Set(nextListIds);
-
-    const toAdd = nextListIds.filter((id) => !prev.has(id));
-    const toRemove = selectedListIds.filter((id) => !next.has(id));
-
     try {
+      const prev = new Set(selectedListIds);
+      const next = new Set(nextListIds);
+
+      const toAdd = nextListIds.filter((id) => !prev.has(id));
+      const toRemove = selectedListIds.filter((id) => !next.has(id));
+
       await Promise.all([
         ...toAdd.map((listId) => addListingToList({ listId, listingId })),
         ...toRemove.map((listId) =>
           removeListingFromList({ listId, listingId }),
         ),
       ]);
+      markExternalUnsavedChanges();
       toast.success("Lists updated");
     } catch (error) {
       toast.error("Failed to update lists", {
@@ -241,7 +243,6 @@ function ListingFormInner({
               <FormControl>
                 <Input
                   {...field}
-                  onBlur={() => void onFieldBlur("title")}
                   disabled={isPending}
                 />
               </FormControl>
@@ -263,10 +264,15 @@ function ListingFormInner({
               type="listing"
               images={images}
               referenceId={listingId}
+              onMutationSuccess={markExternalUnsavedChanges}
             />
             {images.length < LISTING_CONFIG.IMAGES.MAX_COUNT && (
               <div className="p-4">
-                <ImageUpload type="listing" referenceId={listingId} />
+                <ImageUpload
+                  type="listing"
+                  referenceId={listingId}
+                  onUploadComplete={markExternalUnsavedChanges}
+                />
               </div>
             )}
           </div>
@@ -287,7 +293,6 @@ function ListingFormInner({
                     field.onChange(e);
                     adjustHeight();
                   }}
-                  onBlur={() => void onFieldBlur("description")}
                   className="min-h-[100px]"
                   disabled={isPending}
                 />
@@ -310,7 +315,6 @@ function ListingFormInner({
                 <CurrencyInput
                   value={field.value}
                   onChange={field.onChange}
-                  onValueBlur={() => void onFieldBlur("price")}
                   disabled={isPending}
                 />
               </FormControl>
@@ -334,7 +338,6 @@ function ListingFormInner({
                     value === "published" ? STATUS.PUBLISHED : STATUS.HIDDEN;
 
                   field.onChange(dbValue);
-                  void saveField("status", dbValue);
                 }}
                 value={getUIStatusValue(field.value)}
                 disabled={isPending}
@@ -367,7 +370,6 @@ function ListingFormInner({
                 <Textarea
                   {...field}
                   value={field.value ?? ""}
-                  onBlur={() => void onFieldBlur("privateNote")}
                   disabled={isPending}
                 />
               </FormControl>
@@ -401,6 +403,7 @@ function ListingFormInner({
             onNameChange={(name) => {
               form.setValue("title", name);
             }}
+            onMutationSuccess={markExternalUnsavedChanges}
           />
           <p className="text-muted-foreground text-[0.8rem]">
             Optional. Link your listing to a daylily database listing to

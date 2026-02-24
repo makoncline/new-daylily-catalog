@@ -206,7 +206,7 @@ test.describe("create/edit listing flow @local", () => {
       seedMeta.relinkAhsName,
     );
 
-    await editListingDialog.typePrivateNoteWithoutBlur(pendingPrivateNote);
+    await editListingDialog.fillPrivateNote(pendingPrivateNote);
     await editListingDialog.closeWithHeaderX();
     await expectToast("Changes saved");
     await expectUrlParam("editing", null);

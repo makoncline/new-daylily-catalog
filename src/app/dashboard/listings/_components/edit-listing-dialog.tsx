@@ -6,7 +6,10 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { ListingForm } from "@/components/forms/listing-form";
+import {
+  ListingForm,
+  type ListingFormHandle,
+} from "@/components/forms/listing-form";
 import { ListingFormSkeleton } from "@/components/forms/listing-form-skeleton";
 import { usePathname, useSearchParams, useRouter } from "next/navigation";
 import { Suspense, useEffect, useRef } from "react";
@@ -91,16 +94,47 @@ export const useEditListing = () => {
  */
 export function EditListingDialog() {
   const { editingId, closeEditListing } = useEditListing();
-  const formRef = useRef<{ saveChanges: () => Promise<void> } | null>(null);
+  const formRef = useRef<ListingFormHandle | null>(null);
   const isOpen = !!editingId;
 
   const handleOpenChange = async (open: boolean) => {
     if (!open) {
       // Save any pending changes before closing
-      await formRef.current?.saveChanges?.();
+      const didSave = await formRef.current?.saveChanges("close");
+      if (didSave === false) {
+        return;
+      }
       closeEditListing();
     }
   };
+
+  useEffect(() => {
+    const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+      if (!formRef.current?.hasPendingChanges()) {
+        return;
+      }
+
+      event.preventDefault();
+      event.returnValue = "";
+    };
+
+    window.addEventListener("beforeunload", handleBeforeUnload);
+
+    return () => {
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+    };
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (!formRef.current?.hasPendingChanges()) {
+        return;
+      }
+
+      // eslint-disable-next-line react-hooks/exhaustive-deps -- needs latest imperative form handle on route unmount.
+      void formRef.current.saveChanges("navigate");
+    };
+  }, []);
 
   return (
     <Dialog open={isOpen} onOpenChange={handleOpenChange}>
