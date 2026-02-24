@@ -4,7 +4,10 @@ import React from "react";
 import { eq, useLiveQuery } from "@tanstack/react-db";
 import { ListListingsTable } from "./_components/list-listings-table";
 import { PageHeader } from "../../_components/page-header";
-import { ListForm } from "@/components/forms/list-form";
+import {
+  ListForm,
+  type ListFormHandle,
+} from "@/components/forms/list-form";
 import { AddListingsSection } from "./_components/add-listings-section";
 import {
   listsCollection,
@@ -25,6 +28,9 @@ export default function ListPage({ params }: ListPageProps) {
 }
 
 function ManageListPageLive({ listId }: { listId: string }) {
+  const formRef = React.useRef<ListFormHandle | null>(null);
+  const [hasExternalUnsavedChanges, setHasExternalUnsavedChanges] =
+    React.useState(false);
   const { data: liveLists = [], isReady } = useLiveQuery(
     (q) =>
       q.from({ list: listsCollection }).where(({ list }) => eq(list.id, listId)),
@@ -38,6 +44,44 @@ function ManageListPageLive({ listId }: { listId: string }) {
   const seededList = seededLists.find((row) => row.id === listId) ?? null;
 
   const list = isReady ? (liveLists[0] ?? seededList) : seededList;
+  const markExternalUnsavedChanges = React.useCallback(() => {
+    setHasExternalUnsavedChanges(true);
+  }, []);
+  const clearExternalUnsavedChanges = React.useCallback(() => {
+    setHasExternalUnsavedChanges(false);
+  }, []);
+
+  React.useEffect(() => {
+    setHasExternalUnsavedChanges(false);
+  }, [listId]);
+
+  React.useEffect(() => {
+    const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+      if (!formRef.current?.hasPendingChanges()) {
+        return;
+      }
+
+      event.preventDefault();
+      event.returnValue = "";
+    };
+
+    window.addEventListener("beforeunload", handleBeforeUnload);
+
+    return () => {
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+    };
+  }, []);
+
+  React.useEffect(() => {
+    return () => {
+      if (!formRef.current?.hasPendingChanges()) {
+        return;
+      }
+
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+      void formRef.current.saveChanges("navigate");
+    };
+  }, []);
 
   if (!list) {
     return <div className="p-4">List not found</div>;
@@ -49,9 +93,20 @@ function ManageListPageLive({ listId }: { listId: string }) {
         heading={`Manage List: ${list.title}`}
         text="Manage list details and organize your listings."
       />
-      <ListForm listId={listId} />
-      <AddListingsSection listId={listId} />
-      <ListListingsTable listId={listId} />
+      <ListForm
+        listId={listId}
+        formRef={formRef}
+        hasExternalUnsavedChanges={hasExternalUnsavedChanges}
+        onExternalChangesSaved={clearExternalUnsavedChanges}
+      />
+      <AddListingsSection
+        listId={listId}
+        onMutationSuccess={markExternalUnsavedChanges}
+      />
+      <ListListingsTable
+        listId={listId}
+        onMutationSuccess={markExternalUnsavedChanges}
+      />
     </div>
   );
 }

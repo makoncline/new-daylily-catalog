@@ -35,6 +35,7 @@ import type { Image } from "@prisma/client";
 
 interface ListListingsTableProps {
   listId: string;
+  onMutationSuccess?: () => void;
 }
 
 type List = RouterOutputs["dashboardDb"]["list"]["list"][number];
@@ -53,9 +54,11 @@ const tableOptions = {
 function SelectedItemsActions({
   table,
   listId,
+  onMutationSuccess,
 }: {
   table: Table<ListingData>;
   listId: string;
+  onMutationSuccess?: () => void;
 }) {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [isPending, setIsPending] = useState(false);
@@ -71,6 +74,7 @@ function SelectedItemsActions({
         await removeListingFromList({ listId, listingId });
       }
 
+      onMutationSuccess?.();
       toast.success("Listings removed from list");
       table.resetRowSelection();
       setShowDeleteDialog(false);
@@ -107,9 +111,14 @@ function SelectedItemsActions({
 interface ListingsTableToolbarProps {
   table: Table<ListingData>;
   listId: string;
+  onMutationSuccess?: () => void;
 }
 
-function ListingsTableToolbar({ table, listId }: ListingsTableToolbarProps) {
+function ListingsTableToolbar({
+  table,
+  listId,
+  onMutationSuccess,
+}: ListingsTableToolbarProps) {
   const hasSelectedRows = table.getFilteredSelectedRowModel().rows.length > 0;
 
   return (
@@ -123,7 +132,11 @@ function ListingsTableToolbar({ table, listId }: ListingsTableToolbarProps) {
           <DataTableFilteredCount table={table} />
           <DataTableFilterReset table={table} />
           {hasSelectedRows && (
-            <SelectedItemsActions table={table} listId={listId} />
+            <SelectedItemsActions
+              table={table}
+              listId={listId}
+              onMutationSuccess={onMutationSuccess}
+            />
           )}
           <div className="flex-1" />
           <DataTableViewOptions table={table} />
@@ -133,7 +146,10 @@ function ListingsTableToolbar({ table, listId }: ListingsTableToolbarProps) {
   );
 }
 
-export function ListListingsTable({ listId }: ListListingsTableProps) {
+export function ListListingsTable({
+  listId,
+  onMutationSuccess,
+}: ListListingsTableProps) {
   const { data: lists = [], isReady: isListsReady } = useLiveQuery(
     (q) =>
       q
@@ -276,7 +292,13 @@ export function ListListingsTable({ listId }: ListListingsTableProps) {
 
       <DataTableLayout
         table={table}
-        toolbar={<ListingsTableToolbar table={table} listId={listId} />}
+        toolbar={
+          <ListingsTableToolbar
+            table={table}
+            listId={listId}
+            onMutationSuccess={onMutationSuccess}
+          />
+        }
         pagination={
           <>
             <DataTablePagination table={table} />

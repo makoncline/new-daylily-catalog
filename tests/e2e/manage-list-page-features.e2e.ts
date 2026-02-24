@@ -19,7 +19,14 @@ test.describe("manage list page features @local", () => {
   test("user can use manage list form add listings and table features", async ({
     page,
     manageListPage,
+    dashboardShell,
+    dashboardLists,
   }) => {
+    const listUpdatedToast = page
+      .locator("[data-sonner-toast]")
+      .filter({ hasText: "List updated" })
+      .first();
+
     const expectPageIndicator = async (
       currentPage: number,
       totalPages: number,
@@ -64,10 +71,31 @@ test.describe("manage list page features @local", () => {
       new RegExp(`/dashboard/lists/${seedMeta.listId}`),
     );
 
-    // Phase 2: list form edit + persistence
+    // Phase 2: list form edit + navigate-away persistence
+    await expect(manageListPage.saveChangesButton).toBeDisabled();
     await manageListPage.fillTitle(seedMeta.updatedListTitle);
     await manageListPage.fillDescription(seedMeta.updatedListDescription);
-    await manageListPage.saveChangesAndWait();
+    await expect(manageListPage.saveChangesButton).toBeEnabled();
+
+    await dashboardShell.goToLists();
+    await expect(page).toHaveURL(/\/dashboard\/lists$/);
+
+    await dashboardLists.isReady();
+    await dashboardLists.setGlobalSearch(seedMeta.updatedListTitle);
+    await expect(
+      dashboardLists.listRow(seedMeta.updatedListTitle),
+    ).toBeVisible();
+    await dashboardLists.openFirstVisibleRowActions();
+    await dashboardLists.manageRowAction().click();
+    await expect(page).toHaveURL(
+      new RegExp(`/dashboard/lists/${seedMeta.listId}`),
+    );
+
+    await manageListPage.isReady();
+    await expect(manageListPage.titleInput).toHaveValue(seedMeta.updatedListTitle);
+    await expect(manageListPage.descriptionInput).toHaveValue(
+      seedMeta.updatedListDescription,
+    );
 
     // Phase 3: baseline table + pagination
     await expect(manageListPage.rows()).toHaveCount(seedMeta.defaultPageSize);
@@ -108,6 +136,10 @@ test.describe("manage list page features @local", () => {
 
     await manageListPage.resetToolbarFiltersIfVisible();
     await expectPageIndicator(1, seedMeta.expectedPageCountAfterAdd);
+    await expect(manageListPage.saveChangesButton).toBeEnabled();
+    await manageListPage.saveChanges();
+    await expect(listUpdatedToast).toBeVisible();
+    await expect(manageListPage.saveChangesButton).toBeDisabled();
 
     // Phase 5: column filter + sorting checks
     await manageListPage.openColumnFilter("Title");
@@ -141,6 +173,7 @@ test.describe("manage list page features @local", () => {
     await expect(
       page.getByRole("heading", { name: "No listings found" }),
     ).toBeVisible();
+    await expect(manageListPage.saveChangesButton).toBeEnabled();
     await expect(manageListPage.filteredCount()).toHaveText(
       new RegExp(`0\\s*/\\s*${seedMeta.totalListListingsBeforeAdd}`),
     );
