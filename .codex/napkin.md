@@ -2,26 +2,9 @@
 
 ## Log
 
-- 2026-02-24 - profile cache TTL alignment - Avoid implicit coupling by adding `CACHE_CONFIG.PUBLIC.PROFILE_REVALIDATE_SECONDS` and using it for `getCachedPublicProfile` + cached slug/id->userId lookup, so profile-route freshness can be tuned independently without SEARCH key drift.
-- 2026-02-24 - persistence scope correction - Dashboard DB and public catalog search persistence were unintentionally left as no-op stubs after cache-removal changes; restore full IndexedDB snapshot/hydration behavior (dashboard + public search) when persistence is still required.
-- 2026-02-24 - public slug-id cache correction - Caching a derived profile identity object for slug/id resolution increased cache-miss cost (extra DB read). Prefer a dedicated cached `getUserIdFromSlugOrId` helper so first miss is one query and paginated follow-ups avoid repeated lookups.
-- 2026-02-24 - tooling self-miss - I used a quick Python one-liner for URL checks where shell commands would have been sufficient; prefer direct shell utilities in this repo unless Python is truly necessary.
-- 2026-02-24 - trpc server helper correction - `src/trpc/server.ts` is currently unused by call sites, but we restored it with React `cache()` memoization to keep default create-t3-app server-call plumbing available for future RSC tRPC usage.
-- 2026-02-24 - public search query hydration - `PublicCatalogSearchClient` should pass `initialData` to `useInfiniteQuery` so SSR `initialListings` seed query cache and avoid duplicate page-1 fetch on mount.
-- 2026-02-23 - shell runner quirks - In this Codex shell, multi-line `zsh` scripts may not have expected PATH for common tools (`curl`, `rm`, `jq`) and `status` is read-only; use absolute binaries (`/usr/bin/curl`, `/bin/rm`, `/opt/homebrew/bin/jq`) and avoid `status` as a variable.
-- 2026-02-23 - cache dedupe pattern - To avoid duplicated public profile cache wrappers without pulling broad public-cache deps into route tests, add a narrow shared module (`src/server/db/public-profile-cache.ts`) and re-export it from `public-cache.ts`.
-- 2026-02-23 - local e2e cache bypass policy - Even when local Playwright passes with cache enabled, keeping `PLAYWRIGHT_LOCAL_E2E` bypass in `createServerCache` preserves deterministic no-cache test runs and previous repo behavior.
-- 2026-02-23 - t3 baseline cache default - create-t3-app template `query-client.ts` uses `staleTime: 30 * 1000` by default (SSR anti-refetch baseline); our experiment override to `staleTime: 0`, `gcTime: 0`, and always-refetch is intentionally more aggressive and should be treated as a policy decision, not assumed template behavior.
-- 2026-02-23 - public catalog test typing - `PublicCatalogSearchClient` tests need `PublicCatalogListing[]`; minimal `{id,title}` fixtures should go through a local typed factory (`as PublicCatalogListing`) to keep behavior-focused tests small while passing `tsc --noEmit`.
-- 2026-02-23 - dashboard test timing verification - Re-checked `tests/dashboard-db-list-membership-sync.test.tsx` without timeout: it passes alone (~3.7s) but times out at 5s when run with other dashboard DB integration tests; timeout bump is for runtime variance, not assertion changes.
-- 2026-02-23 - test strategy correction - I started adapting production code to satisfy snapshot-implementation tests; user clarified tests should be updated for intended behavior of new caching strategy instead of preserving old implementation-detail assertions.
-- 2026-02-23 - integration timing flake - `tests/dashboard-db-list-membership-sync.test.tsx` is stable in isolation but can exceed default 5s in full suite; scoped timeout increase to 10s fixed suite reliability without changing assertions.
-- 2026-02-23 - next segment-config self-miss - I switched route `revalidate` exports to imported config constants and Next 16 build failed with `Invalid segment configuration export`; keep route segment config as literals and annotate with searchable `CACHE_LITERAL_REF` comments.
-- 2026-02-23 - shell glob self-miss - I hit `zsh: missing delimiter for 'u' glob qualifier` by running `rg` against `src/app/(public)` without quoting; always quote App Router paths with parentheses/brackets in shell commands.
-- 2026-02-23 - public caching target definition - User wants static/ISR (24h) for `/`, `/catalogs`, `/{slug}`, `/{slug}?page=n`, and `/cultivar/{slug}`; `/{slug}/search` must stay non-static, non-robots, and use 24h stale-while-revalidate behavior.
-- 2026-02-23 - dashboard refresh scope decision - User confirmed dashboard strategy: keep incremental `since` sync triggers and manual full refresh path, remove global tRPC mutate invalidate-all, remove sidebar 60s polling.
-- 2026-02-23 - cache scope correction - I started removing dashboard TanStack DB cursor sync state as "cache"; user clarified TanStack DB internals should not count for this experiment, so keep those mechanisms unchanged.
-- 2026-02-23 - cache-removal experiment pattern - For "remove caching" requests in this repo, strip `unstable_cache`/React `cache()` wrappers, remove query prefetch warmups, disable persistence modules with no-op exports, and keep only route-level ISR `revalidate` exports on static pages.
+- 2026-02-24 - PR cache strategy summary - Public SEO routes use static/ISR with 24h revalidation, while `/{slug}/search` stays dynamic + noindex with 24h server/client freshness controls.
+- 2026-02-24 - PR cache implementation summary - Cache timings are centralized in `cache-config.ts`; server/client cache helpers are shared; `src/trpc/server.ts` is restored for future RSC calls; public slug/id lookup uses cached `getUserIdFromSlugOrId` with dedicated profile TTL.
+- 2026-02-24 - PR scope boundaries - TanStack DB internals are out of cache-removal scope; dashboard DB and public catalog search IndexedDB persistence remain enabled; profile-page client prefetch warmup stays removed.
 - 2026-02-24 - self-miss hook deps lint - Wrapping simple local input-commit handlers in `useCallback` around a non-memoized `patch` helper triggered `react-hooks/exhaustive-deps`; simplest fix is plain inline functions when memoization is unnecessary.
 - 2026-02-24 - tags effects simplification preference - User prefers avoiding derived-state `useEffect` syncing for `/dashboard/tags` numeric inputs; use uncontrolled number inputs (`defaultValue`) with blur-time commit/reset handlers instead.
 - 2026-02-24 - self-miss TagCell key field - `TagCell` has no `id`; when forcing input remount keys, derive from existing stable fields (for example `fieldId` + value) instead of assuming an ID.
@@ -173,11 +156,8 @@
 
 ## Preferences
 
-- For caching-related test updates, prioritize behavior-level assertions over implementation details; only update tests for intended behavior changes.
-- For Next route segment config values that must remain literal (`revalidate`), include a searchable inline marker comment pointing to the canonical config constant (`CACHE_LITERAL_REF: ...`).
-- Public pages caching target: static/ISR 24h for `/`, `/catalogs`, `/{slug}`, `/{slug}?page=n`, `/cultivar/{slug}`; keep `/{slug}/search` non-static + noindex with 24h SWR.
-- Skip tests while caching behavior is being iterated experimentally unless explicitly asked to run or update them.
-- TanStack DB internals should not be treated as cache for this experiment.
+- Caching PR preference: keep public route policy simple (24h static/ISR for SEO routes, dynamic + noindex for `/{slug}/search`) and keep segment-config literals annotated with `CACHE_LITERAL_REF` comments.
+- Caching PR preference: keep TanStack DB internals out of cache-removal scope and prioritize behavior-level test assertions over cache implementation details.
 - Keep query params when redirecting public profile routes from `/{userId}` to `/{slug}`.
 - Keep `/{userId}` -> `/{slug}` canonical redirects server-side (SEO), not client-side.
 - Write tests, not too many, mostly integration, hapy path e2e.
