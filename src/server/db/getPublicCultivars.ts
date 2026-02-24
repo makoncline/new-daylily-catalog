@@ -4,14 +4,13 @@ import {
   toCultivarRouteSegment,
 } from "@/lib/utils/cultivar-utils";
 import { db } from "@/server/db";
-import { hasActiveSubscription } from "@/server/stripe/subscription-utils";
-import { getStripeSubscription } from "@/server/stripe/sync-subscription";
+import { getProUserIdSet } from "@/server/db/getProUserIdSet";
 
 const publicListingVisibilityFilter = {
   OR: [{ status: null }, { NOT: { status: STATUS.HIDDEN } }],
 };
 
-const getCultivarReferenceWhereClause = () =>
+const getCultivarReferenceWhereClause = (proUserIds: string[]) =>
   APP_CONFIG.PUBLIC_ROUTES.GENERATE_ALL_CULTIVAR_PAGES
     ? {
         normalizedName: {
@@ -23,9 +22,36 @@ const getCultivarReferenceWhereClause = () =>
           not: null,
         },
         listings: {
-          some: publicListingVisibilityFilter,
+          some: {
+            ...publicListingVisibilityFilter,
+            userId: {
+              in: proUserIds,
+            },
+          },
         },
       };
+
+async function getProUserIdsForCultivarListings(): Promise<string[]> {
+  const users = await db.user.findMany({
+    where: {
+      listings: {
+        some: {
+          cultivarReferenceId: {
+            not: null,
+          },
+          ...publicListingVisibilityFilter,
+        },
+      },
+    },
+    select: {
+      id: true,
+      stripeCustomerId: true,
+    },
+  });
+
+  const proUserIds = await getProUserIdSet(users);
+  return Array.from(proUserIds);
+}
 
 const cultivarAhsListingSelect = {
   id: true,
@@ -212,9 +238,12 @@ function getSortableYear(year: string | null) {
   return Number.isNaN(parsedYear) ? 0 : parsedYear;
 }
 
-async function getCultivarNormalizedNamesForSegment(segment: string) {
+async function getCultivarNormalizedNamesForSegment(
+  segment: string,
+  proUserIds: string[],
+) {
   const cultivars = await db.cultivarReference.findMany({
-    where: getCultivarReferenceWhereClause(),
+    where: getCultivarReferenceWhereClause(proUserIds),
     select: {
       normalizedName: true,
     },
@@ -234,6 +263,7 @@ async function getCultivarNormalizedNamesForSegment(segment: string) {
 
 async function findCultivarReferenceByNormalizedNames(
   normalizedNames: string[],
+  proUserIds: string[],
 ) {
   if (normalizedNames.length === 0) {
     return null;
@@ -242,7 +272,7 @@ async function findCultivarReferenceByNormalizedNames(
   return db.cultivarReference.findFirst({
     where: {
       AND: [
-        getCultivarReferenceWhereClause(),
+        getCultivarReferenceWhereClause(proUserIds),
         {
           normalizedName: {
             in: normalizedNames,
@@ -265,8 +295,10 @@ async function findCultivarReferenceByNormalizedNames(
 }
 
 export async function getCultivarRouteSegments(): Promise<string[]> {
+  const proUserIds = await getProUserIdsForCultivarListings();
+
   const cultivars = await db.cultivarReference.findMany({
-    where: getCultivarReferenceWhereClause(),
+    where: getCultivarReferenceWhereClause(proUserIds),
     select: {
       normalizedName: true,
     },
@@ -290,13 +322,20 @@ export async function getCultivarSitemapEntries(): Promise<
     lastModified?: Date;
   }>
 > {
+  const proUserIds = await getProUserIdsForCultivarListings();
+
   const cultivars = await db.cultivarReference.findMany({
-    where: getCultivarReferenceWhereClause(),
+    where: getCultivarReferenceWhereClause(proUserIds),
     select: {
       normalizedName: true,
       updatedAt: true,
       listings: {
-        where: publicListingVisibilityFilter,
+        where: {
+          ...publicListingVisibilityFilter,
+          userId: {
+            in: proUserIds,
+          },
+        },
         orderBy: {
           updatedAt: "desc",
         },
@@ -353,21 +392,26 @@ export async function getPublicCultivarPage(cultivarSegment: string) {
     return null;
   }
 
+  const proUserIds = await getProUserIdsForCultivarListings();
+  const proUserIdSet = new Set(proUserIds);
+
   const normalizedCultivarNames = getCultivarRouteCandidates(cultivarSegment);
   const matchedNormalizedNames = new Set(normalizedCultivarNames);
 
   let cultivarReference = await findCultivarReferenceByNormalizedNames(
     normalizedCultivarNames,
+    proUserIds,
   );
 
   if (!cultivarReference) {
     const normalizedNamesFromSlug =
-      await getCultivarNormalizedNamesForSegment(canonicalSegment);
+      await getCultivarNormalizedNamesForSegment(canonicalSegment, proUserIds);
 
     normalizedNamesFromSlug.forEach((name) => matchedNormalizedNames.add(name));
 
     cultivarReference = await findCultivarReferenceByNormalizedNames(
       normalizedNamesFromSlug,
+      proUserIds,
     );
   }
 
@@ -385,6 +429,9 @@ export async function getPublicCultivarPage(cultivarSegment: string) {
         normalizedName: {
           in: Array.from(matchedNormalizedNames),
         },
+      },
+      userId: {
+        in: proUserIds,
       },
       ...publicListingVisibilityFilter,
     },
@@ -431,7 +478,6 @@ export async function getPublicCultivarPage(cultivarSegment: string) {
     select: {
       id: true,
       createdAt: true,
-      stripeCustomerId: true,
       profile: {
         select: {
           slug: true,
@@ -461,26 +507,10 @@ export async function getPublicCultivarPage(cultivarSegment: string) {
     },
   });
 
-  const usersWithSubscription = await Promise.all(
-    users.map(async (user) => {
-      let hasSubscription = false;
-
-      try {
-        const subscription = await getStripeSubscription(user.stripeCustomerId);
-        hasSubscription = hasActiveSubscription(subscription.status);
-      } catch (error) {
-        console.error("Failed to resolve subscription for cultivar page:", error);
-      }
-
-      return {
-        ...user,
-        hasActiveSubscription: hasSubscription,
-      };
-    }),
-  );
+  const proUsers = users.filter((user) => proUserIdSet.has(user.id));
 
   const userById = new Map(
-    usersWithSubscription.map((user) => [
+    proUsers.map((user) => [
       user.id,
       {
         userId: user.id,
@@ -492,7 +522,7 @@ export async function getPublicCultivarPage(cultivarSegment: string) {
         location: user.profile?.location ?? null,
         listingCount: user._count.listings,
         listCount: user._count.lists,
-        hasActiveSubscription: user.hasActiveSubscription,
+        hasActiveSubscription: true,
         profileImages:
           user.profile?.images.map((image) => ({
             id: image.id,
@@ -542,9 +572,7 @@ export async function getPublicCultivarPage(cultivarSegment: string) {
 
   listingRows.forEach((listing) => {
     const seller = userById.get(listing.userId);
-
-    // Cultivar offers are limited to Pro catalogs.
-    if (!seller?.hasActiveSubscription) {
+    if (!seller) {
       return;
     }
 
@@ -591,6 +619,13 @@ export async function getPublicCultivarPage(cultivarSegment: string) {
       offers: gardenCard.offers.sort(sortOffersBestMatch),
     }))
     .sort((a, b) => a.title.localeCompare(b.title));
+
+  if (
+    !APP_CONFIG.PUBLIC_ROUTES.GENERATE_ALL_CULTIVAR_PAGES &&
+    gardenCards.length === 0
+  ) {
+    return null;
+  }
 
   const allOffers = gardenCards.flatMap((gardenCard) => gardenCard.offers);
 
@@ -640,7 +675,7 @@ export async function getPublicCultivarPage(cultivarSegment: string) {
           id: {
             not: cultivarReference.id,
           },
-          ...getCultivarReferenceWhereClause(),
+          ...getCultivarReferenceWhereClause(proUserIds),
           ahsListing: {
             is: {
               hybridizer: cultivarReference.ahsListing.hybridizer,
@@ -660,6 +695,9 @@ export async function getPublicCultivarPage(cultivarSegment: string) {
               listings: {
                 some: {
                   ...publicListingVisibilityFilter,
+                  userId: {
+                    in: proUserIds,
+                  },
                   images: {
                     some: {},
                   },
@@ -676,6 +714,9 @@ export async function getPublicCultivarPage(cultivarSegment: string) {
           listings: {
             where: {
               ...publicListingVisibilityFilter,
+              userId: {
+                in: proUserIds,
+              },
               images: {
                 some: {},
               },

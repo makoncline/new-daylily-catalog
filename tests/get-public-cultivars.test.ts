@@ -279,6 +279,16 @@ describe("getPublicCultivarPage", () => {
 
     expect(result?.gardenPhotos.map((photo) => photo.id)).not.toContain("img-hobby-a");
 
+    expect(mockDb.listing.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          userId: {
+            in: expect.arrayContaining(["user-top", "user-alpha"]),
+          },
+        }),
+      }),
+    );
+
     expect(result?.relatedByHybridizer.map((cultivar) => cultivar.segment)).toEqual([
       "isle-of-wight",
       "goldenzelle",
@@ -305,8 +315,41 @@ describe("getPublicCultivarPage", () => {
       },
     ]);
 
-    mockDb.listing.findMany.mockResolvedValue([]);
-    mockDb.user.findMany.mockResolvedValue([]);
+    mockDb.listing.findMany.mockResolvedValue([
+      {
+        id: "listing-punctuated",
+        title: "A Cowgirl's Heart",
+        slug: "a-cowgirls-heart",
+        price: null,
+        description: null,
+        updatedAt: new Date("2026-01-05T00:00:00.000Z"),
+        userId: "user-pro",
+        images: [],
+        lists: [],
+      },
+    ]);
+
+    mockDb.user.findMany.mockResolvedValue([
+      {
+        id: "user-pro",
+        createdAt: new Date("2020-01-01T00:00:00.000Z"),
+        stripeCustomerId: "cus-pro",
+        profile: {
+          slug: "pro-garden",
+          title: "Pro Garden",
+          description: null,
+          location: null,
+          updatedAt: new Date("2026-01-05T00:00:00.000Z"),
+          images: [],
+        },
+        _count: {
+          listings: 1,
+          lists: 1,
+        },
+      },
+    ]);
+
+    mockGetStripeSubscription.mockResolvedValue({ status: "active" });
 
     const result = await getPublicCultivarPage("a-cowgirls-heart");
 
@@ -424,6 +467,24 @@ describe("getCultivarSitemapEntries", () => {
   });
 
   it("uses cultivar/listing updated times and keeps canonical slug ordering stable", async () => {
+    mockDb.user.findMany.mockResolvedValue([
+      {
+        id: "user-pro",
+        stripeCustomerId: "cus-pro",
+      },
+      {
+        id: "user-free",
+        stripeCustomerId: "cus-free",
+      },
+    ]);
+
+    mockGetStripeSubscription.mockImplementation(
+      async (stripeCustomerId: string) =>
+        stripeCustomerId === "cus-pro"
+          ? { status: "active" }
+          : { status: "none" },
+    );
+
     mockDb.cultivarReference.findMany.mockResolvedValue([
       {
         normalizedName: "coffee frenzy",
@@ -472,5 +533,28 @@ describe("getCultivarSitemapEntries", () => {
         lastModified: new Date("2026-01-03T00:00:00.000Z"),
       },
     ]);
+
+    expect(mockDb.cultivarReference.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          listings: {
+            some: expect.objectContaining({
+              userId: {
+                in: ["user-pro"],
+              },
+            }),
+          },
+        }),
+        select: expect.objectContaining({
+          listings: expect.objectContaining({
+            where: expect.objectContaining({
+              userId: {
+                in: ["user-pro"],
+              },
+            }),
+          }),
+        }),
+      }),
+    );
   });
 });

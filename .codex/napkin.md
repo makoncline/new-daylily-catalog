@@ -2,6 +2,9 @@
 
 ## Log
 
+- 2026-02-24 - self-miss mock-vs-query filter - I removed a secondary pro-user filter in cultivar aggregation assuming DB `where` guarantees would always hold, but unit mocks return fixture rows without honoring `where`; keep an explicit seller/pro guard in aggregation paths that consume mocked query rows.
+- 2026-02-24 - self-miss route-page-size expectation - New `getPublicCatalogRouteEntries` test expected `totalPages=3` for 210 listings; current `PUBLIC_PROFILE_LISTINGS_PAGE_SIZE` yields 5, so assert against the real constant behavior.
+- 2026-02-24 - public catalog visibility policy update - User wants free-tier accounts fully excluded from `/catalogs`, cultivar offer sourcing, and sitemap exposure; treat public catalog/cultivar listing sources as pro-only.
 - 2026-02-24 - PR cache strategy summary - Public SEO routes use static/ISR with 24h revalidation, while `/{slug}/search` stays dynamic + noindex with 24h server/client freshness controls.
 - 2026-02-24 - PR cache implementation summary - Cache timings are centralized in `cache-config.ts`; server/client cache helpers are shared; `src/trpc/server.ts` is restored for future RSC calls; public slug/id lookup uses cached `getUserIdFromSlugOrId` with dedicated profile TTL.
 - 2026-02-24 - PR scope boundaries - TanStack DB internals are out of cache-removal scope; dashboard DB and public catalog search IndexedDB persistence remain enabled; profile-page client prefetch warmup stays removed.
@@ -156,6 +159,7 @@
 
 ## Preferences
 
+- Exclude free-tier accounts from `/catalogs`, from listing inclusion on `/cultivar/:slug`, and from sitemap-derived public route coverage.
 - Caching PR preference: keep public route policy simple (24h static/ISR for SEO routes, dynamic + noindex for `/{slug}/search`) and keep segment-config literals annotated with `CACHE_LITERAL_REF` comments.
 - Caching PR preference: keep TanStack DB internals out of cache-removal scope and prioritize behavior-level test assertions over cache implementation details.
 - Keep query params when redirecting public profile routes from `/{userId}` to `/{slug}`.

@@ -14,6 +14,7 @@ const mockDb = vi.hoisted(() => ({
 }));
 
 const mockGetUserIdFromSlugOrId = vi.hoisted(() => vi.fn());
+const mockGetStripeSubscription = vi.hoisted(() => vi.fn());
 
 vi.mock("@/server/db", () => ({
   db: mockDb,
@@ -24,8 +25,14 @@ vi.mock("@/server/db/getPublicProfile", () => ({
     mockGetUserIdFromSlugOrId(...args),
 }));
 
+vi.mock("@/server/stripe/sync-subscription", () => ({
+  getStripeSubscription: (...args: unknown[]) =>
+    mockGetStripeSubscription(...args),
+}));
+
 import {
   getListings,
+  getPublicCatalogRouteEntries,
   getPublicListingsPage,
 } from "@/server/db/getPublicListings";
 
@@ -177,5 +184,50 @@ describe("getPublicListings helpers", () => {
 
     const searchQuery = getQueryText(mockDb.$queryRaw.mock.calls[0]?.[0]);
     expect(searchQuery).not.toMatch(/COALESCE\("price", 0\) > 0/);
+  });
+
+  it("excludes free accounts from public catalog route entries", async () => {
+    mockDb.listing.groupBy.mockResolvedValue([
+      { userId: "user-pro", _count: { _all: 210 } },
+      { userId: "user-free", _count: { _all: 95 } },
+    ]);
+
+    mockDb.user.findMany.mockResolvedValue([
+      {
+        id: "user-pro",
+        stripeCustomerId: "cus-pro",
+        createdAt: new Date("2020-01-01T00:00:00.000Z"),
+        profile: {
+          slug: "pro-garden",
+          updatedAt: new Date("2026-02-01T00:00:00.000Z"),
+        },
+      },
+      {
+        id: "user-free",
+        stripeCustomerId: "cus-free",
+        createdAt: new Date("2021-01-01T00:00:00.000Z"),
+        profile: {
+          slug: "free-garden",
+          updatedAt: new Date("2026-02-01T00:00:00.000Z"),
+        },
+      },
+    ]);
+
+    mockGetStripeSubscription.mockImplementation(
+      async (stripeCustomerId: string) =>
+        stripeCustomerId === "cus-pro"
+          ? { status: "active" }
+          : { status: "none" },
+    );
+
+    const entries = await getPublicCatalogRouteEntries();
+
+    expect(entries).toEqual([
+      {
+        slug: "pro-garden",
+        totalPages: 5,
+        lastModified: new Date("2026-02-01T00:00:00.000Z"),
+      },
+    ]);
   });
 });

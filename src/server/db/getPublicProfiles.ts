@@ -1,7 +1,6 @@
 import { db } from "@/server/db";
-import { hasActiveSubscription } from "../stripe/subscription-utils";
-import { getStripeSubscription } from "../stripe/sync-subscription";
 import { STATUS } from "@/config/constants";
+import { getProUserIdSet } from "@/server/db/getProUserIdSet";
 
 export async function getPublicProfiles() {
   try {
@@ -69,16 +68,16 @@ export async function getPublicProfiles() {
       },
     });
 
-    // Get subscription status for each user
-    const profilesWithSubs = await Promise.all(
-      users.map(async (profile) => {
-        const sub = await getStripeSubscription(profile.stripeCustomerId);
-        return { ...profile, subscriptionStatus: sub.status };
-      }),
+    const proUserIds = await getProUserIdSet(
+      users.map((profile) => ({
+        id: profile.id,
+        stripeCustomerId: profile.stripeCustomerId,
+      })),
     );
 
     // Transform and sort profiles
-    return profilesWithSubs
+    return users
+      .filter((profile) => proUserIds.has(profile.id))
       .map((profile) => {
         const timestamps = [
           profile.profile?.updatedAt,
@@ -102,9 +101,7 @@ export async function getPublicProfiles() {
             profile.profile?.images.map((img) => ({ url: img.url })) ?? [],
           listingCount: profile._count.listings,
           listCount: profile._count.lists,
-          hasActiveSubscription: hasActiveSubscription(
-            profile.subscriptionStatus,
-          ),
+          hasActiveSubscription: true,
           createdAt: profile.createdAt,
           updatedAt: mostRecentUpdate,
           lists: profile.lists.map((list) => ({
@@ -115,9 +112,6 @@ export async function getPublicProfiles() {
         };
       })
       .sort((a, b) => {
-        if (a.hasActiveSubscription !== b.hasActiveSubscription) {
-          return a.hasActiveSubscription ? -1 : 1;
-        }
         return b.listingCount - a.listingCount;
       });
   } catch (error) {
