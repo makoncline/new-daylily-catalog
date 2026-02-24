@@ -87,6 +87,7 @@ export const dashboardDbUserProfileRouter = createTRPCRouter({
       }),
     )
     .mutation(async ({ ctx, input }) => {
+      // TODO(invalidation): keep profile edit invalidation centralized in this commit mutation.
       const shouldProcessSlug = Object.prototype.hasOwnProperty.call(
         input.data,
         "slug",

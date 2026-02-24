@@ -26,6 +26,7 @@ export default async function SubscribeSuccessPage({
 
   // Sync the subscription data
   await syncStripeSubscriptionToKV(user.stripeCustomerId);
+  // TODO(invalidation): invalidate public caches that depend on pro status after checkout success sync.
 
   // If there's a redirect URL, go there, otherwise go to dashboard
   if (params.redirect) {

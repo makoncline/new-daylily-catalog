@@ -214,6 +214,7 @@ export const dashboardDbListingRouter = createTRPCRouter({
       }),
     )
     .mutation(async ({ ctx, input }) => {
+      // TODO(invalidation): keep listing edit invalidation centralized in this commit mutation.
       const existing = await ctx.db.listing.findFirst({
         where: { id: input.id, userId: ctx.user.id },
         select: { id: true, title: true },

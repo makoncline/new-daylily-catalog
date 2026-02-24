@@ -82,6 +82,7 @@ export const dashboardDbListRouter = createTRPCRouter({
       }),
     )
     .mutation(async ({ ctx, input }) => {
+      // TODO(invalidation): keep list edit invalidation centralized in this commit mutation.
       const result = await ctx.db.list.updateMany({
         where: { id: input.id, userId: ctx.user.id },
         data: input.data,
@@ -185,4 +186,3 @@ export const dashboardDbListRouter = createTRPCRouter({
     return ctx.db.list.count({ where: { userId: ctx.user.id } });
   }),
 });
-
