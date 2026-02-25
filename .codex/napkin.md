@@ -2,6 +2,8 @@
 
 ## Log
 
+- 2026-02-25 - save hook hardening - `attemptNavigate` must catch rejected save promises and convert them to blocked navigation + user feedback to avoid unhandled rejection errors.
+- 2026-02-25 - save failure message preference - Use explicit failure copy `Error saving changes. Please fix errors and try again.` for navigate-save failures.
 - 2026-02-25 - autosave UX bug class - In click-capture navigation guards, never drop intercepted clicks during in-flight save; always forward to attemptNavigate so latest user intent is honored.
 - 2026-02-25 - navigate-failure feedback rule - Silent navigate saves need explicit failure feedback (`toast.error`) or blocked navigation appears broken.
 - 2026-02-25 - reset-and-rebuild workflow - User requested hard reset to `origin/main` and a simpler autosave architecture; phased reimplementation with separate commits kept migration manageable.
