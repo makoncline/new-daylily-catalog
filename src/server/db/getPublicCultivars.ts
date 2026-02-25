@@ -11,17 +11,17 @@ const publicListingVisibilityFilter = {
   OR: [{ status: null }, { NOT: { status: STATUS.HIDDEN } }],
 };
 
-const getCultivarReferenceWhereClause = () =>
+const getCultivarReferenceLookupWhereClause = () => ({
+  normalizedName: {
+    not: null,
+  },
+});
+
+const getCultivarReferenceDiscoveryWhereClause = () =>
   APP_CONFIG.PUBLIC_ROUTES.GENERATE_ALL_CULTIVAR_PAGES
-    ? {
-        normalizedName: {
-          not: null,
-        },
-      }
+    ? getCultivarReferenceLookupWhereClause()
     : {
-        normalizedName: {
-          not: null,
-        },
+        ...getCultivarReferenceLookupWhereClause(),
         listings: {
           some: publicListingVisibilityFilter,
         },
@@ -214,7 +214,7 @@ function getSortableYear(year: string | null) {
 
 async function getCultivarNormalizedNamesForSegment(segment: string) {
   const cultivars = await db.cultivarReference.findMany({
-    where: getCultivarReferenceWhereClause(),
+    where: getCultivarReferenceLookupWhereClause(),
     select: {
       normalizedName: true,
     },
@@ -242,7 +242,7 @@ async function findCultivarReferenceByNormalizedNames(
   return db.cultivarReference.findFirst({
     where: {
       AND: [
-        getCultivarReferenceWhereClause(),
+        getCultivarReferenceLookupWhereClause(),
         {
           normalizedName: {
             in: normalizedNames,
@@ -266,7 +266,7 @@ async function findCultivarReferenceByNormalizedNames(
 
 export async function getCultivarRouteSegments(): Promise<string[]> {
   const cultivars = await db.cultivarReference.findMany({
-    where: getCultivarReferenceWhereClause(),
+    where: getCultivarReferenceDiscoveryWhereClause(),
     select: {
       normalizedName: true,
     },
@@ -290,8 +290,87 @@ export async function getCultivarSitemapEntries(): Promise<
     lastModified?: Date;
   }>
 > {
+  const segmentMap = new Map<
+    string,
+    {
+      segment: string;
+      lastModified?: Date;
+    }
+  >();
+
+  const upsertSegment = (
+    normalizedName: string | null,
+    lastModified: Date | undefined,
+  ) => {
+    const segment = toCultivarRouteSegment(normalizedName);
+    if (!segment) {
+      return;
+    }
+
+    const existingSegmentEntry = segmentMap.get(segment);
+    if (!existingSegmentEntry) {
+      segmentMap.set(segment, {
+        segment,
+        lastModified,
+      });
+      return;
+    }
+
+    if (
+      lastModified &&
+      (!existingSegmentEntry.lastModified ||
+        lastModified.getTime() > existingSegmentEntry.lastModified.getTime())
+    ) {
+      segmentMap.set(segment, {
+        segment,
+        lastModified,
+      });
+    }
+  };
+
+  if (!APP_CONFIG.PUBLIC_ROUTES.GENERATE_ALL_CULTIVAR_PAGES) {
+    const listingRows = await db.listing.findMany({
+      where: {
+        cultivarReferenceId: {
+          not: null,
+        },
+        ...publicListingVisibilityFilter,
+        cultivarReference: {
+          is: getCultivarReferenceLookupWhereClause(),
+        },
+      },
+      select: {
+        updatedAt: true,
+        cultivarReference: {
+          select: {
+            normalizedName: true,
+            updatedAt: true,
+          },
+        },
+      },
+    });
+
+    listingRows.forEach((listing) => {
+      const cultivar = listing.cultivarReference;
+      if (!cultivar) {
+        return;
+      }
+
+      const cultivarLastModified =
+        listing.updatedAt.getTime() > cultivar.updatedAt.getTime()
+          ? listing.updatedAt
+          : cultivar.updatedAt;
+
+      upsertSegment(cultivar.normalizedName, cultivarLastModified);
+    });
+
+    return Array.from(segmentMap.values()).sort((a, b) =>
+      a.segment.localeCompare(b.segment),
+    );
+  }
+
   const cultivars = await db.cultivarReference.findMany({
-    where: getCultivarReferenceWhereClause(),
+    where: getCultivarReferenceLookupWhereClause(),
     select: {
       normalizedName: true,
       updatedAt: true,
@@ -308,20 +387,7 @@ export async function getCultivarSitemapEntries(): Promise<
     },
   });
 
-  const segmentMap = new Map<
-    string,
-    {
-      segment: string;
-      lastModified?: Date;
-    }
-  >();
-
   cultivars.forEach((cultivar) => {
-    const segment = toCultivarRouteSegment(cultivar.normalizedName);
-    if (!segment) {
-      return;
-    }
-
     const linkedListingUpdatedAt = cultivar.listings[0]?.updatedAt;
     const cultivarLastModified =
       linkedListingUpdatedAt &&
@@ -329,17 +395,7 @@ export async function getCultivarSitemapEntries(): Promise<
         ? linkedListingUpdatedAt
         : cultivar.updatedAt;
 
-    const existingSegmentEntry = segmentMap.get(segment);
-    if (
-      !existingSegmentEntry?.lastModified ||
-      cultivarLastModified.getTime() >
-        existingSegmentEntry.lastModified.getTime()
-    ) {
-      segmentMap.set(segment, {
-        segment,
-        lastModified: cultivarLastModified,
-      });
-    }
+    upsertSegment(cultivar.normalizedName, cultivarLastModified);
   });
 
   return Array.from(segmentMap.values()).sort((a, b) =>
@@ -640,7 +696,7 @@ export async function getPublicCultivarPage(cultivarSegment: string) {
           id: {
             not: cultivarReference.id,
           },
-          ...getCultivarReferenceWhereClause(),
+          ...getCultivarReferenceLookupWhereClause(),
           ahsListing: {
             is: {
               hybridizer: cultivarReference.ahsListing.hybridizer,
