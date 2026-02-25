@@ -37,6 +37,7 @@ export type ListFormSaveReason = "manual" | "close" | "navigate";
 export interface ListFormHandle {
   saveChanges: (reason: ListFormSaveReason) => Promise<boolean>;
   hasPendingChanges: () => boolean;
+  markNeedsCommit: () => void;
 }
 
 function toFormValues(list: ListCollectionItem): ListFormData {
@@ -63,17 +64,32 @@ function ListFormInner({
 }) {
   const [isPending, setIsPending] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [needsParentCommit, setNeedsParentCommit] = useState(false);
   const inFlightSaveRef = useRef<Promise<boolean> | null>(null);
+  const needsParentCommitRef = useRef(needsParentCommit);
+  needsParentCommitRef.current = needsParentCommit;
 
   const form = useZodForm({
     schema: listFormSchema,
     defaultValues: toFormValues(list),
   });
 
+  const markNeedsCommit = useCallback(() => {
+    if (needsParentCommitRef.current) {
+      return;
+    }
+
+    needsParentCommitRef.current = true;
+    setNeedsParentCommit(true);
+  }, []);
+
   const hasPendingChanges = useCallback(() => {
     const values = form.getValues();
     const committedValues = toFormValues(list);
-    return !areListValuesEqual(values, committedValues);
+    return (
+      !areListValuesEqual(values, committedValues) ||
+      needsParentCommitRef.current
+    );
   }, [form, list]);
 
   const saveChanges = useCallback(async (reason: ListFormSaveReason) => {
@@ -87,6 +103,13 @@ function ListFormInner({
 
     const savePromise = (async (): Promise<boolean> => {
       const values = form.getValues();
+      const committedValues = toFormValues(list);
+      const hasFieldPending = !areListValuesEqual(values, committedValues);
+      const shouldCommitParent = hasFieldPending || needsParentCommitRef.current;
+
+      if (!shouldCommitParent) {
+        return true;
+      }
 
       if (reason !== "navigate") {
         const isValid = await form.trigger();
@@ -112,6 +135,8 @@ function ListFormInner({
             description: values.description ?? undefined,
           },
         });
+        needsParentCommitRef.current = false;
+        setNeedsParentCommit(false);
         if (shouldUpdateUi) {
           form.reset(values, { keepIsValid: true });
           toast.success("List updated", {
@@ -141,7 +166,7 @@ function ListFormInner({
         inFlightSaveRef.current = null;
       }
     }
-  }, [form, hasPendingChanges, listId]);
+  }, [form, hasPendingChanges, list, listId]);
 
   async function onSubmit() {
     await saveChanges("manual");
@@ -169,9 +194,10 @@ function ListFormInner({
       formRef.current = {
         saveChanges,
         hasPendingChanges,
+        markNeedsCommit,
       };
     }
-  }, [formRef, hasPendingChanges, saveChanges]);
+  }, [formRef, hasPendingChanges, markNeedsCommit, saveChanges]);
 
   return (
     <Form {...form}>

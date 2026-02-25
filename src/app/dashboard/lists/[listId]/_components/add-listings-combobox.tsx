@@ -25,9 +25,13 @@ import { addListingToList } from "@/app/dashboard/_lib/dashboard-db/lists-collec
 
 interface AddListingsComboboxProps {
   listId: string;
+  onMutationSuccess?: () => void;
 }
 
-export function AddListingsCombobox({ listId }: AddListingsComboboxProps) {
+export function AddListingsCombobox({
+  listId,
+  onMutationSuccess,
+}: AddListingsComboboxProps) {
   const [open, setOpen] = useState(false);
   const [searchValue, setSearchValue] = useState("");
   const [isPending, setIsPending] = useState(false);
@@ -49,6 +53,7 @@ export function AddListingsCombobox({ listId }: AddListingsComboboxProps) {
     try {
       await addListingToList({ listId, listingId });
       toast.success("Listing added to list");
+      onMutationSuccess?.();
     } catch {
       toast.error("Failed to add listing to list");
     } finally {

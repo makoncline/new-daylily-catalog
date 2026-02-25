@@ -28,9 +28,12 @@ export default function ListPage({ params }: ListPageProps) {
   return <ManageListPageLive listId={listId} />;
 }
 
-function ManageListPageLive({ listId }: { listId: string }) {
+export function ManageListPageLive({ listId }: { listId: string }) {
   const formRef = React.useRef<ListFormHandle | null>(null);
   useSaveBeforeNavigate(formRef, "navigate");
+  const markListNeedsCommit = React.useCallback(() => {
+    formRef.current?.markNeedsCommit();
+  }, []);
 
   const { data: liveLists = [], isReady } = useLiveQuery(
     (q) =>
@@ -57,8 +60,14 @@ function ManageListPageLive({ listId }: { listId: string }) {
         text="Manage list details and organize your listings."
       />
       <ListForm listId={listId} formRef={formRef} />
-      <AddListingsSection listId={listId} />
-      <ListListingsTable listId={listId} />
+      <AddListingsSection
+        listId={listId}
+        onMutationSuccess={markListNeedsCommit}
+      />
+      <ListListingsTable
+        listId={listId}
+        onMutationSuccess={markListNeedsCommit}
+      />
     </div>
   );
 }

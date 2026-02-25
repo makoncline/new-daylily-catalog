@@ -89,4 +89,35 @@ describe("ListForm boundary save semantics", () => {
     expect(toastSuccessMock).not.toHaveBeenCalled();
     expect(toastErrorMock).not.toHaveBeenCalled();
   });
+
+  it("becomes savable when child mutations mark it dirty", async () => {
+    const formRef = React.createRef<ListFormHandle>();
+    render(<ListForm listId="list-1" formRef={formRef} />);
+
+    const saveButton = screen.getByRole("button", { name: "Save Changes" });
+    expect(saveButton).toBeDisabled();
+
+    act(() => {
+      (
+        formRef.current as ListFormHandle & {
+          markNeedsCommit?: () => void;
+        }
+      )?.markNeedsCommit?.();
+    });
+
+    expect(saveButton).not.toBeDisabled();
+
+    fireEvent.click(saveButton);
+
+    await waitFor(() => {
+      expect(updateListMock).toHaveBeenCalledTimes(1);
+    });
+    expect(updateListMock).toHaveBeenCalledWith({
+      id: "list-1",
+      data: {
+        title: "My List",
+        description: undefined,
+      },
+    });
+  });
 });
