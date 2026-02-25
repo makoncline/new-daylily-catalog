@@ -3,6 +3,9 @@
 ## Log
 
 - 2026-02-25 - profile content dirty signal - `ProfileForm` save button will not react to content edits unless the child editor reports dirty state to parent state; relying only on `contentFormRef.hasPendingChanges()` in a parent callback is not reactive.
+- 2026-02-25 - self-miss path globbing again - I ran `rg` against `src/app/(public)/cultivar/[cultivarNormalizedName]/...` without quoting and hit `zsh: no matches found`; always quote paths with `()`/`[]`.
+- 2026-02-25 - cultivar eligibility split - Keep separate where-clauses in `getPublicCultivars`: lookup should allow all normalized cultivars for direct requests, while discovery surfaces (sitemap/segments/related links when desired) can stay listing-backed behind the flag.
+- 2026-02-25 - sitemap upsert guard self-fix - While refactoring segment aggregation, an `if (!lastModified || ...)` condition incorrectly allowed `undefined` timestamps to overwrite entries; initialize entries first, then only replace when incoming `lastModified` is newer.
 - 2026-02-25 - list form stale values on route return - `ListForm` initialized from `defaultValues` can show stale title/description after navigate-save unless it resets when committed list snapshot changes and there are no local edits.
 - 2026-02-25 - self-miss repeated patch path - I repeated using shell `applypatch` via `exec_command`; use the dedicated `apply_patch` tool directly to avoid warnings and keep edits compliant.
 - 2026-02-25 - e2e expansion preference - User prefers extending existing e2e specs with new boundary-save steps when they fit naturally, instead of creating new standalone specs for each scenario.

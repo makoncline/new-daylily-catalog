@@ -416,6 +416,35 @@ describe("getPublicCultivarPage", () => {
     expect(result).not.toBeNull();
     expect(result?.offers.gardenCards.map((garden) => garden.slug)).toEqual(["ok-pro"]);
   });
+
+  it("allows direct cultivar page lookup without requiring linked listings", async () => {
+    mockDb.cultivarReference.findFirst.mockResolvedValue({
+      id: "cultivar-orphan",
+      normalizedName: "orphan cultivar",
+      updatedAt: new Date("2026-01-05T00:00:00.000Z"),
+      ahsListing: null,
+    });
+
+    mockDb.listing.findMany.mockResolvedValue([]);
+    mockDb.user.findMany.mockResolvedValue([]);
+
+    const result = await getPublicCultivarPage("orphan-cultivar");
+    const findFirstArgs = mockDb.cultivarReference.findFirst.mock.calls[0]?.[0];
+
+    expect(result).not.toBeNull();
+    expect(result?.offers.summary.offersCount).toBe(0);
+    expect(result?.offers.summary.gardensCount).toBe(0);
+    expect(findFirstArgs?.where).toMatchObject({
+      AND: expect.arrayContaining([
+        {
+          normalizedName: {
+            not: null,
+          },
+        },
+      ]),
+    });
+    expect(JSON.stringify(findFirstArgs?.where)).not.toContain("listings");
+  });
 });
 
 describe("getCultivarSitemapEntries", () => {
@@ -424,35 +453,57 @@ describe("getCultivarSitemapEntries", () => {
   });
 
   it("uses cultivar/listing updated times and keeps canonical slug ordering stable", async () => {
-    mockDb.cultivarReference.findMany.mockResolvedValue([
+    mockDb.listing.findMany.mockResolvedValue([
       {
-        normalizedName: "coffee frenzy",
-        updatedAt: new Date("2026-01-01T00:00:00.000Z"),
-        listings: [{ updatedAt: new Date("2026-01-03T00:00:00.000Z") }],
+        updatedAt: new Date("2026-01-03T00:00:00.000Z"),
+        cultivarReference: {
+          normalizedName: "coffee frenzy",
+          updatedAt: new Date("2026-01-01T00:00:00.000Z"),
+        },
       },
       {
-        normalizedName: "coffee-frenzy",
         updatedAt: new Date("2026-01-02T00:00:00.000Z"),
-        listings: [],
+        cultivarReference: {
+          normalizedName: "coffee-frenzy",
+          updatedAt: new Date("2026-01-02T00:00:00.000Z"),
+        },
       },
       {
-        normalizedName: "apple blossom",
+        updatedAt: new Date("2026-01-04T00:00:00.000Z"),
+        cultivarReference: {
+          normalizedName: "apple blossom",
+          updatedAt: new Date("2026-01-05T00:00:00.000Z"),
+        },
+      },
+      {
         updatedAt: new Date("2026-01-05T00:00:00.000Z"),
-        listings: [{ updatedAt: new Date("2026-01-04T00:00:00.000Z") }],
+        cultivarReference: {
+          normalizedName: "aerial appliqué",
+          updatedAt: new Date("2026-01-06T00:00:00.000Z"),
+        },
       },
       {
-        normalizedName: "aerial appliqué",
-        updatedAt: new Date("2026-01-06T00:00:00.000Z"),
-        listings: [],
-      },
-      {
-        normalizedName: "50,000 watts",
         updatedAt: new Date("2026-01-07T00:00:00.000Z"),
-        listings: [],
+        cultivarReference: {
+          normalizedName: "50,000 watts",
+          updatedAt: new Date("2026-01-07T00:00:00.000Z"),
+        },
+      },
+      {
+        updatedAt: new Date("2026-01-08T00:00:00.000Z"),
+        cultivarReference: null,
+      },
+      {
+        updatedAt: new Date("2026-01-09T00:00:00.000Z"),
+        cultivarReference: {
+          normalizedName: null,
+          updatedAt: new Date("2026-01-09T00:00:00.000Z"),
+        },
       },
     ]);
 
     const result = await getCultivarSitemapEntries();
+    const findManyArgs = mockDb.listing.findMany.mock.calls[0]?.[0];
 
     expect(result).toEqual([
       {
@@ -472,5 +523,11 @@ describe("getCultivarSitemapEntries", () => {
         lastModified: new Date("2026-01-03T00:00:00.000Z"),
       },
     ]);
+    expect(findManyArgs?.where).toMatchObject({
+      cultivarReferenceId: {
+        not: null,
+      },
+    });
+    expect(mockDb.cultivarReference.findMany).not.toHaveBeenCalled();
   });
 });
