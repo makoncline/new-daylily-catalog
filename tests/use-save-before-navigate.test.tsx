@@ -103,6 +103,9 @@ describe("useSaveBeforeNavigate", () => {
     });
     expect(mockPush).not.toHaveBeenCalled();
     expect(toastErrorMock).toHaveBeenCalledTimes(1);
+    expect(toastErrorMock).toHaveBeenCalledWith(
+      "Error saving changes. Please fix errors and try again.",
+    );
   });
 
   it("honors the latest click while save is in-flight", async () => {
@@ -132,6 +135,27 @@ describe("useSaveBeforeNavigate", () => {
       expect(mockPush).toHaveBeenCalled();
     });
     expect(mockPush).toHaveBeenLastCalledWith("/dashboard/lists");
+  });
+
+  it("handles rejected save promises without navigating", async () => {
+    const handle: SaveOnNavigateHandle<"navigate"> = {
+      hasPendingChanges: vi.fn(() => true),
+      saveChanges: vi.fn(async () => {
+        throw new Error("save rejected");
+      }),
+    };
+
+    render(<SaveBeforeNavigateHarness handle={handle} />);
+
+    fireEvent.click(screen.getByTestId("nav-listings"));
+
+    await waitFor(() => {
+      expect(handle.saveChanges).toHaveBeenCalledTimes(1);
+    });
+    expect(mockPush).not.toHaveBeenCalled();
+    expect(toastErrorMock).toHaveBeenCalledWith(
+      "Error saving changes. Please fix errors and try again.",
+    );
   });
 
   it("prompts beforeunload when changes are pending", () => {

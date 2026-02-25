@@ -44,10 +44,15 @@ export function useSaveBeforeNavigate<TReason extends string = "navigate">(
       }
 
       const hadInFlightSave = savingRef.current !== null;
-      const ok = await saveIfDirty();
+      let ok = false;
+      try {
+        ok = await saveIfDirty();
+      } catch {
+        ok = false;
+      }
       if (!ok) {
         if (!hadInFlightSave) {
-          toast.error("Fix errors before leaving");
+          toast.error("Error saving changes. Please fix errors and try again.");
         }
         return false;
       }
