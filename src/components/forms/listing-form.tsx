@@ -193,8 +193,8 @@ function ListingFormInner({
           setNeedsParentCommit(false);
           if (shouldUpdateUi) {
             form.reset(values, { keepIsValid: true });
-            toast.success("Changes saved");
           }
+          toast.success("Changes saved");
           return true;
         } catch (error) {
           if (shouldUpdateUi) {

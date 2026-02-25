@@ -72,7 +72,7 @@ describe("ListForm boundary save semantics", () => {
     expect(toastSuccessMock).toHaveBeenCalledTimes(1);
   });
 
-  it("saves silently on navigate reason via form handle", async () => {
+  it("shows success toast on navigate reason via form handle", async () => {
     const formRef = React.createRef<ListFormHandle>();
     render(<ListForm listId="list-1" formRef={formRef} />);
 
@@ -86,7 +86,10 @@ describe("ListForm boundary save semantics", () => {
     });
 
     expect(updateListMock).toHaveBeenCalledTimes(1);
-    expect(toastSuccessMock).not.toHaveBeenCalled();
+    expect(toastSuccessMock).toHaveBeenCalledTimes(1);
+    expect(toastSuccessMock).toHaveBeenCalledWith("List updated", {
+      description: "Your list has been updated successfully",
+    });
     expect(toastErrorMock).not.toHaveBeenCalled();
   });
 

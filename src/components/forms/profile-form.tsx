@@ -206,10 +206,7 @@ export function ProfileForm({ initialProfile, formRef }: ProfileFormProps) {
         setNeedsParentCommit(false);
         utils.dashboardDb.userProfile.get.setData(undefined, updatedProfile);
         void utils.dashboardDb.userProfile.get.invalidate();
-
-        if (shouldUpdateUi) {
-          toast.success("Changes saved");
-        }
+        toast.success("Changes saved");
 
         return true;
       } catch (error) {

@@ -139,10 +139,10 @@ function ListFormInner({
         setNeedsParentCommit(false);
         if (shouldUpdateUi) {
           form.reset(values, { keepIsValid: true });
-          toast.success("List updated", {
-            description: "Your list has been updated successfully",
-          });
         }
+        toast.success("List updated", {
+          description: "Your list has been updated successfully",
+        });
         return true;
       } catch {
         if (shouldUpdateUi) {
