@@ -26,12 +26,14 @@ interface AhsListingLinkProps {
   listing: RouterOutputs["dashboardDb"]["listing"]["list"][number];
   linkedAhs: CultivarReferenceAhsListing | null;
   onNameChange?: (name: string) => void;
+  onMutationSuccess?: () => void;
 }
 
 export function AhsListingLink({
   listing,
   linkedAhs,
   onNameChange,
+  onMutationSuccess,
 }: AhsListingLinkProps) {
   const [isPending, setIsPending] = useState(false);
 
@@ -68,6 +70,7 @@ export function AhsListingLink({
           ? "Listing linked successfully"
           : "Listing unlinked successfully",
       );
+      onMutationSuccess?.();
     } catch (error) {
       toast.error(
         selected ? "Failed to link listing" : "Failed to unlink listing",
@@ -92,6 +95,7 @@ export function AhsListingLink({
         onNameChange?.(updatedListing.title);
       }
       toast.success("Name synced successfully");
+      onMutationSuccess?.();
     } catch (error) {
       toast.error("Failed to sync name", {
         description: getErrorMessage(error),

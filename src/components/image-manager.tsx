@@ -36,6 +36,7 @@ import {
 interface ImageManagerProps {
   images: Image[];
   onImagesChange?: (images: Image[]) => void;
+  onMutationSuccess?: () => void;
   referenceId: string;
   type: ImageType;
 }
@@ -81,6 +82,7 @@ function SortableImage({
 export function ImageManager({
   images,
   onImagesChange,
+  onMutationSuccess,
   referenceId,
   type,
 }: ImageManagerProps) {
@@ -104,6 +106,7 @@ export function ImageManager({
       });
       onImagesChange?.(images.filter((img) => img.id !== image.id));
       toast.success("Image deleted successfully");
+      onMutationSuccess?.();
     } catch (error) {
       toast.error("Failed to delete image", {
         description: getErrorMessage(error),
@@ -141,6 +144,7 @@ export function ImageManager({
         })),
       });
       toast.success("Image order updated");
+      onMutationSuccess?.();
     } catch (error) {
       toast.error("Failed to update image order", {
         description: getErrorMessage(error),
