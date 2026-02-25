@@ -1,31 +1,19 @@
-import { APP_CONFIG, STATUS } from "@/config/constants";
 import {
   getCultivarRouteCandidates,
   toCultivarRouteSegment,
 } from "@/lib/utils/cultivar-utils";
 import { db } from "@/server/db";
-import { hasActiveSubscription } from "@/server/stripe/subscription-utils";
-import { getStripeSubscription } from "@/server/stripe/sync-subscription";
-
-const publicListingVisibilityFilter = {
-  OR: [{ status: null }, { NOT: { status: STATUS.HIDDEN } }],
-};
+import { getCachedProUserIds } from "@/server/db/getCachedProUserIds";
+import {
+  isPublished,
+  shouldShowToPublic,
+} from "@/server/db/public-visibility/filters";
 
 const getCultivarReferenceLookupWhereClause = () => ({
   normalizedName: {
     not: null,
   },
 });
-
-const getCultivarReferenceDiscoveryWhereClause = () =>
-  APP_CONFIG.PUBLIC_ROUTES.GENERATE_ALL_CULTIVAR_PAGES
-    ? getCultivarReferenceLookupWhereClause()
-    : {
-        ...getCultivarReferenceLookupWhereClause(),
-        listings: {
-          some: publicListingVisibilityFilter,
-        },
-      };
 
 const cultivarAhsListingSelect = {
   id: true,
@@ -266,7 +254,7 @@ async function findCultivarReferenceByNormalizedNames(
 
 export async function getCultivarRouteSegments(): Promise<string[]> {
   const cultivars = await db.cultivarReference.findMany({
-    where: getCultivarReferenceDiscoveryWhereClause(),
+    where: getCultivarReferenceLookupWhereClause(),
     select: {
       normalizedName: true,
     },
@@ -290,6 +278,12 @@ export async function getCultivarSitemapEntries(): Promise<
     lastModified?: Date;
   }>
 > {
+  const proUserIds = await getCachedProUserIds();
+
+  if (proUserIds.length === 0) {
+    return [];
+  }
+
   const segmentMap = new Map<
     string,
     {
@@ -308,6 +302,7 @@ export async function getCultivarSitemapEntries(): Promise<
     }
 
     const existingSegmentEntry = segmentMap.get(segment);
+
     if (!existingSegmentEntry) {
       segmentMap.set(segment, {
         segment,
@@ -328,71 +323,36 @@ export async function getCultivarSitemapEntries(): Promise<
     }
   };
 
-  if (!APP_CONFIG.PUBLIC_ROUTES.GENERATE_ALL_CULTIVAR_PAGES) {
-    const listingRows = await db.listing.findMany({
-      where: {
-        cultivarReferenceId: {
-          not: null,
-        },
-        ...publicListingVisibilityFilter,
-        cultivarReference: {
-          is: getCultivarReferenceLookupWhereClause(),
-        },
+  const listingRows = await db.listing.findMany({
+    where: {
+      cultivarReferenceId: {
+        not: null,
       },
-      select: {
-        updatedAt: true,
-        cultivarReference: {
-          select: {
-            normalizedName: true,
-            updatedAt: true,
-          },
-        },
+      ...shouldShowToPublic(proUserIds),
+      cultivarReference: {
+        is: getCultivarReferenceLookupWhereClause(),
       },
-    });
-
-    listingRows.forEach((listing) => {
-      const cultivar = listing.cultivarReference;
-      if (!cultivar) {
-        return;
-      }
-
-      const cultivarLastModified =
-        listing.updatedAt.getTime() > cultivar.updatedAt.getTime()
-          ? listing.updatedAt
-          : cultivar.updatedAt;
-
-      upsertSegment(cultivar.normalizedName, cultivarLastModified);
-    });
-
-    return Array.from(segmentMap.values()).sort((a, b) =>
-      a.segment.localeCompare(b.segment),
-    );
-  }
-
-  const cultivars = await db.cultivarReference.findMany({
-    where: getCultivarReferenceLookupWhereClause(),
+    },
     select: {
-      normalizedName: true,
       updatedAt: true,
-      listings: {
-        where: publicListingVisibilityFilter,
-        orderBy: {
-          updatedAt: "desc",
-        },
-        take: 1,
+      cultivarReference: {
         select: {
+          normalizedName: true,
           updatedAt: true,
         },
       },
     },
   });
 
-  cultivars.forEach((cultivar) => {
-    const linkedListingUpdatedAt = cultivar.listings[0]?.updatedAt;
+  listingRows.forEach((listing) => {
+    const cultivar = listing.cultivarReference;
+    if (!cultivar) {
+      return;
+    }
+
     const cultivarLastModified =
-      linkedListingUpdatedAt &&
-      linkedListingUpdatedAt.getTime() > cultivar.updatedAt.getTime()
-        ? linkedListingUpdatedAt
+      listing.updatedAt.getTime() > cultivar.updatedAt.getTime()
+        ? listing.updatedAt
         : cultivar.updatedAt;
 
     upsertSegment(cultivar.normalizedName, cultivarLastModified);
@@ -442,7 +402,7 @@ export async function getPublicCultivarPage(cultivarSegment: string) {
           in: Array.from(matchedNormalizedNames),
         },
       },
-      ...publicListingVisibilityFilter,
+      ...isPublished(),
     },
     select: {
       id: true,
@@ -487,7 +447,6 @@ export async function getPublicCultivarPage(cultivarSegment: string) {
     select: {
       id: true,
       createdAt: true,
-      stripeCustomerId: true,
       profile: {
         select: {
           slug: true,
@@ -509,7 +468,7 @@ export async function getPublicCultivarPage(cultivarSegment: string) {
       _count: {
         select: {
           listings: {
-            where: publicListingVisibilityFilter,
+            where: isPublished(),
           },
           lists: true,
         },
@@ -517,26 +476,8 @@ export async function getPublicCultivarPage(cultivarSegment: string) {
     },
   });
 
-  const usersWithSubscription = await Promise.all(
-    users.map(async (user) => {
-      let hasSubscription = false;
-
-      try {
-        const subscription = await getStripeSubscription(user.stripeCustomerId);
-        hasSubscription = hasActiveSubscription(subscription.status);
-      } catch (error) {
-        console.error("Failed to resolve subscription for cultivar page:", error);
-      }
-
-      return {
-        ...user,
-        hasActiveSubscription: hasSubscription,
-      };
-    }),
-  );
-
   const userById = new Map(
-    usersWithSubscription.map((user) => [
+    users.map((user) => [
       user.id,
       {
         userId: user.id,
@@ -548,7 +489,6 @@ export async function getPublicCultivarPage(cultivarSegment: string) {
         location: user.profile?.location ?? null,
         listingCount: user._count.listings,
         listCount: user._count.lists,
-        hasActiveSubscription: user.hasActiveSubscription,
         profileImages:
           user.profile?.images.map((image) => ({
             id: image.id,
@@ -570,7 +510,6 @@ export async function getPublicCultivarPage(cultivarSegment: string) {
       location: string | null;
       listingCount: number;
       listCount: number;
-      hasActiveSubscription: boolean;
       profileImages: Array<{ id: string; url: string }>;
       offers: Array<{
         id: string;
@@ -598,9 +537,7 @@ export async function getPublicCultivarPage(cultivarSegment: string) {
 
   listingRows.forEach((listing) => {
     const seller = userById.get(listing.userId);
-
-    // Cultivar offers are limited to Pro catalogs.
-    if (!seller?.hasActiveSubscription) {
+    if (!seller) {
       return;
     }
 
@@ -715,7 +652,7 @@ export async function getPublicCultivarPage(cultivarSegment: string) {
             {
               listings: {
                 some: {
-                  ...publicListingVisibilityFilter,
+                  ...isPublished(),
                   images: {
                     some: {},
                   },
@@ -731,7 +668,7 @@ export async function getPublicCultivarPage(cultivarSegment: string) {
           },
           listings: {
             where: {
-              ...publicListingVisibilityFilter,
+              ...isPublished(),
               images: {
                 some: {},
               },

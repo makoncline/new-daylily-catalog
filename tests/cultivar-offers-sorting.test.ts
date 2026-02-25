@@ -19,7 +19,6 @@ const gardenCards: OfferGardenCard[] = [
     location: null,
     listingCount: 20,
     listCount: 3,
-    hasActiveSubscription: true,
     profileImages: [],
     offers: [
       {
@@ -56,7 +55,6 @@ const gardenCards: OfferGardenCard[] = [
     location: null,
     listingCount: 11,
     listCount: 2,
-    hasActiveSubscription: true,
     profileImages: [],
     offers: [
       {

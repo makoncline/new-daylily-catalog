@@ -38,6 +38,7 @@ export const CACHE_CONFIG = {
     },
   },
   TAGS: {
+    PUBLIC_PRO_USER_IDS: "public:pro-user-ids",
     PUBLIC_PROFILES: "public:profiles",
     PUBLIC_PROFILE: "public:profile",
     PUBLIC_LISTINGS: "public:listings",

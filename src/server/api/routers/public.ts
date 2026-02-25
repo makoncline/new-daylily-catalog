@@ -20,10 +20,10 @@ import {
 import { SESClient, SendEmailCommand } from "@aws-sdk/client-ses";
 import { env } from "@/env";
 import { cartItemSchema } from "@/types";
-import { STATUS } from "@/config/constants";
 import { getDisplayAhsListing } from "@/lib/utils/ahs-display";
 import { createServerCache } from "@/lib/cache/server-cache";
 import { CACHE_CONFIG } from "@/config/cache-config";
+import { isPublished } from "@/server/db/public-visibility/filters";
 
 // Initialize SES client
 const ses = new SESClient({
@@ -36,12 +36,8 @@ const ses = new SESClient({
 
 // Helper function to get the full listing data with all relations
 async function getFullListingData(listingId: string) {
-  const publicListingVisibilityFilter = {
-    OR: [{ status: null }, { NOT: { status: STATUS.HIDDEN } }],
-  };
-
   const listing = await db.listing.findFirst({
-    where: { id: listingId, ...publicListingVisibilityFilter },
+    where: { id: listingId, ...isPublished() },
     select: listingSelect,
   });
 

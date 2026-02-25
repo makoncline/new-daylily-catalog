@@ -1,14 +1,18 @@
 import { db } from "@/server/db";
-import { hasActiveSubscription } from "../stripe/subscription-utils";
-import { getStripeSubscription } from "../stripe/sync-subscription";
-import { STATUS } from "@/config/constants";
+import { getCachedProUserIds } from "@/server/db/getCachedProUserIds";
+import { isPublished } from "@/server/db/public-visibility/filters";
 
 export async function getPublicProfiles() {
   try {
+    const proUserIds = await getCachedProUserIds();
+
+    if (proUserIds.length === 0) {
+      return [];
+    }
+
     const users = await db.user.findMany({
       select: {
         id: true,
-        stripeCustomerId: true,
         createdAt: true,
         profile: {
           select: {
@@ -31,9 +35,7 @@ export async function getPublicProfiles() {
         _count: {
           select: {
             listings: {
-              where: {
-                OR: [{ status: null }, { NOT: { status: STATUS.HIDDEN } }],
-              },
+              where: isPublished(),
             },
             lists: true,
           },
@@ -46,9 +48,7 @@ export async function getPublicProfiles() {
             _count: {
               select: {
                 listings: {
-                  where: {
-                    OR: [{ status: null }, { NOT: { status: STATUS.HIDDEN } }],
-                  },
+                  where: isPublished(),
                 },
               },
             },
@@ -56,29 +56,21 @@ export async function getPublicProfiles() {
           orderBy: { listings: { _count: "desc" } },
         },
         listings: {
-          where: {
-            OR: [{ status: null }, { NOT: { status: STATUS.HIDDEN } }],
-          },
+          where: isPublished(),
           select: { updatedAt: true },
         },
       },
       where: {
+        id: {
+          in: proUserIds,
+        },
         listings: {
-          some: { OR: [{ status: null }, { NOT: { status: STATUS.HIDDEN } }] },
+          some: isPublished(),
         },
       },
     });
 
-    // Get subscription status for each user
-    const profilesWithSubs = await Promise.all(
-      users.map(async (profile) => {
-        const sub = await getStripeSubscription(profile.stripeCustomerId);
-        return { ...profile, subscriptionStatus: sub.status };
-      }),
-    );
-
-    // Transform and sort profiles
-    return profilesWithSubs
+    return users
       .map((profile) => {
         const timestamps = [
           profile.profile?.updatedAt,
@@ -102,9 +94,7 @@ export async function getPublicProfiles() {
             profile.profile?.images.map((img) => ({ url: img.url })) ?? [],
           listingCount: profile._count.listings,
           listCount: profile._count.lists,
-          hasActiveSubscription: hasActiveSubscription(
-            profile.subscriptionStatus,
-          ),
+          hasActiveSubscription: true,
           createdAt: profile.createdAt,
           updatedAt: mostRecentUpdate,
           lists: profile.lists.map((list) => ({
@@ -114,14 +104,9 @@ export async function getPublicProfiles() {
           })),
         };
       })
-      .sort((a, b) => {
-        if (a.hasActiveSubscription !== b.hasActiveSubscription) {
-          return a.hasActiveSubscription ? -1 : 1;
-        }
-        return b.listingCount - a.listingCount;
-      });
+      .sort((a, b) => b.listingCount - a.listingCount);
   } catch (error) {
     console.error("Error fetching public profiles:", error);
-    throw new Error("Failed to fetch public profiles"); // Standard error
+    throw new Error("Failed to fetch public profiles");
   }
 }

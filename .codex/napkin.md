@@ -2,6 +2,27 @@
 
 ## Log
 
+- 2026-02-25 - self-miss shell quoting recurrence - I ran `rg` against unquoted paths containing `(` and `)` and hit zsh glob expansion errors; always quote App Router paths in shell commands.
+- 2026-02-25 - self-miss shell quoting repeat - I repeated the same unquoted-path miss with `git diff` on `src/app/(public)/.../[param]`; quote these paths every time, even for one-off checks.
+- 2026-02-25 - self-miss napkin disclosure - I announced napkin-skill execution in a status update; follow the skill strictly and apply napkin silently.
+- 2026-02-25 - policy-copy consistency - After removing cultivar-page pro gating, metadata copy must say `catalogs` (not `pro catalogs`) to match behavior.
+- 2026-02-25 - e2e cultivar ordering update - `cultivar-page-flow` should expect `hobby-grower` in garden order because cultivar pages now include published free-account offers; only discovery surfaces remain pro-filtered.
+- 2026-02-25 - cultivar ISR simplification - User wants cultivar page logic subscription-agnostic (no pro gating in page lookup/offers); keep pro-only filtering only on discovery surfaces (`/catalogs` and sitemap).
+- 2026-02-25 - invalidation scope preference - User wants invalidation minimalism: allow webhook revalidation only for the pro-user-id cache tag, keep broader public-page invalidation deferred.
+- 2026-02-25 - defer invalidation complexity - User prefers no webhook-driven cache invalidation for public discovery yet; keep TTL-only revalidation and postpone granular tag invalidation until explicitly prioritized.
+- 2026-02-25 - next revalidateTag signature - In this repo’s Next version, `revalidateTag` requires a second profile argument; use `revalidateTag(tag, "max")` in route handlers.
+- 2026-02-25 - subscription lookup log noise - For `getProUserIdSet`, aggregate failed subscription lookups into one warning (and suppress in test env) instead of per-user `console.error` spam.
+- 2026-02-25 - simplification expectation reset - User wants aggressive simplification passes when policy-consistent options exist; prioritize centralized policy helpers and deletion of dead paths instead of defending legacy structure.
+- 2026-02-25 - test mock dedupe - Repeated `where.<field>.in` mock filtering in public discovery tests should live in a shared `tests/test-utils/apply-where-in.ts` helper to keep test setup lean.
+- 2026-02-25 - shared pro-id source pattern - Discovery surfaces are simpler when they consume one cached `getCachedProUserIds` helper (users with `stripeCustomerId != null` -> `getProUserIdSet`) instead of each module rebuilding membership lookup.
+- 2026-02-25 - mock alignment for where.in filters - When production code pushes `id/userId in [...]` into Prisma queries, tests should make `findMany/groupBy` mocks apply those `where` constraints; otherwise free-tier fixtures leak into expected pro-only outputs.
+- 2026-02-25 - public filter builders - Keep discovery visibility logic DRY with shared Prisma `where` builders (`isPublished`, `hasActiveSubscription`, `shouldShowToPublic`) and reuse them across catalogs/cultivars/profile queries instead of duplicating inline status + pro-user conditions.
+- 2026-02-25 - free profile indexing policy - Keep direct free-profile access working (`dynamicParams = true`) but pass subscription state into profile metadata generation so free profiles emit `robots: noindex, follow` while pro profiles stay indexable.
+- 2026-02-25 - cultivar payload simplification - Removed unused `hasActiveSubscription` field from cultivar offer garden card payload; no UI consumers depended on it, so keeping it added dead-state complexity.
+- 2026-02-25 - test realism over prod guards - For DB-backed filters, keep production code lean and make unit mocks honor query constraints (`where.userId.in`) instead of adding redundant in-memory guards just to satisfy static fixture mocks.
+- 2026-02-24 - self-miss mock-vs-query filter - I removed a secondary pro-user filter in cultivar aggregation assuming DB `where` guarantees would always hold, but unit mocks return fixture rows without honoring `where`; keep an explicit seller/pro guard in aggregation paths that consume mocked query rows.
+- 2026-02-24 - self-miss route-page-size expectation - New `getPublicCatalogRouteEntries` test expected `totalPages=3` for 210 listings; current `PUBLIC_PROFILE_LISTINGS_PAGE_SIZE` yields 5, so assert against the real constant behavior.
+- 2026-02-24 - public catalog visibility policy update - User wants free-tier accounts fully excluded from `/catalogs`, cultivar offer sourcing, and sitemap exposure; treat public catalog/cultivar listing sources as pro-only.
 - 2026-02-25 - profile content dirty signal - `ProfileForm` save button will not react to content edits unless the child editor reports dirty state to parent state; relying only on `contentFormRef.hasPendingChanges()` in a parent callback is not reactive.
 - 2026-02-25 - self-miss path globbing again - I ran `rg` against `src/app/(public)/cultivar/[cultivarNormalizedName]/...` without quoting and hit `zsh: no matches found`; always quote paths with `()`/`[]`.
 - 2026-02-25 - cultivar eligibility split - Keep separate where-clauses in `getPublicCultivars`: lookup should allow all normalized cultivars for direct requests, while discovery surfaces (sitemap/segments/related links when desired) can stay listing-backed behind the flag.
@@ -177,6 +198,7 @@
 
 ## Preferences
 
+- Exclude free-tier accounts from `/catalogs`, from listing inclusion on `/cultivar/:slug`, and from sitemap-derived public route coverage.
 - Caching PR preference: keep public route policy simple (24h static/ISR for SEO routes, dynamic + noindex for `/{slug}/search`) and keep segment-config literals annotated with `CACHE_LITERAL_REF` comments.
 - Caching PR preference: keep TanStack DB internals out of cache-removal scope and prioritize behavior-level test assertions over cache implementation details.
 - Keep query params when redirecting public profile routes from `/{userId}` to `/{slug}`.
