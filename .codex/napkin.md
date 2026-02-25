@@ -2,6 +2,12 @@
 
 ## Log
 
+- 2026-02-25 - profile content dirty signal - `ProfileForm` save button will not react to content edits unless the child editor reports dirty state to parent state; relying only on `contentFormRef.hasPendingChanges()` in a parent callback is not reactive.
+- 2026-02-25 - list form stale values on route return - `ListForm` initialized from `defaultValues` can show stale title/description after navigate-save unless it resets when committed list snapshot changes and there are no local edits.
+- 2026-02-25 - self-miss repeated patch path - I repeated using shell `applypatch` via `exec_command`; use the dedicated `apply_patch` tool directly to avoid warnings and keep edits compliant.
+- 2026-02-25 - e2e expansion preference - User prefers extending existing e2e specs with new boundary-save steps when they fit naturally, instead of creating new standalone specs for each scenario.
+- 2026-02-25 - local playwright lock blocker - `pnpm test:e2e` can fail with `Unable to acquire lock at .next/dev/lock` when another `next dev` process is running in the same repo; either stop that process or run attach mode with matching env constraints.
+- 2026-02-25 - dashboard breadcrumb nav - Dashboard breadcrumbs should use `next/link` (via `BreadcrumbLink asChild`) instead of plain anchor `href` to avoid full-page reloads and keep app-router navigation behavior consistent.
 - 2026-02-25 - manage-list membership saveability - On `/dashboard/lists/[listId]`, add/remove listing mutations must call a parent callback that triggers `formRef.current?.markNeedsCommit()` so the List form Save button and navigate-save boundary become active.
 - 2026-02-25 - self-miss patch tool usage - I briefly used `applypatch` through `exec_command`; in this environment edits should use the `apply_patch` tool directly to avoid warnings/noise.
 - 2026-02-25 - edit-list URL sync loop - In `useEditList`, syncing search params with `?${params}` can oscillate between `?` and empty state; compare full pathname+search and use `router.replace(pathname)` when search is empty to avoid fetch loops.
