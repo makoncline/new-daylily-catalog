@@ -193,3 +193,40 @@ params as client-only UI state.
 
 - PR checks run: lint, typecheck, unit tests, and e2e in CI
 - E2E CI sets placeholder env vars and uses `pnpm test:e2e`
+
+## Cursor Cloud specific instructions
+
+### Environment
+
+- `.env.development` is created by the VM snapshot with placeholder keys and
+  `SKIP_ENV_VALIDATION=1`. The app starts without real Clerk/Stripe/AWS keys
+  but auth-dependent flows will not work.
+- Prisma client is generated to `prisma/generated/sqlite-client` by the
+  `postinstall` hook (`prisma generate`).
+
+### Running the dev server
+
+Use the Temp DB Workflow documented above. The key env vars are:
+
+```sh
+LOCAL_DATABASE_URL="file:tests/.tmp/ui-listings.sqlite" \
+USE_TURSO_DB=false SKIP_ENV_VALIDATION=1 \
+NEXT_PUBLIC_SENTRY_ENABLED=false pnpm dev
+```
+
+### Gotchas
+
+- **Turbopack cache corruption**: if the dev server or E2E tests fail with
+  `Failed to restore task data (corrupted database or bug)`, delete
+  `.next` (`rm -rf .next`) and retry.
+- **Next.js dev lock**: if you see `Unable to acquire lock at .next/dev/lock`,
+  remove the lock file (`rm -f .next/dev/lock`) before starting the server or
+  E2E tests.
+- **E2E tests manage their own server**: `pnpm test:e2e` starts a dev server
+  on port 3100 and provisions a temp DB automatically. Do not start a separate
+  dev server on port 3100 before running E2E tests. Kill any process on port
+  3000/3100 before running E2E to avoid conflicts.
+- **Lint and typecheck** require `SKIP_ENV_VALIDATION=1` when real env vars are
+  not present.
+- **Playwright browsers**: Chromium is installed to
+  `~/.cache/ms-playwright/chromium-*`; the update script keeps it current.
