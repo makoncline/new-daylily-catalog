@@ -2,6 +2,11 @@
 
 ## Log
 
+- 2026-02-25 - manage-list membership saveability - On `/dashboard/lists/[listId]`, add/remove listing mutations must call a parent callback that triggers `formRef.current?.markNeedsCommit()` so the List form Save button and navigate-save boundary become active.
+- 2026-02-25 - self-miss patch tool usage - I briefly used `applypatch` through `exec_command`; in this environment edits should use the `apply_patch` tool directly to avoid warnings/noise.
+- 2026-02-25 - edit-list URL sync loop - In `useEditList`, syncing search params with `?${params}` can oscillate between `?` and empty state; compare full pathname+search and use `router.replace(pathname)` when search is empty to avoid fetch loops.
+- 2026-02-25 - secondary commit trigger pattern - For instant child mutations (AHS link, image ops, content save), a parent-local `needsParentCommit` flag keeps save-button/nav-boundary commit behavior simple without global state.
+- 2026-02-25 - profile refresh consistency - After successful `userProfile.update`, call `utils.dashboardDb.userProfile.get.setData` and `invalidate` so profile UI reflects server-side updates immediately.
 - 2026-02-25 - save hook hardening - `attemptNavigate` must catch rejected save promises and convert them to blocked navigation + user feedback to avoid unhandled rejection errors.
 - 2026-02-25 - save failure message preference - Use explicit failure copy `Error saving changes. Please fix errors and try again.` for navigate-save failures.
 - 2026-02-25 - autosave UX bug class - In click-capture navigation guards, never drop intercepted clicks during in-flight save; always forward to attemptNavigate so latest user intent is honored.
