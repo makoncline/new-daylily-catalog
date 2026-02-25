@@ -2,6 +2,8 @@
 
 ## Log
 
+- 2026-02-25 - autosave UX bug class - In click-capture navigation guards, never drop intercepted clicks during in-flight save; always forward to attemptNavigate so latest user intent is honored.
+- 2026-02-25 - navigate-failure feedback rule - Silent navigate saves need explicit failure feedback (`toast.error`) or blocked navigation appears broken.
 - 2026-02-25 - reset-and-rebuild workflow - User requested hard reset to `origin/main` and a simpler autosave architecture; phased reimplementation with separate commits kept migration manageable.
 - 2026-02-25 - page autosave pattern - In App Router, the minimal deterministic approach is a page-scoped click-capture + `beforeunload` hook with a single form handle (`useSaveBeforeNavigate`), not save-on-unmount.
 - 2026-02-25 - boundary commit simplification - Removing `onBlur` mutations from list/listing/profile and using `saveChanges(reason)` made semantics easier to reason about and test.
