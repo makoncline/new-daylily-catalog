@@ -1,13 +1,18 @@
 import { db } from "@/server/db";
-import { getProUserIdSet } from "@/server/db/getProUserIdSet";
+import { getCachedProUserIds } from "@/server/db/getCachedProUserIds";
 import { isPublished } from "@/server/db/public-visibility/filters";
 
 export async function getPublicProfiles() {
   try {
+    const proUserIds = await getCachedProUserIds();
+
+    if (proUserIds.length === 0) {
+      return [];
+    }
+
     const users = await db.user.findMany({
       select: {
         id: true,
-        stripeCustomerId: true,
         createdAt: true,
         profile: {
           select: {
@@ -56,21 +61,16 @@ export async function getPublicProfiles() {
         },
       },
       where: {
+        id: {
+          in: proUserIds,
+        },
         listings: {
           some: isPublished(),
         },
       },
     });
 
-    const proUserIds = await getProUserIdSet(
-      users.map((profile) => ({
-        id: profile.id,
-        stripeCustomerId: profile.stripeCustomerId,
-      })),
-    );
-
     return users
-      .filter((profile) => proUserIds.has(profile.id))
       .map((profile) => {
         const timestamps = [
           profile.profile?.updatedAt,

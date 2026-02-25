@@ -4,7 +4,7 @@ import { PUBLIC_PROFILE_LISTINGS_PAGE_SIZE, STATUS } from "@/config/constants";
 import { getUserIdFromSlugOrId } from "./getPublicProfile";
 import { getDisplayAhsListing } from "@/lib/utils/ahs-display";
 import { Prisma } from "@prisma/client";
-import { getProUserIdSet } from "@/server/db/getProUserIdSet";
+import { getCachedProUserIds } from "@/server/db/getCachedProUserIds";
 import { isPublished } from "@/server/db/public-visibility/filters";
 
 const ahsListingSelect = {
@@ -247,9 +247,20 @@ interface PublicCatalogRouteEntry {
 export async function getPublicCatalogRouteEntries(): Promise<
   PublicCatalogRouteEntry[]
 > {
+  const proUserIds = await getCachedProUserIds();
+
+  if (proUserIds.length === 0) {
+    return [];
+  }
+
   const listingCounts = await db.listing.groupBy({
     by: ["userId"],
-    where: isPublished(),
+    where: {
+      ...isPublished(),
+      userId: {
+        in: proUserIds,
+      },
+    },
     _count: {
       _all: true,
     },
@@ -263,7 +274,6 @@ export async function getPublicCatalogRouteEntries(): Promise<
   const users = await db.user.findMany({
     select: {
       id: true,
-      stripeCustomerId: true,
       createdAt: true,
       profile: {
         select: {
@@ -279,31 +289,22 @@ export async function getPublicCatalogRouteEntries(): Promise<
     },
   });
 
-  const proUserIds = await getProUserIdSet(
-    users.map((user) => ({
-      id: user.id,
-      stripeCustomerId: user.stripeCustomerId,
-    })),
-  );
-
   const countByUserId = new Map(
     listingCounts.map((entry) => [entry.userId, entry._count._all]),
   );
 
-  return users
-    .filter((user) => proUserIds.has(user.id))
-    .map((user) => {
-      const slug = user.profile?.slug ?? user.id;
-      const listingCount = countByUserId.get(user.id) ?? 0;
-      const totalPages = Math.max(
-        1,
-        Math.ceil(listingCount / PUBLIC_PROFILE_LISTINGS_PAGE_SIZE),
-      );
+  return users.map((user) => {
+    const slug = user.profile?.slug ?? user.id;
+    const listingCount = countByUserId.get(user.id) ?? 0;
+    const totalPages = Math.max(
+      1,
+      Math.ceil(listingCount / PUBLIC_PROFILE_LISTINGS_PAGE_SIZE),
+    );
 
-      return {
-        slug,
-        totalPages,
-        lastModified: user.profile?.updatedAt ?? user.createdAt,
-      };
-    });
+    return {
+      slug,
+      totalPages,
+      lastModified: user.profile?.updatedAt ?? user.createdAt,
+    };
+  });
 }

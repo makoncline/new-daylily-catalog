@@ -2,6 +2,8 @@
 
 ## Log
 
+- 2026-02-25 - shared pro-id source pattern - Discovery surfaces are simpler when they consume one cached `getCachedProUserIds` helper (users with `stripeCustomerId != null` -> `getProUserIdSet`) instead of each module rebuilding membership lookup.
+- 2026-02-25 - mock alignment for where.in filters - When production code pushes `id/userId in [...]` into Prisma queries, tests should make `findMany/groupBy` mocks apply those `where` constraints; otherwise free-tier fixtures leak into expected pro-only outputs.
 - 2026-02-25 - public filter builders - Keep discovery visibility logic DRY with shared Prisma `where` builders (`isPublished`, `hasActiveSubscription`, `shouldShowToPublic`) and reuse them across catalogs/cultivars/profile queries instead of duplicating inline status + pro-user conditions.
 - 2026-02-25 - free profile indexing policy - Keep direct free-profile access working (`dynamicParams = true`) but pass subscription state into profile metadata generation so free profiles emit `robots: noindex, follow` while pro profiles stay indexable.
 - 2026-02-25 - cultivar payload simplification - Removed unused `hasActiveSubscription` field from cultivar offer garden card payload; no UI consumers depended on it, so keeping it added dead-state complexity.

@@ -72,6 +72,33 @@ function createListing(id: string, title: string) {
   };
 }
 
+interface UserFindManyArgs {
+  where?: {
+    id?: {
+      in?: string[];
+    };
+    stripeCustomerId?: {
+      not?: null;
+    };
+  };
+}
+
+function applyWhereIn<T extends Record<string, unknown>>(
+  rows: T[],
+  args: unknown,
+  field: keyof T & string,
+) {
+  const allowed = (args as {
+    where?: Partial<Record<keyof T & string, { in?: unknown[] }>>;
+  })?.where?.[field]?.in;
+
+  if (!Array.isArray(allowed)) {
+    return rows;
+  }
+
+  return rows.filter((row) => allowed.includes(row[field]));
+}
+
 describe("getPublicListings helpers", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -187,12 +214,12 @@ describe("getPublicListings helpers", () => {
   });
 
   it("excludes free accounts from public catalog route entries", async () => {
-    mockDb.listing.groupBy.mockResolvedValue([
+    const listingCounts = [
       { userId: "user-pro", _count: { _all: 210 } },
       { userId: "user-free", _count: { _all: 95 } },
-    ]);
+    ];
 
-    mockDb.user.findMany.mockResolvedValue([
+    const users = [
       {
         id: "user-pro",
         stripeCustomerId: "cus-pro",
@@ -211,7 +238,26 @@ describe("getPublicListings helpers", () => {
           updatedAt: new Date("2026-02-01T00:00:00.000Z"),
         },
       },
-    ]);
+    ];
+
+    mockDb.listing.groupBy.mockImplementation((args: unknown) =>
+      Promise.resolve(applyWhereIn(listingCounts, args, "userId")),
+    );
+
+    mockDb.user.findMany.mockImplementation((args: unknown) => {
+      const filteredById = applyWhereIn(users, args, "id");
+      const requiresStripeCustomerId =
+        (args as UserFindManyArgs | undefined)?.where?.stripeCustomerId?.not ===
+        null;
+
+      if (!requiresStripeCustomerId) {
+        return Promise.resolve(filteredById);
+      }
+
+      return Promise.resolve(
+        filteredById.filter((user) => user.stripeCustomerId !== null),
+      );
+    });
 
     mockGetStripeSubscription.mockImplementation(
       async (stripeCustomerId: string) =>

@@ -21,13 +21,34 @@ vi.mock("@/server/stripe/sync-subscription", () => ({
 
 import { getPublicProfiles } from "@/server/db/getPublicProfiles";
 
+interface UserFindManyArgs {
+  where?: {
+    id?: {
+      in?: string[];
+    };
+    stripeCustomerId?: {
+      not?: null;
+    };
+  };
+}
+
+function applyIdWhereFilter<T extends { id: string }>(rows: T[], args: unknown) {
+  const allowedIds = (args as UserFindManyArgs | undefined)?.where?.id?.in;
+
+  if (!Array.isArray(allowedIds)) {
+    return rows;
+  }
+
+  return rows.filter((row) => allowedIds.includes(row.id));
+}
+
 describe("getPublicProfiles", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
   it("returns only pro catalogs for the /catalogs page", async () => {
-    mockDb.user.findMany.mockResolvedValue([
+    const users = [
       {
         id: "user-pro",
         stripeCustomerId: "cus-pro",
@@ -89,7 +110,22 @@ describe("getPublicProfiles", () => {
         ],
         listings: [{ updatedAt: new Date("2026-02-03T00:00:00.000Z") }],
       },
-    ]);
+    ];
+
+    mockDb.user.findMany.mockImplementation((args: unknown) => {
+      const filteredById = applyIdWhereFilter(users, args);
+      const requiresStripeCustomerId =
+        (args as UserFindManyArgs | undefined)?.where?.stripeCustomerId?.not ===
+        null;
+
+      if (!requiresStripeCustomerId) {
+        return Promise.resolve(filteredById);
+      }
+
+      return Promise.resolve(
+        filteredById.filter((user) => user.stripeCustomerId !== null),
+      );
+    });
 
     mockGetStripeSubscription.mockImplementation(
       async (stripeCustomerId: string) =>

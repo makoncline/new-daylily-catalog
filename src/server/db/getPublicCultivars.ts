@@ -4,7 +4,7 @@ import {
   toCultivarRouteSegment,
 } from "@/lib/utils/cultivar-utils";
 import { db } from "@/server/db";
-import { getProUserIdSet } from "@/server/db/getProUserIdSet";
+import { getCachedProUserIds } from "@/server/db/getCachedProUserIds";
 import {
   isPublished,
   shouldShowToPublic,
@@ -25,28 +25,6 @@ const getCultivarReferenceWhereClause = (proUserIds: string[]) =>
           some: shouldShowToPublic(proUserIds),
         },
       };
-
-async function getProUserIdsForCultivarListings(): Promise<string[]> {
-  const users = await db.user.findMany({
-    where: {
-      listings: {
-        some: {
-          cultivarReferenceId: {
-            not: null,
-          },
-          ...isPublished(),
-        },
-      },
-    },
-    select: {
-      id: true,
-      stripeCustomerId: true,
-    },
-  });
-
-  const proUserIds = await getProUserIdSet(users);
-  return Array.from(proUserIds);
-}
 
 const cultivarAhsListingSelect = {
   id: true,
@@ -290,7 +268,7 @@ async function findCultivarReferenceByNormalizedNames(
 }
 
 export async function getCultivarRouteSegments(): Promise<string[]> {
-  const proUserIds = await getProUserIdsForCultivarListings();
+  const proUserIds = await getCachedProUserIds();
 
   const cultivars = await db.cultivarReference.findMany({
     where: getCultivarReferenceWhereClause(proUserIds),
@@ -317,7 +295,7 @@ export async function getCultivarSitemapEntries(): Promise<
     lastModified?: Date;
   }>
 > {
-  const proUserIds = await getProUserIdsForCultivarListings();
+  const proUserIds = await getCachedProUserIds();
 
   const cultivars = await db.cultivarReference.findMany({
     where: getCultivarReferenceWhereClause(proUserIds),
@@ -382,7 +360,7 @@ export async function getPublicCultivarPage(cultivarSegment: string) {
     return null;
   }
 
-  const proUserIds = await getProUserIdsForCultivarListings();
+  const proUserIds = await getCachedProUserIds();
 
   const normalizedCultivarNames = getCultivarRouteCandidates(cultivarSegment);
   const matchedNormalizedNames = new Set(normalizedCultivarNames);
