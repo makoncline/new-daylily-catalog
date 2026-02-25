@@ -31,6 +31,27 @@ import {
   getPublicCultivarPage,
 } from "@/server/db/getPublicCultivars";
 
+interface ListingQueryArgs {
+  where?: {
+    userId?: {
+      in?: string[];
+    };
+  };
+}
+
+function applyUserWhereFilter<T extends { userId: string }>(
+  rows: T[],
+  args: unknown,
+) {
+  const allowedUserIds = (args as ListingQueryArgs | undefined)?.where?.userId?.in;
+
+  if (!Array.isArray(allowedUserIds)) {
+    return rows;
+  }
+
+  return rows.filter((row) => allowedUserIds.includes(row.userId));
+}
+
 describe("getPublicCultivarPage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -65,7 +86,7 @@ describe("getPublicCultivarPage", () => {
       },
     });
 
-    mockDb.listing.findMany.mockResolvedValue([
+    const listingRows = [
       {
         id: "listing-top-a",
         title: "Coffee Frenzy Prime Fan",
@@ -139,7 +160,10 @@ describe("getPublicCultivarPage", () => {
         ],
         lists: [],
       },
-    ]);
+    ];
+    mockDb.listing.findMany.mockImplementation((args: unknown) =>
+      Promise.resolve(applyUserWhereFilter(listingRows, args)),
+    );
 
     mockDb.user.findMany.mockResolvedValue([
       {
@@ -315,7 +339,7 @@ describe("getPublicCultivarPage", () => {
       },
     ]);
 
-    mockDb.listing.findMany.mockResolvedValue([
+    const listingRows = [
       {
         id: "listing-punctuated",
         title: "A Cowgirl's Heart",
@@ -327,7 +351,10 @@ describe("getPublicCultivarPage", () => {
         images: [],
         lists: [],
       },
-    ]);
+    ];
+    mockDb.listing.findMany.mockImplementation((args: unknown) =>
+      Promise.resolve(applyUserWhereFilter(listingRows, args)),
+    );
 
     mockDb.user.findMany.mockResolvedValue([
       {
@@ -386,7 +413,7 @@ describe("getPublicCultivarPage", () => {
       },
     });
 
-    mockDb.listing.findMany.mockResolvedValue([
+    const listingRows = [
       {
         id: "listing-ok",
         title: "Coffee Frenzy Pro",
@@ -409,7 +436,10 @@ describe("getPublicCultivarPage", () => {
         images: [],
         lists: [],
       },
-    ]);
+    ];
+    mockDb.listing.findMany.mockImplementation((args: unknown) =>
+      Promise.resolve(applyUserWhereFilter(listingRows, args)),
+    );
 
     mockDb.user.findMany.mockResolvedValue([
       {

@@ -13,10 +13,8 @@ export async function getProUserIdSet(
     return new Set();
   }
 
-  const dedupedUsers = Array.from(new Map(users.map((user) => [user.id, user])).values());
-
-  const statuses = await Promise.all(
-    dedupedUsers.map(async (user) => {
+  const proUserIds = await Promise.all(
+    users.map(async (user) => {
       try {
         const subscription = await getStripeSubscription(user.stripeCustomerId);
         return hasActiveSubscription(subscription.status) ? user.id : null;
@@ -30,5 +28,5 @@ export async function getProUserIdSet(
     }),
   );
 
-  return new Set(statuses.filter((userId): userId is string => Boolean(userId)));
+  return new Set(proUserIds.filter((userId): userId is string => Boolean(userId)));
 }

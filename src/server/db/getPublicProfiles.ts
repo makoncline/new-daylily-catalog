@@ -75,7 +75,6 @@ export async function getPublicProfiles() {
       })),
     );
 
-    // Transform and sort profiles
     return users
       .filter((profile) => proUserIds.has(profile.id))
       .map((profile) => {
@@ -111,11 +110,9 @@ export async function getPublicProfiles() {
           })),
         };
       })
-      .sort((a, b) => {
-        return b.listingCount - a.listingCount;
-      });
+      .sort((a, b) => b.listingCount - a.listingCount);
   } catch (error) {
     console.error("Error fetching public profiles:", error);
-    throw new Error("Failed to fetch public profiles"); // Standard error
+    throw new Error("Failed to fetch public profiles");
   }
 }

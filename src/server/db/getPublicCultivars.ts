@@ -393,7 +393,6 @@ export async function getPublicCultivarPage(cultivarSegment: string) {
   }
 
   const proUserIds = await getProUserIdsForCultivarListings();
-  const proUserIdSet = new Set(proUserIds);
 
   const normalizedCultivarNames = getCultivarRouteCandidates(cultivarSegment);
   const matchedNormalizedNames = new Set(normalizedCultivarNames);
@@ -507,10 +506,8 @@ export async function getPublicCultivarPage(cultivarSegment: string) {
     },
   });
 
-  const proUsers = users.filter((user) => proUserIdSet.has(user.id));
-
   const userById = new Map(
-    proUsers.map((user) => [
+    users.map((user) => [
       user.id,
       {
         userId: user.id,
@@ -522,7 +519,6 @@ export async function getPublicCultivarPage(cultivarSegment: string) {
         location: user.profile?.location ?? null,
         listingCount: user._count.listings,
         listCount: user._count.lists,
-        hasActiveSubscription: true,
         profileImages:
           user.profile?.images.map((image) => ({
             id: image.id,
@@ -544,7 +540,6 @@ export async function getPublicCultivarPage(cultivarSegment: string) {
       location: string | null;
       listingCount: number;
       listCount: number;
-      hasActiveSubscription: boolean;
       profileImages: Array<{ id: string; url: string }>;
       offers: Array<{
         id: string;

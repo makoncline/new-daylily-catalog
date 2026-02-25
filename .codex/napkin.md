@@ -2,6 +2,8 @@
 
 ## Log
 
+- 2026-02-25 - cultivar payload simplification - Removed unused `hasActiveSubscription` field from cultivar offer garden card payload; no UI consumers depended on it, so keeping it added dead-state complexity.
+- 2026-02-25 - test realism over prod guards - For DB-backed filters, keep production code lean and make unit mocks honor query constraints (`where.userId.in`) instead of adding redundant in-memory guards just to satisfy static fixture mocks.
 - 2026-02-24 - self-miss mock-vs-query filter - I removed a secondary pro-user filter in cultivar aggregation assuming DB `where` guarantees would always hold, but unit mocks return fixture rows without honoring `where`; keep an explicit seller/pro guard in aggregation paths that consume mocked query rows.
 - 2026-02-24 - self-miss route-page-size expectation - New `getPublicCatalogRouteEntries` test expected `totalPages=3` for 210 listings; current `PUBLIC_PROFILE_LISTINGS_PAGE_SIZE` yields 5, so assert against the real constant behavior.
 - 2026-02-24 - public catalog visibility policy update - User wants free-tier accounts fully excluded from `/catalogs`, cultivar offer sourcing, and sitemap exposure; treat public catalog/cultivar listing sources as pro-only.
