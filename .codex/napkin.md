@@ -6,6 +6,7 @@
 - 2026-02-25 - self-miss shell quoting repeat - I repeated the same unquoted-path miss with `git diff` on `src/app/(public)/.../[param]`; quote these paths every time, even for one-off checks.
 - 2026-02-25 - self-miss napkin disclosure - I announced napkin-skill execution in a status update; follow the skill strictly and apply napkin silently.
 - 2026-02-25 - policy-copy consistency - After removing cultivar-page pro gating, metadata copy must say `catalogs` (not `pro catalogs`) to match behavior.
+- 2026-02-25 - e2e cultivar ordering update - `cultivar-page-flow` should expect `hobby-grower` in garden order because cultivar pages now include published free-account offers; only discovery surfaces remain pro-filtered.
 - 2026-02-25 - cultivar ISR simplification - User wants cultivar page logic subscription-agnostic (no pro gating in page lookup/offers); keep pro-only filtering only on discovery surfaces (`/catalogs` and sitemap).
 - 2026-02-25 - invalidation scope preference - User wants invalidation minimalism: allow webhook revalidation only for the pro-user-id cache tag, keep broader public-page invalidation deferred.
 - 2026-02-25 - defer invalidation complexity - User prefers no webhook-driven cache invalidation for public discovery yet; keep TTL-only revalidation and postpone granular tag invalidation until explicitly prioritized.
