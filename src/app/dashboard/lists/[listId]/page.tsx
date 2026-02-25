@@ -4,13 +4,17 @@ import React from "react";
 import { eq, useLiveQuery } from "@tanstack/react-db";
 import { ListListingsTable } from "./_components/list-listings-table";
 import { PageHeader } from "../../_components/page-header";
-import { ListForm } from "@/components/forms/list-form";
+import {
+  ListForm,
+  type ListFormHandle,
+} from "@/components/forms/list-form";
 import { AddListingsSection } from "./_components/add-listings-section";
 import {
   listsCollection,
   type ListCollectionItem,
 } from "@/app/dashboard/_lib/dashboard-db/lists-collection";
 import { getQueryClient } from "@/trpc/query-client";
+import { useSaveBeforeNavigate } from "@/hooks/use-save-before-navigate";
 
 interface ListPageProps {
   params: Promise<{
@@ -25,6 +29,9 @@ export default function ListPage({ params }: ListPageProps) {
 }
 
 function ManageListPageLive({ listId }: { listId: string }) {
+  const formRef = React.useRef<ListFormHandle | null>(null);
+  useSaveBeforeNavigate(formRef, "navigate");
+
   const { data: liveLists = [], isReady } = useLiveQuery(
     (q) =>
       q.from({ list: listsCollection }).where(({ list }) => eq(list.id, listId)),
@@ -49,7 +56,7 @@ function ManageListPageLive({ listId }: { listId: string }) {
         heading={`Manage List: ${list.title}`}
         text="Manage list details and organize your listings."
       />
-      <ListForm listId={listId} />
+      <ListForm listId={listId} formRef={formRef} />
       <AddListingsSection listId={listId} />
       <ListListingsTable listId={listId} />
     </div>

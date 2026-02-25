@@ -1,8 +1,9 @@
 "use client";
 
-import { useZodForm } from "@/hooks/use-zod-form";
-import { listFormSchema } from "@/types/schemas/list";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useLiveQuery, eq } from "@tanstack/react-db";
+import { useZodForm } from "@/hooks/use-zod-form";
+import { listFormSchema, type ListFormData } from "@/types/schemas/list";
 import {
   deleteList,
   listsCollection,
@@ -20,8 +21,6 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { type z } from "zod";
-import { useState, useEffect, useCallback } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { DeleteConfirmDialog } from "@/components/delete-confirm-dialog";
@@ -30,10 +29,26 @@ import { ListFormSkeleton } from "@/components/forms/list-form-skeleton";
 interface ListFormProps {
   listId: string;
   onDelete?: () => void;
-  formRef?: React.RefObject<{ saveChanges: () => Promise<void> } | null>;
+  formRef?: React.RefObject<ListFormHandle | null>;
 }
 
-type FormValues = z.infer<typeof listFormSchema>;
+export type ListFormSaveReason = "manual" | "close" | "navigate";
+
+export interface ListFormHandle {
+  saveChanges: (reason: ListFormSaveReason) => Promise<boolean>;
+  hasPendingChanges: () => boolean;
+}
+
+function toFormValues(list: ListCollectionItem): ListFormData {
+  return {
+    title: list.title,
+    description: list.description ?? undefined,
+  };
+}
+
+function areListValuesEqual(a: ListFormData, b: ListFormData): boolean {
+  return a.title === b.title && a.description === b.description;
+}
 
 function ListFormInner({
   list,
@@ -44,73 +59,92 @@ function ListFormInner({
   list: ListCollectionItem;
   listId: string;
   onDelete?: () => void;
-  formRef?: React.RefObject<{ saveChanges: () => Promise<void> } | null>;
+  formRef?: React.RefObject<ListFormHandle | null>;
 }) {
   const [isPending, setIsPending] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const inFlightSaveRef = useRef<Promise<boolean> | null>(null);
 
   const form = useZodForm({
     schema: listFormSchema,
-    defaultValues: {
-      title: list.title,
-      description: list.description ?? undefined,
-    },
+    defaultValues: toFormValues(list),
   });
 
-  const onFieldBlur = async (field: keyof FormValues) => {
-    if (!form.formState.dirtyFields[field]) return;
+  const hasPendingChanges = useCallback(() => {
+    const values = form.getValues();
+    const committedValues = toFormValues(list);
+    return !areListValuesEqual(values, committedValues);
+  }, [form, list]);
 
-    setIsPending(true);
-    try {
-      const values = form.getValues();
-      await updateList({
-        id: listId,
-        data: {
-          title: values.title,
-          description: values.description ?? undefined,
-        },
-      });
-      form.reset({}, { keepValues: true, keepIsValid: true });
-      toast.success("List updated", {
-        description: "Your list has been updated successfully",
-      });
-    } catch {
-      toast.error("Failed to update list", {
-        description: "An error occurred while updating your list",
-      });
-    } finally {
-      setIsPending(false);
+  const saveChanges = useCallback(async (reason: ListFormSaveReason) => {
+    if (inFlightSaveRef.current) {
+      return inFlightSaveRef.current;
     }
-  };
 
-  const saveChanges = useCallback(async () => {
-    if (!form.formState.isDirty) return;
-
-    setIsPending(true);
-    try {
-      const values = form.getValues();
-      await updateList({
-        id: listId,
-        data: {
-          title: values.title,
-          description: values.description ?? undefined,
-        },
-      });
-      form.reset({}, { keepValues: true, keepIsValid: true });
-      toast.success("List updated", {
-        description: "Your list has been updated successfully",
-      });
-    } catch {
-      toast.error("Failed to update list", {
-        description: "An error occurred while updating your list",
-      });
-    } finally {
-      setIsPending(false);
+    if (!hasPendingChanges()) {
+      return true;
     }
-  }, [form, listId]);
+
+    const savePromise = (async (): Promise<boolean> => {
+      const values = form.getValues();
+
+      if (reason !== "navigate") {
+        const isValid = await form.trigger();
+        if (!isValid) {
+          return false;
+        }
+      } else {
+        const parsed = listFormSchema.safeParse(values);
+        if (!parsed.success) {
+          return false;
+        }
+      }
+
+      const shouldUpdateUi = reason !== "navigate";
+      if (shouldUpdateUi) {
+        setIsPending(true);
+      }
+      try {
+        await updateList({
+          id: listId,
+          data: {
+            title: values.title,
+            description: values.description ?? undefined,
+          },
+        });
+        if (shouldUpdateUi) {
+          form.reset(values, { keepIsValid: true });
+          toast.success("List updated", {
+            description: "Your list has been updated successfully",
+          });
+        }
+        return true;
+      } catch {
+        if (shouldUpdateUi) {
+          toast.error("Failed to update list", {
+            description: "An error occurred while updating your list",
+          });
+        }
+        return false;
+      } finally {
+        if (shouldUpdateUi) {
+          setIsPending(false);
+        }
+      }
+    })();
+
+    inFlightSaveRef.current = savePromise;
+    try {
+      return await savePromise;
+    } finally {
+      if (inFlightSaveRef.current === savePromise) {
+        inFlightSaveRef.current = null;
+      }
+    }
+  }, [form, hasPendingChanges, listId]);
 
   async function onSubmit() {
-    await saveChanges();
+    await saveChanges("manual");
   }
 
   async function handleDelete() {
@@ -132,9 +166,12 @@ function ListFormInner({
 
   useEffect(() => {
     if (formRef) {
-      formRef.current = { saveChanges };
+      formRef.current = {
+        saveChanges,
+        hasPendingChanges,
+      };
     }
-  }, [formRef, saveChanges]);
+  }, [formRef, hasPendingChanges, saveChanges]);
 
   return (
     <Form {...form}>
@@ -148,7 +185,7 @@ function ListFormInner({
               <FormControl>
                 <Input
                   {...field}
-                  onBlur={() => onFieldBlur("title")}
+                  value={field.value ?? ""}
                   disabled={isPending}
                 />
               </FormControl>
@@ -169,7 +206,7 @@ function ListFormInner({
               <FormControl>
                 <Textarea
                   {...field}
-                  onBlur={() => onFieldBlur("description")}
+                  value={field.value ?? ""}
                   placeholder="Add a description for your list..."
                   disabled={isPending}
                 />
@@ -186,7 +223,7 @@ function ListFormInner({
           <Button
             type="button"
             onClick={() => void onSubmit()}
-            disabled={isPending}
+            disabled={isPending || !hasPendingChanges()}
           >
             Save Changes
           </Button>
