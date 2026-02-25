@@ -116,18 +116,33 @@ function ListingFormInner({
 }) {
   const [isPending, setIsPending] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [needsParentCommit, setNeedsParentCommit] = useState(false);
   const inFlightSaveRef = useRef<Promise<boolean> | null>(null);
+  const needsParentCommitRef = useRef(needsParentCommit);
   const { textAreaRef, adjustHeight } = useAutoResizeTextArea();
+  needsParentCommitRef.current = needsParentCommit;
 
   const form = useZodForm({
     schema: listingFormSchema,
     defaultValues: toFormValues(listing),
   });
 
+  const markNeedsParentCommit = useCallback(() => {
+    if (needsParentCommitRef.current) {
+      return;
+    }
+
+    needsParentCommitRef.current = true;
+    setNeedsParentCommit(true);
+  }, []);
+
   const hasPendingChanges = useCallback(() => {
     const values = form.getValues();
     const committedValues = toFormValues(listing);
-    return !areListingValuesEqual(values, committedValues);
+    return (
+      !areListingValuesEqual(values, committedValues) ||
+      needsParentCommitRef.current
+    );
   }, [form, listing]);
 
   const saveChanges = useCallback(
@@ -142,13 +157,21 @@ function ListingFormInner({
 
       const savePromise = (async (): Promise<boolean> => {
         const values = form.getValues();
+        const committedValues = toFormValues(listing);
+        const hasFieldPending = !areListingValuesEqual(values, committedValues);
+        const shouldCommitParent =
+          hasFieldPending || needsParentCommitRef.current;
 
-        if (reason !== "navigate") {
+        if (!shouldCommitParent) {
+          return true;
+        }
+
+        if (reason !== "navigate" && hasFieldPending) {
           const isValid = await form.trigger();
           if (!isValid) {
             return false;
           }
-        } else {
+        } else if (reason === "navigate" && hasFieldPending) {
           const parsed = listingFormSchema.safeParse(values);
           if (!parsed.success) {
             return false;
@@ -166,6 +189,8 @@ function ListingFormInner({
             data: values,
           });
 
+          needsParentCommitRef.current = false;
+          setNeedsParentCommit(false);
           if (shouldUpdateUi) {
             form.reset(values, { keepIsValid: true });
             toast.success("Changes saved");
@@ -198,7 +223,7 @@ function ListingFormInner({
         }
       }
     },
-    [form, hasPendingChanges, listing.id],
+    [form, hasPendingChanges, listing],
   );
 
   useEffect(() => {
@@ -226,6 +251,7 @@ function ListingFormInner({
           removeListingFromList({ listId, listingId }),
         ),
       ]);
+      markNeedsParentCommit();
       toast.success("Lists updated");
     } catch (error) {
       toast.error("Failed to update lists", {
@@ -300,10 +326,15 @@ function ListingFormInner({
               type="listing"
               images={images}
               referenceId={listingId}
+              onMutationSuccess={markNeedsParentCommit}
             />
             {images.length < LISTING_CONFIG.IMAGES.MAX_COUNT && (
               <div className="p-4">
-                <ImageUpload type="listing" referenceId={listingId} />
+                <ImageUpload
+                  type="listing"
+                  referenceId={listingId}
+                  onMutationSuccess={markNeedsParentCommit}
+                />
               </div>
             )}
           </div>
@@ -434,6 +465,7 @@ function ListingFormInner({
             onNameChange={(name) => {
               form.setValue("title", name);
             }}
+            onMutationSuccess={markNeedsParentCommit}
           />
           <p className="text-muted-foreground text-[0.8rem]">
             Optional. Link your listing to a daylily database listing to

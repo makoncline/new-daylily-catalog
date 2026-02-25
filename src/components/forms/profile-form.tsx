@@ -78,13 +78,17 @@ export function ProfileForm({ initialProfile, formRef }: ProfileFormProps) {
   const [profile, setProfile] = useState(initialProfile);
   const [isUpdating, setIsUpdating] = useState(false);
   const [isCheckingSlug, setIsCheckingSlug] = useState(false);
+  const [needsParentCommit, setNeedsParentCommit] = useState(false);
   const [showSlugEditWarningDialog, setShowSlugEditWarningDialog] =
     useState(false);
   const [isSlugEditingUnlocked, setIsSlugEditingUnlocked] = useState(false);
   const slugInputRef = useRef<HTMLInputElement | null>(null);
   const contentFormRef = useRef<ContentManagerFormHandle | null>(null);
   const inFlightSaveRef = useRef<Promise<boolean> | null>(null);
+  const needsParentCommitRef = useRef(needsParentCommit);
   const { isPro } = usePro();
+  const utils = api.useUtils();
+  needsParentCommitRef.current = needsParentCommit;
 
   const cleanBaseUrl = getBaseUrl().replace(/^https?:\/\//, "");
 
@@ -125,12 +129,25 @@ export function ProfileForm({ initialProfile, formRef }: ProfileFormProps) {
     500,
   );
 
+  const markNeedsParentCommit = useCallback(() => {
+    if (needsParentCommitRef.current) {
+      return;
+    }
+
+    needsParentCommitRef.current = true;
+    setNeedsParentCommit(true);
+  }, []);
+
   const hasPendingChanges = useCallback(() => {
     const values = form.getValues();
     const committedValues = toFormValues(profile);
     const hasContentPending = contentFormRef.current?.hasPendingChanges() ?? false;
 
-    return !areProfileValuesEqual(values, committedValues) || hasContentPending;
+    return (
+      !areProfileValuesEqual(values, committedValues) ||
+      hasContentPending ||
+      needsParentCommitRef.current
+    );
   }, [form, profile]);
 
   const saveChangesInternal = useCallback(
@@ -152,13 +169,16 @@ export function ProfileForm({ initialProfile, formRef }: ProfileFormProps) {
             }
             return false;
           }
+          markNeedsParentCommit();
         }
 
         const values = form.getValues();
         const committedValues = toFormValues(profile);
         const hasFieldPending = !areProfileValuesEqual(values, committedValues);
+        const shouldCommitParent =
+          hasFieldPending || needsParentCommitRef.current;
 
-        if (!hasFieldPending && !hadContentPending) {
+        if (!shouldCommitParent) {
           return true;
         }
 
@@ -175,12 +195,17 @@ export function ProfileForm({ initialProfile, formRef }: ProfileFormProps) {
             }
           }
 
-          const updatedProfile = await updateProfileMutation.mutateAsync({
-            data: values,
-          });
-          setProfile(updatedProfile);
-          form.reset(toFormValues(updatedProfile), { keepIsValid: true });
         }
+
+        const updatedProfile = await updateProfileMutation.mutateAsync({
+          data: values,
+        });
+        setProfile(updatedProfile);
+        form.reset(toFormValues(updatedProfile), { keepIsValid: true });
+        needsParentCommitRef.current = false;
+        setNeedsParentCommit(false);
+        utils.dashboardDb.userProfile.get.setData(undefined, updatedProfile);
+        void utils.dashboardDb.userProfile.get.invalidate();
 
         if (shouldUpdateUi) {
           toast.success("Changes saved");
@@ -204,7 +229,7 @@ export function ProfileForm({ initialProfile, formRef }: ProfileFormProps) {
         }
       }
     },
-    [form, profile, updateProfileMutation],
+    [form, markNeedsParentCommit, profile, updateProfileMutation, utils],
   );
 
   const saveChanges = useCallback(
@@ -381,7 +406,10 @@ export function ProfileForm({ initialProfile, formRef }: ProfileFormProps) {
               Upload images to showcase your garden. You can reorder them by
               dragging.
             </p>
-            <ProfileImageManager profileId={profile.id} />
+            <ProfileImageManager
+              profileId={profile.id}
+              onMutationSuccess={markNeedsParentCommit}
+            />
           </FormItem>
 
           <FormField
@@ -431,7 +459,11 @@ export function ProfileForm({ initialProfile, formRef }: ProfileFormProps) {
             </Button>
           </div>
 
-          <ContentManagerFormItem initialProfile={profile} formRef={contentFormRef} />
+          <ContentManagerFormItem
+            initialProfile={profile}
+            formRef={contentFormRef}
+            onMutationSuccess={markNeedsParentCommit}
+          />
         </form>
       </Form>
 

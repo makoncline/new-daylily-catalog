@@ -25,11 +25,13 @@ export interface ContentManagerFormHandle {
 interface ContentManagerFormProps {
   initialProfile: RouterOutputs["dashboardDb"]["userProfile"]["get"];
   formRef?: React.RefObject<ContentManagerFormHandle | null>;
+  onMutationSuccess?: () => void;
 }
 
 export function ContentManagerFormItem({
   initialProfile,
   formRef,
+  onMutationSuccess,
 }: ContentManagerFormProps) {
   const [isSaving, setIsSaving] = React.useState(false);
   const [lastSaved, setLastSaved] = React.useState(() => initialProfile.content);
@@ -114,6 +116,8 @@ export function ContentManagerFormItem({
             setIsDirty(false);
           }
 
+          onMutationSuccess?.();
+
           return true;
         } catch (error) {
           if (reason === "outside") {
@@ -143,7 +147,7 @@ export function ContentManagerFormItem({
         }
       }
     },
-    [updateContentMutation],
+    [onMutationSuccess, updateContentMutation],
   );
 
   React.useEffect(() => {
