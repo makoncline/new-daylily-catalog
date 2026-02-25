@@ -8,6 +8,7 @@ import {
 
 const mockPush = vi.fn();
 const mockReplace = vi.fn();
+const toastErrorMock = vi.hoisted(() => vi.fn());
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({
@@ -15,6 +16,25 @@ vi.mock("next/navigation", () => ({
     replace: mockReplace,
   }),
 }));
+
+vi.mock("sonner", () => ({
+  toast: {
+    error: toastErrorMock,
+  },
+}));
+
+interface Deferred<T> {
+  promise: Promise<T>;
+  resolve: (value: T) => void;
+}
+
+function createDeferred<T>(): Deferred<T> {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>((res) => {
+    resolve = res;
+  });
+  return { promise, resolve };
+}
 
 function SaveBeforeNavigateHarness({
   handle,
@@ -29,6 +49,9 @@ function SaveBeforeNavigateHarness({
       <a href="/dashboard/listings" data-testid="nav-listings">
         Listings
       </a>
+      <a href="/dashboard/lists" data-testid="nav-lists">
+        Lists
+      </a>
       <a href="#section" data-testid="nav-hash">
         Section
       </a>
@@ -40,6 +63,7 @@ describe("useSaveBeforeNavigate", () => {
   beforeEach(() => {
     mockPush.mockReset();
     mockReplace.mockReset();
+    toastErrorMock.mockReset();
     window.history.pushState({}, "", "/dashboard/profile");
   });
 
@@ -78,6 +102,36 @@ describe("useSaveBeforeNavigate", () => {
       expect(handle.saveChanges).toHaveBeenCalledTimes(1);
     });
     expect(mockPush).not.toHaveBeenCalled();
+    expect(toastErrorMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("honors the latest click while save is in-flight", async () => {
+    let hasPending = true;
+    const saveDeferred = createDeferred<boolean>();
+
+    const handle: SaveOnNavigateHandle<"navigate"> = {
+      hasPendingChanges: vi.fn(() => hasPending),
+      saveChanges: vi.fn(async () => {
+        const didSave = await saveDeferred.promise;
+        hasPending = !didSave;
+        return didSave;
+      }),
+    };
+
+    render(<SaveBeforeNavigateHarness handle={handle} />);
+
+    fireEvent.click(screen.getByTestId("nav-listings"));
+    fireEvent.click(screen.getByTestId("nav-lists"));
+
+    expect(handle.saveChanges).toHaveBeenCalledTimes(1);
+    expect(mockPush).not.toHaveBeenCalled();
+
+    saveDeferred.resolve(true);
+
+    await waitFor(() => {
+      expect(mockPush).toHaveBeenCalled();
+    });
+    expect(mockPush).toHaveBeenLastCalledWith("/dashboard/lists");
   });
 
   it("prompts beforeunload when changes are pending", () => {

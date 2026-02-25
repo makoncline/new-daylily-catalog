@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, type RefObject } from "react";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 
 export interface SaveOnNavigateHandle<TReason extends string = "navigate"> {
   hasPendingChanges: () => boolean;
@@ -42,8 +43,12 @@ export function useSaveBeforeNavigate<TReason extends string = "navigate">(
         return true;
       }
 
+      const hadInFlightSave = savingRef.current !== null;
       const ok = await saveIfDirty();
       if (!ok) {
+        if (!hadInFlightSave) {
+          toast.error("Fix errors before leaving");
+        }
         return false;
       }
 
@@ -135,10 +140,6 @@ export function useSaveBeforeNavigate<TReason extends string = "navigate">(
       }
 
       event.preventDefault();
-      if (savingRef.current) {
-        return;
-      }
-
       void attemptNavigate(nextPath, "push");
     };
 
