@@ -17,7 +17,7 @@ import {
 import { ListFormSkeleton } from "@/components/forms/list-form-skeleton";
 import { useRef, useEffect, Suspense } from "react";
 import { atom, useAtom } from "jotai";
-import { useRouter, useSearchParams } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useSaveBeforeNavigate } from "@/hooks/use-save-before-navigate";
 
 // Atom for editing state
@@ -26,6 +26,7 @@ export const editingListIdAtom = atom<string | null>(null);
 export const useEditList = () => {
   const [editingId, setEditingId] = useAtom(editingListIdAtom);
   const router = useRouter();
+  const pathname = usePathname();
   const searchParams = useSearchParams();
   const hasInitialized = useRef(false);
 
@@ -43,15 +44,17 @@ export const useEditList = () => {
       params.delete("editing");
     }
 
-    const newUrl = `?${params.toString()}`;
-    const currentUrl = searchParams.toString()
-      ? `?${searchParams.toString()}`
-      : "";
+    const nextSearch = params.toString();
+    const newUrl = nextSearch ? `${pathname}?${nextSearch}` : pathname;
+    const currentSearch = searchParams.toString();
+    const currentUrl = currentSearch
+      ? `${pathname}?${currentSearch}`
+      : pathname;
 
     if (newUrl !== currentUrl) {
-      router.push(newUrl);
+      router.replace(newUrl);
     }
-  }, [editingId, router, searchParams]);
+  }, [editingId, pathname, router, searchParams]);
 
   // Initialize from URL on first load
   useEffect(() => {
