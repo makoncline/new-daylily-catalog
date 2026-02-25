@@ -20,6 +20,7 @@ vi.mock("@/server/stripe/sync-subscription", () => ({
 }));
 
 import { getPublicProfiles } from "@/server/db/getPublicProfiles";
+import { applyWhereIn } from "./test-utils/apply-where-in";
 
 interface UserFindManyArgs {
   where?: {
@@ -30,16 +31,6 @@ interface UserFindManyArgs {
       not?: null;
     };
   };
-}
-
-function applyIdWhereFilter<T extends { id: string }>(rows: T[], args: unknown) {
-  const allowedIds = (args as UserFindManyArgs | undefined)?.where?.id?.in;
-
-  if (!Array.isArray(allowedIds)) {
-    return rows;
-  }
-
-  return rows.filter((row) => allowedIds.includes(row.id));
 }
 
 describe("getPublicProfiles", () => {
@@ -113,7 +104,7 @@ describe("getPublicProfiles", () => {
     ];
 
     mockDb.user.findMany.mockImplementation((args: unknown) => {
-      const filteredById = applyIdWhereFilter(users, args);
+      const filteredById = applyWhereIn(users, args, "id");
       const requiresStripeCustomerId =
         (args as UserFindManyArgs | undefined)?.where?.stripeCustomerId?.not ===
         null;

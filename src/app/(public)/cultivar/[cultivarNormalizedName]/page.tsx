@@ -105,7 +105,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   }
 
   const title = `${cultivarPage.summary.name} | ${METADATA_CONFIG.SITE_NAME}`;
-  const description = `${cultivarPage.summary.name} with ${cultivarPage.offers.summary.offersCount} public offers across ${cultivarPage.offers.summary.gardensCount} pro catalogs.`;
+  const description = `${cultivarPage.summary.name} with ${cultivarPage.offers.summary.offersCount} public offers across ${cultivarPage.offers.summary.gardensCount} catalogs.`;
   const pageUrl = `${baseUrl}/cultivar/${canonicalSegment}`;
   const rawImageUrl = cultivarPage.heroImages[0]?.url ?? IMAGES.DEFAULT_META;
   const imageUrl = getOptimizedMetaImageUrl(rawImageUrl);

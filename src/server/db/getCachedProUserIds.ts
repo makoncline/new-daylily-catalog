@@ -24,4 +24,5 @@ async function getProUserIds(): Promise<string[]> {
 export const getCachedProUserIds = createServerCache(getProUserIds, {
   key: "public:pro-user-ids",
   revalidateSeconds: CACHE_CONFIG.DURATIONS.MINUTE * 5,
+  tags: [CACHE_CONFIG.TAGS.PUBLIC_PRO_USER_IDS],
 });

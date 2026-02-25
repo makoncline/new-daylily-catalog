@@ -2,6 +2,17 @@
 
 ## Log
 
+- 2026-02-25 - self-miss shell quoting recurrence - I ran `rg` against unquoted paths containing `(` and `)` and hit zsh glob expansion errors; always quote App Router paths in shell commands.
+- 2026-02-25 - self-miss shell quoting repeat - I repeated the same unquoted-path miss with `git diff` on `src/app/(public)/.../[param]`; quote these paths every time, even for one-off checks.
+- 2026-02-25 - self-miss napkin disclosure - I announced napkin-skill execution in a status update; follow the skill strictly and apply napkin silently.
+- 2026-02-25 - policy-copy consistency - After removing cultivar-page pro gating, metadata copy must say `catalogs` (not `pro catalogs`) to match behavior.
+- 2026-02-25 - cultivar ISR simplification - User wants cultivar page logic subscription-agnostic (no pro gating in page lookup/offers); keep pro-only filtering only on discovery surfaces (`/catalogs` and sitemap).
+- 2026-02-25 - invalidation scope preference - User wants invalidation minimalism: allow webhook revalidation only for the pro-user-id cache tag, keep broader public-page invalidation deferred.
+- 2026-02-25 - defer invalidation complexity - User prefers no webhook-driven cache invalidation for public discovery yet; keep TTL-only revalidation and postpone granular tag invalidation until explicitly prioritized.
+- 2026-02-25 - next revalidateTag signature - In this repo’s Next version, `revalidateTag` requires a second profile argument; use `revalidateTag(tag, "max")` in route handlers.
+- 2026-02-25 - subscription lookup log noise - For `getProUserIdSet`, aggregate failed subscription lookups into one warning (and suppress in test env) instead of per-user `console.error` spam.
+- 2026-02-25 - simplification expectation reset - User wants aggressive simplification passes when policy-consistent options exist; prioritize centralized policy helpers and deletion of dead paths instead of defending legacy structure.
+- 2026-02-25 - test mock dedupe - Repeated `where.<field>.in` mock filtering in public discovery tests should live in a shared `tests/test-utils/apply-where-in.ts` helper to keep test setup lean.
 - 2026-02-25 - shared pro-id source pattern - Discovery surfaces are simpler when they consume one cached `getCachedProUserIds` helper (users with `stripeCustomerId != null` -> `getProUserIdSet`) instead of each module rebuilding membership lookup.
 - 2026-02-25 - mock alignment for where.in filters - When production code pushes `id/userId in [...]` into Prisma queries, tests should make `findMany/groupBy` mocks apply those `where` constraints; otherwise free-tier fixtures leak into expected pro-only outputs.
 - 2026-02-25 - public filter builders - Keep discovery visibility logic DRY with shared Prisma `where` builders (`isPublished`, `hasActiveSubscription`, `shouldShowToPublic`) and reuse them across catalogs/cultivars/profile queries instead of duplicating inline status + pro-user conditions.

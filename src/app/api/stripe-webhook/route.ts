@@ -1,4 +1,6 @@
 import { NextResponse } from "next/server";
+import { revalidateTag } from "next/cache";
+import { CACHE_CONFIG } from "@/config/cache-config";
 import { env } from "@/env";
 import { stripe } from "@/server/stripe/client";
 import type Stripe from "stripe";
@@ -54,6 +56,7 @@ export async function POST(req: Request) {
       const customerId = getCustomerIdFromEvent(event);
       if (customerId) {
         await syncStripeSubscriptionToKV(customerId);
+        revalidateTag(CACHE_CONFIG.TAGS.PUBLIC_PRO_USER_IDS, "max");
       }
     } catch (error) {
       console.error("Error processing webhook:", error);

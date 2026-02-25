@@ -13,20 +13,41 @@ export async function getProUserIdSet(
     return new Set();
   }
 
-  const proUserIds = await Promise.all(
+  const resolutionResults = await Promise.all(
     users.map(async (user) => {
       try {
         const subscription = await getStripeSubscription(user.stripeCustomerId);
-        return hasActiveSubscription(subscription.status) ? user.id : null;
-      } catch (error) {
-        console.error("Failed to resolve subscription status for public visibility:", {
-          userId: user.id,
-          error,
-        });
-        return null;
+        return {
+          userId: hasActiveSubscription(subscription.status) ? user.id : null,
+          failedUserId: null as string | null,
+        };
+      } catch {
+        return {
+          userId: null,
+          failedUserId: user.id,
+        };
       }
     }),
   );
 
-  return new Set(proUserIds.filter((userId): userId is string => Boolean(userId)));
+  const failedUserIds = resolutionResults
+    .map((result) => result.failedUserId)
+    .filter((userId): userId is string => Boolean(userId));
+
+  if (
+    failedUserIds.length > 0 &&
+    process.env.NODE_ENV !== "test" &&
+    process.env.VITEST !== "true"
+  ) {
+    console.warn("Failed to resolve some subscription statuses for public visibility", {
+      failedCount: failedUserIds.length,
+      sampleUserIds: failedUserIds.slice(0, 5),
+    });
+  }
+
+  return new Set(
+    resolutionResults
+      .map((result) => result.userId)
+      .filter((userId): userId is string => Boolean(userId)),
+  );
 }
