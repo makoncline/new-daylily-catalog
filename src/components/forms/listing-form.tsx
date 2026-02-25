@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { eq, useLiveQuery } from "@tanstack/react-db";
 import { type Image } from "@prisma/client";
 import { toast } from "sonner";
@@ -65,7 +65,36 @@ type LinkedAhsListing = CultivarReferenceCollectionItem["ahsListing"];
 interface ListingFormProps {
   listingId: string;
   onDelete: () => void;
-  formRef?: React.RefObject<{ saveChanges: () => Promise<void> } | null>;
+  formRef?: React.RefObject<ListingFormHandle | null>;
+}
+
+export type ListingFormSaveReason = "manual" | "close" | "navigate";
+
+export interface ListingFormHandle {
+  saveChanges: (reason: ListingFormSaveReason) => Promise<boolean>;
+  hasPendingChanges: () => boolean;
+}
+
+function toFormValues(listing: ListingCollectionItem): ListingFormData {
+  const normalizedStatus =
+    listing.status === STATUS.HIDDEN ? STATUS.HIDDEN : null;
+
+  return transformNullToUndefined(
+    listingFormSchema.parse({
+      ...listing,
+      status: normalizedStatus,
+    }),
+  )!;
+}
+
+function areListingValuesEqual(a: ListingFormData, b: ListingFormData): boolean {
+  return (
+    a.title === b.title &&
+    a.description === b.description &&
+    a.price === b.price &&
+    a.status === b.status &&
+    a.privateNote === b.privateNote
+  );
 }
 
 function ListingFormInner({
@@ -83,96 +112,129 @@ function ListingFormInner({
   images: Image[];
   selectedListIds: string[];
   onDelete: () => void;
-  formRef?: React.RefObject<{ saveChanges: () => Promise<void> } | null>;
+  formRef?: React.RefObject<ListingFormHandle | null>;
 }) {
   const [isPending, setIsPending] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [needsParentCommit, setNeedsParentCommit] = useState(false);
+  const inFlightSaveRef = useRef<Promise<boolean> | null>(null);
+  const needsParentCommitRef = useRef(needsParentCommit);
   const { textAreaRef, adjustHeight } = useAutoResizeTextArea();
-
-  const normalizedStatus =
-    listing.status === STATUS.HIDDEN ? STATUS.HIDDEN : null;
+  needsParentCommitRef.current = needsParentCommit;
 
   const form = useZodForm({
     schema: listingFormSchema,
-    defaultValues: transformNullToUndefined(
-      listingFormSchema.parse({
-        ...listing,
-        status: normalizedStatus,
-      }),
-    ),
+    defaultValues: toFormValues(listing),
   });
 
-  const saveField = async <T extends keyof ListingFormData>(
-    field: T,
-    value: ListingFormData[T],
-  ) => {
-    setIsPending(true);
-    try {
-      await updateListing({
-        id: listing.id,
-        data: {
-          [field]: value,
-        },
-      });
-
-      form.reset({}, { keepValues: true, keepIsValid: true });
-      toast.success("Changes saved");
-    } catch (error) {
-      toast.error("Failed to save changes", {
-        description: getErrorMessage(error),
-      });
-      reportError({
-        error: normalizeError(error),
-        context: { source: "ListingForm", field },
-      });
-    } finally {
-      setIsPending(false);
+  const markNeedsParentCommit = useCallback(() => {
+    if (needsParentCommitRef.current) {
+      return;
     }
-  };
 
-  const saveChanges = useCallback(async () => {
-    setIsPending(true);
-    try {
-      const values = form.getValues();
-      await updateListing({
-        id: listing.id,
-        data: values,
-      });
+    needsParentCommitRef.current = true;
+    setNeedsParentCommit(true);
+  }, []);
 
-      form.reset({}, { keepValues: true, keepIsValid: true });
-      toast.success("Changes saved");
-    } catch (error) {
-      toast.error("Failed to save changes", {
-        description: getErrorMessage(error),
-      });
-      reportError({
-        error: normalizeError(error),
-        context: { source: "ListingForm" },
-      });
-    } finally {
-      setIsPending(false);
-    }
-  }, [form, listing.id]);
+  const hasPendingChanges = useCallback(() => {
+    const values = form.getValues();
+    const committedValues = toFormValues(listing);
+    return (
+      !areListingValuesEqual(values, committedValues) ||
+      needsParentCommitRef.current
+    );
+  }, [form, listing]);
+
+  const saveChanges = useCallback(
+    async (reason: ListingFormSaveReason): Promise<boolean> => {
+      if (inFlightSaveRef.current) {
+        return inFlightSaveRef.current;
+      }
+
+      if (!hasPendingChanges()) {
+        return true;
+      }
+
+      const savePromise = (async (): Promise<boolean> => {
+        const values = form.getValues();
+        const committedValues = toFormValues(listing);
+        const hasFieldPending = !areListingValuesEqual(values, committedValues);
+        const shouldCommitParent =
+          hasFieldPending || needsParentCommitRef.current;
+
+        if (!shouldCommitParent) {
+          return true;
+        }
+
+        if (reason !== "navigate" && hasFieldPending) {
+          const isValid = await form.trigger();
+          if (!isValid) {
+            return false;
+          }
+        } else if (reason === "navigate" && hasFieldPending) {
+          const parsed = listingFormSchema.safeParse(values);
+          if (!parsed.success) {
+            return false;
+          }
+        }
+
+        const shouldUpdateUi = reason !== "navigate";
+        if (shouldUpdateUi) {
+          setIsPending(true);
+        }
+
+        try {
+          await updateListing({
+            id: listing.id,
+            data: values,
+          });
+
+          needsParentCommitRef.current = false;
+          setNeedsParentCommit(false);
+          if (shouldUpdateUi) {
+            form.reset(values, { keepIsValid: true });
+          }
+          toast.success("Changes saved");
+          return true;
+        } catch (error) {
+          if (shouldUpdateUi) {
+            toast.error("Failed to save changes", {
+              description: getErrorMessage(error),
+            });
+            reportError({
+              error: normalizeError(error),
+              context: { source: "ListingForm", reason },
+            });
+          }
+          return false;
+        } finally {
+          if (shouldUpdateUi) {
+            setIsPending(false);
+          }
+        }
+      })();
+
+      inFlightSaveRef.current = savePromise;
+      try {
+        return await savePromise;
+      } finally {
+        if (inFlightSaveRef.current === savePromise) {
+          inFlightSaveRef.current = null;
+        }
+      }
+    },
+    [form, hasPendingChanges, listing],
+  );
 
   useEffect(() => {
     if (formRef) {
-      formRef.current = { saveChanges };
+      formRef.current = { saveChanges, hasPendingChanges };
     }
-  }, [formRef, saveChanges]);
+  }, [formRef, hasPendingChanges, saveChanges]);
 
   async function onSubmit() {
-    await saveChanges();
+    await saveChanges("manual");
   }
-
-  const onFieldBlur = async (field: keyof ListingFormData) => {
-    if (!form.formState.dirtyFields[field]) return;
-
-    const isValid = await form.trigger(field);
-    if (!isValid) return;
-
-    const value = form.getValues(field);
-    await saveField(field, value);
-  };
 
   const handleUpdateLists = async (nextListIds: string[]) => {
     setIsPending(true);
@@ -189,6 +251,7 @@ function ListingFormInner({
           removeListingFromList({ listId, listingId }),
         ),
       ]);
+      markNeedsParentCommit();
       toast.success("Lists updated");
     } catch (error) {
       toast.error("Failed to update lists", {
@@ -241,7 +304,7 @@ function ListingFormInner({
               <FormControl>
                 <Input
                   {...field}
-                  onBlur={() => void onFieldBlur("title")}
+                  value={field.value ?? ""}
                   disabled={isPending}
                 />
               </FormControl>
@@ -263,10 +326,15 @@ function ListingFormInner({
               type="listing"
               images={images}
               referenceId={listingId}
+              onMutationSuccess={markNeedsParentCommit}
             />
             {images.length < LISTING_CONFIG.IMAGES.MAX_COUNT && (
               <div className="p-4">
-                <ImageUpload type="listing" referenceId={listingId} />
+                <ImageUpload
+                  type="listing"
+                  referenceId={listingId}
+                  onMutationSuccess={markNeedsParentCommit}
+                />
               </div>
             )}
           </div>
@@ -287,7 +355,6 @@ function ListingFormInner({
                     field.onChange(e);
                     adjustHeight();
                   }}
-                  onBlur={() => void onFieldBlur("description")}
                   className="min-h-[100px]"
                   disabled={isPending}
                 />
@@ -310,7 +377,6 @@ function ListingFormInner({
                 <CurrencyInput
                   value={field.value}
                   onChange={field.onChange}
-                  onValueBlur={() => void onFieldBlur("price")}
                   disabled={isPending}
                 />
               </FormControl>
@@ -334,7 +400,6 @@ function ListingFormInner({
                     value === "published" ? STATUS.PUBLISHED : STATUS.HIDDEN;
 
                   field.onChange(dbValue);
-                  void saveField("status", dbValue);
                 }}
                 value={getUIStatusValue(field.value)}
                 disabled={isPending}
@@ -367,7 +432,6 @@ function ListingFormInner({
                 <Textarea
                   {...field}
                   value={field.value ?? ""}
-                  onBlur={() => void onFieldBlur("privateNote")}
                   disabled={isPending}
                 />
               </FormControl>
@@ -401,6 +465,7 @@ function ListingFormInner({
             onNameChange={(name) => {
               form.setValue("title", name);
             }}
+            onMutationSuccess={markNeedsParentCommit}
           />
           <p className="text-muted-foreground text-[0.8rem]">
             Optional. Link your listing to a daylily database listing to
@@ -413,7 +478,7 @@ function ListingFormInner({
           <Button
             type="button"
             onClick={() => void onSubmit()}
-            disabled={isPending}
+            disabled={isPending || !hasPendingChanges()}
           >
             Save Changes
           </Button>

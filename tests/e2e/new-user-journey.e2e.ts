@@ -58,9 +58,34 @@ test.describe("new user journey @local", () => {
         const testContent = "This is test content for the profile.";
 
         await dashboardProfile.fillGardenName(testGardenName);
+
+        // Navigate away and back to verify profile edits are saved on navigation.
+        await dashboardShell.goToListings();
+        await expect(page).toHaveURL(/\/dashboard\/listings/);
+        await dashboardListings.isReady();
+
+        await dashboardShell.goToProfile();
+        await expect(page).toHaveURL(/\/dashboard\/profile/);
+        await dashboardProfile.isReady();
+        await expect(dashboardProfile.gardenNameInput).toHaveValue(
+          testGardenName,
+        );
+
+        await expect(dashboardProfile.saveChangesButton).toBeDisabled();
+
+        await dashboardProfile.fillContent(testContent);
+        await expect(dashboardProfile.saveChangesButton).toBeEnabled();
+
         await dashboardProfile.fillDescription(testDescription);
         await dashboardProfile.fillLocation(testLocation);
-        await dashboardProfile.fillContent(testContent);
+
+        const profileSaveRequest = page.waitForResponse(
+          (response) => response.url().includes("dashboardDb.userProfile.update"),
+          { timeout: 15000 },
+        );
+        await dashboardProfile.saveChangesButton.click();
+        await profileSaveRequest;
+        await expect(dashboardProfile.saveChangesButton).toBeDisabled();
 
         // add a profile image. too hard to mock so we just add it to the database directly
         const clerkUserId = await getClerkUserIdByEmail(testEmail);

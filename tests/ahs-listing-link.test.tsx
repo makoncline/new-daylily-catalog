@@ -154,4 +154,29 @@ describe("AhsListingLink", () => {
       });
     });
   });
+
+  it("calls onMutationSuccess after successful link", async () => {
+    mockLinkAhs.mockResolvedValue(
+      createListing({
+        cultivarReferenceId: "cr-ahs-2",
+      }),
+    );
+    const onMutationSuccess = vi.fn();
+
+    render(
+      <AhsListingLink
+        listing={createListing({
+          cultivarReferenceId: null,
+        })}
+        linkedAhs={null}
+        onMutationSuccess={onMutationSuccess}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "Select AHS" }));
+
+    await waitFor(() => {
+      expect(onMutationSuccess).toHaveBeenCalledTimes(1);
+    });
+  });
 });
