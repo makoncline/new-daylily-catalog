@@ -71,13 +71,21 @@ test.describe("new user journey @local", () => {
           testGardenName,
         );
 
-        // Content changes should enable the parent Save Changes button.
         await expect(dashboardProfile.saveChangesButton).toBeDisabled();
+
         await dashboardProfile.fillContent(testContent);
         await expect(dashboardProfile.saveChangesButton).toBeEnabled();
 
         await dashboardProfile.fillDescription(testDescription);
         await dashboardProfile.fillLocation(testLocation);
+
+        const profileSaveRequest = page.waitForResponse(
+          (response) => response.url().includes("dashboardDb.userProfile.update"),
+          { timeout: 15000 },
+        );
+        await dashboardProfile.saveChangesButton.click();
+        await profileSaveRequest;
+        await expect(dashboardProfile.saveChangesButton).toBeDisabled();
 
         // add a profile image. too hard to mock so we just add it to the database directly
         const clerkUserId = await getClerkUserIdByEmail(testEmail);

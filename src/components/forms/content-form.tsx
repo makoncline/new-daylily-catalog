@@ -26,12 +26,14 @@ interface ContentManagerFormProps {
   initialProfile: RouterOutputs["dashboardDb"]["userProfile"]["get"];
   formRef?: React.RefObject<ContentManagerFormHandle | null>;
   onMutationSuccess?: () => void;
+  onDirtyChange?: (isDirty: boolean) => void;
 }
 
 export function ContentManagerFormItem({
   initialProfile,
   formRef,
   onMutationSuccess,
+  onDirtyChange,
 }: ContentManagerFormProps) {
   const [isSaving, setIsSaving] = React.useState(false);
   const [lastSaved, setLastSaved] = React.useState(() => initialProfile.content);
@@ -58,6 +60,10 @@ export function ContentManagerFormItem({
   const hasPendingChanges = React.useCallback(() => {
     return isDirtyRef.current;
   }, []);
+
+  React.useEffect(() => {
+    onDirtyChange?.(isDirty);
+  }, [isDirty, onDirtyChange]);
 
   const saveChanges = React.useCallback(
     async (reason: ContentManagerSaveReason): Promise<boolean> => {

@@ -79,6 +79,7 @@ export function ProfileForm({ initialProfile, formRef }: ProfileFormProps) {
   const [isUpdating, setIsUpdating] = useState(false);
   const [isCheckingSlug, setIsCheckingSlug] = useState(false);
   const [needsParentCommit, setNeedsParentCommit] = useState(false);
+  const [isContentDirty, setIsContentDirty] = useState(false);
   const [showSlugEditWarningDialog, setShowSlugEditWarningDialog] =
     useState(false);
   const [isSlugEditingUnlocked, setIsSlugEditingUnlocked] = useState(false);
@@ -141,14 +142,13 @@ export function ProfileForm({ initialProfile, formRef }: ProfileFormProps) {
   const hasPendingChanges = useCallback(() => {
     const values = form.getValues();
     const committedValues = toFormValues(profile);
-    const hasContentPending = contentFormRef.current?.hasPendingChanges() ?? false;
 
     return (
       !areProfileValuesEqual(values, committedValues) ||
-      hasContentPending ||
+      isContentDirty ||
       needsParentCommitRef.current
     );
-  }, [form, profile]);
+  }, [form, isContentDirty, profile]);
 
   const saveChangesInternal = useCallback(
     async (reason: ProfileFormSaveReason): Promise<boolean> => {
@@ -460,6 +460,7 @@ export function ProfileForm({ initialProfile, formRef }: ProfileFormProps) {
             initialProfile={profile}
             formRef={contentFormRef}
             onMutationSuccess={markNeedsParentCommit}
+            onDirtyChange={setIsContentDirty}
           />
         </form>
       </Form>

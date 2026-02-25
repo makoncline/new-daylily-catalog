@@ -66,6 +66,7 @@ function ListFormInner({
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [needsParentCommit, setNeedsParentCommit] = useState(false);
   const inFlightSaveRef = useRef<Promise<boolean> | null>(null);
+  const committedValuesRef = useRef<ListFormData>(toFormValues(list));
   const needsParentCommitRef = useRef(needsParentCommit);
   needsParentCommitRef.current = needsParentCommit;
 
@@ -167,6 +168,26 @@ function ListFormInner({
       }
     }
   }, [form, hasPendingChanges, list, listId]);
+
+  useEffect(() => {
+    const nextCommittedValues = toFormValues(list);
+    const previousCommittedValues = committedValuesRef.current;
+    const currentValues = form.getValues();
+    const hasLocalFieldChanges = !areListValuesEqual(
+      currentValues,
+      previousCommittedValues,
+    );
+
+    committedValuesRef.current = nextCommittedValues;
+
+    if (hasLocalFieldChanges || needsParentCommitRef.current) {
+      return;
+    }
+
+    if (!areListValuesEqual(currentValues, nextCommittedValues)) {
+      form.reset(nextCommittedValues, { keepIsValid: true });
+    }
+  }, [form, list]);
 
   async function onSubmit() {
     await saveChanges("manual");

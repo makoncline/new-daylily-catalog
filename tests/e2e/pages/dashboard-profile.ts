@@ -88,10 +88,6 @@ export class DashboardProfile {
     await editableElement.press(selectAll);
     await editableElement.press("Backspace");
     await editableElement.type(text);
-    const saveRequest = this.page.waitForResponse((response) => {
-      return response.url().includes("userProfile.updateContent");
-    });
     await this.heading.click();
-    await saveRequest;
   }
 }
