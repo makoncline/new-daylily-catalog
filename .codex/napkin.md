@@ -2,6 +2,9 @@
 
 ## Log
 
+- 2026-02-25 - reset-and-rebuild workflow - User requested hard reset to `origin/main` and a simpler autosave architecture; phased reimplementation with separate commits kept migration manageable.
+- 2026-02-25 - page autosave pattern - In App Router, the minimal deterministic approach is a page-scoped click-capture + `beforeunload` hook with a single form handle (`useSaveBeforeNavigate`), not save-on-unmount.
+- 2026-02-25 - boundary commit simplification - Removing `onBlur` mutations from list/listing/profile and using `saveChanges(reason)` made semantics easier to reason about and test.
 - 2026-02-24 - PR cache strategy summary - Public SEO routes use static/ISR with 24h revalidation, while `/{slug}/search` stays dynamic + noindex with 24h server/client freshness controls.
 - 2026-02-24 - PR cache implementation summary - Cache timings are centralized in `cache-config.ts`; server/client cache helpers are shared; `src/trpc/server.ts` is restored for future RSC calls; public slug/id lookup uses cached `getUserIdFromSlugOrId` with dedicated profile TTL.
 - 2026-02-24 - PR scope boundaries - TanStack DB internals are out of cache-removal scope; dashboard DB and public catalog search IndexedDB persistence remain enabled; profile-page client prefetch warmup stays removed.
