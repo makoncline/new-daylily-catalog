@@ -1,6 +1,6 @@
 import { db } from "@/server/db";
-import { STATUS } from "@/config/constants";
 import { getProUserIdSet } from "@/server/db/getProUserIdSet";
+import { isPublished } from "@/server/db/public-visibility/filters";
 
 export async function getPublicProfiles() {
   try {
@@ -30,9 +30,7 @@ export async function getPublicProfiles() {
         _count: {
           select: {
             listings: {
-              where: {
-                OR: [{ status: null }, { NOT: { status: STATUS.HIDDEN } }],
-              },
+              where: isPublished(),
             },
             lists: true,
           },
@@ -45,9 +43,7 @@ export async function getPublicProfiles() {
             _count: {
               select: {
                 listings: {
-                  where: {
-                    OR: [{ status: null }, { NOT: { status: STATUS.HIDDEN } }],
-                  },
+                  where: isPublished(),
                 },
               },
             },
@@ -55,15 +51,13 @@ export async function getPublicProfiles() {
           orderBy: { listings: { _count: "desc" } },
         },
         listings: {
-          where: {
-            OR: [{ status: null }, { NOT: { status: STATUS.HIDDEN } }],
-          },
+          where: isPublished(),
           select: { updatedAt: true },
         },
       },
       where: {
         listings: {
-          some: { OR: [{ status: null }, { NOT: { status: STATUS.HIDDEN } }] },
+          some: isPublished(),
         },
       },
     });

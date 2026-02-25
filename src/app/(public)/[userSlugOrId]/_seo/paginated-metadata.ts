@@ -6,6 +6,7 @@ interface GeneratePaginatedProfileMetadataArgs<T extends Metadata> {
   profileSlug: string;
   page: number;
   hasNonPageStateParams: boolean;
+  shouldIndex?: boolean;
 }
 
 export function generatePaginatedProfileMetadata<T extends Metadata>({
@@ -13,6 +14,7 @@ export function generatePaginatedProfileMetadata<T extends Metadata>({
   profileSlug,
   page,
   hasNonPageStateParams,
+  shouldIndex = true,
 }: GeneratePaginatedProfileMetadataArgs<T>): T {
   const canonicalPath = getPublicProfilePagePath(profileSlug, page);
   const baseTitle =
@@ -20,12 +22,17 @@ export function generatePaginatedProfileMetadata<T extends Metadata>({
       ? baseMetadata.title
       : "Daylily Catalog";
 
+  let robots = "index, follow, max-image-preview:large";
+  if (hasNonPageStateParams) {
+    robots = "noindex, nofollow";
+  } else if (!shouldIndex) {
+    robots = "noindex, follow";
+  }
+
   return {
     ...baseMetadata,
     title: page > 1 ? `${baseTitle} - Page ${page}` : baseTitle,
-    robots: hasNonPageStateParams
-      ? "noindex, nofollow"
-      : "index, follow, max-image-preview:large",
+    robots,
     alternates: {
       ...(baseMetadata.alternates ?? {}),
       canonical: canonicalPath,

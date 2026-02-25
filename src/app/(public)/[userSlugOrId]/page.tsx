@@ -50,6 +50,7 @@ export async function generateMetadata({ params }: PageProps) {
     profileSlug: canonicalUserSlug,
     page,
     hasNonPageStateParams: false,
+    shouldIndex: result.data.profile.hasActiveSubscription,
   });
 }
 
@@ -91,6 +92,7 @@ export default async function Page({ params }: PageProps) {
     profileSlug: canonicalUserSlug,
     page: activePage,
     hasNonPageStateParams: false,
+    shouldIndex: initialProfile.hasActiveSubscription,
   });
 
   return (

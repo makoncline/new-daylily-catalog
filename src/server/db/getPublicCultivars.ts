@@ -1,14 +1,14 @@
-import { APP_CONFIG, STATUS } from "@/config/constants";
+import { APP_CONFIG } from "@/config/constants";
 import {
   getCultivarRouteCandidates,
   toCultivarRouteSegment,
 } from "@/lib/utils/cultivar-utils";
 import { db } from "@/server/db";
 import { getProUserIdSet } from "@/server/db/getProUserIdSet";
-
-const publicListingVisibilityFilter = {
-  OR: [{ status: null }, { NOT: { status: STATUS.HIDDEN } }],
-};
+import {
+  isPublished,
+  shouldShowToPublic,
+} from "@/server/db/public-visibility/filters";
 
 const getCultivarReferenceWhereClause = (proUserIds: string[]) =>
   APP_CONFIG.PUBLIC_ROUTES.GENERATE_ALL_CULTIVAR_PAGES
@@ -22,12 +22,7 @@ const getCultivarReferenceWhereClause = (proUserIds: string[]) =>
           not: null,
         },
         listings: {
-          some: {
-            ...publicListingVisibilityFilter,
-            userId: {
-              in: proUserIds,
-            },
-          },
+          some: shouldShowToPublic(proUserIds),
         },
       };
 
@@ -39,7 +34,7 @@ async function getProUserIdsForCultivarListings(): Promise<string[]> {
           cultivarReferenceId: {
             not: null,
           },
-          ...publicListingVisibilityFilter,
+          ...isPublished(),
         },
       },
     },
@@ -330,12 +325,7 @@ export async function getCultivarSitemapEntries(): Promise<
       normalizedName: true,
       updatedAt: true,
       listings: {
-        where: {
-          ...publicListingVisibilityFilter,
-          userId: {
-            in: proUserIds,
-          },
-        },
+        where: shouldShowToPublic(proUserIds),
         orderBy: {
           updatedAt: "desc",
         },
@@ -429,10 +419,7 @@ export async function getPublicCultivarPage(cultivarSegment: string) {
           in: Array.from(matchedNormalizedNames),
         },
       },
-      userId: {
-        in: proUserIds,
-      },
-      ...publicListingVisibilityFilter,
+      ...shouldShowToPublic(proUserIds),
     },
     select: {
       id: true,
@@ -498,7 +485,7 @@ export async function getPublicCultivarPage(cultivarSegment: string) {
       _count: {
         select: {
           listings: {
-            where: publicListingVisibilityFilter,
+            where: isPublished(),
           },
           lists: true,
         },
@@ -689,10 +676,7 @@ export async function getPublicCultivarPage(cultivarSegment: string) {
             {
               listings: {
                 some: {
-                  ...publicListingVisibilityFilter,
-                  userId: {
-                    in: proUserIds,
-                  },
+                  ...shouldShowToPublic(proUserIds),
                   images: {
                     some: {},
                   },
@@ -708,10 +692,7 @@ export async function getPublicCultivarPage(cultivarSegment: string) {
           },
           listings: {
             where: {
-              ...publicListingVisibilityFilter,
-              userId: {
-                in: proUserIds,
-              },
+              ...shouldShowToPublic(proUserIds),
               images: {
                 some: {},
               },

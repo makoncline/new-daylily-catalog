@@ -5,6 +5,7 @@ import { getUserIdFromSlugOrId } from "./getPublicProfile";
 import { getDisplayAhsListing } from "@/lib/utils/ahs-display";
 import { Prisma } from "@prisma/client";
 import { getProUserIdSet } from "@/server/db/getProUserIdSet";
+import { isPublished } from "@/server/db/public-visibility/filters";
 
 const ahsListingSelect = {
   name: true,
@@ -80,10 +81,6 @@ interface GetListingsArgs {
   limit: number;
   cursor?: string;
 }
-
-const publicListingVisibilityFilter: Prisma.ListingWhereInput = {
-  OR: [{ status: null }, { NOT: { status: STATUS.HIDDEN } }],
-};
 
 async function getSortedPublicListingIds(
   userId: string,
@@ -236,7 +233,7 @@ export async function getPublicForSaleListingsCount(userId: string) {
       price: {
         gt: 0,
       },
-      ...publicListingVisibilityFilter,
+      ...isPublished(),
     },
   });
 }
@@ -252,7 +249,7 @@ export async function getPublicCatalogRouteEntries(): Promise<
 > {
   const listingCounts = await db.listing.groupBy({
     by: ["userId"],
-    where: publicListingVisibilityFilter,
+    where: isPublished(),
     _count: {
       _all: true,
     },

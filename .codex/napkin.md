@@ -2,6 +2,8 @@
 
 ## Log
 
+- 2026-02-25 - public filter builders - Keep discovery visibility logic DRY with shared Prisma `where` builders (`isPublished`, `hasActiveSubscription`, `shouldShowToPublic`) and reuse them across catalogs/cultivars/profile queries instead of duplicating inline status + pro-user conditions.
+- 2026-02-25 - free profile indexing policy - Keep direct free-profile access working (`dynamicParams = true`) but pass subscription state into profile metadata generation so free profiles emit `robots: noindex, follow` while pro profiles stay indexable.
 - 2026-02-25 - cultivar payload simplification - Removed unused `hasActiveSubscription` field from cultivar offer garden card payload; no UI consumers depended on it, so keeping it added dead-state complexity.
 - 2026-02-25 - test realism over prod guards - For DB-backed filters, keep production code lean and make unit mocks honor query constraints (`where.userId.in`) instead of adding redundant in-memory guards just to satisfy static fixture mocks.
 - 2026-02-24 - self-miss mock-vs-query filter - I removed a secondary pro-user filter in cultivar aggregation assuming DB `where` guarantees would always hold, but unit mocks return fixture rows without honoring `where`; keep an explicit seller/pro guard in aggregation paths that consume mocked query rows.

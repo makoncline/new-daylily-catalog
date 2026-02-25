@@ -1,11 +1,7 @@
-import { STATUS } from "@/config/constants";
-import { db } from "../db";
+import { db } from "@/server/db";
+import { isPublished } from "@/server/db/public-visibility/filters";
 
 export async function getUserAndListingIdsAndSlugs() {
-  const publicListingVisibilityFilter = {
-    OR: [{ status: null }, { NOT: { status: STATUS.HIDDEN } }],
-  };
-
   const users = await db.user.findMany({
     select: {
       id: true,
@@ -15,7 +11,7 @@ export async function getUserAndListingIdsAndSlugs() {
         },
       },
       listings: {
-        where: publicListingVisibilityFilter,
+        where: isPublished(),
         select: {
           id: true,
           slug: true,
@@ -24,7 +20,7 @@ export async function getUserAndListingIdsAndSlugs() {
     },
     where: {
       listings: {
-        some: publicListingVisibilityFilter,
+        some: isPublished(),
       },
     },
   });
