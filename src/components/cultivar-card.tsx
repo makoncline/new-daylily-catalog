@@ -34,6 +34,8 @@ export function CultivarCard({
   return (
     <Link
       href={cultivarUrl}
+      rel="nofollow"
+      prefetch={false}
       className={cn(
         "block h-full w-[75vw] min-w-[75vw] md:w-full md:min-w-0 md:max-w-[560px]",
         className,

@@ -37,7 +37,7 @@ describe("getPublicCultivarPage", () => {
     vi.clearAllMocks();
   });
 
-  it("returns conversion-ready cultivar payload with all published offers", async () => {
+  it("returns conversion-ready cultivar payload with pro offers only", async () => {
     mockDb.cultivarReference.findFirst.mockResolvedValue({
       id: "cultivar-1",
       normalizedName: "coffee frenzy",
@@ -146,78 +146,62 @@ describe("getPublicCultivarPage", () => {
       },
     ];
 
-    const relatedListingPreviewRows = [
-      {
-        cultivarReferenceId: "ref-golden",
-        images: [{ url: "https://example.com/goldenzelle.jpg" }],
-      },
-      {
-        cultivarReferenceId: "ref-none",
-        images: [],
-      },
-    ];
+    mockDb.listing.findMany.mockImplementation((args: unknown) =>
+      Promise.resolve(applyWhereIn(listingRows, args, "userId")),
+    );
 
-    mockDb.listing.findMany.mockImplementation((args: unknown) => {
-      const where = (args as { where?: Record<string, unknown> }).where;
-      const cultivarReferenceIdFilter = where?.cultivarReferenceId;
-
-      if (
-        typeof cultivarReferenceIdFilter === "object" &&
-        cultivarReferenceIdFilter !== null &&
-        "in" in cultivarReferenceIdFilter
-      ) {
-        return Promise.resolve(
-          applyWhereIn(relatedListingPreviewRows, args, "cultivarReferenceId"),
-        );
-      }
-
-      return Promise.resolve(applyWhereIn(listingRows, args, "userId"));
-    });
-
-    mockDb.user.findMany.mockResolvedValue([
-      {
-        id: "user-top",
-        createdAt: new Date("2019-01-01T00:00:00.000Z"),
-        stripeCustomerId: "cus-top",
-        profile: {
-          slug: "top-pro",
-          title: "Top Pro Garden",
-          description: "Top catalog",
-          location: "Mississippi",
-          updatedAt: new Date("2026-01-14T00:00:00.000Z"),
-          images: [{ id: "profile-top", url: "https://example.com/profile-top.jpg" }],
+    mockDb.user.findMany
+      .mockResolvedValueOnce([
+        {
+          id: "user-top",
+          stripeCustomerId: "cus-top",
         },
-        _count: { listings: 10, lists: 4 },
-      },
-      {
-        id: "user-alpha",
-        createdAt: new Date("2020-01-01T00:00:00.000Z"),
-        stripeCustomerId: "cus-alpha",
-        profile: {
-          slug: "alpha-pro",
-          title: "Alpha Pro Garden",
-          description: "Alpha catalog",
-          location: "Georgia",
-          updatedAt: new Date("2026-01-12T00:00:00.000Z"),
-          images: [],
+        {
+          id: "user-alpha",
+          stripeCustomerId: "cus-alpha",
         },
-        _count: { listings: 8, lists: 3 },
-      },
-      {
-        id: "user-hobby",
-        createdAt: new Date("2021-01-01T00:00:00.000Z"),
-        stripeCustomerId: "cus-hobby",
-        profile: {
-          slug: "hobby-grower",
-          title: "Hobby Grower",
-          description: null,
-          location: null,
-          updatedAt: new Date("2026-01-21T00:00:00.000Z"),
-          images: [],
+        {
+          id: "user-hobby",
+          stripeCustomerId: "cus-hobby",
         },
-        _count: { listings: 2, lists: 1 },
-      },
-    ]);
+      ])
+      .mockResolvedValueOnce([
+        {
+          id: "user-top",
+          createdAt: new Date("2019-01-01T00:00:00.000Z"),
+          profile: {
+            slug: "top-pro",
+            title: "Top Pro Garden",
+            description: "Top catalog",
+            location: "Mississippi",
+            updatedAt: new Date("2026-01-14T00:00:00.000Z"),
+            images: [
+              { id: "profile-top", url: "https://example.com/profile-top.jpg" },
+            ],
+          },
+          _count: { listings: 10, lists: 4 },
+        },
+        {
+          id: "user-alpha",
+          createdAt: new Date("2020-01-01T00:00:00.000Z"),
+          profile: {
+            slug: "alpha-pro",
+            title: "Alpha Pro Garden",
+            description: "Alpha catalog",
+            location: "Georgia",
+            updatedAt: new Date("2026-01-12T00:00:00.000Z"),
+            images: [],
+          },
+          _count: { listings: 8, lists: 3 },
+        },
+      ]);
+
+    mockGetStripeSubscription.mockImplementation(
+      async (stripeCustomerId: string | null) =>
+        stripeCustomerId === "cus-top" || stripeCustomerId === "cus-alpha"
+          ? { status: "active" }
+          : { status: "none" },
+    );
 
     mockDb.cultivarReference.findMany.mockResolvedValue([
       {
@@ -239,24 +223,11 @@ describe("getPublicCultivarPage", () => {
         ahsListing: {
           id: "ahs-golden",
           name: "Goldenzelle",
-          ahsImageUrl: null,
+          ahsImageUrl: "https://example.com/goldenzelle.jpg",
           hybridizer: "Reed",
           year: "2002",
           bloomSeason: "Mid",
           color: "Apricot",
-        },
-      },
-      {
-        id: "ref-none",
-        normalizedName: "no image cultivar",
-        ahsListing: {
-          id: "ahs-none",
-          name: "No Image",
-          ahsImageUrl: null,
-          hybridizer: "Reed",
-          year: "2015",
-          bloomSeason: null,
-          color: null,
         },
       },
     ]);
@@ -265,12 +236,11 @@ describe("getPublicCultivarPage", () => {
 
     expect(result).not.toBeNull();
     expect(result?.summary.name).toBe("Coffee Frenzy");
-    expect(result?.summary.gardensCount).toBe(3);
-    expect(result?.summary.offersCount).toBe(4);
+    expect(result?.summary.gardensCount).toBe(2);
+    expect(result?.summary.offersCount).toBe(3);
 
     expect(result?.offers.gardenCards.map((garden) => garden.slug)).toEqual([
       "alpha-pro",
-      "hobby-grower",
       "top-pro",
     ]);
 
@@ -284,7 +254,9 @@ describe("getPublicCultivarPage", () => {
       source: "ahs",
       url: "https://example.com/ahs.jpg",
     });
-    expect(result?.heroImages.some((image) => image.id === "img-hobby-a")).toBe(false);
+    expect(result?.heroImages.some((image) => image.id === "img-hobby-a")).toBe(
+      false,
+    );
 
     expect(result?.quickSpecs.top.map((spec) => spec.label)).toEqual(
       expect.arrayContaining([
@@ -298,23 +270,67 @@ describe("getPublicCultivarPage", () => {
       ]),
     );
 
-    expect(result?.gardenPhotos.map((photo) => photo.id)).toContain("img-hobby-a");
+    expect(result?.gardenPhotos.map((photo) => photo.id)).not.toContain(
+      "img-hobby-a",
+    );
 
     expect(mockDb.listing.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
         where: expect.objectContaining({
           cultivarReferenceId: "cultivar-1",
+          userId: {
+            in: ["user-alpha", "user-top"],
+          },
+        }),
+        select: expect.objectContaining({
+          images: expect.objectContaining({
+            take: 1,
+          }),
+        }),
+      }),
+    );
+    expect(mockDb.listing.findMany).toHaveBeenCalledTimes(1);
+
+    expect(mockDb.user.findMany).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        select: expect.objectContaining({
+          profile: expect.objectContaining({
+            select: expect.objectContaining({
+              images: expect.objectContaining({
+                take: 1,
+              }),
+            }),
+          }),
         }),
       }),
     );
 
-    expect(result?.relatedByHybridizer.map((cultivar) => cultivar.segment)).toEqual([
-      "isle-of-wight",
-      "goldenzelle",
-    ]);
+    expect(mockDb.cultivarReference.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          ahsListing: {
+            is: expect.objectContaining({
+              hybridizer: "Reed",
+              ahsImageUrl: {
+                not: null,
+              },
+            }),
+          },
+        }),
+        orderBy: {
+          normalizedName: "asc",
+        },
+        take: 5,
+      }),
+    );
+
+    expect(
+      result?.relatedByHybridizer.map((cultivar) => cultivar.segment),
+    ).toEqual(["goldenzelle", "isle-of-wight"]);
 
     expect(result?.freshness.offersUpdatedAt).toEqual(
-      new Date("2026-01-20T00:00:00.000Z"),
+      new Date("2026-01-15T00:00:00.000Z"),
     );
   });
 
@@ -343,25 +359,32 @@ describe("getPublicCultivarPage", () => {
       Promise.resolve(applyWhereIn(listingRows, args, "userId")),
     );
 
-    mockDb.user.findMany.mockResolvedValue([
-      {
-        id: "user-pro",
-        createdAt: new Date("2020-01-01T00:00:00.000Z"),
-        stripeCustomerId: "cus-pro",
-        profile: {
-          slug: "pro-garden",
-          title: "Pro Garden",
-          description: null,
-          location: null,
-          updatedAt: new Date("2026-01-05T00:00:00.000Z"),
-          images: [],
+    mockDb.user.findMany
+      .mockResolvedValueOnce([
+        {
+          id: "user-pro",
+          stripeCustomerId: "cus-pro",
         },
-        _count: {
-          listings: 1,
-          lists: 1,
+      ])
+      .mockResolvedValueOnce([
+        {
+          id: "user-pro",
+          createdAt: new Date("2020-01-01T00:00:00.000Z"),
+          stripeCustomerId: "cus-pro",
+          profile: {
+            slug: "pro-garden",
+            title: "Pro Garden",
+            description: null,
+            location: null,
+            updatedAt: new Date("2026-01-05T00:00:00.000Z"),
+            images: [],
+          },
+          _count: {
+            listings: 1,
+            lists: 1,
+          },
         },
-      },
-    ]);
+      ]);
 
     mockGetStripeSubscription.mockResolvedValue({ status: "active" });
 
@@ -399,7 +422,8 @@ describe("getPublicCultivarPage", () => {
     expect(result?.cultivar.normalizedName).toBe("aladdin’s castle");
     expect(mockDb.cultivarReference.findFirst).toHaveBeenCalledTimes(2);
 
-    const secondFindFirstArgs = mockDb.cultivarReference.findFirst.mock.calls[1]?.[0];
+    const secondFindFirstArgs =
+      mockDb.cultivarReference.findFirst.mock.calls[1]?.[0];
     expect(secondFindFirstArgs).toMatchObject({
       where: {
         AND: expect.arrayContaining([

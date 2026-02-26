@@ -1,5 +1,8 @@
 import { test, expect } from "../../e2e/test-setup";
-import { type E2EPrismaClient, withTempE2EDb } from "../../src/lib/test-utils/e2e-db";
+import {
+  type E2EPrismaClient,
+  withTempE2EDb,
+} from "../../src/lib/test-utils/e2e-db";
 import { normalizeCultivarName } from "../../src/lib/utils/cultivar-utils";
 import { seedAhsListing } from "./utils/ahs-listings";
 
@@ -62,7 +65,11 @@ async function createCatalogUser({
   return { user, profile };
 }
 
-async function seedCultivarReference(db: E2EPrismaClient, ahsId: string, name: string) {
+async function seedCultivarReference(
+  db: E2EPrismaClient,
+  ahsId: string,
+  name: string,
+) {
   return db.cultivarReference.upsert({
     where: { ahsId },
     create: {
@@ -374,7 +381,9 @@ test.describe("cultivar guest flow @local", () => {
         name: /Coffee Frenzy/i,
       }),
     ).toBeVisible();
-    await expect(page.getByRole("navigation").getByText("Cultivars")).toBeVisible();
+    await expect(
+      page.getByRole("navigation").getByText("Cultivars"),
+    ).toBeVisible();
 
     await expect(page.getByText("Quick Specs")).toBeVisible();
     await expect(page.getByText("Scape Height")).toBeVisible();
@@ -394,32 +403,27 @@ test.describe("cultivar guest flow @local", () => {
         nodes.map((node) => node.getAttribute("data-garden-slug")),
       );
 
-    expect(gardenOrder).toEqual([
-      "hobby-grower",
-      "beta-pro",
-      "top-pro",
-      "alpha-pro",
-    ]);
+    expect(gardenOrder).toEqual(["beta-pro", "top-pro", "alpha-pro"]);
 
     const topCard = page.locator(
       '[data-testid="cultivar-offer-garden-card"][data-garden-slug="top-pro"]',
     );
 
-    await expect(topCard.getByRole("button", { name: /View 2 images/i })).toBeVisible();
+    await expect(
+      topCard.getByRole("button", { name: /View 1 image/i }),
+    ).toBeVisible();
 
     const topRows = topCard.locator('[data-testid="cultivar-offer-row"]');
     await expect(topRows).toHaveCount(2);
     await expect(topRows.nth(0)).toContainText("Coffee Frenzy Prime Fan");
     await expect(topRows.nth(1)).toContainText("Not for sale");
 
-    await expect(topRows.nth(0).getByRole("link", { name: "View Details" })).toHaveAttribute(
-      "href",
-      "/top-pro?viewing=listing-top-prime",
-    );
-    await expect(topRows.nth(0).getByRole("link", { name: "Show Winners" })).toHaveAttribute(
-      "href",
-      "/top-pro?lists=list-top-show#listings",
-    );
+    await expect(
+      topRows.nth(0).getByRole("link", { name: "View Details" }),
+    ).toHaveAttribute("href", "/top-pro?viewing=listing-top-prime");
+    await expect(
+      topRows.nth(0).getByRole("link", { name: "Show Winners" }),
+    ).toHaveAttribute("href", "/top-pro?lists=list-top-show#listings");
 
     await page.getByRole("button", { name: "For sale" }).click();
     await expect(page).toHaveURL(/offerForSale=1/);
@@ -432,7 +436,9 @@ test.describe("cultivar guest flow @local", () => {
     await expect(page).toHaveURL(/offerSort=price-asc/);
 
     await page
-      .locator('[data-testid="cultivar-offer-garden-card"][data-garden-slug="alpha-pro"]')
+      .locator(
+        '[data-testid="cultivar-offer-garden-card"][data-garden-slug="alpha-pro"]',
+      )
       .getByRole("link", { name: "View Catalog" })
       .click();
     await expect(page).toHaveURL(/\/alpha-pro(\?.*)?$/);
@@ -444,10 +450,9 @@ test.describe("cultivar guest flow @local", () => {
         name: /Other cultivars from this hybridizer/i,
       }),
     ).toBeVisible();
-    await expect(page.getByRole("link", { name: /Isle of Wight/i })).toHaveAttribute(
-      "href",
-      "/cultivar/isle-of-wight",
-    );
+    await expect(
+      page.getByRole("link", { name: /Isle of Wight/i }),
+    ).toHaveAttribute("href", "/cultivar/isle-of-wight");
 
     await page.goto("/top-pro/listing-top-prime");
     await expect(page).toHaveURL(/\/top-pro\?viewing=listing-top-prime$/);
