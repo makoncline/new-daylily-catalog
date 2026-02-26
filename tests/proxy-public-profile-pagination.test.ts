@@ -1,9 +1,10 @@
 // @vitest-environment node
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { NextRequest } from "next/server";
+import { NextRequest, type NextMiddleware } from "next/server";
 
 const authMock = vi.hoisted(() => vi.fn(async () => ({ userId: null })));
+const fetchMock = vi.hoisted(() => vi.fn());
 
 vi.mock("@clerk/nextjs/server", () => ({
   clerkMiddleware:
@@ -19,10 +20,12 @@ vi.mock("@clerk/nextjs/server", () => ({
 }));
 
 describe("public profile pagination proxy rewrites", () => {
-  let proxy: (req: NextRequest) => Promise<Response | undefined>;
+  let proxy: NextMiddleware;
 
   beforeEach(async () => {
     vi.clearAllMocks();
+    fetchMock.mockResolvedValue(new Response(null, { status: 404 }));
+    vi.stubGlobal("fetch", fetchMock);
     ({ proxy } = await import("@/proxy"));
   });
 
@@ -30,8 +33,9 @@ describe("public profile pagination proxy rewrites", () => {
     const request = new NextRequest(
       "http://localhost:3000/graceful_petals_daylilies?page=2",
     );
+    const middlewareEvent = {} as Parameters<NextMiddleware>[1];
 
-    const response = await proxy(request);
+    const response = await proxy(request, middlewareEvent);
 
     expect(response).toBeDefined();
     expect(response?.headers.get("x-middleware-rewrite")).toContain(

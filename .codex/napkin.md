@@ -2,6 +2,7 @@
 
 ## Log
 
+- 2026-02-26 - middleware test typing pitfall - `proxy` export is `NextMiddleware` (request + event), so tests should type it as `NextMiddleware` and pass a stub event; one-arg function typing causes TS2322 during module assignment.
 - 2026-02-26 - test scope preference update - User asked to remove prod-snapshot slug compatibility tests as redundant when comprehensive rule-based slug tests already cover permutations; prefer generalized behavior tests over snapshot-fixture duplication for this area.
 - 2026-02-26 - self-miss shell quoting recurrence (again) - I ran `rg` with unquoted App Router path `src/app/(public)/[userSlugOrId]` and hit zsh glob expansion; always quote paths containing `()`/`[]`.
 - 2026-02-26 - profile slug compatibility edge - Local prod snapshot has 18 canonical profile segments shorter than 5 chars (examples: `43`, `95`, `115`); dashboard profile save currently validates slug min length on every save, so legacy short slugs may block unrelated profile edits unless slug validation is change-aware/grandfathered.
