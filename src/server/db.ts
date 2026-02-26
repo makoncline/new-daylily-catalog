@@ -3,6 +3,7 @@ import { PrismaLibSQL } from "@prisma/adapter-libsql";
 import { createClient } from "@libsql/client";
 import { env } from "@/env";
 import { type Prisma } from "../../prisma/generated/sqlite-client/index.js";
+import { attachLocalQueryProfiler } from "@/server/db/local-query-profiler";
 
 // Use Turso if explicitly set or if in production (unless explicitly disabled)
 const useTursoDb =
@@ -13,11 +14,23 @@ const databaseUrl = useTursoDb
   ? env.TURSO_DATABASE_URL
   : env.LOCAL_DATABASE_URL;
 
-// Determine which logs to show based on environment
-const logTypes: Prisma.LogLevel[] =
-  env.NODE_ENV === "development"
-    ? ["query", "error", "warn"]
-    : ["error", "warn"];
+function getLocalSqliteLogConfig() {
+  const baseLogs: Array<Prisma.LogLevel | Prisma.LogDefinition> = [
+    { level: "error", emit: "stdout" },
+    { level: "warn", emit: "stdout" },
+  ];
+
+  if (process.env.LOCAL_QUERY_PROFILER === "1") {
+    baseLogs.push({ level: "query", emit: "event" });
+    return baseLogs;
+  }
+
+  if (env.NODE_ENV === "development") {
+    baseLogs.push({ level: "query", emit: "stdout" });
+  }
+
+  return baseLogs;
+}
 
 const createPrismaClient = () => {
   if (useTursoDb) {
@@ -39,7 +52,7 @@ const createPrismaClient = () => {
         url: databaseUrl, // Uses local SQLite path
       },
     },
-    log: logTypes,
+    log: getLocalSqliteLogConfig(),
   });
 };
 
@@ -48,5 +61,7 @@ const globalForPrisma = globalThis as unknown as {
 };
 
 export const db = globalForPrisma.prisma ?? createPrismaClient();
+
+attachLocalQueryProfiler(db, { useTursoDb, databaseUrl });
 
 if (env.NODE_ENV !== "production") globalForPrisma.prisma = db;

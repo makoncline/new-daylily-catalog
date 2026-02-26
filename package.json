@@ -26,6 +26,7 @@
     "test:watch": "vitest",
     "test:e2e": "playwright test",
     "test:e2e:attach": "BASE_URL=http://localhost:3000 playwright test",
+    "profile:queries": "bash scripts/profile-queries-strategic.sh",
     "db:sync:seed": "bash scripts/sync-seeded-daylily-catalog-from-local.sh"
   },
   "dependencies": {
