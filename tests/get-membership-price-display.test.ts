@@ -18,6 +18,7 @@ describe("formatMembershipPriceDisplay", () => {
     expect(result).toEqual({
       amount: "$199",
       interval: "/mo",
+      monthlyEquivalent: "$199",
     });
   });
 
@@ -35,6 +36,25 @@ describe("formatMembershipPriceDisplay", () => {
     expect(result).toEqual({
       amount: "$12.99",
       interval: "/3 mo",
+      monthlyEquivalent: "$4.33",
+    });
+  });
+
+  it("adds a monthly anchor for yearly plans", () => {
+    const result = formatMembershipPriceDisplay({
+      unit_amount: 6000,
+      unit_amount_decimal: null,
+      currency: "usd",
+      recurring: {
+        interval: "year",
+        interval_count: 1,
+      },
+    });
+
+    expect(result).toEqual({
+      amount: "$60",
+      interval: "/yr",
+      monthlyEquivalent: "$5",
     });
   });
 

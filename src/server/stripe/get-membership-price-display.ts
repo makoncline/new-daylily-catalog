@@ -17,6 +17,7 @@ export interface MembershipPriceLike {
 export interface MembershipPriceDisplay {
   amount: string;
   interval: string;
+  monthlyEquivalent: string | null;
 }
 
 const INTERVAL_LABEL: Record<MembershipRecurring["interval"], string> = {
@@ -57,6 +58,40 @@ function formatInterval(recurring: MembershipRecurring | null): string {
   return `/${intervalLabel}`;
 }
 
+function formatCurrency(amount: number, currency: string): string {
+  const hasFraction = !Number.isInteger(amount);
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency,
+    minimumFractionDigits: hasFraction ? 2 : 0,
+    maximumFractionDigits: 2,
+  }).format(amount);
+}
+
+function formatMonthlyEquivalent(
+  amount: number,
+  recurring: MembershipRecurring | null,
+  currency: string,
+): string | null {
+  if (!recurring) {
+    return null;
+  }
+
+  const intervalCount = recurring.interval_count && recurring.interval_count > 0
+    ? recurring.interval_count
+    : 1;
+
+  if (recurring.interval === "month") {
+    return formatCurrency(amount / intervalCount, currency);
+  }
+
+  if (recurring.interval === "year") {
+    return formatCurrency(amount / (12 * intervalCount), currency);
+  }
+
+  return null;
+}
+
 export function formatMembershipPriceDisplay(
   price: MembershipPriceLike,
 ): MembershipPriceDisplay | null {
@@ -66,17 +101,12 @@ export function formatMembershipPriceDisplay(
   }
 
   const currency = price.currency.toUpperCase();
-  const hasFraction = !Number.isInteger(amount);
-  const formattedAmount = new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency,
-    minimumFractionDigits: hasFraction ? 2 : 0,
-    maximumFractionDigits: 2,
-  }).format(amount);
+  const formattedAmount = formatCurrency(amount, currency);
 
   return {
     amount: formattedAmount,
     interval: formatInterval(price.recurring),
+    monthlyEquivalent: formatMonthlyEquivalent(amount, price.recurring, currency),
   };
 }
 
