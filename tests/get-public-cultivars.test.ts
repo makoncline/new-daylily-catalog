@@ -159,11 +159,12 @@ describe("getPublicCultivarPage", () => {
 
     mockDb.listing.findMany.mockImplementation((args: unknown) => {
       const where = (args as { where?: Record<string, unknown> }).where;
-      const cultivarReferenceId = where?.cultivarReferenceId;
+      const cultivarReferenceIdFilter = where?.cultivarReferenceId;
 
       if (
-        typeof cultivarReferenceId === "object" &&
-        cultivarReferenceId !== null
+        typeof cultivarReferenceIdFilter === "object" &&
+        cultivarReferenceIdFilter !== null &&
+        "in" in cultivarReferenceIdFilter
       ) {
         return Promise.resolve(
           applyWhereIn(relatedListingPreviewRows, args, "cultivarReferenceId"),
@@ -299,13 +300,13 @@ describe("getPublicCultivarPage", () => {
 
     expect(result?.gardenPhotos.map((photo) => photo.id)).toContain("img-hobby-a");
 
-    expect(
-      mockDb.listing.findMany.mock.calls.some(
-        ([args]) =>
-          (args as { where?: { cultivarReferenceId?: unknown } }).where
-            ?.cultivarReferenceId === "cultivar-1",
-      ),
-    ).toBe(true);
+    expect(mockDb.listing.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          cultivarReferenceId: "cultivar-1",
+        }),
+      }),
+    );
 
     expect(result?.relatedByHybridizer.map((cultivar) => cultivar.segment)).toEqual([
       "isle-of-wight",
@@ -399,15 +400,16 @@ describe("getPublicCultivarPage", () => {
     expect(mockDb.cultivarReference.findFirst).toHaveBeenCalledTimes(2);
 
     const secondFindFirstArgs = mockDb.cultivarReference.findFirst.mock.calls[1]?.[0];
-    const fallbackNamesWhereEntry = (
-      secondFindFirstArgs as {
-        where?: { AND?: Array<{ normalizedName?: { in?: string[] } }> };
-      }
-    )?.where?.AND?.find((entry) => Array.isArray(entry.normalizedName?.in));
-    const fallbackNames = fallbackNamesWhereEntry?.normalizedName?.in;
-
-    expect(fallbackNames).toEqual(["aladdin's castle", "aladdin’s castle"]);
     expect(secondFindFirstArgs).toMatchObject({
+      where: {
+        AND: expect.arrayContaining([
+          {
+            normalizedName: {
+              in: ["aladdin's castle", "aladdin’s castle"],
+            },
+          },
+        ]),
+      },
       orderBy: {
         updatedAt: "desc",
       },
