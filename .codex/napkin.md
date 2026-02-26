@@ -218,6 +218,7 @@
 
 ## Preferences
 
+- Keep cultivar page URLs name-based (`/cultivar/:name-segment`), not ID-based, even when internal DB joins use `cultivarReferenceId`.
 - Exclude free-tier accounts from `/catalogs`, from listing inclusion on `/cultivar/:slug`, and from sitemap-derived public route coverage.
 - Caching PR preference: keep public route policy simple (24h static/ISR for SEO routes, dynamic + noindex for `/{slug}/search`) and keep segment-config literals annotated with `CACHE_LITERAL_REF` comments.
 - Caching PR preference: keep TanStack DB internals out of cache-removal scope and prioritize behavior-level test assertions over cache implementation details.
