@@ -11,6 +11,13 @@ import {
 import { CheckoutButton } from "@/components/checkout-button";
 import { SUBSCRIPTION_CONFIG } from "@/config/subscription-config";
 
+interface StartMembershipPageClientProps {
+  priceDisplay: {
+    amount: string;
+    interval: string;
+  } | null;
+}
+
 const PRO_UNLOCKS = [
   {
     id: "custom-url",
@@ -39,65 +46,94 @@ const PRO_UNLOCKS = [
   },
 ] as const;
 
-export function StartMembershipPageClient() {
+export function StartMembershipPageClient({
+  priceDisplay,
+}: StartMembershipPageClientProps) {
   return (
-    <div className="bg-muted/20 flex min-h-svh items-center justify-center p-4 md:p-10">
-      <div
-        className="bg-card w-full max-w-2xl rounded-[2rem] border p-6 shadow-sm md:max-w-5xl md:p-10"
-        data-testid="start-membership-page"
-      >
-        <div className="flex flex-col gap-10 md:grid md:grid-cols-[minmax(0,1fr)_17rem] md:gap-8 lg:grid-cols-[minmax(0,1fr)_20rem] lg:gap-12">
-          <div className="space-y-8">
+    <div className="bg-muted/20 min-h-svh p-4 md:p-10" data-testid="start-membership-page">
+      <div className="mx-auto w-full max-w-6xl">
+        <div className="grid gap-6 lg:grid-cols-2 lg:items-start lg:gap-8 xl:grid-cols-[minmax(0,1fr)_minmax(360px,560px)]">
+          <div className="space-y-8 py-2 md:py-6">
             <div className="space-y-4">
-              <h1 className="max-w-lg text-6xl leading-tight font-bold tracking-tight md:text-7xl">
-                Start your membership
+              <h1 className="text-5xl leading-[0.92] font-bold tracking-tight sm:text-6xl md:text-7xl">
+                <span className="block">One plan,</span>
+                <span className="block">Unlimited access</span>
               </h1>
               <p className="text-muted-foreground max-w-xl text-2xl leading-tight md:text-3xl">
-                Start Pro now to unlock the full catalog experience from day
-                one.
+                Start Pro now to unlock the full catalog experience from day one.
               </p>
             </div>
 
-            <div className="space-y-5">
-              <h2 className="text-5xl font-semibold tracking-tight md:text-4xl">
-                What Pro unlocks
-              </h2>
-              <ul className="space-y-4 text-xl leading-tight md:text-xl">
-                {PRO_UNLOCKS.map((feature) => {
-                  const Icon = feature.icon;
+            <div className="space-y-4">
+              <CheckoutButton
+                size="lg"
+                variant="default"
+                className="h-12 w-full text-base font-semibold sm:w-auto sm:px-8"
+                data-testid="start-membership-checkout"
+              >
+                Start {SUBSCRIPTION_CONFIG.FREE_TRIAL_DAYS}-day free trial
+              </CheckoutButton>
 
-                  return (
-                    <li key={feature.id} className="flex items-start gap-3">
-                      <Icon
-                        className="mt-0.5 h-5 w-5 shrink-0 md:mt-0.5"
-                        aria-hidden="true"
-                      />
-                      <span>{feature.text}</span>
-                    </li>
-                  );
-                })}
-              </ul>
+              <p className="text-muted-foreground text-sm">
+                Then{" "}
+                {priceDisplay
+                  ? `${priceDisplay.amount}${priceDisplay.interval}`
+                  : "standard plan pricing at checkout"}
+                . Cancel anytime.
+              </p>
+
+              <Link
+                href="/dashboard"
+                className="text-muted-foreground inline-block text-sm underline"
+                data-testid="start-membership-continue"
+              >
+                Continue for now
+              </Link>
             </div>
           </div>
 
-          <div className="space-y-5 md:flex md:min-h-full md:flex-col md:justify-end">
-            <CheckoutButton
-              size="lg"
-              className="h-14 w-full text-3xl font-semibold md:text-xl"
-              data-testid="start-membership-checkout"
-            >
-              Start {SUBSCRIPTION_CONFIG.FREE_TRIAL_DAYS}-day free trial
-            </CheckoutButton>
-            <p className="text-muted-foreground text-2xl leading-tight md:text-lg">
+          <div className="bg-card rounded-[2rem] border p-6 shadow-sm md:p-10">
+            <p className="text-muted-foreground text-sm font-medium tracking-wide uppercase">
+              Pro membership
+            </p>
+
+            {priceDisplay ? (
+              <p
+                className="mt-4 flex items-end gap-1 leading-none"
+                data-testid="start-membership-price"
+              >
+                <span className="text-6xl font-bold tracking-tight md:text-7xl">
+                  {priceDisplay.amount}
+                </span>
+                <span className="text-4xl font-semibold tracking-tight md:text-5xl">
+                  {priceDisplay.interval}
+                </span>
+              </p>
+            ) : (
+              <p
+                className="mt-4 text-4xl leading-tight font-semibold tracking-tight md:text-5xl"
+                data-testid="start-membership-price"
+              >
+                Pricing shown at checkout
+              </p>
+            )}
+
+            <p className="text-muted-foreground mt-3 text-lg">
               Secure payments powered by Stripe.
             </p>
-            <Link
-              href="/dashboard"
-              className="text-muted-foreground text-sm underline"
-              data-testid="start-membership-continue"
-            >
-              Continue for now
-            </Link>
+
+            <ul className="mt-8 space-y-5 text-2xl leading-tight">
+              {PRO_UNLOCKS.map((feature) => {
+                const Icon = feature.icon;
+
+                return (
+                  <li key={feature.id} className="flex items-start gap-3">
+                    <Icon className="mt-0.5 h-5 w-5 shrink-0" aria-hidden="true" />
+                    <span>{feature.text}</span>
+                  </li>
+                );
+              })}
+            </ul>
           </div>
         </div>
       </div>

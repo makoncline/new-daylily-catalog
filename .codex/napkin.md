@@ -2,6 +2,14 @@
 
 ## Log
 
+- 2026-02-26 - membership features icon preference - User wants each membership feature row to use a distinct icon rather than a repeated generic check icon.
+- 2026-02-26 - membership layout preference refinement - User wants `/start-membership` with only the right pricing column in a card; left headline/CTA content should sit directly on the page background (no left card container).
+- 2026-02-26 - membership page design direction update - User prefers a shadcn pricing-block style (like pricing15) for `/start-membership`; keep copy/layout close to a two-column "single plan + features card" structure while matching existing site styling.
+- 2026-02-26 - membership price source preference - Do not hardcode membership price copy on `/start-membership`; derive display from Stripe `STRIPE_PRICE_ID` server-side and gracefully fallback to checkout-only pricing text if Stripe lookup fails.
+- 2026-02-26 - self-miss preview route prefix collision - Temporary `/start-membership-preview` route was unexpectedly auth-protected because proxy matcher `/start-membership(.*)` also matches that prefix; use a non-overlapping preview path when validating protected pages locally.
+- 2026-02-26 - self-miss `"use server"` page directive - Adding `"use server"` to a normal preview `page.tsx` triggered Next build error (`Server Actions must be async functions`); leave route pages without that directive unless defining async server actions.
+- 2026-02-26 - clerk otp input automation quirk - In Clerk verification modal, OTP fields populate with `type` (and not `fill`) when driving with `agent-browser`.
+- 2026-02-26 - pr familiarization checkpoint - `codex/start-membership-recovered-pr` introduces post-signup redirect to `/start-membership` plus Stripe trial wiring (`trial_period_days=7`) and adds coverage in e2e + stripe router tests; proxy also changed legacy profile segment regex to disallow `_`, which may reintroduce underscore-slug pagination/canonical issues.
 - 2026-02-26 - data-shape guidance preference - Keep approximate row-count guidance in `AGENTS.md` for query tuning context: `AhsListing` ~100k, `CultivarReference` ~100k, `User` ~100, `Listing` ~5k, `Image` hundreds.
 - 2026-02-26 - profiling handoff entrypoint - When another agent session needs to run query profiling, start from `docs/local-query-profiler.md`; this is the canonical run/analyze workflow and uses the single command `pnpm profile:queries` (with required env vars).
 - 2026-02-26 - public search row-read amplifier - `/[userSlugOrId]/search` uses `PUBLIC_CATALOG_SEARCH_PERSISTED_SWR.queryLimit=500` and auto-fetches until exhaustion (`hasNextPage` effect), while each `public.getListings` call recomputes full sorted ID list in SQL before slicing cursor page; this creates repeated full-list scans per visit on large catalogs.

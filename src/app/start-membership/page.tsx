@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { StartMembershipPageClient } from "./start-membership-page-client";
+import { getMembershipPriceDisplay } from "@/server/stripe/get-membership-price-display";
 
 export const metadata: Metadata = {
   title: "Start Your Membership",
@@ -15,6 +16,8 @@ export const metadata: Metadata = {
   },
 };
 
-export default function StartMembershipPage() {
-  return <StartMembershipPageClient />;
+export default async function StartMembershipPage() {
+  const priceDisplay = await getMembershipPriceDisplay();
+
+  return <StartMembershipPageClient priceDisplay={priceDisplay} />;
 }
