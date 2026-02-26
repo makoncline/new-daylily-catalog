@@ -2,6 +2,17 @@
 
 ## Log
 
+- 2026-02-25 - migration generator separation - User wants new migration concerns in new dedicated scripts; keep legacy generator scripts unchanged.
+- 2026-02-25 - prisma create-only limitation - In this environment, `prisma migrate dev --create-only` is blocked as non-interactive; fallback is Prisma `migrate diff` to generate migration SQL file deterministically.
+- 2026-02-25 - migration script separation preference - User wants new migration concerns in dedicated generator scripts; do not expand existing historical generator scripts with unrelated artifact sets.
+- 2026-02-25 - transactional migration review pattern - Best live-safe flow for data dedupe is one sqlite session with `BEGIN IMMEDIATE`, run pre-check SQL, apply migration body, run post-check SQL, then manually `COMMIT` or `ROLLBACK`.
+- 2026-02-25 - dedupe migration scope guard - Keep listing `ahsId` updates scoped to rows remapped from duplicate cultivar refs; a global `Listing` alignment update touched unrelated live data and was removed.
+- 2026-02-25 - sqlite snapshot copy reliability - For large local prod snapshots, prefer `sqlite3 source.db ".backup target.db"` over `cp`; direct file copies produced malformed temp DB in this environment.
+- 2026-02-25 - dedupe scope caveat - Deleting AHS rows with `year` containing `reserved` reduces but does not eliminate name duplicates; prod snapshot still has 57 duplicate normalized-name groups (59 extra rows) afterward.
+- 2026-02-25 - duplicate-canonical caveat - A completeness-based canonical AHS row is usually obvious for duplicate names, but linked listings can still point to a sparse/reserved sibling (example: `starman`), so dedupe migrations must remap listing `cultivarReferenceId`.
+- 2026-02-25 - ahs source duplicate names - Prod `AhsListing` has duplicate `LOWER(TRIM(name))` values (212 groups / 274 extra rows), and `CultivarReference` duplicates mirror exactly because the migration upserts by unique `ahsId` and copies normalized name directly.
+- 2026-02-25 - self-miss sqlite path gotcha - Running `sqlite3 <missing-file> "<query>"` creates an empty DB file at that path; verify snapshot path before querying to avoid accidental empty files.
+- 2026-02-25 - cultivar cold-timeout pattern - First-hit `/cultivar/:slug` latency spikes come from duplicate metadata+page fetches plus punctuation slug fallback scans; use request-scoped memoization and richer slug candidates (possessive `'s`) before full-table fallback.
 - 2026-02-25 - self-miss shell quoting recurrence - I ran `rg` against unquoted paths containing `(` and `)` and hit zsh glob expansion errors; always quote App Router paths in shell commands.
 - 2026-02-25 - self-miss shell quoting repeat - I repeated the same unquoted-path miss with `git diff` on `src/app/(public)/.../[param]`; quote these paths every time, even for one-off checks.
 - 2026-02-25 - self-miss napkin disclosure - I announced napkin-skill execution in a status update; follow the skill strictly and apply napkin silently.
