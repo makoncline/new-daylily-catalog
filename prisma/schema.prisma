@@ -38,6 +38,7 @@ model AhsListing {
   lilies            Listing[]
 
   @@index([name])
+  @@index([hybridizer], map: "AhsListing_hybridizer_idx")
 }
 
 model CultivarReference {
@@ -78,6 +79,7 @@ model Listing {
   @@unique([userId, slug])
   @@index([ahsId])
   @@index([cultivarReferenceId])
+  @@index([cultivarReferenceId, updatedAt], map: "Listing_public_cultivarReferenceId_updatedAt_idx")
   @@index([userId])
   @@index([slug])
 }

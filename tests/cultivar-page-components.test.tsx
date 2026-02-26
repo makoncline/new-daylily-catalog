@@ -8,6 +8,7 @@ import {
   getOfferViewingHref,
 } from "@/app/(public)/cultivar/[cultivarNormalizedName]/_components/cultivar-offer-row";
 import { CultivarGardenPhotosSection } from "@/app/(public)/cultivar/[cultivarNormalizedName]/_components/cultivar-garden-photos-section";
+import { CultivarRelatedSection } from "@/app/(public)/cultivar/[cultivarNormalizedName]/_components/cultivar-related-section";
 import { type RouterOutputs } from "@/trpc/react";
 
 type CultivarPageOutput = NonNullable<RouterOutputs["public"]["getCultivarPage"]>;
@@ -15,6 +16,7 @@ type CultivarPageOutput = NonNullable<RouterOutputs["public"]["getCultivarPage"]
 type HeroImage = CultivarPageOutput["heroImages"][number];
 type QuickSpec = CultivarPageOutput["quickSpecs"]["all"][number];
 type Offer = CultivarPageOutput["offers"]["gardenCards"][number]["offers"][number];
+type RelatedCultivar = CultivarPageOutput["relatedByHybridizer"][number];
 
 describe("cultivar page components", () => {
   beforeEach(() => {
@@ -138,6 +140,50 @@ describe("cultivar page components", () => {
     );
     expect(screen.queryByRole("link", { name: /contact/i })).not.toBeInTheDocument();
     expect(screen.queryByText(/add to cart/i)).not.toBeInTheDocument();
+  });
+
+  it("renders related cultivar links as nofollow", () => {
+    const relatedCultivar: RelatedCultivar = {
+      segment: "isle-of-wight",
+      normalizedName: "isle of wight",
+      name: "Isle of Wight",
+      hybridizer: "Reed",
+      year: "2007",
+      imageUrl: "/assets/hero-garden.webp",
+      ahsListing: {
+        id: "ahs-isle",
+        name: "Isle of Wight",
+        ahsImageUrl: "/assets/hero-garden.webp",
+        hybridizer: "Reed",
+        year: "2007",
+        scapeHeight: null,
+        bloomSize: null,
+        bloomSeason: null,
+        form: null,
+        ploidy: null,
+        foliageType: null,
+        bloomHabit: null,
+        budcount: null,
+        branches: null,
+        sculpting: null,
+        foliage: null,
+        flower: null,
+        fragrance: null,
+        parentage: null,
+        color: null,
+      },
+    };
+
+    render(
+      <CultivarRelatedSection
+        relatedCultivars={[relatedCultivar]}
+        hybridizer="Reed"
+      />,
+    );
+
+    const relatedLink = screen.getByRole("link", { name: /isle of wight/i });
+    expect(relatedLink).toHaveAttribute("href", "/cultivar/isle-of-wight");
+    expect(relatedLink).toHaveAttribute("rel", "nofollow");
   });
 
   it("renders garden photos without a public add-photo CTA", () => {
