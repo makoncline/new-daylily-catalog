@@ -66,6 +66,10 @@ const TOP_QUICK_SPEC_LABELS = new Set([
   "Color",
 ]);
 
+const RELATED_CULTIVAR_CANDIDATE_LIMIT = 96;
+const RELATED_CULTIVAR_DISPLAY_LIMIT = 12;
+const RELATED_CULTIVAR_LISTING_IMAGE_SCAN_MULTIPLIER = 12;
+
 type CultivarAhsListing = {
   id: string;
   name: string | null;
@@ -198,6 +202,60 @@ function getSortableYear(year: string | null) {
 
   const parsedYear = Number.parseInt(year, 10);
   return Number.isNaN(parsedYear) ? 0 : parsedYear;
+}
+
+async function getListingPreviewImageUrlsByCultivarReferenceId(
+  cultivarReferenceIds: string[],
+) {
+  if (cultivarReferenceIds.length === 0) {
+    return new Map<string, string>();
+  }
+
+  const listingRows = await db.listing.findMany({
+    where: {
+      cultivarReferenceId: {
+        in: cultivarReferenceIds,
+      },
+      ...isPublished(),
+      images: {
+        some: {},
+      },
+    },
+    orderBy: {
+      updatedAt: "desc",
+    },
+    take:
+      cultivarReferenceIds.length * RELATED_CULTIVAR_LISTING_IMAGE_SCAN_MULTIPLIER,
+    select: {
+      cultivarReferenceId: true,
+      images: {
+        select: {
+          url: true,
+        },
+        orderBy: {
+          order: "asc",
+        },
+        take: 1,
+      },
+    },
+  });
+
+  const imageUrlByCultivarReferenceId = new Map<string, string>();
+
+  listingRows.forEach((listing) => {
+    const cultivarReferenceId = listing.cultivarReferenceId;
+    const imageUrl = listing.images[0]?.url;
+
+    if (!cultivarReferenceId || !imageUrl) {
+      return;
+    }
+
+    if (!imageUrlByCultivarReferenceId.has(cultivarReferenceId)) {
+      imageUrlByCultivarReferenceId.set(cultivarReferenceId, imageUrl);
+    }
+  });
+
+  return imageUrlByCultivarReferenceId;
 }
 
 async function getCultivarNormalizedNamesForSegment(segment: string) {
@@ -639,68 +697,36 @@ export async function getPublicCultivarPage(cultivarSegment: string) {
               hybridizer: cultivarReference.ahsListing.hybridizer,
             },
           },
-          OR: [
-            {
-              ahsListing: {
-                is: {
-                  ahsImageUrl: {
-                    not: null,
-                  },
-                },
-              },
-            },
-            {
-              listings: {
-                some: {
-                  ...isPublished(),
-                  images: {
-                    some: {},
-                  },
-                },
-              },
-            },
-          ],
         },
         select: {
+          id: true,
           normalizedName: true,
           ahsListing: {
             select: cultivarAhsListingSelect,
           },
-          listings: {
-            where: {
-              ...isPublished(),
-              images: {
-                some: {},
-              },
-            },
-            orderBy: {
-              updatedAt: "desc",
-            },
-            take: 1,
-            select: {
-              images: {
-                select: {
-                  url: true,
-                },
-                orderBy: {
-                  order: "asc",
-                },
-                take: 1,
-              },
-            },
-          },
         },
-        take: 24,
+        orderBy: {
+          updatedAt: "desc",
+        },
+        take: RELATED_CULTIVAR_CANDIDATE_LIMIT,
       })
     : [];
+
+  const cultivarIdsNeedingListingPreview = relatedByHybridizer
+    .filter((relatedCultivar) => !relatedCultivar.ahsListing?.ahsImageUrl)
+    .map((relatedCultivar) => relatedCultivar.id);
+
+  const listingImageUrlByCultivarReferenceId =
+    await getListingPreviewImageUrlsByCultivarReferenceId(
+      cultivarIdsNeedingListingPreview,
+    );
 
   const relatedCultivars = relatedByHybridizer
     .map((relatedCultivar) => {
       const segment = toCultivarRouteSegment(relatedCultivar.normalizedName);
-      const listing = relatedCultivar.listings[0];
       const imageUrl =
         relatedCultivar.ahsListing?.ahsImageUrl ??
-        listing?.images[0]?.url ??
+        listingImageUrlByCultivarReferenceId.get(relatedCultivar.id) ??
         null;
 
       if (!segment || !imageUrl) {
@@ -733,7 +759,7 @@ export async function getPublicCultivarPage(cultivarSegment: string) {
 
       return a.name.localeCompare(b.name);
     })
-    .slice(0, 12);
+    .slice(0, RELATED_CULTIVAR_DISPLAY_LIMIT);
 
   const cultivarName = getCultivarDisplayName(
     cultivarReference.normalizedName,
