@@ -2,6 +2,8 @@
 
 ## Log
 
+- 2026-02-26 - multi-agent feedback preference - When user shares third-party copy/design suggestions, apply only high-signal changes that improve clarity/scannability and avoid unverified claims or text changes that conflict with explicit constraints (e.g., keep `Continue for now`).
+- 2026-02-26 - membership CTA constraint - User wants copy improvements on `/start-membership` but explicitly wants secondary action text to remain exactly `Continue for now`.
 - 2026-02-26 - membership features icon preference - User wants each membership feature row to use a distinct icon rather than a repeated generic check icon.
 - 2026-02-26 - membership layout preference refinement - User wants `/start-membership` with only the right pricing column in a card; left headline/CTA content should sit directly on the page background (no left card container).
 - 2026-02-26 - membership page design direction update - User prefers a shadcn pricing-block style (like pricing15) for `/start-membership`; keep copy/layout close to a two-column "single plan + features card" structure while matching existing site styling.
