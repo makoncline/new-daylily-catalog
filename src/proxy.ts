@@ -25,7 +25,7 @@ function isLegacyProfileSegment(segment: string) {
     return false;
   }
 
-  return /^[A-Za-z0-9-]+$/.test(segment);
+  return /^[A-Za-z0-9_-]+$/.test(segment);
 }
 
 interface CanonicalProfileLookupResponse {

@@ -2,6 +2,12 @@
 
 ## Log
 
+- 2026-02-26 - test scope preference update - User asked to remove prod-snapshot slug compatibility tests as redundant when comprehensive rule-based slug tests already cover permutations; prefer generalized behavior tests over snapshot-fixture duplication for this area.
+- 2026-02-26 - self-miss shell quoting recurrence (again) - I ran `rg` with unquoted App Router path `src/app/(public)/[userSlugOrId]` and hit zsh glob expansion; always quote paths containing `()`/`[]`.
+- 2026-02-26 - profile slug compatibility edge - Local prod snapshot has 18 canonical profile segments shorter than 5 chars (examples: `43`, `95`, `115`); dashboard profile save currently validates slug min length on every save, so legacy short slugs may block unrelated profile edits unless slug validation is change-aware/grandfathered.
+- 2026-02-26 - reserved-slug policy gap - `dashboardDb.userProfile` slug checks do not block reserved top-level segments (`catalogs`, `dashboard`, `api`, etc.); route-level reservation exists only in proxy, so conflicting slugs can be saved but not routed canonically.
+- 2026-02-26 - public profile pagination underscore bug - Legacy profile middleware gate used `^[A-Za-z0-9-]+$`, so slugs/ids with `_` skipped `?page=` rewrite and static `/{slug}` always rendered page 1; allow `_` in `isLegacyProfileSegment` and keep rewrite tests for underscore slugs.
+- 2026-02-26 - self-miss napkin disclosure recurrence - I announced napkin-skill usage again in a status update; keep napkin behavior silent and just apply it.
 - 2026-02-26 - self-miss inline tsx eval under env:dev - `pnpm env:dev npx tsx -e "..."` can mangle `$` identifiers (`$disconnect`) and defaults to CJS where top-level `await` fails; for one-off DB probes use a temp script file or wrap code in async IIFE and avoid `$` member syntax in shell literals.
 - 2026-02-26 - prod phase-2 completion - Applied `20260225183013_add_cultivar_reference_normalized_name_unique` to `daylily-catalog`; post-verify shows dedupe invariants clean and `normalized_name_unique_index_exists=1`.
 - 2026-02-26 - turso tx commit quirk on interactive run - In one interactive `turso db shell` prod session, post-apply `COMMIT` returned `no transaction is active` but fresh-connection verify showed phase-1 dedupe persisted; always confirm final state with a separate verify connection, not commit echo alone.
