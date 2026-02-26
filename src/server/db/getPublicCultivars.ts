@@ -411,7 +411,6 @@ export async function getPublicCultivarPage(cultivarSegment: string) {
         orderBy: {
           order: "asc",
         },
-        take: 1,
       },
       lists: {
         select: {

@@ -282,11 +282,6 @@ describe("getPublicCultivarPage", () => {
             in: ["user-alpha", "user-top"],
           },
         }),
-        select: expect.objectContaining({
-          images: expect.objectContaining({
-            take: 1,
-          }),
-        }),
       }),
     );
     expect(mockDb.listing.findMany).toHaveBeenCalledTimes(1);

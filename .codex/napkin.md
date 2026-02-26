@@ -2,6 +2,7 @@
 
 ## Log
 
+- 2026-02-26 - cultivar photos preference - User confirmed small scale (~15 users, ~4 images/listing), so cultivar page should fetch and show all listing images for the cultivar instead of limiting to one image per listing.
 - 2026-02-26 - related cultivar simplification - For related cultivar cards, the clean query shape is `ahsImageUrl != null` + `orderBy normalizedName asc` + `take 5`; removing year parsing and updatedAt candidate ordering avoids mixed-ranking drift.
 - 2026-02-26 - related cultivar ranking trap - If candidate fetches are ordered by `updatedAt` but final display order is by `year`, cutting candidate limit down to display size can silently hide newer-year cultivars when a hybridizer has many entries; keep a larger candidate pool or align DB ordering with display sort.
 - 2026-02-26 - cultivar visibility preference reaffirmed - User confirmed cultivar page offers should remain pro-only; keep listing query gated with `shouldShowToPublic(proUserIds)` rather than published-only visibility.
