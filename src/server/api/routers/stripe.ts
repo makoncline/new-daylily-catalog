@@ -8,6 +8,7 @@ import {
   getStripeSubscription,
 } from "@/server/stripe/sync-subscription";
 import { getBaseUrl } from "@/lib/utils/getBaseUrl";
+import { SUBSCRIPTION_CONFIG } from "@/config/subscription-config";
 
 export const stripeRouter = createTRPCRouter({
   getSubscription: protectedProcedure.query(async ({ ctx }) => {
@@ -48,6 +49,9 @@ export const stripeRouter = createTRPCRouter({
           quantity: 1,
         },
       ],
+      subscription_data: {
+        trial_period_days: SUBSCRIPTION_CONFIG.FREE_TRIAL_DAYS,
+      },
       success_url: `${getBaseUrl()}/subscribe/success`,
       cancel_url: `${getBaseUrl()}/dashboard`,
       metadata: {

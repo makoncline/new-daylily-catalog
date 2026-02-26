@@ -11,6 +11,7 @@ import { StripeCheckout } from "../pages/stripe-checkout";
 import { ClerkAuthModal } from "../pages/clerk-auth-modal";
 import { DashboardShell } from "../pages/dashboard-shell";
 import { ImageManager } from "../pages/image-manager";
+import { StartMembershipPage } from "../pages/start-membership-page";
 
 export const test = base.extend<{
   homePage: HomePage;
@@ -23,6 +24,7 @@ export const test = base.extend<{
   editListingDialog: EditListingDialog;
   imageManager: ImageManager;
   stripeCheckout: StripeCheckout;
+  startMembershipPage: StartMembershipPage;
   dashboardShell: DashboardShell;
   clerkAuthModal: ClerkAuthModal;
 }>({
@@ -55,6 +57,9 @@ export const test = base.extend<{
   },
   stripeCheckout: async ({ page }, apply) => {
     await apply(new StripeCheckout(page));
+  },
+  startMembershipPage: async ({ page }, apply) => {
+    await apply(new StartMembershipPage(page));
   },
   dashboardShell: async ({ page }, apply) => {
     await apply(new DashboardShell(page));
