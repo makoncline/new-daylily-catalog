@@ -4,7 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mockDb = vi.hoisted(() => ({
   cultivarReference: {
-    findFirst: vi.fn(),
+    findUnique: vi.fn(),
     findMany: vi.fn(),
   },
   listing: {
@@ -38,7 +38,7 @@ describe("getPublicCultivarPage", () => {
   });
 
   it("returns conversion-ready cultivar payload with all published offers", async () => {
-    mockDb.cultivarReference.findFirst.mockResolvedValue({
+    const cultivarReferenceRow = {
       id: "cultivar-1",
       normalizedName: "coffee frenzy",
       updatedAt: new Date("2026-01-05T00:00:00.000Z"),
@@ -64,6 +64,14 @@ describe("getPublicCultivarPage", () => {
         parentage: "(A x B)",
         color: "Coffee brown",
       },
+    };
+
+    mockDb.cultivarReference.findUnique.mockImplementation((args: unknown) => {
+      const normalizedName = (args as { where?: { normalizedName?: string } }).where
+        ?.normalizedName;
+      return Promise.resolve(
+        normalizedName === "coffee frenzy" ? cultivarReferenceRow : null,
+      );
     });
 
     const listingRows = [
@@ -159,8 +167,12 @@ describe("getPublicCultivarPage", () => {
 
     mockDb.listing.findMany.mockImplementation((args: unknown) => {
       const where = (args as { where?: Record<string, unknown> }).where;
+      const cultivarReferenceId = where?.cultivarReferenceId;
 
-      if (where && "cultivarReferenceId" in where) {
+      if (
+        typeof cultivarReferenceId === "object" &&
+        cultivarReferenceId !== null
+      ) {
         return Promise.resolve(
           applyWhereIn(relatedListingPreviewRows, args, "cultivarReferenceId"),
         );
@@ -295,13 +307,13 @@ describe("getPublicCultivarPage", () => {
 
     expect(result?.gardenPhotos.map((photo) => photo.id)).toContain("img-hobby-a");
 
-    expect(mockDb.listing.findMany).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: expect.objectContaining({
-          OR: expect.any(Array),
-        }),
-      }),
-    );
+    expect(
+      mockDb.listing.findMany.mock.calls.some(
+        ([args]) =>
+          (args as { where?: { cultivarReferenceId?: unknown } }).where
+            ?.cultivarReferenceId === "cultivar-1",
+      ),
+    ).toBe(true);
 
     expect(result?.relatedByHybridizer.map((cultivar) => cultivar.segment)).toEqual([
       "isle-of-wight",
@@ -314,11 +326,19 @@ describe("getPublicCultivarPage", () => {
   });
 
   it("resolves slugified segments back to punctuation-heavy cultivar names", async () => {
-    mockDb.cultivarReference.findFirst.mockResolvedValue({
+    const cultivarReferenceRow = {
       id: "cultivar-punctuated",
       normalizedName: "a cowgirl's heart",
       updatedAt: new Date("2026-01-05T00:00:00.000Z"),
       ahsListing: null,
+    };
+
+    mockDb.cultivarReference.findUnique.mockImplementation((args: unknown) => {
+      const normalizedName = (args as { where?: { normalizedName?: string } }).where
+        ?.normalizedName;
+      return Promise.resolve(
+        normalizedName === "a cowgirl's heart" ? cultivarReferenceRow : null,
+      );
     });
 
     const listingRows = [
@@ -363,16 +383,24 @@ describe("getPublicCultivarPage", () => {
     const result = await getPublicCultivarPage("a-cowgirls-heart");
 
     expect(result?.cultivar.normalizedName).toBe("a cowgirl's heart");
-    expect(mockDb.cultivarReference.findFirst).toHaveBeenCalledTimes(1);
+    expect(mockDb.cultivarReference.findUnique).toHaveBeenCalled();
     expect(mockDb.cultivarReference.findMany).not.toHaveBeenCalled();
   });
 
   it("allows direct cultivar page lookup without requiring linked listings", async () => {
-    mockDb.cultivarReference.findFirst.mockResolvedValue({
+    const cultivarReferenceRow = {
       id: "cultivar-orphan",
       normalizedName: "orphan cultivar",
       updatedAt: new Date("2026-01-05T00:00:00.000Z"),
       ahsListing: null,
+    };
+
+    mockDb.cultivarReference.findUnique.mockImplementation((args: unknown) => {
+      const normalizedName = (args as { where?: { normalizedName?: string } }).where
+        ?.normalizedName;
+      return Promise.resolve(
+        normalizedName === "orphan cultivar" ? cultivarReferenceRow : null,
+      );
     });
 
     mockDb.listing.findMany.mockResolvedValue([]);
@@ -380,21 +408,22 @@ describe("getPublicCultivarPage", () => {
     mockDb.cultivarReference.findMany.mockResolvedValue([]);
 
     const result = await getPublicCultivarPage("orphan-cultivar");
-    const findFirstArgs = mockDb.cultivarReference.findFirst.mock.calls[0]?.[0];
+    const normalizedNameArgs = mockDb.cultivarReference.findUnique.mock.calls.map(
+      ([args]) =>
+        (args as { where?: { normalizedName?: string } }).where?.normalizedName,
+    );
 
     expect(result).not.toBeNull();
     expect(result?.offers.summary.offersCount).toBe(0);
     expect(result?.offers.summary.gardensCount).toBe(0);
-    expect(findFirstArgs?.where).toMatchObject({
-      AND: expect.arrayContaining([
-        {
-          normalizedName: {
-            not: null,
-          },
-        },
-      ]),
-    });
-    expect(JSON.stringify(findFirstArgs?.where)).not.toContain("listings");
+    expect(normalizedNameArgs).toContain("orphan cultivar");
+    expect(mockDb.listing.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          cultivarReferenceId: "cultivar-orphan",
+        }),
+      }),
+    );
   });
 });
 
