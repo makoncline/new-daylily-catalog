@@ -2,6 +2,9 @@
 
 ## Log
 
+- 2026-02-26 - cultivar query pattern that works - With ~100k cultivar refs and ~5k listings, expensive `cultivarReference` relation filters are cheaper when split: fetch related cultivar candidates first, then resolve listing-image fallback in a second bounded listing query.
+- 2026-02-26 - restart preference - User asked to reset to `main` and rebuild query fixes from scratch after sharing real data shape.
+- 2026-02-26 - optimization preference - Prioritize code-level query-shape fixes first and avoid DB/index updates initially unless clearly necessary.
 - 2026-02-25 - self-miss shell quoting recurrence - I ran `rg` against unquoted paths containing `(` and `)` and hit zsh glob expansion errors; always quote App Router paths in shell commands.
 - 2026-02-25 - self-miss shell quoting repeat - I repeated the same unquoted-path miss with `git diff` on `src/app/(public)/.../[param]`; quote these paths every time, even for one-off checks.
 - 2026-02-25 - self-miss napkin disclosure - I announced napkin-skill execution in a status update; follow the skill strictly and apply napkin silently.

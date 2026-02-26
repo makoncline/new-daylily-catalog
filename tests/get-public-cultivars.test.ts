@@ -75,6 +75,7 @@ describe("getPublicCultivarPage", () => {
         description: "Prime",
         updatedAt: new Date("2026-01-11T00:00:00.000Z"),
         userId: "user-top",
+        cultivarReferenceId: "cultivar-1",
         images: [
           {
             id: "img-top-a",
@@ -97,6 +98,7 @@ describe("getPublicCultivarPage", () => {
         description: "Display",
         updatedAt: new Date("2026-01-15T00:00:00.000Z"),
         userId: "user-top",
+        cultivarReferenceId: "cultivar-1",
         images: [
           {
             id: "img-top-c",
@@ -114,6 +116,7 @@ describe("getPublicCultivarPage", () => {
         description: "Alpha",
         updatedAt: new Date("2026-01-13T00:00:00.000Z"),
         userId: "user-alpha",
+        cultivarReferenceId: "cultivar-1",
         images: [
           {
             id: "img-alpha-a",
@@ -131,6 +134,7 @@ describe("getPublicCultivarPage", () => {
         description: "Hobby",
         updatedAt: new Date("2026-01-20T00:00:00.000Z"),
         userId: "user-hobby",
+        cultivarReferenceId: "cultivar-1",
         images: [
           {
             id: "img-hobby-a",
@@ -141,9 +145,29 @@ describe("getPublicCultivarPage", () => {
         lists: [],
       },
     ];
-    mockDb.listing.findMany.mockImplementation((args: unknown) =>
-      Promise.resolve(applyWhereIn(listingRows, args, "userId")),
-    );
+
+    const relatedListingPreviewRows = [
+      {
+        cultivarReferenceId: "ref-golden",
+        images: [{ url: "https://example.com/goldenzelle.jpg" }],
+      },
+      {
+        cultivarReferenceId: "ref-none",
+        images: [],
+      },
+    ];
+
+    mockDb.listing.findMany.mockImplementation((args: unknown) => {
+      const where = (args as { where?: Record<string, unknown> }).where;
+
+      if (where && "cultivarReferenceId" in where) {
+        return Promise.resolve(
+          applyWhereIn(relatedListingPreviewRows, args, "cultivarReferenceId"),
+        );
+      }
+
+      return Promise.resolve(applyWhereIn(listingRows, args, "userId"));
+    });
 
     mockDb.user.findMany.mockResolvedValue([
       {
@@ -192,6 +216,7 @@ describe("getPublicCultivarPage", () => {
 
     mockDb.cultivarReference.findMany.mockResolvedValue([
       {
+        id: "ref-isle",
         normalizedName: "isle of wight",
         ahsListing: {
           id: "ahs-isle",
@@ -202,9 +227,9 @@ describe("getPublicCultivarPage", () => {
           bloomSeason: "Early",
           color: "Peach",
         },
-        listings: [],
       },
       {
+        id: "ref-golden",
         normalizedName: "goldenzelle",
         ahsListing: {
           id: "ahs-golden",
@@ -215,13 +240,9 @@ describe("getPublicCultivarPage", () => {
           bloomSeason: "Mid",
           color: "Apricot",
         },
-        listings: [
-          {
-            images: [{ url: "https://example.com/goldenzelle.jpg" }],
-          },
-        ],
       },
       {
+        id: "ref-none",
         normalizedName: "no image cultivar",
         ahsListing: {
           id: "ahs-none",
@@ -232,7 +253,6 @@ describe("getPublicCultivarPage", () => {
           bloomSeason: null,
           color: null,
         },
-        listings: [],
       },
     ]);
 
