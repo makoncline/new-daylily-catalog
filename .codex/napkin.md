@@ -2,6 +2,9 @@
 
 ## Log
 
+- 2026-02-24 - dashboard home skeleton cause - `/dashboard` still flashes `DashboardPageSkeleton` because `page.tsx` checks `isLoading || !stats` on `dashboard.getStats`, and in `DashboardDbProvider` the hydrated path sets `status: "ready"` before awaiting `getStats.prefetch()` (it is fired with `void`), so the full-page loading overlay can finish first.
+- 2026-02-24 - dashboard stats derivation pattern - Derive `/dashboard` home stats from preloaded TanStack DB collections (`listings`, `lists`, `images`) plus prefetched `dashboardDb.userProfile.get`; remove separate `dashboard.getStats` query/prefetch to prevent post-loader skeleton flashes.
+- 2026-02-24 - dashboard dead-path cleanup - After migrating dashboard home stats to local derivation, delete obsolete `dashboardDb.dashboard` router and `DashboardPageSkeleton`, and move shared stats typing to `src/types/dashboard-stats-types.ts` so UI code no longer depends on removed tRPC outputs.
 - 2026-02-23 - sheet export parity correction - Sheet Creator download control should match primary export formats; provide a shadcn download menu with `HTML Sheets (.html)`, `PDF (.pdf)`, and `Images (.zip)` from the sheet layout.
 - 2026-02-23 - sheet sizing rule update - User expects sheet tags to always stay at active tag dimensions; rows/columns now define count, and page settings are validated against required sheet area instead of scaling tag size.
 - 2026-02-23 - sheet border styling - Tag cards on sheet output should include a muted dashed border for placement guidance in both preview and exported sheet documents.

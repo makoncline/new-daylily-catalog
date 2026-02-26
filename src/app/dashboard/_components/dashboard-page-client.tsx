@@ -1,7 +1,6 @@
 "use client";
 
 import { Card } from "@/components/ui/card";
-import { type RouterOutputs } from "@/trpc/react";
 import { PageHeader } from "./page-header";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
@@ -18,9 +17,10 @@ import {
 } from "./stats-card";
 import { H2, H3, P, List, Muted } from "@/components/typography";
 import { TestAuthErrorButton } from "./test-auth-error-button";
+import type { DashboardStats } from "@/types/dashboard-stats-types";
 
 interface DashboardPageClientProps {
-  initialStats: RouterOutputs["dashboardDb"]["dashboard"]["getStats"];
+  initialStats: DashboardStats;
 }
 
 export function DashboardPageClient({

@@ -21,14 +21,10 @@ export function DashboardRefreshButton() {
     try {
       await Promise.all([
         revalidateDashboardDbInBackground(userId),
-        utils.dashboardDb.dashboard.getStats.invalidate(),
         utils.dashboardDb.userProfile.get.invalidate(),
       ]);
 
-      await Promise.all([
-        utils.dashboardDb.dashboard.getStats.fetch(),
-        utils.dashboardDb.userProfile.get.fetch(),
-      ]);
+      await utils.dashboardDb.userProfile.get.fetch();
 
       toast.success("Dashboard refreshed");
     } finally {

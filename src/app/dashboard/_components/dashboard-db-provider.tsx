@@ -143,15 +143,13 @@ export function DashboardDbProvider({
 
         if (hydrated) {
           void revalidateDashboardDbInBackground(userId);
-          void utils.dashboardDb.dashboard.getStats.prefetch();
-          void utils.dashboardDb.userProfile.get.prefetch();
+          await utils.dashboardDb.userProfile.get.prefetch();
         } else {
           await Promise.all([
             initializeListingsCollection(userId),
             initializeListsCollection(userId),
             initializeImagesCollection(userId),
             initializeCultivarReferencesCollection(userId),
-            utils.dashboardDb.dashboard.getStats.prefetch(),
             utils.dashboardDb.userProfile.get.prefetch(),
           ]);
           void persistDashboardDbToPersistence(userId);
