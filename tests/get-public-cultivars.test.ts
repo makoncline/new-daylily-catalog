@@ -159,8 +159,13 @@ describe("getPublicCultivarPage", () => {
 
     mockDb.listing.findMany.mockImplementation((args: unknown) => {
       const where = (args as { where?: Record<string, unknown> }).where;
+      const cultivarReferenceIdFilter = where?.cultivarReferenceId;
 
-      if (where && "cultivarReferenceId" in where) {
+      if (
+        typeof cultivarReferenceIdFilter === "object" &&
+        cultivarReferenceIdFilter !== null &&
+        "in" in cultivarReferenceIdFilter
+      ) {
         return Promise.resolve(
           applyWhereIn(relatedListingPreviewRows, args, "cultivarReferenceId"),
         );
@@ -298,7 +303,7 @@ describe("getPublicCultivarPage", () => {
     expect(mockDb.listing.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
         where: expect.objectContaining({
-          OR: expect.any(Array),
+          cultivarReferenceId: "cultivar-1",
         }),
       }),
     );
@@ -367,6 +372,50 @@ describe("getPublicCultivarPage", () => {
     expect(mockDb.cultivarReference.findMany).not.toHaveBeenCalled();
   });
 
+  it("falls back to segment matching and resolves slug collisions with one ranked query", async () => {
+    mockDb.cultivarReference.findFirst
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce({
+        id: "cultivar-curly",
+        normalizedName: "aladdin’s castle",
+        updatedAt: new Date("2026-01-06T00:00:00.000Z"),
+        ahsListing: null,
+      });
+
+    mockDb.cultivarReference.findMany.mockResolvedValue([
+      {
+        normalizedName: "aladdin's castle",
+      },
+      {
+        normalizedName: "aladdin’s castle",
+      },
+    ]);
+
+    mockDb.listing.findMany.mockResolvedValue([]);
+    mockDb.user.findMany.mockResolvedValue([]);
+
+    const result = await getPublicCultivarPage("aladdins-castle");
+
+    expect(result?.cultivar.normalizedName).toBe("aladdin’s castle");
+    expect(mockDb.cultivarReference.findFirst).toHaveBeenCalledTimes(2);
+
+    const secondFindFirstArgs = mockDb.cultivarReference.findFirst.mock.calls[1]?.[0];
+    expect(secondFindFirstArgs).toMatchObject({
+      where: {
+        AND: expect.arrayContaining([
+          {
+            normalizedName: {
+              in: ["aladdin's castle", "aladdin’s castle"],
+            },
+          },
+        ]),
+      },
+      orderBy: {
+        updatedAt: "desc",
+      },
+    });
+  });
+
   it("allows direct cultivar page lookup without requiring linked listings", async () => {
     mockDb.cultivarReference.findFirst.mockResolvedValue({
       id: "cultivar-orphan",
@@ -395,6 +444,13 @@ describe("getPublicCultivarPage", () => {
       ]),
     });
     expect(JSON.stringify(findFirstArgs?.where)).not.toContain("listings");
+    expect(mockDb.listing.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          cultivarReferenceId: "cultivar-orphan",
+        }),
+      }),
+    );
   });
 });
 

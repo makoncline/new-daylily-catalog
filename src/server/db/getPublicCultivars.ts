@@ -281,7 +281,11 @@ async function getCultivarNormalizedNamesForSegment(segment: string) {
 async function findCultivarReferenceByNormalizedNames(
   normalizedNames: string[],
 ) {
-  if (normalizedNames.length === 0) {
+  const uniqueNormalizedNames = Array.from(
+    new Set(normalizedNames.filter((normalizedName) => normalizedName.length > 0)),
+  );
+
+  if (uniqueNormalizedNames.length === 0) {
     return null;
   }
 
@@ -291,7 +295,7 @@ async function findCultivarReferenceByNormalizedNames(
         getCultivarReferenceLookupWhereClause(),
         {
           normalizedName: {
-            in: normalizedNames,
+            in: uniqueNormalizedNames,
           },
         },
       ],
@@ -428,7 +432,6 @@ export async function getPublicCultivarPage(cultivarSegment: string) {
   }
 
   const normalizedCultivarNames = getCultivarRouteCandidates(cultivarSegment);
-  const matchedNormalizedNames = new Set(normalizedCultivarNames);
 
   let cultivarReference = await findCultivarReferenceByNormalizedNames(
     normalizedCultivarNames,
@@ -437,8 +440,6 @@ export async function getPublicCultivarPage(cultivarSegment: string) {
   if (!cultivarReference) {
     const normalizedNamesFromSlug =
       await getCultivarNormalizedNamesForSegment(canonicalSegment);
-
-    normalizedNamesFromSlug.forEach((name) => matchedNormalizedNames.add(name));
 
     cultivarReference = await findCultivarReferenceByNormalizedNames(
       normalizedNamesFromSlug,
@@ -449,17 +450,9 @@ export async function getPublicCultivarPage(cultivarSegment: string) {
     return null;
   }
 
-  if (cultivarReference.normalizedName) {
-    matchedNormalizedNames.add(cultivarReference.normalizedName);
-  }
-
   const listingRows = await db.listing.findMany({
     where: {
-      cultivarReference: {
-        normalizedName: {
-          in: Array.from(matchedNormalizedNames),
-        },
-      },
+      cultivarReferenceId: cultivarReference.id,
       ...isPublished(),
     },
     select: {
