@@ -2,6 +2,7 @@
 
 ## Log
 
+- 2026-02-26 - self-miss inline tsx eval under env:dev - `pnpm env:dev npx tsx -e "..."` can mangle `$` identifiers (`$disconnect`) and defaults to CJS where top-level `await` fails; for one-off DB probes use a temp script file or wrap code in async IIFE and avoid `$` member syntax in shell literals.
 - 2026-02-26 - prod phase-2 completion - Applied `20260225183013_add_cultivar_reference_normalized_name_unique` to `daylily-catalog`; post-verify shows dedupe invariants clean and `normalized_name_unique_index_exists=1`.
 - 2026-02-26 - turso tx commit quirk on interactive run - In one interactive `turso db shell` prod session, post-apply `COMMIT` returned `no transaction is active` but fresh-connection verify showed phase-1 dedupe persisted; always confirm final state with a separate verify connection, not commit echo alone.
 - 2026-02-26 - turso shell dot-command limits - Turso SQL shell in this setup supports `.read`/`.quit` but not sqlite dot commands like `.headers`, `.mode column`, `.print`; keep migration scripts pure SQL and avoid formatting dot commands during live runs.
@@ -218,6 +219,7 @@
 
 ## Preferences
 
+- Do not add new cultivar-query metrics/logging instrumentation right now.
 - Keep cultivar page URLs name-based (`/cultivar/:name-segment`), not ID-based, even when internal DB joins use `cultivarReferenceId`.
 - Exclude free-tier accounts from `/catalogs`, from listing inclusion on `/cultivar/:slug`, and from sitemap-derived public route coverage.
 - Caching PR preference: keep public route policy simple (24h static/ISR for SEO routes, dynamic + noindex for `/{slug}/search`) and keep segment-config literals annotated with `CACHE_LITERAL_REF` comments.

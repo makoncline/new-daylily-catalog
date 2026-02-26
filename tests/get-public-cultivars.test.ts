@@ -4,7 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mockDb = vi.hoisted(() => ({
   cultivarReference: {
-    findUnique: vi.fn(),
+    findFirst: vi.fn(),
     findMany: vi.fn(),
   },
   listing: {
@@ -38,7 +38,7 @@ describe("getPublicCultivarPage", () => {
   });
 
   it("returns conversion-ready cultivar payload with all published offers", async () => {
-    const cultivarReferenceRow = {
+    mockDb.cultivarReference.findFirst.mockResolvedValue({
       id: "cultivar-1",
       normalizedName: "coffee frenzy",
       updatedAt: new Date("2026-01-05T00:00:00.000Z"),
@@ -64,14 +64,6 @@ describe("getPublicCultivarPage", () => {
         parentage: "(A x B)",
         color: "Coffee brown",
       },
-    };
-
-    mockDb.cultivarReference.findUnique.mockImplementation((args: unknown) => {
-      const normalizedName = (args as { where?: { normalizedName?: string } }).where
-        ?.normalizedName;
-      return Promise.resolve(
-        normalizedName === "coffee frenzy" ? cultivarReferenceRow : null,
-      );
     });
 
     const listingRows = [
@@ -326,19 +318,11 @@ describe("getPublicCultivarPage", () => {
   });
 
   it("resolves slugified segments back to punctuation-heavy cultivar names", async () => {
-    const cultivarReferenceRow = {
+    mockDb.cultivarReference.findFirst.mockResolvedValue({
       id: "cultivar-punctuated",
       normalizedName: "a cowgirl's heart",
       updatedAt: new Date("2026-01-05T00:00:00.000Z"),
       ahsListing: null,
-    };
-
-    mockDb.cultivarReference.findUnique.mockImplementation((args: unknown) => {
-      const normalizedName = (args as { where?: { normalizedName?: string } }).where
-        ?.normalizedName;
-      return Promise.resolve(
-        normalizedName === "a cowgirl's heart" ? cultivarReferenceRow : null,
-      );
     });
 
     const listingRows = [
@@ -383,24 +367,59 @@ describe("getPublicCultivarPage", () => {
     const result = await getPublicCultivarPage("a-cowgirls-heart");
 
     expect(result?.cultivar.normalizedName).toBe("a cowgirl's heart");
-    expect(mockDb.cultivarReference.findUnique).toHaveBeenCalled();
+    expect(mockDb.cultivarReference.findFirst).toHaveBeenCalledTimes(1);
     expect(mockDb.cultivarReference.findMany).not.toHaveBeenCalled();
   });
 
+  it("falls back to segment matching and resolves slug collisions with one ranked query", async () => {
+    mockDb.cultivarReference.findFirst
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce({
+        id: "cultivar-curly",
+        normalizedName: "aladdin’s castle",
+        updatedAt: new Date("2026-01-06T00:00:00.000Z"),
+        ahsListing: null,
+      });
+
+    mockDb.cultivarReference.findMany.mockResolvedValue([
+      {
+        normalizedName: "aladdin's castle",
+      },
+      {
+        normalizedName: "aladdin’s castle",
+      },
+    ]);
+
+    mockDb.listing.findMany.mockResolvedValue([]);
+    mockDb.user.findMany.mockResolvedValue([]);
+
+    const result = await getPublicCultivarPage("aladdins-castle");
+
+    expect(result?.cultivar.normalizedName).toBe("aladdin’s castle");
+    expect(mockDb.cultivarReference.findFirst).toHaveBeenCalledTimes(2);
+
+    const secondFindFirstArgs = mockDb.cultivarReference.findFirst.mock.calls[1]?.[0];
+    const fallbackNamesWhereEntry = (
+      secondFindFirstArgs as {
+        where?: { AND?: Array<{ normalizedName?: { in?: string[] } }> };
+      }
+    )?.where?.AND?.find((entry) => Array.isArray(entry.normalizedName?.in));
+    const fallbackNames = fallbackNamesWhereEntry?.normalizedName?.in;
+
+    expect(fallbackNames).toEqual(["aladdin's castle", "aladdin’s castle"]);
+    expect(secondFindFirstArgs).toMatchObject({
+      orderBy: {
+        updatedAt: "desc",
+      },
+    });
+  });
+
   it("allows direct cultivar page lookup without requiring linked listings", async () => {
-    const cultivarReferenceRow = {
+    mockDb.cultivarReference.findFirst.mockResolvedValue({
       id: "cultivar-orphan",
       normalizedName: "orphan cultivar",
       updatedAt: new Date("2026-01-05T00:00:00.000Z"),
       ahsListing: null,
-    };
-
-    mockDb.cultivarReference.findUnique.mockImplementation((args: unknown) => {
-      const normalizedName = (args as { where?: { normalizedName?: string } }).where
-        ?.normalizedName;
-      return Promise.resolve(
-        normalizedName === "orphan cultivar" ? cultivarReferenceRow : null,
-      );
     });
 
     mockDb.listing.findMany.mockResolvedValue([]);
@@ -408,15 +427,21 @@ describe("getPublicCultivarPage", () => {
     mockDb.cultivarReference.findMany.mockResolvedValue([]);
 
     const result = await getPublicCultivarPage("orphan-cultivar");
-    const normalizedNameArgs = mockDb.cultivarReference.findUnique.mock.calls.map(
-      ([args]) =>
-        (args as { where?: { normalizedName?: string } }).where?.normalizedName,
-    );
+    const findFirstArgs = mockDb.cultivarReference.findFirst.mock.calls[0]?.[0];
 
     expect(result).not.toBeNull();
     expect(result?.offers.summary.offersCount).toBe(0);
     expect(result?.offers.summary.gardensCount).toBe(0);
-    expect(normalizedNameArgs).toContain("orphan cultivar");
+    expect(findFirstArgs?.where).toMatchObject({
+      AND: expect.arrayContaining([
+        {
+          normalizedName: {
+            not: null,
+          },
+        },
+      ]),
+    });
+    expect(JSON.stringify(findFirstArgs?.where)).not.toContain("listings");
     expect(mockDb.listing.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
         where: expect.objectContaining({
