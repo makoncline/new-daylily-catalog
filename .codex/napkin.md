@@ -2,6 +2,12 @@
 
 ## Log
 
+- 2026-02-26 - prod phase-2 completion - Applied `20260225183013_add_cultivar_reference_normalized_name_unique` to `daylily-catalog`; post-verify shows dedupe invariants clean and `normalized_name_unique_index_exists=1`.
+- 2026-02-26 - turso tx commit quirk on interactive run - In one interactive `turso db shell` prod session, post-apply `COMMIT` returned `no transaction is active` but fresh-connection verify showed phase-1 dedupe persisted; always confirm final state with a separate verify connection, not commit echo alone.
+- 2026-02-26 - turso shell dot-command limits - Turso SQL shell in this setup supports `.read`/`.quit` but not sqlite dot commands like `.headers`, `.mode column`, `.print`; keep migration scripts pure SQL and avoid formatting dot commands during live runs.
+- 2026-02-26 - turso rollback proof - On `seeded-daylily-catalog`, explicit `BEGIN IMMEDIATE` + test insert + `ROLLBACK` behaved correctly: row visible inside tx (`1`) and absent after rollback in same session and a new connection (`0`/`0`).
+- 2026-02-26 - seeded preview state check - `seeded-daylily-catalog` already had zero duplicate cultivar normalized names before migration; phase 1 was a no-op and phase 2 unique index addition succeeded cleanly.
+- 2026-02-26 - dedupe dry-run execution pattern - For rollout rehearsal, run full phase 1+2 on a throwaway sqlite backup first (`.backup`), then repeat on target local snapshot; transaction helper output gives before/after validation and should show duplicate groups dropping `212 -> 0` plus unique-index check `0 -> 1` after phase 2.
 - 2026-02-25 - migration generator separation - User wants new migration concerns in new dedicated scripts; keep legacy generator scripts unchanged.
 - 2026-02-25 - prisma create-only limitation - In this environment, `prisma migrate dev --create-only` is blocked as non-interactive; fallback is Prisma `migrate diff` to generate migration SQL file deterministically.
 - 2026-02-25 - migration script separation preference - User wants new migration concerns in dedicated generator scripts; do not expand existing historical generator scripts with unrelated artifact sets.

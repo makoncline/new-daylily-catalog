@@ -13,6 +13,21 @@ This phase does three things:
 
 No `AhsListing` rows are deleted in this phase.
 
+## Rollout status
+
+As of February 26, 2026:
+
+- `seeded-daylily-catalog` (preview): complete
+- `daylily-catalog` (prod): complete
+
+Final verify state on both:
+
+- `duplicate_normalized_name_groups = 0`
+- `dangling_listing_cultivar_reference_id = 0`
+- `cultivar_reference_ahs_missing = 0`
+- `linked_listings_on_reserved_year_ahs = 0`
+- `normalized_name_unique_index_exists = 1`
+
 ## Artifacts
 
 - Generator script: `scripts/generate-cultivar-reference-dedupe-sql.ts`
@@ -85,6 +100,11 @@ turso db shell "$TURSO_DATABASE_NAME" < prisma/data-migrations/20260225_verify_d
 ### 5) Repeat against prod
 
 Use same SQL files after stage verifies cleanly.
+
+### Operator notes
+
+- In Turso shell, prefer SQL-only scripts and `.read`/`.quit`; common sqlite dot-formatting commands may not be available.
+- Always run verification SQL from a fresh connection after apply. Treat that result as the source of truth for commit success.
 
 ## Phase 2: add uniqueness via Prisma migration
 
