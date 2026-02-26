@@ -4,6 +4,14 @@ import path from "node:path";
 
 const e2ePort = process.env.E2E_PORT ?? "3100";
 const baseURL = process.env.BASE_URL ?? `http://localhost:${e2ePort}`;
+const isProfileScenario = process.env.E2E_PROFILE_SCENARIO === "1";
+const grepInvert = (() => {
+  const basePattern = process.env.BASE_URL ? "@local" : "@preview";
+  return isProfileScenario
+    ? new RegExp(basePattern)
+    : new RegExp(`${basePattern}|@profile`);
+})();
+
 process.env.NEXT_PUBLIC_SENTRY_ENABLED = "false";
 
 // Pre-provision temp DB path when running locally (not attaching to BASE_URL)
@@ -45,8 +53,9 @@ export default defineConfig({
   // Tag rules:
   // - @preview runs only on preview (BASE_URL set)
   // - @local runs only locally (BASE_URL not set)
+  // - @profile runs only when E2E_PROFILE_SCENARIO=1
   // - untagged runs in both
-  grepInvert: process.env.BASE_URL ? /@local/ : /@preview/,
+  grepInvert,
   use: {
     baseURL,
     screenshot: "only-on-failure",

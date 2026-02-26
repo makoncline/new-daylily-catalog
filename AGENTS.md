@@ -16,6 +16,9 @@ below and mirror existing conventions before introducing new ones.
 - Unit tests (watch): `pnpm test:watch`
 - E2E tests: `pnpm test:e2e`
 - E2E tests (attach to existing server): `pnpm test:e2e:attach`
+- Query profiler (single command session): `LOCAL_DATABASE_URL="file:/absolute/path/to/prisma/local-prod-copy-daylily-catalog.db" USE_TURSO_DB=false pnpm env:dev pnpm profile:queries`
+
+For query profiling workflow details, always start with `docs/local-query-profiler.md`.
 
 ### Run a Single Test
 
@@ -67,6 +70,16 @@ LOCAL_DATABASE_URL="file:./local-prod-copy-daylily-catalog.db" USE_TURSO_DB=fals
 # Run production server locally against local prod DB copy
 LOCAL_DATABASE_URL="file:./local-prod-copy-daylily-catalog.db" USE_TURSO_DB=false NODE_ENV=production pnpm env:dev pnpm start
 ```
+
+## Approximate Data Scale (for query work)
+
+Use these as order-of-magnitude expectations when evaluating query behavior:
+
+- `AhsListing`: ~100,000 rows
+- `CultivarReference`: ~100,000 rows
+- `User`: ~100 rows
+- `Listing`: ~5,000 rows
+- `Image`: hundreds of rows (varies)
 
 ## Static Public Pages + Search Params
 

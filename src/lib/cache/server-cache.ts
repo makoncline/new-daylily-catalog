@@ -14,7 +14,8 @@ export function createServerCache<Args extends unknown[], Result>(
   if (
     process.env.NODE_ENV === "test" ||
     process.env.VITEST === "true" ||
-    process.env.PLAYWRIGHT_LOCAL_E2E === "true"
+    process.env.PLAYWRIGHT_LOCAL_E2E === "true" ||
+    process.env.LOCAL_QUERY_PROFILER === "1"
   ) {
     return (...args: Args) => fn(...args);
   }
