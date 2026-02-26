@@ -25,6 +25,14 @@ describe("cultivar route segment helpers", () => {
     ]);
   });
 
+  it("adds possessive candidates for slug segments without apostrophes", () => {
+    expect(getCultivarRouteCandidates("zundles-jubilee")).toEqual([
+      "zundles-jubilee",
+      "zundles jubilee",
+      "zundle's jubilee",
+    ]);
+  });
+
   it("returns null for empty cultivar values", () => {
     expect(toCultivarRouteSegment("   ")).toBeNull();
     expect(fromCultivarRouteSegment("")).toBeNull();

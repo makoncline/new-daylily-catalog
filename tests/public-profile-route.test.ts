@@ -4,6 +4,7 @@ const mockGetPublicCatalogRouteEntries = vi.fn();
 const mockGetPublicListingsPage = vi.fn();
 const mockGetPublicForSaleListingsCount = vi.fn();
 const mockGetPublicProfile = vi.fn();
+const mockGetUserIdFromSlugOrId = vi.fn();
 
 vi.mock("@/server/db/getPublicListings", () => ({
   getPublicCatalogRouteEntries: mockGetPublicCatalogRouteEntries,
@@ -13,6 +14,7 @@ vi.mock("@/server/db/getPublicListings", () => ({
 
 vi.mock("@/server/db/getPublicProfile", () => ({
   getPublicProfile: mockGetPublicProfile,
+  getUserIdFromSlugOrId: mockGetUserIdFromSlugOrId,
 }));
 
 describe("public profile route helpers", () => {
@@ -21,6 +23,7 @@ describe("public profile route helpers", () => {
     mockGetPublicListingsPage.mockReset();
     mockGetPublicForSaleListingsCount.mockReset();
     mockGetPublicProfile.mockReset();
+    mockGetUserIdFromSlugOrId.mockReset();
   });
 
   it("generates static params for base and paginated routes", async () => {

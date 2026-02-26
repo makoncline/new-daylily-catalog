@@ -30,13 +30,14 @@ import {
   getCultivarSitemapEntries,
   getPublicCultivarPage,
 } from "@/server/db/getPublicCultivars";
+import { applyWhereIn } from "./test-utils/apply-where-in";
 
 describe("getPublicCultivarPage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  it("returns conversion-ready cultivar payload and excludes non-pro offers", async () => {
+  it("returns conversion-ready cultivar payload with all published offers", async () => {
     mockDb.cultivarReference.findFirst.mockResolvedValue({
       id: "cultivar-1",
       normalizedName: "coffee frenzy",
@@ -65,7 +66,7 @@ describe("getPublicCultivarPage", () => {
       },
     });
 
-    mockDb.listing.findMany.mockResolvedValue([
+    const listingRows = [
       {
         id: "listing-top-a",
         title: "Coffee Frenzy Prime Fan",
@@ -74,6 +75,7 @@ describe("getPublicCultivarPage", () => {
         description: "Prime",
         updatedAt: new Date("2026-01-11T00:00:00.000Z"),
         userId: "user-top",
+        cultivarReferenceId: "cultivar-1",
         images: [
           {
             id: "img-top-a",
@@ -96,6 +98,7 @@ describe("getPublicCultivarPage", () => {
         description: "Display",
         updatedAt: new Date("2026-01-15T00:00:00.000Z"),
         userId: "user-top",
+        cultivarReferenceId: "cultivar-1",
         images: [
           {
             id: "img-top-c",
@@ -113,6 +116,7 @@ describe("getPublicCultivarPage", () => {
         description: "Alpha",
         updatedAt: new Date("2026-01-13T00:00:00.000Z"),
         userId: "user-alpha",
+        cultivarReferenceId: "cultivar-1",
         images: [
           {
             id: "img-alpha-a",
@@ -130,6 +134,7 @@ describe("getPublicCultivarPage", () => {
         description: "Hobby",
         updatedAt: new Date("2026-01-20T00:00:00.000Z"),
         userId: "user-hobby",
+        cultivarReferenceId: "cultivar-1",
         images: [
           {
             id: "img-hobby-a",
@@ -139,7 +144,35 @@ describe("getPublicCultivarPage", () => {
         ],
         lists: [],
       },
-    ]);
+    ];
+
+    const relatedListingPreviewRows = [
+      {
+        cultivarReferenceId: "ref-golden",
+        images: [{ url: "https://example.com/goldenzelle.jpg" }],
+      },
+      {
+        cultivarReferenceId: "ref-none",
+        images: [],
+      },
+    ];
+
+    mockDb.listing.findMany.mockImplementation((args: unknown) => {
+      const where = (args as { where?: Record<string, unknown> }).where;
+      const cultivarReferenceIdFilter = where?.cultivarReferenceId;
+
+      if (
+        typeof cultivarReferenceIdFilter === "object" &&
+        cultivarReferenceIdFilter !== null &&
+        "in" in cultivarReferenceIdFilter
+      ) {
+        return Promise.resolve(
+          applyWhereIn(relatedListingPreviewRows, args, "cultivarReferenceId"),
+        );
+      }
+
+      return Promise.resolve(applyWhereIn(listingRows, args, "userId"));
+    });
 
     mockDb.user.findMany.mockResolvedValue([
       {
@@ -186,18 +219,9 @@ describe("getPublicCultivarPage", () => {
       },
     ]);
 
-    mockGetStripeSubscription.mockImplementation(
-      async (stripeCustomerId: string) => {
-        if (stripeCustomerId === "cus-hobby") {
-          return { status: "none" };
-        }
-
-        return { status: "active" };
-      },
-    );
-
     mockDb.cultivarReference.findMany.mockResolvedValue([
       {
+        id: "ref-isle",
         normalizedName: "isle of wight",
         ahsListing: {
           id: "ahs-isle",
@@ -208,9 +232,9 @@ describe("getPublicCultivarPage", () => {
           bloomSeason: "Early",
           color: "Peach",
         },
-        listings: [],
       },
       {
+        id: "ref-golden",
         normalizedName: "goldenzelle",
         ahsListing: {
           id: "ahs-golden",
@@ -221,13 +245,9 @@ describe("getPublicCultivarPage", () => {
           bloomSeason: "Mid",
           color: "Apricot",
         },
-        listings: [
-          {
-            images: [{ url: "https://example.com/goldenzelle.jpg" }],
-          },
-        ],
       },
       {
+        id: "ref-none",
         normalizedName: "no image cultivar",
         ahsListing: {
           id: "ahs-none",
@@ -238,7 +258,6 @@ describe("getPublicCultivarPage", () => {
           bloomSeason: null,
           color: null,
         },
-        listings: [],
       },
     ]);
 
@@ -246,18 +265,20 @@ describe("getPublicCultivarPage", () => {
 
     expect(result).not.toBeNull();
     expect(result?.summary.name).toBe("Coffee Frenzy");
-    expect(result?.summary.gardensCount).toBe(2);
-    expect(result?.summary.offersCount).toBe(3);
+    expect(result?.summary.gardensCount).toBe(3);
+    expect(result?.summary.offersCount).toBe(4);
 
     expect(result?.offers.gardenCards.map((garden) => garden.slug)).toEqual([
       "alpha-pro",
+      "hobby-grower",
       "top-pro",
     ]);
 
-    expect(result?.offers.gardenCards[1]?.offers.map((offer) => offer.id)).toEqual([
-      "listing-top-a",
-      "listing-top-b",
-    ]);
+    expect(
+      result?.offers.gardenCards
+        .find((garden) => garden.slug === "top-pro")
+        ?.offers.map((offer) => offer.id),
+    ).toEqual(["listing-top-a", "listing-top-b"]);
 
     expect(result?.heroImages[0]).toMatchObject({
       source: "ahs",
@@ -277,7 +298,15 @@ describe("getPublicCultivarPage", () => {
       ]),
     );
 
-    expect(result?.gardenPhotos.map((photo) => photo.id)).not.toContain("img-hobby-a");
+    expect(result?.gardenPhotos.map((photo) => photo.id)).toContain("img-hobby-a");
+
+    expect(mockDb.listing.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          cultivarReferenceId: "cultivar-1",
+        }),
+      }),
+    );
 
     expect(result?.relatedByHybridizer.map((cultivar) => cultivar.segment)).toEqual([
       "isle-of-wight",
@@ -285,136 +314,143 @@ describe("getPublicCultivarPage", () => {
     ]);
 
     expect(result?.freshness.offersUpdatedAt).toEqual(
-      new Date("2026-01-15T00:00:00.000Z"),
+      new Date("2026-01-20T00:00:00.000Z"),
     );
   });
 
   it("resolves slugified segments back to punctuation-heavy cultivar names", async () => {
+    mockDb.cultivarReference.findFirst.mockResolvedValue({
+      id: "cultivar-punctuated",
+      normalizedName: "a cowgirl's heart",
+      updatedAt: new Date("2026-01-05T00:00:00.000Z"),
+      ahsListing: null,
+    });
+
+    const listingRows = [
+      {
+        id: "listing-punctuated",
+        title: "A Cowgirl's Heart",
+        slug: "a-cowgirls-heart",
+        price: null,
+        description: null,
+        updatedAt: new Date("2026-01-05T00:00:00.000Z"),
+        userId: "user-pro",
+        images: [],
+        lists: [],
+      },
+    ];
+    mockDb.listing.findMany.mockImplementation((args: unknown) =>
+      Promise.resolve(applyWhereIn(listingRows, args, "userId")),
+    );
+
+    mockDb.user.findMany.mockResolvedValue([
+      {
+        id: "user-pro",
+        createdAt: new Date("2020-01-01T00:00:00.000Z"),
+        stripeCustomerId: "cus-pro",
+        profile: {
+          slug: "pro-garden",
+          title: "Pro Garden",
+          description: null,
+          location: null,
+          updatedAt: new Date("2026-01-05T00:00:00.000Z"),
+          images: [],
+        },
+        _count: {
+          listings: 1,
+          lists: 1,
+        },
+      },
+    ]);
+
+    mockGetStripeSubscription.mockResolvedValue({ status: "active" });
+
+    const result = await getPublicCultivarPage("a-cowgirls-heart");
+
+    expect(result?.cultivar.normalizedName).toBe("a cowgirl's heart");
+    expect(mockDb.cultivarReference.findFirst).toHaveBeenCalledTimes(1);
+    expect(mockDb.cultivarReference.findMany).not.toHaveBeenCalled();
+  });
+
+  it("falls back to segment matching and resolves slug collisions with one ranked query", async () => {
     mockDb.cultivarReference.findFirst
       .mockResolvedValueOnce(null)
       .mockResolvedValueOnce({
-        id: "cultivar-punctuated",
-        normalizedName: "a cowgirl's heart",
-        updatedAt: new Date("2026-01-05T00:00:00.000Z"),
+        id: "cultivar-curly",
+        normalizedName: "aladdin’s castle",
+        updatedAt: new Date("2026-01-06T00:00:00.000Z"),
         ahsListing: null,
       });
 
     mockDb.cultivarReference.findMany.mockResolvedValue([
       {
-        normalizedName: "a cowgirl's heart",
+        normalizedName: "aladdin's castle",
+      },
+      {
+        normalizedName: "aladdin’s castle",
       },
     ]);
 
     mockDb.listing.findMany.mockResolvedValue([]);
     mockDb.user.findMany.mockResolvedValue([]);
 
-    const result = await getPublicCultivarPage("a-cowgirls-heart");
+    const result = await getPublicCultivarPage("aladdins-castle");
 
-    expect(result?.cultivar.normalizedName).toBe("a cowgirl's heart");
+    expect(result?.cultivar.normalizedName).toBe("aladdin’s castle");
     expect(mockDb.cultivarReference.findFirst).toHaveBeenCalledTimes(2);
-  });
 
-  it("treats subscription lookup failures as non-pro instead of failing cultivar response", async () => {
-    mockDb.cultivarReference.findFirst.mockResolvedValue({
-      id: "cultivar-1",
-      normalizedName: "coffee frenzy",
-      updatedAt: new Date("2026-01-05T00:00:00.000Z"),
-      ahsListing: {
-        id: "ahs-1",
-        name: "Coffee Frenzy",
-        ahsImageUrl: "https://example.com/ahs.jpg",
-        hybridizer: "Reed",
-        year: "2012",
-        scapeHeight: null,
-        bloomSize: null,
-        bloomSeason: null,
-        form: null,
-        ploidy: null,
-        foliageType: null,
-        bloomHabit: null,
-        budcount: null,
-        branches: null,
-        sculpting: null,
-        foliage: null,
-        flower: null,
-        fragrance: null,
-        parentage: null,
-        color: null,
+    const secondFindFirstArgs = mockDb.cultivarReference.findFirst.mock.calls[1]?.[0];
+    expect(secondFindFirstArgs).toMatchObject({
+      where: {
+        AND: expect.arrayContaining([
+          {
+            normalizedName: {
+              in: ["aladdin's castle", "aladdin’s castle"],
+            },
+          },
+        ]),
+      },
+      orderBy: {
+        updatedAt: "desc",
       },
     });
+  });
 
-    mockDb.listing.findMany.mockResolvedValue([
-      {
-        id: "listing-ok",
-        title: "Coffee Frenzy Pro",
-        slug: "coffee-frenzy-pro",
-        price: 20,
-        description: "Available",
-        updatedAt: new Date("2026-01-10T00:00:00.000Z"),
-        userId: "user-ok",
-        images: [],
-        lists: [],
-      },
-      {
-        id: "listing-failing-sub",
-        title: "Coffee Frenzy Failing Sub",
-        slug: "coffee-frenzy-failing-sub",
-        price: 18,
-        description: "Available",
-        updatedAt: new Date("2026-01-10T00:00:00.000Z"),
-        userId: "user-failing-sub",
-        images: [],
-        lists: [],
-      },
-    ]);
+  it("allows direct cultivar page lookup without requiring linked listings", async () => {
+    mockDb.cultivarReference.findFirst.mockResolvedValue({
+      id: "cultivar-orphan",
+      normalizedName: "orphan cultivar",
+      updatedAt: new Date("2026-01-05T00:00:00.000Z"),
+      ahsListing: null,
+    });
 
-    mockDb.user.findMany.mockResolvedValue([
-      {
-        id: "user-ok",
-        createdAt: new Date("2019-01-01T00:00:00.000Z"),
-        stripeCustomerId: "cus-ok",
-        profile: {
-          slug: "ok-pro",
-          title: "OK Pro Garden",
-          description: null,
-          location: null,
-          updatedAt: new Date("2026-01-10T00:00:00.000Z"),
-          images: [],
-        },
-        _count: { listings: 4, lists: 1 },
-      },
-      {
-        id: "user-failing-sub",
-        createdAt: new Date("2020-01-01T00:00:00.000Z"),
-        stripeCustomerId: "cus-failing-sub",
-        profile: {
-          slug: "failing-pro",
-          title: "Failing Pro Garden",
-          description: null,
-          location: null,
-          updatedAt: new Date("2026-01-10T00:00:00.000Z"),
-          images: [],
-        },
-        _count: { listings: 4, lists: 1 },
-      },
-    ]);
-
-    mockGetStripeSubscription.mockImplementation(
-      async (stripeCustomerId: string) => {
-        if (stripeCustomerId === "cus-failing-sub") {
-          throw new Error("kv unavailable");
-        }
-
-        return { status: "active" };
-      },
-    );
-
+    mockDb.listing.findMany.mockResolvedValue([]);
+    mockDb.user.findMany.mockResolvedValue([]);
     mockDb.cultivarReference.findMany.mockResolvedValue([]);
 
-    const result = await getPublicCultivarPage("coffee-frenzy");
+    const result = await getPublicCultivarPage("orphan-cultivar");
+    const findFirstArgs = mockDb.cultivarReference.findFirst.mock.calls[0]?.[0];
 
     expect(result).not.toBeNull();
-    expect(result?.offers.gardenCards.map((garden) => garden.slug)).toEqual(["ok-pro"]);
+    expect(result?.offers.summary.offersCount).toBe(0);
+    expect(result?.offers.summary.gardensCount).toBe(0);
+    expect(findFirstArgs?.where).toMatchObject({
+      AND: expect.arrayContaining([
+        {
+          normalizedName: {
+            not: null,
+          },
+        },
+      ]),
+    });
+    expect(JSON.stringify(findFirstArgs?.where)).not.toContain("listings");
+    expect(mockDb.listing.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          cultivarReferenceId: "cultivar-orphan",
+        }),
+      }),
+    );
   });
 });
 
@@ -424,33 +460,69 @@ describe("getCultivarSitemapEntries", () => {
   });
 
   it("uses cultivar/listing updated times and keeps canonical slug ordering stable", async () => {
-    mockDb.cultivarReference.findMany.mockResolvedValue([
+    mockDb.user.findMany.mockResolvedValue([
       {
-        normalizedName: "coffee frenzy",
-        updatedAt: new Date("2026-01-01T00:00:00.000Z"),
-        listings: [{ updatedAt: new Date("2026-01-03T00:00:00.000Z") }],
+        id: "user-pro",
+        stripeCustomerId: "cus-pro",
       },
       {
-        normalizedName: "coffee-frenzy",
-        updatedAt: new Date("2026-01-02T00:00:00.000Z"),
-        listings: [],
-      },
-      {
-        normalizedName: "apple blossom",
-        updatedAt: new Date("2026-01-05T00:00:00.000Z"),
-        listings: [{ updatedAt: new Date("2026-01-04T00:00:00.000Z") }],
-      },
-      {
-        normalizedName: "aerial appliqué",
-        updatedAt: new Date("2026-01-06T00:00:00.000Z"),
-        listings: [],
-      },
-      {
-        normalizedName: "50,000 watts",
-        updatedAt: new Date("2026-01-07T00:00:00.000Z"),
-        listings: [],
+        id: "user-free",
+        stripeCustomerId: "cus-free",
       },
     ]);
+
+    mockGetStripeSubscription.mockImplementation(
+      async (stripeCustomerId: string) =>
+        stripeCustomerId === "cus-pro"
+          ? { status: "active" }
+          : { status: "none" },
+    );
+
+    const listingRows = [
+      {
+        userId: "user-pro",
+        updatedAt: new Date("2026-01-03T00:00:00.000Z"),
+        cultivarReference: {
+          normalizedName: "coffee frenzy",
+          updatedAt: new Date("2026-01-01T00:00:00.000Z"),
+        },
+      },
+      {
+        userId: "user-pro",
+        updatedAt: new Date("2026-01-02T00:00:00.000Z"),
+        cultivarReference: {
+          normalizedName: "coffee-frenzy",
+          updatedAt: new Date("2026-01-02T00:00:00.000Z"),
+        },
+      },
+      {
+        userId: "user-pro",
+        updatedAt: new Date("2026-01-04T00:00:00.000Z"),
+        cultivarReference: {
+          normalizedName: "apple blossom",
+          updatedAt: new Date("2026-01-05T00:00:00.000Z"),
+        },
+      },
+      {
+        userId: "user-free",
+        updatedAt: new Date("2026-01-08T00:00:00.000Z"),
+        cultivarReference: {
+          normalizedName: "aerial appliqué",
+          updatedAt: new Date("2026-01-06T00:00:00.000Z"),
+        },
+      },
+      {
+        userId: "user-pro",
+        updatedAt: new Date("2026-01-07T00:00:00.000Z"),
+        cultivarReference: {
+          normalizedName: "50,000 watts",
+          updatedAt: new Date("2026-01-07T00:00:00.000Z"),
+        },
+      },
+    ];
+    mockDb.listing.findMany.mockImplementation((args: unknown) =>
+      Promise.resolve(applyWhereIn(listingRows, args, "userId")),
+    );
 
     const result = await getCultivarSitemapEntries();
 
@@ -458,10 +530,6 @@ describe("getCultivarSitemapEntries", () => {
       {
         segment: "50000-watts",
         lastModified: new Date("2026-01-07T00:00:00.000Z"),
-      },
-      {
-        segment: "aerial-applique",
-        lastModified: new Date("2026-01-06T00:00:00.000Z"),
       },
       {
         segment: "apple-blossom",
@@ -472,5 +540,15 @@ describe("getCultivarSitemapEntries", () => {
         lastModified: new Date("2026-01-03T00:00:00.000Z"),
       },
     ]);
+
+    expect(mockDb.listing.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          userId: {
+            in: ["user-pro"],
+          },
+        }),
+      }),
+    );
   });
 });

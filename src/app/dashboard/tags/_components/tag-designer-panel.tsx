@@ -51,6 +51,11 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 import { useLocalStorage } from "@/hooks/use-local-storage";
 import { getBaseUrl } from "@/lib/utils/getBaseUrl";
 import { cn } from "@/lib/utils";
@@ -262,6 +267,8 @@ const MIN_SHEET_MARGIN_INCHES = 0;
 const MAX_SHEET_MARGIN_INCHES = 6;
 const MIN_SHEET_PADDING_INCHES = 0;
 const MAX_SHEET_PADDING_INCHES = 6;
+const MIN_SHEET_COPIES_PER_LABEL = 1;
+const MAX_SHEET_COPIES_PER_LABEL = 500;
 
 interface StoredTagLayoutTemplate {
   id: string;
@@ -603,17 +610,6 @@ const BUILTIN_TAG_LAYOUT_TEMPLATES: Array<
 
 function clamp(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value));
-}
-
-function parseInches(
-  input: string,
-  fallback: number,
-  min: number,
-  max: number,
-) {
-  const parsed = Number.parseFloat(input);
-  if (!Number.isFinite(parsed)) return fallback;
-  return Number.parseFloat(clamp(parsed, min, max).toFixed(2));
 }
 
 function normalizeInches(value: number) {
@@ -1705,6 +1701,30 @@ function chunkTags<T>(items: T[], chunkSize: number): T[][] {
   return chunks;
 }
 
+function duplicateTagsForSheetLabels(
+  tags: TagPreviewData[],
+  copiesPerLabel: number,
+) {
+  if (!tags.length) return [];
+  const normalizedCopies = Math.max(
+    MIN_SHEET_COPIES_PER_LABEL,
+    Math.floor(copiesPerLabel),
+  );
+  if (normalizedCopies <= 1) return tags;
+
+  const duplicatedTags: TagPreviewData[] = [];
+  for (const tag of tags) {
+    for (let copyIndex = 0; copyIndex < normalizedCopies; copyIndex += 1) {
+      duplicatedTags.push({
+        ...tag,
+        id: `${tag.id}--copy-${copyIndex + 1}`,
+      });
+    }
+  }
+
+  return duplicatedTags;
+}
+
 async function renderSingleSheetCanvas({
   sheetTags,
   sheetState,
@@ -2124,6 +2144,24 @@ function TagCellEditor({
   const patch = (partial: Partial<TagCell>) =>
     onUpdate({ ...cell, ...partial });
 
+  const commitWidthDraft = (inputElement: HTMLInputElement) => {
+    const parsedWidth = Number.parseInt(inputElement.value.trim(), 10);
+    const nextWidth = Number.isFinite(parsedWidth)
+      ? clamp(parsedWidth, 1, 12)
+      : cell.width;
+    patch({ width: nextWidth });
+    inputElement.value = String(nextWidth);
+  };
+
+  const commitFontSizeDraft = (inputElement: HTMLInputElement) => {
+    const parsedFontSize = Number.parseInt(inputElement.value.trim(), 10);
+    const nextFontSize = Number.isFinite(parsedFontSize)
+      ? clamp(parsedFontSize, 6, 28)
+      : cell.fontSize;
+    patch({ fontSize: nextFontSize });
+    inputElement.value = String(nextFontSize);
+  };
+
   return (
     <div className={CELL_GRID}>
       <div className="flex items-center gap-0.5">
@@ -2186,15 +2224,19 @@ function TagCellEditor({
       />
 
       <Input
+        key={`cell-width-${cell.fieldId}-${cell.width}`}
         type="number"
+        inputMode="numeric"
         min={1}
         max={12}
-        value={cell.width}
-        onChange={(e) =>
-          patch({
-            width: clamp(Number.parseInt(e.target.value, 10) || 1, 1, 12),
-          })
-        }
+        step={1}
+        defaultValue={cell.width}
+        onBlur={(event) => commitWidthDraft(event.currentTarget)}
+        onKeyDown={(event) => {
+          if (event.key === "Enter") {
+            event.currentTarget.blur();
+          }
+        }}
         className="h-7 px-1 text-center text-xs"
         title="Column width (fr units)"
       />
@@ -2211,15 +2253,19 @@ function TagCellEditor({
       </select>
 
       <Input
+        key={`cell-font-${cell.fieldId}-${cell.fontSize}`}
         type="number"
+        inputMode="numeric"
         min={6}
         max={28}
-        value={cell.fontSize}
-        onChange={(e) =>
-          patch({
-            fontSize: clamp(Number.parseInt(e.target.value, 10) || 10, 6, 28),
-          })
-        }
+        step={1}
+        defaultValue={cell.fontSize}
+        onBlur={(event) => commitFontSizeDraft(event.currentTarget)}
+        onKeyDown={(event) => {
+          if (event.key === "Enter") {
+            event.currentTarget.blur();
+          }
+        }}
         className="h-7 px-1 text-center text-xs"
         title="Font size (px)"
       />
@@ -2464,9 +2510,6 @@ function SheetNumberField({
   decimals,
   onCommit,
 }: SheetNumberFieldProps) {
-  const [draftValue, setDraftValue] = React.useState(() =>
-    formatSheetNumberForInput(value, decimals),
-  );
   const [errorMessage, setErrorMessage] = React.useState<string | null>(null);
 
   const rangeText = React.useMemo(() => {
@@ -2476,24 +2519,27 @@ function SheetNumberField({
     return `Enter a ${prefix} between ${minText} and ${maxText}.`;
   }, [decimals, max, min]);
 
-  React.useEffect(() => {
-    setDraftValue(formatSheetNumberForInput(value, decimals));
-    setErrorMessage(null);
-  }, [decimals, value]);
+  const commitDraftValue = React.useCallback(
+    (inputElement: HTMLInputElement) => {
+      const trimmedValue = inputElement.value.trim();
+      const parsedValue = parseSheetNumberInput(trimmedValue, decimals);
+      if (parsedValue === null || parsedValue < min || parsedValue > max) {
+        setErrorMessage(`${rangeText} Type a value and leave the field.`);
+        return;
+      }
 
-  const commitDraftValue = React.useCallback(() => {
-    const trimmedValue = draftValue.trim();
-    const parsedValue = parseSheetNumberInput(trimmedValue, decimals);
-    if (parsedValue === null || parsedValue < min || parsedValue > max) {
-      setErrorMessage(`${rangeText} Type a value and leave the field.`);
-      return;
-    }
-
-    const normalizedValue = normalizeSheetNumber(parsedValue, min, max, decimals);
-    onCommit(normalizedValue);
-    setDraftValue(formatSheetNumberForInput(normalizedValue, decimals));
-    setErrorMessage(null);
-  }, [decimals, draftValue, max, min, onCommit, rangeText]);
+      const normalizedValue = normalizeSheetNumber(
+        parsedValue,
+        min,
+        max,
+        decimals,
+      );
+      onCommit(normalizedValue);
+      inputElement.value = formatSheetNumberForInput(normalizedValue, decimals);
+      setErrorMessage(null);
+    },
+    [decimals, max, min, onCommit, rangeText],
+  );
 
   const stepValue = React.useCallback(
     (direction: -1 | 1) => {
@@ -2504,7 +2550,6 @@ function SheetNumberField({
         decimals,
       );
       onCommit(nextValue);
-      setDraftValue(formatSheetNumberForInput(nextValue, decimals));
       setErrorMessage(null);
     },
     [decimals, max, min, onCommit, step, value],
@@ -2526,21 +2571,27 @@ function SheetNumberField({
         </Button>
 
         <Input
+          key={`${id}-${value}`}
           id={id}
-          type="text"
+          type="number"
+          min={min}
+          max={max}
+          step={step}
           inputMode={decimals === 0 ? "numeric" : "decimal"}
-          value={draftValue}
-          onChange={(event) => {
-            setDraftValue(event.target.value);
+          defaultValue={formatSheetNumberForInput(value, decimals)}
+          onChange={() => {
             if (errorMessage) setErrorMessage(null);
           }}
-          onBlur={commitDraftValue}
+          onBlur={(event) => commitDraftValue(event.currentTarget)}
           onKeyDown={(event) => {
             if (event.key === "Enter") {
               event.currentTarget.blur();
             }
             if (event.key === "Escape") {
-              setDraftValue(formatSheetNumberForInput(value, decimals));
+              event.currentTarget.value = formatSheetNumberForInput(
+                value,
+                decimals,
+              );
               setErrorMessage(null);
               event.currentTarget.blur();
             }
@@ -2574,7 +2625,9 @@ function SheetNumberField({
 interface TagSheetCreatorDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  selectedListingCount: number;
+  selectedLabelCount: number;
+  copiesPerLabel: number;
+  onCopiesPerLabelChange: (nextCopiesPerLabel: number) => void;
   previewTags: TagPreviewData[];
   sheetState: TagSheetCreatorState;
   sheetMetrics: ResolvedSheetMetrics;
@@ -2590,7 +2643,9 @@ interface TagSheetCreatorDialogProps {
 function TagSheetCreatorDialog({
   open,
   onOpenChange,
-  selectedListingCount,
+  selectedLabelCount,
+  copiesPerLabel,
+  onCopiesPerLabelChange,
   previewTags,
   sheetState,
   sheetMetrics,
@@ -2602,9 +2657,17 @@ function TagSheetCreatorDialog({
   onResetToSingleTag,
   isPreparingDownload,
 }: TagSheetCreatorDialogProps) {
+  const [isPrintQuantityOpen, setIsPrintQuantityOpen] = React.useState(false);
+
+  React.useEffect(() => {
+    if (!open) return;
+    setIsPrintQuantityOpen(false);
+  }, [open]);
+
+  const totalLabelCount = selectedLabelCount * copiesPerLabel;
   const estimatedSheetCount =
     sheetMetrics.tagsPerSheet > 0
-      ? Math.ceil(selectedListingCount / sheetMetrics.tagsPerSheet)
+      ? Math.ceil(totalLabelCount / sheetMetrics.tagsPerSheet)
       : 0;
   const firstSheetPreviewTags = React.useMemo(
     () => previewTags.slice(0, sheetMetrics.tagsPerSheet),
@@ -2621,7 +2684,7 @@ function TagSheetCreatorDialog({
   const previewMaxWidthPx = 560;
   const previewScale =
     pageWidthPx > 0 ? Math.min(previewMaxWidthPx / pageWidthPx, 1) : 1;
-  const canExport = sheetMetrics.isValid && selectedListingCount > 0;
+  const canExport = sheetMetrics.isValid && totalLabelCount > 0;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -2783,6 +2846,45 @@ function TagSheetCreatorDialog({
               <span>Print dashed borders</span>
             </label>
           </div>
+
+          <div className="md:col-span-2">
+            <Collapsible
+              open={isPrintQuantityOpen}
+              onOpenChange={setIsPrintQuantityOpen}
+            >
+              <CollapsibleTrigger asChild>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full justify-between"
+                >
+                  <span>Print quantity</span>
+                  <ChevronDown
+                    className={cn(
+                      "h-4 w-4 transition-transform",
+                      isPrintQuantityOpen && "rotate-180",
+                    )}
+                  />
+                </Button>
+              </CollapsibleTrigger>
+              <CollapsibleContent className="border-border bg-muted/20 mt-3 space-y-2 rounded-md border p-3">
+                <SheetNumberField
+                  id="sheet-copies-per-label"
+                  label="Copies of each selected label"
+                  value={copiesPerLabel}
+                  min={MIN_SHEET_COPIES_PER_LABEL}
+                  max={MAX_SHEET_COPIES_PER_LABEL}
+                  step={1}
+                  decimals={0}
+                  onCommit={onCopiesPerLabelChange}
+                />
+                <p className="text-muted-foreground text-xs">
+                  The same label is repeated together before printing the next
+                  label.
+                </p>
+              </CollapsibleContent>
+            </Collapsible>
+          </div>
         </div>
 
         <div className="space-y-1 text-sm">
@@ -2791,12 +2893,17 @@ function TagSheetCreatorDialog({
             {sheetMetrics.slotWidthInches.toFixed(2)}&quot; ×{" "}
             {sheetMetrics.slotHeightInches.toFixed(2)}&quot;
           </p>
+          <p className="font-medium">
+            {selectedLabelCount} label{selectedLabelCount === 1 ? "" : "s"}{" "}
+            selected, {copiesPerLabel} cop{copiesPerLabel === 1 ? "y" : "ies"}{" "}
+            of each, {totalLabelCount} total label
+            {totalLabelCount === 1 ? "" : "s"}.
+          </p>
           <p className="text-muted-foreground">
             {sheetMetrics.tagsPerSheet} tag
             {sheetMetrics.tagsPerSheet === 1 ? "" : "s"} per sheet,{" "}
             {estimatedSheetCount} sheet
-            {estimatedSheetCount === 1 ? "" : "s"} for {selectedListingCount}{" "}
-            selected.
+            {estimatedSheetCount === 1 ? "" : "s"} needed.
           </p>
           {!sheetMetrics.isValid ? (
             <p className="text-destructive">
@@ -2930,7 +3037,7 @@ function TagSheetCreatorDialog({
             </>
           ) : (
             <p className="text-muted-foreground text-sm">
-              {selectedListingCount === 0
+              {selectedLabelCount === 0
                 ? "Select listings below to preview sheet output."
                 : "Adjust settings so the selected page can fit the tag grid."}
             </p>
@@ -3130,44 +3237,104 @@ function TagDesignerCustomSizeInputs({
   customHeightInches,
   updateState,
 }: TagDesignerCustomSizeInputsProps) {
+  const commitWidthDraft = React.useCallback(
+    (inputElement: HTMLInputElement) => {
+      const parsedValue = parseSheetNumberInput(inputElement.value.trim(), 2);
+      if (parsedValue === null) {
+        inputElement.value = formatSheetNumberForInput(customWidthInches, 2);
+        return;
+      }
+
+      const normalizedValue = normalizeSheetNumber(
+        parsedValue,
+        MIN_TAG_WIDTH_INCHES,
+        MAX_TAG_WIDTH_INCHES,
+        2,
+      );
+      updateState((previous) => ({
+        ...previous,
+        customWidthInches: normalizedValue,
+      }));
+      inputElement.value = formatSheetNumberForInput(normalizedValue, 2);
+    },
+    [customWidthInches, updateState],
+  );
+
+  const commitHeightDraft = React.useCallback(
+    (inputElement: HTMLInputElement) => {
+      const parsedValue = parseSheetNumberInput(inputElement.value.trim(), 2);
+      if (parsedValue === null) {
+        inputElement.value = formatSheetNumberForInput(customHeightInches, 2);
+        return;
+      }
+
+      const normalizedValue = normalizeSheetNumber(
+        parsedValue,
+        MIN_TAG_HEIGHT_INCHES,
+        MAX_TAG_HEIGHT_INCHES,
+        2,
+      );
+      updateState((previous) => ({
+        ...previous,
+        customHeightInches: normalizedValue,
+      }));
+      inputElement.value = formatSheetNumberForInput(normalizedValue, 2);
+    },
+    [customHeightInches, updateState],
+  );
+
   return (
     <>
       <div className="space-y-1">
         <Label htmlFor="custom-width-input">Width (in)</Label>
         <Input
+          key={`custom-width-${customWidthInches}`}
           id="custom-width-input"
+          type="number"
+          min={MIN_TAG_WIDTH_INCHES}
+          max={MAX_TAG_WIDTH_INCHES}
+          step={0.01}
           inputMode="decimal"
-          value={customWidthInches.toFixed(2)}
-          onChange={(e) =>
-            updateState((prev) => ({
-              ...prev,
-              customWidthInches: parseInches(
-                e.target.value,
-                prev.customWidthInches,
-                MIN_TAG_WIDTH_INCHES,
-                MAX_TAG_WIDTH_INCHES,
-              ),
-            }))
-          }
+          defaultValue={formatSheetNumberForInput(customWidthInches, 2)}
+          onBlur={(event) => commitWidthDraft(event.currentTarget)}
+          onKeyDown={(event) => {
+            if (event.key === "Enter") {
+              event.currentTarget.blur();
+            }
+            if (event.key === "Escape") {
+              event.currentTarget.value = formatSheetNumberForInput(
+                customWidthInches,
+                2,
+              );
+              event.currentTarget.blur();
+            }
+          }}
         />
       </div>
       <div className="space-y-1">
         <Label htmlFor="custom-height-input">Height (in)</Label>
         <Input
+          key={`custom-height-${customHeightInches}`}
           id="custom-height-input"
+          type="number"
+          min={MIN_TAG_HEIGHT_INCHES}
+          max={MAX_TAG_HEIGHT_INCHES}
+          step={0.01}
           inputMode="decimal"
-          value={customHeightInches.toFixed(2)}
-          onChange={(e) =>
-            updateState((prev) => ({
-              ...prev,
-              customHeightInches: parseInches(
-                e.target.value,
-                prev.customHeightInches,
-                MIN_TAG_HEIGHT_INCHES,
-                MAX_TAG_HEIGHT_INCHES,
-              ),
-            }))
-          }
+          defaultValue={formatSheetNumberForInput(customHeightInches, 2)}
+          onBlur={(event) => commitHeightDraft(event.currentTarget)}
+          onKeyDown={(event) => {
+            if (event.key === "Enter") {
+              event.currentTarget.blur();
+            }
+            if (event.key === "Escape") {
+              event.currentTarget.value = formatSheetNumberForInput(
+                customHeightInches,
+                2,
+              );
+              event.currentTarget.blur();
+            }
+          }}
         />
       </div>
     </>
@@ -3558,6 +3725,9 @@ function TagDesignerPreview({
 export function TagDesignerPanel({ listings }: { listings: TagListingData[] }) {
   const [isPreparingDownload, setIsPreparingDownload] = React.useState(false);
   const [isSheetCreatorOpen, setIsSheetCreatorOpen] = React.useState(false);
+  const [sheetCopiesPerLabel, setSheetCopiesPerLabel] = React.useState(
+    MIN_SHEET_COPIES_PER_LABEL,
+  );
   const [storedState, setStoredState] = useLocalStorage<TagDesignerState>(
     TAG_DESIGNER_STORAGE_KEY,
     DEFAULT_TAG_DESIGNER_STATE,
@@ -3855,7 +4025,7 @@ export function TagDesignerPanel({ listings }: { listings: TagListingData[] }) {
     [heightInches, sheetState, widthInches],
   );
 
-  const previewTags = React.useMemo<TagPreviewData[]>(() => {
+  const basePreviewTags = React.useMemo<TagPreviewData[]>(() => {
     const toPreview = listings.length > 0 ? listings : [PLACEHOLDER_LISTING];
     return toPreview.map((listing) => ({
       id: listing.id,
@@ -3867,7 +4037,16 @@ export function TagDesignerPanel({ listings }: { listings: TagListingData[] }) {
     }));
   }, [baseUrl, listings, state.rows, state.showQrCode]);
 
-  const visiblePreviewTags = previewTags.slice(0, 8);
+  const sheetPreviewTags = React.useMemo(
+    () =>
+      duplicateTagsForSheetLabels(
+        listings.length > 0 ? basePreviewTags : [],
+        sheetCopiesPerLabel,
+      ),
+    [basePreviewTags, listings.length, sheetCopiesPerLabel],
+  );
+
+  const visiblePreviewTags = basePreviewTags.slice(0, 8);
 
   // -- Row mutations --
 
@@ -3965,6 +4144,7 @@ export function TagDesignerPanel({ listings }: { listings: TagListingData[] }) {
   }, [setStoredState]);
 
   const handleOpenSheetCreator = React.useCallback(() => {
+    setSheetCopiesPerLabel(MIN_SHEET_COPIES_PER_LABEL);
     if (typeof window !== "undefined") {
       const existingSheetState = window.localStorage.getItem(
         TAG_SHEET_CREATOR_STORAGE_KEY,
@@ -3980,6 +4160,21 @@ export function TagDesignerPanel({ listings }: { listings: TagListingData[] }) {
     }
     setIsSheetCreatorOpen(true);
   }, [heightInches, setStoredSheetState, widthInches]);
+
+  const handleSheetCopiesPerLabelChange = React.useCallback(
+    (nextCopiesPerLabel: number) => {
+      setSheetCopiesPerLabel(
+        Math.min(
+          MAX_SHEET_COPIES_PER_LABEL,
+          Math.max(
+            MIN_SHEET_COPIES_PER_LABEL,
+            Math.floor(nextCopiesPerLabel),
+          ),
+        ),
+      );
+    },
+    [],
+  );
 
   const handleResetSheetToSingleTag = React.useCallback(() => {
     setStoredSheetState(
@@ -4001,7 +4196,7 @@ export function TagDesignerPanel({ listings }: { listings: TagListingData[] }) {
     }
 
     return createTagSheetDocumentHtml({
-      tags: previewTags,
+      tags: sheetPreviewTags,
       sheetState,
       tagWidthInches: widthInches,
       tagHeightInches: heightInches,
@@ -4009,7 +4204,7 @@ export function TagDesignerPanel({ listings }: { listings: TagListingData[] }) {
   }, [
     heightInches,
     listings.length,
-    previewTags,
+    sheetPreviewTags,
     sheetMetrics.isValid,
     sheetState,
     widthInches,
@@ -4034,7 +4229,7 @@ export function TagDesignerPanel({ listings }: { listings: TagListingData[] }) {
     }
 
     const html = createTagPrintDocumentHtml({
-      tags: previewTags,
+      tags: basePreviewTags,
       widthInches,
       heightInches,
     });
@@ -4058,7 +4253,7 @@ export function TagDesignerPanel({ listings }: { listings: TagListingData[] }) {
     setIsPreparingDownload(true);
     try {
       const didDownload = await downloadTagSheetsPdf({
-        tags: previewTags,
+        tags: sheetPreviewTags,
         sheetState,
         tagWidthInches: widthInches,
         tagHeightInches: heightInches,
@@ -4073,7 +4268,7 @@ export function TagDesignerPanel({ listings }: { listings: TagListingData[] }) {
     heightInches,
     isPreparingDownload,
     isSheetExportReady,
-    previewTags,
+    sheetPreviewTags,
     sheetState,
     widthInches,
   ]);
@@ -4085,7 +4280,7 @@ export function TagDesignerPanel({ listings }: { listings: TagListingData[] }) {
     setIsPreparingDownload(true);
     try {
       const didDownload = await downloadTagSheetImagesZip({
-        tags: previewTags,
+        tags: sheetPreviewTags,
         sheetState,
         tagWidthInches: widthInches,
         tagHeightInches: heightInches,
@@ -4100,7 +4295,7 @@ export function TagDesignerPanel({ listings }: { listings: TagListingData[] }) {
     heightInches,
     isPreparingDownload,
     isSheetExportReady,
-    previewTags,
+    sheetPreviewTags,
     sheetState,
     widthInches,
   ]);
@@ -4121,13 +4316,19 @@ export function TagDesignerPanel({ listings }: { listings: TagListingData[] }) {
     }
 
     const html = createTagPrintDocumentHtml({
-      tags: previewTags,
+      tags: basePreviewTags,
       widthInches,
       heightInches,
     });
     downloadTagDocumentHtml(html);
     toast.success("Pages download started.");
-  }, [heightInches, isPreparingDownload, listings.length, previewTags, widthInches]);
+  }, [
+    basePreviewTags,
+    heightInches,
+    isPreparingDownload,
+    listings.length,
+    widthInches,
+  ]);
 
   const handleDownloadPdf = React.useCallback(async () => {
     if (isPreparingDownload) return;
@@ -4139,7 +4340,7 @@ export function TagDesignerPanel({ listings }: { listings: TagListingData[] }) {
     setIsPreparingDownload(true);
     try {
       const didDownload = await downloadTagDocumentPdf({
-        tags: previewTags,
+        tags: basePreviewTags,
         widthInches,
         heightInches,
       });
@@ -4153,7 +4354,7 @@ export function TagDesignerPanel({ listings }: { listings: TagListingData[] }) {
     heightInches,
     isPreparingDownload,
     listings.length,
-    previewTags,
+    basePreviewTags,
     widthInches,
   ]);
 
@@ -4167,7 +4368,7 @@ export function TagDesignerPanel({ listings }: { listings: TagListingData[] }) {
     setIsPreparingDownload(true);
     try {
       const didDownload = await downloadTagImagesZip({
-        tags: previewTags,
+        tags: basePreviewTags,
         widthInches,
         heightInches,
       });
@@ -4181,7 +4382,7 @@ export function TagDesignerPanel({ listings }: { listings: TagListingData[] }) {
     heightInches,
     isPreparingDownload,
     listings.length,
-    previewTags,
+    basePreviewTags,
     widthInches,
   ]);
 
@@ -4201,8 +4402,10 @@ export function TagDesignerPanel({ listings }: { listings: TagListingData[] }) {
       <TagSheetCreatorDialog
         open={isSheetCreatorOpen}
         onOpenChange={setIsSheetCreatorOpen}
-        selectedListingCount={listings.length}
-        previewTags={listings.length > 0 ? previewTags : []}
+        selectedLabelCount={listings.length}
+        copiesPerLabel={sheetCopiesPerLabel}
+        onCopiesPerLabelChange={handleSheetCopiesPerLabelChange}
+        previewTags={sheetPreviewTags}
         sheetState={sheetState}
         sheetMetrics={sheetMetrics}
         updateSheetState={updateSheetState}
@@ -4250,7 +4453,7 @@ export function TagDesignerPanel({ listings }: { listings: TagListingData[] }) {
 
       <TagDesignerPreview
         listingsCount={listings.length}
-        previewTags={previewTags}
+        previewTags={basePreviewTags}
         visiblePreviewTags={visiblePreviewTags}
         widthInches={widthInches}
         heightInches={heightInches}

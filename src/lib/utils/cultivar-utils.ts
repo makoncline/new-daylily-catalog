@@ -73,6 +73,30 @@ export function getCultivarRouteCandidates(
     candidates.add(normalizedWithSpaces);
   }
 
+  const addPossessiveVariants = (value: string | null) => {
+    if (!value) {
+      return;
+    }
+
+    const words = value.split(/\s+/);
+
+    words.forEach((word, index) => {
+      if (!/^[a-z0-9]+s$/i.test(word) || word.length < 2) {
+        return;
+      }
+
+      const possessiveWords = [...words];
+      possessiveWords[index] = `${word.slice(0, -1)}'s`;
+      const possessiveCandidate = normalizeCultivarName(possessiveWords.join(" "));
+
+      if (possessiveCandidate) {
+        candidates.add(possessiveCandidate);
+      }
+    });
+  };
+
+  addPossessiveVariants(normalizedWithSpaces);
+
   const canonicalSegment = toCultivarRouteSegment(decoded);
   if (canonicalSegment) {
     candidates.add(canonicalSegment);
@@ -83,6 +107,8 @@ export function getCultivarRouteCandidates(
     if (canonicalAsSpaces) {
       candidates.add(canonicalAsSpaces);
     }
+
+    addPossessiveVariants(canonicalAsSpaces);
   }
 
   return Array.from(candidates);

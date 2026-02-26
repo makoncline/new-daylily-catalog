@@ -51,7 +51,7 @@ model CultivarReference {
   listings   Listing[]
 
   @@index([ahsId])
-  @@index([normalizedName])
+  @@unique([normalizedName], map: "CultivarReference_normalizedName_unique_idx")
 }
 
 model Listing {

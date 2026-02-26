@@ -14,12 +14,14 @@ export interface ImageUploadProps {
   type: ImageType;
   referenceId: string;
   onUploadComplete?: (result: ImageUploadResponse) => void;
+  onMutationSuccess?: () => void;
 }
 
 export function ImageUpload({
   type,
   referenceId,
   onUploadComplete,
+  onMutationSuccess,
 }: ImageUploadProps) {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const { upload, progress, isUploading } = useImageUpload({
@@ -32,6 +34,7 @@ export function ImageUpload({
         key: image.url.split("/").pop() ?? "",
         image,
       });
+      onMutationSuccess?.();
     },
   });
 

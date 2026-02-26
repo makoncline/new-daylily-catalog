@@ -394,8 +394,12 @@ test.describe("cultivar guest flow @local", () => {
         nodes.map((node) => node.getAttribute("data-garden-slug")),
       );
 
-    expect(gardenOrder).toEqual(["beta-pro", "top-pro", "alpha-pro"]);
-    expect(gardenOrder).not.toContain("hobby-grower");
+    expect(gardenOrder).toEqual([
+      "hobby-grower",
+      "beta-pro",
+      "top-pro",
+      "alpha-pro",
+    ]);
 
     const topCard = page.locator(
       '[data-testid="cultivar-offer-garden-card"][data-garden-slug="top-pro"]',

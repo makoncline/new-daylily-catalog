@@ -1,9 +1,7 @@
 import { type Metadata } from "next";
-import { unstable_cache } from "next/cache";
 import { notFound, permanentRedirect } from "next/navigation";
 import { MainContent } from "@/app/(public)/_components/main-content";
 import { PublicBreadcrumbs } from "@/app/(public)/_components/public-breadcrumbs";
-import { PUBLIC_CACHE_CONFIG } from "@/config/public-cache-config";
 import { parsePositiveInteger } from "@/lib/public-catalog-url-state";
 import { getBaseUrl } from "@/lib/utils/getBaseUrl";
 import { getErrorCode, tryCatch } from "@/lib/utils";
@@ -17,6 +15,7 @@ import {
 import { generatePaginatedProfileMetadata } from "../../_seo/paginated-metadata";
 import { generateProfileMetadata } from "../../_seo/metadata";
 
+// CACHE_LITERAL_REF: CACHE_CONFIG.PUBLIC.STATIC_REVALIDATE_SECONDS
 export const revalidate = 86400;
 export const dynamic = "force-static";
 export const dynamicParams = true;
@@ -69,6 +68,7 @@ export async function generateMetadata({
     profileSlug: canonicalUserSlug,
     page: parsedPage,
     hasNonPageStateParams: false,
+    shouldIndex: profileResult.data.profile.hasActiveSubscription,
   });
 }
 
@@ -81,14 +81,9 @@ export default async function ProfilePaginatedPage({
   if (parsedPage < 2) {
     notFound();
   }
-
-  const getPageData = unstable_cache(
-    async () => getPublicProfilePageData(userSlugOrId, parsedPage),
-    ["profile-listings-page", userSlugOrId, String(parsedPage)],
-    { revalidate: PUBLIC_CACHE_CONFIG.REVALIDATE_SECONDS.PAGE.PROFILE },
+  const pageDataResult = await tryCatch(
+    getPublicProfilePageData(userSlugOrId, parsedPage),
   );
-
-  const pageDataResult = await tryCatch(getPageData());
 
   if (getErrorCode(pageDataResult.error) === "NOT_FOUND") {
     notFound();
@@ -116,6 +111,7 @@ export default async function ProfilePaginatedPage({
     profileSlug: canonicalUserSlug,
     page: pageDataResult.data.page,
     hasNonPageStateParams: false,
+    shouldIndex: profile.hasActiveSubscription,
   });
 
   return (

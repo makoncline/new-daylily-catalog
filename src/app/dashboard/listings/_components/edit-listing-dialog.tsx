@@ -6,7 +6,10 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { ListingForm } from "@/components/forms/listing-form";
+import {
+  ListingForm,
+  type ListingFormHandle,
+} from "@/components/forms/listing-form";
 import { ListingFormSkeleton } from "@/components/forms/listing-form-skeleton";
 import { usePathname, useSearchParams, useRouter } from "next/navigation";
 import { Suspense, useEffect, useRef } from "react";
@@ -14,6 +17,7 @@ import { ErrorBoundary } from "react-error-boundary";
 import { ErrorFallback } from "@/components/error-fallback";
 import { P } from "@/components/typography";
 import { atom, useAtom } from "jotai";
+import { useSaveBeforeNavigate } from "@/hooks/use-save-before-navigate";
 
 /**
  * Atom for editing state
@@ -91,13 +95,17 @@ export const useEditListing = () => {
  */
 export function EditListingDialog() {
   const { editingId, closeEditListing } = useEditListing();
-  const formRef = useRef<{ saveChanges: () => Promise<void> } | null>(null);
+  const formRef = useRef<ListingFormHandle | null>(null);
   const isOpen = !!editingId;
+  useSaveBeforeNavigate(formRef, "navigate", isOpen);
 
   const handleOpenChange = async (open: boolean) => {
     if (!open) {
       // Save any pending changes before closing
-      await formRef.current?.saveChanges?.();
+      const didSave = await formRef.current?.saveChanges("close");
+      if (didSave === false) {
+        return;
+      }
       closeEditListing();
     }
   };

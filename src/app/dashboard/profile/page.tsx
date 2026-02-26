@@ -1,14 +1,22 @@
 "use client";
 
+import { useRef } from "react";
 import { api } from "@/trpc/react";
-import { ProfileForm } from "@/components/forms/profile-form";
+import {
+  ProfileForm,
+  type ProfileFormHandle,
+} from "@/components/forms/profile-form";
 import { PageHeader } from "../_components/page-header";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { MainContent } from "@/app/(public)/_components/main-content";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useSaveBeforeNavigate } from "@/hooks/use-save-before-navigate";
 
 export default function ProfilePage() {
+  const formRef = useRef<ProfileFormHandle | null>(null);
+  useSaveBeforeNavigate(formRef, "navigate");
+
   const { data: profile, isLoading } = api.dashboardDb.userProfile.get.useQuery();
 
   if (isLoading || !profile) {
@@ -46,7 +54,7 @@ export default function ProfilePage() {
           <Link href={`/${publicSlug}`}>View Public Profile</Link>
         </Button>
       </PageHeader>
-      <ProfileForm initialProfile={profile} />
+      <ProfileForm initialProfile={profile} formRef={formRef} />
     </MainContent>
   );
 }

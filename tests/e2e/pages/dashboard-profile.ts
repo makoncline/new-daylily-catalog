@@ -6,6 +6,7 @@ export class DashboardProfile {
   readonly gardenNameInput: Locator;
   readonly descriptionInput: Locator;
   readonly locationInput: Locator;
+  readonly saveChangesButton: Locator;
   readonly contentEditor: Locator;
   readonly profileImage: Locator;
 
@@ -15,6 +16,7 @@ export class DashboardProfile {
     this.gardenNameInput = page.getByLabel("Garden Name");
     this.descriptionInput = page.getByLabel("Description");
     this.locationInput = page.getByLabel("Location");
+    this.saveChangesButton = page.getByRole("button", { name: "Save Changes" });
     // EditorJS editor has id="editor"
     this.contentEditor = page.locator("#editor");
     this.profileImage = page.getByAltText("Daylily image");
@@ -28,7 +30,7 @@ export class DashboardProfile {
   }
 
   /**
-   * Fill garden name field and wait for auto-save
+   * Fill garden name field and blur it.
    */
   async fillGardenName(text: string) {
     const selectAll = process.platform === "darwin" ? "Meta+A" : "Control+A";
@@ -45,7 +47,7 @@ export class DashboardProfile {
   }
 
   /**
-   * Fill description field and wait for auto-save
+   * Fill description field and blur it.
    */
   async fillDescription(text: string) {
     const selectAll = process.platform === "darwin" ? "Meta+A" : "Control+A";
@@ -58,7 +60,7 @@ export class DashboardProfile {
   }
 
   /**
-   * Fill location field and wait for auto-save
+   * Fill location field and blur it.
    */
   async fillLocation(text: string) {
     const selectAll = process.platform === "darwin" ? "Meta+A" : "Control+A";
@@ -86,10 +88,6 @@ export class DashboardProfile {
     await editableElement.press(selectAll);
     await editableElement.press("Backspace");
     await editableElement.type(text);
-    const saveRequest = this.page.waitForResponse((response) => {
-      return response.url().includes("userProfile.updateContent");
-    });
     await this.heading.click();
-    await saveRequest;
   }
 }

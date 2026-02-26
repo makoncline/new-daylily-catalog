@@ -8,7 +8,7 @@ import { IMAGES } from "@/lib/constants/images";
 import { getOptimizedMetaImageUrl } from "@/lib/utils/cloudflareLoader";
 import { getBaseUrl } from "@/lib/utils/getBaseUrl";
 import { toCultivarRouteSegment } from "@/lib/utils/cultivar-utils";
-import { getPublicCultivarPage } from "@/server/db/getPublicCultivars";
+import { getCachedPublicCultivarPage } from "@/server/db/public-cache";
 import { CultivarPageRoot, CultivarPageSection } from "./_components/cultivar-page-layout";
 import { CultivarHeroSection } from "./_components/cultivar-hero-section";
 import { CultivarGardenPhotosSection } from "./_components/cultivar-garden-photos-section";
@@ -16,9 +16,14 @@ import { CultivarOffersSection } from "./_components/cultivar-offers-section";
 import { CultivarRelatedSection } from "./_components/cultivar-related-section";
 import { Muted } from "@/components/typography";
 
+// CACHE_LITERAL_REF: CACHE_CONFIG.PUBLIC.STATIC_REVALIDATE_SECONDS
 export const revalidate = 86400;
 export const dynamic = "force-static";
-const getPublicCultivarPageCached = cache(getPublicCultivarPage);
+
+const getRequestCultivarPage = cache(
+  async (cultivarNormalizedName: string) =>
+    getCachedPublicCultivarPage(cultivarNormalizedName),
+);
 
 interface PageProps {
   params: Promise<{
@@ -29,7 +34,9 @@ interface PageProps {
 function getCultivarJsonLd(
   baseUrl: string,
   canonicalSegment: string,
-  cultivarPage: NonNullable<Awaited<ReturnType<typeof getPublicCultivarPage>>>,
+  cultivarPage: NonNullable<
+    Awaited<ReturnType<typeof getCachedPublicCultivarPage>>
+  >,
 ) {
   const pageUrl = `${baseUrl}/cultivar/${canonicalSegment}`;
   const productOffers = cultivarPage.offers.gardenCards.flatMap((garden) =>
@@ -82,7 +89,7 @@ function getCultivarJsonLd(
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { cultivarNormalizedName } = await params;
-  const cultivarPage = await getPublicCultivarPageCached(cultivarNormalizedName);
+  const cultivarPage = await getRequestCultivarPage(cultivarNormalizedName);
 
   if (!cultivarPage) {
     return {
@@ -104,7 +111,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   }
 
   const title = `${cultivarPage.summary.name} | ${METADATA_CONFIG.SITE_NAME}`;
-  const description = `${cultivarPage.summary.name} with ${cultivarPage.offers.summary.offersCount} public offers across ${cultivarPage.offers.summary.gardensCount} pro catalogs.`;
+  const description = `${cultivarPage.summary.name} with ${cultivarPage.offers.summary.offersCount} public offers across ${cultivarPage.offers.summary.gardensCount} catalogs.`;
   const pageUrl = `${baseUrl}/cultivar/${canonicalSegment}`;
   const rawImageUrl = cultivarPage.heroImages[0]?.url ?? IMAGES.DEFAULT_META;
   const imageUrl = getOptimizedMetaImageUrl(rawImageUrl);
@@ -144,7 +151,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 export default async function CultivarPage({ params }: PageProps) {
   const { cultivarNormalizedName } = await params;
 
-  const cultivarPage = await getPublicCultivarPageCached(cultivarNormalizedName);
+  const cultivarPage = await getRequestCultivarPage(cultivarNormalizedName);
 
   if (!cultivarPage) {
     notFound();

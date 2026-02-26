@@ -64,10 +64,22 @@ test.describe("manage list page features @local", () => {
       new RegExp(`/dashboard/lists/${seedMeta.listId}`),
     );
 
-    // Phase 2: list form edit + persistence
+    // Phase 2: list form edit + navigation-save persistence
+    await expect(manageListPage.saveChangesButton).toBeDisabled();
     await manageListPage.fillTitle(seedMeta.updatedListTitle);
     await manageListPage.fillDescription(seedMeta.updatedListDescription);
-    await manageListPage.saveChangesAndWait();
+    await expect(manageListPage.saveChangesButton).toBeEnabled();
+
+    await page.getByTestId("dashboard-nav-listings").click();
+    await expect(page).toHaveURL("/dashboard/listings");
+
+    await manageListPage.goto(seedMeta.listId);
+    await manageListPage.isReady();
+    await expect(manageListPage.titleInput).toHaveValue(seedMeta.updatedListTitle);
+    await expect(manageListPage.descriptionInput).toHaveValue(
+      seedMeta.updatedListDescription,
+    );
+    await expect(manageListPage.saveChangesButton).toBeDisabled();
 
     // Phase 3: baseline table + pagination
     await expect(manageListPage.rows()).toHaveCount(seedMeta.defaultPageSize);
@@ -96,6 +108,9 @@ test.describe("manage list page features @local", () => {
     await expect(
       manageListPage.listingRow(seedMeta.addableListingTitle),
     ).toBeVisible();
+    await expect(manageListPage.saveChangesButton).toBeEnabled();
+    await manageListPage.saveChangesAndWait();
+    await expect(manageListPage.saveChangesButton).toBeDisabled();
 
     await manageListPage.setGlobalSearch(seedMeta.addableListingTitle);
     await expect(manageListPage.rows()).toHaveCount(1);
@@ -144,5 +159,6 @@ test.describe("manage list page features @local", () => {
     await expect(manageListPage.filteredCount()).toHaveText(
       new RegExp(`0\\s*/\\s*${seedMeta.totalListListingsBeforeAdd}`),
     );
+    await expect(manageListPage.saveChangesButton).toBeEnabled();
   });
 });

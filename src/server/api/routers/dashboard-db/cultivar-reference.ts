@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { createTRPCRouter, protectedProcedure } from "@/server/api/trpc";
+import type { PrismaClient } from "@prisma/client";
 
 const ahsListingSelect = {
   id: true,
@@ -33,14 +34,52 @@ const cultivarReferenceSelect = {
   },
 } as const;
 
+function toUniqueCultivarReferenceIds(
+  rows: Array<{ cultivarReferenceId: string | null }>,
+) {
+  return Array.from(
+    new Set(
+      rows.flatMap((row) =>
+        row.cultivarReferenceId ? [row.cultivarReferenceId] : [],
+      ),
+    ),
+  );
+}
+
+async function getCultivarReferenceIdsForUserListings(
+  userId: string,
+  db: PrismaClient,
+) {
+  const listingRows = await db.listing.findMany({
+    where: {
+      userId,
+      cultivarReferenceId: {
+        not: null,
+      },
+    },
+    select: {
+      cultivarReferenceId: true,
+    },
+  });
+
+  return toUniqueCultivarReferenceIds(listingRows);
+}
+
 export const dashboardDbCultivarReferenceRouter = createTRPCRouter({
   listForUserListings: protectedProcedure.query(async ({ ctx }) => {
+    const cultivarReferenceIds = await getCultivarReferenceIdsForUserListings(
+      ctx.user.id,
+      ctx.db,
+    );
+
+    if (cultivarReferenceIds.length === 0) {
+      return [];
+    }
+
     return ctx.db.cultivarReference.findMany({
       where: {
-        listings: {
-          some: {
-            userId: ctx.user.id,
-          },
+        id: {
+          in: cultivarReferenceIds,
         },
       },
       select: cultivarReferenceSelect,
@@ -52,12 +91,19 @@ export const dashboardDbCultivarReferenceRouter = createTRPCRouter({
     .input(z.object({ since: z.iso.datetime().nullable() }))
     .query(async ({ ctx, input }) => {
       const since = input.since ? new Date(input.since) : undefined;
+      const cultivarReferenceIds = await getCultivarReferenceIdsForUserListings(
+        ctx.user.id,
+        ctx.db,
+      );
+
+      if (cultivarReferenceIds.length === 0) {
+        return [];
+      }
+
       return ctx.db.cultivarReference.findMany({
         where: {
-          listings: {
-            some: {
-              userId: ctx.user.id,
-            },
+          id: {
+            in: cultivarReferenceIds,
           },
           ...(since ? { updatedAt: { gte: since } } : {}),
         },
@@ -76,4 +122,3 @@ export const dashboardDbCultivarReferenceRouter = createTRPCRouter({
       });
     }),
 });
-

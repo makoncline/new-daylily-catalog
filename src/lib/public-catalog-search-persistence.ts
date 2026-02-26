@@ -1,7 +1,7 @@
 "use client";
 
 import { type InfiniteData } from "@tanstack/react-query";
-import { TIME } from "@/config/constants";
+import { CACHE_CONFIG } from "@/config/cache-config";
 import { getTrpcClient } from "@/trpc/client";
 import { type RouterOutputs } from "@/trpc/react";
 
@@ -17,8 +17,8 @@ export type PublicCatalogInfiniteData = InfiniteData<
 export const PUBLIC_CATALOG_SEARCH_PERSISTED_SWR = {
   enabled: true,
   version: 1,
-  ttlMs: 14 * 24 * 60 * 60 * 1000,
-  revalidateAfterMs: TIME.DAY_IN_MS,
+  ttlMs: CACHE_CONFIG.PUBLIC.SEARCH.CLIENT_STALE_TIME_MS,
+  revalidateAfterMs: CACHE_CONFIG.PUBLIC.SEARCH.CLIENT_STALE_TIME_MS,
   queryLimit: 500,
   maxPagesToPrefetch: 2000,
 } as const;

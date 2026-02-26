@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import Link from "next/link";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -28,8 +29,10 @@ export function Breadcrumbs({ items }: BreadcrumbsProps) {
           <React.Fragment key={item.href ?? item.title}>
             <BreadcrumbItem>
               {item.href ? (
-                <BreadcrumbLink href={item.href} className="w-full max-w-40">
-                  <TruncatedText text={item.title} />
+                <BreadcrumbLink asChild className="w-full max-w-40">
+                  <Link href={item.href}>
+                    <TruncatedText text={item.title} />
+                  </Link>
                 </BreadcrumbLink>
               ) : (
                 <BreadcrumbPage className="w-full max-w-40">
