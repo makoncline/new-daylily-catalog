@@ -314,20 +314,12 @@ describe("getPublicCultivarPage", () => {
   });
 
   it("resolves slugified segments back to punctuation-heavy cultivar names", async () => {
-    mockDb.cultivarReference.findFirst
-      .mockResolvedValueOnce(null)
-      .mockResolvedValueOnce({
-        id: "cultivar-punctuated",
-        normalizedName: "a cowgirl's heart",
-        updatedAt: new Date("2026-01-05T00:00:00.000Z"),
-        ahsListing: null,
-      });
-
-    mockDb.cultivarReference.findMany.mockResolvedValue([
-      {
-        normalizedName: "a cowgirl's heart",
-      },
-    ]);
+    mockDb.cultivarReference.findFirst.mockResolvedValue({
+      id: "cultivar-punctuated",
+      normalizedName: "a cowgirl's heart",
+      updatedAt: new Date("2026-01-05T00:00:00.000Z"),
+      ahsListing: null,
+    });
 
     const listingRows = [
       {
@@ -371,7 +363,8 @@ describe("getPublicCultivarPage", () => {
     const result = await getPublicCultivarPage("a-cowgirls-heart");
 
     expect(result?.cultivar.normalizedName).toBe("a cowgirl's heart");
-    expect(mockDb.cultivarReference.findFirst).toHaveBeenCalledTimes(2);
+    expect(mockDb.cultivarReference.findFirst).toHaveBeenCalledTimes(1);
+    expect(mockDb.cultivarReference.findMany).not.toHaveBeenCalled();
   });
 
   it("allows direct cultivar page lookup without requiring linked listings", async () => {

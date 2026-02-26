@@ -2,6 +2,23 @@
 
 ## Log
 
+- 2026-02-26 - prod phase-2 completion - Applied `20260225183013_add_cultivar_reference_normalized_name_unique` to `daylily-catalog`; post-verify shows dedupe invariants clean and `normalized_name_unique_index_exists=1`.
+- 2026-02-26 - turso tx commit quirk on interactive run - In one interactive `turso db shell` prod session, post-apply `COMMIT` returned `no transaction is active` but fresh-connection verify showed phase-1 dedupe persisted; always confirm final state with a separate verify connection, not commit echo alone.
+- 2026-02-26 - turso shell dot-command limits - Turso SQL shell in this setup supports `.read`/`.quit` but not sqlite dot commands like `.headers`, `.mode column`, `.print`; keep migration scripts pure SQL and avoid formatting dot commands during live runs.
+- 2026-02-26 - turso rollback proof - On `seeded-daylily-catalog`, explicit `BEGIN IMMEDIATE` + test insert + `ROLLBACK` behaved correctly: row visible inside tx (`1`) and absent after rollback in same session and a new connection (`0`/`0`).
+- 2026-02-26 - seeded preview state check - `seeded-daylily-catalog` already had zero duplicate cultivar normalized names before migration; phase 1 was a no-op and phase 2 unique index addition succeeded cleanly.
+- 2026-02-26 - dedupe dry-run execution pattern - For rollout rehearsal, run full phase 1+2 on a throwaway sqlite backup first (`.backup`), then repeat on target local snapshot; transaction helper output gives before/after validation and should show duplicate groups dropping `212 -> 0` plus unique-index check `0 -> 1` after phase 2.
+- 2026-02-25 - migration generator separation - User wants new migration concerns in new dedicated scripts; keep legacy generator scripts unchanged.
+- 2026-02-25 - prisma create-only limitation - In this environment, `prisma migrate dev --create-only` is blocked as non-interactive; fallback is Prisma `migrate diff` to generate migration SQL file deterministically.
+- 2026-02-25 - migration script separation preference - User wants new migration concerns in dedicated generator scripts; do not expand existing historical generator scripts with unrelated artifact sets.
+- 2026-02-25 - transactional migration review pattern - Best live-safe flow for data dedupe is one sqlite session with `BEGIN IMMEDIATE`, run pre-check SQL, apply migration body, run post-check SQL, then manually `COMMIT` or `ROLLBACK`.
+- 2026-02-25 - dedupe migration scope guard - Keep listing `ahsId` updates scoped to rows remapped from duplicate cultivar refs; a global `Listing` alignment update touched unrelated live data and was removed.
+- 2026-02-25 - sqlite snapshot copy reliability - For large local prod snapshots, prefer `sqlite3 source.db ".backup target.db"` over `cp`; direct file copies produced malformed temp DB in this environment.
+- 2026-02-25 - dedupe scope caveat - Deleting AHS rows with `year` containing `reserved` reduces but does not eliminate name duplicates; prod snapshot still has 57 duplicate normalized-name groups (59 extra rows) afterward.
+- 2026-02-25 - duplicate-canonical caveat - A completeness-based canonical AHS row is usually obvious for duplicate names, but linked listings can still point to a sparse/reserved sibling (example: `starman`), so dedupe migrations must remap listing `cultivarReferenceId`.
+- 2026-02-25 - ahs source duplicate names - Prod `AhsListing` has duplicate `LOWER(TRIM(name))` values (212 groups / 274 extra rows), and `CultivarReference` duplicates mirror exactly because the migration upserts by unique `ahsId` and copies normalized name directly.
+- 2026-02-25 - self-miss sqlite path gotcha - Running `sqlite3 <missing-file> "<query>"` creates an empty DB file at that path; verify snapshot path before querying to avoid accidental empty files.
+- 2026-02-25 - cultivar cold-timeout pattern - First-hit `/cultivar/:slug` latency spikes come from duplicate metadata+page fetches plus punctuation slug fallback scans; use request-scoped memoization and richer slug candidates (possessive `'s`) before full-table fallback.
 - 2026-02-26 - cultivar query pattern that works - With ~100k cultivar refs and ~5k listings, expensive `cultivarReference` relation filters are cheaper when split: fetch related cultivar candidates first, then resolve listing-image fallback in a second bounded listing query.
 - 2026-02-26 - restart preference - User asked to reset to `main` and rebuild query fixes from scratch after sharing real data shape.
 - 2026-02-26 - optimization preference - Prioritize code-level query-shape fixes first and avoid DB/index updates initially unless clearly necessary.

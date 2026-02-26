@@ -1,5 +1,6 @@
 import { notFound, permanentRedirect } from "next/navigation";
 import { type Metadata } from "next";
+import { cache } from "react";
 import { MainContent } from "@/app/(public)/_components/main-content";
 import { Breadcrumbs } from "@/components/breadcrumbs";
 import { METADATA_CONFIG } from "@/config/constants";
@@ -18,6 +19,11 @@ import { Muted } from "@/components/typography";
 // CACHE_LITERAL_REF: CACHE_CONFIG.PUBLIC.STATIC_REVALIDATE_SECONDS
 export const revalidate = 86400;
 export const dynamic = "force-static";
+
+const getRequestCultivarPage = cache(
+  async (cultivarNormalizedName: string) =>
+    getCachedPublicCultivarPage(cultivarNormalizedName),
+);
 
 interface PageProps {
   params: Promise<{
@@ -83,7 +89,7 @@ function getCultivarJsonLd(
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { cultivarNormalizedName } = await params;
-  const cultivarPage = await getCachedPublicCultivarPage(cultivarNormalizedName);
+  const cultivarPage = await getRequestCultivarPage(cultivarNormalizedName);
 
   if (!cultivarPage) {
     return {
@@ -145,7 +151,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 export default async function CultivarPage({ params }: PageProps) {
   const { cultivarNormalizedName } = await params;
 
-  const cultivarPage = await getCachedPublicCultivarPage(cultivarNormalizedName);
+  const cultivarPage = await getRequestCultivarPage(cultivarNormalizedName);
 
   if (!cultivarPage) {
     notFound();
