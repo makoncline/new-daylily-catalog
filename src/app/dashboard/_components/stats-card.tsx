@@ -4,14 +4,14 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Plus, Package, ListChecks, ImageIcon } from "lucide-react";
 import Link from "next/link";
-import type { RouterOutputs } from "@/trpc/react";
 import { H2, H3, P, Muted } from "@/components/typography";
 import { PRO_FEATURES } from "@/config/constants";
 import { usePro } from "@/hooks/use-pro";
 import { CheckoutButton } from "@/components/checkout-button";
+import type { DashboardStats } from "@/types/dashboard-stats-types";
 
 interface StatsCardProps {
-  stats: RouterOutputs["dashboardDb"]["dashboard"]["getStats"];
+  stats: DashboardStats;
 }
 
 export function ListingDetailsCard({ stats }: StatsCardProps) {

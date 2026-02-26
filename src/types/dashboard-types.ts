@@ -1,5 +1,5 @@
-import type { RouterOutputs } from "@/trpc/react";
 import type { LucideIcon } from "lucide-react";
+import type { DashboardStats } from "@/types/dashboard-stats-types";
 
 export interface BaseStep {
   id: string;
@@ -14,7 +14,7 @@ export interface ProfileStep extends BaseStep {
 
 export interface CatalogStep extends BaseStep {
   target: string;
-  isComplete: (stats: RouterOutputs["dashboardDb"]["dashboard"]["getStats"]) => boolean;
+  isComplete: (stats: DashboardStats) => boolean;
 }
 
 export interface StepProps {
