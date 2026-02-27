@@ -2,6 +2,9 @@
 
 ## Log
 
+- 2026-02-27 - self-miss napkin disclosure recurrence - I mentioned napkin workflow in the first status update again; keep napkin usage completely silent in user-facing updates.
+- 2026-02-27 - cultivar fan-out mitigation detail - Disabling the related-cultivars UI alone still leaves crawler-discoverable links in cultivar JSON-LD `isRelatedTo`; disable both UI section and JSON-LD links when pausing related cultivars.
+- 2026-02-27 - user correction on temporary disable pattern - For temporary removals, preserve implementation by commenting out blocks (with TODO) instead of replacing them with TODO-only placeholders.
 - 2026-02-27 - env-safe unit test pattern - When unit tests only cover pure transforms, keep them in env-free modules (e.g., `membership-price-display.ts`) and have env-dependent wrappers import them; this avoids CI failures from module-level `@/env` validation.
 - 2026-02-27 - CI unit env gap surfaced by membership formatter test - `tests/get-membership-price-display.test.ts` imports `src/server/stripe/get-membership-price-display.ts`, which imports `@/env` at module load; GitHub `lint-typecheck-unit` job does not set env placeholders or `SKIP_ENV_VALIDATION`, so this suite fails there unless env is injected or formatter logic is split into an env-free module.
 - 2026-02-27 - self-miss e2e port preflight recurrence - I started `pnpm test:e2e` while port 3100 was already occupied and had to rerun after killing the listener; preflight `lsof -nP -iTCP:3100 -sTCP:LISTEN` before local Playwright runs.
