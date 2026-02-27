@@ -2,9 +2,7 @@ import { createTRPCRouter, protectedProcedure } from "@/server/api/trpc";
 import { stripe } from "@/server/stripe/client";
 import { TRPCError } from "@trpc/server";
 import { env } from "@/env";
-import { z } from "zod";
 import {
-  syncStripeSubscriptionToKV,
   getStripeSubscription,
 } from "@/server/stripe/sync-subscription";
 import { getBaseUrl } from "@/lib/utils/getBaseUrl";
@@ -95,28 +93,4 @@ export const stripeRouter = createTRPCRouter({
 
     return { url: session.url };
   }),
-
-  // Sync Stripe data to KV store
-  syncStripeData: protectedProcedure
-    .input(z.object({ customerId: z.string() }))
-    .mutation(async ({ ctx, input }) => {
-      if (!ctx.user.stripeCustomerId) {
-        throw new TRPCError({
-          code: "NOT_FOUND",
-          message: "No billing information found",
-        });
-      }
-
-      if (ctx.user.stripeCustomerId !== input.customerId) {
-        throw new TRPCError({
-          code: "FORBIDDEN",
-          message: "You can only sync Stripe data for your own account.",
-        });
-      }
-
-      const subscription = await syncStripeSubscriptionToKV(
-        ctx.user.stripeCustomerId,
-      );
-      return subscription;
-    }),
 });
