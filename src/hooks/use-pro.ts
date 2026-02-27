@@ -12,15 +12,15 @@ export function usePro() {
 
   const isPro = hasActiveSubscription(subscription?.status);
 
-  const sendToCheckout = async () => {
-    capturePosthogEvent("checkout_started", { source: "use-pro" });
+  const sendToCheckout = async (source = "use-pro") => {
+    capturePosthogEvent("checkout_started", { source });
 
     try {
       const { url } = await generateCheckout.mutateAsync();
-      capturePosthogEvent("checkout_redirect_ready", { source: "use-pro" });
+      capturePosthogEvent("checkout_redirect_ready", { source });
       router.push(url);
     } catch (error) {
-      capturePosthogEvent("checkout_failed", { source: "use-pro" });
+      capturePosthogEvent("checkout_failed", { source });
       reportError({
         error: normalizeError(error),
         context: { action: "sendToCheckout" },

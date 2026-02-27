@@ -51,15 +51,9 @@ describe("start onboarding utils", () => {
     expect(getNextIncompleteListingField(withCultivar)).toBe("title");
 
     const withTitle = { ...withCultivar, title: "Moonlit Petals division" };
-    expect(getNextIncompleteListingField(withTitle)).toBe("price");
+    expect(getNextIncompleteListingField(withTitle)).toBeNull();
 
-    const withPrice = { ...withTitle, price: 25 };
-    expect(getNextIncompleteListingField(withPrice)).toBe("description");
-
-    const completeDraft = {
-      ...withPrice,
-      description: "Fresh fan with healthy roots and spring shipping.",
-    };
+    const completeDraft = { ...withTitle };
     expect(isListingOnboardingDraftComplete(completeDraft)).toBe(true);
     expect(getNextIncompleteListingField(completeDraft)).toBeNull();
   });
@@ -71,6 +65,7 @@ describe("start onboarding utils", () => {
       "build-listing-card",
       "preview-listing-card",
       "preview-buyer-contact",
+      "start-membership",
     ]);
   });
 });

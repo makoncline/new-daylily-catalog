@@ -14,26 +14,28 @@ const CAPTURE_ROOT_DIR = path.join(
   ".tmp",
   "onboarding-flow-captures",
 );
-type CaptureViewportMode = "desktop" | "mobile" | "tablet" | "lg";
+type CaptureViewportMode = "below-lg" | "above-lg";
 
-const captureViewportMode = (
-  process.env.E2E_ONBOARDING_CAPTURE_VIEWPORT ?? "desktop"
-) as CaptureViewportMode;
+const rawCaptureViewportMode = process.env.E2E_ONBOARDING_CAPTURE_VIEWPORT;
+const captureViewportMode: CaptureViewportMode =
+  rawCaptureViewportMode === "below-lg" || rawCaptureViewportMode === "above-lg"
+    ? rawCaptureViewportMode
+    : rawCaptureViewportMode === "below-md"
+      ? "below-lg"
+      : rawCaptureViewportMode === "above-md"
+        ? "above-lg"
+        : "above-lg";
 const captureViewportByMode: Record<
   CaptureViewportMode,
   { width: number; height: number }
 > = {
-  desktop: { width: 1280, height: 720 },
-  lg: { width: 1440, height: 1024 },
-  mobile: { width: 390, height: 844 },
-  tablet: { width: 820, height: 1180 },
+  "above-lg": { width: 1029, height: 1100 },
+  "below-lg": { width: 1019, height: 1100 },
 };
 
 const CAPTURE_DIR_NAME =
   process.env.E2E_ONBOARDING_CAPTURE_DIR ??
-  (captureViewportMode === "desktop"
-    ? "latest"
-    : `latest-${captureViewportMode}`);
+  `latest-${captureViewportMode}`;
 const CAPTURE_RUN_INFO_PATH = path.join(
   CAPTURE_ROOT_DIR,
   CAPTURE_DIR_NAME,
@@ -45,7 +47,7 @@ let captureIndex = 1;
 let captureUserEmail: string | null = null;
 
 function getCaptureViewportSize() {
-  return captureViewportByMode[captureViewportMode] ?? captureViewportByMode.desktop;
+  return captureViewportByMode[captureViewportMode];
 }
 
 function sanitizeFilePart(value: string) {
@@ -209,7 +211,7 @@ test.describe("onboarding flow screenshot capture @capture", () => {
     "Set E2E_ONBOARDING_CAPTURE=1 to run this dev-only screenshot flow.",
   );
 
-  test("captures every onboarding step from home to dashboard", async ({
+  test("captures each onboarding step", async ({
     page,
     homePage,
     clerkAuthModal,
@@ -233,10 +235,6 @@ test.describe("onboarding flow screenshot capture @capture", () => {
       .getByRole("button", { name: "Create your catalog" })
       .first()
       .waitFor({ state: "visible" });
-    await saveCapture({
-      page,
-      label: "home-logged-out",
-    });
 
     logCaptureStep("Start signup from home CTA");
     await page.getByRole("button", { name: "Create your catalog" }).first().click();
@@ -255,7 +253,7 @@ test.describe("onboarding flow screenshot capture @capture", () => {
     }
 
     await clerkAuthModal.codeInput.type(TEST_CODE, { delay: 100 });
-    await page.waitForURL(/\/start-onboarding/, {
+    await page.waitForURL(/\/onboarding/, {
       waitUntil: "domcontentloaded",
     });
     await startOnboardingPage.isReady();
@@ -306,15 +304,11 @@ test.describe("onboarding flow screenshot capture @capture", () => {
     logCaptureStep("Cultivar selector ready");
 
     logCaptureStep("Fill listing card fields");
-    await page.locator("#ahs-listing-select").click();
-    logCaptureStep("Cultivar dialog opened");
-    const cultivarSearchInput = page.getByPlaceholder("Search AHS listings...");
-    await cultivarSearchInput.fill("Stella");
-    logCaptureStep("Waiting for cultivar option");
-    const cultivarOption = page.getByRole("dialog").getByText("Stella de Oro").first();
-    await cultivarOption.waitFor({ state: "visible", timeout: 8000 });
-    await cultivarOption.click();
-    logCaptureStep("Cultivar option selected");
+    await page
+      .getByText("Selected cultivar", { exact: false })
+      .first()
+      .waitFor({ state: "visible", timeout: 12000 });
+    logCaptureStep("Default cultivar selected");
 
     await page.locator("#listing-title").fill("Stella de Oro spring fan");
     await page.locator("#listing-price").fill("25");
@@ -338,35 +332,22 @@ test.describe("onboarding flow screenshot capture @capture", () => {
 
     logCaptureStep("Go to buyer inquiry flow preview");
     await clickPrimaryAction(page);
-    await page.getByRole("button", { name: "Continue to membership" }).waitFor();
+    await page
+      .getByRole("heading", { name: "How buyers contact you" })
+      .waitFor({ state: "visible" });
 
     await saveCapture({
       page,
       label: "onboarding-step-5-buyer-inquiry-flow",
     });
 
-    logCaptureStep("Go to membership page");
+    logCaptureStep("Go to membership step");
     await clickPrimaryAction(page);
-    await page.waitForURL(/\/start-membership/, {
-      waitUntil: "domcontentloaded",
-    });
     await page.getByTestId("start-membership-page").waitFor({ state: "visible" });
-    await page.getByTestId("start-membership-continue").waitFor({ state: "visible" });
 
     await saveCapture({
       page,
-      label: "start-membership",
-    });
-
-    logCaptureStep("Continue to dashboard");
-    await page.getByTestId("start-membership-continue").click();
-    await page.waitForURL(/\/dashboard/, {
-      waitUntil: "domcontentloaded",
-    });
-
-    await saveCapture({
-      page,
-      label: "dashboard-after-onboarding",
+      label: "onboarding-step-6-membership",
     });
   });
 

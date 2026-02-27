@@ -40,10 +40,10 @@ test.describe("new user journey @local", () => {
 
         // redirect to onboarding after sign up
         await startOnboardingPage.isReady();
-        await expect(page).toHaveURL(/\/start-onboarding/);
+        await expect(page).toHaveURL(/\/onboarding/);
 
         // Keep this journey focused on membership + dashboard behaviors.
-        await page.goto("/start-membership");
+        await page.goto("/onboarding?step=start-membership");
 
         // continue to dashboard onboarding from membership step
         await startMembershipPage.isReady();

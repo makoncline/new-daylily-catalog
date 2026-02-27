@@ -5,6 +5,14 @@ import posthog from "posthog-js";
 export type PosthogEventName =
   | "home_signup_cta_clicked"
   | "public_nav_dashboard_clicked"
+  | "onboarding_step_viewed"
+  | "onboarding_step_completed"
+  | "onboarding_profile_saved"
+  | "onboarding_listing_saved"
+  | "onboarding_aha_reached"
+  | "onboarding_skipped"
+  | "onboarding_membership_screen_viewed"
+  | "onboarding_membership_continue_for_now_clicked"
   | "checkout_started"
   | "checkout_redirect_ready"
   | "checkout_failed";

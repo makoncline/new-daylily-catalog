@@ -1,6 +1,6 @@
 import { PublicdNav } from "@/components/public-nav";
 
-export default function StartMembershipLayout({
+export default function OnboardingLayout({
   children,
 }: {
   children: React.ReactNode;

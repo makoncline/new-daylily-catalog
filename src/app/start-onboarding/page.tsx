@@ -1,20 +1,25 @@
-import type { Metadata } from "next";
-import { StartOnboardingPageClient } from "./start-onboarding-page-client";
+import { redirect } from "next/navigation";
+import { SUBSCRIPTION_CONFIG } from "@/config/subscription-config";
 
-export const metadata: Metadata = {
-  title: "Set Up Your Catalog",
-  robots: {
-    index: false,
-    follow: false,
-    nocache: true,
-    googleBot: {
-      index: false,
-      follow: false,
-      noimageindex: true,
-    },
-  },
-};
+export default function StartOnboardingPageRedirect({
+  searchParams,
+}: {
+  searchParams?: Record<string, string | string[] | undefined>;
+}) {
+  const params = new URLSearchParams();
 
-export default function StartOnboardingPage() {
-  return <StartOnboardingPageClient />;
+  for (const [key, value] of Object.entries(searchParams ?? {})) {
+    if (typeof value === "string") {
+      params.set(key, value);
+      continue;
+    }
+
+    for (const item of value ?? []) {
+      params.append(key, item);
+    }
+  }
+
+  const query = params.toString();
+  const onboardingPath = SUBSCRIPTION_CONFIG.NEW_USER_ONBOARDING_PATH;
+  redirect(query ? `${onboardingPath}?${query}` : onboardingPath);
 }

@@ -7,10 +7,12 @@ import { usePro } from "@/hooks/use-pro";
 interface CheckoutButtonProps
   extends Omit<React.ComponentProps<typeof Button>, "onClick" | "disabled"> {
   children?: React.ReactNode;
+  checkoutSource?: string;
 }
 
 export function CheckoutButton({
   children,
+  checkoutSource,
   variant = "gradient",
   ...props
 }: CheckoutButtonProps) {
@@ -20,7 +22,7 @@ export function CheckoutButton({
     <Button
       variant={variant}
       type="button"
-      onClick={() => void sendToCheckout()}
+      onClick={() => void sendToCheckout(checkoutSource)}
       disabled={isPending}
       {...props}
     >
