@@ -13,6 +13,7 @@ import { P } from "@/components/typography";
 export interface ImageUploadProps {
   type: ImageType;
   referenceId: string;
+  uploadMode?: "collection" | "direct";
   onUploadComplete?: (result: ImageUploadResponse) => void;
   onMutationSuccess?: () => void;
 }
@@ -20,6 +21,7 @@ export interface ImageUploadProps {
 export function ImageUpload({
   type,
   referenceId,
+  uploadMode = "collection",
   onUploadComplete,
   onMutationSuccess,
 }: ImageUploadProps) {
@@ -27,6 +29,7 @@ export function ImageUpload({
   const { upload, progress, isUploading } = useImageUpload({
     type,
     referenceId,
+    createMode: uploadMode,
     onSuccess: (image) => {
       onUploadComplete?.({
         success: true,

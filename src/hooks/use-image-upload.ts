@@ -10,12 +10,14 @@ import { createImage } from "@/app/dashboard/_lib/dashboard-db/images-collection
 interface UseImageUploadOptions {
   type: ImageType;
   referenceId: string;
+  createMode?: "collection" | "direct";
   onSuccess?: (image: Image) => void;
 }
 
 export function useImageUpload({
   type,
   referenceId,
+  createMode = "collection",
   onSuccess,
 }: UseImageUploadOptions) {
   const [progress, setProgress] = useState(0);
@@ -23,6 +25,7 @@ export function useImageUpload({
 
   const getPresignedUrlMutation =
     api.dashboardDb.image.getPresignedUrl.useMutation();
+  const createImageMutation = api.dashboardDb.image.create.useMutation();
 
   const upload = useCallback(
     async (file: Blob) => {
@@ -49,12 +52,20 @@ export function useImageUpload({
         });
 
         step = "create";
-        const image = await createImage({
-          type,
-          referenceId,
-          url,
-          key,
-        });
+        const image =
+          createMode === "collection"
+            ? await createImage({
+                type,
+                referenceId,
+                url,
+                key,
+              })
+            : await createImageMutation.mutateAsync({
+                type,
+                referenceId,
+                url,
+                key,
+              });
 
         toast.success("Image uploaded successfully");
 
@@ -80,7 +91,14 @@ export function useImageUpload({
         setProgress(0);
       }
     },
-    [type, referenceId, getPresignedUrlMutation, onSuccess],
+    [
+      type,
+      referenceId,
+      createMode,
+      getPresignedUrlMutation,
+      createImageMutation,
+      onSuccess,
+    ],
   );
 
   return {
@@ -89,4 +107,3 @@ export function useImageUpload({
     isUploading,
   };
 }
-

@@ -1611,6 +1611,7 @@ export function StartOnboardingPageClient({
                           <ImageUpload
                             type="profile"
                             referenceId={profileQuery.data.id}
+                            uploadMode="direct"
                             onUploadComplete={handleProfileImageUploadComplete}
                             onMutationSuccess={() => {
                               void utils.dashboardDb.image.list.invalidate();
@@ -2101,6 +2102,7 @@ export function StartOnboardingPageClient({
                     <ImageUpload
                       type="listing"
                       referenceId={savedListingId}
+                      uploadMode="direct"
                       onUploadComplete={handleListingImageUploadComplete}
                       onMutationSuccess={() => {
                         void utils.dashboardDb.image.list.invalidate();
