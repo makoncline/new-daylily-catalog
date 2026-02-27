@@ -8,6 +8,7 @@ import {
   getStripeSubscription,
 } from "@/server/stripe/sync-subscription";
 import { getBaseUrl } from "@/lib/utils/getBaseUrl";
+import { hasActiveSubscription } from "@/server/stripe/subscription-utils";
 
 export const stripeRouter = createTRPCRouter({
   getSubscription: protectedProcedure.query(async ({ ctx }) => {
@@ -20,6 +21,17 @@ export const stripeRouter = createTRPCRouter({
     const { user } = ctx;
 
     let stripeCustomerId = user.stripeCustomerId;
+
+    if (stripeCustomerId) {
+      const subscription = await getStripeSubscription(stripeCustomerId);
+
+      if (hasActiveSubscription(subscription.status)) {
+        throw new TRPCError({
+          code: "CONFLICT",
+          message: "An active subscription already exists for this account.",
+        });
+      }
+    }
 
     // Create a new Stripe customer if one doesn't exist
     if (!stripeCustomerId) {
@@ -87,8 +99,24 @@ export const stripeRouter = createTRPCRouter({
   // Sync Stripe data to KV store
   syncStripeData: protectedProcedure
     .input(z.object({ customerId: z.string() }))
-    .mutation(async ({ input }) => {
-      const subscription = await syncStripeSubscriptionToKV(input.customerId);
+    .mutation(async ({ ctx, input }) => {
+      if (!ctx.user.stripeCustomerId) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "No billing information found",
+        });
+      }
+
+      if (ctx.user.stripeCustomerId !== input.customerId) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "You can only sync Stripe data for your own account.",
+        });
+      }
+
+      const subscription = await syncStripeSubscriptionToKV(
+        ctx.user.stripeCustomerId,
+      );
       return subscription;
     }),
 });

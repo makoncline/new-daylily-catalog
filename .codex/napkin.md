@@ -2,6 +2,13 @@
 
 ## Log
 
+- 2026-02-27 - self-miss napkin disclosure recurrence - I mentioned napkin-skill execution in the first status update again; apply napkin silently.
+- 2026-02-27 - self-miss zsh globbing on env probe - I ran `rg` with `env*` unquoted and hit `zsh: no matches found`; always quote or target explicit files.
+- 2026-02-27 - self-miss env filename assumption - I looked for `src/env.ts`; this repo uses `src/env.js`, so check actual file before running line refs.
+- 2026-02-27 - stripe assessment finding - Current Stripe flow follows t3 recommendations structurally, but `stripe.syncStripeData` accepts arbitrary `customerId` from any authenticated user; restrict to caller-owned customer IDs or remove endpoint.
+- 2026-02-27 - env parity gap - `src/env.js` requires Stripe vars, but `.env.example` currently omits Stripe placeholders; keep env example synced with runtime schema.
+- 2026-02-27 - self-miss stripe period field assumption - I assumed `Subscription.current_period_start/end` existed in this Stripe API version; TypeScript in this repo only guarantees item-level period fields, so use a compatibility fallback shape before changing mapping.
+- 2026-02-27 - self-miss test auth snapshot - Stripe router integration tests initially failed because `_authUser` in test caller was a static `{ id }` snapshot; for guards relying on updated user fields (like `stripeCustomerId`), load the current user row inside the caller context callback.
 - 2026-02-26 - data-shape guidance preference - Keep approximate row-count guidance in `AGENTS.md` for query tuning context: `AhsListing` ~100k, `CultivarReference` ~100k, `User` ~100, `Listing` ~5k, `Image` hundreds.
 - 2026-02-26 - profiling handoff entrypoint - When another agent session needs to run query profiling, start from `docs/local-query-profiler.md`; this is the canonical run/analyze workflow and uses the single command `pnpm profile:queries` (with required env vars).
 - 2026-02-26 - public search row-read amplifier - `/[userSlugOrId]/search` uses `PUBLIC_CATALOG_SEARCH_PERSISTED_SWR.queryLimit=500` and auto-fetches until exhaustion (`hasNextPage` effect), while each `public.getListings` call recomputes full sorted ID list in SQL before slicing cursor page; this creates repeated full-list scans per visit on large catalogs.
