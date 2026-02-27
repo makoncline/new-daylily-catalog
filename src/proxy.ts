@@ -9,6 +9,7 @@ import { SUBSCRIPTION_CONFIG } from "@/config/subscription-config";
 
 const isProtectedRoute = createRouteMatcher([
   "/dashboard(.*)",
+  `${SUBSCRIPTION_CONFIG.NEW_USER_ONBOARDING_PATH}(.*)`,
   `${SUBSCRIPTION_CONFIG.NEW_USER_MEMBERSHIP_PATH}(.*)`,
 ]);
 
@@ -21,6 +22,7 @@ const RESERVED_TOP_LEVEL_SEGMENTS = new Set([
   "dashboard",
   "subscribe",
   "start-membership",
+  "start-onboarding",
   "trpc",
   "users",
 ]);

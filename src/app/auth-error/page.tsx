@@ -35,7 +35,7 @@ function AuthErrorContent() {
                 mode="modal"
                 forceRedirectUrl={returnTo}
                 signUpForceRedirectUrl={
-                  SUBSCRIPTION_CONFIG.NEW_USER_MEMBERSHIP_PATH
+                  SUBSCRIPTION_CONFIG.NEW_USER_ONBOARDING_PATH
                 }
               >
                 Sign In

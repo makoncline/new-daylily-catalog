@@ -22,9 +22,43 @@ export class ClerkAuthModal {
   }
 
   async startSignUp() {
-    await this.signUpLink.waitFor({ state: "visible" });
-    await this.signUpLink.click();
-    await this.createAccountHeading.waitFor({ state: "visible" });
+    if (await this.emailInput.isVisible().catch(() => false)) {
+      return;
+    }
+
+    if (await this.createAccountHeading.isVisible().catch(() => false)) {
+      return;
+    }
+
+    if (await this.signUpLink.isVisible().catch(() => false)) {
+      await this.signUpLink.click();
+      await this.createAccountHeading.waitFor({ state: "visible" });
+      return;
+    }
+
+    const visibleTarget = await Promise.any([
+      this.emailInput
+        .waitFor({ state: "visible", timeout: 8000 })
+        .then(() => "email"),
+      this.createAccountHeading
+        .waitFor({ state: "visible", timeout: 8000 })
+        .then(() => "heading"),
+      this.signUpLink
+        .waitFor({ state: "visible", timeout: 8000 })
+        .then(() => "signup-link"),
+    ]).catch(() => null);
+
+    if (visibleTarget === "email" || visibleTarget === "heading") {
+      return;
+    }
+
+    if (visibleTarget === "signup-link") {
+      await this.signUpLink.click();
+      await this.createAccountHeading.waitFor({ state: "visible" });
+      return;
+    }
+
+    throw new Error("Unable to find Clerk sign-up entry state.");
   }
 
   async signUpWithEmail(email: string, code: string) {

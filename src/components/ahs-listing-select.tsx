@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { ChevronsUpDown } from "lucide-react";
+import { CheckCircle2, ChevronsUpDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -19,6 +19,7 @@ import {
   CommandList,
 } from "@/components/ui/command";
 import { api } from "@/trpc/react";
+import { cn } from "@/lib/utils";
 
 export interface AhsSearchResult {
   id: string;
@@ -29,11 +30,13 @@ export interface AhsSearchResult {
 interface AhsListingSelectProps {
   onSelect: (result: AhsSearchResult) => void;
   disabled?: boolean;
+  selectedLabel?: string | null;
 }
 
 export function AhsListingSelect({
   onSelect,
   disabled,
+  selectedLabel,
 }: AhsListingSelectProps) {
   const [open, setOpen] = useState(false);
   const [searchValue, setSearchValue] = useState("");
@@ -121,18 +124,31 @@ export function AhsListingSelect({
     </Command>
   );
 
+  const hasSelection = Boolean(selectedLabel?.trim());
+  const triggerText = hasSelection
+    ? (selectedLabel?.trim() ?? "")
+    : "Select Daylily Database listing...";
+
   // Trigger button
   const triggerButton = (
     <Button
       variant="outline"
       role="combobox"
       aria-expanded={open}
-      className="w-full justify-between"
+      className={cn(
+        "w-full justify-between",
+        hasSelection && "border-emerald-500/50 bg-emerald-500/5",
+      )}
       disabled={disabled}
       id="ahs-listing-select"
     >
-      Select Daylily Database listing...
-      <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+      <span className="truncate">{triggerText}</span>
+      <span className="ml-2 inline-flex items-center gap-1.5">
+        {hasSelection ? (
+          <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-600" />
+        ) : null}
+        <ChevronsUpDown className="h-4 w-4 shrink-0 opacity-50" />
+      </span>
     </Button>
   );
 

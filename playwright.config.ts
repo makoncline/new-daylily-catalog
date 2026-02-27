@@ -5,11 +5,20 @@ import path from "node:path";
 const e2ePort = process.env.E2E_PORT ?? "3100";
 const baseURL = process.env.BASE_URL ?? `http://localhost:${e2ePort}`;
 const isProfileScenario = process.env.E2E_PROFILE_SCENARIO === "1";
+const isOnboardingCaptureScenario = process.env.E2E_ONBOARDING_CAPTURE === "1";
 const grepInvert = (() => {
   const basePattern = process.env.BASE_URL ? "@local" : "@preview";
-  return isProfileScenario
-    ? new RegExp(basePattern)
-    : new RegExp(`${basePattern}|@profile`);
+  const excludedTags = [basePattern];
+
+  if (!isProfileScenario) {
+    excludedTags.push("@profile");
+  }
+
+  if (!isOnboardingCaptureScenario) {
+    excludedTags.push("@capture");
+  }
+
+  return new RegExp(excludedTags.join("|"));
 })();
 
 process.env.NEXT_PUBLIC_SENTRY_ENABLED = "false";
@@ -54,6 +63,7 @@ export default defineConfig({
   // - @preview runs only on preview (BASE_URL set)
   // - @local runs only locally (BASE_URL not set)
   // - @profile runs only when E2E_PROFILE_SCENARIO=1
+  // - @capture runs only when E2E_ONBOARDING_CAPTURE=1
   // - untagged runs in both
   grepInvert,
   use: {
@@ -69,7 +79,7 @@ export default defineConfig({
     ? undefined
     : {
         command:
-          "npx tsx scripts/create-temp-db.ts --db $E2E_TEST_DB_URL && npm run dev",
+          "pnpm dlx tsx scripts/create-temp-db.ts --db $E2E_TEST_DB_URL && pnpm dev",
         url: `http://localhost:${e2ePort}`,
         reuseExistingServer: false,
         timeout: 120000, // 2 minutes for CI (server startup can be slow)
