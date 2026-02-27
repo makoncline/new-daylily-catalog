@@ -2,6 +2,8 @@
 
 ## Log
 
+- 2026-02-27 - proxy underscore pagination regression - `isLegacyProfileSegment` dropped `_` support, which bypassed legacy profile `?page=` rewrite for underscore slugs; keep proxy segment regex aligned with slug validation (`[A-Za-z0-9_-]`).
+- 2026-02-27 - self-miss napkin disclosure recurrence - I called out napkin-skill execution in a user-facing update; keep napkin workflow silent.
 - 2026-02-26 - multi-agent feedback preference - When user shares third-party copy/design suggestions, apply only high-signal changes that improve clarity/scannability and avoid unverified claims or text changes that conflict with explicit constraints (e.g., keep `Continue for now`).
 - 2026-02-26 - membership CTA constraint - User wants copy improvements on `/start-membership` but explicitly wants secondary action text to remain exactly `Continue for now`.
 - 2026-02-26 - membership features icon preference - User wants each membership feature row to use a distinct icon rather than a repeated generic check icon.
