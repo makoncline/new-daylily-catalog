@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { SignInButton, useAuth } from "@clerk/nextjs";
 import Link from "next/link";
 import { capturePosthogEvent } from "@/lib/analytics/posthog";
+import { SUBSCRIPTION_CONFIG } from "@/config/subscription-config";
 
 interface DashboardButtonProps {
   className?: string;
@@ -45,7 +46,7 @@ export function DashboardButton({
     <SignInButton
       mode="modal"
       forceRedirectUrl="/dashboard"
-      signUpForceRedirectUrl="/dashboard"
+      signUpForceRedirectUrl={SUBSCRIPTION_CONFIG.NEW_USER_MEMBERSHIP_PATH}
     >
       <Button
         className={className}

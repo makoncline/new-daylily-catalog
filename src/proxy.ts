@@ -5,8 +5,12 @@ import {
   hasNonPageProfileParams,
   parsePositiveInteger,
 } from "@/lib/public-catalog-url-state";
+import { SUBSCRIPTION_CONFIG } from "@/config/subscription-config";
 
-const isProtectedRoute = createRouteMatcher(["/dashboard(.*)"]);
+const isProtectedRoute = createRouteMatcher([
+  "/dashboard(.*)",
+  `${SUBSCRIPTION_CONFIG.NEW_USER_MEMBERSHIP_PATH}(.*)`,
+]);
 
 const RESERVED_TOP_LEVEL_SEGMENTS = new Set([
   "api",
@@ -16,6 +20,7 @@ const RESERVED_TOP_LEVEL_SEGMENTS = new Set([
   "cultivar",
   "dashboard",
   "subscribe",
+  "start-membership",
   "trpc",
   "users",
 ]);

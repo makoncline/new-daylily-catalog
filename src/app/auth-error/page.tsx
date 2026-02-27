@@ -6,6 +6,7 @@ import { Flower2 } from "lucide-react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Suspense } from "react";
+import { SUBSCRIPTION_CONFIG } from "@/config/subscription-config";
 
 function AuthErrorContent() {
   const searchParams = useSearchParams();
@@ -33,7 +34,9 @@ function AuthErrorContent() {
               <SignInButton
                 mode="modal"
                 forceRedirectUrl={returnTo}
-                signUpForceRedirectUrl={returnTo}
+                signUpForceRedirectUrl={
+                  SUBSCRIPTION_CONFIG.NEW_USER_MEMBERSHIP_PATH
+                }
               >
                 Sign In
               </SignInButton>

@@ -17,6 +17,7 @@ import { Star } from "lucide-react";
 import Link from "next/link";
 import { H1, H2, P, Muted } from "@/components/typography";
 import { homePageContent } from "@/config/home-page-content";
+import { SUBSCRIPTION_CONFIG } from "@/config/subscription-config";
 import { capturePosthogEvent } from "@/lib/analytics/posthog";
 
 function SignUpButton({ className }: { className?: string }) {
@@ -50,7 +51,10 @@ function SignUpButton({ className }: { className?: string }) {
   }
 
   return (
-    <ClerkSignUpButton mode="modal" forceRedirectUrl="/dashboard">
+    <ClerkSignUpButton
+      mode="modal"
+      forceRedirectUrl={SUBSCRIPTION_CONFIG.NEW_USER_MEMBERSHIP_PATH}
+    >
       <Button
         size="lg"
         variant="gradient"
