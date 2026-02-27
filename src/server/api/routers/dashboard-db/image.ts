@@ -164,6 +164,54 @@ export const dashboardDbImageRouter = createTRPCRouter({
       });
     }),
 
+  updateUrl: protectedProcedure
+    .input(
+      z.object({
+        type: imageTypeSchema,
+        referenceId: z.string(),
+        imageId: z.string(),
+        url: z.string().url(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      if (input.type === "listing") {
+        await assertListingOwned(ctx, input.referenceId);
+      } else {
+        await assertProfileOwned(ctx, input.referenceId);
+      }
+
+      const ownedImage = await ctx.db.image.findFirst({
+        where:
+          input.type === "listing"
+            ? {
+                id: input.imageId,
+                listingId: input.referenceId,
+                listing: { userId: ctx.user.id },
+              }
+            : {
+                id: input.imageId,
+                userProfileId: input.referenceId,
+                userProfile: { userId: ctx.user.id },
+              },
+        select: { id: true },
+      });
+
+      if (!ownedImage) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Image not found",
+        });
+      }
+
+      return ctx.db.image.update({
+        where: { id: ownedImage.id },
+        data: {
+          url: input.url,
+        },
+        select: imageSelect,
+      });
+    }),
+
   reorder: protectedProcedure
     .input(
       z.object({
@@ -236,7 +284,18 @@ export const dashboardDbImageRouter = createTRPCRouter({
           : { userProfileId: input.referenceId };
 
       await ctx.db.$transaction(async (tx) => {
-        await tx.image.delete({ where: { id: input.imageId } });
+        await tx.image.deleteMany({
+          where:
+            input.type === "listing"
+              ? {
+                  id: input.imageId,
+                  listingId: input.referenceId,
+                }
+              : {
+                  id: input.imageId,
+                  userProfileId: input.referenceId,
+                },
+        });
 
         const remaining = await tx.image.findMany({
           where: whereClause,

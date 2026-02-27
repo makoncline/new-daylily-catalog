@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { useDropzone } from "react-dropzone";
 import { ImageCropper } from "@/components/image-cropper";
 import { useImageUpload } from "@/hooks/use-image-upload";
@@ -9,11 +9,15 @@ import { APP_CONFIG } from "@/config/constants";
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 import { P } from "@/components/typography";
+import { Button } from "@/components/ui/button";
+import { IMAGE_CONFIG } from "@/components/optimized-image";
 
 export interface ImageUploadProps {
   type: ImageType;
   referenceId: string;
-  uploadMode?: "collection" | "direct";
+  uploadMode?: "collection" | "direct" | "upload-only";
+  deferUpload?: boolean;
+  onDeferredUploadReady?: (file: Blob) => void;
   onUploadComplete?: (result: ImageUploadResponse) => void;
   onMutationSuccess?: () => void;
 }
@@ -22,32 +26,47 @@ export function ImageUpload({
   type,
   referenceId,
   uploadMode = "collection",
+  deferUpload = false,
+  onDeferredUploadReady,
   onUploadComplete,
   onMutationSuccess,
 }: ImageUploadProps) {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [preparedPreviewUrl, setPreparedPreviewUrl] = useState<string | null>(
+    null,
+  );
   const { upload, progress, isUploading } = useImageUpload({
     type,
     referenceId,
     createMode: uploadMode,
-    onSuccess: (image) => {
+    onSuccess: (result) => {
       onUploadComplete?.({
         success: true,
-        url: image.url,
-        key: image.url.split("/").pop() ?? "",
-        image,
+        url: result.url,
+        key: result.key,
+        image: result.image,
       });
       onMutationSuccess?.();
     },
   });
 
   const reset = useCallback(() => {
+    if (previewUrl?.startsWith("blob:")) {
+      URL.revokeObjectURL(previewUrl);
+    }
     setPreviewUrl(null);
-  }, []);
+    setPreparedPreviewUrl((previousPreviewUrl) => {
+      if (previousPreviewUrl) {
+        URL.revokeObjectURL(previousPreviewUrl);
+      }
+      return null;
+    });
+  }, [previewUrl]);
 
   const onDrop = useCallback((acceptedFiles: File[]) => {
     const file = acceptedFiles[0];
     if (!file) return;
+    reset();
 
     // Create preview URL
     const reader = new FileReader();
@@ -55,7 +74,23 @@ export function ImageUpload({
       setPreviewUrl(reader.result as string);
     };
     reader.readAsDataURL(file);
-  }, []);
+  }, [reset]);
+
+  const handleAdjustCrop = useCallback(() => {
+    if (!preparedPreviewUrl) {
+      return;
+    }
+
+    setPreviewUrl(preparedPreviewUrl);
+  }, [preparedPreviewUrl]);
+
+  useEffect(() => {
+    return () => {
+      if (preparedPreviewUrl) {
+        URL.revokeObjectURL(preparedPreviewUrl);
+      }
+    };
+  }, [preparedPreviewUrl]);
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
@@ -68,7 +103,7 @@ export function ImageUpload({
 
   return (
     <div className="space-y-4">
-      {!previewUrl && (
+      {!previewUrl && !preparedPreviewUrl && (
         <div
           {...getRootProps()}
           className={`cursor-pointer rounded-lg border-2 border-dashed p-8 text-center ${
@@ -88,7 +123,20 @@ export function ImageUpload({
         <div className="relative space-y-4">
           <ImageCropper
             src={previewUrl}
+            primaryActionLabel={deferUpload ? "Done" : "Upload"}
             onCropComplete={async (result) => {
+              if (deferUpload) {
+                onDeferredUploadReady?.(result);
+                setPreparedPreviewUrl((previousPreviewUrl) => {
+                  if (previousPreviewUrl) {
+                    URL.revokeObjectURL(previousPreviewUrl);
+                  }
+                  return URL.createObjectURL(result);
+                });
+                setPreviewUrl(null);
+                return;
+              }
+
               try {
                 await upload(result);
                 reset();
@@ -109,6 +157,32 @@ export function ImageUpload({
           )}
         </div>
       )}
+
+      {deferUpload && preparedPreviewUrl && !previewUrl ? (
+        <div className="space-y-3 rounded-lg border p-3">
+          <div
+            className="aspect-square w-full overflow-hidden rounded-md"
+            style={{ maxWidth: IMAGE_CONFIG.SIZES.THUMBNAIL }}
+          >
+            <img
+              src={preparedPreviewUrl}
+              alt="Prepared upload preview"
+              className="h-full w-full object-cover"
+            />
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Button type="button" size="sm" onClick={handleAdjustCrop}>
+              Adjust crop
+            </Button>
+            <Button type="button" size="sm" variant="outline" onClick={reset}>
+              Upload a different image
+            </Button>
+          </div>
+          <p className="text-muted-foreground text-xs">
+            Image staged. It will upload when you click Save.
+          </p>
+        </div>
+      ) : null}
     </div>
   );
 }

@@ -41,7 +41,6 @@ import { capturePosthogEvent } from "@/lib/analytics/posthog";
 import { getErrorMessage } from "@/lib/error-utils";
 import { cn, formatPrice, uploadFileWithProgress } from "@/lib/utils";
 import { api } from "@/trpc/react";
-import type { ImageUploadResponse } from "@/types/image";
 import {
   ONBOARDING_BUYER_FLOW_BULLETS,
   ONBOARDING_LISTING_DEFAULTS,
@@ -111,6 +110,36 @@ interface StartOnboardingPageClientProps {
   membershipPriceDisplay: MembershipPriceDisplay | null;
 }
 
+function getCreatedAtTimestamp(value: Date | string | null | undefined) {
+  if (!value) {
+    return Number.POSITIVE_INFINITY;
+  }
+
+  if (value instanceof Date) {
+    return value.getTime();
+  }
+
+  return new Date(value).getTime();
+}
+
+function getEarliestByCreatedAt<T extends { createdAt: Date | string }>(
+  rows: T[],
+) {
+  if (rows.length === 0) {
+    return null;
+  }
+
+  return rows.reduce((earliest, current) => {
+    if (!earliest) {
+      return current;
+    }
+
+    const earliestTimestamp = getCreatedAtTimestamp(earliest.createdAt);
+    const currentTimestamp = getCreatedAtTimestamp(current.createdAt);
+    return currentTimestamp < earliestTimestamp ? current : earliest;
+  }, rows[0] ?? null);
+}
+
 function normalizeCultivarSearchValue(value: string | null | undefined) {
   return (value ?? "").toLowerCase().replace(/\s+/g, " ").trim();
 }
@@ -152,6 +181,9 @@ export function StartOnboardingPageClient({
   const [selectedProfileImageId, setSelectedProfileImageId] = useState<
     string | null
   >(null);
+  const [targetProfileImageId, setTargetProfileImageId] = useState<string | null>(
+    null,
+  );
   const [selectedStarterImageUrl, setSelectedStarterImageUrl] = useState<
     string | null
   >(DEFAULT_STARTER_IMAGE_URL);
@@ -166,6 +198,10 @@ export function StartOnboardingPageClient({
   const [pendingStarterPreviewUrl, setPendingStarterPreviewUrl] = useState<
     string | null
   >(null);
+  const [pendingProfileUploadBlob, setPendingProfileUploadBlob] =
+    useState<Blob | null>(null);
+  const [pendingProfileUploadPreviewUrl, setPendingProfileUploadPreviewUrl] =
+    useState<string | null>(null);
   const [selectedCultivarName, setSelectedCultivarName] = useState<
     string | null
   >(null);
@@ -175,9 +211,16 @@ export function StartOnboardingPageClient({
   const [selectedListingImageId, setSelectedListingImageId] = useState<
     string | null
   >(null);
+  const [targetListingImageId, setTargetListingImageId] = useState<string | null>(
+    null,
+  );
   const [selectedListingImageUrl, setSelectedListingImageUrl] = useState<
     string | null
   >(null);
+  const [pendingListingUploadBlob, setPendingListingUploadBlob] =
+    useState<Blob | null>(null);
+  const [pendingListingUploadPreviewUrl, setPendingListingUploadPreviewUrl] =
+    useState<string | null>(null);
 
   const [savedListingId, setSavedListingId] = useState<string | null>(null);
   const [isSavingProfile, setIsSavingProfile] = useState(false);
@@ -193,8 +236,12 @@ export function StartOnboardingPageClient({
     enabled: Boolean(profileQuery.data?.id),
   });
   const listingQuery = api.dashboardDb.listing.list.useQuery();
+  const earliestExistingListing = useMemo(
+    () => getEarliestByCreatedAt(listingQuery.data ?? []),
+    [listingQuery.data],
+  );
   const existingListingCultivarReferenceId =
-    listingQuery.data?.[0]?.cultivarReferenceId ?? null;
+    earliestExistingListing?.cultivarReferenceId ?? null;
   const shouldAttemptDefaultCultivar =
     listingQuery.isFetched &&
     existingListingCultivarReferenceId === null &&
@@ -210,7 +257,7 @@ export function StartOnboardingPageClient({
   const getImagePresignedUrlMutation =
     api.dashboardDb.image.getPresignedUrl.useMutation();
   const createImageMutation = api.dashboardDb.image.create.useMutation();
-  const deleteImageMutation = api.dashboardDb.image.delete.useMutation();
+  const updateImageUrlMutation = api.dashboardDb.image.updateUrl.useMutation();
   const createListingMutation = api.dashboardDb.listing.create.useMutation();
   const updateListingMutation = api.dashboardDb.listing.update.useMutation();
   const linkAhsMutation = api.dashboardDb.listing.linkAhs.useMutation();
@@ -254,6 +301,7 @@ export function StartOnboardingPageClient({
       (starterImage) => starterImage.url === nextImage,
     );
     setSelectedProfileImageId(null);
+    setTargetProfileImageId(null);
     setSelectedStarterImageUrl(matchingStarterImage?.url ?? null);
   }, [profileQuery.data]);
 
@@ -268,25 +316,25 @@ export function StartOnboardingPageClient({
 
     hasHydratedProfileImage.current = true;
 
-    const profileImageUrl =
-      imagesQuery.data.find(
+    const earliestProfileImage = getEarliestByCreatedAt(
+      imagesQuery.data.filter(
         (image) => image.userProfileId === profileQuery.data?.id,
-      )?.url ?? null;
+      ),
+    );
 
-    if (!profileImageUrl) {
+    if (!earliestProfileImage) {
+      setTargetProfileImageId(null);
       return;
     }
 
     setProfileDraft((previous) => ({
       ...previous,
-      profileImageUrl,
+      profileImageUrl: earliestProfileImage.url,
     }));
-    const matchingProfileImage = imagesQuery.data.find(
-      (image) => image.url === profileImageUrl,
-    );
-    setSelectedProfileImageId(matchingProfileImage?.id ?? null);
+    setSelectedProfileImageId(earliestProfileImage.id);
+    setTargetProfileImageId(earliestProfileImage.id);
     const matchingStarterImage = STARTER_PROFILE_IMAGES.find(
-      (starterImage) => starterImage.url === profileImageUrl,
+      (starterImage) => starterImage.url === earliestProfileImage.url,
     );
     setSelectedStarterImageUrl(matchingStarterImage?.url ?? null);
   }, [imagesQuery.data, profileQuery.data?.id]);
@@ -302,8 +350,18 @@ export function StartOnboardingPageClient({
       if (pendingStarterPreviewUrl) {
         URL.revokeObjectURL(pendingStarterPreviewUrl);
       }
+      if (pendingProfileUploadPreviewUrl) {
+        URL.revokeObjectURL(pendingProfileUploadPreviewUrl);
+      }
+      if (pendingListingUploadPreviewUrl) {
+        URL.revokeObjectURL(pendingListingUploadPreviewUrl);
+      }
     };
-  }, [pendingStarterPreviewUrl]);
+  }, [
+    pendingListingUploadPreviewUrl,
+    pendingProfileUploadPreviewUrl,
+    pendingStarterPreviewUrl,
+  ]);
 
   useEffect(() => {
     if (!listingQuery.data || hasHydratedListing.current) {
@@ -311,7 +369,7 @@ export function StartOnboardingPageClient({
     }
 
     hasHydratedListing.current = true;
-    const existingListing = listingQuery.data[0];
+    const existingListing = getEarliestByCreatedAt(listingQuery.data);
 
     if (!existingListing) {
       return;
@@ -344,16 +402,18 @@ export function StartOnboardingPageClient({
     }
 
     hasHydratedListingImage.current = true;
-    const listingImage = imagesQuery.data.find(
-      (image) => image.listingId === savedListingId,
+    const earliestListingImage = getEarliestByCreatedAt(
+      imagesQuery.data.filter((image) => image.listingId === savedListingId),
     );
 
-    if (!listingImage) {
+    if (!earliestListingImage) {
+      setTargetListingImageId(null);
       return;
     }
 
-    setSelectedListingImageId(listingImage.id);
-    setSelectedListingImageUrl(listingImage.url);
+    setSelectedListingImageId(earliestListingImage.id);
+    setTargetListingImageId(earliestListingImage.id);
+    setSelectedListingImageUrl(earliestListingImage.url);
   }, [imagesQuery.data, savedListingId]);
 
   useEffect(() => {
@@ -604,6 +664,26 @@ export function StartOnboardingPageClient({
     setPendingStarterImageBlob(null);
   }, []);
 
+  const clearPendingProfileUpload = useCallback(() => {
+    setPendingProfileUploadPreviewUrl((previousPreviewUrl) => {
+      if (previousPreviewUrl) {
+        URL.revokeObjectURL(previousPreviewUrl);
+      }
+      return null;
+    });
+    setPendingProfileUploadBlob(null);
+  }, []);
+
+  const clearPendingListingUpload = useCallback(() => {
+    setPendingListingUploadPreviewUrl((previousPreviewUrl) => {
+      if (previousPreviewUrl) {
+        URL.revokeObjectURL(previousPreviewUrl);
+      }
+      return null;
+    });
+    setPendingListingUploadBlob(null);
+  }, []);
+
   const cancelStarterImageGeneration = useCallback(() => {
     if (starterImageGenerationTimeoutRef.current !== null) {
       window.clearTimeout(starterImageGenerationTimeoutRef.current);
@@ -785,19 +865,28 @@ export function StartOnboardingPageClient({
     setSelectedStarterImageUrl(starterImageUrl);
   };
 
-  const handleProfileImageUploadComplete = (result: ImageUploadResponse) => {
+  const handleDeferredProfileImageReady = (file: Blob) => {
+    clearPendingProfileUpload();
+    const previewUrl = URL.createObjectURL(file);
+    setPendingProfileUploadBlob(file);
+    setPendingProfileUploadPreviewUrl(previewUrl);
     setProfileImageInputMode("upload");
-    handleProfileImagePick(result.url, null, result.image.id);
+    handleProfileImagePick(previewUrl, null, null);
   };
 
-  const handleListingImageUploadComplete = (result: ImageUploadResponse) => {
-    setSelectedListingImageId(result.image.id);
-    setSelectedListingImageUrl(result.url);
+  const handleDeferredListingImageReady = (file: Blob) => {
+    clearPendingListingUpload();
+    const previewUrl = URL.createObjectURL(file);
+    setPendingListingUploadBlob(file);
+    setPendingListingUploadPreviewUrl(previewUrl);
+    setSelectedListingImageId(null);
+    setSelectedListingImageUrl(previewUrl);
     setActiveListingField("image");
   };
 
   const handleStarterImageSelect = (baseImageUrl: string) => {
     setProfileImageInputMode("starter");
+    clearPendingProfileUpload();
     setSelectedProfileImageId(null);
     setSelectedStarterImageUrl(baseImageUrl);
 
@@ -856,12 +945,32 @@ export function StartOnboardingPageClient({
     selectedImageKey: string;
     selectedImageId: string | null;
   }) => {
+    const earliestProfileImage = getEarliestByCreatedAt(
+      profileImages.filter((image) => image.userProfileId === profileId),
+    );
     let imageToKeepId =
+      targetProfileImageId ??
       selectedImageId ??
+      earliestProfileImage?.id ??
       profileImages.find((image) => image.url === selectedImageUrl)?.id ??
       null;
 
-    if (!imageToKeepId) {
+    const imageToKeep =
+      imageToKeepId === null
+        ? null
+        : profileImages.find((image) => image.id === imageToKeepId) ?? null;
+
+    if (imageToKeep) {
+      if (imageToKeep.url !== selectedImageUrl) {
+        await updateImageUrlMutation.mutateAsync({
+          type: "profile",
+          referenceId: profileId,
+          imageId: imageToKeep.id,
+          url: selectedImageUrl,
+        });
+      }
+      imageToKeepId = imageToKeep.id;
+    } else {
       const createdImage = await createImageMutation.mutateAsync({
         type: "profile",
         referenceId: profileId,
@@ -871,19 +980,7 @@ export function StartOnboardingPageClient({
       imageToKeepId = createdImage.id;
     }
 
-    const imagesToDelete = profileImages.filter(
-      (image) => image.id !== imageToKeepId,
-    );
-    await Promise.all(
-      imagesToDelete.map((image) =>
-        deleteImageMutation.mutateAsync({
-          type: "profile",
-          referenceId: profileId,
-          imageId: image.id,
-        }),
-      ),
-    );
-
+    setTargetProfileImageId(imageToKeepId);
     setSelectedProfileImageId(imageToKeepId);
   };
 
@@ -898,12 +995,32 @@ export function StartOnboardingPageClient({
     selectedImageKey: string;
     selectedImageId: string | null;
   }) => {
+    const earliestListingImage = getEarliestByCreatedAt(
+      listingImages.filter((image) => image.listingId === listingId),
+    );
     let imageToKeepId =
+      targetListingImageId ??
       selectedImageId ??
+      earliestListingImage?.id ??
       listingImages.find((image) => image.url === selectedImageUrl)?.id ??
       null;
 
-    if (!imageToKeepId) {
+    const imageToKeep =
+      imageToKeepId === null
+        ? null
+        : listingImages.find((image) => image.id === imageToKeepId) ?? null;
+
+    if (imageToKeep) {
+      if (imageToKeep.url !== selectedImageUrl) {
+        await updateImageUrlMutation.mutateAsync({
+          type: "listing",
+          referenceId: listingId,
+          imageId: imageToKeep.id,
+          url: selectedImageUrl,
+        });
+      }
+      imageToKeepId = imageToKeep.id;
+    } else {
       const createdImage = await createImageMutation.mutateAsync({
         type: "listing",
         referenceId: listingId,
@@ -913,19 +1030,7 @@ export function StartOnboardingPageClient({
       imageToKeepId = createdImage.id;
     }
 
-    const imagesToDelete = listingImages.filter(
-      (image) => image.id !== imageToKeepId,
-    );
-    await Promise.all(
-      imagesToDelete.map((image) =>
-        deleteImageMutation.mutateAsync({
-          type: "listing",
-          referenceId: listingId,
-          imageId: image.id,
-        }),
-      ),
-    );
-
+    setTargetListingImageId(imageToKeepId);
     setSelectedListingImageId(imageToKeepId);
   };
 
@@ -1075,9 +1180,25 @@ export function StartOnboardingPageClient({
       let profileImageUrlToSave = profileDraft.profileImageUrl;
       let profileImageKeyToSave = `onboarding:${Date.now()}`;
 
-      if (pendingStarterImageBlob && profileImageUrlToSave) {
-        const { url, key } = await uploadGeneratedStarterProfileImage({
+      if (pendingProfileUploadBlob) {
+        const { url, key } = await uploadOnboardingImageBlob({
+          blob: pendingProfileUploadBlob,
+          type: "profile",
+          referenceId: profileQuery.data.id,
+          getPresignedUrl: getImagePresignedUrlMutation.mutateAsync,
+        });
+
+        profileImageUrlToSave = url;
+        profileImageKeyToSave = key;
+        clearPendingProfileUpload();
+        setProfileDraft((previous) => ({
+          ...previous,
+          profileImageUrl: url,
+        }));
+      } else if (pendingStarterImageBlob && profileImageUrlToSave) {
+        const { url, key } = await uploadOnboardingImageBlob({
           blob: pendingStarterImageBlob,
+          type: "profile",
           referenceId: profileQuery.data.id,
           getPresignedUrl: getImagePresignedUrlMutation.mutateAsync,
         });
@@ -1161,14 +1282,26 @@ export function StartOnboardingPageClient({
         },
       });
 
-      const listingImageToSave =
-        selectedListingImageUrl ?? selectedCultivarImageUrl ?? null;
+      let listingImageToSave = selectedListingImageUrl ?? selectedCultivarImageUrl;
+      let listingImageKeyToSave = `onboarding-listing:${Date.now()}`;
+      if (pendingListingUploadBlob) {
+        const { url, key } = await uploadOnboardingImageBlob({
+          blob: pendingListingUploadBlob,
+          type: "listing",
+          referenceId: listingId,
+          getPresignedUrl: getImagePresignedUrlMutation.mutateAsync,
+        });
+        listingImageToSave = url;
+        listingImageKeyToSave = key;
+        clearPendingListingUpload();
+        setSelectedListingImageUrl(url);
+      }
 
       if (listingImageToSave) {
         await syncOnboardingListingImageSelection({
           listingId,
           selectedImageUrl: listingImageToSave,
-          selectedImageKey: `onboarding-listing:${Date.now()}`,
+          selectedImageKey: listingImageKeyToSave,
           selectedImageId: selectedListingImageId,
         });
       }
@@ -1519,6 +1652,7 @@ export function StartOnboardingPageClient({
                       onClick={() => {
                         setFocusedProfileField("image");
                         setProfileImageInputMode("starter");
+                        clearPendingProfileUpload();
                       }}
                     >
                       Use a starter image
@@ -1611,11 +1745,9 @@ export function StartOnboardingPageClient({
                           <ImageUpload
                             type="profile"
                             referenceId={profileQuery.data.id}
-                            uploadMode="direct"
-                            onUploadComplete={handleProfileImageUploadComplete}
-                            onMutationSuccess={() => {
-                              void utils.dashboardDb.image.list.invalidate();
-                            }}
+                            uploadMode="upload-only"
+                            deferUpload={true}
+                            onDeferredUploadReady={handleDeferredProfileImageReady}
                           />
                         </div>
                       ) : (
@@ -2102,11 +2234,9 @@ export function StartOnboardingPageClient({
                     <ImageUpload
                       type="listing"
                       referenceId={savedListingId}
-                      uploadMode="direct"
-                      onUploadComplete={handleListingImageUploadComplete}
-                      onMutationSuccess={() => {
-                        void utils.dashboardDb.image.list.invalidate();
-                      }}
+                      uploadMode="upload-only"
+                      deferUpload={true}
+                      onDeferredUploadReady={handleDeferredListingImageReady}
                     />
                   </div>
                 ) : (
@@ -2747,15 +2877,17 @@ async function generateStarterImageWithGardenName({
   return { blob, previewUrl };
 }
 
-async function uploadGeneratedStarterProfileImage({
+async function uploadOnboardingImageBlob({
   blob,
+  type,
   referenceId,
   getPresignedUrl,
 }: {
   blob: Blob;
+  type: "profile" | "listing";
   referenceId: string;
   getPresignedUrl: (input: {
-    type: "profile";
+    type: "profile" | "listing";
     fileName: string;
     contentType: string;
     size: number;
@@ -2766,11 +2898,12 @@ async function uploadGeneratedStarterProfileImage({
     url: string;
   }>;
 }) {
-  const fileName = `starter-logo-${Date.now()}.jpg`;
+  const fileNamePrefix = type === "profile" ? "profile" : "listing";
+  const fileName = `onboarding-${fileNamePrefix}-${Date.now()}.jpg`;
   const contentType = blob.type || "image/jpeg";
 
   const { presignedUrl, key, url } = await getPresignedUrl({
-    type: "profile",
+    type,
     fileName,
     contentType,
     size: blob.size,

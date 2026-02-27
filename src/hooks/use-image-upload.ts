@@ -6,12 +6,13 @@ import { type ImageType } from "@/types/image";
 import { type Image } from "@prisma/client";
 import { getErrorMessage, normalizeError, reportError } from "@/lib/error-utils";
 import { createImage } from "@/app/dashboard/_lib/dashboard-db/images-collection";
+import type { PresignedUrlResponse } from "@/types/image";
 
 interface UseImageUploadOptions {
   type: ImageType;
   referenceId: string;
-  createMode?: "collection" | "direct";
-  onSuccess?: (image: Image) => void;
+  createMode?: "collection" | "direct" | "upload-only";
+  onSuccess?: (result: { image: Image | null } & PresignedUrlResponse) => void;
 }
 
 export function useImageUpload({
@@ -51,26 +52,30 @@ export function useImageUpload({
           onProgress: setProgress,
         });
 
-        step = "create";
-        const image =
-          createMode === "collection"
-            ? await createImage({
-                type,
-                referenceId,
-                url,
-                key,
-              })
-            : await createImageMutation.mutateAsync({
-                type,
-                referenceId,
-                url,
-                key,
-              });
+        let image: Image | null = null;
+        if (createMode !== "upload-only") {
+          step = "create";
+          image =
+            createMode === "collection"
+              ? await createImage({
+                  type,
+                  referenceId,
+                  url,
+                  key,
+                })
+              : await createImageMutation.mutateAsync({
+                  type,
+                  referenceId,
+                  url,
+                  key,
+                });
+        }
 
         toast.success("Image uploaded successfully");
 
-        onSuccess?.(image);
-        return image;
+        const result = { image, url, key, presignedUrl };
+        onSuccess?.(result);
+        return result;
       } catch (error) {
         toast.error(
           step === "presign"
