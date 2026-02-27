@@ -2,12 +2,11 @@ import { createTRPCRouter, protectedProcedure } from "@/server/api/trpc";
 import { stripe } from "@/server/stripe/client";
 import { TRPCError } from "@trpc/server";
 import { env } from "@/env";
-import { z } from "zod";
 import {
-  syncStripeSubscriptionToKV,
   getStripeSubscription,
 } from "@/server/stripe/sync-subscription";
 import { getBaseUrl } from "@/lib/utils/getBaseUrl";
+import { hasActiveSubscription } from "@/server/stripe/subscription-utils";
 
 export const stripeRouter = createTRPCRouter({
   getSubscription: protectedProcedure.query(async ({ ctx }) => {
@@ -20,6 +19,17 @@ export const stripeRouter = createTRPCRouter({
     const { user } = ctx;
 
     let stripeCustomerId = user.stripeCustomerId;
+
+    if (stripeCustomerId) {
+      const subscription = await getStripeSubscription(stripeCustomerId);
+
+      if (hasActiveSubscription(subscription.status)) {
+        throw new TRPCError({
+          code: "CONFLICT",
+          message: "An active subscription already exists for this account.",
+        });
+      }
+    }
 
     // Create a new Stripe customer if one doesn't exist
     if (!stripeCustomerId) {
@@ -83,12 +93,4 @@ export const stripeRouter = createTRPCRouter({
 
     return { url: session.url };
   }),
-
-  // Sync Stripe data to KV store
-  syncStripeData: protectedProcedure
-    .input(z.object({ customerId: z.string() }))
-    .mutation(async ({ input }) => {
-      const subscription = await syncStripeSubscriptionToKV(input.customerId);
-      return subscription;
-    }),
 });

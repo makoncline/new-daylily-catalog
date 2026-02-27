@@ -30,14 +30,22 @@ export async function syncStripeSubscriptionToKVBase(
   // If a user can have multiple subscriptions, that's your problem
   const subscription = subscriptions.data[0]!;
   const subscriptionItem = subscription.items.data[0]!;
+  const subscriptionWithPeriods = subscription as Stripe.Subscription & {
+    current_period_end?: number | null;
+    current_period_start?: number | null;
+  };
 
   // Store complete subscription state
   const subData = {
     subscriptionId: subscription.id,
     status: subscription.status,
     priceId: subscriptionItem.price.id ?? null,
-    currentPeriodEnd: subscriptionItem.current_period_end,
-    currentPeriodStart: subscriptionItem.current_period_start,
+    currentPeriodEnd:
+      subscriptionWithPeriods.current_period_end ??
+      subscriptionItem.current_period_end,
+    currentPeriodStart:
+      subscriptionWithPeriods.current_period_start ??
+      subscriptionItem.current_period_start,
     cancelAtPeriodEnd: subscription.cancel_at_period_end,
     paymentMethod:
       subscription.default_payment_method &&
