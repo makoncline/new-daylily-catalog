@@ -316,13 +316,8 @@ test.describe("onboarding flow screenshot capture @capture", () => {
     await cultivarOption.click();
     logCaptureStep("Cultivar option selected");
 
-    await page.getByRole("button", { name: "Listing title", exact: true }).click();
     await page.locator("#listing-title").fill("Stella de Oro spring fan");
-
-    await page.getByRole("button", { name: "Price", exact: true }).click();
     await page.locator("#listing-price").fill("25");
-
-    await page.getByRole("button", { name: "Description", exact: true }).click();
     await page.locator("#listing-description").fill(
       "Healthy spring fan with strong roots and bright rebloom potential.",
     );
@@ -334,29 +329,20 @@ test.describe("onboarding flow screenshot capture @capture", () => {
 
     logCaptureStep("Go to listing preview");
     await clickPrimaryAction(page);
-    await page.getByRole("button", { name: "Show cultivar page example" }).waitFor();
+    await page.getByRole("button", { name: "Show buyer inquiry flow" }).waitFor();
 
     await saveCapture({
       page,
       label: "onboarding-step-4-listing-preview",
     });
 
-    logCaptureStep("Go to cultivar preview");
-    await clickPrimaryAction(page);
-    await page.getByRole("button", { name: "Show search and filter example" }).waitFor();
-
-    await saveCapture({
-      page,
-      label: "onboarding-step-5-cultivar-page-preview",
-    });
-
-    logCaptureStep("Go to search/filter preview");
+    logCaptureStep("Go to buyer inquiry flow preview");
     await clickPrimaryAction(page);
     await page.getByRole("button", { name: "Continue to membership" }).waitFor();
 
     await saveCapture({
       page,
-      label: "onboarding-step-6-search-filter-demo",
+      label: "onboarding-step-5-buyer-inquiry-flow",
     });
 
     logCaptureStep("Go to membership page");

@@ -1,11 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
-  filterOnboardingSearchDemoListings,
   getNextIncompleteListingField,
   getNextIncompleteProfileField,
   isListingOnboardingDraftComplete,
   isProfileOnboardingDraftComplete,
-  ONBOARDING_SEARCH_DEMO_LISTINGS,
+  ONBOARDING_STEPS,
 } from "@/app/start-onboarding/onboarding-utils";
 
 describe("start onboarding utils", () => {
@@ -65,36 +64,13 @@ describe("start onboarding utils", () => {
     expect(getNextIncompleteListingField(completeDraft)).toBeNull();
   });
 
-  it("filters onboarding search listings with combined criteria", () => {
-    const filtered = filterOnboardingSearchDemoListings(
-      ONBOARDING_SEARCH_DEMO_LISTINGS,
-      {
-        query: "amber",
-        forSaleOnly: true,
-        maxPrice: 20,
-        linkedOnly: true,
-      },
-    );
-
-    expect(filtered).toEqual([
-      expect.objectContaining({
-        id: "sample-2",
-        title: "Summer Amber",
-      }),
+  it("keeps onboarding steps in the intended sequence", () => {
+    expect(ONBOARDING_STEPS.map((step) => step.id)).toEqual([
+      "build-profile-card",
+      "preview-profile-card",
+      "build-listing-card",
+      "preview-listing-card",
+      "preview-buyer-contact",
     ]);
-  });
-
-  it("drops unpriced listings when max price filter is set", () => {
-    const filtered = filterOnboardingSearchDemoListings(
-      ONBOARDING_SEARCH_DEMO_LISTINGS,
-      {
-        query: "",
-        forSaleOnly: false,
-        maxPrice: 30,
-        linkedOnly: false,
-      },
-    );
-
-    expect(filtered.every((listing) => listing.price !== null)).toBe(true);
   });
 });

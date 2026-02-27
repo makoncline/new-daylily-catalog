@@ -2,18 +2,13 @@
 
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowRight,
   CheckCircle2,
-  Circle,
-  Eye,
-  Filter,
   Link2,
   MapPin,
-  Search,
   ShoppingCart,
-  Sparkles,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -29,8 +24,6 @@ import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
-import { Separator } from "@/components/ui/separator";
-import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { SUBSCRIPTION_CONFIG } from "@/config/subscription-config";
 import { getErrorMessage } from "@/lib/error-utils";
@@ -38,12 +31,14 @@ import { cn, formatPrice, uploadFileWithProgress } from "@/lib/utils";
 import { api } from "@/trpc/react";
 import type { ImageUploadResponse } from "@/types/image";
 import {
-  filterOnboardingSearchDemoListings,
+  ONBOARDING_BUYER_FLOW_BULLETS,
+  ONBOARDING_LISTING_DEFAULTS,
+  ONBOARDING_LISTING_DISCOVERY_EXAMPLES,
+  ONBOARDING_PROFILE_DISCOVERY_EXAMPLES,
   getNextIncompleteListingField,
   getNextIncompleteProfileField,
   isListingOnboardingDraftComplete,
   isProfileOnboardingDraftComplete,
-  ONBOARDING_SEARCH_DEMO_LISTINGS,
   ONBOARDING_STEPS,
   STARTER_PROFILE_IMAGES,
   type ListingOnboardingDraft,
@@ -53,7 +48,6 @@ import {
 } from "./onboarding-utils";
 
 const PROFILE_PLACEHOLDER_IMAGE = "/assets/catalog-blooms.webp";
-const LISTING_PLACEHOLDER_IMAGE = "/assets/cultivar-grid.webp";
 
 const DEFAULT_PROFILE_DRAFT: ProfileOnboardingDraft = {
   gardenName: "",
@@ -68,7 +62,6 @@ const DEFAULT_LISTING_DRAFT: ListingOnboardingDraft = {
   price: null,
   description: "",
 };
-const OWNED_ONBOARDING_LISTING_ID = "your-first-listing";
 
 export function StartOnboardingPageClient() {
   const router = useRouter();
@@ -104,22 +97,49 @@ export function StartOnboardingPageClient() {
   const [selectedCultivarName, setSelectedCultivarName] = useState<string | null>(
     null,
   );
+  const [selectedCultivarAhsId, setSelectedCultivarAhsId] = useState<string | null>(
+    null,
+  );
+  const [selectedListingImageId, setSelectedListingImageId] = useState<
+    string | null
+  >(null);
+  const [selectedListingImageUrl, setSelectedListingImageUrl] = useState<
+    string | null
+  >(null);
 
   const [savedListingId, setSavedListingId] = useState<string | null>(null);
   const [isSavingProfile, setIsSavingProfile] = useState(false);
   const [isSavingListing, setIsSavingListing] = useState(false);
-
-  const [searchQuery, setSearchQuery] = useState("");
-  const [forSaleOnly, setForSaleOnly] = useState(false);
-  const [showAdvancedFilters, setShowAdvancedFilters] = useState(true);
-  const [maxPriceFilter, setMaxPriceFilter] = useState<number | null>(null);
-  const [linkedOnlyFilter, setLinkedOnlyFilter] = useState(false);
 
   const profileQuery = api.dashboardDb.userProfile.get.useQuery();
   const imagesQuery = api.dashboardDb.image.list.useQuery(undefined, {
     enabled: Boolean(profileQuery.data?.id),
   });
   const listingQuery = api.dashboardDb.listing.list.useQuery();
+  const shouldAttemptDefaultCultivar =
+    listingQuery.isFetched &&
+    (listingQuery.data?.length ?? 0) === 0 &&
+    listingDraft.cultivarReferenceId === null &&
+    selectedCultivarName === null;
+  const defaultCultivarQuery = api.dashboardDb.ahs.search.useQuery(
+    { query: ONBOARDING_LISTING_DEFAULTS.cultivarQuery },
+    {
+      enabled: shouldAttemptDefaultCultivar,
+    },
+  );
+  const fallbackCultivarQuery = api.dashboardDb.ahs.search.useQuery(
+    { query: ONBOARDING_LISTING_DEFAULTS.fallbackCultivarQuery },
+    {
+      enabled:
+        shouldAttemptDefaultCultivar &&
+        defaultCultivarQuery.isFetched &&
+        (defaultCultivarQuery.data?.length ?? 0) === 0,
+    },
+  );
+  const selectedCultivarDetailsQuery = api.dashboardDb.ahs.get.useQuery(
+    { id: selectedCultivarAhsId ?? "" },
+    { enabled: Boolean(selectedCultivarAhsId) },
+  );
 
   const updateProfileMutation = api.dashboardDb.userProfile.update.useMutation();
   const getImagePresignedUrlMutation =
@@ -133,10 +153,17 @@ export function StartOnboardingPageClient() {
   const hasHydratedProfile = useRef(false);
   const hasHydratedProfileImage = useRef(false);
   const hasHydratedListing = useRef(false);
+  const hasHydratedListingImage = useRef(false);
+  const hasAppliedDefaultCultivar = useRef(false);
+  const hasInitializedListingDraft = useRef(false);
   const gardenNameInputRef = useRef<HTMLInputElement | null>(null);
   const gardenLocationInputRef = useRef<HTMLInputElement | null>(null);
   const gardenDescriptionInputRef = useRef<HTMLTextAreaElement | null>(null);
   const profileImageEditorRef = useRef<HTMLDivElement | null>(null);
+  const listingCultivarRef = useRef<HTMLDivElement | null>(null);
+  const listingTitleInputRef = useRef<HTMLInputElement | null>(null);
+  const listingDescriptionInputRef = useRef<HTMLTextAreaElement | null>(null);
+  const listingImageEditorRef = useRef<HTMLDivElement | null>(null);
   const starterImageGenerationTimeoutRef = useRef<number | null>(null);
   const starterImageGenerationRequestIdRef = useRef(0);
 
@@ -225,7 +252,31 @@ export function StartOnboardingPageClient() {
       price: existingListing.price,
       description: existingListing.description ?? "",
     });
+
+    hasAppliedDefaultCultivar.current = true;
   }, [listingQuery.data]);
+
+  useEffect(() => {
+    hasHydratedListingImage.current = false;
+  }, [savedListingId]);
+
+  useEffect(() => {
+    if (!savedListingId || !imagesQuery.data || hasHydratedListingImage.current) {
+      return;
+    }
+
+    hasHydratedListingImage.current = true;
+    const listingImage = imagesQuery.data.find(
+      (image) => image.listingId === savedListingId,
+    );
+
+    if (!listingImage) {
+      return;
+    }
+
+    setSelectedListingImageId(listingImage.id);
+    setSelectedListingImageUrl(listingImage.url);
+  }, [imagesQuery.data, savedListingId]);
 
   const currentStep = ONBOARDING_STEPS[stepIndex] ?? ONBOARDING_STEPS[0]!;
   const profileMissingField = getNextIncompleteProfileField(profileDraft);
@@ -240,40 +291,21 @@ export function StartOnboardingPageClient() {
     );
   }, [imagesQuery.data, profileQuery.data?.id]);
 
-  const progressValue = ((stepIndex + 1) / ONBOARDING_STEPS.length) * 100;
-
-  const searchListings = useMemo(() => {
-    if (!isListingOnboardingDraftComplete(listingDraft)) {
-      return [...ONBOARDING_SEARCH_DEMO_LISTINGS];
+  const listingImages = useMemo(() => {
+    if (!savedListingId) {
+      return [];
     }
 
-    return [
-      {
-        id: OWNED_ONBOARDING_LISTING_ID,
-        title: listingDraft.title.trim(),
-        description: listingDraft.description.trim(),
-        price: listingDraft.price,
-        hasCultivarLink: true,
-      },
-      ...ONBOARDING_SEARCH_DEMO_LISTINGS,
-    ];
-  }, [listingDraft]);
+    return (imagesQuery.data ?? []).filter((image) => image.listingId === savedListingId);
+  }, [imagesQuery.data, savedListingId]);
 
-  const filteredSearchListings = useMemo(
-    () =>
-      filterOnboardingSearchDemoListings(searchListings, {
-        query: searchQuery,
-        forSaleOnly,
-        maxPrice: maxPriceFilter,
-        linkedOnly: linkedOnlyFilter,
-      }),
-    [forSaleOnly, linkedOnlyFilter, maxPriceFilter, searchListings, searchQuery],
-  );
-  const isOwnedListingVisible = filteredSearchListings.some(
-    (listing) => listing.id === OWNED_ONBOARDING_LISTING_ID,
-  );
-
+  const progressValue = ((stepIndex + 1) / ONBOARDING_STEPS.length) * 100;
+  const selectedCultivarImageUrl = selectedCultivarDetailsQuery.data?.ahsImageUrl ?? null;
   const profileImagePreviewUrl = profileDraft.profileImageUrl ?? PROFILE_PLACEHOLDER_IMAGE;
+  const listingImagePreviewUrl =
+    selectedListingImageUrl ??
+    selectedCultivarImageUrl ??
+    ONBOARDING_LISTING_DEFAULTS.fallbackImageUrl;
 
   const listingTitlePreview = listingDraft.title.trim() || "Your first listing title";
   const listingDescriptionPreview =
@@ -383,6 +415,43 @@ export function StartOnboardingPageClient() {
     });
   };
 
+  const focusListingField = (field: ListingOnboardingField) => {
+    setActiveListingField(field);
+
+    if (field === "title") {
+      listingTitleInputRef.current?.focus();
+      return;
+    }
+
+    if (field === "price") {
+      const priceInput = document.getElementById("listing-price");
+      if (priceInput instanceof HTMLInputElement) {
+        priceInput.focus();
+      }
+      return;
+    }
+
+    if (field === "description") {
+      listingDescriptionInputRef.current?.focus();
+      return;
+    }
+
+    if (field === "cultivar") {
+      listingCultivarRef.current?.focus();
+      listingCultivarRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "center",
+      });
+      return;
+    }
+
+    listingImageEditorRef.current?.focus();
+    listingImageEditorRef.current?.scrollIntoView({
+      behavior: "smooth",
+      block: "center",
+    });
+  };
+
   const handleProfileImagePick = (
     url: string,
     starterImageUrl: string | null = null,
@@ -404,6 +473,12 @@ export function StartOnboardingPageClient() {
   const handleProfileImageUploadComplete = (result: ImageUploadResponse) => {
     setProfileImageInputMode("upload");
     handleProfileImagePick(result.url, null, result.image.id);
+  };
+
+  const handleListingImageUploadComplete = (result: ImageUploadResponse) => {
+    setSelectedListingImageId(result.image.id);
+    setSelectedListingImageUrl(result.url);
+    setActiveListingField("image");
   };
 
   const handleStarterImageSelect = (baseImageUrl: string) => {
@@ -507,27 +582,181 @@ export function StartOnboardingPageClient() {
     setSelectedProfileImageId(imageToKeepId);
   };
 
+  const syncOnboardingListingImageSelection = async ({
+    listingId,
+    selectedImageUrl,
+    selectedImageKey,
+    selectedImageId,
+  }: {
+    listingId: string;
+    selectedImageUrl: string;
+    selectedImageKey: string;
+    selectedImageId: string | null;
+  }) => {
+    let imageToKeepId =
+      selectedImageId ??
+      listingImages.find((image) => image.url === selectedImageUrl)?.id ??
+      null;
+
+    if (!imageToKeepId) {
+      const createdImage = await createImageMutation.mutateAsync({
+        type: "listing",
+        referenceId: listingId,
+        url: selectedImageUrl,
+        key: selectedImageKey,
+      });
+      imageToKeepId = createdImage.id;
+    }
+
+    const imagesToDelete = listingImages.filter((image) => image.id !== imageToKeepId);
+    await Promise.all(
+      imagesToDelete.map((image) =>
+        deleteImageMutation.mutateAsync({
+          type: "listing",
+          referenceId: listingId,
+          imageId: image.id,
+        }),
+      ),
+    );
+
+    setSelectedListingImageId(imageToKeepId);
+  };
+
+  const applyAhsSelection = useCallback((result: AhsSearchResult) => {
+    if (!result.cultivarReferenceId) {
+      return;
+    }
+
+    setListingDraft((previous) => {
+      const nextDraft = {
+        ...previous,
+        cultivarReferenceId: result.cultivarReferenceId,
+        title:
+          previous.title.trim().length > 0
+            ? previous.title
+            : (result.name ?? previous.title),
+      };
+
+      const nextIncomplete = getNextIncompleteListingField(nextDraft);
+      setActiveListingField(nextIncomplete ?? "title");
+
+      return nextDraft;
+    });
+
+    setSelectedCultivarName(result.name ?? null);
+    setSelectedCultivarAhsId(result.id);
+  }, []);
+
   const handleAhsSelect = (result: AhsSearchResult) => {
     if (!result.cultivarReferenceId) {
       toast.error("This cultivar cannot be linked yet.");
       return;
     }
 
-    const nextDraft = {
-      ...listingDraft,
-      cultivarReferenceId: result.cultivarReferenceId,
-      title:
-        listingDraft.title.trim().length > 0
-          ? listingDraft.title
-          : (result.name ?? listingDraft.title),
-    };
-
-    setListingDraft(nextDraft);
-    setSelectedCultivarName(result.name ?? null);
-
-    const nextIncomplete = getNextIncompleteListingField(nextDraft);
-    setActiveListingField(nextIncomplete ?? "title");
+    applyAhsSelection(result);
   };
+
+  const ensureListingDraftRecord = useCallback(async () => {
+    if (savedListingId) {
+      return savedListingId;
+    }
+
+    const createdListing = await createListingMutation.mutateAsync({
+      title: listingDraft.title.trim() || ONBOARDING_LISTING_DEFAULTS.draftTitle,
+      cultivarReferenceId: listingDraft.cultivarReferenceId,
+    });
+
+    if (ONBOARDING_LISTING_DEFAULTS.defaultStatus) {
+      await updateListingMutation.mutateAsync({
+        id: createdListing.id,
+        data: {
+          status: ONBOARDING_LISTING_DEFAULTS.defaultStatus,
+        },
+      });
+    }
+
+    setSavedListingId(createdListing.id);
+    await Promise.all([
+      utils.dashboardDb.listing.list.invalidate(),
+      utils.dashboardDb.image.list.invalidate(),
+    ]);
+
+    return createdListing.id;
+  }, [
+    createListingMutation,
+    listingDraft.cultivarReferenceId,
+    listingDraft.title,
+    savedListingId,
+    updateListingMutation,
+    utils.dashboardDb.image.list,
+    utils.dashboardDb.listing.list,
+  ]);
+
+  useEffect(() => {
+    if (!shouldAttemptDefaultCultivar || hasAppliedDefaultCultivar.current) {
+      return;
+    }
+
+    const defaultResults =
+      (defaultCultivarQuery.data?.length ?? 0) > 0
+        ? defaultCultivarQuery.data
+        : fallbackCultivarQuery.data;
+    if (!defaultResults || defaultResults.length === 0) {
+      return;
+    }
+
+    const normalizedTarget = ONBOARDING_LISTING_DEFAULTS.cultivarName
+      .toLowerCase()
+      .replace(/\s+/g, " ")
+      .trim();
+    const preferredMatch =
+      defaultResults.find((result) => {
+        const normalizedName = (result.name ?? "")
+          .toLowerCase()
+          .replace(/\s+/g, " ")
+          .trim();
+        return normalizedName === normalizedTarget;
+      }) ?? defaultResults[0];
+    if (!preferredMatch) {
+      return;
+    }
+
+    hasAppliedDefaultCultivar.current = true;
+    applyAhsSelection(preferredMatch);
+  }, [
+    applyAhsSelection,
+    defaultCultivarQuery.data,
+    fallbackCultivarQuery.data,
+    shouldAttemptDefaultCultivar,
+  ]);
+
+  useEffect(() => {
+    if (currentStep.id !== "build-listing-card") {
+      return;
+    }
+
+    if (savedListingId || hasInitializedListingDraft.current) {
+      return;
+    }
+
+    if (!listingQuery.isFetched || (listingQuery.data?.length ?? 0) > 0) {
+      return;
+    }
+
+    hasInitializedListingDraft.current = true;
+    void ensureListingDraftRecord().catch((error) => {
+      hasInitializedListingDraft.current = false;
+      toast.error("Unable to prepare your listing draft", {
+        description: getErrorMessage(error),
+      });
+    });
+  }, [
+    currentStep.id,
+    ensureListingDraftRecord,
+    listingQuery.data,
+    listingQuery.isFetched,
+    savedListingId,
+  ]);
 
   const saveProfileDraft = async () => {
     if (!profileQuery.data?.id) {
@@ -600,7 +829,7 @@ export function StartOnboardingPageClient() {
 
   const saveListingDraft = async () => {
     if (!isListingOnboardingDraftComplete(listingDraft)) {
-      setActiveListingField(listingMissingField ?? "cultivar");
+      focusListingField(listingMissingField ?? "cultivar");
       toast.error("Complete cultivar, title, price, and description first.");
       return false;
     }
@@ -608,17 +837,7 @@ export function StartOnboardingPageClient() {
     setIsSavingListing(true);
 
     try {
-      let listingId = savedListingId;
-
-      if (!listingId) {
-        const createdListing = await createListingMutation.mutateAsync({
-          title: listingDraft.title.trim(),
-          cultivarReferenceId: listingDraft.cultivarReferenceId,
-        });
-
-        listingId = createdListing.id;
-        setSavedListingId(createdListing.id);
-      }
+      const listingId = await ensureListingDraftRecord();
 
       if (listingDraft.cultivarReferenceId) {
         await linkAhsMutation.mutateAsync({
@@ -637,7 +856,22 @@ export function StartOnboardingPageClient() {
         },
       });
 
-      await utils.dashboardDb.listing.list.invalidate();
+      const listingImageToSave =
+        selectedListingImageUrl ?? selectedCultivarImageUrl ?? null;
+
+      if (listingImageToSave) {
+        await syncOnboardingListingImageSelection({
+          listingId,
+          selectedImageUrl: listingImageToSave,
+          selectedImageKey: `onboarding-listing:${Date.now()}`,
+          selectedImageId: selectedListingImageId,
+        });
+      }
+
+      await Promise.all([
+        utils.dashboardDb.listing.list.invalidate(),
+        utils.dashboardDb.image.list.invalidate(),
+      ]);
 
       return true;
     } catch (error) {
@@ -660,26 +894,6 @@ export function StartOnboardingPageClient() {
     setStepIndex((previous) => Math.max(previous - 1, 0));
   };
 
-  const applyFocusOnOwnedListingFilters = () => {
-    if (!isListingOnboardingDraftComplete(listingDraft)) {
-      return;
-    }
-
-    setSearchQuery(listingDraft.title.trim());
-    setForSaleOnly(true);
-    setShowAdvancedFilters(true);
-    setLinkedOnlyFilter(true);
-    setMaxPriceFilter(listingDraft.price);
-  };
-
-  const resetSearchDemoFilters = () => {
-    setSearchQuery("");
-    setForSaleOnly(false);
-    setShowAdvancedFilters(true);
-    setLinkedOnlyFilter(false);
-    setMaxPriceFilter(null);
-  };
-
   const handlePrimaryAction = async () => {
     switch (currentStep.id) {
       case "build-profile-card": {
@@ -696,7 +910,7 @@ export function StartOnboardingPageClient() {
         }
         return;
       }
-      case "search-and-filter-demo": {
+      case "preview-buyer-contact": {
         router.push(SUBSCRIPTION_CONFIG.NEW_USER_MEMBERSHIP_PATH);
         return;
       }
@@ -715,10 +929,8 @@ export function StartOnboardingPageClient() {
       case "build-listing-card":
         return isSavingListing ? "Saving listing..." : "Save listing and continue";
       case "preview-listing-card":
-        return "Show cultivar page example";
-      case "preview-cultivar-page":
-        return "Show search and filter example";
-      case "search-and-filter-demo":
+        return "Show buyer inquiry flow";
+      case "preview-buyer-contact":
         return "Continue to membership";
       default:
         return "Continue";
@@ -735,24 +947,22 @@ export function StartOnboardingPageClient() {
     <div className="bg-muted/20 min-h-svh" data-testid="start-onboarding-page">
       <div className="mx-auto w-full max-w-6xl space-y-8 px-4 py-6 md:px-8 md:py-10">
         <header className="space-y-4">
-          <div className="flex flex-wrap items-start justify-between gap-4">
-            <div className="space-y-2">
-              <Badge variant="secondary" className="w-fit">
-                Guided onboarding
-              </Badge>
-              <h1 className="text-3xl font-bold tracking-tight md:text-5xl">
-                Build your catalog in minutes.
-              </h1>
-              <p className="text-muted-foreground max-w-3xl text-base md:text-lg">
-                We&apos;ll walk through profile setup, your first listing, buyer discovery,
-                and search tools before you choose your membership path.
-              </p>
-            </div>
-            <div className="text-right">
-              <p className="text-muted-foreground text-sm">
+          <div className="space-y-3">
+            <Badge variant="secondary" className="w-fit">
+              Guided onboarding
+            </Badge>
+            <h1 className="text-3xl font-bold tracking-tight md:text-5xl">
+              Build your catalog in minutes.
+            </h1>
+            <p className="text-muted-foreground max-w-3xl text-base md:text-lg">
+              We&apos;ll walk through profile setup and your first listing so buyers can
+              discover you before you get started in the dashboard.
+            </p>
+            <div className="flex flex-wrap items-center gap-2">
+              <p className="text-lg font-semibold md:text-xl">{currentStep.title}</p>
+              <Badge variant="outline" className="text-xs">
                 Step {stepIndex + 1} of {ONBOARDING_STEPS.length}
-              </p>
-              <p className="text-xl font-semibold">{currentStep.title}</p>
+              </Badge>
             </div>
           </div>
 
@@ -1059,42 +1269,42 @@ export function StartOnboardingPageClient() {
                   </div>
 
                   <div className="space-y-4 p-4">
-                    <div className="relative">
+                    <div className="relative pl-10">
                       <HotspotButton
-                        className="right-2 top-1"
+                        className="left-0 top-1"
                         label="Edit garden name"
                         active={focusedProfileField === "gardenName"}
                         onClick={() => focusProfileField("gardenName")}
                       />
-                      <p className="pr-10 text-4xl leading-tight font-bold tracking-tight">
+                      <p className="text-4xl leading-tight font-bold tracking-tight">
                         {profileDraft.gardenName.trim() || "Your garden name"}
                       </p>
                     </div>
 
-                    <div className="relative">
+                    <div className="relative pl-10">
                       <HotspotButton
-                        className="right-2 top-0"
+                        className="left-0 top-0"
                         label="Edit location"
                         active={focusedProfileField === "location"}
                         onClick={() => focusProfileField("location")}
                       />
                       <Badge
                         variant="secondary"
-                        className="inline-flex items-center gap-1 pr-10 text-base"
+                        className="inline-flex items-center gap-1 pr-2 text-base"
                       >
                         <MapPin className="h-4 w-4" />
                         {profileDraft.location.trim() || "Add your city, ST"}
                       </Badge>
                     </div>
 
-                    <div className="relative">
+                    <div className="relative pl-10">
                       <HotspotButton
-                        className="right-2 top-2"
+                        className="left-0 top-1"
                         label="Edit description"
                         active={focusedProfileField === "description"}
                         onClick={() => focusProfileField("description")}
                       />
-                      <p className="text-muted-foreground pr-10 text-lg leading-relaxed">
+                      <p className="text-muted-foreground text-lg leading-relaxed">
                         {profileDraft.description.trim() ||
                           "Add a short intro so collectors know what you specialize in."}
                       </p>
@@ -1107,7 +1317,7 @@ export function StartOnboardingPageClient() {
         ) : null}
 
         {currentStep.id === "preview-profile-card" ? (
-          <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(340px,420px)]">
+          <div className="space-y-6">
             <Card>
               <CardHeader>
                 <CardTitle className="text-2xl">Catalog discovery preview</CardTitle>
@@ -1134,23 +1344,20 @@ export function StartOnboardingPageClient() {
                     highlighted={true}
                     ownershipBadge="Yours"
                   />
-                  <ProfilePreviewCard
-                    title="Prairie Bloom Gardens"
-                    description="Seasonal favorites and regional shipping updates weekly."
-                    imageUrl="/assets/aerial-garden.webp"
-                    location="Eugene, OR"
-                  />
-                  <ProfilePreviewCard
-                    title="Willow Daylilies"
-                    description="Collector-focused stock with curated cultivar groupings."
-                    imageUrl="/assets/hero-garden.webp"
-                    location="Boise, ID"
-                  />
+                  {ONBOARDING_PROFILE_DISCOVERY_EXAMPLES.map((exampleCard) => (
+                    <ProfilePreviewCard
+                      key={exampleCard.id}
+                      title={exampleCard.title}
+                      description={exampleCard.description}
+                      imageUrl={exampleCard.imageUrl}
+                      location={exampleCard.location}
+                    />
+                  ))}
                 </div>
               </CardContent>
             </Card>
 
-            <Card>
+            <Card className="max-w-3xl">
               <CardHeader>
                 <CardTitle className="text-xl">What this unlocks</CardTitle>
               </CardHeader>
@@ -1167,112 +1374,155 @@ export function StartOnboardingPageClient() {
           <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(360px,500px)]">
             <Card>
               <CardHeader>
-                <CardTitle className="text-2xl">Build your first listing card</CardTitle>
+                <CardTitle className="text-2xl">Edit your first listing card</CardTitle>
               </CardHeader>
               <CardContent className="space-y-6">
-                <div className="space-y-3">
-                  <GuideChecklistItem
-                    label="Cultivar reference"
-                    complete={listingDraft.cultivarReferenceId !== null}
-                    active={activeListingField === "cultivar"}
-                    onClick={() => setActiveListingField("cultivar")}
+                <p className="text-muted-foreground text-sm leading-relaxed">
+                  This is how buyers will see one of your listing cards. Edit these fields
+                  and watch the card preview update live.
+                </p>
+
+                <div
+                  ref={listingCultivarRef}
+                  tabIndex={-1}
+                  className={cn(
+                    "space-y-3 rounded-lg border p-4 transition-colors outline-none",
+                    activeListingField === "cultivar" && "border-primary bg-primary/5",
+                  )}
+                  onFocusCapture={() => setActiveListingField("cultivar")}
+                  onClick={() => setActiveListingField("cultivar")}
+                >
+                  <Label>Link to a daylily database cultivar</Label>
+                  <AhsListingSelect
+                    onSelect={handleAhsSelect}
+                    selectedLabel={selectedCultivarName}
                   />
-                  <GuideChecklistItem
-                    label="Listing title"
-                    complete={listingDraft.title.trim().length > 0}
-                    active={activeListingField === "title"}
-                    onClick={() => setActiveListingField("title")}
-                  />
-                  <GuideChecklistItem
-                    label="Price"
-                    complete={listingDraft.price !== null}
-                    active={activeListingField === "price"}
-                    onClick={() => setActiveListingField("price")}
-                  />
-                  <GuideChecklistItem
-                    label="Description"
-                    complete={listingDraft.description.trim().length > 0}
-                    active={activeListingField === "description"}
-                    onClick={() => setActiveListingField("description")}
-                  />
+                  {selectedCultivarName ? (
+                    <div className="rounded-lg border border-emerald-500/40 bg-emerald-500/10 p-3">
+                      <p className="inline-flex items-center gap-2 text-xs font-semibold tracking-wide text-emerald-800 uppercase">
+                        <CheckCircle2 className="h-4 w-4" />
+                        Selected cultivar
+                      </p>
+                      <p className="mt-1 text-sm font-medium">{selectedCultivarName}</p>
+                    </div>
+                  ) : null}
+                  <p className="text-muted-foreground text-xs leading-relaxed">
+                    This links your listing to cultivar details buyers already trust and
+                    research.
+                  </p>
                 </div>
 
-                <Separator />
+                <div
+                  className={cn(
+                    "space-y-2 rounded-lg border p-4 transition-colors",
+                    activeListingField === "title" && "border-primary bg-primary/5",
+                  )}
+                >
+                  <Label htmlFor="listing-title">Listing title</Label>
+                  <Input
+                    ref={listingTitleInputRef}
+                    id="listing-title"
+                    value={listingDraft.title}
+                    onFocus={() => setActiveListingField("title")}
+                    onChange={(event) =>
+                      setListingDraft({
+                        ...listingDraft,
+                        title: event.target.value,
+                      })
+                    }
+                    placeholder="Coffee Frenzy spring fan"
+                  />
+                  <p className="text-muted-foreground text-xs leading-relaxed">
+                    Buyers scan titles first. Keep it clear and specific to what you are
+                    offering.
+                  </p>
+                </div>
 
-                {activeListingField === "cultivar" ? (
-                  <div className="space-y-3">
-                    <Label>Link to a daylily database cultivar</Label>
-                    <AhsListingSelect
-                      onSelect={handleAhsSelect}
-                      selectedLabel={selectedCultivarName}
-                    />
-                    {selectedCultivarName ? (
-                      <div className="rounded-lg border border-emerald-500/40 bg-emerald-500/10 p-3">
-                        <p className="inline-flex items-center gap-2 text-xs font-semibold tracking-wide text-emerald-800 uppercase">
-                          <CheckCircle2 className="h-4 w-4" />
-                          Selected cultivar
-                        </p>
-                        <p className="mt-1 text-sm font-medium">{selectedCultivarName}</p>
-                      </div>
-                    ) : (
-                      <p className="text-muted-foreground text-sm">
-                        Search and select the cultivar buyers already recognize.
-                      </p>
-                    )}
-                  </div>
-                ) : null}
+                <div
+                  className={cn(
+                    "space-y-2 rounded-lg border p-4 transition-colors",
+                    activeListingField === "price" && "border-primary bg-primary/5",
+                  )}
+                >
+                  <Label htmlFor="listing-price">Price</Label>
+                  <CurrencyInput
+                    id="listing-price"
+                    value={listingDraft.price}
+                    onFocus={() => setActiveListingField("price")}
+                    onChange={(value) =>
+                      setListingDraft({
+                        ...listingDraft,
+                        price: value,
+                      })
+                    }
+                    placeholder="25"
+                  />
+                  <p className="text-muted-foreground text-xs leading-relaxed">
+                    Adding a price lets buyers add this listing to cart before messaging
+                    you.
+                  </p>
+                </div>
 
-                {activeListingField === "title" ? (
-                  <div className="space-y-2">
-                    <Label htmlFor="listing-title">Listing title</Label>
-                    <Input
-                      id="listing-title"
-                      value={listingDraft.title}
-                      onChange={(event) =>
-                        setListingDraft({
-                          ...listingDraft,
-                          title: event.target.value,
-                        })
-                      }
-                      placeholder="Moonlit Petals division"
-                    />
-                  </div>
-                ) : null}
+                <div
+                  className={cn(
+                    "space-y-2 rounded-lg border p-4 transition-colors",
+                    activeListingField === "description" &&
+                      "border-primary bg-primary/5",
+                  )}
+                >
+                  <Label htmlFor="listing-description">Description</Label>
+                  <Textarea
+                    ref={listingDescriptionInputRef}
+                    id="listing-description"
+                    rows={5}
+                    value={listingDraft.description}
+                    onFocus={() => setActiveListingField("description")}
+                    onChange={(event) =>
+                      setListingDraft({
+                        ...listingDraft,
+                        description: event.target.value,
+                      })
+                    }
+                    placeholder="Healthy spring fan with strong roots and bright rebloom potential."
+                  />
+                  <p className="text-muted-foreground text-xs leading-relaxed">
+                    Describe condition and value so buyers know exactly why they should
+                    contact you.
+                  </p>
+                </div>
 
-                {activeListingField === "price" ? (
-                  <div className="space-y-2">
-                    <Label htmlFor="listing-price">Price</Label>
-                    <CurrencyInput
-                      id="listing-price"
-                      value={listingDraft.price}
-                      onChange={(value) =>
-                        setListingDraft({
-                          ...listingDraft,
-                          price: value,
-                        })
-                      }
-                      placeholder="25"
-                    />
-                  </div>
-                ) : null}
-
-                {activeListingField === "description" ? (
-                  <div className="space-y-2">
-                    <Label htmlFor="listing-description">Description</Label>
-                    <Textarea
-                      id="listing-description"
-                      rows={5}
-                      value={listingDraft.description}
-                      onChange={(event) =>
-                        setListingDraft({
-                          ...listingDraft,
-                          description: event.target.value,
-                        })
-                      }
-                      placeholder="What makes this fan worth adding to a collector garden?"
-                    />
-                  </div>
-                ) : null}
+                <div
+                  ref={listingImageEditorRef}
+                  tabIndex={-1}
+                  className={cn(
+                    "space-y-3 rounded-lg border p-4 transition-colors outline-none",
+                    activeListingField === "image" && "border-primary bg-primary/5",
+                  )}
+                  onFocusCapture={() => setActiveListingField("image")}
+                  onClick={() => setActiveListingField("image")}
+                >
+                  <Label>Listing image (optional)</Label>
+                  <p className="text-muted-foreground text-xs leading-relaxed">
+                    Upload your own photo if you want. If you skip this, we will use the
+                    linked cultivar image when available.
+                  </p>
+                  {savedListingId ? (
+                    <div className="rounded-lg border bg-background p-3">
+                      <ImageUpload
+                        type="listing"
+                        referenceId={savedListingId}
+                        onUploadComplete={handleListingImageUploadComplete}
+                        onMutationSuccess={() => {
+                          void utils.dashboardDb.image.list.invalidate();
+                        }}
+                      />
+                    </div>
+                  ) : (
+                    <p className="text-muted-foreground text-sm">
+                      Preparing listing image uploader...
+                    </p>
+                  )}
+                </div>
 
                 {listingMissingField ? (
                   <p className="text-muted-foreground text-sm">
@@ -1286,88 +1536,96 @@ export function StartOnboardingPageClient() {
               </CardContent>
             </Card>
 
-            <Card>
+            <Card className="overflow-hidden">
               <CardContent className="space-y-4 p-4 md:p-6">
-                <div className="relative overflow-hidden rounded-xl border bg-card p-3">
-                  <div className="relative aspect-square overflow-hidden rounded-lg border bg-muted">
+                <div className="relative overflow-hidden rounded-xl border bg-card">
+                  <div className="relative aspect-square overflow-hidden border-b bg-muted">
                     <Image
-                      src={LISTING_PLACEHOLDER_IMAGE}
+                      src={listingImagePreviewUrl}
                       alt="Listing preview"
                       fill
                       className="object-cover"
                       sizes="(max-width: 1279px) 100vw, 460px"
+                      unoptimized
                     />
                     <HotspotButton
                       className="left-3 top-3"
-                      label="Edit cultivar link"
-                      active={activeListingField === "cultivar"}
-                      onClick={() => setActiveListingField("cultivar")}
+                      label="Edit listing image"
+                      active={activeListingField === "image"}
+                      onClick={() => focusListingField("image")}
                     />
-                  </div>
-
-                  <div className="relative mt-3 rounded-lg border bg-background p-4">
-                    <HotspotButton
-                      className="right-3 top-3"
-                      label="Edit listing title"
-                      active={activeListingField === "title"}
-                      onClick={() => setActiveListingField("title")}
-                    />
-                    <div className="flex items-start justify-between gap-3">
-                      <p className="text-lg font-semibold tracking-tight">{listingTitlePreview}</p>
-                      {listingDraft.price !== null ? (
-                        <Badge variant="secondary">{formatPrice(listingDraft.price)}</Badge>
-                      ) : (
-                        <Badge variant="outline">Add price</Badge>
-                      )}
-                    </div>
-                    <div
-                      className={cn(
-                        "mt-2 inline-flex items-center gap-2 rounded-md px-2 py-1 text-xs",
-                        selectedCultivarName
-                          ? "bg-emerald-500/10 text-emerald-800"
-                          : "text-muted-foreground",
-                      )}
+                    <Badge
+                      variant={listingDraft.price !== null ? "secondary" : "outline"}
+                      className="absolute right-3 top-3 bg-background/90 backdrop-blur-sm"
                     >
-                      {selectedCultivarName ? (
-                        <CheckCircle2 className="h-3.5 w-3.5" />
-                      ) : (
-                        <Link2 className="h-3.5 w-3.5" />
-                      )}
-                      <span>
-                        {selectedCultivarName
-                          ? `Linked to ${selectedCultivarName}`
-                          : "Link a cultivar reference"}
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="relative mt-3 rounded-lg border bg-background p-4">
+                      {listingDraft.price !== null
+                        ? formatPrice(listingDraft.price)
+                        : "Add price"}
+                    </Badge>
                     <HotspotButton
-                      className="right-3 top-3"
+                      className="right-3 top-14"
                       label="Edit price"
                       active={activeListingField === "price"}
-                      onClick={() => setActiveListingField("price")}
+                      onClick={() => focusListingField("price")}
                     />
-                    <HotspotButton
-                      className="right-3 top-12"
-                      label="Edit listing description"
-                      active={activeListingField === "description"}
-                      onClick={() => setActiveListingField("description")}
-                    />
-                    <p className="text-muted-foreground text-sm leading-relaxed">
-                      {listingDescriptionPreview}
-                    </p>
                   </div>
-                </div>
 
-                <div className="rounded-lg border border-dashed p-3 text-sm">
-                  <p className="inline-flex items-center gap-2 font-medium">
-                    <Sparkles className="h-4 w-4" />
-                    Tip
-                  </p>
-                  <p className="text-muted-foreground mt-1">
-                    Listings with cultivar links and price are easier for buyers to trust.
-                  </p>
+                  <div className="space-y-3 p-4">
+                    <div className="relative pl-10">
+                      <HotspotButton
+                        className="left-0 top-1"
+                        label="Edit listing title"
+                        active={activeListingField === "title"}
+                        onClick={() => focusListingField("title")}
+                      />
+                      <p className="text-xl font-semibold tracking-tight">
+                        {listingTitlePreview}
+                      </p>
+                    </div>
+
+                    <div className="relative pl-10">
+                      <HotspotButton
+                        className="left-0 top-0.5"
+                        label="Edit cultivar link"
+                        active={activeListingField === "cultivar"}
+                        onClick={() => focusListingField("cultivar")}
+                      />
+                      {selectedCultivarName ? (
+                        <div className="text-muted-foreground inline-flex items-center gap-1 rounded-md bg-secondary px-2 py-1 text-xs">
+                          <Link2 className="h-3.5 w-3.5" />
+                          Linked: {selectedCultivarName}
+                        </div>
+                      ) : (
+                        <div className="text-muted-foreground inline-flex items-center gap-1 rounded-md bg-secondary px-2 py-1 text-xs">
+                          <Link2 className="h-3.5 w-3.5" />
+                          Link a cultivar reference
+                        </div>
+                      )}
+                    </div>
+
+                    {selectedCultivarDetailsQuery.data ? (
+                      <Badge variant="secondary" className="ml-10 w-fit text-xs">
+                        {[
+                          selectedCultivarDetailsQuery.data.hybridizer,
+                          selectedCultivarDetailsQuery.data.year,
+                        ]
+                          .filter(Boolean)
+                          .join(", ")}
+                      </Badge>
+                    ) : null}
+
+                    <div className="relative pl-10">
+                      <HotspotButton
+                        className="left-0 top-1"
+                        label="Edit listing description"
+                        active={activeListingField === "description"}
+                        onClick={() => focusListingField("description")}
+                      />
+                      <p className="text-muted-foreground text-sm leading-relaxed">
+                        {listingDescriptionPreview}
+                      </p>
+                    </div>
+                  </div>
                 </div>
               </CardContent>
             </Card>
@@ -1375,7 +1633,7 @@ export function StartOnboardingPageClient() {
         ) : null}
 
         {currentStep.id === "preview-listing-card" ? (
-          <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(340px,420px)]">
+          <div className="space-y-6">
             <Card>
               <CardHeader>
                 <CardTitle className="text-2xl">Finished listing card preview</CardTitle>
@@ -1395,26 +1653,36 @@ export function StartOnboardingPageClient() {
                     description={listingDescriptionPreview}
                     price={listingDraft.price}
                     linkedLabel={selectedCultivarName}
+                    hybridizerYear={
+                      selectedCultivarDetailsQuery.data
+                        ? [
+                            selectedCultivarDetailsQuery.data.hybridizer,
+                            selectedCultivarDetailsQuery.data.year,
+                          ]
+                            .filter(Boolean)
+                            .join(", ")
+                        : null
+                    }
+                    imageUrl={listingImagePreviewUrl}
                     highlighted={true}
                     ownershipBadge="Yours"
                   />
-                  <ListingPreviewCard
-                    title="Amber Twilight"
-                    description="Dormant fan, healthy roots, spring shipping window."
-                    price={27}
-                    linkedLabel="Amber Twilight"
-                  />
-                  <ListingPreviewCard
-                    title="Collector Mix"
-                    description="Unlinked starter pack listing for local pickup events."
-                    price={null}
-                    linkedLabel={null}
-                  />
+                  {ONBOARDING_LISTING_DISCOVERY_EXAMPLES.map((exampleListing) => (
+                    <ListingPreviewCard
+                      key={exampleListing.id}
+                      title={exampleListing.title}
+                      description={exampleListing.description}
+                      price={exampleListing.price}
+                      linkedLabel={exampleListing.linkedLabel}
+                      hybridizerYear={exampleListing.hybridizerYear}
+                      imageUrl={exampleListing.imageUrl}
+                    />
+                  ))}
                 </div>
               </CardContent>
             </Card>
 
-            <Card>
+            <Card className="max-w-3xl">
               <CardHeader>
                 <CardTitle className="text-xl">What buyers scan first</CardTitle>
               </CardHeader>
@@ -1427,59 +1695,72 @@ export function StartOnboardingPageClient() {
           </div>
         ) : null}
 
-        {currentStep.id === "preview-cultivar-page" ? (
+        {currentStep.id === "preview-buyer-contact" ? (
           <Card>
             <CardHeader>
-              <CardTitle className="text-2xl">Cultivar page buyer experience</CardTitle>
+              <CardTitle className="text-2xl">How buyers contact you</CardTitle>
             </CardHeader>
             <CardContent className="space-y-6">
               <p className="text-muted-foreground max-w-3xl">
-                Here&apos;s an example cultivar page layout. Buyers can click your profile,
-                open your listing, and add priced listings to their cart before sending an
-                inquiry message.
+                This example shows the two common paths to contact you: visiting your
+                catalog profile or adding priced listings to cart before messaging by
+                email.
               </p>
 
               <div className="grid gap-4 rounded-2xl border bg-background p-4 lg:grid-cols-[minmax(0,1fr)_minmax(280px,340px)]">
                 <div className="space-y-4">
-                  <div className="flex items-center gap-2 text-sm font-medium">
-                    <Eye className="h-4 w-4" />
-                    Cultivar: {selectedCultivarName ?? "Linked cultivar"}
+                  <div className="rounded-xl border p-4">
+                    <p className="text-muted-foreground text-xs font-medium uppercase">
+                      Step 1
+                    </p>
+                    <p className="mt-1 text-sm font-medium">
+                      Buyer discovers your catalog card and opens your profile.
+                    </p>
+                    <div className="mt-3 max-w-sm">
+                      <ProfilePreviewCard
+                        title={profileDraft.gardenName.trim() || "Your garden name"}
+                        description={
+                          profileDraft.description.trim() ||
+                          "Your profile description appears here for browsing buyers."
+                        }
+                        imageUrl={profileImagePreviewUrl}
+                        location={profileDraft.location.trim() || "Add your city, ST"}
+                        highlighted={true}
+                        ownershipBadge="Yours"
+                      />
+                    </div>
                   </div>
 
                   <div className="rounded-xl border p-4">
-                    <div className="flex items-center justify-between gap-2">
-                      <p className="text-muted-foreground text-xs">Seller profile</p>
-                      <Badge variant="secondary">Yours</Badge>
-                    </div>
-                    <p className="mt-1 text-lg font-semibold">
-                      {profileDraft.gardenName.trim() || "Your garden name"}
+                    <p className="text-muted-foreground text-xs font-medium uppercase">
+                      Step 2
                     </p>
-                    <p className="text-muted-foreground mt-2 text-sm">
-                      {profileDraft.description.trim() ||
-                        "Your profile description appears here so buyers know who they are messaging."}
+                    <p className="mt-1 text-sm font-medium">
+                      Buyer opens your listing. If it has a price, they can add it to cart
+                      and send one email message with cart details, or message you directly
+                      without adding anything to cart.
                     </p>
-                    <div className="mt-4">
-                      <Button type="button" variant="outline" size="sm">
-                        Visit profile
-                      </Button>
+                    <div className="mt-3 max-w-sm">
+                      <ListingPreviewCard
+                        title={listingTitlePreview}
+                        description={listingDescriptionPreview}
+                        price={listingDraft.price}
+                        linkedLabel={selectedCultivarName}
+                        hybridizerYear={
+                          selectedCultivarDetailsQuery.data
+                            ? [
+                                selectedCultivarDetailsQuery.data.hybridizer,
+                                selectedCultivarDetailsQuery.data.year,
+                              ]
+                                .filter(Boolean)
+                                .join(", ")
+                            : null
+                        }
+                        imageUrl={listingImagePreviewUrl}
+                        highlighted={true}
+                        ownershipBadge="Your listing"
+                      />
                     </div>
-                  </div>
-
-                  <div className="rounded-xl border p-4">
-                    <div className="mb-2 flex justify-end">
-                      <Badge variant="secondary">Your listing</Badge>
-                    </div>
-                    <div className="flex items-start justify-between gap-3">
-                      <p className="text-lg font-semibold">{listingTitlePreview}</p>
-                      {listingDraft.price !== null ? (
-                        <Badge variant="secondary">{formatPrice(listingDraft.price)}</Badge>
-                      ) : (
-                        <Badge variant="outline">No price</Badge>
-                      )}
-                    </div>
-                    <p className="text-muted-foreground mt-3 text-sm leading-relaxed">
-                      {listingDescriptionPreview}
-                    </p>
                     <div className="mt-4">
                       <Button type="button" size="sm" className="inline-flex items-center gap-2">
                         <ShoppingCart className="h-4 w-4" />
@@ -1490,154 +1771,18 @@ export function StartOnboardingPageClient() {
                 </div>
 
                 <div className="rounded-xl border bg-muted/30 p-4">
-                  <p className="text-sm font-semibold">Inquiry flow</p>
+                  <p className="text-sm font-semibold">What this enables</p>
                   <ol className="text-muted-foreground mt-3 space-y-2 text-sm">
-                    <li>1. Buyer adds priced listings to cart.</li>
-                    <li>2. They send a message with cart details.</li>
-                    <li>3. You respond from your dashboard to coordinate sale.</li>
+                    {ONBOARDING_BUYER_FLOW_BULLETS.map((bullet, index) => (
+                      <li key={bullet}>{index + 1}. {bullet}</li>
+                    ))}
                   </ol>
                 </div>
               </div>
-            </CardContent>
-          </Card>
-        ) : null}
-
-        {currentStep.id === "search-and-filter-demo" ? (
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-2xl">Search and filter demo</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <p className="text-muted-foreground max-w-3xl">
-                This example keeps basic search visible while advanced filters expand in the
-                same panel, so buyers can quickly narrow your inventory.
-              </p>
               <p className="text-muted-foreground text-sm">
-                Next, you&apos;ll choose membership. You can continue for now to reach your
-                dashboard and upgrade later.
+                Before you get started, you can choose membership or continue for now and
+                reach your dashboard.
               </p>
-              <div className="flex flex-wrap items-center gap-2">
-                <p className="text-muted-foreground text-sm">Try it:</p>
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="outline"
-                  onClick={applyFocusOnOwnedListingFilters}
-                  disabled={!isListingOnboardingDraftComplete(listingDraft)}
-                >
-                  Focus on my listing
-                </Button>
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="ghost"
-                  onClick={resetSearchDemoFilters}
-                >
-                  Reset filters
-                </Button>
-              </div>
-
-              <div className="grid gap-4 lg:grid-cols-[320px_minmax(0,1fr)]">
-                <div className="space-y-4 rounded-xl border bg-background p-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="search-query" className="inline-flex items-center gap-2">
-                      <Search className="h-4 w-4" />
-                      Basic search
-                    </Label>
-                    <Input
-                      id="search-query"
-                      value={searchQuery}
-                      onChange={(event) => setSearchQuery(event.target.value)}
-                      placeholder="Search title or description"
-                    />
-                  </div>
-
-                  <div className="flex items-center justify-between rounded-lg border p-3">
-                    <Label htmlFor="for-sale-toggle" className="text-sm">
-                      Only show priced listings
-                    </Label>
-                    <Switch
-                      id="for-sale-toggle"
-                      checked={forSaleOnly}
-                      onCheckedChange={setForSaleOnly}
-                    />
-                  </div>
-
-                  <div className="flex items-center justify-between rounded-lg border p-3">
-                    <Label htmlFor="advanced-toggle" className="inline-flex items-center gap-2 text-sm">
-                      <Filter className="h-4 w-4" />
-                      Show advanced filters
-                    </Label>
-                    <Switch
-                      id="advanced-toggle"
-                      checked={showAdvancedFilters}
-                      onCheckedChange={setShowAdvancedFilters}
-                    />
-                  </div>
-
-                  {showAdvancedFilters ? (
-                    <div className="space-y-3 rounded-lg border border-dashed p-3">
-                      <Label htmlFor="max-price" className="text-sm">
-                        Max price
-                      </Label>
-                      <CurrencyInput
-                        id="max-price"
-                        value={maxPriceFilter}
-                        onChange={setMaxPriceFilter}
-                        placeholder="40"
-                      />
-
-                      <div className="flex items-center justify-between pt-1">
-                        <Label htmlFor="linked-only" className="text-sm">
-                          Linked cultivar only
-                        </Label>
-                        <Switch
-                          id="linked-only"
-                          checked={linkedOnlyFilter}
-                          onCheckedChange={setLinkedOnlyFilter}
-                        />
-                      </div>
-                    </div>
-                  ) : null}
-                </div>
-
-                <div className="space-y-3 rounded-xl border bg-background p-4">
-                  <div className="flex items-center justify-between">
-                    <p className="text-sm font-medium">
-                      Showing {filteredSearchListings.length} of {searchListings.length}
-                    </p>
-                    <Badge variant="outline">Example results</Badge>
-                  </div>
-                  <p
-                    className={cn(
-                      "text-xs font-medium",
-                      isOwnedListingVisible ? "text-emerald-700" : "text-muted-foreground",
-                    )}
-                  >
-                    {isOwnedListingVisible
-                      ? "Your listing is visible in results."
-                      : "Your listing is filtered out by current settings."}
-                  </p>
-
-                  <div className="space-y-3">
-                    {filteredSearchListings.length > 0 ? (
-                      filteredSearchListings.map((listing) => (
-                        <SearchDemoResultRow
-                          key={listing.id}
-                          listing={listing}
-                          isOwnedListing={
-                            listing.id === OWNED_ONBOARDING_LISTING_ID
-                          }
-                        />
-                      ))
-                    ) : (
-                      <div className="text-muted-foreground rounded-lg border border-dashed p-6 text-center text-sm">
-                        No matches. Buyers can adjust filters to broaden results.
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
             </CardContent>
           </Card>
         ) : null}
@@ -1663,50 +1808,6 @@ export function StartOnboardingPageClient() {
             </Button>
           </div>
         </footer>
-      </div>
-    </div>
-  );
-}
-
-function SearchDemoResultRow({
-  listing,
-  isOwnedListing,
-}: {
-  listing: (typeof ONBOARDING_SEARCH_DEMO_LISTINGS)[number] | {
-    id: string;
-    title: string;
-    description: string;
-    price: number | null;
-    hasCultivarLink: boolean;
-  };
-  isOwnedListing: boolean;
-}) {
-  return (
-    <div
-      className={cn(
-        "flex flex-col gap-2 rounded-lg border p-3 sm:flex-row sm:items-start sm:justify-between",
-        isOwnedListing && "border-emerald-500/40 bg-emerald-500/5",
-      )}
-    >
-      <div className="space-y-1">
-        <div className="flex flex-wrap items-center gap-2">
-          <p className="font-semibold">{listing.title}</p>
-          {isOwnedListing ? <Badge variant="secondary">Yours</Badge> : null}
-        </div>
-        <p className="text-muted-foreground text-sm">
-          {listing.description}
-        </p>
-        <div className="text-muted-foreground inline-flex items-center gap-1 text-xs">
-          <Link2 className="h-3.5 w-3.5" />
-          {listing.hasCultivarLink
-            ? "Linked cultivar"
-            : "No cultivar link"}
-        </div>
-      </div>
-      <div className="text-sm font-semibold">
-        {listing.price !== null
-          ? formatPrice(listing.price)
-          : "Inquiry only"}
       </div>
     </div>
   );
@@ -2062,52 +2163,19 @@ function HotspotButton({
       type="button"
       onClick={onClick}
       className={cn(
-        "absolute z-20 inline-flex h-8 w-8 items-center justify-center rounded-full border bg-background text-primary shadow-sm transition-transform hover:scale-105",
-        active && "border-primary",
+        "absolute z-20 inline-flex h-7 w-7 items-center justify-center rounded-full border border-primary/60 bg-background/95 text-primary shadow-md transition-transform hover:scale-105",
+        active && "ring-primary/25 ring-4",
         className,
       )}
     >
       {active ? (
-        <span className="relative inline-flex h-3 w-3 rounded-full bg-primary">
-          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-primary/40" />
+        <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-primary">
+          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-primary/50" />
         </span>
       ) : (
-        <span className="inline-flex h-2.5 w-2.5 rounded-full bg-primary/70" />
+        <span className="inline-flex h-2.5 w-2.5 rounded-full bg-primary/80" />
       )}
       <span className="sr-only">{label}</span>
-    </button>
-  );
-}
-
-function GuideChecklistItem({
-  label,
-  complete,
-  active,
-  onClick,
-}: {
-  label: string;
-  complete: boolean;
-  active: boolean;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={cn(
-        "flex w-full items-center justify-between rounded-lg border px-3 py-2 text-sm transition-colors",
-        active && "border-primary bg-primary/5",
-        !active && "hover:border-primary/40",
-      )}
-    >
-      <span className="font-medium">{label}</span>
-      {complete ? (
-        <CheckCircle2 className="h-4 w-4 text-emerald-600" />
-      ) : active ? (
-        <Sparkles className="h-4 w-4 text-primary" />
-      ) : (
-        <Circle className="text-muted-foreground h-4 w-4" />
-      )}
     </button>
   );
 }
@@ -2172,6 +2240,8 @@ function ListingPreviewCard({
   description,
   price,
   linkedLabel,
+  hybridizerYear,
+  imageUrl,
   highlighted = false,
   ownershipBadge,
 }: {
@@ -2179,6 +2249,8 @@ function ListingPreviewCard({
   description: string;
   price: number | null;
   linkedLabel: string | null;
+  hybridizerYear: string | null;
+  imageUrl: string;
   highlighted?: boolean;
   ownershipBadge?: string;
 }) {
@@ -2191,12 +2263,27 @@ function ListingPreviewCard({
     >
       <div className="relative aspect-square border-b bg-muted">
         <Image
-          src={LISTING_PLACEHOLDER_IMAGE}
+          src={imageUrl}
           alt={title}
           fill
           className="object-cover"
           sizes="(max-width: 1024px) 50vw, 280px"
+          unoptimized
         />
+        {price !== null ? (
+          <Badge
+            className="absolute right-3 top-3 bg-background/90 backdrop-blur-sm"
+            variant="secondary"
+          >
+            {formatPrice(price)}
+          </Badge>
+        ) : null}
+        <Badge
+          className="absolute bottom-3 right-3 bg-background/90 backdrop-blur-sm"
+          variant="secondary"
+        >
+          <Link2 className="h-3 w-3" />
+        </Badge>
         {ownershipBadge ? (
           <Badge className="absolute left-3 top-3" variant="secondary">
             {ownershipBadge}
@@ -2204,16 +2291,16 @@ function ListingPreviewCard({
         ) : null}
       </div>
       <div className="space-y-2 p-4">
-        <div className="flex items-start justify-between gap-2">
-          <p className="font-semibold tracking-tight">{title}</p>
-          <Badge variant="secondary">
-            {price !== null ? formatPrice(price) : "Inquiry"}
+        <p className="font-semibold tracking-tight">{title}</p>
+        {hybridizerYear ? (
+          <Badge variant="secondary" className="text-xs">
+            {hybridizerYear}
           </Badge>
-        </div>
+        ) : null}
         <p className="text-muted-foreground text-sm leading-relaxed">{description}</p>
         <div className="text-muted-foreground inline-flex items-center gap-1 text-xs">
           <Link2 className="h-3.5 w-3.5" />
-          {linkedLabel ? `Linked: ${linkedLabel}` : "Not linked"}
+          {linkedLabel ? `Linked: ${linkedLabel}` : "Inquiry only"}
         </div>
       </div>
     </div>

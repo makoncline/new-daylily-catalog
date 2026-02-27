@@ -2,6 +2,10 @@
 
 ## Log
 
+- 2026-02-27 - onboarding hotspot placement correction - Keep onboarding preview hotspot dots inside card bounds (avoid negative offsets inside overflow-hidden containers), anchor listing price dot beside the top-right price badge, keep cultivar-link dot adjacent to the linked badge, and move title/description dots to the left rail.
+- 2026-02-27 - onboarding shell preference update - Signup flow pages (`/start-onboarding`, `/start-membership`) should use the same public header shell (`PublicdNav`) as the rest of the public app.
+- 2026-02-27 - self-miss zsh app-router path quoting (again) - I ran `ls` on `src/app/(public)` without quotes and hit zsh glob parsing; always quote paths with `()` and `[]`.
+- 2026-02-27 - playwright webserver lock recurrence - Re-running capture specs back-to-back still occasionally hits `.next/dev/lock`; remove lock before each run (`rm -f .next/dev/lock`) for reliable local iteration.
 - 2026-02-27 - onboarding review workflow completed - Captured `before-*` and `after-*` screenshot sets for mobile/tablet/lg, documented multi-lens review + decision matrix in `docs/onboarding-capture-review-2026-02-27.md`, and validated accepted fixes with fresh e2e captures.
 - 2026-02-27 - onboarding quick-win implementation - Removed onboarding success toasts (profile/listing saves) to prevent bottom-CTA overlap and added Step 6 transition copy clarifying membership choice and dashboard fallback.
 - 2026-02-27 - onboarding capture lg viewport - Added `lg` capture mode (`E2E_ONBOARDING_CAPTURE_VIEWPORT=lg`, 1440x1024) and generated a dedicated full-page set at `tests/.tmp/onboarding-flow-captures/latest-lg`.
@@ -391,3 +395,9 @@
 - 2026-02-26 - prisma migrate create-only env boot - `prisma migrate dev --create-only` failed with generic schema engine error until run with `NODE_OPTIONS='' RUST_LOG=info` and explicit `LOCAL_DATABASE_URL=file:./prisma/local-dev.sqlite`.
 - 2026-02-26 - migration idempotency preference - User prefers generated index migration SQL to use `IF NOT EXISTS` even when Prisma migrate is not used on Turso, to keep artifacts safe for accidental/one-off execution.
 - 2026-02-26 - cultivar fanout containment pattern - Related cultivar cards can amplify server load via default Next Link prefetch; set related links `prefetch={false}` and scope related query to a small capped AHS-image-only set.
+- 2026-02-27 - onboarding flow scope update - User wants a shorter onboarding narrative: keep profile builder + listing builder + listing/contact preview, remove cultivar-page and search/filter demo steps, and keep membership page unchanged at the end.
+- 2026-02-27 - onboarding config preference - Keep onboarding-tunable values (step copy/order, default cultivar selection, default listing status, sample preview cards/images) centralized so content/imagery can be changed from one place.
+- 2026-02-27 - onboarding listing creation preference - First onboarding-created listing should default to hidden status; treat this as a configurable default rather than hard-coded behavior.
+- 2026-02-27 - self-miss shell quoting recurrence - I ran a command against `src/app/(public)/...` without quoting and hit zsh glob errors again; always quote App Router paths containing `()`/`[]`.
+- 2026-02-27 - onboarding default cultivar robustness - Using only `coffee frenzy` for onboarding preselect can fail in temp-db test seeds; keep a configurable fallback query (`stella de oro`) so onboarding still auto-selects a starter cultivar locally.
+- 2026-02-27 - playwright webserver lock recurrence - Local capture runs can fail immediately on `.next/dev/lock`; remove the lock file before rerunning when an earlier dev process exits uncleanly.
