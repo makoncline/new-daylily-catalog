@@ -56,7 +56,6 @@ interface ImageCropperProps {
   onCropComplete: (blob: Blob) => void;
   onCancel?: () => void;
   isDisabled?: boolean;
-  primaryActionLabel?: string;
 }
 
 // This approach:
@@ -70,7 +69,6 @@ export function ImageCropper({
   onCropComplete,
   onCancel,
   isDisabled,
-  primaryActionLabel = "Upload",
 }: ImageCropperProps) {
   const [crop, setCrop] = useState<PercentCrop>();
   const [initialCrop, setInitialCrop] = useState<PercentCrop>();
@@ -220,7 +218,7 @@ export function ImageCropper({
           onClick={handleCompleteCrop}
           disabled={isDisabled ?? !crop}
         >
-          {primaryActionLabel}
+          Upload
         </Button>
       </div>
     </div>

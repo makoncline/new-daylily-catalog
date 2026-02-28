@@ -2,7 +2,6 @@ import { renderHook, act, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const getPresignedUrlMutateAsyncMock = vi.hoisted(() => vi.fn());
-const createImageMutateAsyncMock = vi.hoisted(() => vi.fn());
 const createImageMock = vi.hoisted(() => vi.fn());
 const uploadFileWithProgressMock = vi.hoisted(() => vi.fn());
 const toastSuccessMock = vi.hoisted(() => vi.fn());
@@ -21,11 +20,6 @@ vi.mock("@/trpc/react", () => ({
         getPresignedUrl: {
           useMutation: () => ({
             mutateAsync: getPresignedUrlMutateAsyncMock,
-          }),
-        },
-        create: {
-          useMutation: () => ({
-            mutateAsync: createImageMutateAsyncMock,
           }),
         },
       },
@@ -121,19 +115,9 @@ describe("useImageUpload", () => {
       url: uploadedImage.url,
       key: "abc123.jpg",
     });
-    expect(onSuccess).toHaveBeenCalledWith({
-      image: uploadedImage,
-      url: uploadedImage.url,
-      key: "abc123.jpg",
-      presignedUrl: "https://upload-url.example",
-    });
+    expect(onSuccess).toHaveBeenCalledWith(uploadedImage);
     expect(toastSuccessMock).toHaveBeenCalledWith("Image uploaded successfully");
-    expect(returned).toEqual({
-      image: uploadedImage,
-      url: uploadedImage.url,
-      key: "abc123.jpg",
-      presignedUrl: "https://upload-url.example",
-    });
+    expect(returned).toEqual(uploadedImage);
 
     await waitFor(() => {
       expect(result.current.isUploading).toBe(false);

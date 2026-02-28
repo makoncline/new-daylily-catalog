@@ -5,30 +5,14 @@ const uploadMock = vi.hoisted(() => vi.fn());
 const imageUploadState = vi.hoisted(() => ({
   isUploading: false,
   progress: 0,
-  onSuccess: undefined as
-    | ((
-        result: {
-          image: { id: string; url: string } | null;
-          url: string;
-          key?: string;
-          presignedUrl?: string;
-        },
-      ) => void)
-    | undefined,
+  onSuccess: undefined as ((image: { id: string; url: string }) => void) | undefined,
 }));
 const dropzoneState = vi.hoisted(() => ({
   onDrop: undefined as ((files: File[]) => void) | undefined,
 }));
 
 vi.mock("@/hooks/use-image-upload", () => ({
-  useImageUpload: (options: {
-    onSuccess?: (result: {
-      image: { id: string; url: string } | null;
-      url: string;
-      key?: string;
-      presignedUrl?: string;
-    }) => void;
-  }) => {
+  useImageUpload: (options: { onSuccess?: (image: { id: string; url: string }) => void }) => {
     imageUploadState.onSuccess = options.onSuccess;
     return {
       upload: uploadMock,
@@ -125,23 +109,10 @@ describe("ImageUpload", () => {
   it("uploads cropped image, clears cropper, and emits onUploadComplete", async () => {
     uploadMock.mockImplementation(async () => {
       imageUploadState.onSuccess?.({
-        image: {
-          id: "img-1",
-          url: "https://example.com/images/img-1.jpg",
-        },
+        id: "img-1",
         url: "https://example.com/images/img-1.jpg",
-        key: "img-1.jpg",
-        presignedUrl: "https://example.com/presigned",
       });
-      return {
-        image: {
-          id: "img-1",
-          url: "https://example.com/images/img-1.jpg",
-        },
-        url: "https://example.com/images/img-1.jpg",
-        key: "img-1.jpg",
-        presignedUrl: "https://example.com/presigned",
-      };
+      return { id: "img-1", url: "https://example.com/images/img-1.jpg" };
     });
 
     const onUploadComplete = vi.fn();

@@ -1,8 +1,23 @@
-import { redirect } from "next/navigation";
-import { SUBSCRIPTION_CONFIG } from "@/config/subscription-config";
+import type { Metadata } from "next";
+import { StartMembershipPageClient } from "./start-membership-page-client";
+import { getMembershipPriceDisplay } from "@/server/stripe/get-membership-price-display";
 
-export default function StartMembershipRedirectPage() {
-  redirect(
-    `${SUBSCRIPTION_CONFIG.NEW_USER_ONBOARDING_PATH}?step=start-membership`,
-  );
+export const metadata: Metadata = {
+  title: "Start Your Membership",
+  robots: {
+    index: false,
+    follow: false,
+    nocache: true,
+    googleBot: {
+      index: false,
+      follow: false,
+      noimageindex: true,
+    },
+  },
+};
+
+export default async function StartMembershipPage() {
+  const priceDisplay = await getMembershipPriceDisplay();
+
+  return <StartMembershipPageClient priceDisplay={priceDisplay} />;
 }

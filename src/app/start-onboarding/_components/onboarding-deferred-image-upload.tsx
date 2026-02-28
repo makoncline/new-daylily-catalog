@@ -1,0 +1,131 @@
+"use client";
+
+import { useCallback, useState } from "react";
+import { useDropzone } from "react-dropzone";
+import Image from "next/image";
+import { ImageCropper } from "@/components/image-cropper";
+import { APP_CONFIG } from "@/config/constants";
+import { IMAGE_CONFIG } from "@/components/optimized-image";
+import { Button } from "@/components/ui/button";
+import { P } from "@/components/typography";
+
+interface OnboardingDeferredImageUploadProps {
+  onDeferredUploadReady: (file: Blob) => void;
+}
+
+export function OnboardingDeferredImageUpload({
+  onDeferredUploadReady,
+}: OnboardingDeferredImageUploadProps) {
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [preparedPreviewUrl, setPreparedPreviewUrl] = useState<string | null>(
+    null,
+  );
+
+  const reset = useCallback(() => {
+    if (previewUrl?.startsWith("blob:")) {
+      URL.revokeObjectURL(previewUrl);
+    }
+    if (preparedPreviewUrl) {
+      URL.revokeObjectURL(preparedPreviewUrl);
+    }
+
+    setPreviewUrl(null);
+    setPreparedPreviewUrl(null);
+  }, [preparedPreviewUrl, previewUrl]);
+
+  const onDrop = useCallback(
+    (acceptedFiles: File[]) => {
+      const file = acceptedFiles[0];
+      if (!file) {
+        return;
+      }
+
+      reset();
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setPreviewUrl(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    },
+    [reset],
+  );
+
+  const { getRootProps, getInputProps, isDragActive } = useDropzone({
+    onDrop,
+    accept: {
+      "image/*": [],
+    },
+    maxSize: APP_CONFIG.UPLOAD.MAX_FILE_SIZE,
+    multiple: false,
+  });
+
+  return (
+    <div className="space-y-4">
+      {!previewUrl && !preparedPreviewUrl ? (
+        <div
+          {...getRootProps()}
+          className={`cursor-pointer rounded-lg border-2 border-dashed p-8 text-center ${
+            isDragActive ? "border-primary" : "border-muted"
+          }`}
+        >
+          <input {...getInputProps()} id="image-upload-input" />
+          {isDragActive ? (
+            <P>Drop the image here...</P>
+          ) : (
+            <P>Drag and drop an image here, or click to select one</P>
+          )}
+        </div>
+      ) : null}
+
+      {previewUrl ? (
+        <ImageCropper
+          src={previewUrl}
+          onCropComplete={(blob) => {
+            const nextPreviewUrl = URL.createObjectURL(blob);
+            setPreparedPreviewUrl((currentPreviewUrl) => {
+              if (currentPreviewUrl) {
+                URL.revokeObjectURL(currentPreviewUrl);
+              }
+              return nextPreviewUrl;
+            });
+            onDeferredUploadReady(blob);
+            setPreviewUrl(null);
+          }}
+          onCancel={reset}
+        />
+      ) : null}
+
+      {!previewUrl && preparedPreviewUrl ? (
+        <div className="space-y-3 rounded-lg border p-3">
+          <div
+            className="relative aspect-square w-full overflow-hidden rounded-md"
+            style={{ maxWidth: IMAGE_CONFIG.SIZES.THUMBNAIL }}
+          >
+            <Image
+              src={preparedPreviewUrl}
+              alt="Prepared upload preview"
+              fill
+              className="object-cover"
+              unoptimized
+            />
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              type="button"
+              size="sm"
+              onClick={() => setPreviewUrl(preparedPreviewUrl)}
+            >
+              Adjust crop
+            </Button>
+            <Button type="button" size="sm" variant="outline" onClick={reset}>
+              Upload a different image
+            </Button>
+          </div>
+          <p className="text-muted-foreground text-xs">
+            Image staged. It will upload when you click Save.
+          </p>
+        </div>
+      ) : null}
+    </div>
+  );
+}

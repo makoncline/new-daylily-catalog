@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { CheckCircle2, ChevronsUpDown } from "lucide-react";
+import { useEffect, useState } from "react";
+import { ChevronsUpDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -19,7 +19,6 @@ import {
   CommandList,
 } from "@/components/ui/command";
 import { api } from "@/trpc/react";
-import { cn } from "@/lib/utils";
 
 export interface AhsSearchResult {
   id: string;
@@ -30,46 +29,24 @@ export interface AhsSearchResult {
 interface AhsListingSelectProps {
   onSelect: (result: AhsSearchResult) => void;
   disabled?: boolean;
-  selectedLabel?: string | null;
-  predefinedOptions?: AhsSearchResult[];
-  limitToPredefinedOptions?: boolean;
-  isPredefinedOptionsLoading?: boolean;
-  limitedSearchMessage?: string;
-  searchPlaceholder?: string;
-  triggerPlaceholder?: string;
-  dialogTitle?: string;
 }
 
 export function AhsListingSelect({
   onSelect,
   disabled,
-  selectedLabel,
-  predefinedOptions = [],
-  limitToPredefinedOptions = false,
-  isPredefinedOptionsLoading = false,
-  limitedSearchMessage = "Only a limited set of varieties is available during onboarding. You can search the full list from your dashboard.",
-  searchPlaceholder = "Search AHS listings...",
-  triggerPlaceholder = "Select Daylily Database listing...",
-  dialogTitle = "Select Daylily Database Listing",
 }: AhsListingSelectProps) {
   const [open, setOpen] = useState(false);
   const [searchValue, setSearchValue] = useState("");
   const [debouncedSearchValue, setDebouncedSearchValue] = useState("");
-  const normalizedSearchValue = searchValue.trim().toLowerCase();
-  const usesPredefinedOptions = limitToPredefinedOptions;
 
   // Debounce search value to prevent excessive API calls
   useEffect(() => {
-    if (usesPredefinedOptions) {
-      return;
-    }
-
     const timer = setTimeout(() => {
       setDebouncedSearchValue(searchValue);
     }, 300);
 
     return () => clearTimeout(timer);
-  }, [searchValue, usesPredefinedOptions]);
+  }, [searchValue]);
 
   // Clear search when dialog closes
   const handleOpenChange = (isOpen: boolean) => {
@@ -85,32 +62,9 @@ export function AhsListingSelect({
       query: debouncedSearchValue,
     },
     {
-      enabled: !usesPredefinedOptions && debouncedSearchValue.length > 0,
+      enabled: debouncedSearchValue.length > 0,
     },
   );
-
-  const filteredPredefinedOptions = useMemo(() => {
-    if (!usesPredefinedOptions) {
-      return [];
-    }
-
-    if (!normalizedSearchValue) {
-      return predefinedOptions;
-    }
-
-    return predefinedOptions.filter((option) =>
-      (option.name ?? "").toLowerCase().includes(normalizedSearchValue),
-    );
-  }, [normalizedSearchValue, predefinedOptions, usesPredefinedOptions]);
-
-  const shouldShowLoading =
-    !usesPredefinedOptions &&
-    searchValue.length > 0 &&
-    (debouncedSearchValue !== searchValue || ahsSearchQuery.isLoading);
-
-  const visibleOptions = usesPredefinedOptions
-    ? filteredPredefinedOptions
-    : (ahsSearchQuery.data ?? []);
 
   // Handler for selecting an item
   const handleSelect = (result: AhsSearchResult) => {
@@ -122,78 +76,50 @@ export function AhsListingSelect({
   const renderSearchContent = () => (
     <Command shouldFilter={false} className="flex h-full flex-col">
       <CommandInput
-        placeholder={searchPlaceholder}
+        placeholder="Search AHS listings..."
         value={searchValue}
         onValueChange={setSearchValue}
         autoFocus={true}
         className="border-none pl-3 focus:ring-0"
       />
       <CommandList className="flex-1 overflow-x-hidden overflow-y-auto pb-2">
-        {!searchValue && !usesPredefinedOptions && (
+        {!searchValue && (
           <CommandEmpty>Type to search AHS listings...</CommandEmpty>
         )}
-        {!searchValue &&
-          usesPredefinedOptions &&
-          isPredefinedOptionsLoading && (
+        {searchValue &&
+          (debouncedSearchValue !== searchValue ||
+            ahsSearchQuery.isLoading) && (
             <div className="flex h-full items-center justify-center">
               <p className="text-muted-foreground text-sm">Loading...</p>
             </div>
           )}
-        {!searchValue &&
-          usesPredefinedOptions &&
-          !isPredefinedOptionsLoading &&
-          predefinedOptions.length === 0 && (
+        {searchValue &&
+          debouncedSearchValue === searchValue &&
+          !ahsSearchQuery.isLoading &&
+          ahsSearchQuery.data?.length === 0 && (
             <CommandEmpty>
-              No onboarding varieties are available right now.
+              No results found. Try searching for something else.
             </CommandEmpty>
           )}
-        {!searchValue &&
-          usesPredefinedOptions &&
-          predefinedOptions.length > 0 && (
-            <div className="text-muted-foreground px-3 py-2 text-xs">
-              Popular varieties are preloaded for onboarding. You can change
-              this later in your dashboard.
-            </div>
+        {debouncedSearchValue === searchValue &&
+          !ahsSearchQuery.isLoading &&
+          ahsSearchQuery.data &&
+          ahsSearchQuery.data.length > 0 && (
+            <CommandGroup>
+              {ahsSearchQuery.data.map((result) => (
+                <CommandItem
+                  key={result.id}
+                  onSelect={() => handleSelect(result)}
+                  className="px-6"
+                >
+                  {result.name}
+                </CommandItem>
+              ))}
+            </CommandGroup>
           )}
-        {shouldShowLoading && (
-          <div className="flex h-full items-center justify-center">
-            <p className="text-muted-foreground text-sm">Loading...</p>
-          </div>
-        )}
-        {searchValue && !shouldShowLoading && visibleOptions.length === 0 && (
-          <CommandEmpty>
-            {usesPredefinedOptions
-              ? limitedSearchMessage
-              : "No results found. Try searching for something else."}
-          </CommandEmpty>
-        )}
-        {!shouldShowLoading && visibleOptions.length > 0 && (
-          <CommandGroup
-            heading={
-              !searchValue && usesPredefinedOptions
-                ? "Popular during onboarding"
-                : undefined
-            }
-          >
-            {visibleOptions.map((result) => (
-              <CommandItem
-                key={result.id}
-                onSelect={() => handleSelect(result)}
-                className="px-6"
-              >
-                {result.name}
-              </CommandItem>
-            ))}
-          </CommandGroup>
-        )}
       </CommandList>
     </Command>
   );
-
-  const hasSelection = Boolean(selectedLabel?.trim());
-  const triggerText = hasSelection
-    ? (selectedLabel?.trim() ?? "")
-    : triggerPlaceholder;
 
   // Trigger button
   const triggerButton = (
@@ -201,20 +127,12 @@ export function AhsListingSelect({
       variant="outline"
       role="combobox"
       aria-expanded={open}
-      className={cn(
-        "w-full justify-between",
-        hasSelection && "border-emerald-500/50 bg-emerald-500/5",
-      )}
+      className="w-full justify-between"
       disabled={disabled}
       id="ahs-listing-select"
     >
-      <span className="truncate">{triggerText}</span>
-      <span className="ml-2 inline-flex items-center gap-1.5">
-        {hasSelection ? (
-          <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-600" />
-        ) : null}
-        <ChevronsUpDown className="h-4 w-4 shrink-0 opacity-50" />
-      </span>
+      Select Daylily Database listing...
+      <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
     </Button>
   );
 
@@ -225,7 +143,7 @@ export function AhsListingSelect({
       <DialogContent>
         <div className="flex h-full flex-col overflow-hidden">
           <DialogHeader className="shrink-0 px-4 pt-4 pb-2">
-            <DialogTitle>{dialogTitle}</DialogTitle>
+            <DialogTitle>Select Daylily Database Listing</DialogTitle>
           </DialogHeader>
           <div className="flex-1 overflow-hidden">{renderSearchContent()}</div>
         </div>

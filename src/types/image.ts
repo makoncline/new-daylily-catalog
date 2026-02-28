@@ -73,7 +73,7 @@ export interface ImageUploadResponse {
   error?: string;
   url: string;
   key: string;
-  image?: Image | null;
+  image: Image;
 }
 
 // Database operation interfaces

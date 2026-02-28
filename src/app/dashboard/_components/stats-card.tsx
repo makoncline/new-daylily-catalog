@@ -165,18 +165,6 @@ export function ProMembershipCard() {
           </div>
           <div className="flex flex-1 flex-col justify-end gap-6">
             <CheckoutButton size="lg" data-testid="dashboard-upgrade-to-pro" />
-            <div className="rounded-lg border bg-background/70 p-4">
-              <H3 className="text-lg">Need a quick refresh?</H3>
-              <P className="text-muted-foreground mt-1 text-sm">
-                Revisit the guided onboarding flow to update your profile card,
-                first listing, and buyer-contact setup.
-              </P>
-              <Button className="mt-3 w-full" variant="outline" asChild>
-                <Link href="/onboarding" data-testid="dashboard-revisit-onboarding">
-                  Revisit onboarding
-                </Link>
-              </Button>
-            </div>
           </div>
         </div>
       </div>

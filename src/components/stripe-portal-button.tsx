@@ -10,10 +10,7 @@ import { usePro } from "@/hooks/use-pro";
 export function StripeCheckoutButton() {
   const { sendToCheckout, isPending } = usePro();
   return (
-    <DropdownMenuItem
-      onClick={() => void sendToCheckout()}
-      disabled={isPending}
-    >
+    <DropdownMenuItem onClick={sendToCheckout} disabled={isPending}>
       <Sparkles className="mr-2 h-4 w-4" />
       {isPending ? "Loading..." : "Upgrade to Pro"}
     </DropdownMenuItem>

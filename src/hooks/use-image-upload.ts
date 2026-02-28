@@ -6,19 +6,16 @@ import { type ImageType } from "@/types/image";
 import { type Image } from "@prisma/client";
 import { getErrorMessage, normalizeError, reportError } from "@/lib/error-utils";
 import { createImage } from "@/app/dashboard/_lib/dashboard-db/images-collection";
-import type { PresignedUrlResponse } from "@/types/image";
 
 interface UseImageUploadOptions {
   type: ImageType;
   referenceId: string;
-  createMode?: "collection" | "direct" | "upload-only";
-  onSuccess?: (result: { image: Image | null } & PresignedUrlResponse) => void;
+  onSuccess?: (image: Image) => void;
 }
 
 export function useImageUpload({
   type,
   referenceId,
-  createMode = "collection",
   onSuccess,
 }: UseImageUploadOptions) {
   const [progress, setProgress] = useState(0);
@@ -26,7 +23,6 @@ export function useImageUpload({
 
   const getPresignedUrlMutation =
     api.dashboardDb.image.getPresignedUrl.useMutation();
-  const createImageMutation = api.dashboardDb.image.create.useMutation();
 
   const upload = useCallback(
     async (file: Blob) => {
@@ -52,30 +48,18 @@ export function useImageUpload({
           onProgress: setProgress,
         });
 
-        let image: Image | null = null;
-        if (createMode !== "upload-only") {
-          step = "create";
-          image =
-            createMode === "collection"
-              ? await createImage({
-                  type,
-                  referenceId,
-                  url,
-                  key,
-                })
-              : await createImageMutation.mutateAsync({
-                  type,
-                  referenceId,
-                  url,
-                  key,
-                });
-        }
+        step = "create";
+        const image = await createImage({
+          type,
+          referenceId,
+          url,
+          key,
+        });
 
         toast.success("Image uploaded successfully");
 
-        const result = { image, url, key, presignedUrl };
-        onSuccess?.(result);
-        return result;
+        onSuccess?.(image);
+        return image;
       } catch (error) {
         toast.error(
           step === "presign"
@@ -96,14 +80,7 @@ export function useImageUpload({
         setProgress(0);
       }
     },
-    [
-      type,
-      referenceId,
-      createMode,
-      getPresignedUrlMutation,
-      createImageMutation,
-      onSuccess,
-    ],
+    [type, referenceId, getPresignedUrlMutation, onSuccess],
   );
 
   return {
@@ -112,3 +89,4 @@ export function useImageUpload({
     isUploading,
   };
 }
+
