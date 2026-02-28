@@ -13,6 +13,8 @@ import { DashboardShell } from "../pages/dashboard-shell";
 import { ImageManager } from "../pages/image-manager";
 import { StartMembershipPage } from "../pages/start-membership-page";
 import { StartOnboardingPage } from "../pages/start-onboarding-page";
+import { OnboardingFlowPage } from "../pages/onboarding-flow-page";
+import { SubscribeSuccessPage } from "../pages/subscribe-success-page";
 
 export const test = base.extend<{
   homePage: HomePage;
@@ -27,6 +29,8 @@ export const test = base.extend<{
   stripeCheckout: StripeCheckout;
   startMembershipPage: StartMembershipPage;
   startOnboardingPage: StartOnboardingPage;
+  onboardingFlowPage: OnboardingFlowPage;
+  subscribeSuccessPage: SubscribeSuccessPage;
   dashboardShell: DashboardShell;
   clerkAuthModal: ClerkAuthModal;
 }>({
@@ -65,6 +69,12 @@ export const test = base.extend<{
   },
   startOnboardingPage: async ({ page }, apply) => {
     await apply(new StartOnboardingPage(page));
+  },
+  onboardingFlowPage: async ({ page }, apply) => {
+    await apply(new OnboardingFlowPage(page));
+  },
+  subscribeSuccessPage: async ({ page }, apply) => {
+    await apply(new SubscribeSuccessPage(page));
   },
   dashboardShell: async ({ page }, apply) => {
     await apply(new DashboardShell(page));

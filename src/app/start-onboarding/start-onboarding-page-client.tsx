@@ -3438,14 +3438,9 @@ function usePreviewImageSrc({
   fallbackUrl: string;
 }) {
   const [previewImageSrc, setPreviewImageSrc] = useState(fallbackUrl);
+  const nextImageSrc = imageUrl.trim() || fallbackUrl;
 
   useEffect(() => {
-    const nextImageSrc = imageUrl.trim();
-    if (!nextImageSrc || nextImageSrc === fallbackUrl) {
-      setPreviewImageSrc(fallbackUrl);
-      return;
-    }
-
     let isCancelled = false;
     const loader = new window.Image();
     loader.onload = () => {
@@ -3467,7 +3462,7 @@ function usePreviewImageSrc({
       loader.onload = null;
       loader.onerror = null;
     };
-  }, [fallbackUrl, imageUrl]);
+  }, [fallbackUrl, nextImageSrc]);
 
   return previewImageSrc;
 }

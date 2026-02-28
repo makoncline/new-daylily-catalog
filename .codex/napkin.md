@@ -2,6 +2,11 @@
 
 ## Log
 
+- 2026-02-28 - self-miss vitest flag mismatch - I tried `pnpm test -- --runInBand`; this repo uses Vitest and that flag is unsupported. Use plain `pnpm test` (or Vitest-supported flags only).
+- 2026-02-28 - onboarding preview hook lint rule - `react-hooks/set-state-in-effect` flagged synchronous `setState` in `usePreviewImageSrc`; derive `nextImageSrc` outside the effect and only update state from async image loader callbacks.
+- 2026-02-28 - image upload hook test mock drift - `useImageUpload` now always initializes `api.dashboardDb.image.create.useMutation`; test mocks must include both `getPresignedUrl` and `create` mutation stubs even when using collection mode.
+- 2026-02-28 - image upload success payload contract - `useImageUpload` `onSuccess` now returns `{ image, url, key, presignedUrl }`; component and hook tests should assert that full object shape, not just `{ id, url }`.
+- 2026-02-28 - legacy profile segment compatibility - Proxy rewrite logic should treat underscore slugs as legacy profile segments (`[A-Za-z0-9_-]+`) so `?page=` rewrites still work for historical usernames.
 - 2026-02-27 - onboarding listing submission checklist - User wants a visible bottom-of-step checklist in `build-listing-card` showing required items to continue (`cultivar`, `title`, `price`, `description`) and an optional photo item.
 - 2026-02-27 - self-miss listing-step closing tag (again) - Adding the checklist introduced a missing `</div>` for the listing preview right column; re-run `tsc --noEmit` after JSX structural edits to catch unbalanced wrappers immediately.
 - 2026-02-27 - onboarding listing intro copy preference - Keep the original listing-step intro sentence about live buyer preview, and add hidden/deletable reassurance as a separate starred note line below it.
@@ -507,3 +512,9 @@
 - 2026-02-28 - onboarding badge-style consistency - Inline `Yours` mentions in preview-tip text should visually match card badge styling via the shared `Badge` component.
 - 2026-02-28 - starter cultivar default visibility - In onboarding cultivar select, always show a selected starter label by default (`selectedCultivarName` fallback to first onboarding option/default cultivar) so users can immediately change it instead of seeing an empty state.
 - 2026-02-28 - onboarding cultivar-select truthiness bug - Showing fallback `selectedLabel` in `AhsListingSelect` can make the UI look selected while `selectedCultivarAhsId` stays null, breaking details/image previews. Keep `selectedLabel` tied to real state and hydrate state from linked `cultivarReferenceId`/options.
+- 2026-02-28 - post-checkout UX requirement - User wants `/subscribe/success` to be a real landing page (not immediate redirect), styled similarly to onboarding membership CTA, with a clear Dashboard button.
+- 2026-02-28 - dashboard non-pro onboarding re-entry - Add a simple revisit-onboarding prompt/button on base dashboard for non-active subscribers, colocated with the existing Pro upsell card.
+- 2026-02-28 - environment policy quirk for e2e reruns - Combined command `rm -f .next/dev/lock && pnpm test:e2e` was blocked by policy in this tool environment; fallback is `pnpm test:e2e:attach` against existing localhost server.
+- 2026-02-28 - full onboarding e2e spec pattern - Added `tests/e2e/onboarding-full-flow.e2e.ts` as assertion-based flow (home signup -> onboarding steps -> Stripe checkout landing -> manual `/subscribe/success` -> dashboard), with a fixed Clerk test email cleaned before and after each run.
+- 2026-02-28 - onboarding flow readiness gate - New onboarding e2e must wait for `[data-profile-ready="true"]` before Step 1 save, otherwise `saveProfileDraft` can fail with `Unable to load your profile.` toast.
+- 2026-02-28 - clerk modal signup mode bug - `ClerkAuthModal.startSignUp` cannot treat visible email input as sign-up state, because sign-in modal also has one; helper now prefers switching via `Sign up` link when present.

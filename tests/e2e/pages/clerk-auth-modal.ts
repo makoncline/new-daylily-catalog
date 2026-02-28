@@ -22,7 +22,7 @@ export class ClerkAuthModal {
   }
 
   async startSignUp() {
-    if (await this.emailInput.isVisible().catch(() => false)) {
+    if (await this.codeInput.isVisible().catch(() => false)) {
       return;
     }
 
@@ -32,11 +32,21 @@ export class ClerkAuthModal {
 
     if (await this.signUpLink.isVisible().catch(() => false)) {
       await this.signUpLink.click();
-      await this.createAccountHeading.waitFor({ state: "visible" });
+      await Promise.any([
+        this.createAccountHeading.waitFor({ state: "visible", timeout: 8000 }),
+        this.emailInput.waitFor({ state: "visible", timeout: 8000 }),
+      ]);
+      return;
+    }
+
+    if (await this.emailInput.isVisible().catch(() => false)) {
       return;
     }
 
     const visibleTarget = await Promise.any([
+      this.codeInput
+        .waitFor({ state: "visible", timeout: 8000 })
+        .then(() => "code"),
       this.emailInput
         .waitFor({ state: "visible", timeout: 8000 })
         .then(() => "email"),
@@ -48,13 +58,31 @@ export class ClerkAuthModal {
         .then(() => "signup-link"),
     ]).catch(() => null);
 
-    if (visibleTarget === "email" || visibleTarget === "heading") {
+    if (visibleTarget === "code") {
+      return;
+    }
+
+    if (visibleTarget === "heading") {
       return;
     }
 
     if (visibleTarget === "signup-link") {
       await this.signUpLink.click();
-      await this.createAccountHeading.waitFor({ state: "visible" });
+      await Promise.any([
+        this.createAccountHeading.waitFor({ state: "visible", timeout: 8000 }),
+        this.emailInput.waitFor({ state: "visible", timeout: 8000 }),
+      ]);
+      return;
+    }
+
+    if (visibleTarget === "email") {
+      if (await this.signUpLink.isVisible().catch(() => false)) {
+        await this.signUpLink.click();
+        await Promise.any([
+          this.createAccountHeading.waitFor({ state: "visible", timeout: 8000 }),
+          this.emailInput.waitFor({ state: "visible", timeout: 8000 }),
+        ]);
+      }
       return;
     }
 
