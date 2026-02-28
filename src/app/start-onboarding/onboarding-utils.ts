@@ -76,7 +76,7 @@ export const ONBOARDING_STEPS: readonly OnboardingStep[] = [
     title: "See buyer inquiry flow",
     chipLabel: "Buyer contact",
     description:
-      "Buyers can email you directly or send one message with cart details, then arrange payment and shipping with you.",
+      "Buyers can email you directly or send one message with an inquiry bundle, then arrange payment and shipping with you.",
   },
   {
     id: "start-membership",
@@ -190,9 +190,9 @@ export const ONBOARDING_LISTING_DISCOVERY_EXAMPLES = [
 ] as const;
 
 export const ONBOARDING_BUYER_FLOW_BULLETS = [
-  "Customers can open your catalog profile and send you an email message directly, even without adding items to cart.",
-  "Priced listings can be added to cart so buyers can send one email message with exactly what they want.",
-  "After inquiry, you and the buyer arrange payment and shipping directly. Daylily Catalog does not process checkout.",
+  "Customers can open your catalog profile and send you an email message directly, even without bundling any items.",
+  "Priced listings can be grouped into one inquiry bundle so buyers can send a single email with exactly what they want.",
+  "After inquiry, you and the buyer arrange payment and shipping directly. Daylily Catalog does not process buyer checkout.",
 ] as const;
 
 export const ONBOARDING_PROFILE_DESCRIPTION_SEO_GUIDANCE = {
@@ -206,7 +206,7 @@ export const ONBOARDING_LISTING_DESCRIPTION_GUIDANCE = {
   minLength: 70,
   maxLength: 150,
   conciseTip:
-    "Buyers scan this first. Mention plant condition, quantity/size, and shipping or pickup timing.",
+    "Buyers scan this first. Mention plant condition and quantity/size.",
 } as const;
 
 function hasText(value: string) {

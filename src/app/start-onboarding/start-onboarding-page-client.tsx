@@ -16,6 +16,7 @@ import {
   MapPin,
   MessageCircle,
   Package,
+  Pencil,
   ShoppingCart,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -71,12 +72,13 @@ const DEFAULT_LISTING_TITLE_PLACEHOLDER =
   "Coffee Frenzy spring fan (1 healthy dormant fan)";
 const DEFAULT_LISTING_DESCRIPTION_PLACEHOLDER =
   "Healthy dormant fan with strong roots, clearly labeled, and ready for spring shipping or local pickup.";
+const ONBOARDING_DRAFT_STORAGE_KEY = "start-onboarding:draft-v1";
 
 const PRO_UNLOCKS = [
   {
     id: "custom-url",
     icon: ExternalLink,
-    text: "Custom garden URL - easy to remember and share.",
+    text: "Custom catalog URL - easy to remember and share.",
   },
   {
     id: "unlimited",
@@ -108,6 +110,13 @@ interface MembershipPriceDisplay {
 
 interface StartOnboardingPageClientProps {
   membershipPriceDisplay: MembershipPriceDisplay | null;
+}
+
+interface OnboardingDraftSnapshot {
+  profileDraft: ProfileOnboardingDraft;
+  listingDraft: ListingOnboardingDraft;
+  selectedCultivarName: string | null;
+  selectedCultivarAhsId: string | null;
 }
 
 function getCreatedAtTimestamp(value: Date | string | null | undefined) {
@@ -142,6 +151,15 @@ function getEarliestByCreatedAt<T extends { createdAt: Date | string }>(
 
 function normalizeCultivarSearchValue(value: string | null | undefined) {
   return (value ?? "").toLowerCase().replace(/\s+/g, " ").trim();
+}
+
+function normalizePersistedImageUrl(value: string | null | undefined) {
+  const trimmedValue = value?.trim();
+  if (!trimmedValue) {
+    return null;
+  }
+
+  return trimmedValue.startsWith("blob:") ? null : trimmedValue;
 }
 
 const DEFAULT_PROFILE_DRAFT: ProfileOnboardingDraft = {
@@ -245,8 +263,7 @@ export function StartOnboardingPageClient({
   const shouldAttemptDefaultCultivar =
     listingQuery.isFetched &&
     existingListingCultivarReferenceId === null &&
-    listingDraft.cultivarReferenceId === null &&
-    selectedCultivarName === null;
+    listingDraft.cultivarReferenceId === null;
   const selectedCultivarDetailsQuery = api.dashboardDb.ahs.get.useQuery(
     { id: selectedCultivarAhsId ?? "" },
     { enabled: Boolean(selectedCultivarAhsId) },
@@ -280,6 +297,79 @@ export function StartOnboardingPageClient({
   const starterImageGenerationTimeoutRef = useRef<number | null>(null);
   const starterImageGenerationRequestIdRef = useRef(0);
   const viewedOnboardingStepsRef = useRef<Set<OnboardingStepId>>(new Set());
+  const hasHydratedSessionDraft = useRef(false);
+
+  useEffect(() => {
+    if (hasHydratedSessionDraft.current) {
+      return;
+    }
+
+    hasHydratedSessionDraft.current = true;
+
+    try {
+      const rawSnapshot = window.sessionStorage.getItem(
+        ONBOARDING_DRAFT_STORAGE_KEY,
+      );
+      if (!rawSnapshot) {
+        return;
+      }
+
+      const parsedSnapshot = JSON.parse(rawSnapshot) as
+        | OnboardingDraftSnapshot
+        | null;
+      if (!parsedSnapshot) {
+        return;
+      }
+
+      if (parsedSnapshot.profileDraft) {
+        setProfileDraft((previous) => ({
+          ...previous,
+          ...parsedSnapshot.profileDraft,
+          profileImageUrl: normalizePersistedImageUrl(
+            parsedSnapshot.profileDraft.profileImageUrl,
+          ),
+        }));
+      }
+
+      if (parsedSnapshot.listingDraft) {
+        setListingDraft((previous) => ({
+          ...previous,
+          ...parsedSnapshot.listingDraft,
+        }));
+      }
+
+      setSelectedCultivarName(parsedSnapshot.selectedCultivarName ?? null);
+      setSelectedCultivarAhsId(parsedSnapshot.selectedCultivarAhsId ?? null);
+    } catch {
+      window.sessionStorage.removeItem(ONBOARDING_DRAFT_STORAGE_KEY);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!hasHydratedSessionDraft.current) {
+      return;
+    }
+
+    const snapshot: OnboardingDraftSnapshot = {
+      profileDraft: {
+        ...profileDraft,
+        profileImageUrl: normalizePersistedImageUrl(profileDraft.profileImageUrl),
+      },
+      listingDraft,
+      selectedCultivarName,
+      selectedCultivarAhsId,
+    };
+
+    window.sessionStorage.setItem(
+      ONBOARDING_DRAFT_STORAGE_KEY,
+      JSON.stringify(snapshot),
+    );
+  }, [
+    listingDraft,
+    profileDraft,
+    selectedCultivarAhsId,
+    selectedCultivarName,
+  ]);
 
   useEffect(() => {
     if (!profileQuery.data || hasHydratedProfile.current) {
@@ -290,12 +380,18 @@ export function StartOnboardingPageClient({
 
     const nextImage = profileQuery.data.logoUrl ?? DEFAULT_STARTER_IMAGE_URL;
 
-    setProfileDraft({
-      gardenName: profileQuery.data.title?.trim() ?? "",
-      location: profileQuery.data.location ?? "",
-      description: profileQuery.data.description ?? "",
-      profileImageUrl: nextImage,
-    });
+    setProfileDraft((previous) => ({
+      gardenName: previous.gardenName.trim()
+        ? previous.gardenName
+        : (profileQuery.data.title?.trim() ?? ""),
+      location: previous.location.trim()
+        ? previous.location
+        : (profileQuery.data.location ?? ""),
+      description: previous.description.trim()
+        ? previous.description
+        : (profileQuery.data.description ?? ""),
+      profileImageUrl: previous.profileImageUrl ?? nextImage,
+    }));
 
     const matchingStarterImage = STARTER_PROFILE_IMAGES.find(
       (starterImage) => starterImage.url === nextImage,
@@ -376,12 +472,15 @@ export function StartOnboardingPageClient({
     }
 
     setSavedListingId(existingListing.id);
-    setListingDraft({
-      cultivarReferenceId: existingListing.cultivarReferenceId,
-      title: existingListing.title,
-      price: existingListing.price,
-      description: existingListing.description ?? "",
-    });
+    setListingDraft((previous) => ({
+      cultivarReferenceId:
+        previous.cultivarReferenceId ?? existingListing.cultivarReferenceId,
+      title: previous.title.trim() ? previous.title : existingListing.title,
+      price: previous.price ?? existingListing.price,
+      description: previous.description.trim()
+        ? previous.description
+        : (existingListing.description ?? ""),
+    }));
 
     hasAppliedDefaultCultivar.current = Boolean(
       existingListing.cultivarReferenceId,
@@ -576,24 +675,92 @@ export function StartOnboardingPageClient({
   const progressValue = ((stepIndex + 1) / ONBOARDING_STEPS.length) * 100;
   const selectedCultivarImageUrl =
     selectedCultivarDetailsQuery.data?.ahsImageUrl ?? null;
+  const persistedProfileTitle = profileQuery.data?.title?.trim() ?? "";
+  const persistedProfileDescription = profileQuery.data?.description?.trim() ?? "";
+  const persistedProfileLocation = profileQuery.data?.location?.trim() ?? "";
+  const persistedProfileLogoUrl = normalizePersistedImageUrl(
+    profileQuery.data?.logoUrl,
+  );
+  const profileDraftImageUrl = normalizePersistedImageUrl(
+    profileDraft.profileImageUrl,
+  );
+  const selectedStarterImagePreviewUrl = normalizePersistedImageUrl(
+    selectedStarterImageUrl,
+  );
+  const profileNamePreview =
+    profileDraft.gardenName.trim() ||
+    persistedProfileTitle ||
+    DEFAULT_GARDEN_NAME_PLACEHOLDER;
+  const profileDescriptionPreview =
+    profileDraft.description.trim() ||
+    persistedProfileDescription ||
+    DEFAULT_PROFILE_DESCRIPTION_PLACEHOLDER;
+  const profileLocationPreview =
+    profileDraft.location.trim() ||
+    persistedProfileLocation ||
+    DEFAULT_LOCATION_PLACEHOLDER;
   const profileImagePreviewUrl =
-    profileDraft.profileImageUrl ?? PROFILE_PLACEHOLDER_IMAGE;
-  const listingImagePreviewUrl =
-    selectedListingImageUrl ??
-    selectedCultivarImageUrl ??
-    ONBOARDING_LISTING_DEFAULTS.fallbackImageUrl;
+    pendingStarterPreviewUrl ??
+    pendingProfileUploadPreviewUrl ??
+    profileDraftImageUrl ??
+    persistedProfileLogoUrl ??
+    selectedStarterImagePreviewUrl ??
+    PROFILE_PLACEHOLDER_IMAGE;
+  const hasProfileLocationForPreview = profileLocationPreview.trim().length > 0;
+  const hasProfileTrustDetailForPreview =
+    /\b(ship|shipping|pickup|condition|healthy|response|reply|labeled|labelled)\b/i.test(
+      profileDescriptionPreview,
+    );
+  const profileDiscoveryTip = !hasProfileLocationForPreview
+    ? "Tip: add location to improve regional discovery when buyers browse nearby sellers."
+    : !hasProfileTrustDetailForPreview
+      ? "Tip: add one trust detail (shipping window, plant condition, or response time) to improve inquiry quality."
+      : "Tip: cards with a clear location and trust-focused description usually get more qualified inquiries.";
 
   const listingTitleDraftValue = listingDraft.title.trim();
   const listingDescriptionDraftValue = listingDraft.description.trim();
+  const persistedListingTitle = earliestExistingListing?.title?.trim() ?? "";
+  const persistedListingDescription =
+    earliestExistingListing?.description?.trim() ?? "";
+  const persistedListingPrice = earliestExistingListing?.price ?? null;
+  const listingIdForPreview = savedListingId ?? earliestExistingListing?.id ?? null;
+  const persistedListingImageUrl = useMemo(() => {
+    if (!listingIdForPreview) {
+      return null;
+    }
+
+    const earliestListingImage = getEarliestByCreatedAt(
+      (imagesQuery.data ?? []).filter((image) => image.listingId === listingIdForPreview),
+    );
+    return earliestListingImage?.url ?? null;
+  }, [imagesQuery.data, listingIdForPreview]);
+  const listingImagePreviewUrl =
+    pendingListingUploadPreviewUrl ??
+    normalizePersistedImageUrl(selectedListingImageUrl) ??
+    persistedListingImageUrl ??
+    selectedCultivarImageUrl ??
+    ONBOARDING_LISTING_DEFAULTS.fallbackImageUrl;
   const listingTitlePreview =
-    listingTitleDraftValue || DEFAULT_LISTING_TITLE_PLACEHOLDER;
+    listingTitleDraftValue ||
+    persistedListingTitle ||
+    DEFAULT_LISTING_TITLE_PLACEHOLDER;
   const listingDescriptionPreview =
-    listingDescriptionDraftValue || DEFAULT_LISTING_DESCRIPTION_PLACEHOLDER;
-  const listingDescriptionForListingPreview = listingDescriptionDraftValue;
+    listingDescriptionDraftValue ||
+    persistedListingDescription ||
+    DEFAULT_LISTING_DESCRIPTION_PLACEHOLDER;
+  const listingDescriptionForListingPreview =
+    listingDescriptionDraftValue || persistedListingDescription;
+  const listingPricePreview = listingDraft.price ?? persistedListingPrice;
   const listingDescriptionForBuyerContactPreview =
-    listingDescriptionDraftValue || DEFAULT_LISTING_DESCRIPTION_PLACEHOLDER;
+    listingDescriptionDraftValue ||
+    persistedListingDescription ||
+    DEFAULT_LISTING_DESCRIPTION_PLACEHOLDER;
   const listingPriceForBuyerContactPreview =
-    listingDraft.price ?? ONBOARDING_LISTING_DEFAULTS.contactPreviewFallbackPrice;
+    listingDraft.price ??
+    persistedListingPrice ??
+    ONBOARDING_LISTING_DEFAULTS.contactPreviewFallbackPrice;
+  const isBuyerContactPreviewHydrating =
+    profileQuery.isPending || listingQuery.isPending;
   const listingDescriptionCharacterCount = listingDescriptionDraftValue.length;
   const isListingDescriptionTooShort =
     listingDescriptionCharacterCount > 0 &&
@@ -1135,6 +1302,45 @@ export function StartOnboardingPageClient({
   ]);
 
   useEffect(() => {
+    if (onboardingCultivarOptions.length === 0) {
+      return;
+    }
+
+    if (selectedCultivarAhsId && selectedCultivarName) {
+      return;
+    }
+
+    const matchByCultivarReference = listingDraft.cultivarReferenceId
+      ? onboardingCultivarOptions.find(
+          (option) =>
+            option.cultivarReferenceId === listingDraft.cultivarReferenceId,
+        ) ?? null
+      : null;
+
+    const matchByName = selectedCultivarName
+      ? onboardingCultivarOptions.find((option) => {
+          const normalizedOptionName = normalizeCultivarSearchValue(option.name);
+          const normalizedSelectedName =
+            normalizeCultivarSearchValue(selectedCultivarName);
+          return normalizedOptionName === normalizedSelectedName;
+        }) ?? null
+      : null;
+
+    const matchedCultivar = matchByCultivarReference ?? matchByName;
+    if (!matchedCultivar) {
+      return;
+    }
+
+    setSelectedCultivarAhsId(matchedCultivar.id);
+    setSelectedCultivarName(matchedCultivar.name ?? selectedCultivarName);
+  }, [
+    listingDraft.cultivarReferenceId,
+    onboardingCultivarOptions,
+    selectedCultivarAhsId,
+    selectedCultivarName,
+  ]);
+
+  useEffect(() => {
     if (currentStep.id !== "build-listing-card") {
       return;
     }
@@ -1424,6 +1630,7 @@ export function StartOnboardingPageClient({
         return;
       }
       case "start-membership": {
+        window.sessionStorage.removeItem(ONBOARDING_DRAFT_STORAGE_KEY);
         captureOnboardingStepEvent(
           "onboarding_step_completed",
           "start-membership",
@@ -1485,6 +1692,7 @@ export function StartOnboardingPageClient({
       (!isListingOnboardingDraftComplete(listingDraft) || isSavingListing));
 
   const handleMembershipContinueForNow = useCallback(() => {
+    window.sessionStorage.removeItem(ONBOARDING_DRAFT_STORAGE_KEY);
     captureOnboardingStepEvent("onboarding_step_completed", "start-membership");
     capturePosthogEvent("onboarding_membership_continue_for_now_clicked", {
       source: "onboarding-step",
@@ -1492,6 +1700,7 @@ export function StartOnboardingPageClient({
   }, [captureOnboardingStepEvent]);
 
   const handleSkipOnboarding = () => {
+    window.sessionStorage.removeItem(ONBOARDING_DRAFT_STORAGE_KEY);
     capturePosthogEvent("onboarding_skipped", {
       step_id: currentStep.id,
       step_index: stepIndex + 1,
@@ -1500,7 +1709,11 @@ export function StartOnboardingPageClient({
   };
 
   return (
-    <div className="bg-muted/20 min-h-svh" data-testid="start-onboarding-page">
+    <div
+      className="bg-muted/20 min-h-svh"
+      data-testid="start-onboarding-page"
+      data-profile-ready={profileQuery.data?.id ? "true" : "false"}
+    >
       <div className="mx-auto w-full max-w-6xl space-y-8 px-4 py-6 lg:px-8 lg:py-10">
         <header className="space-y-4">
           <div className="space-y-3">
@@ -1591,7 +1804,7 @@ export function StartOnboardingPageClient({
                       "border-primary bg-primary/5",
                   )}
                 >
-                  <Label htmlFor="garden-name">Garden name</Label>
+                  <Label htmlFor="garden-name">Seller name (shown to buyers)</Label>
                   <Input
                     ref={gardenNameInputRef}
                     id="garden-name"
@@ -1599,17 +1812,17 @@ export function StartOnboardingPageClient({
                     value={profileDraft.gardenName}
                     onFocus={() => setFocusedProfileField("gardenName")}
                     onChange={(event) => {
-                      const nextDraft = {
-                        ...profileDraft,
-                        gardenName: event.target.value,
-                      };
-                      setProfileDraft(nextDraft);
+                      const nextGardenName = event.target.value;
+                      setProfileDraft((previous) => ({
+                        ...previous,
+                        gardenName: nextGardenName,
+                      }));
 
                       if (selectedStarterImageUrl && applyStarterNameOverlay) {
                         scheduleStarterImageGeneration({
                           baseImageUrl: selectedStarterImageUrl,
                           gardenName:
-                            nextDraft.gardenName.trim() ||
+                            nextGardenName.trim() ||
                             DEFAULT_GARDEN_NAME_PLACEHOLDER,
                           debounceMs: 150,
                         });
@@ -1617,8 +1830,8 @@ export function StartOnboardingPageClient({
                     }}
                   />
                   <p className="text-muted-foreground text-xs leading-relaxed">
-                    Your garden name is your storefront title. Buyers will use
-                    it to recognize and return to your catalog.
+                    This is your storefront title. Buyers use it to recognize
+                    and return to your catalog.
                   </p>
                 </div>
 
@@ -1688,8 +1901,12 @@ export function StartOnboardingPageClient({
                             htmlFor="starter-overlay"
                             className="cursor-pointer"
                           >
-                            Stamp garden name onto starter image
+                            Stamp seller name onto starter image
                           </Label>
+                          <p className="text-muted-foreground text-xs leading-relaxed">
+                            Good for a quick starter logo. You can replace it
+                            with an uploaded image at any time.
+                          </p>
                         </div>
                       </div>
                       <div className="overflow-x-auto pb-2">
@@ -1766,7 +1983,7 @@ export function StartOnboardingPageClient({
                       "border-primary bg-primary/5",
                   )}
                 >
-                  <Label htmlFor="garden-location">Location (optional)</Label>
+                  <Label htmlFor="garden-location">Location (recommended)</Label>
                   <Input
                     ref={gardenLocationInputRef}
                     id="garden-location"
@@ -1774,15 +1991,15 @@ export function StartOnboardingPageClient({
                     value={profileDraft.location}
                     onFocus={() => setFocusedProfileField("location")}
                     onChange={(event) =>
-                      setProfileDraft({
-                        ...profileDraft,
+                      setProfileDraft((previous) => ({
+                        ...previous,
                         location: event.target.value,
-                      })
+                      }))
                     }
                   />
                   <p className="text-muted-foreground text-xs leading-relaxed">
-                    Add your city and state so buyers know where you grow and
-                    whether you are likely a regional fit.
+                    Buyers often filter by region. Add your city and state to
+                    improve qualified inquiries.
                   </p>
                 </div>
 
@@ -1793,7 +2010,7 @@ export function StartOnboardingPageClient({
                       "border-primary bg-primary/5",
                   )}
                 >
-                  <Label htmlFor="garden-description">Garden description</Label>
+                  <Label htmlFor="garden-description">Seller description</Label>
                   <Textarea
                     ref={gardenDescriptionInputRef}
                     id="garden-description"
@@ -1802,10 +2019,10 @@ export function StartOnboardingPageClient({
                     value={profileDraft.description}
                     onFocus={() => setFocusedProfileField("description")}
                     onChange={(event) =>
-                      setProfileDraft({
-                        ...profileDraft,
+                      setProfileDraft((previous) => ({
+                        ...previous,
                         description: event.target.value,
-                      })
+                      }))
                     }
                   />
                   <p className="text-muted-foreground text-xs leading-relaxed">
@@ -1825,7 +2042,7 @@ export function StartOnboardingPageClient({
                       {profileDescriptionCharacterCount === 0
                         ? `Aim for ${ONBOARDING_PROFILE_DESCRIPTION_SEO_GUIDANCE.minLength}-${ONBOARDING_PROFILE_DESCRIPTION_SEO_GUIDANCE.maxLength} characters.`
                         : isProfileDescriptionTooShort
-                          ? `Add at least ${ONBOARDING_PROFILE_DESCRIPTION_SEO_GUIDANCE.minLength - profileDescriptionCharacterCount} more characters for stronger SEO context.`
+                        ? `Add at least ${ONBOARDING_PROFILE_DESCRIPTION_SEO_GUIDANCE.minLength - profileDescriptionCharacterCount} more characters so buyers quickly understand your catalog.`
                           : isProfileDescriptionTooLong
                             ? `Trim about ${profileDescriptionCharacterCount - ONBOARDING_PROFILE_DESCRIPTION_SEO_GUIDANCE.maxLength} characters for cleaner Google snippets.`
                             : "Great length for search and buyer scanning."}
@@ -1905,8 +2122,7 @@ export function StartOnboardingPageClient({
                         onClick={() => focusProfileField("gardenName")}
                       />
                       <p className="text-4xl leading-tight font-bold tracking-tight">
-                        {profileDraft.gardenName.trim() ||
-                          DEFAULT_GARDEN_NAME_PLACEHOLDER}
+                        {profileNamePreview}
                       </p>
                     </div>
 
@@ -1922,8 +2138,7 @@ export function StartOnboardingPageClient({
                         className="inline-flex items-center gap-1 pr-2 text-base"
                       >
                         <MapPin className="h-4 w-4" />
-                        {profileDraft.location.trim() ||
-                          DEFAULT_LOCATION_PLACEHOLDER}
+                        {profileLocationPreview}
                       </Badge>
                     </div>
 
@@ -1935,8 +2150,7 @@ export function StartOnboardingPageClient({
                         onClick={() => focusProfileField("description")}
                       />
                       <p className="text-muted-foreground text-lg leading-relaxed">
-                        {profileDraft.description.trim() ||
-                          DEFAULT_PROFILE_DESCRIPTION_PLACEHOLDER}
+                        {profileDescriptionPreview}
                       </p>
                     </div>
                   </div>
@@ -1970,21 +2184,21 @@ export function StartOnboardingPageClient({
               </p>
               <p className="text-sm font-medium text-emerald-700">
                 Look for the{" "}
-                <span className="rounded bg-emerald-100 px-1">Yours</span> badge
-                to spot your card.
+                <Badge variant="secondary" className="mx-1 align-middle">
+                  Yours
+                </Badge>
+                badge to spot your card.
+              </p>
+              <p className="text-muted-foreground text-sm">
+                {profileDiscoveryTip}
               </p>
 
               <div className="grid gap-4 lg:grid-cols-[repeat(2,minmax(0,24rem))] lg:justify-start">
                 <ProfilePreviewCard
-                  title={
-                    profileDraft.gardenName || DEFAULT_GARDEN_NAME_PLACEHOLDER
-                  }
-                  description={
-                    profileDraft.description ||
-                    DEFAULT_PROFILE_DESCRIPTION_PLACEHOLDER
-                  }
+                  title={profileNamePreview}
+                  description={profileDescriptionPreview}
                   imageUrl={profileImagePreviewUrl}
-                  location={profileDraft.location || DEFAULT_LOCATION_PLACEHOLDER}
+                  location={profileLocationPreview}
                   variant="owned"
                   ownershipBadge="Yours"
                 />
@@ -2049,7 +2263,7 @@ export function StartOnboardingPageClient({
                 onFocusCapture={() => setActiveListingField("cultivar")}
                 onClick={() => setActiveListingField("cultivar")}
               >
-                <Label>Link a daylily variety (required)</Label>
+                <Label>Link a daylily variety (guided starter)</Label>
                 <AhsListingSelect
                   onSelect={handleAhsSelect}
                   selectedLabel={selectedCultivarName}
@@ -2066,9 +2280,9 @@ export function StartOnboardingPageClient({
                   dialogTitle="Select Daylily Variety"
                 />
                 <p className="text-muted-foreground text-xs leading-relaxed">
-                  We start you with a popular variety so you can keep moving.
-                  You can change this selection now or any time from your
-                  dashboard.
+                  We start you with a linked starter variety by default so your
+                  preview looks realistic. You can click to change it now, and
+                  create unlinked listings later from your dashboard.
                 </p>
                 {selectedCultivarName ? (
                   <div className="rounded-lg border border-emerald-500/40 bg-emerald-500/10 p-3">
@@ -2097,7 +2311,7 @@ export function StartOnboardingPageClient({
                 ) : null}
                 <p className="text-muted-foreground text-xs leading-relaxed">
                   Linking a variety gives buyers trusted cultivar details and
-                  imagery, so they can confidently reach out to buy from you.
+                  imagery.
                 </p>
               </div>
 
@@ -2115,10 +2329,10 @@ export function StartOnboardingPageClient({
                   value={listingDraft.title}
                   onFocus={() => setActiveListingField("title")}
                   onChange={(event) =>
-                    setListingDraft({
-                      ...listingDraft,
+                    setListingDraft((previous) => ({
+                      ...previous,
                       title: event.target.value,
-                    })
+                    }))
                   }
                   placeholder={DEFAULT_LISTING_TITLE_PLACEHOLDER}
                 />
@@ -2141,10 +2355,10 @@ export function StartOnboardingPageClient({
                   value={listingDraft.price}
                   onFocus={() => setActiveListingField("price")}
                   onChange={(value) =>
-                    setListingDraft({
-                      ...listingDraft,
+                    setListingDraft((previous) => ({
+                      ...previous,
                       price: value,
-                    })
+                    }))
                   }
                   placeholder="25"
                 />
@@ -2169,10 +2383,10 @@ export function StartOnboardingPageClient({
                   value={listingDraft.description}
                   onFocus={() => setActiveListingField("description")}
                   onChange={(event) =>
-                    setListingDraft({
-                      ...listingDraft,
+                    setListingDraft((previous) => ({
+                      ...previous,
                       description: event.target.value,
-                    })
+                    }))
                   }
                   placeholder={DEFAULT_LISTING_DESCRIPTION_PLACEHOLDER}
                 />
@@ -2184,25 +2398,25 @@ export function StartOnboardingPageClient({
                     className={cn(
                       "leading-relaxed",
                       isListingDescriptionTooShort || isListingDescriptionTooLong
-                        ? "text-amber-700"
+                        ? "text-muted-foreground"
                         : isListingDescriptionInRecommendedRange
                           ? "text-emerald-700"
                           : "text-muted-foreground",
                     )}
                   >
                     {listingDescriptionCharacterCount === 0
-                      ? `Aim for ${ONBOARDING_LISTING_DESCRIPTION_GUIDANCE.minLength}-${ONBOARDING_LISTING_DESCRIPTION_GUIDANCE.maxLength} characters.`
+                      ? `Recommended: aim for ${ONBOARDING_LISTING_DESCRIPTION_GUIDANCE.minLength}-${ONBOARDING_LISTING_DESCRIPTION_GUIDANCE.maxLength} characters.`
                       : isListingDescriptionTooShort
-                        ? `Add at least ${ONBOARDING_LISTING_DESCRIPTION_GUIDANCE.minLength - listingDescriptionCharacterCount} more characters for clearer buyer context.`
+                        ? "Optional: add a little more detail so buyers can evaluate faster."
                         : isListingDescriptionTooLong
-                          ? `Trim about ${listingDescriptionCharacterCount - ONBOARDING_LISTING_DESCRIPTION_GUIDANCE.maxLength} characters so it stays easy to scan.`
-                          : "Great length for buyers comparing listings."}
+                          ? "Optional: trim this down so buyers can scan quickly."
+                          : "Great listing details for buyer comparison."}
                   </p>
                   <p
                     className={cn(
                       "font-medium",
                       isListingDescriptionTooShort || isListingDescriptionTooLong
-                        ? "text-amber-700"
+                        ? "text-muted-foreground"
                         : isListingDescriptionInRecommendedRange
                           ? "text-emerald-700"
                           : "text-muted-foreground",
@@ -2240,25 +2454,28 @@ export function StartOnboardingPageClient({
                     />
                   </div>
                 ) : (
-                  <p className="text-muted-foreground text-sm">
-                    Preparing listing image uploader...
-                  </p>
+                  <div className="bg-background space-y-3 rounded-lg border p-3">
+                    <div className="space-y-2">
+                      <div className="bg-muted h-4 w-40 animate-pulse rounded" />
+                      <div className="bg-muted h-28 w-full animate-pulse rounded-md" />
+                    </div>
+                    <p className="text-muted-foreground text-xs leading-relaxed">
+                      Setting up uploader. You can continue without uploading -
+                      the linked cultivar image will be used.
+                    </p>
+                  </div>
                 )}
               </div>
 
                 {!listingMissingField && isListingDescriptionTooShort ? (
-                  <p className="text-sm font-medium text-amber-700">
-                    Listing card is ready. Add{" "}
-                    {ONBOARDING_LISTING_DESCRIPTION_GUIDANCE.minLength -
-                      listingDescriptionCharacterCount}{" "}
-                    more characters to help buyers evaluate quickly.
+                  <p className="text-muted-foreground text-sm">
+                    Listing card is ready. Optional: add a little more detail to
+                    increase buyer confidence.
                   </p>
                 ) : !listingMissingField && isListingDescriptionTooLong ? (
-                  <p className="text-sm font-medium text-amber-700">
-                    Listing card is ready. Consider trimming{" "}
-                    {listingDescriptionCharacterCount -
-                      ONBOARDING_LISTING_DESCRIPTION_GUIDANCE.maxLength}{" "}
-                    characters for faster scanning.
+                  <p className="text-muted-foreground text-sm">
+                    Listing card is ready. Optional: trim to essentials so buyers
+                    can scan quickly.
                   </p>
                 ) : !listingMissingField ? (
                   <p className="text-sm font-medium text-emerald-700">
@@ -2440,15 +2657,22 @@ export function StartOnboardingPageClient({
               </p>
               <p className="text-sm font-medium text-emerald-700">
                 Look for the{" "}
-                <span className="rounded bg-emerald-100 px-1">Yours</span> badge
-                to spot your listing.
+                <Badge variant="secondary" className="mx-1 align-middle">
+                  Yours
+                </Badge>
+                badge to spot your listing.
+              </p>
+              <p className="text-muted-foreground text-sm">
+                {listingPricePreview !== null
+                  ? "Price is set, so buyers can add this listing to an inquiry bundle."
+                  : "No price set yet, so this listing appears as inquiry only."}
               </p>
 
               <div className="grid gap-4 lg:grid-cols-[repeat(2,minmax(0,24rem))] lg:justify-start">
                 <ListingPreviewCard
                   title={listingTitlePreview}
                   description={listingDescriptionForListingPreview}
-                  price={listingDraft.price}
+                  price={listingPricePreview}
                   linkedLabel={selectedCultivarName}
                   hybridizerYear={
                     selectedCultivarDetailsQuery.data
@@ -2503,102 +2727,106 @@ export function StartOnboardingPageClient({
             </h2>
             <p className="text-muted-foreground max-w-3xl">
               This example shows the two common paths to contact you: visiting
-              your catalog profile or adding priced listings to cart before
-              messaging by email.
+              your catalog profile or adding priced listings to an inquiry
+              bundle before messaging by email.
             </p>
 
-            <div className="space-y-4">
-              <div className="grid gap-6 lg:grid-cols-[repeat(2,minmax(0,24rem))] lg:justify-start">
-                <div className="space-y-3">
-                  <p className="text-muted-foreground text-xs font-semibold tracking-wide uppercase">
-                    Path 1: Direct message
-                  </p>
-                  <p className="text-sm font-medium">
-                    Buyer opens your catalog profile and can send an email
-                    message immediately.
-                  </p>
-                  <div className="max-w-sm">
-                    <ProfilePreviewCard
-                      title={
-                        profileDraft.gardenName.trim() ||
-                        DEFAULT_GARDEN_NAME_PLACEHOLDER
-                      }
-                      description={
-                        profileDraft.description.trim() ||
-                        DEFAULT_PROFILE_DESCRIPTION_PLACEHOLDER
-                      }
-                      imageUrl={profileImagePreviewUrl}
-                      location={
-                        profileDraft.location.trim() ||
-                        DEFAULT_LOCATION_PLACEHOLDER
-                      }
-                      variant="owned"
-                      ownershipBadge="Yours"
-                      footerAction={
-                        <Button type="button" className="w-full lg:w-auto">
-                          <MessageCircle className="h-4 w-4" />
-                          Contact this seller
-                        </Button>
-                      }
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-3">
-                  <p className="text-muted-foreground text-xs font-semibold tracking-wide uppercase">
-                    Path 2: Message with cart
-                  </p>
-                  <p className="text-sm font-medium">
-                    Buyer opens your listing. If it has a price, they can add it
-                    to cart and send one email with item details.
-                  </p>
-                  <div className="max-w-sm">
-                    <ListingPreviewCard
-                      title={listingTitlePreview}
-                      description={listingDescriptionForBuyerContactPreview}
-                      price={listingPriceForBuyerContactPreview}
-                      linkedLabel={selectedCultivarName}
-                      hybridizerYear={
-                        selectedCultivarDetailsQuery.data
-                          ? [
-                              selectedCultivarDetailsQuery.data.hybridizer,
-                              selectedCultivarDetailsQuery.data.year,
-                            ]
-                              .filter(Boolean)
-                              .join(", ")
-                          : null
-                      }
-                      imageUrl={listingImagePreviewUrl}
-                      variant="owned"
-                      ownershipBadge="Your listing"
-                    />
-                  </div>
-                  <Button type="button" className="w-full lg:w-auto">
-                    <MessageCircle className="h-4 w-4" />
-                    Contact Seller (1 item)
-                  </Button>
-                </div>
+            {isBuyerContactPreviewHydrating ? (
+              <div className="bg-background rounded-lg border p-4 text-sm text-muted-foreground">
+                Loading your saved catalog and listing preview...
               </div>
-
-              <div className="space-y-3">
-                <p className="text-sm font-semibold">What this enables</p>
-                <div className="grid gap-3 lg:grid-cols-3">
-                  {ONBOARDING_BUYER_FLOW_BULLETS.map((bullet, index) => (
-                    <div
-                      key={bullet}
-                      className="bg-background rounded-lg border p-3"
-                    >
-                      <p className="text-muted-foreground text-xs font-semibold tracking-wide uppercase">
-                        Point {index + 1}
-                      </p>
-                      <p className="text-muted-foreground mt-1 text-sm leading-relaxed">
-                        {bullet}
-                      </p>
+            ) : (
+              <div className="space-y-4">
+                <div className="grid gap-6 lg:grid-cols-[repeat(2,minmax(0,24rem))] lg:justify-start">
+                  <div className="space-y-3">
+                    <p className="text-muted-foreground text-xs font-semibold tracking-wide uppercase">
+                      Path 1: Direct message
+                    </p>
+                    <p className="text-sm font-medium">
+                      Buyer opens your catalog profile and can send an email
+                      message immediately.
+                    </p>
+                    <div className="relative max-w-sm">
+                      <ProfilePreviewCard
+                        title={profileNamePreview}
+                        description={profileDescriptionPreview}
+                        imageUrl={profileImagePreviewUrl}
+                        location={profileLocationPreview}
+                        variant="owned"
+                        ownershipBadge="Yours"
+                        footerAction={
+                          <Button type="button" className="w-full lg:w-auto">
+                            <MessageCircle className="h-4 w-4" />
+                            Contact this seller
+                          </Button>
+                        }
+                      />
                     </div>
-                  ))}
+                  </div>
+
+                  <div className="space-y-3">
+                    <p className="text-muted-foreground text-xs font-semibold tracking-wide uppercase">
+                      Path 2: Inquiry bundle
+                    </p>
+                    <p className="text-sm font-medium">
+                      Buyer opens your listing. If it has a price, they can add it
+                      to an inquiry bundle and send one email with item details.
+                    </p>
+                    <div className="relative max-w-sm">
+                      <ListingPreviewCard
+                        title={listingTitlePreview}
+                        description={listingDescriptionForBuyerContactPreview}
+                        price={listingPriceForBuyerContactPreview}
+                        linkedLabel={selectedCultivarName}
+                        hybridizerYear={
+                          selectedCultivarDetailsQuery.data
+                            ? [
+                                selectedCultivarDetailsQuery.data.hybridizer,
+                                selectedCultivarDetailsQuery.data.year,
+                              ]
+                                .filter(Boolean)
+                                .join(", ")
+                            : null
+                        }
+                        imageUrl={listingImagePreviewUrl}
+                        variant="owned"
+                        ownershipBadge="Your listing"
+                      />
+                    </div>
+                    <Button type="button" className="w-full lg:w-auto">
+                      <MessageCircle className="h-4 w-4" />
+                      Contact Seller (1 cart item)
+                    </Button>
+                  </div>
                 </div>
+
+                <p className="text-muted-foreground text-sm">
+                  Buyers do not pay on Daylily Catalog. They send an inquiry
+                  email (with or without bundled items), and you arrange payment
+                  and shipping directly.
+                </p>
+
+                <div className="space-y-3">
+                  <p className="text-sm font-semibold">What this enables</p>
+                  <div className="grid gap-3 lg:grid-cols-3">
+                    {ONBOARDING_BUYER_FLOW_BULLETS.map((bullet, index) => (
+                      <div
+                        key={bullet}
+                        className="bg-background rounded-lg border p-3"
+                      >
+                        <p className="text-muted-foreground text-xs font-semibold tracking-wide uppercase">
+                          Point {index + 1}
+                        </p>
+                        <p className="text-muted-foreground mt-1 text-sm leading-relaxed">
+                          {bullet}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
               </div>
-            </div>
+            )}
             <p className="text-muted-foreground text-sm">
               Next you can review optional Pro plans, or continue for now and go
               straight to your dashboard.
@@ -2618,7 +2846,7 @@ export function StartOnboardingPageClient({
                     </span>
                   </h2>
                   <p className="text-muted-foreground max-w-xl text-2xl leading-tight lg:text-3xl">
-                    Publish a clean catalog under your garden name and appear in
+                    Publish a clean catalog under your seller name and appear in
                     seller browsing, search, and cultivar pages where collectors
                     research varieties.
                   </p>
@@ -2643,13 +2871,14 @@ export function StartOnboardingPageClient({
                             ? ` (${membershipPriceDisplay.monthlyEquivalent}/mo)`
                             : ""
                         }`
-                      : "the full plan price shown in Stripe checkout before you confirm"}
+                      : "the starting Pro subscription price shown in Stripe subscription checkout before you confirm"}
                     . Cancel anytime.
                   </p>
                   {SUBSCRIPTION_CONFIG.FREE_TRIAL_DAYS > 0 ? (
                     <p className="text-muted-foreground text-xs">
-                      No charge now. Your {SUBSCRIPTION_CONFIG.FREE_TRIAL_DAYS}
-                      -day trial starts after you confirm in Stripe.
+                      No charge now. You&apos;ll be charged after your{" "}
+                      {SUBSCRIPTION_CONFIG.FREE_TRIAL_DAYS}-day trial ends if
+                      you haven&apos;t canceled.
                     </p>
                   ) : null}
                   {!membershipPriceDisplay ? (
@@ -2667,6 +2896,7 @@ export function StartOnboardingPageClient({
                     Continue for now
                   </Link>
                 </div>
+
               </div>
 
               <div className="bg-card rounded-[2rem] border p-6 shadow-sm lg:p-10">
@@ -2691,12 +2921,12 @@ export function StartOnboardingPageClient({
                     className="mt-4 text-4xl leading-tight font-semibold tracking-tight lg:text-5xl"
                     data-testid="start-membership-price"
                   >
-                    Pricing shown at checkout
+                    Starting price shown in Stripe
                   </p>
                 )}
 
                 <p className="text-muted-foreground mt-3 text-lg">
-                  Secure payments powered by Stripe.
+                  Secure subscription billing powered by Stripe.
                 </p>
 
                 {membershipPriceDisplay?.monthlyEquivalent ? (
@@ -3155,7 +3385,7 @@ function OnboardingSectionCard({
   children: React.ReactNode;
 }) {
   return (
-    <Card className={className}>
+    <Card className={cn("relative", className)}>
       <CardHeader>
         <CardTitle className={titleClassName}>{title}</CardTitle>
       </CardHeader>
@@ -3180,18 +3410,12 @@ function HotspotButton({
       type="button"
       onClick={onClick}
       className={cn(
-        "border-primary/60 bg-background/95 text-primary absolute z-20 inline-flex h-7 w-7 items-center justify-center rounded-full border shadow-md transition-transform hover:scale-105",
-        active && "ring-primary/25 ring-4",
+        "border-primary/50 bg-background/95 text-primary absolute z-20 inline-flex h-6 min-w-6 items-center justify-center rounded-md border px-1.5 shadow-sm transition hover:scale-[1.03]",
+        active && "bg-primary/10 ring-primary/20 ring-2",
         className,
       )}
     >
-      {active ? (
-        <span className="bg-primary relative inline-flex h-2.5 w-2.5 rounded-full">
-          <span className="bg-primary/50 absolute inline-flex h-full w-full animate-ping rounded-full" />
-        </span>
-      ) : (
-        <span className="bg-primary/80 inline-flex h-2.5 w-2.5 rounded-full" />
-      )}
+      <Pencil className="h-3.5 w-3.5" />
       <span className="sr-only">{label}</span>
     </button>
   );
@@ -3204,6 +3428,48 @@ function PreviewBullet({ text }: { text: string }) {
       <span>{text}</span>
     </p>
   );
+}
+
+function usePreviewImageSrc({
+  imageUrl,
+  fallbackUrl,
+}: {
+  imageUrl: string;
+  fallbackUrl: string;
+}) {
+  const [previewImageSrc, setPreviewImageSrc] = useState(fallbackUrl);
+
+  useEffect(() => {
+    const nextImageSrc = imageUrl.trim();
+    if (!nextImageSrc || nextImageSrc === fallbackUrl) {
+      setPreviewImageSrc(fallbackUrl);
+      return;
+    }
+
+    let isCancelled = false;
+    const loader = new window.Image();
+    loader.onload = () => {
+      if (isCancelled) {
+        return;
+      }
+      setPreviewImageSrc(nextImageSrc);
+    };
+    loader.onerror = () => {
+      if (isCancelled) {
+        return;
+      }
+      setPreviewImageSrc(fallbackUrl);
+    };
+    loader.src = nextImageSrc;
+
+    return () => {
+      isCancelled = true;
+      loader.onload = null;
+      loader.onerror = null;
+    };
+  }, [fallbackUrl, imageUrl]);
+
+  return previewImageSrc;
 }
 
 function ProfilePreviewCard({
@@ -3223,6 +3489,11 @@ function ProfilePreviewCard({
   ownershipBadge?: string;
   footerAction?: React.ReactNode;
 }) {
+  const previewImageSrc = usePreviewImageSrc({
+    imageUrl,
+    fallbackUrl: PROFILE_PLACEHOLDER_IMAGE,
+  });
+
   return (
     <div
       className={cn(
@@ -3233,7 +3504,7 @@ function ProfilePreviewCard({
     >
       <div className="relative aspect-square border-b">
         <Image
-          src={imageUrl}
+          src={previewImageSrc}
           alt={title}
           fill
           className="object-cover"
@@ -3290,6 +3561,12 @@ function ListingPreviewCard({
   ownershipBadge?: string;
 }) {
   const hasDescription = description.trim().length > 0;
+  const showAddToCartButton = variant === "owned" && price !== null;
+  const showMetadataRow = Boolean(linkedLabel) || showAddToCartButton;
+  const previewImageSrc = usePreviewImageSrc({
+    imageUrl,
+    fallbackUrl: ONBOARDING_LISTING_DEFAULTS.fallbackImageUrl,
+  });
 
   return (
     <div
@@ -3301,7 +3578,7 @@ function ListingPreviewCard({
     >
       <div className="bg-muted relative aspect-square border-b">
         <Image
-          src={imageUrl}
+          src={previewImageSrc}
           alt={title}
           fill
           className="object-cover"
@@ -3340,23 +3617,29 @@ function ListingPreviewCard({
             {description}
           </p>
         ) : null}
-        <div className="flex items-center justify-between gap-2">
-          <div className="text-muted-foreground inline-flex items-center gap-1 text-xs">
-            <Link2 className="h-3.5 w-3.5" />
-            {linkedLabel ? `Linked: ${linkedLabel}` : "Inquiry only"}
+        {showMetadataRow ? (
+          <div className="flex items-center justify-between gap-2">
+            {linkedLabel ? (
+              <div className="text-muted-foreground inline-flex items-center gap-1 text-xs">
+                <Link2 className="h-3.5 w-3.5" />
+                {`Linked: ${linkedLabel}`}
+              </div>
+            ) : (
+              <span />
+            )}
+            {showAddToCartButton ? (
+              <Button
+                type="button"
+                size="sm"
+                variant="secondary"
+                className="h-7 px-2 text-xs"
+              >
+                <ShoppingCart className="mr-1 h-3.5 w-3.5" />
+                Add to cart
+              </Button>
+            ) : null}
           </div>
-          {variant === "owned" && price !== null ? (
-            <Button
-              type="button"
-              size="sm"
-              variant="secondary"
-              className="h-7 px-2 text-xs"
-            >
-              <ShoppingCart className="mr-1 h-3.5 w-3.5" />
-              Add to cart
-            </Button>
-          ) : null}
-        </div>
+        ) : null}
       </div>
     </div>
   );

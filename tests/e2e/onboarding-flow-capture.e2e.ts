@@ -160,49 +160,72 @@ function logCaptureStep(label: string) {
 
 async function clickPrimaryAction(page: Page) {
   const primaryActionButton = page.getByTestId("start-onboarding-primary-action");
+  const hasPrimaryAction = (await primaryActionButton.count()) > 0;
+  if (!hasPrimaryAction) {
+    return false;
+  }
 
+  const primaryButton = primaryActionButton.first();
+  await primaryButton.scrollIntoViewIfNeeded();
   try {
-    await primaryActionButton.click({ timeout: 1500 });
+    await primaryButton.click({ timeout: 1500 });
+    return true;
   } catch {
-    await primaryActionButton.evaluate((buttonElement) => {
-      buttonElement.scrollIntoView({ block: "nearest" });
-      (buttonElement as HTMLButtonElement).click();
-    });
+    return false;
   }
 }
 
-async function ensureListingBuilderVisible(page: Page) {
-  const listingSelectorButton = page.locator("#ahs-listing-select");
-  const listingStepTitle = page.getByText("Build your first listing", {
-    exact: true,
-  });
-  const buildListingButton = page.getByRole("button", {
-    name: "Build my first listing",
-  });
-
-  for (let attempt = 0; attempt < 5; attempt += 1) {
-    if (await listingStepTitle.isVisible().catch(() => false)) {
+async function fillInputWithRetry({
+  page,
+  selector,
+  value,
+}: {
+  page: Page;
+  selector: string;
+  value: string;
+}) {
+  const input = page.locator(selector);
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    await input.click();
+    await input.fill("");
+    await input.type(value, { delay: 20 });
+    if ((await input.inputValue()) === value) {
       return;
     }
-
-    if (await listingSelectorButton.isVisible().catch(() => false)) {
-      return;
-    }
-
-    if (await buildListingButton.isVisible().catch(() => false)) {
-      logCaptureStep("Step 2 visible, advancing");
-      await clickPrimaryAction(page);
-      await page.waitForTimeout(250);
-      continue;
-    }
-
-    await page.waitForTimeout(250);
+    await page.waitForTimeout(120);
   }
 
-  await Promise.any([
-    listingStepTitle.waitFor({ state: "visible" }),
-    listingSelectorButton.waitFor({ state: "visible" }),
-  ]);
+  throw new Error(`Unable to set ${selector} to "${value}" during capture flow`);
+}
+
+async function ensureProfileSaveAdvanced(page: Page) {
+  const profileEditorHeading = page.getByText("Edit your profile", {
+    exact: true,
+  });
+  const catalogPreviewHeading = page.getByText("Catalog discovery preview", {
+    exact: true,
+  });
+  const listingBuilderHeading = page.getByText("Edit your first listing", {
+    exact: true,
+  });
+
+  for (let attempt = 0; attempt < 25; attempt += 1) {
+    if (await catalogPreviewHeading.isVisible().catch(() => false)) {
+      return;
+    }
+
+    if (await listingBuilderHeading.isVisible().catch(() => false)) {
+      return;
+    }
+
+    if (await profileEditorHeading.isVisible().catch(() => false)) {
+      await clickPrimaryAction(page);
+    }
+
+    await page.waitForTimeout(300);
+  }
+
+  throw new Error("Profile save did not advance to the next onboarding step");
 }
 
 test.describe("onboarding flow screenshot capture @capture", () => {
@@ -260,11 +283,9 @@ test.describe("onboarding flow screenshot capture @capture", () => {
 
     // Wait until profile data is available in onboarding before attempting save.
     logCaptureStep("Wait for onboarding profile readiness");
-    await page.getByRole("button", { name: "Upload your own image" }).click();
     await page
-      .getByText(/drag and drop an image here, or click to select one/i)
+      .locator('[data-testid="start-onboarding-page"][data-profile-ready="true"]')
       .waitFor({ state: "visible" });
-    await page.getByRole("button", { name: "Use a starter image" }).click();
 
     logCaptureStep("Fill profile card fields");
     await page.locator("#garden-name").fill("Sunrise Daylily Farm");
@@ -273,7 +294,10 @@ test.describe("onboarding flow screenshot capture @capture", () => {
     if ((await starterOverlayCheckbox.getAttribute("aria-checked")) === "true") {
       await starterOverlayCheckbox.click();
     }
-    await page.getByRole("button", { name: /bouquet/i }).first().click();
+    await page
+      .locator('[data-testid="start-onboarding-page"] .overflow-x-auto button')
+      .first()
+      .click();
     await page.locator("#garden-description").fill(
       "Family-grown daylilies with seasonal shipping and collector-focused descriptions.",
     );
@@ -284,8 +308,14 @@ test.describe("onboarding flow screenshot capture @capture", () => {
     });
 
     logCaptureStep("Go to profile preview");
-    await clickPrimaryAction(page);
-    await page.getByRole("button", { name: "Build my first listing" }).waitFor();
+    await ensureProfileSaveAdvanced(page);
+
+    await page.goto("/onboarding?step=preview-profile-card", {
+      waitUntil: "domcontentloaded",
+    });
+    await page.getByText("Catalog discovery preview", { exact: true }).waitFor({
+      state: "visible",
+    });
 
     await saveCapture({
       page,
@@ -297,43 +327,79 @@ test.describe("onboarding flow screenshot capture @capture", () => {
       .getByTestId("start-onboarding-primary-action")
       .waitFor({ state: "visible" });
 
-    logCaptureStep("Advance to listing builder");
-    await clickPrimaryAction(page);
-    logCaptureStep("Waiting for cultivar selector");
-    await ensureListingBuilderVisible(page);
-    logCaptureStep("Cultivar selector ready");
+    logCaptureStep("Open listing builder step directly");
+    await page.goto("/onboarding?step=build-listing-card", {
+      waitUntil: "domcontentloaded",
+    });
+    await page.getByText("Edit your first listing", { exact: true }).waitFor({
+      state: "visible",
+    });
+    await page.locator("#listing-title").waitFor({ state: "visible" });
+    await page.getByText("Selected cultivar", { exact: false }).waitFor({
+      state: "visible",
+    });
 
     logCaptureStep("Fill listing card fields");
-    await page
-      .getByText("Selected cultivar", { exact: false })
-      .first()
-      .waitFor({ state: "visible", timeout: 12000 });
-    logCaptureStep("Default cultivar selected");
-
-    await page.locator("#listing-title").fill("Stella de Oro spring fan");
-    await page.locator("#listing-price").fill("25");
-    await page.locator("#listing-description").fill(
-      "Healthy spring fan with strong roots and bright rebloom potential.",
-    );
+    await fillInputWithRetry({
+      page,
+      selector: "#listing-title",
+      value: "Stella de Oro spring fan",
+    });
+    await fillInputWithRetry({
+      page,
+      selector: "#listing-price",
+      value: "25",
+    });
+    await page.keyboard.press("Tab");
+    await fillInputWithRetry({
+      page,
+      selector: "#listing-description",
+      value: "Healthy spring fan with strong roots and bright rebloom potential.",
+    });
 
     await saveCapture({
       page,
       label: "onboarding-step-3-listing-builder-complete",
     });
 
-    logCaptureStep("Go to listing preview");
+    logCaptureStep("Save listing step before preview captures");
     await clickPrimaryAction(page);
-    await page.getByRole("button", { name: "Show buyer inquiry flow" }).waitFor();
+    await Promise.any([
+      page.getByText("Finished listing card preview").waitFor({ state: "visible" }),
+      page
+        .getByRole("heading", { name: "How buyers contact you" })
+        .waitFor({ state: "visible" }),
+      page.getByTestId("start-membership-page").waitFor({ state: "visible" }),
+    ]);
+
+    logCaptureStep("Open listing preview step directly");
+    await page.goto("/onboarding?step=preview-listing-card", {
+      waitUntil: "domcontentloaded",
+    });
+    await page.getByText("Finished listing card preview").waitFor({
+      state: "visible",
+    });
+    await page.getByText("Are you happy with your listing?").waitFor({
+      state: "visible",
+    });
 
     await saveCapture({
       page,
       label: "onboarding-step-4-listing-preview",
     });
 
-    logCaptureStep("Go to buyer inquiry flow preview");
-    await clickPrimaryAction(page);
+    logCaptureStep("Open buyer inquiry flow step directly");
+    await page.goto("/onboarding?step=preview-buyer-contact", {
+      waitUntil: "domcontentloaded",
+    });
     await page
       .getByRole("heading", { name: "How buyers contact you" })
+      .waitFor({ state: "visible" });
+    await page
+      .getByRole("button", { name: "Contact this seller" })
+      .waitFor({ state: "visible" });
+    await page
+      .getByRole("button", { name: /Contact Seller \(1 .*item\)/i })
       .waitFor({ state: "visible" });
 
     await saveCapture({
@@ -341,8 +407,10 @@ test.describe("onboarding flow screenshot capture @capture", () => {
       label: "onboarding-step-5-buyer-inquiry-flow",
     });
 
-    logCaptureStep("Go to membership step");
-    await clickPrimaryAction(page);
+    logCaptureStep("Open membership step directly");
+    await page.goto("/onboarding?step=start-membership", {
+      waitUntil: "domcontentloaded",
+    });
     await page.getByTestId("start-membership-page").waitFor({ state: "visible" });
 
     await saveCapture({
