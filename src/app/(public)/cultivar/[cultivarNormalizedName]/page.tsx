@@ -13,7 +13,6 @@ import { CultivarPageRoot, CultivarPageSection } from "./_components/cultivar-pa
 import { CultivarHeroSection } from "./_components/cultivar-hero-section";
 import { CultivarGardenPhotosSection } from "./_components/cultivar-garden-photos-section";
 import { CultivarOffersSection } from "./_components/cultivar-offers-section";
-import { CultivarRelatedSection } from "./_components/cultivar-related-section";
 import { Muted } from "@/components/typography";
 
 // CACHE_LITERAL_REF: CACHE_CONFIG.PUBLIC.STATIC_REVALIDATE_SECONDS
@@ -78,12 +77,15 @@ function getCultivarJsonLd(
           offers: productOffers,
         }
       : {}),
+    // TODO: Re-enable related-cultivar links after optimizing cultivar-page fan-out.
+    /*
     isRelatedTo: cultivarPage.relatedByHybridizer.map((cultivar) => ({
       "@type": "Product",
       name: cultivar.name,
       url: `${baseUrl}/cultivar/${cultivar.segment}`,
       image: cultivar.imageUrl,
     })),
+    */
   };
 }
 
@@ -198,12 +200,15 @@ export default async function CultivarPage({ params }: PageProps) {
             <CultivarOffersSection offers={cultivarPage.offers} />
           </CultivarPageSection>
 
+          {/* TODO: Re-enable after optimizing related-hybridizer fan-out on cultivar pages. */}
+          {/*
           <CultivarPageSection>
             <CultivarRelatedSection
               relatedCultivars={cultivarPage.relatedByHybridizer}
               hybridizer={cultivarPage.summary.hybridizer}
             />
           </CultivarPageSection>
+          */}
 
           <footer id="cultivar-metadata" className="space-y-2 border-t pt-6">
             <Muted>

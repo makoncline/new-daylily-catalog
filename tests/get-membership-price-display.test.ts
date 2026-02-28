@@ -1,7 +1,7 @@
 // @vitest-environment node
 
 import { describe, expect, it } from "vitest";
-import { formatMembershipPriceDisplay } from "@/server/stripe/get-membership-price-display";
+import { formatMembershipPriceDisplay } from "@/server/stripe/membership-price-display";
 
 describe("formatMembershipPriceDisplay", () => {
   it("formats whole-dollar monthly prices without decimals", () => {
