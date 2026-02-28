@@ -1,6 +1,9 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import { StartOnboardingPageClient } from "../start-onboarding/start-onboarding-page-client";
 import { getMembershipPriceDisplay } from "@/server/stripe/get-membership-price-display";
+
+export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   title: "Set Up Your Catalog",
@@ -19,6 +22,10 @@ export const metadata: Metadata = {
 export default async function OnboardingPage() {
   const membershipPriceDisplay = await getMembershipPriceDisplay();
   return (
-    <StartOnboardingPageClient membershipPriceDisplay={membershipPriceDisplay} />
+    <Suspense>
+      <StartOnboardingPageClient
+        membershipPriceDisplay={membershipPriceDisplay}
+      />
+    </Suspense>
   );
 }
