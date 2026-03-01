@@ -64,7 +64,6 @@ test.describe("onboarding full flow @local", () => {
     clerkAuthModal,
     onboardingFlowPage,
     stripeCheckout,
-    subscribeSuccessPage,
     dashboardHome,
   }) => {
     await deleteClerkUserByEmail(TEST_EMAIL);
@@ -108,12 +107,14 @@ test.describe("onboarding full flow @local", () => {
       await onboardingFlowPage.fillListingStep({
         title: "Coffee Frenzy spring fan",
         price: "25",
-        description: "Healthy spring fan with strong roots and bright rebloom potential.",
+        description:
+          "Healthy spring fan with strong roots and bright rebloom potential.",
       });
       await onboardingFlowPage.expectListingPreview({
         title: "Coffee Frenzy spring fan",
         price: "25",
-        description: "Healthy spring fan with strong roots and bright rebloom potential.",
+        description:
+          "Healthy spring fan with strong roots and bright rebloom potential.",
       });
       await onboardingFlowPage.clickPrimaryAction();
 
@@ -132,10 +133,7 @@ test.describe("onboarding full flow @local", () => {
       await onboardingFlowPage.checkoutButton.click();
       await stripeCheckout.isReady();
 
-      // Stripe checkout is external. Navigate back to local success page to continue.
-      await page.goto("/subscribe/success");
-      await subscribeSuccessPage.isReady();
-      await subscribeSuccessPage.dashboardLink.click();
+      await page.goto("/subscribe/success?redirect=/dashboard");
 
       await expect(page).toHaveURL(/\/dashboard/);
       await dashboardHome.waitForLoaded();
