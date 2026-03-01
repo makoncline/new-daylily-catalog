@@ -133,6 +133,84 @@ describe("dashboardDb public ISR invalidation", () => {
     expect(revalidatePathMock).toHaveBeenCalledWith("/cultivar/lime-frosting");
   });
 
+  it("listing.create invalidates the user's pages, catalogs index, and linked cultivar page", async () => {
+    const db = {
+      cultivarReference: {
+        findUnique: vi.fn().mockResolvedValue({
+          id: "cr-1",
+          normalizedName: "happy returns",
+        }),
+      },
+      listing: {
+        findFirst: vi.fn().mockResolvedValue(null),
+        create: vi.fn().mockResolvedValue({
+          id: "listing-1",
+          userId: "user-1",
+          title: "Happy Returns Division",
+          slug: "happy-returns-division",
+          price: null,
+          description: null,
+          privateNote: null,
+          status: null,
+          createdAt: new Date("2026-01-01T00:00:00.000Z"),
+          updatedAt: new Date("2026-01-01T00:00:00.000Z"),
+          cultivarReferenceId: "cr-1",
+        }),
+      },
+      userProfile: {
+        findUnique: vi.fn().mockResolvedValue({ slug: "garden" }),
+      },
+    };
+
+    const caller = dashboardDbListingRouter.createCaller(createContext(db));
+    await caller.create({
+      title: "Happy Returns Division",
+      cultivarReferenceId: "cr-1",
+    });
+
+    expect(revalidatePathMock).toHaveBeenCalledWith("/garden");
+    expect(revalidatePathMock).toHaveBeenCalledWith("/garden/page/[page]", "page");
+    expect(revalidatePathMock).toHaveBeenCalledWith("/garden/search");
+    expect(revalidatePathMock).toHaveBeenCalledWith("/catalogs");
+    expect(revalidatePathMock).toHaveBeenCalledWith("/cultivar/happy-returns");
+  });
+
+  it("listing.delete invalidates the user's pages, catalogs index, and the linked cultivar page", async () => {
+    const txListingDelete = vi.fn().mockResolvedValue(undefined);
+    const txListUpdateMany = vi.fn().mockResolvedValue({ count: 0 });
+    const db = {
+      listing: {
+        findFirst: vi.fn().mockResolvedValue({
+          id: "listing-1",
+          cultivarReference: { normalizedName: "happy returns" },
+        }),
+      },
+      list: {
+        findMany: vi.fn().mockResolvedValue([]),
+      },
+      userProfile: {
+        findUnique: vi.fn().mockResolvedValue({ slug: "garden" }),
+      },
+      $transaction: vi.fn(async (callback: (tx: unknown) => Promise<void>) => {
+        await callback({
+          listing: { delete: txListingDelete },
+          list: { updateMany: txListUpdateMany },
+        });
+      }),
+    };
+
+    const caller = dashboardDbListingRouter.createCaller(createContext(db));
+    await caller.delete({
+      id: "listing-1",
+    });
+
+    expect(revalidatePathMock).toHaveBeenCalledWith("/garden");
+    expect(revalidatePathMock).toHaveBeenCalledWith("/garden/page/[page]", "page");
+    expect(revalidatePathMock).toHaveBeenCalledWith("/garden/search");
+    expect(revalidatePathMock).toHaveBeenCalledWith("/catalogs");
+    expect(revalidatePathMock).toHaveBeenCalledWith("/cultivar/happy-returns");
+  });
+
   it("list.update invalidates the user's pages, catalogs index, and linked cultivars in that list", async () => {
     const db = {
       list: {
@@ -173,5 +251,70 @@ describe("dashboardDb public ISR invalidation", () => {
     expect(revalidatePathMock).toHaveBeenCalledWith("/catalogs");
     expect(revalidatePathMock).toHaveBeenCalledWith("/cultivar/happy-returns");
     expect(revalidatePathMock).toHaveBeenCalledWith("/cultivar/lime-frosting");
+  });
+
+  it("list.create invalidates the user's pages and catalogs index", async () => {
+    const db = {
+      list: {
+        create: vi.fn().mockResolvedValue({
+          id: "list-1",
+          userId: "user-1",
+          title: "Favorites",
+          description: null,
+          status: null,
+          createdAt: new Date("2026-01-01T00:00:00.000Z"),
+          updatedAt: new Date("2026-01-01T00:00:00.000Z"),
+          listings: [],
+        }),
+      },
+      userProfile: {
+        findUnique: vi.fn().mockResolvedValue({ slug: "garden" }),
+      },
+    };
+
+    const caller = dashboardDbListRouter.createCaller(createContext(db));
+    await caller.create({
+      title: "Favorites",
+    });
+
+    expect(revalidatePathMock).toHaveBeenCalledWith("/garden");
+    expect(revalidatePathMock).toHaveBeenCalledWith("/garden/page/[page]", "page");
+    expect(revalidatePathMock).toHaveBeenCalledWith("/garden/search");
+    expect(revalidatePathMock).toHaveBeenCalledWith("/catalogs");
+    expect(
+      revalidatePathMock.mock.calls.some((call) =>
+        typeof call[0] === "string" ? call[0].startsWith("/cultivar/") : false,
+      ),
+    ).toBe(false);
+  });
+
+  it("list.delete invalidates the user's pages and catalogs index", async () => {
+    const db = {
+      list: {
+        findFirst: vi.fn().mockResolvedValue({
+          id: "list-1",
+          _count: { listings: 0 },
+        }),
+        delete: vi.fn().mockResolvedValue({ id: "list-1" }),
+      },
+      userProfile: {
+        findUnique: vi.fn().mockResolvedValue({ slug: "garden" }),
+      },
+    };
+
+    const caller = dashboardDbListRouter.createCaller(createContext(db));
+    await caller.delete({
+      id: "list-1",
+    });
+
+    expect(revalidatePathMock).toHaveBeenCalledWith("/garden");
+    expect(revalidatePathMock).toHaveBeenCalledWith("/garden/page/[page]", "page");
+    expect(revalidatePathMock).toHaveBeenCalledWith("/garden/search");
+    expect(revalidatePathMock).toHaveBeenCalledWith("/catalogs");
+    expect(
+      revalidatePathMock.mock.calls.some((call) =>
+        typeof call[0] === "string" ? call[0].startsWith("/cultivar/") : false,
+      ),
+    ).toBe(false);
   });
 });

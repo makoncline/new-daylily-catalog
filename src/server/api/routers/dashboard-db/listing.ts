@@ -27,12 +27,18 @@ export const dashboardDbListingRouter = createTRPCRouter({
       }),
     )
     .mutation(async ({ ctx, input }) => {
+      let cultivarReference: { id: string; normalizedName: string | null } | null =
+        null;
+
       if (input.cultivarReferenceId) {
-        const exists = await ctx.db.cultivarReference.findUnique({
+        cultivarReference = await ctx.db.cultivarReference.findUnique({
           where: { id: input.cultivarReferenceId },
-          select: { id: true },
+          select: {
+            id: true,
+            normalizedName: true,
+          },
         });
-        if (!exists) {
+        if (!cultivarReference) {
           throw new TRPCError({
             code: "NOT_FOUND",
             message: "Cultivar reference not found",
@@ -47,7 +53,7 @@ export const dashboardDbListingRouter = createTRPCRouter({
         ctx.db,
       );
 
-      return ctx.db.listing.create({
+      const listing = await ctx.db.listing.create({
         data: {
           userId: ctx.user.id,
           title: input.title,
@@ -56,6 +62,14 @@ export const dashboardDbListingRouter = createTRPCRouter({
         },
         select: listingSelect,
       });
+
+      await invalidatePublicIsrForCatalogMutation({
+        db: ctx.db,
+        userId: ctx.user.id,
+        cultivarNormalizedNames: [cultivarReference?.normalizedName],
+      });
+
+      return listing;
     }),
 
   get: protectedProcedure
@@ -272,7 +286,14 @@ export const dashboardDbListingRouter = createTRPCRouter({
     .mutation(async ({ ctx, input }) => {
       const listing = await ctx.db.listing.findFirst({
         where: { id: input.id, userId: ctx.user.id },
-        select: { id: true },
+        select: {
+          id: true,
+          cultivarReference: {
+            select: {
+              normalizedName: true,
+            },
+          },
+        },
       });
       if (!listing) {
         throw new TRPCError({ code: "NOT_FOUND", message: "Listing not found" });
@@ -300,6 +321,12 @@ export const dashboardDbListingRouter = createTRPCRouter({
             data: { updatedAt: new Date() },
           });
         }
+      });
+
+      await invalidatePublicIsrForCatalogMutation({
+        db: ctx.db,
+        userId: ctx.user.id,
+        cultivarNormalizedNames: [listing.cultivarReference?.normalizedName],
       });
 
       return { id: listing.id } as const;

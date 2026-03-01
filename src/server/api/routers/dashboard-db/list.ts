@@ -28,7 +28,7 @@ export const dashboardDbListRouter = createTRPCRouter({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      return ctx.db.list.create({
+      const list = await ctx.db.list.create({
         data: {
           userId: ctx.user.id,
           title: input.title,
@@ -36,6 +36,14 @@ export const dashboardDbListRouter = createTRPCRouter({
         },
         select: listSelect,
       });
+
+      await invalidatePublicIsrForCatalogMutation({
+        db: ctx.db,
+        userId: ctx.user.id,
+        cultivarNormalizedNames: [],
+      });
+
+      return list;
     }),
 
   get: protectedProcedure
@@ -146,6 +154,13 @@ export const dashboardDbListRouter = createTRPCRouter({
       }
 
       await ctx.db.list.delete({ where: { id: list.id } });
+
+      await invalidatePublicIsrForCatalogMutation({
+        db: ctx.db,
+        userId: ctx.user.id,
+        cultivarNormalizedNames: [],
+      });
+
       return { id: list.id } as const;
     }),
 

@@ -2,6 +2,7 @@
 
 ## Log
 
+- 2026-03-01 - mutation coverage gap correction - Public ISR invalidation must include create/delete flows, not only update mutations; added `listing.create`, `listing.delete`, `list.create`, and `list.delete` hooks.
 - 2026-03-01 - self-miss test-runtime revalidate invariant - Direct `revalidatePath` inside mutation routers broke non-Next test callers (`static generation store missing in revalidatePath`); wrap with a test-safe helper that no-ops only for that invariant under `NODE_ENV=test`.
 - 2026-03-01 - user refresh-boundary preference - Manual refresh on public catalog search should only refresh client-side persisted/search data; server cache invalidation must remain mutation-only.
 - 2026-03-01 - self-miss public nested path quoting - I ran `sed` on `src/app/(public)/[userSlugOrId]/_components/catalog-search-header.tsx` without quotes and triggered zsh glob expansion; always quote paths containing `()` and `[]`.
