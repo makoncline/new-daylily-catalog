@@ -1,21 +1,17 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { UserProfile } from "@clerk/nextjs";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import { useIsHydrated } from "@/hooks/use-is-hydrated";
 import { atom, useAtom } from "jotai";
 
 export const isClerkUserProfileOpenAtom = atom(false);
 
 export function ClerkUserProfileDialog() {
   const [isOpen, setIsOpen] = useAtom(isClerkUserProfileOpenAtom);
-  const [isMounted, setIsMounted] = useState(false);
+  const isHydrated = useIsHydrated();
 
-  useEffect(() => {
-    setIsMounted(true);
-  }, []);
-
-  if (!isMounted) {
+  if (!isHydrated) {
     return null;
   }
 
