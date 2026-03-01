@@ -30,63 +30,15 @@ export class ClerkAuthModal {
       return;
     }
 
+    await this.emailInput.waitFor({ state: "visible", timeout: 8000 });
+
     if (await this.signUpLink.isVisible().catch(() => false)) {
       await this.signUpLink.click();
       await Promise.any([
         this.createAccountHeading.waitFor({ state: "visible", timeout: 8000 }),
         this.emailInput.waitFor({ state: "visible", timeout: 8000 }),
       ]);
-      return;
     }
-
-    if (await this.emailInput.isVisible().catch(() => false)) {
-      return;
-    }
-
-    const visibleTarget = await Promise.any([
-      this.codeInput
-        .waitFor({ state: "visible", timeout: 8000 })
-        .then(() => "code"),
-      this.emailInput
-        .waitFor({ state: "visible", timeout: 8000 })
-        .then(() => "email"),
-      this.createAccountHeading
-        .waitFor({ state: "visible", timeout: 8000 })
-        .then(() => "heading"),
-      this.signUpLink
-        .waitFor({ state: "visible", timeout: 8000 })
-        .then(() => "signup-link"),
-    ]).catch(() => null);
-
-    if (visibleTarget === "code") {
-      return;
-    }
-
-    if (visibleTarget === "heading") {
-      return;
-    }
-
-    if (visibleTarget === "signup-link") {
-      await this.signUpLink.click();
-      await Promise.any([
-        this.createAccountHeading.waitFor({ state: "visible", timeout: 8000 }),
-        this.emailInput.waitFor({ state: "visible", timeout: 8000 }),
-      ]);
-      return;
-    }
-
-    if (visibleTarget === "email") {
-      if (await this.signUpLink.isVisible().catch(() => false)) {
-        await this.signUpLink.click();
-        await Promise.any([
-          this.createAccountHeading.waitFor({ state: "visible", timeout: 8000 }),
-          this.emailInput.waitFor({ state: "visible", timeout: 8000 }),
-        ]);
-      }
-      return;
-    }
-
-    throw new Error("Unable to find Clerk sign-up entry state.");
   }
 
   async signUpWithEmail(email: string, code: string) {
