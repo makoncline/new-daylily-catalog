@@ -1,6 +1,8 @@
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { protectedProcedure, createTRPCRouter } from "@/server/api/trpc";
+import { isPublished } from "@/server/db/public-visibility/filters";
+import { invalidatePublicIsrForCatalogMutation } from "./public-isr-invalidation";
 
 const listSelect = {
   id: true,
@@ -26,7 +28,7 @@ export const dashboardDbListRouter = createTRPCRouter({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      return ctx.db.list.create({
+      const list = await ctx.db.list.create({
         data: {
           userId: ctx.user.id,
           title: input.title,
@@ -34,6 +36,14 @@ export const dashboardDbListRouter = createTRPCRouter({
         },
         select: listSelect,
       });
+
+      await invalidatePublicIsrForCatalogMutation({
+        db: ctx.db,
+        userId: ctx.user.id,
+        cultivarNormalizedNames: [],
+      });
+
+      return list;
     }),
 
   get: protectedProcedure
@@ -89,10 +99,38 @@ export const dashboardDbListRouter = createTRPCRouter({
       if (result.count === 0) {
         throw new TRPCError({ code: "NOT_FOUND", message: "List not found" });
       }
-      return ctx.db.list.findUnique({
-        where: { id: input.id },
-        select: listSelect,
+
+      const [list, linkedCultivars] = await Promise.all([
+        ctx.db.list.findUnique({
+          where: { id: input.id },
+          select: listSelect,
+        }),
+        ctx.db.listing.findMany({
+          where: {
+            userId: ctx.user.id,
+            lists: { some: { id: input.id } },
+            cultivarReferenceId: { not: null },
+            ...isPublished(),
+          },
+          select: {
+            cultivarReference: {
+              select: {
+                normalizedName: true,
+              },
+            },
+          },
+        }),
+      ]);
+
+      await invalidatePublicIsrForCatalogMutation({
+        db: ctx.db,
+        userId: ctx.user.id,
+        cultivarNormalizedNames: linkedCultivars.map(
+          (row) => row.cultivarReference?.normalizedName,
+        ),
       });
+
+      return list;
     }),
 
   delete: protectedProcedure
@@ -116,6 +154,13 @@ export const dashboardDbListRouter = createTRPCRouter({
       }
 
       await ctx.db.list.delete({ where: { id: list.id } });
+
+      await invalidatePublicIsrForCatalogMutation({
+        db: ctx.db,
+        userId: ctx.user.id,
+        cultivarNormalizedNames: [],
+      });
+
       return { id: list.id } as const;
     }),
 
@@ -185,4 +230,3 @@ export const dashboardDbListRouter = createTRPCRouter({
     return ctx.db.list.count({ where: { userId: ctx.user.id } });
   }),
 });
-

@@ -6,6 +6,7 @@ import { getErrorCode, tryCatch } from "@/lib/utils";
 import { CatalogSeoListings } from "./_components/catalog-seo-listings";
 import { ProfileContent } from "./_components/profile-content";
 import { ProfilePageSEO } from "./_components/profile-seo";
+import { IsrWrittenAt } from "../_components/isr-written-at";
 import {
   getPublicProfilePageData,
   getPublicProfileStaticParams,
@@ -13,8 +14,7 @@ import {
 import { generatePaginatedProfileMetadata } from "./_seo/paginated-metadata";
 import { generateProfileMetadata } from "./_seo/metadata";
 
-// CACHE_LITERAL_REF: CACHE_CONFIG.PUBLIC.STATIC_REVALIDATE_SECONDS
-export const revalidate = 86400;
+export const revalidate = false;
 export const dynamic = "force-static";
 export const dynamicParams = true;
 
@@ -123,6 +123,8 @@ export default async function Page({ params }: PageProps) {
           />
 
         </div>
+
+        <IsrWrittenAt />
       </MainContent>
     </>
   );

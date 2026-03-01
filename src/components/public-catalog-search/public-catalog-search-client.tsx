@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { toast } from "sonner";
 import { ViewListingDialog } from "@/components/view-listing-dialog";
 import { withPublicClientQueryCache } from "@/lib/cache/client-cache";
 import {
@@ -29,6 +30,7 @@ export function PublicCatalogSearchClient({
   const [isSnapshotCheckDone, setIsSnapshotCheckDone] = useState(
     !PUBLIC_CATALOG_SEARCH_PERSISTED_SWR.enabled,
   );
+  const [isRefreshingCatalogData, setIsRefreshingCatalogData] = useState(false);
   const queryInput = useMemo(
     () => ({
       userSlugOrId,
@@ -134,6 +136,36 @@ export function PublicCatalogSearchClient({
     return sortTitlesLettersBeforeNumbers(Array.from(uniqueListings.values()));
   })();
 
+  const handleRefreshCatalogData = async () => {
+    if (isRefreshingCatalogData) {
+      return;
+    }
+
+    setIsRefreshingCatalogData(true);
+
+    try {
+      const refreshedSnapshot = await prefetchAndPersistPublicCatalogSearchSnapshot({
+        userId,
+        userSlugOrId,
+        force: true,
+      });
+
+      if (refreshedSnapshot) {
+        utils.public.getListings.setInfiniteData(queryInput, () =>
+          snapshotToInfiniteData(refreshedSnapshot),
+        );
+        toast.success("Catalog search data refreshed");
+        return;
+      }
+
+      toast.error("Unable to refresh catalog search data");
+    } catch {
+      toast.error("Unable to refresh catalog search data");
+    } finally {
+      setIsRefreshingCatalogData(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <PublicCatalogSearchContent
@@ -141,6 +173,8 @@ export function PublicCatalogSearchClient({
         listings={listings}
         isLoading={isFetchingNextPage}
         totalListingsCount={totalListingsCount}
+        isRefreshingCatalogData={isRefreshingCatalogData}
+        onRefreshCatalogData={() => void handleRefreshCatalogData()}
       />
 
       <ViewListingDialog listings={listings} />
