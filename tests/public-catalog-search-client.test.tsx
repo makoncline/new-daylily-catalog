@@ -1,4 +1,4 @@
-import { render, waitFor } from "@testing-library/react";
+import { act, render, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { PublicCatalogSearchClient } from "@/components/public-catalog-search/public-catalog-search-client";
 import { type PublicCatalogListing } from "@/components/public-catalog-search/public-catalog-search-types";
@@ -7,6 +7,10 @@ const mockUseInfiniteQuery = vi.hoisted(() => vi.fn());
 const mockFetchNextPage = vi.hoisted(() => vi.fn());
 const mockRenderSearchContent = vi.hoisted(() => vi.fn());
 const mockSetInfiniteData = vi.hoisted(() => vi.fn());
+const mockInvalidate = vi.hoisted(() => vi.fn());
+const mockPrefetchSnapshot = vi.hoisted(() => vi.fn());
+const mockSnapshotToInfiniteData = vi.hoisted(() => vi.fn());
+const mockToastSuccess = vi.hoisted(() => vi.fn());
 
 vi.mock("@/trpc/react", () => ({
   api: {
@@ -14,6 +18,7 @@ vi.mock("@/trpc/react", () => ({
       public: {
         getListings: {
           setInfiniteData: mockSetInfiniteData,
+          invalidate: mockInvalidate,
         },
       },
     }),
@@ -33,10 +38,17 @@ vi.mock("@/lib/public-catalog-search-persistence", () => ({
   readPublicCatalogSearchSnapshot: vi.fn(),
   isPublicCatalogSearchSnapshotUsable: vi.fn(),
   shouldRevalidatePublicCatalogSearchSnapshot: vi.fn(),
-  prefetchAndPersistPublicCatalogSearchSnapshot: vi.fn(),
-  snapshotToInfiniteData: vi.fn(),
+  prefetchAndPersistPublicCatalogSearchSnapshot: mockPrefetchSnapshot,
+  snapshotToInfiniteData: mockSnapshotToInfiniteData,
   createPublicCatalogSearchSnapshotFromInfiniteData: vi.fn(),
   writePublicCatalogSearchSnapshot: vi.fn(),
+}));
+
+vi.mock("sonner", () => ({
+  toast: {
+    success: mockToastSuccess,
+    error: vi.fn(),
+  },
 }));
 
 vi.mock("@/components/public-catalog-search/public-catalog-search-content", () => ({
@@ -59,6 +71,8 @@ function getRenderedContentProps() {
 
   return props as {
     listings: Array<{ id: string; title: string }>;
+    isRefreshingCatalogData: boolean;
+    onRefreshCatalogData: (() => void) | undefined;
   };
 }
 
@@ -77,6 +91,10 @@ describe("PublicCatalogSearchClient", () => {
       isFetchingNextPage: false,
     });
     mockSetInfiniteData.mockReset();
+    mockInvalidate.mockReset();
+    mockPrefetchSnapshot.mockReset();
+    mockSnapshotToInfiniteData.mockReset();
+    mockToastSuccess.mockReset();
   });
 
   it("falls back to initial listings when query data is not available", () => {
@@ -160,5 +178,55 @@ describe("PublicCatalogSearchClient", () => {
     await waitFor(() => {
       expect(mockFetchNextPage).toHaveBeenCalledTimes(1);
     });
+  });
+
+  it("refreshes persisted catalog search data when refresh is requested", async () => {
+    const refreshedSnapshot = {
+      data: {
+        pages: [[createListing("listing-1", "Alpha")]],
+        pageParams: [null],
+      },
+    };
+    const refreshedInfiniteData = {
+      pages: [[createListing("listing-1", "Alpha")]],
+      pageParams: [null],
+    };
+    mockPrefetchSnapshot.mockResolvedValue(refreshedSnapshot);
+    mockSnapshotToInfiniteData.mockReturnValue(refreshedInfiniteData);
+
+    render(
+      <PublicCatalogSearchClient
+        userId="user-1"
+        userSlugOrId="seeded-daylily"
+        lists={[]}
+        initialListings={[]}
+        totalListingsCount={1}
+      />,
+    );
+
+    const props = getRenderedContentProps();
+    expect(props.onRefreshCatalogData).toBeTypeOf("function");
+
+    await act(async () => {
+      props.onRefreshCatalogData?.();
+    });
+
+    await waitFor(() => {
+      expect(mockPrefetchSnapshot).toHaveBeenCalledWith({
+        userId: "user-1",
+        userSlugOrId: "seeded-daylily",
+        force: true,
+      });
+    });
+
+    expect(mockSetInfiniteData).toHaveBeenCalledWith(
+      {
+        userSlugOrId: "seeded-daylily",
+        limit: 500,
+      },
+      expect.any(Function),
+    );
+    expect(mockInvalidate).not.toHaveBeenCalled();
+    expect(mockToastSuccess).toHaveBeenCalledWith("Catalog search data refreshed");
   });
 });

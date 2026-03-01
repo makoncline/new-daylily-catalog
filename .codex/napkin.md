@@ -2,6 +2,15 @@
 
 ## Log
 
+- 2026-03-01 - user refresh-boundary preference - Manual refresh on public catalog search should only refresh client-side persisted/search data; server cache invalidation must remain mutation-only.
+- 2026-03-01 - self-miss public nested path quoting - I ran `sed` on `src/app/(public)/[userSlugOrId]/_components/catalog-search-header.tsx` without quotes and triggered zsh glob expansion; always quote paths containing `()` and `[]`.
+- 2026-03-01 - self-miss public path quoting repeat - I ran `rg` against `src/app/(public)` without quoting and triggered zsh glob parsing (`missing delimiter for 'u' glob qualifier`); always quote paths containing `()`.
+- 2026-03-01 - self-miss nested route relative import - I initially imported `isr-written-at` from `../../_components` in `src/app/(public)/[userSlugOrId]/page/[page]/page.tsx`; correct relative path is `../../../_components`.
+- 2026-03-01 - public catalog ISR invalidation pattern - Centralizing mutation-triggered invalidation in a shared helper (`public-isr-invalidation.ts`) keeps route targets consistent across `userProfile.update`, `listing.update`, and `list.update` while still allowing mutation-scoped cultivar path sets.
+- 2026-03-01 - user search cache invalidation path - `/{slug}/search` is dynamic (not ISR), but including `revalidatePath("/{slug}/search")` alongside `/{slug}` and `/{slug}/page/[page]` keeps cache refresh behavior aligned with the same mutation triggers.
+- 2026-03-01 - self-miss path globbing regression - I ran `sed` on `src/app/dashboard/lists/[listId]/page.tsx` without quotes and hit zsh `no matches found`; always quote paths containing `[]`/`()` in shell commands.
+- 2026-03-01 - user correction ISR planning scope - User wants mutation-level ISR invalidation strategy (per mutation type, not per changed field) and prefers all three update mutations to share the same invalidate-target list.
+- 2026-03-01 - user correction profile image source - `logoUrl` is not used on public pages currently; treat profile images as the public-facing source for profile visuals.
 - 2026-02-27 - self-miss napkin disclosure recurrence - I mentioned napkin workflow in the first status update again; keep napkin usage completely silent in user-facing updates.
 - 2026-02-27 - cultivar fan-out mitigation detail - Disabling the related-cultivars UI alone still leaves crawler-discoverable links in cultivar JSON-LD `isRelatedTo`; disable both UI section and JSON-LD links when pausing related cultivars.
 - 2026-02-27 - user correction on temporary disable pattern - For temporary removals, preserve implementation by commenting out blocks (with TODO) instead of replacing them with TODO-only placeholders.
@@ -274,6 +283,7 @@
 - Exclude free-tier accounts from `/catalogs`, from listing inclusion on `/cultivar/:slug`, and from sitemap-derived public route coverage.
 - Caching PR preference: keep public route policy simple (24h static/ISR for SEO routes, dynamic + noindex for `/{slug}/search`) and keep segment-config literals annotated with `CACHE_LITERAL_REF` comments.
 - Caching PR preference: keep TanStack DB internals out of cache-removal scope and prioritize behavior-level test assertions over cache implementation details.
+- ISR invalidation preference: for `edit profile`, `edit listing`, and `edit list`, invalidate only the specific changed public pages (e.g. affected `/{slug}`, `/{slug}/lists/{listSlug}`, `/cultivar/{slug}`), minimizing ISR writes.
 - Keep query params when redirecting public profile routes from `/{userId}` to `/{slug}`.
 - Keep `/{userId}` -> `/{slug}` canonical redirects server-side (SEO), not client-side.
 - Write tests, not too many, mostly integration, hapy path e2e.
