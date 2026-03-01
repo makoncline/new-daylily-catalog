@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { STATUS } from "@/config/constants";
 import {
   getNextIncompleteListingField,
   getNextIncompleteProfileField,
@@ -39,6 +40,7 @@ describe("start onboarding utils", () => {
       title: "",
       price: null,
       description: "",
+      status: STATUS.HIDDEN,
     };
 
     expect(isListingOnboardingDraftComplete(emptyDraft)).toBe(false);

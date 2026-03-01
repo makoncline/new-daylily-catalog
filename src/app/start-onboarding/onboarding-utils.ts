@@ -12,6 +12,7 @@ export interface ListingOnboardingDraft {
   title: string;
   price: number | null;
   description: string;
+  status: typeof STATUS.HIDDEN | null;
 }
 
 export type ProfileOnboardingField =
@@ -24,6 +25,7 @@ export type ListingOnboardingField =
   | "cultivar"
   | "title"
   | "price"
+  | "status"
   | "description"
   | "image";
 
@@ -200,8 +202,18 @@ export const ONBOARDING_LISTING_DESCRIPTION_GUIDANCE = {
   minLength: 70,
   maxLength: 150,
   conciseTip:
-    "Appears on your listing card. Mention plant condition, quantity/size, and why this listing is worth contacting you about.",
+    "Appears on your listing card and on Google search results. Mention plant condition, quantity/size, and why this listing is worth contacting you about.",
 } as const;
+
+export function getDescriptionLengthAimText({
+  minLength,
+  maxLength,
+}: {
+  minLength: number;
+  maxLength: number;
+}) {
+  return `Aim for ${minLength}-${maxLength} characters.`;
+}
 
 function hasText(value: string) {
   return value.trim().length > 0;
@@ -210,11 +222,7 @@ function hasText(value: string) {
 export function isProfileOnboardingDraftComplete(
   draft: ProfileOnboardingDraft,
 ) {
-  return (
-    draft.profileImageUrl !== null &&
-    hasText(draft.gardenName) &&
-    hasText(draft.description)
-  );
+  return draft.profileImageUrl !== null && hasText(draft.gardenName);
 }
 
 export function isListingOnboardingDraftComplete(
@@ -232,10 +240,6 @@ export function getNextIncompleteProfileField(
 
   if (draft.profileImageUrl === null) {
     return "image";
-  }
-
-  if (!hasText(draft.description)) {
-    return "description";
   }
 
   return null;

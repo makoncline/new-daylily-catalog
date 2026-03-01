@@ -2,6 +2,10 @@
 
 ## Log
 
+- 2026-03-01 - onboarding capture stability check - `above-lg` onboarding screenshot capture passed, but `below-lg` failed at membership step due duplicate `data-testid="onboarding-start-membership-step"` (one hidden + one visible); capture specs using strict locator must scope to visible/main container or test ids must be unique.
+- 2026-03-01 - onboarding capture selector fix pattern - Scoping onboarding step locators under `page.getByRole("main")` resolved strict-mode duplicate test-id collisions without adding retries/timeouts.
+- 2026-03-01 - capture run signal - repeated `Error fetching public profile: TRPCError User not found` logs appeared throughout onboarding capture runs without causing functional failure; treat as noisy non-blocking logs unless accompanied by UI/assert failures.
+- 2026-03-01 - onboarding listing visibility UX - Added onboarding listing visibility select (Hidden/Published) and persisted status via listing draft + save mutation; normalize existing listing status from Prisma string to `STATUS.HIDDEN | null` before storing in draft.
 - 2026-02-28 - onboarding image generation guardrail - For onboarding assets, explicit slot-based prompts work better than generic "listing/profile card image" prompts; include strict negatives (`NO people`, `NO UI`, `NO text`) plus composition-safe overlay zones.
 - 2026-02-28 - yellow-cast mitigation pattern - ChatGPT image outputs can skew warm; a repo-local gray-world white-balance pass (plus slight desaturation) on selected assets helps neutralize cast consistently.
 - 2026-02-28 - chatgpt-images headed auth flow - Opening `https://chatgpt.com/images` in Playwright can land directly on `auth.openai.com/log-in/password` with the email prefilled; pause automation and let the user complete login before continuing.
@@ -363,3 +367,13 @@
 - 2026-03-01 - deferred upload button wording - In onboarding deferred image flow, crop action should be labeled "Continue" (not "Upload") because upload happens only on Save.
 - 2026-03-01 - deferred image replace behavior - In onboarding deferred upload UIs, "Upload a different image" must clear parent staged image state immediately; otherwise old blob preview persists on listing/profile cards.
 - 2026-03-01 - deferred uploader composition pattern - Simplest stable split is local crop-source state inside uploader and lifted staged-upload state in onboarding parent (`stagedPreviewUrl` prop). Keep callback surface only for `onReady`/`onClear` events.
+- 2026-03-01 - existing profile image onboarding guard - Do not eagerly default profile draft image to starter on profile hydrate; wait until profile images query is fetched and no existing uploaded image is found, otherwise quick-save can overwrite existing uploaded photos.
+- 2026-03-01 - onboarding profile image replacement rule - When onboarding uploads a new profile image and a profile image row already exists, update the earliest existing image row instead of creating a new row; this keeps the first image stable and prevents hidden duplicate-row behavior.
+- 2026-03-01 - existing-image preview race fix - Auto-selecting existing profile image must also cancel/clear pending starter overlay and pending upload previews; otherwise preview can remain on starter image until user toggles checkbox.
+- 2026-03-01 - hook TDZ ordering pitfall - `useEffect` dependency arrays evaluate immediately; do not reference callback consts before their declaration in component scope. Move effects below callback declarations or hoist callbacks first.
+- 2026-03-01 - onboarding profile image source policy - User wants onboarding to ignore legacy `userProfile.logoUrl` entirely; source existing profile image only from profile `Image` rows and never persist profile image URLs in onboarding session draft.
+- 2026-03-01 - Clerk dialog hydration mismatch fix - For Clerk UserProfile modal, render only after client mount and keep `DialogTitle` inside `DialogContent` (`sr-only`) to avoid SSR/client attribute mismatches from dialog internals.
+- 2026-03-01 - onboarding profile guidance parity - User wants a checklist on build-profile step mirroring build-listing step so completion requirements are visible before save/continue.
+- 2026-03-01 - onboarding profile requirement update - User wants seller description optional on profile step; only profile image + seller name should gate continue/save.
+- 2026-03-01 - listing description seo copy preference - User wants listing description helper to explicitly mention it appears on listing card and on Google search results, mirroring profile description guidance.
+- 2026-03-01 - onboarding description aim copy dedupe - Consolidated the shared "Aim for X-Y characters." text for profile/listing description helpers into one `getDescriptionLengthAimText` utility to keep wording consistent.

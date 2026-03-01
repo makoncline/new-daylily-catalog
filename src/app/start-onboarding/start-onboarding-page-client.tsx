@@ -24,7 +24,7 @@ import { OnboardingCheckoutButton } from "./_components/onboarding-checkout-butt
 import { CurrencyInput } from "@/components/currency-input";
 import { OnboardingDeferredImageUpload } from "./_components/onboarding-deferred-image-upload";
 import { IMAGE_CONFIG } from "@/components/optimized-image";
-import { PRO_FEATURES } from "@/config/constants";
+import { PRO_FEATURES, STATUS } from "@/config/constants";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -32,6 +32,13 @@ import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { SUBSCRIPTION_CONFIG } from "@/config/subscription-config";
 import { capturePosthogEvent } from "@/lib/analytics/posthog";
@@ -44,6 +51,7 @@ import {
   ONBOARDING_LISTING_DISCOVERY_EXAMPLES,
   ONBOARDING_PROFILE_DESCRIPTION_SEO_GUIDANCE,
   ONBOARDING_PROFILE_DISCOVERY_EXAMPLES,
+  getDescriptionLengthAimText,
   getNextIncompleteListingField,
   getNextIncompleteProfileField,
   isListingOnboardingDraftComplete,
@@ -69,6 +77,14 @@ const DEFAULT_LISTING_TITLE_PLACEHOLDER =
 const DEFAULT_LISTING_DESCRIPTION_PLACEHOLDER =
   "Healthy dormant fan with strong roots, clearly labeled, and ready for spring shipping or local pickup.";
 const ONBOARDING_DRAFT_STORAGE_LEGACY_KEY = "start-onboarding:draft-v1";
+
+function isStarterProfileImageUrl(url: string | null | undefined) {
+  if (!url) {
+    return false;
+  }
+
+  return STARTER_PROFILE_IMAGES.some((image) => image.url === url);
+}
 
 function buildOnboardingDraftStorageKey(
   userScope: string | null | undefined,
@@ -145,7 +161,7 @@ const DEFAULT_PROFILE_DRAFT: ProfileOnboardingDraft = {
   gardenName: "",
   location: "",
   description: "",
-  profileImageUrl: DEFAULT_STARTER_IMAGE_URL,
+  profileImageUrl: null,
 };
 
 const DEFAULT_LISTING_DRAFT: ListingOnboardingDraft = {
@@ -153,6 +169,7 @@ const DEFAULT_LISTING_DRAFT: ListingOnboardingDraft = {
   title: "",
   price: null,
   description: "",
+  status: ONBOARDING_LISTING_DEFAULTS.defaultStatus,
 };
 
 export function StartOnboardingPageClient({
@@ -181,6 +198,8 @@ export function StartOnboardingPageClient({
   const [profileImageInputMode, setProfileImageInputMode] = useState<
     "starter" | "upload"
   >("starter");
+  const [useExistingProfileImage, setUseExistingProfileImage] =
+    useState(false);
   const [applyStarterNameOverlay, setApplyStarterNameOverlay] = useState(true);
   const [isGeneratingStarterImage, setIsGeneratingStarterImage] =
     useState(false);
@@ -245,12 +264,12 @@ export function StartOnboardingPageClient({
   const getImagePresignedUrlMutation =
     api.dashboardDb.image.getPresignedUrl.useMutation();
   const createImageMutation = api.dashboardDb.image.create.useMutation();
+  const updateImageMutation = api.dashboardDb.image.update.useMutation();
   const createListingMutation = api.dashboardDb.listing.create.useMutation();
   const updateListingMutation = api.dashboardDb.listing.update.useMutation();
   const linkAhsMutation = api.dashboardDb.listing.linkAhs.useMutation();
 
   const hasHydratedProfile = useRef(false);
-  const hasHydratedProfileImage = useRef(false);
   const hasHydratedListing = useRef(false);
   const hasHydratedListingImage = useRef(false);
   const hasAppliedDefaultCultivar = useRef(false);
@@ -268,6 +287,7 @@ export function StartOnboardingPageClient({
   const starterImageGenerationRequestIdRef = useRef(0);
   const viewedOnboardingStepsRef = useRef<Set<OnboardingStepId>>(new Set());
   const hasHydratedSessionDraft = useRef(false);
+  const profileImageWasEditedRef = useRef(false);
 
   const onboardingDraftStorageKey = useMemo(() => {
     const emailScope = currentUserQuery.data?.clerk?.email;
@@ -323,9 +343,7 @@ export function StartOnboardingPageClient({
         setProfileDraft((previous) => ({
           ...previous,
           ...parsedSnapshot.profileDraft,
-          profileImageUrl: normalizePersistedImageUrl(
-            parsedSnapshot.profileDraft.profileImageUrl,
-          ),
+          profileImageUrl: null,
         }));
       }
 
@@ -351,9 +369,7 @@ export function StartOnboardingPageClient({
     const snapshot: OnboardingDraftSnapshot = {
       profileDraft: {
         ...profileDraft,
-        profileImageUrl: normalizePersistedImageUrl(
-          profileDraft.profileImageUrl,
-        ),
+        profileImageUrl: null,
       },
       listingDraft,
       selectedCultivarName,
@@ -379,8 +395,6 @@ export function StartOnboardingPageClient({
 
     hasHydratedProfile.current = true;
 
-    const nextImage = profileQuery.data.logoUrl ?? DEFAULT_STARTER_IMAGE_URL;
-
     setProfileDraft((previous) => ({
       gardenName: previous.gardenName.trim()
         ? previous.gardenName
@@ -391,45 +405,9 @@ export function StartOnboardingPageClient({
       description: previous.description.trim()
         ? previous.description
         : (profileQuery.data.description ?? ""),
-      profileImageUrl: previous.profileImageUrl ?? nextImage,
+      profileImageUrl: previous.profileImageUrl ?? null,
     }));
-
-    const matchingStarterImage = STARTER_PROFILE_IMAGES.find(
-      (starterImage) => starterImage.url === nextImage,
-    );
-    setSelectedStarterImageUrl(matchingStarterImage?.url ?? null);
   }, [profileQuery.data]);
-
-  useEffect(() => {
-    if (
-      !profileQuery.data?.id ||
-      !imagesQuery.data ||
-      hasHydratedProfileImage.current
-    ) {
-      return;
-    }
-
-    hasHydratedProfileImage.current = true;
-
-    const earliestProfileImage = getEarliestByCreatedAt(
-      imagesQuery.data.filter(
-        (image) => image.userProfileId === profileQuery.data?.id,
-      ),
-    );
-
-    if (!earliestProfileImage) {
-      return;
-    }
-
-    setProfileDraft((previous) => ({
-      ...previous,
-      profileImageUrl: earliestProfileImage.url,
-    }));
-    const matchingStarterImage = STARTER_PROFILE_IMAGES.find(
-      (starterImage) => starterImage.url === earliestProfileImage.url,
-    );
-    setSelectedStarterImageUrl(matchingStarterImage?.url ?? null);
-  }, [imagesQuery.data, profileQuery.data?.id]);
 
   useEffect(() => {
     return () => {
@@ -476,6 +454,10 @@ export function StartOnboardingPageClient({
       description: previous.description.trim()
         ? previous.description
         : (existingListing.description ?? ""),
+      status:
+        existingListing.status === STATUS.HIDDEN
+          ? STATUS.HIDDEN
+          : STATUS.PUBLISHED,
     }));
 
     hasAppliedDefaultCultivar.current = Boolean(
@@ -658,9 +640,6 @@ export function StartOnboardingPageClient({
   const persistedProfileDescription =
     profileQuery.data?.description?.trim() ?? "";
   const persistedProfileLocation = profileQuery.data?.location?.trim() ?? "";
-  const persistedProfileLogoUrl = normalizePersistedImageUrl(
-    profileQuery.data?.logoUrl,
-  );
   const profileDraftImageUrl = normalizePersistedImageUrl(
     profileDraft.profileImageUrl,
   );
@@ -683,9 +662,63 @@ export function StartOnboardingPageClient({
     pendingStarterPreviewUrl ??
     pendingProfileUploadPreviewUrl ??
     profileDraftImageUrl ??
-    persistedProfileLogoUrl ??
     selectedStarterImagePreviewUrl ??
     PROFILE_PLACEHOLDER_IMAGE;
+  const earliestPersistedProfileImage = useMemo(() => {
+    if (!profileQuery.data?.id) {
+      return null;
+    }
+
+    const earliestProfileImage = getEarliestByCreatedAt(
+      (imagesQuery.data ?? []).filter(
+        (image) => image.userProfileId === profileQuery.data?.id,
+      ),
+    );
+
+    if (!earliestProfileImage) {
+      return null;
+    }
+
+    return {
+      id: earliestProfileImage.id,
+      url: normalizePersistedImageUrl(earliestProfileImage.url),
+    };
+  }, [imagesQuery.data, profileQuery.data?.id]);
+  const existingProfileImageUrl = useMemo(() => {
+    const candidate = earliestPersistedProfileImage?.url;
+    if (!candidate) {
+      return null;
+    }
+
+    return isStarterProfileImageUrl(candidate) ? null : candidate;
+  }, [earliestPersistedProfileImage]);
+  useEffect(() => {
+    if (
+      !profileQuery.data?.id ||
+      !imagesQuery.isFetched ||
+      existingProfileImageUrl ||
+      profileImageWasEditedRef.current
+    ) {
+      return;
+    }
+
+    const fallbackStarterImageUrl =
+      selectedStarterImageUrl ?? DEFAULT_STARTER_IMAGE_URL;
+    if (!fallbackStarterImageUrl) {
+      return;
+    }
+
+    setSelectedStarterImageUrl(fallbackStarterImageUrl);
+    setProfileDraft((previous) => ({
+      ...previous,
+      profileImageUrl: previous.profileImageUrl ?? fallbackStarterImageUrl,
+    }));
+  }, [
+    existingProfileImageUrl,
+    imagesQuery.isFetched,
+    profileQuery.data?.id,
+    selectedStarterImageUrl,
+  ]);
   const listingTitleDraftValue = listingDraft.title.trim();
   const listingDescriptionDraftValue = listingDraft.description.trim();
   const persistedListingTitle = earliestExistingListing?.title?.trim() ?? "";
@@ -778,6 +811,32 @@ export function StartOnboardingPageClient({
       required: false,
     },
   ] as const;
+  const profileContinueChecklist = [
+    {
+      key: "image",
+      label: "Choose a profile image",
+      done: profileDraft.profileImageUrl !== null,
+      required: true,
+    },
+    {
+      key: "seller-name",
+      label: "Add your seller name",
+      done: profileDraft.gardenName.trim().length > 0,
+      required: true,
+    },
+    {
+      key: "description",
+      label: "Add a seller description",
+      done: profileDraft.description.trim().length > 0,
+      required: false,
+    },
+    {
+      key: "location",
+      label: "Add your location",
+      done: profileDraft.location.trim().length > 0,
+      required: false,
+    },
+  ] as const;
   const profileDescriptionCharacterCount =
     profileDraft.description.trim().length;
   const isProfileDescriptionTooShort =
@@ -833,6 +892,28 @@ export function StartOnboardingPageClient({
     starterImageGenerationRequestIdRef.current += 1;
     setIsGeneratingStarterImage(false);
   }, []);
+
+  useEffect(() => {
+    if (!existingProfileImageUrl || profileImageWasEditedRef.current) {
+      return;
+    }
+
+    cancelStarterImageGeneration();
+    clearPendingStarterImage();
+    clearPendingProfileUpload();
+    setUseExistingProfileImage(true);
+    setProfileImageInputMode("upload");
+    setSelectedStarterImageUrl(null);
+    setProfileDraft((previous) => ({
+      ...previous,
+      profileImageUrl: existingProfileImageUrl,
+    }));
+  }, [
+    cancelStarterImageGeneration,
+    clearPendingProfileUpload,
+    clearPendingStarterImage,
+    existingProfileImageUrl,
+  ]);
 
   const scheduleStarterImageGeneration = useCallback(
     ({
@@ -965,6 +1046,14 @@ export function StartOnboardingPageClient({
       return;
     }
 
+    if (field === "status") {
+      const statusTrigger = document.getElementById("listing-status");
+      if (statusTrigger instanceof HTMLButtonElement) {
+        statusTrigger.focus();
+      }
+      return;
+    }
+
     if (field === "description") {
       listingDescriptionInputRef.current?.focus();
       return;
@@ -1004,6 +1093,8 @@ export function StartOnboardingPageClient({
   };
 
   const handleDeferredProfileImageReady = (file: Blob) => {
+    profileImageWasEditedRef.current = true;
+    setUseExistingProfileImage(false);
     clearPendingProfileUpload();
     const previewUrl = URL.createObjectURL(file);
     setPendingProfileUploadBlob(file);
@@ -1030,6 +1121,8 @@ export function StartOnboardingPageClient({
   };
 
   const handleStarterImageSelect = (baseImageUrl: string) => {
+    profileImageWasEditedRef.current = true;
+    setUseExistingProfileImage(false);
     setProfileImageInputMode("starter");
     clearPendingProfileUpload();
     setSelectedStarterImageUrl(baseImageUrl);
@@ -1053,6 +1146,8 @@ export function StartOnboardingPageClient({
   };
 
   const handleDeferredProfileImageCleared = () => {
+    profileImageWasEditedRef.current = true;
+    setUseExistingProfileImage(false);
     clearPendingProfileUpload();
 
     const starterImageUrl = selectedStarterImageUrl ?? DEFAULT_STARTER_IMAGE_URL;
@@ -1072,6 +1167,8 @@ export function StartOnboardingPageClient({
   };
 
   const handleStarterOverlayChange = (enabled: boolean) => {
+    profileImageWasEditedRef.current = true;
+    setUseExistingProfileImage(false);
     setApplyStarterNameOverlay(enabled);
 
     if (!selectedStarterImageUrl) {
@@ -1094,6 +1191,40 @@ export function StartOnboardingPageClient({
         profileDraft.gardenName.trim() || DEFAULT_GARDEN_NAME_PLACEHOLDER,
       debounceMs: 0,
     });
+  };
+
+  const handleUseExistingProfileImageChange = (enabled: boolean) => {
+    if (!existingProfileImageUrl) {
+      return;
+    }
+
+    if (enabled) {
+      profileImageWasEditedRef.current = false;
+      setUseExistingProfileImage(true);
+      setProfileImageInputMode("upload");
+      cancelStarterImageGeneration();
+      clearPendingStarterImage();
+      clearPendingProfileUpload();
+      setSelectedStarterImageUrl(null);
+      setProfileDraft((previous) => ({
+        ...previous,
+        profileImageUrl: existingProfileImageUrl,
+      }));
+      return;
+    }
+
+    profileImageWasEditedRef.current = true;
+    setUseExistingProfileImage(false);
+    const starterImageUrl = selectedStarterImageUrl ?? DEFAULT_STARTER_IMAGE_URL;
+    if (starterImageUrl) {
+      handleStarterImageSelect(starterImageUrl);
+      return;
+    }
+
+    setProfileDraft((previous) => ({
+      ...previous,
+      profileImageUrl: null,
+    }));
   };
 
   const createOnboardingProfileImage = async ({
@@ -1176,14 +1307,12 @@ export function StartOnboardingPageClient({
       cultivarReferenceId: listingDraft.cultivarReferenceId,
     });
 
-    if (ONBOARDING_LISTING_DEFAULTS.defaultStatus) {
-      await updateListingMutation.mutateAsync({
-        id: createdListing.id,
-        data: {
-          status: ONBOARDING_LISTING_DEFAULTS.defaultStatus,
-        },
-      });
-    }
+    await updateListingMutation.mutateAsync({
+      id: createdListing.id,
+      data: {
+        status: listingDraft.status ?? ONBOARDING_LISTING_DEFAULTS.defaultStatus,
+      },
+    });
 
     setSavedListingId(createdListing.id);
     await Promise.all([
@@ -1195,6 +1324,7 @@ export function StartOnboardingPageClient({
   }, [
     createListingMutation,
     listingDraft.cultivarReferenceId,
+    listingDraft.status,
     listingDraft.title,
     savedListingId,
     updateListingMutation,
@@ -1308,17 +1438,14 @@ export function StartOnboardingPageClient({
 
     if (!isProfileOnboardingDraftComplete(profileDraft)) {
       focusProfileField(profileMissingField ?? "gardenName");
-      toast.error("Complete image, garden name, and description first.");
+      toast.error("Complete image and seller name first.");
       return false;
     }
 
     setIsSavingProfile(true);
 
     try {
-      let profileImageUrlToSave: string | null =
-        profileDraft.profileImageUrl ?? null;
-      let profileImageKeyToSave: string | null = null;
-      let shouldCreateProfileImageRecord = false;
+      let uploadedProfileImage: { url: string; key: string } | null = null;
 
       if (pendingProfileUploadBlob) {
         const { url, key } = await uploadOnboardingImageBlob({
@@ -1328,15 +1455,13 @@ export function StartOnboardingPageClient({
           getPresignedUrl: getImagePresignedUrlMutation.mutateAsync,
         });
 
-        profileImageUrlToSave = url;
-        profileImageKeyToSave = key;
-        shouldCreateProfileImageRecord = true;
+        uploadedProfileImage = { url, key };
         clearPendingProfileUpload();
         setProfileDraft((previous) => ({
           ...previous,
           profileImageUrl: url,
         }));
-      } else if (pendingStarterImageBlob && profileImageUrlToSave) {
+      } else if (pendingStarterImageBlob && profileDraft.profileImageUrl) {
         try {
           const { url, key } = await uploadOnboardingImageBlob({
             blob: pendingStarterImageBlob,
@@ -1345,9 +1470,7 @@ export function StartOnboardingPageClient({
             getPresignedUrl: getImagePresignedUrlMutation.mutateAsync,
           });
 
-          profileImageUrlToSave = url;
-          profileImageKeyToSave = key;
-          shouldCreateProfileImageRecord = true;
+          uploadedProfileImage = { url, key };
           clearPendingStarterImage();
 
           setProfileDraft((previous) => ({
@@ -1358,9 +1481,6 @@ export function StartOnboardingPageClient({
           const fallbackStarterImageUrl =
             selectedStarterImageUrl ?? DEFAULT_STARTER_IMAGE_URL;
           clearPendingStarterImage();
-          profileImageUrlToSave = fallbackStarterImageUrl;
-          profileImageKeyToSave = null;
-          shouldCreateProfileImageRecord = false;
           setProfileDraft((previous) => ({
             ...previous,
             profileImageUrl: fallbackStarterImageUrl,
@@ -1377,24 +1497,28 @@ export function StartOnboardingPageClient({
           title: profileDraft.gardenName.trim(),
           location: profileDraft.location.trim(),
           description: profileDraft.description.trim(),
-          logoUrl: profileImageUrlToSave,
         },
       });
 
-      if (
-        profileImageUrlToSave &&
-        shouldCreateProfileImageRecord &&
-        profileImageKeyToSave
-      ) {
+      if (uploadedProfileImage) {
         try {
-          await createOnboardingProfileImage({
-            profileId: profileQuery.data.id,
-            selectedImageUrl: profileImageUrlToSave,
-            selectedImageKey: profileImageKeyToSave,
-          });
+          if (earliestPersistedProfileImage?.id) {
+            await updateImageMutation.mutateAsync({
+              type: "profile",
+              referenceId: profileQuery.data.id,
+              imageId: earliestPersistedProfileImage.id,
+              url: uploadedProfileImage.url,
+            });
+          } else {
+            await createOnboardingProfileImage({
+              profileId: profileQuery.data.id,
+              selectedImageUrl: uploadedProfileImage.url,
+              selectedImageKey: uploadedProfileImage.key,
+            });
+          }
         } catch (error) {
           console.error(
-            "Failed to create onboarding profile image record; continuing with saved profile logo URL.",
+            "Failed to save onboarding profile image record.",
             error,
           );
         }
@@ -1448,6 +1572,7 @@ export function StartOnboardingPageClient({
           title: listingDraft.title.trim(),
           price: listingDraft.price,
           description: listingDraft.description.trim(),
+          status: listingDraft.status,
         },
       });
 
@@ -1825,39 +1950,69 @@ export function StartOnboardingPageClient({
                     </p>
                   </div>
 
-                  <div className="grid gap-2 lg:grid-cols-2">
-                    <Button
-                      type="button"
-                      variant={
-                        profileImageInputMode === "starter"
-                          ? "default"
-                          : "outline"
-                      }
-                      onClick={() => {
-                        setFocusedProfileField("image");
-                        setProfileImageInputMode("starter");
-                        clearPendingProfileUpload();
-                      }}
-                    >
-                      Use a starter image
-                    </Button>
-                    <Button
-                      type="button"
-                      variant={
-                        profileImageInputMode === "upload"
-                          ? "default"
-                          : "outline"
-                      }
-                      onClick={() => {
-                        setFocusedProfileField("image");
-                        setProfileImageInputMode("upload");
-                      }}
-                    >
-                      Upload your own image
-                    </Button>
-                  </div>
+                  {existingProfileImageUrl ? (
+                    <div className="flex items-start gap-3 rounded-lg border border-dashed p-3">
+                      <Checkbox
+                        id="use-existing-profile-image"
+                        checked={useExistingProfileImage}
+                        onCheckedChange={(value) =>
+                          handleUseExistingProfileImageChange(value === true)
+                        }
+                      />
+                      <div className="space-y-1 text-sm">
+                        <Label
+                          htmlFor="use-existing-profile-image"
+                          className="cursor-pointer"
+                        >
+                          Use existing profile image
+                        </Label>
+                        <p className="text-muted-foreground text-xs leading-relaxed">
+                          Keep your current uploaded profile image unless you
+                          uncheck this and choose a different one.
+                        </p>
+                      </div>
+                    </div>
+                  ) : null}
 
-                  {profileImageInputMode === "starter" ? (
+                  {!useExistingProfileImage ? (
+                    <div className="grid gap-2 lg:grid-cols-2">
+                      <Button
+                        type="button"
+                        variant={
+                          profileImageInputMode === "starter"
+                            ? "default"
+                            : "outline"
+                        }
+                        onClick={() => {
+                          setFocusedProfileField("image");
+                          profileImageWasEditedRef.current = true;
+                          setUseExistingProfileImage(false);
+                          setProfileImageInputMode("starter");
+                          clearPendingProfileUpload();
+                        }}
+                      >
+                        Use a starter image
+                      </Button>
+                      <Button
+                        type="button"
+                        variant={
+                          profileImageInputMode === "upload"
+                            ? "default"
+                            : "outline"
+                        }
+                        onClick={() => {
+                          setFocusedProfileField("image");
+                          profileImageWasEditedRef.current = true;
+                          setUseExistingProfileImage(false);
+                          setProfileImageInputMode("upload");
+                        }}
+                      >
+                        Upload your own image
+                      </Button>
+                    </div>
+                  ) : null}
+
+                  {!useExistingProfileImage && profileImageInputMode === "starter" ? (
                     <div className="space-y-2">
                       <div className="flex items-start gap-3 rounded-lg border border-dashed p-3">
                         <Checkbox
@@ -1925,7 +2080,7 @@ export function StartOnboardingPageClient({
                         </p>
                       ) : null}
                     </div>
-                  ) : (
+                  ) : !useExistingProfileImage ? (
                     <div className="space-y-2">
                       <p className="text-muted-foreground text-xs leading-relaxed">
                         Drag and drop an image, then crop and adjust it before
@@ -1949,7 +2104,13 @@ export function StartOnboardingPageClient({
                         </p>
                       )}
                     </div>
-                  )}
+                  ) : null}
+
+                  {useExistingProfileImage ? (
+                    <p className="text-muted-foreground text-xs leading-relaxed">
+                      Using your current uploaded profile image.
+                    </p>
+                  ) : null}
                 </div>
 
                 <div
@@ -2019,7 +2180,12 @@ export function StartOnboardingPageClient({
                       )}
                     >
                       {profileDescriptionCharacterCount === 0
-                        ? `Aim for ${ONBOARDING_PROFILE_DESCRIPTION_SEO_GUIDANCE.minLength}-${ONBOARDING_PROFILE_DESCRIPTION_SEO_GUIDANCE.maxLength} characters.`
+                        ? getDescriptionLengthAimText({
+                            minLength:
+                              ONBOARDING_PROFILE_DESCRIPTION_SEO_GUIDANCE.minLength,
+                            maxLength:
+                              ONBOARDING_PROFILE_DESCRIPTION_SEO_GUIDANCE.maxLength,
+                          })
                         : isProfileDescriptionTooShort
                           ? `Add at least ${ONBOARDING_PROFILE_DESCRIPTION_SEO_GUIDANCE.minLength - profileDescriptionCharacterCount} more characters so buyers quickly understand your catalog.`
                           : isProfileDescriptionTooLong
@@ -2148,6 +2314,36 @@ export function StartOnboardingPageClient({
                 </div>
               </div>
             </OnboardingStepGrid>
+
+            <div className="space-y-2">
+              <p className="text-sm font-semibold">
+                To continue, complete this checklist
+              </p>
+              <ul className="space-y-1.5 text-sm">
+                {profileContinueChecklist.map((item) => (
+                  <li key={item.key} className="flex items-start gap-2">
+                    {item.done ? (
+                      <CheckCircle2 className="mt-0.5 h-4 w-4 text-emerald-700" />
+                    ) : (
+                      <Circle className="text-muted-foreground mt-0.5 h-4 w-4" />
+                    )}
+                    <span
+                      className={cn(
+                        item.done ? "text-foreground" : "text-muted-foreground",
+                      )}
+                    >
+                      {item.label}
+                      {!item.required ? (
+                        <span className="text-muted-foreground">
+                          {" "}
+                          (optional)
+                        </span>
+                      ) : null}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
           </div>
         ) : null}
 
@@ -2217,11 +2413,6 @@ export function StartOnboardingPageClient({
               <p className="text-muted-foreground text-sm leading-relaxed">
                 This is how buyers will see one of your listing cards. Edit
                 these fields and watch the card preview update live.
-              </p>
-              <p className="text-muted-foreground text-xs leading-relaxed">
-                <span className="font-semibold">★ Note:</span> This is an
-                example listing. It will be hidden from your catalog and can be
-                deleted later.
               </p>
             </div>
 
@@ -2342,6 +2533,48 @@ export function StartOnboardingPageClient({
                 <div
                   className={cn(
                     "space-y-2 rounded-lg border p-4 transition-colors",
+                    activeListingField === "status" &&
+                      "border-primary bg-primary/5",
+                  )}
+                >
+                  <Label htmlFor="listing-status">Listing visibility</Label>
+                  <Select
+                    value={
+                      listingDraft.status === STATUS.HIDDEN
+                        ? STATUS.HIDDEN
+                        : "published"
+                    }
+                    onOpenChange={() => setActiveListingField("status")}
+                    onValueChange={(value) =>
+                      setListingDraft((previous) => ({
+                        ...previous,
+                        status:
+                          value === "published"
+                            ? STATUS.PUBLISHED
+                            : STATUS.HIDDEN,
+                      }))
+                    }
+                  >
+                    <SelectTrigger
+                      id="listing-status"
+                      onFocus={() => setActiveListingField("status")}
+                    >
+                      <SelectValue placeholder="Select listing visibility" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value={STATUS.HIDDEN}>Hidden</SelectItem>
+                      <SelectItem value="published">Published</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <p className="text-muted-foreground text-xs leading-relaxed">
+                    Hidden is the default. Making this public will show the
+                    listing on your public catalog page.
+                  </p>
+                </div>
+
+                <div
+                  className={cn(
+                    "space-y-2 rounded-lg border p-4 transition-colors",
                     activeListingField === "description" &&
                       "border-primary bg-primary/5",
                   )}
@@ -2377,7 +2610,12 @@ export function StartOnboardingPageClient({
                       )}
                     >
                       {listingDescriptionCharacterCount === 0
-                        ? `Aim for ${ONBOARDING_LISTING_DESCRIPTION_GUIDANCE.minLength}-${ONBOARDING_LISTING_DESCRIPTION_GUIDANCE.maxLength} characters.`
+                        ? getDescriptionLengthAimText({
+                            minLength:
+                              ONBOARDING_LISTING_DESCRIPTION_GUIDANCE.minLength,
+                            maxLength:
+                              ONBOARDING_LISTING_DESCRIPTION_GUIDANCE.maxLength,
+                          })
                         : isListingDescriptionTooShort
                           ? `Add at least ${ONBOARDING_LISTING_DESCRIPTION_GUIDANCE.minLength - listingDescriptionCharacterCount} more characters so buyers can evaluate this listing quickly.`
                           : isListingDescriptionTooLong

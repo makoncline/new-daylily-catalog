@@ -370,6 +370,7 @@ test.describe("onboarding flow screenshot capture @capture", () => {
         .getByRole("heading", { name: "How buyers contact you" })
         .waitFor({ state: "visible" }),
       page
+        .getByRole("main")
         .getByTestId("onboarding-start-membership-step")
         .waitFor({ state: "visible" }),
     ]);
@@ -414,6 +415,7 @@ test.describe("onboarding flow screenshot capture @capture", () => {
       waitUntil: "domcontentloaded",
     });
     await page
+      .getByRole("main")
       .getByTestId("onboarding-start-membership-step")
       .waitFor({ state: "visible" });
 
