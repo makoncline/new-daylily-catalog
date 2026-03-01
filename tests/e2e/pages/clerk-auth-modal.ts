@@ -22,9 +22,23 @@ export class ClerkAuthModal {
   }
 
   async startSignUp() {
-    await this.signUpLink.waitFor({ state: "visible" });
-    await this.signUpLink.click();
-    await this.createAccountHeading.waitFor({ state: "visible" });
+    if (await this.codeInput.isVisible().catch(() => false)) {
+      return;
+    }
+
+    if (await this.createAccountHeading.isVisible().catch(() => false)) {
+      return;
+    }
+
+    await this.emailInput.waitFor({ state: "visible", timeout: 8000 });
+
+    if (await this.signUpLink.isVisible().catch(() => false)) {
+      await this.signUpLink.click();
+      await Promise.any([
+        this.createAccountHeading.waitFor({ state: "visible", timeout: 8000 }),
+        this.emailInput.waitFor({ state: "visible", timeout: 8000 }),
+      ]);
+    }
   }
 
   async signUpWithEmail(email: string, code: string) {

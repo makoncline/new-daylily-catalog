@@ -7,8 +7,8 @@ import {
   resolveTempDbUrl,
 } from "../src/lib/test-utils/e2e-db";
 
-function getNpxCommand() {
-  return process.platform === "win32" ? "npx.cmd" : "npx";
+function getPnpmCommand() {
+  return process.platform === "win32" ? "pnpm.cmd" : "pnpm";
 }
 
 function runPrismaDbPush(url: string) {
@@ -18,9 +18,9 @@ function runPrismaDbPush(url: string) {
       ? "info"
       : (rustLog ?? "info");
 
-  const args = ["prisma", "db", "push", "--skip-generate"];
+  const args = ["exec", "prisma", "db", "push", "--skip-generate"];
   execFileSync(
-    getNpxCommand(),
+    getPnpmCommand(),
     args,
     {
       stdio: "inherit",

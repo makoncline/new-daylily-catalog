@@ -14,6 +14,7 @@ import {
   TotalListingsCard,
   TotalListsCard,
   ProMembershipCard,
+  RevisitOnboardingCard,
 } from "./stats-card";
 import { H2, H3, P, List, Muted } from "@/components/typography";
 import { TestAuthErrorButton } from "./test-auth-error-button";
@@ -36,6 +37,8 @@ export function DashboardPageClient({
         headingTestId="dashboard-heading"
       />
       <div className="space-y-4" data-testid="dashboard-content">
+        <RevisitOnboardingCard />
+
         {stats.profileStats.completionPercentage < 100 && (
           <Card
             className="mb-4 overflow-hidden"
