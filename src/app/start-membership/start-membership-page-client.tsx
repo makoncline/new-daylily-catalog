@@ -60,7 +60,7 @@ export function StartMembershipPageClient({
                 className="text-muted-foreground inline-block text-sm underline"
                 data-testid="start-membership-continue"
               >
-                Continue for now
+                Keep unlisted
               </Link>
             </div>
           </div>

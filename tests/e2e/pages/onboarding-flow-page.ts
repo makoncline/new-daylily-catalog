@@ -66,29 +66,6 @@ export class OnboardingFlowPage {
     await this.page.locator("#garden-description").fill(description);
   }
 
-  async expectProfilePreview({
-    sellerName,
-    location,
-    description,
-  }: {
-    sellerName: string;
-    location: string;
-    description: string;
-  }) {
-    await expect(
-      this.page.getByText("Yours", { exact: true }).first(),
-    ).toBeVisible();
-    await expect(
-      this.page.getByText(sellerName, { exact: false }).first(),
-    ).toBeVisible();
-    await expect(
-      this.page.getByText(location, { exact: false }).first(),
-    ).toBeVisible();
-    await expect(
-      this.page.getByText(description, { exact: false }).first(),
-    ).toBeVisible();
-  }
-
   async expectDefaultCultivarLinked(cultivarName: string) {
     await expect(this.page.locator("#ahs-listing-select")).toContainText(
       cultivarName,
@@ -154,13 +131,27 @@ export class OnboardingFlowPage {
 
   async expectBuyerContactStep() {
     await expect(
-      this.page.getByRole("heading", { name: "How buyers contact you" }),
+      this.container.getByText("Preview your catalog", { exact: true }),
+    ).toBeVisible();
+    await expect(
+      this.page.getByText("Are you happy with your catalog card?", {
+        exact: true,
+      }),
+    ).toBeVisible();
+    await expect(
+      this.page.getByRole("button", { name: "Go back and edit catalog card" }),
+    ).toBeVisible();
+    await expect(
+      this.page.getByText("Are you happy with your listing?", { exact: true }),
+    ).toBeVisible();
+    await expect(
+      this.page.getByRole("button", { name: "Go back and edit listing card" }),
+    ).toBeVisible();
+    await expect(
+      this.page.getByText("How buyers contact you", { exact: true }),
     ).toBeVisible();
     await expect(
       this.page.getByRole("button", { name: "Contact this seller" }),
-    ).toBeVisible();
-    await expect(
-      this.page.getByRole("button", { name: "Contact Seller (1 cart item)" }),
     ).toBeVisible();
   }
 

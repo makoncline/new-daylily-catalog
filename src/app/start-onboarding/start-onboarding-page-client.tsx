@@ -24,7 +24,7 @@ import { OnboardingCheckoutButton } from "./_components/onboarding-checkout-butt
 import { CurrencyInput } from "@/components/currency-input";
 import { OnboardingDeferredImageUpload } from "./_components/onboarding-deferred-image-upload";
 import { IMAGE_CONFIG } from "@/components/optimized-image";
-import { PRO_FEATURES, STATUS } from "@/config/constants";
+import { PRO_FEATURES } from "@/config/constants";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -32,13 +32,6 @@ import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { SUBSCRIPTION_CONFIG } from "@/config/subscription-config";
 import { capturePosthogEvent } from "@/lib/analytics/posthog";
@@ -48,9 +41,7 @@ import { api } from "@/trpc/react";
 import {
   ONBOARDING_LISTING_DEFAULTS,
   ONBOARDING_LISTING_DESCRIPTION_GUIDANCE,
-  ONBOARDING_LISTING_DISCOVERY_EXAMPLES,
   ONBOARDING_PROFILE_DESCRIPTION_SEO_GUIDANCE,
-  ONBOARDING_PROFILE_DISCOVERY_EXAMPLES,
   getDescriptionLengthAimText,
   getNextIncompleteListingField,
   getNextIncompleteProfileField,
@@ -351,6 +342,7 @@ export function StartOnboardingPageClient({
         setListingDraft((previous) => ({
           ...previous,
           ...parsedSnapshot.listingDraft,
+          status: ONBOARDING_LISTING_DEFAULTS.defaultStatus,
         }));
       }
 
@@ -454,10 +446,7 @@ export function StartOnboardingPageClient({
       description: previous.description.trim()
         ? previous.description
         : (existingListing.description ?? ""),
-      status:
-        existingListing.status === STATUS.HIDDEN
-          ? STATUS.HIDDEN
-          : STATUS.PUBLISHED,
+      status: ONBOARDING_LISTING_DEFAULTS.defaultStatus,
     }));
 
     hasAppliedDefaultCultivar.current = Boolean(
@@ -753,9 +742,6 @@ export function StartOnboardingPageClient({
     listingDescriptionDraftValue ||
     persistedListingDescription ||
     DEFAULT_LISTING_DESCRIPTION_PLACEHOLDER;
-  const listingDescriptionForListingPreview =
-    listingDescriptionDraftValue || persistedListingDescription;
-  const listingPricePreview = listingDraft.price ?? persistedListingPrice;
   const listingDescriptionForBuyerContactPreview =
     listingDescriptionDraftValue ||
     persistedListingDescription ||
@@ -1046,14 +1032,6 @@ export function StartOnboardingPageClient({
       return;
     }
 
-    if (field === "status") {
-      const statusTrigger = document.getElementById("listing-status");
-      if (statusTrigger instanceof HTMLButtonElement) {
-        statusTrigger.focus();
-      }
-      return;
-    }
-
     if (field === "description") {
       listingDescriptionInputRef.current?.focus();
       return;
@@ -1310,7 +1288,7 @@ export function StartOnboardingPageClient({
     await updateListingMutation.mutateAsync({
       id: createdListing.id,
       data: {
-        status: listingDraft.status ?? ONBOARDING_LISTING_DEFAULTS.defaultStatus,
+        status: ONBOARDING_LISTING_DEFAULTS.defaultStatus,
       },
     });
 
@@ -1324,7 +1302,6 @@ export function StartOnboardingPageClient({
   }, [
     createListingMutation,
     listingDraft.cultivarReferenceId,
-    listingDraft.status,
     listingDraft.title,
     savedListingId,
     updateListingMutation,
@@ -1572,7 +1549,7 @@ export function StartOnboardingPageClient({
           title: listingDraft.title.trim(),
           price: listingDraft.price,
           description: listingDraft.description.trim(),
-          status: listingDraft.status,
+          status: ONBOARDING_LISTING_DEFAULTS.defaultStatus,
         },
       });
 
@@ -1719,6 +1696,7 @@ export function StartOnboardingPageClient({
         );
         capturePosthogEvent("onboarding_aha_reached", {
           milestone: "profile_saved_listing_saved_buyer_flow_seen",
+          step_variant: "combined_preview_contact",
         });
         goToNextStep();
         return;
@@ -1730,22 +1708,6 @@ export function StartOnboardingPageClient({
           "start-membership",
         );
         router.push("/dashboard");
-        return;
-      }
-      case "preview-profile-card": {
-        captureOnboardingStepEvent(
-          "onboarding_step_completed",
-          "preview-profile-card",
-        );
-        goToNextStep();
-        return;
-      }
-      case "preview-listing-card": {
-        captureOnboardingStepEvent(
-          "onboarding_step_completed",
-          "preview-listing-card",
-        );
-        goToNextStep();
         return;
       }
       default: {
@@ -1760,18 +1722,14 @@ export function StartOnboardingPageClient({
         return isSavingProfile
           ? "Saving profile..."
           : "Save profile and continue";
-      case "preview-profile-card":
-        return "Build my first listing";
       case "build-listing-card":
         return isSavingListing
           ? "Saving listing..."
           : "Save listing and continue";
-      case "preview-listing-card":
-        return "Show buyer inquiry flow";
       case "preview-buyer-contact":
         return "Review plans";
       case "start-membership":
-        return "Continue for now";
+        return "Keep unlisted";
       default:
         return "Continue";
     }
@@ -2347,63 +2305,6 @@ export function StartOnboardingPageClient({
           </div>
         ) : null}
 
-        {currentStep.id === "preview-profile-card" ? (
-          <div className="space-y-6">
-            <OnboardingSectionCard
-              title="Catalog discovery preview"
-              contentClassName="space-y-4"
-            >
-              <p className="text-muted-foreground">
-                This is an example gallery view, not the live catalogs page. It
-                mirrors how customers discover gardens first when browsing
-                catalogs.
-              </p>
-              <div className="text-sm font-medium text-emerald-700">
-                Look for the{" "}
-                <Badge variant="secondary" className="mx-1 align-middle">
-                  Yours
-                </Badge>
-                badge to spot your card.
-              </div>
-              <div className="grid gap-4 lg:grid-cols-[repeat(2,minmax(0,24rem))] lg:justify-start">
-                <ProfilePreviewCard
-                  title={profileNamePreview}
-                  description={profileDescriptionPreview}
-                  imageUrl={profileImagePreviewUrl}
-                  location={profileLocationPreview}
-                  variant="owned"
-                  ownershipBadge="Yours"
-                />
-                {ONBOARDING_PROFILE_DISCOVERY_EXAMPLES.map((exampleCard) => (
-                  <ProfilePreviewCard
-                    key={exampleCard.id}
-                    title={exampleCard.title}
-                    description={exampleCard.description}
-                    imageUrl={exampleCard.imageUrl}
-                    location={exampleCard.location}
-                  />
-                ))}
-              </div>
-            </OnboardingSectionCard>
-
-            <div className="space-y-2">
-              <p className="text-sm font-semibold">
-                Are you happy with your catalog card?
-              </p>
-              <p className="text-muted-foreground text-sm">
-                If not, go back and update your catalog card before continuing.
-              </p>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => goToStep("build-profile-card")}
-              >
-                Go back and edit catalog card
-              </Button>
-            </div>
-          </div>
-        ) : null}
-
         {currentStep.id === "build-listing-card" ? (
           <div className="space-y-6">
             <div className="space-y-2">
@@ -2527,48 +2428,6 @@ export function StartOnboardingPageClient({
                   <p className="text-muted-foreground text-xs leading-relaxed">
                     Optional in onboarding. Add a price now if you want to
                     preview add-to-cart behavior.
-                  </p>
-                </div>
-
-                <div
-                  className={cn(
-                    "space-y-2 rounded-lg border p-4 transition-colors",
-                    activeListingField === "status" &&
-                      "border-primary bg-primary/5",
-                  )}
-                >
-                  <Label htmlFor="listing-status">Listing visibility</Label>
-                  <Select
-                    value={
-                      listingDraft.status === STATUS.HIDDEN
-                        ? STATUS.HIDDEN
-                        : "published"
-                    }
-                    onOpenChange={() => setActiveListingField("status")}
-                    onValueChange={(value) =>
-                      setListingDraft((previous) => ({
-                        ...previous,
-                        status:
-                          value === "published"
-                            ? STATUS.PUBLISHED
-                            : STATUS.HIDDEN,
-                      }))
-                    }
-                  >
-                    <SelectTrigger
-                      id="listing-status"
-                      onFocus={() => setActiveListingField("status")}
-                    >
-                      <SelectValue placeholder="Select listing visibility" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value={STATUS.HIDDEN}>Hidden</SelectItem>
-                      <SelectItem value="published">Published</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <p className="text-muted-foreground text-xs leading-relaxed">
-                    Hidden is the default. Making this public will show the
-                    listing on your public catalog page.
                   </p>
                 </div>
 
@@ -2850,99 +2709,18 @@ export function StartOnboardingPageClient({
           </div>
         ) : null}
 
-        {currentStep.id === "preview-listing-card" ? (
-          <div className="space-y-6">
-            <OnboardingSectionCard
-              title="Finished listing card preview"
-              contentClassName="space-y-4"
-            >
-              <p className="text-muted-foreground">
-                This is an example buyer-facing card preview, using your new
-                listing data.
-              </p>
-              <div className="text-sm font-medium text-emerald-700">
-                Look for the{" "}
-                <Badge variant="secondary" className="mx-1 align-middle">
-                  Yours
-                </Badge>
-                badge to spot your listing.
-              </div>
-              <div className="grid gap-4 lg:grid-cols-[repeat(2,minmax(0,24rem))] lg:justify-start">
-                <ListingPreviewCard
-                  title={listingTitlePreview}
-                  description={listingDescriptionForListingPreview}
-                  price={listingPricePreview}
-                  linkedLabel={selectedCultivarName}
-                  hybridizerYear={
-                    selectedCultivarDetailsQuery.data
-                      ? [
-                          selectedCultivarDetailsQuery.data.hybridizer,
-                          selectedCultivarDetailsQuery.data.year,
-                        ]
-                          .filter(Boolean)
-                          .join(", ")
-                      : null
-                  }
-                  imageUrl={listingImagePreviewUrl}
-                  variant="owned"
-                  ownershipBadge="Yours"
-                />
-                {ONBOARDING_LISTING_DISCOVERY_EXAMPLES.map((exampleListing) => (
-                  <ListingPreviewCard
-                    key={exampleListing.id}
-                    title={exampleListing.title}
-                    description={exampleListing.description}
-                    price={exampleListing.price}
-                    linkedLabel={exampleListing.linkedLabel}
-                    hybridizerYear={exampleListing.hybridizerYear}
-                    imageUrl={exampleListing.imageUrl}
-                  />
-                ))}
-              </div>
-            </OnboardingSectionCard>
-
-            <div className="space-y-2">
-              <p className="text-sm font-semibold">
-                Are you happy with your listing?
-              </p>
-              <p className="text-muted-foreground text-sm">
-                If not, go back and update your listing card before continuing.
-              </p>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => goToStep("build-listing-card")}
-              >
-                Go back and edit listing card
-              </Button>
-            </div>
-          </div>
-        ) : null}
-
         {currentStep.id === "preview-buyer-contact" ? (
           <div className="space-y-6">
-            <h2 className="text-2xl font-semibold tracking-tight">
-              How buyers contact you
-            </h2>
-            <p className="text-muted-foreground max-w-3xl">
-              Buyers can contact you directly from your catalog, or add priced
-              listings to cart first and send one message with selected items.
-            </p>
-
             {isBuyerContactPreviewHydrating ? (
               <div className="bg-background text-muted-foreground rounded-lg border p-4 text-sm">
                 Loading your saved catalog and listing preview...
               </div>
             ) : (
-              <div className="space-y-4">
+              <div className="space-y-8">
                 <div className="grid gap-6 lg:grid-cols-[repeat(2,minmax(0,24rem))] lg:justify-start">
                   <div className="space-y-3">
-                    <p className="text-xs font-semibold tracking-wide uppercase">
-                      Path 1: Direct message
-                    </p>
-                    <p className="text-muted-foreground text-sm font-medium">
-                      Buyer opens your catalog profile and can send an email
-                      message immediately.
+                    <p className="text-sm font-semibold">
+                      Catalog card preview
                     </p>
                     <div className="relative max-w-sm">
                       <ProfilePreviewCard
@@ -2960,15 +2738,27 @@ export function StartOnboardingPageClient({
                         }
                       />
                     </div>
+                    <div className="space-y-2">
+                      <p className="text-sm font-semibold">
+                        Are you happy with your catalog card?
+                      </p>
+                      <p className="text-muted-foreground text-sm">
+                        If not, go back and update your catalog card before
+                        continuing.
+                      </p>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => goToStep("build-profile-card")}
+                      >
+                        Go back and edit catalog card
+                      </Button>
+                    </div>
                   </div>
 
                   <div className="space-y-3">
-                    <p className="text-xs font-semibold tracking-wide uppercase">
-                      Path 2: Add to cart
-                    </p>
-                    <p className="text-muted-foreground text-sm font-medium">
-                      Buyer opens your listing. If it has a price, they can add
-                      it to cart and send one email with item details.
+                    <p className="text-sm font-semibold">
+                      Listing card preview
                     </p>
                     <div className="relative max-w-sm">
                       <ListingPreviewCard
@@ -2991,12 +2781,68 @@ export function StartOnboardingPageClient({
                         ownershipBadge="Your listing"
                       />
                     </div>
-                    <Button type="button" className="w-full lg:w-auto">
-                      <MessageCircle className="h-4 w-4" />
-                      Contact Seller (1 cart item)
-                    </Button>
+                    <div className="space-y-2">
+                      <p className="text-sm font-semibold">
+                        Are you happy with your listing?
+                      </p>
+                      <p className="text-muted-foreground text-sm">
+                        If not, go back and update your listing card before
+                        continuing.
+                      </p>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => goToStep("build-listing-card")}
+                      >
+                        Go back and edit listing card
+                      </Button>
+                    </div>
                   </div>
                 </div>
+
+                <OnboardingSectionCard title="How buyers contact you">
+                  <p className="text-muted-foreground text-sm leading-relaxed">
+                    Buyers can contact you directly from your catalog, or add
+                    priced listings to cart and send one message with selected
+                    items.
+                  </p>
+                  <div className="space-y-2 text-sm">
+                    <PreviewBullet text="Path 1: Buyer opens your catalog and sends an email immediately." />
+                    <PreviewBullet text="Path 2: Buyer adds priced listings to cart, then sends one message with item details." />
+                  </div>
+                  <p className="text-muted-foreground text-sm leading-relaxed">
+                    Buyers do not pay on Daylily Catalog. You arrange payment
+                    and shipping directly after inquiry.
+                  </p>
+                  <p className="text-muted-foreground text-sm leading-relaxed">
+                    Your catalog and listings will not be publicly discoverable
+                    until you have an active trial or membership.
+                  </p>
+                </OnboardingSectionCard>
+
+                <OnboardingSectionCard title="Explore real examples">
+                  <div className="flex flex-col items-start gap-2 text-sm">
+                    <a
+                      href="https://daylilycatalog.com/rollingoaksdaylilies"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-primary hover:text-primary/80 block underline underline-offset-2"
+                    >
+                      See a real business catalog example
+                    </a>
+                    <a
+                      href="https://daylilycatalog.com/cultivar/starman"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-primary hover:text-primary/80 block underline underline-offset-2"
+                    >
+                      See a popular cultivar discovery page
+                    </a>
+                    <p className="text-muted-foreground text-xs">
+                      Public catalog updates can take up to 24 hours.
+                    </p>
+                  </div>
+                </OnboardingSectionCard>
               </div>
             )}
           </div>
@@ -3065,7 +2911,7 @@ export function StartOnboardingPageClient({
                     data-testid="start-membership-continue"
                     onClick={handleMembershipContinueForNow}
                   >
-                    Continue for now
+                    Keep unlisted
                   </Link>
                 </div>
               </div>

@@ -91,15 +91,7 @@ test.describe("onboarding full flow @local", () => {
           "Family-grown daylilies with seasonal shipping and collector-focused descriptions.",
       });
       await onboardingFlowPage.clickPrimaryAction();
-      await onboardingFlowPage.expectStep(2, "See it on catalogs");
-      await onboardingFlowPage.expectProfilePreview({
-        sellerName: "Sunrise Daylily Farm",
-        location: "Snohomish, WA",
-        description:
-          "Family-grown daylilies with seasonal shipping and collector-focused descriptions.",
-      });
-      await onboardingFlowPage.clickPrimaryAction();
-      await onboardingFlowPage.expectStep(3, "Build your first listing");
+      await onboardingFlowPage.expectStep(2, "Build your first listing");
       await onboardingFlowPage.expectDefaultCultivarLinked("Coffee Frenzy");
       await onboardingFlowPage.expectListingPreviewUsesLinkedImage();
       await onboardingFlowPage.fillListingStep({
@@ -115,15 +107,10 @@ test.describe("onboarding full flow @local", () => {
           "Healthy spring fan with strong roots and bright rebloom potential.",
       });
       await onboardingFlowPage.clickPrimaryAction();
-      await onboardingFlowPage.expectStep(4, "See your listing card");
-      await expect(
-        page.getByText("Coffee Frenzy spring fan", { exact: false }),
-      ).toBeVisible();
-      await onboardingFlowPage.clickPrimaryAction();
-      await onboardingFlowPage.expectStep(5, "See buyer inquiry flow");
+      await onboardingFlowPage.expectStep(3, "Preview your catalog");
       await onboardingFlowPage.expectBuyerContactStep();
       await onboardingFlowPage.clickPrimaryAction();
-      await onboardingFlowPage.expectStep(6, "Get started");
+      await onboardingFlowPage.expectStep(4, "Get listed");
       await onboardingFlowPage.expectMembershipStep();
       await onboardingFlowPage.checkoutButton.click();
       await stripeCheckout.isReady();

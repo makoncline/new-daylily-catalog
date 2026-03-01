@@ -1,6 +1,6 @@
 import fs from "node:fs/promises";
 import path from "node:path";
-import type { Page, TestInfo } from "@playwright/test";
+import { expect, type Page, type TestInfo } from "@playwright/test";
 import { test } from "./fixtures/app-fixtures";
 import { withTempE2EDb } from "../../src/lib/test-utils/e2e-db";
 import { seedAhsListing } from "./utils/ahs-listings";
@@ -198,36 +198,6 @@ async function fillInputWithRetry({
   throw new Error(`Unable to set ${selector} to "${value}" during capture flow`);
 }
 
-async function ensureProfileSaveAdvanced(page: Page) {
-  const profileEditorHeading = page.getByText("Edit your profile", {
-    exact: true,
-  });
-  const catalogPreviewHeading = page.getByText("Catalog discovery preview", {
-    exact: true,
-  });
-  const listingBuilderHeading = page.getByText("Edit your first listing", {
-    exact: true,
-  });
-
-  for (let attempt = 0; attempt < 25; attempt += 1) {
-    if (await catalogPreviewHeading.isVisible().catch(() => false)) {
-      return;
-    }
-
-    if (await listingBuilderHeading.isVisible().catch(() => false)) {
-      return;
-    }
-
-    if (await profileEditorHeading.isVisible().catch(() => false)) {
-      await clickPrimaryAction(page);
-    }
-
-    await page.waitForTimeout(300);
-  }
-
-  throw new Error("Profile save did not advance to the next onboarding step");
-}
-
 test.describe("onboarding flow screenshot capture @capture", () => {
   test.skip(
     !shouldRunOnboardingCapture,
@@ -307,31 +277,9 @@ test.describe("onboarding flow screenshot capture @capture", () => {
       label: "onboarding-step-1-complete",
     });
 
-    logCaptureStep("Go to profile preview");
-    await ensureProfileSaveAdvanced(page);
-
-    await page.goto("/onboarding?step=preview-profile-card", {
-      waitUntil: "domcontentloaded",
-    });
-    await page.getByText("Catalog discovery preview", { exact: true }).waitFor({
-      state: "visible",
-    });
-
-    await saveCapture({
-      page,
-      label: "onboarding-step-2-profile-preview",
-    });
-
-    await page.getByTestId("start-onboarding-page").waitFor({ state: "visible" });
-    await page
-      .getByTestId("start-onboarding-primary-action")
-      .waitFor({ state: "visible" });
-
-    logCaptureStep("Open listing builder step directly");
-    await page.goto("/onboarding?step=build-listing-card", {
-      waitUntil: "domcontentloaded",
-    });
-    await page.getByText("Edit your first listing", { exact: true }).waitFor({
+    logCaptureStep("Save profile and advance to listing step");
+    await clickPrimaryAction(page);
+    await page.getByText("Build your first listing", { exact: true }).waitFor({
       state: "visible",
     });
     await page.locator("#listing-title").waitFor({ state: "visible" });
@@ -359,69 +307,39 @@ test.describe("onboarding flow screenshot capture @capture", () => {
 
     await saveCapture({
       page,
-      label: "onboarding-step-3-listing-builder-complete",
+      label: "onboarding-step-2-listing-builder-complete",
     });
 
-    logCaptureStep("Save listing step before preview captures");
+    logCaptureStep("Save listing and advance to combined preview");
     await clickPrimaryAction(page);
-    await Promise.any([
-      page.getByText("Finished listing card preview").waitFor({ state: "visible" }),
-      page
-        .getByRole("heading", { name: "How buyers contact you" })
-        .waitFor({ state: "visible" }),
-      page
-        .getByRole("main")
-        .getByTestId("onboarding-start-membership-step")
-        .waitFor({ state: "visible" }),
-    ]);
-
-    logCaptureStep("Open listing preview step directly");
-    await page.goto("/onboarding?step=preview-listing-card", {
-      waitUntil: "domcontentloaded",
-    });
-    await page.getByText("Finished listing card preview").waitFor({
-      state: "visible",
-    });
-    await page.getByText("Are you happy with your listing?").waitFor({
-      state: "visible",
-    });
-
-    await saveCapture({
-      page,
-      label: "onboarding-step-4-listing-preview",
-    });
-
-    logCaptureStep("Open buyer inquiry flow step directly");
-    await page.goto("/onboarding?step=preview-buyer-contact", {
-      waitUntil: "domcontentloaded",
-    });
     await page
-      .getByRole("heading", { name: "How buyers contact you" })
+      .getByText("Preview your catalog", { exact: true })
+      .waitFor({ state: "visible" });
+    await page
+      .getByText("How buyers contact you", { exact: true })
       .waitFor({ state: "visible" });
     await page
       .getByRole("button", { name: "Contact this seller" })
       .waitFor({ state: "visible" });
-    await page
-      .getByRole("button", { name: /Contact Seller \(1 .*item\)/i })
-      .waitFor({ state: "visible" });
 
     await saveCapture({
       page,
-      label: "onboarding-step-5-buyer-inquiry-flow",
+      label: "onboarding-step-3-preview-and-contact",
     });
 
-    logCaptureStep("Open membership step directly");
-    await page.goto("/onboarding?step=start-membership", {
-      waitUntil: "domcontentloaded",
-    });
+    logCaptureStep("Advance to membership step");
+    await clickPrimaryAction(page);
     await page
       .getByRole("main")
       .getByTestId("onboarding-start-membership-step")
       .waitFor({ state: "visible" });
+    const membershipPrice = page.getByTestId("start-membership-price");
+    await membershipPrice.waitFor({ state: "visible" });
+    await expect(membershipPrice).toContainText(/\$/);
 
     await saveCapture({
       page,
-      label: "onboarding-step-6-membership",
+      label: "onboarding-step-4-membership",
     });
   });
 

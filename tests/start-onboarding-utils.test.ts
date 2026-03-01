@@ -24,7 +24,7 @@ describe("start onboarding utils", () => {
     expect(getNextIncompleteProfileField(withName)).toBe("image");
 
     const withImage = { ...withName, profileImageUrl: "/assets/bouquet.png" };
-    expect(getNextIncompleteProfileField(withImage)).toBe("description");
+    expect(getNextIncompleteProfileField(withImage)).toBeNull();
 
     const completeDraft = {
       ...withImage,
@@ -63,9 +63,7 @@ describe("start onboarding utils", () => {
   it("keeps onboarding steps in the intended sequence", () => {
     expect(ONBOARDING_STEPS.map((step) => step.id)).toEqual([
       "build-profile-card",
-      "preview-profile-card",
       "build-listing-card",
-      "preview-listing-card",
       "preview-buyer-contact",
       "start-membership",
     ]);

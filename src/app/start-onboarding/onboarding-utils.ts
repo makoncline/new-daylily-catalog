@@ -25,15 +25,12 @@ export type ListingOnboardingField =
   | "cultivar"
   | "title"
   | "price"
-  | "status"
   | "description"
   | "image";
 
 export type OnboardingStepId =
   | "build-profile-card"
-  | "preview-profile-card"
   | "build-listing-card"
-  | "preview-listing-card"
   | "preview-buyer-contact"
   | "start-membership";
 
@@ -53,13 +50,6 @@ export const ONBOARDING_STEPS: readonly OnboardingStep[] = [
       "Complete this card so buyers can recognize your garden and feel confident reaching out.",
   },
   {
-    id: "preview-profile-card",
-    title: "See it on catalogs",
-    chipLabel: "Catalog preview",
-    description:
-      "This preview shows how customers discover your catalog while browsing.",
-  },
-  {
     id: "build-listing-card",
     title: "Build your first listing",
     chipLabel: "Listing",
@@ -67,25 +57,18 @@ export const ONBOARDING_STEPS: readonly OnboardingStep[] = [
       "A clear title, price, and description help buyers decide to message you.",
   },
   {
-    id: "preview-listing-card",
-    title: "See your listing card",
-    chipLabel: "Listing preview",
-    description:
-      "This is how your listing appears when buyers compare options side by side.",
-  },
-  {
     id: "preview-buyer-contact",
-    title: "See buyer inquiry flow",
-    chipLabel: "Buyer contact",
+    title: "Preview your catalog",
+    chipLabel: "Catalog preview",
     description:
-      "Buyers can email you directly or send one message with cart items, then arrange payment and shipping with you.",
+      "Preview your catalog and listing cards, then see how buyers contact you.",
   },
   {
     id: "start-membership",
-    title: "Get started",
-    chipLabel: "Get started",
+    title: "Get listed",
+    chipLabel: "Get listed",
     description:
-      "Start your free trial now, or continue for now and finish setup in your dashboard.",
+      "Start your free trial now, or keep unlisted and finish setup in your dashboard.",
   },
 ] as const;
 
@@ -149,47 +132,9 @@ export const ONBOARDING_LISTING_DEFAULTS = {
     "Only a limited set of varieties is available during onboarding. You can search the full Daylily Database from your dashboard.",
   draftTitle: "My first listing",
   contactPreviewFallbackPrice: 10,
-  defaultStatus: STATUS.HIDDEN,
+  defaultStatus: STATUS.PUBLISHED,
   fallbackImageUrl: "/assets/onboarding-generated/listing-fallback.png",
 } as const;
-
-export const ONBOARDING_PROFILE_DISCOVERY_EXAMPLES = [
-  {
-    id: "prairie-bloom",
-    title: "Prairie Bloom Gardens",
-    description: "Seasonal favorites and regional shipping updates weekly.",
-    imageUrl: "/assets/onboarding-generated/profile-example-willow.png",
-    location: "Eugene, OR",
-  },
-  {
-    id: "willow-daylilies",
-    title: "Willow Daylilies",
-    description: "Collector-focused stock with curated cultivar groupings.",
-    imageUrl: "/assets/onboarding-generated/profile-example-prairie.png",
-    location: "Boise, ID",
-  },
-] as const;
-
-export const ONBOARDING_LISTING_DISCOVERY_EXAMPLES = [
-  {
-    id: "amber-twilight",
-    title: "Amber Twilight",
-    description: "Dormant fan, healthy roots, spring shipping window.",
-    price: 27,
-    linkedLabel: "Amber Twilight",
-    hybridizerYear: "Smith, 2012",
-    imageUrl: "/assets/onboarding-generated/listing-example-amber.png",
-  },
-  {
-    id: "collector-mix",
-    title: "Collector Mix",
-    description: "Unlinked starter pack listing for local pickup events.",
-    price: null,
-    linkedLabel: null,
-    hybridizerYear: null,
-    imageUrl: "/assets/onboarding-generated/listing-example-collector.png",
-  },
-] as const;
 
 export const ONBOARDING_PROFILE_DESCRIPTION_SEO_GUIDANCE = {
   minLength: 80,

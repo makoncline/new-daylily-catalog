@@ -114,28 +114,28 @@ export const PUBLIC_ROUTES_CONFIG = {
 
 export const PRO_FEATURES = [
   {
-    id: "custom-url",
-    text: "Custom catalog URL - easy to remember and share.",
-    icon: ExternalLink,
-  },
-  {
-    id: "unlimited",
-    text: "Unlimited inventory - listings, lists, and photos.",
-    icon: Package,
-  },
-  {
     id: "catalog-page",
     text: "Seller browsing placement - get discovered by active buyers.",
     icon: ListChecks,
   },
   {
     id: "cultivar-page",
-    text: "Cultivar page visibility - show up on variety research pages.",
+    text: "Cultivar page visibility - show up where collectors research.",
     icon: ImageIcon,
   },
   {
+    id: "custom-url",
+    text: "Custom catalog URL - easier to share.",
+    icon: ExternalLink,
+  },
+  {
+    id: "unlimited",
+    text: "Unlimited inventory - listings, lists, photos.",
+    icon: Package,
+  },
+  {
     id: "support",
-    text: "Priority support - faster help during peak season.",
+    text: "Priority support.",
     icon: HandHeart,
   },
 ] as const;
