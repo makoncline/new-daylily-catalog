@@ -98,11 +98,6 @@ export async function uploadFileWithProgress({
   file: Blob;
   onProgress: (pct: number) => void;
 }) {
-  if (presignedUrl.startsWith("mock-upload://")) {
-    onProgress(100);
-    return;
-  }
-
   return new Promise<void>((resolve, reject) => {
     const xhr = new XMLHttpRequest();
     xhr.upload.addEventListener("progress", (event) => {

@@ -52,6 +52,17 @@ export class OnboardingFlowPage {
   }) {
     await this.page.locator("#garden-name").fill(sellerName);
     await this.page.locator("#garden-location").fill(location);
+    const starterOverlayCheckbox = this.page.locator("#starter-overlay");
+    if (
+      (await starterOverlayCheckbox.getAttribute("aria-checked")) === "true"
+    ) {
+      await starterOverlayCheckbox.click();
+    }
+    await this.page
+      .getByTestId("onboarding-starter-image-picker")
+      .locator("button")
+      .first()
+      .click();
     await this.page.locator("#garden-description").fill(description);
   }
 

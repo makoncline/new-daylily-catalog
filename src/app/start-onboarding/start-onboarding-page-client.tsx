@@ -1286,8 +1286,10 @@ export function StartOnboardingPageClient({
     setIsSavingProfile(true);
 
     try {
-      let profileImageUrlToSave = profileDraft.profileImageUrl;
-      let profileImageKeyToSave = `onboarding:${Date.now()}`;
+      let profileImageUrlToSave: string | null =
+        profileDraft.profileImageUrl ?? null;
+      let profileImageKeyToSave: string | null = null;
+      let shouldCreateProfileImageRecord = false;
 
       if (pendingProfileUploadBlob) {
         const { url, key } = await uploadOnboardingImageBlob({
@@ -1299,6 +1301,7 @@ export function StartOnboardingPageClient({
 
         profileImageUrlToSave = url;
         profileImageKeyToSave = key;
+        shouldCreateProfileImageRecord = true;
         clearPendingProfileUpload();
         setProfileDraft((previous) => ({
           ...previous,
@@ -1315,6 +1318,7 @@ export function StartOnboardingPageClient({
 
           profileImageUrlToSave = url;
           profileImageKeyToSave = key;
+          shouldCreateProfileImageRecord = true;
           clearPendingStarterImage();
 
           setProfileDraft((previous) => ({
@@ -1326,7 +1330,8 @@ export function StartOnboardingPageClient({
             selectedStarterImageUrl ?? DEFAULT_STARTER_IMAGE_URL;
           clearPendingStarterImage();
           profileImageUrlToSave = fallbackStarterImageUrl;
-          profileImageKeyToSave = `onboarding:starter:${Date.now()}`;
+          profileImageKeyToSave = null;
+          shouldCreateProfileImageRecord = false;
           setProfileDraft((previous) => ({
             ...previous,
             profileImageUrl: fallbackStarterImageUrl,
@@ -1347,7 +1352,11 @@ export function StartOnboardingPageClient({
         },
       });
 
-      if (profileImageUrlToSave) {
+      if (
+        profileImageUrlToSave &&
+        shouldCreateProfileImageRecord &&
+        profileImageKeyToSave
+      ) {
         try {
           await createOnboardingProfileImage({
             profileId: profileQuery.data.id,
@@ -1413,9 +1422,10 @@ export function StartOnboardingPageClient({
         },
       });
 
-      let listingImageToSave =
-        selectedListingImageUrl ?? selectedCultivarImageUrl;
-      let listingImageKeyToSave = `onboarding-listing:${Date.now()}`;
+      let listingImageToSave: string | null =
+        selectedListingImageUrl ?? selectedCultivarImageUrl ?? null;
+      let listingImageKeyToSave: string | null = null;
+      let shouldCreateListingImageRecord = false;
       if (pendingListingUploadBlob) {
         const { url, key } = await uploadOnboardingImageBlob({
           blob: pendingListingUploadBlob,
@@ -1425,11 +1435,16 @@ export function StartOnboardingPageClient({
         });
         listingImageToSave = url;
         listingImageKeyToSave = key;
+        shouldCreateListingImageRecord = true;
         clearPendingListingUpload();
         setSelectedListingImageUrl(url);
       }
 
-      if (listingImageToSave) {
+      if (
+        listingImageToSave &&
+        shouldCreateListingImageRecord &&
+        listingImageKeyToSave
+      ) {
         await createOnboardingListingImage({
           listingId,
           selectedImageUrl: listingImageToSave,
@@ -1836,7 +1851,10 @@ export function StartOnboardingPageClient({
                           </p>
                         </div>
                       </div>
-                      <div className="overflow-x-auto pb-2">
+                      <div
+                        data-testid="onboarding-starter-image-picker"
+                        className="overflow-x-auto pb-2"
+                      >
                         <div className="grid w-full auto-cols-[calc((100%-2rem)/4.5)] grid-flow-col gap-2">
                           {STARTER_PROFILE_IMAGES.map((image) => (
                             <button
