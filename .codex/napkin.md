@@ -1,35 +1,341 @@
 # Napkin
 
-## User Preferences
-- Keep responses direct and pragmatic.
-- In quick-fix mode, prioritize fast UI iteration first, then full validation.
-- Do not commit unless explicitly asked.
-- Prefer two responsive modes for new UI in this repo: base (`< lg`) and `lg` (`>= lg`).
+## Log
 
-## PR 112 High-Signal Notes
-- Onboarding now runs at `/onboarding` with URL-driven step state (`?step=...`).
-- Start membership is integrated as the final onboarding step.
-- Kept onboarding behavior isolated in onboarding-local components where possible.
-- Removed shared-runtime mock upload behavior from production paths:
-  - `src/server/api/routers/dashboard-db/image.ts`
-  - `src/lib/utils.ts`
-- E2E stability fix avoids generated starter-overlay uploads by default in onboarding flow tests:
-  - disable `#starter-overlay`
-  - select a starter image via `data-testid="onboarding-starter-image-picker"`
-- Additional derisk: onboarding only creates `Image` DB rows when an actual blob upload succeeds; static starter/cultivar URLs are used for preview/profile/listing without persisting fake-key image records.
+- 2026-02-28 - onboarding route consolidation - New-user onboarding flow is now canonical at `/onboarding` with URL-driven step state (`?step=<id>`) for deep-linkable steps.
+- 2026-02-28 - membership step integration - Start membership is now the final onboarding step in-flow; standalone `/start-membership` behavior is compatibility/redirect oriented.
+- 2026-02-28 - onboarding e2e hardening - Added/updated assertion-based full onboarding flow coverage (home signup -> onboarding steps -> Stripe checkout landing -> `/subscribe/success?redirect=/dashboard` -> dashboard).
+- 2026-02-28 - onboarding test-id stability - Fixed e2e flake by moving onboarding membership step selector to dedicated `data-testid="onboarding-start-membership-step"` and aligning page objects/spec usage.
+- 2026-02-28 - shared upload derisk rollback - Removed Playwright mock-upload behavior from shared runtime code (`dashboardDb.image.getPresignedUrl`, `uploadFileWithProgress`) to avoid non-test environment blast radius.
+- 2026-02-28 - onboarding image persistence guard - Onboarding now creates `Image` DB rows only when an actual blob upload succeeds; starter/cultivar static preview URLs do not create fake-key image records.
+- 2026-02-28 - onboarding test upload avoidance - E2E onboarding profile helper disables starter-name overlay and selects a starter asset explicitly to avoid generated-blob upload paths during test runs.
+- 2026-02-28 - e2e fixture cleanup - Removed unused subscribe-success page object fixture wiring after flow moved to direct success redirect assertion.
 
-## Current Validation Baseline
-- `pnpm exec tsc --noEmit` passes.
-- `pnpm lint` passes with one existing warning in `src/hooks/use-data-table.ts`.
-- `pnpm test:e2e` passes locally.
+- 2026-02-26 - data-shape guidance preference - Keep approximate row-count guidance in `AGENTS.md` for query tuning context: `AhsListing` ~100k, `CultivarReference` ~100k, `User` ~100, `Listing` ~5k, `Image` hundreds.
+- 2026-02-26 - profiling handoff entrypoint - When another agent session needs to run query profiling, start from `docs/local-query-profiler.md`; this is the canonical run/analyze workflow and uses the single command `pnpm profile:queries` (with required env vars).
+- 2026-02-26 - public search row-read amplifier - `/[userSlugOrId]/search` uses `PUBLIC_CATALOG_SEARCH_PERSISTED_SWR.queryLimit=500` and auto-fetches until exhaustion (`hasNextPage` effect), while each `public.getListings` call recomputes full sorted ID list in SQL before slicing cursor page; this creates repeated full-list scans per visit on large catalogs.
+- 2026-02-26 - profiling artifact preference - User wants query profiling reports to stay local (not committed); commit only durable docs/infra and keep findings/TODOs in a markdown query-notes doc for follow-up PRs.
+- 2026-02-26 - profiling command preference - User prefers one profiling command instead of multiple package scripts; consolidate workflow behind a single `pnpm profile:queries` entrypoint.
+- 2026-02-26 - profiler spec gate verification pattern - Fast validation for opt-in-only specs: run `playwright test <spec> --list` once with `BASE_URL` only (expect 0 tests) and once with `E2E_PROFILE_SCENARIO=1 BASE_URL=...` (expect listed tests).
+- 2026-02-26 - dedicated profiling spec isolation - Keep query-profiling e2e specs opt-in with `E2E_PROFILE_SCENARIO=1` + `BASE_URL` guard so normal `pnpm test:e2e` and CI runs stay unchanged.
+- 2026-02-26 - strategic profiler route mix - A useful local prod profiling pass is: dashboard (`/dashboard`, listings/lists/profile), `/catalogs`, `/{slug}`, `/{slug}/search?query=spacecoast`, then cultivar pages (`coffee-frenzy`, `starman`).
+- 2026-02-26 - cultivar photos preference - User confirmed small scale (~15 users, ~4 images/listing), so cultivar page should fetch and show all listing images for the cultivar instead of limiting to one image per listing.
+- 2026-02-26 - related cultivar simplification - For related cultivar cards, the clean query shape is `ahsImageUrl != null` + `orderBy normalizedName asc` + `take 5`; removing year parsing and updatedAt candidate ordering avoids mixed-ranking drift.
+- 2026-02-26 - related cultivar ranking trap - If candidate fetches are ordered by `updatedAt` but final display order is by `year`, cutting candidate limit down to display size can silently hide newer-year cultivars when a hybridizer has many entries; keep a larger candidate pool or align DB ordering with display sort.
+- 2026-02-26 - cultivar visibility preference reaffirmed - User confirmed cultivar page offers should remain pro-only; keep listing query gated with `shouldShowToPublic(proUserIds)` rather than published-only visibility.
+- 2026-02-26 - profiler report JSON shape - `manual-report*.json` uses `{ eventCount, uniquePatternCount, totalTimeMs, patterns[] }` with per-pattern camelCase keys (`totalTimeMs`, `avgTimeMs`, `p95TimeMs`, `sqlPattern`), not `rows`/snake_case.
+- 2026-02-26 - large-account auth target confirmation - Local prod snapshot high-volume account is user `3` (`rollingoaksdaylilies`) with clerk id `user_32T1tvQIoeDiev3SJwar7ogR8oo` and ~2961 listings; this is the best dashboard stress target.
+- 2026-02-26 - clerk dev login flow for e2e account - Sign-in can present email/password first, then email verification code modal; `424242` works at the code step for `makon+clerk_test@hey.com`.
+- 2026-02-26 - self-miss user slug location - I queried `User.slug` directly in sqlite during profiling prep; slug lives on profile-related tables in this codebase flow, so verify schema before ad-hoc SQL probes.
+- 2026-02-26 - self-miss zsh globbing during profiler checks - I ran `ls tests/.tmp/query-profiler/manual-session.jsonl*` unquoted and hit `no matches found`; always quote wildcard paths in zsh when probing optional files.
+- 2026-02-26 - profiling with server cache caveat - `createServerCache` can hide Prisma activity entirely during local profiling; include `LOCAL_QUERY_PROFILER=1` in cache bypass conditions so profiling runs observe real DB traffic.
+- 2026-02-26 - multi-process reset race in local query profiler - With Next dev worker processes, `LOCAL_QUERY_PROFILER_RESET=1` can repeatedly truncate the same JSONL unless reset is guarded by a persistent lock file; clear `*.reset.lock` at run start, not process exit.
+- 2026-02-26 - self-miss `$disconnect` shell expansion recurrence - Inline `tsx -e` snippets still mangle `$disconnect` in shell literals; when probing Prisma quickly use `db["$disconnect"]()` or temp script files to avoid accidental truncation.
+- 2026-02-26 - prod snapshot path gotcha for local profiling - `scripts/db-backup.sh` writes snapshot to `prisma/local-prod-copy-<db>.db` by default; using `file:./local-prod-copy-...` can create/point to wrong empty files. Prefer absolute `LOCAL_DATABASE_URL=file:/abs/path/to/prisma/local-prod-copy-...db` for profiled runs.
+- 2026-02-26 - prisma query-event requirement for profiling - Prisma query capture via `db.$on("query")` only emits when client log config sets query level to `{ emit: "event", level: "query" }`; `["query"]` stdout-only logs are not enough for structured capture.
+- 2026-02-26 - middleware test typing pitfall - `proxy` export is `NextMiddleware` (request + event), so tests should type it as `NextMiddleware` and pass a stub event; one-arg function typing causes TS2322 during module assignment.
+- 2026-02-26 - test scope preference update - User asked to remove prod-snapshot slug compatibility tests as redundant when comprehensive rule-based slug tests already cover permutations; prefer generalized behavior tests over snapshot-fixture duplication for this area.
+- 2026-02-26 - self-miss shell quoting recurrence (again) - I ran `rg` with unquoted App Router path `src/app/(public)/[userSlugOrId]` and hit zsh glob expansion; always quote paths containing `()`/`[]`.
+- 2026-02-26 - profile slug compatibility edge - Local prod snapshot has 18 canonical profile segments shorter than 5 chars (examples: `43`, `95`, `115`); dashboard profile save currently validates slug min length on every save, so legacy short slugs may block unrelated profile edits unless slug validation is change-aware/grandfathered.
+- 2026-02-26 - reserved-slug policy gap - `dashboardDb.userProfile` slug checks do not block reserved top-level segments (`catalogs`, `dashboard`, `api`, etc.); route-level reservation exists only in proxy, so conflicting slugs can be saved but not routed canonically.
+- 2026-02-26 - public profile pagination underscore bug - Legacy profile middleware gate used `^[A-Za-z0-9-]+$`, so slugs/ids with `_` skipped `?page=` rewrite and static `/{slug}` always rendered page 1; allow `_` in `isLegacyProfileSegment` and keep rewrite tests for underscore slugs.
+- 2026-02-26 - self-miss napkin disclosure recurrence - I announced napkin-skill usage again in a status update; keep napkin behavior silent and just apply it.
+- 2026-02-26 - self-miss inline tsx eval under env:dev - `pnpm env:dev npx tsx -e "..."` can mangle `$` identifiers (`$disconnect`) and defaults to CJS where top-level `await` fails; for one-off DB probes use a temp script file or wrap code in async IIFE and avoid `$` member syntax in shell literals.
+- 2026-02-26 - prod phase-2 completion - Applied `20260225183013_add_cultivar_reference_normalized_name_unique` to `daylily-catalog`; post-verify shows dedupe invariants clean and `normalized_name_unique_index_exists=1`.
+- 2026-02-26 - turso tx commit quirk on interactive run - In one interactive `turso db shell` prod session, post-apply `COMMIT` returned `no transaction is active` but fresh-connection verify showed phase-1 dedupe persisted; always confirm final state with a separate verify connection, not commit echo alone.
+- 2026-02-26 - turso shell dot-command limits - Turso SQL shell in this setup supports `.read`/`.quit` but not sqlite dot commands like `.headers`, `.mode column`, `.print`; keep migration scripts pure SQL and avoid formatting dot commands during live runs.
+- 2026-02-26 - turso rollback proof - On `seeded-daylily-catalog`, explicit `BEGIN IMMEDIATE` + test insert + `ROLLBACK` behaved correctly: row visible inside tx (`1`) and absent after rollback in same session and a new connection (`0`/`0`).
+- 2026-02-26 - seeded preview state check - `seeded-daylily-catalog` already had zero duplicate cultivar normalized names before migration; phase 1 was a no-op and phase 2 unique index addition succeeded cleanly.
+- 2026-02-26 - dedupe dry-run execution pattern - For rollout rehearsal, run full phase 1+2 on a throwaway sqlite backup first (`.backup`), then repeat on target local snapshot; transaction helper output gives before/after validation and should show duplicate groups dropping `212 -> 0` plus unique-index check `0 -> 1` after phase 2.
+- 2026-02-25 - migration generator separation - User wants new migration concerns in new dedicated scripts; keep legacy generator scripts unchanged.
+- 2026-02-25 - prisma create-only limitation - In this environment, `prisma migrate dev --create-only` is blocked as non-interactive; fallback is Prisma `migrate diff` to generate migration SQL file deterministically.
+- 2026-02-25 - migration script separation preference - User wants new migration concerns in dedicated generator scripts; do not expand existing historical generator scripts with unrelated artifact sets.
+- 2026-02-25 - transactional migration review pattern - Best live-safe flow for data dedupe is one sqlite session with `BEGIN IMMEDIATE`, run pre-check SQL, apply migration body, run post-check SQL, then manually `COMMIT` or `ROLLBACK`.
+- 2026-02-25 - dedupe migration scope guard - Keep listing `ahsId` updates scoped to rows remapped from duplicate cultivar refs; a global `Listing` alignment update touched unrelated live data and was removed.
+- 2026-02-25 - sqlite snapshot copy reliability - For large local prod snapshots, prefer `sqlite3 source.db ".backup target.db"` over `cp`; direct file copies produced malformed temp DB in this environment.
+- 2026-02-25 - dedupe scope caveat - Deleting AHS rows with `year` containing `reserved` reduces but does not eliminate name duplicates; prod snapshot still has 57 duplicate normalized-name groups (59 extra rows) afterward.
+- 2026-02-25 - duplicate-canonical caveat - A completeness-based canonical AHS row is usually obvious for duplicate names, but linked listings can still point to a sparse/reserved sibling (example: `starman`), so dedupe migrations must remap listing `cultivarReferenceId`.
+- 2026-02-25 - ahs source duplicate names - Prod `AhsListing` has duplicate `LOWER(TRIM(name))` values (212 groups / 274 extra rows), and `CultivarReference` duplicates mirror exactly because the migration upserts by unique `ahsId` and copies normalized name directly.
+- 2026-02-25 - self-miss sqlite path gotcha - Running `sqlite3 <missing-file> "<query>"` creates an empty DB file at that path; verify snapshot path before querying to avoid accidental empty files.
+- 2026-02-25 - cultivar cold-timeout pattern - First-hit `/cultivar/:slug` latency spikes come from duplicate metadata+page fetches plus punctuation slug fallback scans; use request-scoped memoization and richer slug candidates (possessive `'s`) before full-table fallback.
+- 2026-02-26 - cultivar query pattern that works - With ~100k cultivar refs and ~5k listings, expensive `cultivarReference` relation filters are cheaper when split: fetch related cultivar candidates first, then resolve listing-image fallback in a second bounded listing query.
+- 2026-02-26 - restart preference - User asked to reset to `main` and rebuild query fixes from scratch after sharing real data shape.
+- 2026-02-26 - optimization preference - Prioritize code-level query-shape fixes first and avoid DB/index updates initially unless clearly necessary.
+- 2026-02-25 - self-miss shell quoting recurrence - I ran `rg` against unquoted paths containing `(` and `)` and hit zsh glob expansion errors; always quote App Router paths in shell commands.
+- 2026-02-25 - self-miss shell quoting repeat - I repeated the same unquoted-path miss with `git diff` on `src/app/(public)/.../[param]`; quote these paths every time, even for one-off checks.
+- 2026-02-25 - self-miss napkin disclosure - I announced napkin-skill execution in a status update; follow the skill strictly and apply napkin silently.
+- 2026-02-25 - policy-copy consistency - After removing cultivar-page pro gating, metadata copy must say `catalogs` (not `pro catalogs`) to match behavior.
+- 2026-02-25 - e2e cultivar ordering update - `cultivar-page-flow` should expect `hobby-grower` in garden order because cultivar pages now include published free-account offers; only discovery surfaces remain pro-filtered.
+- 2026-02-25 - cultivar ISR simplification - User wants cultivar page logic subscription-agnostic (no pro gating in page lookup/offers); keep pro-only filtering only on discovery surfaces (`/catalogs` and sitemap).
+- 2026-02-25 - invalidation scope preference - User wants invalidation minimalism: allow webhook revalidation only for the pro-user-id cache tag, keep broader public-page invalidation deferred.
+- 2026-02-25 - defer invalidation complexity - User prefers no webhook-driven cache invalidation for public discovery yet; keep TTL-only revalidation and postpone granular tag invalidation until explicitly prioritized.
+- 2026-02-25 - next revalidateTag signature - In this repo’s Next version, `revalidateTag` requires a second profile argument; use `revalidateTag(tag, "max")` in route handlers.
+- 2026-02-25 - subscription lookup log noise - For `getProUserIdSet`, aggregate failed subscription lookups into one warning (and suppress in test env) instead of per-user `console.error` spam.
+- 2026-02-25 - simplification expectation reset - User wants aggressive simplification passes when policy-consistent options exist; prioritize centralized policy helpers and deletion of dead paths instead of defending legacy structure.
+- 2026-02-25 - test mock dedupe - Repeated `where.<field>.in` mock filtering in public discovery tests should live in a shared `tests/test-utils/apply-where-in.ts` helper to keep test setup lean.
+- 2026-02-25 - shared pro-id source pattern - Discovery surfaces are simpler when they consume one cached `getCachedProUserIds` helper (users with `stripeCustomerId != null` -> `getProUserIdSet`) instead of each module rebuilding membership lookup.
+- 2026-02-25 - mock alignment for where.in filters - When production code pushes `id/userId in [...]` into Prisma queries, tests should make `findMany/groupBy` mocks apply those `where` constraints; otherwise free-tier fixtures leak into expected pro-only outputs.
+- 2026-02-25 - public filter builders - Keep discovery visibility logic DRY with shared Prisma `where` builders (`isPublished`, `hasActiveSubscription`, `shouldShowToPublic`) and reuse them across catalogs/cultivars/profile queries instead of duplicating inline status + pro-user conditions.
+- 2026-02-25 - free profile indexing policy - Keep direct free-profile access working (`dynamicParams = true`) but pass subscription state into profile metadata generation so free profiles emit `robots: noindex, follow` while pro profiles stay indexable.
+- 2026-02-25 - cultivar payload simplification - Removed unused `hasActiveSubscription` field from cultivar offer garden card payload; no UI consumers depended on it, so keeping it added dead-state complexity.
+- 2026-02-25 - test realism over prod guards - For DB-backed filters, keep production code lean and make unit mocks honor query constraints (`where.userId.in`) instead of adding redundant in-memory guards just to satisfy static fixture mocks.
+- 2026-02-24 - self-miss mock-vs-query filter - I removed a secondary pro-user filter in cultivar aggregation assuming DB `where` guarantees would always hold, but unit mocks return fixture rows without honoring `where`; keep an explicit seller/pro guard in aggregation paths that consume mocked query rows.
+- 2026-02-24 - self-miss route-page-size expectation - New `getPublicCatalogRouteEntries` test expected `totalPages=3` for 210 listings; current `PUBLIC_PROFILE_LISTINGS_PAGE_SIZE` yields 5, so assert against the real constant behavior.
+- 2026-02-24 - public catalog visibility policy update - User wants free-tier accounts fully excluded from `/catalogs`, cultivar offer sourcing, and sitemap exposure; treat public catalog/cultivar listing sources as pro-only.
+- 2026-02-25 - profile content dirty signal - `ProfileForm` save button will not react to content edits unless the child editor reports dirty state to parent state; relying only on `contentFormRef.hasPendingChanges()` in a parent callback is not reactive.
+- 2026-02-25 - self-miss path globbing again - I ran `rg` against `src/app/(public)/cultivar/[cultivarNormalizedName]/...` without quoting and hit `zsh: no matches found`; always quote paths with `()`/`[]`.
+- 2026-02-25 - cultivar eligibility split - Keep separate where-clauses in `getPublicCultivars`: lookup should allow all normalized cultivars for direct requests, while discovery surfaces (sitemap/segments/related links when desired) can stay listing-backed behind the flag.
+- 2026-02-25 - sitemap upsert guard self-fix - While refactoring segment aggregation, an `if (!lastModified || ...)` condition incorrectly allowed `undefined` timestamps to overwrite entries; initialize entries first, then only replace when incoming `lastModified` is newer.
+- 2026-02-25 - list form stale values on route return - `ListForm` initialized from `defaultValues` can show stale title/description after navigate-save unless it resets when committed list snapshot changes and there are no local edits.
+- 2026-02-25 - self-miss repeated patch path - I repeated using shell `applypatch` via `exec_command`; use the dedicated `apply_patch` tool directly to avoid warnings and keep edits compliant.
+- 2026-02-25 - e2e expansion preference - User prefers extending existing e2e specs with new boundary-save steps when they fit naturally, instead of creating new standalone specs for each scenario.
+- 2026-02-25 - local playwright lock blocker - `pnpm test:e2e` can fail with `Unable to acquire lock at .next/dev/lock` when another `next dev` process is running in the same repo; either stop that process or run attach mode with matching env constraints.
+- 2026-02-25 - dashboard breadcrumb nav - Dashboard breadcrumbs should use `next/link` (via `BreadcrumbLink asChild`) instead of plain anchor `href` to avoid full-page reloads and keep app-router navigation behavior consistent.
+- 2026-02-25 - manage-list membership saveability - On `/dashboard/lists/[listId]`, add/remove listing mutations must call a parent callback that triggers `formRef.current?.markNeedsCommit()` so the List form Save button and navigate-save boundary become active.
+- 2026-02-25 - self-miss patch tool usage - I briefly used `applypatch` through `exec_command`; in this environment edits should use the `apply_patch` tool directly to avoid warnings/noise.
+- 2026-02-25 - edit-list URL sync loop - In `useEditList`, syncing search params with `?${params}` can oscillate between `?` and empty state; compare full pathname+search and use `router.replace(pathname)` when search is empty to avoid fetch loops.
+- 2026-02-25 - secondary commit trigger pattern - For instant child mutations (AHS link, image ops, content save), a parent-local `needsParentCommit` flag keeps save-button/nav-boundary commit behavior simple without global state.
+- 2026-02-25 - profile refresh consistency - After successful `userProfile.update`, call `utils.dashboardDb.userProfile.get.setData` and `invalidate` so profile UI reflects server-side updates immediately.
+- 2026-02-25 - save hook hardening - `attemptNavigate` must catch rejected save promises and convert them to blocked navigation + user feedback to avoid unhandled rejection errors.
+- 2026-02-25 - save failure message preference - Use explicit failure copy `Error saving changes. Please fix errors and try again.` for navigate-save failures.
+- 2026-02-25 - autosave UX bug class - In click-capture navigation guards, never drop intercepted clicks during in-flight save; always forward to attemptNavigate so latest user intent is honored.
+- 2026-02-25 - navigate-failure feedback rule - Silent navigate saves need explicit failure feedback (`toast.error`) or blocked navigation appears broken.
+- 2026-02-25 - reset-and-rebuild workflow - User requested hard reset to `origin/main` and a simpler autosave architecture; phased reimplementation with separate commits kept migration manageable.
+- 2026-02-25 - page autosave pattern - In App Router, the minimal deterministic approach is a page-scoped click-capture + `beforeunload` hook with a single form handle (`useSaveBeforeNavigate`), not save-on-unmount.
+- 2026-02-25 - boundary commit simplification - Removing `onBlur` mutations from list/listing/profile and using `saveChanges(reason)` made semantics easier to reason about and test.
+- 2026-02-24 - PR cache strategy summary - Public SEO routes use static/ISR with 24h revalidation, while `/{slug}/search` stays dynamic + noindex with 24h server/client freshness controls.
+- 2026-02-24 - PR cache implementation summary - Cache timings are centralized in `cache-config.ts`; server/client cache helpers are shared; `src/trpc/server.ts` is restored for future RSC calls; public slug/id lookup uses cached `getUserIdFromSlugOrId` with dedicated profile TTL.
+- 2026-02-24 - PR scope boundaries - TanStack DB internals are out of cache-removal scope; dashboard DB and public catalog search IndexedDB persistence remain enabled; profile-page client prefetch warmup stays removed.
+- 2026-02-24 - self-miss hook deps lint - Wrapping simple local input-commit handlers in `useCallback` around a non-memoized `patch` helper triggered `react-hooks/exhaustive-deps`; simplest fix is plain inline functions when memoization is unnecessary.
+- 2026-02-24 - tags effects simplification preference - User prefers avoiding derived-state `useEffect` syncing for `/dashboard/tags` numeric inputs; use uncontrolled number inputs (`defaultValue`) with blur-time commit/reset handlers instead.
+- 2026-02-24 - self-miss TagCell key field - `TagCell` has no `id`; when forcing input remount keys, derive from existing stable fields (for example `fieldId` + value) instead of assuming an ID.
+- 2026-02-24 - tags numeric spinner preference - User wants native number input arrows preserved on `/dashboard/tags`; keep `type="number"` while still using draft-state + blur-only commit to allow clear-then-type editing.
+- 2026-02-24 - tags custom size blur validation - Main `/dashboard/tags` custom size inputs (`Width (in)`, `Height (in)`) must follow the same draft + blur-commit pattern as other numeric controls; eager parse on `onChange` blocks clear-then-type editing.
+- 2026-02-24 - tags numeric verification pattern - For `/dashboard/tags`, one integration sweep test over all `SheetNumberField` labels plus print-quantity copies gives reliable coverage that every sheet numeric field allows empty drafts and commits on blur.
+- 2026-02-24 - self-miss strict test indexing - This repo uses `noUncheckedIndexedAccess`; `screen.getAllBy...()[0]` is `T | undefined` in tests. Use non-null assertion (`[0]!`) or explicit guard before passing elements to `fireEvent`.
+- 2026-02-24 - tags cell-option numeric input UX - On `/dashboard/tags`, cell option number fields (like width/font size) must allow temporary empty drafts while typing; parse/clamp only on blur so backspace-then-type editing works.
+- 2026-02-24 - tags print selection source correction - In `/dashboard/tags`, selected items for print/sheet output must be derived from table `rowSelection` IDs (same source as selected badges), not `getFilteredSelectedRowModel`, so selected rows remain printable when filtered/paged out of the current table view.
+- 2026-02-24 - sheet copies-per-label UX - Sheet Creator now needs a `Copies of each label` control that resets to `1` each open, duplicates each selected label contiguously before moving to the next label, and shows an explicit summary line: `X labels selected, X copies of each, X total labels.`
+- 2026-02-24 - sheet copies visibility follow-up - User could miss copies control when it lived among page/grid settings; keep copies control in a dedicated top "Print quantity" section to make multi-copy behavior obvious.
+- 2026-02-24 - sheet quantity placement correction - User wants print quantity placed directly under `Print dashed borders` and collapsed by default; implement as a collapsible section that resets closed when the dialog opens.
+- 2026-02-24 - dashboard home skeleton cause - `/dashboard` still flashes `DashboardPageSkeleton` because `page.tsx` checks `isLoading || !stats` on `dashboard.getStats`, and in `DashboardDbProvider` the hydrated path sets `status: "ready"` before awaiting `getStats.prefetch()` (it is fired with `void`), so the full-page loading overlay can finish first.
+- 2026-02-24 - dashboard stats derivation pattern - Derive `/dashboard` home stats from preloaded TanStack DB collections (`listings`, `lists`, `images`) plus prefetched `dashboardDb.userProfile.get`; remove separate `dashboard.getStats` query/prefetch to prevent post-loader skeleton flashes.
+- 2026-02-24 - dashboard dead-path cleanup - After migrating dashboard home stats to local derivation, delete obsolete `dashboardDb.dashboard` router and `DashboardPageSkeleton`, and move shared stats typing to `src/types/dashboard-stats-types.ts` so UI code no longer depends on removed tRPC outputs.
+- 2026-02-23 - sheet export parity correction - Sheet Creator download control should match primary export formats; provide a shadcn download menu with `HTML Sheets (.html)`, `PDF (.pdf)`, and `Images (.zip)` from the sheet layout.
+- 2026-02-23 - sheet sizing rule update - User expects sheet tags to always stay at active tag dimensions; rows/columns now define count, and page settings are validated against required sheet area instead of scaling tag size.
+- 2026-02-23 - sheet border styling - Tag cards on sheet output should include a muted dashed border for placement guidance in both preview and exported sheet documents.
+- 2026-02-23 - sheet border print correction - User wants dashed borders visible in the Sheet Creator preview but not in printed/exported sheet output; keep preview-only dashed outlines and omit border in generated sheet HTML.
+- 2026-02-23 - sheet border toggle preference - User wants an explicit Sheet Creator checkbox to include dashed borders in printed/exported sheets; default must remain off.
+- 2026-02-23 - mobile numeric input usability - In Sheet Creator, eagerly clamping/parsing number inputs on each keystroke blocks backspace/editing on iPad/iPhone; use text input drafts + blur-time validation with explicit +/- step buttons.
+- 2026-02-23 - sheet creator UX follow-up - User expects a live sheet preview in the modal; render a scaled first-sheet preview tied directly to current rows/columns/margins/padding settings.
+- 2026-02-23 - tag sheet creator defaults - For `/dashboard/tags` sheet mode, initialize defaults to current tag dimensions on first modal open when no sheet settings exist; persist subsequent edits in `tag-sheet-creator-state-v1`.
+- 2026-02-23 - self-miss stale callsites - After refactoring export function signatures, I initially left handler calls passing old `html` args; always re-check all call sites after interface changes in large files.
+- 2026-02-23 - export blank-pages root cause - Capturing all `.tag` elements from one long raster document caused page 2+ blank outputs; robust approach is rendering each tag in its own single-tag document, rasterizing individually, then combining canvases into PDF/ZIP.
+- 2026-02-23 - raster clipping mitigation - For PDF/image exports on `/dashboard/tags`, add a raster-specific print HTML mode (`mode: "raster"`) with safer row/cell metrics and capture via `html2canvas` `foreignObjectRendering` + explicit element width/height to reduce glyph clipping.
+- 2026-02-23 - tags export expansion - User requested keeping Pages HTML export and adding both `PDF` and image-bundle download options from the same download menu.
+- 2026-02-23 - jsdom dropdown test gotcha - Radix `DropdownMenu` in this test setup did not open via simple `fireEvent` interactions; keep unit assertions focused on stable button state and verify menu behavior in browser/e2e if needed.
+- 2026-02-23 - tags download menu request - User wants `/dashboard/tags` downloads grouped under a single button using a shadcn menu, with options for `Pages (.html)` and `CSV`.
+- 2026-02-23 - tags export fallback - Replaced unstable client PDF generation with downloadable print-ready HTML pages (`.html`) that preserve existing `@page`/page-break behavior (one tag per page) and can be printed/saved by the browser.
+- 2026-02-23 - tags pdf multipage failure - `html2canvas` + `jspdf` export rendered only the first tag reliably and blanked later pages in some browsers; prefer simpler print-HTML export for deterministic one-tag-per-page output.
+- 2026-02-23 - tags pdf text clipping fix - PDF export could clip text glyphs; improved reliability by using a PDF-specific render mode (`mode: "pdf"` with safer row/cell metrics), waiting for iframe fonts readiness, and increasing `html2canvas` quality (`scale: 4`, `foreignObjectRendering: true`).
+- 2026-02-23 - tags pdf export pattern - For `/dashboard/tags`, reusing the existing print HTML in an off-screen iframe and rasterizing `.tag` nodes with `html2canvas` into `jspdf` pages preserves current layout/QR behavior while enabling direct PDF download.
+- 2026-02-23 - self-miss patch anchor - Initial `apply_patch` failed after stale context matching near `TagDesignerPanel`; re-read exact file slices before patching large files to avoid mismatched anchors.
+- 2026-02-23 - tags export request - User asked for a dedicated PDF download button on `/dashboard/tags` (in addition to print/CSV) so tags can be saved/exported directly.
+- 2026-02-21 - id-format assumption self-miss - I initially gated proxy canonical lookup to numeric IDs only; this app also uses non-numeric `User.id` values in tests/fixtures, so query-preserving canonical redirects must not assume numeric IDs.
+- 2026-02-21 - seo redirect preference update - User wants `/{userId}` -> `/{slug}` canonicalization to stay server-side for SEO; preserve query params in proxy/server redirect path instead of client `router.replace`.
+- 2026-02-21 - force-static redirect gotcha self-miss - Adding `searchParams` to `src/app/(public)/[userSlugOrId]/page.tsx` did not preserve query params on canonical redirect (`/{id}` still became `/{slug}` without query); handle query-preserving canonicalization in proxy instead of server page props.
+- 2026-02-21 - redirect query preservation correction - User expects canonical redirect from `/{userId}` to `/{slug}` to keep incoming query params (e.g. `viewing`, `utm_*`); previous behavior dropped them.
+- 2026-02-21 - tags composition pass - Refactored `TagDesignerPanel` from one monolithic render into explicit composed sections (`Header`, `Controls`, `Layout`, `Preview`) and extracted template/custom-size blocks as dedicated components to reduce inline branching and prop-mode complexity.
+- 2026-02-21 - first-response e2e mismatch - `tests/e2e/public-profile-first-response.e2e.ts` can fail on `expect(html).not.toMatch(/template id="B:\\d+"/)` because first HTML now includes React streaming markers (`B:*`/`S:*`) while still containing page content; unrelated to `/dashboard/tags` changes.
+- 2026-02-21 - tags print border preference - Printed tags should have no outer border in the print document CSS.
+- 2026-02-21 - tags print sizing mode - User wants print output as one tag per page with page dimensions exactly matching the selected tag size; implement with dynamic `@page size` and forced page breaks per tag.
+- 2026-02-21 - tags selection + full-detail adjustment - Add `Remove all` control in selected-listings area, and for `full detail` template keep first/second rows same as default (title row, then hybridizer/year/ploidy row with ploidy moved off the title line).
+- 2026-02-21 - tags template set update - Built-in templates should be narrowed to three options: renamed default (`name + hybridizer + year + ploidy + qr`), `name + qr`, and `full detail` inspired by the example photo layout while staying on the default 1x3.5 tag size preset.
+- 2026-02-21 - tags empty-cell spacing - In `/dashboard/tags`, empty field values must still render their configured cells so each tag keeps identical row/column geometry; do not drop cells based on missing content.
+- 2026-02-21 - tags template controls refinement - User wants template picker to be non-native (shadcn-style), with delete action on each saved-template row in the picker, and "Save as template" moved into Layout actions only when layout is custom.
+- 2026-02-21 - tags text handling update - For `/dashboard/tags`, user wants overflow instead of truncation, plus an explicit `fit` mode that shrinks text to available cell width.
+- 2026-02-21 - tags overflow/fit scope correction - Overflow/fit must be per-cell controls (checkboxes), not a global tag-level selector; defaults are overflow off, fit on.
+- 2026-02-21 - tags defaults + wrap update - `/dashboard/tags` cells should align on row baselines, default font sizes are title 22 and all other fields 16, and each cell needs a Wrap toggle defaulting off.
+- 2026-02-21 - tags mode exclusivity update - Overflow/Fit/Wrap checkboxes should behave as mutually exclusive per-cell modes; checking one clears the others.
+- 2026-02-21 - tags default layout update - Default layout should be Title row first, then Hybridizer/Year/Ploidy second row; title size 22 centered, others size 16 with Hybridizer + Ploidy centered and Year left.
+- 2026-02-21 - tags QR link stability - QR links on dashboard tags should target `/{userId}?viewing={listingId}` (stable id route), not slug-based URLs.
+- 2026-02-21 - tags dimension constraint - Tag dimensions must remain exact even when QR is enabled; use fixed `height` (not `min-height`) for preview and print tag containers.
+- 2026-02-21 - tags QR fit correction - When QR is shown, fit-size calculations must subtract the reserved right-side QR area or text will still clip into the QR zone.
+- 2026-02-21 - tags QR default - Layout-level QR toggle should default enabled (`showQrCode: true`), including fallback for older saved state without that field.
+- 2026-02-21 - tags template flow - Add layout-level templates select with default + import, share current layout as JSON from Layout section, and set placeholder sample `userId` so QR is visible in sample preview mode.
+- 2026-02-21 - tags template expansion - Added built-in templates (default, big-name+metadata, name/year/hybridizer/ploidy, name+QR, minimal), plus save/delete for user templates and exact-match label beside Layout title (`custom` when unmatched).
+- 2026-02-21 - self-mistake parse guard - Large JSX callback patch introduced an extra closing `);`; after complex edits run lint immediately and inspect the exact line before further changes.
+- 2026-02-20 - scope correction self-miss - I first added tag printing as a selected-row action on manage-list, then user clarified it must be a dedicated dashboard page; when feature placement is ambiguous, confirm page-level scope early.
+- 2026-02-20 - tags UX correction - For `/dashboard/tags`, keep the tag designer inline at the top of the page (not in a dialog), with per-field style controls (font size + basic text styles), editable labels, left/right slot placement, and move up/down ordering.
+- 2026-02-20 - print reliability pattern - Browser popup flows can fail for print; a hidden iframe + `contentWindow.print()` from the click handler is a more reliable print trigger than `window.open(...).print()`.
+- 2026-02-20 - test rerun pattern - `pnpm test` showed a transient `tests/dashboard-db-collections.test.tsx` failure (`AbortSignal` + timeout) once, then passed on immediate rerun; if this recurs, rerun the single file and then full suite before treating it as deterministic.
+- 2026-02-20 - lint blocker - `@typescript-eslint/no-unnecessary-type-assertion` flagged `(field as TagFieldConfig).textAlign`; use `field.textAlign` directly.
+- 2026-02-20 - posthog verification pattern - Fastest proof path is Playwright with `localStorage.ph_debug=true` and checking console for `[PostHog.js] send "event_name"` plus `browser_network_requests` showing `https://us.i.posthog.com/e` `200`.
+- 2026-02-20 - agent-browser click flake - In this repo/session, some `agent-browser click` calls on cursor-interactive refs stalled with no output; fall back to Playwright MCP tools for deterministic network-level verification.
+- 2026-02-20 - posthog wizard backend flake - Wizard can fail after successful OAuth with `No chunk id map found` and repeated `401 Authentication required`; use manual Next.js integration as fallback.
+- 2026-02-20 - posthog prod-only guard - Gate both `instrumentation-client.ts` init and `capturePosthogEvent` helper by `process.env.NODE_ENV === "production"` so dev/local never emit analytics even if a key appears.
+- 2026-02-20 - posthog ownership cleanup - Keep PostHog initialization in `instrumentation-client.ts` only; `capturePosthogEvent` should just gate and call `posthog.capture` to avoid duplicate init logic.
+- 2026-02-20 - ordering guard - For the public `/{slug}` Lists section, keep the synthetic `For Sale` card first in DOM order so it appears first in the grid; back this with a test to prevent regressions.
+- 2026-02-20 - db path correction - For local prod snapshot checks in this worktree, the usable DB is `prisma/local-prod-copy-daylily-catalog.db` (the repo-root `local-prod-copy-daylily-catalog.db` may exist as an empty placeholder).
+- 2026-02-20 - patch regression self-check - While adding new props to JSX I briefly rendered `PublicCatalogSearchTable` twice; after structural patches, always scan the edited block for accidental duplicate component lines before running tests.
+- 2026-02-20 - command quoting self-miss - I retriggered zsh glob expansion (`no matches found`) by reading App Router paths with `(...)` and `[...]` unquoted; always single-quote those paths in shell commands.
+- 2026-02-20 - next-lint codemod gotcha - `@next/codemod next-lint-to-eslint-cli` updated this repo's `eslint.config.js` import but left `...compat.extends(...)`, causing `compat is not defined`; keep `FlatCompat` for the current `tseslint.config(...)` setup and migrate the npm script to scoped ESLint CLI targets (here `eslint src`) instead of blanket `eslint .`.
+- 2026-02-20 - test env typing gotcha - `process.env.NODE_ENV` can be readonly in this TS setup; in tests mutate via `const mutableEnv = process.env as Record<string, string | undefined>` instead of direct assignment/delete.
+- 2026-02-20 - dashboard button regression - Wrapping Clerk `SignInButton` with shadcn `Button asChild` and an inner `span` can render non-interactive dashboard text; keep a real `Button` as the child of `SignInButton` to preserve clickable role semantics.
+- 2026-02-19 - test dependency assumption - `@testing-library/user-event` is not installed in this repo; use `fireEvent` from `@testing-library/react` for integration UI tests unless dependency is explicitly added.
+- 2026-02-19 - jsdom popover gotcha - `cmdk`/Radix popover flows require a `ResizeObserver` polyfill in Vitest jsdom tests; add a minimal mock in the test when using faceted filters.
+- 2026-02-19 - jsdom cmdk scroll gotcha - Faceted filter popovers may call `scrollIntoView`; add a no-op `HTMLElement.prototype.scrollIntoView` polyfill in the test when absent.
+- 2026-02-19 - jsdom radix slider gotcha - Dual-thumb Radix slider key interactions can be inconsistent for exact step-value assertions in jsdom; keep integration assertions looser (range param exists) and verify exact range values in Playwright e2e.
+- 2026-02-19 - TS test fixture inference - Unannotated fixture objects initialized with `null` infer `null`-only property types; declare an explicit interface (`string | null`) before using `Partial<...>` overrides.
+- 2026-02-19 - test fixture typing - `RouterOutputs["public"]["getProfile"]` in unit tests rejects partial literal + direct cast; provide the full object shape (or intentionally cast via `unknown`) to keep `tsc --noEmit` green.
+- 2026-02-19 - route path shell globbing - Unquoted paths containing `[...]` failed in zsh (`no matches found`). Quote route paths when reading/editing files under App Router dynamic segments.
+- 2026-02-19 - header/mobile UX correction - User wants `/{slug}/search` header simplified (garden name + search/filter subheading + contact CTA) and wants mobile image panel restored on `/{slug}`.
+- 2026-02-19 - static user pages redo - Re-implement PR #67 behavior from scratch on a fresh branch; use PR diff only as reference, keep component composition explicit, and avoid effect-driven derived state (follow React "You Might Not Need an Effect").
+- 2026-02-19 - static SEO route pitfall - Reading `searchParams` in server `/{slug}` and `/{slug}/page/[page]` page/metadata made responses `private, no-store` at runtime even with `force-static`. For crawl-first static behavior, keep those server files query-agnostic and handle `?page` through middleware rewrite + `/page/[page]` params only.
+- 2026-02-19 - suspense shell pitfall - Wrapping SEO profile/listings sections in `Suspense` without fallback produced shell-only initial body (`template B:*` + hidden stream payload) until JS applied it. Remove those wrappers on SEO pages when you want full content directly visible in first HTML response.
+- 2026-02-19 - static first-response test pattern - Add a small `@local` E2E test that seeds a public profile, fetches raw HTML via Playwright `request`, and asserts first-document content includes profile/listings while excluding streamed-shell markers (`template id=\"B:*\"`, hidden `S:*` chunks). Keep cache-header assertions out of local dev mode.
+- 2026-02-19 - e2e URL expectations - Dashboard listings filters now write plain query-string values (not JSON-quoted), so e2e `expectUrlParam` assertions should compare against raw tokens. Also with `force-static` profile page canonical redirects from `/{userId}` to `/{slug}` can drop non-page query params; tests should not assume `viewing`/`utm_*` survive that redirect.
+- 2026-02-19 - e2e timeout flake - `manage-list-page-features` can timeout on first `page.goto('/dashboard/lists/:id')` during full-suite dev-server compile churn (passes in isolation). Mark the test `test.slow()` to align timeout budget with heavier route compile cost.
+- 2026-02-19 - infinite query page params - `useInfiniteQuery` initial data in this repo expects `pageParams` with `undefined`, while `utils.public.getListings.setInfiniteData` expects `string | null`; avoid forcing one shape globally and let snapshot creation accept both (`string | null | undefined`), normalizing persisted values.
+- 2026-02-19 - requestIdleCallback narrowing - In TS with DOM libs, checking `"requestIdleCallback" in window` can narrow the fallback branch to `never`; use global `setTimeout`/`clearTimeout` in fallback instead of `window.setTimeout`.
+- 2026-02-19 - lint gotcha - `@typescript-eslint/no-empty-function` flags no-op cleanup lambdas; return `() => undefined` for intentional no-op cleanup in client helpers.
+- 2026-02-19 - idb error handling - `void`-ing async IndexedDB writes/reads can still produce unhandled promise rejections; add explicit `.catch(() => undefined)` or `try/catch` in async effects.
+- 2026-02-19 - lint regex style - ESLint prefers `RegExp#exec()` over `String#match()` in this repo (`@typescript-eslint/prefer-regexp-exec`).
+- 2026-02-19 - test mocking gotcha - `CatalogSeoListings` pulls in `CatalogSeoPagination`, which uses `useRouter`; tests still need a minimal `next/navigation` mock even when assertions only check link hrefs.
+- 2026-02-19 - route-type cache - Removing app routes can leave stale `.next/types/validator.ts` references; run `pnpm exec next typegen` before `tsc --noEmit`.
+- 2026-02-19 - command sequencing mistake - Parallelized dependent `mkdir` + file-write commands and hit intermittent `no such file or directory`; run dependent path creation and writes sequentially.
+- 2026-02-19 - command policy note - Direct `rm` commands can be blocked by policy in this environment; prefer `apply_patch` delete hunks for file removals.
+- 2026-02-14 - dashboardDb cultivar refs - For main dashboard TanStack DB cutover, prefer cultivar-reference cache option (1): cache only refs referenced by the user's listings; keep listing payloads small (only `cultivarReferenceId`) and join locally for AHS display. Do not expose `ahsId` as a standalone field (nested `ahsListing` is OK for now).
+- 2026-02-14 - dashboardDb persisted SWR - For faster reloads, hydrate dashboardDb collections from a per-user IndexedDB snapshot (toggle via a single const) then revalidate in background. Because sync endpoints are upserts-only (no deletions), schedule snapshot persistence after key mutations (especially deletes) to prevent resurrecting deleted rows on reload.
+- 2026-02-14 - dashboardDb hardening - Provider should gate rendering on collection readiness (prevents "write before sync context" crashes) and purge `["dashboard-db"]` query cache + collection cleanup on logout/auth change to avoid cross-user flashes during debugging.
+- 2026-02-14 - dashboardDb bootstrap - Factor the repeated init sequence (set current user, seed query cache, set cursor, clear tombstones, preload) into `bootstrapDashboardDbCollection` so it stays consistent across collections and is harder to regress.
+- 2026-02-14 - dashboardDb cursors - For incremental sync, advance cursors to the max `updatedAt` observed in returned rows (and keep previous cursor on empty results). Setting cursor to "now" can permanently skip writes that occur during the sync window. Also: `collection.utils.refetch()` won't run if the underlying TanStack Query is disabled; keep query-collections `enabled: true`.
+- 2026-02-14 - legacy listing status - Treat any legacy `status` values other than `STATUS.HIDDEN` as published/null so forms don't crash on `"published"` or `""`.
+- 2026-02-13 - vercel build snapshot - Avoid downloading sqlite tools by scraping sqlite.org; use OS package install (Vercel/Amazon Linux via `dnf install sqlite`) or fail clearly. Build snapshot uses `USE_TURSO_DB_FOR_BUILD` and must not change runtime `USE_TURSO_DB`.
+- 2026-02-12 - prisma artifacts - Do not commit generated Prisma client output (`prisma/generated/sqlite-client`) or SQLite DB files; commit schema + migration/source changes only.
+- 2026-02-12 - next route config - Route-segment exports like `export const revalidate` and `export const dynamicParams` must stay literal in the page file; imported config/object property values can fail static parsing.
+- 2026-02-12 - profile deep-link UX - For `?viewing=` on public profile, avoid transient “Listing not found”; fetch `public.getListing` when the ID is not in loaded pages and show a loading state until query resolves.
+- 2026-02-12 - cleanup preference - For agent cleanup passes, user prefers concise readable code with minimal defensive noise; keep composition explicit and align tests to current data contracts (e.g. AHS-only hero images).
+- 2026-02-11 - cultivar page revamp - User wants cultivar pages grouped by pro catalogs (not flat listings), with AHS hero image, no add-to-cart, and listing deep links via `/:slug?viewing=:listingId`.
+- 2026-02-11 - routing migration - User chose global cultivar canonicals (`/cultivar/:normalizedName`) with cultivar pages showing all sellers, while legacy listing route should only redirect canonical `/:userId/:listingId` to `/:userSlug?viewing=:listingId`.
+- 2026-02-12 - seo/crawling - For cultivar sitemap entries, avoid `lastModified: new Date()` noise; use real entity timestamps (cultivar/listing `updatedAt`) and include AHS image in cultivar OG/Twitter metadata when present.
+- 2026-02-12 - cultivar slug canonical - User wants clean cultivar URL slugs (slugified, not URI-encoded punctuation) and sitemap/static generation aligned to listing-backed cultivars by config.
+- 2026-02-12 - cultivar redesign - User wants conversion-first cultivar page with offers toolbar query params (`offerSort`, `offerForSale`, `offerHasPhoto`), no public add-photo CTA, and related cultivars limited to image-backed public pages.
+- 2026-02-09 - ahs migration - User wants data migration SQL to be generated by script, not hand-authored, so reruns are deterministic and auditable.
+- 2026-02-09 - conversion UX - Reused `FloatingCartButton` dialog state for a new top-of-profile `Contact Seller` CTA while keeping the bottom-right floating button.
+- 2026-02-09 - product review correction - Public listing has a bottom-right floating contact/cart action; it was easy to miss in snapshots because icon-only controls lacked clear labels in the accessibility tree.
+- 2026-02-09 - product review - When asked for customer-value feedback, run Playwright on public flows (home -> catalogs -> catalog -> listing -> auth modal) and prioritize activation, conversion, and retention gaps with concrete examples.
+- 2026-02-09 - e2e observability - Force `NEXT_PUBLIC_SENTRY_ENABLED=false` in Playwright local config and `webServer.env` so local E2E never initializes Sentry.
+- 2026-02-07 - e2e cleanup - Full suite stabilized after removing most custom timeout/retry/poll code and validating with repeats.
+- 2026-02-07 - e2e issue - Profile content sometimes disappeared after reload due autosave race; fixed by waiting for `userProfile.updateContent` response after blur.
+- 2026-02-07 - e2e issue - Clerk modal has variant state: after email click `Continue`; after code entry do not submit again (auto-submit). If warning says code wasn't sent, click `Continue` once.
+- 2026-02-07 - e2e issue - Select/popup items can be outside viewport; `scrollIntoViewIfNeeded()` before click fixed intermittent failures.
+- 2026-02-07 - e2e issue - Listings row-action dropdown was flaky in CI/local when relying on generic role selectors or `force: true`; stable approach is explicit row-action test IDs + menu-open assertions (trigger `aria-expanded`) before clicking action items.
+- 2026-02-08 - e2e issue - Listings row-action still flaked when search query updates were still propagating; fix was to wait for URL query state (`expectUrlParam("query", value)`) before opening row actions.
+- 2026-02-08 - e2e issue - `scrollIntoViewIfNeeded()` on row-action trigger can throw `Element is not attached to the DOM` during table re-render; direct locator `.click()` was more stable for this trigger.
+- 2026-02-08 - e2e issue - URL-param assertions (`expect.poll` on `page.url()`) were flaky in CI/act despite correct UI behavior; replacing with table/page-indicator assertions removed false negatives.
+- 2026-02-08 - e2e issue - `page.locator("table").first()` is brittle when pages render multiple tables; scope all row locators to container test ids (`list-table`, `manage-list-table`) to avoid wrong-table clicks and detach.
+- 2026-02-09 - seo/public routes - Avoid `as const` on Prisma `where` filter objects (`OR` arrays become readonly and break Prisma + no-unsafe typing across route outputs).
+- 2026-02-09 - tooling - `pnpm install` runs `prisma generate` and may rewrite generated client paths/binary targets to local machine values; revert generated noise before finalizing changes.
+- 2026-02-10 - dual-write - User prefers Prisma ORM writes over raw SQL for dual-write paths; if cultivar reference rows are missing, throw explicit runtime error instead of auto-creating with raw SQL.
+- 2026-02-10 - migration docs - For migration follow-ups, provide task breakdown as JSON with explicit `completed` boolean fields so lower-context agents can execute safely.
+- 2026-02-10 - edit dialog bug - Unlinking AHS in `AhsListingLink` can be reverted on dialog close if `ListingForm` still holds stale `ahsId`; sync `ahsId` into form state on link/unlink success to prevent close-save from re-linking.
+- 2026-02-10 - unlink/save regression - Better fix was decoupling: keep `ahsId` out of form schema/state and allow router `update` input to accept optional `ahsId` for link/unlink component calls only; this prevents Save from re-linking stale AHS data.
+- 2026-02-10 - api boundary cleanup - Final simplification: `AhsListingLink` should call `listing.linkAhs`/`listing.unlinkAhs` directly; then `listing.update` can stay form-only (`listingFormSchema`) with no `ahsId` handling.
+- 2026-02-11 - pre-merge stabilization - For AHS V2 flagged rollout, keep `syncAhsName` strict canonical (`cultivarReference.ahsListing` only), keep secret menu override client-only, and enforce data invariants with SQL checks in migration docs.
+- 2026-02-11 - create dialog regression - Empty/whitespace title must fall back to selected AHS name (then default listing name) so create payload never sends blank titles.
+- 2026-02-11 - type alignment - When router responses add derived `ahsListing` via `withDisplayAhsListing(s)`, hook return types must use `WithDisplayAhsListing<T>` and sibling routers (e.g. `list.getListings`) should return the same derived shape to avoid table generic mismatches.
+- 2026-02-11 - e2e temp-db reset - `withTempE2EDb` must clear `CultivarReference` before `AhsListing`; otherwise retries leave orphaned refs (`ahsId` null) and deterministic seed upserts can fail unique on `CultivarReference.id`.
+- 2026-02-13 - prisma db push - Prisma schema engine can fail to start when `RUST_LOG=warn`; set `RUST_LOG=info` (and clear `NODE_OPTIONS`) for `prisma db push` in scripts/tests.
+- 2026-02-13 - tanstack db collections - `@tanstack/query-db-collection` write utils require sync context; start collection sync via `useLiveQuery` subscription or `await collection.preload()` (after seeding query cache) before calling `utils.writeInsert`/`writeUpdate`/`writeDelete`.
+- 2026-02-13 - tanstack db SSR - Next can server-render client components; `useLiveQuery` can warn (`Missing getServerSnapshot`) if it hits SSR. Fix by rendering live-query components client-only (dynamic import `ssr:false` or mount-gate and put `useLiveQuery` in a child rendered only after `useEffect`).
+- 2026-02-13 - data-table column filters - `useDataTable` URL-sync only tracks columns with `filterFn`; if a column shows a filter UI, ensure it sets `filterFn` (e.g. `fuzzyFilter`) or the filter can be dropped on search-param navigation.
+- 2026-02-13 - e2e popover filters - Radix popover filter inputs can detach during URL-sync/table rerenders; in Playwright, target by exact placeholder and retry after `Escape` + reopen.
+- 2026-02-13 - unit test env - Importing the full `appRouter` can eagerly construct clients (e.g. Stripe) and crash if env vars are missing even with `SKIP_ENV_VALIDATION=1`; set minimal placeholder env vars or import routers directly.
 
-## Repo/Tooling Gotchas
-- Quote App Router paths in shell commands (`src/app/(...)/[...]`) to avoid zsh glob errors.
-- If Playwright reports port conflicts, check and clear port `3100` listeners first.
-- Ignore noisy `NO_COLOR` warnings during Playwright webServer boot; they are non-blocking.
+- 2026-02-19 - advanced search UX pattern - Range sliders should include paired number inputs (commit on blur/Enter) for precise value entry; accordion filter sections start collapsed with active-filter badge counts on triggers; removable filter chips bar between quick-filters and accordions replaces bottom reset/count footer; singleton controls (e.g. Lists) belong in the quick-filter row, not their own accordion.
+- 2026-02-19 - search mode toggle - Replaced dual Basic/Advanced buttons with a single Switch toggle inside the filter card; the sidebar panel now renders in both modes (basic shows single input + quick filters, advanced adds accordions). This keeps the search UI always visible in a sidebar layout.
+- 2026-02-20 - advanced search e2e maintenance - For `public-catalog-advanced-search.e2e.ts`, target behavior-level controls (mode switch, search input, accordion trigger labels, visible results/URL state) and avoid assuming sections are open by default.
+- 2026-02-20 - stripe kv seeding for e2e - Seed `keyValue` entry `stripe:customer:<id>` in temp-db setup (use `setStripeSubscriptionStatus`) to avoid noisy Stripe fallback lookups for synthetic customer ids.
 
-## Session Notes 2026-02-28
-- User wants to build a ChatGPT app for the Daylily Catalog and explicitly requested reading Apps SDK docs first.
-- For this session: prioritize official OpenAI Apps SDK guidance and convert it into actionable integration steps for this codebase.
-- Web docs crawl note: using `open` with `lineno` on a nav page may not navigate to linked docs; use `click` by link id to fetch target pages.
-- Tooling gotcha: `web.click` may fail on some docs pages even when link ids are visible in rendered text; fallback to direct URL opens or targeted search queries.
+## Preferences
+
+- Do not add new cultivar-query metrics/logging instrumentation right now.
+- Keep cultivar page URLs name-based (`/cultivar/:name-segment`), not ID-based, even when internal DB joins use `cultivarReferenceId`.
+- Exclude free-tier accounts from `/catalogs`, from listing inclusion on `/cultivar/:slug`, and from sitemap-derived public route coverage.
+- Caching PR preference: keep public route policy simple (24h static/ISR for SEO routes, dynamic + noindex for `/{slug}/search`) and keep segment-config literals annotated with `CACHE_LITERAL_REF` comments.
+- Caching PR preference: keep TanStack DB internals out of cache-removal scope and prioritize behavior-level test assertions over cache implementation details.
+- Keep query params when redirecting public profile routes from `/{userId}` to `/{slug}`.
+- Keep `/{userId}` -> `/{slug}` canonical redirects server-side (SEO), not client-side.
+- Write tests, not too many, mostly integration, hapy path e2e.
+- During quick UI iteration, skip writing/running tests until behavior is settled.
+- Template controls on `/dashboard/tags` should use a shadcn-style picker (not native select), include per-row delete for saved templates inside the picker, and only show "Save as template" when current layout is custom.
+- Built-in tag templates should be: `name + hybridizer + year + ploidy + qr` (default), `name + qr`, and `full detail` matching the photographed information structure.
+- In `/dashboard/tags`, keep layout geometry deterministic across listings by rendering empty cells as blank text rather than omitting those cells.
+- Updated preference: on `/dashboard/tags`, use a shadcn download menu button and include `Pages (.html)`, `PDF (.pdf)`, `Images (.zip)`, and `CSV`.
+- Tag-printing should ship as a dedicated dashboard page (`/dashboard/tags`), not as an embedded manage-list action.
+- TanStack DB dashboard migration: keep procedures under new `dashboardDb` router, migrate main `/dashboard` page-by-page, and run `pnpm lint`, `npx tsc --noEmit`, `pnpm test`, `pnpm test:e2e` before each incremental commit.
+- Cultivar pages should be catalog-centric (catalog cards with nested cultivar listing rows), not listing-card grids.
+- Use composition patterns for new UI components (prefer explicit composed sections over boolean-mode props).
+- Use the term `napkin` (not `codex napkin`).
+- Keep E2E tests UI-only; if UI behavior fails, test should fail (don't hide with non-UI shortcuts).
+- For Vercel production builds, prefer building against a local snapshot of the prod DB (to avoid slow remote Turso queries); preview builds can keep using Turso.
+- Use a 3-step DB rollout for this repo's AHS migration work: Prisma structural migration, then generated SQL file for reference-table data load, then generated SQL file for listing backfill.
+- Avoid `executeRawUnsafe` in application and migration-adjacent app code when Prisma ORM operations can do the job.
+- For product-feedback asks, return prioritized recommendations tied to activation, conversion, and retention.
+- During AHS V2 rollout, keep API inputs backward-compatible (`ahsId` + `cultivarReferenceId`) until post-cutover cleanup.
+- For base profile -> catalog search CTA, carry only the `page` param (when present) and do not forward other search/filter params.
+- For table URL sync, never JSON-quote plain string filter values; `lists` must parse as string-array even when a single ID is provided, otherwise faceted filter UI can show character-count selections.
+- On public `/user` SEO listings UX, user wants a dedicated "Search and filter listings" CTA below the Listings heading, pagination controls at both top and bottom, and pagination navigation anchored back to `#listings`.
+- SEO pagination on public `/user` should visually mirror the existing table pagination controls, but replace "Rows per page" with a "Go to page" selector.
+- Updated preference: simplify public `/user` SEO pagination to sketch style `Page [select] of N` with only previous/next arrows, and align search CTA on the same row when space allows.
+- Keep the top listings control row with search CTA left and pagination right; page-number select should auto-fit content instead of a fixed width.
+- On public `/{slug}/search`, reuse the same profile header section as `/{slug}` (including contact/cart controls) and show `N total` beside the Listings heading.
+- Follow-up UX correction: `/{slug}/search` header also needs the profile image panel (not just text/stats/buttons), matching the `/user` header layout.
+- On public `/{slug}` section nav, include a `Search/filter` link to `/{slug}/search`, carrying only the `page` param when present.
+- Hide profile image panel on mobile for public profile header layouts (`/{slug}` and `/{slug}/search`) to prioritize text/actions and reduce above-the-fold height.
+- Updated UX preference: `/{slug}/search` should use a lean search-focused header (garden name + search/filter subheading + Contact Seller button), and `/{slug}` should show the profile image panel on mobile again.
+- Updated pagination preference: use a dedicated `/{slug}` listings page-size constant (set to 100) instead of shared table defaults, and show pagination both above and below listings (top control to the right of search CTA on larger screens, below it on small screens).
+- Route naming update: public interactive search page uses `/{slug}/search`; keep `/{slug}/catalog` as a compatibility redirect.
+- Updated preference: do not keep `/{slug}/catalog` compatibility redirect since it was introduced and removed within this PR; keep only `/{slug}/search`.
+- Search UX preference: `/{slug}/search` should provide both all-fields search and title-only search, and pressing `Enter` in the search form should scroll to the listings summary so the `x / n listings` context stays visible.
+- Listing card UX preference: on `/{slug}` and `/{slug}/search`, titles should wrap and shrink before truncation, with middle truncation only past a hard upper-length cap.
+- `/{slug}` lists section preference: show a `For Sale` list card when the catalog has any for-sale listings, linking to `/{slug}/search?price=true`.
+- `/{slug}` SEO listings pagination preference: sort for-sale listings first, then keep the existing alphabetical ordering rules within that group.
+
+## Patterns That Work
+
+- Simplify first: remove stability scaffolding, then re-add only minimal waits tied to real UI/events when failures prove necessary.
+- Use `--repeat-each` to prove changes: spec-level `--repeat-each 3` while iterating, then suite-level `tests/e2e/*.e2e.ts --repeat-each 2`.
+- Prefer UI signals (visible/enabled/url/assertions) over polling and explicit timeouts.
+- For Radix dropdown interactions in table rows, use open-menu assertions (`data-state=\"open\"`) and action-specific selectors instead of structural table locators (`table.last()`, `aria-controls`).
+- Scope table interactions to test-id containers first, then table internals (avoid global `table.first()` selectors).
+
+## Patterns That Fail
+
+- Preemptive "stability" code (long custom timeouts, retry loops, blanket force-clicks) made tests harder to reason about.
+- Reloading immediately after EditorJS typing without waiting for save completion caused flaky assertions.
+- Pressing submit after entering Clerk verification code added instability; code field completion should auto-submit.
+- Row-action flows tied to table re-renders can detach menu items mid-click; generic `getByRole(\"menuitem\")` across the page is brittle.
+- `scrollIntoViewIfNeeded()` is not universally safer; on rapidly rerendering table rows it can increase detach failures.
+- URL-state polling as a primary assertion layer can fail even when the visible table state is correct.
+
+## Domain Notes
+
+- Occasional server-side `ECONNRESET` or transient tRPC errors may appear during runs; prioritize actual test assertion failures over noisy logs.
+- 2026-02-20 - codemod version detection gotcha - `@next/codemod upgrade` can treat the installed `node_modules` Next version as current even if `package.json` is older; run `pnpm install` first when package files were reverted without reinstalling.
+- 2026-02-20 - next16 lint migration pattern - Moving to `eslint-config-next@16` with flat config surfaces `react-hooks/set-state-in-effect`; resolving by deriving state / ref-based guards (instead of disabling the rule) keeps lint clean with Next 16 recommendations.
+- 2026-02-20 - repeat globbing self-miss - I still triggered zsh `no matches found` by running `rg/sed` against unquoted App Router paths with `[listId]`; quote dynamic segment paths every time in shell commands.
+- 2026-02-20 - column parity pattern - To prevent dashboard/manage-list divergence, compose manage-list columns from `baseListingColumns` and only add local utility columns like `select`.
+- 2026-02-20 - globbing recurrence - I repeated the `[listId]` quoting miss again during `git diff`; always quote these paths even in final status/diff commands.
+- 2026-02-20 - tag designer compaction - Refactored 9 always-visible full-width field cards into two-tier layout: compact checkbox grid for inclusion, inline settings row only for included fields. ~70% vertical space reduction with defaults.
+- 2026-02-20 - print iframe blank fix - Two issues: (1) zero-dimension + `visibility:hidden` skips layout, fix with off-screen positioning at real dims; (2) `iframe.onload` fires for the initial `about:blank` page before `document.write` adds content, causing `didPrint` to latch true and print a blank page. Fix by removing the premature `onload` handler and using only a single `setTimeout` after `document.close()`.
+- 2026-02-20 - tag field settings grid - Converted flex-wrap field settings rows to CSS grid with Fragment-based rows so columns align vertically across fields. Added per-field `textAlign` property for independent left/right justify on printed tags.
+- 2026-02-26 - self-miss napkin disclosure repeat - I announced napkin-skill usage again at session start; keep napkin workflow silent.
+- 2026-02-26 - self-miss regex quoting - I ran `rg` with an over-escaped/invalid grouped regex and shell-interpreted backticks, causing parse/command errors; prefer simpler targeted patterns or single-quoted regex strings.
+- 2026-02-26 - self-miss path globbing repeat - I attempted `nl` on `src/app/(public)/.../[cultivarNormalizedName]/page.tsx` without quotes and hit zsh glob expansion; always quote App Router paths with `()`/`[]`.
+- 2026-02-26 - local-plan finding on prod snapshot copy - Added `AhsListing_hybridizer_idx` and `Listing_public_cultivarReferenceId_updatedAt_idx`; hybridizer query uses new index, but Prisma-shaped listing-image fallback (`id IN (SELECT listingId FROM Image...)` + `ORDER BY updatedAt`) still planned via `Listing` PK / `Listing_cultivarReferenceId_idx` with temp sort, so row-read relief likely needs query-shape change (or different index order), not just this partial index.
+- 2026-02-26 - prisma index syntax limitation (sqlite) - `updatedAt(sort: Desc)` inside `@@index([...])` failed schema validation on Prisma 5.22.0 for this SQLite setup; use plain `@@index([fieldA, fieldB])` in schema and put DESC/partial predicate in migration SQL when needed.
+- 2026-02-26 - prisma migrate create-only env boot - `prisma migrate dev --create-only` failed with generic schema engine error until run with `NODE_OPTIONS='' RUST_LOG=info` and explicit `LOCAL_DATABASE_URL=file:./prisma/local-dev.sqlite`.
+- 2026-02-26 - migration idempotency preference - User prefers generated index migration SQL to use `IF NOT EXISTS` even when Prisma migrate is not used on Turso, to keep artifacts safe for accidental/one-off execution.
+- 2026-02-26 - cultivar fanout containment pattern - Related cultivar cards can amplify server load via default Next Link prefetch; set related links `prefetch={false}` and scope related query to a small capped AHS-image-only set.
