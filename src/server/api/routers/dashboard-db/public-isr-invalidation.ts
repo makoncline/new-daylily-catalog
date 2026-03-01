@@ -10,6 +10,27 @@ interface InvalidatePublicIsrForCatalogMutationInput {
   cultivarNormalizedNames?: Array<string | null | undefined>;
 }
 
+function safeRevalidatePath(path: string, type?: "page" | "layout"): void {
+  try {
+    if (type) {
+      revalidatePath(path, type);
+      return;
+    }
+
+    revalidatePath(path);
+  } catch (error) {
+    if (
+      process.env.NODE_ENV === "test" &&
+      error instanceof Error &&
+      error.message.includes("static generation store missing in revalidatePath")
+    ) {
+      return;
+    }
+
+    throw error;
+  }
+}
+
 function toUniqueNonEmpty(values: Array<string | null | undefined>): string[] {
   const unique = new Set<string>();
 
@@ -24,9 +45,9 @@ function toUniqueNonEmpty(values: Array<string | null | undefined>): string[] {
 }
 
 function revalidateCatalogPathsForSlug(slug: string): void {
-  revalidatePath(`/${slug}`);
-  revalidatePath(`/${slug}/page/[page]`, "page");
-  revalidatePath(`/${slug}/search`);
+  safeRevalidatePath(`/${slug}`);
+  safeRevalidatePath(`/${slug}/page/[page]`, "page");
+  safeRevalidatePath(`/${slug}/search`);
 }
 
 async function getCanonicalSlug(db: PrismaClient, userId: string): Promise<string> {
@@ -87,7 +108,7 @@ export async function invalidatePublicIsrForCatalogMutation(
     revalidateCatalogPathsForSlug(slug);
   });
 
-  revalidatePath("/catalogs");
+  safeRevalidatePath("/catalogs");
 
   const cultivarNormalizedNames =
     input.cultivarNormalizedNames ??
@@ -95,6 +116,6 @@ export async function invalidatePublicIsrForCatalogMutation(
   const cultivarSegments = toCultivarSegments(cultivarNormalizedNames);
 
   cultivarSegments.forEach((segment) => {
-    revalidatePath(`/cultivar/${segment}`);
+    safeRevalidatePath(`/cultivar/${segment}`);
   });
 }
