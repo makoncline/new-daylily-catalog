@@ -8,14 +8,9 @@ import {
   ArrowRight,
   Circle,
   CheckCircle2,
-  ExternalLink,
-  HandHeart,
-  ImageIcon,
   Link2,
-  ListChecks,
   MapPin,
   MessageCircle,
-  Package,
   Pencil,
   ShoppingCart,
 } from "lucide-react";
@@ -29,6 +24,7 @@ import { OnboardingCheckoutButton } from "./_components/onboarding-checkout-butt
 import { CurrencyInput } from "@/components/currency-input";
 import { OnboardingDeferredImageUpload } from "./_components/onboarding-deferred-image-upload";
 import { IMAGE_CONFIG } from "@/components/optimized-image";
+import { PRO_FEATURES } from "@/config/constants";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -85,34 +81,6 @@ function buildOnboardingDraftStorageKey(
 
   return `${ONBOARDING_DRAFT_STORAGE_LEGACY_KEY}:${encodeURIComponent(normalizedScope)}`;
 }
-
-const PRO_UNLOCKS = [
-  {
-    id: "custom-url",
-    icon: ExternalLink,
-    text: "Custom catalog URL - easy to remember and share.",
-  },
-  {
-    id: "unlimited",
-    icon: Package,
-    text: "Unlimited inventory - listings, lists, and photos.",
-  },
-  {
-    id: "catalog-page",
-    icon: ListChecks,
-    text: "Seller browsing placement - get discovered by active buyers.",
-  },
-  {
-    id: "cultivar-page",
-    icon: ImageIcon,
-    text: "Cultivar page visibility - show up on variety research pages.",
-  },
-  {
-    id: "support",
-    icon: HandHeart,
-    text: "Priority support - faster help during peak season.",
-  },
-] as const;
 
 interface MembershipPriceDisplay {
   amount: string;
@@ -2926,7 +2894,7 @@ export function StartOnboardingPageClient({
                 ) : null}
 
                 <ul className="mt-8 space-y-5 text-2xl leading-tight">
-                  {PRO_UNLOCKS.map((feature) => {
+                  {PRO_FEATURES.map((feature) => {
                     const Icon = feature.icon;
 
                     return (

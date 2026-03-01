@@ -2,10 +2,11 @@
 
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Plus, Package, ListChecks, ImageIcon } from "lucide-react";
+import { Plus, Package, ListChecks, ImageIcon, Sparkles } from "lucide-react";
 import Link from "next/link";
 import { H2, H3, P, Muted } from "@/components/typography";
 import { PRO_FEATURES } from "@/config/constants";
+import { SUBSCRIPTION_CONFIG } from "@/config/subscription-config";
 import { usePro } from "@/hooks/use-pro";
 import { CheckoutButton } from "@/components/checkout-button";
 import type { DashboardStats } from "@/types/dashboard-stats-types";
@@ -167,6 +168,39 @@ export function ProMembershipCard() {
             <CheckoutButton size="lg" data-testid="dashboard-upgrade-to-pro" />
           </div>
         </div>
+      </div>
+    </Card>
+  );
+}
+
+export function RevisitOnboardingCard() {
+  const { isPro, isLoading, isTrialing } = usePro();
+
+  if (isLoading) {
+    return null;
+  }
+
+  if (isPro && !isTrialing) {
+    return null;
+  }
+
+  return (
+    <Card className="mb-4 p-4" data-testid="dashboard-revisit-onboarding-card">
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+        <div className="space-y-1">
+          <H3 className="text-xl">Need to revisit onboarding?</H3>
+          <P className="text-muted-foreground text-sm">
+            Reopen the guided flow any time to refine your profile and first
+            listing experience.
+          </P>
+        </div>
+
+        <Button asChild variant="outline" data-testid="dashboard-revisit-onboarding">
+          <Link href={SUBSCRIPTION_CONFIG.NEW_USER_ONBOARDING_PATH}>
+            <Sparkles className="mr-2 h-4 w-4" />
+            Revisit guided onboarding
+          </Link>
+        </Button>
       </div>
     </Card>
   );

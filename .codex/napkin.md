@@ -347,3 +347,5 @@
 - 2026-02-28 - self-miss patch tool usage - I used `apply_patch` through `exec_command`; use the dedicated `apply_patch` tool directly for file patches.
 - 2026-02-28 - onboarding image variety preference - User wants each onboarding daylily image to be visually distinct (different form/color), not multiple near-identical single-bloom shots.
 - 2026-02-28 - onboarding draft cross-account bleed - Start-onboarding draft used a single sessionStorage key (`start-onboarding:draft-v1`), so logging into a different account in the same tab could hydrate prior account draft data; scope session draft keys by signed-in user identity (email preferred, user id fallback).
+- 2026-03-01 - dashboard onboarding revisit path - User requested free/trial users to revisit onboarding from `/dashboard`; add a dedicated dashboard card CTA linked to `/onboarding` and gate visibility to `!isPro || status===trialing`.
+- 2026-03-01 - pro benefits drift prevention - Keep Pro benefit copy in a single shared `PRO_FEATURES` constant and import it from dashboard, onboarding, and start-membership surfaces to prevent wording drift.

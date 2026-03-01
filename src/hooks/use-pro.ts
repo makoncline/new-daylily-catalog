@@ -10,7 +10,9 @@ export function usePro() {
     api.stripe.getSubscription.useQuery();
   const generateCheckout = api.stripe.generateCheckout.useMutation();
 
+  const subscriptionStatus = subscription?.status ?? null;
   const isPro = hasActiveSubscription(subscription?.status);
+  const isTrialing = subscriptionStatus === "trialing";
 
   const sendToCheckout = async () => {
     capturePosthogEvent("checkout_started", { source: "use-pro" });
@@ -30,6 +32,8 @@ export function usePro() {
 
   return {
     isPro,
+    isTrialing,
+    subscriptionStatus,
     isLoading,
     isPending: generateCheckout.isPending,
     sendToCheckout,
