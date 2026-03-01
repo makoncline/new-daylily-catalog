@@ -49,8 +49,10 @@ export function NavUser({ user }: NavUserProps) {
                   {user.email.slice(0, 2).toUpperCase()}
                 </AvatarFallback>
               </Avatar>
-              <div className="grid flex-1 text-left text-sm leading-tight">
-                <span className="truncate text-xs">{user.email}</span>
+              <div className="grid min-w-0 w-0 flex-1 text-left text-sm leading-tight">
+                <span className="truncate text-xs" title={user.email}>
+                  {user.email}
+                </span>
               </div>
               <ChevronsUpDown className="ml-auto size-4" />
             </SidebarMenuButton>
