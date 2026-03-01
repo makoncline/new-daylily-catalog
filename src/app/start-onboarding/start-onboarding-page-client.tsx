@@ -62,7 +62,8 @@ import {
   type ProfileOnboardingField,
 } from "./onboarding-utils";
 
-const PROFILE_PLACEHOLDER_IMAGE = "/assets/catalog-blooms.webp";
+const PROFILE_PLACEHOLDER_IMAGE =
+  "/assets/onboarding-generated/profile-placeholder.png";
 const DEFAULT_STARTER_IMAGE_URL = STARTER_PROFILE_IMAGES[0]?.url ?? null;
 const DEFAULT_GARDEN_NAME_PLACEHOLDER = "Your Garden Name";
 const DEFAULT_LOCATION_PLACEHOLDER = "Your City, ST";
@@ -72,7 +73,18 @@ const DEFAULT_LISTING_TITLE_PLACEHOLDER =
   "Coffee Frenzy spring fan (1 healthy dormant fan)";
 const DEFAULT_LISTING_DESCRIPTION_PLACEHOLDER =
   "Healthy dormant fan with strong roots, clearly labeled, and ready for spring shipping or local pickup.";
-const ONBOARDING_DRAFT_STORAGE_KEY = "start-onboarding:draft-v1";
+const ONBOARDING_DRAFT_STORAGE_LEGACY_KEY = "start-onboarding:draft-v1";
+
+function buildOnboardingDraftStorageKey(
+  userScope: string | null | undefined,
+): string | null {
+  const normalizedScope = userScope?.trim().toLowerCase();
+  if (!normalizedScope) {
+    return null;
+  }
+
+  return `${ONBOARDING_DRAFT_STORAGE_LEGACY_KEY}:${encodeURIComponent(normalizedScope)}`;
+}
 
 const PRO_UNLOCKS = [
   {
@@ -241,6 +253,7 @@ export function StartOnboardingPageClient({
     useState(true);
 
   const profileQuery = api.dashboardDb.userProfile.get.useQuery();
+  const currentUserQuery = api.dashboardDb.user.getCurrentUser.useQuery();
   const imagesQuery = api.dashboardDb.image.list.useQuery(undefined, {
     enabled: Boolean(profileQuery.data?.id),
   });
@@ -289,8 +302,31 @@ export function StartOnboardingPageClient({
   const viewedOnboardingStepsRef = useRef<Set<OnboardingStepId>>(new Set());
   const hasHydratedSessionDraft = useRef(false);
 
+  const onboardingDraftStorageKey = useMemo(() => {
+    const emailScope = currentUserQuery.data?.clerk?.email;
+    if (emailScope) {
+      return buildOnboardingDraftStorageKey(emailScope);
+    }
+
+    return buildOnboardingDraftStorageKey(
+      currentUserQuery.data?.id ?? profileQuery.data?.userId,
+    );
+  }, [currentUserQuery.data?.clerk?.email, currentUserQuery.data?.id, profileQuery.data?.userId]);
+
+  const clearOnboardingDraftSnapshot = useCallback(() => {
+    window.sessionStorage.removeItem(ONBOARDING_DRAFT_STORAGE_LEGACY_KEY);
+
+    if (onboardingDraftStorageKey) {
+      window.sessionStorage.removeItem(onboardingDraftStorageKey);
+    }
+  }, [onboardingDraftStorageKey]);
+
   useEffect(() => {
     if (hasHydratedSessionDraft.current) {
+      return;
+    }
+
+    if (!onboardingDraftStorageKey) {
       return;
     }
 
@@ -298,9 +334,10 @@ export function StartOnboardingPageClient({
 
     try {
       const rawSnapshot = window.sessionStorage.getItem(
-        ONBOARDING_DRAFT_STORAGE_KEY,
+        onboardingDraftStorageKey,
       );
       if (!rawSnapshot) {
+        window.sessionStorage.removeItem(ONBOARDING_DRAFT_STORAGE_LEGACY_KEY);
         return;
       }
 
@@ -331,12 +368,12 @@ export function StartOnboardingPageClient({
       setSelectedCultivarName(parsedSnapshot.selectedCultivarName ?? null);
       setSelectedCultivarAhsId(parsedSnapshot.selectedCultivarAhsId ?? null);
     } catch {
-      window.sessionStorage.removeItem(ONBOARDING_DRAFT_STORAGE_KEY);
+      window.sessionStorage.removeItem(onboardingDraftStorageKey);
     }
-  }, []);
+  }, [onboardingDraftStorageKey]);
 
   useEffect(() => {
-    if (!hasHydratedSessionDraft.current) {
+    if (!hasHydratedSessionDraft.current || !onboardingDraftStorageKey) {
       return;
     }
 
@@ -353,10 +390,16 @@ export function StartOnboardingPageClient({
     };
 
     window.sessionStorage.setItem(
-      ONBOARDING_DRAFT_STORAGE_KEY,
+      onboardingDraftStorageKey,
       JSON.stringify(snapshot),
     );
-  }, [listingDraft, profileDraft, selectedCultivarAhsId, selectedCultivarName]);
+  }, [
+    listingDraft,
+    onboardingDraftStorageKey,
+    profileDraft,
+    selectedCultivarAhsId,
+    selectedCultivarName,
+  ]);
 
   useEffect(() => {
     if (!profileQuery.data || hasHydratedProfile.current) {
@@ -1570,7 +1613,7 @@ export function StartOnboardingPageClient({
         return;
       }
       case "start-membership": {
-        window.sessionStorage.removeItem(ONBOARDING_DRAFT_STORAGE_KEY);
+        clearOnboardingDraftSnapshot();
         captureOnboardingStepEvent(
           "onboarding_step_completed",
           "start-membership",
@@ -1632,15 +1675,15 @@ export function StartOnboardingPageClient({
       (!isListingOnboardingDraftComplete(listingDraft) || isSavingListing));
 
   const handleMembershipContinueForNow = useCallback(() => {
-    window.sessionStorage.removeItem(ONBOARDING_DRAFT_STORAGE_KEY);
+    clearOnboardingDraftSnapshot();
     captureOnboardingStepEvent("onboarding_step_completed", "start-membership");
     capturePosthogEvent("onboarding_membership_continue_for_now_clicked", {
       source: "onboarding-step",
     });
-  }, [captureOnboardingStepEvent]);
+  }, [captureOnboardingStepEvent, clearOnboardingDraftSnapshot]);
 
   const handleSkipOnboarding = () => {
-    window.sessionStorage.removeItem(ONBOARDING_DRAFT_STORAGE_KEY);
+    clearOnboardingDraftSnapshot();
     capturePosthogEvent("onboarding_skipped", {
       step_id: currentStep.id,
       step_index: stepIndex + 1,

@@ -148,7 +148,7 @@ export const ONBOARDING_LISTING_DEFAULTS = {
   draftTitle: "My first listing",
   contactPreviewFallbackPrice: 10,
   defaultStatus: STATUS.HIDDEN,
-  fallbackImageUrl: "/assets/cultivar-grid.webp",
+  fallbackImageUrl: "/assets/onboarding-generated/listing-fallback.png",
 } as const;
 
 export const ONBOARDING_PROFILE_DISCOVERY_EXAMPLES = [
@@ -156,14 +156,14 @@ export const ONBOARDING_PROFILE_DISCOVERY_EXAMPLES = [
     id: "prairie-bloom",
     title: "Prairie Bloom Gardens",
     description: "Seasonal favorites and regional shipping updates weekly.",
-    imageUrl: "/assets/aerial-garden.webp",
+    imageUrl: "/assets/onboarding-generated/profile-example-willow.png",
     location: "Eugene, OR",
   },
   {
     id: "willow-daylilies",
     title: "Willow Daylilies",
     description: "Collector-focused stock with curated cultivar groupings.",
-    imageUrl: "/assets/hero-garden.webp",
+    imageUrl: "/assets/onboarding-generated/profile-example-prairie.png",
     location: "Boise, ID",
   },
 ] as const;
@@ -176,7 +176,7 @@ export const ONBOARDING_LISTING_DISCOVERY_EXAMPLES = [
     price: 27,
     linkedLabel: "Amber Twilight",
     hybridizerYear: "Smith, 2012",
-    imageUrl: "/assets/hero-garden.webp",
+    imageUrl: "/assets/onboarding-generated/listing-example-amber.png",
   },
   {
     id: "collector-mix",
@@ -185,7 +185,7 @@ export const ONBOARDING_LISTING_DISCOVERY_EXAMPLES = [
     price: null,
     linkedLabel: null,
     hybridizerYear: null,
-    imageUrl: "/assets/aerial-garden.webp",
+    imageUrl: "/assets/onboarding-generated/listing-example-collector.png",
   },
 ] as const;
 

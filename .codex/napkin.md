@@ -2,6 +2,9 @@
 
 ## Log
 
+- 2026-02-28 - onboarding image generation guardrail - For onboarding assets, explicit slot-based prompts work better than generic "listing/profile card image" prompts; include strict negatives (`NO people`, `NO UI`, `NO text`) plus composition-safe overlay zones.
+- 2026-02-28 - yellow-cast mitigation pattern - ChatGPT image outputs can skew warm; a repo-local gray-world white-balance pass (plus slight desaturation) on selected assets helps neutralize cast consistently.
+- 2026-02-28 - chatgpt-images headed auth flow - Opening `https://chatgpt.com/images` in Playwright can land directly on `auth.openai.com/log-in/password` with the email prefilled; pause automation and let the user complete login before continuing.
 - 2026-02-28 - onboarding route consolidation - New-user onboarding flow is now canonical at `/onboarding` with URL-driven step state (`?step=<id>`) for deep-linkable steps.
 - 2026-02-28 - membership step integration - Start membership is now the final onboarding step in-flow; standalone `/start-membership` behavior is compatibility/redirect oriented.
 - 2026-02-28 - onboarding e2e hardening - Added/updated assertion-based full onboarding flow coverage (home signup -> onboarding steps -> Stripe checkout landing -> `/subscribe/success?redirect=/dashboard` -> dashboard).
@@ -339,3 +342,8 @@
 - 2026-02-26 - prisma migrate create-only env boot - `prisma migrate dev --create-only` failed with generic schema engine error until run with `NODE_OPTIONS='' RUST_LOG=info` and explicit `LOCAL_DATABASE_URL=file:./prisma/local-dev.sqlite`.
 - 2026-02-26 - migration idempotency preference - User prefers generated index migration SQL to use `IF NOT EXISTS` even when Prisma migrate is not used on Turso, to keep artifacts safe for accidental/one-off execution.
 - 2026-02-26 - cultivar fanout containment pattern - Related cultivar cards can amplify server load via default Next Link prefetch; set related links `prefetch={false}` and scope related query to a small capped AHS-image-only set.
+- 2026-02-28 - onboarding daylily realism prompting - For generated daylily photos, avoid bouquet-like mixed colors on one clump; each clump should stay cultivar-consistent while realism comes from varied scape heights, branching, and mixed bloom stages (buds/open/spent) across the plant.
+- 2026-02-28 - onboarding placeholder style pivot - User prefers simple placeholders (single bloom or general garden) over dense daylily beds; avoid heavy floral density and prioritize fast iteration by batching prompts in multiple browser tabs.
+- 2026-02-28 - self-miss patch tool usage - I used `apply_patch` through `exec_command`; use the dedicated `apply_patch` tool directly for file patches.
+- 2026-02-28 - onboarding image variety preference - User wants each onboarding daylily image to be visually distinct (different form/color), not multiple near-identical single-bloom shots.
+- 2026-02-28 - onboarding draft cross-account bleed - Start-onboarding draft used a single sessionStorage key (`start-onboarding:draft-v1`), so logging into a different account in the same tab could hydrate prior account draft data; scope session draft keys by signed-in user identity (email preferred, user id fallback).
