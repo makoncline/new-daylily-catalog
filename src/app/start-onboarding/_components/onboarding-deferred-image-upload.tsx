@@ -10,28 +10,26 @@ import { Button } from "@/components/ui/button";
 import { P } from "@/components/typography";
 
 interface OnboardingDeferredImageUploadProps {
+  stagedPreviewUrl: string | null;
   onDeferredUploadReady: (file: Blob) => void;
+  onDeferredUploadCleared?: () => void;
 }
 
 export function OnboardingDeferredImageUpload({
+  stagedPreviewUrl,
   onDeferredUploadReady,
+  onDeferredUploadCleared,
 }: OnboardingDeferredImageUploadProps) {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-  const [preparedPreviewUrl, setPreparedPreviewUrl] = useState<string | null>(
-    null,
-  );
 
-  const reset = useCallback(() => {
-    if (previewUrl?.startsWith("blob:")) {
-      URL.revokeObjectURL(previewUrl);
-    }
-    if (preparedPreviewUrl) {
-      URL.revokeObjectURL(preparedPreviewUrl);
-    }
-
+  const resetCropSelection = useCallback(() => {
     setPreviewUrl(null);
-    setPreparedPreviewUrl(null);
-  }, [preparedPreviewUrl, previewUrl]);
+  }, []);
+
+  const clearStagedUpload = useCallback(() => {
+    setPreviewUrl(null);
+    onDeferredUploadCleared?.();
+  }, [onDeferredUploadCleared]);
 
   const onDrop = useCallback(
     (acceptedFiles: File[]) => {
@@ -40,14 +38,14 @@ export function OnboardingDeferredImageUpload({
         return;
       }
 
-      reset();
+      clearStagedUpload();
       const reader = new FileReader();
       reader.onloadend = () => {
         setPreviewUrl(reader.result as string);
       };
       reader.readAsDataURL(file);
     },
-    [reset],
+    [clearStagedUpload],
   );
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
@@ -61,7 +59,7 @@ export function OnboardingDeferredImageUpload({
 
   return (
     <div className="space-y-4">
-      {!previewUrl && !preparedPreviewUrl ? (
+      {!previewUrl && !stagedPreviewUrl ? (
         <div
           {...getRootProps()}
           className={`cursor-pointer rounded-lg border-2 border-dashed p-8 text-center ${
@@ -80,29 +78,23 @@ export function OnboardingDeferredImageUpload({
       {previewUrl ? (
         <ImageCropper
           src={previewUrl}
+          confirmButtonLabel="Continue"
           onCropComplete={(blob) => {
-            const nextPreviewUrl = URL.createObjectURL(blob);
-            setPreparedPreviewUrl((currentPreviewUrl) => {
-              if (currentPreviewUrl) {
-                URL.revokeObjectURL(currentPreviewUrl);
-              }
-              return nextPreviewUrl;
-            });
             onDeferredUploadReady(blob);
             setPreviewUrl(null);
           }}
-          onCancel={reset}
+          onCancel={resetCropSelection}
         />
       ) : null}
 
-      {!previewUrl && preparedPreviewUrl ? (
+      {!previewUrl && stagedPreviewUrl ? (
         <div className="space-y-3 rounded-lg border p-3">
           <div
             className="relative aspect-square w-full overflow-hidden rounded-md"
             style={{ maxWidth: IMAGE_CONFIG.SIZES.THUMBNAIL }}
           >
             <Image
-              src={preparedPreviewUrl}
+              src={stagedPreviewUrl}
               alt="Prepared upload preview"
               fill
               className="object-cover"
@@ -113,11 +105,16 @@ export function OnboardingDeferredImageUpload({
             <Button
               type="button"
               size="sm"
-              onClick={() => setPreviewUrl(preparedPreviewUrl)}
+              onClick={() => setPreviewUrl(stagedPreviewUrl)}
             >
               Adjust crop
             </Button>
-            <Button type="button" size="sm" variant="outline" onClick={reset}>
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={clearStagedUpload}
+            >
               Upload a different image
             </Button>
           </div>

@@ -39,7 +39,6 @@ import { getErrorMessage } from "@/lib/error-utils";
 import { cn, formatPrice, uploadFileWithProgress } from "@/lib/utils";
 import { api } from "@/trpc/react";
 import {
-  ONBOARDING_BUYER_FLOW_BULLETS,
   ONBOARDING_LISTING_DEFAULTS,
   ONBOARDING_LISTING_DESCRIPTION_GUIDANCE,
   ONBOARDING_LISTING_DISCOVERY_EXAMPLES,
@@ -279,7 +278,11 @@ export function StartOnboardingPageClient({
     return buildOnboardingDraftStorageKey(
       currentUserQuery.data?.id ?? profileQuery.data?.userId,
     );
-  }, [currentUserQuery.data?.clerk?.email, currentUserQuery.data?.id, profileQuery.data?.userId]);
+  }, [
+    currentUserQuery.data?.clerk?.email,
+    currentUserQuery.data?.id,
+    profileQuery.data?.userId,
+  ]);
 
   const clearOnboardingDraftSnapshot = useCallback(() => {
     window.sessionStorage.removeItem(ONBOARDING_DRAFT_STORAGE_LEGACY_KEY);
@@ -683,17 +686,6 @@ export function StartOnboardingPageClient({
     persistedProfileLogoUrl ??
     selectedStarterImagePreviewUrl ??
     PROFILE_PLACEHOLDER_IMAGE;
-  const hasProfileLocationForPreview = profileLocationPreview.trim().length > 0;
-  const hasProfileTrustDetailForPreview =
-    /\b(ship|shipping|pickup|condition|healthy|response|reply|labeled|labelled)\b/i.test(
-      profileDescriptionPreview,
-    );
-  const profileDiscoveryTip = !hasProfileLocationForPreview
-    ? "Tip: add location to improve regional discovery when buyers browse nearby sellers."
-    : !hasProfileTrustDetailForPreview
-      ? "Tip: add one trust detail (shipping window, plant condition, or response time) to improve inquiry quality."
-      : "Tip: cards with a clear location and trust-focused description usually get more qualified inquiries.";
-
   const listingTitleDraftValue = listingDraft.title.trim();
   const listingDescriptionDraftValue = listingDraft.description.trim();
   const persistedListingTitle = earliestExistingListing?.title?.trim() ?? "";
@@ -1030,6 +1022,13 @@ export function StartOnboardingPageClient({
     setActiveListingField("image");
   };
 
+  const handleDeferredListingImageCleared = () => {
+    clearPendingListingUpload();
+    setSelectedListingImageId(null);
+    setSelectedListingImageUrl(null);
+    setActiveListingField("image");
+  };
+
   const handleStarterImageSelect = (baseImageUrl: string) => {
     setProfileImageInputMode("starter");
     clearPendingProfileUpload();
@@ -1051,6 +1050,25 @@ export function StartOnboardingPageClient({
         profileDraft.gardenName.trim() || DEFAULT_GARDEN_NAME_PLACEHOLDER,
       debounceMs: 0,
     });
+  };
+
+  const handleDeferredProfileImageCleared = () => {
+    clearPendingProfileUpload();
+
+    const starterImageUrl = selectedStarterImageUrl ?? DEFAULT_STARTER_IMAGE_URL;
+    if (starterImageUrl) {
+      setSelectedStarterImageUrl((previous) => previous ?? starterImageUrl);
+      setProfileDraft((previous) => ({
+        ...previous,
+        profileImageUrl: pendingStarterPreviewUrl ?? starterImageUrl,
+      }));
+      return;
+    }
+
+    setProfileDraft((previous) => ({
+      ...previous,
+      profileImageUrl: null,
+    }));
   };
 
   const handleStarterOverlayChange = (enabled: boolean) => {
@@ -1916,8 +1934,12 @@ export function StartOnboardingPageClient({
                       {profileQuery.data?.id ? (
                         <div className="bg-background rounded-lg border p-3">
                           <OnboardingDeferredImageUpload
+                            stagedPreviewUrl={pendingProfileUploadPreviewUrl}
                             onDeferredUploadReady={
                               handleDeferredProfileImageReady
+                            }
+                            onDeferredUploadCleared={
+                              handleDeferredProfileImageCleared
                             }
                           />
                         </div>
@@ -1990,7 +2012,7 @@ export function StartOnboardingPageClient({
                         "leading-relaxed",
                         isProfileDescriptionTooShort ||
                           isProfileDescriptionTooLong
-                          ? "text-amber-700"
+                          ? "text-yellow-700"
                           : isProfileDescriptionInRecommendedRange
                             ? "text-emerald-700"
                             : "text-muted-foreground",
@@ -2009,7 +2031,7 @@ export function StartOnboardingPageClient({
                         "font-medium",
                         isProfileDescriptionTooShort ||
                           isProfileDescriptionTooLong
-                          ? "text-amber-700"
+                          ? "text-yellow-700"
                           : isProfileDescriptionInRecommendedRange
                             ? "text-emerald-700"
                             : "text-muted-foreground",
@@ -2022,14 +2044,14 @@ export function StartOnboardingPageClient({
 
                 {!profileMissingField ? (
                   isProfileDescriptionTooShort ? (
-                    <p className="text-sm font-medium text-amber-700">
+                    <p className="text-sm font-medium text-yellow-700">
                       Profile card is ready. Add{" "}
                       {ONBOARDING_PROFILE_DESCRIPTION_SEO_GUIDANCE.minLength -
                         profileDescriptionCharacterCount}{" "}
                       more characters to strengthen search visibility.
                     </p>
                   ) : isProfileDescriptionTooLong ? (
-                    <p className="text-sm font-medium text-amber-700">
+                    <p className="text-sm font-medium text-yellow-700">
                       Profile card is ready. Consider trimming{" "}
                       {profileDescriptionCharacterCount -
                         ONBOARDING_PROFILE_DESCRIPTION_SEO_GUIDANCE.maxLength}{" "}
@@ -2140,17 +2162,13 @@ export function StartOnboardingPageClient({
                 mirrors how customers discover gardens first when browsing
                 catalogs.
               </p>
-              <p className="text-sm font-medium text-emerald-700">
+              <div className="text-sm font-medium text-emerald-700">
                 Look for the{" "}
                 <Badge variant="secondary" className="mx-1 align-middle">
                   Yours
                 </Badge>
                 badge to spot your card.
-              </p>
-              <p className="text-muted-foreground text-sm">
-                {profileDiscoveryTip}
-              </p>
-
+              </div>
               <div className="grid gap-4 lg:grid-cols-[repeat(2,minmax(0,24rem))] lg:justify-start">
                 <ProfilePreviewCard
                   title={profileNamePreview}
@@ -2352,26 +2370,26 @@ export function StartOnboardingPageClient({
                         "leading-relaxed",
                         isListingDescriptionTooShort ||
                           isListingDescriptionTooLong
-                          ? "text-muted-foreground"
+                          ? "text-yellow-700"
                           : isListingDescriptionInRecommendedRange
                             ? "text-emerald-700"
                             : "text-muted-foreground",
                       )}
                     >
                       {listingDescriptionCharacterCount === 0
-                        ? `Recommended: aim for ${ONBOARDING_LISTING_DESCRIPTION_GUIDANCE.minLength}-${ONBOARDING_LISTING_DESCRIPTION_GUIDANCE.maxLength} characters.`
+                        ? `Aim for ${ONBOARDING_LISTING_DESCRIPTION_GUIDANCE.minLength}-${ONBOARDING_LISTING_DESCRIPTION_GUIDANCE.maxLength} characters.`
                         : isListingDescriptionTooShort
-                          ? "Optional: add a little more detail so buyers can evaluate faster."
+                          ? `Add at least ${ONBOARDING_LISTING_DESCRIPTION_GUIDANCE.minLength - listingDescriptionCharacterCount} more characters so buyers can evaluate this listing quickly.`
                           : isListingDescriptionTooLong
-                            ? "Optional: trim this down so buyers can scan quickly."
-                            : "Great listing details for buyer comparison."}
+                            ? `Trim about ${listingDescriptionCharacterCount - ONBOARDING_LISTING_DESCRIPTION_GUIDANCE.maxLength} characters so buyers can scan faster.`
+                            : "Great length for buyer comparison."}
                     </p>
                     <p
                       className={cn(
                         "font-medium",
                         isListingDescriptionTooShort ||
                           isListingDescriptionTooLong
-                          ? "text-muted-foreground"
+                          ? "text-yellow-700"
                           : isListingDescriptionInRecommendedRange
                             ? "text-emerald-700"
                             : "text-muted-foreground",
@@ -2401,7 +2419,11 @@ export function StartOnboardingPageClient({
                   {savedListingId ? (
                     <div className="bg-background rounded-lg border p-3">
                       <OnboardingDeferredImageUpload
+                        stagedPreviewUrl={pendingListingUploadPreviewUrl}
                         onDeferredUploadReady={handleDeferredListingImageReady}
+                        onDeferredUploadCleared={
+                          handleDeferredListingImageCleared
+                        }
                       />
                     </div>
                   ) : (
@@ -2418,17 +2440,9 @@ export function StartOnboardingPageClient({
                   )}
                 </div>
 
-                {!listingMissingField && isListingDescriptionTooShort ? (
-                  <p className="text-muted-foreground text-sm">
-                    Listing card is ready. Optional: add a little more detail to
-                    increase buyer confidence.
-                  </p>
-                ) : !listingMissingField && isListingDescriptionTooLong ? (
-                  <p className="text-muted-foreground text-sm">
-                    Listing card is ready. Optional: trim to essentials so
-                    buyers can scan quickly.
-                  </p>
-                ) : !listingMissingField ? (
+                {!listingMissingField &&
+                !isListingDescriptionTooShort &&
+                !isListingDescriptionTooLong ? (
                   <p className="text-sm font-medium text-emerald-700">
                     Listing card is ready to save.
                   </p>
@@ -2440,10 +2454,6 @@ export function StartOnboardingPageClient({
                   <h3 className="text-xl font-semibold tracking-tight">
                     Listing preview
                   </h3>
-                  <p className="text-muted-foreground text-sm">
-                    This is how your listing card appears when buyers compare
-                    options.
-                  </p>
                 </div>
 
                 <div className="bg-card relative w-full max-w-sm overflow-hidden rounded-xl border">
@@ -2612,19 +2622,13 @@ export function StartOnboardingPageClient({
                 This is an example buyer-facing card preview, using your new
                 listing data.
               </p>
-              <p className="text-sm font-medium text-emerald-700">
+              <div className="text-sm font-medium text-emerald-700">
                 Look for the{" "}
                 <Badge variant="secondary" className="mx-1 align-middle">
                   Yours
                 </Badge>
                 badge to spot your listing.
-              </p>
-              <p className="text-muted-foreground text-sm">
-                {listingPricePreview !== null
-                  ? "Price is set, so buyers can add this listing to an inquiry bundle."
-                  : "No price set yet, so this listing appears as inquiry only."}
-              </p>
-
+              </div>
               <div className="grid gap-4 lg:grid-cols-[repeat(2,minmax(0,24rem))] lg:justify-start">
                 <ListingPreviewCard
                   title={listingTitlePreview}
@@ -2683,9 +2687,8 @@ export function StartOnboardingPageClient({
               How buyers contact you
             </h2>
             <p className="text-muted-foreground max-w-3xl">
-              This example shows the two common paths to contact you: visiting
-              your catalog profile or adding priced listings to an inquiry
-              bundle before messaging by email.
+              Buyers can contact you directly from your catalog, or add priced
+              listings to cart first and send one message with selected items.
             </p>
 
             {isBuyerContactPreviewHydrating ? (
@@ -2696,10 +2699,10 @@ export function StartOnboardingPageClient({
               <div className="space-y-4">
                 <div className="grid gap-6 lg:grid-cols-[repeat(2,minmax(0,24rem))] lg:justify-start">
                   <div className="space-y-3">
-                    <p className="text-muted-foreground text-xs font-semibold tracking-wide uppercase">
+                    <p className="text-xs font-semibold tracking-wide uppercase">
                       Path 1: Direct message
                     </p>
-                    <p className="text-sm font-medium">
+                    <p className="text-muted-foreground text-sm font-medium">
                       Buyer opens your catalog profile and can send an email
                       message immediately.
                     </p>
@@ -2722,13 +2725,12 @@ export function StartOnboardingPageClient({
                   </div>
 
                   <div className="space-y-3">
-                    <p className="text-muted-foreground text-xs font-semibold tracking-wide uppercase">
-                      Path 2: Inquiry bundle
+                    <p className="text-xs font-semibold tracking-wide uppercase">
+                      Path 2: Add to cart
                     </p>
-                    <p className="text-sm font-medium">
+                    <p className="text-muted-foreground text-sm font-medium">
                       Buyer opens your listing. If it has a price, they can add
-                      it to an inquiry bundle and send one email with item
-                      details.
+                      it to cart and send one email with item details.
                     </p>
                     <div className="relative max-w-sm">
                       <ListingPreviewCard
@@ -2757,42 +2759,16 @@ export function StartOnboardingPageClient({
                     </Button>
                   </div>
                 </div>
-
-                <p className="text-muted-foreground text-sm">
-                  Buyers do not pay on Daylily Catalog. They send an inquiry
-                  email (with or without bundled items), and you arrange payment
-                  and shipping directly.
-                </p>
-
-                <div className="space-y-3">
-                  <p className="text-sm font-semibold">What this enables</p>
-                  <div className="grid gap-3 lg:grid-cols-3">
-                    {ONBOARDING_BUYER_FLOW_BULLETS.map((bullet, index) => (
-                      <div
-                        key={bullet}
-                        className="bg-background rounded-lg border p-3"
-                      >
-                        <p className="text-muted-foreground text-xs font-semibold tracking-wide uppercase">
-                          Point {index + 1}
-                        </p>
-                        <p className="text-muted-foreground mt-1 text-sm leading-relaxed">
-                          {bullet}
-                        </p>
-                      </div>
-                    ))}
-                  </div>
-                </div>
               </div>
             )}
-            <p className="text-muted-foreground text-sm">
-              Next you can review optional Pro plans, or continue for now and go
-              straight to your dashboard.
-            </p>
           </div>
         ) : null}
 
         {currentStep.id === "start-membership" ? (
-          <div className="space-y-6" data-testid="onboarding-start-membership-step">
+          <div
+            className="space-y-6"
+            data-testid="onboarding-start-membership-step"
+          >
             <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(360px,560px)] lg:items-start lg:gap-8">
               <div className="space-y-8 py-2 lg:py-6">
                 <div className="space-y-4">
