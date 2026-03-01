@@ -154,7 +154,9 @@ export class OnboardingFlowPage {
   }
 
   async expectMembershipStep() {
-    await expect(this.page.getByTestId("start-membership-page")).toBeVisible();
+    await expect(
+      this.page.getByTestId("onboarding-start-membership-step"),
+    ).toBeVisible();
     await expect(this.checkoutButton).toBeVisible();
   }
 }

@@ -369,7 +369,9 @@ test.describe("onboarding flow screenshot capture @capture", () => {
       page
         .getByRole("heading", { name: "How buyers contact you" })
         .waitFor({ state: "visible" }),
-      page.getByTestId("start-membership-page").waitFor({ state: "visible" }),
+      page
+        .getByTestId("onboarding-start-membership-step")
+        .waitFor({ state: "visible" }),
     ]);
 
     logCaptureStep("Open listing preview step directly");
@@ -411,7 +413,9 @@ test.describe("onboarding flow screenshot capture @capture", () => {
     await page.goto("/onboarding?step=start-membership", {
       waitUntil: "domcontentloaded",
     });
-    await page.getByTestId("start-membership-page").waitFor({ state: "visible" });
+    await page
+      .getByTestId("onboarding-start-membership-step")
+      .waitFor({ state: "visible" });
 
     await saveCapture({
       page,

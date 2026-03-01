@@ -1305,21 +1305,37 @@ export function StartOnboardingPageClient({
           profileImageUrl: url,
         }));
       } else if (pendingStarterImageBlob && profileImageUrlToSave) {
-        const { url, key } = await uploadOnboardingImageBlob({
-          blob: pendingStarterImageBlob,
-          type: "profile",
-          referenceId: profileQuery.data.id,
-          getPresignedUrl: getImagePresignedUrlMutation.mutateAsync,
-        });
+        try {
+          const { url, key } = await uploadOnboardingImageBlob({
+            blob: pendingStarterImageBlob,
+            type: "profile",
+            referenceId: profileQuery.data.id,
+            getPresignedUrl: getImagePresignedUrlMutation.mutateAsync,
+          });
 
-        profileImageUrlToSave = url;
-        profileImageKeyToSave = key;
-        clearPendingStarterImage();
+          profileImageUrlToSave = url;
+          profileImageKeyToSave = key;
+          clearPendingStarterImage();
 
-        setProfileDraft((previous) => ({
-          ...previous,
-          profileImageUrl: url,
-        }));
+          setProfileDraft((previous) => ({
+            ...previous,
+            profileImageUrl: url,
+          }));
+        } catch (error) {
+          const fallbackStarterImageUrl =
+            selectedStarterImageUrl ?? DEFAULT_STARTER_IMAGE_URL;
+          clearPendingStarterImage();
+          profileImageUrlToSave = fallbackStarterImageUrl;
+          profileImageKeyToSave = `onboarding:starter:${Date.now()}`;
+          setProfileDraft((previous) => ({
+            ...previous,
+            profileImageUrl: fallbackStarterImageUrl,
+          }));
+          console.error(
+            "Failed to upload starter overlay image during onboarding; using starter image fallback.",
+            error,
+          );
+        }
       }
 
       await updateProfileMutation.mutateAsync({
@@ -1332,11 +1348,18 @@ export function StartOnboardingPageClient({
       });
 
       if (profileImageUrlToSave) {
-        await createOnboardingProfileImage({
-          profileId: profileQuery.data.id,
-          selectedImageUrl: profileImageUrlToSave,
-          selectedImageKey: profileImageKeyToSave,
-        });
+        try {
+          await createOnboardingProfileImage({
+            profileId: profileQuery.data.id,
+            selectedImageUrl: profileImageUrlToSave,
+            selectedImageKey: profileImageKeyToSave,
+          });
+        } catch (error) {
+          console.error(
+            "Failed to create onboarding profile image record; continuing with saved profile logo URL.",
+            error,
+          );
+        }
       }
 
       await Promise.all([
@@ -2740,7 +2763,7 @@ export function StartOnboardingPageClient({
         ) : null}
 
         {currentStep.id === "start-membership" ? (
-          <div className="space-y-6" data-testid="start-membership-page">
+          <div className="space-y-6" data-testid="onboarding-start-membership-step">
             <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(360px,560px)] lg:items-start lg:gap-8">
               <div className="space-y-8 py-2 lg:py-6">
                 <div className="space-y-4">

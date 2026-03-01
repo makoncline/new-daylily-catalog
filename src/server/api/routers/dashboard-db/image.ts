@@ -23,6 +23,11 @@ const imageSelect = {
 
 type DbClient = typeof db;
 type OwnedContext = { db: DbClient; user: { id: string } };
+const MOCK_UPLOAD_SCHEME = "mock-upload://";
+const MOCK_UPLOAD_URLS = {
+  listing: "/assets/bouquet.png",
+  profile: "/assets/catalog-blooms.webp",
+} as const;
 
 async function assertListingOwned(ctx: OwnedContext, listingId: string) {
   const listing = await ctx.db.listing.findFirst({
@@ -66,6 +71,18 @@ export const dashboardDbImageRouter = createTRPCRouter({
         await assertListingOwned(ctx, input.referenceId);
       } else {
         await assertProfileOwned(ctx, input.referenceId);
+      }
+
+      if (process.env.PLAYWRIGHT_LOCAL_E2E === "true") {
+        const ext = path.extname(input.fileName);
+        const fileId = crypto.randomBytes(4).toString("hex");
+        const key = `${ctx.user.id}/${input.referenceId}/${fileId}${ext}`;
+
+        return {
+          presignedUrl: `${MOCK_UPLOAD_SCHEME}${key}`,
+          key,
+          url: MOCK_UPLOAD_URLS[input.type],
+        } as const;
       }
 
       const s3Client = new S3Client({
