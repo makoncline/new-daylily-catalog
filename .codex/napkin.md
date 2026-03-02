@@ -2,6 +2,8 @@
 
 ## Log
 
+- 2026-03-02 - preview smoke selector drift - Deploy-preview smoke test failed because dialog no longer exposes `View Cultivar Page`; stable path is to close dialog and click the listing-card link text `View linked cultivar page` under `#listings`.
+- 2026-03-02 - preview smoke flake root cause - `guest user tour @preview` became brittle in `eac0a9b` when it clicked the first listing card and expected a cultivar link in the dialog; first listing is not guaranteed to have a linked cultivar, so target the first visible linked-cultivar anchor instead.
 - 2026-03-01 - onboarding preview-link preference - On Step 3 preview/contact, include direct new-tab links for the user’s public catalog and `?viewing=<listingId>` listing view, plus canonical examples (`rollingoaksdaylilies`, `cultivar/starman`) and a clear note that discovery stays gated behind active trial/membership.
 - 2026-03-01 - onboarding listing visibility simplification - Removed listing visibility selector from onboarding and defaulted onboarding listing status to published for reliable public-preview links.
 - 2026-03-01 - lint rule reminder in onboarding client - `@typescript-eslint/prefer-nullish-coalescing` flags `||` fallback chains even for string candidates; use a candidate array + `.find(Boolean) ?? null` when choosing first non-empty optional value.
