@@ -716,7 +716,7 @@ export function StartOnboardingPageClient({
   const persistedListingPrice = earliestExistingListing?.price ?? null;
   const listingIdForPreview =
     savedListingId ?? earliestExistingListing?.id ?? null;
-  const persistedListingImageUrl = useMemo(() => {
+  const earliestPersistedListingImage = useMemo(() => {
     if (!listingIdForPreview) {
       return null;
     }
@@ -726,8 +726,16 @@ export function StartOnboardingPageClient({
         (image) => image.listingId === listingIdForPreview,
       ),
     );
-    return earliestListingImage?.url ?? null;
+    if (!earliestListingImage) {
+      return null;
+    }
+
+    return {
+      id: earliestListingImage.id,
+      url: normalizePersistedImageUrl(earliestListingImage.url),
+    };
   }, [imagesQuery.data, listingIdForPreview]);
+  const persistedListingImageUrl = earliestPersistedListingImage?.url ?? null;
   const listingImagePreviewUrl =
     pendingListingUploadPreviewUrl ??
     normalizePersistedImageUrl(selectedListingImageUrl) ??
@@ -1438,10 +1446,24 @@ export function StartOnboardingPageClient({
           ...previous,
           profileImageUrl: url,
         }));
-      } else if (pendingStarterImageBlob && profileDraft.profileImageUrl) {
+      } else if (
+        profileImageInputMode === "starter" &&
+        !useExistingProfileImage &&
+        profileDraft.profileImageUrl
+      ) {
         try {
+          const starterBlobToUpload =
+            pendingStarterImageBlob ??
+            (isStarterProfileImageUrl(profileDraft.profileImageUrl)
+              ? await fetchImageBlobFromUrl(profileDraft.profileImageUrl)
+              : null);
+
+          if (!starterBlobToUpload) {
+            throw new Error("Starter profile image is not ready to upload.");
+          }
+
           const { url, key } = await uploadOnboardingImageBlob({
-            blob: pendingStarterImageBlob,
+            blob: starterBlobToUpload,
             type: "profile",
             referenceId: profileQuery.data.id,
             getPresignedUrl: getImagePresignedUrlMutation.mutateAsync,
@@ -1556,7 +1578,7 @@ export function StartOnboardingPageClient({
       let listingImageToSave: string | null =
         selectedListingImageUrl ?? selectedCultivarImageUrl ?? null;
       let listingImageKeyToSave: string | null = null;
-      let shouldCreateListingImageRecord = false;
+      let shouldPersistUploadedListingImage = false;
       if (pendingListingUploadBlob) {
         const { url, key } = await uploadOnboardingImageBlob({
           blob: pendingListingUploadBlob,
@@ -1566,21 +1588,31 @@ export function StartOnboardingPageClient({
         });
         listingImageToSave = url;
         listingImageKeyToSave = key;
-        shouldCreateListingImageRecord = true;
+        shouldPersistUploadedListingImage = true;
         clearPendingListingUpload();
         setSelectedListingImageUrl(url);
       }
 
       if (
         listingImageToSave &&
-        shouldCreateListingImageRecord &&
+        shouldPersistUploadedListingImage &&
         listingImageKeyToSave
       ) {
-        await createOnboardingListingImage({
-          listingId,
-          selectedImageUrl: listingImageToSave,
-          selectedImageKey: listingImageKeyToSave,
-        });
+        if (earliestPersistedListingImage?.id) {
+          const updatedImage = await updateImageMutation.mutateAsync({
+            type: "listing",
+            referenceId: listingId,
+            imageId: earliestPersistedListingImage.id,
+            url: listingImageToSave,
+          });
+          setSelectedListingImageId(updatedImage.id);
+        } else {
+          await createOnboardingListingImage({
+            listingId,
+            selectedImageUrl: listingImageToSave,
+            selectedImageKey: listingImageKeyToSave,
+          });
+        }
       }
 
       await Promise.all([
@@ -3165,6 +3197,15 @@ async function uploadOnboardingImageBlob({
   });
 
   return { url, key };
+}
+
+async function fetchImageBlobFromUrl(imageUrl: string) {
+  const response = await fetch(imageUrl);
+  if (!response.ok) {
+    throw new Error(`Unable to load image asset (${response.status})`);
+  }
+
+  return response.blob();
 }
 
 function drawGardenNameOverlay({
