@@ -1,5 +1,7 @@
 "use client";
 
+import { useIsHydrated } from "@/hooks/use-is-hydrated";
+
 interface IsrWrittenAtLocalTimeProps {
   writtenAtIso: string;
 }
@@ -12,13 +14,14 @@ const isrWrittenAtLocalFormatter = new Intl.DateTimeFormat("en-US", {
 export function IsrWrittenAtLocalTime({
   writtenAtIso,
 }: IsrWrittenAtLocalTimeProps) {
+  const isHydrated = useIsHydrated();
+  if (!isHydrated) {
+    return <time dateTime={writtenAtIso}>last updated</time>;
+  }
+
   const writtenAtLabel = isrWrittenAtLocalFormatter.format(
     new Date(writtenAtIso),
   );
 
-  return (
-    <time dateTime={writtenAtIso} suppressHydrationWarning>
-      {`last updated ${writtenAtLabel} (in your local time)`}
-    </time>
-  );
+  return <time dateTime={writtenAtIso}>{`last updated ${writtenAtLabel}`}</time>;
 }

@@ -2,6 +2,10 @@
 
 ## Log
 
+- 2026-03-02 - local-time hydration caveat - `suppressHydrationWarning` on a server-rendered timestamp can leave UTC text visible; for user-local time rendering use hydration gating (`useIsHydrated`) and render formatted time only after client hydration.
+- 2026-03-02 - preview verification signal choice - On this Vercel preview host, `x-nextjs-cache` was absent on route fetches; use visible content deltas and ISR footer `last updated` timestamp changes to confirm regeneration after mutation.
+- 2026-03-02 - self-miss path quoting recurrence - I ran `git diff` on `src/app/(public)/...` without quotes and hit zsh glob expansion; always quote App Router paths containing `()`/`[]`.
+- 2026-03-02 - preview ISR revalidate auth pitfall - Server-side fetches to internal revalidate endpoints can fail on Vercel-protected previews without forwarded access context; include incoming `cookie` header (and optional bypass token) on the internal fetch so route-handler invalidation runs instead of falling back.
 - 2026-03-02 - self-miss react effect lint recurrence - A client formatter that used `setState` inside `useEffect` tripped `react-hooks/set-state-in-effect`; for derived display values use `useMemo` (or direct compute) and avoid effect/state churn.
 - 2026-03-02 - local-time ISR footer pattern - To show user-local time on static pages, pass server-generated ISO timestamp into a client leaf and format locally with `Intl.DateTimeFormat`; use `suppressHydrationWarning` on the `<time>` node.
 - 2026-03-02 - local probe tooling fallback - This shell session lacked `curl`/`rg`; use Node `fetch` scripts for cache-header and HTML-marker checks when reproducing ISR behavior.
