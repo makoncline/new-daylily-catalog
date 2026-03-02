@@ -31,10 +31,12 @@ test.describe("guest user tour @preview", () => {
     await firstListingCard.click();
     await expect(page.getByRole("dialog")).toBeVisible();
 
-    // Navigate to cultivar page from dialog
-    const listingPageLink = page.getByRole("link", {
-      name: "View Cultivar Page",
-    });
+    // Navigate to cultivar page from a linked listing card
+    await page.getByRole("button", { name: "Close" }).click();
+    const listingPageLink = page
+      .locator("#listings")
+      .getByRole("link", { name: "View linked cultivar page" })
+      .first();
     await expect(listingPageLink).toBeVisible();
     await listingPageLink.click();
 

@@ -8,7 +8,9 @@ export class StartMembershipPage {
 
   constructor(page: Page) {
     this.page = page;
-    this.container = page.getByTestId("start-membership-page");
+    this.container = page.locator(
+      '[data-testid="onboarding-start-membership-step"], [data-testid="start-membership-page"]',
+    );
     this.startTrialButton = page.getByTestId("start-membership-checkout");
     this.continueForNowLink = page.getByTestId("start-membership-continue");
   }

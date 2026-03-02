@@ -164,6 +164,50 @@ export const dashboardDbImageRouter = createTRPCRouter({
       });
     }),
 
+  update: protectedProcedure
+    .input(
+      z.object({
+        type: imageTypeSchema,
+        referenceId: z.string(),
+        imageId: z.string(),
+        url: z.string().min(1),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      if (input.type === "listing") {
+        await assertListingOwned(ctx, input.referenceId);
+      } else {
+        await assertProfileOwned(ctx, input.referenceId);
+      }
+
+      const existing = await ctx.db.image.findUnique({
+        where: { id: input.imageId },
+        select: {
+          id: true,
+          listingId: true,
+          userProfileId: true,
+        },
+      });
+
+      const belongsToTarget =
+        input.type === "listing"
+          ? existing?.listingId === input.referenceId
+          : existing?.userProfileId === input.referenceId;
+
+      if (!existing || !belongsToTarget) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Image not found",
+        });
+      }
+
+      return ctx.db.image.update({
+        where: { id: input.imageId },
+        data: { url: input.url },
+        select: imageSelect,
+      });
+    }),
+
   reorder: protectedProcedure
     .input(
       z.object({

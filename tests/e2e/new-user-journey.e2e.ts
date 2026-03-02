@@ -20,6 +20,7 @@ test.describe("new user journey @local", () => {
     editListingDialog,
     stripeCheckout,
     startMembershipPage,
+    startOnboardingPage,
     dashboardShell,
     clerkAuthModal,
   }, testInfo) => {
@@ -37,12 +38,17 @@ test.describe("new user journey @local", () => {
         await homePage.openDashboard();
         await clerkAuthModal.signUpWithEmail(testEmail, TEST_CODE);
 
-        // redirect to the membership step after sign up
+        // redirect to onboarding after sign up
+        await startOnboardingPage.isReady();
+        await expect(page).toHaveURL(/\/onboarding/);
+
+        // Keep this journey focused on membership + dashboard behaviors.
+        await page.goto("/onboarding?step=start-membership");
+
+        // continue to dashboard onboarding from membership step
         await startMembershipPage.isReady();
-        await expect(page).toHaveURL(/\/start-membership/);
         await startMembershipPage.continueForNowLink.click();
 
-        // continue to dashboard onboarding
         await dashboardHome.waitForLoaded();
         await expect(page).toHaveURL(/\/dashboard/);
 

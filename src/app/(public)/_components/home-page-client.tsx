@@ -53,7 +53,7 @@ function SignUpButton({ className }: { className?: string }) {
   return (
     <ClerkSignUpButton
       mode="modal"
-      forceRedirectUrl={SUBSCRIPTION_CONFIG.NEW_USER_MEMBERSHIP_PATH}
+      forceRedirectUrl={SUBSCRIPTION_CONFIG.NEW_USER_ONBOARDING_PATH}
     >
       <Button
         size="lg"

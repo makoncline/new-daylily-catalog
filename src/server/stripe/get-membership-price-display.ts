@@ -13,7 +13,10 @@ export type {
 
 export const getMembershipPriceDisplay = cache(
   async (): Promise<MembershipPriceDisplay | null> => {
-    if (process.env.SKIP_ENV_VALIDATION === "1") {
+    if (
+      process.env.SKIP_ENV_VALIDATION === "1" &&
+      process.env.E2E_ONBOARDING_CAPTURE !== "1"
+    ) {
       return null;
     }
 
