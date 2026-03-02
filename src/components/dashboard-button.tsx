@@ -46,7 +46,7 @@ export function DashboardButton({
     <SignInButton
       mode="modal"
       forceRedirectUrl="/dashboard"
-      signUpForceRedirectUrl={SUBSCRIPTION_CONFIG.NEW_USER_MEMBERSHIP_PATH}
+      signUpForceRedirectUrl={SUBSCRIPTION_CONFIG.NEW_USER_ONBOARDING_PATH}
     >
       <Button
         className={className}

@@ -180,6 +180,9 @@ params as client-only UI state.
 - Use Suspense for async server components; skip if no async work
 - Icons come from `lucide-react`
 - `src/components/ui/` is shadcn-only; avoid editing unless requested
+- Responsive design default: use only two breakpoint modes for new UI work
+  in this repo: base (`< lg`, below 1024px) and `lg` (`>= 1024px`). Avoid
+  `sm`/`md`/`xl` unless explicitly requested.
 
 ### Backend Conventions
 

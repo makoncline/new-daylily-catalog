@@ -1,14 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import {
-  ExternalLink,
-  HandHeart,
-  ImageIcon,
-  ListChecks,
-  Package,
-} from "lucide-react";
 import { CheckoutButton } from "@/components/checkout-button";
+import { PRO_FEATURES } from "@/config/constants";
 import { SUBSCRIPTION_CONFIG } from "@/config/subscription-config";
 
 interface StartMembershipPageClientProps {
@@ -18,34 +12,6 @@ interface StartMembershipPageClientProps {
     monthlyEquivalent: string | null;
   } | null;
 }
-
-const PRO_UNLOCKS = [
-  {
-    id: "custom-url",
-    icon: ExternalLink,
-    text: "Custom garden URL - easy to remember and share.",
-  },
-  {
-    id: "unlimited",
-    icon: Package,
-    text: "Unlimited inventory - listings, lists, and photos.",
-  },
-  {
-    id: "catalog-page",
-    icon: ListChecks,
-    text: "Seller browsing placement - get discovered by active buyers.",
-  },
-  {
-    id: "cultivar-page",
-    icon: ImageIcon,
-    text: "Cultivar page visibility - show up on variety research pages.",
-  },
-  {
-    id: "support",
-    icon: HandHeart,
-    text: "Priority support - faster help during peak season.",
-  },
-] as const;
 
 export function StartMembershipPageClient({
   priceDisplay,
@@ -94,7 +60,7 @@ export function StartMembershipPageClient({
                 className="text-muted-foreground inline-block text-sm underline"
                 data-testid="start-membership-continue"
               >
-                Continue for now
+                Keep unlisted
               </Link>
             </div>
           </div>
@@ -136,7 +102,7 @@ export function StartMembershipPageClient({
             ) : null}
 
             <ul className="mt-8 space-y-5 text-2xl leading-tight">
-              {PRO_UNLOCKS.map((feature) => {
+              {PRO_FEATURES.map((feature) => {
                 const Icon = feature.icon;
 
                 return (

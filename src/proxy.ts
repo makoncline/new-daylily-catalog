@@ -10,6 +10,7 @@ import { SUBSCRIPTION_CONFIG } from "@/config/subscription-config";
 const isProtectedRoute = createRouteMatcher([
   "/dashboard(.*)",
   `${SUBSCRIPTION_CONFIG.NEW_USER_MEMBERSHIP_PATH}(.*)`,
+  `${SUBSCRIPTION_CONFIG.NEW_USER_ONBOARDING_PATH}(.*)`,
 ]);
 
 const RESERVED_TOP_LEVEL_SEGMENTS = new Set([
@@ -19,8 +20,10 @@ const RESERVED_TOP_LEVEL_SEGMENTS = new Set([
   "catalogs",
   "cultivar",
   "dashboard",
+  "onboarding",
   "subscribe",
   "start-membership",
+  "start-onboarding",
   "trpc",
   "users",
 ]);
@@ -113,10 +116,7 @@ export const proxy = clerkMiddleware(async (auth, req) => {
         legacyProfileSegment,
       );
 
-      if (
-        canonicalUserSlug &&
-        canonicalUserSlug !== legacyProfileSegment
-      ) {
+      if (canonicalUserSlug && canonicalUserSlug !== legacyProfileSegment) {
         const canonicalUrl = req.nextUrl.clone();
         canonicalUrl.pathname = `/${canonicalUserSlug}`;
         return NextResponse.redirect(canonicalUrl, 308);

@@ -19,6 +19,7 @@ export const stripeRouter = createTRPCRouter({
   // Generate checkout session for new subscription
   generateCheckout: protectedProcedure.mutation(async ({ ctx }) => {
     const { user } = ctx;
+    const baseUrl = getBaseUrl(ctx.headers);
 
     let stripeCustomerId = user.stripeCustomerId;
 
@@ -52,8 +53,8 @@ export const stripeRouter = createTRPCRouter({
       subscription_data: {
         trial_period_days: SUBSCRIPTION_CONFIG.FREE_TRIAL_DAYS,
       },
-      success_url: `${getBaseUrl()}/subscribe/success`,
-      cancel_url: `${getBaseUrl()}/dashboard`,
+      success_url: `${baseUrl}/subscribe/success`,
+      cancel_url: `${baseUrl}/dashboard`,
       metadata: {
         userId: user.id,
       },
@@ -72,6 +73,7 @@ export const stripeRouter = createTRPCRouter({
   // Get customer portal session for managing subscription
   getPortalSession: protectedProcedure.mutation(async ({ ctx }) => {
     const { user } = ctx;
+    const baseUrl = getBaseUrl(ctx.headers);
 
     if (!user.stripeCustomerId) {
       throw new TRPCError({
@@ -82,7 +84,7 @@ export const stripeRouter = createTRPCRouter({
 
     const session = await stripe.billingPortal.sessions.create({
       customer: user.stripeCustomerId,
-      return_url: `${getBaseUrl()}/dashboard`,
+      return_url: `${baseUrl}/dashboard`,
     });
 
     return { url: session.url };

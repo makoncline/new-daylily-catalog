@@ -1,4 +1,10 @@
-import { Package, Globe, Star, HeartHandshake } from "lucide-react";
+import {
+  ExternalLink,
+  HandHeart,
+  ImageIcon,
+  ListChecks,
+  Package,
+} from "lucide-react";
 import { CACHE_CONFIG } from "@/config/cache-config";
 
 export { CACHE_CONFIG } from "@/config/cache-config";
@@ -108,24 +114,29 @@ export const PUBLIC_ROUTES_CONFIG = {
 
 export const PRO_FEATURES = [
   {
-    id: "listings",
-    text: "Unlimited listings and photos",
+    id: "catalog-page",
+    text: "Seller browsing placement - get discovered by active buyers.",
+    icon: ListChecks,
+  },
+  {
+    id: "cultivar-page",
+    text: "Cultivar page visibility - show up where collectors research.",
+    icon: ImageIcon,
+  },
+  {
+    id: "custom-url",
+    text: "Custom catalog URL - easier to share.",
+    icon: ExternalLink,
+  },
+  {
+    id: "unlimited",
+    text: "Unlimited inventory - listings, lists, photos.",
     icon: Package,
   },
   {
-    id: "lists",
-    text: "Custom domain name",
-    icon: Globe,
-  },
-  {
-    id: "photos",
-    text: "Featured placement in the catalog",
-    icon: Star,
-  },
-  {
-    id: "domain",
-    text: "Priority customer support",
-    icon: HeartHandshake,
+    id: "support",
+    text: "Priority support.",
+    icon: HandHeart,
   },
 ] as const;
 
