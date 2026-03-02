@@ -40,7 +40,7 @@ export const dashboardDbListRouter = createTRPCRouter({
       await invalidatePublicIsrForCatalogMutation({
         db: ctx.db,
         userId: ctx.user.id,
-        cultivarNormalizedNames: [],
+        requestHeaders: ctx.headers,
       });
 
       return list;
@@ -128,6 +128,7 @@ export const dashboardDbListRouter = createTRPCRouter({
         cultivarNormalizedNames: linkedCultivars.map(
           (row) => row.cultivarReference?.normalizedName,
         ),
+        requestHeaders: ctx.headers,
       });
 
       return list;
@@ -158,7 +159,7 @@ export const dashboardDbListRouter = createTRPCRouter({
       await invalidatePublicIsrForCatalogMutation({
         db: ctx.db,
         userId: ctx.user.id,
-        cultivarNormalizedNames: [],
+        requestHeaders: ctx.headers,
       });
 
       return { id: list.id } as const;

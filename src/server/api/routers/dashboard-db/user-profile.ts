@@ -147,6 +147,7 @@ export const dashboardDbUserProfileRouter = createTRPCRouter({
           existingProfile?.slug ?? ctx.user.id,
           profile.slug ?? ctx.user.id,
         ],
+        requestHeaders: ctx.headers,
       });
 
       return profile;
@@ -172,6 +173,7 @@ export const dashboardDbUserProfileRouter = createTRPCRouter({
         db: ctx.db,
         userId: ctx.user.id,
         slugCandidates: [profile.slug ?? ctx.user.id],
+        requestHeaders: ctx.headers,
       });
 
       return profile;

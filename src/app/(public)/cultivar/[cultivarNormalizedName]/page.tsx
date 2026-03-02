@@ -214,10 +214,6 @@ export default async function CultivarPage({ params }: PageProps) {
             <Muted>
               {cultivarPage.summary.name} registered with American Hemerocallis Society.
             </Muted>
-
-            <Muted>
-              Last updated {new Date(cultivarPage.freshness.cultivarUpdatedAt).toLocaleDateString()}.
-            </Muted>
           </footer>
         </CultivarPageRoot>
       </div>

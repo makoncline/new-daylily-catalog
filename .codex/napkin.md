@@ -2,6 +2,11 @@
 
 ## Log
 
+- 2026-03-02 - self-miss react effect lint recurrence - A client formatter that used `setState` inside `useEffect` tripped `react-hooks/set-state-in-effect`; for derived display values use `useMemo` (or direct compute) and avoid effect/state churn.
+- 2026-03-02 - local-time ISR footer pattern - To show user-local time on static pages, pass server-generated ISO timestamp into a client leaf and format locally with `Intl.DateTimeFormat`; use `suppressHydrationWarning` on the `<time>` node.
+- 2026-03-02 - local probe tooling fallback - This shell session lacked `curl`/`rg`; use Node `fetch` scripts for cache-header and HTML-marker checks when reproducing ISR behavior.
+- 2026-03-02 - login credential typo trap - `makon+cletk_test@hey.com` fails account lookup; local Clerk test account is `makon+clerk_test@hey.com` with code `424242`.
+- 2026-03-02 - schema probe correction - `User` does not have an `email` column in this schema; find test-user listings via `UserProfile.slug -> userId`.
 - 2026-03-01 - mutation coverage gap correction - Public ISR invalidation must include create/delete flows, not only update mutations; added `listing.create`, `listing.delete`, `list.create`, and `list.delete` hooks.
 - 2026-03-01 - self-miss test-runtime revalidate invariant - Direct `revalidatePath` inside mutation routers broke non-Next test callers (`static generation store missing in revalidatePath`); wrap with a test-safe helper that no-ops only for that invariant under `NODE_ENV=test`.
 - 2026-03-01 - user refresh-boundary preference - Manual refresh on public catalog search should only refresh client-side persisted/search data; server cache invalidation must remain mutation-only.

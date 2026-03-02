@@ -2,6 +2,7 @@
 
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import type { TRPCInternalContext } from "@/server/api/trpc";
+import { CACHE_CONFIG } from "@/config/cache-config";
 
 process.env.SKIP_ENV_VALIDATION = "1";
 process.env.LOCAL_DATABASE_URL ??=
@@ -10,9 +11,11 @@ process.env.TURSO_DATABASE_URL ??= "libsql://unit-test-db";
 process.env.TURSO_DATABASE_AUTH_TOKEN ??= "unit-test-token";
 
 const revalidatePathMock = vi.fn();
+const revalidateTagMock = vi.fn();
 
 vi.mock("next/cache", () => ({
   revalidatePath: revalidatePathMock,
+  revalidateTag: revalidateTagMock,
 }));
 
 type UserProfileRouterModule = typeof import("@/server/api/routers/dashboard-db/user-profile");
@@ -43,12 +46,58 @@ function createContext(db: unknown) {
   };
 }
 
+function expectBasePublicTagInvalidations() {
+  expect(revalidateTagMock).toHaveBeenCalledWith(
+    CACHE_CONFIG.TAGS.PUBLIC_PROFILE,
+    "max",
+  );
+  expect(revalidateTagMock).toHaveBeenCalledWith(
+    CACHE_CONFIG.TAGS.PUBLIC_PROFILES,
+    "max",
+  );
+  expect(revalidateTagMock).toHaveBeenCalledWith(
+    CACHE_CONFIG.TAGS.PUBLIC_LISTINGS,
+    "max",
+  );
+  expect(revalidateTagMock).toHaveBeenCalledWith(
+    CACHE_CONFIG.TAGS.PUBLIC_LISTING_DETAIL,
+    "max",
+  );
+  expect(revalidateTagMock).toHaveBeenCalledWith(
+    CACHE_CONFIG.TAGS.PUBLIC_LISTINGS_PAGE,
+    "max",
+  );
+  expect(revalidateTagMock).toHaveBeenCalledWith(
+    CACHE_CONFIG.TAGS.PUBLIC_FOR_SALE_COUNT,
+    "max",
+  );
+  expect(revalidateTagMock).toHaveBeenCalledWith(
+    CACHE_CONFIG.TAGS.PUBLIC_CATALOG_ROUTES,
+    "max",
+  );
+}
+
+function expectCultivarTagInvalidations() {
+  expect(revalidateTagMock).toHaveBeenCalledWith(
+    CACHE_CONFIG.TAGS.PUBLIC_CULTIVAR_PAGE,
+    "max",
+  );
+  expect(revalidateTagMock).toHaveBeenCalledWith(
+    CACHE_CONFIG.TAGS.PUBLIC_CULTIVAR_SEGMENTS,
+    "max",
+  );
+  expect(revalidateTagMock).toHaveBeenCalledWith(
+    CACHE_CONFIG.TAGS.PUBLIC_CULTIVAR_SITEMAP,
+    "max",
+  );
+}
+
 describe("dashboardDb public ISR invalidation", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  it("profile.update invalidates the user catalog pages, catalogs index, and linked cultivar pages", async () => {
+  it("profile.update invalidates the user catalog pages and catalogs index", async () => {
     const db = {
       userProfile: {
         findUnique: vi
@@ -68,12 +117,6 @@ describe("dashboardDb public ISR invalidation", () => {
           updatedAt: new Date("2026-01-01T00:00:00.000Z"),
         }),
       },
-      listing: {
-        findMany: vi.fn().mockResolvedValue([
-          { cultivarReference: { normalizedName: "happy returns" } },
-          { cultivarReference: { normalizedName: "happy returns" } },
-        ]),
-      },
     };
 
     const caller = dashboardDbUserProfileRouter.createCaller(createContext(db));
@@ -87,7 +130,12 @@ describe("dashboardDb public ISR invalidation", () => {
     expect(revalidatePathMock).toHaveBeenCalledWith("/garden/page/[page]", "page");
     expect(revalidatePathMock).toHaveBeenCalledWith("/garden/search");
     expect(revalidatePathMock).toHaveBeenCalledWith("/catalogs");
-    expect(revalidatePathMock).toHaveBeenCalledWith("/cultivar/happy-returns");
+    expectBasePublicTagInvalidations();
+    expect(
+      revalidateTagMock.mock.calls.some(
+        (call) => call[0] === CACHE_CONFIG.TAGS.PUBLIC_CULTIVAR_PAGE,
+      ),
+    ).toBe(false);
   });
 
   it("listing.update invalidates the user's pages, catalogs index, and the listing cultivar page", async () => {
@@ -131,6 +179,8 @@ describe("dashboardDb public ISR invalidation", () => {
     expect(revalidatePathMock).toHaveBeenCalledWith("/garden/search");
     expect(revalidatePathMock).toHaveBeenCalledWith("/catalogs");
     expect(revalidatePathMock).toHaveBeenCalledWith("/cultivar/lime-frosting");
+    expectBasePublicTagInvalidations();
+    expectCultivarTagInvalidations();
   });
 
   it("listing.create invalidates the user's pages, catalogs index, and linked cultivar page", async () => {
@@ -173,6 +223,104 @@ describe("dashboardDb public ISR invalidation", () => {
     expect(revalidatePathMock).toHaveBeenCalledWith("/garden/search");
     expect(revalidatePathMock).toHaveBeenCalledWith("/catalogs");
     expect(revalidatePathMock).toHaveBeenCalledWith("/cultivar/happy-returns");
+    expectBasePublicTagInvalidations();
+    expectCultivarTagInvalidations();
+  });
+
+  it("listing.linkAhs invalidates the user's pages, catalogs index, and old/new cultivar pages", async () => {
+    const db = {
+      listing: {
+        findFirst: vi.fn().mockResolvedValue({
+          id: "listing-1",
+          cultivarReference: { normalizedName: "old name" },
+        }),
+        findUnique: vi.fn(),
+        updateMany: vi.fn(),
+        create: vi.fn(),
+        update: vi.fn().mockResolvedValue({
+          id: "listing-1",
+          userId: "user-1",
+          title: "Updated",
+          slug: "updated",
+          price: null,
+          description: null,
+          privateNote: null,
+          status: null,
+          createdAt: new Date("2026-01-01T00:00:00.000Z"),
+          updatedAt: new Date("2026-01-01T00:00:00.000Z"),
+          cultivarReferenceId: "cr-2",
+        }),
+      },
+      cultivarReference: {
+        findUnique: vi.fn().mockResolvedValue({
+          id: "cr-2",
+          normalizedName: "new name",
+          ahsListing: { name: "New Name" },
+        }),
+      },
+      userProfile: {
+        findUnique: vi.fn().mockResolvedValue({ slug: "garden" }),
+      },
+    };
+
+    const caller = dashboardDbListingRouter.createCaller(createContext(db));
+    await caller.linkAhs({
+      id: "listing-1",
+      cultivarReferenceId: "cr-2",
+      syncName: false,
+    });
+
+    expect(revalidatePathMock).toHaveBeenCalledWith("/garden");
+    expect(revalidatePathMock).toHaveBeenCalledWith("/garden/page/[page]", "page");
+    expect(revalidatePathMock).toHaveBeenCalledWith("/garden/search");
+    expect(revalidatePathMock).toHaveBeenCalledWith("/catalogs");
+    expect(revalidatePathMock).toHaveBeenCalledWith("/cultivar/old-name");
+    expect(revalidatePathMock).toHaveBeenCalledWith("/cultivar/new-name");
+    expectBasePublicTagInvalidations();
+    expectCultivarTagInvalidations();
+  });
+
+  it("listing.unlinkAhs invalidates the user's pages, catalogs index, and old cultivar page", async () => {
+    const db = {
+      listing: {
+        findFirst: vi.fn().mockResolvedValue({
+          id: "listing-1",
+          cultivarReference: { normalizedName: "old name" },
+        }),
+        findUnique: vi.fn(),
+        updateMany: vi.fn(),
+        create: vi.fn(),
+        update: vi.fn().mockResolvedValue({
+          id: "listing-1",
+          userId: "user-1",
+          title: "Updated",
+          slug: "updated",
+          price: null,
+          description: null,
+          privateNote: null,
+          status: null,
+          createdAt: new Date("2026-01-01T00:00:00.000Z"),
+          updatedAt: new Date("2026-01-01T00:00:00.000Z"),
+          cultivarReferenceId: null,
+        }),
+      },
+      userProfile: {
+        findUnique: vi.fn().mockResolvedValue({ slug: "garden" }),
+      },
+    };
+
+    const caller = dashboardDbListingRouter.createCaller(createContext(db));
+    await caller.unlinkAhs({
+      id: "listing-1",
+    });
+
+    expect(revalidatePathMock).toHaveBeenCalledWith("/garden");
+    expect(revalidatePathMock).toHaveBeenCalledWith("/garden/page/[page]", "page");
+    expect(revalidatePathMock).toHaveBeenCalledWith("/garden/search");
+    expect(revalidatePathMock).toHaveBeenCalledWith("/catalogs");
+    expect(revalidatePathMock).toHaveBeenCalledWith("/cultivar/old-name");
+    expectBasePublicTagInvalidations();
+    expectCultivarTagInvalidations();
   });
 
   it("listing.delete invalidates the user's pages, catalogs index, and the linked cultivar page", async () => {
@@ -209,6 +357,8 @@ describe("dashboardDb public ISR invalidation", () => {
     expect(revalidatePathMock).toHaveBeenCalledWith("/garden/search");
     expect(revalidatePathMock).toHaveBeenCalledWith("/catalogs");
     expect(revalidatePathMock).toHaveBeenCalledWith("/cultivar/happy-returns");
+    expectBasePublicTagInvalidations();
+    expectCultivarTagInvalidations();
   });
 
   it("list.update invalidates the user's pages, catalogs index, and linked cultivars in that list", async () => {
@@ -251,6 +401,8 @@ describe("dashboardDb public ISR invalidation", () => {
     expect(revalidatePathMock).toHaveBeenCalledWith("/catalogs");
     expect(revalidatePathMock).toHaveBeenCalledWith("/cultivar/happy-returns");
     expect(revalidatePathMock).toHaveBeenCalledWith("/cultivar/lime-frosting");
+    expectBasePublicTagInvalidations();
+    expectCultivarTagInvalidations();
   });
 
   it("list.create invalidates the user's pages and catalogs index", async () => {
@@ -281,6 +433,12 @@ describe("dashboardDb public ISR invalidation", () => {
     expect(revalidatePathMock).toHaveBeenCalledWith("/garden/page/[page]", "page");
     expect(revalidatePathMock).toHaveBeenCalledWith("/garden/search");
     expect(revalidatePathMock).toHaveBeenCalledWith("/catalogs");
+    expectBasePublicTagInvalidations();
+    expect(
+      revalidateTagMock.mock.calls.some(
+        (call) => call[0] === CACHE_CONFIG.TAGS.PUBLIC_CULTIVAR_PAGE,
+      ),
+    ).toBe(false);
     expect(
       revalidatePathMock.mock.calls.some((call) =>
         typeof call[0] === "string" ? call[0].startsWith("/cultivar/") : false,
@@ -311,6 +469,12 @@ describe("dashboardDb public ISR invalidation", () => {
     expect(revalidatePathMock).toHaveBeenCalledWith("/garden/page/[page]", "page");
     expect(revalidatePathMock).toHaveBeenCalledWith("/garden/search");
     expect(revalidatePathMock).toHaveBeenCalledWith("/catalogs");
+    expectBasePublicTagInvalidations();
+    expect(
+      revalidateTagMock.mock.calls.some(
+        (call) => call[0] === CACHE_CONFIG.TAGS.PUBLIC_CULTIVAR_PAGE,
+      ),
+    ).toBe(false);
     expect(
       revalidatePathMock.mock.calls.some((call) =>
         typeof call[0] === "string" ? call[0].startsWith("/cultivar/") : false,
