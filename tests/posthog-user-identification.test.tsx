@@ -91,4 +91,29 @@ describe("PosthogUserIdentification", () => {
       expect(resetPosthogUserMock).toHaveBeenCalledTimes(1);
     });
   });
+
+  it("does not reset while user remains signed in", async () => {
+    useUserMock.mockReturnValue({
+      isLoaded: true,
+      isSignedIn: true,
+      user: {
+        id: "user_123",
+        primaryEmailAddress: {
+          emailAddress: "user@example.com",
+        },
+      },
+    });
+
+    render(<PosthogUserIdentification />);
+
+    await waitFor(() => {
+      expect(identifyPosthogUserMock).toHaveBeenCalledTimes(1);
+    });
+
+    expect(resetPosthogUserMock).not.toHaveBeenCalled();
+    expect(identifyPosthogUserMock).toHaveBeenCalledWith({
+      id: "user_123",
+      email: "user@example.com",
+    });
+  });
 });

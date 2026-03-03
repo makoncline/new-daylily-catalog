@@ -2,6 +2,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const initMock = vi.hoisted(() => vi.fn());
 const posthogInitMock = vi.hoisted(() => vi.fn());
+const posthogClientMock = vi.hoisted(() => ({
+  init: posthogInitMock,
+}));
 const mutableEnv = process.env as Record<string, string | undefined>;
 
 vi.mock("@sentry/nextjs", () => ({
@@ -11,9 +14,7 @@ vi.mock("@sentry/nextjs", () => ({
 }));
 
 vi.mock("posthog-js", () => ({
-  default: {
-    init: posthogInitMock,
-  },
+  default: posthogClientMock,
 }));
 
 describe("instrumentation-client", () => {
@@ -25,6 +26,7 @@ describe("instrumentation-client", () => {
   beforeEach(() => {
     initMock.mockClear();
     posthogInitMock.mockClear();
+    delete (globalThis as { posthog?: unknown }).posthog;
     previousNodeEnv = process.env.NODE_ENV;
     previousSentryEnabled = process.env.NEXT_PUBLIC_SENTRY_ENABLED;
     previousPosthogKey = process.env.NEXT_PUBLIC_POSTHOG_KEY;
@@ -37,6 +39,8 @@ describe("instrumentation-client", () => {
   });
 
   afterEach(() => {
+    delete (globalThis as { posthog?: unknown }).posthog;
+
     if (previousNodeEnv === undefined) {
       delete mutableEnv.NODE_ENV;
     } else {
@@ -70,6 +74,7 @@ describe("instrumentation-client", () => {
       api_host: "https://us.i.posthog.com",
       defaults: "2026-01-30",
     });
+    expect((globalThis as { posthog?: unknown }).posthog).toBe(posthogClientMock);
   });
 
   it("does not initialize posthog outside production", async () => {
@@ -78,6 +83,7 @@ describe("instrumentation-client", () => {
     await import("@/instrumentation-client");
 
     expect(posthogInitMock).not.toHaveBeenCalled();
+    expect((globalThis as { posthog?: unknown }).posthog).toBeUndefined();
   });
 
   it("configures ignoreErrors for abort variants", async () => {

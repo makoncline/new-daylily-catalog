@@ -9,7 +9,6 @@ import { SUBSCRIPTION_CONFIG } from "@/config/subscription-config";
 
 const isProtectedRoute = createRouteMatcher([
   "/dashboard(.*)",
-  `${SUBSCRIPTION_CONFIG.NEW_USER_MEMBERSHIP_PATH}(.*)`,
   `${SUBSCRIPTION_CONFIG.NEW_USER_ONBOARDING_PATH}(.*)`,
 ]);
 

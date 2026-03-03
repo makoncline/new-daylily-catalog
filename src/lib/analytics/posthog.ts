@@ -4,6 +4,14 @@ import posthog from "posthog-js";
 
 export type PosthogEventName =
   | "home_signup_cta_clicked"
+  | "seller_landing_viewed"
+  | "seller_cta_clicked"
+  | "seller_example_clicked"
+  | "auth_started"
+  | "onboarding_entry_viewed"
+  | "trial_started"
+  | "membership_skipped"
+  | "catalog_published"
   | "public_nav_dashboard_clicked"
   | "onboarding_step_viewed"
   | "onboarding_step_completed"

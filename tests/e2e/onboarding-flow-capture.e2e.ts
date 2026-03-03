@@ -231,6 +231,8 @@ test.describe("onboarding flow screenshot capture @capture", () => {
 
     logCaptureStep("Start signup from home CTA");
     await page.getByRole("button", { name: "Create your catalog" }).first().click();
+    await expect(page).toHaveURL(/\/start-membership/);
+    await page.getByRole("button", { name: "Create your catalog" }).first().click();
     await clerkAuthModal.startSignUp();
 
     logCaptureStep("Submit signup email and verification code");

@@ -77,6 +77,11 @@ test.describe("onboarding full flow @local", () => {
         .getByRole("button", { name: "Create your catalog" })
         .first()
         .click();
+      await expect(page).toHaveURL(/\/start-membership/);
+      await page
+        .getByRole("button", { name: "Create your catalog" })
+        .first()
+        .click();
 
       await clerkAuthModal.signUpWithEmail(TEST_EMAIL, TEST_CODE);
       await expect(page).toHaveURL(/\/onboarding/);
