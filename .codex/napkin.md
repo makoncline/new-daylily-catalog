@@ -2,6 +2,7 @@
 
 ## Log
 
+- 2026-03-03 - seller landing redesign pattern - Full-bleed hero with background image + overlay (matching home page) creates atmosphere; alternate white and `bg-muted/50` sections for visual rhythm; close with background-image CTA. Use `text-white` on dark overlays, not `text-background` (background maps to the light theme value). Remove `border-b` from layout header when hero sits directly below for seamless edge-to-edge feel.
 - 2026-03-03 - self-miss metadata import recurrence - I again accidentally imported `Metadata` from `react` while rewriting `/start-membership`; always import `Metadata` from `next` in App Router files.
 - 2026-03-03 - user visual-quality correction on seller landing - `/start-membership` should visually match existing public pages; avoid flat wireframe-like sections and use stronger hierarchy/atmosphere while keeping static performance.
 - 2026-03-03 - self-miss metadata import in page refactor - I imported `Metadata` from `react` during page rewrite; keep `Metadata` imported from `next` in App Router pages.

@@ -7,7 +7,7 @@ export default function StartMembershipLayout({
 }) {
   return (
     <div className="flex min-h-svh flex-col">
-      <header className="flex h-16 items-center border-b px-4">
+      <header className="flex h-16 items-center px-4">
         <PublicdNav />
       </header>
       <main className="flex-1">{children}</main>

@@ -1,10 +1,10 @@
-import type { HTMLAttributes, ComponentType } from "react";
+import type { ComponentType } from "react";
 import type { Metadata } from "next";
 import Image from "next/image";
 import {
   ArrowUpRight,
   CheckCircle2,
-  Dot,
+  ChevronDown,
   Sparkles,
 } from "lucide-react";
 import {
@@ -15,7 +15,6 @@ import {
 import { PRO_FEATURES, METADATA_CONFIG } from "@/config/constants";
 import { SUBSCRIPTION_CONFIG } from "@/config/subscription-config";
 import { IMAGES } from "@/lib/constants/images";
-import { cn } from "@/lib/utils";
 import { getBaseUrl } from "@/lib/utils/getBaseUrl";
 
 export const metadata: Metadata = {
@@ -128,31 +127,6 @@ function createFaqSchema(baseUrl: string) {
   };
 }
 
-function Section({
-  id,
-  className,
-  children,
-  ...props
-}: HTMLAttributes<HTMLElement>) {
-  return (
-    <section id={id} className={cn("space-y-4 border-t pt-10", className)} {...props}>
-      {children}
-    </section>
-  );
-}
-
-function SectionTitle({
-  className,
-  children,
-  ...props
-}: HTMLAttributes<HTMLHeadingElement>) {
-  return (
-    <h2 className={cn("text-3xl font-semibold tracking-tight", className)} {...props}>
-      {children}
-    </h2>
-  );
-}
-
 interface ProFeatureItem {
   id: string;
   text: string;
@@ -169,7 +143,7 @@ export default async function StartMembershipPage() {
   const faqSchema = createFaqSchema(baseUrl);
 
   return (
-    <div className="min-h-svh bg-background">
+    <div className="min-h-svh">
       <SellerLandingViewTracker />
 
       <script
@@ -177,13 +151,26 @@ export default async function StartMembershipPage() {
         dangerouslySetInnerHTML={{ __html: JSON.stringify(faqSchema) }}
       />
 
-      <div
-        className="mx-auto w-full max-w-6xl space-y-10 px-4 py-8 lg:space-y-14 lg:px-8 lg:py-12"
-        data-testid="start-membership-page"
-      >
-        <section className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(360px,540px)] lg:items-start lg:gap-10">
-          <div className="space-y-7 py-1 lg:py-4">
-            <div className="inline-flex items-center gap-2 text-sm font-medium tracking-wide uppercase">
+      {/* ── Hero ─────────────────────────────────────────── */}
+      <section className="relative flex min-h-[80svh] items-center py-12 lg:py-20">
+        <div className="absolute inset-0">
+          <div className="absolute inset-0 z-10 bg-black/55 backdrop-blur-[2px]" />
+          <Image
+            src={IMAGES.DEFAULT_META}
+            alt="Daylily garden"
+            fill
+            sizes="100vw"
+            className="object-cover object-center"
+            priority
+          />
+        </div>
+
+        <div
+          className="relative z-20 mx-auto grid w-full max-w-6xl gap-8 px-4 lg:grid-cols-[minmax(0,1fr)_minmax(360px,540px)] lg:items-start lg:gap-10 lg:px-8"
+          data-testid="start-membership-page"
+        >
+          <div className="space-y-7 py-1 text-white lg:py-4">
+            <div className="inline-flex items-center gap-2 rounded-full bg-white/10 px-5 py-2 text-sm font-medium tracking-wide uppercase backdrop-blur-sm">
               <Sparkles className="h-4 w-4" />
               For daylily sellers
             </div>
@@ -191,10 +178,12 @@ export default async function StartMembershipPage() {
             <div className="space-y-4">
               <h1 className="text-5xl leading-[0.92] font-bold tracking-tight lg:text-7xl">
                 <span className="block">Get found by daylily buyers.</span>
-                <span className="block">Turn your catalog into a storefront.</span>
+                <span className="block">
+                  Turn your catalog into a storefront.
+                </span>
               </h1>
 
-              <p className="text-muted-foreground max-w-xl text-2xl leading-tight lg:text-3xl">
+              <p className="max-w-xl text-2xl leading-tight text-white/80 lg:text-3xl">
                 Publish a clean catalog under your seller name and appear in
                 seller browsing, search, and cultivar pages where collectors
                 research varieties.
@@ -209,7 +198,7 @@ export default async function StartMembershipPage() {
                 testId="start-membership-checkout"
               />
 
-              <p className="text-muted-foreground text-sm">
+              <p className="text-sm text-white/70">
                 Start with a {SUBSCRIPTION_CONFIG.FREE_TRIAL_DAYS}-day free
                 trial. Then $120/year ($10/month billed annually). Cancel
                 anytime.
@@ -219,13 +208,16 @@ export default async function StartMembershipPage() {
                 ctaId="seller-landing-hero-example"
                 ctaLabel="See a live example"
                 href="/rollingoaksdaylilies"
-                className="text-muted-foreground/70 hover:text-muted-foreground inline-flex items-center gap-1 text-xs underline underline-offset-2"
+                className="inline-flex items-center gap-1 text-xs text-white/50 underline underline-offset-2 transition-colors hover:text-white/80"
                 testId="start-membership-continue"
               />
             </div>
           </div>
 
-          <div className="bg-card rounded-[2rem] border p-6 shadow-sm lg:p-9">
+          <div
+            id="pricing"
+            className="bg-card rounded-[2rem] border p-6 shadow-2xl lg:p-9"
+          >
             <p className="text-muted-foreground text-sm font-medium tracking-wide uppercase">
               Pro plan
             </p>
@@ -249,155 +241,205 @@ export default async function StartMembershipPage() {
 
                 return (
                   <li key={feature.id} className="flex items-start gap-3">
-                    <Icon className="mt-0.5 h-5 w-5 shrink-0" aria-hidden="true" />
+                    <Icon
+                      className="mt-0.5 h-5 w-5 shrink-0"
+                      aria-hidden="true"
+                    />
                     <span>{featureHeadlineText(feature.text)}</span>
                   </li>
                 );
               })}
             </ul>
           </div>
-        </section>
+        </div>
+      </section>
 
-        <Section>
-          <SectionTitle>What members get</SectionTitle>
-          <ul className="grid gap-x-6 gap-y-2 lg:grid-cols-2">
+      {/* ── What members get ─────────────────────────────── */}
+      <section className="py-16 lg:py-20">
+        <div className="mx-auto max-w-6xl space-y-6 px-4 lg:px-8">
+          <h2 className="text-3xl font-semibold tracking-tight">
+            What members get
+          </h2>
+
+          <ul className="grid gap-x-8 gap-y-3 lg:grid-cols-2">
             {SELLER_BENEFITS.map((benefit) => (
-              <li key={benefit} className="flex items-start gap-2 leading-relaxed">
+              <li
+                key={benefit}
+                className="flex items-start gap-3 leading-relaxed"
+              >
                 <CheckCircle2 className="text-primary mt-1 h-4 w-4 shrink-0" />
                 <span>{benefit}</span>
               </li>
             ))}
           </ul>
-        </Section>
+        </div>
+      </section>
 
-        <Section>
-          <SectionTitle>How it works</SectionTitle>
-          <ol className="grid gap-x-10 gap-y-5 lg:grid-cols-2">
+      {/* ── How it works ─────────────────────────────────── */}
+      <section className="bg-muted/50 py-16 lg:py-20">
+        <div className="mx-auto max-w-6xl space-y-8 px-4 lg:px-8">
+          <h2 className="text-3xl font-semibold tracking-tight">
+            How it works
+          </h2>
+
+          <ol className="grid gap-8 lg:grid-cols-4">
             {HOW_IT_WORKS_STEPS.map((step, index) => (
-              <li key={step.title} className="flex gap-3">
-                <div className="bg-muted mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-sm font-semibold">
+              <li key={step.title} className="flex gap-4 lg:flex-col">
+                <div className="bg-foreground text-background flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm font-bold">
                   {index + 1}
                 </div>
+
                 <div className="space-y-1">
                   <p className="font-semibold">{step.title}</p>
-                  <p className="text-muted-foreground text-sm">{step.detail}</p>
+                  <p className="text-muted-foreground text-sm">
+                    {step.detail}
+                  </p>
                 </div>
               </li>
             ))}
           </ol>
-        </Section>
+        </div>
+      </section>
 
-        <Section>
-          <SectionTitle>Proof</SectionTitle>
+      {/* ── Proof ────────────────────────────────────────── */}
+      <section className="py-16 lg:py-20">
+        <div className="mx-auto max-w-6xl space-y-6 px-4 lg:px-8">
+          <h2 className="text-3xl font-semibold tracking-tight">Proof</h2>
 
-          <div className="overflow-hidden rounded-2xl border">
-            <div className="grid lg:grid-cols-2">
-              <article className="space-y-3 p-5 lg:p-6">
-                <div className="relative aspect-[16/9] overflow-hidden rounded-xl border">
-                  <Image
-                    src={IMAGES.DEFAULT_CATALOG}
-                    alt="Example public catalog card"
-                    fill
-                    sizes="(min-width: 1024px) 480px, 100vw"
-                    className="object-cover"
-                  />
-                </div>
+          <div className="grid gap-6 lg:grid-cols-2">
+            <article className="group overflow-hidden rounded-2xl border shadow-sm transition-shadow hover:shadow-md">
+              <div className="relative aspect-[16/9] overflow-hidden">
+                <Image
+                  src={IMAGES.DEFAULT_CATALOG}
+                  alt="Example public catalog card"
+                  fill
+                  sizes="(min-width: 1024px) 560px, 100vw"
+                  className="object-cover transition-transform duration-500 group-hover:scale-[1.02]"
+                />
+              </div>
 
-                <p className="text-muted-foreground text-sm">Example catalog</p>
-                <p className="text-xl font-semibold">Rolling Oaks Daylilies</p>
+              <div className="space-y-2 p-5 lg:p-6">
+                <p className="text-muted-foreground text-sm">
+                  Example catalog
+                </p>
+                <p className="text-xl font-semibold">
+                  Rolling Oaks Daylilies
+                </p>
                 <p className="text-muted-foreground text-sm">
                   Public profile with photos, location, and structured catalog
                   browsing.
                 </p>
+
                 <SellerLandingExampleLink
                   ctaId="seller-landing-proof-catalog-example"
                   ctaLabel="Explore Rolling Oaks catalog"
                   href="/rollingoaksdaylilies"
                   className="inline-flex items-center gap-1 text-sm font-medium underline"
                 />
-              </article>
+              </div>
+            </article>
 
-              <article className="space-y-3 border-t p-5 lg:border-t-0 lg:border-l lg:p-6">
-                <div className="relative aspect-[16/9] overflow-hidden rounded-xl border">
-                  <Image
-                    src={IMAGES.DEFAULT_LISTING}
-                    alt="Example listing card"
-                    fill
-                    sizes="(min-width: 1024px) 480px, 100vw"
-                    className="object-cover"
-                  />
-                </div>
+            <article className="group overflow-hidden rounded-2xl border shadow-sm transition-shadow hover:shadow-md">
+              <div className="relative aspect-[16/9] overflow-hidden">
+                <Image
+                  src={IMAGES.DEFAULT_LISTING}
+                  alt="Example listing card"
+                  fill
+                  sizes="(min-width: 1024px) 560px, 100vw"
+                  className="object-cover transition-transform duration-500 group-hover:scale-[1.02]"
+                />
+              </div>
 
-                <p className="text-muted-foreground text-sm">Example listing</p>
+              <div className="space-y-2 p-5 lg:p-6">
+                <p className="text-muted-foreground text-sm">
+                  Example listing
+                </p>
                 <p className="text-xl font-semibold">Starman spring fan</p>
                 <p className="text-muted-foreground text-sm">
                   Listing with cultivar linkage, image, and pricing context.
                 </p>
+
                 <SellerLandingExampleLink
                   ctaId="seller-landing-proof-catalog-index"
                   ctaLabel="Browse all public catalogs"
                   href="/catalogs"
                   className="inline-flex items-center gap-1 text-sm font-medium underline"
                 />
-              </article>
-            </div>
+              </div>
+            </article>
           </div>
-        </Section>
+        </div>
+      </section>
 
-        <Section id="pricing">
-          <SectionTitle>Pricing and trial</SectionTitle>
-          <div className="space-y-2">
-            <p className="text-2xl font-semibold">
-              Start with a {SUBSCRIPTION_CONFIG.FREE_TRIAL_DAYS}-day free trial.
-            </p>
-            <p className="text-muted-foreground">
-              Then $120/year ($10/month billed annually). No login is required
-              to view this page.
-            </p>
-          </div>
-        </Section>
+      {/* ── FAQ ──────────────────────────────────────────── */}
+      <section className="bg-muted/50 py-16 lg:py-20">
+        <div className="mx-auto max-w-6xl space-y-6 px-4 lg:px-8">
+          <h2 className="text-3xl font-semibold tracking-tight">FAQ</h2>
 
-        <Section>
-          <SectionTitle>FAQ</SectionTitle>
-          <div className="divide-y rounded-2xl border">
+          <div className="bg-card divide-y rounded-2xl border shadow-sm">
             {FAQ_ITEMS.map((item) => (
-              <details key={item.question} className="group px-5 py-4" open={false}>
-                <summary className="flex cursor-pointer list-none items-start justify-between gap-3 font-semibold">
+              <details
+                key={item.question}
+                className="group px-5 py-4"
+                open={false}
+              >
+                <summary className="flex cursor-pointer list-none items-start justify-between gap-3 font-semibold [&::-webkit-details-marker]:hidden">
                   <span>{item.question}</span>
-                  <Dot className="text-muted-foreground mt-0.5 h-5 w-5 shrink-0" />
+                  <ChevronDown className="text-muted-foreground mt-0.5 h-5 w-5 shrink-0 transition-transform duration-200 group-open:rotate-180" />
                 </summary>
+
                 <p className="text-muted-foreground mt-2 text-sm leading-relaxed">
                   {item.answer}
                 </p>
               </details>
             ))}
           </div>
-        </Section>
+        </div>
+      </section>
 
-        <section className="space-y-4 border-t pt-10 text-center">
-          <p className="mx-auto max-w-3xl text-3xl font-semibold tracking-tight">
+      {/* ── Final CTA ────────────────────────────────────── */}
+      <section className="relative py-24 lg:py-32">
+        <div className="absolute inset-0">
+          <div className="absolute inset-0 z-10 bg-black/55" />
+          <Image
+            src="/assets/cta-garden.webp"
+            alt="Daylily garden at sunset"
+            fill
+            sizes="100vw"
+            className="object-cover object-center"
+          />
+        </div>
+
+        <div className="relative z-20 mx-auto max-w-3xl space-y-6 px-4 text-center text-white">
+          <p className="text-3xl font-semibold tracking-tight lg:text-4xl">
             Ready to list your daylilies where buyers already browse?
           </p>
+
           <div className="flex flex-col items-center gap-3">
             <SellerLandingAuthCta
               ctaId="seller-landing-final-primary"
               ctaLabel="Create your catalog"
               className="w-full lg:w-auto"
             />
+
             <SellerLandingExampleLink
               ctaId="seller-landing-final-example"
               ctaLabel="Browse active catalogs"
               href="/catalogs"
-              className="text-muted-foreground inline-flex items-center gap-1 text-sm underline"
+              className="inline-flex items-center gap-1 text-sm text-white/70 underline transition-colors hover:text-white"
             />
           </div>
-          <p className="text-muted-foreground text-sm">
+
+          <p className="text-sm text-white/70">
             Your catalog can appear in public search, browsing, and cultivar
             discovery pages.
           </p>
-        </section>
+        </div>
+      </section>
 
-        <div className="text-muted-foreground inline-flex items-center justify-center gap-2 text-xs">
+      {/* ── Footer note ──────────────────────────────────── */}
+      <div className="mx-auto max-w-6xl px-4 py-6 lg:px-8">
+        <div className="text-muted-foreground inline-flex items-center gap-2 text-xs">
           <ArrowUpRight className="h-3.5 w-3.5" />
           Public page → auth → existing onboarding → trial and publish
         </div>
