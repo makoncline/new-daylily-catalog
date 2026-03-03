@@ -30,19 +30,33 @@ async function createProfilePageJsonLd(
       url: metadata.pageUrl,
       // Add makesOffer as array of Offer objects for valid Schema.org
       ...(validListings.length > 0 && {
-        makesOffer: validListings.map((listing) => ({
-          "@type": "Offer",
-          price: listing.price!.toFixed(2),
-          priceCurrency: "USD",
-          url: `${metadata.pageUrl}/${listing.id}`,
-          itemOffered: {
-            "@type": "Product",
-            name: listing.title ?? "Daylily",
-            url: `${metadata.pageUrl}/${listing.id}`,
-            // Optimized, cacheable image URL for Google Images
-            image: getOptimizedMetaImageUrl(listing.images[0]!.url),
-          },
-        })),
+        makesOffer: validListings.map((listing) => {
+          const listingUrl = `${metadata.pageUrl}/${listing.id}`;
+          const price = listing.price!.toFixed(2);
+
+          return {
+            "@type": "Offer",
+            price,
+            priceCurrency: "USD",
+            url: listingUrl,
+            itemOffered: {
+              "@type": "Product",
+              name: listing.title ?? "Daylily",
+              url: listingUrl,
+              // Optimized, cacheable image URL for Google Images
+              image: getOptimizedMetaImageUrl(listing.images[0]!.url),
+              // Keep nested Product self-contained to avoid
+              // "Either offers, review, or aggregateRating" warnings.
+              offers: {
+                "@type": "Offer",
+                price,
+                priceCurrency: "USD",
+                availability: "https://schema.org/InStock",
+                url: listingUrl,
+              },
+            },
+          };
+        }),
       }),
       // Add user's lists as collections, also only using valid listings
       ...(profile.lists &&

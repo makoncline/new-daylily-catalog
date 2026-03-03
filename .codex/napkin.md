@@ -2,6 +2,8 @@
 
 ## Log
 
+- 2026-03-03 - test fixture type-assertion pattern - Minimal typed fixtures for router-output-heavy helpers should cast through `unknown` (`as unknown as T`) to satisfy TS overlap checks during `npx tsc --noEmit`.
+- 2026-03-03 - self-miss public path quoting recurrence - I ran `rg` with an unquoted `src/app/(public)` path and triggered zsh glob parsing; always quote App Router paths containing `()`/`[]`.
 - 2026-03-03 - self-miss napkin disclosure repeat - I referenced napkin workflow in a user-facing status update again; keep napkin usage silent.
 - 2026-03-03 - sitemap host policy - In Vercel production (`VERCEL_ENV=production`), sitemap/robots should use `VERCEL_PROJECT_PRODUCTION_URL`; in preview/local, use the current request/deployment host (`VERCEL_URL`) or localhost fallback.
 - 2026-03-03 - crawler policy split - User wants search-engine crawlers allowed while temporarily blocking AI/non-search crawlers; keep `Googlebot`/`Bingbot`/`msnbot`/`SeznamBot` out of blocked UA list.
