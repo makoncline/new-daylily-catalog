@@ -3,6 +3,7 @@ import { revalidatePath, revalidateTag } from "next/cache";
 import { env } from "@/env";
 import { CACHE_CONFIG } from "@/config/cache-config";
 import { toCultivarRouteSegment } from "@/lib/utils/cultivar-utils";
+import { getBaseUrl } from "@/lib/utils/getBaseUrl";
 
 interface InvalidatePublicIsrForCatalogMutationInput {
   db: PrismaClient;
@@ -10,6 +11,8 @@ interface InvalidatePublicIsrForCatalogMutationInput {
   slugCandidates?: Array<string | null | undefined>;
   cultivarNormalizedNames?: Array<string | null | undefined>;
   requestHeaders?: Headers;
+  includeForSaleCountTag?: boolean;
+  includeCatalogRoutesTag?: boolean;
 }
 
 interface RevalidatePathInput {
@@ -93,25 +96,13 @@ function toCultivarSegments(
   return Array.from(segments);
 }
 
-function getRequestOrigin(requestHeaders?: Headers): string | null {
-  if (!requestHeaders) {
+function getTrustedRevalidationOrigin(): string | null {
+  // Avoid internal loopback fetches during tests and keep unit tests deterministic.
+  if (process.env.NODE_ENV === "test") {
     return null;
   }
 
-  const host =
-    requestHeaders.get("x-forwarded-host") ?? requestHeaders.get("host");
-  if (!host) {
-    return null;
-  }
-
-  const forwardedProto = requestHeaders.get("x-forwarded-proto");
-  const protocol =
-    forwardedProto ??
-    (host.includes("localhost") || host.startsWith("127.0.0.1")
-      ? "http"
-      : "https");
-
-  return `${protocol}://${host}`;
+  return getBaseUrl();
 }
 
 function toUniquePathInputs(paths: RevalidatePathInput[]): RevalidatePathInput[] {
@@ -130,7 +121,7 @@ async function runRouteHandlerRevalidation(args: {
   paths: RevalidatePathInput[];
   tags: string[];
 }): Promise<boolean> {
-  const origin = getRequestOrigin(args.requestHeaders);
+  const origin = getTrustedRevalidationOrigin();
   if (!origin) {
     return false;
   }
@@ -181,19 +172,16 @@ async function applyPublicCacheRevalidations(args: {
   });
 }
 
-const BASE_PUBLIC_CACHE_TAGS = [
+const REQUIRED_PUBLIC_CACHE_TAGS = [
   CACHE_CONFIG.TAGS.PUBLIC_PROFILE,
   CACHE_CONFIG.TAGS.PUBLIC_PROFILES,
   CACHE_CONFIG.TAGS.PUBLIC_LISTINGS,
   CACHE_CONFIG.TAGS.PUBLIC_LISTING_DETAIL,
   CACHE_CONFIG.TAGS.PUBLIC_LISTINGS_PAGE,
-  CACHE_CONFIG.TAGS.PUBLIC_FOR_SALE_COUNT,
-  CACHE_CONFIG.TAGS.PUBLIC_CATALOG_ROUTES,
 ] as const;
 
 const CULTIVAR_CACHE_TAGS = [
   CACHE_CONFIG.TAGS.PUBLIC_CULTIVAR_PAGE,
-  CACHE_CONFIG.TAGS.PUBLIC_CULTIVAR_SEGMENTS,
   CACHE_CONFIG.TAGS.PUBLIC_CULTIVAR_SITEMAP,
 ] as const;
 
@@ -204,7 +192,13 @@ export async function invalidatePublicIsrForCatalogMutation(
   const slugs = toUniqueNonEmpty([canonicalSlug, ...(input.slugCandidates ?? [])]);
   const cultivarSegments = toCultivarSegments(input.cultivarNormalizedNames ?? []);
 
-  const tagsToRevalidate: string[] = [...BASE_PUBLIC_CACHE_TAGS];
+  const tagsToRevalidate: string[] = [...REQUIRED_PUBLIC_CACHE_TAGS];
+  if (input.includeForSaleCountTag ?? true) {
+    tagsToRevalidate.push(CACHE_CONFIG.TAGS.PUBLIC_FOR_SALE_COUNT);
+  }
+  if (input.includeCatalogRoutesTag ?? true) {
+    tagsToRevalidate.push(CACHE_CONFIG.TAGS.PUBLIC_CATALOG_ROUTES);
+  }
   if (cultivarSegments.length > 0) {
     tagsToRevalidate.push(...CULTIVAR_CACHE_TAGS);
   }
@@ -213,7 +207,6 @@ export async function invalidatePublicIsrForCatalogMutation(
   slugs.forEach((slug) => {
     pathsToRevalidate.push({ path: `/${slug}` });
     pathsToRevalidate.push({ path: `/${slug}/page/[page]`, type: "page" });
-    pathsToRevalidate.push({ path: `/${slug}/search` });
   });
 
   cultivarSegments.forEach((segment) => {

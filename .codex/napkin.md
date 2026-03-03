@@ -2,6 +2,15 @@
 
 ## Log
 
+- 2026-03-02 - layered invalidation pattern - Keep page revalidation (`/{slug}`, `/{slug}/page/[page]`, `/cultivar/{segment}`) while narrowing cache-tag invalidation per mutation; this cuts writes without sacrificing content freshness.
+- 2026-03-02 - cultivar-segments invalidation split - Cultivar page freshness requires `PUBLIC_CULTIVAR_PAGE` + `/cultivar/{segment}` revalidation; `PUBLIC_CULTIVAR_SEGMENTS` is a separate segment-index cache and can be skipped for listing/list/profile mutations.
+- 2026-03-02 - invalidation-scope insight - Shared `invalidatePublicIsrForCatalogMutation` base tags are broader than some mutation effects; likely reduction points are skipping `/{slug}/search` path revalidate and not always revalidating `PUBLIC_CATALOG_ROUTES`, `PUBLIC_FOR_SALE_COUNT`, and `PUBLIC_CULTIVAR_SEGMENTS`.
+- 2026-03-03 - revalidation SSRF hardening pattern - Internal revalidation loopback fetches must not derive origin from request headers; use trusted server origin (`getBaseUrl()` without request headers) and skip loopback fetch in `NODE_ENV=test`.
+- 2026-03-02 - self-miss napkin disclosure recurrence - I called out napkin-skill execution in a user-facing progress update; keep napkin workflow silent.
+- 2026-03-02 - self-miss dynamic route path quoting recurrence - I ran `sed` on `src/app/dashboard/lists/[listId]/...` without quotes and hit zsh `no matches found`; always quote paths containing `[]`/`()`.
+- 2026-03-02 - list update public-page dependency - `dashboardDb.list.update` already invalidates `/{slug}`, `/{slug}/page/[page]`, `/{slug}/search`, `/catalogs`, and any linked cultivar pages in that list via `invalidatePublicIsrForCatalogMutation`.
+- 2026-03-03 - further ISR write reduction - User requested no invalidation on `userProfile.updateContent` and no invalidation on `listing.syncAhsName`; both now rely on subsequent parent form save/update mutation for public route refresh.
+- 2026-03-02 - mutation-write minimization decision - Accepted tradeoff: keep explicit invalidation on `listing.unlinkAhs`, but remove direct invalidation from `listing.linkAhs` and rely on subsequent `listing.update` save/autosave to refresh the newly linked cultivar page.
 - 2026-03-02 - local-time hydration caveat - `suppressHydrationWarning` on a server-rendered timestamp can leave UTC text visible; for user-local time rendering use hydration gating (`useIsHydrated`) and render formatted time only after client hydration.
 - 2026-03-02 - preview verification signal choice - On this Vercel preview host, `x-nextjs-cache` was absent on route fetches; use visible content deltas and ISR footer `last updated` timestamp changes to confirm regeneration after mutation.
 - 2026-03-02 - self-miss path quoting recurrence - I ran `git diff` on `src/app/(public)/...` without quotes and hit zsh glob expansion; always quote App Router paths containing `()`/`[]`.

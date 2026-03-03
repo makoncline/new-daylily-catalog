@@ -119,14 +119,7 @@ export const dashboardDbListingRouter = createTRPCRouter({
     .mutation(async ({ ctx, input }) => {
       const listing = await ctx.db.listing.findFirst({
         where: { id: input.id, userId: ctx.user.id },
-        select: {
-          id: true,
-          cultivarReference: {
-            select: {
-              normalizedName: true,
-            },
-          },
-        },
+        select: { id: true },
       });
       if (!listing) {
         throw new TRPCError({ code: "NOT_FOUND", message: "Listing not found" });
@@ -136,7 +129,6 @@ export const dashboardDbListingRouter = createTRPCRouter({
         where: { id: input.cultivarReferenceId },
         select: {
           id: true,
-          normalizedName: true,
           ahsListing: { select: { name: true } },
         },
       });
@@ -171,16 +163,6 @@ export const dashboardDbListingRouter = createTRPCRouter({
         select: listingSelect,
       });
 
-      await invalidatePublicIsrForCatalogMutation({
-        db: ctx.db,
-        userId: ctx.user.id,
-        cultivarNormalizedNames: [
-          listing.cultivarReference?.normalizedName,
-          cultivarReference.normalizedName,
-        ],
-        requestHeaders: ctx.headers,
-      });
-
       return updated;
     }),
 
@@ -213,6 +195,8 @@ export const dashboardDbListingRouter = createTRPCRouter({
         userId: ctx.user.id,
         cultivarNormalizedNames: [listing.cultivarReference?.normalizedName],
         requestHeaders: ctx.headers,
+        includeForSaleCountTag: false,
+        includeCatalogRoutesTag: false,
       });
 
       return updated;
@@ -227,7 +211,6 @@ export const dashboardDbListingRouter = createTRPCRouter({
           id: true,
           cultivarReference: {
             select: {
-              normalizedName: true,
               ahsListing: { select: { name: true } },
             },
           },
@@ -252,13 +235,6 @@ export const dashboardDbListingRouter = createTRPCRouter({
         where: { id: listing.id },
         data: { title: name, slug: nextSlug },
         select: listingSelect,
-      });
-
-      await invalidatePublicIsrForCatalogMutation({
-        db: ctx.db,
-        userId: ctx.user.id,
-        cultivarNormalizedNames: [listing.cultivarReference?.normalizedName],
-        requestHeaders: ctx.headers,
       });
 
       return updated;

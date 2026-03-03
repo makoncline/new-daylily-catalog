@@ -148,6 +148,7 @@ export const dashboardDbUserProfileRouter = createTRPCRouter({
           profile.slug ?? ctx.user.id,
         ],
         requestHeaders: ctx.headers,
+        includeForSaleCountTag: false,
       });
 
       return profile;
@@ -156,7 +157,7 @@ export const dashboardDbUserProfileRouter = createTRPCRouter({
   updateContent: protectedProcedure
     .input(z.object({ content: z.string().nullable() }))
     .mutation(async ({ ctx, input }) => {
-      const profile = await ctx.db.userProfile.upsert({
+      return ctx.db.userProfile.upsert({
         where: { userId: ctx.user.id },
         create: {
           userId: ctx.user.id,
@@ -168,14 +169,5 @@ export const dashboardDbUserProfileRouter = createTRPCRouter({
         },
         select: profileSelect,
       });
-
-      await invalidatePublicIsrForCatalogMutation({
-        db: ctx.db,
-        userId: ctx.user.id,
-        slugCandidates: [profile.slug ?? ctx.user.id],
-        requestHeaders: ctx.headers,
-      });
-
-      return profile;
     }),
 });
