@@ -1756,6 +1756,10 @@ export function StartOnboardingPageClient({
           "onboarding_step_completed",
           "start-membership",
         );
+        capturePosthogEvent("onboarding_completed", {
+          completion_path: "keep_unlisted",
+          source: "onboarding-step",
+        });
         router.push("/dashboard");
         return;
       }
@@ -1795,6 +1799,10 @@ export function StartOnboardingPageClient({
   const handleMembershipContinueForNow = useCallback(() => {
     clearOnboardingDraftSnapshot();
     captureOnboardingStepEvent("onboarding_step_completed", "start-membership");
+    capturePosthogEvent("onboarding_completed", {
+      completion_path: "continue_for_now",
+      source: "onboarding-step",
+    });
     capturePosthogEvent("onboarding_membership_continue_for_now_clicked", {
       source: "onboarding-step",
     });

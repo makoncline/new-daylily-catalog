@@ -5,6 +5,9 @@ import { env } from "@/env";
 import { stripe } from "@/server/stripe/client";
 import type Stripe from "stripe";
 import { syncStripeSubscriptionToKV } from "@/server/stripe/sync-subscription";
+import { db } from "@/server/db";
+import { captureServerPosthogEvent } from "@/server/analytics/posthog-server";
+import { getStripeFunnelEvents } from "@/server/stripe/stripe-funnel-events";
 
 const relevantEvents = new Set<Stripe.Event.Type>([
   "checkout.session.completed",
@@ -55,8 +58,33 @@ export async function POST(req: Request) {
     try {
       const customerId = getCustomerIdFromEvent(event);
       if (customerId) {
-        await syncStripeSubscriptionToKV(customerId);
+        const stripeSubscription = await syncStripeSubscriptionToKV(customerId);
         revalidateTag(CACHE_CONFIG.TAGS.PUBLIC_PRO_USER_IDS, "max");
+
+        const user = await db.user.findUnique({
+          where: { stripeCustomerId: customerId },
+          select: { clerkUserId: true },
+        });
+
+        const clerkUserId = user?.clerkUserId;
+        if (clerkUserId) {
+          const funnelEvents = getStripeFunnelEvents(event);
+          await Promise.all(
+            funnelEvents.map((funnelEvent) =>
+              captureServerPosthogEvent({
+                distinctId: clerkUserId,
+                event: funnelEvent.event,
+                properties: {
+                  ...funnelEvent.properties,
+                  source_page: "/api/stripe-webhook",
+                  stripe_customer_id: customerId,
+                  synced_subscription_status:
+                    stripeSubscription.status ?? "unknown",
+                },
+              }),
+            ),
+          );
+        }
       }
     } catch (error) {
       console.error("Error processing webhook:", error);
