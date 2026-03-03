@@ -18,6 +18,15 @@ function inferProtocol(host: string, rawProtocol: string | null | undefined) {
   return isLocalHost ? "http" : "https";
 }
 
+function getVercelProjectProductionUrl() {
+  const productionHost = normalizeHost(process.env.VERCEL_PROJECT_PRODUCTION_URL);
+  if (!productionHost) {
+    return null;
+  }
+
+  return `https://${productionHost}`;
+}
+
 export function getBaseUrl(requestHeaders?: Headers | null) {
   if (typeof window !== "undefined") return window.location.origin;
 
@@ -29,12 +38,17 @@ export function getBaseUrl(requestHeaders?: Headers | null) {
     return `${protocol}://${host}`;
   }
 
-  if (process.env.VERCEL_URL) {
-    return `https://${process.env.VERCEL_URL}`;
+  const vercelEnv = process.env.VERCEL_ENV;
+  if (vercelEnv === "production") {
+    const productionUrl = getVercelProjectProductionUrl();
+    if (productionUrl) {
+      return productionUrl;
+    }
   }
 
-  if (process.env.VERCEL_PROJECT_PRODUCTION_URL) {
-    return `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`;
+  const deploymentHost = normalizeHost(process.env.VERCEL_URL);
+  if (deploymentHost) {
+    return `https://${deploymentHost}`;
   }
 
   return `http://localhost:${process.env.PORT ?? 3000}`;

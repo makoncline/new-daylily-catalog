@@ -20,6 +20,7 @@ const RESERVED_TOP_LEVEL_SEGMENTS = new Set([
   "catalogs",
   "cultivar",
   "dashboard",
+  "icon",
   "onboarding",
   "subscribe",
   "start-membership",

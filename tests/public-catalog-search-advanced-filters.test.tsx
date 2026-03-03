@@ -278,8 +278,8 @@ describe("public catalog search advanced filters", () => {
     vi.clearAllMocks();
   });
 
-  it("switches to advanced mode and applies live facet/text/range filters", async () => {
-    const { rerender } = render(
+  const renderCatalog = () =>
+    render(
       <PublicCatalogSearchContent
         lists={lists}
         listings={listings}
@@ -287,6 +287,9 @@ describe("public catalog search advanced filters", () => {
         totalListingsCount={3}
       />,
     );
+
+  it("switches to advanced mode and applies live facet/text/range filters", async () => {
+    const { rerender } = renderCatalog();
 
     fireEvent.click(screen.getByTestId("search-mode-switch"));
 
@@ -378,6 +381,86 @@ describe("public catalog search advanced filters", () => {
 
     await waitFor(() => {
       expect(within(screen.getByTestId("catalog-table")).getAllByRole("listitem")).toHaveLength(3);
+    });
+  });
+
+  it("shows section badge counts only for sections with active filters", async () => {
+    const { rerender } = renderCatalog();
+
+    fireEvent.click(screen.getByTestId("search-mode-switch"));
+
+    await waitFor(() => {
+      expect(navigationState.router.replace).toHaveBeenCalled();
+      expect(navigationState.getParams().get("mode")).toBe("advanced");
+    });
+
+    rerender(
+      <PublicCatalogSearchContent
+        lists={lists}
+        listings={listings}
+        isLoading={false}
+        totalListingsCount={3}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /registration/i }));
+    fireEvent.change(screen.getByTestId("advanced-filter-hybridizer"), {
+      target: { value: "Reed" },
+    });
+
+    await waitFor(() => {
+      expect(within(screen.getByTestId("catalog-table")).getAllByRole("listitem")).toHaveLength(2);
+    });
+
+    const registrationSection = screen.getByRole("button", {
+      name: /registration/i,
+    });
+    const listingSection = screen.getByRole("button", { name: /listing/i });
+    const bloomTraitsSection = screen.getByRole("button", {
+      name: /bloom traits/i,
+    });
+
+    expect(within(registrationSection).getByText("1")).toBeVisible();
+    expect(within(listingSection).queryByText("1")).not.toBeInTheDocument();
+    expect(within(bloomTraitsSection).queryByText("1")).not.toBeInTheDocument();
+  });
+
+  it("clears one active filter chip without resetting unrelated filters", async () => {
+    const { rerender } = renderCatalog();
+
+    fireEvent.click(screen.getByTestId("search-mode-switch"));
+
+    await waitFor(() => {
+      expect(navigationState.router.replace).toHaveBeenCalled();
+      expect(navigationState.getParams().get("mode")).toBe("advanced");
+    });
+
+    rerender(
+      <PublicCatalogSearchContent
+        lists={lists}
+        listings={listings}
+        isLoading={false}
+        totalListingsCount={3}
+      />,
+    );
+
+    fireEvent.click(screen.getByTestId("advanced-filter-has-photo"));
+    fireEvent.click(screen.getByRole("button", { name: /registration/i }));
+    fireEvent.change(screen.getByTestId("advanced-filter-hybridizer"), {
+      target: { value: "Reed" },
+    });
+
+    await waitFor(() => {
+      expect(within(screen.getByTestId("catalog-table")).getAllByRole("listitem")).toHaveLength(2);
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: /hybridizer:\s*reed/i }));
+
+    await waitFor(() => {
+      const params = navigationState.getParams();
+      expect(params.get("hasPhoto")).toBe("true");
+      expect(params.get("hybridizer")).toBeNull();
+      expect(within(screen.getByTestId("catalog-table")).getAllByRole("listitem")).toHaveLength(2);
     });
   });
 });

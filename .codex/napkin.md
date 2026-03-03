@@ -4,6 +4,10 @@
 
 - 2026-03-03 - test fixture type-assertion pattern - Minimal typed fixtures for router-output-heavy helpers should cast through `unknown` (`as unknown as T`) to satisfy TS overlap checks during `npx tsc --noEmit`.
 - 2026-03-03 - self-miss public path quoting recurrence - I ran `rg` with an unquoted `src/app/(public)` path and triggered zsh glob parsing; always quote App Router paths containing `()`/`[]`.
+- 2026-03-03 - self-miss napkin disclosure repeat - I referenced napkin workflow in a user-facing status update again; keep napkin usage silent.
+- 2026-03-03 - sitemap host policy - In Vercel production (`VERCEL_ENV=production`), sitemap/robots should use `VERCEL_PROJECT_PRODUCTION_URL`; in preview/local, use the current request/deployment host (`VERCEL_URL`) or localhost fallback.
+- 2026-03-03 - crawler policy split - User wants search-engine crawlers allowed while temporarily blocking AI/non-search crawlers; keep `Googlebot`/`Bingbot`/`msnbot`/`SeznamBot` out of blocked UA list.
+- 2026-03-03 - bot policy temporary override - User switched back to blocking bots due traffic surge; `robots.ts` now disallows major crawler user agents (including Google/Bing + AI bots) for now.
 - 2026-03-03 - sitemap frequency refinement - User wants `/catalogs` set to `weekly` (single page cost acceptable) while cultivar pages remain `monthly`.
 - 2026-03-03 - sitemap frequency preference update - User wants public listing/profile URLs to remain `weekly`, but cultivar sitemap URLs should use `monthly` changeFrequency.
 - 2026-03-03 - crawler policy preference correction - User wants AI crawler bots allowed; do not block them in `robots.ts`.
@@ -469,3 +473,4 @@
 - 2026-03-01 - onboarding profile requirement update - User wants seller description optional on profile step; only profile image + seller name should gate continue/save.
 - 2026-03-01 - listing description seo copy preference - User wants listing description helper to explicitly mention it appears on listing card and on Google search results, mirroring profile description guidance.
 - 2026-03-01 - onboarding description aim copy dedupe - Consolidated the shared "Aim for X-Y characters." text for profile/listing description helpers into one `getDescriptionLengthAimText` utility to keep wording consistent.
+- 2026-03-03 - turbopack symlink restriction - Local Playwright/Next dev server fails when worktree `node_modules` is a symlink outside repo root (`Symlink node_modules is invalid`); use a real in-worktree install for e2e.
