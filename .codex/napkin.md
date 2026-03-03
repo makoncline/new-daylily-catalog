@@ -2,6 +2,11 @@
 
 ## Log
 
+- 2026-03-03 - pagination shrink safety - With long-lived ISR caches, concrete page invalidation must include a tail buffer (`totalPages + 2`) so previously valid higher pages (e.g. page 3 after 3→2 shrink) get revalidated to 404 instead of staying stale.
+- 2026-03-03 - concrete paginated invalidation pattern - For profile pagination freshness, compute user `totalPages` from published listing count and revalidate concrete `/{slug}/page/{n}` URLs for `n>=2`; avoid dynamic route-pattern invalidation for this path.
+- 2026-03-03 - paginated revalidatePath pattern - For App Router `revalidatePath(..., "page")` on dynamic paginated profile routes, use the route pattern (`"/[userSlugOrId]/page/[page]"`) instead of slug-specific strings like `"/garden/page/[page]"`.
+- 2026-03-03 - slug-update test mock gotcha - `userProfile.update` with `data.slug` invokes `checkSlugAvailability` (`userProfile.findFirst`); slug-change invalidation tests must mock `findFirst` in addition to `findUnique`/`upsert`.
+- 2026-03-03 - dead invalidation controls removed - Since all dashboard mutation callsites are path-targeted, keep `invalidatePublicIsrForCatalogMutation` path-only and remove unused base-tag toggles/options instead of carrying dormant config.
 - 2026-03-03 - sitemap invalidation policy - User prefers cultivar sitemap to stay on normal 24h ISR cadence; do not revalidate sitemap tags from dashboard mutations.
 - 2026-03-03 - sitemap TTL correction - `CACHE_CONFIG.PUBLIC.SITEMAP_REVALIDATE_SECONDS` had drifted to `WEEK`; user wants 24h cadence, so keep it at `DAY`.
 - 2026-03-03 - self-miss napkin disclosure repeat - I again mentioned napkin workflow in a user-facing progress update; keep napkin usage fully silent and just execute it.

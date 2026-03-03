@@ -67,8 +67,6 @@ export const dashboardDbListingRouter = createTRPCRouter({
         db: ctx.db,
         userId: ctx.user.id,
         cultivarNormalizedNames: [cultivarReference?.normalizedName],
-        requestHeaders: ctx.headers,
-        includeBaseTags: false,
       });
 
       return listing;
@@ -120,10 +118,23 @@ export const dashboardDbListingRouter = createTRPCRouter({
     .mutation(async ({ ctx, input }) => {
       const listing = await ctx.db.listing.findFirst({
         where: { id: input.id, userId: ctx.user.id },
-        select: { id: true },
+        select: {
+          id: true,
+          cultivarReferenceId: true,
+        },
       });
       if (!listing) {
         throw new TRPCError({ code: "NOT_FOUND", message: "Listing not found" });
+      }
+
+      if (
+        listing.cultivarReferenceId &&
+        listing.cultivarReferenceId !== input.cultivarReferenceId
+      ) {
+        throw new TRPCError({
+          code: "PRECONDITION_FAILED",
+          message: "Listing is already linked to a cultivar. Unlink it first.",
+        });
       }
 
       const cultivarReference = await ctx.db.cultivarReference.findUnique({
@@ -195,10 +206,6 @@ export const dashboardDbListingRouter = createTRPCRouter({
         db: ctx.db,
         userId: ctx.user.id,
         cultivarNormalizedNames: [listing.cultivarReference?.normalizedName],
-        requestHeaders: ctx.headers,
-        includeBaseTags: false,
-        includeForSaleCountTag: false,
-        includeCatalogRoutesTag: false,
       });
 
       return updated;
@@ -303,8 +310,6 @@ export const dashboardDbListingRouter = createTRPCRouter({
         db: ctx.db,
         userId: ctx.user.id,
         cultivarNormalizedNames: [existing.cultivarReference?.normalizedName],
-        requestHeaders: ctx.headers,
-        includeBaseTags: false,
       });
 
       return updated!;
@@ -356,8 +361,6 @@ export const dashboardDbListingRouter = createTRPCRouter({
         db: ctx.db,
         userId: ctx.user.id,
         cultivarNormalizedNames: [listing.cultivarReference?.normalizedName],
-        requestHeaders: ctx.headers,
-        includeBaseTags: false,
       });
 
       return { id: listing.id } as const;

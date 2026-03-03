@@ -39,8 +39,16 @@ beforeAll(async () => {
 });
 
 function createContext(db: unknown) {
+  const dbWithDefaults = db as Record<string, unknown>;
+  const listing =
+    (dbWithDefaults.listing as Record<string, unknown> | undefined) ?? {};
+  if (!("count" in listing)) {
+    listing.count = vi.fn().mockResolvedValue(51);
+  }
+  dbWithDefaults.listing = listing;
+
   return {
-    db: db as TRPCInternalContext["db"],
+    db: dbWithDefaults as unknown as TRPCInternalContext["db"],
     _authUser: { id: "user-1" } as unknown as TRPCInternalContext["_authUser"],
     headers: new Headers(),
   };
@@ -112,8 +120,15 @@ describe("dashboardDb public ISR invalidation", () => {
     });
 
     expect(revalidatePathMock).toHaveBeenCalledWith("/garden");
-    expect(revalidatePathMock).toHaveBeenCalledWith("/garden/page/[page]", "page");
+    expect(revalidatePathMock).toHaveBeenCalledWith("/garden/page/2");
+    expect(revalidatePathMock).toHaveBeenCalledWith("/garden/page/3");
+    expect(revalidatePathMock).toHaveBeenCalledWith("/garden/page/4");
     expect(revalidatePathMock).toHaveBeenCalledWith("/garden/search");
+    expect(revalidatePathMock).toHaveBeenCalledWith("/user-1");
+    expect(revalidatePathMock).toHaveBeenCalledWith("/user-1/page/2");
+    expect(revalidatePathMock).toHaveBeenCalledWith("/user-1/page/3");
+    expect(revalidatePathMock).toHaveBeenCalledWith("/user-1/page/4");
+    expect(revalidatePathMock).toHaveBeenCalledWith("/user-1/search");
     expect(revalidatePathMock).toHaveBeenCalledWith("/catalogs");
     expectNoBasePublicTagInvalidations();
     expect(
@@ -121,6 +136,56 @@ describe("dashboardDb public ISR invalidation", () => {
         (call) => call[0] === CACHE_CONFIG.TAGS.PUBLIC_CULTIVAR_PAGE,
       ),
     ).toBe(false);
+  });
+
+  it("profile.update on slug change invalidates old slug, new slug, and user-id alias routes", async () => {
+    const db = {
+      userProfile: {
+        findFirst: vi.fn().mockResolvedValue(null),
+        findUnique: vi
+          .fn()
+          .mockResolvedValueOnce({ slug: "old-garden" })
+          .mockResolvedValueOnce({ slug: "new-garden" }),
+        upsert: vi.fn().mockResolvedValue({
+          id: "profile-1",
+          userId: "user-1",
+          title: "Garden",
+          slug: "new-garden",
+          logoUrl: null,
+          description: null,
+          content: null,
+          location: null,
+          createdAt: new Date("2026-01-01T00:00:00.000Z"),
+          updatedAt: new Date("2026-01-01T00:00:00.000Z"),
+        }),
+      },
+    };
+
+    const caller = dashboardDbUserProfileRouter.createCaller(createContext(db));
+    await caller.update({
+      data: {
+        slug: "new-garden",
+      },
+    });
+
+    expect(revalidatePathMock).toHaveBeenCalledWith("/old-garden");
+    expect(revalidatePathMock).toHaveBeenCalledWith("/old-garden/page/2");
+    expect(revalidatePathMock).toHaveBeenCalledWith("/old-garden/page/3");
+    expect(revalidatePathMock).toHaveBeenCalledWith("/old-garden/page/4");
+    expect(revalidatePathMock).toHaveBeenCalledWith("/old-garden/search");
+    expect(revalidatePathMock).toHaveBeenCalledWith("/new-garden");
+    expect(revalidatePathMock).toHaveBeenCalledWith("/new-garden/page/2");
+    expect(revalidatePathMock).toHaveBeenCalledWith("/new-garden/page/3");
+    expect(revalidatePathMock).toHaveBeenCalledWith("/new-garden/page/4");
+    expect(revalidatePathMock).toHaveBeenCalledWith("/new-garden/search");
+    expect(revalidatePathMock).toHaveBeenCalledWith("/user-1");
+    expect(revalidatePathMock).toHaveBeenCalledWith("/user-1/page/2");
+    expect(revalidatePathMock).toHaveBeenCalledWith("/user-1/page/3");
+    expect(revalidatePathMock).toHaveBeenCalledWith("/user-1/page/4");
+    expect(revalidatePathMock).toHaveBeenCalledWith("/user-1/search");
+    expect(revalidatePathMock).toHaveBeenCalledWith("/catalogs");
+    expectNoBasePublicTagInvalidations();
+    expectNoCultivarTagInvalidations();
   });
 
   it("profile.updateContent does not invalidate public routes directly", async () => {
@@ -187,7 +252,7 @@ describe("dashboardDb public ISR invalidation", () => {
     });
 
     expect(revalidatePathMock).toHaveBeenCalledWith("/garden");
-    expect(revalidatePathMock).toHaveBeenCalledWith("/garden/page/[page]", "page");
+    expect(revalidatePathMock).toHaveBeenCalledWith("/garden/page/2");
     expect(revalidatePathMock).toHaveBeenCalledWith("/garden/search");
     expect(revalidatePathMock).toHaveBeenCalledWith("/catalogs");
     expect(revalidatePathMock).toHaveBeenCalledWith("/cultivar/lime-frosting");
@@ -231,7 +296,7 @@ describe("dashboardDb public ISR invalidation", () => {
     });
 
     expect(revalidatePathMock).toHaveBeenCalledWith("/garden");
-    expect(revalidatePathMock).toHaveBeenCalledWith("/garden/page/[page]", "page");
+    expect(revalidatePathMock).toHaveBeenCalledWith("/garden/page/2");
     expect(revalidatePathMock).toHaveBeenCalledWith("/garden/search");
     expect(revalidatePathMock).toHaveBeenCalledWith("/catalogs");
     expect(revalidatePathMock).toHaveBeenCalledWith("/cultivar/happy-returns");
@@ -244,6 +309,7 @@ describe("dashboardDb public ISR invalidation", () => {
       listing: {
         findFirst: vi.fn().mockResolvedValue({
           id: "listing-1",
+          cultivarReferenceId: null,
         }),
         findUnique: vi.fn(),
         updateMany: vi.fn(),
@@ -277,6 +343,36 @@ describe("dashboardDb public ISR invalidation", () => {
       syncName: false,
     });
 
+    expect(revalidatePathMock).not.toHaveBeenCalled();
+    expect(revalidateTagMock).not.toHaveBeenCalled();
+  });
+
+  it("listing.linkAhs rejects direct relink without unlinking first", async () => {
+    const cultivarFindUnique = vi.fn();
+    const db = {
+      listing: {
+        findFirst: vi.fn().mockResolvedValue({
+          id: "listing-1",
+          cultivarReferenceId: "cr-old",
+        }),
+      },
+      cultivarReference: {
+        findUnique: cultivarFindUnique,
+      },
+    };
+
+    const caller = dashboardDbListingRouter.createCaller(createContext(db));
+    await expect(
+      caller.linkAhs({
+        id: "listing-1",
+        cultivarReferenceId: "cr-new",
+        syncName: false,
+      }),
+    ).rejects.toMatchObject({
+      code: "PRECONDITION_FAILED",
+    });
+
+    expect(cultivarFindUnique).not.toHaveBeenCalled();
     expect(revalidatePathMock).not.toHaveBeenCalled();
     expect(revalidateTagMock).not.toHaveBeenCalled();
   });
@@ -353,7 +449,7 @@ describe("dashboardDb public ISR invalidation", () => {
     });
 
     expect(revalidatePathMock).toHaveBeenCalledWith("/garden");
-    expect(revalidatePathMock).toHaveBeenCalledWith("/garden/page/[page]", "page");
+    expect(revalidatePathMock).toHaveBeenCalledWith("/garden/page/2");
     expect(revalidatePathMock).toHaveBeenCalledWith("/garden/search");
     expect(revalidatePathMock).toHaveBeenCalledWith("/catalogs");
     expect(revalidatePathMock).toHaveBeenCalledWith("/cultivar/old-name");
@@ -391,7 +487,7 @@ describe("dashboardDb public ISR invalidation", () => {
     });
 
     expect(revalidatePathMock).toHaveBeenCalledWith("/garden");
-    expect(revalidatePathMock).toHaveBeenCalledWith("/garden/page/[page]", "page");
+    expect(revalidatePathMock).toHaveBeenCalledWith("/garden/page/2");
     expect(revalidatePathMock).toHaveBeenCalledWith("/garden/search");
     expect(revalidatePathMock).toHaveBeenCalledWith("/catalogs");
     expect(revalidatePathMock).toHaveBeenCalledWith("/cultivar/happy-returns");
@@ -434,7 +530,7 @@ describe("dashboardDb public ISR invalidation", () => {
     });
 
     expect(revalidatePathMock).toHaveBeenCalledWith("/garden");
-    expect(revalidatePathMock).toHaveBeenCalledWith("/garden/page/[page]", "page");
+    expect(revalidatePathMock).toHaveBeenCalledWith("/garden/page/2");
     expect(revalidatePathMock).toHaveBeenCalledWith("/garden/search");
     expect(revalidatePathMock).toHaveBeenCalledWith("/catalogs");
     expect(revalidatePathMock).toHaveBeenCalledWith("/cultivar/happy-returns");
@@ -468,7 +564,7 @@ describe("dashboardDb public ISR invalidation", () => {
     });
 
     expect(revalidatePathMock).toHaveBeenCalledWith("/garden");
-    expect(revalidatePathMock).toHaveBeenCalledWith("/garden/page/[page]", "page");
+    expect(revalidatePathMock).toHaveBeenCalledWith("/garden/page/2");
     expect(revalidatePathMock).toHaveBeenCalledWith("/garden/search");
     expect(revalidatePathMock).toHaveBeenCalledWith("/catalogs");
     expectNoBasePublicTagInvalidations();
@@ -504,7 +600,7 @@ describe("dashboardDb public ISR invalidation", () => {
     });
 
     expect(revalidatePathMock).toHaveBeenCalledWith("/garden");
-    expect(revalidatePathMock).toHaveBeenCalledWith("/garden/page/[page]", "page");
+    expect(revalidatePathMock).toHaveBeenCalledWith("/garden/page/2");
     expect(revalidatePathMock).toHaveBeenCalledWith("/garden/search");
     expect(revalidatePathMock).toHaveBeenCalledWith("/catalogs");
     expectNoBasePublicTagInvalidations();

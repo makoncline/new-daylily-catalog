@@ -1,5 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server";
-import { revalidatePath, revalidateTag } from "next/cache";
+import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { env } from "@/env";
 
@@ -10,7 +10,6 @@ const revalidateRequestBodySchema = z.object({
       type: z.enum(["page", "layout"]).optional(),
     }),
   ),
-  tags: z.array(z.string().min(1)),
 });
 
 export async function POST(request: NextRequest) {
@@ -32,10 +31,6 @@ export async function POST(request: NextRequest) {
     }
 
     revalidatePath(entry.path);
-  });
-
-  parsedBody.data.tags.forEach((tag) => {
-    revalidateTag(tag, "max");
   });
 
   return NextResponse.json({ ok: true });

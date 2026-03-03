@@ -1,8 +1,9 @@
 import type { PrismaClient } from "@prisma/client";
-import { revalidatePath, revalidateTag } from "next/cache";
+import { revalidatePath } from "next/cache";
 import { env } from "@/env";
-import { CACHE_CONFIG } from "@/config/cache-config";
+import { PUBLIC_PROFILE_LISTINGS_PAGE_SIZE } from "@/config/constants";
 import { toCultivarRouteSegment } from "@/lib/utils/cultivar-utils";
+import { isPublished } from "@/server/db/public-visibility/filters";
 import { getBaseUrl } from "@/lib/utils/getBaseUrl";
 
 interface InvalidatePublicIsrForCatalogMutationInput {
@@ -10,10 +11,6 @@ interface InvalidatePublicIsrForCatalogMutationInput {
   userId: string;
   slugCandidates?: Array<string | null | undefined>;
   cultivarNormalizedNames?: Array<string | null | undefined>;
-  requestHeaders?: Headers;
-  includeBaseTags?: boolean;
-  includeForSaleCountTag?: boolean;
-  includeCatalogRoutesTag?: boolean;
 }
 
 interface RevalidatePathInput {
@@ -22,6 +19,7 @@ interface RevalidatePathInput {
 }
 
 const INTERNAL_REVALIDATE_ROUTE = "/api/internal/public-cache-revalidate";
+const PAGINATION_INVALIDATION_TAIL_PAGES = 2;
 
 function shouldIgnoreMissingStaticGenerationStoreError(error: unknown): boolean {
   return (
@@ -39,18 +37,6 @@ function safeRevalidatePath(path: string, type?: "page" | "layout"): void {
     }
 
     revalidatePath(path);
-  } catch (error) {
-    if (shouldIgnoreMissingStaticGenerationStoreError(error)) {
-      return;
-    }
-
-    throw error;
-  }
-}
-
-function safeRevalidateTag(tag: string): void {
-  try {
-    revalidateTag(tag, "max");
   } catch (error) {
     if (shouldIgnoreMissingStaticGenerationStoreError(error)) {
       return;
@@ -80,6 +66,20 @@ async function getCanonicalSlug(db: PrismaClient, userId: string): Promise<strin
   });
 
   return profile?.slug ?? userId;
+}
+
+async function getUserTotalPages(db: PrismaClient, userId: string): Promise<number> {
+  const listingCount = await db.listing.count({
+    where: {
+      userId,
+      ...isPublished(),
+    },
+  });
+
+  return Math.max(
+    1,
+    Math.ceil(listingCount / PUBLIC_PROFILE_LISTINGS_PAGE_SIZE),
+  );
 }
 
 function toCultivarSegments(
@@ -118,9 +118,7 @@ function toUniquePathInputs(paths: RevalidatePathInput[]): RevalidatePathInput[]
 }
 
 async function runRouteHandlerRevalidation(args: {
-  requestHeaders?: Headers;
   paths: RevalidatePathInput[];
-  tags: string[];
 }): Promise<boolean> {
   const origin = getTrustedRevalidationOrigin();
   if (!origin) {
@@ -137,7 +135,6 @@ async function runRouteHandlerRevalidation(args: {
       cache: "no-store",
       body: JSON.stringify({
         paths: args.paths,
-        tags: args.tags,
       }),
     });
 
@@ -148,17 +145,12 @@ async function runRouteHandlerRevalidation(args: {
 }
 
 async function applyPublicCacheRevalidations(args: {
-  requestHeaders?: Headers;
   paths: RevalidatePathInput[];
-  tags: string[];
 }): Promise<void> {
   const uniquePaths = toUniquePathInputs(args.paths);
-  const uniqueTags = Array.from(new Set(args.tags));
 
   const routeHandlerApplied = await runRouteHandlerRevalidation({
-    requestHeaders: args.requestHeaders,
     paths: uniquePaths,
-    tags: uniqueTags,
   });
 
   if (routeHandlerApplied) {
@@ -168,41 +160,24 @@ async function applyPublicCacheRevalidations(args: {
   uniquePaths.forEach((entry) => {
     safeRevalidatePath(entry.path, entry.type);
   });
-  uniqueTags.forEach((tag) => {
-    safeRevalidateTag(tag);
-  });
 }
-
-const REQUIRED_PUBLIC_CACHE_TAGS = [
-  CACHE_CONFIG.TAGS.PUBLIC_PROFILE,
-  CACHE_CONFIG.TAGS.PUBLIC_PROFILES,
-  CACHE_CONFIG.TAGS.PUBLIC_LISTINGS,
-  CACHE_CONFIG.TAGS.PUBLIC_LISTING_DETAIL,
-  CACHE_CONFIG.TAGS.PUBLIC_LISTINGS_PAGE,
-] as const;
 
 export async function invalidatePublicIsrForCatalogMutation(
   input: InvalidatePublicIsrForCatalogMutationInput,
 ): Promise<void> {
   const canonicalSlug = await getCanonicalSlug(input.db, input.userId);
   const slugs = toUniqueNonEmpty([canonicalSlug, ...(input.slugCandidates ?? [])]);
+  const totalPages = await getUserTotalPages(input.db, input.userId);
   const cultivarSegments = toCultivarSegments(input.cultivarNormalizedNames ?? []);
-  const includeBaseTags = input.includeBaseTags ?? true;
-
-  const tagsToRevalidate: string[] = includeBaseTags
-    ? [...REQUIRED_PUBLIC_CACHE_TAGS]
-    : [];
-  if (input.includeForSaleCountTag ?? includeBaseTags) {
-    tagsToRevalidate.push(CACHE_CONFIG.TAGS.PUBLIC_FOR_SALE_COUNT);
-  }
-  if (input.includeCatalogRoutesTag ?? includeBaseTags) {
-    tagsToRevalidate.push(CACHE_CONFIG.TAGS.PUBLIC_CATALOG_ROUTES);
-  }
   const pathsToRevalidate: RevalidatePathInput[] = [{ path: "/catalogs" }];
   slugs.forEach((slug) => {
     pathsToRevalidate.push({ path: `/${slug}` });
-    pathsToRevalidate.push({ path: `/${slug}/page/[page]`, type: "page" });
     pathsToRevalidate.push({ path: `/${slug}/search` });
+
+    const maxPage = totalPages + PAGINATION_INVALIDATION_TAIL_PAGES;
+    for (let page = 2; page <= maxPage; page += 1) {
+      pathsToRevalidate.push({ path: `/${slug}/page/${page}` });
+    }
   });
 
   cultivarSegments.forEach((segment) => {
@@ -210,8 +185,6 @@ export async function invalidatePublicIsrForCatalogMutation(
   });
 
   await applyPublicCacheRevalidations({
-    requestHeaders: input.requestHeaders,
     paths: pathsToRevalidate,
-    tags: tagsToRevalidate,
   });
 }
