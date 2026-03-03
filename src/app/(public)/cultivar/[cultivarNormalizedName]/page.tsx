@@ -15,6 +15,7 @@ import { CultivarHeroSection } from "./_components/cultivar-hero-section";
 import { CultivarGardenPhotosSection } from "./_components/cultivar-garden-photos-section";
 import { CultivarOffersSection } from "./_components/cultivar-offers-section";
 import { Muted } from "@/components/typography";
+import { generateCultivarJsonLd } from "./_seo/json-ld";
 
 export const revalidate = false;
 export const dynamic = "force-static";
@@ -28,65 +29,6 @@ interface PageProps {
   params: Promise<{
     cultivarNormalizedName: string;
   }>;
-}
-
-function getCultivarJsonLd(
-  baseUrl: string,
-  canonicalSegment: string,
-  cultivarPage: NonNullable<
-    Awaited<ReturnType<typeof getCachedPublicCultivarPage>>
-  >,
-) {
-  const pageUrl = `${baseUrl}/cultivar/${canonicalSegment}`;
-  const productOffers = cultivarPage.offers.gardenCards.flatMap((garden) =>
-    garden.offers
-      .filter((offer) => offer.price !== null)
-      .map((offer) => ({
-        "@type": "Offer",
-        price: offer.price!.toFixed(2),
-        priceCurrency: "USD",
-        availability: "https://schema.org/InStock",
-        seller: {
-          "@type": "Organization",
-          name: garden.title,
-          url: `${baseUrl}/${garden.slug}`,
-        },
-        url: `${baseUrl}/${garden.slug}?viewing=${offer.id}`,
-      })),
-  );
-
-  return {
-    "@context": "https://schema.org",
-    "@type": "Product",
-    name: cultivarPage.summary.name,
-    description: `${cultivarPage.summary.name} cultivar page with specs and public catalog offers.`,
-    url: pageUrl,
-    image: cultivarPage.heroImages.map((image) => image.url),
-    category: "Daylily Cultivar",
-    brand: {
-      "@type": "Organization",
-      name: METADATA_CONFIG.SITE_NAME,
-    },
-    additionalProperty: cultivarPage.quickSpecs.all.map((spec) => ({
-      "@type": "PropertyValue",
-      name: spec.label,
-      value: spec.value,
-    })),
-    ...(productOffers.length > 0
-      ? {
-          offers: productOffers,
-        }
-      : {}),
-    // TODO: Re-enable related-cultivar links after optimizing cultivar-page fan-out.
-    /*
-    isRelatedTo: cultivarPage.relatedByHybridizer.map((cultivar) => ({
-      "@type": "Product",
-      name: cultivar.name,
-      url: `${baseUrl}/cultivar/${cultivar.segment}`,
-      image: cultivar.imageUrl,
-    })),
-    */
-  };
 }
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
@@ -166,7 +108,7 @@ export default async function CultivarPage({ params }: PageProps) {
   }
 
   const baseUrl = getBaseUrl();
-  const jsonLd = getCultivarJsonLd(
+  const jsonLd = generateCultivarJsonLd(
     baseUrl,
     canonicalSegment ?? cultivarNormalizedName,
     cultivarPage,

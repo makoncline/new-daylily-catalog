@@ -2,6 +2,8 @@
 
 ## Log
 
+- 2026-03-03 - test fixture type-assertion pattern - Minimal typed fixtures for router-output-heavy helpers should cast through `unknown` (`as unknown as T`) to satisfy TS overlap checks during `npx tsc --noEmit`.
+- 2026-03-03 - self-miss public path quoting recurrence - I ran `rg` with an unquoted `src/app/(public)` path and triggered zsh glob parsing; always quote App Router paths containing `()`/`[]`.
 - 2026-03-03 - sitemap frequency refinement - User wants `/catalogs` set to `weekly` (single page cost acceptable) while cultivar pages remain `monthly`.
 - 2026-03-03 - sitemap frequency preference update - User wants public listing/profile URLs to remain `weekly`, but cultivar sitemap URLs should use `monthly` changeFrequency.
 - 2026-03-03 - crawler policy preference correction - User wants AI crawler bots allowed; do not block them in `robots.ts`.
