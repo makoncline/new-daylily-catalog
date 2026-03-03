@@ -22,7 +22,12 @@ export type PosthogEventProperties = Record<
   boolean | null | number | string | undefined
 >;
 
-function canCapturePosthogEvents() {
+export interface PosthogUserIdentity {
+  id: string;
+  email?: string;
+}
+
+function canUsePosthog() {
   const posthogKey = process.env.NEXT_PUBLIC_POSTHOG_KEY;
   return process.env.NODE_ENV === "production" && Boolean(posthogKey);
 }
@@ -31,9 +36,27 @@ export function capturePosthogEvent(
   event: PosthogEventName,
   properties?: PosthogEventProperties,
 ) {
-  if (!canCapturePosthogEvents()) {
+  if (!canUsePosthog()) {
     return;
   }
 
   posthog.capture(event, properties);
+}
+
+export function identifyPosthogUser(identity: PosthogUserIdentity) {
+  if (!canUsePosthog()) {
+    return;
+  }
+
+  posthog.identify(identity.id, {
+    email: identity.email,
+  });
+}
+
+export function resetPosthogUser() {
+  if (!canUsePosthog()) {
+    return;
+  }
+
+  posthog.reset();
 }
