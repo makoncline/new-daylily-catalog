@@ -5,7 +5,6 @@ import { PosthogUserIdentification } from "@/components/posthog-user-identificat
 interface MockPosthogUser {
   id: string;
   primaryEmailAddress: { emailAddress: string } | null;
-  emailAddresses: Array<{ emailAddress: string }>;
 }
 
 interface MockUseUserResult {
@@ -46,7 +45,6 @@ describe("PosthogUserIdentification", () => {
         primaryEmailAddress: {
           emailAddress: "user@example.com",
         },
-        emailAddresses: [],
       },
     });
 
@@ -72,7 +70,6 @@ describe("PosthogUserIdentification", () => {
         primaryEmailAddress: {
           emailAddress: "user@example.com",
         },
-        emailAddresses: [],
       },
     });
 

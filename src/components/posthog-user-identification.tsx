@@ -9,25 +9,24 @@ import {
 
 export function PosthogUserIdentification() {
   const { isLoaded, isSignedIn, user } = useUser();
+  const userId = user?.id;
+  const userEmail = user?.primaryEmailAddress?.emailAddress;
 
   useEffect(() => {
     if (!isLoaded) {
       return;
     }
 
-    if (!isSignedIn || !user) {
+    if (!isSignedIn || !userId) {
       resetPosthogUser();
       return;
     }
 
-    const primaryEmail =
-      user.primaryEmailAddress?.emailAddress ?? user.emailAddresses[0]?.emailAddress;
-
     identifyPosthogUser({
-      id: user.id,
-      email: primaryEmail,
+      id: userId,
+      email: userEmail,
     });
-  }, [isLoaded, isSignedIn, user]);
+  }, [isLoaded, isSignedIn, userEmail, userId]);
 
   return null;
 }

@@ -2,6 +2,7 @@
 
 ## Log
 
+- 2026-03-03 - deslop email-source consistency - For Clerk user identification flows in this repo, prefer `primaryEmailAddress?.emailAddress` directly and avoid fallback to secondary email arrays unless there is a product requirement.
 - 2026-03-03 - posthog identify payload preference - User wants PostHog user identification limited to `userId` and `email` only (no name/username traits).
 - 2026-03-03 - test mock typing lint gotcha - `vi.mock` wrappers that return `vi.fn()` results can trigger `@typescript-eslint/no-unsafe-return`; type the mock function signature (e.g. `vi.fn<() => T>()`) before returning it.
 - 2026-03-03 - self-miss napkin disclosure recurrence - I again mentioned napkin workflow in the first progress update of a new session; keep progress updates focused on task steps only.
