@@ -19,38 +19,40 @@ import { api } from "@/trpc/react";
 import { PublicCatalogSearchContent } from "./public-catalog-search-content";
 import { type PublicCatalogSearchClientProps } from "./public-catalog-search-types";
 
-export function PublicCatalogSearchClient({
+type PublicCatalogSearchListingsPage =
+  PublicCatalogSearchClientProps["initialListings"];
+type PublicCatalogSearchListingsData = {
+  pages: PublicCatalogSearchListingsPage[];
+  pageParams: Array<string | undefined>;
+};
+
+interface SnapshotEffectsArgs {
+  userId: string;
+  userSlugOrId: string;
+  queryInput: {
+    userSlugOrId: string;
+    limit: number;
+  };
+  utils: ReturnType<typeof api.useUtils>;
+  data: PublicCatalogSearchListingsData | undefined;
+  hasNextPage: boolean | undefined;
+  isFetchingNextPage: boolean;
+  fetchNextPage: () => Promise<unknown>;
+}
+
+function usePublicCatalogSearchSnapshotEffects({
   userId,
   userSlugOrId,
-  lists,
-  initialListings,
-  totalListingsCount,
-}: PublicCatalogSearchClientProps) {
-  const utils = api.useUtils();
+  queryInput,
+  utils,
+  data,
+  hasNextPage,
+  isFetchingNextPage,
+  fetchNextPage,
+}: SnapshotEffectsArgs) {
   const [isSnapshotCheckDone, setIsSnapshotCheckDone] = useState(
     !PUBLIC_CATALOG_SEARCH_PERSISTED_SWR.enabled,
   );
-  const [isRefreshingCatalogData, setIsRefreshingCatalogData] = useState(false);
-  const queryInput = useMemo(
-    () => ({
-      userSlugOrId,
-      limit: PUBLIC_CATALOG_SEARCH_PERSISTED_SWR.queryLimit,
-    }),
-    [userSlugOrId],
-  );
-
-  const { data, fetchNextPage, hasNextPage, isFetchingNextPage } =
-    api.public.getListings.useInfiniteQuery(
-      queryInput,
-      withPublicClientQueryCache({
-        getNextPageParam: (lastPage) => lastPage[lastPage.length - 1]?.id,
-        initialData: {
-          pages: [initialListings],
-          pageParams: [undefined],
-        },
-        retry: false,
-      }),
-    );
 
   useEffect(() => {
     if (!PUBLIC_CATALOG_SEARCH_PERSISTED_SWR.enabled) {
@@ -119,22 +121,76 @@ export function PublicCatalogSearchClient({
 
     void writePublicCatalogSearchSnapshot(snapshot);
   }, [data, hasNextPage, isFetchingNextPage, userId, userSlugOrId]);
+}
 
+function getClientListings({
+  data,
+  initialListings,
+}: {
+  data: PublicCatalogSearchListingsData | undefined;
+  initialListings: PublicCatalogSearchClientProps["initialListings"];
+}) {
   const dataPages = data?.pages;
-  const listings = (() => {
-    if (!dataPages) {
-      return initialListings;
-    }
 
-    const allListings = dataPages.flat();
-    const uniqueListings = new Map<string, (typeof allListings)[number]>();
+  if (!dataPages) {
+    return initialListings;
+  }
 
-    allListings.forEach((listing) => {
-      uniqueListings.set(listing.id, listing);
-    });
+  const allListings = dataPages.flat();
+  const uniqueListings = new Map<string, (typeof allListings)[number]>();
 
-    return sortTitlesLettersBeforeNumbers(Array.from(uniqueListings.values()));
-  })();
+  allListings.forEach((listing) => {
+    uniqueListings.set(listing.id, listing);
+  });
+
+  return sortTitlesLettersBeforeNumbers(Array.from(uniqueListings.values()));
+}
+
+export function PublicCatalogSearchClient({
+  userId,
+  userSlugOrId,
+  lists,
+  initialListings,
+  totalListingsCount,
+}: PublicCatalogSearchClientProps) {
+  const utils = api.useUtils();
+  const [isRefreshingCatalogData, setIsRefreshingCatalogData] = useState(false);
+  const queryInput = useMemo(
+    () => ({
+      userSlugOrId,
+      limit: PUBLIC_CATALOG_SEARCH_PERSISTED_SWR.queryLimit,
+    }),
+    [userSlugOrId],
+  );
+
+  const { data, fetchNextPage, hasNextPage, isFetchingNextPage } =
+    api.public.getListings.useInfiniteQuery(
+      queryInput,
+      withPublicClientQueryCache({
+        getNextPageParam: (lastPage) => lastPage[lastPage.length - 1]?.id,
+        initialData: {
+          pages: [initialListings],
+          pageParams: [undefined],
+        },
+        retry: false,
+      }),
+    );
+
+  usePublicCatalogSearchSnapshotEffects({
+    userId,
+    userSlugOrId,
+    queryInput,
+    utils,
+    data,
+    hasNextPage,
+    isFetchingNextPage,
+    fetchNextPage,
+  });
+
+  const listings = getClientListings({
+    data,
+    initialListings,
+  });
 
   const handleRefreshCatalogData = async () => {
     if (isRefreshingCatalogData) {
