@@ -2,6 +2,8 @@
 
 ## Log
 
+- 2026-03-03 - self-miss napkin disclosure repeat - I referenced napkin workflow in a user-facing status update again; keep napkin usage silent.
+- 2026-03-03 - sitemap host policy - In Vercel production (`VERCEL_ENV=production`), sitemap/robots should use `VERCEL_PROJECT_PRODUCTION_URL`; in preview/local, use the current request/deployment host (`VERCEL_URL`) or localhost fallback.
 - 2026-03-03 - crawler policy split - User wants search-engine crawlers allowed while temporarily blocking AI/non-search crawlers; keep `Googlebot`/`Bingbot`/`msnbot`/`SeznamBot` out of blocked UA list.
 - 2026-03-03 - bot policy temporary override - User switched back to blocking bots due traffic surge; `robots.ts` now disallows major crawler user agents (including Google/Bing + AI bots) for now.
 - 2026-03-03 - sitemap frequency refinement - User wants `/catalogs` set to `weekly` (single page cost acceptable) while cultivar pages remain `monthly`.
