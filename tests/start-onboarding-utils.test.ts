@@ -53,9 +53,9 @@ describe("start onboarding utils", () => {
     expect(getNextIncompleteListingField(withCultivar)).toBe("title");
 
     const withTitle = { ...withCultivar, title: "Moonlit Petals division" };
-    expect(getNextIncompleteListingField(withTitle)).toBeNull();
+    expect(getNextIncompleteListingField(withTitle)).toBe("price");
 
-    const completeDraft = { ...withTitle };
+    const completeDraft = { ...withTitle, price: 25 };
     expect(isListingOnboardingDraftComplete(completeDraft)).toBe(true);
     expect(getNextIncompleteListingField(completeDraft)).toBeNull();
   });

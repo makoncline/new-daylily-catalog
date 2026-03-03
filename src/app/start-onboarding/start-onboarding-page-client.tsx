@@ -635,18 +635,30 @@ export function StartOnboardingPageClient({
   const selectedStarterImagePreviewUrl = normalizePersistedImageUrl(
     selectedStarterImageUrl,
   );
+  const profileNameDraftValue = profileDraft.gardenName.trim();
+  const profileDescriptionDraftValue = profileDraft.description.trim();
+  const profileLocationDraftValue = profileDraft.location.trim();
   const profileNamePreview =
-    profileDraft.gardenName.trim() ||
-    persistedProfileTitle ||
-    DEFAULT_GARDEN_NAME_PLACEHOLDER;
+    profileNameDraftValue || persistedProfileTitle || DEFAULT_GARDEN_NAME_PLACEHOLDER;
+  const profileNameForBuyerContactPreview =
+    profileNameDraftValue || persistedProfileTitle;
   const profileDescriptionPreview =
-    profileDraft.description.trim() ||
+    profileDescriptionDraftValue ||
     persistedProfileDescription ||
     DEFAULT_PROFILE_DESCRIPTION_PLACEHOLDER;
+  const profileDescriptionForBuyerContactPreview =
+    profileDescriptionDraftValue || persistedProfileDescription;
   const profileLocationPreview =
-    profileDraft.location.trim() ||
-    persistedProfileLocation ||
-    DEFAULT_LOCATION_PLACEHOLDER;
+    profileLocationDraftValue || persistedProfileLocation || DEFAULT_LOCATION_PLACEHOLDER;
+  const profileLocationForBuyerContactPreview =
+    profileLocationDraftValue || persistedProfileLocation;
+  const isProfileNamePlaceholder =
+    profileNameDraftValue.length === 0 && persistedProfileTitle.length === 0;
+  const isProfileDescriptionPlaceholder =
+    profileDescriptionDraftValue.length === 0 &&
+    persistedProfileDescription.length === 0;
+  const isProfileLocationPlaceholder =
+    profileLocationDraftValue.length === 0 && persistedProfileLocation.length === 0;
   const profileImagePreviewUrl =
     pendingStarterPreviewUrl ??
     pendingProfileUploadPreviewUrl ??
@@ -746,18 +758,23 @@ export function StartOnboardingPageClient({
     listingTitleDraftValue ||
     persistedListingTitle ||
     DEFAULT_LISTING_TITLE_PLACEHOLDER;
+  const listingTitleForBuyerContactPreview =
+    listingTitleDraftValue || persistedListingTitle;
   const listingDescriptionPreview =
     listingDescriptionDraftValue ||
     persistedListingDescription ||
     DEFAULT_LISTING_DESCRIPTION_PLACEHOLDER;
   const listingDescriptionForBuyerContactPreview =
-    listingDescriptionDraftValue ||
-    persistedListingDescription ||
-    DEFAULT_LISTING_DESCRIPTION_PLACEHOLDER;
+    listingDescriptionDraftValue || persistedListingDescription;
   const listingPriceForBuyerContactPreview =
-    listingDraft.price ??
-    persistedListingPrice ??
-    ONBOARDING_LISTING_DEFAULTS.contactPreviewFallbackPrice;
+    listingDraft.price ?? persistedListingPrice;
+  const isListingTitlePlaceholder =
+    listingTitleDraftValue.length === 0 && persistedListingTitle.length === 0;
+  const isListingDescriptionPlaceholder =
+    listingDescriptionDraftValue.length === 0 &&
+    persistedListingDescription.length === 0;
+  const isListingPricePlaceholder = listingDraft.price === null;
+  const isListingCultivarPlaceholder = !selectedCultivarName;
   const isBuyerContactPreviewHydrating =
     profileQuery.isPending || listingQuery.isPending;
   const listingDescriptionCharacterCount = listingDescriptionDraftValue.length;
@@ -790,7 +807,7 @@ export function StartOnboardingPageClient({
       key: "price",
       label: "Add a price",
       done: listingDraft.price !== null,
-      required: false,
+      required: true,
     },
     {
       key: "description",
@@ -1548,7 +1565,7 @@ export function StartOnboardingPageClient({
   const saveListingDraft = async () => {
     if (!isListingOnboardingDraftComplete(listingDraft)) {
       focusListingField(listingMissingField ?? "cultivar");
-      toast.error("Complete cultivar and listing name first.");
+      toast.error("Complete cultivar, listing name, and price first.");
       return false;
     }
 
@@ -2257,7 +2274,12 @@ export function StartOnboardingPageClient({
                         active={focusedProfileField === "gardenName"}
                         onClick={() => focusProfileField("gardenName")}
                       />
-                      <p className="text-4xl leading-tight font-bold tracking-tight">
+                      <p
+                        className={cn(
+                          "text-4xl leading-tight font-bold tracking-tight",
+                          isProfileNamePlaceholder && "text-yellow-700",
+                        )}
+                      >
                         {profileNamePreview}
                       </p>
                     </div>
@@ -2271,7 +2293,10 @@ export function StartOnboardingPageClient({
                       />
                       <Badge
                         variant="secondary"
-                        className="inline-flex items-center gap-1 pr-2 text-base"
+                        className={cn(
+                          "inline-flex items-center gap-1 pr-2 text-base",
+                          isProfileLocationPlaceholder && "text-yellow-700",
+                        )}
                       >
                         <MapPin className="h-4 w-4" />
                         {profileLocationPreview}
@@ -2285,12 +2310,20 @@ export function StartOnboardingPageClient({
                         active={focusedProfileField === "description"}
                         onClick={() => focusProfileField("description")}
                       />
-                      <p className="text-muted-foreground text-lg leading-relaxed">
+                      <p
+                        className={cn(
+                          "text-lg leading-relaxed",
+                          isProfileDescriptionPlaceholder
+                            ? "text-yellow-700"
+                            : "text-muted-foreground",
+                        )}
+                      >
                         {profileDescriptionPreview}
                       </p>
                     </div>
                   </div>
                 </div>
+                <PreviewPlaceholderNote />
 
                 <div className="space-y-3">
                   <h3 className="text-xl font-semibold tracking-tight">
@@ -2458,8 +2491,10 @@ export function StartOnboardingPageClient({
                     placeholder="25"
                   />
                   <p className="text-muted-foreground text-xs leading-relaxed">
-                    Optional in onboarding. Add a price now if you want to
-                    preview add-to-cart behavior.
+                    Add a price now to preview add-to-cart behavior.
+                    <br />
+                    Required in onboarding so you can preview the add to cart
+                    flow.
                   </p>
                 </div>
 
@@ -2612,7 +2647,10 @@ export function StartOnboardingPageClient({
                         variant={
                           listingDraft.price !== null ? "secondary" : "outline"
                         }
-                        className="bg-background/90 backdrop-blur-sm"
+                        className={cn(
+                          "bg-background/90 backdrop-blur-sm",
+                          isListingPricePlaceholder && "text-yellow-700",
+                        )}
                       >
                         {listingDraft.price !== null
                           ? formatPrice(listingDraft.price)
@@ -2629,7 +2667,12 @@ export function StartOnboardingPageClient({
                         active={activeListingField === "title"}
                         onClick={() => focusListingField("title")}
                       />
-                      <p className="text-xl font-semibold tracking-tight">
+                      <p
+                        className={cn(
+                          "text-xl font-semibold tracking-tight",
+                          isListingTitlePlaceholder && "text-yellow-700",
+                        )}
+                      >
                         {listingTitlePreview}
                       </p>
                     </div>
@@ -2647,7 +2690,14 @@ export function StartOnboardingPageClient({
                           Linked: {selectedCultivarName}
                         </div>
                       ) : (
-                        <div className="text-muted-foreground bg-secondary inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs">
+                        <div
+                          className={cn(
+                            "bg-secondary inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs",
+                            isListingCultivarPlaceholder
+                              ? "text-yellow-700"
+                              : "text-muted-foreground",
+                          )}
+                        >
                           <Link2 className="h-3.5 w-3.5" />
                           Link a cultivar reference
                         </div>
@@ -2675,7 +2725,14 @@ export function StartOnboardingPageClient({
                         active={activeListingField === "description"}
                         onClick={() => focusListingField("description")}
                       />
-                      <p className="text-muted-foreground text-sm leading-relaxed">
+                      <p
+                        className={cn(
+                          "text-sm leading-relaxed",
+                          isListingDescriptionPlaceholder
+                            ? "text-yellow-700"
+                            : "text-muted-foreground",
+                        )}
+                      >
                         {listingDescriptionPreview}
                       </p>
                     </div>
@@ -2695,6 +2752,7 @@ export function StartOnboardingPageClient({
                     ) : null}
                   </div>
                 </div>
+                <PreviewPlaceholderNote />
 
                 <div className="space-y-3">
                   <h3 className="text-xl font-semibold tracking-tight">
@@ -2756,10 +2814,10 @@ export function StartOnboardingPageClient({
                     </p>
                     <div className="relative max-w-sm">
                       <ProfilePreviewCard
-                        title={profileNamePreview}
-                        description={profileDescriptionPreview}
+                        title={profileNameForBuyerContactPreview}
+                        description={profileDescriptionForBuyerContactPreview}
                         imageUrl={profileImagePreviewUrl}
-                        location={profileLocationPreview}
+                        location={profileLocationForBuyerContactPreview}
                         variant="owned"
                         ownershipBadge="Yours"
                         footerAction={
@@ -2794,7 +2852,7 @@ export function StartOnboardingPageClient({
                     </p>
                     <div className="relative max-w-sm">
                       <ListingPreviewCard
-                        title={listingTitlePreview}
+                        title={listingTitleForBuyerContactPreview}
                         description={listingDescriptionForBuyerContactPreview}
                         price={listingPriceForBuyerContactPreview}
                         linkedLabel={selectedCultivarName}
@@ -3485,6 +3543,16 @@ function PreviewBullet({ text }: { text: string }) {
     <p className="flex items-start gap-2">
       <CheckCircle2 className="mt-0.5 h-4 w-4 text-emerald-600" />
       <span>{text}</span>
+    </p>
+  );
+}
+
+function PreviewPlaceholderNote() {
+  return (
+    <p className="text-muted-foreground text-xs leading-relaxed">
+      <span className="font-medium text-yellow-700">Yellow text</span> marks
+      temporary sample copy shown only in this editor. It will not appear on
+      your live catalog cards.
     </p>
   );
 }
