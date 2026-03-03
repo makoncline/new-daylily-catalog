@@ -74,7 +74,7 @@ test.describe("onboarding full flow @local", () => {
       await homePage.goto();
       await homePage.isReady();
       await page
-        .getByRole("button", { name: "Create your catalog" })
+        .getByRole("link", { name: "Create your catalog" })
         .first()
         .click();
       await expect(page).toHaveURL(/\/start-membership/);

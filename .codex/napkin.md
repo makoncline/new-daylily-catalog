@@ -2,6 +2,9 @@
 
 ## Log
 
+- 2026-03-03 - homepage CTA role in e2e - Home `Create your catalog` uses `Button asChild` with `next/link`, so Playwright should target role `link` (not `button`) in onboarding entry e2e steps.
+- 2026-03-03 - cultivar CTA style/placement preference - Use the same banner style as `/catalogs` (`bg-card` row + small primary button) and place it between cultivar photos and offers, not at the page bottom.
+- 2026-03-03 - cultivar seller CTA placement - Keep cultivar-page seller-intent CTA lightweight (inline row after offers) instead of adding another heavy card module; use `SellerIntentLink` with `entry_surface="cultivar_page_inline_cta"`.
 - 2026-03-03 - seller landing redesign pattern - Full-bleed hero with background image + overlay (matching home page) creates atmosphere; alternate white and `bg-muted/50` sections for visual rhythm; close with background-image CTA. Use `text-white` on dark overlays, not `text-background` (background maps to the light theme value). Remove `border-b` from layout header when hero sits directly below for seamless edge-to-edge feel.
 - 2026-03-03 - self-miss metadata import recurrence - I again accidentally imported `Metadata` from `react` while rewriting `/start-membership`; always import `Metadata` from `next` in App Router files.
 - 2026-03-03 - user visual-quality correction on seller landing - `/start-membership` should visually match existing public pages; avoid flat wireframe-like sections and use stronger hierarchy/atmosphere while keeping static performance.
