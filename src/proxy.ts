@@ -109,8 +109,11 @@ export const proxy = clerkMiddleware(async (auth, req) => {
     isLegacyProfileSegment(legacyProfileMatch[1])
   ) {
     const legacyProfileSegment = legacyProfileMatch[1];
+    const hasNonPageRequestParams = hasNonPageProfileParams(
+      req.nextUrl.searchParams,
+    );
 
-    if (req.nextUrl.searchParams.size > 0) {
+    if (req.nextUrl.searchParams.size > 0 && hasNonPageRequestParams) {
       const canonicalUserSlug = await resolveCanonicalUserSlug(
         req,
         legacyProfileSegment,
@@ -125,9 +128,6 @@ export const proxy = clerkMiddleware(async (auth, req) => {
 
     const pageParam = req.nextUrl.searchParams.get("page");
     const requestedPage = parsePositiveInteger(pageParam, 1);
-    const hasNonPageRequestParams = hasNonPageProfileParams(
-      req.nextUrl.searchParams,
-    );
 
     if (requestedPage > 1) {
       const rewriteUrl = req.nextUrl.clone();

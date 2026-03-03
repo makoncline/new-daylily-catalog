@@ -2,6 +2,12 @@
 
 ## Log
 
+- 2026-03-03 - sitemap frequency refinement - User wants `/catalogs` set to `weekly` (single page cost acceptable) while cultivar pages remain `monthly`.
+- 2026-03-03 - sitemap frequency preference update - User wants public listing/profile URLs to remain `weekly`, but cultivar sitemap URLs should use `monthly` changeFrequency.
+- 2026-03-03 - crawler policy preference correction - User wants AI crawler bots allowed; do not block them in `robots.ts`.
+- 2026-03-03 - edge request fan-out reduction pattern - In `proxy`, canonical profile lookup is only needed for non-page query params; skip `/api/public-profile-canonical` fetches for plain `?page=` pagination rewrites to prevent doubling request volume.
+- 2026-03-03 - crawler budget protection pattern - `robots.ts` should explicitly disallow known AI crawler user agents (`ClaudeBot`, `meta-externalagent`, `GPTBot`, `GoogleOther`, etc.) while still allowing traditional search-index bots (`Googlebot`, `Bingbot`, `msnbot`) on public SEO routes.
+- 2026-03-03 - self-miss napkin disclosure repeat - I mentioned napkin-skill usage in a user-facing update again; keep napkin workflow silent in progress updates.
 - 2026-03-03 - pagination shrink safety - With long-lived ISR caches, concrete page invalidation must include a tail buffer (`totalPages + 2`) so previously valid higher pages (e.g. page 3 after 3→2 shrink) get revalidated to 404 instead of staying stale.
 - 2026-03-03 - concrete paginated invalidation pattern - For profile pagination freshness, compute user `totalPages` from published listing count and revalidate concrete `/{slug}/page/{n}` URLs for `n>=2`; avoid dynamic route-pattern invalidation for this path.
 - 2026-03-03 - paginated revalidatePath pattern - For App Router `revalidatePath(..., "page")` on dynamic paginated profile routes, use the route pattern (`"/[userSlugOrId]/page/[page]"`) instead of slug-specific strings like `"/garden/page/[page]"`.
