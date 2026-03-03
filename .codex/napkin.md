@@ -2,6 +2,10 @@
 
 ## Log
 
+- 2026-03-03 - deslop email-source consistency - For Clerk user identification flows in this repo, prefer `primaryEmailAddress?.emailAddress` directly and avoid fallback to secondary email arrays unless there is a product requirement.
+- 2026-03-03 - posthog identify payload preference - User wants PostHog user identification limited to `userId` and `email` only (no name/username traits).
+- 2026-03-03 - test mock typing lint gotcha - `vi.mock` wrappers that return `vi.fn()` results can trigger `@typescript-eslint/no-unsafe-return`; type the mock function signature (e.g. `vi.fn<() => T>()`) before returning it.
+- 2026-03-03 - self-miss napkin disclosure recurrence - I again mentioned napkin workflow in the first progress update of a new session; keep progress updates focused on task steps only.
 - 2026-03-03 - stripe checkout unit-test isolation - `stripe.generateCheckout` now consults `getStripeSubscription` when `stripeCustomerId` exists; unit tests that create a raw router caller must mock `@/server/stripe/sync-subscription` or they can hit real KV/Prisma and fail with sqlite open errors.
 - 2026-03-03 - test fixture type-assertion pattern - Minimal typed fixtures for router-output-heavy helpers should cast through `unknown` (`as unknown as T`) to satisfy TS overlap checks during `npx tsc --noEmit`.
 - 2026-03-03 - self-miss public path quoting recurrence - I ran `rg` with an unquoted `src/app/(public)` path and triggered zsh glob parsing; always quote App Router paths containing `()`/`[]`.

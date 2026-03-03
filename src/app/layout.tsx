@@ -9,6 +9,7 @@ import { TooltipProvider } from "@radix-ui/react-tooltip";
 import { ClerkUserProfileDialog } from "@/components/clerk-user-profile-dialog";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import { AdminMenu } from "@/components/admin-menu";
+import { PosthogUserIdentification } from "@/components/posthog-user-identification";
 
 export const metadata: Metadata = {
   title: "Daylily Catalog",
@@ -28,6 +29,7 @@ export default function RootLayout({
               <Toaster />
               <ClerkUserProfileDialog />
               <AdminMenu />
+              <PosthogUserIdentification />
               <SpeedInsights />
             </body>
           </html>
