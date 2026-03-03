@@ -471,3 +471,4 @@
 - 2026-03-01 - onboarding profile requirement update - User wants seller description optional on profile step; only profile image + seller name should gate continue/save.
 - 2026-03-01 - listing description seo copy preference - User wants listing description helper to explicitly mention it appears on listing card and on Google search results, mirroring profile description guidance.
 - 2026-03-01 - onboarding description aim copy dedupe - Consolidated the shared "Aim for X-Y characters." text for profile/listing description helpers into one `getDescriptionLengthAimText` utility to keep wording consistent.
+- 2026-03-03 - turbopack symlink restriction - Local Playwright/Next dev server fails when worktree `node_modules` is a symlink outside repo root (`Symlink node_modules is invalid`); use a real in-worktree install for e2e.

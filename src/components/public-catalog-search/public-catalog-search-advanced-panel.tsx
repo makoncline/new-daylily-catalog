@@ -324,6 +324,36 @@ function countActiveFilters(
   return columns.filter(isColumnFiltered).length;
 }
 
+function AdvancedFilterSection({
+  value,
+  label,
+  count,
+  className,
+  children,
+}: {
+  value: string;
+  label: string;
+  count: number;
+  className?: string;
+  children: ReactNode;
+}) {
+  return (
+    <AccordionItem value={value} className={className}>
+      <AccordionTrigger>
+        <span className="flex items-center gap-2">
+          {label}
+          {count > 0 ? (
+            <Badge variant="secondary" className="px-1.5 py-0 text-[10px]">
+              {count}
+            </Badge>
+          ) : null}
+        </span>
+      </AccordionTrigger>
+      <AccordionContent>{children}</AccordionContent>
+    </AccordionItem>
+  );
+}
+
 function BooleanFilterToggle({
   table,
   column,
@@ -571,6 +601,33 @@ export function PublicCatalogSearchAdvancedPanel({
   const fragranceColumn = table.getColumn("fragrance") ?? null;
   const colorColumn = table.getColumn("color") ?? null;
   const parentageColumn = table.getColumn("parentage") ?? null;
+  const listingFiltersCount = countActiveFilters([
+    titleColumn,
+    descriptionColumn,
+    priceValueColumn,
+    linkedToCultivarColumn,
+  ]);
+  const registrationFiltersCount = countActiveFilters([
+    cultivarNameColumn,
+    hybridizerColumn,
+    yearColumn,
+  ]);
+  const bloomTraitsFiltersCount = countActiveFilters([
+    bloomHabitColumn,
+    bloomSeasonColumn,
+    scapeHeightColumn,
+    bloomSizeColumn,
+    budcountColumn,
+    branchesColumn,
+  ]);
+  const detailsFiltersCount = countActiveFilters([
+    formColumn,
+    ploidyColumn,
+    foliageTypeColumn,
+    fragranceColumn,
+    colorColumn,
+    parentageColumn,
+  ]);
 
   if (collapsed) {
     return (
@@ -674,289 +731,200 @@ export function PublicCatalogSearchAdvancedPanel({
           defaultValue={["listing"]}
           className="mt-4 space-y-1"
         >
-          <AccordionItem value="listing">
-            <AccordionTrigger>
-              <span className="flex items-center gap-2">
-                Listing
-                {countActiveFilters([
-                  titleColumn,
-                  descriptionColumn,
-                  priceValueColumn,
-                  linkedToCultivarColumn,
-                ]) > 0 && (
-                  <Badge
-                    variant="secondary"
-                    className="px-1.5 py-0 text-[10px]"
-                  >
-                    {countActiveFilters([
-                      titleColumn,
-                      descriptionColumn,
-                      priceValueColumn,
-                      linkedToCultivarColumn,
-                    ])}
-                  </Badge>
-                )}
-              </span>
-            </AccordionTrigger>
-            <AccordionContent>
-              <div className="space-y-4">
-                <TextFilterControl
-                  table={table}
-                  column={titleColumn}
-                  label="Title"
-                  placeholder="Search listing title"
-                  testId="advanced-filter-title"
-                />
-                <TextFilterControl
-                  table={table}
-                  column={descriptionColumn}
-                  label="Description"
-                  placeholder="Search description"
-                  testId="advanced-filter-description"
-                />
-                <RangeFilterControl
-                  table={table}
-                  column={priceValueColumn}
-                  label="Price"
-                  unit="$"
-                  testId="advanced-filter-price-range"
-                />
-                <BooleanFilterToggle
-                  table={table}
-                  column={linkedToCultivarColumn}
-                  label="Linked to Cultivar"
-                  icon={<Link2 className="h-4 w-4" />}
-                  testId="advanced-filter-linked-to-cultivar"
-                />
-              </div>
-            </AccordionContent>
-          </AccordionItem>
+          <AdvancedFilterSection
+            value="listing"
+            label="Listing"
+            count={listingFiltersCount}
+          >
+            <div className="space-y-4">
+              <TextFilterControl
+                table={table}
+                column={titleColumn}
+                label="Title"
+                placeholder="Search listing title"
+                testId="advanced-filter-title"
+              />
+              <TextFilterControl
+                table={table}
+                column={descriptionColumn}
+                label="Description"
+                placeholder="Search description"
+                testId="advanced-filter-description"
+              />
+              <RangeFilterControl
+                table={table}
+                column={priceValueColumn}
+                label="Price"
+                unit="$"
+                testId="advanced-filter-price-range"
+              />
+              <BooleanFilterToggle
+                table={table}
+                column={linkedToCultivarColumn}
+                label="Linked to Cultivar"
+                icon={<Link2 className="h-4 w-4" />}
+                testId="advanced-filter-linked-to-cultivar"
+              />
+            </div>
+          </AdvancedFilterSection>
 
-          <AccordionItem value="registration">
-            <AccordionTrigger>
-              <span className="flex items-center gap-2">
-                Registration
-                {countActiveFilters([
-                  cultivarNameColumn,
-                  hybridizerColumn,
-                  yearColumn,
-                ]) > 0 && (
-                  <Badge
-                    variant="secondary"
-                    className="px-1.5 py-0 text-[10px]"
-                  >
-                    {countActiveFilters([
-                      cultivarNameColumn,
-                      hybridizerColumn,
-                      yearColumn,
-                    ])}
-                  </Badge>
-                )}
-              </span>
-            </AccordionTrigger>
-            <AccordionContent>
-              <div className="space-y-4">
-                <TextFilterControl
-                  table={table}
-                  column={cultivarNameColumn}
-                  label="Cultivar"
-                  placeholder="Search cultivar name"
-                  testId="advanced-filter-cultivar-name"
-                />
-                <TextFilterControl
-                  table={table}
-                  column={hybridizerColumn}
-                  label="Hybridizer"
-                  placeholder="Search hybridizer"
-                  testId="advanced-filter-hybridizer"
-                />
-                <RangeFilterControl
-                  table={table}
-                  column={yearColumn}
-                  label="Year"
-                  testId="advanced-filter-year"
-                />
-              </div>
-            </AccordionContent>
-          </AccordionItem>
+          <AdvancedFilterSection
+            value="registration"
+            label="Registration"
+            count={registrationFiltersCount}
+          >
+            <div className="space-y-4">
+              <TextFilterControl
+                table={table}
+                column={cultivarNameColumn}
+                label="Cultivar"
+                placeholder="Search cultivar name"
+                testId="advanced-filter-cultivar-name"
+              />
+              <TextFilterControl
+                table={table}
+                column={hybridizerColumn}
+                label="Hybridizer"
+                placeholder="Search hybridizer"
+                testId="advanced-filter-hybridizer"
+              />
+              <RangeFilterControl
+                table={table}
+                column={yearColumn}
+                label="Year"
+                testId="advanced-filter-year"
+              />
+            </div>
+          </AdvancedFilterSection>
 
-          <AccordionItem value="traits">
-            <AccordionTrigger>
-              <span className="flex items-center gap-2">
-                Bloom Traits
-                {countActiveFilters([
-                  bloomHabitColumn,
-                  bloomSeasonColumn,
-                  scapeHeightColumn,
-                  bloomSizeColumn,
-                  budcountColumn,
-                  branchesColumn,
-                ]) > 0 && (
-                  <Badge
-                    variant="secondary"
-                    className="px-1.5 py-0 text-[10px]"
-                  >
-                    {countActiveFilters([
-                      bloomHabitColumn,
-                      bloomSeasonColumn,
-                      scapeHeightColumn,
-                      bloomSizeColumn,
-                      budcountColumn,
-                      branchesColumn,
-                    ])}
-                  </Badge>
-                )}
-              </span>
-            </AccordionTrigger>
-            <AccordionContent>
-              <div className="space-y-4">
-                <div className="flex flex-wrap gap-2">
-                  <div data-testid="advanced-filter-bloom-habit">
-                    {bloomHabitColumn ? (
-                      <DataTableFacetedFilter
-                        column={bloomHabitColumn}
-                        title="Bloom Habit"
-                        options={facetOptions.bloomHabit}
-                        table={table}
-                      />
-                    ) : null}
-                  </div>
-                  <div data-testid="advanced-filter-bloom-season">
-                    {bloomSeasonColumn ? (
-                      <DataTableFacetedFilter
-                        column={bloomSeasonColumn}
-                        title="Bloom Season"
-                        options={facetOptions.bloomSeason}
-                        table={table}
-                      />
-                    ) : null}
-                  </div>
+          <AdvancedFilterSection
+            value="traits"
+            label="Bloom Traits"
+            count={bloomTraitsFiltersCount}
+          >
+            <div className="space-y-4">
+              <div className="flex flex-wrap gap-2">
+                <div data-testid="advanced-filter-bloom-habit">
+                  {bloomHabitColumn ? (
+                    <DataTableFacetedFilter
+                      column={bloomHabitColumn}
+                      title="Bloom Habit"
+                      options={facetOptions.bloomHabit}
+                      table={table}
+                    />
+                  ) : null}
                 </div>
-
-                <RangeFilterControl
-                  table={table}
-                  column={scapeHeightColumn}
-                  label="Scape Height"
-                  unit="in."
-                  testId="advanced-filter-scape-height"
-                />
-
-                <RangeFilterControl
-                  table={table}
-                  column={bloomSizeColumn}
-                  label="Bloom Size"
-                  unit="in."
-                  testId="advanced-filter-bloom-size"
-                />
-
-                <RangeFilterControl
-                  table={table}
-                  column={budcountColumn}
-                  label="Bud Count"
-                  testId="advanced-filter-budcount"
-                />
-
-                <RangeFilterControl
-                  table={table}
-                  column={branchesColumn}
-                  label="Branches"
-                  testId="advanced-filter-branches"
-                />
-              </div>
-            </AccordionContent>
-          </AccordionItem>
-
-          <AccordionItem value="details" className="border-b-0">
-            <AccordionTrigger>
-              <span className="flex items-center gap-2">
-                Classification & Details
-                {countActiveFilters([
-                  formColumn,
-                  ploidyColumn,
-                  foliageTypeColumn,
-                  fragranceColumn,
-                  colorColumn,
-                  parentageColumn,
-                ]) > 0 && (
-                  <Badge
-                    variant="secondary"
-                    className="px-1.5 py-0 text-[10px]"
-                  >
-                    {countActiveFilters([
-                      formColumn,
-                      ploidyColumn,
-                      foliageTypeColumn,
-                      fragranceColumn,
-                      colorColumn,
-                      parentageColumn,
-                    ])}
-                  </Badge>
-                )}
-              </span>
-            </AccordionTrigger>
-            <AccordionContent>
-              <div className="space-y-4">
-                <div className="flex flex-wrap gap-2">
-                  <div data-testid="advanced-filter-form">
-                    {formColumn ? (
-                      <DataTableFacetedFilter
-                        column={formColumn}
-                        title="Form"
-                        options={facetOptions.form}
-                        table={table}
-                      />
-                    ) : null}
-                  </div>
-                  <div data-testid="advanced-filter-ploidy">
-                    {ploidyColumn ? (
-                      <DataTableFacetedFilter
-                        column={ploidyColumn}
-                        title="Ploidy"
-                        options={facetOptions.ploidy}
-                        table={table}
-                      />
-                    ) : null}
-                  </div>
-                  <div data-testid="advanced-filter-foliage-type">
-                    {foliageTypeColumn ? (
-                      <DataTableFacetedFilter
-                        column={foliageTypeColumn}
-                        title="Foliage Type"
-                        options={facetOptions.foliageType}
-                        table={table}
-                      />
-                    ) : null}
-                  </div>
-                  <div data-testid="advanced-filter-fragrance">
-                    {fragranceColumn ? (
-                      <DataTableFacetedFilter
-                        column={fragranceColumn}
-                        title="Fragrance"
-                        options={facetOptions.fragrance}
-                        table={table}
-                      />
-                    ) : null}
-                  </div>
+                <div data-testid="advanced-filter-bloom-season">
+                  {bloomSeasonColumn ? (
+                    <DataTableFacetedFilter
+                      column={bloomSeasonColumn}
+                      title="Bloom Season"
+                      options={facetOptions.bloomSeason}
+                      table={table}
+                    />
+                  ) : null}
                 </div>
-
-                <TextFilterControl
-                  table={table}
-                  column={colorColumn}
-                  label="Color"
-                  placeholder="Search color notes"
-                  testId="advanced-filter-color"
-                />
-
-                <TextFilterControl
-                  table={table}
-                  column={parentageColumn}
-                  label="Parentage"
-                  placeholder="Search parentage"
-                  testId="advanced-filter-parentage"
-                />
               </div>
-            </AccordionContent>
-          </AccordionItem>
+
+              <RangeFilterControl
+                table={table}
+                column={scapeHeightColumn}
+                label="Scape Height"
+                unit="in."
+                testId="advanced-filter-scape-height"
+              />
+
+              <RangeFilterControl
+                table={table}
+                column={bloomSizeColumn}
+                label="Bloom Size"
+                unit="in."
+                testId="advanced-filter-bloom-size"
+              />
+
+              <RangeFilterControl
+                table={table}
+                column={budcountColumn}
+                label="Bud Count"
+                testId="advanced-filter-budcount"
+              />
+
+              <RangeFilterControl
+                table={table}
+                column={branchesColumn}
+                label="Branches"
+                testId="advanced-filter-branches"
+              />
+            </div>
+          </AdvancedFilterSection>
+
+          <AdvancedFilterSection
+            value="details"
+            label="Classification & Details"
+            count={detailsFiltersCount}
+            className="border-b-0"
+          >
+            <div className="space-y-4">
+              <div className="flex flex-wrap gap-2">
+                <div data-testid="advanced-filter-form">
+                  {formColumn ? (
+                    <DataTableFacetedFilter
+                      column={formColumn}
+                      title="Form"
+                      options={facetOptions.form}
+                      table={table}
+                    />
+                  ) : null}
+                </div>
+                <div data-testid="advanced-filter-ploidy">
+                  {ploidyColumn ? (
+                    <DataTableFacetedFilter
+                      column={ploidyColumn}
+                      title="Ploidy"
+                      options={facetOptions.ploidy}
+                      table={table}
+                    />
+                  ) : null}
+                </div>
+                <div data-testid="advanced-filter-foliage-type">
+                  {foliageTypeColumn ? (
+                    <DataTableFacetedFilter
+                      column={foliageTypeColumn}
+                      title="Foliage Type"
+                      options={facetOptions.foliageType}
+                      table={table}
+                    />
+                  ) : null}
+                </div>
+                <div data-testid="advanced-filter-fragrance">
+                  {fragranceColumn ? (
+                    <DataTableFacetedFilter
+                      column={fragranceColumn}
+                      title="Fragrance"
+                      options={facetOptions.fragrance}
+                      table={table}
+                    />
+                  ) : null}
+                </div>
+              </div>
+
+              <TextFilterControl
+                table={table}
+                column={colorColumn}
+                label="Color"
+                placeholder="Search color notes"
+                testId="advanced-filter-color"
+              />
+
+              <TextFilterControl
+                table={table}
+                column={parentageColumn}
+                label="Parentage"
+                placeholder="Search parentage"
+                testId="advanced-filter-parentage"
+              />
+            </div>
+          </AdvancedFilterSection>
         </Accordion>
       )}
     </div>
