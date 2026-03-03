@@ -11,6 +11,13 @@ const mockInvalidate = vi.hoisted(() => vi.fn());
 const mockPrefetchSnapshot = vi.hoisted(() => vi.fn());
 const mockSnapshotToInfiniteData = vi.hoisted(() => vi.fn());
 const mockToastSuccess = vi.hoisted(() => vi.fn());
+const mockReadSnapshot = vi.hoisted(() => vi.fn());
+const mockIsSnapshotUsable = vi.hoisted(() => vi.fn());
+const mockShouldRevalidateSnapshot = vi.hoisted(() => vi.fn());
+const persistedSWRConfig = vi.hoisted(() => ({
+  enabled: false,
+  queryLimit: 500,
+}));
 
 vi.mock("@/trpc/react", () => ({
   api: {
@@ -31,13 +38,10 @@ vi.mock("@/trpc/react", () => ({
 }));
 
 vi.mock("@/lib/public-catalog-search-persistence", () => ({
-  PUBLIC_CATALOG_SEARCH_PERSISTED_SWR: {
-    enabled: false,
-    queryLimit: 500,
-  },
-  readPublicCatalogSearchSnapshot: vi.fn(),
-  isPublicCatalogSearchSnapshotUsable: vi.fn(),
-  shouldRevalidatePublicCatalogSearchSnapshot: vi.fn(),
+  PUBLIC_CATALOG_SEARCH_PERSISTED_SWR: persistedSWRConfig,
+  readPublicCatalogSearchSnapshot: mockReadSnapshot,
+  isPublicCatalogSearchSnapshotUsable: mockIsSnapshotUsable,
+  shouldRevalidatePublicCatalogSearchSnapshot: mockShouldRevalidateSnapshot,
   prefetchAndPersistPublicCatalogSearchSnapshot: mockPrefetchSnapshot,
   snapshotToInfiniteData: mockSnapshotToInfiniteData,
   createPublicCatalogSearchSnapshotFromInfiniteData: vi.fn(),
@@ -83,6 +87,7 @@ function createListing(id: string, title: string): PublicCatalogListing {
 describe("PublicCatalogSearchClient", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    persistedSWRConfig.enabled = false;
 
     mockUseInfiniteQuery.mockReturnValue({
       data: undefined,
@@ -95,6 +100,9 @@ describe("PublicCatalogSearchClient", () => {
     mockPrefetchSnapshot.mockReset();
     mockSnapshotToInfiniteData.mockReset();
     mockToastSuccess.mockReset();
+    mockReadSnapshot.mockReset();
+    mockIsSnapshotUsable.mockReset();
+    mockShouldRevalidateSnapshot.mockReset();
   });
 
   it("falls back to initial listings when query data is not available", () => {
@@ -228,5 +236,95 @@ describe("PublicCatalogSearchClient", () => {
     );
     expect(mockInvalidate).not.toHaveBeenCalled();
     expect(mockToastSuccess).toHaveBeenCalledWith("Catalog search data refreshed");
+  });
+
+  it("waits for snapshot hydration before auto-fetching next page when persistence is enabled", async () => {
+    persistedSWRConfig.enabled = true;
+
+    let resolveSnapshot: ((value: null) => void) | null = null;
+    const snapshotPromise = new Promise<null>((resolve) => {
+      resolveSnapshot = resolve;
+    });
+    mockReadSnapshot.mockReturnValue(snapshotPromise);
+
+    mockUseInfiniteQuery.mockReturnValue({
+      data: {
+        pages: [[createListing("listing-1", "Alpha")]],
+        pageParams: [undefined],
+      },
+      fetchNextPage: mockFetchNextPage,
+      hasNextPage: true,
+      isFetchingNextPage: false,
+    });
+
+    render(
+      <PublicCatalogSearchClient
+        userId="user-1"
+        userSlugOrId="seeded-daylily"
+        lists={[]}
+        initialListings={[]}
+        totalListingsCount={1}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(mockReadSnapshot).toHaveBeenCalledWith("user-1");
+    });
+
+    expect(mockFetchNextPage).not.toHaveBeenCalled();
+
+    await act(async () => {
+      resolveSnapshot?.(null);
+      await snapshotPromise;
+    });
+
+    await waitFor(() => {
+      expect(mockFetchNextPage).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  it("hydrates from a usable snapshot when persistence is enabled", async () => {
+    persistedSWRConfig.enabled = true;
+
+    const snapshot = {
+      data: {
+        pages: [[createListing("listing-1", "Alpha")]],
+        pageParams: [null],
+      },
+    };
+    const infiniteData = {
+      pages: [[createListing("listing-1", "Alpha")]],
+      pageParams: [null],
+    };
+
+    mockReadSnapshot.mockResolvedValue(snapshot);
+    mockIsSnapshotUsable.mockReturnValue(true);
+    mockShouldRevalidateSnapshot.mockReturnValue(false);
+    mockSnapshotToInfiniteData.mockReturnValue(infiniteData);
+
+    render(
+      <PublicCatalogSearchClient
+        userId="user-1"
+        userSlugOrId="seeded-daylily"
+        lists={[]}
+        initialListings={[]}
+        totalListingsCount={1}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(mockSetInfiniteData).toHaveBeenCalledWith(
+        {
+          userSlugOrId: "seeded-daylily",
+          limit: 500,
+        },
+        expect.any(Function),
+      );
+    });
+
+    const updater = mockSetInfiniteData.mock.calls[0]?.[1];
+    expect(typeof updater).toBe("function");
+    expect(updater?.()).toEqual(infiniteData);
+    expect(mockSnapshotToInfiniteData).toHaveBeenCalledWith(snapshot);
   });
 });
