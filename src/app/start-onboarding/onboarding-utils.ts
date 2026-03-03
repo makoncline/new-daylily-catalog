@@ -131,7 +131,6 @@ export const ONBOARDING_LISTING_DEFAULTS = {
   limitedSearchMessage:
     "Only a limited set of varieties is available during onboarding. You can search the full Daylily Database from your dashboard.",
   draftTitle: "My first listing",
-  contactPreviewFallbackPrice: 10,
   defaultStatus: STATUS.PUBLISHED,
   fallbackImageUrl: "/assets/onboarding-generated/listing-fallback.png",
 } as const;
@@ -173,7 +172,11 @@ export function isProfileOnboardingDraftComplete(
 export function isListingOnboardingDraftComplete(
   draft: ListingOnboardingDraft,
 ) {
-  return draft.cultivarReferenceId !== null && hasText(draft.title);
+  return (
+    draft.cultivarReferenceId !== null &&
+    hasText(draft.title) &&
+    draft.price !== null
+  );
 }
 
 export function getNextIncompleteProfileField(
@@ -199,6 +202,10 @@ export function getNextIncompleteListingField(
 
   if (!hasText(draft.title)) {
     return "title";
+  }
+
+  if (draft.price === null) {
+    return "price";
   }
 
   return null;

@@ -2,6 +2,11 @@
 
 ## Log
 
+- 2026-03-02 - onboarding placeholder-visibility preference - In onboarding Step 1/2 preview cards, render sample placeholder text in yellow and show a note under each card clarifying yellow copy is editor-only and not shown on live cards.
+- 2026-03-02 - self-fix onboarding price copy contradiction - "Optional in onboarding" conflicted with required-price behavior; use neutral first line ("Add a price now to preview add-to-cart behavior.") plus required second line.
+- 2026-03-02 - onboarding price-helper copy preference - Keep the original price helper sentence ("Optional in onboarding...preview add-to-cart behavior.") and add a second line: "Required in onboarding so you can preview the add to cart flow."
+- 2026-03-02 - onboarding preview realism + price requirement - Listing step now requires price (completeness, checklist, save messaging), and Step 3 preview cards should use only real draft/persisted values (no placeholder title/description/price fallback content).
+- 2026-03-02 - self-miss napkin disclosure again - I announced napkin-skill workflow in a status update; keep napkin handling silent and just execute it.
 - 2026-03-02 - preview smoke selector drift - Deploy-preview smoke test failed because dialog no longer exposes `View Cultivar Page`; stable path is to close dialog and click the listing-card link text `View linked cultivar page` under `#listings`.
 - 2026-03-02 - preview smoke flake root cause - `guest user tour @preview` became brittle in `eac0a9b` when it clicked the first listing card and expected a cultivar link in the dialog; first listing is not guaranteed to have a linked cultivar, so target the first visible linked-cultivar anchor instead.
 - 2026-03-01 - onboarding preview-link preference - On Step 3 preview/contact, include direct new-tab links for the user’s public catalog and `?viewing=<listingId>` listing view, plus canonical examples (`rollingoaksdaylilies`, `cultivar/starman`) and a clear note that discovery stays gated behind active trial/membership.
