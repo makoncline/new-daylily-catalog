@@ -2,6 +2,8 @@
 
 ## Log
 
+- 2026-03-03 - crawler policy split - User wants search-engine crawlers allowed while temporarily blocking AI/non-search crawlers; keep `Googlebot`/`Bingbot`/`msnbot`/`SeznamBot` out of blocked UA list.
+- 2026-03-03 - bot policy temporary override - User switched back to blocking bots due traffic surge; `robots.ts` now disallows major crawler user agents (including Google/Bing + AI bots) for now.
 - 2026-03-03 - sitemap frequency refinement - User wants `/catalogs` set to `weekly` (single page cost acceptable) while cultivar pages remain `monthly`.
 - 2026-03-03 - sitemap frequency preference update - User wants public listing/profile URLs to remain `weekly`, but cultivar sitemap URLs should use `monthly` changeFrequency.
 - 2026-03-03 - crawler policy preference correction - User wants AI crawler bots allowed; do not block them in `robots.ts`.
