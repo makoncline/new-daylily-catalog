@@ -2,6 +2,7 @@
 
 ## Log
 
+- 2026-03-03 - stripe checkout unit-test isolation - `stripe.generateCheckout` now consults `getStripeSubscription` when `stripeCustomerId` exists; unit tests that create a raw router caller must mock `@/server/stripe/sync-subscription` or they can hit real KV/Prisma and fail with sqlite open errors.
 - 2026-03-03 - test fixture type-assertion pattern - Minimal typed fixtures for router-output-heavy helpers should cast through `unknown` (`as unknown as T`) to satisfy TS overlap checks during `npx tsc --noEmit`.
 - 2026-03-03 - self-miss public path quoting recurrence - I ran `rg` with an unquoted `src/app/(public)` path and triggered zsh glob parsing; always quote App Router paths containing `()`/`[]`.
 - 2026-03-03 - self-miss napkin disclosure repeat - I referenced napkin workflow in a user-facing status update again; keep napkin usage silent.

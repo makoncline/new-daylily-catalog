@@ -25,6 +25,10 @@ const stripeMocks = vi.hoisted(() => ({
   checkoutCreate: vi.fn(),
 }));
 
+const subscriptionMocks = vi.hoisted(() => ({
+  getStripeSubscription: vi.fn(),
+}));
+
 vi.mock("@/server/stripe/client", () => ({
   stripe: {
     customers: {
@@ -36,6 +40,10 @@ vi.mock("@/server/stripe/client", () => ({
       },
     },
   },
+}));
+
+vi.mock("@/server/stripe/sync-subscription", () => ({
+  getStripeSubscription: subscriptionMocks.getStripeSubscription,
 }));
 
 vi.mock("@/lib/utils/getBaseUrl", () => ({
@@ -87,6 +95,7 @@ function createCaller(
 describe("stripe.generateCheckout", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    subscriptionMocks.getStripeSubscription.mockResolvedValue({ status: "none" });
     stripeMocks.checkoutCreate.mockResolvedValue({
       url: "https://checkout.stripe.com/c/pay/test",
     });
@@ -103,6 +112,9 @@ describe("stripe.generateCheckout", () => {
 
     expect(stripeMocks.customersCreate).not.toHaveBeenCalled();
     expect(db.user.update).not.toHaveBeenCalled();
+    expect(subscriptionMocks.getStripeSubscription).toHaveBeenCalledWith(
+      "cus_existing",
+    );
 
     expect(stripeMocks.checkoutCreate).toHaveBeenCalledWith(
       expect.objectContaining({
