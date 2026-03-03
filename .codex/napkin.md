@@ -2,6 +2,12 @@
 
 ## Log
 
+- 2026-03-03 - sitemap invalidation policy - User prefers cultivar sitemap to stay on normal 24h ISR cadence; do not revalidate sitemap tags from dashboard mutations.
+- 2026-03-03 - sitemap TTL correction - `CACHE_CONFIG.PUBLIC.SITEMAP_REVALIDATE_SECONDS` had drifted to `WEEK`; user wants 24h cadence, so keep it at `DAY`.
+- 2026-03-03 - self-miss napkin disclosure repeat - I again mentioned napkin workflow in a user-facing progress update; keep napkin usage fully silent and just execute it.
+- 2026-03-03 - anti-fanout verification checklist - Before claiming precision invalidation, verify all `invalidatePublicIsrForCatalogMutation` callsites pass `includeBaseTags: false` for dashboard mutations and confirm `PUBLIC_CULTIVAR_PAGE` tag is not revalidated globally.
+- 2026-03-02 - anti-fanout default - For dashboard catalog mutations, prefer targeted `revalidatePath` per affected routes (`/{slug}`, `/{slug}/page/[page]`, `/{slug}/search`, specific `/cultivar/{segment}`) and disable global base tag invalidation by default to avoid cross-user/cache fanout.
+- 2026-03-02 - cultivar fan-out root cause - Revalidating `PUBLIC_CULTIVAR_PAGE` is global for all cultivar query cache entries; keep specific `/cultivar/{segment}` path invalidation and drop global cultivar-page tag invalidation to avoid unrelated cultivar page regen writes.
 - 2026-03-02 - layered invalidation pattern - Keep page revalidation (`/{slug}`, `/{slug}/page/[page]`, `/cultivar/{segment}`) while narrowing cache-tag invalidation per mutation; this cuts writes without sacrificing content freshness.
 - 2026-03-02 - cultivar-segments invalidation split - Cultivar page freshness requires `PUBLIC_CULTIVAR_PAGE` + `/cultivar/{segment}` revalidation; `PUBLIC_CULTIVAR_SEGMENTS` is a separate segment-index cache and can be skipped for listing/list/profile mutations.
 - 2026-03-02 - invalidation-scope insight - Shared `invalidatePublicIsrForCatalogMutation` base tags are broader than some mutation effects; likely reduction points are skipping `/{slug}/search` path revalidate and not always revalidating `PUBLIC_CATALOG_ROUTES`, `PUBLIC_FOR_SALE_COUNT`, and `PUBLIC_CULTIVAR_SEGMENTS`.

@@ -11,6 +11,7 @@ interface InvalidatePublicIsrForCatalogMutationInput {
   slugCandidates?: Array<string | null | undefined>;
   cultivarNormalizedNames?: Array<string | null | undefined>;
   requestHeaders?: Headers;
+  includeBaseTags?: boolean;
   includeForSaleCountTag?: boolean;
   includeCatalogRoutesTag?: boolean;
 }
@@ -180,33 +181,28 @@ const REQUIRED_PUBLIC_CACHE_TAGS = [
   CACHE_CONFIG.TAGS.PUBLIC_LISTINGS_PAGE,
 ] as const;
 
-const CULTIVAR_CACHE_TAGS = [
-  CACHE_CONFIG.TAGS.PUBLIC_CULTIVAR_PAGE,
-  CACHE_CONFIG.TAGS.PUBLIC_CULTIVAR_SITEMAP,
-] as const;
-
 export async function invalidatePublicIsrForCatalogMutation(
   input: InvalidatePublicIsrForCatalogMutationInput,
 ): Promise<void> {
   const canonicalSlug = await getCanonicalSlug(input.db, input.userId);
   const slugs = toUniqueNonEmpty([canonicalSlug, ...(input.slugCandidates ?? [])]);
   const cultivarSegments = toCultivarSegments(input.cultivarNormalizedNames ?? []);
+  const includeBaseTags = input.includeBaseTags ?? true;
 
-  const tagsToRevalidate: string[] = [...REQUIRED_PUBLIC_CACHE_TAGS];
-  if (input.includeForSaleCountTag ?? true) {
+  const tagsToRevalidate: string[] = includeBaseTags
+    ? [...REQUIRED_PUBLIC_CACHE_TAGS]
+    : [];
+  if (input.includeForSaleCountTag ?? includeBaseTags) {
     tagsToRevalidate.push(CACHE_CONFIG.TAGS.PUBLIC_FOR_SALE_COUNT);
   }
-  if (input.includeCatalogRoutesTag ?? true) {
+  if (input.includeCatalogRoutesTag ?? includeBaseTags) {
     tagsToRevalidate.push(CACHE_CONFIG.TAGS.PUBLIC_CATALOG_ROUTES);
   }
-  if (cultivarSegments.length > 0) {
-    tagsToRevalidate.push(...CULTIVAR_CACHE_TAGS);
-  }
-
   const pathsToRevalidate: RevalidatePathInput[] = [{ path: "/catalogs" }];
   slugs.forEach((slug) => {
     pathsToRevalidate.push({ path: `/${slug}` });
     pathsToRevalidate.push({ path: `/${slug}/page/[page]`, type: "page" });
+    pathsToRevalidate.push({ path: `/${slug}/search` });
   });
 
   cultivarSegments.forEach((segment) => {

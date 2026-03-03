@@ -46,67 +46,35 @@ function createContext(db: unknown) {
   };
 }
 
-function expectBasePublicTagInvalidations(options?: {
-  forSaleCount?: boolean;
-  catalogRoutes?: boolean;
-}) {
-  expect(revalidateTagMock).toHaveBeenCalledWith(
+function expectNoBasePublicTagInvalidations() {
+  const baseTags = [
     CACHE_CONFIG.TAGS.PUBLIC_PROFILE,
-    "max",
-  );
-  expect(revalidateTagMock).toHaveBeenCalledWith(
     CACHE_CONFIG.TAGS.PUBLIC_PROFILES,
-    "max",
-  );
-  expect(revalidateTagMock).toHaveBeenCalledWith(
     CACHE_CONFIG.TAGS.PUBLIC_LISTINGS,
-    "max",
-  );
-  expect(revalidateTagMock).toHaveBeenCalledWith(
     CACHE_CONFIG.TAGS.PUBLIC_LISTING_DETAIL,
-    "max",
-  );
-  expect(revalidateTagMock).toHaveBeenCalledWith(
     CACHE_CONFIG.TAGS.PUBLIC_LISTINGS_PAGE,
-    "max",
-  );
+    CACHE_CONFIG.TAGS.PUBLIC_FOR_SALE_COUNT,
+    CACHE_CONFIG.TAGS.PUBLIC_CATALOG_ROUTES,
+  ] as const;
 
-  if (options?.forSaleCount ?? true) {
-    expect(revalidateTagMock).toHaveBeenCalledWith(
-      CACHE_CONFIG.TAGS.PUBLIC_FOR_SALE_COUNT,
-      "max",
-    );
-  } else {
+  baseTags.forEach((tag) => {
     expect(
-      revalidateTagMock.mock.calls.some(
-        (call) => call[0] === CACHE_CONFIG.TAGS.PUBLIC_FOR_SALE_COUNT,
-      ),
+      revalidateTagMock.mock.calls.some((call) => call[0] === tag),
     ).toBe(false);
-  }
-
-  if (options?.catalogRoutes ?? true) {
-    expect(revalidateTagMock).toHaveBeenCalledWith(
-      CACHE_CONFIG.TAGS.PUBLIC_CATALOG_ROUTES,
-      "max",
-    );
-  } else {
-    expect(
-      revalidateTagMock.mock.calls.some(
-        (call) => call[0] === CACHE_CONFIG.TAGS.PUBLIC_CATALOG_ROUTES,
-      ),
-    ).toBe(false);
-  }
+  });
 }
 
-function expectCultivarTagInvalidations() {
-  expect(revalidateTagMock).toHaveBeenCalledWith(
+function expectNoCultivarTagInvalidations() {
+  const cultivarTags = [
     CACHE_CONFIG.TAGS.PUBLIC_CULTIVAR_PAGE,
-    "max",
-  );
-  expect(revalidateTagMock).toHaveBeenCalledWith(
     CACHE_CONFIG.TAGS.PUBLIC_CULTIVAR_SITEMAP,
-    "max",
-  );
+  ] as const;
+
+  cultivarTags.forEach((tag) => {
+    expect(
+      revalidateTagMock.mock.calls.some((call) => call[0] === tag),
+    ).toBe(false);
+  });
 }
 
 describe("dashboardDb public ISR invalidation", () => {
@@ -145,10 +113,9 @@ describe("dashboardDb public ISR invalidation", () => {
 
     expect(revalidatePathMock).toHaveBeenCalledWith("/garden");
     expect(revalidatePathMock).toHaveBeenCalledWith("/garden/page/[page]", "page");
+    expect(revalidatePathMock).toHaveBeenCalledWith("/garden/search");
     expect(revalidatePathMock).toHaveBeenCalledWith("/catalogs");
-    expectBasePublicTagInvalidations({
-      forSaleCount: false,
-    });
+    expectNoBasePublicTagInvalidations();
     expect(
       revalidateTagMock.mock.calls.some(
         (call) => call[0] === CACHE_CONFIG.TAGS.PUBLIC_CULTIVAR_PAGE,
@@ -221,10 +188,11 @@ describe("dashboardDb public ISR invalidation", () => {
 
     expect(revalidatePathMock).toHaveBeenCalledWith("/garden");
     expect(revalidatePathMock).toHaveBeenCalledWith("/garden/page/[page]", "page");
+    expect(revalidatePathMock).toHaveBeenCalledWith("/garden/search");
     expect(revalidatePathMock).toHaveBeenCalledWith("/catalogs");
     expect(revalidatePathMock).toHaveBeenCalledWith("/cultivar/lime-frosting");
-    expectBasePublicTagInvalidations();
-    expectCultivarTagInvalidations();
+    expectNoBasePublicTagInvalidations();
+    expectNoCultivarTagInvalidations();
   });
 
   it("listing.create invalidates the user's pages, catalogs index, and linked cultivar page", async () => {
@@ -264,10 +232,11 @@ describe("dashboardDb public ISR invalidation", () => {
 
     expect(revalidatePathMock).toHaveBeenCalledWith("/garden");
     expect(revalidatePathMock).toHaveBeenCalledWith("/garden/page/[page]", "page");
+    expect(revalidatePathMock).toHaveBeenCalledWith("/garden/search");
     expect(revalidatePathMock).toHaveBeenCalledWith("/catalogs");
     expect(revalidatePathMock).toHaveBeenCalledWith("/cultivar/happy-returns");
-    expectBasePublicTagInvalidations();
-    expectCultivarTagInvalidations();
+    expectNoBasePublicTagInvalidations();
+    expectNoCultivarTagInvalidations();
   });
 
   it("listing.linkAhs does not invalidate public routes directly", async () => {
@@ -385,13 +354,11 @@ describe("dashboardDb public ISR invalidation", () => {
 
     expect(revalidatePathMock).toHaveBeenCalledWith("/garden");
     expect(revalidatePathMock).toHaveBeenCalledWith("/garden/page/[page]", "page");
+    expect(revalidatePathMock).toHaveBeenCalledWith("/garden/search");
     expect(revalidatePathMock).toHaveBeenCalledWith("/catalogs");
     expect(revalidatePathMock).toHaveBeenCalledWith("/cultivar/old-name");
-    expectBasePublicTagInvalidations({
-      forSaleCount: false,
-      catalogRoutes: false,
-    });
-    expectCultivarTagInvalidations();
+    expectNoBasePublicTagInvalidations();
+    expectNoCultivarTagInvalidations();
   });
 
   it("listing.delete invalidates the user's pages, catalogs index, and the linked cultivar page", async () => {
@@ -425,10 +392,11 @@ describe("dashboardDb public ISR invalidation", () => {
 
     expect(revalidatePathMock).toHaveBeenCalledWith("/garden");
     expect(revalidatePathMock).toHaveBeenCalledWith("/garden/page/[page]", "page");
+    expect(revalidatePathMock).toHaveBeenCalledWith("/garden/search");
     expect(revalidatePathMock).toHaveBeenCalledWith("/catalogs");
     expect(revalidatePathMock).toHaveBeenCalledWith("/cultivar/happy-returns");
-    expectBasePublicTagInvalidations();
-    expectCultivarTagInvalidations();
+    expectNoBasePublicTagInvalidations();
+    expectNoCultivarTagInvalidations();
   });
 
   it("list.update invalidates the user's pages, catalogs index, and linked cultivars in that list", async () => {
@@ -467,14 +435,12 @@ describe("dashboardDb public ISR invalidation", () => {
 
     expect(revalidatePathMock).toHaveBeenCalledWith("/garden");
     expect(revalidatePathMock).toHaveBeenCalledWith("/garden/page/[page]", "page");
+    expect(revalidatePathMock).toHaveBeenCalledWith("/garden/search");
     expect(revalidatePathMock).toHaveBeenCalledWith("/catalogs");
     expect(revalidatePathMock).toHaveBeenCalledWith("/cultivar/happy-returns");
     expect(revalidatePathMock).toHaveBeenCalledWith("/cultivar/lime-frosting");
-    expectBasePublicTagInvalidations({
-      forSaleCount: false,
-      catalogRoutes: false,
-    });
-    expectCultivarTagInvalidations();
+    expectNoBasePublicTagInvalidations();
+    expectNoCultivarTagInvalidations();
   });
 
   it("list.create invalidates the user's pages and catalogs index", async () => {
@@ -503,11 +469,9 @@ describe("dashboardDb public ISR invalidation", () => {
 
     expect(revalidatePathMock).toHaveBeenCalledWith("/garden");
     expect(revalidatePathMock).toHaveBeenCalledWith("/garden/page/[page]", "page");
+    expect(revalidatePathMock).toHaveBeenCalledWith("/garden/search");
     expect(revalidatePathMock).toHaveBeenCalledWith("/catalogs");
-    expectBasePublicTagInvalidations({
-      forSaleCount: false,
-      catalogRoutes: false,
-    });
+    expectNoBasePublicTagInvalidations();
     expect(
       revalidateTagMock.mock.calls.some(
         (call) => call[0] === CACHE_CONFIG.TAGS.PUBLIC_CULTIVAR_PAGE,
@@ -541,11 +505,9 @@ describe("dashboardDb public ISR invalidation", () => {
 
     expect(revalidatePathMock).toHaveBeenCalledWith("/garden");
     expect(revalidatePathMock).toHaveBeenCalledWith("/garden/page/[page]", "page");
+    expect(revalidatePathMock).toHaveBeenCalledWith("/garden/search");
     expect(revalidatePathMock).toHaveBeenCalledWith("/catalogs");
-    expectBasePublicTagInvalidations({
-      forSaleCount: false,
-      catalogRoutes: false,
-    });
+    expectNoBasePublicTagInvalidations();
     expect(
       revalidateTagMock.mock.calls.some(
         (call) => call[0] === CACHE_CONFIG.TAGS.PUBLIC_CULTIVAR_PAGE,

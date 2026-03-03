@@ -148,6 +148,7 @@ export const dashboardDbUserProfileRouter = createTRPCRouter({
           profile.slug ?? ctx.user.id,
         ],
         requestHeaders: ctx.headers,
+        includeBaseTags: false,
         includeForSaleCountTag: false,
       });
 

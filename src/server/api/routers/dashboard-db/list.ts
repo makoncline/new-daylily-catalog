@@ -41,6 +41,7 @@ export const dashboardDbListRouter = createTRPCRouter({
         db: ctx.db,
         userId: ctx.user.id,
         requestHeaders: ctx.headers,
+        includeBaseTags: false,
         includeForSaleCountTag: false,
         includeCatalogRoutesTag: false,
       });
@@ -131,6 +132,7 @@ export const dashboardDbListRouter = createTRPCRouter({
           (row) => row.cultivarReference?.normalizedName,
         ),
         requestHeaders: ctx.headers,
+        includeBaseTags: false,
         includeForSaleCountTag: false,
         includeCatalogRoutesTag: false,
       });
@@ -164,6 +166,7 @@ export const dashboardDbListRouter = createTRPCRouter({
         db: ctx.db,
         userId: ctx.user.id,
         requestHeaders: ctx.headers,
+        includeBaseTags: false,
         includeForSaleCountTag: false,
         includeCatalogRoutesTag: false,
       });

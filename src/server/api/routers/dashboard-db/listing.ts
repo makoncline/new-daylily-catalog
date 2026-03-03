@@ -68,6 +68,7 @@ export const dashboardDbListingRouter = createTRPCRouter({
         userId: ctx.user.id,
         cultivarNormalizedNames: [cultivarReference?.normalizedName],
         requestHeaders: ctx.headers,
+        includeBaseTags: false,
       });
 
       return listing;
@@ -195,6 +196,7 @@ export const dashboardDbListingRouter = createTRPCRouter({
         userId: ctx.user.id,
         cultivarNormalizedNames: [listing.cultivarReference?.normalizedName],
         requestHeaders: ctx.headers,
+        includeBaseTags: false,
         includeForSaleCountTag: false,
         includeCatalogRoutesTag: false,
       });
@@ -302,6 +304,7 @@ export const dashboardDbListingRouter = createTRPCRouter({
         userId: ctx.user.id,
         cultivarNormalizedNames: [existing.cultivarReference?.normalizedName],
         requestHeaders: ctx.headers,
+        includeBaseTags: false,
       });
 
       return updated!;
@@ -354,6 +357,7 @@ export const dashboardDbListingRouter = createTRPCRouter({
         userId: ctx.user.id,
         cultivarNormalizedNames: [listing.cultivarReference?.normalizedName],
         requestHeaders: ctx.headers,
+        includeBaseTags: false,
       });
 
       return { id: listing.id } as const;
