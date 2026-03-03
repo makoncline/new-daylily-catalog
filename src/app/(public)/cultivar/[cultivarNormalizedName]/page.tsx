@@ -9,15 +9,15 @@ import { getOptimizedMetaImageUrl } from "@/lib/utils/cloudflareLoader";
 import { getBaseUrl } from "@/lib/utils/getBaseUrl";
 import { toCultivarRouteSegment } from "@/lib/utils/cultivar-utils";
 import { getCachedPublicCultivarPage } from "@/server/db/public-cache";
+import { IsrWrittenAt } from "@/app/(public)/_components/isr-written-at";
 import { CultivarPageRoot, CultivarPageSection } from "./_components/cultivar-page-layout";
 import { CultivarHeroSection } from "./_components/cultivar-hero-section";
 import { CultivarGardenPhotosSection } from "./_components/cultivar-garden-photos-section";
 import { CultivarOffersSection } from "./_components/cultivar-offers-section";
-import { CultivarRelatedSection } from "./_components/cultivar-related-section";
 import { Muted } from "@/components/typography";
+import { generateCultivarJsonLd } from "./_seo/json-ld";
 
-// CACHE_LITERAL_REF: CACHE_CONFIG.PUBLIC.STATIC_REVALIDATE_SECONDS
-export const revalidate = 86400;
+export const revalidate = false;
 export const dynamic = "force-static";
 
 const getRequestCultivarPage = cache(
@@ -29,62 +29,6 @@ interface PageProps {
   params: Promise<{
     cultivarNormalizedName: string;
   }>;
-}
-
-function getCultivarJsonLd(
-  baseUrl: string,
-  canonicalSegment: string,
-  cultivarPage: NonNullable<
-    Awaited<ReturnType<typeof getCachedPublicCultivarPage>>
-  >,
-) {
-  const pageUrl = `${baseUrl}/cultivar/${canonicalSegment}`;
-  const productOffers = cultivarPage.offers.gardenCards.flatMap((garden) =>
-    garden.offers
-      .filter((offer) => offer.price !== null)
-      .map((offer) => ({
-        "@type": "Offer",
-        price: offer.price!.toFixed(2),
-        priceCurrency: "USD",
-        availability: "https://schema.org/InStock",
-        seller: {
-          "@type": "Organization",
-          name: garden.title,
-          url: `${baseUrl}/${garden.slug}`,
-        },
-        url: `${baseUrl}/${garden.slug}?viewing=${offer.id}`,
-      })),
-  );
-
-  return {
-    "@context": "https://schema.org",
-    "@type": "Product",
-    name: cultivarPage.summary.name,
-    description: `${cultivarPage.summary.name} cultivar page with specs and public catalog offers.`,
-    url: pageUrl,
-    image: cultivarPage.heroImages.map((image) => image.url),
-    category: "Daylily Cultivar",
-    brand: {
-      "@type": "Organization",
-      name: METADATA_CONFIG.SITE_NAME,
-    },
-    additionalProperty: cultivarPage.quickSpecs.all.map((spec) => ({
-      "@type": "PropertyValue",
-      name: spec.label,
-      value: spec.value,
-    })),
-    ...(productOffers.length > 0
-      ? {
-          offers: productOffers,
-        }
-      : {}),
-    isRelatedTo: cultivarPage.relatedByHybridizer.map((cultivar) => ({
-      "@type": "Product",
-      name: cultivar.name,
-      url: `${baseUrl}/cultivar/${cultivar.segment}`,
-      image: cultivar.imageUrl,
-    })),
-  };
 }
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
@@ -164,7 +108,7 @@ export default async function CultivarPage({ params }: PageProps) {
   }
 
   const baseUrl = getBaseUrl();
-  const jsonLd = getCultivarJsonLd(
+  const jsonLd = generateCultivarJsonLd(
     baseUrl,
     canonicalSegment ?? cultivarNormalizedName,
     cultivarPage,
@@ -198,24 +142,25 @@ export default async function CultivarPage({ params }: PageProps) {
             <CultivarOffersSection offers={cultivarPage.offers} />
           </CultivarPageSection>
 
+          {/* TODO: Re-enable after optimizing related-hybridizer fan-out on cultivar pages. */}
+          {/*
           <CultivarPageSection>
             <CultivarRelatedSection
               relatedCultivars={cultivarPage.relatedByHybridizer}
               hybridizer={cultivarPage.summary.hybridizer}
             />
           </CultivarPageSection>
+          */}
 
           <footer id="cultivar-metadata" className="space-y-2 border-t pt-6">
             <Muted>
               {cultivarPage.summary.name} registered with American Hemerocallis Society.
             </Muted>
-
-            <Muted>
-              Last updated {new Date(cultivarPage.freshness.cultivarUpdatedAt).toLocaleDateString()}.
-            </Muted>
           </footer>
         </CultivarPageRoot>
       </div>
+
+      <IsrWrittenAt />
     </MainContent>
   );
 }

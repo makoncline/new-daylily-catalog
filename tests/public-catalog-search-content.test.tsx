@@ -170,4 +170,23 @@ describe("PublicCatalogSearchContent", () => {
       desktopColumns: 3,
     });
   });
+
+  it("runs manual refresh callback when refresh button is pressed", () => {
+    mockSearchParamGet.mockImplementation(() => null);
+    const onRefreshCatalogData = vi.fn();
+
+    render(
+      <PublicCatalogSearchContent
+        lists={[]}
+        listings={[]}
+        isLoading={false}
+        totalListingsCount={8}
+        onRefreshCatalogData={onRefreshCatalogData}
+      />,
+    );
+
+    fireEvent.click(screen.getByTestId("catalog-search-refresh"));
+
+    expect(onRefreshCatalogData).toHaveBeenCalledTimes(1);
+  });
 });

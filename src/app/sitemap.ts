@@ -20,7 +20,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     },
     {
       url: `${baseUrl}/catalogs`,
-      changeFrequency: "monthly",
+      changeFrequency: "weekly",
       priority: 0.8,
     },
   );
@@ -44,7 +44,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
             lastModified: cultivar.lastModified,
           }
         : {}),
-      changeFrequency: "weekly",
+      changeFrequency: "monthly",
       priority: 0.7,
     });
   });

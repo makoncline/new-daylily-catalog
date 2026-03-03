@@ -2,6 +2,7 @@ import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { protectedProcedure, createTRPCRouter } from "@/server/api/trpc";
 import { generateUniqueSlug } from "@/lib/utils/slugify-server";
+import { invalidatePublicIsrForCatalogMutation } from "./public-isr-invalidation";
 
 const listingSelect = {
   id: true,
@@ -26,12 +27,18 @@ export const dashboardDbListingRouter = createTRPCRouter({
       }),
     )
     .mutation(async ({ ctx, input }) => {
+      let cultivarReference: { id: string; normalizedName: string | null } | null =
+        null;
+
       if (input.cultivarReferenceId) {
-        const exists = await ctx.db.cultivarReference.findUnique({
+        cultivarReference = await ctx.db.cultivarReference.findUnique({
           where: { id: input.cultivarReferenceId },
-          select: { id: true },
+          select: {
+            id: true,
+            normalizedName: true,
+          },
         });
-        if (!exists) {
+        if (!cultivarReference) {
           throw new TRPCError({
             code: "NOT_FOUND",
             message: "Cultivar reference not found",
@@ -46,7 +53,7 @@ export const dashboardDbListingRouter = createTRPCRouter({
         ctx.db,
       );
 
-      return ctx.db.listing.create({
+      const listing = await ctx.db.listing.create({
         data: {
           userId: ctx.user.id,
           title: input.title,
@@ -55,6 +62,14 @@ export const dashboardDbListingRouter = createTRPCRouter({
         },
         select: listingSelect,
       });
+
+      await invalidatePublicIsrForCatalogMutation({
+        db: ctx.db,
+        userId: ctx.user.id,
+        cultivarNormalizedNames: [cultivarReference?.normalizedName],
+      });
+
+      return listing;
     }),
 
   get: protectedProcedure
@@ -103,10 +118,23 @@ export const dashboardDbListingRouter = createTRPCRouter({
     .mutation(async ({ ctx, input }) => {
       const listing = await ctx.db.listing.findFirst({
         where: { id: input.id, userId: ctx.user.id },
-        select: { id: true },
+        select: {
+          id: true,
+          cultivarReferenceId: true,
+        },
       });
       if (!listing) {
         throw new TRPCError({ code: "NOT_FOUND", message: "Listing not found" });
+      }
+
+      if (
+        listing.cultivarReferenceId &&
+        listing.cultivarReferenceId !== input.cultivarReferenceId
+      ) {
+        throw new TRPCError({
+          code: "PRECONDITION_FAILED",
+          message: "Listing is already linked to a cultivar. Unlink it first.",
+        });
       }
 
       const cultivarReference = await ctx.db.cultivarReference.findUnique({
@@ -137,7 +165,7 @@ export const dashboardDbListingRouter = createTRPCRouter({
         ? await generateUniqueSlug(nextTitle, ctx.user.id, listing.id, ctx.db)
         : undefined;
 
-      return ctx.db.listing.update({
+      const updated = await ctx.db.listing.update({
         where: { id: listing.id },
         data: {
           cultivarReferenceId: cultivarReference.id,
@@ -146,6 +174,8 @@ export const dashboardDbListingRouter = createTRPCRouter({
         },
         select: listingSelect,
       });
+
+      return updated;
     }),
 
   unlinkAhs: protectedProcedure
@@ -153,17 +183,32 @@ export const dashboardDbListingRouter = createTRPCRouter({
     .mutation(async ({ ctx, input }) => {
       const listing = await ctx.db.listing.findFirst({
         where: { id: input.id, userId: ctx.user.id },
-        select: { id: true },
+        select: {
+          id: true,
+          cultivarReference: {
+            select: {
+              normalizedName: true,
+            },
+          },
+        },
       });
       if (!listing) {
         throw new TRPCError({ code: "NOT_FOUND", message: "Listing not found" });
       }
 
-      return ctx.db.listing.update({
+      const updated = await ctx.db.listing.update({
         where: { id: listing.id },
         data: { cultivarReferenceId: null },
         select: listingSelect,
       });
+
+      await invalidatePublicIsrForCatalogMutation({
+        db: ctx.db,
+        userId: ctx.user.id,
+        cultivarNormalizedNames: [listing.cultivarReference?.normalizedName],
+      });
+
+      return updated;
     }),
 
   syncAhsName: protectedProcedure
@@ -174,7 +219,9 @@ export const dashboardDbListingRouter = createTRPCRouter({
         select: {
           id: true,
           cultivarReference: {
-            select: { ahsListing: { select: { name: true } } },
+            select: {
+              ahsListing: { select: { name: true } },
+            },
           },
         },
       });
@@ -193,11 +240,13 @@ export const dashboardDbListingRouter = createTRPCRouter({
         ctx.db,
       );
 
-      return ctx.db.listing.update({
+      const updated = await ctx.db.listing.update({
         where: { id: listing.id },
         data: { title: name, slug: nextSlug },
         select: listingSelect,
       });
+
+      return updated;
     }),
 
   update: protectedProcedure
@@ -216,7 +265,15 @@ export const dashboardDbListingRouter = createTRPCRouter({
     .mutation(async ({ ctx, input }) => {
       const existing = await ctx.db.listing.findFirst({
         where: { id: input.id, userId: ctx.user.id },
-        select: { id: true, title: true },
+        select: {
+          id: true,
+          title: true,
+          cultivarReference: {
+            select: {
+              normalizedName: true,
+            },
+          },
+        },
       });
       if (!existing) {
         throw new TRPCError({ code: "NOT_FOUND", message: "Listing not found" });
@@ -248,6 +305,13 @@ export const dashboardDbListingRouter = createTRPCRouter({
         where: { id: input.id },
         select: listingSelect,
       });
+
+      await invalidatePublicIsrForCatalogMutation({
+        db: ctx.db,
+        userId: ctx.user.id,
+        cultivarNormalizedNames: [existing.cultivarReference?.normalizedName],
+      });
+
       return updated!;
     }),
 
@@ -256,7 +320,14 @@ export const dashboardDbListingRouter = createTRPCRouter({
     .mutation(async ({ ctx, input }) => {
       const listing = await ctx.db.listing.findFirst({
         where: { id: input.id, userId: ctx.user.id },
-        select: { id: true },
+        select: {
+          id: true,
+          cultivarReference: {
+            select: {
+              normalizedName: true,
+            },
+          },
+        },
       });
       if (!listing) {
         throw new TRPCError({ code: "NOT_FOUND", message: "Listing not found" });
@@ -284,6 +355,12 @@ export const dashboardDbListingRouter = createTRPCRouter({
             data: { updatedAt: new Date() },
           });
         }
+      });
+
+      await invalidatePublicIsrForCatalogMutation({
+        db: ctx.db,
+        userId: ctx.user.id,
+        cultivarNormalizedNames: [listing.cultivarReference?.normalizedName],
       });
 
       return { id: listing.id } as const;

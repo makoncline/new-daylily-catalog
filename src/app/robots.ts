@@ -15,25 +15,30 @@ export default function robots(): MetadataRoute.Robots {
     "/*/search",
     "/*/search?*",
   ];
+  const blockedBots = [
+    "ClaudeBot",
+    "anthropic-ai",
+    "GPTBot",
+    "ChatGPT-User",
+    "PerplexityBot",
+    "meta-externalagent",
+    "meta-externalfetcher",
+    "GoogleOther",
+    "Amazonbot",
+    "PetalBot",
+    "CCBot",
+    "Bytespider",
+    "vercel-screenshot-bot",
+  ];
 
   return {
     rules: [
       {
-        userAgent: "*",
-        allow: "/",
-        disallow: disallowPrivateRoutes,
+        userAgent: blockedBots,
+        disallow: "/",
       },
       {
-        userAgent: [
-          "Googlebot",
-          "Bingbot",
-          "msnbot",
-          "PerplexityBot",
-          "GPTBot",
-          "ChatGPT-User",
-          "ClaudeBot",
-          "anthropic-ai",
-        ],
+        userAgent: "*",
         allow: "/",
         disallow: disallowPrivateRoutes,
       },

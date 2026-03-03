@@ -1,11 +1,12 @@
 "use client";
 
-import { Loader2 } from "lucide-react";
+import { Loader2, RefreshCw } from "lucide-react";
 import { useMemo, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { NoResults } from "@/app/(public)/[userSlugOrId]/_components/no-results";
 import { DataTablePagination } from "@/components/data-table/data-table-pagination";
 import { H2, Muted } from "@/components/typography";
+import { Button } from "@/components/ui/button";
 import { useDataTable } from "@/hooks/use-data-table";
 import { cn } from "@/lib/utils";
 import {
@@ -64,6 +65,8 @@ export function PublicCatalogSearchContent({
   listings,
   isLoading,
   totalListingsCount,
+  isRefreshingCatalogData = false,
+  onRefreshCatalogData,
 }: PublicCatalogSearchContentProps) {
   const pathname = usePathname();
   const router = useRouter();
@@ -157,12 +160,38 @@ export function PublicCatalogSearchContent({
             <Muted>{totalListingsCount.toLocaleString()} total</Muted>
           </div>
 
-          {isLoading && (
-            <div className="text-muted-foreground flex items-center gap-2 text-sm">
-              <Loader2 className="h-4 w-4 animate-spin" />
-              <span>Loading more listings...</span>
-            </div>
-          )}
+          <div className="flex items-center gap-3">
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={onRefreshCatalogData}
+              disabled={isRefreshingCatalogData}
+              aria-label="Refresh catalog data"
+              data-testid="catalog-search-refresh"
+              data-state={isRefreshingCatalogData ? "refreshing" : "idle"}
+            >
+              <RefreshCw
+                className={cn(
+                  "mr-2 h-4 w-4",
+                  isRefreshingCatalogData && "animate-spin",
+                )}
+              />
+              Refresh data
+            </Button>
+
+            {isLoading && (
+              <div className="text-muted-foreground flex items-center gap-2 text-sm">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                <span>Loading more listings...</span>
+              </div>
+            )}
+            {isRefreshingCatalogData && (
+              <div className="text-muted-foreground text-sm">
+                Refreshing cached results...
+              </div>
+            )}
+          </div>
         </div>
 
         <div
