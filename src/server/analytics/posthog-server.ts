@@ -20,7 +20,7 @@ export async function captureServerPosthogEvent({
   properties,
 }: CaptureServerPosthogEventInput) {
   const config = getPosthogServerConfig();
-  if (!config || !distinctId) {
+  if (!config) {
     return;
   }
 

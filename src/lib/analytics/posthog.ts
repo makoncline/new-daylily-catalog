@@ -68,10 +68,6 @@ export function identifyPosthogUser(identity: PosthogUserIdentity) {
     return;
   }
 
-  if (!identity.id) {
-    return;
-  }
-
   posthog.identify(identity.id, {
     email: identity.email,
   });
