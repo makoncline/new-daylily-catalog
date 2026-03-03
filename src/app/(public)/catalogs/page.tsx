@@ -9,14 +9,14 @@ import {
   CatalogsSkeleton,
   CatalogsPageClient,
 } from "./_components/catalogs-page-client";
+import { IsrWrittenAt } from "../_components/isr-written-at";
 import { generateCatalogsPageMetadata } from "./_seo/metadata";
 import {
   createBreadcrumbListSchema,
   createCatalogsBreadcrumbs,
 } from "@/lib/utils/breadcrumbs";
 
-// CACHE_LITERAL_REF: CACHE_CONFIG.PUBLIC.STATIC_REVALIDATE_SECONDS
-export const revalidate = 86400;
+export const revalidate = false;
 
 export async function generateMetadata(): Promise<Metadata> {
   const url = getBaseUrl();
@@ -151,6 +151,8 @@ export default async function CatalogsPage() {
       <Suspense fallback={<CatalogsSkeleton />}>
         <CatalogsPageClient catalogs={catalogs} />
       </Suspense>
+
+      <IsrWrittenAt />
     </MainContent>
   );
 }

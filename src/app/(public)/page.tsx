@@ -2,9 +2,9 @@ import { HomePageSEO } from "./_components/home-seo";
 import { generateHomePageMetadata } from "./_seo/metadata";
 import { getBaseUrl } from "@/lib/utils/getBaseUrl";
 import HomePageClient from "./_components/home-page-client";
+import { IsrWrittenAt } from "./_components/isr-written-at";
 
-// CACHE_LITERAL_REF: CACHE_CONFIG.PUBLIC.STATIC_REVALIDATE_SECONDS
-export const revalidate = 86400;
+export const revalidate = false;
 
 export async function generateMetadata() {
   const url = getBaseUrl();
@@ -19,6 +19,7 @@ export default async function HomePage() {
     <>
       <HomePageSEO metadata={metadata} />
       <HomePageClient />
+      <IsrWrittenAt className="pb-8" />
     </>
   );
 }

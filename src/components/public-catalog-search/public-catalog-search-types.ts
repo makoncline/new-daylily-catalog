@@ -19,6 +19,8 @@ export interface PublicCatalogSearchContentProps {
   listings: PublicCatalogListing[];
   isLoading: boolean;
   totalListingsCount: number;
+  isRefreshingCatalogData?: boolean;
+  onRefreshCatalogData?: () => void;
 }
 
 export type PublicCatalogSearchMode = "basic" | "advanced";

@@ -9,14 +9,14 @@ import { getOptimizedMetaImageUrl } from "@/lib/utils/cloudflareLoader";
 import { getBaseUrl } from "@/lib/utils/getBaseUrl";
 import { toCultivarRouteSegment } from "@/lib/utils/cultivar-utils";
 import { getCachedPublicCultivarPage } from "@/server/db/public-cache";
+import { IsrWrittenAt } from "@/app/(public)/_components/isr-written-at";
 import { CultivarPageRoot, CultivarPageSection } from "./_components/cultivar-page-layout";
 import { CultivarHeroSection } from "./_components/cultivar-hero-section";
 import { CultivarGardenPhotosSection } from "./_components/cultivar-garden-photos-section";
 import { CultivarOffersSection } from "./_components/cultivar-offers-section";
 import { Muted } from "@/components/typography";
 
-// CACHE_LITERAL_REF: CACHE_CONFIG.PUBLIC.STATIC_REVALIDATE_SECONDS
-export const revalidate = 86400;
+export const revalidate = false;
 export const dynamic = "force-static";
 
 const getRequestCultivarPage = cache(
@@ -214,13 +214,11 @@ export default async function CultivarPage({ params }: PageProps) {
             <Muted>
               {cultivarPage.summary.name} registered with American Hemerocallis Society.
             </Muted>
-
-            <Muted>
-              Last updated {new Date(cultivarPage.freshness.cultivarUpdatedAt).toLocaleDateString()}.
-            </Muted>
           </footer>
         </CultivarPageRoot>
       </div>
+
+      <IsrWrittenAt />
     </MainContent>
   );
 }
