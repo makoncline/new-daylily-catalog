@@ -13,6 +13,8 @@ if (isProduction && posthogKey) {
     api_host: process.env.NEXT_PUBLIC_POSTHOG_HOST,
     defaults: "2026-01-30",
   });
+
+  (globalThis as { posthog?: typeof posthog }).posthog = posthog;
 }
 
 if (isSentryEnabled) {

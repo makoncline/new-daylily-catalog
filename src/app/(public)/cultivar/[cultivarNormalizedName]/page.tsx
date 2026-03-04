@@ -10,6 +10,9 @@ import { getBaseUrl } from "@/lib/utils/getBaseUrl";
 import { toCultivarRouteSegment } from "@/lib/utils/cultivar-utils";
 import { getCachedPublicCultivarPage } from "@/server/db/public-cache";
 import { IsrWrittenAt } from "@/app/(public)/_components/isr-written-at";
+import { SellerIntentLink } from "@/components/seller-intent-link";
+import { buttonVariants } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 import { CultivarPageRoot, CultivarPageSection } from "./_components/cultivar-page-layout";
 import { CultivarHeroSection } from "./_components/cultivar-hero-section";
 import { CultivarGardenPhotosSection } from "./_components/cultivar-garden-photos-section";
@@ -136,6 +139,25 @@ export default async function CultivarPage({ params }: PageProps) {
 
           <CultivarPageSection>
             <CultivarGardenPhotosSection photos={cultivarPage.gardenPhotos} />
+          </CultivarPageSection>
+
+          <CultivarPageSection>
+            <div className="bg-card flex flex-col gap-3 rounded-lg border p-4 lg:flex-row lg:items-center lg:justify-between">
+              <p className="text-sm">
+                Want your catalog listed here? Create your catalog and publish
+                when ready.
+              </p>
+              <SellerIntentLink
+                className={cn(buttonVariants({ size: "sm" }))}
+                entrySurface="cultivar_page_inline_cta"
+                sourcePageType="cultivar"
+                sourcePath={`/cultivar/${canonicalSegment ?? cultivarNormalizedName}`}
+                ctaId="cultivar-inline-create-catalog"
+                ctaLabel="Create your catalog"
+              >
+                Create your catalog
+              </SellerIntentLink>
+            </div>
           </CultivarPageSection>
 
           <CultivarPageSection>

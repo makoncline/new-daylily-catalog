@@ -2,6 +2,32 @@
 
 ## Log
 
+- 2026-03-04 - posthog event type durability - Define `PosthogEventName` as `keyof` a `POSTHOG_EVENT_NAMES` map to avoid duplicate-union lint failures from manual string-union edits.
+- 2026-03-04 - lint gate compatibility for TanStack table hook - `react-hooks/incompatible-library` on `useReactTable` can trip strict lint gates; add a targeted `eslint-disable-next-line` with rationale at the callsite.
+- 2026-03-03 - homepage CTA role in e2e - Home `Create your catalog` uses `Button asChild` with `next/link`, so Playwright should target role `link` (not `button`) in onboarding entry e2e steps.
+- 2026-03-03 - cultivar CTA style/placement preference - Use the same banner style as `/catalogs` (`bg-card` row + small primary button) and place it between cultivar photos and offers, not at the page bottom.
+- 2026-03-03 - cultivar seller CTA placement - Keep cultivar-page seller-intent CTA lightweight (inline row after offers) instead of adding another heavy card module; use `SellerIntentLink` with `entry_surface="cultivar_page_inline_cta"`.
+- 2026-03-03 - seller landing redesign pattern - Full-bleed hero with background image + overlay (matching home page) creates atmosphere; alternate white and `bg-muted/50` sections for visual rhythm; close with background-image CTA. Use `text-white` on dark overlays, not `text-background` (background maps to the light theme value). Remove `border-b` from layout header when hero sits directly below for seamless edge-to-edge feel.
+- 2026-03-03 - self-miss metadata import recurrence - I again accidentally imported `Metadata` from `react` while rewriting `/start-membership`; always import `Metadata` from `next` in App Router files.
+- 2026-03-03 - user visual-quality correction on seller landing - `/start-membership` should visually match existing public pages; avoid flat wireframe-like sections and use stronger hierarchy/atmosphere while keeping static performance.
+- 2026-03-03 - self-miss metadata import in page refactor - I imported `Metadata` from `react` during page rewrite; keep `Metadata` imported from `next` in App Router pages.
+- 2026-03-03 - seller-intent fallback context pattern - `SellerIntentLink` should default `source_path` to `window.location.pathname` and `source_page_type` to `"public"` when props are omitted, so CTA events retain useful origin context without local storage attribution.
+- 2026-03-03 - self-miss public path quoting recurrence - I ran `sed` on `src/app/(public)/...` without quoting and triggered zsh glob expansion; always quote App Router paths containing `()`/`[]`.
+- 2026-03-03 - seller attribution scope rollback - User does not want local/session seller attribution persistence; keep seller funnel analytics to normal PostHog page/event context without extra cross-auth attribution state.
+- 2026-03-03 - dynamic import preference for public funnel - User prefers avoiding dynamic `import()` for new analytics/UI paths; favor static composition or post-load boundaries when needed.
+- 2026-03-03 - global posthog contract for link-level tracking - When link-level tracking relies on `globalThis.posthog`, set it at instrumentation init time in production (`posthog.init(...)` branch) and assert this in `tests/instrumentation-client.test.ts`.
+- 2026-03-03 - user component architecture preference - For new components, prefer composition-friendly design with headless hooks and explicit variants/compound structure over embedding behavior directly in UI elements.
+- 2026-03-03 - self-miss quoted-public-path recurrence - I ran a `git diff` command with unquoted App Router paths containing `()` and hit zsh glob expansion; always quote those paths in shell commands.
+- 2026-03-03 - footer analytics no-import pattern - For perf-sensitive public-link tracking, write attribution synchronously and send best-effort events via `globalThis.posthog?.capture(...)` instead of importing `posthog-js` or dynamic importing analytics modules.
+- 2026-03-03 - public-layout perf pattern - For low-priority analytics links in shared public layouts, lazy-load analytics modules with dynamic `import()` inside click handlers and do fire-and-forget capture so first paint bundles stay lighter.
+- 2026-03-03 - perf-safe footer instrumentation tweak - For lightweight seller CTA tracking in public layout, avoid `useAuth`/Clerk client hooks in shared link components when auth state is non-essential; emit event without `is_authenticated`.
+- 2026-03-03 - seller auth-pending storage rule - Funnel `auth_pending` flags should use `sessionStorage` (not `localStorage`) to avoid false `auth_completed` events from unrelated future sign-ins.
+- 2026-03-03 - seller attribution timestamp policy - Keep both `firstCapturedAt` and `lastCapturedAt`; preserve first-touch timestamp on recapture and update only last-touch timestamp.
+- 2026-03-03 - self-fix lint ternary rule recurrence - `@typescript-eslint/prefer-nullish-coalescing` flagged another truthy ternary in a helper (`trimmed ? trimmed : undefined`); prefer explicit guard-return when empty strings are significant.
+- 2026-03-03 - e2e flow update after seller-landing insertion - Home `Create your catalog` now routes to `/start-membership` before auth, so e2e signup flows must click CTA on home, then CTA again on seller landing before Clerk signup.
+- 2026-03-03 - jsdom next-link test noise pattern - Clicking real `next/link` anchors in jsdom triggers `Not implemented: navigation`; mock `next/link` with `preventDefault()` when asserting click side effects.
+- 2026-03-03 - self-miss napkin disclosure recurrence - I referenced napkin workflow in the first progress update again; keep napkin handling fully silent in user-facing updates.
+- 2026-03-03 - self-miss quoted-public-path recurrence - I ran `rg` with an unquoted `src/app/(public)` path and hit zsh glob parsing (`missing delimiter for 'u' glob qualifier`); always quote App Router paths containing `()`/`[]`.
 - 2026-03-03 - deslop email-source consistency - For Clerk user identification flows in this repo, prefer `primaryEmailAddress?.emailAddress` directly and avoid fallback to secondary email arrays unless there is a product requirement.
 - 2026-03-03 - posthog identify payload preference - User wants PostHog user identification limited to `userId` and `email` only (no name/username traits).
 - 2026-03-03 - test mock typing lint gotcha - `vi.mock` wrappers that return `vi.fn()` results can trigger `@typescript-eslint/no-unsafe-return`; type the mock function signature (e.g. `vi.fn<() => T>()`) before returning it.
@@ -374,6 +400,8 @@
 
 ## Preferences
 
+- Seller funnel analytics preference: no dedicated seller-attribution persistence layer; rely on standard PostHog context/referrer plus lightweight funnel events.
+- Avoid dynamic `import()` in new public-funnel code when practical; prefer compositional components and defer-heavy UI with boundaries instead of import-time splits.
 - Do not add new cultivar-query metrics/logging instrumentation right now.
 - Keep cultivar page URLs name-based (`/cultivar/:name-segment`), not ID-based, even when internal DB joins use `cultivarReferenceId`.
 - Exclude free-tier accounts from `/catalogs`, from listing inclusion on `/cultivar/:slug`, and from sitemap-derived public route coverage.

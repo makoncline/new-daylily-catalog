@@ -2,25 +2,35 @@
 
 import posthog from "posthog-js";
 
-export type PosthogEventName =
-  | "home_signup_cta_clicked"
-  | "public_nav_dashboard_clicked"
-  | "signup_completed"
-  | "onboarding_step_viewed"
-  | "onboarding_step_completed"
-  | "onboarding_completed"
-  | "onboarding_profile_saved"
-  | "onboarding_listing_saved"
-  | "onboarding_aha_reached"
-  | "onboarding_skipped"
-  | "onboarding_membership_screen_viewed"
-  | "onboarding_membership_continue_for_now_clicked"
-  | "checkout_started"
-  | "checkout_redirect_ready"
-  | "checkout_failed"
-  | "trial_started"
-  | "paid_activated"
-  | "trial_canceled";
+export const POSTHOG_EVENT_NAMES = {
+  home_signup_cta_clicked: true,
+  public_nav_dashboard_clicked: true,
+  signup_completed: true,
+  onboarding_step_viewed: true,
+  onboarding_step_completed: true,
+  onboarding_completed: true,
+  onboarding_profile_saved: true,
+  onboarding_listing_saved: true,
+  onboarding_aha_reached: true,
+  onboarding_skipped: true,
+  onboarding_membership_screen_viewed: true,
+  onboarding_membership_continue_for_now_clicked: true,
+  checkout_started: true,
+  checkout_redirect_ready: true,
+  checkout_failed: true,
+  trial_started: true,
+  paid_activated: true,
+  trial_canceled: true,
+  seller_landing_viewed: true,
+  seller_cta_clicked: true,
+  seller_example_clicked: true,
+  auth_started: true,
+  onboarding_entry_viewed: true,
+  membership_skipped: true,
+  catalog_published: true,
+} as const;
+
+export type PosthogEventName = keyof typeof POSTHOG_EVENT_NAMES;
 
 export type PosthogEventProperties = Record<
   string,

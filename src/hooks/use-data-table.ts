@@ -47,6 +47,8 @@ export function useDataTable<TData>({
   const urlState = useUrlInitialTableState({ filterableColumnIds });
   const localStorageState = useLocalStorageInitialTableState({ storageKey });
 
+  // TanStack Table's hook intentionally returns mutable APIs; React Compiler warning is expected here.
+  // eslint-disable-next-line react-hooks/incompatible-library
   const table = useReactTable<TData>({
     ...defaultTableConfig<TData>(),
     data,

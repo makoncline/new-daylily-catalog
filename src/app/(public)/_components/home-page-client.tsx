@@ -1,7 +1,6 @@
 "use client";
 
 import {
-  SignUpButton as ClerkSignUpButton,
   useAuth,
 } from "@clerk/nextjs";
 import { Button } from "@/components/ui/button";
@@ -17,12 +16,38 @@ import { Star } from "lucide-react";
 import Link from "next/link";
 import { H1, H2, P, Muted } from "@/components/typography";
 import { homePageContent } from "@/config/home-page-content";
-import { SUBSCRIPTION_CONFIG } from "@/config/subscription-config";
 import { capturePosthogEvent } from "@/lib/analytics/posthog";
 
-function SignUpButton({ className }: { className?: string }) {
+function SellerIntentButton({
+  className,
+  ctaId,
+  entrySurface,
+}: {
+  className?: string;
+  ctaId: string;
+  entrySurface: string;
+}) {
   const { isLoaded, userId } = useAuth();
   const text = "Create your catalog";
+
+  const handleClick = () => {
+    capturePosthogEvent("seller_cta_clicked", {
+      entry_surface: entrySurface,
+      source_page_type: "home",
+      source_path: "/",
+      cta_id: ctaId,
+      cta_label: text,
+      target_path: "/start-membership",
+      is_authenticated: Boolean(userId),
+    });
+
+    capturePosthogEvent("home_signup_cta_clicked", {
+      source: "home-page",
+      auth_state: userId ? "signed_in" : "signed_out",
+      entry_surface: entrySurface,
+      target_path: "/start-membership",
+    });
+  };
 
   if (!isLoaded) {
     return (
@@ -32,43 +57,12 @@ function SignUpButton({ className }: { className?: string }) {
     );
   }
 
-  if (userId) {
-    return (
-      <Button size="lg" variant="gradient" className={className} asChild>
-        <Link
-          href="/dashboard"
-          onClick={() => {
-            capturePosthogEvent("home_signup_cta_clicked", {
-              source: "home-page",
-              auth_state: "signed_in",
-            });
-          }}
-        >
-          {text}
-        </Link>
-      </Button>
-    );
-  }
-
   return (
-    <ClerkSignUpButton
-      mode="modal"
-      forceRedirectUrl={SUBSCRIPTION_CONFIG.NEW_USER_ONBOARDING_PATH}
-    >
-      <Button
-        size="lg"
-        variant="gradient"
-        className={className}
-        onClick={() => {
-          capturePosthogEvent("home_signup_cta_clicked", {
-            source: "home-page",
-            auth_state: "signed_out",
-          });
-        }}
-      >
+    <Button size="lg" variant="gradient" className={className} asChild>
+      <Link href="/start-membership" onClick={handleClick}>
         {text}
-      </Button>
-    </ClerkSignUpButton>
+      </Link>
+    </Button>
   );
 }
 
@@ -128,7 +122,11 @@ export default function HomePageClient() {
               {hero.cta.title}
             </H2>
             <div className="flex flex-col items-center gap-2">
-              <SignUpButton className="w-full" />
+              <SellerIntentButton
+                className="w-full"
+                ctaId="home-hero-create-catalog"
+                entrySurface="home_hero"
+              />
               <Muted className="text-center text-xs">{hero.cta.subtitle}</Muted>
             </div>
           </div>
@@ -213,7 +211,10 @@ export default function HomePageClient() {
           <P className="text-background/90 mb-8 text-lg">
             {finalCta.description}
           </P>
-          <SignUpButton />
+          <SellerIntentButton
+            ctaId="home-final-create-catalog"
+            entrySurface="home_final_cta"
+          />
         </div>
       </section>
     </div>

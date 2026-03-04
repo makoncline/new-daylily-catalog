@@ -277,6 +277,7 @@ export function StartOnboardingPageClient({
   const starterImageGenerationTimeoutRef = useRef<number | null>(null);
   const starterImageGenerationRequestIdRef = useRef(0);
   const viewedOnboardingStepsRef = useRef<Set<OnboardingStepId>>(new Set());
+  const hasTrackedOnboardingEntryRef = useRef(false);
   const hasHydratedSessionDraft = useRef(false);
   const profileImageWasEditedRef = useRef(false);
 
@@ -607,6 +608,25 @@ export function StartOnboardingPageClient({
       },
     );
   }, [onboardingPath, rawStepParam, router, searchParams]);
+
+  useEffect(() => {
+    if (!currentUserQuery.isFetched || hasTrackedOnboardingEntryRef.current) {
+      return;
+    }
+
+    const userId = currentUserQuery.data?.id;
+    if (!userId) {
+      return;
+    }
+
+    hasTrackedOnboardingEntryRef.current = true;
+    capturePosthogEvent("onboarding_entry_viewed", {
+      source_page_type: "onboarding",
+      source_path: onboardingPath,
+      target_path: onboardingPath,
+      is_authenticated: true,
+    });
+  }, [currentUserQuery.data?.id, currentUserQuery.isFetched, onboardingPath]);
 
   useEffect(() => {
     if (viewedOnboardingStepsRef.current.has(currentStep.id)) {
@@ -1806,7 +1826,13 @@ export function StartOnboardingPageClient({
     capturePosthogEvent("onboarding_membership_continue_for_now_clicked", {
       source: "onboarding-step",
     });
-  }, [captureOnboardingStepEvent, clearOnboardingDraftSnapshot]);
+    capturePosthogEvent("membership_skipped", {
+      source_page_type: "onboarding",
+      source_path: onboardingPath,
+      target_path: "/dashboard",
+      is_authenticated: true,
+    });
+  }, [captureOnboardingStepEvent, clearOnboardingDraftSnapshot, onboardingPath]);
 
   const handleSkipOnboarding = () => {
     clearOnboardingDraftSnapshot();
