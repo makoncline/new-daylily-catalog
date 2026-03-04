@@ -2,6 +2,7 @@
 
 ## Log
 
+- 2026-03-04 - lint gate compatibility for TanStack table hook - `react-hooks/incompatible-library` on `useReactTable` can trip strict lint gates; add a targeted `eslint-disable-next-line` with rationale at the callsite.
 - 2026-03-03 - homepage CTA role in e2e - Home `Create your catalog` uses `Button asChild` with `next/link`, so Playwright should target role `link` (not `button`) in onboarding entry e2e steps.
 - 2026-03-03 - cultivar CTA style/placement preference - Use the same banner style as `/catalogs` (`bg-card` row + small primary button) and place it between cultivar photos and offers, not at the page bottom.
 - 2026-03-03 - cultivar seller CTA placement - Keep cultivar-page seller-intent CTA lightweight (inline row after offers) instead of adding another heavy card module; use `SellerIntentLink` with `entry_surface="cultivar_page_inline_cta"`.
