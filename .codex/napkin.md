@@ -32,6 +32,13 @@
 - 2026-03-03 - posthog identify payload preference - User wants PostHog user identification limited to `userId` and `email` only (no name/username traits).
 - 2026-03-03 - test mock typing lint gotcha - `vi.mock` wrappers that return `vi.fn()` results can trigger `@typescript-eslint/no-unsafe-return`; type the mock function signature (e.g. `vi.fn<() => T>()`) before returning it.
 - 2026-03-03 - self-miss napkin disclosure recurrence - I again mentioned napkin workflow in the first progress update of a new session; keep progress updates focused on task steps only.
+- 2026-03-03 - self-fix TS closure narrowing - In webhook code, `if (user?.clerkUserId)` did not narrow inside `Array.map` callback under `strictNullChecks`; assign `const clerkUserId = user?.clerkUserId` before the callback and guard on that constant.
+- 2026-03-03 - user goal priority - Primary KPI focus is business outcomes: increase total signups and conversion to paid membership (not only SEO traffic).
+- 2026-03-03 - self-miss path quoting recurrence - I ran `sed` against `src/app/(public)/...` without quotes and triggered zsh globbing; always quote paths containing `()`/`[]`.
+- 2026-03-03 - env wiring detail - This worktree's `.env.development` is a symlink to `/Users/makon/dev/new-daylily-catalog/.env.development`; updating the source file updates the worktree automatically (no copy step needed).
+- 2026-03-03 - skill-installer script invocation detail - `install-skill-from-github.py` in `.system/skill-installer/scripts` is not executable here (`permission denied`); invoke with `python3 <script> ...` instead of running it directly.
+- 2026-03-03 - self-miss shell URL quoting - I ran `curl` with an unquoted GitHub API URL containing `?ref=...` and zsh treated `?` as a glob; always quote URLs with query params in shell commands.
+- 2026-03-03 - self-miss napkin disclosure repeat - I mentioned napkin workflow in user-facing progress updates again; keep napkin handling silent.
 - 2026-03-03 - stripe checkout unit-test isolation - `stripe.generateCheckout` now consults `getStripeSubscription` when `stripeCustomerId` exists; unit tests that create a raw router caller must mock `@/server/stripe/sync-subscription` or they can hit real KV/Prisma and fail with sqlite open errors.
 - 2026-03-03 - test fixture type-assertion pattern - Minimal typed fixtures for router-output-heavy helpers should cast through `unknown` (`as unknown as T`) to satisfy TS overlap checks during `npx tsc --noEmit`.
 - 2026-03-03 - self-miss public path quoting recurrence - I ran `rg` with an unquoted `src/app/(public)` path and triggered zsh glob parsing; always quote App Router paths containing `()`/`[]`.

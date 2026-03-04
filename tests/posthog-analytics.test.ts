@@ -24,6 +24,7 @@ describe("posthog analytics helper", () => {
     previousNodeEnv = process.env.NODE_ENV;
     previousPosthogKey = process.env.NEXT_PUBLIC_POSTHOG_KEY;
     mutableEnv.NODE_ENV = "production";
+    window.history.replaceState({}, "", "/test-page");
     vi.resetModules();
   });
 
@@ -53,6 +54,22 @@ describe("posthog analytics helper", () => {
     expect(captureMock).toHaveBeenCalledTimes(1);
     expect(captureMock).toHaveBeenCalledWith("checkout_started", {
       source: "test",
+      source_page: "/test-page",
+    });
+  });
+
+  it("uses the provided source_page when present", async () => {
+    process.env.NEXT_PUBLIC_POSTHOG_KEY = "phc_test_key";
+    const { capturePosthogEvent } = await import("@/lib/analytics/posthog");
+
+    capturePosthogEvent("checkout_started", {
+      source: "test",
+      source_page: "/explicit",
+    });
+
+    expect(captureMock).toHaveBeenCalledWith("checkout_started", {
+      source: "test",
+      source_page: "/explicit",
     });
   });
 

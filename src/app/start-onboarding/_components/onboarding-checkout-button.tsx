@@ -24,6 +24,12 @@ export function OnboardingCheckoutButton({
 
   const handleCheckout = async () => {
     capturePosthogEvent("checkout_started", { source });
+    if (source === "onboarding-membership-step") {
+      capturePosthogEvent("onboarding_completed", {
+        source,
+        completion_path: "start_trial",
+      });
+    }
 
     try {
       const { url } = await generateCheckout.mutateAsync();

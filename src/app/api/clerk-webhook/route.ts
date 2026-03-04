@@ -5,6 +5,7 @@ import { env } from "@/env";
 import { NextResponse } from "next/server";
 import { headers } from "next/headers";
 import { syncClerkUserToKV } from "@/server/clerk/sync-user";
+import { captureServerPosthogEvent } from "@/server/analytics/posthog-server";
 
 // Only include events that are actually supported by Clerk
 const relevantEvents = new Set([
@@ -70,7 +71,7 @@ export async function POST(req: Request) {
       }
 
       // First ensure the user exists in our database
-      await db.user.upsert({
+      const user = await db.user.upsert({
         where: { clerkUserId },
         create: { clerkUserId },
         update: {},
@@ -78,6 +79,18 @@ export async function POST(req: Request) {
 
       // Then sync their data to KV store
       await syncClerkUserToKV(clerkUserId);
+
+      if (evt.type === "user.created") {
+        await captureServerPosthogEvent({
+          distinctId: clerkUserId,
+          event: "signup_completed",
+          properties: {
+            source: "clerk-webhook",
+            source_page: "/api/clerk-webhook",
+            user_id: user.id,
+          },
+        });
+      }
 
       return NextResponse.json(
         { message: "User processed successfully" },
