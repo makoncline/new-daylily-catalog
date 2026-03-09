@@ -3,7 +3,7 @@ import { CACHE_CONFIG } from "@/config/cache-config";
 
 interface CreateServerCacheOptions {
   key: string;
-  revalidateSeconds?: number;
+  revalidateSeconds?: number | false;
   tags?: string[];
 }
 
@@ -22,7 +22,8 @@ export function createServerCache<Args extends unknown[], Result>(
 
   const cached = unstable_cache(fn, [options.key], {
     revalidate:
-      options.revalidateSeconds ?? CACHE_CONFIG.SERVER.DEFAULT_REVALIDATE_SECONDS,
+      options.revalidateSeconds ??
+      CACHE_CONFIG.SERVER.DEFAULT_REVALIDATE_SECONDS,
     tags: options.tags,
   });
 

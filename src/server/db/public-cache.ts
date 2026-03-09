@@ -1,10 +1,11 @@
 import { CACHE_CONFIG } from "@/config/cache-config";
 import { createServerCache } from "@/lib/cache/server-cache";
-import { getPublicCultivarPage, getCultivarRouteSegments, getCultivarSitemapEntries } from "@/server/db/getPublicCultivars";
 import {
-  getInitialListings,
-  getListings,
-} from "@/server/db/getPublicListings";
+  getPublicCultivarPage,
+  getCultivarRouteSegments,
+  getCultivarSitemapEntries,
+} from "@/server/db/getPublicCultivars";
+import { getInitialListings, getListings } from "@/server/db/getPublicListings";
 import { getPublicProfiles } from "@/server/db/getPublicProfiles";
 export {
   getCachedPublicCatalogRouteEntries,
@@ -36,7 +37,7 @@ export const getCachedPublicCultivarPage = createServerCache(
   getPublicCultivarPage,
   {
     key: "public:cultivar-page",
-    revalidateSeconds: CACHE_CONFIG.PUBLIC.STATIC_REVALIDATE_SECONDS,
+    revalidateSeconds: CACHE_CONFIG.PUBLIC.CULTIVAR_PAGE_REVALIDATE_SECONDS,
     tags: [CACHE_CONFIG.TAGS.PUBLIC_CULTIVAR_PAGE],
   },
 );
