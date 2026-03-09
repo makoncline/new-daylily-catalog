@@ -21,15 +21,10 @@ describe("createServerCache", () => {
   });
 
   it("passes invalidation-only revalidation through to unstable_cache", async () => {
-    const originalNodeEnv = process.env.NODE_ENV;
-    const originalVitest = process.env.VITEST;
-    const originalPlaywrightLocalE2E = process.env.PLAYWRIGHT_LOCAL_E2E;
-    const originalLocalQueryProfiler = process.env.LOCAL_QUERY_PROFILER;
-
-    process.env.NODE_ENV = "production";
-    delete process.env.VITEST;
-    delete process.env.PLAYWRIGHT_LOCAL_E2E;
-    delete process.env.LOCAL_QUERY_PROFILER;
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("VITEST", undefined);
+    vi.stubEnv("PLAYWRIGHT_LOCAL_E2E", undefined);
+    vi.stubEnv("LOCAL_QUERY_PROFILER", undefined);
 
     const getValue = vi.fn(async (slug: string) => slug);
 
@@ -52,25 +47,7 @@ describe("createServerCache", () => {
       );
       expect(getValue).toHaveBeenCalledWith("happy-returns");
     } finally {
-      process.env.NODE_ENV = originalNodeEnv;
-
-      if (originalVitest === undefined) {
-        delete process.env.VITEST;
-      } else {
-        process.env.VITEST = originalVitest;
-      }
-
-      if (originalPlaywrightLocalE2E === undefined) {
-        delete process.env.PLAYWRIGHT_LOCAL_E2E;
-      } else {
-        process.env.PLAYWRIGHT_LOCAL_E2E = originalPlaywrightLocalE2E;
-      }
-
-      if (originalLocalQueryProfiler === undefined) {
-        delete process.env.LOCAL_QUERY_PROFILER;
-      } else {
-        process.env.LOCAL_QUERY_PROFILER = originalLocalQueryProfiler;
-      }
+      vi.unstubAllEnvs();
     }
   });
 });
