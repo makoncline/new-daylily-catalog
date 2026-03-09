@@ -1,22 +1,23 @@
 "use client";
 
-import {
-  useAuth,
-} from "@clerk/nextjs";
-import { Button } from "@/components/ui/button";
+import { useAuth } from "@clerk/nextjs";
 import Image from "next/image";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Star } from "lucide-react";
 import Link from "next/link";
-import { H1, H2, P, Muted } from "@/components/typography";
-import { homePageContent } from "@/config/home-page-content";
+import { ArrowRight, CheckCircle2, Flower2, Search, Store } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { H1, H2, H3, Muted, P } from "@/components/typography";
 import { capturePosthogEvent } from "@/lib/analytics/posthog";
+import { UserCard } from "@/components/user-card";
+import { HomeSearchPanel } from "./home-search-panel";
+import { OptimizedImage } from "@/components/optimized-image";
+import type { HomeFeaturedCultivar } from "@/types";
+import type { PublicProfile } from "@/types/public-types";
+
+interface HomePageClientProps {
+  catalogs: PublicProfile[];
+  featuredCultivars: HomeFeaturedCultivar[];
+}
 
 function SellerIntentButton({
   className,
@@ -51,14 +52,14 @@ function SellerIntentButton({
 
   if (!isLoaded) {
     return (
-      <Button size="lg" variant="gradient" className={className} disabled>
+      <Button size="lg" className={className} disabled>
         {text}
       </Button>
     );
   }
 
   return (
-    <Button size="lg" variant="gradient" className={className} asChild>
+    <Button size="lg" className={className} asChild>
       <Link href="/start-membership" onClick={handleClick}>
         {text}
       </Link>
@@ -66,19 +67,69 @@ function SellerIntentButton({
   );
 }
 
-export default function HomePageClient() {
-  const { hero, features, database, finalCta } = homePageContent;
+function CultivarFeatureCard({
+  cultivar,
+  priority,
+}: {
+  cultivar: HomeFeaturedCultivar;
+  priority: boolean;
+}) {
+  return (
+    <Link
+      href={`/cultivar/${cultivar.segment}`}
+      className="group bg-card hover:border-primary overflow-hidden rounded-2xl border transition"
+    >
+      {cultivar.imageUrl ? (
+        <OptimizedImage
+          src={cultivar.imageUrl}
+          alt={cultivar.name}
+          size="full"
+          priority={priority}
+          className="aspect-[4/3]"
+        />
+      ) : (
+        <div className="bg-muted aspect-[4/3]" />
+      )}
+
+      <div className="space-y-3 p-4">
+        <div className="space-y-2">
+          <H3 className="text-xl leading-tight">{cultivar.name}</H3>
+          {(cultivar.hybridizer ?? cultivar.year) && (
+            <Muted className="text-sm">
+              {[cultivar.hybridizer, cultivar.year].filter(Boolean).join(", ")}
+            </Muted>
+          )}
+        </div>
+
+        <div className="flex items-center justify-between">
+          <Badge variant="secondary">
+            {cultivar.offerCount} public{" "}
+            {cultivar.offerCount === 1 ? "offer" : "offers"}
+          </Badge>
+          <span className="text-sm font-medium">
+            Open page
+            <ArrowRight className="ml-1 inline h-4 w-4" />
+          </span>
+        </div>
+      </div>
+    </Link>
+  );
+}
+
+export default function HomePageClient({
+  catalogs,
+  featuredCultivars,
+}: HomePageClientProps) {
+  const featuredCatalogs = catalogs.slice(0, 6);
 
   return (
-    <div className="flex flex-col items-center gap-24">
-      {/* Hero Section */}
-      <section className="relative flex w-full flex-col items-center justify-center gap-6 p-6 py-8 md:py-16 lg:flex-row">
-        {/* Background Image with Overlay */}
+    <div className="flex flex-col">
+      <section className="relative overflow-hidden">
         <div className="absolute inset-0">
-          <div className="bg-foreground/60 absolute inset-0 z-10 backdrop-blur-[2px]" />
+          <div className="absolute inset-0 z-10 bg-black/60 backdrop-blur-[2px]" />
           <Image
-            src={hero.backgroundImage.src}
-            alt={hero.backgroundImage.alt}
+            src="/assets/hero-garden.webp"
+            alt="Daylily garden at golden hour"
             fill
             sizes="100vw"
             className="object-cover object-center"
@@ -86,137 +137,192 @@ export default function HomePageClient() {
           />
         </div>
 
-        {/* Content */}
-        <div className="text-background relative z-20 flex max-w-2xl flex-col items-start gap-4">
-          {/* Badge */}
-          <div className="bg-foreground/10 flex items-center gap-2 rounded-full px-6 py-2 text-sm backdrop-blur-sm">
-            <hero.badge.icon className="h-6 w-6" />
-            <div className="flex flex-col items-center">
-              <span>{hero.badge.text}</span>
-              <div className="flex gap-1">
-                {Array.from({ length: hero.badge.stars }, (_, i) => (
-                  <Star key={i} className="h-3 w-3" fill="currentColor" />
-                ))}
+        <div className="relative z-20 mx-auto grid min-h-[calc(100svh-4rem)] w-full max-w-6xl gap-8 px-4 py-10 lg:grid-cols-[minmax(0,1fr)_minmax(360px,520px)] lg:items-center lg:px-8 lg:py-16">
+          <div className="space-y-6 text-white">
+            <Badge className="bg-white/12 px-4 py-1.5 text-white backdrop-blur">
+              Daylily database + catalog directory
+            </Badge>
+
+            <div className="space-y-4">
+              <H1 className="text-5xl leading-[0.92] font-bold tracking-tight lg:text-7xl">
+                Find cultivars. Find sellers.
+              </H1>
+              <P className="max-w-2xl text-xl text-white/80 lg:text-2xl">
+                Browse public daylily catalogs, research cultivar pages, and
+                keep a clear path open for sellers who are ready to publish.
+              </P>
+            </div>
+
+            <div className="flex flex-wrap gap-3 text-sm text-white/80">
+              <div className="rounded-full bg-white/10 px-4 py-2 backdrop-blur">
+                100,000+ registered cultivars
+              </div>
+              <div className="rounded-full bg-white/10 px-4 py-2 backdrop-blur">
+                {catalogs.length} public catalogs
+              </div>
+              <div className="rounded-full bg-white/10 px-4 py-2 backdrop-blur">
+                Buyer research and seller discovery
               </div>
             </div>
-          </div>
 
-          <H1 className="text-4xl sm:text-6xl">{hero.title}</H1>
-          <P className="text-background/90 text-lg">{hero.description}</P>
+            <div className="flex flex-col gap-3 sm:flex-row">
+              <Button size="lg" variant="secondary" asChild>
+                <Link href="/catalogs">
+                  Browse catalogs
+                  <ArrowRight className="h-4 w-4" />
+                </Link>
+              </Button>
 
-          {/* Feature List */}
-          <div className="flex flex-col gap-4">
-            {hero.features.map((feature, index) => (
-              <div key={index} className="flex items-center gap-3">
-                <span className="text-lg">{feature.emoji}</span>
-                <span>{feature.text}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* CTA Section */}
-        <div className="bg-card relative z-20 flex w-full max-w-md rounded-lg p-2 shadow-lg lg:w-1/3">
-          <div className="bg-foreground text-primary-foreground flex w-full flex-col gap-4 rounded-md p-6">
-            <H2 className="text-primary-foreground text-xl">
-              {hero.cta.title}
-            </H2>
-            <div className="flex flex-col items-center gap-2">
               <SellerIntentButton
-                className="w-full"
+                className="w-full sm:w-auto"
                 ctaId="home-hero-create-catalog"
                 entrySurface="home_hero"
               />
-              <Muted className="text-center text-xs">{hero.cta.subtitle}</Muted>
+            </div>
+
+            <div className="grid gap-3 text-sm text-white/80 lg:grid-cols-3">
+              <div className="rounded-2xl border border-white/15 bg-white/10 p-4 backdrop-blur">
+                <Search className="mb-2 h-4 w-4" />
+                Search cultivar pages with linked public offers.
+              </div>
+              <div className="rounded-2xl border border-white/15 bg-white/10 p-4 backdrop-blur">
+                <Store className="mb-2 h-4 w-4" />
+                Browse catalogs by garden name, location, and description.
+              </div>
+              <div className="rounded-2xl border border-white/15 bg-white/10 p-4 backdrop-blur">
+                <Flower2 className="mb-2 h-4 w-4" />
+                Start as a collector and become a seller when ready.
+              </div>
             </div>
           </div>
-        </div>
-      </section>
 
-      {/* Features Grid */}
-      <section className="container mx-auto">
-        <div className="mb-12 text-center">
-          <H2 className="mb-4 text-3xl">{features.title}</H2>
-          <P className="text-muted-foreground mx-auto max-w-2xl text-lg">
-            {features.description}
-          </P>
-        </div>
-
-        <div className="grid gap-8 sm:grid-cols-2">
-          {features.cards.map((card, index) => (
-            <Card key={index} className="relative overflow-hidden">
-              <CardHeader>
-                <div className="relative mb-4 h-48 overflow-hidden rounded-lg">
-                  <Image
-                    src={card.image.src}
-                    alt={card.image.alt}
-                    fill
-                    sizes="500px"
-                    className="object-cover"
-                  />
-                </div>
-                <CardTitle>{card.title}</CardTitle>
-                <CardDescription>{card.description}</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <ul className="text-muted-foreground grid gap-2 text-sm">
-                  {card.features.map((feature, featureIndex) => (
-                    <li key={featureIndex} className="flex items-center gap-2">
-                      <feature.icon className="h-4 w-4" />
-                      {feature.text}
-                    </li>
-                  ))}
-                </ul>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      </section>
-
-      {/* Database Section */}
-      <section className="container mx-auto">
-        <div className="mb-12">
-          <H2 className="mb-4 text-3xl">{database.title}</H2>
-          <P className="text-muted-foreground mb-8 text-lg">
-            {database.description}
-          </P>
-        </div>
-
-        <div className="relative h-96 overflow-hidden rounded-lg">
-          <Image
-            src={database.image.src}
-            alt={database.image.alt}
-            fill
-            sizes="500px"
-            className="object-cover"
+          <HomeSearchPanel
+            catalogs={catalogs}
+            featuredCultivars={featuredCultivars}
           />
         </div>
       </section>
 
-      {/* Final CTA */}
-      <section className="relative w-full py-24">
-        <div className="absolute inset-0">
-          <div className="bg-foreground/60 absolute inset-0 z-10" />
-          <Image
-            src={finalCta.backgroundImage.src}
-            alt={finalCta.backgroundImage.alt}
-            fill
-            sizes="500px"
-            className="object-cover object-center"
-          />
-        </div>
+      <div className="bg-background">
+        <section className="mx-auto max-w-6xl px-4 py-14 lg:px-8 lg:py-18">
+          <div className="mb-8 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+            <div className="space-y-3">
+              <H2 className="text-3xl tracking-tight lg:text-4xl">
+                Browse catalogs
+              </H2>
+              <P className="text-muted-foreground max-w-2xl text-lg">
+                Start with live seller catalogs. These are the strongest public
+                gardens on the site right now.
+              </P>
+            </div>
 
-        <div className="text-background relative z-20 mx-auto max-w-4xl space-y-8 px-4 text-center">
-          <H2 className="mb-4 text-3xl">{finalCta.title}</H2>
-          <P className="text-background/90 mb-8 text-lg">
-            {finalCta.description}
-          </P>
-          <SellerIntentButton
-            ctaId="home-final-create-catalog"
-            entrySurface="home_final_cta"
-          />
-        </div>
-      </section>
+            <Button variant="outline" asChild>
+              <Link href="/catalogs">Browse all catalogs</Link>
+            </Button>
+          </div>
+
+          {featuredCatalogs.length > 0 ? (
+            <div className="grid gap-4 lg:grid-cols-3">
+              {featuredCatalogs.map((catalog, index) => (
+                <UserCard key={catalog.id} {...catalog} priority={index < 3} />
+              ))}
+            </div>
+          ) : (
+            <div className="bg-card rounded-2xl border p-6">
+              <P className="text-muted-foreground">
+                Public catalogs will appear here as sellers publish them.
+              </P>
+            </div>
+          )}
+        </section>
+
+        <section
+          id="research-cultivars"
+          className="mx-auto max-w-6xl px-4 py-14 lg:px-8 lg:py-18"
+        >
+          <div className="mb-8 space-y-3">
+            <H2 className="text-3xl tracking-tight lg:text-4xl">
+              Research cultivars
+            </H2>
+            <P className="text-muted-foreground max-w-2xl text-lg">
+              Jump into cultivar pages that already have public offers attached.
+            </P>
+          </div>
+
+          {featuredCultivars.length > 0 ? (
+            <div className="grid gap-4 lg:grid-cols-2">
+              {featuredCultivars.map((cultivar, index) => (
+                <CultivarFeatureCard
+                  key={cultivar.id}
+                  cultivar={cultivar}
+                  priority={index < 2}
+                />
+              ))}
+            </div>
+          ) : (
+            <div className="bg-card rounded-2xl border p-6">
+              <P className="text-muted-foreground">
+                Cultivar spotlights will appear here once public listings are
+                linked to database entries.
+              </P>
+            </div>
+          )}
+        </section>
+
+        <section className="mx-auto max-w-6xl px-4 py-14 lg:px-8 lg:py-18">
+          <div className="bg-card grid gap-6 overflow-hidden rounded-[2rem] border lg:grid-cols-[minmax(0,1.1fr)_minmax(320px,420px)]">
+            <div className="space-y-5 p-6 lg:p-10">
+              <Badge variant="secondary" className="w-fit">
+                For sellers
+              </Badge>
+              <div className="space-y-3">
+                <H2 className="text-3xl tracking-tight">
+                  Publish a catalog when you are ready to sell.
+                </H2>
+                <P className="text-muted-foreground text-lg">
+                  Home is now the broad front door. The seller close happens on
+                  the dedicated membership page.
+                </P>
+              </div>
+
+              <div className="space-y-3 text-sm">
+                {[
+                  "Show up in catalog browsing, search, and cultivar pages.",
+                  "Claim a custom catalog URL that is easy to share.",
+                  "Keep adding listings, lists, and photos without inventory caps.",
+                ].map((item) => (
+                  <div key={item} className="flex items-start gap-3">
+                    <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0" />
+                    <span>{item}</span>
+                  </div>
+                ))}
+              </div>
+
+              <div className="flex flex-col gap-3 sm:flex-row">
+                <SellerIntentButton
+                  ctaId="home-seller-stripe-create-catalog"
+                  entrySurface="home_seller_stripe"
+                />
+                <Button variant="outline" asChild>
+                  <Link href="/start-membership">See seller details</Link>
+                </Button>
+              </div>
+            </div>
+
+            <div className="bg-muted/40 p-4 lg:p-6">
+              <div className="bg-background overflow-hidden rounded-[1.5rem] border shadow-sm">
+                <Image
+                  src="/assets/catalog-blooms.webp"
+                  alt="Seller catalog preview"
+                  width={1200}
+                  height={900}
+                  className="h-full w-full object-cover"
+                />
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
     </div>
   );
 }

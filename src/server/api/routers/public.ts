@@ -2,9 +2,7 @@ import { z } from "zod";
 import { createTRPCRouter, publicProcedure } from "../trpc";
 import { db } from "@/server/db";
 import { TRPCError } from "@trpc/server";
-import {
-  getListingIdFromSlugOrId,
-} from "@/server/db/getPublicProfile";
+import { getListingIdFromSlugOrId } from "@/server/db/getPublicProfile";
 import {
   listingSelect,
   transformListings,
@@ -17,6 +15,7 @@ import {
   getCachedPublicUserIdFromSlugOrId,
   getCachedPublicProfiles,
 } from "@/server/db/public-cache";
+import { searchPublicCultivars } from "@/server/db/searchPublicCultivars";
 import { SESClient, SendEmailCommand } from "@aws-sdk/client-ses";
 import { env } from "@/env";
 import { cartItemSchema } from "@/types";
@@ -199,6 +198,24 @@ export const publicRouter = createTRPCRouter({
         throw new TRPCError({
           code: "INTERNAL_SERVER_ERROR",
           message: "Failed to fetch cultivar page",
+        });
+      }
+    }),
+
+  searchCultivars: publicProcedure
+    .input(
+      z.object({
+        query: z.string().min(1).max(80),
+      }),
+    )
+    .query(async ({ ctx, input }) => {
+      try {
+        return await searchPublicCultivars(ctx.db, input.query, { take: 8 });
+      } catch (error) {
+        console.error("Error searching cultivars:", error);
+        throw new TRPCError({
+          code: "INTERNAL_SERVER_ERROR",
+          message: "Failed to search cultivars",
         });
       }
     }),
