@@ -7,6 +7,7 @@ import type Stripe from "stripe";
 import { syncStripeSubscriptionToKV } from "@/server/stripe/sync-subscription";
 import { db } from "@/server/db";
 import { captureServerPosthogEvent } from "@/server/analytics/posthog-server";
+import { trackPublicIsrTagInvalidation } from "@/server/analytics/public-isr-posthog";
 import { getStripeFunnelEvents } from "@/server/stripe/stripe-funnel-events";
 
 const relevantEvents = new Set<Stripe.Event.Type>([
@@ -60,6 +61,14 @@ export async function POST(req: Request) {
       if (customerId) {
         const stripeSubscription = await syncStripeSubscriptionToKV(customerId);
         revalidateTag(CACHE_CONFIG.TAGS.PUBLIC_PRO_USER_IDS, "max");
+        trackPublicIsrTagInvalidation({
+          profile: "max",
+          sourcePage: "/api/stripe-webhook",
+          tag: CACHE_CONFIG.TAGS.PUBLIC_PRO_USER_IDS,
+          transport: "direct",
+          triggerReason: event.type,
+          triggerSource: "stripe-webhook",
+        });
 
         const user = await db.user.findUnique({
           where: { stripeCustomerId: customerId },

@@ -19,7 +19,7 @@ export default async function HomePage() {
     <>
       <HomePageSEO metadata={metadata} />
       <HomePageClient />
-      <IsrWrittenAt className="pb-8" />
+      <IsrWrittenAt className="pb-8" routePath="/" routeType="home_page" />
     </>
   );
 }

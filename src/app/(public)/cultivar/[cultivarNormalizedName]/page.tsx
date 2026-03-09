@@ -13,7 +13,10 @@ import { IsrWrittenAt } from "@/app/(public)/_components/isr-written-at";
 import { SellerIntentLink } from "@/components/seller-intent-link";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { CultivarPageRoot, CultivarPageSection } from "./_components/cultivar-page-layout";
+import {
+  CultivarPageRoot,
+  CultivarPageSection,
+} from "./_components/cultivar-page-layout";
 import { CultivarHeroSection } from "./_components/cultivar-hero-section";
 import { CultivarGardenPhotosSection } from "./_components/cultivar-garden-photos-section";
 import { CultivarOffersSection } from "./_components/cultivar-offers-section";
@@ -23,9 +26,8 @@ import { generateCultivarJsonLd } from "./_seo/json-ld";
 export const revalidate = false;
 export const dynamic = "force-static";
 
-const getRequestCultivarPage = cache(
-  async (cultivarNormalizedName: string) =>
-    getCachedPublicCultivarPage(cultivarNormalizedName),
+const getRequestCultivarPage = cache(async (cultivarNormalizedName: string) =>
+  getCachedPublicCultivarPage(cultivarNormalizedName),
 );
 
 interface PageProps {
@@ -34,7 +36,9 @@ interface PageProps {
   }>;
 }
 
-export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
+export async function generateMetadata({
+  params,
+}: PageProps): Promise<Metadata> {
   const { cultivarNormalizedName } = await params;
   const cultivarPage = await getRequestCultivarPage(cultivarNormalizedName);
 
@@ -47,7 +51,9 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   }
 
   const baseUrl = getBaseUrl();
-  const canonicalSegment = toCultivarRouteSegment(cultivarPage.cultivar.normalizedName);
+  const canonicalSegment = toCultivarRouteSegment(
+    cultivarPage.cultivar.normalizedName,
+  );
 
   if (!canonicalSegment) {
     return {
@@ -104,7 +110,9 @@ export default async function CultivarPage({ params }: PageProps) {
     notFound();
   }
 
-  const canonicalSegment = toCultivarRouteSegment(cultivarPage.cultivar.normalizedName);
+  const canonicalSegment = toCultivarRouteSegment(
+    cultivarPage.cultivar.normalizedName,
+  );
 
   if (canonicalSegment && cultivarNormalizedName !== canonicalSegment) {
     permanentRedirect(`/cultivar/${canonicalSegment}`);
@@ -126,10 +134,7 @@ export default async function CultivarPage({ params }: PageProps) {
 
       <div className="mx-auto flex w-full max-w-6xl flex-col gap-8">
         <Breadcrumbs
-          items={[
-            { title: "Cultivars" },
-            { title: cultivarPage.summary.name },
-          ]}
+          items={[{ title: "Cultivars" }, { title: cultivarPage.summary.name }]}
         />
 
         <CultivarPageRoot>
@@ -176,13 +181,17 @@ export default async function CultivarPage({ params }: PageProps) {
 
           <footer id="cultivar-metadata" className="space-y-2 border-t pt-6">
             <Muted>
-              {cultivarPage.summary.name} registered with American Hemerocallis Society.
+              {cultivarPage.summary.name} registered with American Hemerocallis
+              Society.
             </Muted>
           </footer>
         </CultivarPageRoot>
       </div>
 
-      <IsrWrittenAt />
+      <IsrWrittenAt
+        routePath={`/cultivar/${canonicalSegment ?? cultivarNormalizedName}`}
+        routeType="cultivar_page"
+      />
     </MainContent>
   );
 }
