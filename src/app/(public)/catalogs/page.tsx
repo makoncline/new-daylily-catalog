@@ -152,7 +152,7 @@ export default async function CatalogsPage() {
         <CatalogsPageClient catalogs={catalogs} />
       </Suspense>
 
-      <IsrWrittenAt />
+      <IsrWrittenAt routePath="/catalogs" routeType="catalogs_index" />
     </MainContent>
   );
 }

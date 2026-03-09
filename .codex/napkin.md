@@ -2,6 +2,9 @@
 
 ## Log
 
+- 2026-03-09 - self-miss napkin disclosure recurrence - I mentioned the napkin skill in the first progress update again; keep napkin handling fully silent in user-facing updates.
+- 2026-03-09 - Next 16 ISR analytics hook - `after()` is exported from `next/server`; use it for non-blocking PostHog capture from static page generation so public routes stay static.
+- 2026-03-09 - self-fix `after()` fallback slop - A helper-level `try/catch` fallback around `next/server` `after()` was unnecessary for trusted App Router codepaths here; keep runtime code direct and mock `after()` in tests instead.
 - 2026-03-04 - posthog event type durability - Define `PosthogEventName` as `keyof` a `POSTHOG_EVENT_NAMES` map to avoid duplicate-union lint failures from manual string-union edits.
 - 2026-03-04 - lint gate compatibility for TanStack table hook - `react-hooks/incompatible-library` on `useReactTable` can trip strict lint gates; add a targeted `eslint-disable-next-line` with rationale at the callsite.
 - 2026-03-03 - homepage CTA role in e2e - Home `Create your catalog` uses `Button asChild` with `next/link`, so Playwright should target role `link` (not `button`) in onboarding entry e2e steps.
