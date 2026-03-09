@@ -12,14 +12,36 @@ process.env.TURSO_DATABASE_AUTH_TOKEN ??= "unit-test-token";
 
 const revalidatePathMock = vi.fn();
 const revalidateTagMock = vi.fn();
+const afterMock = vi.hoisted(() =>
+  vi.fn((task: () => Promise<void>) => {
+    void task();
+  }),
+);
+const captureServerPosthogEventMock = vi.hoisted(() => vi.fn());
 
 vi.mock("next/cache", () => ({
   revalidatePath: revalidatePathMock,
   revalidateTag: revalidateTagMock,
 }));
 
-type UserProfileRouterModule = typeof import("@/server/api/routers/dashboard-db/user-profile");
-type ListingRouterModule = typeof import("@/server/api/routers/dashboard-db/listing");
+vi.mock("next/server", async () => {
+  const actual =
+    await vi.importActual<typeof import("next/server")>("next/server");
+
+  return {
+    ...actual,
+    after: afterMock,
+  };
+});
+
+vi.mock("@/server/analytics/posthog-server", () => ({
+  captureServerPosthogEvent: captureServerPosthogEventMock,
+}));
+
+type UserProfileRouterModule =
+  typeof import("@/server/api/routers/dashboard-db/user-profile");
+type ListingRouterModule =
+  typeof import("@/server/api/routers/dashboard-db/listing");
 type ListRouterModule = typeof import("@/server/api/routers/dashboard-db/list");
 
 let dashboardDbUserProfileRouter: UserProfileRouterModule["dashboardDbUserProfileRouter"];
@@ -66,9 +88,9 @@ function expectNoBasePublicTagInvalidations() {
   ] as const;
 
   baseTags.forEach((tag) => {
-    expect(
-      revalidateTagMock.mock.calls.some((call) => call[0] === tag),
-    ).toBe(false);
+    expect(revalidateTagMock.mock.calls.some((call) => call[0] === tag)).toBe(
+      false,
+    );
   });
 }
 
@@ -79,9 +101,9 @@ function expectNoCultivarTagInvalidations() {
   ] as const;
 
   cultivarTags.forEach((tag) => {
-    expect(
-      revalidateTagMock.mock.calls.some((call) => call[0] === tag),
-    ).toBe(false);
+    expect(revalidateTagMock.mock.calls.some((call) => call[0] === tag)).toBe(
+      false,
+    );
   });
 }
 
@@ -130,6 +152,29 @@ describe("dashboardDb public ISR invalidation", () => {
     expect(revalidatePathMock).toHaveBeenCalledWith("/user-1/page/4");
     expect(revalidatePathMock).toHaveBeenCalledWith("/user-1/search");
     expect(revalidatePathMock).toHaveBeenCalledWith("/catalogs");
+    expect(captureServerPosthogEventMock).toHaveBeenCalledTimes(
+      revalidatePathMock.mock.calls.length,
+    );
+
+    revalidatePathMock.mock.calls.forEach((call) => {
+      const [path, type] = call as [string, ("page" | "layout") | undefined];
+
+      expect(captureServerPosthogEventMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          distinctId: "system:public-isr",
+          event: "public_isr_invalidated",
+          properties: expect.objectContaining({
+            source_page: "server:dashboard-db.public-isr-invalidation",
+            target_kind: "path",
+            target_path: path,
+            target_type: type ?? "page",
+            transport: "direct",
+            trigger_source: "dashboard-db.catalog-mutation",
+          }),
+        }),
+      );
+    });
+
     expectNoBasePublicTagInvalidations();
     expect(
       revalidateTagMock.mock.calls.some(
@@ -213,6 +258,7 @@ describe("dashboardDb public ISR invalidation", () => {
 
     expect(revalidatePathMock).not.toHaveBeenCalled();
     expect(revalidateTagMock).not.toHaveBeenCalled();
+    expect(captureServerPosthogEventMock).not.toHaveBeenCalled();
   });
 
   it("listing.update invalidates the user's pages, catalogs index, and the listing cultivar page", async () => {
@@ -511,10 +557,12 @@ describe("dashboardDb public ISR invalidation", () => {
         }),
       },
       listing: {
-        findMany: vi.fn().mockResolvedValue([
-          { cultivarReference: { normalizedName: "happy returns" } },
-          { cultivarReference: { normalizedName: "lime frosting" } },
-        ]),
+        findMany: vi
+          .fn()
+          .mockResolvedValue([
+            { cultivarReference: { normalizedName: "happy returns" } },
+            { cultivarReference: { normalizedName: "lime frosting" } },
+          ]),
       },
       userProfile: {
         findUnique: vi.fn().mockResolvedValue({ slug: "garden" }),

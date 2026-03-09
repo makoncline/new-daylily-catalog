@@ -140,10 +140,12 @@ export default async function ProfilePaginatedPage({
             totalCount={pageDataResult.data.totalCount}
             forSaleCount={pageDataResult.data.forSaleCount}
           />
-
         </div>
 
-        <IsrWrittenAt />
+        <IsrWrittenAt
+          routePath={`/${canonicalUserSlug}/page/${pageDataResult.data.page}`}
+          routeType="profile_page_paginated"
+        />
       </MainContent>
     </>
   );

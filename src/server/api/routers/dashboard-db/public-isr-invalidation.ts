@@ -5,6 +5,7 @@ import { PUBLIC_PROFILE_LISTINGS_PAGE_SIZE } from "@/config/constants";
 import { toCultivarRouteSegment } from "@/lib/utils/cultivar-utils";
 import { isPublished } from "@/server/db/public-visibility/filters";
 import { getBaseUrl } from "@/lib/utils/getBaseUrl";
+import { trackPublicIsrPathInvalidation } from "@/server/analytics/public-isr-posthog";
 
 interface InvalidatePublicIsrForCatalogMutationInput {
   db: PrismaClient;
@@ -20,8 +21,11 @@ interface RevalidatePathInput {
 
 const INTERNAL_REVALIDATE_ROUTE = "/api/internal/public-cache-revalidate";
 const PAGINATION_INVALIDATION_TAIL_PAGES = 2;
+const PUBLIC_ISR_INVALIDATION_SOURCE = "dashboard-db.catalog-mutation";
 
-function shouldIgnoreMissingStaticGenerationStoreError(error: unknown): boolean {
+function shouldIgnoreMissingStaticGenerationStoreError(
+  error: unknown,
+): boolean {
   return (
     process.env.NODE_ENV === "test" &&
     error instanceof Error &&
@@ -33,10 +37,23 @@ function safeRevalidatePath(path: string, type?: "page" | "layout"): void {
   try {
     if (type) {
       revalidatePath(path, type);
+      trackPublicIsrPathInvalidation({
+        path,
+        sourcePage: "server:dashboard-db.public-isr-invalidation",
+        transport: "direct",
+        triggerSource: PUBLIC_ISR_INVALIDATION_SOURCE,
+        type,
+      });
       return;
     }
 
     revalidatePath(path);
+    trackPublicIsrPathInvalidation({
+      path,
+      sourcePage: "server:dashboard-db.public-isr-invalidation",
+      transport: "direct",
+      triggerSource: PUBLIC_ISR_INVALIDATION_SOURCE,
+    });
   } catch (error) {
     if (shouldIgnoreMissingStaticGenerationStoreError(error)) {
       return;
@@ -59,7 +76,10 @@ function toUniqueNonEmpty(values: Array<string | null | undefined>): string[] {
   return Array.from(unique);
 }
 
-async function getCanonicalSlug(db: PrismaClient, userId: string): Promise<string> {
+async function getCanonicalSlug(
+  db: PrismaClient,
+  userId: string,
+): Promise<string> {
   const profile = await db.userProfile.findUnique({
     where: { userId },
     select: { slug: true },
@@ -68,7 +88,10 @@ async function getCanonicalSlug(db: PrismaClient, userId: string): Promise<strin
   return profile?.slug ?? userId;
 }
 
-async function getUserTotalPages(db: PrismaClient, userId: string): Promise<number> {
+async function getUserTotalPages(
+  db: PrismaClient,
+  userId: string,
+): Promise<number> {
   const listingCount = await db.listing.count({
     where: {
       userId,
@@ -106,7 +129,9 @@ function getTrustedRevalidationOrigin(): string | null {
   return getBaseUrl();
 }
 
-function toUniquePathInputs(paths: RevalidatePathInput[]): RevalidatePathInput[] {
+function toUniquePathInputs(
+  paths: RevalidatePathInput[],
+): RevalidatePathInput[] {
   const byKey = new Map<string, RevalidatePathInput>();
 
   paths.forEach((entry) => {
@@ -135,6 +160,7 @@ async function runRouteHandlerRevalidation(args: {
       cache: "no-store",
       body: JSON.stringify({
         paths: args.paths,
+        source: PUBLIC_ISR_INVALIDATION_SOURCE,
       }),
     });
 
@@ -166,9 +192,14 @@ export async function invalidatePublicIsrForCatalogMutation(
   input: InvalidatePublicIsrForCatalogMutationInput,
 ): Promise<void> {
   const canonicalSlug = await getCanonicalSlug(input.db, input.userId);
-  const slugs = toUniqueNonEmpty([canonicalSlug, ...(input.slugCandidates ?? [])]);
+  const slugs = toUniqueNonEmpty([
+    canonicalSlug,
+    ...(input.slugCandidates ?? []),
+  ]);
   const totalPages = await getUserTotalPages(input.db, input.userId);
-  const cultivarSegments = toCultivarSegments(input.cultivarNormalizedNames ?? []);
+  const cultivarSegments = toCultivarSegments(
+    input.cultivarNormalizedNames ?? [],
+  );
   const pathsToRevalidate: RevalidatePathInput[] = [{ path: "/catalogs" }];
   slugs.forEach((slug) => {
     pathsToRevalidate.push({ path: `/${slug}` });

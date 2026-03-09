@@ -121,10 +121,12 @@ export default async function Page({ params }: PageProps) {
             totalCount={totalCount}
             forSaleCount={forSaleCount}
           />
-
         </div>
 
-        <IsrWrittenAt />
+        <IsrWrittenAt
+          routePath={`/${canonicalUserSlug}`}
+          routeType="profile_page"
+        />
       </MainContent>
     </>
   );

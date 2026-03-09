@@ -31,7 +31,7 @@ export default async function HomePage() {
         catalogs={catalogs}
         featuredCultivars={featuredCultivars}
       />
-      <IsrWrittenAt className="pb-8" />
+      <IsrWrittenAt className="pb-8" routePath="/" routeType="home_page" />
     </>
   );
 }
