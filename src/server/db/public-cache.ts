@@ -38,7 +38,7 @@ export const getCachedPublicCultivarPage = createServerCache(
   getPublicCultivarPage,
   {
     key: "public:cultivar-page",
-    revalidateSeconds: CACHE_CONFIG.PUBLIC.STATIC_REVALIDATE_SECONDS,
+    revalidateSeconds: CACHE_CONFIG.PUBLIC.CULTIVAR_PAGE_REVALIDATE_SECONDS,
     tags: [CACHE_CONFIG.TAGS.PUBLIC_CULTIVAR_PAGE],
   },
 );

@@ -2,6 +2,8 @@
 
 ## Log
 
+- 2026-03-09 - self-miss quoted-public-path recurrence - I tried reading `src/app/(public)/cultivar/[cultivarNormalizedName]/page.tsx` without shell-quoting and hit zsh glob expansion again; always quote App Router paths containing `()` or `[]`.
+- 2026-03-09 - test env mutation typecheck gotcha - In this repo's TS setup, direct assignment to `process.env.NODE_ENV` fails because `NODE_ENV` is readonly; use `vi.stubEnv(...)` and `vi.unstubAllEnvs()` in Vitest instead.
 - 2026-03-09 - self-miss napkin disclosure recurrence - I mentioned the napkin skill in the first progress update again; keep napkin handling fully silent in user-facing updates.
 - 2026-03-09 - Next 16 ISR analytics hook - `after()` is exported from `next/server`; use it for non-blocking PostHog capture from static page generation so public routes stay static.
 - 2026-03-09 - self-fix `after()` fallback slop - A helper-level `try/catch` fallback around `next/server` `after()` was unnecessary for trusted App Router codepaths here; keep runtime code direct and mock `after()` in tests instead.
