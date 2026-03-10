@@ -81,7 +81,7 @@ describe("users legacy route", () => {
     });
 
     expect(permanentRedirectMock).toHaveBeenCalledWith(
-      "/garden?viewing=listing-1&page=2",
+      "/garden/page/2?viewing=listing-1",
     );
   });
 });

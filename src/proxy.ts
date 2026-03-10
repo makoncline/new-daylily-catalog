@@ -38,30 +38,6 @@ function isLegacyProfileSegment(segment: string) {
 export const proxy = clerkMiddleware(async (auth, req) => {
   const { pathname } = req.nextUrl;
 
-  const legacyProfileInternalPageMatch = /^\/([^/]+)\/page\/(\d+)$/.exec(
-    pathname,
-  );
-  if (
-    legacyProfileInternalPageMatch?.[1] &&
-    legacyProfileInternalPageMatch[2] &&
-    isLegacyProfileSegment(legacyProfileInternalPageMatch[1])
-  ) {
-    const requestedPage = parsePositiveInteger(
-      legacyProfileInternalPageMatch[2],
-      1,
-    );
-    const redirectUrl = req.nextUrl.clone();
-    redirectUrl.pathname = `/${legacyProfileInternalPageMatch[1]}`;
-
-    if (requestedPage > 1) {
-      redirectUrl.searchParams.set("page", String(requestedPage));
-    } else {
-      redirectUrl.searchParams.delete("page");
-    }
-
-    return NextResponse.redirect(redirectUrl, 308);
-  }
-
   const legacyProfileMatch = /^\/([^/]+)$/.exec(pathname);
   if (
     legacyProfileMatch?.[1] &&
@@ -76,14 +52,10 @@ export const proxy = clerkMiddleware(async (auth, req) => {
     const requestedPage = parsePositiveInteger(pageParam, 1);
 
     if (requestedPage > 1) {
-      const rewriteUrl = req.nextUrl.clone();
-      rewriteUrl.pathname = `/${legacyProfileSegment}/page/${requestedPage}`;
-
-      const response = NextResponse.rewrite(rewriteUrl);
-      if (hasNonPageRequestParams) {
-        response.headers.set("x-robots-tag", "noindex, nofollow");
-      }
-      return response;
+      const redirectUrl = req.nextUrl.clone();
+      redirectUrl.pathname = `/${legacyProfileSegment}/page/${requestedPage}`;
+      redirectUrl.searchParams.delete("page");
+      return NextResponse.redirect(redirectUrl, 308);
     }
 
     if (hasNonPageRequestParams) {
@@ -117,6 +89,5 @@ export const config = {
     "/dashboard/:path*",
     `${SUBSCRIPTION_CONFIG.NEW_USER_ONBOARDING_PATH}/:path*`,
     `/${LEGACY_PROFILE_SEGMENT_MATCHER}`,
-    `/${LEGACY_PROFILE_SEGMENT_MATCHER}/page/:page`,
   ],
 };

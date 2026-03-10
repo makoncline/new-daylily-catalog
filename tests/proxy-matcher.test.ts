@@ -62,6 +62,12 @@ describe("proxy matcher", () => {
         url: "/",
       }),
     ).toBe(false);
+    expect(
+      unstable_doesMiddlewareMatch({
+        config,
+        url: "/graceful_petals_daylilies/page/2",
+      }),
+    ).toBe(false);
   });
 
   it("still runs for legacy profile and protected routes", async () => {

@@ -43,7 +43,7 @@ describe("paginated profile metadata", () => {
       shouldIndex: false,
     });
 
-    expect(metadata.alternates?.canonical).toBe("/alpha-garden?page=4");
+    expect(metadata.alternates?.canonical).toBe("/alpha-garden/page/4");
     expect(metadata.robots).toBe("noindex, nofollow");
     expect(metadata.title).toContain("Page 4");
   });

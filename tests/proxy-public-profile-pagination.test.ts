@@ -18,7 +18,7 @@ vi.mock("@clerk/nextjs/server", () => ({
   createRouteMatcher: () => () => false,
 }));
 
-describe("public profile pagination proxy rewrites", () => {
+describe("public profile pagination proxy redirects", () => {
   let proxy: NextMiddleware;
 
   beforeEach(async () => {
@@ -28,7 +28,7 @@ describe("public profile pagination proxy rewrites", () => {
     ({ proxy } = await import("@/proxy"));
   });
 
-  it("rewrites page query requests for underscore slugs", async () => {
+  it("redirects page query requests to paginated route segments", async () => {
     const request = new NextRequest(
       "http://localhost:3000/graceful_petals_daylilies?page=2",
     );
@@ -37,7 +37,7 @@ describe("public profile pagination proxy rewrites", () => {
     const response = await proxy(request, middlewareEvent);
 
     expect(response).toBeDefined();
-    expect(response?.headers.get("x-middleware-rewrite")).toContain(
+    expect(response?.headers.get("location")).toContain(
       "/graceful_petals_daylilies/page/2",
     );
     expect(response?.headers.get("x-robots-tag")).toBeNull();

@@ -71,13 +71,13 @@ describe("CatalogSeoListings", () => {
 
     const listsSection = document.getElementById("lists");
     expect(listsSection).not.toBeNull();
-    const listLinks = within(listsSection as HTMLElement).getAllByRole("link");
+    const listLinks = within(listsSection!).getAllByRole("link");
 
     expect(listLinks[0]).toHaveAttribute(
       "href",
       "/rollingoaksdaylilies/search?price=true",
     );
-    expect(within(listLinks[0] as HTMLElement).getByText("For Sale")).toBeVisible();
+    expect(within(listLinks[0]!).getByText("For Sale")).toBeVisible();
   });
 
   it("uses page-only search href for the search CTA", () => {
@@ -113,19 +113,19 @@ describe("CatalogSeoListings", () => {
 
     expect(screen.getByTestId("legacy-page-prev")).toHaveAttribute(
       "href",
-      "/rollingoaksdaylilies?page=2#listings",
+      "/rollingoaksdaylilies/page/2#listings",
     );
     expect(screen.getByTestId("legacy-page-next")).toHaveAttribute(
       "href",
-      "/rollingoaksdaylilies?page=4#listings",
+      "/rollingoaksdaylilies/page/4#listings",
     );
     expect(screen.getByTestId("legacy-top-page-prev")).toHaveAttribute(
       "href",
-      "/rollingoaksdaylilies?page=2#listings",
+      "/rollingoaksdaylilies/page/2#listings",
     );
     expect(screen.getByTestId("legacy-top-page-next")).toHaveAttribute(
       "href",
-      "/rollingoaksdaylilies?page=4#listings",
+      "/rollingoaksdaylilies/page/4#listings",
     );
   });
 

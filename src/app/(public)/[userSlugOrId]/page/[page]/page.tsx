@@ -102,7 +102,7 @@ export default async function ProfilePaginatedPage({
   const canonicalUserSlug = profile.slug ?? profile.id;
 
   if (userSlugOrId !== canonicalUserSlug) {
-    permanentRedirect(`/${canonicalUserSlug}?page=${parsedPage}`);
+    permanentRedirect(`/${canonicalUserSlug}/page/${parsedPage}`);
   }
 
   const baseUrl = getBaseUrl();

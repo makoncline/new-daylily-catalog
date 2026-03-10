@@ -1,6 +1,7 @@
 "use server";
 
 import { notFound, permanentRedirect } from "next/navigation";
+import { getPublicProfilePagePath, parsePositiveInteger } from "@/lib/public-catalog-url-state";
 import { db } from "@/server/db";
 
 interface UsersLegacyRoutePageProps {
@@ -54,5 +55,15 @@ export default async function UsersLegacyRoutePage({
   }
 
   const canonicalUserSlug = user.profile?.slug ?? user.id;
-  permanentRedirect(`/${canonicalUserSlug}${toQueryString(resolvedSearchParams)}`);
+  const page = parsePositiveInteger(
+    Array.isArray(resolvedSearchParams.page)
+      ? resolvedSearchParams.page[0]
+      : resolvedSearchParams.page,
+    1,
+  );
+  const redirectPath = getPublicProfilePagePath(canonicalUserSlug, page);
+  const nextSearchParams = { ...resolvedSearchParams };
+  delete nextSearchParams.page;
+
+  permanentRedirect(`${redirectPath}${toQueryString(nextSearchParams)}`);
 }
