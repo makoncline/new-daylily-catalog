@@ -84,4 +84,18 @@ describe("seller funnel proxy protection", () => {
     expect(authMock).toHaveBeenCalledTimes(1);
     expect(response).toBeUndefined();
   });
+
+  it("runs Clerk middleware for subscribe success", async () => {
+    authMock.mockResolvedValueOnce({ userId: "user_123" });
+
+    const request = new NextRequest(
+      "http://localhost:3000/subscribe/success?redirect=/dashboard",
+    );
+    const middlewareEvent = {} as Parameters<NextMiddleware>[1];
+
+    const response = await proxy(request, middlewareEvent);
+
+    expect(authMock).toHaveBeenCalledTimes(1);
+    expect(response).toBeUndefined();
+  });
 });
