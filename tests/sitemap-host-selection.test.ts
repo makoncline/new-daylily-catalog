@@ -27,6 +27,7 @@ describe("sitemap and robots host selection", () => {
     publicCacheMocks.getCachedPublicCatalogRouteEntries.mockResolvedValue([
       {
         slug: "rolling-oaks",
+        totalPages: 3,
         lastModified: new Date("2026-03-01T00:00:00.000Z"),
       },
     ]);
@@ -62,6 +63,18 @@ describe("sitemap and robots host selection", () => {
     expect(
       sitemapEntries.every((entry) =>
         entry.url.startsWith("https://daylilycatalog.com"),
+      ),
+    ).toBe(true);
+    expect(
+      sitemapEntries.some(
+        (entry) =>
+          entry.url === "https://daylilycatalog.com/rolling-oaks/page/2",
+      ),
+    ).toBe(true);
+    expect(
+      sitemapEntries.some(
+        (entry) =>
+          entry.url === "https://daylilycatalog.com/rolling-oaks/page/3",
       ),
     ).toBe(true);
 

@@ -38,6 +38,15 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       changeFrequency: "weekly",
       priority: 0.7,
     });
+
+    for (let page = 2; page <= entry.totalPages; page += 1) {
+      sitemap.push({
+        url: `${baseUrl}/${entry.slug}/page/${page}`,
+        lastModified: entry.lastModified,
+        changeFrequency: "weekly",
+        priority: 0.6,
+      });
+    }
   });
 
   const cultivarEntries = await getCachedCultivarSitemapEntries();

@@ -62,13 +62,6 @@ beforeAll(async () => {
 
 function createContext(db: unknown) {
   const dbWithDefaults = db as Record<string, unknown>;
-  const listing =
-    (dbWithDefaults.listing as Record<string, unknown> | undefined) ?? {};
-  if (!("count" in listing)) {
-    listing.count = vi.fn().mockResolvedValue(51);
-  }
-  dbWithDefaults.listing = listing;
-
   return {
     db: dbWithDefaults as unknown as TRPCInternalContext["db"],
     _authUser: { id: "user-1" } as unknown as TRPCInternalContext["_authUser"],
@@ -107,6 +100,13 @@ function expectNoCultivarTagInvalidations() {
   });
 }
 
+function hasPaginatedPathInvalidation() {
+  return revalidatePathMock.mock.calls.some((call) => {
+    const [path] = call as [unknown];
+    return typeof path === "string" && path.includes("/page/");
+  });
+}
+
 describe("dashboardDb public ISR invalidation", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -142,37 +142,47 @@ describe("dashboardDb public ISR invalidation", () => {
     });
 
     expect(revalidatePathMock).toHaveBeenCalledWith("/garden");
-    expect(revalidatePathMock).toHaveBeenCalledWith("/garden/page/2");
-    expect(revalidatePathMock).toHaveBeenCalledWith("/garden/page/3");
-    expect(revalidatePathMock).toHaveBeenCalledWith("/garden/page/4");
-    expect(revalidatePathMock).toHaveBeenCalledWith("/garden/search");
     expect(revalidatePathMock).toHaveBeenCalledWith("/user-1");
-    expect(revalidatePathMock).toHaveBeenCalledWith("/user-1/page/2");
-    expect(revalidatePathMock).toHaveBeenCalledWith("/user-1/page/3");
-    expect(revalidatePathMock).toHaveBeenCalledWith("/user-1/page/4");
-    expect(revalidatePathMock).toHaveBeenCalledWith("/user-1/search");
     expect(revalidatePathMock).toHaveBeenCalledWith("/catalogs");
+    expect(hasPaginatedPathInvalidation()).toBe(false);
     expect(captureServerPosthogEventMock).toHaveBeenCalledTimes(
       revalidatePathMock.mock.calls.length,
     );
 
     revalidatePathMock.mock.calls.forEach((call) => {
       const [path, type] = call as [string, ("page" | "layout") | undefined];
+      const matchingEvent = captureServerPosthogEventMock.mock.calls
+        .map((eventCall) => eventCall[0] as unknown)
+        .find((event) => {
+          if (!event || typeof event !== "object") {
+            return false;
+          }
 
-      expect(captureServerPosthogEventMock).toHaveBeenCalledWith(
-        expect.objectContaining({
-          distinctId: "system:public-isr",
-          event: "public_isr_invalidated",
-          properties: expect.objectContaining({
-            source_page: "server:dashboard-db.public-isr-invalidation",
-            target_kind: "path",
-            target_path: path,
-            target_type: type ?? "page",
-            transport: "direct",
-            trigger_source: "dashboard-db.catalog-mutation",
-          }),
-        }),
-      );
+          const { properties } = event as {
+            properties?: {
+              target_path?: unknown;
+              target_type?: unknown;
+            };
+          };
+
+          return (
+            properties?.target_path === path &&
+            properties.target_type === (type ?? "page")
+          );
+        });
+
+      expect(matchingEvent).toMatchObject({
+        distinctId: "system:public-isr",
+        event: "public_isr_invalidated",
+        properties: {
+          source_page: "server:dashboard-db.public-isr-invalidation",
+          target_kind: "path",
+          target_path: path,
+          target_type: type ?? "page",
+          transport: "direct",
+          trigger_source: "dashboard-db.catalog-mutation",
+        },
+      });
     });
 
     expectNoBasePublicTagInvalidations();
@@ -214,21 +224,10 @@ describe("dashboardDb public ISR invalidation", () => {
     });
 
     expect(revalidatePathMock).toHaveBeenCalledWith("/old-garden");
-    expect(revalidatePathMock).toHaveBeenCalledWith("/old-garden/page/2");
-    expect(revalidatePathMock).toHaveBeenCalledWith("/old-garden/page/3");
-    expect(revalidatePathMock).toHaveBeenCalledWith("/old-garden/page/4");
-    expect(revalidatePathMock).toHaveBeenCalledWith("/old-garden/search");
     expect(revalidatePathMock).toHaveBeenCalledWith("/new-garden");
-    expect(revalidatePathMock).toHaveBeenCalledWith("/new-garden/page/2");
-    expect(revalidatePathMock).toHaveBeenCalledWith("/new-garden/page/3");
-    expect(revalidatePathMock).toHaveBeenCalledWith("/new-garden/page/4");
-    expect(revalidatePathMock).toHaveBeenCalledWith("/new-garden/search");
     expect(revalidatePathMock).toHaveBeenCalledWith("/user-1");
-    expect(revalidatePathMock).toHaveBeenCalledWith("/user-1/page/2");
-    expect(revalidatePathMock).toHaveBeenCalledWith("/user-1/page/3");
-    expect(revalidatePathMock).toHaveBeenCalledWith("/user-1/page/4");
-    expect(revalidatePathMock).toHaveBeenCalledWith("/user-1/search");
     expect(revalidatePathMock).toHaveBeenCalledWith("/catalogs");
+    expect(hasPaginatedPathInvalidation()).toBe(false);
     expectNoBasePublicTagInvalidations();
     expectNoCultivarTagInvalidations();
   });
@@ -261,7 +260,7 @@ describe("dashboardDb public ISR invalidation", () => {
     expect(captureServerPosthogEventMock).not.toHaveBeenCalled();
   });
 
-  it("listing.update invalidates the user's pages, catalogs index, and the listing cultivar page", async () => {
+  it("listing.update invalidates the user's first page, catalogs index, and the listing cultivar page", async () => {
     const db = {
       listing: {
         findFirst: vi.fn().mockResolvedValue({
@@ -298,15 +297,13 @@ describe("dashboardDb public ISR invalidation", () => {
     });
 
     expect(revalidatePathMock).toHaveBeenCalledWith("/garden");
-    expect(revalidatePathMock).toHaveBeenCalledWith("/garden/page/2");
-    expect(revalidatePathMock).toHaveBeenCalledWith("/garden/search");
     expect(revalidatePathMock).toHaveBeenCalledWith("/catalogs");
     expect(revalidatePathMock).toHaveBeenCalledWith("/cultivar/lime-frosting");
     expectNoBasePublicTagInvalidations();
     expectNoCultivarTagInvalidations();
   });
 
-  it("listing.create invalidates the user's pages, catalogs index, and linked cultivar page", async () => {
+  it("listing.create invalidates the user's first page, catalogs index, and linked cultivar page", async () => {
     const db = {
       cultivarReference: {
         findUnique: vi.fn().mockResolvedValue({
@@ -342,8 +339,6 @@ describe("dashboardDb public ISR invalidation", () => {
     });
 
     expect(revalidatePathMock).toHaveBeenCalledWith("/garden");
-    expect(revalidatePathMock).toHaveBeenCalledWith("/garden/page/2");
-    expect(revalidatePathMock).toHaveBeenCalledWith("/garden/search");
     expect(revalidatePathMock).toHaveBeenCalledWith("/catalogs");
     expect(revalidatePathMock).toHaveBeenCalledWith("/cultivar/happy-returns");
     expectNoBasePublicTagInvalidations();
@@ -460,7 +455,7 @@ describe("dashboardDb public ISR invalidation", () => {
     expect(revalidateTagMock).not.toHaveBeenCalled();
   });
 
-  it("listing.unlinkAhs invalidates the user's pages, catalogs index, and old cultivar page", async () => {
+  it("listing.unlinkAhs invalidates the user's first page, catalogs index, and old cultivar page", async () => {
     const db = {
       listing: {
         findFirst: vi.fn().mockResolvedValue({
@@ -495,15 +490,13 @@ describe("dashboardDb public ISR invalidation", () => {
     });
 
     expect(revalidatePathMock).toHaveBeenCalledWith("/garden");
-    expect(revalidatePathMock).toHaveBeenCalledWith("/garden/page/2");
-    expect(revalidatePathMock).toHaveBeenCalledWith("/garden/search");
     expect(revalidatePathMock).toHaveBeenCalledWith("/catalogs");
     expect(revalidatePathMock).toHaveBeenCalledWith("/cultivar/old-name");
     expectNoBasePublicTagInvalidations();
     expectNoCultivarTagInvalidations();
   });
 
-  it("listing.delete invalidates the user's pages, catalogs index, and the linked cultivar page", async () => {
+  it("listing.delete invalidates the user's first page, catalogs index, and the linked cultivar page", async () => {
     const txListingDelete = vi.fn().mockResolvedValue(undefined);
     const txListUpdateMany = vi.fn().mockResolvedValue({ count: 0 });
     const db = {
@@ -533,15 +526,13 @@ describe("dashboardDb public ISR invalidation", () => {
     });
 
     expect(revalidatePathMock).toHaveBeenCalledWith("/garden");
-    expect(revalidatePathMock).toHaveBeenCalledWith("/garden/page/2");
-    expect(revalidatePathMock).toHaveBeenCalledWith("/garden/search");
     expect(revalidatePathMock).toHaveBeenCalledWith("/catalogs");
     expect(revalidatePathMock).toHaveBeenCalledWith("/cultivar/happy-returns");
     expectNoBasePublicTagInvalidations();
     expectNoCultivarTagInvalidations();
   });
 
-  it("list.update invalidates the user's pages, catalogs index, and linked cultivars in that list", async () => {
+  it("list.update invalidates the user's first page, catalogs index, and linked cultivars in that list", async () => {
     const db = {
       list: {
         updateMany: vi.fn().mockResolvedValue({ count: 1 }),
@@ -578,8 +569,6 @@ describe("dashboardDb public ISR invalidation", () => {
     });
 
     expect(revalidatePathMock).toHaveBeenCalledWith("/garden");
-    expect(revalidatePathMock).toHaveBeenCalledWith("/garden/page/2");
-    expect(revalidatePathMock).toHaveBeenCalledWith("/garden/search");
     expect(revalidatePathMock).toHaveBeenCalledWith("/catalogs");
     expect(revalidatePathMock).toHaveBeenCalledWith("/cultivar/happy-returns");
     expect(revalidatePathMock).toHaveBeenCalledWith("/cultivar/lime-frosting");
@@ -587,7 +576,7 @@ describe("dashboardDb public ISR invalidation", () => {
     expectNoCultivarTagInvalidations();
   });
 
-  it("list.create invalidates the user's pages and catalogs index", async () => {
+  it("list.create invalidates the user's first page and catalogs index", async () => {
     const db = {
       list: {
         create: vi.fn().mockResolvedValue({
@@ -612,8 +601,6 @@ describe("dashboardDb public ISR invalidation", () => {
     });
 
     expect(revalidatePathMock).toHaveBeenCalledWith("/garden");
-    expect(revalidatePathMock).toHaveBeenCalledWith("/garden/page/2");
-    expect(revalidatePathMock).toHaveBeenCalledWith("/garden/search");
     expect(revalidatePathMock).toHaveBeenCalledWith("/catalogs");
     expectNoBasePublicTagInvalidations();
     expect(
@@ -628,7 +615,7 @@ describe("dashboardDb public ISR invalidation", () => {
     ).toBe(false);
   });
 
-  it("list.delete invalidates the user's pages and catalogs index", async () => {
+  it("list.delete invalidates the user's first page and catalogs index", async () => {
     const db = {
       list: {
         findFirst: vi.fn().mockResolvedValue({
@@ -648,8 +635,6 @@ describe("dashboardDb public ISR invalidation", () => {
     });
 
     expect(revalidatePathMock).toHaveBeenCalledWith("/garden");
-    expect(revalidatePathMock).toHaveBeenCalledWith("/garden/page/2");
-    expect(revalidatePathMock).toHaveBeenCalledWith("/garden/search");
     expect(revalidatePathMock).toHaveBeenCalledWith("/catalogs");
     expectNoBasePublicTagInvalidations();
     expect(

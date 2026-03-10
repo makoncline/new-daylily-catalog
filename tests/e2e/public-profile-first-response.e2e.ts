@@ -66,7 +66,7 @@ test.describe("public profile first-response content @local", () => {
     const page1Html = await page1Response.text();
     await assertFirstDocumentContent(page1Html, `${LISTING_TITLE_PREFIX} 001`);
 
-    const page2Response = await request.get(`/${PROFILE_SLUG}?page=2`);
+    const page2Response = await request.get(`/${PROFILE_SLUG}/page/2`);
     expect(page2Response.status()).toBe(200);
     const page2Html = await page2Response.text();
     await assertFirstDocumentContent(page2Html, page2FirstListingTitle);

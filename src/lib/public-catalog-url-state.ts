@@ -51,5 +51,5 @@ export function getPublicProfilePagePath(slug: string, page: number) {
     return `/${slug}`;
   }
 
-  return `/${slug}?page=${page}`;
+  return `/${slug}/page/${page}`;
 }

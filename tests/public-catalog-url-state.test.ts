@@ -23,7 +23,7 @@ describe("public catalog url state", () => {
 
   it("builds canonical page paths and search params", () => {
     expect(getPublicProfilePagePath("grower", 1)).toBe("/grower");
-    expect(getPublicProfilePagePath("grower", 3)).toBe("/grower?page=3");
+    expect(getPublicProfilePagePath("grower", 3)).toBe("/grower/page/3");
 
     const params = toPublicCatalogSearchParams({
       page: "2",

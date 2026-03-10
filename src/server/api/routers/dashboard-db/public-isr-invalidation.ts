@@ -1,9 +1,7 @@
 import type { PrismaClient } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { env } from "@/env";
-import { PUBLIC_PROFILE_LISTINGS_PAGE_SIZE } from "@/config/constants";
 import { toCultivarRouteSegment } from "@/lib/utils/cultivar-utils";
-import { isPublished } from "@/server/db/public-visibility/filters";
 import { getBaseUrl } from "@/lib/utils/getBaseUrl";
 import { trackPublicIsrPathInvalidation } from "@/server/analytics/public-isr-posthog";
 
@@ -20,7 +18,6 @@ interface RevalidatePathInput {
 }
 
 const INTERNAL_REVALIDATE_ROUTE = "/api/internal/public-cache-revalidate";
-const PAGINATION_INVALIDATION_TAIL_PAGES = 2;
 const PUBLIC_ISR_INVALIDATION_SOURCE = "dashboard-db.catalog-mutation";
 
 function shouldIgnoreMissingStaticGenerationStoreError(
@@ -86,23 +83,6 @@ async function getCanonicalSlug(
   });
 
   return profile?.slug ?? userId;
-}
-
-async function getUserTotalPages(
-  db: PrismaClient,
-  userId: string,
-): Promise<number> {
-  const listingCount = await db.listing.count({
-    where: {
-      userId,
-      ...isPublished(),
-    },
-  });
-
-  return Math.max(
-    1,
-    Math.ceil(listingCount / PUBLIC_PROFILE_LISTINGS_PAGE_SIZE),
-  );
 }
 
 function toCultivarSegments(
@@ -196,19 +176,12 @@ export async function invalidatePublicIsrForCatalogMutation(
     canonicalSlug,
     ...(input.slugCandidates ?? []),
   ]);
-  const totalPages = await getUserTotalPages(input.db, input.userId);
   const cultivarSegments = toCultivarSegments(
     input.cultivarNormalizedNames ?? [],
   );
   const pathsToRevalidate: RevalidatePathInput[] = [{ path: "/catalogs" }];
   slugs.forEach((slug) => {
     pathsToRevalidate.push({ path: `/${slug}` });
-    pathsToRevalidate.push({ path: `/${slug}/search` });
-
-    const maxPage = totalPages + PAGINATION_INVALIDATION_TAIL_PAGES;
-    for (let page = 2; page <= maxPage; page += 1) {
-      pathsToRevalidate.push({ path: `/${slug}/page/${page}` });
-    }
   });
 
   cultivarSegments.forEach((segment) => {

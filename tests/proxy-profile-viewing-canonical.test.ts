@@ -19,59 +19,56 @@ vi.mock("@clerk/nextjs/server", () => ({
   createRouteMatcher: () => () => false,
 }));
 
-describe("public profile pagination proxy rewrites", () => {
+describe("proxy profile viewing canonicalization", () => {
   let proxy: NextMiddleware;
 
   beforeEach(async () => {
     vi.clearAllMocks();
-    fetchMock.mockResolvedValue(new Response(null, { status: 404 }));
     vi.stubGlobal("fetch", fetchMock);
     ({ proxy } = await import("@/proxy"));
   });
 
-  it("rewrites page query requests for underscore slugs", async () => {
+  it("redirects legacy profile viewing links to the canonical slug and preserves params", async () => {
+    fetchMock.mockResolvedValueOnce(
+      new Response(JSON.stringify({ canonicalUserSlug: "top-pro" }), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      }),
+    );
+
     const request = new NextRequest(
-      "http://localhost:3000/graceful_petals_daylilies?page=2",
+      "http://localhost:3000/user_top?viewing=listing-top-prime&utm_source=e2e-test",
     );
     const middlewareEvent = {} as Parameters<NextMiddleware>[1];
 
     const response = await proxy(request, middlewareEvent);
 
     expect(response).toBeDefined();
-    expect(response?.headers.get("x-middleware-rewrite")).toContain(
-      "/graceful_petals_daylilies/page/2",
+    expect(response?.headers.get("location")).toContain(
+      "/top-pro?viewing=listing-top-prime&utm_source=e2e-test",
     );
-    expect(response?.headers.get("x-robots-tag")).toBeNull();
-    expect(fetchMock).not.toHaveBeenCalled();
+    expect(response?.headers.get("x-robots-tag")).toBe("noindex, nofollow");
     expect(authMock).not.toHaveBeenCalled();
   });
 
-  it("resolves canonical slug when non-page params are present", async () => {
+  it("marks canonical profile viewing links as noindex", async () => {
     fetchMock.mockResolvedValueOnce(
-      new Response(
-        JSON.stringify({
-          canonicalUserSlug: "graceful-petals-daylilies",
-        }),
-        {
-          status: 200,
-          headers: {
-            "content-type": "application/json",
-          },
-        },
-      ),
+      new Response(JSON.stringify({ canonicalUserSlug: "top-pro" }), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      }),
     );
 
     const request = new NextRequest(
-      "http://localhost:3000/graceful_petals_daylilies?viewing=listing_123",
+      "http://localhost:3000/top-pro?viewing=listing-top-prime",
     );
     const middlewareEvent = {} as Parameters<NextMiddleware>[1];
 
     const response = await proxy(request, middlewareEvent);
 
-    expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(response).toBeDefined();
-    expect(response?.headers.get("location")).toContain(
-      "/graceful-petals-daylilies?viewing=listing_123",
-    );
+    expect(response?.headers.get("location")).toBeNull();
+    expect(response?.headers.get("x-robots-tag")).toBe("noindex, nofollow");
+    expect(authMock).not.toHaveBeenCalled();
   });
 });
