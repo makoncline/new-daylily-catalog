@@ -26,7 +26,7 @@ export default proxy;
 export const config = {
   matcher: [
     "/dashboard/:path*",
-    `${SUBSCRIPTION_CONFIG.NEW_USER_ONBOARDING_PATH}/:path*`,
+    "/onboarding/:path*",
     "/api/trpc/:path*",
   ],
 };
