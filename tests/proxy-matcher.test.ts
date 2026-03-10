@@ -44,6 +44,24 @@ describe("proxy matcher", () => {
         url: "/cultivar/Happy%20Returns",
       }),
     ).toBe(false);
+    expect(
+      unstable_doesMiddlewareMatch({
+        config,
+        url: "/catalogs",
+      }),
+    ).toBe(false);
+    expect(
+      unstable_doesMiddlewareMatch({
+        config,
+        url: "/start-membership",
+      }),
+    ).toBe(false);
+    expect(
+      unstable_doesMiddlewareMatch({
+        config,
+        url: "/",
+      }),
+    ).toBe(false);
   });
 
   it("still runs for legacy profile and protected routes", async () => {

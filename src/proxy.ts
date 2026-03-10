@@ -109,9 +109,14 @@ export const proxy = clerkMiddleware(async (auth, req) => {
 
 export default proxy;
 
+const LEGACY_PROFILE_SEGMENT_MATCHER =
+  ":legacyProfileSegment((?!api|auth-error|catalog(?:/|$)|catalogs(?:/|$)|cultivar(?:/|$)|dashboard(?:/|$)|icon(?:/|$)|onboarding(?:/|$)|start-membership(?:/|$)|start-onboarding(?:/|$)|subscribe(?:/|$)|trpc|users(?:/|$))[A-Za-z0-9_-]+)";
+
 export const config = {
   matcher: [
-    // Keep proxy off routes handled by dedicated app routes or APIs.
-    "/((?!(?:api|trpc|users|catalog|cultivar)(?:/|$)|_next(?:/|$)|[^?]*\\.(?:html?|css|js(?!on)|jpe?g|webp|png|gif|svg|ttf|woff2?|ico|csv|docx?|xlsx?|zip|webmanifest)).*)",
+    "/dashboard/:path*",
+    `${SUBSCRIPTION_CONFIG.NEW_USER_ONBOARDING_PATH}/:path*`,
+    `/${LEGACY_PROFILE_SEGMENT_MATCHER}`,
+    `/${LEGACY_PROFILE_SEGMENT_MATCHER}/page/:page`,
   ],
 };
