@@ -1,6 +1,5 @@
 import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
-import { toCultivarRouteSegment } from "@/lib/utils/cultivar-utils";
 import {
   hasNonPageProfileParams,
   parsePositiveInteger,
@@ -94,31 +93,6 @@ export const proxy = clerkMiddleware(async (auth, req) => {
     }
   }
 
-  const cultivarMatch = /^\/cultivar\/([^\/]+)$/.exec(pathname);
-  if (cultivarMatch?.[1]) {
-    const rawCultivarSegment = cultivarMatch[1];
-    let decodedCultivarSegment = rawCultivarSegment;
-
-    try {
-      decodedCultivarSegment = decodeURIComponent(rawCultivarSegment);
-    } catch {}
-
-    const canonicalCultivarSegment = toCultivarRouteSegment(
-      decodedCultivarSegment,
-    );
-
-    if (
-      canonicalCultivarSegment &&
-      rawCultivarSegment !== canonicalCultivarSegment
-    ) {
-      const canonicalUrl = req.nextUrl.clone();
-      canonicalUrl.pathname = `/cultivar/${canonicalCultivarSegment}`;
-      return NextResponse.redirect(canonicalUrl, 308);
-    }
-  }
-
-  // Handle redirects for old URLs
-
   // Handle authentication protection
   if (isProtectedRoute(req)) {
     const { userId } = await auth();
@@ -137,12 +111,7 @@ export default proxy;
 
 export const config = {
   matcher: [
-    // Legacy URL patterns to match
-    "/users/:path*",
-    "/catalog/:path*",
-    // Skip Next.js internals and all static files, unless found in search params
-    "/((?!_next|[^?]*\\.(?:html?|css|js(?!on)|jpe?g|webp|png|gif|svg|ttf|woff2?|ico|csv|docx?|xlsx?|zip|webmanifest)).*)",
-    // Always run for API routes
-    "/(api|trpc)(.*)",
+    // Keep proxy off routes handled by dedicated app routes or APIs.
+    "/((?!(?:api|trpc|users|catalog|cultivar)(?:/|$)|_next(?:/|$)|[^?]*\\.(?:html?|css|js(?!on)|jpe?g|webp|png|gif|svg|ttf|woff2?|ico|csv|docx?|xlsx?|zip|webmanifest)).*)",
   ],
 };
