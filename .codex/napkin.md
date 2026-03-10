@@ -6,6 +6,9 @@
 - 2026-03-09 - test env mutation typecheck gotcha - In this repo's TS setup, direct assignment to `process.env.NODE_ENV` fails because `NODE_ENV` is readonly; use `vi.stubEnv(...)` and `vi.unstubAllEnvs()` in Vitest instead.
 - 2026-03-09 - self-miss napkin disclosure recurrence - I mentioned the napkin skill in the first progress update again; keep napkin handling fully silent in user-facing updates.
 - 2026-03-09 - Next 16 ISR analytics hook - `after()` is exported from `next/server`; use it for non-blocking PostHog capture from static page generation so public routes stay static.
+- 2026-03-10 - public ISR invalidation write amplifier - `invalidatePublicIsrForCatalogMutation` was invalidating two trailing paginated pages on every mutation; reduce tail-page invalidation to only count-decreasing mutations to cut ISR writes without broad freshness regressions.
+- 2026-03-10 - paginated-profile ISR policy - User prefers `/{slug}/page/{n}` to refresh on a 24-hour interval instead of on-demand invalidation; keep first-page invalidation behavior separate.
+- 2026-03-10 - dynamic-search invalidation noise - `/{slug}/search` is `force-dynamic` and search results hydrate through client tRPC; path-level `revalidatePath('/slug/search')` does not meaningfully help freshness here and should be removed.
 - 2026-03-09 - self-fix `after()` fallback slop - A helper-level `try/catch` fallback around `next/server` `after()` was unnecessary for trusted App Router codepaths here; keep runtime code direct and mock `after()` in tests instead.
 - 2026-03-04 - posthog event type durability - Define `PosthogEventName` as `keyof` a `POSTHOG_EVENT_NAMES` map to avoid duplicate-union lint failures from manual string-union edits.
 - 2026-03-04 - lint gate compatibility for TanStack table hook - `react-hooks/incompatible-library` on `useReactTable` can trip strict lint gates; add a targeted `eslint-disable-next-line` with rationale at the callsite.

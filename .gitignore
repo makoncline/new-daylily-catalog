@@ -26,6 +26,7 @@ prisma/generated/sqlite-client/
 /.next/
 /out/
 next-env.d.ts
+/.turbo/
 
 # production
 /build
