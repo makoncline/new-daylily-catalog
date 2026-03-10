@@ -1,5 +1,5 @@
 import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
-import { NextResponse, type NextRequest } from "next/server";
+import { NextResponse } from "next/server";
 import { toCultivarRouteSegment } from "@/lib/utils/cultivar-utils";
 import {
   hasNonPageProfileParams,
@@ -34,46 +34,6 @@ function isLegacyProfileSegment(segment: string) {
   }
 
   return /^[A-Za-z0-9_-]+$/.test(segment);
-}
-
-interface CanonicalProfileLookupResponse {
-  canonicalUserSlug?: string;
-}
-
-async function resolveCanonicalUserSlug(
-  req: NextRequest,
-  userSlugOrId: string,
-) {
-  const lookupUrl = req.nextUrl.clone();
-  lookupUrl.pathname = "/api/public-profile-canonical";
-  lookupUrl.search = "";
-  lookupUrl.searchParams.set("userSlugOrId", userSlugOrId);
-
-  try {
-    const response = await fetch(lookupUrl, {
-      headers: {
-        accept: "application/json",
-      },
-    });
-
-    if (!response.ok) {
-      return null;
-    }
-
-    const payload = (await response.json()) as CanonicalProfileLookupResponse;
-
-    if (
-      typeof payload.canonicalUserSlug !== "string" ||
-      payload.canonicalUserSlug.length === 0
-    ) {
-      return null;
-    }
-
-    return payload.canonicalUserSlug;
-  } catch (error) {
-    console.error("Error resolving canonical user slug in proxy:", error);
-    return null;
-  }
 }
 
 export const proxy = clerkMiddleware(async (auth, req) => {
@@ -112,19 +72,6 @@ export const proxy = clerkMiddleware(async (auth, req) => {
     const hasNonPageRequestParams = hasNonPageProfileParams(
       req.nextUrl.searchParams,
     );
-
-    if (req.nextUrl.searchParams.size > 0 && hasNonPageRequestParams) {
-      const canonicalUserSlug = await resolveCanonicalUserSlug(
-        req,
-        legacyProfileSegment,
-      );
-
-      if (canonicalUserSlug && canonicalUserSlug !== legacyProfileSegment) {
-        const canonicalUrl = req.nextUrl.clone();
-        canonicalUrl.pathname = `/${canonicalUserSlug}`;
-        return NextResponse.redirect(canonicalUrl, 308);
-      }
-    }
 
     const pageParam = req.nextUrl.searchParams.get("page");
     const requestedPage = parsePositiveInteger(pageParam, 1);

@@ -5,7 +5,6 @@ import { NextRequest, type NextMiddleware } from "next/server";
 
 const authMock = vi.hoisted(() => vi.fn(async () => ({ userId: null })));
 const fetchMock = vi.hoisted(() => vi.fn());
-
 vi.mock("@clerk/nextjs/server", () => ({
   clerkMiddleware:
     (
@@ -42,25 +41,10 @@ describe("public profile pagination proxy rewrites", () => {
       "/graceful_petals_daylilies/page/2",
     );
     expect(response?.headers.get("x-robots-tag")).toBeNull();
-    expect(fetchMock).not.toHaveBeenCalled();
     expect(authMock).not.toHaveBeenCalled();
   });
 
-  it("resolves canonical slug when non-page params are present", async () => {
-    fetchMock.mockResolvedValueOnce(
-      new Response(
-        JSON.stringify({
-          canonicalUserSlug: "graceful-petals-daylilies",
-        }),
-        {
-          status: 200,
-          headers: {
-            "content-type": "application/json",
-          },
-        },
-      ),
-    );
-
+  it("marks non-page query variants as noindex without proxy-time canonical lookup", async () => {
     const request = new NextRequest(
       "http://localhost:3000/graceful_petals_daylilies?viewing=listing_123",
     );
@@ -68,10 +52,9 @@ describe("public profile pagination proxy rewrites", () => {
 
     const response = await proxy(request, middlewareEvent);
 
-    expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(response).toBeDefined();
-    expect(response?.headers.get("location")).toContain(
-      "/graceful-petals-daylilies?viewing=listing_123",
-    );
+    expect(response?.headers.get("location")).toBeNull();
+    expect(response?.headers.get("x-robots-tag")).toBe("noindex, nofollow");
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 });
