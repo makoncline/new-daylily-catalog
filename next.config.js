@@ -20,11 +20,6 @@ const config = {
   async redirects() {
     return [
       {
-        source: "/users/:userId",
-        destination: "/:userId",
-        permanent: true,
-      },
-      {
         // Catalog redirects will be handled dynamically in proxy
         // This is a fallback for search engines
         source: "/catalog/:listingId",

@@ -172,13 +172,6 @@ export const proxy = clerkMiddleware(async (auth, req) => {
 
   // Handle redirects for old URLs
 
-  // Redirect /users/{userId} to /{userId}
-  const usersMatch = /^\/users\/([^\/]+)$/.exec(pathname);
-  if (usersMatch?.[1]) {
-    const oldUserId = usersMatch[1];
-    return NextResponse.redirect(new URL(`/${oldUserId}`, req.url));
-  }
-
   // Redirect /catalog/{listingId} to legacy-redirect API
   // Using the API instead of direct DB access in proxy to avoid Edge Runtime issues
   const catalogMatch = /^\/catalog\/([^\/]+)$/.exec(pathname);
