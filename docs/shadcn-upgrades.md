@@ -26,5 +26,5 @@ pnpm dlx shadcn@latest add --all --overwrite --yes
 ## Verify
 
 ```sh
-pnpm lint
+pnpm web lint
 ```

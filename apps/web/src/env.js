@@ -3,12 +3,20 @@ import { z } from "zod";
 import * as dotenv from "dotenv";
 import path from "path";
 
+/** @param {string} fileName */
+function resolveEnvPath(fileName) {
+  const appPath = path.resolve(process.cwd(), fileName);
+  const repoPath = path.resolve(process.cwd(), "..", "..", fileName);
+
+  return process.cwd().endsWith(path.join("apps", "web")) ? repoPath : appPath;
+}
+
 // Load the appropriate .env file before creating env
 const envFile =
   process.env.NODE_ENV === "production"
     ? ".env.production"
     : ".env.development";
-dotenv.config({ path: path.resolve(process.cwd(), envFile), quiet: true });
+dotenv.config({ path: resolveEnvPath(envFile), quiet: true });
 
 export const env = createEnv({
   /**

@@ -37,7 +37,7 @@ To restore a backup:
 aws s3 cp s3://daylily-catalog-db-backup/BACKUP_FILENAME.sql.zip ./
 
 # Run the restore script
-./scripts/restore-backup.sh -z BACKUP_FILENAME.sql.zip -o path/to/output/database.db
+./apps/web/scripts/restore-backup.sh -z BACKUP_FILENAME.sql.zip -o path/to/output/database.db
 ```
 
 ## Local Testing
@@ -52,16 +52,16 @@ export AWS_SECRET_ACCESS_KEY="your_aws_secret_key"
 export CI="false"  # Set to true to upload to S3, false for local verification only
 
 # Run the backup script using the development environment variables
-pnpm env:dev bash scripts/db-backup.sh
+pnpm web env:dev bash scripts/db-backup.sh
 # start the dev server pointing to the local-prod-copy-daylily-catalog.db database
-LOCAL_DATABASE_URL="file:./local-prod-copy-daylily-catalog.db" pnpm dev
+LOCAL_DATABASE_URL="file:./local-prod-copy-daylily-catalog.db" pnpm web dev
 ```
 
-If `CI` is set to `false`, the script will verify the backup by creating a local copy of the database at `prisma/local-prod-copy-daylily-catalog.db` which you can use for testing.
+If `CI` is set to `false`, the script will verify the backup by creating a local copy of the database at `apps/web/prisma/local-prod-copy-daylily-catalog.db` which you can use for testing.
 
 ## Faster Vercel Production Builds (Local Snapshot During Build)
 
-The `pnpm build` script is a wrapper that can optionally pull a local SQLite snapshot of a Turso DB at build time and force the build to use that local DB (by setting `USE_TURSO_DB=false` for the build subprocess).
+The `pnpm web build` script is a wrapper that can optionally pull a local SQLite snapshot of a Turso DB at build time and force the build to use that local DB (by setting `USE_TURSO_DB=false` for the build subprocess).
 
 Defaults:
 - Snapshot builds are disabled by default.
@@ -72,7 +72,7 @@ Build env vars:
 - `USE_TURSO_DB_FOR_BUILD=false` enables snapshot builds. (If unset or `true`, build uses remote Turso.)
 - `TURSO_API_TOKEN` is required for the snapshot pull step.
 - `TURSO_SNAPSHOT_DB_NAME` overrides which Turso DB name to pull the dump from (useful for preview).
-- `LOCAL_DATABASE_URL` must be set to a SQLite file url (e.g. `file:./local-preview-copy-daylily-catalog.db`). Prisma typically resolves relative paths from `prisma/`, so this will create `prisma/local-preview-copy-daylily-catalog.db`.
+- `LOCAL_DATABASE_URL` must be set to a SQLite file url (e.g. `file:./local-preview-copy-daylily-catalog.db`). Prisma typically resolves relative paths from `apps/web/prisma/`, so this will create `apps/web/prisma/local-preview-copy-daylily-catalog.db`.
 
 ### Vercel Prereqs (Install Command)
 
@@ -95,10 +95,12 @@ Alternatively, commit a `vercel.json` with an `installCommand` that does the sam
 To reproduce Vercel build behavior locally (Amazon Linux 2023 + `dnf`), run:
 
 ```bash
-./scripts/test-vercel-build-container.sh
+./apps/web/scripts/test-vercel-build-container.sh
 ```
 
-This uses your `.env.development` (follows symlinks) as a Docker `--env-file` and runs `NODE_ENV=production pnpm build` in an `amazonlinux:2023` container.
+This uses your `.env.development` (follows symlinks) as a Docker `--env-file` and runs `NODE_ENV=production pnpm build` inside `apps/web` in an `amazonlinux:2023` container.
+
+The same rule applies to `pnpm web env:dev ...`: the wrapped command runs inside `apps/web`, so use app-relative paths like `bash scripts/db-backup.sh`.
 
 Backup script overrides (used by the build wrapper):
-- `TURSO_SNAPSHOT_DB_NAME` overrides the Turso database name used by `scripts/db-backup.sh`.
+- `TURSO_SNAPSHOT_DB_NAME` overrides the Turso database name used by `apps/web/scripts/db-backup.sh`.

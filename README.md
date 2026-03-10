@@ -22,6 +22,23 @@ To learn more about the [T3 Stack](https://create.t3.gg/), take a look at the fo
 - [Documentation](https://create.t3.gg/)
 - [Learn the T3 Stack](https://create.t3.gg/en/faq#what-learning-resources-are-currently-available) — Check out these awesome tutorials
 
+## Workspace Commands
+
+This repo uses a pnpm workspace with the app in `apps/web`.
+
+- Run app commands through `pnpm web ...`, for example:
+  - `pnpm web dev`
+  - `pnpm web lint`
+  - `pnpm web test`
+  - `pnpm web test:e2e`
+  - `pnpm web test:e2e --headed tests/e2e/manual-signin.e2e.ts`
+
+When using `pnpm web env:dev ...` or `pnpm web env:prod ...`, the command after the env wrapper runs inside `apps/web`.
+Examples:
+
+- `pnpm web env:dev pnpm build`
+- `pnpm web env:dev bash scripts/db-backup.sh`
+
 You can check out the [create-t3-app GitHub repository](https://github.com/t3-oss/create-t3-app) — your feedback and contributions are welcome!
 
 ## How do I deploy this?

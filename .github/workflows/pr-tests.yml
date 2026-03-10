@@ -28,13 +28,13 @@ jobs:
       - run: pnpm install --frozen-lockfile --prefer-offline
 
       - name: Lint
-        run: pnpm lint
+        run: pnpm web lint
 
       - name: Typecheck
-        run: npx tsc --noEmit
+        run: pnpm web typecheck
 
       - name: Unit Tests
-        run: pnpm test
+        run: pnpm web test
 
   e2e:
     name: E2E Tests
@@ -80,13 +80,13 @@ jobs:
       - run: pnpm install --frozen-lockfile --prefer-offline
 
       - name: Install Playwright browsers
-        run: pnpm exec playwright install --with-deps
+        run: pnpm web exec playwright install --with-deps
 
       - name: Install sqlite3
         run: sudo apt-get update && sudo apt-get install -y sqlite3
 
       - name: Run E2E tests
-        run: pnpm test:e2e
+        run: pnpm web test:e2e
 
       - name: Upload Playwright artifacts
         if: always()
@@ -94,5 +94,5 @@ jobs:
         with:
           name: playwright-artifacts
           path: |
-            test-results
-            playwright-report
+            apps/web/test-results
+            apps/web/playwright-report

@@ -35,4 +35,4 @@ jobs:
         env:
           TURSO_API_TOKEN: ${{ secrets.TURSO_API_TOKEN }}
           CI: true
-        run: bash scripts/db-backup.sh
+        run: bash apps/web/scripts/db-backup.sh

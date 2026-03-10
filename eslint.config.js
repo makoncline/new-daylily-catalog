@@ -7,7 +7,7 @@ const nextCoreWebVitalsWithoutTypescript = nextCoreWebVitals.filter(
 
 export default tseslint.config(
   {
-    ignores: [".next", "src/components/ui/**/*"],
+    ignores: [".next", "apps/web/.next", "apps/web/src/components/ui/**/*"],
   },
   ...nextCoreWebVitalsWithoutTypescript,
   {
