@@ -1,5 +1,5 @@
 import { type Metadata } from "next";
-import { notFound, permanentRedirect } from "next/navigation";
+import { notFound } from "next/navigation";
 import { MainContent } from "@/app/(public)/_components/main-content";
 import { PublicBreadcrumbs } from "@/app/(public)/_components/public-breadcrumbs";
 import { parsePositiveInteger } from "@/lib/public-catalog-url-state";
@@ -63,13 +63,16 @@ export async function generateMetadata({
   );
   const canonicalUserSlug =
     profileResult.data.profile.slug ?? profileResult.data.profile.id;
+  const shouldIndexCanonicalRoute =
+    userSlugOrId === canonicalUserSlug &&
+    profileResult.data.profile.hasActiveSubscription;
 
   return generatePaginatedProfileMetadata({
     baseMetadata,
     profileSlug: canonicalUserSlug,
     page: parsedPage,
     hasNonPageStateParams: false,
-    shouldIndex: profileResult.data.profile.hasActiveSubscription,
+    shouldIndex: shouldIndexCanonicalRoute,
   });
 }
 
@@ -101,10 +104,6 @@ export default async function ProfilePaginatedPage({
   const profile = pageDataResult.data.profile;
   const canonicalUserSlug = profile.slug ?? profile.id;
 
-  if (userSlugOrId !== canonicalUserSlug) {
-    permanentRedirect(`/${canonicalUserSlug}/page/${parsedPage}`);
-  }
-
   const baseUrl = getBaseUrl();
   const baseMetadata = await generateProfileMetadata(profile, baseUrl);
   const metadata = generatePaginatedProfileMetadata({
@@ -112,7 +111,8 @@ export default async function ProfilePaginatedPage({
     profileSlug: canonicalUserSlug,
     page: pageDataResult.data.page,
     hasNonPageStateParams: false,
-    shouldIndex: profile.hasActiveSubscription,
+    shouldIndex:
+      userSlugOrId === canonicalUserSlug && profile.hasActiveSubscription,
   });
 
   return (

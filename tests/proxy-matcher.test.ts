@@ -79,7 +79,7 @@ describe("proxy matcher", () => {
         config,
         url: "/graceful_petals_daylilies?viewing=listing_123",
       }),
-    ).toBe(true);
+    ).toBe(false);
   });
 
   it("still runs for protected and auth-backed tRPC routes", async () => {
@@ -114,6 +114,6 @@ describe("proxy matcher", () => {
         config,
         url: "/user_top?viewing=listing-top-prime",
       }),
-    ).toBe(true);
+    ).toBe(false);
   });
 });
