@@ -44,9 +44,7 @@ describe("seller funnel proxy protection", () => {
   });
 
   it("keeps /start-membership publicly accessible", async () => {
-    const routeMatcherArg = createRouteMatcherMock.mock.calls[0]?.[0] as
-      | string[]
-      | undefined;
+    const routeMatcherArg = createRouteMatcherMock.mock.calls[0]?.[0];
 
     expect(routeMatcherArg).toBeDefined();
     expect(routeMatcherArg?.some((route) => route.includes("start-membership")))
@@ -87,4 +85,3 @@ describe("seller funnel proxy protection", () => {
     expect(response).toBeUndefined();
   });
 });
-

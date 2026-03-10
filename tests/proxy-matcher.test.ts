@@ -68,17 +68,23 @@ describe("proxy matcher", () => {
         url: "/graceful_petals_daylilies/page/2",
       }),
     ).toBe(false);
-  });
-
-  it("still runs for legacy profile and protected routes", async () => {
-    const { config } = await import("@/proxy");
-
     expect(
       unstable_doesMiddlewareMatch({
         config,
         url: "/graceful_petals_daylilies?page=2",
       }),
-    ).toBe(true);
+    ).toBe(false);
+    expect(
+      unstable_doesMiddlewareMatch({
+        config,
+        url: "/graceful_petals_daylilies?viewing=listing_123",
+      }),
+    ).toBe(false);
+  });
+
+  it("still runs for protected routes", async () => {
+    const { config } = await import("@/proxy");
+
     expect(
       unstable_doesMiddlewareMatch({
         config,
