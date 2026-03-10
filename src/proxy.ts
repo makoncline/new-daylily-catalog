@@ -36,6 +36,11 @@ interface CanonicalProfileLookupResponse {
   canonicalUserSlug?: string;
 }
 
+function applyNoIndexHeader(response: NextResponse) {
+  response.headers.set("x-robots-tag", "noindex, nofollow");
+  return response;
+}
+
 async function resolveCanonicalUserSlug(
   req: NextRequest,
   userSlugOrId: string,
@@ -88,8 +93,10 @@ export const proxy = clerkMiddleware(async (auth, req) => {
     if (canonicalUserSlug && canonicalUserSlug !== legacyProfileSegment) {
       const canonicalUrl = req.nextUrl.clone();
       canonicalUrl.pathname = `/${canonicalUserSlug}`;
-      return NextResponse.redirect(canonicalUrl, 308);
+      return applyNoIndexHeader(NextResponse.redirect(canonicalUrl, 308));
     }
+
+    return applyNoIndexHeader(NextResponse.next());
   }
 
   if (isProtectedRoute(req)) {
