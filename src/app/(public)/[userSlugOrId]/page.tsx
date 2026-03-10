@@ -1,4 +1,4 @@
-import { notFound, permanentRedirect } from "next/navigation";
+import { notFound } from "next/navigation";
 import { MainContent } from "@/app/(public)/_components/main-content";
 import { PublicBreadcrumbs } from "@/app/(public)/_components/public-breadcrumbs";
 import { getBaseUrl } from "@/lib/utils/getBaseUrl";
@@ -44,13 +44,15 @@ export async function generateMetadata({ params }: PageProps) {
     baseUrl,
   );
   const canonicalUserSlug = result.data.profile.slug ?? result.data.profile.id;
+  const shouldIndexCanonicalRoute =
+    userSlugOrId === canonicalUserSlug && result.data.profile.hasActiveSubscription;
 
   return generatePaginatedProfileMetadata({
     baseMetadata,
     profileSlug: canonicalUserSlug,
     page,
     hasNonPageStateParams: false,
-    shouldIndex: result.data.profile.hasActiveSubscription,
+    shouldIndex: shouldIndexCanonicalRoute,
   });
 }
 
@@ -77,9 +79,6 @@ export default async function Page({ params }: PageProps) {
   const forSaleCount = pageDataResult.data.forSaleCount;
 
   const canonicalUserSlug = initialProfile.slug ?? initialProfile.id;
-  if (userSlugOrId !== canonicalUserSlug) {
-    permanentRedirect(`/${canonicalUserSlug}`);
-  }
 
   if (requestedPage !== activePage) {
     notFound();
@@ -92,7 +91,8 @@ export default async function Page({ params }: PageProps) {
     profileSlug: canonicalUserSlug,
     page: activePage,
     hasNonPageStateParams: false,
-    shouldIndex: initialProfile.hasActiveSubscription,
+    shouldIndex:
+      userSlugOrId === canonicalUserSlug && initialProfile.hasActiveSubscription,
   });
 
   return (
