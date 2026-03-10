@@ -2,9 +2,10 @@
 
 set -euo pipefail
 
-ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+APP_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+REPO_ROOT="$(cd "$APP_DIR/../.." && pwd)"
 
-ENV_FILE="${ENV_FILE:-$ROOT_DIR/.env.development}"
+ENV_FILE="${ENV_FILE:-$REPO_ROOT/.env.development}"
 if [ -L "$ENV_FILE" ]; then
   ENV_FILE="$(readlink "$ENV_FILE")"
 fi
@@ -23,7 +24,7 @@ echo "Using image: $IMAGE ($PLATFORM)"
 
 docker run --rm -it \
   --platform "$PLATFORM" \
-  -v "$ROOT_DIR:/repo" \
+  -v "$REPO_ROOT:/repo" \
   -w /repo \
   --env-file "$ENV_FILE" \
   -e NODE_ENV=production \

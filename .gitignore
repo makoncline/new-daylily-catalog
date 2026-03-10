@@ -14,6 +14,8 @@ db-dev.sqlite
 db-prod.sqlite
 local-dev.sqlite
 *.db
+*.sqlite
+*.sqlite-*
 *.bak
 *.bak-*
 prisma/local-dev.sqlite
@@ -21,10 +23,12 @@ tests/.tmp/
 .tmp/
 prisma/prisma/
 prisma/generated/sqlite-client/
+**/prisma/generated/sqlite-client/
+.turbo/
 
 # next.js
-/.next/
-/out/
+.next/
+out/
 next-env.d.ts
 
 # production
@@ -58,13 +62,14 @@ yarn-error.log*
 # delete_users.sh
 delete_users.sh
 node_modules/
-/test-results/
-/playwright-report/
-/blob-report/
-/playwright/.cache/
+test-results/
+playwright-report/
+blob-report/
+playwright/.cache/
+playwright/.auth/
 
 # Sentry Config File
 .env.sentry-build-plugin
 
 # clerk configuration (can include secrets)
-/.clerk/
+.clerk/

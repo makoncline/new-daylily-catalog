@@ -1,0 +1,31 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "plugins": [{ "name": "next" }],
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./src/*"],
+      "@prisma/client": ["./prisma/generated/sqlite-client"],
+      "@/env": ["./src/env.js"]
+    }
+  },
+  "include": [
+    "../../eslint.config.js",
+    "next-env.d.ts",
+    "**/*.ts",
+    "**/*.tsx",
+    "**/*.cjs",
+    "**/*.js",
+    ".next/types/**/*.ts",
+    ".next/dev/types/**/*.ts",
+    "src/env.js"
+  ],
+  "exclude": [
+    "node_modules",
+    "prisma/migrate.ts",
+    "prisma/generated/**/*",
+    "prisma/schema.postgres.prisma",
+    "playwright-report",
+    "src/components/ui/**/*"
+  ]
+}

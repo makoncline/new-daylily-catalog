@@ -4,6 +4,20 @@
  */
 
 import { withSentryConfig } from "@sentry/nextjs";
+import dotenv from "dotenv";
+import path from "node:path";
+
+const envFile =
+  process.env.NODE_ENV === "production"
+    ? ".env.production"
+    : ".env.development";
+
+// Load root workspace env before Next snapshots NEXT_PUBLIC_* variables.
+dotenv.config({
+  path: path.resolve(process.cwd(), "..", "..", envFile),
+  override: false,
+  quiet: true,
+});
 
 /** @type {import("next").NextConfig} */
 const config = {

@@ -4,10 +4,14 @@ import dotenv from "dotenv";
 import type { FullConfig } from "@playwright/test";
 import { clerkSetup } from "@clerk/testing/playwright";
 
+function resolveEnvPath(fileName: string) {
+  return path.resolve(process.cwd(), "..", "..", fileName);
+}
+
 export default async function globalSetup(_config: FullConfig) {
   // Load env for Clerk keys
   dotenv.config({
-    path: path.resolve(process.cwd(), ".env.development"),
+    path: resolveEnvPath(".env.development"),
     override: false,
   });
   if (

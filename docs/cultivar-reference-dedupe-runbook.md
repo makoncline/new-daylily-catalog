@@ -30,16 +30,16 @@ Final verify state on both:
 
 ## Artifacts
 
-- Generator script: `scripts/generate-cultivar-reference-dedupe-sql.ts`
-- Migration SQL: `prisma/data-migrations/20260225_dedupe_cultivar_reference_normalized_name.sql`
-- Verification SQL: `prisma/data-migrations/20260225_verify_dedupe_cultivar_reference_normalized_name.sql`
-- Local transaction helper: `scripts/open-cultivar-reference-dedupe-transaction.sh`
-- Prisma schema migration SQL (phase 2): `prisma/migrations/20260225183013_add_cultivar_reference_normalized_name_unique/migration.sql`
+- Generator script: `apps/web/scripts/generate-cultivar-reference-dedupe-sql.ts`
+- Migration SQL: `apps/web/prisma/data-migrations/20260225_dedupe_cultivar_reference_normalized_name.sql`
+- Verification SQL: `apps/web/prisma/data-migrations/20260225_verify_dedupe_cultivar_reference_normalized_name.sql`
+- Local transaction helper: `apps/web/scripts/open-cultivar-reference-dedupe-transaction.sh`
+- Prisma schema migration SQL (phase 2): `apps/web/prisma/migrations/20260225183013_add_cultivar_reference_normalized_name_unique/migration.sql`
 
 Regenerate deterministic SQL anytime:
 
 ```sh
-npx tsx scripts/generate-cultivar-reference-dedupe-sql.ts
+npx tsx apps/web/scripts/generate-cultivar-reference-dedupe-sql.ts
 ```
 
 ## Local testing on a DB copy
@@ -47,13 +47,13 @@ npx tsx scripts/generate-cultivar-reference-dedupe-sql.ts
 Create a safe copy from local prod snapshot:
 
 ```sh
-sqlite3 prisma/local-prod-copy-daylily-catalog.db ".backup tests/.tmp/prod-dedupe-check.sqlite"
+sqlite3 apps/web/prisma/local-prod-copy-daylily-catalog.db ".backup apps/web/tests/.tmp/prod-dedupe-check.sqlite"
 ```
 
 Open transaction review (before verify -> apply -> after verify):
 
 ```sh
-scripts/open-cultivar-reference-dedupe-transaction.sh --db tests/.tmp/prod-dedupe-check.sqlite
+apps/web/scripts/open-cultivar-reference-dedupe-transaction.sh --db tests/.tmp/prod-dedupe-check.sqlite
 ```
 
 Inside the shell:
@@ -76,25 +76,25 @@ Run on stage first, then prod.
 ### 1) Re-generate SQL from repo state
 
 ```sh
-npx tsx scripts/generate-cultivar-reference-dedupe-sql.ts
+npx tsx apps/web/scripts/generate-cultivar-reference-dedupe-sql.ts
 ```
 
 ### 2) Baseline verify on target DB
 
 ```sh
-turso db shell "$TURSO_DATABASE_NAME" < prisma/data-migrations/20260225_verify_dedupe_cultivar_reference_normalized_name.sql
+turso db shell "$TURSO_DATABASE_NAME" < apps/web/prisma/data-migrations/20260225_verify_dedupe_cultivar_reference_normalized_name.sql
 ```
 
 ### 3) Apply migration SQL
 
 ```sh
-turso db shell "$TURSO_DATABASE_NAME" < prisma/data-migrations/20260225_dedupe_cultivar_reference_normalized_name.sql
+turso db shell "$TURSO_DATABASE_NAME" < apps/web/prisma/data-migrations/20260225_dedupe_cultivar_reference_normalized_name.sql
 ```
 
 ### 4) Verify again
 
 ```sh
-turso db shell "$TURSO_DATABASE_NAME" < prisma/data-migrations/20260225_verify_dedupe_cultivar_reference_normalized_name.sql
+turso db shell "$TURSO_DATABASE_NAME" < apps/web/prisma/data-migrations/20260225_verify_dedupe_cultivar_reference_normalized_name.sql
 ```
 
 ### 5) Repeat against prod
@@ -111,7 +111,7 @@ Use same SQL files after stage verifies cleanly.
 After dedupe succeeds on stage/prod, apply the Prisma-generated schema migration:
 
 ```sh
-turso db shell "$TURSO_DATABASE_NAME" < prisma/migrations/20260225183013_add_cultivar_reference_normalized_name_unique/migration.sql
+turso db shell "$TURSO_DATABASE_NAME" < apps/web/prisma/migrations/20260225183013_add_cultivar_reference_normalized_name_unique/migration.sql
 ```
 
 Then run verify SQL again and confirm:
@@ -126,19 +126,19 @@ This repo environment may block `prisma migrate dev --create-only` in non-intera
 Current migration SQL was generated from Prisma schema diff:
 
 ```sh
-git show HEAD:prisma/schema.prisma > tests/.tmp/schema-before-normalized-unique.prisma
+git show HEAD:apps/web/prisma/schema.prisma > apps/web/tests/.tmp/schema-before-normalized-unique.prisma
 
 ./node_modules/.bin/prisma migrate diff \
-  --from-schema-datamodel tests/.tmp/schema-before-normalized-unique.prisma \
-  --to-schema-datamodel prisma/schema.prisma \
-  --script > prisma/migrations/20260225183013_add_cultivar_reference_normalized_name_unique/migration.sql
+  --from-schema-datamodel apps/web/tests/.tmp/schema-before-normalized-unique.prisma \
+  --to-schema-datamodel apps/web/prisma/schema.prisma \
+  --script > apps/web/prisma/migrations/20260225183013_add_cultivar_reference_normalized_name_unique/migration.sql
 ```
 
 ## Schema contract
 
 After stage/prod data migration is complete, sync Prisma schema to match DB:
 
-1. Add uniqueness on `CultivarReference.normalizedName` in `prisma/schema.prisma`.
+1. Add uniqueness on `CultivarReference.normalizedName` in `apps/web/prisma/schema.prisma`.
 2. Use mapped name to align with the index name from the Prisma migration SQL:
    `@@unique([normalizedName], map: "CultivarReference_normalizedName_unique_idx")`
 3. Apply the separate schema migration SQL after dedupe SQL.

@@ -1,16 +1,18 @@
 # E2E Tests
 
-End-to-end tests live in `tests/e2e/` and use Playwright.
+End-to-end tests live in `apps/web/tests/e2e/` and use Playwright.
 
 ## Run
 
 - Full suite (local temp DB):
-  - `pnpm test:e2e`
+  - `pnpm web test:e2e`
 - Single test by name:
-  - `pnpm test:e2e --grep "manual sign-in"`
+  - `pnpm web test:e2e --grep "manual sign-in"`
+- Headed single test:
+  - `pnpm web test:e2e --headed tests/e2e/manual-signin.e2e.ts`
 - UI mode:
-  - `pnpm exec playwright test --ui`
-  - `pnpm exec playwright test --ui tests/e2e`
+  - `pnpm web exec playwright test --ui`
+  - `pnpm web exec playwright test --ui tests/e2e`
 
 ## Run PR E2E Job Locally with `act`
 
@@ -30,7 +32,7 @@ Notes:
 
 ## Preview vs Local (Tagging)
 
-Tag rules are enforced in `playwright.config.ts`:
+Tag rules are enforced in `apps/web/playwright.config.ts`:
 
 - `@local` → runs only when `BASE_URL` is **not** set (local temp DB).
 - `@preview` → runs only when `BASE_URL` **is** set (preview/attach mode).
@@ -61,10 +63,10 @@ Tag rules are enforced in `playwright.config.ts`:
 - Simplify first, then prove:
   - Remove custom timeouts, retries, and polling unless a real failure appears.
   - Run the affected spec with repeats:
-    - `pnpm test:e2e tests/e2e/<file>.e2e.ts --repeat-each 3`
+    - `pnpm web test:e2e tests/e2e/<file>.e2e.ts --repeat-each 3`
   - If it fails, add one minimal wait tied to a real UI/event signal and re-run.
 - Validate broadly after local fixes:
-  - `pnpm test:e2e tests/e2e/*.e2e.ts --repeat-each 2`
+  - `pnpm web test:e2e tests/e2e/*.e2e.ts --repeat-each 2`
 
 ### Keep tests UI-first
 
@@ -91,8 +93,8 @@ Tag rules are enforced in `playwright.config.ts`:
 ### Quick debugging commands
 
 - Open latest HTML report:
-  - `pnpm exec playwright show-report`
+  - `pnpm web exec playwright show-report`
 - Reproduce one spec repeatedly:
-  - `pnpm test:e2e tests/e2e/<file>.e2e.ts --repeat-each 5`
+  - `pnpm web test:e2e tests/e2e/<file>.e2e.ts --repeat-each 5`
 - Run one test title repeatedly:
-  - `pnpm test:e2e tests/e2e/<file>.e2e.ts --grep "<test title>" --repeat-each 5`
+  - `pnpm web test:e2e tests/e2e/<file>.e2e.ts --grep "<test title>" --repeat-each 5`

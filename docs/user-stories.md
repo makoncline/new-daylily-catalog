@@ -12,29 +12,29 @@ Document every user action available on each app page by exploring the UI (not t
 
 ## Commands
 
-- Temp DB paths must live under `prisma/tests/.tmp` (safety guard).
+- Temp DB paths must live under `apps/web/prisma/tests/.tmp` (safety guard).
 - Default temp DB file URL: `file:tests/.tmp/ui-listings.sqlite` (Prisma resolves it under `prisma/`).
 - Create a new temp DB (schema only):
 ```sh
-npx tsx scripts/create-temp-db.ts
+npx tsx apps/web/scripts/create-temp-db.ts
 ```
 - Seed the temp DB:
 ```sh
-npx tsx scripts/seed-temp-db-example.ts
+npx tsx apps/web/scripts/seed-temp-db-example.ts
 ```
 - Run the app against the temp DB:
 ```sh
-LOCAL_DATABASE_URL="file:tests/.tmp/ui-listings.sqlite" npm run dev
+LOCAL_DATABASE_URL="file:tests/.tmp/ui-listings.sqlite" pnpm web dev
 ```
 - Reset the temp DB (fresh schema):
 ```sh
-npx tsx scripts/create-temp-db.ts
+npx tsx apps/web/scripts/create-temp-db.ts
 ```
 - Example with a custom path:
 ```sh
-npx tsx scripts/create-temp-db.ts --db tests/.tmp/custom-temp.sqlite
-npx tsx scripts/seed-temp-db-example.ts --db tests/.tmp/custom-temp.sqlite
-LOCAL_DATABASE_URL="file:tests/.tmp/custom-temp.sqlite" npm run dev
+npx tsx apps/web/scripts/create-temp-db.ts --db tests/.tmp/custom-temp.sqlite
+npx tsx apps/web/scripts/seed-temp-db-example.ts --db tests/.tmp/custom-temp.sqlite
+LOCAL_DATABASE_URL="file:tests/.tmp/custom-temp.sqlite" pnpm web dev
 ```
 
 ## Tips

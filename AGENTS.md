@@ -7,52 +7,54 @@ below and mirror existing conventions before introducing new ones.
 
 - Package manager: `pnpm` (see `package.json`)
 - Install: `pnpm install`
-- Dev server: `pnpm dev`
-- Build: `pnpm build`
-- Start: `pnpm start`
-- Lint: `pnpm lint`
-- Typecheck: `npx tsc --noEmit`
-- Unit tests: `pnpm test`
-- Unit tests (watch): `pnpm test:watch`
-- E2E tests: `pnpm test:e2e`
-- E2E tests (attach to existing server): `pnpm test:e2e:attach`
-- Query profiler (single command session): `LOCAL_DATABASE_URL="file:/absolute/path/to/prisma/local-prod-copy-daylily-catalog.db" USE_TURSO_DB=false pnpm env:dev pnpm profile:queries`
+- Dev server: `pnpm web dev`
+- Build: `pnpm web build`
+- Start: `pnpm web start`
+- Lint: `pnpm web lint`
+- Typecheck: `pnpm web typecheck`
+- Unit tests: `pnpm web test`
+- Unit tests (watch): `pnpm web test:watch`
+- E2E tests: `pnpm web test:e2e`
+- E2E tests (attach to existing server): `pnpm web test:e2e:attach`
+- Query profiler (single command session): `LOCAL_DATABASE_URL="file:/absolute/path/to/apps/web/prisma/local-prod-copy-daylily-catalog.db" USE_TURSO_DB=false pnpm web env:dev pnpm profile:queries`
+
+Note: `pnpm web env:dev ...` and `pnpm web env:prod ...` run the following command from inside `apps/web`, so use app-relative paths there (for example `bash scripts/db-backup.sh`).
 
 For query profiling workflow details, always start with `docs/local-query-profiler.md`.
 
 ### Run a Single Test
 
-- Vitest by file: `pnpm test -- tests/some-file.test.ts`
-- Vitest by test name: `pnpm test -- -t "test name"`
-- Vitest watch by file: `pnpm test:watch -- tests/some-file.test.ts`
-- Playwright by file: `pnpm test:e2e -- tests/some-file.e2e.ts`
-- Playwright by title/grep: `pnpm test:e2e -- --grep "checkout flow"`
+- Vitest by file: `pnpm web test tests/some-file.test.ts`
+- Vitest by test name: `pnpm web test -t "test name"`
+- Vitest watch by file: `pnpm web test:watch tests/some-file.test.ts`
+- Playwright by file: `pnpm web test:e2e tests/some-file.e2e.ts`
+- Playwright by title/grep: `pnpm web test:e2e --grep "checkout flow"`
 
 ## Temp DB Workflow (Local UI + E2E)
 
 ```sh
 # Create a fresh temp DB
-npx tsx scripts/create-temp-db.ts
+npx tsx apps/web/scripts/create-temp-db.ts
 
 # Seed example data (optional)
-npx tsx scripts/seed-temp-db-example.ts
+npx tsx apps/web/scripts/seed-temp-db-example.ts
 
 # Run app against the temp DB
-LOCAL_DATABASE_URL="file:tests/.tmp/ui-listings.sqlite" pnpm dev
+LOCAL_DATABASE_URL="file:tests/.tmp/ui-listings.sqlite" pnpm web dev
 ```
 
 Custom DB path:
 
 ```sh
-npx tsx scripts/create-temp-db.ts --db tests/.tmp/custom-temp.sqlite
-npx tsx scripts/seed-temp-db-example.ts --db tests/.tmp/custom-temp.sqlite
-LOCAL_DATABASE_URL="file:tests/.tmp/custom-temp.sqlite" pnpm dev
+npx tsx apps/web/scripts/create-temp-db.ts --db tests/.tmp/custom-temp.sqlite
+npx tsx apps/web/scripts/seed-temp-db-example.ts --db tests/.tmp/custom-temp.sqlite
+LOCAL_DATABASE_URL="file:tests/.tmp/custom-temp.sqlite" pnpm web dev
 ```
 
-Note: `scripts/seed-temp-db-example.ts` is minimal; write a purpose-built
+Note: `apps/web/scripts/seed-temp-db-example.ts` is minimal; write a purpose-built
 seed script for e2e, QA, or demos.
 
-Playwright local runs auto-provision a temp DB and start `pnpm dev` unless
+Playwright local runs auto-provision a temp DB and start `pnpm web dev` unless
 `BASE_URL` is set. Local E2E uses `E2E_PORT` (default `3100`).
 
 ## Local "Prod" Build Workflow (with Production Data Snapshot)
@@ -62,13 +64,13 @@ production data.
 
 ```sh
 # Pull local copy of prod DB to file
-pnpm env:dev bash scripts/db-backup.sh
+pnpm web env:dev bash scripts/db-backup.sh
 
 # Build in production mode against local prod DB copy
-LOCAL_DATABASE_URL="file:./local-prod-copy-daylily-catalog.db" USE_TURSO_DB=false NODE_ENV=production pnpm env:dev pnpm build
+LOCAL_DATABASE_URL="file:./local-prod-copy-daylily-catalog.db" USE_TURSO_DB=false NODE_ENV=production pnpm web env:dev pnpm build
 
 # Run production server locally against local prod DB copy
-LOCAL_DATABASE_URL="file:./local-prod-copy-daylily-catalog.db" USE_TURSO_DB=false NODE_ENV=production pnpm env:dev pnpm start
+LOCAL_DATABASE_URL="file:./local-prod-copy-daylily-catalog.db" USE_TURSO_DB=false NODE_ENV=production pnpm web env:dev pnpm start
 ```
 
 ## Approximate Data Scale (for query work)
@@ -101,12 +103,12 @@ params as client-only UI state.
 
 ## Repo Structure (High-Level)
 
-- `src/app/` Next.js App Router (routes + route-level `_components`)
-- `src/components/` shared components (`ui/` is shadcn-only)
-- `src/server/` server-side logic (tRPC, db, stripe, clerk)
-- `src/types/` shared types and zod schemas
-- `prisma/` Prisma schema and migrations (do not generate migrations)
-- `tests/` unit and e2e tests
+- `apps/web/src/app/` Next.js App Router (routes + route-level `_components`)
+- `apps/web/src/components/` shared components (`ui/` is shadcn-only)
+- `apps/web/src/server/` server-side logic (tRPC, db, stripe, clerk)
+- `apps/web/src/types/` shared types and zod schemas
+- `apps/web/prisma/` Prisma schema and migrations (do not generate migrations)
+- `apps/web/tests/` unit and e2e tests
 
 ## Cursor Rules (from `.cursorrules`)
 
@@ -143,7 +145,7 @@ params as client-only UI state.
 
 ### Imports and Module Boundaries
 
-- Use path alias `@/` for app imports (see `tsconfig.json`)
+- Use path alias `@/` for app imports (see `apps/web/tsconfig.json`)
 - Prefer type-only imports (`import type { ... }`) per ESLint rules
 - Keep `@prisma/client` imports for DB types and client access
 - Do not import server components into client components
@@ -208,7 +210,7 @@ params as client-only UI state.
 ## CI Reference
 
 - PR checks run: lint, typecheck, unit tests, and e2e in CI
-- E2E CI sets placeholder env vars and uses `pnpm test:e2e`
+- E2E CI sets placeholder env vars and uses `pnpm web test:e2e`
 
 ## Cursor Cloud specific instructions
 
@@ -217,7 +219,7 @@ params as client-only UI state.
 - `.env.development` is created by the VM snapshot with placeholder keys and
   `SKIP_ENV_VALIDATION=1`. The app starts without real Clerk/Stripe/AWS keys
   but auth-dependent flows will not work.
-- Prisma client is generated to `prisma/generated/sqlite-client` by the
+- Prisma client is generated to `apps/web/prisma/generated/sqlite-client` by the
   `postinstall` hook (`prisma generate`).
 
 ### Running the dev server
@@ -227,21 +229,21 @@ Use the Temp DB Workflow documented above. The key env vars are:
 ```sh
 LOCAL_DATABASE_URL="file:tests/.tmp/ui-listings.sqlite" \
 USE_TURSO_DB=false SKIP_ENV_VALIDATION=1 \
-NEXT_PUBLIC_SENTRY_ENABLED=false pnpm dev
+NEXT_PUBLIC_SENTRY_ENABLED=false pnpm web dev
 ```
 
 ### Gotchas
 
 - **Turbopack cache corruption**: if the dev server or E2E tests fail with
   `Failed to restore task data (corrupted database or bug)`, delete
-  `.next` (`rm -rf .next`) and retry.
+  `apps/web/.next` (`rm -rf apps/web/.next`) and retry.
 - **Next.js dev lock**: if you see `Unable to acquire lock at .next/dev/lock`,
-  remove the lock file (`rm -f .next/dev/lock`) before starting the server or
-  E2E tests.
-- **E2E tests manage their own server**: `pnpm test:e2e` starts a dev server
+  remove the lock file (`rm -f apps/web/.next/dev/lock`) before starting the
+  server or E2E tests.
+- **E2E tests manage their own server**: `pnpm web test:e2e` starts a dev server
   on port 3100 and provisions a temp DB automatically. Do not start a separate
-  dev server on port 3100 before running E2E tests. Kill any process on port
-  3000/3100 before running E2E to avoid conflicts.
+  dev server on port 3100 before running E2E tests; the runner will clear a
+  stale 3100 listener and the Next dev lock before startup.
 - **Lint and typecheck** require `SKIP_ENV_VALIDATION=1` when real env vars are
   not present.
 - **Playwright browsers**: Chromium is installed to
