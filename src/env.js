@@ -98,12 +98,6 @@ export const useTursoDb =
   env.USE_TURSO_DB === "true" ||
   (env.NODE_ENV === "production" && env.USE_TURSO_DB !== "false");
 
-/**
- * @template T
- * @param {string} name
- * @param {T | null | undefined} value
- * @returns {T}
- */
 export function requireEnv(name, value) {
   if (!value) {
     throw new Error(`${name} is required.`);

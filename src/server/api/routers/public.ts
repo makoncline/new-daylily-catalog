@@ -38,7 +38,6 @@ function getSesClient() {
   });
 }
 
-// Helper function to get the full listing data with all relations
 async function getFullListingData(listingId: string) {
   const listing = await db.listing.findFirst({
     where: { id: listingId, ...isPublished() },

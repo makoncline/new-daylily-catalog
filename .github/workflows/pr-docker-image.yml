@@ -41,16 +41,16 @@ jobs:
       - name: Write build env
         run: |
           cat > .env.build <<EOF
-          APP_BASE_URL=${{ vars.APP_BASE_URL }}
-          NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=${{ vars.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY }}
-          NEXT_PUBLIC_CLOUDFLARE_URL=${{ vars.NEXT_PUBLIC_CLOUDFLARE_URL }}
+          APP_BASE_URL=https://daylilycatalog.makon.dev
+          NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_live_Y2xlcmsuZGF5bGlseWNhdGFsb2cuY29tJA
+          NEXT_PUBLIC_CLOUDFLARE_URL=https://cf.daylilycatalog.com
           NEXT_PUBLIC_SENTRY_ENABLED=false
-          TURSO_DATABASE_URL=${{ vars.TURSO_DATABASE_URL }}
-          TURSO_DATABASE_AUTH_TOKEN=${{ secrets.TURSO_DATABASE_AUTH_TOKEN }}
+          TURSO_DATABASE_URL=libsql://daylily-catalog-makoncline.aws-us-east-1.turso.io
+          TURSO_DATABASE_AUTH_TOKEN=${{ secrets.TURSO_DATABASE_AUTH_TOKEN_PROD }}
           EOF
 
-          if [ -n "${{ secrets.STRIPE_SECRET_KEY }}" ]; then
-            echo "STRIPE_SECRET_KEY=${{ secrets.STRIPE_SECRET_KEY }}" >> .env.build
+          if [ -n "${{ secrets.STRIPE_SECRET_KEY_PROD }}" ]; then
+            echo "STRIPE_SECRET_KEY=${{ secrets.STRIPE_SECRET_KEY_PROD }}" >> .env.build
           fi
 
       - uses: docker/setup-buildx-action@v3
