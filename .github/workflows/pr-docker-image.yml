@@ -41,7 +41,7 @@ jobs:
       - name: Write build env
         run: |
           cat > .env.build <<EOF
-          APP_BASE_URL=https://daylilycatalog.makon.dev
+          APP_BASE_URL=https://vps-test.daylilycatalog.com
           NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_live_Y2xlcmsuZGF5bGlseWNhdGFsb2cuY29tJA
           NEXT_PUBLIC_CLOUDFLARE_URL=https://cf.daylilycatalog.com
           NEXT_PUBLIC_SENTRY_ENABLED=false

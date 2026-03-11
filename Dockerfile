@@ -34,6 +34,7 @@ RUN --mount=type=secret,id=app_env \
     set -a \
     && . /run/secrets/app_env \
     && set +a \
+    && : "${APP_BASE_URL:?APP_BASE_URL is required for Docker builds}" \
     && export NODE_ENV=production \
     && pnpm exec next build
 

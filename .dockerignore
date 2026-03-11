@@ -7,6 +7,7 @@ coverage
 node_modules
 tests
 docs
+.server-deploy
 *.log
 *.sqlite
 *.sqlite-shm

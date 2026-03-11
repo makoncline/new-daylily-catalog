@@ -120,11 +120,28 @@ If you run local SQLite instead of Turso, add:
 ## Caddy Route
 
 ```caddy
-@daylilycatalog host daylilycatalog.makon.dev
+@daylilycatalog host vps-test.daylilycatalog.com
 handle @daylilycatalog {
   reverse_proxy app:3000
 }
 ```
+
+## Server Bundle
+
+Generate a minimal server bundle with only the runtime stack files:
+
+```sh
+pnpm deploy:bundle
+```
+
+This writes:
+
+- `.server-deploy/compose.yaml`
+- `.server-deploy/.env` generated from `.env.production` when available
+- `.server-deploy/caddy-route.caddy`
+
+The generated `.env` keeps only runtime vars used by the VPS stack. It excludes Vercel-only and build-only keys.
+The directory is gitignored and can be copied to the server as a starting point for `/srv/stacks/daylilycatalog`.
 
 ## Local Docker Compose Check
 
@@ -138,7 +155,7 @@ Notes:
 
 - `compose.local.yaml` is for local testing only.
 - It binds `localhost:3012` so you can open the app in a browser.
-- Docker Compose correctly parses quoted values in `.env.vercel.production`, unlike `docker run --env-file`.
+- Docker Compose correctly parses quoted values in `.env.production`, unlike `docker run --env-file`.
 
 ## Deploy Steps
 
@@ -146,4 +163,4 @@ Notes:
 2. Create `.env` from `.env.example` with production values.
 3. Build the image with the command above.
 4. Start the stack with `docker compose up -d`.
-5. Add the Caddy route block for `daylilycatalog.makon.dev`.
+5. Add the Caddy route block for `vps-test.daylilycatalog.com`.
