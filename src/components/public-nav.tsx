@@ -19,6 +19,14 @@ export function PublicdNav() {
           <Link href="/catalogs">Catalogs</Link>
         </Button>
 
+        <Button variant="ghost" asChild size="sm">
+          <Link href="/#home-search">Search</Link>
+        </Button>
+
+        <Button variant="ghost" asChild size="sm">
+          <Link href="/start-membership">For sellers</Link>
+        </Button>
+
         <DashboardButton />
       </div>
     </nav>

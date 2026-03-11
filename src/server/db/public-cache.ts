@@ -5,6 +5,7 @@ import {
   getCultivarRouteSegments,
   getCultivarSitemapEntries,
 } from "@/server/db/getPublicCultivars";
+import { getFeaturedPublicCultivars } from "@/server/db/getFeaturedPublicCultivars";
 import { getInitialListings, getListings } from "@/server/db/getPublicListings";
 import { getPublicProfiles } from "@/server/db/getPublicProfiles";
 export {
@@ -57,5 +58,14 @@ export const getCachedCultivarSitemapEntries = createServerCache(
     key: "public:cultivar-sitemap",
     revalidateSeconds: CACHE_CONFIG.PUBLIC.SITEMAP_REVALIDATE_SECONDS,
     tags: [CACHE_CONFIG.TAGS.PUBLIC_CULTIVAR_SITEMAP],
+  },
+);
+
+export const getCachedFeaturedPublicCultivars = createServerCache(
+  getFeaturedPublicCultivars,
+  {
+    key: "public:featured-cultivars",
+    revalidateSeconds: CACHE_CONFIG.PUBLIC.STATIC_REVALIDATE_SECONDS,
+    tags: [CACHE_CONFIG.TAGS.PUBLIC_CULTIVAR_PAGE],
   },
 );

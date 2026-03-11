@@ -5,7 +5,7 @@ import { METADATA_CONFIG } from "@/config/constants";
 async function createHomePageMetadata(url: string) {
   const title = METADATA_CONFIG.SITE_NAME;
   const description =
-    "Discover beautiful daylilies from growers across the country. Browse our collection of registered cultivars and connect with daylily enthusiasts.";
+    "Search daylily cultivars, browse public grower catalogs, and discover sellers through a daylily database built for research and marketplace discovery.";
   const imageUrl = IMAGES.DEFAULT_META;
 
   return {
