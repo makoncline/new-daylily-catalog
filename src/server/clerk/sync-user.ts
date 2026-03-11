@@ -1,6 +1,6 @@
 import type { User } from "@clerk/nextjs/server";
 import { kvStore as appKvStore } from "@/server/db/kvStore";
-import { clerk } from "./client";
+import { getClerk } from "./client";
 
 export const DEFAULT_USER_DATA = null;
 
@@ -50,7 +50,7 @@ export async function syncClerkUserToKVBase(
 
 // Wrapper that uses app's default clients
 export async function syncClerkUserToKV(clerkUserId: string) {
-  return syncClerkUserToKVBase(clerkUserId, clerk, appKvStore);
+  return syncClerkUserToKVBase(clerkUserId, await getClerk(), appKvStore);
 }
 
 export async function getClerkUserData(clerkUserId: string | null | undefined) {

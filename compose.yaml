@@ -1,0 +1,12 @@
+services:
+  app:
+    image: ghcr.io/makoncline/daylilycatalog:latest
+    restart: unless-stopped
+    env_file:
+      - .env
+    networks:
+      - edge
+
+networks:
+  edge:
+    external: true

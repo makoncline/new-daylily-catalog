@@ -3,6 +3,8 @@ import { z } from "zod";
 import * as dotenv from "dotenv";
 import path from "path";
 
+const booleanStringSchema = z.union([z.literal("true"), z.literal("false")]);
+
 // Load the appropriate .env file before creating env
 const envFile =
   process.env.NODE_ENV === "production"
@@ -10,24 +12,28 @@ const envFile =
     : ".env.development";
 dotenv.config({ path: path.resolve(process.cwd(), envFile), quiet: true });
 
+const useTursoDbDefault =
+  process.env.NODE_ENV === "production" ? "true" : "false";
+
 export const env = createEnv({
   /**
    * Specify your server-side environment variables schema here. This way you can ensure the app
    * isn't built with invalid env vars.
    */
   server: {
-    LOCAL_DATABASE_URL: z.string(),
-    TURSO_DATABASE_URL: z.string(),
-    TURSO_DATABASE_AUTH_TOKEN: z.string(),
-    CLERK_SECRET_KEY: z.string(),
-    CLERK_WEBHOOK_SECRET: z.string(),
-    STRIPE_SECRET_KEY: z.string(),
-    STRIPE_WEBHOOK_SECRET: z.string(),
-    STRIPE_PRICE_ID: z.string(),
-    AWS_ACCESS_KEY_ID: z.string(),
-    AWS_SECRET_ACCESS_KEY: z.string(),
-    AWS_REGION: z.string(),
-    AWS_BUCKET_NAME: z.string(),
+    USE_TURSO_DB: booleanStringSchema.optional().default(useTursoDbDefault),
+    LOCAL_DATABASE_URL: z.string().optional(),
+    TURSO_DATABASE_URL: z.string().optional(),
+    TURSO_DATABASE_AUTH_TOKEN: z.string().optional(),
+    CLERK_SECRET_KEY: z.string().optional(),
+    CLERK_WEBHOOK_SECRET: z.string().optional(),
+    STRIPE_SECRET_KEY: z.string().optional(),
+    STRIPE_WEBHOOK_SECRET: z.string().optional(),
+    STRIPE_PRICE_ID: z.string().optional(),
+    AWS_ACCESS_KEY_ID: z.string().optional(),
+    AWS_SECRET_ACCESS_KEY: z.string().optional(),
+    AWS_REGION: z.string().optional(),
+    AWS_BUCKET_NAME: z.string().optional(),
     NODE_ENV: z.enum(["development", "test", "production"]),
   },
 
@@ -55,6 +61,7 @@ export const env = createEnv({
    * middlewares) or client-side so we need to destruct manually.
    */
   runtimeEnv: {
+    USE_TURSO_DB: process.env.USE_TURSO_DB,
     LOCAL_DATABASE_URL: process.env.LOCAL_DATABASE_URL,
     TURSO_DATABASE_URL: process.env.TURSO_DATABASE_URL,
     TURSO_DATABASE_AUTH_TOKEN: process.env.TURSO_DATABASE_AUTH_TOKEN,
@@ -86,3 +93,33 @@ export const env = createEnv({
    */
   emptyStringAsUndefined: true,
 });
+
+export const useTursoDb =
+  env.USE_TURSO_DB === "true" ||
+  (env.NODE_ENV === "production" && env.USE_TURSO_DB !== "false");
+
+/**
+ * @template T
+ * @param {string} name
+ * @param {T | null | undefined} value
+ * @returns {T}
+ */
+export function requireEnv(name, value) {
+  if (!value) {
+    throw new Error(`${name} is required.`);
+  }
+
+  return value;
+}
+
+if (!process.env.SKIP_ENV_VALIDATION) {
+  if (useTursoDb) {
+    if (!env.TURSO_DATABASE_URL || !env.TURSO_DATABASE_AUTH_TOKEN) {
+      throw new Error(
+        "USE_TURSO_DB requires TURSO_DATABASE_URL and TURSO_DATABASE_AUTH_TOKEN.",
+      );
+    }
+  } else if (!env.LOCAL_DATABASE_URL) {
+    throw new Error("USE_TURSO_DB=false requires LOCAL_DATABASE_URL.");
+  }
+}

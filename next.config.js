@@ -7,6 +7,12 @@ import { withSentryConfig } from "@sentry/nextjs";
 
 /** @type {import("next").NextConfig} */
 const config = {
+  output: "standalone",
+
+  outputFileTracingIncludes: {
+    "/*": ["./prisma/generated/**/*"],
+  },
+
   images: {
     remotePatterns: [{ hostname: "daylilycatalog.com" }],
     qualities: [75],

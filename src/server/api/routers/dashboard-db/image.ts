@@ -1,7 +1,7 @@
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { protectedProcedure, createTRPCRouter } from "@/server/api/trpc";
-import { env } from "@/env";
+import { env, requireEnv } from "@/env";
 import { APP_CONFIG } from "@/config/constants";
 import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
@@ -69,10 +69,13 @@ export const dashboardDbImageRouter = createTRPCRouter({
       }
 
       const s3Client = new S3Client({
-        region: env.AWS_REGION,
+        region: requireEnv("AWS_REGION", env.AWS_REGION),
         credentials: {
-          accessKeyId: env.AWS_ACCESS_KEY_ID,
-          secretAccessKey: env.AWS_SECRET_ACCESS_KEY,
+          accessKeyId: requireEnv("AWS_ACCESS_KEY_ID", env.AWS_ACCESS_KEY_ID),
+          secretAccessKey: requireEnv(
+            "AWS_SECRET_ACCESS_KEY",
+            env.AWS_SECRET_ACCESS_KEY,
+          ),
         },
       });
 
@@ -81,17 +84,19 @@ export const dashboardDbImageRouter = createTRPCRouter({
       const key = `${ctx.user.id}/${input.referenceId}/${fileId}${ext}`;
 
       const command = new PutObjectCommand({
-        Bucket: env.AWS_BUCKET_NAME,
+        Bucket: requireEnv("AWS_BUCKET_NAME", env.AWS_BUCKET_NAME),
         Key: key,
         ContentType: input.contentType,
       });
 
+      const bucketName = requireEnv("AWS_BUCKET_NAME", env.AWS_BUCKET_NAME);
+      const region = requireEnv("AWS_REGION", env.AWS_REGION);
       const url = await getSignedUrl(s3Client, command, { expiresIn: 3600 });
 
       return {
         presignedUrl: url,
         key,
-        url: `https://${env.AWS_BUCKET_NAME}.s3.${env.AWS_REGION}.amazonaws.com/${key}`,
+        url: `https://${bucketName}.s3.${region}.amazonaws.com/${key}`,
       } as const;
     }),
 

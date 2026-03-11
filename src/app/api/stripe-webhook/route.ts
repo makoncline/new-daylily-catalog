@@ -1,14 +1,14 @@
 import { NextResponse } from "next/server";
 import { revalidateTag } from "next/cache";
 import { CACHE_CONFIG } from "@/config/cache-config";
-import { env } from "@/env";
-import { stripe } from "@/server/stripe/client";
+import { env, requireEnv } from "@/env";
 import type Stripe from "stripe";
 import { syncStripeSubscriptionToKV } from "@/server/stripe/sync-subscription";
 import { db } from "@/server/db";
 import { captureServerPosthogEvent } from "@/server/analytics/posthog-server";
 import { trackPublicIsrTagInvalidation } from "@/server/analytics/public-isr-posthog";
 import { getStripeFunnelEvents } from "@/server/stripe/stripe-funnel-events";
+import { getStripeClient } from "@/server/stripe/client";
 
 const relevantEvents = new Set<Stripe.Event.Type>([
   "checkout.session.completed",
@@ -34,6 +34,7 @@ const relevantEvents = new Set<Stripe.Event.Type>([
 export async function POST(req: Request) {
   const body = await req.text();
   const signature = req.headers.get("stripe-signature");
+  const stripe = getStripeClient();
 
   if (!signature) {
     return NextResponse.json(
@@ -48,7 +49,7 @@ export async function POST(req: Request) {
     event = stripe.webhooks.constructEvent(
       body,
       signature,
-      env.STRIPE_WEBHOOK_SECRET,
+      requireEnv("STRIPE_WEBHOOK_SECRET", env.STRIPE_WEBHOOK_SECRET),
     );
   } catch (err) {
     console.error("⚠️ Webhook signature verification failed:", err);

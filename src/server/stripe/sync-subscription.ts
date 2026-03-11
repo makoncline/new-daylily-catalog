@@ -1,4 +1,4 @@
-import { stripe as appStripe } from "@/server/stripe/client";
+import { getStripeClient } from "@/server/stripe/client";
 import { kvStore as appKvStore } from "@/server/db/kvStore";
 import type Stripe from "stripe";
 import { tryCatch } from "@/lib/utils";
@@ -64,7 +64,7 @@ export async function syncStripeSubscriptionToKVBase(
 
 // Wrapper that uses app's default clients
 export async function syncStripeSubscriptionToKV(customerId: string) {
-  return syncStripeSubscriptionToKVBase(customerId, appStripe, appKvStore);
+  return syncStripeSubscriptionToKVBase(customerId, getStripeClient(), appKvStore);
 }
 
 export const getStripeSubscription = async (

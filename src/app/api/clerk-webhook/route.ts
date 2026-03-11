@@ -1,7 +1,7 @@
 import { Webhook } from "svix";
 import type { WebhookEvent } from "@clerk/nextjs/server";
 import { db } from "@/server/db";
-import { env } from "@/env";
+import { env, requireEnv } from "@/env";
 import { NextResponse } from "next/server";
 import { headers } from "next/headers";
 import { syncClerkUserToKV } from "@/server/clerk/sync-user";
@@ -44,7 +44,9 @@ export async function POST(req: Request) {
   const payload = (await req.json()) as unknown;
   const body = JSON.stringify(payload);
 
-  const wh = new Webhook(env.CLERK_WEBHOOK_SECRET);
+  const wh = new Webhook(
+    requireEnv("CLERK_WEBHOOK_SECRET", env.CLERK_WEBHOOK_SECRET),
+  );
 
   let evt: WebhookEvent;
 

@@ -1,7 +1,7 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { env } from "@/env";
+import { env, requireEnv } from "@/env";
 import { trackPublicIsrPathInvalidation } from "@/server/analytics/public-isr-posthog";
 
 const revalidateRequestBodySchema = z.object({
@@ -16,7 +16,10 @@ const revalidateRequestBodySchema = z.object({
 
 export async function POST(request: NextRequest) {
   const authorization = request.headers.get("authorization");
-  if (authorization !== `Bearer ${env.CLERK_WEBHOOK_SECRET}`) {
+  if (
+    authorization !==
+    `Bearer ${requireEnv("CLERK_WEBHOOK_SECRET", env.CLERK_WEBHOOK_SECRET)}`
+  ) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

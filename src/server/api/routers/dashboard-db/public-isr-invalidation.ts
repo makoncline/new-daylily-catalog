@@ -1,6 +1,6 @@
 import type { PrismaClient } from "@prisma/client";
 import { revalidatePath } from "next/cache";
-import { env } from "@/env";
+import { env, requireEnv } from "@/env";
 import { toCultivarRouteSegment } from "@/lib/utils/cultivar-utils";
 import { getBaseUrl } from "@/lib/utils/getBaseUrl";
 import { trackPublicIsrPathInvalidation } from "@/server/analytics/public-isr-posthog";
@@ -134,7 +134,7 @@ async function runRouteHandlerRevalidation(args: {
     const response = await fetch(`${origin}${INTERNAL_REVALIDATE_ROUTE}`, {
       method: "POST",
       headers: {
-        authorization: `Bearer ${env.CLERK_WEBHOOK_SECRET}`,
+        authorization: `Bearer ${requireEnv("CLERK_WEBHOOK_SECRET", env.CLERK_WEBHOOK_SECRET)}`,
         "content-type": "application/json",
       },
       cache: "no-store",
