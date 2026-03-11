@@ -1,11 +1,14 @@
-name: PR Docker Image
+name: Docker Image
 
 on:
+  push:
+    branches:
+      - main
   pull_request:
   workflow_dispatch:
 
 concurrency:
-  group: pr-docker-image-${{ github.event.pull_request.number || github.ref }}
+  group: docker-image-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 permissions:
@@ -16,7 +19,7 @@ jobs:
   build-and-push:
     name: Build and Push Docker Image
     runs-on: ubuntu-latest
-    if: github.event_name == 'workflow_dispatch' || github.event.pull_request.head.repo.fork != true
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.fork != true
 
     steps:
       - uses: actions/checkout@v4
@@ -26,17 +29,31 @@ jobs:
         run: |
           IMAGE_REPO="ghcr.io/makoncline/daylilycatalog"
           SHORT_SHA="$(echo '${{ github.sha }}' | cut -c1-8)"
+          REF_NAME="${{ github.head_ref || github.ref_name }}"
+          IMMUTABLE_TAG="main-${SHORT_SHA}"
 
-          if [ "${{ github.event_name }}" = "pull_request" ]; then
-            PR_NUMBER="${{ github.event.pull_request.number }}"
-            echo "primary_tag=pr-${PR_NUMBER}" >> "$GITHUB_OUTPUT"
-            echo "secondary_tag=pr-${PR_NUMBER}-${SHORT_SHA}" >> "$GITHUB_OUTPUT"
-          else
-            echo "primary_tag=manual-${SHORT_SHA}" >> "$GITHUB_OUTPUT"
-            echo "secondary_tag=sha-${SHORT_SHA}" >> "$GITHUB_OUTPUT"
-          fi
+          {
+            echo "image_repo=${IMAGE_REPO}"
+            echo "immutable_tag=${IMMUTABLE_TAG}"
+            echo "alias_tags<<EOF"
+            echo "main"
+            echo "latest"
+            echo "EOF"
+            echo "labels<<EOF"
+            echo "org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}"
+            echo "org.opencontainers.image.revision=${{ github.sha }}"
+            echo "org.opencontainers.image.ref.name=${REF_NAME}"
+            echo "org.opencontainers.image.version=${IMMUTABLE_TAG}"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
 
-          echo "image_repo=${IMAGE_REPO}" >> "$GITHUB_OUTPUT"
+      - name: Show tag strategy
+        run: |
+          {
+            echo "Immutable tag: ${{ steps.meta.outputs.immutable_tag }}"
+            echo "Alias tags:"
+            printf '%s\n' "${{ steps.meta.outputs.alias_tags }}"
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Write build env
         run: |
@@ -68,8 +85,10 @@ jobs:
           context: .
           push: true
           tags: |
-            ${{ steps.meta.outputs.image_repo }}:${{ steps.meta.outputs.primary_tag }}
-            ${{ steps.meta.outputs.image_repo }}:${{ steps.meta.outputs.secondary_tag }}
+            ${{ steps.meta.outputs.image_repo }}:${{ steps.meta.outputs.immutable_tag }}
+            ${{ steps.meta.outputs.image_repo }}:main
+            ${{ steps.meta.outputs.image_repo }}:latest
+          labels: ${{ steps.meta.outputs.labels }}
           secret-files: |
             app_env=.env.build
           cache-from: type=gha
@@ -80,6 +99,7 @@ jobs:
           {
             echo "## Docker Image"
             echo
-            echo "- \`${{ steps.meta.outputs.image_repo }}:${{ steps.meta.outputs.primary_tag }}\`"
-            echo "- \`${{ steps.meta.outputs.image_repo }}:${{ steps.meta.outputs.secondary_tag }}\`"
+            echo "- immutable: \`${{ steps.meta.outputs.image_repo }}:${{ steps.meta.outputs.immutable_tag }}\`"
+            echo "- alias: \`${{ steps.meta.outputs.image_repo }}:main\`"
+            echo "- alias: \`${{ steps.meta.outputs.image_repo }}:latest\`"
           } >> "$GITHUB_STEP_SUMMARY"

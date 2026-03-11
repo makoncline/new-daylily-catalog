@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 
+import { execFileSync } from "node:child_process";
 import { parse } from "dotenv";
 import fs from "node:fs/promises";
 import path from "node:path";
@@ -37,6 +38,20 @@ function quoteEnvValue(value) {
   return JSON.stringify(value);
 }
 
+function getDefaultImageTag() {
+  const override = process.env.IMAGE_TAG?.trim();
+  if (override) {
+    return override;
+  }
+
+  const shortSha = execFileSync("git", ["rev-parse", "--short=8", "HEAD"], {
+    cwd: rootDir,
+    encoding: "utf8",
+  }).trim();
+
+  return `main-${shortSha}`;
+}
+
 async function writeServerEnv() {
   let rawEnv;
 
@@ -55,6 +70,7 @@ async function writeServerEnv() {
   const useTursoDb = sourceEnv.USE_TURSO_DB ?? "true";
   const envEntries = new Map([
     ["APP_BASE_URL", sourceEnv.APP_BASE_URL ?? `https://${deployHost}`],
+    ["IMAGE_TAG", sourceEnv.IMAGE_TAG ?? getDefaultImageTag()],
     ["USE_TURSO_DB", useTursoDb],
   ]);
 

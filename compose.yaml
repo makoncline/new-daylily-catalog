@@ -1,9 +1,11 @@
 services:
   app:
-    image: ghcr.io/makoncline/daylilycatalog:latest
+    image: ghcr.io/makoncline/daylilycatalog:${IMAGE_TAG}
     restart: unless-stopped
     env_file:
       - .env
+    volumes:
+      - ./next-cache:/app/.next/cache
     networks:
       - edge
 

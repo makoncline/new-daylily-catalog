@@ -2,6 +2,16 @@
 
 This app is prepared for a single-container Docker deployment behind Cloudflare Tunnel and internal Caddy.
 
+## Image Strategy
+
+Immutable image tags are the deploy unit.
+
+- CI publishes `main-<shortsha>` images.
+- `main` and `latest` can still move as convenience aliases.
+- The VPS should deploy by setting `IMAGE_TAG` in `.env`, not by relying on `latest`.
+
+For the current testing phase, the image workflow still runs on pull requests, but it publishes `main-<shortsha>` tags so the server deploy path matches the eventual merge-to-main flow.
+
 ## Runtime Contract
 
 - Internal app port: `3000`
@@ -10,6 +20,10 @@ This app is prepared for a single-container Docker deployment behind Cloudflare 
 - Recommended database mode: Turso (`USE_TURSO_DB=true`)
 
 ## Required Runtime Environment Variables
+
+### Required for Compose image selection
+
+- `IMAGE_TAG`
 
 ### Required in the recommended Turso deployment
 
@@ -55,8 +69,15 @@ The app already respects forwarded host and protocol headers when generating abs
 
 ## Volumes
 
-- Recommended Turso deployment: none
+- Persistent Next.js runtime cache:
+  - `./next-cache:/app/.next/cache`
 - Optional local SQLite deployment: mount a persistent volume to `/data`
+
+Create the cache directory on the server before first deploy so the non-root app user can write to it:
+
+```sh
+install -d -o 1001 -g 1001 /srv/stacks/daylilycatalog/next-cache
+```
 
 ## External Dependencies
 
@@ -73,7 +94,8 @@ The app already respects forwarded host and protocol headers when generating abs
 The Docker build prerenders static public routes and sitemap data, so build with the same env file you plan to run in production.
 
 ```sh
-docker build --secret id=app_env,src=.env -t ghcr.io/makoncline/daylilycatalog:latest .
+IMAGE_TAG=main-$(git rev-parse --short=8 HEAD)
+docker build --secret id=app_env,src=.env -t ghcr.io/makoncline/daylilycatalog:${IMAGE_TAG} .
 ```
 
 ### Minimum Verified CI Build Env
@@ -98,10 +120,12 @@ Notes:
 ```yaml
 services:
   app:
-    image: ghcr.io/makoncline/daylilycatalog:latest
+    image: ghcr.io/makoncline/daylilycatalog:${IMAGE_TAG}
     restart: unless-stopped
     env_file:
       - .env
+    volumes:
+      - ./next-cache:/app/.next/cache
     networks:
       - edge
 
@@ -140,7 +164,13 @@ This writes:
 - `.server-deploy/.env` generated from `.env.production` when available
 - `.server-deploy/caddy-route.caddy`
 
-The generated `.env` keeps only runtime vars used by the VPS stack. It excludes Vercel-only and build-only keys.
+The generated `.env` keeps only runtime vars used by the VPS stack, plus `IMAGE_TAG`. It excludes Vercel-only and build-only keys.
+By default the bundle generator writes `IMAGE_TAG=main-<git-shortsha>`. You can override that when generating the bundle:
+
+```sh
+IMAGE_TAG=main-deadbeef pnpm deploy:bundle
+```
+
 The directory is gitignored and can be copied to the server as a starting point for `/srv/stacks/daylilycatalog`.
 
 ## Local Docker Compose Check
@@ -160,7 +190,32 @@ Notes:
 ## Deploy Steps
 
 1. Place the repo or deployment files at `/srv/stacks/daylilycatalog`.
-2. Create `.env` from `.env.example` with production values.
-3. Build the image with the command above.
-4. Start the stack with `docker compose up -d`.
-5. Add the Caddy route block for `vps-test.daylilycatalog.com`.
+2. Create the cache directory:
+
+```sh
+install -d -o 1001 -g 1001 /srv/stacks/daylilycatalog/next-cache
+```
+
+3. Create `.env` from `.env.example` or use the generated `.server-deploy/.env`.
+4. Set `IMAGE_TAG` in `.env` to the immutable image tag you want to run.
+5. Build and push the image, or use the CI-published image for that same tag.
+6. Start the stack with `docker compose up -d`.
+7. Add the Caddy route block for `vps-test.daylilycatalog.com`.
+
+## Rollback
+
+Rollback is just an image tag change:
+
+1. Edit `/srv/stacks/daylilycatalog/.env`
+2. Set `IMAGE_TAG` back to a previous immutable tag such as `main-99e41b7c`
+3. Run `docker compose up -d`
+
+## Cache Notes
+
+`./next-cache:/app/.next/cache` keeps ISR and other Next runtime cache data across container recreations.
+
+Caveats:
+
+- Cache contents can outlive an app deploy. If you see stale ISR output or odd cache behavior after a significant app change, clear `/srv/stacks/daylilycatalog/next-cache` and redeploy.
+- Reusing the cache across normal deploys is expected, but it is not a substitute for app-level invalidation when route behavior changes.
+- `latest` is only a convenience alias. The recommended deployed source of truth is the immutable tag stored in `IMAGE_TAG`.
