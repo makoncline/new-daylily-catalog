@@ -10,7 +10,7 @@ const config = {
   output: "standalone",
 
   outputFileTracingIncludes: {
-    "/*": ["./prisma/generated/**/*"],
+    "/*": ["./prisma/generated/sqlite-client/**/*"],
   },
 
   images: {
