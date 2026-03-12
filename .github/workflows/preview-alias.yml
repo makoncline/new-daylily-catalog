@@ -2,12 +2,6 @@ name: Alias Vercel Preview
 
 on:
   deployment_status:
-  workflow_dispatch:
-    inputs:
-      url:
-        description: "Deployment URL to alias"
-        required: true
-        type: string
 
 permissions:
   contents: read
@@ -17,23 +11,16 @@ permissions:
 jobs:
   alias:
     if: >
-      github.event_name == 'workflow_dispatch' ||
-      (github.event.deployment_status.state == 'success' &&
-       (github.event.deployment.environment == 'Preview' || github.event.deployment.environment == 'preview'))
+      github.event.deployment_status.state == 'success' &&
+      (github.event.deployment.environment == 'Preview' || github.event.deployment.environment == 'preview')
     runs-on: ubuntu-latest
     steps:
       - name: Compute values
         id: vals
         run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            echo "URL=${{ github.event.inputs.url }}" >> $GITHUB_OUTPUT
-            echo "SHA=${{ github.sha }}" >> $GITHUB_OUTPUT
-            echo "HASH=$(echo '${{ github.sha }}' | cut -c1-8)" >> $GITHUB_OUTPUT
-          else
-            echo "URL=${{ github.event.deployment_status.environment_url }}" >> $GITHUB_OUTPUT
-            echo "SHA=${{ github.event.deployment.sha }}" >> $GITHUB_OUTPUT
-            echo "HASH=$(echo '${{ github.event.deployment.sha }}' | cut -c1-8)" >> $GITHUB_OUTPUT
-          fi
+          echo "URL=${{ github.event.deployment_status.environment_url }}" >> $GITHUB_OUTPUT
+          echo "SHA=${{ github.event.deployment.sha }}" >> $GITHUB_OUTPUT
+          echo "HASH=$(echo '${{ github.event.deployment.sha }}' | cut -c1-8)" >> $GITHUB_OUTPUT
 
       - name: Alias to <hash>.deploy-preview.daylilycatalog.com
         env:
