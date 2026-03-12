@@ -111,7 +111,7 @@ jobs:
     name: Sync Server Deploy Config
     runs-on: ubuntu-latest
     needs: build-and-push
-    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.fork != true
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
 
     steps:
       - name: Trigger VPS config sync webhook
@@ -146,7 +146,7 @@ jobs:
     needs:
       - build-and-push
       - sync-server-config
-    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.fork != true
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
 
     steps:
       - name: Trigger VPS deploy webhook

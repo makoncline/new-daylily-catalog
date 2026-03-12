@@ -9,10 +9,9 @@ Immutable image tags are the deploy unit.
 - CI publishes `main-<shortsha>` images.
 - `main` and `latest` can still move as convenience aliases.
 - The VPS should deploy by setting `IMAGE_TAG` in `.env`, not by relying on `latest`.
-- After a successful image push, GitHub Actions calls the deploy webhook at `https://deploy.makon.dev/deploy/daylilycatalog`.
+- After a successful image push on `main`, GitHub Actions calls the deploy webhook at `https://deploy.makon.dev/deploy/daylilycatalog`.
 - App-owned server config lives in `deploy/vps/` and should be treated as the committed source of truth for this app's stack.
-
-For the current testing phase, the image workflow still runs on pull requests, but it publishes `main-<shortsha>` tags so the server deploy path matches the eventual merge-to-main flow.
+- Pull requests can still build images for verification, but server config sync and deploy should be gated to `push` on `main`.
 
 Required GitHub secret for the webhook step:
 
@@ -204,7 +203,7 @@ The clean split is:
 2. A config-sync job updates the server when those files change.
 3. The image deploy webhook updates only `IMAGE_TAG` and restarts the stack.
 
-Recommended long-term config-sync job shape:
+Recommended config-sync job shape:
 
 - Trigger on `main` when `deploy/vps/**` changes.
 - Call a dedicated config-sync endpoint or webhook action on the server.

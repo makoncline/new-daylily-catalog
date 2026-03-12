@@ -23,14 +23,16 @@ On the server, these files end up as:
 Use two jobs:
 
 1. `sync-deploy-config`
-   - Trigger when `deploy/vps/**` changes on `main`.
+   - Trigger on `push` to `main` when `deploy/vps/**` changes.
    - Tell the server to update the committed deploy config for this app.
-   - The clean long-term shape is a dedicated webhook or webhook action that makes the server fetch `deploy/vps/` from this repo at a specific commit SHA, then restart the shared proxy if the route changed.
+   - The server should fetch `deploy/vps/` from this repo at the pushed commit SHA, then restart the shared proxy if the route changed.
 
 2. `deploy-image`
-   - Trigger after the Docker image push succeeds.
+   - Trigger after the Docker image push succeeds on `main`.
    - Call the existing deploy webhook with the immutable image tag.
    - Let the server update `IMAGE_TAG`, pull the image, run Compose, smoke-check the app, and send the Telegram notification.
+
+Pull requests can still build images for verification, but they should not update the server automatically.
 
 ## Why keep these files in the app repo
 

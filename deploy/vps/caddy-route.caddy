@@ -1,4 +1,3 @@
-# Config sync validation marker: safe no-op comment for server sync testing.
 @daylilycatalog host vps-test.daylilycatalog.com
 handle @daylilycatalog {
   reverse_proxy app:3000
