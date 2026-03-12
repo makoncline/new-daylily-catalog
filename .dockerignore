@@ -20,3 +20,4 @@ docs
 local-dev.sqlite
 prisma/local-dev.sqlite
 prisma/local-prod-copy-*.db
+prisma/generated
