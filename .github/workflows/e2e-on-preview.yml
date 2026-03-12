@@ -1,6 +1,7 @@
 name: E2E on Vercel Preview
 
 on:
+  deployment_status:
   workflow_dispatch:
     inputs:
       commit_sha:
@@ -14,6 +15,10 @@ concurrency:
 
 jobs:
   e2e:
+    if: >
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.deployment_status.state == 'success' &&
+       (github.event.deployment.environment == 'Preview' || github.event.deployment.environment == 'preview'))
     runs-on: ubuntu-latest
     env:
       SKIP_ENV_VALIDATION: "1"
