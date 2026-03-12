@@ -16,7 +16,7 @@ const mockStripeCheckoutSessionsCreate = vi.hoisted(() => vi.fn());
 const mockStripeSubscriptionsList = vi.hoisted(() => vi.fn());
 
 vi.mock("@/server/stripe/client", () => ({
-  stripe: {
+  getStripeClient: () => ({
     customers: {
       create: mockStripeCustomersCreate,
     },
@@ -28,7 +28,7 @@ vi.mock("@/server/stripe/client", () => ({
     subscriptions: {
       list: mockStripeSubscriptionsList,
     },
-  },
+  }),
 }));
 
 async function createAuthedCaller(userId: string) {
