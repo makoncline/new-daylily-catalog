@@ -1,5 +1,5 @@
 import { db } from "@/server/db";
-import { getBaseUrl } from "@/lib/utils/getBaseUrl";
+import { getCanonicalBaseUrl } from "@/lib/utils/getBaseUrl";
 import { formatAhsListingSummary } from "@/lib/utils";
 import { getDisplayAhsListing } from "@/lib/utils/ahs-display";
 
@@ -8,7 +8,7 @@ const SHIPPING_WEIGHT = "0.5 lb";
 
 export async function GET(_request: Request) {
   try {
-    const baseUrl = getBaseUrl();
+    const baseUrl = getCanonicalBaseUrl();
 
     // Query all listings with prices
     const where = { price: { not: null } };

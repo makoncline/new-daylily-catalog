@@ -1,4 +1,4 @@
-import { getBaseUrl } from "@/lib/utils/getBaseUrl";
+import { getCanonicalBaseUrl } from "@/lib/utils/getBaseUrl";
 import { type MetadataRoute } from "next";
 import {
   getCachedCultivarSitemapEntries,
@@ -9,7 +9,7 @@ import {
 export const revalidate = 604800;
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const baseUrl = getBaseUrl();
+  const baseUrl = getCanonicalBaseUrl();
   const sitemap: MetadataRoute.Sitemap = [];
 
   sitemap.push(

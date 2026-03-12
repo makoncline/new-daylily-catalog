@@ -2,6 +2,8 @@
 
 ## Log
 
+- 2026-03-12 - rollout domain split - For apex launch, keep `APP_BASE_URL` pinned to `https://daylilycatalog.com` for canonical metadata/sitemap/robots/feed and official email links, but keep request-origin Stripe return URLs and request-scoped redirects host-aware so `prod.daylilycatalog.com` remains usable for rollout testing.
+- 2026-03-12 - self-catch user-before-fetch in public router - While refactoring `public.sendMessage`, I briefly computed the catalog URL before loading `user`; when editing template/email code around fetched records, derive dependent URLs only after the record exists.
 - 2026-03-09 - self-miss quoted-public-path recurrence - I tried reading `src/app/(public)/cultivar/[cultivarNormalizedName]/page.tsx` without shell-quoting and hit zsh glob expansion again; always quote App Router paths containing `()` or `[]`.
 - 2026-03-09 - test env mutation typecheck gotcha - In this repo's TS setup, direct assignment to `process.env.NODE_ENV` fails because `NODE_ENV` is readonly; use `vi.stubEnv(...)` and `vi.unstubAllEnvs()` in Vitest instead.
 - 2026-03-09 - self-miss napkin disclosure recurrence - I mentioned the napkin skill in the first progress update again; keep napkin handling fully silent in user-facing updates.

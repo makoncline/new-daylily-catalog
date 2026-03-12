@@ -1,11 +1,11 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { getListingOwnerWithSlugs } from "@/server/db/getLegacyMappings";
-import { getBaseUrl } from "@/lib/utils/getBaseUrl";
+import { getRequestBaseUrl } from "@/lib/utils/getBaseUrl";
 
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
   const listingId = searchParams.get("listingId");
-  const baseUrl = getBaseUrl();
+  const baseUrl = getRequestBaseUrl(request.headers);
 
   if (!listingId) {
     return NextResponse.redirect(new URL("/catalogs", baseUrl));

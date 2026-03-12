@@ -1,8 +1,8 @@
-import { getBaseUrl } from "@/lib/utils/getBaseUrl";
+import { getCanonicalBaseUrl } from "@/lib/utils/getBaseUrl";
 import { type MetadataRoute } from "next";
 
 export default function robots(): MetadataRoute.Robots {
-  const baseUrl = getBaseUrl();
+  const baseUrl = getCanonicalBaseUrl();
   const disallowPrivateRoutes = [
     "/dashboard/",
     "/api/",

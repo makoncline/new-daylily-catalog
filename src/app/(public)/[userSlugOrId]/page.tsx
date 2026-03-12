@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import { MainContent } from "@/app/(public)/_components/main-content";
 import { PublicBreadcrumbs } from "@/app/(public)/_components/public-breadcrumbs";
-import { getBaseUrl } from "@/lib/utils/getBaseUrl";
+import { getCanonicalBaseUrl } from "@/lib/utils/getBaseUrl";
 import { getErrorCode, tryCatch } from "@/lib/utils";
 import { CatalogSeoListings } from "./_components/catalog-seo-listings";
 import { ProfileContent } from "./_components/profile-content";
@@ -31,7 +31,7 @@ interface PageProps {
 export async function generateMetadata({ params }: PageProps) {
   const { userSlugOrId } = await params;
   const page = 1;
-  const baseUrl = getBaseUrl();
+  const baseUrl = getCanonicalBaseUrl();
 
   const result = await tryCatch(getPublicProfilePageData(userSlugOrId, page));
 
@@ -84,7 +84,7 @@ export default async function Page({ params }: PageProps) {
     notFound();
   }
 
-  const baseUrl = getBaseUrl();
+  const baseUrl = getCanonicalBaseUrl();
   const baseMetadata = await generateProfileMetadata(initialProfile, baseUrl);
   const metadata = generatePaginatedProfileMetadata({
     baseMetadata,

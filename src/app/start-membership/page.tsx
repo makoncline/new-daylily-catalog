@@ -15,10 +15,10 @@ import {
 import { PRO_FEATURES, METADATA_CONFIG } from "@/config/constants";
 import { SUBSCRIPTION_CONFIG } from "@/config/subscription-config";
 import { IMAGES } from "@/lib/constants/images";
-import { getBaseUrl } from "@/lib/utils/getBaseUrl";
+import { getCanonicalBaseUrl } from "@/lib/utils/getBaseUrl";
 
 export const metadata: Metadata = {
-  metadataBase: new URL(getBaseUrl()),
+  metadataBase: new URL(getCanonicalBaseUrl()),
   title: `Create Your Daylily Catalog | ${METADATA_CONFIG.SITE_NAME}`,
   description:
     "Create a public daylily seller catalog with listings, photos, and cultivar-linked data. Start a free trial and get discovered in catalog browsing and search.",
@@ -139,7 +139,7 @@ function featureHeadlineText(featureText: string) {
 }
 
 export default async function StartMembershipPage() {
-  const baseUrl = getBaseUrl();
+  const baseUrl = getCanonicalBaseUrl();
   const faqSchema = createFaqSchema(baseUrl);
 
   return (

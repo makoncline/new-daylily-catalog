@@ -2947,7 +2947,7 @@ export function StartOnboardingPageClient({
                 <OnboardingSectionCard title="Explore real examples">
                   <div className="flex flex-col items-start gap-2 text-sm">
                     <a
-                      href="https://daylilycatalog.com/rollingoaksdaylilies"
+                      href="/rollingoaksdaylilies"
                       target="_blank"
                       rel="noopener noreferrer"
                       className="text-primary hover:text-primary/80 block underline underline-offset-2"
@@ -2955,7 +2955,7 @@ export function StartOnboardingPageClient({
                       See a real business catalog example
                     </a>
                     <a
-                      href="https://daylilycatalog.com/cultivar/starman"
+                      href="/cultivar/starman"
                       target="_blank"
                       rel="noopener noreferrer"
                       className="text-primary hover:text-primary/80 block underline underline-offset-2"

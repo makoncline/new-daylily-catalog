@@ -3,7 +3,7 @@ import { type Metadata } from "next";
 import { getCachedPublicProfiles } from "@/server/db/public-cache";
 import { Suspense } from "react";
 import { PageHeader } from "@/app/dashboard/_components/page-header";
-import { getBaseUrl } from "@/lib/utils/getBaseUrl";
+import { getCanonicalBaseUrl } from "@/lib/utils/getBaseUrl";
 import { METADATA_CONFIG } from "@/config/constants";
 import {
   CatalogsSkeleton,
@@ -19,7 +19,7 @@ import {
 export const revalidate = false;
 
 export async function generateMetadata(): Promise<Metadata> {
-  const url = getBaseUrl();
+  const url = getCanonicalBaseUrl();
 
   // Generate metadata
   const metadata = await generateCatalogsPageMetadata(url);
@@ -61,7 +61,7 @@ export async function generateMetadata(): Promise<Metadata> {
 export default async function CatalogsPage() {
   const catalogs = await getCachedPublicProfiles();
 
-  const baseUrl = getBaseUrl();
+  const baseUrl = getCanonicalBaseUrl();
   const catalogsUrl = `${baseUrl}/catalogs`;
 
   // Create breadcrumb schema

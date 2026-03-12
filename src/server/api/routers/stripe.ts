@@ -4,7 +4,7 @@ import { env, requireEnv } from "@/env";
 import {
   getStripeSubscription,
 } from "@/server/stripe/sync-subscription";
-import { getBaseUrl } from "@/lib/utils/getBaseUrl";
+import { getRequestBaseUrl } from "@/lib/utils/getBaseUrl";
 import { hasActiveSubscription } from "@/server/stripe/subscription-utils";
 import { SUBSCRIPTION_CONFIG } from "@/config/subscription-config";
 import { getStripeClient } from "@/server/stripe/client";
@@ -17,7 +17,7 @@ export const stripeRouter = createTRPCRouter({
 
   generateCheckout: protectedProcedure.mutation(async ({ ctx }) => {
     const { user } = ctx;
-    const baseUrl = getBaseUrl(ctx.headers);
+    const baseUrl = getRequestBaseUrl(ctx.headers);
     const stripe = getStripeClient();
 
     let stripeCustomerId = user.stripeCustomerId;
@@ -79,7 +79,7 @@ export const stripeRouter = createTRPCRouter({
 
   getPortalSession: protectedProcedure.mutation(async ({ ctx }) => {
     const { user } = ctx;
-    const baseUrl = getBaseUrl(ctx.headers);
+    const baseUrl = getRequestBaseUrl(ctx.headers);
     const stripe = getStripeClient();
 
     if (!user.stripeCustomerId) {

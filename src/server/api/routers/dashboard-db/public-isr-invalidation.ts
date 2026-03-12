@@ -2,7 +2,7 @@ import type { PrismaClient } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 import { env, requireEnv } from "@/env";
 import { toCultivarRouteSegment } from "@/lib/utils/cultivar-utils";
-import { getBaseUrl } from "@/lib/utils/getBaseUrl";
+import { getCanonicalBaseUrl } from "@/lib/utils/getBaseUrl";
 import { trackPublicIsrPathInvalidation } from "@/server/analytics/public-isr-posthog";
 
 interface InvalidatePublicIsrForCatalogMutationInput {
@@ -106,7 +106,7 @@ function getTrustedRevalidationOrigin(): string | null {
     return null;
   }
 
-  return getBaseUrl();
+  return getCanonicalBaseUrl();
 }
 
 function toUniquePathInputs(

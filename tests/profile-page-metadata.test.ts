@@ -41,6 +41,7 @@ vi.mock("@/app/(public)/[userSlugOrId]/_seo/metadata", () => ({
 
 vi.mock("@/lib/utils/getBaseUrl", () => ({
   getBaseUrl: () => "https://daylilycatalog.com",
+  getCanonicalBaseUrl: () => "https://daylilycatalog.com",
 }));
 
 vi.mock("@/lib/utils", () => ({

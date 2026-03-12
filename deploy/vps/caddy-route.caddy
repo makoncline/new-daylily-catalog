@@ -1,4 +1,7 @@
-@daylilycatalog host vps-test.daylilycatalog.com
+@daylilycatalog host daylilycatalog.com prod.daylilycatalog.com
 handle @daylilycatalog {
   reverse_proxy app:3000
 }
+
+@daylilycatalog_www host www.daylilycatalog.com
+redir @daylilycatalog_www https://daylilycatalog.com{uri} permanent

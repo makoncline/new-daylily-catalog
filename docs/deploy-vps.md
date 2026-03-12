@@ -20,7 +20,7 @@ This repo now uses environment-scoped GitHub Actions config instead of repo-leve
 Required environment setup:
 
 - `production` environment:
-  - Variable: `APP_BASE_URL`
+  - Variable: `APP_BASE_URL` set to `https://daylilycatalog.com`
   - Variable: `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`
   - Variable: `NEXT_PUBLIC_CLOUDFLARE_URL`
   - Variable: `STRIPE_PRICE_ID`
@@ -29,7 +29,7 @@ Required environment setup:
   - Secret: `STRIPE_SECRET_KEY` optional for cold-cache-safe production Docker builds
   - Secret: `DEPLOY_WEBHOOK_TOKEN`
 - `preview` environment:
-  - Variable: `APP_BASE_URL`
+  - Variable: `APP_BASE_URL` set to the preview deployment origin for that environment
   - Variable: `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`
   - Variable: `NEXT_PUBLIC_CLOUDFLARE_URL`
   - Variable: `STRIPE_PRICE_ID`
@@ -52,6 +52,14 @@ Required environment setup:
 - Container bind address: `0.0.0.0`
 - Recommended database mode: Turso (`USE_TURSO_DB=true`)
 
+## Hostname Strategy
+
+- Canonical public domain: `https://daylilycatalog.com`
+- Redirect-only hostname: `https://www.daylilycatalog.com` -> `https://daylilycatalog.com{uri}`
+- Parallel rollout/testing hostname: `https://prod.daylilycatalog.com`
+- Set `APP_BASE_URL` to the apex canonical domain, not `prod`.
+- Keep `prod.daylilycatalog.com` routed live during rollout so request-origin flows can be tested without changing canonical SEO assets.
+
 ## Required Runtime Environment Variables
 
 ### Required for Compose image selection
@@ -62,7 +70,7 @@ Required environment setup:
 
 Non-secrets:
 
-- `APP_BASE_URL`
+- `APP_BASE_URL` set to `https://daylilycatalog.com`
 - `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`
 - `NEXT_PUBLIC_CLOUDFLARE_URL`
 - `AWS_REGION`
@@ -98,7 +106,34 @@ And mount a persistent volume at `/data`.
 
 ## Reverse Proxy Notes
 
-The app already respects forwarded host and protocol headers when generating absolute URLs. Caddy should terminate HTTPS and proxy plain HTTP to the container on port `3000`.
+The app now uses two URL-generation modes:
+
+- Canonical/public assets use `APP_BASE_URL`:
+  - canonical metadata
+  - sitemap
+  - robots
+  - Google Merchant feed
+  - app-generated inquiry email links
+- Request-origin flows use forwarded host/protocol headers:
+  - Stripe checkout success/cancel URLs
+  - Stripe billing portal return URLs
+  - request-scoped redirects such as legacy redirect handling
+
+Caddy should terminate HTTPS and proxy plain HTTP to the container on port `3000`, preserving forwarded host and protocol headers.
+
+## External Callback and Link Audit
+
+- Auth callbacks:
+  - The app uses relative post-auth destinations for Clerk modal flows.
+  - During rollout, Clerk must allow both `https://daylilycatalog.com` and `https://prod.daylilycatalog.com` as valid application origins / redirect targets.
+- Stripe:
+  - Checkout and billing-portal return URLs stay on the host where the user started.
+  - The Stripe webhook endpoint itself is provider-configured; point Stripe at the hostname you want receiving live events. Once apex is live, prefer the apex webhook URL and keep `prod` only if you intentionally need parallel webhook delivery.
+- Email links:
+  - App-generated inquiry emails intentionally link to the canonical apex hostname.
+  - Auth emails are owned by Clerk, not by this app code.
+- Canonical metadata and crawl surfaces:
+  - `metadataBase`, canonical alternates, sitemap, robots, and feed URLs intentionally stay pinned to the apex hostname.
 
 ## Volumes
 
@@ -135,7 +170,7 @@ docker build --secret id=app_env,src=.env -t ghcr.io/makoncline/daylilycatalog:$
 
 For a non-Vercel CI build that still generates correct public metadata and sitemap URLs, the minimum verified env set is:
 
-- `APP_BASE_URL`
+- `APP_BASE_URL` set to the canonical public origin (`https://daylilycatalog.com` in production)
 - `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`
 - `NEXT_PUBLIC_CLOUDFLARE_URL`
 - `NEXT_PUBLIC_SENTRY_ENABLED=false`
@@ -180,10 +215,13 @@ If you run local SQLite instead of Turso, add:
 ## Caddy Route
 
 ```caddy
-@daylilycatalog host vps-test.daylilycatalog.com
+@daylilycatalog host daylilycatalog.com prod.daylilycatalog.com
 handle @daylilycatalog {
   reverse_proxy app:3000
 }
+
+@daylilycatalog_www host www.daylilycatalog.com
+redir @daylilycatalog_www https://daylilycatalog.com{uri} permanent
 ```
 
 Committed source: `deploy/vps/caddy-route.caddy`
@@ -218,6 +256,15 @@ install -d -o 1001 -g 1001 /srv/stacks/daylilycatalog/next-cache
 7. Build and push the image, or use the CI-published image for that same tag.
 8. Start the stack with `docker compose up -d`.
 9. Reload the proxy if your server setup requires it after changing Caddy route files.
+
+## DNS / Tunnel Rollout
+
+After the app and server config are deployed:
+
+1. Point Cloudflare DNS `@` to the tunnel target for this app.
+2. Keep `www` as a DNS alias to `@`.
+3. Keep `prod.daylilycatalog.com` routed to the same tunnel as the parallel rollout hostname.
+4. Once DNS is live, the Caddy route above serves apex and `prod`, while `www` redirects to apex.
 
 ## Rollback
 
