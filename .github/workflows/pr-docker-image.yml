@@ -111,8 +111,11 @@ jobs:
             echo "STRIPE_SECRET_KEY=$BUILD_STRIPE_SECRET_KEY" >> "$BUILD_ENV_FILE"
           fi
 
+          BUILD_ENV_FINGERPRINT="$(sha256sum "$BUILD_ENV_FILE" | cut -d' ' -f1)"
+
           echo "profile=$BUILD_ENVIRONMENT_NAME" >> "$GITHUB_OUTPUT"
           echo "path=$BUILD_ENV_FILE" >> "$GITHUB_OUTPUT"
+          echo "fingerprint=$BUILD_ENV_FINGERPRINT" >> "$GITHUB_OUTPUT"
 
       - uses: docker/setup-buildx-action@v3
 
@@ -131,6 +134,8 @@ jobs:
           push: ${{ steps.meta.outputs.should_push == 'true' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            BUILD_ENV_FINGERPRINT=${{ steps.build-env.outputs.fingerprint }}
           secret-files: |
             app_env=${{ steps.build-env.outputs.path }}
           cache-from: type=gha

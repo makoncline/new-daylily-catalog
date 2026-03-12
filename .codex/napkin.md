@@ -2,6 +2,8 @@
 
 ## Log
 
+- 2026-03-12 - self-miss napkin silence - I mentioned the napkin skill in the first progress update again; keep napkin handling silent in user-facing updates even when repo instructions explicitly call it out.
+- 2026-03-12 - docker build env cache busting - This repo's Docker `next build` runs with a secret-mounted env file, so secret content changes alone do not invalidate BuildKit cache; compute a non-secret fingerprint of the generated env file in CI and pass it as a build arg consumed in the same `RUN` step.
 - 2026-03-12 - rollout domain split - For apex launch, keep `APP_BASE_URL` pinned to `https://daylilycatalog.com` for canonical metadata/sitemap/robots/feed and official email links, but keep request-origin Stripe return URLs and request-scoped redirects host-aware so `prod.daylilycatalog.com` remains usable for rollout testing.
 - 2026-03-12 - self-catch user-before-fetch in public router - While refactoring `public.sendMessage`, I briefly computed the catalog URL before loading `user`; when editing template/email code around fetched records, derive dependent URLs only after the record exists.
 - 2026-03-09 - self-miss quoted-public-path recurrence - I tried reading `src/app/(public)/cultivar/[cultivarNormalizedName]/page.tsx` without shell-quoting and hit zsh glob expansion again; always quote App Router paths containing `()` or `[]`.
