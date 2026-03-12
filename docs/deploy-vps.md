@@ -6,12 +6,12 @@ This app is prepared for a single-container Docker deployment behind Cloudflare 
 
 Immutable image tags are the deploy unit.
 
-- CI publishes `main-<shortsha>` images.
-- `main` and `latest` can still move as convenience aliases.
+- Pull request builds verify Docker image creation with `pr-<number>-<shortsha>` tags and do not push or deploy.
+- Main branch builds publish `main-<shortsha>` images.
+- `latest` can still move as a convenience alias.
 - The VPS should deploy by setting `IMAGE_TAG` in `.env`, not by relying on `latest`.
 - After a successful image push on `main`, GitHub Actions calls the deploy webhook at `https://deploy.makon.dev/deploy/daylilycatalog`.
-- App-owned server config lives in `deploy/vps/` and should be treated as the committed source of truth for this app's stack.
-- Pull requests can still build images for verification, but server config sync and deploy should be gated to `push` on `main`.
+- Pull requests still run Docker image verification, but server config sync and deploy stay gated to `push` on `main`.
 
 Required GitHub secret for the webhook step:
 
@@ -159,17 +159,6 @@ handle @daylilycatalog {
 
 Committed source: `deploy/vps/caddy-route.caddy`
 
-## App-Owned Deploy Files
-
-These files should stay in the app repo:
-
-- `deploy/vps/compose.yaml`
-- `deploy/vps/caddy-route.caddy`
-- `deploy/vps/.env.example`
-- `deploy/vps/README.md`
-
-The server should not be the source of truth for those files.
-
 ## Server Bundle
 
 Generate a minimal server bundle with only the runtime stack files:
@@ -194,30 +183,6 @@ IMAGE_TAG=main-deadbeef pnpm deploy:bundle
 ```
 
 The directory is gitignored and can be copied to the server as a starting point for `/srv/stacks/daylilycatalog`.
-
-## Recommended Sync Flow
-
-The clean split is:
-
-1. `deploy/vps/` is committed in this repo.
-2. A config-sync job updates the server when those files change.
-3. The image deploy webhook updates only `IMAGE_TAG` and restarts the stack.
-
-Recommended config-sync job shape:
-
-- Trigger on `main` when `deploy/vps/**` changes.
-- Call a dedicated config-sync endpoint or webhook action on the server.
-- The server fetches `deploy/vps/` from this repo at the specific commit SHA and copies:
-  - `deploy/vps/compose.yaml` -> `/srv/stacks/daylilycatalog/compose.yaml`
-  - `deploy/vps/caddy-route.caddy` -> `/srv/stacks/proxy/sites/20-daylilycatalog.caddy`
-- The server restarts the shared proxy if the route file changed.
-- Keep the live `/srv/stacks/daylilycatalog/.env` on the server; do not replace it from CI.
-
-Why this split:
-
-- app-specific stack config stays with app code
-- the server keeps only secrets and live runtime state
-- image deploys stay fast because they only change `IMAGE_TAG`
 
 ## Local Docker Compose Check
 

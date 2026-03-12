@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+  pull_request:
   workflow_dispatch:
 
 concurrency:
@@ -18,6 +19,7 @@ jobs:
   build-and-push:
     name: Build and Push Docker Image
     runs-on: ubuntu-latest
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.fork != true
     outputs:
       image_repo: ${{ steps.meta.outputs.image_repo }}
       immutable_tag: ${{ steps.meta.outputs.immutable_tag }}
@@ -31,14 +33,29 @@ jobs:
           IMAGE_REPO="ghcr.io/makoncline/daylilycatalog"
           SHORT_SHA="$(echo '${{ github.sha }}' | cut -c1-8)"
           REF_NAME="${{ github.head_ref || github.ref_name }}"
-          IMMUTABLE_TAG="main-${SHORT_SHA}"
+
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            IMMUTABLE_TAG="pr-${{ github.event.pull_request.number }}-${SHORT_SHA}"
+            SHOULD_PUSH="false"
+          else
+            IMMUTABLE_TAG="main-${SHORT_SHA}"
+            SHOULD_PUSH="true"
+          fi
 
           {
             echo "image_repo=${IMAGE_REPO}"
             echo "immutable_tag=${IMMUTABLE_TAG}"
+            echo "should_push=${SHOULD_PUSH}"
             echo "alias_tags<<EOF"
-            echo "main"
-            echo "latest"
+            if [ "$SHOULD_PUSH" = "true" ]; then
+              echo "latest"
+            fi
+            echo "EOF"
+            echo "tags<<EOF"
+            echo "${IMAGE_REPO}:${IMMUTABLE_TAG}"
+            if [ "$SHOULD_PUSH" = "true" ]; then
+              echo "${IMAGE_REPO}:latest"
+            fi
             echo "EOF"
             echo "labels<<EOF"
             echo "org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}"
@@ -52,13 +69,17 @@ jobs:
         run: |
           {
             echo "Immutable tag: ${{ steps.meta.outputs.immutable_tag }}"
+            echo "Push image: ${{ steps.meta.outputs.should_push }}"
             echo "Alias tags:"
             printf '%s\n' "${{ steps.meta.outputs.alias_tags }}"
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Write build env
+        id: build-env
         run: |
-          cat > .env.build <<EOF
+          BUILD_ENV_FILE="$RUNNER_TEMP/daylilycatalog-build.env"
+
+          cat > "$BUILD_ENV_FILE" <<EOF
           APP_BASE_URL=https://vps-test.daylilycatalog.com
           NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_live_Y2xlcmsuZGF5bGlseWNhdGFsb2cuY29tJA
           NEXT_PUBLIC_CLOUDFLARE_URL=https://cf.daylilycatalog.com
@@ -68,12 +89,15 @@ jobs:
           EOF
 
           if [ -n "${{ secrets.STRIPE_SECRET_KEY_PROD }}" ]; then
-            echo "STRIPE_SECRET_KEY=${{ secrets.STRIPE_SECRET_KEY_PROD }}" >> .env.build
+            echo "STRIPE_SECRET_KEY=${{ secrets.STRIPE_SECRET_KEY_PROD }}" >> "$BUILD_ENV_FILE"
           fi
+
+          echo "path=$BUILD_ENV_FILE" >> "$GITHUB_OUTPUT"
 
       - uses: docker/setup-buildx-action@v3
 
       - name: Log in to GHCR
+        if: steps.meta.outputs.should_push == 'true'
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
@@ -84,14 +108,11 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: .
-          push: true
-          tags: |
-            ${{ steps.meta.outputs.image_repo }}:${{ steps.meta.outputs.immutable_tag }}
-            ${{ steps.meta.outputs.image_repo }}:main
-            ${{ steps.meta.outputs.image_repo }}:latest
+          push: ${{ steps.meta.outputs.should_push == 'true' }}
+          tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           secret-files: |
-            app_env=.env.build
+            app_env=${{ steps.build-env.outputs.path }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -101,8 +122,11 @@ jobs:
             echo "## Docker Image"
             echo
             echo "- immutable: \`${{ steps.meta.outputs.image_repo }}:${{ steps.meta.outputs.immutable_tag }}\`"
-            echo "- alias: \`${{ steps.meta.outputs.image_repo }}:main\`"
-            echo "- alias: \`${{ steps.meta.outputs.image_repo }}:latest\`"
+            if [ "${{ steps.meta.outputs.should_push }}" = "true" ]; then
+              echo "- alias: \`${{ steps.meta.outputs.image_repo }}:latest\`"
+            else
+              echo "- aliases: not pushed for pull_request verification builds"
+            fi
           } >> "$GITHUB_STEP_SUMMARY"
 
   sync-server-config:
