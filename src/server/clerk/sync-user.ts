@@ -48,7 +48,6 @@ export async function syncClerkUserToKVBase(
   }
 }
 
-// Wrapper that uses app's default clients
 export async function syncClerkUserToKV(clerkUserId: string) {
   return syncClerkUserToKVBase(clerkUserId, await getClerk(), appKvStore);
 }

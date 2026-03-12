@@ -15,7 +15,6 @@ export const stripeRouter = createTRPCRouter({
     return getStripeSubscription(user.stripeCustomerId);
   }),
 
-  // Generate checkout session for new subscription
   generateCheckout: protectedProcedure.mutation(async ({ ctx }) => {
     const { user } = ctx;
     const baseUrl = getBaseUrl(ctx.headers);
@@ -34,7 +33,6 @@ export const stripeRouter = createTRPCRouter({
       }
     }
 
-    // Create a new Stripe customer if one doesn't exist
     if (!stripeCustomerId) {
       const customer = await stripe.customers.create({
         email: user.clerk?.email,
@@ -44,14 +42,12 @@ export const stripeRouter = createTRPCRouter({
       });
       stripeCustomerId = customer.id;
 
-      // Store the customer-user relationship in database
       await ctx.db.user.update({
         where: { id: user.id },
         data: { stripeCustomerId: customer.id },
       });
     }
 
-    // Create checkout session
     const session = await stripe.checkout.sessions.create({
       customer: stripeCustomerId,
       mode: "subscription",
@@ -81,7 +77,6 @@ export const stripeRouter = createTRPCRouter({
     return { url: session.url };
   }),
 
-  // Get customer portal session for managing subscription
   getPortalSession: protectedProcedure.mutation(async ({ ctx }) => {
     const { user } = ctx;
     const baseUrl = getBaseUrl(ctx.headers);

@@ -14,7 +14,6 @@
     "start-tunnel": "cloudflared tunnel run local",
     "env:dev": "npx dotenv -e .env.development -- ",
     "env:prod": "npx dotenv -e .env.production -- ",
-    "deploy:bundle": "node scripts/build-server-bundle.mjs",
     "migrate": "npx tsx prisma/migrate.ts",
     "db:push": "prisma db push",
     "db:generate": "prisma generate",

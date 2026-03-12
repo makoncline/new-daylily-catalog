@@ -62,7 +62,6 @@ export async function syncStripeSubscriptionToKVBase(
   return subData;
 }
 
-// Wrapper that uses app's default clients
 export async function syncStripeSubscriptionToKV(customerId: string) {
   return syncStripeSubscriptionToKVBase(customerId, getStripeClient(), appKvStore);
 }

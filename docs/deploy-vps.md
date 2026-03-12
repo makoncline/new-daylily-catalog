@@ -11,11 +11,39 @@ Immutable image tags are the deploy unit.
 - `latest` can still move as a convenience alias.
 - The VPS should deploy by setting `IMAGE_TAG` in `.env`, not by relying on `latest`.
 - After a successful image push on `main`, GitHub Actions calls the deploy webhook at `https://deploy.makon.dev/deploy/daylilycatalog`.
-- Pull requests still run Docker image verification, but server config sync and deploy stay gated to `push` on `main`.
+- Pull requests still run Docker image verification in the `preview` GitHub Environment, but server config sync and deploy stay gated to `push` on `main`.
 
-Required GitHub secret for the webhook step:
+## GitHub Actions Environments
 
-- `DEPLOY_WEBHOOK_TOKEN`
+This repo now uses environment-scoped GitHub Actions config instead of repo-level vars and secrets.
+
+Required environment setup:
+
+- `production` environment:
+  - Variable: `APP_BASE_URL`
+  - Variable: `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`
+  - Variable: `NEXT_PUBLIC_CLOUDFLARE_URL`
+  - Variable: `STRIPE_PRICE_ID`
+  - Variable: `TURSO_DATABASE_URL`
+  - Secret: `TURSO_DATABASE_AUTH_TOKEN`
+  - Secret: `STRIPE_SECRET_KEY` optional for cold-cache-safe production Docker builds
+  - Secret: `DEPLOY_WEBHOOK_TOKEN`
+- `preview` environment:
+  - Variable: `APP_BASE_URL`
+  - Variable: `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`
+  - Variable: `NEXT_PUBLIC_CLOUDFLARE_URL`
+  - Variable: `STRIPE_PRICE_ID`
+  - Variable: `TURSO_DATABASE_URL`
+  - Variable: `VERCEL_TEAM`
+  - Secret: `CLERK_SECRET_KEY`
+  - Secret: `TURSO_DATABASE_AUTH_TOKEN`
+  - Secret: `STRIPE_SECRET_KEY` optional for cold-cache-safe PR Docker verification builds
+  - Secret: `VERCEL_AUTOMATION_BYPASS_SECRET`
+  - Secret: `VERCEL_TOKEN`
+- `ops` environment:
+  - Secret: `AWS_ACCESS_KEY_ID`
+  - Secret: `AWS_SECRET_ACCESS_KEY`
+  - Secret: `TURSO_API_TOKEN`
 
 ## Runtime Contract
 
@@ -119,6 +147,7 @@ Notes:
 - This minimum set was verified with both `next build` and `docker build`.
 - `STRIPE_SECRET_KEY` was not required for the verified build against the current production DB state because subscription cache data already existed in the DB.
 - If you need cold-cache-safe correctness for public route generation that depends on Stripe subscription state, include `STRIPE_SECRET_KEY` in the build env too.
+- When the build runs on GitHub for a pull request, the workflow reads its build vars and secrets from the `preview` GitHub Environment instead of `production`.
 
 ## Server Compose
 
@@ -159,31 +188,6 @@ handle @daylilycatalog {
 
 Committed source: `deploy/vps/caddy-route.caddy`
 
-## Server Bundle
-
-Generate a minimal server bundle with only the runtime stack files:
-
-```sh
-pnpm deploy:bundle
-```
-
-This writes:
-
-- `.server-deploy/compose.yaml`
-- `.server-deploy/.env` generated from `.env.production` when available
-- `.server-deploy/caddy-route.caddy`
-
-The bundle copies `compose.yaml` and `caddy-route.caddy` from `deploy/vps/`.
-
-The generated `.env` keeps only runtime vars used by the VPS stack, plus `IMAGE_TAG`. It excludes Vercel-only and build-only keys.
-By default the bundle generator writes `IMAGE_TAG=main-<git-shortsha>`. You can override that when generating the bundle:
-
-```sh
-IMAGE_TAG=main-deadbeef pnpm deploy:bundle
-```
-
-The directory is gitignored and can be copied to the server as a starting point for `/srv/stacks/daylilycatalog`.
-
 ## Local Docker Compose Check
 
 For local verification against the pulled Vercel production env, use the local override:
@@ -207,11 +211,13 @@ Notes:
 install -d -o 1001 -g 1001 /srv/stacks/daylilycatalog/next-cache
 ```
 
-3. Create `.env` from `.env.example` or use the generated `.server-deploy/.env`.
-4. Set `IMAGE_TAG` in `.env` to the immutable image tag you want to run.
-5. Build and push the image, or use the CI-published image for that same tag.
-6. Start the stack with `docker compose up -d`.
-7. Add the Caddy route block for `vps-test.daylilycatalog.com`.
+3. Copy `deploy/vps/compose.yaml` to `/srv/stacks/daylilycatalog/compose.yaml`.
+4. Copy `deploy/vps/caddy-route.caddy` to `/srv/stacks/proxy/sites/20-daylilycatalog.caddy`.
+5. Create `/srv/stacks/daylilycatalog/.env` from `deploy/vps/.env.example`.
+6. Set `IMAGE_TAG` in `/srv/stacks/daylilycatalog/.env` to the immutable image tag you want to run.
+7. Build and push the image, or use the CI-published image for that same tag.
+8. Start the stack with `docker compose up -d`.
+9. Reload the proxy if your server setup requires it after changing Caddy route files.
 
 ## Rollback
 

@@ -47,11 +47,6 @@ export function getBaseUrl(requestHeaders?: Headers | null) {
     return `${protocol}://${host}`;
   }
 
-  const configuredBaseUrl = getConfiguredBaseUrl();
-  if (configuredBaseUrl) {
-    return configuredBaseUrl;
-  }
-
   const vercelEnv = process.env.VERCEL_ENV;
   if (vercelEnv === "production") {
     const productionUrl = getVercelProjectProductionUrl();
@@ -63,6 +58,11 @@ export function getBaseUrl(requestHeaders?: Headers | null) {
   const deploymentHost = normalizeHost(process.env.VERCEL_URL);
   if (deploymentHost) {
     return `https://${deploymentHost}`;
+  }
+
+  const configuredBaseUrl = getConfiguredBaseUrl();
+  if (configuredBaseUrl) {
+    return configuredBaseUrl;
   }
 
   return `http://localhost:${process.env.PORT ?? 3000}`;

@@ -20,6 +20,7 @@ jobs:
       (github.event.deployment_status.state == 'success' &&
        (github.event.deployment.environment == 'Preview' || github.event.deployment.environment == 'preview'))
     runs-on: ubuntu-latest
+    environment: preview
     env:
       SKIP_ENV_VALIDATION: "1"
     steps:
@@ -79,7 +80,7 @@ jobs:
           VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
           # Clerk keys needed for clerkSetup() in global-setup.ts
           CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
-          NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY }}
+          NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${{ vars.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY }}
         run: pnpm exec playwright test
 
       - name: Upload Playwright artifacts

@@ -41,16 +41,17 @@ jobs:
     runs-on: ubuntu-latest
     # Skip E2E on forked PRs (secrets not available)
     if: github.event.pull_request.head.repo.fork != true
+    environment: preview
     env:
       SKIP_ENV_VALIDATION: "1"
       USE_TURSO_DB: "false"
       E2E_PORT: "3100"
       # Clerk
       CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
-      NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY }}
+      NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${{ vars.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY }}
       # Stripe (use test keys)
       STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY }}
-      STRIPE_PRICE_ID: ${{ secrets.STRIPE_PRICE_ID }}
+      STRIPE_PRICE_ID: ${{ vars.STRIPE_PRICE_ID }}
       STRIPE_WEBHOOK_SECRET: "whsec_test_placeholder"
       # Clerk webhook (placeholder for env validation)
       CLERK_WEBHOOK_SECRET: "whsec_test_placeholder"

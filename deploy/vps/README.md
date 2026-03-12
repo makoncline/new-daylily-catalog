@@ -4,6 +4,8 @@
 - `caddy-route.caddy`: Caddy route for `vps-test.daylilycatalog.com`
 - `.env.example`: runtime env contract for the stack
 
+These files are the deploy source of truth. Copy them directly to the server stack paths below.
+
 Server paths:
 
 - `deploy/vps/compose.yaml` -> `/srv/stacks/daylilycatalog/compose.yaml`

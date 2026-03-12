@@ -14,6 +14,7 @@ jobs:
       github.event.deployment_status.state == 'success' &&
       (github.event.deployment.environment == 'Preview' || github.event.deployment.environment == 'preview')
     runs-on: ubuntu-latest
+    environment: preview
     steps:
       - name: Compute values
         id: vals
@@ -25,7 +26,7 @@ jobs:
       - name: Alias to <hash>.deploy-preview.daylilycatalog.com
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-          VERCEL_TEAM: ${{ secrets.VERCEL_TEAM }}
+          VERCEL_TEAM: ${{ vars.VERCEL_TEAM }}
           URL: ${{ steps.vals.outputs.URL }}
           HASH: ${{ steps.vals.outputs.HASH }}
         run: |

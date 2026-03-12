@@ -61,8 +61,6 @@ node_modules/
 /playwright-report/
 /blob-report/
 /playwright/.cache/
-/.server-deploy/
-
 # Sentry Config File
 .env.sentry-build-plugin
 
