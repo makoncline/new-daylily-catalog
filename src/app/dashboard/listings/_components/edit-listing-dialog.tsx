@@ -11,13 +11,13 @@ import {
   type ListingFormHandle,
 } from "@/components/forms/listing-form";
 import { ListingFormSkeleton } from "@/components/forms/listing-form-skeleton";
-import { usePathname, useSearchParams, useRouter } from "next/navigation";
-import { Suspense, useEffect, useRef } from "react";
+import { Suspense, useRef } from "react";
 import { ErrorBoundary } from "react-error-boundary";
 import { ErrorFallback } from "@/components/error-fallback";
 import { P } from "@/components/typography";
 import { atom, useAtom } from "jotai";
 import { useSaveBeforeNavigate } from "@/hooks/use-save-before-navigate";
+import { useEditingQueryParamSync } from "@/hooks/use-editing-query-param-sync";
 
 /**
  * Atom for editing state
@@ -32,50 +32,12 @@ export const editingListingIdAtom = atom<string | null>(null);
  * - State changes write to URL parameters for bookmarking/sharing
  */
 export const useEditListing = () => {
-  const router = useRouter();
-  const pathname = usePathname();
-  const searchParams = useSearchParams();
   const [editingId, setEditingId] = useAtom(editingListingIdAtom);
-  const hasInitializedRef = useRef(false);
-
-  // Sync atom state to URL for persistence
-  useEffect(() => {
-    if (!hasInitializedRef.current) {
-      return;
-    }
-
-    const params = new URLSearchParams(searchParams.toString());
-
-    if (editingId) {
-      params.set("editing", editingId);
-    } else {
-      params.delete("editing");
-    }
-
-    const nextQuery = params.toString();
-    const newUrl = nextQuery ? `${pathname}?${nextQuery}` : pathname;
-
-    const currentQuery = searchParams.toString();
-    const currentUrl = currentQuery ? `${pathname}?${currentQuery}` : pathname;
-
-    if (newUrl !== currentUrl) {
-      router.push(newUrl);
-    }
-  }, [editingId, pathname, router, searchParams]);
-
-  // Initialize from URL on first load
-  useEffect(() => {
-    if (hasInitializedRef.current) {
-      return;
-    }
-
-    const urlEditingId = searchParams.get("editing");
-    if (urlEditingId) {
-      setEditingId(urlEditingId);
-    }
-
-    hasInitializedRef.current = true;
-  }, [searchParams, setEditingId]);
+  useEditingQueryParamSync({
+    editingId,
+    setEditingId,
+    navigationMethod: "push",
+  });
 
   return {
     editListing: (id: string) => {

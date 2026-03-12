@@ -15,60 +15,21 @@ import {
   type ListFormHandle,
 } from "@/components/forms/list-form";
 import { ListFormSkeleton } from "@/components/forms/list-form-skeleton";
-import { useRef, useEffect, Suspense } from "react";
+import { useRef, Suspense } from "react";
 import { atom, useAtom } from "jotai";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useSaveBeforeNavigate } from "@/hooks/use-save-before-navigate";
+import { useEditingQueryParamSync } from "@/hooks/use-editing-query-param-sync";
 
 // Atom for editing state
 export const editingListIdAtom = atom<string | null>(null);
 
 export const useEditList = () => {
   const [editingId, setEditingId] = useAtom(editingListIdAtom);
-  const router = useRouter();
-  const pathname = usePathname();
-  const searchParams = useSearchParams();
-  const hasInitialized = useRef(false);
-
-  // Sync atom state to URL for persistence
-  useEffect(() => {
-    if (!hasInitialized.current) {
-      return;
-    }
-
-    const params = new URLSearchParams(searchParams.toString());
-
-    if (editingId) {
-      params.set("editing", editingId);
-    } else {
-      params.delete("editing");
-    }
-
-    const nextSearch = params.toString();
-    const newUrl = nextSearch ? `${pathname}?${nextSearch}` : pathname;
-    const currentSearch = searchParams.toString();
-    const currentUrl = currentSearch
-      ? `${pathname}?${currentSearch}`
-      : pathname;
-
-    if (newUrl !== currentUrl) {
-      router.replace(newUrl);
-    }
-  }, [editingId, pathname, router, searchParams]);
-
-  // Initialize from URL on first load
-  useEffect(() => {
-    if (hasInitialized.current) {
-      return;
-    }
-
-    const urlEditingId = searchParams.get("editing");
-    if (urlEditingId) {
-      setEditingId(urlEditingId);
-    }
-
-    hasInitialized.current = true;
-  }, [searchParams, setEditingId]);
+  useEditingQueryParamSync({
+    editingId,
+    setEditingId,
+    navigationMethod: "replace",
+  });
 
   return {
     editList: (id: string) => {
