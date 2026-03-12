@@ -27,6 +27,15 @@ function getVercelProjectProductionUrl() {
   return `https://${productionHost}`;
 }
 
+function getConfiguredBaseUrl() {
+  const configured = process.env.APP_BASE_URL?.trim();
+  if (!configured) {
+    return null;
+  }
+
+  return configured.replace(/\/$/, "");
+}
+
 export function getBaseUrl(requestHeaders?: Headers | null) {
   if (typeof window !== "undefined") return window.location.origin;
 
@@ -49,6 +58,11 @@ export function getBaseUrl(requestHeaders?: Headers | null) {
   const deploymentHost = normalizeHost(process.env.VERCEL_URL);
   if (deploymentHost) {
     return `https://${deploymentHost}`;
+  }
+
+  const configuredBaseUrl = getConfiguredBaseUrl();
+  if (configuredBaseUrl) {
+    return configuredBaseUrl;
   }
 
   return `http://localhost:${process.env.PORT ?? 3000}`;

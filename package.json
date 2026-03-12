@@ -10,6 +10,7 @@
     "postinstall": "prisma generate",
     "lint": "eslint src",
     "start": "next start",
+    "start:standalone": "node scripts/start-production.mjs",
     "start-tunnel": "cloudflared tunnel run local",
     "env:dev": "npx dotenv -e .env.development -- ",
     "env:prod": "npx dotenv -e .env.production -- ",

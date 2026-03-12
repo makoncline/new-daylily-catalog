@@ -18,23 +18,26 @@ import {
   getCachedPublicProfiles,
 } from "@/server/db/public-cache";
 import { SESClient, SendEmailCommand } from "@aws-sdk/client-ses";
-import { env } from "@/env";
+import { env, requireEnv } from "@/env";
 import { cartItemSchema } from "@/types";
 import { getDisplayAhsListing } from "@/lib/utils/ahs-display";
 import { createServerCache } from "@/lib/cache/server-cache";
 import { CACHE_CONFIG } from "@/config/cache-config";
 import { isPublished } from "@/server/db/public-visibility/filters";
 
-// Initialize SES client
-const ses = new SESClient({
-  region: env.AWS_REGION,
-  credentials: {
-    accessKeyId: env.AWS_ACCESS_KEY_ID,
-    secretAccessKey: env.AWS_SECRET_ACCESS_KEY,
-  },
-});
+function getSesClient() {
+  return new SESClient({
+    region: requireEnv("AWS_REGION", env.AWS_REGION),
+    credentials: {
+      accessKeyId: requireEnv("AWS_ACCESS_KEY_ID", env.AWS_ACCESS_KEY_ID),
+      secretAccessKey: requireEnv(
+        "AWS_SECRET_ACCESS_KEY",
+        env.AWS_SECRET_ACCESS_KEY,
+      ),
+    },
+  });
+}
 
-// Helper function to get the full listing data with all relations
 async function getFullListingData(listingId: string) {
   const listing = await db.listing.findFirst({
     where: { id: listingId, ...isPublished() },
@@ -232,6 +235,8 @@ export const publicRouter = createTRPCRouter({
     .mutation(
       async ({ input }): Promise<{ success: boolean; message: string }> => {
         try {
+          const ses = getSesClient();
+
           // Fetch the user's data
           const user = await db.user.findUnique({
             where: { id: input.userId },

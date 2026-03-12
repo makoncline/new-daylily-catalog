@@ -1,0 +1,15 @@
+services:
+  app:
+    build:
+      context: .
+      secrets:
+        - app_env
+    image: daylilycatalog:local
+    env_file:
+      - .env.production
+    ports:
+      - "3012:3000"
+
+secrets:
+  app_env:
+    file: .env.production

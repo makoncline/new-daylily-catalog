@@ -30,7 +30,7 @@ const subscriptionMocks = vi.hoisted(() => ({
 }));
 
 vi.mock("@/server/stripe/client", () => ({
-  stripe: {
+  getStripeClient: () => ({
     customers: {
       create: stripeMocks.customersCreate,
     },
@@ -39,7 +39,7 @@ vi.mock("@/server/stripe/client", () => ({
         create: stripeMocks.checkoutCreate,
       },
     },
-  },
+  }),
 }));
 
 vi.mock("@/server/stripe/sync-subscription", () => ({

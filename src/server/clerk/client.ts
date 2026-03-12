@@ -1,3 +1,8 @@
 import { clerkClient } from "@clerk/nextjs/server";
 
-export const clerk = await clerkClient();
+let clerkPromise: ReturnType<typeof clerkClient> | undefined;
+
+export function getClerk() {
+  clerkPromise ??= clerkClient();
+  return clerkPromise;
+}
