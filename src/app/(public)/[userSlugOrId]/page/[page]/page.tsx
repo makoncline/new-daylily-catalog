@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { MainContent } from "@/app/(public)/_components/main-content";
 import { PublicBreadcrumbs } from "@/app/(public)/_components/public-breadcrumbs";
 import { parsePositiveInteger } from "@/lib/public-catalog-url-state";
-import { getBaseUrl } from "@/lib/utils/getBaseUrl";
+import { getCanonicalBaseUrl } from "@/lib/utils/getBaseUrl";
 import { getErrorCode, tryCatch } from "@/lib/utils";
 import { CatalogSeoListings } from "../../_components/catalog-seo-listings";
 import { IsrWrittenAt } from "../../../_components/isr-written-at";
@@ -44,7 +44,7 @@ export async function generateMetadata({
     };
   }
 
-  const baseUrl = getBaseUrl();
+  const baseUrl = getCanonicalBaseUrl();
   const profileResult = await tryCatch(
     getPublicProfilePageData(userSlugOrId, parsedPage),
   );
@@ -104,7 +104,7 @@ export default async function ProfilePaginatedPage({
   const profile = pageDataResult.data.profile;
   const canonicalUserSlug = profile.slug ?? profile.id;
 
-  const baseUrl = getBaseUrl();
+  const baseUrl = getCanonicalBaseUrl();
   const baseMetadata = await generateProfileMetadata(profile, baseUrl);
   const metadata = generatePaginatedProfileMetadata({
     baseMetadata,

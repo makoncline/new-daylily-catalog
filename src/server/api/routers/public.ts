@@ -24,6 +24,7 @@ import { getDisplayAhsListing } from "@/lib/utils/ahs-display";
 import { createServerCache } from "@/lib/cache/server-cache";
 import { CACHE_CONFIG } from "@/config/cache-config";
 import { isPublished } from "@/server/db/public-visibility/filters";
+import { getCanonicalBaseUrl } from "@/lib/utils/getBaseUrl";
 
 function getSesClient() {
   return new SESClient({
@@ -274,6 +275,8 @@ export const publicRouter = createTRPCRouter({
             });
           }
 
+          const catalogUrl = `${getCanonicalBaseUrl()}/${user.profile?.slug ?? user.id}`;
+
           // Set up the subject and body for the emails
           const customerDisplayName =
             input.customerName && input.customerName.trim() !== ""
@@ -370,7 +373,7 @@ Note: Final pricing, shipping, and handling are at your discretion.`
 To reply, contact the customer at: ${input.customerEmail}
 
 This is an automated message from Daylily Catalog. Please do not reply.
-View your catalog: https://daylilycatalog.com/${user.profile?.slug ?? user.id}
+View your catalog: ${catalogUrl}
 `;
 
           // Update the customer email body with the correct subtotal formatting
@@ -404,7 +407,7 @@ Subtotal: $${subtotal.toFixed(2)}
 ---
 
 Continue exploring ${user.profile?.title ?? "the seller"}'s collection here:
-https://daylilycatalog.com/${user.profile?.slug ?? user.id}
+${catalogUrl}
 
 This is an automated confirmation from Daylily Catalog. Please do not reply.
 `;

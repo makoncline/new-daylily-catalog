@@ -1,9 +1,9 @@
 import { PublicdNav } from "@/components/public-nav";
 import { type Metadata } from "next";
 import { SellerIntentLink } from "@/components/seller-intent-link";
-import { getBaseUrl } from "@/lib/utils/getBaseUrl";
+import { getCanonicalBaseUrl } from "@/lib/utils/getBaseUrl";
 export const metadata: Metadata = {
-  metadataBase: new URL(getBaseUrl()),
+  metadataBase: new URL(getCanonicalBaseUrl()),
 };
 
 export default async function PublicLayout({

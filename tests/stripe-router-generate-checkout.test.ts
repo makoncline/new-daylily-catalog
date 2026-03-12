@@ -47,7 +47,7 @@ vi.mock("@/server/stripe/sync-subscription", () => ({
 }));
 
 vi.mock("@/lib/utils/getBaseUrl", () => ({
-  getBaseUrl: () => "http://localhost:3000",
+  getRequestBaseUrl: () => "https://prod.daylilycatalog.com",
 }));
 
 type StripeRouterModule = typeof import("@/server/api/routers/stripe");
@@ -124,6 +124,8 @@ describe("stripe.generateCheckout", () => {
         subscription_data: {
           trial_period_days: SUBSCRIPTION_CONFIG.FREE_TRIAL_DAYS,
         },
+        success_url: "https://prod.daylilycatalog.com/subscribe/success",
+        cancel_url: "https://prod.daylilycatalog.com/dashboard",
       }),
     );
   });
@@ -157,6 +159,8 @@ describe("stripe.generateCheckout", () => {
         subscription_data: {
           trial_period_days: SUBSCRIPTION_CONFIG.FREE_TRIAL_DAYS,
         },
+        success_url: "https://prod.daylilycatalog.com/subscribe/success",
+        cancel_url: "https://prod.daylilycatalog.com/dashboard",
       }),
     );
   });

@@ -36,8 +36,10 @@ function getConfiguredBaseUrl() {
   return configured.replace(/\/$/, "");
 }
 
-export function getBaseUrl(requestHeaders?: Headers | null) {
-  if (typeof window !== "undefined") return window.location.origin;
+function getRequestOrigin(requestHeaders?: Headers | null) {
+  if (typeof window !== "undefined") {
+    return window.location.origin;
+  }
 
   const host = normalizeHost(
     requestHeaders?.get("x-forwarded-host") ?? requestHeaders?.get("host"),
@@ -45,6 +47,15 @@ export function getBaseUrl(requestHeaders?: Headers | null) {
   if (host) {
     const protocol = inferProtocol(host, requestHeaders?.get("x-forwarded-proto"));
     return `${protocol}://${host}`;
+  }
+
+  return null;
+}
+
+export function getCanonicalBaseUrl() {
+  const configuredBaseUrl = getConfiguredBaseUrl();
+  if (configuredBaseUrl) {
+    return configuredBaseUrl;
   }
 
   const vercelEnv = process.env.VERCEL_ENV;
@@ -60,10 +71,13 @@ export function getBaseUrl(requestHeaders?: Headers | null) {
     return `https://${deploymentHost}`;
   }
 
-  const configuredBaseUrl = getConfiguredBaseUrl();
-  if (configuredBaseUrl) {
-    return configuredBaseUrl;
-  }
-
   return `http://localhost:${process.env.PORT ?? 3000}`;
+}
+
+export function getRequestBaseUrl(requestHeaders?: Headers | null) {
+  return getRequestOrigin(requestHeaders) ?? getCanonicalBaseUrl();
+}
+
+export function getBaseUrl(requestHeaders?: Headers | null) {
+  return getRequestBaseUrl(requestHeaders);
 }

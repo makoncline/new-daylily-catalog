@@ -6,7 +6,7 @@ import { Breadcrumbs } from "@/components/breadcrumbs";
 import { METADATA_CONFIG } from "@/config/constants";
 import { IMAGES } from "@/lib/constants/images";
 import { getOptimizedMetaImageUrl } from "@/lib/utils/cloudflareLoader";
-import { getBaseUrl } from "@/lib/utils/getBaseUrl";
+import { getCanonicalBaseUrl } from "@/lib/utils/getBaseUrl";
 import { toCultivarRouteSegment } from "@/lib/utils/cultivar-utils";
 import { getCachedPublicCultivarPage } from "@/server/db/public-cache";
 import { IsrWrittenAt } from "@/app/(public)/_components/isr-written-at";
@@ -50,7 +50,7 @@ export async function generateMetadata({
     };
   }
 
-  const baseUrl = getBaseUrl();
+  const baseUrl = getCanonicalBaseUrl();
   const canonicalSegment = toCultivarRouteSegment(
     cultivarPage.cultivar.normalizedName,
   );
@@ -118,7 +118,7 @@ export default async function CultivarPage({ params }: PageProps) {
     permanentRedirect(`/cultivar/${canonicalSegment}`);
   }
 
-  const baseUrl = getBaseUrl();
+  const baseUrl = getCanonicalBaseUrl();
   const jsonLd = generateCultivarJsonLd(
     baseUrl,
     canonicalSegment ?? cultivarNormalizedName,
