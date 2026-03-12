@@ -9,8 +9,13 @@ Immutable image tags are the deploy unit.
 - CI publishes `main-<shortsha>` images.
 - `main` and `latest` can still move as convenience aliases.
 - The VPS should deploy by setting `IMAGE_TAG` in `.env`, not by relying on `latest`.
+- After a successful image push, GitHub Actions calls the deploy webhook at `https://deploy.makon.dev/deploy/daylilycatalog`.
 
 For the current testing phase, the image workflow still runs on pull requests, but it publishes `main-<shortsha>` tags so the server deploy path matches the eventual merge-to-main flow.
+
+Required GitHub secret for the webhook step:
+
+- `DEPLOY_WEBHOOK_TOKEN`
 
 ## Runtime Contract
 

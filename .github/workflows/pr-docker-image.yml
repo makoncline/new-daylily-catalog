@@ -103,3 +103,29 @@ jobs:
             echo "- alias: \`${{ steps.meta.outputs.image_repo }}:main\`"
             echo "- alias: \`${{ steps.meta.outputs.image_repo }}:latest\`"
           } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Trigger VPS deploy webhook
+        env:
+          DEPLOY_WEBHOOK_TOKEN: ${{ secrets.DEPLOY_WEBHOOK_TOKEN }}
+        run: |
+          if [ -z "$DEPLOY_WEBHOOK_TOKEN" ]; then
+            echo "DEPLOY_WEBHOOK_TOKEN secret is required to trigger the VPS deploy webhook." >&2
+            exit 1
+          fi
+
+          response="$(
+            curl --fail --show-error --silent \
+              --request POST \
+              --url "https://deploy.makon.dev/deploy/daylilycatalog" \
+              --header "Authorization: Bearer $DEPLOY_WEBHOOK_TOKEN" \
+              --header "Content-Type: application/json" \
+              --data "{\"image_tag\":\"${{ steps.meta.outputs.immutable_tag }}\",\"clear_cache\":false}"
+          )"
+
+          {
+            echo "## Deploy Webhook"
+            echo
+            echo "- target: \`daylilycatalog\`"
+            echo "- image tag: \`${{ steps.meta.outputs.immutable_tag }}\`"
+            echo "- response: \`${response}\`"
+          } >> "$GITHUB_STEP_SUMMARY"
