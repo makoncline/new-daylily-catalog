@@ -21,6 +21,7 @@ export const env = createEnv({
    * isn't built with invalid env vars.
    */
   server: {
+    APP_BASE_URL: z.string().url().optional(),
     USE_TURSO_DB: booleanStringSchema.optional().default(useTursoDbDefault),
     LOCAL_DATABASE_URL: z.string().optional(),
     TURSO_DATABASE_URL: z.string().optional(),
@@ -61,6 +62,7 @@ export const env = createEnv({
    * middlewares) or client-side so we need to destruct manually.
    */
   runtimeEnv: {
+    APP_BASE_URL: process.env.APP_BASE_URL,
     USE_TURSO_DB: process.env.USE_TURSO_DB,
     LOCAL_DATABASE_URL: process.env.LOCAL_DATABASE_URL,
     TURSO_DATABASE_URL: process.env.TURSO_DATABASE_URL,
@@ -121,5 +123,15 @@ if (!process.env.SKIP_ENV_VALIDATION) {
     }
   } else if (!env.LOCAL_DATABASE_URL) {
     throw new Error("USE_TURSO_DB=false requires LOCAL_DATABASE_URL.");
+  }
+
+  const hasVercelHost =
+    typeof process.env.VERCEL_URL === "string" ||
+    typeof process.env.VERCEL_PROJECT_PRODUCTION_URL === "string";
+
+  if (env.NODE_ENV === "production" && !env.APP_BASE_URL && !hasVercelHost) {
+    throw new Error(
+      "Production requires APP_BASE_URL unless VERCEL_URL or VERCEL_PROJECT_PRODUCTION_URL is available.",
+    );
   }
 }
