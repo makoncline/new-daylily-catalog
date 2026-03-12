@@ -9,6 +9,7 @@ const rootDir = process.cwd();
 const outDir = path.join(rootDir, ".server-deploy");
 const deployHost = "vps-test.daylilycatalog.com";
 const sourceEnvPath = path.join(rootDir, ".env.production");
+const deployDir = path.join(rootDir, "deploy", "vps");
 
 const runtimeRequiredKeys = [
   "NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY",
@@ -29,10 +30,6 @@ const runtimeOptionalKeys = [
   "NEXT_PUBLIC_POSTHOG_KEY",
   "NEXT_PUBLIC_POSTHOG_HOST",
 ];
-
-async function copyFile(name) {
-  await fs.copyFile(path.join(rootDir, name), path.join(outDir, name));
-}
 
 function quoteEnvValue(value) {
   return JSON.stringify(value);
@@ -124,19 +121,14 @@ async function writeServerEnv() {
 }
 
 async function main() {
+  await fs.access(path.join(deployDir, "compose.yaml"));
+  await fs.access(path.join(deployDir, "caddy-route.caddy"));
+
   await fs.rm(outDir, { recursive: true, force: true });
   await fs.mkdir(outDir, { recursive: true });
 
-  await copyFile("compose.yaml");
-
-  await fs.writeFile(
-    path.join(outDir, "caddy-route.caddy"),
-    `@daylilycatalog host ${deployHost}
-handle @daylilycatalog {
-  reverse_proxy app:3000
-}
-`,
-  );
+  await fs.copyFile(path.join(deployDir, "compose.yaml"), path.join(outDir, "compose.yaml"));
+  await fs.copyFile(path.join(deployDir, "caddy-route.caddy"), path.join(outDir, "caddy-route.caddy"));
   await writeServerEnv();
 
   console.log(`Wrote ${path.relative(rootDir, outDir)}`);

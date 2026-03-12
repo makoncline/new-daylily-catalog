@@ -1,0 +1,4 @@
+@daylilycatalog host vps-test.daylilycatalog.com
+handle @daylilycatalog {
+  reverse_proxy app:3000
+}
