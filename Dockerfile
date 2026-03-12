@@ -29,9 +29,12 @@ COPY --from=deps /app/prisma ./prisma
 COPY . .
 
 ENV NODE_ENV=production
+ARG BUILD_ENV_FINGERPRINT
 
 RUN --mount=type=secret,id=app_env \
-    set -a \
+    : "${BUILD_ENV_FINGERPRINT:?BUILD_ENV_FINGERPRINT is required for Docker builds}" \
+    && printf '%s' "$BUILD_ENV_FINGERPRINT" >/dev/null \
+    && set -a \
     && . /run/secrets/app_env \
     && set +a \
     && : "${APP_BASE_URL:?APP_BASE_URL is required for Docker builds}" \

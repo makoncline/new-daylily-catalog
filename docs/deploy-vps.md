@@ -161,9 +161,15 @@ install -d -o 1001 -g 1001 /srv/stacks/daylilycatalog/next-cache
 
 The Docker build prerenders static public routes and sitemap data, so build with the same env file you plan to run in production.
 
+GitHub Actions now hashes the generated Docker build env and passes that fingerprint as a build arg, so changes to canonical build-time env like `APP_BASE_URL` automatically force a fresh `next build` layer instead of reusing stale cached public output.
+
 ```sh
 IMAGE_TAG=main-$(git rev-parse --short=8 HEAD)
-docker build --secret id=app_env,src=.env -t ghcr.io/makoncline/daylilycatalog:${IMAGE_TAG} .
+BUILD_ENV_FINGERPRINT="$(sha256sum .env | cut -d' ' -f1)"
+docker build \
+  --build-arg BUILD_ENV_FINGERPRINT="${BUILD_ENV_FINGERPRINT}" \
+  --secret id=app_env,src=.env \
+  -t ghcr.io/makoncline/daylilycatalog:${IMAGE_TAG} .
 ```
 
 ### Minimum Verified CI Build Env
