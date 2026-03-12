@@ -1,6 +1,7 @@
 name: PR Tests
 
 on:
+  pull_request:
   workflow_dispatch:
 
 concurrency:
@@ -39,7 +40,7 @@ jobs:
     name: E2E Tests
     runs-on: ubuntu-latest
     # Skip E2E on forked PRs (secrets not available)
-    if: github.event.pull_request.head.repo.fork != true
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.fork != true
     env:
       SKIP_ENV_VALIDATION: "1"
       USE_TURSO_DB: "false"

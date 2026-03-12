@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - main
-  pull_request:
   workflow_dispatch:
 
 concurrency:
@@ -19,7 +18,6 @@ jobs:
   build-and-push:
     name: Build and Push Docker Image
     runs-on: ubuntu-latest
-    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.fork != true
     outputs:
       image_repo: ${{ steps.meta.outputs.image_repo }}
       immutable_tag: ${{ steps.meta.outputs.immutable_tag }}
