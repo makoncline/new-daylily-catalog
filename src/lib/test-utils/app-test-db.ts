@@ -51,12 +51,12 @@ export function prismaDbPush(sqliteUrl: string) {
       ? "info"
       : (rustLog ?? "info");
 
-  const res = spawnSync(prismaBinPath(), ["db", "push", "--skip-generate"], {
+  const res = spawnSync(prismaBinPath(), ["db", "push"], {
     env: {
       ...process.env,
       NODE_OPTIONS: "",
       RUST_LOG: effectiveRustLog,
-      LOCAL_DATABASE_URL: sqliteUrl,
+      DATABASE_URL: sqliteUrl,
     },
     cwd: process.cwd(),
     stdio: "pipe",
@@ -112,8 +112,7 @@ export async function withTempAppDb<T>(
   fn: (ctx: { user: { id: string } }) => Promise<T> | T,
 ): Promise<T> {
   const envKeys = [
-    "USE_TURSO_DB",
-    "LOCAL_DATABASE_URL",
+    "DATABASE_URL",
     "SKIP_ENV_VALIDATION",
     "STRIPE_SECRET_KEY",
   ] as const;
@@ -124,8 +123,7 @@ export async function withTempAppDb<T>(
   const { url, filePath } = createTempSqliteUrl();
   prismaDbPush(url);
 
-  process.env.USE_TURSO_DB = "false";
-  process.env.LOCAL_DATABASE_URL = url;
+  process.env.DATABASE_URL = url;
   process.env.SKIP_ENV_VALIDATION = "1";
   process.env.STRIPE_SECRET_KEY ??= "sk_test_unit";
 

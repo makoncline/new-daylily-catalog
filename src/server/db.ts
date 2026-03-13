@@ -1,13 +1,10 @@
-import { PrismaClient } from "../../prisma/generated/sqlite-client/index.js";
-import { PrismaLibSQL } from "@prisma/adapter-libsql";
-import { createClient } from "@libsql/client";
-import { env, useTursoDb } from "@/env";
-import { type Prisma } from "../../prisma/generated/sqlite-client/index.js";
+import { PrismaClient } from "@prisma/client";
+import { PrismaLibSql } from "@prisma/adapter-libsql";
+import { env, requireEnv } from "@/env";
+import { type Prisma } from "@prisma/client";
 import { attachLocalQueryProfiler } from "@/server/db/local-query-profiler";
 
-const databaseUrl = useTursoDb
-  ? env.TURSO_DATABASE_URL!
-  : env.LOCAL_DATABASE_URL!;
+const databaseUrl = requireEnv("DATABASE_URL", env.DATABASE_URL);
 
 function getLocalSqliteLogConfig() {
   const baseLogs: Array<Prisma.LogLevel | Prisma.LogDefinition> = [
@@ -28,27 +25,26 @@ function getLocalSqliteLogConfig() {
 }
 
 const createPrismaClient = () => {
-  if (useTursoDb) {
-    const libsql = createClient({
-      url: env.TURSO_DATABASE_URL!,
-      authToken: env.TURSO_DATABASE_AUTH_TOKEN!,
-    });
-
-    const adapter = new PrismaLibSQL(libsql);
-    return new PrismaClient({
-      adapter,
-      log: ["error"],
-    });
-  }
-
-  return new PrismaClient({
-    datasources: {
-      db: {
-        url: databaseUrl, // Uses local SQLite path
-      },
+  const adapter = new PrismaLibSql(
+    {
+      url: databaseUrl,
+      authToken: env.TURSO_DATABASE_AUTH_TOKEN,
     },
-    log: getLocalSqliteLogConfig(),
-  });
+    {
+      // Existing SQLite/Turso data was written with Prisma's legacy unixepoch format.
+      timestampFormat: "unixepoch-ms",
+    },
+  );
+
+  return attachLocalQueryProfiler(
+    new PrismaClient({
+      adapter,
+      log: databaseUrl.startsWith("file:")
+        ? getLocalSqliteLogConfig()
+        : ["error"],
+    }),
+    { databaseUrl },
+  );
 };
 
 const globalForPrisma = globalThis as unknown as {
@@ -56,7 +52,5 @@ const globalForPrisma = globalThis as unknown as {
 };
 
 export const db = globalForPrisma.prisma ?? createPrismaClient();
-
-attachLocalQueryProfiler(db, { useTursoDb, databaseUrl });
 
 if (env.NODE_ENV !== "production") globalForPrisma.prisma = db;

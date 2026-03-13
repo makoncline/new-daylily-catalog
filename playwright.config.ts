@@ -29,7 +29,7 @@ if (!process.env.BASE_URL) {
   const tmpDir = path.join(process.cwd(), "tests", ".tmp");
   fs.mkdirSync(tmpDir, { recursive: true });
 
-  const existingUrl = process.env.LOCAL_DATABASE_URL;
+  const existingUrl = process.env.DATABASE_URL;
   const isTempDb =
     existingUrl &&
     existingUrl.startsWith("file:") &&
@@ -40,11 +40,10 @@ if (!process.env.BASE_URL) {
   if (!existingUrl || !isTempDb) {
     const file = `pw-e2e-${Date.now()}-${Math.random().toString(36).slice(2)}.sqlite`;
     const abs = path.join(tmpDir, file);
-    process.env.LOCAL_DATABASE_URL = `file:${abs}`;
+    process.env.DATABASE_URL = `file:${abs}`;
   }
 
-  process.env.E2E_TEST_DB_URL = process.env.LOCAL_DATABASE_URL;
-  process.env.USE_TURSO_DB = "false";
+  process.env.E2E_TEST_DB_URL = process.env.DATABASE_URL;
   process.env.SKIP_ENV_VALIDATION = "1";
   process.env.PLAYWRIGHT_LOCAL_E2E = "true";
 }
@@ -87,8 +86,7 @@ export default defineConfig({
           ...process.env,
           PORT: e2ePort,
           NEXT_PUBLIC_SENTRY_ENABLED: "false",
-          USE_TURSO_DB: "false",
-          LOCAL_DATABASE_URL: process.env.LOCAL_DATABASE_URL!,
+          DATABASE_URL: process.env.DATABASE_URL!,
           E2E_TEST_DB_URL: process.env.E2E_TEST_DB_URL!,
           SKIP_ENV_VALIDATION: "1",
           PLAYWRIGHT_LOCAL_E2E: "true",

@@ -20,7 +20,6 @@ prisma/local-dev.sqlite
 tests/.tmp/
 .tmp/
 prisma/prisma/
-prisma/generated/sqlite-client/
 
 # next.js
 /.next/

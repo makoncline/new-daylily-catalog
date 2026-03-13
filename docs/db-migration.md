@@ -2,6 +2,10 @@
 
 This document defines the default, database-agnostic migration workflow for this repo.
 
+Current repo note: the Prisma/Turso simplification refactor does not change the
+database schema and must not be used to touch preview or production data. Keep
+using this workflow only for future intentional schema/data migrations.
+
 ## Goals
 
 - Keep schema and data changes predictable.
@@ -43,6 +47,7 @@ prisma/local-prod-copy-daylily-catalog.db
 2. Generate migration SQL (create-only):
 
 ```bash
+DATABASE_URL="file:./prisma/local-prod-copy-daylily-catalog.db" \
 NODE_OPTIONS='' RUST_LOG=info npx dotenv -e .env.development -- \
   npx prisma migrate dev --create-only --name <migration_name>
 ```

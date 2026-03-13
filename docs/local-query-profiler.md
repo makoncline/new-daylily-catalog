@@ -4,8 +4,7 @@ This profiler is opt-in and local-only.
 Use one command to run the strategic profiling session end-to-end:
 
 ```sh
-LOCAL_DATABASE_URL="file:/absolute/path/to/prisma/local-prod-copy-daylily-catalog.db" \
-USE_TURSO_DB=false \
+DATABASE_URL="file:/absolute/path/to/prisma/local-prod-copy-daylily-catalog.db" \
 pnpm env:dev pnpm profile:queries
 ```
 
@@ -21,8 +20,7 @@ pnpm env:dev bash scripts/db-backup.sh
 ## 2. Run Profiling Session
 
 ```sh
-LOCAL_DATABASE_URL="file:/absolute/path/to/prisma/local-prod-copy-daylily-catalog.db" \
-USE_TURSO_DB=false \
+DATABASE_URL="file:/absolute/path/to/prisma/local-prod-copy-daylily-catalog.db" \
 pnpm env:dev pnpm profile:queries
 ```
 
@@ -49,8 +47,7 @@ Outputs:
 
 ## Environment flags
 
-- `LOCAL_DATABASE_URL`: required; point to local SQLite prod snapshot.
-- `USE_TURSO_DB=false`: required for local SQLite profiling.
+- `DATABASE_URL`: required; point to local SQLite prod snapshot.
 - `BASE_URL` (optional): defaults to `http://localhost:3000`.
 - `PORT` (optional): defaults to `3000`.
 

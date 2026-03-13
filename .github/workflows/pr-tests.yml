@@ -44,7 +44,7 @@ jobs:
     environment: preview
     env:
       SKIP_ENV_VALIDATION: "1"
-      USE_TURSO_DB: "false"
+      DATABASE_URL: "file:./prisma/local-dev.sqlite"
       E2E_PORT: "3100"
       # Clerk
       CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
@@ -55,9 +55,6 @@ jobs:
       STRIPE_WEBHOOK_SECRET: "whsec_test_placeholder"
       # Clerk webhook (placeholder for env validation)
       CLERK_WEBHOOK_SECRET: "whsec_test_placeholder"
-      # Turso (placeholders - not used with USE_TURSO_DB=false)
-      TURSO_DATABASE_URL: "libsql://placeholder.turso.io"
-      TURSO_DATABASE_AUTH_TOKEN: "placeholder"
       # AWS (placeholders - not used in tests)
       AWS_ACCESS_KEY_ID: "placeholder"
       AWS_SECRET_ACCESS_KEY: "placeholder"

@@ -82,7 +82,7 @@ jobs:
           BUILD_APP_BASE_URL: ${{ vars.APP_BASE_URL }}
           BUILD_CLOUDFLARE_URL: ${{ vars.NEXT_PUBLIC_CLOUDFLARE_URL }}
           BUILD_CLERK_PUBLISHABLE_KEY: ${{ vars.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY }}
-          BUILD_TURSO_DATABASE_URL: ${{ vars.TURSO_DATABASE_URL }}
+          BUILD_DATABASE_URL: ${{ vars.DATABASE_URL }}
           BUILD_TURSO_DATABASE_AUTH_TOKEN: ${{ secrets.TURSO_DATABASE_AUTH_TOKEN }}
           BUILD_STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY }}
         run: |
@@ -93,8 +93,8 @@ jobs:
             exit 1
           fi
 
-          if [ -z "$BUILD_TURSO_DATABASE_URL" ] || [ -z "$BUILD_TURSO_DATABASE_AUTH_TOKEN" ]; then
-            echo "Configure TURSO_DATABASE_URL and TURSO_DATABASE_AUTH_TOKEN in the '$BUILD_ENVIRONMENT_NAME' environment." >&2
+          if [ -z "$BUILD_DATABASE_URL" ] || [ -z "$BUILD_TURSO_DATABASE_AUTH_TOKEN" ]; then
+            echo "Configure DATABASE_URL and TURSO_DATABASE_AUTH_TOKEN in the '$BUILD_ENVIRONMENT_NAME' environment." >&2
             exit 1
           fi
 
@@ -103,7 +103,7 @@ jobs:
           NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=$BUILD_CLERK_PUBLISHABLE_KEY
           NEXT_PUBLIC_CLOUDFLARE_URL=$BUILD_CLOUDFLARE_URL
           NEXT_PUBLIC_SENTRY_ENABLED=false
-          TURSO_DATABASE_URL=$BUILD_TURSO_DATABASE_URL
+          DATABASE_URL=$BUILD_DATABASE_URL
           TURSO_DATABASE_AUTH_TOKEN=$BUILD_TURSO_DATABASE_AUTH_TOKEN
           EOF
 

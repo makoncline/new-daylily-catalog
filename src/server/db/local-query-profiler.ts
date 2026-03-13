@@ -1,6 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
-import { type Prisma } from "../../../prisma/generated/sqlite-client/index.js";
+import { type Prisma, type PrismaClient } from "@prisma/client";
 
 const DEFAULT_QUERY_PROFILER_OUTPUT_PATH =
   "tests/.tmp/query-profiler/prisma-query-events.jsonl";
@@ -18,7 +18,6 @@ export interface PrismaQueryProfilerEvent {
 }
 
 interface QueryProfilerContext {
-  useTursoDb: boolean;
   databaseUrl: string;
 }
 
@@ -31,17 +30,28 @@ interface QueryProfilerState {
 
 interface QueryProfilerGlobalState {
   queryProfilerState: QueryProfilerState | undefined;
-  profiledClients: WeakSet<object> | undefined;
+  profiledClients: WeakSet<AnyPrismaClient> | undefined;
   didWarnIneligible: boolean | undefined;
 }
 
-interface PrismaClientWithQueryEvents {
-  $on(eventType: "query", callback: (event: Prisma.QueryEvent) => void): void;
-  $use(middleware: Prisma.Middleware): void;
+interface QueryExtensionParams {
+  model?: string;
+  operation: string;
+  args: unknown;
+  query: (args: unknown) => Promise<unknown>;
 }
 
 const globalForQueryProfiler = globalThis as typeof globalThis &
   QueryProfilerGlobalState;
+
+type AnyPrismaClient = PrismaClient<
+  Prisma.PrismaClientOptions,
+  never
+>;
+type QueryLoggingPrismaClient = PrismaClient<
+  Prisma.PrismaClientOptions,
+  "query"
+>;
 
 function isTruthyEnvValue(value: string | undefined): boolean {
   if (!value) {
@@ -242,11 +252,11 @@ function summarizeArgsShape(args: unknown) {
 }
 
 function buildOperationEventLine(
-  params: Prisma.MiddlewareParams,
+  params: Pick<QueryExtensionParams, "model" | "operation" | "args">,
   durationMs: number,
 ) {
   const modelName = params.model ?? "$query";
-  const actionName = params.action;
+  const actionName = params.operation;
   const argsShape = summarizeArgsShape(params.args);
   const operationPattern = `${modelName}.${actionName}(${argsShape})`;
 
@@ -269,7 +279,7 @@ function canEnableProfiler(context: QueryProfilerContext) {
   }
 
   const isLocalSqliteFile =
-    !context.useTursoDb && context.databaseUrl.startsWith("file:");
+    context.databaseUrl.startsWith("file:");
 
   if (isLocalSqliteFile) {
     return true;
@@ -285,42 +295,31 @@ function canEnableProfiler(context: QueryProfilerContext) {
   return false;
 }
 
-export function attachLocalQueryProfiler(
-  client: PrismaClientWithQueryEvents,
+export function attachLocalQueryProfiler<T extends AnyPrismaClient>(
+  client: T,
   context: QueryProfilerContext,
 ) {
   if (!canEnableProfiler(context)) {
-    return false;
+    return client;
   }
 
   const profiledClients =
-    globalForQueryProfiler.profiledClients ?? new WeakSet<object>();
+    globalForQueryProfiler.profiledClients ?? new WeakSet<AnyPrismaClient>();
   globalForQueryProfiler.profiledClients = profiledClients;
 
-  const clientReference = client as unknown as object;
-  if (profiledClients.has(clientReference)) {
-    return true;
+  if (profiledClients.has(client)) {
+    return client;
   }
 
   const state = getOrCreateState();
   ensureShutdownHooks(state);
 
-  client.$on("query", (event) => {
+  const queryLoggingClient = client as unknown as QueryLoggingPrismaClient;
+  queryLoggingClient.$on("query", (event) => {
     state.writer.write(buildEventLine(event));
   });
 
-  client.$use(async (params, next) => {
-    const startedAt = process.hrtime.bigint();
-
-    try {
-      return (await next(params)) as unknown;
-    } finally {
-      const elapsedMs = Number(process.hrtime.bigint() - startedAt) / 1_000_000;
-      state.writer.write(buildOperationEventLine(params, elapsedMs));
-    }
-  });
-
-  profiledClients.add(clientReference);
+  profiledClients.add(client);
 
   if (state.announceOnAttach) {
     console.info(
@@ -329,5 +328,21 @@ export function attachLocalQueryProfiler(
     state.announceOnAttach = false;
   }
 
-  return true;
+  const extendedClient = client.$extends({
+    query: {
+      async $allOperations(params: QueryExtensionParams) {
+        const startedAt = process.hrtime.bigint();
+
+        try {
+          return await params.query(params.args);
+        } finally {
+          const elapsedMs =
+            Number(process.hrtime.bigint() - startedAt) / 1_000_000;
+          state.writer.write(buildOperationEventLine(params, elapsedMs));
+        }
+      },
+    },
+  });
+
+  return extendedClient as T;
 }
