@@ -93,10 +93,13 @@ describe("dashboardDb public ISR invalidation", () => {
     vi.clearAllMocks();
   });
 
-  it("profile.update invalidates catalogs and the seller root via seller references", async () => {
+  it("profile.update invalidates catalogs, the current seller root, and the previous slug path", async () => {
     const db = {
       userProfile: {
-        findUnique: vi.fn().mockResolvedValue({ slug: "garden" }),
+        findUnique: vi
+          .fn()
+          .mockResolvedValueOnce({ slug: "old-garden" })
+          .mockResolvedValueOnce({ slug: "garden" }),
         upsert: vi.fn().mockResolvedValue({
           id: "profile-1",
           userId: "user-1",
@@ -121,6 +124,7 @@ describe("dashboardDb public ISR invalidation", () => {
 
     expectPathInvalidated("/catalogs");
     expectPathInvalidated("/garden");
+    expectPathInvalidated("/old-garden");
     expectPathNotInvalidated("/garden/page/2");
     expectTagInvalidated(getPublicProfileTag("user-1"));
     expectTagInvalidated(getPublicSellerContentTag("user-1"));
@@ -129,11 +133,12 @@ describe("dashboardDb public ISR invalidation", () => {
     expectTagInvalidated(getPublicForSaleCountTag("user-1"));
   });
 
-  it("listing.update invalidates the seller root and current linked cultivar without touching catalogs", async () => {
+  it("listing.update invalidates catalogs, the seller root, and current linked cultivar", async () => {
     const db = {
       listing: {
         findFirst: vi.fn().mockResolvedValue({
           id: "listing-1",
+          userId: "user-1",
           title: "Old",
           cultivarReference: {
             normalizedName: "lime frosting",
@@ -172,11 +177,15 @@ describe("dashboardDb public ISR invalidation", () => {
 
     expectPathInvalidated("/garden");
     expectPathInvalidated("/cultivar/lime-frosting");
-    expectPathNotInvalidated("/catalogs");
+    expectPathInvalidated("/catalogs");
     expectPathNotInvalidated("/garden/page/2");
     expectTagInvalidated(getPublicListingCardTag("listing-1"));
+    expectTagInvalidated(getPublicProfileTag("user-1"));
+    expectTagInvalidated(getPublicSellerContentTag("user-1"));
+    expectTagInvalidated(getPublicSellerListsTag("user-1"));
+    expectTagInvalidated(getPublicListingsPageTag("user-1"));
+    expectTagInvalidated(getPublicForSaleCountTag("user-1"));
     expectTagInvalidated(getPublicCultivarTag("lime-frosting"));
-    expect(revalidateTagMock.mock.calls).toHaveLength(2);
   });
 
   it("listing.update skips public invalidation for private-note-only edits", async () => {
@@ -344,6 +353,50 @@ describe("dashboardDb public ISR invalidation", () => {
     expectTagInvalidated(getPublicSellerListsTag("user-1"));
     expectTagInvalidated(getPublicListingsPageTag("user-1"));
     expectTagInvalidated(getPublicForSaleCountTag("user-1"));
+  });
+
+  it("list membership mutations also invalidate the listing card tag", async () => {
+    const db = {
+      listing: {
+        findFirst: vi.fn().mockResolvedValue({
+          id: "listing-1",
+        }),
+        findUnique: vi.fn().mockResolvedValue({
+          id: "listing-1",
+          userId: "user-1",
+          cultivarReference: null,
+        }),
+      },
+      list: {
+        findFirst: vi.fn().mockResolvedValue({
+          id: "list-1",
+        }),
+        update: vi.fn().mockResolvedValue({
+          id: "list-1",
+          userId: "user-1",
+          title: "Wishlist",
+          description: null,
+          status: null,
+          createdAt: new Date("2026-01-01T00:00:00.000Z"),
+          updatedAt: new Date("2026-01-01T00:00:00.000Z"),
+          listings: [{ id: "listing-1" }],
+        }),
+      },
+      userProfile: {
+        findUnique: vi.fn().mockResolvedValue({ slug: "garden" }),
+      },
+    };
+
+    const caller = dashboardDbListRouter.createCaller(createContext(db));
+    await caller.addListingToList({
+      listId: "list-1",
+      listingId: "listing-1",
+    });
+
+    expectPathInvalidated("/garden");
+    expectPathNotInvalidated("/catalogs");
+    expectTagInvalidated(getPublicListingCardTag("listing-1"));
+    expectTagInvalidated(getPublicProfileTag("user-1"));
   });
 
   it("profile image updates reuse the seller mapping", async () => {

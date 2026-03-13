@@ -1,7 +1,10 @@
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { protectedProcedure, createTRPCRouter } from "@/server/api/trpc";
-import { buildSellerMutationRefs } from "./public-isr-reference-helpers";
+import {
+  buildListMembershipMutationRefs,
+  buildSellerMutationRefs,
+} from "./public-isr-reference-helpers";
 import { invalidatePublicIsrForReferences } from "./public-isr-invalidation";
 
 const listSelect = {
@@ -174,7 +177,10 @@ export const dashboardDbListRouter = createTRPCRouter({
 
       await invalidatePublicIsrForReferences({
         db: ctx.db,
-        references: buildSellerMutationRefs(ctx.user.id),
+        references: buildListMembershipMutationRefs({
+          listingId: listing.id,
+          userId: ctx.user.id,
+        }),
       });
 
       return updated;

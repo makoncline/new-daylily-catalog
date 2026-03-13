@@ -23,6 +23,7 @@ import type {
 
 interface ApplyPublicInvalidationReferencesInput {
   db: PrismaClient;
+  extraPaths?: RevalidatePathInput[];
   references: PublicInvalidationReference[];
 }
 
@@ -420,17 +421,24 @@ export async function invalidatePublicIsrForReferences(
   input: ApplyPublicInvalidationReferencesInput,
 ): Promise<void> {
   const references = toUniqueReferences(input.references);
-  if (references.length === 0) {
+  const extraPaths = toUniquePathInputs(input.extraPaths ?? []);
+  if (references.length === 0 && extraPaths.length === 0) {
     return;
   }
 
-  const targets = await resolvePublicInvalidationTargets({
-    db: input.db,
-    references,
-  });
+  const targets =
+    references.length > 0
+      ? await resolvePublicInvalidationTargets({
+          db: input.db,
+          references,
+        })
+      : {
+          paths: [],
+          tags: [],
+        };
 
   await applyPublicCacheRevalidations({
-    paths: targets.paths,
+    paths: [...targets.paths, ...extraPaths],
     tags: targets.tags,
   });
 }

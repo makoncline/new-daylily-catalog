@@ -91,6 +91,11 @@ export const dashboardDbUserProfileRouter = createTRPCRouter({
       }),
     )
     .mutation(async ({ ctx, input }) => {
+      const existingProfile = await ctx.db.userProfile.findUnique({
+        where: { userId: ctx.user.id },
+        select: { slug: true },
+      });
+
       const shouldProcessSlug = Object.prototype.hasOwnProperty.call(
         input.data,
         "slug",
@@ -141,6 +146,10 @@ export const dashboardDbUserProfileRouter = createTRPCRouter({
       await invalidatePublicIsrForReferences({
         db: ctx.db,
         references: buildProfileMutationRefs(ctx.user.id),
+        extraPaths:
+          existingProfile?.slug && existingProfile.slug !== profile.slug
+            ? [{ path: `/${existingProfile.slug}` }]
+            : undefined,
       });
 
       return profile;

@@ -185,7 +185,9 @@ export const dashboardDbListingRouter = createTRPCRouter({
 
       await invalidatePublicIsrForReferences({
         db: ctx.db,
-        references: buildListingUpdateRefs(listing.id),
+        references: buildListingUpdateRefs({
+          listingId: listing.id,
+        }),
       });
 
       return updated;
@@ -266,7 +268,9 @@ export const dashboardDbListingRouter = createTRPCRouter({
 
       await invalidatePublicIsrForReferences({
         db: ctx.db,
-        references: buildListingUpdateRefs(listing.id),
+        references: buildListingUpdateRefs({
+          listingId: listing.id,
+        }),
       });
 
       return updated;
@@ -290,6 +294,7 @@ export const dashboardDbListingRouter = createTRPCRouter({
         where: { id: input.id, userId: ctx.user.id },
         select: {
           id: true,
+          userId: true,
           title: true,
           cultivarReference: {
             select: {
@@ -336,7 +341,11 @@ export const dashboardDbListingRouter = createTRPCRouter({
       if (changedPublicFields.length > 0) {
         await invalidatePublicIsrForReferences({
           db: ctx.db,
-          references: buildListingUpdateRefs(existing.id),
+          references: buildListingUpdateRefs({
+            includeCatalogsIndex: true,
+            listingId: existing.id,
+            userId: existing.userId,
+          }),
         });
       }
 

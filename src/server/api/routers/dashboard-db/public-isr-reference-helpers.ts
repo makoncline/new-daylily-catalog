@@ -47,9 +47,17 @@ export function buildProfileMutationRefs(
 }
 
 export function buildListingUpdateRefs(
-  listingId: string,
+  args: {
+    listingId: string;
+    userId?: string;
+    includeCatalogsIndex?: boolean;
+  },
 ): PublicInvalidationReference[] {
-  return [listingRef(listingId)];
+  return [
+    listingRef(args.listingId),
+    ...(args.userId ? [sellerRef(args.userId)] : []),
+    ...(args.includeCatalogsIndex ? [catalogsIndexRef()] : []),
+  ];
 }
 
 export function buildListingCreateOrDeleteRefs(args: {
@@ -87,4 +95,11 @@ export function buildProfileImageMutationRefs(
   userId: string,
 ): PublicInvalidationReference[] {
   return buildProfileMutationRefs(userId);
+}
+
+export function buildListMembershipMutationRefs(args: {
+  listingId: string;
+  userId: string;
+}): PublicInvalidationReference[] {
+  return [sellerRef(args.userId), listingRef(args.listingId)];
 }
