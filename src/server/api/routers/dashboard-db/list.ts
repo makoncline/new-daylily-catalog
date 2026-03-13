@@ -218,7 +218,10 @@ export const dashboardDbListRouter = createTRPCRouter({
 
       await invalidatePublicIsrForReferences({
         db: ctx.db,
-        references: buildSellerMutationRefs(ctx.user.id),
+        references: buildListMembershipMutationRefs({
+          listingId: listing.id,
+          userId: ctx.user.id,
+        }),
       });
 
       return updated;

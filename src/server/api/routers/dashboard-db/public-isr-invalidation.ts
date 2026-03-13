@@ -1,6 +1,5 @@
 import type { PrismaClient } from "@prisma/client";
 import { revalidatePath, revalidateTag } from "next/cache";
-import { env, requireEnv } from "@/env";
 import {
   getPublicCultivarTag,
   getPublicForSaleCountTag,
@@ -11,7 +10,6 @@ import {
   getPublicSellerListsTag,
 } from "@/lib/cache/public-cache-tags";
 import { toCultivarRouteSegment } from "@/lib/utils/cultivar-utils";
-import { getCanonicalBaseUrl } from "@/lib/utils/getBaseUrl";
 import {
   trackPublicIsrPathInvalidation,
   trackPublicIsrTagInvalidation,
@@ -57,7 +55,6 @@ type InvalidationResolver = (
   args: ResolveReferenceArgs,
 ) => Promise<ResolvedPublicInvalidationTargets>;
 
-const INTERNAL_REVALIDATE_ROUTE = "/api/internal/public-cache-revalidate";
 const PUBLIC_ISR_INVALIDATION_SOURCE = "dashboard-db.catalog-mutation";
 
 function shouldIgnoreMissingStaticGenerationStoreError(
@@ -119,14 +116,6 @@ function safeRevalidateTag(tag: string, profile: "max" = "max"): void {
   }
 }
 
-function getTrustedRevalidationOrigin(): string | null {
-  if (process.env.NODE_ENV === "test") {
-    return null;
-  }
-
-  return getCanonicalBaseUrl();
-}
-
 function toUniquePathInputs(
   paths: RevalidatePathInput[],
 ): RevalidatePathInput[] {
@@ -153,44 +142,12 @@ function toUniqueReferences(
 ): PublicInvalidationReference[] {
   return Array.from(
     new Map(
-      references
-        .filter((reference) => reference.referenceId.length > 0)
-        .map((reference) => [
-          `${reference.referenceType}:${reference.referenceId}`,
-          reference,
-        ]),
+      references.map((reference) => [
+        `${reference.referenceType}:${reference.referenceId}`,
+        reference,
+      ]),
     ).values(),
   );
-}
-
-async function runRouteHandlerRevalidation(args: {
-  paths: RevalidatePathInput[];
-  tags: RevalidateTagInput[];
-}): Promise<boolean> {
-  const origin = getTrustedRevalidationOrigin();
-  if (!origin) {
-    return false;
-  }
-
-  try {
-    const response = await fetch(`${origin}${INTERNAL_REVALIDATE_ROUTE}`, {
-      method: "POST",
-      headers: {
-        authorization: `Bearer ${requireEnv("CLERK_WEBHOOK_SECRET", env.CLERK_WEBHOOK_SECRET)}`,
-        "content-type": "application/json",
-      },
-      cache: "no-store",
-      body: JSON.stringify({
-        paths: args.paths,
-        source: PUBLIC_ISR_INVALIDATION_SOURCE,
-        tags: args.tags,
-      }),
-    });
-
-    return response.ok;
-  } catch {
-    return false;
-  }
 }
 
 async function applyPublicCacheRevalidations(args: {
@@ -199,14 +156,6 @@ async function applyPublicCacheRevalidations(args: {
 }): Promise<void> {
   const uniquePaths = toUniquePathInputs(args.paths);
   const uniqueTags = toUniqueTagInputs(args.tags ?? []);
-  const routeHandlerApplied = await runRouteHandlerRevalidation({
-    paths: uniquePaths,
-    tags: uniqueTags,
-  });
-
-  if (routeHandlerApplied) {
-    return;
-  }
 
   uniquePaths.forEach((entry) => {
     safeRevalidatePath(entry.path, entry.type);
