@@ -9,6 +9,12 @@ import type { AppRouter } from "@/server/api/root";
 import type { TRPCInternalContext } from "@/server/api/trpc";
 
 const TMP_DIR = path.join(process.cwd(), "tests", ".tmp");
+const TEMPLATE_DB_PATH = path.join(
+  TMP_DIR,
+  `prisma-schema-template-${process.pid}.sqlite`,
+);
+
+let hasPreparedTemplateDb = false;
 
 function prismaBinPath() {
   const bin = process.platform === "win32" ? "prisma.cmd" : "prisma";
@@ -17,8 +23,11 @@ function prismaBinPath() {
 
 export function createTempSqliteUrl() {
   fs.mkdirSync(TMP_DIR, { recursive: true });
+  ensureTemplateDb();
+
   const file = `test-${Date.now()}-${Math.random().toString(36).slice(2)}.sqlite`;
   const filePath = path.join(TMP_DIR, file);
+  fs.copyFileSync(TEMPLATE_DB_PATH, filePath);
   return { url: `file:${filePath}`, filePath } as const;
 }
 
@@ -66,6 +75,19 @@ export function prismaDbPush(sqliteUrl: string) {
     const stderr = res.stderr ? res.stderr.toString() : "";
     throw new Error(`Failed to run "prisma db push": ${stderr}`);
   }
+}
+
+function ensureTemplateDb() {
+  if (hasPreparedTemplateDb && fs.existsSync(TEMPLATE_DB_PATH)) {
+    return;
+  }
+
+  if (fs.existsSync(TEMPLATE_DB_PATH)) {
+    fs.unlinkSync(TEMPLATE_DB_PATH);
+  }
+
+  prismaDbPush(`file:${TEMPLATE_DB_PATH}`);
+  hasPreparedTemplateDb = true;
 }
 
 type AnyCaller = Record<string, unknown>;
@@ -122,7 +144,6 @@ export async function withTempAppDb<T>(
   );
 
   const { url } = createTempSqliteUrl();
-  prismaDbPush(url);
 
   process.env.DATABASE_URL = url;
   process.env.SKIP_ENV_VALIDATION = "1";
