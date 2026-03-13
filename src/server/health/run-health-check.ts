@@ -1,4 +1,5 @@
 import { HeadBucketCommand, S3Client } from "@aws-sdk/client-s3";
+import type { Prisma } from "@prisma/client";
 import { getCanonicalBaseUrl } from "@/lib/utils/getBaseUrl";
 import { getClerk } from "@/server/clerk/client";
 import { getStripeClient } from "@/server/stripe/client";
@@ -26,7 +27,38 @@ export interface HealthCheckSummary {
   passed: HealthCheckName[];
 }
 
+interface HealthDbClient {
+  user: {
+    findFirst: (args: {
+      select: {
+        id: true;
+        profile?: {
+          select: {
+            slug: true;
+          };
+        };
+      };
+      where?: {
+        listings: {
+          some: Prisma.ListingWhereInput;
+        };
+      };
+    }) => Promise<unknown>;
+  };
+}
+
 const HEALTH_CHECK_TIMEOUT_MS = 5000;
+
+export const healthDependencies = {
+  async getDb(): Promise<HealthDbClient> {
+    const { db } = await import("@/server/db");
+    return db;
+  },
+  async getPublishedListingWhere(): Promise<Prisma.ListingWhereInput> {
+    const { isPublished } = await import("@/server/db/public-visibility/filters");
+    return isPublished();
+  },
+};
 
 function requireProcessEnv(name: string) {
   const value = process.env[name]?.trim();
@@ -103,7 +135,7 @@ async function checkBaseUrl() {
 }
 
 async function checkDatabase() {
-  const { db } = await import("@/server/db");
+  const db = await healthDependencies.getDb();
   await db.user.findFirst({
     select: {
       id: true,
@@ -112,17 +144,30 @@ async function checkDatabase() {
 }
 
 async function checkPublicData() {
-  const [{ getProUserIds }, { getPublicProfilesBase }] = await Promise.all([
-    import("@/server/db/getCachedProUserIds"),
-    import("@/server/db/getPublicProfiles"),
+  const [db, publishedListingWhere] = await Promise.all([
+    healthDependencies.getDb(),
+    healthDependencies.getPublishedListingWhere(),
   ]);
-  const proUserIds = await getProUserIds();
-  await getPublicProfilesBase(proUserIds);
+  await db.user.findFirst({
+    where: {
+      listings: {
+        some: publishedListingWhere,
+      },
+    },
+    select: {
+      id: true,
+      profile: {
+        select: {
+          slug: true,
+        },
+      },
+    },
+  });
 }
 
 async function checkStripe() {
   const stripe = getStripeClient();
-  await stripe.prices.retrieve(requireProcessEnv("STRIPE_PRICE_ID"));
+  await stripe.balance.retrieve();
 }
 
 async function checkS3() {
