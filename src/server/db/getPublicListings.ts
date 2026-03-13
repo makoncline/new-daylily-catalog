@@ -29,13 +29,14 @@ const ahsListingSelect = {
   color: true,
 } as const;
 
-export const listingSelect = {
+export const publicListingSelect = {
   id: true,
   title: true,
   slug: true,
   description: true,
   price: true,
   userId: true,
+  updatedAt: true,
   user: {
     select: {
       profile: {
@@ -64,6 +65,7 @@ export const listingSelect = {
     select: {
       id: true,
       url: true,
+      updatedAt: true,
     },
     orderBy: {
       order: "asc",
@@ -71,9 +73,11 @@ export const listingSelect = {
   },
 } as const;
 
+export const listingSelect = publicListingSelect;
+
 type ListingWithRelations = Awaited<ReturnType<typeof getListings>>[number];
 type ListingPayload = Prisma.ListingGetPayload<{
-  select: typeof listingSelect;
+  select: typeof publicListingSelect;
 }>;
 
 interface GetListingsArgs {
@@ -82,7 +86,7 @@ interface GetListingsArgs {
   cursor?: string;
 }
 
-async function getSortedPublicListingIds(
+export async function getSortedPublicListingIds(
   userId: string,
   options?: {
     forSaleFirst?: boolean;
@@ -126,7 +130,9 @@ async function getSortedPublicListingIds(
   return rows.map((row) => row.id);
 }
 
-async function getListingsByIds(ids: string[]): Promise<ListingPayload[]> {
+export async function getPublicListingRowsByIds(
+  ids: string[],
+): Promise<ListingPayload[]> {
   if (ids.length === 0) {
     return [];
   }
@@ -137,7 +143,7 @@ async function getListingsByIds(ids: string[]): Promise<ListingPayload[]> {
         in: ids,
       },
     },
-    select: listingSelect,
+    select: publicListingSelect,
   });
 
   const rowById = new Map(rows.map((row) => [row.id, row]));
@@ -153,7 +159,7 @@ export async function getListings(args: GetListingsArgs) {
   const startIndex = cursorIndex >= 0 ? cursorIndex + 1 : 0;
   const pageIds = sortedIds.slice(startIndex, startIndex + args.limit + 1);
 
-  return getListingsByIds(pageIds);
+  return getPublicListingRowsByIds(pageIds);
 }
 
 // Helper function to transform listings with AHS image fallback
@@ -170,6 +176,7 @@ export function transformListings(listings: ListingWithRelations[]) {
               {
                 id: `ahs-${listing.id}`,
                 url: displayAhsListing.ahsImageUrl,
+                updatedAt: listing.updatedAt,
               },
             ]
           : listing.images,
@@ -177,6 +184,11 @@ export function transformListings(listings: ListingWithRelations[]) {
   });
 
   return transformed;
+}
+
+export async function getPublicListingCardsByIds(ids: string[]) {
+  const rows = await getPublicListingRowsByIds(ids);
+  return transformListings(rows);
 }
 
 // Get initial page data - optimized for fast first load
@@ -195,18 +207,23 @@ export async function getInitialListings(userSlugOrId: string) {
   }
 }
 
-interface GetPublicListingsPageArgs {
+export interface GetPublicListingsPageArgs {
   userSlugOrId: string;
   page: number;
   pageSize?: number;
 }
 
-export async function getPublicListingsPage({
-  userSlugOrId,
+export interface GetPublicListingsPageIdsForUserIdArgs {
+  userId: string;
+  page: number;
+  pageSize?: number;
+}
+
+export async function getPublicListingsPageIdsForUserId({
+  userId,
   page,
   pageSize = PUBLIC_PROFILE_LISTINGS_PAGE_SIZE,
-}: GetPublicListingsPageArgs) {
-  const userId = await getUserIdFromSlugOrId(userSlugOrId);
+}: GetPublicListingsPageIdsForUserIdArgs) {
   const sortedIds = await getSortedPublicListingIds(userId, {
     forSaleFirst: true,
   });
@@ -214,15 +231,42 @@ export async function getPublicListingsPage({
   const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
   const boundedPage = Math.min(Math.max(page, 1), totalPages);
   const offset = (boundedPage - 1) * pageSize;
-  const pageIds = sortedIds.slice(offset, offset + pageSize);
-  const items = transformListings(await getListingsByIds(pageIds));
+  const ids = sortedIds.slice(offset, offset + pageSize);
 
   return {
-    items,
+    ids,
+    userId,
     page: boundedPage,
     pageSize,
     totalCount,
     totalPages,
+  };
+}
+
+export async function getPublicListingsPageIds({
+  userSlugOrId,
+  page,
+  pageSize = PUBLIC_PROFILE_LISTINGS_PAGE_SIZE,
+}: GetPublicListingsPageArgs) {
+  const userId = await getUserIdFromSlugOrId(userSlugOrId);
+
+  return getPublicListingsPageIdsForUserId({
+    userId,
+    page,
+    pageSize,
+  });
+}
+
+export async function getPublicListingsPage(args: GetPublicListingsPageArgs) {
+  const pageData = await getPublicListingsPageIds(args);
+  const items = await getPublicListingCardsByIds(pageData.ids);
+
+  return {
+    items,
+    page: pageData.page,
+    pageSize: pageData.pageSize,
+    totalCount: pageData.totalCount,
+    totalPages: pageData.totalPages,
   };
 }
 

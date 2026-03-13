@@ -1,6 +1,6 @@
 "use client";
 
-import { Flower2, ListChecks, Clock } from "lucide-react";
+import { Flower2, Clock } from "lucide-react";
 import { OptimizedImage } from "@/components/optimized-image";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -18,27 +18,6 @@ import { H3, Muted } from "@/components/typography";
 import { ImagePlaceholder } from "./image-placeholder";
 import { ImagePopover } from "@/components/image-popover";
 import { LocationBadge } from "./profile/profile-badges";
-
-function UserListsPreview({
-  lists,
-}: {
-  lists: { id: string; title: string; listingCount: number }[];
-}) {
-  if (!lists.length) return null;
-
-  return (
-    <div className="flex max-w-[300px] flex-col gap-2 p-2">
-      {lists.map((list) => (
-        <div key={list.id} className="flex items-center justify-between gap-4">
-          <span className="font-medium">{list.title}</span>
-          <Badge variant="secondary" className="text-xs">
-            {list.listingCount} listings
-          </Badge>
-        </div>
-      ))}
-    </div>
-  );
-}
 
 function getLastUpdatedLabel(date: Date) {
   const now = new Date();
@@ -74,43 +53,19 @@ export function UserCard({
   location,
   images,
   listingCount,
-  listCount,
   hasActiveSubscription,
   createdAt,
   updatedAt,
-  lists,
   slug,
   priority = false,
 }: UserCardProps) {
   const gardenName = title ?? "Unnamed Garden";
   const lastUpdatedLabel = getLastUpdatedLabel(new Date(updatedAt));
   const memberSinceLabel = getMemberSinceLabel(new Date(createdAt));
-
-  // Generate all URL variants for SEO
-  const urlVariations = [
-    `/${id}`, // Canonical path (ID-based)
-  ];
-
-  // Add slug-based variant if it exists
-  if (slug) {
-    urlVariations.push(`/${slug}`);
-  }
-
-  // Use visible path based on slug if available, otherwise ID
   const visiblePath = `/${slug ?? id}`;
 
   return (
     <Card className="group flex h-full flex-col overflow-hidden transition-all hover:border-primary">
-      {/* Add SEO links for all URL variants to prevent orphan pages */}
-      {/* {urlVariations.map((url, index) => (
-        <SEOLink
-          key={`user-seo-link-${index}`}
-          href={url}
-          ariaLabel={`View ${gardenName}'s catalog`}
-          srText={`View ${gardenName}'s catalog`}
-        />
-      ))} */}
-
       <div className="relative">
         <Link href={visiblePath} className="block">
           {images[0]?.url ? (
@@ -196,31 +151,13 @@ export function UserCard({
             </div>
 
             <div className="flex gap-3 text-sm text-muted-foreground">
-              <div className="flex items-center gap-1">
-                <Badge
-                  variant="secondary"
-                  className="flex items-center gap-1 text-xs"
-                >
-                  <Flower2 className="h-3 w-3" />
-                  <span>{listingCount} listings</span>
-                </Badge>
-              </div>
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger>
-                    <Badge
-                      variant="secondary"
-                      className="flex cursor-pointer items-center gap-1 text-xs"
-                    >
-                      <ListChecks className="h-3 w-3" />
-                      <span>{listCount} lists</span>
-                    </Badge>
-                  </TooltipTrigger>
-                  <TooltipContent side="top" align="start" className="p-0">
-                    <UserListsPreview lists={lists} />
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
+              <Badge
+                variant="secondary"
+                className="flex items-center gap-1 text-xs"
+              >
+                <Flower2 className="h-3 w-3" />
+                <span>{listingCount} listings</span>
+              </Badge>
             </div>
           </div>
         </CardContent>

@@ -3,7 +3,10 @@ import { TRPCError } from "@trpc/server";
 import { createTRPCRouter, protectedProcedure } from "@/server/api/trpc";
 import { slugSchema } from "@/types/schemas/profile";
 import { isValidSlug } from "@/lib/utils/slugify";
-import { invalidatePublicIsrForCatalogMutation } from "./public-isr-invalidation";
+import {
+  buildProfileMutationRefs,
+} from "./public-isr-reference-helpers";
+import { invalidatePublicIsrForReferences } from "./public-isr-invalidation";
 import type { PrismaClient } from "@prisma/client";
 
 const profileSelect = {
@@ -88,11 +91,6 @@ export const dashboardDbUserProfileRouter = createTRPCRouter({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      const existingProfile = await ctx.db.userProfile.findUnique({
-        where: { userId: ctx.user.id },
-        select: { slug: true },
-      });
-
       const shouldProcessSlug = Object.prototype.hasOwnProperty.call(
         input.data,
         "slug",
@@ -140,14 +138,9 @@ export const dashboardDbUserProfileRouter = createTRPCRouter({
         select: profileSelect,
       });
 
-      await invalidatePublicIsrForCatalogMutation({
+      await invalidatePublicIsrForReferences({
         db: ctx.db,
-        userId: ctx.user.id,
-        slugCandidates: [
-          ctx.user.id,
-          existingProfile?.slug ?? ctx.user.id,
-          profile.slug ?? ctx.user.id,
-        ],
+        references: buildProfileMutationRefs(ctx.user.id),
       });
 
       return profile;
@@ -156,7 +149,7 @@ export const dashboardDbUserProfileRouter = createTRPCRouter({
   updateContent: protectedProcedure
     .input(z.object({ content: z.string().nullable() }))
     .mutation(async ({ ctx, input }) => {
-      return ctx.db.userProfile.upsert({
+      const profile = await ctx.db.userProfile.upsert({
         where: { userId: ctx.user.id },
         create: {
           userId: ctx.user.id,
@@ -168,5 +161,12 @@ export const dashboardDbUserProfileRouter = createTRPCRouter({
         },
         select: profileSelect,
       });
+
+      await invalidatePublicIsrForReferences({
+        db: ctx.db,
+        references: buildProfileMutationRefs(ctx.user.id),
+      });
+
+      return profile;
     }),
 });

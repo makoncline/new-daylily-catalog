@@ -9,6 +9,11 @@ import crypto from "node:crypto";
 import path from "node:path";
 import { imageTypeSchema } from "@/types/image";
 import type { db } from "@/server/db";
+import {
+  buildListingImageMutationRefs,
+  buildProfileImageMutationRefs,
+} from "./public-isr-reference-helpers";
+import { invalidatePublicIsrForReferences } from "./public-isr-invalidation";
 
 const imageSelect = {
   id: true,
@@ -48,6 +53,16 @@ async function assertProfileOwned(ctx: OwnedContext, userProfileId: string) {
       message: "Profile not found",
     });
   }
+}
+
+function getImageInvalidationReferences(args: {
+  referenceId: string;
+  type: "listing" | "profile";
+  userId: string;
+}) {
+  return args.type === "listing"
+    ? buildListingImageMutationRefs(args.referenceId)
+    : buildProfileImageMutationRefs(args.userId);
 }
 
 export const dashboardDbImageRouter = createTRPCRouter({
@@ -157,7 +172,7 @@ export const dashboardDbImageRouter = createTRPCRouter({
 
       const currentCount = await ctx.db.image.count({ where: whereClause });
 
-      return ctx.db.image.create({
+      const image = await ctx.db.image.create({
         data: {
           url: input.url,
           order: currentCount,
@@ -167,6 +182,17 @@ export const dashboardDbImageRouter = createTRPCRouter({
         },
         select: imageSelect,
       });
+
+      await invalidatePublicIsrForReferences({
+        db: ctx.db,
+        references: getImageInvalidationReferences({
+          referenceId: input.referenceId,
+          type: input.type,
+          userId: ctx.user.id,
+        }),
+      });
+
+      return image;
     }),
 
   update: protectedProcedure
@@ -206,11 +232,22 @@ export const dashboardDbImageRouter = createTRPCRouter({
         });
       }
 
-      return ctx.db.image.update({
+      const image = await ctx.db.image.update({
         where: { id: input.imageId },
         data: { url: input.url },
         select: imageSelect,
       });
+
+      await invalidatePublicIsrForReferences({
+        db: ctx.db,
+        references: getImageInvalidationReferences({
+          referenceId: input.referenceId,
+          type: input.type,
+          userId: ctx.user.id,
+        }),
+      });
+
+      return image;
     }),
 
   reorder: protectedProcedure
@@ -261,6 +298,15 @@ export const dashboardDbImageRouter = createTRPCRouter({
         ),
       );
 
+      await invalidatePublicIsrForReferences({
+        db: ctx.db,
+        references: getImageInvalidationReferences({
+          referenceId: input.referenceId,
+          type: input.type,
+          userId: ctx.user.id,
+        }),
+      });
+
       return { success: true } as const;
     }),
 
@@ -301,6 +347,15 @@ export const dashboardDbImageRouter = createTRPCRouter({
             }),
           ),
         );
+      });
+
+      await invalidatePublicIsrForReferences({
+        db: ctx.db,
+        references: getImageInvalidationReferences({
+          referenceId: input.referenceId,
+          type: input.type,
+          userId: ctx.user.id,
+        }),
       });
 
       return { success: true } as const;

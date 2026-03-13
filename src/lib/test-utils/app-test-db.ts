@@ -8,6 +8,7 @@ import type { AppRouter } from "@/server/api/root";
 import type { TRPCInternalContext } from "@/server/api/trpc";
 
 const TMP_DIR = path.join(process.cwd(), "tests", ".tmp");
+let tempAppDbQueue = Promise.resolve();
 
 function prismaBinPath() {
   const bin = process.platform === "win32" ? "prisma.cmd" : "prisma";
@@ -111,6 +112,14 @@ export function callerLink(caller: AnyCaller): TRPCLink<AppRouter> {
 export async function withTempAppDb<T>(
   fn: (ctx: { user: { id: string } }) => Promise<T> | T,
 ): Promise<T> {
+  const previousRun = tempAppDbQueue;
+  let releaseQueue!: () => void;
+  tempAppDbQueue = new Promise<void>((resolve) => {
+    releaseQueue = resolve;
+  });
+
+  await previousRun;
+
   const envKeys = [
     "USE_TURSO_DB",
     "LOCAL_DATABASE_URL",
@@ -139,60 +148,64 @@ export async function withTempAppDb<T>(
   vi.resetModules();
 
   try {
-    const { db } = await import("@/server/db");
-    const user = await db.user.create({ data: {} });
-
-    const { createCaller } = await import("@/server/api/root");
-    const caller = createCaller(async () => {
-      return {
-        db,
-        headers: new Headers(),
-        _authUser: { id: user.id } as unknown as TRPCInternalContext["_authUser"],
-      } satisfies TRPCInternalContext;
-    });
-
-    const clientLike = createTRPCProxyClient<AppRouter>({
-      links: [callerLink(caller)],
-    });
-
-    const { setTestTrpcClient } = await import("@/trpc/client");
-    setTestTrpcClient(clientLike);
-
-    return await fn({ user: { id: user.id } });
-  } finally {
-    try {
-      const { clearTestTrpcClient } = await import("@/trpc/client");
-      clearTestTrpcClient();
-    } catch {
-      // ignore
-    }
-
     try {
       const { db } = await import("@/server/db");
-      await db.$disconnect();
-    } catch {
-      // ignore
-    }
+      const user = await db.user.create({ data: {} });
 
-    try {
-      (globalThis as unknown as { prisma?: unknown }).prisma = undefined;
-    } catch {
-      // ignore
-    }
+      const { createCaller } = await import("@/server/api/root");
+      const caller = createCaller(async () => {
+        return {
+          db,
+          headers: new Headers(),
+          _authUser: { id: user.id } as unknown as TRPCInternalContext["_authUser"],
+        } satisfies TRPCInternalContext;
+      });
 
-    try {
-      fs.unlinkSync(path.resolve(filePath));
-    } catch {
-      // ignore
-    }
+      const clientLike = createTRPCProxyClient<AppRouter>({
+        links: [callerLink(caller)],
+      });
 
-    for (const key of envKeys) {
-      const value = prevEnv[key];
-      if (typeof value === "undefined") {
-        delete process.env[key];
-      } else {
-        process.env[key] = value;
+      const { setTestTrpcClient } = await import("@/trpc/client");
+      setTestTrpcClient(clientLike);
+
+      return await fn({ user: { id: user.id } });
+    } finally {
+      try {
+        const { clearTestTrpcClient } = await import("@/trpc/client");
+        clearTestTrpcClient();
+      } catch {
+        // ignore
+      }
+
+      try {
+        const { db } = await import("@/server/db");
+        await db.$disconnect();
+      } catch {
+        // ignore
+      }
+
+      try {
+        (globalThis as unknown as { prisma?: unknown }).prisma = undefined;
+      } catch {
+        // ignore
+      }
+
+      try {
+        fs.unlinkSync(path.resolve(filePath));
+      } catch {
+        // ignore
+      }
+
+      for (const key of envKeys) {
+        const value = prevEnv[key];
+        if (typeof value === "undefined") {
+          delete process.env[key];
+        } else {
+          process.env[key] = value;
+        }
       }
     }
+  } finally {
+    releaseQueue();
   }
 }

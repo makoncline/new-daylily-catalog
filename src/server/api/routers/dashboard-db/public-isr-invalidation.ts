@@ -1,21 +1,60 @@
 import type { PrismaClient } from "@prisma/client";
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
 import { env, requireEnv } from "@/env";
+import {
+  getPublicCultivarTag,
+  getPublicForSaleCountTag,
+  getPublicListingCardTag,
+  getPublicListingsPageTag,
+  getPublicProfileTag,
+  getPublicSellerContentTag,
+  getPublicSellerListsTag,
+} from "@/lib/cache/public-cache-tags";
 import { toCultivarRouteSegment } from "@/lib/utils/cultivar-utils";
 import { getCanonicalBaseUrl } from "@/lib/utils/getBaseUrl";
-import { trackPublicIsrPathInvalidation } from "@/server/analytics/public-isr-posthog";
+import {
+  trackPublicIsrPathInvalidation,
+  trackPublicIsrTagInvalidation,
+} from "@/server/analytics/public-isr-posthog";
+import type {
+  PublicInvalidationReference,
+  PublicInvalidationReferenceType,
+} from "@/types/public-types";
 
-interface InvalidatePublicIsrForCatalogMutationInput {
+interface ApplyPublicInvalidationReferencesInput {
   db: PrismaClient;
-  userId: string;
-  slugCandidates?: Array<string | null | undefined>;
-  cultivarNormalizedNames?: Array<string | null | undefined>;
+  references: PublicInvalidationReference[];
 }
 
 interface RevalidatePathInput {
   path: string;
   type?: "page" | "layout";
 }
+
+interface RevalidateTagInput {
+  profile?: "max";
+  tag: string;
+}
+
+interface PublicUserRouteTarget {
+  slug: string;
+  userId: string;
+}
+
+interface ResolvedPublicInvalidationTargets {
+  paths: RevalidatePathInput[];
+  tags: RevalidateTagInput[];
+}
+
+interface ResolveReferenceArgs {
+  db: PrismaClient;
+  getOrLoadUserTarget: (userId: string) => Promise<PublicUserRouteTarget>;
+  reference: PublicInvalidationReference;
+}
+
+type InvalidationResolver = (
+  args: ResolveReferenceArgs,
+) => Promise<ResolvedPublicInvalidationTargets>;
 
 const INTERNAL_REVALIDATE_ROUTE = "/api/internal/public-cache-revalidate";
 const PUBLIC_ISR_INVALIDATION_SOURCE = "dashboard-db.catalog-mutation";
@@ -60,48 +99,26 @@ function safeRevalidatePath(path: string, type?: "page" | "layout"): void {
   }
 }
 
-function toUniqueNonEmpty(values: Array<string | null | undefined>): string[] {
-  const unique = new Set<string>();
-
-  values.forEach((value) => {
-    const normalizedValue = value?.trim();
-    if (normalizedValue) {
-      unique.add(normalizedValue);
+function safeRevalidateTag(tag: string, profile: "max" = "max"): void {
+  try {
+    revalidateTag(tag, profile);
+    trackPublicIsrTagInvalidation({
+      profile,
+      sourcePage: "server:dashboard-db.public-isr-invalidation",
+      tag,
+      transport: "direct",
+      triggerSource: PUBLIC_ISR_INVALIDATION_SOURCE,
+    });
+  } catch (error) {
+    if (shouldIgnoreMissingStaticGenerationStoreError(error)) {
+      return;
     }
-  });
 
-  return Array.from(unique);
-}
-
-async function getCanonicalSlug(
-  db: PrismaClient,
-  userId: string,
-): Promise<string> {
-  const profile = await db.userProfile.findUnique({
-    where: { userId },
-    select: { slug: true },
-  });
-
-  return profile?.slug ?? userId;
-}
-
-function toCultivarSegments(
-  cultivarNormalizedNames: Array<string | null | undefined>,
-): string[] {
-  const segments = new Set<string>();
-
-  cultivarNormalizedNames.forEach((name) => {
-    const segment = toCultivarRouteSegment(name);
-    if (segment) {
-      segments.add(segment);
-    }
-  });
-
-  return Array.from(segments);
+    throw error;
+  }
 }
 
 function getTrustedRevalidationOrigin(): string | null {
-  // Avoid internal loopback fetches during tests and keep unit tests deterministic.
   if (process.env.NODE_ENV === "test") {
     return null;
   }
@@ -122,8 +139,32 @@ function toUniquePathInputs(
   return Array.from(byKey.values());
 }
 
+function toUniqueTagInputs(tags: RevalidateTagInput[]): RevalidateTagInput[] {
+  return Array.from(
+    new Map(
+      tags.map((entry) => [`${entry.profile ?? "max"}:${entry.tag}`, entry]),
+    ).values(),
+  );
+}
+
+function toUniqueReferences(
+  references: PublicInvalidationReference[],
+): PublicInvalidationReference[] {
+  return Array.from(
+    new Map(
+      references
+        .filter((reference) => reference.referenceId.length > 0)
+        .map((reference) => [
+          `${reference.referenceType}:${reference.referenceId}`,
+          reference,
+        ]),
+    ).values(),
+  );
+}
+
 async function runRouteHandlerRevalidation(args: {
   paths: RevalidatePathInput[];
+  tags: RevalidateTagInput[];
 }): Promise<boolean> {
   const origin = getTrustedRevalidationOrigin();
   if (!origin) {
@@ -141,6 +182,7 @@ async function runRouteHandlerRevalidation(args: {
       body: JSON.stringify({
         paths: args.paths,
         source: PUBLIC_ISR_INVALIDATION_SOURCE,
+        tags: args.tags,
       }),
     });
 
@@ -152,11 +194,13 @@ async function runRouteHandlerRevalidation(args: {
 
 async function applyPublicCacheRevalidations(args: {
   paths: RevalidatePathInput[];
+  tags?: RevalidateTagInput[];
 }): Promise<void> {
   const uniquePaths = toUniquePathInputs(args.paths);
-
+  const uniqueTags = toUniqueTagInputs(args.tags ?? []);
   const routeHandlerApplied = await runRouteHandlerRevalidation({
     paths: uniquePaths,
+    tags: uniqueTags,
   });
 
   if (routeHandlerApplied) {
@@ -166,29 +210,227 @@ async function applyPublicCacheRevalidations(args: {
   uniquePaths.forEach((entry) => {
     safeRevalidatePath(entry.path, entry.type);
   });
+
+  uniqueTags.forEach((entry) => {
+    safeRevalidateTag(entry.tag, entry.profile);
+  });
 }
 
-export async function invalidatePublicIsrForCatalogMutation(
-  input: InvalidatePublicIsrForCatalogMutationInput,
-): Promise<void> {
-  const canonicalSlug = await getCanonicalSlug(input.db, input.userId);
-  const slugs = toUniqueNonEmpty([
-    canonicalSlug,
-    ...(input.slugCandidates ?? []),
-  ]);
-  const cultivarSegments = toCultivarSegments(
-    input.cultivarNormalizedNames ?? [],
-  );
-  const pathsToRevalidate: RevalidatePathInput[] = [{ path: "/catalogs" }];
-  slugs.forEach((slug) => {
-    pathsToRevalidate.push({ path: `/${slug}` });
+async function getCanonicalSlug(
+  db: PrismaClient,
+  userId: string,
+): Promise<string> {
+  const profile = await db.userProfile.findUnique({
+    where: { userId },
+    select: { slug: true },
   });
 
-  cultivarSegments.forEach((segment) => {
-    pathsToRevalidate.push({ path: `/cultivar/${segment}` });
+  return profile?.slug ?? userId;
+}
+
+async function getUserRouteTarget(
+  db: PrismaClient,
+  userId: string,
+): Promise<PublicUserRouteTarget> {
+  return {
+    slug: await getCanonicalSlug(db, userId),
+    userId,
+  };
+}
+
+function addUserRootPaths(
+  pathsToRevalidate: RevalidatePathInput[],
+  target: PublicUserRouteTarget,
+) {
+  pathsToRevalidate.push({ path: `/${target.slug}` });
+}
+
+async function resolveListingTarget(
+  db: PrismaClient,
+  listingId: string,
+): Promise<{ cultivarSegment: string | null; userId: string } | null> {
+  const listing = await db.listing.findUnique({
+    where: { id: listingId },
+    select: {
+      userId: true,
+      cultivarReference: {
+        select: {
+          normalizedName: true,
+        },
+      },
+    },
+  });
+
+  if (!listing) {
+    return null;
+  }
+
+  return {
+    cultivarSegment: toCultivarRouteSegment(
+      listing.cultivarReference?.normalizedName,
+    ),
+    userId: listing.userId,
+  };
+}
+
+async function resolveCatalogsIndexReference(): Promise<ResolvedPublicInvalidationTargets> {
+  return {
+    paths: [{ path: "/catalogs" }],
+    tags: [],
+  };
+}
+
+async function resolveCultivarReference(
+  args: ResolveReferenceArgs,
+): Promise<ResolvedPublicInvalidationTargets> {
+  const cultivarSegment = toCultivarRouteSegment(args.reference.referenceId);
+  if (!cultivarSegment) {
+    return {
+      paths: [],
+      tags: [],
+    };
+  }
+
+  return {
+    paths: [{ path: `/cultivar/${cultivarSegment}` }],
+    tags: [{ tag: getPublicCultivarTag(cultivarSegment) }],
+  };
+}
+
+async function resolveListingReference(args: {
+  db: PrismaClient;
+  getOrLoadUserTarget: (userId: string) => Promise<PublicUserRouteTarget>;
+  reference: PublicInvalidationReference;
+}): Promise<ResolvedPublicInvalidationTargets> {
+  const listingTarget = await resolveListingTarget(
+    args.db,
+    args.reference.referenceId,
+  );
+  if (!listingTarget) {
+    return {
+      paths: [],
+      tags: [],
+    };
+  }
+
+  const userTarget = await args.getOrLoadUserTarget(listingTarget.userId);
+  const paths: RevalidatePathInput[] = [];
+  const tags: RevalidateTagInput[] = [
+    {
+      tag: getPublicListingCardTag(args.reference.referenceId),
+    },
+  ];
+
+  addUserRootPaths(paths, userTarget);
+
+  if (listingTarget.cultivarSegment) {
+    paths.push({
+      path: `/cultivar/${listingTarget.cultivarSegment}`,
+    });
+    tags.push({
+      tag: getPublicCultivarTag(listingTarget.cultivarSegment),
+    });
+  }
+
+  return {
+    paths,
+    tags,
+  };
+}
+
+async function resolveSellerReference(args: {
+  getOrLoadUserTarget: (userId: string) => Promise<PublicUserRouteTarget>;
+  reference: PublicInvalidationReference;
+}): Promise<ResolvedPublicInvalidationTargets> {
+  const target = await args.getOrLoadUserTarget(args.reference.referenceId);
+  const paths: RevalidatePathInput[] = [];
+
+  addUserRootPaths(paths, target);
+
+  return {
+    paths,
+    tags: [
+      {
+        tag: getPublicProfileTag(args.reference.referenceId),
+      },
+      {
+        tag: getPublicSellerContentTag(args.reference.referenceId),
+      },
+      {
+        tag: getPublicSellerListsTag(args.reference.referenceId),
+      },
+      {
+        tag: getPublicListingsPageTag(args.reference.referenceId),
+      },
+      {
+        tag: getPublicForSaleCountTag(args.reference.referenceId),
+      },
+    ],
+  };
+}
+
+const INVALIDATION_RESOLVERS: Record<
+  PublicInvalidationReferenceType,
+  InvalidationResolver
+> = {
+  "catalogs:index": async () => resolveCatalogsIndexReference(),
+  cultivar: resolveCultivarReference,
+  listing: resolveListingReference,
+  seller: resolveSellerReference,
+};
+
+async function resolvePublicInvalidationTargets(args: {
+  db: PrismaClient;
+  references: PublicInvalidationReference[];
+}): Promise<ResolvedPublicInvalidationTargets> {
+  const userTargets = new Map<string, PublicUserRouteTarget>();
+
+  async function getOrLoadUserTarget(userId: string) {
+    const existing = userTargets.get(userId);
+    if (existing) {
+      return existing;
+    }
+
+    const target = await getUserRouteTarget(args.db, userId);
+    userTargets.set(userId, target);
+    return target;
+  }
+
+  const resolvedTargets = await Promise.all(
+    args.references.map(async (reference) => {
+      return INVALIDATION_RESOLVERS[reference.referenceType]({
+        db: args.db,
+        getOrLoadUserTarget,
+        reference,
+      });
+    }),
+  );
+
+  return resolvedTargets.reduce<ResolvedPublicInvalidationTargets>(
+    (acc, target) => {
+      acc.paths.push(...target.paths);
+      acc.tags.push(...target.tags);
+      return acc;
+    },
+    { paths: [], tags: [] },
+  );
+}
+
+export async function invalidatePublicIsrForReferences(
+  input: ApplyPublicInvalidationReferencesInput,
+): Promise<void> {
+  const references = toUniqueReferences(input.references);
+  if (references.length === 0) {
+    return;
+  }
+
+  const targets = await resolvePublicInvalidationTargets({
+    db: input.db,
+    references,
   });
 
   await applyPublicCacheRevalidations({
-    paths: pathsToRevalidate,
+    paths: targets.paths,
+    tags: targets.tags,
   });
 }

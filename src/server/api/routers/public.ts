@@ -65,6 +65,7 @@ async function getFullListingData(listingId: string) {
             {
               id: `ahs-${listing.id}`,
               url: displayAhsListing.ahsImageUrl,
+              updatedAt: listing.updatedAt,
             },
           ]
         : listing.images,

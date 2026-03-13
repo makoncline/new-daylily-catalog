@@ -2,7 +2,12 @@ import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { protectedProcedure, createTRPCRouter } from "@/server/api/trpc";
 import { generateUniqueSlug } from "@/lib/utils/slugify-server";
-import { invalidatePublicIsrForCatalogMutation } from "./public-isr-invalidation";
+import {
+  buildListingCreateOrDeleteRefs,
+  buildListingRelationshipRefs,
+  buildListingUpdateRefs,
+} from "./public-isr-reference-helpers";
+import { invalidatePublicIsrForReferences } from "./public-isr-invalidation";
 
 const listingSelect = {
   id: true,
@@ -63,10 +68,12 @@ export const dashboardDbListingRouter = createTRPCRouter({
         select: listingSelect,
       });
 
-      await invalidatePublicIsrForCatalogMutation({
+      await invalidatePublicIsrForReferences({
         db: ctx.db,
-        userId: ctx.user.id,
-        cultivarNormalizedNames: [cultivarReference?.normalizedName],
+        references: buildListingCreateOrDeleteRefs({
+          cultivarSegmentOrName: cultivarReference?.normalizedName,
+          userId: ctx.user.id,
+        }),
       });
 
       return listing;
@@ -141,6 +148,7 @@ export const dashboardDbListingRouter = createTRPCRouter({
         where: { id: input.cultivarReferenceId },
         select: {
           id: true,
+          normalizedName: true,
           ahsListing: { select: { name: true } },
         },
       });
@@ -175,6 +183,11 @@ export const dashboardDbListingRouter = createTRPCRouter({
         select: listingSelect,
       });
 
+      await invalidatePublicIsrForReferences({
+        db: ctx.db,
+        references: buildListingUpdateRefs(listing.id),
+      });
+
       return updated;
     }),
 
@@ -202,10 +215,14 @@ export const dashboardDbListingRouter = createTRPCRouter({
         select: listingSelect,
       });
 
-      await invalidatePublicIsrForCatalogMutation({
+      await invalidatePublicIsrForReferences({
         db: ctx.db,
-        userId: ctx.user.id,
-        cultivarNormalizedNames: [listing.cultivarReference?.normalizedName],
+        references: buildListingRelationshipRefs({
+          currentListingId: listing.id,
+          relatedCultivarSegmentOrNames: [
+            listing.cultivarReference?.normalizedName,
+          ],
+        }),
       });
 
       return updated;
@@ -220,6 +237,7 @@ export const dashboardDbListingRouter = createTRPCRouter({
           id: true,
           cultivarReference: {
             select: {
+              normalizedName: true,
               ahsListing: { select: { name: true } },
             },
           },
@@ -244,6 +262,11 @@ export const dashboardDbListingRouter = createTRPCRouter({
         where: { id: listing.id },
         data: { title: name, slug: nextSlug },
         select: listingSelect,
+      });
+
+      await invalidatePublicIsrForReferences({
+        db: ctx.db,
+        references: buildListingUpdateRefs(listing.id),
       });
 
       return updated;
@@ -306,11 +329,16 @@ export const dashboardDbListingRouter = createTRPCRouter({
         select: listingSelect,
       });
 
-      await invalidatePublicIsrForCatalogMutation({
-        db: ctx.db,
-        userId: ctx.user.id,
-        cultivarNormalizedNames: [existing.cultivarReference?.normalizedName],
-      });
+      const changedPublicFields = Object.keys(input.data).filter(
+        (key) => key !== "privateNote",
+      );
+
+      if (changedPublicFields.length > 0) {
+        await invalidatePublicIsrForReferences({
+          db: ctx.db,
+          references: buildListingUpdateRefs(existing.id),
+        });
+      }
 
       return updated!;
     }),
@@ -357,10 +385,12 @@ export const dashboardDbListingRouter = createTRPCRouter({
         }
       });
 
-      await invalidatePublicIsrForCatalogMutation({
+      await invalidatePublicIsrForReferences({
         db: ctx.db,
-        userId: ctx.user.id,
-        cultivarNormalizedNames: [listing.cultivarReference?.normalizedName],
+        references: buildListingCreateOrDeleteRefs({
+          cultivarSegmentOrName: listing.cultivarReference?.normalizedName,
+          userId: ctx.user.id,
+        }),
       });
 
       return { id: listing.id } as const;
