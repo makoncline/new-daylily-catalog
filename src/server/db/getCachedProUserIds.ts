@@ -3,7 +3,7 @@ import { createServerCache } from "@/lib/cache/server-cache";
 import { db } from "@/server/db";
 import { getProUserIdSet } from "@/server/db/getProUserIdSet";
 
-async function getProUserIds(): Promise<string[]> {
+export async function getProUserIds(): Promise<string[]> {
   const users = await db.user.findMany({
     where: {
       stripeCustomerId: {
