@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
+import { cleanup } from "@testing-library/react";
 import { vi } from "vitest";
 import { createTRPCProxyClient, type TRPCLink } from "@trpc/client";
 import { observable } from "@trpc/server/observable";
@@ -158,6 +159,14 @@ export async function withTempAppDb<T>(
 
     return await fn({ user: { id: user.id } });
   } finally {
+    cleanup();
+
+    const { resetQueryClient } = await import("@/trpc/query-client");
+    await resetQueryClient();
+
+    const { setCurrentUserId } = await import("@/lib/utils/cursor");
+    setCurrentUserId(null);
+
     try {
       const { clearTestTrpcClient } = await import("@/trpc/client");
       clearTestTrpcClient();
