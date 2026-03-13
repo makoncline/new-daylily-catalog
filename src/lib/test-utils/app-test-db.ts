@@ -90,6 +90,10 @@ function ensureTemplateDb() {
   hasPreparedTemplateDb = true;
 }
 
+if (process.env.NODE_ENV === "test") {
+  ensureTemplateDb();
+}
+
 type AnyCaller = Record<string, unknown>;
 
 export function callerLink(caller: AnyCaller): TRPCLink<AppRouter> {
