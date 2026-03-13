@@ -5,6 +5,9 @@ import { PrismaLibSql } from "@prisma/adapter-libsql";
 
 export type E2EPrismaClient = PrismaClient;
 
+const SQLITE_BUSY_TIMEOUT_MS = 15_000;
+const SQLITE_CLEAR_RETRY_DELAYS_MS = [250, 500, 1_000] as const;
+
 function normalizeDbPath(sqliteUrl: string) {
   const p = sqliteUrl.replace(/^file:/, "");
   return path.isAbsolute(p) ? p : path.resolve(process.cwd(), p);
@@ -65,6 +68,43 @@ export function ensureLocalTempDbSafety(url?: string) {
   getTempDbUrl(url);
 }
 
+function isRetryableSqliteCleanupError(error: unknown) {
+  const message = error instanceof Error ? error.message : String(error);
+  return /Operation has timed out|SQLITE_BUSY|database is locked/i.test(message);
+}
+
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function configureSqliteConnection(db: PrismaClient) {
+  await db.$executeRawUnsafe(`PRAGMA busy_timeout = ${SQLITE_BUSY_TIMEOUT_MS}`);
+}
+
+async function clearTempDb(db: PrismaClient) {
+  for (let attempt = 0; attempt <= SQLITE_CLEAR_RETRY_DELAYS_MS.length; attempt++) {
+    try {
+      await db.image.deleteMany();
+      await db.$executeRaw`DELETE FROM "_ListToListing"`;
+      await db.list.deleteMany();
+      await db.listing.deleteMany();
+      await db.userProfile.deleteMany();
+      await db.cultivarReference.deleteMany();
+      await db.ahsListing.deleteMany();
+      await db.keyValue.deleteMany();
+      await db.user.deleteMany();
+      return;
+    } catch (error) {
+      const retryDelay = SQLITE_CLEAR_RETRY_DELAYS_MS[attempt];
+      if (!retryDelay || !isRetryableSqliteCleanupError(error)) {
+        throw error;
+      }
+
+      await sleep(retryDelay);
+    }
+  }
+}
+
 export async function withTempE2EDb<T>(
   fn: (db: PrismaClient) => Promise<T> | T,
   opts?: { clearFirst?: boolean },
@@ -98,20 +138,13 @@ export async function withTempE2EDb<T>(
     log: ["error"],
   });
   await db.$connect();
+  await configureSqliteConnection(db);
+
   try {
     if (opts?.clearFirst !== false) {
-      // Delete in dependency order to satisfy foreign keys
-      await db.image.deleteMany();
-      // Clear join table BEFORE parent tables (schema guarantees this table exists)
-      await db.$executeRaw`DELETE FROM "_ListToListing"`;
-      await db.list.deleteMany();
-      await db.listing.deleteMany();
-      await db.userProfile.deleteMany();
-      await db.cultivarReference.deleteMany();
-      await db.ahsListing.deleteMany();
-      await db.keyValue.deleteMany();
-      await db.user.deleteMany();
+      await clearTempDb(db);
     }
+
     return await fn(db);
   } finally {
     await db.$disconnect();

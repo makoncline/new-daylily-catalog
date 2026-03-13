@@ -168,8 +168,8 @@ export async function withTempAppDb<T>(
     setCurrentUserId(null);
 
     try {
-      const { clearTestTrpcClient } = await import("@/trpc/client");
-      clearTestTrpcClient();
+      const { resetTrpcClient } = await import("@/trpc/client");
+      resetTrpcClient();
     } catch {
       // ignore
     }
