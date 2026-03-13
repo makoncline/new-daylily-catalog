@@ -1,15 +1,16 @@
 import path from "node:path";
 import fs from "node:fs";
-import { PrismaClient } from "../../../prisma/generated/sqlite-client/index.js";
+import { PrismaClient } from "@prisma/client";
+import { PrismaLibSql } from "@prisma/adapter-libsql";
 
-// Export the Prisma client type for use in e2e helpers/tests
 export type E2EPrismaClient = PrismaClient;
 
-const SCHEMA_DIR = path.resolve(process.cwd(), "prisma");
+const SQLITE_BUSY_TIMEOUT_MS = 15_000;
+const SQLITE_CLEAR_RETRY_DELAYS_MS = [250, 500, 1_000] as const;
 
 function normalizeDbPath(sqliteUrl: string) {
   const p = sqliteUrl.replace(/^file:/, "");
-  return path.isAbsolute(p) ? p : path.resolve(SCHEMA_DIR, p);
+  return path.isAbsolute(p) ? p : path.resolve(process.cwd(), p);
 }
 
 export const DEFAULT_TEMP_DB_PATH = path.join(
@@ -20,8 +21,14 @@ export const DEFAULT_TEMP_DB_PATH = path.join(
 
 export function resolveTempDbUrl(pathOrUrl?: string) {
   const value = pathOrUrl ?? DEFAULT_TEMP_DB_PATH;
-  if (value.startsWith("file:")) return value;
-  return path.isAbsolute(value) ? `file:${value}` : `file:${value}`;
+  if (value.startsWith("file:")) {
+    return `file:${normalizeDbPath(value)}`;
+  }
+
+  const absolutePath = path.isAbsolute(value)
+    ? value
+    : path.resolve(process.cwd(), value);
+  return `file:${absolutePath}`;
 }
 
 export function resolveTempDbPath(pathOrUrl?: string) {
@@ -36,10 +43,7 @@ export function assertSafeTestDbUrl(sqliteUrl: string) {
     throw new Error(`Test DB URL must start with "file:". Got: ${sqliteUrl}`);
   }
   const absolute = normalizeDbPath(sqliteUrl);
-  const allowedRoots = [
-    path.resolve(process.cwd(), "tests", ".tmp") + path.sep,
-    path.resolve(process.cwd(), "prisma", "tests", ".tmp") + path.sep,
-  ];
+  const allowedRoots = [path.resolve(process.cwd(), "tests", ".tmp") + path.sep];
   const isAllowed = allowedRoots.some((root) => absolute.startsWith(root));
   if (!isAllowed) {
     throw new Error(
@@ -49,8 +53,8 @@ export function assertSafeTestDbUrl(sqliteUrl: string) {
 }
 
 export function getTempDbUrl(url?: string) {
-  const resolved = url ?? process.env.LOCAL_DATABASE_URL;
-  if (!resolved) throw new Error("LOCAL_DATABASE_URL is not set");
+  const resolved = url ?? process.env.DATABASE_URL;
+  if (!resolved) throw new Error("DATABASE_URL is not set");
   assertSafeTestDbUrl(resolved);
   return resolved;
 }
@@ -61,20 +65,51 @@ export function ensureLocalTempDbSafety(url?: string) {
       "ensureLocalTempDbSafety: BASE_URL set; should not seed/clear in URL mode.",
     );
   }
-  if (process.env.USE_TURSO_DB === "true") {
-    throw new Error(
-      "ensureLocalTempDbSafety: USE_TURSO_DB=true is not allowed in local e2e mode.",
-    );
-  }
   getTempDbUrl(url);
+}
+
+function isRetryableSqliteCleanupError(error: unknown) {
+  const message = error instanceof Error ? error.message : String(error);
+  return /Operation has timed out|SQLITE_BUSY|database is locked/i.test(message);
+}
+
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function configureSqliteConnection(db: PrismaClient) {
+  await db.$executeRawUnsafe(`PRAGMA busy_timeout = ${SQLITE_BUSY_TIMEOUT_MS}`);
+}
+
+async function clearTempDb(db: PrismaClient) {
+  for (let attempt = 0; attempt <= SQLITE_CLEAR_RETRY_DELAYS_MS.length; attempt++) {
+    try {
+      await db.image.deleteMany();
+      await db.$executeRaw`DELETE FROM "_ListToListing"`;
+      await db.list.deleteMany();
+      await db.listing.deleteMany();
+      await db.userProfile.deleteMany();
+      await db.cultivarReference.deleteMany();
+      await db.ahsListing.deleteMany();
+      await db.keyValue.deleteMany();
+      await db.user.deleteMany();
+      return;
+    } catch (error) {
+      const retryDelay = SQLITE_CLEAR_RETRY_DELAYS_MS[attempt];
+      if (!retryDelay || !isRetryableSqliteCleanupError(error)) {
+        throw error;
+      }
+
+      await sleep(retryDelay);
+    }
+  }
 }
 
 export async function withTempE2EDb<T>(
   fn: (db: PrismaClient) => Promise<T> | T,
   opts?: { clearFirst?: boolean },
 ): Promise<T> {
-  // If LOCAL_DATABASE_URL is not set, try to read it from the file written by global-setup
-  if (!process.env.LOCAL_DATABASE_URL) {
+  if (!process.env.DATABASE_URL) {
     const metaFile = path.join(
       process.cwd(),
       "tests",
@@ -84,40 +119,32 @@ export async function withTempE2EDb<T>(
     try {
       const dbPath = fs.readFileSync(metaFile, "utf8").trim();
       if (dbPath) {
-        // Ensure path is absolute and prepend file: prefix
         const absolutePath = path.isAbsolute(dbPath)
           ? dbPath
           : path.resolve(process.cwd(), dbPath);
-        process.env.LOCAL_DATABASE_URL = `file:${absolutePath}`;
+        process.env.DATABASE_URL = `file:${absolutePath}`;
       }
-    } catch {
-      // File doesn't exist, safety check below will fail with clear error
-    }
+    } catch {}
   }
 
-  // Fail fast if safety requirements not met (e.g., BASE_URL mode, wrong DB path)
   ensureLocalTempDbSafety();
 
   const safeUrl = getTempDbUrl();
   const db = new PrismaClient({
-    datasources: { db: { url: safeUrl } },
+    adapter: new PrismaLibSql(
+      { url: safeUrl },
+      { timestampFormat: "unixepoch-ms" },
+    ),
     log: ["error"],
   });
   await db.$connect();
+  await configureSqliteConnection(db);
+
   try {
     if (opts?.clearFirst !== false) {
-      // Delete in dependency order to satisfy foreign keys
-      await db.image.deleteMany();
-      // Clear join table BEFORE parent tables (schema guarantees this table exists)
-      await db.$executeRaw`DELETE FROM "_ListToListing"`;
-      await db.list.deleteMany();
-      await db.listing.deleteMany();
-      await db.userProfile.deleteMany();
-      await db.cultivarReference.deleteMany();
-      await db.ahsListing.deleteMany();
-      await db.keyValue.deleteMany();
-      await db.user.deleteMany();
+      await clearTempDb(db);
     }
+
     return await fn(db);
   } finally {
     await db.$disconnect();

@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
+import { cleanup } from "@testing-library/react";
 import { vi } from "vitest";
 import { createTRPCProxyClient, type TRPCLink } from "@trpc/client";
 import { observable } from "@trpc/server/observable";
@@ -8,6 +9,13 @@ import type { AppRouter } from "@/server/api/root";
 import type { TRPCInternalContext } from "@/server/api/trpc";
 
 const TMP_DIR = path.join(process.cwd(), "tests", ".tmp");
+const TEMPLATE_DB_PATH = path.join(
+  TMP_DIR,
+  `prisma-schema-template-${process.pid}.sqlite`,
+);
+const TEMP_SCHEMA_PATH = path.join(TMP_DIR, `prisma-schema-test-${process.pid}.prisma`);
+
+let hasPreparedTemplateDb = false;
 let tempAppDbQueue = Promise.resolve();
 
 function prismaBinPath() {
@@ -15,10 +23,50 @@ function prismaBinPath() {
   return path.join(process.cwd(), "node_modules", ".bin", bin);
 }
 
+function getPrismaCliMajorVersion() {
+  try {
+    const prismaPackageJson = JSON.parse(
+      fs.readFileSync(
+        path.join(process.cwd(), "node_modules", "prisma", "package.json"),
+        "utf8",
+      ),
+    ) as { version?: string };
+
+    return Number.parseInt(prismaPackageJson.version?.split(".")[0] ?? "0", 10);
+  } catch {
+    return 0;
+  }
+}
+
+function getCliSchemaPath() {
+  const schemaPath = path.join(process.cwd(), "prisma", "schema.prisma");
+  const schema = fs.readFileSync(schemaPath, "utf8");
+
+  if (getPrismaCliMajorVersion() >= 7) {
+    return schemaPath;
+  }
+
+  if (/\bdatasource\s+\w+\s*\{[\s\S]*?\burl\s*=/.test(schema)) {
+    return schemaPath;
+  }
+
+  const patchedSchema = schema.replace(
+    /(datasource\s+\w+\s*\{[\s\S]*?\bprovider\s*=\s*"[^"]+")/,
+    `$1\n  url      = env("DATABASE_URL")`,
+  );
+
+  fs.mkdirSync(TMP_DIR, { recursive: true });
+  fs.writeFileSync(TEMP_SCHEMA_PATH, patchedSchema, "utf8");
+  return TEMP_SCHEMA_PATH;
+}
+
 export function createTempSqliteUrl() {
   fs.mkdirSync(TMP_DIR, { recursive: true });
+  ensureTemplateDb();
+
   const file = `test-${Date.now()}-${Math.random().toString(36).slice(2)}.sqlite`;
   const filePath = path.join(TMP_DIR, file);
+  fs.copyFileSync(TEMPLATE_DB_PATH, filePath);
   return { url: `file:${filePath}`, filePath } as const;
 }
 
@@ -52,20 +100,41 @@ export function prismaDbPush(sqliteUrl: string) {
       ? "info"
       : (rustLog ?? "info");
 
-  const res = spawnSync(prismaBinPath(), ["db", "push", "--skip-generate"], {
-    env: {
-      ...process.env,
-      NODE_OPTIONS: "",
-      RUST_LOG: effectiveRustLog,
-      LOCAL_DATABASE_URL: sqliteUrl,
+  const res = spawnSync(
+    prismaBinPath(),
+    ["db", "push", "--schema", getCliSchemaPath()],
+    {
+      env: {
+        ...process.env,
+        NODE_OPTIONS: "",
+        RUST_LOG: effectiveRustLog,
+        DATABASE_URL: sqliteUrl,
+      },
+      cwd: process.cwd(),
+      stdio: "pipe",
     },
-    cwd: process.cwd(),
-    stdio: "pipe",
-  });
+  );
   if (res.status !== 0) {
     const stderr = res.stderr ? res.stderr.toString() : "";
     throw new Error(`Failed to run "prisma db push": ${stderr}`);
   }
+}
+
+function ensureTemplateDb() {
+  if (hasPreparedTemplateDb && fs.existsSync(TEMPLATE_DB_PATH)) {
+    return;
+  }
+
+  if (fs.existsSync(TEMPLATE_DB_PATH)) {
+    fs.unlinkSync(TEMPLATE_DB_PATH);
+  }
+
+  prismaDbPush(`file:${TEMPLATE_DB_PATH}`);
+  hasPreparedTemplateDb = true;
+}
+
+if (process.env.NODE_ENV === "test") {
+  ensureTemplateDb();
 }
 
 type AnyCaller = Record<string, unknown>;
@@ -120,26 +189,18 @@ export async function withTempAppDb<T>(
 
   await previousRun;
 
-  const envKeys = [
-    "USE_TURSO_DB",
-    "LOCAL_DATABASE_URL",
-    "SKIP_ENV_VALIDATION",
-    "STRIPE_SECRET_KEY",
-  ] as const;
+  const envKeys = ["DATABASE_URL", "SKIP_ENV_VALIDATION", "STRIPE_SECRET_KEY"] as const;
   const prevEnv = Object.fromEntries(
     envKeys.map((key) => [key, process.env[key]]),
   );
 
   const { url, filePath } = createTempSqliteUrl();
-  prismaDbPush(url);
 
-  process.env.USE_TURSO_DB = "false";
-  process.env.LOCAL_DATABASE_URL = url;
+  process.env.DATABASE_URL = url;
   process.env.SKIP_ENV_VALIDATION = "1";
   process.env.STRIPE_SECRET_KEY ??= "sk_test_unit";
 
   try {
-    // Ensure the prisma singleton is recreated for this DB
     (globalThis as unknown as { prisma?: unknown }).prisma = undefined;
   } catch {
     // ignore
@@ -148,64 +209,81 @@ export async function withTempAppDb<T>(
   vi.resetModules();
 
   try {
+    const { db } = await import("@/server/db");
+    const user = await db.user.create({ data: {} });
+
+    const { createCaller } = await import("@/server/api/root");
+    const caller = createCaller(async () => {
+      return {
+        db,
+        headers: new Headers(),
+        _authUser: { id: user.id } as unknown as TRPCInternalContext["_authUser"],
+      } satisfies TRPCInternalContext;
+    });
+
+    const clientLike = createTRPCProxyClient<AppRouter>({
+      links: [callerLink(caller)],
+    });
+
+    const { setTestTrpcClient } = await import("@/trpc/client");
+    setTestTrpcClient(clientLike);
+
+    const { setCurrentUserId } = await import("@/lib/utils/cursor");
+    setCurrentUserId(user.id);
+
+    return await fn({ user: { id: user.id } });
+  } finally {
+    cleanup();
+
+    try {
+      const { resetQueryClient } = await import("@/trpc/query-client");
+      await resetQueryClient();
+    } catch {
+      // ignore
+    }
+
+    try {
+      const { setCurrentUserId } = await import("@/lib/utils/cursor");
+      setCurrentUserId(null);
+    } catch {
+      // ignore
+    }
+
+    try {
+      const { resetTrpcClient } = await import("@/trpc/client");
+      resetTrpcClient();
+    } catch {
+      // ignore
+    }
+
     try {
       const { db } = await import("@/server/db");
-      const user = await db.user.create({ data: {} });
+      await db.$disconnect();
+    } catch {
+      // ignore
+    }
 
-      const { createCaller } = await import("@/server/api/root");
-      const caller = createCaller(async () => {
-        return {
-          db,
-          headers: new Headers(),
-          _authUser: { id: user.id } as unknown as TRPCInternalContext["_authUser"],
-        } satisfies TRPCInternalContext;
-      });
+    try {
+      (globalThis as unknown as { prisma?: unknown }).prisma = undefined;
+    } catch {
+      // ignore
+    }
 
-      const clientLike = createTRPCProxyClient<AppRouter>({
-        links: [callerLink(caller)],
-      });
+    try {
+      fs.unlinkSync(path.resolve(filePath));
+    } catch {
+      // ignore
+    }
 
-      const { setTestTrpcClient } = await import("@/trpc/client");
-      setTestTrpcClient(clientLike);
-
-      return await fn({ user: { id: user.id } });
-    } finally {
-      try {
-        const { clearTestTrpcClient } = await import("@/trpc/client");
-        clearTestTrpcClient();
-      } catch {
-        // ignore
-      }
-
-      try {
-        const { db } = await import("@/server/db");
-        await db.$disconnect();
-      } catch {
-        // ignore
-      }
-
-      try {
-        (globalThis as unknown as { prisma?: unknown }).prisma = undefined;
-      } catch {
-        // ignore
-      }
-
-      try {
-        fs.unlinkSync(path.resolve(filePath));
-      } catch {
-        // ignore
-      }
-
-      for (const key of envKeys) {
-        const value = prevEnv[key];
-        if (typeof value === "undefined") {
-          delete process.env[key];
-        } else {
-          process.env[key] = value;
-        }
+    for (const key of envKeys) {
+      const value = prevEnv[key];
+      if (typeof value === "undefined") {
+        delete process.env[key];
+      } else {
+        process.env[key] = value;
       }
     }
-  } finally {
+
     releaseQueue();
   }
 }

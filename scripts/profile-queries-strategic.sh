@@ -12,9 +12,9 @@ REPORT_OP_MD="${OUTPUT_DIR}/e2e-strategic-report-operation.md"
 REPORT_OP_JSON="${OUTPUT_DIR}/e2e-strategic-report-operation.json"
 SERVER_LOG="${OUTPUT_DIR}/profile-dev.log"
 
-if [[ -z "${LOCAL_DATABASE_URL:-}" ]]; then
-  echo "LOCAL_DATABASE_URL is required. Example:"
-  echo "LOCAL_DATABASE_URL=\"file:/absolute/path/to/prisma/local-prod-copy-daylily-catalog.db\" pnpm env:dev pnpm profile:queries"
+if [[ -z "${DATABASE_URL:-}" ]]; then
+  echo "DATABASE_URL is required. Example:"
+  echo "DATABASE_URL=\"file:/absolute/path/to/prisma/local-prod-copy-daylily-catalog.db\" pnpm env:dev pnpm profile:queries"
   exit 1
 fi
 
@@ -33,7 +33,6 @@ echo "Starting dev server with profiler at ${BASE_URL}..."
 LOCAL_QUERY_PROFILER=1 \
 LOCAL_QUERY_PROFILER_RESET=1 \
 LOCAL_QUERY_PROFILER_OUTPUT="${SESSION_FILE}" \
-USE_TURSO_DB="${USE_TURSO_DB:-false}" \
 PORT="${PORT}" \
 pnpm dev >"${SERVER_LOG}" 2>&1 &
 SERVER_PID=$!

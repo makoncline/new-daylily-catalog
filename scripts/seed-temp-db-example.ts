@@ -155,7 +155,7 @@ async function createCultivarListing({
 
 async function seed() {
   const url = resolveTempDbUrl(readDbArg());
-  process.env.LOCAL_DATABASE_URL = url;
+  process.env.DATABASE_URL = url;
   ensureLocalTempDbSafety();
 
   await withTempE2EDb(

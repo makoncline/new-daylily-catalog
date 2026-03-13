@@ -18,7 +18,7 @@ function runPrismaDbPush(url: string) {
       ? "info"
       : (rustLog ?? "info");
 
-  const args = ["exec", "prisma", "db", "push", "--skip-generate"];
+  const args = ["exec", "prisma", "db", "push"];
   execFileSync(
     getPnpmCommand(),
     args,
@@ -30,7 +30,7 @@ function runPrismaDbPush(url: string) {
         // Work around schema-engine startup failures seen in some local runtimes.
         // Keeping this at info still avoids noisy trace output.
         RUST_LOG: effectiveRustLog,
-        LOCAL_DATABASE_URL: url,
+        DATABASE_URL: url,
       },
     },
   );

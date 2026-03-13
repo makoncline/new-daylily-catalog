@@ -1,7 +1,8 @@
 import fs from "node:fs";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
-import { PrismaClient } from "../prisma/generated/sqlite-client/index.js";
+import { PrismaClient } from "@prisma/client";
+import { PrismaLibSql } from "@prisma/adapter-libsql";
 import { createAuthedUser } from "../src/lib/test-utils/e2e-users";
 import { normalizeCultivarName } from "../src/lib/utils/cultivar-utils";
 
@@ -96,11 +97,11 @@ function runPrismaDbPush(dbUrl: string) {
       ? "info"
       : (rustLog ?? "info");
 
-  execFileSync(getNpxCommand(), ["prisma", "db", "push", "--skip-generate"], {
+  execFileSync(getNpxCommand(), ["prisma", "db", "push"], {
     stdio: "inherit",
     env: {
       ...process.env,
-      LOCAL_DATABASE_URL: dbUrl,
+      DATABASE_URL: dbUrl,
       NODE_OPTIONS: "",
       RUST_LOG: effectiveRustLog,
     },
@@ -240,7 +241,10 @@ async function seedSecondaryUser(
 
 async function seed(dbUrl: string) {
   const db = new PrismaClient({
-    datasources: { db: { url: dbUrl } },
+    adapter: new PrismaLibSql(
+      { url: dbUrl },
+      { timestampFormat: "unixepoch-ms" },
+    ),
     log: ["error"],
   });
 
