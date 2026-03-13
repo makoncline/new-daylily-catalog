@@ -15,6 +15,11 @@ export function clearTestTrpcClient() {
   testOverrideClient = undefined;
 }
 
+export function resetTrpcClient() {
+  testOverrideClient = undefined;
+  trpcClientSingleton = undefined;
+}
+
 export function getTrpcClient() {
   if (testOverrideClient) return testOverrideClient;
   trpcClientSingleton ??= createTRPCClient<AppRouter>({
@@ -22,4 +27,3 @@ export function getTrpcClient() {
   });
   return trpcClientSingleton;
 }
-

@@ -24,7 +24,7 @@ Required environment setup:
   - Variable: `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`
   - Variable: `NEXT_PUBLIC_CLOUDFLARE_URL`
   - Variable: `STRIPE_PRICE_ID`
-  - Variable: `TURSO_DATABASE_URL`
+  - Variable: `DATABASE_URL`
   - Secret: `TURSO_DATABASE_AUTH_TOKEN`
   - Secret: `STRIPE_SECRET_KEY` optional for cold-cache-safe production Docker builds
   - Secret: `DEPLOY_WEBHOOK_TOKEN`
@@ -33,7 +33,7 @@ Required environment setup:
   - Variable: `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`
   - Variable: `NEXT_PUBLIC_CLOUDFLARE_URL`
   - Variable: `STRIPE_PRICE_ID`
-  - Variable: `TURSO_DATABASE_URL`
+  - Variable: `DATABASE_URL` set to the shared seeded preview Turso database
   - Variable: `VERCEL_TEAM`
   - Secret: `CLERK_SECRET_KEY`
   - Secret: `TURSO_DATABASE_AUTH_TOKEN`
@@ -50,7 +50,7 @@ Required environment setup:
 - Internal app port: `3000`
 - Container start command: `node server.js`
 - Container bind address: `0.0.0.0`
-- Recommended database mode: Turso (`USE_TURSO_DB=true`)
+- Recommended database mode: Turso (`DATABASE_URL=libsql://...`)
 
 ## Hostname Strategy
 
@@ -76,12 +76,11 @@ Non-secrets:
 - `AWS_REGION`
 - `AWS_BUCKET_NAME`
 - `STRIPE_PRICE_ID`
-- `USE_TURSO_DB=true`
-- `TURSO_DATABASE_URL`
+- `DATABASE_URL`
 
 Secrets:
 
-- `TURSO_DATABASE_AUTH_TOKEN`
+- `TURSO_DATABASE_AUTH_TOKEN` when `DATABASE_URL` uses `libsql://`
 - `CLERK_SECRET_KEY`
 - `CLERK_WEBHOOK_SECRET`
 - `STRIPE_SECRET_KEY`
@@ -98,9 +97,9 @@ Optional:
 
 ### Optional local SQLite runtime mode
 
-If you choose `USE_TURSO_DB=false`, set:
+If you choose local SQLite instead of Turso, set:
 
-- `LOCAL_DATABASE_URL=file:/data/daylilycatalog.sqlite`
+- `DATABASE_URL=file:/data/daylilycatalog.sqlite`
 
 And mount a persistent volume at `/data`.
 
@@ -149,7 +148,7 @@ install -d -o 1001 -g 1001 /srv/stacks/daylilycatalog/next-cache
 
 ## External Dependencies
 
-- Turso/libSQL database if `USE_TURSO_DB=true`
+- Turso/libSQL database when `DATABASE_URL` uses `libsql://`
 - Clerk
 - Stripe
 - AWS S3 bucket for image storage
@@ -180,8 +179,8 @@ For a non-Vercel CI build that still generates correct public metadata and sitem
 - `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`
 - `NEXT_PUBLIC_CLOUDFLARE_URL`
 - `NEXT_PUBLIC_SENTRY_ENABLED=false`
-- `TURSO_DATABASE_URL`
-- `TURSO_DATABASE_AUTH_TOKEN`
+- `DATABASE_URL`
+- `TURSO_DATABASE_AUTH_TOKEN` when `DATABASE_URL` uses `libsql://`
 
 Notes:
 

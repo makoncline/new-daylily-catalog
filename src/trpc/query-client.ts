@@ -33,3 +33,13 @@ export function getQueryClient() {
   clientQueryClientSingleton ??= createQueryClient();
   return clientQueryClientSingleton;
 }
+
+export async function resetQueryClient() {
+  if (!clientQueryClientSingleton) {
+    return;
+  }
+
+  await clientQueryClientSingleton.cancelQueries();
+  clientQueryClientSingleton.clear();
+  clientQueryClientSingleton = undefined;
+}

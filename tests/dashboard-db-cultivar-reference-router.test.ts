@@ -4,9 +4,7 @@ import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import type { TRPCInternalContext } from "@/server/api/trpc";
 
 process.env.SKIP_ENV_VALIDATION = "1";
-process.env.LOCAL_DATABASE_URL ??= "file:./tests/.tmp/dashboard-db-cultivar-reference.sqlite";
-process.env.TURSO_DATABASE_URL ??= "libsql://unit-test-db";
-process.env.TURSO_DATABASE_AUTH_TOKEN ??= "unit-test-token";
+process.env.DATABASE_URL ??= "file:./tests/.tmp/dashboard-db-cultivar-reference.sqlite";
 
 type RouterModule = typeof import("@/server/api/routers/dashboard-db/cultivar-reference");
 let dashboardDbCultivarReferenceRouter: RouterModule["dashboardDbCultivarReferenceRouter"];

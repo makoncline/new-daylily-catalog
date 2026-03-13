@@ -9,10 +9,6 @@ import { withSentryConfig } from "@sentry/nextjs";
 const config = {
   output: "standalone",
 
-  outputFileTracingIncludes: {
-    "/*": ["./prisma/generated/sqlite-client/**/*"],
-  },
-
   images: {
     remotePatterns: [{ hostname: "daylilycatalog.com" }],
     qualities: [75],

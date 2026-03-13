@@ -5,9 +5,7 @@ import type { TRPCInternalContext } from "@/server/api/trpc";
 import { withTempAppDb } from "@/lib/test-utils/app-test-db";
 
 process.env.SKIP_ENV_VALIDATION = "1";
-process.env.LOCAL_DATABASE_URL ??= "file:./tests/.tmp/stripe-router-integration.sqlite";
-process.env.TURSO_DATABASE_URL ??= "libsql://unit-test-db";
-process.env.TURSO_DATABASE_AUTH_TOKEN ??= "unit-test-token";
+process.env.DATABASE_URL ??= "file:./tests/.tmp/stripe-router-integration.sqlite";
 process.env.STRIPE_SECRET_KEY ??= "sk_test_unit";
 process.env.STRIPE_PRICE_ID ??= "price_test_unit";
 

@@ -5,9 +5,7 @@ import type { TRPCInternalContext } from "@/server/api/trpc";
 import { SUBSCRIPTION_CONFIG } from "@/config/subscription-config";
 
 process.env.SKIP_ENV_VALIDATION = "1";
-process.env.LOCAL_DATABASE_URL ??= "file:./tests/.tmp/stripe-router.sqlite";
-process.env.TURSO_DATABASE_URL ??= "libsql://unit-test-db";
-process.env.TURSO_DATABASE_AUTH_TOKEN ??= "unit-test-token";
+process.env.DATABASE_URL ??= "file:./tests/.tmp/stripe-router.sqlite";
 process.env.CLERK_SECRET_KEY ??= "sk_test_clerk";
 process.env.CLERK_WEBHOOK_SECRET ??= "whsec_test_clerk";
 process.env.STRIPE_SECRET_KEY ??= "sk_test_stripe";

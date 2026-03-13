@@ -25,9 +25,9 @@ export default async function globalSetup(_config: FullConfig) {
   if (process.env.BASE_URL) return;
 
   // Write DB path for tests to read
-  const url = process.env.LOCAL_DATABASE_URL;
+  const url = process.env.DATABASE_URL;
   if (!url) {
-    throw new Error("LOCAL_DATABASE_URL must be set by playwright.config.ts");
+    throw new Error("DATABASE_URL must be set by playwright.config.ts");
   }
 
   const filePath = url.replace(/^file:/, "");

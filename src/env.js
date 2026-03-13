@@ -4,27 +4,16 @@ import * as dotenv from "dotenv";
 import path from "path";
 
 const booleanStringSchema = z.union([z.literal("true"), z.literal("false")]);
-
-// Load the appropriate .env file before creating env
 const envFile =
   process.env.NODE_ENV === "production"
     ? ".env.production"
     : ".env.development";
 dotenv.config({ path: path.resolve(process.cwd(), envFile), quiet: true });
 
-const useTursoDbDefault =
-  process.env.NODE_ENV === "production" ? "true" : "false";
-
 export const env = createEnv({
-  /**
-   * Specify your server-side environment variables schema here. This way you can ensure the app
-   * isn't built with invalid env vars.
-   */
   server: {
     APP_BASE_URL: z.string().url().optional(),
-    USE_TURSO_DB: booleanStringSchema.optional().default(useTursoDbDefault),
-    LOCAL_DATABASE_URL: z.string().optional(),
-    TURSO_DATABASE_URL: z.string().optional(),
+    DATABASE_URL: z.string().optional(),
     TURSO_DATABASE_AUTH_TOKEN: z.string().optional(),
     CLERK_SECRET_KEY: z.string().optional(),
     CLERK_WEBHOOK_SECRET: z.string().optional(),
@@ -37,12 +26,6 @@ export const env = createEnv({
     AWS_BUCKET_NAME: z.string().optional(),
     NODE_ENV: z.enum(["development", "test", "production"]),
   },
-
-  /**
-   * Specify your client-side environment variables schema here. This way you can ensure the app
-   * isn't built with invalid env vars. To expose them to the client, prefix them with
-   * `NEXT_PUBLIC_`.
-   */
   client: {
     NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: z.string(),
     NEXT_PUBLIC_CLOUDFLARE_URL: z.string(),
@@ -56,16 +39,9 @@ export const env = createEnv({
       .optional()
       .default("https://us.i.posthog.com"),
   },
-
-  /**
-   * You can't destruct `process.env` as a regular object in the Next.js edge runtimes (e.g.
-   * middlewares) or client-side so we need to destruct manually.
-   */
   runtimeEnv: {
     APP_BASE_URL: process.env.APP_BASE_URL,
-    USE_TURSO_DB: process.env.USE_TURSO_DB,
-    LOCAL_DATABASE_URL: process.env.LOCAL_DATABASE_URL,
-    TURSO_DATABASE_URL: process.env.TURSO_DATABASE_URL,
+    DATABASE_URL: process.env.DATABASE_URL,
     TURSO_DATABASE_AUTH_TOKEN: process.env.TURSO_DATABASE_AUTH_TOKEN,
     CLERK_SECRET_KEY: process.env.CLERK_SECRET_KEY,
     CLERK_WEBHOOK_SECRET: process.env.CLERK_WEBHOOK_SECRET,
@@ -84,21 +60,23 @@ export const env = createEnv({
     NEXT_PUBLIC_POSTHOG_KEY: process.env.NEXT_PUBLIC_POSTHOG_KEY,
     NEXT_PUBLIC_POSTHOG_HOST: process.env.NEXT_PUBLIC_POSTHOG_HOST,
   },
-  /**
-   * Run `build` or `dev` with `SKIP_ENV_VALIDATION` to skip env validation. This is especially
-   * useful for Docker builds.
-   */
   skipValidation: !!process.env.SKIP_ENV_VALIDATION,
-  /**
-   * Makes it so that empty strings are treated as undefined.
-   * `SOME_VAR: z.string()` and `SOME_VAR=''` will throw an error.
-   */
   emptyStringAsUndefined: true,
 });
 
-export const useTursoDb =
-  env.USE_TURSO_DB === "true" ||
-  (env.NODE_ENV === "production" && env.USE_TURSO_DB !== "false");
+/**
+ * @param {string} value
+ */
+export function isLibsqlDatabaseUrl(value) {
+  return value.startsWith("libsql://");
+}
+
+/**
+ * @param {string} value
+ */
+export function isFileDatabaseUrl(value) {
+  return value.startsWith("file:");
+}
 
 /**
  * @template T
@@ -115,14 +93,26 @@ export function requireEnv(name, value) {
 }
 
 if (!process.env.SKIP_ENV_VALIDATION) {
-  if (useTursoDb) {
-    if (!env.TURSO_DATABASE_URL || !env.TURSO_DATABASE_AUTH_TOKEN) {
-      throw new Error(
-        "USE_TURSO_DB requires TURSO_DATABASE_URL and TURSO_DATABASE_AUTH_TOKEN.",
-      );
-    }
-  } else if (!env.LOCAL_DATABASE_URL) {
-    throw new Error("USE_TURSO_DB=false requires LOCAL_DATABASE_URL.");
+  if (!env.DATABASE_URL) {
+    throw new Error("DATABASE_URL is required.");
+  }
+
+  if (
+    !isFileDatabaseUrl(env.DATABASE_URL) &&
+    !isLibsqlDatabaseUrl(env.DATABASE_URL)
+  ) {
+    throw new Error(
+      "DATABASE_URL must start with file: for local SQLite or libsql:// for Turso.",
+    );
+  }
+
+  if (
+    isLibsqlDatabaseUrl(env.DATABASE_URL) &&
+    !env.TURSO_DATABASE_AUTH_TOKEN
+  ) {
+    throw new Error(
+      "TURSO_DATABASE_AUTH_TOKEN is required for libsql:// DATABASE_URL values.",
+    );
   }
 
   const hasVercelHost =

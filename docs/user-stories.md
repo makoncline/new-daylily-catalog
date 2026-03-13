@@ -12,8 +12,8 @@ Document every user action available on each app page by exploring the UI (not t
 
 ## Commands
 
-- Temp DB paths must live under `prisma/tests/.tmp` (safety guard).
-- Default temp DB file URL: `file:tests/.tmp/ui-listings.sqlite` (Prisma resolves it under `prisma/`).
+- Temp DB paths must live under `tests/.tmp` (safety guard).
+- Default temp DB file URL: `file:/absolute/path/to/tests/.tmp/ui-listings.sqlite`.
 - Create a new temp DB (schema only):
 ```sh
 npx tsx scripts/create-temp-db.ts
@@ -24,7 +24,7 @@ npx tsx scripts/seed-temp-db-example.ts
 ```
 - Run the app against the temp DB:
 ```sh
-LOCAL_DATABASE_URL="file:tests/.tmp/ui-listings.sqlite" npm run dev
+DATABASE_URL="file:/absolute/path/to/tests/.tmp/ui-listings.sqlite" npm run dev
 ```
 - Reset the temp DB (fresh schema):
 ```sh
@@ -34,7 +34,7 @@ npx tsx scripts/create-temp-db.ts
 ```sh
 npx tsx scripts/create-temp-db.ts --db tests/.tmp/custom-temp.sqlite
 npx tsx scripts/seed-temp-db-example.ts --db tests/.tmp/custom-temp.sqlite
-LOCAL_DATABASE_URL="file:tests/.tmp/custom-temp.sqlite" npm run dev
+DATABASE_URL="file:/absolute/path/to/tests/.tmp/custom-temp.sqlite" npm run dev
 ```
 
 ## Tips
