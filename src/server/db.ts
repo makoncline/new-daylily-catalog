@@ -1,6 +1,12 @@
 import { PrismaClient } from "@prisma/client";
+import { PrismaBetterSqlite3 } from "@prisma/adapter-better-sqlite3";
 import { PrismaLibSql } from "@prisma/adapter-libsql";
-import { env, requireEnv } from "@/env";
+import {
+  env,
+  isFileDatabaseUrl,
+  isLibsqlDatabaseUrl,
+  requireEnv,
+} from "@/env";
 import { type Prisma } from "@prisma/client";
 import { attachLocalQueryProfiler } from "@/server/db/local-query-profiler";
 
@@ -25,6 +31,27 @@ function getLocalSqliteLogConfig() {
 }
 
 const createPrismaClient = () => {
+  if (isFileDatabaseUrl(databaseUrl)) {
+    const adapter = new PrismaBetterSqlite3(
+      { url: databaseUrl },
+      {
+        timestampFormat: "unixepoch-ms",
+      },
+    );
+
+    return attachLocalQueryProfiler(
+      new PrismaClient({
+        adapter,
+        log: getLocalSqliteLogConfig(),
+      }),
+      { databaseUrl },
+    );
+  }
+
+  if (!isLibsqlDatabaseUrl(databaseUrl)) {
+    throw new Error(`Unsupported DATABASE_URL: ${databaseUrl}`);
+  }
+
   const adapter = new PrismaLibSql(
     {
       url: databaseUrl,
@@ -39,9 +66,7 @@ const createPrismaClient = () => {
   return attachLocalQueryProfiler(
     new PrismaClient({
       adapter,
-      log: databaseUrl.startsWith("file:")
-        ? getLocalSqliteLogConfig()
-        : ["error"],
+      log: ["error"],
     }),
     { databaseUrl },
   );

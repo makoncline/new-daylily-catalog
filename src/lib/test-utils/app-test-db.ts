@@ -121,7 +121,7 @@ export async function withTempAppDb<T>(
     envKeys.map((key) => [key, process.env[key]]),
   );
 
-  const { url, filePath } = createTempSqliteUrl();
+  const { url } = createTempSqliteUrl();
   prismaDbPush(url);
 
   process.env.DATABASE_URL = url;
@@ -183,12 +183,6 @@ export async function withTempAppDb<T>(
 
     try {
       (globalThis as unknown as { prisma?: unknown }).prisma = undefined;
-    } catch {
-      // ignore
-    }
-
-    try {
-      fs.unlinkSync(path.resolve(filePath));
     } catch {
       // ignore
     }
