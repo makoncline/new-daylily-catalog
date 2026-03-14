@@ -91,8 +91,22 @@ describe("dashboardDb public ISR invalidation", () => {
     vi.clearAllMocks();
   });
 
-  it("profile.update invalidates catalogs, the current seller root, and the previous slug path", async () => {
+  it("profile.update invalidates catalogs, seller roots, previous slug path, and linked cultivar pages", async () => {
     const db = {
+      listing: {
+        findMany: vi.fn().mockResolvedValue([
+          {
+            cultivarReference: {
+              normalizedName: "lime frosting",
+            },
+          },
+          {
+            cultivarReference: {
+              normalizedName: "happy returns",
+            },
+          },
+        ]),
+      },
       userProfile: {
         findUnique: vi
           .fn()
@@ -123,12 +137,16 @@ describe("dashboardDb public ISR invalidation", () => {
     expectPathInvalidated("/catalogs");
     expectPathInvalidated("/garden");
     expectPathInvalidated("/old-garden");
+    expectPathInvalidated("/cultivar/lime-frosting");
+    expectPathInvalidated("/cultivar/happy-returns");
     expectPathNotInvalidated("/garden/page/2");
     expectTagInvalidated(getPublicProfileTag("user-1"));
     expectTagInvalidated(getPublicSellerContentTag("user-1"));
     expectTagInvalidated(getPublicSellerListsTag("user-1"));
     expectTagInvalidated(getPublicListingsPageTag("user-1"));
     expectTagInvalidated(getPublicForSaleCountTag("user-1"));
+    expectTagInvalidated(getPublicCultivarTag("lime-frosting"));
+    expectTagInvalidated(getPublicCultivarTag("happy-returns"));
   });
 
   it("listing.update invalidates catalogs, the seller root, and current linked cultivar", async () => {
@@ -316,7 +334,7 @@ describe("dashboardDb public ISR invalidation", () => {
     expectTagInvalidated(getPublicCultivarTag("old-cultivar"));
   });
 
-  it("list mutations invalidate the seller root and seller tags without touching catalogs", async () => {
+  it("list title updates also invalidate linked listing cards and cultivars", async () => {
     const db = {
       list: {
         updateMany: vi.fn().mockResolvedValue({ count: 1 }),
@@ -328,8 +346,24 @@ describe("dashboardDb public ISR invalidation", () => {
           status: null,
           createdAt: new Date("2026-01-01T00:00:00.000Z"),
           updatedAt: new Date("2026-01-01T00:00:00.000Z"),
-          listings: [],
+          listings: [{ id: "listing-1" }, { id: "listing-2" }],
         }),
+      },
+      listing: {
+        findUnique: vi
+          .fn()
+          .mockResolvedValueOnce({
+            id: "listing-1",
+            userId: "user-1",
+            cultivarReference: {
+              normalizedName: "lime frosting",
+            },
+          })
+          .mockResolvedValueOnce({
+            id: "listing-2",
+            userId: "user-1",
+            cultivarReference: null,
+          }),
       },
       userProfile: {
         findUnique: vi.fn().mockResolvedValue({ slug: "garden" }),
@@ -345,12 +379,16 @@ describe("dashboardDb public ISR invalidation", () => {
     });
 
     expectPathInvalidated("/garden");
+    expectPathInvalidated("/cultivar/lime-frosting");
     expectPathNotInvalidated("/catalogs");
+    expectTagInvalidated(getPublicListingCardTag("listing-1"));
+    expectTagInvalidated(getPublicListingCardTag("listing-2"));
     expectTagInvalidated(getPublicProfileTag("user-1"));
     expectTagInvalidated(getPublicSellerContentTag("user-1"));
     expectTagInvalidated(getPublicSellerListsTag("user-1"));
     expectTagInvalidated(getPublicListingsPageTag("user-1"));
     expectTagInvalidated(getPublicForSaleCountTag("user-1"));
+    expectTagInvalidated(getPublicCultivarTag("lime-frosting"));
   });
 
   it("list membership mutations also invalidate the listing card tag", async () => {
@@ -397,7 +435,7 @@ describe("dashboardDb public ISR invalidation", () => {
     expectTagInvalidated(getPublicProfileTag("user-1"));
   });
 
-  it("profile image updates reuse the seller mapping", async () => {
+  it("profile image updates also invalidate linked cultivar pages", async () => {
     const db = {
       image: {
         findUnique: vi.fn().mockResolvedValue({
@@ -416,6 +454,25 @@ describe("dashboardDb public ISR invalidation", () => {
           status: null,
         }),
       },
+      listing: {
+        findMany: vi.fn().mockResolvedValue([
+          {
+            cultivarReference: {
+              normalizedName: "lime frosting",
+            },
+          },
+          {
+            cultivarReference: {
+              normalizedName: "happy returns",
+            },
+          },
+          {
+            cultivarReference: {
+              normalizedName: "lime frosting",
+            },
+          },
+        ]),
+      },
       userProfile: {
         findFirst: vi.fn().mockResolvedValue({ id: "profile-1" }),
         findUnique: vi.fn().mockResolvedValue({ slug: "garden" }),
@@ -432,10 +489,14 @@ describe("dashboardDb public ISR invalidation", () => {
 
     expectPathInvalidated("/catalogs");
     expectPathInvalidated("/garden");
+    expectPathInvalidated("/cultivar/lime-frosting");
+    expectPathInvalidated("/cultivar/happy-returns");
     expectTagInvalidated(getPublicProfileTag("user-1"));
     expectTagInvalidated(getPublicSellerContentTag("user-1"));
     expectTagInvalidated(getPublicSellerListsTag("user-1"));
     expectTagInvalidated(getPublicListingsPageTag("user-1"));
     expectTagInvalidated(getPublicForSaleCountTag("user-1"));
+    expectTagInvalidated(getPublicCultivarTag("lime-frosting"));
+    expectTagInvalidated(getPublicCultivarTag("happy-returns"));
   });
 });

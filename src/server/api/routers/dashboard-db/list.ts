@@ -3,6 +3,7 @@ import { TRPCError } from "@trpc/server";
 import { protectedProcedure, createTRPCRouter } from "@/server/api/trpc";
 import {
   buildListMembershipMutationRefs,
+  buildListUpdateRefs,
   buildSellerMutationRefs,
 } from "./public-isr-reference-helpers";
 import { invalidatePublicIsrForReferences } from "./public-isr-invalidation";
@@ -111,7 +112,10 @@ export const dashboardDbListRouter = createTRPCRouter({
       await invalidatePublicIsrForReferences({
         db: ctx.db,
         requestUrl: ctx.requestUrl,
-        references: buildSellerMutationRefs(ctx.user.id),
+        references: buildListUpdateRefs({
+          listingIds: list?.listings.map((listing) => listing.id) ?? [],
+          userId: ctx.user.id,
+        }),
       });
 
       return list;

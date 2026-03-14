@@ -12,6 +12,7 @@ import type { db } from "@/server/db";
 import {
   buildListingImageMutationRefs,
   buildProfileImageMutationRefs,
+  getSellerCultivarMutationRefs,
 } from "./public-isr-reference-helpers";
 import { invalidatePublicIsrForReferences } from "./public-isr-invalidation";
 
@@ -55,14 +56,20 @@ async function assertProfileOwned(ctx: OwnedContext, userProfileId: string) {
   }
 }
 
-function getImageInvalidationReferences(args: {
+async function getImageInvalidationReferences(args: {
+  db: DbClient;
   referenceId: string;
   type: "listing" | "profile";
   userId: string;
 }) {
   return args.type === "listing"
     ? buildListingImageMutationRefs(args.referenceId)
-    : buildProfileImageMutationRefs(args.userId);
+    : buildProfileImageMutationRefs(args.userId).concat(
+        await getSellerCultivarMutationRefs({
+          db: args.db,
+          userId: args.userId,
+        }),
+      );
 }
 
 export const dashboardDbImageRouter = createTRPCRouter({
@@ -186,7 +193,8 @@ export const dashboardDbImageRouter = createTRPCRouter({
       await invalidatePublicIsrForReferences({
         db: ctx.db,
         requestUrl: ctx.requestUrl,
-        references: getImageInvalidationReferences({
+        references: await getImageInvalidationReferences({
+          db: ctx.db,
           referenceId: input.referenceId,
           type: input.type,
           userId: ctx.user.id,
@@ -242,7 +250,8 @@ export const dashboardDbImageRouter = createTRPCRouter({
       await invalidatePublicIsrForReferences({
         db: ctx.db,
         requestUrl: ctx.requestUrl,
-        references: getImageInvalidationReferences({
+        references: await getImageInvalidationReferences({
+          db: ctx.db,
           referenceId: input.referenceId,
           type: input.type,
           userId: ctx.user.id,
@@ -303,7 +312,8 @@ export const dashboardDbImageRouter = createTRPCRouter({
       await invalidatePublicIsrForReferences({
         db: ctx.db,
         requestUrl: ctx.requestUrl,
-        references: getImageInvalidationReferences({
+        references: await getImageInvalidationReferences({
+          db: ctx.db,
           referenceId: input.referenceId,
           type: input.type,
           userId: ctx.user.id,
@@ -355,7 +365,8 @@ export const dashboardDbImageRouter = createTRPCRouter({
       await invalidatePublicIsrForReferences({
         db: ctx.db,
         requestUrl: ctx.requestUrl,
-        references: getImageInvalidationReferences({
+        references: await getImageInvalidationReferences({
+          db: ctx.db,
           referenceId: input.referenceId,
           type: input.type,
           userId: ctx.user.id,

@@ -3,7 +3,6 @@ import {
   getPublicCatalogsTag,
   getPublicCultivarSummaryTag,
   getPublicCultivarTag,
-  getPublicProfileTag,
 } from "@/lib/cache/public-cache-tags";
 import {
   createKeyedServerCache,
@@ -41,11 +40,7 @@ const getCachedPublicCatalogCardsByUserIds = createKeyedServerCache(
     }),
   {
     getKeyParts: (userIds: string[]) => ["public:catalog-cards", ...userIds],
-    getTags: (userIds: string[]) =>
-      [
-        getPublicCatalogsTag(),
-        ...userIds.map((userId) => getPublicProfileTag(userId)),
-      ],
+    getTags: () => [getPublicCatalogsTag()],
     revalidateSeconds: CACHE_CONFIG.PUBLIC.STATIC_REVALIDATE_SECONDS,
   },
 );

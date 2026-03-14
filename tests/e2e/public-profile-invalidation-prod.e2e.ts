@@ -3,7 +3,8 @@ import type { APIRequestContext, Page } from "@playwright/test";
 import { test, expect } from "./fixtures/app-fixtures";
 
 const TEST_EMAIL = "makon+clerk_test@hey.com";
-const SECONDARY_PROFILE_SLUG = "secondary-seeded-daylily-01";
+const UNRELATED_PROFILE_SLUG = "rolling-oaks-daylilies";
+const UNRELATED_PROFILE_TITLE = "Rolling Oaks Daylilies";
 const RELATED_CULTIVAR_PATH = "/cultivar/coffee-frenzy";
 const UNRELATED_CULTIVAR_PATH = "/cultivar/goldenzelle";
 const CATALOGS_PATH = "/catalogs";
@@ -176,7 +177,8 @@ test.describe("public invalidation smoke @prod", () => {
     const profilePath = await getCurrentProfilePath(page);
     await warmRouteAndExpectHit(request, CATALOGS_PATH);
     await warmRouteAndExpectHit(request, profilePath);
-    await warmRouteAndExpectHit(request, `/${SECONDARY_PROFILE_SLUG}`);
+    await warmRouteAndExpectHit(request, RELATED_CULTIVAR_PATH);
+    await warmRouteAndExpectHit(request, `/${UNRELATED_PROFILE_SLUG}`);
 
     await dashboardProfile.goto();
     await dashboardProfile.isReady();
@@ -191,14 +193,19 @@ test.describe("public invalidation smoke @prod", () => {
       path: profilePath,
       request,
     });
+    await expectRouteContains({
+      expectedText: nextTitle,
+      path: RELATED_CULTIVAR_PATH,
+      request,
+    });
 
     await page.goto(`${profilePath}/search`, { waitUntil: "networkidle" });
     await page.reload({ waitUntil: "networkidle" });
     await expect(page.getByText(nextTitle).first()).toBeVisible();
 
     await expectRouteStaysWarmAndContains({
-      expectedText: "Secondary Seed Farm 01",
-      path: `/${SECONDARY_PROFILE_SLUG}`,
+      expectedText: UNRELATED_PROFILE_TITLE,
+      path: `/${UNRELATED_PROFILE_SLUG}`,
       request,
     });
   });
@@ -214,7 +221,7 @@ test.describe("public invalidation smoke @prod", () => {
 
     await warmRouteAndExpectHit(request, profilePath);
     await warmRouteAndExpectHit(request, RELATED_CULTIVAR_PATH);
-    await warmRouteAndExpectHit(request, `/${SECONDARY_PROFILE_SLUG}`);
+    await warmRouteAndExpectHit(request, `/${UNRELATED_PROFILE_SLUG}`);
     await warmRouteAndExpectHit(request, UNRELATED_CULTIVAR_PATH);
 
     await openTargetListingForEdit({
@@ -240,8 +247,63 @@ test.describe("public invalidation smoke @prod", () => {
     });
 
     await expectRouteStaysWarmAndContains({
-      expectedText: "Secondary Seed Farm 01",
-      path: `/${SECONDARY_PROFILE_SLUG}`,
+      expectedText: UNRELATED_PROFILE_TITLE,
+      path: `/${UNRELATED_PROFILE_SLUG}`,
+      request,
+    });
+    await expectRouteStaysWarmAndContains({
+      expectedText: "Goldenzelle",
+      path: UNRELATED_CULTIVAR_PATH,
+      request,
+    });
+  });
+
+  test("list title update refreshes seller and cultivar listing cards while leaving catalogs and unrelated routes warm", async ({
+    page,
+    request,
+    dashboardLists,
+  }) => {
+    await signIn(page);
+    const profilePath = await getCurrentProfilePath(page);
+
+    await warmRouteAndExpectHit(request, profilePath);
+    await warmRouteAndExpectHit(request, RELATED_CULTIVAR_PATH);
+    await warmRouteAndExpectHit(request, CATALOGS_PATH);
+    await warmRouteAndExpectHit(request, `/${UNRELATED_PROFILE_SLUG}`);
+    await warmRouteAndExpectHit(request, UNRELATED_CULTIVAR_PATH);
+
+    await dashboardLists.goto();
+    await dashboardLists.isReady();
+    await dashboardLists.setGlobalSearch(SECOND_LIST_TITLE);
+    await expect(dashboardLists.listRow(SECOND_LIST_TITLE)).toBeVisible();
+    await dashboardLists.openFirstVisibleRowActions();
+    await dashboardLists.chooseRowActionEdit();
+    await expect(dashboardLists.editDialog()).toBeVisible();
+
+    const nextListTitle = uniqueValue("Show Winners");
+    await dashboardLists.editTitleInput().fill(nextListTitle);
+    await dashboardLists.saveChangesButton().click();
+    await expect(page.getByText("List updated")).toBeVisible();
+
+    await expectRouteContains({
+      expectedText: nextListTitle,
+      path: profilePath,
+      request,
+    });
+    await expectRouteContains({
+      expectedText: nextListTitle,
+      path: RELATED_CULTIVAR_PATH,
+      request,
+    });
+
+    await expectRouteStaysWarmAndContains({
+      expectedText: "Browse Daylily Catalogs",
+      path: CATALOGS_PATH,
+      request,
+    });
+    await expectRouteStaysWarmAndContains({
+      expectedText: UNRELATED_PROFILE_TITLE,
+      path: `/${UNRELATED_PROFILE_SLUG}`,
       request,
     });
     await expectRouteStaysWarmAndContains({
@@ -262,7 +324,7 @@ test.describe("public invalidation smoke @prod", () => {
 
     await warmRouteAndExpectHit(request, profilePath);
     await warmRouteAndExpectHit(request, CATALOGS_PATH);
-    await warmRouteAndExpectHit(request, `/${SECONDARY_PROFILE_SLUG}`);
+    await warmRouteAndExpectHit(request, `/${UNRELATED_PROFILE_SLUG}`);
 
     await openTargetListingForEdit({
       title: TARGET_LISTING_TITLE,
@@ -291,8 +353,8 @@ test.describe("public invalidation smoke @prod", () => {
       request,
     });
     await expectRouteStaysWarmAndContains({
-      expectedText: "Secondary Seed Farm 01",
-      path: `/${SECONDARY_PROFILE_SLUG}`,
+      expectedText: UNRELATED_PROFILE_TITLE,
+      path: `/${UNRELATED_PROFILE_SLUG}`,
       request,
     });
   });
@@ -306,7 +368,7 @@ test.describe("public invalidation smoke @prod", () => {
 
     const oldProfilePath = await getCurrentProfilePath(page);
     await warmRouteAndExpectHit(request, oldProfilePath);
-    await warmRouteAndExpectHit(request, `/${SECONDARY_PROFILE_SLUG}`);
+    await warmRouteAndExpectHit(request, `/${UNRELATED_PROFILE_SLUG}`);
 
     await dashboardProfile.goto();
     await dashboardProfile.isReady();
@@ -329,8 +391,8 @@ test.describe("public invalidation smoke @prod", () => {
     expect(oldPathSnapshot.status).toBe(404);
 
     await expectRouteStaysWarmAndContains({
-      expectedText: "Secondary Seed Farm 01",
-      path: `/${SECONDARY_PROFILE_SLUG}`,
+      expectedText: UNRELATED_PROFILE_TITLE,
+      path: `/${UNRELATED_PROFILE_SLUG}`,
       request,
     });
   });

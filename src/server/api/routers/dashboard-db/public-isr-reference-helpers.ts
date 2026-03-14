@@ -1,3 +1,4 @@
+import type { PrismaClient } from "@prisma/client";
 import type { PublicInvalidationReference } from "@/types/public-types";
 
 export function catalogsIndexRef(): PublicInvalidationReference {
@@ -102,4 +103,41 @@ export function buildListMembershipMutationRefs(args: {
   userId: string;
 }): PublicInvalidationReference[] {
   return [sellerRef(args.userId), listingRef(args.listingId)];
+}
+
+export function buildListUpdateRefs(args: {
+  listingIds: string[];
+  userId: string;
+}): PublicInvalidationReference[] {
+  return [
+    sellerRef(args.userId),
+    ...args.listingIds.map((listingId) => listingRef(listingId)),
+  ];
+}
+
+export async function getSellerCultivarMutationRefs(args: {
+  db: PrismaClient;
+  userId: string;
+}): Promise<PublicInvalidationReference[]> {
+  const listings = await args.db.listing.findMany({
+    where: {
+      userId: args.userId,
+      cultivarReference: {
+        normalizedName: {
+          not: null,
+        },
+      },
+    },
+    select: {
+      cultivarReference: {
+        select: {
+          normalizedName: true,
+        },
+      },
+    },
+  });
+
+  return listings.flatMap((listing) =>
+    cultivarRef(listing.cultivarReference?.normalizedName),
+  );
 }

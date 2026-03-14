@@ -5,6 +5,7 @@ import { slugSchema } from "@/types/schemas/profile";
 import { isValidSlug } from "@/lib/utils/slugify";
 import {
   buildProfileMutationRefs,
+  getSellerCultivarMutationRefs,
 } from "./public-isr-reference-helpers";
 import { invalidatePublicIsrForReferences } from "./public-isr-invalidation";
 import type { PrismaClient } from "@prisma/client";
@@ -146,7 +147,12 @@ export const dashboardDbUserProfileRouter = createTRPCRouter({
       await invalidatePublicIsrForReferences({
         db: ctx.db,
         requestUrl: ctx.requestUrl,
-        references: buildProfileMutationRefs(ctx.user.id),
+        references: buildProfileMutationRefs(ctx.user.id).concat(
+          await getSellerCultivarMutationRefs({
+            db: ctx.db,
+            userId: ctx.user.id,
+          }),
+        ),
         extraPaths:
           existingProfile?.slug && existingProfile.slug !== profile.slug
             ? [{ path: `/${existingProfile.slug}` }]
@@ -175,7 +181,12 @@ export const dashboardDbUserProfileRouter = createTRPCRouter({
       await invalidatePublicIsrForReferences({
         db: ctx.db,
         requestUrl: ctx.requestUrl,
-        references: buildProfileMutationRefs(ctx.user.id),
+        references: buildProfileMutationRefs(ctx.user.id).concat(
+          await getSellerCultivarMutationRefs({
+            db: ctx.db,
+            userId: ctx.user.id,
+          }),
+        ),
       });
 
       return profile;
