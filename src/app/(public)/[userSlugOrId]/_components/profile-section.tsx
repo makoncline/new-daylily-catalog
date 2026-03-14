@@ -44,7 +44,7 @@ export function ProfileSection({ profile }: ProfileSectionProps) {
 
       <div className="flex gap-2">
         <ListingCountBadge count={profile._count.listings} />
-        <ListCountBadge count={profile.lists.length} lists={profile.lists} />
+        <ListCountBadge count={profile.listCount} lists={profile.lists} />
       </div>
 
       <FloatingCartButton

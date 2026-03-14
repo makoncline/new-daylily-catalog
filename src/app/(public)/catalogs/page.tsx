@@ -83,7 +83,7 @@ export default async function CatalogsPage() {
       itemListElement: catalogs.slice(0, 100).map((catalog, index) => ({
         "@type": "ListItem",
         position: index + 1,
-        url: `${baseUrl}/${catalog.id}`,
+        url: `${baseUrl}/${catalog.slug ?? catalog.id}`,
         name: catalog.title ?? "Unnamed Garden",
         ...(catalog.description && {
           description: catalog.description,
@@ -114,7 +114,7 @@ export default async function CatalogsPage() {
         name: "What can I see in a public daylily catalog?",
         acceptedAnswer: {
           "@type": "Answer",
-          text: "Each catalog can include listing photos, descriptions, prices, and curated lists that help you explore a grower’s collection.",
+          text: "Each catalog can include listing photos, descriptions, prices, and grower details that help you explore a collection.",
         },
       },
       {

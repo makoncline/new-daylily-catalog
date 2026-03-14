@@ -19,6 +19,7 @@ interface CatalogSeoListingsProps {
   totalPages: number;
   totalCount: number;
   forSaleCount: number;
+  showListSummaries?: boolean;
 }
 
 export function CatalogSeoListings({
@@ -29,6 +30,7 @@ export function CatalogSeoListings({
   totalPages,
   totalCount,
   forSaleCount,
+  showListSummaries = true,
 }: CatalogSeoListingsProps) {
   const searchHref =
     page > 1
@@ -37,60 +39,62 @@ export function CatalogSeoListings({
 
   return (
     <div className="space-y-8">
-      <div id="lists" className="space-y-4">
-        <H2 className="text-2xl">Lists</H2>
+      {showListSummaries && (
+        <div id="lists" className="space-y-4">
+          <H2 className="text-2xl">Lists</H2>
 
-        {profileLists.length > 0 || forSaleCount > 0 ? (
-          <div className="grid gap-4 sm:grid-cols-2">
-            {forSaleCount > 0 && (
-              <Link href={`/${canonicalUserSlug}/search?price=true`}>
-                <Card className="group h-full transition-all hover:shadow-md">
-                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
-                    <CardTitle className="group-hover:text-primary text-lg font-semibold">
-                      For Sale
-                    </CardTitle>
-                    <Badge variant="secondary" className="h-7">
-                      {forSaleCount} listings
-                    </Badge>
-                  </CardHeader>
-                  <CardContent>
-                    <P className="text-muted-foreground line-clamp-2 leading-relaxed">
-                      Browse only listings currently marked for sale.
-                    </P>
-                  </CardContent>
-                </Card>
-              </Link>
-            )}
-
-            {profileLists.map((list) => (
-              <Link
-                key={list.id}
-                href={`/${canonicalUserSlug}/search?lists=${encodeURIComponent(list.id)}`}
-              >
-                <Card className="group h-full transition-all hover:shadow-md">
-                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
-                    <CardTitle className="group-hover:text-primary text-lg font-semibold">
-                      {list.title}
-                    </CardTitle>
-                    <Badge variant="secondary" className="h-7">
-                      {list.listingCount} listings
-                    </Badge>
-                  </CardHeader>
-                  {list.description && (
+          {profileLists.length > 0 || forSaleCount > 0 ? (
+            <div className="grid gap-4 sm:grid-cols-2">
+              {forSaleCount > 0 && (
+                <Link href={`/${canonicalUserSlug}/search?price=true`}>
+                  <Card className="group h-full transition-all hover:shadow-md">
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
+                      <CardTitle className="group-hover:text-primary text-lg font-semibold">
+                        For Sale
+                      </CardTitle>
+                      <Badge variant="secondary" className="h-7">
+                        {forSaleCount} listings
+                      </Badge>
+                    </CardHeader>
                     <CardContent>
                       <P className="text-muted-foreground line-clamp-2 leading-relaxed">
-                        {list.description}
+                        Browse only listings currently marked for sale.
                       </P>
                     </CardContent>
-                  )}
-                </Card>
-              </Link>
-            ))}
-          </div>
-        ) : (
-          <Muted>No lists available.</Muted>
-        )}
-      </div>
+                  </Card>
+                </Link>
+              )}
+
+              {profileLists.map((list) => (
+                <Link
+                  key={list.id}
+                  href={`/${canonicalUserSlug}/search?lists=${encodeURIComponent(list.id)}`}
+                >
+                  <Card className="group h-full transition-all hover:shadow-md">
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
+                      <CardTitle className="group-hover:text-primary text-lg font-semibold">
+                        {list.title}
+                      </CardTitle>
+                      <Badge variant="secondary" className="h-7">
+                        {list.listingCount} listings
+                      </Badge>
+                    </CardHeader>
+                    {list.description && (
+                      <CardContent>
+                        <P className="text-muted-foreground line-clamp-2 leading-relaxed">
+                          {list.description}
+                        </P>
+                      </CardContent>
+                    )}
+                  </Card>
+                </Link>
+              ))}
+            </div>
+          ) : (
+            <Muted>No lists available.</Muted>
+          )}
+        </div>
+      )}
 
       <div id="listings" className="space-y-4">
         <div className="space-y-2">

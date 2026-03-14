@@ -1,6 +1,5 @@
 import { notFound, permanentRedirect } from "next/navigation";
 import { type Metadata } from "next";
-import { cache } from "react";
 import { MainContent } from "@/app/(public)/_components/main-content";
 import { Breadcrumbs } from "@/components/breadcrumbs";
 import { METADATA_CONFIG } from "@/config/constants";
@@ -26,10 +25,6 @@ import { generateCultivarJsonLd } from "./_seo/json-ld";
 export const revalidate = false;
 export const dynamic = "force-static";
 
-const getRequestCultivarPage = cache(async (cultivarNormalizedName: string) =>
-  getCachedPublicCultivarPage(cultivarNormalizedName),
-);
-
 interface PageProps {
   params: Promise<{
     cultivarNormalizedName: string;
@@ -40,7 +35,7 @@ export async function generateMetadata({
   params,
 }: PageProps): Promise<Metadata> {
   const { cultivarNormalizedName } = await params;
-  const cultivarPage = await getRequestCultivarPage(cultivarNormalizedName);
+  const cultivarPage = await getCachedPublicCultivarPage(cultivarNormalizedName);
 
   if (!cultivarPage) {
     return {
@@ -104,7 +99,7 @@ export async function generateMetadata({
 export default async function CultivarPage({ params }: PageProps) {
   const { cultivarNormalizedName } = await params;
 
-  const cultivarPage = await getRequestCultivarPage(cultivarNormalizedName);
+  const cultivarPage = await getCachedPublicCultivarPage(cultivarNormalizedName);
 
   if (!cultivarPage) {
     notFound();

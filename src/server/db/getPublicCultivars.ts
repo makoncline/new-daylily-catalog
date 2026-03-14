@@ -4,8 +4,9 @@ import {
 } from "@/lib/utils/cultivar-utils";
 import { db } from "@/server/db";
 import { getCachedProUserIds } from "@/server/db/getCachedProUserIds";
+import { getPublicListingCardsByIds } from "@/server/db/getPublicListings";
+import { getPublicSellerSummariesByUserIds } from "@/server/db/public-seller-data";
 import {
-  isPublished,
   shouldShowToPublic,
 } from "@/server/db/public-visibility/filters";
 
@@ -135,14 +136,31 @@ function getCultivarSpecs(ahsListing: CultivarAhsListing | null) {
   };
 }
 
-function getMaxDate(dates: Array<Date | undefined>): Date | undefined {
+function toDate(value: Date | string | null | undefined): Date | undefined {
+  if (!value) {
+    return undefined;
+  }
+
+  if (value instanceof Date) {
+    return value;
+  }
+
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? undefined : parsed;
+}
+
+function getMaxDate(
+  dates: Array<Date | string | null | undefined>,
+): Date | undefined {
   return dates.reduce<Date | undefined>((latest, value) => {
-    if (!value) {
+    const nextValue = toDate(value);
+
+    if (!nextValue) {
       return latest;
     }
 
-    if (!latest || value.getTime() > latest.getTime()) {
-      return value;
+    if (!latest || nextValue.getTime() > latest.getTime()) {
+      return nextValue;
     }
 
     return latest;
@@ -152,12 +170,13 @@ function getMaxDate(dates: Array<Date | undefined>): Date | undefined {
 function getBestMatchScore(offer: {
   price: number | null;
   imageCount: number;
-  updatedAt: Date;
+  updatedAt: Date | string;
 }) {
+  const updatedAt = toDate(offer.updatedAt);
   return {
     forSale: offer.price !== null ? 1 : 0,
     imageCount: offer.imageCount,
-    updatedAt: offer.updatedAt.getTime(),
+    updatedAt: updatedAt?.getTime() ?? 0,
   };
 }
 
@@ -165,13 +184,13 @@ function sortOffersBestMatch(
   a: {
     price: number | null;
     imageCount: number;
-    updatedAt: Date;
+    updatedAt: Date | string;
     title: string;
   },
   b: {
     price: number | null;
     imageCount: number;
-    updatedAt: Date;
+    updatedAt: Date | string;
     title: string;
   },
 ) {
@@ -362,7 +381,7 @@ export async function getCultivarSitemapEntries(): Promise<
   );
 }
 
-export async function getPublicCultivarPage(cultivarSegment: string) {
+async function getPublicCultivarReference(cultivarSegment: string) {
   const canonicalSegment = toCultivarRouteSegment(cultivarSegment);
   if (!canonicalSegment) {
     return null;
@@ -389,119 +408,176 @@ export async function getPublicCultivarPage(cultivarSegment: string) {
     return null;
   }
 
-  const listingRows = await db.listing.findMany({
+  return {
+    canonicalSegment,
+    cultivarReference,
+    proUserIds,
+  };
+}
+
+async function getCultivarListingIds(args: {
+  cultivarReferenceId: string;
+  proUserIds: string[];
+}) {
+  return db.listing.findMany({
     where: {
-      cultivarReferenceId: cultivarReference.id,
-      ...shouldShowToPublic(proUserIds),
+      cultivarReferenceId: args.cultivarReferenceId,
+      ...shouldShowToPublic(args.proUserIds),
     },
     select: {
       id: true,
-      title: true,
-      slug: true,
-      price: true,
-      description: true,
-      updatedAt: true,
-      userId: true,
-      images: {
-        select: {
-          id: true,
-          url: true,
-          updatedAt: true,
-        },
-        orderBy: {
-          order: "asc",
-        },
-      },
-      lists: {
-        select: {
-          id: true,
-          title: true,
-        },
-        orderBy: {
-          title: "asc",
-        },
-      },
     },
+    orderBy: [{ title: "asc" }, { id: "asc" }],
+  });
+}
+
+export async function getPublicCultivarListingIds(
+  cultivarSegment: string,
+): Promise<string[] | null> {
+  const referenceData = await getPublicCultivarReference(cultivarSegment);
+  if (!referenceData) {
+    return null;
+  }
+
+  const rows = await getCultivarListingIds({
+    cultivarReferenceId: referenceData.cultivarReference.id,
+    proUserIds: referenceData.proUserIds,
   });
 
-  const userIds = Array.from(
-    new Set(listingRows.map((listing) => listing.userId)),
-  );
+  return rows.map((row) => row.id);
+}
 
-  const users = await db.user.findMany({
-    where: {
-      id: {
-        in: userIds,
-      },
-    },
-    select: {
-      id: true,
-      createdAt: true,
-      profile: {
-        select: {
-          slug: true,
-          title: true,
-          description: true,
-          location: true,
-          updatedAt: true,
-          images: {
-            orderBy: {
-              order: "asc",
-            },
-            select: {
-              id: true,
-              url: true,
-            },
-            take: 1,
-          },
-        },
-      },
-      _count: {
-        select: {
-          listings: {
-            where: isPublished(),
-          },
-          lists: true,
-        },
-      },
-    },
+function getCultivarUserIds(
+  listingCards: Awaited<ReturnType<typeof getCultivarListingCards>>,
+) {
+  return Array.from(new Set(listingCards.map((listing) => listing.userId)));
+}
+
+async function getSellerSummariesForCultivarListings(
+  listingCards: Awaited<ReturnType<typeof getCultivarListingCards>>,
+  activeUserIds: readonly string[],
+) {
+  return getPublicSellerSummariesByUserIds(getCultivarUserIds(listingCards), {
+    activeUserIds,
   });
+}
 
-  const userById = new Map(
-    users.map((user) => [
-      user.id,
-      {
-        userId: user.id,
-        slug: user.profile?.slug ?? user.id,
-        title: user.profile?.title ?? user.profile?.slug ?? "Unnamed Garden",
-        createdAt: user.createdAt,
-        updatedAt: user.profile?.updatedAt ?? user.createdAt,
-        description: user.profile?.description ?? null,
-        location: user.profile?.location ?? null,
-        listingCount: user._count.listings,
-        listCount: user._count.lists,
-        profileImages:
-          user.profile?.images.map((image) => ({
-            id: image.id,
-            url: image.url,
-          })) ?? [],
-      },
-    ]),
+async function getCultivarListingCards(args: {
+  cultivarReferenceId: string;
+  proUserIds: string[];
+}) {
+  const ids = await getCultivarListingIds(args);
+  return getPublicListingCardsByIds(ids.map((row) => row.id));
+}
+
+interface PublicCultivarContext {
+  listingCards: Awaited<ReturnType<typeof getCultivarListingCards>>;
+  referenceData: NonNullable<
+    Awaited<ReturnType<typeof getPublicCultivarReference>>
+  >;
+  summariesByUserId: Awaited<ReturnType<typeof getSellerSummariesForCultivarListings>>;
+}
+
+async function loadPublicCultivarContext(
+  cultivarSegment: string,
+): Promise<PublicCultivarContext | null> {
+  const referenceData = await getPublicCultivarReference(cultivarSegment);
+  if (!referenceData) {
+    return null;
+  }
+
+  const listingCards = await getCultivarListingCards({
+    cultivarReferenceId: referenceData.cultivarReference.id,
+    proUserIds: referenceData.proUserIds,
+  });
+  const summariesByUserId = await getSellerSummariesForCultivarListings(
+    listingCards,
+    referenceData.proUserIds,
   );
 
+  return {
+    listingCards,
+    referenceData,
+    summariesByUserId,
+  };
+}
+
+function getCultivarHeroImages(
+  cultivarReference: NonNullable<
+    Awaited<ReturnType<typeof getPublicCultivarReference>>
+  >["cultivarReference"],
+) {
+  return cultivarReference.ahsListing?.ahsImageUrl
+    ? [
+        {
+          alt: cultivarReference.ahsListing.name
+            ? `${cultivarReference.ahsListing.name} AHS image`
+            : "AHS cultivar image",
+          id: `ahs-${cultivarReference.ahsListing.id}`,
+          listingId: null,
+          sellerSlug: null,
+          sellerTitle: null,
+          source: "ahs" as const,
+          url: cultivarReference.ahsListing.ahsImageUrl,
+        },
+      ]
+    : [];
+}
+
+function toRelatedCultivars(
+  relatedByHybridizer: Array<{
+    normalizedName: string | null;
+    ahsListing: CultivarAhsListing | null;
+  }>,
+) {
+  return relatedByHybridizer
+    .map((relatedCultivar) => {
+      const segment = toCultivarRouteSegment(relatedCultivar.normalizedName);
+      const imageUrl = relatedCultivar.ahsListing?.ahsImageUrl ?? null;
+
+      if (!segment || !imageUrl) {
+        return null;
+      }
+
+      return {
+        ahsListing: relatedCultivar.ahsListing,
+        hybridizer: relatedCultivar.ahsListing?.hybridizer ?? null,
+        imageUrl,
+        name:
+          relatedCultivar.ahsListing?.name ??
+          relatedCultivar.normalizedName ??
+          "Unknown Cultivar",
+        normalizedName: relatedCultivar.normalizedName,
+        segment,
+        year: relatedCultivar.ahsListing?.year ?? null,
+      };
+    })
+    .filter((cultivar): cultivar is NonNullable<typeof cultivar> =>
+      Boolean(cultivar),
+    )
+    .sort((a, b) => a.name.localeCompare(b.name))
+    .slice(0, RELATED_CULTIVAR_LIMIT);
+}
+
+function toGardenCards(args: {
+  listingCards: Awaited<ReturnType<typeof getCultivarListingCards>>;
+  summariesByUserId: Awaited<
+    ReturnType<typeof getSellerSummariesForCultivarListings>
+  >;
+}) {
   const gardenCardsMap = new Map<
     string,
     {
       userId: string;
       slug: string;
       title: string;
-      createdAt: Date;
-      updatedAt: Date;
       description: string | null;
       location: string | null;
       listingCount: number;
       listCount: number;
       profileImages: Array<{ id: string; url: string }>;
+      createdAt: Date;
+      updatedAt: Date;
       offers: Array<{
         id: string;
         title: string;
@@ -516,26 +592,27 @@ export async function getPublicCultivarPage(cultivarSegment: string) {
     }
   >();
 
-  const photoRows: Array<{
-    id: string;
-    url: string;
-    updatedAt: Date;
-    listingId: string;
-    listingTitle: string;
-    sellerSlug: string;
-    sellerTitle: string;
-  }> = [];
-
-  listingRows.forEach((listing) => {
-    const seller = userById.get(listing.userId);
-    if (!seller) {
+  args.listingCards.forEach((listing) => {
+    const summary = args.summariesByUserId.get(listing.userId);
+    if (!summary) {
       return;
     }
 
+    const sellerTitle = summary.title ?? summary.slug ?? "Unnamed Garden";
+
     if (!gardenCardsMap.has(listing.userId)) {
       gardenCardsMap.set(listing.userId, {
-        ...seller,
+        createdAt: summary.createdAt,
+        description: summary.description,
+        listCount: summary.listCount,
+        listingCount: summary.listingCount,
+        location: summary.location,
         offers: [],
+        profileImages: summary.images.slice(0, 1),
+        slug: summary.slug ?? summary.id,
+        title: sellerTitle,
+        updatedAt: summary.updatedAt,
+        userId: summary.id,
       });
     }
 
@@ -545,79 +622,119 @@ export async function getPublicCultivarPage(cultivarSegment: string) {
     }
 
     gardenCard.offers.push({
-      id: listing.id,
-      title: listing.title,
-      slug: listing.slug,
-      price: listing.price,
       description: listing.description,
-      updatedAt: listing.updatedAt,
+      id: listing.id,
       imageCount: listing.images.length,
-      previewImageUrl: listing.images[0]?.url ?? null,
       lists: listing.lists,
-    });
-
-    listing.images.forEach((image) => {
-      photoRows.push({
-        id: image.id,
-        url: image.url,
-        updatedAt: image.updatedAt,
-        listingId: listing.id,
-        listingTitle: listing.title,
-        sellerSlug: seller.slug,
-        sellerTitle: seller.title,
-      });
+      previewImageUrl: listing.images[0]?.url ?? null,
+      price: listing.price,
+      slug: listing.slug,
+      title: listing.title,
+      updatedAt: listing.updatedAt,
     });
   });
 
-  const gardenCards = Array.from(gardenCardsMap.values())
+  return Array.from(gardenCardsMap.values())
     .map((gardenCard) => ({
       ...gardenCard,
       offers: gardenCard.offers.sort(sortOffersBestMatch),
     }))
     .sort((a, b) => a.title.localeCompare(b.title));
+}
 
+export function buildPublicCultivarOffersFromListingCards(args: {
+  listingCards: Awaited<ReturnType<typeof getCultivarListingCards>>;
+  summariesByUserId: Awaited<
+    ReturnType<typeof getSellerSummariesForCultivarListings>
+  >;
+}) {
+  const gardenCards = toGardenCards(args);
   const allOffers = gardenCards.flatMap((gardenCard) => gardenCard.offers);
-
-  const gardensCount = gardenCards.length;
-  const offersCount = allOffers.length;
-  const forSaleCount = allOffers.filter((offer) => offer.price !== null).length;
   const prices = allOffers
     .map((offer) => offer.price)
     .filter((price): price is number => price !== null);
 
-  const gardenPhotos = photoRows
-    .sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime())
-    .slice(0, 12)
-    .map((image) => ({
-      id: image.id,
-      url: image.url,
-      listingId: image.listingId,
-      listingTitle: image.listingTitle,
-      sellerSlug: image.sellerSlug,
-      sellerTitle: image.sellerTitle,
-      updatedAt: image.updatedAt,
-    }));
+  return {
+    offers: {
+      summary: {
+        gardensCount: gardenCards.length,
+        offersCount: allOffers.length,
+        forSaleCount: allOffers.filter((offer) => offer.price !== null).length,
+        minPrice: prices.length > 0 ? Math.min(...prices) : null,
+        maxPrice: prices.length > 0 ? Math.max(...prices) : null,
+      },
+      gardenCards,
+    },
+    freshness: {
+      offersUpdatedAt:
+        getMaxDate(allOffers.map((offer) => offer.updatedAt)) ?? null,
+    },
+  };
+}
 
-  const heroImages = [
-    ...(cultivarReference.ahsListing?.ahsImageUrl
-      ? [
-          {
-            id: `ahs-${cultivarReference.ahsListing.id}`,
-            url: cultivarReference.ahsListing.ahsImageUrl,
-            alt: cultivarReference.ahsListing.name
-              ? `${cultivarReference.ahsListing.name} AHS image`
-              : "AHS cultivar image",
-            source: "ahs" as const,
-            listingId: null,
-            sellerSlug: null,
-            sellerTitle: null,
-          },
-        ]
-      : []),
-  ];
+function toGardenPhotos(args: {
+  listingCards: Awaited<ReturnType<typeof getCultivarListingCards>>;
+  summariesByUserId: Awaited<
+    ReturnType<typeof getSellerSummariesForCultivarListings>
+  >;
+}) {
+  return args.listingCards
+    .flatMap((listing) => {
+      const summary = args.summariesByUserId.get(listing.userId);
+      if (!summary) {
+        return [];
+      }
 
+      return listing.images.map((image) => ({
+        id: image.id,
+        listingId: listing.id,
+        listingTitle: listing.title,
+        sellerSlug: summary.slug ?? summary.id,
+        sellerTitle: summary.title ?? summary.slug ?? "Unnamed Garden",
+        updatedAt: image.updatedAt,
+        url: image.url,
+      }));
+    })
+    .sort((a, b) => {
+      const aUpdatedAt = toDate(a.updatedAt);
+      const bUpdatedAt = toDate(b.updatedAt);
+
+      return (bUpdatedAt?.getTime() ?? 0) - (aUpdatedAt?.getTime() ?? 0);
+    })
+    .slice(0, 12);
+}
+
+export function buildPublicCultivarGardenPhotosFromListingCards(args: {
+  listingCards: Awaited<ReturnType<typeof getCultivarListingCards>>;
+  summariesByUserId: Awaited<
+    ReturnType<typeof getSellerSummariesForCultivarListings>
+  >;
+}) {
+  const gardenPhotos = toGardenPhotos(args);
+
+  return {
+    gardenPhotos,
+    freshness: {
+      photosUpdatedAt:
+        getMaxDate(gardenPhotos.map((photo) => photo.updatedAt)) ?? null,
+    },
+  };
+}
+
+async function buildPublicCultivarSummary(args: {
+  referenceData: NonNullable<
+    Awaited<ReturnType<typeof getPublicCultivarReference>>
+  >;
+  listingCards: Awaited<ReturnType<typeof getCultivarListingCards>>;
+}) {
+  const { cultivarReference } = args.referenceData;
+  const listingCards = args.listingCards;
+  const userIds = Array.from(
+    new Set(listingCards.map((listing) => listing.userId)),
+  );
   const allSpecs = getCultivarSpecs(cultivarReference.ahsListing);
-
+  const gardensCount = userIds.length;
+  const offersCount = listingCards.length;
   const relatedByHybridizer = cultivarReference.ahsListing?.hybridizer
     ? await db.cultivarReference.findMany({
         where: {
@@ -647,42 +764,9 @@ export async function getPublicCultivarPage(cultivarSegment: string) {
       })
     : [];
 
-  const relatedCultivars = relatedByHybridizer
-    .map((relatedCultivar) => {
-      const segment = toCultivarRouteSegment(relatedCultivar.normalizedName);
-      const imageUrl = relatedCultivar.ahsListing?.ahsImageUrl ?? null;
-
-      if (!segment || !imageUrl) {
-        return null;
-      }
-
-      return {
-        segment,
-        normalizedName: relatedCultivar.normalizedName,
-        name:
-          relatedCultivar.ahsListing?.name ??
-          relatedCultivar.normalizedName ??
-          "Unknown Cultivar",
-        hybridizer: relatedCultivar.ahsListing?.hybridizer ?? null,
-        year: relatedCultivar.ahsListing?.year ?? null,
-        imageUrl,
-        ahsListing: relatedCultivar.ahsListing,
-      };
-    })
-    .filter((cultivar): cultivar is NonNullable<typeof cultivar> =>
-      Boolean(cultivar),
-    )
-    .sort((a, b) => a.name.localeCompare(b.name))
-    .slice(0, RELATED_CULTIVAR_LIMIT);
-
   const cultivarName = getCultivarDisplayName(
     cultivarReference.normalizedName,
     cultivarReference.ahsListing,
-  );
-
-  const offerUpdatedAt = getMaxDate(allOffers.map((offer) => offer.updatedAt));
-  const photoUpdatedAt = getMaxDate(
-    gardenPhotos.map((photo) => photo.updatedAt),
   );
 
   return {
@@ -691,7 +775,7 @@ export async function getPublicCultivarPage(cultivarSegment: string) {
       normalizedName: cultivarReference.normalizedName,
       ahsListing: cultivarReference.ahsListing,
     },
-    heroImages,
+    heroImages: getCultivarHeroImages(cultivarReference),
     summary: {
       name: cultivarName,
       hybridizer: cultivarReference.ahsListing?.hybridizer ?? null,
@@ -704,22 +788,78 @@ export async function getPublicCultivarPage(cultivarSegment: string) {
       top: allSpecs.top,
       all: allSpecs.all,
     },
-    gardenPhotos,
-    offers: {
-      summary: {
-        gardensCount,
-        offersCount,
-        forSaleCount,
-        minPrice: prices.length > 0 ? Math.min(...prices) : null,
-        maxPrice: prices.length > 0 ? Math.max(...prices) : null,
-      },
-      gardenCards,
-    },
-    relatedByHybridizer: relatedCultivars,
+    relatedByHybridizer: toRelatedCultivars(relatedByHybridizer),
     freshness: {
       cultivarUpdatedAt: cultivarReference.updatedAt,
-      offersUpdatedAt: offerUpdatedAt ?? null,
-      photosUpdatedAt: photoUpdatedAt ?? null,
     },
   };
+}
+
+async function buildPublicCultivarOffers(args: {
+  listingCards: Awaited<ReturnType<typeof getCultivarListingCards>>;
+  summariesByUserId: Awaited<
+    ReturnType<typeof getSellerSummariesForCultivarListings>
+  >;
+}) {
+  return buildPublicCultivarOffersFromListingCards(args);
+}
+
+async function buildPublicCultivarGardenPhotos(args: {
+  listingCards: Awaited<ReturnType<typeof getCultivarListingCards>>;
+  summariesByUserId: Awaited<
+    ReturnType<typeof getSellerSummariesForCultivarListings>
+  >;
+}) {
+  return buildPublicCultivarGardenPhotosFromListingCards(args);
+}
+
+export async function getPublicCultivarPage(cultivarSegment: string) {
+  const context = await loadPublicCultivarContext(cultivarSegment);
+  if (!context) {
+    return null;
+  }
+
+  const [summarySection, offersSection, photosSection] = await Promise.all([
+    buildPublicCultivarSummary(context),
+    buildPublicCultivarOffers(context),
+    buildPublicCultivarGardenPhotos(context),
+  ]);
+
+  return {
+    ...summarySection,
+    gardenPhotos: photosSection.gardenPhotos,
+    offers: offersSection.offers,
+    freshness: {
+      cultivarUpdatedAt: summarySection.freshness.cultivarUpdatedAt,
+      offersUpdatedAt: offersSection.freshness.offersUpdatedAt,
+      photosUpdatedAt: photosSection.freshness.photosUpdatedAt,
+    },
+  };
+}
+
+export async function getPublicCultivarSummary(cultivarSegment: string) {
+  const context = await loadPublicCultivarContext(cultivarSegment);
+  if (!context) {
+    return null;
+  }
+
+  return buildPublicCultivarSummary(context);
+}
+
+export async function getPublicCultivarOffers(cultivarSegment: string) {
+  const context = await loadPublicCultivarContext(cultivarSegment);
+  if (!context) {
+    return null;
+  }
+
+  return buildPublicCultivarOffers(context);
+}
+
+export async function getPublicCultivarGardenPhotos(cultivarSegment: string) {
+  const context = await loadPublicCultivarContext(cultivarSegment);
+  if (!context) {
+    return null;
+  }
+
+  return buildPublicCultivarGardenPhotos(context);
 }

@@ -1,9 +1,11 @@
 import { db } from "@/server/db";
 import { TRPCError } from "@trpc/server";
-import { type OutputData } from "@editorjs/editorjs";
-import { getStripeSubscription } from "@/server/stripe/sync-subscription";
-import { hasActiveSubscription } from "@/server/stripe/subscription-utils";
 import { isPublished } from "@/server/db/public-visibility/filters";
+import {
+  getPublicSellerContent,
+  getPublicSellerListSummaries,
+  getPublicSellerSummary,
+} from "@/server/db/public-seller-data";
 
 // Helper function to get userId from either slug or id
 export async function getUserIdFromSlugOrId(slugOrId: string): Promise<string> {
@@ -77,95 +79,28 @@ export async function getListingIdFromSlugOrId(
 export async function getPublicProfile(userSlugOrId: string) {
   try {
     const userId = await getUserIdFromSlugOrId(userSlugOrId);
-    const user = await db.user.findUnique({
-      where: { id: userId },
-      select: {
-        id: true,
-        stripeCustomerId: true,
-        createdAt: true,
-        profile: {
-          select: {
-            title: true,
-            slug: true,
-            description: true,
-            content: true,
-            location: true,
-            updatedAt: true,
-            images: {
-              orderBy: {
-                order: "asc",
-              },
-              select: {
-                id: true,
-                url: true,
-              },
-            },
-          },
-        },
-        _count: {
-          select: {
-            listings: {
-              where: isPublished(),
-            },
-          },
-        },
-        lists: {
-          select: {
-            id: true,
-            title: true,
-            description: true,
-            _count: {
-              select: {
-                listings: {
-                  where: isPublished(),
-                },
-              },
-            },
-          },
-        },
-      },
-    });
-
-    if (!user) {
-      throw new TRPCError({
-        code: "NOT_FOUND",
-        message: "User not found",
-      });
-    }
-
-    const sub = await getStripeSubscription(user.stripeCustomerId);
-
-    // Parse content if it exists
-    let parsedContent = null;
-    if (user.profile?.content) {
-      try {
-        parsedContent = JSON.parse(user.profile.content) as OutputData;
-      } catch (error) {
-        console.error("Error parsing profile content:", error);
-        parsedContent = user.profile.content;
-      }
-    }
+    const [summary, parsedContent, lists] = await Promise.all([
+      getPublicSellerSummary(userId),
+      getPublicSellerContent(userId),
+      getPublicSellerListSummaries(userId),
+    ]);
 
     return {
-      id: user.id,
-      title: user.profile?.title ?? null,
-      slug: user.profile?.slug ?? null,
-      description: user.profile?.description ?? null,
+      id: summary.id,
+      title: summary.title,
+      slug: summary.slug,
+      description: summary.description,
       content: parsedContent,
-      location: user.profile?.location ?? null,
-      images: user.profile?.images ?? [],
-      createdAt: user.createdAt,
-      updatedAt: user.profile?.updatedAt ?? user.createdAt,
+      location: summary.location,
+      images: summary.images,
+      createdAt: summary.createdAt,
+      updatedAt: summary.updatedAt,
+      listCount: summary.listCount,
       _count: {
-        listings: user._count.listings,
+        listings: summary.listingCount,
       },
-      lists: user.lists.map((list) => ({
-        id: list.id,
-        title: list.title,
-        description: list.description ?? null,
-        listingCount: list._count.listings,
-      })),
-      hasActiveSubscription: hasActiveSubscription(sub.status),
+      lists,
+      hasActiveSubscription: summary.hasActiveSubscription,
     };
   } catch (error) {
     console.error("Error fetching public profile:", error);

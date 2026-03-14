@@ -8,30 +8,18 @@ const mockDb = vi.hoisted(() => ({
   },
 }));
 
-const mockGetStripeSubscription = vi.hoisted(() => vi.fn());
+const mockGetCachedProUserIds = vi.hoisted(() => vi.fn());
 
 vi.mock("@/server/db", () => ({
   db: mockDb,
 }));
 
-vi.mock("@/server/stripe/sync-subscription", () => ({
-  getStripeSubscription: (...args: unknown[]) =>
-    mockGetStripeSubscription(...args),
+vi.mock("@/server/db/getCachedProUserIds", () => ({
+  getCachedProUserIds: mockGetCachedProUserIds,
 }));
 
 import { getPublicProfiles } from "@/server/db/getPublicProfiles";
 import { applyWhereIn } from "./test-utils/apply-where-in";
-
-interface UserFindManyArgs {
-  where?: {
-    id?: {
-      in?: string[];
-    };
-    stripeCustomerId?: {
-      not?: null;
-    };
-  };
-}
 
 describe("getPublicProfiles", () => {
   beforeEach(() => {
@@ -42,7 +30,6 @@ describe("getPublicProfiles", () => {
     const users = [
       {
         id: "user-pro",
-        stripeCustomerId: "cus-pro",
         createdAt: new Date("2020-01-01T00:00:00.000Z"),
         profile: {
           title: "Pro Garden",
@@ -61,21 +48,11 @@ describe("getPublicProfiles", () => {
           listings: 120,
           lists: 3,
         },
-        lists: [
-          {
-            id: "list-pro",
-            title: "For Sale",
-            updatedAt: new Date("2026-02-01T00:00:00.000Z"),
-            _count: {
-              listings: 120,
-            },
-          },
-        ],
+        lists: [{ updatedAt: new Date("2026-02-01T00:00:00.000Z") }],
         listings: [{ updatedAt: new Date("2026-02-02T00:00:00.000Z") }],
       },
       {
         id: "user-free",
-        stripeCustomerId: "cus-free",
         createdAt: new Date("2021-01-01T00:00:00.000Z"),
         profile: {
           title: "Free Garden",
@@ -89,41 +66,16 @@ describe("getPublicProfiles", () => {
           listings: 25,
           lists: 1,
         },
-        lists: [
-          {
-            id: "list-free",
-            title: "Collection",
-            updatedAt: new Date("2026-02-01T00:00:00.000Z"),
-            _count: {
-              listings: 25,
-            },
-          },
-        ],
+        lists: [{ updatedAt: new Date("2026-02-01T00:00:00.000Z") }],
         listings: [{ updatedAt: new Date("2026-02-03T00:00:00.000Z") }],
       },
     ];
 
-    mockDb.user.findMany.mockImplementation((args: unknown) => {
-      const filteredById = applyWhereIn(users, args, "id");
-      const requiresStripeCustomerId =
-        (args as UserFindManyArgs | undefined)?.where?.stripeCustomerId?.not ===
-        null;
-
-      if (!requiresStripeCustomerId) {
-        return Promise.resolve(filteredById);
-      }
-
-      return Promise.resolve(
-        filteredById.filter((user) => user.stripeCustomerId !== null),
-      );
-    });
-
-    mockGetStripeSubscription.mockImplementation(
-      async (stripeCustomerId: string) =>
-        stripeCustomerId === "cus-pro"
-          ? { status: "active" }
-          : { status: "none" },
+    mockDb.user.findMany.mockImplementation((args: unknown) =>
+      Promise.resolve(applyWhereIn(users, args, "id")),
     );
+
+    mockGetCachedProUserIds.mockResolvedValue(["user-pro"]);
 
     const profiles = await getPublicProfiles();
 

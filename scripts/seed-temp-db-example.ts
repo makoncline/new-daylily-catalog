@@ -17,6 +17,7 @@ function readDbArg() {
 }
 
 const PRIMARY_PROFILE_SLUG = "seeded-daylily";
+const DEV_CLERK_TEST_USER_ID = "user_32T1tvQIoeDiev3SJwar7ogR8oo";
 
 async function seedSubscription(
   db: SeedDb,
@@ -162,7 +163,7 @@ async function seed() {
     async (db) => {
       const primaryCatalog = await createCatalogUser({
         db,
-        clerkUserId: "clerk-seeded-daylily",
+        clerkUserId: DEV_CLERK_TEST_USER_ID,
         stripeCustomerId: "cus-seeded-daylily",
         slug: PRIMARY_PROFILE_SLUG,
         title: "Seeded Daylily Farm",

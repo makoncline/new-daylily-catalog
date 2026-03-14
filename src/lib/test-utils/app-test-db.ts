@@ -13,12 +13,51 @@ const TEMPLATE_DB_PATH = path.join(
   TMP_DIR,
   `prisma-schema-template-${process.pid}.sqlite`,
 );
+const TEMP_SCHEMA_PATH = path.join(TMP_DIR, `prisma-schema-test-${process.pid}.prisma`);
 
 let hasPreparedTemplateDb = false;
+let tempAppDbQueue = Promise.resolve();
 
 function prismaBinPath() {
   const bin = process.platform === "win32" ? "prisma.cmd" : "prisma";
   return path.join(process.cwd(), "node_modules", ".bin", bin);
+}
+
+function getPrismaCliMajorVersion() {
+  try {
+    const prismaPackageJson = JSON.parse(
+      fs.readFileSync(
+        path.join(process.cwd(), "node_modules", "prisma", "package.json"),
+        "utf8",
+      ),
+    ) as { version?: string };
+
+    return Number.parseInt(prismaPackageJson.version?.split(".")[0] ?? "0", 10);
+  } catch {
+    return 0;
+  }
+}
+
+function getCliSchemaPath() {
+  const schemaPath = path.join(process.cwd(), "prisma", "schema.prisma");
+  const schema = fs.readFileSync(schemaPath, "utf8");
+
+  if (getPrismaCliMajorVersion() >= 7) {
+    return schemaPath;
+  }
+
+  if (/\bdatasource\s+\w+\s*\{[\s\S]*?\burl\s*=/.test(schema)) {
+    return schemaPath;
+  }
+
+  const patchedSchema = schema.replace(
+    /(datasource\s+\w+\s*\{[\s\S]*?\bprovider\s*=\s*"[^"]+")/,
+    `$1\n  url      = env("DATABASE_URL")`,
+  );
+
+  fs.mkdirSync(TMP_DIR, { recursive: true });
+  fs.writeFileSync(TEMP_SCHEMA_PATH, patchedSchema, "utf8");
+  return TEMP_SCHEMA_PATH;
 }
 
 export function createTempSqliteUrl() {
@@ -61,16 +100,20 @@ export function prismaDbPush(sqliteUrl: string) {
       ? "info"
       : (rustLog ?? "info");
 
-  const res = spawnSync(prismaBinPath(), ["db", "push"], {
-    env: {
-      ...process.env,
-      NODE_OPTIONS: "",
-      RUST_LOG: effectiveRustLog,
-      DATABASE_URL: sqliteUrl,
+  const res = spawnSync(
+    prismaBinPath(),
+    ["db", "push", "--schema", getCliSchemaPath()],
+    {
+      env: {
+        ...process.env,
+        NODE_OPTIONS: "",
+        RUST_LOG: effectiveRustLog,
+        DATABASE_URL: sqliteUrl,
+      },
+      cwd: process.cwd(),
+      stdio: "pipe",
     },
-    cwd: process.cwd(),
-    stdio: "pipe",
-  });
+  );
   if (res.status !== 0) {
     const stderr = res.stderr ? res.stderr.toString() : "";
     throw new Error(`Failed to run "prisma db push": ${stderr}`);
@@ -138,23 +181,26 @@ export function callerLink(caller: AnyCaller): TRPCLink<AppRouter> {
 export async function withTempAppDb<T>(
   fn: (ctx: { user: { id: string } }) => Promise<T> | T,
 ): Promise<T> {
-  const envKeys = [
-    "DATABASE_URL",
-    "SKIP_ENV_VALIDATION",
-    "STRIPE_SECRET_KEY",
-  ] as const;
+  const previousRun = tempAppDbQueue;
+  let releaseQueue!: () => void;
+  tempAppDbQueue = new Promise<void>((resolve) => {
+    releaseQueue = resolve;
+  });
+
+  await previousRun;
+
+  const envKeys = ["DATABASE_URL", "SKIP_ENV_VALIDATION", "STRIPE_SECRET_KEY"] as const;
   const prevEnv = Object.fromEntries(
     envKeys.map((key) => [key, process.env[key]]),
   );
 
-  const { url } = createTempSqliteUrl();
+  const { url, filePath } = createTempSqliteUrl();
 
   process.env.DATABASE_URL = url;
   process.env.SKIP_ENV_VALIDATION = "1";
   process.env.STRIPE_SECRET_KEY ??= "sk_test_unit";
 
   try {
-    // Ensure the prisma singleton is recreated for this DB
     (globalThis as unknown as { prisma?: unknown }).prisma = undefined;
   } catch {
     // ignore
@@ -182,15 +228,26 @@ export async function withTempAppDb<T>(
     const { setTestTrpcClient } = await import("@/trpc/client");
     setTestTrpcClient(clientLike);
 
+    const { setCurrentUserId } = await import("@/lib/utils/cursor");
+    setCurrentUserId(user.id);
+
     return await fn({ user: { id: user.id } });
   } finally {
     cleanup();
 
-    const { resetQueryClient } = await import("@/trpc/query-client");
-    await resetQueryClient();
+    try {
+      const { resetQueryClient } = await import("@/trpc/query-client");
+      await resetQueryClient();
+    } catch {
+      // ignore
+    }
 
-    const { setCurrentUserId } = await import("@/lib/utils/cursor");
-    setCurrentUserId(null);
+    try {
+      const { setCurrentUserId } = await import("@/lib/utils/cursor");
+      setCurrentUserId(null);
+    } catch {
+      // ignore
+    }
 
     try {
       const { resetTrpcClient } = await import("@/trpc/client");
@@ -212,6 +269,12 @@ export async function withTempAppDb<T>(
       // ignore
     }
 
+    try {
+      fs.unlinkSync(path.resolve(filePath));
+    } catch {
+      // ignore
+    }
+
     for (const key of envKeys) {
       const value = prevEnv[key];
       if (typeof value === "undefined") {
@@ -220,5 +283,7 @@ export async function withTempAppDb<T>(
         process.env[key] = value;
       }
     }
+
+    releaseQueue();
   }
 }

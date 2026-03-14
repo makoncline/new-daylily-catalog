@@ -103,9 +103,13 @@ export default async function ProfilePaginatedPage({
 
   const profile = pageDataResult.data.profile;
   const canonicalUserSlug = profile.slug ?? profile.id;
+  const profileForPage = {
+    ...profile,
+    lists: [],
+  };
 
   const baseUrl = getCanonicalBaseUrl();
-  const baseMetadata = await generateProfileMetadata(profile, baseUrl);
+  const baseMetadata = await generateProfileMetadata(profileForPage, baseUrl);
   const metadata = generatePaginatedProfileMetadata({
     baseMetadata,
     profileSlug: canonicalUserSlug,
@@ -118,7 +122,7 @@ export default async function ProfilePaginatedPage({
   return (
     <>
       <ProfilePageSEO
-        profile={profile}
+        profile={profileForPage}
         listings={pageDataResult.data.items}
         metadata={metadata}
         baseUrl={baseUrl}
@@ -130,16 +134,17 @@ export default async function ProfilePaginatedPage({
         </div>
 
         <div className="space-y-6">
-          <ProfileContent initialProfile={profile} />
+          <ProfileContent initialProfile={profileForPage} />
 
           <CatalogSeoListings
             canonicalUserSlug={canonicalUserSlug}
             listings={pageDataResult.data.items}
-            profileLists={profile.lists}
+            profileLists={[]}
             page={pageDataResult.data.page}
             totalPages={pageDataResult.data.totalPages}
             totalCount={pageDataResult.data.totalCount}
             forSaleCount={pageDataResult.data.forSaleCount}
+            showListSummaries={false}
           />
         </div>
 

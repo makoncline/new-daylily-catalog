@@ -15,6 +15,7 @@ export const env = createEnv({
     APP_BASE_URL: z.string().url().optional(),
     DATABASE_URL: z.string().optional(),
     TURSO_DATABASE_AUTH_TOKEN: z.string().optional(),
+    VERCEL_AUTOMATION_BYPASS_SECRET: z.string().optional(),
     CLERK_SECRET_KEY: z.string().optional(),
     CLERK_WEBHOOK_SECRET: z.string().optional(),
     STRIPE_SECRET_KEY: z.string().optional(),
@@ -43,6 +44,8 @@ export const env = createEnv({
     APP_BASE_URL: process.env.APP_BASE_URL,
     DATABASE_URL: process.env.DATABASE_URL,
     TURSO_DATABASE_AUTH_TOKEN: process.env.TURSO_DATABASE_AUTH_TOKEN,
+    VERCEL_AUTOMATION_BYPASS_SECRET:
+      process.env.VERCEL_AUTOMATION_BYPASS_SECRET,
     CLERK_SECRET_KEY: process.env.CLERK_SECRET_KEY,
     CLERK_WEBHOOK_SECRET: process.env.CLERK_WEBHOOK_SECRET,
     NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY:
