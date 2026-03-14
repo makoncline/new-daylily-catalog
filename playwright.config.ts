@@ -84,7 +84,7 @@ export default defineConfig({
     ? undefined
     : {
         command:
-          "pnpm dlx tsx scripts/create-temp-db.ts --db $E2E_TEST_DB_URL && pnpm dev",
+          "pnpm dlx tsx scripts/create-temp-db.ts --db $E2E_TEST_DB_URL && pnpm exec next dev",
         url: `http://localhost:${e2ePort}`,
         reuseExistingServer: false,
         timeout: 120000, // 2 minutes for CI (server startup can be slow)

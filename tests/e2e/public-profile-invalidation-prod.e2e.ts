@@ -120,8 +120,7 @@ async function openTargetListingForEdit(args: {
     isReady: () => Promise<void>;
     setGlobalSearch: (value: string) => Promise<void>;
     listingRow: (listingTitle: string) => ReturnType<Page["locator"]>;
-    openFirstVisibleRowActions: () => Promise<void>;
-    chooseRowActionEdit: () => Promise<void>;
+    openFirstVisibleRowEdit: () => Promise<void>;
   };
   editListingDialog: {
     isReady: () => Promise<void>;
@@ -131,8 +130,7 @@ async function openTargetListingForEdit(args: {
   await args.dashboardListings.isReady();
   await args.dashboardListings.setGlobalSearch(args.title);
   await expect(args.dashboardListings.listingRow(args.title)).toBeVisible();
-  await args.dashboardListings.openFirstVisibleRowActions();
-  await args.dashboardListings.chooseRowActionEdit();
+  await args.dashboardListings.openFirstVisibleRowEdit();
   await args.editListingDialog.isReady();
 }
 

@@ -178,13 +178,15 @@ export class DashboardListings {
     return this.page.locator(`[data-testid="${testId}"]:visible`).first();
   }
 
-  private async clickRowActionTriggerAndWaitOpen(rowActionButton?: Locator) {
-    const trigger = rowActionButton ?? this.firstVisibleRowActionButton();
+  private async clickRowActionTriggerAndWaitOpen(
+    rowActionButtonFactory?: () => Locator,
+  ) {
     for (let attempt = 0; attempt < 3; attempt += 1) {
-      await trigger.waitFor({ state: "visible" });
-      await trigger.scrollIntoViewIfNeeded();
-      await trigger.click({ force: true });
       try {
+        const trigger =
+          rowActionButtonFactory?.() ?? this.firstVisibleRowActionButton();
+        await trigger.waitFor({ state: "visible" });
+        await trigger.click({ force: true });
         await this.rowActionMenu().waitFor({ state: "visible", timeout: 2000 });
         return;
       } catch {}
@@ -193,12 +195,12 @@ export class DashboardListings {
     await expect(this.rowActionMenu()).toBeVisible();
   }
 
-  private async ensureRowActionMenuOpen(rowActionButton?: Locator) {
+  private async ensureRowActionMenuOpen(rowActionButtonFactory?: () => Locator) {
     if (await this.rowActionMenu().isVisible()) {
       return;
     }
 
-    await this.clickRowActionTriggerAndWaitOpen(rowActionButton);
+    await this.clickRowActionTriggerAndWaitOpen(rowActionButtonFactory);
   }
 
   async openFirstVisibleRowActions() {
@@ -206,20 +208,29 @@ export class DashboardListings {
     await this.rowActionMenuItem("Edit").waitFor({ state: "visible" });
   }
 
+  async openFirstVisibleRowEdit() {
+    await this.clickRowActionTriggerAndWaitOpen();
+    const menuItem = this.rowActionMenuItem("Edit");
+    await menuItem.waitFor({ state: "visible" });
+    await menuItem.click();
+  }
+
   async openRowActionsForListing(listingTitle: string) {
-    await this.clickRowActionTriggerAndWaitOpen(this.rowActionTrigger(listingTitle));
+    await this.clickRowActionTriggerAndWaitOpen(() =>
+      this.rowActionTrigger(listingTitle),
+    );
     await this.rowActionMenuItem("Edit").waitFor({ state: "visible" });
   }
 
   private async chooseRowAction(
     actionName: "Delete" | "Edit",
-    rowActionButton?: Locator,
+    rowActionButtonFactory?: () => Locator,
   ) {
     let lastError: unknown;
 
     for (let attempt = 0; attempt < 3; attempt++) {
       try {
-        await this.ensureRowActionMenuOpen(rowActionButton);
+        await this.ensureRowActionMenuOpen(rowActionButtonFactory);
         const menuItem = this.rowActionMenuItem(actionName);
         await menuItem.waitFor({ state: "visible" });
         await menuItem.scrollIntoViewIfNeeded();
@@ -240,7 +251,7 @@ export class DashboardListings {
   }
 
   async chooseRowActionDeleteForListing(listingTitle: string) {
-    await this.chooseRowAction("Delete", this.rowActionTrigger(listingTitle));
+    await this.chooseRowAction("Delete", () => this.rowActionTrigger(listingTitle));
   }
 
   async chooseRowActionEdit() {
@@ -248,7 +259,7 @@ export class DashboardListings {
   }
 
   async chooseRowActionEditForListing(listingTitle: string) {
-    await this.chooseRowAction("Edit", this.rowActionTrigger(listingTitle));
+    await this.chooseRowAction("Edit", () => this.rowActionTrigger(listingTitle));
   }
 
   async confirmDelete() {

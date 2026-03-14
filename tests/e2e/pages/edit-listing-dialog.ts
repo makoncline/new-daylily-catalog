@@ -149,12 +149,9 @@ export class EditListingDialog {
     const option = this.listDialog().getByRole("option", { name: listName });
     await option.waitFor({ state: "visible" });
 
-    return option.evaluate((element) => {
-      return (
-        element.getAttribute("aria-selected") === "true" ||
-        element.hasAttribute("data-selected")
-      );
-    });
+    const checkIcon = option.locator("svg").first();
+    const className = (await checkIcon.getAttribute("class")) ?? "";
+    return className.includes("opacity-100");
   }
 
   async clearAllLists() {
