@@ -136,14 +136,31 @@ function getCultivarSpecs(ahsListing: CultivarAhsListing | null) {
   };
 }
 
-function getMaxDate(dates: Array<Date | undefined>): Date | undefined {
+function toDate(value: Date | string | null | undefined): Date | undefined {
+  if (!value) {
+    return undefined;
+  }
+
+  if (value instanceof Date) {
+    return value;
+  }
+
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? undefined : parsed;
+}
+
+function getMaxDate(
+  dates: Array<Date | string | null | undefined>,
+): Date | undefined {
   return dates.reduce<Date | undefined>((latest, value) => {
-    if (!value) {
+    const nextValue = toDate(value);
+
+    if (!nextValue) {
       return latest;
     }
 
-    if (!latest || value.getTime() > latest.getTime()) {
-      return value;
+    if (!latest || nextValue.getTime() > latest.getTime()) {
+      return nextValue;
     }
 
     return latest;
@@ -153,12 +170,13 @@ function getMaxDate(dates: Array<Date | undefined>): Date | undefined {
 function getBestMatchScore(offer: {
   price: number | null;
   imageCount: number;
-  updatedAt: Date;
+  updatedAt: Date | string;
 }) {
+  const updatedAt = toDate(offer.updatedAt);
   return {
     forSale: offer.price !== null ? 1 : 0,
     imageCount: offer.imageCount,
-    updatedAt: offer.updatedAt.getTime(),
+    updatedAt: updatedAt?.getTime() ?? 0,
   };
 }
 
@@ -166,13 +184,13 @@ function sortOffersBestMatch(
   a: {
     price: number | null;
     imageCount: number;
-    updatedAt: Date;
+    updatedAt: Date | string;
     title: string;
   },
   b: {
     price: number | null;
     imageCount: number;
-    updatedAt: Date;
+    updatedAt: Date | string;
     title: string;
   },
 ) {
@@ -677,7 +695,12 @@ function toGardenPhotos(args: {
         url: image.url,
       }));
     })
-    .sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime())
+    .sort((a, b) => {
+      const aUpdatedAt = toDate(a.updatedAt);
+      const bUpdatedAt = toDate(b.updatedAt);
+
+      return (bUpdatedAt?.getTime() ?? 0) - (aUpdatedAt?.getTime() ?? 0);
+    })
     .slice(0, 12);
 }
 

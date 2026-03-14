@@ -32,6 +32,8 @@ vi.mock("@/server/db/getCachedProUserIds", () => ({
 }));
 
 import {
+  buildPublicCultivarGardenPhotosFromListingCards,
+  buildPublicCultivarOffersFromListingCards,
   getCultivarSitemapEntries,
   getPublicCultivarPage,
 } from "@/server/db/getPublicCultivars";
@@ -41,6 +43,99 @@ describe("getPublicCultivarPage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockGetCachedProUserIds.mockResolvedValue([]);
+  });
+
+  it("handles cache-serialized cultivar listing data", () => {
+    const listingCards = JSON.parse(
+      JSON.stringify([
+        {
+          id: "listing-top-a",
+          title: "Coffee Frenzy Prime Fan",
+          slug: "coffee-frenzy-prime-fan",
+          price: 30,
+          description: "Prime",
+          updatedAt: new Date("2026-01-11T00:00:00.000Z"),
+          userId: "user-top",
+          images: [
+            {
+              id: "img-top-a",
+              url: "https://example.com/top-a.jpg",
+              updatedAt: new Date("2026-01-11T00:00:00.000Z"),
+            },
+            {
+              id: "img-top-b",
+              url: "https://example.com/top-b.jpg",
+              updatedAt: new Date("2026-01-10T00:00:00.000Z"),
+            },
+          ],
+          lists: [{ id: "list-show", title: "Show Winners" }],
+        },
+        {
+          id: "listing-top-b",
+          title: "Coffee Frenzy Display",
+          slug: "coffee-frenzy-display",
+          price: null,
+          description: "Display",
+          updatedAt: new Date("2026-01-15T00:00:00.000Z"),
+          userId: "user-top",
+          images: [
+            {
+              id: "img-top-c",
+              url: "https://example.com/top-c.jpg",
+              updatedAt: new Date("2026-01-15T00:00:00.000Z"),
+            },
+          ],
+          lists: [],
+        },
+      ]),
+    ) as Parameters<typeof buildPublicCultivarOffersFromListingCards>[0]["listingCards"];
+
+    const summariesByUserId = new Map([
+      [
+        "user-top",
+        {
+          id: "user-top",
+          slug: "top-pro",
+          title: "Top Pro Garden",
+          description: "Top catalog",
+          location: "Mississippi",
+          hasActiveSubscription: true,
+          updatedAt: new Date("2026-01-14T00:00:00.000Z").toISOString(),
+          createdAt: new Date("2019-01-01T00:00:00.000Z").toISOString(),
+          images: [
+            {
+              id: "profile-top",
+              url: "https://example.com/profile-top.jpg",
+            },
+          ],
+          listingCount: 10,
+          listCount: 4,
+        },
+      ],
+    ]) as unknown as Parameters<
+      typeof buildPublicCultivarOffersFromListingCards
+    >[0]["summariesByUserId"];
+
+    const offers = buildPublicCultivarOffersFromListingCards({
+      listingCards,
+      summariesByUserId,
+    });
+    const photos = buildPublicCultivarGardenPhotosFromListingCards({
+      listingCards,
+      summariesByUserId,
+    });
+
+    expect(offers.offers.gardenCards[0]?.offers.map((offer) => offer.id)).toEqual([
+      "listing-top-a",
+      "listing-top-b",
+    ]);
+    expect(offers.freshness.offersUpdatedAt).toEqual(
+      new Date("2026-01-15T00:00:00.000Z"),
+    );
+    expect(photos.gardenPhotos[0]?.id).toBe("img-top-c");
+    expect(photos.freshness.photosUpdatedAt).toEqual(
+      new Date("2026-01-15T00:00:00.000Z"),
+    );
   });
 
   it("returns conversion-ready cultivar payload with pro offers only", async () => {
