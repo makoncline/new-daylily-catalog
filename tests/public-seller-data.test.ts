@@ -1,7 +1,7 @@
 // @vitest-environment node
 
 import { describe, expect, it } from "vitest";
-import { getLatestDate } from "@/server/db/public-seller-data";
+import { getLatestDate } from "@/server/db/public-date-utils";
 
 describe("public seller data", () => {
   it("accepts cache-serialized date values when computing latest seller freshness", () => {
