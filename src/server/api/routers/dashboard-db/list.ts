@@ -42,6 +42,7 @@ export const dashboardDbListRouter = createTRPCRouter({
 
       await invalidatePublicIsrForReferences({
         db: ctx.db,
+        requestUrl: ctx.requestUrl,
         references: buildSellerMutationRefs(ctx.user.id),
       });
 
@@ -109,6 +110,7 @@ export const dashboardDbListRouter = createTRPCRouter({
 
       await invalidatePublicIsrForReferences({
         db: ctx.db,
+        requestUrl: ctx.requestUrl,
         references: buildSellerMutationRefs(ctx.user.id),
       });
 
@@ -139,6 +141,7 @@ export const dashboardDbListRouter = createTRPCRouter({
 
       await invalidatePublicIsrForReferences({
         db: ctx.db,
+        requestUrl: ctx.requestUrl,
         references: buildSellerMutationRefs(ctx.user.id),
       });
 
@@ -177,6 +180,7 @@ export const dashboardDbListRouter = createTRPCRouter({
 
       await invalidatePublicIsrForReferences({
         db: ctx.db,
+        requestUrl: ctx.requestUrl,
         references: buildListMembershipMutationRefs({
           listingId: listing.id,
           userId: ctx.user.id,
@@ -218,6 +222,7 @@ export const dashboardDbListRouter = createTRPCRouter({
 
       await invalidatePublicIsrForReferences({
         db: ctx.db,
+        requestUrl: ctx.requestUrl,
         references: buildListMembershipMutationRefs({
           listingId: listing.id,
           userId: ctx.user.id,

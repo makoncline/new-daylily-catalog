@@ -1,7 +1,6 @@
 import { CACHE_CONFIG } from "@/config/cache-config";
 import {
-  getPublicCultivarOffersTag,
-  getPublicCultivarPhotosTag,
+  getPublicCatalogsTag,
   getPublicCultivarSummaryTag,
   getPublicCultivarTag,
   getPublicProfileTag,
@@ -12,18 +11,20 @@ import {
 } from "@/lib/cache/server-cache";
 import { getCachedProUserIds } from "@/server/db/getCachedProUserIds";
 import {
-  getPublicCultivarGardenPhotos,
-  getPublicCultivarOffers,
+  buildPublicCultivarGardenPhotosFromListingCards,
+  buildPublicCultivarOffersFromListingCards,
+  getPublicCultivarListingIds,
   getPublicCultivarSummary,
   getCultivarRouteSegments,
   getCultivarSitemapEntries,
 } from "@/server/db/getPublicCultivars";
 import { getInitialListings, getListings } from "@/server/db/getPublicListings";
 import { getPublicCatalogCardsByUserIds } from "@/server/db/getPublicProfiles";
+import { getCachedPublicListingCardsByIds } from "@/server/db/public-profile-cache";
+import { getPublicSellerSummariesByUserIds } from "@/server/db/public-seller-data";
 export {
   getCachedPublicCatalogRouteEntries,
   getCachedPublicForSaleListingsCount,
-  getCachedPublicListingCardsByIds,
   getCachedPublicListingsPage,
   getCachedPublicListingsPageIds,
   getCachedPublicProfile,
@@ -41,7 +42,10 @@ const getCachedPublicCatalogCardsByUserIds = createKeyedServerCache(
   {
     getKeyParts: (userIds: string[]) => ["public:catalog-cards", ...userIds],
     getTags: (userIds: string[]) =>
-      userIds.map((userId) => getPublicProfileTag(userId)),
+      [
+        getPublicCatalogsTag(),
+        ...userIds.map((userId) => getPublicProfileTag(userId)),
+      ],
     revalidateSeconds: CACHE_CONFIG.PUBLIC.STATIC_REVALIDATE_SECONDS,
   },
 );
@@ -87,53 +91,47 @@ export const getCachedPublicCultivarSummary = createKeyedServerCache(
   },
 );
 
-export const getCachedPublicCultivarOffers = createKeyedServerCache(
-  async (cultivarSegment: string) => getPublicCultivarOffers(cultivarSegment),
+const getCachedPublicCultivarListingIds = createKeyedServerCache(
+  async (cultivarSegment: string) => getPublicCultivarListingIds(cultivarSegment),
   {
     getKeyParts: (cultivarSegment: string) => [
-      "public:cultivar-offers",
+      "public:cultivar-listing-ids",
       cultivarSegment.trim().toLowerCase(),
     ],
     getTags: (cultivarSegment: string) => {
       const canonicalSegment = cultivarSegment.trim().toLowerCase();
-      return [
-        getPublicCultivarTag(canonicalSegment),
-        getPublicCultivarOffersTag(canonicalSegment),
-      ];
-    },
-    revalidateSeconds: CACHE_CONFIG.PUBLIC.CULTIVAR_PAGE_REVALIDATE_SECONDS,
-  },
-);
-
-export const getCachedPublicCultivarGardenPhotos = createKeyedServerCache(
-  async (cultivarSegment: string) =>
-    getPublicCultivarGardenPhotos(cultivarSegment),
-  {
-    getKeyParts: (cultivarSegment: string) => [
-      "public:cultivar-photos",
-      cultivarSegment.trim().toLowerCase(),
-    ],
-    getTags: (cultivarSegment: string) => {
-      const canonicalSegment = cultivarSegment.trim().toLowerCase();
-      return [
-        getPublicCultivarTag(canonicalSegment),
-        getPublicCultivarPhotosTag(canonicalSegment),
-      ];
+      return [getPublicCultivarTag(canonicalSegment)];
     },
     revalidateSeconds: CACHE_CONFIG.PUBLIC.CULTIVAR_PAGE_REVALIDATE_SECONDS,
   },
 );
 
 export async function getCachedPublicCultivarPage(cultivarSegment: string) {
-  const [summarySection, photosSection, offersSection] = await Promise.all([
+  const [summarySection, listingIds, activeUserIds] = await Promise.all([
     getCachedPublicCultivarSummary(cultivarSegment),
-    getCachedPublicCultivarGardenPhotos(cultivarSegment),
-    getCachedPublicCultivarOffers(cultivarSegment),
+    getCachedPublicCultivarListingIds(cultivarSegment),
+    getCachedProUserIds(),
   ]);
 
-  if (!summarySection || !photosSection || !offersSection) {
+  if (!summarySection || listingIds === null) {
     return null;
   }
+
+  const listingCards = await getCachedPublicListingCardsByIds(listingIds);
+  const summariesByUserId = await getPublicSellerSummariesByUserIds(
+    Array.from(new Set(listingCards.map((listing) => listing.userId))),
+    {
+      activeUserIds,
+    },
+  );
+  const offersSection = buildPublicCultivarOffersFromListingCards({
+    listingCards,
+    summariesByUserId,
+  });
+  const photosSection = buildPublicCultivarGardenPhotosFromListingCards({
+    listingCards,
+    summariesByUserId,
+  });
 
   return {
     ...summarySection,

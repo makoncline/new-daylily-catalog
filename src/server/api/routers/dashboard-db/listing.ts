@@ -70,6 +70,7 @@ export const dashboardDbListingRouter = createTRPCRouter({
 
       await invalidatePublicIsrForReferences({
         db: ctx.db,
+        requestUrl: ctx.requestUrl,
         references: buildListingCreateOrDeleteRefs({
           cultivarSegmentOrName: cultivarReference?.normalizedName,
           userId: ctx.user.id,
@@ -185,6 +186,7 @@ export const dashboardDbListingRouter = createTRPCRouter({
 
       await invalidatePublicIsrForReferences({
         db: ctx.db,
+        requestUrl: ctx.requestUrl,
         references: buildListingUpdateRefs({
           listingId: listing.id,
         }),
@@ -219,6 +221,7 @@ export const dashboardDbListingRouter = createTRPCRouter({
 
       await invalidatePublicIsrForReferences({
         db: ctx.db,
+        requestUrl: ctx.requestUrl,
         references: buildListingRelationshipRefs({
           currentListingId: listing.id,
           relatedCultivarSegmentOrNames: [
@@ -268,6 +271,7 @@ export const dashboardDbListingRouter = createTRPCRouter({
 
       await invalidatePublicIsrForReferences({
         db: ctx.db,
+        requestUrl: ctx.requestUrl,
         references: buildListingUpdateRefs({
           listingId: listing.id,
         }),
@@ -341,7 +345,8 @@ export const dashboardDbListingRouter = createTRPCRouter({
       if (changedPublicFields.length > 0) {
         await invalidatePublicIsrForReferences({
           db: ctx.db,
-          references: buildListingUpdateRefs({
+          requestUrl: ctx.requestUrl,
+        references: buildListingUpdateRefs({
             includeCatalogsIndex: true,
             listingId: existing.id,
             userId: existing.userId,
@@ -396,6 +401,7 @@ export const dashboardDbListingRouter = createTRPCRouter({
 
       await invalidatePublicIsrForReferences({
         db: ctx.db,
+        requestUrl: ctx.requestUrl,
         references: buildListingCreateOrDeleteRefs({
           cultivarSegmentOrName: listing.cultivarReference?.normalizedName,
           userId: ctx.user.id,

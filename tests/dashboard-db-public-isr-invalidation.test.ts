@@ -83,7 +83,7 @@ function expectPathNotInvalidated(path: string) {
 }
 
 function expectTagInvalidated(tag: string) {
-  expect(revalidateTagMock).toHaveBeenCalledWith(tag, "max");
+  expect(revalidateTagMock).toHaveBeenCalledWith(tag, { expire: 0 });
 }
 
 describe("dashboardDb public ISR invalidation", () => {

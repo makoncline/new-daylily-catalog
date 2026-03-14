@@ -185,6 +185,7 @@ export const dashboardDbImageRouter = createTRPCRouter({
 
       await invalidatePublicIsrForReferences({
         db: ctx.db,
+        requestUrl: ctx.requestUrl,
         references: getImageInvalidationReferences({
           referenceId: input.referenceId,
           type: input.type,
@@ -240,6 +241,7 @@ export const dashboardDbImageRouter = createTRPCRouter({
 
       await invalidatePublicIsrForReferences({
         db: ctx.db,
+        requestUrl: ctx.requestUrl,
         references: getImageInvalidationReferences({
           referenceId: input.referenceId,
           type: input.type,
@@ -300,6 +302,7 @@ export const dashboardDbImageRouter = createTRPCRouter({
 
       await invalidatePublicIsrForReferences({
         db: ctx.db,
+        requestUrl: ctx.requestUrl,
         references: getImageInvalidationReferences({
           referenceId: input.referenceId,
           type: input.type,
@@ -351,6 +354,7 @@ export const dashboardDbImageRouter = createTRPCRouter({
 
       await invalidatePublicIsrForReferences({
         db: ctx.db,
+        requestUrl: ctx.requestUrl,
         references: getImageInvalidationReferences({
           referenceId: input.referenceId,
           type: input.type,

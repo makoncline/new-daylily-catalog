@@ -145,6 +145,7 @@ export const dashboardDbUserProfileRouter = createTRPCRouter({
 
       await invalidatePublicIsrForReferences({
         db: ctx.db,
+        requestUrl: ctx.requestUrl,
         references: buildProfileMutationRefs(ctx.user.id),
         extraPaths:
           existingProfile?.slug && existingProfile.slug !== profile.slug
@@ -173,6 +174,7 @@ export const dashboardDbUserProfileRouter = createTRPCRouter({
 
       await invalidatePublicIsrForReferences({
         db: ctx.db,
+        requestUrl: ctx.requestUrl,
         references: buildProfileMutationRefs(ctx.user.id),
       });
 

@@ -21,15 +21,10 @@ export class DashboardListings {
 
   constructor(page: Page) {
     this.page = page;
-    // Use h1 selector to target the page header specifically, avoiding the "No listings" h3
-    // Use .first() since there might be multiple h1 elements with "Listings" text
     this.heading = page.locator("h1").filter({ hasText: "Listings" }).first();
-    // Use .first() to get the button in the page header (rendered first)
-    // EmptyState components also have CreateListingButton, but they render after the page header
     this.createListingButton = page
       .getByTestId("create-listing-button")
       .first();
-    // The left-pinned table contains title rows.
     this.listingsTable = page.locator("table").first();
     this.listingTableReady = page.getByTestId("listing-table");
     this.globalSearchInput = page.getByPlaceholder("Filter listings...");
@@ -79,6 +74,12 @@ export class DashboardListings {
     return this.listingsTable
       .locator("tbody tr")
       .filter({ hasText: listingTitle })
+      .first();
+  }
+
+  rowActionTrigger(listingTitle: string): Locator {
+    return this.listingRow(listingTitle)
+      .locator('[data-testid="listing-row-actions-trigger"]')
       .first();
   }
 
@@ -177,21 +178,27 @@ export class DashboardListings {
     return this.page.locator(`[data-testid="${testId}"]:visible`).first();
   }
 
-  private async clickRowActionTriggerAndWaitOpen() {
-    const rowActionButton = this.firstVisibleRowActionButton();
-    await rowActionButton.click();
-    if ((await rowActionButton.getAttribute("aria-expanded")) !== "true") {
-      await rowActionButton.click();
+  private async clickRowActionTriggerAndWaitOpen(rowActionButton?: Locator) {
+    const trigger = rowActionButton ?? this.firstVisibleRowActionButton();
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      await trigger.waitFor({ state: "visible" });
+      await trigger.scrollIntoViewIfNeeded();
+      await trigger.click({ force: true });
+      try {
+        await this.rowActionMenu().waitFor({ state: "visible", timeout: 2000 });
+        return;
+      } catch {}
     }
-    await expect(rowActionButton).toHaveAttribute("aria-expanded", "true");
+
+    await expect(this.rowActionMenu()).toBeVisible();
   }
 
-  private async ensureRowActionMenuOpen() {
+  private async ensureRowActionMenuOpen(rowActionButton?: Locator) {
     if (await this.rowActionMenu().isVisible()) {
       return;
     }
 
-    await this.clickRowActionTriggerAndWaitOpen();
+    await this.clickRowActionTriggerAndWaitOpen(rowActionButton);
   }
 
   async openFirstVisibleRowActions() {
@@ -199,17 +206,49 @@ export class DashboardListings {
     await this.rowActionMenuItem("Edit").waitFor({ state: "visible" });
   }
 
-  private async chooseRowAction(actionName: "Delete" | "Edit") {
-    await this.ensureRowActionMenuOpen();
-    await this.rowActionMenuItem(actionName).click();
+  async openRowActionsForListing(listingTitle: string) {
+    await this.clickRowActionTriggerAndWaitOpen(this.rowActionTrigger(listingTitle));
+    await this.rowActionMenuItem("Edit").waitFor({ state: "visible" });
+  }
+
+  private async chooseRowAction(
+    actionName: "Delete" | "Edit",
+    rowActionButton?: Locator,
+  ) {
+    let lastError: unknown;
+
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        await this.ensureRowActionMenuOpen(rowActionButton);
+        const menuItem = this.rowActionMenuItem(actionName);
+        await menuItem.waitFor({ state: "visible" });
+        await menuItem.scrollIntoViewIfNeeded();
+        await menuItem.click();
+        return;
+      } catch (error) {
+        lastError = error;
+      }
+    }
+
+    throw lastError instanceof Error
+      ? lastError
+      : new Error(`Failed to choose row action "${actionName}"`);
   }
 
   async chooseRowActionDelete() {
     await this.chooseRowAction("Delete");
   }
 
+  async chooseRowActionDeleteForListing(listingTitle: string) {
+    await this.chooseRowAction("Delete", this.rowActionTrigger(listingTitle));
+  }
+
   async chooseRowActionEdit() {
     await this.chooseRowAction("Edit");
+  }
+
+  async chooseRowActionEditForListing(listingTitle: string) {
+    await this.chooseRowAction("Edit", this.rowActionTrigger(listingTitle));
   }
 
   async confirmDelete() {
@@ -230,9 +269,6 @@ export class DashboardListings {
     return this.page.locator("td").filter({ hasText: status }).first();
   }
 
-  /**
-   * Navigates back to the dashboard home page
-   */
   async goToDashboard() {
     await this.page.goto("/dashboard");
   }

@@ -1,5 +1,9 @@
 import { CACHE_CONFIG } from "@/config/cache-config";
 
+export function getPublicCatalogsTag() {
+  return CACHE_CONFIG.TAGS.PUBLIC_PROFILES;
+}
+
 export function getPublicProfileTag(userId: string) {
   return `${CACHE_CONFIG.TAGS.PUBLIC_PROFILE}:${userId}`;
 }

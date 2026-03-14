@@ -1,6 +1,8 @@
 import type { PrismaClient } from "@prisma/client";
 import { revalidatePath, revalidateTag } from "next/cache";
+import { env, requireEnv } from "@/env";
 import {
+  getPublicCatalogsTag,
   getPublicCultivarTag,
   getPublicForSaleCountTag,
   getPublicListingCardTag,
@@ -23,6 +25,7 @@ interface ApplyPublicInvalidationReferencesInput {
   db: PrismaClient;
   extraPaths?: RevalidatePathInput[];
   references: PublicInvalidationReference[];
+  requestUrl?: string;
 }
 
 interface RevalidatePathInput {
@@ -31,7 +34,7 @@ interface RevalidatePathInput {
 }
 
 interface RevalidateTagInput {
-  profile?: "max";
+  profile?: "expire:0" | "max";
   tag: string;
 }
 
@@ -97,11 +100,22 @@ function safeRevalidatePath(path: string, type?: "page" | "layout"): void {
   }
 }
 
-function safeRevalidateTag(tag: string, profile: "max" = "max"): void {
+function toNextTagProfile(profile: RevalidateTagInput["profile"]) {
+  if (profile === "max") {
+    return "max";
+  }
+
+  return { expire: 0 } as const;
+}
+
+function safeRevalidateTag(
+  tag: string,
+  profile: RevalidateTagInput["profile"] = "expire:0",
+): void {
   try {
-    revalidateTag(tag, profile);
+    revalidateTag(tag, toNextTagProfile(profile));
     trackPublicIsrTagInvalidation({
-      profile,
+      profile: profile ?? "expire:0",
       sourcePage: "server:dashboard-db.public-isr-invalidation",
       tag,
       transport: "direct",
@@ -157,13 +171,71 @@ async function applyPublicCacheRevalidations(args: {
   const uniquePaths = toUniquePathInputs(args.paths);
   const uniqueTags = toUniqueTagInputs(args.tags ?? []);
 
-  uniquePaths.forEach((entry) => {
-    safeRevalidatePath(entry.path, entry.type);
-  });
-
   uniqueTags.forEach((entry) => {
     safeRevalidateTag(entry.tag, entry.profile);
   });
+
+  uniquePaths.forEach((entry) => {
+    safeRevalidatePath(entry.path, entry.type);
+  });
+}
+
+function shouldUseInternalRouteRevalidation(requestUrl?: string) {
+  return process.env.NODE_ENV !== "test" && !!requestUrl;
+}
+
+function shouldAttachVercelBypassHeader(url: URL) {
+  return (
+    !!env.VERCEL_AUTOMATION_BYPASS_SECRET &&
+    (url.hostname.endsWith(".vercel.app") ||
+      url.hostname.endsWith("-preview.daylilycatalog.com"))
+  );
+}
+
+async function applyPublicCacheRevalidationsViaRoute(args: {
+  paths: RevalidatePathInput[];
+  requestUrl: string;
+  tags?: RevalidateTagInput[];
+}) {
+  const uniquePaths = toUniquePathInputs(args.paths);
+  const uniqueTags = toUniqueTagInputs(args.tags ?? []);
+  const routeUrl = new URL("/api/internal/public-cache-revalidate", args.requestUrl);
+
+  const headers = new Headers({
+    authorization: `Bearer ${requireEnv(
+      "CLERK_WEBHOOK_SECRET",
+      env.CLERK_WEBHOOK_SECRET,
+    )}`,
+    "content-type": "application/json",
+  });
+
+  if (shouldAttachVercelBypassHeader(routeUrl)) {
+    headers.set(
+      "x-vercel-protection-bypass",
+      env.VERCEL_AUTOMATION_BYPASS_SECRET!,
+    );
+    headers.set(
+      "x-vercel-set-bypass-cookie",
+      env.VERCEL_AUTOMATION_BYPASS_SECRET!,
+    );
+  }
+
+  const response = await fetch(routeUrl, {
+    method: "POST",
+    headers,
+    cache: "no-store",
+    body: JSON.stringify({
+      source: PUBLIC_ISR_INVALIDATION_SOURCE,
+      paths: uniquePaths,
+      tags: uniqueTags,
+    }),
+  });
+
+  if (!response.ok) {
+    throw new Error(
+      `Public cache revalidate route failed with status ${response.status}`,
+    );
+  }
 }
 
 async function getCanonicalSlug(
@@ -226,7 +298,7 @@ async function resolveListingTarget(
 async function resolveCatalogsIndexReference(): Promise<ResolvedPublicInvalidationTargets> {
   return {
     paths: [{ path: "/catalogs" }],
-    tags: [],
+    tags: [{ tag: getPublicCatalogsTag() }],
   };
 }
 
@@ -386,8 +458,21 @@ export async function invalidatePublicIsrForReferences(
           tags: [],
         };
 
-  await applyPublicCacheRevalidations({
-    paths: [...targets.paths, ...extraPaths],
-    tags: targets.tags,
-  });
+  const paths = [...targets.paths, ...extraPaths];
+  const tags = targets.tags;
+
+  if (shouldUseInternalRouteRevalidation(input.requestUrl)) {
+    try {
+      await applyPublicCacheRevalidationsViaRoute({
+        paths,
+        requestUrl: input.requestUrl!,
+        tags,
+      });
+      return;
+    } catch (error) {
+      console.error("Falling back to direct public cache revalidation", error);
+    }
+  }
+
+  await applyPublicCacheRevalidations({ paths, tags });
 }

@@ -41,6 +41,7 @@ type TRPCContextUser = Awaited<ReturnType<typeof getOrCreateUser>>;
 export interface TRPCContext {
   headers: Headers;
   db: typeof db;
+  requestUrl?: string;
 }
 
 export interface TRPCInternalContext extends TRPCContext {
@@ -67,7 +68,7 @@ export interface TRPCInternalContext extends TRPCContext {
  * @see https://trpc.io/docs/server/context
  */
 export const createTRPCContext = async (
-  opts: { headers: Headers },
+  opts: { headers: Headers; requestUrl?: string },
 ): Promise<TRPCContext> => {
   return {
     ...opts,

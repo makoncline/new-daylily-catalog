@@ -19,11 +19,19 @@ const revalidateRequestBodySchema = z.object({
     .array(
       z.object({
         tag: z.string().min(1),
-        profile: z.literal("max").optional(),
+        profile: z.enum(["expire:0", "max"]).optional(),
       }),
     )
     .default([]),
 });
+
+function toNextTagProfile(profile: "expire:0" | "max" | undefined) {
+  if (profile === "max") {
+    return "max";
+  }
+
+  return { expire: 0 } as const;
+}
 
 export async function POST(request: NextRequest) {
   const authorization = request.headers.get("authorization");
@@ -39,6 +47,18 @@ export async function POST(request: NextRequest) {
   if (!parsedBody.success) {
     return NextResponse.json({ error: "Invalid payload" }, { status: 400 });
   }
+
+  parsedBody.data.tags.forEach((entry) => {
+    const profile = entry.profile ?? "expire:0";
+    revalidateTag(entry.tag, toNextTagProfile(profile));
+    trackPublicIsrTagInvalidation({
+      profile,
+      sourcePage: "/api/internal/public-cache-revalidate",
+      tag: entry.tag,
+      transport: "internal-route",
+      triggerSource: parsedBody.data.source,
+    });
+  });
 
   parsedBody.data.paths.forEach((entry) => {
     if (entry.type) {
@@ -57,18 +77,6 @@ export async function POST(request: NextRequest) {
     trackPublicIsrPathInvalidation({
       path: entry.path,
       sourcePage: "/api/internal/public-cache-revalidate",
-      transport: "internal-route",
-      triggerSource: parsedBody.data.source,
-    });
-  });
-
-  parsedBody.data.tags.forEach((entry) => {
-    const profile = entry.profile ?? "max";
-    revalidateTag(entry.tag, profile);
-    trackPublicIsrTagInvalidation({
-      profile,
-      sourcePage: "/api/internal/public-cache-revalidate",
-      tag: entry.tag,
       transport: "internal-route",
       triggerSource: parsedBody.data.source,
     });

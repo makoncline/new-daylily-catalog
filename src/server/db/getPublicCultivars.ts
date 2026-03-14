@@ -413,6 +413,22 @@ async function getCultivarListingIds(args: {
   });
 }
 
+export async function getPublicCultivarListingIds(
+  cultivarSegment: string,
+): Promise<string[] | null> {
+  const referenceData = await getPublicCultivarReference(cultivarSegment);
+  if (!referenceData) {
+    return null;
+  }
+
+  const rows = await getCultivarListingIds({
+    cultivarReferenceId: referenceData.cultivarReference.id,
+    proUserIds: referenceData.proUserIds,
+  });
+
+  return rows.map((row) => row.id);
+}
+
 function getCultivarUserIds(
   listingCards: Awaited<ReturnType<typeof getCultivarListingCards>>,
 ) {
@@ -608,6 +624,36 @@ function toGardenCards(args: {
     .sort((a, b) => a.title.localeCompare(b.title));
 }
 
+export function buildPublicCultivarOffersFromListingCards(args: {
+  listingCards: Awaited<ReturnType<typeof getCultivarListingCards>>;
+  summariesByUserId: Awaited<
+    ReturnType<typeof getSellerSummariesForCultivarListings>
+  >;
+}) {
+  const gardenCards = toGardenCards(args);
+  const allOffers = gardenCards.flatMap((gardenCard) => gardenCard.offers);
+  const prices = allOffers
+    .map((offer) => offer.price)
+    .filter((price): price is number => price !== null);
+
+  return {
+    offers: {
+      summary: {
+        gardensCount: gardenCards.length,
+        offersCount: allOffers.length,
+        forSaleCount: allOffers.filter((offer) => offer.price !== null).length,
+        minPrice: prices.length > 0 ? Math.min(...prices) : null,
+        maxPrice: prices.length > 0 ? Math.max(...prices) : null,
+      },
+      gardenCards,
+    },
+    freshness: {
+      offersUpdatedAt:
+        getMaxDate(allOffers.map((offer) => offer.updatedAt)) ?? null,
+    },
+  };
+}
+
 function toGardenPhotos(args: {
   listingCards: Awaited<ReturnType<typeof getCultivarListingCards>>;
   summariesByUserId: Awaited<
@@ -633,6 +679,23 @@ function toGardenPhotos(args: {
     })
     .sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime())
     .slice(0, 12);
+}
+
+export function buildPublicCultivarGardenPhotosFromListingCards(args: {
+  listingCards: Awaited<ReturnType<typeof getCultivarListingCards>>;
+  summariesByUserId: Awaited<
+    ReturnType<typeof getSellerSummariesForCultivarListings>
+  >;
+}) {
+  const gardenPhotos = toGardenPhotos(args);
+
+  return {
+    gardenPhotos,
+    freshness: {
+      photosUpdatedAt:
+        getMaxDate(gardenPhotos.map((photo) => photo.updatedAt)) ?? null,
+    },
+  };
 }
 
 async function buildPublicCultivarSummary(args: {
@@ -715,28 +778,7 @@ async function buildPublicCultivarOffers(args: {
     ReturnType<typeof getSellerSummariesForCultivarListings>
   >;
 }) {
-  const gardenCards = toGardenCards(args);
-  const allOffers = gardenCards.flatMap((gardenCard) => gardenCard.offers);
-  const prices = allOffers
-    .map((offer) => offer.price)
-    .filter((price): price is number => price !== null);
-
-  return {
-    offers: {
-      summary: {
-        gardensCount: gardenCards.length,
-        offersCount: allOffers.length,
-        forSaleCount: allOffers.filter((offer) => offer.price !== null).length,
-        minPrice: prices.length > 0 ? Math.min(...prices) : null,
-        maxPrice: prices.length > 0 ? Math.max(...prices) : null,
-      },
-      gardenCards,
-    },
-    freshness: {
-      offersUpdatedAt:
-        getMaxDate(allOffers.map((offer) => offer.updatedAt)) ?? null,
-    },
-  };
+  return buildPublicCultivarOffersFromListingCards(args);
 }
 
 async function buildPublicCultivarGardenPhotos(args: {
@@ -745,15 +787,7 @@ async function buildPublicCultivarGardenPhotos(args: {
     ReturnType<typeof getSellerSummariesForCultivarListings>
   >;
 }) {
-  const gardenPhotos = toGardenPhotos(args);
-
-  return {
-    gardenPhotos,
-    freshness: {
-      photosUpdatedAt:
-        getMaxDate(gardenPhotos.map((photo) => photo.updatedAt)) ?? null,
-    },
-  };
+  return buildPublicCultivarGardenPhotosFromListingCards(args);
 }
 
 export async function getPublicCultivarPage(cultivarSegment: string) {
