@@ -1,4 +1,5 @@
-import { HeadBucketCommand, S3Client } from "@aws-sdk/client-s3";
+import { PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
+import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import type { Prisma } from "@prisma/client";
 import { getCanonicalBaseUrl } from "@/lib/utils/getBaseUrl";
 import { getClerk } from "@/server/clerk/client";
@@ -179,10 +180,14 @@ async function checkS3() {
     },
   });
 
-  await s3.send(
-    new HeadBucketCommand({
+  await getSignedUrl(
+    s3,
+    new PutObjectCommand({
       Bucket: requireProcessEnv("AWS_BUCKET_NAME"),
+      Key: "health-check/probe.txt",
+      ContentType: "text/plain",
     }),
+    { expiresIn: 60 },
   );
 }
 

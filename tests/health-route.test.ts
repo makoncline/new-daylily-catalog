@@ -16,7 +16,7 @@ const healthDependencyMocks = vi.hoisted(() => ({
   clerkGetUserList: vi.fn(),
   dbFindFirst: vi.fn(),
   getClerk: vi.fn(),
-  s3Send: vi.fn(),
+  s3Presign: vi.fn(),
   stripeBalanceRetrieve: vi.fn(),
 }));
 
@@ -39,16 +39,18 @@ vi.mock("@/server/clerk/client", () => ({
 }));
 
 vi.mock("@aws-sdk/client-s3", () => ({
-  HeadBucketCommand: class {
+  PutObjectCommand: class {
     input: unknown;
 
     constructor(input: unknown) {
       this.input = input;
     }
   },
-  S3Client: vi.fn(() => ({
-    send: healthDependencyMocks.s3Send,
-  })),
+  S3Client: vi.fn(() => ({})),
+}));
+
+vi.mock("@aws-sdk/s3-request-presigner", () => ({
+  getSignedUrl: healthDependencyMocks.s3Presign,
 }));
 
 async function loadHealthModule() {
@@ -71,7 +73,9 @@ describe("runHealthCheck", () => {
     healthDependencyMocks.baseUrl.mockReturnValue("https://daylilycatalog.com");
     healthDependencyMocks.dbFindFirst.mockResolvedValue(null);
     healthDependencyMocks.stripeBalanceRetrieve.mockResolvedValue({});
-    healthDependencyMocks.s3Send.mockResolvedValue({});
+    healthDependencyMocks.s3Presign.mockResolvedValue(
+      "https://example.com/presigned-upload",
+    );
     healthDependencyMocks.clerkGetUserList.mockResolvedValue({
       data: [],
     });
@@ -127,7 +131,7 @@ describe("runHealthCheck", () => {
     ],
     [
       "s3",
-      () => healthDependencyMocks.s3Send.mockRejectedValue(new Error("s3 failed")),
+      () => healthDependencyMocks.s3Presign.mockRejectedValue(new Error("s3 failed")),
     ],
     [
       "clerk",
