@@ -1,7 +1,6 @@
 "use client";
 
-import { getQueryClient } from "@/trpc/query-client";
-import { cursorKey, setCurrentUserId } from "@/lib/utils/cursor";
+import { setCurrentUserId } from "@/lib/utils/cursor";
 
 type PreloadableCollection = {
   preload: () => Promise<void>;
@@ -26,25 +25,12 @@ export function writeCursorFromRows(args: {
   localStorage.setItem(args.cursorStorageKey, max.toISOString());
 }
 
-export async function bootstrapDashboardDbCollection<TItem extends HasUpdatedAt>(args: {
+export async function bootstrapDashboardDbCollection(args: {
   userId: string;
-  queryKey: readonly unknown[];
-  cursorBase: string;
   collection: PreloadableCollection;
-  fetchSeed: () => Promise<TItem[]>;
-  onSeeded?: () => void;
+  beforePreload?: () => void;
 }) {
   setCurrentUserId(args.userId);
-
-  const rows = await args.fetchSeed();
-  getQueryClient().setQueryData<TItem[]>(args.queryKey, rows);
-
-  writeCursorFromRows({
-    cursorStorageKey: cursorKey(args.cursorBase, args.userId),
-    rows,
-  });
-
-  args.onSeeded?.();
-
+  args.beforePreload?.();
   await args.collection.preload();
 }

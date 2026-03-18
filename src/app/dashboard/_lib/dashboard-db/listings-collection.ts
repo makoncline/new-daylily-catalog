@@ -45,7 +45,9 @@ export const listingsCollection = createCollection(
       DELETED_IDS.forEach((id) => map.delete(id));
 
       writeCursorFromRows({ cursorStorageKey: cursorKeyToUse, rows: upserts });
-      return Array.from(map.values());
+      return Array.from(map.values()).sort(
+        (a, b) => b.createdAt.getTime() - a.createdAt.getTime(),
+      );
     },
     onInsert: async () => ({ refetch: false }),
     onUpdate: async () => ({ refetch: false }),
@@ -158,13 +160,10 @@ export async function syncAhsName(draft: SyncAhsNameDraft) {
 }
 
 export async function initializeListingsCollection(userId: string) {
-  await bootstrapDashboardDbCollection<ListingCollectionItem>({
+  await bootstrapDashboardDbCollection({
     userId,
-    queryKey: ["dashboard-db", "listings"],
-    cursorBase: CURSOR_BASE,
     collection: listingsCollection,
-    fetchSeed: () => getTrpcClient().dashboardDb.listing.list.query(),
-    onSeeded: () => {
+    beforePreload: () => {
       DELETED_IDS.clear();
     },
   });

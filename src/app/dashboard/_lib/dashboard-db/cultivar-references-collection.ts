@@ -38,7 +38,9 @@ export const cultivarReferencesCollection = createCollection(
       upserts.forEach((row) => map.set(row.id, row));
 
       writeCursorFromRows({ cursorStorageKey: cursorKeyToUse, rows: upserts });
-      return Array.from(map.values());
+      return Array.from(map.values()).sort(
+        (a, b) => a.updatedAt.getTime() - b.updatedAt.getTime(),
+      );
     },
     onInsert: async () => ({ refetch: false }),
     onUpdate: async () => ({ refetch: false }),
@@ -47,13 +49,9 @@ export const cultivarReferencesCollection = createCollection(
 );
 
 export async function initializeCultivarReferencesCollection(userId: string) {
-  await bootstrapDashboardDbCollection<CultivarReferenceCollectionItem>({
+  await bootstrapDashboardDbCollection({
     userId,
-    queryKey: ["dashboard-db", "cultivar-references"],
-    cursorBase: CURSOR_BASE,
     collection: cultivarReferencesCollection,
-    fetchSeed: () =>
-      getTrpcClient().dashboardDb.cultivarReference.listForUserListings.query(),
   });
 }
 
