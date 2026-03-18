@@ -8,8 +8,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { api } from "@/trpc/react";
-import { useParams, useSearchParams } from "next/navigation";
-import { useRef } from "react";
+import { useParams } from "next/navigation";
 import { ErrorBoundary } from "react-error-boundary";
 import { ErrorFallback } from "@/components/error-fallback";
 import { normalizeError, reportError } from "@/lib/error-utils";
@@ -20,41 +19,20 @@ import {
 import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
 import { type RouterOutputs } from "@/trpc/react";
 import { withPublicClientQueryCache } from "@/lib/cache/client-cache";
+import { useListingDialogQueryState } from "@/hooks/use-listing-dialog-query-state";
 
 type Listing = RouterOutputs["public"]["getListings"][number];
 
 export const useViewListing = () => {
-  const searchParams = useSearchParams();
-  const listingRef = useRef<Listing | null>(null);
-
-  const setViewingId = (id: string | null) => {
-    try {
-      const params = new URLSearchParams(searchParams.toString());
-
-      if (id) {
-        params.set("viewing", id);
-      } else {
-        params.delete("viewing");
-      }
-
-      window.history.pushState(null, "", `?${params.toString()}`);
-    } catch (error) {
-      console.error("Failed to update URL:", error);
-    }
-  };
-
-  const getViewingId = () => searchParams.get("viewing");
+  const { viewingId, openListing, closeListing } =
+    useListingDialogQueryState();
 
   return {
     viewListing: (listing: Listing) => {
-      listingRef.current = listing;
-      setViewingId(listing.id);
+      openListing(listing.id);
     },
-    closeViewListing: () => {
-      listingRef.current = null;
-      setViewingId(null);
-    },
-    viewingId: getViewingId(),
+    closeViewListing: closeListing,
+    viewingId,
   };
 };
 
@@ -63,7 +41,7 @@ interface ViewListingDialogProps {
 }
 
 export function ViewListingDialog({ listings }: ViewListingDialogProps) {
-  const { viewingId, closeViewListing } = useViewListing();
+  const { viewingId, closeListing } = useListingDialogQueryState();
   const params = useParams<{ userSlugOrId: string }>();
   const isOpen = !!viewingId;
 
@@ -88,7 +66,7 @@ export function ViewListingDialog({ listings }: ViewListingDialogProps) {
 
   const handleOpenChange = (open: boolean) => {
     if (!open) {
-      closeViewListing();
+      closeListing();
     }
   };
 
@@ -108,7 +86,7 @@ export function ViewListingDialog({ listings }: ViewListingDialogProps) {
           </DialogHeader>
         </VisuallyHidden>
         <ErrorBoundary
-          fallback={<ErrorFallback resetErrorBoundary={closeViewListing} />}
+          fallback={<ErrorFallback resetErrorBoundary={closeListing} />}
           onError={(error, errorInfo) =>
             reportError({
               error: normalizeError(error),

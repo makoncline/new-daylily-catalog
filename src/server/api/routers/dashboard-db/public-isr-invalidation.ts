@@ -20,22 +20,18 @@ import type {
   PublicInvalidationReference,
   PublicInvalidationReferenceType,
 } from "@/types/public-types";
+import {
+  createPublicIsrPlan,
+  executePublicIsrPlan,
+  type PublicIsrPathInput,
+  type PublicIsrTagInput,
+} from "./public-isr-invalidation-plan";
 
 interface ApplyPublicInvalidationReferencesInput {
   db: PrismaClient;
-  extraPaths?: RevalidatePathInput[];
+  extraPaths?: PublicIsrPathInput[];
   references: PublicInvalidationReference[];
   requestUrl?: string;
-}
-
-interface RevalidatePathInput {
-  path: string;
-  type?: "page" | "layout";
-}
-
-interface RevalidateTagInput {
-  profile?: "expire:0" | "max";
-  tag: string;
 }
 
 interface PublicUserRouteTarget {
@@ -44,8 +40,8 @@ interface PublicUserRouteTarget {
 }
 
 interface ResolvedPublicInvalidationTargets {
-  paths: RevalidatePathInput[];
-  tags: RevalidateTagInput[];
+  paths: PublicIsrPathInput[];
+  tags: PublicIsrTagInput[];
 }
 
 interface ResolveReferenceArgs {
@@ -70,85 +66,38 @@ function shouldIgnoreMissingStaticGenerationStoreError(
   );
 }
 
-function safeRevalidatePath(path: string, type?: "page" | "layout"): void {
+function safeRevalidatePath(path: string, type?: "page" | "layout"): boolean {
   try {
     if (type) {
       revalidatePath(path, type);
-      trackPublicIsrPathInvalidation({
-        path,
-        sourcePage: "server:dashboard-db.public-isr-invalidation",
-        transport: "direct",
-        triggerSource: PUBLIC_ISR_INVALIDATION_SOURCE,
-        type,
-      });
-      return;
+      return true;
     }
 
     revalidatePath(path);
-    trackPublicIsrPathInvalidation({
-      path,
-      sourcePage: "server:dashboard-db.public-isr-invalidation",
-      transport: "direct",
-      triggerSource: PUBLIC_ISR_INVALIDATION_SOURCE,
-    });
+    return true;
   } catch (error) {
     if (shouldIgnoreMissingStaticGenerationStoreError(error)) {
-      return;
+      return false;
     }
 
     throw error;
   }
-}
-
-function toNextTagProfile(profile: RevalidateTagInput["profile"]) {
-  if (profile === "max") {
-    return "max";
-  }
-
-  return { expire: 0 } as const;
 }
 
 function safeRevalidateTag(
   tag: string,
-  profile: RevalidateTagInput["profile"] = "expire:0",
-): void {
+  profile: "max" | { expire: 0 },
+): boolean {
   try {
-    revalidateTag(tag, toNextTagProfile(profile));
-    trackPublicIsrTagInvalidation({
-      profile: profile ?? "expire:0",
-      sourcePage: "server:dashboard-db.public-isr-invalidation",
-      tag,
-      transport: "direct",
-      triggerSource: PUBLIC_ISR_INVALIDATION_SOURCE,
-    });
+    revalidateTag(tag, profile);
+    return true;
   } catch (error) {
     if (shouldIgnoreMissingStaticGenerationStoreError(error)) {
-      return;
+      return false;
     }
 
     throw error;
   }
-}
-
-function toUniquePathInputs(
-  paths: RevalidatePathInput[],
-): RevalidatePathInput[] {
-  const byKey = new Map<string, RevalidatePathInput>();
-
-  paths.forEach((entry) => {
-    const key = `${entry.type ?? "default"}:${entry.path}`;
-    byKey.set(key, entry);
-  });
-
-  return Array.from(byKey.values());
-}
-
-function toUniqueTagInputs(tags: RevalidateTagInput[]): RevalidateTagInput[] {
-  return Array.from(
-    new Map(
-      tags.map((entry) => [`${entry.profile ?? "max"}:${entry.tag}`, entry]),
-    ).values(),
-  );
 }
 
 function toUniqueReferences(
@@ -165,18 +114,25 @@ function toUniqueReferences(
 }
 
 async function applyPublicCacheRevalidations(args: {
-  paths: RevalidatePathInput[];
-  tags?: RevalidateTagInput[];
+  paths: PublicIsrPathInput[];
+  tags?: PublicIsrTagInput[];
 }): Promise<void> {
-  const uniquePaths = toUniquePathInputs(args.paths);
-  const uniqueTags = toUniqueTagInputs(args.tags ?? []);
-
-  uniqueTags.forEach((entry) => {
-    safeRevalidateTag(entry.tag, entry.profile);
+  const plan = createPublicIsrPlan({
+    paths: args.paths,
+    source: PUBLIC_ISR_INVALIDATION_SOURCE,
+    tags: args.tags ?? [],
   });
 
-  uniquePaths.forEach((entry) => {
-    safeRevalidatePath(entry.path, entry.type);
+  executePublicIsrPlan({
+    handlers: {
+      revalidatePath: safeRevalidatePath,
+      revalidateTag: safeRevalidateTag,
+      trackPathInvalidation: trackPublicIsrPathInvalidation,
+      trackTagInvalidation: trackPublicIsrTagInvalidation,
+    },
+    plan,
+    sourcePage: "server:dashboard-db.public-isr-invalidation",
+    transport: "direct",
   });
 }
 
@@ -193,12 +149,15 @@ function shouldAttachVercelBypassHeader(url: URL) {
 }
 
 async function applyPublicCacheRevalidationsViaRoute(args: {
-  paths: RevalidatePathInput[];
+  paths: PublicIsrPathInput[];
   requestUrl: string;
-  tags?: RevalidateTagInput[];
+  tags?: PublicIsrTagInput[];
 }) {
-  const uniquePaths = toUniquePathInputs(args.paths);
-  const uniqueTags = toUniqueTagInputs(args.tags ?? []);
+  const plan = createPublicIsrPlan({
+    paths: args.paths,
+    source: PUBLIC_ISR_INVALIDATION_SOURCE,
+    tags: args.tags ?? [],
+  });
   const routeUrl = new URL("/api/internal/public-cache-revalidate", args.requestUrl);
 
   const headers = new Headers({
@@ -225,9 +184,9 @@ async function applyPublicCacheRevalidationsViaRoute(args: {
     headers,
     cache: "no-store",
     body: JSON.stringify({
-      source: PUBLIC_ISR_INVALIDATION_SOURCE,
-      paths: uniquePaths,
-      tags: uniqueTags,
+      source: plan.source,
+      paths: plan.paths,
+      tags: plan.tags,
     }),
   });
 
@@ -261,7 +220,7 @@ async function getUserRouteTarget(
 }
 
 function addUserRootPaths(
-  pathsToRevalidate: RevalidatePathInput[],
+  pathsToRevalidate: PublicIsrPathInput[],
   target: PublicUserRouteTarget,
 ) {
   pathsToRevalidate.push({ path: `/${target.slug}` });
@@ -336,8 +295,8 @@ async function resolveListingReference(args: {
   }
 
   const userTarget = await args.getOrLoadUserTarget(listingTarget.userId);
-  const paths: RevalidatePathInput[] = [];
-  const tags: RevalidateTagInput[] = [
+  const paths: PublicIsrPathInput[] = [];
+  const tags: PublicIsrTagInput[] = [
     {
       tag: getPublicListingCardTag(args.reference.referenceId),
     },
@@ -365,7 +324,7 @@ async function resolveSellerReference(args: {
   reference: PublicInvalidationReference;
 }): Promise<ResolvedPublicInvalidationTargets> {
   const target = await args.getOrLoadUserTarget(args.reference.referenceId);
-  const paths: RevalidatePathInput[] = [];
+  const paths: PublicIsrPathInput[] = [];
 
   addUserRootPaths(paths, target);
 
@@ -442,8 +401,7 @@ export async function invalidatePublicIsrForReferences(
   input: ApplyPublicInvalidationReferencesInput,
 ): Promise<void> {
   const references = toUniqueReferences(input.references);
-  const extraPaths = toUniquePathInputs(input.extraPaths ?? []);
-  if (references.length === 0 && extraPaths.length === 0) {
+  if (references.length === 0 && (input.extraPaths?.length ?? 0) === 0) {
     return;
   }
 
@@ -458,15 +416,18 @@ export async function invalidatePublicIsrForReferences(
           tags: [],
         };
 
-  const paths = [...targets.paths, ...extraPaths];
-  const tags = targets.tags;
+  const plan = createPublicIsrPlan({
+    paths: [...targets.paths, ...(input.extraPaths ?? [])],
+    source: PUBLIC_ISR_INVALIDATION_SOURCE,
+    tags: targets.tags,
+  });
 
   if (shouldUseInternalRouteRevalidation(input.requestUrl)) {
     try {
       await applyPublicCacheRevalidationsViaRoute({
-        paths,
+        paths: plan.paths,
         requestUrl: input.requestUrl!,
-        tags,
+        tags: plan.tags,
       });
       return;
     } catch (error) {
@@ -474,5 +435,8 @@ export async function invalidatePublicIsrForReferences(
     }
   }
 
-  await applyPublicCacheRevalidations({ paths, tags });
+  await applyPublicCacheRevalidations({
+    paths: plan.paths,
+    tags: plan.tags,
+  });
 }

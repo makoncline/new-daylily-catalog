@@ -6,6 +6,10 @@ import {
   trackPublicIsrPathInvalidation,
   trackPublicIsrTagInvalidation,
 } from "@/server/analytics/public-isr-posthog";
+import {
+  createPublicIsrPlan,
+  executePublicIsrPlan,
+} from "@/server/api/routers/dashboard-db/public-isr-invalidation-plan";
 
 const revalidateRequestBodySchema = z.object({
   source: z.string().min(1),
@@ -25,14 +29,6 @@ const revalidateRequestBodySchema = z.object({
     .default([]),
 });
 
-function toNextTagProfile(profile: "expire:0" | "max" | undefined) {
-  if (profile === "max") {
-    return "max";
-  }
-
-  return { expire: 0 } as const;
-}
-
 export async function POST(request: NextRequest) {
   const authorization = request.headers.get("authorization");
   if (
@@ -48,38 +44,33 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Invalid payload" }, { status: 400 });
   }
 
-  parsedBody.data.tags.forEach((entry) => {
-    const profile = entry.profile ?? "expire:0";
-    revalidateTag(entry.tag, toNextTagProfile(profile));
-    trackPublicIsrTagInvalidation({
-      profile,
-      sourcePage: "/api/internal/public-cache-revalidate",
-      tag: entry.tag,
-      transport: "internal-route",
-      triggerSource: parsedBody.data.source,
-    });
+  const plan = createPublicIsrPlan({
+    paths: parsedBody.data.paths,
+    source: parsedBody.data.source,
+    tags: parsedBody.data.tags,
   });
 
-  parsedBody.data.paths.forEach((entry) => {
-    if (entry.type) {
-      revalidatePath(entry.path, entry.type);
-      trackPublicIsrPathInvalidation({
-        path: entry.path,
-        sourcePage: "/api/internal/public-cache-revalidate",
-        transport: "internal-route",
-        triggerSource: parsedBody.data.source,
-        type: entry.type,
-      });
-      return;
-    }
+  executePublicIsrPlan({
+    handlers: {
+      revalidatePath: (path, type) => {
+        if (type) {
+          revalidatePath(path, type);
+          return true;
+        }
 
-    revalidatePath(entry.path);
-    trackPublicIsrPathInvalidation({
-      path: entry.path,
-      sourcePage: "/api/internal/public-cache-revalidate",
-      transport: "internal-route",
-      triggerSource: parsedBody.data.source,
-    });
+        revalidatePath(path);
+        return true;
+      },
+      revalidateTag: (tag, profile) => {
+        revalidateTag(tag, profile);
+        return true;
+      },
+      trackPathInvalidation: trackPublicIsrPathInvalidation,
+      trackTagInvalidation: trackPublicIsrTagInvalidation,
+    },
+    plan,
+    sourcePage: "/api/internal/public-cache-revalidate",
+    transport: "internal-route",
   });
 
   return NextResponse.json({ ok: true });

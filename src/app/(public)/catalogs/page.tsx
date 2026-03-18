@@ -2,7 +2,7 @@ import { MainContent } from "../_components/main-content";
 import { type Metadata } from "next";
 import { getCachedPublicProfiles } from "@/server/db/public-cache";
 import { Suspense } from "react";
-import { PageHeader } from "@/app/dashboard/_components/page-header";
+import { PageHeader } from "@/components/page-header";
 import { getCanonicalBaseUrl } from "@/lib/utils/getBaseUrl";
 import { METADATA_CONFIG } from "@/config/constants";
 import {
@@ -20,42 +20,7 @@ export const revalidate = false;
 
 export async function generateMetadata(): Promise<Metadata> {
   const url = getCanonicalBaseUrl();
-
-  // Generate metadata
-  const metadata = await generateCatalogsPageMetadata(url);
-
-  return {
-    title: `${metadata.title} | ${METADATA_CONFIG.SITE_NAME}`,
-    description: metadata.description,
-    metadataBase: new URL(url),
-    openGraph: {
-      title: `${metadata.title} | ${METADATA_CONFIG.SITE_NAME}`,
-      description: metadata.description,
-      url: metadata.pageUrl,
-      siteName: METADATA_CONFIG.SITE_NAME,
-      locale: METADATA_CONFIG.LOCALE,
-      type: "website",
-      images: [
-        {
-          url: metadata.imageUrl,
-          width: 1200,
-          height: 630,
-          alt: "Collection of beautiful daylily catalogs",
-        },
-      ],
-    },
-    twitter: {
-      card: METADATA_CONFIG.TWITTER_CARD_TYPE,
-      title: `${metadata.title} | ${METADATA_CONFIG.SITE_NAME}`,
-      description: metadata.description,
-      site: METADATA_CONFIG.TWITTER_HANDLE,
-      images: [metadata.imageUrl],
-    },
-    robots: "index, follow, max-image-preview:large",
-    alternates: {
-      canonical: "/catalogs",
-    },
-  };
+  return generateCatalogsPageMetadata(url);
 }
 
 export default async function CatalogsPage() {

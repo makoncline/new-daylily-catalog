@@ -1,23 +1,13 @@
 "use client";
 
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import {
   ListingForm,
   type ListingFormHandle,
 } from "@/components/forms/listing-form";
 import { ListingFormSkeleton } from "@/components/forms/listing-form-skeleton";
-import { usePathname, useSearchParams, useRouter } from "next/navigation";
-import { Suspense, useEffect, useRef } from "react";
-import { ErrorBoundary } from "react-error-boundary";
-import { ErrorFallback } from "@/components/error-fallback";
-import { P } from "@/components/typography";
-import { atom, useAtom } from "jotai";
-import { useSaveBeforeNavigate } from "@/hooks/use-save-before-navigate";
+import { atom } from "jotai";
+import { useAtomDialogSearchParam } from "@/hooks/use-dialog-search-param";
+import { ManagedEditDialog } from "@/app/dashboard/_components/managed-edit-dialog";
 
 /**
  * Atom for editing state
@@ -32,59 +22,20 @@ export const editingListingIdAtom = atom<string | null>(null);
  * - State changes write to URL parameters for bookmarking/sharing
  */
 export const useEditListing = () => {
-  const router = useRouter();
-  const pathname = usePathname();
-  const searchParams = useSearchParams();
-  const [editingId, setEditingId] = useAtom(editingListingIdAtom);
-  const hasInitializedRef = useRef(false);
-
-  // Sync atom state to URL for persistence
-  useEffect(() => {
-    if (!hasInitializedRef.current) {
-      return;
-    }
-
-    const params = new URLSearchParams(searchParams.toString());
-
-    if (editingId) {
-      params.set("editing", editingId);
-    } else {
-      params.delete("editing");
-    }
-
-    const nextQuery = params.toString();
-    const newUrl = nextQuery ? `${pathname}?${nextQuery}` : pathname;
-
-    const currentQuery = searchParams.toString();
-    const currentUrl = currentQuery ? `${pathname}?${currentQuery}` : pathname;
-
-    if (newUrl !== currentUrl) {
-      router.push(newUrl);
-    }
-  }, [editingId, pathname, router, searchParams]);
-
-  // Initialize from URL on first load
-  useEffect(() => {
-    if (hasInitializedRef.current) {
-      return;
-    }
-
-    const urlEditingId = searchParams.get("editing");
-    if (urlEditingId) {
-      setEditingId(urlEditingId);
-    }
-
-    hasInitializedRef.current = true;
-  }, [searchParams, setEditingId]);
+  const { close, open, value } = useAtomDialogSearchParam({
+    atom: editingListingIdAtom,
+    history: "push",
+    paramName: "editing",
+  });
 
   return {
     editListing: (id: string) => {
-      setEditingId(id);
+      open(id);
     },
     closeEditListing: () => {
-      setEditingId(null);
+      close();
     },
-    editingId,
+    editingId: value,
   };
 };
 
@@ -95,45 +46,18 @@ export const useEditListing = () => {
  */
 export function EditListingDialog() {
   const { editingId, closeEditListing } = useEditListing();
-  const formRef = useRef<ListingFormHandle | null>(null);
-  const isOpen = !!editingId;
-  useSaveBeforeNavigate(formRef, "navigate", isOpen);
-
-  const handleOpenChange = async (open: boolean) => {
-    if (!open) {
-      // Save any pending changes before closing
-      const didSave = await formRef.current?.saveChanges("close");
-      if (didSave === false) {
-        return;
-      }
-      closeEditListing();
-    }
-  };
 
   return (
-    <Dialog open={isOpen} onOpenChange={handleOpenChange}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Edit Listing</DialogTitle>
-          <P className="text-muted-foreground text-sm">
-            Make changes to your listing here.
-          </P>
-        </DialogHeader>
-
-        {editingId && (
-          <ErrorBoundary
-            fallback={<ErrorFallback resetErrorBoundary={closeEditListing} />}
-          >
-            <Suspense fallback={<ListingFormSkeleton />}>
-              <ListingForm
-                listingId={editingId}
-                onDelete={closeEditListing}
-                formRef={formRef}
-              />
-            </Suspense>
-          </ErrorBoundary>
-        )}
-      </DialogContent>
-    </Dialog>
+    <ManagedEditDialog<ListingFormHandle>
+      description="Make changes to your listing here."
+      entityId={editingId}
+      fallback={<ListingFormSkeleton />}
+      isOpen={!!editingId}
+      onClose={closeEditListing}
+      renderForm={(id, formRef, onClose) => (
+        <ListingForm listingId={id} onDelete={onClose} formRef={formRef} />
+      )}
+      title="Edit Listing"
+    />
   );
 }

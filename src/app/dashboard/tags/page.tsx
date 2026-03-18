@@ -1,7 +1,7 @@
 "use client";
 
-import { PageHeader } from "../_components/page-header";
 import { TagPrintTable } from "./_components/tag-print-table";
+import { PageHeader } from "@/components/page-header";
 
 export default function TagsPage() {
   return (

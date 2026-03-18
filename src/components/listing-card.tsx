@@ -14,12 +14,12 @@ import { type RouterOutputs } from "@/trpc/react";
 import { cn, formatPrice } from "@/lib/utils";
 import { toCultivarRouteSegment } from "@/lib/utils/cultivar-utils";
 import { OptimizedImage } from "./optimized-image";
-import { useViewListing } from "@/components/view-listing-dialog";
 import { Skeleton } from "./ui/skeleton";
 import { ImagePlaceholder } from "./image-placeholder";
 import { ImagePopover } from "@/components/image-popover";
 import { AddToCartButton } from "@/components/add-to-cart-button";
 import { useDisplayAhsListing } from "@/hooks/use-display-ahs-listing";
+import { useListingDialogQueryState } from "@/hooks/use-listing-dialog-query-state";
 import {
   formatListingCardTitle,
   getListingCardTitleSizeClass,
@@ -33,7 +33,7 @@ type ListingCardProps = {
 };
 
 export function ListingCard({ listing, priority = false }: ListingCardProps) {
-  const { viewListing } = useViewListing();
+  const { openListing } = useListingDialogQueryState();
   const displayAhsListing = useDisplayAhsListing(listing);
   const displayTitle = formatListingCardTitle(listing.title);
   const titleSizeClass = getListingCardTitleSizeClass(displayTitle.length);
@@ -47,14 +47,14 @@ export function ListingCard({ listing, priority = false }: ListingCardProps) {
   return (
     <Card
       className="group hover:border-primary relative flex h-full cursor-pointer flex-col overflow-hidden transition-all"
-      onClick={() => viewListing(listing)}
+      onClick={() => openListing(listing.id)}
     >
       {/* Create SEO links for each URL variation */}
       {/* {urlVariations.map((url, index) => (
-        <SEOLink
+                    <SEOLink
           key={`seo-link-${index}`}
           href={url}
-          onCustomClick={() => viewListing(listing)}
+          onCustomClick={() => openListing(listing.id)}
           ariaLabel={`View details for ${listing.title}`}
           srText={`View ${listing.title}`}
         />

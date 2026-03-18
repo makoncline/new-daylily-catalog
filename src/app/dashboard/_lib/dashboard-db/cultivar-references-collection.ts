@@ -1,60 +1,26 @@
 "use client";
 
-import { createCollection } from "@tanstack/react-db";
-import { queryCollectionOptions } from "@tanstack/query-db-collection";
 import type { RouterOutputs } from "@/trpc/react";
-import { getQueryClient } from "@/trpc/query-client";
 import { getTrpcClient } from "@/trpc/client";
-import {
-  getUserCursorKey,
-} from "@/lib/utils/cursor";
-import {
-  bootstrapDashboardDbCollection,
-  writeCursorFromRows,
-} from "@/app/dashboard/_lib/dashboard-db/collection-bootstrap";
-
-const CURSOR_BASE = "dashboard-db:cultivar-references:maxUpdatedAt";
+import { createDashboardDbCollection } from "./dashboard-db-collection-factory";
+import { DASHBOARD_DB_CURSOR_BASES, DASHBOARD_DB_QUERY_KEYS } from "./dashboard-db-keys";
 
 export type CultivarReferenceCollectionItem =
   RouterOutputs["dashboardDb"]["cultivarReference"]["listForUserListings"][number];
 
-export const cultivarReferencesCollection = createCollection(
-  queryCollectionOptions<CultivarReferenceCollectionItem>({
-    queryClient: getQueryClient(),
-    queryKey: ["dashboard-db", "cultivar-references"],
-    enabled: true,
-    getKey: (row) => row.id,
-    queryFn: async ({ queryKey }) => {
-      const existing: CultivarReferenceCollectionItem[] =
-        getQueryClient().getQueryData(queryKey) ?? [];
-
-      const cursorKeyToUse = getUserCursorKey(CURSOR_BASE);
-      const last = localStorage.getItem(cursorKeyToUse);
-      const upserts = await getTrpcClient().dashboardDb.cultivarReference.sync.query({
-        since: last ?? null,
-      });
-
-      const map = new Map(existing.map((row) => [row.id, row]));
-      upserts.forEach((row) => map.set(row.id, row));
-
-      writeCursorFromRows({ cursorStorageKey: cursorKeyToUse, rows: upserts });
-      return Array.from(map.values());
-    },
-    onInsert: async () => ({ refetch: false }),
-    onUpdate: async () => ({ refetch: false }),
-    onDelete: async () => ({ refetch: false }),
-  }),
-);
+export const {
+  collection: cultivarReferencesCollection,
+  initialize: initializeDashboardCultivarReferencesCollection,
+} = createDashboardDbCollection<CultivarReferenceCollectionItem>({
+  cursorBase: DASHBOARD_DB_CURSOR_BASES.cultivarReferences,
+  getKey: (row) => row.id,
+  queryKey: DASHBOARD_DB_QUERY_KEYS.cultivarReferences,
+  seed: () => getTrpcClient().dashboardDb.cultivarReference.listForUserListings.query(),
+  sync: (since) => getTrpcClient().dashboardDb.cultivarReference.sync.query({ since }),
+});
 
 export async function initializeCultivarReferencesCollection(userId: string) {
-  await bootstrapDashboardDbCollection<CultivarReferenceCollectionItem>({
-    userId,
-    queryKey: ["dashboard-db", "cultivar-references"],
-    cursorBase: CURSOR_BASE,
-    collection: cultivarReferencesCollection,
-    fetchSeed: () =>
-      getTrpcClient().dashboardDb.cultivarReference.listForUserListings.query(),
-  });
+  await initializeDashboardCultivarReferencesCollection(userId);
 }
 
 export async function ensureCultivarReferencesCached(ids: string[]) {

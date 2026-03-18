@@ -2,30 +2,24 @@
 
 import { useState } from "react";
 import { toast } from "sonner";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { P } from "@/components/typography";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { useSetAtom } from "jotai";
 import { editingListIdAtom } from "./edit-list-dialog";
 import { normalizeError, reportError } from "@/lib/error-utils";
 import { insertList } from "@/app/dashboard/_lib/dashboard-db/lists-collection";
+import { useManagedDialogOpen } from "@/hooks/use-managed-dialog-open";
+import { ManagedCreateDialog } from "@/app/dashboard/_components/managed-create-dialog";
 
 export function CreateListDialog({
   onOpenChange,
 }: {
   onOpenChange: (open: boolean) => void;
 }) {
-  const [open, setOpen] = useState(true);
   const [title, setTitle] = useState("");
   const [isPending, setIsPending] = useState(false);
+  const { closeDialog, handleOpenChange, open } =
+    useManagedDialogOpen(onOpenChange);
 
   const setEditingId = useSetAtom(editingListIdAtom);
 
@@ -48,8 +42,7 @@ export function CreateListDialog({
         description: `${newList.title} has been created.`,
       });
 
-      setOpen(false);
-      onOpenChange(false);
+      closeDialog();
       setEditingId(newList.id);
     } catch (error) {
       toast.error("Failed to create list");
@@ -62,53 +55,32 @@ export function CreateListDialog({
     }
   };
 
-  const handleCancel = () => {
-    setOpen(false);
-    onOpenChange(false);
-  };
-
-  const handleOpenChange = (newOpen: boolean) => {
-    setOpen(newOpen);
-    if (!newOpen) {
-      onOpenChange(newOpen);
-    }
-  };
-
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="top-[20%] sm:top-[30%]">
-        <DialogHeader>
-          <DialogTitle>Create New List</DialogTitle>
-          <P className="text-muted-foreground text-sm">
-            Create a new list to organize your daylilies.
-          </P>
-        </DialogHeader>
-
-        <div className="space-y-4 py-4">
-          <div className="space-y-2">
-            <Label htmlFor="title">
-              List Title <span className="text-destructive">*</span>
-            </Label>
-            <Input
-              id="title"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder="Enter a title"
-              disabled={isPending}
-              required
-            />
-          </div>
-        </div>
-
-        <DialogFooter>
-          <Button variant="outline" onClick={handleCancel} disabled={isPending}>
-            Cancel
-          </Button>
-          <Button onClick={handleCreate} disabled={isPending || !title.trim()}>
-            Create List
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+    <ManagedCreateDialog
+      cancelDisabled={isPending}
+      confirmDisabled={isPending || !title.trim()}
+      confirmLabel="Create List"
+      contentClassName="top-[20%] sm:top-[30%]"
+      description="Create a new list to organize your daylilies."
+      onCancel={closeDialog}
+      onConfirm={handleCreate}
+      onOpenChange={handleOpenChange}
+      open={open}
+      title="Create New List"
+    >
+      <div className="space-y-2">
+        <Label htmlFor="title">
+          List Title <span className="text-destructive">*</span>
+        </Label>
+        <Input
+          id="title"
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          placeholder="Enter a title"
+          disabled={isPending}
+          required
+        />
+      </div>
+    </ManagedCreateDialog>
   );
 }

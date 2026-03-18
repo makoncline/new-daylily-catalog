@@ -10,17 +10,22 @@ import {
 } from "@/lib/cache/server-cache";
 import { getCachedProUserIds } from "@/server/db/getCachedProUserIds";
 import {
-  buildPublicCultivarGardenPhotosFromListingCards,
-  buildPublicCultivarOffersFromListingCards,
+  buildPublicCultivarPageFromListingCards,
   getPublicCultivarListingIds,
   getPublicCultivarSummary,
   getCultivarRouteSegments,
   getCultivarSitemapEntries,
-} from "@/server/db/getPublicCultivars";
-import { getInitialListings, getListings } from "@/server/db/getPublicListings";
-import { getPublicCatalogCardsByUserIds } from "@/server/db/getPublicProfiles";
+} from "@/server/db/public-cultivar-read-model";
+import {
+  getInitialListings,
+  getListings,
+  getPublicListingDetail,
+} from "@/server/db/public-listing-read-model";
 import { getCachedPublicListingCardsByIds } from "@/server/db/public-profile-cache";
-import { getPublicSellerSummariesByUserIds } from "@/server/db/public-seller-data";
+import {
+  getPublicCatalogCardsByUserIds,
+  getPublicSellerSummariesByUserIds,
+} from "@/server/db/public-seller-read-model";
 export {
   getCachedPublicCatalogRouteEntries,
   getCachedPublicForSaleListingsCount,
@@ -67,6 +72,15 @@ export const getCachedInitialListings = createServerCache(getInitialListings, {
   revalidateSeconds: CACHE_CONFIG.PUBLIC.SEARCH.SERVER_REVALIDATE_SECONDS,
   tags: [CACHE_CONFIG.TAGS.PUBLIC_LISTINGS],
 });
+
+export const getCachedPublicListingDetail = createServerCache(
+  getPublicListingDetail,
+  {
+    key: "public:listing-detail",
+    revalidateSeconds: CACHE_CONFIG.PUBLIC.SEARCH.SERVER_REVALIDATE_SECONDS,
+    tags: [CACHE_CONFIG.TAGS.PUBLIC_LISTING_DETAIL],
+  },
+);
 
 export const getCachedPublicCultivarSummary = createKeyedServerCache(
   async (cultivarSegment: string) => getPublicCultivarSummary(cultivarSegment),
@@ -119,25 +133,12 @@ export async function getCachedPublicCultivarPage(cultivarSegment: string) {
       activeUserIds,
     },
   );
-  const offersSection = buildPublicCultivarOffersFromListingCards({
-    listingCards,
-    summariesByUserId,
-  });
-  const photosSection = buildPublicCultivarGardenPhotosFromListingCards({
-    listingCards,
-    summariesByUserId,
-  });
 
-  return {
-    ...summarySection,
-    gardenPhotos: photosSection.gardenPhotos,
-    offers: offersSection.offers,
-    freshness: {
-      cultivarUpdatedAt: summarySection.freshness.cultivarUpdatedAt,
-      offersUpdatedAt: offersSection.freshness.offersUpdatedAt,
-      photosUpdatedAt: photosSection.freshness.photosUpdatedAt,
-    },
-  };
+  return buildPublicCultivarPageFromListingCards({
+    listingCards,
+    summariesByUserId,
+    summarySection,
+  });
 }
 
 export const getCachedCultivarRouteSegments = createServerCache(

@@ -1,53 +1,29 @@
 "use client";
 
-import { createCollection } from "@tanstack/react-db";
-import { queryCollectionOptions } from "@tanstack/query-db-collection";
 import type { RouterInputs, RouterOutputs } from "@/trpc/react";
-import { getQueryClient } from "@/trpc/query-client";
 import { getTrpcClient } from "@/trpc/client";
 import { makeInsertWithSwap } from "@/lib/utils/collection-utils";
 import { omitUndefined } from "@/lib/utils/omit-undefined";
-import { getUserCursorKey } from "@/lib/utils/cursor";
 import { schedulePersistDashboardDbForCurrentUser } from "@/app/dashboard/_lib/dashboard-db/dashboard-db-persistence";
-import {
-  bootstrapDashboardDbCollection,
-  writeCursorFromRows,
-} from "@/app/dashboard/_lib/dashboard-db/collection-bootstrap";
-
-const CURSOR_BASE = "dashboard-db:lists:maxUpdatedAt";
-const DELETED_IDS = new Set<string>();
+import { createDashboardDbCollection } from "./dashboard-db-collection-factory";
+import { DASHBOARD_DB_CURSOR_BASES, DASHBOARD_DB_QUERY_KEYS } from "./dashboard-db-keys";
 
 export type ListCollectionItem =
   RouterOutputs["dashboardDb"]["list"]["list"][number];
 
-export const listsCollection = createCollection(
-  queryCollectionOptions<ListCollectionItem>({
-    queryClient: getQueryClient(),
-    queryKey: ["dashboard-db", "lists"],
-    enabled: true,
-    getKey: (row) => row.id,
-    queryFn: async ({ queryKey }) => {
-      const existing: ListCollectionItem[] =
-        getQueryClient().getQueryData(queryKey) ?? [];
+export const {
+  collection: listsCollection,
+  deletedIds: listDeletedIds,
+  initialize: initializeDashboardListsCollection,
+} = createDashboardDbCollection<ListCollectionItem>({
+  cursorBase: DASHBOARD_DB_CURSOR_BASES.lists,
+  getKey: (row) => row.id,
+  queryKey: DASHBOARD_DB_QUERY_KEYS.lists,
+  seed: () => getTrpcClient().dashboardDb.list.list.query(),
+  sync: (since) => getTrpcClient().dashboardDb.list.sync.query({ since }),
+});
 
-      const cursorKeyToUse = getUserCursorKey(CURSOR_BASE);
-      const last = localStorage.getItem(cursorKeyToUse);
-      const upserts = await getTrpcClient().dashboardDb.list.sync.query({
-        since: last ?? null,
-      });
-
-      const map = new Map(existing.map((i) => [i.id, i]));
-      upserts.forEach((i) => map.set(i.id, i));
-      DELETED_IDS.forEach((id) => map.delete(id));
-
-      writeCursorFromRows({ cursorStorageKey: cursorKeyToUse, rows: upserts });
-      return Array.from(map.values());
-    },
-    onInsert: async () => ({ refetch: false }),
-    onUpdate: async () => ({ refetch: false }),
-    onDelete: async () => ({ refetch: false }),
-  }),
-);
+const DELETED_IDS = listDeletedIds;
 
 type InsertDraft = RouterInputs["dashboardDb"]["list"]["create"];
 export async function insertList(draft: InsertDraft) {
@@ -110,7 +86,7 @@ export async function addListingToList(args: {
   listsCollection.utils.writeUpdate({
     id: args.listId,
     listings: [...prevListings, { id: args.listingId }].filter(
-      (v, i, a) => a.findIndex((x) => x.id === v.id) === i,
+      (v, i, a) => a.findIndex((x: { id: string }) => x.id === v.id) === i,
     ),
   });
 
@@ -149,14 +125,5 @@ export async function removeListingFromList(args: {
 }
 
 export async function initializeListsCollection(userId: string) {
-  await bootstrapDashboardDbCollection<ListCollectionItem>({
-    userId,
-    queryKey: ["dashboard-db", "lists"],
-    cursorBase: CURSOR_BASE,
-    collection: listsCollection,
-    fetchSeed: () => getTrpcClient().dashboardDb.list.list.query(),
-    onSeeded: () => {
-      DELETED_IDS.clear();
-    },
-  });
+  await initializeDashboardListsCollection(userId);
 }

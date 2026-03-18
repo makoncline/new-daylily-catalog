@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -19,9 +20,13 @@ import {
   CommandList,
 } from "@/components/ui/command";
 import { toast } from "sonner";
-import { useLiveQuery } from "@tanstack/react-db";
-import { listingsCollection } from "@/app/dashboard/_lib/dashboard-db/listings-collection";
+import {
+  listingsCollection,
+  type ListingCollectionItem,
+} from "@/app/dashboard/_lib/dashboard-db/listings-collection";
 import { addListingToList } from "@/app/dashboard/_lib/dashboard-db/lists-collection";
+import { DASHBOARD_DB_QUERY_KEYS } from "@/app/dashboard/_lib/dashboard-db/dashboard-db-keys";
+import { useSeededDashboardDbQuery } from "@/app/dashboard/_lib/dashboard-db/use-seeded-dashboard-db-query";
 
 interface AddListingsComboboxProps {
   listId: string;
@@ -36,11 +41,13 @@ export function AddListingsCombobox({
   const [searchValue, setSearchValue] = useState("");
   const [isPending, setIsPending] = useState(false);
 
-  const { data: listings = [] } = useLiveQuery((q) =>
-    q
-      .from({ listing: listingsCollection })
-      .orderBy(({ listing }) => listing.title, "asc"),
-  );
+  const { data: listings = [] } = useSeededDashboardDbQuery<ListingCollectionItem>({
+    query: (q) =>
+      q
+        .from({ listing: listingsCollection })
+        .orderBy(({ listing }) => listing.title, "asc"),
+    queryKey: DASHBOARD_DB_QUERY_KEYS.listings,
+  });
 
   const handleSelect = async (listingId: string) => {
     if (isPending) return;
@@ -101,6 +108,9 @@ export function AddListingsCombobox({
         <div className="flex h-full flex-col overflow-hidden">
           <DialogHeader className="shrink-0 px-4 pt-4 pb-2">
             <DialogTitle>Add Listings to List</DialogTitle>
+            <DialogDescription>
+              Search your listings and select one to add it to this list.
+            </DialogDescription>
           </DialogHeader>
           <div className="flex-1 overflow-hidden">
             <Command shouldFilter={false} className="flex h-full flex-col">

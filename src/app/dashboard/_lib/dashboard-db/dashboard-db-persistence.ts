@@ -12,16 +12,12 @@ import { listingsCollection } from "@/app/dashboard/_lib/dashboard-db/listings-c
 import { listsCollection } from "@/app/dashboard/_lib/dashboard-db/lists-collection";
 import { imagesCollection } from "@/app/dashboard/_lib/dashboard-db/images-collection";
 import { cultivarReferencesCollection } from "@/app/dashboard/_lib/dashboard-db/cultivar-references-collection";
+import { DASHBOARD_DB_QUERY_KEYS } from "./dashboard-db-keys";
 
 const LISTINGS_CURSOR_BASE = "dashboard-db:listings:maxUpdatedAt";
 const LISTS_CURSOR_BASE = "dashboard-db:lists:maxUpdatedAt";
 const IMAGES_CURSOR_BASE = "dashboard-db:images:maxUpdatedAt";
 const CULTIVAR_REFS_CURSOR_BASE = "dashboard-db:cultivar-references:maxUpdatedAt";
-
-const LISTINGS_QUERY_KEY = ["dashboard-db", "listings"] as const;
-const LISTS_QUERY_KEY = ["dashboard-db", "lists"] as const;
-const IMAGES_QUERY_KEY = ["dashboard-db", "images"] as const;
-const CULTIVAR_REFS_QUERY_KEY = ["dashboard-db", "cultivar-references"] as const;
 
 type ListingRow = RouterOutputs["dashboardDb"]["listing"]["list"][number];
 type ListRow = RouterOutputs["dashboardDb"]["list"]["list"][number];
@@ -208,10 +204,13 @@ export async function tryHydrateDashboardDbFromPersistence(userId: string) {
     setCurrentUserId(userId);
 
     const queryClient = getQueryClient();
-    queryClient.setQueryData(LISTINGS_QUERY_KEY, snapshot.listings);
-    queryClient.setQueryData(LISTS_QUERY_KEY, snapshot.lists);
-    queryClient.setQueryData(IMAGES_QUERY_KEY, snapshot.images);
-    queryClient.setQueryData(CULTIVAR_REFS_QUERY_KEY, snapshot.cultivarReferences);
+    queryClient.setQueryData(DASHBOARD_DB_QUERY_KEYS.listings, snapshot.listings);
+    queryClient.setQueryData(DASHBOARD_DB_QUERY_KEYS.lists, snapshot.lists);
+    queryClient.setQueryData(DASHBOARD_DB_QUERY_KEYS.images, snapshot.images);
+    queryClient.setQueryData(
+      DASHBOARD_DB_QUERY_KEYS.cultivarReferences,
+      snapshot.cultivarReferences,
+    );
 
     writeCursorFromSnapshotRows({
       cursorBase: LISTINGS_CURSOR_BASE,
@@ -255,12 +254,12 @@ export async function persistDashboardDbToPersistence(userId: string) {
     const queryClient = getQueryClient();
 
     const listings =
-      queryClient.getQueryData<ListingRow[]>(LISTINGS_QUERY_KEY) ?? [];
-    const lists = queryClient.getQueryData<ListRow[]>(LISTS_QUERY_KEY) ?? [];
-    const images = queryClient.getQueryData<ImageRow[]>(IMAGES_QUERY_KEY) ?? [];
+      queryClient.getQueryData<ListingRow[]>(DASHBOARD_DB_QUERY_KEYS.listings) ?? [];
+    const lists = queryClient.getQueryData<ListRow[]>(DASHBOARD_DB_QUERY_KEYS.lists) ?? [];
+    const images = queryClient.getQueryData<ImageRow[]>(DASHBOARD_DB_QUERY_KEYS.images) ?? [];
     const cultivarReferences =
       queryClient.getQueryData<CultivarReferenceRow[]>(
-        CULTIVAR_REFS_QUERY_KEY,
+        DASHBOARD_DB_QUERY_KEYS.cultivarReferences,
       ) ?? [];
 
     await writeDashboardDbSnapshot({

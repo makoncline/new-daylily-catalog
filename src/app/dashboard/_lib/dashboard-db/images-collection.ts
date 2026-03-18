@@ -1,59 +1,35 @@
 "use client";
 
-import { createCollection } from "@tanstack/react-db";
-import { queryCollectionOptions } from "@tanstack/query-db-collection";
 import type { RouterInputs, RouterOutputs } from "@/trpc/react";
-import { getQueryClient } from "@/trpc/query-client";
 import { getTrpcClient } from "@/trpc/client";
-import { getUserCursorKey } from "@/lib/utils/cursor";
+import { getQueryClient } from "@/trpc/query-client";
 import { schedulePersistDashboardDbForCurrentUser } from "@/app/dashboard/_lib/dashboard-db/dashboard-db-persistence";
-import {
-  bootstrapDashboardDbCollection,
-  writeCursorFromRows,
-} from "@/app/dashboard/_lib/dashboard-db/collection-bootstrap";
-
-const CURSOR_BASE = "dashboard-db:images:maxUpdatedAt";
-const DELETED_IDS = new Set<string>();
+import { createDashboardDbCollection } from "./dashboard-db-collection-factory";
+import { DASHBOARD_DB_CURSOR_BASES, DASHBOARD_DB_QUERY_KEYS } from "./dashboard-db-keys";
 
 export type ImageCollectionItem =
   RouterOutputs["dashboardDb"]["image"]["list"][number];
 
-export const imagesCollection = createCollection(
-  queryCollectionOptions<ImageCollectionItem>({
-    queryClient: getQueryClient(),
-    queryKey: ["dashboard-db", "images"],
-    enabled: true,
-    getKey: (row) => row.id,
-    queryFn: async ({ queryKey }) => {
-      const existing: ImageCollectionItem[] =
-        getQueryClient().getQueryData(queryKey) ?? [];
+export const {
+  collection: imagesCollection,
+  deletedIds: imageDeletedIds,
+  initialize: initializeDashboardImagesCollection,
+} = createDashboardDbCollection<ImageCollectionItem>({
+  cursorBase: DASHBOARD_DB_CURSOR_BASES.images,
+  getKey: (row) => row.id,
+  queryKey: DASHBOARD_DB_QUERY_KEYS.images,
+  seed: () => getTrpcClient().dashboardDb.image.list.query(),
+  sync: (since) => getTrpcClient().dashboardDb.image.sync.query({ since }),
+});
 
-      const cursorKeyToUse = getUserCursorKey(CURSOR_BASE);
-      const last = localStorage.getItem(cursorKeyToUse);
-      const upserts = await getTrpcClient().dashboardDb.image.sync.query({
-        since: last ?? null,
-      });
-
-      const map = new Map(existing.map((i) => [i.id, i]));
-      upserts.forEach((i) => map.set(i.id, i));
-      DELETED_IDS.forEach((id) => map.delete(id));
-
-      writeCursorFromRows({ cursorStorageKey: cursorKeyToUse, rows: upserts });
-      return Array.from(map.values());
-    },
-    onInsert: async () => ({ refetch: false }),
-    onUpdate: async () => ({ refetch: false }),
-    onDelete: async () => ({ refetch: false }),
-  }),
-);
+const DELETED_IDS = imageDeletedIds;
 
 type CreateDraft = RouterInputs["dashboardDb"]["image"]["create"];
 export async function createImage(draft: CreateDraft) {
   const cache =
-    getQueryClient().getQueryData<ImageCollectionItem[]>([
-      "dashboard-db",
-      "images",
-    ]) ?? [];
+    getQueryClient().getQueryData<ImageCollectionItem[]>(
+      DASHBOARD_DB_QUERY_KEYS.images,
+    ) ?? [];
 
   const nextOrder =
     cache
@@ -132,10 +108,9 @@ export async function deleteImage(draft: DeleteDraft) {
   DELETED_IDS.add(draft.imageId);
 
   const cache =
-    getQueryClient().getQueryData<ImageCollectionItem[]>([
-      "dashboard-db",
-      "images",
-    ]) ?? [];
+    getQueryClient().getQueryData<ImageCollectionItem[]>(
+      DASHBOARD_DB_QUERY_KEYS.images,
+    ) ?? [];
 
   const before = cache
     .filter((i) =>
@@ -171,14 +146,5 @@ export async function deleteImage(draft: DeleteDraft) {
 }
 
 export async function initializeImagesCollection(userId: string) {
-  await bootstrapDashboardDbCollection<ImageCollectionItem>({
-    userId,
-    queryKey: ["dashboard-db", "images"],
-    cursorBase: CURSOR_BASE,
-    collection: imagesCollection,
-    fetchSeed: () => getTrpcClient().dashboardDb.image.list.query(),
-    onSeeded: () => {
-      DELETED_IDS.clear();
-    },
-  });
+  await initializeDashboardImagesCollection(userId);
 }
