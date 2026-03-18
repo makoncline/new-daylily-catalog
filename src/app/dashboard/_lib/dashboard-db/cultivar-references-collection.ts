@@ -14,6 +14,7 @@ import {
 } from "@/app/dashboard/_lib/dashboard-db/collection-bootstrap";
 
 const CURSOR_BASE = "dashboard-db:cultivar-references:maxUpdatedAt";
+const QUERY_KEY = ["dashboard-db", "cultivar-references"] as const;
 
 export type CultivarReferenceCollectionItem =
   RouterOutputs["dashboardDb"]["cultivarReference"]["listForUserListings"][number];
@@ -21,7 +22,7 @@ export type CultivarReferenceCollectionItem =
 export const cultivarReferencesCollection = createCollection(
   queryCollectionOptions<CultivarReferenceCollectionItem>({
     queryClient: getQueryClient(),
-    queryKey: ["dashboard-db", "cultivar-references"],
+    queryKey: QUERY_KEY,
     enabled: true,
     getKey: (row) => row.id,
     queryFn: async ({ queryKey }) => {
@@ -52,6 +53,8 @@ export async function initializeCultivarReferencesCollection(userId: string) {
   await bootstrapDashboardDbCollection({
     userId,
     collection: cultivarReferencesCollection,
+    queryKey: QUERY_KEY,
+    cursorStorageKey: getUserCursorKey(CURSOR_BASE),
   });
 }
 

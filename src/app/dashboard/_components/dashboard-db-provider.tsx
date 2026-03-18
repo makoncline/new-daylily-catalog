@@ -149,8 +149,9 @@ export function DashboardDbProvider({
       return;
     }
 
-    initializedUserIdRef.current = userId;
-
+    const bootstrapUserId = userId;
+    let finished = false;
+    initializedUserIdRef.current = bootstrapUserId;
     let cancelled = false;
     setDashboardDbState({
       status: "loading",
@@ -176,13 +177,16 @@ export function DashboardDbProvider({
         }
 
         if (!cancelled) {
+          finished = true;
           setState({
             status: "ready",
             userId,
           });
         }
       } catch {
-        initializedUserIdRef.current = null;
+        if (initializedUserIdRef.current === bootstrapUserId) {
+          initializedUserIdRef.current = null;
+        }
         if (!cancelled) {
           setState({
             status: "error",
@@ -194,6 +198,9 @@ export function DashboardDbProvider({
 
     return () => {
       cancelled = true;
+      if (!finished && initializedUserIdRef.current === bootstrapUserId) {
+        initializedUserIdRef.current = null;
+      }
     };
   }, [isError, isLoading, userId, utils]);
 

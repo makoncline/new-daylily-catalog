@@ -15,6 +15,7 @@ import {
 } from "@/app/dashboard/_lib/dashboard-db/collection-bootstrap";
 
 const CURSOR_BASE = "dashboard-db:lists:maxUpdatedAt";
+const QUERY_KEY = ["dashboard-db", "lists"] as const;
 const DELETED_IDS = new Set<string>();
 
 export type ListCollectionItem =
@@ -23,7 +24,7 @@ export type ListCollectionItem =
 export const listsCollection = createCollection(
   queryCollectionOptions<ListCollectionItem>({
     queryClient: getQueryClient(),
-    queryKey: ["dashboard-db", "lists"],
+    queryKey: QUERY_KEY,
     enabled: true,
     getKey: (row) => row.id,
     queryFn: async ({ queryKey }) => {
@@ -154,6 +155,8 @@ export async function initializeListsCollection(userId: string) {
   await bootstrapDashboardDbCollection({
     userId,
     collection: listsCollection,
+    queryKey: QUERY_KEY,
+    cursorStorageKey: getUserCursorKey(CURSOR_BASE),
     beforePreload: () => {
       DELETED_IDS.clear();
     },

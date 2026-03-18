@@ -1,6 +1,7 @@
 "use client";
 
 import { setCurrentUserId } from "@/lib/utils/cursor";
+import { getQueryClient } from "@/trpc/query-client";
 
 type PreloadableCollection = {
   preload: () => Promise<void>;
@@ -28,9 +29,14 @@ export function writeCursorFromRows(args: {
 export async function bootstrapDashboardDbCollection(args: {
   userId: string;
   collection: PreloadableCollection;
+  queryKey: readonly unknown[];
+  cursorStorageKey: string;
   beforePreload?: () => void;
 }) {
   setCurrentUserId(args.userId);
+  if (getQueryClient().getQueryData(args.queryKey) === undefined) {
+    localStorage.removeItem(args.cursorStorageKey);
+  }
   args.beforePreload?.();
   await args.collection.preload();
 }

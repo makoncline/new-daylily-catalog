@@ -13,6 +13,7 @@ import {
 } from "@/app/dashboard/_lib/dashboard-db/collection-bootstrap";
 
 const CURSOR_BASE = "dashboard-db:images:maxUpdatedAt";
+const QUERY_KEY = ["dashboard-db", "images"] as const;
 const DELETED_IDS = new Set<string>();
 
 export type ImageCollectionItem =
@@ -21,7 +22,7 @@ export type ImageCollectionItem =
 export const imagesCollection = createCollection(
   queryCollectionOptions<ImageCollectionItem>({
     queryClient: getQueryClient(),
-    queryKey: ["dashboard-db", "images"],
+    queryKey: QUERY_KEY,
     enabled: true,
     getKey: (row) => row.id,
     queryFn: async ({ queryKey }) => {
@@ -186,6 +187,8 @@ export async function initializeImagesCollection(userId: string) {
   await bootstrapDashboardDbCollection({
     userId,
     collection: imagesCollection,
+    queryKey: QUERY_KEY,
+    cursorStorageKey: getUserCursorKey(CURSOR_BASE),
     beforePreload: () => {
       DELETED_IDS.clear();
     },
