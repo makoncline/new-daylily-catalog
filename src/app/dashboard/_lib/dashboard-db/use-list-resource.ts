@@ -20,9 +20,10 @@ export function useListResource(listId: string): UseListResourceResult {
       q.from({ list: listsCollection }).where(({ list }) => eq(list.id, listId)),
     queryKey: DASHBOARD_DB_QUERY_KEYS.lists,
   });
+  const list = lists.find((candidate) => candidate.id === listId) ?? null;
 
   return {
     isReady,
-    list: lists[0] ?? null,
+    list,
   };
 }
