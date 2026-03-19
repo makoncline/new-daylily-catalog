@@ -9,25 +9,32 @@ import {
 } from "@/lib/utils/cursor";
 import { writeCursorFromRows } from "@/app/dashboard/_lib/dashboard-db/collection-bootstrap";
 import {
+  clearNextListingsCollectionSyncSuppression,
   initializeListingsCollection,
   refreshListingsCollectionFromServer,
   suppressNextListingsCollectionSync,
 } from "@/app/dashboard/_lib/dashboard-db/listings-collection";
 import {
+  clearNextListsCollectionSyncSuppression,
   initializeListsCollection,
   refreshListsCollectionFromServer,
   suppressNextListsCollectionSync,
 } from "@/app/dashboard/_lib/dashboard-db/lists-collection";
 import {
+  clearNextImagesCollectionSyncSuppression,
   initializeImagesCollection,
   refreshImagesCollectionFromServer,
   suppressNextImagesCollectionSync,
 } from "@/app/dashboard/_lib/dashboard-db/images-collection";
 import {
+  clearNextCultivarReferencesCollectionSyncSuppression,
   initializeCultivarReferencesCollection,
   refreshCultivarReferencesCollectionFromServer,
   suppressNextCultivarReferencesCollectionSync,
 } from "@/app/dashboard/_lib/dashboard-db/cultivar-references-collection";
+
+let dashboardDbRefreshQueue: Promise<void> = Promise.resolve();
+let dashboardDbRefreshGeneration = 0;
 
 const LISTINGS_CURSOR_BASE = "dashboard-db:listings:maxUpdatedAt";
 const LISTS_CURSOR_BASE = "dashboard-db:lists:maxUpdatedAt";
@@ -50,6 +57,21 @@ export const DASHBOARD_DB_PERSISTED_SWR = {
   ttlMs: 24 * 60 * 60 * 1000, // 1 day
   version: 2,
 } as const;
+
+interface DashboardDbRefreshGuard {
+  isActive?: () => boolean;
+}
+
+export class DashboardRefreshLockCancelledError extends Error {
+  constructor() {
+    super("Dashboard refresh work was cancelled");
+    this.name = "DashboardRefreshLockCancelledError";
+  }
+}
+
+function isDashboardRefreshLockCancelledError(error: unknown) {
+  return error instanceof DashboardRefreshLockCancelledError;
+}
 
 export interface DashboardDbPersistedSnapshot {
   userId: string;
@@ -209,11 +231,74 @@ function writeCursorFromSnapshotRows(args: {
   });
 }
 
+function clearDashboardCollectionCursors(userId: string) {
+  localStorage.removeItem(cursorKey(LISTINGS_CURSOR_BASE, userId));
+  localStorage.removeItem(cursorKey(LISTS_CURSOR_BASE, userId));
+  localStorage.removeItem(cursorKey(IMAGES_CURSOR_BASE, userId));
+  localStorage.removeItem(cursorKey(CULTIVAR_REFS_CURSOR_BASE, userId));
+}
+
 function suppressNextDashboardCollectionSyncs() {
   suppressNextListingsCollectionSync();
   suppressNextListsCollectionSync();
   suppressNextImagesCollectionSync();
   suppressNextCultivarReferencesCollectionSync();
+}
+
+function clearNextDashboardCollectionSyncSuppressions() {
+  clearNextListingsCollectionSyncSuppression();
+  clearNextListsCollectionSyncSuppression();
+  clearNextImagesCollectionSyncSuppression();
+  clearNextCultivarReferencesCollectionSyncSuppression();
+}
+
+async function invalidateDashboardCollectionQueries() {
+  const queryClient = getQueryClient();
+  await Promise.all([
+    queryClient.invalidateQueries({
+      queryKey: LISTINGS_QUERY_KEY,
+      refetchType: "none",
+    }),
+    queryClient.invalidateQueries({
+      queryKey: LISTS_QUERY_KEY,
+      refetchType: "none",
+    }),
+    queryClient.invalidateQueries({
+      queryKey: IMAGES_QUERY_KEY,
+      refetchType: "none",
+    }),
+    queryClient.invalidateQueries({
+      queryKey: CULTIVAR_REFS_QUERY_KEY,
+      refetchType: "none",
+    }),
+  ]);
+}
+
+export function resetDashboardRefreshLock() {
+  dashboardDbRefreshGeneration += 1;
+  dashboardDbRefreshQueue = Promise.resolve();
+}
+
+export function runWithDashboardRefreshLock<T>(work: () => Promise<T>) {
+  const generation = dashboardDbRefreshGeneration;
+  const previous = dashboardDbRefreshQueue.catch(() => undefined);
+
+  let release!: () => void;
+  dashboardDbRefreshQueue = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+
+  return previous
+    .then(async () => {
+      if (generation !== dashboardDbRefreshGeneration) {
+        throw new DashboardRefreshLockCancelledError();
+      }
+
+      return await work();
+    })
+    .finally(() => {
+    release();
+  });
 }
 
 export async function tryHydrateDashboardDbFromPersistence(userId: string) {
@@ -308,44 +393,98 @@ export async function persistDashboardDbToPersistence(userId: string) {
   }
 }
 
-export async function bootstrapDashboardDbFromServer(userId: string) {
-  await Promise.all([
-    initializeListingsCollection(userId),
-    initializeListsCollection(userId),
-    initializeImagesCollection(userId),
-    initializeCultivarReferencesCollection(userId),
-  ]);
+export async function bootstrapDashboardDbFromServer(
+  userId: string,
+  guard?: DashboardDbRefreshGuard,
+) {
+  try {
+    await runWithDashboardRefreshLock(async () => {
+      if (guard?.isActive && !guard.isActive()) {
+        return;
+      }
 
-  suppressNextDashboardCollectionSyncs();
+      if (getCurrentUserId() !== userId) {
+        return;
+      }
 
-  if (getCurrentUserId() !== userId) {
-    return;
+      await Promise.all([
+        initializeListingsCollection(userId),
+        initializeListsCollection(userId),
+        initializeImagesCollection(userId),
+        initializeCultivarReferencesCollection(userId),
+      ]);
+
+      suppressNextDashboardCollectionSyncs();
+
+      if (getCurrentUserId() !== userId) {
+        return;
+      }
+
+      await persistDashboardDbToPersistence(userId);
+    });
+  } catch (error) {
+    if (isDashboardRefreshLockCancelledError(error)) {
+      return;
+    }
+
+    throw error;
   }
-
-  await persistDashboardDbToPersistence(userId);
 }
 
-export async function refreshDashboardDbFromServer(userId: string) {
-  await Promise.all([
-    refreshListingsCollectionFromServer(userId),
-    refreshListsCollectionFromServer(userId),
-    refreshImagesCollectionFromServer(userId),
-    refreshCultivarReferencesCollectionFromServer(userId),
-  ]);
+export async function refreshDashboardDbFromServer(
+  userId: string,
+  guard?: DashboardDbRefreshGuard,
+) {
+  try {
+    return await runWithDashboardRefreshLock(async () => {
+      if (guard?.isActive && !guard.isActive()) {
+        return false;
+      }
 
-  if (getCurrentUserId() !== userId) {
-    return;
+      if (getCurrentUserId() !== userId) {
+        return false;
+      }
+
+      await Promise.all([
+        refreshListingsCollectionFromServer(userId),
+        refreshListsCollectionFromServer(userId),
+        refreshImagesCollectionFromServer(userId),
+        refreshCultivarReferencesCollectionFromServer(userId),
+      ]);
+
+      if (getCurrentUserId() !== userId) {
+        return false;
+      }
+
+      await persistDashboardDbToPersistence(userId);
+      return true;
+    });
+  } catch (error) {
+    if (isDashboardRefreshLockCancelledError(error)) {
+      return false;
+    }
+
+    throw error;
   }
-
-  await persistDashboardDbToPersistence(userId);
 }
 
-export async function revalidateDashboardDbInBackground(userId: string) {
+export async function revalidateDashboardDbInBackground(
+  userId: string,
+  guard?: DashboardDbRefreshGuard,
+) {
   if (!DASHBOARD_DB_PERSISTED_SWR.enabled) return;
 
   try {
-    await refreshDashboardDbFromServer(userId);
+    const refreshed = await refreshDashboardDbFromServer(userId, guard);
+    if (!refreshed) {
+      clearNextDashboardCollectionSyncSuppressions();
+      clearDashboardCollectionCursors(userId);
+      await invalidateDashboardCollectionQueries();
+    }
   } catch {
+    clearNextDashboardCollectionSyncSuppressions();
+    clearDashboardCollectionCursors(userId);
+    await invalidateDashboardCollectionQueries();
     // ignore: background revalidate is best-effort
   }
 }

@@ -25,6 +25,7 @@ import { setCurrentUserId } from "@/lib/utils/cursor";
 import {
   bootstrapDashboardDbFromServer,
   revalidateDashboardDbInBackground,
+  resetDashboardRefreshLock,
   tryHydrateDashboardDbFromPersistence,
 } from "@/app/dashboard/_lib/dashboard-db/dashboard-db-persistence";
 import {
@@ -122,6 +123,7 @@ export function DashboardDbProvider({
 
     if (!userId) {
       initializedUserIdRef.current = null;
+      resetDashboardRefreshLock();
       setCurrentUserId(null);
       getQueryClient().removeQueries({ queryKey: ["dashboard-db"] });
       void Promise.allSettled([
@@ -149,6 +151,9 @@ export function DashboardDbProvider({
     let finished = false;
     initializedUserIdRef.current = bootstrapUserId;
     let cancelled = false;
+    const isBootstrapActive = () =>
+      !cancelled && initializedUserIdRef.current === bootstrapUserId;
+    setCurrentUserId(userId);
     setDashboardDbState({
       status: "loading",
       userId,
@@ -159,8 +164,10 @@ export function DashboardDbProvider({
         const hydrated = await tryHydrateDashboardDbFromPersistence(userId);
 
         if (hydrated) {
-          void revalidateDashboardDbInBackground(userId);
-          void utils.dashboardDb.userProfile.get.prefetch();
+          void revalidateDashboardDbInBackground(userId, {
+            isActive: isBootstrapActive,
+          });
+          await utils.dashboardDb.userProfile.get.prefetch();
           if (!cancelled) {
             finished = true;
             setState({
@@ -172,7 +179,9 @@ export function DashboardDbProvider({
         }
 
         await Promise.all([
-          bootstrapDashboardDbFromServer(userId),
+          bootstrapDashboardDbFromServer(userId, {
+            isActive: isBootstrapActive,
+          }),
           utils.dashboardDb.userProfile.get.prefetch(),
         ]);
 

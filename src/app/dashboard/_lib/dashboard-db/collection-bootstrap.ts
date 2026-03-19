@@ -1,10 +1,6 @@
 "use client";
 
-import {
-  cursorKey,
-  getCurrentUserId,
-  setCurrentUserId,
-} from "@/lib/utils/cursor";
+import { cursorKey, getCurrentUserId } from "@/lib/utils/cursor";
 import { getQueryClient } from "@/trpc/query-client";
 
 type HasUpdatedAt = {
@@ -62,7 +58,10 @@ export async function refreshDashboardDbCollectionFromServer<
   sortRows: (rows: readonly T[]) => T[];
   filterRows?: (row: T) => boolean;
 }) {
-  setCurrentUserId(args.userId);
+  if (getCurrentUserId() !== args.userId) {
+    return false;
+  }
+
   const rows = await args.fetchRows();
 
   if (getCurrentUserId() !== args.userId) {

@@ -381,8 +381,10 @@ describe("dashboardDb TanStack DB collections", () => {
         expect(screen.getByTestId("titles").textContent).toBe("");
       });
 
+      const refreshPromise = refreshListingsCollectionFromServer(user.id);
+
       await act(async () => {
-        await refreshListingsCollectionFromServer(user.id);
+        await Promise.resolve();
       });
 
       await waitFor(() => {
@@ -394,7 +396,7 @@ describe("dashboardDb TanStack DB collections", () => {
 
       if (deletePromise) {
         await act(async () => {
-          await deletePromise;
+          await Promise.all([deletePromise, refreshPromise]);
         });
       }
 
@@ -405,6 +407,253 @@ describe("dashboardDb TanStack DB collections", () => {
       await waitFor(() => {
         expect(screen.getByTestId("count").textContent).toBe("0");
         expect(screen.getByTestId("titles").textContent).toBe("");
+      });
+    });
+  });
+
+  it("listings: full refresh waits for an optimistic update already in flight", async () => {
+    await withTempAppDb(async ({ user }) => {
+      const { db } = await import("@/server/db");
+
+      const seeded = await db.listing.create({
+        data: {
+          userId: user.id,
+          title: "Alpha",
+          slug: `alpha-${crypto.randomUUID()}`,
+        },
+        select: { id: true },
+      });
+
+      const { createCaller } = await import("@/server/api/root");
+      const caller = createCaller(async () => {
+        return {
+          db,
+          headers: new Headers(),
+          _authUser:
+            { id: user.id } as unknown as TRPCInternalContext["_authUser"],
+        };
+      });
+
+      let releaseUpdate: (() => void) | undefined;
+      const updateGate = new Promise<void>((resolve) => {
+        releaseUpdate = () => resolve();
+      });
+
+      const delayUpdateLink: TRPCLink<AppRouter> = () => {
+        return ({ op, next }) =>
+          observable((emit) => {
+            let sub:
+              | ReturnType<ReturnType<typeof next>["subscribe"]>
+              | undefined;
+            let cancelled = false;
+
+            void (async () => {
+              if (op.path === "dashboardDb.listing.update") {
+                await updateGate;
+              }
+
+              if (cancelled) {
+                return;
+              }
+
+              sub = next(op).subscribe({
+                next: (value) => emit.next(value),
+                error: (err) => emit.error(err),
+                complete: () => emit.complete(),
+              });
+            })();
+
+            return () => {
+              cancelled = true;
+              sub?.unsubscribe();
+            };
+          });
+      };
+
+      const clientLike = createTRPCProxyClient<AppRouter>({
+        links: [delayUpdateLink, callerLink(caller)],
+      });
+
+      const { setTestTrpcClient } = await import("@/trpc/client");
+      setTestTrpcClient(clientLike);
+
+      const {
+        listingsCollection,
+        initializeListingsCollection,
+        refreshListingsCollectionFromServer,
+        updateListing,
+      } = await import("@/app/dashboard/_lib/dashboard-db/listings-collection");
+
+      await act(async () => {
+        await initializeListingsCollection(user.id);
+        render(<ListingsViewer listingsCollection={listingsCollection} />);
+      });
+
+      await waitFor(() => {
+        expect(screen.getByTestId("titles").textContent).toBe("Alpha");
+      });
+
+      let updatePromise: Promise<void> | null = null;
+      act(() => {
+        updatePromise = updateListing({
+          id: seeded.id,
+          data: { title: "Beta" },
+        });
+      });
+
+      await waitFor(() => {
+        expect(screen.getByTestId("titles").textContent).toBe("Beta");
+      });
+
+      const refreshPromise = refreshListingsCollectionFromServer(user.id);
+
+      await act(async () => {
+        await Promise.resolve();
+      });
+
+      await waitFor(() => {
+        expect(screen.getByTestId("titles").textContent).toBe("Beta");
+      });
+
+      releaseUpdate?.();
+
+      if (updatePromise) {
+        await act(async () => {
+          await Promise.all([updatePromise, refreshPromise]);
+        });
+      }
+
+      await act(async () => {
+        await listingsCollection.utils.refetch();
+      });
+
+      await waitFor(() => {
+        expect(screen.getByTestId("titles").textContent).toBe("Beta");
+      });
+    });
+  });
+
+  it("listings: optimistic updates wait for an in-flight full refresh", async () => {
+    await withTempAppDb(async ({ user }) => {
+      const { db } = await import("@/server/db");
+
+      const seeded = await db.listing.create({
+        data: {
+          userId: user.id,
+          title: "Alpha",
+          slug: `alpha-${crypto.randomUUID()}`,
+        },
+        select: { id: true },
+      });
+
+      const { createCaller } = await import("@/server/api/root");
+      const caller = createCaller(async () => {
+        return {
+          db,
+          headers: new Headers(),
+          _authUser:
+            { id: user.id } as unknown as TRPCInternalContext["_authUser"],
+        };
+      });
+
+      let releaseListingSync: (() => void) | undefined;
+      let listingSyncCount = 0;
+      const listingSyncGate = new Promise<void>((resolve) => {
+        releaseListingSync = () => resolve();
+      });
+
+      const delayRefreshLink: TRPCLink<AppRouter> = () => {
+        return ({ op, next }) =>
+          observable((emit) => {
+            let sub:
+              | ReturnType<ReturnType<typeof next>["subscribe"]>
+              | undefined;
+            let cancelled = false;
+
+            void (async () => {
+              if (op.path === "dashboardDb.listing.sync") {
+                listingSyncCount += 1;
+                if (listingSyncCount === 2) {
+                  await listingSyncGate;
+                }
+              }
+
+              if (cancelled) {
+                return;
+              }
+
+              sub = next(op).subscribe({
+                next: (value) => emit.next(value),
+                error: (err) => emit.error(err),
+                complete: () => emit.complete(),
+              });
+            })();
+
+            return () => {
+              cancelled = true;
+              sub?.unsubscribe();
+            };
+          });
+      };
+
+      const clientLike = createTRPCProxyClient<AppRouter>({
+        links: [delayRefreshLink, callerLink(caller)],
+      });
+
+      const { setTestTrpcClient } = await import("@/trpc/client");
+      setTestTrpcClient(clientLike);
+
+      const {
+        listingsCollection,
+        initializeListingsCollection,
+        updateListing,
+      } = await import("@/app/dashboard/_lib/dashboard-db/listings-collection");
+      const { refreshDashboardDbFromServer } = await import(
+        "@/app/dashboard/_lib/dashboard-db/dashboard-db-persistence"
+      );
+
+      await act(async () => {
+        await initializeListingsCollection(user.id);
+        render(<ListingsViewer listingsCollection={listingsCollection} />);
+      });
+
+      await waitFor(() => {
+        expect(screen.getByTestId("titles").textContent).toBe("Alpha");
+      });
+
+      let refreshResolved = false;
+      const refreshPromise = refreshDashboardDbFromServer(user.id).then(() => {
+        refreshResolved = true;
+      });
+
+      await act(async () => {
+        await Promise.resolve();
+      });
+
+      let updateResolved = false;
+      const updatePromise = updateListing({
+        id: seeded.id,
+        data: { title: "Beta" },
+      }).then(() => {
+        updateResolved = true;
+      });
+
+      await act(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 500));
+      });
+
+      expect(refreshResolved).toBe(false);
+      expect(updateResolved).toBe(false);
+      expect(screen.getByTestId("titles").textContent).toBe("Alpha");
+
+      releaseListingSync?.();
+
+      await act(async () => {
+        await Promise.all([refreshPromise, updatePromise]);
+      });
+
+      await waitFor(() => {
+        expect(screen.getByTestId("titles").textContent).toBe("Beta");
       });
     });
   });
@@ -450,6 +699,69 @@ describe("dashboardDb TanStack DB collections", () => {
       await act(async () => {
         await deleteListing({ id: createdId });
       });
+
+      await waitFor(() => {
+        expect(screen.getByTestId("count").textContent).toBe("0");
+      });
+    });
+  });
+
+  it("listings: queued create rejects when an auth transition drops it", async () => {
+    await withTempAppDb(async () => {
+      const {
+        listingsCollection,
+        insertListing,
+        initializeListingsCollection,
+      } = await import("@/app/dashboard/_lib/dashboard-db/listings-collection");
+      const { resetDashboardRefreshLock, runWithDashboardRefreshLock } =
+        await import(
+          "@/app/dashboard/_lib/dashboard-db/dashboard-db-persistence"
+        );
+
+      await act(async () => {
+        await initializeListingsCollection("test-user");
+        render(<ListingsViewer listingsCollection={listingsCollection} />);
+      });
+
+      await waitFor(() => {
+        expect(screen.getByTestId("count").textContent).toBe("0");
+      });
+
+      let releaseLock!: () => void;
+      const heldLock = new Promise<void>((resolve) => {
+        releaseLock = resolve;
+      });
+
+      const holdLockPromise = runWithDashboardRefreshLock(
+        async () => await heldLock,
+      );
+
+      await act(async () => {
+        await Promise.resolve();
+      });
+
+      const createResultPromise = insertListing({ title: "Dropped" }).then(
+        () => ({ ok: true as const, error: null }),
+        (error: unknown) => ({ ok: false as const, error }),
+      );
+
+      await act(async () => {
+        await Promise.resolve();
+      });
+
+      resetDashboardRefreshLock();
+      releaseLock();
+
+      await act(async () => {
+        await holdLockPromise;
+      });
+
+      const createResult = await createResultPromise;
+      expect(createResult.ok).toBe(false);
+      expect(createResult.error).toBeInstanceOf(Error);
+      expect((createResult.error as Error).message).toBe(
+        "Dashboard refresh work was cancelled",
+      );
 
       await waitFor(() => {
         expect(screen.getByTestId("count").textContent).toBe("0");

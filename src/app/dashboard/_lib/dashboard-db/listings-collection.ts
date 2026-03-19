@@ -11,7 +11,10 @@ import {
   ensureCultivarReferencesCached,
 } from "@/app/dashboard/_lib/dashboard-db/cultivar-references-collection";
 import { getUserCursorKey } from "@/lib/utils/cursor";
-import { schedulePersistDashboardDbForCurrentUser } from "@/app/dashboard/_lib/dashboard-db/dashboard-db-persistence";
+import {
+  runWithDashboardRefreshLock,
+  schedulePersistDashboardDbForCurrentUser,
+} from "@/app/dashboard/_lib/dashboard-db/dashboard-db-persistence";
 import {
   refreshDashboardDbCollectionFromServer,
   writeCursorFromRows,
@@ -31,6 +34,10 @@ function sortListings(rows: readonly ListingCollectionItem[]) {
 
 export function suppressNextListingsCollectionSync() {
   shouldSkipNextListingsSync = true;
+}
+
+export function clearNextListingsCollectionSyncSuppression() {
+  shouldSkipNextListingsSync = false;
 }
 
 export async function cleanupListingsCollection() {
@@ -76,106 +83,122 @@ export const listingsCollection = createCollection(
 
 type InsertDraft = RouterInputs["dashboardDb"]["listing"]["create"];
 export async function insertListing(draft: InsertDraft) {
-  const run = makeInsertWithSwap<InsertDraft, ListingCollectionItem>({
-    collection: listingsCollection,
-    makeTemp: (d) => ({
-      id: `temp:${crypto.randomUUID()}`,
-      userId: "",
-      title: d.title,
-      slug: "",
-      price: null,
-      description: null,
-      privateNote: null,
-      status: null,
-      createdAt: new Date(),
-      updatedAt: new Date(),
-      cultivarReferenceId: d.cultivarReferenceId ?? null,
-    }),
-    serverInsert: (d) => getTrpcClient().dashboardDb.listing.create.mutate(d),
+  return runWithDashboardRefreshLock(async () => {
+    const run = makeInsertWithSwap<InsertDraft, ListingCollectionItem>({
+      collection: listingsCollection,
+      makeTemp: (d) => ({
+        id: `temp:${crypto.randomUUID()}`,
+        userId: "",
+        title: d.title,
+        slug: "",
+        price: null,
+        description: null,
+        privateNote: null,
+        status: null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        cultivarReferenceId: d.cultivarReferenceId ?? null,
+      }),
+      serverInsert: (d) => getTrpcClient().dashboardDb.listing.create.mutate(d),
+    });
+
+    const created = await run(draft);
+
+    if (draft.cultivarReferenceId) {
+      try {
+        await ensureCultivarReferencesCached([draft.cultivarReferenceId]);
+      } catch {
+        // ignore cache helper failures
+      }
+    }
+
+    schedulePersistDashboardDbForCurrentUser();
+    return created;
   });
-
-  const created = await run(draft);
-
-  if (draft.cultivarReferenceId) {
-    try {
-      await ensureCultivarReferencesCached([draft.cultivarReferenceId]);
-    } catch {}
-  }
-
-  schedulePersistDashboardDbForCurrentUser();
-  return created;
 }
 
 type UpdateDraft = RouterInputs["dashboardDb"]["listing"]["update"];
 export async function updateListing(draft: UpdateDraft) {
-  const previous = listingsCollection.get(draft.id);
+  await runWithDashboardRefreshLock(async () => {
+    const previous = listingsCollection.get(draft.id);
 
-  listingsCollection.utils.writeUpdate({
-    id: draft.id,
-    ...omitUndefined(draft.data),
+    listingsCollection.utils.writeUpdate({
+      id: draft.id,
+      ...omitUndefined(draft.data),
+    });
+
+    try {
+      const updated = await getTrpcClient().dashboardDb.listing.update.mutate(
+        draft,
+      );
+      listingsCollection.utils.writeUpdate(updated);
+      schedulePersistDashboardDbForCurrentUser();
+    } catch (error) {
+      if (previous) listingsCollection.utils.writeUpdate(previous);
+      throw error;
+    }
   });
-
-  try {
-    const updated = await getTrpcClient().dashboardDb.listing.update.mutate(
-      draft,
-    );
-    listingsCollection.utils.writeUpdate(updated);
-    schedulePersistDashboardDbForCurrentUser();
-  } catch (error) {
-    if (previous) listingsCollection.utils.writeUpdate(previous);
-    throw error;
-  }
 }
 
 export async function deleteListing({ id }: { id: string }) {
-  const previous = listingsCollection.get(id);
-  DELETED_IDS.add(id);
-  listingsCollection.utils.writeDelete(id);
+  await runWithDashboardRefreshLock(async () => {
+    const previous = listingsCollection.get(id);
+    DELETED_IDS.add(id);
+    listingsCollection.utils.writeDelete(id);
 
-  try {
-    await getTrpcClient().dashboardDb.listing.delete.mutate({ id });
-    schedulePersistDashboardDbForCurrentUser({ delayMs: 0 });
-  } catch (error) {
-    if (previous) listingsCollection.utils.writeInsert(previous);
-    DELETED_IDS.delete(id);
-    throw error;
-  }
+    try {
+      await getTrpcClient().dashboardDb.listing.delete.mutate({ id });
+      schedulePersistDashboardDbForCurrentUser({ delayMs: 0 });
+    } catch (error) {
+      if (previous) listingsCollection.utils.writeInsert(previous);
+      DELETED_IDS.delete(id);
+      throw error;
+    }
+  });
 }
 
 type LinkAhsDraft = RouterInputs["dashboardDb"]["listing"]["linkAhs"];
 export async function linkAhs(draft: LinkAhsDraft) {
-  const updated = await getTrpcClient().dashboardDb.listing.linkAhs.mutate(
-    draft,
-  );
-  listingsCollection.utils.writeUpdate(updated);
+  return runWithDashboardRefreshLock(async () => {
+    const updated = await getTrpcClient().dashboardDb.listing.linkAhs.mutate(
+      draft,
+    );
+    listingsCollection.utils.writeUpdate(updated);
 
-  if (updated.cultivarReferenceId) {
-    try {
-      await ensureCultivarReferencesCached([updated.cultivarReferenceId]);
-    } catch {}
-  }
+    if (updated.cultivarReferenceId) {
+      try {
+        await ensureCultivarReferencesCached([updated.cultivarReferenceId]);
+      } catch {
+        // ignore cache helper failures
+      }
+    }
 
-  schedulePersistDashboardDbForCurrentUser();
-  return updated;
+    schedulePersistDashboardDbForCurrentUser();
+    return updated;
+  });
 }
 
 type UnlinkAhsDraft = RouterInputs["dashboardDb"]["listing"]["unlinkAhs"];
 export async function unlinkAhs(draft: UnlinkAhsDraft) {
-  const updated = await getTrpcClient().dashboardDb.listing.unlinkAhs.mutate(
-    draft,
-  );
-  listingsCollection.utils.writeUpdate(updated);
-  schedulePersistDashboardDbForCurrentUser();
-  return updated;
+  return runWithDashboardRefreshLock(async () => {
+    const updated = await getTrpcClient().dashboardDb.listing.unlinkAhs.mutate(
+      draft,
+    );
+    listingsCollection.utils.writeUpdate(updated);
+    schedulePersistDashboardDbForCurrentUser();
+    return updated;
+  });
 }
 
 type SyncAhsNameDraft = RouterInputs["dashboardDb"]["listing"]["syncAhsName"];
 export async function syncAhsName(draft: SyncAhsNameDraft) {
-  const updated =
-    await getTrpcClient().dashboardDb.listing.syncAhsName.mutate(draft);
-  listingsCollection.utils.writeUpdate(updated);
-  schedulePersistDashboardDbForCurrentUser();
-  return updated;
+  return runWithDashboardRefreshLock(async () => {
+    const updated =
+      await getTrpcClient().dashboardDb.listing.syncAhsName.mutate(draft);
+    listingsCollection.utils.writeUpdate(updated);
+    schedulePersistDashboardDbForCurrentUser();
+    return updated;
+  });
 }
 
 export async function refreshListingsCollectionFromServer(userId: string) {

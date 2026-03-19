@@ -28,6 +28,10 @@ export function suppressNextCultivarReferencesCollectionSync() {
   shouldSkipNextCultivarReferencesSync = true;
 }
 
+export function clearNextCultivarReferencesCollectionSyncSuppression() {
+  shouldSkipNextCultivarReferencesSync = false;
+}
+
 export async function cleanupCultivarReferencesCollection() {
   shouldSkipNextCultivarReferencesSync = false;
   await cultivarReferencesCollection.cleanup();
