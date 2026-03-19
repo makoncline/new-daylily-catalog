@@ -288,6 +288,127 @@ describe("dashboardDb TanStack DB collections", () => {
     });
   });
 
+  it("listings: pending delete stays deleted across full refresh", async () => {
+    await withTempAppDb(async ({ user }) => {
+      const { db } = await import("@/server/db");
+
+      const seeded = await db.listing.create({
+        data: {
+          userId: user.id,
+          title: "Alpha",
+          slug: `alpha-${crypto.randomUUID()}`,
+        },
+        select: { id: true },
+      });
+
+      const { createCaller } = await import("@/server/api/root");
+      const caller = createCaller(async () => {
+        return {
+          db,
+          headers: new Headers(),
+          _authUser:
+            { id: user.id } as unknown as TRPCInternalContext["_authUser"],
+        };
+      });
+
+      let releaseDelete: (() => void) | undefined;
+      const deleteGate = new Promise<void>((resolve) => {
+        releaseDelete = () => resolve();
+      });
+
+      const delayDeleteLink: TRPCLink<AppRouter> = () => {
+        return ({ op, next }) =>
+          observable((emit) => {
+            let sub:
+              | ReturnType<ReturnType<typeof next>["subscribe"]>
+              | undefined;
+            let cancelled = false;
+
+            void (async () => {
+              if (op.path === "dashboardDb.listing.delete") {
+                await deleteGate;
+              }
+
+              if (cancelled) {
+                return;
+              }
+
+              sub = next(op).subscribe({
+                next: (value) => emit.next(value),
+                error: (err) => emit.error(err),
+                complete: () => emit.complete(),
+              });
+            })();
+
+            return () => {
+              cancelled = true;
+              sub?.unsubscribe();
+            };
+          });
+      };
+
+      const clientLike = createTRPCProxyClient<AppRouter>({
+        links: [delayDeleteLink, callerLink(caller)],
+      });
+
+      const { setTestTrpcClient } = await import("@/trpc/client");
+      setTestTrpcClient(clientLike);
+
+      const {
+        listingsCollection,
+        deleteListing,
+        initializeListingsCollection,
+        refreshListingsCollectionFromServer,
+      } = await import("@/app/dashboard/_lib/dashboard-db/listings-collection");
+
+      await act(async () => {
+        await initializeListingsCollection(user.id);
+        render(<ListingsViewer listingsCollection={listingsCollection} />);
+      });
+
+      await waitFor(() => {
+        expect(screen.getByTestId("count").textContent).toBe("1");
+        expect(screen.getByTestId("titles").textContent).toBe("Alpha");
+      });
+
+      let deletePromise: Promise<void> | null = null;
+      act(() => {
+        deletePromise = deleteListing({ id: seeded.id });
+      });
+
+      await waitFor(() => {
+        expect(screen.getByTestId("count").textContent).toBe("0");
+        expect(screen.getByTestId("titles").textContent).toBe("");
+      });
+
+      await act(async () => {
+        await refreshListingsCollectionFromServer(user.id);
+      });
+
+      await waitFor(() => {
+        expect(screen.getByTestId("count").textContent).toBe("0");
+        expect(screen.getByTestId("titles").textContent).toBe("");
+      });
+
+      releaseDelete?.();
+
+      if (deletePromise) {
+        await act(async () => {
+          await deletePromise;
+        });
+      }
+
+      await act(async () => {
+        await listingsCollection.utils.refetch();
+      });
+
+      await waitFor(() => {
+        expect(screen.getByTestId("count").textContent).toBe("0");
+        expect(screen.getByTestId("titles").textContent).toBe("");
+      });
+    });
+  });
+
   it("listings: insert -> update -> delete live updates", async () => {
     await withTempAppDb(async () => {
       const {

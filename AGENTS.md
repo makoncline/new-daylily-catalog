@@ -1,5 +1,7 @@
 # Agents
 
+- [2026-03-19] Dashboard delete/full-refresh race: Dashboard collection full-refresh paths replace query data wholesale. If a delete mutation is still in flight, a `sync({ since: null })` refresh must filter local tombstoned ids or stale rows can reappear. Clear those tombstones during explicit collection cleanup/logout reset, not during refresh.
+
 This file is for agentic coding tools working in this repo. Follow the rules
 below and mirror existing conventions before introducing new ones.
 

@@ -9,11 +9,17 @@ import React, {
 } from "react";
 import { api } from "@/trpc/react";
 import { getQueryClient } from "@/trpc/query-client";
-import { imagesCollection } from "@/app/dashboard/_lib/dashboard-db/images-collection";
-import { listingsCollection } from "@/app/dashboard/_lib/dashboard-db/listings-collection";
-import { listsCollection } from "@/app/dashboard/_lib/dashboard-db/lists-collection";
 import {
-  cultivarReferencesCollection,
+  cleanupImagesCollection,
+} from "@/app/dashboard/_lib/dashboard-db/images-collection";
+import {
+  cleanupListingsCollection,
+} from "@/app/dashboard/_lib/dashboard-db/listings-collection";
+import {
+  cleanupListsCollection,
+} from "@/app/dashboard/_lib/dashboard-db/lists-collection";
+import {
+  cleanupCultivarReferencesCollection,
 } from "@/app/dashboard/_lib/dashboard-db/cultivar-references-collection";
 import { setCurrentUserId } from "@/lib/utils/cursor";
 import {
@@ -119,10 +125,10 @@ export function DashboardDbProvider({
       setCurrentUserId(null);
       getQueryClient().removeQueries({ queryKey: ["dashboard-db"] });
       void Promise.allSettled([
-        listingsCollection.cleanup(),
-        listsCollection.cleanup(),
-        imagesCollection.cleanup(),
-        cultivarReferencesCollection.cleanup(),
+        cleanupListingsCollection(),
+        cleanupListsCollection(),
+        cleanupImagesCollection(),
+        cleanupCultivarReferencesCollection(),
       ]);
       setDashboardDbState({
         status: "idle",

@@ -60,10 +60,10 @@ function DashboardListingsMarker({
 
 async function resetDashboardDbClientState() {
   const [
-    { listingsCollection },
-    { listsCollection },
-    { imagesCollection },
-    { cultivarReferencesCollection },
+    { cleanupListingsCollection },
+    { cleanupListsCollection },
+    { cleanupImagesCollection },
+    { cleanupCultivarReferencesCollection },
     { resetQueryClient },
   ] = await Promise.all([
     import("@/app/dashboard/_lib/dashboard-db/listings-collection"),
@@ -74,10 +74,10 @@ async function resetDashboardDbClientState() {
   ]);
 
   await Promise.all([
-    listingsCollection.cleanup(),
-    listsCollection.cleanup(),
-    imagesCollection.cleanup(),
-    cultivarReferencesCollection.cleanup(),
+    cleanupListingsCollection(),
+    cleanupListsCollection(),
+    cleanupImagesCollection(),
+    cleanupCultivarReferencesCollection(),
     resetQueryClient(),
   ]);
 }

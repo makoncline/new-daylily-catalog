@@ -32,11 +32,13 @@ export function replaceDashboardDbCollectionRows<T extends HasUpdatedAt>(args: {
   cursorBase: string;
   rows: readonly T[];
   sortRows: (rows: readonly T[]) => T[];
-  beforeReplace?: () => void;
+  filterRows?: (row: T) => boolean;
 }) {
-  args.beforeReplace?.();
+  const visibleRows = args.filterRows
+    ? args.rows.filter(args.filterRows)
+    : args.rows;
 
-  getQueryClient().setQueryData(args.queryKey, args.sortRows(args.rows));
+  getQueryClient().setQueryData(args.queryKey, args.sortRows(visibleRows));
 
   const cursorStorageKey = cursorKey(args.cursorBase, args.userId);
   if (args.rows.length === 0) {
@@ -58,7 +60,7 @@ export async function refreshDashboardDbCollectionFromServer<
   cursorBase: string;
   fetchRows: () => Promise<readonly T[]>;
   sortRows: (rows: readonly T[]) => T[];
-  beforeReplace?: () => void;
+  filterRows?: (row: T) => boolean;
 }) {
   setCurrentUserId(args.userId);
   const rows = await args.fetchRows();
@@ -73,7 +75,7 @@ export async function refreshDashboardDbCollectionFromServer<
     cursorBase: args.cursorBase,
     rows,
     sortRows: args.sortRows,
-    beforeReplace: args.beforeReplace,
+    filterRows: args.filterRows,
   });
 
   return true;

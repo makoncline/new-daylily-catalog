@@ -38,6 +38,12 @@ export function suppressNextImagesCollectionSync() {
   shouldSkipNextImagesSync = true;
 }
 
+export async function cleanupImagesCollection() {
+  DELETED_IDS.clear();
+  shouldSkipNextImagesSync = false;
+  await imagesCollection.cleanup();
+}
+
 export const imagesCollection = createCollection(
   queryCollectionOptions<ImageCollectionItem>({
     queryClient: getQueryClient(),
@@ -205,9 +211,7 @@ export async function refreshImagesCollectionFromServer(userId: string) {
         since: null,
       }),
     sortRows: sortImages,
-    beforeReplace: () => {
-      DELETED_IDS.clear();
-    },
+    filterRows: (row) => !DELETED_IDS.has(row.id),
   });
 }
 

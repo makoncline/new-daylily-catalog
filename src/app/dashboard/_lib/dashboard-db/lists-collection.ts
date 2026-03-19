@@ -30,6 +30,12 @@ export function suppressNextListsCollectionSync() {
   shouldSkipNextListsSync = true;
 }
 
+export async function cleanupListsCollection() {
+  DELETED_IDS.clear();
+  shouldSkipNextListsSync = false;
+  await listsCollection.cleanup();
+}
+
 export const listsCollection = createCollection(
   queryCollectionOptions<ListCollectionItem>({
     queryClient: getQueryClient(),
@@ -173,9 +179,7 @@ export async function refreshListsCollectionFromServer(userId: string) {
         since: null,
       }),
     sortRows: sortLists,
-    beforeReplace: () => {
-      DELETED_IDS.clear();
-    },
+    filterRows: (row) => !DELETED_IDS.has(row.id),
   });
 }
 

@@ -28,6 +28,11 @@ export function suppressNextCultivarReferencesCollectionSync() {
   shouldSkipNextCultivarReferencesSync = true;
 }
 
+export async function cleanupCultivarReferencesCollection() {
+  shouldSkipNextCultivarReferencesSync = false;
+  await cultivarReferencesCollection.cleanup();
+}
+
 export const cultivarReferencesCollection = createCollection(
   queryCollectionOptions<CultivarReferenceCollectionItem>({
     queryClient: getQueryClient(),

@@ -33,6 +33,12 @@ export function suppressNextListingsCollectionSync() {
   shouldSkipNextListingsSync = true;
 }
 
+export async function cleanupListingsCollection() {
+  DELETED_IDS.clear();
+  shouldSkipNextListingsSync = false;
+  await listingsCollection.cleanup();
+}
+
 export const listingsCollection = createCollection(
   queryCollectionOptions<ListingCollectionItem>({
     queryClient: getQueryClient(),
@@ -182,9 +188,7 @@ export async function refreshListingsCollectionFromServer(userId: string) {
         since: null,
       }),
     sortRows: sortListings,
-    beforeReplace: () => {
-      DELETED_IDS.clear();
-    },
+    filterRows: (row) => !DELETED_IDS.has(row.id),
   });
 }
 
