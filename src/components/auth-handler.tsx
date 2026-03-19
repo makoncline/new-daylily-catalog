@@ -1,7 +1,7 @@
 "use client";
 
 import { useAuth } from "@clerk/nextjs";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 
 /**
@@ -11,12 +11,20 @@ import { useQueryClient } from "@tanstack/react-query";
 export function AuthHandler() {
   const { userId } = useAuth();
   const queryClient = useQueryClient();
+  const previousUserIdRef = useRef<string | null | undefined>(undefined);
 
   useEffect(() => {
-    // When userId changes (user logs in or out), invalidate all queries
-    // This forces fresh data fetches and prevents cross-user contamination
-    console.log(`Auth state changed: User ID is now ${userId ?? "none"}`);
-    void queryClient.invalidateQueries();
+    const previousUserId = previousUserIdRef.current;
+    previousUserIdRef.current = userId ?? null;
+
+    if (typeof previousUserId === "undefined" || previousUserId === userId) {
+      return;
+    }
+
+    void (async () => {
+      await queryClient.cancelQueries();
+      queryClient.removeQueries();
+    })();
   }, [userId, queryClient]);
 
   return null; // This component doesn't render anything

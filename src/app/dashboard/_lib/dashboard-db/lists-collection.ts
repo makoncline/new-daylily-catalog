@@ -15,6 +15,7 @@ import {
 } from "@/app/dashboard/_lib/dashboard-db/collection-bootstrap";
 
 const CURSOR_BASE = "dashboard-db:lists:maxUpdatedAt";
+const QUERY_KEY = ["dashboard-db", "lists"] as const;
 const DELETED_IDS = new Set<string>();
 
 export type ListCollectionItem =
@@ -23,7 +24,7 @@ export type ListCollectionItem =
 export const listsCollection = createCollection(
   queryCollectionOptions<ListCollectionItem>({
     queryClient: getQueryClient(),
-    queryKey: ["dashboard-db", "lists"],
+    queryKey: QUERY_KEY,
     enabled: true,
     getKey: (row) => row.id,
     queryFn: async ({ queryKey }) => {
@@ -41,7 +42,9 @@ export const listsCollection = createCollection(
       DELETED_IDS.forEach((id) => map.delete(id));
 
       writeCursorFromRows({ cursorStorageKey: cursorKeyToUse, rows: upserts });
-      return Array.from(map.values());
+      return Array.from(map.values()).sort(
+        (a, b) => b.createdAt.getTime() - a.createdAt.getTime(),
+      );
     },
     onInsert: async () => ({ refetch: false }),
     onUpdate: async () => ({ refetch: false }),
@@ -149,13 +152,12 @@ export async function removeListingFromList(args: {
 }
 
 export async function initializeListsCollection(userId: string) {
-  await bootstrapDashboardDbCollection<ListCollectionItem>({
+  await bootstrapDashboardDbCollection({
     userId,
-    queryKey: ["dashboard-db", "lists"],
-    cursorBase: CURSOR_BASE,
     collection: listsCollection,
-    fetchSeed: () => getTrpcClient().dashboardDb.list.list.query(),
-    onSeeded: () => {
+    queryKey: QUERY_KEY,
+    cursorStorageKey: getUserCursorKey(CURSOR_BASE),
+    beforePreload: () => {
       DELETED_IDS.clear();
     },
   });

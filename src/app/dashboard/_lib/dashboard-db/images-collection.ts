@@ -13,6 +13,7 @@ import {
 } from "@/app/dashboard/_lib/dashboard-db/collection-bootstrap";
 
 const CURSOR_BASE = "dashboard-db:images:maxUpdatedAt";
+const QUERY_KEY = ["dashboard-db", "images"] as const;
 const DELETED_IDS = new Set<string>();
 
 export type ImageCollectionItem =
@@ -21,7 +22,7 @@ export type ImageCollectionItem =
 export const imagesCollection = createCollection(
   queryCollectionOptions<ImageCollectionItem>({
     queryClient: getQueryClient(),
-    queryKey: ["dashboard-db", "images"],
+    queryKey: QUERY_KEY,
     enabled: true,
     getKey: (row) => row.id,
     queryFn: async ({ queryKey }) => {
@@ -39,7 +40,19 @@ export const imagesCollection = createCollection(
       DELETED_IDS.forEach((id) => map.delete(id));
 
       writeCursorFromRows({ cursorStorageKey: cursorKeyToUse, rows: upserts });
-      return Array.from(map.values());
+      return Array.from(map.values()).sort((a, b) => {
+        const listingCompare = (a.listingId ?? "").localeCompare(
+          b.listingId ?? "",
+        );
+        if (listingCompare !== 0) return listingCompare;
+
+        const profileCompare = (a.userProfileId ?? "").localeCompare(
+          b.userProfileId ?? "",
+        );
+        if (profileCompare !== 0) return profileCompare;
+
+        return a.order - b.order;
+      });
     },
     onInsert: async () => ({ refetch: false }),
     onUpdate: async () => ({ refetch: false }),
@@ -171,13 +184,12 @@ export async function deleteImage(draft: DeleteDraft) {
 }
 
 export async function initializeImagesCollection(userId: string) {
-  await bootstrapDashboardDbCollection<ImageCollectionItem>({
+  await bootstrapDashboardDbCollection({
     userId,
-    queryKey: ["dashboard-db", "images"],
-    cursorBase: CURSOR_BASE,
     collection: imagesCollection,
-    fetchSeed: () => getTrpcClient().dashboardDb.image.list.query(),
-    onSeeded: () => {
+    queryKey: QUERY_KEY,
+    cursorStorageKey: getUserCursorKey(CURSOR_BASE),
+    beforePreload: () => {
       DELETED_IDS.clear();
     },
   });

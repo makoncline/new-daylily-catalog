@@ -4,6 +4,7 @@ import React, {
   createContext,
   useContext,
   useEffect,
+  useRef,
   useState,
 } from "react";
 import { api } from "@/trpc/react";
@@ -71,15 +72,18 @@ export function DashboardDbProvider({
 
   const [hideLoadingScreen, setHideLoadingScreen] = useState(false);
   const [isExitingLoadingScreen, setIsExitingLoadingScreen] = useState(false);
+  const initializedUserIdRef = useRef<string | null>(null);
   const setDashboardDbState = (nextState: DashboardDbState) => {
     queueMicrotask(() => {
       setState((current) =>
-        current.status === nextState.status && current.userId === nextState.userId
+        current.status === nextState.status &&
+        current.userId === nextState.userId
           ? current
           : nextState,
-      );
+        );
     });
   };
+
   const setLoadingScreenState = ({
     hide,
     exiting,
@@ -113,11 +117,15 @@ export function DashboardDbProvider({
 
   useEffect(() => {
     if (isLoading) {
-      setDashboardDbState({ status: "loading", userId: null });
+      setDashboardDbState({
+        status: "loading",
+        userId: null,
+      });
       return;
     }
 
     if (!userId) {
+      initializedUserIdRef.current = null;
       setCurrentUserId(null);
       getQueryClient().removeQueries({ queryKey: ["dashboard-db"] });
       void Promise.allSettled([
@@ -126,7 +134,10 @@ export function DashboardDbProvider({
         imagesCollection.cleanup(),
         cultivarReferencesCollection.cleanup(),
       ]);
-      setDashboardDbState({ status: "idle", userId: null });
+      setDashboardDbState({
+        status: "idle",
+        userId: null,
+      });
       return;
     }
 
@@ -134,8 +145,18 @@ export function DashboardDbProvider({
       return;
     }
 
+    if (initializedUserIdRef.current === userId) {
+      return;
+    }
+
+    const bootstrapUserId = userId;
+    let finished = false;
+    initializedUserIdRef.current = bootstrapUserId;
     let cancelled = false;
-    setDashboardDbState({ status: "loading", userId });
+    setDashboardDbState({
+      status: "loading",
+      userId,
+    });
 
     void (async () => {
       try {
@@ -156,15 +177,30 @@ export function DashboardDbProvider({
         }
 
         if (!cancelled) {
-          setState({ status: "ready", userId });
+          finished = true;
+          setState({
+            status: "ready",
+            userId,
+          });
         }
       } catch {
-        if (!cancelled) setState({ status: "error", userId });
+        if (initializedUserIdRef.current === bootstrapUserId) {
+          initializedUserIdRef.current = null;
+        }
+        if (!cancelled) {
+          setState({
+            status: "error",
+            userId,
+          });
+        }
       }
     })();
 
     return () => {
       cancelled = true;
+      if (!finished && initializedUserIdRef.current === bootstrapUserId) {
+        initializedUserIdRef.current = null;
+      }
     };
   }, [isError, isLoading, userId, utils]);
 
