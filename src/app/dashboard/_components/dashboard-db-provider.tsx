@@ -9,25 +9,15 @@ import React, {
 } from "react";
 import { api } from "@/trpc/react";
 import { getQueryClient } from "@/trpc/query-client";
-import {
-  imagesCollection,
-  initializeImagesCollection,
-} from "@/app/dashboard/_lib/dashboard-db/images-collection";
-import {
-  initializeListingsCollection,
-  listingsCollection,
-} from "@/app/dashboard/_lib/dashboard-db/listings-collection";
-import {
-  initializeListsCollection,
-  listsCollection,
-} from "@/app/dashboard/_lib/dashboard-db/lists-collection";
+import { imagesCollection } from "@/app/dashboard/_lib/dashboard-db/images-collection";
+import { listingsCollection } from "@/app/dashboard/_lib/dashboard-db/listings-collection";
+import { listsCollection } from "@/app/dashboard/_lib/dashboard-db/lists-collection";
 import {
   cultivarReferencesCollection,
-  initializeCultivarReferencesCollection,
 } from "@/app/dashboard/_lib/dashboard-db/cultivar-references-collection";
 import { setCurrentUserId } from "@/lib/utils/cursor";
 import {
-  persistDashboardDbToPersistence,
+  bootstrapDashboardDbFromServer,
   revalidateDashboardDbInBackground,
   tryHydrateDashboardDbFromPersistence,
 } from "@/app/dashboard/_lib/dashboard-db/dashboard-db-persistence";
@@ -164,17 +154,21 @@ export function DashboardDbProvider({
 
         if (hydrated) {
           void revalidateDashboardDbInBackground(userId);
-          await utils.dashboardDb.userProfile.get.prefetch();
-        } else {
-          await Promise.all([
-            initializeListingsCollection(userId),
-            initializeListsCollection(userId),
-            initializeImagesCollection(userId),
-            initializeCultivarReferencesCollection(userId),
-            utils.dashboardDb.userProfile.get.prefetch(),
-          ]);
-          void persistDashboardDbToPersistence(userId);
+          void utils.dashboardDb.userProfile.get.prefetch();
+          if (!cancelled) {
+            finished = true;
+            setState({
+              status: "ready",
+              userId,
+            });
+          }
+          return;
         }
+
+        await Promise.all([
+          bootstrapDashboardDbFromServer(userId),
+          utils.dashboardDb.userProfile.get.prefetch(),
+        ]);
 
         if (!cancelled) {
           finished = true;

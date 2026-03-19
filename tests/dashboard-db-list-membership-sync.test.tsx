@@ -14,7 +14,7 @@ function RawMembershipIdsViewer({
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   listsCollection: any;
 }) {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  /* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-return */
   const { data: allLists = [] } = useLiveQuery((q: any) =>
     q
       .from({ list: listsCollection })
@@ -31,6 +31,7 @@ function RawMembershipIdsViewer({
         .join(",")}
     </div>
   );
+  /* eslint-enable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-return */
 }
 
 describe("dashboardDb list membership sync", () => {
@@ -53,6 +54,10 @@ describe("dashboardDb list membership sync", () => {
         await initializeListsCollection(user.id);
         await initializeListingsCollection(user.id);
         render(<RawMembershipIdsViewer listsCollection={listsCollection} />);
+      });
+
+      await waitFor(() => {
+        expect(screen.getByTestId("raw-membership")).toBeInTheDocument();
       });
 
       let oldListId = "";

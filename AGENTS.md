@@ -246,3 +246,5 @@ NEXT_PUBLIC_SENTRY_ENABLED=false pnpm dev
   not present.
 - **Playwright browsers**: Chromium is installed to
   `~/.cache/ms-playwright/chromium-*`; the update script keeps it current.
+
+- [2026-03-19] Brave CDP discovery flake: Local Brave can expose `DevToolsActivePort` while the usual `http://127.0.0.1:<port>/json/list` discovery endpoint still returns 404 or hangs. When browser inspection is needed, do not assume Chrome-style discovery works; fall back to manual verification or another browser session if CDP attachment fails.

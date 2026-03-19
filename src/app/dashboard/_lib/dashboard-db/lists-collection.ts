@@ -10,16 +10,25 @@ import { omitUndefined } from "@/lib/utils/omit-undefined";
 import { getUserCursorKey } from "@/lib/utils/cursor";
 import { schedulePersistDashboardDbForCurrentUser } from "@/app/dashboard/_lib/dashboard-db/dashboard-db-persistence";
 import {
-  bootstrapDashboardDbCollection,
+  refreshDashboardDbCollectionFromServer,
   writeCursorFromRows,
 } from "@/app/dashboard/_lib/dashboard-db/collection-bootstrap";
 
 const CURSOR_BASE = "dashboard-db:lists:maxUpdatedAt";
 const QUERY_KEY = ["dashboard-db", "lists"] as const;
 const DELETED_IDS = new Set<string>();
+let shouldSkipNextListsSync = false;
 
 export type ListCollectionItem =
   RouterOutputs["dashboardDb"]["list"]["list"][number];
+
+function sortLists(rows: readonly ListCollectionItem[]) {
+  return [...rows].sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+}
+
+export function suppressNextListsCollectionSync() {
+  shouldSkipNextListsSync = true;
+}
 
 export const listsCollection = createCollection(
   queryCollectionOptions<ListCollectionItem>({
@@ -30,6 +39,11 @@ export const listsCollection = createCollection(
     queryFn: async ({ queryKey }) => {
       const existing: ListCollectionItem[] =
         getQueryClient().getQueryData(queryKey) ?? [];
+
+      if (shouldSkipNextListsSync) {
+        shouldSkipNextListsSync = false;
+        return sortLists(existing);
+      }
 
       const cursorKeyToUse = getUserCursorKey(CURSOR_BASE);
       const last = localStorage.getItem(cursorKeyToUse);
@@ -42,9 +56,7 @@ export const listsCollection = createCollection(
       DELETED_IDS.forEach((id) => map.delete(id));
 
       writeCursorFromRows({ cursorStorageKey: cursorKeyToUse, rows: upserts });
-      return Array.from(map.values()).sort(
-        (a, b) => b.createdAt.getTime() - a.createdAt.getTime(),
-      );
+      return sortLists(Array.from(map.values()));
     },
     onInsert: async () => ({ refetch: false }),
     onUpdate: async () => ({ refetch: false }),
@@ -151,14 +163,24 @@ export async function removeListingFromList(args: {
   }
 }
 
-export async function initializeListsCollection(userId: string) {
-  await bootstrapDashboardDbCollection({
+export async function refreshListsCollectionFromServer(userId: string) {
+  await refreshDashboardDbCollectionFromServer({
     userId,
-    collection: listsCollection,
     queryKey: QUERY_KEY,
-    cursorStorageKey: getUserCursorKey(CURSOR_BASE),
-    beforePreload: () => {
+    cursorBase: CURSOR_BASE,
+    fetchRows: () =>
+      getTrpcClient().dashboardDb.list.sync.query({
+        since: null,
+      }),
+    sortRows: sortLists,
+    beforeReplace: () => {
       DELETED_IDS.clear();
     },
   });
+}
+
+export async function initializeListsCollection(userId: string) {
+  await refreshListsCollectionFromServer(userId);
+  suppressNextListsCollectionSync();
+  await listsCollection.preload();
 }

@@ -8,10 +8,26 @@ import {
   setCurrentUserId,
 } from "@/lib/utils/cursor";
 import { writeCursorFromRows } from "@/app/dashboard/_lib/dashboard-db/collection-bootstrap";
-import { listingsCollection } from "@/app/dashboard/_lib/dashboard-db/listings-collection";
-import { listsCollection } from "@/app/dashboard/_lib/dashboard-db/lists-collection";
-import { imagesCollection } from "@/app/dashboard/_lib/dashboard-db/images-collection";
-import { cultivarReferencesCollection } from "@/app/dashboard/_lib/dashboard-db/cultivar-references-collection";
+import {
+  initializeListingsCollection,
+  refreshListingsCollectionFromServer,
+  suppressNextListingsCollectionSync,
+} from "@/app/dashboard/_lib/dashboard-db/listings-collection";
+import {
+  initializeListsCollection,
+  refreshListsCollectionFromServer,
+  suppressNextListsCollectionSync,
+} from "@/app/dashboard/_lib/dashboard-db/lists-collection";
+import {
+  initializeImagesCollection,
+  refreshImagesCollectionFromServer,
+  suppressNextImagesCollectionSync,
+} from "@/app/dashboard/_lib/dashboard-db/images-collection";
+import {
+  initializeCultivarReferencesCollection,
+  refreshCultivarReferencesCollectionFromServer,
+  suppressNextCultivarReferencesCollectionSync,
+} from "@/app/dashboard/_lib/dashboard-db/cultivar-references-collection";
 
 const LISTINGS_CURSOR_BASE = "dashboard-db:listings:maxUpdatedAt";
 const LISTS_CURSOR_BASE = "dashboard-db:lists:maxUpdatedAt";
@@ -32,7 +48,7 @@ type CultivarReferenceRow =
 export const DASHBOARD_DB_PERSISTED_SWR = {
   enabled: true,
   ttlMs: 24 * 60 * 60 * 1000, // 1 day
-  version: 1,
+  version: 2,
 } as const;
 
 export interface DashboardDbPersistedSnapshot {
@@ -75,6 +91,16 @@ function openDb(): Promise<IDBDatabase> {
   });
 }
 
+function closeDbOnTransactionComplete(tx: IDBTransaction, db: IDBDatabase) {
+  const closeDb = () => {
+    db.close();
+  };
+
+  tx.oncomplete = closeDb;
+  tx.onerror = closeDb;
+  tx.onabort = closeDb;
+}
+
 async function idbGet<T>(key: IDBValidKey): Promise<T | null> {
   if (!isIdbSupported()) return null;
 
@@ -83,6 +109,7 @@ async function idbGet<T>(key: IDBValidKey): Promise<T | null> {
     const tx = db.transaction(IDB_STORE_NAME, "readonly");
     const store = tx.objectStore(IDB_STORE_NAME);
     const request = store.get(key);
+    closeDbOnTransactionComplete(tx, db);
 
     request.onsuccess = () => {
       resolve((request.result as T | undefined) ?? null);
@@ -102,6 +129,7 @@ async function idbPut<T extends { userId: string }>(value: T): Promise<void> {
     const tx = db.transaction(IDB_STORE_NAME, "readwrite");
     const store = tx.objectStore(IDB_STORE_NAME);
     const request = store.put(value);
+    closeDbOnTransactionComplete(tx, db);
 
     request.onsuccess = () => resolve();
     request.onerror = () => {
@@ -119,6 +147,7 @@ async function idbDelete(key: IDBValidKey): Promise<void> {
     const tx = db.transaction(IDB_STORE_NAME, "readwrite");
     const store = tx.objectStore(IDB_STORE_NAME);
     const request = store.delete(key);
+    closeDbOnTransactionComplete(tx, db);
 
     request.onsuccess = () => resolve();
     request.onerror = () => {
@@ -180,6 +209,13 @@ function writeCursorFromSnapshotRows(args: {
   });
 }
 
+function suppressNextDashboardCollectionSyncs() {
+  suppressNextListingsCollectionSync();
+  suppressNextListsCollectionSync();
+  suppressNextImagesCollectionSync();
+  suppressNextCultivarReferencesCollectionSync();
+}
+
 export async function tryHydrateDashboardDbFromPersistence(userId: string) {
   if (!DASHBOARD_DB_PERSISTED_SWR.enabled) return false;
   if (!isIdbSupported()) return false;
@@ -234,12 +270,7 @@ export async function tryHydrateDashboardDbFromPersistence(userId: string) {
       rows: snapshot.cultivarReferences,
     });
 
-    await Promise.all([
-      listingsCollection.preload(),
-      listsCollection.preload(),
-      imagesCollection.preload(),
-      cultivarReferencesCollection.preload(),
-    ]);
+    suppressNextDashboardCollectionSyncs();
   } catch {
     return false;
   }
@@ -277,21 +308,46 @@ export async function persistDashboardDbToPersistence(userId: string) {
   }
 }
 
+export async function bootstrapDashboardDbFromServer(userId: string) {
+  await Promise.all([
+    initializeListingsCollection(userId),
+    initializeListsCollection(userId),
+    initializeImagesCollection(userId),
+    initializeCultivarReferencesCollection(userId),
+  ]);
+
+  suppressNextDashboardCollectionSyncs();
+
+  if (getCurrentUserId() !== userId) {
+    return;
+  }
+
+  await persistDashboardDbToPersistence(userId);
+}
+
+export async function refreshDashboardDbFromServer(userId: string) {
+  await Promise.all([
+    refreshListingsCollectionFromServer(userId),
+    refreshListsCollectionFromServer(userId),
+    refreshImagesCollectionFromServer(userId),
+    refreshCultivarReferencesCollectionFromServer(userId),
+  ]);
+
+  if (getCurrentUserId() !== userId) {
+    return;
+  }
+
+  await persistDashboardDbToPersistence(userId);
+}
+
 export async function revalidateDashboardDbInBackground(userId: string) {
   if (!DASHBOARD_DB_PERSISTED_SWR.enabled) return;
 
   try {
-    await Promise.all([
-      listingsCollection.utils.refetch(),
-      listsCollection.utils.refetch(),
-      imagesCollection.utils.refetch(),
-      cultivarReferencesCollection.utils.refetch(),
-    ]);
+    await refreshDashboardDbFromServer(userId);
   } catch {
     // ignore: background revalidate is best-effort
   }
-
-  await persistDashboardDbToPersistence(userId);
 }
 
 let persistTimeout: ReturnType<typeof setTimeout> | null = null;

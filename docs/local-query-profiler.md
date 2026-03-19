@@ -55,3 +55,61 @@ Notes:
 
 - Profiler only activates when the active DB is a local SQLite file (`file:` URL).
 - If Turso is active, profiler is skipped with a warning.
+
+## Local Large-Catalog Dashboard Debug
+
+Use this when you want to reproduce dashboard behavior locally against a real
+large catalog from the production snapshot.
+
+### 1. Back up the local prod copy before auth remapping
+
+```sh
+mkdir -p tests/.tmp
+sqlite3 prisma/local-prod-copy-daylily-catalog.db \
+  ".backup tests/.tmp/local-prod-copy-before-rollingoaks-auth-remap.sqlite"
+```
+
+### 2. Remap the Rollingoaks catalog to the local Clerk test user
+
+This snapshot uses `rollingoaksdaylilies` on `User.id = '3'`, while the local
+dev test login uses Clerk user `user_32T1tvQIoeDiev3SJwar7ogR8oo`.
+
+```sh
+sqlite3 prisma/local-prod-copy-daylily-catalog.db <<'SQL'
+BEGIN;
+UPDATE "User"
+SET "clerkUserId" = NULL
+WHERE "clerkUserId" = 'user_32T1tvQIoeDiev3SJwar7ogR8oo';
+
+UPDATE "User"
+SET "clerkUserId" = 'user_32T1tvQIoeDiev3SJwar7ogR8oo'
+WHERE "id" = '3';
+COMMIT;
+SQL
+```
+
+Verify:
+
+```sh
+sqlite3 prisma/local-prod-copy-daylily-catalog.db \
+  "select User.id, User.clerkUserId, UserProfile.slug
+   from User
+   join UserProfile on UserProfile.userId = User.id
+   where UserProfile.slug = 'rollingoaksdaylilies';"
+```
+
+### 3. Run the app against the local prod copy
+
+```sh
+DATABASE_URL="file:./prisma/local-prod-copy-daylily-catalog.db" \
+SKIP_ENV_VALIDATION=1 \
+NEXT_PUBLIC_SENTRY_ENABLED=false \
+pnpm dev
+```
+
+### 4. Restore the original local prod copy if needed
+
+```sh
+cp tests/.tmp/local-prod-copy-before-rollingoaks-auth-remap.sqlite \
+  prisma/local-prod-copy-daylily-catalog.db
+```

@@ -1,11 +1,11 @@
 "use client";
 
-import { setCurrentUserId } from "@/lib/utils/cursor";
+import {
+  cursorKey,
+  getCurrentUserId,
+  setCurrentUserId,
+} from "@/lib/utils/cursor";
 import { getQueryClient } from "@/trpc/query-client";
-
-type PreloadableCollection = {
-  preload: () => Promise<void>;
-};
 
 type HasUpdatedAt = {
   updatedAt: Date;
@@ -26,17 +26,55 @@ export function writeCursorFromRows(args: {
   localStorage.setItem(args.cursorStorageKey, max.toISOString());
 }
 
-export async function bootstrapDashboardDbCollection(args: {
+export function replaceDashboardDbCollectionRows<T extends HasUpdatedAt>(args: {
   userId: string;
-  collection: PreloadableCollection;
   queryKey: readonly unknown[];
-  cursorStorageKey: string;
-  beforePreload?: () => void;
+  cursorBase: string;
+  rows: readonly T[];
+  sortRows: (rows: readonly T[]) => T[];
+  beforeReplace?: () => void;
+}) {
+  args.beforeReplace?.();
+
+  getQueryClient().setQueryData(args.queryKey, args.sortRows(args.rows));
+
+  const cursorStorageKey = cursorKey(args.cursorBase, args.userId);
+  if (args.rows.length === 0) {
+    localStorage.removeItem(cursorStorageKey);
+    return;
+  }
+
+  writeCursorFromRows({
+    cursorStorageKey,
+    rows: args.rows,
+  });
+}
+
+export async function refreshDashboardDbCollectionFromServer<
+  T extends HasUpdatedAt,
+>(args: {
+  userId: string;
+  queryKey: readonly unknown[];
+  cursorBase: string;
+  fetchRows: () => Promise<readonly T[]>;
+  sortRows: (rows: readonly T[]) => T[];
+  beforeReplace?: () => void;
 }) {
   setCurrentUserId(args.userId);
-  if (getQueryClient().getQueryData(args.queryKey) === undefined) {
-    localStorage.removeItem(args.cursorStorageKey);
+  const rows = await args.fetchRows();
+
+  if (getCurrentUserId() !== args.userId) {
+    return false;
   }
-  args.beforePreload?.();
-  await args.collection.preload();
+
+  replaceDashboardDbCollectionRows({
+    userId: args.userId,
+    queryKey: args.queryKey,
+    cursorBase: args.cursorBase,
+    rows,
+    sortRows: args.sortRows,
+    beforeReplace: args.beforeReplace,
+  });
+
+  return true;
 }

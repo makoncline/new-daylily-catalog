@@ -8,16 +8,35 @@ import { getTrpcClient } from "@/trpc/client";
 import { getUserCursorKey } from "@/lib/utils/cursor";
 import { schedulePersistDashboardDbForCurrentUser } from "@/app/dashboard/_lib/dashboard-db/dashboard-db-persistence";
 import {
-  bootstrapDashboardDbCollection,
+  refreshDashboardDbCollectionFromServer,
   writeCursorFromRows,
 } from "@/app/dashboard/_lib/dashboard-db/collection-bootstrap";
 
 const CURSOR_BASE = "dashboard-db:images:maxUpdatedAt";
 const QUERY_KEY = ["dashboard-db", "images"] as const;
 const DELETED_IDS = new Set<string>();
+let shouldSkipNextImagesSync = false;
 
 export type ImageCollectionItem =
   RouterOutputs["dashboardDb"]["image"]["list"][number];
+
+function sortImages(rows: readonly ImageCollectionItem[]) {
+  return [...rows].sort((a, b) => {
+    const listingCompare = (a.listingId ?? "").localeCompare(b.listingId ?? "");
+    if (listingCompare !== 0) return listingCompare;
+
+    const profileCompare = (a.userProfileId ?? "").localeCompare(
+      b.userProfileId ?? "",
+    );
+    if (profileCompare !== 0) return profileCompare;
+
+    return a.order - b.order;
+  });
+}
+
+export function suppressNextImagesCollectionSync() {
+  shouldSkipNextImagesSync = true;
+}
 
 export const imagesCollection = createCollection(
   queryCollectionOptions<ImageCollectionItem>({
@@ -28,6 +47,11 @@ export const imagesCollection = createCollection(
     queryFn: async ({ queryKey }) => {
       const existing: ImageCollectionItem[] =
         getQueryClient().getQueryData(queryKey) ?? [];
+
+      if (shouldSkipNextImagesSync) {
+        shouldSkipNextImagesSync = false;
+        return sortImages(existing);
+      }
 
       const cursorKeyToUse = getUserCursorKey(CURSOR_BASE);
       const last = localStorage.getItem(cursorKeyToUse);
@@ -40,19 +64,7 @@ export const imagesCollection = createCollection(
       DELETED_IDS.forEach((id) => map.delete(id));
 
       writeCursorFromRows({ cursorStorageKey: cursorKeyToUse, rows: upserts });
-      return Array.from(map.values()).sort((a, b) => {
-        const listingCompare = (a.listingId ?? "").localeCompare(
-          b.listingId ?? "",
-        );
-        if (listingCompare !== 0) return listingCompare;
-
-        const profileCompare = (a.userProfileId ?? "").localeCompare(
-          b.userProfileId ?? "",
-        );
-        if (profileCompare !== 0) return profileCompare;
-
-        return a.order - b.order;
-      });
+      return sortImages(Array.from(map.values()));
     },
     onInsert: async () => ({ refetch: false }),
     onUpdate: async () => ({ refetch: false }),
@@ -183,14 +195,24 @@ export async function deleteImage(draft: DeleteDraft) {
   }
 }
 
-export async function initializeImagesCollection(userId: string) {
-  await bootstrapDashboardDbCollection({
+export async function refreshImagesCollectionFromServer(userId: string) {
+  await refreshDashboardDbCollectionFromServer({
     userId,
-    collection: imagesCollection,
     queryKey: QUERY_KEY,
-    cursorStorageKey: getUserCursorKey(CURSOR_BASE),
-    beforePreload: () => {
+    cursorBase: CURSOR_BASE,
+    fetchRows: () =>
+      getTrpcClient().dashboardDb.image.sync.query({
+        since: null,
+      }),
+    sortRows: sortImages,
+    beforeReplace: () => {
       DELETED_IDS.clear();
     },
   });
+}
+
+export async function initializeImagesCollection(userId: string) {
+  await refreshImagesCollectionFromServer(userId);
+  suppressNextImagesCollectionSync();
+  await imagesCollection.preload();
 }

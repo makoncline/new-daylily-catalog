@@ -1,7 +1,9 @@
+import "fake-indexeddb/auto";
 import React, { StrictMode } from "react";
 import { useLiveQuery } from "@tanstack/react-db";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { createTRPCProxyClient, type TRPCLink } from "@trpc/client";
+import { observable } from "@trpc/server/observable";
 import { act, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it } from "vitest";
 import type { AppRouter } from "@/server/api/root";
@@ -9,9 +11,12 @@ import type { TRPCInternalContext } from "@/server/api/trpc";
 import { callerLink, withTempAppDb } from "@/lib/test-utils/app-test-db";
 import { getQueryClient } from "@/trpc/query-client";
 import { api } from "@/trpc/react";
+import { cursorKey } from "@/lib/utils/cursor";
 
-beforeEach(() => {
+beforeEach(async () => {
   localStorage.clear();
+  await resetDashboardDbClientState();
+  await clearDashboardDbPersistence();
 });
 
 async function clearDashboardDbPersistence() {
@@ -273,6 +278,230 @@ describe("dashboardDb provider bootstrap", () => {
           value: originalIndexedDb,
         });
       }
+    });
+  });
+
+  it("warm bootstrap replaces incomplete persisted data with a full refresh", async () => {
+    await withTempAppDb(async ({ user }) => {
+      await clearDashboardDbPersistence();
+
+      const { db } = await import("@/server/db");
+
+      const alpha = await db.listing.create({
+        data: {
+          userId: user.id,
+          title: "Alpha",
+          slug: `alpha-${crypto.randomUUID()}`,
+        },
+      });
+
+      await new Promise((resolve) => setTimeout(resolve, 10));
+
+      const beta = await db.listing.create({
+        data: {
+          userId: user.id,
+          title: "Beta",
+          slug: `beta-${crypto.randomUUID()}`,
+        },
+      });
+
+      const { createCaller } = await import("@/server/api/root");
+      const caller = createCaller(async () => {
+        return {
+          db,
+          headers: new Headers(),
+          _authUser:
+            { id: user.id } as unknown as TRPCInternalContext["_authUser"],
+        };
+      });
+
+      const opCounts = new Map<string, number>();
+      let releaseListingSync!: () => void;
+      const listingSyncGate = new Promise<void>((resolve) => {
+        releaseListingSync = resolve;
+      });
+
+      const delayedListingSyncLink: TRPCLink<AppRouter> = () => {
+        return ({ op, next }) =>
+          observable((emit) => {
+            opCounts.set(op.path, (opCounts.get(op.path) ?? 0) + 1);
+
+            let pending = Promise.resolve();
+            const sub = next(op).subscribe({
+              next: (value) => {
+                pending = pending.then(async () => {
+                  if (op.path === "dashboardDb.listing.sync") {
+                    await listingSyncGate;
+                  }
+                  emit.next(value);
+                });
+              },
+              error: (err) => emit.error(err),
+              complete: () => {
+                void pending.then(() => emit.complete());
+              },
+            });
+
+            return () => sub.unsubscribe();
+          });
+      };
+
+      const links: TRPCLink<AppRouter>[] = [
+        delayedListingSyncLink,
+        callerLink(caller),
+      ];
+      const clientLike = createTRPCProxyClient<AppRouter>({ links });
+
+      const { setTestTrpcClient } = await import("@/trpc/client");
+      setTestTrpcClient(clientLike);
+
+      const {
+        refreshDashboardDbFromServer,
+        tryHydrateDashboardDbFromPersistence,
+        DASHBOARD_DB_PERSISTED_SWR,
+        writeDashboardDbSnapshot,
+      } = await import(
+        "@/app/dashboard/_lib/dashboard-db/dashboard-db-persistence"
+      );
+      const { listingsCollection } = await import(
+        "@/app/dashboard/_lib/dashboard-db/listings-collection"
+      );
+
+      await writeDashboardDbSnapshot({
+        userId: user.id,
+        version: DASHBOARD_DB_PERSISTED_SWR.version,
+        persistedAt: new Date(),
+        listings: [beta],
+        lists: [],
+        images: [],
+        cultivarReferences: [],
+      });
+
+      localStorage.setItem(
+        cursorKey("dashboard-db:listings:maxUpdatedAt", user.id),
+        beta.updatedAt.toISOString(),
+      );
+
+      expect(await tryHydrateDashboardDbFromPersistence(user.id)).toBe(true);
+
+      render(<DashboardListingsMarker listingsCollection={listingsCollection} />);
+
+      await waitFor(() => {
+        expect(screen.getByTestId("dashboard-listings").textContent).toBe(
+          "Beta",
+        );
+      });
+
+      const refreshPromise = refreshDashboardDbFromServer(user.id);
+      releaseListingSync();
+      await act(async () => {
+        await refreshPromise;
+      });
+
+      await waitFor(() => {
+        expect(screen.getByTestId("dashboard-listings").textContent).toBe(
+          "Alpha,Beta",
+        );
+      });
+
+      expect(opCounts.get("dashboardDb.listing.sync")).toBe(1);
+      expect(opCounts.get("dashboardDb.list.sync")).toBe(1);
+      expect(opCounts.get("dashboardDb.image.sync")).toBe(1);
+      expect(opCounts.get("dashboardDb.cultivarReference.sync")).toBe(1);
+      expect(alpha.id).not.toBe(beta.id);
+    });
+  });
+
+  it("ignores older persisted snapshots and reloads the full catalog", async () => {
+    await withTempAppDb(async ({ user }) => {
+      await clearDashboardDbPersistence();
+
+      const { db } = await import("@/server/db");
+
+      const alpha = await db.listing.create({
+        data: {
+          userId: user.id,
+          title: "Alpha",
+          slug: `alpha-${crypto.randomUUID()}`,
+        },
+      });
+
+      await new Promise((resolve) => setTimeout(resolve, 10));
+
+      const beta = await db.listing.create({
+        data: {
+          userId: user.id,
+          title: "Beta",
+          slug: `beta-${crypto.randomUUID()}`,
+        },
+      });
+
+      const { writeDashboardDbSnapshot, DASHBOARD_DB_PERSISTED_SWR } =
+        await import(
+          "@/app/dashboard/_lib/dashboard-db/dashboard-db-persistence"
+        );
+
+      expect(DASHBOARD_DB_PERSISTED_SWR.version).toBeGreaterThan(1);
+
+      await writeDashboardDbSnapshot({
+        userId: user.id,
+        version: 1,
+        persistedAt: new Date(),
+        listings: [beta],
+        lists: [],
+        images: [],
+        cultivarReferences: [],
+      });
+
+      localStorage.setItem(
+        cursorKey("dashboard-db:listings:maxUpdatedAt", user.id),
+        beta.updatedAt.toISOString(),
+      );
+
+      const { createCaller } = await import("@/server/api/root");
+      const caller = createCaller(async () => {
+        return {
+          db,
+          headers: new Headers(),
+          _authUser:
+            { id: user.id } as unknown as TRPCInternalContext["_authUser"],
+        };
+      });
+
+      const links: TRPCLink<AppRouter>[] = [callerLink(caller)];
+      const clientLike = createTRPCProxyClient<AppRouter>({ links });
+
+      const { setTestTrpcClient } = await import("@/trpc/client");
+      setTestTrpcClient(clientLike);
+
+      const trpcClient = api.createClient({ links });
+      const queryClient = getQueryClient();
+      const { DashboardDbProvider } = await import(
+        "@/app/dashboard/_components/dashboard-db-provider"
+      );
+      const { listingsCollection } = await import(
+        "@/app/dashboard/_lib/dashboard-db/listings-collection"
+      );
+
+      render(
+        <QueryClientProvider client={queryClient}>
+          <api.Provider client={trpcClient} queryClient={queryClient}>
+            <DashboardDbProvider>
+              <DashboardReadyMarker />
+              <DashboardListingsMarker listingsCollection={listingsCollection} />
+            </DashboardDbProvider>
+          </api.Provider>
+        </QueryClientProvider>,
+      );
+
+      await waitFor(() => {
+        expect(screen.getByTestId("dashboard-ready").textContent).toBe("ready");
+        expect(screen.getByTestId("dashboard-listings").textContent).toBe(
+          "Alpha,Beta",
+        );
+      });
+
+      expect(alpha.id).not.toBe(beta.id);
     });
   });
 

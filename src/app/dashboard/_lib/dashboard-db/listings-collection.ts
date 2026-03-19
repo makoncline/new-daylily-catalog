@@ -13,16 +13,25 @@ import {
 import { getUserCursorKey } from "@/lib/utils/cursor";
 import { schedulePersistDashboardDbForCurrentUser } from "@/app/dashboard/_lib/dashboard-db/dashboard-db-persistence";
 import {
-  bootstrapDashboardDbCollection,
+  refreshDashboardDbCollectionFromServer,
   writeCursorFromRows,
 } from "@/app/dashboard/_lib/dashboard-db/collection-bootstrap";
 
 const CURSOR_BASE = "dashboard-db:listings:maxUpdatedAt";
 const QUERY_KEY = ["dashboard-db", "listings"] as const;
 const DELETED_IDS = new Set<string>();
+let shouldSkipNextListingsSync = false;
 
 export type ListingCollectionItem =
   RouterOutputs["dashboardDb"]["listing"]["list"][number];
+
+function sortListings(rows: readonly ListingCollectionItem[]) {
+  return [...rows].sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+}
+
+export function suppressNextListingsCollectionSync() {
+  shouldSkipNextListingsSync = true;
+}
 
 export const listingsCollection = createCollection(
   queryCollectionOptions<ListingCollectionItem>({
@@ -33,6 +42,11 @@ export const listingsCollection = createCollection(
     queryFn: async ({ queryKey }) => {
       const existing: ListingCollectionItem[] =
         getQueryClient().getQueryData(queryKey) ?? [];
+
+      if (shouldSkipNextListingsSync) {
+        shouldSkipNextListingsSync = false;
+        return sortListings(existing);
+      }
 
       const cursorKeyToUse = getUserCursorKey(CURSOR_BASE);
       const last = localStorage.getItem(cursorKeyToUse);
@@ -46,9 +60,7 @@ export const listingsCollection = createCollection(
       DELETED_IDS.forEach((id) => map.delete(id));
 
       writeCursorFromRows({ cursorStorageKey: cursorKeyToUse, rows: upserts });
-      return Array.from(map.values()).sort(
-        (a, b) => b.createdAt.getTime() - a.createdAt.getTime(),
-      );
+      return sortListings(Array.from(map.values()));
     },
     onInsert: async () => ({ refetch: false }),
     onUpdate: async () => ({ refetch: false }),
@@ -160,14 +172,24 @@ export async function syncAhsName(draft: SyncAhsNameDraft) {
   return updated;
 }
 
-export async function initializeListingsCollection(userId: string) {
-  await bootstrapDashboardDbCollection({
+export async function refreshListingsCollectionFromServer(userId: string) {
+  await refreshDashboardDbCollectionFromServer({
     userId,
-    collection: listingsCollection,
     queryKey: QUERY_KEY,
-    cursorStorageKey: getUserCursorKey(CURSOR_BASE),
-    beforePreload: () => {
+    cursorBase: CURSOR_BASE,
+    fetchRows: () =>
+      getTrpcClient().dashboardDb.listing.sync.query({
+        since: null,
+      }),
+    sortRows: sortListings,
+    beforeReplace: () => {
       DELETED_IDS.clear();
     },
   });
+}
+
+export async function initializeListingsCollection(userId: string) {
+  await refreshListingsCollectionFromServer(userId);
+  suppressNextListingsCollectionSync();
+  await listingsCollection.preload();
 }
