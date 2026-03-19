@@ -2,6 +2,7 @@
 
 ## Log
 
+- 2026-03-19 - dashboard logout should cancel/remove, not invalidate - In the dashboard wrapper, invalidating all queries on Clerk auth changes causes still-mounted protected hooks and TanStack DB observers to refetch during logout and spam `Not authenticated` errors. For this route, cancel and remove queries on auth transitions instead of forcing a refetch.
 - 2026-03-18 - cold dashboard bootstrap must clear stale local cursors - Dashboard collections read `since` from per-user `localStorage` cursors even when the query cache starts empty. If IndexedDB hydration is skipped or unavailable on a cold bootstrap, clear that collection's cursor before the first `preload()` or older unchanged rows can disappear from the initial dashboard load.
 - 2026-03-18 - dashboard bootstrap guards must survive StrictMode replay - A same-user bootstrap ref in `DashboardDbProvider` must be cleared when an in-flight bootstrap run is cancelled, otherwise React StrictMode's setup-cleanup-setup replay can leave the dashboard stuck on the loading screen in dev/test.
 - 2026-03-18 - dashboard bootstrap duplicate load - On a cold dashboard load without an IndexedDB snapshot, the provider seeded each dashboard collection with full `*.list` queries and then immediately called each collection's `preload()` sync query, doubling Turso work before first render. When large accounts start timing out on `/dashboard`, inspect the provider/bootstrap path for duplicate seed+sync fetches before tuning individual Prisma queries.
