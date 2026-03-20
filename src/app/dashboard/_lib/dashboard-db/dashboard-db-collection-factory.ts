@@ -8,7 +8,7 @@ import type { QueryKey } from "@tanstack/react-query";
 import { getQueryClient } from "@/trpc/query-client";
 import { getUserCursorKey } from "@/lib/utils/cursor";
 import {
-  bootstrapDashboardDbCollection,
+  replaceDashboardDbCollectionRows,
   writeCursorFromRows,
 } from "./collection-bootstrap";
 
@@ -59,17 +59,19 @@ export function createDashboardDbCollection<TItem extends DashboardDbCollectionI
   ) as unknown as Collection<TItem, string | number, QueryCollectionUtils<TItem>>;
 
   async function initialize(userId: string) {
-    await bootstrapDashboardDbCollection<TItem>({
+    const rows = await args.seed(userId);
+
+    replaceDashboardDbCollectionRows({
       userId,
       queryKey: args.queryKey,
       cursorBase: args.cursorBase,
-      collection,
-      fetchSeed: () => args.seed(userId),
-      onSeeded: () => {
-        deletedIds.clear();
-        args.onSeeded?.();
-      },
+      rows,
+      sortRows: (nextRows) => [...nextRows],
     });
+
+    deletedIds.clear();
+    args.onSeeded?.();
+    await collection.preload();
   }
 
   return {

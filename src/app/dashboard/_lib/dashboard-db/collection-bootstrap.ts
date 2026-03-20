@@ -1,15 +1,22 @@
 "use client";
 
+import { cursorKey, getCurrentUserId } from "@/lib/utils/cursor";
 import { getQueryClient } from "@/trpc/query-client";
-import { cursorKey, setCurrentUserId } from "@/lib/utils/cursor";
-
-type PreloadableCollection = {
-  preload: () => Promise<void>;
-};
 
 type HasUpdatedAt = {
   updatedAt: Date;
 };
+
+interface BootstrapDashboardDbCollectionArgs<T extends HasUpdatedAt> {
+  userId: string;
+  queryKey: readonly unknown[];
+  cursorBase: string;
+  collection: {
+    preload: () => Promise<void>;
+  };
+  fetchSeed: () => Promise<readonly T[]>;
+  onSeeded?: () => void;
+}
 
 export function writeCursorFromRows(args: {
   cursorStorageKey: string;
@@ -26,25 +33,86 @@ export function writeCursorFromRows(args: {
   localStorage.setItem(args.cursorStorageKey, max.toISOString());
 }
 
-export async function bootstrapDashboardDbCollection<TItem extends HasUpdatedAt>(args: {
+export function replaceDashboardDbCollectionRows<T extends HasUpdatedAt>(args: {
   userId: string;
   queryKey: readonly unknown[];
   cursorBase: string;
-  collection: PreloadableCollection;
-  fetchSeed: () => Promise<TItem[]>;
-  onSeeded?: () => void;
+  rows: readonly T[];
+  sortRows: (rows: readonly T[]) => T[];
+  filterRows?: (row: T) => boolean;
 }) {
-  setCurrentUserId(args.userId);
+  const visibleRows = args.filterRows
+    ? args.rows.filter(args.filterRows)
+    : args.rows;
 
-  const rows = await args.fetchSeed();
-  getQueryClient().setQueryData<TItem[]>(args.queryKey, rows);
+  getQueryClient().setQueryData(args.queryKey, args.sortRows(visibleRows));
+
+  const cursorStorageKey = cursorKey(args.cursorBase, args.userId);
+  if (args.rows.length === 0) {
+    localStorage.removeItem(cursorStorageKey);
+    return;
+  }
 
   writeCursorFromRows({
-    cursorStorageKey: cursorKey(args.cursorBase, args.userId),
+    cursorStorageKey,
+    rows: args.rows,
+  });
+}
+
+export async function refreshDashboardDbCollectionFromServer<
+  T extends HasUpdatedAt,
+>(args: {
+  userId: string;
+  queryKey: readonly unknown[];
+  cursorBase: string;
+  fetchRows: () => Promise<readonly T[]>;
+  sortRows: (rows: readonly T[]) => T[];
+  filterRows?: (row: T) => boolean;
+}) {
+  if (getCurrentUserId() !== args.userId) {
+    return false;
+  }
+
+  const rows = await args.fetchRows();
+
+  if (getCurrentUserId() !== args.userId) {
+    return false;
+  }
+
+  replaceDashboardDbCollectionRows({
+    userId: args.userId,
+    queryKey: args.queryKey,
+    cursorBase: args.cursorBase,
     rows,
+    sortRows: args.sortRows,
+    filterRows: args.filterRows,
+  });
+
+  return true;
+}
+
+export async function bootstrapDashboardDbCollection<T extends HasUpdatedAt>(
+  args: BootstrapDashboardDbCollectionArgs<T>,
+) {
+  if (getCurrentUserId() !== args.userId) {
+    return false;
+  }
+
+  const rows = await args.fetchSeed();
+
+  if (getCurrentUserId() !== args.userId) {
+    return false;
+  }
+
+  replaceDashboardDbCollectionRows({
+    userId: args.userId,
+    queryKey: args.queryKey,
+    cursorBase: args.cursorBase,
+    rows,
+    sortRows: (nextRows) => [...nextRows],
   });
 
   args.onSeeded?.();
-
   await args.collection.preload();
+  return true;
 }

@@ -12,6 +12,7 @@ function createBootstrapDeps() {
     persistDashboardDbToPersistence: vi.fn(async (_userId: string) => undefined),
     revalidateDashboardDbInBackground: vi.fn(async (_userId: string) => undefined),
     removeDashboardDbQueries: vi.fn((_queryKey: readonly unknown[]) => undefined),
+    resetDashboardRefreshLock: vi.fn(() => undefined),
     setCurrentUserId: vi.fn((_userId: string | null) => undefined),
     tryHydrateDashboardDbFromPersistence: vi.fn(async (_userId: string) => false),
   };
@@ -68,6 +69,7 @@ describe("dashboard db bootstrap helpers", () => {
 
     await resetDashboardDbForSignedOutUser(deps);
 
+    expect(deps.resetDashboardRefreshLock).toHaveBeenCalledTimes(1);
     expect(deps.setCurrentUserId).toHaveBeenCalledWith(null);
     expect(deps.removeDashboardDbQueries).toHaveBeenCalledWith(
       DASHBOARD_DB_QUERY_KEYS.root,

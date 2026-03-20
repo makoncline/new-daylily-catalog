@@ -1,9 +1,15 @@
 "use client";
 
-import { cultivarReferencesCollection, initializeCultivarReferencesCollection } from "./cultivar-references-collection";
-import { imagesCollection, initializeImagesCollection } from "./images-collection";
-import { listsCollection, initializeListsCollection } from "./lists-collection";
-import { listingsCollection, initializeListingsCollection } from "./listings-collection";
+import {
+  cleanupCultivarReferencesCollection,
+  initializeCultivarReferencesCollection,
+} from "./cultivar-references-collection";
+import { cleanupImagesCollection, initializeImagesCollection } from "./images-collection";
+import { cleanupListsCollection, initializeListsCollection } from "./lists-collection";
+import {
+  cleanupListingsCollection,
+  initializeListingsCollection,
+} from "./listings-collection";
 
 export interface DashboardDbCollectionLifecycle {
   cleanup: () => Promise<void>;
@@ -12,19 +18,19 @@ export interface DashboardDbCollectionLifecycle {
 
 export const dashboardDbCollections: DashboardDbCollectionLifecycle[] = [
   {
-    cleanup: () => listingsCollection.cleanup(),
+    cleanup: cleanupListingsCollection,
     initialize: initializeListingsCollection,
   },
   {
-    cleanup: () => listsCollection.cleanup(),
+    cleanup: cleanupListsCollection,
     initialize: initializeListsCollection,
   },
   {
-    cleanup: () => imagesCollection.cleanup(),
+    cleanup: cleanupImagesCollection,
     initialize: initializeImagesCollection,
   },
   {
-    cleanup: () => cultivarReferencesCollection.cleanup(),
+    cleanup: cleanupCultivarReferencesCollection,
     initialize: initializeCultivarReferencesCollection,
   },
 ];
@@ -36,4 +42,3 @@ export async function initializeDashboardDbCollections(userId: string) {
 export async function cleanupDashboardDbCollections() {
   await Promise.allSettled(dashboardDbCollections.map((entry) => entry.cleanup()));
 }
-

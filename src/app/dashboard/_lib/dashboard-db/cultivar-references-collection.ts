@@ -1,26 +1,94 @@
 "use client";
 
+import { createCollection } from "@tanstack/react-db";
+import { queryCollectionOptions } from "@tanstack/query-db-collection";
 import type { RouterOutputs } from "@/trpc/react";
+import { getQueryClient } from "@/trpc/query-client";
 import { getTrpcClient } from "@/trpc/client";
-import { createDashboardDbCollection } from "./dashboard-db-collection-factory";
-import { DASHBOARD_DB_CURSOR_BASES, DASHBOARD_DB_QUERY_KEYS } from "./dashboard-db-keys";
+import { getUserCursorKey } from "@/lib/utils/cursor";
+import {
+  refreshDashboardDbCollectionFromServer,
+  writeCursorFromRows,
+} from "@/app/dashboard/_lib/dashboard-db/collection-bootstrap";
+
+const CURSOR_BASE = "dashboard-db:cultivar-references:maxUpdatedAt";
+const QUERY_KEY = ["dashboard-db", "cultivar-references"] as const;
+let shouldSkipNextCultivarReferencesSync = false;
 
 export type CultivarReferenceCollectionItem =
   RouterOutputs["dashboardDb"]["cultivarReference"]["listForUserListings"][number];
 
-export const {
-  collection: cultivarReferencesCollection,
-  initialize: initializeDashboardCultivarReferencesCollection,
-} = createDashboardDbCollection<CultivarReferenceCollectionItem>({
-  cursorBase: DASHBOARD_DB_CURSOR_BASES.cultivarReferences,
-  getKey: (row) => row.id,
-  queryKey: DASHBOARD_DB_QUERY_KEYS.cultivarReferences,
-  seed: () => getTrpcClient().dashboardDb.cultivarReference.listForUserListings.query(),
-  sync: (since) => getTrpcClient().dashboardDb.cultivarReference.sync.query({ since }),
-});
+function sortCultivarReferences(
+  rows: readonly CultivarReferenceCollectionItem[],
+) {
+  return [...rows].sort((a, b) => a.updatedAt.getTime() - b.updatedAt.getTime());
+}
+
+export function suppressNextCultivarReferencesCollectionSync() {
+  shouldSkipNextCultivarReferencesSync = true;
+}
+
+export function clearNextCultivarReferencesCollectionSyncSuppression() {
+  shouldSkipNextCultivarReferencesSync = false;
+}
+
+export async function cleanupCultivarReferencesCollection() {
+  shouldSkipNextCultivarReferencesSync = false;
+  await cultivarReferencesCollection.cleanup();
+}
+
+export const cultivarReferencesCollection = createCollection(
+  queryCollectionOptions<CultivarReferenceCollectionItem>({
+    queryClient: getQueryClient(),
+    queryKey: QUERY_KEY,
+    enabled: true,
+    getKey: (row) => row.id,
+    queryFn: async ({ queryKey }) => {
+      const existing: CultivarReferenceCollectionItem[] =
+        getQueryClient().getQueryData(queryKey) ?? [];
+
+      if (shouldSkipNextCultivarReferencesSync) {
+        shouldSkipNextCultivarReferencesSync = false;
+        return sortCultivarReferences(existing);
+      }
+
+      const cursorKeyToUse = getUserCursorKey(CURSOR_BASE);
+      const last = localStorage.getItem(cursorKeyToUse);
+      const upserts = await getTrpcClient().dashboardDb.cultivarReference.sync.query({
+        since: last ?? null,
+      });
+
+      const map = new Map(existing.map((row) => [row.id, row]));
+      upserts.forEach((row) => map.set(row.id, row));
+
+      writeCursorFromRows({ cursorStorageKey: cursorKeyToUse, rows: upserts });
+      return sortCultivarReferences(Array.from(map.values()));
+    },
+    onInsert: async () => ({ refetch: false }),
+    onUpdate: async () => ({ refetch: false }),
+    onDelete: async () => ({ refetch: false }),
+  }),
+);
+
+export async function refreshCultivarReferencesCollectionFromServer(
+  userId: string,
+) {
+  await refreshDashboardDbCollectionFromServer({
+    userId,
+    queryKey: QUERY_KEY,
+    cursorBase: CURSOR_BASE,
+    fetchRows: () =>
+      getTrpcClient().dashboardDb.cultivarReference.sync.query({
+        since: null,
+      }),
+    sortRows: sortCultivarReferences,
+  });
+}
 
 export async function initializeCultivarReferencesCollection(userId: string) {
-  await initializeDashboardCultivarReferencesCollection(userId);
+  await refreshCultivarReferencesCollectionFromServer(userId);
+  suppressNextCultivarReferencesCollectionSync();
+  await cultivarReferencesCollection.preload();
 }
 
 export async function ensureCultivarReferencesCached(ids: string[]) {

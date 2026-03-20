@@ -1,150 +1,235 @@
 "use client";
 
+import { createCollection } from "@tanstack/react-db";
+import { queryCollectionOptions } from "@tanstack/query-db-collection";
 import type { RouterInputs, RouterOutputs } from "@/trpc/react";
-import { getTrpcClient } from "@/trpc/client";
 import { getQueryClient } from "@/trpc/query-client";
-import { schedulePersistDashboardDbForCurrentUser } from "@/app/dashboard/_lib/dashboard-db/dashboard-db-persistence";
-import { createDashboardDbCollection } from "./dashboard-db-collection-factory";
-import { DASHBOARD_DB_CURSOR_BASES, DASHBOARD_DB_QUERY_KEYS } from "./dashboard-db-keys";
+import { getTrpcClient } from "@/trpc/client";
+import { getUserCursorKey } from "@/lib/utils/cursor";
+import {
+  runWithDashboardRefreshLock,
+  schedulePersistDashboardDbForCurrentUser,
+} from "@/app/dashboard/_lib/dashboard-db/dashboard-db-persistence";
+import {
+  refreshDashboardDbCollectionFromServer,
+  writeCursorFromRows,
+} from "@/app/dashboard/_lib/dashboard-db/collection-bootstrap";
+
+const CURSOR_BASE = "dashboard-db:images:maxUpdatedAt";
+const QUERY_KEY = ["dashboard-db", "images"] as const;
+const DELETED_IDS = new Set<string>();
+let shouldSkipNextImagesSync = false;
 
 export type ImageCollectionItem =
   RouterOutputs["dashboardDb"]["image"]["list"][number];
 
-export const {
-  collection: imagesCollection,
-  deletedIds: imageDeletedIds,
-  initialize: initializeDashboardImagesCollection,
-} = createDashboardDbCollection<ImageCollectionItem>({
-  cursorBase: DASHBOARD_DB_CURSOR_BASES.images,
-  getKey: (row) => row.id,
-  queryKey: DASHBOARD_DB_QUERY_KEYS.images,
-  seed: () => getTrpcClient().dashboardDb.image.list.query(),
-  sync: (since) => getTrpcClient().dashboardDb.image.sync.query({ since }),
-});
+function sortImages(rows: readonly ImageCollectionItem[]) {
+  return [...rows].sort((a, b) => {
+    const listingCompare = (a.listingId ?? "").localeCompare(b.listingId ?? "");
+    if (listingCompare !== 0) return listingCompare;
 
-const DELETED_IDS = imageDeletedIds;
+    const profileCompare = (a.userProfileId ?? "").localeCompare(
+      b.userProfileId ?? "",
+    );
+    if (profileCompare !== 0) return profileCompare;
+
+    return a.order - b.order;
+  });
+}
+
+export function suppressNextImagesCollectionSync() {
+  shouldSkipNextImagesSync = true;
+}
+
+export function clearNextImagesCollectionSyncSuppression() {
+  shouldSkipNextImagesSync = false;
+}
+
+export async function cleanupImagesCollection() {
+  DELETED_IDS.clear();
+  shouldSkipNextImagesSync = false;
+  await imagesCollection.cleanup();
+}
+
+export const imagesCollection = createCollection(
+  queryCollectionOptions<ImageCollectionItem>({
+    queryClient: getQueryClient(),
+    queryKey: QUERY_KEY,
+    enabled: true,
+    getKey: (row) => row.id,
+    queryFn: async ({ queryKey }) => {
+      const existing: ImageCollectionItem[] =
+        getQueryClient().getQueryData(queryKey) ?? [];
+
+      if (shouldSkipNextImagesSync) {
+        shouldSkipNextImagesSync = false;
+        return sortImages(existing);
+      }
+
+      const cursorKeyToUse = getUserCursorKey(CURSOR_BASE);
+      const last = localStorage.getItem(cursorKeyToUse);
+      const upserts = await getTrpcClient().dashboardDb.image.sync.query({
+        since: last ?? null,
+      });
+
+      const map = new Map(existing.map((i) => [i.id, i]));
+      upserts.forEach((i) => map.set(i.id, i));
+      DELETED_IDS.forEach((id) => map.delete(id));
+
+      writeCursorFromRows({ cursorStorageKey: cursorKeyToUse, rows: upserts });
+      return sortImages(Array.from(map.values()));
+    },
+    onInsert: async () => ({ refetch: false }),
+    onUpdate: async () => ({ refetch: false }),
+    onDelete: async () => ({ refetch: false }),
+  }),
+);
 
 type CreateDraft = RouterInputs["dashboardDb"]["image"]["create"];
 export async function createImage(draft: CreateDraft) {
-  const cache =
-    getQueryClient().getQueryData<ImageCollectionItem[]>(
-      DASHBOARD_DB_QUERY_KEYS.images,
-    ) ?? [];
+  return runWithDashboardRefreshLock(async () => {
+    const cache =
+      getQueryClient().getQueryData<ImageCollectionItem[]>([
+        "dashboard-db",
+        "images",
+      ]) ?? [];
 
-  const nextOrder =
-    cache
+    const nextOrder =
+      cache
+        .filter((i) =>
+          draft.type === "listing"
+            ? i.listingId === draft.referenceId
+            : i.userProfileId === draft.referenceId,
+        )
+        .reduce((m, i) => Math.max(m, i.order), -1) + 1;
+
+    const temp: ImageCollectionItem = {
+      id: `temp:${crypto.randomUUID()}`,
+      url: draft.url,
+      order: nextOrder,
+      listingId: draft.type === "listing" ? draft.referenceId : null,
+      userProfileId: draft.type === "profile" ? draft.referenceId : null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      status: null,
+    };
+
+    imagesCollection.utils.writeInsert(temp);
+
+    try {
+      const created = await getTrpcClient().dashboardDb.image.create.mutate(draft);
+      const tempExists = !!imagesCollection.get(temp.id);
+      const realExists = !!imagesCollection.get(created.id);
+
+      imagesCollection.utils.writeBatch(() => {
+        if (tempExists) imagesCollection.utils.writeDelete(temp.id);
+        if (!realExists) imagesCollection.utils.writeInsert(created);
+      });
+
+      schedulePersistDashboardDbForCurrentUser();
+      return created;
+    } catch (error) {
+      try {
+        imagesCollection.utils.writeDelete(temp.id);
+      } catch {
+        // ignore rollback errors
+      }
+      throw error;
+    }
+  });
+}
+
+type ReorderDraft = RouterInputs["dashboardDb"]["image"]["reorder"];
+export async function reorderImages(draft: ReorderDraft) {
+  await runWithDashboardRefreshLock(async () => {
+    const previous: Array<{ id: string; order: number }> = [];
+    draft.images.forEach((img) => {
+      const row = imagesCollection.get(img.id);
+      if (row) previous.push({ id: row.id, order: row.order });
+    });
+
+    imagesCollection.utils.writeBatch(() => {
+      draft.images.forEach((img) => {
+        imagesCollection.utils.writeUpdate({ id: img.id, order: img.order });
+      });
+    });
+
+    try {
+      await getTrpcClient().dashboardDb.image.reorder.mutate(draft);
+      schedulePersistDashboardDbForCurrentUser();
+    } catch (error) {
+      imagesCollection.utils.writeBatch(() => {
+        previous.forEach((img) => {
+          imagesCollection.utils.writeUpdate({ id: img.id, order: img.order });
+        });
+      });
+      throw error;
+    }
+  });
+}
+
+type DeleteDraft = RouterInputs["dashboardDb"]["image"]["delete"];
+export async function deleteImage(draft: DeleteDraft) {
+  await runWithDashboardRefreshLock(async () => {
+    const previous = imagesCollection.get(draft.imageId);
+    DELETED_IDS.add(draft.imageId);
+
+    const cache =
+      getQueryClient().getQueryData<ImageCollectionItem[]>([
+        "dashboard-db",
+        "images",
+      ]) ?? [];
+
+    const before = cache
       .filter((i) =>
         draft.type === "listing"
           ? i.listingId === draft.referenceId
           : i.userProfileId === draft.referenceId,
       )
-      .reduce((m, i) => Math.max(m, i.order), -1) + 1;
+      .sort((a, b) => a.order - b.order)
+      .map((i) => ({ id: i.id, order: i.order }));
 
-  const temp: ImageCollectionItem = {
-    id: `temp:${crypto.randomUUID()}`,
-    url: draft.url,
-    order: nextOrder,
-    listingId: draft.type === "listing" ? draft.referenceId : null,
-    userProfileId: draft.type === "profile" ? draft.referenceId : null,
-    createdAt: new Date(),
-    updatedAt: new Date(),
-    status: null,
-  };
+    imagesCollection.utils.writeDelete(draft.imageId);
 
-  imagesCollection.utils.writeInsert(temp);
-
-  try {
-    const created = await getTrpcClient().dashboardDb.image.create.mutate(draft);
-    const tempExists = !!imagesCollection.get(temp.id);
-    const realExists = !!imagesCollection.get(created.id);
-
+    const remaining = before.filter((i) => i.id !== draft.imageId);
     imagesCollection.utils.writeBatch(() => {
-      if (tempExists) imagesCollection.utils.writeDelete(temp.id);
-      if (!realExists) imagesCollection.utils.writeInsert(created);
+      remaining.forEach((img, index) => {
+        imagesCollection.utils.writeUpdate({ id: img.id, order: index });
+      });
     });
 
-    schedulePersistDashboardDbForCurrentUser();
-    return created;
-  } catch (error) {
     try {
-      imagesCollection.utils.writeDelete(temp.id);
-    } catch {
-      // ignore rollback errors
+      await getTrpcClient().dashboardDb.image.delete.mutate(draft);
+      schedulePersistDashboardDbForCurrentUser({ delayMs: 0 });
+    } catch (error) {
+      if (previous) imagesCollection.utils.writeInsert(previous);
+      DELETED_IDS.delete(draft.imageId);
+      imagesCollection.utils.writeBatch(() => {
+        before.forEach((img) => {
+          imagesCollection.utils.writeUpdate({ id: img.id, order: img.order });
+        });
+      });
+      throw error;
     }
-    throw error;
-  }
+  });
 }
 
-type ReorderDraft = RouterInputs["dashboardDb"]["image"]["reorder"];
-export async function reorderImages(draft: ReorderDraft) {
-  const previous: Array<{ id: string; order: number }> = [];
-  draft.images.forEach((img) => {
-    const row = imagesCollection.get(img.id);
-    if (row) previous.push({ id: row.id, order: row.order });
+export async function refreshImagesCollectionFromServer(userId: string) {
+  await refreshDashboardDbCollectionFromServer({
+    userId,
+    queryKey: QUERY_KEY,
+    cursorBase: CURSOR_BASE,
+    fetchRows: () =>
+      getTrpcClient().dashboardDb.image.sync.query({
+        since: null,
+      }),
+    sortRows: sortImages,
+    filterRows: (row) => !DELETED_IDS.has(row.id),
   });
-
-  imagesCollection.utils.writeBatch(() => {
-    draft.images.forEach((img) => {
-      imagesCollection.utils.writeUpdate({ id: img.id, order: img.order });
-    });
-  });
-
-  try {
-    await getTrpcClient().dashboardDb.image.reorder.mutate(draft);
-    schedulePersistDashboardDbForCurrentUser();
-  } catch (error) {
-    imagesCollection.utils.writeBatch(() => {
-      previous.forEach((img) => {
-        imagesCollection.utils.writeUpdate({ id: img.id, order: img.order });
-      });
-    });
-    throw error;
-  }
-}
-
-type DeleteDraft = RouterInputs["dashboardDb"]["image"]["delete"];
-export async function deleteImage(draft: DeleteDraft) {
-  const previous = imagesCollection.get(draft.imageId);
-  DELETED_IDS.add(draft.imageId);
-
-  const cache =
-    getQueryClient().getQueryData<ImageCollectionItem[]>(
-      DASHBOARD_DB_QUERY_KEYS.images,
-    ) ?? [];
-
-  const before = cache
-    .filter((i) =>
-      draft.type === "listing"
-        ? i.listingId === draft.referenceId
-        : i.userProfileId === draft.referenceId,
-    )
-    .sort((a, b) => a.order - b.order)
-    .map((i) => ({ id: i.id, order: i.order }));
-
-  imagesCollection.utils.writeDelete(draft.imageId);
-
-  const remaining = before.filter((i) => i.id !== draft.imageId);
-  imagesCollection.utils.writeBatch(() => {
-    remaining.forEach((img, index) => {
-      imagesCollection.utils.writeUpdate({ id: img.id, order: index });
-    });
-  });
-
-  try {
-    await getTrpcClient().dashboardDb.image.delete.mutate(draft);
-    schedulePersistDashboardDbForCurrentUser({ delayMs: 0 });
-  } catch (error) {
-    if (previous) imagesCollection.utils.writeInsert(previous);
-    DELETED_IDS.delete(draft.imageId);
-    imagesCollection.utils.writeBatch(() => {
-      before.forEach((img) => {
-        imagesCollection.utils.writeUpdate({ id: img.id, order: img.order });
-      });
-    });
-    throw error;
-  }
 }
 
 export async function initializeImagesCollection(userId: string) {
-  await initializeDashboardImagesCollection(userId);
+  await refreshImagesCollectionFromServer(userId);
+  suppressNextImagesCollectionSync();
+  await imagesCollection.preload();
 }

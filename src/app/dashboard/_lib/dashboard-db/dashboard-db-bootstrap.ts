@@ -9,6 +9,7 @@ import {
 import {
   persistDashboardDbToPersistence,
   revalidateDashboardDbInBackground,
+  resetDashboardRefreshLock,
   tryHydrateDashboardDbFromPersistence,
 } from "@/app/dashboard/_lib/dashboard-db/dashboard-db-persistence";
 import { DASHBOARD_DB_QUERY_KEYS } from "./dashboard-db-keys";
@@ -19,6 +20,7 @@ interface DashboardDbBootstrapDeps {
   persistDashboardDbToPersistence: (userId: string) => Promise<void>;
   revalidateDashboardDbInBackground: (userId: string) => Promise<void>;
   removeDashboardDbQueries: (queryKey: readonly unknown[]) => void;
+  resetDashboardRefreshLock: () => void;
   setCurrentUserId: (userId: string | null) => void;
   tryHydrateDashboardDbFromPersistence: (userId: string) => Promise<boolean>;
 }
@@ -31,6 +33,7 @@ const dashboardDbBootstrapDeps: DashboardDbBootstrapDeps = {
   removeDashboardDbQueries: (queryKey) => {
     getQueryClient().removeQueries({ queryKey });
   },
+  resetDashboardRefreshLock,
   setCurrentUserId,
   tryHydrateDashboardDbFromPersistence,
 };
@@ -38,6 +41,7 @@ const dashboardDbBootstrapDeps: DashboardDbBootstrapDeps = {
 export async function resetDashboardDbForSignedOutUser(
   deps: DashboardDbBootstrapDeps = dashboardDbBootstrapDeps,
 ) {
+  deps.resetDashboardRefreshLock();
   deps.setCurrentUserId(null);
   deps.removeDashboardDbQueries(DASHBOARD_DB_QUERY_KEYS.root);
   await deps.cleanupDashboardDbCollections();
@@ -64,4 +68,3 @@ export async function bootstrapDashboardDbForUser(
   ]);
   void deps.persistDashboardDbToPersistence(args.userId);
 }
-
