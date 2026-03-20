@@ -10,25 +10,22 @@ import React, {
 import { api } from "@/trpc/react";
 import { getQueryClient } from "@/trpc/query-client";
 import {
-  imagesCollection,
-  initializeImagesCollection,
+  cleanupImagesCollection,
 } from "@/app/dashboard/_lib/dashboard-db/images-collection";
 import {
-  initializeListingsCollection,
-  listingsCollection,
+  cleanupListingsCollection,
 } from "@/app/dashboard/_lib/dashboard-db/listings-collection";
 import {
-  initializeListsCollection,
-  listsCollection,
+  cleanupListsCollection,
 } from "@/app/dashboard/_lib/dashboard-db/lists-collection";
 import {
-  cultivarReferencesCollection,
-  initializeCultivarReferencesCollection,
+  cleanupCultivarReferencesCollection,
 } from "@/app/dashboard/_lib/dashboard-db/cultivar-references-collection";
 import { setCurrentUserId } from "@/lib/utils/cursor";
 import {
-  persistDashboardDbToPersistence,
+  bootstrapDashboardDbFromServer,
   revalidateDashboardDbInBackground,
+  resetDashboardRefreshLock,
   tryHydrateDashboardDbFromPersistence,
 } from "@/app/dashboard/_lib/dashboard-db/dashboard-db-persistence";
 import {
@@ -126,13 +123,14 @@ export function DashboardDbProvider({
 
     if (!userId) {
       initializedUserIdRef.current = null;
+      resetDashboardRefreshLock();
       setCurrentUserId(null);
       getQueryClient().removeQueries({ queryKey: ["dashboard-db"] });
       void Promise.allSettled([
-        listingsCollection.cleanup(),
-        listsCollection.cleanup(),
-        imagesCollection.cleanup(),
-        cultivarReferencesCollection.cleanup(),
+        cleanupListingsCollection(),
+        cleanupListsCollection(),
+        cleanupImagesCollection(),
+        cleanupCultivarReferencesCollection(),
       ]);
       setDashboardDbState({
         status: "idle",
@@ -153,6 +151,9 @@ export function DashboardDbProvider({
     let finished = false;
     initializedUserIdRef.current = bootstrapUserId;
     let cancelled = false;
+    const isBootstrapActive = () =>
+      !cancelled && initializedUserIdRef.current === bootstrapUserId;
+    setCurrentUserId(userId);
     setDashboardDbState({
       status: "loading",
       userId,
@@ -163,18 +164,26 @@ export function DashboardDbProvider({
         const hydrated = await tryHydrateDashboardDbFromPersistence(userId);
 
         if (hydrated) {
-          void revalidateDashboardDbInBackground(userId);
+          void revalidateDashboardDbInBackground(userId, {
+            isActive: isBootstrapActive,
+          });
           await utils.dashboardDb.userProfile.get.prefetch();
-        } else {
-          await Promise.all([
-            initializeListingsCollection(userId),
-            initializeListsCollection(userId),
-            initializeImagesCollection(userId),
-            initializeCultivarReferencesCollection(userId),
-            utils.dashboardDb.userProfile.get.prefetch(),
-          ]);
-          void persistDashboardDbToPersistence(userId);
+          if (!cancelled) {
+            finished = true;
+            setState({
+              status: "ready",
+              userId,
+            });
+          }
+          return;
         }
+
+        await Promise.all([
+          bootstrapDashboardDbFromServer(userId, {
+            isActive: isBootstrapActive,
+          }),
+          utils.dashboardDb.userProfile.get.prefetch(),
+        ]);
 
         if (!cancelled) {
           finished = true;

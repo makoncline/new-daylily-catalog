@@ -5,19 +5,37 @@ import { queryCollectionOptions } from "@tanstack/query-db-collection";
 import type { RouterOutputs } from "@/trpc/react";
 import { getQueryClient } from "@/trpc/query-client";
 import { getTrpcClient } from "@/trpc/client";
+import { getUserCursorKey } from "@/lib/utils/cursor";
 import {
-  getUserCursorKey,
-} from "@/lib/utils/cursor";
-import {
-  bootstrapDashboardDbCollection,
+  refreshDashboardDbCollectionFromServer,
   writeCursorFromRows,
 } from "@/app/dashboard/_lib/dashboard-db/collection-bootstrap";
 
 const CURSOR_BASE = "dashboard-db:cultivar-references:maxUpdatedAt";
 const QUERY_KEY = ["dashboard-db", "cultivar-references"] as const;
+let shouldSkipNextCultivarReferencesSync = false;
 
 export type CultivarReferenceCollectionItem =
   RouterOutputs["dashboardDb"]["cultivarReference"]["listForUserListings"][number];
+
+function sortCultivarReferences(
+  rows: readonly CultivarReferenceCollectionItem[],
+) {
+  return [...rows].sort((a, b) => a.updatedAt.getTime() - b.updatedAt.getTime());
+}
+
+export function suppressNextCultivarReferencesCollectionSync() {
+  shouldSkipNextCultivarReferencesSync = true;
+}
+
+export function clearNextCultivarReferencesCollectionSyncSuppression() {
+  shouldSkipNextCultivarReferencesSync = false;
+}
+
+export async function cleanupCultivarReferencesCollection() {
+  shouldSkipNextCultivarReferencesSync = false;
+  await cultivarReferencesCollection.cleanup();
+}
 
 export const cultivarReferencesCollection = createCollection(
   queryCollectionOptions<CultivarReferenceCollectionItem>({
@@ -29,6 +47,11 @@ export const cultivarReferencesCollection = createCollection(
       const existing: CultivarReferenceCollectionItem[] =
         getQueryClient().getQueryData(queryKey) ?? [];
 
+      if (shouldSkipNextCultivarReferencesSync) {
+        shouldSkipNextCultivarReferencesSync = false;
+        return sortCultivarReferences(existing);
+      }
+
       const cursorKeyToUse = getUserCursorKey(CURSOR_BASE);
       const last = localStorage.getItem(cursorKeyToUse);
       const upserts = await getTrpcClient().dashboardDb.cultivarReference.sync.query({
@@ -39,9 +62,7 @@ export const cultivarReferencesCollection = createCollection(
       upserts.forEach((row) => map.set(row.id, row));
 
       writeCursorFromRows({ cursorStorageKey: cursorKeyToUse, rows: upserts });
-      return Array.from(map.values()).sort(
-        (a, b) => a.updatedAt.getTime() - b.updatedAt.getTime(),
-      );
+      return sortCultivarReferences(Array.from(map.values()));
     },
     onInsert: async () => ({ refetch: false }),
     onUpdate: async () => ({ refetch: false }),
@@ -49,13 +70,25 @@ export const cultivarReferencesCollection = createCollection(
   }),
 );
 
-export async function initializeCultivarReferencesCollection(userId: string) {
-  await bootstrapDashboardDbCollection({
+export async function refreshCultivarReferencesCollectionFromServer(
+  userId: string,
+) {
+  await refreshDashboardDbCollectionFromServer({
     userId,
-    collection: cultivarReferencesCollection,
     queryKey: QUERY_KEY,
-    cursorStorageKey: getUserCursorKey(CURSOR_BASE),
+    cursorBase: CURSOR_BASE,
+    fetchRows: () =>
+      getTrpcClient().dashboardDb.cultivarReference.sync.query({
+        since: null,
+      }),
+    sortRows: sortCultivarReferences,
   });
+}
+
+export async function initializeCultivarReferencesCollection(userId: string) {
+  await refreshCultivarReferencesCollectionFromServer(userId);
+  suppressNextCultivarReferencesCollectionSync();
+  await cultivarReferencesCollection.preload();
 }
 
 export async function ensureCultivarReferencesCached(ids: string[]) {
