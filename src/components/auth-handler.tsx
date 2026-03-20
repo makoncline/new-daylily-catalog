@@ -3,10 +3,14 @@
 import { useAuth } from "@clerk/nextjs";
 import { useEffect, useRef } from "react";
 export function AuthHandler() {
-  const { userId } = useAuth();
+  const { isLoaded, userId } = useAuth();
   const previousUserIdRef = useRef<string | null | undefined>(undefined);
 
   useEffect(() => {
+    if (!isLoaded) {
+      return;
+    }
+
     const previousUserId = previousUserIdRef.current;
     previousUserIdRef.current = userId ?? null;
 
@@ -15,7 +19,7 @@ export function AuthHandler() {
     }
 
     window.location.reload();
-  }, [userId]);
+  }, [isLoaded, userId]);
 
   return null;
 }
