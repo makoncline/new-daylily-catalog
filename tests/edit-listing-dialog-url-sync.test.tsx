@@ -1,11 +1,11 @@
 import * as React from "react";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { useEditList } from "@/app/dashboard/lists/_components/edit-list-dialog";
+import { useEditListing } from "@/app/dashboard/listings/_components/edit-listing-dialog";
 
 const navigationState = vi.hoisted(() => {
-  let pathname = "/dashboard/lists";
-  let search = "editing=list-1&tab=details";
+  let pathname = "/dashboard/listings";
+  let search = "editing=listing-1&view=grid";
 
   const push = vi.fn((url: string) => {
     const nextUrl = new URL(url, "https://example.com");
@@ -43,40 +43,40 @@ vi.mock("next/navigation", () => ({
   useSearchParams: () => new URLSearchParams(navigationState.getSearch()),
 }));
 
-function EditListHookHarness() {
-  const { editingId, closeEditList } = useEditList();
+function EditListingHookHarness() {
+  const { editingId, closeEditListing } = useEditListing();
 
   return (
-    <button type="button" onClick={closeEditList}>
+    <button type="button" onClick={closeEditListing}>
       {editingId ?? "none"}
     </button>
   );
 }
 
-describe("useEditList URL sync", () => {
+describe("useEditListing URL sync", () => {
   beforeEach(() => {
-    navigationState.setSearch("editing=list-1&tab=details");
+    navigationState.setSearch("editing=listing-1&view=grid");
     navigationState.push.mockClear();
     navigationState.replace.mockClear();
   });
 
   it("clears only editing query and keeps unrelated params", async () => {
-    render(<EditListHookHarness />);
+    render(<EditListingHookHarness />);
 
     await waitFor(() => {
-      expect(screen.getByRole("button")).toHaveTextContent("list-1");
+      expect(screen.getByRole("button")).toHaveTextContent("listing-1");
     });
 
     fireEvent.click(screen.getByRole("button"));
 
     await waitFor(() => {
-      expect(navigationState.replace).toHaveBeenCalledWith(
-        "/dashboard/lists?tab=details",
+      expect(navigationState.push).toHaveBeenCalledWith(
+        "/dashboard/listings?view=grid",
       );
     });
-    expect(navigationState.push).not.toHaveBeenCalled();
-    expect(
-      navigationState.replace.mock.calls.some(([url]) => url === "?"),
-    ).toBe(false);
+    expect(navigationState.replace).not.toHaveBeenCalled();
+    expect(navigationState.push.mock.calls.some(([url]) => url === "?")).toBe(
+      false,
+    );
   });
 });
