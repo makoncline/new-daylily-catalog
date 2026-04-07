@@ -1,19 +1,24 @@
+import { normalizeCanonicalText } from "@/lib/search-normalization";
 import { slugify } from "@/lib/utils/slugify";
 
 /**
  * Normalizes a cultivar name for consistent storage and searching.
- * - Trims whitespace
+ * - Folds common Unicode punctuation variants
+ * - Preserves apostrophes and hyphens
+ * - Folds accents and compatibility Unicode forms
+ * - Collapses repeated whitespace
  * - Converts to lowercase
  * - Returns null for empty/whitespace-only strings
  */
 export function normalizeCultivarName(
   name: string | null | undefined,
 ): string | null {
-  const trimmed = name?.trim();
-  if (!trimmed) {
+  if (!name) {
     return null;
   }
-  return trimmed.toLowerCase();
+
+  const normalized = normalizeCanonicalText(name);
+  return normalized.length > 0 ? normalized : null;
 }
 
 /**
