@@ -199,9 +199,13 @@ function buildDedupeRows(
     }
 
     const rankedRows = [...groupRows].sort(compareSnapshotRows);
-    const canonicalRow = rankedRows[0];
+    const [canonicalRow, ...duplicateRows] = rankedRows;
 
-    rankedRows.slice(1).forEach((row) => {
+    if (!canonicalRow) {
+      return;
+    }
+
+    duplicateRows.forEach((row) => {
       dedupeRows.push({
         duplicateCultivarReferenceId: row.cultivarReferenceId,
         canonicalCultivarReferenceId: canonicalRow.cultivarReferenceId,
