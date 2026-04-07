@@ -44,7 +44,7 @@ function toSearchableText(value: unknown): string {
   return "";
 }
 
-export function normalizeSearchText(value: unknown): string {
+function normalizeBaseText(value: unknown): string {
   if (value == null) {
     return "";
   }
@@ -57,7 +57,14 @@ export function normalizeSearchText(value: unknown): string {
 
   return deburr(normalized)
     .toLowerCase()
-    .replace(APOSTROPHE_REGEX, "")
     .replace(WHITESPACE_REGEX, " ")
     .trim();
+}
+
+export function normalizeCanonicalText(value: unknown): string {
+  return normalizeBaseText(value);
+}
+
+export function normalizeSearchText(value: unknown): string {
+  return normalizeBaseText(value).replace(APOSTROPHE_REGEX, "");
 }

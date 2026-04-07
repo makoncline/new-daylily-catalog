@@ -19,6 +19,7 @@ local-dev.sqlite
 prisma/local-dev.sqlite
 tests/.tmp/
 .tmp/
+/temp_pages/
 prisma/prisma/
 
 # next.js

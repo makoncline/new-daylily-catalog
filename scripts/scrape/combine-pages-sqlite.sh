@@ -3,8 +3,8 @@
 # Requires fetch-pages.sh to have been run first
 # Much faster than JSON approach - incremental inserts, no file reading
 
-TEMP_DIR="../../temp_pages"  # Relative to scripts/scrape directory
-DB_FILE="../../cultivars.db"  # Relative to scripts/scrape directory
+TEMP_DIR="${TEMP_DIR:-../../temp_pages}"  # Relative to scripts/scrape directory
+DB_FILE="${DB_FILE:-../../cultivars.db}"  # Relative to scripts/scrape directory
 
 # Check if temp directory exists
 if [ ! -d "$TEMP_DIR" ]; then
@@ -71,7 +71,7 @@ CREATE TABLE cultivars (
     parentage TEXT,
     images_count INTEGER,
     last_updated TEXT,
-    first_image_json TEXT,
+    image_url TEXT,
     awards_json TEXT
 );
 
@@ -164,7 +164,15 @@ for PAGE_FILE in $PAGE_FILES; do
       (if .parentage == null then "NULL" else "\"" + (.parentage | gsub("\""; "\"\"")) + "\"" end) + "," +
       (if .images_count == null then "NULL" else .images_count end) + "," +
       (if .last_updated == null then "NULL" else "\"" + (.last_updated | gsub("\""; "\"\"")) + "\"" end) + "," +
-      (if .first_image == null then "NULL" else "\"" + (.first_image | tojson | gsub("\""; "\"\"")) + "\"" end) + "," +
+      (if (
+        .images_count == null or
+        (.images_count | tostring) == "0" or
+        .first_image == null or
+        .first_image.full == null or
+        .first_image.full == "" or
+        (.first_image.title // "") == "cultivar-search-placeholder" or
+        (.first_image.full | contains("cultivar-search-placeholder"))
+      ) then "NULL" else "\"" + (.first_image.full | gsub("\""; "\"\"")) + "\"" end) + "," +
       (if .awards == null then "NULL" else "\"" + (.awards | tojson | gsub("\""; "\"\"")) + "\"" end) +
       ");"' "$PAGE_FILE" >> "$TEMP_SQL"
     
