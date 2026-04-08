@@ -5,6 +5,11 @@ import { compareItems, rankings, rankItem } from "@tanstack/match-sorter-utils";
 import { normalizeCultivarName } from "@/lib/utils/cultivar-utils";
 import { reportError } from "@/lib/error-utils";
 import type { PrismaClient } from "@prisma/client";
+import {
+  ahsDisplayAhsListingSelect,
+  getDisplayAhsListing,
+  v2AhsCultivarDisplaySelect,
+} from "@/lib/utils/ahs-display";
 
 async function runCultivarReferenceSearchQuery(db: PrismaClient, query: string) {
   const normalizedQuery = normalizeCultivarName(query);
@@ -21,12 +26,19 @@ async function runCultivarReferenceSearchQuery(db: PrismaClient, query: string) 
       id: true,
       ahsId: true,
       normalizedName: true,
-      ahsListing: { select: { name: true } },
+      ahsListing: {
+        select: ahsDisplayAhsListingSelect,
+      },
+      v2AhsCultivar: {
+        select: v2AhsCultivarDisplaySelect,
+      },
     },
   });
 
   const getDisplayName = (row: (typeof results)[number]): string | null => {
-    if (row.ahsListing?.name) return row.ahsListing.name;
+    const displayAhsListing = getDisplayAhsListing(row);
+
+    if (displayAhsListing?.name) return displayAhsListing.name;
     if (row.normalizedName) {
       reportError({
         error: new Error(
@@ -94,33 +106,17 @@ export const dashboardDbAhsRouter = createTRPCRouter({
         where: { ahsId: input.id },
         select: {
           ahsListing: {
-            select: {
-              id: true,
-              name: true,
-              ahsImageUrl: true,
-              hybridizer: true,
-              year: true,
-              scapeHeight: true,
-              bloomSize: true,
-              bloomSeason: true,
-              form: true,
-              ploidy: true,
-              foliageType: true,
-              bloomHabit: true,
-              budcount: true,
-              branches: true,
-              sculpting: true,
-              foliage: true,
-              flower: true,
-              fragrance: true,
-              parentage: true,
-              color: true,
-            },
+            select: ahsDisplayAhsListingSelect,
+          },
+          v2AhsCultivar: {
+            select: v2AhsCultivarDisplaySelect,
           },
         },
       });
 
-      const ahsListing = cultivarReference?.ahsListing;
+      const ahsListing = cultivarReference
+        ? getDisplayAhsListing(cultivarReference)
+        : null;
       if (!ahsListing) {
         throw new TRPCError({
           code: "NOT_FOUND",

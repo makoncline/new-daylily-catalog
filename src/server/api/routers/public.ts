@@ -20,7 +20,7 @@ import {
 import { SESClient, SendEmailCommand } from "@aws-sdk/client-ses";
 import { env, requireEnv } from "@/env";
 import { cartItemSchema } from "@/types";
-import { getDisplayAhsListing } from "@/lib/utils/ahs-display";
+import { withResolvedDisplayAhsListing } from "@/lib/utils/ahs-display";
 import { createServerCache } from "@/lib/cache/server-cache";
 import { CACHE_CONFIG } from "@/config/cache-config";
 import { isPublished } from "@/server/db/public-visibility/filters";
@@ -52,23 +52,23 @@ async function getFullListingData(listingId: string) {
     });
   }
 
-  const displayAhsListing = getDisplayAhsListing(listing);
+  const displayListing = withResolvedDisplayAhsListing(listing);
+  const displayAhsListing = displayListing.ahsListing;
 
   // Transform the listing to include AHS image if available
   return {
-    ...listing,
-    ahsListing: displayAhsListing,
+    ...displayListing,
     userSlug: listing.user.profile?.slug ?? listing.userId,
     images:
-      listing.images.length === 0 && displayAhsListing?.ahsImageUrl
+      displayListing.images.length === 0 && displayAhsListing?.ahsImageUrl
         ? [
             {
-              id: `ahs-${listing.id}`,
+              id: `ahs-${displayListing.id}`,
               url: displayAhsListing.ahsImageUrl,
-              updatedAt: listing.updatedAt,
+              updatedAt: displayListing.updatedAt,
             },
           ]
-        : listing.images,
+        : displayListing.images,
   };
 }
 

@@ -36,6 +36,10 @@ export function AhsListingLink({
   onMutationSuccess,
 }: AhsListingLinkProps) {
   const [isPending, setIsPending] = useState(false);
+  const dayliliesListingId =
+    linkedAhs?.legacyAhsId === null
+      ? null
+      : (linkedAhs?.legacyAhsId ?? linkedAhs?.id ?? null);
 
   async function updateAhsListing(selected: AhsSearchResult | null) {
     setIsPending(true);
@@ -117,14 +121,20 @@ export function AhsListingLink({
             <div className="mb-4 flex items-center justify-between">
               <Muted>
                 Linked to{" "}
-                <a
-                  href={`https://daylilies.org/daylilies/${linkedAhs.id}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-foreground font-medium hover:underline"
-                >
-                  {linkedAhs.name}
-                </a>
+                {dayliliesListingId ? (
+                  <a
+                    href={`https://daylilies.org/daylilies/${dayliliesListingId}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-foreground font-medium hover:underline"
+                  >
+                    {linkedAhs.name}
+                  </a>
+                ) : (
+                  <span className="text-foreground font-medium">
+                    {linkedAhs.name}
+                  </span>
+                )}
               </Muted>
               <div className="flex gap-2">
                 {listing.title !== linkedAhs.name && (

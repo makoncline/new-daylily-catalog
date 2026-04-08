@@ -1,6 +1,6 @@
 // @vitest-environment node
 
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const mockDb = vi.hoisted(() => ({
   cultivarReference: {
@@ -39,10 +39,22 @@ import {
 } from "@/server/db/getPublicCultivars";
 import { applyWhereIn } from "./test-utils/apply-where-in";
 
+const originalV2DisplayFlag =
+  process.env.NEXT_PUBLIC_USE_V2_CULTIVAR_DISPLAY_DATA;
+
 describe("getPublicCultivarPage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockGetCachedProUserIds.mockResolvedValue([]);
+  });
+
+  afterEach(() => {
+    if (originalV2DisplayFlag === undefined) {
+      delete process.env.NEXT_PUBLIC_USE_V2_CULTIVAR_DISPLAY_DATA;
+      return;
+    }
+
+    process.env.NEXT_PUBLIC_USE_V2_CULTIVAR_DISPLAY_DATA = originalV2DisplayFlag;
   });
 
   it("handles cache-serialized cultivar listing data", () => {
@@ -436,6 +448,104 @@ describe("getPublicCultivarPage", () => {
 
     expect(result?.freshness.offersUpdatedAt).toEqual(
       new Date("2026-01-15T00:00:00.000Z"),
+    );
+  });
+
+  it("prefers V2 cultivar display data for the public cultivar page when the feature flag is enabled", async () => {
+    process.env.NEXT_PUBLIC_USE_V2_CULTIVAR_DISPLAY_DATA = "true";
+
+    mockDb.cultivarReference.findFirst.mockResolvedValue({
+      id: "cultivar-v2",
+      normalizedName: "coffee frenzy",
+      updatedAt: new Date("2026-01-05T00:00:00.000Z"),
+      ahsListing: {
+        id: "ahs-1",
+        name: "Legacy Coffee Frenzy",
+        ahsImageUrl: "https://example.com/legacy.jpg",
+        hybridizer: "Legacy Hybridizer",
+        year: "2012",
+        scapeHeight: "36 inches",
+        bloomSize: "6 inches",
+        bloomSeason: "Midseason",
+        form: "Single",
+        ploidy: "Tet",
+        foliageType: "Dormant",
+        bloomHabit: "Diurnal",
+        budcount: "24",
+        branches: "5",
+        sculpting: null,
+        foliage: null,
+        flower: null,
+        fragrance: "Light",
+        parentage: "(Legacy A x Legacy B)",
+        color: "Legacy color",
+      },
+      v2AhsCultivar: {
+        id: "v2-1",
+        post_title: "V2 Coffee Frenzy",
+        introduction_date: "2024-09-15",
+        primary_hybridizer_name: "V2 Hybridizer",
+        additional_hybridizers_names: null,
+        bloom_season_names: "Late",
+        fragrance_names: null,
+        bloom_habit_names: "Extended",
+        foliage_names: "Evergreen",
+        ploidy_names: "Diploid",
+        scape_height_in: 42,
+        bloom_size_in: 7.5,
+        bud_count: 30,
+        branches: 6,
+        color: null,
+        flower_form_names: "Double",
+        unusual_forms_names: "Crispate",
+        parentage: "(V2 A x V2 B)",
+        image_url: "https://example.com/v2.jpg",
+      },
+    });
+
+    mockDb.listing.findMany.mockResolvedValue([]);
+    mockDb.user.findMany.mockResolvedValue([]);
+    mockDb.cultivarReference.findMany.mockResolvedValue([]);
+
+    const result = await getPublicCultivarPage("coffee-frenzy");
+
+    expect(result?.summary).toMatchObject({
+      name: "V2 Coffee Frenzy",
+      hybridizer: "V2 Hybridizer",
+      year: "2024",
+      gardensCount: 0,
+      offersCount: 0,
+    });
+    expect(result?.cultivar.ahsListing).toMatchObject({
+      id: "ahs-1",
+      legacyAhsId: "ahs-1",
+      name: "V2 Coffee Frenzy",
+      ahsImageUrl: "https://example.com/v2.jpg",
+      scapeHeight: "42 inches",
+      bloomSize: "7.5 inches",
+      bloomSeason: "Late",
+      color: "Legacy color",
+      fragrance: "Light",
+      parentage: "(V2 A x V2 B)",
+    });
+    expect(result?.heroImages[0]).toMatchObject({
+      id: "ahs-ahs-1",
+      url: "https://example.com/v2.jpg",
+    });
+    expect(mockDb.cultivarReference.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          OR: expect.arrayContaining([
+            expect.objectContaining({
+              v2AhsCultivar: {
+                is: expect.objectContaining({
+                  primary_hybridizer_name: "V2 Hybridizer",
+                }),
+              },
+            }),
+          ]),
+        }),
+      }),
     );
   });
 

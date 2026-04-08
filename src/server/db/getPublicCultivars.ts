@@ -1,3 +1,10 @@
+import { isV2CultivarDisplayDataEnabled } from "@/config/feature-flags";
+import {
+  ahsDisplayAhsListingSelect,
+  type AhsDisplayListing,
+  v2AhsCultivarDisplaySelect,
+  withResolvedDisplayAhsListing,
+} from "@/lib/utils/ahs-display";
 import {
   getCultivarRouteCandidates,
   toCultivarRouteSegment,
@@ -15,29 +22,6 @@ const getCultivarReferenceLookupWhereClause = () => ({
     not: null,
   },
 });
-
-const cultivarAhsListingSelect = {
-  id: true,
-  name: true,
-  ahsImageUrl: true,
-  hybridizer: true,
-  year: true,
-  scapeHeight: true,
-  bloomSize: true,
-  bloomSeason: true,
-  form: true,
-  ploidy: true,
-  foliageType: true,
-  bloomHabit: true,
-  budcount: true,
-  branches: true,
-  sculpting: true,
-  foliage: true,
-  flower: true,
-  fragrance: true,
-  parentage: true,
-  color: true,
-} as const;
 
 const CULTIVAR_SPEC_FIELDS = [
   ["Scape Height", "scapeHeight"],
@@ -69,28 +53,7 @@ const TOP_QUICK_SPEC_LABELS = new Set([
 
 const RELATED_CULTIVAR_LIMIT = 5;
 
-type CultivarAhsListing = {
-  id: string;
-  name: string | null;
-  ahsImageUrl: string | null;
-  hybridizer: string | null;
-  year: string | null;
-  scapeHeight: string | null;
-  bloomSize: string | null;
-  bloomSeason: string | null;
-  form: string | null;
-  ploidy: string | null;
-  foliageType: string | null;
-  bloomHabit: string | null;
-  budcount: string | null;
-  branches: string | null;
-  sculpting: string | null;
-  foliage: string | null;
-  flower: string | null;
-  fragrance: string | null;
-  parentage: string | null;
-  color: string | null;
-};
+type CultivarAhsListing = AhsDisplayListing;
 
 function getCultivarDisplayName(
   normalizedName: string | null,
@@ -245,7 +208,7 @@ async function findCultivarReferenceByNormalizedNames(
     return null;
   }
 
-  return db.cultivarReference.findFirst({
+  const row = await db.cultivarReference.findFirst({
     where: {
       AND: [
         getCultivarReferenceLookupWhereClause(),
@@ -261,13 +224,18 @@ async function findCultivarReferenceByNormalizedNames(
       normalizedName: true,
       updatedAt: true,
       ahsListing: {
-        select: cultivarAhsListingSelect,
+        select: ahsDisplayAhsListingSelect,
+      },
+      v2AhsCultivar: {
+        select: v2AhsCultivarDisplaySelect,
       },
     },
     orderBy: {
       updatedAt: "desc",
     },
   });
+
+  return row ? withResolvedDisplayAhsListing(row) : null;
 }
 
 export async function getCultivarRouteSegments(): Promise<string[]> {
@@ -513,7 +481,7 @@ function getCultivarHeroImages(
           alt: cultivarReference.ahsListing.name
             ? `${cultivarReference.ahsListing.name} AHS image`
             : "AHS cultivar image",
-          id: `ahs-${cultivarReference.ahsListing.id}`,
+          id: `ahs-${cultivarReference.ahsListing.legacyAhsId ?? cultivarReference.ahsListing.id}`,
           listingId: null,
           sellerSlug: null,
           sellerTitle: null,
@@ -735,33 +703,71 @@ async function buildPublicCultivarSummary(args: {
   const allSpecs = getCultivarSpecs(cultivarReference.ahsListing);
   const gardensCount = userIds.length;
   const offersCount = listingCards.length;
+  const shouldUseV2HybridizerLookup =
+    isV2CultivarDisplayDataEnabled() &&
+    Boolean(cultivarReference.v2AhsCultivar?.primary_hybridizer_name);
   const relatedByHybridizer = cultivarReference.ahsListing?.hybridizer
-    ? await db.cultivarReference.findMany({
-        where: {
-          id: {
-            not: cultivarReference.id,
+    ? (
+        await db.cultivarReference.findMany({
+          where: {
+            id: {
+              not: cultivarReference.id,
+            },
+            ...getCultivarReferenceLookupWhereClause(),
+            ...(shouldUseV2HybridizerLookup
+              ? {
+                  OR: [
+                    {
+                      v2AhsCultivar: {
+                        is: {
+                          primary_hybridizer_name:
+                            cultivarReference.v2AhsCultivar
+                              ?.primary_hybridizer_name ?? null,
+                          image_url: {
+                            not: null,
+                          },
+                        },
+                      },
+                    },
+                    {
+                      v2AhsCultivarId: null,
+                      ahsListing: {
+                        is: {
+                          hybridizer: cultivarReference.ahsListing.hybridizer,
+                          ahsImageUrl: {
+                            not: null,
+                          },
+                        },
+                      },
+                    },
+                  ],
+                }
+              : {
+                  ahsListing: {
+                    is: {
+                      hybridizer: cultivarReference.ahsListing.hybridizer,
+                      ahsImageUrl: {
+                        not: null,
+                      },
+                    },
+                  },
+                }),
           },
-          ...getCultivarReferenceLookupWhereClause(),
-          ahsListing: {
-            is: {
-              hybridizer: cultivarReference.ahsListing.hybridizer,
-              ahsImageUrl: {
-                not: null,
-              },
+          select: {
+            normalizedName: true,
+            ahsListing: {
+              select: ahsDisplayAhsListingSelect,
+            },
+            v2AhsCultivar: {
+              select: v2AhsCultivarDisplaySelect,
             },
           },
-        },
-        select: {
-          normalizedName: true,
-          ahsListing: {
-            select: cultivarAhsListingSelect,
+          orderBy: {
+            normalizedName: "asc",
           },
-        },
-        orderBy: {
-          normalizedName: "asc",
-        },
-        take: RELATED_CULTIVAR_LIMIT,
-      })
+          take: RELATED_CULTIVAR_LIMIT,
+        })
+      ).map((row) => withResolvedDisplayAhsListing(row))
     : [];
 
   const cultivarName = getCultivarDisplayName(
