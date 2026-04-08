@@ -1,6 +1,6 @@
 // @vitest-environment node
 
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const mockDb = vi.hoisted(() => ({
   $queryRaw: vi.fn(),
@@ -34,8 +34,12 @@ import {
   getListings,
   getPublicCatalogRouteEntries,
   getPublicListingsPage,
+  transformListings,
 } from "@/server/db/getPublicListings";
 import { applyWhereIn } from "./test-utils/apply-where-in";
+
+const originalV2DisplayFlag =
+  process.env.NEXT_PUBLIC_USE_V2_CULTIVAR_DISPLAY_DATA;
 
 function getQueryText(query: unknown): string {
   if (
@@ -87,6 +91,15 @@ interface UserFindManyArgs {
 describe("getPublicListings helpers", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+  });
+
+  afterEach(() => {
+    if (originalV2DisplayFlag === undefined) {
+      delete process.env.NEXT_PUBLIC_USE_V2_CULTIVAR_DISPLAY_DATA;
+      return;
+    }
+
+    process.env.NEXT_PUBLIC_USE_V2_CULTIVAR_DISPLAY_DATA = originalV2DisplayFlag;
   });
 
   it("uses the same deterministic sorted ids for cursor pagination", async () => {
@@ -196,6 +209,86 @@ describe("getPublicListings helpers", () => {
 
     const searchQuery = getQueryText(mockDb.$queryRaw.mock.calls[0]?.[0]);
     expect(searchQuery).not.toMatch(/COALESCE\("price", 0\) > 0/);
+  });
+
+  it("maps V2 cultivar display data onto public listing cards when the feature flag is enabled", () => {
+    process.env.NEXT_PUBLIC_USE_V2_CULTIVAR_DISPLAY_DATA = "true";
+
+    const transformed = transformListings([
+      {
+        ...createListing("id-a", "Alpha"),
+        updatedAt: new Date("2026-04-08T00:00:00.000Z"),
+        cultivarReference: {
+          normalizedName: "alpha",
+          ahsListing: {
+            id: "ahs-1",
+            name: "Legacy Alpha",
+            ahsImageUrl: "https://example.com/legacy-alpha.jpg",
+            hybridizer: "Legacy Hybridizer",
+            year: "2011",
+            scapeHeight: "30 inches",
+            bloomSize: "6 inches",
+            bloomSeason: "Midseason",
+            form: "Single",
+            ploidy: "Tetraploid",
+            foliageType: "Dormant",
+            bloomHabit: "Diurnal",
+            budcount: "20",
+            branches: "4",
+            sculpting: null,
+            foliage: null,
+            flower: null,
+            fragrance: null,
+            parentage: "(Legacy A x Legacy B)",
+            color: "Legacy color",
+          },
+          v2AhsCultivar: {
+            id: "v2-1",
+            post_title: "V2 Alpha",
+            introduction_date: "2024-05-01",
+            primary_hybridizer_name: "V2 Hybridizer",
+            additional_hybridizers_names: null,
+            bloom_season_names: "Late",
+            fragrance_names: "Heavy",
+            bloom_habit_names: "Extended",
+            foliage_names: "Evergreen",
+            ploidy_names: "Diploid",
+            scape_height_in: 36,
+            bloom_size_in: 7.5,
+            bud_count: 28,
+            branches: 5,
+            color: null,
+            flower_form_names: "Double",
+            unusual_forms_names: "Crispate",
+            parentage: "(V2 A x V2 B)",
+            image_url: "https://example.com/v2-alpha.jpg",
+          },
+        },
+        images: [],
+      },
+    ] as Parameters<typeof transformListings>[0]);
+
+    expect(transformed[0]?.ahsListing).toMatchObject({
+      id: "v2-1",
+      name: "V2 Alpha",
+      ahsImageUrl: "https://example.com/v2-alpha.jpg",
+      hybridizer: "V2 Hybridizer",
+      year: "2024",
+      bloomSeason: "Late",
+      bloomSize: "7.5 inches",
+      color: null,
+    });
+    expect(transformed[0]?.cultivarReference?.ahsListing).toMatchObject({
+      name: "V2 Alpha",
+      ahsImageUrl: "https://example.com/v2-alpha.jpg",
+    });
+    expect(transformed[0]?.images).toEqual([
+      {
+        id: "ahs-id-a",
+        url: "https://example.com/v2-alpha.jpg",
+        updatedAt: new Date("2026-04-08T00:00:00.000Z"),
+      },
+    ]);
   });
 
   it("excludes free accounts from public catalog route entries", async () => {

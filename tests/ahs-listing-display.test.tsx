@@ -9,6 +9,7 @@ type AhsListing = NonNullable<
 
 function createAhsListing(overrides: Partial<AhsListing> = {}): AhsListing {
   return {
+    id: "ahs-1",
     name: "Aces Full",
     ahsImageUrl: null,
     hybridizer: "Hansen-D.",

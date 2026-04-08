@@ -5,14 +5,21 @@ import { compareItems, rankings, rankItem } from "@tanstack/match-sorter-utils";
 import { normalizeCultivarName } from "@/lib/utils/cultivar-utils";
 import { reportError } from "@/lib/error-utils";
 import type { PrismaClient } from "@prisma/client";
+import { isV2CultivarDisplayDataEnabled } from "@/config/feature-flags";
+import {
+  ahsDisplayAhsListingSelect,
+  getDisplayAhsListing,
+  v2AhsCultivarDisplaySelect,
+} from "@/lib/utils/ahs-display";
 
 async function runCultivarReferenceSearchQuery(db: PrismaClient, query: string) {
   const normalizedQuery = normalizeCultivarName(query);
   if (!normalizedQuery) return [];
+  const useV2DisplayData = isV2CultivarDisplayDataEnabled();
 
   const results = await db.cultivarReference.findMany({
     where: {
-      ahsId: { not: null },
+      ...(useV2DisplayData ? {} : { ahsId: { not: null } }),
       normalizedName: { startsWith: normalizedQuery },
     },
     take: 25,
@@ -21,12 +28,19 @@ async function runCultivarReferenceSearchQuery(db: PrismaClient, query: string) 
       id: true,
       ahsId: true,
       normalizedName: true,
-      ahsListing: { select: { name: true } },
+      ahsListing: {
+        select: ahsDisplayAhsListingSelect,
+      },
+      v2AhsCultivar: {
+        select: v2AhsCultivarDisplaySelect,
+      },
     },
   });
 
   const getDisplayName = (row: (typeof results)[number]): string | null => {
-    if (row.ahsListing?.name) return row.ahsListing.name;
+    const displayAhsListing = getDisplayAhsListing(row);
+
+    if (displayAhsListing?.name) return displayAhsListing.name;
     if (row.normalizedName) {
       reportError({
         error: new Error(
@@ -69,11 +83,24 @@ async function runCultivarReferenceSearchQuery(db: PrismaClient, query: string) 
   });
 
   return sorted.flatMap((row) => {
+    const name = getDisplayName(row);
+    if (!name) return [];
+
+    if (useV2DisplayData) {
+      return [
+        {
+          id: row.id,
+          name,
+          cultivarReferenceId: row.id,
+        },
+      ];
+    }
+
     if (!row.ahsId) return [];
     return [
       {
         id: row.ahsId,
-        name: getDisplayName(row),
+        name,
         cultivarReferenceId: row.id,
       },
     ];
@@ -90,37 +117,22 @@ export const dashboardDbAhsRouter = createTRPCRouter({
   get: protectedProcedure
     .input(z.object({ id: z.string().min(1) }))
     .query(async ({ ctx, input }) => {
+      const useV2DisplayData = isV2CultivarDisplayDataEnabled();
       const cultivarReference = await ctx.db.cultivarReference.findUnique({
-        where: { ahsId: input.id },
+        where: useV2DisplayData ? { id: input.id } : { ahsId: input.id },
         select: {
           ahsListing: {
-            select: {
-              id: true,
-              name: true,
-              ahsImageUrl: true,
-              hybridizer: true,
-              year: true,
-              scapeHeight: true,
-              bloomSize: true,
-              bloomSeason: true,
-              form: true,
-              ploidy: true,
-              foliageType: true,
-              bloomHabit: true,
-              budcount: true,
-              branches: true,
-              sculpting: true,
-              foliage: true,
-              flower: true,
-              fragrance: true,
-              parentage: true,
-              color: true,
-            },
+            select: ahsDisplayAhsListingSelect,
+          },
+          v2AhsCultivar: {
+            select: v2AhsCultivarDisplaySelect,
           },
         },
       });
 
-      const ahsListing = cultivarReference?.ahsListing;
+      const ahsListing = cultivarReference
+        ? getDisplayAhsListing(cultivarReference)
+        : null;
       if (!ahsListing) {
         throw new TRPCError({
           code: "NOT_FOUND",

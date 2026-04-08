@@ -1,33 +1,18 @@
-import { db } from "@/server/db";
-import { TRPCError } from "@trpc/server";
-import { PUBLIC_PROFILE_LISTINGS_PAGE_SIZE, STATUS } from "@/config/constants";
-import { getUserIdFromSlugOrId } from "./getPublicProfile";
-import { getDisplayAhsListing } from "@/lib/utils/ahs-display";
 import { Prisma } from "@prisma/client";
+import { TRPCError } from "@trpc/server";
+import {
+  PUBLIC_PROFILE_LISTINGS_PAGE_SIZE,
+  STATUS,
+} from "@/config/constants";
+import {
+  ahsDisplayAhsListingSelect,
+  withResolvedDisplayAhsListing,
+  v2AhsCultivarDisplaySelect,
+} from "@/lib/utils/ahs-display";
+import { db } from "@/server/db";
 import { getCachedProUserIds } from "@/server/db/getCachedProUserIds";
 import { isPublished } from "@/server/db/public-visibility/filters";
-
-const ahsListingSelect = {
-  name: true,
-  ahsImageUrl: true,
-  hybridizer: true,
-  year: true,
-  scapeHeight: true,
-  bloomSize: true,
-  bloomSeason: true,
-  form: true,
-  ploidy: true,
-  foliageType: true,
-  bloomHabit: true,
-  budcount: true,
-  branches: true,
-  sculpting: true,
-  foliage: true,
-  flower: true,
-  fragrance: true,
-  parentage: true,
-  color: true,
-} as const;
+import { getUserIdFromSlugOrId } from "./getPublicProfile";
 
 export const publicListingSelect = {
   id: true,
@@ -57,7 +42,10 @@ export const publicListingSelect = {
     select: {
       normalizedName: true,
       ahsListing: {
-        select: ahsListingSelect,
+        select: ahsDisplayAhsListingSelect,
+      },
+      v2AhsCultivar: {
+        select: v2AhsCultivarDisplaySelect,
       },
     },
   },
@@ -165,21 +153,21 @@ export async function getListings(args: GetListingsArgs) {
 // Helper function to transform listings with AHS image fallback
 export function transformListings(listings: ListingWithRelations[]) {
   const transformed = listings.map((listing) => {
-    const displayAhsListing = getDisplayAhsListing(listing);
+    const displayListing = withResolvedDisplayAhsListing(listing);
+    const displayAhsListing = displayListing.ahsListing;
 
     return {
-      ...listing,
-      ahsListing: displayAhsListing,
+      ...displayListing,
       images:
-        listing.images.length === 0 && displayAhsListing?.ahsImageUrl
+        displayListing.images.length === 0 && displayAhsListing?.ahsImageUrl
           ? [
               {
-                id: `ahs-${listing.id}`,
+                id: `ahs-${displayListing.id}`,
                 url: displayAhsListing.ahsImageUrl,
-                updatedAt: listing.updatedAt,
+                updatedAt: displayListing.updatedAt,
               },
             ]
-          : listing.images,
+          : displayListing.images,
     };
   });
 
