@@ -3,6 +3,7 @@ import {
   ensureLocalTempDbSafety,
   withTempE2EDb,
 } from "../src/lib/test-utils/e2e-db";
+import { seedAhsListing } from "../src/lib/test-utils/seed-cultivar-sources";
 import { normalizeCultivarName } from "../src/lib/utils/cultivar-utils";
 
 type SeedDb = Parameters<Parameters<typeof withTempE2EDb>[0]>[0];
@@ -80,24 +81,6 @@ async function createCatalogUser({
     user,
     profile,
   };
-}
-
-async function seedCultivarReference(
-  db: SeedDb,
-  ahsId: string,
-  name: string,
-) {
-  return db.cultivarReference.upsert({
-    where: { ahsId },
-    create: {
-      id: `cr-ahs-${ahsId}`,
-      ahsId,
-      normalizedName: normalizeCultivarName(name),
-    },
-    update: {
-      normalizedName: normalizeCultivarName(name),
-    },
-  });
 }
 
 async function createCultivarListing({
@@ -247,41 +230,34 @@ async function seed() {
         },
       });
 
-      const coffeeFrenzyAhs = await db.ahsListing.create({
-        data: {
-          id: "ahs-coffee-frenzy",
-          name: "Coffee Frenzy",
-          hybridizer: "Reed",
-          year: "2012",
-          scapeHeight: "36 inches",
-          bloomSize: "6 inches",
-          bloomSeason: "Midseason",
-          form: "Single",
-          ploidy: "Tet",
-          foliageType: "Dormant",
-          bloomHabit: "Diurnal",
-          budcount: "24",
-          branches: "5",
-          sculpting: "Ruffled",
-          foliage: "Green",
-          flower: "Cocoa brown with gold throat",
-          fragrance: "Light",
-          parentage: "(Seedling x Seedling)",
-          color: "Coffee brown / gold throat",
-          ahsImageUrl: "/assets/catalog-blooms.webp",
-        },
-      });
-
-      const coffeeFrenzyReference = await seedCultivarReference(
+      const { cultivarReferenceId: coffeeFrenzyReferenceId } = await seedAhsListing({
         db,
-        coffeeFrenzyAhs.id,
-        coffeeFrenzyAhs.name ?? "Coffee Frenzy",
-      );
+        id: "ahs-coffee-frenzy",
+        name: "Coffee Frenzy",
+        hybridizer: "Reed",
+        year: "2012",
+        scapeHeight: "36 inches",
+        bloomSize: "6 inches",
+        bloomSeason: "Midseason",
+        form: "Single",
+        ploidy: "Tet",
+        foliageType: "Dormant",
+        bloomHabit: "Diurnal",
+        budcount: "24",
+        branches: "5",
+        sculpting: "Ruffled",
+        foliage: "Green",
+        flower: "Cocoa brown with gold throat",
+        fragrance: "Light",
+        parentage: "(Seedling x Seedling)",
+        color: "Coffee brown / gold throat",
+        ahsImageUrl: "/assets/catalog-blooms.webp",
+      });
 
       await createCultivarListing({
         db,
         userId: primaryCatalog.user.id,
-        cultivarReferenceId: coffeeFrenzyReference.id,
+        cultivarReferenceId: coffeeFrenzyReferenceId,
         title: "Coffee Frenzy Prime Fan",
         slug: "coffee-frenzy-prime-fan",
         price: 30,
@@ -293,7 +269,7 @@ async function seed() {
       await createCultivarListing({
         db,
         userId: primaryCatalog.user.id,
-        cultivarReferenceId: coffeeFrenzyReference.id,
+        cultivarReferenceId: coffeeFrenzyReferenceId,
         title: "Coffee Frenzy Starter Fan",
         slug: "coffee-frenzy-starter-fan",
         price: 20,
@@ -305,7 +281,7 @@ async function seed() {
       await createCultivarListing({
         db,
         userId: oakCatalog.user.id,
-        cultivarReferenceId: coffeeFrenzyReference.id,
+        cultivarReferenceId: coffeeFrenzyReferenceId,
         title: "Coffee Frenzy Display Clump",
         slug: "coffee-frenzy-display-clump",
         price: null,
@@ -320,7 +296,7 @@ async function seed() {
       await createCultivarListing({
         db,
         userId: pineCatalog.user.id,
-        cultivarReferenceId: coffeeFrenzyReference.id,
+        cultivarReferenceId: coffeeFrenzyReferenceId,
         title: "Coffee Frenzy Garden Pickup",
         slug: "coffee-frenzy-garden-pickup",
         price: 25,
@@ -331,7 +307,7 @@ async function seed() {
       await createCultivarListing({
         db,
         userId: hobbyCatalog.user.id,
-        cultivarReferenceId: coffeeFrenzyReference.id,
+        cultivarReferenceId: coffeeFrenzyReferenceId,
         title: "Coffee Frenzy Hobby Fan",
         slug: "coffee-frenzy-hobby-fan",
         price: 12,
@@ -367,28 +343,21 @@ async function seed() {
       ] as const;
 
       for (const related of relatedCultivars) {
-        const ahs = await db.ahsListing.create({
-          data: {
-            id: related.id,
-            name: related.name,
-            hybridizer: "Reed",
-            year: related.year,
-            color: related.color,
-            bloomSeason: related.bloomSeason,
-            ahsImageUrl: related.image,
-          },
-        });
-
-        const cultivarReference = await seedCultivarReference(
+        const { cultivarReferenceId } = await seedAhsListing({
           db,
-          ahs.id,
-          ahs.name ?? related.name,
-        );
+          id: related.id,
+          name: related.name,
+          hybridizer: "Reed",
+          year: related.year,
+          color: related.color,
+          bloomSeason: related.bloomSeason,
+          ahsImageUrl: related.image,
+        });
 
         await createCultivarListing({
           db,
           userId: primaryCatalog.user.id,
-          cultivarReferenceId: cultivarReference.id,
+          cultivarReferenceId,
           title: `${related.name} Seed Listing`,
           slug: normalizeCultivarName(`${related.name}-seed-listing`) ?? related.id,
           price: 18,
