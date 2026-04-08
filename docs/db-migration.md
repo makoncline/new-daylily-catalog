@@ -11,6 +11,7 @@ using this workflow only for future intentional schema/data migrations.
 - Keep schema and data changes predictable.
 - Use the same SQL artifacts in local, stage, and production.
 - Make every migration rerunnable and auditable.
+- Keep Prisma migration authoring separate from prod-shape rehearsal.
 
 ## Core Model
 
@@ -28,14 +29,39 @@ Use a 3-step migration model:
 - Validate locally before stage and production.
 - Do not use `pnpm env:dev -- ...` (this causes `spawn -- ENOENT`).
 - Always run env wrapper commands as `pnpm env:dev <command>`.
+- Do not use the local prod-copy DB to generate Prisma migrations.
+- Unsupported/custom SQL objects such as partial indexes must live only in
+  migration SQL, not in `schema.prisma`.
 
-## Step 0: Prepare a Local Prod Copy
+## Step 0: Prepare Local Databases
+
+You need two different local SQLite databases:
+
+1. A clean Prisma-managed local authoring DB for `prisma migrate dev --create-only`.
+2. A local prod copy for rehearsal and verification.
+
+Recommended authoring DB:
+
+```text
+prisma/local-dev.sqlite
+```
+
+Recommended seeded app DB:
+
+```text
+prisma/local-dev-seeded.sqlite
+```
+
+Use `prisma/local-dev.sqlite` for Prisma migration authoring and keep the
+seeded app database separate so local reseeds do not clobber migration state.
+
+For rehearsal, refresh the prod copy:
 
 ```bash
 pnpm env:dev bash scripts/db-backup.sh
 ```
 
-Expected local artifact:
+Expected rehearsal artifact:
 
 ```text
 prisma/local-prod-copy-daylily-catalog.db
@@ -44,19 +70,35 @@ prisma/local-prod-copy-daylily-catalog.db
 ## Step 1: Generate Structural Migration SQL
 
 1. Update `prisma/schema.prisma`.
-2. Generate migration SQL (create-only):
+2. Make sure any unsupported/custom SQL object is not modeled in `schema.prisma`.
+   Example: the partial index
+   `Listing_public_cultivarReferenceId_updatedAt_idx` must exist only in raw
+   migration SQL.
+3. Generate migration SQL (create-only) against the clean local authoring DB:
 
 ```bash
-DATABASE_URL="file:./prisma/local-prod-copy-daylily-catalog.db" \
+rm -f prisma/local-dev.sqlite prisma/local-dev.sqlite-wal prisma/local-dev.sqlite-shm
+
+DATABASE_URL="file:./prisma/local-dev.sqlite" \
 NODE_OPTIONS='' RUST_LOG=info npx dotenv -e .env.development -- \
   npx prisma migrate dev --create-only --name <migration_name>
 ```
 
-If create-only fails on local copy, generate SQL via diff:
+If you need representative data locally, seed or build a separate local DB, but
+do not point `migrate dev --create-only` at the prod copy.
+
+If create-only still fails on the clean local authoring DB, generate SQL via
+diff against the local authoring DB instead:
 
 ```bash
+rm -f prisma/local-dev.sqlite prisma/local-dev.sqlite-wal prisma/local-dev.sqlite-shm
+
+DATABASE_URL="file:./prisma/local-dev.sqlite" \
+NODE_OPTIONS='' RUST_LOG=info npx dotenv -e .env.development -- \
+  npx prisma migrate dev --name bootstrap_authoring_db --skip-generate
+
 npx prisma migrate diff \
-  --from-url file:./prisma/local-prod-copy-daylily-catalog.db \
+  --from-url file:./prisma/local-dev.sqlite \
   --to-schema-datamodel prisma/schema.prisma \
   --script > prisma/migrations/<timestamp>_<migration_name>/migration.sql
 ```
@@ -75,7 +117,7 @@ pnpm <data-migration-generator-script>
 
 ## Step 3: Apply Locally
 
-Apply structural SQL first, then data SQL:
+Apply structural SQL first, then data SQL, on the local prod copy:
 
 ```bash
 sqlite3 prisma/local-prod-copy-daylily-catalog.db < prisma/migrations/<timestamp>_<migration_name>/migration.sql
@@ -129,6 +171,7 @@ For migration-specific commands, queries, and acceptance gates, create a dedicat
 Current example:
 
 - `docs/cultivar-reference-migration.md`
+- `docs/v2-ahs-cultivar-migration.md`
 
 ## PR Checklist
 
@@ -139,3 +182,5 @@ Each migration PR should include:
 - Data SQL generator script under `scripts/`.
 - Generated data SQL under `prisma/data-migrations/`.
 - Validation notes (local/stage/prod as applicable).
+- Any custom unsupported SQL objects kept in migration SQL rather than modeled
+  in `schema.prisma`.

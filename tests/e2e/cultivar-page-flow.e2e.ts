@@ -65,24 +65,6 @@ async function createCatalogUser({
   return { user, profile };
 }
 
-async function seedCultivarReference(
-  db: E2EPrismaClient,
-  ahsId: string,
-  name: string,
-) {
-  return db.cultivarReference.upsert({
-    where: { ahsId },
-    create: {
-      id: `cr-ahs-${ahsId}`,
-      ahsId,
-      normalizedName: normalizeCultivarName(name),
-    },
-    update: {
-      normalizedName: normalizeCultivarName(name),
-    },
-  });
-}
-
 async function createCultivarListing({
   db,
   userId,
@@ -156,19 +138,16 @@ async function seedRelatedCultivar({
   imageUrl: string;
   userId: string;
 }) {
-  const ahs = await db.ahsListing.create({
-    data: {
-      id,
-      name,
-      hybridizer: "Reed",
-      year,
-      color,
-      bloomSeason,
-      ahsImageUrl: imageUrl,
-    },
+  const { cultivarReferenceId } = await seedAhsListing({
+    db,
+    id,
+    name,
+    hybridizer: "Reed",
+    year,
+    color,
+    bloomSeason,
+    ahsImageUrl: imageUrl,
   });
-
-  const cultivarReference = await seedCultivarReference(db, ahs.id, name);
 
   await createCultivarListing({
     db,
@@ -177,7 +156,7 @@ async function seedRelatedCultivar({
     title: `${name} Seed Listing`,
     slug: `${normalizeCultivarName(name)}-seed-listing`,
     price: 20,
-    cultivarReferenceId: cultivarReference.id,
+    cultivarReferenceId,
     imageCount: 1,
   });
 }
@@ -191,28 +170,22 @@ test.describe("cultivar guest flow @local", () => {
         name: "Coffee Frenzy",
         hybridizer: "Reed",
         year: "2012",
-      });
-
-      await db.ahsListing.update({
-        where: { id: "ahs-coffee-frenzy" },
-        data: {
-          ahsImageUrl: "/assets/catalog-blooms.webp",
-          scapeHeight: "36 inches",
-          bloomSize: "6 inches",
-          bloomSeason: "Midseason",
-          form: "Single",
-          ploidy: "Tet",
-          foliageType: "Dormant",
-          bloomHabit: "Diurnal",
-          budcount: "24",
-          branches: "5",
-          sculpting: "Ruffled",
-          foliage: "Green",
-          flower: "Cocoa brown with gold throat",
-          fragrance: "Light",
-          parentage: "(A x B)",
-          color: "Coffee brown",
-        },
+        ahsImageUrl: "/assets/catalog-blooms.webp",
+        scapeHeight: "36 inches",
+        bloomSize: "6 inches",
+        bloomSeason: "Midseason",
+        form: "Single",
+        ploidy: "Tet",
+        foliageType: "Dormant",
+        bloomHabit: "Diurnal",
+        budcount: "24",
+        branches: "5",
+        sculpting: "Ruffled",
+        foliage: "Green",
+        flower: "Cocoa brown with gold throat",
+        fragrance: "Light",
+        parentage: "(A x B)",
+        color: "Coffee brown",
       });
 
       const topCatalog = await createCatalogUser({

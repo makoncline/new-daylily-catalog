@@ -2,7 +2,7 @@
 
 set -euo pipefail
 
-LOCAL_DB_PATH="./prisma/local-dev.sqlite"
+LOCAL_DB_PATH="./prisma/local-dev-seeded.sqlite"
 TURSO_DB_NAME="seeded-daylily-catalog"
 
 if ! command -v turso >/dev/null 2>&1; then

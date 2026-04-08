@@ -38,18 +38,75 @@ model AhsListing {
   @@index([hybridizer], map: "AhsListing_hybridizer_idx")
 }
 
+model V2AhsCultivar {
+  id                           String   @id
+  post_id                      String?
+  link_normalized_name         String?
+  post_title                   String?
+  post_status                  String?
+  introduction_date            String?
+  primary_hybridizer_id        String?
+  primary_hybridizer_name      String?
+  additional_hybridizers_ids   String?
+  additional_hybridizers_names String?
+  hybridizer_code_legacy       String?
+  seedling_number              String?
+  bloom_season_ids             String?
+  bloom_season_names           String?
+  fragrance_ids                String?
+  fragrance_names              String?
+  bloom_habit_ids              String?
+  bloom_habit_names            String?
+  foliage_ids                  String?
+  foliage_names                String?
+  ploidy_ids                   String?
+  ploidy_names                 String?
+  scape_height_in              Float?
+  bloom_size_in                Float?
+  bud_count                    Int?
+  branches                     Int?
+  color                        String?
+  rebloom                      Int?
+  flower_form_ids              String?
+  flower_form_names            String?
+  double_percentage            Float?
+  polymerous_percentage        Float?
+  spider_ratio                 Float?
+  petal_length_in              Float?
+  petal_width_in               Float?
+  unusual_forms_ids            String?
+  unusual_forms_names          String?
+  parentage                    String?
+  images_count                 Int?
+  last_updated                 String?
+  image_url                    String?
+  awards_json                  String?
+  createdAt                    DateTime @default(now())
+  updatedAt                    DateTime @updatedAt
+
+  cultivarReference CultivarReference?
+
+  @@index([post_id], map: "V2AhsCultivar_post_id_idx")
+  @@index([link_normalized_name], map: "V2AhsCultivar_link_normalized_name_idx")
+  @@index([post_title], map: "V2AhsCultivar_post_title_idx")
+  @@index([primary_hybridizer_name], map: "V2AhsCultivar_primary_hybridizer_name_idx")
+}
+
 model CultivarReference {
-  id             String   @id @default(cuid())
-  ahsId          String?  @unique
-  normalizedName String?
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  id              String   @id @default(cuid())
+  ahsId           String?  @unique
+  v2AhsCultivarId String?  @unique
+  normalizedName  String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 
-  ahsListing AhsListing? @relation(fields: [ahsId], references: [id], onDelete: SetNull)
-  listings   Listing[]
+  ahsListing    AhsListing?    @relation(fields: [ahsId], references: [id], onDelete: SetNull)
+  v2AhsCultivar V2AhsCultivar? @relation(fields: [v2AhsCultivarId], references: [id], onDelete: SetNull)
+  listings      Listing[]
 
-  @@index([ahsId])
   @@unique([normalizedName], map: "CultivarReference_normalizedName_unique_idx")
+  @@index([ahsId])
+  @@index([v2AhsCultivarId])
 }
 
 model Listing {
@@ -76,7 +133,6 @@ model Listing {
   @@unique([userId, slug])
   @@index([ahsId])
   @@index([cultivarReferenceId])
-  @@index([cultivarReferenceId, updatedAt], map: "Listing_public_cultivarReferenceId_updatedAt_idx")
   @@index([userId])
   @@index([slug])
 }

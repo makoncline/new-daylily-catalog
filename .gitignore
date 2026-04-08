@@ -17,10 +17,14 @@ local-dev.sqlite
 *.bak
 *.bak-*
 prisma/local-dev.sqlite
+prisma/local-dev-seeded.sqlite
+prisma/local-dev-seeded.sqlite-wal
+prisma/local-dev-seeded.sqlite-shm
 tests/.tmp/
 .tmp/
 /temp_pages/
 prisma/prisma/
+prisma/data-migrations/20260407_upsert_v2_ahs_cultivars/
 
 # next.js
 /.next/
