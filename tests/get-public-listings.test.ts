@@ -270,7 +270,6 @@ describe("getPublicListings helpers", () => {
 
     expect(transformed[0]?.ahsListing).toMatchObject({
       id: "v2-1",
-      displayDataSource: "v2",
       name: "V2 Alpha",
       ahsImageUrl: "https://example.com/v2-alpha.jpg",
       hybridizer: "V2 Hybridizer",

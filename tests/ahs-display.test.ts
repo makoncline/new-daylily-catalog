@@ -104,7 +104,6 @@ describe("getDisplayAhsListing", () => {
 
     expect(displayAhsListing).toMatchObject({
       id: "v2-1",
-      displayDataSource: "v2",
       name: "V2 Name",
       ahsImageUrl: "https://example.com/v2.jpg",
       hybridizer: "V2 Hybridizer, Partner Hybridizer",
@@ -124,17 +123,16 @@ describe("getDisplayAhsListing", () => {
     });
   });
 
-  it("falls back to the legacy AHS payload when V2 data is unavailable", () => {
+  it("returns null when the feature flag is on and V2 data is unavailable", () => {
     process.env.NEXT_PUBLIC_USE_V2_CULTIVAR_DISPLAY_DATA = "true";
 
-    const legacyAhsListing = createLegacyAhsListing();
     const displayAhsListing = getDisplayAhsListing({
       cultivarReference: {
-        ahsListing: legacyAhsListing,
+        ahsListing: createLegacyAhsListing(),
         v2AhsCultivar: null,
       },
     });
 
-    expect(displayAhsListing).toEqual(legacyAhsListing);
+    expect(displayAhsListing).toBeNull();
   });
 });

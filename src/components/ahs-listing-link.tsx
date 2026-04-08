@@ -9,6 +9,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { AhsListingSelect } from "./ahs-listing-select";
 import { AhsListingDisplay } from "./ahs-listing-display";
 import { Muted } from "@/components/typography";
+import { isV2CultivarDisplayDataEnabled } from "@/config/feature-flags";
 
 import type { AhsSearchResult } from "./ahs-listing-select";
 import { getErrorMessage, normalizeError, reportError } from "@/lib/error-utils";
@@ -36,8 +37,9 @@ export function AhsListingLink({
   onMutationSuccess,
 }: AhsListingLinkProps) {
   const [isPending, setIsPending] = useState(false);
-  const dayliliesListingId =
-    linkedAhs?.displayDataSource === "v2" ? null : (linkedAhs?.id ?? null);
+  const dayliliesListingId = isV2CultivarDisplayDataEnabled()
+    ? null
+    : (linkedAhs?.id ?? null);
 
   async function updateAhsListing(selected: AhsSearchResult | null) {
     setIsPending(true);

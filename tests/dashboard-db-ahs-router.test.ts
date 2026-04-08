@@ -109,7 +109,6 @@ describe("dashboardDb.ahs", () => {
 
     expect(result).toMatchObject({
       id: "v2-1",
-      displayDataSource: "v2",
       name: "V2 Coffee Frenzy",
       ahsImageUrl: "https://example.com/v2.jpg",
       hybridizer: "V2 Hybridizer",
@@ -183,7 +182,7 @@ describe("dashboardDb.ahs", () => {
 
     expect(result).toEqual([
       {
-        id: "ahs-1",
+        id: "cr-1",
         name: "V2 Coffee Frenzy",
         cultivarReferenceId: "cr-1",
       },

@@ -46,12 +46,9 @@ export const v2AhsCultivarDisplaySelect = {
   image_url: true,
 } as const satisfies Prisma.V2AhsCultivarSelect;
 
-export interface AhsDisplayListing
-  extends Prisma.AhsListingGetPayload<{
-    select: typeof ahsDisplayAhsListingSelect;
-  }> {
-  displayDataSource?: "v2";
-}
+export type AhsDisplayListing = Prisma.AhsListingGetPayload<{
+  select: typeof ahsDisplayAhsListingSelect;
+}>;
 
 export type V2AhsCultivarDisplaySource = Prisma.V2AhsCultivarGetPayload<{
   select: typeof v2AhsCultivarDisplaySelect;
@@ -140,7 +137,6 @@ export function mapV2AhsCultivarToDisplayAhsListing(
 ): AhsDisplayListing {
   return {
     id: v2AhsCultivar.id,
-    displayDataSource: "v2",
     name: v2AhsCultivar.post_title ?? null,
     ahsImageUrl: v2AhsCultivar.image_url ?? null,
     hybridizer: joinDisplayValues([
@@ -180,7 +176,7 @@ export function getDisplayAhsListing(
 
   const v2AhsCultivar = getV2AhsCultivar(source);
   if (!v2AhsCultivar) {
-    return legacyAhsListing;
+    return null;
   }
 
   return mapV2AhsCultivarToDisplayAhsListing(v2AhsCultivar);

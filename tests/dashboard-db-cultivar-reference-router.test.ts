@@ -186,7 +186,6 @@ describe("dashboardDb.cultivarReference", () => {
 
     expect(result[0]?.ahsListing).toMatchObject({
       id: "v2-1",
-      displayDataSource: "v2",
       name: "V2 Coffee Frenzy",
       ahsImageUrl: "https://example.com/v2.jpg",
       hybridizer: "V2 Hybridizer",

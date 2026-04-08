@@ -518,7 +518,6 @@ describe("getPublicCultivarPage", () => {
     });
     expect(result?.cultivar.ahsListing).toMatchObject({
       id: "v2-1",
-      displayDataSource: "v2",
       name: "V2 Coffee Frenzy",
       ahsImageUrl: "https://example.com/v2.jpg",
       scapeHeight: "42 inches",
@@ -535,15 +534,11 @@ describe("getPublicCultivarPage", () => {
     expect(mockDb.cultivarReference.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
         where: expect.objectContaining({
-          OR: expect.arrayContaining([
-            expect.objectContaining({
-              v2AhsCultivar: {
-                is: expect.objectContaining({
-                  primary_hybridizer_name: "V2 Hybridizer",
-                }),
-              },
+          v2AhsCultivar: {
+            is: expect.objectContaining({
+              primary_hybridizer_name: "V2 Hybridizer",
             }),
-          ]),
+          },
         }),
       }),
     );

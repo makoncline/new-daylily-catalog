@@ -5,6 +5,7 @@ import { compareItems, rankings, rankItem } from "@tanstack/match-sorter-utils";
 import { normalizeCultivarName } from "@/lib/utils/cultivar-utils";
 import { reportError } from "@/lib/error-utils";
 import type { PrismaClient } from "@prisma/client";
+import { isV2CultivarDisplayDataEnabled } from "@/config/feature-flags";
 import {
   ahsDisplayAhsListingSelect,
   getDisplayAhsListing,
@@ -14,10 +15,11 @@ import {
 async function runCultivarReferenceSearchQuery(db: PrismaClient, query: string) {
   const normalizedQuery = normalizeCultivarName(query);
   if (!normalizedQuery) return [];
+  const useV2DisplayData = isV2CultivarDisplayDataEnabled();
 
   const results = await db.cultivarReference.findMany({
     where: {
-      ahsId: { not: null },
+      ...(useV2DisplayData ? {} : { ahsId: { not: null } }),
       normalizedName: { startsWith: normalizedQuery },
     },
     take: 25,
@@ -81,11 +83,24 @@ async function runCultivarReferenceSearchQuery(db: PrismaClient, query: string) 
   });
 
   return sorted.flatMap((row) => {
+    const name = getDisplayName(row);
+    if (!name) return [];
+
+    if (useV2DisplayData) {
+      return [
+        {
+          id: row.id,
+          name,
+          cultivarReferenceId: row.id,
+        },
+      ];
+    }
+
     if (!row.ahsId) return [];
     return [
       {
         id: row.ahsId,
-        name: getDisplayName(row),
+        name,
         cultivarReferenceId: row.id,
       },
     ];
@@ -102,8 +117,9 @@ export const dashboardDbAhsRouter = createTRPCRouter({
   get: protectedProcedure
     .input(z.object({ id: z.string().min(1) }))
     .query(async ({ ctx, input }) => {
+      const useV2DisplayData = isV2CultivarDisplayDataEnabled();
       const cultivarReference = await ctx.db.cultivarReference.findUnique({
-        where: { ahsId: input.id },
+        where: useV2DisplayData ? { id: input.id } : { ahsId: input.id },
         select: {
           ahsListing: {
             select: ahsDisplayAhsListingSelect,
