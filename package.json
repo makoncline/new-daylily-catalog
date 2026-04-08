@@ -18,8 +18,6 @@
     "db:generate": "prisma generate",
     "db:studio": "prisma studio",
     "db:seed:local-dev": "npx tsx scripts/seed-local-dev-db.ts",
-    "db:generate:v2-ahs-cultivar-data-sql": "npx tsx scripts/generate-v2-ahs-cultivar-data-sql.ts",
-    "db:apply:v2-ahs-cultivar-import": "npx tsx scripts/apply-v2-ahs-cultivar-import.ts",
     "migrate:generate": "npx prisma migrate dev",
     "browser-tools-server": "npx @agentdeskai/browser-tools-server@1.2.0",
     "test": "vitest run",

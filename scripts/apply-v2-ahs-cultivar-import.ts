@@ -138,7 +138,7 @@ function readManifest(importDir: string) {
   const manifestPath = path.join(importDir, "manifest.json");
   if (!fs.existsSync(manifestPath)) {
     throw new Error(
-      `Missing import manifest at ${manifestPath}. Run pnpm db:generate:v2-ahs-cultivar-data-sql first.`,
+      `Missing import manifest at ${manifestPath}. Run npx tsx scripts/generate-v2-ahs-cultivar-data-sql.ts first.`,
     );
   }
 
