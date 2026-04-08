@@ -108,8 +108,8 @@ describe("dashboardDb.ahs", () => {
     const result = await caller.get({ id: "ahs-1" });
 
     expect(result).toMatchObject({
-      id: "ahs-1",
-      legacyAhsId: "ahs-1",
+      id: "v2-1",
+      displayDataSource: "v2",
       name: "V2 Coffee Frenzy",
       ahsImageUrl: "https://example.com/v2.jpg",
       hybridizer: "V2 Hybridizer",
@@ -117,8 +117,8 @@ describe("dashboardDb.ahs", () => {
       scapeHeight: "42 inches",
       bloomSize: "7.5 inches",
       bloomSeason: "Late",
-      fragrance: "Light",
-      color: "Legacy color",
+      fragrance: null,
+      color: null,
       parentage: "(V2 A x V2 B)",
     });
   });

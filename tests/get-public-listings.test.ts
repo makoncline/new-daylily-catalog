@@ -269,15 +269,15 @@ describe("getPublicListings helpers", () => {
     ] as Parameters<typeof transformListings>[0]);
 
     expect(transformed[0]?.ahsListing).toMatchObject({
-      id: "ahs-1",
-      legacyAhsId: "ahs-1",
+      id: "v2-1",
+      displayDataSource: "v2",
       name: "V2 Alpha",
       ahsImageUrl: "https://example.com/v2-alpha.jpg",
       hybridizer: "V2 Hybridizer",
       year: "2024",
       bloomSeason: "Late",
       bloomSize: "7.5 inches",
-      color: "Legacy color",
+      color: null,
     });
     expect(transformed[0]?.cultivarReference?.ahsListing).toMatchObject({
       name: "V2 Alpha",

@@ -185,14 +185,14 @@ describe("dashboardDb.cultivarReference", () => {
     const result = await caller.listForUserListings();
 
     expect(result[0]?.ahsListing).toMatchObject({
-      id: "ahs-1",
-      legacyAhsId: "ahs-1",
+      id: "v2-1",
+      displayDataSource: "v2",
       name: "V2 Coffee Frenzy",
       ahsImageUrl: "https://example.com/v2.jpg",
       hybridizer: "V2 Hybridizer",
       year: "2024",
       bloomSeason: "Late",
-      color: "Legacy color",
+      color: null,
     });
   });
 });

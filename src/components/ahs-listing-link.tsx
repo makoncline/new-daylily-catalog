@@ -37,9 +37,7 @@ export function AhsListingLink({
 }: AhsListingLinkProps) {
   const [isPending, setIsPending] = useState(false);
   const dayliliesListingId =
-    linkedAhs?.legacyAhsId === null
-      ? null
-      : (linkedAhs?.legacyAhsId ?? linkedAhs?.id ?? null);
+    linkedAhs?.displayDataSource === "v2" ? null : (linkedAhs?.id ?? null);
 
   async function updateAhsListing(selected: AhsSearchResult | null) {
     setIsPending(true);

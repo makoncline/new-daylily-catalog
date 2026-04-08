@@ -43,7 +43,6 @@ function createLegacyAhsListing(
     sculpting: "Ruffled",
     foliage: "Green",
     flower: "Lavender",
-    legacyAhsId: undefined,
     ...overrides,
   };
 }
@@ -90,15 +89,12 @@ describe("getDisplayAhsListing", () => {
     expect(displayAhsListing).toEqual(legacyAhsListing);
   });
 
-  it("maps V2 fields and falls back to legacy fields when the feature flag is on", () => {
+  it("maps V2 fields without mixing legacy display fields when the feature flag is on", () => {
     process.env.NEXT_PUBLIC_USE_V2_CULTIVAR_DISPLAY_DATA = "true";
 
     const displayAhsListing = getDisplayAhsListing({
       cultivarReference: {
-        ahsListing: createLegacyAhsListing({
-          color: "Legacy fallback color",
-          fragrance: "Legacy fallback fragrance",
-        }),
+        ahsListing: createLegacyAhsListing(),
         v2AhsCultivar: createV2AhsCultivar({
           color: null,
           fragrance_names: null,
@@ -107,8 +103,8 @@ describe("getDisplayAhsListing", () => {
     });
 
     expect(displayAhsListing).toMatchObject({
-      id: "ahs-1",
-      legacyAhsId: "ahs-1",
+      id: "v2-1",
+      displayDataSource: "v2",
       name: "V2 Name",
       ahsImageUrl: "https://example.com/v2.jpg",
       hybridizer: "V2 Hybridizer, Partner Hybridizer",
@@ -123,8 +119,22 @@ describe("getDisplayAhsListing", () => {
       budcount: "28",
       branches: "5",
       parentage: "(V2 A x V2 B)",
-      color: "Legacy fallback color",
-      fragrance: "Legacy fallback fragrance",
+      color: null,
+      fragrance: null,
     });
+  });
+
+  it("falls back to the legacy AHS payload when V2 data is unavailable", () => {
+    process.env.NEXT_PUBLIC_USE_V2_CULTIVAR_DISPLAY_DATA = "true";
+
+    const legacyAhsListing = createLegacyAhsListing();
+    const displayAhsListing = getDisplayAhsListing({
+      cultivarReference: {
+        ahsListing: legacyAhsListing,
+        v2AhsCultivar: null,
+      },
+    });
+
+    expect(displayAhsListing).toEqual(legacyAhsListing);
   });
 });

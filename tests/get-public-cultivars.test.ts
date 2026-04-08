@@ -517,19 +517,19 @@ describe("getPublicCultivarPage", () => {
       offersCount: 0,
     });
     expect(result?.cultivar.ahsListing).toMatchObject({
-      id: "ahs-1",
-      legacyAhsId: "ahs-1",
+      id: "v2-1",
+      displayDataSource: "v2",
       name: "V2 Coffee Frenzy",
       ahsImageUrl: "https://example.com/v2.jpg",
       scapeHeight: "42 inches",
       bloomSize: "7.5 inches",
       bloomSeason: "Late",
-      color: "Legacy color",
-      fragrance: "Light",
+      color: null,
+      fragrance: null,
       parentage: "(V2 A x V2 B)",
     });
     expect(result?.heroImages[0]).toMatchObject({
-      id: "ahs-ahs-1",
+      id: "ahs-v2-1",
       url: "https://example.com/v2.jpg",
     });
     expect(mockDb.cultivarReference.findMany).toHaveBeenCalledWith(

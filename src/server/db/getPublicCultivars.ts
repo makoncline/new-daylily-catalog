@@ -481,7 +481,7 @@ function getCultivarHeroImages(
           alt: cultivarReference.ahsListing.name
             ? `${cultivarReference.ahsListing.name} AHS image`
             : "AHS cultivar image",
-          id: `ahs-${cultivarReference.ahsListing.legacyAhsId ?? cultivarReference.ahsListing.id}`,
+          id: `ahs-${cultivarReference.ahsListing.id}`,
           listingId: null,
           sellerSlug: null,
           sellerTitle: null,

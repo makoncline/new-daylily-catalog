@@ -50,7 +50,7 @@ export interface AhsDisplayListing
   extends Prisma.AhsListingGetPayload<{
     select: typeof ahsDisplayAhsListingSelect;
   }> {
-  legacyAhsId?: string | null;
+  displayDataSource?: "v2";
 }
 
 export type V2AhsCultivarDisplaySource = Prisma.V2AhsCultivarGetPayload<{
@@ -127,30 +127,6 @@ function joinDisplayValues(values: Array<string | null | undefined>) {
   return unique.length > 0 ? unique.join(", ") : null;
 }
 
-function mergeDisplayAhsListing(
-  legacyAhsListing: AhsDisplayListing | null,
-  mappedV2AhsListing: AhsDisplayListing,
-) {
-  if (!legacyAhsListing) {
-    return mappedV2AhsListing;
-  }
-
-  const merged = { ...legacyAhsListing };
-
-  (
-    Object.keys(mappedV2AhsListing) as Array<keyof AhsDisplayListing>
-  ).forEach((key) => {
-    const value = mappedV2AhsListing[key];
-    if (value !== null && value !== undefined) {
-      merged[key] = value;
-    }
-  });
-
-  merged.legacyAhsId = legacyAhsListing.id;
-
-  return merged;
-}
-
 function getLegacyAhsListing(source: AhsDisplaySource) {
   return source.ahsListing ?? source.cultivarReference?.ahsListing ?? null;
 }
@@ -161,11 +137,10 @@ function getV2AhsCultivar(source: AhsDisplaySource) {
 
 export function mapV2AhsCultivarToDisplayAhsListing(
   v2AhsCultivar: V2AhsCultivarDisplaySource,
-  legacyAhsId?: string | null,
 ): AhsDisplayListing {
   return {
-    id: legacyAhsId ?? v2AhsCultivar.id,
-    legacyAhsId: legacyAhsId ?? null,
+    id: v2AhsCultivar.id,
+    displayDataSource: "v2",
     name: v2AhsCultivar.post_title ?? null,
     ahsImageUrl: v2AhsCultivar.image_url ?? null,
     hybridizer: joinDisplayValues([
@@ -208,12 +183,7 @@ export function getDisplayAhsListing(
     return legacyAhsListing;
   }
 
-  const mappedV2AhsListing = mapV2AhsCultivarToDisplayAhsListing(
-    v2AhsCultivar,
-    legacyAhsListing?.id ?? null,
-  );
-
-  return mergeDisplayAhsListing(legacyAhsListing, mappedV2AhsListing);
+  return mapV2AhsCultivarToDisplayAhsListing(v2AhsCultivar);
 }
 
 export function withResolvedDisplayAhsListing<TSource extends AhsDisplaySource>(
