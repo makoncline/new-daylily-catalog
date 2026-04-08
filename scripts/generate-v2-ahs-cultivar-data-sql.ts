@@ -1,6 +1,5 @@
 import fs from "node:fs";
 import path from "node:path";
-import { finished } from "node:stream/promises";
 import { DatabaseSync } from "node:sqlite";
 import { fileURLToPath } from "node:url";
 import { normalizeCultivarName } from "../src/lib/utils/cultivar-utils";
@@ -54,14 +53,23 @@ interface SqlArtifact {
   contents: string;
 }
 
+interface ImportChunkMetadata {
+  fileName: string;
+  rowCount: number;
+  batchCount: number;
+  sizeBytes: number;
+}
+
 const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(SCRIPT_DIR, "..");
 const OUTPUT_DIR = path.join(REPO_ROOT, "prisma", "data-migrations");
 const DEFAULT_SOURCE_DB_PATH = path.join(REPO_ROOT, "cultivars.db");
-const IMPORT_FILE_NAME = "20260407_upsert_v2_ahs_cultivars.sql";
+const IMPORT_DIR_NAME = "20260407_upsert_v2_ahs_cultivars";
 const LINK_FILE_NAME = "20260407_backfill_v2_ahs_cultivar_reference.sql";
 const VERIFY_FILE_NAME = "20260407_verify_v2_ahs_cultivar_data.sql";
 const BATCH_SIZE = 200;
+const MAX_BATCHES_PER_IMPORT_CHUNK = 32;
+const IMPORT_MANIFEST_FILE_NAME = "manifest.json";
 const SOURCE_SELECT_SQL = `
   SELECT
     id,
@@ -334,16 +342,54 @@ ${updateList},
 }
 
 async function writeImportArtifact(sourceDbPath: string) {
-  const outputPath = path.join(OUTPUT_DIR, IMPORT_FILE_NAME);
+  const outputDir = path.join(OUTPUT_DIR, IMPORT_DIR_NAME);
+  const legacyImportFilePath = path.join(
+    OUTPUT_DIR,
+    `${IMPORT_DIR_NAME}.sql`,
+  );
   const sourceDb = new DatabaseSync(sourceDbPath, { readOnly: true });
   const statement = sourceDb.prepare(SOURCE_SELECT_SQL);
-  const writer = fs.createWriteStream(outputPath, { encoding: "utf8" });
 
   let rowCount = 0;
   let batchCount = 0;
   let batchRows: string[] = [];
+  let chunkRowCount = 0;
+  let chunkBatchCount = 0;
+  let chunkStatements: string[] = [];
+  const chunkMetadata: ImportChunkMetadata[] = [];
 
-  writer.write(buildImportHeader(sourceDbPath));
+  fs.rmSync(legacyImportFilePath, { force: true });
+  fs.rmSync(outputDir, { force: true, recursive: true });
+  fs.mkdirSync(outputDir, { recursive: true });
+
+  function flushChunk() {
+    if (chunkStatements.length === 0) {
+      return;
+    }
+
+    const fileName = `chunk-${String(chunkMetadata.length + 1).padStart(4, "0")}.sql`;
+    const contents = normalizeSql(`
+${buildImportHeader(sourceDbPath)}
+${chunkStatements.join("\n")}
+
+COMMIT;
+
+-- Validation helpers:
+-- SELECT COUNT(*) FROM "V2AhsCultivar";
+-- SELECT COUNT(*) FROM "V2AhsCultivar" WHERE "link_normalized_name" IS NULL;
+`);
+    const outputPath = path.join(outputDir, fileName);
+    fs.writeFileSync(outputPath, contents, "utf8");
+    chunkMetadata.push({
+      fileName,
+      rowCount: chunkRowCount,
+      batchCount: chunkBatchCount,
+      sizeBytes: Buffer.byteLength(contents, "utf8"),
+    });
+    chunkRowCount = 0;
+    chunkBatchCount = 0;
+    chunkStatements = [];
+  }
 
   try {
     for (const row of statement.iterate() as IterableIterator<SourceCultivarRow>) {
@@ -354,28 +400,43 @@ async function writeImportArtifact(sourceDbPath: string) {
         continue;
       }
 
-      writer.write(buildImportStatement(batchRows));
+      chunkStatements.push(buildImportStatement(batchRows));
       batchRows = [];
       batchCount += 1;
+      chunkBatchCount += 1;
+      chunkRowCount += BATCH_SIZE;
+
+      if (chunkBatchCount >= MAX_BATCHES_PER_IMPORT_CHUNK) {
+        flushChunk();
+      }
     }
 
     if (batchRows.length > 0) {
-      writer.write(buildImportStatement(batchRows));
+      chunkStatements.push(buildImportStatement(batchRows));
       batchCount += 1;
+      chunkBatchCount += 1;
+      chunkRowCount += batchRows.length;
     }
 
-    writer.write(`
-COMMIT;
+    flushChunk();
 
--- Validation helpers:
--- SELECT COUNT(*) FROM "V2AhsCultivar";
--- SELECT COUNT(*) FROM "V2AhsCultivar" WHERE "link_normalized_name" IS NULL;
-`);
-
-    writer.end();
-    await finished(writer);
+    const manifest = {
+      sourceDbPath,
+      totalRows: rowCount,
+      totalBatches: batchCount,
+      batchSize: BATCH_SIZE,
+      maxBatchesPerChunk: MAX_BATCHES_PER_IMPORT_CHUNK,
+      chunkCount: chunkMetadata.length,
+      chunks: chunkMetadata,
+    };
+    const manifestPath = path.join(outputDir, IMPORT_MANIFEST_FILE_NAME);
+    fs.writeFileSync(
+      manifestPath,
+      `${JSON.stringify(manifest, null, 2)}\n`,
+      "utf8",
+    );
     console.log(
-      `[data-sql] wrote ${IMPORT_FILE_NAME} (${rowCount} rows across ${batchCount} batches)`,
+      `[data-sql] wrote ${IMPORT_DIR_NAME}/ (${rowCount} rows across ${batchCount} batches in ${chunkMetadata.length} chunks)`,
     );
   } finally {
     sourceDb.close();

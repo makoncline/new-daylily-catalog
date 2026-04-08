@@ -24,7 +24,7 @@ tests/.tmp/
 .tmp/
 /temp_pages/
 prisma/prisma/
-prisma/data-migrations/20260407_upsert_v2_ahs_cultivars.sql
+prisma/data-migrations/20260407_upsert_v2_ahs_cultivars/
 
 # next.js
 /.next/

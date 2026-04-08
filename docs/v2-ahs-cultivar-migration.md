@@ -34,13 +34,14 @@ Schema verification SQL:
 
 Generated data SQL artifacts:
 
-- `prisma/data-migrations/20260407_upsert_v2_ahs_cultivars.sql`
+- `prisma/data-migrations/20260407_upsert_v2_ahs_cultivars/`
 - `prisma/data-migrations/20260407_backfill_v2_ahs_cultivar_reference.sql`
 - `prisma/data-migrations/20260407_verify_v2_ahs_cultivar_data.sql`
 
 Generator script:
 
 - `scripts/generate-v2-ahs-cultivar-data-sql.ts`
+- `scripts/apply-v2-ahs-cultivar-import.ts`
 
 ## Regenerating Data SQL
 
@@ -54,6 +55,22 @@ Optional alternate source path:
 
 ```bash
 pnpm db:generate:v2-ahs-cultivar-data-sql -- --source-db /absolute/path/to/cultivars.db
+```
+
+The generator writes a contained import directory with chunked SQL plus a
+`manifest.json`. With the current `104211`-row source snapshot and `32` insert
+batches per file, it produces `17` import chunks.
+
+Apply those chunks with one command instead of running them manually:
+
+```bash
+pnpm db:apply:v2-ahs-cultivar-import -- --db <turso-db-name>
+```
+
+Local SQLite rehearsal uses:
+
+```bash
+pnpm db:apply:v2-ahs-cultivar-import -- --sqlite prisma/local-prod-copy-daylily-catalog.db
 ```
 
 ## Structural Migration Authoring
@@ -92,7 +109,7 @@ before this flow.
 sqlite3 prisma/local-prod-copy-daylily-catalog.db < prisma/data-migrations/20260407_verify_v2_ahs_cultivar_schema.sql
 sqlite3 prisma/local-prod-copy-daylily-catalog.db < prisma/migrations/20260408131530_add_v2_ahs_cultivar/migration.sql
 sqlite3 prisma/local-prod-copy-daylily-catalog.db < prisma/data-migrations/20260407_verify_v2_ahs_cultivar_schema.sql
-sqlite3 prisma/local-prod-copy-daylily-catalog.db < prisma/data-migrations/20260407_upsert_v2_ahs_cultivars.sql
+pnpm db:apply:v2-ahs-cultivar-import -- --sqlite prisma/local-prod-copy-daylily-catalog.db
 sqlite3 prisma/local-prod-copy-daylily-catalog.db < prisma/data-migrations/20260407_verify_v2_ahs_cultivar_data.sql
 sqlite3 prisma/local-prod-copy-daylily-catalog.db < prisma/data-migrations/20260407_backfill_v2_ahs_cultivar_reference.sql
 sqlite3 prisma/local-prod-copy-daylily-catalog.db < prisma/data-migrations/20260407_verify_v2_ahs_cultivar_data.sql
@@ -104,7 +121,7 @@ sqlite3 prisma/local-prod-copy-daylily-catalog.db < prisma/data-migrations/20260
 turso db shell daylily-catalog-stage < prisma/data-migrations/20260407_verify_v2_ahs_cultivar_schema.sql
 turso db shell daylily-catalog-stage < prisma/migrations/20260408131530_add_v2_ahs_cultivar/migration.sql
 turso db shell daylily-catalog-stage < prisma/data-migrations/20260407_verify_v2_ahs_cultivar_schema.sql
-turso db shell daylily-catalog-stage < prisma/data-migrations/20260407_upsert_v2_ahs_cultivars.sql
+pnpm db:apply:v2-ahs-cultivar-import -- --db daylily-catalog-stage
 turso db shell daylily-catalog-stage < prisma/data-migrations/20260407_verify_v2_ahs_cultivar_data.sql
 turso db shell daylily-catalog-stage < prisma/data-migrations/20260407_backfill_v2_ahs_cultivar_reference.sql
 turso db shell daylily-catalog-stage < prisma/data-migrations/20260407_verify_v2_ahs_cultivar_data.sql
@@ -124,7 +141,7 @@ Then apply the exact same SQL files:
 turso db shell daylily-catalog < prisma/data-migrations/20260407_verify_v2_ahs_cultivar_schema.sql
 turso db shell daylily-catalog < prisma/migrations/20260408131530_add_v2_ahs_cultivar/migration.sql
 turso db shell daylily-catalog < prisma/data-migrations/20260407_verify_v2_ahs_cultivar_schema.sql
-turso db shell daylily-catalog < prisma/data-migrations/20260407_upsert_v2_ahs_cultivars.sql
+pnpm db:apply:v2-ahs-cultivar-import -- --db daylily-catalog
 turso db shell daylily-catalog < prisma/data-migrations/20260407_verify_v2_ahs_cultivar_data.sql
 turso db shell daylily-catalog < prisma/data-migrations/20260407_backfill_v2_ahs_cultivar_reference.sql
 turso db shell daylily-catalog < prisma/data-migrations/20260407_verify_v2_ahs_cultivar_data.sql
