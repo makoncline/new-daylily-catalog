@@ -25,6 +25,7 @@ tests/.tmp/
 /temp_pages/
 prisma/prisma/
 prisma/data-migrations/20260407_upsert_v2_ahs_cultivars/
+prisma/data-migrations/v2-ahs-cultivar-delta/
 
 # next.js
 /.next/

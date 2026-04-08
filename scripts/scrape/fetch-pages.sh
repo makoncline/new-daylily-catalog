@@ -6,12 +6,12 @@
 SEARCH_PAGE_URL="https://daylilies.org/search/"
 BASE_URL="https://daylilies.org/wp-admin/admin-ajax.php"
 USER_AGENT="Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Safari/537.36"
-PER_PAGE="${PER_PAGE:-100}"
+PER_PAGE="${PER_PAGE:-500}"
 DELAY="${DELAY:-1}"  # seconds between starting new requests (reduced since we're parallelizing)
 START_PAGE="${START_PAGE:-1}"
-END_PAGE="${END_PAGE:-1045}"  # for 100 per page: 104109/100 = 1042
-TEMP_DIR="${TEMP_DIR:-../../temp_pages}"  # Relative to scripts/scrape directory
-MAX_CONCURRENT="${MAX_CONCURRENT:-3}"  # Number of concurrent requests
+END_PAGE="${END_PAGE:-}"
+TEMP_DIR="${TEMP_DIR:-../../temp_pages_new}"  # Relative to scripts/scrape directory
+MAX_CONCURRENT="${MAX_CONCURRENT:-5}"  # Number of concurrent requests
 
 fetch_nonce() {
   curl -L --max-time 30 -A "$USER_AGENT" -s "$SEARCH_PAGE_URL" \
@@ -76,7 +76,15 @@ echo "Using nonce: $NONCE"
 FIRST_RESPONSE=$(fetch_api_page 1 "$NONCE")
 
 TOTAL_COUNT=$(echo "$FIRST_RESPONSE" | jq -r '.data.total_count // 0')
+START_TOTAL_COUNT="$TOTAL_COUNT"
+CALCULATED_END_PAGE=$(((TOTAL_COUNT + PER_PAGE - 1) / PER_PAGE))
+
+if [ -z "$END_PAGE" ]; then
+  END_PAGE="$CALCULATED_END_PAGE"
+fi
+
 echo "Total cultivars available: $TOTAL_COUNT"
+echo "Planned fetch range: pages $START_PAGE to $END_PAGE (calculated last page: $CALCULATED_END_PAGE)"
 echo ""
 
 # Save first page
@@ -168,5 +176,16 @@ echo "  Completed: $completed pages"
 if [ $failed -gt 0 ]; then
   echo "  Failed: $failed pages"
 fi
+
+echo ""
+echo "Rechecking page 1 total count for source drift..."
+FINAL_RESPONSE=$(fetch_api_page 1 "$NONCE")
+END_TOTAL_COUNT=$(echo "$FINAL_RESPONSE" | jq -r '.data.total_count // 0')
+echo "  Start total_count: $START_TOTAL_COUNT"
+echo "  End total_count:   $END_TOTAL_COUNT"
+if [ "$START_TOTAL_COUNT" != "$END_TOTAL_COUNT" ]; then
+  echo "  Warning: total_count changed during the run; the snapshot may be unstable."
+fi
+
 echo "  Page files saved in: $TEMP_DIR/"
 echo "Run combine-pages-sqlite.sh to combine them into a single file"
