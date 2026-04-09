@@ -1,4 +1,11 @@
 import {
+  ahsDisplayAhsListingSelect,
+  type AhsDisplayListing,
+  type V2AhsCultivarDisplaySource,
+  v2AhsCultivarDisplaySelect,
+  withResolvedDisplayAhsListing,
+} from "@/lib/utils/ahs-display";
+import {
   getCultivarRouteCandidates,
   toCultivarRouteSegment,
 } from "@/lib/utils/cultivar-utils";
@@ -14,57 +21,16 @@ export const getCultivarReferenceLookupWhereClause = () => ({
   },
 });
 
-export const cultivarAhsListingSelect = {
-  id: true,
-  name: true,
-  ahsImageUrl: true,
-  hybridizer: true,
-  year: true,
-  scapeHeight: true,
-  bloomSize: true,
-  bloomSeason: true,
-  form: true,
-  ploidy: true,
-  foliageType: true,
-  bloomHabit: true,
-  budcount: true,
-  branches: true,
-  sculpting: true,
-  foliage: true,
-  flower: true,
-  fragrance: true,
-  parentage: true,
-  color: true,
-} as const;
+export const cultivarAhsListingSelect = ahsDisplayAhsListingSelect;
 
-export interface CultivarAhsListing {
-  id: string;
-  name: string | null;
-  ahsImageUrl: string | null;
-  hybridizer: string | null;
-  year: string | null;
-  scapeHeight: string | null;
-  bloomSize: string | null;
-  bloomSeason: string | null;
-  form: string | null;
-  ploidy: string | null;
-  foliageType: string | null;
-  bloomHabit: string | null;
-  budcount: string | null;
-  branches: string | null;
-  sculpting: string | null;
-  foliage: string | null;
-  flower: string | null;
-  fragrance: string | null;
-  parentage: string | null;
-  color: string | null;
-}
+export type CultivarAhsListing = AhsDisplayListing;
 
 export interface PublicCultivarReferenceRecord {
   id: string;
   normalizedName: string | null;
   updatedAt: Date;
   ahsListing: CultivarAhsListing | null;
+  v2AhsCultivar?: V2AhsCultivarDisplaySource | null;
 }
 
 export interface PublicCultivarReferenceData {
@@ -119,7 +85,7 @@ async function findCultivarReferenceByNormalizedNames(
     return null;
   }
 
-  return db.cultivarReference.findFirst({
+  const row = await db.cultivarReference.findFirst({
     where: {
       AND: [
         getCultivarReferenceLookupWhereClause(),
@@ -137,11 +103,16 @@ async function findCultivarReferenceByNormalizedNames(
       ahsListing: {
         select: cultivarAhsListingSelect,
       },
+      v2AhsCultivar: {
+        select: v2AhsCultivarDisplaySelect,
+      },
     },
     orderBy: {
       updatedAt: "desc",
     },
   });
+
+  return row ? withResolvedDisplayAhsListing(row) : null;
 }
 
 export async function getCultivarRouteSegments(): Promise<string[]> {
@@ -359,4 +330,3 @@ export async function loadPublicCultivarContext(
     summariesByUserId,
   };
 }
-

@@ -10,6 +10,9 @@ describe("cultivar route segment helpers", () => {
   it("slugifies normalized cultivar names for path usage", () => {
     expect(toCultivarRouteSegment(" Happy Returns ")).toBe("happy-returns");
     expect(toCultivarRouteSegment("A Cowgirl's Heart")).toBe("a-cowgirls-heart");
+    expect(toCultivarRouteSegment("All Saints` Episcopal Church")).toBe(
+      "all-saints-episcopal-church",
+    );
     expect(toCultivarRouteSegment("50,000 Watts")).toBe("50000-watts");
     expect(toCultivarRouteSegment("Aerial Appliqué")).toBe("aerial-applique");
   });
@@ -37,5 +40,14 @@ describe("cultivar route segment helpers", () => {
     expect(toCultivarRouteSegment("   ")).toBeNull();
     expect(fromCultivarRouteSegment("")).toBeNull();
     expect(normalizeCultivarName(null)).toBeNull();
+  });
+
+  it("normalizes backticks to apostrophes in canonical cultivar names", () => {
+    expect(normalizeCultivarName("All Saints` Episcopal Church")).toBe(
+      "all saints' episcopal church",
+    );
+    expect(normalizeCultivarName("Peach `n Cherry Jubilee")).toBe(
+      "peach 'n cherry jubilee",
+    );
   });
 });

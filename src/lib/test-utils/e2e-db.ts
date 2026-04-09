@@ -90,6 +90,7 @@ async function clearTempDb(db: PrismaClient) {
       await db.listing.deleteMany();
       await db.userProfile.deleteMany();
       await db.cultivarReference.deleteMany();
+      await db.v2AhsCultivar.deleteMany();
       await db.ahsListing.deleteMany();
       await db.keyValue.deleteMany();
       await db.user.deleteMany();

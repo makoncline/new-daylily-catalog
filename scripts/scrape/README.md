@@ -20,12 +20,15 @@ Fetches cultivar pages from the API and saves them as individual JSON files in `
 - Saves each page as `temp_pages/page_{N}.json`
 
 **Configuration:**
-Edit the constants at the top of the script:
+Edit the defaults at the top of the script, or override them per run with env vars:
 - `PER_PAGE`: Number of cultivars per page (default: 100)
 - `START_PAGE`: First page to fetch (default: 1)
 - `END_PAGE`: Last page to fetch (default: 1045 for 100 per page)
 - `DELAY`: Seconds between starting new requests (default: 1)
 - `MAX_CONCURRENT`: Number of parallel requests (default: 3)
+
+The script now fetches the current `cultivar_search_ajax.nonce` from
+`https://daylilies.org/search/` automatically before it starts.
 
 ### `combine-pages-sqlite.sh`
 Combines all page files from `temp_pages/` into a single SQLite database (`cultivars.db`).
@@ -54,6 +57,13 @@ nohup ./fetch-pages.sh > fetch.log 2>&1 &
 tail -f fetch.log  # Monitor progress
 ```
 
+Smoke test a few pages first:
+
+```bash
+cd scripts/scrape
+START_PAGE=1 END_PAGE=3 PER_PAGE=10 MAX_CONCURRENT=1 ./fetch-pages.sh
+```
+
 **Expected time:** ~12 minutes for all 1,045 pages (with 3 concurrent requests)
 
 **Output:** Individual page files saved to `temp_pages/page_{N}.json` (in project root)
@@ -79,7 +89,11 @@ If the fetch script stops partway through:
    ls ../../temp_pages/ | sed 's/page_\([0-9]*\)\.json/\1/' | sort -n | tail -5
    ```
 
-2. Update `START_PAGE` in `fetch-pages.sh` to the next page number
+2. Re-run with the next page number:
+
+   ```bash
+   START_PAGE=<next-page> ./fetch-pages.sh
+   ```
 
 3. Re-run `fetch-pages.sh` - it will continue from where it left off
 
@@ -119,7 +133,7 @@ The `cultivars` table includes:
 - **Physical:** `scape_height_in`, `bloom_size_in`, `bud_count`, `branches`
 - **Taxonomy:** `bloom_season_names`, `bloom_habit_names`, `foliage_names`, `ploidy_names`, `flower_form_names`
 - **Attributes:** `color`, `parentage`, `seedling_number`, `rebloom`, `double_percentage`
-- **Media:** `first_image_json` (JSON), `awards_json` (JSON), `images_count`
+- **Media:** `image_url` (full-size URL or `NULL` when the API only returns the placeholder), `awards_json` (JSON), `images_count`
 
 **Indexes created on:**
 - `post_title`
@@ -132,7 +146,9 @@ The `cultivars` table includes:
 ## Troubleshooting
 
 ### Script gets stuck on certain pages
-- The script now has 30-second timeouts and automatic retries
+- The script uses the current nonce from `https://daylilies.org/search/`
+- Requests use browser-like headers because the AJAX endpoint rejects bare POSTs
+- The script uses 30-second timeouts and automatic retries
 - If a page fails after 3 retries, it saves an error file: `temp_pages/page_{N}.json.error`
 - The script continues processing other pages
 
@@ -153,6 +169,7 @@ All output files are created in the project root:
 
 ## Notes
 
-- The API endpoint requires a valid nonce which may change. Check the page source for `cultivar_search_ajax.nonce` if requests start failing.
+- The API endpoint requires the current nonce from `https://daylilies.org/search/`
+- The AJAX endpoint currently rejects bare POSTs; the script sends the same headers as the site search page
 - Rate limiting: 1-2 second delays between requests to avoid overwhelming the server
 - The scraper respects the server's rate limits and includes error handling

@@ -5,6 +5,7 @@ import { queryCollectionOptions } from "@tanstack/query-db-collection";
 import type { RouterInputs, RouterOutputs } from "@/trpc/react";
 import { getQueryClient } from "@/trpc/query-client";
 import { getTrpcClient } from "@/trpc/client";
+import { createTempId } from "@/lib/utils/create-temp-id";
 import { makeInsertWithSwap } from "@/lib/utils/collection-utils";
 import { omitUndefined } from "@/lib/utils/omit-undefined";
 import { getUserCursorKey } from "@/lib/utils/cursor";
@@ -83,7 +84,7 @@ export async function insertList(draft: InsertDraft) {
     const run = makeInsertWithSwap<InsertDraft, ListCollectionItem>({
       collection: listsCollection,
       makeTemp: (d) => ({
-        id: `temp:${crypto.randomUUID()}`,
+        id: createTempId(),
         userId: "",
         title: d.title,
         description: d.description ?? null,

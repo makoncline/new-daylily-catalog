@@ -5,6 +5,7 @@ import { queryCollectionOptions } from "@tanstack/query-db-collection";
 import type { RouterInputs, RouterOutputs } from "@/trpc/react";
 import { getQueryClient } from "@/trpc/query-client";
 import { getTrpcClient } from "@/trpc/client";
+import { createTempId } from "@/lib/utils/create-temp-id";
 import { getUserCursorKey } from "@/lib/utils/cursor";
 import {
   runWithDashboardRefreshLock,
@@ -104,7 +105,7 @@ export async function createImage(draft: CreateDraft) {
         .reduce((m, i) => Math.max(m, i.order), -1) + 1;
 
     const temp: ImageCollectionItem = {
-      id: `temp:${crypto.randomUUID()}`,
+      id: createTempId(),
       url: draft.url,
       order: nextOrder,
       listingId: draft.type === "listing" ? draft.referenceId : null,

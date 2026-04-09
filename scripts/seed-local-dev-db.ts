@@ -4,14 +4,15 @@ import { execFileSync } from "node:child_process";
 import { PrismaClient } from "@prisma/client";
 import { PrismaLibSql } from "@prisma/adapter-libsql";
 import { createAuthedUser } from "../src/lib/test-utils/e2e-users";
-import { normalizeCultivarName } from "../src/lib/utils/cultivar-utils";
+import { seedAhsListing } from "../src/lib/test-utils/seed-cultivar-sources";
 
-const DEFAULT_DB_PATH = path.join("prisma", "local-dev.sqlite");
+const DEFAULT_DB_PATH = path.join("prisma", "local-dev-seeded.sqlite");
 const MAIN_USER_LISTINGS_COUNT = 80;
 const MAIN_USER_LISTS_COUNT = 2;
 const SECONDARY_USER_COUNT = 2;
 const SECONDARY_USER_LISTINGS_COUNT = 10;
 const SYNTHETIC_AHS_COUNT = 50;
+const DUAL_SOURCE_2026_COUNT = 10;
 const LISTINGS_WITH_IMAGES_PERCENT = 0.75;
 const PROFILE_SLUG = "seeded-daylily";
 const TOGGLE_DEMO_SLUG = "toggle-source-demo";
@@ -108,27 +109,6 @@ function runPrismaDbPush(dbUrl: string) {
   });
 }
 
-async function upsertCultivarReference(
-  db: PrismaClient,
-  ahsId: string,
-  name: string | null | undefined,
-) {
-  const cultivarReference = await db.cultivarReference.upsert({
-    where: { ahsId },
-    update: {
-      normalizedName: normalizeCultivarName(name),
-    },
-    create: {
-      id: `cr-ahs-${ahsId}`,
-      ahsId,
-      normalizedName: normalizeCultivarName(name),
-    },
-    select: { id: true },
-  });
-
-  return cultivarReference.id;
-}
-
 function pad(value: number, length = 3) {
   return String(value).padStart(length, "0");
 }
@@ -144,22 +124,55 @@ async function createSyntheticAhsRows(db: PrismaClient) {
     const color = FLOWER_COLORS[i % FLOWER_COLORS.length] ?? "Rose coral";
     const name = `Seed Cultivar ${n}`;
 
-    const ahs = await db.ahsListing.create({
-      data: {
-        id: `ahs-seed-${n}`,
-        name,
-        hybridizer: `Seed Hybridizer ${n}`,
-        year,
-        bloomSeason,
-        ploidy: i % 2 === 0 ? "Tet" : "Dip",
-        foliageType,
-        color,
-        flower: `${name} with ${color.toLowerCase()} petals.`,
-      },
+    const { ahsListing, cultivarReferenceId } = await seedAhsListing({
+      db,
+      id: `ahs-seed-${n}`,
+      name,
+      hybridizer: `Seed Hybridizer ${n}`,
+      year,
+      bloomSeason,
+      ploidy: i % 2 === 0 ? "Tet" : "Dip",
+      foliageType,
+      color,
+      flower: `${name} with ${color.toLowerCase()} petals.`,
     });
 
-    const cultivarReferenceId = await upsertCultivarReference(db, ahs.id, ahs.name);
-    pairs.push({ ahsId: ahs.id, cultivarReferenceId });
+    pairs.push({ ahsId: ahsListing.id, cultivarReferenceId });
+  }
+
+  return pairs;
+}
+
+async function createDualSource2026Rows(db: PrismaClient) {
+  const pairs: AhsCultivarPair[] = [];
+
+  for (let i = 1; i <= DUAL_SOURCE_2026_COUNT; i++) {
+    const n = pad(i, 2);
+    const bloomSeason = BLOOM_SEASONS[(i - 1) % BLOOM_SEASONS.length] ?? "M";
+    const foliageType = FOLIAGE_TYPES[(i - 1) % FOLIAGE_TYPES.length] ?? "Dormant";
+    const color = FLOWER_COLORS[(i - 1) % FLOWER_COLORS.length] ?? "Rose coral";
+    const name = `2026 Preview Bloom ${n}`;
+
+    const { ahsListing, cultivarReferenceId } = await seedAhsListing({
+      db,
+      id: `ahs-2026-preview-${n}`,
+      name,
+      hybridizer: `Preview Hybridizer ${n}`,
+      year: "2026",
+      scapeHeight: `${32 + i} inches`,
+      bloomSize: `${5 + (i % 3)} inches`,
+      bloomSeason,
+      ploidy: i % 2 === 0 ? "Tet" : "Dip",
+      foliageType,
+      bloomHabit: i % 2 === 0 ? "Diurnal" : "Extended",
+      budcount: String(18 + i),
+      branches: String(3 + (i % 4)),
+      color,
+      parentage: `(Preview ${n} x Seedling ${n})`,
+      ahsImageUrl: SHARED_IMAGE_URL,
+    });
+
+    pairs.push({ ahsId: ahsListing.id, cultivarReferenceId });
   }
 
   return pairs;
@@ -290,61 +303,45 @@ async function seed(dbUrl: string) {
       });
     }
 
-    const ahs = await db.ahsListing.create({
-      data: {
-        id: "ahs-coffee-frenzy",
-        name: "Coffee Frenzy",
-        hybridizer: "Reed",
-        year: "2012",
-        bloomSeason: "M",
-        ploidy: "Tet",
-        foliageType: "Dormant",
-        color: "Coffee brown",
-        flower: "Cocoa blooms with gold throat.",
-        ahsImageUrl: "/assets/catalog-blooms.webp",
-      },
+    const { ahsListing: ahs, cultivarReferenceId } = await seedAhsListing({
+      db,
+      id: "ahs-coffee-frenzy",
+      name: "Coffee Frenzy",
+      hybridizer: "Reed",
+      year: "2012",
+      bloomSeason: "M",
+      ploidy: "Tet",
+      foliageType: "Dormant",
+      color: "Coffee brown",
+      flower: "Cocoa blooms with gold throat.",
+      ahsImageUrl: "/assets/catalog-blooms.webp",
     });
 
-    const cultivarReferenceId = await upsertCultivarReference(
-      db,
-      ahs.id,
-      ahs.name,
-    );
-
-    const legacyToggleAhs = await db.ahsListing.create({
-      data: {
+    const { ahsListing: legacyToggleAhs, cultivarReferenceId: legacyToggleCultivarReferenceId } =
+      await seedAhsListing({
+        db,
         id: "ahs-toggle-legacy",
         name: TOGGLE_DEMO_LEGACY_NAME,
         hybridizer: "LegacyHybridizer",
         year: "2001",
         bloomSeason: "E",
         color: "Golden apricot",
-      },
+      });
+
+    const { cultivarReferenceId: cultivarToggleCultivarReferenceId } =
+      await seedAhsListing({
+      db,
+      id: "ahs-toggle-cultivar",
+      name: TOGGLE_DEMO_CULTIVAR_NAME,
+      hybridizer: "CultivarHybridizer",
+      year: "2019",
+      bloomSeason: "L",
+      color: "Lavender rose",
     });
 
-    const cultivarToggleAhs = await db.ahsListing.create({
-      data: {
-        id: "ahs-toggle-cultivar",
-        name: TOGGLE_DEMO_CULTIVAR_NAME,
-        hybridizer: "CultivarHybridizer",
-        year: "2019",
-        bloomSeason: "L",
-        color: "Lavender rose",
-      },
-    });
-
-    const legacyToggleCultivarReferenceId = await upsertCultivarReference(
-      db,
-      legacyToggleAhs.id,
-      legacyToggleAhs.name,
+    const syntheticAhsPairs = (await createSyntheticAhsRows(db)).concat(
+      await createDualSource2026Rows(db),
     );
-    const cultivarToggleCultivarReferenceId = await upsertCultivarReference(
-      db,
-      cultivarToggleAhs.id,
-      cultivarToggleAhs.name,
-    );
-
-    const syntheticAhsPairs = await createSyntheticAhsRows(db);
 
     const listingIds: string[] = [];
     for (let i = 1; i <= MAIN_USER_LISTINGS_COUNT; i++) {
@@ -484,14 +481,15 @@ async function seed(dbUrl: string) {
     const totalListings = listingIds.length + 3 + secondaryUserListingsTotal;
     const totalUsers = 1 + SECONDARY_USER_COUNT;
     const totalLists = MAIN_USER_LISTS_COUNT + SECONDARY_USER_COUNT;
-    const totalAhsRows = SYNTHETIC_AHS_COUNT + 3;
+    const totalAhsRows = SYNTHETIC_AHS_COUNT + DUAL_SOURCE_2026_COUNT + 3;
 
     return {
       totalListings,
       totalUsers,
       totalLists,
       totalAhsRows,
-      totalCultivarRows: totalAhsRows,
+      totalV2Rows: totalAhsRows,
+      totalCultivarReferenceRows: totalAhsRows,
       listingImagesSeeded: listingIdsForImages.length,
       totalImages: listingIdsForImages.length + 1,
     };
@@ -517,7 +515,10 @@ async function main() {
   console.log("[seed-local-dev-db] Listings: " + stats.totalListings);
   console.log("[seed-local-dev-db] Lists: " + stats.totalLists);
   console.log("[seed-local-dev-db] AHS rows: " + stats.totalAhsRows);
-  console.log("[seed-local-dev-db] Cultivar rows: " + stats.totalCultivarRows);
+  console.log("[seed-local-dev-db] V2 rows: " + stats.totalV2Rows);
+  console.log(
+    "[seed-local-dev-db] Cultivar references: " + stats.totalCultivarReferenceRows,
+  );
   console.log("[seed-local-dev-db] Listing images: " + stats.listingImagesSeeded);
   console.log("[seed-local-dev-db] Total images: " + stats.totalImages);
   console.log(

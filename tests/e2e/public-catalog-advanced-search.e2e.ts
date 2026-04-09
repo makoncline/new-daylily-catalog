@@ -3,28 +3,10 @@ import {
   type E2EPrismaClient,
   withTempE2EDb,
 } from "../../src/lib/test-utils/e2e-db";
-import { normalizeCultivarName } from "../../src/lib/utils/cultivar-utils";
 import { setStripeSubscriptionStatus } from "./utils/stripe";
+import { seedAhsListing } from "./utils/ahs-listings";
 
 const PROFILE_SLUG = "advanced-search-farm";
-
-async function seedCultivarReference(
-  db: E2EPrismaClient,
-  ahsId: string,
-  cultivarName: string,
-) {
-  return db.cultivarReference.upsert({
-    where: { ahsId },
-    create: {
-      id: `cr-ahs-${ahsId}`,
-      ahsId,
-      normalizedName: normalizeCultivarName(cultivarName),
-    },
-    update: {
-      normalizedName: normalizeCultivarName(cultivarName),
-    },
-  });
-}
 
 async function createListing(args: {
   db: E2EPrismaClient;
@@ -116,63 +98,44 @@ test.describe("public catalog advanced search @local", () => {
         },
       });
 
-      const alphaAhs = await db.ahsListing.create({
-        data: {
-          id: "ahs-alpha",
-          name: "Alpha Rose Cultivar",
-          hybridizer: "Reed",
-          year: "2012",
-          bloomSeason: "Midseason",
-          ploidy: "Tet",
-          scapeHeight: "36 inches",
-          color: "Rose pink",
-          parentage: "(A x B)",
-        },
+      const alphaAhs = await seedAhsListing({
+        db,
+        id: "ahs-alpha",
+        name: "Alpha Rose Cultivar",
+        hybridizer: "Reed",
+        year: "2012",
+        bloomSeason: "Midseason",
+        ploidy: "Tet",
+        scapeHeight: "36 inches",
+        color: "Rose pink",
+        parentage: "(A x B)",
       });
 
-      const betaAhs = await db.ahsListing.create({
-        data: {
-          id: "ahs-beta",
-          name: "Beta Gold Cultivar",
-          hybridizer: "Stone",
-          year: "2001",
-          bloomSeason: "Early",
-          ploidy: "Dip",
-          scapeHeight: "28 inches",
-          color: "Gold",
-          parentage: "(C x D)",
-        },
+      const betaAhs = await seedAhsListing({
+        db,
+        id: "ahs-beta",
+        name: "Beta Gold Cultivar",
+        hybridizer: "Stone",
+        year: "2001",
+        bloomSeason: "Early",
+        ploidy: "Dip",
+        scapeHeight: "28 inches",
+        color: "Gold",
+        parentage: "(C x D)",
       });
 
-      const gammaAhs = await db.ahsListing.create({
-        data: {
-          id: "ahs-gamma",
-          name: "Gamma Peach Cultivar",
-          hybridizer: "Reed",
-          year: "2018",
-          bloomSeason: "Late",
-          ploidy: "Tet",
-          scapeHeight: "40 inches",
-          color: "Peach",
-          parentage: "(E x F)",
-        },
+      const gammaAhs = await seedAhsListing({
+        db,
+        id: "ahs-gamma",
+        name: "Gamma Peach Cultivar",
+        hybridizer: "Reed",
+        year: "2018",
+        bloomSeason: "Late",
+        ploidy: "Tet",
+        scapeHeight: "40 inches",
+        color: "Peach",
+        parentage: "(E x F)",
       });
-
-      const alphaReference = await seedCultivarReference(
-        db,
-        alphaAhs.id,
-        alphaAhs.name ?? "Alpha",
-      );
-      const betaReference = await seedCultivarReference(
-        db,
-        betaAhs.id,
-        betaAhs.name ?? "Beta",
-      );
-      const gammaReference = await seedCultivarReference(
-        db,
-        gammaAhs.id,
-        gammaAhs.name ?? "Gamma",
-      );
 
       await createListing({
         db,
@@ -181,7 +144,7 @@ test.describe("public catalog advanced search @local", () => {
         title: "Alpha Rose Fan",
         slug: "alpha-rose-fan",
         price: 20,
-        cultivarReferenceId: alphaReference.id,
+        cultivarReferenceId: alphaAhs.cultivarReferenceId,
         listIds: [featuredList.id],
         imageCount: 1,
       });
@@ -193,7 +156,7 @@ test.describe("public catalog advanced search @local", () => {
         title: "Beta Gold Fan",
         slug: "beta-gold-fan",
         price: null,
-        cultivarReferenceId: betaReference.id,
+        cultivarReferenceId: betaAhs.cultivarReferenceId,
         listIds: [gardenList.id],
         imageCount: 0,
       });
@@ -205,7 +168,7 @@ test.describe("public catalog advanced search @local", () => {
         title: "Gamma Peach Fan",
         slug: "gamma-peach-fan",
         price: 18,
-        cultivarReferenceId: gammaReference.id,
+        cultivarReferenceId: gammaAhs.cultivarReferenceId,
         listIds: [gardenList.id],
         imageCount: 1,
       });

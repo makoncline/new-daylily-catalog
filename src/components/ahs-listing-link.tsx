@@ -9,6 +9,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { AhsListingSelect } from "./ahs-listing-select";
 import { AhsListingDisplay } from "./ahs-listing-display";
 import { Muted } from "@/components/typography";
+import { isV2CultivarDisplayDataEnabled } from "@/config/feature-flags";
 
 import type { AhsSearchResult } from "./ahs-listing-select";
 import { getErrorMessage, normalizeError, reportError } from "@/lib/error-utils";
@@ -36,6 +37,9 @@ export function AhsListingLink({
   onMutationSuccess,
 }: AhsListingLinkProps) {
   const [isPending, setIsPending] = useState(false);
+  const dayliliesListingId = isV2CultivarDisplayDataEnabled()
+    ? null
+    : (linkedAhs?.id ?? null);
 
   async function updateAhsListing(selected: AhsSearchResult | null) {
     setIsPending(true);
@@ -117,14 +121,20 @@ export function AhsListingLink({
             <div className="mb-4 flex items-center justify-between">
               <Muted>
                 Linked to{" "}
-                <a
-                  href={`https://daylilies.org/daylilies/${linkedAhs.id}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-foreground font-medium hover:underline"
-                >
-                  {linkedAhs.name}
-                </a>
+                {dayliliesListingId ? (
+                  <a
+                    href={`https://daylilies.org/daylilies/${dayliliesListingId}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-foreground font-medium hover:underline"
+                  >
+                    {linkedAhs.name}
+                  </a>
+                ) : (
+                  <span className="text-foreground font-medium">
+                    {linkedAhs.name}
+                  </span>
+                )}
               </Muted>
               <div className="flex gap-2">
                 {listing.title !== linkedAhs.name && (

@@ -1,36 +1,21 @@
 import { z } from "zod";
 import { createTRPCRouter, protectedProcedure } from "@/server/api/trpc";
 import type { PrismaClient } from "@prisma/client";
-
-const ahsListingSelect = {
-  id: true,
-  name: true,
-  ahsImageUrl: true,
-  hybridizer: true,
-  year: true,
-  scapeHeight: true,
-  bloomSize: true,
-  bloomSeason: true,
-  form: true,
-  ploidy: true,
-  foliageType: true,
-  bloomHabit: true,
-  budcount: true,
-  branches: true,
-  sculpting: true,
-  foliage: true,
-  flower: true,
-  fragrance: true,
-  parentage: true,
-  color: true,
-} as const;
+import {
+  ahsDisplayAhsListingSelect,
+  v2AhsCultivarDisplaySelect,
+  withResolvedDisplayAhsListing,
+} from "@/lib/utils/ahs-display";
 
 const cultivarReferenceSelect = {
   id: true,
   normalizedName: true,
   updatedAt: true,
   ahsListing: {
-    select: ahsListingSelect,
+    select: ahsDisplayAhsListingSelect,
+  },
+  v2AhsCultivar: {
+    select: v2AhsCultivarDisplaySelect,
   },
 } as const;
 
@@ -76,7 +61,7 @@ export const dashboardDbCultivarReferenceRouter = createTRPCRouter({
       return [];
     }
 
-    return ctx.db.cultivarReference.findMany({
+    const rows = await ctx.db.cultivarReference.findMany({
       where: {
         id: {
           in: cultivarReferenceIds,
@@ -85,6 +70,8 @@ export const dashboardDbCultivarReferenceRouter = createTRPCRouter({
       select: cultivarReferenceSelect,
       orderBy: { updatedAt: "desc" },
     });
+
+    return rows.map((row) => withResolvedDisplayAhsListing(row));
   }),
 
   sync: protectedProcedure
@@ -100,7 +87,7 @@ export const dashboardDbCultivarReferenceRouter = createTRPCRouter({
         return [];
       }
 
-      return ctx.db.cultivarReference.findMany({
+      const rows = await ctx.db.cultivarReference.findMany({
         where: {
           id: {
             in: cultivarReferenceIds,
@@ -110,15 +97,19 @@ export const dashboardDbCultivarReferenceRouter = createTRPCRouter({
         select: cultivarReferenceSelect,
         orderBy: { updatedAt: "asc" },
       });
+
+      return rows.map((row) => withResolvedDisplayAhsListing(row));
     }),
 
   getByIds: protectedProcedure
     .input(z.object({ ids: z.array(z.string().trim().min(1)).min(1).max(200) }))
     .query(async ({ ctx, input }) => {
       const unique = Array.from(new Set(input.ids));
-      return ctx.db.cultivarReference.findMany({
+      const rows = await ctx.db.cultivarReference.findMany({
         where: { id: { in: unique } },
         select: cultivarReferenceSelect,
       });
+
+      return rows.map((row) => withResolvedDisplayAhsListing(row));
     }),
 });

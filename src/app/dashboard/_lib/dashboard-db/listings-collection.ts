@@ -6,6 +6,7 @@ import type { RouterInputs, RouterOutputs } from "@/trpc/react";
 import { getQueryClient } from "@/trpc/query-client";
 import { getTrpcClient } from "@/trpc/client";
 import { makeInsertWithSwap } from "@/lib/utils/collection-utils";
+import { createTempId } from "@/lib/utils/create-temp-id";
 import { omitUndefined } from "@/lib/utils/omit-undefined";
 import {
   ensureCultivarReferencesCached,
@@ -87,7 +88,7 @@ export async function insertListing(draft: InsertDraft) {
     const run = makeInsertWithSwap<InsertDraft, ListingCollectionItem>({
       collection: listingsCollection,
       makeTemp: (d) => ({
-        id: `temp:${crypto.randomUUID()}`,
+        id: createTempId(),
         userId: "",
         title: d.title,
         slug: "",

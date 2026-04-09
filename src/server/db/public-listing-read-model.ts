@@ -1,33 +1,15 @@
 import { Prisma } from "@prisma/client";
 import { TRPCError } from "@trpc/server";
 import { PUBLIC_PROFILE_LISTINGS_PAGE_SIZE, STATUS } from "@/config/constants";
-import { getDisplayAhsListing } from "@/lib/utils/ahs-display";
+import {
+  ahsDisplayAhsListingSelect,
+  withResolvedDisplayAhsListing,
+  v2AhsCultivarDisplaySelect,
+} from "@/lib/utils/ahs-display";
 import { getCachedProUserIds } from "@/server/db/getCachedProUserIds";
 import { db } from "@/server/db";
 import { getUserIdFromSlugOrId } from "@/server/db/getPublicProfile";
 import { isPublished } from "@/server/db/public-visibility/filters";
-
-const ahsListingSelect = {
-  name: true,
-  ahsImageUrl: true,
-  hybridizer: true,
-  year: true,
-  scapeHeight: true,
-  bloomSize: true,
-  bloomSeason: true,
-  form: true,
-  ploidy: true,
-  foliageType: true,
-  bloomHabit: true,
-  budcount: true,
-  branches: true,
-  sculpting: true,
-  foliage: true,
-  flower: true,
-  fragrance: true,
-  parentage: true,
-  color: true,
-} as const;
 
 export const publicListingSelect = {
   id: true,
@@ -57,7 +39,10 @@ export const publicListingSelect = {
     select: {
       normalizedName: true,
       ahsListing: {
-        select: ahsListingSelect,
+        select: ahsDisplayAhsListingSelect,
+      },
+      v2AhsCultivar: {
+        select: v2AhsCultivarDisplaySelect,
       },
     },
   },
@@ -86,33 +71,23 @@ interface GetListingsArgs {
   cursor?: string;
 }
 
-interface PublicListingImage {
-  id: string;
-  url: string;
-  updatedAt: Date;
-}
-
-type ListingWithDisplayAhs = ListingPayload & {
-  images: PublicListingImage[];
-  cultivarReference: NonNullable<ListingPayload["cultivarReference"]> | null;
-};
-
-function buildListingView<T extends ListingWithDisplayAhs>(listing: T) {
-  const displayAhsListing = getDisplayAhsListing(listing);
+function buildListingView<T extends ListingPayload>(listing: T) {
+  const displayListing = withResolvedDisplayAhsListing(listing);
+  const displayAhsListing = displayListing.ahsListing;
 
   return {
-    ...listing,
+    ...displayListing,
     ahsListing: displayAhsListing,
     images:
-      listing.images.length === 0 && displayAhsListing?.ahsImageUrl
+      displayListing.images.length === 0 && displayAhsListing?.ahsImageUrl
         ? [
             {
-              id: `ahs-${listing.id}`,
+              id: `ahs-${displayListing.id}`,
               url: displayAhsListing.ahsImageUrl,
-              updatedAt: listing.updatedAt,
+              updatedAt: displayListing.updatedAt,
             },
           ]
-        : listing.images,
+        : displayListing.images,
   };
 }
 
