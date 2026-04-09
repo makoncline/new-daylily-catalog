@@ -26,6 +26,7 @@ tests/.tmp/
 prisma/prisma/
 prisma/data-migrations/20260407_upsert_v2_ahs_cultivars/
 prisma/data-migrations/v2-ahs-cultivar-delta/
+prisma/data-migrations/local-oneoffs/
 
 # next.js
 /.next/
