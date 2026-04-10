@@ -2,7 +2,6 @@ import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import { homedir } from "node:os";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
 
 import {
   ensureSchema,
@@ -15,7 +14,6 @@ import {
 
 const AGENT_BROWSER_BIN = "/Users/makon/.npm-global/bin/agent-browser";
 const AGENT_BROWSER_SESSION = "chatgpt-ai";
-const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url));
 const CHROME_DEVTOOLS_PORT_FILE = path.join(
   homedir(),
   "Library",
@@ -46,9 +44,6 @@ const MAX_RATE_LIMIT_RETRIES = 6;
 const DEFAULT_DELAY_MIN_SECONDS = 180;
 const DEFAULT_DELAY_MAX_SECONDS = 360;
 const DEFAULT_RATE_LIMIT_COOLDOWN_SECONDS = 900;
-const USER_AGENT =
-  "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36";
-const CHATGPT_ORIGIN = "https://chatgpt.com/";
 const NOTIFY_BIN = "/Users/makon/.local/bin/notify";
 const AGENT_BROWSER_MAX_BUFFER = 64 * 1024 * 1024;
 let activeProjectUrl = DEFAULT_PROJECT_URL;
@@ -331,10 +326,6 @@ async function cooldownAfterRateLimit(rateLimitCooldownSeconds) {
   await sleep(rateLimitCooldownSeconds * 1000);
 }
 
-function execCdp(args) {
-  throw new Error(`execCdp is not used in the agent-browser worker: ${args.join(" ")}`);
-}
-
 function notifyBrowserApprovalRequired(message, item = null) {
   const details = item
     ? `id=${item.id}${item.postTitle ? ` ${item.postTitle}` : ""}. ${message}`
@@ -430,11 +421,6 @@ function browserInsertText(text) {
   execAgentBrowser(["keyboard", "inserttext", text]);
 }
 
-function browserGetCookies() {
-  const result = execAgentBrowserJson(["cookies", "get"]);
-  return Array.isArray(result) ? result : [];
-}
-
 function toSafeDebugSlug(value, fallback = "debug") {
   const normalized = String(value ?? "")
     .toLowerCase()
@@ -446,7 +432,6 @@ function toSafeDebugSlug(value, fallback = "debug") {
 }
 
 async function captureDebugArtifacts(
-  target,
   item,
   {
     label = "failure",
@@ -730,7 +715,7 @@ function claimNextListingLinkedItem(preferredId = null) {
   }
 }
 
-async function waitForProjectUrl(target, projectUrl) {
+async function waitForProjectUrl(projectUrl) {
   await waitFor(
     "project page",
     async () => {
@@ -742,7 +727,7 @@ async function waitForProjectUrl(target, projectUrl) {
   );
 }
 
-async function clickProjectHomeLink(target, projectUrl) {
+async function clickProjectHomeLink(projectUrl) {
   const expectedPath = projectUrl.replace("https://chatgpt.com", "");
 
   try {
@@ -781,11 +766,11 @@ async function clickProjectHomeLink(target, projectUrl) {
             return href.includes('/daylily-images/project') || label === 'Open daylily images project';
           });
         if (!link) {
-          return "false";
+          return false;
         }
         const href = link.href || link.getAttribute('href') || "";
         if (!href) {
-          return "false";
+          return false;
         }
         window.location.href = href;
         return true;
@@ -793,7 +778,7 @@ async function clickProjectHomeLink(target, projectUrl) {
   );
 }
 
-async function ensureProjectPage(target, projectUrl, projectPrefix) {
+async function ensureProjectPage(projectUrl, projectPrefix) {
   const currentUrl = browserGetUrl();
 
   if (currentUrl === projectUrl) {
@@ -801,10 +786,10 @@ async function ensureProjectPage(target, projectUrl, projectPrefix) {
   }
 
   if (currentUrl.startsWith(`${projectPrefix}/c/`)) {
-    const clickedProjectLink = await clickProjectHomeLink(target, projectUrl);
+    const clickedProjectLink = await clickProjectHomeLink(projectUrl);
 
     if (clickedProjectLink) {
-      await waitForProjectUrl(target, projectUrl);
+      await waitForProjectUrl(projectUrl);
       return;
     }
   }
@@ -814,7 +799,7 @@ async function ensureProjectPage(target, projectUrl, projectPrefix) {
   );
 }
 
-async function openComposerMenu(target) {
+async function openComposerMenu() {
   await waitFor(
     "composer plus button",
     async () => {
@@ -899,13 +884,13 @@ async function openComposerMenu(target) {
   );
 }
 
-async function isCreateImageModeActive(target) {
+async function isCreateImageModeActive() {
   return browserEvalBoolean(
     `!!document.querySelector('button[aria-label="Image, click to remove"]')`,
   );
 }
 
-async function focusPromptEditor(target) {
+async function focusPromptEditor() {
   await waitFor(
     "prompt editor",
     async () => {
@@ -930,7 +915,7 @@ async function focusPromptEditor(target) {
   );
 }
 
-async function resetComposerDraft(target) {
+async function resetComposerDraft() {
   while (true) {
     const removed = browserEvalBoolean(
       `(() => {
@@ -952,12 +937,12 @@ async function resetComposerDraft(target) {
   }
 }
 
-async function ensureCreateImageMode(target) {
-  if (await isCreateImageModeActive(target)) {
+async function ensureCreateImageMode() {
+  if (await isCreateImageModeActive()) {
     return;
   }
 
-  const menuState = await openComposerMenu(target);
+  const menuState = await openComposerMenu();
 
   if (!menuState.checked) {
     const menuSelector = browserEvalValue(
@@ -990,13 +975,13 @@ async function ensureCreateImageMode(target) {
 
   await waitFor(
     "create image mode",
-    async () => isCreateImageModeActive(target),
+    async () => isCreateImageModeActive(),
     10000,
     300,
   );
 }
 
-async function uploadFile(target, filePath) {
+async function uploadFile(filePath) {
   browserUpload("#upload-photos", filePath);
 
   const fileName = path.basename(filePath);
@@ -1016,8 +1001,8 @@ async function uploadFile(target, filePath) {
   );
 }
 
-async function fillPromptAndSend(target, prompt) {
-  await focusPromptEditor(target);
+async function fillPromptAndSend(prompt) {
+  await focusPromptEditor();
   browserInsertText(prompt);
 
   await waitFor(
@@ -1060,7 +1045,7 @@ async function fillPromptAndSend(target, prompt) {
   );
 }
 
-async function waitForConversationUrl(target, projectPrefix) {
+async function waitForConversationUrl(projectPrefix) {
   return waitFor(
     "conversation url",
     async () => {
@@ -1072,7 +1057,7 @@ async function waitForConversationUrl(target, projectPrefix) {
   );
 }
 
-function getCurrentConversationUrl(target, projectPrefix) {
+function getCurrentConversationUrl(projectPrefix) {
   try {
     const url = browserGetUrl();
     return url.startsWith(`${projectPrefix}/c/`) ? url : null;
@@ -1081,7 +1066,7 @@ function getCurrentConversationUrl(target, projectPrefix) {
   }
 }
 
-async function dismissRateLimitModal(target) {
+async function dismissRateLimitModal() {
   const clicked = browserEvalBoolean(
     `(() => {
       const button = [...document.querySelectorAll("button")].find((node) =>
@@ -1103,7 +1088,7 @@ async function dismissRateLimitModal(target) {
   return true;
 }
 
-async function clickSkipButton(target) {
+async function clickSkipButton() {
   const clicked = browserEvalBoolean(
     `(() => {
       const button = [...document.querySelectorAll("button")].find((node) =>
@@ -1125,7 +1110,7 @@ async function clickSkipButton(target) {
   return true;
 }
 
-async function waitForGeneratedImage(target) {
+async function waitForGeneratedImage() {
   const result = await waitFor(
     "generated image",
     async () => {
@@ -1219,7 +1204,7 @@ async function waitForGeneratedImage(target) {
       }
 
       if (result.skipVisible) {
-        const clickedSkip = await clickSkipButton(target);
+        const clickedSkip = await clickSkipButton();
 
         if (clickedSkip) {
           console.warn(
@@ -1276,7 +1261,7 @@ async function waitForGeneratedImage(target) {
 
   if (result.kind === "rate-limit") {
     if (result.gotItVisible) {
-      await dismissRateLimitModal(target);
+      await dismissRateLimitModal();
     }
     throw new ChatGptRateLimitError();
   }
@@ -1286,13 +1271,6 @@ async function waitForGeneratedImage(target) {
   }
 
   return result.payload;
-}
-
-function getChatGptCookies(target) {
-  return browserGetCookies().filter((cookie) => {
-    const domain = typeof cookie?.domain === "string" ? cookie.domain : "";
-    return domain.includes("chatgpt.com");
-  });
 }
 
 function removeExistingEditedVariants(id) {
@@ -1309,7 +1287,7 @@ function removeExistingEditedVariants(id) {
   }
 }
 
-async function saveGeneratedImage(target, conversationUrl, sourceUrl, id) {
+async function saveGeneratedImage(conversationUrl, sourceUrl, id) {
   const result = browserEvalJson(
     `(async () => {
       const response = await fetch(${JSON.stringify(sourceUrl)}, {
@@ -1370,7 +1348,6 @@ async function saveGeneratedImage(target, conversationUrl, sourceUrl, id) {
 
 async function processItem(
   item,
-  target,
   {
     prompt,
     projectUrl,
@@ -1387,22 +1364,17 @@ async function processItem(
 
   while (true) {
     try {
-      await ensureProjectPage(target, projectUrl, projectPrefix);
-      await resetComposerDraft(target);
-      await ensureCreateImageMode(target);
-      await uploadFile(target, item.originalPath);
-      await ensureCreateImageMode(target);
-      await fillPromptAndSend(target, prompt);
+      await ensureProjectPage(projectUrl, projectPrefix);
+      await resetComposerDraft();
+      await ensureCreateImageMode();
+      await uploadFile(item.originalPath);
+      await ensureCreateImageMode();
+      await fillPromptAndSend(prompt);
 
-      const conversationUrl = await waitForConversationUrl(target, projectPrefix);
+      const conversationUrl = await waitForConversationUrl(projectPrefix);
       lastConversationUrl = conversationUrl;
-      const { generatedSrc } = await waitForGeneratedImage(target);
-      const editedPath = await saveGeneratedImage(
-        target,
-        conversationUrl,
-        generatedSrc,
-        item.id,
-      );
+      const { generatedSrc } = await waitForGeneratedImage();
+      const editedPath = await saveGeneratedImage(conversationUrl, generatedSrc, item.id);
 
       updateStatus(item.id, "review", {
         editedPath,
@@ -1416,7 +1388,7 @@ async function processItem(
       };
     } catch (error) {
       const currentConversationUrl =
-        getCurrentConversationUrl(target, projectPrefix) ?? lastConversationUrl;
+        getCurrentConversationUrl(projectPrefix) ?? lastConversationUrl;
 
       if (error && typeof error === "object") {
         error.conversationUrl = currentConversationUrl;
@@ -1468,7 +1440,6 @@ async function main() {
   activeProjectPrefix = options.projectPrefix;
   console.log(`[chatgpt-image-worker] log=${WORKER_LOG_PATH}`);
   console.log("[chatgpt-image-worker] connecting agent-browser session");
-  let target = AGENT_BROWSER_SESSION;
 
   try {
     connectAgentBrowserSession();
@@ -1479,7 +1450,7 @@ async function main() {
     throw error;
   }
 
-  console.log(`[chatgpt-image-worker] session=${target}`);
+  console.log(`[chatgpt-image-worker] session=${AGENT_BROWSER_SESSION}`);
 
   let processed = 0;
 
@@ -1498,7 +1469,7 @@ async function main() {
         `[chatgpt-image-worker] processing id=${item.id} title=${item.postTitle ?? ""}`,
       );
 
-      const result = await processItem(item, target, options);
+      const result = await processItem(item, options);
 
       console.log(
         `[chatgpt-image-worker] saved id=${item.id} edited=${result.editedPath}`,
@@ -1527,7 +1498,7 @@ async function main() {
       let debugArtifacts = null;
 
       try {
-        debugArtifacts = await captureDebugArtifacts(target, item, {
+        debugArtifacts = await captureDebugArtifacts(item, {
           label:
             error instanceof BrowserApprovalRequiredError
               ? "browser-approval"
