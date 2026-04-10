@@ -33,6 +33,12 @@ vi.mock("@/app/dashboard/_lib/dashboard-db/lists-collection", () => ({
   deleteList: deleteListMock,
 }));
 
+vi.mock("@/trpc/query-client", () => ({
+  getQueryClient: () => ({
+    getQueryData: () => [],
+  }),
+}));
+
 vi.mock("sonner", () => ({
   toast: {
     success: toastSuccessMock,

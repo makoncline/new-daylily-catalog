@@ -2,6 +2,7 @@ import { IMAGES } from "@/lib/constants/images";
 import { getOptimizedMetaImageUrl } from "@/lib/utils/cloudflareLoader";
 import { reportError } from "@/lib/error-utils";
 import { METADATA_CONFIG } from "@/config/constants";
+import type { PublicPageMetadata } from "@/app/(public)/_seo/public-seo";
 
 // Optimal meta description length
 const MIN_DESCRIPTION_LENGTH = 70;
@@ -22,7 +23,7 @@ interface PublicProfile {
 async function createProfileMetadata(
   profile: PublicProfile | null,
   url: string,
-) {
+): Promise<PublicPageMetadata> {
   // Handle null profile case
   if (!profile) {
     return {

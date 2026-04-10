@@ -16,15 +16,14 @@ import {
   getPublicForSaleListingsCount,
   getPublicListingCardsByIds,
   getPublicListingsPageIdsForUserId,
-} from "@/server/db/getPublicListings";
+} from "@/server/db/public-listing-read-model";
 import {
-  getUserIdFromSlugOrId,
-} from "@/server/db/getPublicProfile";
-import {
+  buildPublicSellerProfile,
   getPublicSellerContent,
   getPublicSellerListSummaries,
   getPublicSellerSummary,
-} from "@/server/db/public-seller-data";
+  getUserIdFromSlugOrId,
+} from "@/server/db/public-seller-read-model";
 
 export const getCachedPublicUserIdFromSlugOrId = createServerCache(
   getUserIdFromSlugOrId,
@@ -44,14 +43,11 @@ export async function getCachedPublicProfile(userSlugOrId: string) {
     getCachedPublicSellerLists(userId),
   ]);
 
-  return {
-    ...summary,
+  return buildPublicSellerProfile({
+    summary,
     content,
-    _count: {
-      listings: summary.listingCount,
-    },
     lists,
-  };
+  });
 }
 
 export const getCachedPublicSellerSummary = createKeyedServerCache(

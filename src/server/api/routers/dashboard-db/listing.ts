@@ -7,7 +7,10 @@ import {
   buildListingRelationshipRefs,
   buildListingUpdateRefs,
 } from "./public-isr-reference-helpers";
-import { invalidatePublicIsrForReferences } from "./public-isr-invalidation";
+import {
+  invalidateDashboardMutation,
+  parseDashboardSyncSince,
+} from "./dashboard-db-router-helpers";
 
 const listingSelect = {
   id: true,
@@ -68,7 +71,7 @@ export const dashboardDbListingRouter = createTRPCRouter({
         select: listingSelect,
       });
 
-      await invalidatePublicIsrForReferences({
+      await invalidateDashboardMutation({
         db: ctx.db,
         requestUrl: ctx.requestUrl,
         references: buildListingCreateOrDeleteRefs({
@@ -104,7 +107,7 @@ export const dashboardDbListingRouter = createTRPCRouter({
   sync: protectedProcedure
     .input(z.object({ since: z.iso.datetime().nullable() }))
     .query(async ({ ctx, input }) => {
-      const since = input.since ? new Date(input.since) : undefined;
+      const since = parseDashboardSyncSince(input.since);
       return ctx.db.listing.findMany({
         where: {
           userId: ctx.user.id,
@@ -184,7 +187,7 @@ export const dashboardDbListingRouter = createTRPCRouter({
         select: listingSelect,
       });
 
-      await invalidatePublicIsrForReferences({
+      await invalidateDashboardMutation({
         db: ctx.db,
         requestUrl: ctx.requestUrl,
         references: buildListingUpdateRefs({
@@ -219,7 +222,7 @@ export const dashboardDbListingRouter = createTRPCRouter({
         select: listingSelect,
       });
 
-      await invalidatePublicIsrForReferences({
+      await invalidateDashboardMutation({
         db: ctx.db,
         requestUrl: ctx.requestUrl,
         references: buildListingRelationshipRefs({
@@ -269,7 +272,7 @@ export const dashboardDbListingRouter = createTRPCRouter({
         select: listingSelect,
       });
 
-      await invalidatePublicIsrForReferences({
+      await invalidateDashboardMutation({
         db: ctx.db,
         requestUrl: ctx.requestUrl,
         references: buildListingUpdateRefs({
@@ -343,10 +346,10 @@ export const dashboardDbListingRouter = createTRPCRouter({
       );
 
       if (changedPublicFields.length > 0) {
-        await invalidatePublicIsrForReferences({
+        await invalidateDashboardMutation({
           db: ctx.db,
           requestUrl: ctx.requestUrl,
-        references: buildListingUpdateRefs({
+          references: buildListingUpdateRefs({
             includeCatalogsIndex: true,
             listingId: existing.id,
             userId: existing.userId,
@@ -399,7 +402,7 @@ export const dashboardDbListingRouter = createTRPCRouter({
         }
       });
 
-      await invalidatePublicIsrForReferences({
+      await invalidateDashboardMutation({
         db: ctx.db,
         requestUrl: ctx.requestUrl,
         references: buildListingCreateOrDeleteRefs({

@@ -13,7 +13,12 @@ import { Label } from "../ui/label";
 import { useOnClickOutside } from "usehooks-ts";
 import { type OutputData } from "@editorjs/editorjs";
 import { Muted } from "@/components/typography";
-import { getErrorMessage, normalizeError, reportError } from "@/lib/error-utils";
+import {
+  getErrorMessage,
+  normalizeError,
+  reportError,
+} from "@/lib/error-utils";
+import { useManagedFormSave } from "@/hooks/use-managed-form-save";
 
 export type ContentManagerSaveReason = "outside" | "manual" | "navigate";
 
@@ -36,17 +41,19 @@ export function ContentManagerFormItem({
   onDirtyChange,
 }: ContentManagerFormProps) {
   const [isSaving, setIsSaving] = React.useState(false);
-  const [lastSaved, setLastSaved] = React.useState(() => initialProfile.content);
+  const [lastSaved, setLastSaved] = React.useState(
+    () => initialProfile.content,
+  );
   const [isDirty, setIsDirty] = React.useState(false);
   const editorRef = React.useRef<EditorJS | null>(null);
   const contentRef = React.useRef<HTMLDivElement | null>(null);
-  const inFlightSaveRef = React.useRef<Promise<boolean> | null>(null);
   const isDirtyRef = React.useRef(isDirty);
   const lastSavedRef = React.useRef(lastSaved);
   isDirtyRef.current = isDirty;
   lastSavedRef.current = lastSaved;
 
-  const updateContentMutation = api.dashboardDb.userProfile.updateContent.useMutation();
+  const updateContentMutation =
+    api.dashboardDb.userProfile.updateContent.useMutation();
 
   const markDirty = React.useCallback(() => {
     if (isDirtyRef.current) {
@@ -65,107 +72,90 @@ export function ContentManagerFormItem({
     onDirtyChange?.(isDirty);
   }, [isDirty, onDirtyChange]);
 
-  const saveChanges = React.useCallback(
+  const saveChangesInternal = React.useCallback(
     async (reason: ContentManagerSaveReason): Promise<boolean> => {
-      if (inFlightSaveRef.current) {
-        return inFlightSaveRef.current;
-      }
-
       const shouldUpdateUi = reason !== "navigate";
 
       const editor = editorRef.current;
       if (!editor || !isDirtyRef.current) {
         return true;
       }
+      if (shouldUpdateUi) {
+        setIsSaving(true);
+      }
 
-      const savePromise = (async (): Promise<boolean> => {
-        if (shouldUpdateUi) {
-          setIsSaving(true);
-        }
-
-        try {
-          const newBlocks = await editor.save();
-          const previousContent = lastSavedRef.current;
-
-          if (previousContent) {
-            try {
-              const oldData = (
-                typeof previousContent === "string"
-                  ? JSON.parse(previousContent)
-                  : previousContent
-              ) as OutputData;
-
-              if (
-                JSON.stringify(newBlocks.blocks) === JSON.stringify(oldData.blocks)
-              ) {
-                isDirtyRef.current = false;
-                if (shouldUpdateUi) {
-                  setIsDirty(false);
-                }
-                return true;
-              }
-            } catch {
-              // If old content cannot be parsed, continue and save current content.
-            }
-          }
-
-          const newData = JSON.stringify(newBlocks);
-          await updateContentMutation.mutateAsync({ content: newData });
-
-          lastSavedRef.current = newData;
-          if (shouldUpdateUi) {
-            setLastSaved(newData);
-          }
-
-          isDirtyRef.current = false;
-          if (shouldUpdateUi) {
-            setIsDirty(false);
-          }
-
-          onMutationSuccess?.();
-
-          return true;
-        } catch (error) {
-          if (reason === "outside") {
-            toast.error("Failed to save content", {
-              description: getErrorMessage(error),
-            });
-          }
-
-          reportError({
-            error: normalizeError(error),
-            context: { source: "ContentManagerFormItem", reason },
-          });
-          return false;
-        } finally {
-          if (shouldUpdateUi) {
-            setIsSaving(false);
-          }
-        }
-      })();
-
-      inFlightSaveRef.current = savePromise;
       try {
-        return await savePromise;
+        const newBlocks = await editor.save();
+        const previousContent = lastSavedRef.current;
+
+        if (previousContent) {
+          try {
+            const oldData = (
+              typeof previousContent === "string"
+                ? JSON.parse(previousContent)
+                : previousContent
+            ) as OutputData;
+
+            if (
+              JSON.stringify(newBlocks.blocks) ===
+              JSON.stringify(oldData.blocks)
+            ) {
+              isDirtyRef.current = false;
+              if (shouldUpdateUi) {
+                setIsDirty(false);
+              }
+              return true;
+            }
+          } catch {
+            // If old content cannot be parsed, continue and save current content.
+          }
+        }
+
+        const newData = JSON.stringify(newBlocks);
+        await updateContentMutation.mutateAsync({ content: newData });
+
+        lastSavedRef.current = newData;
+        if (shouldUpdateUi) {
+          setLastSaved(newData);
+        }
+
+        isDirtyRef.current = false;
+        if (shouldUpdateUi) {
+          setIsDirty(false);
+        }
+
+        onMutationSuccess?.();
+
+        return true;
+      } catch (error) {
+        if (reason === "outside") {
+          toast.error("Failed to save content", {
+            description: getErrorMessage(error),
+          });
+        }
+
+        reportError({
+          error: normalizeError(error),
+          context: { source: "ContentManagerFormItem", reason },
+        });
+        return false;
       } finally {
-        if (inFlightSaveRef.current === savePromise) {
-          inFlightSaveRef.current = null;
+        if (shouldUpdateUi) {
+          setIsSaving(false);
         }
       }
     },
     [onMutationSuccess, updateContentMutation],
   );
 
-  React.useEffect(() => {
-    if (!formRef) {
-      return;
-    }
-
-    formRef.current = {
-      saveChanges,
-      hasPendingChanges,
-    };
-  }, [formRef, hasPendingChanges, saveChanges]);
+  const { saveChanges } = useManagedFormSave<
+    ContentManagerSaveReason,
+    ContentManagerFormHandle
+  >({
+    formRef,
+    hasPendingChanges,
+    save: saveChangesInternal,
+  });
 
   React.useEffect(() => {
     if (isDirtyRef.current) {
@@ -191,7 +181,9 @@ export function ContentManagerFormItem({
             Tell visitors about yourself and your garden.
           </Muted>
         </div>
-        {isPendingIndicatorVisible && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+        {isPendingIndicatorVisible && (
+          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+        )}
       </div>
       <div ref={contentRef} className="space-y-3">
         <div className="bg-background min-h-96 rounded-md border">

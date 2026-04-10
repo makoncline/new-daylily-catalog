@@ -1,12 +1,12 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useLiveQuery, eq } from "@tanstack/react-db";
+import { useManagedFormSave } from "@/hooks/use-managed-form-save";
+import { useParentCommitFlag } from "@/hooks/use-parent-commit-flag";
 import { useZodForm } from "@/hooks/use-zod-form";
 import { listFormSchema, type ListFormData } from "@/types/schemas/list";
 import {
   deleteList,
-  listsCollection,
   updateList,
   type ListCollectionItem,
 } from "@/app/dashboard/_lib/dashboard-db/lists-collection";
@@ -25,6 +25,8 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { DeleteConfirmDialog } from "@/components/delete-confirm-dialog";
 import { ListFormSkeleton } from "@/components/forms/list-form-skeleton";
+import { useListResource } from "@/app/dashboard/_lib/dashboard-db/use-list-resource";
+import { useConfirmableAsyncAction } from "@/hooks/use-confirmable-async-action";
 
 interface ListFormProps {
   listId: string;
@@ -63,26 +65,40 @@ function ListFormInner({
   formRef?: React.RefObject<ListFormHandle | null>;
 }) {
   const [isPending, setIsPending] = useState(false);
-  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-  const [needsParentCommit, setNeedsParentCommit] = useState(false);
-  const inFlightSaveRef = useRef<Promise<boolean> | null>(null);
   const committedValuesRef = useRef<ListFormData>(toFormValues(list));
-  const needsParentCommitRef = useRef(needsParentCommit);
-  needsParentCommitRef.current = needsParentCommit;
+  const {
+    markNeedsParentCommit,
+    needsParentCommitRef,
+    resetNeedsParentCommit,
+  } = useParentCommitFlag();
 
   const form = useZodForm({
     schema: listFormSchema,
     defaultValues: toFormValues(list),
   });
-
-  const markNeedsCommit = useCallback(() => {
-    if (needsParentCommitRef.current) {
-      return;
-    }
-
-    needsParentCommitRef.current = true;
-    setNeedsParentCommit(true);
-  }, []);
+  const {
+    isDialogOpen: isDeleteDialogOpen,
+    isPending: isDeletePending,
+    openDialog: openDeleteDialog,
+    runAction: confirmDelete,
+    setIsDialogOpen: setIsDeleteDialogOpen,
+  } = useConfirmableAsyncAction({
+    action: async () => {
+      await deleteList({ id: listId });
+    },
+    onSuccess: () => {
+      toast.success("List deleted", {
+        description: "Your list has been deleted successfully",
+      });
+      onDelete?.();
+    },
+    onError: () => {
+      toast.error("Failed to delete list", {
+        description: "An error occurred while deleting your list",
+      });
+    },
+  });
+  const isBusy = isPending || isDeletePending;
 
   const hasPendingChanges = useCallback(() => {
     const values = form.getValues();
@@ -91,22 +107,20 @@ function ListFormInner({
       !areListValuesEqual(values, committedValues) ||
       needsParentCommitRef.current
     );
-  }, [form, list]);
+  }, [form, list, needsParentCommitRef]);
 
-  const saveChanges = useCallback(async (reason: ListFormSaveReason) => {
-    if (inFlightSaveRef.current) {
-      return inFlightSaveRef.current;
-    }
-
-    if (!hasPendingChanges()) {
-      return true;
-    }
-
-    const savePromise = (async (): Promise<boolean> => {
+  const { saveChanges } = useManagedFormSave<
+    ListFormSaveReason,
+    ListFormHandle
+  >({
+    formRef,
+    hasPendingChanges,
+    save: async (reason) => {
       const values = form.getValues();
       const committedValues = toFormValues(list);
       const hasFieldPending = !areListValuesEqual(values, committedValues);
-      const shouldCommitParent = hasFieldPending || needsParentCommitRef.current;
+      const shouldCommitParent =
+        hasFieldPending || needsParentCommitRef.current;
 
       if (!shouldCommitParent) {
         return true;
@@ -136,8 +150,7 @@ function ListFormInner({
             description: values.description ?? undefined,
           },
         });
-        needsParentCommitRef.current = false;
-        setNeedsParentCommit(false);
+        resetNeedsParentCommit();
         if (shouldUpdateUi) {
           form.reset(values, { keepIsValid: true });
         }
@@ -157,17 +170,12 @@ function ListFormInner({
           setIsPending(false);
         }
       }
-    })();
-
-    inFlightSaveRef.current = savePromise;
-    try {
-      return await savePromise;
-    } finally {
-      if (inFlightSaveRef.current === savePromise) {
-        inFlightSaveRef.current = null;
-      }
-    }
-  }, [form, hasPendingChanges, list, listId]);
+    },
+    createHandle: (baseHandle) => ({
+      ...baseHandle,
+      markNeedsCommit: markNeedsParentCommit,
+    }),
+  });
 
   useEffect(() => {
     const nextCommittedValues = toFormValues(list);
@@ -187,38 +195,11 @@ function ListFormInner({
     if (!areListValuesEqual(currentValues, nextCommittedValues)) {
       form.reset(nextCommittedValues, { keepIsValid: true });
     }
-  }, [form, list]);
+  }, [form, list, needsParentCommitRef]);
 
   async function onSubmit() {
     await saveChanges("manual");
   }
-
-  async function handleDelete() {
-    setIsPending(true);
-    try {
-      await deleteList({ id: listId });
-      toast.success("List deleted", {
-        description: "Your list has been deleted successfully",
-      });
-      onDelete?.();
-    } catch {
-      toast.error("Failed to delete list", {
-        description: "An error occurred while deleting your list",
-      });
-    } finally {
-      setIsPending(false);
-    }
-  }
-
-  useEffect(() => {
-    if (formRef) {
-      formRef.current = {
-        saveChanges,
-        hasPendingChanges,
-        markNeedsCommit,
-      };
-    }
-  }, [formRef, hasPendingChanges, markNeedsCommit, saveChanges]);
 
   return (
     <Form {...form}>
@@ -233,7 +214,7 @@ function ListFormInner({
                 <Input
                   {...field}
                   value={field.value ?? ""}
-                  disabled={isPending}
+                  disabled={isBusy}
                 />
               </FormControl>
               <FormDescription>
@@ -255,7 +236,7 @@ function ListFormInner({
                   {...field}
                   value={field.value ?? ""}
                   placeholder="Add a description for your list..."
-                  disabled={isPending}
+                  disabled={isBusy}
                 />
               </FormControl>
               <FormDescription>
@@ -270,7 +251,7 @@ function ListFormInner({
           <Button
             type="button"
             onClick={() => void onSubmit()}
-            disabled={isPending || !hasPendingChanges()}
+            disabled={isBusy || !hasPendingChanges()}
           >
             Save Changes
           </Button>
@@ -278,8 +259,8 @@ function ListFormInner({
             <Button
               type="button"
               variant="destructive"
-              onClick={() => setIsDeleteDialogOpen(true)}
-              disabled={isPending}
+              onClick={openDeleteDialog}
+              disabled={isBusy}
             >
               Delete List
             </Button>
@@ -290,7 +271,7 @@ function ListFormInner({
       <DeleteConfirmDialog
         open={isDeleteDialogOpen}
         onOpenChange={setIsDeleteDialogOpen}
-        onConfirm={handleDelete}
+        onConfirm={() => void confirmDelete()}
         title="Delete List"
         description="Are you sure you want to delete this list? This action cannot be undone."
       />
@@ -299,13 +280,7 @@ function ListFormInner({
 }
 
 function ListFormLive({ listId, onDelete, formRef }: ListFormProps) {
-  const { data: lists = [], isReady } = useLiveQuery(
-    (q) =>
-      q.from({ list: listsCollection }).where(({ list }) => eq(list.id, listId)),
-    [listId],
-  );
-
-  const list = lists[0] ?? null;
+  const { isReady, list } = useListResource(listId);
 
   if (!isReady || !list) {
     return <ListFormSkeleton />;

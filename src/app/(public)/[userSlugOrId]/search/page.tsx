@@ -13,6 +13,7 @@ import {
   getCachedInitialListings,
   getCachedPublicProfile,
 } from "@/server/db/public-cache";
+import { buildNoIndexMetadata } from "@/app/(public)/_seo/public-seo";
 
 export const dynamic = "force-dynamic";
 
@@ -30,11 +31,10 @@ export async function generateMetadata({
   const profileResult = await tryCatch(getCachedPublicProfile(userSlugOrId));
 
   if (!profileResult.data) {
-    return {
+    return buildNoIndexMetadata({
       title: "Catalog Search Not Found",
       description: "The catalog search page you requested does not exist.",
-      robots: "noindex, nofollow",
-    };
+    });
   }
 
   const profile = profileResult.data;

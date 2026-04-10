@@ -15,6 +15,7 @@ import { useState } from "react";
 import { Pencil, Trash2 } from "lucide-react";
 import { DeleteConfirmDialog } from "@/components/delete-confirm-dialog";
 import { deleteListing as deleteListingFromDb } from "@/app/dashboard/_lib/dashboard-db/listings-collection";
+import { useConfirmableAsyncAction } from "@/hooks/use-confirmable-async-action";
 
 interface DataTableRowActionsProps<TData> {
   row: Row<TData>;
@@ -26,23 +27,21 @@ export function DataTableRowActions<TData extends { id: string }>({
   onEdit,
 }: DataTableRowActionsProps<TData>) {
   const [open, setOpen] = useState(false);
-  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
-  const [isPending, setIsPending] = useState(false);
-
-  const handleDelete = async () => {
-    if (isPending) return;
-    setIsPending(true);
-    try {
+  const {
+    isDialogOpen: showDeleteDialog,
+    openDialog: openDeleteDialog,
+    runAction: confirmDelete,
+    setIsDialogOpen: setShowDeleteDialog,
+  } = useConfirmableAsyncAction({
+    action: async () => {
       await deleteListingFromDb({ id: row.original.id });
       toast.success("Listing deleted successfully");
       setOpen(false);
-      setShowDeleteDialog(false);
-    } catch {
+    },
+    onError: () => {
       toast.error("Failed to delete listing");
-    } finally {
-      setIsPending(false);
-    }
-  };
+    },
+  });
 
   return (
     <>
@@ -73,7 +72,7 @@ export function DataTableRowActions<TData extends { id: string }>({
             className="text-destructive"
             onClick={() => {
               setOpen(false);
-              setShowDeleteDialog(true);
+              openDeleteDialog();
             }}
             data-testid="listing-row-action-delete"
           >
@@ -86,7 +85,7 @@ export function DataTableRowActions<TData extends { id: string }>({
       <DeleteConfirmDialog
         open={showDeleteDialog}
         onOpenChange={setShowDeleteDialog}
-        onConfirm={() => void handleDelete()}
+        onConfirm={() => void confirmDelete()}
         title="Delete Listing"
         description="Are you sure you want to delete this listing? This action cannot be undone."
       />

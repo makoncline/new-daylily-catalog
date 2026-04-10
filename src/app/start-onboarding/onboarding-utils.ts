@@ -120,6 +120,72 @@ export const STARTER_PROFILE_IMAGES = [
   },
 ] as const;
 
+export const PROFILE_PLACEHOLDER_IMAGE =
+  "/assets/onboarding-generated/profile-placeholder.png";
+export const DEFAULT_GARDEN_NAME_PLACEHOLDER = "Your Garden Name";
+export const DEFAULT_LOCATION_PLACEHOLDER = "Your City, ST";
+export const DEFAULT_PROFILE_DESCRIPTION_PLACEHOLDER =
+  "Daylily collector in Your City, ST offering healthy dormant fans, clearly labeled plants, and prompt replies with spring and fall shipping.";
+export const DEFAULT_LISTING_TITLE_PLACEHOLDER =
+  "Coffee Frenzy spring fan (1 healthy dormant fan)";
+export const DEFAULT_LISTING_DESCRIPTION_PLACEHOLDER =
+  "Healthy dormant fan with strong roots, clearly labeled, and ready for spring shipping or local pickup.";
+
+export function isStarterProfileImageUrl(url: string | null | undefined) {
+  if (!url) {
+    return false;
+  }
+
+  return STARTER_PROFILE_IMAGES.some((image) => image.url === url);
+}
+
+export function getCreatedAtTimestamp(
+  value: Date | string | null | undefined,
+) {
+  if (!value) {
+    return Number.POSITIVE_INFINITY;
+  }
+
+  if (value instanceof Date) {
+    return value.getTime();
+  }
+
+  return new Date(value).getTime();
+}
+
+export function getEarliestByCreatedAt<T extends { createdAt: Date | string }>(
+  rows: T[],
+) {
+  if (rows.length === 0) {
+    return null;
+  }
+
+  return rows.reduce((earliest, current) => {
+    if (!earliest) {
+      return current;
+    }
+
+    const earliestTimestamp = getCreatedAtTimestamp(earliest.createdAt);
+    const currentTimestamp = getCreatedAtTimestamp(current.createdAt);
+    return currentTimestamp < earliestTimestamp ? current : earliest;
+  }, rows[0] ?? null);
+}
+
+export function normalizePersistedImageUrl(value: string | null | undefined) {
+  const trimmedValue = value?.trim();
+  if (!trimmedValue) {
+    return null;
+  }
+
+  return trimmedValue.startsWith("blob:") ? null : trimmedValue;
+}
+
+export function normalizeCultivarSearchValue(
+  value: string | null | undefined,
+) {
+  return (value ?? "").toLowerCase().replace(/\s+/g, " ").trim();
+}
+
 export const ONBOARDING_LISTING_DEFAULTS = {
   onboardingCultivarQueries: [
     "coffee frenzy",

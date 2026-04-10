@@ -1,6 +1,4 @@
 "use client";
-
-import { useState } from "react";
 import { type Row } from "@tanstack/react-table";
 import { Button } from "@/components/ui/button";
 import {
@@ -17,6 +15,7 @@ import { DeleteConfirmDialog } from "@/components/delete-confirm-dialog";
 import Link from "next/link";
 import { useEditList } from "./edit-list-dialog";
 import { deleteList } from "@/app/dashboard/_lib/dashboard-db/lists-collection";
+import { useConfirmableAsyncAction } from "@/hooks/use-confirmable-async-action";
 
 type List = RouterOutputs["dashboardDb"]["list"]["list"][number];
 
@@ -26,27 +25,25 @@ interface DataTableRowActionsProps {
 
 export function DataTableRowActions({ row }: DataTableRowActionsProps) {
   const { editList } = useEditList();
-  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
-  const [isDeleting, setIsDeleting] = useState(false);
-
-  const handleDelete = async () => {
-    if (isDeleting) return;
-
-    setIsDeleting(true);
-    try {
+  const {
+    isDialogOpen: showDeleteDialog,
+    isPending: isDeleting,
+    openDialog: openDeleteDialog,
+    runAction: confirmDelete,
+    setIsDialogOpen: setShowDeleteDialog,
+  } = useConfirmableAsyncAction({
+    action: async () => {
       await deleteList({ id: row.original.id });
       toast.success("List deleted", {
         description: "The list has been deleted successfully.",
       });
-      setShowDeleteDialog(false);
-    } catch {
+    },
+    onError: () => {
       toast.error("Failed to delete list", {
         description: "An error occurred while deleting your list",
       });
-    } finally {
-      setIsDeleting(false);
-    }
-  };
+    },
+  });
 
   return (
     <>
@@ -78,7 +75,7 @@ export function DataTableRowActions({ row }: DataTableRowActionsProps) {
           </DropdownMenuItem>
           <DropdownMenuSeparator />
           <DropdownMenuItem
-            onClick={() => setShowDeleteDialog(true)}
+            onClick={openDeleteDialog}
             className="text-destructive focus:text-destructive"
             data-testid="list-row-action-delete"
           >
@@ -91,7 +88,7 @@ export function DataTableRowActions({ row }: DataTableRowActionsProps) {
       <DeleteConfirmDialog
         open={showDeleteDialog}
         onOpenChange={setShowDeleteDialog}
-        onConfirm={handleDelete}
+        onConfirm={() => void confirmDelete()}
         title="Delete List"
         description="Are you sure you want to delete this list? This action cannot be undone."
       />

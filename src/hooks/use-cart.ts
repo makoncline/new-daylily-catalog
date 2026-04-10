@@ -1,24 +1,23 @@
 "use client";
 
-import { useLocalStorage } from "@/hooks/use-local-storage";
 import { type CartItem } from "@/types";
-import { useEffect, useMemo } from "react";
+import { useMemo, useSyncExternalStore } from "react";
+import {
+  readCartItems,
+  subscribeToCart,
+  updateCartItems,
+  writeCartItems,
+} from "@/hooks/cart-store";
 
-// Create a custom event name for cart updates
-const CART_UPDATED_EVENT = "cart_updated";
+const EMPTY_CART_ITEMS: readonly CartItem[] = [];
 
-// Define the custom event detail type
-interface CartUpdateEventDetail {
-  userId: string;
-}
-
-/**
- * Hook to manage a cart for a specific grower
- * @param userId - The ID of the user
- * @returns Cart items and functions to manipulate the cart
- */
 export function useCart(userId: string) {
-  const [items, setItems] = useLocalStorage<CartItem[]>(`cart_${userId}`, []);
+  const items = useSyncExternalStore(
+    (onStoreChange) => subscribeToCart(userId, onStoreChange),
+    () => readCartItems(userId),
+    () => EMPTY_CART_ITEMS as CartItem[],
+  );
+
   const itemCount = useMemo(
     () => items.reduce((count, item) => count + item.quantity, 0),
     [items],
@@ -28,125 +27,56 @@ export function useCart(userId: string) {
     [items],
   );
 
-  // Listen for cart update events from other components
-  useEffect(() => {
-    const handleCartUpdated = (event: CustomEvent<CartUpdateEventDetail>) => {
-      if (event.detail?.userId === userId) {
-        // Force recalculation from localStorage
-        const storedItems = localStorage.getItem(`cart_${userId}`);
-        if (storedItems) {
-          try {
-            const parsedItems = JSON.parse(storedItems) as CartItem[];
-            setItems(parsedItems);
-          } catch (error) {
-            console.error("Error parsing cart items from localStorage", error);
-          }
-        }
-      }
-    };
-
-    window.addEventListener(
-      CART_UPDATED_EVENT,
-      handleCartUpdated as EventListener,
-    );
-
-    return () => {
-      window.removeEventListener(
-        CART_UPDATED_EVENT,
-        handleCartUpdated as EventListener,
-      );
-    };
-  }, [userId, setItems]);
-
-  // Function to dispatch cart updated event
-  const broadcastCartUpdated = () => {
-    if (typeof window !== "undefined") {
-      window.dispatchEvent(
-        new CustomEvent<CartUpdateEventDetail>(CART_UPDATED_EVENT, {
-          detail: { userId },
-        }),
-      );
-    }
-  };
-
-  /**
-   * Add an item to the cart
-   * @param item - The item to add
-   */
   const addItem = (item: CartItem) => {
-    setItems((prevItems) => {
-      // Check if the item already exists in the cart
+    updateCartItems(userId, (prevItems) => {
       const existingItemIndex = prevItems.findIndex((i) => i.id === item.id);
 
-      let updatedItems;
       if (existingItemIndex >= 0) {
-        // If item exists, increment the quantity
-        updatedItems = [...prevItems];
-        const existingItem = updatedItems[existingItemIndex];
-        if (existingItem) {
-          updatedItems[existingItemIndex] = {
-            ...existingItem,
-            quantity: existingItem.quantity + 1,
-          };
-        }
-      } else {
-        // Otherwise, add the new item
-        updatedItems = [...prevItems, item];
+        return prevItems.map((existingItem, index) =>
+          index === existingItemIndex
+            ? { ...existingItem, quantity: existingItem.quantity + 1 }
+            : existingItem,
+        );
       }
 
-      // Broadcast the update
-      setTimeout(broadcastCartUpdated, 0);
-
-      return updatedItems;
+      return [...prevItems, item];
     });
   };
 
-  /**
-   * Remove an item from the cart
-   * @param itemId - The ID of the item to remove
-   */
   const removeItem = (itemId: string) => {
-    setItems((prevItems) => {
-      const updatedItems = prevItems.filter((item) => item.id !== itemId);
+    updateCartItems(userId, (prevItems) => {
+      const nextItems = prevItems.filter((item) => item.id !== itemId);
+      if (nextItems.length === prevItems.length) {
+        return prevItems;
+      }
 
-      // Broadcast the update
-      setTimeout(broadcastCartUpdated, 0);
-
-      return updatedItems;
+      return nextItems;
     });
   };
 
-  /**
-   * Update the quantity of an item in the cart
-   * @param itemId - The ID of the item to update
-   * @param quantity - The new quantity
-   */
   const updateQuantity = (itemId: string, quantity: number) => {
     if (quantity <= 0) {
       removeItem(itemId);
       return;
     }
 
-    setItems((prevItems) => {
-      const updatedItems = prevItems.map((item) =>
-        item.id === itemId ? { ...item, quantity } : item,
-      );
+    updateCartItems(userId, (prevItems) => {
+      let didChange = false;
+      const nextItems = prevItems.map((item) => {
+        if (item.id !== itemId || item.quantity === quantity) {
+          return item;
+        }
 
-      // Broadcast the update
-      setTimeout(broadcastCartUpdated, 0);
+        didChange = true;
+        return { ...item, quantity };
+      });
 
-      return updatedItems;
+      return didChange ? nextItems : prevItems;
     });
   };
 
-  /**
-   * Clear all items from the cart
-   */
   const clearCart = () => {
-    setItems([]);
-
-    // Broadcast the update
-    setTimeout(broadcastCartUpdated, 0);
+    writeCartItems(userId, []);
   };
 
   return {

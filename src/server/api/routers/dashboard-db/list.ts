@@ -6,7 +6,12 @@ import {
   buildListUpdateRefs,
   buildSellerMutationRefs,
 } from "./public-isr-reference-helpers";
-import { invalidatePublicIsrForReferences } from "./public-isr-invalidation";
+import {
+  assertOwnedList,
+  assertOwnedListing,
+  invalidateDashboardMutation,
+  parseDashboardSyncSince,
+} from "./dashboard-db-router-helpers";
 
 const listSelect = {
   id: true,
@@ -41,7 +46,7 @@ export const dashboardDbListRouter = createTRPCRouter({
         select: listSelect,
       });
 
-      await invalidatePublicIsrForReferences({
+      await invalidateDashboardMutation({
         db: ctx.db,
         requestUrl: ctx.requestUrl,
         references: buildSellerMutationRefs(ctx.user.id),
@@ -74,7 +79,7 @@ export const dashboardDbListRouter = createTRPCRouter({
   sync: protectedProcedure
     .input(z.object({ since: z.iso.datetime().nullable() }))
     .query(async ({ ctx, input }) => {
-      const since = input.since ? new Date(input.since) : undefined;
+      const since = parseDashboardSyncSince(input.since);
       return ctx.db.list.findMany({
         where: {
           userId: ctx.user.id,
@@ -109,7 +114,7 @@ export const dashboardDbListRouter = createTRPCRouter({
         select: listSelect,
       });
 
-      await invalidatePublicIsrForReferences({
+      await invalidateDashboardMutation({
         db: ctx.db,
         requestUrl: ctx.requestUrl,
         references: buildListUpdateRefs({
@@ -143,7 +148,7 @@ export const dashboardDbListRouter = createTRPCRouter({
 
       await ctx.db.list.delete({ where: { id: list.id } });
 
-      await invalidatePublicIsrForReferences({
+      await invalidateDashboardMutation({
         db: ctx.db,
         requestUrl: ctx.requestUrl,
         references: buildSellerMutationRefs(ctx.user.id),
@@ -155,38 +160,30 @@ export const dashboardDbListRouter = createTRPCRouter({
   addListingToList: protectedProcedure
     .input(z.object({ listId: z.string(), listingId: z.string() }))
     .mutation(async ({ ctx, input }) => {
-      const listing = await ctx.db.listing.findFirst({
-        where: { id: input.listingId, userId: ctx.user.id },
-        select: { id: true },
+      await assertOwnedListing({
+        db: ctx.db,
+        listingId: input.listingId,
+        userId: ctx.user.id,
       });
-      if (!listing) {
-        throw new TRPCError({
-          code: "NOT_FOUND",
-          message: "Listing not found",
-        });
-      }
-
-      const list = await ctx.db.list.findFirst({
-        where: { id: input.listId, userId: ctx.user.id },
-        select: { id: true },
+      await assertOwnedList({
+        db: ctx.db,
+        listId: input.listId,
+        userId: ctx.user.id,
       });
-      if (!list) {
-        throw new TRPCError({ code: "NOT_FOUND", message: "List not found" });
-      }
 
       const updated = await ctx.db.list.update({
-        where: { id: list.id },
+        where: { id: input.listId },
         data: {
-          listings: { connect: { id: listing.id } },
+          listings: { connect: { id: input.listingId } },
         },
         select: listSelect,
       });
 
-      await invalidatePublicIsrForReferences({
+      await invalidateDashboardMutation({
         db: ctx.db,
         requestUrl: ctx.requestUrl,
         references: buildListMembershipMutationRefs({
-          listingId: listing.id,
+          listingId: input.listingId,
           userId: ctx.user.id,
         }),
       });
@@ -197,38 +194,30 @@ export const dashboardDbListRouter = createTRPCRouter({
   removeListingFromList: protectedProcedure
     .input(z.object({ listId: z.string(), listingId: z.string() }))
     .mutation(async ({ ctx, input }) => {
-      const listing = await ctx.db.listing.findFirst({
-        where: { id: input.listingId, userId: ctx.user.id },
-        select: { id: true },
+      await assertOwnedListing({
+        db: ctx.db,
+        listingId: input.listingId,
+        userId: ctx.user.id,
       });
-      if (!listing) {
-        throw new TRPCError({
-          code: "NOT_FOUND",
-          message: "Listing not found",
-        });
-      }
-
-      const list = await ctx.db.list.findFirst({
-        where: { id: input.listId, userId: ctx.user.id },
-        select: { id: true },
+      await assertOwnedList({
+        db: ctx.db,
+        listId: input.listId,
+        userId: ctx.user.id,
       });
-      if (!list) {
-        throw new TRPCError({ code: "NOT_FOUND", message: "List not found" });
-      }
 
       const updated = await ctx.db.list.update({
-        where: { id: list.id },
+        where: { id: input.listId },
         data: {
-          listings: { disconnect: { id: listing.id } },
+          listings: { disconnect: { id: input.listingId } },
         },
         select: listSelect,
       });
 
-      await invalidatePublicIsrForReferences({
+      await invalidateDashboardMutation({
         db: ctx.db,
         requestUrl: ctx.requestUrl,
         references: buildListMembershipMutationRefs({
-          listingId: listing.id,
+          listingId: input.listingId,
           userId: ctx.user.id,
         }),
       });

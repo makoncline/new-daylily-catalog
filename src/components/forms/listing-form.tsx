@@ -1,7 +1,6 @@
 "use client";
 
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { eq, useLiveQuery } from "@tanstack/react-db";
+import React, { useCallback, useState } from "react";
 import { type Image } from "@prisma/client";
 import { toast } from "sonner";
 
@@ -10,6 +9,8 @@ import {
   transformNullToUndefined,
   type ListingFormData,
 } from "@/types/schemas/listing";
+import { useManagedFormSave } from "@/hooks/use-managed-form-save";
+import { useParentCommitFlag } from "@/hooks/use-parent-commit-flag";
 import { useZodForm } from "@/hooks/use-zod-form";
 import { useAutoResizeTextArea } from "@/hooks/use-auto-resize-textarea";
 import { getErrorMessage, normalizeError, reportError } from "@/lib/error-utils";
@@ -24,7 +25,6 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
-import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -37,28 +37,25 @@ import {
 import { CurrencyInput } from "@/components/currency-input";
 import { DeleteConfirmDialog } from "@/components/delete-confirm-dialog";
 import { ListingFormSkeleton } from "@/components/forms/listing-form-skeleton";
-import { ImageManager } from "@/components/image-manager";
-import { ImageUpload } from "@/components/image-upload";
-import { MultiListSelect } from "@/components/multi-list-select";
-import { AhsListingLink } from "@/components/ahs-listing-link";
+import {
+  ListingCultivarLinkSection,
+  ListingListsSection,
+  ListingMediaSection,
+} from "@/components/forms/listing-form-sections";
+import { useConfirmableAsyncAction } from "@/hooks/use-confirmable-async-action";
 
-import { LISTING_CONFIG, STATUS } from "@/config/constants";
+import { STATUS } from "@/config/constants";
 import {
   type ListingCollectionItem,
   deleteListing,
-  listingsCollection,
   updateListing,
 } from "@/app/dashboard/_lib/dashboard-db/listings-collection";
-import {
-  cultivarReferencesCollection,
-  type CultivarReferenceCollectionItem,
-} from "@/app/dashboard/_lib/dashboard-db/cultivar-references-collection";
-import { imagesCollection } from "@/app/dashboard/_lib/dashboard-db/images-collection";
+import { type CultivarReferenceCollectionItem } from "@/app/dashboard/_lib/dashboard-db/cultivar-references-collection";
 import {
   addListingToList,
-  listsCollection,
   removeListingFromList,
 } from "@/app/dashboard/_lib/dashboard-db/lists-collection";
+import { useListingEditorResource } from "@/hooks/use-listing-editor-resource";
 
 type LinkedAhsListing = CultivarReferenceCollectionItem["ahsListing"];
 
@@ -115,26 +112,42 @@ function ListingFormInner({
   formRef?: React.RefObject<ListingFormHandle | null>;
 }) {
   const [isPending, setIsPending] = useState(false);
-  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-  const [needsParentCommit, setNeedsParentCommit] = useState(false);
-  const inFlightSaveRef = useRef<Promise<boolean> | null>(null);
-  const needsParentCommitRef = useRef(needsParentCommit);
   const { textAreaRef, adjustHeight } = useAutoResizeTextArea();
-  needsParentCommitRef.current = needsParentCommit;
+  const {
+    markNeedsParentCommit,
+    needsParentCommitRef,
+    resetNeedsParentCommit,
+  } = useParentCommitFlag();
 
   const form = useZodForm({
     schema: listingFormSchema,
     defaultValues: toFormValues(listing),
   });
-
-  const markNeedsParentCommit = useCallback(() => {
-    if (needsParentCommitRef.current) {
-      return;
-    }
-
-    needsParentCommitRef.current = true;
-    setNeedsParentCommit(true);
-  }, []);
+  const {
+    isDialogOpen: isDeleteDialogOpen,
+    isPending: isDeletePending,
+    openDialog: openDeleteDialog,
+    runAction: confirmDelete,
+    setIsDialogOpen: setIsDeleteDialogOpen,
+  } = useConfirmableAsyncAction({
+    action: async () => {
+      await deleteListing({ id: listing.id });
+    },
+    onSuccess: () => {
+      toast.success("Listing deleted successfully");
+      onDelete();
+    },
+    onError: (error) => {
+      toast.error("Failed to delete listing", {
+        description: getErrorMessage(error),
+      });
+      reportError({
+        error: normalizeError(error),
+        context: { source: "ListingForm" },
+      });
+    },
+  });
+  const isBusy = isPending || isDeletePending;
 
   const hasPendingChanges = useCallback(() => {
     const values = form.getValues();
@@ -143,19 +156,16 @@ function ListingFormInner({
       !areListingValuesEqual(values, committedValues) ||
       needsParentCommitRef.current
     );
-  }, [form, listing]);
+  }, [form, listing, needsParentCommitRef]);
 
-  const saveChanges = useCallback(
-    async (reason: ListingFormSaveReason): Promise<boolean> => {
-      if (inFlightSaveRef.current) {
-        return inFlightSaveRef.current;
-      }
-
-      if (!hasPendingChanges()) {
-        return true;
-      }
-
-      const savePromise = (async (): Promise<boolean> => {
+  const { saveChanges } = useManagedFormSave<
+    ListingFormSaveReason,
+    ListingFormHandle
+  >({
+    formRef,
+    hasPendingChanges,
+    save: useCallback(
+      async (reason: ListingFormSaveReason): Promise<boolean> => {
         const values = form.getValues();
         const committedValues = toFormValues(listing);
         const hasFieldPending = !areListingValuesEqual(values, committedValues);
@@ -189,8 +199,7 @@ function ListingFormInner({
             data: values,
           });
 
-          needsParentCommitRef.current = false;
-          setNeedsParentCommit(false);
+          resetNeedsParentCommit();
           if (shouldUpdateUi) {
             form.reset(values, { keepIsValid: true });
           }
@@ -212,25 +221,10 @@ function ListingFormInner({
             setIsPending(false);
           }
         }
-      })();
-
-      inFlightSaveRef.current = savePromise;
-      try {
-        return await savePromise;
-      } finally {
-        if (inFlightSaveRef.current === savePromise) {
-          inFlightSaveRef.current = null;
-        }
-      }
-    },
-    [form, hasPendingChanges, listing],
-  );
-
-  useEffect(() => {
-    if (formRef) {
-      formRef.current = { saveChanges, hasPendingChanges };
-    }
-  }, [formRef, hasPendingChanges, saveChanges]);
+      },
+      [form, listing, needsParentCommitRef, resetNeedsParentCommit],
+    ),
+  });
 
   async function onSubmit() {
     await saveChanges("manual");
@@ -266,25 +260,6 @@ function ListingFormInner({
     }
   };
 
-  async function handleDelete() {
-    setIsPending(true);
-    try {
-      await deleteListing({ id: listing.id });
-      toast.success("Listing deleted successfully");
-      onDelete();
-    } catch (error) {
-      toast.error("Failed to delete listing", {
-        description: getErrorMessage(error),
-      });
-      reportError({
-        error: normalizeError(error),
-        context: { source: "ListingForm" },
-      });
-    } finally {
-      setIsPending(false);
-    }
-  }
-
   const getUIStatusValue = (dbValue: string | null | undefined): string => {
     return dbValue === STATUS.HIDDEN ? STATUS.HIDDEN : "published";
   };
@@ -305,7 +280,7 @@ function ListingFormInner({
                 <Input
                   {...field}
                   value={field.value ?? ""}
-                  disabled={isPending}
+                  disabled={isBusy}
                 />
               </FormControl>
               <FormDescription>
@@ -316,29 +291,11 @@ function ListingFormInner({
           )}
         />
 
-        <FormItem>
-          <Label htmlFor="image-upload-input">Images</Label>
-          <p className="text-muted-foreground text-[0.8rem]">
-            Upload images of your listing. You can reorder them by dragging.
-          </p>
-          <div className="space-y-4">
-            <ImageManager
-              type="listing"
-              images={images}
-              referenceId={listingId}
-              onMutationSuccess={markNeedsParentCommit}
-            />
-            {images.length < LISTING_CONFIG.IMAGES.MAX_COUNT && (
-              <div className="p-4">
-                <ImageUpload
-                  type="listing"
-                  referenceId={listingId}
-                  onMutationSuccess={markNeedsParentCommit}
-                />
-              </div>
-            )}
-          </div>
-        </FormItem>
+        <ListingMediaSection
+          images={images}
+          listingId={listingId}
+          onMutationSuccess={markNeedsParentCommit}
+        />
 
         <FormField
           control={form.control}
@@ -356,7 +313,7 @@ function ListingFormInner({
                     adjustHeight();
                   }}
                   className="min-h-[100px]"
-                  disabled={isPending}
+                  disabled={isBusy}
                 />
               </FormControl>
               <FormDescription>
@@ -377,7 +334,7 @@ function ListingFormInner({
                 <CurrencyInput
                   value={field.value}
                   onChange={field.onChange}
-                  disabled={isPending}
+                  disabled={isBusy}
                 />
               </FormControl>
               <FormDescription>
@@ -402,7 +359,7 @@ function ListingFormInner({
                   field.onChange(dbValue);
                 }}
                 value={getUIStatusValue(field.value)}
-                disabled={isPending}
+                disabled={isBusy}
               >
                 <FormControl>
                   <SelectTrigger>
@@ -432,7 +389,7 @@ function ListingFormInner({
                 <Textarea
                   {...field}
                   value={field.value ?? ""}
-                  disabled={isPending}
+                  disabled={isBusy}
                 />
               </FormControl>
               <FormDescription>
@@ -443,50 +400,34 @@ function ListingFormInner({
           )}
         />
 
-        <FormItem>
-          <Label htmlFor="list-select">Lists</Label>
-          <MultiListSelect
-            values={selectedListIds}
-            onSelect={(listIds) => void handleUpdateLists(listIds)}
-            disabled={isPending}
-          />
-          <p className="text-muted-foreground text-[0.8rem]">
-            Optional. Add this listing to one or more lists.
-          </p>
-        </FormItem>
+        <ListingListsSection
+          disabled={isBusy}
+          selectedListIds={selectedListIds}
+          onSelect={(listIds) => void handleUpdateLists(listIds)}
+        />
 
-        <FormItem>
-          <Label htmlFor="ahs-listing-select">
-            Link to Daylily Database Listing
-          </Label>
-          <AhsListingLink
-            listing={listing}
-            linkedAhs={linkedAhs}
-            onNameChange={(name) => {
-              form.setValue("title", name);
-            }}
-            onMutationSuccess={markNeedsParentCommit}
-          />
-          <p className="text-muted-foreground text-[0.8rem]">
-            Optional. Link your listing to a daylily database listing to
-            automatically populate details like hybridizer, year, and photo from
-            our database.
-          </p>
-        </FormItem>
+        <ListingCultivarLinkSection
+          listing={listing}
+          linkedAhs={linkedAhs}
+          onNameChange={(name) => {
+            form.setValue("title", name);
+          }}
+          onMutationSuccess={markNeedsParentCommit}
+        />
 
         <div className="flex justify-end gap-4">
           <Button
             type="button"
             onClick={() => void onSubmit()}
-            disabled={isPending || !hasPendingChanges()}
+            disabled={isBusy || !hasPendingChanges()}
           >
             Save Changes
           </Button>
           <Button
             type="button"
             variant="destructive"
-            onClick={() => setIsDeleteDialogOpen(true)}
-            disabled={isPending}
+            onClick={openDeleteDialog}
+            disabled={isBusy}
           >
             Delete Listing
           </Button>
@@ -496,7 +437,7 @@ function ListingFormInner({
       <DeleteConfirmDialog
         open={isDeleteDialogOpen}
         onOpenChange={setIsDeleteDialogOpen}
-        onConfirm={handleDelete}
+        onConfirm={() => void confirmDelete()}
         title="Delete Listing"
         description="Are you sure you want to delete this listing? This action cannot be undone."
       />
@@ -505,57 +446,10 @@ function ListingFormInner({
 }
 
 function ListingFormLive({ listingId, onDelete, formRef }: ListingFormProps) {
-  const { data: listings = [], isReady: isListingReady } = useLiveQuery(
-    (q) =>
-      q
-        .from({ listing: listingsCollection })
-        .where(({ listing }) => eq(listing.id, listingId)),
-    [listingId],
-  );
-  const listing = listings[0] ?? null;
+  const { images, isReady, linkedAhs, listing, selectedListIds } =
+    useListingEditorResource(listingId);
 
-  const {
-    data: cultivarReferences = [],
-    isReady: isCultivarReferencesReady,
-  } = useLiveQuery((q) =>
-    q
-      .from({ ref: cultivarReferencesCollection })
-      .orderBy(({ ref }) => ref.updatedAt, "asc"),
-  );
-
-  const { data: images = [], isReady: isImagesReady } = useLiveQuery(
-    (q) =>
-      q
-        .from({ img: imagesCollection })
-        .where(({ img }) => eq(img.listingId, listingId))
-        .orderBy(({ img }) => img.order, "asc"),
-    [listingId],
-  );
-
-  const { data: lists = [], isReady: isListsReady } = useLiveQuery((q) =>
-    q.from({ list: listsCollection }).orderBy(({ list }) => list.title, "asc"),
-  );
-
-  const selectedListIds = useMemo(() => {
-    if (!lists.length) return [];
-
-    return lists
-      .filter((list) => list.listings.some(({ id }) => id === listingId))
-      .map((list) => list.id);
-  }, [lists, listingId]);
-
-  const linkedAhs = listing?.cultivarReferenceId
-    ? cultivarReferences.find((row) => row.id === listing.cultivarReferenceId)
-        ?.ahsListing ?? null
-    : null;
-
-  if (
-    !isListingReady ||
-    !isImagesReady ||
-    !isListsReady ||
-    !isCultivarReferencesReady ||
-    !listing
-  ) {
+  if (!isReady || !listing) {
     return <ListingFormSkeleton />;
   }
 

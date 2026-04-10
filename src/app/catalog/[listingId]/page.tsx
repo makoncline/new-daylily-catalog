@@ -1,6 +1,7 @@
 "use server";
 
 import { permanentRedirect } from "next/navigation";
+import { buildLegacyListingRedirectPath } from "@/lib/legacy-route-redirects";
 import { getListingOwnerWithSlugs } from "@/server/db/getLegacyMappings";
 
 interface CatalogLegacyRoutePageProps {
@@ -20,17 +21,7 @@ export default async function CatalogLegacyRoutePage({
     return permanentRedirect("/catalogs");
   }
 
-  if (listingInfo.userSlug && listingInfo.listingSlug) {
-    return permanentRedirect(`/${listingInfo.userSlug}/${listingInfo.listingSlug}`);
-  }
-
-  if (listingInfo.userSlug) {
-    return permanentRedirect(`/${listingInfo.userSlug}/${listingId}`);
-  }
-
-  if (listingInfo.listingSlug) {
-    return permanentRedirect(`/${listingInfo.userId}/${listingInfo.listingSlug}`);
-  }
-
-  return permanentRedirect(`/${listingInfo.userId}/${listingId}`);
+  return permanentRedirect(
+    buildLegacyListingRedirectPath(listingId, listingInfo),
+  );
 }

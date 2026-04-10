@@ -11,37 +11,23 @@ import { Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { DeleteConfirmDialog } from "@/components/delete-confirm-dialog";
 import { Label } from "@/components/ui/label";
-import { useState } from "react";
 import { type Table } from "@tanstack/react-table";
 import { DataTableGlobalFilter } from "@/components/data-table/data-table-global-filter";
 import { DataTableFilterReset } from "@/components/data-table/data-table-filter-reset";
 import { DataTableViewOptions } from "@/components/data-table/data-table-view-options";
 import { type ListingData } from "./columns";
 import { useDataTable } from "@/hooks/use-data-table";
+import { useConfirmableAsyncAction } from "@/hooks/use-confirmable-async-action";
 import { DataTableDownload } from "@/components/data-table";
 import { slugify } from "@/lib/utils/slugify";
 import { DataTableFilteredCount } from "@/components/data-table/data-table-filtered-count";
-import { useLiveQuery } from "@tanstack/react-db";
-import {
-  listsCollection,
-  removeListingFromList,
-} from "@/app/dashboard/_lib/dashboard-db/lists-collection";
-import { listingsCollection } from "@/app/dashboard/_lib/dashboard-db/listings-collection";
-import { imagesCollection } from "@/app/dashboard/_lib/dashboard-db/images-collection";
-import { cultivarReferencesCollection } from "@/app/dashboard/_lib/dashboard-db/cultivar-references-collection";
-import { getQueryClient } from "@/trpc/query-client";
-import { type RouterOutputs } from "@/trpc/react";
-import type { Image } from "@prisma/client";
+import { removeListingFromList } from "@/app/dashboard/_lib/dashboard-db/lists-collection";
+import { useDashboardListingReadModel } from "@/app/dashboard/_lib/dashboard-db/use-dashboard-listing-read-model";
 
 interface ListListingsTableProps {
   listId: string;
   onMutationSuccess?: () => void;
 }
-
-type List = RouterOutputs["dashboardDb"]["list"]["list"][number];
-type Listing = RouterOutputs["dashboardDb"]["listing"]["list"][number];
-type CultivarReference =
-  RouterOutputs["dashboardDb"]["cultivarReference"]["listForUserListings"][number];
 
 const tableOptions = {
   pinnedColumns: {
@@ -60,37 +46,36 @@ function SelectedItemsActions({
   listId: string;
   onMutationSuccess?: () => void;
 }) {
-  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
-  const [isPending, setIsPending] = useState(false);
   const selectedRows = table.getFilteredSelectedRowModel().rows;
   const selectedListingIds = selectedRows.map((row) => row.original.id);
-
-  const handleRemoveSelected = async () => {
-    if (!selectedListingIds.length || isPending) return;
-
-    setIsPending(true);
-    try {
+  const {
+    isDialogOpen: showDeleteDialog,
+    isPending,
+    openDialog: openDeleteDialog,
+    runAction: confirmRemoveSelected,
+    setIsDialogOpen: setShowDeleteDialog,
+  } = useConfirmableAsyncAction({
+    action: async () => {
       for (const listingId of selectedListingIds) {
         await removeListingFromList({ listId, listingId });
       }
-
+    },
+    onSuccess: () => {
       toast.success("Listings removed from list");
       onMutationSuccess?.();
       table.resetRowSelection();
-      setShowDeleteDialog(false);
-    } catch {
+    },
+    onError: () => {
       toast.error("Failed to remove listings from list");
-    } finally {
-      setIsPending(false);
-    }
-  };
+    },
+  });
 
   return (
     <>
       <Button
         variant="destructive"
         size="sm"
-        onClick={() => setShowDeleteDialog(true)}
+        onClick={openDeleteDialog}
         disabled={isPending}
       >
         <Trash2 className="mr-2 h-4 w-4" />
@@ -100,7 +85,13 @@ function SelectedItemsActions({
       <DeleteConfirmDialog
         open={showDeleteDialog}
         onOpenChange={setShowDeleteDialog}
-        onConfirm={() => void handleRemoveSelected()}
+        onConfirm={() => {
+          if (!selectedListingIds.length) {
+            return;
+          }
+
+          void confirmRemoveSelected();
+        }}
         title="Remove Listings"
         description={`Are you sure you want to remove ${selectedRows.length} listing${selectedRows.length === 1 ? "" : "s"} from this list? This action cannot be undone.`}
       />
@@ -150,128 +141,27 @@ export function ListListingsTable({
   listId,
   onMutationSuccess,
 }: ListListingsTableProps) {
-  const { data: lists = [], isReady: isListsReady } = useLiveQuery(
-    (q) =>
-      q
-        .from({ list: listsCollection })
-        .orderBy(({ list }) => list.createdAt, "desc"),
-  );
-  const { data: baseListings = [], isReady: isListingsReady } = useLiveQuery(
-    (q) =>
-      q
-        .from({ listing: listingsCollection })
-        .orderBy(({ listing }) => listing.createdAt, "desc"),
-  );
-  const { data: images = [], isReady: isImagesReady } = useLiveQuery((q) =>
-    q
-      .from({ img: imagesCollection })
-      .orderBy(({ img }) => img.updatedAt, "asc"),
-  );
-  const { data: cultivarReferences = [], isReady: isCultivarReferencesReady } =
-    useLiveQuery((q) =>
-      q
-        .from({ ref: cultivarReferencesCollection })
-        .orderBy(({ ref }) => ref.updatedAt, "asc"),
-    );
-
-  const queryClient = getQueryClient();
-  const seededLists =
-    queryClient.getQueryData<List[]>(["dashboard-db", "lists"]) ?? [];
-  const seededListings =
-    queryClient.getQueryData<Listing[]>(["dashboard-db", "listings"]) ?? [];
-  const seededImages =
-    queryClient.getQueryData<Image[]>(["dashboard-db", "images"]) ?? [];
-  const seededCultivarReferences =
-    queryClient.getQueryData<CultivarReference[]>([
-      "dashboard-db",
-      "cultivar-references",
-    ]) ?? [];
-
-  const effectiveLists = isListsReady ? lists : seededLists;
-  const effectiveListings = isListingsReady ? baseListings : seededListings;
-  const effectiveImages = isImagesReady ? images : seededImages;
-  const effectiveCultivarReferences = isCultivarReferencesReady
-    ? cultivarReferences
-    : seededCultivarReferences;
-
-  const list = effectiveLists.find((row) => row.id === listId) ?? null;
+  const { listingRows: listings, lists } = useDashboardListingReadModel();
+  const list = lists.find((row) => row.id === listId) ?? null;
 
   const listingIdsInList = React.useMemo(() => {
     if (!list?.listings?.length) return new Set<string>();
     return new Set(list.listings.map(({ id }) => id));
   }, [list]);
-
-  const listsByListingId = React.useMemo(() => {
-    const map = new Map<string, Array<Pick<List, "id" | "title">>>();
-
-    for (const listRow of effectiveLists) {
-      for (const { id: listingId } of listRow.listings) {
-        const row = map.get(listingId) ?? [];
-        row.push({ id: listRow.id, title: listRow.title });
-        map.set(listingId, row);
-      }
-    }
-
-    return map;
-  }, [effectiveLists]);
-
-  const imagesByListingId = React.useMemo(() => {
-    const map = new Map<string, Image[]>();
-
-    for (const img of effectiveImages) {
-      if (!img.listingId) continue;
-      const row = map.get(img.listingId) ?? [];
-      row.push(img);
-      map.set(img.listingId, row);
-    }
-
-    for (const row of map.values()) {
-      row.sort((a, b) => a.order - b.order);
-    }
-
-    return map;
-  }, [effectiveImages]);
-
-  const cultivarReferenceById = React.useMemo(() => {
-    const map = new Map<string, CultivarReference>();
-    effectiveCultivarReferences.forEach((row) => map.set(row.id, row));
-    return map;
-  }, [effectiveCultivarReferences]);
-
-  const listings = React.useMemo<ListingData[]>(() => {
-    if (!listingIdsInList.size) return [];
-
-    return effectiveListings
-      .filter((listing) => listingIdsInList.has(listing.id))
-      .map((listing) => {
-        const ref = listing.cultivarReferenceId
-          ? cultivarReferenceById.get(listing.cultivarReferenceId)
-          : null;
-
-        return {
-          ...listing,
-          images: imagesByListingId.get(listing.id) ?? [],
-          lists: listsByListingId.get(listing.id) ?? [],
-          ahsListing: ref?.ahsListing ?? null,
-        };
-      });
-  }, [
-    cultivarReferenceById,
-    effectiveListings,
-    imagesByListingId,
-    listingIdsInList,
-    listsByListingId,
-  ]);
+  const listingsInList = React.useMemo(
+    () => listings.filter((listing) => listingIdsInList.has(listing.id)),
+    [listingIdsInList, listings],
+  );
 
   const columns = getColumns();
 
   const table = useDataTable({
-    data: listings ?? [],
+    data: listingsInList,
     columns,
     ...tableOptions,
   });
 
-  if (!listings?.length) {
+  if (!listingsInList.length) {
     return (
       <EmptyState
         title="No listings"

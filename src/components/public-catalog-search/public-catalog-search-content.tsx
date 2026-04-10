@@ -1,5 +1,6 @@
 "use client";
 
+import { type Table } from "@tanstack/react-table";
 import { Loader2, RefreshCw } from "lucide-react";
 import { useMemo, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
@@ -10,152 +11,75 @@ import { Button } from "@/components/ui/button";
 import { useDataTable } from "@/hooks/use-data-table";
 import { cn } from "@/lib/utils";
 import {
-  type PublicCatalogSearchFacetOption,
-  type PublicCatalogSearchMode,
-  type PublicCatalogListing,
-  type PublicCatalogSearchContentProps,
-} from "./public-catalog-search-types";
+  buildPublicCatalogSearchColumnNames,
+  buildPublicCatalogSearchFacetOptions,
+  buildPublicCatalogSearchListOptions,
+} from "./public-catalog-search-registry";
 import { publicCatalogSearchColumns } from "./public-catalog-search-columns";
 import { PublicCatalogSearchAdvancedPanel } from "./public-catalog-search-advanced-panel";
 import { PublicCatalogSearchTable } from "./public-catalog-search-table";
+import {
+  type PublicCatalogListing,
+  type PublicCatalogLists,
+  type PublicCatalogSearchContentProps,
+  type PublicCatalogSearchFacetOption,
+  type PublicCatalogSearchFacetOptions,
+  type PublicCatalogSearchMode,
+} from "./public-catalog-search-types";
+import { type PublicCatalogSearchControllerState } from "./public-catalog-search-controller";
 
-function getFacetOptionsFromListings(
-  listings: PublicCatalogListing[],
-  getValue: (listing: PublicCatalogListing) => string | null | undefined,
-): PublicCatalogSearchFacetOption[] {
-  const counts = new Map<string, { label: string; count: number }>();
-
-  listings.forEach((listing) => {
-    const rawValue = getValue(listing);
-    if (typeof rawValue !== "string") {
-      return;
-    }
-
-    const label = rawValue.trim();
-    if (label.length === 0) {
-      return;
-    }
-
-    const key = label.toLowerCase();
-    const existing = counts.get(key);
-
-    if (existing) {
-      existing.count += 1;
-      return;
-    }
-
-    counts.set(key, { label, count: 1 });
-  });
-
-  return Array.from(counts.values())
-    .sort((a, b) => a.label.localeCompare(b.label))
-    .map((option) => ({
-      label: option.label,
-      value: option.label,
-      count: option.count,
-    }));
+interface PublicCatalogSearchContentViewProps {
+  lists: PublicCatalogLists;
+  listings: PublicCatalogListing[];
+  listOptions: PublicCatalogSearchFacetOption[];
+  facetOptions: PublicCatalogSearchFacetOptions;
+  mode: PublicCatalogSearchMode;
+  panelCollapsed: boolean;
+  setPanelCollapsed: (collapsed: boolean) => void;
+  setMode: (mode: PublicCatalogSearchMode) => void;
+  scrollToResultsSummary: () => void;
+  table: Table<PublicCatalogListing>;
+  isLoading: boolean;
+  totalListingsCount: number;
+  isRefreshingCatalogData?: boolean;
+  onRefreshCatalogData?: () => void;
 }
+
+type PublicCatalogSearchContentWithControllerProps =
+  PublicCatalogSearchContentProps & {
+    controller?: PublicCatalogSearchControllerState;
+  };
 
 function parseModeParam(modeValue: string | null): PublicCatalogSearchMode {
   return modeValue === "advanced" ? "advanced" : "basic";
 }
 
-export function PublicCatalogSearchContent({
-  lists,
-  listings,
+function PublicCatalogSearchContentView({
+  table,
+  listOptions,
+  facetOptions,
+  mode,
+  panelCollapsed,
+  setPanelCollapsed,
+  setMode,
+  scrollToResultsSummary,
   isLoading,
   totalListingsCount,
   isRefreshingCatalogData = false,
   onRefreshCatalogData,
-}: PublicCatalogSearchContentProps) {
-  const pathname = usePathname();
-  const router = useRouter();
-  const searchParams = useSearchParams();
-
-  const table = useDataTable({
-    data: listings,
-    columns: publicCatalogSearchColumns,
-    storageKey: "public-catalog-listings-table",
-  });
-
-  const mode = parseModeParam(searchParams.get("mode"));
-  const [panelCollapsed, setPanelCollapsed] = useState(false);
+}: PublicCatalogSearchContentViewProps) {
   const hasFilters =
     table.getState().globalFilter !== "" ||
     table.getState().columnFilters.length > 0;
-
-  const listOptions = useMemo(() => {
-    const listCounts = new Map<string, number>();
-
-    listings.forEach((listing: PublicCatalogListing) => {
-      listing.lists.forEach((list: { id: string; title: string }) => {
-        const count = listCounts.get(list.id) ?? 0;
-        listCounts.set(list.id, count + 1);
-      });
-    });
-
-    return lists.map((list) => ({
-      label: list.title,
-      value: list.id,
-      count: listCounts.get(list.id) ?? 0,
-    }));
-  }, [lists, listings]);
-
-  const facetOptions = useMemo(
-    () => ({
-      bloomHabit: getFacetOptionsFromListings(
-        listings,
-        (listing) => listing.ahsListing?.bloomHabit,
-      ),
-      bloomSeason: getFacetOptionsFromListings(
-        listings,
-        (listing) => listing.ahsListing?.bloomSeason,
-      ),
-      form: getFacetOptionsFromListings(
-        listings,
-        (listing) => listing.ahsListing?.form,
-      ),
-      ploidy: getFacetOptionsFromListings(
-        listings,
-        (listing) => listing.ahsListing?.ploidy,
-      ),
-      foliageType: getFacetOptionsFromListings(
-        listings,
-        (listing) => listing.ahsListing?.foliageType,
-      ),
-      fragrance: getFacetOptionsFromListings(
-        listings,
-        (listing) => listing.ahsListing?.fragrance,
-      ),
-    }),
-    [listings],
-  );
-
-  const setMode = (nextMode: PublicCatalogSearchMode) => {
-    const params = new URLSearchParams(searchParams.toString());
-
-    if (nextMode === "advanced") {
-      params.set("mode", "advanced");
-    } else {
-      params.delete("mode");
-    }
-
-    const query = params.toString();
-    void router.replace(query ? `${pathname}?${query}` : pathname, {
-      scroll: false,
-    });
-  };
-
-  const scrollToResultsSummary = () => {
-    const target = document.getElementById("public-search-results-summary");
-    target?.scrollIntoView({ behavior: "smooth", block: "start" });
-  };
 
   return (
     <div className="space-y-8">
       <div id="listings" className="space-y-4">
         <div className="flex items-center justify-between">
-          <div id="public-search-results-summary" className="flex items-baseline gap-2">
+          <div
+            id="public-search-results-summary"
+            className="flex items-baseline gap-2"
+          >
             <H2 className="text-2xl">Listings</H2>
             <Muted>{totalListingsCount.toLocaleString()} total</Muted>
           </div>
@@ -232,4 +156,120 @@ export function PublicCatalogSearchContent({
       </div>
     </div>
   );
+}
+
+function PublicCatalogSearchUncontrolledContent({
+  lists,
+  listings,
+  isLoading,
+  totalListingsCount,
+  isRefreshingCatalogData = false,
+  onRefreshCatalogData,
+}: PublicCatalogSearchContentProps) {
+  const pathname = usePathname();
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const columnNames = useMemo(() => buildPublicCatalogSearchColumnNames(), []);
+
+  const table = useDataTable({
+    data: listings,
+    columns: publicCatalogSearchColumns,
+    storageKey: "public-catalog-listings-table",
+    columnNames,
+  });
+
+  const mode = parseModeParam(searchParams.get("mode"));
+  const [panelCollapsed, setPanelCollapsed] = useState(false);
+
+  const listOptions = useMemo(
+    () => buildPublicCatalogSearchListOptions(lists, listings),
+    [lists, listings],
+  );
+
+  const facetOptions = useMemo(
+    () => buildPublicCatalogSearchFacetOptions(listings),
+    [listings],
+  );
+
+  const setMode = (nextMode: PublicCatalogSearchMode) => {
+    const params = new URLSearchParams(searchParams.toString());
+
+    if (nextMode === "advanced") {
+      params.set("mode", "advanced");
+    } else {
+      params.delete("mode");
+    }
+
+    const query = params.toString();
+    void router.replace(query ? `${pathname}?${query}` : pathname, {
+      scroll: false,
+    });
+  };
+
+  const scrollToResultsSummary = () => {
+    const target = document.getElementById("public-search-results-summary");
+    target?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+
+  return (
+    <PublicCatalogSearchContentView
+      lists={lists}
+      listings={listings}
+      table={table}
+      listOptions={listOptions}
+      facetOptions={facetOptions}
+      mode={mode}
+      panelCollapsed={panelCollapsed}
+      setPanelCollapsed={setPanelCollapsed}
+      setMode={setMode}
+      scrollToResultsSummary={scrollToResultsSummary}
+      isLoading={isLoading}
+      totalListingsCount={totalListingsCount}
+      isRefreshingCatalogData={isRefreshingCatalogData}
+      onRefreshCatalogData={onRefreshCatalogData}
+    />
+  );
+}
+
+function PublicCatalogSearchControlledContent({
+  lists,
+  listings,
+  isLoading,
+  totalListingsCount,
+  isRefreshingCatalogData,
+  onRefreshCatalogData,
+  controller,
+}: PublicCatalogSearchContentProps & {
+  controller: PublicCatalogSearchControllerState;
+}) {
+  return (
+    <PublicCatalogSearchContentView
+      lists={lists}
+      listings={listings}
+      table={controller.table}
+      listOptions={controller.listOptions}
+      facetOptions={controller.facetOptions}
+      mode={controller.mode}
+      panelCollapsed={controller.panelCollapsed}
+      setPanelCollapsed={controller.setPanelCollapsed}
+      setMode={controller.setMode}
+      scrollToResultsSummary={controller.scrollToResultsSummary}
+      isLoading={isLoading}
+      totalListingsCount={totalListingsCount}
+      isRefreshingCatalogData={
+        isRefreshingCatalogData ?? controller.isRefreshingCatalogData
+      }
+      onRefreshCatalogData={onRefreshCatalogData ?? controller.refreshCatalogData}
+    />
+  );
+}
+
+export function PublicCatalogSearchContent(
+  props: PublicCatalogSearchContentWithControllerProps,
+) {
+  if (props.controller) {
+    return <PublicCatalogSearchControlledContent {...props} controller={props.controller} />;
+  }
+
+  return <PublicCatalogSearchUncontrolledContent {...props} />;
 }

@@ -1,17 +1,8 @@
 import { generateSoftwareApplicationJsonLd } from "../_seo/json-ld";
-
-type MetadataInput = {
-  url: string;
-  description: string;
-  title: string;
-  imageUrl: string;
-  openGraph?: Record<string, unknown>;
-  twitter?: Record<string, unknown>;
-  alternates?: Record<string, unknown>;
-};
+import type { PublicPageMetadata } from "../_seo/public-seo";
 
 interface HomePageSEOProps {
-  metadata: MetadataInput;
+  metadata: PublicPageMetadata;
 }
 
 export async function HomePageSEO({ metadata }: HomePageSEOProps) {
