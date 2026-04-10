@@ -23,9 +23,11 @@ describe("dashboard db bootstrap helpers", () => {
     const deps = createBootstrapDeps();
     deps.tryHydrateDashboardDbFromPersistence.mockResolvedValueOnce(true);
     const prefetchUserProfile = vi.fn(async () => undefined);
+    const guard = { isActive: vi.fn(() => true) };
 
     await bootstrapDashboardDbForUser(
       {
+        guard,
         prefetchUserProfile,
         userId: "user-1",
       },
@@ -38,7 +40,9 @@ describe("dashboard db bootstrap helpers", () => {
     expect(prefetchUserProfile).toHaveBeenCalledTimes(1);
     expect(deps.revalidateDashboardDbInBackground).toHaveBeenCalledWith(
       "user-1",
+      guard,
     );
+    expect(deps.setCurrentUserId).toHaveBeenCalledWith("user-1");
     expect(deps.initializeDashboardDbCollections).not.toHaveBeenCalled();
     expect(deps.persistDashboardDbToPersistence).not.toHaveBeenCalled();
   });
@@ -58,6 +62,7 @@ describe("dashboard db bootstrap helpers", () => {
     expect(deps.tryHydrateDashboardDbFromPersistence).toHaveBeenCalledWith(
       "user-2",
     );
+    expect(deps.setCurrentUserId).toHaveBeenCalledWith("user-2");
     expect(deps.initializeDashboardDbCollections).toHaveBeenCalledWith("user-2");
     expect(prefetchUserProfile).toHaveBeenCalledTimes(1);
     expect(deps.persistDashboardDbToPersistence).toHaveBeenCalledWith("user-2");

@@ -14,11 +14,18 @@ import {
 } from "@/app/dashboard/_lib/dashboard-db/dashboard-db-persistence";
 import { DASHBOARD_DB_QUERY_KEYS } from "./dashboard-db-keys";
 
+interface DashboardDbBootstrapGuard {
+  isActive?: () => boolean;
+}
+
 interface DashboardDbBootstrapDeps {
   cleanupDashboardDbCollections: () => Promise<void>;
   initializeDashboardDbCollections: (userId: string) => Promise<void>;
   persistDashboardDbToPersistence: (userId: string) => Promise<void>;
-  revalidateDashboardDbInBackground: (userId: string) => Promise<void>;
+  revalidateDashboardDbInBackground: (
+    userId: string,
+    guard?: DashboardDbBootstrapGuard,
+  ) => Promise<void>;
   removeDashboardDbQueries: (queryKey: readonly unknown[]) => void;
   resetDashboardRefreshLock: () => void;
   setCurrentUserId: (userId: string | null) => void;
@@ -49,15 +56,17 @@ export async function resetDashboardDbForSignedOutUser(
 
 export async function bootstrapDashboardDbForUser(
   args: {
+    guard?: DashboardDbBootstrapGuard;
     prefetchUserProfile: () => Promise<unknown>;
     userId: string;
   },
   deps: DashboardDbBootstrapDeps = dashboardDbBootstrapDeps,
 ) {
+  deps.setCurrentUserId(args.userId);
   const hydrated = await deps.tryHydrateDashboardDbFromPersistence(args.userId);
 
   if (hydrated) {
-    void deps.revalidateDashboardDbInBackground(args.userId);
+    void deps.revalidateDashboardDbInBackground(args.userId, args.guard);
     await args.prefetchUserProfile();
     return;
   }
