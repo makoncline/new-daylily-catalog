@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { OptimizedImage } from "@/components/optimized-image";
 import { TruncatedText } from "@/components/truncated-text";
-import { cn, formatPrice, formatRelativeDate } from "@/lib/utils";
+import { cn, formatPrice } from "@/lib/utils";
 import { type RouterOutputs } from "@/trpc/react";
 
 type CultivarPageOutput = NonNullable<
@@ -14,6 +14,13 @@ type CultivarPageOutput = NonNullable<
 >;
 type OfferRow =
   CultivarPageOutput["offers"]["gardenCards"][number]["offers"][number];
+
+const updatedDateFormatter = new Intl.DateTimeFormat("en-US", {
+  month: "short",
+  day: "numeric",
+  year: "numeric",
+  timeZone: "UTC",
+});
 
 export function getOfferViewingHref(sellerSlug: string, listingId: string) {
   const params = new URLSearchParams({ viewing: listingId });
@@ -32,6 +39,9 @@ interface CultivarOfferRowProps {
 
 export function CultivarOfferRow({ sellerSlug, offer }: CultivarOfferRowProps) {
   const listingHref = getOfferViewingHref(sellerSlug, offer.id);
+  const updatedLabel = `Updated ${updatedDateFormatter.format(
+    new Date(offer.updatedAt),
+  )}`;
 
   return (
     <div
@@ -80,7 +90,7 @@ export function CultivarOfferRow({ sellerSlug, offer }: CultivarOfferRowProps) {
             )}
 
             <Badge variant="outline" className="text-xs whitespace-nowrap">
-              {formatRelativeDate(new Date(offer.updatedAt))}
+              {updatedLabel}
             </Badge>
           </div>
         </div>
