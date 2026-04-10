@@ -1,0 +1,149 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>V2 Edited Image Gallery</title>
+    <style>
+      :root {
+        color-scheme: light;
+        font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        --bg: #f4f4f1;
+        --ink: #111111;
+        --muted: #666666;
+        --line: #d8d8d2;
+        --surface: #ffffff;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--ink);
+      }
+
+      .page {
+        padding: 12px;
+      }
+
+      .masthead {
+        display: flex;
+        align-items: flex-end;
+        justify-content: space-between;
+        gap: 12px;
+        margin-bottom: 10px;
+      }
+
+      .eyebrow {
+        font: 600 10px/1.2 ui-monospace, SFMono-Regular, Menlo, monospace;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: var(--muted);
+        margin-bottom: 4px;
+      }
+
+      h1 {
+        margin: 0;
+        font-size: 22px;
+        line-height: 1;
+      }
+
+      .meta {
+        font-size: 12px;
+        color: var(--muted);
+        margin-top: 4px;
+      }
+
+      .actions {
+        display: flex;
+        gap: 6px;
+        flex-wrap: wrap;
+      }
+
+      button,
+      a.button {
+        appearance: none;
+        border: 1px solid var(--line);
+        background: var(--surface);
+        color: var(--ink);
+        text-decoration: none;
+        padding: 7px 10px;
+        font: 600 11px/1 ui-monospace, SFMono-Regular, Menlo, monospace;
+        cursor: pointer;
+      }
+
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(108px, 1fr));
+        gap: 6px;
+      }
+
+      .tile {
+        display: grid;
+        gap: 3px;
+      }
+
+      .thumb {
+        position: relative;
+        aspect-ratio: 1 / 1;
+        overflow: hidden;
+        background: #e9e9e2;
+        border: 1px solid var(--line);
+      }
+
+      .thumb img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        display: block;
+      }
+
+      .caption {
+        font-size: 10px;
+        line-height: 1.15;
+        color: var(--ink);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      .status {
+        font-size: 9px;
+        line-height: 1;
+        color: var(--muted);
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+      }
+
+      .empty {
+        padding: 20px 0;
+        font-size: 12px;
+        color: var(--muted);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="page">
+      <div class="masthead">
+        <div>
+          <div class="eyebrow">Local Tool</div>
+          <h1>Edited Gallery</h1>
+          <div class="meta" id="meta">Loading…</div>
+        </div>
+        <div class="actions">
+          <a class="button" href="/">Review</a>
+          <button id="refresh-button" type="button">Refresh</button>
+        </div>
+      </div>
+
+      <div class="grid" id="grid">
+        <div class="empty">Loading…</div>
+      </div>
+    </div>
+
+    <script type="module" src="/gallery.mjs"></script>
+  </body>
+</html>

@@ -40,6 +40,12 @@ next-env.d.ts
 .DS_Store
 *.pem
 
+# local operator scratch space
+/downloads/v2-ahs-images/
+/downloads/v2-ahs-images-chatgpt/
+/downloads/v2-ahs-image-review/
+/local/v2-ahs-image-review/
+
 # debug
 npm-debug.log*
 yarn-debug.log*

@@ -1,0 +1,334 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>V2 Image Review</title>
+    <style>
+      :root {
+        color-scheme: light;
+        font-family: "Iowan Old Style", "Palatino Linotype", "Book Antiqua", Palatino, serif;
+        --bg: #f5f2ea;
+        --line: #d3cfc4;
+        --line-strong: #8c8679;
+        --ink: #171511;
+        --muted: #5b564d;
+        --accent: #0f766e;
+        --danger: #a16207;
+        --danger-ink: #7c2d12;
+        --surface: rgba(255, 255, 255, 0.45);
+      }
+      body {
+        margin: 0;
+        background:
+          linear-gradient(180deg, rgba(255, 255, 255, 0.48), rgba(255, 255, 255, 0)),
+          var(--bg);
+        color: var(--ink);
+      }
+      .page {
+        max-width: 1560px;
+        margin: 0 auto;
+        padding: 24px 28px 40px;
+        display: grid;
+        gap: 18px;
+      }
+      .masthead {
+        display: grid;
+        gap: 12px;
+        padding-bottom: 18px;
+        border-bottom: 1px solid var(--line-strong);
+      }
+      .topbar {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-end;
+        gap: 20px;
+        flex-wrap: wrap;
+      }
+      .eyebrow {
+        font-family: "SFMono-Regular", Menlo, Monaco, Consolas, monospace;
+        font-size: 11px;
+        letter-spacing: 0.22em;
+        text-transform: uppercase;
+        color: var(--muted);
+      }
+      h1 {
+        margin: 6px 0 0;
+        font-size: clamp(2rem, 3vw, 3rem);
+        font-weight: 700;
+        letter-spacing: -0.03em;
+      }
+      p {
+        margin: 0;
+        color: var(--muted);
+        line-height: 1.5;
+      }
+      code {
+        font-family: "SFMono-Regular", Menlo, Monaco, Consolas, monospace;
+        background: rgba(255, 255, 255, 0.7);
+        border: 1px solid var(--line);
+        border-radius: 4px;
+        padding: 1px 6px;
+        font-size: 12px;
+      }
+      .status-strip {
+        display: grid;
+        gap: 8px;
+        grid-template-columns: repeat(6, minmax(0, 1fr));
+      }
+      .status-cell {
+        display: grid;
+        gap: 2px;
+        padding: 10px 0;
+        border-top: 1px solid var(--line);
+      }
+      .toolbar {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 12px;
+        flex-wrap: wrap;
+        padding: 12px 0 14px;
+        border-bottom: 1px solid var(--line);
+      }
+      .toolbar-group {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+      .count-label {
+        font-family: "SFMono-Regular", Menlo, Monaco, Consolas, monospace;
+        font-size: 11px;
+        color: var(--muted);
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+      }
+      .count-value {
+        font-size: 22px;
+        font-weight: 700;
+      }
+      .actions {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+      .stream {
+        display: grid;
+        grid-template-columns: 1fr;
+      }
+      button {
+        border: 1px solid var(--line-strong);
+        border-radius: 0;
+        height: 38px;
+        padding: 0 14px;
+        font: 600 13px/1 "SFMono-Regular", Menlo, Monaco, Consolas, monospace;
+        letter-spacing: 0.02em;
+        cursor: pointer;
+        background: rgba(255, 255, 255, 0.68);
+        color: var(--ink);
+      }
+      .primary {
+        background: var(--ink);
+        color: #f7f4ec;
+        border-color: var(--ink);
+      }
+      .approve {
+        background: var(--accent);
+        color: #f4faf9;
+        border-color: var(--accent);
+      }
+      .reject {
+        background: #d1b885;
+        color: var(--danger-ink);
+        border-color: #9f8d67;
+      }
+      .neutral {
+        background: rgba(255, 255, 255, 0.45);
+      }
+      .queue-item {
+        display: grid;
+        gap: 14px;
+        padding: 18px 0 24px;
+        border-bottom: 1px solid var(--line);
+      }
+      .queue-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 16px;
+        flex-wrap: wrap;
+      }
+      .queue-title {
+        font-size: clamp(1.6rem, 2vw, 2.5rem);
+        font-weight: 700;
+        letter-spacing: -0.03em;
+      }
+      .queue-meta {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        align-items: center;
+        color: var(--muted);
+      }
+      .queue-meta code,
+      .page-meta code {
+        font-size: 13px;
+      }
+      .compare-wrap {
+        overflow-x: auto;
+        padding-bottom: 6px;
+      }
+      .compare-strip {
+        display: grid;
+        gap: 18px;
+        grid-template-columns: minmax(340px, 1fr) minmax(340px, 1fr);
+        min-width: 760px;
+      }
+      .compare-pane {
+        display: grid;
+        gap: 10px;
+        align-content: start;
+      }
+      .pane-label {
+        font: 600 12px/1 "SFMono-Regular", Menlo, Monaco, Consolas, monospace;
+        text-transform: uppercase;
+        letter-spacing: 0.12em;
+        color: var(--muted);
+      }
+      .image-stage {
+        display: flex;
+        justify-content: center;
+        align-items: flex-start;
+        background: var(--surface);
+        border: 1px solid var(--line);
+        padding: 12px;
+        min-height: 280px;
+      }
+      .image-stage img {
+        width: 100%;
+        max-width: 100%;
+        height: auto;
+        display: block;
+        background: #f8f5ee;
+      }
+      .empty {
+        width: 100%;
+        min-height: 280px;
+        display: grid;
+        place-items: center;
+        border: 1px dashed var(--line-strong);
+        color: var(--muted);
+        background: rgba(255, 255, 255, 0.4);
+      }
+      .meta {
+        display: grid;
+        gap: 4px;
+      }
+      .error {
+        color: var(--danger-ink);
+      }
+      .footer {
+        display: grid;
+        gap: 6px;
+        padding-top: 4px;
+        font-size: 14px;
+        color: var(--muted);
+      }
+      .pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 4px 8px;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.5);
+        border: 1px solid var(--line);
+        font: 600 12px/1 "SFMono-Regular", Menlo, Monaco, Consolas, monospace;
+        color: var(--muted);
+      }
+      label,
+      select {
+        font: 600 12px/1 "SFMono-Regular", Menlo, Monaco, Consolas, monospace;
+        color: var(--muted);
+      }
+      select {
+        height: 36px;
+        border-radius: 0;
+        border: 1px solid var(--line-strong);
+        background: rgba(255, 255, 255, 0.6);
+        padding: 0 10px;
+      }
+      .page-meta {
+        display: grid;
+        gap: 4px;
+      }
+      @media (max-width: 900px) {
+        .status-strip {
+          grid-template-columns: repeat(3, minmax(0, 1fr));
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="page">
+      <div class="masthead">
+        <div class="topbar">
+          <div>
+          <div class="eyebrow">Local Tool</div>
+          <h1>V2 Image Review</h1>
+          <p id="paths"></p>
+          </div>
+          <div class="actions">
+            <button class="neutral" type="button" onclick="location.href='/gallery'">
+              Gallery
+            </button>
+            <button class="primary" id="sync-button" type="button">
+              Sync Queue
+            </button>
+            <button class="neutral" id="refresh-button" type="button">
+              Refresh
+            </button>
+          </div>
+        </div>
+
+        <div class="status-strip" id="counts"></div>
+
+        <div class="toolbar">
+          <div class="toolbar-group">
+            <button class="neutral" id="prev-button" type="button">Previous</button>
+            <button class="neutral" id="next-button" type="button">Next</button>
+          </div>
+          <div class="toolbar-group">
+            <div class="page-meta">
+              <span class="eyebrow">Window</span>
+              <span class="pill" id="page-label">Loading…</span>
+            </div>
+          </div>
+          <div class="toolbar-group">
+            <label for="page-size">Rows</label>
+            <select id="page-size">
+              <option value="1">1</option>
+              <option value="2">2</option>
+              <option value="4" selected>4</option>
+              <option value="6">6</option>
+              <option value="8">8</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <div class="stream" id="items-grid">
+        <div class="empty">Loading…</div>
+      </div>
+
+      <div class="footer">
+        Sync command: <code>node scripts/image-processing/v2-ahs-image-review/sync.mjs</code><br />
+        ChatGPT worker: <code>node scripts/image-processing/v2-ahs-image-review/chatgpt-worker.mjs --limit 1</code><br />
+        Agent-browser worker: <code>node scripts/image-processing/v2-ahs-image-review/chatgpt-worker-agent-browser.mjs --limit 1</code><br />
+        Server command: <code>node scripts/image-processing/v2-ahs-image-review/server.mjs</code>
+      </div>
+    </div>
+
+    <script type="module" src="/app.mjs"></script>
+  </body>
+</html>
