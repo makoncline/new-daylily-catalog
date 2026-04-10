@@ -8,7 +8,6 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { LocationBadge } from "@/components/profile/profile-badges";
 import { H3, Muted, P } from "@/components/typography";
-import { formatRelativeDate } from "@/lib/utils";
 import { type RouterOutputs } from "@/trpc/react";
 import { CultivarOfferRow } from "./cultivar-offer-row";
 
@@ -17,23 +16,25 @@ type CultivarPageOutput = NonNullable<
 >;
 type OfferGardenCard = CultivarPageOutput["offers"]["gardenCards"][number];
 
-function getMemberSinceLabel(date: Date) {
-  const now = new Date();
-  const months =
-    (now.getFullYear() - date.getFullYear()) * 12 +
-    now.getMonth() -
-    date.getMonth();
+const memberSinceFormatter = new Intl.DateTimeFormat("en-US", {
+  month: "short",
+  year: "numeric",
+  timeZone: "UTC",
+});
 
-  if (months < 1) {
-    return "New member";
-  }
+const updatedDateFormatter = new Intl.DateTimeFormat("en-US", {
+  month: "short",
+  day: "numeric",
+  year: "numeric",
+  timeZone: "UTC",
+});
 
-  if (months < 12) {
-    return `Member for ${months} months`;
-  }
+function formatMemberSinceLabel(date: Date) {
+  return `Member since ${memberSinceFormatter.format(date)}`;
+}
 
-  const years = Math.floor(months / 12);
-  return `Member for ${years} ${years === 1 ? "year" : "years"}`;
+function formatUpdatedLabel(date: Date) {
+  return `Updated ${updatedDateFormatter.format(date)}`;
 }
 
 interface CultivarOfferGardenCardProps {
@@ -44,8 +45,8 @@ export function CultivarOfferGardenCard({
   gardenCard,
 }: CultivarOfferGardenCardProps) {
   const catalogHref = `/${gardenCard.slug}`;
-  const memberSinceLabel = getMemberSinceLabel(new Date(gardenCard.createdAt));
-  const updatedLabel = formatRelativeDate(new Date(gardenCard.updatedAt));
+  const memberSinceLabel = formatMemberSinceLabel(new Date(gardenCard.createdAt));
+  const updatedLabel = formatUpdatedLabel(new Date(gardenCard.updatedAt));
 
   return (
     <Card
@@ -78,7 +79,7 @@ export function CultivarOfferGardenCard({
               <Muted className="text-xs">{memberSinceLabel}</Muted>
               <Muted className="flex items-center gap-1 text-xs">
                 <Clock className="h-3 w-3" />
-                <span>Updated {updatedLabel}</span>
+                <span>{updatedLabel}</span>
               </Muted>
             </div>
 

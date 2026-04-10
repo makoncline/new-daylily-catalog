@@ -1,6 +1,8 @@
 import { act, fireEvent, render, screen } from "@testing-library/react";
+import { renderToString } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { CultivarGallery } from "@/app/(public)/cultivar/[cultivarNormalizedName]/_components/cultivar-gallery";
+import { CultivarOfferGardenCard } from "@/app/(public)/cultivar/[cultivarNormalizedName]/_components/cultivar-offer-garden-card";
 import { CultivarQuickSpecs } from "@/app/(public)/cultivar/[cultivarNormalizedName]/_components/cultivar-quick-specs";
 import {
   CultivarOfferRow,
@@ -16,6 +18,8 @@ type CultivarPageOutput = NonNullable<RouterOutputs["public"]["getCultivarPage"]
 type HeroImage = CultivarPageOutput["heroImages"][number];
 type QuickSpec = CultivarPageOutput["quickSpecs"]["all"][number];
 type Offer = CultivarPageOutput["offers"]["gardenCards"][number]["offers"][number];
+type OfferGardenCard =
+  CultivarPageOutput["offers"]["gardenCards"][number];
 type RelatedCultivar = CultivarPageOutput["relatedByHybridizer"][number];
 
 describe("cultivar page components", () => {
@@ -140,6 +144,87 @@ describe("cultivar page components", () => {
     );
     expect(screen.queryByRole("link", { name: /contact/i })).not.toBeInTheDocument();
     expect(screen.queryByText(/add to cart/i)).not.toBeInTheDocument();
+  });
+
+  it("keeps initial offer card markup stable across time boundaries", () => {
+    const offer: Offer = {
+      id: "listing-1",
+      title: "Coffee Frenzy Prime Fan",
+      slug: "coffee-frenzy-prime-fan",
+      price: 30,
+      description: null,
+      updatedAt: new Date("2026-04-30T06:30:00.000Z"),
+      imageCount: 0,
+      previewImageUrl: null,
+      lists: [],
+    };
+
+    const gardenCard: OfferGardenCard = {
+      userId: "garden-1",
+      slug: "seeded-daylily",
+      title: "Seeded Daylily",
+      description: null,
+      location: null,
+      createdAt: new Date("2026-04-15T18:00:00.000Z"),
+      updatedAt: new Date("2026-04-30T06:30:00.000Z"),
+      listingCount: 12,
+      listCount: 3,
+      profileImages: [],
+      offers: [offer],
+    };
+
+    const renderAt = (nowIso: string) => {
+      vi.setSystemTime(new Date(nowIso));
+      return renderToString(
+        <CultivarOfferGardenCard gardenCard={gardenCard} />,
+      );
+    };
+
+    vi.useFakeTimers();
+
+    try {
+      const beforeMidnightMarkup = renderAt("2026-05-01T05:59:30.000Z");
+      const afterMidnightMarkup = renderAt("2026-05-01T06:00:30.000Z");
+
+      expect(beforeMidnightMarkup).toContain("Member since Apr 2026");
+      expect(beforeMidnightMarkup).toContain("Updated Apr 30, 2026");
+      expect(afterMidnightMarkup).toBe(beforeMidnightMarkup);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("keeps initial offer row markup stable across day boundaries", () => {
+    const offer: Offer = {
+      id: "listing-1",
+      title: "Coffee Frenzy Prime Fan",
+      slug: "coffee-frenzy-prime-fan",
+      price: 30,
+      description: null,
+      updatedAt: new Date("2026-04-30T06:30:00.000Z"),
+      imageCount: 0,
+      previewImageUrl: null,
+      lists: [],
+    };
+
+    const renderAt = (nowIso: string) => {
+      vi.setSystemTime(new Date(nowIso));
+      return renderToString(
+        <CultivarOfferRow sellerSlug="seeded-daylily" offer={offer} />,
+      );
+    };
+
+    vi.useFakeTimers();
+
+    try {
+      const beforeMidnightMarkup = renderAt("2026-05-01T05:59:30.000Z");
+      const afterMidnightMarkup = renderAt("2026-05-01T06:31:00.000Z");
+
+      expect(beforeMidnightMarkup).toContain("Updated Apr 30, 2026");
+      expect(afterMidnightMarkup).toBe(beforeMidnightMarkup);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("renders related cultivar links as nofollow", () => {
