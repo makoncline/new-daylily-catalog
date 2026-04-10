@@ -1,4 +1,5 @@
 import * as React from "react";
+import Link from "next/link";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
@@ -46,15 +47,15 @@ function SaveBeforeNavigateHarness({
 
   return (
     <div>
-      <a href="/dashboard/listings" data-testid="nav-listings">
+      <Link href="/dashboard/listings" data-testid="nav-listings">
         Listings
-      </a>
-      <a href="/dashboard/lists" data-testid="nav-lists">
+      </Link>
+      <Link href="/dashboard/lists" data-testid="nav-lists">
         Lists
-      </a>
-      <a href="#section" data-testid="nav-hash">
+      </Link>
+      <Link href="#section" data-testid="nav-hash">
         Section
-      </a>
+      </Link>
     </div>
   );
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { useDebouncedCallback } from "use-debounce";
@@ -12,9 +12,15 @@ import {
   type ProfileFormData,
 } from "@/types/schemas/profile";
 import { useZodForm } from "@/hooks/use-zod-form";
+import { useManagedFormSave } from "@/hooks/use-managed-form-save";
+import { useParentCommitFlag } from "@/hooks/use-parent-commit-flag";
 import { usePro } from "@/hooks/use-pro";
 import { SLUG_INPUT_PATTERN } from "@/lib/utils/slugify";
-import { getErrorMessage, normalizeError, reportError } from "@/lib/error-utils";
+import {
+  getErrorMessage,
+  normalizeError,
+  reportError,
+} from "@/lib/error-utils";
 import {
   Form,
   FormControl,
@@ -78,18 +84,19 @@ export function ProfileForm({ initialProfile, formRef }: ProfileFormProps) {
   const [profile, setProfile] = useState(initialProfile);
   const [isUpdating, setIsUpdating] = useState(false);
   const [isCheckingSlug, setIsCheckingSlug] = useState(false);
-  const [needsParentCommit, setNeedsParentCommit] = useState(false);
   const [isContentDirty, setIsContentDirty] = useState(false);
   const [showSlugEditWarningDialog, setShowSlugEditWarningDialog] =
     useState(false);
   const [isSlugEditingUnlocked, setIsSlugEditingUnlocked] = useState(false);
   const slugInputRef = useRef<HTMLInputElement | null>(null);
   const contentFormRef = useRef<ContentManagerFormHandle | null>(null);
-  const inFlightSaveRef = useRef<Promise<boolean> | null>(null);
-  const needsParentCommitRef = useRef(needsParentCommit);
   const { isPro } = usePro();
   const utils = api.useUtils();
-  needsParentCommitRef.current = needsParentCommit;
+  const {
+    markNeedsParentCommit,
+    needsParentCommitRef,
+    resetNeedsParentCommit,
+  } = useParentCommitFlag();
 
   const cleanBaseUrl = getBaseUrl().replace(/^https?:\/\//, "");
 
@@ -98,7 +105,8 @@ export function ProfileForm({ initialProfile, formRef }: ProfileFormProps) {
     defaultValues: toFormValues(profile),
   });
 
-  const updateProfileMutation = api.dashboardDb.userProfile.update.useMutation();
+  const updateProfileMutation =
+    api.dashboardDb.userProfile.update.useMutation();
 
   const checkSlug = api.dashboardDb.userProfile.checkSlug.useQuery(
     { slug: form.watch("slug") ?? undefined },
@@ -130,15 +138,6 @@ export function ProfileForm({ initialProfile, formRef }: ProfileFormProps) {
     500,
   );
 
-  const markNeedsParentCommit = useCallback(() => {
-    if (needsParentCommitRef.current) {
-      return;
-    }
-
-    needsParentCommitRef.current = true;
-    setNeedsParentCommit(true);
-  }, []);
-
   const hasPendingChanges = useCallback(() => {
     const values = form.getValues();
     const committedValues = toFormValues(profile);
@@ -148,7 +147,7 @@ export function ProfileForm({ initialProfile, formRef }: ProfileFormProps) {
       isContentDirty ||
       needsParentCommitRef.current
     );
-  }, [form, isContentDirty, profile]);
+  }, [form, isContentDirty, needsParentCommitRef, profile]);
 
   const saveChangesInternal = useCallback(
     async (reason: ProfileFormSaveReason): Promise<boolean> => {
@@ -158,9 +157,11 @@ export function ProfileForm({ initialProfile, formRef }: ProfileFormProps) {
       }
 
       try {
-        const hadContentPending = contentFormRef.current?.hasPendingChanges() ?? false;
+        const hadContentPending =
+          contentFormRef.current?.hasPendingChanges() ?? false;
         if (hadContentPending) {
-          const didSaveContent = await contentFormRef.current?.saveChanges(reason);
+          const didSaveContent =
+            await contentFormRef.current?.saveChanges(reason);
           if (didSaveContent === false) {
             if (shouldUpdateUi) {
               toast.error("Failed to save changes", {
@@ -194,7 +195,6 @@ export function ProfileForm({ initialProfile, formRef }: ProfileFormProps) {
               return false;
             }
           }
-
         }
 
         const updatedProfile = await updateProfileMutation.mutateAsync({
@@ -202,8 +202,7 @@ export function ProfileForm({ initialProfile, formRef }: ProfileFormProps) {
         });
         setProfile(updatedProfile);
         form.reset(toFormValues(updatedProfile), { keepIsValid: true });
-        needsParentCommitRef.current = false;
-        setNeedsParentCommit(false);
+        resetNeedsParentCommit();
         utils.dashboardDb.userProfile.get.setData(undefined, updatedProfile);
         void utils.dashboardDb.userProfile.get.invalidate();
         toast.success("Changes saved");
@@ -226,39 +225,25 @@ export function ProfileForm({ initialProfile, formRef }: ProfileFormProps) {
         }
       }
     },
-    [form, markNeedsParentCommit, profile, updateProfileMutation, utils],
+    [
+      form,
+      markNeedsParentCommit,
+      needsParentCommitRef,
+      profile,
+      resetNeedsParentCommit,
+      updateProfileMutation,
+      utils,
+    ],
   );
 
-  const saveChanges = useCallback(
-    async (reason: ProfileFormSaveReason): Promise<boolean> => {
-      if (inFlightSaveRef.current) {
-        return inFlightSaveRef.current;
-      }
-
-      if (!hasPendingChanges()) {
-        return true;
-      }
-
-      const savePromise = saveChangesInternal(reason);
-      inFlightSaveRef.current = savePromise;
-      try {
-        return await savePromise;
-      } finally {
-        if (inFlightSaveRef.current === savePromise) {
-          inFlightSaveRef.current = null;
-        }
-      }
-    },
-    [hasPendingChanges, saveChangesInternal],
-  );
-
-  useEffect(() => {
-    if (!formRef) {
-      return;
-    }
-
-    formRef.current = { saveChanges, hasPendingChanges };
-  }, [formRef, hasPendingChanges, saveChanges]);
+  const { saveChanges } = useManagedFormSave<
+    ProfileFormSaveReason,
+    ProfileFormHandle
+  >({
+    formRef,
+    hasPendingChanges,
+    save: saveChangesInternal,
+  });
 
   async function onSubmit() {
     await saveChanges("manual");
@@ -303,10 +288,7 @@ export function ProfileForm({ initialProfile, formRef }: ProfileFormProps) {
   return (
     <>
       <Form {...form}>
-        <form
-          onSubmit={form.handleSubmit(onSubmit)}
-          className="space-y-6"
-        >
+        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
           <FormField
             control={form.control}
             name="title"

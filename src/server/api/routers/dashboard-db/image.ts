@@ -14,7 +14,12 @@ import {
   buildProfileImageMutationRefs,
   getSellerCultivarMutationRefs,
 } from "./public-isr-reference-helpers";
-import { invalidatePublicIsrForReferences } from "./public-isr-invalidation";
+import {
+  assertOwnedListing,
+  assertOwnedProfile,
+  invalidateDashboardMutation,
+  parseDashboardSyncSince,
+} from "./dashboard-db-router-helpers";
 
 const imageSelect = {
   id: true,
@@ -28,33 +33,6 @@ const imageSelect = {
 } as const;
 
 type DbClient = typeof db;
-type OwnedContext = { db: DbClient; user: { id: string } };
-
-async function assertListingOwned(ctx: OwnedContext, listingId: string) {
-  const listing = await ctx.db.listing.findFirst({
-    where: { id: listingId, userId: ctx.user.id },
-    select: { id: true },
-  });
-  if (!listing) {
-    throw new TRPCError({
-      code: "NOT_FOUND",
-      message: "Listing not found",
-    });
-  }
-}
-
-async function assertProfileOwned(ctx: OwnedContext, userProfileId: string) {
-  const profile = await ctx.db.userProfile.findFirst({
-    where: { id: userProfileId, userId: ctx.user.id },
-    select: { id: true },
-  });
-  if (!profile) {
-    throw new TRPCError({
-      code: "NOT_FOUND",
-      message: "Profile not found",
-    });
-  }
-}
 
 async function getImageInvalidationReferences(args: {
   db: DbClient;
@@ -85,9 +63,17 @@ export const dashboardDbImageRouter = createTRPCRouter({
     )
     .mutation(async ({ ctx, input }) => {
       if (input.type === "listing") {
-        await assertListingOwned(ctx, input.referenceId);
+        await assertOwnedListing({
+          db: ctx.db,
+          listingId: input.referenceId,
+          userId: ctx.user.id,
+        });
       } else {
-        await assertProfileOwned(ctx, input.referenceId);
+        await assertOwnedProfile({
+          db: ctx.db,
+          userId: ctx.user.id,
+          userProfileId: input.referenceId,
+        });
       }
 
       const s3Client = new S3Client({
@@ -142,7 +128,7 @@ export const dashboardDbImageRouter = createTRPCRouter({
   sync: protectedProcedure
     .input(z.object({ since: z.iso.datetime().nullable() }))
     .query(async ({ ctx, input }) => {
-      const since = input.since ? new Date(input.since) : undefined;
+      const since = parseDashboardSyncSince(input.since);
       return ctx.db.image.findMany({
         where: {
           OR: [
@@ -167,9 +153,17 @@ export const dashboardDbImageRouter = createTRPCRouter({
     )
     .mutation(async ({ ctx, input }) => {
       if (input.type === "listing") {
-        await assertListingOwned(ctx, input.referenceId);
+        await assertOwnedListing({
+          db: ctx.db,
+          listingId: input.referenceId,
+          userId: ctx.user.id,
+        });
       } else {
-        await assertProfileOwned(ctx, input.referenceId);
+        await assertOwnedProfile({
+          db: ctx.db,
+          userId: ctx.user.id,
+          userProfileId: input.referenceId,
+        });
       }
 
       const whereClause =
@@ -190,7 +184,7 @@ export const dashboardDbImageRouter = createTRPCRouter({
         select: imageSelect,
       });
 
-      await invalidatePublicIsrForReferences({
+      await invalidateDashboardMutation({
         db: ctx.db,
         requestUrl: ctx.requestUrl,
         references: await getImageInvalidationReferences({
@@ -215,9 +209,17 @@ export const dashboardDbImageRouter = createTRPCRouter({
     )
     .mutation(async ({ ctx, input }) => {
       if (input.type === "listing") {
-        await assertListingOwned(ctx, input.referenceId);
+        await assertOwnedListing({
+          db: ctx.db,
+          listingId: input.referenceId,
+          userId: ctx.user.id,
+        });
       } else {
-        await assertProfileOwned(ctx, input.referenceId);
+        await assertOwnedProfile({
+          db: ctx.db,
+          userId: ctx.user.id,
+          userProfileId: input.referenceId,
+        });
       }
 
       const existing = await ctx.db.image.findUnique({
@@ -247,7 +249,7 @@ export const dashboardDbImageRouter = createTRPCRouter({
         select: imageSelect,
       });
 
-      await invalidatePublicIsrForReferences({
+      await invalidateDashboardMutation({
         db: ctx.db,
         requestUrl: ctx.requestUrl,
         references: await getImageInvalidationReferences({
@@ -273,9 +275,17 @@ export const dashboardDbImageRouter = createTRPCRouter({
     )
     .mutation(async ({ ctx, input }) => {
       if (input.type === "listing") {
-        await assertListingOwned(ctx, input.referenceId);
+        await assertOwnedListing({
+          db: ctx.db,
+          listingId: input.referenceId,
+          userId: ctx.user.id,
+        });
       } else {
-        await assertProfileOwned(ctx, input.referenceId);
+        await assertOwnedProfile({
+          db: ctx.db,
+          userId: ctx.user.id,
+          userProfileId: input.referenceId,
+        });
       }
 
       const whereClause =
@@ -309,7 +319,7 @@ export const dashboardDbImageRouter = createTRPCRouter({
         ),
       );
 
-      await invalidatePublicIsrForReferences({
+      await invalidateDashboardMutation({
         db: ctx.db,
         requestUrl: ctx.requestUrl,
         references: await getImageInvalidationReferences({
@@ -333,9 +343,17 @@ export const dashboardDbImageRouter = createTRPCRouter({
     )
     .mutation(async ({ ctx, input }) => {
       if (input.type === "listing") {
-        await assertListingOwned(ctx, input.referenceId);
+        await assertOwnedListing({
+          db: ctx.db,
+          listingId: input.referenceId,
+          userId: ctx.user.id,
+        });
       } else {
-        await assertProfileOwned(ctx, input.referenceId);
+        await assertOwnedProfile({
+          db: ctx.db,
+          userId: ctx.user.id,
+          userProfileId: input.referenceId,
+        });
       }
 
       const whereClause =
@@ -362,7 +380,7 @@ export const dashboardDbImageRouter = createTRPCRouter({
         );
       });
 
-      await invalidatePublicIsrForReferences({
+      await invalidateDashboardMutation({
         db: ctx.db,
         requestUrl: ctx.requestUrl,
         references: await getImageInvalidationReferences({

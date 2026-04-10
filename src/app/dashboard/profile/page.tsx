@@ -2,16 +2,16 @@
 
 import { useRef } from "react";
 import { api } from "@/trpc/react";
-import {
-  ProfileForm,
-  type ProfileFormHandle,
-} from "@/components/forms/profile-form";
-import { PageHeader } from "../_components/page-header";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { MainContent } from "@/app/(public)/_components/main-content";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useSaveBeforeNavigate } from "@/hooks/use-save-before-navigate";
+import {
+  ProfileForm,
+  type ProfileFormHandle,
+} from "@/components/forms/profile-form";
+import { PageHeader } from "@/components/page-header";
 
 export default function ProfilePage() {
   const formRef = useRef<ProfileFormHandle | null>(null);

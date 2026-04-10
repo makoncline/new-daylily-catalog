@@ -27,6 +27,7 @@ import type { ImageType } from "@/types/image";
 import { Skeleton } from "@/components/ui/skeleton";
 import { OptimizedImage } from "@/components/optimized-image";
 import { ImagePreviewDialog } from "@/components/image-preview-dialog";
+import { useConfirmableAsyncAction } from "@/hooks/use-confirmable-async-action";
 import { getErrorMessage, normalizeError, reportError } from "@/lib/error-utils";
 import {
   deleteImage,
@@ -86,28 +87,36 @@ export function ImageManager({
   referenceId,
   type,
 }: ImageManagerProps) {
-  const [isPending, setIsPending] = useState(false);
   const [imageToDelete, setImageToDelete] = useState<Image | null>(null);
+  const {
+    isDialogOpen: isDeleteDialogOpen,
+    isPending,
+    openDialog: openDeleteDialog,
+    runAction: confirmDelete,
+    setIsDialogOpen: setIsDeleteDialogOpen,
+  } = useConfirmableAsyncAction({
+    action: async () => {
+      if (!imageToDelete) {
+        return;
+      }
 
-  const sensors = useSensors(
-    useSensor(PointerSensor),
-    useSensor(KeyboardSensor, {
-      coordinateGetter: sortableKeyboardCoordinates,
-    }),
-  );
-
-  async function handleImageDelete(image: Image) {
-    setIsPending(true);
-    try {
       await deleteImage({
         type,
         referenceId,
-        imageId: image.id,
+        imageId: imageToDelete.id,
       });
-      onImagesChange?.(images.filter((img) => img.id !== image.id));
+    },
+    onSuccess: () => {
+      if (!imageToDelete) {
+        return;
+      }
+
+      onImagesChange?.(images.filter((img) => img.id !== imageToDelete.id));
       toast.success("Image deleted successfully");
       onMutationSuccess?.();
-    } catch (error) {
+      setImageToDelete(null);
+    },
+    onError: (error) => {
       toast.error("Failed to delete image", {
         description: getErrorMessage(error),
       });
@@ -115,11 +124,15 @@ export function ImageManager({
         error: normalizeError(error),
         context: { source: "ImageManager" },
       });
-    } finally {
-      setIsPending(false);
-      setImageToDelete(null);
-    }
-  }
+    },
+  });
+
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    }),
+  );
 
   async function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event;
@@ -209,7 +222,10 @@ export function ImageManager({
                         className="absolute right-2 bottom-2 size-8"
                         data-testid="image-delete-button"
                         data-image-id={image.id}
-                        onClick={() => setImageToDelete(image)}
+                        onClick={() => {
+                          setImageToDelete(image);
+                          openDeleteDialog();
+                        }}
                       >
                         <Trash2 className="h-4 w-4" />
                         <span className="sr-only">Delete image</span>
@@ -224,11 +240,19 @@ export function ImageManager({
       </div>
 
       <DeleteConfirmDialog
-        open={!!imageToDelete}
-        onOpenChange={() => setImageToDelete(null)}
+        open={isDeleteDialogOpen}
+        onOpenChange={(open) => {
+          setIsDeleteDialogOpen(open);
+          if (!open) {
+            setImageToDelete(null);
+          }
+        }}
         onConfirm={() => {
-          if (!imageToDelete) return;
-          void handleImageDelete(imageToDelete);
+          if (!imageToDelete) {
+            return;
+          }
+
+          void confirmDelete();
         }}
         title="Delete Image"
         description="Are you sure you want to delete this image? This action cannot be undone."

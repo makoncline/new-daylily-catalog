@@ -1,7 +1,7 @@
 "use server";
 
 import { notFound, permanentRedirect } from "next/navigation";
-import { getPublicProfilePagePath, parsePositiveInteger } from "@/lib/public-catalog-url-state";
+import { buildLegacyUserRedirectPath } from "@/lib/legacy-route-redirects";
 import { db } from "@/server/db";
 
 interface UsersLegacyRoutePageProps {
@@ -9,26 +9,6 @@ interface UsersLegacyRoutePageProps {
     userId: string;
   }>;
   searchParams: Promise<Record<string, string | string[] | undefined>>;
-}
-
-function toQueryString(
-  searchParams: Record<string, string | string[] | undefined>,
-): string {
-  const params = new URLSearchParams();
-
-  Object.entries(searchParams).forEach(([key, value]) => {
-    if (typeof value === "string") {
-      params.append(key, value);
-      return;
-    }
-
-    value?.forEach((entry) => {
-      params.append(key, entry);
-    });
-  });
-
-  const queryString = params.toString();
-  return queryString ? `?${queryString}` : "";
 }
 
 export default async function UsersLegacyRoutePage({
@@ -55,15 +35,10 @@ export default async function UsersLegacyRoutePage({
   }
 
   const canonicalUserSlug = user.profile?.slug ?? user.id;
-  const page = parsePositiveInteger(
-    Array.isArray(resolvedSearchParams.page)
-      ? resolvedSearchParams.page[0]
-      : resolvedSearchParams.page,
-    1,
+  permanentRedirect(
+    buildLegacyUserRedirectPath({
+      canonicalUserSlug,
+      searchParams: resolvedSearchParams,
+    }),
   );
-  const redirectPath = getPublicProfilePagePath(canonicalUserSlug, page);
-  const nextSearchParams = { ...resolvedSearchParams };
-  delete nextSearchParams.page;
-
-  permanentRedirect(`${redirectPath}${toQueryString(nextSearchParams)}`);
 }

@@ -7,8 +7,6 @@ import {
   type RowSelectionState,
   type Table,
 } from "@tanstack/react-table";
-import { useLiveQuery } from "@tanstack/react-db";
-import type { Image } from "@prisma/client";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -16,32 +14,18 @@ import { EmptyState } from "@/components/empty-state";
 import { DataTable } from "@/components/data-table/data-table";
 import { DataTableLayout } from "@/components/data-table/data-table-layout";
 import { DataTablePagination } from "@/components/data-table/data-table-pagination";
-import { DataTableGlobalFilter } from "@/components/data-table/data-table-global-filter";
-import { DataTableFacetedFilter } from "@/components/data-table/data-table-faceted-filter";
-import { DataTableFilteredCount } from "@/components/data-table/data-table-filtered-count";
-import { DataTableFilterReset } from "@/components/data-table/data-table-filter-reset";
-import { DataTableViewOptions } from "@/components/data-table/data-table-view-options";
 import { useDataTable } from "@/hooks/use-data-table";
 import { APP_CONFIG } from "@/config/constants";
-import { type RouterOutputs } from "@/trpc/react";
-import { getQueryClient } from "@/trpc/query-client";
-import { listingsCollection } from "@/app/dashboard/_lib/dashboard-db/listings-collection";
-import { listsCollection } from "@/app/dashboard/_lib/dashboard-db/lists-collection";
-import { imagesCollection } from "@/app/dashboard/_lib/dashboard-db/images-collection";
-import { cultivarReferencesCollection } from "@/app/dashboard/_lib/dashboard-db/cultivar-references-collection";
 import {
   baseListingColumns,
   type ListingData,
 } from "@/app/dashboard/listings/_components/columns";
+import { useDashboardListingReadModel } from "@/app/dashboard/_lib/dashboard-db/use-dashboard-listing-read-model";
 import {
   TagDesignerPanel,
   type TagListingData,
 } from "./tag-designer-panel";
-
-type List = RouterOutputs["dashboardDb"]["list"]["list"][number];
-type Listing = RouterOutputs["dashboardDb"]["listing"]["list"][number];
-type CultivarReference =
-  RouterOutputs["dashboardDb"]["cultivarReference"]["listForUserListings"][number];
+import { DashboardListingFilterToolbar } from "@/app/dashboard/_components/dashboard-listing-filter-toolbar";
 
 const tagPrintColumns: ColumnDef<ListingData>[] = [
   {
@@ -167,163 +151,9 @@ function SelectedListingsBadges({ table, listingsById }: SelectedListingsBadgesP
   );
 }
 
-interface TagPrintToolbarProps {
-  table: Table<ListingData>;
-  lists: List[];
-  listings: ListingData[];
-}
-
-function TagPrintToolbar({ table, lists, listings }: TagPrintToolbarProps) {
-  const listsColumn = table.getColumn("lists");
-  const listOptions = lists.map((list) => ({
-    label: list.title,
-    value: list.id,
-    count: listings.filter((listing) =>
-      listing.lists.some((listingList) => listingList.id === list.id),
-    ).length,
-  }));
-
-  return (
-    <div className="flex flex-col gap-2">
-      <div className="flex items-center justify-end sm:hidden">
-        <DataTableViewOptions table={table} />
-      </div>
-
-      <div className="flex flex-1 flex-col items-start gap-2 sm:flex-row sm:items-center">
-        <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
-          <div className="flex items-center gap-2">
-            <DataTableGlobalFilter
-              table={table}
-              placeholder="Filter listings to tag..."
-            />
-            <DataTableFacetedFilter
-              column={listsColumn}
-              title="Lists"
-              options={listOptions}
-              table={table}
-            />
-          </div>
-
-          <div className="flex items-center gap-2">
-            <DataTableFilteredCount table={table} />
-            <DataTableFilterReset table={table} />
-          </div>
-        </div>
-
-        <div className="hidden flex-1 sm:block" />
-        <div className="hidden sm:block">
-          <DataTableViewOptions table={table} />
-        </div>
-      </div>
-    </div>
-  );
-}
-
 export function TagPrintTable() {
-  const { data: baseListings = [], isReady: isListingsReady } = useLiveQuery(
-    (q) =>
-      q
-        .from({ listing: listingsCollection })
-        .orderBy(({ listing }) => listing.createdAt, "desc"),
-  );
-  const { data: lists = [], isReady: isListsReady } = useLiveQuery((q) =>
-    q
-      .from({ list: listsCollection })
-      .orderBy(({ list }) => list.createdAt, "desc"),
-  );
-  const { data: images = [], isReady: isImagesReady } = useLiveQuery((q) =>
-    q
-      .from({ img: imagesCollection })
-      .orderBy(({ img }) => img.updatedAt, "asc"),
-  );
-  const { data: cultivarReferences = [], isReady: isCultivarReferencesReady } =
-    useLiveQuery((q) =>
-      q
-        .from({ ref: cultivarReferencesCollection })
-        .orderBy(({ ref }) => ref.updatedAt, "asc"),
-    );
-
-  const queryClient = getQueryClient();
-  const seededListings =
-    queryClient.getQueryData<Listing[]>(["dashboard-db", "listings"]) ?? [];
-  const seededLists =
-    queryClient.getQueryData<List[]>(["dashboard-db", "lists"]) ?? [];
-  const seededImages =
-    queryClient.getQueryData<Image[]>(["dashboard-db", "images"]) ?? [];
-  const seededCultivarReferences =
-    queryClient.getQueryData<CultivarReference[]>([
-      "dashboard-db",
-      "cultivar-references",
-    ]) ?? [];
-
-  const effectiveListings = isListingsReady ? baseListings : seededListings;
-  const effectiveLists = isListsReady ? lists : seededLists;
-  const effectiveImages = isImagesReady ? images : seededImages;
-  const effectiveCultivarReferences = isCultivarReferencesReady
-    ? cultivarReferences
-    : seededCultivarReferences;
-
-  const listsByListingId = React.useMemo(() => {
-    const map = new Map<string, Array<Pick<List, "id" | "title">>>();
-
-    for (const list of effectiveLists) {
-      for (const { id: listingId } of list.listings) {
-        const row = map.get(listingId) ?? [];
-        row.push({ id: list.id, title: list.title });
-        map.set(listingId, row);
-      }
-    }
-
-    return map;
-  }, [effectiveLists]);
-
-  const imagesByListingId = React.useMemo(() => {
-    const map = new Map<string, Image[]>();
-
-    for (const image of effectiveImages) {
-      if (!image.listingId) continue;
-      const row = map.get(image.listingId) ?? [];
-      row.push(image);
-      map.set(image.listingId, row);
-    }
-
-    for (const row of map.values()) {
-      row.sort((a, b) => a.order - b.order);
-    }
-
-    return map;
-  }, [effectiveImages]);
-
-  const cultivarReferenceById = React.useMemo(() => {
-    const map = new Map<string, CultivarReference>();
-    effectiveCultivarReferences.forEach((row) => map.set(row.id, row));
-    return map;
-  }, [effectiveCultivarReferences]);
-
-  const listings = React.useMemo<ListingData[]>(() => {
-    return effectiveListings.map((listing) => {
-      const ref = listing.cultivarReferenceId
-        ? cultivarReferenceById.get(listing.cultivarReferenceId)
-        : null;
-
-      return {
-        ...listing,
-        images: imagesByListingId.get(listing.id) ?? [],
-        lists: listsByListingId.get(listing.id) ?? [],
-        ahsListing: ref?.ahsListing ?? null,
-      };
-    });
-  }, [
-    cultivarReferenceById,
-    effectiveListings,
-    imagesByListingId,
-    listsByListingId,
-  ]);
-
-  const listingsById = React.useMemo(
-    () => new Map(listings.map((l) => [l.id, l])),
-    [listings],
-  );
+  const { listingRows: listings, lists, listingsById } =
+    useDashboardListingReadModel();
 
   const table = useDataTable({
     data: listings,
@@ -350,7 +180,7 @@ export function TagPrintTable() {
     rowSelection,
   });
 
-  if (!effectiveListings.length) {
+  if (!listings.length) {
     return (
       <EmptyState
         title="No listings"
@@ -368,7 +198,12 @@ export function TagPrintTable() {
       <DataTableLayout
         table={table}
         toolbar={
-          <TagPrintToolbar table={table} lists={effectiveLists} listings={listings} />
+          <DashboardListingFilterToolbar
+            table={table}
+            lists={lists}
+            listings={listings}
+            placeholder="Filter listings to tag..."
+          />
         }
         pagination={
           <DataTablePagination

@@ -1,3 +1,4 @@
+import type * as Jotai from "jotai";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { CreateListingDialog } from "@/app/dashboard/listings/_components/create-listing-dialog";
@@ -18,14 +19,17 @@ vi.mock("@/trpc/react", () => ({
 }));
 
 vi.mock("@/app/dashboard/_lib/dashboard-db/listings-collection", () => ({
-  insertListing: async (input: { title: string; cultivarReferenceId: string | null }) => {
+  insertListing: async (input: {
+    title: string;
+    cultivarReferenceId: string | null;
+  }) => {
     mockInsertListing(input);
     return { id: "listing-1", title: input.title };
   },
 }));
 
 vi.mock("jotai", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("jotai")>();
+  const actual = await importOriginal<typeof Jotai>();
   return {
     ...actual,
     useSetAtom: () => mockSetEditingId,
@@ -69,10 +73,28 @@ vi.mock("sonner", () => ({
 }));
 
 vi.mock("@/lib/error-utils", () => ({
-  getErrorMessage: vi.fn((error: unknown) =>
-    error instanceof Error ? error.message : String(error ?? "Unknown error"),
-  ),
-  normalizeError: vi.fn((error) => error),
+  getErrorMessage: vi.fn((error: unknown) => {
+    if (error instanceof Error) {
+      return error.message;
+    }
+
+    if (typeof error === "string") {
+      return error;
+    }
+
+    return "Unknown error";
+  }),
+  normalizeError: vi.fn((error: unknown) => {
+    if (error instanceof Error) {
+      return error;
+    }
+
+    if (typeof error === "string") {
+      return new Error(error);
+    }
+
+    return new Error("Unknown error");
+  }),
   reportError: vi.fn(),
 }));
 

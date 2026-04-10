@@ -7,8 +7,8 @@ import {
   buildProfileMutationRefs,
   getSellerCultivarMutationRefs,
 } from "./public-isr-reference-helpers";
-import { invalidatePublicIsrForReferences } from "./public-isr-invalidation";
 import type { PrismaClient } from "@prisma/client";
+import { invalidateDashboardMutation } from "./dashboard-db-router-helpers";
 
 const profileSelect = {
   id: true,
@@ -144,7 +144,7 @@ export const dashboardDbUserProfileRouter = createTRPCRouter({
         select: profileSelect,
       });
 
-      await invalidatePublicIsrForReferences({
+      await invalidateDashboardMutation({
         db: ctx.db,
         requestUrl: ctx.requestUrl,
         references: buildProfileMutationRefs(ctx.user.id).concat(
@@ -178,7 +178,7 @@ export const dashboardDbUserProfileRouter = createTRPCRouter({
         select: profileSelect,
       });
 
-      await invalidatePublicIsrForReferences({
+      await invalidateDashboardMutation({
         db: ctx.db,
         requestUrl: ctx.requestUrl,
         references: buildProfileMutationRefs(ctx.user.id).concat(

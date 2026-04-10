@@ -1,12 +1,9 @@
 import { reportError } from "@/lib/error-utils";
 import { METADATA_CONFIG } from "@/config/constants";
+import type { PublicPageMetadata } from "./public-seo";
 
 // Define minimal metadata shape needed for JSON-LD
-type MetadataInput = {
-  url: string;
-  description: string;
-  [key: string]: unknown;
-};
+type MetadataInput = Pick<PublicPageMetadata, "description" | "url">;
 
 const HOME_PAGE_FAQ = [
   {

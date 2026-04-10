@@ -1,112 +1,62 @@
+import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 import { createTRPCRouter, publicProcedure } from "../trpc";
-import { db } from "@/server/db";
-import { TRPCError } from "@trpc/server";
-import {
-  getListingIdFromSlugOrId,
-} from "@/server/db/getPublicProfile";
-import {
-  listingSelect,
-  transformListings,
-} from "@/server/db/getPublicListings";
+import { getListingIdFromSlugOrId } from "@/server/db/getPublicProfile";
+import { transformListings } from "@/server/db/public-listing-read-model";
 import {
   getCachedCultivarRouteSegments,
   getCachedPublicCultivarPage,
+  getCachedPublicListingDetail,
   getCachedPublicListings,
   getCachedPublicProfile,
   getCachedPublicUserIdFromSlugOrId,
   getCachedPublicProfiles,
 } from "@/server/db/public-cache";
-import { SESClient, SendEmailCommand } from "@aws-sdk/client-ses";
-import { env, requireEnv } from "@/env";
+import { sendPublicInquiry } from "@/server/services/public-inquiry";
 import { cartItemSchema } from "@/types";
-import { withResolvedDisplayAhsListing } from "@/lib/utils/ahs-display";
-import { createServerCache } from "@/lib/cache/server-cache";
-import { CACHE_CONFIG } from "@/config/cache-config";
-import { isPublished } from "@/server/db/public-visibility/filters";
-import { getCanonicalBaseUrl } from "@/lib/utils/getBaseUrl";
 
-function getSesClient() {
-  return new SESClient({
-    region: requireEnv("AWS_REGION", env.AWS_REGION),
-    credentials: {
-      accessKeyId: requireEnv("AWS_ACCESS_KEY_ID", env.AWS_ACCESS_KEY_ID),
-      secretAccessKey: requireEnv(
-        "AWS_SECRET_ACCESS_KEY",
-        env.AWS_SECRET_ACCESS_KEY,
-      ),
-    },
-  });
-}
+async function runPublicQuery<T>(args: {
+  handler: () => Promise<T>;
+  logMessage: string;
+  message: string;
+  preserveTrpcError?: boolean;
+  includeCause?: boolean;
+}) {
+  try {
+    return await args.handler();
+  } catch (error) {
+    if (args.preserveTrpcError !== false && error instanceof TRPCError) {
+      throw error;
+    }
 
-async function getFullListingData(listingId: string) {
-  const listing = await db.listing.findFirst({
-    where: { id: listingId, ...isPublished() },
-    select: listingSelect,
-  });
-
-  if (!listing) {
+    console.error(args.logMessage, error);
     throw new TRPCError({
-      code: "NOT_FOUND",
-      message: "Listing not found",
+      code: "INTERNAL_SERVER_ERROR",
+      message: args.message,
+      ...(args.includeCause ? { cause: error } : {}),
     });
   }
-
-  const displayListing = withResolvedDisplayAhsListing(listing);
-  const displayAhsListing = displayListing.ahsListing;
-
-  // Transform the listing to include AHS image if available
-  return {
-    ...displayListing,
-    userSlug: listing.user.profile?.slug ?? listing.userId,
-    images:
-      displayListing.images.length === 0 && displayAhsListing?.ahsImageUrl
-        ? [
-            {
-              id: `ahs-${displayListing.id}`,
-              url: displayAhsListing.ahsImageUrl,
-              updatedAt: displayListing.updatedAt,
-            },
-          ]
-        : displayListing.images,
-  };
 }
 
-const getCachedFullListingData = createServerCache(getFullListingData, {
-  key: "public:listing-detail",
-  revalidateSeconds: CACHE_CONFIG.PUBLIC.SEARCH.SERVER_REVALIDATE_SECONDS,
-  tags: [CACHE_CONFIG.TAGS.PUBLIC_LISTING_DETAIL],
-});
-
 export const publicRouter = createTRPCRouter({
-  getPublicProfiles: publicProcedure.query(async () => {
-    try {
-      return await getCachedPublicProfiles();
-    } catch (error) {
-      console.error("TRPC Error fetching public profiles:", error);
-      throw new TRPCError({
-        code: "INTERNAL_SERVER_ERROR",
-        message: "Failed to fetch public profiles",
-      });
-    }
-  }),
+  getPublicProfiles: publicProcedure.query(async () =>
+    runPublicQuery({
+      handler: () => getCachedPublicProfiles(),
+      logMessage: "TRPC Error fetching public profiles:",
+      message: "Failed to fetch public profiles",
+      preserveTrpcError: false,
+    }),
+  ),
 
   getProfile: publicProcedure
     .input(z.object({ userSlugOrId: z.string() }))
-    .query(async ({ input }) => {
-      try {
-        return await getCachedPublicProfile(input.userSlugOrId);
-      } catch (error) {
-        if (error instanceof TRPCError) {
-          throw error;
-        }
-        console.error("Error fetching public profile:", error);
-        throw new TRPCError({
-          code: "INTERNAL_SERVER_ERROR",
-          message: "Failed to fetch public profile",
-        });
-      }
-    }),
+    .query(async ({ input }) =>
+      runPublicQuery({
+        handler: () => getCachedPublicProfile(input.userSlugOrId),
+        logMessage: "Error fetching public profile:",
+        message: "Failed to fetch public profile",
+      }),
+    ),
 
   getListings: publicProcedure
     .input(
@@ -116,46 +66,35 @@ export const publicRouter = createTRPCRouter({
         cursor: z.string().optional(),
       }),
     )
-    .query(async ({ input }) => {
-      try {
-        const userId = await getCachedPublicUserIdFromSlugOrId(
-          input.userSlugOrId,
-        );
-        const items = await getCachedPublicListings({
-          userId,
-          limit: input.limit,
-          cursor: input.cursor,
-        });
+    .query(async ({ input }) =>
+      runPublicQuery({
+        handler: async () => {
+          const userId = await getCachedPublicUserIdFromSlugOrId(
+            input.userSlugOrId,
+          );
+          const items = await getCachedPublicListings({
+            userId,
+            limit: input.limit,
+            cursor: input.cursor,
+          });
 
-        return transformListings(items);
-      } catch (error) {
-        if (error instanceof TRPCError) {
-          throw error;
-        }
-        throw new TRPCError({
-          code: "INTERNAL_SERVER_ERROR",
-          message: "Failed to fetch public listings",
-          cause: error,
-        });
-      }
-    }),
+          return transformListings(items);
+        },
+        logMessage: "Error fetching public listings:",
+        message: "Failed to fetch public listings",
+        includeCause: true,
+      }),
+    ),
 
   getListingById: publicProcedure
     .input(z.object({ id: z.string() }))
-    .query(async ({ input }) => {
-      try {
-        return await getCachedFullListingData(input.id);
-      } catch (error) {
-        if (error instanceof TRPCError) {
-          throw error;
-        }
-        console.error("Error fetching listing:", error);
-        throw new TRPCError({
-          code: "INTERNAL_SERVER_ERROR",
-          message: "Failed to fetch listing",
-        });
-      }
-    }),
+    .query(async ({ input }) =>
+      runPublicQuery({
+        handler: () => getCachedPublicListingDetail(input.id),
+        logMessage: "Error fetching listing:",
+        message: "Failed to fetch listing",
+      }),
+    ),
 
   getListing: publicProcedure
     .input(
@@ -164,28 +103,23 @@ export const publicRouter = createTRPCRouter({
         listingSlugOrId: z.string(),
       }),
     )
-    .query(async ({ input }) => {
-      try {
-        const userId = await getCachedPublicUserIdFromSlugOrId(
-          input.userSlugOrId,
-        );
-        const listingId = await getListingIdFromSlugOrId(
-          input.listingSlugOrId,
-          userId,
-        );
+    .query(async ({ input }) =>
+      runPublicQuery({
+        handler: async () => {
+          const userId = await getCachedPublicUserIdFromSlugOrId(
+            input.userSlugOrId,
+          );
+          const listingId = await getListingIdFromSlugOrId(
+            input.listingSlugOrId,
+            userId,
+          );
 
-        return await getCachedFullListingData(listingId);
-      } catch (error) {
-        if (error instanceof TRPCError) {
-          throw error;
-        }
-        console.error("Error fetching listing:", error);
-        throw new TRPCError({
-          code: "INTERNAL_SERVER_ERROR",
-          message: "Failed to fetch listing",
-        });
-      }
-    }),
+          return getCachedPublicListingDetail(listingId);
+        },
+        logMessage: "Error fetching listing:",
+        message: "Failed to fetch listing",
+      }),
+    ),
 
   getCultivarPage: publicProcedure
     .input(
@@ -193,37 +127,22 @@ export const publicRouter = createTRPCRouter({
         cultivarNormalizedName: z.string(),
       }),
     )
-    .query(async ({ input }) => {
-      try {
-        return await getCachedPublicCultivarPage(input.cultivarNormalizedName);
-      } catch (error) {
-        if (error instanceof TRPCError) {
-          throw error;
-        }
-        console.error("Error fetching cultivar page:", error);
-        throw new TRPCError({
-          code: "INTERNAL_SERVER_ERROR",
-          message: "Failed to fetch cultivar page",
-        });
-      }
+    .query(async ({ input }) =>
+      runPublicQuery({
+        handler: () => getCachedPublicCultivarPage(input.cultivarNormalizedName),
+        logMessage: "Error fetching cultivar page:",
+        message: "Failed to fetch cultivar page",
+      }),
+    ),
+
+  getCultivarRouteSegments: publicProcedure.query(async () =>
+    runPublicQuery({
+      handler: () => getCachedCultivarRouteSegments(),
+      logMessage: "Error fetching cultivar route segments:",
+      message: "Failed to fetch cultivar route segments",
     }),
+  ),
 
-  getCultivarRouteSegments: publicProcedure.query(async () => {
-    try {
-      return await getCachedCultivarRouteSegments();
-    } catch (error) {
-      if (error instanceof TRPCError) {
-        throw error;
-      }
-      console.error("Error fetching cultivar route segments:", error);
-      throw new TRPCError({
-        code: "INTERNAL_SERVER_ERROR",
-        message: "Failed to fetch cultivar route segments",
-      });
-    }
-  }),
-
-  // Message sending functionality
   sendMessage: publicProcedure
     .input(
       z.object({
@@ -234,245 +153,5 @@ export const publicRouter = createTRPCRouter({
         items: z.array(cartItemSchema).optional(),
       }),
     )
-    .mutation(
-      async ({ input }): Promise<{ success: boolean; message: string }> => {
-        try {
-          const ses = getSesClient();
-
-          // Fetch the user's data
-          const user = await db.user.findUnique({
-            where: { id: input.userId },
-            include: {
-              profile: true,
-            },
-          });
-
-          if (!user) {
-            throw new TRPCError({
-              code: "NOT_FOUND",
-              message: "User not found",
-            });
-          }
-
-          // Get the user's email from Clerk
-          const clerkUserId = user.clerkUserId;
-          if (!clerkUserId) {
-            throw new TRPCError({
-              code: "INTERNAL_SERVER_ERROR",
-              message: "User does not have a Clerk account",
-            });
-          }
-
-          // Fetch clerk user data which contains the email
-          const clerkUserData = await (
-            await import("@/server/clerk/sync-user")
-          ).getClerkUserData(clerkUserId);
-          const userEmail = clerkUserData?.email;
-
-          if (!userEmail) {
-            throw new TRPCError({
-              code: "INTERNAL_SERVER_ERROR",
-              message: "Could not find user's email",
-            });
-          }
-
-          const catalogUrl = `${getCanonicalBaseUrl()}/${user.profile?.slug ?? user.id}`;
-
-          // Set up the subject and body for the emails
-          const customerDisplayName =
-            input.customerName && input.customerName.trim() !== ""
-              ? input.customerName
-              : input.customerEmail;
-
-          // Check if there are cart items in the message
-          const hasCartItems = input.items && input.items.length > 0;
-
-          // Extract clean message without cart items
-          let cleanedMessage = "";
-
-          if (input.message && input.message.trim() !== "") {
-            const trimmedMessage = input.message.trim();
-            const cartItemsIndex = trimmedMessage.indexOf("--- Cart Items ---");
-
-            if (cartItemsIndex !== -1) {
-              const messageBeforeCart = trimmedMessage
-                .substring(0, cartItemsIndex)
-                .trim();
-              cleanedMessage = messageBeforeCart || "";
-            } else {
-              cleanedMessage = trimmedMessage;
-            }
-          }
-
-          // If no cart items, the message should be required
-          // If there are cart items, message is optional
-          if (!hasCartItems && cleanedMessage === "") {
-            throw new TRPCError({
-              code: "BAD_REQUEST",
-              message: "Message is required when no items are in the cart",
-            });
-          }
-
-          // Format cleaned message for display (handle empty case based on cart items)
-          const formattedMessage =
-            cleanedMessage !== ""
-              ? cleanedMessage
-              : hasCartItems
-                ? "(No message provided.)"
-                : ""; // This shouldn't happen due to the check above
-
-          // Calculate subtotal for cart items if they exist
-          let subtotal = 0;
-          let formattedItems = "(No items selected)";
-
-          if (hasCartItems && input.items) {
-            // Calculate subtotal without dividing by 100
-            subtotal = input.items.reduce(
-              (sum, item) => sum + (item.price ?? 0) * item.quantity,
-              0,
-            );
-
-            // Format the items list without dividing prices by 100
-            formattedItems = input.items
-              .map(
-                (item) =>
-                  `- ${item.title} – Qty: ${item.quantity}${
-                    item.price ? ` ($${item.price.toFixed(2)} each)` : ""
-                  }`,
-              )
-              .join("\n");
-          }
-
-          // Update the user email body with the correct subtotal formatting
-          const userEmailBody = `Hello ${user.profile?.title ?? "Seller"},
-
-You've received a new customer inquiry through Daylily Catalog.
-
-Customer Information:
-- ${input.customerName ? `Name: ${input.customerName}` : "Name: (Not provided)"}
-- Email: ${input.customerEmail}
-
-${
-  cleanedMessage
-    ? `Customer's Message:
-${formattedMessage}`
-    : ""
-}
-
-${
-  hasCartItems
-    ? `Customer's Selected Items:
-${formattedItems}
-
-Subtotal: $${subtotal.toFixed(2)}
-Note: Final pricing, shipping, and handling are at your discretion.`
-    : "No items were selected."
-}
-
----
-
-To reply, contact the customer at: ${input.customerEmail}
-
-This is an automated message from Daylily Catalog. Please do not reply.
-View your catalog: ${catalogUrl}
-`;
-
-          // Update the customer email body with the correct subtotal formatting
-          const customerEmailBody = `Hello ${customerDisplayName},
-
-Thank you for contacting ${user.profile?.title ?? "the seller"} through Daylily Catalog!
-
-We've forwarded your inquiry, and someone from ${user.profile?.title ?? "the seller"} will respond soon.
-
-Your Information:
-- Email: ${input.customerEmail}
-${input.customerName ? `- Name: ${input.customerName}` : "- Name: (Not provided)"}
-
-${
-  cleanedMessage
-    ? `Your Message:
-${formattedMessage}`
-    : ""
-}
-
-${
-  hasCartItems
-    ? `Items you're interested in:
-${formattedItems}
-
-Subtotal: $${subtotal.toFixed(2)}
-(Note: Final pricing, shipping, and handling may vary at the discretion of the seller.)`
-    : ""
-}
-
----
-
-Continue exploring ${user.profile?.title ?? "the seller"}'s collection here:
-${catalogUrl}
-
-This is an automated confirmation from Daylily Catalog. Please do not reply.
-`;
-
-          // Send email to the user
-          const sendToUser = new SendEmailCommand({
-            Destination: {
-              ToAddresses: [userEmail],
-              BccAddresses: [
-                "admin@daylilycatalog.com",
-                "makon+daylilycatalog-messages@hey.com",
-              ], // BCC to site owner and personal email
-            },
-            Message: {
-              Body: {
-                Text: {
-                  Charset: "UTF-8",
-                  Data: userEmailBody,
-                },
-              },
-              Subject: {
-                Charset: "UTF-8",
-                Data: `New Customer Inquiry | Daylily Catalog`,
-              },
-            },
-            Source: "daylily-catalog <noreply@daylilycatalog.com>",
-            ReplyToAddresses: [input.customerEmail],
-          });
-
-          // Send confirmation email to the customer
-          const sendToCustomer = new SendEmailCommand({
-            Destination: {
-              ToAddresses: [input.customerEmail],
-              BccAddresses: ["makon+daylilycatalog-messages@hey.com"], // BCC to personal email
-            },
-            Message: {
-              Body: {
-                Text: {
-                  Charset: "UTF-8",
-                  Data: customerEmailBody,
-                },
-              },
-              Subject: {
-                Charset: "UTF-8",
-                Data: `We've received your inquiry! | ${user.profile?.title ?? "Daylily Catalog"} 🌸`,
-              },
-            },
-            Source: "daylily-catalog <noreply@daylilycatalog.com>",
-          });
-
-          // Send both emails
-          await Promise.all([ses.send(sendToUser), ses.send(sendToCustomer)]);
-
-          return {
-            success: true,
-            message: "Message sent successfully",
-          };
-        } catch (error) {
-          console.error("Error sending message:", error);
-          throw new TRPCError({
-            code: "INTERNAL_SERVER_ERROR",
-            message: "Failed to send message",
-          });
-        }
-      },
-    ),
+    .mutation(async ({ input }) => sendPublicInquiry(input)),
 });

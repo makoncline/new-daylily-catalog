@@ -1,14 +1,10 @@
 import { METADATA_CONFIG } from "@/config/constants";
-import type { getCachedPublicCultivarPage } from "@/server/db/public-cache";
-
-type CultivarPage = NonNullable<
-  Awaited<ReturnType<typeof getCachedPublicCultivarPage>>
->;
+import type { CultivarPageData } from "../_lib/cultivar-page-route";
 
 export function generateCultivarJsonLd(
   baseUrl: string,
   canonicalSegment: string,
-  cultivarPage: CultivarPage,
+  cultivarPage: CultivarPageData,
 ) {
   const pageUrl = `${baseUrl}/cultivar/${canonicalSegment}`;
   const productOffers = cultivarPage.offers.gardenCards.flatMap((garden) =>

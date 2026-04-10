@@ -8,12 +8,11 @@ import {
 } from "@tanstack/react-table";
 import { defaultTableConfig } from "@/lib/table-config";
 import { getFilterableColumnIds } from "@/lib/table-utils";
-import { useTableUrlSync, useUrlInitialTableState } from "./use-table-url-sync";
-import {
-  useTableLocalStorageSync,
-  useLocalStorageInitialTableState,
-} from "./use-table-local-storage-sync";
 import { LISTING_TABLE_COLUMN_NAMES } from "@/config/constants";
+import {
+  useInitialPersistedTableState,
+  useSyncPersistedTableState,
+} from "./use-persisted-table-state";
 
 interface UseDataTableProps<TData> {
   data: TData[];
@@ -43,9 +42,10 @@ export function useDataTable<TData>({
 }: UseDataTableProps<TData>): Table<TData> {
   const filterableColumnIds = getFilterableColumnIds(columns);
 
-  // Get initial state from URL and local storage
-  const urlState = useUrlInitialTableState({ filterableColumnIds });
-  const localStorageState = useLocalStorageInitialTableState({ storageKey });
+  const persistedState = useInitialPersistedTableState({
+    filterableColumnIds,
+    storageKey,
+  });
 
   // TanStack Table's hook intentionally returns mutable APIs; React Compiler warning is expected here.
   // eslint-disable-next-line react-hooks/incompatible-library
@@ -61,19 +61,17 @@ export function useDataTable<TData>({
         (columnNames[columnId] as unknown as string) ?? columnId,
     },
     initialState: {
-      sorting: urlState.globalFilter ? [{ id: "title", desc: false }] : [],
+      sorting: persistedState.globalFilter
+        ? [{ id: "title", desc: false }]
+        : [],
       ...initialStateOverrides,
-      ...urlState,
-      ...localStorageState,
+      ...persistedState,
     },
     autoResetPageIndex: false,
     ...config,
   });
 
-  // Sync table state
-  const state = table.getState();
-  useTableUrlSync(table);
-  useTableLocalStorageSync(state);
+  useSyncPersistedTableState(table);
 
   return table;
 }

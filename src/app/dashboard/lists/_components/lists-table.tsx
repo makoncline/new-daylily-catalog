@@ -1,7 +1,6 @@
 "use client";
 
 import * as React from "react";
-import { useLiveQuery } from "@tanstack/react-db";
 import { DataTable } from "@/components/data-table/data-table";
 import { DataTableLayout } from "@/components/data-table/data-table-layout";
 import { DataTablePagination } from "@/components/data-table/data-table-pagination";
@@ -18,7 +17,8 @@ import {
   listsCollection,
   type ListCollectionItem,
 } from "@/app/dashboard/_lib/dashboard-db/lists-collection";
-import { getQueryClient } from "@/trpc/query-client";
+import { DASHBOARD_DB_QUERY_KEYS } from "@/app/dashboard/_lib/dashboard-db/dashboard-db-keys";
+import { useSeededDashboardDbQuery } from "@/app/dashboard/_lib/dashboard-db/use-seeded-dashboard-db-query";
 
 type List = ListCollectionItem;
 
@@ -71,17 +71,13 @@ function NoResults({ filtered = false }) {
 }
 
 function ListsTableLive() {
-  const { data: baseLists = [], isReady } = useLiveQuery((q) =>
-    q
-      .from({ list: listsCollection })
-      .orderBy(({ list }) => list.createdAt, "desc"),
-  );
-
-  const queryClient = getQueryClient();
-  const seededLists =
-    queryClient.getQueryData<List[]>(["dashboard-db", "lists"]) ?? [];
-
-  const lists = isReady ? baseLists : seededLists;
+  const { data: lists = [] } = useSeededDashboardDbQuery<List>({
+    query: (q) =>
+      q
+        .from({ list: listsCollection })
+        .orderBy(({ list }) => list.createdAt, "desc"),
+    queryKey: DASHBOARD_DB_QUERY_KEYS.lists,
+  });
 
   const table = useDataTable({
     data: lists,

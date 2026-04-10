@@ -2,7 +2,7 @@
 
 import { CreateListButton } from "./_components/create-list-button";
 import { ListsTable } from "./_components/lists-table";
-import { PageHeader } from "../_components/page-header";
+import { PageHeader } from "@/components/page-header";
 import { EditListDialog } from "./_components/edit-list-dialog";
 
 export default function ListsPage() {

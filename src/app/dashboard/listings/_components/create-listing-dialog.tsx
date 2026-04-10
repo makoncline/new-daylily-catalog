@@ -3,15 +3,7 @@
 import { useState } from "react";
 import { api } from "@/trpc/react";
 import { toast } from "sonner";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { P } from "@/components/typography";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import {
@@ -25,6 +17,8 @@ import { editingListingIdAtom } from "./edit-listing-dialog";
 import { getErrorMessage, normalizeError, reportError } from "@/lib/error-utils";
 import { APP_CONFIG } from "@/config/constants";
 import { insertListing } from "@/app/dashboard/_lib/dashboard-db/listings-collection";
+import { useManagedDialogOpen } from "@/hooks/use-managed-dialog-open";
+import { ManagedCreateDialog } from "@/app/dashboard/_components/managed-create-dialog";
 
 /**
  * Dialog for creating a new daylily listing.
@@ -36,13 +30,13 @@ export function CreateListingDialog({
 }: {
   onOpenChange: (open: boolean) => void;
 }) {
-  // Always initialize as open
-  const [open, setOpen] = useState(true);
   const [title, setTitle] = useState("");
   const [selectedResult, setSelectedResult] = useState<AhsSearchResult | null>(
     null,
   );
   const [isPending, setIsPending] = useState(false);
+  const { closeDialog, handleOpenChange, open } =
+    useManagedDialogOpen(onOpenChange);
 
   const setEditingId = useSetAtom(editingListingIdAtom);
 
@@ -105,8 +99,7 @@ export function CreateListingDialog({
         description: `${newListing.title} has been created.`,
       });
 
-      setOpen(false);
-      onOpenChange(false);
+      closeDialog();
       setEditingId(newListing.id);
     } catch (error) {
       toast.error("Failed to create listing", {
@@ -121,84 +114,57 @@ export function CreateListingDialog({
     }
   };
 
-  const handleCancel = () => {
-    setOpen(false);
-    onOpenChange(false);
-  };
-
-  const handleOpenChange = (newOpen: boolean) => {
-    setOpen(newOpen);
-    if (!newOpen) {
-      onOpenChange(newOpen);
-    }
-  };
-
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Create New Listing</DialogTitle>
-          <P className="text-muted-foreground text-sm">
-            Create a new daylily listing by providing a title or selecting from
-            the AHS database.
-          </P>
-        </DialogHeader>
-        <div className="space-y-4 py-4">
-          {/* AHS Listing Selection */}
-          <div className="space-y-2">
-            <Label htmlFor="ahs-listing">AHS Database Listing (optional)</Label>
-            <AhsListingSelect
-              onSelect={handleAhsListingSelect}
-              disabled={isPending}
-            />
+    <ManagedCreateDialog
+      cancelDisabled={isPending}
+      confirmDisabled={isPending || (!title.trim() && !selectedResult)}
+      confirmLabel="Create Listing"
+      description="Create a new daylily listing by providing a title or selecting from the AHS database."
+      onCancel={closeDialog}
+      onConfirm={handleCreate}
+      onOpenChange={handleOpenChange}
+      open={open}
+      title="Create New Listing"
+    >
+      <div className="space-y-2">
+        <Label htmlFor="ahs-listing">AHS Database Listing (optional)</Label>
+        <AhsListingSelect
+          onSelect={handleAhsListingSelect}
+          disabled={isPending}
+        />
 
-            {selectedResult && detailedAhsListing && (
-              <div className="mt-4">
-                <Separator className="my-4" />
-                <AhsListingDisplay ahsListing={detailedAhsListing} />
-                <Separator className="my-4" />
-              </div>
-            )}
+        {selectedResult && detailedAhsListing && (
+          <div className="mt-4">
+            <Separator className="my-4" />
+            <AhsListingDisplay ahsListing={detailedAhsListing} />
+            <Separator className="my-4" />
           </div>
+        )}
+      </div>
 
-          {/* Title Input */}
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <Label htmlFor="title">Listing Title</Label>
-              {selectedResult && (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  onClick={syncTitleWithAhs}
-                  disabled={isPending}
-                >
-                  Sync with AHS name
-                </Button>
-              )}
-            </div>
-            <Input
-              id="title"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder={selectedResult?.name ?? "Enter a title"}
+      <div className="space-y-2">
+        <div className="flex items-center justify-between">
+          <Label htmlFor="title">Listing Title</Label>
+          {selectedResult && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={syncTitleWithAhs}
               disabled={isPending}
-            />
-          </div>
+            >
+              Sync with AHS name
+            </Button>
+          )}
         </div>
-
-        <DialogFooter>
-          <Button variant="outline" onClick={handleCancel} disabled={isPending}>
-            Cancel
-          </Button>
-          <Button
-            onClick={handleCreate}
-            disabled={isPending || (!title.trim() && !selectedResult)}
-          >
-            Create Listing
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+        <Input
+          id="title"
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          placeholder={selectedResult?.name ?? "Enter a title"}
+          disabled={isPending}
+        />
+      </div>
+    </ManagedCreateDialog>
   );
 }

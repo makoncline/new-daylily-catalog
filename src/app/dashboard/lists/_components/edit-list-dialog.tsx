@@ -1,133 +1,57 @@
 "use client";
 
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-} from "@/components/ui/dialog";
-import { ErrorBoundary } from "react-error-boundary";
-import { ErrorFallback } from "@/components/error-fallback";
 import { reportError } from "@/lib/error-utils";
 import {
   ListForm,
   type ListFormHandle,
 } from "@/components/forms/list-form";
 import { ListFormSkeleton } from "@/components/forms/list-form-skeleton";
-import { useRef, useEffect, Suspense } from "react";
-import { atom, useAtom } from "jotai";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useSaveBeforeNavigate } from "@/hooks/use-save-before-navigate";
+import { atom } from "jotai";
+import { useAtomDialogSearchParam } from "@/hooks/use-dialog-search-param";
+import { ManagedEditDialog } from "@/app/dashboard/_components/managed-edit-dialog";
 
 // Atom for editing state
 export const editingListIdAtom = atom<string | null>(null);
 
 export const useEditList = () => {
-  const [editingId, setEditingId] = useAtom(editingListIdAtom);
-  const router = useRouter();
-  const pathname = usePathname();
-  const searchParams = useSearchParams();
-  const hasInitialized = useRef(false);
-
-  // Sync atom state to URL for persistence
-  useEffect(() => {
-    if (!hasInitialized.current) {
-      return;
-    }
-
-    const params = new URLSearchParams(searchParams.toString());
-
-    if (editingId) {
-      params.set("editing", editingId);
-    } else {
-      params.delete("editing");
-    }
-
-    const nextSearch = params.toString();
-    const newUrl = nextSearch ? `${pathname}?${nextSearch}` : pathname;
-    const currentSearch = searchParams.toString();
-    const currentUrl = currentSearch
-      ? `${pathname}?${currentSearch}`
-      : pathname;
-
-    if (newUrl !== currentUrl) {
-      router.replace(newUrl);
-    }
-  }, [editingId, pathname, router, searchParams]);
-
-  // Initialize from URL on first load
-  useEffect(() => {
-    if (hasInitialized.current) {
-      return;
-    }
-
-    const urlEditingId = searchParams.get("editing");
-    if (urlEditingId) {
-      setEditingId(urlEditingId);
-    }
-
-    hasInitialized.current = true;
-  }, [searchParams, setEditingId]);
+  const { close, open, value } = useAtomDialogSearchParam({
+    atom: editingListIdAtom,
+    history: "replace",
+    paramName: "editing",
+  });
 
   return {
     editList: (id: string) => {
-      setEditingId(id);
+      open(id);
     },
     closeEditList: () => {
-      setEditingId(null);
+      close();
     },
-    editingId,
+    editingId: value,
   };
 };
 
 export function EditListDialog() {
   const { editingId, closeEditList } = useEditList();
-  const formRef = useRef<ListFormHandle | null>(null);
-  const isOpen = !!editingId;
-  useSaveBeforeNavigate(formRef, "navigate", isOpen);
-
-  const handleOpenChange = async (open: boolean) => {
-    if (!open) {
-      // Save any pending changes before closing
-      const didSave = await formRef.current?.saveChanges("close");
-      if (didSave === false) {
-        return;
-      }
-      closeEditList();
-    }
-  };
 
   return (
-    <Dialog open={isOpen} onOpenChange={handleOpenChange}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Edit List</DialogTitle>
-          <DialogDescription>Make changes to your list here.</DialogDescription>
-        </DialogHeader>
-
-        <div className="h-[calc(100%-4rem)]">
-          {editingId && (
-            <ErrorBoundary
-              fallback={<ErrorFallback resetErrorBoundary={closeEditList} />}
-              onError={(error, errorInfo) =>
-                reportError({
-                  error,
-                  context: { source: "EditListDialog", errorInfo },
-                })
-              }
-            >
-              <Suspense fallback={<ListFormSkeleton />}>
-                <ListForm
-                  formRef={formRef}
-                  listId={editingId}
-                  onDelete={closeEditList}
-                />
-              </Suspense>
-            </ErrorBoundary>
-          )}
-        </div>
-      </DialogContent>
-    </Dialog>
+    <ManagedEditDialog<ListFormHandle>
+      contentWrapperClassName="h-[calc(100%-4rem)]"
+      description="Make changes to your list here."
+      entityId={editingId}
+      fallback={<ListFormSkeleton />}
+      isOpen={!!editingId}
+      onClose={closeEditList}
+      onError={(error, errorInfo) =>
+        reportError({
+          error,
+          context: { source: "EditListDialog", errorInfo },
+        })
+      }
+      renderForm={(id, formRef, onClose) => (
+        <ListForm formRef={formRef} listId={id} onDelete={onClose} />
+      )}
+      title="Edit List"
+    />
   );
 }

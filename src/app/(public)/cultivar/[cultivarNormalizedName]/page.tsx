@@ -2,12 +2,7 @@ import { notFound, permanentRedirect } from "next/navigation";
 import { type Metadata } from "next";
 import { MainContent } from "@/app/(public)/_components/main-content";
 import { Breadcrumbs } from "@/components/breadcrumbs";
-import { METADATA_CONFIG } from "@/config/constants";
-import { IMAGES } from "@/lib/constants/images";
-import { getOptimizedMetaImageUrl } from "@/lib/utils/cloudflareLoader";
 import { getCanonicalBaseUrl } from "@/lib/utils/getBaseUrl";
-import { toCultivarRouteSegment } from "@/lib/utils/cultivar-utils";
-import { getCachedPublicCultivarPage } from "@/server/db/public-cache";
 import { IsrWrittenAt } from "@/app/(public)/_components/isr-written-at";
 import { SellerIntentLink } from "@/components/seller-intent-link";
 import { buttonVariants } from "@/components/ui/button";
@@ -21,6 +16,10 @@ import { CultivarGardenPhotosSection } from "./_components/cultivar-garden-photo
 import { CultivarOffersSection } from "./_components/cultivar-offers-section";
 import { Muted } from "@/components/typography";
 import { generateCultivarJsonLd } from "./_seo/json-ld";
+import {
+  getCultivarPageMetadata,
+  getCultivarPageRouteArtifacts,
+} from "./_lib/cultivar-page-route";
 
 export const revalidate = false;
 export const dynamic = "force-static";
@@ -35,79 +34,18 @@ export async function generateMetadata({
   params,
 }: PageProps): Promise<Metadata> {
   const { cultivarNormalizedName } = await params;
-  const cultivarPage = await getCachedPublicCultivarPage(cultivarNormalizedName);
-
-  if (!cultivarPage) {
-    return {
-      title: "Cultivar Not Found",
-      description: "The cultivar you are looking for does not exist.",
-      robots: "noindex, nofollow",
-    };
-  }
-
-  const baseUrl = getCanonicalBaseUrl();
-  const canonicalSegment = toCultivarRouteSegment(
-    cultivarPage.cultivar.normalizedName,
-  );
-
-  if (!canonicalSegment) {
-    return {
-      title: "Cultivar Not Found",
-      description: "The cultivar you are looking for does not exist.",
-      robots: "noindex, nofollow",
-    };
-  }
-
-  const title = `${cultivarPage.summary.name} | ${METADATA_CONFIG.SITE_NAME}`;
-  const description = `${cultivarPage.summary.name} with ${cultivarPage.offers.summary.offersCount} public offers across ${cultivarPage.offers.summary.gardensCount} catalogs.`;
-  const pageUrl = `${baseUrl}/cultivar/${canonicalSegment}`;
-  const rawImageUrl = cultivarPage.heroImages[0]?.url ?? IMAGES.DEFAULT_META;
-  const imageUrl = getOptimizedMetaImageUrl(rawImageUrl);
-
-  return {
-    title,
-    description,
-    alternates: {
-      canonical: `/cultivar/${canonicalSegment}`,
-    },
-    openGraph: {
-      title,
-      description,
-      url: pageUrl,
-      siteName: METADATA_CONFIG.SITE_NAME,
-      locale: METADATA_CONFIG.LOCALE,
-      type: "website",
-      images: [
-        {
-          url: imageUrl,
-          width: 1200,
-          height: 630,
-          alt: `${cultivarPage.summary.name} daylily cultivar`,
-        },
-      ],
-    },
-    twitter: {
-      card: METADATA_CONFIG.TWITTER_CARD_TYPE,
-      title,
-      description,
-      site: METADATA_CONFIG.TWITTER_HANDLE,
-      images: [imageUrl],
-    },
-  };
+  return getCultivarPageMetadata(cultivarNormalizedName);
 }
 
 export default async function CultivarPage({ params }: PageProps) {
   const { cultivarNormalizedName } = await params;
 
-  const cultivarPage = await getCachedPublicCultivarPage(cultivarNormalizedName);
-
-  if (!cultivarPage) {
+  const artifacts = await getCultivarPageRouteArtifacts(cultivarNormalizedName);
+  if (!artifacts) {
     notFound();
   }
 
-  const canonicalSegment = toCultivarRouteSegment(
-    cultivarPage.cultivar.normalizedName,
-  );
+  const { canonicalSegment, cultivarPage, routeSegment } = artifacts;
 
   if (canonicalSegment && cultivarNormalizedName !== canonicalSegment) {
     permanentRedirect(`/cultivar/${canonicalSegment}`);
@@ -116,7 +54,7 @@ export default async function CultivarPage({ params }: PageProps) {
   const baseUrl = getCanonicalBaseUrl();
   const jsonLd = generateCultivarJsonLd(
     baseUrl,
-    canonicalSegment ?? cultivarNormalizedName,
+    routeSegment,
     cultivarPage,
   );
 
@@ -151,7 +89,7 @@ export default async function CultivarPage({ params }: PageProps) {
                 className={cn(buttonVariants({ size: "sm" }))}
                 entrySurface="cultivar_page_inline_cta"
                 sourcePageType="cultivar"
-                sourcePath={`/cultivar/${canonicalSegment ?? cultivarNormalizedName}`}
+                sourcePath={`/cultivar/${routeSegment}`}
                 ctaId="cultivar-inline-create-catalog"
                 ctaLabel="Create your catalog"
               >
@@ -184,7 +122,7 @@ export default async function CultivarPage({ params }: PageProps) {
       </div>
 
       <IsrWrittenAt
-        routePath={`/cultivar/${canonicalSegment ?? cultivarNormalizedName}`}
+        routePath={`/cultivar/${routeSegment}`}
         routeType="cultivar_page"
       />
     </MainContent>
