@@ -55,6 +55,7 @@ function createV2AhsCultivar(
     post_title: "V2 Name",
     introduction_date: "2024-09-15",
     primary_hybridizer_name: "V2 Hybridizer",
+    hybridizer_code_legacy: null,
     additional_hybridizers_names: "Partner Hybridizer",
     bloom_season_names: "Late",
     fragrance_names: "Heavy",
@@ -89,13 +90,14 @@ describe("getDisplayAhsListing", () => {
     expect(displayAhsListing).toEqual(legacyAhsListing);
   });
 
-  it("maps V2 fields without mixing legacy display fields when the feature flag is on", () => {
+  it("prefers the V2 primary hybridizer name when the feature flag is on", () => {
     process.env.NEXT_PUBLIC_USE_V2_CULTIVAR_DISPLAY_DATA = "true";
 
     const displayAhsListing = getDisplayAhsListing({
       cultivarReference: {
         ahsListing: createLegacyAhsListing(),
         v2AhsCultivar: createV2AhsCultivar({
+          hybridizer_code_legacy: "Legacy Hybridizer",
           color: null,
           fragrance_names: null,
         }),
@@ -106,7 +108,7 @@ describe("getDisplayAhsListing", () => {
       id: "v2-1",
       name: "V2 Name",
       ahsImageUrl: "https://example.com/v2.jpg",
-      hybridizer: "V2 Hybridizer, Partner Hybridizer",
+      hybridizer: "V2 Hybridizer",
       year: "2024",
       scapeHeight: "36 inches",
       bloomSize: "7.5 inches",
@@ -121,6 +123,57 @@ describe("getDisplayAhsListing", () => {
       color: null,
       fragrance: null,
     });
+  });
+
+  it("falls back to the legacy hybridizer code when the V2 primary hybridizer is blank", () => {
+    process.env.NEXT_PUBLIC_USE_V2_CULTIVAR_DISPLAY_DATA = "true";
+
+    const displayAhsListing = getDisplayAhsListing({
+      cultivarReference: {
+        ahsListing: createLegacyAhsListing(),
+        v2AhsCultivar: createV2AhsCultivar({
+          primary_hybridizer_name: "   ",
+          hybridizer_code_legacy: "Reimer",
+          additional_hybridizers_names: null,
+        }),
+      },
+    });
+
+    expect(displayAhsListing?.hybridizer).toBe("Reimer");
+  });
+
+  it("HTML-decodes the legacy hybridizer fallback before display", () => {
+    process.env.NEXT_PUBLIC_USE_V2_CULTIVAR_DISPLAY_DATA = "true";
+
+    const displayAhsListing = getDisplayAhsListing({
+      cultivarReference: {
+        ahsListing: createLegacyAhsListing(),
+        v2AhsCultivar: createV2AhsCultivar({
+          primary_hybridizer_name: null,
+          hybridizer_code_legacy: "Thibault-Lipp&eacute; &amp; Gregory-CJ",
+          additional_hybridizers_names: null,
+        }),
+      },
+    });
+
+    expect(displayAhsListing?.hybridizer).toBe("Thibault-Lippé & Gregory-CJ");
+  });
+
+  it("falls back to unknown when V2 hybridizer fields are unavailable", () => {
+    process.env.NEXT_PUBLIC_USE_V2_CULTIVAR_DISPLAY_DATA = "true";
+
+    const displayAhsListing = getDisplayAhsListing({
+      cultivarReference: {
+        ahsListing: createLegacyAhsListing(),
+        v2AhsCultivar: createV2AhsCultivar({
+          primary_hybridizer_name: null,
+          hybridizer_code_legacy: "   ",
+          additional_hybridizers_names: "Partner Hybridizer",
+        }),
+      },
+    });
+
+    expect(displayAhsListing?.hybridizer).toBe("unknown");
   });
 
   it("returns null when the feature flag is on and V2 data is unavailable", () => {

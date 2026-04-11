@@ -86,6 +86,7 @@ describe("dashboardDb.ahs", () => {
         post_title: "V2 Coffee Frenzy",
         introduction_date: "2024-09-15",
         primary_hybridizer_name: "V2 Hybridizer",
+        hybridizer_code_legacy: null,
         additional_hybridizers_names: null,
         bloom_season_names: "Late",
         fragrance_names: null,
@@ -119,6 +120,67 @@ describe("dashboardDb.ahs", () => {
       fragrance: null,
       color: null,
       parentage: "(V2 A x V2 B)",
+    });
+  });
+
+  it("falls back to the decoded legacy hybridizer code for dashboard cultivar detail reads", async () => {
+    process.env.NEXT_PUBLIC_USE_V2_CULTIVAR_DISPLAY_DATA = "true";
+
+    const db = createMockDb();
+    db.cultivarReference.findUnique.mockResolvedValue({
+      ahsListing: {
+        id: "ahs-1",
+        name: "Legacy Coffee Frenzy",
+        ahsImageUrl: "https://example.com/legacy.jpg",
+        hybridizer: "Legacy Hybridizer",
+        year: "2012",
+        scapeHeight: "36 inches",
+        bloomSize: "6 inches",
+        bloomSeason: "Midseason",
+        form: "Single",
+        ploidy: "Tet",
+        foliageType: "Dormant",
+        bloomHabit: "Diurnal",
+        budcount: "24",
+        branches: "5",
+        sculpting: null,
+        foliage: null,
+        flower: null,
+        fragrance: "Light",
+        parentage: "(Legacy A x Legacy B)",
+        color: "Legacy color",
+      },
+      v2AhsCultivar: {
+        id: "v2-legacy-fallback",
+        post_title: "V2 Coffee Frenzy",
+        introduction_date: "2024-09-15",
+        primary_hybridizer_name: "  ",
+        hybridizer_code_legacy: "Thibault-Lipp&eacute;",
+        additional_hybridizers_names: null,
+        bloom_season_names: "Late",
+        fragrance_names: null,
+        bloom_habit_names: "Extended",
+        foliage_names: "Evergreen",
+        ploidy_names: "Diploid",
+        scape_height_in: 42,
+        bloom_size_in: 7.5,
+        bud_count: 30,
+        branches: 6,
+        color: null,
+        flower_form_names: "Double",
+        unusual_forms_names: "Crispate",
+        parentage: "(V2 A x V2 B)",
+        image_url: "https://example.com/v2.jpg",
+      },
+    });
+
+    const caller = createCaller(db);
+    const result = await caller.get({ id: "ahs-1" });
+
+    expect(result).toMatchObject({
+      id: "v2-legacy-fallback",
+      hybridizer: "Thibault-Lippé",
+      year: "2024",
     });
   });
 
@@ -158,6 +220,7 @@ describe("dashboardDb.ahs", () => {
           post_title: "V2 Coffee Frenzy",
           introduction_date: "2024-09-15",
           primary_hybridizer_name: "V2 Hybridizer",
+          hybridizer_code_legacy: null,
           additional_hybridizers_names: null,
           bloom_season_names: null,
           fragrance_names: null,

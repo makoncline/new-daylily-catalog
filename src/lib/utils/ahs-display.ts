@@ -29,6 +29,7 @@ export const v2AhsCultivarDisplaySelect = {
   post_title: true,
   introduction_date: true,
   primary_hybridizer_name: true,
+  hybridizer_code_legacy: true,
   additional_hybridizers_names: true,
   bloom_season_names: true,
   fragrance_names: true,
@@ -82,6 +83,43 @@ export type WithResolvedDisplayAhsListing<TSource extends AhsDisplaySource> =
         }
       : unknown);
 
+const directNamedHtmlEntities: Record<string, string> = {
+  amp: "&",
+  apos: "'",
+  quot: '"',
+  lt: "<",
+  gt: ">",
+  nbsp: " ",
+  rsquo: "’",
+  lsquo: "‘",
+  rdquo: "”",
+  ldquo: "“",
+  mdash: "—",
+  ndash: "–",
+  hellip: "…",
+  middot: "·",
+  AElig: "Æ",
+  Oslash: "Ø",
+  aelig: "æ",
+  oslash: "ø",
+  yuml: "ÿ",
+  szlig: "ß",
+} as const;
+
+const combiningMarks: Record<string, string> = {
+  acute: "\u0301",
+  grave: "\u0300",
+  circ: "\u0302",
+  tilde: "\u0303",
+  uml: "\u0308",
+  ring: "\u030A",
+  cedil: "\u0327",
+} as const;
+
+const htmlEntityPattern = /&(#x[0-9a-fA-F]+|#\d+|[0-9A-Za-z]+);/g;
+
+let htmlDecoder: HTMLTextAreaElement | null = null;
+
 function formatNumericValue(value: number | null | undefined) {
   if (value === null || value === undefined) {
     return null;
@@ -116,9 +154,89 @@ function getYearFromIntroductionDate(value: string | null | undefined) {
   return match?.[1] ?? null;
 }
 
+function decodeNumericHtmlEntity(entity: string) {
+  const isHex = entity.startsWith("#x") || entity.startsWith("#X");
+  const rawCodePoint = isHex ? entity.slice(2) : entity.slice(1);
+  const parsed = Number.parseInt(rawCodePoint, isHex ? 16 : 10);
+
+  if (!Number.isFinite(parsed)) {
+    return null;
+  }
+
+  try {
+    return String.fromCodePoint(parsed);
+  } catch {
+    return null;
+  }
+}
+
+function isCombiningMarkName(value: string): value is keyof typeof combiningMarks {
+  return value in combiningMarks;
+}
+
+function decodeNamedHtmlEntity(entity: string) {
+  const direct = directNamedHtmlEntities[entity];
+  if (direct) {
+    return direct;
+  }
+
+  const accentMatch = /^([A-Za-z])(acute|grave|circ|tilde|uml|ring|cedil)$/.exec(
+    entity,
+  );
+  if (!accentMatch) {
+    return null;
+  }
+
+  const baseLetter = accentMatch[1];
+  const accentName = accentMatch[2];
+  if (!baseLetter || !accentName || !isCombiningMarkName(accentName)) {
+    return null;
+  }
+
+  return `${baseLetter}${combiningMarks[accentName]}`.normalize("NFC");
+}
+
+function decodeLegacyHybridizerValue(value: string | null | undefined) {
+  const trimmed = toNonEmptyDisplayValue(value);
+  if (!trimmed) {
+    return null;
+  }
+
+  if (typeof document !== "undefined") {
+    htmlDecoder ??= document.createElement("textarea");
+    htmlDecoder.innerHTML = trimmed;
+
+    return toNonEmptyDisplayValue(htmlDecoder.value);
+  }
+
+  return toNonEmptyDisplayValue(
+    trimmed.replace(htmlEntityPattern, (match, entity: string) => {
+      if (entity.startsWith("#")) {
+        return decodeNumericHtmlEntity(entity) ?? match;
+      }
+
+      return decodeNamedHtmlEntity(entity) ?? match;
+    }),
+  );
+}
+
+function toNonEmptyDisplayValue(value: string | null | undefined) {
+  const trimmed = value?.trim() ?? null;
+
+  if (trimmed === "") {
+    return null;
+  }
+
+  return trimmed;
+}
+
 function joinDisplayValues(values: Array<string | null | undefined>) {
   const unique = Array.from(
-    new Set(values.map((value) => value?.trim()).filter(Boolean)),
+    new Set(
+      values
+        .map((value) => toNonEmptyDisplayValue(value))
+        .filter((value): value is string => Boolean(value)),
+    ),
   );
 
   return unique.length > 0 ? unique.join(", ") : null;
@@ -132,6 +250,14 @@ function getV2AhsCultivar(source: AhsDisplaySource) {
   return source.cultivarReference?.v2AhsCultivar ?? source.v2AhsCultivar ?? null;
 }
 
+function getV2HybridizerDisplayValue(v2AhsCultivar: V2AhsCultivarDisplaySource) {
+  return (
+    toNonEmptyDisplayValue(v2AhsCultivar.primary_hybridizer_name) ??
+    decodeLegacyHybridizerValue(v2AhsCultivar.hybridizer_code_legacy) ??
+    "unknown"
+  );
+}
+
 export function mapV2AhsCultivarToDisplayAhsListing(
   v2AhsCultivar: V2AhsCultivarDisplaySource,
 ): AhsDisplayListing {
@@ -139,10 +265,7 @@ export function mapV2AhsCultivarToDisplayAhsListing(
     id: v2AhsCultivar.id,
     name: v2AhsCultivar.post_title ?? null,
     ahsImageUrl: v2AhsCultivar.image_url ?? null,
-    hybridizer: joinDisplayValues([
-      v2AhsCultivar.primary_hybridizer_name,
-      v2AhsCultivar.additional_hybridizers_names,
-    ]),
+    hybridizer: getV2HybridizerDisplayValue(v2AhsCultivar),
     year: getYearFromIntroductionDate(v2AhsCultivar.introduction_date),
     scapeHeight: formatInches(v2AhsCultivar.scape_height_in),
     bloomSize: formatInches(v2AhsCultivar.bloom_size_in),
