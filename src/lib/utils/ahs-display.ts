@@ -1,6 +1,5 @@
 import type { Prisma } from "@prisma/client";
 import { isV2CultivarDisplayDataEnabled } from "@/config/feature-flags";
-import { decodeHtmlEntities } from "@/lib/utils/html-entities";
 
 export const ahsDisplayAhsListingSelect = {
   id: true,
@@ -84,6 +83,43 @@ export type WithResolvedDisplayAhsListing<TSource extends AhsDisplaySource> =
         }
       : unknown);
 
+const directNamedHtmlEntities: Record<string, string> = {
+  amp: "&",
+  apos: "'",
+  quot: '"',
+  lt: "<",
+  gt: ">",
+  nbsp: " ",
+  rsquo: "’",
+  lsquo: "‘",
+  rdquo: "”",
+  ldquo: "“",
+  mdash: "—",
+  ndash: "–",
+  hellip: "…",
+  middot: "·",
+  AElig: "Æ",
+  Oslash: "Ø",
+  aelig: "æ",
+  oslash: "ø",
+  yuml: "ÿ",
+  szlig: "ß",
+} as const;
+
+const combiningMarks: Record<string, string> = {
+  acute: "\u0301",
+  grave: "\u0300",
+  circ: "\u0302",
+  tilde: "\u0303",
+  uml: "\u0308",
+  ring: "\u030A",
+  cedil: "\u0327",
+} as const;
+
+const htmlEntityPattern = /&(#x[0-9a-fA-F]+|#\d+|[0-9A-Za-z]+);/g;
+
+let htmlDecoder: HTMLTextAreaElement | null = null;
+
 function formatNumericValue(value: number | null | undefined) {
   if (value === null || value === undefined) {
     return null;
@@ -116,6 +152,72 @@ function getYearFromIntroductionDate(value: string | null | undefined) {
 
   const match = /^\s*(\d{4})/.exec(value);
   return match?.[1] ?? null;
+}
+
+function decodeNumericHtmlEntity(entity: string) {
+  const isHex = entity.startsWith("#x") || entity.startsWith("#X");
+  const rawCodePoint = isHex ? entity.slice(2) : entity.slice(1);
+  const parsed = Number.parseInt(rawCodePoint, isHex ? 16 : 10);
+
+  if (!Number.isFinite(parsed)) {
+    return null;
+  }
+
+  try {
+    return String.fromCodePoint(parsed);
+  } catch {
+    return null;
+  }
+}
+
+function isCombiningMarkName(value: string): value is keyof typeof combiningMarks {
+  return value in combiningMarks;
+}
+
+function decodeNamedHtmlEntity(entity: string) {
+  const direct = directNamedHtmlEntities[entity];
+  if (direct) {
+    return direct;
+  }
+
+  const accentMatch = /^([A-Za-z])(acute|grave|circ|tilde|uml|ring|cedil)$/.exec(
+    entity,
+  );
+  if (!accentMatch) {
+    return null;
+  }
+
+  const baseLetter = accentMatch[1];
+  const accentName = accentMatch[2];
+  if (!baseLetter || !accentName || !isCombiningMarkName(accentName)) {
+    return null;
+  }
+
+  return `${baseLetter}${combiningMarks[accentName]}`.normalize("NFC");
+}
+
+function decodeLegacyHybridizerValue(value: string | null | undefined) {
+  const trimmed = toNonEmptyDisplayValue(value);
+  if (!trimmed) {
+    return null;
+  }
+
+  if (typeof document !== "undefined") {
+    htmlDecoder ??= document.createElement("textarea");
+    htmlDecoder.innerHTML = trimmed;
+
+    return toNonEmptyDisplayValue(htmlDecoder.value);
+  }
+
+  return toNonEmptyDisplayValue(
+    trimmed.replace(htmlEntityPattern, (match, entity: string) => {
+      if (entity.startsWith("#")) {
+        return decodeNumericHtmlEntity(entity) ?? match;
+      }
+
+      return decodeNamedHtmlEntity(entity) ?? match;
+    }),
+  );
 }
 
 function toNonEmptyDisplayValue(value: string | null | undefined) {
@@ -151,7 +253,7 @@ function getV2AhsCultivar(source: AhsDisplaySource) {
 function getV2HybridizerDisplayValue(v2AhsCultivar: V2AhsCultivarDisplaySource) {
   return (
     toNonEmptyDisplayValue(v2AhsCultivar.primary_hybridizer_name) ??
-    decodeHtmlEntities(v2AhsCultivar.hybridizer_code_legacy) ??
+    decodeLegacyHybridizerValue(v2AhsCultivar.hybridizer_code_legacy) ??
     "unknown"
   );
 }
