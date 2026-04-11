@@ -485,6 +485,7 @@ describe("getPublicCultivarPage", () => {
         post_title: "V2 Coffee Frenzy",
         introduction_date: "2024-09-15",
         primary_hybridizer_name: "V2 Hybridizer",
+        hybridizer_code_legacy: null,
         additional_hybridizers_names: null,
         bloom_season_names: "Late",
         fragrance_names: null,
@@ -542,6 +543,76 @@ describe("getPublicCultivarPage", () => {
         }),
       }),
     );
+  });
+
+  it("uses the decoded legacy hybridizer fallback on the public cultivar page when V2 primary is blank", async () => {
+    process.env.NEXT_PUBLIC_USE_V2_CULTIVAR_DISPLAY_DATA = "true";
+
+    mockDb.cultivarReference.findFirst.mockResolvedValue({
+      id: "cultivar-v2-fallback",
+      normalizedName: "reimer sunrise",
+      updatedAt: new Date("2026-01-05T00:00:00.000Z"),
+      ahsListing: {
+        id: "ahs-1",
+        name: "Legacy Reimer Sunrise",
+        ahsImageUrl: "https://example.com/legacy.jpg",
+        hybridizer: "Legacy Hybridizer",
+        year: "2012",
+        scapeHeight: "36 inches",
+        bloomSize: "6 inches",
+        bloomSeason: "Midseason",
+        form: "Single",
+        ploidy: "Tet",
+        foliageType: "Dormant",
+        bloomHabit: "Diurnal",
+        budcount: "24",
+        branches: "5",
+        sculpting: null,
+        foliage: null,
+        flower: null,
+        fragrance: "Light",
+        parentage: "(Legacy A x Legacy B)",
+        color: "Legacy color",
+      },
+      v2AhsCultivar: {
+        id: "v2-2",
+        post_title: "V2 Reimer Sunrise",
+        introduction_date: "2024-09-15",
+        primary_hybridizer_name: null,
+        hybridizer_code_legacy: "Gregory-CJ &amp; V.",
+        additional_hybridizers_names: null,
+        bloom_season_names: "Late",
+        fragrance_names: null,
+        bloom_habit_names: "Extended",
+        foliage_names: "Evergreen",
+        ploidy_names: "Diploid",
+        scape_height_in: 42,
+        bloom_size_in: 7.5,
+        bud_count: 30,
+        branches: 6,
+        color: null,
+        flower_form_names: "Double",
+        unusual_forms_names: "Crispate",
+        parentage: "(V2 A x V2 B)",
+        image_url: "https://example.com/v2.jpg",
+      },
+    });
+
+    mockDb.listing.findMany.mockResolvedValue([]);
+    mockDb.user.findMany.mockResolvedValue([]);
+    mockDb.cultivarReference.findMany.mockResolvedValue([]);
+
+    const result = await getPublicCultivarPage("reimer-sunrise");
+
+    expect(result?.summary).toMatchObject({
+      name: "V2 Reimer Sunrise",
+      hybridizer: "Gregory-CJ & V.",
+      year: "2024",
+    });
+    expect(result?.cultivar.ahsListing).toMatchObject({
+      id: "v2-2",
+      hybridizer: "Gregory-CJ & V.",
+    });
   });
 
   it("resolves slugified segments back to punctuation-heavy cultivar names", async () => {

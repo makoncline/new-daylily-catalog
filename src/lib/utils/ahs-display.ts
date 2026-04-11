@@ -1,5 +1,6 @@
 import type { Prisma } from "@prisma/client";
 import { isV2CultivarDisplayDataEnabled } from "@/config/feature-flags";
+import { decodeHtmlEntities } from "@/lib/utils/html-entities";
 
 export const ahsDisplayAhsListingSelect = {
   id: true,
@@ -29,6 +30,7 @@ export const v2AhsCultivarDisplaySelect = {
   post_title: true,
   introduction_date: true,
   primary_hybridizer_name: true,
+  hybridizer_code_legacy: true,
   additional_hybridizers_names: true,
   bloom_season_names: true,
   fragrance_names: true,
@@ -116,9 +118,23 @@ function getYearFromIntroductionDate(value: string | null | undefined) {
   return match?.[1] ?? null;
 }
 
+function toNonEmptyDisplayValue(value: string | null | undefined) {
+  const trimmed = value?.trim() ?? null;
+
+  if (trimmed === "") {
+    return null;
+  }
+
+  return trimmed;
+}
+
 function joinDisplayValues(values: Array<string | null | undefined>) {
   const unique = Array.from(
-    new Set(values.map((value) => value?.trim()).filter(Boolean)),
+    new Set(
+      values
+        .map((value) => toNonEmptyDisplayValue(value))
+        .filter((value): value is string => Boolean(value)),
+    ),
   );
 
   return unique.length > 0 ? unique.join(", ") : null;
@@ -132,6 +148,14 @@ function getV2AhsCultivar(source: AhsDisplaySource) {
   return source.cultivarReference?.v2AhsCultivar ?? source.v2AhsCultivar ?? null;
 }
 
+function getV2HybridizerDisplayValue(v2AhsCultivar: V2AhsCultivarDisplaySource) {
+  return (
+    toNonEmptyDisplayValue(v2AhsCultivar.primary_hybridizer_name) ??
+    decodeHtmlEntities(v2AhsCultivar.hybridizer_code_legacy) ??
+    "unknown"
+  );
+}
+
 export function mapV2AhsCultivarToDisplayAhsListing(
   v2AhsCultivar: V2AhsCultivarDisplaySource,
 ): AhsDisplayListing {
@@ -139,10 +163,7 @@ export function mapV2AhsCultivarToDisplayAhsListing(
     id: v2AhsCultivar.id,
     name: v2AhsCultivar.post_title ?? null,
     ahsImageUrl: v2AhsCultivar.image_url ?? null,
-    hybridizer: joinDisplayValues([
-      v2AhsCultivar.primary_hybridizer_name,
-      v2AhsCultivar.additional_hybridizers_names,
-    ]),
+    hybridizer: getV2HybridizerDisplayValue(v2AhsCultivar),
     year: getYearFromIntroductionDate(v2AhsCultivar.introduction_date),
     scapeHeight: formatInches(v2AhsCultivar.scape_height_in),
     bloomSize: formatInches(v2AhsCultivar.bloom_size_in),
