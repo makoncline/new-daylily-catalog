@@ -87,15 +87,12 @@ export const getCachedPublicCultivarSummary = createKeyedServerCache(
   {
     getKeyParts: (cultivarSegment: string) => [
       "public:cultivar-summary",
-      cultivarSegment.trim().toLowerCase(),
+      cultivarSegment,
     ],
-    getTags: (cultivarSegment: string) => {
-      const canonicalSegment = cultivarSegment.trim().toLowerCase();
-      return [
-        getPublicCultivarTag(canonicalSegment),
-        getPublicCultivarSummaryTag(canonicalSegment),
-      ];
-    },
+    getTags: (cultivarSegment: string) => [
+      getPublicCultivarTag(cultivarSegment),
+      getPublicCultivarSummaryTag(cultivarSegment),
+    ],
     revalidateSeconds: CACHE_CONFIG.PUBLIC.CULTIVAR_PAGE_REVALIDATE_SECONDS,
   },
 );
@@ -105,12 +102,9 @@ const getCachedPublicCultivarListingIds = createKeyedServerCache(
   {
     getKeyParts: (cultivarSegment: string) => [
       "public:cultivar-listing-ids",
-      cultivarSegment.trim().toLowerCase(),
+      cultivarSegment,
     ],
-    getTags: (cultivarSegment: string) => {
-      const canonicalSegment = cultivarSegment.trim().toLowerCase();
-      return [getPublicCultivarTag(canonicalSegment)];
-    },
+    getTags: (cultivarSegment: string) => [getPublicCultivarTag(cultivarSegment)],
     revalidateSeconds: CACHE_CONFIG.PUBLIC.CULTIVAR_PAGE_REVALIDATE_SECONDS,
   },
 );
