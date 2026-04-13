@@ -325,13 +325,13 @@ describe("dashboardDb public ISR invalidation", () => {
 
     expectPathInvalidated("/catalogs");
     expectPathInvalidated("/garden");
-    expectPathInvalidated("/cultivar/old-cultivar");
+    expectPathInvalidated("/cultivar/old~2dcultivar");
     expectTagInvalidated(getPublicProfileTag("user-1"));
     expectTagInvalidated(getPublicSellerContentTag("user-1"));
     expectTagInvalidated(getPublicSellerListsTag("user-1"));
     expectTagInvalidated(getPublicListingsPageTag("user-1"));
     expectTagInvalidated(getPublicForSaleCountTag("user-1"));
-    expectTagInvalidated(getPublicCultivarTag("old-cultivar"));
+    expectTagInvalidated(getPublicCultivarTag("old~2dcultivar"));
   });
 
   it("list title updates also invalidate linked listing cards and cultivars", async () => {
