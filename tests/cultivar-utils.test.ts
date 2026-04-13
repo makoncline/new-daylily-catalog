@@ -1,44 +1,46 @@
 import { describe, expect, it } from "vitest";
 import {
   fromCultivarRouteSegment,
-  getCultivarRouteCandidates,
   normalizeCultivarName,
   toCultivarRouteSegment,
 } from "@/lib/utils/cultivar-utils";
 
 describe("cultivar route segment helpers", () => {
-  it("slugifies normalized cultivar names for path usage", () => {
+  it("keeps simple space-only cultivar urls unchanged", () => {
     expect(toCultivarRouteSegment(" Happy Returns ")).toBe("happy-returns");
-    expect(toCultivarRouteSegment("A Cowgirl's Heart")).toBe("a-cowgirls-heart");
-    expect(toCultivarRouteSegment("All Saints` Episcopal Church")).toBe(
-      "all-saints-episcopal-church",
-    );
-    expect(toCultivarRouteSegment("50,000 Watts")).toBe("50000-watts");
+    expect(toCultivarRouteSegment("Coffee Frenzy")).toBe("coffee-frenzy");
     expect(toCultivarRouteSegment("Aerial Appliqué")).toBe("aerial-applique");
   });
 
-  it("normalizes hyphenated route segments back to cultivar names", () => {
-    expect(fromCultivarRouteSegment("Happy-Returns")).toBe("happy returns");
+  it("changes punctuation-bearing cultivar urls to exact escaped segments", () => {
+    expect(toCultivarRouteSegment("A Cowgirl's Heart")).toBe(
+      "a-cowgirl~27s-heart",
+    );
+    expect(toCultivarRouteSegment("All Saints` Episcopal Church")).toBe(
+      "all-saints~27-episcopal-church",
+    );
+    expect(toCultivarRouteSegment("50,000 Watts")).toBe("50~2c000-watts");
+    expect(toCultivarRouteSegment("Blue-Green")).toBe("blue~2dgreen");
   });
 
-  it("builds candidates for both literal and hyphen-as-space variants", () => {
-    expect(getCultivarRouteCandidates("blue-green")).toEqual([
-      "blue-green",
-      "blue green",
-    ]);
+  it("decodes exact cultivar route segments back to normalized names", () => {
+    expect(fromCultivarRouteSegment("happy-returns")).toBe("happy returns");
+    expect(fromCultivarRouteSegment("a-cowgirl~27s-heart")).toBe(
+      "a cowgirl's heart",
+    );
+    expect(fromCultivarRouteSegment("all-saints~27-episcopal-church")).toBe(
+      "all saints' episcopal church",
+    );
+    expect(fromCultivarRouteSegment("50~2c000-watts")).toBe("50,000 watts");
+    expect(fromCultivarRouteSegment("blue~2dgreen")).toBe("blue-green");
   });
 
-  it("adds possessive candidates for slug segments without apostrophes", () => {
-    expect(getCultivarRouteCandidates("zundles-jubilee")).toEqual([
-      "zundles-jubilee",
-      "zundles jubilee",
-      "zundle's jubilee",
-    ]);
-  });
-
-  it("returns null for empty cultivar values", () => {
+  it("returns null for empty or malformed cultivar route segments", () => {
     expect(toCultivarRouteSegment("   ")).toBeNull();
     expect(fromCultivarRouteSegment("")).toBeNull();
+    expect(fromCultivarRouteSegment("Happy-Returns")).toBeNull();
+    expect(fromCultivarRouteSegment("happy returns")).toBeNull();
+    expect(fromCultivarRouteSegment("happy~zzreturns")).toBeNull();
     expect(normalizeCultivarName(null)).toBeNull();
   });
 
