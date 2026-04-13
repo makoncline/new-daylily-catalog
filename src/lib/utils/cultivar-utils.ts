@@ -1,5 +1,8 @@
 import { normalizeCanonicalText } from "@/lib/search-normalization";
-import { slugify } from "@/lib/utils/slugify";
+
+const CULTIVAR_ROUTE_ALNUM_REGEX = /^[a-z0-9]$/;
+const CULTIVAR_ROUTE_HEX_REGEX = /^[0-9a-f]{2}$/i;
+const CULTIVAR_ROUTE_LITERAL_ESCAPE_REGEX = /[-_.!~*'()]/g;
 
 /**
  * Normalizes a cultivar name for consistent storage and searching.
@@ -36,6 +39,15 @@ export function toSentenceCaseCultivarName(
   return normalized.charAt(0).toUpperCase() + normalized.slice(1);
 }
 
+function encodeCultivarRouteCharacter(character: string): string {
+  return encodeURIComponent(character)
+    .replace(CULTIVAR_ROUTE_LITERAL_ESCAPE_REGEX, (value) =>
+      `%${value.charCodeAt(0).toString(16).toUpperCase()}`,
+    )
+    .replace(/%/g, "~")
+    .toLowerCase();
+}
+
 export function toCultivarRouteSegment(
   name: string | null | undefined,
 ): string | null {
@@ -44,84 +56,74 @@ export function toCultivarRouteSegment(
     return null;
   }
 
-  const asciiNormalized = normalized
-    .normalize("NFKD")
-    .replace(/[\u0300-\u036f]/g, "");
-  const segment = slugify(asciiNormalized);
+  let segment = "";
 
-  return segment || null;
+  for (const character of normalized) {
+    if (CULTIVAR_ROUTE_ALNUM_REGEX.test(character)) {
+      segment += character;
+      continue;
+    }
+
+    if (character === " ") {
+      segment += "-";
+      continue;
+    }
+
+    segment += encodeCultivarRouteCharacter(character);
+  }
+
+  return segment;
 }
 
-export function getCultivarRouteCandidates(
+function decodeCultivarRouteSegment(
   routeSegment: string | null | undefined,
-): string[] {
+): string | null {
   if (!routeSegment) {
-    return [];
+    return null;
   }
 
-  let decoded = routeSegment;
+  let percentEncoded = "";
+
+  for (let index = 0; index < routeSegment.length; index += 1) {
+    const character = routeSegment.charAt(index);
+
+    if (CULTIVAR_ROUTE_ALNUM_REGEX.test(character)) {
+      percentEncoded += character;
+      continue;
+    }
+
+    if (character === "-") {
+      percentEncoded += " ";
+      continue;
+    }
+
+    if (character !== "~") {
+      return null;
+    }
+
+    const hexValue = routeSegment.slice(index + 1, index + 3);
+    if (!CULTIVAR_ROUTE_HEX_REGEX.test(hexValue)) {
+      return null;
+    }
+
+    percentEncoded += `%${hexValue}`;
+    index += 2;
+  }
+
   try {
-    decoded = decodeURIComponent(routeSegment);
+    return normalizeCultivarName(decodeURIComponent(percentEncoded));
   } catch {
-    // Keep original segment when decode fails.
+    return null;
   }
-
-  const candidates = new Set<string>();
-
-  const normalizedExact = normalizeCultivarName(decoded);
-  if (normalizedExact) {
-    candidates.add(normalizedExact);
-  }
-
-  const normalizedWithSpaces = normalizeCultivarName(decoded.replace(/-+/g, " "));
-  if (normalizedWithSpaces) {
-    candidates.add(normalizedWithSpaces);
-  }
-
-  const addPossessiveVariants = (value: string | null) => {
-    if (!value) {
-      return;
-    }
-
-    const words = value.split(/\s+/);
-
-    words.forEach((word, index) => {
-      if (!/^[a-z0-9]+s$/i.test(word) || word.length < 2) {
-        return;
-      }
-
-      const possessiveWords = [...words];
-      possessiveWords[index] = `${word.slice(0, -1)}'s`;
-      const possessiveCandidate = normalizeCultivarName(possessiveWords.join(" "));
-
-      if (possessiveCandidate) {
-        candidates.add(possessiveCandidate);
-      }
-    });
-  };
-
-  addPossessiveVariants(normalizedWithSpaces);
-
-  const canonicalSegment = toCultivarRouteSegment(decoded);
-  if (canonicalSegment) {
-    candidates.add(canonicalSegment);
-
-    const canonicalAsSpaces = normalizeCultivarName(
-      canonicalSegment.replace(/-+/g, " "),
-    );
-    if (canonicalAsSpaces) {
-      candidates.add(canonicalAsSpaces);
-    }
-
-    addPossessiveVariants(canonicalAsSpaces);
-  }
-
-  return Array.from(candidates);
 }
 
 export function fromCultivarRouteSegment(
   routeSegment: string | null | undefined,
 ): string | null {
-  const candidates = getCultivarRouteCandidates(routeSegment);
-  return candidates[1] ?? candidates[0] ?? null;
+  const normalized = decodeCultivarRouteSegment(routeSegment);
+  if (!normalized) {
+    return null;
+  }
+
+  return toCultivarRouteSegment(normalized) === routeSegment ? normalized : null;
 }

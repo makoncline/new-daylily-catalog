@@ -343,9 +343,6 @@ test.describe("cultivar guest flow @local", () => {
   test("conversion-first cultivar page renders and deep links correctly", async ({
     page,
   }) => {
-    await page.goto("/cultivar/coffee%20frenzy");
-    await expect(page).toHaveURL(/\/cultivar\/coffee-frenzy$/);
-
     await page.goto(`/cultivar/${CULTIVAR_SEGMENT}`);
 
     await expect(

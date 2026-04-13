@@ -2,6 +2,7 @@
 
 ## Log
 
+- 2026-04-12 - exact route codecs must escape literal hyphens too - I initially leaned on `encodeURIComponent()` for the new cultivar route codec and missed that it leaves `-`, `_`, and `.` unescaped, which would have reintroduced ambiguity between spaces and literal punctuation. In this repo, exact public cultivar routes need an explicit "escape every non-alphanumeric character" step, not just percent-encoded characters.
 - 2026-04-11 - repo lint scope excludes tests - I ran ad hoc ESLint against touched test files and hit a wall of existing `no-unsafe-*` findings that are not part of this repo's enforced lint flow. Here, use `pnpm lint` for the real gate because it runs `eslint src`, then rely on targeted Vitest plus `npx tsc --noEmit` for test verification.
 - 2026-04-11 - V2 hybridizer display seam - Public cultivar summary, public listing cards/details, and dashboard cultivar reads all inherit V2 name/hybridizer display from `withResolvedDisplayAhsListing` / `getDisplayAhsListing`. In this repo, fix V2 hybridizer UI fallbacks in `src/lib/utils/ahs-display.ts` first and only touch `public-cultivar-sections.ts` separately if the related-by-hybridizer query itself needs to change.
 - 2026-04-10 - self-repeat generic-status rule - I mentioned internal startup workflow in the first user-facing status update again. Keep initial updates task-focused and generic; do not name internal repo-memory or note-taking steps explicitly.

@@ -1,4 +1,4 @@
-import { notFound, permanentRedirect } from "next/navigation";
+import { notFound } from "next/navigation";
 import { type Metadata } from "next";
 import { MainContent } from "@/app/(public)/_components/main-content";
 import { Breadcrumbs } from "@/components/breadcrumbs";
@@ -40,21 +40,15 @@ export async function generateMetadata({
 export default async function CultivarPage({ params }: PageProps) {
   const { cultivarNormalizedName } = await params;
 
-  const artifacts = await getCultivarPageRouteArtifacts(cultivarNormalizedName);
-  if (!artifacts) {
+  const cultivarPage = await getCultivarPageRouteArtifacts(cultivarNormalizedName);
+  if (!cultivarPage) {
     notFound();
-  }
-
-  const { canonicalSegment, cultivarPage, routeSegment } = artifacts;
-
-  if (canonicalSegment && cultivarNormalizedName !== canonicalSegment) {
-    permanentRedirect(`/cultivar/${canonicalSegment}`);
   }
 
   const baseUrl = getCanonicalBaseUrl();
   const jsonLd = generateCultivarJsonLd(
     baseUrl,
-    routeSegment,
+    cultivarNormalizedName,
     cultivarPage,
   );
 
@@ -89,7 +83,7 @@ export default async function CultivarPage({ params }: PageProps) {
                 className={cn(buttonVariants({ size: "sm" }))}
                 entrySurface="cultivar_page_inline_cta"
                 sourcePageType="cultivar"
-                sourcePath={`/cultivar/${routeSegment}`}
+                sourcePath={`/cultivar/${cultivarNormalizedName}`}
                 ctaId="cultivar-inline-create-catalog"
                 ctaLabel="Create your catalog"
               >
@@ -122,7 +116,7 @@ export default async function CultivarPage({ params }: PageProps) {
       </div>
 
       <IsrWrittenAt
-        routePath={`/cultivar/${routeSegment}`}
+        routePath={`/cultivar/${cultivarNormalizedName}`}
         routeType="cultivar_page"
       />
     </MainContent>

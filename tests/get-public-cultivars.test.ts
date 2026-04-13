@@ -662,50 +662,36 @@ describe("getPublicCultivarPage", () => {
       },
     ]);
 
-    const result = await getPublicCultivarPage("a-cowgirls-heart");
+    const result = await getPublicCultivarPage("a-cowgirl~27s-heart");
 
     expect(result?.cultivar.normalizedName).toBe("a cowgirl's heart");
     expect(mockDb.cultivarReference.findFirst).toHaveBeenCalledTimes(1);
     expect(mockDb.cultivarReference.findMany).not.toHaveBeenCalled();
   });
 
-  it("falls back to segment matching and resolves slug collisions with one ranked query", async () => {
-    mockDb.cultivarReference.findFirst
-      .mockResolvedValueOnce(null)
-      .mockResolvedValueOnce({
-        id: "cultivar-curly",
-        normalizedName: "aladdin’s castle",
-        updatedAt: new Date("2026-01-06T00:00:00.000Z"),
-        ahsListing: null,
-      });
-
-    mockDb.cultivarReference.findMany.mockResolvedValue([
-      {
-        normalizedName: "aladdin's castle",
-      },
-      {
-        normalizedName: "aladdin’s castle",
-      },
-    ]);
+  it("looks up punctuation-bearing canonical route segments without fallbacks", async () => {
+    mockDb.cultivarReference.findFirst.mockResolvedValueOnce({
+      id: "cultivar-curly",
+      normalizedName: "aladdin's castle",
+      updatedAt: new Date("2026-01-06T00:00:00.000Z"),
+      ahsListing: null,
+    });
 
     mockGetCachedProUserIds.mockResolvedValue([]);
     mockDb.listing.findMany.mockResolvedValue([]);
     mockDb.user.findMany.mockResolvedValue([]);
 
-    const result = await getPublicCultivarPage("aladdins-castle");
+    const result = await getPublicCultivarPage("aladdin~27s-castle");
+    const findFirstArgs = mockDb.cultivarReference.findFirst.mock.calls[0]?.[0];
 
-    expect(result?.cultivar.normalizedName).toBe("aladdin’s castle");
-    expect(mockDb.cultivarReference.findFirst).toHaveBeenCalledTimes(2);
-
-    const secondFindFirstArgs =
-      mockDb.cultivarReference.findFirst.mock.calls[1]?.[0];
-    expect(secondFindFirstArgs).toMatchObject({
+    expect(result?.cultivar.normalizedName).toBe("aladdin's castle");
+    expect(mockDb.cultivarReference.findFirst).toHaveBeenCalledTimes(1);
+    expect(mockDb.cultivarReference.findMany).not.toHaveBeenCalled();
+    expect(findFirstArgs).toMatchObject({
       where: {
         AND: expect.arrayContaining([
           {
-            normalizedName: {
-              in: ["aladdin's castle", "aladdin’s castle"],
-            },
+            normalizedName: "aladdin's castle",
           },
         ]),
       },
@@ -713,6 +699,14 @@ describe("getPublicCultivarPage", () => {
         updatedAt: "desc",
       },
     });
+  });
+
+  it("rejects non-canonical cultivar route segments before hitting the database", async () => {
+    const result = await getPublicCultivarPage("coffee frenzy");
+
+    expect(result).toBeNull();
+    expect(mockDb.cultivarReference.findFirst).not.toHaveBeenCalled();
+    expect(mockDb.listing.findMany).not.toHaveBeenCalled();
   });
 
   it("allows direct cultivar page lookup without requiring linked listings", async () => {
@@ -726,7 +720,6 @@ describe("getPublicCultivarPage", () => {
     mockGetCachedProUserIds.mockResolvedValue([]);
     mockDb.listing.findMany.mockResolvedValue([]);
     mockDb.user.findMany.mockResolvedValue([]);
-    mockDb.cultivarReference.findMany.mockResolvedValue([]);
 
     const result = await getPublicCultivarPage("orphan-cultivar");
     const findFirstArgs = mockDb.cultivarReference.findFirst.mock.calls[0]?.[0];
@@ -759,7 +752,7 @@ describe("getCultivarSitemapEntries", () => {
     vi.clearAllMocks();
   });
 
-  it("uses cultivar/listing updated times and keeps canonical slug ordering stable", async () => {
+  it("uses cultivar/listing updated times and keeps exact route segment ordering stable", async () => {
     mockGetCachedProUserIds.mockResolvedValue(["user-pro"]);
 
     const listingRows = [
@@ -812,7 +805,7 @@ describe("getCultivarSitemapEntries", () => {
 
     expect(result).toEqual([
       {
-        segment: "50000-watts",
+        segment: "50~2c000-watts",
         lastModified: new Date("2026-01-07T00:00:00.000Z"),
       },
       {
@@ -822,6 +815,10 @@ describe("getCultivarSitemapEntries", () => {
       {
         segment: "coffee-frenzy",
         lastModified: new Date("2026-01-03T00:00:00.000Z"),
+      },
+      {
+        segment: "coffee~2dfrenzy",
+        lastModified: new Date("2026-01-02T00:00:00.000Z"),
       },
     ]);
 

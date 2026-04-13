@@ -6,7 +6,7 @@ import {
   withResolvedDisplayAhsListing,
 } from "@/lib/utils/ahs-display";
 import {
-  getCultivarRouteCandidates,
+  fromCultivarRouteSegment,
   toCultivarRouteSegment,
 } from "@/lib/utils/cultivar-utils";
 import { db } from "@/server/db";
@@ -34,7 +34,6 @@ export interface PublicCultivarReferenceRecord {
 }
 
 export interface PublicCultivarReferenceData {
-  canonicalSegment: string;
   cultivarReference: PublicCultivarReferenceRecord;
   proUserIds: string[];
 }
@@ -52,47 +51,15 @@ export interface PublicCultivarContext {
   summariesByUserId: CultivarSummariesByUserId;
 }
 
-async function getCultivarNormalizedNamesForSegment(segment: string) {
-  const cultivars = await db.cultivarReference.findMany({
-    where: getCultivarReferenceLookupWhereClause(),
-    select: {
-      normalizedName: true,
-    },
-  });
-
-  return cultivars.flatMap((cultivar) => {
-    const normalizedName = cultivar.normalizedName;
-    if (!normalizedName) {
-      return [];
-    }
-
-    return toCultivarRouteSegment(normalizedName) === segment
-      ? [normalizedName]
-      : [];
-  });
-}
-
-async function findCultivarReferenceByNormalizedNames(
-  normalizedNames: string[],
+async function findCultivarReferenceByNormalizedName(
+  normalizedName: string,
 ): Promise<PublicCultivarReferenceRecord | null> {
-  const uniqueNormalizedNames = Array.from(
-    new Set(
-      normalizedNames.filter((normalizedName) => normalizedName.length > 0),
-    ),
-  );
-
-  if (uniqueNormalizedNames.length === 0) {
-    return null;
-  }
-
   const row = await db.cultivarReference.findFirst({
     where: {
       AND: [
         getCultivarReferenceLookupWhereClause(),
         {
-          normalizedName: {
-            in: uniqueNormalizedNames,
-          },
+          normalizedName,
         },
       ],
     },
@@ -126,9 +93,9 @@ export async function getCultivarRouteSegments(): Promise<string[]> {
   const uniqueSegments = new Set<string>();
 
   cultivars.forEach((cultivar) => {
-    const slug = toCultivarRouteSegment(cultivar.normalizedName);
-    if (slug) {
-      uniqueSegments.add(slug);
+    const segment = toCultivarRouteSegment(cultivar.normalizedName);
+    if (segment) {
+      uniqueSegments.add(segment);
     }
   });
 
@@ -222,33 +189,21 @@ export async function getCultivarSitemapEntries(): Promise<
 async function getPublicCultivarReference(
   cultivarSegment: string,
 ): Promise<PublicCultivarReferenceData | null> {
-  const canonicalSegment = toCultivarRouteSegment(cultivarSegment);
-  if (!canonicalSegment) {
+  const normalizedCultivarName = fromCultivarRouteSegment(cultivarSegment);
+  if (!normalizedCultivarName) {
     return null;
   }
 
   const proUserIds = await getCachedProUserIds();
-  const normalizedCultivarNames = getCultivarRouteCandidates(cultivarSegment);
-
-  let cultivarReference = await findCultivarReferenceByNormalizedNames(
-    normalizedCultivarNames,
+  const cultivarReference = await findCultivarReferenceByNormalizedName(
+    normalizedCultivarName,
   );
-
-  if (!cultivarReference) {
-    const normalizedNamesFromSlug =
-      await getCultivarNormalizedNamesForSegment(canonicalSegment);
-
-    cultivarReference = await findCultivarReferenceByNormalizedNames(
-      normalizedNamesFromSlug,
-    );
-  }
 
   if (!cultivarReference) {
     return null;
   }
 
   return {
-    canonicalSegment,
     cultivarReference,
     proUserIds,
   };
