@@ -85,8 +85,15 @@ async function resetDashboardDbClientState() {
   ]);
 }
 
+const collectionSyncPaths = [
+  "dashboardDb.listing.sync",
+  "dashboardDb.list.sync",
+  "dashboardDb.image.sync",
+  "dashboardDb.cultivarReference.sync",
+];
+
 describe("dashboardDb provider bootstrap", () => {
-  it("cold bootstrap fetches the dashboard snapshot once", async () => {
+  it("cold bootstrap fetches each dashboard collection once", async () => {
     await withTempAppDb(async ({ user }) => {
       await clearDashboardDbPersistence();
 
@@ -157,23 +164,17 @@ describe("dashboardDb provider bootstrap", () => {
         await new Promise((resolve) => setTimeout(resolve, 0));
       });
 
-      const collectionSyncPaths = [
-        "dashboardDb.listing.sync",
-        "dashboardDb.list.sync",
-        "dashboardDb.image.sync",
-        "dashboardDb.cultivarReference.sync",
-      ];
       const collectionSyncCount = collectionSyncPaths.reduce((sum, path) => {
         return sum + (opCounts.get(path) ?? 0);
       }, 0);
 
       expect(opCounts.get("dashboardDb.user.getCurrentUser")).toBe(1);
       expect(opCounts.get("dashboardDb.userProfile.get")).toBe(1);
-      expect(opCounts.get("dashboardDb.bootstrap.snapshot")).toBe(1);
-      expect(collectionSyncCount).toBe(0);
+      expect(opCounts.get("dashboardDb.bootstrap.snapshot") ?? 0).toBe(0);
+      expect(collectionSyncCount).toBe(4);
 
       collectionSyncPaths.forEach((path) => {
-        expect(opCounts.get(path) ?? 0).toBe(0);
+        expect(opCounts.get(path)).toBe(1);
       });
 
       expect(opCounts.get("dashboardDb.listing.list") ?? 0).toBe(0);
@@ -336,12 +337,12 @@ describe("dashboardDb provider bootstrap", () => {
       });
 
       const opCounts = new Map<string, number>();
-      let releaseSnapshot!: () => void;
-      const snapshotGate = new Promise<void>((resolve) => {
-        releaseSnapshot = resolve;
+      let releaseListingSync!: () => void;
+      const listingSyncGate = new Promise<void>((resolve) => {
+        releaseListingSync = resolve;
       });
 
-      const delayedSnapshotLink: TRPCLink<AppRouter> = () => {
+      const delayedFullRefreshLink: TRPCLink<AppRouter> = () => {
         return ({ op, next }) =>
           observable((emit) => {
             opCounts.set(op.path, (opCounts.get(op.path) ?? 0) + 1);
@@ -350,8 +351,8 @@ describe("dashboardDb provider bootstrap", () => {
             const sub = next(op).subscribe({
               next: (value) => {
                 pending = pending.then(async () => {
-                  if (op.path === "dashboardDb.bootstrap.snapshot") {
-                    await snapshotGate;
+                  if (op.path === "dashboardDb.listing.sync") {
+                    await listingSyncGate;
                   }
                   emit.next(value);
                 });
@@ -367,7 +368,7 @@ describe("dashboardDb provider bootstrap", () => {
       };
 
       const links: TRPCLink<AppRouter>[] = [
-        delayedSnapshotLink,
+        delayedFullRefreshLink,
         callerLink(caller),
       ];
       const clientLike = createTRPCProxyClient<AppRouter>({ links });
@@ -415,7 +416,7 @@ describe("dashboardDb provider bootstrap", () => {
       });
 
       const refreshPromise = refreshDashboardDbFromServer(user.id);
-      releaseSnapshot();
+      releaseListingSync();
       await act(async () => {
         await refreshPromise;
       });
@@ -426,11 +427,10 @@ describe("dashboardDb provider bootstrap", () => {
         );
       });
 
-      expect(opCounts.get("dashboardDb.bootstrap.snapshot")).toBe(1);
-      expect(opCounts.get("dashboardDb.listing.sync") ?? 0).toBe(0);
-      expect(opCounts.get("dashboardDb.list.sync") ?? 0).toBe(0);
-      expect(opCounts.get("dashboardDb.image.sync") ?? 0).toBe(0);
-      expect(opCounts.get("dashboardDb.cultivarReference.sync") ?? 0).toBe(0);
+      expect(opCounts.get("dashboardDb.bootstrap.snapshot") ?? 0).toBe(0);
+      collectionSyncPaths.forEach((path) => {
+        expect(opCounts.get(path)).toBe(1);
+      });
       expect(alpha.id).not.toBe(beta.id);
     });
   });
@@ -638,9 +638,7 @@ describe("dashboardDb provider bootstrap", () => {
       );
 
       await waitFor(() => {
-        expect(opCounts.get("dashboardDb.bootstrap.snapshot")).toBeGreaterThan(
-          0,
-        );
+        expect(opCounts.get("dashboardDb.listing.sync")).toBeGreaterThan(0);
       });
 
       await act(async () => {
