@@ -167,7 +167,7 @@ function ImagesViewer({
 }
 
 describe("dashboardDb TanStack DB collections", () => {
-  it("incremental sync does not page by id cursor", async () => {
+  it("incremental sync does not limit rows to one page", async () => {
     const { fetchDashboardSyncPages } = await import(
       "@/app/dashboard/_lib/dashboard-db/collection-bootstrap"
     );
@@ -178,14 +178,13 @@ describe("dashboardDb TanStack DB collections", () => {
       pageSize: 1,
       fetchPage: async (input) => {
         calls.push(input);
-        return [{ id: "listing-1" }];
+        return [{ id: "listing-1" }, { id: "listing-2" }];
       },
     });
 
-    expect(rows.map((row) => row.id)).toEqual(["listing-1"]);
+    expect(rows.map((row) => row.id)).toEqual(["listing-1", "listing-2"]);
     expect(calls).toEqual([
       {
-        limit: 1,
         since: "2026-01-01T00:00:00.000Z",
       },
     ]);

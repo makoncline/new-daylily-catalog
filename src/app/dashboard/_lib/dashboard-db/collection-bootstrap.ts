@@ -17,7 +17,7 @@ export interface DashboardSyncPageCursor {
 
 export interface DashboardSyncPageInput {
   cursor?: DashboardSyncPageCursor;
-  limit: number;
+  limit?: number;
   since: string | null;
 }
 
@@ -59,7 +59,7 @@ export async function fetchDashboardSyncPages<
   let cursor: DashboardSyncPageCursor | undefined;
 
   if (args.since !== null) {
-    return [...(await args.fetchPage({ limit: pageSize, since: args.since }))];
+    return [...(await args.fetchPage({ since: args.since }))];
   }
 
   for (;;) {
