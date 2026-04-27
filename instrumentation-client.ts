@@ -5,6 +5,9 @@ import * as Sentry from "@sentry/nextjs";
 import posthog from "posthog-js";
 
 const isSentryEnabled = process.env.NEXT_PUBLIC_SENTRY_ENABLED !== "false";
+const sentryDsn =
+  process.env.NEXT_PUBLIC_SENTRY_DSN ??
+  "https://b3773458fec6aa0c594a9c1c73ed046a@o1136137.ingest.us.sentry.io/4508939597643776";
 const posthogKey = process.env.NEXT_PUBLIC_POSTHOG_KEY;
 const isProduction = process.env.NODE_ENV === "production";
 
@@ -19,10 +22,11 @@ if (isProduction && posthogKey) {
 
 if (isSentryEnabled) {
   Sentry.init({
-    dsn: "https://b3773458fec6aa0c594a9c1c73ed046a@o1136137.ingest.us.sentry.io/4508939597643776",
+    dsn: sentryDsn,
 
     integrations: [Sentry.replayIntegration()],
     enableLogs: true,
+    tracesSampleRate: isProduction ? 0.1 : 1.0,
     replaysSessionSampleRate: 0.1,
     replaysOnErrorSampleRate: 1.0,
     debug: false,
