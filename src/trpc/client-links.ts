@@ -1,27 +1,50 @@
 "use client";
 
-import { loggerLink, unstable_httpBatchStreamLink } from "@trpc/client";
+import {
+  httpLink,
+  loggerLink,
+  splitLink,
+  unstable_httpBatchStreamLink,
+} from "@trpc/client";
 import SuperJSON from "superjson";
 import { getBaseUrl } from "@/lib/utils/getBaseUrl";
 
+const UNBATCHED_DASHBOARD_SYNC_PATHS = new Set([
+  "dashboardDb.listing.sync",
+  "dashboardDb.list.sync",
+  "dashboardDb.image.sync",
+  "dashboardDb.cultivarReference.sync",
+]);
+
 export function createClientLinks() {
+  const url = getBaseUrl() + "/api/trpc";
+  const headers = () => {
+    const nextHeaders = new Headers();
+    nextHeaders.set("x-trpc-source", "nextjs-react");
+    return nextHeaders;
+  };
+
   return [
     loggerLink({
       enabled: (op) =>
         process.env.NODE_ENV === "development" ||
         (op.direction === "down" && op.result instanceof Error),
     }),
-    unstable_httpBatchStreamLink({
-      transformer: SuperJSON,
-      url: getBaseUrl() + "/api/trpc",
-      maxItems: 10,
-      maxURLLength: 2000,
-      headers: () => {
-        const headers = new Headers();
-        headers.set("x-trpc-source", "nextjs-react");
-        return headers;
-      },
+    splitLink({
+      condition: (op) =>
+        op.type === "query" && UNBATCHED_DASHBOARD_SYNC_PATHS.has(op.path),
+      true: httpLink({
+        transformer: SuperJSON,
+        url,
+        headers,
+      }),
+      false: unstable_httpBatchStreamLink({
+        transformer: SuperJSON,
+        url,
+        headers,
+        maxItems: 10,
+        maxURLLength: 2000,
+      }),
     }),
   ];
 }
-
