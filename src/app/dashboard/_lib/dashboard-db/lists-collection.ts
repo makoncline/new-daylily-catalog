@@ -14,6 +14,7 @@ import {
   schedulePersistDashboardDbForCurrentUser,
 } from "@/app/dashboard/_lib/dashboard-db/dashboard-db-persistence";
 import {
+  fetchDashboardSyncPages,
   refreshDashboardDbCollectionFromServer,
   writeCursorFromRows,
 } from "@/app/dashboard/_lib/dashboard-db/collection-bootstrap";
@@ -27,7 +28,9 @@ export type ListCollectionItem =
   RouterOutputs["dashboardDb"]["list"]["list"][number];
 
 function sortLists(rows: readonly ListCollectionItem[]) {
-  return [...rows].sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+  return [...rows].sort(
+    (a, b) => b.createdAt.getTime() - a.createdAt.getTime(),
+  );
 }
 
 export function suppressNextListsCollectionSync() {
@@ -61,8 +64,10 @@ export const listsCollection = createCollection(
 
       const cursorKeyToUse = getUserCursorKey(CURSOR_BASE);
       const last = localStorage.getItem(cursorKeyToUse);
-      const upserts = await getTrpcClient().dashboardDb.list.sync.query({
+      const upserts = await fetchDashboardSyncPages({
         since: last ?? null,
+        fetchPage: (input) =>
+          getTrpcClient().dashboardDb.list.sync.query(input),
       });
 
       const map = new Map(existing.map((i) => [i.id, i]));
@@ -112,7 +117,8 @@ export async function updateList(draft: UpdateDraft) {
     });
 
     try {
-      const updated = await getTrpcClient().dashboardDb.list.update.mutate(draft);
+      const updated =
+        await getTrpcClient().dashboardDb.list.update.mutate(draft);
       if (updated) listsCollection.utils.writeUpdate(updated);
       schedulePersistDashboardDbForCurrentUser();
     } catch (error) {
@@ -179,7 +185,9 @@ export async function removeListingFromList(args: {
 
     try {
       const updated =
-        await getTrpcClient().dashboardDb.list.removeListingFromList.mutate(args);
+        await getTrpcClient().dashboardDb.list.removeListingFromList.mutate(
+          args,
+        );
       listsCollection.utils.writeUpdate(updated);
       schedulePersistDashboardDbForCurrentUser();
     } catch (error) {
@@ -195,8 +203,10 @@ export async function refreshListsCollectionFromServer(userId: string) {
     queryKey: QUERY_KEY,
     cursorBase: CURSOR_BASE,
     fetchRows: () =>
-      getTrpcClient().dashboardDb.list.sync.query({
+      fetchDashboardSyncPages({
         since: null,
+        fetchPage: (input) =>
+          getTrpcClient().dashboardDb.list.sync.query(input),
       }),
     sortRows: sortLists,
     filterRows: (row) => !DELETED_IDS.has(row.id),

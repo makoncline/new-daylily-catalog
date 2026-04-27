@@ -17,6 +17,7 @@ import {
 import {
   assertOwnedListing,
   assertOwnedProfile,
+  dashboardSyncInputSchema,
   invalidateDashboardMutation,
   parseDashboardSyncSince,
 } from "./dashboard-db-router-helpers";
@@ -147,8 +148,50 @@ export const dashboardDbImageRouter = createTRPCRouter({
     });
   }),
 
+  listByOwnerRefs: protectedProcedure
+    .input(
+      z.object({
+        listingIds: z.array(z.string().trim().min(1)).max(500),
+        includeProfileImages: z.boolean().default(false),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const [listingRows, profile] = await Promise.all([
+        input.listingIds.length
+          ? ctx.db.listing.findMany({
+              where: { id: { in: input.listingIds }, userId: ctx.user.id },
+              select: { id: true },
+            })
+          : Promise.resolve([]),
+        input.includeProfileImages
+          ? ctx.db.userProfile.findUnique({
+              where: { userId: ctx.user.id },
+              select: { id: true },
+            })
+          : Promise.resolve(null),
+      ]);
+
+      const ownerFilters = [
+        ...(listingRows.length
+          ? [{ listingId: { in: listingRows.map((row) => row.id) } }]
+          : []),
+        ...(profile ? [{ userProfileId: profile.id }] : []),
+      ];
+      if (!ownerFilters.length) return [];
+
+      return ctx.db.image.findMany({
+        where: { OR: ownerFilters },
+        orderBy: [
+          { listingId: "asc" },
+          { userProfileId: "asc" },
+          { order: "asc" },
+        ],
+        select: imageSelect,
+      });
+    }),
+
   sync: protectedProcedure
-    .input(z.object({ since: z.iso.datetime().nullable() }))
+    .input(dashboardSyncInputSchema)
     .query(async ({ ctx, input }) => {
       const since = parseDashboardSyncSince(input.since);
       const ownedImageWhere = await getOwnedImageWhere({
@@ -159,11 +202,15 @@ export const dashboardDbImageRouter = createTRPCRouter({
 
       return ctx.db.image.findMany({
         where: {
-          ...ownedImageWhere,
-          ...(since ? { updatedAt: { gte: since } } : {}),
+          AND: [
+            ownedImageWhere,
+            ...(since ? [{ updatedAt: { gte: since } }] : []),
+            ...(input.cursor ? [{ id: { gt: input.cursor.id } }] : []),
+          ],
         },
-        orderBy: { updatedAt: "asc" },
+        orderBy: { id: "asc" },
         select: imageSelect,
+        ...(input.limit ? { take: input.limit } : {}),
       });
     }),
 

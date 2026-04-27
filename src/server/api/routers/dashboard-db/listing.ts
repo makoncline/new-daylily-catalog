@@ -8,6 +8,7 @@ import {
   buildListingUpdateRefs,
 } from "./public-isr-reference-helpers";
 import {
+  dashboardSyncInputSchema,
   invalidateDashboardMutation,
   parseDashboardSyncSince,
 } from "./dashboard-db-router-helpers";
@@ -105,16 +106,18 @@ export const dashboardDbListingRouter = createTRPCRouter({
   }),
 
   sync: protectedProcedure
-    .input(z.object({ since: z.iso.datetime().nullable() }))
+    .input(dashboardSyncInputSchema)
     .query(async ({ ctx, input }) => {
       const since = parseDashboardSyncSince(input.since);
       return ctx.db.listing.findMany({
         where: {
           userId: ctx.user.id,
           ...(since ? { updatedAt: { gte: since } } : {}),
+          ...(input.cursor ? { id: { gt: input.cursor.id } } : {}),
         },
         select: listingSelect,
-        orderBy: { updatedAt: "asc" },
+        orderBy: { id: "asc" },
+        ...(input.limit ? { take: input.limit } : {}),
       });
     }),
 

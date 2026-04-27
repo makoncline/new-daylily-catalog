@@ -11,6 +11,10 @@ pnpm env:dev pnpm profile:queries
 Long-lived analysis notes and TODO tracking live in `docs/query-performance-notes.md`.
 Raw report artifacts in `tests/.tmp/query-profiler/` should remain local-only and not be committed.
 
+When local SQLite timing is not representative enough, use
+`docs/prod-readonly-dashboard-smoke.md` to run local code against production
+Turso through a `daylilycatalog.com` Cloudflare tunnel without doing writes.
+
 ## 1. Pull a local production snapshot
 
 ```sh

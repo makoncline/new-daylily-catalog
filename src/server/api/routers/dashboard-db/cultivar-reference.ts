@@ -1,11 +1,15 @@
 import { z } from "zod";
 import { createTRPCRouter, protectedProcedure } from "@/server/api/trpc";
-import type { Prisma, PrismaClient } from "@prisma/client";
+import type { PrismaClient } from "@prisma/client";
 import {
   ahsDisplayAhsListingSelect,
   v2AhsCultivarDisplaySelect,
   withResolvedDisplayAhsListing,
 } from "@/lib/utils/ahs-display";
+import {
+  dashboardSyncInputSchema,
+  parseDashboardSyncSince,
+} from "./dashboard-db-router-helpers";
 
 const cultivarReferenceSelect = {
   id: true,
@@ -19,23 +23,17 @@ const cultivarReferenceSelect = {
   },
 } as const;
 
-type CultivarReferenceRow = Prisma.CultivarReferenceGetPayload<{
-  select: typeof cultivarReferenceSelect;
-}>;
-
-function sortCultivarReferenceRows(
-  rows: CultivarReferenceRow[],
-  direction: "asc" | "desc",
-) {
-  return [...rows].sort((a, b) => {
-    const diff = a.updatedAt.getTime() - b.updatedAt.getTime();
-    return direction === "asc" ? diff : -diff;
-  });
-}
-
 async function getCultivarReferencesForUserListings(
   userId: string,
   db: PrismaClient,
+  options: {
+    since?: Date;
+    direction: "asc" | "desc";
+    cursor?: {
+      id: string;
+    };
+    limit?: number;
+  },
 ) {
   const listingRows = await db.listing.findMany({
     where: {
@@ -46,22 +44,32 @@ async function getCultivarReferencesForUserListings(
     },
     select: {
       cultivarReferenceId: true,
-      cultivarReference: {
-        select: cultivarReferenceSelect,
-      },
     },
   });
 
-  const seen = new Set<string>();
+  const cultivarReferenceIds = Array.from(
+    new Set(
+      listingRows.flatMap((row) =>
+        row.cultivarReferenceId ? [row.cultivarReferenceId] : [],
+      ),
+    ),
+  );
 
-  return listingRows.flatMap((row) => {
-    const cultivarReference = row.cultivarReference;
-    if (!cultivarReference || seen.has(cultivarReference.id)) {
-      return [];
-    }
+  if (!cultivarReferenceIds.length) {
+    return [];
+  }
 
-    seen.add(cultivarReference.id);
-    return [cultivarReference];
+  return db.cultivarReference.findMany({
+    where: {
+      id: {
+        in: cultivarReferenceIds,
+        ...(options.cursor ? { gt: options.cursor.id } : {}),
+      },
+      ...(options.since ? { updatedAt: { gte: options.since } } : {}),
+    },
+    select: cultivarReferenceSelect,
+    orderBy: { id: options.direction },
+    ...(options.limit ? { take: options.limit } : {}),
   });
 }
 
@@ -70,26 +78,32 @@ export const dashboardDbCultivarReferenceRouter = createTRPCRouter({
     const rows = await getCultivarReferencesForUserListings(
       ctx.user.id,
       ctx.db,
+      { direction: "desc" },
     );
 
-    return sortCultivarReferenceRows(rows, "desc").map((row) =>
-      withResolvedDisplayAhsListing(row),
-    );
+    return rows.map((row) => withResolvedDisplayAhsListing(row));
   }),
 
   sync: protectedProcedure
-    .input(z.object({ since: z.iso.datetime().nullable() }))
+    .input(dashboardSyncInputSchema)
     .query(async ({ ctx, input }) => {
-      const since = input.since ? new Date(input.since) : undefined;
+      const since = parseDashboardSyncSince(input.since);
       const rows = await getCultivarReferencesForUserListings(
         ctx.user.id,
         ctx.db,
+        {
+          since,
+          direction: "asc",
+          cursor: input.cursor
+            ? {
+                id: input.cursor.id,
+              }
+            : undefined,
+          limit: input.limit,
+        },
       );
 
-      return sortCultivarReferenceRows(
-        since ? rows.filter((row) => row.updatedAt >= since) : rows,
-        "asc",
-      ).map((row) => withResolvedDisplayAhsListing(row));
+      return rows.map((row) => withResolvedDisplayAhsListing(row));
     }),
 
   getByIds: protectedProcedure

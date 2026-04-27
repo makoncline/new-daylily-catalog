@@ -1,8 +1,19 @@
 import type { PrismaClient } from "@prisma/client";
 import { TRPCError } from "@trpc/server";
+import { z } from "zod";
 import type { PublicInvalidationReference } from "@/types/public-types";
 import type { PublicIsrPathInput } from "./public-isr-invalidation-plan";
 import { invalidatePublicIsrForReferences } from "./public-isr-invalidation";
+
+export const dashboardSyncInputSchema = z.object({
+  since: z.iso.datetime().nullable(),
+  cursor: z
+    .object({
+      id: z.string().min(1),
+    })
+    .optional(),
+  limit: z.number().int().min(1).max(500).optional(),
+});
 
 export function parseDashboardSyncSince(since: string | null) {
   return since ? new Date(since) : undefined;

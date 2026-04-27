@@ -167,6 +167,29 @@ function ImagesViewer({
 }
 
 describe("dashboardDb TanStack DB collections", () => {
+  it("incremental sync does not limit rows to one page", async () => {
+    const { fetchDashboardSyncPages } = await import(
+      "@/app/dashboard/_lib/dashboard-db/collection-bootstrap"
+    );
+
+    const calls: unknown[] = [];
+    const rows = await fetchDashboardSyncPages({
+      since: "2026-01-01T00:00:00.000Z",
+      pageSize: 1,
+      fetchPage: async (input) => {
+        calls.push(input);
+        return [{ id: "listing-1" }, { id: "listing-2" }];
+      },
+    });
+
+    expect(rows.map((row) => row.id)).toEqual(["listing-1", "listing-2"]);
+    expect(calls).toEqual([
+      {
+        since: "2026-01-01T00:00:00.000Z",
+      },
+    ]);
+  });
+
   it("listings: cursor does not skip writes that happen during a sync window", async () => {
     await withTempAppDb(async ({ user }) => {
       const { db } = await import("@/server/db");
