@@ -1,12 +1,22 @@
 // @vitest-environment node
 
-import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  afterEach,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+} from "vitest";
 import type { TRPCInternalContext } from "@/server/api/trpc";
 
 process.env.SKIP_ENV_VALIDATION = "1";
-process.env.DATABASE_URL ??= "file:./tests/.tmp/dashboard-db-cultivar-reference.sqlite";
+process.env.DATABASE_URL ??=
+  "file:./tests/.tmp/dashboard-db-cultivar-reference.sqlite";
 
-type RouterModule = typeof import("@/server/api/routers/dashboard-db/cultivar-reference");
+type RouterModule =
+  typeof import("@/server/api/routers/dashboard-db/cultivar-reference");
 let dashboardDbCultivarReferenceRouter: RouterModule["dashboardDbCultivarReferenceRouter"];
 const originalV2DisplayFlag =
   process.env.NEXT_PUBLIC_USE_V2_CULTIVAR_DISPLAY_DATA;
@@ -69,7 +79,8 @@ describe("dashboardDb.cultivarReference", () => {
       return;
     }
 
-    process.env.NEXT_PUBLIC_USE_V2_CULTIVAR_DISPLAY_DATA = originalV2DisplayFlag;
+    process.env.NEXT_PUBLIC_USE_V2_CULTIVAR_DISPLAY_DATA =
+      originalV2DisplayFlag;
   });
 
   it("listForUserListings derives unique cultivar reference IDs from user listings", async () => {

@@ -9,7 +9,8 @@ import {
 import SuperJSON from "superjson";
 import { getBaseUrl } from "@/lib/utils/getBaseUrl";
 
-const UNBATCHED_DASHBOARD_SYNC_PATHS = new Set([
+const UNBATCHED_DASHBOARD_QUERY_PATHS = new Set([
+  "dashboardDb.bootstrap.snapshot",
   "dashboardDb.listing.sync",
   "dashboardDb.list.sync",
   "dashboardDb.image.sync",
@@ -32,7 +33,7 @@ export function createClientLinks() {
     }),
     splitLink({
       condition: (op) =>
-        op.type === "query" && UNBATCHED_DASHBOARD_SYNC_PATHS.has(op.path),
+        op.type === "query" && UNBATCHED_DASHBOARD_QUERY_PATHS.has(op.path),
       true: httpLink({
         transformer: SuperJSON,
         url,

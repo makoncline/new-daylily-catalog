@@ -2,12 +2,9 @@
 
 import { getQueryClient } from "@/trpc/query-client";
 import { setCurrentUserId } from "@/lib/utils/cursor";
+import { cleanupDashboardDbCollections } from "@/app/dashboard/_lib/dashboard-db/dashboard-db-collections";
 import {
-  cleanupDashboardDbCollections,
-  initializeDashboardDbCollections,
-} from "@/app/dashboard/_lib/dashboard-db/dashboard-db-collections";
-import {
-  persistDashboardDbToPersistence,
+  bootstrapDashboardDbFromServer,
   revalidateDashboardDbInBackground,
   resetDashboardRefreshLock,
   tryHydrateDashboardDbFromPersistence,
@@ -19,9 +16,11 @@ interface DashboardDbBootstrapGuard {
 }
 
 interface DashboardDbBootstrapDeps {
+  bootstrapDashboardDbFromServer: (
+    userId: string,
+    guard?: DashboardDbBootstrapGuard,
+  ) => Promise<void>;
   cleanupDashboardDbCollections: () => Promise<void>;
-  initializeDashboardDbCollections: (userId: string) => Promise<void>;
-  persistDashboardDbToPersistence: (userId: string) => Promise<void>;
   revalidateDashboardDbInBackground: (
     userId: string,
     guard?: DashboardDbBootstrapGuard,
@@ -33,9 +32,8 @@ interface DashboardDbBootstrapDeps {
 }
 
 const dashboardDbBootstrapDeps: DashboardDbBootstrapDeps = {
+  bootstrapDashboardDbFromServer,
   cleanupDashboardDbCollections,
-  initializeDashboardDbCollections,
-  persistDashboardDbToPersistence,
   revalidateDashboardDbInBackground,
   removeDashboardDbQueries: (queryKey) => {
     getQueryClient().removeQueries({ queryKey });
@@ -72,8 +70,7 @@ export async function bootstrapDashboardDbForUser(
   }
 
   await Promise.all([
-    deps.initializeDashboardDbCollections(args.userId),
+    deps.bootstrapDashboardDbFromServer(args.userId, args.guard),
     args.prefetchUserProfile(),
   ]);
-  void deps.persistDashboardDbToPersistence(args.userId);
 }

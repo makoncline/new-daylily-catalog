@@ -2,6 +2,7 @@
 
 import type { RouterOutputs } from "@/trpc/react";
 import { getQueryClient } from "@/trpc/query-client";
+import { getTrpcClient } from "@/trpc/client";
 import {
   cursorKey,
   getCurrentUserId,
@@ -10,26 +11,22 @@ import {
 import { writeCursorFromRows } from "@/app/dashboard/_lib/dashboard-db/collection-bootstrap";
 import {
   clearNextListingsCollectionSyncSuppression,
-  initializeListingsCollection,
-  refreshListingsCollectionFromServer,
+  listingsCollection,
   suppressNextListingsCollectionSync,
 } from "@/app/dashboard/_lib/dashboard-db/listings-collection";
 import {
   clearNextListsCollectionSyncSuppression,
-  initializeListsCollection,
-  refreshListsCollectionFromServer,
+  listsCollection,
   suppressNextListsCollectionSync,
 } from "@/app/dashboard/_lib/dashboard-db/lists-collection";
 import {
   clearNextImagesCollectionSyncSuppression,
-  initializeImagesCollection,
-  refreshImagesCollectionFromServer,
+  imagesCollection,
   suppressNextImagesCollectionSync,
 } from "@/app/dashboard/_lib/dashboard-db/images-collection";
 import {
   clearNextCultivarReferencesCollectionSyncSuppression,
-  initializeCultivarReferencesCollection,
-  refreshCultivarReferencesCollectionFromServer,
+  cultivarReferencesCollection,
   suppressNextCultivarReferencesCollectionSync,
 } from "@/app/dashboard/_lib/dashboard-db/cultivar-references-collection";
 
@@ -39,18 +36,24 @@ let dashboardDbRefreshGeneration = 0;
 const LISTINGS_CURSOR_BASE = "dashboard-db:listings:maxUpdatedAt";
 const LISTS_CURSOR_BASE = "dashboard-db:lists:maxUpdatedAt";
 const IMAGES_CURSOR_BASE = "dashboard-db:images:maxUpdatedAt";
-const CULTIVAR_REFS_CURSOR_BASE = "dashboard-db:cultivar-references:maxUpdatedAt";
+const CULTIVAR_REFS_CURSOR_BASE =
+  "dashboard-db:cultivar-references:maxUpdatedAt";
 
 const LISTINGS_QUERY_KEY = ["dashboard-db", "listings"] as const;
 const LISTS_QUERY_KEY = ["dashboard-db", "lists"] as const;
 const IMAGES_QUERY_KEY = ["dashboard-db", "images"] as const;
-const CULTIVAR_REFS_QUERY_KEY = ["dashboard-db", "cultivar-references"] as const;
+const CULTIVAR_REFS_QUERY_KEY = [
+  "dashboard-db",
+  "cultivar-references",
+] as const;
 
 type ListingRow = RouterOutputs["dashboardDb"]["listing"]["list"][number];
 type ListRow = RouterOutputs["dashboardDb"]["list"]["list"][number];
 type ImageRow = RouterOutputs["dashboardDb"]["image"]["list"][number];
 type CultivarReferenceRow =
   RouterOutputs["dashboardDb"]["cultivarReference"]["listForUserListings"][number];
+type DashboardDbServerSnapshot =
+  RouterOutputs["dashboardDb"]["bootstrap"]["snapshot"];
 
 export const DASHBOARD_DB_PERSISTED_SWR = {
   enabled: true,
@@ -184,7 +187,9 @@ export async function readDashboardDbSnapshot(userId: string) {
   return snapshot ?? null;
 }
 
-export async function writeDashboardDbSnapshot(snapshot: DashboardDbPersistedSnapshot) {
+export async function writeDashboardDbSnapshot(
+  snapshot: DashboardDbPersistedSnapshot,
+) {
   await idbPut(snapshot);
 }
 
@@ -252,6 +257,50 @@ function clearNextDashboardCollectionSyncSuppressions() {
   clearNextCultivarReferencesCollectionSyncSuppression();
 }
 
+async function applyDashboardDbSnapshot(
+  userId: string,
+  snapshot: DashboardDbServerSnapshot,
+) {
+  const queryClient = getQueryClient();
+
+  queryClient.setQueryData(LISTINGS_QUERY_KEY, snapshot.listings);
+  queryClient.setQueryData(LISTS_QUERY_KEY, snapshot.lists);
+  queryClient.setQueryData(IMAGES_QUERY_KEY, snapshot.images);
+  queryClient.setQueryData(
+    CULTIVAR_REFS_QUERY_KEY,
+    snapshot.cultivarReferences,
+  );
+
+  writeCursorFromSnapshotRows({
+    cursorBase: LISTINGS_CURSOR_BASE,
+    userId,
+    rows: snapshot.listings,
+  });
+  writeCursorFromSnapshotRows({
+    cursorBase: LISTS_CURSOR_BASE,
+    userId,
+    rows: snapshot.lists,
+  });
+  writeCursorFromSnapshotRows({
+    cursorBase: IMAGES_CURSOR_BASE,
+    userId,
+    rows: snapshot.images,
+  });
+  writeCursorFromSnapshotRows({
+    cursorBase: CULTIVAR_REFS_CURSOR_BASE,
+    userId,
+    rows: snapshot.cultivarReferences,
+  });
+
+  suppressNextDashboardCollectionSyncs();
+  await Promise.all([
+    listingsCollection.preload(),
+    listsCollection.preload(),
+    imagesCollection.preload(),
+    cultivarReferencesCollection.preload(),
+  ]);
+}
+
 async function invalidateDashboardCollectionQueries() {
   const queryClient = getQueryClient();
   await Promise.all([
@@ -297,8 +346,8 @@ export function runWithDashboardRefreshLock<T>(work: () => Promise<T>) {
       return await work();
     })
     .finally(() => {
-    release();
-  });
+      release();
+    });
 }
 
 export async function tryHydrateDashboardDbFromPersistence(userId: string) {
@@ -332,7 +381,10 @@ export async function tryHydrateDashboardDbFromPersistence(userId: string) {
     queryClient.setQueryData(LISTINGS_QUERY_KEY, snapshot.listings);
     queryClient.setQueryData(LISTS_QUERY_KEY, snapshot.lists);
     queryClient.setQueryData(IMAGES_QUERY_KEY, snapshot.images);
-    queryClient.setQueryData(CULTIVAR_REFS_QUERY_KEY, snapshot.cultivarReferences);
+    queryClient.setQueryData(
+      CULTIVAR_REFS_QUERY_KEY,
+      snapshot.cultivarReferences,
+    );
 
     writeCursorFromSnapshotRows({
       cursorBase: LISTINGS_CURSOR_BASE,
@@ -407,18 +459,18 @@ export async function bootstrapDashboardDbFromServer(
         return;
       }
 
-      await Promise.all([
-        initializeListingsCollection(userId),
-        initializeListsCollection(userId),
-        initializeImagesCollection(userId),
-        initializeCultivarReferencesCollection(userId),
-      ]);
+      const snapshot =
+        await getTrpcClient().dashboardDb.bootstrap.snapshot.query();
 
-      suppressNextDashboardCollectionSyncs();
+      if (guard?.isActive && !guard.isActive()) {
+        return;
+      }
 
       if (getCurrentUserId() !== userId) {
         return;
       }
+
+      await applyDashboardDbSnapshot(userId, snapshot);
 
       await persistDashboardDbToPersistence(userId);
     });
@@ -445,16 +497,18 @@ export async function refreshDashboardDbFromServer(
         return false;
       }
 
-      await Promise.all([
-        refreshListingsCollectionFromServer(userId),
-        refreshListsCollectionFromServer(userId),
-        refreshImagesCollectionFromServer(userId),
-        refreshCultivarReferencesCollectionFromServer(userId),
-      ]);
+      const snapshot =
+        await getTrpcClient().dashboardDb.bootstrap.snapshot.query();
+
+      if (guard?.isActive && !guard.isActive()) {
+        return false;
+      }
 
       if (getCurrentUserId() !== userId) {
         return false;
       }
+
+      await applyDashboardDbSnapshot(userId, snapshot);
 
       await persistDashboardDbToPersistence(userId);
       return true;
