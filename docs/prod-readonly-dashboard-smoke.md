@@ -17,8 +17,8 @@ one-off write scripts.
 - Exercise only dashboard read paths such as:
   - `dashboardDb.listing.sync`
   - `dashboardDb.list.sync`
-  - `dashboardDb.image.sync`
-  - `dashboardDb.cultivarReference.sync`
+  - `dashboardDb.image.listByOwnerRefs`
+  - `dashboardDb.cultivarReference.getByIds`
 
 ## 1. Use a Dedicated Local Environment File
 
@@ -99,8 +99,8 @@ Watch the Network tab and server logs for these calls:
 ```txt
 /api/trpc/dashboardDb.listing.sync
 /api/trpc/dashboardDb.list.sync
-/api/trpc/dashboardDb.image.sync
-/api/trpc/dashboardDb.cultivarReference.sync
+/api/trpc/dashboardDb.image.listByOwnerRefs
+/api/trpc/dashboardDb.cultivarReference.getByIds
 ```
 
 For each call, record:

@@ -7,6 +7,20 @@ type HasUpdatedAt = {
   updatedAt: Date;
 };
 
+type HasSyncPageCursor = {
+  id: string;
+};
+
+export interface DashboardSyncPageCursor {
+  id: string;
+}
+
+export interface DashboardSyncPageInput {
+  cursor?: DashboardSyncPageCursor;
+  limit: number;
+  since: string | null;
+}
+
 interface BootstrapDashboardDbCollectionArgs<T extends HasUpdatedAt> {
   userId: string;
   queryKey: readonly unknown[];
@@ -31,6 +45,43 @@ export function writeCursorFromRows(args: {
   }
 
   localStorage.setItem(args.cursorStorageKey, max.toISOString());
+}
+
+export async function fetchDashboardSyncPages<
+  T extends HasSyncPageCursor,
+>(args: {
+  fetchPage: (input: DashboardSyncPageInput) => Promise<readonly T[]>;
+  pageSize?: number;
+  since: string | null;
+}) {
+  const pageSize = args.pageSize ?? 100;
+  const rows: T[] = [];
+  let cursor: DashboardSyncPageCursor | undefined;
+
+  if (args.since !== null) {
+    return [...(await args.fetchPage({ limit: pageSize, since: args.since }))];
+  }
+
+  for (;;) {
+    const page = await args.fetchPage({
+      cursor,
+      limit: pageSize,
+      since: args.since,
+    });
+
+    rows.push(...page);
+
+    if (page.length < pageSize) {
+      return rows;
+    }
+
+    const last = page[page.length - 1]!;
+    if (cursor?.id === last.id) {
+      throw new Error("Dashboard sync cursor did not advance");
+    }
+
+    cursor = { id: last.id };
+  }
 }
 
 export function replaceDashboardDbCollectionRows<T extends HasUpdatedAt>(args: {

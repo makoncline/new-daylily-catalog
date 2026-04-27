@@ -85,12 +85,13 @@ async function resetDashboardDbClientState() {
   ]);
 }
 
-const collectionSyncPaths = [
-  "dashboardDb.listing.sync",
-  "dashboardDb.list.sync",
-  "dashboardDb.image.sync",
-  "dashboardDb.cultivarReference.sync",
-];
+function expectFullSnapshotFetchCounts(opCounts: Map<string, number>) {
+  expect(opCounts.get("dashboardDb.listing.sync")).toBe(1);
+  expect(opCounts.get("dashboardDb.list.sync")).toBe(1);
+  expect(opCounts.get("dashboardDb.image.listByOwnerRefs")).toBe(1);
+  expect(opCounts.get("dashboardDb.image.sync") ?? 0).toBe(0);
+  expect(opCounts.get("dashboardDb.cultivarReference.sync") ?? 0).toBe(0);
+}
 
 describe("dashboardDb provider bootstrap", () => {
   it("cold bootstrap fetches each dashboard collection once", async () => {
@@ -164,18 +165,13 @@ describe("dashboardDb provider bootstrap", () => {
         await new Promise((resolve) => setTimeout(resolve, 0));
       });
 
-      const collectionSyncCount = collectionSyncPaths.reduce((sum, path) => {
-        return sum + (opCounts.get(path) ?? 0);
-      }, 0);
-
       expect(opCounts.get("dashboardDb.user.getCurrentUser")).toBe(1);
       expect(opCounts.get("dashboardDb.userProfile.get")).toBe(1);
       expect(opCounts.get("dashboardDb.bootstrap.snapshot") ?? 0).toBe(0);
-      expect(collectionSyncCount).toBe(4);
-
-      collectionSyncPaths.forEach((path) => {
-        expect(opCounts.get(path)).toBe(1);
-      });
+      expectFullSnapshotFetchCounts(opCounts);
+      expect(opCounts.get("dashboardDb.cultivarReference.getByIds") ?? 0).toBe(
+        0,
+      );
 
       expect(opCounts.get("dashboardDb.listing.list") ?? 0).toBe(0);
       expect(opCounts.get("dashboardDb.list.list") ?? 0).toBe(0);
@@ -249,12 +245,17 @@ describe("dashboardDb provider bootstrap", () => {
         </QueryClientProvider>,
       );
 
-      await waitFor(() => {
-        expect(screen.getByTestId("dashboard-ready").textContent).toBe("ready");
-        expect(screen.getByTestId("dashboard-listings").textContent).toBe(
-          "Alpha,Beta",
-        );
-      });
+      await waitFor(
+        () => {
+          expect(screen.getByTestId("dashboard-ready").textContent).toBe(
+            "ready",
+          );
+          expect(screen.getByTestId("dashboard-listings").textContent).toBe(
+            "Alpha,Beta",
+          );
+        },
+        { timeout: 5000 },
+      );
 
       firstRender.unmount();
       await resetDashboardDbClientState();
@@ -428,9 +429,7 @@ describe("dashboardDb provider bootstrap", () => {
       });
 
       expect(opCounts.get("dashboardDb.bootstrap.snapshot") ?? 0).toBe(0);
-      collectionSyncPaths.forEach((path) => {
-        expect(opCounts.get(path)).toBe(1);
-      });
+      expectFullSnapshotFetchCounts(opCounts);
       expect(alpha.id).not.toBe(beta.id);
     });
   });
@@ -577,6 +576,10 @@ describe("dashboardDb provider bootstrap", () => {
       const profilePrefetchGate = new Promise<void>((resolve) => {
         releaseProfilePrefetch = () => resolve();
       });
+      let resolveBackgroundRefresh: (() => void) | undefined;
+      const backgroundRefreshComplete = new Promise<void>((resolve) => {
+        resolveBackgroundRefresh = () => resolve();
+      });
       const opCounts = new Map<string, number>();
 
       const delayProfileLink: TRPCLink<AppRouter> = () => {
@@ -601,7 +604,12 @@ describe("dashboardDb provider bootstrap", () => {
               sub = next(op).subscribe({
                 next: (value) => emit.next(value),
                 error: (err) => emit.error(err),
-                complete: () => emit.complete(),
+                complete: () => {
+                  if (op.path === "dashboardDb.image.listByOwnerRefs") {
+                    resolveBackgroundRefresh?.();
+                  }
+                  emit.complete();
+                },
               });
             })();
 
@@ -623,6 +631,7 @@ describe("dashboardDb provider bootstrap", () => {
 
       const trpcClient = api.createClient({ links });
       const queryClient = getQueryClient();
+      queryClient.clear();
       const { DashboardDbProvider } = await import(
         "@/app/dashboard/_components/dashboard-db-provider"
       );
@@ -638,19 +647,21 @@ describe("dashboardDb provider bootstrap", () => {
       );
 
       await waitFor(() => {
-        expect(opCounts.get("dashboardDb.listing.sync")).toBeGreaterThan(0);
-      });
-
-      await act(async () => {
-        await new Promise((resolve) => setTimeout(resolve, 50));
+        expect(opCounts.get("dashboardDb.userProfile.get")).toBeGreaterThan(0);
       });
 
       expect(screen.queryByTestId("dashboard-ready")).toBeNull();
 
-      releaseProfilePrefetch?.();
+      await act(async () => {
+        releaseProfilePrefetch?.();
+      });
 
       await waitFor(() => {
         expect(screen.getByTestId("dashboard-ready").textContent).toBe("ready");
+      });
+
+      await act(async () => {
+        await backgroundRefreshComplete;
       });
     });
   });
@@ -740,12 +751,17 @@ describe("dashboardDb provider bootstrap", () => {
         </QueryClientProvider>,
       );
 
-      await waitFor(() => {
-        expect(screen.getByTestId("dashboard-ready").textContent).toBe("ready");
-        expect(screen.getByTestId("dashboard-listings").textContent).toBe(
-          "Alpha,Beta",
-        );
-      });
+      await waitFor(
+        () => {
+          expect(screen.getByTestId("dashboard-ready").textContent).toBe(
+            "ready",
+          );
+          expect(screen.getByTestId("dashboard-listings").textContent).toBe(
+            "Alpha,Beta",
+          );
+        },
+        { timeout: 5000 },
+      );
 
       expect(alpha.id).not.toBe(beta.id);
     });

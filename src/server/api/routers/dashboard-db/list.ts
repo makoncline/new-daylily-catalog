@@ -1,5 +1,7 @@
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
+import { Prisma } from "@prisma/client";
+import type { PrismaClient } from "@prisma/client";
 import { protectedProcedure, createTRPCRouter } from "@/server/api/trpc";
 import {
   buildListMembershipMutationRefs,
@@ -9,6 +11,7 @@ import {
 import {
   assertOwnedList,
   assertOwnedListing,
+  dashboardSyncInputSchema,
   invalidateDashboardMutation,
   parseDashboardSyncSince,
 } from "./dashboard-db-router-helpers";
@@ -27,6 +30,47 @@ const listSelect = {
     },
   },
 } as const;
+
+const listBaseSelect = {
+  id: true,
+  userId: true,
+  title: true,
+  description: true,
+  status: true,
+  createdAt: true,
+  updatedAt: true,
+} as const;
+
+type ListBaseRow = Prisma.ListGetPayload<{
+  select: typeof listBaseSelect;
+}>;
+
+async function attachListListingIds(db: PrismaClient, lists: ListBaseRow[]) {
+  if (!lists.length) {
+    return [];
+  }
+
+  const listIds = lists.map((list) => list.id);
+  const memberships = await db.$queryRaw<Array<{ A: string; B: string }>>(
+    Prisma.sql`
+      SELECT "A", "B"
+      FROM "_ListToListing"
+      WHERE "A" IN (${Prisma.join(listIds)})
+    `,
+  );
+
+  const listingIdsByListId = new Map<string, Array<{ id: string }>>();
+  memberships.forEach((membership) => {
+    const rows = listingIdsByListId.get(membership.A) ?? [];
+    rows.push({ id: membership.B });
+    listingIdsByListId.set(membership.A, rows);
+  });
+
+  return lists.map((list) => ({
+    ...list,
+    listings: listingIdsByListId.get(list.id) ?? [],
+  }));
+}
 
 export const dashboardDbListRouter = createTRPCRouter({
   create: protectedProcedure
@@ -69,25 +113,31 @@ export const dashboardDbListRouter = createTRPCRouter({
     }),
 
   list: protectedProcedure.query(async ({ ctx }) => {
-    return ctx.db.list.findMany({
+    const lists = await ctx.db.list.findMany({
       where: { userId: ctx.user.id },
-      select: listSelect,
+      select: listBaseSelect,
       orderBy: { createdAt: "desc" },
     });
+
+    return attachListListingIds(ctx.db, lists);
   }),
 
   sync: protectedProcedure
-    .input(z.object({ since: z.iso.datetime().nullable() }))
+    .input(dashboardSyncInputSchema)
     .query(async ({ ctx, input }) => {
       const since = parseDashboardSyncSince(input.since);
-      return ctx.db.list.findMany({
+      const lists = await ctx.db.list.findMany({
         where: {
           userId: ctx.user.id,
           ...(since ? { updatedAt: { gte: since } } : {}),
+          ...(input.cursor ? { id: { gt: input.cursor.id } } : {}),
         },
-        select: listSelect,
-        orderBy: { updatedAt: "asc" },
+        select: listBaseSelect,
+        orderBy: { id: "asc" },
+        ...(input.limit ? { take: input.limit } : {}),
       });
+
+      return attachListListingIds(ctx.db, lists);
     }),
 
   update: protectedProcedure

@@ -7,12 +7,14 @@ import { getQueryClient } from "@/trpc/query-client";
 import { getTrpcClient } from "@/trpc/client";
 import { getUserCursorKey } from "@/lib/utils/cursor";
 import {
+  fetchDashboardSyncPages,
   refreshDashboardDbCollectionFromServer,
   writeCursorFromRows,
 } from "@/app/dashboard/_lib/dashboard-db/collection-bootstrap";
 
 const CURSOR_BASE = "dashboard-db:cultivar-references:maxUpdatedAt";
 const QUERY_KEY = ["dashboard-db", "cultivar-references"] as const;
+export const CULTIVAR_REFERENCES_SYNC_PAGE_SIZE = 50;
 let shouldSkipNextCultivarReferencesSync = false;
 
 export type CultivarReferenceCollectionItem =
@@ -21,7 +23,9 @@ export type CultivarReferenceCollectionItem =
 function sortCultivarReferences(
   rows: readonly CultivarReferenceCollectionItem[],
 ) {
-  return [...rows].sort((a, b) => a.updatedAt.getTime() - b.updatedAt.getTime());
+  return [...rows].sort(
+    (a, b) => a.updatedAt.getTime() - b.updatedAt.getTime(),
+  );
 }
 
 export function suppressNextCultivarReferencesCollectionSync() {
@@ -54,8 +58,11 @@ export const cultivarReferencesCollection = createCollection(
 
       const cursorKeyToUse = getUserCursorKey(CURSOR_BASE);
       const last = localStorage.getItem(cursorKeyToUse);
-      const upserts = await getTrpcClient().dashboardDb.cultivarReference.sync.query({
+      const upserts = await fetchDashboardSyncPages({
         since: last ?? null,
+        pageSize: CULTIVAR_REFERENCES_SYNC_PAGE_SIZE,
+        fetchPage: (input) =>
+          getTrpcClient().dashboardDb.cultivarReference.sync.query(input),
       });
 
       const map = new Map(existing.map((row) => [row.id, row]));
@@ -78,8 +85,11 @@ export async function refreshCultivarReferencesCollectionFromServer(
     queryKey: QUERY_KEY,
     cursorBase: CURSOR_BASE,
     fetchRows: () =>
-      getTrpcClient().dashboardDb.cultivarReference.sync.query({
+      fetchDashboardSyncPages({
         since: null,
+        pageSize: CULTIVAR_REFERENCES_SYNC_PAGE_SIZE,
+        fetchPage: (input) =>
+          getTrpcClient().dashboardDb.cultivarReference.sync.query(input),
       }),
     sortRows: sortCultivarReferences,
   });
@@ -98,9 +108,10 @@ export async function ensureCultivarReferencesCached(ids: string[]) {
   const missing = unique.filter((id) => !cultivarReferencesCollection.get(id));
   if (!missing.length) return [];
 
-  const rows = await getTrpcClient().dashboardDb.cultivarReference.getByIds.query({
-    ids: missing,
-  });
+  const rows =
+    await getTrpcClient().dashboardDb.cultivarReference.getByIds.query({
+      ids: missing,
+    });
 
   if (rows.length) {
     cultivarReferencesCollection.utils.writeBatch(() => {

@@ -116,9 +116,7 @@ describe("dashboardDb.cultivarReference", () => {
         },
       },
       select: expect.any(Object),
-      orderBy: {
-        updatedAt: "desc",
-      },
+      orderBy: { id: "desc" },
     });
   });
 
@@ -157,9 +155,7 @@ describe("dashboardDb.cultivarReference", () => {
         },
       },
       select: expect.any(Object),
-      orderBy: {
-        updatedAt: "asc",
-      },
+      orderBy: { id: "asc" },
     });
   });
 

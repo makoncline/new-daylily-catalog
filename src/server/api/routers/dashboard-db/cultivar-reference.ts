@@ -6,6 +6,10 @@ import {
   v2AhsCultivarDisplaySelect,
   withResolvedDisplayAhsListing,
 } from "@/lib/utils/ahs-display";
+import {
+  dashboardSyncInputSchema,
+  parseDashboardSyncSince,
+} from "./dashboard-db-router-helpers";
 
 const cultivarReferenceSelect = {
   id: true,
@@ -25,6 +29,10 @@ async function getCultivarReferencesForUserListings(
   options: {
     since?: Date;
     direction: "asc" | "desc";
+    cursor?: {
+      id: string;
+    };
+    limit?: number;
   },
 ) {
   const listingRows = await db.listing.findMany({
@@ -53,11 +61,15 @@ async function getCultivarReferencesForUserListings(
 
   return db.cultivarReference.findMany({
     where: {
-      id: { in: cultivarReferenceIds },
+      id: {
+        in: cultivarReferenceIds,
+        ...(options.cursor ? { gt: options.cursor.id } : {}),
+      },
       ...(options.since ? { updatedAt: { gte: options.since } } : {}),
     },
     select: cultivarReferenceSelect,
-    orderBy: { updatedAt: options.direction },
+    orderBy: { id: options.direction },
+    ...(options.limit ? { take: options.limit } : {}),
   });
 }
 
@@ -73,13 +85,22 @@ export const dashboardDbCultivarReferenceRouter = createTRPCRouter({
   }),
 
   sync: protectedProcedure
-    .input(z.object({ since: z.iso.datetime().nullable() }))
+    .input(dashboardSyncInputSchema)
     .query(async ({ ctx, input }) => {
-      const since = input.since ? new Date(input.since) : undefined;
+      const since = parseDashboardSyncSince(input.since);
       const rows = await getCultivarReferencesForUserListings(
         ctx.user.id,
         ctx.db,
-        { since, direction: "asc" },
+        {
+          since,
+          direction: "asc",
+          cursor: input.cursor
+            ? {
+                id: input.cursor.id,
+              }
+            : undefined,
+          limit: input.limit,
+        },
       );
 
       return rows.map((row) => withResolvedDisplayAhsListing(row));

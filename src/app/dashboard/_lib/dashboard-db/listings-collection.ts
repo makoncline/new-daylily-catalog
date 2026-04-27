@@ -8,15 +8,14 @@ import { getTrpcClient } from "@/trpc/client";
 import { makeInsertWithSwap } from "@/lib/utils/collection-utils";
 import { createTempId } from "@/lib/utils/create-temp-id";
 import { omitUndefined } from "@/lib/utils/omit-undefined";
-import {
-  ensureCultivarReferencesCached,
-} from "@/app/dashboard/_lib/dashboard-db/cultivar-references-collection";
+import { ensureCultivarReferencesCached } from "@/app/dashboard/_lib/dashboard-db/cultivar-references-collection";
 import { getUserCursorKey } from "@/lib/utils/cursor";
 import {
   runWithDashboardRefreshLock,
   schedulePersistDashboardDbForCurrentUser,
 } from "@/app/dashboard/_lib/dashboard-db/dashboard-db-persistence";
 import {
+  fetchDashboardSyncPages,
   refreshDashboardDbCollectionFromServer,
   writeCursorFromRows,
 } from "@/app/dashboard/_lib/dashboard-db/collection-bootstrap";
@@ -30,7 +29,9 @@ export type ListingCollectionItem =
   RouterOutputs["dashboardDb"]["listing"]["list"][number];
 
 function sortListings(rows: readonly ListingCollectionItem[]) {
-  return [...rows].sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+  return [...rows].sort(
+    (a, b) => b.createdAt.getTime() - a.createdAt.getTime(),
+  );
 }
 
 export function suppressNextListingsCollectionSync() {
@@ -65,8 +66,10 @@ export const listingsCollection = createCollection(
       const cursorKeyToUse = getUserCursorKey(CURSOR_BASE);
       const last = localStorage.getItem(cursorKeyToUse);
 
-      const upserts = await getTrpcClient().dashboardDb.listing.sync.query({
+      const upserts = await fetchDashboardSyncPages({
         since: last ?? null,
+        fetchPage: (input) =>
+          getTrpcClient().dashboardDb.listing.sync.query(input),
       });
 
       const map = new Map(existing.map((i) => [i.id, i]));
@@ -129,9 +132,8 @@ export async function updateListing(draft: UpdateDraft) {
     });
 
     try {
-      const updated = await getTrpcClient().dashboardDb.listing.update.mutate(
-        draft,
-      );
+      const updated =
+        await getTrpcClient().dashboardDb.listing.update.mutate(draft);
       listingsCollection.utils.writeUpdate(updated);
       schedulePersistDashboardDbForCurrentUser();
     } catch (error) {
@@ -161,9 +163,8 @@ export async function deleteListing({ id }: { id: string }) {
 type LinkAhsDraft = RouterInputs["dashboardDb"]["listing"]["linkAhs"];
 export async function linkAhs(draft: LinkAhsDraft) {
   return runWithDashboardRefreshLock(async () => {
-    const updated = await getTrpcClient().dashboardDb.listing.linkAhs.mutate(
-      draft,
-    );
+    const updated =
+      await getTrpcClient().dashboardDb.listing.linkAhs.mutate(draft);
     listingsCollection.utils.writeUpdate(updated);
 
     if (updated.cultivarReferenceId) {
@@ -182,9 +183,8 @@ export async function linkAhs(draft: LinkAhsDraft) {
 type UnlinkAhsDraft = RouterInputs["dashboardDb"]["listing"]["unlinkAhs"];
 export async function unlinkAhs(draft: UnlinkAhsDraft) {
   return runWithDashboardRefreshLock(async () => {
-    const updated = await getTrpcClient().dashboardDb.listing.unlinkAhs.mutate(
-      draft,
-    );
+    const updated =
+      await getTrpcClient().dashboardDb.listing.unlinkAhs.mutate(draft);
     listingsCollection.utils.writeUpdate(updated);
     schedulePersistDashboardDbForCurrentUser();
     return updated;
@@ -208,8 +208,10 @@ export async function refreshListingsCollectionFromServer(userId: string) {
     queryKey: QUERY_KEY,
     cursorBase: CURSOR_BASE,
     fetchRows: () =>
-      getTrpcClient().dashboardDb.listing.sync.query({
+      fetchDashboardSyncPages({
         since: null,
+        fetchPage: (input) =>
+          getTrpcClient().dashboardDb.listing.sync.query(input),
       }),
     sortRows: sortListings,
     filterRows: (row) => !DELETED_IDS.has(row.id),

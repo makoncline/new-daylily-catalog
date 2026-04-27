@@ -74,11 +74,15 @@ describe("dashboardDb.image", () => {
     expect(db.image.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
         where: {
-          OR: [
-            { listingId: { in: ["listing-1"] } },
-            { userProfileId: "profile-1" },
+          AND: [
+            {
+              OR: [
+                { listingId: { in: ["listing-1"] } },
+                { userProfileId: "profile-1" },
+              ],
+            },
+            { updatedAt: { gte: new Date("2026-01-01T00:00:00.000Z") } },
           ],
-          updatedAt: { gte: new Date("2026-01-01T00:00:00.000Z") },
         },
       }),
     );

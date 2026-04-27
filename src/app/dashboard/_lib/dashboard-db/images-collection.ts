@@ -12,12 +12,14 @@ import {
   schedulePersistDashboardDbForCurrentUser,
 } from "@/app/dashboard/_lib/dashboard-db/dashboard-db-persistence";
 import {
+  fetchDashboardSyncPages,
   refreshDashboardDbCollectionFromServer,
   writeCursorFromRows,
 } from "@/app/dashboard/_lib/dashboard-db/collection-bootstrap";
 
 const CURSOR_BASE = "dashboard-db:images:maxUpdatedAt";
 const QUERY_KEY = ["dashboard-db", "images"] as const;
+export const IMAGES_SYNC_PAGE_SIZE = 50;
 const DELETED_IDS = new Set<string>();
 let shouldSkipNextImagesSync = false;
 
@@ -69,8 +71,11 @@ export const imagesCollection = createCollection(
 
       const cursorKeyToUse = getUserCursorKey(CURSOR_BASE);
       const last = localStorage.getItem(cursorKeyToUse);
-      const upserts = await getTrpcClient().dashboardDb.image.sync.query({
+      const upserts = await fetchDashboardSyncPages({
         since: last ?? null,
+        pageSize: IMAGES_SYNC_PAGE_SIZE,
+        fetchPage: (input) =>
+          getTrpcClient().dashboardDb.image.sync.query(input),
       });
 
       const map = new Map(existing.map((i) => [i.id, i]));
@@ -118,7 +123,8 @@ export async function createImage(draft: CreateDraft) {
     imagesCollection.utils.writeInsert(temp);
 
     try {
-      const created = await getTrpcClient().dashboardDb.image.create.mutate(draft);
+      const created =
+        await getTrpcClient().dashboardDb.image.create.mutate(draft);
       const tempExists = !!imagesCollection.get(temp.id);
       const realExists = !!imagesCollection.get(created.id);
 
@@ -221,8 +227,11 @@ export async function refreshImagesCollectionFromServer(userId: string) {
     queryKey: QUERY_KEY,
     cursorBase: CURSOR_BASE,
     fetchRows: () =>
-      getTrpcClient().dashboardDb.image.sync.query({
+      fetchDashboardSyncPages({
         since: null,
+        pageSize: IMAGES_SYNC_PAGE_SIZE,
+        fetchPage: (input) =>
+          getTrpcClient().dashboardDb.image.sync.query(input),
       }),
     sortRows: sortImages,
     filterRows: (row) => !DELETED_IDS.has(row.id),
