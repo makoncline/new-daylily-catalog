@@ -1,6 +1,6 @@
 import { z } from "zod";
 import { createTRPCRouter, protectedProcedure } from "@/server/api/trpc";
-import type { PrismaClient } from "@prisma/client";
+import type { Prisma, PrismaClient } from "@prisma/client";
 import {
   ahsDisplayAhsListingSelect,
   v2AhsCultivarDisplaySelect,
@@ -19,19 +19,21 @@ const cultivarReferenceSelect = {
   },
 } as const;
 
-function toUniqueCultivarReferenceIds(
-  rows: Array<{ cultivarReferenceId: string | null }>,
+type CultivarReferenceRow = Prisma.CultivarReferenceGetPayload<{
+  select: typeof cultivarReferenceSelect;
+}>;
+
+function sortCultivarReferenceRows(
+  rows: CultivarReferenceRow[],
+  direction: "asc" | "desc",
 ) {
-  return Array.from(
-    new Set(
-      rows.flatMap((row) =>
-        row.cultivarReferenceId ? [row.cultivarReferenceId] : [],
-      ),
-    ),
-  );
+  return [...rows].sort((a, b) => {
+    const diff = a.updatedAt.getTime() - b.updatedAt.getTime();
+    return direction === "asc" ? diff : -diff;
+  });
 }
 
-async function getCultivarReferenceIdsForUserListings(
+async function getCultivarReferencesForUserListings(
   userId: string,
   db: PrismaClient,
 ) {
@@ -44,61 +46,50 @@ async function getCultivarReferenceIdsForUserListings(
     },
     select: {
       cultivarReferenceId: true,
+      cultivarReference: {
+        select: cultivarReferenceSelect,
+      },
     },
   });
 
-  return toUniqueCultivarReferenceIds(listingRows);
+  const seen = new Set<string>();
+
+  return listingRows.flatMap((row) => {
+    const cultivarReference = row.cultivarReference;
+    if (!cultivarReference || seen.has(cultivarReference.id)) {
+      return [];
+    }
+
+    seen.add(cultivarReference.id);
+    return [cultivarReference];
+  });
 }
 
 export const dashboardDbCultivarReferenceRouter = createTRPCRouter({
   listForUserListings: protectedProcedure.query(async ({ ctx }) => {
-    const cultivarReferenceIds = await getCultivarReferenceIdsForUserListings(
+    const rows = await getCultivarReferencesForUserListings(
       ctx.user.id,
       ctx.db,
     );
 
-    if (cultivarReferenceIds.length === 0) {
-      return [];
-    }
-
-    const rows = await ctx.db.cultivarReference.findMany({
-      where: {
-        id: {
-          in: cultivarReferenceIds,
-        },
-      },
-      select: cultivarReferenceSelect,
-      orderBy: { updatedAt: "desc" },
-    });
-
-    return rows.map((row) => withResolvedDisplayAhsListing(row));
+    return sortCultivarReferenceRows(rows, "desc").map((row) =>
+      withResolvedDisplayAhsListing(row),
+    );
   }),
 
   sync: protectedProcedure
     .input(z.object({ since: z.iso.datetime().nullable() }))
     .query(async ({ ctx, input }) => {
       const since = input.since ? new Date(input.since) : undefined;
-      const cultivarReferenceIds = await getCultivarReferenceIdsForUserListings(
+      const rows = await getCultivarReferencesForUserListings(
         ctx.user.id,
         ctx.db,
       );
 
-      if (cultivarReferenceIds.length === 0) {
-        return [];
-      }
-
-      const rows = await ctx.db.cultivarReference.findMany({
-        where: {
-          id: {
-            in: cultivarReferenceIds,
-          },
-          ...(since ? { updatedAt: { gte: since } } : {}),
-        },
-        select: cultivarReferenceSelect,
-        orderBy: { updatedAt: "asc" },
-      });
-
-      return rows.map((row) => withResolvedDisplayAhsListing(row));
+      return sortCultivarReferenceRows(
+        since ? rows.filter((row) => row.updatedAt >= since) : rows,
+        "asc",
+      ).map((row) => withResolvedDisplayAhsListing(row));
     }),
 
   getByIds: protectedProcedure
