@@ -7,14 +7,19 @@ import { DASHBOARD_DB_QUERY_KEYS } from "@/app/dashboard/_lib/dashboard-db/dashb
 
 function createBootstrapDeps() {
   return {
+    bootstrapDashboardDbFromServer: vi.fn(async (_userId: string) => undefined),
     cleanupDashboardDbCollections: vi.fn(async () => undefined),
-    initializeDashboardDbCollections: vi.fn(async (_userId: string) => undefined),
-    persistDashboardDbToPersistence: vi.fn(async (_userId: string) => undefined),
-    revalidateDashboardDbInBackground: vi.fn(async (_userId: string) => undefined),
-    removeDashboardDbQueries: vi.fn((_queryKey: readonly unknown[]) => undefined),
+    revalidateDashboardDbInBackground: vi.fn(
+      async (_userId: string) => undefined,
+    ),
+    removeDashboardDbQueries: vi.fn(
+      (_queryKey: readonly unknown[]) => undefined,
+    ),
     resetDashboardRefreshLock: vi.fn(() => undefined),
     setCurrentUserId: vi.fn((_userId: string | null) => undefined),
-    tryHydrateDashboardDbFromPersistence: vi.fn(async (_userId: string) => false),
+    tryHydrateDashboardDbFromPersistence: vi.fn(
+      async (_userId: string) => false,
+    ),
   };
 }
 
@@ -43,11 +48,10 @@ describe("dashboard db bootstrap helpers", () => {
       guard,
     );
     expect(deps.setCurrentUserId).toHaveBeenCalledWith("user-1");
-    expect(deps.initializeDashboardDbCollections).not.toHaveBeenCalled();
-    expect(deps.persistDashboardDbToPersistence).not.toHaveBeenCalled();
+    expect(deps.bootstrapDashboardDbFromServer).not.toHaveBeenCalled();
   });
 
-  it("initializes collections and schedules persistence on a cold start", async () => {
+  it("loads the server snapshot on a cold start", async () => {
     const deps = createBootstrapDeps();
     const prefetchUserProfile = vi.fn(async () => undefined);
 
@@ -63,9 +67,11 @@ describe("dashboard db bootstrap helpers", () => {
       "user-2",
     );
     expect(deps.setCurrentUserId).toHaveBeenCalledWith("user-2");
-    expect(deps.initializeDashboardDbCollections).toHaveBeenCalledWith("user-2");
+    expect(deps.bootstrapDashboardDbFromServer).toHaveBeenCalledWith(
+      "user-2",
+      undefined,
+    );
     expect(prefetchUserProfile).toHaveBeenCalledTimes(1);
-    expect(deps.persistDashboardDbToPersistence).toHaveBeenCalledWith("user-2");
     expect(deps.revalidateDashboardDbInBackground).not.toHaveBeenCalled();
   });
 

@@ -132,7 +132,9 @@ function ListTitlesViewer({
   return (
     <div data-testid="list-titles">
       {items
-        .map((l: any) => (typeof l.title === "string" ? l.title : "__INVALID__"))
+        .map((l: any) =>
+          typeof l.title === "string" ? l.title : "__INVALID__",
+        )
         .join(",")}
     </div>
   );
@@ -184,8 +186,9 @@ describe("dashboardDb TanStack DB collections", () => {
         return {
           db,
           headers: new Headers(),
-          _authUser:
-            { id: user.id } as unknown as TRPCInternalContext["_authUser"],
+          _authUser: {
+            id: user.id,
+          } as unknown as TRPCInternalContext["_authUser"],
         };
       });
 
@@ -236,10 +239,9 @@ describe("dashboardDb TanStack DB collections", () => {
       const { setTestTrpcClient } = await import("@/trpc/client");
       setTestTrpcClient(clientLike);
 
-      const {
-        listingsCollection,
-        initializeListingsCollection,
-      } = await import("@/app/dashboard/_lib/dashboard-db/listings-collection");
+      const { listingsCollection, initializeListingsCollection } = await import(
+        "@/app/dashboard/_lib/dashboard-db/listings-collection"
+      );
 
       await act(async () => {
         await initializeListingsCollection(user.id);
@@ -306,8 +308,9 @@ describe("dashboardDb TanStack DB collections", () => {
         return {
           db,
           headers: new Headers(),
-          _authUser:
-            { id: user.id } as unknown as TRPCInternalContext["_authUser"],
+          _authUser: {
+            id: user.id,
+          } as unknown as TRPCInternalContext["_authUser"],
         };
       });
 
@@ -429,8 +432,9 @@ describe("dashboardDb TanStack DB collections", () => {
         return {
           db,
           headers: new Headers(),
-          _authUser:
-            { id: user.id } as unknown as TRPCInternalContext["_authUser"],
+          _authUser: {
+            id: user.id,
+          } as unknown as TRPCInternalContext["_authUser"],
         };
       });
 
@@ -551,15 +555,15 @@ describe("dashboardDb TanStack DB collections", () => {
         return {
           db,
           headers: new Headers(),
-          _authUser:
-            { id: user.id } as unknown as TRPCInternalContext["_authUser"],
+          _authUser: {
+            id: user.id,
+          } as unknown as TRPCInternalContext["_authUser"],
         };
       });
 
-      let releaseListingSync: (() => void) | undefined;
-      let listingSyncCount = 0;
-      const listingSyncGate = new Promise<void>((resolve) => {
-        releaseListingSync = () => resolve();
+      let releaseSnapshot: (() => void) | undefined;
+      const snapshotGate = new Promise<void>((resolve) => {
+        releaseSnapshot = () => resolve();
       });
 
       const delayRefreshLink: TRPCLink<AppRouter> = () => {
@@ -571,11 +575,8 @@ describe("dashboardDb TanStack DB collections", () => {
             let cancelled = false;
 
             void (async () => {
-              if (op.path === "dashboardDb.listing.sync") {
-                listingSyncCount += 1;
-                if (listingSyncCount === 2) {
-                  await listingSyncGate;
-                }
+              if (op.path === "dashboardDb.bootstrap.snapshot") {
+                await snapshotGate;
               }
 
               if (cancelled) {
@@ -646,7 +647,7 @@ describe("dashboardDb TanStack DB collections", () => {
       expect(updateResolved).toBe(false);
       expect(screen.getByTestId("titles").textContent).toBe("Alpha");
 
-      releaseListingSync?.();
+      releaseSnapshot?.();
 
       await act(async () => {
         await Promise.all([refreshPromise, updatePromise]);
@@ -689,7 +690,10 @@ describe("dashboardDb TanStack DB collections", () => {
       });
 
       await act(async () => {
-        await updateListing({ id: createdId, data: { title: "Hello Updated" } });
+        await updateListing({
+          id: createdId,
+          data: { title: "Hello Updated" },
+        });
       });
 
       await waitFor(() => {
@@ -777,8 +781,9 @@ describe("dashboardDb TanStack DB collections", () => {
         return {
           db,
           headers: new Headers(),
-          _authUser:
-            { id: user.id } as unknown as TRPCInternalContext["_authUser"],
+          _authUser: {
+            id: user.id,
+          } as unknown as TRPCInternalContext["_authUser"],
         };
       });
 
@@ -832,7 +837,9 @@ describe("dashboardDb TanStack DB collections", () => {
           select: { id: true, userId: true },
         }),
       ).toMatchObject({ id: seeded.id, userId: user.id });
-      expect(await caller.dashboardDb.list.get({ id: seeded.id })).toMatchObject({
+      expect(
+        await caller.dashboardDb.list.get({ id: seeded.id }),
+      ).toMatchObject({
         id: seeded.id,
       });
 
@@ -885,8 +892,11 @@ describe("dashboardDb TanStack DB collections", () => {
         initializeListsCollection,
       } = await import("@/app/dashboard/_lib/dashboard-db/lists-collection");
 
-      const { listingsCollection, insertListing, initializeListingsCollection } =
-        await import("@/app/dashboard/_lib/dashboard-db/listings-collection");
+      const {
+        listingsCollection,
+        insertListing,
+        initializeListingsCollection,
+      } = await import("@/app/dashboard/_lib/dashboard-db/listings-collection");
 
       await act(async () => {
         await initializeListsCollection("test-user");
@@ -957,7 +967,10 @@ describe("dashboardDb TanStack DB collections", () => {
 
       await act(async () => {
         render(
-          <ImagesViewer imagesCollection={imagesCollection} listingId={listingId} />,
+          <ImagesViewer
+            imagesCollection={imagesCollection}
+            listingId={listingId}
+          />,
         );
       });
 

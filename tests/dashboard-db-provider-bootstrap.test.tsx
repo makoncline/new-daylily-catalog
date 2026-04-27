@@ -86,7 +86,7 @@ async function resetDashboardDbClientState() {
 }
 
 describe("dashboardDb provider bootstrap", () => {
-  it("cold bootstrap fetches each dashboard collection once", async () => {
+  it("cold bootstrap fetches the dashboard snapshot once", async () => {
     await withTempAppDb(async ({ user }) => {
       await clearDashboardDbPersistence();
 
@@ -105,8 +105,9 @@ describe("dashboardDb provider bootstrap", () => {
         return {
           db,
           headers: new Headers(),
-          _authUser:
-            { id: user.id } as unknown as TRPCInternalContext["_authUser"],
+          _authUser: {
+            id: user.id,
+          } as unknown as TRPCInternalContext["_authUser"],
         };
       });
 
@@ -145,7 +146,9 @@ describe("dashboardDb provider bootstrap", () => {
 
       await waitFor(
         () => {
-          expect(screen.getByTestId("dashboard-ready").textContent).toBe("ready");
+          expect(screen.getByTestId("dashboard-ready").textContent).toBe(
+            "ready",
+          );
         },
         { timeout: 2000 },
       );
@@ -154,28 +157,31 @@ describe("dashboardDb provider bootstrap", () => {
         await new Promise((resolve) => setTimeout(resolve, 0));
       });
 
-      const bootstrapFetchPaths = [
+      const collectionSyncPaths = [
         "dashboardDb.listing.sync",
         "dashboardDb.list.sync",
         "dashboardDb.image.sync",
         "dashboardDb.cultivarReference.sync",
       ];
-      const bootstrapFetchCount = bootstrapFetchPaths.reduce((sum, path) => {
+      const collectionSyncCount = collectionSyncPaths.reduce((sum, path) => {
         return sum + (opCounts.get(path) ?? 0);
       }, 0);
 
       expect(opCounts.get("dashboardDb.user.getCurrentUser")).toBe(1);
       expect(opCounts.get("dashboardDb.userProfile.get")).toBe(1);
-      expect(bootstrapFetchCount).toBe(4);
+      expect(opCounts.get("dashboardDb.bootstrap.snapshot")).toBe(1);
+      expect(collectionSyncCount).toBe(0);
 
-      bootstrapFetchPaths.forEach((path) => {
-        expect(opCounts.get(path)).toBe(1);
+      collectionSyncPaths.forEach((path) => {
+        expect(opCounts.get(path) ?? 0).toBe(0);
       });
 
       expect(opCounts.get("dashboardDb.listing.list") ?? 0).toBe(0);
       expect(opCounts.get("dashboardDb.list.list") ?? 0).toBe(0);
       expect(opCounts.get("dashboardDb.image.list") ?? 0).toBe(0);
-      expect(opCounts.get("dashboardDb.cultivarReference.listForUserListings") ?? 0).toBe(0);
+      expect(
+        opCounts.get("dashboardDb.cultivarReference.listForUserListings") ?? 0,
+      ).toBe(0);
     });
   });
 
@@ -208,8 +214,9 @@ describe("dashboardDb provider bootstrap", () => {
         return {
           db,
           headers: new Headers(),
-          _authUser:
-            { id: user.id } as unknown as TRPCInternalContext["_authUser"],
+          _authUser: {
+            id: user.id,
+          } as unknown as TRPCInternalContext["_authUser"],
         };
       });
 
@@ -233,7 +240,9 @@ describe("dashboardDb provider bootstrap", () => {
           <api.Provider client={trpcClient} queryClient={firstQueryClient}>
             <DashboardDbProvider>
               <DashboardReadyMarker />
-              <DashboardListingsMarker listingsCollection={listingsCollection} />
+              <DashboardListingsMarker
+                listingsCollection={listingsCollection}
+              />
             </DashboardDbProvider>
           </api.Provider>
         </QueryClientProvider>,
@@ -263,7 +272,9 @@ describe("dashboardDb provider bootstrap", () => {
             <api.Provider client={trpcClient} queryClient={secondQueryClient}>
               <DashboardDbProvider>
                 <DashboardReadyMarker />
-                <DashboardListingsMarker listingsCollection={listingsCollection} />
+                <DashboardListingsMarker
+                  listingsCollection={listingsCollection}
+                />
               </DashboardDbProvider>
             </api.Provider>
           </QueryClientProvider>,
@@ -271,7 +282,9 @@ describe("dashboardDb provider bootstrap", () => {
 
         await waitFor(
           () => {
-            expect(screen.getByTestId("dashboard-ready").textContent).toBe("ready");
+            expect(screen.getByTestId("dashboard-ready").textContent).toBe(
+              "ready",
+            );
             expect(screen.getByTestId("dashboard-listings").textContent).toBe(
               "Alpha,Beta",
             );
@@ -316,18 +329,19 @@ describe("dashboardDb provider bootstrap", () => {
         return {
           db,
           headers: new Headers(),
-          _authUser:
-            { id: user.id } as unknown as TRPCInternalContext["_authUser"],
+          _authUser: {
+            id: user.id,
+          } as unknown as TRPCInternalContext["_authUser"],
         };
       });
 
       const opCounts = new Map<string, number>();
-      let releaseListingSync!: () => void;
-      const listingSyncGate = new Promise<void>((resolve) => {
-        releaseListingSync = resolve;
+      let releaseSnapshot!: () => void;
+      const snapshotGate = new Promise<void>((resolve) => {
+        releaseSnapshot = resolve;
       });
 
-      const delayedListingSyncLink: TRPCLink<AppRouter> = () => {
+      const delayedSnapshotLink: TRPCLink<AppRouter> = () => {
         return ({ op, next }) =>
           observable((emit) => {
             opCounts.set(op.path, (opCounts.get(op.path) ?? 0) + 1);
@@ -336,8 +350,8 @@ describe("dashboardDb provider bootstrap", () => {
             const sub = next(op).subscribe({
               next: (value) => {
                 pending = pending.then(async () => {
-                  if (op.path === "dashboardDb.listing.sync") {
-                    await listingSyncGate;
+                  if (op.path === "dashboardDb.bootstrap.snapshot") {
+                    await snapshotGate;
                   }
                   emit.next(value);
                 });
@@ -353,7 +367,7 @@ describe("dashboardDb provider bootstrap", () => {
       };
 
       const links: TRPCLink<AppRouter>[] = [
-        delayedListingSyncLink,
+        delayedSnapshotLink,
         callerLink(caller),
       ];
       const clientLike = createTRPCProxyClient<AppRouter>({ links });
@@ -390,7 +404,9 @@ describe("dashboardDb provider bootstrap", () => {
 
       expect(await tryHydrateDashboardDbFromPersistence(user.id)).toBe(true);
 
-      render(<DashboardListingsMarker listingsCollection={listingsCollection} />);
+      render(
+        <DashboardListingsMarker listingsCollection={listingsCollection} />,
+      );
 
       await waitFor(() => {
         expect(screen.getByTestId("dashboard-listings").textContent).toBe(
@@ -399,7 +415,7 @@ describe("dashboardDb provider bootstrap", () => {
       });
 
       const refreshPromise = refreshDashboardDbFromServer(user.id);
-      releaseListingSync();
+      releaseSnapshot();
       await act(async () => {
         await refreshPromise;
       });
@@ -410,10 +426,11 @@ describe("dashboardDb provider bootstrap", () => {
         );
       });
 
-      expect(opCounts.get("dashboardDb.listing.sync")).toBe(1);
-      expect(opCounts.get("dashboardDb.list.sync")).toBe(1);
-      expect(opCounts.get("dashboardDb.image.sync")).toBe(1);
-      expect(opCounts.get("dashboardDb.cultivarReference.sync")).toBe(1);
+      expect(opCounts.get("dashboardDb.bootstrap.snapshot")).toBe(1);
+      expect(opCounts.get("dashboardDb.listing.sync") ?? 0).toBe(0);
+      expect(opCounts.get("dashboardDb.list.sync") ?? 0).toBe(0);
+      expect(opCounts.get("dashboardDb.image.sync") ?? 0).toBe(0);
+      expect(opCounts.get("dashboardDb.cultivarReference.sync") ?? 0).toBe(0);
       expect(alpha.id).not.toBe(beta.id);
     });
   });
@@ -447,8 +464,9 @@ describe("dashboardDb provider bootstrap", () => {
         return {
           db,
           headers: new Headers(),
-          _authUser:
-            { id: user.id } as unknown as TRPCInternalContext["_authUser"],
+          _authUser: {
+            id: user.id,
+          } as unknown as TRPCInternalContext["_authUser"],
         };
       });
 
@@ -499,7 +517,9 @@ describe("dashboardDb provider bootstrap", () => {
         isActive: () => false,
       });
 
-      render(<DashboardListingsMarker listingsCollection={listingsCollection} />);
+      render(
+        <DashboardListingsMarker listingsCollection={listingsCollection} />,
+      );
 
       await waitFor(() => {
         expect(screen.getByTestId("dashboard-listings").textContent).toBe(
@@ -530,19 +550,18 @@ describe("dashboardDb provider bootstrap", () => {
         return {
           db,
           headers: new Headers(),
-          _authUser:
-            { id: user.id } as unknown as TRPCInternalContext["_authUser"],
+          _authUser: {
+            id: user.id,
+          } as unknown as TRPCInternalContext["_authUser"],
         };
       });
 
       const listings = await caller.dashboardDb.listing.sync({ since: null });
 
-      const {
-        DASHBOARD_DB_PERSISTED_SWR,
-        writeDashboardDbSnapshot,
-      } = await import(
-        "@/app/dashboard/_lib/dashboard-db/dashboard-db-persistence"
-      );
+      const { DASHBOARD_DB_PERSISTED_SWR, writeDashboardDbSnapshot } =
+        await import(
+          "@/app/dashboard/_lib/dashboard-db/dashboard-db-persistence"
+        );
 
       await writeDashboardDbSnapshot({
         userId: user.id,
@@ -619,12 +638,9 @@ describe("dashboardDb provider bootstrap", () => {
       );
 
       await waitFor(() => {
-        const syncCount =
-          (opCounts.get("dashboardDb.listing.sync") ?? 0) +
-          (opCounts.get("dashboardDb.list.sync") ?? 0) +
-          (opCounts.get("dashboardDb.image.sync") ?? 0) +
-          (opCounts.get("dashboardDb.cultivarReference.sync") ?? 0);
-        expect(syncCount).toBeGreaterThan(0);
+        expect(opCounts.get("dashboardDb.bootstrap.snapshot")).toBeGreaterThan(
+          0,
+        );
       });
 
       await act(async () => {
@@ -692,8 +708,9 @@ describe("dashboardDb provider bootstrap", () => {
         return {
           db,
           headers: new Headers(),
-          _authUser:
-            { id: user.id } as unknown as TRPCInternalContext["_authUser"],
+          _authUser: {
+            id: user.id,
+          } as unknown as TRPCInternalContext["_authUser"],
         };
       });
 
@@ -717,7 +734,9 @@ describe("dashboardDb provider bootstrap", () => {
           <api.Provider client={trpcClient} queryClient={queryClient}>
             <DashboardDbProvider>
               <DashboardReadyMarker />
-              <DashboardListingsMarker listingsCollection={listingsCollection} />
+              <DashboardListingsMarker
+                listingsCollection={listingsCollection}
+              />
             </DashboardDbProvider>
           </api.Provider>
         </QueryClientProvider>,
@@ -745,8 +764,9 @@ describe("dashboardDb provider bootstrap", () => {
         return {
           db,
           headers: new Headers(),
-          _authUser:
-            { id: user.id } as unknown as TRPCInternalContext["_authUser"],
+          _authUser: {
+            id: user.id,
+          } as unknown as TRPCInternalContext["_authUser"],
         };
       });
 
@@ -776,7 +796,9 @@ describe("dashboardDb provider bootstrap", () => {
 
       await waitFor(
         () => {
-          expect(screen.getByTestId("dashboard-ready").textContent).toBe("ready");
+          expect(screen.getByTestId("dashboard-ready").textContent).toBe(
+            "ready",
+          );
         },
         { timeout: 1500 },
       );

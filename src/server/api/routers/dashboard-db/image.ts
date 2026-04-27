@@ -34,6 +34,27 @@ const imageSelect = {
 
 type DbClient = typeof db;
 
+async function getOwnedImageWhere(args: { db: DbClient; userId: string }) {
+  const [listingRows, profile] = await Promise.all([
+    args.db.listing.findMany({
+      where: { userId: args.userId },
+      select: { id: true },
+    }),
+    args.db.userProfile.findUnique({
+      where: { userId: args.userId },
+      select: { id: true },
+    }),
+  ]);
+
+  const listingIds = listingRows.map((listing) => listing.id);
+  const ownerFilters = [
+    ...(listingIds.length ? [{ listingId: { in: listingIds } }] : []),
+    ...(profile ? [{ userProfileId: profile.id }] : []),
+  ];
+
+  return ownerFilters.length ? { OR: ownerFilters } : null;
+}
+
 async function getImageInvalidationReferences(args: {
   db: DbClient;
   referenceId: string;
@@ -109,13 +130,14 @@ export const dashboardDbImageRouter = createTRPCRouter({
     }),
 
   list: protectedProcedure.query(async ({ ctx }) => {
+    const ownedImageWhere = await getOwnedImageWhere({
+      db: ctx.db,
+      userId: ctx.user.id,
+    });
+    if (!ownedImageWhere) return [];
+
     return ctx.db.image.findMany({
-      where: {
-        OR: [
-          { listing: { userId: ctx.user.id } },
-          { userProfile: { userId: ctx.user.id } },
-        ],
-      },
+      where: ownedImageWhere,
       orderBy: [
         { listingId: "asc" },
         { userProfileId: "asc" },
@@ -129,12 +151,15 @@ export const dashboardDbImageRouter = createTRPCRouter({
     .input(z.object({ since: z.iso.datetime().nullable() }))
     .query(async ({ ctx, input }) => {
       const since = parseDashboardSyncSince(input.since);
+      const ownedImageWhere = await getOwnedImageWhere({
+        db: ctx.db,
+        userId: ctx.user.id,
+      });
+      if (!ownedImageWhere) return [];
+
       return ctx.db.image.findMany({
         where: {
-          OR: [
-            { listing: { userId: ctx.user.id } },
-            { userProfile: { userId: ctx.user.id } },
-          ],
+          ...ownedImageWhere,
           ...(since ? { updatedAt: { gte: since } } : {}),
         },
         orderBy: { updatedAt: "asc" },
