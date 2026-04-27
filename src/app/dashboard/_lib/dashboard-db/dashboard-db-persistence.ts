@@ -52,8 +52,12 @@ type ListRow = RouterOutputs["dashboardDb"]["list"]["list"][number];
 type ImageRow = RouterOutputs["dashboardDb"]["image"]["list"][number];
 type CultivarReferenceRow =
   RouterOutputs["dashboardDb"]["cultivarReference"]["listForUserListings"][number];
-type DashboardDbServerSnapshot =
-  RouterOutputs["dashboardDb"]["bootstrap"]["snapshot"];
+interface DashboardDbServerSnapshot {
+  listings: ListingRow[];
+  lists: ListRow[];
+  images: ImageRow[];
+  cultivarReferences: CultivarReferenceRow[];
+}
 
 export const DASHBOARD_DB_PERSISTED_SWR = {
   enabled: true,
@@ -301,6 +305,23 @@ async function applyDashboardDbSnapshot(
   ]);
 }
 
+async function fetchDashboardDbSnapshotFromServer() {
+  const client = getTrpcClient();
+  const [listings, lists, images, cultivarReferences] = await Promise.all([
+    client.dashboardDb.listing.sync.query({ since: null }),
+    client.dashboardDb.list.sync.query({ since: null }),
+    client.dashboardDb.image.sync.query({ since: null }),
+    client.dashboardDb.cultivarReference.sync.query({ since: null }),
+  ]);
+
+  return {
+    listings,
+    lists,
+    images,
+    cultivarReferences,
+  };
+}
+
 async function invalidateDashboardCollectionQueries() {
   const queryClient = getQueryClient();
   await Promise.all([
@@ -459,8 +480,7 @@ export async function bootstrapDashboardDbFromServer(
         return;
       }
 
-      const snapshot =
-        await getTrpcClient().dashboardDb.bootstrap.snapshot.query();
+      const snapshot = await fetchDashboardDbSnapshotFromServer();
 
       if (guard?.isActive && !guard.isActive()) {
         return;
@@ -497,8 +517,7 @@ export async function refreshDashboardDbFromServer(
         return false;
       }
 
-      const snapshot =
-        await getTrpcClient().dashboardDb.bootstrap.snapshot.query();
+      const snapshot = await fetchDashboardDbSnapshotFromServer();
 
       if (guard?.isActive && !guard.isActive()) {
         return false;
