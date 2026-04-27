@@ -13,6 +13,7 @@ Runtime state stays out of git:
 - queue sync: `node scripts/image-processing/v2-ahs-image-review/sync.mjs`
 - review server: `node scripts/image-processing/v2-ahs-image-review/server.mjs`
 - ChatGPT worker: `node scripts/image-processing/v2-ahs-image-review/chatgpt-worker-agent-browser.mjs --limit 50`
+- S3 backup: `node scripts/image-processing/v2-ahs-image-review/backup-to-s3.mjs --bucket <bucket>`
 
 ## Review UI
 
@@ -59,9 +60,55 @@ Those land under:
 downloads/v2-ahs-image-review/debug/
 ```
 
+## S3 backup
+
+Use this to copy the generated images somewhere durable outside the laptop:
+
+```bash
+node scripts/image-processing/v2-ahs-image-review/backup-to-s3.mjs \
+  --bucket your-bucket-name
+```
+
+Dry run first:
+
+```bash
+node scripts/image-processing/v2-ahs-image-review/backup-to-s3.mjs \
+  --bucket your-bucket-name \
+  --dry-run
+```
+
+Optional flags:
+- `--prefix your/path` to change the S3 key prefix. Default: `v2-ahs-image-review`
+- `--include-db` to also upload `downloads/v2-ahs-image-review/review.sqlite`
+- `--force` to re-upload even when the remote file already has the same sha256
+
+You can also set:
+- `V2_IMAGE_REVIEW_S3_BUCKET`
+- `V2_IMAGE_REVIEW_S3_PREFIX`
+
 ## Notes
 
 - The tracked scripts live under `scripts/image-processing/v2-ahs-image-review/`.
 - The ignored scratch dirs are intentionally broad so image/log/browser churn does not pollute `git status`.
-- The ChatGPT worker assumes the daylily-images project URL already exists and that Chrome is authenticated.
+- Create any fresh ChatGPT project manually in the browser first, then pass its `/project` URL with `--project-url`.
+- `--rate-limit-cooldown-seconds` is also the long wait used before the worker retries a human-verification hit or a recoverable browser-session stall.
+- Example:
+
+```bash
+node scripts/image-processing/v2-ahs-image-review/chatgpt-worker-agent-browser.mjs \
+  --project-url "https://chatgpt.com/g/.../project" \
+  --limit 10
+```
+
+- To keep a fresh project small, you can also delete each successful chat after the image is saved:
+- That `--delete-after-save` path now uses the project row UI menu (`...` -> `Delete` -> confirm `Delete`) inside the attached ChatGPT session.
+
+```bash
+node scripts/image-processing/v2-ahs-image-review/chatgpt-worker-agent-browser.mjs \
+  --project-url "https://chatgpt.com/g/.../project" \
+  --delete-after-save \
+  --limit 10
+```
+
+- Chrome still needs to be authenticated in the attached live session.
 - The older local FLUX/watermark path was removed; this tracked toolset is only for the current ChatGPT-based generation and review flow.

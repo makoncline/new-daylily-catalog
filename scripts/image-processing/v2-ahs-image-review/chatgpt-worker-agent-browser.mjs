@@ -41,6 +41,16 @@ const DEFAULT_PROMPT =
 const PROMPT_VERSION = "chatgpt-project-create-image-v3";
 const MAX_WRONG_MODE_RETRIES = 2;
 const MAX_RATE_LIMIT_RETRIES = 6;
+const MAX_HUMAN_VERIFICATION_RETRIES = 1;
+const MAX_BROWSER_SESSION_RECOVERY_RETRIES = 1;
+const MAX_MENU_REFRESH_RETRIES = 1;
+const MAX_COMPOSER_MENU_CLICK_ATTEMPTS = 3;
+const COMPOSER_MENU_CLICK_WAIT_MS = 1500;
+const MAX_DELETE_MENU_CLICK_ATTEMPTS = 3;
+const DELETE_MENU_CLICK_WAIT_MS = 1500;
+const SLASH_CREATE_IMAGE_COMMAND = "/image";
+const SLASH_CREATE_IMAGE_WAIT_MS = 2000;
+const DEFAULT_MAX_CONSECUTIVE_SAME_ERROR = 3;
 const DEFAULT_DELAY_MIN_SECONDS = 180;
 const DEFAULT_DELAY_MAX_SECONDS = 360;
 const DEFAULT_RATE_LIMIT_COOLDOWN_SECONDS = 900;
@@ -63,6 +73,13 @@ class ChatGptRateLimitError extends Error {
   }
 }
 
+class DailyImageLimitExceededError extends Error {
+  constructor(message = "ChatGPT hit the daily image generation limit for this account") {
+    super(message);
+    this.name = "DailyImageLimitExceededError";
+  }
+}
+
 class BrowserApprovalRequiredError extends Error {
   constructor(message = "Chrome requires manual debugging approval before the worker can continue") {
     super(message);
@@ -70,8 +87,52 @@ class BrowserApprovalRequiredError extends Error {
   }
 }
 
+class ComposerMenuStuckError extends Error {
+  constructor(message = "ChatGPT project composer menu stayed stuck after a refresh retry") {
+    super(message);
+    this.name = "ComposerMenuStuckError";
+  }
+}
+
+class HumanVerificationRequiredError extends Error {
+  constructor(message = "ChatGPT requires a human verification check before the worker can continue") {
+    super(message);
+    this.name = "HumanVerificationRequiredError";
+  }
+}
+
+class BrowserSessionUnresponsiveError extends Error {
+  constructor(message = "The attached browser session became unresponsive") {
+    super(message);
+    this.name = "BrowserSessionUnresponsiveError";
+  }
+}
+
 function isBrowserApprovalErrorText(errorText) {
   return errorText.includes("did you click Allow in Chrome?");
+}
+
+function isBrowserSessionUnresponsiveErrorText(errorText) {
+  return (
+    errorText.includes("daemon may be busy or unresponsive") ||
+    errorText.includes("CDP command timed out:")
+  );
+}
+
+function isBlockingWorkerError(error) {
+  return (
+    error instanceof BrowserApprovalRequiredError ||
+    error instanceof HumanVerificationRequiredError ||
+    error instanceof ChatGptRateLimitError ||
+    error instanceof DailyImageLimitExceededError ||
+    error instanceof BrowserSessionUnresponsiveError
+  );
+}
+
+function rethrowBlockingWorkerError(error) {
+  if (isBlockingWorkerError(error)) {
+    throw error;
+  }
 }
 
 function formatLogArg(value) {
@@ -141,9 +202,11 @@ function parseArgs() {
   let preferredId = null;
   let projectUrl = DEFAULT_PROJECT_URL;
   let prompt = DEFAULT_PROMPT;
+  let deleteAfterSave = false;
   let delayMinSeconds = DEFAULT_DELAY_MIN_SECONDS;
   let delayMaxSeconds = DEFAULT_DELAY_MAX_SECONDS;
   let rateLimitCooldownSeconds = DEFAULT_RATE_LIMIT_COOLDOWN_SECONDS;
+  let maxConsecutiveSameError = DEFAULT_MAX_CONSECUTIVE_SAME_ERROR;
 
   for (let index = 0; index < args.length; index += 1) {
     const arg = args[index];
@@ -216,6 +279,11 @@ function parseArgs() {
       continue;
     }
 
+    if (arg === "--delete-after-save") {
+      deleteAfterSave = true;
+      continue;
+    }
+
     if (arg === "--delay-min-seconds") {
       const raw = Number(args[index + 1] ?? "");
       if (!Number.isFinite(raw) || raw < 0) {
@@ -275,6 +343,27 @@ function parseArgs() {
       continue;
     }
 
+    if (arg === "--max-consecutive-same-error") {
+      const raw = Number(args[index + 1] ?? "");
+      if (!Number.isInteger(raw) || raw < 1) {
+        throw new Error(
+          `Invalid --max-consecutive-same-error value: ${args[index + 1]}`,
+        );
+      }
+      maxConsecutiveSameError = raw;
+      index += 1;
+      continue;
+    }
+
+    if (arg.startsWith("--max-consecutive-same-error=")) {
+      const raw = Number(arg.slice("--max-consecutive-same-error=".length));
+      if (!Number.isInteger(raw) || raw < 1) {
+        throw new Error(`Invalid --max-consecutive-same-error value: ${arg}`);
+      }
+      maxConsecutiveSameError = raw;
+      continue;
+    }
+
     throw new Error(`Unknown argument: ${arg}`);
   }
 
@@ -290,14 +379,32 @@ function parseArgs() {
     limit,
     preferredId,
     prompt,
+    deleteAfterSave,
     projectUrl,
     projectPrefix: projectUrl.replace(/\/project$/, ""),
+    maxConsecutiveSameError,
     rateLimitCooldownSeconds,
   };
 }
 
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function getProjectPath(projectUrl) {
+  return new URL(projectUrl).pathname;
+}
+
+function getConversationIdFromUrl(conversationUrl) {
+  const path = getProjectPath(conversationUrl);
+  const marker = "/c/";
+  const markerIndex = path.indexOf(marker);
+
+  if (markerIndex === -1) {
+    throw new Error(`Could not parse conversation id from URL: ${conversationUrl}`);
+  }
+
+  return path.slice(markerIndex + marker.length);
 }
 
 function getRandomIntInclusive(min, max) {
@@ -319,11 +426,11 @@ async function cooldownBetweenItems(delayMinSeconds, delayMaxSeconds, reason) {
   await sleep(delaySeconds * 1000);
 }
 
-async function cooldownAfterRateLimit(rateLimitCooldownSeconds) {
+async function cooldownBeforeRetry(cooldownSeconds, reason) {
   console.log(
-    `[chatgpt-image-worker] rate limited; cooling down for ${rateLimitCooldownSeconds}s before retry`,
+    `[chatgpt-image-worker] cooling down for ${cooldownSeconds}s before retry after ${reason}`,
   );
-  await sleep(rateLimitCooldownSeconds * 1000);
+  await sleep(cooldownSeconds * 1000);
 }
 
 function notifyBrowserApprovalRequired(message, item = null) {
@@ -332,6 +439,30 @@ function notifyBrowserApprovalRequired(message, item = null) {
     : message;
 
   sendNotify("ChatGPT worker needs Chrome approval", details);
+}
+
+function notifyHumanVerificationRequired(message, item = null) {
+  const details = item
+    ? `id=${item.id}${item.postTitle ? ` ${item.postTitle}` : ""}. ${message}`
+    : message;
+
+  sendNotify("ChatGPT worker needs human verification", details);
+}
+
+function notifyBrowserSessionUnresponsive(message, item = null) {
+  const details = item
+    ? `id=${item.id}${item.postTitle ? ` ${item.postTitle}` : ""}. ${message}`
+    : message;
+
+  sendNotify("ChatGPT worker browser session stalled", details);
+}
+
+function notifyDailyImageLimitExceeded(message, item = null) {
+  const details = item
+    ? `id=${item.id}${item.postTitle ? ` ${item.postTitle}` : ""}. ${message}`
+    : message;
+
+  sendNotify("ChatGPT worker hit daily image limit", details);
 }
 
 function execAgentBrowser(args, options = {}) {
@@ -360,13 +491,19 @@ function execAgentBrowser(args, options = {}) {
       );
     }
 
+    if (isBrowserSessionUnresponsiveErrorText(errorText)) {
+      const detail = errorText.includes("CDP command timed out:")
+        ? "CDP command timed out"
+        : "agent-browser daemon became unresponsive";
+      const sessionError = new BrowserSessionUnresponsiveError(
+        `The attached browser session became unresponsive (${detail}).`,
+      );
+      sessionError.cause = error;
+      throw sessionError;
+    }
+
     throw error;
   }
-}
-
-function execAgentBrowserJson(args) {
-  const output = execAgentBrowser(args, { json: true });
-  return JSON.parse(output);
 }
 
 function browserEval(script) {
@@ -409,6 +546,10 @@ function browserGetTitle() {
   return execAgentBrowser(["get", "title"]);
 }
 
+function browserOpen(url) {
+  execAgentBrowser(["open", url]);
+}
+
 function browserClick(selector) {
   execAgentBrowser(["click", selector]);
 }
@@ -419,6 +560,128 @@ function browserUpload(selector, filePath) {
 
 function browserInsertText(text) {
   execAgentBrowser(["keyboard", "inserttext", text]);
+}
+
+function getHumanVerificationState() {
+  const state = browserEvalJson(
+    `JSON.stringify((() => {
+      const bodyText = document.body?.innerText || "";
+      const title = document.title || "";
+      const iframe = [...document.querySelectorAll("iframe")].find((node) => {
+        const label = (
+          node.getAttribute("title") ||
+          node.getAttribute("aria-label") ||
+          ""
+        ).toLowerCase();
+        return (
+          label.includes("cloudflare security challenge") ||
+          label.includes("verify you are human")
+        );
+      });
+      const checkbox = [...document.querySelectorAll('input[type="checkbox"], [role="checkbox"]')].find(
+        (node) => {
+          const label = (
+            node.getAttribute("aria-label") ||
+            node.innerText ||
+            ""
+          ).toLowerCase();
+          return label.includes("verify you are human");
+        },
+      );
+
+      const blocked =
+        title.trim() === "Just a moment..." ||
+        bodyText.includes("Verify you are human") ||
+        bodyText.includes("Widget containing a Cloudflare security challenge") ||
+        bodyText.includes("Checking your browser before accessing") ||
+        bodyText.includes("Sorry, you have been blocked") ||
+        Boolean(iframe) ||
+        Boolean(checkbox);
+
+      return {
+        blocked,
+        title,
+        hasIframe: Boolean(iframe),
+        hasVerifyCheckbox: Boolean(checkbox),
+      };
+    })())`,
+  );
+
+  return state && typeof state === "object" ? state : null;
+}
+
+function assertNoHumanVerificationRequired() {
+  const state = getHumanVerificationState();
+
+  if (!state?.blocked) {
+    return;
+  }
+
+  const details = [];
+
+  if (state.title) {
+    details.push(`title="${state.title}"`);
+  }
+
+  if (state.hasIframe) {
+    details.push("cloudflare iframe present");
+  }
+
+  if (state.hasVerifyCheckbox) {
+    details.push(`"Verify you are human" checkbox present`);
+  }
+
+  const suffix = details.length > 0 ? ` (${details.join(", ")})` : "";
+  throw new HumanVerificationRequiredError(
+    `ChatGPT is blocked by a human-verification challenge${suffix}`,
+  );
+}
+
+function getRateLimitState() {
+  const state = browserEvalJson(
+    `JSON.stringify((() => {
+      const bodyText = document.body?.innerText || "";
+      const lowerBodyText = bodyText.toLowerCase();
+      const gotItButton = [...document.querySelectorAll("button")].find((node) =>
+        (node.innerText || node.getAttribute("aria-label") || "")
+          .trim()
+          .toLowerCase() === "got it",
+      );
+
+      const blocked =
+        lowerBodyText.includes("too many requests") ||
+        lowerBodyText.includes("you're making requests too quickly") ||
+        lowerBodyText.includes("we’ve temporarily limited access to your conversations") ||
+        lowerBodyText.includes("we've temporarily limited access to your conversations") ||
+        lowerBodyText.includes("temporarily limited access to your conversations") ||
+        lowerBodyText.includes("please wait a few minutes before trying again");
+
+      return {
+        blocked,
+        hasGotItButton: Boolean(gotItButton),
+      };
+    })())`,
+  );
+
+  return state && typeof state === "object" ? state : null;
+}
+
+async function detectAndDismissRateLimitModal(context = "unknown") {
+  const state = getRateLimitState();
+
+  if (!state?.blocked) {
+    return false;
+  }
+
+  if (state.hasGotItButton) {
+    await dismissRateLimitModal(context);
+  } else {
+    console.warn(
+      `[chatgpt-image-worker] detected rate limit without dismiss button context=${context}`,
+    );
+  }
+
+  return true;
 }
 
 function toSafeDebugSlug(value, fallback = "debug") {
@@ -568,17 +831,105 @@ function connectAgentBrowserSession() {
   execAgentBrowser(["connect", port]);
 }
 
+function isComposerMenuTimeoutError(error) {
+  if (!(error instanceof Error)) {
+    return false;
+  }
+
+  return (
+    error.message.includes("Timed out waiting for Create image menu") ||
+    error.message.includes("Timed out waiting for composer plus button")
+  );
+}
+
+function classifyErrorForCircuitBreaker(error, message) {
+  if (error instanceof BrowserApprovalRequiredError) {
+    return {
+      key: "browser-approval",
+      label: "browser approval",
+    };
+  }
+
+  if (error instanceof ComposerMenuStuckError) {
+    return {
+      key: "composer-menu-stuck",
+      label: "composer menu stuck",
+    };
+  }
+
+  if (error instanceof HumanVerificationRequiredError) {
+    return {
+      key: "human-verification",
+      label: "human verification",
+    };
+  }
+
+  if (error instanceof BrowserSessionUnresponsiveError) {
+    return {
+      key: "browser-session-unresponsive",
+      label: "browser session unresponsive",
+    };
+  }
+
+  if (error instanceof ChatGptRateLimitError) {
+    return {
+      key: "rate-limit",
+      label: "rate limit",
+    };
+  }
+
+  if (error instanceof DailyImageLimitExceededError) {
+    return {
+      key: "daily-image-limit",
+      label: "daily image limit",
+    };
+  }
+
+  if (error instanceof WrongChatGptModeError) {
+    return {
+      key: "wrong-mode",
+      label: "wrong mode",
+    };
+  }
+
+  if (message.startsWith("Timed out waiting for ")) {
+    return {
+      key: `timeout:${message}`,
+      label: message,
+    };
+  }
+
+  if (error instanceof Error) {
+    return {
+      key: `${error.name}:${message}`,
+      label: `${error.name}: ${message}`,
+    };
+  }
+
+  return {
+    key: `unknown:${message}`,
+    label: message,
+  };
+}
+
 async function waitFor(description, callback, timeoutMs = 30000, intervalMs = 500) {
   const startedAt = Date.now();
   let lastError = null;
 
   while (Date.now() - startedAt < timeoutMs) {
     try {
+      assertNoHumanVerificationRequired();
+      if (await detectAndDismissRateLimitModal(`waitFor:${description}`)) {
+        throw new ChatGptRateLimitError();
+      }
       const result = await callback();
       if (result) {
         return result;
       }
     } catch (error) {
+      if (isBlockingWorkerError(error)) {
+        throw error;
+      }
       lastError = error;
     }
 
@@ -727,8 +1078,18 @@ async function waitForProjectUrl(projectUrl) {
   );
 }
 
+async function refreshProjectPage(projectUrl) {
+  console.warn(
+    `[chatgpt-image-worker] refreshing project page ${projectUrl} before retry`,
+  );
+  browserOpen(projectUrl);
+  await waitForProjectUrl(projectUrl);
+}
+
 async function clickProjectHomeLink(projectUrl) {
-  const expectedPath = projectUrl.replace("https://chatgpt.com", "");
+  const expectedPath = getProjectPath(projectUrl);
+  const exactHrefSelector = JSON.stringify(`a[href="${expectedPath}"]`);
+  const expectedPathJson = JSON.stringify(expectedPath);
 
   try {
     await waitFor(
@@ -737,12 +1098,12 @@ async function clickProjectHomeLink(projectUrl) {
         return browserEvalBoolean(
           `!!(() => {
             return (
-              document.querySelector(${JSON.stringify(`a[aria-label="Open daylily images project"][href="${expectedPath}"]`)}) ||
-              document.querySelector('a[aria-label="Open daylily images project"]') ||
+              document.querySelector(${exactHrefSelector}) ||
+              document.querySelector('a[aria-label^="Open "][aria-label$=" project"]') ||
               [...document.querySelectorAll('a[href]')].find((link) => {
                 const href = link.getAttribute('href') || '';
                 const label = (link.getAttribute('aria-label') || link.innerText || '').trim();
-                return href.includes('/daylily-images/project') || label === 'Open daylily images project';
+                return href === ${expectedPathJson} || (label.startsWith('Open ') && label.endsWith(' project'));
               })
             );
           })()`,
@@ -751,19 +1112,20 @@ async function clickProjectHomeLink(projectUrl) {
       5000,
       250,
     );
-  } catch {
+  } catch (error) {
+    rethrowBlockingWorkerError(error);
     return false;
   }
 
   return browserEvalBoolean(
       `(() => {
         const link =
-          document.querySelector(${JSON.stringify(`a[aria-label="Open daylily images project"][href="${expectedPath}"]`)}) ||
-          document.querySelector('a[aria-label="Open daylily images project"]') ||
+          document.querySelector(${exactHrefSelector}) ||
+          document.querySelector('a[aria-label^="Open "][aria-label$=" project"]') ||
           [...document.querySelectorAll('a[href]')].find((node) => {
             const href = node.getAttribute('href') || '';
             const label = (node.getAttribute('aria-label') || node.innerText || '').trim();
-            return href.includes('/daylily-images/project') || label === 'Open daylily images project';
+            return href === ${expectedPathJson} || (label.startsWith('Open ') && label.endsWith(' project'));
           });
         if (!link) {
           return false;
@@ -795,11 +1157,298 @@ async function ensureProjectPage(projectUrl, projectPrefix) {
   }
 
   throw new Error(
-    `Expected project page or project conversation, but found ${currentUrl}. Return the dedicated ChatGPT Chrome tab to the daylily-images project before continuing.`,
+    `Expected project page or project conversation, but found ${currentUrl}. Return the dedicated ChatGPT Chrome tab to ${projectUrl} before continuing.`,
+  );
+}
+
+async function deleteConversationFromProject(conversationUrl, projectUrl) {
+  const conversationPath = getProjectPath(conversationUrl);
+  const conversationPathJson = JSON.stringify(conversationPath);
+  const conversationId = getConversationIdFromUrl(conversationUrl);
+  const optionsTriggerSelector = JSON.stringify(
+    `button[data-conversation-options-trigger="${conversationId}"]`,
+  );
+
+  await waitFor(
+    "conversation row in project list",
+    async () => {
+      return browserEvalBoolean(
+        `(() => {
+          const link = [...document.querySelectorAll('a[href]')].find((node) =>
+            (node.getAttribute('href') || '') === ${conversationPathJson},
+          );
+          const trigger = document.querySelector(
+            ${optionsTriggerSelector},
+          );
+          return Boolean(link || trigger);
+        })()`,
+      );
+    },
+    15000,
+    300,
+  );
+
+  let openedMenu = false;
+
+  for (let attempt = 1; attempt <= MAX_DELETE_MENU_CLICK_ATTEMPTS; attempt += 1) {
+    const existingDeleteItem = browserEvalBoolean(
+      `Boolean(
+        [...document.querySelectorAll('[role="menuitem"], [role="menuitemradio"], button, [tabindex]')].find(
+          (node) => {
+            const text = (node.innerText || node.getAttribute('aria-label') || '').trim();
+            return text === 'Delete' && node.closest('[role="menu"]');
+          },
+        ),
+      )`,
+    );
+
+    if (existingDeleteItem) {
+      openedMenu = true;
+      break;
+    }
+
+    const triggerClickSelector = browserEvalValue(
+      `(() => {
+        const link = [...document.querySelectorAll('a[href]')].find((node) =>
+          (node.getAttribute('href') || '') === ${conversationPathJson},
+        );
+        const row =
+          link?.closest('li, [role="listitem"], article, section, [data-testid]') ||
+          link?.parentElement ||
+          null;
+
+        if (row) {
+          row.scrollIntoView({ block: 'center' });
+          const hoverEvents = ['pointerenter', 'mouseenter', 'mouseover', 'mousemove'];
+          for (const type of hoverEvents) {
+            row.dispatchEvent(
+              new MouseEvent(type, { bubbles: true, cancelable: true, view: window }),
+            );
+          }
+        }
+
+        const trigger =
+          document.querySelector(${optionsTriggerSelector}) ||
+          row?.querySelector('button[data-conversation-options-trigger]') ||
+          null;
+
+        if (!trigger) {
+          return null;
+        }
+
+        trigger.scrollIntoView({ block: 'center' });
+
+        const hoverEvents = ['pointerenter', 'mouseenter', 'mouseover', 'mousemove'];
+        for (const type of hoverEvents) {
+          trigger.dispatchEvent(
+            new MouseEvent(type, { bubbles: true, cancelable: true, view: window }),
+          );
+        }
+
+        trigger.setAttribute('data-codex-delete-trigger', 'true');
+        return '[data-codex-delete-trigger="true"]';
+      })()`,
+    );
+
+    if (typeof triggerClickSelector !== "string" || !triggerClickSelector) {
+      break;
+    }
+
+    try {
+      browserClick(triggerClickSelector);
+    } finally {
+      browserEval(
+        `document.querySelector('[data-codex-delete-trigger="true"]')?.removeAttribute('data-codex-delete-trigger')`,
+      );
+    }
+
+    const menuOpenedThisAttempt = await waitFor(
+      "conversation options menu",
+      async () => {
+        return browserEvalBoolean(
+          `Boolean(
+            [...document.querySelectorAll('[role="menuitem"], [role="menuitemradio"], button, [tabindex]')].find(
+              (node) => {
+                const text = (node.innerText || node.getAttribute('aria-label') || '').trim();
+                return text === 'Delete' && node.closest('[role="menu"]');
+              },
+            ),
+          )`,
+        );
+      },
+      DELETE_MENU_CLICK_WAIT_MS,
+      200,
+    ).catch((error) => {
+      rethrowBlockingWorkerError(error);
+      return false;
+    });
+
+    if (menuOpenedThisAttempt) {
+      openedMenu = true;
+      break;
+    }
+
+    if (attempt < MAX_DELETE_MENU_CLICK_ATTEMPTS) {
+      console.warn(
+        `[chatgpt-image-worker] conversation options menu did not open after click attempt ${attempt}/${MAX_DELETE_MENU_CLICK_ATTEMPTS}; retrying on the same row`,
+      );
+    }
+  }
+
+  if (!openedMenu) {
+    throw new Error("Timed out waiting for conversation options menu");
+  }
+
+  const deleteMenuItemSelector = browserEvalValue(
+    `(() => {
+      const item = [...document.querySelectorAll('[role="menuitem"], [role="menuitemradio"], button, [tabindex]')].find(
+        (node) => {
+          const text = (node.innerText || node.getAttribute('aria-label') || '').trim();
+          return text === 'Delete' && node.closest('[role="menu"]');
+        },
+      );
+
+      if (!item) {
+        return null;
+      }
+
+      item.setAttribute('data-codex-delete-menu-item', 'true');
+      return '[data-codex-delete-menu-item="true"]';
+    })()`,
+  );
+
+  if (typeof deleteMenuItemSelector !== "string" || !deleteMenuItemSelector) {
+    throw new Error(`Could not click Delete menu item for ${conversationId}`);
+  }
+
+  try {
+    browserClick(deleteMenuItemSelector);
+  } finally {
+    browserEval(
+      `document.querySelector('[data-codex-delete-menu-item="true"]')?.removeAttribute('data-codex-delete-menu-item')`,
+    );
+  }
+
+  await waitFor(
+    "delete confirmation dialog",
+    async () => {
+      return browserEvalBoolean(
+        `(() => {
+          const dialog = document.querySelector('[role="dialog"]');
+          if (!dialog) {
+            return false;
+          }
+
+          const headingText = dialog.innerText || '';
+          const confirmButton = [...dialog.querySelectorAll('button')].find((node) => {
+            const text = (node.innerText || node.getAttribute('aria-label') || '').trim();
+            return text === 'Delete';
+          });
+
+          return headingText.includes('Delete chat?') && Boolean(confirmButton);
+        })()`,
+      );
+    },
+    10000,
+    250,
+  );
+
+  const deleteConfirmSelector = browserEvalValue(
+    `(() => {
+      const dialog = document.querySelector('[role="dialog"]');
+      if (!dialog) {
+        return null;
+      }
+
+      const button = [...dialog.querySelectorAll('button')].find((node) => {
+        const text = (node.innerText || node.getAttribute('aria-label') || '').trim();
+        return text === 'Delete';
+      });
+
+      if (!button) {
+        return null;
+      }
+
+      button.setAttribute('data-codex-delete-confirm', 'true');
+      return '[data-codex-delete-confirm="true"]';
+    })()`,
+  );
+
+  if (typeof deleteConfirmSelector !== "string" || !deleteConfirmSelector) {
+    throw new Error(`Could not confirm Delete dialog for ${conversationId}`);
+  }
+
+  try {
+    browserClick(deleteConfirmSelector);
+  } finally {
+    browserEval(
+      `document.querySelector('[data-codex-delete-confirm="true"]')?.removeAttribute('data-codex-delete-confirm')`,
+    );
+  }
+
+  const removedWithoutRefresh = await waitFor(
+    "conversation removed from project list",
+    async () => {
+      return browserEvalBoolean(
+        `(() => {
+          const linkExists = [...document.querySelectorAll('a[href]')].some((node) =>
+            (node.getAttribute('href') || '') === ${conversationPathJson},
+          );
+          const triggerExists = Boolean(
+            document.querySelector(
+              ${optionsTriggerSelector},
+            ),
+          );
+          return !linkExists && !triggerExists;
+        })()`,
+      );
+    },
+    15000,
+    300,
+  ).catch((error) => {
+    rethrowBlockingWorkerError(error);
+    return false;
+  });
+
+  if (removedWithoutRefresh) {
+    return;
+  }
+
+  browserOpen(projectUrl);
+  await waitForProjectUrl(projectUrl);
+  await waitFor(
+    "conversation removed from refreshed project list",
+    async () => {
+      return browserEvalBoolean(
+        `![...document.querySelectorAll('a[href]')].some((node) =>
+          (node.getAttribute('href') || '') === ${conversationPathJson},
+        )`,
+      );
+    },
+    15000,
+    300,
   );
 }
 
 async function openComposerMenu() {
+  const getCreateImageMenuState = () => {
+    const menuState = browserEvalJson(
+      `JSON.stringify((() => {
+        const item = [...document.querySelectorAll("[role=menuitemradio]")].find(
+          (node) => node.innerText && node.innerText.includes("Create image"),
+        );
+        if (!item) {
+          return null;
+        }
+        return {
+          checked: item.getAttribute("aria-checked") === "true",
+        };
+      })())`,
+    );
+
+    return menuState && menuState !== "null" ? menuState : null;
+  };
+
   await waitFor(
     "composer plus button",
     async () => {
@@ -824,64 +1473,78 @@ async function openComposerMenu() {
     300,
   );
 
-  const plusSelector = browserEvalValue(
-    `(() => {
-      if (document.getElementById("composer-plus-btn")) {
-        return "#composer-plus-btn";
-      }
+  for (let attempt = 1; attempt <= MAX_COMPOSER_MENU_CLICK_ATTEMPTS; attempt += 1) {
+    const existingMenuState = getCreateImageMenuState();
+    if (existingMenuState) {
+      return existingMenuState;
+    }
 
-      const button = [...document.querySelectorAll("button")].find((node) => {
-        const label = (
-          node.getAttribute("aria-label") ||
-          node.innerText ||
-          ""
-        ).trim();
-        return label === "Add files and more";
-      });
+    const plusSelector = browserEvalValue(
+      `(() => {
+        if (document.getElementById("composer-plus-btn")) {
+          return "#composer-plus-btn";
+        }
 
-      if (!button) {
-        return null;
-      }
+        const button = [...document.querySelectorAll("button")].find((node) => {
+          const label = (
+            node.getAttribute("aria-label") ||
+            node.innerText ||
+            ""
+          ).trim();
+          return label === "Add files and more";
+        });
 
-      button.setAttribute("data-codex-composer-plus", "true");
-      return '[data-codex-composer-plus="true"]';
-    })()`,
-  );
+        if (!button) {
+          return null;
+        }
 
-  if (typeof plusSelector !== "string" || !plusSelector) {
-    throw new Error("Could not find composer plus button");
-  }
-
-  try {
-    browserClick(plusSelector);
-  } finally {
-    browserEval(
-      `document.querySelector('[data-codex-composer-plus="true"]')?.removeAttribute("data-codex-composer-plus")`,
+        button.setAttribute("data-codex-composer-plus", "true");
+        return '[data-codex-composer-plus="true"]';
+      })()`,
     );
+
+    if (typeof plusSelector !== "string" || !plusSelector) {
+      throw new Error("Could not find composer plus button");
+    }
+
+    try {
+      browserClick(plusSelector);
+    } finally {
+      browserEval(
+        `document.querySelector('[data-codex-composer-plus="true"]')?.removeAttribute("data-codex-composer-plus")`,
+      );
+    }
+
+    const menuState = await waitFor(
+      "Create image menu",
+      async () => getCreateImageMenuState(),
+      COMPOSER_MENU_CLICK_WAIT_MS,
+      200,
+    ).catch((error) => {
+      rethrowBlockingWorkerError(error);
+      return null;
+    });
+
+    if (menuState) {
+      return menuState;
+    }
+
+    if (attempt < MAX_COMPOSER_MENU_CLICK_ATTEMPTS) {
+      console.warn(
+        `[chatgpt-image-worker] composer menu did not open after click attempt ${attempt}/${MAX_COMPOSER_MENU_CLICK_ATTEMPTS}; retrying on the same page`,
+      );
+    }
   }
 
-  return waitFor(
-    "Create image menu",
-    async () => {
-      const menuState = browserEvalJson(
-        `JSON.stringify((() => {
-          const item = [...document.querySelectorAll("[role=menuitemradio]")].find(
-            (node) => node.innerText && node.innerText.includes("Create image"),
-          );
-          if (!item) {
-            return null;
-          }
-          return {
-            checked: item.getAttribute("aria-checked") === "true",
-          };
-        })())`,
-      );
+  const activatedViaSlash = await activateImageModeViaSlashCommand();
 
-      return menuState && menuState !== "null" ? menuState : null;
-    },
-    10000,
-    300,
-  );
+  if (activatedViaSlash) {
+    return {
+      checked: true,
+    };
+  }
+
+  throw new Error("Timed out waiting for Create image menu");
 }
 
 async function isCreateImageModeActive() {
@@ -915,6 +1578,33 @@ async function focusPromptEditor() {
   );
 }
 
+async function clearPromptEditorText() {
+  browserEval(
+    `(() => {
+      const editor = document.getElementById("prompt-textarea");
+      if (editor) {
+        editor.textContent = "";
+        editor.innerHTML = "";
+        editor.dispatchEvent(
+          new InputEvent("input", {
+            bubbles: true,
+            inputType: "deleteContentBackward",
+            data: null,
+          }),
+        );
+      }
+
+      const textarea = document.querySelector('textarea[aria-label^="New chat in "]');
+      if (textarea) {
+        textarea.value = "";
+        textarea.dispatchEvent(new Event("input", { bubbles: true }));
+      }
+
+      return "ok";
+    })()`,
+  );
+}
+
 async function resetComposerDraft() {
   while (true) {
     const removed = browserEvalBoolean(
@@ -935,6 +1625,132 @@ async function resetComposerDraft() {
     }
     await sleep(300);
   }
+
+  await clearPromptEditorText();
+}
+
+async function activateImageModeViaSlashCommand() {
+  console.warn(
+    `[chatgpt-image-worker] composer menu still unavailable; trying ${SLASH_CREATE_IMAGE_COMMAND} slash fallback`,
+  );
+
+  await focusPromptEditor();
+  await clearPromptEditorText();
+  await focusPromptEditor();
+  browserInsertText(SLASH_CREATE_IMAGE_COMMAND);
+
+  const insertedSlashCommand = await waitFor(
+    `${SLASH_CREATE_IMAGE_COMMAND} text in composer`,
+    async () => {
+      return browserEvalBoolean(
+        `(
+          (document.getElementById("prompt-textarea")?.innerText || "").includes(${JSON.stringify(SLASH_CREATE_IMAGE_COMMAND)}) ||
+          (document.querySelector('textarea[aria-label^="New chat in "]')?.value || "").includes(${JSON.stringify(SLASH_CREATE_IMAGE_COMMAND)})
+        )`,
+      );
+    },
+    SLASH_CREATE_IMAGE_WAIT_MS,
+    200,
+  ).catch((error) => {
+    rethrowBlockingWorkerError(error);
+    return false;
+  });
+
+  if (!insertedSlashCommand) {
+    await clearPromptEditorText();
+    return false;
+  }
+
+  const slashOptionReady = await waitFor(
+    `${SLASH_CREATE_IMAGE_COMMAND} Create image option`,
+    async () => {
+      return browserEvalBoolean(
+        `!!(() => {
+          return [...document.querySelectorAll("*")].find((node) => {
+            const text = (node.innerText || "").trim();
+            if (text !== "Create image") {
+              return false;
+            }
+            if (node.getAttribute("role") === "menuitemradio") {
+              return false;
+            }
+            if (node.closest('[role="menu"]')) {
+              return false;
+            }
+            if (node.matches?.('button[aria-label="Image, click to remove"]')) {
+              return false;
+            }
+            return (
+              node.hasAttribute("onclick") ||
+              node.getAttribute("tabindex") !== null ||
+              window.getComputedStyle(node).cursor === "pointer"
+            );
+          });
+        })()`,
+      );
+    },
+    SLASH_CREATE_IMAGE_WAIT_MS,
+    200,
+  ).catch((error) => {
+    rethrowBlockingWorkerError(error);
+    return false;
+  });
+
+  if (!slashOptionReady) {
+    await clearPromptEditorText();
+    return false;
+  }
+
+  const clickedSlashOption = browserEvalBoolean(
+    `(() => {
+      const option = [...document.querySelectorAll("*")].find((node) => {
+        const text = (node.innerText || "").trim();
+        if (text !== "Create image") {
+          return false;
+        }
+        if (node.getAttribute("role") === "menuitemradio") {
+          return false;
+        }
+        if (node.closest('[role="menu"]')) {
+          return false;
+        }
+        if (node.matches?.('button[aria-label="Image, click to remove"]')) {
+          return false;
+        }
+        return (
+          node.hasAttribute("onclick") ||
+          node.getAttribute("tabindex") !== null ||
+          window.getComputedStyle(node).cursor === "pointer"
+        );
+      });
+
+      if (!option) {
+        return false;
+      }
+
+      option.click();
+      return true;
+    })()`,
+  );
+
+  if (!clickedSlashOption) {
+    await clearPromptEditorText();
+    return false;
+  }
+
+  const activated = await waitFor(
+    `create image mode via ${SLASH_CREATE_IMAGE_COMMAND}`,
+    async () => isCreateImageModeActive(),
+    SLASH_CREATE_IMAGE_WAIT_MS,
+    200,
+  ).catch((error) => {
+    rethrowBlockingWorkerError(error);
+    return false;
+  });
+
+  await clearPromptEditorText();
+
+  return Boolean(activated);
 }
 
 async function ensureCreateImageMode() {
@@ -1011,7 +1827,7 @@ async function fillPromptAndSend(prompt) {
       return browserEvalBoolean(
         `(
           (document.getElementById("prompt-textarea")?.innerText || "").includes(${JSON.stringify(prompt)}) ||
-          (document.querySelector('textarea[aria-label="New chat in daylily images"]')?.value || "").includes(${JSON.stringify(prompt)})
+          (document.querySelector('textarea[aria-label^="New chat in "]')?.value || "").includes(${JSON.stringify(prompt)})
         )`,
       );
     },
@@ -1066,7 +1882,7 @@ function getCurrentConversationUrl(projectPrefix) {
   }
 }
 
-async function dismissRateLimitModal() {
+async function dismissRateLimitModal(context = "unknown") {
   const clicked = browserEvalBoolean(
     `(() => {
       const button = [...document.querySelectorAll("button")].find((node) =>
@@ -1084,6 +1900,9 @@ async function dismissRateLimitModal() {
     return false;
   }
 
+  console.warn(
+    `[chatgpt-image-worker] dismissed rate limit modal context=${context}`,
+  );
   await sleep(500);
   return true;
 }
@@ -1118,7 +1937,7 @@ async function waitForGeneratedImage() {
           `JSON.stringify({
             generatedImages: [...new Map(
               [...document.querySelectorAll("img")]
-                .filter((img) => (img.alt || "").startsWith("Generated image:"))
+                .filter((img) => (img.alt || "").startsWith("Generated image"))
                 .map((img) => {
                   const src = img.currentSrc || img.src || "";
                   return src
@@ -1163,6 +1982,24 @@ async function waitForGeneratedImage() {
               document.body.innerText.includes(
                 "temporarily limited access to your conversations",
               ),
+            dailyImageLimitMessage: (() => {
+              const bodyText = document.body.innerText || "";
+              const match = bodyText.match(
+                /You've hit your daily maximum number of images[\\s\\S]*?Your daily maximum will reset in [^.]+\\./,
+              );
+              if (match) {
+                return match[0];
+              }
+
+              if (
+                bodyText.includes("daily_rate_limit_exceeded") ||
+                bodyText.includes("daily maximum number of images")
+              ) {
+                return bodyText.slice(-2000);
+              }
+
+              return null;
+            })(),
             gotItVisible: !![...document.querySelectorAll("button")].find(
               (button) =>
                 (button.innerText || button.getAttribute("aria-label") || "").trim() ===
@@ -1200,6 +2037,13 @@ async function waitForGeneratedImage() {
         return {
           kind: "rate-limit",
           gotItVisible: result.gotItVisible,
+        };
+      }
+
+      if (typeof result.dailyImageLimitMessage === "string") {
+        return {
+          kind: "daily-image-limit",
+          message: result.dailyImageLimitMessage,
         };
       }
 
@@ -1261,9 +2105,16 @@ async function waitForGeneratedImage() {
 
   if (result.kind === "rate-limit") {
     if (result.gotItVisible) {
-      await dismissRateLimitModal();
+      await dismissRateLimitModal("waitForGeneratedImage");
     }
     throw new ChatGptRateLimitError();
+  }
+
+  if (result.kind === "daily-image-limit") {
+    throw new DailyImageLimitExceededError(
+      result.message ||
+        "ChatGPT hit the daily image generation limit for this account",
+    );
   }
 
   if (result.kind === "error") {
@@ -1350,6 +2201,7 @@ async function processItem(
   item,
   {
     prompt,
+    deleteAfterSave,
     projectUrl,
     projectPrefix,
     delayMinSeconds,
@@ -1358,12 +2210,18 @@ async function processItem(
   },
 ) {
   let rateLimitRetries = 0;
+  let humanVerificationRetries = 0;
+  let browserSessionRecoveryRetries = 0;
   let wrongModeRetries = 0;
+  let menuRefreshRetries = 0;
   let lastConversationUrl = null;
   let rateLimitNotified = false;
+  let humanVerificationNotified = false;
+  let postSaveRateLimited = false;
 
   while (true) {
     try {
+      assertNoHumanVerificationRequired();
       await ensureProjectPage(projectUrl, projectPrefix);
       await resetComposerDraft();
       await ensureCreateImageMode();
@@ -1382,9 +2240,50 @@ async function processItem(
         lastError: null,
       });
 
+      let onProjectPage = false;
+
+      try {
+        await ensureProjectPage(projectUrl, projectPrefix);
+        onProjectPage = true;
+      } catch (returnError) {
+        if (returnError instanceof ChatGptRateLimitError) {
+          postSaveRateLimited = true;
+        }
+        console.warn(
+          `[chatgpt-image-worker] saved id=${item.id} but failed to return to the project page before cooldown: ${
+            returnError instanceof Error ? returnError.message : String(returnError)
+          }`,
+        );
+      }
+
+      let deletedConversation = false;
+
+      if (deleteAfterSave) {
+        try {
+          if (!onProjectPage) {
+            await ensureProjectPage(projectUrl, projectPrefix);
+            onProjectPage = true;
+          }
+
+          await deleteConversationFromProject(conversationUrl, projectUrl);
+          deletedConversation = true;
+        } catch (deleteError) {
+          if (deleteError instanceof ChatGptRateLimitError) {
+            postSaveRateLimited = true;
+          }
+          console.warn(
+            `[chatgpt-image-worker] saved id=${item.id} but failed to delete the project conversation: ${
+              deleteError instanceof Error ? deleteError.message : String(deleteError)
+            }`,
+          );
+        }
+      }
+
       return {
         conversationUrl,
+        deletedConversation,
         editedPath,
+        postSaveRateLimited,
       };
     } catch (error) {
       const currentConversationUrl =
@@ -1392,6 +2291,25 @@ async function processItem(
 
       if (error && typeof error === "object") {
         error.conversationUrl = currentConversationUrl;
+      }
+
+      if (isComposerMenuTimeoutError(error)) {
+        menuRefreshRetries += 1;
+
+        if (menuRefreshRetries <= MAX_MENU_REFRESH_RETRIES) {
+          console.warn(
+            `[chatgpt-image-worker] composer menu timed out for id=${item.id}; refreshing project page and retrying (${menuRefreshRetries}/${MAX_MENU_REFRESH_RETRIES})`,
+          );
+          await refreshProjectPage(projectUrl);
+          continue;
+        }
+
+        const stuckError = new ComposerMenuStuckError(
+          "ChatGPT project composer menu stayed stuck after a refresh retry",
+        );
+        stuckError.cause = error;
+        stuckError.conversationUrl = currentConversationUrl;
+        throw stuckError;
       }
 
       if (error instanceof ChatGptRateLimitError) {
@@ -1408,7 +2326,49 @@ async function processItem(
           console.warn(
             `[chatgpt-image-worker] rate limit for id=${item.id}; retrying after cooldown (${rateLimitRetries}/${MAX_RATE_LIMIT_RETRIES})`,
           );
-          await cooldownAfterRateLimit(rateLimitCooldownSeconds);
+          await cooldownBeforeRetry(rateLimitCooldownSeconds, "rate limit");
+          continue;
+        }
+      }
+
+      if (error instanceof HumanVerificationRequiredError) {
+        humanVerificationRetries += 1;
+
+        if (humanVerificationRetries <= MAX_HUMAN_VERIFICATION_RETRIES) {
+          if (!humanVerificationNotified) {
+            sendNotify(
+              "ChatGPT worker waiting on human verification",
+              `id=${item.id}${item.postTitle ? ` ${item.postTitle}` : ""}. Cooling down for ${rateLimitCooldownSeconds}s before one retry.`,
+            );
+            humanVerificationNotified = true;
+          }
+
+          console.warn(
+            `[chatgpt-image-worker] human verification for id=${item.id}; retrying after cooldown (${humanVerificationRetries}/${MAX_HUMAN_VERIFICATION_RETRIES})`,
+          );
+          await cooldownBeforeRetry(
+            rateLimitCooldownSeconds,
+            "human verification",
+          );
+          continue;
+        }
+      }
+
+      if (error instanceof BrowserSessionUnresponsiveError) {
+        browserSessionRecoveryRetries += 1;
+
+        if (
+          browserSessionRecoveryRetries <= MAX_BROWSER_SESSION_RECOVERY_RETRIES
+        ) {
+          console.warn(
+            `[chatgpt-image-worker] browser session stalled for id=${item.id}; cooling down before refresh/retry (${browserSessionRecoveryRetries}/${MAX_BROWSER_SESSION_RECOVERY_RETRIES})`,
+          );
+          await cooldownBeforeRetry(
+            rateLimitCooldownSeconds,
+            "browser session stall",
+          );
+          connectAgentBrowserSession();
+          await refreshProjectPage(projectUrl);
           continue;
         }
       }
@@ -1447,12 +2407,20 @@ async function main() {
     if (error instanceof BrowserApprovalRequiredError) {
       notifyBrowserApprovalRequired(error.message);
     }
+    if (error instanceof BrowserSessionUnresponsiveError) {
+      notifyBrowserSessionUnresponsive(error.message);
+    }
     throw error;
   }
 
   console.log(`[chatgpt-image-worker] session=${AGENT_BROWSER_SESSION}`);
 
   let processed = 0;
+  let consecutiveErrorState = {
+    count: 0,
+    key: null,
+    label: null,
+  };
 
   while (processed < options.limit) {
     console.log("[chatgpt-image-worker] claiming next queue item");
@@ -1477,6 +2445,43 @@ async function main() {
       console.log(
         `[chatgpt-image-worker] conversation id=${item.id} url=${result.conversationUrl}`,
       );
+      if (result.deletedConversation) {
+        console.log(
+          `[chatgpt-image-worker] deleted conversation id=${item.id} url=${result.conversationUrl}`,
+        );
+      }
+
+      let appliedPostSaveRateLimitCooldown = false;
+
+      if (result.postSaveRateLimited) {
+        console.warn(
+          `[chatgpt-image-worker] rate limit affected post-save cleanup for id=${item.id}; cooling down before the next item`,
+        );
+        await cooldownBeforeRetry(
+          options.rateLimitCooldownSeconds,
+          "rate limit",
+        );
+        appliedPostSaveRateLimitCooldown = true;
+      }
+
+      if (
+        !appliedPostSaveRateLimitCooldown &&
+        (await detectAndDismissRateLimitModal("post-save project page"))
+      ) {
+        console.warn(
+          `[chatgpt-image-worker] rate limit modal appeared on the project page after saving id=${item.id}; cooling down before the next item`,
+        );
+        await cooldownBeforeRetry(
+          options.rateLimitCooldownSeconds,
+          "rate limit",
+        );
+      }
+
+      consecutiveErrorState = {
+        count: 0,
+        key: null,
+        label: null,
+      };
       processed += 1;
 
       if (processed < options.limit) {
@@ -1502,6 +2507,14 @@ async function main() {
           label:
             error instanceof BrowserApprovalRequiredError
               ? "browser-approval"
+              : error instanceof ComposerMenuStuckError
+                ? "composer-menu-stuck"
+              : error instanceof HumanVerificationRequiredError
+                ? "human-verification"
+              : error instanceof BrowserSessionUnresponsiveError
+                ? "browser-session-unresponsive"
+              : error instanceof DailyImageLimitExceededError
+                ? "daily-image-limit"
               : error instanceof ChatGptRateLimitError
                 ? "rate-limit"
                 : message.startsWith("Timed out waiting for ")
@@ -1543,16 +2556,118 @@ async function main() {
         throw error;
       }
 
+      if (error instanceof HumanVerificationRequiredError) {
+        updateStatus(item.id, "pending", {
+          lastError: message,
+          promptVersion: PROMPT_VERSION,
+        });
+
+        notifyHumanVerificationRequired(message, item);
+
+        console.error(
+          `[chatgpt-image-worker] stopping for human verification id=${item.id} error=${message}${
+            conversationUrl ? ` url=${conversationUrl}` : ""
+          }${
+            debugArtifacts?.textPath ? ` debugText=${debugArtifacts.textPath}` : ""
+          }${
+            debugArtifacts?.screenshotPath
+              ? ` debugShot=${debugArtifacts.screenshotPath}`
+              : ""
+          }`,
+        );
+
+        throw error;
+      }
+
+      if (error instanceof DailyImageLimitExceededError) {
+        updateStatus(item.id, "pending", {
+          lastError: message,
+          promptVersion: PROMPT_VERSION,
+        });
+
+        notifyDailyImageLimitExceeded(message, item);
+
+        console.error(
+          `[chatgpt-image-worker] stopping for daily image limit id=${item.id} error=${message}${
+            conversationUrl ? ` url=${conversationUrl}` : ""
+          }${
+            debugArtifacts?.textPath ? ` debugText=${debugArtifacts.textPath}` : ""
+          }${
+            debugArtifacts?.screenshotPath
+              ? ` debugShot=${debugArtifacts.screenshotPath}`
+              : ""
+          }`,
+        );
+
+        throw error;
+      }
+
+      if (error instanceof BrowserSessionUnresponsiveError) {
+        updateStatus(item.id, "pending", {
+          lastError: message,
+          promptVersion: PROMPT_VERSION,
+        });
+
+        notifyBrowserSessionUnresponsive(message, item);
+
+        console.error(
+          `[chatgpt-image-worker] stopping for browser session stall id=${item.id} error=${message}${
+            conversationUrl ? ` url=${conversationUrl}` : ""
+          }${
+            debugArtifacts?.textPath ? ` debugText=${debugArtifacts.textPath}` : ""
+          }${
+            debugArtifacts?.screenshotPath
+              ? ` debugShot=${debugArtifacts.screenshotPath}`
+              : ""
+          }`,
+        );
+
+        throw error;
+      }
+
+      if (error instanceof ComposerMenuStuckError) {
+        updateStatus(item.id, "pending", {
+          lastError: message,
+          promptVersion: PROMPT_VERSION,
+        });
+
+        sendNotify(
+          "ChatGPT worker stopped: composer menu stuck",
+          `id=${item.id}${item.postTitle ? ` ${item.postTitle}` : ""}. ${message}`,
+        );
+
+        console.error(
+          `[chatgpt-image-worker] stopping for stuck composer menu id=${item.id} error=${message}${
+            conversationUrl ? ` url=${conversationUrl}` : ""
+          }${
+            debugArtifacts?.textPath ? ` debugText=${debugArtifacts.textPath}` : ""
+          }${
+            debugArtifacts?.screenshotPath
+              ? ` debugShot=${debugArtifacts.screenshotPath}`
+              : ""
+          }`,
+        );
+
+        throw error;
+      }
+
       updateStatus(item.id, "failed", {
         lastError: message,
         promptVersion: PROMPT_VERSION,
       });
 
-      if (message.startsWith("Timed out waiting for ")) {
-        sendNotify(
-          "ChatGPT worker timeout",
-          `id=${item.id}${item.postTitle ? ` ${item.postTitle}` : ""}. ${message}`,
-        );
+      const circuitError = classifyErrorForCircuitBreaker(error, message);
+
+      if (consecutiveErrorState.key === circuitError.key) {
+        consecutiveErrorState = {
+          ...circuitError,
+          count: consecutiveErrorState.count + 1,
+        };
+      } else {
+        consecutiveErrorState = {
+          ...circuitError,
+          count: 1,
+        };
       }
 
       console.error(
@@ -1566,6 +2681,29 @@ async function main() {
             : ""
         }`,
       );
+
+      if (
+        consecutiveErrorState.count >= options.maxConsecutiveSameError
+      ) {
+        sendNotify(
+          "ChatGPT worker stopped: repeated errors",
+          `Stopped after ${consecutiveErrorState.count} consecutive "${consecutiveErrorState.label}" failures. last id=${item.id}${item.postTitle ? ` ${item.postTitle}` : ""}.`,
+        );
+
+        console.error(
+          `[chatgpt-image-worker] stopping after ${consecutiveErrorState.count} consecutive ${consecutiveErrorState.key} failures`,
+        );
+
+        throw error;
+      }
+
+      if (message.startsWith("Timed out waiting for ")) {
+        sendNotify(
+          "ChatGPT worker timeout",
+          `id=${item.id}${item.postTitle ? ` ${item.postTitle}` : ""}. ${message}`,
+        );
+      }
+
       processed += 1;
 
       if (processed < options.limit) {
