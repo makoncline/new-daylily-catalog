@@ -141,6 +141,7 @@
   "devDependencies": {
     "@clerk/backend": "^2.30.1",
     "@clerk/testing": "^1.13.35",
+    "@daylily-catalog/config": "workspace:*",
     "@eslint/eslintrc": "^3.3.1",
     "@playwright/test": "^1.55.0",
     "@tailwindcss/postcss": "^4.1.13",
