@@ -32,6 +32,7 @@ import {
   DashboardDbLoadingScreen,
   type DashboardDbStatus,
 } from "@/app/dashboard/_components/dashboard-db-loading-screen";
+import { reportDashboardLoadFailure } from "@/app/dashboard/_lib/dashboard-db/dashboard-load-failure-reporting";
 
 interface DashboardDbState {
   status: DashboardDbStatus;
@@ -70,6 +71,7 @@ export function DashboardDbProvider({
   const [hideLoadingScreen, setHideLoadingScreen] = useState(false);
   const [isExitingLoadingScreen, setIsExitingLoadingScreen] = useState(false);
   const initializedUserIdRef = useRef<string | null>(null);
+  const lastReportedFailureKeyRef = useRef<string | null>(null);
   const setDashboardDbState = (nextState: DashboardDbState) => {
     queueMicrotask(() => {
       setState((current) =>
@@ -151,6 +153,9 @@ export function DashboardDbProvider({
     let finished = false;
     initializedUserIdRef.current = bootstrapUserId;
     let cancelled = false;
+    let phase = "hydrate";
+    let hydratedSnapshot = false;
+    const startedAt = new Date();
     const isBootstrapActive = () =>
       !cancelled && initializedUserIdRef.current === bootstrapUserId;
     setCurrentUserId(userId);
@@ -162,11 +167,14 @@ export function DashboardDbProvider({
     void (async () => {
       try {
         const hydrated = await tryHydrateDashboardDbFromPersistence(userId);
+        hydratedSnapshot = hydrated;
 
         if (hydrated) {
+          phase = "warm-revalidate";
           void revalidateDashboardDbInBackground(userId, {
             isActive: isBootstrapActive,
           });
+          phase = "warm-profile-prefetch";
           await utils.dashboardDb.userProfile.get.prefetch();
           if (!cancelled) {
             finished = true;
@@ -178,6 +186,7 @@ export function DashboardDbProvider({
           return;
         }
 
+        phase = "cold-bootstrap";
         await Promise.all([
           bootstrapDashboardDbFromServer(userId, {
             isActive: isBootstrapActive,
@@ -192,15 +201,31 @@ export function DashboardDbProvider({
             userId,
           });
         }
-      } catch {
-        if (initializedUserIdRef.current === bootstrapUserId) {
-          initializedUserIdRef.current = null;
-        }
+      } catch (error) {
         if (!cancelled) {
+          const failedAt = new Date();
+          const failureKey = `${bootstrapUserId}:${phase}:${String(error)}`;
+          if (lastReportedFailureKeyRef.current !== failureKey) {
+            lastReportedFailureKeyRef.current = failureKey;
+            reportDashboardLoadFailure({
+              error,
+              userId,
+              phase,
+              startedAt,
+              failedAt,
+              elapsedMs: failedAt.getTime() - startedAt.getTime(),
+              hydratedSnapshot,
+              bootstrapActive: isBootstrapActive(),
+            });
+          }
+
           setState({
             status: "error",
             userId,
           });
+        }
+        if (initializedUserIdRef.current === bootstrapUserId) {
+          initializedUserIdRef.current = null;
         }
       }
     })();
