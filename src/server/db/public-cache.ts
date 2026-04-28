@@ -110,10 +110,9 @@ const getCachedPublicCultivarListingIds = createKeyedServerCache(
 );
 
 export async function getCachedPublicCultivarPage(cultivarSegment: string) {
-  const [summarySection, listingIds, activeUserIds] = await Promise.all([
+  const [summarySection, listingIds] = await Promise.all([
     getCachedPublicCultivarSummary(cultivarSegment),
     getCachedPublicCultivarListingIds(cultivarSegment),
-    getCachedProUserIds(),
   ]);
 
   if (!summarySection || listingIds === null) {
@@ -121,8 +120,11 @@ export async function getCachedPublicCultivarPage(cultivarSegment: string) {
   }
 
   const listingCards = await getCachedPublicListingCardsByIds(listingIds);
+  const activeUserIds = Array.from(
+    new Set(listingCards.map((listing) => listing.userId)),
+  );
   const summariesByUserId = await getPublicSellerSummariesByUserIds(
-    Array.from(new Set(listingCards.map((listing) => listing.userId))),
+    activeUserIds,
     {
       activeUserIds,
     },

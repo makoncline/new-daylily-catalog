@@ -4,6 +4,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const mockDb = vi.hoisted(() => ({
   $queryRaw: vi.fn(),
+  keyValue: {
+    findMany: vi.fn(),
+  },
   listing: {
     findMany: vi.fn(),
     groupBy: vi.fn(),
@@ -14,7 +17,6 @@ const mockDb = vi.hoisted(() => ({
 }));
 
 const mockGetUserIdFromSlugOrId = vi.hoisted(() => vi.fn());
-const mockGetStripeSubscription = vi.hoisted(() => vi.fn());
 
 vi.mock("@/server/db", () => ({
   db: mockDb,
@@ -23,11 +25,6 @@ vi.mock("@/server/db", () => ({
 vi.mock("@/server/db/getPublicProfile", () => ({
   getUserIdFromSlugOrId: (...args: unknown[]) =>
     mockGetUserIdFromSlugOrId(...args),
-}));
-
-vi.mock("@/server/stripe/sync-subscription", () => ({
-  getStripeSubscription: (...args: unknown[]) =>
-    mockGetStripeSubscription(...args),
 }));
 
 import {
@@ -338,12 +335,16 @@ describe("getPublicListings helpers", () => {
       );
     });
 
-    mockGetStripeSubscription.mockImplementation(
-      async (stripeCustomerId: string) =>
-        stripeCustomerId === "cus-pro"
-          ? { status: "active" }
-          : { status: "none" },
-    );
+    mockDb.keyValue.findMany.mockResolvedValue([
+      {
+        key: "stripe:customer:cus-pro",
+        value: JSON.stringify({ status: "active" }),
+      },
+      {
+        key: "stripe:customer:cus-free",
+        value: JSON.stringify({ status: "none" }),
+      },
+    ]);
 
     const entries = await getPublicCatalogRouteEntries();
 
@@ -354,5 +355,6 @@ describe("getPublicListings helpers", () => {
         lastModified: new Date("2026-02-01T00:00:00.000Z"),
       },
     ]);
+    expect(mockDb.keyValue.findMany).toHaveBeenCalledTimes(1);
   });
 });
