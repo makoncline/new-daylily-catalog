@@ -86,9 +86,10 @@ async function resetDashboardDbClientState() {
 }
 
 function expectFullSnapshotFetchCounts(opCounts: Map<string, number>) {
-  expect(opCounts.get("dashboardDb.listing.sync")).toBe(1);
-  expect(opCounts.get("dashboardDb.list.sync")).toBe(1);
-  expect(opCounts.get("dashboardDb.image.listByOwnerRefs")).toBe(1);
+  expect(opCounts.get("dashboardDb.bootstrap.roots")).toBe(1);
+  expect(opCounts.get("dashboardDb.image.listByListingIds")).toBe(1);
+  expect(opCounts.get("dashboardDb.listing.sync") ?? 0).toBe(0);
+  expect(opCounts.get("dashboardDb.list.sync") ?? 0).toBe(0);
   expect(opCounts.get("dashboardDb.image.sync") ?? 0).toBe(0);
   expect(opCounts.get("dashboardDb.cultivarReference.sync") ?? 0).toBe(0);
 }
@@ -167,7 +168,6 @@ describe("dashboardDb provider bootstrap", () => {
 
       expect(opCounts.get("dashboardDb.user.getCurrentUser")).toBe(1);
       expect(opCounts.get("dashboardDb.userProfile.get")).toBe(1);
-      expect(opCounts.get("dashboardDb.bootstrap.snapshot") ?? 0).toBe(0);
       expectFullSnapshotFetchCounts(opCounts);
       expect(opCounts.get("dashboardDb.cultivarReference.getByIds") ?? 0).toBe(
         0,
@@ -352,7 +352,7 @@ describe("dashboardDb provider bootstrap", () => {
             const sub = next(op).subscribe({
               next: (value) => {
                 pending = pending.then(async () => {
-                  if (op.path === "dashboardDb.listing.sync") {
+                  if (op.path === "dashboardDb.bootstrap.roots") {
                     await listingSyncGate;
                   }
                   emit.next(value);
@@ -428,13 +428,12 @@ describe("dashboardDb provider bootstrap", () => {
         );
       });
 
-      expect(opCounts.get("dashboardDb.bootstrap.snapshot") ?? 0).toBe(0);
       expectFullSnapshotFetchCounts(opCounts);
       expect(alpha.id).not.toBe(beta.id);
     });
   });
 
-  it("first collection mount retries server sync when warm revalidation is cancelled", async () => {
+  it("retries a full collection sync after warm revalidation is cancelled", async () => {
     await withTempAppDb(async ({ user }) => {
       await clearDashboardDbPersistence();
 
@@ -605,7 +604,7 @@ describe("dashboardDb provider bootstrap", () => {
                 next: (value) => emit.next(value),
                 error: (err) => emit.error(err),
                 complete: () => {
-                  if (op.path === "dashboardDb.image.listByOwnerRefs") {
+                  if (op.path === "dashboardDb.image.listByListingIds") {
                     resolveBackgroundRefresh?.();
                   }
                   emit.complete();

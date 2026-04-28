@@ -16,6 +16,7 @@ beforeAll(async () => {
 });
 
 interface MockDb {
+  $queryRaw: ReturnType<typeof vi.fn>;
   image: {
     findMany: ReturnType<typeof vi.fn>;
   };
@@ -29,6 +30,7 @@ interface MockDb {
 
 function createMockDb(): MockDb {
   return {
+    $queryRaw: vi.fn(),
     image: {
       findMany: vi.fn(),
     },
@@ -97,6 +99,44 @@ describe("dashboardDb.image", () => {
     const result = await caller.sync({ since: null });
 
     expect(result).toEqual([]);
+    expect(db.image.findMany).not.toHaveBeenCalled();
+  });
+
+  it("listByListingIds fetches image chunks with indexed owner-checked queries", async () => {
+    const db = createMockDb();
+    db.$queryRaw.mockResolvedValueOnce([
+      {
+        id: "image-1",
+        url: "https://example.com/image.jpg",
+        order: 1,
+        listingId: "listing-1",
+        userProfileId: null,
+        createdAt: "2026-01-01T00:00:00.000Z",
+        updatedAt: "2026-01-02T00:00:00.000Z",
+        status: null,
+      },
+    ]);
+
+    const caller = createCaller(db);
+    const result = await caller.listByListingIds({
+      listingIds: ["listing-1", "listing-1"],
+    });
+
+    expect(result).toEqual([
+      {
+        id: "image-1",
+        url: "https://example.com/image.jpg",
+        order: 1,
+        listingId: "listing-1",
+        userProfileId: null,
+        createdAt: new Date("2026-01-01T00:00:00.000Z"),
+        updatedAt: new Date("2026-01-02T00:00:00.000Z"),
+        status: null,
+      },
+    ]);
+    expect(db.$queryRaw).toHaveBeenCalledTimes(1);
+    expect(db.listing.findMany).not.toHaveBeenCalled();
+    expect(db.userProfile.findUnique).not.toHaveBeenCalled();
     expect(db.image.findMany).not.toHaveBeenCalled();
   });
 });
