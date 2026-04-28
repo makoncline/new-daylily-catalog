@@ -350,6 +350,9 @@ importers:
       '@clerk/testing':
         specifier: ^1.13.35
         version: 1.13.35(@playwright/test@1.55.0)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)
+      '@daylily-catalog/config':
+        specifier: workspace:*
+        version: link:../../packages/config
       '@eslint/eslintrc':
         specifier: ^3.3.1
         version: 3.3.1
@@ -437,6 +440,8 @@ importers:
       vitest:
         specifier: ^3.2.4
         version: 3.2.4(@types/node@24.12.2)(jiti@2.6.1)(jsdom@26.1.0)(lightningcss@1.30.1)(terser@5.46.2)
+
+  packages/config: {}
 
 packages:
 
