@@ -5,7 +5,7 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { createTRPCProxyClient, type TRPCLink } from "@trpc/client";
 import { observable } from "@trpc/server/observable";
 import { act, render, screen, waitFor } from "@testing-library/react";
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { AppRouter } from "@/server/api/root";
 import type { TRPCInternalContext } from "@/server/api/trpc";
 import { callerLink, withTempAppDb } from "@/lib/test-utils/app-test-db";
@@ -13,8 +13,18 @@ import { getQueryClient } from "@/trpc/query-client";
 import { api } from "@/trpc/react";
 import { cursorKey } from "@/lib/utils/cursor";
 
+const reportDashboardLoadFailureMock = vi.hoisted(() => vi.fn());
+
+vi.mock(
+  "@/app/dashboard/_lib/dashboard-db/dashboard-load-failure-reporting",
+  () => ({
+    reportDashboardLoadFailure: reportDashboardLoadFailureMock,
+  }),
+);
+
 beforeEach(async () => {
   localStorage.clear();
+  reportDashboardLoadFailureMock.mockClear();
   await resetDashboardDbClientState();
   await clearDashboardDbPersistence();
 });
@@ -299,6 +309,83 @@ describe("dashboardDb provider bootstrap", () => {
           value: originalIndexedDb,
         });
       }
+    });
+  });
+
+  it("reports dashboard load failures while showing the refresh message", async () => {
+    await withTempAppDb(async ({ user }) => {
+      await clearDashboardDbPersistence();
+
+      const { db } = await import("@/server/db");
+      const { createCaller } = await import("@/server/api/root");
+      const caller = createCaller(async () => {
+        return {
+          db,
+          headers: new Headers(),
+          _authUser: {
+            id: user.id,
+          } as unknown as TRPCInternalContext["_authUser"],
+        };
+      });
+
+      const failure = new Error("bootstrap roots failed");
+      const failBootstrapRootsLink: TRPCLink<AppRouter> = () => {
+        return ({ op, next }) => {
+          if (op.path !== "dashboardDb.bootstrap.roots") {
+            return next(op);
+          }
+
+          return observable((emit) => {
+            emit.error(failure as Parameters<typeof emit.error>[0]);
+          });
+        };
+      };
+
+      const links: TRPCLink<AppRouter>[] = [
+        failBootstrapRootsLink,
+        callerLink(caller),
+      ];
+      const clientLike = createTRPCProxyClient<AppRouter>({ links });
+
+      const { setTestTrpcClient } = await import("@/trpc/client");
+      setTestTrpcClient(clientLike);
+
+      const trpcClient = api.createClient({ links });
+      const queryClient = getQueryClient();
+      const { DashboardDbProvider } = await import(
+        "@/app/dashboard/_components/dashboard-db-provider"
+      );
+
+      render(
+        <QueryClientProvider client={queryClient}>
+          <api.Provider client={trpcClient} queryClient={queryClient}>
+            <DashboardDbProvider>
+              <DashboardReadyMarker />
+            </DashboardDbProvider>
+          </api.Provider>
+        </QueryClientProvider>,
+      );
+
+      await waitFor(() => {
+        expect(
+          screen.getByText("Unable to load dashboard data"),
+        ).toBeInTheDocument();
+        expect(screen.getByText("Please refresh the page.")).toBeInTheDocument();
+      });
+
+      expect(screen.queryByTestId("dashboard-ready")).toBeNull();
+      expect(reportDashboardLoadFailureMock).toHaveBeenCalledTimes(1);
+      expect(reportDashboardLoadFailureMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          error: expect.objectContaining({
+            message: failure.message,
+          }),
+          userId: expect.any(String),
+          phase: "cold-bootstrap",
+          hydratedSnapshot: false,
+          bootstrapActive: true,
+        }),
+      );
     });
   });
 
