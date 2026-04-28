@@ -45,7 +45,7 @@ export function readCartItems(userId: string) {
   const raw = window.localStorage.getItem(key);
   const cached = cartSnapshots.get(key);
 
-  if (cached && cached.raw === raw) {
+  if (cached?.raw === raw) {
     return cached.items;
   }
 

@@ -31,7 +31,7 @@ jobs:
         run: pnpm lint
 
       - name: Typecheck
-        run: npx tsc --noEmit
+        run: pnpm typecheck
 
       - name: Unit Tests
         run: pnpm test
@@ -78,7 +78,7 @@ jobs:
       - run: pnpm install --frozen-lockfile --prefer-offline
 
       - name: Install Playwright browsers
-        run: pnpm exec playwright install --with-deps
+        run: pnpm main exec playwright install --with-deps
 
       - name: Install sqlite3
         run: sudo apt-get update && sudo apt-get install -y sqlite3
@@ -92,5 +92,5 @@ jobs:
         with:
           name: playwright-artifacts
           path: |
-            test-results
-            playwright-report
+            apps/main/test-results
+            apps/main/playwright-report

@@ -1,5 +1,6 @@
 # Agents
 
+- [2026-04-28] Monorepo app root: The current all-in-one app lives in `apps/main` as package `@daylily-catalog/main`; root `pnpm <task>` scripts route through Turbo and `pnpm main <task>` forwards directly to the app workspace. When updating app paths, Prisma scripts, Playwright artifacts, or Vercel settings, treat `apps/main` as the app cwd and keep root files limited to workspace orchestration.
 - [2026-04-27] Dashboard full bootstrap must split Vercel work: A single heavy server snapshot endpoint can exceed Vercel's 10s function limit for the largest catalog even after local query optimization. Cold bootstrap and warm full refresh should fetch lightweight `dashboardDb.bootstrap.roots`, then separately fetch unbatched listing-image and cultivar-reference chunks before applying one combined local snapshot; add route-specific cursor/chunking only if an individual route still times out.
 - [2026-04-28] Query profiler bypasses server caches: `LOCAL_QUERY_PROFILER=1` makes `createServerCache()` call through directly, so direct Vitest/import probes can overstate repeated calls to cached helpers like `getCachedProUserIds()`. When investigating public-page N+1 alerts, use profiler output to find intra-helper fan-out, but validate route-level cache behavior with a real Next request before assuming production repeats every cached helper call.
 - [2026-04-27] Prod-readonly dashboard smoke workflow: Local SQLite can miss Turso/Vercel timeout risk. When dashboard read-path timing needs production-shape feedback before PR/deploy, follow `docs/prod-readonly-dashboard-smoke.md`: pull env into an ignored file, run local code against production Turso read-only, and access it through a Cloudflare-tunneled `daylilycatalog.com` subdomain so production Clerk auth works.
@@ -50,46 +51,46 @@ below and mirror existing conventions before introducing new ones.
 
 - Package manager: `pnpm` (see `package.json`)
 - Install: `pnpm install`
-- Dev server: `pnpm dev`
-- Build: `pnpm build`
-- Start: `pnpm start`
-- Lint: `pnpm lint`
-- Typecheck: `npx tsc --noEmit`
-- Unit tests: `pnpm test`
-- Unit tests (watch): `pnpm test:watch`
-- E2E tests: `pnpm test:e2e`
-- E2E tests (attach to existing server): `pnpm test:e2e:attach`
-- Query profiler (single command session): `DATABASE_URL="file:/absolute/path/to/prisma/local-prod-copy-daylily-catalog.db" pnpm env:dev pnpm profile:queries`
+- Dev server: `pnpm dev` or `pnpm main dev`
+- Build: `pnpm build` or `pnpm main build`
+- Start: `pnpm start` or `pnpm main start`
+- Lint: `pnpm lint` or `pnpm main lint`
+- Typecheck: `pnpm typecheck` or `pnpm main typecheck`
+- Unit tests: `pnpm test` or `pnpm main test`
+- Unit tests (watch): `pnpm test:watch` or `pnpm main test:watch`
+- E2E tests: `pnpm test:e2e` or `pnpm main test:e2e`
+- E2E tests (attach to existing server): `pnpm test:e2e:attach` or `pnpm main test:e2e:attach`
+- Query profiler (single command session): `DATABASE_URL="file:/absolute/path/to/apps/main/prisma/local-prod-copy-daylily-catalog.db" pnpm env:dev pnpm profile:queries`
 
-For query profiling workflow details, always start with `docs/local-query-profiler.md`.
+For query profiling workflow details, always start with `apps/main/docs/local-query-profiler.md`.
 
 ### Run a Single Test
 
-- Vitest by file: `pnpm test -- tests/some-file.test.ts`
+- Vitest by file: `pnpm main test -- tests/some-file.test.ts`
 - Vitest by test name: `pnpm test -- -t "test name"`
-- Vitest watch by file: `pnpm test:watch -- tests/some-file.test.ts`
-- Playwright by file: `pnpm test:e2e -- tests/some-file.e2e.ts`
+- Vitest watch by file: `pnpm main test:watch -- tests/some-file.test.ts`
+- Playwright by file: `pnpm main test:e2e -- tests/some-file.e2e.ts`
 - Playwright by title/grep: `pnpm test:e2e -- --grep "checkout flow"`
 
 ## Temp DB Workflow (Local UI + E2E)
 
 ```sh
 # Create a fresh temp DB
-npx tsx scripts/create-temp-db.ts
+pnpm main exec tsx scripts/create-temp-db.ts
 
 # Seed example data (optional)
-npx tsx scripts/seed-temp-db-example.ts
+pnpm main exec tsx scripts/seed-temp-db-example.ts
 
 # Run app against the temp DB
-DATABASE_URL="file:/absolute/path/to/tests/.tmp/ui-listings.sqlite" pnpm dev
+DATABASE_URL="file:/absolute/path/to/apps/main/tests/.tmp/ui-listings.sqlite" pnpm dev
 ```
 
 Custom DB path:
 
 ```sh
-npx tsx scripts/create-temp-db.ts --db tests/.tmp/custom-temp.sqlite
-npx tsx scripts/seed-temp-db-example.ts --db tests/.tmp/custom-temp.sqlite
-DATABASE_URL="file:/absolute/path/to/tests/.tmp/custom-temp.sqlite" pnpm dev
+pnpm main exec tsx scripts/create-temp-db.ts --db tests/.tmp/custom-temp.sqlite
+pnpm main exec tsx scripts/seed-temp-db-example.ts --db tests/.tmp/custom-temp.sqlite
+DATABASE_URL="file:/absolute/path/to/apps/main/tests/.tmp/custom-temp.sqlite" pnpm dev
 ```
 
 Note: `scripts/seed-temp-db-example.ts` is minimal; write a purpose-built
@@ -105,13 +106,13 @@ production data.
 
 ```sh
 # Pull local copy of prod DB to file
-pnpm env:dev bash scripts/db-backup.sh
+pnpm main env:dev bash scripts/db-backup.sh
 
 # Build in production mode against local prod DB copy
-DATABASE_URL="file:/absolute/path/to/prisma/local-prod-copy-daylily-catalog.db" NODE_ENV=production pnpm env:dev pnpm build
+DATABASE_URL="file:/absolute/path/to/apps/main/prisma/local-prod-copy-daylily-catalog.db" NODE_ENV=production pnpm env:dev pnpm build
 
 # Run production server locally against local prod DB copy
-DATABASE_URL="file:/absolute/path/to/prisma/local-prod-copy-daylily-catalog.db" NODE_ENV=production pnpm env:dev pnpm start
+DATABASE_URL="file:/absolute/path/to/apps/main/prisma/local-prod-copy-daylily-catalog.db" NODE_ENV=production pnpm env:dev pnpm start
 ```
 
 ## Approximate Data Scale (for query work)
@@ -144,12 +145,12 @@ params as client-only UI state.
 
 ## Repo Structure (High-Level)
 
-- `src/app/` Next.js App Router (routes + route-level `_components`)
-- `src/components/` shared components (`ui/` is shadcn-only)
-- `src/server/` server-side logic (tRPC, db, stripe, clerk)
-- `src/types/` shared types and zod schemas
-- `prisma/` Prisma schema and migrations (do not generate migrations)
-- `tests/` unit and e2e tests
+- `apps/main/src/app/` Next.js App Router (routes + route-level `_components`)
+- `apps/main/src/components/` shared components (`ui/` is shadcn-only)
+- `apps/main/src/server/` server-side logic (tRPC, db, stripe, clerk)
+- `apps/main/src/types/` shared types and zod schemas
+- `apps/main/prisma/` Prisma schema and migrations (do not generate migrations)
+- `apps/main/tests/` unit and e2e tests
 
 ## Cursor Rules (from `.cursorrules`)
 

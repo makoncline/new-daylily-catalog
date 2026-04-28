@@ -4,10 +4,15 @@
  */
 
 import { withSentryConfig } from "@sentry/nextjs";
+import { fileURLToPath } from "node:url";
+import path from "node:path";
+
+const appDir = path.dirname(fileURLToPath(import.meta.url));
 
 /** @type {import("next").NextConfig} */
 const config = {
   output: "standalone",
+  outputFileTracingRoot: path.join(appDir, "../.."),
 
   images: {
     remotePatterns: [{ hostname: "daylilycatalog.com" }],

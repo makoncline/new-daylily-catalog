@@ -48,7 +48,7 @@ jobs:
 
       - run: pnpm fetch
       - run: pnpm install --frozen-lockfile --prefer-offline
-      - run: pnpm exec playwright install --with-deps
+      - run: pnpm main exec playwright install --with-deps
 
       - name: Compute BASE_URL (alias)
         id: url
@@ -81,7 +81,7 @@ jobs:
           # Clerk keys needed for clerkSetup() in global-setup.ts
           CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
           NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${{ vars.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY }}
-        run: pnpm exec playwright test
+        run: pnpm main exec playwright test
 
       - name: Upload Playwright artifacts
         if: always()
@@ -89,5 +89,5 @@ jobs:
         with:
           name: playwright-artifacts
           path: |
-            test-results
-            playwright-report
+            apps/main/test-results
+            apps/main/playwright-report

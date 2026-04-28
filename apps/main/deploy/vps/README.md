@@ -8,9 +8,14 @@ These files are the deploy source of truth. Copy them directly to the server sta
 
 Server paths:
 
-- `deploy/vps/compose.yaml` -> `/srv/stacks/daylilycatalog/compose.yaml`
-- `deploy/vps/caddy-route.caddy` -> `/srv/stacks/proxy/sites/20-daylilycatalog.caddy`
-- `deploy/vps/.env.example` -> reference only; live runtime env stays in `/srv/stacks/daylilycatalog/.env`
+- `apps/main/deploy/vps/compose.yaml` -> `/srv/stacks/daylilycatalog/compose.yaml`
+- `apps/main/deploy/vps/caddy-route.caddy` -> `/srv/stacks/proxy/sites/20-daylilycatalog.caddy`
+- `apps/main/deploy/vps/.env.example` -> reference only; live runtime env stays in `/srv/stacks/daylilycatalog/.env`
+
+Config sync:
+
+- `/etc/bootstrap/config-sync/daylilycatalog.env` should set `CONFIG_SUBDIR=apps/main/deploy/vps`.
+- The Next cache volume in `compose.yaml` should target `/app/apps/main/.next/cache`.
 
 Deploy webhook:
 

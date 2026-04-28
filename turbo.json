@@ -1,0 +1,100 @@
+{
+  "$schema": "https://turborepo.com/schema.json",
+  "globalPassThroughEnv": [
+    "APP_BASE_URL",
+    "AWS_ACCESS_KEY_ID",
+    "AWS_BUCKET_NAME",
+    "AWS_REGION",
+    "AWS_SECRET_ACCESS_KEY",
+    "BASE_URL",
+    "CLERK_SECRET_KEY",
+    "CLERK_WEBHOOK_SECRET",
+    "CI",
+    "DATABASE_URL",
+    "E2E_PORT",
+    "E2E_PROD_SCENARIO",
+    "E2E_PROFILE_SCENARIO",
+    "E2E_TEST_DB_URL",
+    "NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY",
+    "NEXT_PUBLIC_CLOUDFLARE_URL",
+    "NEXT_PUBLIC_SENTRY_ENABLED",
+    "NEXT_PUBLIC_USE_V2_CULTIVAR_DISPLAY_DATA",
+    "PLAYWRIGHT_LOCAL_E2E",
+    "POSTHOG_PROJECT_ID",
+    "POSTHOG_PROJECT_KEY",
+    "SENTRY_AUTH_TOKEN",
+    "SENTRY_ORG",
+    "SENTRY_PROJECT",
+    "SKIP_ENV_VALIDATION",
+    "STRIPE_PRICE_ID",
+    "STRIPE_SECRET_KEY",
+    "STRIPE_WEBHOOK_SECRET",
+    "TURSO_DATABASE_AUTH_TOKEN",
+    "VERCEL_AUTOMATION_BYPASS_SECRET"
+  ],
+  "tasks": {
+    "build": {
+      "dependsOn": ["^build"],
+      "outputs": [".next/**", "!.next/cache/**"]
+    },
+    "build:next": {
+      "dependsOn": ["^build:next"],
+      "outputs": [".next/**", "!.next/cache/**"]
+    },
+    "lint": {},
+    "typecheck": {},
+    "test": {},
+    "test:watch": {
+      "cache": false,
+      "persistent": true
+    },
+    "test:e2e": {
+      "cache": false
+    },
+    "test:e2e:attach": {
+      "cache": false
+    },
+    "dev": {
+      "cache": false,
+      "persistent": true
+    },
+    "start": {
+      "cache": false,
+      "persistent": true
+    },
+    "start:standalone": {
+      "cache": false,
+      "persistent": true
+    },
+    "start-tunnel": {
+      "cache": false,
+      "persistent": true
+    },
+    "db:push": {
+      "cache": false
+    },
+    "db:generate": {
+      "cache": false
+    },
+    "db:studio": {
+      "cache": false,
+      "persistent": true
+    },
+    "db:seed:local-dev": {
+      "cache": false
+    },
+    "migrate:generate": {
+      "cache": false
+    },
+    "browser-tools-server": {
+      "cache": false,
+      "persistent": true
+    },
+    "profile:queries": {
+      "cache": false
+    },
+    "db:sync:seed": {
+      "cache": false
+    }
+  }
+}
