@@ -76,10 +76,7 @@ export function DashboardDbLoadingScreen({
   status: DashboardDbStatus;
   isExiting: boolean;
 }) {
-  const [phraseIndex, setPhraseIndex] = useState(() => {
-    const seed = Math.floor(Date.now() / 1000);
-    return seed % FUN_PHRASES.length;
-  });
+  const [phraseIndex, setPhraseIndex] = useState(0);
   const [isFadingPhrase, setIsFadingPhrase] = useState(false);
 
   useEffect(() => {

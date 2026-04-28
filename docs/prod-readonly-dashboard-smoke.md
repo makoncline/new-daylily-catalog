@@ -15,10 +15,9 @@ one-off write scripts.
 - Serve it from a real `daylilycatalog.com` subdomain so production Clerk
   login works.
 - Exercise only dashboard read paths such as:
-  - `dashboardDb.listing.sync`
-  - `dashboardDb.list.sync`
-  - `dashboardDb.image.listByOwnerRefs`
-  - `dashboardDb.cultivarReference.getByIds`
+  - `dashboardDb.bootstrap.roots`
+  - `dashboardDb.image.listByListingIds`
+  - `dashboardDb.cultivarReference.getByIdsBatch`
 
 ## 1. Use a Dedicated Local Environment File
 
@@ -97,10 +96,9 @@ you are testing local code with production data and auth.
 Watch the Network tab and server logs for these calls:
 
 ```txt
-/api/trpc/dashboardDb.listing.sync
-/api/trpc/dashboardDb.list.sync
-/api/trpc/dashboardDb.image.listByOwnerRefs
-/api/trpc/dashboardDb.cultivarReference.getByIds
+/api/trpc/dashboardDb.bootstrap.roots
+/api/trpc/dashboardDb.image.listByListingIds
+/api/trpc/dashboardDb.cultivarReference.getByIdsBatch
 ```
 
 For each call, record:
@@ -110,7 +108,7 @@ For each call, record:
 - response size
 - row count when visible in the response/logs
 
-Treat any single dashboard sync route over roughly 7 seconds as risky for
+Treat any single dashboard read route over roughly 7 seconds as risky for
 Vercel's 10 second serverless limit, even if it eventually succeeds locally.
 If a route is over that threshold, optimize that route specifically before
 opening a PR.

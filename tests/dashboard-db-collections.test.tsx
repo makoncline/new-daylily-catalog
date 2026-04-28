@@ -584,11 +584,10 @@ describe("dashboardDb TanStack DB collections", () => {
         };
       });
 
-      let releaseListingSync: (() => void) | undefined;
-      const listingSyncGate = new Promise<void>((resolve) => {
-        releaseListingSync = () => resolve();
+      let releaseBootstrapRoots: (() => void) | undefined;
+      const bootstrapRootsGate = new Promise<void>((resolve) => {
+        releaseBootstrapRoots = () => resolve();
       });
-      let listingSyncCount = 0;
 
       const delayRefreshLink: TRPCLink<AppRouter> = () => {
         return ({ op, next }) =>
@@ -599,15 +598,8 @@ describe("dashboardDb TanStack DB collections", () => {
             let cancelled = false;
 
             void (async () => {
-              if (op.path === "dashboardDb.listing.sync") {
-                listingSyncCount += 1;
-              }
-
-              if (
-                op.path === "dashboardDb.listing.sync" &&
-                listingSyncCount > 1
-              ) {
-                await listingSyncGate;
+              if (op.path === "dashboardDb.bootstrap.roots") {
+                await bootstrapRootsGate;
               }
 
               if (cancelled) {
@@ -678,7 +670,7 @@ describe("dashboardDb TanStack DB collections", () => {
       expect(updateResolved).toBe(false);
       expect(screen.getByTestId("titles").textContent).toBe("Alpha");
 
-      releaseListingSync?.();
+      releaseBootstrapRoots?.();
 
       await act(async () => {
         await Promise.all([refreshPromise, updatePromise]);

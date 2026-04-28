@@ -1,9 +1,4 @@
 import { createTRPCRouter, protectedProcedure } from "@/server/api/trpc";
-import {
-  ahsDisplayAhsListingSelect,
-  v2AhsCultivarDisplaySelect,
-  withResolvedDisplayAhsListing,
-} from "@/lib/utils/ahs-display";
 
 const listingSelect = {
   id: true,
@@ -45,40 +40,18 @@ const imageSelect = {
   status: true,
 } as const;
 
-const cultivarReferenceSelect = {
-  id: true,
-  normalizedName: true,
-  updatedAt: true,
-  ahsListing: {
-    select: ahsDisplayAhsListingSelect,
-  },
-  v2AhsCultivar: {
-    select: v2AhsCultivarDisplaySelect,
-  },
-} as const;
-
-function getUniqueValues<T>(values: Array<T | null | undefined>) {
-  return Array.from(
-    new Set(
-      values.filter(
-        (value): value is T => value !== null && value !== undefined,
-      ),
-    ),
-  );
-}
-
 export const dashboardDbBootstrapRouter = createTRPCRouter({
-  snapshot: protectedProcedure.query(async ({ ctx }) => {
+  roots: protectedProcedure.query(async ({ ctx }) => {
     const [listings, lists, profile] = await Promise.all([
       ctx.db.listing.findMany({
         where: { userId: ctx.user.id },
         select: listingSelect,
-        orderBy: { updatedAt: "asc" },
+        orderBy: { id: "asc" },
       }),
       ctx.db.list.findMany({
         where: { userId: ctx.user.id },
         select: listSelect,
-        orderBy: { updatedAt: "asc" },
+        orderBy: { id: "asc" },
       }),
       ctx.db.userProfile.findUnique({
         where: { userId: ctx.user.id },
@@ -86,42 +59,18 @@ export const dashboardDbBootstrapRouter = createTRPCRouter({
       }),
     ]);
 
-    const listingIds = listings.map((listing) => listing.id);
-    const cultivarReferenceIds = getUniqueValues(
-      listings.map((listing) => listing.cultivarReferenceId),
-    );
-
-    const [images, cultivarReferences] = await Promise.all([
-      listingIds.length || profile
-        ? ctx.db.image.findMany({
-            where: {
-              OR: [
-                ...(listingIds.length
-                  ? [{ listingId: { in: listingIds } }]
-                  : []),
-                ...(profile ? [{ userProfileId: profile.id }] : []),
-              ],
-            },
-            select: imageSelect,
-            orderBy: { updatedAt: "asc" },
-          })
-        : [],
-      cultivarReferenceIds.length
-        ? ctx.db.cultivarReference.findMany({
-            where: { id: { in: cultivarReferenceIds } },
-            select: cultivarReferenceSelect,
-            orderBy: { updatedAt: "asc" },
-          })
-        : [],
-    ]);
+    const profileImages = profile
+      ? await ctx.db.image.findMany({
+          where: { userProfileId: profile.id },
+          select: imageSelect,
+          orderBy: [{ userProfileId: "asc" }, { order: "asc" }, { id: "asc" }],
+        })
+      : [];
 
     return {
       listings,
       lists,
-      images,
-      cultivarReferences: cultivarReferences.map((row) =>
-        withResolvedDisplayAhsListing(row),
-      ),
+      profileImages,
     };
   }),
 });

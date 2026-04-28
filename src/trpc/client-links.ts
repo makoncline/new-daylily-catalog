@@ -9,13 +9,22 @@ import {
 import SuperJSON from "superjson";
 import { getBaseUrl } from "@/lib/utils/getBaseUrl";
 
-const UNBATCHED_DASHBOARD_QUERY_PATHS = new Set([
-  "dashboardDb.bootstrap.snapshot",
+const UNBATCHED_DASHBOARD_PATHS = new Set([
+  "dashboardDb.bootstrap.roots",
   "dashboardDb.listing.sync",
   "dashboardDb.list.sync",
   "dashboardDb.image.sync",
+  "dashboardDb.image.listByListingIds",
   "dashboardDb.cultivarReference.sync",
+  "dashboardDb.cultivarReference.getByIdsBatch",
 ]);
+
+export function shouldUnbatchDashboardOperation(op: {
+  type: string;
+  path: string;
+}) {
+  return UNBATCHED_DASHBOARD_PATHS.has(op.path);
+}
 
 export function createClientLinks() {
   const url = getBaseUrl() + "/api/trpc";
@@ -32,8 +41,7 @@ export function createClientLinks() {
         (op.direction === "down" && op.result instanceof Error),
     }),
     splitLink({
-      condition: (op) =>
-        op.type === "query" && UNBATCHED_DASHBOARD_QUERY_PATHS.has(op.path),
+      condition: shouldUnbatchDashboardOperation,
       true: httpLink({
         transformer: SuperJSON,
         url,

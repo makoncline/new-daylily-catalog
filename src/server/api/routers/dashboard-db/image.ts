@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
+import { Prisma } from "@prisma/client";
 import { protectedProcedure, createTRPCRouter } from "@/server/api/trpc";
 import { env, requireEnv } from "@/env";
 import { APP_CONFIG } from "@/config/constants";
@@ -34,6 +35,44 @@ const imageSelect = {
 } as const;
 
 type DbClient = typeof db;
+type ImageRow = {
+  id: string;
+  url: string;
+  order: number;
+  listingId: string | null;
+  userProfileId: string | null;
+  createdAt: Date | string | number;
+  updatedAt: Date | string | number;
+  status: string | null;
+};
+
+function toDate(value: Date | string | number) {
+  return value instanceof Date ? value : new Date(value);
+}
+
+function mapImageRow(row: ImageRow) {
+  return {
+    ...row,
+    createdAt: toDate(row.createdAt),
+    updatedAt: toDate(row.updatedAt),
+  };
+}
+
+function compareNullableStrings(a: string | null, b: string | null) {
+  return (a ?? "").localeCompare(b ?? "");
+}
+
+function sortImagesForDashboard(
+  a: ReturnType<typeof mapImageRow>,
+  b: ReturnType<typeof mapImageRow>,
+) {
+  return (
+    compareNullableStrings(a.listingId, b.listingId) ||
+    compareNullableStrings(a.userProfileId, b.userProfileId) ||
+    a.order - b.order ||
+    a.id.localeCompare(b.id)
+  );
+}
 
 async function getOwnedImageWhere(args: { db: DbClient; userId: string }) {
   const [listingRows, profile] = await Promise.all([
@@ -148,46 +187,34 @@ export const dashboardDbImageRouter = createTRPCRouter({
     });
   }),
 
-  listByOwnerRefs: protectedProcedure
+  listByListingIds: protectedProcedure
     .input(
       z.object({
-        listingIds: z.array(z.string().trim().min(1)).max(500),
-        includeProfileImages: z.boolean().default(false),
+        listingIds: z.array(z.string().trim().min(1)).max(1000),
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      const [listingRows, profile] = await Promise.all([
-        input.listingIds.length
-          ? ctx.db.listing.findMany({
-              where: { id: { in: input.listingIds }, userId: ctx.user.id },
-              select: { id: true },
-            })
-          : Promise.resolve([]),
-        input.includeProfileImages
-          ? ctx.db.userProfile.findUnique({
-              where: { userId: ctx.user.id },
-              select: { id: true },
-            })
-          : Promise.resolve(null),
-      ]);
+      const uniqueListingIds = Array.from(new Set(input.listingIds));
+      if (!uniqueListingIds.length) return [];
 
-      const ownerFilters = [
-        ...(listingRows.length
-          ? [{ listingId: { in: listingRows.map((row) => row.id) } }]
-          : []),
-        ...(profile ? [{ userProfileId: profile.id }] : []),
-      ];
-      if (!ownerFilters.length) return [];
+      const rows = await ctx.db.$queryRaw<ImageRow[]>(Prisma.sql`
+        SELECT
+          i."id",
+          i."url",
+          i."order",
+          i."listingId",
+          i."userProfileId",
+          i."createdAt",
+          i."updatedAt",
+          i."status"
+        FROM "Image" i
+        INNER JOIN "Listing" l ON l."id" = i."listingId"
+        WHERE
+          i."listingId" IN (${Prisma.join(uniqueListingIds)})
+          AND l."userId" = ${ctx.user.id}
+      `);
 
-      return ctx.db.image.findMany({
-        where: { OR: ownerFilters },
-        orderBy: [
-          { listingId: "asc" },
-          { userProfileId: "asc" },
-          { order: "asc" },
-        ],
-        select: imageSelect,
-      });
+      return rows.map(mapImageRow).sort(sortImagesForDashboard);
     }),
 
   sync: protectedProcedure

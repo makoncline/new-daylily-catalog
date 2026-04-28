@@ -52,6 +52,8 @@ export const listsCollection = createCollection(
     queryClient: getQueryClient(),
     queryKey: QUERY_KEY,
     enabled: true,
+    staleTime: Infinity,
+    retry: false,
     getKey: (row) => row.id,
     queryFn: async ({ queryKey }) => {
       const existing: ListCollectionItem[] =

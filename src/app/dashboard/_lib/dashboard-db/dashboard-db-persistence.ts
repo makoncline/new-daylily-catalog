@@ -8,10 +8,7 @@ import {
   getCurrentUserId,
   setCurrentUserId,
 } from "@/lib/utils/cursor";
-import {
-  fetchDashboardSyncPages,
-  writeCursorFromRows,
-} from "@/app/dashboard/_lib/dashboard-db/collection-bootstrap";
+import { writeCursorFromRows } from "@/app/dashboard/_lib/dashboard-db/collection-bootstrap";
 import {
   clearNextListingsCollectionSyncSuppression,
   listingsCollection,
@@ -49,8 +46,9 @@ const CULTIVAR_REFS_QUERY_KEY = [
   "dashboard-db",
   "cultivar-references",
 ] as const;
-const IMAGE_OWNER_REF_CHUNK_SIZE = 250;
-const CULTIVAR_REF_ID_CHUNK_SIZE = 50;
+const IMAGE_LISTING_ID_CHUNK_SIZE = 900;
+const CULTIVAR_REF_ID_CHUNK_SIZE = 300;
+const DASHBOARD_BOOTSTRAP_CHUNK_CONCURRENCY = 2;
 
 type ListingRow = RouterOutputs["dashboardDb"]["listing"]["list"][number];
 type ListRow = RouterOutputs["dashboardDb"]["list"]["list"][number];
@@ -67,7 +65,7 @@ interface DashboardDbServerSnapshot {
 export const DASHBOARD_DB_PERSISTED_SWR = {
   enabled: true,
   ttlMs: 24 * 60 * 60 * 1000, // 1 day
-  version: 5,
+  version: 10,
 } as const;
 
 interface DashboardDbRefreshGuard {
@@ -245,18 +243,18 @@ function writeCursorFromSnapshotRows(args: {
   });
 }
 
-function clearDashboardCollectionCursors(userId: string) {
-  localStorage.removeItem(cursorKey(LISTINGS_CURSOR_BASE, userId));
-  localStorage.removeItem(cursorKey(LISTS_CURSOR_BASE, userId));
-  localStorage.removeItem(cursorKey(IMAGES_CURSOR_BASE, userId));
-  localStorage.removeItem(cursorKey(CULTIVAR_REFS_CURSOR_BASE, userId));
-}
-
 function suppressNextDashboardCollectionSyncs() {
   suppressNextListingsCollectionSync();
   suppressNextListsCollectionSync();
   suppressNextImagesCollectionSync();
   suppressNextCultivarReferencesCollectionSync();
+}
+
+function clearDashboardCollectionCursors(userId: string) {
+  localStorage.removeItem(cursorKey(LISTINGS_CURSOR_BASE, userId));
+  localStorage.removeItem(cursorKey(LISTS_CURSOR_BASE, userId));
+  localStorage.removeItem(cursorKey(IMAGES_CURSOR_BASE, userId));
+  localStorage.removeItem(cursorKey(CULTIVAR_REFS_CURSOR_BASE, userId));
 }
 
 function clearNextDashboardCollectionSyncSuppressions() {
@@ -274,25 +272,45 @@ function chunkArray<T>(rows: readonly T[], size: number) {
   return chunks;
 }
 
+async function mapWithConcurrency<T, R>(
+  rows: readonly T[],
+  concurrency: number,
+  mapper: (row: T, index: number) => Promise<R>,
+) {
+  const results: R[] = new Array<R>(rows.length);
+  let nextIndex = 0;
+
+  await Promise.all(
+    Array.from({ length: Math.min(concurrency, rows.length) }, async () => {
+      while (nextIndex < rows.length) {
+        const index = nextIndex;
+        nextIndex += 1;
+        results[index] = await mapper(rows[index]!, index);
+      }
+    }),
+  );
+
+  return results;
+}
+
 async function fetchImagesForListings(listings: readonly ListingRow[]) {
   const client = getTrpcClient();
   const listingIdChunks = chunkArray(
     listings.map((listing) => listing.id),
-    IMAGE_OWNER_REF_CHUNK_SIZE,
+    IMAGE_LISTING_ID_CHUNK_SIZE,
   );
-  const chunks = listingIdChunks.length ? listingIdChunks : [[]];
-  const images: ImageRow[] = [];
+  if (!listingIdChunks.length) return [];
 
-  for (let i = 0; i < chunks.length; i++) {
-    images.push(
-      ...(await client.dashboardDb.image.listByOwnerRefs.mutate({
-        listingIds: chunks[i]!,
-        includeProfileImages: i === 0,
-      })),
-    );
-  }
+  const imageChunks = await mapWithConcurrency(
+    listingIdChunks,
+    DASHBOARD_BOOTSTRAP_CHUNK_CONCURRENCY,
+    (listingIds) =>
+      client.dashboardDb.image.listByListingIds.mutate({
+        listingIds,
+      }),
+  );
 
-  return images;
+  return sortSnapshotImages(imageChunks.flat());
 }
 
 async function fetchCultivarReferencesForListings(
@@ -306,15 +324,27 @@ async function fetchCultivarReferencesForListings(
       ),
     ),
   );
-  const cultivarReferences: CultivarReferenceRow[] = [];
+  const cultivarReferenceChunks = await mapWithConcurrency(
+    chunkArray(cultivarReferenceIds, CULTIVAR_REF_ID_CHUNK_SIZE),
+    DASHBOARD_BOOTSTRAP_CHUNK_CONCURRENCY,
+    (ids) => client.dashboardDb.cultivarReference.getByIdsBatch.mutate({ ids }),
+  );
 
-  for (const ids of chunkArray(cultivarReferenceIds, CULTIVAR_REF_ID_CHUNK_SIZE)) {
-    cultivarReferences.push(
-      ...(await client.dashboardDb.cultivarReference.getByIds.query({ ids })),
-    );
-  }
+  return sortSnapshotCultivarReferences(cultivarReferenceChunks.flat());
+}
 
-  return cultivarReferences;
+function sortSnapshotImages(rows: readonly ImageRow[]) {
+  return [...rows].sort(
+    (a, b) =>
+      (a.listingId ?? "").localeCompare(b.listingId ?? "") ||
+      (a.userProfileId ?? "").localeCompare(b.userProfileId ?? "") ||
+      a.order - b.order ||
+      a.id.localeCompare(b.id),
+  );
+}
+
+function sortSnapshotCultivarReferences(rows: readonly CultivarReferenceRow[]) {
+  return [...rows].sort((a, b) => a.id.localeCompare(b.id));
 }
 
 async function applyDashboardDbSnapshot(
@@ -361,23 +391,17 @@ async function applyDashboardDbSnapshot(
   ]);
 }
 
-async function fetchDashboardDbSnapshotFromServer() {
+export async function fetchDashboardDbSnapshotFromServer() {
   const client = getTrpcClient();
-  const listings = await fetchDashboardSyncPages({
-    since: null,
-    fetchPage: (input) => client.dashboardDb.listing.sync.query(input),
-  });
-  const lists = await fetchDashboardSyncPages({
-    since: null,
-    fetchPage: (input) => client.dashboardDb.list.sync.query(input),
-  });
+  const { listings, lists, profileImages } =
+    await client.dashboardDb.bootstrap.roots.query();
   const images = await fetchImagesForListings(listings);
   const cultivarReferences = await fetchCultivarReferencesForListings(listings);
 
   return {
     listings,
     lists,
-    images,
+    images: sortSnapshotImages([...profileImages, ...images]),
     cultivarReferences,
   };
 }
