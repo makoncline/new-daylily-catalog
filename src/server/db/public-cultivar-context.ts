@@ -10,10 +10,16 @@ import {
   toCultivarRouteSegment,
 } from "@/lib/utils/cultivar-utils";
 import { db } from "@/server/db";
-import { getCachedProUserIds } from "@/server/db/getCachedProUserIds";
+import {
+  getActiveProUserIdsForUserIds,
+  getCachedProUserIds,
+} from "@/server/db/getCachedProUserIds";
 import { getPublicListingCardsByIds } from "@/server/db/public-listing-read-model";
 import { getPublicSellerSummariesByUserIds } from "@/server/db/public-seller-read-model";
-import { shouldShowToPublic } from "@/server/db/public-visibility/filters";
+import {
+  isPublished,
+  shouldShowToPublic,
+} from "@/server/db/public-visibility/filters";
 
 export const getCultivarReferenceLookupWhereClause = () => ({
   normalizedName: {
@@ -188,13 +194,15 @@ export async function getCultivarSitemapEntries(): Promise<
 
 async function getPublicCultivarReference(
   cultivarSegment: string,
-): Promise<PublicCultivarReferenceData | null> {
+): Promise<{
+  referenceData: PublicCultivarReferenceData;
+  listingIds: string[];
+} | null> {
   const normalizedCultivarName = fromCultivarRouteSegment(cultivarSegment);
   if (!normalizedCultivarName) {
     return null;
   }
 
-  const proUserIds = await getCachedProUserIds();
   const cultivarReference = await findCultivarReferenceByNormalizedName(
     normalizedCultivarName,
   );
@@ -203,23 +211,35 @@ async function getPublicCultivarReference(
     return null;
   }
 
+  const publishedListingRows = await getPublishedCultivarListingRows(
+    cultivarReference.id,
+  );
+  const proUserIds = await getActiveProUserIdsForUserIds(
+    publishedListingRows.map((listing) => listing.userId),
+  );
+  const proUserIdSet = new Set(proUserIds);
+  const listingIds = publishedListingRows
+    .filter((listing) => proUserIdSet.has(listing.userId))
+    .map((listing) => listing.id);
+
   return {
-    cultivarReference,
-    proUserIds,
+    referenceData: {
+      cultivarReference,
+      proUserIds,
+    },
+    listingIds,
   };
 }
 
-async function getCultivarListingIds(args: {
-  cultivarReferenceId: string;
-  proUserIds: string[];
-}) {
+async function getPublishedCultivarListingRows(cultivarReferenceId: string) {
   return db.listing.findMany({
     where: {
-      cultivarReferenceId: args.cultivarReferenceId,
-      ...shouldShowToPublic(args.proUserIds),
+      cultivarReferenceId,
+      ...isPublished(),
     },
     select: {
       id: true,
+      userId: true,
     },
     orderBy: [{ title: "asc" }, { id: "asc" }],
   });
@@ -228,17 +248,12 @@ async function getCultivarListingIds(args: {
 export async function getPublicCultivarListingIds(
   cultivarSegment: string,
 ): Promise<string[] | null> {
-  const referenceData = await getPublicCultivarReference(cultivarSegment);
-  if (!referenceData) {
+  const contextInput = await getPublicCultivarReference(cultivarSegment);
+  if (!contextInput) {
     return null;
   }
 
-  const rows = await getCultivarListingIds({
-    cultivarReferenceId: referenceData.cultivarReference.id,
-    proUserIds: referenceData.proUserIds,
-  });
-
-  return rows.map((row) => row.id);
+  return contextInput.listingIds;
 }
 
 function getCultivarUserIds(listingCards: CultivarListingCards) {
@@ -255,24 +270,22 @@ async function getSellerSummariesForCultivarListings(
 }
 
 async function getCultivarListingCards(args: {
-  cultivarReferenceId: string;
-  proUserIds: string[];
+  listingIds: string[];
 }): Promise<CultivarListingCards> {
-  const ids = await getCultivarListingIds(args);
-  return getPublicListingCardsByIds(ids.map((row) => row.id));
+  return getPublicListingCardsByIds(args.listingIds);
 }
 
 export async function loadPublicCultivarContext(
   cultivarSegment: string,
 ): Promise<PublicCultivarContext | null> {
-  const referenceData = await getPublicCultivarReference(cultivarSegment);
-  if (!referenceData) {
+  const contextInput = await getPublicCultivarReference(cultivarSegment);
+  if (!contextInput) {
     return null;
   }
 
+  const { referenceData } = contextInput;
   const listingCards = await getCultivarListingCards({
-    cultivarReferenceId: referenceData.cultivarReference.id,
-    proUserIds: referenceData.proUserIds,
+    listingIds: contextInput.listingIds,
   });
   const summariesByUserId = await getSellerSummariesForCultivarListings(
     listingCards,

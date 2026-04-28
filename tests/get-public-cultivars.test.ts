@@ -15,19 +15,16 @@ const mockDb = vi.hoisted(() => ({
   },
 }));
 
-const mockGetStripeSubscription = vi.hoisted(() => vi.fn());
 const mockGetCachedProUserIds = vi.hoisted(() => vi.fn());
+const mockGetActiveProUserIdsForUserIds = vi.hoisted(() => vi.fn());
 
 vi.mock("@/server/db", () => ({
   db: mockDb,
 }));
 
-vi.mock("@/server/stripe/sync-subscription", () => ({
-  getStripeSubscription: (...args: unknown[]) =>
-    mockGetStripeSubscription(...args),
-}));
-
 vi.mock("@/server/db/getCachedProUserIds", () => ({
+  getActiveProUserIdsForUserIds: (...args: unknown[]) =>
+    mockGetActiveProUserIdsForUserIds(...args),
   getCachedProUserIds: (...args: unknown[]) => mockGetCachedProUserIds(...args),
 }));
 
@@ -45,6 +42,7 @@ const originalV2DisplayFlag =
 describe("getPublicCultivarPage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockGetActiveProUserIdsForUserIds.mockResolvedValue([]);
     mockGetCachedProUserIds.mockResolvedValue([]);
   });
 
@@ -265,8 +263,9 @@ describe("getPublicCultivarPage", () => {
     });
 
     mockGetCachedProUserIds.mockResolvedValue(["user-alpha", "user-top"]);
+    mockGetActiveProUserIdsForUserIds.mockResolvedValue(["user-alpha", "user-top"]);
 
-    mockDb.user.findMany.mockResolvedValue([
+    const sellerRows = [
       {
         id: "user-top",
         createdAt: new Date("2019-01-01T00:00:00.000Z"),
@@ -303,36 +302,9 @@ describe("getPublicCultivarPage", () => {
         lists: [{ updatedAt: new Date("2026-01-10T00:00:00.000Z") }],
         listings: [{ updatedAt: new Date("2026-01-13T00:00:00.000Z") }],
       },
-    ]);
+    ];
 
-    mockDb.cultivarReference.findMany.mockResolvedValue([
-      {
-        id: "ref-isle",
-        normalizedName: "isle of wight",
-        ahsListing: {
-          id: "ahs-isle",
-          name: "Isle of Wight",
-          ahsImageUrl: "https://example.com/isle.jpg",
-          hybridizer: "Reed",
-          year: "2007",
-          bloomSeason: "Early",
-          color: "Peach",
-        },
-      },
-      {
-        id: "ref-golden",
-        normalizedName: "goldenzelle",
-        ahsListing: {
-          id: "ahs-golden",
-          name: "Goldenzelle",
-          ahsImageUrl: "https://example.com/goldenzelle.jpg",
-          hybridizer: "Reed",
-          year: "2002",
-          bloomSeason: "Mid",
-          color: "Apricot",
-        },
-      },
-    ]);
+    mockDb.user.findMany.mockResolvedValue(sellerRows);
 
     const result = await getPublicCultivarPage("coffee-frenzy");
 
@@ -381,13 +353,12 @@ describe("getPublicCultivarPage", () => {
       expect.objectContaining({
         where: expect.objectContaining({
           cultivarReferenceId: "cultivar-1",
-          userId: {
-            in: ["user-alpha", "user-top"],
-          },
         }),
         select: {
           id: true,
+          userId: true,
         },
+        orderBy: [{ title: "asc" }, { id: "asc" }],
       }),
     );
     expect(mockDb.listing.findMany).toHaveBeenNthCalledWith(
@@ -405,6 +376,12 @@ describe("getPublicCultivarPage", () => {
       }),
     );
     expect(mockDb.listing.findMany).toHaveBeenCalledTimes(2);
+    expect(mockGetActiveProUserIdsForUserIds).toHaveBeenCalledWith([
+      "user-top",
+      "user-top",
+      "user-alpha",
+      "user-hobby",
+    ]);
 
     expect(mockDb.user.findMany).toHaveBeenNthCalledWith(
       1,
@@ -423,28 +400,8 @@ describe("getPublicCultivarPage", () => {
       }),
     );
 
-    expect(mockDb.cultivarReference.findMany).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: expect.objectContaining({
-          ahsListing: {
-            is: expect.objectContaining({
-              hybridizer: "Reed",
-              ahsImageUrl: {
-                not: null,
-              },
-            }),
-          },
-        }),
-        orderBy: {
-          normalizedName: "asc",
-        },
-        take: 5,
-      }),
-    );
-
-    expect(
-      result?.relatedByHybridizer.map((cultivar) => cultivar.segment),
-    ).toEqual(["goldenzelle", "isle-of-wight"]);
+    expect(mockDb.cultivarReference.findMany).not.toHaveBeenCalled();
+    expect(result?.relatedByHybridizer).toEqual([]);
 
     expect(result?.freshness.offersUpdatedAt).toEqual(
       new Date("2026-01-15T00:00:00.000Z"),
@@ -506,8 +463,6 @@ describe("getPublicCultivarPage", () => {
 
     mockDb.listing.findMany.mockResolvedValue([]);
     mockDb.user.findMany.mockResolvedValue([]);
-    mockDb.cultivarReference.findMany.mockResolvedValue([]);
-
     const result = await getPublicCultivarPage("coffee-frenzy");
 
     expect(result?.summary).toMatchObject({
@@ -532,17 +487,7 @@ describe("getPublicCultivarPage", () => {
       id: "ahs-v2-1",
       url: "https://example.com/v2.jpg",
     });
-    expect(mockDb.cultivarReference.findMany).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: expect.objectContaining({
-          v2AhsCultivar: {
-            is: expect.objectContaining({
-              primary_hybridizer_name: "V2 Hybridizer",
-            }),
-          },
-        }),
-      }),
-    );
+    expect(mockDb.cultivarReference.findMany).not.toHaveBeenCalled();
   });
 
   it("uses the decoded legacy hybridizer fallback on the public cultivar page when V2 primary is blank", async () => {
