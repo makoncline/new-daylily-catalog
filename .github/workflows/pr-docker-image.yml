@@ -131,6 +131,7 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: .
+          file: apps/main/Dockerfile
           push: ${{ steps.meta.outputs.should_push == 'true' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}

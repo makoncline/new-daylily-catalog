@@ -15,17 +15,18 @@ FROM base AS deps
 
 WORKDIR /app
 
-COPY package.json pnpm-lock.yaml ./
-COPY prisma ./prisma
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY apps/main/package.json ./apps/main/package.json
+COPY apps/main/prisma ./apps/main/prisma
 
-RUN pnpm install --frozen-lockfile
+RUN pnpm install --frozen-lockfile --filter @daylily-catalog/main...
 
 FROM base AS builder
 
 WORKDIR /app
 
 COPY --from=deps /app/node_modules ./node_modules
-COPY --from=deps /app/prisma ./prisma
+COPY --from=deps /app/apps/main/node_modules ./apps/main/node_modules
 COPY . .
 
 ENV NODE_ENV=production
@@ -39,7 +40,7 @@ RUN --mount=type=secret,id=app_env \
     && set +a \
     && : "${APP_BASE_URL:?APP_BASE_URL is required for Docker builds}" \
     && export NODE_ENV=production \
-    && pnpm exec next build
+    && pnpm --filter @daylily-catalog/main exec next build
 
 FROM base AS runner
 
@@ -55,12 +56,12 @@ RUN groupadd --system --gid 1001 nodejs \
     && mkdir -p /data \
     && chown -R nextjs:nodejs /app /data
 
-COPY --from=builder --chown=nextjs:nodejs /app/public ./public
-COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
-COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+COPY --from=builder --chown=nextjs:nodejs /app/apps/main/public ./apps/main/public
+COPY --from=builder --chown=nextjs:nodejs /app/apps/main/.next/standalone ./
+COPY --from=builder --chown=nextjs:nodejs /app/apps/main/.next/static ./apps/main/.next/static
 
 USER nextjs
 
 EXPOSE 3000
 
-CMD ["node", "server.js"]
+CMD ["node", "apps/main/server.js"]

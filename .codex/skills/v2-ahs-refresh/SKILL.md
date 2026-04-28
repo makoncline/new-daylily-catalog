@@ -15,16 +15,16 @@ Default stance:
 ## Inputs
 
 - live source: `https://daylilies.org/search/` + `https://daylilies.org/wp-admin/admin-ajax.php`
-- local prod copy: `prisma/local-prod-copy-daylily-catalog.db`
-- fresh scrape output DB: `cultivars.db`
-- delta artifact dir: `prisma/data-migrations/v2-ahs-cultivar-delta/`
+- local prod copy: `apps/main/prisma/local-prod-copy-daylily-catalog.db`
+- fresh scrape output DB: `apps/main/cultivars.db`
+- delta artifact dir: `apps/main/prisma/data-migrations/v2-ahs-cultivar-delta/`
 
 ## Fetch
 
-Run from `scripts/scrape` or use absolute paths. `TEMP_DIR` and `DB_FILE` are resolved from the current shell cwd, not the script file location.
+Run from `apps/main/scripts/scrape` or use absolute paths. `TEMP_DIR` and `DB_FILE` are resolved from the current shell cwd, not the script file location.
 
 ```bash
-cd scripts/scrape
+cd apps/main/scripts/scrape
 TEMP_DIR=../../temp_pages_new ./fetch-pages.sh
 ```
 
@@ -38,14 +38,14 @@ Keep `PER_PAGE=500` unless the user asks to change it.
 ## Combine
 
 ```bash
-cd scripts/scrape
+cd apps/main/scripts/scrape
 TEMP_DIR=../../temp_pages_new DB_FILE=../../cultivars.db ./combine-pages-sqlite.sh
 ```
 
 Verify the combined DB:
 
 ```bash
-sqlite3 cultivars.db "SELECT COUNT(*) AS row_count, COUNT(DISTINCT id) AS distinct_ids FROM cultivars;"
+sqlite3 apps/main/cultivars.db "SELECT COUNT(*) AS row_count, COUNT(DISTINCT id) AS distinct_ids FROM cultivars;"
 ```
 
 Expected:
@@ -61,18 +61,18 @@ If combine reports an invalid page:
 Pull a fresh prod copy first:
 
 ```bash
-pnpm env:dev bash scripts/db-backup.sh
+pnpm main env:dev bash scripts/db-backup.sh
 ```
 
 Generate the delta against the actual deployed baseline:
 
 ```bash
-npx tsx scripts/generate-v2-ahs-cultivar-delta-sql.ts \
+pnpm main exec tsx scripts/generate-v2-ahs-cultivar-delta-sql.ts \
   --prod-db prisma/local-prod-copy-daylily-catalog.db \
   --source-db cultivars.db
 ```
 
-This writes ignored artifacts under `prisma/data-migrations/v2-ahs-cultivar-delta/`:
+This writes ignored artifacts under `apps/main/prisma/data-migrations/v2-ahs-cultivar-delta/`:
 - `upsert/` chunked one-line SQL for new and changed `V2AhsCultivar` rows
 - `link-new-cultivar-references.sql`
 - `verify.sql`
@@ -86,6 +86,8 @@ Always inspect `summary.json` before applying anything.
 Rehearse on a disposable copy, not the prod copy itself:
 
 ```bash
+cd apps/main
+
 cp prisma/local-prod-copy-daylily-catalog.db tests/.tmp/v2-delta-rehearsal.sqlite
 
 npx tsx scripts/apply-v2-ahs-cultivar-import.ts \
@@ -106,6 +108,8 @@ If the delta also includes one-off cleanup SQL, rehearse that on a copy too.
 Only do this when the user explicitly asks.
 
 ```bash
+cd apps/main
+
 npx tsx scripts/apply-v2-ahs-cultivar-import.ts \
   --db daylily-catalog \
   --import-dir prisma/data-migrations/v2-ahs-cultivar-delta/upsert
@@ -126,8 +130,8 @@ Do not run the full 100k-row V2 import on stage.
 This repo uses `seeded-daylily-catalog` as stage. Refresh it by rebuilding the seeded local DB and syncing that seeded DB:
 
 ```bash
-pnpm db:seed:local-dev
-pnpm db:sync:seed
+pnpm main db:seed:local-dev
+pnpm main db:sync:seed
 ```
 
 ## Known Limits
@@ -138,8 +142,8 @@ pnpm db:sync:seed
 
 ## References
 
-- `docs/v2-ahs-cultivar-migration.md`
-- `scripts/scrape/fetch-pages.sh`
-- `scripts/scrape/combine-pages-sqlite.sh`
-- `scripts/generate-v2-ahs-cultivar-delta-sql.ts`
-- `scripts/apply-v2-ahs-cultivar-import.ts`
+- `apps/main/docs/v2-ahs-cultivar-migration.md`
+- `apps/main/scripts/scrape/fetch-pages.sh`
+- `apps/main/scripts/scrape/combine-pages-sqlite.sh`
+- `apps/main/scripts/generate-v2-ahs-cultivar-delta-sql.ts`
+- `apps/main/scripts/apply-v2-ahs-cultivar-import.ts`
