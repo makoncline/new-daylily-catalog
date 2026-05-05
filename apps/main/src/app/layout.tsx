@@ -10,6 +10,7 @@ import { ClerkUserProfileDialog } from "@/components/clerk-user-profile-dialog";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import { AdminMenu } from "@/components/admin-menu";
 import { PosthogUserIdentification } from "@/components/posthog-user-identification";
+import { UnsupportedSafariNotice } from "@/components/unsupported-safari-notice";
 
 export const metadata: Metadata = {
   title: "Daylily Catalog",
@@ -25,6 +26,7 @@ export default function RootLayout({
         <TRPCReactProvider>
           <html lang="en" className={`${GeistSans.variable}`}>
             <body className="flex min-h-svh flex-col">
+              <UnsupportedSafariNotice />
               <TooltipProvider>{children}</TooltipProvider>
               <Toaster />
               <ClerkUserProfileDialog />
