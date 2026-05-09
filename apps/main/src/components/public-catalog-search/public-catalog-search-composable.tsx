@@ -2,7 +2,7 @@
 
 import { type Table } from "@tanstack/react-table";
 import { Eye, Search, X } from "lucide-react";
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { useDebouncedCallback } from "use-debounce";
 import { DataTableFilterReset } from "@/components/data-table/data-table-filter-reset";
 import { DataTableFilteredCount } from "@/components/data-table/data-table-filtered-count";
@@ -212,6 +212,7 @@ export function PublicCatalogSearchQueryField<TData>({
   const globalFilter: unknown = table.getState().globalFilter;
   const currentGlobalFilter =
     typeof globalFilter === "string" ? globalFilter : "";
+  const [value, setValue] = useState(currentGlobalFilter);
 
   const debouncedFilter = useDebouncedCallback((next: string) => {
     table.setGlobalFilter(next);
@@ -225,6 +226,10 @@ export function PublicCatalogSearchQueryField<TData>({
     debouncedFilter.cancel();
   }, [currentGlobalFilter, debouncedFilter]);
 
+  useEffect(() => {
+    setValue(currentGlobalFilter);
+  }, [currentGlobalFilter]);
+
   return (
     <form
       onSubmit={(e) => {
@@ -236,13 +241,14 @@ export function PublicCatalogSearchQueryField<TData>({
       data-testid="search-query-form"
     >
       <Input
-        key={`global-search-${currentGlobalFilter}`}
         placeholder="Search listings..."
-        defaultValue={currentGlobalFilter}
+        value={value}
         className={cn("h-9", inputClassName)}
         data-testid="search-all-fields-input"
         onChange={(e) => {
-          debouncedFilter(e.target.value);
+          const next = e.target.value;
+          setValue(next);
+          debouncedFilter(next);
         }}
       />
     </form>
