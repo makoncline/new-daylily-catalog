@@ -23,6 +23,12 @@ describe("proxy matcher", () => {
     expect(
       unstable_doesMiddlewareMatch({
         config,
+        url: "/api/trpc/dashboardDb.user.getCurrentUser",
+      }),
+    ).toBe(false);
+    expect(
+      unstable_doesMiddlewareMatch({
+        config,
         url: "/trpc/public.getProfile",
       }),
     ).toBe(false);
@@ -82,7 +88,7 @@ describe("proxy matcher", () => {
     ).toBe(false);
   });
 
-  it("still runs for protected and auth-backed tRPC routes", async () => {
+  it("still runs for protected routes", async () => {
     const { config } = await import("@/proxy");
 
     expect(
@@ -95,12 +101,6 @@ describe("proxy matcher", () => {
       unstable_doesMiddlewareMatch({
         config,
         url: "/onboarding",
-      }),
-    ).toBe(true);
-    expect(
-      unstable_doesMiddlewareMatch({
-        config,
-        url: "/api/trpc/dashboardDb.user.getCurrentUser",
       }),
     ).toBe(true);
     expect(

@@ -29,6 +29,5 @@ export const config = {
     "/dashboard/:path*",
     "/onboarding/:path*",
     "/subscribe/success/:path*",
-    "/api/trpc/:path*",
   ],
 };
