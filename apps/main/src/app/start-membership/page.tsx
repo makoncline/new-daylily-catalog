@@ -247,7 +247,7 @@ export default async function StartMembershipPage() {
   const faqSchema = createFaqSchema(baseUrl);
 
   return (
-    <div className="mx-auto min-h-svh max-w-[1024px] overflow-hidden">
+    <div className="min-h-svh overflow-hidden">
       <SellerLandingViewTracker />
 
       <script
@@ -270,7 +270,7 @@ export default async function StartMembershipPage() {
         </div>
 
         <div
-          className="mx-auto grid max-w-[1510px] items-start gap-7 lg:min-h-[25rem] lg:grid-cols-[minmax(0,1fr)_31.5rem] lg:items-center lg:gap-8"
+          className="mx-auto grid max-w-[1024px] items-start gap-7 lg:min-h-[25rem] lg:grid-cols-[minmax(0,1fr)_31.5rem] lg:items-center lg:gap-8"
           data-testid="start-membership-page"
         >
           <div>
@@ -432,7 +432,7 @@ export default async function StartMembershipPage() {
           aria-hidden="true"
         />
 
-        <div className="relative z-10 mx-auto max-w-[1510px]">
+        <div className="relative z-10 mx-auto max-w-[1024px]">
           <div className="grid gap-7 lg:grid-cols-3 lg:gap-10">
             {GROWER_TESTIMONIALS.map((quote, quoteIndex) => (
               <figure
@@ -457,7 +457,7 @@ export default async function StartMembershipPage() {
       </section>
 
       <section className="bg-[#fbfaf4] px-4 py-12 text-[#142118] lg:px-8 lg:py-16">
-        <div className="mx-auto grid max-w-[1510px] gap-8 lg:grid-cols-[0.48fr_1fr] lg:gap-14">
+        <div className="mx-auto grid max-w-[1024px] gap-8 lg:grid-cols-[0.48fr_1fr] lg:gap-14">
           <div className="lg:max-w-[31rem]">
             <p className="text-sm font-bold text-[#a94e38]">What you get</p>
             <h2 className="mt-4 text-4xl leading-tight font-semibold tracking-normal text-balance lg:text-5xl lg:leading-[1.04]">
@@ -487,7 +487,7 @@ export default async function StartMembershipPage() {
         id="how-it-works"
         className="bg-[#173126] px-4 py-14 text-[#f7faf2] lg:px-8 lg:py-20"
       >
-        <div className="mx-auto max-w-[1510px]">
+        <div className="mx-auto max-w-[1024px]">
           <p className="text-sm font-bold text-[#f4c477]">How it works</p>
           <h2 className="mt-4 max-w-3xl text-4xl leading-tight font-semibold tracking-normal text-balance lg:text-6xl">
             Build first. Publish when ready.
@@ -527,7 +527,7 @@ export default async function StartMembershipPage() {
       </section>
 
       <section className="bg-[#fbfaf4] px-4 py-12 text-[#142118] lg:px-8 lg:py-16">
-        <div className="mx-auto max-w-[1510px]">
+        <div className="mx-auto max-w-[1024px]">
           <div className="grid gap-6 border-b border-[#d8dfd2] pb-8 lg:grid-cols-[0.72fr_1fr] lg:items-end">
             <div>
               <p className="text-sm font-bold text-[#a94e38]">
@@ -617,7 +617,7 @@ export default async function StartMembershipPage() {
       </section>
 
       <section className="bg-[#fbfaf4] px-4 pb-14 text-[#142118] lg:px-8 lg:pb-20">
-        <div className="mx-auto max-w-[1510px]">
+        <div className="mx-auto max-w-[1024px]">
           <h2 className="text-4xl font-semibold tracking-normal">FAQ</h2>
 
           <div className="mt-6 divide-y divide-[#d8dfd2] border-y border-[#d8dfd2]">
@@ -650,7 +650,7 @@ export default async function StartMembershipPage() {
           <div className="absolute inset-0 bg-[#07120e]/58 lg:bg-[#07120e]/72" />
         </div>
 
-        <div className="relative z-20 mx-auto max-w-[1510px]">
+        <div className="relative z-20 mx-auto max-w-[1024px]">
           <p className="max-w-4xl text-5xl leading-[0.96] font-semibold tracking-normal text-balance lg:text-8xl">
             Ready to create your daylily catalog?
           </p>

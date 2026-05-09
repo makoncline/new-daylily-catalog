@@ -292,7 +292,7 @@ function LandingVariantTwoWithCatalogs({
     .slice(0, 8);
 
   return (
-    <div className="mx-auto max-w-[1024px] overflow-hidden bg-[#07120e] text-white">
+    <div className="mx-auto overflow-hidden bg-[#07120e] text-white">
       <section className="relative isolate overflow-hidden px-4 pt-24 pb-36 lg:px-8 lg:pt-20 lg:pb-32">
         <div className="absolute inset-0 -z-10 bg-[#07120e]" aria-hidden="true">
           <Image
@@ -307,7 +307,7 @@ function LandingVariantTwoWithCatalogs({
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_0%_0%,rgba(255,255,255,0.1)_0%,rgba(255,255,255,0)_36%),radial-gradient(circle_at_100%_100%,rgba(7,18,14,0.92)_0%,rgba(7,18,14,0.62)_42%,rgba(7,18,14,0.12)_72%,rgba(7,18,14,0)_100%)]" />
         </div>
 
-        <div className="mx-auto grid max-w-[1510px] items-start gap-8 lg:min-h-[25rem] lg:grid-cols-[minmax(0,1fr)_29rem] lg:items-center lg:gap-8">
+        <div className="mx-auto grid max-w-[1024px] items-start gap-8 lg:min-h-[25rem] lg:grid-cols-[minmax(0,1fr)_29rem] lg:items-center lg:gap-8">
           <div>
             <div className="mb-4 -ml-3 lg:mb-2 lg:-ml-4">
               <LaurelBadge />
@@ -462,7 +462,7 @@ function LandingVariantTwoWithCatalogs({
           aria-hidden="true"
         />
 
-        <div className="relative z-10 mx-auto max-w-[1510px]">
+        <div className="relative z-10 mx-auto max-w-[1024px]">
           <div className="grid gap-7 lg:grid-cols-3 lg:gap-10">
             {buyerTestimonials.map((quote, quoteIndex) => (
               <figure
@@ -488,7 +488,7 @@ function LandingVariantTwoWithCatalogs({
         id="home-catalogs"
         className="bg-[#fbfaf4] px-4 py-12 text-[#142118] lg:px-8 lg:py-16"
       >
-        <div className="mx-auto max-w-[1510px]">
+        <div className="mx-auto max-w-[1024px]">
           <div className="grid gap-5 border-b border-[#d8dfd2] pb-7 lg:grid-cols-[minmax(0,0.9fr)_minmax(22rem,0.55fr)] lg:items-start lg:gap-10">
             <div>
               <p className="text-sm font-bold text-[#a94e38]">
@@ -554,7 +554,7 @@ function LandingVariantTwoWithCatalogs({
       </section>
 
       <section className="bg-[#f1f4ec] px-4 py-12 text-[#142118] lg:px-8 lg:py-16">
-        <div className="mx-auto grid max-w-[1510px] gap-10 lg:grid-cols-[0.72fr_1fr] lg:items-start">
+        <div className="mx-auto grid max-w-[1024px] gap-10 lg:grid-cols-[0.72fr_1fr] lg:items-start">
           <div>
             <p className="text-sm font-bold text-[#a94e38]">Cultivar pages</p>
             <H2 className="mt-4 max-w-3xl pb-0 text-4xl leading-tight tracking-normal text-balance lg:text-6xl">

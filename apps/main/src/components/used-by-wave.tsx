@@ -24,7 +24,7 @@ export function UsedByWave({ logos }: { logos: readonly UsedByLogo[] }) {
         />
       </svg>
 
-      <div className="relative z-10 mx-auto mt-3 max-w-[1510px]">
+      <div className="relative z-10 mx-auto mt-3 max-w-[1024px]">
         <div className="flex items-baseline gap-4 overflow-hidden">
           <p className="shrink-0 text-[0.68rem] leading-none font-light text-white/50">
             used by
