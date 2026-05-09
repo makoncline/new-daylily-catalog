@@ -2,13 +2,20 @@ import { createEnv } from "@t3-oss/env-nextjs";
 import { z } from "zod";
 import * as dotenv from "dotenv";
 import path from "path";
+import { fileURLToPath } from "url";
 
 const booleanStringSchema = z.union([z.literal("true"), z.literal("false")]);
+const appRoot = path.resolve(
+  path.dirname(fileURLToPath(import.meta.url)),
+  "..",
+);
+const repoRoot = path.resolve(appRoot, "../..");
 const envFile =
   process.env.NODE_ENV === "production"
     ? ".env.production"
     : ".env.development";
-dotenv.config({ path: path.resolve(process.cwd(), envFile), quiet: true });
+dotenv.config({ path: path.resolve(repoRoot, envFile), quiet: true });
+dotenv.config({ path: path.resolve(appRoot, envFile), quiet: true });
 
 export const env = createEnv({
   server: {
@@ -121,10 +128,7 @@ if (!process.env.SKIP_ENV_VALIDATION) {
     );
   }
 
-  if (
-    isLibsqlDatabaseUrl(env.DATABASE_URL) &&
-    !env.TURSO_DATABASE_AUTH_TOKEN
-  ) {
+  if (isLibsqlDatabaseUrl(env.DATABASE_URL) && !env.TURSO_DATABASE_AUTH_TOKEN) {
     throw new Error(
       "TURSO_DATABASE_AUTH_TOKEN is required for libsql:// DATABASE_URL values.",
     );

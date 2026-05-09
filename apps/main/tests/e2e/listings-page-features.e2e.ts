@@ -21,7 +21,9 @@ test.describe("listings page features @local", () => {
     dashboardListings,
   }) => {
     const expectUrlParam = async (key: string, expected: string | null) => {
-      await expect(page).toHaveURL((url) => url.searchParams.get(key) === expected);
+      await expect(page).toHaveURL(
+        (url) => url.searchParams.get(key) === expected,
+      );
     };
 
     const expectBaselineUrlParams = async () => {
@@ -49,13 +51,19 @@ test.describe("listings page features @local", () => {
 
     const expectPageIndicator = async (page: number, total: number) => {
       await expect(dashboardListings.pageIndicator()).toBeVisible();
-      await expect(dashboardListings.pageIndicator()).toHaveText(`Page ${page} of ${total}`);
+      await expect(dashboardListings.pageIndicator()).toHaveText(
+        `Page ${page} of ${total}`,
+      );
     };
 
     const resetAndVerifyBaseline = async () => {
       await dashboardListings.resetToolbarFiltersIfVisible();
-      await expect(dashboardListings.filteredCount()).toBeHidden();
-      await expect(dashboardListings.rows()).toHaveCount(seedMeta.defaultPageSize);
+      await expect(dashboardListings.filteredCount()).toHaveText(
+        `${seedMeta.totalListings.toLocaleString()} results`,
+      );
+      await expect(dashboardListings.rows()).toHaveCount(
+        seedMeta.defaultPageSize,
+      );
       await expectPageIndicator(1, seedMeta.expectedPageCount);
       await expectBaselineUrlParams();
     };
@@ -87,7 +95,11 @@ test.describe("listings page features @local", () => {
       ascFirstTitle: string,
       descFirstTitle: string,
     ) => {
-      const firstRowTitleCell = dashboardListings.rows().first().locator("td").first();
+      const firstRowTitleCell = dashboardListings
+        .rows()
+        .first()
+        .locator("td")
+        .first();
 
       await dashboardListings.sortByColumn(columnLabel);
       await expect(firstRowTitleCell).toHaveText(
@@ -99,7 +111,9 @@ test.describe("listings page features @local", () => {
         firstToggleTitle === ascFirstTitle ? descFirstTitle : ascFirstTitle;
 
       await dashboardListings.sortByColumn(columnLabel);
-      if ((await firstRowTitleCell.innerText()).trim() !== secondExpectedTitle) {
+      if (
+        (await firstRowTitleCell.innerText()).trim() !== secondExpectedTitle
+      ) {
         await dashboardListings.sortByColumn(columnLabel);
       }
       await expectFirstRowTitle(secondExpectedTitle);
@@ -120,7 +134,9 @@ test.describe("listings page features @local", () => {
     await expectBaselineUrlParams();
 
     // Phase 2: baseline table and pagination behavior
-    await expect(dashboardListings.rows()).toHaveCount(seedMeta.defaultPageSize);
+    await expect(dashboardListings.rows()).toHaveCount(
+      seedMeta.defaultPageSize,
+    );
     await expectPageIndicator(1, seedMeta.expectedPageCount);
 
     const firstPageFirstTitle = await dashboardListings.firstRowTitle();
@@ -128,7 +144,9 @@ test.describe("listings page features @local", () => {
     await dashboardListings.goToNextPage();
     await expectPageIndicator(2, seedMeta.expectedPageCount);
     await expectUrlParam("page", "2");
-    await expect(dashboardListings.rows()).toHaveCount(seedMeta.expectedSecondPageRows);
+    await expect(dashboardListings.rows()).toHaveCount(
+      seedMeta.expectedSecondPageRows,
+    );
 
     const secondPageFirstTitle = await dashboardListings.firstRowTitle();
     expect(secondPageFirstTitle).not.toBe(firstPageFirstTitle);
@@ -161,7 +179,9 @@ test.describe("listings page features @local", () => {
     await page.keyboard.press("Escape");
 
     await expectFilteredCount(seedMeta.listFilterCount, seedMeta.totalListings);
-    await expect(dashboardListings.rows()).toHaveCount(seedMeta.listFilterCount);
+    await expect(dashboardListings.rows()).toHaveCount(
+      seedMeta.listFilterCount,
+    );
     await expectUrlParam("lists", seedMeta.listFilterId);
     await expect(
       dashboardListings.listingRow(seedMeta.listFilterRepresentativeTitle),
@@ -232,7 +252,9 @@ test.describe("listings page features @local", () => {
     await dashboardListings.setGlobalSearch(seedMeta.deleteTargetTitle);
     await expectFilteredCount(1, seedMeta.totalListings);
     await expectUrlParam("query", seedMeta.deleteTargetTitle);
-    await expect(dashboardListings.listingRow(seedMeta.deleteTargetTitle)).toBeVisible();
+    await expect(
+      dashboardListings.listingRow(seedMeta.deleteTargetTitle),
+    ).toBeVisible();
 
     await dashboardListings.openFirstVisibleRowActions();
     await dashboardListings.chooseRowActionDelete();
@@ -242,8 +264,8 @@ test.describe("listings page features @local", () => {
       page.getByRole("heading", { name: "No listings found" }),
     ).toBeVisible();
     await expectFilteredCount(0, seedMeta.totalListings - 1);
-    await expect(dashboardListings.listingRow(seedMeta.deleteTargetTitle)).toHaveCount(
-      0,
-    );
+    await expect(
+      dashboardListings.listingRow(seedMeta.deleteTargetTitle),
+    ).toHaveCount(0);
   });
 });

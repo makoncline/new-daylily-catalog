@@ -47,8 +47,10 @@ export interface PublicCatalogSearchToolbarProps {
   onSearchSubmit?: () => void;
 }
 
-export interface PublicCatalogSearchAdvancedPanelProps {
-  table: Table<PublicCatalogListing>;
+export interface PublicCatalogSearchAdvancedPanelProps<
+  TData = PublicCatalogListing,
+> {
+  table: Table<TData>;
   listOptions: PublicCatalogSearchFacetOption[];
   facetOptions: PublicCatalogSearchFacetOptions;
   mode: PublicCatalogSearchMode;

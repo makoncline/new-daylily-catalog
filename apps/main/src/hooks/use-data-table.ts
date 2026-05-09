@@ -24,11 +24,7 @@ interface UseDataTableProps<TData> {
   };
   config?: Partial<TableOptions<TData>>;
   columnNames?: Record<string, string>;
-  initialStateOverrides?: Partial<TableOptions<TData>> & {
-    pagination?: {
-      pageSize?: number;
-    };
-  };
+  initialStateOverrides?: TableOptions<TData>["initialState"];
 }
 
 export function useDataTable<TData>({
@@ -46,6 +42,10 @@ export function useDataTable<TData>({
     filterableColumnIds,
     storageKey,
   });
+  const columnVisibility = {
+    ...initialStateOverrides?.columnVisibility,
+    ...persistedState.columnVisibility,
+  };
 
   // TanStack Table's hook intentionally returns mutable APIs; React Compiler warning is expected here.
   // eslint-disable-next-line react-hooks/incompatible-library
@@ -66,6 +66,7 @@ export function useDataTable<TData>({
         : [],
       ...initialStateOverrides,
       ...persistedState,
+      columnVisibility,
     },
     autoResetPageIndex: false,
     ...config,

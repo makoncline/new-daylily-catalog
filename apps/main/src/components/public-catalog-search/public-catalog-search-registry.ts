@@ -4,8 +4,6 @@ import {
   type NumericRange,
 } from "./public-catalog-search-filter-utils";
 import {
-  type PublicCatalogListing,
-  type PublicCatalogLists,
   type PublicCatalogSearchFacetOption,
   type PublicCatalogSearchFacetOptions,
 } from "./public-catalog-search-types";
@@ -45,7 +43,10 @@ export interface PublicCatalogSearchSectionDefinition {
   }>;
 }
 
-export const PUBLIC_CATALOG_SEARCH_TOOLBAR_FILTERS: PublicCatalogSearchFilterDefinition[] = [
+type FilterDef = PublicCatalogSearchFilterDefinition;
+type SectionDef = PublicCatalogSearchSectionDefinition;
+
+export const PUBLIC_CATALOG_SEARCH_TOOLBAR_FILTERS: FilterDef[] = [
   {
     id: "price",
     label: "For Sale",
@@ -72,13 +73,13 @@ export const PUBLIC_CATALOG_SEARCH_TOOLBAR_FILTERS: PublicCatalogSearchFilterDef
   },
 ];
 
-export const PUBLIC_CATALOG_SEARCH_SECTION_DEFINITIONS: PublicCatalogSearchSectionDefinition[] = [
+export const PUBLIC_CATALOG_SEARCH_SECTION_DEFINITIONS: SectionDef[] = [
   {
     id: "listing",
     label: "Listing",
     groups: [
       {
-        filterIds: ["title", "description", "priceValue", "linkedToCultivar"],
+        filterIds: ["title", "description", "priceValue"],
         className: "space-y-4",
       },
     ],
@@ -107,14 +108,6 @@ export const PUBLIC_CATALOG_SEARCH_SECTION_DEFINITIONS: PublicCatalogSearchSecti
         testId: "advanced-filter-price-range",
         unit: "$",
       },
-      {
-        id: "linkedToCultivar",
-        label: "Linked to Cultivar",
-        sectionId: "listing",
-        kind: "boolean",
-        testId: "advanced-filter-linked-to-cultivar",
-        icon: "link",
-      },
     ],
   },
   {
@@ -122,7 +115,7 @@ export const PUBLIC_CATALOG_SEARCH_SECTION_DEFINITIONS: PublicCatalogSearchSecti
     label: "Registration",
     groups: [
       {
-        filterIds: ["cultivarName", "hybridizer", "year"],
+        filterIds: ["cultivarName", "linkedToCultivar", "hybridizer", "year"],
         className: "space-y-4",
       },
     ],
@@ -134,6 +127,14 @@ export const PUBLIC_CATALOG_SEARCH_SECTION_DEFINITIONS: PublicCatalogSearchSecti
         kind: "text",
         placeholder: "Search cultivar name",
         testId: "advanced-filter-cultivar-name",
+      },
+      {
+        id: "linkedToCultivar",
+        label: "Linked to Cultivar",
+        sectionId: "registration",
+        kind: "boolean",
+        testId: "advanced-filter-linked-to-cultivar",
+        icon: "link",
       },
       {
         id: "hybridizer",
@@ -282,22 +283,38 @@ export const PUBLIC_CATALOG_SEARCH_SECTION_DEFINITIONS: PublicCatalogSearchSecti
 
 export const PUBLIC_CATALOG_SEARCH_FILTERS = [
   ...PUBLIC_CATALOG_SEARCH_TOOLBAR_FILTERS,
-  ...PUBLIC_CATALOG_SEARCH_SECTION_DEFINITIONS.reduce<PublicCatalogSearchFilterDefinition[]>(
-    (allFilters, section) => {
-      allFilters.push(...section.filters);
-      return allFilters;
-    },
-    [],
+  ...PUBLIC_CATALOG_SEARCH_SECTION_DEFINITIONS.flatMap(
+    (section) => section.filters,
   ),
 ];
 
 const FILTER_BY_ID = new Map(
-  PUBLIC_CATALOG_SEARCH_FILTERS.map((definition) => [definition.id, definition]),
+  PUBLIC_CATALOG_SEARCH_FILTERS.map((definition) => [
+    definition.id,
+    definition,
+  ]),
 );
+
+interface CatalogSearchAhsFacetValues {
+  bloomHabit?: string | null;
+  bloomSeason?: string | null;
+  form?: string | null;
+  ploidy?: string | null;
+  foliageType?: string | null;
+  fragrance?: string | null;
+}
+
+interface CatalogSearchFacetRow {
+  ahsListing?: CatalogSearchAhsFacetValues | null;
+}
+
+interface CatalogSearchListRow {
+  lists?: Array<{ id: string; title: string }>;
+}
 
 const FACET_VALUE_GETTERS: Record<
   keyof PublicCatalogSearchFacetOptions,
-  (listing: PublicCatalogListing) => string | null | undefined
+  (listing: CatalogSearchFacetRow) => string | null | undefined
 > = {
   bloomHabit: (listing) => listing.ahsListing?.bloomHabit,
   bloomSeason: (listing) => listing.ahsListing?.bloomSeason,
@@ -358,8 +375,9 @@ export function getPublicCatalogSearchSectionDefinition(
   id: PublicCatalogSearchSectionDefinition["id"],
 ): PublicCatalogSearchSectionDefinition | null {
   return (
-    PUBLIC_CATALOG_SEARCH_SECTION_DEFINITIONS.find((section) => section.id === id) ??
-    null
+    PUBLIC_CATALOG_SEARCH_SECTION_DEFINITIONS.find(
+      (section) => section.id === id,
+    ) ?? null
   );
 }
 
@@ -395,9 +413,11 @@ export function getPublicCatalogSearchFacetOptionsForDefinition(
   }
 }
 
-export function buildPublicCatalogSearchListOptions(
-  lists: PublicCatalogLists,
-  listings: PublicCatalogListing[],
+export function buildPublicCatalogSearchListOptions<
+  TListing extends CatalogSearchListRow,
+>(
+  lists: readonly { id: string; title: string }[],
+  listings: TListing[],
 ): PublicCatalogSearchFacetOption[] {
   const listCounts = new Map<string, number>();
 
@@ -414,11 +434,11 @@ export function buildPublicCatalogSearchListOptions(
   }));
 }
 
-export function buildPublicCatalogSearchFacetOptions(
-  listings: PublicCatalogListing[],
-): PublicCatalogSearchFacetOptions {
+export function buildPublicCatalogSearchFacetOptions<
+  TListing extends CatalogSearchFacetRow,
+>(listings: TListing[]): PublicCatalogSearchFacetOptions {
   const buildFacetOptions = (
-    getValue: (listing: PublicCatalogListing) => string | null | undefined,
+    getValue: (listing: TListing) => string | null | undefined,
   ) => {
     const counts = new Map<string, { label: string; count: number }>();
 
