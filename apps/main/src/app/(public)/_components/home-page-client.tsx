@@ -188,19 +188,10 @@ const testimonialLogos = [
   },
 ] as const;
 
-const buyerBenefits = [
-  {
-    title: "See what is available",
-    body: "Open a catalog to check photos, prices, availability, notes, and contact info.",
-  },
-  {
-    title: "Browse without digging",
-    body: "Compare listings without hunting through old posts or message threads.",
-  },
-  {
-    title: "Contact growers directly",
-    body: "Ask the grower about buying, pickup, or shipping.",
-  },
+const buyerTestimonials = [
+  "The catalog answers my first question: what is actually available?",
+  "I can compare listings without digging through old posts or message threads.",
+  "When I find something I like, I can ask the grower about buying, pickup, or shipping.",
 ] as const;
 
 function NomadsCatalogCard({
@@ -542,24 +533,21 @@ function LandingVariantTwoWithCatalogs({
 
         <div className="relative z-10 mx-auto max-w-[1024px]">
           <div className="grid gap-7 lg:grid-cols-3 lg:gap-10">
-            {buyerBenefits.map((benefit, benefitIndex) => (
-              <article
-                key={benefit.title}
+            {buyerTestimonials.map((quote, quoteIndex) => (
+              <figure
+                key={quote}
                 className={cn(
-                  "flex min-h-[13.5rem] flex-col justify-center rounded-3xl border-2 border-[#c85a3e] bg-[#fffdf6] p-7 text-[#07120e] shadow-[0_30px_90px_-58px_rgba(0,0,0,0.95)] lg:min-h-[16rem] lg:p-8 lg:will-change-transform lg:[backface-visibility:hidden] lg:[transform-style:preserve-3d]",
-                  benefitIndex === 0 &&
+                  "flex min-h-[15rem] items-center justify-center rounded-3xl border-4 border-[#ef533f] bg-white p-7 text-center text-[#07120e] shadow-[0_30px_90px_-58px_rgba(0,0,0,0.95)] lg:min-h-[18rem] lg:p-8 lg:will-change-transform lg:[backface-visibility:hidden] lg:[transform-style:preserve-3d]",
+                  quoteIndex === 0 &&
                     "lg:[transform-origin:left_center] lg:[transform:perspective(620px)_rotateY(10deg)_rotateZ(-0.18deg)]",
-                  benefitIndex === 2 &&
+                  quoteIndex === 2 &&
                     "lg:[transform-origin:right_center] lg:[transform:perspective(620px)_rotateY(-10deg)_rotateZ(0.18deg)]",
                 )}
               >
-                <h2 className="text-2xl leading-8 font-bold tracking-tight">
-                  {benefit.title}
-                </h2>
-                <p className="mt-4 text-lg leading-8 font-semibold text-[#536357]">
-                  {benefit.body}
-                </p>
-              </article>
+                <blockquote className="text-2xl leading-10 font-bold tracking-tight text-balance lg:text-[1.7rem] lg:leading-[2.65rem]">
+                  &quot;{quote}&quot;
+                </blockquote>
+              </figure>
             ))}
           </div>
         </div>

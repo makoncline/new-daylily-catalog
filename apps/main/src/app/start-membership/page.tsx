@@ -57,19 +57,10 @@ const SELLER_BENEFITS = [
   "Cultivar-linked listings when available",
 ] as const;
 
-const GROWER_BENEFIT_CARDS = [
-  {
-    title: "One link for buyers",
-    body: "Send buyers a public catalog link instead of rebuilding your list in messages.",
-  },
-  {
-    title: "Details before contact",
-    body: "Show photos, prices, availability, notes, and contact info before buyers reach out.",
-  },
-  {
-    title: "Sales stay direct",
-    body: "Buyers contact you directly. You handle the sale yourself.",
-  },
+const GROWER_TESTIMONIALS = [
+  "Now I can send one catalog link instead of rebuilding my list in messages.",
+  "Buyers can see photos, prices, availability, and notes before they contact me.",
+  "I still handle each sale myself. The catalog just gives buyers a clear place to start.",
 ] as const;
 
 const marketingButtonBase =
@@ -444,31 +435,24 @@ export default async function StartMembershipPage() {
         />
 
         <div className="relative z-10 mx-auto max-w-[1024px]">
-          <h2 className="mb-7 text-3xl leading-tight font-semibold tracking-normal text-balance lg:mb-9 lg:text-5xl">
-            Built for how growers already sell.
-          </h2>
-
           <div className="grid gap-7 lg:grid-cols-3 lg:gap-10">
-            {GROWER_BENEFIT_CARDS.map((benefit, benefitIndex) => (
-              <article
-                key={benefit.title}
+            {GROWER_TESTIMONIALS.map((quote, quoteIndex) => (
+              <figure
+                key={quote}
                 className={[
-                  "flex min-h-[13.5rem] flex-col justify-center rounded-3xl border-2 border-[#c85a3e] bg-[#fffdf6] p-7 text-[#07120e] shadow-[0_30px_90px_-58px_rgba(0,0,0,0.95)] lg:min-h-[16rem] lg:[backface-visibility:hidden] lg:[transform-style:preserve-3d] lg:p-8 lg:will-change-transform",
-                  benefitIndex === 0
+                  "flex min-h-[15rem] items-center justify-center rounded-3xl border-4 border-[#ef533f] bg-white p-7 text-center text-[#07120e] shadow-[0_30px_90px_-58px_rgba(0,0,0,0.95)] lg:min-h-[18rem] lg:[backface-visibility:hidden] lg:[transform-style:preserve-3d] lg:p-8 lg:will-change-transform",
+                  quoteIndex === 0
                     ? "lg:[transform:perspective(620px)_rotateY(10deg)_rotateZ(-0.18deg)] lg:[transform-origin:left_center]"
                     : "",
-                  benefitIndex === 2
+                  quoteIndex === 2
                     ? "lg:[transform:perspective(620px)_rotateY(-10deg)_rotateZ(0.18deg)] lg:[transform-origin:right_center]"
                     : "",
                 ].join(" ")}
               >
-                <h3 className="text-2xl leading-8 font-bold tracking-tight">
-                  {benefit.title}
-                </h3>
-                <p className="mt-4 text-lg leading-8 font-semibold text-[#536357]">
-                  {benefit.body}
-                </p>
-              </article>
+                <blockquote className="text-2xl leading-10 font-bold tracking-tight text-balance lg:text-[1.7rem] lg:leading-[2.65rem]">
+                  &quot;{quote}&quot;
+                </blockquote>
+              </figure>
             ))}
           </div>
         </div>
