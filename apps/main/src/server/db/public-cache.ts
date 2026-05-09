@@ -98,13 +98,16 @@ export const getCachedPublicCultivarSummary = createKeyedServerCache(
 );
 
 const getCachedPublicCultivarListingIds = createKeyedServerCache(
-  async (cultivarSegment: string) => getPublicCultivarListingIds(cultivarSegment),
+  async (cultivarSegment: string) =>
+    getPublicCultivarListingIds(cultivarSegment),
   {
     getKeyParts: (cultivarSegment: string) => [
       "public:cultivar-listing-ids",
       cultivarSegment,
     ],
-    getTags: (cultivarSegment: string) => [getPublicCultivarTag(cultivarSegment)],
+    getTags: (cultivarSegment: string) => [
+      getPublicCultivarTag(cultivarSegment),
+    ],
     revalidateSeconds: CACHE_CONFIG.PUBLIC.CULTIVAR_PAGE_REVALIDATE_SECONDS,
   },
 );

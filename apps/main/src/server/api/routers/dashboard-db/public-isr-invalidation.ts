@@ -158,7 +158,10 @@ async function applyPublicCacheRevalidationsViaRoute(args: {
     source: PUBLIC_ISR_INVALIDATION_SOURCE,
     tags: args.tags ?? [],
   });
-  const routeUrl = new URL("/api/internal/public-cache-revalidate", args.requestUrl);
+  const routeUrl = new URL(
+    "/api/internal/public-cache-revalidate",
+    args.requestUrl,
+  );
 
   const headers = new Headers({
     authorization: `Bearer ${requireEnv(

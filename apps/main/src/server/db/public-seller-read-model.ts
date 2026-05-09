@@ -49,7 +49,9 @@ interface PublicSellerSummaryOptions {
   activeUserIds?: readonly string[] | Set<string>;
 }
 
-function parseProfileContent(content: string | null): OutputData | string | null {
+function parseProfileContent(
+  content: string | null,
+): OutputData | string | null {
   if (!content) {
     return null;
   }
@@ -67,9 +69,7 @@ function toActiveUserIdSet(activeUserIds?: readonly string[] | Set<string>) {
     return null;
   }
 
-  return activeUserIds instanceof Set
-    ? activeUserIds
-    : new Set(activeUserIds);
+  return activeUserIds instanceof Set ? activeUserIds : new Set(activeUserIds);
 }
 
 export function buildPublicSellerProfile(args: {

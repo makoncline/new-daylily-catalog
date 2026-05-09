@@ -40,7 +40,7 @@ export default async function CatalogsPage() {
     "@type": "CollectionPage",
     name: "Daylily Catalogs",
     description:
-      "Browse public daylily grower catalogs and discover unique collections by location, listing count, and catalog details.",
+      "Browse daylily grower catalogs and discover collections by location, listing count, and catalog details.",
     url: catalogsUrl,
     mainEntity: {
       "@type": "ItemList",

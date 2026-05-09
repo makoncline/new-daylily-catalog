@@ -1,4 +1,4 @@
-import { PublicdNav } from "@/components/public-nav";
+import { PublicNav } from "@/components/public-nav";
 
 export default function OnboardingLayout({
   children,
@@ -8,7 +8,7 @@ export default function OnboardingLayout({
   return (
     <div className="flex min-h-svh flex-col">
       <header className="flex h-16 items-center border-b px-4">
-        <PublicdNav />
+        <PublicNav />
       </header>
       <main className="flex-1">{children}</main>
     </div>

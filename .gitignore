@@ -56,6 +56,8 @@ apps/*/next-env.d.ts
 *.pem
 
 # local operator scratch space
+/downloads/
+/local/
 /downloads/v2-ahs-images/
 /downloads/v2-ahs-images-chatgpt/
 /downloads/v2-ahs-image-review/
@@ -97,3 +99,4 @@ apps/*/playwright/.cache/
 
 # clerk configuration (can include secrets)
 /.clerk/
+/apps/*/.clerk/

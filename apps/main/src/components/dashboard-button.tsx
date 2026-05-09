@@ -20,7 +20,7 @@ export function DashboardButton({
   if (!isLoaded) {
     return (
       <Button className={className} disabled size="sm" variant={variant}>
-        Dashboard
+        Sign in
       </Button>
     );
   }
@@ -58,7 +58,7 @@ export function DashboardButton({
           });
         }}
       >
-        Dashboard
+        Sign in
       </Button>
     </SignInButton>
   );

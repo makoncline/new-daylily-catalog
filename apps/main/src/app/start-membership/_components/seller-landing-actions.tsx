@@ -2,7 +2,7 @@
 
 import { SignUpButton, useAuth } from "@clerk/nextjs";
 import Link from "next/link";
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { SUBSCRIPTION_CONFIG } from "@/config/subscription-config";
 import { capturePosthogEvent } from "@/lib/analytics/posthog";
@@ -23,6 +23,7 @@ interface SellerLandingExampleLinkProps {
   href: string;
   className?: string;
   testId?: string;
+  children?: ReactNode;
 }
 
 function useSellerLandingEvents() {
@@ -129,7 +130,7 @@ function SellerLandingAuthCtaLoading({
   className,
 }: Pick<SellerLandingCtaVariantProps, "ctaLabel" | "className">) {
   return (
-    <Button className={className} size="lg" disabled>
+    <Button className={className} size="lg" aria-disabled="true">
       {ctaLabel}
     </Button>
   );
@@ -160,9 +161,16 @@ function SellerLandingAuthCtaSignedOut({
     <SignUpButton
       mode="modal"
       forceRedirectUrl={ONBOARDING_PATH}
+      fallbackRedirectUrl={ONBOARDING_PATH}
       signInForceRedirectUrl={ONBOARDING_PATH}
+      signInFallbackRedirectUrl={ONBOARDING_PATH}
     >
-      <Button className={className} size="lg" data-testid={testId} onClick={onClick}>
+      <Button
+        className={className}
+        size="lg"
+        data-testid={testId}
+        onClick={onClick}
+      >
         {ctaLabel}
       </Button>
     </SignUpButton>
@@ -214,7 +222,9 @@ export function SellerLandingAuthCta({
   };
 
   if (!isLoaded) {
-    return <SellerLandingAuthCtaLoading ctaLabel={ctaLabel} className={className} />;
+    return (
+      <SellerLandingAuthCtaLoading ctaLabel={ctaLabel} className={className} />
+    );
   }
 
   if (userId) {
@@ -244,6 +254,7 @@ export function SellerLandingExampleLink({
   href,
   className,
   testId,
+  children,
 }: SellerLandingExampleLinkProps) {
   const { userId } = useAuth();
   const { trackSellerExampleClicked } = useSellerLandingEvents();
@@ -258,9 +269,13 @@ export function SellerLandingExampleLink({
   };
 
   return (
-    <Link href={href} className={className} data-testid={testId} onClick={handleClick}>
-      {ctaLabel}
+    <Link
+      href={href}
+      className={className}
+      data-testid={testId}
+      onClick={handleClick}
+    >
+      {children ?? ctaLabel}
     </Link>
   );
 }
-
