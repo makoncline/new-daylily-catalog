@@ -108,8 +108,15 @@ export class DashboardListings {
       .locator('[data-slot="command-item"]')
       .filter({ hasText: "Clear filters" })
       .first();
-    await clearFilters.scrollIntoViewIfNeeded();
-    await clearFilters.click();
+
+    if (await clearFilters.isVisible({ timeout: 2000 }).catch(() => false)) {
+      await clearFilters.scrollIntoViewIfNeeded();
+      await clearFilters.click();
+      return;
+    }
+
+    await this.page.keyboard.press("Escape");
+    await this.resetToolbarFiltersIfVisible();
   }
 
   async openColumnFilter(columnLabel: FilterableColumnLabel) {

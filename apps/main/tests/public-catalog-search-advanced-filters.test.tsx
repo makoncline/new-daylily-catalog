@@ -490,7 +490,10 @@ describe("public catalog search advanced filters", () => {
   it("clears the visible search input when the search chip is removed", async () => {
     renderCatalog();
 
-    fireEvent.change(screen.getByTestId("search-all-fields-input"), {
+    const searchInput = screen.getByTestId("search-all-fields-input");
+    searchInput.focus();
+
+    fireEvent.change(searchInput, {
       target: { value: "Alpha" },
     });
 
@@ -499,6 +502,8 @@ describe("public catalog search advanced filters", () => {
         within(screen.getByTestId("catalog-table")).getAllByRole("listitem"),
       ).toHaveLength(1);
     });
+
+    expect(screen.getByTestId("search-all-fields-input")).toHaveFocus();
 
     fireEvent.click(screen.getByRole("button", { name: /search:\s*alpha/i }));
 
