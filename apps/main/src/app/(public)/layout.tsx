@@ -22,10 +22,13 @@ export default async function PublicLayout({
         Skip to content
       </a>
       <PublicHeader />
-      <main id="main-content" className="flex-1">
+      <main
+        id="main-content"
+        className="mx-auto w-full max-w-[1720px] flex-1 overflow-hidden"
+      >
         {children}
       </main>
-      <footer className="border-t border-[#d8dfd2] bg-[#fbfaf4] px-4 py-8 text-[#142118] lg:px-8">
+      <footer className="mx-auto w-full max-w-[1720px] border-t border-[#d8dfd2] bg-[#fbfaf4] px-4 py-8 text-[#142118] lg:px-8">
         <div className="mx-auto flex w-full max-w-[1510px] flex-col gap-6 text-sm lg:flex-row lg:items-center lg:justify-between">
           <div className="max-w-xl">
             <Link
