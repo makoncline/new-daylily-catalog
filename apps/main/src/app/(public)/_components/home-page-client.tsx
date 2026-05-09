@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils";
 import { ArrowRight } from "lucide-react";
 import { OptimizedImage } from "@/components/optimized-image";
 import { UsedByWave } from "@/components/used-by-wave";
+import { LaurelRatingBadge } from "@/components/laurel-rating-badge";
 
 export interface HomePageCatalog {
   description: string | null;
@@ -63,35 +64,6 @@ function SellerIntentButton({
         {showArrow ? <ArrowRight className="ml-3 h-5 w-5" /> : null}
       </Link>
     </Button>
-  );
-}
-
-function LaurelBadge() {
-  return (
-    <div
-      className="flex h-[3.8rem] w-[11.2rem] flex-col items-center bg-[url('/assets/home-redesign/laurel.svg')] bg-contain bg-center bg-no-repeat pt-[0.72rem] invert lg:h-[4.1rem] lg:w-[12.2rem] lg:pt-[0.82rem]"
-      aria-label="#1 Daylily App, five stars"
-    >
-      <p className="text-center text-sm leading-none font-bold tracking-tight text-black lg:text-base">
-        #1 Daylily App
-      </p>
-
-      <div
-        className="mt-[0.38rem] flex justify-center gap-1"
-        aria-hidden="true"
-      >
-        {Array.from({ length: 5 }, (_, index) => (
-          <Image
-            key={index}
-            src="/assets/home-redesign/star.svg"
-            alt=""
-            width={13}
-            height={13}
-            className="h-3.5 w-3.5"
-          />
-        ))}
-      </div>
-    </div>
   );
 }
 
@@ -310,7 +282,7 @@ function LandingVariantTwoWithCatalogs({
         <div className="mx-auto grid max-w-[1024px] items-start gap-8 lg:min-h-[25rem] lg:grid-cols-[minmax(0,1fr)_29rem] lg:items-center lg:gap-8">
           <div>
             <div className="mb-4 -ml-3 lg:mb-2 lg:-ml-4">
-              <LaurelBadge />
+              <LaurelRatingBadge />
             </div>
             <H1 className="max-w-4xl text-6xl leading-[0.93] tracking-normal text-balance text-white lg:text-[4.8rem] lg:leading-[0.94]">
               <span className="block">The daylily you want.</span>

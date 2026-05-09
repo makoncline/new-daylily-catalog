@@ -12,6 +12,7 @@ import { SUBSCRIPTION_CONFIG } from "@/config/subscription-config";
 import { IMAGES } from "@/lib/constants/images";
 import { getCanonicalBaseUrl } from "@/lib/utils/getBaseUrl";
 import { UsedByWave } from "@/components/used-by-wave";
+import { LaurelRatingBadge } from "@/components/laurel-rating-badge";
 
 export const metadata: Metadata = {
   metadataBase: new URL(getCanonicalBaseUrl()),
@@ -122,44 +123,6 @@ const TESTIMONIAL_LOGOS = [
     height: 66,
   },
 ] as const;
-
-function LaurelBadge() {
-  return (
-    <div
-      className="relative h-[3.8rem] w-[11.2rem] invert lg:h-[4.1rem] lg:w-[12.2rem]"
-      aria-label="#1 Daylily App, five stars"
-    >
-      <p className="absolute top-[0.72rem] w-full text-center text-sm leading-none font-bold tracking-tight text-black lg:top-[0.82rem] lg:text-base">
-        #1 Daylily App
-      </p>
-
-      <div
-        className="absolute top-[1.58rem] flex w-full justify-center gap-1 lg:top-[1.78rem]"
-        aria-hidden="true"
-      >
-        {Array.from({ length: 5 }, (_, index) => (
-          <Image
-            key={index}
-            src="/assets/home-redesign/star.svg"
-            alt=""
-            width={13}
-            height={13}
-            className="h-3.5 w-3.5"
-          />
-        ))}
-      </div>
-
-      <Image
-        src="/assets/home-redesign/laurel.svg"
-        alt=""
-        width={185}
-        height={58}
-        className="h-full w-full"
-        aria-hidden="true"
-      />
-    </div>
-  );
-}
 
 interface HowStep {
   title: string;
@@ -276,7 +239,7 @@ export default async function StartMembershipPage() {
         >
           <div>
             <div className="mb-6 lg:mb-3">
-              <LaurelBadge />
+              <LaurelRatingBadge />
             </div>
 
             <h1 className="max-w-4xl text-5xl leading-[0.95] font-bold tracking-normal text-balance text-white lg:text-[4.8rem] lg:leading-[0.94]">
