@@ -98,9 +98,9 @@ export const FEEDBACK_CONFIG = {
 
 export const METADATA_CONFIG = {
   SITE_NAME: "Daylily Catalog",
-  DEFAULT_TITLE: "Daylily Catalog | Create Your Online Daylily Catalog",
+  DEFAULT_TITLE: "Daylily Catalog | Public Daylily Catalogs",
   DEFAULT_DESCRIPTION:
-    "Create a stunning catalog for your daylily collection. Auto-populate listings from our database of 100,000+ registered cultivars, organize your garden, and share your passion with fellow enthusiasts.",
+    "Browse daylily catalogs from growers, or create a catalog with photos, prices, availability, notes, and contact info.",
   TWITTER_HANDLE: "@daylilycatalog",
   TWITTER_CARD_TYPE: "summary_large_image",
   LOCALE: "en_US",
@@ -115,27 +115,32 @@ export const PUBLIC_ROUTES_CONFIG = {
 export const PRO_FEATURES = [
   {
     id: "catalog-page",
-    text: "Seller browsing placement - get discovered by active buyers.",
+    text: "Public grower catalog",
     icon: ListChecks,
   },
   {
-    id: "cultivar-page",
-    text: "Cultivar page visibility - show up where collectors research.",
+    id: "listing-details",
+    text: "Listings with photos, prices, and availability",
     icon: ImageIcon,
   },
   {
     id: "custom-url",
-    text: "Custom catalog URL - easier to share.",
+    text: "Shareable catalog URL",
     icon: ExternalLink,
   },
   {
     id: "unlimited",
-    text: "Unlimited inventory - listings, lists, photos.",
+    text: "Listings, lists, and photos",
     icon: Package,
   },
   {
+    id: "cultivar-page",
+    text: "Cultivar-linked listings",
+    icon: ImageIcon,
+  },
+  {
     id: "support",
-    text: "Priority support.",
+    text: "Email support for catalog setup",
     icon: HandHeart,
   },
 ] as const;

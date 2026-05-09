@@ -76,9 +76,9 @@ export function UnsupportedSafariNotice() {
         aria-hidden="true"
       />
       <div id="unsupported-safari-notice" role="alert">
-        <strong>Your Safari browser is too old for Daylily Catalog.</strong>
-        This site requires Safari 16.4 or newer. Please update Safari, update
-        iOS/macOS, or use a current version of Chrome, Edge, or Firefox.
+        <strong>Your Safari version is too old for Daylily Catalog.</strong>{" "}
+        Please update Safari to version 16.4 or newer, update iOS/macOS, or use
+        the latest version of Chrome, Edge, or Firefox.
       </div>
     </>
   );

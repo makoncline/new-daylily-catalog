@@ -1,118 +1,196 @@
 import {
+  BadgeCheck,
+  BookOpenCheck,
+  Camera,
+  Database,
   Flower2,
-  ListChecks,
   Image as ImageIcon,
   Info,
   ArrowRight,
   Award,
+  MessagesSquare,
+  Search,
+  Bookmark,
+  Library,
+  Map,
 } from "lucide-react";
 
 export const homePageContent = {
+  masthead: {
+    issue: "",
+    title: "",
+    count: "",
+    mobile: "",
+  },
   hero: {
     badge: {
       icon: Award,
-      text: "#1 Daylily App",
-      stars: 5,
+      text: "Catalogs from daylily growers",
     },
-    title: "Show Your Garden's Beauty to the World",
+    title: "The daylily you want. From the grower who has it.",
+    subtitle: "",
     description:
-      "Every bloom tells a story worth sharing. Instantly create beautiful, professional listings, effortlessly organize your garden, and connect deeply with a community that celebrates every bloom.",
+      "Browse grower catalogs with photos, prices, availability, notes, and contact info. Details vary by catalog.",
     backgroundImage: {
-      src: "/assets/hero-garden.webp",
-      alt: "Beautiful daylily garden at golden hour",
+      src: "/assets/home-redesign/hero-garden.webp",
+      alt: "Daylily garden beds at golden hour",
+    },
+    note: "",
+    primaryLink: {
+      href: "/catalogs",
+      text: "Browse catalogs",
+    },
+    secondaryLink: {
+      href: "/start-membership",
+      text: "Create your catalog",
     },
     features: [
-      { emoji: "📚", text: "Trusted cultivar database" },
-      { emoji: "🖼️", text: "Beautiful visual galleries" },
-      { emoji: "🗂️", text: "Intuitive organization tools" },
-      { emoji: "🌱", text: "Community connections" },
+      {
+        icon: BookOpenCheck,
+        text: "Browse catalogs",
+      },
+      {
+        icon: Camera,
+        text: "View grower listing photos",
+      },
+      {
+        icon: Search,
+        text: "Create a catalog for your daylilies",
+      },
     ],
     cta: {
-      title: "Start Sharing Your Blooms Today",
-      buttonText: "Start Your Catalog",
-      subtitle: "Already registered? We'll log you in.",
+      title: "",
+      buttonText: "Create your catalog",
+      subtitle:
+        "Add photos, prices, availability, notes, and contact info in one public catalog.",
     },
   },
   features: {
-    title: "Cultivate Your Digital Garden",
+    label: "What the site does",
+    count: "",
+    title: "Browse catalogs. View listings. Contact growers.",
     description:
-      "Turn your collection into a thriving digital showcase with tools designed to manage, highlight, and connect.",
+      "Buyers can browse catalogs. Growers can create a catalog for their own daylilies.",
+    cta: {
+      href: "/catalogs",
+      text: "Browse catalogs",
+    },
+    aside: {
+      label: "",
+      body: "Create a public catalog for your daylilies. Add photos, prices, availability, notes, and contact info.",
+      secondaryLabel: "",
+      cta: {
+        href: "/start-membership",
+        text: "Create your catalog",
+      },
+    },
     cards: [
       {
         image: {
-          src: "/assets/catalog-blooms.webp",
-          alt: "Professional daylily catalog interface",
+          src: "/assets/home-redesign/listing-workspace.webp",
+          alt: "Daylily blooms arranged on a grower's work table",
         },
-        title: "Your Blooms, Front and Center",
+        title: "Browse listing photos",
         description:
-          "Give every bloom its spotlight moment. Easily combine trusted cultivar data with your own insights, creating listings that captivate.",
+          "Catalog pages show daylily photos and details added by the grower.",
         features: [
-          { icon: Flower2, text: "Verified cultivar information" },
-          { icon: ImageIcon, text: "Multiple image galleries" },
-          { icon: Info, text: "Private and public notes" },
+          { icon: ImageIcon, text: "Listing photos" },
+          { icon: Info, text: "Grower notes" },
+          { icon: BadgeCheck, text: "Listing details" },
         ],
       },
       {
         image: {
-          src: "/assets/collage.png",
-          alt: "Daylily collection management interface",
+          src: "/assets/home-redesign/collection-planning.webp",
+          alt: "Daylily photo prints and garden materials arranged into groups",
         },
-        title: "Gardens with Personality",
+        title: "Check prices and availability",
         description:
-          "Curate and organize your blooms into gardens, seasonal showcases, or specialized lists—designed with gardeners in mind.",
+          "Use catalogs to see listing prices and availability.",
         features: [
-          { icon: ListChecks, text: "Customizable collections" },
-          { icon: ArrowRight, text: "Fast search and filters" },
-          { icon: Info, text: "Easy inventory tracking" },
+          { icon: ArrowRight, text: "Browse catalogs" },
+          { icon: ImageIcon, text: "Review listing photos" },
+          { icon: Info, text: "Read listing details" },
         ],
       },
       {
         image: {
-          src: "/assets/wild.png",
-          alt: "Garden profile and bio interface",
+          src: "/assets/home-redesign/grower-garden.webp",
+          alt: "Daylily garden path with a bench among mature beds",
         },
-        title: "Connect Through Your Garden",
+        title: "Contact the grower",
         description:
-          "Build your garden’s legacy. Create a profile that shares your gardening journey, inspires others, and grows your network.",
+          "Catalogs give buyers a direct way to contact the grower.",
         features: [
-          { icon: ImageIcon, text: "Stunning garden galleries" },
-          { icon: Info, text: "Professional garden profiles" },
-          { icon: ArrowRight, text: "Seamless communication" },
+          { icon: Info, text: "Catalog pages" },
+          { icon: ImageIcon, text: "Listing images" },
+          { icon: MessagesSquare, text: "Listing details" },
         ],
       },
       {
         image: {
-          src: "/assets/bouquet.png",
-          alt: "Daylily database interface",
+          src: "/assets/home-redesign/cultivar-reference.webp",
+          alt: "Daylily blooms beside blank reference cards and a ruler",
         },
-        title: "Instant Expertise",
+        title: "Create your catalog",
         description:
-          "Instantly access detailed information and beautiful images for over 100,000 cultivars, elevating each of your listings effortlessly.",
+          "Growers can create a catalog for the daylilies they want buyers to browse.",
         features: [
-          { icon: Flower2, text: "Comprehensive cultivar details" },
-          { icon: ImageIcon, text: "Official cultivar photos" },
-          { icon: Info, text: "Detailed cultivar specs" },
+          { icon: Flower2, text: "Add daylily listings" },
+          { icon: ImageIcon, text: "Upload photos" },
+          { icon: Database, text: "Manage your catalog" },
         ],
       },
     ],
   },
   database: {
-    title: "Showcase Your Garden",
+    label: "Public catalogs",
+    title: "See what growers have listed.",
     description:
-      "Give your carefully grown daylilies the attention they deserve. Share your garden alongside fellow gardeners who appreciate every bloom.",
+      "Browse catalog pages and open individual listings to see photos, prices, availability, notes, and contact info.",
     image: {
-      src: "/assets/windingPath.png",
-      alt: "Daylily database interface",
+      src: "/assets/home-redesign/garden-path-proof.webp",
+      alt: "Organized daylily beds along a winding gravel path",
+    },
+    cta: {
+      href: "/catalogs",
+      text: "Browse catalogs",
     },
   },
+  collectors: {
+    label: "",
+    title: "A catalog page for your daylilies.",
+    pillars: [
+      {
+        icon: Library,
+        title: "Add listings",
+        body: "Add the daylilies you want buyers to browse.",
+      },
+      {
+        icon: Map,
+        title: "Add details",
+        body: "Add photos, prices, availability, notes, and contact info.",
+      },
+      {
+        icon: Bookmark,
+        title: "Share a public catalog",
+        body: "Publish a catalog page buyers can browse from the public catalog list.",
+      },
+    ],
+  },
   finalCta: {
-    title: "Let's Bloom Together",
+    label: "",
+    title: "Browse catalogs or create your own.",
     description:
-      "Join a vibrant community sharing their passion for beautiful gardens. Your perfect digital garden is waiting.",
-    buttonText: "Start Your Catalog",
+      "Open catalogs from growers, or create a catalog for your own daylilies.",
+    primaryLink: {
+      href: "/catalogs",
+      text: "Browse catalogs",
+    },
+    buttonText: "Create your catalog",
     backgroundImage: {
-      src: "/assets/cta-garden.webp",
-      alt: "Thriving daylily garden at sunset",
+      src: "/assets/home-redesign/open-garden-path.webp",
+      alt: "Morning daylily garden path with labeled blooms",
     },
   },
 } as const;

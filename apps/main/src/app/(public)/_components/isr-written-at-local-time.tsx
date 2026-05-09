@@ -16,12 +16,12 @@ export function IsrWrittenAtLocalTime({
 }: IsrWrittenAtLocalTimeProps) {
   const isHydrated = useIsHydrated();
   if (!isHydrated) {
-    return <time dateTime={writtenAtIso}>last updated</time>;
+    return <time dateTime={writtenAtIso}>Last updated</time>;
   }
 
   const writtenAtLabel = isrWrittenAtLocalFormatter.format(
     new Date(writtenAtIso),
   );
 
-  return <time dateTime={writtenAtIso}>{`last updated ${writtenAtLabel}`}</time>;
+  return <time dateTime={writtenAtIso}>{`Last updated ${writtenAtLabel}`}</time>;
 }
