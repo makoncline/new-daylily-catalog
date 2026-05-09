@@ -405,6 +405,57 @@ function LandingVariantTwoWithCatalogs({
         `}</style>
       </section>
 
+      <section className="relative isolate overflow-hidden bg-[#07120e] px-4 pt-12 pb-10 text-white lg:px-8 lg:pt-14 lg:pb-14">
+        <div className="absolute inset-0 -z-10 opacity-42" aria-hidden="true">
+          <div className="grid h-full w-full grid-cols-3 gap-2 lg:grid-cols-6">
+            {[
+              "/assets/home-redesign/cultivar-research-card.webp",
+              "/assets/home-redesign/cultivar-listings-card.webp",
+              "/assets/home-redesign/cultivar-contact-card.webp",
+              "/assets/home-redesign/listing-workspace.webp",
+              "/assets/home-redesign/collection-planning.webp",
+              "/assets/home-redesign/garden-path-proof.webp",
+            ].map((src) => (
+              <div key={src} className="relative min-h-48">
+                <Image
+                  src={src}
+                  alt=""
+                  fill
+                  sizes="20vw"
+                  className="object-cover"
+                />
+              </div>
+            ))}
+          </div>
+          <div className="absolute inset-0 bg-[#07120e]/82" />
+        </div>
+        <div
+          className="pointer-events-none absolute inset-x-0 top-0 z-0 h-16 bg-linear-to-b from-black via-black/75 to-transparent lg:h-20"
+          aria-hidden="true"
+        />
+
+        <div className="relative z-10 mx-auto max-w-[1024px]">
+          <div className="grid gap-7 lg:grid-cols-3 lg:gap-10">
+            {buyerTestimonials.map((quote, quoteIndex) => (
+              <figure
+                key={quote}
+                className={cn(
+                  "flex min-h-[15rem] items-center justify-center rounded-3xl border-4 border-[#ef533f] bg-white p-7 text-center text-[#07120e] shadow-[0_30px_90px_-58px_rgba(0,0,0,0.95)] lg:min-h-[18rem] lg:p-8 lg:will-change-transform lg:[backface-visibility:hidden] lg:[transform-style:preserve-3d]",
+                  quoteIndex === 0 &&
+                    "lg:[transform-origin:left_center] lg:[transform:perspective(620px)_rotateY(10deg)_rotateZ(-0.18deg)]",
+                  quoteIndex === 2 &&
+                    "lg:[transform-origin:right_center] lg:[transform:perspective(620px)_rotateY(-10deg)_rotateZ(0.18deg)]",
+                )}
+              >
+                <blockquote className="text-2xl leading-10 font-bold tracking-tight text-balance lg:text-[1.7rem] lg:leading-[2.65rem]">
+                  &quot;{quote}&quot;
+                </blockquote>
+              </figure>
+            ))}
+          </div>
+        </div>
+      </section>
+
       <section
         id="home-catalogs"
         className="bg-[#fbfaf4] px-4 py-12 text-[#142118] lg:px-8 lg:py-16"
@@ -470,57 +521,6 @@ function LandingVariantTwoWithCatalogs({
                 <ArrowRight className="ml-3 h-5 w-5" />
               </Link>
             </div>
-          </div>
-        </div>
-      </section>
-
-      <section className="relative isolate overflow-hidden bg-[#07120e] px-4 pt-12 pb-10 text-white lg:px-8 lg:pt-14 lg:pb-14">
-        <div className="absolute inset-0 -z-10 opacity-42" aria-hidden="true">
-          <div className="grid h-full w-full grid-cols-3 gap-2 lg:grid-cols-6">
-            {[
-              "/assets/home-redesign/cultivar-research-card.webp",
-              "/assets/home-redesign/cultivar-listings-card.webp",
-              "/assets/home-redesign/cultivar-contact-card.webp",
-              "/assets/home-redesign/listing-workspace.webp",
-              "/assets/home-redesign/collection-planning.webp",
-              "/assets/home-redesign/garden-path-proof.webp",
-            ].map((src) => (
-              <div key={src} className="relative min-h-48">
-                <Image
-                  src={src}
-                  alt=""
-                  fill
-                  sizes="20vw"
-                  className="object-cover"
-                />
-              </div>
-            ))}
-          </div>
-          <div className="absolute inset-0 bg-[#07120e]/82" />
-        </div>
-        <div
-          className="pointer-events-none absolute inset-x-0 top-0 z-0 h-16 bg-linear-to-b from-black via-black/75 to-transparent lg:h-20"
-          aria-hidden="true"
-        />
-
-        <div className="relative z-10 mx-auto max-w-[1024px]">
-          <div className="grid gap-7 lg:grid-cols-3 lg:gap-10">
-            {buyerTestimonials.map((quote, quoteIndex) => (
-              <figure
-                key={quote}
-                className={cn(
-                  "flex min-h-[15rem] items-center justify-center rounded-3xl border-4 border-[#ef533f] bg-white p-7 text-center text-[#07120e] shadow-[0_30px_90px_-58px_rgba(0,0,0,0.95)] lg:min-h-[18rem] lg:p-8 lg:will-change-transform lg:[backface-visibility:hidden] lg:[transform-style:preserve-3d]",
-                  quoteIndex === 0 &&
-                    "lg:[transform-origin:left_center] lg:[transform:perspective(620px)_rotateY(10deg)_rotateZ(-0.18deg)]",
-                  quoteIndex === 2 &&
-                    "lg:[transform-origin:right_center] lg:[transform:perspective(620px)_rotateY(-10deg)_rotateZ(0.18deg)]",
-                )}
-              >
-                <blockquote className="text-2xl leading-10 font-bold tracking-tight text-balance lg:text-[1.7rem] lg:leading-[2.65rem]">
-                  &quot;{quote}&quot;
-                </blockquote>
-              </figure>
-            ))}
           </div>
         </div>
       </section>
