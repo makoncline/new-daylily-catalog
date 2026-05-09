@@ -24,11 +24,7 @@ interface UseDataTableProps<TData> {
   };
   config?: Partial<TableOptions<TData>>;
   columnNames?: Record<string, string>;
-  initialStateOverrides?: Partial<TableOptions<TData>> & {
-    pagination?: {
-      pageSize?: number;
-    };
-  };
+  initialStateOverrides?: TableOptions<TData>["initialState"];
 }
 
 export function useDataTable<TData>({

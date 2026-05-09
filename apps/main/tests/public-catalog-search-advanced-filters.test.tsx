@@ -1,4 +1,10 @@
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import {
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { PublicCatalogSearchContent } from "@/components/public-catalog-search/public-catalog-search-content";
 import {
@@ -86,23 +92,26 @@ vi.mock("next/navigation", () => ({
   }),
 }));
 
-vi.mock("@/components/public-catalog-search/public-catalog-search-table", () => ({
-  PublicCatalogSearchTable: ({
-    table,
-  }: {
-    table: {
-      getRowModel: () => {
-        rows: Array<{ id: string; original: { title: string } }>;
+vi.mock(
+  "@/components/public-catalog-search/public-catalog-search-table",
+  () => ({
+    PublicCatalogSearchTable: ({
+      table,
+    }: {
+      table: {
+        getRowModel: () => {
+          rows: Array<{ id: string; original: { title: string } }>;
+        };
       };
-    };
-  }) => (
-    <ul data-testid="catalog-table">
-      {table.getRowModel().rows.map((row) => (
-        <li key={row.id}>{row.original.title}</li>
-      ))}
-    </ul>
-  ),
-}));
+    }) => (
+      <ul data-testid="catalog-table">
+        {table.getRowModel().rows.map((row) => (
+          <li key={row.id}>{row.original.title}</li>
+        ))}
+      </ul>
+    ),
+  }),
+);
 
 vi.mock("@/components/data-table/data-table-pagination", () => ({
   DataTablePagination: () => <div data-testid="catalog-pagination" />,
@@ -355,7 +364,9 @@ describe("public catalog search advanced filters", () => {
     });
 
     await waitFor(() => {
-      expect(within(screen.getByTestId("catalog-table")).getAllByRole("listitem")).toHaveLength(1);
+      expect(
+        within(screen.getByTestId("catalog-table")).getAllByRole("listitem"),
+      ).toHaveLength(1);
     });
 
     expect(screen.getByText("Alpha Rose")).toBeVisible();
@@ -380,7 +391,9 @@ describe("public catalog search advanced filters", () => {
     fireEvent.click(screen.getByRole("button", { name: "Reset" }));
 
     await waitFor(() => {
-      expect(within(screen.getByTestId("catalog-table")).getAllByRole("listitem")).toHaveLength(3);
+      expect(
+        within(screen.getByTestId("catalog-table")).getAllByRole("listitem"),
+      ).toHaveLength(3);
     });
   });
 
@@ -409,7 +422,9 @@ describe("public catalog search advanced filters", () => {
     });
 
     await waitFor(() => {
-      expect(within(screen.getByTestId("catalog-table")).getAllByRole("listitem")).toHaveLength(2);
+      expect(
+        within(screen.getByTestId("catalog-table")).getAllByRole("listitem"),
+      ).toHaveLength(2);
     });
 
     const registrationSection = screen.getByRole("button", {
@@ -451,16 +466,47 @@ describe("public catalog search advanced filters", () => {
     });
 
     await waitFor(() => {
-      expect(within(screen.getByTestId("catalog-table")).getAllByRole("listitem")).toHaveLength(2);
+      expect(
+        within(screen.getByTestId("catalog-table")).getAllByRole("listitem"),
+      ).toHaveLength(2);
     });
 
-    fireEvent.click(screen.getByRole("button", { name: /hybridizer:\s*reed/i }));
+    fireEvent.click(
+      screen.getByRole("button", { name: /hybridizer:\s*reed/i }),
+    );
 
     await waitFor(() => {
       const params = navigationState.getParams();
       expect(params.get("hasPhoto")).toBe("true");
       expect(params.get("hybridizer")).toBeNull();
-      expect(within(screen.getByTestId("catalog-table")).getAllByRole("listitem")).toHaveLength(2);
+      expect(
+        within(screen.getByTestId("catalog-table")).getAllByRole("listitem"),
+      ).toHaveLength(2);
+    });
+
+    expect(screen.getByTestId("advanced-filter-hybridizer")).toHaveValue("");
+  });
+
+  it("clears the visible search input when the search chip is removed", async () => {
+    renderCatalog();
+
+    fireEvent.change(screen.getByTestId("search-all-fields-input"), {
+      target: { value: "Alpha" },
+    });
+
+    await waitFor(() => {
+      expect(
+        within(screen.getByTestId("catalog-table")).getAllByRole("listitem"),
+      ).toHaveLength(1);
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: /search:\s*alpha/i }));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("search-all-fields-input")).toHaveValue("");
+      expect(
+        within(screen.getByTestId("catalog-table")).getAllByRole("listitem"),
+      ).toHaveLength(3);
     });
   });
 });
