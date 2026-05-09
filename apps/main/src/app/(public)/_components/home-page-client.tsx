@@ -104,7 +104,7 @@ const conceptCards = [
   },
   {
     title: "Prices and availability",
-    body: "Check listing prices and availability.",
+    body: "Check prices and availability when growers include them.",
     image: "/assets/home-redesign/collection-planning.webp",
     alt: "Printed daylily photos and garden planning materials",
   },
@@ -119,7 +119,7 @@ const conceptCards = [
 const discoverySteps = [
   {
     title: "Research the cultivar",
-    body: "Review photos and details.",
+    body: "Review photos and details when available.",
     image: "/assets/home-redesign/cultivar-research-card.webp",
     alt: "Daylily blooms with research notebook and reference cards",
   },
@@ -188,10 +188,19 @@ const testimonialLogos = [
   },
 ] as const;
 
-const buyerTestimonials = [
-  "The catalog answers my first question: what is actually available?",
-  "I can compare listings without digging through old posts or message threads.",
-  "When I find something I like, I can ask the grower about buying, pickup, or shipping.",
+const buyerBenefits = [
+  {
+    title: "See what is available",
+    body: "Open a catalog to check photos, prices, availability, notes, and contact info.",
+  },
+  {
+    title: "Browse without digging",
+    body: "Compare listings without hunting through old posts or message threads.",
+  },
+  {
+    title: "Contact growers directly",
+    body: "Ask the grower about buying, pickup, or shipping.",
+  },
 ] as const;
 
 function NomadsCatalogCard({
@@ -215,7 +224,7 @@ function NomadsCatalogCard({
     <div className="relative">
       {hasBadge ? (
         <div className="absolute -top-4 -left-3 z-20 rounded-xl border border-[#d6ded3] bg-white px-4 py-2 text-lg font-bold text-[#142118] shadow-[0_10px_28px_-22px_rgba(20,33,24,0.8)]">
-          Popular
+          Featured
         </div>
       ) : null}
 
@@ -303,7 +312,7 @@ function LandingVariantTwoWithCatalogs({
             sizes="140vw"
             className="hero-grid-pan h-full w-full object-cover opacity-90"
           />
-          <div className="absolute inset-0 bg-[linear-gradient(135deg,rgba(7,18,14,0.06)_0%,rgba(7,18,14,0.16)_26%,rgba(7,18,14,0.6)_62%,rgba(7,18,14,0.92)_100%)]" />
+          <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(7,18,14,0.92)_0%,rgba(7,18,14,0.72)_38%,rgba(7,18,14,0.2)_72%,transparent_100%)]" />
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_0%_0%,rgba(255,255,255,0.1)_0%,rgba(255,255,255,0)_36%),radial-gradient(circle_at_100%_100%,rgba(7,18,14,0.92)_0%,rgba(7,18,14,0.62)_42%,rgba(7,18,14,0.12)_72%,rgba(7,18,14,0)_100%)]" />
         </div>
 
@@ -433,57 +442,6 @@ function LandingVariantTwoWithCatalogs({
         `}</style>
       </section>
 
-      <section className="relative isolate overflow-hidden bg-[#07120e] px-4 pt-12 pb-10 text-white lg:px-8 lg:pt-14 lg:pb-14">
-        <div className="absolute inset-0 -z-10 opacity-42" aria-hidden="true">
-          <div className="grid h-full w-full grid-cols-3 gap-2 lg:grid-cols-6">
-            {[
-              "/assets/home-redesign/cultivar-research-card.webp",
-              "/assets/home-redesign/cultivar-listings-card.webp",
-              "/assets/home-redesign/cultivar-contact-card.webp",
-              "/assets/home-redesign/listing-workspace.webp",
-              "/assets/home-redesign/collection-planning.webp",
-              "/assets/home-redesign/garden-path-proof.webp",
-            ].map((src) => (
-              <div key={src} className="relative min-h-48">
-                <Image
-                  src={src}
-                  alt=""
-                  fill
-                  sizes="20vw"
-                  className="object-cover"
-                />
-              </div>
-            ))}
-          </div>
-          <div className="absolute inset-0 bg-[#07120e]/82" />
-        </div>
-        <div
-          className="pointer-events-none absolute inset-x-0 top-0 z-0 h-16 bg-linear-to-b from-black via-black/75 to-transparent lg:h-20"
-          aria-hidden="true"
-        />
-
-        <div className="relative z-10 mx-auto max-w-[1024px]">
-          <div className="grid gap-7 lg:grid-cols-3 lg:gap-10">
-            {buyerTestimonials.map((quote, quoteIndex) => (
-              <figure
-                key={quote}
-                className={cn(
-                  "flex min-h-[15rem] items-center justify-center rounded-3xl border-4 border-[#ef533f] bg-white p-7 text-center text-[#07120e] shadow-[0_30px_90px_-58px_rgba(0,0,0,0.95)] lg:min-h-[18rem] lg:p-8 lg:will-change-transform lg:[backface-visibility:hidden] lg:[transform-style:preserve-3d]",
-                  quoteIndex === 0 &&
-                    "lg:[transform-origin:left_center] lg:[transform:perspective(620px)_rotateY(10deg)_rotateZ(-0.18deg)]",
-                  quoteIndex === 2 &&
-                    "lg:[transform-origin:right_center] lg:[transform:perspective(620px)_rotateY(-10deg)_rotateZ(0.18deg)]",
-                )}
-              >
-                <blockquote className="text-2xl leading-10 font-bold tracking-tight text-balance lg:text-[1.7rem] lg:leading-[2.65rem]">
-                  &quot;{quote}&quot;
-                </blockquote>
-              </figure>
-            ))}
-          </div>
-        </div>
-      </section>
-
       <section
         id="home-catalogs"
         className="bg-[#fbfaf4] px-4 py-12 text-[#142118] lg:px-8 lg:py-16"
@@ -553,6 +511,60 @@ function LandingVariantTwoWithCatalogs({
         </div>
       </section>
 
+      <section className="relative isolate overflow-hidden bg-[#07120e] px-4 pt-12 pb-10 text-white lg:px-8 lg:pt-14 lg:pb-14">
+        <div className="absolute inset-0 -z-10 opacity-42" aria-hidden="true">
+          <div className="grid h-full w-full grid-cols-3 gap-2 lg:grid-cols-6">
+            {[
+              "/assets/home-redesign/cultivar-research-card.webp",
+              "/assets/home-redesign/cultivar-listings-card.webp",
+              "/assets/home-redesign/cultivar-contact-card.webp",
+              "/assets/home-redesign/listing-workspace.webp",
+              "/assets/home-redesign/collection-planning.webp",
+              "/assets/home-redesign/garden-path-proof.webp",
+            ].map((src) => (
+              <div key={src} className="relative min-h-48">
+                <Image
+                  src={src}
+                  alt=""
+                  fill
+                  sizes="20vw"
+                  className="object-cover"
+                />
+              </div>
+            ))}
+          </div>
+          <div className="absolute inset-0 bg-[#07120e]/82" />
+        </div>
+        <div
+          className="pointer-events-none absolute inset-x-0 top-0 z-0 h-16 bg-linear-to-b from-black via-black/75 to-transparent lg:h-20"
+          aria-hidden="true"
+        />
+
+        <div className="relative z-10 mx-auto max-w-[1024px]">
+          <div className="grid gap-7 lg:grid-cols-3 lg:gap-10">
+            {buyerBenefits.map((benefit, benefitIndex) => (
+              <article
+                key={benefit.title}
+                className={cn(
+                  "flex min-h-[13.5rem] flex-col justify-center rounded-3xl border-2 border-[#c85a3e] bg-[#fffdf6] p-7 text-[#07120e] shadow-[0_30px_90px_-58px_rgba(0,0,0,0.95)] lg:min-h-[16rem] lg:p-8 lg:will-change-transform lg:[backface-visibility:hidden] lg:[transform-style:preserve-3d]",
+                  benefitIndex === 0 &&
+                    "lg:[transform-origin:left_center] lg:[transform:perspective(620px)_rotateY(10deg)_rotateZ(-0.18deg)]",
+                  benefitIndex === 2 &&
+                    "lg:[transform-origin:right_center] lg:[transform:perspective(620px)_rotateY(-10deg)_rotateZ(0.18deg)]",
+                )}
+              >
+                <h2 className="text-2xl leading-8 font-bold tracking-tight">
+                  {benefit.title}
+                </h2>
+                <p className="mt-4 text-lg leading-8 font-semibold text-[#536357]">
+                  {benefit.body}
+                </p>
+              </article>
+            ))}
+          </div>
+        </div>
+      </section>
+
       <section className="bg-[#f1f4ec] px-4 py-12 text-[#142118] lg:px-8 lg:py-16">
         <div className="mx-auto grid max-w-[1024px] gap-10 lg:grid-cols-[0.72fr_1fr] lg:items-start">
           <div>
@@ -562,7 +574,7 @@ function LandingVariantTwoWithCatalogs({
             </H2>
             <p className="mt-5 max-w-2xl text-lg leading-8 text-[#536357]">
               If a grower links a listing to a cultivar, buyers can find it on
-              that cultivar page.
+              that cultivar&apos;s page.
             </p>
             <Button
               size="lg"

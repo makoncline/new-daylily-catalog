@@ -25,19 +25,21 @@ export function UsedByWave({ logos }: { logos: readonly UsedByLogo[] }) {
       </svg>
 
       <div className="relative z-10 mx-auto mt-3 max-w-[1024px]">
-        <div className="flex items-baseline gap-4 overflow-hidden">
-          <p className="shrink-0 text-[0.68rem] leading-none font-light text-white/50">
-            used by
+        <div className="flex items-baseline gap-5 overflow-hidden">
+          <p className="shrink-0 text-[0.72rem] leading-none font-light text-white/55">
+            featured catalogs
           </p>
-          <div className="flex min-w-max items-baseline gap-8 leading-none lg:gap-12">
-            {logos.map((logo) => (
+          <div className="flex min-w-max items-baseline gap-8 leading-none lg:gap-11">
+            {logos.map((logo, index) => (
               <Image
                 key={logo.name}
                 src={logo.src}
                 alt={logo.name}
                 width={logo.width}
                 height={logo.height}
-                className="inline-block h-5 w-auto align-baseline object-contain opacity-90 lg:h-6"
+                className={`inline-block h-7 w-auto align-baseline object-contain opacity-90 lg:h-8 ${
+                  index > 3 ? "hidden lg:inline-block" : ""
+                }`}
               />
             ))}
           </div>

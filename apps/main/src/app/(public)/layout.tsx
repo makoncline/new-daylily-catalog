@@ -51,9 +51,9 @@ export default async function PublicLayout({
               className="inline-flex h-10 items-center border border-[#d8dfd2] bg-white px-4 text-[#142118] transition-colors hover:border-[#173126] hover:bg-[#173126] hover:text-white"
               entrySurface="public_footer"
               ctaId="public-footer-create-catalog"
-              ctaLabel="Create catalog"
+              ctaLabel="Create your catalog"
             >
-              Create catalog
+              Create your catalog
             </SellerIntentLink>
           </div>
         </div>

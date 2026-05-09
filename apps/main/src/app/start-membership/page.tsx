@@ -54,13 +54,22 @@ const SELLER_BENEFITS = [
   "Grower notes and contact info",
   "Shareable catalog URL",
   "Public catalog browsing",
-  "Cultivar-linked listings",
+  "Cultivar-linked listings when available",
 ] as const;
 
-const GROWER_TESTIMONIALS = [
-  "Now I can send one catalog link instead of rebuilding my list in messages.",
-  "Buyers can see photos, prices, availability, and notes before they contact me.",
-  "I still handle each sale myself. The catalog just gives buyers a clear place to start.",
+const GROWER_BENEFIT_CARDS = [
+  {
+    title: "One link for buyers",
+    body: "Send buyers a public catalog link instead of rebuilding your list in messages.",
+  },
+  {
+    title: "Details before contact",
+    body: "Show photos, prices, availability, notes, and contact info before buyers reach out.",
+  },
+  {
+    title: "Sales stay direct",
+    body: "Buyers contact you directly. You handle the sale yourself.",
+  },
 ] as const;
 
 const marketingButtonBase =
@@ -173,7 +182,8 @@ const HOW_IT_WORKS_STEPS = [
   },
   {
     title: "Add your daylily listings",
-    detail: "Photos, prices, availability, notes, and cultivar details.",
+    detail:
+      "Photos, prices, availability, notes, and cultivar details when available.",
   },
   {
     title: "Preview your catalog",
@@ -208,7 +218,7 @@ const FAQ_ITEMS = [
   {
     question: "What appears on cultivar pages?",
     answer:
-      "A linked listing connects to its cultivar page so buyers can find it while researching.",
+      "If your listing is linked to a cultivar, it can appear on that cultivar's page so buyers can find it while researching.",
   },
 ] as const;
 
@@ -265,7 +275,7 @@ export default async function StartMembershipPage() {
             sizes="140vw"
             className="hero-grid-pan h-full w-full object-cover opacity-90"
           />
-          <div className="absolute inset-0 bg-[linear-gradient(135deg,rgba(7,18,14,0.06)_0%,rgba(7,18,14,0.16)_26%,rgba(7,18,14,0.6)_62%,rgba(7,18,14,0.92)_100%)]" />
+          <div className="absolute inset-0 bg-[linear-gradient(90deg,rgba(7,18,14,0.92)_0%,rgba(7,18,14,0.72)_38%,rgba(7,18,14,0.2)_72%,transparent_100%)]" />
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_0%_0%,rgba(255,255,255,0.1)_0%,rgba(255,255,255,0)_36%),radial-gradient(circle_at_100%_100%,rgba(7,18,14,0.92)_0%,rgba(7,18,14,0.62)_42%,rgba(7,18,14,0.12)_72%,rgba(7,18,14,0)_100%)]" />
         </div>
 
@@ -288,7 +298,8 @@ export default async function StartMembershipPage() {
             <p className="mt-6 max-w-[34rem] text-xl leading-8 font-medium text-pretty text-[#dfe9dc] lg:mt-4 lg:text-lg lg:leading-7">
               Add photos, prices, availability, notes, and contact info. Build{" "}
               and preview for free. Start a{" "}
-              {SUBSCRIPTION_CONFIG.FREE_TRIAL_DAYS}-day trial when you publish.
+              {SUBSCRIPTION_CONFIG.FREE_TRIAL_DAYS}-day trial when you publish,
+              then $120/year.
             </p>
 
             <div className="mt-8 flex flex-col gap-4 lg:mt-5 lg:flex-row lg:gap-5">
@@ -433,24 +444,31 @@ export default async function StartMembershipPage() {
         />
 
         <div className="relative z-10 mx-auto max-w-[1024px]">
+          <h2 className="mb-7 text-3xl leading-tight font-semibold tracking-normal text-balance lg:mb-9 lg:text-5xl">
+            Built for how growers already sell.
+          </h2>
+
           <div className="grid gap-7 lg:grid-cols-3 lg:gap-10">
-            {GROWER_TESTIMONIALS.map((quote, quoteIndex) => (
-              <figure
-                key={quote}
+            {GROWER_BENEFIT_CARDS.map((benefit, benefitIndex) => (
+              <article
+                key={benefit.title}
                 className={[
-                  "flex min-h-[15rem] items-center justify-center rounded-3xl border-4 border-[#ef533f] bg-white p-7 text-center text-[#07120e] shadow-[0_30px_90px_-58px_rgba(0,0,0,0.95)] lg:min-h-[18rem] lg:[backface-visibility:hidden] lg:[transform-style:preserve-3d] lg:p-8 lg:will-change-transform",
-                  quoteIndex === 0
+                  "flex min-h-[13.5rem] flex-col justify-center rounded-3xl border-2 border-[#c85a3e] bg-[#fffdf6] p-7 text-[#07120e] shadow-[0_30px_90px_-58px_rgba(0,0,0,0.95)] lg:min-h-[16rem] lg:[backface-visibility:hidden] lg:[transform-style:preserve-3d] lg:p-8 lg:will-change-transform",
+                  benefitIndex === 0
                     ? "lg:[transform:perspective(620px)_rotateY(10deg)_rotateZ(-0.18deg)] lg:[transform-origin:left_center]"
                     : "",
-                  quoteIndex === 2
+                  benefitIndex === 2
                     ? "lg:[transform:perspective(620px)_rotateY(-10deg)_rotateZ(0.18deg)] lg:[transform-origin:right_center]"
                     : "",
                 ].join(" ")}
               >
-                <blockquote className="text-2xl leading-10 font-bold tracking-tight text-balance lg:text-[1.7rem] lg:leading-[2.65rem]">
-                  &quot;{quote}&quot;
-                </blockquote>
-              </figure>
+                <h3 className="text-2xl leading-8 font-bold tracking-tight">
+                  {benefit.title}
+                </h3>
+                <p className="mt-4 text-lg leading-8 font-semibold text-[#536357]">
+                  {benefit.body}
+                </p>
+              </article>
             ))}
           </div>
         </div>
@@ -547,9 +565,10 @@ export default async function StartMembershipPage() {
             <article className="group overflow-hidden rounded-3xl border border-[#dbe3d5] bg-white shadow-[0_24px_80px_-64px_rgba(24,50,32,0.8)]">
               <div className="relative aspect-[16/9] overflow-hidden">
                 <Image
-                  src={IMAGES.DEFAULT_CATALOG}
+                  src="/assets/home-redesign/garden-path-proof.webp"
                   alt="Example public catalog card"
                   fill
+                  priority
                   sizes="(min-width: 1024px) 560px, 100vw"
                   className="object-cover transition-transform duration-500 group-hover:scale-[1.02]"
                 />
@@ -584,6 +603,7 @@ export default async function StartMembershipPage() {
                   src="/assets/home-redesign/listing-workspace.webp"
                   alt="Daylily blooms and grower notes on a work table"
                   fill
+                  loading="eager"
                   sizes="(min-width: 1024px) 560px, 100vw"
                   className="object-cover transition-transform duration-500 group-hover:scale-[1.02]"
                 />
@@ -597,8 +617,8 @@ export default async function StartMembershipPage() {
                   Starman Spring Fan
                 </p>
                 <p className="mt-3 text-base leading-7 text-[#536357]">
-                  See how a listing can show photos, notes, price, and cultivar
-                  details.
+                  See how a listing can show photos, notes, price,
+                  availability, and cultivar details.
                 </p>
 
                 <SellerLandingExampleLink
@@ -622,7 +642,11 @@ export default async function StartMembershipPage() {
 
           <div className="mt-6 divide-y divide-[#d8dfd2] border-y border-[#d8dfd2]">
             {FAQ_ITEMS.map((item) => (
-              <details key={item.question} className="group py-5" open={false}>
+              <details
+                key={item.question}
+                className="group py-5"
+                open={item.question === "Does Daylily Catalog handle payments?"}
+              >
                 <summary className="flex cursor-pointer list-none items-start justify-between gap-3 text-xl font-semibold [&::-webkit-details-marker]:hidden">
                   <span>{item.question}</span>
                   <ChevronDown className="mt-0.5 h-5 w-5 shrink-0 text-[#536357] transition-transform duration-200 group-open:rotate-180" />

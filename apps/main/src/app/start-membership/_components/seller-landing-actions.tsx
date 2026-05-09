@@ -130,7 +130,7 @@ function SellerLandingAuthCtaLoading({
   className,
 }: Pick<SellerLandingCtaVariantProps, "ctaLabel" | "className">) {
   return (
-    <Button className={className} size="lg" disabled>
+    <Button className={className} size="lg" aria-disabled="true">
       {ctaLabel}
     </Button>
   );

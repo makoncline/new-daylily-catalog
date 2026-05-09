@@ -58,6 +58,7 @@ export function PublicHeader() {
 
 export function PublicdNav({ theme = "light" }: { theme?: PublicNavTheme }) {
   const pathname = usePathname();
+  const isHeroOverlayPage = pathname === "/" || pathname === "/start-membership";
   const isCatalogsActive = pathname === "/catalogs";
   const classes = getNavThemeClasses(theme);
 
@@ -88,7 +89,12 @@ export function PublicdNav({ theme = "light" }: { theme?: PublicNavTheme }) {
         </Small>
       </Link>
 
-      <div className="flex min-w-0 flex-1 items-center justify-center gap-1 lg:hidden">
+      <div
+        className={cn(
+          "min-w-0 flex-1 items-center justify-center gap-1 lg:hidden",
+          isHeroOverlayPage ? "hidden" : "flex",
+        )}
+      >
         <Button
           variant="ghost"
           asChild
