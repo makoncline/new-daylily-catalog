@@ -2,14 +2,65 @@
 
 import Image from "next/image";
 
-export interface UsedByLogo {
+interface UsedByLogo {
   name: string;
   src: string;
   width: number;
   height: number;
 }
 
-export function UsedByWave({ logos }: { logos: readonly UsedByLogo[] }) {
+const USED_BY_LOGOS = [
+  {
+    name: "Rolling Oaks Daylilies",
+    src: "/assets/home-redesign/used-by-logos/01-rolling-oaks-daylilies.png",
+    width: 315,
+    height: 136,
+  },
+  {
+    name: "Plant Fancy Gardens",
+    src: "/assets/home-redesign/used-by-logos/02-plantfancygardens.png",
+    width: 365,
+    height: 78,
+  },
+  {
+    name: "Fussell Farms",
+    src: "/assets/home-redesign/used-by-logos/03-fussell-farms.png",
+    width: 278,
+    height: 103,
+  },
+  {
+    name: "Wood Branch Daylilies",
+    src: "/assets/home-redesign/used-by-logos/04-wood-branch-daylilies.png",
+    width: 351,
+    height: 95,
+  },
+  {
+    name: "Haley Springs Farm",
+    src: "/assets/home-redesign/used-by-logos/05-haley-springs-farm.png",
+    width: 357,
+    height: 93,
+  },
+  {
+    name: "Graceful Petals Daylilies",
+    src: "/assets/home-redesign/used-by-logos/06-graceful-petals-daylilies.png",
+    width: 333,
+    height: 178,
+  },
+  {
+    name: "Eden on Harrell",
+    src: "/assets/home-redesign/used-by-logos/07-eden-on-harrell.png",
+    width: 356,
+    height: 169,
+  },
+  {
+    name: "Starcrossedseeds",
+    src: "/assets/home-redesign/used-by-logos/08-starcrossedseeds.png",
+    width: 344,
+    height: 66,
+  },
+] as const satisfies readonly UsedByLogo[];
+
+export function UsedByWave() {
   return (
     <div className="pointer-events-none absolute inset-x-0 bottom-0 z-20 h-24 px-4 text-white lg:px-8">
       <svg
@@ -30,7 +81,7 @@ export function UsedByWave({ logos }: { logos: readonly UsedByLogo[] }) {
             featured catalogs
           </p>
           <div className="flex min-w-max items-baseline gap-8 leading-none lg:gap-11">
-            {logos.map((logo, index) => (
+            {USED_BY_LOGOS.map((logo, index) => (
               <Image
                 key={logo.name}
                 src={logo.src}

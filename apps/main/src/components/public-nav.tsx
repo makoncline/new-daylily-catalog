@@ -50,13 +50,13 @@ export function PublicHeader() {
           isHeroOverlayPage ? "max-w-[1024px]" : "max-w-[1600px]",
         )}
       >
-        <PublicdNav theme={theme} />
+        <PublicNav theme={theme} />
       </div>
     </header>
   );
 }
 
-export function PublicdNav({ theme = "light" }: { theme?: PublicNavTheme }) {
+export function PublicNav({ theme = "light" }: { theme?: PublicNavTheme }) {
   const pathname = usePathname();
   const isHeroOverlayPage = pathname === "/" || pathname === "/start-membership";
   const isCatalogsActive = pathname === "/catalogs";

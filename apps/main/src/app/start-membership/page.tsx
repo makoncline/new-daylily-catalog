@@ -1,4 +1,3 @@
-import type { ComponentType } from "react";
 import type { Metadata } from "next";
 import Image from "next/image";
 import { ArrowRight, CheckCircle2, ChevronDown } from "lucide-react";
@@ -73,62 +72,6 @@ const marketingSecondaryButton =
 const marketingDarkSecondaryButton =
   `${marketingButtonBase} border border-white/35 bg-white/12 text-white backdrop-blur-md transition-colors hover:bg-white hover:text-[#142118]`;
 
-const TESTIMONIAL_LOGOS = [
-  {
-    name: "Rolling Oaks Daylilies",
-    src: "/assets/home-redesign/used-by-logos/01-rolling-oaks-daylilies.png",
-    width: 315,
-    height: 136,
-  },
-  {
-    name: "Plant Fancy Gardens",
-    src: "/assets/home-redesign/used-by-logos/02-plantfancygardens.png",
-    width: 365,
-    height: 78,
-  },
-  {
-    name: "Fussell Farms",
-    src: "/assets/home-redesign/used-by-logos/03-fussell-farms.png",
-    width: 278,
-    height: 103,
-  },
-  {
-    name: "Wood Branch Daylilies",
-    src: "/assets/home-redesign/used-by-logos/04-wood-branch-daylilies.png",
-    width: 351,
-    height: 95,
-  },
-  {
-    name: "Haley Springs Farm",
-    src: "/assets/home-redesign/used-by-logos/05-haley-springs-farm.png",
-    width: 357,
-    height: 93,
-  },
-  {
-    name: "Graceful Petals Daylilies",
-    src: "/assets/home-redesign/used-by-logos/06-graceful-petals-daylilies.png",
-    width: 333,
-    height: 178,
-  },
-  {
-    name: "Eden on Harrell",
-    src: "/assets/home-redesign/used-by-logos/07-eden-on-harrell.png",
-    width: 356,
-    height: 169,
-  },
-  {
-    name: "Starcrossedseeds",
-    src: "/assets/home-redesign/used-by-logos/08-starcrossedseeds.png",
-    width: 344,
-    height: 66,
-  },
-] as const;
-
-interface HowStep {
-  title: string;
-  detail: string;
-}
-
 const HOW_IT_WORKS_STEPS = [
   {
     title: "Add your grower info",
@@ -147,7 +90,7 @@ const HOW_IT_WORKS_STEPS = [
     title: "Publish when ready",
     detail: "Start your trial when your catalog is ready to go live.",
   },
-] satisfies readonly HowStep[];
+] as const;
 
 const FAQ_ITEMS = [
   {
@@ -193,17 +136,6 @@ function createFaqSchema(baseUrl: string) {
     })),
     url: `${baseUrl}/start-membership`,
   };
-}
-
-interface ProFeatureItem {
-  id: string;
-  text: string;
-  icon: ComponentType<{ className?: string }>;
-}
-
-function featureHeadlineText(featureText: string) {
-  const [headline] = featureText.split(" - ");
-  return headline ?? featureText;
 }
 
 export default async function StartMembershipPage() {
@@ -298,30 +230,28 @@ export default async function StartMembershipPage() {
             </p>
 
             <div className="mt-6 grid gap-4 border-t border-white/22 pt-5">
-              {(PRO_FEATURES as readonly ProFeatureItem[])
-                .slice(0, 3)
-                .map((feature) => {
-                  const Icon = feature.icon;
+              {PRO_FEATURES.slice(0, 3).map((feature) => {
+                const Icon = feature.icon;
 
-                  return (
-                    <div
-                      key={feature.id}
-                      className="grid grid-cols-[1.75rem_1fr] items-center gap-4"
-                    >
-                      <span className="flex h-7 w-7 items-center justify-center text-[#f4c477]">
-                        <Icon className="h-5 w-5" aria-hidden="true" />
-                      </span>
-                      <p className="text-base leading-6 font-semibold text-white lg:text-lg">
-                        {featureHeadlineText(feature.text)}
-                      </p>
-                    </div>
-                  );
-                })}
+                return (
+                  <div
+                    key={feature.id}
+                    className="grid grid-cols-[1.75rem_1fr] items-center gap-4"
+                  >
+                    <span className="flex h-7 w-7 items-center justify-center text-[#f4c477]">
+                      <Icon className="h-5 w-5" aria-hidden="true" />
+                    </span>
+                    <p className="text-base leading-6 font-semibold text-white lg:text-lg">
+                      {feature.text}
+                    </p>
+                  </div>
+                );
+              })}
             </div>
           </div>
         </div>
 
-        <UsedByWave logos={TESTIMONIAL_LOGOS} />
+        <UsedByWave />
 
         <style>{`
           @keyframes hero-grid-pan {

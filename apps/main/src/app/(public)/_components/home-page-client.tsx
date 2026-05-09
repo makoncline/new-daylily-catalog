@@ -109,57 +109,6 @@ const discoverySteps = [
   },
 ] as const;
 
-const testimonialLogos = [
-  {
-    name: "Rolling Oaks Daylilies",
-    src: "/assets/home-redesign/used-by-logos/01-rolling-oaks-daylilies.png",
-    width: 315,
-    height: 136,
-  },
-  {
-    name: "Plant Fancy Gardens",
-    src: "/assets/home-redesign/used-by-logos/02-plantfancygardens.png",
-    width: 365,
-    height: 78,
-  },
-  {
-    name: "Fussell Farms",
-    src: "/assets/home-redesign/used-by-logos/03-fussell-farms.png",
-    width: 278,
-    height: 103,
-  },
-  {
-    name: "Wood Branch Daylilies",
-    src: "/assets/home-redesign/used-by-logos/04-wood-branch-daylilies.png",
-    width: 351,
-    height: 95,
-  },
-  {
-    name: "Haley Springs Farm",
-    src: "/assets/home-redesign/used-by-logos/05-haley-springs-farm.png",
-    width: 357,
-    height: 93,
-  },
-  {
-    name: "Graceful Petals Daylilies",
-    src: "/assets/home-redesign/used-by-logos/06-graceful-petals-daylilies.png",
-    width: 333,
-    height: 178,
-  },
-  {
-    name: "Eden on Harrell",
-    src: "/assets/home-redesign/used-by-logos/07-eden-on-harrell.png",
-    width: 356,
-    height: 169,
-  },
-  {
-    name: "Starcrossedseeds",
-    src: "/assets/home-redesign/used-by-logos/08-starcrossedseeds.png",
-    width: 344,
-    height: 66,
-  },
-] as const;
-
 const buyerTestimonials = [
   "The catalog answers my first question: what is actually available?",
   "I can compare listings without digging through old posts or message threads.",
@@ -358,7 +307,7 @@ function LandingVariantTwoWithCatalogs({
           </aside>
         </div>
 
-        <UsedByWave logos={testimonialLogos} />
+        <UsedByWave />
 
         <style jsx global>{`
           @keyframes hero-grid-pan {
