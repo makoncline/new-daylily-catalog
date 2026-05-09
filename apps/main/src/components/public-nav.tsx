@@ -38,7 +38,8 @@ export function PublicHeader() {
   return (
     <header
       className={cn(
-        "z-50 mx-auto flex w-full max-w-[1720px] items-center px-3 py-1 backdrop-blur-xl lg:px-8",
+        "z-50 mx-auto flex w-full items-center px-3 py-1 backdrop-blur-xl lg:px-8",
+        isHeroOverlayPage ? "max-w-[1024px]" : "max-w-[1720px]",
         isHeroOverlayPage
           ? "fixed top-0 left-1/2 -translate-x-1/2 border-none bg-black/6"
           : "min-h-20 border-b border-[#d8dfd2] bg-[#fbfaf4]/92 lg:h-20 lg:py-0",

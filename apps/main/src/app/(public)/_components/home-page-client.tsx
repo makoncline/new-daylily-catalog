@@ -292,7 +292,7 @@ function LandingVariantTwoWithCatalogs({
     .slice(0, 8);
 
   return (
-    <div className="overflow-hidden bg-[#07120e] text-white">
+    <div className="mx-auto max-w-[1024px] overflow-hidden bg-[#07120e] text-white">
       <section className="relative isolate overflow-hidden px-4 pt-24 pb-36 lg:px-8 lg:pt-20 lg:pb-32">
         <div className="absolute inset-0 -z-10 bg-[#07120e]" aria-hidden="true">
           <Image

@@ -247,7 +247,7 @@ export default async function StartMembershipPage() {
   const faqSchema = createFaqSchema(baseUrl);
 
   return (
-    <div className="min-h-svh">
+    <div className="mx-auto min-h-svh max-w-[1024px] overflow-hidden">
       <SellerLandingViewTracker />
 
       <script
