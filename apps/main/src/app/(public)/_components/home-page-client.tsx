@@ -298,7 +298,7 @@ function LandingVariantTwoWithCatalogs({
 }) {
   const featuredCatalogs = catalogs
     .filter((catalog) => catalog.title?.toLowerCase() !== "example")
-    .slice(0, 8);
+    .slice(0, 6);
 
   return (
     <div className="mx-auto overflow-hidden bg-[#07120e] text-white">
