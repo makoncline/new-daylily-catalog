@@ -11,15 +11,9 @@ import path from "node:path";
 import { imageTypeSchema } from "@/types/image";
 import type { db } from "@/server/db";
 import {
-  buildListingImageMutationRefs,
-  buildProfileImageMutationRefs,
-  getSellerCultivarMutationRefs,
-} from "./public-isr-reference-helpers";
-import {
   assertOwnedListing,
   assertOwnedProfile,
   dashboardSyncInputSchema,
-  invalidateDashboardMutation,
   parseDashboardSyncSince,
 } from "./dashboard-db-router-helpers";
 
@@ -93,22 +87,6 @@ async function getOwnedImageWhere(args: { db: DbClient; userId: string }) {
   ];
 
   return ownerFilters.length ? { OR: ownerFilters } : null;
-}
-
-async function getImageInvalidationReferences(args: {
-  db: DbClient;
-  referenceId: string;
-  type: "listing" | "profile";
-  userId: string;
-}) {
-  return args.type === "listing"
-    ? buildListingImageMutationRefs(args.referenceId)
-    : buildProfileImageMutationRefs(args.userId).concat(
-        await getSellerCultivarMutationRefs({
-          db: args.db,
-          userId: args.userId,
-        }),
-      );
 }
 
 export const dashboardDbImageRouter = createTRPCRouter({
@@ -283,17 +261,6 @@ export const dashboardDbImageRouter = createTRPCRouter({
         select: imageSelect,
       });
 
-      await invalidateDashboardMutation({
-        db: ctx.db,
-        requestUrl: ctx.requestUrl,
-        references: await getImageInvalidationReferences({
-          db: ctx.db,
-          referenceId: input.referenceId,
-          type: input.type,
-          userId: ctx.user.id,
-        }),
-      });
-
       return image;
     }),
 
@@ -346,17 +313,6 @@ export const dashboardDbImageRouter = createTRPCRouter({
         where: { id: input.imageId },
         data: { url: input.url },
         select: imageSelect,
-      });
-
-      await invalidateDashboardMutation({
-        db: ctx.db,
-        requestUrl: ctx.requestUrl,
-        references: await getImageInvalidationReferences({
-          db: ctx.db,
-          referenceId: input.referenceId,
-          type: input.type,
-          userId: ctx.user.id,
-        }),
       });
 
       return image;
@@ -418,17 +374,6 @@ export const dashboardDbImageRouter = createTRPCRouter({
         ),
       );
 
-      await invalidateDashboardMutation({
-        db: ctx.db,
-        requestUrl: ctx.requestUrl,
-        references: await getImageInvalidationReferences({
-          db: ctx.db,
-          referenceId: input.referenceId,
-          type: input.type,
-          userId: ctx.user.id,
-        }),
-      });
-
       return { success: true } as const;
     }),
 
@@ -477,17 +422,6 @@ export const dashboardDbImageRouter = createTRPCRouter({
             }),
           ),
         );
-      });
-
-      await invalidateDashboardMutation({
-        db: ctx.db,
-        requestUrl: ctx.requestUrl,
-        references: await getImageInvalidationReferences({
-          db: ctx.db,
-          referenceId: input.referenceId,
-          type: input.type,
-          userId: ctx.user.id,
-        }),
       });
 
       return { success: true } as const;

@@ -1,8 +1,8 @@
 import type { OutputData } from "@editorjs/editorjs";
 import { TRPCError } from "@trpc/server";
-import { db } from "@/server/db";
+import { replicaDb } from "@/server/db";
 import { getLatestDate } from "@/server/db/public-date-utils";
-import { getCachedProUserIds } from "@/server/db/getCachedProUserIds";
+import { getProUserIds } from "@/server/db/getProUserIds";
 import { isPublished } from "@/server/db/public-visibility/filters";
 
 export interface PublicSellerSummary {
@@ -100,7 +100,7 @@ export function buildPublicSellerProfile(args: {
 }
 
 export async function getUserIdFromSlugOrId(slugOrId: string): Promise<string> {
-  const profile = await db.userProfile.findFirst({
+  const profile = await replicaDb.userProfile.findFirst({
     where: {
       slug: slugOrId.toLowerCase(),
     },
@@ -111,7 +111,7 @@ export async function getUserIdFromSlugOrId(slugOrId: string): Promise<string> {
     return profile.userId;
   }
 
-  const user = await db.user.findUnique({
+  const user = await replicaDb.user.findUnique({
     where: { id: slugOrId },
     select: { id: true },
   });
@@ -130,7 +130,7 @@ export async function getListingIdFromSlugOrId(
   slugOrId: string,
   userId: string,
 ): Promise<string> {
-  const listingBySlug = await db.listing.findFirst({
+  const listingBySlug = await replicaDb.listing.findFirst({
     where: {
       userId,
       slug: slugOrId.toLowerCase(),
@@ -143,7 +143,7 @@ export async function getListingIdFromSlugOrId(
     return listingBySlug.id;
   }
 
-  const listingById = await db.listing.findFirst({
+  const listingById = await replicaDb.listing.findFirst({
     where: {
       id: slugOrId,
       userId,
@@ -172,7 +172,7 @@ export async function getPublicSellerSummariesByUserIds(
 
   const activeUserIdSet = toActiveUserIdSet(options?.activeUserIds);
   const [users, resolvedActiveUserIds] = await Promise.all([
-    db.user.findMany({
+    replicaDb.user.findMany({
       where: {
         id: {
           in: userIds,
@@ -221,7 +221,7 @@ export async function getPublicSellerSummariesByUserIds(
         },
       },
     }),
-    activeUserIdSet ? Promise.resolve(null) : getCachedProUserIds(),
+    activeUserIdSet ? Promise.resolve(null) : getProUserIds(),
   ]);
 
   const activeUserIds = activeUserIdSet ?? new Set(resolvedActiveUserIds ?? []);
@@ -279,7 +279,7 @@ export async function getPublicSellerListSummariesByUserIds(userIds: string[]) {
     return grouped;
   }
 
-  const rows = await db.list.findMany({
+  const rows = await replicaDb.list.findMany({
     where: {
       userId: {
         in: userIds,
@@ -330,7 +330,7 @@ export async function getPublicSellerListSummaries(userId: string) {
 }
 
 export async function getPublicSellerContent(userId: string) {
-  const profile = await db.userProfile.findUnique({
+  const profile = await replicaDb.userProfile.findUnique({
     where: {
       userId,
     },
@@ -343,31 +343,18 @@ export async function getPublicSellerContent(userId: string) {
 }
 
 export async function getPublicProfile(userSlugOrId: string) {
-  try {
-    const userId = await getUserIdFromSlugOrId(userSlugOrId);
-    const [summary, content, lists] = await Promise.all([
-      getPublicSellerSummary(userId),
-      getPublicSellerContent(userId),
-      getPublicSellerListSummaries(userId),
-    ]);
+  const userId = await getUserIdFromSlugOrId(userSlugOrId);
+  const [summary, content, lists] = await Promise.all([
+    getPublicSellerSummary(userId),
+    getPublicSellerContent(userId),
+    getPublicSellerListSummaries(userId),
+  ]);
 
-    return buildPublicSellerProfile({
-      summary,
-      content,
-      lists,
-    });
-  } catch (error) {
-    console.error("Error fetching public profile:", error);
-
-    if (error instanceof TRPCError) {
-      throw error;
-    }
-
-    throw new TRPCError({
-      code: "INTERNAL_SERVER_ERROR",
-      message: "Failed to fetch public profile",
-    });
-  }
+  return buildPublicSellerProfile({
+    summary,
+    content,
+    lists,
+  });
 }
 
 export async function getPublicCatalogCardsByUserIds(
@@ -390,14 +377,9 @@ export async function getPublicCatalogCardsByUserIds(
 }
 
 export async function getPublicProfiles() {
-  try {
-    const proUserIds = await getCachedProUserIds();
+  const proUserIds = await getProUserIds();
 
-    return getPublicCatalogCardsByUserIds(proUserIds, {
-      activeUserIds: proUserIds,
-    });
-  } catch (error) {
-    console.error("Error fetching public profiles:", error);
-    throw new Error("Failed to fetch public profiles");
-  }
+  return getPublicCatalogCardsByUserIds(proUserIds, {
+    activeUserIds: proUserIds,
+  });
 }

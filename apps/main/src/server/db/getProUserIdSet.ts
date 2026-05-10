@@ -1,5 +1,5 @@
 import { hasActiveSubscription } from "@/server/stripe/subscription-utils";
-import { db } from "@/server/db";
+import { replicaDb } from "@/server/db";
 
 interface StripeSubscriptionCache {
   status?: string | null;
@@ -25,7 +25,7 @@ export async function getProUserIdSet(
     return new Set();
   }
 
-  const records = await db.keyValue.findMany({
+  const records = await replicaDb.keyValue.findMany({
     where: {
       key: {
         in: usersWithCustomerId.map((user) =>

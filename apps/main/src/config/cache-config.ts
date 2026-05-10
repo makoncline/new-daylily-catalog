@@ -14,16 +14,12 @@ export const CACHE_CONFIG = {
     DAY,
     WEEK,
   },
-  SERVER: {
-    DEFAULT_REVALIDATE_SECONDS: DAY,
-  },
   PUBLIC: {
-    CULTIVAR_PAGE_REVALIDATE_SECONDS: false,
-    STATIC_REVALIDATE_SECONDS: DAY,
-    PROFILE_REVALIDATE_SECONDS: DAY,
+    CULTIVAR_PAGE_REVALIDATE_SECONDS: HOUR,
+    STATIC_REVALIDATE_SECONDS: 30 * MINUTE,
+    PROFILE_REVALIDATE_SECONDS: 15 * MINUTE,
     SITEMAP_REVALIDATE_SECONDS: DAY,
     SEARCH: {
-      SERVER_REVALIDATE_SECONDS: DAY,
       CLIENT_STALE_TIME_MS: DAY * SECOND_IN_MS,
       CLIENT_GC_TIME_MS: DAY * SECOND_IN_MS * 2,
       CLIENT_REFETCH_ON_MOUNT: true as const,
@@ -37,18 +33,5 @@ export const CACHE_CONFIG = {
       REFETCH_ON_WINDOW_FOCUS: false,
       REFETCH_ON_RECONNECT: false,
     },
-  },
-  TAGS: {
-    PUBLIC_PRO_USER_IDS: "public:pro-user-ids",
-    PUBLIC_PROFILES: "public:profiles",
-    PUBLIC_PROFILE: "public:profile",
-    PUBLIC_LISTINGS: "public:listings",
-    PUBLIC_LISTING_DETAIL: "public:listings:detail",
-    PUBLIC_LISTINGS_PAGE: "public:listings:page",
-    PUBLIC_FOR_SALE_COUNT: "public:listings:for-sale-count",
-    PUBLIC_CATALOG_ROUTES: "public:catalog-routes",
-    PUBLIC_CULTIVAR_PAGE: "public:cultivar:page",
-    PUBLIC_CULTIVAR_SEGMENTS: "public:cultivar:segments",
-    PUBLIC_CULTIVAR_SITEMAP: "public:cultivar:sitemap",
   },
 } as const;

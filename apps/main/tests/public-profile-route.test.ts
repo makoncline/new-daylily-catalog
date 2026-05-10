@@ -1,24 +1,24 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const mockGetCachedPublicCatalogRouteEntries = vi.fn();
-const mockGetCachedPublicForSaleListingsCount = vi.fn();
-const mockGetCachedPublicListingCardsByIds = vi.fn();
-const mockGetCachedPublicListingsPageIds = vi.fn();
-const mockGetCachedPublicSellerContent = vi.fn();
-const mockGetCachedPublicSellerLists = vi.fn();
-const mockGetCachedPublicSellerSummary = vi.fn();
-const mockGetCachedPublicUserIdFromSlugOrId = vi.fn();
+const mockGetPublicForSaleListingsCount = vi.fn();
+const mockGetPublicListingCardsByIds = vi.fn();
+const mockGetPublicListingsPageIds = vi.fn();
+const mockGetPublicSellerContent = vi.fn();
+const mockGetPublicSellerListSummaries = vi.fn();
+const mockGetPublicSellerSummary = vi.fn();
+const mockGetUserIdFromSlugOrId = vi.fn();
 
-vi.mock("@/server/db/public-profile-cache", () => ({
-  getCachedPublicCatalogRouteEntries: mockGetCachedPublicCatalogRouteEntries,
-  getCachedPublicForSaleListingsCount: mockGetCachedPublicForSaleListingsCount,
-  getCachedPublicListingCardsByIds: mockGetCachedPublicListingCardsByIds,
-  getCachedPublicListingsPageIds: mockGetCachedPublicListingsPageIds,
-  getCachedPublicProfile: vi.fn(),
-  getCachedPublicSellerContent: mockGetCachedPublicSellerContent,
-  getCachedPublicSellerLists: mockGetCachedPublicSellerLists,
-  getCachedPublicSellerSummary: mockGetCachedPublicSellerSummary,
-  getCachedPublicUserIdFromSlugOrId: mockGetCachedPublicUserIdFromSlugOrId,
+vi.mock("@/server/db/public-listing-read-model", () => ({
+  getPublicForSaleListingsCount: mockGetPublicForSaleListingsCount,
+  getPublicListingCardsByIds: mockGetPublicListingCardsByIds,
+  getPublicListingsPageIds: mockGetPublicListingsPageIds,
+}));
+
+vi.mock("@/server/db/public-seller-read-model", () => ({
+  getPublicSellerContent: mockGetPublicSellerContent,
+  getPublicSellerListSummaries: mockGetPublicSellerListSummaries,
+  getPublicSellerSummary: mockGetPublicSellerSummary,
+  getUserIdFromSlugOrId: mockGetUserIdFromSlugOrId,
 }));
 
 describe("public profile route helpers", () => {
@@ -26,59 +26,27 @@ describe("public profile route helpers", () => {
     vi.clearAllMocks();
   });
 
-  it("generates static params for base and paginated routes", async () => {
-    mockGetCachedPublicCatalogRouteEntries.mockResolvedValue([
-      {
-        slug: "alpha-garden",
-        totalPages: 3,
-        lastModified: new Date("2026-02-17T00:00:00.000Z"),
-      },
-      {
-        slug: "beta-garden",
-        totalPages: 1,
-        lastModified: new Date("2026-02-17T00:00:00.000Z"),
-      },
-    ]);
-
-    const {
-      getPublicProfilePaginatedStaticParams,
-      getPublicProfileStaticParams,
-    } = await import("@/app/(public)/[userSlugOrId]/_lib/public-profile-route");
-
-    const baseParams = await getPublicProfileStaticParams();
-    expect(baseParams).toEqual([
-      { userSlugOrId: "alpha-garden" },
-      { userSlugOrId: "beta-garden" },
-    ]);
-
-    const paginatedParams = await getPublicProfilePaginatedStaticParams();
-    expect(paginatedParams).toEqual([
-      { userSlugOrId: "alpha-garden", page: "2" },
-      { userSlugOrId: "alpha-garden", page: "3" },
-    ]);
-  });
-
   it("uses dedicated public profile page size for paginated profile data", async () => {
-    mockGetCachedPublicUserIdFromSlugOrId.mockResolvedValue("user-1");
-    mockGetCachedPublicSellerSummary.mockResolvedValue({
+    mockGetUserIdFromSlugOrId.mockResolvedValue("user-1");
+    mockGetPublicSellerSummary.mockResolvedValue({
       id: "user-1",
       slug: "alpha-garden",
       listingCount: 11,
     });
-    mockGetCachedPublicSellerContent.mockResolvedValue({ blocks: [] });
-    mockGetCachedPublicSellerLists.mockResolvedValue([]);
-    mockGetCachedPublicListingsPageIds.mockResolvedValue({
+    mockGetPublicSellerContent.mockResolvedValue({ blocks: [] });
+    mockGetPublicSellerListSummaries.mockResolvedValue([]);
+    mockGetPublicListingsPageIds.mockResolvedValue({
       ids: ["listing-1", "listing-2"],
       page: 1,
       pageSize: 100,
       totalCount: 2,
       totalPages: 1,
     });
-    mockGetCachedPublicListingCardsByIds.mockResolvedValue([
+    mockGetPublicListingCardsByIds.mockResolvedValue([
       { id: "listing-1" },
       { id: "listing-2" },
     ]);
-    mockGetCachedPublicForSaleListingsCount.mockResolvedValue(11);
+    mockGetPublicForSaleListingsCount.mockResolvedValue(11);
 
     const { PUBLIC_PROFILE_LISTINGS_PAGE_SIZE } = await import(
       "@/config/constants"
@@ -89,18 +57,16 @@ describe("public profile route helpers", () => {
 
     const pageData = await getPublicProfilePageData("alpha-garden", 1);
 
-    expect(mockGetCachedPublicListingsPageIds).toHaveBeenCalledWith({
+    expect(mockGetPublicListingsPageIds).toHaveBeenCalledWith({
       userSlugOrId: "alpha-garden",
       page: 1,
       pageSize: PUBLIC_PROFILE_LISTINGS_PAGE_SIZE,
     });
-    expect(mockGetCachedPublicListingCardsByIds).toHaveBeenCalledWith([
+    expect(mockGetPublicListingCardsByIds).toHaveBeenCalledWith([
       "listing-1",
       "listing-2",
     ]);
-    expect(mockGetCachedPublicForSaleListingsCount).toHaveBeenCalledWith(
-      "user-1",
-    );
+    expect(mockGetPublicForSaleListingsCount).toHaveBeenCalledWith("user-1");
     expect(pageData.forSaleCount).toBe(11);
   });
 });

@@ -4,15 +4,9 @@ import { Prisma } from "@prisma/client";
 import type { PrismaClient } from "@prisma/client";
 import { protectedProcedure, createTRPCRouter } from "@/server/api/trpc";
 import {
-  buildListMembershipMutationRefs,
-  buildListUpdateRefs,
-  buildSellerMutationRefs,
-} from "./public-isr-reference-helpers";
-import {
   assertOwnedList,
   assertOwnedListing,
   dashboardSyncInputSchema,
-  invalidateDashboardMutation,
   parseDashboardSyncSince,
 } from "./dashboard-db-router-helpers";
 
@@ -90,12 +84,6 @@ export const dashboardDbListRouter = createTRPCRouter({
         select: listSelect,
       });
 
-      await invalidateDashboardMutation({
-        db: ctx.db,
-        requestUrl: ctx.requestUrl,
-        references: buildSellerMutationRefs(ctx.user.id),
-      });
-
       return list;
     }),
 
@@ -164,15 +152,6 @@ export const dashboardDbListRouter = createTRPCRouter({
         select: listSelect,
       });
 
-      await invalidateDashboardMutation({
-        db: ctx.db,
-        requestUrl: ctx.requestUrl,
-        references: buildListUpdateRefs({
-          listingIds: list?.listings.map((listing) => listing.id) ?? [],
-          userId: ctx.user.id,
-        }),
-      });
-
       return list;
     }),
 
@@ -197,12 +176,6 @@ export const dashboardDbListRouter = createTRPCRouter({
       }
 
       await ctx.db.list.delete({ where: { id: list.id } });
-
-      await invalidateDashboardMutation({
-        db: ctx.db,
-        requestUrl: ctx.requestUrl,
-        references: buildSellerMutationRefs(ctx.user.id),
-      });
 
       return { id: list.id } as const;
     }),
@@ -229,15 +202,6 @@ export const dashboardDbListRouter = createTRPCRouter({
         select: listSelect,
       });
 
-      await invalidateDashboardMutation({
-        db: ctx.db,
-        requestUrl: ctx.requestUrl,
-        references: buildListMembershipMutationRefs({
-          listingId: input.listingId,
-          userId: ctx.user.id,
-        }),
-      });
-
       return updated;
     }),
 
@@ -261,15 +225,6 @@ export const dashboardDbListRouter = createTRPCRouter({
           listings: { disconnect: { id: input.listingId } },
         },
         select: listSelect,
-      });
-
-      await invalidateDashboardMutation({
-        db: ctx.db,
-        requestUrl: ctx.requestUrl,
-        references: buildListMembershipMutationRefs({
-          listingId: input.listingId,
-          userId: ctx.user.id,
-        }),
       });
 
       return updated;

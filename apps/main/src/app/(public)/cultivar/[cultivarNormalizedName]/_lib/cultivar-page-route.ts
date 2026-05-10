@@ -5,30 +5,34 @@ import { IMAGES } from "@/lib/constants/images";
 import { getOptimizedMetaImageUrl } from "@/lib/utils/cloudflareLoader";
 import { fromCultivarRouteSegment } from "@/lib/utils/cultivar-utils";
 import { getCanonicalBaseUrl } from "@/lib/utils/getBaseUrl";
-import { getCachedPublicCultivarPage } from "@/server/db/public-cache";
+import { getPublicCultivarPage } from "@/server/db/public-cultivar-read-model";
 import {
   buildNoIndexMetadata,
   buildPublicPageMetadata,
 } from "@/app/(public)/_seo/public-seo";
 
 export type CultivarPageData = NonNullable<
-  Awaited<ReturnType<typeof getCachedPublicCultivarPage>>
+  Awaited<ReturnType<typeof getPublicCultivarPage>>
 >;
 
-export const getCultivarPageRouteArtifacts = cache(async function getCultivarPageRouteArtifacts(
-  cultivarNormalizedName: string,
-): Promise<CultivarPageData | null> {
-  if (!fromCultivarRouteSegment(cultivarNormalizedName)) {
-    return null;
-  }
+export const getCultivarPageRouteArtifacts = cache(
+  async function getCultivarPageRouteArtifacts(
+    cultivarNormalizedName: string,
+  ): Promise<CultivarPageData | null> {
+    if (!fromCultivarRouteSegment(cultivarNormalizedName)) {
+      return null;
+    }
 
-  return getCachedPublicCultivarPage(cultivarNormalizedName);
-});
+    return getPublicCultivarPage(cultivarNormalizedName);
+  },
+);
 
 export async function getCultivarPageMetadata(
   cultivarNormalizedName: string,
 ): Promise<Metadata> {
-  const cultivarPage = await getCultivarPageRouteArtifacts(cultivarNormalizedName);
+  const cultivarPage = await getCultivarPageRouteArtifacts(
+    cultivarNormalizedName,
+  );
 
   if (!cultivarPage) {
     return buildNoIndexMetadata({

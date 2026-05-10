@@ -3,12 +3,7 @@ import { TRPCError } from "@trpc/server";
 import { createTRPCRouter, protectedProcedure } from "@/server/api/trpc";
 import { slugSchema } from "@/types/schemas/profile";
 import { isValidSlug } from "@/lib/utils/slugify";
-import {
-  buildProfileMutationRefs,
-  getSellerCultivarMutationRefs,
-} from "./public-isr-reference-helpers";
 import type { PrismaClient } from "@prisma/client";
-import { invalidateDashboardMutation } from "./dashboard-db-router-helpers";
 
 const profileSelect = {
   id: true,
@@ -92,11 +87,6 @@ export const dashboardDbUserProfileRouter = createTRPCRouter({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      const existingProfile = await ctx.db.userProfile.findUnique({
-        where: { userId: ctx.user.id },
-        select: { slug: true },
-      });
-
       const shouldProcessSlug = Object.prototype.hasOwnProperty.call(
         input.data,
         "slug",
@@ -144,21 +134,6 @@ export const dashboardDbUserProfileRouter = createTRPCRouter({
         select: profileSelect,
       });
 
-      await invalidateDashboardMutation({
-        db: ctx.db,
-        requestUrl: ctx.requestUrl,
-        references: buildProfileMutationRefs(ctx.user.id).concat(
-          await getSellerCultivarMutationRefs({
-            db: ctx.db,
-            userId: ctx.user.id,
-          }),
-        ),
-        extraPaths:
-          existingProfile?.slug && existingProfile.slug !== profile.slug
-            ? [{ path: `/${existingProfile.slug}` }]
-            : undefined,
-      });
-
       return profile;
     }),
 
@@ -176,17 +151,6 @@ export const dashboardDbUserProfileRouter = createTRPCRouter({
           content: input.content,
         },
         select: profileSelect,
-      });
-
-      await invalidateDashboardMutation({
-        db: ctx.db,
-        requestUrl: ctx.requestUrl,
-        references: buildProfileMutationRefs(ctx.user.id).concat(
-          await getSellerCultivarMutationRefs({
-            db: ctx.db,
-            userId: ctx.user.id,
-          }),
-        ),
       });
 
       return profile;

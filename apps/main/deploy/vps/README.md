@@ -12,6 +12,13 @@ Server paths:
 - `apps/main/deploy/vps/caddy-route.caddy` -> `/srv/stacks/proxy/sites/20-daylilycatalog.caddy`
 - `apps/main/deploy/vps/.env.example` -> reference only; live runtime env stays in `/srv/stacks/daylilycatalog/.env`
 
+Embedded Turso replica:
+
+- Leave `DATABASE_URL` set to the remote `libsql://...` Turso URL.
+- Set `TURSO_EMBEDDED_REPLICA_URL=file:/data/turso-replica.db` on the VPS to serve public page reads from the local replica while dashboard reads and all writes continue to go to Turso.
+- `TURSO_EMBEDDED_REPLICA_SYNC_INTERVAL_SECONDS` controls periodic pull sync; the template uses 600 seconds because only public pages read from the replica.
+- `compose.yaml` mounts `/srv/stacks/daylilycatalog/data` at `/data` so the replica file survives container replacement.
+
 Config sync:
 
 - `/etc/bootstrap/config-sync/daylilycatalog.env` should set `CONFIG_SUBDIR=apps/main/deploy/vps`.
