@@ -7,14 +7,7 @@ import {
 } from "lucide-react";
 import { CACHE_CONFIG } from "@/config/cache-config";
 
-export { CACHE_CONFIG } from "@/config/cache-config";
-
-export const TIME = {
-  HOUR_IN_MS: 1000 * 60 * 60,
-  DAY_IN_MS: 1000 * 60 * 60 * 24,
-} as const;
-
-export const UPLOAD_CONFIG = {
+const UPLOAD_CONFIG = {
   MAX_FILE_SIZE: 10 * 1024 * 1024, // 10MB
   MAX_IMAGES_PER_LISTING: 4,
   MAX_IMAGES_PER_PROFILE: 4,
@@ -106,7 +99,7 @@ export const METADATA_CONFIG = {
   LOCALE: "en_US",
 } as const;
 
-export const PUBLIC_ROUTES_CONFIG = {
+const PUBLIC_ROUTES_CONFIG = {
   // Default: only prebuild cultivar pages that currently have linked listings.
   // Set to true and redeploy to prebuild pages for all cultivar references.
   GENERATE_ALL_CULTIVAR_PAGES: false,

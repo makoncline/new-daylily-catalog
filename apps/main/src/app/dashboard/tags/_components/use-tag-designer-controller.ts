@@ -99,7 +99,9 @@ export function useTagDesignerController({
     if (!Array.isArray(storedUserTemplates)) return [];
     return storedUserTemplates
       .map((template) => sanitizeStoredTemplate(template))
-      .filter((template): template is StoredTagLayoutTemplate => template !== null);
+      .filter(
+        (template): template is StoredTagLayoutTemplate => template !== null,
+      );
   }, [storedUserTemplates]);
 
   const builtinTemplates = React.useMemo<ResolvedTagLayoutTemplate[]>(
@@ -127,7 +129,9 @@ export function useTagDesignerController({
 
   const matchedTemplate = React.useMemo(() => {
     const signature = createLayoutSignature(state);
-    return allTemplates.find((template) => template.signature === signature) ?? null;
+    return (
+      allTemplates.find((template) => template.signature === signature) ?? null
+    );
   }, [allTemplates, state]);
 
   const matchedTemplateName = matchedTemplate?.name ?? "custom";
@@ -512,10 +516,7 @@ export function useTagDesignerController({
       setSheetCopiesPerLabel(
         Math.min(
           MAX_SHEET_COPIES_PER_LABEL,
-          Math.max(
-            MIN_SHEET_COPIES_PER_LABEL,
-            Math.floor(nextCopiesPerLabel),
-          ),
+          Math.max(MIN_SHEET_COPIES_PER_LABEL, Math.floor(nextCopiesPerLabel)),
         ),
       );
     },
@@ -558,7 +559,9 @@ export function useTagDesignerController({
 
   const isSheetExportReady = React.useCallback(() => {
     if (!listings.length) {
-      toast.error("Select at least one listing in the table before downloading.");
+      toast.error(
+        "Select at least one listing in the table before downloading.",
+      );
       return false;
     }
     if (!sheetMetrics.isValid) {
@@ -657,7 +660,9 @@ export function useTagDesignerController({
   const handleDownloadPages = React.useCallback(() => {
     if (isPreparingDownload) return;
     if (!listings.length) {
-      toast.error("Select at least one listing in the table before downloading.");
+      toast.error(
+        "Select at least one listing in the table before downloading.",
+      );
       return;
     }
 
@@ -679,7 +684,9 @@ export function useTagDesignerController({
   const handleDownloadPdf = React.useCallback(async () => {
     if (isPreparingDownload) return;
     if (!listings.length) {
-      toast.error("Select at least one listing in the table before downloading.");
+      toast.error(
+        "Select at least one listing in the table before downloading.",
+      );
       return;
     }
 
@@ -707,7 +714,9 @@ export function useTagDesignerController({
   const handleDownloadImages = React.useCallback(async () => {
     if (isPreparingDownload) return;
     if (!listings.length) {
-      toast.error("Select at least one listing in the table before downloading.");
+      toast.error(
+        "Select at least one listing in the table before downloading.",
+      );
       return;
     }
 

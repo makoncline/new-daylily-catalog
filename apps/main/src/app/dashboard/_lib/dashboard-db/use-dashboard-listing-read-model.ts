@@ -117,7 +117,10 @@ export function useDashboardListingReadModel(): DashboardListingReadModel {
     });
 
   const listsByListingId = useMemo(() => buildListsByListingId(lists), [lists]);
-  const imagesByListingId = useMemo(() => buildImagesByListingId(images), [images]);
+  const imagesByListingId = useMemo(
+    () => buildImagesByListingId(images),
+    [images],
+  );
   const cultivarReferenceById = useMemo(
     () => buildCultivarReferenceById(cultivarReferences),
     [cultivarReferences],

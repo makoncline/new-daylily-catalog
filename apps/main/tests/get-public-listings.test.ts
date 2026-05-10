@@ -96,7 +96,8 @@ describe("getPublicListings helpers", () => {
       return;
     }
 
-    process.env.NEXT_PUBLIC_USE_V2_CULTIVAR_DISPLAY_DATA = originalV2DisplayFlag;
+    process.env.NEXT_PUBLIC_USE_V2_CULTIVAR_DISPLAY_DATA =
+      originalV2DisplayFlag;
   });
 
   it("uses the same deterministic sorted ids for cursor pagination", async () => {

@@ -15,20 +15,24 @@ export type CultivarPageData = NonNullable<
   Awaited<ReturnType<typeof getCachedPublicCultivarPage>>
 >;
 
-export const getCultivarPageRouteArtifacts = cache(async function getCultivarPageRouteArtifacts(
-  cultivarNormalizedName: string,
-): Promise<CultivarPageData | null> {
-  if (!fromCultivarRouteSegment(cultivarNormalizedName)) {
-    return null;
-  }
+export const getCultivarPageRouteArtifacts = cache(
+  async function getCultivarPageRouteArtifacts(
+    cultivarNormalizedName: string,
+  ): Promise<CultivarPageData | null> {
+    if (!fromCultivarRouteSegment(cultivarNormalizedName)) {
+      return null;
+    }
 
-  return getCachedPublicCultivarPage(cultivarNormalizedName);
-});
+    return getCachedPublicCultivarPage(cultivarNormalizedName);
+  },
+);
 
 export async function getCultivarPageMetadata(
   cultivarNormalizedName: string,
 ): Promise<Metadata> {
-  const cultivarPage = await getCultivarPageRouteArtifacts(cultivarNormalizedName);
+  const cultivarPage = await getCultivarPageRouteArtifacts(
+    cultivarNormalizedName,
+  );
 
   if (!cultivarPage) {
     return buildNoIndexMetadata({

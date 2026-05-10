@@ -5,4 +5,3 @@ export const dashboardDbUserRouter = createTRPCRouter({
     return ctx.user;
   }),
 });
-

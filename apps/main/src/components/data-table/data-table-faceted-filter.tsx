@@ -58,7 +58,7 @@ export function DataTableFacetedFilter<TData>({
     <Popover>
       <PopoverTrigger asChild>
         <Button variant="outline" size="sm" className="h-8 border-dashed">
-          <PlusCircle className="mr-2 h-4 w-4" />
+          <PlusCircle className="mr-2 size-4" />
           {title}
           {selectedValues?.size > 0 && (
             <>
@@ -69,17 +69,19 @@ export function DataTableFacetedFilter<TData>({
               >
                 {selectedValues.size}
               </Badge>
-              <div className="hidden space-x-1 lg:flex">
+              <div className="hidden gap-x-1 lg:flex">
                 {selectedValues.size === 1 ? (
-                  options
-                    .filter((option) => selectedValues.has(option.value))
-                    .map((option) => (
-                      <TruncatedListBadge
-                        key={option.value}
-                        name={option.label}
-                        className="rounded-sm px-1 font-normal"
-                      />
-                    ))
+                  options.flatMap((option) =>
+                    selectedValues.has(option.value)
+                      ? [
+                          <TruncatedListBadge
+                            key={option.value}
+                            name={option.label}
+                            className="rounded-sm px-1 font-normal"
+                          />,
+                        ]
+                      : [],
+                  )
                 ) : (
                   <Badge
                     variant="secondary"
@@ -119,16 +121,16 @@ export function DataTableFacetedFilter<TData>({
                   >
                     <div
                       className={cn(
-                        "border-primary mr-2 flex h-4 w-4 items-center justify-center rounded-sm border",
+                        "border-primary mr-2 flex size-4 items-center justify-center rounded-sm border",
                         isSelected
                           ? "bg-primary text-primary-foreground"
                           : "opacity-50 [&_svg]:invisible",
                       )}
                     >
-                      <Check className={cn("h-4 w-4")} />
+                      <Check className={cn("size-4")} />
                     </div>
                     {option.icon && (
-                      <option.icon className="text-muted-foreground mr-2 h-4 w-4" />
+                      <option.icon className="text-muted-foreground mr-2 size-4" />
                     )}
                     <span>{option.label}</span>
                   </CommandItem>

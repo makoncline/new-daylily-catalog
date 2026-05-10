@@ -18,11 +18,7 @@ interface UseSeededDashboardDbQueryArgs<TContext extends Context = Context> {
 export function useSeededDashboardDbQuery<
   TItem extends object,
   TContext extends Context = Context,
->({
-  deps,
-  query,
-  queryKey,
-}: UseSeededDashboardDbQueryArgs<TContext>) {
+>({ deps, query, queryKey }: UseSeededDashboardDbQueryArgs<TContext>) {
   const liveQueryDeps = deps ? [...deps] : undefined;
   const { data: liveData = [], isReady } = useLiveQuery(query, liveQueryDeps);
   const seededData = getQueryClient().getQueryData<TItem[]>(queryKey) ?? [];

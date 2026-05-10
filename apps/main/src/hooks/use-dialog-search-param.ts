@@ -32,7 +32,7 @@ function buildCurrentUrl(
   return nextQuery ? `${pathname}?${nextQuery}` : pathname;
 }
 
-export function buildDialogSearchParamUrl(
+function buildDialogSearchParamUrl(
   pathname: string | null,
   searchParams: Pick<SearchParamLike, "toString">,
   paramName: string,

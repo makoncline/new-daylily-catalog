@@ -3,9 +3,11 @@ export function applyWhereIn<T extends Record<string, unknown>>(
   args: unknown,
   field: keyof T & string,
 ) {
-  const allowed = (args as {
-    where?: Partial<Record<keyof T & string, { in?: unknown[] }>>;
-  })?.where?.[field]?.in;
+  const allowed = (
+    args as {
+      where?: Partial<Record<keyof T & string, { in?: unknown[] }>>;
+    }
+  )?.where?.[field]?.in;
 
   if (!Array.isArray(allowed)) {
     return rows;

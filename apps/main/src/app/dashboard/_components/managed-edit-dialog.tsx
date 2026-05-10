@@ -68,14 +68,14 @@ export function ManagedEditDialog<
     onClose();
   };
 
+  // eslint-disable-next-line react-hooks/refs -- renderForm receives the ref object; it does not read formRef.current during render.
+  const renderedForm = entityId ? renderForm(entityId, formRef, onClose) : null;
   const content = entityId ? (
     <ErrorBoundary
       fallback={<ErrorFallback resetErrorBoundary={onClose} />}
       onError={onError}
     >
-      <Suspense fallback={fallback}>
-        {renderForm(entityId, formRef, onClose)}
-      </Suspense>
+      <Suspense fallback={fallback}>{renderedForm}</Suspense>
     </ErrorBoundary>
   ) : null;
 

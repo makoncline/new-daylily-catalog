@@ -55,14 +55,21 @@ export default async function CatalogSearchPage({
   params,
   searchParams,
 }: CatalogSearchPageProps) {
-  const { userSlugOrId } = await params;
-  const rawSearchParams = await searchParams;
-  const searchParamsAsUrl = toPublicCatalogSearchParams(rawSearchParams);
-
-  const [profileResult, listingsResult] = await Promise.all([
+  const profileResultPromise = params.then(({ userSlugOrId }) =>
     tryCatch(getCachedPublicProfile(userSlugOrId)),
+  );
+  const listingsResultPromise = params.then(({ userSlugOrId }) =>
     tryCatch(getCachedInitialListings(userSlugOrId)),
-  ]);
+  );
+  const [resolvedParams, rawSearchParams, profileResult, listingsResult] =
+    await Promise.all([
+      params,
+      searchParams,
+      profileResultPromise,
+      listingsResultPromise,
+    ]);
+  const { userSlugOrId } = resolvedParams;
+  const searchParamsAsUrl = toPublicCatalogSearchParams(rawSearchParams);
 
   if (getErrorCode(profileResult.error) === "NOT_FOUND") {
     notFound();

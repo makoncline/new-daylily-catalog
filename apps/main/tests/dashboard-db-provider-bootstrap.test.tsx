@@ -370,7 +370,9 @@ describe("dashboardDb provider bootstrap", () => {
         expect(
           screen.getByText("Unable to load dashboard data"),
         ).toBeInTheDocument();
-        expect(screen.getByText("Please refresh the page.")).toBeInTheDocument();
+        expect(
+          screen.getByText("Please refresh the page."),
+        ).toBeInTheDocument();
       });
 
       expect(screen.queryByTestId("dashboard-ready")).toBeNull();

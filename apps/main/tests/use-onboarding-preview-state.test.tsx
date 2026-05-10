@@ -48,9 +48,7 @@ function buildArgs(
 
 describe("useOnboardingPreviewState", () => {
   it("returns placeholders and fallback previews for an empty draft", () => {
-    const { result } = renderHook(() =>
-      useOnboardingPreviewState(buildArgs()),
-    );
+    const { result } = renderHook(() => useOnboardingPreviewState(buildArgs()));
 
     expect(result.current.profileNamePreview).toBe(
       DEFAULT_GARDEN_NAME_PLACEHOLDER,

@@ -102,11 +102,10 @@ function MembershipViewer({
         {allLists
           .map((l: any) => {
             const titles = (l.listings ?? [])
-              .map(
-                ({ id }: any) =>
-                  allListings.find((x: any) => x.id === id)?.title,
-              )
-              .filter(Boolean)
+              .flatMap(({ id }: any) => {
+                const title = allListings.find((x: any) => x.id === id)?.title;
+                return title ? [title] : [];
+              })
               .join("|");
             return `${l.title}:${titles}`;
           })

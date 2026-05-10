@@ -13,9 +13,12 @@ vi.mock("@/app/(public)/_components/public-breadcrumbs", () => ({
   PublicBreadcrumbs: () => null,
 }));
 
-vi.mock("@/app/(public)/[userSlugOrId]/_components/catalog-seo-listings", () => ({
-  CatalogSeoListings: () => null,
-}));
+vi.mock(
+  "@/app/(public)/[userSlugOrId]/_components/catalog-seo-listings",
+  () => ({
+    CatalogSeoListings: () => null,
+  }),
+);
 
 vi.mock("@/app/(public)/[userSlugOrId]/_components/profile-content", () => ({
   ProfileContent: () => null,
@@ -76,7 +79,9 @@ describe("profile page metadata", () => {
   });
 
   it("marks direct-access id root routes as noindex while keeping the slug canonical", async () => {
-    const { generateMetadata } = await import("@/app/(public)/[userSlugOrId]/page");
+    const { generateMetadata } = await import(
+      "@/app/(public)/[userSlugOrId]/page"
+    );
 
     const metadata = await generateMetadata({
       params: Promise.resolve({ userSlugOrId: "87" }),

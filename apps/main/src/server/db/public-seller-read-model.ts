@@ -272,7 +272,7 @@ export async function getPublicSellerSummary(
   return summary;
 }
 
-export async function getPublicSellerListSummariesByUserIds(userIds: string[]) {
+async function getPublicSellerListSummariesByUserIds(userIds: string[]) {
   const grouped = new Map<string, PublicSellerListSummary[]>();
 
   if (userIds.length === 0) {
@@ -340,34 +340,6 @@ export async function getPublicSellerContent(userId: string) {
   });
 
   return parseProfileContent(profile?.content ?? null);
-}
-
-export async function getPublicProfile(userSlugOrId: string) {
-  try {
-    const userId = await getUserIdFromSlugOrId(userSlugOrId);
-    const [summary, content, lists] = await Promise.all([
-      getPublicSellerSummary(userId),
-      getPublicSellerContent(userId),
-      getPublicSellerListSummaries(userId),
-    ]);
-
-    return buildPublicSellerProfile({
-      summary,
-      content,
-      lists,
-    });
-  } catch (error) {
-    console.error("Error fetching public profile:", error);
-
-    if (error instanceof TRPCError) {
-      throw error;
-    }
-
-    throw new TRPCError({
-      code: "INTERNAL_SERVER_ERROR",
-      message: "Failed to fetch public profile",
-    });
-  }
 }
 
 export async function getPublicCatalogCardsByUserIds(

@@ -7,8 +7,11 @@ import { buildDashboardStats } from "@/app/dashboard/_lib/build-dashboard-stats"
 import { useDashboardListingReadModel } from "@/app/dashboard/_lib/dashboard-db/use-dashboard-listing-read-model";
 
 export default function DashboardPage() {
-  const { listingRows: listings, lists, images } =
-    useDashboardListingReadModel();
+  const {
+    listingRows: listings,
+    lists,
+    images,
+  } = useDashboardListingReadModel();
 
   const { data: profile = null } = api.dashboardDb.userProfile.get.useQuery(
     undefined,

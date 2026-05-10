@@ -1,3 +1,4 @@
+// eslint-disable react/no-danger -- intentional static JSON-LD, style, or compatibility script injection.
 import { notFound } from "next/navigation";
 import { type Metadata } from "next";
 import { MainContent } from "@/app/(public)/_components/main-content";
@@ -40,7 +41,9 @@ export async function generateMetadata({
 export default async function CultivarPage({ params }: PageProps) {
   const { cultivarNormalizedName } = await params;
 
-  const cultivarPage = await getCultivarPageRouteArtifacts(cultivarNormalizedName);
+  const cultivarPage = await getCultivarPageRouteArtifacts(
+    cultivarNormalizedName,
+  );
   if (!cultivarPage) {
     notFound();
   }

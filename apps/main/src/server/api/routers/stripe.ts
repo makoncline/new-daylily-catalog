@@ -1,9 +1,7 @@
 import { createTRPCRouter, protectedProcedure } from "@/server/api/trpc";
 import { TRPCError } from "@trpc/server";
 import { env, requireEnv } from "@/env";
-import {
-  getStripeSubscription,
-} from "@/server/stripe/sync-subscription";
+import { getStripeSubscription } from "@/server/stripe/sync-subscription";
 import { getRequestBaseUrl } from "@/lib/utils/getBaseUrl";
 import { hasActiveSubscription } from "@/server/stripe/subscription-utils";
 import { SUBSCRIPTION_CONFIG } from "@/config/subscription-config";

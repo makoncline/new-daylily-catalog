@@ -15,7 +15,7 @@ export function getColumns(): ColumnDef<ListingData>[] {
       id: "select",
       header: ({ table }) => (
         <Checkbox
-          className="h-4 w-4"
+          className="size-4"
           checked={
             table.getIsAllPageRowsSelected() ||
             (table.getIsSomePageRowsSelected() && "indeterminate")
@@ -26,7 +26,7 @@ export function getColumns(): ColumnDef<ListingData>[] {
       ),
       cell: ({ row }) => (
         <Checkbox
-          className="h-4 w-4"
+          className="size-4"
           checked={row.getIsSelected()}
           onCheckedChange={(value) => row.toggleSelected(!!value)}
           aria-label="Select row"

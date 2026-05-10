@@ -8,7 +8,9 @@ export class StartOnboardingPage {
   constructor(page: Page) {
     this.page = page;
     this.container = page.getByTestId("start-onboarding-page");
-    this.primaryActionButton = page.getByTestId("start-onboarding-primary-action");
+    this.primaryActionButton = page.getByTestId(
+      "start-onboarding-primary-action",
+    );
   }
 
   async isReady() {

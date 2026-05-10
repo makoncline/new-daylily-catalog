@@ -10,6 +10,8 @@ import { P } from "@/components/typography";
 
 export type List = RouterOutputs["dashboardDb"]["list"]["list"][number];
 
+const LIST_DATE_FORMATTER = new Intl.DateTimeFormat();
+
 export const columns: ColumnDef<List>[] = [
   {
     id: "title",
@@ -77,7 +79,7 @@ export const columns: ColumnDef<List>[] = [
     ),
     cell: ({ row }) => (
       <P className="whitespace-nowrap">
-        {new Date(row.getValue("createdAt")).toLocaleDateString()}
+        {LIST_DATE_FORMATTER.format(row.getValue("createdAt"))}
       </P>
     ),
     enableSorting: true,
@@ -96,7 +98,7 @@ export const columns: ColumnDef<List>[] = [
     ),
     cell: ({ row }) => (
       <P className="whitespace-nowrap">
-        {new Date(row.getValue("updatedAt")).toLocaleDateString()}
+        {LIST_DATE_FORMATTER.format(row.getValue("updatedAt"))}
       </P>
     ),
     enableSorting: true,

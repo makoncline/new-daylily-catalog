@@ -2,10 +2,10 @@
 
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
+import { Suspense } from "react";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 import { parsePositiveInteger } from "@/lib/public-catalog-url-state";
-import { Skeleton } from "@/components/ui/skeleton";
 
 interface CatalogNavProps {
   canonicalUserSlug: string;
@@ -32,11 +32,12 @@ function getCatalogSearchHref(canonicalUserSlug: string, page: number) {
   return `/${canonicalUserSlug}/search`;
 }
 
-export function CatalogNav({ canonicalUserSlug }: CatalogNavProps) {
+function CatalogNavInner({ canonicalUserSlug }: CatalogNavProps) {
   const searchParams = useSearchParams();
+  const getSearchParam = searchParams.get.bind(searchParams);
   const pathname = usePathname();
   const pageFromPathname = getPageFromPathname(pathname);
-  const pageFromQuery = parsePositiveInteger(searchParams.get("page"), 1);
+  const pageFromQuery = parsePositiveInteger(getSearchParam("page"), 1);
   const currentPage = pageFromPathname ?? pageFromQuery;
   const searchHref = getCatalogSearchHref(canonicalUserSlug, currentPage);
   const sections = [
@@ -97,6 +98,14 @@ export function CatalogNav({ canonicalUserSlug }: CatalogNavProps) {
   );
 }
 
+export function CatalogNav(props: CatalogNavProps) {
+  return (
+    <Suspense fallback={null}>
+      <CatalogNavInner {...props} />
+    </Suspense>
+  );
+}
+
 function NavLink({
   section,
   isActive,
@@ -112,7 +121,7 @@ function NavLink({
       className={cn(
         "flex h-7 items-center justify-center rounded-full",
         "text-center text-sm font-medium",
-        "text-muted-foreground transition-colors hover:text-primary",
+        "text-muted-foreground hover:text-primary transition-colors",
         "data-[active=true]:bg-muted data-[active=true]:text-primary",
       )}
       data-active={isActive}
@@ -120,17 +129,5 @@ function NavLink({
     >
       {section.name}
     </Link>
-  );
-}
-
-export function CatalogNavSkeleton() {
-  return (
-    <div className="flex items-center gap-4">
-      <Skeleton className="h-7 w-14" />
-      <Skeleton className="h-7 w-14" />
-      <Skeleton className="h-7 w-14" />
-      <Skeleton className="h-7 w-14" />
-      <Skeleton className="h-7 w-24" />
-    </div>
   );
 }

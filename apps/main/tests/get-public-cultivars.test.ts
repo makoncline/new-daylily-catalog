@@ -52,7 +52,8 @@ describe("getPublicCultivarPage", () => {
       return;
     }
 
-    process.env.NEXT_PUBLIC_USE_V2_CULTIVAR_DISPLAY_DATA = originalV2DisplayFlag;
+    process.env.NEXT_PUBLIC_USE_V2_CULTIVAR_DISPLAY_DATA =
+      originalV2DisplayFlag;
   });
 
   it("handles cache-serialized cultivar listing data", () => {
@@ -98,7 +99,9 @@ describe("getPublicCultivarPage", () => {
           lists: [],
         },
       ]),
-    ) as Parameters<typeof buildPublicCultivarOffersFromListingCards>[0]["listingCards"];
+    ) as Parameters<
+      typeof buildPublicCultivarOffersFromListingCards
+    >[0]["listingCards"];
 
     const summariesByUserId = new Map([
       [
@@ -135,10 +138,9 @@ describe("getPublicCultivarPage", () => {
       summariesByUserId,
     });
 
-    expect(offers.offers.gardenCards[0]?.offers.map((offer) => offer.id)).toEqual([
-      "listing-top-a",
-      "listing-top-b",
-    ]);
+    expect(
+      offers.offers.gardenCards[0]?.offers.map((offer) => offer.id),
+    ).toEqual(["listing-top-a", "listing-top-b"]);
     expect(offers.freshness.offersUpdatedAt).toEqual(
       new Date("2026-01-15T00:00:00.000Z"),
     );
@@ -263,7 +265,10 @@ describe("getPublicCultivarPage", () => {
     });
 
     mockGetCachedProUserIds.mockResolvedValue(["user-alpha", "user-top"]);
-    mockGetActiveProUserIdsForUserIds.mockResolvedValue(["user-alpha", "user-top"]);
+    mockGetActiveProUserIdsForUserIds.mockResolvedValue([
+      "user-alpha",
+      "user-top",
+    ]);
 
     const sellerRows = [
       {

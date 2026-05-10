@@ -36,8 +36,10 @@ export const dashboardDbListingRouter = createTRPCRouter({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      let cultivarReference: { id: string; normalizedName: string | null } | null =
-        null;
+      let cultivarReference: {
+        id: string;
+        normalizedName: string | null;
+      } | null = null;
 
       if (input.cultivarReferenceId) {
         cultivarReference = await ctx.db.cultivarReference.findUnique({
@@ -92,7 +94,10 @@ export const dashboardDbListingRouter = createTRPCRouter({
         select: listingSelect,
       });
       if (!listing) {
-        throw new TRPCError({ code: "NOT_FOUND", message: "Listing not found" });
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Listing not found",
+        });
       }
       return listing;
     }),
@@ -138,7 +143,10 @@ export const dashboardDbListingRouter = createTRPCRouter({
         },
       });
       if (!listing) {
-        throw new TRPCError({ code: "NOT_FOUND", message: "Listing not found" });
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Listing not found",
+        });
       }
 
       if (
@@ -216,7 +224,10 @@ export const dashboardDbListingRouter = createTRPCRouter({
         },
       });
       if (!listing) {
-        throw new TRPCError({ code: "NOT_FOUND", message: "Listing not found" });
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Listing not found",
+        });
       }
 
       const updated = await ctx.db.listing.update({
@@ -314,11 +325,15 @@ export const dashboardDbListingRouter = createTRPCRouter({
         },
       });
       if (!existing) {
-        throw new TRPCError({ code: "NOT_FOUND", message: "Listing not found" });
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Listing not found",
+        });
       }
 
       const shouldRegenerateSlug =
-        typeof input.data.title === "string" && input.data.title !== existing.title;
+        typeof input.data.title === "string" &&
+        input.data.title !== existing.title;
       const nextSlug = shouldRegenerateSlug
         ? await generateUniqueSlug(
             input.data.title!,
@@ -336,7 +351,10 @@ export const dashboardDbListingRouter = createTRPCRouter({
         },
       });
       if (result.count === 0) {
-        throw new TRPCError({ code: "NOT_FOUND", message: "Listing not found" });
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Listing not found",
+        });
       }
 
       const updated = await ctx.db.listing.findUnique({
@@ -378,7 +396,10 @@ export const dashboardDbListingRouter = createTRPCRouter({
         },
       });
       if (!listing) {
-        throw new TRPCError({ code: "NOT_FOUND", message: "Listing not found" });
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Listing not found",
+        });
       }
 
       // Deleting a listing clears join rows, but does not automatically bump List.updatedAt.

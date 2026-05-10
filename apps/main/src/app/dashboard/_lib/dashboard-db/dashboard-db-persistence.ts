@@ -72,7 +72,7 @@ interface DashboardDbRefreshGuard {
   isActive?: () => boolean;
 }
 
-export class DashboardRefreshLockCancelledError extends Error {
+class DashboardRefreshLockCancelledError extends Error {
   constructor() {
     super("Dashboard refresh work was cancelled");
     this.name = "DashboardRefreshLockCancelledError";
@@ -189,7 +189,7 @@ async function idbDelete(key: IDBValidKey): Promise<void> {
   });
 }
 
-export async function readDashboardDbSnapshot(userId: string) {
+async function readDashboardDbSnapshot(userId: string) {
   const snapshot = await idbGet<DashboardDbPersistedSnapshot>(userId);
   return snapshot ?? null;
 }
@@ -200,7 +200,7 @@ export async function writeDashboardDbSnapshot(
   await idbPut(snapshot);
 }
 
-export async function deleteDashboardDbSnapshot(userId: string) {
+async function deleteDashboardDbSnapshot(userId: string) {
   await idbDelete(userId);
 }
 
@@ -520,7 +520,7 @@ export async function tryHydrateDashboardDbFromPersistence(userId: string) {
   return true;
 }
 
-export async function persistDashboardDbToPersistence(userId: string) {
+async function persistDashboardDbToPersistence(userId: string) {
   if (!DASHBOARD_DB_PERSISTED_SWR.enabled) return;
   if (!isIdbSupported()) return;
 

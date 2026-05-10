@@ -420,9 +420,9 @@ test.describe("cultivar guest flow @local", () => {
         name: /Other cultivars from this hybridizer/i,
       }),
     ).toHaveCount(0);
-    await expect(page.getByRole("link", { name: /Isle of Wight/i })).toHaveCount(
-      0,
-    );
+    await expect(
+      page.getByRole("link", { name: /Isle of Wight/i }),
+    ).toHaveCount(0);
 
     await page.goto("/top-pro/listing-top-prime");
     await expect(page).toHaveURL(/\/top-pro\?viewing=listing-top-prime$/);

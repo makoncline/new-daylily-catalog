@@ -67,11 +67,7 @@ describe("useImageUpload", () => {
       url: uploadedImage.url,
     });
     uploadFileWithProgressMock.mockImplementation(
-      async ({
-        onProgress,
-      }: {
-        onProgress: (value: number) => void;
-      }) => {
+      async ({ onProgress }: { onProgress: (value: number) => void }) => {
         onProgress(25);
         onProgress(100);
       },
@@ -116,7 +112,9 @@ describe("useImageUpload", () => {
       key: "abc123.jpg",
     });
     expect(onSuccess).toHaveBeenCalledWith(uploadedImage);
-    expect(toastSuccessMock).toHaveBeenCalledWith("Image uploaded successfully");
+    expect(toastSuccessMock).toHaveBeenCalledWith(
+      "Image uploaded successfully",
+    );
     expect(returned).toEqual(uploadedImage);
 
     await waitFor(() => {
@@ -126,7 +124,9 @@ describe("useImageUpload", () => {
   });
 
   it("handles presigned-url failure and resets state", async () => {
-    getPresignedUrlMutateAsyncMock.mockRejectedValue(new Error("Presign failed"));
+    getPresignedUrlMutateAsyncMock.mockRejectedValue(
+      new Error("Presign failed"),
+    );
 
     const { result } = renderHook(() =>
       useImageUpload({

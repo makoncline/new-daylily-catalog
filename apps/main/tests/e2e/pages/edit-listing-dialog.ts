@@ -202,7 +202,9 @@ export class EditListingDialog {
     await this.ahsListingSelectButton.click();
     await this.ahsDialog().waitFor({ state: "visible" });
 
-    const searchInput = this.ahsDialog().getByPlaceholder("Search AHS listings...");
+    const searchInput = this.ahsDialog().getByPlaceholder(
+      "Search AHS listings...",
+    );
     await searchInput.waitFor({ state: "visible" });
     await searchInput.fill(searchQuery);
 

@@ -21,16 +21,17 @@ vi.mock("next/link", () => ({
     href: string;
     onClick?: (event: MouseEvent<HTMLAnchorElement>) => void;
   }) => (
-    <a
+    <button
       {...props}
-      href={href}
+      type="button"
+      role="link"
+      data-href={href}
       onClick={(event) => {
-        event.preventDefault();
-        onClick?.(event);
+        onClick?.(event as unknown as MouseEvent<HTMLAnchorElement>);
       }}
     >
       {children}
-    </a>
+    </button>
   ),
 }));
 
@@ -86,7 +87,9 @@ describe("seller landing actions", () => {
       />,
     );
 
-    fireEvent.click(screen.getByRole("button", { name: "Create your catalog" }));
+    fireEvent.click(
+      screen.getByRole("button", { name: "Create your catalog" }),
+    );
 
     expect(capturePosthogEventMock).toHaveBeenNthCalledWith(
       1,
@@ -101,19 +104,15 @@ describe("seller landing actions", () => {
         is_authenticated: false,
       },
     );
-    expect(capturePosthogEventMock).toHaveBeenNthCalledWith(
-      2,
-      "auth_started",
-      {
-        source_page_type: "seller_landing",
-        source_path: "/start-membership",
-        cta_id: "seller-landing-hero-primary",
-        cta_label: "Create your catalog",
-        target_path: "/onboarding",
-        next_path: "/onboarding",
-        is_authenticated: false,
-      },
-    );
+    expect(capturePosthogEventMock).toHaveBeenNthCalledWith(2, "auth_started", {
+      source_page_type: "seller_landing",
+      source_path: "/start-membership",
+      cta_id: "seller-landing-hero-primary",
+      cta_label: "Create your catalog",
+      target_path: "/onboarding",
+      next_path: "/onboarding",
+      is_authenticated: false,
+    });
   });
 
   it("tracks example-link clicks", () => {

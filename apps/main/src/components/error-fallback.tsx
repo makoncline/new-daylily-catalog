@@ -21,7 +21,7 @@ export function ErrorFallback({
     >
       <div className="space-y-4">
         <H1 className="text-4xl">Oops, something went wrong!</H1>
-        <P className="mx-auto max-w-md text-lg text-muted-foreground">
+        <P className="text-muted-foreground mx-auto max-w-md text-lg">
           We&apos;re sorry, but an unexpected error has occurred.
         </P>
       </div>
@@ -35,7 +35,7 @@ export function ErrorFallback({
 
         <Button
           variant="link"
-          className="text-sm text-muted-foreground hover:text-foreground"
+          className="text-muted-foreground hover:text-foreground text-sm"
           asChild
         >
           <a href={feedbackUrl} target="_blank" rel="noopener noreferrer">

@@ -31,9 +31,9 @@ test.describe("lists page features @local", () => {
     };
 
     const expectFirstRowTitle = async (title: string) => {
-      await expect(dashboardLists.rows().first().locator("td").first()).toHaveText(
-        title,
-      );
+      await expect(
+        dashboardLists.rows().first().locator("td").first(),
+      ).toHaveText(title);
     };
 
     const resetAndVerifyBaseline = async () => {
@@ -89,7 +89,9 @@ test.describe("lists page features @local", () => {
 
     await dashboardLists.goToNextPage();
     await expectPageIndicator(2, seedMeta.expectedPageCount);
-    await expect(dashboardLists.rows()).toHaveCount(seedMeta.expectedSecondPageRows);
+    await expect(dashboardLists.rows()).toHaveCount(
+      seedMeta.expectedSecondPageRows,
+    );
 
     const secondPageFirstTitle = await dashboardLists.firstRowTitle();
     expect(secondPageFirstTitle).not.toBe(firstPageFirstTitle);

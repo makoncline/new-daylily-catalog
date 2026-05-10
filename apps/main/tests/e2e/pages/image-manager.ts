@@ -34,7 +34,9 @@ export class ImageManager {
   }
 
   async openImagePreviewById(imageId: string) {
-    await this.imageItemById(imageId).getByRole("button", { name: /view/i }).click();
+    await this.imageItemById(imageId)
+      .getByRole("button", { name: /view/i })
+      .click();
   }
 
   async confirmImageDelete() {
@@ -57,7 +59,9 @@ export class ImageManager {
     const targetBox = await targetHandle.boundingBox();
 
     if (!sourceBox || !targetBox) {
-      throw new Error("Unable to drag image: source or target handle has no box");
+      throw new Error(
+        "Unable to drag image: source or target handle has no box",
+      );
     }
 
     await this.page.mouse.move(
@@ -75,9 +79,10 @@ export class ImageManager {
 
   async imageOrderIds(): Promise<string[]> {
     return this.imageItems().evaluateAll((elements) =>
-      elements
-        .map((element) => element.getAttribute("data-image-id"))
-        .filter((id): id is string => Boolean(id)),
+      elements.flatMap((element) => {
+        const id = element.getAttribute("data-image-id");
+        return id ? [id] : [];
+      }),
     );
   }
 }

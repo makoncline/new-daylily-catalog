@@ -21,17 +21,6 @@ export interface DashboardSyncPageInput {
   since: string | null;
 }
 
-interface BootstrapDashboardDbCollectionArgs<T extends HasUpdatedAt> {
-  userId: string;
-  queryKey: readonly unknown[];
-  cursorBase: string;
-  collection: {
-    preload: () => Promise<void>;
-  };
-  fetchSeed: () => Promise<readonly T[]>;
-  onSeeded?: () => void;
-}
-
 export function writeCursorFromRows(args: {
   cursorStorageKey: string;
   rows: readonly HasUpdatedAt[];
@@ -84,7 +73,7 @@ export async function fetchDashboardSyncPages<
   }
 }
 
-export function replaceDashboardDbCollectionRows<T extends HasUpdatedAt>(args: {
+function replaceDashboardDbCollectionRows<T extends HasUpdatedAt>(args: {
   userId: string;
   queryKey: readonly unknown[];
   cursorBase: string;
@@ -139,31 +128,5 @@ export async function refreshDashboardDbCollectionFromServer<
     filterRows: args.filterRows,
   });
 
-  return true;
-}
-
-export async function bootstrapDashboardDbCollection<T extends HasUpdatedAt>(
-  args: BootstrapDashboardDbCollectionArgs<T>,
-) {
-  if (getCurrentUserId() !== args.userId) {
-    return false;
-  }
-
-  const rows = await args.fetchSeed();
-
-  if (getCurrentUserId() !== args.userId) {
-    return false;
-  }
-
-  replaceDashboardDbCollectionRows({
-    userId: args.userId,
-    queryKey: args.queryKey,
-    cursorBase: args.cursorBase,
-    rows,
-    sortRows: (nextRows) => [...nextRows],
-  });
-
-  args.onSeeded?.();
-  await args.collection.preload();
   return true;
 }

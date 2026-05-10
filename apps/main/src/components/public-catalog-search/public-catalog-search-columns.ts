@@ -2,7 +2,11 @@
 
 import { type ColumnDef, type FilterFn } from "@tanstack/react-table";
 import { fuzzyFilter } from "@/lib/table-utils";
-import { matchesExactValue, matchesNumericRange, matchesTextContains } from "./public-catalog-search-filter-utils";
+import {
+  matchesExactValue,
+  matchesNumericRange,
+  matchesTextContains,
+} from "./public-catalog-search-filter-utils";
 import { type PublicCatalogListing } from "./public-catalog-search-types";
 
 const textContainsFilter: FilterFn<PublicCatalogListing> = (row, id, value) =>
@@ -56,9 +60,7 @@ const listFacetFilter: FilterFn<PublicCatalogListing> = (row, _, value) => {
 
   const selectedListIds = value as string[];
 
-  return row.original.lists.some((list) =>
-    selectedListIds.includes(list.id),
-  );
+  return row.original.lists.some((list) => selectedListIds.includes(list.id));
 };
 
 export const publicCatalogSearchColumns = [

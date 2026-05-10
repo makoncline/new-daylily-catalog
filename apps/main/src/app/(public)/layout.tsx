@@ -32,7 +32,7 @@ export default async function PublicLayout({
               href="/"
               className="inline-flex items-center gap-3 font-semibold hover:opacity-80"
             >
-              <Flower2 className="h-5 w-5 text-[#a94e38]" />
+              <Flower2 className="size-5 text-[#a94e38]" />
               <span className="text-base">Daylily Catalog</span>
             </Link>
             <p className="mt-2 leading-6 text-[#536357]">

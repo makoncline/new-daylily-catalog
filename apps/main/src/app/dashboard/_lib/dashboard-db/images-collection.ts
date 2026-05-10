@@ -19,7 +19,7 @@ import {
 
 const CURSOR_BASE = "dashboard-db:images:maxUpdatedAt";
 const QUERY_KEY = ["dashboard-db", "images"] as const;
-export const IMAGES_SYNC_PAGE_SIZE = 50;
+const IMAGES_SYNC_PAGE_SIZE = 50;
 const DELETED_IDS = new Set<string>();
 let shouldSkipNextImagesSync = false;
 
@@ -223,7 +223,7 @@ export async function deleteImage(draft: DeleteDraft) {
   });
 }
 
-export async function refreshImagesCollectionFromServer(userId: string) {
+async function refreshImagesCollectionFromServer(userId: string) {
   await refreshDashboardDbCollectionFromServer({
     userId,
     queryKey: QUERY_KEY,

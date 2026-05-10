@@ -5,7 +5,6 @@ import type EditorJS from "@editorjs/editorjs";
 import { type ToolConstructable, type OutputData } from "@editorjs/editorjs";
 
 import { cn } from "@/lib/utils";
-import { Skeleton } from "@/components/ui/skeleton";
 interface EditorProps {
   initialContent?: OutputData;
   className?: string;
@@ -21,8 +20,6 @@ export function Editor({
   readOnly,
   onChange,
 }: EditorProps) {
-  const [isMounted, setIsMounted] = React.useState<boolean>(false);
-
   const initialContentRef = React.useRef(initialContent);
 
   const initializeEditor = React.useCallback(async () => {
@@ -63,13 +60,7 @@ export function Editor({
   }, [editorRef, onChange, readOnly]);
 
   React.useEffect(() => {
-    if (typeof window !== "undefined") {
-      setIsMounted(true);
-    }
-  }, []);
-
-  React.useEffect(() => {
-    if (isMounted && !editorRef.current) {
+    if (!editorRef.current) {
       void initializeEditor();
 
       return () => {
@@ -79,11 +70,7 @@ export function Editor({
         }
       };
     }
-  }, [isMounted, initializeEditor, editorRef]);
-
-  if (!isMounted) {
-    return null;
-  }
+  }, [initializeEditor, editorRef]);
 
   return (
     <div className={cn("grid w-full gap-10", className)}>
@@ -92,8 +79,4 @@ export function Editor({
       </div>
     </div>
   );
-}
-
-export function EditorSkeleton() {
-  return <Skeleton className="h-[300px] w-full" />;
 }

@@ -1,6 +1,9 @@
 import { test, expect } from "../../e2e/test-setup";
 import { withTempE2EDb } from "../../src/lib/test-utils/e2e-db";
-import { TEST_USER, createAuthedUser } from "../../src/lib/test-utils/e2e-users";
+import {
+  TEST_USER,
+  createAuthedUser,
+} from "../../src/lib/test-utils/e2e-users";
 import { clerk } from "@clerk/testing/playwright";
 
 test.describe("signed-in user tour @local", () => {
@@ -50,14 +53,14 @@ test.describe("signed-in user tour @local", () => {
     // Dashboard home
     await page.goto("/dashboard");
     await expect(page).toHaveURL("/dashboard");
-    await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible();
+    await expect(
+      page.getByRole("heading", { name: "Dashboard" }),
+    ).toBeVisible();
 
     // Listings page
     await page.getByTestId("dashboard-nav-listings").click();
     await expect(page).toHaveURL("/dashboard/listings");
-    await expect(
-      page.getByRole("heading", { name: "Listings" }),
-    ).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Listings" })).toBeVisible();
 
     // Lists page
     await page.getByTestId("dashboard-nav-lists").click();
@@ -67,7 +70,9 @@ test.describe("signed-in user tour @local", () => {
     // List detail page (navigate via row actions -> Manage)
     await page.getByPlaceholder("Filter lists...").fill("Tour Test List");
     await expect(page).toHaveURL(/\/dashboard\/lists\?query=Tour\+Test\+List/);
-    await expect(page.getByTestId("list-table")).toContainText("Tour Test List");
+    await expect(page.getByTestId("list-table")).toContainText(
+      "Tour Test List",
+    );
 
     await page.getByTestId("list-row-actions-trigger").first().click();
     const manageItem = page.getByTestId("list-row-action-manage");

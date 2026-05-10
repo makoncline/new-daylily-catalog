@@ -299,8 +299,8 @@ describe("dashboardDb public ISR invalidation", () => {
       },
     };
     const db = {
-      $transaction: vi.fn(async (callback: (txArg: typeof tx) => Promise<void>) =>
-        callback(tx),
+      $transaction: vi.fn(
+        async (callback: (txArg: typeof tx) => Promise<void>) => callback(tx),
       ),
       list: {
         findMany: vi.fn().mockResolvedValue([]),

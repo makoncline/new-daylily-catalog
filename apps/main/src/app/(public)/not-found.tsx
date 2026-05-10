@@ -6,8 +6,8 @@ import Link from "next/link";
 export default function NotFoundPage() {
   return (
     <div className="flex flex-col items-center justify-center p-4 py-16 text-center">
-      <div className="mx-auto max-w-md space-y-6 rounded-lg border bg-card p-8 shadow-sm">
-        <h1 className="text-3xl font-bold">Page Not Found</h1>
+      <div className="bg-card mx-auto max-w-md space-y-6 rounded-lg border p-8 shadow-sm">
+        <h1 className="text-3xl font-semibold">Page Not Found</h1>
 
         <div className="space-y-4">
           <p className="text-muted-foreground">

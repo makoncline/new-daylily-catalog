@@ -60,7 +60,7 @@ export function CultivarOfferRow({ sellerSlug, offer }: CultivarOfferRowProps) {
           <OptimizedImage
             src={offer.previewImageUrl}
             alt={`${offer.title} listing image`}
-            className="h-full w-full object-cover"
+            className="size-full object-cover"
             size="full"
           />
         </Link>
@@ -125,7 +125,7 @@ export function CultivarOfferRow({ sellerSlug, offer }: CultivarOfferRowProps) {
             >
               <Link href={listingHref}>
                 View Details
-                <ArrowUpRight className="h-4 w-4" />
+                <ArrowUpRight className="size-4" />
               </Link>
             </Button>
           </div>

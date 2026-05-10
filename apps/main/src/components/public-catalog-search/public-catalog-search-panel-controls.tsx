@@ -77,10 +77,13 @@ function getRangeBounds(
     return null;
   }
 
-  const values = table
-    .getCoreRowModel()
-    .rows.map((row) => extractNumericValue(row.getValue(column.id)))
-    .filter((value): value is number => value !== null);
+  const values = [];
+  for (const row of table.getCoreRowModel().rows) {
+    const value = extractNumericValue(row.getValue(column.id));
+    if (value !== null) {
+      values.push(value);
+    }
+  }
 
   if (values.length === 0) {
     return null;
@@ -124,11 +127,11 @@ function getRangeValue(
 function getFilterIcon(kind: "camera" | "dollar" | "link" | undefined) {
   switch (kind) {
     case "camera":
-      return <Camera className="h-4 w-4" />;
+      return <Camera className="size-4" />;
     case "dollar":
-      return <DollarSign className="h-4 w-4" />;
+      return <DollarSign className="size-4" />;
     case "link":
-      return <Link2 className="h-4 w-4" />;
+      return <Link2 className="size-4" />;
     default:
       return null;
   }
@@ -315,12 +318,12 @@ function RangeFilterControl({
         <SliderPrimitive.Thumb
           data-testid={`${testId}-thumb-min`}
           aria-label={`${label} minimum`}
-          className="border-primary/50 bg-background focus-visible:ring-ring block h-4 w-4 rounded-full border shadow transition-colors focus-visible:ring-1 focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50"
+          className="border-primary/50 bg-background focus-visible:ring-ring block size-4 rounded-full border shadow transition-colors focus-visible:ring-1 focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50"
         />
         <SliderPrimitive.Thumb
           data-testid={`${testId}-thumb-max`}
           aria-label={`${label} maximum`}
-          className="border-primary/50 bg-background focus-visible:ring-ring block h-4 w-4 rounded-full border shadow transition-colors focus-visible:ring-1 focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50"
+          className="border-primary/50 bg-background focus-visible:ring-ring block size-4 rounded-full border shadow transition-colors focus-visible:ring-1 focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50"
         />
       </SliderPrimitive.Root>
 
@@ -389,7 +392,9 @@ export function PublicCatalogSearchFilterControl({
         <TextFilterControl
           column={column}
           label={definition.label}
-          placeholder={definition.placeholder ?? `Search ${definition.label.toLowerCase()}`}
+          placeholder={
+            definition.placeholder ?? `Search ${definition.label.toLowerCase()}`
+          }
           table={context.table}
           testId={definition.testId}
         />

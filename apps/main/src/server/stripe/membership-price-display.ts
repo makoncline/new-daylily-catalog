@@ -22,6 +22,7 @@ const INTERVAL_LABEL: Record<MembershipRecurring["interval"], string> = {
   month: "mo",
   year: "yr",
 };
+const CURRENCY_FORMATTERS = new Map<string, Intl.NumberFormat>();
 
 function toMajorUnitAmount(price: MembershipPriceLike): number | null {
   if (price.unit_amount !== null) {
@@ -56,12 +57,20 @@ function formatInterval(recurring: MembershipRecurring | null): string {
 
 function formatCurrency(amount: number, currency: string): string {
   const hasFraction = !Number.isInteger(amount);
-  return new Intl.NumberFormat("en-US", {
+  const cacheKey = `${currency}:${hasFraction ? "fraction" : "whole"}`;
+  const existingFormatter = CURRENCY_FORMATTERS.get(cacheKey);
+  if (existingFormatter) {
+    return existingFormatter.format(amount);
+  }
+
+  const formatter = new Intl.NumberFormat("en-US", {
     style: "currency",
     currency,
     minimumFractionDigits: hasFraction ? 2 : 0,
     maximumFractionDigits: 2,
-  }).format(amount);
+  });
+  CURRENCY_FORMATTERS.set(cacheKey, formatter);
+  return formatter.format(amount);
 }
 
 function formatMonthlyEquivalent(
@@ -73,9 +82,10 @@ function formatMonthlyEquivalent(
     return null;
   }
 
-  const intervalCount = recurring.interval_count && recurring.interval_count > 0
-    ? recurring.interval_count
-    : 1;
+  const intervalCount =
+    recurring.interval_count && recurring.interval_count > 0
+      ? recurring.interval_count
+      : 1;
 
   if (recurring.interval === "month") {
     return formatCurrency(amount / intervalCount, currency);
@@ -102,6 +112,10 @@ export function formatMembershipPriceDisplay(
   return {
     amount: formattedAmount,
     interval: formatInterval(price.recurring),
-    monthlyEquivalent: formatMonthlyEquivalent(amount, price.recurring, currency),
+    monthlyEquivalent: formatMonthlyEquivalent(
+      amount,
+      price.recurring,
+      currency,
+    ),
   };
 }

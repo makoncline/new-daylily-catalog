@@ -23,19 +23,6 @@ import { useListingDialogQueryState } from "@/hooks/use-listing-dialog-query-sta
 
 type Listing = RouterOutputs["public"]["getListings"][number];
 
-export const useViewListing = () => {
-  const { viewingId, openListing, closeListing } =
-    useListingDialogQueryState();
-
-  return {
-    viewListing: (listing: Listing) => {
-      openListing(listing.id);
-    },
-    closeViewListing: closeListing,
-    viewingId,
-  };
-};
-
 interface ViewListingDialogProps {
   listings: Listing[];
 }

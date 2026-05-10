@@ -43,7 +43,9 @@ export function DashboardRefreshButton() {
       data-testid="dashboard-refresh"
       data-state={isRefreshing ? "refreshing" : "idle"}
     >
-      <RefreshCw className={isRefreshing ? "h-4 w-4 animate-spin" : "h-4 w-4"} />
+      <RefreshCw
+        className={isRefreshing ? "h-4 w-4 animate-spin" : "h-4 w-4"}
+      />
     </Button>
   );
 }

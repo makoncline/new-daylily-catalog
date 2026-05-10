@@ -1,15 +1,10 @@
 import { cache } from "react";
 import { env, requireEnv } from "@/env";
 import { getStripeClient } from "@/server/stripe/client";
-import {
-  formatMembershipPriceDisplay,
-} from "@/server/stripe/membership-price-display";
+import { formatMembershipPriceDisplay } from "@/server/stripe/membership-price-display";
 import type { MembershipPriceDisplay } from "@/server/stripe/membership-price-display";
 
-export type {
-  MembershipPriceDisplay,
-  MembershipPriceLike,
-} from "@/server/stripe/membership-price-display";
+export type { MembershipPriceDisplay } from "@/server/stripe/membership-price-display";
 
 export const getMembershipPriceDisplay = cache(
   async (): Promise<MembershipPriceDisplay | null> => {

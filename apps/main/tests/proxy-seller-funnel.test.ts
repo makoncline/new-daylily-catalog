@@ -3,11 +3,11 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { NextRequest, type NextMiddleware } from "next/server";
 
-const authMock = vi.hoisted(
-  () => vi.fn(async () => ({ userId: null as string | null })),
+const authMock = vi.hoisted(() =>
+  vi.fn(async () => ({ userId: null as string | null })),
 );
-const createRouteMatcherMock = vi.hoisted(
-  () => vi.fn((routes: string[]) => {
+const createRouteMatcherMock = vi.hoisted(() =>
+  vi.fn((routes: string[]) => {
     return (request: NextRequest) => {
       return routes.some((route) => {
         const prefix = route.replace("(.*)", "");
@@ -47,8 +47,9 @@ describe("seller funnel proxy protection", () => {
     const routeMatcherArg = createRouteMatcherMock.mock.calls[0]?.[0];
 
     expect(routeMatcherArg).toBeDefined();
-    expect(routeMatcherArg?.some((route) => route.includes("start-membership")))
-      .toBe(false);
+    expect(
+      routeMatcherArg?.some((route) => route.includes("start-membership")),
+    ).toBe(false);
 
     const request = new NextRequest("http://localhost:3000/start-membership");
     const middlewareEvent = {} as Parameters<NextMiddleware>[1];

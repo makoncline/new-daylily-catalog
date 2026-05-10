@@ -127,7 +127,9 @@ async function loadPublicInquiryContext(
   }
 
   const customerDisplayName = getCustomerDisplayName(input);
-  const { formattedItems, hasCartItems, subtotal } = formatCartItems(input.items);
+  const { formattedItems, hasCartItems, subtotal } = formatCartItems(
+    input.items,
+  );
   const catalogUrl = `${getCanonicalBaseUrl()}/${user.profile?.slug ?? user.id}`;
 
   return {

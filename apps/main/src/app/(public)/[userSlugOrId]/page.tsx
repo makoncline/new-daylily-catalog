@@ -2,9 +2,7 @@ import {
   generatePublicProfilePageMetadata,
   renderPublicProfilePage,
 } from "./_lib/public-profile-page";
-import {
-  getPublicProfileStaticParams,
-} from "./_lib/public-profile-route";
+import { getPublicProfileStaticParams } from "./_lib/public-profile-route";
 
 export const revalidate = false;
 export const dynamic = "force-static";

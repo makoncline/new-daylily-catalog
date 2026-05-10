@@ -21,17 +21,17 @@ import {
   shouldShowToPublic,
 } from "@/server/db/public-visibility/filters";
 
-export const getCultivarReferenceLookupWhereClause = () => ({
+const getCultivarReferenceLookupWhereClause = () => ({
   normalizedName: {
     not: null,
   },
 });
 
-export const cultivarAhsListingSelect = ahsDisplayAhsListingSelect;
+const cultivarAhsListingSelect = ahsDisplayAhsListingSelect;
 
 export type CultivarAhsListing = AhsDisplayListing;
 
-export interface PublicCultivarReferenceRecord {
+interface PublicCultivarReferenceRecord {
   id: string;
   normalizedName: string | null;
   updatedAt: Date;
@@ -192,9 +192,7 @@ export async function getCultivarSitemapEntries(): Promise<
   );
 }
 
-async function getPublicCultivarReference(
-  cultivarSegment: string,
-): Promise<{
+async function getPublicCultivarReference(cultivarSegment: string): Promise<{
   referenceData: PublicCultivarReferenceData;
   listingIds: string[];
 } | null> {

@@ -37,7 +37,7 @@ export function CultivarCard({
       rel="nofollow"
       prefetch={false}
       className={cn(
-        "block h-full w-[75vw] min-w-[75vw] md:w-full md:min-w-0 md:max-w-[560px]",
+        "block h-full w-[75vw] min-w-[75vw] md:w-full md:max-w-[560px] md:min-w-0",
         className,
       )}
     >
@@ -82,27 +82,5 @@ export function CultivarCard({
         </CardContent>
       </Card>
     </Link>
-  );
-}
-
-export function CultivarCardSkeleton() {
-  return (
-    <Card className="group flex h-full w-[75vw] min-w-[75vw] flex-col overflow-hidden md:h-56 md:w-full md:min-w-0 md:max-w-[560px] md:flex-row">
-      <div className="relative aspect-square w-full shrink-0 overflow-hidden md:h-full md:w-auto">
-        <div className="bg-muted h-full w-full" />
-      </div>
-      <CardContent className="flex min-w-0 flex-1 flex-col p-4">
-        <div className="flex flex-1 flex-col justify-between gap-4">
-          <div className="min-w-0 space-y-2">
-            <div className="bg-muted h-6 w-3/4 rounded" />
-            <div className="bg-muted h-5 w-1/2 rounded" />
-            <div className="flex gap-2">
-              <div className="bg-muted h-5 w-16 rounded" />
-              <div className="bg-muted h-5 w-16 rounded" />
-            </div>
-          </div>
-        </div>
-      </CardContent>
-    </Card>
   );
 }

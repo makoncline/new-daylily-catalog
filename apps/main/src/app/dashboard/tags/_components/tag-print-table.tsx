@@ -21,10 +21,7 @@ import {
   type ListingData,
 } from "@/app/dashboard/listings/_components/columns";
 import { useDashboardListingReadModel } from "@/app/dashboard/_lib/dashboard-db/use-dashboard-listing-read-model";
-import {
-  TagDesignerPanel,
-  type TagListingData,
-} from "./tag-designer-panel";
+import { TagDesignerPanel, type TagListingData } from "./tag-designer-panel";
 import { DashboardListingFilterToolbar } from "@/app/dashboard/_components/dashboard-listing-filter-toolbar";
 
 const tagPrintColumns: ColumnDef<ListingData>[] = [
@@ -32,7 +29,7 @@ const tagPrintColumns: ColumnDef<ListingData>[] = [
     id: "select",
     header: ({ table }) => (
       <Checkbox
-        className="h-4 w-4"
+        className="size-4"
         checked={
           table.getIsAllPageRowsSelected() ||
           (table.getIsSomePageRowsSelected() && "indeterminate")
@@ -43,7 +40,7 @@ const tagPrintColumns: ColumnDef<ListingData>[] = [
     ),
     cell: ({ row }) => (
       <Checkbox
-        className="h-4 w-4"
+        className="size-4"
         checked={row.getIsSelected()}
         onCheckedChange={(value) => row.toggleSelected(!!value)}
         aria-label="Select row"
@@ -56,9 +53,15 @@ const tagPrintColumns: ColumnDef<ListingData>[] = [
 ];
 
 function getSelectedIdsFromRowSelection(rowSelection: RowSelectionState) {
-  return Object.entries(rowSelection)
-    .filter(([, selected]) => selected)
-    .map(([id]) => id);
+  const selectedIds = [];
+
+  for (const [id, selected] of Object.entries(rowSelection)) {
+    if (selected) {
+      selectedIds.push(id);
+    }
+  }
+
+  return selectedIds;
 }
 
 interface TagPrintSelectableListing {
@@ -80,9 +83,14 @@ export function buildSelectedTagListingsForPrint({
 }): TagListingData[] {
   const selectedIdSet = new Set(getSelectedIdsFromRowSelection(rowSelection));
 
-  return listings
-    .filter((listing) => selectedIdSet.has(listing.id))
-    .map((listing) => ({
+  const selectedListings: TagListingData[] = [];
+
+  for (const listing of listings) {
+    if (!selectedIdSet.has(listing.id)) {
+      continue;
+    }
+
+    selectedListings.push({
       id: listing.id,
       userId: listing.userId,
       title: listing.title,
@@ -90,7 +98,10 @@ export function buildSelectedTagListingsForPrint({
       privateNote: listing.privateNote,
       ahsListing: listing.ahsListing,
       listName: listing.lists.map((list) => list.title).join(", "),
-    }));
+    });
+  }
+
+  return selectedListings;
 }
 
 interface SelectedListingsBadgesProps {
@@ -98,14 +109,17 @@ interface SelectedListingsBadgesProps {
   listingsById: Map<string, ListingData>;
 }
 
-function SelectedListingsBadges({ table, listingsById }: SelectedListingsBadgesProps) {
+function SelectedListingsBadges({
+  table,
+  listingsById,
+}: SelectedListingsBadgesProps) {
   const rowSelection = table.getState().rowSelection ?? {};
   const selectedIds = getSelectedIdsFromRowSelection(rowSelection);
 
   if (selectedIds.length === 0) return null;
 
   return (
-    <div className="flex flex-wrap items-center gap-2 rounded-lg border border-border bg-muted/30 px-3 py-2">
+    <div className="border-border bg-muted/30 flex flex-wrap items-center gap-2 rounded-lg border px-3 py-2">
       <span className="text-muted-foreground shrink-0 text-xs font-medium">
         Selected ({selectedIds.length}):
       </span>
@@ -142,7 +156,7 @@ function SelectedListingsBadges({ table, listingsById }: SelectedListingsBadgesP
               className="hover:bg-muted rounded p-0.5 transition-colors"
               aria-label={`Deselect ${title}`}
             >
-              <X className="h-3 w-3" />
+              <X className="size-3" />
             </button>
           </Badge>
         );
@@ -152,8 +166,11 @@ function SelectedListingsBadges({ table, listingsById }: SelectedListingsBadgesP
 }
 
 export function TagPrintTable() {
-  const { listingRows: listings, lists, listingsById } =
-    useDashboardListingReadModel();
+  const {
+    listingRows: listings,
+    lists,
+    listingsById,
+  } = useDashboardListingReadModel();
 
   const table = useDataTable({
     data: listings,
@@ -208,7 +225,9 @@ export function TagPrintTable() {
         pagination={
           <DataTablePagination
             table={table}
-            pageSizeOptions={APP_CONFIG.TABLE.PAGINATION.DASHBOARD_PAGE_SIZE_OPTIONS}
+            pageSizeOptions={
+              APP_CONFIG.TABLE.PAGINATION.DASHBOARD_PAGE_SIZE_OPTIONS
+            }
           />
         }
         noResults={

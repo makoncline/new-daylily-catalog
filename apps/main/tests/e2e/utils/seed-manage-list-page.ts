@@ -26,7 +26,7 @@ export interface ManageListPageSeedMeta {
   addableListingToken: string;
   sortToken: string;
   sortExpectations: SortExpectations;
-  titleFilterToken: string;
+  titleFilterText: string;
   updatedListTitle: string;
   updatedListDescription: string;
 }
@@ -124,11 +124,11 @@ export async function seedManageListPageData({
     },
   });
 
-  const titleFilterToken = "token-title-filter-manage";
+  const titleFilterText = "manage-title-filter-text";
   await db.listing.create({
     data: {
       userId: user.id,
-      title: `Title Filter Fixture ${titleFilterToken}`,
+      title: `Title Filter Fixture ${titleFilterText}`,
       slug: "title-filter-manage",
       lists: {
         connect: [{ id: list.id }],
@@ -147,7 +147,9 @@ export async function seedManageListPageData({
     },
   });
 
-  const expectedPageCountBeforeAdd = Math.ceil(beforeAddCount / DEFAULT_PAGE_SIZE);
+  const expectedPageCountBeforeAdd = Math.ceil(
+    beforeAddCount / DEFAULT_PAGE_SIZE,
+  );
   const totalListListingsAfterAdd = beforeAddCount + 1;
   const expectedPageCountAfterAdd = Math.ceil(
     totalListListingsAfterAdd / DEFAULT_PAGE_SIZE,
@@ -179,7 +181,7 @@ export async function seedManageListPageData({
       priceAscFirst: sortBravoTitle,
       priceDescFirst: sortAlphaTitle,
     },
-    titleFilterToken,
+    titleFilterText,
     updatedListTitle: "Manage List Fixture Updated",
     updatedListDescription: "Updated manage list description",
   };

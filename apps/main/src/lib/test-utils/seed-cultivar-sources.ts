@@ -104,7 +104,7 @@ function toLastUpdated(value: string | null | undefined) {
   return "2026-04-01 12:00:00";
 }
 
-export async function upsertCultivarReferenceWithV2({
+async function upsertCultivarReferenceWithV2({
   db,
   ahsId,
   name,
@@ -300,29 +300,30 @@ export async function seedAhsListing({
         },
       });
 
-  const { cultivarReference, v2AhsCultivar } = await upsertCultivarReferenceWithV2({
-    db,
-    ahsId: ahsListing.id,
-    name: ahsListing.name ?? name,
-    hybridizer: ahsListing.hybridizer,
-    year: ahsListing.year,
-    scapeHeight: ahsListing.scapeHeight,
-    bloomSize: ahsListing.bloomSize,
-    bloomSeason: ahsListing.bloomSeason,
-    ploidy: ahsListing.ploidy,
-    foliageType: ahsListing.foliageType,
-    bloomHabit: ahsListing.bloomHabit,
-    color: ahsListing.color,
-    parentage: ahsListing.parentage,
-    fragrance: ahsListing.fragrance,
-    budcount: ahsListing.budcount,
-    branches: ahsListing.branches,
-    ahsImageUrl: ahsListing.ahsImageUrl,
-    v2AhsCultivarId,
-    v2PostId,
-    v2IntroductionDate,
-    v2LastUpdated,
-  });
+  const { cultivarReference, v2AhsCultivar } =
+    await upsertCultivarReferenceWithV2({
+      db,
+      ahsId: ahsListing.id,
+      name: ahsListing.name ?? name,
+      hybridizer: ahsListing.hybridizer,
+      year: ahsListing.year,
+      scapeHeight: ahsListing.scapeHeight,
+      bloomSize: ahsListing.bloomSize,
+      bloomSeason: ahsListing.bloomSeason,
+      ploidy: ahsListing.ploidy,
+      foliageType: ahsListing.foliageType,
+      bloomHabit: ahsListing.bloomHabit,
+      color: ahsListing.color,
+      parentage: ahsListing.parentage,
+      fragrance: ahsListing.fragrance,
+      budcount: ahsListing.budcount,
+      branches: ahsListing.branches,
+      ahsImageUrl: ahsListing.ahsImageUrl,
+      v2AhsCultivarId,
+      v2PostId,
+      v2IntroductionDate,
+      v2LastUpdated,
+    });
 
   return {
     ahsListing,

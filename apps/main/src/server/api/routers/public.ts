@@ -129,7 +129,8 @@ export const publicRouter = createTRPCRouter({
     )
     .query(async ({ input }) =>
       runPublicQuery({
-        handler: () => getCachedPublicCultivarPage(input.cultivarNormalizedName),
+        handler: () =>
+          getCachedPublicCultivarPage(input.cultivarNormalizedName),
         logMessage: "Error fetching cultivar page:",
         message: "Failed to fetch cultivar page",
       }),

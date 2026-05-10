@@ -16,14 +16,14 @@ export function LaurelRatingBadge() {
         className="mt-[0.38rem] flex justify-center gap-1"
         aria-hidden="true"
       >
-        {Array.from({ length: 5 }, (_, index) => (
+        {[1, 2, 3, 4, 5].map((ratingPoint) => (
           <Image
-            key={index}
+            key={ratingPoint}
             src="/assets/home-redesign/star.svg"
             alt=""
             width={13}
             height={13}
-            className="h-3.5 w-3.5"
+            className="size-3.5"
           />
         ))}
       </div>

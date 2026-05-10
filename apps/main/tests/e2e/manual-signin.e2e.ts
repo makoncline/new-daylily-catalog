@@ -59,11 +59,16 @@ test.describe("manual sign-in @local", () => {
       "You need to send a verification code before attempting to verify.",
     );
     if (await sendCodeWarning.isVisible().catch(() => false)) {
-      await page.getByRole("button", { name: /continue/i }).last().click();
+      await page
+        .getByRole("button", { name: /continue/i })
+        .last()
+        .click();
     }
     await codeInput.type("424242", { delay: 100 });
 
     await expect(page).toHaveURL(/\/dashboard/);
-    await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible();
+    await expect(
+      page.getByRole("heading", { name: "Dashboard" }),
+    ).toBeVisible();
   });
 });

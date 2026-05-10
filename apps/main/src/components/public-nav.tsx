@@ -32,7 +32,8 @@ function getNavThemeClasses(theme: PublicNavTheme) {
 
 export function PublicHeader() {
   const pathname = usePathname();
-  const isHeroOverlayPage = pathname === "/" || pathname === "/start-membership";
+  const isHeroOverlayPage =
+    pathname === "/" || pathname === "/start-membership";
   const theme = isHeroOverlayPage ? "dark" : "light";
 
   return (
@@ -58,7 +59,8 @@ export function PublicHeader() {
 
 export function PublicNav({ theme = "light" }: { theme?: PublicNavTheme }) {
   const pathname = usePathname();
-  const isHeroOverlayPage = pathname === "/" || pathname === "/start-membership";
+  const isHeroOverlayPage =
+    pathname === "/" || pathname === "/start-membership";
   const isCatalogsActive = pathname === "/catalogs";
   const classes = getNavThemeClasses(theme);
 

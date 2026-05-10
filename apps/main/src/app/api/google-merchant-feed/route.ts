@@ -254,11 +254,12 @@ function validateXml(xml: string): boolean {
       "<description>",
     ];
 
-    for (const field of requiredFields) {
-      if (!xml.includes(field)) {
-        console.error(`XML validation failed: Missing required field ${field}`);
-        return false;
-      }
+    const missingField = requiredFields.find((field) => !xml.includes(field));
+    if (missingField) {
+      console.error(
+        `XML validation failed: Missing required field ${missingField}`,
+      );
+      return false;
     }
 
     // Check for proper format of g:price (must include currency)

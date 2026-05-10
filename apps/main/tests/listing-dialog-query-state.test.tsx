@@ -39,9 +39,7 @@ describe("useListingDialogQueryState", () => {
   });
 
   it("updates the viewing query while preserving unrelated params", () => {
-    const { result, rerender } = renderHook(() =>
-      useListingDialogQueryState(),
-    );
+    const { result, rerender } = renderHook(() => useListingDialogQueryState());
 
     expect(result.current.viewingId).toBeNull();
 

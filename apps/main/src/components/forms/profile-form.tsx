@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useReducer, useRef } from "react";
 import { Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { useDebouncedCallback } from "use-debounce";
@@ -45,7 +45,7 @@ import {
 
 type UserProfile = RouterOutputs["dashboardDb"]["userProfile"]["get"];
 
-export type ProfileFormSaveReason = "manual" | "navigate";
+type ProfileFormSaveReason = "manual" | "navigate";
 
 export interface ProfileFormHandle {
   saveChanges: (reason: ProfileFormSaveReason) => Promise<boolean>;
@@ -55,6 +55,43 @@ export interface ProfileFormHandle {
 interface ProfileFormProps {
   initialProfile: UserProfile;
   formRef?: React.RefObject<ProfileFormHandle | null>;
+}
+
+interface ProfileFormState {
+  profile: UserProfile;
+  isUpdating: boolean;
+  isCheckingSlug: boolean;
+  isContentDirty: boolean;
+  showSlugEditWarningDialog: boolean;
+  isSlugEditingUnlocked: boolean;
+}
+
+type ProfileFormAction =
+  | { type: "profileSaved"; profile: UserProfile }
+  | { type: "setIsUpdating"; value: boolean }
+  | { type: "setIsCheckingSlug"; value: boolean }
+  | { type: "setIsContentDirty"; value: boolean }
+  | { type: "setShowSlugEditWarningDialog"; value: boolean }
+  | { type: "setIsSlugEditingUnlocked"; value: boolean };
+
+function profileFormReducer(
+  state: ProfileFormState,
+  action: ProfileFormAction,
+): ProfileFormState {
+  switch (action.type) {
+    case "profileSaved":
+      return { ...state, profile: action.profile };
+    case "setIsUpdating":
+      return { ...state, isUpdating: action.value };
+    case "setIsCheckingSlug":
+      return { ...state, isCheckingSlug: action.value };
+    case "setIsContentDirty":
+      return { ...state, isContentDirty: action.value };
+    case "setShowSlugEditWarningDialog":
+      return { ...state, showSlugEditWarningDialog: action.value };
+    case "setIsSlugEditingUnlocked":
+      return { ...state, isSlugEditingUnlocked: action.value };
+  }
 }
 
 function toFormValues(profile: UserProfile): ProfileFormData {
@@ -80,14 +117,26 @@ function areProfileValuesEqual(
   );
 }
 
-export function ProfileForm({ initialProfile, formRef }: ProfileFormProps) {
-  const [profile, setProfile] = useState(initialProfile);
-  const [isUpdating, setIsUpdating] = useState(false);
-  const [isCheckingSlug, setIsCheckingSlug] = useState(false);
-  const [isContentDirty, setIsContentDirty] = useState(false);
-  const [showSlugEditWarningDialog, setShowSlugEditWarningDialog] =
-    useState(false);
-  const [isSlugEditingUnlocked, setIsSlugEditingUnlocked] = useState(false);
+function useProfileFormController({
+  initialProfile,
+  formRef,
+}: ProfileFormProps) {
+  const [state, dispatch] = useReducer(profileFormReducer, {
+    profile: initialProfile,
+    isUpdating: false,
+    isCheckingSlug: false,
+    isContentDirty: false,
+    showSlugEditWarningDialog: false,
+    isSlugEditingUnlocked: false,
+  });
+  const {
+    profile,
+    isUpdating,
+    isCheckingSlug,
+    isContentDirty,
+    showSlugEditWarningDialog,
+    isSlugEditingUnlocked,
+  } = state;
   const slugInputRef = useRef<HTMLInputElement | null>(null);
   const contentFormRef = useRef<ContentManagerFormHandle | null>(null);
   const { isPro } = usePro();
@@ -119,9 +168,9 @@ export function ProfileForm({ initialProfile, formRef }: ProfileFormProps) {
   const debouncedCheckSlug = useDebouncedCallback(
     (value: string | null | undefined) => {
       if (value && value !== profile.userId) {
-        setIsCheckingSlug(true);
+        dispatch({ type: "setIsCheckingSlug", value: true });
         void checkSlug.refetch().then((result) => {
-          setIsCheckingSlug(false);
+          dispatch({ type: "setIsCheckingSlug", value: false });
           if (result.data?.available) {
             form.clearErrors("slug");
             return;
@@ -153,7 +202,7 @@ export function ProfileForm({ initialProfile, formRef }: ProfileFormProps) {
     async (reason: ProfileFormSaveReason): Promise<boolean> => {
       const shouldUpdateUi = reason !== "navigate";
       if (shouldUpdateUi) {
-        setIsUpdating(true);
+        dispatch({ type: "setIsUpdating", value: true });
       }
 
       try {
@@ -200,7 +249,7 @@ export function ProfileForm({ initialProfile, formRef }: ProfileFormProps) {
         const updatedProfile = await updateProfileMutation.mutateAsync({
           data: values,
         });
-        setProfile(updatedProfile);
+        dispatch({ type: "profileSaved", profile: updatedProfile });
         form.reset(toFormValues(updatedProfile), { keepIsValid: true });
         resetNeedsParentCommit();
         utils.dashboardDb.userProfile.get.setData(undefined, updatedProfile);
@@ -221,7 +270,7 @@ export function ProfileForm({ initialProfile, formRef }: ProfileFormProps) {
         return false;
       } finally {
         if (shouldUpdateUi) {
-          setIsUpdating(false);
+          dispatch({ type: "setIsUpdating", value: false });
         }
       }
     },
@@ -255,7 +304,7 @@ export function ProfileForm({ initialProfile, formRef }: ProfileFormProps) {
     }
 
     e.preventDefault();
-    setShowSlugEditWarningDialog(true);
+    dispatch({ type: "setShowSlugEditWarningDialog", value: true });
   }
 
   function handleSlugFocus(e: React.FocusEvent<HTMLInputElement>) {
@@ -269,21 +318,87 @@ export function ProfileForm({ initialProfile, formRef }: ProfileFormProps) {
     }
 
     e.currentTarget.blur();
-    setShowSlugEditWarningDialog(true);
+    dispatch({ type: "setShowSlugEditWarningDialog", value: true });
   }
 
   function handleConfirmSlugEditWarning() {
-    setShowSlugEditWarningDialog(false);
-    setIsSlugEditingUnlocked(true);
+    dispatch({ type: "setShowSlugEditWarningDialog", value: false });
+    dispatch({ type: "setIsSlugEditingUnlocked", value: true });
     requestAnimationFrame(() => {
       slugInputRef.current?.focus();
     });
   }
 
   function handleCancelSlugEditWarning() {
-    setShowSlugEditWarningDialog(false);
-    setIsSlugEditingUnlocked(false);
+    dispatch({ type: "setShowSlugEditWarningDialog", value: false });
+    dispatch({ type: "setIsSlugEditingUnlocked", value: false });
   }
+
+  return {
+    cleanBaseUrl,
+    contentFormRef,
+    debouncedCheckSlug,
+    dispatch,
+    form,
+    handlers: {
+      handleCancelSlugEditWarning,
+      handleConfirmSlugEditWarning,
+      handleSlugFocus,
+      handleSlugPointerDown,
+      markNeedsParentCommit,
+      onSubmit,
+    },
+    state: {
+      hasPendingChanges,
+      isCheckingSlug,
+      isPro,
+      isSlugEditingUnlocked,
+      isUpdating,
+      profile,
+      showSlugEditWarningDialog,
+    },
+    slugInputRef,
+  };
+}
+
+export function ProfileForm(props: ProfileFormProps) {
+  const controller = useProfileFormController(props);
+
+  return <ProfileFormView controller={controller} />;
+}
+
+function ProfileFormView({
+  controller,
+}: {
+  controller: ReturnType<typeof useProfileFormController>;
+}) {
+  const {
+    cleanBaseUrl,
+    contentFormRef,
+    debouncedCheckSlug,
+    dispatch,
+    form,
+    handlers,
+    state,
+    slugInputRef,
+  } = controller;
+  const {
+    handleCancelSlugEditWarning,
+    handleConfirmSlugEditWarning,
+    handleSlugFocus,
+    handleSlugPointerDown,
+    markNeedsParentCommit,
+    onSubmit,
+  } = handlers;
+  const {
+    hasPendingChanges,
+    isCheckingSlug,
+    isPro,
+    isSlugEditingUnlocked,
+    isUpdating,
+    profile,
+    showSlugEditWarningDialog,
+  } = state;
 
   return (
     <>
@@ -318,7 +433,7 @@ export function ProfileForm({ initialProfile, formRef }: ProfileFormProps) {
                 <FormLabel className="flex items-center gap-2">
                   Profile URL
                   {!isPro && (
-                    <Sparkles className="text-muted-foreground h-4 w-4" />
+                    <Sparkles className="text-muted-foreground size-4" />
                   )}
                 </FormLabel>
                 <FormControl>
@@ -346,7 +461,7 @@ export function ProfileForm({ initialProfile, formRef }: ProfileFormProps) {
                       />
                       {isCheckingSlug && (
                         <div className="absolute top-2.5 right-3">
-                          <div className="border-muted-foreground h-4 w-4 animate-spin rounded-full border-2 border-t-transparent" />
+                          <div className="border-muted-foreground size-4 animate-spin rounded-full border-2 border-t-transparent" />
                         </div>
                       )}
                     </div>
@@ -442,14 +557,18 @@ export function ProfileForm({ initialProfile, formRef }: ProfileFormProps) {
             initialProfile={profile}
             formRef={contentFormRef}
             onMutationSuccess={markNeedsParentCommit}
-            onDirtyChange={setIsContentDirty}
+            onDirtyChange={(value) =>
+              dispatch({ type: "setIsContentDirty", value })
+            }
           />
         </form>
       </Form>
 
       <SlugChangeConfirmDialog
         open={showSlugEditWarningDialog}
-        onOpenChange={setShowSlugEditWarningDialog}
+        onOpenChange={(value) =>
+          dispatch({ type: "setShowSlugEditWarningDialog", value })
+        }
         onConfirm={handleConfirmSlugEditWarning}
         onCancel={handleCancelSlugEditWarning}
         currentSlug={profile.slug ?? profile.userId}

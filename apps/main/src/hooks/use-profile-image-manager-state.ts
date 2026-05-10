@@ -6,9 +6,7 @@ import {
   imagesCollection,
   type ImageCollectionItem,
 } from "@/app/dashboard/_lib/dashboard-db/images-collection";
-import {
-  DASHBOARD_DB_QUERY_KEYS,
-} from "@/app/dashboard/_lib/dashboard-db/dashboard-db-keys";
+import { DASHBOARD_DB_QUERY_KEYS } from "@/app/dashboard/_lib/dashboard-db/dashboard-db-keys";
 import { getQueryClient } from "@/trpc/query-client";
 
 export function useProfileImageManagerState(profileId: string) {

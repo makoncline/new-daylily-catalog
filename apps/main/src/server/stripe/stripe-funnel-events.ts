@@ -25,7 +25,9 @@ function getPreviousSubscriptionStatus(event: Stripe.Event) {
   return eventData.previous_attributes?.status ?? null;
 }
 
-export function getStripeFunnelEvents(event: Stripe.Event): StripeFunnelEvent[] {
+export function getStripeFunnelEvents(
+  event: Stripe.Event,
+): StripeFunnelEvent[] {
   const funnelEvents: StripeFunnelEvent[] = [];
 
   if (

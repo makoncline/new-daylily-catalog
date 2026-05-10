@@ -177,7 +177,9 @@ describe("useOnboardingBootstrapState", () => {
       result.current.clearOnboardingDraftSnapshot();
     });
 
-    expect(window.sessionStorage.getItem("start-onboarding:draft-v1")).toBeNull();
+    expect(
+      window.sessionStorage.getItem("start-onboarding:draft-v1"),
+    ).toBeNull();
     expect(window.sessionStorage.getItem(scopedKey)).toBeNull();
   });
 

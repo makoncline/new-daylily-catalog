@@ -3,16 +3,11 @@
 import React from "react";
 import type { Table } from "@tanstack/react-table";
 import { Input } from "@/components/ui/input";
-import { Skeleton } from "@/components/ui/skeleton";
 import { useDebouncedCallback } from "use-debounce";
 
 interface DataTableGlobalFilterProps<TData> {
   table: Table<TData>;
   placeholder?: string;
-}
-
-export function DataTableGlobalFilterSkeleton() {
-  return <Skeleton className="h-8 w-[150px] lg:w-[250px]" />;
 }
 
 /**
@@ -37,23 +32,17 @@ export function DataTableGlobalFilter<TData>({
   }, 200);
 
   // Handle input changes - update UI immediately but debounce filtering
-  const handleChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const updateGlobalFilter = (event: React.ChangeEvent<HTMLInputElement>) => {
     const newValue = event.target.value;
     setValue(newValue);
     debouncedFiltering(newValue);
   };
 
-  const globalFilter = table.getState().globalFilter as string | undefined;
-  // Keep local state in sync with table state
-  React.useEffect(() => {
-    setValue(globalFilter ?? "");
-  }, [globalFilter]);
-
   return (
     <Input
       placeholder={placeholder}
       value={value}
-      onChange={handleChange}
+      onChange={updateGlobalFilter}
       className="h-8 w-[150px] lg:w-[250px]"
     />
   );

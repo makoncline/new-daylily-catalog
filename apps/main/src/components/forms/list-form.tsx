@@ -34,7 +34,7 @@ interface ListFormProps {
   formRef?: React.RefObject<ListFormHandle | null>;
 }
 
-export type ListFormSaveReason = "manual" | "close" | "navigate";
+type ListFormSaveReason = "manual" | "close" | "navigate";
 
 export interface ListFormHandle {
   saveChanges: (reason: ListFormSaveReason) => Promise<boolean>;
@@ -64,7 +64,7 @@ function ListFormInner({
   onDelete?: () => void;
   formRef?: React.RefObject<ListFormHandle | null>;
 }) {
-  const [isPending, setIsPending] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const committedValuesRef = useRef<ListFormData>(toFormValues(list));
   const {
     markNeedsParentCommit,
@@ -98,7 +98,7 @@ function ListFormInner({
       });
     },
   });
-  const isBusy = isPending || isDeletePending;
+  const isBusy = isSaving || isDeletePending;
 
   const hasPendingChanges = useCallback(() => {
     const values = form.getValues();
@@ -140,7 +140,7 @@ function ListFormInner({
 
       const shouldUpdateUi = reason !== "navigate";
       if (shouldUpdateUi) {
-        setIsPending(true);
+        setIsSaving(true);
       }
       try {
         await updateList({
@@ -167,7 +167,7 @@ function ListFormInner({
         return false;
       } finally {
         if (shouldUpdateUi) {
-          setIsPending(false);
+          setIsSaving(false);
         }
       }
     },
@@ -211,11 +211,7 @@ function ListFormInner({
             <FormItem>
               <FormLabel>Title</FormLabel>
               <FormControl>
-                <Input
-                  {...field}
-                  value={field.value ?? ""}
-                  disabled={isBusy}
-                />
+                <Input {...field} value={field.value ?? ""} disabled={isBusy} />
               </FormControl>
               <FormDescription>
                 Required: Add a name for your list.

@@ -55,12 +55,15 @@ vi.mock("sonner", () => ({
   },
 }));
 
-vi.mock("@/components/public-catalog-search/public-catalog-search-content", () => ({
-  PublicCatalogSearchContent: (props: unknown) => {
-    mockRenderSearchContent(props);
-    return <div data-testid="catalog-search-content" />;
-  },
-}));
+vi.mock(
+  "@/components/public-catalog-search/public-catalog-search-content",
+  () => ({
+    PublicCatalogSearchContent: (props: unknown) => {
+      mockRenderSearchContent(props);
+      return <div data-testid="catalog-search-content" />;
+    },
+  }),
+);
 
 vi.mock("@/components/view-listing-dialog", () => ({
   ViewListingDialog: () => null,
@@ -235,7 +238,9 @@ describe("PublicCatalogSearchClient", () => {
       expect.any(Function),
     );
     expect(mockInvalidate).not.toHaveBeenCalled();
-    expect(mockToastSuccess).toHaveBeenCalledWith("Catalog search data refreshed");
+    expect(mockToastSuccess).toHaveBeenCalledWith(
+      "Catalog search data refreshed",
+    );
   });
 
   it("waits for snapshot hydration before auto-fetching next page when persistence is enabled", async () => {

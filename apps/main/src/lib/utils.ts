@@ -2,6 +2,11 @@ import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
 import { type AhsListing } from "@prisma/client";
 
+const USD_FORMATTER = new Intl.NumberFormat("en-US", {
+  style: "currency",
+  currency: "USD",
+});
+
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
@@ -12,34 +17,7 @@ export function cn(...inputs: ClassValue[]) {
  * @returns The formatted price string
  */
 export function formatPrice(price: number): string {
-  return new Intl.NumberFormat("en-US", {
-    style: "currency",
-    currency: "USD",
-  }).format(price);
-}
-
-export function formatRelativeDate(date: Date, prefix = "Updated"): string {
-  const now = new Date();
-  const days = Math.max(
-    0,
-    Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60 * 24)),
-  );
-
-  if (days < 1) {
-    return `${prefix} today`;
-  }
-
-  if (days < 30) {
-    return `${prefix} ${days} day${days === 1 ? "" : "s"} ago`;
-  }
-
-  const months = Math.floor(days / 30);
-  if (months < 12) {
-    return `${prefix} ${months} month${months === 1 ? "" : "s"} ago`;
-  }
-
-  const years = Math.floor(months / 12);
-  return `${prefix} ${years} year${years === 1 ? "" : "s"} ago`;
+  return USD_FORMATTER.format(price);
 }
 
 // Types for the result object with discriminated union
@@ -188,7 +166,10 @@ function getAhsIdentityLine(ahs: Partial<AhsListing>) {
   return details ? `(${details})` : null;
 }
 
-function pushJoined(target: string[], values: Array<string | null | undefined>) {
+function pushJoined(
+  target: string[],
+  values: Array<string | null | undefined>,
+) {
   const joined = values.filter(Boolean).join(", ");
   if (joined) {
     target.push(joined);

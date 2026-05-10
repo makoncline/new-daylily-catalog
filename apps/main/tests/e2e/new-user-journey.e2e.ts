@@ -92,7 +92,8 @@ test.describe("new user journey @local", () => {
         await dashboardProfile.fillLocation(testLocation);
 
         const profileSaveRequest = page.waitForResponse(
-          (response) => response.url().includes("dashboardDb.userProfile.update"),
+          (response) =>
+            response.url().includes("dashboardDb.userProfile.update"),
           { timeout: 15000 },
         );
         await dashboardProfile.saveChangesButton.click();

@@ -33,7 +33,7 @@ export function createBreadcrumbListSchema(
  * @param baseUrl The base URL of the site
  * @returns A home breadcrumb
  */
-export function createHomeBreadcrumb(baseUrl: string): Breadcrumb {
+function createHomeBreadcrumb(baseUrl: string): Breadcrumb {
   return {
     name: "Home",
     url: baseUrl,
@@ -79,36 +79,6 @@ export function createUserProfileBreadcrumbs(
       name: profileName || "Daylily Catalog",
       url: `${baseUrl}/${profileSlug}`,
       canonicalUrl: `${baseUrl}/${userId}`,
-    },
-  ];
-}
-
-/**
- * Creates breadcrumbs for a listing page
- * @param baseUrl The base URL of the site
- * @param profileName The name of the profile
- * @param profileSlug The slug or ID of the profile
- * @param listingName The name of the listing
- * @param listingSlug The slug or ID of the listing
- * @param userId The canonical user ID
- * @param listingId The canonical listing ID
- * @returns Array of breadcrumbs for the listing page
- */
-export function createListingBreadcrumbs(
-  baseUrl: string,
-  profileName: string,
-  profileSlug: string,
-  listingName: string,
-  listingSlug: string,
-  userId: string,
-  listingId: string,
-): Breadcrumb[] {
-  return [
-    ...createUserProfileBreadcrumbs(baseUrl, profileName, profileSlug, userId),
-    {
-      name: listingName || "Daylily",
-      url: `${baseUrl}/${profileSlug}/${listingSlug}`,
-      canonicalUrl: `${baseUrl}/${userId}/${listingId}`,
     },
   ];
 }

@@ -37,11 +37,3 @@ export function getPublicCultivarSummaryTag(segment: string) {
 export function getPublicCultivarTag(segment: string) {
   return `${CACHE_CONFIG.TAGS.PUBLIC_CULTIVAR_PAGE}:${segment}`;
 }
-
-export function getPublicCultivarOffersTag(segment: string) {
-  return `${CACHE_CONFIG.TAGS.PUBLIC_CULTIVAR_PAGE}:offers:${segment}`;
-}
-
-export function getPublicCultivarPhotosTag(segment: string) {
-  return `${CACHE_CONFIG.TAGS.PUBLIC_CULTIVAR_PAGE}:photos:${segment}`;
-}

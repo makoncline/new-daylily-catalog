@@ -1,14 +1,14 @@
 import type { PrismaClient } from "@prisma/client";
 import type { PublicInvalidationReference } from "@/types/public-types";
 
-export function catalogsIndexRef(): PublicInvalidationReference {
+function catalogsIndexRef(): PublicInvalidationReference {
   return {
     referenceId: "index",
     referenceType: "catalogs:index",
   };
 }
 
-export function cultivarRef(
+function cultivarRef(
   cultivarSegmentOrName: string | null | undefined,
 ): PublicInvalidationReference[] {
   return cultivarSegmentOrName
@@ -21,14 +21,14 @@ export function cultivarRef(
     : [];
 }
 
-export function listingRef(listingId: string): PublicInvalidationReference {
+function listingRef(listingId: string): PublicInvalidationReference {
   return {
     referenceId: listingId,
     referenceType: "listing",
   };
 }
 
-export function sellerRef(userId: string): PublicInvalidationReference {
+function sellerRef(userId: string): PublicInvalidationReference {
   return {
     referenceId: userId,
     referenceType: "seller",
@@ -47,13 +47,11 @@ export function buildProfileMutationRefs(
   return [sellerRef(userId), catalogsIndexRef()];
 }
 
-export function buildListingUpdateRefs(
-  args: {
-    listingId: string;
-    userId?: string;
-    includeCatalogsIndex?: boolean;
-  },
-): PublicInvalidationReference[] {
+export function buildListingUpdateRefs(args: {
+  listingId: string;
+  userId?: string;
+  includeCatalogsIndex?: boolean;
+}): PublicInvalidationReference[] {
   return [
     listingRef(args.listingId),
     ...(args.userId ? [sellerRef(args.userId)] : []),
@@ -80,9 +78,7 @@ export function buildListingRelationshipRefs(args: {
 
   return [
     listingRef(args.currentListingId),
-    ...relatedCultivars.flatMap((segmentOrName) =>
-      cultivarRef(segmentOrName),
-    ),
+    ...relatedCultivars.flatMap((segmentOrName) => cultivarRef(segmentOrName)),
   ];
 }
 

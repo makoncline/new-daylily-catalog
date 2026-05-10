@@ -36,11 +36,3 @@ export const defaultTableConfig = <TData>() =>
     getFacetedRowModel: getFacetedRowModel<TData>(),
     getFacetedUniqueValues: getFacetedUniqueValues<TData>(),
   }) satisfies Partial<TableOptions<TData>>;
-
-export const DEFAULT_TABLE_OPTIONS = {
-  pinnedColumns: {
-    left: [],
-    right: [],
-  },
-  storageKey: "data-table",
-} as const;

@@ -1,18 +1,28 @@
-import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 const uploadMock = vi.hoisted(() => vi.fn());
 const imageUploadState = vi.hoisted(() => ({
   isUploading: false,
   progress: 0,
-  onSuccess: undefined as ((image: { id: string; url: string }) => void) | undefined,
+  onSuccess: undefined as
+    | ((image: { id: string; url: string }) => void)
+    | undefined,
 }));
 const dropzoneState = vi.hoisted(() => ({
   onDrop: undefined as ((files: File[]) => void) | undefined,
 }));
 
 vi.mock("@/hooks/use-image-upload", () => ({
-  useImageUpload: (options: { onSuccess?: (image: { id: string; url: string }) => void }) => {
+  useImageUpload: (options: {
+    onSuccess?: (image: { id: string; url: string }) => void;
+  }) => {
     imageUploadState.onSuccess = options.onSuccess;
     return {
       upload: uploadMock,
@@ -50,7 +60,9 @@ vi.mock("@/components/image-cropper", () => ({
     <div data-testid="image-cropper">
       <button
         type="button"
-        onClick={() => onCropComplete(new Blob(["cropped"], { type: "image/jpeg" }))}
+        onClick={() =>
+          onCropComplete(new Blob(["cropped"], { type: "image/jpeg" }))
+        }
         disabled={isDisabled}
       >
         complete crop
@@ -175,7 +187,7 @@ describe("ImageUpload", () => {
     selectImageFile();
 
     await waitFor(() => {
-      expect(screen.getByText("Uploading image... 42%")).toBeInTheDocument();
+      expect(screen.getByText("Uploading image… 42%")).toBeInTheDocument();
     });
   });
 });

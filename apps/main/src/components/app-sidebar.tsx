@@ -39,11 +39,7 @@ export function AppSidebar({
     setOpenMobile(false);
   }, [setOpenMobile]);
 
-  const {
-    data: user,
-    isLoading,
-    error,
-  } = api.user.getCurrentUser.useQuery();
+  const { data: user, isLoading, error } = api.user.getCurrentUser.useQuery();
 
   const feedbackUrl = useFeedbackUrl();
 

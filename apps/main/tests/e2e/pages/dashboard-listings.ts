@@ -174,7 +174,9 @@ export class DashboardListings {
 
   private rowActionMenuItem(actionName: "Delete" | "Edit"): Locator {
     const testId =
-      actionName === "Edit" ? "listing-row-action-edit" : "listing-row-action-delete";
+      actionName === "Edit"
+        ? "listing-row-action-edit"
+        : "listing-row-action-delete";
     return this.page.locator(`[data-testid="${testId}"]:visible`).first();
   }
 
@@ -195,7 +197,9 @@ export class DashboardListings {
     await expect(this.rowActionMenu()).toBeVisible();
   }
 
-  private async ensureRowActionMenuOpen(rowActionButtonFactory?: () => Locator) {
+  private async ensureRowActionMenuOpen(
+    rowActionButtonFactory?: () => Locator,
+  ) {
     if (await this.rowActionMenu().isVisible()) {
       return;
     }
@@ -251,7 +255,9 @@ export class DashboardListings {
   }
 
   async chooseRowActionDeleteForListing(listingTitle: string) {
-    await this.chooseRowAction("Delete", () => this.rowActionTrigger(listingTitle));
+    await this.chooseRowAction("Delete", () =>
+      this.rowActionTrigger(listingTitle),
+    );
   }
 
   async chooseRowActionEdit() {
@@ -259,7 +265,9 @@ export class DashboardListings {
   }
 
   async chooseRowActionEditForListing(listingTitle: string) {
-    await this.chooseRowAction("Edit", () => this.rowActionTrigger(listingTitle));
+    await this.chooseRowAction("Edit", () =>
+      this.rowActionTrigger(listingTitle),
+    );
   }
 
   async confirmDelete() {
@@ -270,7 +278,9 @@ export class DashboardListings {
   }
 
   async resetToolbarFiltersIfVisible() {
-    const resetButton = this.page.getByRole("button", { name: "Reset" }).first();
+    const resetButton = this.page
+      .getByRole("button", { name: "Reset" })
+      .first();
     if (await resetButton.isVisible()) {
       await resetButton.click();
     }

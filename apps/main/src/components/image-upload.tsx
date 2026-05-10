@@ -7,7 +7,6 @@ import { useImageUpload } from "@/hooks/use-image-upload";
 import type { ImageType, ImageUploadResponse } from "@/types/image";
 import { APP_CONFIG } from "@/config/constants";
 import { Progress } from "@/components/ui/progress";
-import { Skeleton } from "@/components/ui/skeleton";
 import { P } from "@/components/typography";
 
 export interface ImageUploadProps {
@@ -74,7 +73,7 @@ export function ImageUpload({
         >
           <input {...getInputProps()} id="image-upload-input" />
           {isDragActive ? (
-            <P>Drop the image here...</P>
+            <P>Drop the image here…</P>
           ) : (
             <P>Drag and drop an image here, or click to select one</P>
           )}
@@ -97,23 +96,15 @@ export function ImageUpload({
             isDisabled={isUploading}
           />
           {isUploading && (
-            <div className="absolute inset-0 flex items-center justify-center bg-background/50">
+            <div className="bg-background/50 absolute inset-0 flex items-center justify-center">
               <div className="text-center">
-                <P className="mb-2 text-sm">Uploading image... {progress}%</P>
+                <P className="mb-2 text-sm">Uploading image… {progress}%</P>
                 <Progress value={progress} className="w-32" />
               </div>
             </div>
           )}
         </div>
       )}
-    </div>
-  );
-}
-
-export function ImageUploadSkeleton() {
-  return (
-    <div className="space-y-4">
-      <Skeleton className="h-32 w-full rounded-lg" />
     </div>
   );
 }

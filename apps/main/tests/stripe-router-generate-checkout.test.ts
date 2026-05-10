@@ -93,7 +93,9 @@ function createCaller(
 describe("stripe.generateCheckout", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    subscriptionMocks.getStripeSubscription.mockResolvedValue({ status: "none" });
+    subscriptionMocks.getStripeSubscription.mockResolvedValue({
+      status: "none",
+    });
     stripeMocks.checkoutCreate.mockResolvedValue({
       url: "https://checkout.stripe.com/c/pay/test",
     });

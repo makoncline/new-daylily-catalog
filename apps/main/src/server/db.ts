@@ -1,12 +1,7 @@
 import { PrismaClient } from "@prisma/client";
 import { PrismaBetterSqlite3 } from "@prisma/adapter-better-sqlite3";
 import { PrismaLibSql } from "@prisma/adapter-libsql";
-import {
-  env,
-  isFileDatabaseUrl,
-  isLibsqlDatabaseUrl,
-  requireEnv,
-} from "@/env";
+import { env, isFileDatabaseUrl, isLibsqlDatabaseUrl, requireEnv } from "@/env";
 import { type Prisma } from "@prisma/client";
 import { attachLocalQueryProfiler } from "@/server/db/local-query-profiler";
 

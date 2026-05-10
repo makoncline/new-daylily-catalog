@@ -1,0 +1,28 @@
+{
+  "ignore": {
+    "files": [
+      "scripts/**",
+      "src/components/ui/**"
+    ],
+    "overrides": [
+      {
+        "files": [
+          "tests/**/*.test.ts",
+          "tests/**/*.test.tsx"
+        ],
+        "rules": [
+          "react-doctor/server-sequential-independent-await"
+        ]
+      },
+      {
+        "files": [
+          "src/lib/test-utils/e2e-db.ts",
+          "src/server/db/query-profiler-report.ts"
+        ],
+        "rules": [
+          "knip/exports"
+        ]
+      }
+    ]
+  }
+}

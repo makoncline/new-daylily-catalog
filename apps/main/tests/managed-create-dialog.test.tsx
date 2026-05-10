@@ -22,7 +22,9 @@ describe("ManagedCreateDialog", () => {
       </ManagedCreateDialog>,
     );
 
-    expect(screen.getByRole("heading", { name: "Create Item" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: "Create Item" }),
+    ).toBeInTheDocument();
     expect(screen.getByText("Create description")).toBeInTheDocument();
     expect(screen.getByText("Dialog body")).toBeInTheDocument();
 

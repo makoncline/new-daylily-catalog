@@ -39,20 +39,21 @@ export function AddListingsCombobox({
 }: AddListingsComboboxProps) {
   const [open, setOpen] = useState(false);
   const [searchValue, setSearchValue] = useState("");
-  const [isPending, setIsPending] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
-  const { data: listings = [] } = useSeededDashboardDbQuery<ListingCollectionItem>({
-    query: (q) =>
-      q
-        .from({ listing: listingsCollection })
-        .orderBy(({ listing }) => listing.title, "asc"),
-    queryKey: DASHBOARD_DB_QUERY_KEYS.listings,
-  });
+  const { data: listings = [] } =
+    useSeededDashboardDbQuery<ListingCollectionItem>({
+      query: (q) =>
+        q
+          .from({ listing: listingsCollection })
+          .orderBy(({ listing }) => listing.title, "asc"),
+      queryKey: DASHBOARD_DB_QUERY_KEYS.listings,
+    });
 
   const handleSelect = async (listingId: string) => {
-    if (isPending) return;
+    if (isSaving) return;
 
-    setIsPending(true);
+    setIsSaving(true);
     // Close immediately so the next interaction isn't blocked by the dialog focus trap.
     setOpen(false);
     setSearchValue("");
@@ -64,7 +65,7 @@ export function AddListingsCombobox({
     } catch {
       toast.error("Failed to add listing to list");
     } finally {
-      setIsPending(false);
+      setIsSaving(false);
     }
   };
 
@@ -87,12 +88,13 @@ export function AddListingsCombobox({
       variant="outline"
       role="combobox"
       aria-expanded={open}
+      aria-controls="add-listings-list"
       className="w-full justify-between"
-      disabled={isPending}
+      disabled={isSaving}
       data-testid="add-listings-trigger"
     >
-      Search your listings...
-      <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+      Search your listings…
+      <ChevronsUpDown className="ml-2 size-4 shrink-0 opacity-50" />
     </Button>
   );
 
@@ -115,14 +117,16 @@ export function AddListingsCombobox({
           <div className="flex-1 overflow-hidden">
             <Command shouldFilter={false} className="flex h-full flex-col">
               <CommandInput
-                placeholder="Search your listings..."
+                placeholder="Search your listings…"
                 value={searchValue}
                 onValueChange={setSearchValue}
-                autoFocus
                 className="border-none pl-3 focus:ring-0"
                 data-testid="add-listings-search-input"
               />
-              <CommandList className="flex-1 overflow-x-hidden overflow-y-auto pb-2">
+              <CommandList
+                id="add-listings-list"
+                className="flex-1 overflow-x-hidden overflow-y-auto pb-2"
+              >
                 {listings.length === 0 && (
                   <CommandEmpty>
                     <p className="text-muted-foreground p-2 text-sm">
@@ -136,7 +140,7 @@ export function AddListingsCombobox({
                       key={listing.id}
                       onSelect={() => void handleSelect(listing.id)}
                       className="px-6"
-                      disabled={isPending}
+                      disabled={isSaving}
                     >
                       <div className="flex w-full items-center justify-between">
                         <span>{listing.title}</span>

@@ -69,9 +69,13 @@ test.describe("listing image manager @local", () => {
 
     // Preview
     await imageManager.openImagePreviewById(firstImageId);
-    await expect(page.getByRole("img", { name: "Gallery image" })).toBeVisible();
+    await expect(
+      page.getByRole("img", { name: "Gallery image" }),
+    ).toBeVisible();
     await page.keyboard.press("Escape");
-    await expect(page.getByRole("img", { name: "Gallery image" })).toHaveCount(0);
+    await expect(page.getByRole("img", { name: "Gallery image" })).toHaveCount(
+      0,
+    );
 
     // Reorder first image to the end by dragging it over the third image
     await imageManager.dragImageBefore(firstImageId, thirdImageId);

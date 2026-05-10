@@ -5,7 +5,9 @@ import {
 } from "@/app/(public)/cultivar/[cultivarNormalizedName]/_components/cultivar-offers-utils";
 import { type RouterOutputs } from "@/trpc/react";
 
-type CultivarPageOutput = NonNullable<RouterOutputs["public"]["getCultivarPage"]>;
+type CultivarPageOutput = NonNullable<
+  RouterOutputs["public"]["getCultivarPage"]
+>;
 type OfferGardenCard = CultivarPageOutput["offers"]["gardenCards"][number];
 
 const gardenCards: OfferGardenCard[] = [
@@ -115,7 +117,9 @@ describe("getFilteredGardenOffers", () => {
 
     expect(result.offersCount).toBe(2);
     expect(
-      result.gardens.flatMap((garden) => garden.offers.map((offer) => offer.id)),
+      result.gardens.flatMap((garden) =>
+        garden.offers.map((offer) => offer.id),
+      ),
     ).toEqual(["beta-sale", "alpha-sale"]);
   });
 });

@@ -56,9 +56,7 @@ export class DashboardProfile {
     await expect
       .poll(async () => {
         return this.slugInput.evaluate((element) => {
-          return element instanceof HTMLInputElement
-            ? element.readOnly
-            : true;
+          return element instanceof HTMLInputElement ? element.readOnly : true;
         });
       })
       .toBe(false);

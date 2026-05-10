@@ -44,17 +44,20 @@ async function loadPublicProfilePageData(args: {
   userSlugOrId: string;
 }) {
   const userId = await getCachedPublicUserIdFromSlugOrId(args.userSlugOrId);
-  const [summary, content, lists, listingPage, forSaleCount] = await Promise.all([
-    getCachedPublicSellerSummary(userId),
-    getCachedPublicSellerContent(userId),
-    args.includeSellerLists ? getCachedPublicSellerLists(userId) : Promise.resolve([]),
-    getCachedPublicListingsPageIds({
-      page: args.page,
-      pageSize: PUBLIC_PROFILE_LISTINGS_PAGE_SIZE,
-      userSlugOrId: args.userSlugOrId,
-    }),
-    getCachedPublicForSaleListingsCount(userId),
-  ]);
+  const [summary, content, lists, listingPage, forSaleCount] =
+    await Promise.all([
+      getCachedPublicSellerSummary(userId),
+      getCachedPublicSellerContent(userId),
+      args.includeSellerLists
+        ? getCachedPublicSellerLists(userId)
+        : Promise.resolve([]),
+      getCachedPublicListingsPageIds({
+        page: args.page,
+        pageSize: PUBLIC_PROFILE_LISTINGS_PAGE_SIZE,
+        userSlugOrId: args.userSlugOrId,
+      }),
+      getCachedPublicForSaleListingsCount(userId),
+    ]);
   const items = await getCachedPublicListingCardsByIds(listingPage.ids);
 
   return buildPublicProfilePageResult({

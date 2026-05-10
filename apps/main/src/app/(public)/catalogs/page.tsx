@@ -1,3 +1,4 @@
+// eslint-disable react/no-danger -- intentional static JSON-LD, style, or compatibility script injection.
 import { MainContent } from "../_components/main-content";
 import { type Metadata } from "next";
 import { getCachedPublicProfiles } from "@/server/db/public-cache";

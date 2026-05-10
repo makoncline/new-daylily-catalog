@@ -115,7 +115,9 @@ test.describe("create/edit listing flow @local", () => {
 
     await expectToast("Listing created");
     await editListingDialog.isReady();
-    await expect(page).toHaveURL((url) => url.searchParams.get("editing") !== null);
+    await expect(page).toHaveURL(
+      (url) => url.searchParams.get("editing") !== null,
+    );
 
     const createdEditingId = await editListingDialog.getEditingParamFromUrl();
     expect(createdEditingId).not.toBeNull();

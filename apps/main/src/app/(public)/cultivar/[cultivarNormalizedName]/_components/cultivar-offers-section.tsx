@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { Suspense, useMemo } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
   Select,
@@ -22,7 +22,9 @@ import {
   type OfferSort,
 } from "./cultivar-offers-utils";
 
-type CultivarPageOutput = NonNullable<RouterOutputs["public"]["getCultivarPage"]>;
+type CultivarPageOutput = NonNullable<
+  RouterOutputs["public"]["getCultivarPage"]
+>;
 type Offers = CultivarPageOutput["offers"];
 
 interface CultivarOffersSectionProps {
@@ -36,8 +38,9 @@ const sortLabels: Record<OfferSort, string> = {
   "updated-desc": "Recently Updated",
 };
 
-export function CultivarOffersSection({ offers }: CultivarOffersSectionProps) {
+function CultivarOffersSectionInner({ offers }: CultivarOffersSectionProps) {
   const router = useRouter();
+  const replaceRoute = router.replace.bind(router);
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
@@ -58,7 +61,9 @@ export function CultivarOffersSection({ offers }: CultivarOffersSectionProps) {
     );
 
     const query = nextParams.toString();
-    router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false });
+    replaceRoute(query ? `${pathname}?${query}` : pathname, {
+      scroll: false,
+    });
   };
 
   return (
@@ -67,8 +72,10 @@ export function CultivarOffersSection({ offers }: CultivarOffersSectionProps) {
         <div className="space-y-2">
           <H2>Available in Catalogs</H2>
           <Muted>
-            {filtered.offersCount} {filtered.offersCount === 1 ? "offer" : "offers"} • {" "}
-            {filtered.gardens.length} {filtered.gardens.length === 1 ? "catalog" : "catalogs"}
+            {filtered.offersCount}{" "}
+            {filtered.offersCount === 1 ? "offer" : "offers"} •{" "}
+            {filtered.gardens.length}{" "}
+            {filtered.gardens.length === 1 ? "catalog" : "catalogs"}
           </Muted>
         </div>
 
@@ -122,7 +129,9 @@ export function CultivarOffersSection({ offers }: CultivarOffersSectionProps) {
             </SelectContent>
           </Select>
 
-          {(filters.forSaleOnly || filters.hasPhotoOnly || filters.sort !== DEFAULT_OFFER_FILTERS.sort) && (
+          {(filters.forSaleOnly ||
+            filters.hasPhotoOnly ||
+            filters.sort !== DEFAULT_OFFER_FILTERS.sort) && (
             <Button
               type="button"
               variant="ghost"
@@ -138,7 +147,10 @@ export function CultivarOffersSection({ offers }: CultivarOffersSectionProps) {
       {filtered.gardens.length > 0 ? (
         <div className="space-y-4">
           {filtered.gardens.map((gardenCard) => (
-            <CultivarOfferGardenCard key={gardenCard.userId} gardenCard={gardenCard} />
+            <CultivarOfferGardenCard
+              key={gardenCard.userId}
+              gardenCard={gardenCard}
+            />
           ))}
         </div>
       ) : (
@@ -147,5 +159,13 @@ export function CultivarOffersSection({ offers }: CultivarOffersSectionProps) {
         </div>
       )}
     </section>
+  );
+}
+
+export function CultivarOffersSection(props: CultivarOffersSectionProps) {
+  return (
+    <Suspense fallback={null}>
+      <CultivarOffersSectionInner {...props} />
+    </Suspense>
   );
 }

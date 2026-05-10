@@ -5,7 +5,9 @@ import { unstable_doesMiddlewareMatch } from "next/experimental/testing/server";
 
 vi.mock("@clerk/nextjs/server", () => ({
   clerkMiddleware: vi.fn<
-    <THandler extends (...args: never[]) => unknown>(handler: THandler) => THandler
+    <THandler extends (...args: never[]) => unknown>(
+      handler: THandler,
+    ) => THandler
   >((handler) => handler),
   createRouteMatcher: vi.fn(() => () => false),
 }));

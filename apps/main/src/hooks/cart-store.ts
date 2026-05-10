@@ -117,7 +117,10 @@ export function subscribeToCart(userId: string, onStoreChange: () => void) {
     onStoreChange();
   };
 
-  window.addEventListener(CART_UPDATED_EVENT, handleCartUpdated as EventListener);
+  window.addEventListener(
+    CART_UPDATED_EVENT,
+    handleCartUpdated as EventListener,
+  );
   window.addEventListener("storage", handleStorageEvent);
 
   return () => {

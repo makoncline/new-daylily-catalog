@@ -5,9 +5,7 @@ import {
   generatePublicProfilePageMetadata,
   renderPublicProfilePage,
 } from "../../_lib/public-profile-page";
-import {
-  getPublicProfilePaginatedStaticParams,
-} from "../../_lib/public-profile-route";
+import { getPublicProfilePaginatedStaticParams } from "../../_lib/public-profile-route";
 
 // CACHE_LITERAL_REF: CACHE_CONFIG.PUBLIC.STATIC_REVALIDATE_SECONDS
 export const revalidate = 86400;

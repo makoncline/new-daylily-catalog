@@ -4,7 +4,11 @@ import { toast } from "sonner";
 import { uploadFileWithProgress } from "@/lib/utils";
 import { type ImageType } from "@/types/image";
 import { type Image } from "@prisma/client";
-import { getErrorMessage, normalizeError, reportError } from "@/lib/error-utils";
+import {
+  getErrorMessage,
+  normalizeError,
+  reportError,
+} from "@/lib/error-utils";
 import { createImage } from "@/app/dashboard/_lib/dashboard-db/images-collection";
 
 interface UseImageUploadOptions {
@@ -89,4 +93,3 @@ export function useImageUpload({
     isUploading,
   };
 }
-

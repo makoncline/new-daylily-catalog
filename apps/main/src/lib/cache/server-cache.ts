@@ -55,7 +55,7 @@ export function createKeyedServerCache<Args extends unknown[], Result>(
   };
 }
 
-export function shouldBypassServerCache() {
+function shouldBypassServerCache() {
   return (
     process.env.NODE_ENV === "test" ||
     process.env.VITEST === "true" ||

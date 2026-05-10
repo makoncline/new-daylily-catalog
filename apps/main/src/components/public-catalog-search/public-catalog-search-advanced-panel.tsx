@@ -103,7 +103,7 @@ function ActiveFilterChips({
             onClick={chip.onClear}
           >
             {chip.label}
-            <X className="h-3 w-3" />
+            <X className="size-3" />
           </Button>
         ))}
       </div>
@@ -131,15 +131,13 @@ function BasicSearchInput({
     table.resetPageIndex(true);
   }, 200);
 
+  const submitSearch = () => {
+    debouncedFilter.flush();
+    onSubmit?.();
+  };
+
   return (
-    <form
-      onSubmit={(e) => {
-        e.preventDefault();
-        debouncedFilter.flush();
-        onSubmit?.();
-      }}
-      data-testid="search-query-form"
-    >
+    <div data-testid="search-query-form">
       <Input
         placeholder="Search listings..."
         value={value}
@@ -150,8 +148,13 @@ function BasicSearchInput({
           setValue(next);
           debouncedFilter(next);
         }}
+        onKeyDown={(event) => {
+          if (event.key === "Enter") {
+            submitSearch();
+          }
+        }}
       />
-    </form>
+    </div>
   );
 }
 
@@ -161,9 +164,19 @@ function getSectionGroupFilters(
 ) {
   type SectionFilter = (typeof section.filters)[number];
 
-  return filterIds
-    .map((filterId) => section.filters.find((filter) => filter.id === filterId))
-    .filter((filter): filter is SectionFilter => filter !== undefined);
+  const filters: SectionFilter[] = [];
+  const filtersById = new Map(
+    section.filters.map((filter) => [filter.id, filter]),
+  );
+
+  for (const filterId of filterIds) {
+    const filter = filtersById.get(filterId);
+    if (filter) {
+      filters.push(filter);
+    }
+  }
+
+  return filters;
 }
 
 export function PublicCatalogSearchAdvancedPanel({
@@ -189,11 +202,11 @@ export function PublicCatalogSearchAdvancedPanel({
           type="button"
           variant="ghost"
           size="icon"
-          className="h-8 w-8"
+          className="size-8"
           onClick={() => onCollapsedChange(false)}
           data-testid="search-panel-expand"
         >
-          <Search className="h-4 w-4" />
+          <Search className="size-4" />
           <span className="sr-only">Expand search panel</span>
         </Button>
       </div>
@@ -212,21 +225,23 @@ export function PublicCatalogSearchAdvancedPanel({
             type="button"
             variant="ghost"
             size="icon"
-            className="h-6 w-6"
+            className="size-6"
             onClick={() => onCollapsedChange(true)}
             data-testid="search-panel-collapse"
           >
-            <PanelLeftClose className="h-3.5 w-3.5" />
+            <PanelLeftClose className="size-3.5" />
             <span className="sr-only">Collapse search panel</span>
           </Button>
           <span className="text-sm font-semibold">Search</span>
         </div>
         <label
+          htmlFor="search-mode-switch"
           className="flex items-center gap-2"
           data-testid="search-mode-toggle"
         >
           <span className="text-muted-foreground text-xs">Advanced</span>
           <Switch
+            id="search-mode-switch"
             checked={isAdvanced}
             onCheckedChange={(checked) =>
               onModeChange(checked ? "advanced" : "basic")
@@ -241,7 +256,7 @@ export function PublicCatalogSearchAdvancedPanel({
       <div className="mt-3">
         <div className="flex items-center justify-between">
           <span className="text-muted-foreground flex items-center gap-1.5 text-[11px]">
-            <Search className="h-3 w-3" />
+            <Search className="size-3" />
             Filters apply live
           </span>
         </div>

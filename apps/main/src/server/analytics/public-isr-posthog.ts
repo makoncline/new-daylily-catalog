@@ -3,7 +3,7 @@ import { captureServerPosthogEvent } from "@/server/analytics/posthog-server";
 
 const PUBLIC_ISR_POSTHOG_DISTINCT_ID = "system:public-isr";
 
-export const PUBLIC_ISR_POSTHOG_EVENTS = {
+const PUBLIC_ISR_POSTHOG_EVENTS = {
   INVALIDATED: "public_isr_invalidated",
   PAGE_GENERATED: "public_isr_page_generated",
 } as const;

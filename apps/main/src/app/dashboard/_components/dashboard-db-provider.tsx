@@ -1,26 +1,12 @@
 "use client";
 
-import React, {
-  createContext,
-  useContext,
-  useEffect,
-  useRef,
-  useState,
-} from "react";
+import React, { createContext, useEffect, useRef, useState, use } from "react";
 import { api } from "@/trpc/react";
 import { getQueryClient } from "@/trpc/query-client";
-import {
-  cleanupImagesCollection,
-} from "@/app/dashboard/_lib/dashboard-db/images-collection";
-import {
-  cleanupListingsCollection,
-} from "@/app/dashboard/_lib/dashboard-db/listings-collection";
-import {
-  cleanupListsCollection,
-} from "@/app/dashboard/_lib/dashboard-db/lists-collection";
-import {
-  cleanupCultivarReferencesCollection,
-} from "@/app/dashboard/_lib/dashboard-db/cultivar-references-collection";
+import { cleanupImagesCollection } from "@/app/dashboard/_lib/dashboard-db/images-collection";
+import { cleanupListingsCollection } from "@/app/dashboard/_lib/dashboard-db/listings-collection";
+import { cleanupListsCollection } from "@/app/dashboard/_lib/dashboard-db/lists-collection";
+import { cleanupCultivarReferencesCollection } from "@/app/dashboard/_lib/dashboard-db/cultivar-references-collection";
 import { setCurrentUserId } from "@/lib/utils/cursor";
 import {
   bootstrapDashboardDbFromServer,
@@ -42,7 +28,7 @@ interface DashboardDbState {
 const DashboardDbContext = createContext<DashboardDbState | null>(null);
 
 export function useDashboardDb() {
-  const value = useContext(DashboardDbContext);
+  const value = use(DashboardDbContext);
   if (!value) {
     throw new Error("useDashboardDb must be used within DashboardDbProvider");
   }
@@ -68,8 +54,6 @@ export function DashboardDbProvider({
     userId: null,
   });
 
-  const [hideLoadingScreen, setHideLoadingScreen] = useState(false);
-  const [isExitingLoadingScreen, setIsExitingLoadingScreen] = useState(false);
   const initializedUserIdRef = useRef<string | null>(null);
   const lastReportedFailureKeyRef = useRef<string | null>(null);
   const setDashboardDbState = (nextState: DashboardDbState) => {
@@ -79,42 +63,11 @@ export function DashboardDbProvider({
         current.userId === nextState.userId
           ? current
           : nextState,
-        );
-    });
-  };
-
-  const setLoadingScreenState = ({
-    hide,
-    exiting,
-  }: {
-    hide: boolean;
-    exiting: boolean;
-  }) => {
-    queueMicrotask(() => {
-      setHideLoadingScreen((current) => (current === hide ? current : hide));
-      setIsExitingLoadingScreen((current) =>
-        current === exiting ? current : exiting,
       );
     });
   };
 
-  useEffect(() => {
-    if (state.status !== "ready") {
-      setLoadingScreenState({ hide: false, exiting: false });
-      return;
-    }
-
-    setLoadingScreenState({ hide: false, exiting: true });
-    const id = window.setTimeout(() => {
-      setHideLoadingScreen(true);
-    }, 200);
-
-    return () => {
-      window.clearTimeout(id);
-    };
-  }, [state.status]);
-
-  useEffect(() => {
+  const syncDashboardDb = React.useCallback(() => {
     if (isLoading) {
       setDashboardDbState({
         status: "loading",
@@ -238,15 +191,14 @@ export function DashboardDbProvider({
     };
   }, [isError, isLoading, userId, utils]);
 
+  useEffect(() => syncDashboardDb(), [syncDashboardDb]);
+
   return (
     <DashboardDbContext.Provider value={state}>
       {state.status === "ready" ? children : null}
 
-      {hideLoadingScreen ? null : (
-        <DashboardDbLoadingScreen
-          status={state.status}
-          isExiting={isExitingLoadingScreen}
-        />
+      {state.status === "ready" ? null : (
+        <DashboardDbLoadingScreen status={state.status} isExiting={false} />
       )}
     </DashboardDbContext.Provider>
   );

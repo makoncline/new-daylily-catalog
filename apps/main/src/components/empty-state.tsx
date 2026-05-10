@@ -11,13 +11,13 @@ interface EmptyStateProps {
 }
 
 export function EmptyState({
-  icon = <FileX2 className="h-12 w-12 text-muted-foreground" />,
+  icon = <FileX2 className="text-muted-foreground size-12" />,
   title,
   description,
   action,
 }: EmptyStateProps) {
   return (
-    <div className="flex min-h-[400px] flex-col items-center justify-center gap-4 rounded-md border border-dashed p-8 text-center animate-in fade-in-50">
+    <div className="animate-in fade-in-50 flex min-h-[400px] flex-col items-center justify-center gap-4 rounded-md border border-dashed p-8 text-center">
       {icon}
       <div className="space-y-2">
         <H3 className="text-2xl">{title}</H3>

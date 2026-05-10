@@ -20,6 +20,7 @@ export function OnboardingCheckoutButton({
   ...props
 }: OnboardingCheckoutButtonProps) {
   const router = useRouter();
+  const pushRoute = router.push.bind(router);
   const generateCheckout = api.stripe.generateCheckout.useMutation();
 
   const handleCheckout = async () => {
@@ -34,7 +35,7 @@ export function OnboardingCheckoutButton({
     try {
       const { url } = await generateCheckout.mutateAsync();
       capturePosthogEvent("checkout_redirect_ready", { source });
-      router.push(url);
+      pushRoute(url);
     } catch (error) {
       capturePosthogEvent("checkout_failed", { source });
       reportError({
@@ -52,7 +53,7 @@ export function OnboardingCheckoutButton({
       disabled={generateCheckout.isPending}
       {...props}
     >
-      <Sparkles className="mr-2 h-4 w-4" />
+      <Sparkles className="mr-2 size-4" />
       {children ??
         (generateCheckout.isPending ? "Loading..." : "Upgrade to Pro")}
     </Button>

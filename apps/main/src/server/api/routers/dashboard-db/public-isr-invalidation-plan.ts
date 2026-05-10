@@ -1,6 +1,9 @@
-import type { TrackPublicIsrPathInvalidationInput, TrackPublicIsrTagInvalidationInput } from "@/server/analytics/public-isr-posthog";
+import type {
+  TrackPublicIsrPathInvalidationInput,
+  TrackPublicIsrTagInvalidationInput,
+} from "@/server/analytics/public-isr-posthog";
 
-export type PublicIsrTagProfile = "expire:0" | "max";
+type PublicIsrTagProfile = "expire:0" | "max";
 
 export interface PublicIsrPathInput {
   path: string;
@@ -18,12 +21,10 @@ export interface PublicIsrPlan {
   tags: PublicIsrTagInput[];
 }
 
-export interface PublicIsrExecutionHandlers {
+interface PublicIsrExecutionHandlers {
   revalidatePath: (path: string, type?: "page" | "layout") => boolean;
   revalidateTag: (tag: string, profile: "max" | { expire: 0 }) => boolean;
-  trackPathInvalidation: (
-    input: TrackPublicIsrPathInvalidationInput,
-  ) => void;
+  trackPathInvalidation: (input: TrackPublicIsrPathInvalidationInput) => void;
   trackTagInvalidation: (input: TrackPublicIsrTagInvalidationInput) => void;
 }
 
@@ -34,7 +35,7 @@ export interface ExecutePublicIsrPlanArgs {
   transport: "direct" | "internal-route";
 }
 
-export const PUBLIC_ISR_DEFAULT_TAG_PROFILE: PublicIsrTagProfile = "expire:0";
+const PUBLIC_ISR_DEFAULT_TAG_PROFILE: PublicIsrTagProfile = "expire:0";
 
 function normalizePublicIsrTagProfile(
   profile: PublicIsrTagProfile | undefined,
@@ -42,13 +43,11 @@ function normalizePublicIsrTagProfile(
   return profile ?? PUBLIC_ISR_DEFAULT_TAG_PROFILE;
 }
 
-export function toNextTagProfile(profile: PublicIsrTagProfile): "max" | { expire: 0 } {
+function toNextTagProfile(profile: PublicIsrTagProfile): "max" | { expire: 0 } {
   return profile === "max" ? "max" : ({ expire: 0 } as const);
 }
 
-function toUniquePathInputs(
-  paths: PublicIsrPathInput[],
-): PublicIsrPathInput[] {
+function toUniquePathInputs(paths: PublicIsrPathInput[]): PublicIsrPathInput[] {
   const byKey = new Map<string, PublicIsrPathInput>();
 
   paths.forEach((entry) => {

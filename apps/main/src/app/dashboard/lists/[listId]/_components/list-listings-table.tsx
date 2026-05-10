@@ -56,9 +56,11 @@ function SelectedItemsActions({
     setIsDialogOpen: setShowDeleteDialog,
   } = useConfirmableAsyncAction({
     action: async () => {
-      for (const listingId of selectedListingIds) {
-        await removeListingFromList({ listId, listingId });
-      }
+      await Promise.all(
+        selectedListingIds.map((listingId) =>
+          removeListingFromList({ listId, listingId }),
+        ),
+      );
     },
     onSuccess: () => {
       toast.success("Listings removed from list");
@@ -78,7 +80,7 @@ function SelectedItemsActions({
         onClick={openDeleteDialog}
         disabled={isPending}
       >
-        <Trash2 className="mr-2 h-4 w-4" />
+        <Trash2 className="mr-2 size-4" />
         Remove {selectedRows.length} selected
       </Button>
 
@@ -115,7 +117,7 @@ function ListingsTableToolbar({
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <div className="flex flex-1 items-center space-x-2">
+        <div className="flex flex-1 items-center gap-x-2">
           <DataTableGlobalFilter
             table={table}
             placeholder="Filter listings..."
@@ -174,7 +176,7 @@ export function ListListingsTable({
     <div className="space-y-4" data-testid="manage-list-table">
       <div>
         <Label>Listings</Label>
-        <p className="text-[0.8rem] text-muted-foreground">
+        <p className="text-muted-foreground text-[0.8rem]">
           Select listings to remove them or use the table options to customize
           your view.
         </p>

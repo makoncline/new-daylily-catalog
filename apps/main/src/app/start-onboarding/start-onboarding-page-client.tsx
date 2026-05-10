@@ -2,9 +2,20 @@
 
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useCallback, useMemo, useRef, useState } from "react";
+import {
+  Suspense,
+  useCallback,
+  useMemo,
+  useReducer,
+  useRef,
+  type Dispatch,
+  type SetStateAction,
+} from "react";
 import { ArrowRight, CheckCircle2 } from "lucide-react";
-import { OnboardingBuyerContactPreviewStep, OnboardingMembershipStep } from "./_components/onboarding-finish-steps";
+import {
+  OnboardingBuyerContactPreviewStep,
+  OnboardingMembershipStep,
+} from "./_components/onboarding-finish-steps";
 import {
   OnboardingListingEditStep,
   OnboardingProfileEditStep,
@@ -65,40 +76,207 @@ const DEFAULT_LISTING_DRAFT: ListingOnboardingDraft = {
   status: ONBOARDING_LISTING_DEFAULTS.defaultStatus,
 };
 
-export function StartOnboardingPageClient({
+interface StartOnboardingState {
+  focusedProfileField: ProfileOnboardingField;
+  activeListingField: ListingOnboardingField;
+  profileDraft: ProfileOnboardingDraft;
+  listingDraft: ListingOnboardingDraft;
+  selectedCultivarName: string | null;
+  selectedCultivarAhsId: string | null;
+  selectedListingImageId: string | null;
+  selectedListingImageUrl: string | null;
+  savedListingId: string | null;
+}
+
+type StartOnboardingAction =
+  | {
+      type: "setFocusedProfileField";
+      value: SetStateAction<ProfileOnboardingField>;
+    }
+  | {
+      type: "setActiveListingField";
+      value: SetStateAction<ListingOnboardingField>;
+    }
+  | { type: "setProfileDraft"; value: SetStateAction<ProfileOnboardingDraft> }
+  | { type: "setListingDraft"; value: SetStateAction<ListingOnboardingDraft> }
+  | { type: "setSelectedCultivarName"; value: SetStateAction<string | null> }
+  | { type: "setSelectedCultivarAhsId"; value: SetStateAction<string | null> }
+  | { type: "setSelectedListingImageId"; value: SetStateAction<string | null> }
+  | { type: "setSelectedListingImageUrl"; value: SetStateAction<string | null> }
+  | { type: "setSavedListingId"; value: SetStateAction<string | null> };
+
+function resolveStateAction<T>(previous: T, value: SetStateAction<T>) {
+  return typeof value === "function"
+    ? (value as (previous: T) => T)(previous)
+    : value;
+}
+
+function startOnboardingReducer(
+  state: StartOnboardingState,
+  action: StartOnboardingAction,
+): StartOnboardingState {
+  switch (action.type) {
+    case "setFocusedProfileField":
+      return {
+        ...state,
+        focusedProfileField: resolveStateAction(
+          state.focusedProfileField,
+          action.value,
+        ),
+      };
+    case "setActiveListingField":
+      return {
+        ...state,
+        activeListingField: resolveStateAction(
+          state.activeListingField,
+          action.value,
+        ),
+      };
+    case "setProfileDraft":
+      return {
+        ...state,
+        profileDraft: resolveStateAction(state.profileDraft, action.value),
+      };
+    case "setListingDraft":
+      return {
+        ...state,
+        listingDraft: resolveStateAction(state.listingDraft, action.value),
+      };
+    case "setSelectedCultivarName":
+      return {
+        ...state,
+        selectedCultivarName: resolveStateAction(
+          state.selectedCultivarName,
+          action.value,
+        ),
+      };
+    case "setSelectedCultivarAhsId":
+      return {
+        ...state,
+        selectedCultivarAhsId: resolveStateAction(
+          state.selectedCultivarAhsId,
+          action.value,
+        ),
+      };
+    case "setSelectedListingImageId":
+      return {
+        ...state,
+        selectedListingImageId: resolveStateAction(
+          state.selectedListingImageId,
+          action.value,
+        ),
+      };
+    case "setSelectedListingImageUrl":
+      return {
+        ...state,
+        selectedListingImageUrl: resolveStateAction(
+          state.selectedListingImageUrl,
+          action.value,
+        ),
+      };
+    case "setSavedListingId":
+      return {
+        ...state,
+        savedListingId: resolveStateAction(state.savedListingId, action.value),
+      };
+  }
+}
+
+function useOnboardingStateSetters(dispatch: Dispatch<StartOnboardingAction>) {
+  return {
+    setFocusedProfileField: useCallback(
+      (value: SetStateAction<ProfileOnboardingField>) =>
+        dispatch({ type: "setFocusedProfileField", value }),
+      [dispatch],
+    ),
+    setActiveListingField: useCallback(
+      (value: SetStateAction<ListingOnboardingField>) =>
+        dispatch({ type: "setActiveListingField", value }),
+      [dispatch],
+    ),
+    setProfileDraft: useCallback(
+      (value: SetStateAction<ProfileOnboardingDraft>) =>
+        dispatch({ type: "setProfileDraft", value }),
+      [dispatch],
+    ),
+    setListingDraft: useCallback(
+      (value: SetStateAction<ListingOnboardingDraft>) =>
+        dispatch({ type: "setListingDraft", value }),
+      [dispatch],
+    ),
+    setSelectedCultivarName: useCallback(
+      (value: SetStateAction<string | null>) =>
+        dispatch({ type: "setSelectedCultivarName", value }),
+      [dispatch],
+    ),
+    setSelectedCultivarAhsId: useCallback(
+      (value: SetStateAction<string | null>) =>
+        dispatch({ type: "setSelectedCultivarAhsId", value }),
+      [dispatch],
+    ),
+    setSelectedListingImageId: useCallback(
+      (value: SetStateAction<string | null>) =>
+        dispatch({ type: "setSelectedListingImageId", value }),
+      [dispatch],
+    ),
+    setSelectedListingImageUrl: useCallback(
+      (value: SetStateAction<string | null>) =>
+        dispatch({ type: "setSelectedListingImageUrl", value }),
+      [dispatch],
+    ),
+    setSavedListingId: useCallback(
+      (value: SetStateAction<string | null>) =>
+        dispatch({ type: "setSavedListingId", value }),
+      [dispatch],
+    ),
+  };
+}
+
+function useStartOnboardingController({
   membershipPriceDisplay,
 }: StartOnboardingPageClientProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const getSearchParam = searchParams.get.bind(searchParams);
   const utils = api.useUtils();
   const onboardingPath = SUBSCRIPTION_CONFIG.NEW_USER_ONBOARDING_PATH;
 
-  const [focusedProfileField, setFocusedProfileField] =
-    useState<ProfileOnboardingField>("gardenName");
-  const [activeListingField, setActiveListingField] =
-    useState<ListingOnboardingField>("cultivar");
-
-  const [profileDraft, setProfileDraft] = useState<ProfileOnboardingDraft>(
-    DEFAULT_PROFILE_DRAFT,
+  const [onboardingState, onboardingDispatch] = useReducer(
+    startOnboardingReducer,
+    {
+      focusedProfileField: "gardenName",
+      activeListingField: "cultivar",
+      profileDraft: DEFAULT_PROFILE_DRAFT,
+      listingDraft: DEFAULT_LISTING_DRAFT,
+      selectedCultivarName: null,
+      selectedCultivarAhsId: null,
+      selectedListingImageId: null,
+      selectedListingImageUrl: null,
+      savedListingId: null,
+    },
   );
-  const [listingDraft, setListingDraft] = useState<ListingOnboardingDraft>(
-    DEFAULT_LISTING_DRAFT,
-  );
-
-  const [selectedCultivarName, setSelectedCultivarName] = useState<
-    string | null
-  >(null);
-  const [selectedCultivarAhsId, setSelectedCultivarAhsId] = useState<
-    string | null
-  >(null);
-  const [selectedListingImageId, setSelectedListingImageId] = useState<
-    string | null
-  >(null);
-  const [selectedListingImageUrl, setSelectedListingImageUrl] = useState<
-    string | null
-  >(null);
-
-  const [savedListingId, setSavedListingId] = useState<string | null>(null);
+  const {
+    focusedProfileField,
+    activeListingField,
+    profileDraft,
+    listingDraft,
+    selectedCultivarName,
+    selectedCultivarAhsId,
+    selectedListingImageId,
+    selectedListingImageUrl,
+    savedListingId,
+  } = onboardingState;
+  const {
+    setFocusedProfileField,
+    setActiveListingField,
+    setProfileDraft,
+    setListingDraft,
+    setSelectedCultivarName,
+    setSelectedCultivarAhsId,
+    setSelectedListingImageId,
+    setSelectedListingImageUrl,
+    setSavedListingId,
+  } = useOnboardingStateSetters(onboardingDispatch);
 
   const profileQuery = api.dashboardDb.userProfile.get.useQuery();
   const currentUserQuery = api.dashboardDb.user.getCurrentUser.useQuery();
@@ -134,29 +312,27 @@ export function StartOnboardingPageClient({
     [utils.dashboardDb.ahs.search],
   );
 
-  const {
-    clearOnboardingDraftSnapshot,
-    earliestExistingListing,
-  } = useOnboardingBootstrapState({
-    currentUserEmail: currentUserQuery.data?.clerk?.email,
-    currentUserId: currentUserQuery.data?.id,
-    images: imagesQuery.data,
-    listingDraft,
-    listings: listingQuery.data,
-    profile: profileQuery.data,
-    profileDraft,
-    profileUserId: profileQuery.data?.userId,
-    savedListingId,
-    selectedCultivarAhsId,
-    selectedCultivarName,
-    setListingDraft,
-    setProfileDraft,
-    setSavedListingId,
-    setSelectedCultivarAhsId,
-    setSelectedCultivarName,
-    setSelectedListingImageId,
-    setSelectedListingImageUrl,
-  });
+  const { clearOnboardingDraftSnapshot, earliestExistingListing } =
+    useOnboardingBootstrapState({
+      currentUserEmail: currentUserQuery.data?.clerk?.email,
+      currentUserId: currentUserQuery.data?.id,
+      images: imagesQuery.data,
+      listingDraft,
+      listings: listingQuery.data,
+      profile: profileQuery.data,
+      profileDraft,
+      profileUserId: profileQuery.data?.userId,
+      savedListingId,
+      selectedCultivarAhsId,
+      selectedCultivarName,
+      setListingDraft,
+      setProfileDraft,
+      setSavedListingId,
+      setSelectedCultivarAhsId,
+      setSelectedCultivarName,
+      setSelectedListingImageId,
+      setSelectedListingImageUrl,
+    });
   const earliestPersistedProfileImage = useMemo(() => {
     if (!profileQuery.data?.id) {
       return null;
@@ -185,7 +361,7 @@ export function StartOnboardingPageClient({
 
     return isStarterProfileImageUrl(candidate) ? null : candidate;
   }, [earliestPersistedProfileImage]);
-  const rawStepParam = searchParams.get("step");
+  const rawStepParam = getSearchParam("step");
   const ensureListingDraftRecord = useCallback(async () => {
     if (savedListingId) {
       return savedListingId;
@@ -216,6 +392,7 @@ export function StartOnboardingPageClient({
     listingDraft.cultivarReferenceId,
     listingDraft.title,
     savedListingId,
+    setSavedListingId,
     updateListingMutation,
     utils.dashboardDb.image.list,
     utils.dashboardDb.listing.list,
@@ -478,6 +655,198 @@ export function StartOnboardingPageClient({
     searchParamsString: searchParams.toString(),
   });
 
+  return {
+    activeListingField,
+    applyStarterNameOverlay,
+    currentStep,
+    existingProfileImageUrl,
+    focusListingField,
+    focusProfileField,
+    focusedProfileField,
+    gardenDescriptionInputRef,
+    gardenLocationInputRef,
+    gardenNameInputRef,
+    getStepHref,
+    goToPreviousStep,
+    goToStep,
+    handleAhsSelect,
+    handleDeferredListingImageCleared,
+    handleDeferredListingImageReady,
+    handleDeferredProfileImageCleared,
+    handleDeferredProfileImageReady,
+    handleGardenNameChange,
+    handleMembershipContinueForNow,
+    handlePrimaryAction,
+    handleProfileImageModeChange,
+    handleSkipOnboarding,
+    handleStarterImageSelect,
+    handleStarterOverlayChange,
+    handleUseExistingProfileImageChange,
+    isBuyerContactPreviewHydrating,
+    isGeneratingStarterImage,
+    isListingCultivarPlaceholder,
+    isListingDescriptionInRecommendedRange,
+    isListingDescriptionPlaceholder,
+    isListingDescriptionTooLong,
+    isListingDescriptionTooShort,
+    isListingPricePlaceholder,
+    isListingTitlePlaceholder,
+    isLoadingOnboardingCultivarOptions,
+    isProfileDescriptionInRecommendedRange,
+    isProfileDescriptionPlaceholder,
+    isProfileDescriptionTooLong,
+    isProfileDescriptionTooShort,
+    isProfileLocationPlaceholder,
+    isProfileNamePlaceholder,
+    listingContinueChecklist,
+    listingCultivarRef,
+    listingDescriptionCharacterCount,
+    listingDescriptionForBuyerContactPreview,
+    listingDescriptionInputRef,
+    listingDescriptionPreview,
+    listingDraft,
+    listingImageEditorRef,
+    listingImagePreviewUrl,
+    listingMissingField,
+    listingPriceForBuyerContactPreview,
+    listingTitleForBuyerContactPreview,
+    listingTitleInputRef,
+    listingTitlePreview,
+    membershipPriceDisplay,
+    onboardingCultivarOptions,
+    pendingListingUploadPreviewUrl,
+    pendingProfileUploadPreviewUrl,
+    primaryButtonDisabled,
+    primaryButtonLabel,
+    profileContinueChecklist,
+    profileDescriptionCharacterCount,
+    profileDescriptionForBuyerContactPreview,
+    profileDescriptionPreview,
+    profileDraft,
+    profileImageEditorRef,
+    profileImageInputMode,
+    profileImagePreviewUrl,
+    profileLocationForBuyerContactPreview,
+    profileLocationPreview,
+    profileMissingField,
+    profileNameForBuyerContactPreview,
+    profileNamePreview,
+    profileQuery,
+    progressValue,
+    savedListingId,
+    selectedCultivarDetails: selectedCultivarDetailsQuery.data,
+    selectedCultivarName,
+    selectedListingImageId,
+    selectedListingImageUrl,
+    selectedStarterImageUrl,
+    setActiveListingField,
+    setFocusedProfileField,
+    setListingDraft,
+    setProfileDraft,
+    stepIndex,
+    useExistingProfileImage,
+  };
+}
+
+function StartOnboardingPageClientInner(props: StartOnboardingPageClientProps) {
+  const controller = useStartOnboardingController(props);
+
+  return <StartOnboardingLayout {...controller} />;
+}
+
+function StartOnboardingLayout(
+  props: ReturnType<typeof useStartOnboardingController>,
+) {
+  const {
+    activeListingField,
+    applyStarterNameOverlay,
+    currentStep,
+    existingProfileImageUrl,
+    focusListingField,
+    focusProfileField,
+    focusedProfileField,
+    gardenDescriptionInputRef,
+    gardenLocationInputRef,
+    gardenNameInputRef,
+    getStepHref,
+    goToPreviousStep,
+    goToStep,
+    handleAhsSelect,
+    handleDeferredListingImageCleared,
+    handleDeferredListingImageReady,
+    handleDeferredProfileImageCleared,
+    handleDeferredProfileImageReady,
+    handleGardenNameChange,
+    handleMembershipContinueForNow,
+    handlePrimaryAction,
+    handleProfileImageModeChange,
+    handleSkipOnboarding,
+    handleStarterImageSelect,
+    handleStarterOverlayChange,
+    handleUseExistingProfileImageChange,
+    isBuyerContactPreviewHydrating,
+    isGeneratingStarterImage,
+    isListingCultivarPlaceholder,
+    isListingDescriptionInRecommendedRange,
+    isListingDescriptionPlaceholder,
+    isListingDescriptionTooLong,
+    isListingDescriptionTooShort,
+    isListingPricePlaceholder,
+    isListingTitlePlaceholder,
+    isLoadingOnboardingCultivarOptions,
+    isProfileDescriptionInRecommendedRange,
+    isProfileDescriptionPlaceholder,
+    isProfileDescriptionTooLong,
+    isProfileDescriptionTooShort,
+    isProfileLocationPlaceholder,
+    isProfileNamePlaceholder,
+    listingContinueChecklist,
+    listingCultivarRef,
+    listingDescriptionCharacterCount,
+    listingDescriptionForBuyerContactPreview,
+    listingDescriptionInputRef,
+    listingDescriptionPreview,
+    listingDraft,
+    listingImageEditorRef,
+    listingImagePreviewUrl,
+    listingMissingField,
+    listingPriceForBuyerContactPreview,
+    listingTitleForBuyerContactPreview,
+    listingTitleInputRef,
+    listingTitlePreview,
+    membershipPriceDisplay,
+    onboardingCultivarOptions,
+    pendingListingUploadPreviewUrl,
+    pendingProfileUploadPreviewUrl,
+    primaryButtonDisabled,
+    primaryButtonLabel,
+    profileContinueChecklist,
+    profileDescriptionCharacterCount,
+    profileDescriptionForBuyerContactPreview,
+    profileDescriptionPreview,
+    profileDraft,
+    profileImageEditorRef,
+    profileImageInputMode,
+    profileImagePreviewUrl,
+    profileLocationForBuyerContactPreview,
+    profileLocationPreview,
+    profileMissingField,
+    profileNameForBuyerContactPreview,
+    profileNamePreview,
+    profileQuery,
+    progressValue,
+    savedListingId,
+    selectedCultivarDetails,
+    selectedCultivarName,
+    selectedStarterImageUrl,
+    setActiveListingField,
+    setFocusedProfileField,
+    setListingDraft,
+    setProfileDraft,
+    stepIndex,
+    useExistingProfileImage,
+  } = props;
+
   return (
     <div
       className="bg-muted/20 min-h-svh"
@@ -485,85 +854,35 @@ export function StartOnboardingPageClient({
       data-profile-ready={profileQuery.data?.id ? "true" : "false"}
     >
       <div className="mx-auto w-full max-w-6xl space-y-8 px-4 py-6 lg:px-8 lg:py-10">
-        <header className="space-y-4">
-          <div className="space-y-3">
-            <Badge variant="secondary" className="w-fit">
-              Guided onboarding
-            </Badge>
-            <h1 className="text-3xl font-bold tracking-tight lg:text-5xl">
-              Build your catalog in minutes.
-            </h1>
-            <p className="text-muted-foreground max-w-3xl text-base lg:text-lg">
-              We&apos;ll walk through profile setup and your first listing so
-              buyers can discover you before you get started in the dashboard.
-              This takes about 2 minutes, and you can edit everything later.
-            </p>
-            <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-2 lg:items-center">
-              <p className="text-lg leading-tight font-semibold lg:text-xl">
-                {currentStep.title}
-              </p>
-              <Badge
-                variant="outline"
-                className="mt-0.5 text-xs whitespace-nowrap lg:mt-0"
-              >
-                Step {stepIndex + 1} of {ONBOARDING_STEPS.length}
-              </Badge>
-            </div>
-          </div>
-
-          <Progress value={progressValue} className="h-2" />
-
-          <div className="pb-1">
-            <div className="flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-              {ONBOARDING_STEPS.map((step, index) => {
-                const isCurrent = index === stepIndex;
-                const isComplete = index < stepIndex;
-
-                return (
-                  <Link
-                    key={step.id}
-                    href={getStepHref(step.id)}
-                    scroll={false}
-                    onClick={(event) => {
-                      if (isCurrent) {
-                        event.preventDefault();
-                      }
-                      window.requestAnimationFrame(() => {
-                        window.scrollTo({ top: 0, behavior: "smooth" });
-                      });
-                    }}
-                    aria-current={isCurrent ? "step" : undefined}
-                    className={cn(
-                      "focus-visible:ring-ring shrink-0 rounded-full border px-3 py-1 text-xs font-medium transition-colors focus-visible:ring-1 focus-visible:outline-none",
-                      isCurrent && "border-primary bg-primary/10 text-primary",
-                      isComplete &&
-                        "border-emerald-500/40 bg-emerald-500/10 text-emerald-700",
-                      !isCurrent && !isComplete && "text-muted-foreground",
-                    )}
-                  >
-                    <span className="inline-flex items-center gap-1.5">
-                      {isComplete ? (
-                        <CheckCircle2 className="h-3.5 w-3.5" />
-                      ) : null}
-                      <span className="lg:hidden">{index + 1}</span>
-                      <span className="hidden lg:inline">{step.chipLabel}</span>
-                    </span>
-                  </Link>
-                );
-              })}
-            </div>
-          </div>
-        </header>
+        <StartOnboardingHeader
+          currentStep={currentStep}
+          getStepHref={getStepHref}
+          progressValue={progressValue}
+          stepIndex={stepIndex}
+        />
 
         {currentStep.id === "build-profile-card" ? (
           <OnboardingProfileEditStep
-            applyStarterNameOverlay={applyStarterNameOverlay}
             existingProfileImageUrl={existingProfileImageUrl}
+            flags={{
+              applyStarterNameOverlay,
+              isGeneratingStarterImage,
+              isProfileDescriptionInRecommendedRange,
+              isProfileDescriptionPlaceholder,
+              isProfileDescriptionTooLong,
+              isProfileDescriptionTooShort,
+              isProfileLocationPlaceholder,
+              isProfileNamePlaceholder,
+              profileReady: Boolean(profileQuery.data?.id),
+              useExistingProfileImage,
+            }}
             focusedProfileField={focusedProfileField}
             gardenDescriptionInputRef={gardenDescriptionInputRef}
             gardenLocationInputRef={gardenLocationInputRef}
             gardenNameInputRef={gardenNameInputRef}
-            handleDeferredProfileImageCleared={handleDeferredProfileImageCleared}
+            handleDeferredProfileImageCleared={
+              handleDeferredProfileImageCleared
+            }
             handleDeferredProfileImageReady={handleDeferredProfileImageReady}
             handleGardenNameChange={handleGardenNameChange}
             handleProfileImageModeChange={handleProfileImageModeChange}
@@ -572,15 +891,6 @@ export function StartOnboardingPageClient({
             handleUseExistingProfileImageChange={
               handleUseExistingProfileImageChange
             }
-            isGeneratingStarterImage={isGeneratingStarterImage}
-            isProfileDescriptionInRecommendedRange={
-              isProfileDescriptionInRecommendedRange
-            }
-            isProfileDescriptionPlaceholder={isProfileDescriptionPlaceholder}
-            isProfileDescriptionTooLong={isProfileDescriptionTooLong}
-            isProfileDescriptionTooShort={isProfileDescriptionTooShort}
-            isProfileLocationPlaceholder={isProfileLocationPlaceholder}
-            isProfileNamePlaceholder={isProfileNamePlaceholder}
             pendingProfileUploadPreviewUrl={pendingProfileUploadPreviewUrl}
             profileContinueChecklist={profileContinueChecklist}
             profileDescriptionCharacterCount={profileDescriptionCharacterCount}
@@ -592,11 +902,9 @@ export function StartOnboardingPageClient({
             profileLocationPreview={profileLocationPreview}
             profileMissingField={profileMissingField}
             profileNamePreview={profileNamePreview}
-            profileReady={Boolean(profileQuery.data?.id)}
             selectedStarterImageUrl={selectedStarterImageUrl}
             setFocusedProfileField={setFocusedProfileField}
             setProfileDraft={setProfileDraft}
-            useExistingProfileImage={useExistingProfileImage}
             focusProfileField={focusProfileField}
           />
         ) : null}
@@ -605,21 +913,21 @@ export function StartOnboardingPageClient({
           <OnboardingListingEditStep
             activeListingField={activeListingField}
             focusListingField={focusListingField}
+            flags={{
+              isListingCultivarPlaceholder,
+              isListingDescriptionInRecommendedRange,
+              isListingDescriptionPlaceholder,
+              isListingDescriptionTooLong,
+              isListingDescriptionTooShort,
+              isListingPricePlaceholder,
+              isListingTitlePlaceholder,
+              isLoadingOnboardingCultivarOptions,
+            }}
             handleAhsSelect={handleAhsSelect}
-            handleDeferredListingImageCleared={handleDeferredListingImageCleared}
+            handleDeferredListingImageCleared={
+              handleDeferredListingImageCleared
+            }
             handleDeferredListingImageReady={handleDeferredListingImageReady}
-            isListingCultivarPlaceholder={isListingCultivarPlaceholder}
-            isListingDescriptionInRecommendedRange={
-              isListingDescriptionInRecommendedRange
-            }
-            isListingDescriptionPlaceholder={isListingDescriptionPlaceholder}
-            isListingDescriptionTooLong={isListingDescriptionTooLong}
-            isListingDescriptionTooShort={isListingDescriptionTooShort}
-            isListingPricePlaceholder={isListingPricePlaceholder}
-            isListingTitlePlaceholder={isListingTitlePlaceholder}
-            isLoadingOnboardingCultivarOptions={
-              isLoadingOnboardingCultivarOptions
-            }
             listingContinueChecklist={listingContinueChecklist}
             listingCultivarRef={listingCultivarRef}
             listingDescriptionCharacterCount={listingDescriptionCharacterCount}
@@ -634,7 +942,7 @@ export function StartOnboardingPageClient({
             onboardingCultivarOptions={onboardingCultivarOptions}
             pendingListingUploadPreviewUrl={pendingListingUploadPreviewUrl}
             savedListingId={savedListingId}
-            selectedCultivarDetails={selectedCultivarDetailsQuery.data}
+            selectedCultivarDetails={selectedCultivarDetails}
             selectedCultivarName={selectedCultivarName}
             setActiveListingField={setActiveListingField}
             setListingDraft={setListingDraft}
@@ -644,10 +952,10 @@ export function StartOnboardingPageClient({
         {currentStep.id === "preview-buyer-contact" ? (
           <OnboardingBuyerContactPreviewStep
             hybridizerYear={
-              selectedCultivarDetailsQuery.data
+              selectedCultivarDetails
                 ? [
-                    selectedCultivarDetailsQuery.data.hybridizer,
-                    selectedCultivarDetailsQuery.data.year,
+                    selectedCultivarDetails.hybridizer,
+                    selectedCultivarDetails.year,
                   ]
                     .filter(Boolean)
                     .join(", ")
@@ -675,50 +983,169 @@ export function StartOnboardingPageClient({
           />
         ) : null}
 
-        {currentStep.id !== "start-membership" ? (
-          <footer className="space-y-2 border-t pt-2">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div className="text-muted-foreground text-sm">
-                {currentStep.description}
-              </div>
-              <div className="flex items-center gap-2">
-                {stepIndex > 0 ? (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={goToPreviousStep}
-                  >
-                    Back
-                  </Button>
-                ) : null}
-
-                <Button
-                  type="button"
-                  onClick={handlePrimaryAction}
-                  disabled={primaryButtonDisabled}
-                  className="inline-flex items-center gap-2"
-                  data-testid="start-onboarding-primary-action"
-                >
-                  {primaryButtonLabel}
-                  <ArrowRight className="h-4 w-4" />
-                </Button>
-              </div>
-            </div>
-
-            <div className="flex justify-end">
-              <Button
-                type="button"
-                variant="link"
-                onClick={handleSkipOnboarding}
-                className="text-muted-foreground hover:text-foreground h-auto p-0 text-xs"
-              >
-                Skip onboarding...
-              </Button>
-            </div>
-          </footer>
-        ) : null}
+        <StartOnboardingFooter
+          currentStep={currentStep}
+          goToPreviousStep={goToPreviousStep}
+          handlePrimaryAction={handlePrimaryAction}
+          handleSkipOnboarding={handleSkipOnboarding}
+          primaryButtonDisabled={primaryButtonDisabled}
+          primaryButtonLabel={primaryButtonLabel}
+          stepIndex={stepIndex}
+        />
       </div>
     </div>
+  );
+}
+
+function StartOnboardingHeader({
+  currentStep,
+  getStepHref,
+  progressValue,
+  stepIndex,
+}: Pick<
+  ReturnType<typeof useStartOnboardingController>,
+  "currentStep" | "getStepHref" | "progressValue" | "stepIndex"
+>) {
+  return (
+    <header className="space-y-4">
+      <div className="space-y-3">
+        <Badge variant="secondary" className="w-fit">
+          Guided onboarding
+        </Badge>
+        <h1 className="text-3xl font-semibold tracking-tight lg:text-5xl">
+          Build your catalog in minutes.
+        </h1>
+        <p className="text-muted-foreground max-w-3xl text-base lg:text-lg">
+          We&apos;ll walk through profile setup and your first listing so buyers
+          can discover you before you get started in the dashboard. This takes
+          about 2 minutes, and you can edit everything later.
+        </p>
+        <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-2 lg:items-center">
+          <p className="text-lg leading-tight font-semibold lg:text-xl">
+            {currentStep.title}
+          </p>
+          <Badge
+            variant="outline"
+            className="mt-0.5 text-xs whitespace-nowrap lg:mt-0"
+          >
+            Step {stepIndex + 1} of {ONBOARDING_STEPS.length}
+          </Badge>
+        </div>
+      </div>
+
+      <Progress value={progressValue} className="h-2" />
+
+      <div className="pb-1">
+        <div className="flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          {ONBOARDING_STEPS.map((step, index) => {
+            const isCurrent = index === stepIndex;
+            const isComplete = index < stepIndex;
+
+            return (
+              <Link
+                key={step.id}
+                href={getStepHref(step.id)}
+                scroll={false}
+                onClick={(event) => {
+                  if (isCurrent) {
+                    event.preventDefault();
+                  }
+                  window.requestAnimationFrame(() => {
+                    window.scrollTo({ top: 0, behavior: "smooth" });
+                  });
+                }}
+                aria-current={isCurrent ? "step" : undefined}
+                className={cn(
+                  "focus-visible:ring-ring shrink-0 rounded-full border px-3 py-1 text-xs font-medium transition-colors focus-visible:ring-1 focus-visible:outline-none",
+                  isCurrent && "border-primary bg-primary/10 text-primary",
+                  isComplete &&
+                    "border-emerald-500/40 bg-emerald-500/10 text-emerald-700",
+                  !isCurrent && !isComplete && "text-muted-foreground",
+                )}
+              >
+                <span className="inline-flex items-center gap-1.5">
+                  {isComplete ? <CheckCircle2 className="size-3.5" /> : null}
+                  <span className="lg:hidden">{index + 1}</span>
+                  <span className="hidden lg:inline">{step.chipLabel}</span>
+                </span>
+              </Link>
+            );
+          })}
+        </div>
+      </div>
+    </header>
+  );
+}
+
+function StartOnboardingFooter({
+  currentStep,
+  goToPreviousStep,
+  handlePrimaryAction,
+  handleSkipOnboarding,
+  primaryButtonDisabled,
+  primaryButtonLabel,
+  stepIndex,
+}: Pick<
+  ReturnType<typeof useStartOnboardingController>,
+  | "currentStep"
+  | "goToPreviousStep"
+  | "handlePrimaryAction"
+  | "handleSkipOnboarding"
+  | "primaryButtonDisabled"
+  | "primaryButtonLabel"
+  | "stepIndex"
+>) {
+  if (currentStep.id === "start-membership") {
+    return null;
+  }
+
+  return (
+    <footer className="space-y-2 border-t pt-2">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="text-muted-foreground text-sm">
+          {currentStep.description}
+        </div>
+        <div className="flex items-center gap-2">
+          {stepIndex > 0 ? (
+            <Button type="button" variant="outline" onClick={goToPreviousStep}>
+              Back
+            </Button>
+          ) : null}
+
+          <Button
+            type="button"
+            onClick={handlePrimaryAction}
+            disabled={primaryButtonDisabled}
+            className="inline-flex items-center gap-2"
+            data-testid="start-onboarding-primary-action"
+          >
+            {primaryButtonLabel}
+            <ArrowRight className="size-4" />
+          </Button>
+        </div>
+      </div>
+
+      <div className="flex justify-end">
+        <Button
+          type="button"
+          variant="link"
+          onClick={handleSkipOnboarding}
+          className="text-muted-foreground hover:text-foreground h-auto p-0 text-xs"
+        >
+          Skip onboarding…
+        </Button>
+      </div>
+    </footer>
+  );
+}
+
+export function StartOnboardingPageClient(
+  props: StartOnboardingPageClientProps,
+) {
+  return (
+    <Suspense fallback={null}>
+      <StartOnboardingPageClientInner {...props} />
+    </Suspense>
   );
 }
 
@@ -974,7 +1401,7 @@ function getGardenNameLayout({
   }
 
   const fallbackText =
-    text.length > 28 ? `${text.slice(0, 28).trimEnd()}...` : text;
+    text.length > 28 ? `${text.slice(0, 28).trimEnd()}…` : text;
   return {
     lines: [fallbackText],
     fontSize: minFontSize,

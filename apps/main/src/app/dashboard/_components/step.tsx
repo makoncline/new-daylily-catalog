@@ -23,16 +23,16 @@ export function Step({
       )}
       <div
         className={cn(
-          "flex h-9 w-9 shrink-0 items-center justify-center rounded-full border-2",
+          "flex size-9 shrink-0 items-center justify-center rounded-full border-2",
           completed
             ? "border-primary/70 bg-primary/90 text-primary-foreground"
             : "border-border bg-background",
         )}
       >
         {completed ? (
-          <Check className="h-4 w-4" />
+          <Check className="size-4" />
         ) : (
-          <Icon className="text-muted-foreground h-4 w-4" />
+          <Icon className="text-muted-foreground size-4" />
         )}
       </div>
       <div className="flex flex-col">
