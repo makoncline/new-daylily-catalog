@@ -9,6 +9,7 @@ import {
 
 // Constants for merchant feed configuration
 const SHIPPING_WEIGHT = "0.5 lb";
+const FEED_BATCH_SIZE = 200;
 
 export async function GET(_request: Request) {
   try {
@@ -37,11 +38,6 @@ export async function GET(_request: Request) {
       },
     };
 
-    const listings = await db.listing.findMany({
-      where,
-      include,
-    });
-
     // Generate the XML feed
     let xml = `<?xml version="1.0" encoding="UTF-8"?>
 <rss xmlns:g="http://base.google.com/ns/1.0" version="2.0">
@@ -53,44 +49,60 @@ export async function GET(_request: Request) {
 
     const errors: string[] = []; // Collect errors during processing
 
-    // Process listings
-    listings.forEach((listing) => {
-      try {
-        const displayListing = withResolvedDisplayAhsListing(listing);
-        const displayAhsListing = displayListing.ahsListing;
-        const listingName =
-          displayListing.title ?? displayAhsListing?.name ?? "Unnamed Daylily";
-        // Combine descriptions
-        const userDescription = displayListing.description;
-        const ahsDescription = formatAhsListingSummary(displayAhsListing);
-        let combinedDescription = "";
-        if (userDescription && ahsDescription) {
-          combinedDescription = `${userDescription}\n\n---\n\n${ahsDescription}`;
-        } else {
-          combinedDescription =
-            userDescription ?? ahsDescription ?? `${listingName} daylily`;
-        }
+    let cursor: string | undefined;
+    while (true) {
+      const listings = await db.listing.findMany({
+        where,
+        include,
+        orderBy: { id: "asc" },
+        take: FEED_BATCH_SIZE,
+        ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
+      });
 
-        const imageUrl =
-          displayListing.images?.[0]?.url ?? displayAhsListing?.ahsImageUrl;
-        const additionalImages = displayListing.images?.slice(1, 4) ?? [];
-        const productUrl = `${baseUrl}/${displayListing.userId}/${displayListing.id}`;
-        const catalogName =
-          displayListing.user.profile?.title ??
-          `Daylily Catalog #${displayListing.userId}`;
-        const mpn = displayListing.id;
-        const enhancedTitle = `${listingName} Daylily`;
+      if (listings.length === 0) {
+        break;
+      }
 
-        // Clean and prepare text
-        const cleanTitle = cleanTextForXml(enhancedTitle);
-        const cleanCatalogName = cleanTextForXml(catalogName);
-        const cleanCombinedDescription = cleanTextForXml(combinedDescription);
-        // Append seller info to the end
-        const fullDescription = `${cleanCombinedDescription}\n\n Available from ${cleanCatalogName} on Daylily Catalog.`;
-        const priceFormatted = listing.price?.toFixed(2) ?? "0.00";
+      // Process listings
+      listings.forEach((listing) => {
+        try {
+          const displayListing = withResolvedDisplayAhsListing(listing);
+          const displayAhsListing = displayListing.ahsListing;
+          const listingName =
+            displayListing.title ??
+            displayAhsListing?.name ??
+            "Unnamed Daylily";
+          // Combine descriptions
+          const userDescription = displayListing.description;
+          const ahsDescription = formatAhsListingSummary(displayAhsListing);
+          let combinedDescription = "";
+          if (userDescription && ahsDescription) {
+            combinedDescription = `${userDescription}\n\n---\n\n${ahsDescription}`;
+          } else {
+            combinedDescription =
+              userDescription ?? ahsDescription ?? `${listingName} daylily`;
+          }
 
-        // Build the item XML with all required Google Merchant fields
-        const itemXml = `<item>
+          const imageUrl =
+            displayListing.images?.[0]?.url ?? displayAhsListing?.ahsImageUrl;
+          const additionalImages = displayListing.images?.slice(1, 4) ?? [];
+          const productUrl = `${baseUrl}/${displayListing.userId}/${displayListing.id}`;
+          const catalogName =
+            displayListing.user.profile?.title ??
+            `Daylily Catalog #${displayListing.userId}`;
+          const mpn = displayListing.id;
+          const enhancedTitle = `${listingName} Daylily`;
+
+          // Clean and prepare text
+          const cleanTitle = cleanTextForXml(enhancedTitle);
+          const cleanCatalogName = cleanTextForXml(catalogName);
+          const cleanCombinedDescription = cleanTextForXml(combinedDescription);
+          // Append seller info to the end
+          const fullDescription = `${cleanCombinedDescription}\n\n Available from ${cleanCatalogName} on Daylily Catalog.`;
+          const priceFormatted = listing.price?.toFixed(2) ?? "0.00";
+
+          // Build the item XML with all required Google Merchant fields
+          const itemXml = `<item>
 <title>${escapeXml(cleanTitle)}</title>
 <g:title>${escapeXml(cleanTitle)}</g:title>
 <link>${escapeXml(productUrl)}</link>
@@ -104,27 +116,33 @@ export async function GET(_request: Request) {
 <g:product_type>Daylily</g:product_type>
 <g:mpn>${escapeXml(mpn)}</g:mpn>
 <g:shipping_weight>${SHIPPING_WEIGHT}</g:shipping_weight>${
-          imageUrl
-            ? `
+            imageUrl
+              ? `
 <g:image_link>${escapeXml(imageUrl)}</g:image_link>`
-            : ""
-        }${additionalImages
-          .map(
-            (img) => `
+              : ""
+          }${additionalImages
+            .map(
+              (img) => `
 <g:additional_image_link>${escapeXml(img.url)}</g:additional_image_link>`,
-          )
-          .join("")}
+            )
+            .join("")}
 <g:custom_label_0>${escapeXml(cleanCatalogName)}</g:custom_label_0>
 </item>
 `;
 
-        xml += itemXml;
-      } catch (error) {
-        const errorMessage = `Error processing listing ${listing.id}: ${String(error)}`;
-        console.error(errorMessage);
-        errors.push(errorMessage);
+          xml += itemXml;
+        } catch (error) {
+          const errorMessage = `Error processing listing ${listing.id}: ${String(error)}`;
+          console.error(errorMessage);
+          errors.push(errorMessage);
+        }
+      });
+
+      cursor = listings.at(-1)?.id;
+      if (listings.length < FEED_BATCH_SIZE || !cursor) {
+        break;
       }
-    });
+    }
 
     // If we encountered errors, add a comment in the XML
     if (errors.length > 0) {

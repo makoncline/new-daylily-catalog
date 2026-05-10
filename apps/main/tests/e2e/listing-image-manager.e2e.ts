@@ -54,7 +54,7 @@ test.describe("listing image manager @local", () => {
     await clerk.signIn({ page, emailAddress: TEST_USER.email });
 
     await page.evaluate(() => {
-      localStorage.removeItem("table-state-listings-table");
+      localStorage.removeItem("table-state-listings-table:v1");
     });
 
     await page.goto(`/dashboard/listings?editing=${seedMeta.listingId}`);

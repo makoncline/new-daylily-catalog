@@ -483,5 +483,35 @@ describe("public catalog search advanced filters", () => {
         within(screen.getByTestId("catalog-table")).getAllByRole("listitem"),
       ).toHaveLength(2);
     });
+
+    expect(screen.getByTestId("advanced-filter-hybridizer")).toHaveValue("");
+  });
+
+  it("clears the visible search input when the search chip is removed", async () => {
+    renderCatalog();
+
+    const searchInput = screen.getByTestId("search-all-fields-input");
+    searchInput.focus();
+
+    fireEvent.change(searchInput, {
+      target: { value: "Alpha" },
+    });
+
+    await waitFor(() => {
+      expect(
+        within(screen.getByTestId("catalog-table")).getAllByRole("listitem"),
+      ).toHaveLength(1);
+    });
+
+    expect(screen.getByTestId("search-all-fields-input")).toHaveFocus();
+
+    fireEvent.click(screen.getByRole("button", { name: /search:\s*alpha/i }));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("search-all-fields-input")).toHaveValue("");
+      expect(
+        within(screen.getByTestId("catalog-table")).getAllByRole("listitem"),
+      ).toHaveLength(3);
+    });
   });
 });

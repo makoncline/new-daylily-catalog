@@ -58,7 +58,9 @@ test.describe("listings page features @local", () => {
 
     const resetAndVerifyBaseline = async () => {
       await dashboardListings.resetToolbarFiltersIfVisible();
-      await expect(dashboardListings.filteredCount()).toBeHidden();
+      await expect(dashboardListings.filteredCount()).toHaveText(
+        `${seedMeta.totalListings.toLocaleString()} results`,
+      );
       await expect(dashboardListings.rows()).toHaveCount(
         seedMeta.defaultPageSize,
       );
@@ -122,7 +124,7 @@ test.describe("listings page features @local", () => {
     await clerk.signIn({ page, emailAddress: TEST_USER.email });
 
     await page.evaluate(() => {
-      localStorage.removeItem("table-state-listings-table");
+      localStorage.removeItem("table-state-listings-table:v1");
     });
 
     await dashboardListings.goto();

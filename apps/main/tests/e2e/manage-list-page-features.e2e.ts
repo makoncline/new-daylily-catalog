@@ -55,7 +55,7 @@ test.describe("manage list page features @local", () => {
     await page.goto("/");
     await clerk.signIn({ page, emailAddress: TEST_USER.email });
     await page.evaluate(() => {
-      localStorage.removeItem("table-state-list-listings-table");
+      localStorage.removeItem("table-state-list-listings-table:v1");
     });
 
     await manageListPage.goto(seedMeta.listId);
@@ -97,7 +97,7 @@ test.describe("manage list page features @local", () => {
     await expectPageIndicator(1, seedMeta.expectedPageCountBeforeAdd);
 
     await page.evaluate(() => {
-      localStorage.removeItem("table-state-list-listings-table");
+      localStorage.removeItem("table-state-list-listings-table:v1");
     });
     await manageListPage.goto(seedMeta.listId);
     await manageListPage.isReady();

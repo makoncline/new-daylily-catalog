@@ -9,6 +9,12 @@ const localStorageStateSchema = z.object({
   columnOrder: z.array(z.string()).optional(),
 });
 
+const TABLE_LOCAL_STORAGE_VERSION = "v1";
+
+export function getTableLocalStorageKey(storageKey: string) {
+  return `table-state-${storageKey}:${TABLE_LOCAL_STORAGE_VERSION}`;
+}
+
 export function useLocalStorageInitialTableState({
   storageKey,
 }: {
@@ -17,7 +23,7 @@ export function useLocalStorageInitialTableState({
   const [state] = React.useState(() => {
     if (typeof window === "undefined") return {};
 
-    const item = localStorage.getItem(`table-state-${storageKey}`);
+    const item = localStorage.getItem(getTableLocalStorageKey(storageKey));
     if (!item) return {};
 
     const data = JSON.parse(item) as unknown;
@@ -59,7 +65,7 @@ export function useTableLocalStorageSync(state: {
     }
 
     localStorage.setItem(
-      `table-state-${state.meta.storageKey}`,
+      getTableLocalStorageKey(state.meta.storageKey),
       JSON.stringify(parsed.data),
     );
   }, [state.columnVisibility, state.columnOrder, state.meta?.storageKey]);

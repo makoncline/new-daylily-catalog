@@ -28,20 +28,19 @@ import {
   type PublicCatalogSearchSectionDefinition,
 } from "./public-catalog-search-registry";
 import {
-  type PublicCatalogListing,
   type PublicCatalogSearchFacetOption,
   type PublicCatalogSearchFacetOptions,
 } from "./public-catalog-search-types";
 
-interface PublicCatalogSearchPanelContext {
+interface PublicCatalogSearchPanelContext<TData> {
   facetOptions: PublicCatalogSearchFacetOptions;
   listOptions: PublicCatalogSearchFacetOption[];
-  table: Table<PublicCatalogListing>;
+  table: Table<TData>;
 }
 
-function getFacetOptions(
+function getFacetOptions<TData>(
   definition: PublicCatalogSearchFilterDefinition,
-  context: PublicCatalogSearchPanelContext,
+  context: PublicCatalogSearchPanelContext<TData>,
 ): PublicCatalogSearchFacetOption[] {
   return getPublicCatalogSearchFacetOptionsForDefinition(
     definition,
@@ -50,9 +49,7 @@ function getFacetOptions(
   );
 }
 
-function isBooleanFilterActive(
-  column: Column<PublicCatalogListing, unknown> | null,
-) {
+function isBooleanFilterActive<TData>(column: Column<TData, unknown> | null) {
   if (!column) {
     return false;
   }
@@ -69,9 +66,9 @@ function formatRangeNumber(value: number) {
   return String(Number(value.toFixed(1)));
 }
 
-function getRangeBounds(
-  table: Table<PublicCatalogListing>,
-  column: Column<PublicCatalogListing, unknown> | null,
+function getRangeBounds<TData>(
+  table: Table<TData>,
+  column: Column<TData, unknown> | null,
 ) {
   if (!column) {
     return null;
@@ -111,8 +108,8 @@ function roundToStep(value: number) {
   return Math.round(value);
 }
 
-function getRangeValue(
-  column: Column<PublicCatalogListing, unknown> | null,
+function getRangeValue<TData>(
+  column: Column<TData, unknown> | null,
 ): NumericRange {
   const parsed = parseNumericRange(column?.getFilterValue());
 
@@ -137,18 +134,18 @@ function getFilterIcon(kind: "camera" | "dollar" | "link" | undefined) {
   }
 }
 
-function BooleanFilterToggle({
+function BooleanFilterToggle<TData>({
   column,
   label,
   icon,
   testId,
   table,
 }: {
-  column: Column<PublicCatalogListing, unknown> | null;
+  column: Column<TData, unknown> | null;
   label: string;
   icon?: "camera" | "dollar" | "link";
   testId: string;
-  table: Table<PublicCatalogListing>;
+  table: Table<TData>;
 }) {
   if (!column) {
     return null;
@@ -174,17 +171,17 @@ function BooleanFilterToggle({
   );
 }
 
-function TextFilterControl({
+function TextFilterControl<TData>({
   column,
   label,
   placeholder,
   table,
   testId,
 }: {
-  column: Column<PublicCatalogListing, unknown> | null;
+  column: Column<TData, unknown> | null;
   label: string;
   placeholder: string;
-  table: Table<PublicCatalogListing>;
+  table: Table<TData>;
   testId: string;
 }) {
   if (!column) {
@@ -213,16 +210,16 @@ function TextFilterControl({
   );
 }
 
-function RangeFilterControl({
+function RangeFilterControl<TData>({
   column,
   label,
   table,
   testId,
   unit,
 }: {
-  column: Column<PublicCatalogListing, unknown> | null;
+  column: Column<TData, unknown> | null;
   label: string;
-  table: Table<PublicCatalogListing>;
+  table: Table<TData>;
   testId: string;
   unit?: string;
 }) {
@@ -233,7 +230,7 @@ function RangeFilterControl({
   const bounds = getRangeBounds(table, column);
   if (!bounds) {
     return (
-      <div className="space-y-2">
+      <div className="w-full max-w-64 space-y-2">
         <Label className="text-xs font-medium tracking-wide uppercase">
           {label}
           {unit ? ` (${unit})` : ""}
@@ -289,7 +286,7 @@ function RangeFilterControl({
   const displayLabel = unit ? `${label} (${unit})` : label;
 
   return (
-    <div className="space-y-2">
+    <div className="w-full max-w-64 space-y-2">
       <div className="flex items-center justify-between gap-2">
         <Label className="text-xs font-medium tracking-wide uppercase">
           {displayLabel}
@@ -367,12 +364,12 @@ function RangeFilterControl({
   );
 }
 
-export function PublicCatalogSearchFilterControl({
+export function PublicCatalogSearchFilterControl<TData>({
   definition,
   context,
 }: {
   definition: PublicCatalogSearchFilterDefinition;
-  context: PublicCatalogSearchPanelContext;
+  context: PublicCatalogSearchPanelContext<TData>;
 }) {
   const column = getPublicCatalogSearchFilterColumn(context.table, definition);
 

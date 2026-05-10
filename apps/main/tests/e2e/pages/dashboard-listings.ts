@@ -27,7 +27,7 @@ export class DashboardListings {
       .first();
     this.listingsTable = page.locator("table").first();
     this.listingTableReady = page.getByTestId("listing-table");
-    this.globalSearchInput = page.getByPlaceholder("Filter listings...");
+    this.globalSearchInput = page.getByTestId("search-all-fields-input");
     this.listsFilterButton = page
       .getByRole("button", { name: "Lists" })
       .first();
@@ -67,7 +67,7 @@ export class DashboardListings {
   }
 
   filteredCount(): Locator {
-    return this.page.getByTestId("filtered-rows-count");
+    return this.page.getByTestId("search-results-count");
   }
 
   listingRow(listingTitle: string): Locator {
@@ -108,8 +108,15 @@ export class DashboardListings {
       .locator('[data-slot="command-item"]')
       .filter({ hasText: "Clear filters" })
       .first();
-    await clearFilters.scrollIntoViewIfNeeded();
-    await clearFilters.click();
+
+    if (await clearFilters.isVisible({ timeout: 2000 }).catch(() => false)) {
+      await clearFilters.scrollIntoViewIfNeeded();
+      await clearFilters.click();
+      return;
+    }
+
+    await this.page.keyboard.press("Escape");
+    await this.resetToolbarFiltersIfVisible();
   }
 
   async openColumnFilter(columnLabel: FilterableColumnLabel) {

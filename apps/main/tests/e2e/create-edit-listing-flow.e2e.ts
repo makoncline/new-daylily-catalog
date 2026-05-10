@@ -69,7 +69,7 @@ test.describe("create/edit listing flow @local", () => {
     await page.goto("/");
     await clerk.signIn({ page, emailAddress: TEST_USER.email });
     await page.evaluate(() => {
-      localStorage.removeItem("table-state-listings-table");
+      localStorage.removeItem("table-state-listings-table:v1");
     });
 
     await dashboardListings.goto();

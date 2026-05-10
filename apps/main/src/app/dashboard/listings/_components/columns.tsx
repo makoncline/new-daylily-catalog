@@ -7,7 +7,7 @@ import {
 } from "@/components/data-table";
 import { LISTING_TABLE_COLUMN_NAMES } from "@/config/constants";
 import { formatPrice, formatAhsListingSummary } from "@/lib/utils";
-import { type Row, type ColumnDef } from "@tanstack/react-table";
+import { type Row, type ColumnDef, type FilterFn } from "@tanstack/react-table";
 import { TruncatedListBadge } from "@/components/data-table/truncated-list-badge";
 import { Image as ImageIcon } from "lucide-react";
 import { type RouterOutputs } from "@/trpc/react";
@@ -15,6 +15,11 @@ import { Badge } from "@/components/ui/badge";
 import { TableImagePreview } from "@/components/data-table/table-image-preview";
 import React from "react";
 import { fuzzyFilter } from "@/lib/table-utils";
+import {
+  matchesExactValue,
+  matchesNumericRange,
+  matchesTextContains,
+} from "@/components/public-catalog-search/public-catalog-search-filter-utils";
 import type { Image } from "@prisma/client";
 
 interface ListingListRef {
@@ -33,6 +38,40 @@ export type ListingData = ListingBase & {
   ahsListing: CultivarReferenceAhsListing | null;
 };
 type ListingRow = Row<ListingData>;
+
+const textContainsFilter: FilterFn<ListingData> = (row, id, value) =>
+  matchesTextContains(row.getValue(id), value);
+
+const exactMatchFilter: FilterFn<ListingData> = (row, id, value) =>
+  matchesExactValue(row.getValue(id), value);
+
+const numericRangeFilter: FilterFn<ListingData> = (row, id, value) =>
+  matchesNumericRange(row.getValue(id), value);
+
+const isEnabledFilter = (value: unknown) =>
+  value === true || value === "true" || value === "1";
+
+const priceToggleFilter: FilterFn<ListingData> = (row, id, value) => {
+  if (!isEnabledFilter(value)) return true;
+
+  const price = row.getValue(id);
+  return typeof price === "number" && price > 0;
+};
+
+const hasPhotoFilter: FilterFn<ListingData> = (row, _, value) => {
+  if (!isEnabledFilter(value)) return true;
+
+  return (
+    row.original.images.length > 0 ||
+    Boolean(row.original.ahsListing?.ahsImageUrl)
+  );
+};
+
+const booleanToggleFilter: FilterFn<ListingData> = (row, id, value) => {
+  if (!isEnabledFilter(value)) return true;
+
+  return Boolean(row.getValue(id));
+};
 
 /**
  * Helper function to safely get string values from a row
@@ -111,11 +150,7 @@ export const baseListingColumns: ColumnDef<ListingData>[] = [
       if (typeof price !== "number") return "-";
       return <TooltipCell content={formatPrice(price)} />;
     },
-    filterFn: (row, id, filterValue) => {
-      if (!filterValue) return true;
-      const price = row.getValue(id);
-      return typeof price === "number" && price > 0;
-    },
+    filterFn: priceToggleFilter,
     enableSorting: true,
     enableHiding: true,
   },
@@ -135,7 +170,7 @@ export const baseListingColumns: ColumnDef<ListingData>[] = [
     cell: ({ row }) => (
       <TooltipCell content={getStringValue(row, "description")} lines={3} />
     ),
-    filterFn: fuzzyFilter,
+    filterFn: textContainsFilter,
     enableSorting: true,
     enableHiding: true,
   },
@@ -155,7 +190,7 @@ export const baseListingColumns: ColumnDef<ListingData>[] = [
     cell: ({ row }) => (
       <TooltipCell content={getStringValue(row, "privateNote")} />
     ),
-    filterFn: fuzzyFilter,
+    filterFn: textContainsFilter,
     enableSorting: true,
     enableHiding: true,
   },
@@ -192,7 +227,7 @@ export const baseListingColumns: ColumnDef<ListingData>[] = [
       );
     },
     filterFn: (row, id, filterValue: string[]) => {
-      if (!filterValue.length) return true;
+      if (!Array.isArray(filterValue) || !filterValue.length) return true;
       return row.original.lists.some((list) => filterValue.includes(list.id));
     },
     enableSorting: true,
@@ -261,6 +296,7 @@ export const baseListingColumns: ColumnDef<ListingData>[] = [
       const value = row.original.ahsListing?.hybridizer;
       return <TooltipCell content={value ?? null} />;
     },
+    filterFn: textContainsFilter,
     enableSorting: true,
     enableHiding: true,
   },
@@ -281,6 +317,7 @@ export const baseListingColumns: ColumnDef<ListingData>[] = [
       const value = row.original.ahsListing?.year;
       return <TooltipCell content={value ?? null} />;
     },
+    filterFn: numericRangeFilter,
     enableSorting: true,
     enableHiding: true,
   },
@@ -301,6 +338,7 @@ export const baseListingColumns: ColumnDef<ListingData>[] = [
       const value = row.original.ahsListing?.scapeHeight;
       return <TooltipCell content={value ?? null} />;
     },
+    filterFn: numericRangeFilter,
     enableSorting: true,
     enableHiding: true,
   },
@@ -321,6 +359,7 @@ export const baseListingColumns: ColumnDef<ListingData>[] = [
       const value = row.original.ahsListing?.bloomSize;
       return <TooltipCell content={value ?? null} />;
     },
+    filterFn: numericRangeFilter,
     enableSorting: true,
     enableHiding: true,
   },
@@ -341,6 +380,7 @@ export const baseListingColumns: ColumnDef<ListingData>[] = [
       const value = row.original.ahsListing?.bloomSeason;
       return <TooltipCell content={value ?? null} />;
     },
+    filterFn: exactMatchFilter,
     enableSorting: true,
     enableHiding: true,
   },
@@ -361,6 +401,7 @@ export const baseListingColumns: ColumnDef<ListingData>[] = [
       const value = row.original.ahsListing?.ploidy;
       return <TooltipCell content={value ?? null} />;
     },
+    filterFn: exactMatchFilter,
     enableSorting: true,
     enableHiding: true,
   },
@@ -381,6 +422,7 @@ export const baseListingColumns: ColumnDef<ListingData>[] = [
       const value = row.original.ahsListing?.foliageType;
       return <TooltipCell content={value ?? null} />;
     },
+    filterFn: exactMatchFilter,
     enableSorting: true,
     enableHiding: true,
   },
@@ -401,6 +443,7 @@ export const baseListingColumns: ColumnDef<ListingData>[] = [
       const value = row.original.ahsListing?.bloomHabit;
       return <TooltipCell content={value ?? null} />;
     },
+    filterFn: exactMatchFilter,
     enableSorting: true,
     enableHiding: true,
   },
@@ -421,6 +464,7 @@ export const baseListingColumns: ColumnDef<ListingData>[] = [
       const value = row.original.ahsListing?.color;
       return <TooltipCell content={value ?? null} lines={3} />;
     },
+    filterFn: textContainsFilter,
     enableSorting: true,
     enableHiding: true,
   },
@@ -441,6 +485,7 @@ export const baseListingColumns: ColumnDef<ListingData>[] = [
       const value = row.original.ahsListing?.form;
       return <TooltipCell content={value ?? null} />;
     },
+    filterFn: exactMatchFilter,
     enableSorting: true,
     enableHiding: true,
   },
@@ -461,6 +506,7 @@ export const baseListingColumns: ColumnDef<ListingData>[] = [
       const value = row.original.ahsListing?.fragrance;
       return <TooltipCell content={value ?? null} />;
     },
+    filterFn: exactMatchFilter,
     enableSorting: true,
     enableHiding: true,
   },
@@ -481,6 +527,7 @@ export const baseListingColumns: ColumnDef<ListingData>[] = [
       const value = row.original.ahsListing?.budcount;
       return <TooltipCell content={value ?? null} />;
     },
+    filterFn: numericRangeFilter,
     enableSorting: true,
     enableHiding: true,
   },
@@ -501,6 +548,7 @@ export const baseListingColumns: ColumnDef<ListingData>[] = [
       const value = row.original.ahsListing?.branches;
       return <TooltipCell content={value ?? null} />;
     },
+    filterFn: numericRangeFilter,
     enableSorting: true,
     enableHiding: true,
   },
@@ -558,11 +606,66 @@ export const baseListingColumns: ColumnDef<ListingData>[] = [
   },
 ];
 
+const dashboardAdvancedFilterColumns: ColumnDef<ListingData>[] = [
+  {
+    id: "priceValue",
+    meta: {
+      title: "Price Range",
+    },
+    accessorFn: (row) => row.price ?? null,
+    filterFn: numericRangeFilter,
+    enableSorting: false,
+    enableHiding: false,
+  },
+  {
+    id: "cultivarName",
+    meta: {
+      title: "Cultivar",
+    },
+    accessorFn: (row) => row.ahsListing?.name ?? row.title ?? null,
+    filterFn: textContainsFilter,
+    enableSorting: false,
+    enableHiding: false,
+  },
+  {
+    id: "linkedToCultivar",
+    meta: {
+      title: "Linked to Cultivar",
+    },
+    accessorFn: (row) => row.cultivarReferenceId !== null,
+    filterFn: booleanToggleFilter,
+    enableSorting: false,
+    enableHiding: false,
+  },
+  {
+    id: "hasPhoto",
+    meta: {
+      title: "Has Photo",
+    },
+    accessorFn: (row) =>
+      row.images.length > 0 || Boolean(row.ahsListing?.ahsImageUrl),
+    filterFn: hasPhotoFilter,
+    enableSorting: false,
+    enableHiding: false,
+  },
+  {
+    id: "parentage",
+    meta: {
+      title: "Parentage",
+    },
+    accessorFn: (row) => row.ahsListing?.parentage ?? null,
+    filterFn: textContainsFilter,
+    enableSorting: false,
+    enableHiding: false,
+  },
+];
+
 export function getColumns(
   onEdit: (id: string) => void,
 ): ColumnDef<ListingData>[] {
   return [
     ...baseListingColumns,
+    ...dashboardAdvancedFilterColumns,
     {
       id: "actions",
       cell: ({ row }) => <DataTableRowActions row={row} onEdit={onEdit} />,

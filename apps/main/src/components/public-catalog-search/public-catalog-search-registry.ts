@@ -4,8 +4,6 @@ import {
   type NumericRange,
 } from "./public-catalog-search-filter-utils";
 import {
-  type PublicCatalogListing,
-  type PublicCatalogLists,
   type PublicCatalogSearchFacetOption,
   type PublicCatalogSearchFacetOptions,
 } from "./public-catalog-search-types";
@@ -41,251 +39,249 @@ export interface PublicCatalogSearchSectionDefinition {
   }>;
 }
 
-export const PUBLIC_CATALOG_SEARCH_TOOLBAR_FILTERS: PublicCatalogSearchFilterDefinition[] =
-  [
-    {
-      id: "price",
-      label: "For Sale",
-      sectionId: "toolbar",
-      kind: "boolean",
-      testId: "advanced-filter-for-sale",
-      icon: "dollar",
-    },
-    {
-      id: "hasPhoto",
-      label: "Has Photo",
-      sectionId: "toolbar",
-      kind: "boolean",
-      testId: "advanced-filter-has-photo",
-      icon: "camera",
-    },
-    {
-      id: "lists",
-      label: "Lists",
-      sectionId: "toolbar",
-      kind: "facet",
-      testId: "advanced-filter-lists",
-      facetKey: "lists",
-    },
-  ];
+type FilterDef = PublicCatalogSearchFilterDefinition;
+type SectionDef = PublicCatalogSearchSectionDefinition;
 
-export const PUBLIC_CATALOG_SEARCH_SECTION_DEFINITIONS: PublicCatalogSearchSectionDefinition[] =
-  [
-    {
-      id: "listing",
-      label: "Listing",
-      groups: [
-        {
-          filterIds: ["title", "description", "priceValue", "linkedToCultivar"],
-          className: "space-y-4",
-        },
-      ],
-      filters: [
-        {
-          id: "title",
-          label: "Title",
-          sectionId: "listing",
-          kind: "text",
-          placeholder: "Search listing title",
-          testId: "advanced-filter-title",
-        },
-        {
-          id: "description",
-          label: "Description",
-          sectionId: "listing",
-          kind: "text",
-          placeholder: "Search description",
-          testId: "advanced-filter-description",
-        },
-        {
-          id: "priceValue",
-          label: "Price",
-          sectionId: "listing",
-          kind: "range",
-          testId: "advanced-filter-price-range",
-          unit: "$",
-        },
-        {
-          id: "linkedToCultivar",
-          label: "Linked to Cultivar",
-          sectionId: "listing",
-          kind: "boolean",
-          testId: "advanced-filter-linked-to-cultivar",
-          icon: "link",
-        },
-      ],
-    },
-    {
-      id: "registration",
-      label: "Registration",
-      groups: [
-        {
-          filterIds: ["cultivarName", "hybridizer", "year"],
-          className: "space-y-4",
-        },
-      ],
-      filters: [
-        {
-          id: "cultivarName",
-          label: "Cultivar",
-          sectionId: "registration",
-          kind: "text",
-          placeholder: "Search cultivar name",
-          testId: "advanced-filter-cultivar-name",
-        },
-        {
-          id: "hybridizer",
-          label: "Hybridizer",
-          sectionId: "registration",
-          kind: "text",
-          placeholder: "Search hybridizer",
-          testId: "advanced-filter-hybridizer",
-        },
-        {
-          id: "year",
-          label: "Year",
-          sectionId: "registration",
-          kind: "range",
-          testId: "advanced-filter-year",
-        },
-      ],
-    },
-    {
-      id: "traits",
-      label: "Bloom Traits",
-      groups: [
-        {
-          filterIds: ["bloomHabit", "bloomSeason"],
-          className: "flex flex-wrap gap-2",
-        },
-        {
-          filterIds: ["scapeHeight", "bloomSize", "budcount", "branches"],
-          className: "space-y-4",
-        },
-      ],
-      filters: [
-        {
-          id: "bloomHabit",
-          label: "Bloom Habit",
-          sectionId: "traits",
-          kind: "facet",
-          facetKey: "bloomHabit",
-          testId: "advanced-filter-bloom-habit",
-        },
-        {
-          id: "bloomSeason",
-          label: "Bloom Season",
-          sectionId: "traits",
-          kind: "facet",
-          facetKey: "bloomSeason",
-          testId: "advanced-filter-bloom-season",
-        },
-        {
-          id: "scapeHeight",
-          label: "Scape Height",
-          sectionId: "traits",
-          kind: "range",
-          unit: "in.",
-          testId: "advanced-filter-scape-height",
-        },
-        {
-          id: "bloomSize",
-          label: "Bloom Size",
-          sectionId: "traits",
-          kind: "range",
-          unit: "in.",
-          testId: "advanced-filter-bloom-size",
-        },
-        {
-          id: "budcount",
-          label: "Bud Count",
-          sectionId: "traits",
-          kind: "range",
-          testId: "advanced-filter-budcount",
-        },
-        {
-          id: "branches",
-          label: "Branches",
-          sectionId: "traits",
-          kind: "range",
-          testId: "advanced-filter-branches",
-        },
-      ],
-    },
-    {
-      id: "details",
-      label: "Classification & Details",
-      groups: [
-        {
-          filterIds: ["form", "ploidy", "foliageType", "fragrance"],
-          className: "flex flex-wrap gap-2",
-        },
-        {
-          filterIds: ["color", "parentage"],
-          className: "space-y-4",
-        },
-      ],
-      filters: [
-        {
-          id: "form",
-          label: "Form",
-          sectionId: "details",
-          kind: "facet",
-          facetKey: "form",
-          testId: "advanced-filter-form",
-        },
-        {
-          id: "ploidy",
-          label: "Ploidy",
-          sectionId: "details",
-          kind: "facet",
-          facetKey: "ploidy",
-          testId: "advanced-filter-ploidy",
-        },
-        {
-          id: "foliageType",
-          label: "Foliage Type",
-          sectionId: "details",
-          kind: "facet",
-          facetKey: "foliageType",
-          testId: "advanced-filter-foliage-type",
-        },
-        {
-          id: "fragrance",
-          label: "Fragrance",
-          sectionId: "details",
-          kind: "facet",
-          facetKey: "fragrance",
-          testId: "advanced-filter-fragrance",
-        },
-        {
-          id: "color",
-          label: "Color",
-          sectionId: "details",
-          kind: "text",
-          placeholder: "Search color notes",
-          testId: "advanced-filter-color",
-        },
-        {
-          id: "parentage",
-          label: "Parentage",
-          sectionId: "details",
-          kind: "text",
-          placeholder: "Search parentage",
-          testId: "advanced-filter-parentage",
-        },
-      ],
-    },
-  ];
+export const PUBLIC_CATALOG_SEARCH_TOOLBAR_FILTERS: FilterDef[] = [
+  {
+    id: "price",
+    label: "For Sale",
+    sectionId: "toolbar",
+    kind: "boolean",
+    testId: "advanced-filter-for-sale",
+    icon: "dollar",
+  },
+  {
+    id: "hasPhoto",
+    label: "Has Photo",
+    sectionId: "toolbar",
+    kind: "boolean",
+    testId: "advanced-filter-has-photo",
+    icon: "camera",
+  },
+  {
+    id: "lists",
+    label: "Lists",
+    sectionId: "toolbar",
+    kind: "facet",
+    testId: "advanced-filter-lists",
+    facetKey: "lists",
+  },
+];
+
+export const PUBLIC_CATALOG_SEARCH_SECTION_DEFINITIONS: SectionDef[] = [
+  {
+    id: "listing",
+    label: "Listing",
+    groups: [
+      {
+        filterIds: ["title", "description", "priceValue"],
+        className: "space-y-4",
+      },
+    ],
+    filters: [
+      {
+        id: "title",
+        label: "Title",
+        sectionId: "listing",
+        kind: "text",
+        placeholder: "Search listing title",
+        testId: "advanced-filter-title",
+      },
+      {
+        id: "description",
+        label: "Description",
+        sectionId: "listing",
+        kind: "text",
+        placeholder: "Search description",
+        testId: "advanced-filter-description",
+      },
+      {
+        id: "priceValue",
+        label: "Price",
+        sectionId: "listing",
+        kind: "range",
+        testId: "advanced-filter-price-range",
+        unit: "$",
+      },
+    ],
+  },
+  {
+    id: "registration",
+    label: "Registration",
+    groups: [
+      {
+        filterIds: ["cultivarName", "linkedToCultivar", "hybridizer", "year"],
+        className: "space-y-4",
+      },
+    ],
+    filters: [
+      {
+        id: "cultivarName",
+        label: "Cultivar",
+        sectionId: "registration",
+        kind: "text",
+        placeholder: "Search cultivar name",
+        testId: "advanced-filter-cultivar-name",
+      },
+      {
+        id: "linkedToCultivar",
+        label: "Linked to Cultivar",
+        sectionId: "registration",
+        kind: "boolean",
+        testId: "advanced-filter-linked-to-cultivar",
+        icon: "link",
+      },
+      {
+        id: "hybridizer",
+        label: "Hybridizer",
+        sectionId: "registration",
+        kind: "text",
+        placeholder: "Search hybridizer",
+        testId: "advanced-filter-hybridizer",
+      },
+      {
+        id: "year",
+        label: "Year",
+        sectionId: "registration",
+        kind: "range",
+        testId: "advanced-filter-year",
+      },
+    ],
+  },
+  {
+    id: "traits",
+    label: "Bloom Traits",
+    groups: [
+      {
+        filterIds: ["bloomHabit", "bloomSeason"],
+        className: "flex flex-wrap gap-2",
+      },
+      {
+        filterIds: ["scapeHeight", "bloomSize", "budcount", "branches"],
+        className: "space-y-4",
+      },
+    ],
+    filters: [
+      {
+        id: "bloomHabit",
+        label: "Bloom Habit",
+        sectionId: "traits",
+        kind: "facet",
+        facetKey: "bloomHabit",
+        testId: "advanced-filter-bloom-habit",
+      },
+      {
+        id: "bloomSeason",
+        label: "Bloom Season",
+        sectionId: "traits",
+        kind: "facet",
+        facetKey: "bloomSeason",
+        testId: "advanced-filter-bloom-season",
+      },
+      {
+        id: "scapeHeight",
+        label: "Scape Height",
+        sectionId: "traits",
+        kind: "range",
+        unit: "in.",
+        testId: "advanced-filter-scape-height",
+      },
+      {
+        id: "bloomSize",
+        label: "Bloom Size",
+        sectionId: "traits",
+        kind: "range",
+        unit: "in.",
+        testId: "advanced-filter-bloom-size",
+      },
+      {
+        id: "budcount",
+        label: "Bud Count",
+        sectionId: "traits",
+        kind: "range",
+        testId: "advanced-filter-budcount",
+      },
+      {
+        id: "branches",
+        label: "Branches",
+        sectionId: "traits",
+        kind: "range",
+        testId: "advanced-filter-branches",
+      },
+    ],
+  },
+  {
+    id: "details",
+    label: "Classification & Details",
+    groups: [
+      {
+        filterIds: ["form", "ploidy", "foliageType", "fragrance"],
+        className: "flex flex-wrap gap-2",
+      },
+      {
+        filterIds: ["color", "parentage"],
+        className: "space-y-4",
+      },
+    ],
+    filters: [
+      {
+        id: "form",
+        label: "Form",
+        sectionId: "details",
+        kind: "facet",
+        facetKey: "form",
+        testId: "advanced-filter-form",
+      },
+      {
+        id: "ploidy",
+        label: "Ploidy",
+        sectionId: "details",
+        kind: "facet",
+        facetKey: "ploidy",
+        testId: "advanced-filter-ploidy",
+      },
+      {
+        id: "foliageType",
+        label: "Foliage Type",
+        sectionId: "details",
+        kind: "facet",
+        facetKey: "foliageType",
+        testId: "advanced-filter-foliage-type",
+      },
+      {
+        id: "fragrance",
+        label: "Fragrance",
+        sectionId: "details",
+        kind: "facet",
+        facetKey: "fragrance",
+        testId: "advanced-filter-fragrance",
+      },
+      {
+        id: "color",
+        label: "Color",
+        sectionId: "details",
+        kind: "text",
+        placeholder: "Search color notes",
+        testId: "advanced-filter-color",
+      },
+      {
+        id: "parentage",
+        label: "Parentage",
+        sectionId: "details",
+        kind: "text",
+        placeholder: "Search parentage",
+        testId: "advanced-filter-parentage",
+      },
+    ],
+  },
+];
 
 const PUBLIC_CATALOG_SEARCH_FILTERS = [
   ...PUBLIC_CATALOG_SEARCH_TOOLBAR_FILTERS,
-  ...PUBLIC_CATALOG_SEARCH_SECTION_DEFINITIONS.reduce<
-    PublicCatalogSearchFilterDefinition[]
-  >((allFilters, section) => {
-    allFilters.push(...section.filters);
-    return allFilters;
-  }, []),
+  ...PUBLIC_CATALOG_SEARCH_SECTION_DEFINITIONS.flatMap(
+    (section) => section.filters,
+  ),
 ];
 
 const FILTER_BY_ID = new Map(
@@ -295,9 +291,26 @@ const FILTER_BY_ID = new Map(
   ]),
 );
 
+interface CatalogSearchAhsFacetValues {
+  bloomHabit?: string | null;
+  bloomSeason?: string | null;
+  form?: string | null;
+  ploidy?: string | null;
+  foliageType?: string | null;
+  fragrance?: string | null;
+}
+
+interface CatalogSearchFacetRow {
+  ahsListing?: CatalogSearchAhsFacetValues | null;
+}
+
+interface CatalogSearchListRow {
+  lists?: Array<{ id: string; title: string }>;
+}
+
 const FACET_VALUE_GETTERS: Record<
   keyof PublicCatalogSearchFacetOptions,
-  (listing: PublicCatalogListing) => string | null | undefined
+  (listing: CatalogSearchFacetRow) => string | null | undefined
 > = {
   bloomHabit: (listing) => listing.ahsListing?.bloomHabit,
   bloomSeason: (listing) => listing.ahsListing?.bloomSeason,
@@ -396,9 +409,11 @@ export function getPublicCatalogSearchFacetOptionsForDefinition(
   }
 }
 
-export function buildPublicCatalogSearchListOptions(
-  lists: PublicCatalogLists,
-  listings: PublicCatalogListing[],
+export function buildPublicCatalogSearchListOptions<
+  TListing extends CatalogSearchListRow,
+>(
+  lists: readonly { id: string; title: string }[],
+  listings: TListing[],
 ): PublicCatalogSearchFacetOption[] {
   const listCounts = new Map<string, number>();
 
@@ -415,11 +430,11 @@ export function buildPublicCatalogSearchListOptions(
   }));
 }
 
-export function buildPublicCatalogSearchFacetOptions(
-  listings: PublicCatalogListing[],
-): PublicCatalogSearchFacetOptions {
+export function buildPublicCatalogSearchFacetOptions<
+  TListing extends CatalogSearchFacetRow,
+>(listings: TListing[]): PublicCatalogSearchFacetOptions {
   const buildFacetOptions = (
-    getValue: (listing: PublicCatalogListing) => string | null | undefined,
+    getValue: (listing: TListing) => string | null | undefined,
   ) => {
     const counts = new Map<string, { label: string; count: number }>();
 

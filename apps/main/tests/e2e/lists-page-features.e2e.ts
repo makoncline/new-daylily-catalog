@@ -74,7 +74,7 @@ test.describe("lists page features @local", () => {
     await page.goto("/");
     await clerk.signIn({ page, emailAddress: TEST_USER.email });
     await page.evaluate(() => {
-      localStorage.removeItem("table-state-lists-table");
+      localStorage.removeItem("table-state-lists-table:v1");
     });
 
     await dashboardLists.goto();
@@ -113,7 +113,7 @@ test.describe("lists page features @local", () => {
     await expect(dashboardLists.rows()).toHaveCount(50);
 
     await page.evaluate(() => {
-      localStorage.removeItem("table-state-lists-table");
+      localStorage.removeItem("table-state-lists-table:v1");
     });
     await dashboardLists.goto();
     await dashboardLists.isReady();

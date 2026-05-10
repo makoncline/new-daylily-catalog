@@ -1,173 +1,34 @@
 "use client";
 
-import { type Table } from "@tanstack/react-table";
-import { PanelLeftClose, Search, X } from "lucide-react";
-import { useState } from "react";
-import { useDebouncedCallback } from "use-debounce";
-import { DataTableFilterReset } from "@/components/data-table/data-table-filter-reset";
-import { DataTableFilteredCount } from "@/components/data-table/data-table-filtered-count";
+import { PanelLeftClose, Search } from "lucide-react";
 import { Accordion } from "@/components/ui/accordion";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
 import {
   countPublicCatalogSearchSectionFilters,
-  formatPublicCatalogSearchFilterSummary,
   PUBLIC_CATALOG_SEARCH_SECTION_DEFINITIONS,
   PUBLIC_CATALOG_SEARCH_TOOLBAR_FILTERS,
-  getPublicCatalogSearchFilterDefinition,
 } from "./public-catalog-search-registry";
+import { PublicCatalogSearchFilterSection } from "./public-catalog-search-panel-controls";
 import {
-  PublicCatalogSearchFilterControl,
-  PublicCatalogSearchFilterSection,
-} from "./public-catalog-search-panel-controls";
-import {
-  type PublicCatalogSearchAdvancedPanelProps,
-  type PublicCatalogSearchFacetOption,
-  type PublicCatalogListing,
-} from "./public-catalog-search-types";
-
-interface FilterChip {
-  id: string;
-  label: string;
-  onClear: () => void;
-}
-
-function buildFilterChips(
-  table: Table<PublicCatalogListing>,
-  listOptions: PublicCatalogSearchFacetOption[],
-): FilterChip[] {
-  const chips: FilterChip[] = [];
-  const globalFilter: unknown = table.getState().globalFilter;
-
-  if (typeof globalFilter === "string" && globalFilter.length > 0) {
-    chips.push({
-      id: "global",
-      label: `Search: ${globalFilter}`,
-      onClear: () => {
-        table.setGlobalFilter("");
-        table.resetPageIndex(true);
-      },
-    });
-  }
-
-  for (const { id, value } of table.getState().columnFilters) {
-    const column = table.getColumn(id);
-    if (!column) continue;
-
-    const summary = formatPublicCatalogSearchFilterSummary({
-      definition: getPublicCatalogSearchFilterDefinition(id),
-      listOptions,
-      value,
-    });
-
-    chips.push({
-      id,
-      label: summary,
-      onClear: () => {
-        column.setFilterValue(undefined);
-        table.resetPagination();
-      },
-    });
-  }
-
-  return chips;
-}
-
-function ActiveFilterChips({
-  table,
-  listOptions,
-}: {
-  table: Table<PublicCatalogListing>;
-  listOptions: PublicCatalogSearchFacetOption[];
-}) {
-  const chips = buildFilterChips(table, listOptions);
-  if (chips.length === 0) return null;
-
-  return (
-    <div className="mb-3 space-y-2" data-testid="active-filter-chips">
-      <div className="flex flex-wrap items-center gap-2">
-        <DataTableFilteredCount table={table} />
-        <DataTableFilterReset table={table} />
-      </div>
-
-      <div className="flex flex-wrap items-center gap-1.5">
-        {chips.map((chip) => (
-          <Button
-            key={chip.id}
-            type="button"
-            variant="outline"
-            size="sm"
-            className="h-6 gap-1 rounded-full px-2 text-xs"
-            onClick={chip.onClear}
-          >
-            {chip.label}
-            <X className="size-3" />
-          </Button>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function BasicSearchInput({
-  table,
-  onSubmit,
-}: {
-  table: Table<PublicCatalogListing>;
-  onSubmit?: () => void;
-}) {
-  const globalFilter: unknown = table.getState().globalFilter;
-  const [value, setValue] = useState(
-    typeof globalFilter === "string" ? globalFilter : "",
-  );
-
-  const debouncedFilter = useDebouncedCallback((next: string) => {
-    table.setGlobalFilter(next);
-    if (next) {
-      table.setSorting([{ id: "title", desc: false }]);
-    }
-    table.resetPageIndex(true);
-  }, 200);
-
-  const submitSearch = () => {
-    debouncedFilter.flush();
-    onSubmit?.();
-  };
-
-  return (
-    <div data-testid="search-query-form">
-      <Input
-        placeholder="Search listings..."
-        value={value}
-        className="h-9"
-        data-testid="search-all-fields-input"
-        onChange={(e) => {
-          const next = e.target.value;
-          setValue(next);
-          debouncedFilter(next);
-        }}
-        onKeyDown={(event) => {
-          if (event.key === "Enter") {
-            submitSearch();
-          }
-        }}
-      />
-    </div>
-  );
-}
+  PublicCatalogSearchActiveFilterChips,
+  PublicCatalogSearchFilterField,
+  PublicCatalogSearchFilterFields,
+  PublicCatalogSearchQueryField,
+  PublicCatalogSearchSection,
+} from "./public-catalog-search-composable";
+import { type PublicCatalogSearchAdvancedPanelProps } from "./public-catalog-search-types";
 
 function getSectionGroupFilters(
   section: (typeof PUBLIC_CATALOG_SEARCH_SECTION_DEFINITIONS)[number],
   filterIds: string[],
 ) {
   type SectionFilter = (typeof section.filters)[number];
-
-  const filters: SectionFilter[] = [];
   const filtersById = new Map(
     section.filters.map((filter) => [filter.id, filter]),
   );
+  const filters: SectionFilter[] = [];
 
   for (const filterId of filterIds) {
     const filter = filtersById.get(filterId);
@@ -179,7 +40,7 @@ function getSectionGroupFilters(
   return filters;
 }
 
-export function PublicCatalogSearchAdvancedPanel({
+export function PublicCatalogSearchAdvancedPanel<TData>({
   table,
   listOptions,
   facetOptions,
@@ -188,7 +49,7 @@ export function PublicCatalogSearchAdvancedPanel({
   collapsed,
   onCollapsedChange,
   onSearchSubmit,
-}: PublicCatalogSearchAdvancedPanelProps) {
+}: PublicCatalogSearchAdvancedPanelProps<TData>) {
   const isAdvanced = mode === "advanced";
   const panelContext = { table, listOptions, facetOptions };
 
@@ -251,27 +112,24 @@ export function PublicCatalogSearchAdvancedPanel({
         </label>
       </div>
 
-      <ActiveFilterChips table={table} listOptions={listOptions} />
+      <PublicCatalogSearchActiveFilterChips
+        className="mb-3"
+        table={table}
+        listOptions={listOptions}
+      />
 
-      <div className="mt-3">
-        <div className="flex items-center justify-between">
-          <span className="text-muted-foreground flex items-center gap-1.5 text-[11px]">
-            <Search className="size-3" />
-            Filters apply live
-          </span>
-        </div>
-        <BasicSearchInput table={table} onSubmit={onSearchSubmit} />
-      </div>
+      <PublicCatalogSearchSection className="mt-3" title="Filters apply live">
+        <PublicCatalogSearchQueryField
+          table={table}
+          onSubmit={onSearchSubmit}
+        />
+      </PublicCatalogSearchSection>
 
-      <div className="mt-4 flex flex-wrap items-center gap-2">
-        {PUBLIC_CATALOG_SEARCH_TOOLBAR_FILTERS.map((definition) => (
-          <PublicCatalogSearchFilterControl
-            key={definition.id}
-            definition={definition}
-            context={panelContext}
-          />
-        ))}
-      </div>
+      <PublicCatalogSearchFilterFields
+        className="mt-4 flex flex-wrap items-center gap-2"
+        definitions={PUBLIC_CATALOG_SEARCH_TOOLBAR_FILTERS}
+        context={panelContext}
+      />
 
       {isAdvanced ? (
         <Accordion
@@ -303,7 +161,7 @@ export function PublicCatalogSearchAdvancedPanel({
                       className={cn(group.className ?? "space-y-4")}
                     >
                       {groupFilters.map((definition) => (
-                        <PublicCatalogSearchFilterControl
+                        <PublicCatalogSearchFilterField
                           key={definition.id}
                           definition={definition}
                           context={panelContext}
