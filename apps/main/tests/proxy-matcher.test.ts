@@ -59,12 +59,6 @@ describe("proxy matcher", () => {
     expect(
       unstable_doesMiddlewareMatch({
         config,
-        url: "/",
-      }),
-    ).toBe(false);
-    expect(
-      unstable_doesMiddlewareMatch({
-        config,
         url: "/graceful_petals_daylilies/page/2",
       }),
     ).toBe(false);
@@ -107,6 +101,12 @@ describe("proxy matcher", () => {
       unstable_doesMiddlewareMatch({
         config,
         url: "/subscribe/success?redirect=/dashboard",
+      }),
+    ).toBe(true);
+    expect(
+      unstable_doesMiddlewareMatch({
+        config,
+        url: "/",
       }),
     ).toBe(true);
     expect(

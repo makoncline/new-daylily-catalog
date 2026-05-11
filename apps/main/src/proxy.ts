@@ -36,13 +36,11 @@ const publicAgentDiscoveryPaths = new Set([
   "/openapi.json",
   "/llms.txt",
   "/llms-full.txt",
-  "/robots.txt",
-  "/sitemap.xml",
 ]);
 
 const protectedRouteProxy = clerkMiddleware(async (auth, req) => {
   if (!isProtectedRoute(req)) {
-    return NextResponse.next();
+    return undefined;
   }
 
   const { userId } = await auth();
@@ -55,7 +53,7 @@ const protectedRouteProxy = clerkMiddleware(async (auth, req) => {
     );
   }
 
-  return NextResponse.next();
+  return undefined;
 });
 
 export function proxy(req: NextRequest, event: NextFetchEvent) {
@@ -69,7 +67,7 @@ export function proxy(req: NextRequest, event: NextFetchEvent) {
   }
 
   if (publicAgentDiscoveryPaths.has(req.nextUrl.pathname)) {
-    return NextResponse.next();
+    return undefined;
   }
 
   if (
@@ -87,7 +85,7 @@ export function proxy(req: NextRequest, event: NextFetchEvent) {
   }
 
   if (req.nextUrl.pathname === "/") {
-    return NextResponse.next();
+    return undefined;
   }
 
   return protectedRouteProxy(req, event);
@@ -106,8 +104,6 @@ export const config = {
     "/openapi.json",
     "/llms.txt",
     "/llms-full.txt",
-    "/robots.txt",
-    "/sitemap.xml",
     "/sitemap-index.xml",
     "/sitemap_index.xml",
     "/sitemap.xml.gz",
