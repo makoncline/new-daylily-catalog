@@ -291,57 +291,99 @@ async function getCultivarReferencesForUserListings(
     limit?: number;
   },
 ) {
-  const listingRows = await db.listing.findMany({
-    where: {
-      userId,
-      cultivarReferenceId: {
-        not: null,
-      },
-    },
-    select: {
-      cultivarReferenceId: true,
-    },
-  });
-
-  const cultivarReferenceIds = Array.from(
-    new Set(
-      listingRows.flatMap((row) =>
-        row.cultivarReferenceId ? [row.cultivarReferenceId] : [],
-      ),
-    ),
-  );
-
-  if (!cultivarReferenceIds.length) {
-    return [];
-  }
-
-  const where = {
-    id: {
-      in: cultivarReferenceIds,
-      ...(options.cursor ? { gt: options.cursor.id } : {}),
-    },
-    ...(options.since ? { updatedAt: { gte: options.since } } : {}),
-  };
+  const orderDirection =
+    options.direction === "asc" ? Prisma.sql`ASC` : Prisma.sql`DESC`;
+  const ownerWhere = Prisma.sql`
+    cr."id" IN (
+      SELECT l."cultivarReferenceId"
+      FROM "Listing" l
+      WHERE l."userId" = ${userId}
+        AND l."cultivarReferenceId" IS NOT NULL
+    )
+  `;
+  const cursorWhere = options.cursor
+    ? Prisma.sql`AND cr."id" > ${options.cursor.id}`
+    : Prisma.empty;
+  const sinceWhere = options.since
+    ? Prisma.sql`AND cr."updatedAt" >= ${options.since}`
+    : Prisma.empty;
+  const limitClause = options.limit
+    ? Prisma.sql`LIMIT ${options.limit}`
+    : Prisma.empty;
 
   if (isV2CultivarDisplayDataEnabled()) {
-    const rows = await db.cultivarReference.findMany({
-      where,
-      select: v2CultivarReferenceSelect,
-      orderBy: { id: options.direction },
-      ...(options.limit ? { take: options.limit } : {}),
-    });
+    const rows = await db.$queryRaw<RawV2CultivarReferenceRow[]>(Prisma.sql`
+      SELECT
+        cr."id",
+        cr."normalizedName",
+        cr."updatedAt",
+        v2."id" AS "v2_id",
+        v2."post_title" AS "v2_post_title",
+        v2."introduction_date" AS "v2_introduction_date",
+        v2."primary_hybridizer_name" AS "v2_primary_hybridizer_name",
+        v2."hybridizer_code_legacy" AS "v2_hybridizer_code_legacy",
+        v2."additional_hybridizers_names" AS "v2_additional_hybridizers_names",
+        v2."bloom_season_names" AS "v2_bloom_season_names",
+        v2."fragrance_names" AS "v2_fragrance_names",
+        v2."bloom_habit_names" AS "v2_bloom_habit_names",
+        v2."foliage_names" AS "v2_foliage_names",
+        v2."ploidy_names" AS "v2_ploidy_names",
+        v2."scape_height_in" AS "v2_scape_height_in",
+        v2."bloom_size_in" AS "v2_bloom_size_in",
+        v2."bud_count" AS "v2_bud_count",
+        v2."branches" AS "v2_branches",
+        v2."color" AS "v2_color",
+        v2."flower_form_names" AS "v2_flower_form_names",
+        v2."unusual_forms_names" AS "v2_unusual_forms_names",
+        v2."parentage" AS "v2_parentage",
+        v2."image_url" AS "v2_image_url"
+      FROM "CultivarReference" cr
+      LEFT JOIN "V2AhsCultivar" v2 ON v2."id" = cr."v2AhsCultivarId"
+      WHERE ${ownerWhere}
+        ${sinceWhere}
+        ${cursorWhere}
+      ORDER BY cr."id" ${orderDirection}
+      ${limitClause}
+    `);
 
-    return rows.map(mapV2CultivarReferenceRow);
+    return rows.map(mapRawV2CultivarReferenceRow);
   }
 
-  const rows = await db.cultivarReference.findMany({
-    where,
-    select: legacyCultivarReferenceSelect,
-    orderBy: { id: options.direction },
-    ...(options.limit ? { take: options.limit } : {}),
-  });
+  const rows = await db.$queryRaw<RawLegacyCultivarReferenceRow[]>(Prisma.sql`
+    SELECT
+      cr."id",
+      cr."normalizedName",
+      cr."updatedAt",
+      ahs."id" AS "ahs_id",
+      ahs."name" AS "ahs_name",
+      ahs."ahsImageUrl" AS "ahs_ahsImageUrl",
+      ahs."hybridizer" AS "ahs_hybridizer",
+      ahs."year" AS "ahs_year",
+      ahs."scapeHeight" AS "ahs_scapeHeight",
+      ahs."bloomSize" AS "ahs_bloomSize",
+      ahs."bloomSeason" AS "ahs_bloomSeason",
+      ahs."ploidy" AS "ahs_ploidy",
+      ahs."foliageType" AS "ahs_foliageType",
+      ahs."bloomHabit" AS "ahs_bloomHabit",
+      ahs."color" AS "ahs_color",
+      ahs."form" AS "ahs_form",
+      ahs."parentage" AS "ahs_parentage",
+      ahs."fragrance" AS "ahs_fragrance",
+      ahs."budcount" AS "ahs_budcount",
+      ahs."branches" AS "ahs_branches",
+      ahs."sculpting" AS "ahs_sculpting",
+      ahs."foliage" AS "ahs_foliage",
+      ahs."flower" AS "ahs_flower"
+    FROM "CultivarReference" cr
+    LEFT JOIN "AhsListing" ahs ON ahs."id" = cr."ahsId"
+    WHERE ${ownerWhere}
+      ${sinceWhere}
+      ${cursorWhere}
+    ORDER BY cr."id" ${orderDirection}
+    ${limitClause}
+  `);
 
-  return rows.map(mapLegacyCultivarReferenceRow);
+  return rows.map(mapRawLegacyCultivarReferenceRow);
 }
 
 export const dashboardDbCultivarReferenceRouter = createTRPCRouter({

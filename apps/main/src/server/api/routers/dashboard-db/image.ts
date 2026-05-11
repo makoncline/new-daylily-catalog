@@ -199,24 +199,43 @@ export const dashboardDbImageRouter = createTRPCRouter({
     .input(dashboardSyncInputSchema)
     .query(async ({ ctx, input }) => {
       const since = parseDashboardSyncSince(input.since);
-      const ownedImageWhere = await getOwnedImageWhere({
-        db: ctx.db,
-        userId: ctx.user.id,
-      });
-      if (!ownedImageWhere) return [];
+      const rows = await ctx.db.$queryRaw<ImageRow[]>(Prisma.sql`
+        SELECT
+          i."id",
+          i."url",
+          i."order",
+          i."listingId",
+          i."userProfileId",
+          i."createdAt",
+          i."updatedAt",
+          i."status"
+        FROM "Image" i
+        WHERE
+          (
+            EXISTS (
+              SELECT 1
+              FROM "Listing" l
+              WHERE l."id" = i."listingId"
+                AND l."userId" = ${ctx.user.id}
+            )
+            OR EXISTS (
+              SELECT 1
+              FROM "UserProfile" up
+              WHERE up."id" = i."userProfileId"
+                AND up."userId" = ${ctx.user.id}
+            )
+          )
+          ${since ? Prisma.sql`AND i."updatedAt" >= ${since}` : Prisma.empty}
+          ${
+            input.cursor
+              ? Prisma.sql`AND i."id" > ${input.cursor.id}`
+              : Prisma.empty
+          }
+        ORDER BY i."id" ASC
+        ${input.limit ? Prisma.sql`LIMIT ${input.limit}` : Prisma.empty}
+      `);
 
-      return ctx.db.image.findMany({
-        where: {
-          AND: [
-            ownedImageWhere,
-            ...(since ? [{ updatedAt: { gte: since } }] : []),
-            ...(input.cursor ? [{ id: { gt: input.cursor.id } }] : []),
-          ],
-        },
-        orderBy: { id: "asc" },
-        select: imageSelect,
-        ...(input.limit ? { take: input.limit } : {}),
-      });
+      return rows.map(mapImageRow);
     }),
 
   create: protectedProcedure
