@@ -1,27 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useSearchParams } from "next/navigation";
-import { Suspense } from "react";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
-import { parsePositiveInteger } from "@/lib/public-catalog-url-state";
 
 interface CatalogNavProps {
   canonicalUserSlug: string;
-}
-
-function getPageFromPathname(pathname: string | null) {
-  if (!pathname) {
-    return null;
-  }
-
-  const match = /\/page\/(\d+)\/?$/.exec(pathname);
-  if (!match) {
-    return null;
-  }
-
-  return parsePositiveInteger(match[1], 1);
+  currentPage: number;
 }
 
 function getCatalogSearchHref(canonicalUserSlug: string, page: number) {
@@ -32,13 +17,7 @@ function getCatalogSearchHref(canonicalUserSlug: string, page: number) {
   return `/${canonicalUserSlug}/search`;
 }
 
-function CatalogNavInner({ canonicalUserSlug }: CatalogNavProps) {
-  const searchParams = useSearchParams();
-  const getSearchParam = searchParams.get.bind(searchParams);
-  const pathname = usePathname();
-  const pageFromPathname = getPageFromPathname(pathname);
-  const pageFromQuery = parsePositiveInteger(getSearchParam("page"), 1);
-  const currentPage = pageFromPathname ?? pageFromQuery;
+export function CatalogNav({ canonicalUserSlug, currentPage }: CatalogNavProps) {
   const searchHref = getCatalogSearchHref(canonicalUserSlug, currentPage);
   const sections = [
     {
@@ -95,14 +74,6 @@ function CatalogNavInner({ canonicalUserSlug }: CatalogNavProps) {
         <ScrollBar orientation="horizontal" className="invisible" />
       </ScrollArea>
     </div>
-  );
-}
-
-export function CatalogNav(props: CatalogNavProps) {
-  return (
-    <Suspense fallback={null}>
-      <CatalogNavInner {...props} />
-    </Suspense>
   );
 }
 

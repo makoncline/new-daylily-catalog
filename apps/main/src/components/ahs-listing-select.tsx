@@ -87,7 +87,7 @@ export function AhsListingSelect({
   const renderSearchContent = () => (
     <Command shouldFilter={false} className="flex h-full flex-col">
       <CommandInput
-        placeholder="Search AHS listings…"
+        placeholder="Search AHS listings..."
         ref={searchInputRef}
         value={searchValue}
         onValueChange={setSearchValue}
@@ -98,13 +98,13 @@ export function AhsListingSelect({
         className="flex-1 overflow-x-hidden overflow-y-auto pb-2"
       >
         {!searchValue && (
-          <CommandEmpty>Type to search AHS listings…</CommandEmpty>
+          <CommandEmpty>Type to search AHS listings...</CommandEmpty>
         )}
         {searchValue &&
           (debouncedSearchValue !== searchValue ||
             ahsSearchQuery.isLoading) && (
             <div className="flex h-full items-center justify-center">
-              <p className="text-muted-foreground text-sm">Loading…</p>
+              <p className="text-muted-foreground text-sm">Loading...</p>
             </div>
           )}
         {searchValue &&
@@ -147,7 +147,7 @@ export function AhsListingSelect({
       disabled={disabled}
       id="ahs-listing-select"
     >
-      Select Daylily Database listing…
+      Select Daylily Database listing...
       <ChevronsUpDown className="ml-2 size-4 shrink-0 opacity-50" />
     </Button>
   );

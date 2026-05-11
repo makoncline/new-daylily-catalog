@@ -21,6 +21,9 @@ export class HomePage {
   }
 
   async openDashboard() {
+    await this.dashboardButton.waitFor({ state: "visible" });
+    await this.dashboardButton.waitFor({ state: "attached" });
+    await this.dashboardButton.click({ trial: true });
     await this.dashboardButton.click();
   }
 }

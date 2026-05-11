@@ -1,5 +1,3 @@
-import Script from "next/script";
-
 // eslint-disable react/no-danger -- intentional static JSON-LD, style, or compatibility script injection.
 export function UnsupportedSafariNotice() {
   return (
@@ -28,9 +26,8 @@ export function UnsupportedSafariNotice() {
           `,
         }}
       />
-      <Script
+      <script
         id="unsupported-safari-notice-script"
-        strategy="afterInteractive"
         dangerouslySetInnerHTML={{
           __html: `
             (function () {

@@ -155,7 +155,10 @@ const renderPublicProfilePage = async ({
         </div>
 
         <div className="space-y-6">
-          <ProfileContent initialProfile={profileForPage} />
+          <ProfileContent
+            initialProfile={profileForPage}
+            currentPage={pageData.page}
+          />
 
           <CatalogSeoListings
             canonicalUserSlug={canonicalUserSlug}

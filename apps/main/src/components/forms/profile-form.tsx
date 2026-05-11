@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useReducer, useRef } from "react";
+import { useCallback, useEffect, useReducer, useRef } from "react";
 import { Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { useDebouncedCallback } from "use-debounce";
@@ -117,6 +117,10 @@ function areProfileValuesEqual(
   );
 }
 
+function profileTimestamp(profile: UserProfile) {
+  return new Date(profile.updatedAt).getTime();
+}
+
 function useProfileFormController({
   initialProfile,
   formRef,
@@ -197,6 +201,19 @@ function useProfileFormController({
       needsParentCommitRef.current
     );
   }, [form, isContentDirty, needsParentCommitRef, profile]);
+
+  useEffect(() => {
+    if (profileTimestamp(initialProfile) === profileTimestamp(profile)) {
+      return;
+    }
+
+    if (hasPendingChanges()) {
+      return;
+    }
+
+    dispatch({ type: "profileSaved", profile: initialProfile });
+    form.reset(toFormValues(initialProfile), { keepIsValid: true });
+  }, [form, hasPendingChanges, initialProfile, profile]);
 
   const saveChangesInternal = useCallback(
     async (reason: ProfileFormSaveReason): Promise<boolean> => {
