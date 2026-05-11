@@ -1,5 +1,3 @@
-"use server";
-
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { auth } from "@clerk/nextjs/server";

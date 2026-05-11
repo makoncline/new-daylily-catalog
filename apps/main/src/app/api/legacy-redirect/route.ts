@@ -1,5 +1,4 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { getListingOwnerWithSlugs } from "@/server/db/getLegacyMappings";
 import { getRequestBaseUrl } from "@/lib/utils/getBaseUrl";
 import { buildLegacyListingRedirectPath } from "@/lib/legacy-route-redirects";
 
@@ -12,11 +11,12 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(new URL("/catalogs", baseUrl));
   }
 
-  // Find the user who owns this listing along with available slugs
+  const { getListingOwnerWithSlugs } = await import(
+    "@/server/db/getLegacyMappings"
+  );
   const listingInfo = await getListingOwnerWithSlugs(listingId);
 
   if (!listingInfo) {
-    // If we can't find the owner, redirect to the catalogs page
     return NextResponse.redirect(new URL("/catalogs", baseUrl));
   }
 

@@ -1,4 +1,3 @@
-import { db } from "@/server/db";
 import { getCanonicalBaseUrl } from "@/lib/utils/getBaseUrl";
 import { formatAhsListingSummary } from "@/lib/utils";
 import {
@@ -14,8 +13,8 @@ const FEED_BATCH_SIZE = 200;
 export async function GET(_request: Request) {
   try {
     const baseUrl = getCanonicalBaseUrl();
+    const { db } = await import("@/server/db");
 
-    // Query all listings with prices
     const where = { price: { not: null } };
     const include = {
       images: {

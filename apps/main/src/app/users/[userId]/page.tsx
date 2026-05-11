@@ -1,5 +1,3 @@
-"use server";
-
 import type { Metadata } from "next";
 import { notFound, permanentRedirect } from "next/navigation";
 import { buildLegacyUserRedirectPath } from "@/lib/legacy-route-redirects";
