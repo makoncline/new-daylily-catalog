@@ -2,16 +2,17 @@
 
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 
-const publicCacheMocks = vi.hoisted(() => ({
-  getCachedPublicCatalogRouteEntries: vi.fn(),
-  getCachedCultivarSitemapEntries: vi.fn(),
+const publicReadMocks = vi.hoisted(() => ({
+  getPublicCatalogRouteEntries: vi.fn(),
+  getCultivarSitemapEntries: vi.fn(),
 }));
 
-vi.mock("@/server/db/public-cache", () => ({
-  getCachedPublicCatalogRouteEntries:
-    publicCacheMocks.getCachedPublicCatalogRouteEntries,
-  getCachedCultivarSitemapEntries:
-    publicCacheMocks.getCachedCultivarSitemapEntries,
+vi.mock("@/server/db/public-listing-read-model", () => ({
+  getPublicCatalogRouteEntries: publicReadMocks.getPublicCatalogRouteEntries,
+}));
+
+vi.mock("@/server/db/public-cultivar-read-model", () => ({
+  getCultivarSitemapEntries: publicReadMocks.getCultivarSitemapEntries,
 }));
 
 const originalVercelEnv = process.env.VERCEL_ENV;
@@ -24,7 +25,7 @@ describe("sitemap and robots host selection", () => {
   beforeEach(() => {
     vi.clearAllMocks();
 
-    publicCacheMocks.getCachedPublicCatalogRouteEntries.mockResolvedValue([
+    publicReadMocks.getPublicCatalogRouteEntries.mockResolvedValue([
       {
         slug: "rolling-oaks",
         totalPages: 3,
@@ -32,7 +33,7 @@ describe("sitemap and robots host selection", () => {
       },
     ]);
 
-    publicCacheMocks.getCachedCultivarSitemapEntries.mockResolvedValue([
+    publicReadMocks.getCultivarSitemapEntries.mockResolvedValue([
       {
         segment: "zyzzified",
         lastModified: new Date("2026-03-01T00:00:00.000Z"),

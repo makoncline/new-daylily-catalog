@@ -6,8 +6,8 @@ import {
   withResolvedDisplayAhsListing,
   v2AhsCultivarDisplaySelect,
 } from "@/lib/utils/ahs-display";
-import { getCachedProUserIds } from "@/server/db/getCachedProUserIds";
-import { db } from "@/server/db";
+import { getProUserIds } from "@/server/db/getProUserIds";
+import { replicaDb } from "@/server/db";
 import { getUserIdFromSlugOrId } from "@/server/db/getPublicProfile";
 import { isPublished } from "@/server/db/public-visibility/filters";
 
@@ -106,7 +106,7 @@ export async function getSortedPublicListingIds(
 ): Promise<string[]> {
   const forSaleFirst = options?.forSaleFirst ?? false;
   const rows = forSaleFirst
-    ? await db.$queryRaw<Array<{ id: string }>>(Prisma.sql`
+    ? await replicaDb.$queryRaw<Array<{ id: string }>>(Prisma.sql`
         SELECT "id"
         FROM "Listing"
         WHERE "userId" = ${userId}
@@ -124,7 +124,7 @@ export async function getSortedPublicListingIds(
           LTRIM("title") COLLATE NOCASE ASC,
           "id" ASC
       `)
-    : await db.$queryRaw<Array<{ id: string }>>(Prisma.sql`
+    : await replicaDb.$queryRaw<Array<{ id: string }>>(Prisma.sql`
         SELECT "id"
         FROM "Listing"
         WHERE "userId" = ${userId}
@@ -149,7 +149,7 @@ export async function getPublicListingRowsByIds(
     return [];
   }
 
-  const rows = await db.listing.findMany({
+  const rows = await replicaDb.listing.findMany({
     where: {
       id: {
         in: ids,
@@ -184,18 +184,10 @@ export async function getPublicListingCardsByIds(ids: string[]) {
 }
 
 export async function getInitialListings(userSlugOrId: string) {
-  try {
-    const userId = await getUserIdFromSlugOrId(userSlugOrId);
-    const items = await getListings({ userId, limit: 36 });
+  const userId = await getUserIdFromSlugOrId(userSlugOrId);
+  const items = await getListings({ userId, limit: 36 });
 
-    return transformListings(items);
-  } catch (error) {
-    throw new TRPCError({
-      code: "INTERNAL_SERVER_ERROR",
-      message: "Failed to fetch initial listings",
-      cause: error,
-    });
-  }
+  return transformListings(items);
 }
 
 export interface GetPublicListingsPageArgs {
@@ -262,7 +254,7 @@ export async function getPublicListingsPage(args: GetPublicListingsPageArgs) {
 }
 
 export async function getPublicListingDetail(listingId: string) {
-  const listing = await db.listing.findFirst({
+  const listing = await replicaDb.listing.findFirst({
     where: { id: listingId, ...isPublished() },
     select: publicListingSelect,
   });
@@ -278,7 +270,7 @@ export async function getPublicListingDetail(listingId: string) {
 }
 
 export async function getPublicForSaleListingsCount(userId: string) {
-  return db.listing.count({
+  return replicaDb.listing.count({
     where: {
       userId,
       price: {
@@ -298,13 +290,13 @@ interface PublicCatalogRouteEntry {
 export async function getPublicCatalogRouteEntries(): Promise<
   PublicCatalogRouteEntry[]
 > {
-  const proUserIds = await getCachedProUserIds();
+  const proUserIds = await getProUserIds();
 
   if (proUserIds.length === 0) {
     return [];
   }
 
-  const listingCounts = await db.listing.groupBy({
+  const listingCounts = await replicaDb.listing.groupBy({
     by: ["userId"],
     where: {
       ...isPublished(),
@@ -322,7 +314,7 @@ export async function getPublicCatalogRouteEntries(): Promise<
   }
 
   const userIds = listingCounts.map((entry) => entry.userId);
-  const users = await db.user.findMany({
+  const users = await replicaDb.user.findMany({
     select: {
       id: true,
       createdAt: true,

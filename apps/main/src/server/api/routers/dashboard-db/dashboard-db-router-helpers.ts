@@ -1,9 +1,6 @@
 import type { PrismaClient } from "@prisma/client";
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
-import type { PublicInvalidationReference } from "@/types/public-types";
-import type { PublicIsrPathInput } from "./public-isr-invalidation-plan";
-import { invalidatePublicIsrForReferences } from "./public-isr-invalidation";
 
 export const dashboardSyncInputSchema = z.object({
   since: z.iso.datetime().nullable(),
@@ -17,20 +14,6 @@ export const dashboardSyncInputSchema = z.object({
 
 export function parseDashboardSyncSince(since: string | null) {
   return since ? new Date(since) : undefined;
-}
-
-export async function invalidateDashboardMutation(args: {
-  db: PrismaClient;
-  extraPaths?: PublicIsrPathInput[];
-  references: PublicInvalidationReference[];
-  requestUrl?: string;
-}) {
-  await invalidatePublicIsrForReferences({
-    db: args.db,
-    requestUrl: args.requestUrl,
-    references: args.references,
-    extraPaths: args.extraPaths,
-  });
 }
 
 export async function assertOwnedListing(args: {

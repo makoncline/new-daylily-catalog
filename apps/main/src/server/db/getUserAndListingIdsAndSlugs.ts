@@ -1,8 +1,8 @@
-import { db } from "@/server/db";
+import { replicaDb } from "@/server/db";
 import { isPublished } from "@/server/db/public-visibility/filters";
 
 export async function getUserAndListingIdsAndSlugs() {
-  const users = await db.user.findMany({
+  const users = await replicaDb.user.findMany({
     select: {
       id: true,
       profile: {

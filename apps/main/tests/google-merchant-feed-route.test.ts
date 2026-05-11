@@ -12,6 +12,11 @@ vi.mock("@/server/db", () => ({
       findMany: dbMocks.listingFindMany,
     },
   },
+  replicaDb: {
+    listing: {
+      findMany: dbMocks.listingFindMany,
+    },
+  },
 }));
 
 function createFeedListing(index: number) {

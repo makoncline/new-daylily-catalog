@@ -9,11 +9,11 @@ import {
   fromCultivarRouteSegment,
   toCultivarRouteSegment,
 } from "@/lib/utils/cultivar-utils";
-import { db } from "@/server/db";
+import { replicaDb } from "@/server/db";
 import {
   getActiveProUserIdsForUserIds,
-  getCachedProUserIds,
-} from "@/server/db/getCachedProUserIds";
+  getProUserIds,
+} from "@/server/db/getProUserIds";
 import { getPublicListingCardsByIds } from "@/server/db/public-listing-read-model";
 import { getPublicSellerSummariesByUserIds } from "@/server/db/public-seller-read-model";
 import {
@@ -60,7 +60,7 @@ export interface PublicCultivarContext {
 async function findCultivarReferenceByNormalizedName(
   normalizedName: string,
 ): Promise<PublicCultivarReferenceRecord | null> {
-  const row = await db.cultivarReference.findFirst({
+  const row = await replicaDb.cultivarReference.findFirst({
     where: {
       AND: [
         getCultivarReferenceLookupWhereClause(),
@@ -89,7 +89,7 @@ async function findCultivarReferenceByNormalizedName(
 }
 
 export async function getCultivarRouteSegments(): Promise<string[]> {
-  const cultivars = await db.cultivarReference.findMany({
+  const cultivars = await replicaDb.cultivarReference.findMany({
     where: getCultivarReferenceLookupWhereClause(),
     select: {
       normalizedName: true,
@@ -114,7 +114,7 @@ export async function getCultivarSitemapEntries(): Promise<
     lastModified?: Date;
   }>
 > {
-  const proUserIds = await getCachedProUserIds();
+  const proUserIds = await getProUserIds();
 
   if (proUserIds.length === 0) {
     return [];
@@ -152,7 +152,7 @@ export async function getCultivarSitemapEntries(): Promise<
     }
   };
 
-  const listingRows = await db.listing.findMany({
+  const listingRows = await replicaDb.listing.findMany({
     where: {
       cultivarReferenceId: {
         not: null,
@@ -192,9 +192,7 @@ export async function getCultivarSitemapEntries(): Promise<
   );
 }
 
-async function getPublicCultivarReference(
-  cultivarSegment: string,
-): Promise<{
+async function getPublicCultivarReference(cultivarSegment: string): Promise<{
   referenceData: PublicCultivarReferenceData;
   listingIds: string[];
 } | null> {
@@ -232,7 +230,7 @@ async function getPublicCultivarReference(
 }
 
 async function getPublishedCultivarListingRows(cultivarReferenceId: string) {
-  return db.listing.findMany({
+  return replicaDb.listing.findMany({
     where: {
       cultivarReferenceId,
       ...isPublished(),

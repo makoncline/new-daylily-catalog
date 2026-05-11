@@ -5,6 +5,7 @@ services:
     env_file:
       - .env
     volumes:
+      - ./data:/data
       - ./next-cache:/app/apps/main/.next/cache
     networks:
       - edge

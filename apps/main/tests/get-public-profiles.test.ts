@@ -8,14 +8,15 @@ const mockDb = vi.hoisted(() => ({
   },
 }));
 
-const mockGetCachedProUserIds = vi.hoisted(() => vi.fn());
+const mockGetProUserIds = vi.hoisted(() => vi.fn());
 
 vi.mock("@/server/db", () => ({
   db: mockDb,
+  replicaDb: mockDb,
 }));
 
-vi.mock("@/server/db/getCachedProUserIds", () => ({
-  getCachedProUserIds: mockGetCachedProUserIds,
+vi.mock("@/server/db/getProUserIds", () => ({
+  getProUserIds: mockGetProUserIds,
 }));
 
 import { getPublicProfiles } from "@/server/db/getPublicProfiles";
@@ -75,7 +76,7 @@ describe("getPublicProfiles", () => {
       Promise.resolve(applyWhereIn(users, args, "id")),
     );
 
-    mockGetCachedProUserIds.mockResolvedValue(["user-pro"]);
+    mockGetProUserIds.mockResolvedValue(["user-pro"]);
 
     const profiles = await getPublicProfiles();
 

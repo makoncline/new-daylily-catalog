@@ -21,7 +21,7 @@ import {
   getCultivarPageRouteArtifacts,
 } from "./_lib/cultivar-page-route";
 
-export const revalidate = false;
+export const revalidate = 3600;
 export const dynamic = "force-static";
 
 interface PageProps {
@@ -40,7 +40,9 @@ export async function generateMetadata({
 export default async function CultivarPage({ params }: PageProps) {
   const { cultivarNormalizedName } = await params;
 
-  const cultivarPage = await getCultivarPageRouteArtifacts(cultivarNormalizedName);
+  const cultivarPage = await getCultivarPageRouteArtifacts(
+    cultivarNormalizedName,
+  );
   if (!cultivarPage) {
     notFound();
   }

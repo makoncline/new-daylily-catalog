@@ -1,4 +1,4 @@
-import { db } from "@/server/db";
+import { replicaDb } from "@/server/db";
 import { getCanonicalBaseUrl } from "@/lib/utils/getBaseUrl";
 import { formatAhsListingSummary } from "@/lib/utils";
 import {
@@ -51,7 +51,7 @@ export async function GET(_request: Request) {
 
     let cursor: string | undefined;
     while (true) {
-      const listings = await db.listing.findMany({
+      const listings = await replicaDb.listing.findMany({
         where,
         include,
         orderBy: { id: "asc" },
