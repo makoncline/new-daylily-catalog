@@ -1,16 +1,24 @@
 "use client";
 
-import { useCallback, useEffect, useReducer, useRef } from "react";
+import {
+  createContext,
+  type FocusEvent,
+  type PointerEvent,
+  type ReactNode,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  use,
+} from "react";
+import type { Control } from "react-hook-form";
 import { Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { useDebouncedCallback } from "use-debounce";
 import { type RouterOutputs } from "@/trpc/react";
 import { api } from "@/trpc/react";
 import { getBaseUrl } from "@/lib/utils/getBaseUrl";
-import {
-  profileFormSchema,
-  type ProfileFormData,
-} from "@/types/schemas/profile";
+import { profileFormSchema } from "@/types/schemas/profile";
 import { useZodForm } from "@/hooks/use-zod-form";
 import { useManagedFormSave } from "@/hooks/use-managed-form-save";
 import { useParentCommitFlag } from "@/hooks/use-parent-commit-flag";
@@ -44,12 +52,26 @@ import {
 } from "./content-form";
 
 type UserProfile = RouterOutputs["dashboardDb"]["userProfile"]["get"];
-
 type ProfileFormSaveReason = "manual" | "navigate";
+type ProfileFormController = ReturnType<typeof useProfileFormController>;
+
+interface ProfileFormValues {
+  title: string | null | undefined;
+  slug: string | null | undefined;
+  description: string | null | undefined;
+  location: string | null | undefined;
+  logoUrl: string | null | undefined;
+}
 
 export interface ProfileFormHandle {
   saveChanges: (reason: ProfileFormSaveReason) => Promise<boolean>;
   hasPendingChanges: () => boolean;
+}
+
+interface ProfileFormRootProps {
+  children: ReactNode;
+  initialProfile: UserProfile;
+  formRef?: React.RefObject<ProfileFormHandle | null>;
 }
 
 interface ProfileFormProps {
@@ -57,44 +79,7 @@ interface ProfileFormProps {
   formRef?: React.RefObject<ProfileFormHandle | null>;
 }
 
-interface ProfileFormState {
-  profile: UserProfile;
-  isUpdating: boolean;
-  isCheckingSlug: boolean;
-  isContentDirty: boolean;
-  showSlugEditWarningDialog: boolean;
-  isSlugEditingUnlocked: boolean;
-}
-
-type ProfileFormAction =
-  | { type: "profileSaved"; profile: UserProfile }
-  | { type: "setIsUpdating"; value: boolean }
-  | { type: "setIsCheckingSlug"; value: boolean }
-  | { type: "setIsContentDirty"; value: boolean }
-  | { type: "setShowSlugEditWarningDialog"; value: boolean }
-  | { type: "setIsSlugEditingUnlocked"; value: boolean };
-
-function profileFormReducer(
-  state: ProfileFormState,
-  action: ProfileFormAction,
-): ProfileFormState {
-  switch (action.type) {
-    case "profileSaved":
-      return { ...state, profile: action.profile };
-    case "setIsUpdating":
-      return { ...state, isUpdating: action.value };
-    case "setIsCheckingSlug":
-      return { ...state, isCheckingSlug: action.value };
-    case "setIsContentDirty":
-      return { ...state, isContentDirty: action.value };
-    case "setShowSlugEditWarningDialog":
-      return { ...state, showSlugEditWarningDialog: action.value };
-    case "setIsSlugEditingUnlocked":
-      return { ...state, isSlugEditingUnlocked: action.value };
-  }
-}
-
-function toFormValues(profile: UserProfile): ProfileFormData {
+function toFormValues(profile: UserProfile): ProfileFormValues {
   return {
     title: profile.title ?? undefined,
     slug: profile.slug ?? undefined,
@@ -105,8 +90,8 @@ function toFormValues(profile: UserProfile): ProfileFormData {
 }
 
 function areProfileValuesEqual(
-  a: ProfileFormData,
-  b: ProfileFormData,
+  a: ProfileFormValues,
+  b: ProfileFormValues,
 ): boolean {
   return (
     a.title === b.title &&
@@ -121,28 +106,38 @@ function profileTimestamp(profile: UserProfile) {
   return new Date(profile.updatedAt).getTime();
 }
 
+const ProfileFormContext = createContext<ProfileFormController | null>(null);
+
+function useProfileFormContext() {
+  const context = use(ProfileFormContext);
+
+  if (!context) {
+    throw new Error("Profile form sections must render inside ProfileForm.");
+  }
+
+  return context;
+}
+
 function useProfileFormController({
   initialProfile,
   formRef,
-}: ProfileFormProps) {
-  const [state, dispatch] = useReducer(profileFormReducer, {
-    profile: initialProfile,
-    isUpdating: false,
-    isCheckingSlug: false,
+}: Omit<ProfileFormRootProps, "children">) {
+  const [profileOverride, setProfileOverride] = useState<UserProfile | null>(
+    null,
+  );
+  const [saveState, setSaveState] = useState({
     isContentDirty: false,
-    showSlugEditWarningDialog: false,
-    isSlugEditingUnlocked: false,
+    isUpdating: false,
   });
-  const {
-    profile,
-    isUpdating,
-    isCheckingSlug,
-    isContentDirty,
-    showSlugEditWarningDialog,
-    isSlugEditingUnlocked,
-  } = state;
-  const slugInputRef = useRef<HTMLInputElement | null>(null);
+  const [slugState, setSlugState] = useState({
+    isChecking: false,
+    isEditingUnlocked: false,
+    showWarningDialog: false,
+  });
   const contentFormRef = useRef<ContentManagerFormHandle | null>(null);
+  const slugInputRef = useRef<HTMLInputElement | null>(null);
+  const syncedProfileTimestampRef = useRef(profileTimestamp(initialProfile));
+  const profile = profileOverride ?? initialProfile;
   const { isPro } = usePro();
   const utils = api.useUtils();
   const {
@@ -150,17 +145,13 @@ function useProfileFormController({
     needsParentCommitRef,
     resetNeedsParentCommit,
   } = useParentCommitFlag();
-
   const cleanBaseUrl = getBaseUrl().replace(/^https?:\/\//, "");
-
   const form = useZodForm({
     schema: profileFormSchema,
     defaultValues: toFormValues(profile),
   });
-
   const updateProfileMutation =
     api.dashboardDb.userProfile.update.useMutation();
-
   const checkSlug = api.dashboardDb.userProfile.checkSlug.useQuery(
     { slug: form.watch("slug") ?? undefined },
     {
@@ -169,57 +160,37 @@ function useProfileFormController({
     },
   );
 
-  const debouncedCheckSlug = useDebouncedCallback(
-    (value: string | null | undefined) => {
-      if (value && value !== profile.userId) {
-        dispatch({ type: "setIsCheckingSlug", value: true });
-        void checkSlug.refetch().then((result) => {
-          dispatch({ type: "setIsCheckingSlug", value: false });
-          if (result.data?.available) {
-            form.clearErrors("slug");
-            return;
-          }
-          if (result.data && !result.data.available) {
-            form.setError("slug", {
-              type: "manual",
-              message: "This URL is already taken. Please choose another one.",
-            });
-          }
-        });
-      }
-    },
-    500,
-  );
-
   const hasPendingChanges = useCallback(() => {
     const values = form.getValues();
     const committedValues = toFormValues(profile);
 
     return (
       !areProfileValuesEqual(values, committedValues) ||
-      isContentDirty ||
+      saveState.isContentDirty ||
       needsParentCommitRef.current
     );
-  }, [form, isContentDirty, needsParentCommitRef, profile]);
+  }, [form, needsParentCommitRef, profile, saveState.isContentDirty]);
 
   useEffect(() => {
-    if (profileTimestamp(initialProfile) === profileTimestamp(profile)) {
+    const initialProfileTimestamp = profileTimestamp(initialProfile);
+    if (initialProfileTimestamp <= syncedProfileTimestampRef.current) {
       return;
     }
-
     if (hasPendingChanges()) {
       return;
     }
 
-    dispatch({ type: "profileSaved", profile: initialProfile });
+    syncedProfileTimestampRef.current = initialProfileTimestamp;
+    setProfileOverride(null);
     form.reset(toFormValues(initialProfile), { keepIsValid: true });
-  }, [form, hasPendingChanges, initialProfile, profile]);
+    resetNeedsParentCommit();
+  }, [form, hasPendingChanges, initialProfile, resetNeedsParentCommit]);
 
   const saveChangesInternal = useCallback(
     async (reason: ProfileFormSaveReason): Promise<boolean> => {
       const shouldUpdateUi = reason !== "navigate";
       if (shouldUpdateUi) {
-        dispatch({ type: "setIsUpdating", value: true });
+        setSaveState((current) => ({ ...current, isUpdating: true }));
       }
 
       try {
@@ -266,7 +237,8 @@ function useProfileFormController({
         const updatedProfile = await updateProfileMutation.mutateAsync({
           data: values,
         });
-        dispatch({ type: "profileSaved", profile: updatedProfile });
+        syncedProfileTimestampRef.current = profileTimestamp(updatedProfile);
+        setProfileOverride(updatedProfile);
         form.reset(toFormValues(updatedProfile), { keepIsValid: true });
         resetNeedsParentCommit();
         utils.dashboardDb.userProfile.get.setData(undefined, updatedProfile);
@@ -287,7 +259,7 @@ function useProfileFormController({
         return false;
       } finally {
         if (shouldUpdateUi) {
-          dispatch({ type: "setIsUpdating", value: false });
+          setSaveState((current) => ({ ...current, isUpdating: false }));
         }
       }
     },
@@ -311,286 +283,360 @@ function useProfileFormController({
     save: saveChangesInternal,
   });
 
-  async function onSubmit() {
-    await saveChanges("manual");
-  }
+  const debouncedCheckSlug = useDebouncedCallback(
+    (value: string | null | undefined) => {
+      if (value && value !== profile.userId) {
+        setSlugState((current) => ({ ...current, isChecking: true }));
+        void checkSlug.refetch().then((result) => {
+          setSlugState((current) => ({ ...current, isChecking: false }));
+          if (result.data?.available) {
+            form.clearErrors("slug");
+            return;
+          }
+          if (result.data && !result.data.available) {
+            form.setError("slug", {
+              type: "manual",
+              message: "This URL is already taken. Please choose another one.",
+            });
+          }
+        });
+      }
+    },
+    500,
+  );
 
-  function handleSlugPointerDown(e: React.PointerEvent<HTMLInputElement>) {
-    if (!isPro || isUpdating || isSlugEditingUnlocked) {
+  function handleSlugPointerDown(e: PointerEvent<HTMLInputElement>) {
+    if (!isPro || saveState.isUpdating || slugState.isEditingUnlocked) {
       return;
     }
 
     e.preventDefault();
-    dispatch({ type: "setShowSlugEditWarningDialog", value: true });
+    setSlugState((current) => ({ ...current, showWarningDialog: true }));
   }
 
-  function handleSlugFocus(e: React.FocusEvent<HTMLInputElement>) {
+  function handleSlugFocus(e: FocusEvent<HTMLInputElement>) {
     if (
       !isPro ||
-      isUpdating ||
-      isSlugEditingUnlocked ||
-      showSlugEditWarningDialog
+      saveState.isUpdating ||
+      slugState.isEditingUnlocked ||
+      slugState.showWarningDialog
     ) {
       return;
     }
 
     e.currentTarget.blur();
-    dispatch({ type: "setShowSlugEditWarningDialog", value: true });
+    setSlugState((current) => ({ ...current, showWarningDialog: true }));
   }
 
   function handleConfirmSlugEditWarning() {
-    dispatch({ type: "setShowSlugEditWarningDialog", value: false });
-    dispatch({ type: "setIsSlugEditingUnlocked", value: true });
+    setSlugState((current) => ({
+      ...current,
+      isEditingUnlocked: true,
+      showWarningDialog: false,
+    }));
     requestAnimationFrame(() => {
       slugInputRef.current?.focus();
     });
   }
 
   function handleCancelSlugEditWarning() {
-    dispatch({ type: "setShowSlugEditWarningDialog", value: false });
-    dispatch({ type: "setIsSlugEditingUnlocked", value: false });
+    setSlugState((current) => ({
+      ...current,
+      isEditingUnlocked: false,
+      showWarningDialog: false,
+    }));
+  }
+
+  function handleContentDirtyChange(isDirty: boolean) {
+    setSaveState((current) => ({ ...current, isContentDirty: isDirty }));
+  }
+
+  async function onSubmit() {
+    await saveChanges("manual");
   }
 
   return {
     cleanBaseUrl,
     contentFormRef,
     debouncedCheckSlug,
-    dispatch,
     form,
+    hasPendingChanges,
+    isPro,
+    markNeedsParentCommit,
+    onSubmit,
+    profile,
+    saveState,
+    slugInputRef,
+    slugState,
     handlers: {
       handleCancelSlugEditWarning,
       handleConfirmSlugEditWarning,
+      handleContentDirtyChange,
       handleSlugFocus,
       handleSlugPointerDown,
-      markNeedsParentCommit,
-      onSubmit,
+      setSlugState,
     },
-    state: {
-      hasPendingChanges,
-      isCheckingSlug,
-      isPro,
-      isSlugEditingUnlocked,
-      isUpdating,
-      profile,
-      showSlugEditWarningDialog,
-    },
-    slugInputRef,
   };
 }
 
-export function ProfileForm(props: ProfileFormProps) {
-  const controller = useProfileFormController(props);
+function ProfileFormRoot({
+  children,
+  initialProfile,
+  formRef,
+}: ProfileFormRootProps) {
+  const controller = useProfileFormController({ initialProfile, formRef });
 
-  return <ProfileFormView controller={controller} />;
+  return (
+    <ProfileFormContext.Provider value={controller}>
+      <>
+        <Form {...controller.form}>
+          <form
+            onSubmit={controller.form.handleSubmit(controller.onSubmit)}
+            className="space-y-6"
+          >
+            {children}
+          </form>
+        </Form>
+        <ProfileSlugWarningDialog />
+      </>
+    </ProfileFormContext.Provider>
+  );
 }
 
-function ProfileFormView({
-  controller,
+function GardenNameField({
+  control,
+  isUpdating,
 }: {
-  controller: ReturnType<typeof useProfileFormController>;
+  control: Control<ProfileFormValues>;
+  isUpdating: boolean;
 }) {
+  return (
+    <FormField
+      control={control}
+      name="title"
+      render={({ field }) => (
+        <FormItem>
+          <FormLabel>Garden Name</FormLabel>
+          <FormControl>
+            <Input {...field} value={field.value ?? ""} disabled={isUpdating} />
+          </FormControl>
+          <FormDescription>
+            The name of your garden or business.
+          </FormDescription>
+          <FormMessage />
+        </FormItem>
+      )}
+    />
+  );
+}
+
+function ProfileSlugField() {
   const {
     cleanBaseUrl,
-    contentFormRef,
     debouncedCheckSlug,
-    dispatch,
     form,
     handlers,
-    state,
-    slugInputRef,
-  } = controller;
-  const {
-    handleCancelSlugEditWarning,
-    handleConfirmSlugEditWarning,
-    handleSlugFocus,
-    handleSlugPointerDown,
-    markNeedsParentCommit,
-    onSubmit,
-  } = handlers;
-  const {
-    hasPendingChanges,
-    isCheckingSlug,
     isPro,
-    isSlugEditingUnlocked,
-    isUpdating,
     profile,
-    showSlugEditWarningDialog,
-  } = state;
+    saveState,
+    slugInputRef,
+    slugState,
+  } = useProfileFormContext();
+
+  return (
+    <FormField
+      control={form.control}
+      name="slug"
+      render={({ field }) => (
+        <FormItem>
+          <FormLabel className="flex items-center gap-2">
+            Profile URL
+            {!isPro && <Sparkles className="text-muted-foreground size-4" />}
+          </FormLabel>
+          <FormControl>
+            <div className="flex flex-col gap-2">
+              <div className="relative">
+                <Input
+                  name={field.name}
+                  ref={(element) => {
+                    field.ref(element);
+                    slugInputRef.current = element;
+                  }}
+                  value={field.value ?? ""}
+                  pattern={SLUG_INPUT_PATTERN.source}
+                  onPointerDown={handlers.handleSlugPointerDown}
+                  onFocus={handlers.handleSlugFocus}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    field.onChange(value);
+                    debouncedCheckSlug(value);
+                  }}
+                  onBlur={field.onBlur}
+                  readOnly={!slugState.isEditingUnlocked}
+                  disabled={saveState.isUpdating || !isPro}
+                  placeholder={profile.userId}
+                />
+                {slugState.isChecking && (
+                  <div className="absolute top-2.5 right-3">
+                    <div className="border-muted-foreground size-4 animate-spin rounded-full border-2 border-t-transparent" />
+                  </div>
+                )}
+              </div>
+              <Muted className="text-sm">
+                Your profile will be available at: {cleanBaseUrl}/
+                {field.value ?? profile.userId}
+              </Muted>
+            </div>
+          </FormControl>
+          <FormDescription>
+            {!isPro ? (
+              <CheckoutButton variant="link" className="h-auto p-0 text-xs">
+                Upgrade to Pro to customize your profile URL
+              </CheckoutButton>
+            ) : (
+              <>
+                Choose a unique URL for your public profile (minimum 5
+                characters). Only letters, numbers, hyphens, and underscores are
+                allowed.
+                {!field.value && " If not set, your user ID will be used."}
+              </>
+            )}
+          </FormDescription>
+          <FormMessage />
+        </FormItem>
+      )}
+    />
+  );
+}
+
+function ProfileTextFields() {
+  const { form, saveState } = useProfileFormContext();
 
   return (
     <>
-      <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-          <FormField
-            control={form.control}
-            name="title"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Garden Name</FormLabel>
-                <FormControl>
-                  <Input
-                    {...field}
-                    value={field.value ?? ""}
-                    disabled={isUpdating}
-                  />
-                </FormControl>
-                <FormDescription>
-                  The name of your garden or business.
-                </FormDescription>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          <FormField
-            control={form.control}
-            name="slug"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel className="flex items-center gap-2">
-                  Profile URL
-                  {!isPro && (
-                    <Sparkles className="text-muted-foreground size-4" />
-                  )}
-                </FormLabel>
-                <FormControl>
-                  <div className="flex flex-col gap-2">
-                    <div className="relative">
-                      <Input
-                        name={field.name}
-                        ref={(element) => {
-                          field.ref(element);
-                          slugInputRef.current = element;
-                        }}
-                        value={field.value ?? ""}
-                        pattern={SLUG_INPUT_PATTERN.source}
-                        onPointerDown={handleSlugPointerDown}
-                        onFocus={handleSlugFocus}
-                        onChange={(e) => {
-                          const value = e.target.value;
-                          field.onChange(value);
-                          debouncedCheckSlug(value);
-                        }}
-                        onBlur={field.onBlur}
-                        readOnly={!isSlugEditingUnlocked}
-                        disabled={isUpdating || !isPro}
-                        placeholder={profile.userId}
-                      />
-                      {isCheckingSlug && (
-                        <div className="absolute top-2.5 right-3">
-                          <div className="border-muted-foreground size-4 animate-spin rounded-full border-2 border-t-transparent" />
-                        </div>
-                      )}
-                    </div>
-                    <Muted className="text-sm">
-                      Your profile will be available at: {cleanBaseUrl}/
-                      {field.value ?? profile.userId}
-                    </Muted>
-                  </div>
-                </FormControl>
-                <FormDescription>
-                  {!isPro ? (
-                    <CheckoutButton
-                      variant="link"
-                      className="h-auto p-0 text-xs"
-                    >
-                      Upgrade to Pro to customize your profile URL
-                    </CheckoutButton>
-                  ) : (
-                    <>
-                      Choose a unique URL for your public profile (minimum 5
-                      characters). Only letters, numbers, hyphens, and
-                      underscores are allowed.
-                      {!field.value &&
-                        " If not set, your user ID will be used."}
-                    </>
-                  )}
-                </FormDescription>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
+      <GardenNameField
+        control={form.control}
+        isUpdating={saveState.isUpdating}
+      />
+      <ProfileSlugField />
+      <FormField
+        control={form.control}
+        name="description"
+        render={({ field }) => (
           <FormItem>
-            <Label>Profile Images</Label>
-            <p className="text-muted-foreground text-[0.8rem]">
-              Upload images to showcase your garden. You can reorder them by
-              dragging.
-            </p>
-            <ProfileImageManager
-              profileId={profile.id}
-              onMutationSuccess={markNeedsParentCommit}
-            />
+            <FormLabel>Description</FormLabel>
+            <FormControl>
+              <Textarea
+                {...field}
+                value={field.value ?? ""}
+                disabled={saveState.isUpdating}
+              />
+            </FormControl>
+            <FormDescription>
+              A brief description that appears at the top of your profile.
+            </FormDescription>
+            <FormMessage />
           </FormItem>
-
-          <FormField
-            control={form.control}
-            name="description"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Description</FormLabel>
-                <FormControl>
-                  <Textarea
-                    {...field}
-                    value={field.value ?? ""}
-                    disabled={isUpdating}
-                  />
-                </FormControl>
-                <FormDescription>
-                  A brief description that appears at the top of your profile.
-                </FormDescription>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-          <FormField
-            control={form.control}
-            name="location"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Location</FormLabel>
-                <FormControl>
-                  <Input
-                    {...field}
-                    value={field.value ?? ""}
-                    disabled={isUpdating}
-                  />
-                </FormControl>
-                <FormDescription>
-                  Optional. Your city, state, or general location.
-                </FormDescription>
-                <FormMessage />
-              </FormItem>
-            )}
-          />
-
-          <div className="flex justify-end">
-            <Button type="submit" disabled={isUpdating || !hasPendingChanges()}>
-              Save Changes
-            </Button>
-          </div>
-
-          <ContentManagerFormItem
-            initialProfile={profile}
-            formRef={contentFormRef}
-            onMutationSuccess={markNeedsParentCommit}
-            onDirtyChange={(value) =>
-              dispatch({ type: "setIsContentDirty", value })
-            }
-          />
-        </form>
-      </Form>
-
-      <SlugChangeConfirmDialog
-        open={showSlugEditWarningDialog}
-        onOpenChange={(value) =>
-          dispatch({ type: "setShowSlugEditWarningDialog", value })
-        }
-        onConfirm={handleConfirmSlugEditWarning}
-        onCancel={handleCancelSlugEditWarning}
-        currentSlug={profile.slug ?? profile.userId}
-        baseUrl={cleanBaseUrl}
+        )}
+      />
+      <FormField
+        control={form.control}
+        name="location"
+        render={({ field }) => (
+          <FormItem>
+            <FormLabel>Location</FormLabel>
+            <FormControl>
+              <Input
+                {...field}
+                value={field.value ?? ""}
+                disabled={saveState.isUpdating}
+              />
+            </FormControl>
+            <FormDescription>
+              Optional. Your city, state, or general location.
+            </FormDescription>
+            <FormMessage />
+          </FormItem>
+        )}
       />
     </>
+  );
+}
+
+function ProfileImagesSection() {
+  const { markNeedsParentCommit, profile } = useProfileFormContext();
+
+  return (
+    <FormItem>
+      <Label>Profile Images</Label>
+      <p className="text-muted-foreground text-[0.8rem]">
+        Upload images to showcase your garden. You can reorder them by dragging.
+      </p>
+      <ProfileImageManager
+        profileId={profile.id}
+        onMutationSuccess={markNeedsParentCommit}
+      />
+    </FormItem>
+  );
+}
+
+function ProfileContentSection() {
+  const { contentFormRef, handlers, markNeedsParentCommit, profile } =
+    useProfileFormContext();
+
+  return (
+    <ContentManagerFormItem
+      initialProfile={profile}
+      formRef={contentFormRef}
+      onMutationSuccess={markNeedsParentCommit}
+      onDirtyChange={handlers.handleContentDirtyChange}
+    />
+  );
+}
+
+function ProfileFormActions() {
+  const { hasPendingChanges, saveState } = useProfileFormContext();
+
+  return (
+    <div className="flex justify-end">
+      <Button
+        type="submit"
+        disabled={saveState.isUpdating || !hasPendingChanges()}
+      >
+        Save Changes
+      </Button>
+    </div>
+  );
+}
+
+function ProfileSlugWarningDialog() {
+  const { cleanBaseUrl, handlers, profile, slugState } =
+    useProfileFormContext();
+
+  return (
+    <SlugChangeConfirmDialog
+      open={slugState.showWarningDialog}
+      onOpenChange={(isOpen) =>
+        handlers.setSlugState((current) => ({
+          ...current,
+          showWarningDialog: isOpen,
+        }))
+      }
+      onConfirm={handlers.handleConfirmSlugEditWarning}
+      onCancel={handlers.handleCancelSlugEditWarning}
+      currentSlug={profile.slug ?? profile.userId}
+      baseUrl={cleanBaseUrl}
+    />
+  );
+}
+
+export function ProfileForm({ initialProfile, formRef }: ProfileFormProps) {
+  return (
+    <ProfileFormRoot initialProfile={initialProfile} formRef={formRef}>
+      <ProfileTextFields />
+      <ProfileImagesSection />
+      <ProfileFormActions />
+      <ProfileContentSection />
+    </ProfileFormRoot>
   );
 }

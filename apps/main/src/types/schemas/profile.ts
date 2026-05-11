@@ -17,5 +17,3 @@ export const profileFormSchema = z.object({
   location: nullableText(),
   logoUrl: nullableText(),
 });
-
-export type ProfileFormData = z.infer<typeof profileFormSchema>;

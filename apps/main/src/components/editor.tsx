@@ -42,6 +42,7 @@ export function Editor({
   const holderRef = React.useRef<HTMLDivElement | null>(null);
   const onChangeRef = React.useRef(onChange);
 
+  // EditorJS owns its DOM after mount, so callback changes should not recreate it.
   React.useEffect(() => {
     onChangeRef.current = onChange;
   }, [onChange]);
