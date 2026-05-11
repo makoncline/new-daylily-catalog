@@ -40,6 +40,21 @@ export const AGENT_DISCOVERY_HEADERS = {
   "Cache-Control": "no-store",
 } as const;
 
+function getCloudflareVisitorScheme(value: string | null) {
+  if (!value) {
+    return null;
+  }
+
+  try {
+    const parsed = JSON.parse(value) as { scheme?: unknown };
+    return parsed.scheme === "http" || parsed.scheme === "https"
+      ? parsed.scheme
+      : null;
+  } catch {
+    return null;
+  }
+}
+
 export function getRequestBaseUrl(request: Request | undefined): string | null {
   if (!request) {
     return null;
@@ -53,8 +68,18 @@ export function getRequestBaseUrl(request: Request | undefined): string | null {
   }
 
   const forwardedProto = request.headers.get("x-forwarded-proto");
+  const cloudflareScheme = getCloudflareVisitorScheme(
+    request.headers.get("cf-visitor"),
+  );
+  const isLocalHost =
+    host.startsWith("localhost") || host.startsWith("127.0.0.1");
   const protocol =
-    forwardedProto ?? (host.startsWith("localhost") ? "http" : "https");
+    cloudflareScheme ??
+    (forwardedProto === "https" || (forwardedProto === "http" && isLocalHost)
+      ? forwardedProto
+      : isLocalHost
+        ? "http"
+        : "https");
 
   return `${protocol}://${host}`;
 }

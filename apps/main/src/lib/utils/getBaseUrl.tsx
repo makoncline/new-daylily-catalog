@@ -7,14 +7,38 @@ function normalizeHost(rawHost: string | null | undefined) {
   return host ? host.replace(/^https?:\/\//, "") : null;
 }
 
-function inferProtocol(host: string, rawProtocol: string | null | undefined) {
+function getCloudflareVisitorScheme(value: string | null | undefined) {
+  if (!value) {
+    return null;
+  }
+
+  try {
+    const parsed = JSON.parse(value) as { scheme?: unknown };
+    return parsed.scheme === "http" || parsed.scheme === "https"
+      ? parsed.scheme
+      : null;
+  } catch {
+    return null;
+  }
+}
+
+function inferProtocol(
+  host: string,
+  rawProtocol: string | null | undefined,
+  rawCloudflareVisitor: string | null | undefined,
+) {
+  const cloudflareScheme = getCloudflareVisitorScheme(rawCloudflareVisitor);
+  if (cloudflareScheme) {
+    return cloudflareScheme;
+  }
+
   const protocol = getForwardedValue(rawProtocol);
-  if (protocol === "http" || protocol === "https") {
+  const isLocalHost =
+    host.startsWith("localhost") || host.startsWith("127.0.0.1");
+  if (protocol === "https" || (protocol === "http" && isLocalHost)) {
     return protocol;
   }
 
-  const isLocalHost =
-    host.startsWith("localhost") || host.startsWith("127.0.0.1");
   return isLocalHost ? "http" : "https";
 }
 
@@ -45,7 +69,11 @@ function getRequestOrigin(requestHeaders?: Headers | null) {
     requestHeaders?.get("x-forwarded-host") ?? requestHeaders?.get("host"),
   );
   if (host) {
-    const protocol = inferProtocol(host, requestHeaders?.get("x-forwarded-proto"));
+    const protocol = inferProtocol(
+      host,
+      requestHeaders?.get("x-forwarded-proto"),
+      requestHeaders?.get("cf-visitor"),
+    );
     return `${protocol}://${host}`;
   }
 

@@ -47,6 +47,27 @@ describe("base URL helpers", () => {
     expect(getRequestBaseUrl(headers)).toBe("https://prod.daylilycatalog.com");
   });
 
+  it("keeps public request URLs on https when the internal proxy hop is http", async () => {
+    const { getRequestBaseUrl } = await import("@/lib/utils/getBaseUrl");
+    const headers = new Headers({
+      host: "daylilycatalog.com",
+      "x-forwarded-proto": "http",
+    });
+
+    expect(getRequestBaseUrl(headers)).toBe("https://daylilycatalog.com");
+  });
+
+  it("uses Cloudflare visitor scheme when present", async () => {
+    const { getRequestBaseUrl } = await import("@/lib/utils/getBaseUrl");
+    const headers = new Headers({
+      host: "daylilycatalog.com",
+      "cf-visitor": '{"scheme":"https"}',
+      "x-forwarded-proto": "http",
+    });
+
+    expect(getRequestBaseUrl(headers)).toBe("https://daylilycatalog.com");
+  });
+
   it("falls back to the canonical origin when no request host is available", async () => {
     process.env.APP_BASE_URL = "https://daylilycatalog.com";
 
