@@ -40,6 +40,11 @@ export function Editor({
 }: EditorProps) {
   const initialContentRef = React.useRef(initialContent);
   const holderRef = React.useRef<HTMLDivElement | null>(null);
+  const onChangeRef = React.useRef(onChange);
+
+  React.useEffect(() => {
+    onChangeRef.current = onChange;
+  }, [onChange]);
 
   React.useEffect(() => {
     let isCancelled = false;
@@ -63,7 +68,7 @@ export function Editor({
       const editor = new EditorJS({
         holder,
         onChange: () => {
-          onChange?.();
+          onChangeRef.current?.();
         },
         placeholder: "Type something...",
         inlineToolbar: true,
@@ -94,7 +99,7 @@ export function Editor({
         editorRef.current = null;
       }
     };
-  }, [editorRef, onChange, readOnly]);
+  }, [editorRef, readOnly]);
 
   return (
     <div className={cn("grid w-full gap-10", className)}>

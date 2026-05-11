@@ -179,6 +179,7 @@ export function ContentManagerFormItem({
       <div ref={contentRef} className="space-y-3">
         <div className="bg-background min-h-96 rounded-md border">
           <Editor
+            key={initialProfile.content ?? "empty-content"}
             editorRef={editorRef}
             initialContent={parseEditorContent(initialProfile.content)}
             className="px-3 py-2 pb-8"
