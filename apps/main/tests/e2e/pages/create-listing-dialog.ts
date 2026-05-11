@@ -65,7 +65,7 @@ export class CreateListingDialog {
 
     // Find the search input in the AHS dialog
     const searchInput = this.ahsDialog.getByPlaceholder(
-      "Search AHS listings...",
+      "Search AHS listings…",
     );
     await searchInput.waitFor({ state: "visible" });
 

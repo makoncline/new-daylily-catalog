@@ -38,7 +38,7 @@ describe("AHS listing search focus", () => {
 
     await waitFor(() => {
       expect(
-        screen.getByPlaceholderText("Search AHS listings..."),
+        screen.getByPlaceholderText("Search AHS listings…"),
       ).toHaveFocus();
     });
   });
