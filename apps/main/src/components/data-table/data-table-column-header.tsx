@@ -15,8 +15,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import React, { useState } from "react";
-import { useDebouncedCallback } from "use-debounce";
+import React from "react";
 
 interface DataTableColumnHeaderProps<TData, TValue> {
   column: Column<TData, TValue>;
@@ -32,25 +31,10 @@ export function DataTableColumnHeader<TData, TValue>({
   enableFilter,
 }: DataTableColumnHeaderProps<TData, TValue>) {
   const columnFilterValue = column.getFilterValue();
-  // Local state for immediate input updates
-  const [value, setValue] = useState<string>(
-    typeof columnFilterValue === "string" ? columnFilterValue : "",
-  );
+  const value = typeof columnFilterValue === "string" ? columnFilterValue : "";
 
-  // Debounced function for expensive filtering operations
-  const debouncedFiltering = useDebouncedCallback(
-    (filterValue: string) => {
-      column.setFilterValue(filterValue);
-    },
-    200,
-    { leading: true },
-  );
-
-  // Handle input changes - update UI immediately but debounce filtering
   const updateColumnFilter = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const newValue = event.target.value;
-    setValue(newValue);
-    debouncedFiltering(newValue);
+    column.setFilterValue(event.target.value);
   };
 
   if (!column.getCanSort() && !enableFilter) {
