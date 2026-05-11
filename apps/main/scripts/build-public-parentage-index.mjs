@@ -499,6 +499,13 @@ VALUES
 }
 
 function buildParentageIndex(sourcePath, targetPath, targetDir) {
+  const referenceRows = readJsonFromSqlite(
+    sourcePath,
+    `
+      SELECT cultivarReferenceId, normalizedName, displayName
+      FROM CultivarSearchIndex
+    `,
+  );
   const cultivarRows = readJsonFromSqlite(
     sourcePath,
     `
@@ -507,7 +514,7 @@ function buildParentageIndex(sourcePath, targetPath, targetDir) {
       WHERE parentage IS NOT NULL AND TRIM(parentage) <> ''
     `,
   );
-  const matchReference = buildReferenceMatcher(cultivarRows);
+  const matchReference = buildReferenceMatcher(referenceRows);
   const columns = [
     "childCultivarReferenceId",
     "path",

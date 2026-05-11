@@ -6,6 +6,7 @@ import {
 import { getPublicParentageIndexStatus } from "@/server/search/public-parentage-index";
 import {
   ensurePublicSearchIndex,
+  isPublicSearchIndexUsable,
 } from "@/server/search/public-search-index";
 
 export const runtime = "nodejs";
@@ -21,7 +22,7 @@ export async function GET() {
   ]);
 
   return NextResponse.json({
-    ok: status.exists,
+    ok: isPublicSearchIndexUsable(status),
     parentageIndex: parentageStatus,
     searchIndex: status,
   });

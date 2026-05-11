@@ -6,6 +6,7 @@ import {
   isPublicSearchApiEnabled,
 } from "@/server/search/public-search-api-platform";
 import { searchCultivars } from "@/server/search/cultivar-search";
+import { PublicSearchIndexUnavailableError } from "@/server/search/public-search-index";
 
 export const runtime = "nodejs";
 
@@ -33,42 +34,62 @@ export async function GET(request: Request) {
     return getPublicSearchApiDisabledResponse();
   }
 
-  const { searchParams } = new URL(request.url);
-  const results = await searchCultivars({
-    baseUrl: getRequestBaseUrl(request) ?? getCanonicalBaseUrl(),
-    bloomHabit: searchParams.get("bloomHabit") ?? undefined,
-    bloomSizeMax: getNumberParam(searchParams, "bloomSizeMax"),
-    bloomSizeMin: getNumberParam(searchParams, "bloomSizeMin"),
-    bloomSeason: searchParams.get("bloomSeason") ?? undefined,
-    branchesMax: getNumberParam(searchParams, "branchesMax"),
-    branchesMin: getNumberParam(searchParams, "branchesMin"),
-    budCountMax: getNumberParam(searchParams, "budCountMax"),
-    budCountMin: getNumberParam(searchParams, "budCountMin"),
-    color: searchParams.get("color") ?? undefined,
-    cultivarName: searchParams.get("cultivarName") ?? undefined,
-    foliageType: searchParams.get("foliageType") ?? undefined,
-    form: searchParams.get("form") ?? undefined,
-    fragrance: searchParams.get("fragrance") ?? undefined,
-    hasForSaleListings: getBooleanParam(searchParams, "hasForSaleListings"),
-    hasPhoto: getBooleanParam(searchParams, "hasPhoto"),
-    hasListings: getBooleanParam(searchParams, "hasListings"),
-    hybridizer: searchParams.get("hybridizer") ?? undefined,
-    limit: getNumberParam(searchParams, "limit"),
-    listingDescription: searchParams.get("listingDescription") ?? undefined,
-    listingLimit: getNumberParam(searchParams, "listingLimit"),
-    listingTitle: searchParams.get("listingTitle") ?? undefined,
-    parentage: searchParams.get("parentage") ?? undefined,
-    ploidy: searchParams.get("ploidy") ?? undefined,
-    priceMax: getNumberParam(searchParams, "priceMax"),
-    priceMin: getNumberParam(searchParams, "priceMin"),
-    q: searchParams.get("q") ?? undefined,
-    scapeHeightMax: getNumberParam(searchParams, "scapeHeightMax"),
-    scapeHeightMin: getNumberParam(searchParams, "scapeHeightMin"),
-    yearMax: getNumberParam(searchParams, "yearMax"),
-    yearMin: getNumberParam(searchParams, "yearMin"),
-  });
+  try {
+    const { searchParams } = new URL(request.url);
+    const results = await searchCultivars({
+      baseUrl: getRequestBaseUrl(request) ?? getCanonicalBaseUrl(),
+      bloomHabit: searchParams.get("bloomHabit") ?? undefined,
+      bloomSizeMax: getNumberParam(searchParams, "bloomSizeMax"),
+      bloomSizeMin: getNumberParam(searchParams, "bloomSizeMin"),
+      bloomSeason: searchParams.get("bloomSeason") ?? undefined,
+      branchesMax: getNumberParam(searchParams, "branchesMax"),
+      branchesMin: getNumberParam(searchParams, "branchesMin"),
+      budCountMax: getNumberParam(searchParams, "budCountMax"),
+      budCountMin: getNumberParam(searchParams, "budCountMin"),
+      color: searchParams.get("color") ?? undefined,
+      cultivarName: searchParams.get("cultivarName") ?? undefined,
+      foliageType: searchParams.get("foliageType") ?? undefined,
+      form: searchParams.get("form") ?? undefined,
+      fragrance: searchParams.get("fragrance") ?? undefined,
+      hasForSaleListings: getBooleanParam(searchParams, "hasForSaleListings"),
+      hasPhoto: getBooleanParam(searchParams, "hasPhoto"),
+      hasListings: getBooleanParam(searchParams, "hasListings"),
+      hybridizer: searchParams.get("hybridizer") ?? undefined,
+      limit: getNumberParam(searchParams, "limit"),
+      listingDescription: searchParams.get("listingDescription") ?? undefined,
+      listingLimit: getNumberParam(searchParams, "listingLimit"),
+      listingTitle: searchParams.get("listingTitle") ?? undefined,
+      parentage: searchParams.get("parentage") ?? undefined,
+      ploidy: searchParams.get("ploidy") ?? undefined,
+      priceMax: getNumberParam(searchParams, "priceMax"),
+      priceMin: getNumberParam(searchParams, "priceMin"),
+      q: searchParams.get("q") ?? undefined,
+      scapeHeightMax: getNumberParam(searchParams, "scapeHeightMax"),
+      scapeHeightMin: getNumberParam(searchParams, "scapeHeightMin"),
+      yearMax: getNumberParam(searchParams, "yearMax"),
+      yearMin: getNumberParam(searchParams, "yearMin"),
+    });
 
-  return NextResponse.json({
-    results,
-  });
+    return NextResponse.json({
+      results,
+    });
+  } catch (error) {
+    if (error instanceof PublicSearchIndexUnavailableError) {
+      return NextResponse.json(
+        {
+          error: "public_search_index_unavailable",
+          message: "The public search index is building. Try again shortly.",
+          searchIndex: error.status,
+        },
+        {
+          headers: {
+            "Retry-After": "30",
+          },
+          status: 503,
+        },
+      );
+    }
+
+    throw error;
+  }
 }

@@ -34,6 +34,16 @@ export interface PublicSearchIndexStatus {
   schemaVersion: string | null;
 }
 
+export class PublicSearchIndexUnavailableError extends Error {
+  constructor(status: PublicSearchIndexStatus) {
+    super("Public search index is not available.");
+    this.name = "PublicSearchIndexUnavailableError";
+    this.status = status;
+  }
+
+  status: PublicSearchIndexStatus;
+}
+
 const globalForPublicSearchIndex = globalThis as unknown as {
   publicSearchIndexRefreshPromise: Promise<PublicSearchIndexStatus> | undefined;
 };
@@ -350,4 +360,8 @@ export async function ensurePublicSearchIndex() {
   }
 
   return status;
+}
+
+export function isPublicSearchIndexUsable(status: PublicSearchIndexStatus) {
+  return status.exists && status.status !== "expired";
 }

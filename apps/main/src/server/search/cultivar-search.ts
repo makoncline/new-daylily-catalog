@@ -9,6 +9,8 @@ import {
 import {
   ensurePublicSearchIndex,
   getPublicSearchIndexPath,
+  isPublicSearchIndexUsable,
+  PublicSearchIndexUnavailableError,
 } from "@/server/search/public-search-index";
 
 interface CultivarSearchArgs {
@@ -302,7 +304,10 @@ async function getParentageTrees(args: {
 }
 
 export async function searchCultivars(args: CultivarSearchArgs) {
-  await ensurePublicSearchIndex();
+  const searchIndexStatus = await ensurePublicSearchIndex();
+  if (!isPublicSearchIndexUsable(searchIndexStatus)) {
+    throw new PublicSearchIndexUnavailableError(searchIndexStatus);
+  }
 
   const client = createClient({
     url: `file:${getPublicSearchIndexPath()}`,
