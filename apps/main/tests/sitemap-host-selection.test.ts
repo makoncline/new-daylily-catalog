@@ -54,9 +54,9 @@ describe("sitemap and robots host selection", () => {
     process.env.VERCEL_URL = "daylily-catalog-preview.vercel.app";
     process.env.VERCEL_PROJECT_PRODUCTION_URL = "daylilycatalog.com";
 
-    const [{ default: sitemap }, { default: robots }] = await Promise.all([
+    const [{ default: sitemap }, { GET: robots }] = await Promise.all([
       import("@/app/sitemap"),
-      import("@/app/robots"),
+      import("@/app/robots.txt/route"),
     ]);
 
     const sitemapEntries = await sitemap();
@@ -79,9 +79,17 @@ describe("sitemap and robots host selection", () => {
       ),
     ).toBe(true);
 
-    const robotsFile = robots();
-    expect(robotsFile.host).toBe("https://daylilycatalog.com");
-    expect(robotsFile.sitemap).toBe("https://daylilycatalog.com/sitemap.xml");
+    const robotsText = await robots().text();
+    expect(robotsText).toContain("Host: https://daylilycatalog.com");
+    expect(robotsText).toContain(
+      "Sitemap: https://daylilycatalog.com/sitemap.xml",
+    );
+    expect(robotsText).toContain(
+      "Content-Signal: ai-train=yes, search=yes, ai-input=yes",
+    );
+    expect(robotsText).toContain("User-Agent: GPTBot");
+    expect(robotsText).toContain("User-Agent: ClaudeBot");
+    expect(robotsText).toContain("Disallow: /dashboard/");
   });
 
   it("uses the preview deployment host outside production", async () => {
@@ -89,9 +97,9 @@ describe("sitemap and robots host selection", () => {
     process.env.VERCEL_URL = "daylily-catalog-preview.vercel.app";
     process.env.VERCEL_PROJECT_PRODUCTION_URL = "daylilycatalog.com";
 
-    const [{ default: sitemap }, { default: robots }] = await Promise.all([
+    const [{ default: sitemap }, { GET: robots }] = await Promise.all([
       import("@/app/sitemap"),
-      import("@/app/robots"),
+      import("@/app/robots.txt/route"),
     ]);
 
     const sitemapEntries = await sitemap();
@@ -99,9 +107,11 @@ describe("sitemap and robots host selection", () => {
       "https://daylily-catalog-preview.vercel.app",
     );
 
-    const robotsFile = robots();
-    expect(robotsFile.host).toBe("https://daylily-catalog-preview.vercel.app");
-    expect(robotsFile.sitemap).toBe(
+    const robotsText = await robots().text();
+    expect(robotsText).toContain(
+      "Host: https://daylily-catalog-preview.vercel.app",
+    );
+    expect(robotsText).toContain(
       "https://daylily-catalog-preview.vercel.app/sitemap.xml",
     );
   });
@@ -112,16 +122,16 @@ describe("sitemap and robots host selection", () => {
     delete process.env.VERCEL_PROJECT_PRODUCTION_URL;
     process.env.PORT = "4123";
 
-    const [{ default: sitemap }, { default: robots }] = await Promise.all([
+    const [{ default: sitemap }, { GET: robots }] = await Promise.all([
       import("@/app/sitemap"),
-      import("@/app/robots"),
+      import("@/app/robots.txt/route"),
     ]);
 
     const sitemapEntries = await sitemap();
     expect(sitemapEntries[0]?.url).toBe("http://localhost:4123");
 
-    const robotsFile = robots();
-    expect(robotsFile.host).toBe("http://localhost:4123");
-    expect(robotsFile.sitemap).toBe("http://localhost:4123/sitemap.xml");
+    const robotsText = await robots().text();
+    expect(robotsText).toContain("Host: http://localhost:4123");
+    expect(robotsText).toContain("Sitemap: http://localhost:4123/sitemap.xml");
   });
 });
