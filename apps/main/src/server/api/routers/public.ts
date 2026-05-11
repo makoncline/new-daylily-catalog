@@ -1,62 +1,29 @@
-import { TRPCError } from "@trpc/server";
 import { z } from "zod";
 import { createTRPCRouter, publicProcedure } from "../trpc";
-import { getListingIdFromSlugOrId } from "@/server/db/getPublicProfile";
-import { transformListings } from "@/server/db/public-listing-read-model";
 import {
-  getCachedCultivarRouteSegments,
-  getCachedPublicCultivarPage,
-  getCachedPublicListingDetail,
-  getCachedPublicListings,
-  getCachedPublicProfile,
-  getCachedPublicUserIdFromSlugOrId,
-  getCachedPublicProfiles,
-} from "@/server/db/public-cache";
+  getCultivarRouteSegments,
+  getPublicCultivarPage,
+} from "@/server/db/public-cultivar-read-model";
+import {
+  getListings,
+  getPublicListingDetail,
+  transformListings,
+} from "@/server/db/public-listing-read-model";
+import {
+  getListingIdFromSlugOrId,
+  getPublicProfile,
+  getPublicProfiles,
+  getUserIdFromSlugOrId,
+} from "@/server/db/public-seller-read-model";
 import { sendPublicInquiry } from "@/server/services/public-inquiry";
 import { cartItemSchema } from "@/types";
 
-async function runPublicQuery<T>(args: {
-  handler: () => Promise<T>;
-  logMessage: string;
-  message: string;
-  preserveTrpcError?: boolean;
-  includeCause?: boolean;
-}) {
-  try {
-    return await args.handler();
-  } catch (error) {
-    if (args.preserveTrpcError !== false && error instanceof TRPCError) {
-      throw error;
-    }
-
-    console.error(args.logMessage, error);
-    throw new TRPCError({
-      code: "INTERNAL_SERVER_ERROR",
-      message: args.message,
-      ...(args.includeCause ? { cause: error } : {}),
-    });
-  }
-}
-
 export const publicRouter = createTRPCRouter({
-  getPublicProfiles: publicProcedure.query(async () =>
-    runPublicQuery({
-      handler: () => getCachedPublicProfiles(),
-      logMessage: "TRPC Error fetching public profiles:",
-      message: "Failed to fetch public profiles",
-      preserveTrpcError: false,
-    }),
-  ),
+  getPublicProfiles: publicProcedure.query(() => getPublicProfiles()),
 
   getProfile: publicProcedure
     .input(z.object({ userSlugOrId: z.string() }))
-    .query(async ({ input }) =>
-      runPublicQuery({
-        handler: () => getCachedPublicProfile(input.userSlugOrId),
-        logMessage: "Error fetching public profile:",
-        message: "Failed to fetch public profile",
-      }),
-    ),
+    .query(({ input }) => getPublicProfile(input.userSlugOrId)),
 
   getListings: publicProcedure
     .input(
@@ -66,35 +33,20 @@ export const publicRouter = createTRPCRouter({
         cursor: z.string().optional(),
       }),
     )
-    .query(async ({ input }) =>
-      runPublicQuery({
-        handler: async () => {
-          const userId = await getCachedPublicUserIdFromSlugOrId(
-            input.userSlugOrId,
-          );
-          const items = await getCachedPublicListings({
-            userId,
-            limit: input.limit,
-            cursor: input.cursor,
-          });
+    .query(async ({ input }) => {
+      const userId = await getUserIdFromSlugOrId(input.userSlugOrId);
+      const items = await getListings({
+        cursor: input.cursor,
+        limit: input.limit,
+        userId,
+      });
 
-          return transformListings(items);
-        },
-        logMessage: "Error fetching public listings:",
-        message: "Failed to fetch public listings",
-        includeCause: true,
-      }),
-    ),
+      return transformListings(items);
+    }),
 
   getListingById: publicProcedure
     .input(z.object({ id: z.string() }))
-    .query(async ({ input }) =>
-      runPublicQuery({
-        handler: () => getCachedPublicListingDetail(input.id),
-        logMessage: "Error fetching listing:",
-        message: "Failed to fetch listing",
-      }),
-    ),
+    .query(({ input }) => getPublicListingDetail(input.id)),
 
   getListing: publicProcedure
     .input(
@@ -103,23 +55,15 @@ export const publicRouter = createTRPCRouter({
         listingSlugOrId: z.string(),
       }),
     )
-    .query(async ({ input }) =>
-      runPublicQuery({
-        handler: async () => {
-          const userId = await getCachedPublicUserIdFromSlugOrId(
-            input.userSlugOrId,
-          );
-          const listingId = await getListingIdFromSlugOrId(
-            input.listingSlugOrId,
-            userId,
-          );
+    .query(async ({ input }) => {
+      const userId = await getUserIdFromSlugOrId(input.userSlugOrId);
+      const listingId = await getListingIdFromSlugOrId(
+        input.listingSlugOrId,
+        userId,
+      );
 
-          return getCachedPublicListingDetail(listingId);
-        },
-        logMessage: "Error fetching listing:",
-        message: "Failed to fetch listing",
-      }),
-    ),
+      return getPublicListingDetail(listingId);
+    }),
 
   getCultivarPage: publicProcedure
     .input(
@@ -127,21 +71,10 @@ export const publicRouter = createTRPCRouter({
         cultivarNormalizedName: z.string(),
       }),
     )
-    .query(async ({ input }) =>
-      runPublicQuery({
-        handler: () =>
-          getCachedPublicCultivarPage(input.cultivarNormalizedName),
-        logMessage: "Error fetching cultivar page:",
-        message: "Failed to fetch cultivar page",
-      }),
-    ),
+    .query(({ input }) => getPublicCultivarPage(input.cultivarNormalizedName)),
 
-  getCultivarRouteSegments: publicProcedure.query(async () =>
-    runPublicQuery({
-      handler: () => getCachedCultivarRouteSegments(),
-      logMessage: "Error fetching cultivar route segments:",
-      message: "Failed to fetch cultivar route segments",
-    }),
+  getCultivarRouteSegments: publicProcedure.query(() =>
+    getCultivarRouteSegments(),
   ),
 
   sendMessage: publicProcedure

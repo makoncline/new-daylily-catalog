@@ -1,22 +1,23 @@
 import { PUBLIC_PROFILE_LISTINGS_PAGE_SIZE } from "@/config/constants";
 import {
-  getCachedPublicCatalogRouteEntries,
-  getCachedPublicForSaleListingsCount,
-  getCachedPublicListingCardsByIds,
-  getCachedPublicListingsPageIds,
-  getCachedPublicSellerContent,
-  getCachedPublicSellerLists,
-  getCachedPublicSellerSummary,
-  getCachedPublicUserIdFromSlugOrId,
-} from "@/server/db/public-profile-cache";
+  getPublicForSaleListingsCount,
+  getPublicListingCardsByIds,
+  getPublicListingsPageIdsForUserId,
+} from "@/server/db/public-listing-read-model";
+import {
+  getPublicSellerContent,
+  getPublicSellerListSummaries,
+  getPublicSellerSummary,
+  getUserIdFromSlugOrId,
+} from "@/server/db/public-seller-read-model";
 
 function buildPublicProfilePageResult(args: {
-  content: Awaited<ReturnType<typeof getCachedPublicSellerContent>>;
+  content: Awaited<ReturnType<typeof getPublicSellerContent>>;
   forSaleCount: number;
-  items: Awaited<ReturnType<typeof getCachedPublicListingCardsByIds>>;
-  listingPage: Awaited<ReturnType<typeof getCachedPublicListingsPageIds>>;
-  lists: Awaited<ReturnType<typeof getCachedPublicSellerLists>>;
-  summary: Awaited<ReturnType<typeof getCachedPublicSellerSummary>>;
+  items: Awaited<ReturnType<typeof getPublicListingCardsByIds>>;
+  listingPage: Awaited<ReturnType<typeof getPublicListingsPageIdsForUserId>>;
+  lists: Awaited<ReturnType<typeof getPublicSellerListSummaries>>;
+  summary: Awaited<ReturnType<typeof getPublicSellerSummary>>;
 }) {
   const profile = {
     ...args.summary,
@@ -43,22 +44,22 @@ async function loadPublicProfilePageData(args: {
   page: number;
   userSlugOrId: string;
 }) {
-  const userId = await getCachedPublicUserIdFromSlugOrId(args.userSlugOrId);
+  const userId = await getUserIdFromSlugOrId(args.userSlugOrId);
   const [summary, content, lists, listingPage, forSaleCount] =
     await Promise.all([
-      getCachedPublicSellerSummary(userId),
-      getCachedPublicSellerContent(userId),
+      getPublicSellerSummary(userId),
+      getPublicSellerContent(userId),
       args.includeSellerLists
-        ? getCachedPublicSellerLists(userId)
+        ? getPublicSellerListSummaries(userId)
         : Promise.resolve([]),
-      getCachedPublicListingsPageIds({
+      getPublicListingsPageIdsForUserId({
         page: args.page,
         pageSize: PUBLIC_PROFILE_LISTINGS_PAGE_SIZE,
-        userSlugOrId: args.userSlugOrId,
+        userId,
       }),
-      getCachedPublicForSaleListingsCount(userId),
+      getPublicForSaleListingsCount(userId),
     ]);
-  const items = await getCachedPublicListingCardsByIds(listingPage.ids);
+  const items = await getPublicListingCardsByIds(listingPage.ids);
 
   return buildPublicProfilePageResult({
     content,
@@ -68,30 +69,6 @@ async function loadPublicProfilePageData(args: {
     lists,
     summary,
   });
-}
-
-export async function getPublicProfileStaticParams() {
-  const entries = await getCachedPublicCatalogRouteEntries();
-
-  return entries.map((entry) => ({
-    userSlugOrId: entry.slug,
-  }));
-}
-
-export async function getPublicProfilePaginatedStaticParams() {
-  const entries = await getCachedPublicCatalogRouteEntries();
-  const params: { userSlugOrId: string; page: string }[] = [];
-
-  entries.forEach((entry) => {
-    for (let page = 2; page <= entry.totalPages; page += 1) {
-      params.push({
-        userSlugOrId: entry.slug,
-        page: String(page),
-      });
-    }
-  });
-
-  return params;
 }
 
 export async function getPublicProfilePageData(

@@ -34,8 +34,6 @@ vi.mock("@/app/(public)/_components/isr-written-at", () => ({
 
 vi.mock("@/app/(public)/[userSlugOrId]/_lib/public-profile-route", () => ({
   getPublicProfilePageData: mockGetPublicProfilePageData,
-  getPublicProfileStaticParams: vi.fn(),
-  getPublicProfilePaginatedStaticParams: vi.fn(),
 }));
 
 vi.mock("@/app/(public)/[userSlugOrId]/_seo/metadata", () => ({

@@ -22,7 +22,7 @@ import {
   getCultivarPageRouteArtifacts,
 } from "./_lib/cultivar-page-route";
 
-export const revalidate = false;
+export const revalidate = 3600;
 export const dynamic = "force-static";
 
 interface PageProps {

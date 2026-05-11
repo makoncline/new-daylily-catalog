@@ -5,10 +5,9 @@ import {
   generatePublicProfilePageMetadata,
   renderPublicProfilePage,
 } from "../../_lib/public-profile-page";
-import { getPublicProfilePaginatedStaticParams } from "../../_lib/public-profile-route";
 
 // CACHE_LITERAL_REF: CACHE_CONFIG.PUBLIC.STATIC_REVALIDATE_SECONDS
-export const revalidate = 86400;
+export const revalidate = 1800;
 export const dynamic = "force-static";
 export const dynamicParams = true;
 
@@ -17,10 +16,6 @@ interface ProfilePaginatedPageProps {
     userSlugOrId: string;
     page: string;
   }>;
-}
-
-export async function generateStaticParams() {
-  return getPublicProfilePaginatedStaticParams();
 }
 
 export async function generateMetadata({

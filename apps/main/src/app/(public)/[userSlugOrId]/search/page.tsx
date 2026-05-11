@@ -1,6 +1,7 @@
 import { type Metadata } from "next";
 import { notFound, permanentRedirect } from "next/navigation";
 import { MainContent } from "@/app/(public)/_components/main-content";
+import { buildNoIndexMetadata } from "@/app/(public)/_seo/public-seo";
 import { CatalogSearchHeader } from "@/app/(public)/[userSlugOrId]/_components/catalog-search-header";
 import { Breadcrumbs } from "@/components/breadcrumbs";
 import { PublicCatalogSearchClient } from "@/components/public-catalog-search/public-catalog-search-client";
@@ -9,11 +10,8 @@ import {
   type PublicCatalogSearchParamRecord,
 } from "@/lib/public-catalog-url-state";
 import { getErrorCode, tryCatch } from "@/lib/utils";
-import {
-  getCachedInitialListings,
-  getCachedPublicProfile,
-} from "@/server/db/public-cache";
-import { buildNoIndexMetadata } from "@/app/(public)/_seo/public-seo";
+import { getInitialListings } from "@/server/db/public-listing-read-model";
+import { getPublicProfile } from "@/server/db/public-seller-read-model";
 
 export const dynamic = "force-dynamic";
 
@@ -28,7 +26,7 @@ export async function generateMetadata({
   params,
 }: CatalogSearchPageProps): Promise<Metadata> {
   const { userSlugOrId } = await params;
-  const profileResult = await tryCatch(getCachedPublicProfile(userSlugOrId));
+  const profileResult = await tryCatch(getPublicProfile(userSlugOrId));
 
   if (!profileResult.data) {
     return buildNoIndexMetadata({
@@ -55,21 +53,13 @@ export default async function CatalogSearchPage({
   params,
   searchParams,
 }: CatalogSearchPageProps) {
-  const profileResultPromise = params.then(({ userSlugOrId }) =>
-    tryCatch(getCachedPublicProfile(userSlugOrId)),
-  );
-  const listingsResultPromise = params.then(({ userSlugOrId }) =>
-    tryCatch(getCachedInitialListings(userSlugOrId)),
-  );
-  const [resolvedParams, rawSearchParams, profileResult, listingsResult] =
-    await Promise.all([
-      params,
-      searchParams,
-      profileResultPromise,
-      listingsResultPromise,
-    ]);
-  const { userSlugOrId } = resolvedParams;
+  const [{ userSlugOrId }, rawSearchParams] = await Promise.all([
+    params,
+    searchParams,
+  ]);
   const searchParamsAsUrl = toPublicCatalogSearchParams(rawSearchParams);
+
+  const profileResult = await tryCatch(getPublicProfile(userSlugOrId));
 
   if (getErrorCode(profileResult.error) === "NOT_FOUND") {
     notFound();
@@ -80,7 +70,7 @@ export default async function CatalogSearchPage({
   }
 
   const profile = profileResult.data;
-  const initialListings = listingsResult.data ?? [];
+  const initialListings = await getInitialListings(userSlugOrId);
   const canonicalUserSlug = profile.slug ?? profile.id;
 
   if (userSlugOrId !== canonicalUserSlug) {

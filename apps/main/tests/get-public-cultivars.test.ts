@@ -15,17 +15,18 @@ const mockDb = vi.hoisted(() => ({
   },
 }));
 
-const mockGetCachedProUserIds = vi.hoisted(() => vi.fn());
+const mockGetProUserIds = vi.hoisted(() => vi.fn());
 const mockGetActiveProUserIdsForUserIds = vi.hoisted(() => vi.fn());
 
 vi.mock("@/server/db", () => ({
   db: mockDb,
+  replicaDb: mockDb,
 }));
 
-vi.mock("@/server/db/getCachedProUserIds", () => ({
+vi.mock("@/server/db/getProUserIds", () => ({
   getActiveProUserIdsForUserIds: (...args: unknown[]) =>
     mockGetActiveProUserIdsForUserIds(...args),
-  getCachedProUserIds: (...args: unknown[]) => mockGetCachedProUserIds(...args),
+  getProUserIds: (...args: unknown[]) => mockGetProUserIds(...args),
 }));
 
 import {
@@ -43,7 +44,7 @@ describe("getPublicCultivarPage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockGetActiveProUserIdsForUserIds.mockResolvedValue([]);
-    mockGetCachedProUserIds.mockResolvedValue([]);
+    mockGetProUserIds.mockResolvedValue([]);
   });
 
   afterEach(() => {
@@ -264,7 +265,7 @@ describe("getPublicCultivarPage", () => {
       return Promise.resolve(applyWhereIn(filteredByUser, args, "id"));
     });
 
-    mockGetCachedProUserIds.mockResolvedValue(["user-alpha", "user-top"]);
+    mockGetProUserIds.mockResolvedValue(["user-alpha", "user-top"]);
     mockGetActiveProUserIdsForUserIds.mockResolvedValue([
       "user-alpha",
       "user-top",
@@ -590,7 +591,7 @@ describe("getPublicCultivarPage", () => {
       Promise.resolve(applyWhereIn(listingRows, args, "userId")),
     );
 
-    mockGetCachedProUserIds.mockResolvedValue(["user-pro"]);
+    mockGetProUserIds.mockResolvedValue(["user-pro"]);
     mockDb.user.findMany.mockResolvedValue([
       {
         id: "user-pro",
@@ -627,7 +628,7 @@ describe("getPublicCultivarPage", () => {
       ahsListing: null,
     });
 
-    mockGetCachedProUserIds.mockResolvedValue([]);
+    mockGetProUserIds.mockResolvedValue([]);
     mockDb.listing.findMany.mockResolvedValue([]);
     mockDb.user.findMany.mockResolvedValue([]);
 
@@ -667,7 +668,7 @@ describe("getPublicCultivarPage", () => {
       ahsListing: null,
     });
 
-    mockGetCachedProUserIds.mockResolvedValue([]);
+    mockGetProUserIds.mockResolvedValue([]);
     mockDb.listing.findMany.mockResolvedValue([]);
     mockDb.user.findMany.mockResolvedValue([]);
 
@@ -703,7 +704,7 @@ describe("getCultivarSitemapEntries", () => {
   });
 
   it("uses cultivar/listing updated times and keeps exact route segment ordering stable", async () => {
-    mockGetCachedProUserIds.mockResolvedValue(["user-pro"]);
+    mockGetProUserIds.mockResolvedValue(["user-pro"]);
 
     const listingRows = [
       {

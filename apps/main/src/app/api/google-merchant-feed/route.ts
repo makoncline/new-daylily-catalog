@@ -1,3 +1,4 @@
+import { replicaDb } from "@/server/db";
 import { getCanonicalBaseUrl } from "@/lib/utils/getBaseUrl";
 import { formatAhsListingSummary } from "@/lib/utils";
 import {
@@ -13,8 +14,8 @@ const FEED_BATCH_SIZE = 200;
 export async function GET(_request: Request) {
   try {
     const baseUrl = getCanonicalBaseUrl();
-    const { db } = await import("@/server/db");
 
+    // Query all listings with prices
     const where = { price: { not: null } };
     const include = {
       images: {
@@ -50,7 +51,7 @@ export async function GET(_request: Request) {
 
     let cursor: string | undefined;
     while (true) {
-      const listings = await db.listing.findMany({
+      const listings = await replicaDb.listing.findMany({
         where,
         include,
         orderBy: { id: "asc" },
@@ -271,12 +272,11 @@ function validateXml(xml: string): boolean {
       "<description>",
     ];
 
-    const missingField = requiredFields.find((field) => !xml.includes(field));
-    if (missingField) {
-      console.error(
-        `XML validation failed: Missing required field ${missingField}`,
-      );
-      return false;
+    for (const field of requiredFields) {
+      if (!xml.includes(field)) {
+        console.error(`XML validation failed: Missing required field ${field}`);
+        return false;
+      }
     }
 
     // Check for proper format of g:price (must include currency)

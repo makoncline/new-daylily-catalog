@@ -1,14 +1,3 @@
-export type PublicInvalidationReferenceType =
-  | "catalogs:index"
-  | "cultivar"
-  | "listing"
-  | "seller";
-
-export interface PublicInvalidationReference {
-  referenceId: string;
-  referenceType: PublicInvalidationReferenceType;
-}
-
 export interface PublicProfile {
   id: string;
   title: string | null;

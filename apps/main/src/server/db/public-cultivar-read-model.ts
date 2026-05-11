@@ -1,12 +1,10 @@
 export {
   getCultivarRouteSegments,
   getCultivarSitemapEntries,
-  getPublicCultivarListingIds,
 } from "./public-cultivar-context";
 export {
   buildPublicCultivarGardenPhotosFromListingCards,
   buildPublicCultivarOffersFromListingCards,
-  buildPublicCultivarPageFromListingCards,
 } from "./public-cultivar-sections";
 
 import { loadPublicCultivarContext } from "./public-cultivar-context";
@@ -34,13 +32,4 @@ export async function getPublicCultivarPage(cultivarSegment: string) {
     photosSection,
     summarySection,
   });
-}
-
-export async function getPublicCultivarSummary(cultivarSegment: string) {
-  const context = await loadPublicCultivarContext(cultivarSegment);
-  if (!context) {
-    return null;
-  }
-
-  return buildPublicCultivarSummary(context);
 }

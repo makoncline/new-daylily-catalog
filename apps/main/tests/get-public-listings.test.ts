@@ -20,6 +20,7 @@ const mockGetUserIdFromSlugOrId = vi.hoisted(() => vi.fn());
 
 vi.mock("@/server/db", () => ({
   db: mockDb,
+  replicaDb: mockDb,
 }));
 
 vi.mock("@/server/db/getPublicProfile", () => ({

@@ -2,15 +2,10 @@ import {
   generatePublicProfilePageMetadata,
   renderPublicProfilePage,
 } from "./_lib/public-profile-page";
-import { getPublicProfileStaticParams } from "./_lib/public-profile-route";
 
-export const revalidate = false;
+export const revalidate = 900;
 export const dynamic = "force-static";
 export const dynamicParams = true;
-
-export async function generateStaticParams() {
-  return getPublicProfileStaticParams();
-}
 
 interface PageProps {
   params: Promise<{

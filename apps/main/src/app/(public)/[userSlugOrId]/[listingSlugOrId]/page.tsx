@@ -1,9 +1,17 @@
-import { db } from "@/server/db";
+import type { Metadata } from "next";
+import { notFound, permanentRedirect } from "next/navigation";
+import { replicaDb } from "@/server/db";
 import {
   getListingIdFromSlugOrId,
   getUserIdFromSlugOrId,
 } from "@/server/db/getPublicProfile";
-import { notFound, permanentRedirect } from "next/navigation";
+import { getErrorCode, tryCatch } from "@/lib/utils";
+
+export const metadata: Metadata = {
+  title: "Listing Redirect",
+  description: "Redirects legacy listing URLs to the current catalog page.",
+  robots: "noindex, nofollow",
+};
 
 interface PageProps {
   params: Promise<{
@@ -15,17 +23,26 @@ interface PageProps {
 export default async function LegacyListingRedirectPage({ params }: PageProps) {
   const { userSlugOrId, listingSlugOrId } = await params;
 
-  let userId: string;
-  let listingId: string;
+  const routeResult = await tryCatch(
+    (async () => {
+      const userId = await getUserIdFromSlugOrId(userSlugOrId);
+      const listingId = await getListingIdFromSlugOrId(listingSlugOrId, userId);
 
-  try {
-    userId = await getUserIdFromSlugOrId(userSlugOrId);
-    listingId = await getListingIdFromSlugOrId(listingSlugOrId, userId);
-  } catch {
+      return { listingId, userId };
+    })(),
+  );
+
+  if (getErrorCode(routeResult.error) === "NOT_FOUND") {
     notFound();
   }
 
-  const user = await db.user.findUnique({
+  if (!routeResult.data) {
+    throw routeResult.error ?? new Error("Failed to resolve legacy listing");
+  }
+
+  const { listingId, userId } = routeResult.data;
+
+  const user = await replicaDb.user.findUnique({
     where: { id: userId },
     select: {
       id: true,
