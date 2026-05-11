@@ -105,9 +105,21 @@ function removeSqliteFiles(dbPath) {
   }
 }
 
+function replaceSqliteDatabase({ nextPath, previousPath, targetPath }) {
+  removeSqliteFiles(previousPath);
+
+  if (existsSync(targetPath)) {
+    renameSync(targetPath, previousPath);
+  }
+
+  removeSqliteFiles(targetPath);
+  renameSync(nextPath, targetPath);
+  removeSqliteFiles(nextPath);
+}
+
 function buildSql(sourcePath) {
   return `
-PRAGMA journal_mode = WAL;
+PRAGMA journal_mode = DELETE;
 PRAGMA synchronous = NORMAL;
 PRAGMA temp_store = MEMORY;
 
@@ -438,13 +450,7 @@ function main() {
 
   const validation = validateIndex(nextPath);
 
-  removeSqliteFiles(previousPath);
-  if (existsSync(targetPath)) {
-    renameSync(targetPath, previousPath);
-  }
-  renameSync(nextPath, targetPath);
-
-  removeSqliteFiles(nextPath);
+  replaceSqliteDatabase({ nextPath, previousPath, targetPath });
 
   const elapsedMs = Math.round(performance.now() - startedAt);
   console.log(validation);
