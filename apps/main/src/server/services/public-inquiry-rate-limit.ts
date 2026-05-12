@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { TRPCError } from "@trpc/server";
-import { kvStore as appKvStore, type KVStore } from "@/server/db/kvStore";
+import { db as appDb } from "@/server/db";
 
 export const PUBLIC_INQUIRY_RATE_LIMIT = {
   maxRequests: 5,
@@ -9,6 +9,33 @@ export const PUBLIC_INQUIRY_RATE_LIMIT = {
 
 interface RateLimitBucket {
   timestamps: number[];
+}
+
+interface RateLimitKeyValueDelegate {
+  findUnique: (args: {
+    where: { key: string };
+    select: { value: true };
+  }) => Promise<{ value: string } | null>;
+  upsert: (args: {
+    where: { key: string };
+    update: { value: string };
+    create: { key: string; value: string };
+  }) => Promise<unknown>;
+}
+
+interface TransactionalRateLimitDb {
+  $transaction: <T>(
+    callback: (tx: { keyValue: RateLimitKeyValueDelegate }) => Promise<T>,
+  ) => Promise<T>;
+}
+
+export interface PublicInquiryRateLimitStore {
+  consumeBuckets: (args: {
+    keys: string[];
+    maxRequests: number;
+    now: number;
+    windowMs: number;
+  }) => Promise<void>;
 }
 
 export interface PublicInquiryRateLimitInput {
@@ -39,16 +66,35 @@ function hashRateLimitKey(parts: string[]) {
   return createHash("sha256").update(parts.join("\0")).digest("hex");
 }
 
+function parseRateLimitBucket(value: string | null): RateLimitBucket {
+  if (!value) {
+    return { timestamps: [] };
+  }
+
+  try {
+    const parsed = JSON.parse(value) as Partial<RateLimitBucket>;
+    return {
+      timestamps: Array.isArray(parsed.timestamps)
+        ? parsed.timestamps.filter((timestamp) => typeof timestamp === "number")
+        : [],
+    };
+  } catch {
+    return { timestamps: [] };
+  }
+}
+
 async function consumeRateLimitBucket(args: {
+  keyValue: RateLimitKeyValueDelegate;
   key: string;
   maxRequests: number;
   now: number;
-  store: KVStore;
   windowMs: number;
 }) {
-  const bucket = (await args.store.get<RateLimitBucket>(args.key)) ?? {
-    timestamps: [],
-  };
+  const record = await args.keyValue.findUnique({
+    where: { key: args.key },
+    select: { value: true },
+  });
+  const bucket = parseRateLimitBucket(record?.value ?? null);
   const windowStart = args.now - args.windowMs;
   const timestamps = bucket.timestamps.filter(
     (timestamp) => timestamp > windowStart,
@@ -62,17 +108,44 @@ async function consumeRateLimitBucket(args: {
   }
 
   timestamps.push(args.now);
-  await args.store.set(args.key, { timestamps });
+  await args.keyValue.upsert({
+    where: { key: args.key },
+    update: { value: JSON.stringify({ timestamps }) },
+    create: { key: args.key, value: JSON.stringify({ timestamps }) },
+  });
 }
+
+export function createTransactionalPublicInquiryRateLimitStore(
+  db: TransactionalRateLimitDb,
+): PublicInquiryRateLimitStore {
+  return {
+    async consumeBuckets(args) {
+      await db.$transaction(async (tx) => {
+        for (const key of args.keys) {
+          await consumeRateLimitBucket({
+            keyValue: tx.keyValue,
+            key,
+            maxRequests: args.maxRequests,
+            now: args.now,
+            windowMs: args.windowMs,
+          });
+        }
+      });
+    },
+  };
+}
+
+const defaultRateLimitStore =
+  createTransactionalPublicInquiryRateLimitStore(appDb);
 
 export async function enforcePublicInquiryRateLimit(args: {
   headers?: Headers;
   input: PublicInquiryRateLimitInput;
   now?: number;
-  store?: KVStore;
+  store?: PublicInquiryRateLimitStore;
 }) {
   const now = args.now ?? Date.now();
-  const store = args.store ?? appKvStore;
+  const store = args.store ?? defaultRateLimitStore;
   const clientId = getPublicInquiryClientId(args.headers);
   const customerEmail = args.input.customerEmail.trim().toLowerCase();
   const bucketInputs = [
@@ -80,13 +153,12 @@ export async function enforcePublicInquiryRateLimit(args: {
     ["email", customerEmail, args.input.userId],
   ];
 
-  for (const bucketInput of bucketInputs) {
-    await consumeRateLimitBucket({
-      key: `public-inquiry:${hashRateLimitKey(bucketInput)}`,
-      maxRequests: PUBLIC_INQUIRY_RATE_LIMIT.maxRequests,
-      now,
-      store,
-      windowMs: PUBLIC_INQUIRY_RATE_LIMIT.windowMs,
-    });
-  }
+  await store.consumeBuckets({
+    keys: bucketInputs.map(
+      (bucketInput) => `public-inquiry:${hashRateLimitKey(bucketInput)}`,
+    ),
+    maxRequests: PUBLIC_INQUIRY_RATE_LIMIT.maxRequests,
+    now,
+    windowMs: PUBLIC_INQUIRY_RATE_LIMIT.windowMs,
+  });
 }
