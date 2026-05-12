@@ -416,6 +416,8 @@ describe("dashboardDb provider bootstrap", () => {
 
     const warmHydrate = deferred();
     const backgroundRefresh = deferred();
+    const bootstrapDashboardDbFromReplica = vi.fn(async () => false);
+    const bootstrapDashboardDbFromServer = vi.fn(async () => undefined);
     const hydrateDashboardDbFromSqlitePersistence = vi.fn(
       () => warmHydrate.promise,
     );
@@ -440,8 +442,8 @@ describe("dashboardDb provider bootstrap", () => {
     vi.doMock(
       "@/app/dashboard/_lib/dashboard-db/dashboard-db-persistence",
       () => ({
-        bootstrapDashboardDbFromReplica: vi.fn(async () => undefined),
-        bootstrapDashboardDbFromServer: vi.fn(async () => undefined),
+        bootstrapDashboardDbFromReplica,
+        bootstrapDashboardDbFromServer,
         hasFreshDashboardDbSqliteCache: vi.fn(() => true),
         hydrateDashboardDbFromSqlitePersistence,
         revalidateDashboardDbInBackground,
@@ -529,6 +531,9 @@ describe("dashboardDb provider bootstrap", () => {
     expect(screen.getByTestId("dashboard-refreshing").textContent).toBe(
       "refreshing",
     );
+    expect(bootstrapDashboardDbFromReplica).not.toHaveBeenCalled();
+    expect(bootstrapDashboardDbFromServer).not.toHaveBeenCalled();
+    expect(revalidateDashboardDbInBackground).toHaveBeenCalledTimes(1);
 
     await act(async () => {
       backgroundRefresh.resolve();
@@ -540,6 +545,234 @@ describe("dashboardDb provider bootstrap", () => {
         "idle",
       );
     });
+  });
+
+  it("renders replica data before the primary refresh finishes when SQLite is cold", async () => {
+    vi.resetModules();
+
+    const backgroundRefresh = deferred();
+    const bootstrapDashboardDbFromReplica = vi.fn(async () => true);
+    const bootstrapDashboardDbFromServer = vi.fn(async () => undefined);
+    const revalidateDashboardDbInBackground = vi.fn(
+      () => backgroundRefresh.promise,
+    );
+
+    vi.doMock(
+      "@/app/dashboard/_lib/dashboard-db/dashboard-db-sqlite-persistence",
+      () => ({
+        getDashboardDbSqlitePersistence: vi.fn(async () => ({
+          adapter: {},
+        })),
+      }),
+    );
+    vi.doMock(
+      "@/app/dashboard/_lib/dashboard-db/dashboard-db-collections",
+      () => ({
+        configureDashboardDbCollectionsPersistence: vi.fn(),
+      }),
+    );
+    vi.doMock(
+      "@/app/dashboard/_lib/dashboard-db/dashboard-db-persistence",
+      () => ({
+        bootstrapDashboardDbFromReplica,
+        bootstrapDashboardDbFromServer,
+        hasFreshDashboardDbSqliteCache: vi.fn(() => false),
+        hydrateDashboardDbFromSqlitePersistence: vi.fn(async () => undefined),
+        revalidateDashboardDbInBackground,
+        resetDashboardRefreshLock: vi.fn(),
+      }),
+    );
+
+    const { DashboardDbProvider, useDashboardDb } = await import(
+      "@/app/dashboard/_components/dashboard-db-provider"
+    );
+    const { api: freshApi } = await import("@/trpc/react");
+    const { getQueryClient: getFreshQueryClient } = await import(
+      "@/trpc/query-client"
+    );
+
+    const trpcClient = freshApi.createClient({
+      links: [
+        () =>
+          ({ op }) =>
+            observable((emit) => {
+              if (op.path === "dashboardDb.user.getCurrentUser") {
+                emit.next({
+                  result: {
+                    data: {
+                      id: "user-1",
+                    },
+                  },
+                });
+                emit.complete();
+                return;
+              }
+
+              if (op.path === "dashboardDb.userProfile.get") {
+                emit.next({
+                  result: {
+                    data: null,
+                  },
+                });
+                emit.complete();
+                return;
+              }
+
+              emit.error(
+                new Error(
+                  `Unexpected operation ${op.path}`,
+                ) as Parameters<typeof emit.error>[0],
+              );
+            }),
+      ],
+    });
+    const queryClient = getFreshQueryClient();
+    function DashboardRefreshingMarker() {
+      const { isRefreshing } = useDashboardDb();
+      return (
+        <div data-testid="dashboard-refreshing">
+          {isRefreshing ? "refreshing" : "idle"}
+        </div>
+      );
+    }
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <freshApi.Provider client={trpcClient} queryClient={queryClient}>
+          <DashboardDbProvider>
+            <DashboardReadyMarker />
+            <DashboardRefreshingMarker />
+          </DashboardDbProvider>
+        </freshApi.Provider>
+      </QueryClientProvider>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId("dashboard-ready").textContent).toBe("ready");
+    });
+    expect(screen.getByTestId("dashboard-refreshing").textContent).toBe(
+      "refreshing",
+    );
+    expect(bootstrapDashboardDbFromReplica).toHaveBeenCalledTimes(1);
+    expect(bootstrapDashboardDbFromServer).not.toHaveBeenCalled();
+    expect(revalidateDashboardDbInBackground).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      backgroundRefresh.resolve();
+      await backgroundRefresh.promise;
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId("dashboard-refreshing").textContent).toBe(
+        "idle",
+      );
+    });
+  });
+
+  it("renders server data without a background refresh when SQLite and replica are unavailable", async () => {
+    vi.resetModules();
+
+    const bootstrapDashboardDbFromReplica = vi.fn(async () => false);
+    const bootstrapDashboardDbFromServer = vi.fn(async () => undefined);
+    const revalidateDashboardDbInBackground = vi.fn(async () => undefined);
+
+    vi.doMock(
+      "@/app/dashboard/_lib/dashboard-db/dashboard-db-sqlite-persistence",
+      () => ({
+        getDashboardDbSqlitePersistence: vi.fn(async () => null),
+      }),
+    );
+    vi.doMock(
+      "@/app/dashboard/_lib/dashboard-db/dashboard-db-collections",
+      () => ({
+        configureDashboardDbCollectionsPersistence: vi.fn(),
+      }),
+    );
+    vi.doMock(
+      "@/app/dashboard/_lib/dashboard-db/dashboard-db-persistence",
+      () => ({
+        bootstrapDashboardDbFromReplica,
+        bootstrapDashboardDbFromServer,
+        hasFreshDashboardDbSqliteCache: vi.fn(() => false),
+        hydrateDashboardDbFromSqlitePersistence: vi.fn(async () => undefined),
+        revalidateDashboardDbInBackground,
+        resetDashboardRefreshLock: vi.fn(),
+      }),
+    );
+
+    const { DashboardDbProvider, useDashboardDb } = await import(
+      "@/app/dashboard/_components/dashboard-db-provider"
+    );
+    const { api: freshApi } = await import("@/trpc/react");
+    const { getQueryClient: getFreshQueryClient } = await import(
+      "@/trpc/query-client"
+    );
+
+    const trpcClient = freshApi.createClient({
+      links: [
+        () =>
+          ({ op }) =>
+            observable((emit) => {
+              if (op.path === "dashboardDb.user.getCurrentUser") {
+                emit.next({
+                  result: {
+                    data: {
+                      id: "user-1",
+                    },
+                  },
+                });
+                emit.complete();
+                return;
+              }
+
+              if (op.path === "dashboardDb.userProfile.get") {
+                emit.next({
+                  result: {
+                    data: null,
+                  },
+                });
+                emit.complete();
+                return;
+              }
+
+              emit.error(
+                new Error(
+                  `Unexpected operation ${op.path}`,
+                ) as Parameters<typeof emit.error>[0],
+              );
+            }),
+      ],
+    });
+    const queryClient = getFreshQueryClient();
+    function DashboardRefreshingMarker() {
+      const { isRefreshing } = useDashboardDb();
+      return (
+        <div data-testid="dashboard-refreshing">
+          {isRefreshing ? "refreshing" : "idle"}
+        </div>
+      );
+    }
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <freshApi.Provider client={trpcClient} queryClient={queryClient}>
+          <DashboardDbProvider>
+            <DashboardReadyMarker />
+            <DashboardRefreshingMarker />
+          </DashboardDbProvider>
+        </freshApi.Provider>
+      </QueryClientProvider>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId("dashboard-ready").textContent).toBe("ready");
+      expect(screen.getByTestId("dashboard-refreshing").textContent).toBe(
+        "idle",
+      );
+    });
+    expect(bootstrapDashboardDbFromReplica).toHaveBeenCalledTimes(1);
+    expect(bootstrapDashboardDbFromServer).toHaveBeenCalledTimes(1);
+    expect(revalidateDashboardDbInBackground).not.toHaveBeenCalled();
   });
 
   it("falls back to server bootstrap when warm SQLite hydration fails", async () => {
