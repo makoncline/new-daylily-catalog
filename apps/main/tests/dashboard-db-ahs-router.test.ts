@@ -42,9 +42,10 @@ function createMockDb(): MockDb {
   };
 }
 
-function createCaller(db: MockDb) {
+function createCaller(db: MockDb, replicaDb = db) {
   return dashboardDbAhsRouter.createCaller({
     db: db as unknown as TRPCInternalContext["db"],
+    replicaDb: replicaDb as unknown as TRPCInternalContext["replicaDb"],
     _authUser: { id: "user-1" } as unknown as TRPCInternalContext["_authUser"],
     headers: new Headers(),
   });
@@ -132,6 +133,45 @@ describe("dashboardDb.ahs", () => {
       color: null,
       parentage: "(V2 A x V2 B)",
     });
+  });
+
+  it("reads cultivar details from the replica database when it is available", async () => {
+    process.env.NEXT_PUBLIC_USE_V2_CULTIVAR_DISPLAY_DATA = "true";
+
+    const db = createMockDb();
+    const replicaDb = createMockDb();
+    replicaDb.cultivarReference.findUnique.mockResolvedValue({
+      ahsListing: null,
+      v2AhsCultivar: {
+        id: "cr-replica",
+        post_title: "Replica Coffee Frenzy",
+        introduction_date: null,
+        primary_hybridizer_name: null,
+        hybridizer_code_legacy: null,
+        additional_hybridizers_names: null,
+        bloom_season_names: null,
+        fragrance_names: null,
+        bloom_habit_names: null,
+        foliage_names: null,
+        ploidy_names: null,
+        scape_height_in: null,
+        bloom_size_in: null,
+        bud_count: null,
+        branches: null,
+        color: null,
+        flower_form_names: null,
+        unusual_forms_names: null,
+        parentage: null,
+        image_url: null,
+      },
+    });
+
+    const caller = createCaller(db, replicaDb);
+    const result = await caller.get({ id: "cr-replica" });
+
+    expect(result.name).toBe("Replica Coffee Frenzy");
+    expect(replicaDb.cultivarReference.findUnique).toHaveBeenCalledOnce();
+    expect(db.cultivarReference.findUnique).not.toHaveBeenCalled();
   });
 
   it("falls back to the decoded legacy hybridizer code for dashboard cultivar detail reads", async () => {
@@ -261,5 +301,55 @@ describe("dashboardDb.ahs", () => {
         cultivarReferenceId: "cr-1",
       },
     ]);
+  });
+
+  it("reads cultivar search results from the replica database when it is available", async () => {
+    process.env.NEXT_PUBLIC_USE_V2_CULTIVAR_DISPLAY_DATA = "true";
+
+    const db = createMockDb();
+    const replicaDb = createMockDb();
+    replicaDb.cultivarReference.findMany.mockResolvedValue([
+      {
+        id: "cr-replica",
+        ahsId: null,
+        normalizedName: "replica coffee frenzy",
+        ahsListing: null,
+        v2AhsCultivar: {
+          id: "cr-replica",
+          post_title: "Replica Coffee Frenzy",
+          introduction_date: null,
+          primary_hybridizer_name: null,
+          hybridizer_code_legacy: null,
+          additional_hybridizers_names: null,
+          bloom_season_names: null,
+          fragrance_names: null,
+          bloom_habit_names: null,
+          foliage_names: null,
+          ploidy_names: null,
+          scape_height_in: null,
+          bloom_size_in: null,
+          bud_count: null,
+          branches: null,
+          color: null,
+          flower_form_names: null,
+          unusual_forms_names: null,
+          parentage: null,
+          image_url: null,
+        },
+      },
+    ]);
+
+    const caller = createCaller(db, replicaDb);
+    const result = await caller.search({ query: "replica" });
+
+    expect(result).toEqual([
+      {
+        id: "cr-replica",
+        name: "Replica Coffee Frenzy",
+        cultivarReferenceId: "cr-replica",
+      },
+    ]);
+    expect(replicaDb.cultivarReference.findMany).toHaveBeenCalledOnce();
+    expect(db.cultivarReference.findMany).not.toHaveBeenCalled();
   });
 });
