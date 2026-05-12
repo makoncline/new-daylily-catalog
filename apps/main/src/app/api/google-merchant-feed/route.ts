@@ -6,6 +6,8 @@ import {
   withResolvedDisplayAhsListing,
   v2AhsCultivarDisplaySelect,
 } from "@/lib/utils/ahs-display";
+import { getProUserIds } from "@/server/db/getProUserIds";
+import { shouldShowToPublic } from "@/server/db/public-visibility/filters";
 
 // Constants for merchant feed configuration
 const SHIPPING_WEIGHT = "0.5 lb";
@@ -15,8 +17,11 @@ export async function GET(_request: Request) {
   try {
     const baseUrl = getCanonicalBaseUrl();
 
-    // Query all listings with prices
-    const where = { price: { not: null } };
+    const proUserIds = await getProUserIds();
+    const where = {
+      price: { not: null },
+      ...shouldShowToPublic(proUserIds),
+    };
     const include = {
       images: {
         take: 4, // Get up to 4 images (1 main + 3 additional)
