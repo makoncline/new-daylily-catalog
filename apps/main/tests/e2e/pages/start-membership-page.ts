@@ -8,7 +8,7 @@ export class StartMembershipPage {
 
   constructor(page: Page) {
     this.page = page;
-    this.container = page.locator(
+    this.container = page.getByRole("main").locator(
       '[data-testid="onboarding-start-membership-step"], [data-testid="start-membership-page"]',
     );
     this.startTrialButton = page.getByTestId("start-membership-checkout");
