@@ -113,13 +113,30 @@ export interface ImageError {
 // Zod schemas for validation
 export const imageTypeSchema = z.enum(["listing", "profile"]);
 export type ImageType = z.infer<typeof imageTypeSchema>;
+export const imageContentTypeSchema = z.enum([
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+]);
+export type ImageContentType = z.infer<typeof imageContentTypeSchema>;
+
+export function getSupportedImageContentType(
+  contentType: string | undefined,
+): ImageContentType {
+  const parsed = imageContentTypeSchema.safeParse(contentType);
+  return parsed.success ? parsed.data : "image/jpeg";
+}
 
 export const presignedUrlSchema = z.object({
   type: imageTypeSchema,
   userId: z.string(),
   fileName: z.string(),
-  contentType: z.string(),
-  size: z.number().max(5 * 1024 * 1024), // 5MB
+  contentType: imageContentTypeSchema,
+  size: z
+    .number()
+    .int()
+    .positive()
+    .max(5 * 1024 * 1024), // 5MB
   listingId: z.string().optional(),
   userProfileId: z.string().optional(),
 });
