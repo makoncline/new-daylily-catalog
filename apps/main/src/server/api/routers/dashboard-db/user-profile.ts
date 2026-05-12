@@ -4,6 +4,7 @@ import { createTRPCRouter, protectedProcedure } from "@/server/api/trpc";
 import { slugSchema } from "@/types/schemas/profile";
 import { isValidSlug } from "@/lib/utils/slugify";
 import type { PrismaClient } from "@prisma/client";
+import { sanitizeEditorJsContentForStorage } from "@/server/security/editor-js-content";
 
 const profileSelect = {
   id: true,
@@ -140,15 +141,17 @@ export const dashboardDbUserProfileRouter = createTRPCRouter({
   updateContent: protectedProcedure
     .input(z.object({ content: z.string().nullable() }))
     .mutation(async ({ ctx, input }) => {
+      const sanitizedContent = sanitizeEditorJsContentForStorage(input.content);
+
       const profile = await ctx.db.userProfile.upsert({
         where: { userId: ctx.user.id },
         create: {
           userId: ctx.user.id,
           slug: ctx.user.id,
-          content: input.content,
+          content: sanitizedContent,
         },
         update: {
-          content: input.content,
+          content: sanitizedContent,
         },
         select: profileSelect,
       });
