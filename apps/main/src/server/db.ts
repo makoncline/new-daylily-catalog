@@ -133,7 +133,5 @@ export const db = globalForPrisma.prisma ?? createPrismaClient();
 export const replicaDb =
   globalForPrisma.replicaPrisma ?? createReplicaPrismaClient();
 
-if (env.NODE_ENV !== "production") {
-  globalForPrisma.prisma = db;
-  globalForPrisma.replicaPrisma = replicaDb;
-}
+globalForPrisma.prisma = db;
+globalForPrisma.replicaPrisma = replicaDb;
