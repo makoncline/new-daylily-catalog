@@ -51,20 +51,43 @@ export async function seedManageListPageData({
     },
   });
 
+  const bulkListings = [];
   for (let i = 1; i <= TOTAL_LINKED_LISTINGS - 3; i++) {
     const number = pad(i);
-    await db.listing.create({
-      data: {
-        userId: user.id,
-        title: `List Listing ${number}`,
-        slug: `list-listing-${number}`,
-        price: i,
-        lists: {
-          connect: [{ id: list.id }],
-        },
-      },
+    bulkListings.push({
+      userId: user.id,
+      title: `List Listing ${number}`,
+      slug: `list-listing-${number}`,
+      price: i,
     });
   }
+
+  await db.listing.createMany({
+    data: bulkListings,
+  });
+
+  const bulkListingIds = await db.listing.findMany({
+    where: {
+      userId: user.id,
+      slug: {
+        in: bulkListings.map((listing) => listing.slug),
+      },
+    },
+    select: {
+      id: true,
+    },
+  });
+
+  await db.list.update({
+    where: {
+      id: list.id,
+    },
+    data: {
+      listings: {
+        connect: bulkListingIds,
+      },
+    },
+  });
 
   const sortToken = "token-manage-sort";
   const sortAlphaTitle = "Sort Alpha token-manage-sort";
@@ -147,7 +170,9 @@ export async function seedManageListPageData({
     },
   });
 
-  const expectedPageCountBeforeAdd = Math.ceil(beforeAddCount / DEFAULT_PAGE_SIZE);
+  const expectedPageCountBeforeAdd = Math.ceil(
+    beforeAddCount / DEFAULT_PAGE_SIZE,
+  );
   const totalListListingsAfterAdd = beforeAddCount + 1;
   const expectedPageCountAfterAdd = Math.ceil(
     totalListListingsAfterAdd / DEFAULT_PAGE_SIZE,
