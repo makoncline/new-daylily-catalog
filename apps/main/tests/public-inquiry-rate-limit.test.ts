@@ -1,13 +1,39 @@
 // @vitest-environment node
 
-import { describe, expect, it } from "vitest";
-import {
-  createTransactionalPublicInquiryRateLimitStore,
-  enforcePublicInquiryRateLimit,
-  getPublicInquiryClientId,
-  type PublicInquiryRateLimitStore,
-  PUBLIC_INQUIRY_RATE_LIMIT,
-} from "@/server/services/public-inquiry-rate-limit";
+import { beforeAll, describe, expect, it } from "vitest";
+import type { PublicInquiryRateLimitStore } from "@/server/services/public-inquiry-rate-limit";
+
+type PublicInquiryRateLimitModule =
+  typeof import("@/server/services/public-inquiry-rate-limit");
+
+let createTransactionalPublicInquiryRateLimitStore: PublicInquiryRateLimitModule[
+  "createTransactionalPublicInquiryRateLimitStore"
+];
+let enforcePublicInquiryRateLimit: PublicInquiryRateLimitModule[
+  "enforcePublicInquiryRateLimit"
+];
+let getPublicInquiryClientId: PublicInquiryRateLimitModule[
+  "getPublicInquiryClientId"
+];
+let PUBLIC_INQUIRY_RATE_LIMIT: PublicInquiryRateLimitModule[
+  "PUBLIC_INQUIRY_RATE_LIMIT"
+];
+
+beforeAll(async () => {
+  process.env.SKIP_ENV_VALIDATION = "1";
+  process.env.DATABASE_URL ??=
+    "file:./tests/.tmp/public-inquiry-rate-limit.sqlite";
+  process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY ??= "pk_test_placeholder";
+  process.env.NEXT_PUBLIC_CLOUDFLARE_URL ??=
+    "https://placeholder.cloudflare.com";
+
+  ({
+    createTransactionalPublicInquiryRateLimitStore,
+    enforcePublicInquiryRateLimit,
+    getPublicInquiryClientId,
+    PUBLIC_INQUIRY_RATE_LIMIT,
+  } = await import("@/server/services/public-inquiry-rate-limit"));
+});
 
 interface MemoryKeyValueDb {
   values: Map<string, string>;
