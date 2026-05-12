@@ -4,7 +4,10 @@ import { redirect } from "next/navigation";
 import { auth } from "@clerk/nextjs/server";
 import { getUserByClerkId } from "@/server/api/trpc";
 import { syncStripeSubscriptionToKV } from "@/server/stripe/sync-subscription";
-import { getSafeSubscribeSuccessRedirect } from "@/lib/utils/safe-redirect";
+import {
+  getSafeSubscribeSuccessRedirect,
+  withSubscribeSuccessSyncedParam,
+} from "@/lib/utils/safe-redirect";
 
 export default async function SubscribeSuccessPage({
   searchParams,
@@ -28,5 +31,9 @@ export default async function SubscribeSuccessPage({
   // Sync the subscription data
   await syncStripeSubscriptionToKV(user.stripeCustomerId);
 
-  redirect(getSafeSubscribeSuccessRedirect(params.redirect));
+  redirect(
+    withSubscribeSuccessSyncedParam(
+      getSafeSubscribeSuccessRedirect(params.redirect),
+    ),
+  );
 }

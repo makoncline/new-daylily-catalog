@@ -7,36 +7,36 @@ import React, {
   useRef,
   useState,
 } from "react";
+import { useAuth } from "@clerk/nextjs";
 import { api } from "@/trpc/react";
 import { getQueryClient } from "@/trpc/query-client";
-import {
-  cleanupImagesCollection,
-} from "@/app/dashboard/_lib/dashboard-db/images-collection";
-import {
-  cleanupListingsCollection,
-} from "@/app/dashboard/_lib/dashboard-db/listings-collection";
-import {
-  cleanupListsCollection,
-} from "@/app/dashboard/_lib/dashboard-db/lists-collection";
-import {
-  cleanupCultivarReferencesCollection,
-} from "@/app/dashboard/_lib/dashboard-db/cultivar-references-collection";
+import { cleanupImagesCollection } from "@/app/dashboard/_lib/dashboard-db/images-collection";
+import { cleanupListingsCollection } from "@/app/dashboard/_lib/dashboard-db/listings-collection";
+import { cleanupListsCollection } from "@/app/dashboard/_lib/dashboard-db/lists-collection";
+import { cleanupCultivarReferencesCollection } from "@/app/dashboard/_lib/dashboard-db/cultivar-references-collection";
 import { setCurrentUserId } from "@/lib/utils/cursor";
 import {
+  bootstrapDashboardDbFromReplica,
   bootstrapDashboardDbFromServer,
+  hasFreshDashboardDbSqliteCache,
+  hydrateDashboardDbFromSqlitePersistence,
   revalidateDashboardDbInBackground,
   resetDashboardRefreshLock,
-  tryHydrateDashboardDbFromPersistence,
 } from "@/app/dashboard/_lib/dashboard-db/dashboard-db-persistence";
+import { configureDashboardDbCollectionsPersistence } from "@/app/dashboard/_lib/dashboard-db/dashboard-db-collections";
+import { getDashboardDbSqlitePersistence } from "@/app/dashboard/_lib/dashboard-db/dashboard-db-sqlite-persistence";
 import {
   DashboardDbLoadingScreen,
   type DashboardDbStatus,
 } from "@/app/dashboard/_components/dashboard-db-loading-screen";
 import { reportDashboardLoadFailure } from "@/app/dashboard/_lib/dashboard-db/dashboard-load-failure-reporting";
+import { logDashboardSyncTiming } from "@/app/dashboard/_lib/dashboard-db/collection-bootstrap";
+import { writeCachedSubscription } from "@/hooks/use-persisted-subscription-query";
 
 interface DashboardDbState {
   status: DashboardDbStatus;
   userId: string | null;
+  isRefreshing: boolean;
 }
 
 const DashboardDbContext = createContext<DashboardDbState | null>(null);
@@ -55,31 +55,40 @@ export function DashboardDbProvider({
   children: React.ReactNode;
 }) {
   const utils = api.useUtils();
+  const { userId: clerkUserId } = useAuth();
   const {
     data: user,
     isLoading,
     isError,
-  } = api.dashboardDb.user.getCurrentUser.useQuery();
+  } = api.dashboardDb.user.getCurrentUserId.useQuery();
 
   const userId = user?.id ?? null;
 
   const [state, setState] = useState<DashboardDbState>({
     status: "idle",
     userId: null,
+    isRefreshing: false,
   });
 
   const [hideLoadingScreen, setHideLoadingScreen] = useState(false);
   const [isExitingLoadingScreen, setIsExitingLoadingScreen] = useState(false);
   const initializedUserIdRef = useRef<string | null>(null);
   const lastReportedFailureKeyRef = useRef<string | null>(null);
+  const clerkUserIdRef = useRef<string | null>(clerkUserId);
+  const sqlitePersistencePromiseRef = useRef<ReturnType<
+    typeof getDashboardDbSqlitePersistence
+  > | null>(null);
+  const sqlitePersistenceStartedAtRef = useRef<number | null>(null);
+  clerkUserIdRef.current = clerkUserId;
   const setDashboardDbState = (nextState: DashboardDbState) => {
     queueMicrotask(() => {
       setState((current) =>
         current.status === nextState.status &&
-        current.userId === nextState.userId
+        current.userId === nextState.userId &&
+        current.isRefreshing === nextState.isRefreshing
           ? current
           : nextState,
-        );
+      );
     });
   };
 
@@ -97,6 +106,23 @@ export function DashboardDbProvider({
       );
     });
   };
+  const setDashboardRefreshing = (
+    nextIsRefreshing: boolean,
+    expectedUserId: string,
+  ) => {
+    queueMicrotask(() => {
+      setState((current) =>
+        current.userId === expectedUserId
+          ? { ...current, isRefreshing: nextIsRefreshing }
+          : current,
+      );
+    });
+  };
+
+  useEffect(() => {
+    sqlitePersistenceStartedAtRef.current = performance.now();
+    sqlitePersistencePromiseRef.current = getDashboardDbSqlitePersistence();
+  }, []);
 
   useEffect(() => {
     if (state.status !== "ready") {
@@ -119,6 +145,7 @@ export function DashboardDbProvider({
       setDashboardDbState({
         status: "loading",
         userId: null,
+        isRefreshing: false,
       });
       return;
     }
@@ -133,10 +160,16 @@ export function DashboardDbProvider({
         cleanupListsCollection(),
         cleanupImagesCollection(),
         cleanupCultivarReferencesCollection(),
-      ]);
+      ]).finally(() => {
+        configureDashboardDbCollectionsPersistence({
+          persistence: null,
+          userId: null,
+        });
+      });
       setDashboardDbState({
         status: "idle",
         userId: null,
+        isRefreshing: false,
       });
       return;
     }
@@ -153,53 +186,170 @@ export function DashboardDbProvider({
     let finished = false;
     initializedUserIdRef.current = bootstrapUserId;
     let cancelled = false;
-    let phase = "hydrate";
-    let hydratedSnapshot = false;
+    let phase = "sqlite-persistence";
     const startedAt = new Date();
+    const startedAtMs = performance.now();
     const isBootstrapActive = () =>
       !cancelled && initializedUserIdRef.current === bootstrapUserId;
+    const refreshSubscriptionCache = async () => {
+      await utils.stripe.getSubscription.invalidate();
+      const subscription = await utils.stripe.getSubscription.fetch();
+      const subscriptionCacheUserId = clerkUserIdRef.current;
+      if (isBootstrapActive() && subscriptionCacheUserId) {
+        writeCachedSubscription(subscriptionCacheUserId, subscription);
+      }
+    };
+    const startBackgroundRefresh = () => {
+      const refreshStartedAt = performance.now();
+      void revalidateDashboardDbInBackground(userId, {
+        isActive: isBootstrapActive,
+      }).finally(() => {
+        if (!isBootstrapActive()) return;
+
+        void refreshSubscriptionCache();
+        logDashboardSyncTiming(
+          "provider.background-refresh",
+          refreshStartedAt,
+          {
+            path: phase,
+          },
+        );
+        setDashboardRefreshing(false, userId);
+      });
+    };
     setCurrentUserId(userId);
     setDashboardDbState({
       status: "loading",
       userId,
+      isRefreshing: false,
     });
 
     void (async () => {
       try {
-        const hydrated = await tryHydrateDashboardDbFromPersistence(userId);
-        hydratedSnapshot = hydrated;
+        const profilePrefetchPromise =
+          utils.dashboardDb.userProfile.get.prefetch();
+        const sqlitePersistenceAwaitStartedAt = performance.now();
+        if (!sqlitePersistencePromiseRef.current) {
+          sqlitePersistenceStartedAtRef.current =
+            sqlitePersistenceAwaitStartedAt;
+          sqlitePersistencePromiseRef.current =
+            getDashboardDbSqlitePersistence();
+        }
+        const sqlitePersistence = await sqlitePersistencePromiseRef.current;
+        const sqlitePersistenceReadyAt = performance.now();
+        const sqlitePersistenceDurationMs =
+          sqlitePersistenceReadyAt -
+          (sqlitePersistenceStartedAtRef.current ??
+            sqlitePersistenceAwaitStartedAt);
+        const sqlitePersistenceAwaitDurationMs =
+          sqlitePersistenceReadyAt - sqlitePersistenceAwaitStartedAt;
+        configureDashboardDbCollectionsPersistence({
+          persistence: sqlitePersistence,
+          userId,
+        });
 
-        if (hydrated) {
-          phase = "warm-revalidate";
-          void revalidateDashboardDbInBackground(userId, {
-            isActive: isBootstrapActive,
+        const hasFreshSqliteCache =
+          sqlitePersistence && hasFreshDashboardDbSqliteCache(userId);
+
+        if (hasFreshSqliteCache) {
+          phase = "sqlite-warm-hydrate";
+          setDashboardDbState({
+            status: "loading",
+            userId,
+            isRefreshing: true,
           });
-          phase = "warm-profile-prefetch";
-          await utils.dashboardDb.userProfile.get.prefetch();
-          if (!cancelled) {
-            finished = true;
-            setState({
-              status: "ready",
-              userId,
-            });
+          const warmHydrateStartedAt = performance.now();
+          const [hydrateResult, profilePrefetchResult] =
+            await Promise.allSettled([
+              hydrateDashboardDbFromSqlitePersistence({
+                userId,
+              }),
+              profilePrefetchPromise,
+            ]);
+
+          if (hydrateResult.status === "fulfilled") {
+            if (profilePrefetchResult.status === "rejected") {
+              throw profilePrefetchResult.reason;
+            }
+
+            if (!cancelled) {
+              finished = true;
+              setState({
+                status: "ready",
+                userId,
+                isRefreshing: true,
+              });
+              logDashboardSyncTiming("provider.ready", startedAtMs, {
+                path: phase,
+                sqlitePersistenceDurationMs: Number(
+                  sqlitePersistenceDurationMs.toFixed(1),
+                ),
+                sqlitePersistenceAwaitDurationMs: Number(
+                  sqlitePersistenceAwaitDurationMs.toFixed(1),
+                ),
+                warmHydrateDurationMs: Number(
+                  (performance.now() - warmHydrateStartedAt).toFixed(1),
+                ),
+              });
+              startBackgroundRefresh();
+            }
+            return;
           }
-          return;
         }
 
-        phase = "cold-bootstrap";
-        await Promise.all([
-          bootstrapDashboardDbFromServer(userId, {
+        phase = "replica-bootstrap";
+        const replicaBootstrapStartedAt = performance.now();
+        const [usedReplica] = await Promise.all([
+          bootstrapDashboardDbFromReplica(userId, {
             isActive: isBootstrapActive,
           }),
-          utils.dashboardDb.userProfile.get.prefetch(),
+          profilePrefetchPromise,
         ]);
+        const replicaBootstrapDurationMs =
+          performance.now() - replicaBootstrapStartedAt;
+
+        let serverBootstrapDurationMs: number | null = null;
+        if (!usedReplica) {
+          phase = "cold-bootstrap";
+          const serverBootstrapStartedAt = performance.now();
+          await bootstrapDashboardDbFromServer(userId, {
+            isActive: isBootstrapActive,
+          });
+          serverBootstrapDurationMs =
+            performance.now() - serverBootstrapStartedAt;
+        }
 
         if (!cancelled) {
           finished = true;
           setState({
             status: "ready",
             userId,
+            isRefreshing: usedReplica,
           });
+          logDashboardSyncTiming("provider.ready", startedAtMs, {
+            path: phase,
+            sqlitePersistenceDurationMs: Number(
+              sqlitePersistenceDurationMs.toFixed(1),
+            ),
+            sqlitePersistenceAwaitDurationMs: Number(
+              sqlitePersistenceAwaitDurationMs.toFixed(1),
+            ),
+            hasFreshSqliteCache: false,
+            usedReplica,
+            replicaBootstrapDurationMs: Number(
+              replicaBootstrapDurationMs.toFixed(1),
+            ),
+            serverBootstrapDurationMs:
+              serverBootstrapDurationMs === null
+                ? null
+                : Number(serverBootstrapDurationMs.toFixed(1)),
+          });
+
+          if (usedReplica) {
+            startBackgroundRefresh();
+          } else {
+            void refreshSubscriptionCache();
+          }
         }
       } catch (error) {
         if (!cancelled) {
@@ -214,7 +364,6 @@ export function DashboardDbProvider({
               startedAt,
               failedAt,
               elapsedMs: failedAt.getTime() - startedAt.getTime(),
-              hydratedSnapshot,
               bootstrapActive: isBootstrapActive(),
             });
           }
@@ -222,6 +371,7 @@ export function DashboardDbProvider({
           setState({
             status: "error",
             userId,
+            isRefreshing: false,
           });
         }
         if (initializedUserIdRef.current === bootstrapUserId) {

@@ -1,12 +1,19 @@
 "use client";
 
+import { useEffect } from "react";
 import { H3 } from "@/components/typography";
-import { api } from "@/trpc/react";
 import { APP_CONFIG, PRO_FEATURES } from "@/config/constants";
 import { usePro } from "@/hooks/use-pro";
 import { CheckoutButton } from "@/components/checkout-button";
 import { TierLimitedCreateAction } from "@/app/dashboard/_components/tier-limited-create-action";
 import { CreateListingDialog } from "./create-listing-dialog";
+import { logDashboardTiming } from "@/app/dashboard/_lib/dashboard-timing";
+import { listingsCollection } from "@/app/dashboard/_lib/dashboard-db/listings-collection";
+import { DASHBOARD_DB_QUERY_KEYS } from "@/app/dashboard/_lib/dashboard-db/dashboard-db-keys";
+import { useSeededDashboardDbQuery } from "@/app/dashboard/_lib/dashboard-db/use-seeded-dashboard-db-query";
+import type { RouterOutputs } from "@/trpc/react";
+
+type Listing = RouterOutputs["dashboardDb"]["listing"]["list"][number];
 
 /**
  * Button component that launches the create listing dialog.
@@ -14,8 +21,19 @@ import { CreateListingDialog } from "./create-listing-dialog";
  */
 export function CreateListingButton() {
   const { isPro } = usePro();
+  const listingsQuery = useSeededDashboardDbQuery<Listing>({
+    query: (q) => q.from({ listing: listingsCollection }),
+    queryKey: DASHBOARD_DB_QUERY_KEYS.listings,
+  });
+  const listingCount = listingsQuery.data.length;
 
-  const { data: listingCount } = api.dashboardDb.listing.count.useQuery();
+  useEffect(() => {
+    logDashboardTiming("create-listing-button.count-state", {
+      listingCount,
+      listingsReady: listingsQuery.isReady,
+      isPro,
+    });
+  }, [isPro, listingCount, listingsQuery.isReady]);
 
   return (
     <TierLimitedCreateAction

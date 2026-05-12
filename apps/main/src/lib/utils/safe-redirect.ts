@@ -2,6 +2,8 @@ const SUBSCRIBE_SUCCESS_EXTERNAL_REDIRECT_HOSTS = new Set([
   "billing.stripe.com",
 ]);
 
+export const SUBSCRIPTION_SYNCED_PARAM = "subscriptionSynced";
+
 export function getSafeSubscribeSuccessRedirect(
   redirectValue: string | undefined,
 ) {
@@ -31,4 +33,14 @@ export function getSafeSubscribeSuccessRedirect(
   }
 
   return "/dashboard";
+}
+
+export function withSubscribeSuccessSyncedParam(redirectValue: string) {
+  if (!redirectValue.startsWith("/") || redirectValue.startsWith("//")) {
+    return redirectValue;
+  }
+
+  const parsed = new URL(redirectValue, "https://daylilycatalog.local");
+  parsed.searchParams.set(SUBSCRIPTION_SYNCED_PARAM, "1");
+  return `${parsed.pathname}${parsed.search}${parsed.hash}`;
 }

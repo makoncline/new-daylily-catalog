@@ -1,4 +1,5 @@
 import { createTRPCRouter, protectedProcedure } from "@/server/api/trpc";
+import type { db } from "@/server/db";
 
 const listingSelect = {
   id: true,
@@ -40,37 +41,57 @@ const imageSelect = {
   status: true,
 } as const;
 
+type DbClient = typeof db;
+
+async function getDashboardBootstrapRoots(args: {
+  db: DbClient;
+  userId: string;
+}) {
+  const [listings, lists, profile] = await Promise.all([
+    args.db.listing.findMany({
+      where: { userId: args.userId },
+      select: listingSelect,
+      orderBy: { id: "asc" },
+    }),
+    args.db.list.findMany({
+      where: { userId: args.userId },
+      select: listSelect,
+      orderBy: { id: "asc" },
+    }),
+    args.db.userProfile.findUnique({
+      where: { userId: args.userId },
+      select: { id: true },
+    }),
+  ]);
+
+  const profileImages = profile
+    ? await args.db.image.findMany({
+        where: { userProfileId: profile.id },
+        select: imageSelect,
+        orderBy: [{ userProfileId: "asc" }, { order: "asc" }, { id: "asc" }],
+      })
+    : [];
+
+  return {
+    listings,
+    lists,
+    profileImages,
+  };
+}
+
 export const dashboardDbBootstrapRouter = createTRPCRouter({
+  replicaAvailable: protectedProcedure.query(({ ctx }) => {
+    return Boolean(ctx.hasReplicaDb);
+  }),
+
   roots: protectedProcedure.query(async ({ ctx }) => {
-    const [listings, lists, profile] = await Promise.all([
-      ctx.db.listing.findMany({
-        where: { userId: ctx.user.id },
-        select: listingSelect,
-        orderBy: { id: "asc" },
-      }),
-      ctx.db.list.findMany({
-        where: { userId: ctx.user.id },
-        select: listSelect,
-        orderBy: { id: "asc" },
-      }),
-      ctx.db.userProfile.findUnique({
-        where: { userId: ctx.user.id },
-        select: { id: true },
-      }),
-    ]);
+    return getDashboardBootstrapRoots({ db: ctx.db, userId: ctx.user.id });
+  }),
 
-    const profileImages = profile
-      ? await ctx.db.image.findMany({
-          where: { userProfileId: profile.id },
-          select: imageSelect,
-          orderBy: [{ userProfileId: "asc" }, { order: "asc" }, { id: "asc" }],
-        })
-      : [];
-
-    return {
-      listings,
-      lists,
-      profileImages,
-    };
+  replicaRoots: protectedProcedure.query(async ({ ctx }) => {
+    return getDashboardBootstrapRoots({
+      db: ctx.replicaDb ?? ctx.db,
+      userId: ctx.user.id,
+    });
   }),
 });
