@@ -154,7 +154,7 @@ export function sanitizeEditorJsData(data: OutputData): OutputData {
     ...data,
     blocks: data.blocks.map((block) => ({
       ...block,
-      data: sanitizeRichTextData(block.data) as typeof block.data,
+      data: sanitizeRichTextData(block.data),
     })),
   };
 }
