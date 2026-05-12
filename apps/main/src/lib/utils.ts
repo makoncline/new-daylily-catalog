@@ -69,10 +69,12 @@ export async function tryCatch<T, E = Error>(
 
 export async function uploadFileWithProgress({
   presignedUrl,
+  contentType,
   file,
   onProgress,
 }: {
   presignedUrl: string;
+  contentType?: string;
   file: Blob;
   onProgress: (pct: number) => void;
 }) {
@@ -89,7 +91,7 @@ export async function uploadFileWithProgress({
     });
     xhr.addEventListener("error", () => reject(new Error("Upload failed")));
     xhr.open("PUT", presignedUrl);
-    xhr.setRequestHeader("Content-Type", file.type);
+    xhr.setRequestHeader("Content-Type", contentType ?? file.type);
     xhr.send(file);
   });
 }

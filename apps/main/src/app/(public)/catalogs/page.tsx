@@ -16,6 +16,7 @@ import {
   createBreadcrumbListSchema,
   createCatalogsBreadcrumbs,
 } from "@/lib/utils/breadcrumbs";
+import { serializeJsonLd } from "@/lib/utils/json-ld";
 
 export const revalidate = 1800;
 
@@ -99,15 +100,15 @@ export default async function CatalogsPage() {
       {/* Add breadcrumb schema - keeping only what works for rich results */}
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbSchema) }}
+        dangerouslySetInnerHTML={{ __html: serializeJsonLd(breadcrumbSchema) }}
       />
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(collectionSchema) }}
+        dangerouslySetInnerHTML={{ __html: serializeJsonLd(collectionSchema) }}
       />
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(catalogsFaqSchema) }}
+        dangerouslySetInnerHTML={{ __html: serializeJsonLd(catalogsFaqSchema) }}
       />
 
       <PageHeader

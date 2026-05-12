@@ -8,7 +8,7 @@ ENV PATH=$PNPM_HOME:$PATH
 
 RUN corepack enable
 RUN apt-get update \
-    && apt-get install -y --no-install-recommends openssl ca-certificates \
+    && apt-get install -y --no-install-recommends openssl ca-certificates sqlite3 \
     && rm -rf /var/lib/apt/lists/*
 
 FROM base AS deps
@@ -57,6 +57,8 @@ RUN groupadd --system --gid 1001 nodejs \
     && chown -R nextjs:nodejs /app /data
 
 COPY --from=builder --chown=nextjs:nodejs /app/apps/main/public ./apps/main/public
+COPY --from=builder --chown=nextjs:nodejs /app/apps/main/scripts/build-public-search-index.mjs ./apps/main/scripts/build-public-search-index.mjs
+COPY --from=builder --chown=nextjs:nodejs /app/apps/main/scripts/build-public-parentage-index.mjs ./apps/main/scripts/build-public-parentage-index.mjs
 COPY --from=builder --chown=nextjs:nodejs /app/apps/main/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/apps/main/.next/static ./apps/main/.next/static
 

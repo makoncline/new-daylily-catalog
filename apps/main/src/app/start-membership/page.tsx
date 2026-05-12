@@ -11,6 +11,7 @@ import { PRO_FEATURES, METADATA_CONFIG } from "@/config/constants";
 import { SUBSCRIPTION_CONFIG } from "@/config/subscription-config";
 import { IMAGES } from "@/lib/constants/images";
 import { getCanonicalBaseUrl } from "@/lib/utils/getBaseUrl";
+import { serializeJsonLd } from "@/lib/utils/json-ld";
 import { UsedByWave } from "@/components/used-by-wave";
 import { LaurelRatingBadge } from "@/components/laurel-rating-badge";
 
@@ -146,7 +147,7 @@ export default async function StartMembershipPage() {
 
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(faqSchema) }}
+        dangerouslySetInnerHTML={{ __html: serializeJsonLd(faqSchema) }}
       />
 
       <StartMembershipHero />

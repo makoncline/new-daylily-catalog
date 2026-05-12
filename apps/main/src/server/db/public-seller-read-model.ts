@@ -4,6 +4,7 @@ import { replicaDb } from "@/server/db";
 import { getLatestDate } from "@/server/db/public-date-utils";
 import { getProUserIds } from "@/server/db/getProUserIds";
 import { isPublished } from "@/server/db/public-visibility/filters";
+import { parseAndSanitizeEditorJsContent } from "@/server/security/editor-js-content";
 
 export interface PublicSellerSummary {
   id: string;
@@ -52,16 +53,7 @@ interface PublicSellerSummaryOptions {
 function parseProfileContent(
   content: string | null,
 ): OutputData | string | null {
-  if (!content) {
-    return null;
-  }
-
-  try {
-    return JSON.parse(content) as OutputData;
-  } catch (error) {
-    console.error("Error parsing profile content:", error);
-    return content;
-  }
+  return parseAndSanitizeEditorJsContent(content);
 }
 
 function toActiveUserIdSet(activeUserIds?: readonly string[] | Set<string>) {

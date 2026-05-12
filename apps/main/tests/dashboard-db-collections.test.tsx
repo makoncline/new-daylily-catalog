@@ -964,7 +964,7 @@ describe("dashboardDb TanStack DB collections", () => {
   });
 
   it("images: create -> reorder -> delete renumbers", async () => {
-    await withTempAppDb(async () => {
+    await withTempAppDb(async ({ user }) => {
       const { insertListing, initializeListingsCollection } = await import(
         "@/app/dashboard/_lib/dashboard-db/listings-collection"
       );
@@ -998,18 +998,24 @@ describe("dashboardDb TanStack DB collections", () => {
 
       let u1Id = "";
       let u2Id = "";
+      let url1 = "";
+      let url2 = "";
       await act(async () => {
+        const key1 = `${user.id}/${listingId}/u1.jpg`;
+        const key2 = `${user.id}/${listingId}/u2.jpg`;
+        url1 = `https://daylily-catalog-images-test.s3.us-east-1.amazonaws.com/${key1}`;
+        url2 = `https://daylily-catalog-images-test.s3.us-east-1.amazonaws.com/${key2}`;
         const u1 = await createImage({
           type: "listing",
           referenceId: listingId,
-          url: "u1",
-          key: "k1",
+          url: url1,
+          key: key1,
         });
         const u2 = await createImage({
           type: "listing",
           referenceId: listingId,
-          url: "u2",
-          key: "k2",
+          url: url2,
+          key: key2,
         });
         u1Id = u1.id;
         u2Id = u2.id;
@@ -1017,7 +1023,7 @@ describe("dashboardDb TanStack DB collections", () => {
 
       await waitFor(() => {
         expect(screen.getByTestId("count").textContent).toBe("2");
-        expect(screen.getByTestId("urls").textContent).toBe("u1,u2");
+        expect(screen.getByTestId("urls").textContent).toBe(`${url1},${url2}`);
         expect(screen.getByTestId("orders").textContent).toBe("0,1");
       });
 
@@ -1033,7 +1039,7 @@ describe("dashboardDb TanStack DB collections", () => {
       });
 
       await waitFor(() => {
-        expect(screen.getByTestId("urls").textContent).toBe("u2,u1");
+        expect(screen.getByTestId("urls").textContent).toBe(`${url2},${url1}`);
         expect(screen.getByTestId("orders").textContent).toBe("0,1");
       });
 
@@ -1047,7 +1053,7 @@ describe("dashboardDb TanStack DB collections", () => {
 
       await waitFor(() => {
         expect(screen.getByTestId("count").textContent).toBe("1");
-        expect(screen.getByTestId("urls").textContent).toBe("u1");
+        expect(screen.getByTestId("urls").textContent).toBe(url1);
         expect(screen.getByTestId("orders").textContent).toBe("0");
       });
     });

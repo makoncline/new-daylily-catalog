@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const dbMocks = vi.hoisted(() => ({
   listingFindMany: vi.fn(),
+  getProUserIds: vi.fn(),
 }));
 
 vi.mock("@/server/db", () => ({
@@ -17,6 +18,10 @@ vi.mock("@/server/db", () => ({
       findMany: dbMocks.listingFindMany,
     },
   },
+}));
+
+vi.mock("@/server/db/getProUserIds", () => ({
+  getProUserIds: dbMocks.getProUserIds,
 }));
 
 function createFeedListing(index: number) {
@@ -106,6 +111,7 @@ describe("google merchant feed route", () => {
     vi.clearAllMocks();
     process.env.APP_BASE_URL = "https://daylilycatalog.com";
     delete process.env.NEXT_PUBLIC_USE_V2_CULTIVAR_DISPLAY_DATA;
+    dbMocks.getProUserIds.mockResolvedValue(["user-1"]);
   });
 
   it("paginates listing queries to stay below database parameter limits", async () => {
@@ -125,10 +131,16 @@ describe("google merchant feed route", () => {
 
     expect(response.status).toBe(200);
     expect(body.match(/<item>/g)).toHaveLength(201);
+    expect(dbMocks.getProUserIds).toHaveBeenCalledTimes(1);
     expect(dbMocks.listingFindMany).toHaveBeenCalledTimes(2);
     expect(dbMocks.listingFindMany).toHaveBeenNthCalledWith(
       1,
       expect.objectContaining({
+        where: {
+          price: { not: null },
+          OR: [{ status: null }, { NOT: { status: "HIDDEN" } }],
+          userId: { in: ["user-1"] },
+        },
         orderBy: { id: "asc" },
         take: 200,
       }),

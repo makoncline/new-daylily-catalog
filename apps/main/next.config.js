@@ -38,6 +38,21 @@ const config = {
       },
     ];
   },
+
+  async headers() {
+    return [
+      {
+        source: "/",
+        headers: [
+          {
+            key: "Link",
+            value:
+              '</.well-known/api-catalog>; rel="api-catalog", </openapi.json>; rel="service-desc", </llms.txt>; rel="service-doc", </llms-full.txt>; rel="describedby", </.well-known/agent-skills/index.json>; rel="describedby", </sitemap.xml>; rel="describedby"',
+          },
+        ],
+      },
+    ];
+  },
 };
 
 // Only apply Sentry config if it's enabled

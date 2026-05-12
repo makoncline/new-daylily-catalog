@@ -4,6 +4,7 @@ import {
   createBreadcrumbListSchema,
   createUserProfileBreadcrumbs,
 } from "@/lib/utils/breadcrumbs";
+import { serializeJsonLd } from "@/lib/utils/json-ld";
 
 // Define types using types from the functions directly
 type Profile = Parameters<typeof generateProfilePageJsonLd>[0];
@@ -51,11 +52,11 @@ export async function ProfilePageSEO({
     <>
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        dangerouslySetInnerHTML={{ __html: serializeJsonLd(jsonLd) }}
       />
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbSchema) }}
+        dangerouslySetInnerHTML={{ __html: serializeJsonLd(breadcrumbSchema) }}
       />
     </>
   );

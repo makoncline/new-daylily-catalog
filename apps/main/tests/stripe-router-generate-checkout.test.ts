@@ -21,6 +21,7 @@ process.env.NEXT_PUBLIC_CLOUDFLARE_URL ??= "https://example.com";
 const stripeMocks = vi.hoisted(() => ({
   customersCreate: vi.fn(),
   checkoutCreate: vi.fn(),
+  billingPortalCreate: vi.fn(),
 }));
 
 const subscriptionMocks = vi.hoisted(() => ({
@@ -37,6 +38,11 @@ vi.mock("@/server/stripe/client", () => ({
         create: stripeMocks.checkoutCreate,
       },
     },
+    billingPortal: {
+      sessions: {
+        create: stripeMocks.billingPortalCreate,
+      },
+    },
   }),
 }));
 
@@ -45,7 +51,7 @@ vi.mock("@/server/stripe/sync-subscription", () => ({
 }));
 
 vi.mock("@/lib/utils/getBaseUrl", () => ({
-  getRequestBaseUrl: () => "https://prod.daylilycatalog.com",
+  getCanonicalBaseUrl: () => "https://daylilycatalog.com",
 }));
 
 type StripeRouterModule = typeof import("@/server/api/routers/stripe");
@@ -76,6 +82,7 @@ function createCaller(
     stripeCustomerId: string | null;
     clerkEmail?: string;
   },
+  headers = new Headers(),
 ) {
   return stripeRouter.createCaller({
     db: db as unknown as TRPCInternalContext["db"],
@@ -86,7 +93,7 @@ function createCaller(
         email: user.clerkEmail ?? "test@example.com",
       },
     } as unknown as TRPCInternalContext["_authUser"],
-    headers: new Headers(),
+    headers,
   });
 }
 
@@ -124,8 +131,8 @@ describe("stripe.generateCheckout", () => {
         subscription_data: {
           trial_period_days: SUBSCRIPTION_CONFIG.FREE_TRIAL_DAYS,
         },
-        success_url: "https://prod.daylilycatalog.com/subscribe/success",
-        cancel_url: "https://prod.daylilycatalog.com/dashboard",
+        success_url: "https://daylilycatalog.com/subscribe/success",
+        cancel_url: "https://daylilycatalog.com/dashboard",
       }),
     );
   });
@@ -159,9 +166,64 @@ describe("stripe.generateCheckout", () => {
         subscription_data: {
           trial_period_days: SUBSCRIPTION_CONFIG.FREE_TRIAL_DAYS,
         },
-        success_url: "https://prod.daylilycatalog.com/subscribe/success",
-        cancel_url: "https://prod.daylilycatalog.com/dashboard",
+        success_url: "https://daylilycatalog.com/subscribe/success",
+        cancel_url: "https://daylilycatalog.com/dashboard",
       }),
     );
+  });
+
+  it("ignores untrusted request hosts when generating checkout URLs", async () => {
+    const db = createMockDb();
+    const caller = createCaller(
+      db,
+      {
+        id: "user-3",
+        stripeCustomerId: "cus_existing",
+      },
+      new Headers({
+        "x-forwarded-host": "evil.example",
+        "x-forwarded-proto": "https",
+      }),
+    );
+
+    await caller.generateCheckout();
+
+    expect(stripeMocks.checkoutCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        success_url: "https://daylilycatalog.com/subscribe/success",
+        cancel_url: "https://daylilycatalog.com/dashboard",
+      }),
+    );
+  });
+});
+
+describe("stripe.getPortalSession", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    stripeMocks.billingPortalCreate.mockResolvedValue({
+      url: "https://billing.stripe.com/p/session/test",
+    });
+  });
+
+  it("uses the canonical dashboard URL for Stripe portal return URLs", async () => {
+    const db = createMockDb();
+    const caller = createCaller(
+      db,
+      {
+        id: "user-1",
+        stripeCustomerId: "cus_existing",
+      },
+      new Headers({
+        "x-forwarded-host": "evil.example",
+        "x-forwarded-proto": "https",
+      }),
+    );
+
+    await caller.getPortalSession();
+
+    expect(stripeMocks.billingPortalCreate).toHaveBeenCalledWith({
+      customer: "cus_existing",
+      return_url: "https://daylilycatalog.com/dashboard",
+    });
   });
 });
