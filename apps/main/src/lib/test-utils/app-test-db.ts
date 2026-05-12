@@ -189,7 +189,13 @@ export async function withTempAppDb<T>(
 
   await previousRun;
 
-  const envKeys = ["DATABASE_URL", "SKIP_ENV_VALIDATION", "STRIPE_SECRET_KEY"] as const;
+  const envKeys = [
+    "DATABASE_URL",
+    "SKIP_ENV_VALIDATION",
+    "STRIPE_SECRET_KEY",
+    "AWS_REGION",
+    "AWS_BUCKET_NAME",
+  ] as const;
   const prevEnv = Object.fromEntries(
     envKeys.map((key) => [key, process.env[key]]),
   );
@@ -199,6 +205,8 @@ export async function withTempAppDb<T>(
   process.env.DATABASE_URL = url;
   process.env.SKIP_ENV_VALIDATION = "1";
   process.env.STRIPE_SECRET_KEY ??= "sk_test_unit";
+  process.env.AWS_REGION ??= "us-east-1";
+  process.env.AWS_BUCKET_NAME ??= "daylily-catalog-images-test";
 
   try {
     (globalThis as unknown as { prisma?: unknown }).prisma = undefined;
