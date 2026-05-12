@@ -37,13 +37,16 @@ export function logDashboardSyncTiming(
   startedAt: number,
   details?: Record<string, string | number | boolean | null | undefined>,
 ) {
-  const durationMs =
-    typeof performance === "undefined" ? null : performance.now() - startedAt;
-  console.info("[dashboard-db-sync]", {
+  const now = typeof performance === "undefined" ? null : performance.now();
+  const durationMs = now === null ? null : now - startedAt;
+  const payload = {
     label,
+    atMs: now === null ? null : Number(now.toFixed(1)),
     durationMs: durationMs === null ? null : Number(durationMs.toFixed(1)),
     ...details,
-  });
+  };
+
+  console.info("[dashboard-db-sync]", JSON.stringify(payload));
 }
 
 export function writeCursorFromRows(args: {

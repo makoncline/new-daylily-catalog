@@ -1,13 +1,13 @@
-import { api } from "@/trpc/react";
 import { hasActiveSubscription } from "@/server/stripe/subscription-utils";
 import { normalizeError, reportError } from "@/lib/error-utils";
 import { useRouter } from "next/navigation";
 import { capturePosthogEvent } from "@/lib/analytics/posthog";
+import { api } from "@/trpc/react";
+import { usePersistedSubscriptionQuery } from "@/hooks/use-persisted-subscription-query";
 
 export function usePro() {
   const router = useRouter();
-  const { data: subscription, isLoading } =
-    api.stripe.getSubscription.useQuery();
+  const { data: subscription, isLoading } = usePersistedSubscriptionQuery();
   const generateCheckout = api.stripe.generateCheckout.useMutation();
 
   const subscriptionStatus = subscription?.status ?? null;

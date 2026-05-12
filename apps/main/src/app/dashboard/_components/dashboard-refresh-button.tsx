@@ -7,10 +7,14 @@ import { Button } from "@/components/ui/button";
 import { api } from "@/trpc/react";
 import { useDashboardDb } from "@/app/dashboard/_components/dashboard-db-provider";
 import { revalidateDashboardDbInBackground } from "@/app/dashboard/_lib/dashboard-db/dashboard-db-persistence";
+import { writeCachedSubscription } from "@/hooks/use-persisted-subscription-query";
 
 export function DashboardRefreshButton() {
-  const { status, userId, isRefreshing: isBackgroundRefreshing } =
-    useDashboardDb();
+  const {
+    status,
+    userId,
+    isRefreshing: isBackgroundRefreshing,
+  } = useDashboardDb();
   const utils = api.useUtils();
   const [isManualRefresh, setIsManualRefresh] = useState(false);
   const isRefreshing = isBackgroundRefreshing || isManualRefresh;
@@ -24,9 +28,12 @@ export function DashboardRefreshButton() {
       await Promise.all([
         revalidateDashboardDbInBackground(userId),
         utils.dashboardDb.userProfile.get.invalidate(),
+        utils.stripe.getSubscription.invalidate(),
       ]);
 
       await utils.dashboardDb.userProfile.get.fetch();
+      const subscription = await utils.stripe.getSubscription.fetch();
+      writeCachedSubscription(userId, subscription);
 
       toast.success("Dashboard refreshed");
     } finally {
@@ -45,7 +52,9 @@ export function DashboardRefreshButton() {
       data-testid="dashboard-refresh"
       data-state={isRefreshing ? "refreshing" : "idle"}
     >
-      <RefreshCw className={isRefreshing ? "h-4 w-4 animate-spin" : "h-4 w-4"} />
+      <RefreshCw
+        className={isRefreshing ? "h-4 w-4 animate-spin" : "h-4 w-4"}
+      />
     </Button>
   );
 }

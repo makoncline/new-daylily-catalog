@@ -3,9 +3,12 @@
 import { api } from "@/trpc/react";
 import { useRouter } from "next/navigation";
 import { Sparkles } from "lucide-react";
+import { useEffect } from "react";
 import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { hasActiveSubscription } from "@/server/stripe/subscription-utils";
 import { usePro } from "@/hooks/use-pro";
+import { logDashboardTiming } from "@/app/dashboard/_lib/dashboard-timing";
+import { usePersistedSubscriptionQuery } from "@/hooks/use-persisted-subscription-query";
 
 export function StripeCheckoutButton() {
   const { sendToCheckout, isPending } = usePro();
@@ -45,8 +48,17 @@ export function StripePortalButton() {
 
 // Smart component that shows either checkout or portal button based on subscription status
 export function StripeButton() {
-  const { data: subscription, isLoading } =
-    api.stripe.getSubscription.useQuery();
+  const subscriptionQuery = usePersistedSubscriptionQuery();
+  const { data: subscription, isLoading } = subscriptionQuery;
+
+  useEffect(() => {
+    logDashboardTiming("stripe-button.subscription-state", {
+      status: subscriptionQuery.status,
+      fetchStatus: subscriptionQuery.fetchStatus,
+      hasSubscription: subscription !== undefined,
+      subscriptionStatus: subscription?.status ?? null,
+    });
+  }, [subscription, subscriptionQuery.fetchStatus, subscriptionQuery.status]);
 
   if (isLoading) {
     return (

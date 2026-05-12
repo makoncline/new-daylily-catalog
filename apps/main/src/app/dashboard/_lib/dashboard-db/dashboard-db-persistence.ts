@@ -1,6 +1,5 @@
 "use client";
 
-import type { PersistedCollectionPersistence } from "@tanstack/browser-db-sqlite-persistence";
 import type { RouterOutputs } from "@/trpc/react";
 import { getQueryClient } from "@/trpc/query-client";
 import { getTrpcClient } from "@/trpc/client";
@@ -29,7 +28,6 @@ import {
   cultivarReferencesCollection,
   suppressNextCultivarReferencesCollectionSync,
 } from "@/app/dashboard/_lib/dashboard-db/cultivar-references-collection";
-import { dashboardDbCollectionId } from "@/app/dashboard/_lib/dashboard-db/dashboard-db-persisted-options";
 
 let dashboardDbRefreshQueue: Promise<void> = Promise.resolve();
 let dashboardDbRefreshGeneration = 0;
@@ -65,17 +63,16 @@ interface DashboardDbServerSnapshot {
   cultivarReferences: CultivarReferenceRow[];
 }
 
-type DashboardDbCollectionName =
-  | "listings"
-  | "lists"
-  | "images"
-  | "cultivar-references";
-
 interface DashboardDbRefreshGuard {
   isActive?: () => boolean;
 }
 
 type DashboardDbSnapshotSource = "primary" | "replica";
+
+interface DashboardCollectionPreloader {
+  preload: () => Promise<void>;
+  values: () => Iterable<unknown>;
+}
 
 export class DashboardRefreshLockCancelledError extends Error {
   constructor() {
@@ -243,35 +240,29 @@ function sortSnapshotCultivarReferences(rows: readonly CultivarReferenceRow[]) {
 
 function sortSnapshotListings(rows: readonly ListingRow[]) {
   return [...rows].sort(
-    (a, b) => b.createdAt.getTime() - a.createdAt.getTime(),
+    (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
   );
 }
 
 function sortSnapshotLists(rows: readonly ListRow[]) {
   return [...rows].sort(
-    (a, b) => b.createdAt.getTime() - a.createdAt.getTime(),
+    (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
   );
-}
-
-async function readPersistedDashboardDbRows<T extends object>(args: {
-  persistence: PersistedCollectionPersistence;
-  name: DashboardDbCollectionName;
-  userId: string;
-}) {
-  const rows = await args.persistence.adapter.loadSubset(
-    dashboardDbCollectionId({ name: args.name, userId: args.userId }),
-    {},
-  );
-  return rows.map((row) => row.value as T);
 }
 
 async function applyDashboardDbSnapshot(
   userId: string,
   snapshot: DashboardDbServerSnapshot,
-  options: { markCacheWritten?: boolean } = {},
+  options: {
+    label?: string;
+    markCacheWritten?: boolean;
+    preloadCollections?: boolean;
+  } = {},
 ) {
+  const startedAt = performance.now();
   const queryClient = getQueryClient();
 
+  const queryDataStartedAt = performance.now();
   queryClient.setQueryData(LISTINGS_QUERY_KEY, snapshot.listings);
   queryClient.setQueryData(LISTS_QUERY_KEY, snapshot.lists);
   queryClient.setQueryData(IMAGES_QUERY_KEY, snapshot.images);
@@ -279,7 +270,9 @@ async function applyDashboardDbSnapshot(
     CULTIVAR_REFS_QUERY_KEY,
     snapshot.cultivarReferences,
   );
+  const queryDataDurationMs = performance.now() - queryDataStartedAt;
 
+  const cursorStartedAt = performance.now();
   writeCursorFromSnapshotRows({
     cursorBase: LISTINGS_CURSOR_BASE,
     userId,
@@ -300,56 +293,92 @@ async function applyDashboardDbSnapshot(
     userId,
     rows: snapshot.cultivarReferences,
   });
+  const cursorDurationMs = performance.now() - cursorStartedAt;
 
   suppressNextDashboardCollectionSyncs();
-  await Promise.all([
-    listingsCollection.preload(),
-    listsCollection.preload(),
-    imagesCollection.preload(),
-    cultivarReferencesCollection.preload(),
-  ]);
+  let preloadDurationMs: number | null = null;
+  if (options.preloadCollections !== false) {
+    const preloadStartedAt = performance.now();
+    await Promise.all([
+      listingsCollection.preload(),
+      listsCollection.preload(),
+      imagesCollection.preload(),
+      cultivarReferencesCollection.preload(),
+    ]);
+    preloadDurationMs = performance.now() - preloadStartedAt;
+  }
+
   if (options.markCacheWritten !== false) {
     markDashboardDbSqliteCacheWritten(userId);
   }
+
+  logDashboardSyncTiming(options.label ?? "snapshot.apply", startedAt, {
+    listings: snapshot.listings.length,
+    lists: snapshot.lists.length,
+    images: snapshot.images.length,
+    cultivarReferences: snapshot.cultivarReferences.length,
+    queryDataDurationMs: Number(queryDataDurationMs.toFixed(1)),
+    cursorDurationMs: Number(cursorDurationMs.toFixed(1)),
+    preloadDurationMs:
+      preloadDurationMs === null ? null : Number(preloadDurationMs.toFixed(1)),
+  });
 }
 
 export async function hydrateDashboardDbFromSqlitePersistence(args: {
-  persistence: PersistedCollectionPersistence;
   userId: string;
 }) {
+  const startedAt = performance.now();
+  const hydrateCollection = async <TRow>(
+    collection: DashboardCollectionPreloader,
+  ) => {
+    const preloadStartedAt = performance.now();
+    await collection.preload();
+    const preloadDurationMs = performance.now() - preloadStartedAt;
+    const rows = Array.from(collection.values()) as TRow[];
+
+    return {
+      preloadDurationMs,
+      rows,
+    };
+  };
+
+  suppressNextDashboardCollectionSyncs();
+
   const [listings, lists, images, cultivarReferences] = await Promise.all([
-    readPersistedDashboardDbRows<ListingRow>({
-      persistence: args.persistence,
-      name: "listings",
-      userId: args.userId,
-    }),
-    readPersistedDashboardDbRows<ListRow>({
-      persistence: args.persistence,
-      name: "lists",
-      userId: args.userId,
-    }),
-    readPersistedDashboardDbRows<ImageRow>({
-      persistence: args.persistence,
-      name: "images",
-      userId: args.userId,
-    }),
-    readPersistedDashboardDbRows<CultivarReferenceRow>({
-      persistence: args.persistence,
-      name: "cultivar-references",
-      userId: args.userId,
-    }),
+    hydrateCollection<ListingRow>(listingsCollection),
+    hydrateCollection<ListRow>(listsCollection),
+    hydrateCollection<ImageRow>(imagesCollection),
+    hydrateCollection<CultivarReferenceRow>(cultivarReferencesCollection),
   ]);
 
-  await applyDashboardDbSnapshot(
-    args.userId,
-    {
-      listings: sortSnapshotListings(listings),
-      lists: sortSnapshotLists(lists),
-      images: sortSnapshotImages(images),
-      cultivarReferences: sortSnapshotCultivarReferences(cultivarReferences),
-    },
-    { markCacheWritten: false },
+  const queryDataStartedAt = performance.now();
+  const queryClient = getQueryClient();
+  queryClient.setQueryData(
+    LISTINGS_QUERY_KEY,
+    sortSnapshotListings(listings.rows),
   );
+  queryClient.setQueryData(LISTS_QUERY_KEY, sortSnapshotLists(lists.rows));
+  queryClient.setQueryData(IMAGES_QUERY_KEY, sortSnapshotImages(images.rows));
+  queryClient.setQueryData(
+    CULTIVAR_REFS_QUERY_KEY,
+    sortSnapshotCultivarReferences(cultivarReferences.rows),
+  );
+  const queryDataDurationMs = performance.now() - queryDataStartedAt;
+
+  logDashboardSyncTiming("sqlite.hydrate.snapshot", startedAt, {
+    userId: args.userId,
+    listings: listings.rows.length,
+    lists: lists.rows.length,
+    images: images.rows.length,
+    cultivarReferences: cultivarReferences.rows.length,
+    listingsPreloadDurationMs: Number(listings.preloadDurationMs.toFixed(1)),
+    listsPreloadDurationMs: Number(lists.preloadDurationMs.toFixed(1)),
+    imagesPreloadDurationMs: Number(images.preloadDurationMs.toFixed(1)),
+    cultivarReferencesPreloadDurationMs: Number(
+      cultivarReferences.preloadDurationMs.toFixed(1),
+    ),
+    queryDataDurationMs: Number(queryDataDurationMs.toFixed(1)),
+  });
 }
 
 async function fetchDashboardDbSnapshotFromSource(
@@ -487,7 +516,9 @@ export async function bootstrapDashboardDbFromServer(
         return;
       }
 
-      await applyDashboardDbSnapshot(userId, snapshot);
+      await applyDashboardDbSnapshot(userId, snapshot, {
+        label: "primary.bootstrap.apply",
+      });
     });
   } catch (error) {
     if (isDashboardRefreshLockCancelledError(error)) {
@@ -527,6 +558,7 @@ export async function bootstrapDashboardDbFromReplica(
       }
 
       await applyDashboardDbSnapshot(userId, snapshot, {
+        label: "replica.bootstrap.apply",
         markCacheWritten: false,
       });
     });
@@ -564,7 +596,9 @@ export async function refreshDashboardDbFromServer(
         return false;
       }
 
-      await applyDashboardDbSnapshot(userId, snapshot);
+      await applyDashboardDbSnapshot(userId, snapshot, {
+        label: "primary.refresh.apply",
+      });
       return true;
     });
   } catch (error) {

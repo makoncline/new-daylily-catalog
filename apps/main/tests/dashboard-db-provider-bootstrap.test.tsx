@@ -27,12 +27,8 @@ beforeEach(async () => {
 });
 
 afterEach(() => {
-  vi.doUnmock(
-    "@/app/dashboard/_lib/dashboard-db/dashboard-db-collections",
-  );
-  vi.doUnmock(
-    "@/app/dashboard/_lib/dashboard-db/dashboard-db-persistence",
-  );
+  vi.doUnmock("@/app/dashboard/_lib/dashboard-db/dashboard-db-collections");
+  vi.doUnmock("@/app/dashboard/_lib/dashboard-db/dashboard-db-persistence");
   vi.doUnmock(
     "@/app/dashboard/_lib/dashboard-db/dashboard-db-sqlite-persistence",
   );
@@ -138,6 +134,18 @@ function deferred<T = void>() {
   return { promise, reject, resolve };
 }
 
+function getBootstrapTestResult(path: string) {
+  switch (path) {
+    case "dashboardDb.user.getCurrentUserId":
+      return { data: { id: "user-1" } };
+    case "dashboardDb.userProfile.get":
+    case "stripe.getSubscription":
+      return { data: null };
+    default:
+      return undefined;
+  }
+}
+
 describe("dashboardDb provider bootstrap", () => {
   it("cold bootstrap fetches each dashboard collection once", async () => {
     await withTempAppDb(async ({ user }) => {
@@ -213,7 +221,7 @@ describe("dashboardDb provider bootstrap", () => {
         await new Promise((resolve) => setTimeout(resolve, 0));
       });
 
-      expect(opCounts.get("dashboardDb.user.getCurrentUser")).toBe(1);
+      expect(opCounts.get("dashboardDb.user.getCurrentUserId")).toBe(1);
       expect(opCounts.get("dashboardDb.userProfile.get")).toBe(1);
       expectFullSnapshotFetchCounts(opCounts, "replica");
       await waitFor(() => {
@@ -326,9 +334,9 @@ describe("dashboardDb provider bootstrap", () => {
       });
       expect(opCounts.get("dashboardDb.bootstrap.replicaAvailable")).toBe(1);
       expect(opCounts.get("dashboardDb.bootstrap.replicaRoots") ?? 0).toBe(0);
-      expect(opCounts.get("dashboardDb.image.listByListingIdsReplica") ?? 0).toBe(
-        0,
-      );
+      expect(
+        opCounts.get("dashboardDb.image.listByListingIdsReplica") ?? 0,
+      ).toBe(0);
       expectFullSnapshotFetchCounts(opCounts);
     });
   });
@@ -393,7 +401,9 @@ describe("dashboardDb provider bootstrap", () => {
         expect(
           screen.getByText("Unable to load dashboard data"),
         ).toBeInTheDocument();
-        expect(screen.getByText("Please refresh the page.")).toBeInTheDocument();
+        expect(
+          screen.getByText("Please refresh the page."),
+        ).toBeInTheDocument();
       });
 
       expect(screen.queryByTestId("dashboard-ready")).toBeNull();
@@ -464,32 +474,19 @@ describe("dashboardDb provider bootstrap", () => {
         () =>
           ({ op }) =>
             observable((emit) => {
-              if (op.path === "dashboardDb.user.getCurrentUser") {
+              const result = getBootstrapTestResult(op.path);
+              if (result) {
                 emit.next({
-                  result: {
-                    data: {
-                      id: "user-1",
-                    },
-                  },
-                });
-                emit.complete();
-                return;
-              }
-
-              if (op.path === "dashboardDb.userProfile.get") {
-                emit.next({
-                  result: {
-                    data: null,
-                  },
+                  result,
                 });
                 emit.complete();
                 return;
               }
 
               emit.error(
-                new Error(
-                  `Unexpected operation ${op.path}`,
-                ) as Parameters<typeof emit.error>[0],
+                new Error(`Unexpected operation ${op.path}`) as Parameters<
+                  typeof emit.error
+                >[0],
               );
             }),
       ],
@@ -596,32 +593,19 @@ describe("dashboardDb provider bootstrap", () => {
         () =>
           ({ op }) =>
             observable((emit) => {
-              if (op.path === "dashboardDb.user.getCurrentUser") {
+              const result = getBootstrapTestResult(op.path);
+              if (result) {
                 emit.next({
-                  result: {
-                    data: {
-                      id: "user-1",
-                    },
-                  },
-                });
-                emit.complete();
-                return;
-              }
-
-              if (op.path === "dashboardDb.userProfile.get") {
-                emit.next({
-                  result: {
-                    data: null,
-                  },
+                  result,
                 });
                 emit.complete();
                 return;
               }
 
               emit.error(
-                new Error(
-                  `Unexpected operation ${op.path}`,
-                ) as Parameters<typeof emit.error>[0],
+                new Error(`Unexpected operation ${op.path}`) as Parameters<
+                  typeof emit.error
+                >[0],
               );
             }),
       ],
@@ -713,32 +697,19 @@ describe("dashboardDb provider bootstrap", () => {
         () =>
           ({ op }) =>
             observable((emit) => {
-              if (op.path === "dashboardDb.user.getCurrentUser") {
+              const result = getBootstrapTestResult(op.path);
+              if (result) {
                 emit.next({
-                  result: {
-                    data: {
-                      id: "user-1",
-                    },
-                  },
-                });
-                emit.complete();
-                return;
-              }
-
-              if (op.path === "dashboardDb.userProfile.get") {
-                emit.next({
-                  result: {
-                    data: null,
-                  },
+                  result,
                 });
                 emit.complete();
                 return;
               }
 
               emit.error(
-                new Error(
-                  `Unexpected operation ${op.path}`,
-                ) as Parameters<typeof emit.error>[0],
+                new Error(`Unexpected operation ${op.path}`) as Parameters<
+                  typeof emit.error
+                >[0],
               );
             }),
       ],
@@ -823,32 +794,19 @@ describe("dashboardDb provider bootstrap", () => {
         () =>
           ({ op }) =>
             observable((emit) => {
-              if (op.path === "dashboardDb.user.getCurrentUser") {
+              const result = getBootstrapTestResult(op.path);
+              if (result) {
                 emit.next({
-                  result: {
-                    data: {
-                      id: "user-1",
-                    },
-                  },
-                });
-                emit.complete();
-                return;
-              }
-
-              if (op.path === "dashboardDb.userProfile.get") {
-                emit.next({
-                  result: {
-                    data: null,
-                  },
+                  result,
                 });
                 emit.complete();
                 return;
               }
 
               emit.error(
-                new Error(
-                  `Unexpected operation ${op.path}`,
-                ) as Parameters<typeof emit.error>[0],
+                new Error(`Unexpected operation ${op.path}`) as Parameters<
+                  typeof emit.error
+                >[0],
               );
             }),
       ],
