@@ -70,7 +70,9 @@ export function configureDashboardDbCollectionsPersistence(args: {
 }
 
 export async function initializeDashboardDbCollections(userId: string) {
-  await Promise.all(dashboardDbCollections.map((entry) => entry.initialize(userId)));
+  await Promise.all(
+    dashboardDbCollections.map((entry) => entry.initialize(userId)),
+  );
 }
 
 export async function preloadDashboardDbCollections() {
@@ -83,5 +85,7 @@ export async function preloadDashboardDbCollections() {
 }
 
 export async function cleanupDashboardDbCollections() {
-  await Promise.allSettled(dashboardDbCollections.map((entry) => entry.cleanup()));
+  await Promise.allSettled(
+    dashboardDbCollections.map((entry) => entry.cleanup()),
+  );
 }

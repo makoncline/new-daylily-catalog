@@ -88,7 +88,7 @@ function isDashboardRefreshLockCancelledError(error: unknown) {
   return error instanceof DashboardRefreshLockCancelledError;
 }
 
-export function markDashboardDbSqliteCacheWritten(userId: string) {
+function markDashboardDbSqliteCacheWritten(userId: string) {
   localStorage.setItem(
     cursorKey(SQLITE_CACHE_WRITTEN_AT_BASE, userId),
     new Date().toISOString(),

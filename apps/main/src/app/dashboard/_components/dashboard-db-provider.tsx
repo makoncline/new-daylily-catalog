@@ -185,6 +185,15 @@ export function DashboardDbProvider({
     const startedAt = new Date();
     const isBootstrapActive = () =>
       !cancelled && initializedUserIdRef.current === bootstrapUserId;
+    const startBackgroundRefresh = () => {
+      void revalidateDashboardDbInBackground(userId, {
+        isActive: isBootstrapActive,
+      }).finally(() => {
+        if (!isBootstrapActive()) return;
+
+        setDashboardRefreshing(false, userId);
+      });
+    };
     setCurrentUserId(userId);
     setDashboardDbState({
       status: "loading",
@@ -194,17 +203,13 @@ export function DashboardDbProvider({
 
     void (async () => {
       try {
-        phase = "sqlite-persistence";
         const sqlitePersistence = await getDashboardDbSqlitePersistence();
         configureDashboardDbCollectionsPersistence({
           persistence: sqlitePersistence,
           userId,
         });
 
-        if (
-          sqlitePersistence &&
-          hasFreshDashboardDbSqliteCache(userId)
-        ) {
+        if (sqlitePersistence && hasFreshDashboardDbSqliteCache(userId)) {
           phase = "sqlite-warm-hydrate";
           setDashboardDbState({
             status: "loading",
@@ -226,14 +231,7 @@ export function DashboardDbProvider({
               userId,
               isRefreshing: true,
             });
-            void revalidateDashboardDbInBackground(userId, {
-              isActive: isBootstrapActive,
-            })
-              .finally(() => {
-                if (!isBootstrapActive()) return;
-
-                setDashboardRefreshing(false, userId);
-              });
+            startBackgroundRefresh();
           }
           return;
         }
@@ -262,13 +260,7 @@ export function DashboardDbProvider({
           });
 
           if (usedReplica) {
-            void revalidateDashboardDbInBackground(userId, {
-              isActive: isBootstrapActive,
-            }).finally(() => {
-              if (!isBootstrapActive()) return;
-
-              setDashboardRefreshing(false, userId);
-            });
+            startBackgroundRefresh();
           }
         }
       } catch (error) {
