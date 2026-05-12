@@ -18,6 +18,23 @@ import {
 import { sendPublicInquiry } from "@/server/services/public-inquiry";
 import { cartItemSchema } from "@/types";
 
+const publicInquiryCartItemSchema = cartItemSchema.extend({
+  id: z.string().min(1).max(128),
+  title: z.string().min(1).max(200),
+  price: z.number().min(0).max(100000).nullable(),
+  quantity: z.number().int().min(1).max(999),
+  listingId: z.string().min(1).max(128),
+  userId: z.string().min(1).max(128),
+});
+
+const publicInquiryInputSchema = z.object({
+  userId: z.string().min(1).max(128),
+  customerEmail: z.string().email().max(254),
+  customerName: z.string().max(120).optional(),
+  message: z.string().max(5000),
+  items: z.array(publicInquiryCartItemSchema).max(25).optional(),
+});
+
 export const publicRouter = createTRPCRouter({
   getPublicProfiles: publicProcedure.query(() => getPublicProfiles()),
 
@@ -78,14 +95,8 @@ export const publicRouter = createTRPCRouter({
   ),
 
   sendMessage: publicProcedure
-    .input(
-      z.object({
-        userId: z.string(),
-        customerEmail: z.string().email(),
-        customerName: z.string().optional(),
-        message: z.string(),
-        items: z.array(cartItemSchema).optional(),
-      }),
-    )
-    .mutation(async ({ input }) => sendPublicInquiry(input)),
+    .input(publicInquiryInputSchema)
+    .mutation(async ({ ctx, input }) =>
+      sendPublicInquiry(input, { headers: ctx.headers }),
+    ),
 });

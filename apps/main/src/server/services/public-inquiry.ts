@@ -5,6 +5,7 @@ import type { CartItem } from "@/types";
 import { getCanonicalBaseUrl } from "@/lib/utils/getBaseUrl";
 import { db } from "@/server/db";
 import { getClerkUserData } from "@/server/clerk/sync-user";
+import { enforcePublicInquiryRateLimit } from "@/server/services/public-inquiry-rate-limit";
 
 export interface SendPublicInquiryInput {
   userId: string;
@@ -12,6 +13,10 @@ export interface SendPublicInquiryInput {
   customerName?: string;
   message: string;
   items?: CartItem[];
+}
+
+export interface SendPublicInquiryOptions {
+  headers?: Headers;
 }
 
 interface PublicInquiryContext {
@@ -127,7 +132,9 @@ async function loadPublicInquiryContext(
   }
 
   const customerDisplayName = getCustomerDisplayName(input);
-  const { formattedItems, hasCartItems, subtotal } = formatCartItems(input.items);
+  const { formattedItems, hasCartItems, subtotal } = formatCartItems(
+    input.items,
+  );
   const catalogUrl = `${getCanonicalBaseUrl()}/${user.profile?.slug ?? user.id}`;
 
   return {
@@ -225,8 +232,14 @@ This is an automated confirmation from Daylily Catalog. Please do not reply.
 
 export async function sendPublicInquiry(
   input: SendPublicInquiryInput,
+  options: SendPublicInquiryOptions = {},
 ): Promise<{ success: boolean; message: string }> {
   try {
+    await enforcePublicInquiryRateLimit({
+      headers: options.headers,
+      input,
+    });
+
     const context = await loadPublicInquiryContext(input);
     const cleanedMessage = normalizeInquiryMessage(input.message);
     const formattedMessage =
