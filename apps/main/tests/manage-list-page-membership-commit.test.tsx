@@ -77,10 +77,10 @@ describe("Manage list membership mutations", () => {
     vi.clearAllMocks();
   });
 
-  it("marks list form as needing commit after add/remove membership changes", () => {
+  it("marks list form as needing commit after add/remove membership changes", async () => {
     render(<ManageListPageLive listId="list-1" />);
 
-    fireEvent.click(screen.getByRole("button", { name: "Add listing" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Add listing" }));
     fireEvent.click(screen.getByRole("button", { name: "Remove listing" }));
 
     expect(markNeedsCommitMock).toHaveBeenCalledTimes(2);

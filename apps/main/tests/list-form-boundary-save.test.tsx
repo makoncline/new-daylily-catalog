@@ -52,10 +52,10 @@ describe("ListForm boundary save semantics", () => {
     updateListMock.mockResolvedValue(undefined);
   });
 
-  it("does not save on field blur", () => {
+  it("does not save on field blur", async () => {
     render(<ListForm listId="list-1" />);
 
-    const titleInput = screen.getByLabelText("Title");
+    const titleInput = await screen.findByLabelText("Title");
     fireEvent.change(titleInput, {
       target: { value: "Updated list title" },
     });
@@ -67,7 +67,7 @@ describe("ListForm boundary save semantics", () => {
   it("saves on manual save button", async () => {
     render(<ListForm listId="list-1" />);
 
-    fireEvent.change(screen.getByLabelText("Title"), {
+    fireEvent.change(await screen.findByLabelText("Title"), {
       target: { value: "Updated list title" },
     });
     fireEvent.click(screen.getByRole("button", { name: "Save Changes" }));
@@ -82,7 +82,7 @@ describe("ListForm boundary save semantics", () => {
     const formRef = React.createRef<ListFormHandle>();
     render(<ListForm listId="list-1" formRef={formRef} />);
 
-    fireEvent.change(screen.getByLabelText("Title"), {
+    fireEvent.change(await screen.findByLabelText("Title"), {
       target: { value: "Updated list title" },
     });
 
@@ -103,7 +103,9 @@ describe("ListForm boundary save semantics", () => {
     const formRef = React.createRef<ListFormHandle>();
     render(<ListForm listId="list-1" formRef={formRef} />);
 
-    const saveButton = screen.getByRole("button", { name: "Save Changes" });
+    const saveButton = await screen.findByRole("button", {
+      name: "Save Changes",
+    });
     expect(saveButton).toBeDisabled();
 
     act(() => {
