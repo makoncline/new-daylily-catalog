@@ -20,7 +20,8 @@ jobs:
       github.event_name == 'workflow_dispatch' ||
       (github.event.deployment_status.state == 'success' &&
        (github.event.deployment.environment == 'Preview' || github.event.deployment.environment == 'preview') &&
-       (github.event.deployment_status.environment_url != '' || github.event.deployment_status.target_url != ''))
+       ((github.event.deployment_status.environment_url != '' && contains(github.event.deployment_status.environment_url, 'vercel.app')) ||
+        (github.event.deployment_status.target_url != '' && contains(github.event.deployment_status.target_url, 'vercel.app'))))
     runs-on: ubuntu-latest
     environment: preview
     steps:
