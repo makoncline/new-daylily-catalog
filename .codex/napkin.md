@@ -2,6 +2,7 @@
 
 ## Log
 
+- 2026-05-12 - dashboard AHS lookup replica seam - `dashboardDb.ahs.search` and `.get` are read-only cultivar catalog endpoints used by create/edit listing selection, so they can use `ctx.replicaDb` without moving listing mutation validation off the live primary. Future dashboard cultivar-linking changes should keep this split: lookup reads on replica, user-owned writes/validations on `ctx.db`.
 - 2026-05-12 - production embedded replica needs global singleton - The Turso embedded replica client owns a background sync timer against the same local file, and production Next module reloads/bundle duplication can create duplicate timers if `db.ts` only caches globals in non-production. Keep `db` and `replicaDb` assigned to `globalThis` in production too, and test production-like module re-imports when changing this path.
 - 2026-05-11 - dashboard replica tRPC context: Replica-backed dashboard procedures should read `ctx.replicaDb ?? ctx.db`, not import the global replica client directly. This keeps temp-db caller tests on the same database as the request context and still uses the configured embedded replica in normal runtime.
 - 2026-04-28 - dashboard large-ID reads need POST transport - This repo's tRPC handler/client is not configured with method override, so normal `.query` procedures use GET through `httpLink` and can create huge URLs for large dashboard ID chunks. Keep `dashboardDb.image.listByListingIds` and `dashboardDb.cultivarReference.getByIdsBatch` as read-only `.mutation` procedures unless adding POST query transport first.
