@@ -67,11 +67,7 @@ describe("useImageUpload", () => {
       url: uploadedImage.url,
     });
     uploadFileWithProgressMock.mockImplementation(
-      async ({
-        onProgress,
-      }: {
-        onProgress: (value: number) => void;
-      }) => {
+      async ({ onProgress }: { onProgress: (value: number) => void }) => {
         onProgress(25);
         onProgress(100);
       },
@@ -116,7 +112,9 @@ describe("useImageUpload", () => {
       key: "abc123.jpg",
     });
     expect(onSuccess).toHaveBeenCalledWith(uploadedImage);
-    expect(toastSuccessMock).toHaveBeenCalledWith("Image uploaded successfully");
+    expect(toastSuccessMock).toHaveBeenCalledWith(
+      "Image uploaded successfully",
+    );
     expect(returned).toEqual(uploadedImage);
 
     await waitFor(() => {
@@ -125,8 +123,73 @@ describe("useImageUpload", () => {
     });
   });
 
+  it("uses a supported signed content type for untyped blobs", async () => {
+    const uploadedImage = {
+      id: "img-1",
+      url: "https://example.com/images/img-1.jpg",
+    };
+
+    getPresignedUrlMutateAsyncMock.mockResolvedValue({
+      presignedUrl: "https://upload-url.example",
+      key: "abc123.jpg",
+      url: uploadedImage.url,
+    });
+    uploadFileWithProgressMock.mockResolvedValue(undefined);
+    createImageMock.mockResolvedValue(uploadedImage);
+
+    const { result } = renderHook(() =>
+      useImageUpload({
+        type: "listing",
+        referenceId: "listing-1",
+      }),
+    );
+
+    const file = new Blob(["image-bytes"]);
+
+    await act(async () => {
+      await result.current.upload(file);
+    });
+
+    expect(getPresignedUrlMutateAsyncMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        contentType: "image/jpeg",
+      }),
+    );
+    expect(uploadFileWithProgressMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        contentType: "image/jpeg",
+      }),
+    );
+  });
+
+  it("rejects unsupported typed blobs before presigning", async () => {
+    const { result } = renderHook(() =>
+      useImageUpload({
+        type: "listing",
+        referenceId: "listing-1",
+      }),
+    );
+
+    const file = new Blob(["image-bytes"], { type: "image/gif" });
+
+    let returned: unknown;
+    await act(async () => {
+      returned = await result.current.upload(file);
+    });
+
+    expect(returned).toBeUndefined();
+    expect(getPresignedUrlMutateAsyncMock).not.toHaveBeenCalled();
+    expect(uploadFileWithProgressMock).not.toHaveBeenCalled();
+    expect(createImageMock).not.toHaveBeenCalled();
+    expect(toastErrorMock).toHaveBeenCalledWith("Failed to get upload URL", {
+      description: "Only JPEG, PNG, and WebP images are supported",
+    });
+  });
+
   it("handles presigned-url failure and resets state", async () => {
-    getPresignedUrlMutateAsyncMock.mockRejectedValue(new Error("Presign failed"));
+    getPresignedUrlMutateAsyncMock.mockRejectedValue(
+      new Error("Presign failed"),
+    );
 
     const { result } = renderHook(() =>
       useImageUpload({

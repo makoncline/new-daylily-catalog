@@ -2,9 +2,13 @@ import { useCallback, useState } from "react";
 import { api } from "@/trpc/react";
 import { toast } from "sonner";
 import { uploadFileWithProgress } from "@/lib/utils";
-import { type ImageType } from "@/types/image";
+import { getSupportedImageContentType, type ImageType } from "@/types/image";
 import { type Image } from "@prisma/client";
-import { getErrorMessage, normalizeError, reportError } from "@/lib/error-utils";
+import {
+  getErrorMessage,
+  normalizeError,
+  reportError,
+} from "@/lib/error-utils";
 import { createImage } from "@/app/dashboard/_lib/dashboard-db/images-collection";
 
 interface UseImageUploadOptions {
@@ -32,11 +36,16 @@ export function useImageUpload({
         setIsUploading(true);
         setProgress(0);
 
+        const contentType = getSupportedImageContentType(file.type);
+        if (!contentType) {
+          throw new Error("Only JPEG, PNG, and WebP images are supported");
+        }
+
         const { presignedUrl, key, url } =
           await getPresignedUrlMutation.mutateAsync({
             type,
             fileName: `${Date.now()}.jpg`,
-            contentType: file.type,
+            contentType,
             size: file.size,
             referenceId,
           });
@@ -44,6 +53,7 @@ export function useImageUpload({
         step = "upload";
         await uploadFileWithProgress({
           presignedUrl,
+          contentType,
           file,
           onProgress: setProgress,
         });
@@ -89,4 +99,3 @@ export function useImageUpload({
     isUploading,
   };
 }
-

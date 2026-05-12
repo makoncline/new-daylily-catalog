@@ -37,6 +37,10 @@ import { useOnboardingProfileImageFlow } from "./use-onboarding-profile-image-fl
 import { useOnboardingPreviewState } from "./use-onboarding-preview-state";
 import { useOnboardingSaveFlow } from "./use-onboarding-save-flow";
 import { useOnboardingStepFlow } from "./use-onboarding-step-flow";
+import {
+  getSupportedImageContentType,
+  type ImageContentType,
+} from "@/types/image";
 
 const DEFAULT_STARTER_IMAGE_URL = STARTER_PROFILE_IMAGES[0]?.url ?? null;
 
@@ -839,7 +843,7 @@ async function uploadOnboardingImageBlob({
   getPresignedUrl: (input: {
     type: "profile" | "listing";
     fileName: string;
-    contentType: string;
+    contentType: ImageContentType;
     size: number;
     referenceId: string;
   }) => Promise<{
@@ -850,7 +854,10 @@ async function uploadOnboardingImageBlob({
 }) {
   const fileNamePrefix = type === "profile" ? "profile" : "listing";
   const fileName = `onboarding-${fileNamePrefix}-${Date.now()}.jpg`;
-  const contentType = blob.type || "image/jpeg";
+  const contentType = getSupportedImageContentType(blob.type);
+  if (!contentType) {
+    throw new Error("Only JPEG, PNG, and WebP images are supported");
+  }
 
   const { presignedUrl, key, url } = await getPresignedUrl({
     type,
@@ -862,6 +869,7 @@ async function uploadOnboardingImageBlob({
 
   await uploadFileWithProgress({
     presignedUrl,
+    contentType,
     file: blob,
     onProgress: () => undefined,
   });

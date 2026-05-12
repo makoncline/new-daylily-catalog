@@ -7,8 +7,7 @@ import { APP_CONFIG } from "@/config/constants";
 import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import crypto from "node:crypto";
-import path from "node:path";
-import { imageTypeSchema } from "@/types/image";
+import { imageContentTypeSchema, imageTypeSchema } from "@/types/image";
 import type { db } from "@/server/db";
 import {
   assertOwnedListing,
@@ -29,6 +28,15 @@ const imageSelect = {
 } as const;
 
 type DbClient = typeof db;
+const imageExtensionByContentType: Record<
+  z.infer<typeof imageContentTypeSchema>,
+  string
+> = {
+  "image/jpeg": ".jpg",
+  "image/png": ".png",
+  "image/webp": ".webp",
+};
+
 type ImageRow = {
   id: string;
   url: string;
@@ -68,6 +76,90 @@ function sortImagesForDashboard(
   );
 }
 
+function getUploadBucketName() {
+  return requireEnv("AWS_BUCKET_NAME", env.AWS_BUCKET_NAME);
+}
+
+function getUploadRegion() {
+  return requireEnv("AWS_REGION", env.AWS_REGION);
+}
+
+function getS3ImageUrl(key: string) {
+  return `https://${getUploadBucketName()}.s3.${getUploadRegion()}.amazonaws.com/${key}`;
+}
+
+function assertUploadKeyMatchesTarget(args: {
+  key: string;
+  referenceId: string;
+  userId: string;
+}) {
+  const prefix = `${args.userId}/${args.referenceId}/`;
+  const hasAllowedExtension = Object.values(imageExtensionByContentType).some(
+    (extension) => args.key.endsWith(extension),
+  );
+
+  if (!args.key.startsWith(prefix) || !hasAllowedExtension) {
+    throw new TRPCError({
+      code: "BAD_REQUEST",
+      message: "Invalid image upload key",
+    });
+  }
+}
+
+function parseS3ImageKey(url: string) {
+  try {
+    const parsed = new URL(url);
+    const expectedHost = `${getUploadBucketName()}.s3.${getUploadRegion()}.amazonaws.com`;
+
+    if (parsed.protocol !== "https:" || parsed.host !== expectedHost) {
+      return null;
+    }
+
+    return decodeURIComponent(parsed.pathname.replace(/^\/+/, ""));
+  } catch {
+    return null;
+  }
+}
+
+function getValidatedImageUrl(args: {
+  key: string;
+  referenceId: string;
+  url: string;
+  userId: string;
+}) {
+  assertUploadKeyMatchesTarget({
+    key: args.key,
+    referenceId: args.referenceId,
+    userId: args.userId,
+  });
+
+  const parsedKey = parseS3ImageKey(args.url);
+  if (parsedKey !== args.key || args.url !== getS3ImageUrl(args.key)) {
+    throw new TRPCError({
+      code: "BAD_REQUEST",
+      message: "Invalid image upload URL",
+    });
+  }
+
+  return getS3ImageUrl(args.key);
+}
+
+function getValidatedImageUrlFromUrl(args: {
+  referenceId: string;
+  url: string;
+  userId: string;
+}) {
+  const key = parseS3ImageKey(args.url);
+  if (!key) {
+    throw new TRPCError({
+      code: "BAD_REQUEST",
+      message: "Invalid image upload URL",
+    });
+  }
+
+  return getValidatedImageUrl({ ...args, key });
+}
+
 async function getOwnedImageWhere(args: { db: DbClient; userId: string }) {
   const [listingRows, profile] = await Promise.all([
     args.db.listing.findMany({
@@ -94,9 +186,9 @@ export const dashboardDbImageRouter = createTRPCRouter({
     .input(
       z.object({
         type: imageTypeSchema,
-        fileName: z.string(),
-        contentType: z.string(),
-        size: z.number().max(APP_CONFIG.UPLOAD.MAX_FILE_SIZE),
+        fileName: z.string().min(1).max(255),
+        contentType: imageContentTypeSchema,
+        size: z.number().int().positive().max(APP_CONFIG.UPLOAD.MAX_FILE_SIZE),
         referenceId: z.string(),
       }),
     )
@@ -126,24 +218,23 @@ export const dashboardDbImageRouter = createTRPCRouter({
         },
       });
 
-      const ext = path.extname(input.fileName);
-      const fileId = crypto.randomBytes(4).toString("hex");
+      const ext = imageExtensionByContentType[input.contentType];
+      const fileId = crypto.randomBytes(16).toString("hex");
       const key = `${ctx.user.id}/${input.referenceId}/${fileId}${ext}`;
 
       const command = new PutObjectCommand({
-        Bucket: requireEnv("AWS_BUCKET_NAME", env.AWS_BUCKET_NAME),
+        Bucket: getUploadBucketName(),
         Key: key,
         ContentType: input.contentType,
+        ContentLength: input.size,
       });
 
-      const bucketName = requireEnv("AWS_BUCKET_NAME", env.AWS_BUCKET_NAME);
-      const region = requireEnv("AWS_REGION", env.AWS_REGION);
       const url = await getSignedUrl(s3Client, command, { expiresIn: 3600 });
 
       return {
         presignedUrl: url,
         key,
-        url: `https://${bucketName}.s3.${region}.amazonaws.com/${key}`,
+        url: getS3ImageUrl(key),
       } as const;
     }),
 
@@ -243,7 +334,7 @@ export const dashboardDbImageRouter = createTRPCRouter({
       z.object({
         type: imageTypeSchema,
         referenceId: z.string(),
-        url: z.string().min(1),
+        url: z.url(),
         key: z.string().min(1),
       }),
     )
@@ -262,6 +353,13 @@ export const dashboardDbImageRouter = createTRPCRouter({
         });
       }
 
+      const imageUrl = getValidatedImageUrl({
+        key: input.key,
+        referenceId: input.referenceId,
+        url: input.url,
+        userId: ctx.user.id,
+      });
+
       const whereClause =
         input.type === "listing"
           ? { listingId: input.referenceId }
@@ -271,7 +369,7 @@ export const dashboardDbImageRouter = createTRPCRouter({
 
       const image = await ctx.db.image.create({
         data: {
-          url: input.url,
+          url: imageUrl,
           order: currentCount,
           ...(input.type === "listing"
             ? { listingId: input.referenceId }
@@ -289,7 +387,7 @@ export const dashboardDbImageRouter = createTRPCRouter({
         type: imageTypeSchema,
         referenceId: z.string(),
         imageId: z.string(),
-        url: z.string().min(1),
+        url: z.url(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
@@ -328,9 +426,15 @@ export const dashboardDbImageRouter = createTRPCRouter({
         });
       }
 
+      const imageUrl = getValidatedImageUrlFromUrl({
+        referenceId: input.referenceId,
+        url: input.url,
+        userId: ctx.user.id,
+      });
+
       const image = await ctx.db.image.update({
         where: { id: input.imageId },
-        data: { url: input.url },
+        data: { url: imageUrl },
         select: imageSelect,
       });
 
