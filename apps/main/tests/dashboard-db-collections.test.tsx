@@ -81,18 +81,20 @@ function MembershipViewer({
   listingsCollection: any;
 }) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data: allLists = [] } = useLiveQuery((q: any) =>
+  const { data: allListsData = [] } = useLiveQuery((q: any) =>
     q
       .from({ list: listsCollection })
       .orderBy(({ list }: any) => (list.title ?? "") as string, "asc"),
   );
+  const allLists = allListsData as any[];
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data: allListings = [] } = useLiveQuery((q: any) =>
+  const { data: allListingsData = [] } = useLiveQuery((q: any) =>
     q
       .from({ listing: listingsCollection })
       .orderBy(({ listing }: any) => (listing.title ?? "") as string, "asc"),
   );
+  const allListings = allListingsData as any[];
 
   return (
     <div>

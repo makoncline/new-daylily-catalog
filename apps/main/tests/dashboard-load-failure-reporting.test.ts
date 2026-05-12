@@ -32,7 +32,6 @@ describe("dashboard load failure reporting", () => {
         startedAt: new Date("2026-04-28T00:00:00.000Z"),
         failedAt: new Date("2026-04-28T00:00:05.000Z"),
         elapsedMs: 5000,
-        hydratedSnapshot: false,
         bootstrapActive: true,
       }),
     ).not.toThrow();

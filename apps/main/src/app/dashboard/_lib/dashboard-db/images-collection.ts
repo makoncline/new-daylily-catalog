@@ -1,21 +1,26 @@
 "use client";
 
-import { createCollection } from "@tanstack/react-db";
-import { queryCollectionOptions } from "@tanstack/query-db-collection";
+import { createCollection, type Collection } from "@tanstack/react-db";
+import {
+  queryCollectionOptions,
+  type QueryCollectionUtils,
+} from "@tanstack/query-db-collection";
+import type { PersistedCollectionPersistence } from "@tanstack/browser-db-sqlite-persistence";
 import type { RouterInputs, RouterOutputs } from "@/trpc/react";
 import { getQueryClient } from "@/trpc/query-client";
 import { getTrpcClient } from "@/trpc/client";
 import { createTempId } from "@/lib/utils/create-temp-id";
 import { getUserCursorKey } from "@/lib/utils/cursor";
-import {
-  runWithDashboardRefreshLock,
-  schedulePersistDashboardDbForCurrentUser,
-} from "@/app/dashboard/_lib/dashboard-db/dashboard-db-persistence";
+import { runWithDashboardRefreshLock } from "@/app/dashboard/_lib/dashboard-db/dashboard-db-persistence";
 import {
   fetchDashboardSyncPages,
   refreshDashboardDbCollectionFromServer,
   writeCursorFromRows,
 } from "@/app/dashboard/_lib/dashboard-db/collection-bootstrap";
+import {
+  dashboardDbCollectionId,
+  withDashboardDbPersistence,
+} from "@/app/dashboard/_lib/dashboard-db/dashboard-db-persisted-options";
 
 const CURSOR_BASE = "dashboard-db:images:maxUpdatedAt";
 const QUERY_KEY = ["dashboard-db", "images"] as const;
@@ -25,6 +30,11 @@ let shouldSkipNextImagesSync = false;
 
 export type ImageCollectionItem =
   RouterOutputs["dashboardDb"]["image"]["list"][number];
+type ImageCollection = Collection<
+  ImageCollectionItem,
+  string,
+  QueryCollectionUtils<ImageCollectionItem>
+>;
 
 function sortImages(rows: readonly ImageCollectionItem[]) {
   return [...rows].sort((a, b) => {
@@ -54,8 +64,23 @@ export async function cleanupImagesCollection() {
   await imagesCollection.cleanup();
 }
 
-export const imagesCollection = createCollection(
-  queryCollectionOptions<ImageCollectionItem>({
+function getExistingImageRows(
+  queryKey: readonly unknown[],
+): ImageCollectionItem[] {
+  const queryRows: ImageCollectionItem[] =
+    getQueryClient().getQueryData(queryKey) ?? [];
+  const collectionRows: ImageCollectionItem[] = Array.from(
+    imagesCollection.values(),
+  );
+
+  return queryRows.length >= collectionRows.length ? queryRows : collectionRows;
+}
+
+function createImagesCollection(
+  persistence: PersistedCollectionPersistence | null,
+  userId: string | null,
+): ImageCollection {
+  const options = queryCollectionOptions<ImageCollectionItem>({
     queryClient: getQueryClient(),
     queryKey: QUERY_KEY,
     enabled: true,
@@ -63,8 +88,7 @@ export const imagesCollection = createCollection(
     retry: false,
     getKey: (row) => row.id,
     queryFn: async ({ queryKey }) => {
-      const existing: ImageCollectionItem[] =
-        getQueryClient().getQueryData(queryKey) ?? [];
+      const existing = getExistingImageRows(queryKey);
 
       if (shouldSkipNextImagesSync) {
         shouldSkipNextImagesSync = false;
@@ -74,6 +98,7 @@ export const imagesCollection = createCollection(
       const cursorKeyToUse = getUserCursorKey(CURSOR_BASE);
       const last = localStorage.getItem(cursorKeyToUse);
       const upserts = await fetchDashboardSyncPages({
+        label: "image.sync",
         since: last ?? null,
         pageSize: IMAGES_SYNC_PAGE_SIZE,
         fetchPage: (input) =>
@@ -90,8 +115,30 @@ export const imagesCollection = createCollection(
     onInsert: async () => ({ refetch: false }),
     onUpdate: async () => ({ refetch: false }),
     onDelete: async () => ({ refetch: false }),
-  }),
+  });
+
+  return createCollection(
+    withDashboardDbPersistence<ImageCollectionItem>({
+      options,
+      persistence,
+      collectionId: dashboardDbCollectionId({ name: "images", userId }),
+    }) as Parameters<typeof createCollection>[0],
+  ) as unknown as ImageCollection;
+}
+
+export let imagesCollection: ImageCollection = createImagesCollection(
+  null,
+  null,
 );
+
+export function resetImagesCollectionWithPersistence(
+  persistence: PersistedCollectionPersistence | null,
+  userId: string | null,
+) {
+  DELETED_IDS.clear();
+  shouldSkipNextImagesSync = false;
+  imagesCollection = createImagesCollection(persistence, userId);
+}
 
 type CreateDraft = RouterInputs["dashboardDb"]["image"]["create"];
 export async function createImage(draft: CreateDraft) {
@@ -135,7 +182,6 @@ export async function createImage(draft: CreateDraft) {
         if (!realExists) imagesCollection.utils.writeInsert(created);
       });
 
-      schedulePersistDashboardDbForCurrentUser();
       return created;
     } catch (error) {
       try {
@@ -165,7 +211,6 @@ export async function reorderImages(draft: ReorderDraft) {
 
     try {
       await getTrpcClient().dashboardDb.image.reorder.mutate(draft);
-      schedulePersistDashboardDbForCurrentUser();
     } catch (error) {
       imagesCollection.utils.writeBatch(() => {
         previous.forEach((img) => {
@@ -209,7 +254,6 @@ export async function deleteImage(draft: DeleteDraft) {
 
     try {
       await getTrpcClient().dashboardDb.image.delete.mutate(draft);
-      schedulePersistDashboardDbForCurrentUser({ delayMs: 0 });
     } catch (error) {
       if (previous) imagesCollection.utils.writeInsert(previous);
       DELETED_IDS.delete(draft.imageId);
@@ -230,6 +274,7 @@ async function refreshImagesCollectionFromServer(userId: string) {
     cursorBase: CURSOR_BASE,
     fetchRows: () =>
       fetchDashboardSyncPages({
+        label: "image.full-refresh",
         since: null,
         pageSize: IMAGES_SYNC_PAGE_SIZE,
         fetchPage: (input) =>

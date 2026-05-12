@@ -1,19 +1,23 @@
-import "fake-indexeddb/auto";
 import React, { StrictMode } from "react";
 import { useLiveQuery } from "@tanstack/react-db";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { createTRPCProxyClient, type TRPCLink } from "@trpc/client";
 import { observable } from "@trpc/server/observable";
 import { act, render, screen, waitFor } from "@testing-library/react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { AppRouter } from "@/server/api/root";
 import type { TRPCInternalContext } from "@/server/api/trpc";
 import { callerLink, withTempAppDb } from "@/lib/test-utils/app-test-db";
 import { getQueryClient } from "@/trpc/query-client";
 import { api } from "@/trpc/react";
-import { cursorKey } from "@/lib/utils/cursor";
 
 const reportDashboardLoadFailureMock = vi.hoisted(() => vi.fn());
+const useAuthMock = vi.hoisted(() =>
+  vi.fn<() => { isLoaded: boolean; userId: string | null }>(() => ({
+    isLoaded: true,
+    userId: "clerk-user-1",
+  })),
+);
 
 vi.mock(
   "@/app/dashboard/_lib/dashboard-db/dashboard-load-failure-reporting",
@@ -22,30 +26,40 @@ vi.mock(
   }),
 );
 
+vi.mock("@clerk/nextjs", () => ({
+  useAuth: () => useAuthMock(),
+}));
+
 beforeEach(async () => {
   localStorage.clear();
   reportDashboardLoadFailureMock.mockClear();
+  useAuthMock.mockReturnValue({ isLoaded: true, userId: "clerk-user-1" });
   await resetDashboardDbClientState();
-  await clearDashboardDbPersistence();
 });
 
-async function clearDashboardDbPersistence() {
-  if (typeof indexedDB === "undefined") {
-    return;
-  }
-
-  await new Promise<void>((resolve, reject) => {
-    const request = indexedDB.deleteDatabase("new-daylily-catalog");
-
-    request.onsuccess = () => resolve();
-    request.onerror = () =>
-      reject(request.error ?? new Error("Failed to delete IndexedDB database"));
-    request.onblocked = () => resolve();
-  });
-}
+afterEach(() => {
+  vi.doUnmock("@/app/dashboard/_lib/dashboard-db/dashboard-db-collections");
+  vi.doUnmock("@/app/dashboard/_lib/dashboard-db/dashboard-db-persistence");
+  vi.doUnmock(
+    "@/app/dashboard/_lib/dashboard-db/dashboard-db-sqlite-persistence",
+  );
+});
 
 function DashboardReadyMarker() {
   return <div data-testid="dashboard-ready">ready</div>;
+}
+
+function makeDashboardRefreshingMarker(
+  useDashboardDb: () => { isRefreshing: boolean },
+) {
+  return function DashboardRefreshingMarker() {
+    const { isRefreshing } = useDashboardDb();
+    return (
+      <div data-testid="dashboard-refreshing">
+        {isRefreshing ? "refreshing" : "idle"}
+      </div>
+    );
+  };
 }
 
 /* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-return */
@@ -54,11 +68,12 @@ function DashboardListingsMarker({
 }: {
   listingsCollection: any;
 }) {
-  const { data: items = [] } = useLiveQuery((q: any) =>
+  const { data: itemData = [] } = useLiveQuery((q: any) =>
     q
       .from({ listing: listingsCollection })
       .orderBy(({ listing }: any) => (listing.title ?? "") as string, "asc"),
   );
+  const items = itemData as any[];
 
   return (
     <div data-testid="dashboard-listings">
@@ -95,20 +110,56 @@ async function resetDashboardDbClientState() {
   ]);
 }
 
-function expectFullSnapshotFetchCounts(opCounts: Map<string, number>) {
-  expect(opCounts.get("dashboardDb.bootstrap.roots")).toBe(1);
-  expect(opCounts.get("dashboardDb.image.listByListingIds")).toBe(1);
+function expectFullSnapshotFetchCounts(
+  opCounts: Map<string, number>,
+  source: "primary" | "replica" = "primary",
+) {
+  expect(
+    opCounts.get(
+      source === "replica"
+        ? "dashboardDb.bootstrap.replicaRoots"
+        : "dashboardDb.bootstrap.roots",
+    ),
+  ).toBe(1);
+  expect(
+    opCounts.get(
+      source === "replica"
+        ? "dashboardDb.image.listByListingIdsReplica"
+        : "dashboardDb.image.listByListingIds",
+    ),
+  ).toBe(1);
   expect(opCounts.get("dashboardDb.listing.sync") ?? 0).toBe(0);
   expect(opCounts.get("dashboardDb.list.sync") ?? 0).toBe(0);
   expect(opCounts.get("dashboardDb.image.sync") ?? 0).toBe(0);
   expect(opCounts.get("dashboardDb.cultivarReference.sync") ?? 0).toBe(0);
 }
 
+function deferred<T = void>() {
+  let resolve!: (value: T) => void;
+  let reject!: (reason?: unknown) => void;
+  const promise = new Promise<T>((nextResolve, nextReject) => {
+    resolve = nextResolve;
+    reject = nextReject;
+  });
+
+  return { promise, reject, resolve };
+}
+
+function getBootstrapTestResult(path: string) {
+  switch (path) {
+    case "dashboardDb.user.getCurrentUserId":
+      return { data: { id: "user-1" } };
+    case "dashboardDb.userProfile.get":
+    case "stripe.getSubscription":
+      return { data: null };
+    default:
+      return undefined;
+  }
+}
+
 describe("dashboardDb provider bootstrap", () => {
   it("cold bootstrap fetches each dashboard collection once", async () => {
     await withTempAppDb(async ({ user }) => {
-      await clearDashboardDbPersistence();
-
       const { db } = await import("@/server/db");
 
       await db.listing.create({
@@ -123,7 +174,9 @@ describe("dashboardDb provider bootstrap", () => {
       const caller = createCaller(async () => {
         return {
           db,
+          hasReplicaDb: true,
           headers: new Headers(),
+          replicaDb: db,
           _authUser: {
             id: user.id,
           } as unknown as TRPCInternalContext["_authUser"],
@@ -147,9 +200,11 @@ describe("dashboardDb provider bootstrap", () => {
 
       const trpcClient = api.createClient({ links });
       const queryClient = getQueryClient();
-      const { DashboardDbProvider } = await import(
+      const { DashboardDbProvider, useDashboardDb } = await import(
         "@/app/dashboard/_components/dashboard-db-provider"
       );
+      const DashboardRefreshingMarker =
+        makeDashboardRefreshingMarker(useDashboardDb);
 
       await act(async () => {
         render(
@@ -157,6 +212,7 @@ describe("dashboardDb provider bootstrap", () => {
             <api.Provider client={trpcClient} queryClient={queryClient}>
               <DashboardDbProvider>
                 <DashboardReadyMarker />
+                <DashboardRefreshingMarker />
               </DashboardDbProvider>
             </api.Provider>
           </QueryClientProvider>,
@@ -176,9 +232,17 @@ describe("dashboardDb provider bootstrap", () => {
         await new Promise((resolve) => setTimeout(resolve, 0));
       });
 
-      expect(opCounts.get("dashboardDb.user.getCurrentUser")).toBe(1);
+      expect(opCounts.get("dashboardDb.user.getCurrentUserId")).toBe(1);
       expect(opCounts.get("dashboardDb.userProfile.get")).toBe(1);
-      expectFullSnapshotFetchCounts(opCounts);
+      expectFullSnapshotFetchCounts(opCounts, "replica");
+      await waitFor(() => {
+        expectFullSnapshotFetchCounts(opCounts);
+      });
+      await waitFor(() => {
+        expect(screen.getByTestId("dashboard-refreshing").textContent).toBe(
+          "idle",
+        );
+      });
       expect(opCounts.get("dashboardDb.cultivarReference.getByIds") ?? 0).toBe(
         0,
       );
@@ -194,8 +258,6 @@ describe("dashboardDb provider bootstrap", () => {
 
   it("cold bootstrap still loads complete data when persistence is unavailable", async () => {
     await withTempAppDb(async ({ user }) => {
-      await clearDashboardDbPersistence();
-
       const { db } = await import("@/server/db");
 
       await db.listing.create({
@@ -227,26 +289,36 @@ describe("dashboardDb provider bootstrap", () => {
         };
       });
 
-      const links: TRPCLink<AppRouter>[] = [callerLink(caller)];
+      const opCounts = new Map<string, number>();
+      const recordLink: TRPCLink<AppRouter> = () => {
+        return ({ op, next }) => {
+          opCounts.set(op.path, (opCounts.get(op.path) ?? 0) + 1);
+          return next(op);
+        };
+      };
+      const links: TRPCLink<AppRouter>[] = [recordLink, callerLink(caller)];
       const clientLike = createTRPCProxyClient<AppRouter>({ links });
 
       const { setTestTrpcClient } = await import("@/trpc/client");
       setTestTrpcClient(clientLike);
 
       const trpcClient = api.createClient({ links });
-      const { DashboardDbProvider } = await import(
+      const { DashboardDbProvider, useDashboardDb } = await import(
         "@/app/dashboard/_components/dashboard-db-provider"
       );
+      const DashboardRefreshingMarker =
+        makeDashboardRefreshingMarker(useDashboardDb);
       const { listingsCollection } = await import(
         "@/app/dashboard/_lib/dashboard-db/listings-collection"
       );
 
-      const firstQueryClient = getQueryClient();
-      const firstRender = render(
-        <QueryClientProvider client={firstQueryClient}>
-          <api.Provider client={trpcClient} queryClient={firstQueryClient}>
+      const queryClient = getQueryClient();
+      render(
+        <QueryClientProvider client={queryClient}>
+          <api.Provider client={trpcClient} queryClient={queryClient}>
             <DashboardDbProvider>
               <DashboardReadyMarker />
+              <DashboardRefreshingMarker />
               <DashboardListingsMarker
                 listingsCollection={listingsCollection}
               />
@@ -266,62 +338,30 @@ describe("dashboardDb provider bootstrap", () => {
         },
         { timeout: 5000 },
       );
-
-      firstRender.unmount();
-      await resetDashboardDbClientState();
-
-      const originalIndexedDb = globalThis.indexedDB;
-      Object.defineProperty(globalThis, "indexedDB", {
-        configurable: true,
-        value: undefined,
+      await waitFor(() => {
+        expect(screen.getByTestId("dashboard-refreshing").textContent).toBe(
+          "idle",
+        );
       });
-
-      try {
-        const secondQueryClient = getQueryClient();
-
-        render(
-          <QueryClientProvider client={secondQueryClient}>
-            <api.Provider client={trpcClient} queryClient={secondQueryClient}>
-              <DashboardDbProvider>
-                <DashboardReadyMarker />
-                <DashboardListingsMarker
-                  listingsCollection={listingsCollection}
-                />
-              </DashboardDbProvider>
-            </api.Provider>
-          </QueryClientProvider>,
-        );
-
-        await waitFor(
-          () => {
-            expect(screen.getByTestId("dashboard-ready").textContent).toBe(
-              "ready",
-            );
-            expect(screen.getByTestId("dashboard-listings").textContent).toBe(
-              "Alpha,Beta",
-            );
-          },
-          { timeout: 1500 },
-        );
-      } finally {
-        Object.defineProperty(globalThis, "indexedDB", {
-          configurable: true,
-          value: originalIndexedDb,
-        });
-      }
+      expect(opCounts.get("dashboardDb.bootstrap.replicaAvailable")).toBe(1);
+      expect(opCounts.get("dashboardDb.bootstrap.replicaRoots") ?? 0).toBe(0);
+      expect(
+        opCounts.get("dashboardDb.image.listByListingIdsReplica") ?? 0,
+      ).toBe(0);
+      expectFullSnapshotFetchCounts(opCounts);
     });
   });
 
   it("reports dashboard load failures while showing the refresh message", async () => {
     await withTempAppDb(async ({ user }) => {
-      await clearDashboardDbPersistence();
-
       const { db } = await import("@/server/db");
       const { createCaller } = await import("@/server/api/root");
       const caller = createCaller(async () => {
         return {
           db,
+          hasReplicaDb: true,
           headers: new Headers(),
+          replicaDb: db,
           _authUser: {
             id: user.id,
           } as unknown as TRPCInternalContext["_authUser"],
@@ -331,7 +371,7 @@ describe("dashboardDb provider bootstrap", () => {
       const failure = new Error("bootstrap roots failed");
       const failBootstrapRootsLink: TRPCLink<AppRouter> = () => {
         return ({ op, next }) => {
-          if (op.path !== "dashboardDb.bootstrap.roots") {
+          if (op.path !== "dashboardDb.bootstrap.replicaRoots") {
             return next(op);
           }
 
@@ -352,9 +392,11 @@ describe("dashboardDb provider bootstrap", () => {
 
       const trpcClient = api.createClient({ links });
       const queryClient = getQueryClient();
-      const { DashboardDbProvider } = await import(
+      const { DashboardDbProvider, useDashboardDb } = await import(
         "@/app/dashboard/_components/dashboard-db-provider"
       );
+      const DashboardRefreshingMarker =
+        makeDashboardRefreshingMarker(useDashboardDb);
 
       render(
         <QueryClientProvider client={queryClient}>
@@ -383,482 +425,446 @@ describe("dashboardDb provider bootstrap", () => {
             message: failure.message,
           }),
           userId: expect.any(String),
-          phase: "cold-bootstrap",
-          hydratedSnapshot: false,
+          phase: "replica-bootstrap",
           bootstrapActive: true,
         }),
       );
     });
   });
 
-  it("warm bootstrap replaces incomplete persisted data with a full refresh", async () => {
-    await withTempAppDb(async ({ user }) => {
-      await clearDashboardDbPersistence();
+  it("renders warm SQLite data before background refresh finishes", async () => {
+    vi.resetModules();
+    useAuthMock.mockReturnValue({ isLoaded: true, userId: null });
 
-      const { db } = await import("@/server/db");
+    const warmHydrate = deferred();
+    const backgroundRefresh = deferred();
+    const bootstrapDashboardDbFromReplica = vi.fn(async () => false);
+    const bootstrapDashboardDbFromServer = vi.fn(async () => undefined);
+    const hydrateDashboardDbFromSqlitePersistence = vi.fn(
+      () => warmHydrate.promise,
+    );
+    const revalidateDashboardDbInBackground = vi.fn(
+      () => backgroundRefresh.promise,
+    );
 
-      const alpha = await db.listing.create({
-        data: {
-          userId: user.id,
-          title: "Alpha",
-          slug: `alpha-${crypto.randomUUID()}`,
-        },
-      });
-
-      await new Promise((resolve) => setTimeout(resolve, 10));
-
-      const beta = await db.listing.create({
-        data: {
-          userId: user.id,
-          title: "Beta",
-          slug: `beta-${crypto.randomUUID()}`,
-        },
-      });
-
-      const { createCaller } = await import("@/server/api/root");
-      const caller = createCaller(async () => {
-        return {
-          db,
-          headers: new Headers(),
-          _authUser: {
-            id: user.id,
-          } as unknown as TRPCInternalContext["_authUser"],
-        };
-      });
-
-      const opCounts = new Map<string, number>();
-      let releaseListingSync!: () => void;
-      const listingSyncGate = new Promise<void>((resolve) => {
-        releaseListingSync = resolve;
-      });
-
-      const delayedFullRefreshLink: TRPCLink<AppRouter> = () => {
-        return ({ op, next }) =>
-          observable((emit) => {
-            opCounts.set(op.path, (opCounts.get(op.path) ?? 0) + 1);
-
-            let pending = Promise.resolve();
-            const sub = next(op).subscribe({
-              next: (value) => {
-                pending = pending.then(async () => {
-                  if (op.path === "dashboardDb.bootstrap.roots") {
-                    await listingSyncGate;
-                  }
-                  emit.next(value);
-                });
-              },
-              error: (err) => emit.error(err),
-              complete: () => {
-                void pending.then(() => emit.complete());
-              },
-            });
-
-            return () => sub.unsubscribe();
-          });
-      };
-
-      const links: TRPCLink<AppRouter>[] = [
-        delayedFullRefreshLink,
-        callerLink(caller),
-      ];
-      const clientLike = createTRPCProxyClient<AppRouter>({ links });
-
-      const { setTestTrpcClient } = await import("@/trpc/client");
-      setTestTrpcClient(clientLike);
-
-      const {
-        refreshDashboardDbFromServer,
-        tryHydrateDashboardDbFromPersistence,
-        DASHBOARD_DB_PERSISTED_SWR,
-        writeDashboardDbSnapshot,
-      } = await import(
-        "@/app/dashboard/_lib/dashboard-db/dashboard-db-persistence"
-      );
-      const { listingsCollection } = await import(
-        "@/app/dashboard/_lib/dashboard-db/listings-collection"
-      );
-
-      await writeDashboardDbSnapshot({
-        userId: user.id,
-        version: DASHBOARD_DB_PERSISTED_SWR.version,
-        persistedAt: new Date(),
-        listings: [beta],
-        lists: [],
-        images: [],
-        cultivarReferences: [],
-      });
-
-      localStorage.setItem(
-        cursorKey("dashboard-db:listings:maxUpdatedAt", user.id),
-        beta.updatedAt.toISOString(),
-      );
-
-      expect(await tryHydrateDashboardDbFromPersistence(user.id)).toBe(true);
-
-      render(
-        <DashboardListingsMarker listingsCollection={listingsCollection} />,
-      );
-
-      await waitFor(() => {
-        expect(screen.getByTestId("dashboard-listings").textContent).toBe(
-          "Beta",
-        );
-      });
-
-      const refreshPromise = refreshDashboardDbFromServer(user.id);
-      releaseListingSync();
-      await act(async () => {
-        await refreshPromise;
-      });
-
-      await waitFor(() => {
-        expect(screen.getByTestId("dashboard-listings").textContent).toBe(
-          "Alpha,Beta",
-        );
-      });
-
-      expectFullSnapshotFetchCounts(opCounts);
-      expect(alpha.id).not.toBe(beta.id);
-    });
-  });
-
-  it("retries a full collection sync after warm revalidation is cancelled", async () => {
-    await withTempAppDb(async ({ user }) => {
-      await clearDashboardDbPersistence();
-
-      const { db } = await import("@/server/db");
-
-      await db.listing.create({
-        data: {
-          userId: user.id,
-          title: "Alpha",
-          slug: `alpha-${crypto.randomUUID()}`,
-        },
-      });
-
-      await new Promise((resolve) => setTimeout(resolve, 10));
-
-      const beta = await db.listing.create({
-        data: {
-          userId: user.id,
-          title: "Beta",
-          slug: `beta-${crypto.randomUUID()}`,
-        },
-      });
-
-      const { createCaller } = await import("@/server/api/root");
-      const caller = createCaller(async () => {
-        return {
-          db,
-          headers: new Headers(),
-          _authUser: {
-            id: user.id,
-          } as unknown as TRPCInternalContext["_authUser"],
-        };
-      });
-
-      const opCounts = new Map<string, number>();
-      const recordLink: TRPCLink<AppRouter> = () => {
-        return ({ op, next }) => {
-          opCounts.set(op.path, (opCounts.get(op.path) ?? 0) + 1);
-          return next(op);
-        };
-      };
-
-      const links: TRPCLink<AppRouter>[] = [recordLink, callerLink(caller)];
-      const clientLike = createTRPCProxyClient<AppRouter>({ links });
-
-      const { setTestTrpcClient } = await import("@/trpc/client");
-      setTestTrpcClient(clientLike);
-
-      const {
-        DASHBOARD_DB_PERSISTED_SWR,
+    vi.doMock(
+      "@/app/dashboard/_lib/dashboard-db/dashboard-db-sqlite-persistence",
+      () => ({
+        getDashboardDbSqlitePersistence: vi.fn(async () => ({
+          adapter: {},
+        })),
+      }),
+    );
+    vi.doMock(
+      "@/app/dashboard/_lib/dashboard-db/dashboard-db-collections",
+      () => ({
+        configureDashboardDbCollectionsPersistence: vi.fn(),
+      }),
+    );
+    vi.doMock(
+      "@/app/dashboard/_lib/dashboard-db/dashboard-db-persistence",
+      () => ({
+        bootstrapDashboardDbFromReplica,
+        bootstrapDashboardDbFromServer,
+        hasFreshDashboardDbSqliteCache: vi.fn(() => true),
+        hydrateDashboardDbFromSqlitePersistence,
         revalidateDashboardDbInBackground,
-        tryHydrateDashboardDbFromPersistence,
-        writeDashboardDbSnapshot,
-      } = await import(
-        "@/app/dashboard/_lib/dashboard-db/dashboard-db-persistence"
-      );
-      const { listingsCollection } = await import(
-        "@/app/dashboard/_lib/dashboard-db/listings-collection"
-      );
+        resetDashboardRefreshLock: vi.fn(),
+      }),
+    );
 
-      await writeDashboardDbSnapshot({
-        userId: user.id,
-        version: DASHBOARD_DB_PERSISTED_SWR.version,
-        persistedAt: new Date(),
-        listings: [beta],
-        lists: [],
-        images: [],
-        cultivarReferences: [],
-      });
+    const { DashboardDbProvider, useDashboardDb } = await import(
+      "@/app/dashboard/_components/dashboard-db-provider"
+    );
+    const { api: freshApi } = await import("@/trpc/react");
+    const { getQueryClient: getFreshQueryClient } = await import(
+      "@/trpc/query-client"
+    );
 
-      localStorage.setItem(
-        cursorKey("dashboard-db:listings:maxUpdatedAt", user.id),
-        beta.updatedAt.toISOString(),
-      );
-
-      expect(await tryHydrateDashboardDbFromPersistence(user.id)).toBe(true);
-
-      await revalidateDashboardDbInBackground(user.id, {
-        isActive: () => false,
-      });
-
-      render(
-        <DashboardListingsMarker listingsCollection={listingsCollection} />,
-      );
-
-      await waitFor(() => {
-        expect(screen.getByTestId("dashboard-listings").textContent).toBe(
-          "Alpha,Beta",
-        );
-      });
-
-      expect(opCounts.get("dashboardDb.listing.sync")).toBe(1);
-    });
-  });
-
-  it("warm bootstrap waits for the profile prefetch before becoming ready", async () => {
-    await withTempAppDb(async ({ user }) => {
-      await clearDashboardDbPersistence();
-
-      const { db } = await import("@/server/db");
-
-      await db.listing.create({
-        data: {
-          userId: user.id,
-          title: "Alpha",
-          slug: `alpha-${crypto.randomUUID()}`,
-        },
-      });
-
-      const { createCaller } = await import("@/server/api/root");
-      const caller = createCaller(async () => {
-        return {
-          db,
-          headers: new Headers(),
-          _authUser: {
-            id: user.id,
-          } as unknown as TRPCInternalContext["_authUser"],
-        };
-      });
-
-      const listings = await caller.dashboardDb.listing.sync({ since: null });
-
-      const { DASHBOARD_DB_PERSISTED_SWR, writeDashboardDbSnapshot } =
-        await import(
-          "@/app/dashboard/_lib/dashboard-db/dashboard-db-persistence"
-        );
-
-      await writeDashboardDbSnapshot({
-        userId: user.id,
-        version: DASHBOARD_DB_PERSISTED_SWR.version,
-        persistedAt: new Date(),
-        listings,
-        lists: [],
-        images: [],
-        cultivarReferences: [],
-      });
-
-      let releaseProfilePrefetch: (() => void) | undefined;
-      const profilePrefetchGate = new Promise<void>((resolve) => {
-        releaseProfilePrefetch = () => resolve();
-      });
-      let resolveBackgroundRefresh: (() => void) | undefined;
-      const backgroundRefreshComplete = new Promise<void>((resolve) => {
-        resolveBackgroundRefresh = () => resolve();
-      });
-      const opCounts = new Map<string, number>();
-
-      const delayProfileLink: TRPCLink<AppRouter> = () => {
-        return ({ op, next }) =>
-          observable((emit) => {
-            opCounts.set(op.path, (opCounts.get(op.path) ?? 0) + 1);
-
-            let sub:
-              | ReturnType<ReturnType<typeof next>["subscribe"]>
-              | undefined;
-            let cancelled = false;
-
-            void (async () => {
-              if (op.path === "dashboardDb.userProfile.get") {
-                await profilePrefetchGate;
-              }
-
-              if (cancelled) {
+    const trpcClient = freshApi.createClient({
+      links: [
+        () =>
+          ({ op }) =>
+            observable((emit) => {
+              const result = getBootstrapTestResult(op.path);
+              if (result) {
+                emit.next({
+                  result,
+                });
+                emit.complete();
                 return;
               }
 
-              sub = next(op).subscribe({
-                next: (value) => emit.next(value),
-                error: (err) => emit.error(err),
-                complete: () => {
-                  if (op.path === "dashboardDb.image.listByListingIds") {
-                    resolveBackgroundRefresh?.();
-                  }
-                  emit.complete();
-                },
-              });
-            })();
-
-            return () => {
-              cancelled = true;
-              sub?.unsubscribe();
-            };
-          });
-      };
-
-      const links: TRPCLink<AppRouter>[] = [
-        delayProfileLink,
-        callerLink(caller),
-      ];
-      const clientLike = createTRPCProxyClient<AppRouter>({ links });
-
-      const { setTestTrpcClient } = await import("@/trpc/client");
-      setTestTrpcClient(clientLike);
-
-      const trpcClient = api.createClient({ links });
-      const queryClient = getQueryClient();
-      queryClient.clear();
-      const { DashboardDbProvider } = await import(
-        "@/app/dashboard/_components/dashboard-db-provider"
+              emit.error(
+                new Error(`Unexpected operation ${op.path}`) as Parameters<
+                  typeof emit.error
+                >[0],
+              );
+            }),
+      ],
+    });
+    const queryClient = getFreshQueryClient();
+    function DashboardRefreshingMarker() {
+      const { isRefreshing } = useDashboardDb();
+      return (
+        <div data-testid="dashboard-refreshing">
+          {isRefreshing ? "refreshing" : "idle"}
+        </div>
       );
+    }
 
-      render(
-        <QueryClientProvider client={queryClient}>
-          <api.Provider client={trpcClient} queryClient={queryClient}>
-            <DashboardDbProvider>
-              <DashboardReadyMarker />
-            </DashboardDbProvider>
-          </api.Provider>
-        </QueryClientProvider>,
+    const renderDashboard = () => (
+      <QueryClientProvider client={queryClient}>
+        <freshApi.Provider client={trpcClient} queryClient={queryClient}>
+          <DashboardDbProvider>
+            <DashboardReadyMarker />
+            <DashboardRefreshingMarker />
+          </DashboardDbProvider>
+        </freshApi.Provider>
+      </QueryClientProvider>
+    );
+    const { rerender } = render(renderDashboard());
+
+    await waitFor(() => {
+      expect(hydrateDashboardDbFromSqlitePersistence).toHaveBeenCalled();
+    });
+    expect(screen.queryByTestId("dashboard-ready")).toBeNull();
+
+    await act(async () => {
+      warmHydrate.resolve();
+      await warmHydrate.promise;
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId("dashboard-ready").textContent).toBe("ready");
+    });
+    expect(screen.getByTestId("dashboard-refreshing").textContent).toBe(
+      "refreshing",
+    );
+    expect(bootstrapDashboardDbFromReplica).not.toHaveBeenCalled();
+    expect(bootstrapDashboardDbFromServer).not.toHaveBeenCalled();
+    expect(revalidateDashboardDbInBackground).toHaveBeenCalledTimes(1);
+
+    useAuthMock.mockReturnValue({ isLoaded: true, userId: "clerk-user-1" });
+    rerender(renderDashboard());
+
+    await act(async () => {
+      backgroundRefresh.resolve();
+      await backgroundRefresh.promise;
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId("dashboard-refreshing").textContent).toBe(
+        "idle",
       );
+    });
 
-      await waitFor(() => {
-        expect(opCounts.get("dashboardDb.userProfile.get")).toBeGreaterThan(0);
-      });
-
-      expect(screen.queryByTestId("dashboard-ready")).toBeNull();
-
-      await act(async () => {
-        releaseProfilePrefetch?.();
-      });
-
-      await waitFor(() => {
-        expect(screen.getByTestId("dashboard-ready").textContent).toBe("ready");
-      });
-
-      await act(async () => {
-        await backgroundRefreshComplete;
-      });
+    const { readCachedSubscription } = await import(
+      "@/hooks/use-persisted-subscription-query"
+    );
+    await waitFor(() => {
+      expect(readCachedSubscription("clerk-user-1")?.data).toBeNull();
     });
   });
 
-  it("ignores older persisted snapshots and reloads the full catalog", async () => {
-    await withTempAppDb(async ({ user }) => {
-      await clearDashboardDbPersistence();
+  it("renders replica data before the primary refresh finishes when SQLite is cold", async () => {
+    vi.resetModules();
 
-      const { db } = await import("@/server/db");
+    const backgroundRefresh = deferred();
+    const bootstrapDashboardDbFromReplica = vi.fn(async () => true);
+    const bootstrapDashboardDbFromServer = vi.fn(async () => undefined);
+    const revalidateDashboardDbInBackground = vi.fn(
+      () => backgroundRefresh.promise,
+    );
 
-      const alpha = await db.listing.create({
-        data: {
-          userId: user.id,
-          title: "Alpha",
-          slug: `alpha-${crypto.randomUUID()}`,
-        },
-      });
+    vi.doMock(
+      "@/app/dashboard/_lib/dashboard-db/dashboard-db-sqlite-persistence",
+      () => ({
+        getDashboardDbSqlitePersistence: vi.fn(async () => ({
+          adapter: {},
+        })),
+      }),
+    );
+    vi.doMock(
+      "@/app/dashboard/_lib/dashboard-db/dashboard-db-collections",
+      () => ({
+        configureDashboardDbCollectionsPersistence: vi.fn(),
+      }),
+    );
+    vi.doMock(
+      "@/app/dashboard/_lib/dashboard-db/dashboard-db-persistence",
+      () => ({
+        bootstrapDashboardDbFromReplica,
+        bootstrapDashboardDbFromServer,
+        hasFreshDashboardDbSqliteCache: vi.fn(() => false),
+        hydrateDashboardDbFromSqlitePersistence: vi.fn(async () => undefined),
+        revalidateDashboardDbInBackground,
+        resetDashboardRefreshLock: vi.fn(),
+      }),
+    );
 
-      await new Promise((resolve) => setTimeout(resolve, 10));
+    const { DashboardDbProvider, useDashboardDb } = await import(
+      "@/app/dashboard/_components/dashboard-db-provider"
+    );
+    const { api: freshApi } = await import("@/trpc/react");
+    const { getQueryClient: getFreshQueryClient } = await import(
+      "@/trpc/query-client"
+    );
 
-      const beta = await db.listing.create({
-        data: {
-          userId: user.id,
-          title: "Beta",
-          slug: `beta-${crypto.randomUUID()}`,
-        },
-      });
+    const trpcClient = freshApi.createClient({
+      links: [
+        () =>
+          ({ op }) =>
+            observable((emit) => {
+              const result = getBootstrapTestResult(op.path);
+              if (result) {
+                emit.next({
+                  result,
+                });
+                emit.complete();
+                return;
+              }
 
-      const { writeDashboardDbSnapshot, DASHBOARD_DB_PERSISTED_SWR } =
-        await import(
-          "@/app/dashboard/_lib/dashboard-db/dashboard-db-persistence"
-        );
-
-      expect(DASHBOARD_DB_PERSISTED_SWR.version).toBeGreaterThan(1);
-
-      await writeDashboardDbSnapshot({
-        userId: user.id,
-        version: 1,
-        persistedAt: new Date(),
-        listings: [beta],
-        lists: [],
-        images: [],
-        cultivarReferences: [],
-      });
-
-      localStorage.setItem(
-        cursorKey("dashboard-db:listings:maxUpdatedAt", user.id),
-        beta.updatedAt.toISOString(),
-      );
-
-      const { createCaller } = await import("@/server/api/root");
-      const caller = createCaller(async () => {
-        return {
-          db,
-          headers: new Headers(),
-          _authUser: {
-            id: user.id,
-          } as unknown as TRPCInternalContext["_authUser"],
-        };
-      });
-
-      const links: TRPCLink<AppRouter>[] = [callerLink(caller)];
-      const clientLike = createTRPCProxyClient<AppRouter>({ links });
-
-      const { setTestTrpcClient } = await import("@/trpc/client");
-      setTestTrpcClient(clientLike);
-
-      const trpcClient = api.createClient({ links });
-      const queryClient = getQueryClient();
-      const { DashboardDbProvider } = await import(
-        "@/app/dashboard/_components/dashboard-db-provider"
-      );
-      const { listingsCollection } = await import(
-        "@/app/dashboard/_lib/dashboard-db/listings-collection"
-      );
-
-      render(
-        <QueryClientProvider client={queryClient}>
-          <api.Provider client={trpcClient} queryClient={queryClient}>
-            <DashboardDbProvider>
-              <DashboardReadyMarker />
-              <DashboardListingsMarker
-                listingsCollection={listingsCollection}
-              />
-            </DashboardDbProvider>
-          </api.Provider>
-        </QueryClientProvider>,
-      );
-
-      await waitFor(
-        () => {
-          expect(screen.getByTestId("dashboard-ready").textContent).toBe(
-            "ready",
-          );
-          expect(screen.getByTestId("dashboard-listings").textContent).toBe(
-            "Alpha,Beta",
-          );
-        },
-        { timeout: 5000 },
-      );
-
-      expect(alpha.id).not.toBe(beta.id);
+              emit.error(
+                new Error(`Unexpected operation ${op.path}`) as Parameters<
+                  typeof emit.error
+                >[0],
+              );
+            }),
+      ],
     });
+    const queryClient = getFreshQueryClient();
+    function DashboardRefreshingMarker() {
+      const { isRefreshing } = useDashboardDb();
+      return (
+        <div data-testid="dashboard-refreshing">
+          {isRefreshing ? "refreshing" : "idle"}
+        </div>
+      );
+    }
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <freshApi.Provider client={trpcClient} queryClient={queryClient}>
+          <DashboardDbProvider>
+            <DashboardReadyMarker />
+            <DashboardRefreshingMarker />
+          </DashboardDbProvider>
+        </freshApi.Provider>
+      </QueryClientProvider>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId("dashboard-ready").textContent).toBe("ready");
+    });
+    expect(screen.getByTestId("dashboard-refreshing").textContent).toBe(
+      "refreshing",
+    );
+    expect(bootstrapDashboardDbFromReplica).toHaveBeenCalledTimes(1);
+    expect(bootstrapDashboardDbFromServer).not.toHaveBeenCalled();
+    expect(revalidateDashboardDbInBackground).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      backgroundRefresh.resolve();
+      await backgroundRefresh.promise;
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId("dashboard-refreshing").textContent).toBe(
+        "idle",
+      );
+    });
+  });
+
+  it("renders server data without a background refresh when SQLite and replica are unavailable", async () => {
+    vi.resetModules();
+
+    const bootstrapDashboardDbFromReplica = vi.fn(async () => false);
+    const bootstrapDashboardDbFromServer = vi.fn(async () => undefined);
+    const revalidateDashboardDbInBackground = vi.fn(async () => undefined);
+
+    vi.doMock(
+      "@/app/dashboard/_lib/dashboard-db/dashboard-db-sqlite-persistence",
+      () => ({
+        getDashboardDbSqlitePersistence: vi.fn(async () => null),
+      }),
+    );
+    vi.doMock(
+      "@/app/dashboard/_lib/dashboard-db/dashboard-db-collections",
+      () => ({
+        configureDashboardDbCollectionsPersistence: vi.fn(),
+      }),
+    );
+    vi.doMock(
+      "@/app/dashboard/_lib/dashboard-db/dashboard-db-persistence",
+      () => ({
+        bootstrapDashboardDbFromReplica,
+        bootstrapDashboardDbFromServer,
+        hasFreshDashboardDbSqliteCache: vi.fn(() => false),
+        hydrateDashboardDbFromSqlitePersistence: vi.fn(async () => undefined),
+        revalidateDashboardDbInBackground,
+        resetDashboardRefreshLock: vi.fn(),
+      }),
+    );
+
+    const { DashboardDbProvider, useDashboardDb } = await import(
+      "@/app/dashboard/_components/dashboard-db-provider"
+    );
+    const { api: freshApi } = await import("@/trpc/react");
+    const { getQueryClient: getFreshQueryClient } = await import(
+      "@/trpc/query-client"
+    );
+
+    const trpcClient = freshApi.createClient({
+      links: [
+        () =>
+          ({ op }) =>
+            observable((emit) => {
+              const result = getBootstrapTestResult(op.path);
+              if (result) {
+                emit.next({
+                  result,
+                });
+                emit.complete();
+                return;
+              }
+
+              emit.error(
+                new Error(`Unexpected operation ${op.path}`) as Parameters<
+                  typeof emit.error
+                >[0],
+              );
+            }),
+      ],
+    });
+    const queryClient = getFreshQueryClient();
+    function DashboardRefreshingMarker() {
+      const { isRefreshing } = useDashboardDb();
+      return (
+        <div data-testid="dashboard-refreshing">
+          {isRefreshing ? "refreshing" : "idle"}
+        </div>
+      );
+    }
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <freshApi.Provider client={trpcClient} queryClient={queryClient}>
+          <DashboardDbProvider>
+            <DashboardReadyMarker />
+            <DashboardRefreshingMarker />
+          </DashboardDbProvider>
+        </freshApi.Provider>
+      </QueryClientProvider>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId("dashboard-ready").textContent).toBe("ready");
+      expect(screen.getByTestId("dashboard-refreshing").textContent).toBe(
+        "idle",
+      );
+    });
+    expect(bootstrapDashboardDbFromReplica).toHaveBeenCalledTimes(1);
+    expect(bootstrapDashboardDbFromServer).toHaveBeenCalledTimes(1);
+    expect(revalidateDashboardDbInBackground).not.toHaveBeenCalled();
+
+    const { readCachedSubscription } = await import(
+      "@/hooks/use-persisted-subscription-query"
+    );
+    await waitFor(() => {
+      expect(readCachedSubscription("clerk-user-1")?.data).toBeNull();
+    });
+  });
+
+  it("falls back to server bootstrap when warm SQLite hydration fails", async () => {
+    vi.resetModules();
+
+    const bootstrapDashboardDbFromReplica = vi.fn(async () => false);
+    const bootstrapDashboardDbFromServer = vi.fn(async () => undefined);
+    const hydrateDashboardDbFromSqlitePersistence = vi.fn(async () => {
+      throw new Error("sqlite hydrate failed");
+    });
+
+    vi.doMock(
+      "@/app/dashboard/_lib/dashboard-db/dashboard-db-sqlite-persistence",
+      () => ({
+        getDashboardDbSqlitePersistence: vi.fn(async () => ({
+          adapter: {},
+        })),
+      }),
+    );
+    vi.doMock(
+      "@/app/dashboard/_lib/dashboard-db/dashboard-db-collections",
+      () => ({
+        configureDashboardDbCollectionsPersistence: vi.fn(),
+      }),
+    );
+    vi.doMock(
+      "@/app/dashboard/_lib/dashboard-db/dashboard-db-persistence",
+      () => ({
+        bootstrapDashboardDbFromReplica,
+        bootstrapDashboardDbFromServer,
+        hasFreshDashboardDbSqliteCache: vi.fn(() => true),
+        hydrateDashboardDbFromSqlitePersistence,
+        revalidateDashboardDbInBackground: vi.fn(async () => undefined),
+        resetDashboardRefreshLock: vi.fn(),
+      }),
+    );
+
+    const { DashboardDbProvider } = await import(
+      "@/app/dashboard/_components/dashboard-db-provider"
+    );
+    const { api: freshApi } = await import("@/trpc/react");
+    const { getQueryClient: getFreshQueryClient } = await import(
+      "@/trpc/query-client"
+    );
+
+    const trpcClient = freshApi.createClient({
+      links: [
+        () =>
+          ({ op }) =>
+            observable((emit) => {
+              const result = getBootstrapTestResult(op.path);
+              if (result) {
+                emit.next({
+                  result,
+                });
+                emit.complete();
+                return;
+              }
+
+              emit.error(
+                new Error(`Unexpected operation ${op.path}`) as Parameters<
+                  typeof emit.error
+                >[0],
+              );
+            }),
+      ],
+    });
+    const queryClient = getFreshQueryClient();
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <freshApi.Provider client={trpcClient} queryClient={queryClient}>
+          <DashboardDbProvider>
+            <DashboardReadyMarker />
+          </DashboardDbProvider>
+        </freshApi.Provider>
+      </QueryClientProvider>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId("dashboard-ready").textContent).toBe("ready");
+    });
+
+    expect(hydrateDashboardDbFromSqlitePersistence).toHaveBeenCalledTimes(1);
+    expect(bootstrapDashboardDbFromReplica).toHaveBeenCalledTimes(1);
+    expect(bootstrapDashboardDbFromServer).toHaveBeenCalledTimes(1);
+    expect(reportDashboardLoadFailureMock).not.toHaveBeenCalled();
   });
 
   it("bootstraps successfully in React StrictMode", async () => {
     await withTempAppDb(async ({ user }) => {
-      await clearDashboardDbPersistence();
-
       const { db } = await import("@/server/db");
 
       const { createCaller } = await import("@/server/api/root");
@@ -880,9 +886,11 @@ describe("dashboardDb provider bootstrap", () => {
 
       const trpcClient = api.createClient({ links });
       const queryClient = getQueryClient();
-      const { DashboardDbProvider } = await import(
+      const { DashboardDbProvider, useDashboardDb } = await import(
         "@/app/dashboard/_components/dashboard-db-provider"
       );
+      const DashboardRefreshingMarker =
+        makeDashboardRefreshingMarker(useDashboardDb);
 
       render(
         <StrictMode>
@@ -890,6 +898,7 @@ describe("dashboardDb provider bootstrap", () => {
             <api.Provider client={trpcClient} queryClient={queryClient}>
               <DashboardDbProvider>
                 <DashboardReadyMarker />
+                <DashboardRefreshingMarker />
               </DashboardDbProvider>
             </api.Provider>
           </QueryClientProvider>
@@ -904,6 +913,11 @@ describe("dashboardDb provider bootstrap", () => {
         },
         { timeout: 1500 },
       );
+      await waitFor(() => {
+        expect(screen.getByTestId("dashboard-refreshing").textContent).toBe(
+          "idle",
+        );
+      });
     });
   });
 });

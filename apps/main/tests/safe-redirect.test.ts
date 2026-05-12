@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { getSafeSubscribeSuccessRedirect } from "@/lib/utils/safe-redirect";
+import {
+  getSafeSubscribeSuccessRedirect,
+  withSubscribeSuccessSyncedParam,
+} from "@/lib/utils/safe-redirect";
 
 describe("getSafeSubscribeSuccessRedirect", () => {
   it("allows local redirect paths", () => {
@@ -24,5 +27,19 @@ describe("getSafeSubscribeSuccessRedirect", () => {
     expect(getSafeSubscribeSuccessRedirect("javascript:alert(1)")).toBe(
       "/dashboard",
     );
+  });
+});
+
+describe("withSubscribeSuccessSyncedParam", () => {
+  it("marks local redirects for client subscription refresh", () => {
+    expect(withSubscribeSuccessSyncedParam("/dashboard?tab=billing")).toBe(
+      "/dashboard?tab=billing&subscriptionSynced=1",
+    );
+  });
+
+  it("does not alter external redirects", () => {
+    const stripeUrl = "https://billing.stripe.com/p/session/test_123";
+
+    expect(withSubscribeSuccessSyncedParam(stripeUrl)).toBe(stripeUrl);
   });
 });

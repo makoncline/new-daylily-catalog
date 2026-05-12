@@ -1,48 +1,34 @@
 "use client";
 
+import type { PersistedCollectionPersistence } from "@tanstack/browser-db-sqlite-persistence";
 import {
-  cleanupCultivarReferencesCollection,
-  initializeCultivarReferencesCollection,
+  resetCultivarReferencesCollectionWithPersistence,
 } from "./cultivar-references-collection";
 import {
-  cleanupImagesCollection,
-  initializeImagesCollection,
+  resetImagesCollectionWithPersistence,
 } from "./images-collection";
 import {
-  cleanupListsCollection,
-  initializeListsCollection,
+  resetListsCollectionWithPersistence,
 } from "./lists-collection";
 import {
-  cleanupListingsCollection,
-  initializeListingsCollection,
+  resetListingsCollectionWithPersistence,
 } from "./listings-collection";
 
-interface DashboardDbCollectionLifecycle {
-  cleanup: () => Promise<void>;
-  initialize: (userId: string) => Promise<void>;
-}
+let configuredPersistenceKey = "memory:none";
 
-const dashboardDbCollections: DashboardDbCollectionLifecycle[] = [
-  {
-    cleanup: cleanupListingsCollection,
-    initialize: initializeListingsCollection,
-  },
-  {
-    cleanup: cleanupListsCollection,
-    initialize: initializeListsCollection,
-  },
-  {
-    cleanup: cleanupImagesCollection,
-    initialize: initializeImagesCollection,
-  },
-  {
-    cleanup: cleanupCultivarReferencesCollection,
-    initialize: initializeCultivarReferencesCollection,
-  },
-];
+export function configureDashboardDbCollectionsPersistence(args: {
+  persistence: PersistedCollectionPersistence | null;
+  userId: string | null;
+}) {
+  const nextKey = `${args.persistence ? "sqlite" : "memory"}:${args.userId ?? "none"}`;
+  if (configuredPersistenceKey === nextKey) return;
 
-export async function cleanupDashboardDbCollections() {
-  await Promise.allSettled(
-    dashboardDbCollections.map((entry) => entry.cleanup()),
+  configuredPersistenceKey = nextKey;
+  resetListingsCollectionWithPersistence(args.persistence, args.userId);
+  resetListsCollectionWithPersistence(args.persistence, args.userId);
+  resetImagesCollectionWithPersistence(args.persistence, args.userId);
+  resetCultivarReferencesCollectionWithPersistence(
+    args.persistence,
+    args.userId,
   );
 }

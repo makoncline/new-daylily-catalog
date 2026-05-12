@@ -448,4 +448,16 @@ export const dashboardDbCultivarReferenceRouter = createTRPCRouter({
 
       return rows;
     }),
+
+  getByIdsBatchReplica: protectedProcedure
+    .input(z.object({ ids: z.array(z.string().trim().min(1)).min(1).max(500) }))
+    .mutation(async ({ ctx, input }) => {
+      const unique = Array.from(new Set(input.ids));
+      const rows = await getCultivarReferencesByIdsRaw(
+        ctx.replicaDb ?? ctx.db,
+        unique,
+      );
+
+      return rows;
+    }),
 });

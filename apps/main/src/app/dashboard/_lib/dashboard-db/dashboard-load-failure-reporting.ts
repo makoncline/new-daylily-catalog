@@ -20,7 +20,6 @@ export interface DashboardLoadFailureReport {
   startedAt: Date;
   failedAt: Date;
   elapsedMs: number;
-  hydratedSnapshot: boolean;
   bootstrapActive: boolean;
 }
 
@@ -40,7 +39,6 @@ export function reportDashboardLoadFailure(report: DashboardLoadFailureReport) {
         startedAt: report.startedAt.toISOString(),
         failedAt: report.failedAt.toISOString(),
         elapsedMs: report.elapsedMs,
-        hydratedSnapshot: report.hydratedSnapshot,
         bootstrapActive: report.bootstrapActive,
         ...browserContext,
       },
@@ -111,7 +109,6 @@ function buildTelegramMessage(
     `User: ${args.userId}`,
     `Phase: ${args.phase}`,
     `Elapsed: ${args.elapsedMs}ms`,
-    `Hydrated snapshot: ${args.hydratedSnapshot ? "yes" : "no"}`,
     `Bootstrap active: ${args.bootstrapActive ? "yes" : "no"}`,
     `Started: ${args.startedAt.toISOString()}`,
     `Failed: ${args.failedAt.toISOString()}`,

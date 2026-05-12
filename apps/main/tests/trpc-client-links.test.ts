@@ -12,6 +12,13 @@ describe("tRPC client links", () => {
 
     expect(
       shouldUnbatchDashboardOperation({
+        type: "query",
+        path: "dashboardDb.bootstrap.replicaRoots",
+      }),
+    ).toBe(true);
+
+    expect(
+      shouldUnbatchDashboardOperation({
         type: "mutation",
         path: "dashboardDb.image.listByListingIds",
       }),
@@ -20,7 +27,21 @@ describe("tRPC client links", () => {
     expect(
       shouldUnbatchDashboardOperation({
         type: "mutation",
+        path: "dashboardDb.image.listByListingIdsReplica",
+      }),
+    ).toBe(true);
+
+    expect(
+      shouldUnbatchDashboardOperation({
+        type: "mutation",
         path: "dashboardDb.cultivarReference.getByIdsBatch",
+      }),
+    ).toBe(true);
+
+    expect(
+      shouldUnbatchDashboardOperation({
+        type: "mutation",
+        path: "dashboardDb.cultivarReference.getByIdsBatchReplica",
       }),
     ).toBe(true);
   });

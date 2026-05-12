@@ -7,6 +7,7 @@ import { type Prisma } from "@prisma/client";
 import { attachLocalQueryProfiler } from "@/server/db/local-query-profiler";
 
 const databaseUrl = requireEnv("DATABASE_URL", env.DATABASE_URL);
+const embeddedReplicaUrl = getEmbeddedReplicaUrl();
 
 function getReplicaSyncIntervalSeconds(): number | undefined {
   if (!env.TURSO_EMBEDDED_REPLICA_SYNC_INTERVAL_SECONDS) return undefined;
@@ -108,8 +109,6 @@ const createPrismaClient = () => {
 };
 
 const createReplicaPrismaClient = () => {
-  const embeddedReplicaUrl = getEmbeddedReplicaUrl();
-
   if (!embeddedReplicaUrl) return db;
 
   if (!isLibsqlDatabaseUrl(databaseUrl)) {
@@ -132,8 +131,7 @@ const globalForPrisma = globalThis as unknown as {
 export const db = globalForPrisma.prisma ?? createPrismaClient();
 export const replicaDb =
   globalForPrisma.replicaPrisma ?? createReplicaPrismaClient();
+export const hasEmbeddedReplica = Boolean(embeddedReplicaUrl);
 
-if (env.NODE_ENV !== "production") {
-  globalForPrisma.prisma = db;
-  globalForPrisma.replicaPrisma = replicaDb;
-}
+globalForPrisma.prisma = db;
+globalForPrisma.replicaPrisma = replicaDb;

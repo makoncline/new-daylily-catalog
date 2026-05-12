@@ -38,6 +38,7 @@ import {
   type PublicCatalogSearchSectionDefinition,
 } from "@/components/public-catalog-search/public-catalog-search-registry";
 import type { PublicCatalogSearchMode } from "@/components/public-catalog-search/public-catalog-search-types";
+import { logDashboardTiming } from "@/app/dashboard/_lib/dashboard-timing";
 
 function getSectionGroupFilters(
   section: PublicCatalogSearchSectionDefinition,
@@ -69,6 +70,7 @@ function isFacetFilterGroup(
 }
 
 function ListingsTableLive() {
+  const firstRowsPaintedRef = React.useRef(false);
   const { editListing } = useEditListing();
   const { listingRows: listings, lists } = useDashboardListingReadModel();
 
@@ -127,6 +129,22 @@ function ListingsTableLive() {
     () => buildPublicCatalogSearchFacetOptions(listings),
     [listings],
   );
+
+  React.useEffect(() => {
+    logDashboardTiming("listings-table.mounted");
+  }, []);
+
+  React.useEffect(() => {
+    if (firstRowsPaintedRef.current || listings.length === 0) return;
+
+    firstRowsPaintedRef.current = true;
+    logDashboardTiming("listings-table.first-rows-painted", {
+      listings: listings.length,
+      lists: lists.length,
+      tableRows: table.getRowModel().rows.length,
+      filteredRows: table.getFilteredRowModel().rows.length,
+    });
+  }, [listings.length, lists.length, table]);
 
   const scrollToResultsSummary = () => {
     document

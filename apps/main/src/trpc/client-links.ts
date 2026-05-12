@@ -11,12 +11,15 @@ import { getBaseUrl } from "@/lib/utils/getBaseUrl";
 
 const UNBATCHED_DASHBOARD_PATHS = new Set([
   "dashboardDb.bootstrap.roots",
+  "dashboardDb.bootstrap.replicaRoots",
   "dashboardDb.listing.sync",
   "dashboardDb.list.sync",
   "dashboardDb.image.sync",
   "dashboardDb.image.listByListingIds",
+  "dashboardDb.image.listByListingIdsReplica",
   "dashboardDb.cultivarReference.sync",
   "dashboardDb.cultivarReference.getByIdsBatch",
+  "dashboardDb.cultivarReference.getByIdsBatchReplica",
 ]);
 
 export function shouldUnbatchDashboardOperation(op: {
