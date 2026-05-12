@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useAuth } from "@clerk/nextjs";
 import { RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -15,6 +16,7 @@ export function DashboardRefreshButton() {
     userId,
     isRefreshing: isBackgroundRefreshing,
   } = useDashboardDb();
+  const { userId: clerkUserId } = useAuth();
   const utils = api.useUtils();
   const [isManualRefresh, setIsManualRefresh] = useState(false);
   const isRefreshing = isBackgroundRefreshing || isManualRefresh;
@@ -33,7 +35,9 @@ export function DashboardRefreshButton() {
 
       await utils.dashboardDb.userProfile.get.fetch();
       const subscription = await utils.stripe.getSubscription.fetch();
-      writeCachedSubscription(userId, subscription);
+      if (clerkUserId) {
+        writeCachedSubscription(clerkUserId, subscription);
+      }
 
       toast.success("Dashboard refreshed");
     } finally {

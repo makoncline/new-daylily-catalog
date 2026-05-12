@@ -12,6 +12,12 @@ import { getQueryClient } from "@/trpc/query-client";
 import { api } from "@/trpc/react";
 
 const reportDashboardLoadFailureMock = vi.hoisted(() => vi.fn());
+const useAuthMock = vi.hoisted(() =>
+  vi.fn<() => { isLoaded: boolean; userId: string | null }>(() => ({
+    isLoaded: true,
+    userId: "clerk-user-1",
+  })),
+);
 
 vi.mock(
   "@/app/dashboard/_lib/dashboard-db/dashboard-load-failure-reporting",
@@ -20,9 +26,14 @@ vi.mock(
   }),
 );
 
+vi.mock("@clerk/nextjs", () => ({
+  useAuth: () => useAuthMock(),
+}));
+
 beforeEach(async () => {
   localStorage.clear();
   reportDashboardLoadFailureMock.mockClear();
+  useAuthMock.mockReturnValue({ isLoaded: true, userId: "clerk-user-1" });
   await resetDashboardDbClientState();
 });
 
@@ -423,6 +434,7 @@ describe("dashboardDb provider bootstrap", () => {
 
   it("renders warm SQLite data before background refresh finishes", async () => {
     vi.resetModules();
+    useAuthMock.mockReturnValue({ isLoaded: true, userId: null });
 
     const warmHydrate = deferred();
     const backgroundRefresh = deferred();
@@ -501,7 +513,7 @@ describe("dashboardDb provider bootstrap", () => {
       );
     }
 
-    render(
+    const renderDashboard = () => (
       <QueryClientProvider client={queryClient}>
         <freshApi.Provider client={trpcClient} queryClient={queryClient}>
           <DashboardDbProvider>
@@ -509,8 +521,9 @@ describe("dashboardDb provider bootstrap", () => {
             <DashboardRefreshingMarker />
           </DashboardDbProvider>
         </freshApi.Provider>
-      </QueryClientProvider>,
+      </QueryClientProvider>
     );
+    const { rerender } = render(renderDashboard());
 
     await waitFor(() => {
       expect(hydrateDashboardDbFromSqlitePersistence).toHaveBeenCalled();
@@ -532,6 +545,9 @@ describe("dashboardDb provider bootstrap", () => {
     expect(bootstrapDashboardDbFromServer).not.toHaveBeenCalled();
     expect(revalidateDashboardDbInBackground).toHaveBeenCalledTimes(1);
 
+    useAuthMock.mockReturnValue({ isLoaded: true, userId: "clerk-user-1" });
+    rerender(renderDashboard());
+
     await act(async () => {
       backgroundRefresh.resolve();
       await backgroundRefresh.promise;
@@ -541,6 +557,13 @@ describe("dashboardDb provider bootstrap", () => {
       expect(screen.getByTestId("dashboard-refreshing").textContent).toBe(
         "idle",
       );
+    });
+
+    const { readCachedSubscription } = await import(
+      "@/hooks/use-persisted-subscription-query"
+    );
+    await waitFor(() => {
+      expect(readCachedSubscription("clerk-user-1")?.data).toBeNull();
     });
   });
 
@@ -744,6 +767,13 @@ describe("dashboardDb provider bootstrap", () => {
     expect(bootstrapDashboardDbFromReplica).toHaveBeenCalledTimes(1);
     expect(bootstrapDashboardDbFromServer).toHaveBeenCalledTimes(1);
     expect(revalidateDashboardDbInBackground).not.toHaveBeenCalled();
+
+    const { readCachedSubscription } = await import(
+      "@/hooks/use-persisted-subscription-query"
+    );
+    await waitFor(() => {
+      expect(readCachedSubscription("clerk-user-1")?.data).toBeNull();
+    });
   });
 
   it("falls back to server bootstrap when warm SQLite hydration fails", async () => {

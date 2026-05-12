@@ -7,6 +7,7 @@ import React, {
   useRef,
   useState,
 } from "react";
+import { useAuth } from "@clerk/nextjs";
 import { api } from "@/trpc/react";
 import { getQueryClient } from "@/trpc/query-client";
 import { cleanupImagesCollection } from "@/app/dashboard/_lib/dashboard-db/images-collection";
@@ -54,6 +55,7 @@ export function DashboardDbProvider({
   children: React.ReactNode;
 }) {
   const utils = api.useUtils();
+  const { userId: clerkUserId } = useAuth();
   const {
     data: user,
     isLoading,
@@ -72,10 +74,12 @@ export function DashboardDbProvider({
   const [isExitingLoadingScreen, setIsExitingLoadingScreen] = useState(false);
   const initializedUserIdRef = useRef<string | null>(null);
   const lastReportedFailureKeyRef = useRef<string | null>(null);
+  const clerkUserIdRef = useRef<string | null>(clerkUserId);
   const sqlitePersistencePromiseRef = useRef<ReturnType<
     typeof getDashboardDbSqlitePersistence
   > | null>(null);
   const sqlitePersistenceStartedAtRef = useRef<number | null>(null);
+  clerkUserIdRef.current = clerkUserId;
   const setDashboardDbState = (nextState: DashboardDbState) => {
     queueMicrotask(() => {
       setState((current) =>
@@ -190,8 +194,9 @@ export function DashboardDbProvider({
     const refreshSubscriptionCache = async () => {
       await utils.stripe.getSubscription.invalidate();
       const subscription = await utils.stripe.getSubscription.fetch();
-      if (isBootstrapActive()) {
-        writeCachedSubscription(userId, subscription);
+      const subscriptionCacheUserId = clerkUserIdRef.current;
+      if (isBootstrapActive() && subscriptionCacheUserId) {
+        writeCachedSubscription(subscriptionCacheUserId, subscription);
       }
     };
     const startBackgroundRefresh = () => {
@@ -342,6 +347,8 @@ export function DashboardDbProvider({
 
           if (usedReplica) {
             startBackgroundRefresh();
+          } else {
+            void refreshSubscriptionCache();
           }
         }
       } catch (error) {
