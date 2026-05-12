@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { auth } from "@clerk/nextjs/server";
 import { getUserByClerkId } from "@/server/api/trpc";
 import { syncStripeSubscriptionToKV } from "@/server/stripe/sync-subscription";
+import { getSafeSubscribeSuccessRedirect } from "@/lib/utils/safe-redirect";
 
 export default async function SubscribeSuccessPage({
   searchParams,
@@ -27,10 +28,5 @@ export default async function SubscribeSuccessPage({
   // Sync the subscription data
   await syncStripeSubscriptionToKV(user.stripeCustomerId);
 
-  // If there's a redirect URL, go there, otherwise go to dashboard
-  if (params.redirect) {
-    redirect(params.redirect);
-  }
-
-  redirect("/dashboard");
+  redirect(getSafeSubscribeSuccessRedirect(params.redirect));
 }
