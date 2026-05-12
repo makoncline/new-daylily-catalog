@@ -3,6 +3,7 @@ import { type Metadata } from "next";
 import { MainContent } from "@/app/(public)/_components/main-content";
 import { Breadcrumbs } from "@/components/breadcrumbs";
 import { getCanonicalBaseUrl } from "@/lib/utils/getBaseUrl";
+import { serializeJsonLd } from "@/lib/utils/json-ld";
 import { IsrWrittenAt } from "@/app/(public)/_components/isr-written-at";
 import { SellerIntentLink } from "@/components/seller-intent-link";
 import { buttonVariants } from "@/components/ui/button";
@@ -58,7 +59,7 @@ export default async function CultivarPage({ params }: PageProps) {
     <MainContent>
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        dangerouslySetInnerHTML={{ __html: serializeJsonLd(jsonLd) }}
       />
 
       <div className="mx-auto flex w-full max-w-6xl flex-col gap-8">
