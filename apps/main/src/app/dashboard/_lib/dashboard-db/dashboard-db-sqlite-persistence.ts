@@ -22,36 +22,41 @@ function isBrowserSqlitePersistenceSupported() {
 export function getDashboardDbSqlitePersistence() {
   if (persistencePromise) return persistencePromise;
 
-  persistencePromise = (async () => {
-    if (!isBrowserSqlitePersistenceSupported()) {
-      return null;
-    }
-
-    const {
-      BrowserCollectionCoordinator,
-      createBrowserWASQLitePersistence,
-      openBrowserWASQLiteOPFSDatabase,
-    } = await import("@tanstack/browser-db-sqlite-persistence");
-
-    const database = await openBrowserWASQLiteOPFSDatabase({
-      databaseName: DASHBOARD_DB_SQLITE_NAME,
-    });
-
-    const coordinator =
-      typeof BroadcastChannel === "undefined"
-        ? undefined
-        : new BrowserCollectionCoordinator({
-            dbName: DASHBOARD_DB_COORDINATOR_NAME,
-          });
-
-    return createBrowserWASQLitePersistence({
-      database,
-      coordinator,
-      schemaMismatchPolicy: "sync-present-reset",
-    });
-  })();
+  persistencePromise = createDashboardDbSqlitePersistence().catch(() => {
+    persistencePromise = null;
+    return null;
+  });
 
   return persistencePromise;
+}
+
+async function createDashboardDbSqlitePersistence() {
+  if (!isBrowserSqlitePersistenceSupported()) {
+    return null;
+  }
+
+  const {
+    BrowserCollectionCoordinator,
+    createBrowserWASQLitePersistence,
+    openBrowserWASQLiteOPFSDatabase,
+  } = await import("@tanstack/browser-db-sqlite-persistence");
+
+  const database = await openBrowserWASQLiteOPFSDatabase({
+    databaseName: DASHBOARD_DB_SQLITE_NAME,
+  });
+
+  const coordinator =
+    typeof BroadcastChannel === "undefined"
+      ? undefined
+      : new BrowserCollectionCoordinator({
+          dbName: DASHBOARD_DB_COORDINATOR_NAME,
+        });
+
+  return createBrowserWASQLitePersistence({
+    database,
+    coordinator,
+    schemaMismatchPolicy: "sync-present-reset",
+  });
 }
 
 export function resetDashboardDbSqlitePersistenceForTests() {
