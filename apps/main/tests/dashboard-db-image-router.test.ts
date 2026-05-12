@@ -35,9 +35,11 @@ beforeAll(async () => {
 
 interface MockDb {
   $queryRaw: ReturnType<typeof vi.fn>;
+  $transaction: ReturnType<typeof vi.fn>;
   image: {
     count: ReturnType<typeof vi.fn>;
     create: ReturnType<typeof vi.fn>;
+    deleteMany: ReturnType<typeof vi.fn>;
     findUnique: ReturnType<typeof vi.fn>;
     findMany: ReturnType<typeof vi.fn>;
     update: ReturnType<typeof vi.fn>;
@@ -53,15 +55,20 @@ interface MockDb {
 }
 
 function createMockDb(): MockDb {
+  const image = {
+    count: vi.fn(),
+    create: vi.fn(),
+    deleteMany: vi.fn(),
+    findUnique: vi.fn(),
+    findMany: vi.fn(),
+    update: vi.fn(),
+  };
   return {
     $queryRaw: vi.fn(),
-    image: {
-      count: vi.fn(),
-      create: vi.fn(),
-      findUnique: vi.fn(),
-      findMany: vi.fn(),
-      update: vi.fn(),
-    },
+    $transaction: vi.fn(async (arg) =>
+      typeof arg === "function" ? await arg({ image }) : await Promise.all(arg),
+    ),
+    image,
     listing: {
       findFirst: vi.fn(),
       findMany: vi.fn(),
@@ -298,5 +305,113 @@ describe("dashboardDb.image", () => {
     expect(db.listing.findMany).not.toHaveBeenCalled();
     expect(db.userProfile.findUnique).not.toHaveBeenCalled();
     expect(db.image.findMany).not.toHaveBeenCalled();
+  });
+
+  it("delete only removes an image that belongs to the owned target", async () => {
+    const db = createMockDb();
+    db.listing.findFirst.mockResolvedValueOnce({ id: "listing-1" });
+    db.image.deleteMany.mockResolvedValueOnce({ count: 0 });
+
+    const caller = createCaller(db);
+
+    await expect(
+      caller.delete({
+        type: "listing",
+        referenceId: "listing-1",
+        imageId: "victim-image",
+      }),
+    ).rejects.toMatchObject({ code: "NOT_FOUND" });
+
+    expect(db.image.deleteMany).toHaveBeenCalledWith({
+      where: { id: "victim-image", listingId: "listing-1" },
+    });
+    expect(db.image.findMany).not.toHaveBeenCalled();
+  });
+
+  it("delete renumbers remaining images after deleting an owned image", async () => {
+    const db = createMockDb();
+    db.listing.findFirst.mockResolvedValueOnce({ id: "listing-1" });
+    db.image.deleteMany.mockResolvedValueOnce({ count: 1 });
+    db.image.findMany.mockResolvedValueOnce([
+      { id: "image-2" },
+      { id: "image-3" },
+    ]);
+    db.image.update.mockResolvedValue({});
+
+    const caller = createCaller(db);
+    const result = await caller.delete({
+      type: "listing",
+      referenceId: "listing-1",
+      imageId: "image-1",
+    });
+
+    expect(result).toEqual({ success: true });
+    expect(db.image.update).toHaveBeenCalledTimes(2);
+    expect(db.image.update).toHaveBeenNthCalledWith(1, {
+      where: { id: "image-2" },
+      data: { order: 0 },
+    });
+    expect(db.image.update).toHaveBeenNthCalledWith(2, {
+      where: { id: "image-3" },
+      data: { order: 1 },
+    });
+  });
+
+  it("reorder rejects image ids outside the owned target set", async () => {
+    const db = createMockDb();
+    db.listing.findFirst.mockResolvedValueOnce({ id: "listing-1" });
+    db.image.findMany.mockResolvedValueOnce([{ id: "image-1" }]);
+
+    const caller = createCaller(db);
+
+    await expect(
+      caller.reorder({
+        type: "listing",
+        referenceId: "listing-1",
+        images: [
+          { id: "image-1", order: 0 },
+          { id: "victim-image", order: 1 },
+        ],
+      }),
+    ).rejects.toMatchObject({ code: "NOT_FOUND" });
+
+    expect(db.image.update).not.toHaveBeenCalled();
+    expect(db.$transaction).not.toHaveBeenCalled();
+  });
+
+  it("reorder updates only images from the owned target set", async () => {
+    const db = createMockDb();
+    db.userProfile.findFirst.mockResolvedValueOnce({ id: "profile-1" });
+    db.image.findMany.mockResolvedValueOnce([
+      { id: "image-1" },
+      { id: "image-2" },
+      { id: "image-3" },
+    ]);
+    db.image.update.mockResolvedValue({});
+
+    const caller = createCaller(db);
+    const result = await caller.reorder({
+      type: "profile",
+      referenceId: "profile-1",
+      images: [
+        { id: "image-3", order: 0 },
+        { id: "image-1", order: 1 },
+      ],
+    });
+
+    expect(result).toEqual({ success: true });
+    expect(db.image.update).toHaveBeenCalledTimes(3);
+    expect(db.image.update).toHaveBeenNthCalledWith(1, {
+      where: { id: "image-3" },
+      data: { order: 0 },
+    });
+    expect(db.image.update).toHaveBeenNthCalledWith(2, {
+      where: { id: "image-1" },
+      data: { order: 1 },
+    });
+    expect(db.image.update).toHaveBeenNthCalledWith(3, {
+      where: { id: "image-2" },
+      data: { order: 2 },
+    });
   });
 });

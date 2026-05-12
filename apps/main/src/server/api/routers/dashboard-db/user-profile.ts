@@ -32,17 +32,28 @@ async function checkSlugAvailability(
     return false;
   }
 
-  const existingProfile = await db.userProfile.findFirst({
-    where: {
-      slug: normalizedSlug,
-      NOT: {
-        userId,
+  const [existingProfile, existingUser] = await Promise.all([
+    db.userProfile.findFirst({
+      where: {
+        slug: normalizedSlug,
+        NOT: {
+          userId,
+        },
       },
-    },
-    select: { id: true },
-  });
+      select: { id: true },
+    }),
+    db.user.findFirst({
+      where: {
+        id: normalizedSlug,
+        NOT: {
+          id: userId,
+        },
+      },
+      select: { id: true },
+    }),
+  ]);
 
-  return !existingProfile;
+  return !existingProfile && !existingUser;
 }
 
 export const dashboardDbUserProfileRouter = createTRPCRouter({
