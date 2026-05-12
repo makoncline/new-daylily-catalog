@@ -32,6 +32,20 @@ interface BootstrapDashboardDbCollectionArgs<T extends HasUpdatedAt> {
   onSeeded?: () => void;
 }
 
+export function logDashboardSyncTiming(
+  label: string,
+  startedAt: number,
+  details?: Record<string, string | number | boolean | null | undefined>,
+) {
+  const durationMs =
+    typeof performance === "undefined" ? null : performance.now() - startedAt;
+  console.info("[dashboard-db-sync]", {
+    label,
+    durationMs: durationMs === null ? null : Number(durationMs.toFixed(1)),
+    ...details,
+  });
+}
+
 export function writeCursorFromRows(args: {
   cursorStorageKey: string;
   rows: readonly HasUpdatedAt[];
@@ -51,27 +65,45 @@ export async function fetchDashboardSyncPages<
   T extends HasSyncPageCursor,
 >(args: {
   fetchPage: (input: DashboardSyncPageInput) => Promise<readonly T[]>;
+  label?: string;
   pageSize?: number;
   since: string | null;
 }) {
+  const startedAt = performance.now();
   const pageSize = args.pageSize ?? 100;
   const rows: T[] = [];
   let cursor: DashboardSyncPageCursor | undefined;
 
   if (args.since !== null) {
-    return [...(await args.fetchPage({ since: args.since }))];
+    const page = [...(await args.fetchPage({ since: args.since }))];
+    if (args.label) {
+      logDashboardSyncTiming(args.label, startedAt, {
+        mode: "incremental",
+        rows: page.length,
+      });
+    }
+    return page;
   }
 
+  let pages = 0;
   for (;;) {
     const page = await args.fetchPage({
       cursor,
       limit: pageSize,
       since: args.since,
     });
+    pages += 1;
 
     rows.push(...page);
 
     if (page.length < pageSize) {
+      if (args.label) {
+        logDashboardSyncTiming(args.label, startedAt, {
+          mode: "full",
+          pages,
+          rows: rows.length,
+        });
+      }
       return rows;
     }
 

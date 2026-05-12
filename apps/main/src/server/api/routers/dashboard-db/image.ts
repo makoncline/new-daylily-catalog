@@ -181,6 +181,34 @@ async function getOwnedImageWhere(args: { db: DbClient; userId: string }) {
   return ownerFilters.length ? { OR: ownerFilters } : null;
 }
 
+async function getDashboardImagesByListingIds(args: {
+  db: DbClient;
+  userId: string;
+  listingIds: string[];
+}) {
+  const uniqueListingIds = Array.from(new Set(args.listingIds));
+  if (!uniqueListingIds.length) return [];
+
+  const rows = await args.db.$queryRaw<ImageRow[]>(Prisma.sql`
+    SELECT
+      i."id",
+      i."url",
+      i."order",
+      i."listingId",
+      i."userProfileId",
+      i."createdAt",
+      i."updatedAt",
+      i."status"
+    FROM "Image" i
+    INNER JOIN "Listing" l ON l."id" = i."listingId"
+    WHERE
+      i."listingId" IN (${Prisma.join(uniqueListingIds)})
+      AND l."userId" = ${args.userId}
+  `);
+
+  return rows.map(mapImageRow).sort(sortImagesForDashboard);
+}
+
 export const dashboardDbImageRouter = createTRPCRouter({
   getPresignedUrl: protectedProcedure
     .input(
@@ -263,27 +291,25 @@ export const dashboardDbImageRouter = createTRPCRouter({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      const uniqueListingIds = Array.from(new Set(input.listingIds));
-      if (!uniqueListingIds.length) return [];
+      return getDashboardImagesByListingIds({
+        db: ctx.db,
+        userId: ctx.user.id,
+        listingIds: input.listingIds,
+      });
+    }),
 
-      const rows = await ctx.db.$queryRaw<ImageRow[]>(Prisma.sql`
-        SELECT
-          i."id",
-          i."url",
-          i."order",
-          i."listingId",
-          i."userProfileId",
-          i."createdAt",
-          i."updatedAt",
-          i."status"
-        FROM "Image" i
-        INNER JOIN "Listing" l ON l."id" = i."listingId"
-        WHERE
-          i."listingId" IN (${Prisma.join(uniqueListingIds)})
-          AND l."userId" = ${ctx.user.id}
-      `);
-
-      return rows.map(mapImageRow).sort(sortImagesForDashboard);
+  listByListingIdsReplica: protectedProcedure
+    .input(
+      z.object({
+        listingIds: z.array(z.string().trim().min(1)).max(1000),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      return getDashboardImagesByListingIds({
+        db: ctx.replicaDb ?? ctx.db,
+        userId: ctx.user.id,
+        listingIds: input.listingIds,
+      });
     }),
 
   sync: protectedProcedure

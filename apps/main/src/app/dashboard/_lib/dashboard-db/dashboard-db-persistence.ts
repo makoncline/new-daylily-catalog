@@ -1,14 +1,14 @@
 "use client";
 
+import type { PersistedCollectionPersistence } from "@tanstack/browser-db-sqlite-persistence";
 import type { RouterOutputs } from "@/trpc/react";
 import { getQueryClient } from "@/trpc/query-client";
 import { getTrpcClient } from "@/trpc/client";
+import { cursorKey, getCurrentUserId } from "@/lib/utils/cursor";
 import {
-  cursorKey,
-  getCurrentUserId,
-  setCurrentUserId,
-} from "@/lib/utils/cursor";
-import { writeCursorFromRows } from "@/app/dashboard/_lib/dashboard-db/collection-bootstrap";
+  logDashboardSyncTiming,
+  writeCursorFromRows,
+} from "@/app/dashboard/_lib/dashboard-db/collection-bootstrap";
 import {
   clearNextListingsCollectionSyncSuppression,
   listingsCollection,
@@ -29,6 +29,7 @@ import {
   cultivarReferencesCollection,
   suppressNextCultivarReferencesCollectionSync,
 } from "@/app/dashboard/_lib/dashboard-db/cultivar-references-collection";
+import { dashboardDbCollectionId } from "@/app/dashboard/_lib/dashboard-db/dashboard-db-persisted-options";
 
 let dashboardDbRefreshQueue: Promise<void> = Promise.resolve();
 let dashboardDbRefreshGeneration = 0;
@@ -49,6 +50,8 @@ const CULTIVAR_REFS_QUERY_KEY = [
 const IMAGE_LISTING_ID_CHUNK_SIZE = 900;
 const CULTIVAR_REF_ID_CHUNK_SIZE = 300;
 const DASHBOARD_BOOTSTRAP_CHUNK_CONCURRENCY = 2;
+const SQLITE_CACHE_WRITTEN_AT_BASE = "dashboard-db:sqlite-cache-written-at";
+const DASHBOARD_DB_SQLITE_CACHE_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 
 type ListingRow = RouterOutputs["dashboardDb"]["listing"]["list"][number];
 type ListRow = RouterOutputs["dashboardDb"]["list"]["list"][number];
@@ -62,15 +65,17 @@ interface DashboardDbServerSnapshot {
   cultivarReferences: CultivarReferenceRow[];
 }
 
-export const DASHBOARD_DB_PERSISTED_SWR = {
-  enabled: true,
-  ttlMs: 24 * 60 * 60 * 1000, // 1 day
-  version: 10,
-} as const;
+type DashboardDbCollectionName =
+  | "listings"
+  | "lists"
+  | "images"
+  | "cultivar-references";
 
 interface DashboardDbRefreshGuard {
   isActive?: () => boolean;
 }
+
+type DashboardDbSnapshotSource = "primary" | "replica";
 
 export class DashboardRefreshLockCancelledError extends Error {
   constructor() {
@@ -83,147 +88,23 @@ function isDashboardRefreshLockCancelledError(error: unknown) {
   return error instanceof DashboardRefreshLockCancelledError;
 }
 
-export interface DashboardDbPersistedSnapshot {
-  userId: string;
-  version: number;
-  persistedAt: Date;
-  listings: ListingRow[];
-  lists: ListRow[];
-  images: ImageRow[];
-  cultivarReferences: CultivarReferenceRow[];
-}
-
-const IDB_DB_NAME = "new-daylily-catalog";
-const IDB_STORE_NAME = "dashboard-db-snapshots";
-const IDB_VERSION = 1;
-
-function isIdbSupported() {
-  return typeof indexedDB !== "undefined";
-}
-
-function openDb(): Promise<IDBDatabase> {
-  return new Promise((resolve, reject) => {
-    const request = indexedDB.open(IDB_DB_NAME, IDB_VERSION);
-
-    request.onupgradeneeded = () => {
-      const db = request.result;
-      if (!db.objectStoreNames.contains(IDB_STORE_NAME)) {
-        db.createObjectStore(IDB_STORE_NAME, { keyPath: "userId" });
-      }
-    };
-
-    request.onsuccess = () => {
-      resolve(request.result);
-    };
-
-    request.onerror = () => {
-      const err = request.error;
-      reject(err instanceof Error ? err : new Error("IndexedDB open failed"));
-    };
-  });
-}
-
-function closeDbOnTransactionComplete(tx: IDBTransaction, db: IDBDatabase) {
-  const closeDb = () => {
-    db.close();
-  };
-
-  tx.oncomplete = closeDb;
-  tx.onerror = closeDb;
-  tx.onabort = closeDb;
-}
-
-async function idbGet<T>(key: IDBValidKey): Promise<T | null> {
-  if (!isIdbSupported()) return null;
-
-  const db = await openDb();
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction(IDB_STORE_NAME, "readonly");
-    const store = tx.objectStore(IDB_STORE_NAME);
-    const request = store.get(key);
-    closeDbOnTransactionComplete(tx, db);
-
-    request.onsuccess = () => {
-      resolve((request.result as T | undefined) ?? null);
-    };
-    request.onerror = () => {
-      const err = request.error;
-      reject(err instanceof Error ? err : new Error("IndexedDB get failed"));
-    };
-  });
-}
-
-async function idbPut<T extends { userId: string }>(value: T): Promise<void> {
-  if (!isIdbSupported()) return;
-
-  const db = await openDb();
-  await new Promise<void>((resolve, reject) => {
-    const tx = db.transaction(IDB_STORE_NAME, "readwrite");
-    const store = tx.objectStore(IDB_STORE_NAME);
-    const request = store.put(value);
-    closeDbOnTransactionComplete(tx, db);
-
-    request.onsuccess = () => resolve();
-    request.onerror = () => {
-      const err = request.error;
-      reject(err instanceof Error ? err : new Error("IndexedDB put failed"));
-    };
-  });
-}
-
-async function idbDelete(key: IDBValidKey): Promise<void> {
-  if (!isIdbSupported()) return;
-
-  const db = await openDb();
-  await new Promise<void>((resolve, reject) => {
-    const tx = db.transaction(IDB_STORE_NAME, "readwrite");
-    const store = tx.objectStore(IDB_STORE_NAME);
-    const request = store.delete(key);
-    closeDbOnTransactionComplete(tx, db);
-
-    request.onsuccess = () => resolve();
-    request.onerror = () => {
-      const err = request.error;
-      reject(err instanceof Error ? err : new Error("IndexedDB delete failed"));
-    };
-  });
-}
-
-export async function readDashboardDbSnapshot(userId: string) {
-  const snapshot = await idbGet<DashboardDbPersistedSnapshot>(userId);
-  return snapshot ?? null;
-}
-
-export async function writeDashboardDbSnapshot(
-  snapshot: DashboardDbPersistedSnapshot,
-) {
-  await idbPut(snapshot);
-}
-
-export async function deleteDashboardDbSnapshot(userId: string) {
-  await idbDelete(userId);
-}
-
-function getPersistedAtMs(snapshot: DashboardDbPersistedSnapshot) {
-  const value = snapshot.persistedAt as unknown;
-  if (value instanceof Date) return value.getTime();
-
-  if (typeof value === "string" || typeof value === "number") {
-    const ms = new Date(value).getTime();
-    return Number.isNaN(ms) ? null : ms;
-  }
-
-  return null;
-}
-
-function isSnapshotFresh(snapshot: DashboardDbPersistedSnapshot) {
-  const persistedAtMs = getPersistedAtMs(snapshot);
-  if (persistedAtMs === null) return false;
-
-  return (
-    snapshot.version === DASHBOARD_DB_PERSISTED_SWR.version &&
-    Date.now() - persistedAtMs < DASHBOARD_DB_PERSISTED_SWR.ttlMs
+export function markDashboardDbSqliteCacheWritten(userId: string) {
+  localStorage.setItem(
+    cursorKey(SQLITE_CACHE_WRITTEN_AT_BASE, userId),
+    new Date().toISOString(),
   );
+}
+
+export function hasFreshDashboardDbSqliteCache(userId: string) {
+  const value = localStorage.getItem(
+    cursorKey(SQLITE_CACHE_WRITTEN_AT_BASE, userId),
+  );
+  if (!value) return false;
+
+  const writtenAtMs = new Date(value).getTime();
+  if (Number.isNaN(writtenAtMs)) return false;
+
+  return Date.now() - writtenAtMs < DASHBOARD_DB_SQLITE_CACHE_TTL_MS;
 }
 
 function writeCursorFromSnapshotRows(args: {
@@ -293,7 +174,10 @@ async function mapWithConcurrency<T, R>(
   return results;
 }
 
-async function fetchImagesForListings(listings: readonly ListingRow[]) {
+async function fetchImagesForListings(
+  listings: readonly ListingRow[],
+  source: DashboardDbSnapshotSource,
+) {
   const client = getTrpcClient();
   const listingIdChunks = chunkArray(
     listings.map((listing) => listing.id),
@@ -304,10 +188,12 @@ async function fetchImagesForListings(listings: readonly ListingRow[]) {
   const imageChunks = await mapWithConcurrency(
     listingIdChunks,
     DASHBOARD_BOOTSTRAP_CHUNK_CONCURRENCY,
-    (listingIds) =>
-      client.dashboardDb.image.listByListingIds.mutate({
-        listingIds,
-      }),
+    (listingIds) => {
+      const input = { listingIds };
+      return source === "replica"
+        ? client.dashboardDb.image.listByListingIdsReplica.mutate(input)
+        : client.dashboardDb.image.listByListingIds.mutate(input);
+    },
   );
 
   return sortSnapshotImages(imageChunks.flat());
@@ -315,6 +201,7 @@ async function fetchImagesForListings(listings: readonly ListingRow[]) {
 
 async function fetchCultivarReferencesForListings(
   listings: readonly ListingRow[],
+  source: DashboardDbSnapshotSource,
 ) {
   const client = getTrpcClient();
   const cultivarReferenceIds = Array.from(
@@ -327,7 +214,14 @@ async function fetchCultivarReferencesForListings(
   const cultivarReferenceChunks = await mapWithConcurrency(
     chunkArray(cultivarReferenceIds, CULTIVAR_REF_ID_CHUNK_SIZE),
     DASHBOARD_BOOTSTRAP_CHUNK_CONCURRENCY,
-    (ids) => client.dashboardDb.cultivarReference.getByIdsBatch.mutate({ ids }),
+    (ids) => {
+      const input = { ids };
+      return source === "replica"
+        ? client.dashboardDb.cultivarReference.getByIdsBatchReplica.mutate(
+            input,
+          )
+        : client.dashboardDb.cultivarReference.getByIdsBatch.mutate(input);
+    },
   );
 
   return sortSnapshotCultivarReferences(cultivarReferenceChunks.flat());
@@ -347,9 +241,34 @@ function sortSnapshotCultivarReferences(rows: readonly CultivarReferenceRow[]) {
   return [...rows].sort((a, b) => a.id.localeCompare(b.id));
 }
 
+function sortSnapshotListings(rows: readonly ListingRow[]) {
+  return [...rows].sort(
+    (a, b) => b.createdAt.getTime() - a.createdAt.getTime(),
+  );
+}
+
+function sortSnapshotLists(rows: readonly ListRow[]) {
+  return [...rows].sort(
+    (a, b) => b.createdAt.getTime() - a.createdAt.getTime(),
+  );
+}
+
+async function readPersistedDashboardDbRows<T extends object>(args: {
+  persistence: PersistedCollectionPersistence;
+  name: DashboardDbCollectionName;
+  userId: string;
+}) {
+  const rows = await args.persistence.adapter.loadSubset(
+    dashboardDbCollectionId({ name: args.name, userId: args.userId }),
+    {},
+  );
+  return rows.map((row) => row.value as T);
+}
+
 async function applyDashboardDbSnapshot(
   userId: string,
   snapshot: DashboardDbServerSnapshot,
+  options: { markCacheWritten?: boolean } = {},
 ) {
   const queryClient = getQueryClient();
 
@@ -389,14 +308,91 @@ async function applyDashboardDbSnapshot(
     imagesCollection.preload(),
     cultivarReferencesCollection.preload(),
   ]);
+  if (options.markCacheWritten !== false) {
+    markDashboardDbSqliteCacheWritten(userId);
+  }
 }
 
-export async function fetchDashboardDbSnapshotFromServer() {
+export async function hydrateDashboardDbFromSqlitePersistence(args: {
+  persistence: PersistedCollectionPersistence;
+  userId: string;
+}) {
+  const [listings, lists, images, cultivarReferences] = await Promise.all([
+    readPersistedDashboardDbRows<ListingRow>({
+      persistence: args.persistence,
+      name: "listings",
+      userId: args.userId,
+    }),
+    readPersistedDashboardDbRows<ListRow>({
+      persistence: args.persistence,
+      name: "lists",
+      userId: args.userId,
+    }),
+    readPersistedDashboardDbRows<ImageRow>({
+      persistence: args.persistence,
+      name: "images",
+      userId: args.userId,
+    }),
+    readPersistedDashboardDbRows<CultivarReferenceRow>({
+      persistence: args.persistence,
+      name: "cultivar-references",
+      userId: args.userId,
+    }),
+  ]);
+
+  await applyDashboardDbSnapshot(
+    args.userId,
+    {
+      listings: sortSnapshotListings(listings),
+      lists: sortSnapshotLists(lists),
+      images: sortSnapshotImages(images),
+      cultivarReferences: sortSnapshotCultivarReferences(cultivarReferences),
+    },
+    { markCacheWritten: false },
+  );
+}
+
+async function fetchDashboardDbSnapshotFromSource(
+  source: DashboardDbSnapshotSource,
+) {
+  const startedAt = performance.now();
   const client = getTrpcClient();
+  const rootsStartedAt = performance.now();
   const { listings, lists, profileImages } =
-    await client.dashboardDb.bootstrap.roots.query();
-  const images = await fetchImagesForListings(listings);
-  const cultivarReferences = await fetchCultivarReferencesForListings(listings);
+    source === "replica"
+      ? await client.dashboardDb.bootstrap.replicaRoots.query()
+      : await client.dashboardDb.bootstrap.roots.query();
+  const rootsDurationMs = performance.now() - rootsStartedAt;
+  const imagesStartedAt = performance.now();
+  const images = await fetchImagesForListings(listings, source);
+  const imagesDurationMs = performance.now() - imagesStartedAt;
+  const cultivarReferencesStartedAt = performance.now();
+  const cultivarReferences = await fetchCultivarReferencesForListings(
+    listings,
+    source,
+  );
+  const cultivarReferencesDurationMs =
+    performance.now() - cultivarReferencesStartedAt;
+
+  logDashboardSyncTiming(`${source}.bootstrap.snapshot`, startedAt, {
+    listings: listings.length,
+    lists: lists.length,
+    images: profileImages.length + images.length,
+    cultivarReferences: cultivarReferences.length,
+    rootsDurationMs: Number(rootsDurationMs.toFixed(1)),
+    imagesDurationMs: Number(imagesDurationMs.toFixed(1)),
+    cultivarReferencesDurationMs: Number(
+      cultivarReferencesDurationMs.toFixed(1),
+    ),
+    imageChunks: Math.ceil(listings.length / IMAGE_LISTING_ID_CHUNK_SIZE),
+    cultivarReferenceChunks: Math.ceil(
+      new Set(
+        listings.flatMap((listing) =>
+          listing.cultivarReferenceId ? [listing.cultivarReferenceId] : [],
+        ),
+      ).size / CULTIVAR_REF_ID_CHUNK_SIZE,
+    ),
+  });
 
   return {
     listings,
@@ -404,6 +400,18 @@ export async function fetchDashboardDbSnapshotFromServer() {
     images: sortSnapshotImages([...profileImages, ...images]),
     cultivarReferences,
   };
+}
+
+export async function fetchDashboardDbSnapshotFromServer() {
+  return fetchDashboardDbSnapshotFromSource("primary");
+}
+
+export async function fetchDashboardDbSnapshotFromReplica() {
+  return fetchDashboardDbSnapshotFromSource("replica");
+}
+
+export async function isDashboardDbReplicaAvailable() {
+  return getTrpcClient().dashboardDb.bootstrap.replicaAvailable.query();
 }
 
 async function invalidateDashboardCollectionQueries() {
@@ -455,101 +463,6 @@ export function runWithDashboardRefreshLock<T>(work: () => Promise<T>) {
     });
 }
 
-export async function tryHydrateDashboardDbFromPersistence(userId: string) {
-  if (!DASHBOARD_DB_PERSISTED_SWR.enabled) return false;
-  if (!isIdbSupported()) return false;
-
-  let snapshot: DashboardDbPersistedSnapshot | null = null;
-  try {
-    snapshot = await readDashboardDbSnapshot(userId);
-  } catch {
-    return false;
-  }
-
-  if (!snapshot) return false;
-
-  if (!isSnapshotFresh(snapshot)) {
-    if (snapshot.version !== DASHBOARD_DB_PERSISTED_SWR.version) {
-      try {
-        await deleteDashboardDbSnapshot(userId);
-      } catch {
-        // ignore: best-effort cleanup
-      }
-    }
-    return false;
-  }
-
-  try {
-    setCurrentUserId(userId);
-
-    const queryClient = getQueryClient();
-    queryClient.setQueryData(LISTINGS_QUERY_KEY, snapshot.listings);
-    queryClient.setQueryData(LISTS_QUERY_KEY, snapshot.lists);
-    queryClient.setQueryData(IMAGES_QUERY_KEY, snapshot.images);
-    queryClient.setQueryData(
-      CULTIVAR_REFS_QUERY_KEY,
-      snapshot.cultivarReferences,
-    );
-
-    writeCursorFromSnapshotRows({
-      cursorBase: LISTINGS_CURSOR_BASE,
-      userId,
-      rows: snapshot.listings,
-    });
-    writeCursorFromSnapshotRows({
-      cursorBase: LISTS_CURSOR_BASE,
-      userId,
-      rows: snapshot.lists,
-    });
-    writeCursorFromSnapshotRows({
-      cursorBase: IMAGES_CURSOR_BASE,
-      userId,
-      rows: snapshot.images,
-    });
-    writeCursorFromSnapshotRows({
-      cursorBase: CULTIVAR_REFS_CURSOR_BASE,
-      userId,
-      rows: snapshot.cultivarReferences,
-    });
-
-    suppressNextDashboardCollectionSyncs();
-  } catch {
-    return false;
-  }
-
-  return true;
-}
-
-export async function persistDashboardDbToPersistence(userId: string) {
-  if (!DASHBOARD_DB_PERSISTED_SWR.enabled) return;
-  if (!isIdbSupported()) return;
-
-  try {
-    const queryClient = getQueryClient();
-
-    const listings =
-      queryClient.getQueryData<ListingRow[]>(LISTINGS_QUERY_KEY) ?? [];
-    const lists = queryClient.getQueryData<ListRow[]>(LISTS_QUERY_KEY) ?? [];
-    const images = queryClient.getQueryData<ImageRow[]>(IMAGES_QUERY_KEY) ?? [];
-    const cultivarReferences =
-      queryClient.getQueryData<CultivarReferenceRow[]>(
-        CULTIVAR_REFS_QUERY_KEY,
-      ) ?? [];
-
-    await writeDashboardDbSnapshot({
-      userId,
-      version: DASHBOARD_DB_PERSISTED_SWR.version,
-      persistedAt: new Date(),
-      listings,
-      lists,
-      images,
-      cultivarReferences,
-    });
-  } catch {
-    // ignore: best-effort optimization
-  }
-}
-
 export async function bootstrapDashboardDbFromServer(
   userId: string,
   guard?: DashboardDbRefreshGuard,
@@ -575,12 +488,52 @@ export async function bootstrapDashboardDbFromServer(
       }
 
       await applyDashboardDbSnapshot(userId, snapshot);
-
-      await persistDashboardDbToPersistence(userId);
     });
   } catch (error) {
     if (isDashboardRefreshLockCancelledError(error)) {
       return;
+    }
+
+    throw error;
+  }
+}
+
+export async function bootstrapDashboardDbFromReplica(
+  userId: string,
+  guard?: DashboardDbRefreshGuard,
+) {
+  if (!(await isDashboardDbReplicaAvailable())) {
+    return false;
+  }
+
+  try {
+    await runWithDashboardRefreshLock(async () => {
+      if (guard?.isActive && !guard.isActive()) {
+        return;
+      }
+
+      if (getCurrentUserId() !== userId) {
+        return;
+      }
+
+      const snapshot = await fetchDashboardDbSnapshotFromReplica();
+
+      if (guard?.isActive && !guard.isActive()) {
+        return;
+      }
+
+      if (getCurrentUserId() !== userId) {
+        return;
+      }
+
+      await applyDashboardDbSnapshot(userId, snapshot, {
+        markCacheWritten: false,
+      });
+    });
+    return true;
+  } catch (error) {
+    if (isDashboardRefreshLockCancelledError(error)) {
+      return false;
     }
 
     throw error;
@@ -612,8 +565,6 @@ export async function refreshDashboardDbFromServer(
       }
 
       await applyDashboardDbSnapshot(userId, snapshot);
-
-      await persistDashboardDbToPersistence(userId);
       return true;
     });
   } catch (error) {
@@ -629,8 +580,6 @@ export async function revalidateDashboardDbInBackground(
   userId: string,
   guard?: DashboardDbRefreshGuard,
 ) {
-  if (!DASHBOARD_DB_PERSISTED_SWR.enabled) return;
-
   try {
     const refreshed = await refreshDashboardDbFromServer(userId, guard);
     if (!refreshed) {
@@ -644,45 +593,4 @@ export async function revalidateDashboardDbInBackground(
     await invalidateDashboardCollectionQueries();
     // ignore: background revalidate is best-effort
   }
-}
-
-let persistTimeout: ReturnType<typeof setTimeout> | null = null;
-let persistInFlight: Promise<void> | null = null;
-let persistQueued = false;
-
-function runPersist(userId: string) {
-  if (persistInFlight) {
-    persistQueued = true;
-    return;
-  }
-
-  persistInFlight = persistDashboardDbToPersistence(userId)
-    .catch(() => {
-      // ignore persistence errors; this is an optimization
-    })
-    .finally(() => {
-      persistInFlight = null;
-      if (persistQueued) {
-        persistQueued = false;
-        runPersist(userId);
-      }
-    });
-}
-
-export function schedulePersistDashboardDbForCurrentUser(args?: {
-  delayMs?: number;
-}) {
-  if (!DASHBOARD_DB_PERSISTED_SWR.enabled) return;
-  if (!isIdbSupported()) return;
-
-  const userId = getCurrentUserId();
-  if (!userId) return;
-
-  const delayMs = args?.delayMs ?? 750;
-
-  if (persistTimeout) clearTimeout(persistTimeout);
-  persistTimeout = setTimeout(() => {
-    persistTimeout = null;
-    runPersist(userId);
-  }, delayMs);
 }

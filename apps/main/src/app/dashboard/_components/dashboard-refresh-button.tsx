@@ -9,15 +9,17 @@ import { useDashboardDb } from "@/app/dashboard/_components/dashboard-db-provide
 import { revalidateDashboardDbInBackground } from "@/app/dashboard/_lib/dashboard-db/dashboard-db-persistence";
 
 export function DashboardRefreshButton() {
-  const { status, userId } = useDashboardDb();
+  const { status, userId, isRefreshing: isBackgroundRefreshing } =
+    useDashboardDb();
   const utils = api.useUtils();
-  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isManualRefresh, setIsManualRefresh] = useState(false);
+  const isRefreshing = isBackgroundRefreshing || isManualRefresh;
 
   const handleRefresh = async () => {
     if (status !== "ready" || !userId) return;
     if (isRefreshing) return;
 
-    setIsRefreshing(true);
+    setIsManualRefresh(true);
     try {
       await Promise.all([
         revalidateDashboardDbInBackground(userId),
@@ -28,7 +30,7 @@ export function DashboardRefreshButton() {
 
       toast.success("Dashboard refreshed");
     } finally {
-      setIsRefreshing(false);
+      setIsManualRefresh(false);
     }
   };
 

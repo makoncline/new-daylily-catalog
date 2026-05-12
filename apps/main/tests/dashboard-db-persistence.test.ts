@@ -1,6 +1,5 @@
 // @vitest-environment jsdom
 
-import "fake-indexeddb/auto";
 import { afterEach, describe, expect, it } from "vitest";
 import { clearTestTrpcClient, setTestTrpcClient } from "@/trpc/client";
 import { fetchDashboardDbSnapshotFromServer } from "@/app/dashboard/_lib/dashboard-db/dashboard-db-persistence";

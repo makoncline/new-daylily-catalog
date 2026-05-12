@@ -1,7 +1,7 @@
 import { initTRPC, TRPCError } from "@trpc/server";
 import { auth } from "@clerk/nextjs/server";
 import superjson from "superjson";
-import { db } from "@/server/db";
+import { db, hasEmbeddedReplica, replicaDb } from "@/server/db";
 import { getClerkUserData } from "@/server/clerk/sync-user";
 import { ZodError } from "zod";
 
@@ -41,6 +41,8 @@ type TRPCContextUser = Awaited<ReturnType<typeof getOrCreateUser>>;
 export interface TRPCContext {
   headers: Headers;
   db: typeof db;
+  hasReplicaDb?: boolean;
+  replicaDb?: typeof db;
   requestUrl?: string;
 }
 
@@ -73,6 +75,8 @@ export const createTRPCContext = async (
   return {
     ...opts,
     db,
+    hasReplicaDb: hasEmbeddedReplica,
+    replicaDb,
   };
 };
 

@@ -1,7 +1,11 @@
 "use client";
 
-import { createCollection } from "@tanstack/react-db";
-import { queryCollectionOptions } from "@tanstack/query-db-collection";
+import { createCollection, type Collection } from "@tanstack/react-db";
+import {
+  queryCollectionOptions,
+  type QueryCollectionUtils,
+} from "@tanstack/query-db-collection";
+import type { PersistedCollectionPersistence } from "@tanstack/browser-db-sqlite-persistence";
 import type { RouterOutputs } from "@/trpc/react";
 import { getQueryClient } from "@/trpc/query-client";
 import { getTrpcClient } from "@/trpc/client";
@@ -11,6 +15,10 @@ import {
   refreshDashboardDbCollectionFromServer,
   writeCursorFromRows,
 } from "@/app/dashboard/_lib/dashboard-db/collection-bootstrap";
+import {
+  dashboardDbCollectionId,
+  withDashboardDbPersistence,
+} from "@/app/dashboard/_lib/dashboard-db/dashboard-db-persisted-options";
 
 const CURSOR_BASE = "dashboard-db:cultivar-references:maxUpdatedAt";
 const QUERY_KEY = ["dashboard-db", "cultivar-references"] as const;
@@ -19,6 +27,11 @@ let shouldSkipNextCultivarReferencesSync = false;
 
 export type CultivarReferenceCollectionItem =
   RouterOutputs["dashboardDb"]["cultivarReference"]["listForUserListings"][number];
+type CultivarReferenceCollection = Collection<
+  CultivarReferenceCollectionItem,
+  string,
+  QueryCollectionUtils<CultivarReferenceCollectionItem>
+>;
 
 function sortCultivarReferences(
   rows: readonly CultivarReferenceCollectionItem[],
@@ -41,8 +54,23 @@ export async function cleanupCultivarReferencesCollection() {
   await cultivarReferencesCollection.cleanup();
 }
 
-export const cultivarReferencesCollection = createCollection(
-  queryCollectionOptions<CultivarReferenceCollectionItem>({
+function getExistingCultivarReferenceRows(
+  queryKey: readonly unknown[],
+): CultivarReferenceCollectionItem[] {
+  const queryRows: CultivarReferenceCollectionItem[] =
+    getQueryClient().getQueryData(queryKey) ?? [];
+  const collectionRows: CultivarReferenceCollectionItem[] = Array.from(
+    cultivarReferencesCollection.values(),
+  );
+
+  return queryRows.length >= collectionRows.length ? queryRows : collectionRows;
+}
+
+function createCultivarReferencesCollection(
+  persistence: PersistedCollectionPersistence | null,
+  userId: string | null,
+): CultivarReferenceCollection {
+  const options = queryCollectionOptions<CultivarReferenceCollectionItem>({
     queryClient: getQueryClient(),
     queryKey: QUERY_KEY,
     enabled: true,
@@ -50,8 +78,7 @@ export const cultivarReferencesCollection = createCollection(
     retry: false,
     getKey: (row) => row.id,
     queryFn: async ({ queryKey }) => {
-      const existing: CultivarReferenceCollectionItem[] =
-        getQueryClient().getQueryData(queryKey) ?? [];
+      const existing = getExistingCultivarReferenceRows(queryKey);
 
       if (shouldSkipNextCultivarReferencesSync) {
         shouldSkipNextCultivarReferencesSync = false;
@@ -61,6 +88,7 @@ export const cultivarReferencesCollection = createCollection(
       const cursorKeyToUse = getUserCursorKey(CURSOR_BASE);
       const last = localStorage.getItem(cursorKeyToUse);
       const upserts = await fetchDashboardSyncPages({
+        label: "cultivarReference.sync",
         since: last ?? null,
         pageSize: CULTIVAR_REFERENCES_SYNC_PAGE_SIZE,
         fetchPage: (input) =>
@@ -76,8 +104,33 @@ export const cultivarReferencesCollection = createCollection(
     onInsert: async () => ({ refetch: false }),
     onUpdate: async () => ({ refetch: false }),
     onDelete: async () => ({ refetch: false }),
-  }),
-);
+  });
+
+  return createCollection(
+    withDashboardDbPersistence<CultivarReferenceCollectionItem>({
+      options,
+      persistence,
+      collectionId: dashboardDbCollectionId({
+        name: "cultivar-references",
+        userId,
+      }),
+    }) as Parameters<typeof createCollection>[0],
+  ) as unknown as CultivarReferenceCollection;
+}
+
+export let cultivarReferencesCollection: CultivarReferenceCollection =
+  createCultivarReferencesCollection(null, null);
+
+export function resetCultivarReferencesCollectionWithPersistence(
+  persistence: PersistedCollectionPersistence | null,
+  userId: string | null,
+) {
+  shouldSkipNextCultivarReferencesSync = false;
+  cultivarReferencesCollection = createCultivarReferencesCollection(
+    persistence,
+    userId,
+  );
+}
 
 export async function refreshCultivarReferencesCollectionFromServer(
   userId: string,
@@ -88,6 +141,7 @@ export async function refreshCultivarReferencesCollectionFromServer(
     cursorBase: CURSOR_BASE,
     fetchRows: () =>
       fetchDashboardSyncPages({
+        label: "cultivarReference.full-refresh",
         since: null,
         pageSize: CULTIVAR_REFERENCES_SYNC_PAGE_SIZE,
         fetchPage: (input) =>
