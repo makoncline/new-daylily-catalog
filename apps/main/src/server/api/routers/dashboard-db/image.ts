@@ -374,6 +374,17 @@ export const dashboardDbImageRouter = createTRPCRouter({
       });
 
       const inputIds = new Set(input.images.map((img) => img.id));
+      const ownedImageIds = new Set(allImages.map((img) => img.id));
+      const hasUnownedImage = input.images.some(
+        (img) => !ownedImageIds.has(img.id),
+      );
+      if (hasUnownedImage) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Image not found",
+        });
+      }
+
       const mergedOrder = [
         ...input.images,
         ...allImages
@@ -425,7 +436,15 @@ export const dashboardDbImageRouter = createTRPCRouter({
           : { userProfileId: input.referenceId };
 
       await ctx.db.$transaction(async (tx) => {
-        await tx.image.delete({ where: { id: input.imageId } });
+        const deleted = await tx.image.deleteMany({
+          where: { id: input.imageId, ...whereClause },
+        });
+        if (deleted.count === 0) {
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "Image not found",
+          });
+        }
 
         const remaining = await tx.image.findMany({
           where: whereClause,
