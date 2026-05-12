@@ -542,6 +542,106 @@ describe("dashboardDb provider bootstrap", () => {
     });
   });
 
+  it("falls back to server bootstrap when warm SQLite hydration fails", async () => {
+    vi.resetModules();
+
+    const bootstrapDashboardDbFromReplica = vi.fn(async () => false);
+    const bootstrapDashboardDbFromServer = vi.fn(async () => undefined);
+    const hydrateDashboardDbFromSqlitePersistence = vi.fn(async () => {
+      throw new Error("sqlite hydrate failed");
+    });
+
+    vi.doMock(
+      "@/app/dashboard/_lib/dashboard-db/dashboard-db-sqlite-persistence",
+      () => ({
+        getDashboardDbSqlitePersistence: vi.fn(async () => ({
+          adapter: {},
+        })),
+      }),
+    );
+    vi.doMock(
+      "@/app/dashboard/_lib/dashboard-db/dashboard-db-collections",
+      () => ({
+        configureDashboardDbCollectionsPersistence: vi.fn(),
+      }),
+    );
+    vi.doMock(
+      "@/app/dashboard/_lib/dashboard-db/dashboard-db-persistence",
+      () => ({
+        bootstrapDashboardDbFromReplica,
+        bootstrapDashboardDbFromServer,
+        hasFreshDashboardDbSqliteCache: vi.fn(() => true),
+        hydrateDashboardDbFromSqlitePersistence,
+        revalidateDashboardDbInBackground: vi.fn(async () => undefined),
+        resetDashboardRefreshLock: vi.fn(),
+      }),
+    );
+
+    const { DashboardDbProvider } = await import(
+      "@/app/dashboard/_components/dashboard-db-provider"
+    );
+    const { api: freshApi } = await import("@/trpc/react");
+    const { getQueryClient: getFreshQueryClient } = await import(
+      "@/trpc/query-client"
+    );
+
+    const trpcClient = freshApi.createClient({
+      links: [
+        () =>
+          ({ op }) =>
+            observable((emit) => {
+              if (op.path === "dashboardDb.user.getCurrentUser") {
+                emit.next({
+                  result: {
+                    data: {
+                      id: "user-1",
+                    },
+                  },
+                });
+                emit.complete();
+                return;
+              }
+
+              if (op.path === "dashboardDb.userProfile.get") {
+                emit.next({
+                  result: {
+                    data: null,
+                  },
+                });
+                emit.complete();
+                return;
+              }
+
+              emit.error(
+                new Error(
+                  `Unexpected operation ${op.path}`,
+                ) as Parameters<typeof emit.error>[0],
+              );
+            }),
+      ],
+    });
+    const queryClient = getFreshQueryClient();
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <freshApi.Provider client={trpcClient} queryClient={queryClient}>
+          <DashboardDbProvider>
+            <DashboardReadyMarker />
+          </DashboardDbProvider>
+        </freshApi.Provider>
+      </QueryClientProvider>,
+    );
+
+    await waitFor(() => {
+      expect(screen.getByTestId("dashboard-ready").textContent).toBe("ready");
+    });
+
+    expect(hydrateDashboardDbFromSqlitePersistence).toHaveBeenCalledTimes(1);
+    expect(bootstrapDashboardDbFromReplica).toHaveBeenCalledTimes(1);
+    expect(bootstrapDashboardDbFromServer).toHaveBeenCalledTimes(1);
+    expect(reportDashboardLoadFailureMock).not.toHaveBeenCalled();
+  });
+
   it("bootstraps successfully in React StrictMode", async () => {
     await withTempAppDb(async ({ user }) => {
       const { db } = await import("@/server/db");

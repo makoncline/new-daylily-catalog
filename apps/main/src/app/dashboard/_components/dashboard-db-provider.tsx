@@ -216,24 +216,31 @@ export function DashboardDbProvider({
             userId,
             isRefreshing: true,
           });
-          await Promise.all([
-            hydrateDashboardDbFromSqlitePersistence({
-              persistence: sqlitePersistence,
-              userId,
-            }),
-            utils.dashboardDb.userProfile.get.prefetch(),
-          ]);
+          const [hydrateResult, profilePrefetchResult] =
+            await Promise.allSettled([
+              hydrateDashboardDbFromSqlitePersistence({
+                persistence: sqlitePersistence,
+                userId,
+              }),
+              utils.dashboardDb.userProfile.get.prefetch(),
+            ]);
 
-          if (!cancelled) {
-            finished = true;
-            setState({
-              status: "ready",
-              userId,
-              isRefreshing: true,
-            });
-            startBackgroundRefresh();
+          if (hydrateResult.status === "fulfilled") {
+            if (profilePrefetchResult.status === "rejected") {
+              throw profilePrefetchResult.reason;
+            }
+
+            if (!cancelled) {
+              finished = true;
+              setState({
+                status: "ready",
+                userId,
+                isRefreshing: true,
+              });
+              startBackgroundRefresh();
+            }
+            return;
           }
-          return;
         }
 
         phase = "replica-bootstrap";
