@@ -855,6 +855,9 @@ async function uploadOnboardingImageBlob({
   const fileNamePrefix = type === "profile" ? "profile" : "listing";
   const fileName = `onboarding-${fileNamePrefix}-${Date.now()}.jpg`;
   const contentType = getSupportedImageContentType(blob.type);
+  if (!contentType) {
+    throw new Error("Only JPEG, PNG, and WebP images are supported");
+  }
 
   const { presignedUrl, key, url } = await getPresignedUrl({
     type,

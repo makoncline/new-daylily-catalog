@@ -37,6 +37,10 @@ export function useImageUpload({
         setProgress(0);
 
         const contentType = getSupportedImageContentType(file.type);
+        if (!contentType) {
+          throw new Error("Only JPEG, PNG, and WebP images are supported");
+        }
+
         const { presignedUrl, key, url } =
           await getPresignedUrlMutation.mutateAsync({
             type,

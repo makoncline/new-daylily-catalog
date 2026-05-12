@@ -122,9 +122,13 @@ export type ImageContentType = z.infer<typeof imageContentTypeSchema>;
 
 export function getSupportedImageContentType(
   contentType: string | undefined,
-): ImageContentType {
+): ImageContentType | undefined {
+  if (!contentType) {
+    return "image/jpeg";
+  }
+
   const parsed = imageContentTypeSchema.safeParse(contentType);
-  return parsed.success ? parsed.data : "image/jpeg";
+  return parsed.success ? parsed.data : undefined;
 }
 
 export const presignedUrlSchema = z.object({

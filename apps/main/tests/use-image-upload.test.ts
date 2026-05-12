@@ -162,6 +162,30 @@ describe("useImageUpload", () => {
     );
   });
 
+  it("rejects unsupported typed blobs before presigning", async () => {
+    const { result } = renderHook(() =>
+      useImageUpload({
+        type: "listing",
+        referenceId: "listing-1",
+      }),
+    );
+
+    const file = new Blob(["image-bytes"], { type: "image/gif" });
+
+    let returned: unknown;
+    await act(async () => {
+      returned = await result.current.upload(file);
+    });
+
+    expect(returned).toBeUndefined();
+    expect(getPresignedUrlMutateAsyncMock).not.toHaveBeenCalled();
+    expect(uploadFileWithProgressMock).not.toHaveBeenCalled();
+    expect(createImageMock).not.toHaveBeenCalled();
+    expect(toastErrorMock).toHaveBeenCalledWith("Failed to get upload URL", {
+      description: "Only JPEG, PNG, and WebP images are supported",
+    });
+  });
+
   it("handles presigned-url failure and resets state", async () => {
     getPresignedUrlMutateAsyncMock.mockRejectedValue(
       new Error("Presign failed"),
