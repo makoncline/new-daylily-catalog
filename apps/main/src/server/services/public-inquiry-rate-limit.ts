@@ -44,20 +44,25 @@ export interface PublicInquiryRateLimitInput {
 }
 
 function getHeader(headers: Headers | undefined, name: string) {
-  return headers?.get(name)?.trim() ?? "";
+  const value = headers?.get(name)?.trim();
+  if (!value) {
+    return undefined;
+  }
+
+  return value;
 }
 
 export function getPublicInquiryClientId(headers: Headers | undefined) {
-  const forwardedFor = getHeader(headers, "x-forwarded-for");
+  const forwardedFor = getHeader(headers, "x-forwarded-for") ?? "";
   const forwardedIp = forwardedFor
     .split(",")
     .map((value) => value.trim())
     .find(Boolean);
 
   return (
-    forwardedIp ||
-    getHeader(headers, "x-real-ip") ||
-    getHeader(headers, "cf-connecting-ip") ||
+    forwardedIp ??
+    getHeader(headers, "x-real-ip") ??
+    getHeader(headers, "cf-connecting-ip") ??
     "unknown"
   );
 }
