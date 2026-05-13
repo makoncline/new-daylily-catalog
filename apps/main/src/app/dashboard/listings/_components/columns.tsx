@@ -118,7 +118,7 @@ export const baseListingColumns: ColumnDef<ListingData>[] = [
         column={column}
         title={
           <span className="flex items-center gap-2">
-            <ImageIcon className="h-4 w-4" />
+            <ImageIcon className="size-4" />
             <span className="sr-only">{LISTING_TABLE_COLUMN_NAMES.images}</span>
           </span>
         }

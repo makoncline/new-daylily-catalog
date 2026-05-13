@@ -4,9 +4,12 @@ import { useListResource } from "@/app/dashboard/_lib/dashboard-db/use-list-reso
 
 const useSeededDashboardDbQueryMock = vi.hoisted(() => vi.fn());
 
-vi.mock("@/app/dashboard/_lib/dashboard-db/use-seeded-dashboard-db-query", () => ({
-  useSeededDashboardDbQuery: useSeededDashboardDbQueryMock,
-}));
+vi.mock(
+  "@/app/dashboard/_lib/dashboard-db/use-seeded-dashboard-db-query",
+  () => ({
+    useSeededDashboardDbQuery: useSeededDashboardDbQueryMock,
+  }),
+);
 
 vi.mock("@/app/dashboard/_lib/dashboard-db/lists-collection", () => ({
   listsCollection: {},

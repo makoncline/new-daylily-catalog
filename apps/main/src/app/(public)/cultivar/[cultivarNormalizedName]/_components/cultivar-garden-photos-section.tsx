@@ -3,7 +3,9 @@ import { OptimizedImage } from "@/components/optimized-image";
 import { H2, Muted } from "@/components/typography";
 import { type RouterOutputs } from "@/trpc/react";
 
-type CultivarPageOutput = NonNullable<RouterOutputs["public"]["getCultivarPage"]>;
+type CultivarPageOutput = NonNullable<
+  RouterOutputs["public"]["getCultivarPage"]
+>;
 type GardenPhoto = CultivarPageOutput["gardenPhotos"][number];
 
 interface CultivarGardenPhotosSectionProps {
@@ -21,7 +23,7 @@ export function CultivarGardenPhotosSection({
     <section id="photos" aria-label="Photos" className="space-y-4">
       <H2>Photos in Catalogs</H2>
 
-      <div className="grid gap-3 grid-cols-2 sm:grid-cols-3 lg:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
         {photos.map((photo) => {
           const href = `/${photo.sellerSlug}?viewing=${photo.listingId}`;
 
@@ -41,7 +43,9 @@ export function CultivarGardenPhotosSection({
                 />
               </div>
 
-              <Muted className="line-clamp-1 text-xs">{photo.sellerTitle}</Muted>
+              <Muted className="line-clamp-1 text-xs">
+                {photo.sellerTitle}
+              </Muted>
             </Link>
           );
         })}

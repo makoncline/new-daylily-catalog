@@ -24,18 +24,21 @@ export function SellerIntentLink({
   sourcePageType,
   sourcePath,
 }: SellerIntentLinkProps) {
-  const handleClick = () => {
-    const resolvedSourcePath = sourcePath ?? globalThis.location?.pathname ?? "/";
+  const trackSellerIntent = () => {
+    const resolvedSourcePath =
+      sourcePath ?? globalThis.location?.pathname ?? "/";
     const resolvedSourcePageType = sourcePageType ?? "public";
 
-    const posthog = (globalThis as {
-      posthog?: {
-        capture?: (
-          eventName: string,
-          properties?: Record<string, unknown>,
-        ) => void;
-      };
-    }).posthog;
+    const posthog = (
+      globalThis as {
+        posthog?: {
+          capture?: (
+            eventName: string,
+            properties?: Record<string, unknown>,
+          ) => void;
+        };
+      }
+    ).posthog;
 
     posthog?.capture?.("seller_cta_clicked", {
       entry_surface: entrySurface,
@@ -48,7 +51,7 @@ export function SellerIntentLink({
   };
 
   return (
-    <Link href={href} className={className} onClick={handleClick}>
+    <Link href={href} className={className} onClick={trackSellerIntent}>
       {children}
     </Link>
   );

@@ -64,7 +64,7 @@ function toActiveUserIdSet(activeUserIds?: readonly string[] | Set<string>) {
   return activeUserIds instanceof Set ? activeUserIds : new Set(activeUserIds);
 }
 
-export function buildPublicSellerProfile(args: {
+function buildPublicSellerProfile(args: {
   summary: PublicSellerSummary;
   content: OutputData | string | null;
   lists: PublicSellerListSummary[];
@@ -264,7 +264,7 @@ export async function getPublicSellerSummary(
   return summary;
 }
 
-export async function getPublicSellerListSummariesByUserIds(userIds: string[]) {
+async function getPublicSellerListSummariesByUserIds(userIds: string[]) {
   const grouped = new Map<string, PublicSellerListSummary[]>();
 
   if (userIds.length === 0) {
@@ -349,7 +349,7 @@ export async function getPublicProfile(userSlugOrId: string) {
   });
 }
 
-export async function getPublicCatalogCardsByUserIds(
+async function getPublicCatalogCardsByUserIds(
   userIds: string[],
   options?: {
     activeUserIds?: readonly string[] | Set<string>;

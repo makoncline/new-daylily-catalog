@@ -31,9 +31,9 @@ test.describe("lists page features @local", () => {
     };
 
     const expectFirstRowTitle = async (title: string) => {
-      await expect(dashboardLists.rows().first().locator("td").first()).toHaveText(
-        title,
-      );
+      await expect(
+        dashboardLists.rows().first().locator("td").first(),
+      ).toHaveText(title);
     };
 
     const resetAndVerifyBaseline = async () => {
@@ -74,7 +74,7 @@ test.describe("lists page features @local", () => {
     await page.goto("/");
     await clerk.signIn({ page, emailAddress: TEST_USER.email });
     await page.evaluate(() => {
-      localStorage.removeItem("table-state-lists-table");
+      localStorage.removeItem("table-state-lists-table:v1");
     });
 
     await dashboardLists.goto();
@@ -89,7 +89,9 @@ test.describe("lists page features @local", () => {
 
     await dashboardLists.goToNextPage();
     await expectPageIndicator(2, seedMeta.expectedPageCount);
-    await expect(dashboardLists.rows()).toHaveCount(seedMeta.expectedSecondPageRows);
+    await expect(dashboardLists.rows()).toHaveCount(
+      seedMeta.expectedSecondPageRows,
+    );
 
     const secondPageFirstTitle = await dashboardLists.firstRowTitle();
     expect(secondPageFirstTitle).not.toBe(firstPageFirstTitle);
@@ -111,7 +113,7 @@ test.describe("lists page features @local", () => {
     await expect(dashboardLists.rows()).toHaveCount(50);
 
     await page.evaluate(() => {
-      localStorage.removeItem("table-state-lists-table");
+      localStorage.removeItem("table-state-lists-table:v1");
     });
     await dashboardLists.goto();
     await dashboardLists.isReady();

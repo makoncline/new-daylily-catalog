@@ -36,9 +36,7 @@ describe("catalog legacy route", () => {
     });
 
     expect(getListingOwnerWithSlugsMock).toHaveBeenCalledWith("listing-1");
-    expect(permanentRedirectMock).toHaveBeenCalledWith(
-      "/garden/happy-returns",
-    );
+    expect(permanentRedirectMock).toHaveBeenCalledWith("/garden/happy-returns");
   });
 
   it("redirects unresolved legacy listing ids to /catalogs", async () => {

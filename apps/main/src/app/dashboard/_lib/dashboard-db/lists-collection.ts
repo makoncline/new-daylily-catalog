@@ -238,7 +238,7 @@ export async function removeListingFromList(args: {
   });
 }
 
-export async function refreshListsCollectionFromServer(userId: string) {
+async function refreshListsCollectionFromServer(userId: string) {
   await refreshDashboardDbCollectionFromServer({
     userId,
     queryKey: QUERY_KEY,

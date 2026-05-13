@@ -7,10 +7,7 @@ interface IsrWrittenAtProps extends TrackPublicIsrPageGenerationInput {
   className?: string;
 }
 
-export function IsrWrittenAt({
-  routePath,
-  routeType,
-}: IsrWrittenAtProps) {
+export function IsrWrittenAt({ routePath, routeType }: IsrWrittenAtProps) {
   trackPublicIsrPageGeneration({
     routePath,
     routeType,

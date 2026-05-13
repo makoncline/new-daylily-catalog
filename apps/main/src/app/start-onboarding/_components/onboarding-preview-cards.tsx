@@ -1,7 +1,13 @@
 "use client";
 
 import Image from "next/image";
-import { CheckCircle2, Link2, MapPin, Pencil, ShoppingCart } from "lucide-react";
+import {
+  CheckCircle2,
+  Link2,
+  MapPin,
+  Pencil,
+  ShoppingCart,
+} from "lucide-react";
 import { useEffect, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -101,7 +107,7 @@ export function HotspotButton({
         className,
       )}
     >
-      <Pencil className="h-3.5 w-3.5" />
+      <Pencil className="size-3.5" />
       <span className="sr-only">{label}</span>
     </button>
   );
@@ -110,7 +116,7 @@ export function HotspotButton({
 export function PreviewBullet({ text }: { text: string }) {
   return (
     <p className="flex items-start gap-2">
-      <CheckCircle2 className="mt-0.5 h-4 w-4 text-emerald-600" />
+      <CheckCircle2 className="mt-0.5 size-4 text-emerald-600" />
       <span>{text}</span>
     </p>
   );
@@ -161,6 +167,7 @@ export function ProfilePreviewCard({
           src={previewImageSrc}
           alt={title}
           fill
+          sizes="(min-width: 1024px) 384px, 100vw"
           className="object-cover"
           unoptimized
         />
@@ -180,7 +187,7 @@ export function ProfilePreviewCard({
             variant="secondary"
             className="inline-flex items-center gap-1 text-sm"
           >
-            <MapPin className="h-3.5 w-3.5" />
+            <MapPin className="size-3.5" />
             {location}
           </Badge>
         ) : null}
@@ -251,7 +258,7 @@ export function ListingPreviewCard({
           className="bg-background/90 absolute right-3 bottom-3 backdrop-blur-sm"
           variant="secondary"
         >
-          <Link2 className="h-3 w-3" />
+          <Link2 className="size-3" />
         </Badge>
         {ownershipBadge ? (
           <Badge className="absolute top-3 left-3" variant="secondary">
@@ -275,7 +282,7 @@ export function ListingPreviewCard({
           <div className="flex items-center justify-between gap-2">
             {linkedLabel ? (
               <div className="text-muted-foreground inline-flex items-center gap-1 text-xs">
-                <Link2 className="h-3.5 w-3.5" />
+                <Link2 className="size-3.5" />
                 {`Linked: ${linkedLabel}`}
               </div>
             ) : (
@@ -288,7 +295,7 @@ export function ListingPreviewCard({
                 variant="secondary"
                 className="h-7 px-2 text-xs"
               >
-                <ShoppingCart className="mr-1 h-3.5 w-3.5" />
+                <ShoppingCart className="mr-1 size-3.5" />
                 Add to cart
               </Button>
             ) : null}

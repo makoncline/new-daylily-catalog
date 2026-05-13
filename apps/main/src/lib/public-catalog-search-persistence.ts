@@ -213,7 +213,7 @@ export async function writePublicCatalogSearchSnapshot(
   }
 }
 
-export async function fetchAllPublicCatalogListingsInfiniteData(args: {
+async function fetchAllPublicCatalogListingsInfiniteData(args: {
   userSlugOrId: string;
   limit?: number;
 }): Promise<PublicCatalogInfiniteData | null> {

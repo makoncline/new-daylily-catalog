@@ -2,18 +2,6 @@ import { z } from "zod";
 import { SLUG_INPUT_PATTERN } from "@/lib/utils/slugify";
 import { nullableText, nullableSlug } from "./helpers";
 
-export const editorJsSchema = z.object({
-  time: z.number(),
-  blocks: z.array(
-    z.object({
-      id: z.string(),
-      type: z.string(),
-      data: z.record(z.string(), z.any()),
-    }),
-  ),
-  version: z.string(),
-});
-
 // Dedicated slug validation schema that can be reused
 export const slugSchema = nullableSlug(
   SLUG_INPUT_PATTERN,
@@ -29,6 +17,3 @@ export const profileFormSchema = z.object({
   location: nullableText(),
   logoUrl: nullableText(),
 });
-
-export type ProfileFormData = z.infer<typeof profileFormSchema>;
-export type EditorJsData = z.infer<typeof editorJsSchema>;

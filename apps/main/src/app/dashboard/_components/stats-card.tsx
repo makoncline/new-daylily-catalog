@@ -19,7 +19,7 @@ export function ListingDetailsCard({ stats }: StatsCardProps) {
   return (
     <Card className="p-4">
       <div className="flex items-center gap-2">
-        <Package className="text-muted-foreground h-4 w-4" />
+        <Package className="text-muted-foreground size-4" />
         <H3 className="text-sm font-medium">Listing Details</H3>
       </div>
       <div className="mt-2 space-y-1">
@@ -68,7 +68,7 @@ export function TotalListingsCard({ stats }: StatsCardProps) {
   return (
     <Card className="p-4">
       <div className="flex items-center gap-2">
-        <Package className="text-muted-foreground h-4 w-4" />
+        <Package className="text-muted-foreground size-4" />
         <H3 className="text-sm font-medium">Total Listings</H3>
       </div>
       <div className="mt-2 text-2xl font-bold">{stats.totalListings}</div>
@@ -78,7 +78,7 @@ export function TotalListingsCard({ stats }: StatsCardProps) {
       {stats.totalListings === 0 && (
         <Button variant="outline" size="sm" className="mt-4 w-full" asChild>
           <Link href="/dashboard/listings/new">
-            <Plus className="mr-2 h-4 w-4" />
+            <Plus className="mr-2 size-4" />
             Add Your First Listing
           </Link>
         </Button>
@@ -91,7 +91,7 @@ export function TotalListsCard({ stats }: StatsCardProps) {
   return (
     <Card className="p-4">
       <div className="flex items-center gap-2">
-        <ListChecks className="text-muted-foreground h-4 w-4" />
+        <ListChecks className="text-muted-foreground size-4" />
         <H3 className="text-sm font-medium">Total Lists</H3>
       </div>
       <div className="mt-2 text-2xl font-bold">{stats.totalLists}</div>
@@ -101,7 +101,7 @@ export function TotalListsCard({ stats }: StatsCardProps) {
       {stats.totalLists === 0 && (
         <Button variant="outline" size="sm" className="mt-4 w-full" asChild>
           <Link href="/dashboard/lists/new">
-            <Plus className="mr-2 h-4 w-4" />
+            <Plus className="mr-2 size-4" />
             Create Your First List
           </Link>
         </Button>
@@ -114,7 +114,7 @@ export function ImagesCard({ stats }: StatsCardProps) {
   return (
     <Card className="p-4">
       <div className="flex items-center gap-2">
-        <ImageIcon className="text-muted-foreground h-4 w-4" />
+        <ImageIcon className="text-muted-foreground size-4" />
         <H3 className="text-sm font-medium">Images</H3>
       </div>
       <div className="mt-2 text-2xl font-bold">{stats.imageStats.total}</div>
@@ -134,7 +134,10 @@ export function ProMembershipCard() {
   }
 
   return (
-    <Card className="mb-4 overflow-hidden" data-testid="dashboard-pro-membership-card">
+    <Card
+      className="mb-4 overflow-hidden"
+      data-testid="dashboard-pro-membership-card"
+    >
       <div className="border-border bg-card border-b p-6">
         <div className="space-y-1">
           <H2 className="pb-2 text-3xl">Become a Daylily Catalog Pro</H2>
@@ -157,7 +160,7 @@ export function ProMembershipCard() {
                 const Icon = feature.icon;
                 return (
                   <li key={feature.id} className="flex items-center">
-                    <Icon className="mr-2 h-4 w-4" />
+                    <Icon className="mr-2 size-4" />
                     {feature.text}
                   </li>
                 );
@@ -195,9 +198,13 @@ export function RevisitOnboardingCard() {
           </P>
         </div>
 
-        <Button asChild variant="outline" data-testid="dashboard-revisit-onboarding">
+        <Button
+          asChild
+          variant="outline"
+          data-testid="dashboard-revisit-onboarding"
+        >
           <Link href={SUBSCRIPTION_CONFIG.NEW_USER_ONBOARDING_PATH}>
-            <Sparkles className="mr-2 h-4 w-4" />
+            <Sparkles className="mr-2 size-4" />
             Revisit guided onboarding
           </Link>
         </Button>

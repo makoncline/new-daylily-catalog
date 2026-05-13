@@ -11,9 +11,13 @@ type Profile = RouterOutputs["public"]["getProfile"];
 
 interface ProfileContentProps {
   initialProfile: Profile;
+  currentPage: number;
 }
 
-export function ProfileContent({ initialProfile }: ProfileContentProps) {
+export function ProfileContent({
+  currentPage,
+  initialProfile,
+}: ProfileContentProps) {
   if (!initialProfile) return null;
   const canonicalUserSlug = initialProfile.slug ?? initialProfile.id;
 
@@ -24,7 +28,10 @@ export function ProfileContent({ initialProfile }: ProfileContentProps) {
           <ProfileSection profile={initialProfile} />
         </div>
         <div className="order-2 sm:col-span-12 sm:hidden">
-          <CatalogNav canonicalUserSlug={canonicalUserSlug} />
+          <CatalogNav
+            canonicalUserSlug={canonicalUserSlug}
+            currentPage={currentPage}
+          />
         </div>
         <div className="order-3 sm:order-1 sm:col-span-5">
           <ImagesSection
@@ -34,7 +41,10 @@ export function ProfileContent({ initialProfile }: ProfileContentProps) {
         </div>
       </div>
       <div className="hidden sm:block">
-        <CatalogNav canonicalUserSlug={canonicalUserSlug} />
+        <CatalogNav
+          canonicalUserSlug={canonicalUserSlug}
+          currentPage={currentPage}
+        />
       </div>
       <ContentSection content={initialProfile.content} />
     </>

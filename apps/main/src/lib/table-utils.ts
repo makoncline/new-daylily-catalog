@@ -89,7 +89,7 @@ export const fuzzySort: SortingFn<any> = (rowA, rowB, columnId) => {
   return dir === 0 ? sortingFns.alphanumeric(rowA, rowB, columnId) : dir;
 };
 
-export function hasSelectedRows<TData>(table: Table<TData>): boolean {
+function hasSelectedRows<TData>(table: Table<TData>): boolean {
   return table.getFilteredSelectedRowModel().rows.length > 0;
 }
 

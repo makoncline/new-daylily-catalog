@@ -51,18 +51,18 @@ export function DataTableRowActions({ row }: DataTableRowActionsProps) {
         <DropdownMenuTrigger asChild>
           <Button
             variant="ghost"
-            className="data-[state=open]:bg-muted flex h-8 w-8 p-0"
+            className="data-[state=open]:bg-muted flex size-8 p-0"
             data-testid="list-row-actions-trigger"
             disabled={isDeleting}
           >
-            <MoreHorizontal className="h-4 w-4" />
+            <MoreHorizontal className="size-4" />
             <span className="sr-only">Open menu</span>
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-[160px]">
           <DropdownMenuItem asChild data-testid="list-row-action-manage">
             <Link href={`/dashboard/lists/${row.original.id}`}>
-              <Settings className="mr-2 h-4 w-4" />
+              <Settings className="mr-2 size-4" />
               Manage
             </Link>
           </DropdownMenuItem>
@@ -70,7 +70,7 @@ export function DataTableRowActions({ row }: DataTableRowActionsProps) {
             onClick={() => editList(row.original.id)}
             data-testid="list-row-action-edit"
           >
-            <Pencil className="mr-2 h-4 w-4" />
+            <Pencil className="mr-2 size-4" />
             Edit
           </DropdownMenuItem>
           <DropdownMenuSeparator />
@@ -79,7 +79,7 @@ export function DataTableRowActions({ row }: DataTableRowActionsProps) {
             className="text-destructive focus:text-destructive"
             data-testid="list-row-action-delete"
           >
-            <Trash2 className="mr-2 h-4 w-4" />
+            <Trash2 className="mr-2 size-4" />
             Delete
           </DropdownMenuItem>
         </DropdownMenuContent>

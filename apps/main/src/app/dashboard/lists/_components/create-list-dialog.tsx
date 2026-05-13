@@ -17,7 +17,7 @@ export function CreateListDialog({
   onOpenChange: (open: boolean) => void;
 }) {
   const [title, setTitle] = useState("");
-  const [isPending, setIsPending] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const { closeDialog, handleOpenChange, open } =
     useManagedDialogOpen(onOpenChange);
 
@@ -31,7 +31,7 @@ export function CreateListDialog({
       return;
     }
 
-    setIsPending(true);
+    setIsSaving(true);
     try {
       const newList = await insertList({
         title: title.trim(),
@@ -51,14 +51,14 @@ export function CreateListDialog({
         context: { source: "CreateListDialog" },
       });
     } finally {
-      setIsPending(false);
+      setIsSaving(false);
     }
   };
 
   return (
     <ManagedCreateDialog
-      cancelDisabled={isPending}
-      confirmDisabled={isPending || !title.trim()}
+      cancelDisabled={isSaving}
+      confirmDisabled={isSaving || !title.trim()}
       confirmLabel="Create List"
       contentClassName="top-[20%] sm:top-[30%]"
       description="Create a new list to organize your daylilies."
@@ -77,7 +77,7 @@ export function CreateListDialog({
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           placeholder="Enter a title"
-          disabled={isPending}
+          disabled={isSaving}
           required
         />
       </div>

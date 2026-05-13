@@ -39,6 +39,7 @@ export function CatalogSeoPagination({
   nextTestId,
 }: CatalogSeoPaginationProps) {
   const router = useRouter();
+  const pushRoute = router.push.bind(router);
   const prevPage = Math.max(1, page - 1);
   const nextPage = Math.min(totalPages, page + 1);
   const prevHref = getPaginationHref(canonicalUserSlug, prevPage);
@@ -51,11 +52,11 @@ export function CatalogSeoPagination({
         return;
       }
 
-      void router.push(getPaginationHref(canonicalUserSlug, nextSelectedPage), {
+      void pushRoute(getPaginationHref(canonicalUserSlug, nextSelectedPage), {
         scroll: true,
       });
     },
-    [canonicalUserSlug, page, router],
+    [canonicalUserSlug, page, pushRoute],
   );
 
   return (
@@ -83,29 +84,29 @@ export function CatalogSeoPagination({
         of {totalPages}
       </Muted>
 
-      <div className="flex items-center space-x-2">
+      <div className="flex items-center gap-x-2">
         <Button
           asChild
           variant="outline"
-          className="h-8 w-8 p-0"
+          className="size-8 p-0"
           disabled={page <= 1}
           data-testid={prevTestId}
         >
           <Link href={prevHref}>
             <span className="sr-only">Go to previous page</span>
-            <ChevronLeftIcon className="h-4 w-4" />
+            <ChevronLeftIcon className="size-4" />
           </Link>
         </Button>
         <Button
           asChild
           variant="outline"
-          className="h-8 w-8 p-0"
+          className="size-8 p-0"
           disabled={page >= totalPages}
           data-testid={nextTestId}
         >
           <Link href={nextHref}>
             <span className="sr-only">Go to next page</span>
-            <ChevronRightIcon className="h-4 w-4" />
+            <ChevronRightIcon className="size-4" />
           </Link>
         </Button>
       </div>

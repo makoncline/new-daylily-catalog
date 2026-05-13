@@ -53,8 +53,10 @@ export default async function CatalogSearchPage({
   params,
   searchParams,
 }: CatalogSearchPageProps) {
-  const { userSlugOrId } = await params;
-  const rawSearchParams = await searchParams;
+  const [{ userSlugOrId }, rawSearchParams] = await Promise.all([
+    params,
+    searchParams,
+  ]);
   const searchParamsAsUrl = toPublicCatalogSearchParams(rawSearchParams);
 
   const profileResult = await tryCatch(getPublicProfile(userSlugOrId));

@@ -38,8 +38,7 @@ describe("user router context auth resolution", () => {
 
     const caller = userRouter.createCaller(
       createCallerContext({
-        _authUser:
-          preloadedUser as unknown as TRPCInternalContext["_authUser"],
+        _authUser: preloadedUser as unknown as TRPCInternalContext["_authUser"],
       }),
     );
 

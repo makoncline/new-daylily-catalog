@@ -21,17 +21,17 @@ import {
   shouldShowToPublic,
 } from "@/server/db/public-visibility/filters";
 
-export const getCultivarReferenceLookupWhereClause = () => ({
+const getCultivarReferenceLookupWhereClause = () => ({
   normalizedName: {
     not: null,
   },
 });
 
-export const cultivarAhsListingSelect = ahsDisplayAhsListingSelect;
+const cultivarAhsListingSelect = ahsDisplayAhsListingSelect;
 
 export type CultivarAhsListing = AhsDisplayListing;
 
-export interface PublicCultivarReferenceRecord {
+interface PublicCultivarReferenceRecord {
   id: string;
   normalizedName: string | null;
   updatedAt: Date;
@@ -241,17 +241,6 @@ async function getPublishedCultivarListingRows(cultivarReferenceId: string) {
     },
     orderBy: [{ title: "asc" }, { id: "asc" }],
   });
-}
-
-export async function getPublicCultivarListingIds(
-  cultivarSegment: string,
-): Promise<string[] | null> {
-  const contextInput = await getPublicCultivarReference(cultivarSegment);
-  if (!contextInput) {
-    return null;
-  }
-
-  return contextInput.listingIds;
 }
 
 function getCultivarUserIds(listingCards: CultivarListingCards) {

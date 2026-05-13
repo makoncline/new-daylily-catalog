@@ -190,7 +190,7 @@ async function hasActiveRefreshLock() {
   }
 }
 
-export async function getPublicSearchIndexStatus(): Promise<PublicSearchIndexStatus> {
+async function getPublicSearchIndexStatus(): Promise<PublicSearchIndexStatus> {
   const dbPath = getPublicSearchIndexPath();
 
   try {
@@ -281,7 +281,7 @@ function logSearchIndex(event: string, payload: Record<string, unknown> = {}) {
   );
 }
 
-export async function refreshPublicSearchIndex(): Promise<PublicSearchIndexStatus> {
+async function refreshPublicSearchIndex(): Promise<PublicSearchIndexStatus> {
   globalForPublicSearchIndex.publicSearchIndexRefreshPromise ??= (async () => {
       const releaseLock = await acquireRefreshLock();
 

@@ -7,7 +7,7 @@ export function isPublished(): Prisma.ListingWhereInput {
   };
 }
 
-export function hasActiveSubscription(
+function hasActiveSubscription(
   proUserIds: readonly string[],
 ): Prisma.ListingWhereInput {
   return {

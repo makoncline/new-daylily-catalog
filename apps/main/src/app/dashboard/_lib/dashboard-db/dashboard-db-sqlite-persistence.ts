@@ -58,7 +58,3 @@ async function createDashboardDbSqlitePersistence() {
     schemaMismatchPolicy: "sync-present-reset",
   });
 }
-
-export function resetDashboardDbSqlitePersistenceForTests() {
-  persistencePromise = null;
-}

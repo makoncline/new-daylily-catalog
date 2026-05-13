@@ -2,10 +2,9 @@ import type { User } from "@clerk/nextjs/server";
 import { kvStore as appKvStore } from "@/server/db/kvStore";
 import { getClerk } from "./client";
 
-export const DEFAULT_USER_DATA = null;
+const DEFAULT_USER_DATA = null;
 
-export const getClerkUserKey = (clerkUserId: string) =>
-  `clerk:user:${clerkUserId}`;
+const getClerkUserKey = (clerkUserId: string) => `clerk:user:${clerkUserId}`;
 
 type ClerkClient = {
   users: {
@@ -13,7 +12,7 @@ type ClerkClient = {
   };
 };
 
-export async function syncClerkUserToKVBase(
+async function syncClerkUserToKVBase(
   clerkUserId: string,
   clerk: ClerkClient,
   kvStore: typeof appKvStore,

@@ -93,11 +93,14 @@ export function useOnboardingPreviewState({
   const persistedListingDescription =
     earliestExistingListing?.description?.trim() ?? "";
   const persistedListingPrice = earliestExistingListing?.price ?? null;
-  const listingIdForPreview = savedListingId ?? earliestExistingListing?.id ?? null;
+  const listingIdForPreview =
+    savedListingId ?? earliestExistingListing?.id ?? null;
 
   const earliestListingImage = listingIdForPreview
     ? getEarliestByCreatedAt(
-        (images ?? []).filter((image) => image.listingId === listingIdForPreview),
+        (images ?? []).filter(
+          (image) => image.listingId === listingIdForPreview,
+        ),
       )
     : null;
   const earliestPersistedListingImage = earliestListingImage

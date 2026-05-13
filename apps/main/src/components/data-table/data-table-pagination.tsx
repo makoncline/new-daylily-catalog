@@ -60,7 +60,7 @@ export function DataTablePagination<TData>({
           </Muted>
         )}
         <div className="flex flex-col items-end gap-4 sm:flex-row sm:gap-6 lg:gap-8">
-          <div className="flex items-center space-x-2">
+          <div className="flex items-center gap-x-2">
             <P className="text-sm font-medium">Rows per page</P>
             <Select
               value={`${pageSize}`}
@@ -69,7 +69,10 @@ export function DataTablePagination<TData>({
                 scrollToTable();
               }}
             >
-              <SelectTrigger className="h-8 w-[70px]" data-testid="pager-per-page">
+              <SelectTrigger
+                className="h-8 w-[70px]"
+                data-testid="pager-per-page"
+              >
                 <SelectValue placeholder={pageSize} />
               </SelectTrigger>
               <SelectContent side="top">
@@ -90,10 +93,10 @@ export function DataTablePagination<TData>({
               Page {pageIndex + 1} of {pageCount}
             </div>
 
-            <div className="flex items-center space-x-2">
+            <div className="flex items-center gap-x-2">
               <Button
                 variant="outline"
-                className="hidden h-8 w-8 p-0 lg:flex"
+                className="hidden size-8 p-0 lg:flex"
                 onClick={() => {
                   table.firstPage();
                   scrollToTable();
@@ -102,11 +105,11 @@ export function DataTablePagination<TData>({
                 data-testid="pager-first"
               >
                 <span className="sr-only">Go to first page</span>
-                <DoubleArrowLeftIcon className="h-4 w-4" />
+                <DoubleArrowLeftIcon className="size-4" />
               </Button>
               <Button
                 variant="outline"
-                className="h-8 w-8 p-0"
+                className="size-8 p-0"
                 onClick={() => {
                   table.previousPage();
                   scrollToTable();
@@ -115,11 +118,11 @@ export function DataTablePagination<TData>({
                 data-testid="pager-prev"
               >
                 <span className="sr-only">Go to previous page</span>
-                <ChevronLeftIcon className="h-4 w-4" />
+                <ChevronLeftIcon className="size-4" />
               </Button>
               <Button
                 variant="outline"
-                className="h-8 w-8 p-0"
+                className="size-8 p-0"
                 onClick={() => {
                   table.nextPage();
                   scrollToTable();
@@ -128,11 +131,11 @@ export function DataTablePagination<TData>({
                 data-testid="pager-next"
               >
                 <span className="sr-only">Go to next page</span>
-                <ChevronRightIcon className="h-4 w-4" />
+                <ChevronRightIcon className="size-4" />
               </Button>
               <Button
                 variant="outline"
-                className="hidden h-8 w-8 p-0 lg:flex"
+                className="hidden size-8 p-0 lg:flex"
                 onClick={() => {
                   table.lastPage();
                   scrollToTable();
@@ -141,7 +144,7 @@ export function DataTablePagination<TData>({
                 data-testid="pager-last"
               >
                 <span className="sr-only">Go to last page</span>
-                <DoubleArrowRightIcon className="h-4 w-4" />
+                <DoubleArrowRightIcon className="size-4" />
               </Button>
             </div>
           </div>

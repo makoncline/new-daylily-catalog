@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useReducer } from "react";
 
 export type DashboardDbStatus = "idle" | "loading" | "ready" | "error";
 
@@ -42,6 +42,22 @@ const FUN_PHRASES = [
   "Fence gap investigation...",
 ];
 
+interface PhraseState {
+  index: number;
+  isFading: boolean;
+}
+
+function phraseReducer(state: PhraseState, action: "fade" | "next") {
+  if (action === "fade") {
+    return { ...state, isFading: true };
+  }
+
+  return {
+    index: (state.index + 1) % FUN_PHRASES.length,
+    isFading: false,
+  };
+}
+
 function DaylilyBloomSprite() {
   const displayWidth = 112;
   const displayHeight = 168;
@@ -76,21 +92,20 @@ export function DashboardDbLoadingScreen({
   status: DashboardDbStatus;
   isExiting: boolean;
 }) {
-  const [phraseIndex, setPhraseIndex] = useState(0);
-  const [isFadingPhrase, setIsFadingPhrase] = useState(false);
+  const [phraseState, dispatchPhrase] = useReducer(phraseReducer, {
+    index: 0,
+    isFading: false,
+  });
 
   useEffect(() => {
     if (status === "error" || isExiting) return;
 
-    const previousHtmlOverflow = document.documentElement.style.overflow;
-    const previousBodyOverflow = document.body.style.overflow;
-
-    document.documentElement.style.overflow = "hidden";
-    document.body.style.overflow = "hidden";
+    document.documentElement.classList.add("overflow-hidden");
+    document.body.classList.add("overflow-hidden");
 
     return () => {
-      document.documentElement.style.overflow = previousHtmlOverflow;
-      document.body.style.overflow = previousBodyOverflow;
+      document.documentElement.classList.remove("overflow-hidden");
+      document.body.classList.remove("overflow-hidden");
     };
   }, [isExiting, status]);
 
@@ -100,10 +115,9 @@ export function DashboardDbLoadingScreen({
     let fadeResetId: number | null = null;
 
     const phraseId = window.setInterval(() => {
-      setIsFadingPhrase(true);
+      dispatchPhrase("fade");
       fadeResetId = window.setTimeout(() => {
-        setPhraseIndex((index) => (index + 1) % FUN_PHRASES.length);
-        setIsFadingPhrase(false);
+        dispatchPhrase("next");
       }, PHRASE_FADE_MS);
     }, PHRASE_CYCLE_MS);
 
@@ -135,9 +149,7 @@ export function DashboardDbLoadingScreen({
               : "Fetching your catalog..."}
           </div>
 
-          <div
-            className="text-muted-foreground min-h-[2.5rem] text-sm leading-5"
-          >
+          <div className="text-muted-foreground min-h-[2.5rem] text-sm leading-5">
             {status === "error" ? (
               "Please refresh the page."
             ) : (
@@ -146,10 +158,10 @@ export function DashboardDbLoadingScreen({
                   aria-hidden
                   className={
                     "inline-block transition-opacity duration-300 motion-reduce:transition-none" +
-                    (isFadingPhrase ? " opacity-0" : " opacity-100")
+                    (phraseState.isFading ? " opacity-0" : " opacity-100")
                   }
                 >
-                  {FUN_PHRASES[phraseIndex]}
+                  {FUN_PHRASES[phraseState.index]}
                 </span>
                 <span className="sr-only">Loading your catalog.</span>
               </>

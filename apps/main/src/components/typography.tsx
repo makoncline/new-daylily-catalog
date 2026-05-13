@@ -2,7 +2,7 @@ import { type HTMLAttributes } from "react";
 import { cn } from "@/lib/utils";
 
 // Typography style definitions
-export const typography = {
+const typography = {
   h1: "scroll-m-20 text-4xl font-extrabold tracking-tight lg:text-5xl",
   h2: "scroll-m-20 pb-2 text-3xl font-semibold tracking-tight first:mt-0",
   h3: "scroll-m-20 text-2xl font-semibold tracking-tight",
@@ -46,56 +46,10 @@ export const H3 = ({ className = "", children, ...props }: TypographyProps) => (
   </h3>
 );
 
-export const H4 = ({ className = "", children, ...props }: TypographyProps) => (
-  <h4 className={cn(typography.h4, className)} {...props}>
-    {children}
-  </h4>
-);
-
 export const P = ({ className = "", children, ...props }: TypographyProps) => (
   <p className={cn(typography.p, className)} {...props}>
     {children}
   </p>
-);
-
-export const Blockquote = ({
-  className = "",
-  children,
-  ...props
-}: TypographyProps) => (
-  <blockquote className={cn(typography.blockquote, className)} {...props}>
-    {children}
-  </blockquote>
-);
-
-export const Table = ({
-  className = "",
-  children,
-  ...props
-}: TypographyProps) => (
-  <div className="my-6 w-full overflow-y-auto">
-    <table className={cn(typography.table, className)} {...props}>
-      {children}
-    </table>
-  </div>
-);
-
-export const Th = ({ className = "", children, ...props }: TypographyProps) => (
-  <th className={cn(typography.th, className)} {...props}>
-    {children}
-  </th>
-);
-
-export const Td = ({ className = "", children, ...props }: TypographyProps) => (
-  <td className={cn(typography.td, className)} {...props}>
-    {children}
-  </td>
-);
-
-export const Tr = ({ className = "", children, ...props }: TypographyProps) => (
-  <tr className={cn(typography.tr, className)} {...props}>
-    {children}
-  </tr>
 );
 
 export const List = ({
@@ -116,26 +70,6 @@ export const InlineCode = ({
   <code className={cn(typography.inlineCode, className)} {...props}>
     {children}
   </code>
-);
-
-export const Lead = ({
-  className = "",
-  children,
-  ...props
-}: TypographyProps) => (
-  <p className={cn(typography.lead, className)} {...props}>
-    {children}
-  </p>
-);
-
-export const Large = ({
-  className = "",
-  children,
-  ...props
-}: TypographyProps) => (
-  <div className={cn(typography.large, className)} {...props}>
-    {children}
-  </div>
 );
 
 export const Small = ({

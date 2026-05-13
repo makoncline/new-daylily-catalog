@@ -95,9 +95,12 @@ export function useOnboardingStepFlow({
     const nextParams = new URLSearchParams(searchParamsString);
     nextParams.delete("step");
     const nextQuery = nextParams.toString();
-    router.replace(nextQuery ? `${onboardingPath}?${nextQuery}` : onboardingPath, {
-      scroll: false,
-    });
+    router.replace(
+      nextQuery ? `${onboardingPath}?${nextQuery}` : onboardingPath,
+      {
+        scroll: false,
+      },
+    );
   }, [onboardingPath, rawStepParam, router, searchParamsString]);
 
   useEffect(() => {
@@ -306,7 +309,11 @@ export function useOnboardingStepFlow({
       target_path: "/dashboard",
       is_authenticated: true,
     });
-  }, [captureOnboardingStepEvent, clearOnboardingDraftSnapshot, onboardingPath]);
+  }, [
+    captureOnboardingStepEvent,
+    clearOnboardingDraftSnapshot,
+    onboardingPath,
+  ]);
 
   const handleSkipOnboarding = useCallback(() => {
     clearOnboardingDraftSnapshot();

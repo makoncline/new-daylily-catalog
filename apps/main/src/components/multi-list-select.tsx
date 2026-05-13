@@ -94,17 +94,19 @@ export function MultiListSelect({
         placeholder="Search lists..."
         value={searchValue}
         onValueChange={setSearchValue}
-        autoFocus={true}
         className="border-none pl-3 focus:ring-0"
       />
-      <CommandList className="flex-1 overflow-x-hidden overflow-y-auto pb-2">
+      <CommandList
+        id="list-select-list"
+        className="flex-1 overflow-x-hidden overflow-y-auto pb-2"
+      >
         {!searchValue && (
           <>
             <CommandItem
               onSelect={handleClearAll}
               className="flex items-center px-2 py-1.5"
             >
-              <X className="mr-2 h-4 w-4" />
+              <X className="mr-2 size-4" />
               <span>None</span>
             </CommandItem>
             <CommandSeparator />
@@ -124,7 +126,7 @@ export function MultiListSelect({
             onSelect={handleCreateList}
             className="flex items-center px-2 py-1.5"
           >
-            <Plus className="mr-2 h-4 w-4" />
+            <Plus className="mr-2 size-4" />
             <span>Create &quot;{searchValue}&quot;</span>
           </CommandItem>
         )}
@@ -138,7 +140,7 @@ export function MultiListSelect({
             >
               <Check
                 className={cn(
-                  "mr-2 h-4 w-4",
+                  "mr-2 size-4",
                   values.includes(list.id) ? "opacity-100" : "opacity-0",
                 )}
               />
@@ -157,6 +159,7 @@ export function MultiListSelect({
       variant="outline"
       role="combobox"
       aria-expanded={open}
+      aria-controls="list-select-list"
       className="w-full justify-between"
       disabled={disabled}
     >
@@ -171,9 +174,10 @@ export function MultiListSelect({
             ))
           : "Select lists..."}
       </div>
-      <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+      <ChevronsUpDown className="ml-2 size-4 shrink-0 opacity-50" />
     </Button>
   );
+  const content = renderContent();
 
   // Always use Dialog
   return (
@@ -184,7 +188,7 @@ export function MultiListSelect({
           <DialogHeader className="shrink-0 px-4 pt-4 pb-2">
             <DialogTitle>Select Lists</DialogTitle>
           </DialogHeader>
-          <div className="flex-1 overflow-hidden">{renderContent()}</div>
+          <div className="flex-1 overflow-hidden">{content}</div>
         </div>
       </DialogContent>
     </Dialog>

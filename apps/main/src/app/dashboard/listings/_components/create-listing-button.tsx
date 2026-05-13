@@ -62,7 +62,7 @@ export function CreateListingButton() {
               const Icon = feature.icon;
               return (
                 <li key={feature.id} className="flex items-center">
-                  <Icon className="mr-2 h-4 w-4" />
+                  <Icon className="mr-2 size-4" />
                   {feature.text}
                 </li>
               );

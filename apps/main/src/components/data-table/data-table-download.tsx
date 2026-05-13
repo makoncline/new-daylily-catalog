@@ -36,16 +36,20 @@ export function DataTableDownload<TData>({
 
     // Handle arrays (like for Lists column)
     if (Array.isArray(value)) {
-      return value
-        .map((item) => {
-          if (item && typeof item === "object") {
-            const namedItem = item as Partial<NamedItem>;
-            return namedItem.name ?? String(item);
-          }
-          return String(item);
-        })
-        .filter(Boolean)
-        .join(", ");
+      const formattedItems: string[] = [];
+
+      for (const item of value) {
+        const formattedItem =
+          item && typeof item === "object"
+            ? ((item as Partial<NamedItem>).name ?? String(item))
+            : String(item);
+
+        if (formattedItem) {
+          formattedItems.push(formattedItem);
+        }
+      }
+
+      return formattedItems.join(", ");
     }
 
     // Handle objects (try to get name or title property)
@@ -82,32 +86,40 @@ export function DataTableDownload<TData>({
     const headerGroups = table.getHeaderGroups();
     if (!headerGroups.length) return;
 
-    const excludedColumns = ["actions", "select"];
+    const excludedColumns = new Set(["actions", "select"]);
 
     // We know headerGroups[0] exists after the length check
-    const headers = headerGroups[0]!.headers
-      .filter(
-        (header) =>
-          header.column.getIsVisible() &&
-          !excludedColumns.includes(header.column.id),
-      )
-      .map((header) => {
-        // Use meta title if available, otherwise use column id
-        const columnMeta = header.column.columnDef.meta as
-          | CustomColumnMeta
-          | undefined;
-        return columnMeta?.title ? String(columnMeta.title) : header.column.id;
-      });
+    const headers = [];
+    for (const header of headerGroups[0]!.headers) {
+      if (
+        !header.column.getIsVisible() ||
+        excludedColumns.has(header.column.id)
+      ) {
+        continue;
+      }
+
+      // Use meta title if available, otherwise use column id
+      const columnMeta = header.column.columnDef.meta as
+        | CustomColumnMeta
+        | undefined;
+      headers.push(
+        columnMeta?.title ? String(columnMeta.title) : header.column.id,
+      );
+    }
 
     // Get ALL rows and their cell values (not just visible ones)
     const rows = table.getCoreRowModel().rows.map((row) => {
-      return row
-        .getVisibleCells()
-        .filter((cell) => !excludedColumns.includes(cell.column.id))
-        .map((cell) => {
-          const value = cell.getValue();
-          return escapeCSV(formatValue(value));
-        });
+      const rowValues = [];
+
+      for (const cell of row.getVisibleCells()) {
+        if (excludedColumns.has(cell.column.id)) {
+          continue;
+        }
+
+        rowValues.push(escapeCSV(formatValue(cell.getValue())));
+      }
+
+      return rowValues;
     });
 
     // Create CSV content
@@ -139,7 +151,7 @@ export function DataTableDownload<TData>({
         className="h-8 px-2 lg:px-3"
       >
         Download CSV
-        <Download className="ml-2 h-4 w-4" />
+        <Download className="ml-2 size-4" />
       </Button>
     </div>
   );

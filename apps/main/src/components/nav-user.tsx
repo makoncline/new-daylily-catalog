@@ -43,13 +43,13 @@ export function NavUser({ user }: NavUserProps) {
               size="lg"
               className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
             >
-              <Avatar className="h-8 w-8 rounded-lg">
+              <Avatar className="size-8 rounded-lg">
                 <AvatarImage src={user.avatar} alt={user.email} />
                 <AvatarFallback className="rounded-lg">
                   {user.email.slice(0, 2).toUpperCase()}
                 </AvatarFallback>
               </Avatar>
-              <div className="grid min-w-0 w-0 flex-1 text-left text-sm leading-tight">
+              <div className="grid w-0 min-w-0 flex-1 text-left text-sm leading-tight">
                 <span className="truncate text-xs" title={user.email}>
                   {user.email}
                 </span>
@@ -65,7 +65,7 @@ export function NavUser({ user }: NavUserProps) {
           >
             <DropdownMenuLabel className="p-0 font-normal">
               <div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
-                <Avatar className="h-8 w-8 rounded-lg">
+                <Avatar className="size-8 rounded-lg">
                   <AvatarImage src={user.avatar} alt={user.email} />
                   <AvatarFallback className="rounded-lg">
                     {user.email.slice(0, 2).toUpperCase()}
@@ -87,14 +87,14 @@ export function NavUser({ user }: NavUserProps) {
                   setIsClerkUserProfileOpen(true);
                 }}
               >
-                <BadgeCheck className="mr-2 h-4 w-4" />
+                <BadgeCheck className="mr-2 size-4" />
                 Account
               </DropdownMenuItem>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
             <SignOutButton>
               <DropdownMenuItem>
-                <LogOut className="mr-2 h-4 w-4" />
+                <LogOut className="mr-2 size-4" />
                 Log out
               </DropdownMenuItem>
             </SignOutButton>
@@ -110,7 +110,7 @@ export const NavUserSkeleton = () => {
     <SidebarMenu>
       <SidebarMenuItem>
         <SidebarMenuButton size="lg" className="cursor-default">
-          <Skeleton className="h-8 w-8 rounded-lg" />
+          <Skeleton className="size-8 rounded-lg" />
           <div className="grid flex-1 gap-1.5">
             <Skeleton className="h-4 w-24" />
             <Skeleton className="h-3 w-32" />

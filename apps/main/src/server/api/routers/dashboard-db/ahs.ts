@@ -12,7 +12,10 @@ import {
   v2AhsCultivarDisplaySelect,
 } from "@/lib/utils/ahs-display";
 
-async function runCultivarReferenceSearchQuery(db: PrismaClient, query: string) {
+async function runCultivarReferenceSearchQuery(
+  db: PrismaClient,
+  query: string,
+) {
   const normalizedQuery = normalizeCultivarName(query);
   if (!normalizedQuery) return [];
   const useV2DisplayData = isV2CultivarDisplayDataEnabled();

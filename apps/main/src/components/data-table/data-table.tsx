@@ -43,22 +43,21 @@ interface DataTableProps<TData> {
 export function DataTable<TData>({ table }: DataTableProps<TData>) {
   const leftPinnedColumns = table.options.meta?.pinnedColumns?.left ?? [];
   const rightPinnedColumns = table.options.meta?.pinnedColumns?.right ?? [];
+  const leftPinnedColumnIds = new Set(leftPinnedColumns);
+  const rightPinnedColumnIds = new Set(rightPinnedColumns);
 
   return (
     <div className="grid auto-rows-min rounded-md border">
       <div className="flex min-w-full">
         {/* Left pinned table */}
         {leftPinnedColumns.length > 0 && table.getHeaderGroups() && (
-          <div className="shrink-0 border-r bg-background">
+          <div className="bg-background shrink-0 border-r">
             <UITable>
               <TableHeader>
                 {table.getHeaderGroups().map((headerGroup) => (
                   <TableRow key={headerGroup.id}>
-                    {headerGroup.headers
-                      .filter((header) =>
-                        leftPinnedColumns.includes(header.column.id),
-                      )
-                      .map((header) => (
+                    {headerGroup.headers.map((header) =>
+                      leftPinnedColumnIds.has(header.column.id) ? (
                         <TableHead
                           key={header.id}
                           colSpan={header.colSpan}
@@ -82,7 +81,8 @@ export function DataTable<TData>({ table }: DataTableProps<TData>) {
                             </div>
                           )}
                         </TableHead>
-                      ))}
+                      ) : null,
+                    )}
                   </TableRow>
                 ))}
               </TableHeader>
@@ -92,22 +92,19 @@ export function DataTable<TData>({ table }: DataTableProps<TData>) {
                     key={row.id}
                     data-state={row.getIsSelected() && "selected"}
                   >
-                    {row
-                      .getVisibleCells()
-                      .filter((cell) =>
-                        leftPinnedColumns.includes(cell.column.id),
-                      )
-                      .map((cell) => (
+                    {row.getVisibleCells().map((cell) =>
+                      leftPinnedColumnIds.has(cell.column.id) ? (
                         <TableCell
                           key={cell.id}
-                          className="h-20 min-w-24 max-w-52 overflow-hidden whitespace-nowrap"
+                          className="h-20 max-w-52 min-w-24 overflow-hidden whitespace-nowrap"
                         >
                           {flexRender(
                             cell.column.columnDef.cell,
                             cell.getContext(),
                           )}
                         </TableCell>
-                      ))}
+                      ) : null,
+                    )}
                   </TableRow>
                 ))}
               </TableBody>
@@ -122,13 +119,9 @@ export function DataTable<TData>({ table }: DataTableProps<TData>) {
               <TableHeader>
                 {table.getHeaderGroups().map((headerGroup) => (
                   <TableRow key={headerGroup.id}>
-                    {headerGroup.headers
-                      .filter(
-                        (header) =>
-                          !leftPinnedColumns.includes(header.column.id) &&
-                          !rightPinnedColumns.includes(header.column.id),
-                      )
-                      .map((header) => (
+                    {headerGroup.headers.map((header) =>
+                      !leftPinnedColumnIds.has(header.column.id) &&
+                      !rightPinnedColumnIds.has(header.column.id) ? (
                         <TableHead
                           key={header.id}
                           colSpan={header.colSpan}
@@ -152,7 +145,8 @@ export function DataTable<TData>({ table }: DataTableProps<TData>) {
                             </div>
                           )}
                         </TableHead>
-                      ))}
+                      ) : null,
+                    )}
                   </TableRow>
                 ))}
               </TableHeader>
@@ -163,24 +157,20 @@ export function DataTable<TData>({ table }: DataTableProps<TData>) {
                   key={row.id}
                   data-state={row.getIsSelected() && "selected"}
                 >
-                  {row
-                    .getVisibleCells()
-                    .filter(
-                      (cell) =>
-                        !leftPinnedColumns.includes(cell.column.id) &&
-                        !rightPinnedColumns.includes(cell.column.id),
-                    )
-                    .map((cell) => (
+                  {row.getVisibleCells().map((cell) =>
+                    !leftPinnedColumnIds.has(cell.column.id) &&
+                    !rightPinnedColumnIds.has(cell.column.id) ? (
                       <TableCell
                         key={cell.id}
-                        className="h-20 min-w-24 max-w-96 overflow-hidden whitespace-nowrap"
+                        className="h-20 max-w-96 min-w-24 overflow-hidden whitespace-nowrap"
                       >
                         {flexRender(
                           cell.column.columnDef.cell,
                           cell.getContext(),
                         )}
                       </TableCell>
-                    ))}
+                    ) : null,
+                  )}
                 </TableRow>
               ))}
             </TableBody>
@@ -189,16 +179,13 @@ export function DataTable<TData>({ table }: DataTableProps<TData>) {
 
         {/* Right pinned table */}
         {rightPinnedColumns.length > 0 && table.getHeaderGroups() && (
-          <div className="shrink-0 border-l bg-background">
+          <div className="bg-background shrink-0 border-l">
             <UITable>
               <TableHeader>
                 {table.getHeaderGroups().map((headerGroup) => (
                   <TableRow key={headerGroup.id}>
-                    {headerGroup.headers
-                      .filter((header) =>
-                        rightPinnedColumns.includes(header.column.id),
-                      )
-                      .map((header) => (
+                    {headerGroup.headers.map((header) =>
+                      rightPinnedColumnIds.has(header.column.id) ? (
                         <TableHead
                           key={header.id}
                           colSpan={header.colSpan}
@@ -222,7 +209,8 @@ export function DataTable<TData>({ table }: DataTableProps<TData>) {
                             </div>
                           )}
                         </TableHead>
-                      ))}
+                      ) : null,
+                    )}
                   </TableRow>
                 ))}
               </TableHeader>
@@ -232,12 +220,8 @@ export function DataTable<TData>({ table }: DataTableProps<TData>) {
                     key={row.id}
                     data-state={row.getIsSelected() && "selected"}
                   >
-                    {row
-                      .getVisibleCells()
-                      .filter((cell) =>
-                        rightPinnedColumns.includes(cell.column.id),
-                      )
-                      .map((cell) => (
+                    {row.getVisibleCells().map((cell) =>
+                      rightPinnedColumnIds.has(cell.column.id) ? (
                         <TableCell
                           key={cell.id}
                           className="h-20 max-w-96 overflow-hidden whitespace-nowrap"
@@ -247,7 +231,8 @@ export function DataTable<TData>({ table }: DataTableProps<TData>) {
                             cell.getContext(),
                           )}
                         </TableCell>
-                      ))}
+                      ) : null,
+                    )}
                   </TableRow>
                 ))}
               </TableBody>

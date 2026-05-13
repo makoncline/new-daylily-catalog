@@ -2,7 +2,7 @@ import { PUBLIC_PROFILE_LISTINGS_PAGE_SIZE } from "@/config/constants";
 import {
   getPublicForSaleListingsCount,
   getPublicListingCardsByIds,
-  getPublicListingsPageIds,
+  getPublicListingsPageIdsForUserId,
 } from "@/server/db/public-listing-read-model";
 import {
   getPublicSellerContent,
@@ -15,7 +15,7 @@ function buildPublicProfilePageResult(args: {
   content: Awaited<ReturnType<typeof getPublicSellerContent>>;
   forSaleCount: number;
   items: Awaited<ReturnType<typeof getPublicListingCardsByIds>>;
-  listingPage: Awaited<ReturnType<typeof getPublicListingsPageIds>>;
+  listingPage: Awaited<ReturnType<typeof getPublicListingsPageIdsForUserId>>;
   lists: Awaited<ReturnType<typeof getPublicSellerListSummaries>>;
   summary: Awaited<ReturnType<typeof getPublicSellerSummary>>;
 }) {
@@ -52,10 +52,10 @@ async function loadPublicProfilePageData(args: {
       args.includeSellerLists
         ? getPublicSellerListSummaries(userId)
         : Promise.resolve([]),
-      getPublicListingsPageIds({
+      getPublicListingsPageIdsForUserId({
         page: args.page,
         pageSize: PUBLIC_PROFILE_LISTINGS_PAGE_SIZE,
-        userSlugOrId: args.userSlugOrId,
+        userId,
       }),
       getPublicForSaleListingsCount(userId),
     ]);

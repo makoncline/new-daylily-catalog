@@ -74,7 +74,7 @@ interface DashboardCollectionPreloader {
   values: () => Iterable<unknown>;
 }
 
-export class DashboardRefreshLockCancelledError extends Error {
+class DashboardRefreshLockCancelledError extends Error {
   constructor() {
     super("Dashboard refresh work was cancelled");
     this.name = "DashboardRefreshLockCancelledError";
@@ -435,11 +435,11 @@ export async function fetchDashboardDbSnapshotFromServer() {
   return fetchDashboardDbSnapshotFromSource("primary");
 }
 
-export async function fetchDashboardDbSnapshotFromReplica() {
+async function fetchDashboardDbSnapshotFromReplica() {
   return fetchDashboardDbSnapshotFromSource("replica");
 }
 
-export async function isDashboardDbReplicaAvailable() {
+async function isDashboardDbReplicaAvailable() {
   return getTrpcClient().dashboardDb.bootstrap.replicaAvailable.query();
 }
 

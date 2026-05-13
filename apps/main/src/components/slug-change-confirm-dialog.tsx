@@ -40,8 +40,8 @@ export function SlugChangeConfirmDialog({
             Changing your profile URL can break existing links to your profile,
             including links shared previously or indexed by search engines.
           </P>
-          <div className="rounded-md bg-muted p-3">
-            <Muted className="flex flex-col space-y-2">
+          <div className="bg-muted rounded-md p-3">
+            <Muted className="flex flex-col gap-y-2">
               <div>
                 <span className="font-medium">Current URL: </span>
                 <InlineCode>
@@ -57,9 +57,7 @@ export function SlugChangeConfirmDialog({
           <AlertDialogCancel asChild onClick={onCancel}>
             <Button variant="outline">Cancel</Button>
           </AlertDialogCancel>
-          <Button onClick={onConfirm}>
-            Continue
-          </Button>
+          <Button onClick={onConfirm}>Unlock URL editing</Button>
         </AlertDialogFooter>
       </AlertDialogContent>
     </AlertDialog>

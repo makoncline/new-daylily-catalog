@@ -3,7 +3,7 @@ import { type PrismaQueryProfilerEvent } from "./local-query-profiler";
 
 const WHITESPACE_REGEX = /\s+/g;
 
-export interface QueryPatternMetrics {
+interface QueryPatternMetrics {
   fingerprint: string;
   sqlPattern: string;
   count: number;
@@ -46,7 +46,7 @@ function roundToTwo(value: number) {
   return Math.round(value * 100) / 100;
 }
 
-export function normalizeSqlPattern(query: string) {
+function normalizeSqlPattern(query: string) {
   return query.replace(WHITESPACE_REGEX, " ").trim();
 }
 

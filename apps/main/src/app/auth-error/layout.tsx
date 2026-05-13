@@ -14,10 +14,6 @@ export const metadata: Metadata = {
   },
 };
 
-export default function AuthErrorLayout({
-  children,
-}: {
-  children: ReactNode;
-}) {
+export default function AuthErrorLayout({ children }: { children: ReactNode }) {
   return children;
 }

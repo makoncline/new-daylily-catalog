@@ -1,10 +1,7 @@
 "use client";
 
 import { reportError } from "@/lib/error-utils";
-import {
-  ListForm,
-  type ListFormHandle,
-} from "@/components/forms/list-form";
+import { ListForm, type ListFormHandle } from "@/components/forms/list-form";
 import { ListFormSkeleton } from "@/components/forms/list-form-skeleton";
 import { atom } from "jotai";
 import { useAtomDialogSearchParam } from "@/hooks/use-dialog-search-param";

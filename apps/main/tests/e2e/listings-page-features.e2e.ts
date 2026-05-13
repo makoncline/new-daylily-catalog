@@ -124,7 +124,7 @@ test.describe("listings page features @local", () => {
     await clerk.signIn({ page, emailAddress: TEST_USER.email });
 
     await page.evaluate(() => {
-      localStorage.removeItem("table-state-listings-table");
+      localStorage.removeItem("table-state-listings-table:v1");
     });
 
     await dashboardListings.goto();
@@ -202,13 +202,13 @@ test.describe("listings page features @local", () => {
     await assertColumnFilterMatch(
       "Description",
       "description",
-      seedMeta.descriptionFilterToken,
+      seedMeta.descriptionFilterText,
       seedMeta.descriptionFilterTitle,
     );
     await assertColumnFilterMatch(
       "Private Notes",
       "privateNote",
-      seedMeta.privateNoteFilterToken,
+      seedMeta.privateNoteFilterText,
       seedMeta.privateNoteFilterTitle,
     );
     await assertColumnFilterMatch(

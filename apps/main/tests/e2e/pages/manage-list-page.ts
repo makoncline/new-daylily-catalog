@@ -17,8 +17,11 @@ export class ManageListPage {
   readonly pagerNextButton: Locator;
   readonly pagerLastButton: Locator;
   readonly pagerPerPage: Locator;
-  private openColumnFilterLabel: "Title" | "Description" | "Private Notes" | null =
-    null;
+  private openColumnFilterLabel:
+    | "Title"
+    | "Description"
+    | "Private Notes"
+    | null = null;
 
   constructor(page: Page) {
     this.page = page;
@@ -130,7 +133,9 @@ export class ManageListPage {
     await this.clickWithScroll(sortableButton);
   }
 
-  async openColumnFilter(columnLabel: "Title" | "Description" | "Private Notes") {
+  async openColumnFilter(
+    columnLabel: "Title" | "Description" | "Private Notes",
+  ) {
     this.openColumnFilterLabel = columnLabel;
     const filterButton = this.manageListTable
       .getByRole("button", {
@@ -160,7 +165,8 @@ export class ManageListPage {
       }
     }
 
-    const message = lastError instanceof Error ? lastError.message : String(lastError);
+    const message =
+      lastError instanceof Error ? lastError.message : String(lastError);
     throw new Error(
       `Failed to set column filter "${columnLabel}" after 3 attempts: ${message}`,
     );
@@ -184,7 +190,9 @@ export class ManageListPage {
 
   async setRowsPerPage(value: number) {
     await this.clickWithScroll(this.pagerPerPage);
-    const selectContent = this.page.locator('[data-slot="select-content"]:visible').last();
+    const selectContent = this.page
+      .locator('[data-slot="select-content"]:visible')
+      .last();
     await selectContent.waitFor({ state: "visible" });
     const option = selectContent
       .getByRole("option", { name: String(value), exact: true })
@@ -217,7 +225,9 @@ export class ManageListPage {
   }
 
   async resetToolbarFiltersIfVisible() {
-    const resetButton = this.page.getByRole("button", { name: "Reset" }).first();
+    const resetButton = this.page
+      .getByRole("button", { name: "Reset" })
+      .first();
     if (await resetButton.isVisible()) {
       await this.clickWithScroll(resetButton);
     }

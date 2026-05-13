@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { CheckCircle2, ChevronsUpDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -45,6 +45,7 @@ export function OnboardingAhsListingSelect({
 }: OnboardingAhsListingSelectProps) {
   const [open, setOpen] = useState(false);
   const [searchValue, setSearchValue] = useState("");
+  const searchInputRef = useRef<HTMLInputElement | null>(null);
   const normalizedSearchValue = searchValue.trim().toLowerCase();
 
   const visibleOptions = useMemo(() => {
@@ -60,7 +61,17 @@ export function OnboardingAhsListingSelect({
   const hasSelection = Boolean(selectedLabel?.trim());
   const triggerText = hasSelection
     ? (selectedLabel?.trim() ?? "")
-    : "Select a starter variety...";
+    : "Select a starter variety…";
+
+  useEffect(() => {
+    if (!open) {
+      return;
+    }
+
+    requestAnimationFrame(() => {
+      searchInputRef.current?.focus();
+    });
+  }, [open]);
 
   return (
     <Dialog
@@ -76,7 +87,9 @@ export function OnboardingAhsListingSelect({
         <Button
           variant="outline"
           role="combobox"
+          aria-label="Select a starter variety"
           aria-expanded={open}
+          aria-controls="onboarding-ahs-listing-select-list"
           className={cn(
             "w-full justify-between",
             hasSelection && "border-emerald-500/50 bg-emerald-500/5",
@@ -87,29 +100,32 @@ export function OnboardingAhsListingSelect({
           <span className="truncate">{triggerText}</span>
           <span className="ml-2 inline-flex items-center gap-1.5">
             {hasSelection ? (
-              <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-600" />
+              <CheckCircle2 className="size-4 shrink-0 text-emerald-600" />
             ) : null}
-            <ChevronsUpDown className="h-4 w-4 shrink-0 opacity-50" />
+            <ChevronsUpDown className="size-4 shrink-0 opacity-50" />
           </span>
         </Button>
       </DialogTrigger>
-      <DialogContent>
+      <DialogContent aria-describedby={undefined}>
         <div className="flex h-full flex-col overflow-hidden">
           <DialogHeader className="shrink-0 px-4 pt-4 pb-2">
             <DialogTitle>Select Daylily Variety</DialogTitle>
           </DialogHeader>
           <Command shouldFilter={false} className="flex h-full flex-col">
             <CommandInput
-              placeholder="Search onboarding varieties..."
+              placeholder="Search onboarding varieties…"
+              ref={searchInputRef}
               value={searchValue}
               onValueChange={setSearchValue}
-              autoFocus={true}
               className="border-none pl-3 focus:ring-0"
             />
-            <CommandList className="flex-1 overflow-x-hidden overflow-y-auto pb-2">
+            <CommandList
+              id="onboarding-ahs-listing-select-list"
+              className="flex-1 overflow-x-hidden overflow-y-auto pb-2"
+            >
               {!searchValue && isPredefinedOptionsLoading ? (
                 <div className="flex h-full items-center justify-center">
-                  <p className="text-muted-foreground text-sm">Loading...</p>
+                  <p className="text-muted-foreground text-sm">Loading…</p>
                 </div>
               ) : null}
               {!searchValue && !isPredefinedOptionsLoading ? (

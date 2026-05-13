@@ -17,7 +17,9 @@ describe("cultivar offer query-state helpers", () => {
 
   it("parses explicit values", () => {
     const filters = parseOfferFilters(
-      new URLSearchParams("offerSort=price-desc&offerForSale=1&offerHasPhoto=1"),
+      new URLSearchParams(
+        "offerSort=price-desc&offerForSale=1&offerHasPhoto=1",
+      ),
     );
 
     expect(filters).toEqual({
@@ -36,7 +38,9 @@ describe("cultivar offer query-state helpers", () => {
       hasPhotoOnly: false,
     });
 
-    expect(updated.toString()).toBe("utm_source=test&offerSort=updated-desc&offerForSale=1");
+    expect(updated.toString()).toBe(
+      "utm_source=test&offerSort=updated-desc&offerForSale=1",
+    );
 
     const reset = applyOfferFiltersToSearchParams(updated, {
       sort: "best-match",

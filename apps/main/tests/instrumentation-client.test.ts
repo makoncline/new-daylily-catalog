@@ -74,7 +74,9 @@ describe("instrumentation-client", () => {
       api_host: "https://us.i.posthog.com",
       defaults: "2026-01-30",
     });
-    expect((globalThis as { posthog?: unknown }).posthog).toBe(posthogClientMock);
+    expect((globalThis as { posthog?: unknown }).posthog).toBe(
+      posthogClientMock,
+    );
   });
 
   it("does not initialize posthog outside production", async () => {
@@ -125,6 +127,8 @@ describe("instrumentation-client", () => {
 
     expect(beforeSend(abortEvent)).toBeNull();
     expect(beforeSend(nonAbortEvent)).toBe(nonAbortEvent);
-    expect(beforeSend({}, { originalException: { name: "AbortError" } })).toBeNull();
+    expect(
+      beforeSend({}, { originalException: { name: "AbortError" } }),
+    ).toBeNull();
   });
 });

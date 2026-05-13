@@ -56,10 +56,7 @@ function normalizeBaseText(value: unknown): string {
     (character) => CHAR_VARIANT_MAP[character] ?? character,
   );
 
-  return deburr(normalized)
-    .toLowerCase()
-    .replace(WHITESPACE_REGEX, " ")
-    .trim();
+  return deburr(normalized).toLowerCase().replace(WHITESPACE_REGEX, " ").trim();
 }
 
 export function normalizeCanonicalText(value: unknown): string {

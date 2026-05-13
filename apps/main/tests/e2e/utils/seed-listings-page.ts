@@ -30,9 +30,9 @@ export interface ListingsPageSeedMeta {
   listFilterRepresentativeTitle: string;
   titleFilterToken: string;
   titleFilterTitle: string;
-  descriptionFilterToken: string;
+  descriptionFilterText: string;
   descriptionFilterTitle: string;
-  privateNoteFilterToken: string;
+  privateNoteFilterText: string;
   privateNoteFilterTitle: string;
   summaryFilterToken: string;
   summaryFilterTitle: string;
@@ -166,28 +166,28 @@ export async function seedListingsPageData({
     },
   });
 
-  const descriptionFilterToken = "token-description-listings";
+  const descriptionFilterText = "filter-description-listings";
   const descriptionFilterTitle = "Description Filter Fixture";
   await db.listing.create({
     data: {
       userId: user.id,
       title: descriptionFilterTitle,
       slug: "description-filter-fixture",
-      description: `Description includes ${descriptionFilterToken}`,
+      description: `Description includes ${descriptionFilterText}`,
       lists: {
         connect: [{ id: listFilterA.id }],
       },
     },
   });
 
-  const privateNoteFilterToken = "token-private-note-listings";
+  const privateNoteFilterText = "filter-private-note-listings";
   const privateNoteFilterTitle = "Private Note Filter Fixture";
   await db.listing.create({
     data: {
       userId: user.id,
       title: privateNoteFilterTitle,
       slug: "private-note-filter-fixture",
-      privateNote: `Private note includes ${privateNoteFilterToken}`,
+      privateNote: `Private note includes ${privateNoteFilterText}`,
       lists: {
         connect: [{ id: listFilterB.id }],
       },
@@ -249,9 +249,9 @@ export async function seedListingsPageData({
     listFilterRepresentativeTitle: globalSearchTitle,
     titleFilterToken: globalSearchToken,
     titleFilterTitle: globalSearchTitle,
-    descriptionFilterToken,
+    descriptionFilterText,
     descriptionFilterTitle,
-    privateNoteFilterToken,
+    privateNoteFilterText,
     privateNoteFilterTitle,
     summaryFilterToken,
     summaryFilterTitle,

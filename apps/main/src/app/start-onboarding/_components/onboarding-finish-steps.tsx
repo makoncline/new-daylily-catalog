@@ -49,7 +49,7 @@ export function OnboardingBuyerContactPreviewStep({
     <div className="space-y-6">
       {isHydrating ? (
         <div className="bg-background text-muted-foreground rounded-lg border p-4 text-sm">
-          Loading your saved catalog and listing preview...
+          Loading your saved catalog and listing preview…
         </div>
       ) : (
         <div className="space-y-8">
@@ -66,7 +66,7 @@ export function OnboardingBuyerContactPreviewStep({
                   ownershipBadge="Yours"
                   footerAction={
                     <Button type="button" className="w-full lg:w-auto">
-                      <MessageCircle className="h-4 w-4" />
+                      <MessageCircle className="size-4" />
                       Contact this seller
                     </Button>
                   }
@@ -136,22 +136,22 @@ export function OnboardingBuyerContactPreviewStep({
 
           <OnboardingSectionCard title="Explore real examples">
             <div className="flex flex-col items-start gap-2 text-sm">
-              <a
+              <Link
                 href="/rollingoaksdaylilies"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-primary hover:text-primary/80 block underline underline-offset-2"
               >
                 See a real business catalog example
-              </a>
-              <a
+              </Link>
+              <Link
                 href="/cultivar/starman"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-primary hover:text-primary/80 block underline underline-offset-2"
               >
                 See a popular cultivar discovery page
-              </a>
+              </Link>
               <p className="text-muted-foreground text-xs">
                 Public catalog updates can take up to 24 hours.
               </p>
@@ -179,14 +179,11 @@ export function OnboardingMembershipStep({
   onContinueForNow,
 }: OnboardingMembershipStepProps) {
   return (
-    <div
-      className="space-y-6"
-      data-testid="onboarding-start-membership-step"
-    >
+    <div className="space-y-6" data-testid="onboarding-start-membership-step">
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(360px,560px)] lg:items-start lg:gap-8">
         <div className="space-y-8 py-2 lg:py-6">
           <div className="space-y-4">
-            <h2 className="text-5xl leading-[0.92] font-bold tracking-tight lg:text-7xl">
+            <h2 className="text-5xl leading-[0.92] font-semibold tracking-tight lg:text-7xl">
               <span className="block">Get found by daylily buyers.</span>
               <span className="block">
                 Turn your catalog into a storefront.
@@ -287,7 +284,7 @@ export function OnboardingMembershipStep({
 
               return (
                 <li key={feature.id} className="flex items-start gap-3">
-                  <Icon className="mt-0.5 h-5 w-5 shrink-0" aria-hidden="true" />
+                  <Icon className="mt-0.5 size-5 shrink-0" aria-hidden="true" />
                   <span>{feature.text}</span>
                 </li>
               );

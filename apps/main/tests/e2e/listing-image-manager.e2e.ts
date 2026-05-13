@@ -54,7 +54,7 @@ test.describe("listing image manager @local", () => {
     await clerk.signIn({ page, emailAddress: TEST_USER.email });
 
     await page.evaluate(() => {
-      localStorage.removeItem("table-state-listings-table");
+      localStorage.removeItem("table-state-listings-table:v1");
     });
 
     await page.goto(`/dashboard/listings?editing=${seedMeta.listingId}`);
@@ -69,9 +69,13 @@ test.describe("listing image manager @local", () => {
 
     // Preview
     await imageManager.openImagePreviewById(firstImageId);
-    await expect(page.getByRole("img", { name: "Gallery image" })).toBeVisible();
+    await expect(
+      page.getByRole("img", { name: "Gallery image" }),
+    ).toBeVisible();
     await page.keyboard.press("Escape");
-    await expect(page.getByRole("img", { name: "Gallery image" })).toHaveCount(0);
+    await expect(page.getByRole("img", { name: "Gallery image" })).toHaveCount(
+      0,
+    );
 
     // Reorder first image to the end by dragging it over the third image
     await imageManager.dragImageBefore(firstImageId, thirdImageId);

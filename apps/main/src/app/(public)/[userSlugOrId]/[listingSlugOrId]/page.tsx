@@ -1,10 +1,17 @@
+import type { Metadata } from "next";
+import { notFound, permanentRedirect } from "next/navigation";
 import { replicaDb } from "@/server/db";
 import {
   getListingIdFromSlugOrId,
   getUserIdFromSlugOrId,
 } from "@/server/db/getPublicProfile";
 import { getErrorCode, tryCatch } from "@/lib/utils";
-import { notFound, permanentRedirect } from "next/navigation";
+
+export const metadata: Metadata = {
+  title: "Listing Redirect",
+  description: "Redirects legacy listing URLs to the current catalog page.",
+  robots: "noindex, nofollow",
+};
 
 interface PageProps {
   params: Promise<{

@@ -3,10 +3,7 @@
 import React from "react";
 import { ListListingsTable } from "./_components/list-listings-table";
 import { PageHeader } from "../../_components/page-header";
-import {
-  ListForm,
-  type ListFormHandle,
-} from "@/components/forms/list-form";
+import { ListForm, type ListFormHandle } from "@/components/forms/list-form";
 import { AddListingsSection } from "./_components/add-listings-section";
 import { useSaveBeforeNavigate } from "@/hooks/use-save-before-navigate";
 import { useListResource } from "@/app/dashboard/_lib/dashboard-db/use-list-resource";

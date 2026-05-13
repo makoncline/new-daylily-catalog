@@ -85,7 +85,9 @@ export function ListingCultivarLinkSection({
 }) {
   return (
     <div className="space-y-2">
-      <Label htmlFor="ahs-listing-select">Link to Daylily Database Listing</Label>
+      <Label htmlFor="ahs-listing-select">
+        Link to Daylily Database Listing
+      </Label>
       <AhsListingLink
         listing={listing}
         linkedAhs={linkedAhs}

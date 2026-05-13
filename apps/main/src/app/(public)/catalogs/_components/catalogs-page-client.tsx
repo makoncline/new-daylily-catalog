@@ -61,7 +61,7 @@ export function CatalogsPageClient({
   if (catalogs.length === 0) {
     return (
       <EmptyState
-        icon={<Flower2 className="h-12 w-12 text-muted-foreground" />}
+        icon={<Flower2 className="text-muted-foreground size-12" />}
         title="No Catalogs Found"
         description="There are no daylily catalogs available at the moment."
         action={<DataTableFilterReset table={table} />}
@@ -97,7 +97,7 @@ export function CatalogsPageClient({
         pagination={<DataTablePagination table={table} />}
         noResults={
           <EmptyState
-            icon={<Flower2 className="h-12 w-12 text-muted-foreground" />}
+            icon={<Flower2 className="text-muted-foreground size-12" />}
             title="No Catalogs Found"
             description="Try adjusting your filters or create a new listing"
             action={<DataTableFilterReset table={table} />}

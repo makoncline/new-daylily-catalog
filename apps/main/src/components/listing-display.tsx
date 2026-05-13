@@ -53,7 +53,7 @@ export function ListingDisplay({
           <HeadingComponent>{listing.title}</HeadingComponent>
           {cultivarRouteSegment && variant !== "page" && (
             <Link href={`/cultivar/${cultivarRouteSegment}`}>
-              <ExternalLink className="h-5 w-5 text-muted-foreground transition-colors hover:text-foreground" />
+              <ExternalLink className="text-muted-foreground hover:text-foreground size-5 transition-colors" />
               <span className="sr-only">View Cultivar Page</span>
             </Link>
           )}
@@ -61,7 +61,7 @@ export function ListingDisplay({
         {/* Price and Add to Cart */}
         {listing.price && (
           <div className="flex flex-row items-center justify-between gap-4">
-            <P className="text-lg font-medium text-primary">
+            <P className="text-primary text-lg font-medium">
               {formatPrice(listing.price)}
             </P>
             <AddToCartButton

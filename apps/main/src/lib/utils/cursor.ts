@@ -15,4 +15,3 @@ export const getUserCursorKey = (base: string) => {
   const userId = getCurrentUserId();
   return userId ? cursorKey(base, userId) : base;
 };
-

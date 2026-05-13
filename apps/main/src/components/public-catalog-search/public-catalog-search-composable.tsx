@@ -2,8 +2,7 @@
 
 import { type Table } from "@tanstack/react-table";
 import { Eye, Search, X } from "lucide-react";
-import { useEffect, useState, type ReactNode } from "react";
-import { useDebouncedCallback } from "use-debounce";
+import { type ReactNode } from "react";
 import { DataTableFilterReset } from "@/components/data-table/data-table-filter-reset";
 import { DataTableFilteredCount } from "@/components/data-table/data-table-filtered-count";
 import { InlineCode } from "@/components/typography";
@@ -93,7 +92,7 @@ export function PublicCatalogSearchResultCount<TData>({
         className="flex items-center gap-2 whitespace-nowrap"
         data-testid="search-results-count"
       >
-        <Eye className="text-muted-foreground h-3.5 w-3.5" />
+        <Eye className="text-muted-foreground size-3.5" />
         {resultLabel}
       </div>
     </InlineCode>
@@ -120,7 +119,7 @@ export function PublicCatalogSearchResetButton<TData>({
       className="h-6 gap-1 rounded-full px-2 text-xs"
     >
       Reset
-      <X className="h-3 w-3" />
+      <X className="size-3" />
     </Button>
   );
 }
@@ -152,7 +151,7 @@ export function PublicCatalogSearchFilterChips<TData>({
           onClick={chip.onClear}
         >
           {chip.label}
-          <X className="h-3 w-3" />
+          <X className="size-3" />
         </Button>
       ))}
     </div>
@@ -212,49 +211,31 @@ export function PublicCatalogSearchQueryField<TData>({
   const globalFilter: unknown = table.getState().globalFilter;
   const currentGlobalFilter =
     typeof globalFilter === "string" ? globalFilter : "";
-  const [lastGlobalFilter, setLastGlobalFilter] =
-    useState(currentGlobalFilter);
-  const [value, setValue] = useState(currentGlobalFilter);
-
-  if (currentGlobalFilter !== lastGlobalFilter) {
-    setLastGlobalFilter(currentGlobalFilter);
-    setValue(currentGlobalFilter);
-  }
-
-  const debouncedFilter = useDebouncedCallback((next: string) => {
+  const updateFilter = (next: string) => {
     table.setGlobalFilter(next);
     if (next) {
       table.setSorting([{ id: "title", desc: false }]);
     }
     table.resetPageIndex(true);
-  }, 200);
-
-  useEffect(() => {
-    debouncedFilter.cancel();
-  }, [currentGlobalFilter, debouncedFilter]);
+  };
 
   return (
-    <form
-      onSubmit={(e) => {
-        e.preventDefault();
-        debouncedFilter.flush();
-        onSubmit?.();
-      }}
-      className={className}
-      data-testid="search-query-form"
-    >
+    <div className={className} data-testid="search-query-form">
       <Input
         placeholder="Search listings..."
-        value={value}
+        value={currentGlobalFilter}
         className={cn("h-9", inputClassName)}
         data-testid="search-all-fields-input"
         onChange={(e) => {
-          const next = e.target.value;
-          setValue(next);
-          debouncedFilter(next);
+          updateFilter(e.target.value);
+        }}
+        onKeyDown={(event) => {
+          if (event.key !== "Enter") return;
+
+          onSubmit?.();
         }}
       />
-    </form>
+    </div>
   );
 }
 
@@ -307,7 +288,7 @@ export function PublicCatalogSearchSection({
   return (
     <section className={cn("space-y-2", className)}>
       <div className="text-muted-foreground flex items-center gap-1.5 text-[11px] font-medium tracking-wide uppercase">
-        <Search className="h-3 w-3" />
+        <Search className="size-3" />
         {title}
       </div>
       {children}

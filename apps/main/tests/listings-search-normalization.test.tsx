@@ -46,11 +46,7 @@ describe("listings search normalization", () => {
       "Lillians",
       "LiLlIaNs",
     ];
-    const cafeVariants = [
-      "cafe etude",
-      "café étude",
-      "caFe ÉtudE",
-    ];
+    const cafeVariants = ["cafe etude", "café étude", "caFe ÉtudE"];
 
     const expectSingleMatch = (expectedTitle: string) => {
       expect(result.current.getFilteredRowModel().rows).toHaveLength(1);

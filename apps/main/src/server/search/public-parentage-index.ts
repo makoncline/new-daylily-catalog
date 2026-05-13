@@ -271,7 +271,7 @@ function logParentageIndex(event: string, payload: Record<string, unknown> = {})
   );
 }
 
-export async function refreshPublicParentageIndex(): Promise<PublicParentageIndexStatus> {
+async function refreshPublicParentageIndex(): Promise<PublicParentageIndexStatus> {
   globalForParentageIndex.publicParentageIndexRefreshPromise ??= (async () => {
       await ensurePublicSearchIndex();
       const releaseLock = await acquireRefreshLock();

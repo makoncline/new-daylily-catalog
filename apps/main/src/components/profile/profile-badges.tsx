@@ -14,7 +14,7 @@ import { Muted } from "@/components/typography";
 export function LocationBadge({ location }: { location: string }) {
   return (
     <Badge variant="secondary" className="max-w-52 items-center gap-1">
-      <MapPin className="h-3 w-3" />
+      <MapPin className="size-3" />
       <TruncatedText text={location} />
     </Badge>
   );
@@ -23,7 +23,7 @@ export function LocationBadge({ location }: { location: string }) {
 export function ListingCountBadge({ count }: { count: number }) {
   return (
     <Badge variant="secondary" className="flex items-center gap-1 text-xs">
-      <Flower2 className="h-3 w-3" />
+      <Flower2 className="size-3" />
       <span>{count} listings</span>
     </Badge>
   );
@@ -38,7 +38,7 @@ export function ListCountBadge({
 }) {
   const badge = (
     <Badge variant="secondary" className="flex items-center gap-1 text-xs">
-      <ListChecks className="h-3 w-3" />
+      <ListChecks className="size-3" />
       <span>{count} lists</span>
     </Badge>
   );
@@ -71,8 +71,8 @@ export function ListCountBadge({
   );
 }
 
-export function LastUpdatedBadge({ date }: { date: Date }) {
-  const lastUpdatedLabel = getLastUpdatedLabel(date);
+export function LastUpdatedBadge({ timestamp }: { timestamp: number }) {
+  const lastUpdatedLabel = getLastUpdatedLabel(timestamp);
   if (!lastUpdatedLabel) return null;
 
   return (
@@ -83,7 +83,7 @@ export function LastUpdatedBadge({ date }: { date: Date }) {
             variant="outline"
             className="bg-background/80 backdrop-blur-sm"
           >
-            <Clock className="h-3 w-3" />
+            <Clock className="size-3" />
           </Badge>
         </TooltipTrigger>
         <TooltipContent side="top" align="end" className="p-2">
@@ -94,14 +94,13 @@ export function LastUpdatedBadge({ date }: { date: Date }) {
   );
 }
 
-export function MemberSince({ date }: { date: Date }) {
-  const label = getMemberSinceLabel(date);
+export function MemberSince({ timestamp }: { timestamp: number }) {
+  const label = getMemberSinceLabel(timestamp);
   return <Muted className="text-xs">{label}</Muted>;
 }
 
-function getLastUpdatedLabel(date: Date) {
-  const now = new Date();
-  const diff = now.getTime() - date.getTime();
+function getLastUpdatedLabel(timestamp: number) {
+  const diff = Date.now() - timestamp;
   const days = Math.floor(diff / (1000 * 60 * 60 * 24));
 
   if (days < 7) return "Recently Updated";
@@ -109,8 +108,9 @@ function getLastUpdatedLabel(date: Date) {
   return null;
 }
 
-function getMemberSinceLabel(date: Date) {
-  const now = new Date();
+function getMemberSinceLabel(timestamp: number) {
+  const now = new Date(Date.now());
+  const date = new Date(timestamp);
   const months =
     (now.getFullYear() - date.getFullYear()) * 12 +
     now.getMonth() -

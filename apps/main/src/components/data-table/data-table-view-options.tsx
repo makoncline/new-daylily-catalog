@@ -72,7 +72,7 @@ function SortableItem({ id, children, className }: SortableItemProps) {
             {...listeners}
             style={{ touchAction: "none" }}
           >
-            <DragHandleDots2Icon className="h-4 w-4 cursor-grab" />
+            <DragHandleDots2Icon className="size-4 cursor-grab" />
           </div>
           {children}
         </div>
@@ -99,21 +99,25 @@ export function DataTableViewOptions<TData>({
   );
 
   // Get columns that can't be hidden
-  const unhideableColumnIds = table
-    .getAllColumns()
-    .filter((column) => !column.getCanHide())
-    .map((column) => column.id);
+  const unhideableColumnIds = [];
+  for (const column of table.getAllColumns()) {
+    if (!column.getCanHide()) {
+      unhideableColumnIds.push(column.id);
+    }
+  }
 
   // Get pinned column IDs from meta
   const leftPinnedColumns = table.options.meta?.pinnedColumns?.left ?? [];
   const rightPinnedColumns = table.options.meta?.pinnedColumns?.right ?? [];
   const pinnedColumnIds = [...leftPinnedColumns, ...rightPinnedColumns];
+  const pinnedColumnIdSet = new Set(pinnedColumnIds);
+  const unhideableColumnIdSet = new Set(unhideableColumnIds);
 
   // Get hideable columns for the reorderable list, excluding pinned columns
   const hideableColumns = table
     .getAllColumns()
     .filter(
-      (column) => column.getCanHide() && !pinnedColumnIds.includes(column.id),
+      (column) => column.getCanHide() && !pinnedColumnIdSet.has(column.id),
     );
 
   // Current order of hideable columns
@@ -121,8 +125,7 @@ export function DataTableViewOptions<TData>({
     ? table
         .getState()
         .columnOrder.filter(
-          (id) =>
-            !unhideableColumnIds.includes(id) && !pinnedColumnIds.includes(id),
+          (id) => !unhideableColumnIdSet.has(id) && !pinnedColumnIdSet.has(id),
         )
     : hideableColumns.map((column) => column.id);
 
@@ -175,7 +178,7 @@ export function DataTableViewOptions<TData>({
       <Sheet open={open} onOpenChange={setOpen}>
         <SheetTrigger asChild>
           <Button variant="outline" size="sm" className="ml-auto flex h-8">
-            <MixerHorizontalIcon className="mr-2 h-4 w-4" />
+            <MixerHorizontalIcon className="mr-2 size-4" />
             Table Options
           </Button>
         </SheetTrigger>
@@ -187,7 +190,7 @@ export function DataTableViewOptions<TData>({
             </SheetDescription>
           </SheetHeader>
 
-          <div className="flex h-[calc(100vh-4rem)] flex-col space-y-6 pt-6">
+          <div className="flex h-[calc(100vh-4rem)] flex-col gap-y-6 pt-6">
             <Button
               variant="ghost"
               size="sm"
@@ -197,7 +200,7 @@ export function DataTableViewOptions<TData>({
                 setShowResetConfirm(true);
               }}
             >
-              <ResetIcon className="mr-2 h-4 w-4" />
+              <ResetIcon className="mr-2 size-4" />
               Reset to default
             </Button>
 
@@ -224,7 +227,7 @@ export function DataTableViewOptions<TData>({
                           id={columnId}
                           className="relative select-none"
                         >
-                          <div className="flex flex-1 items-center space-x-3">
+                          <div className="flex flex-1 items-center gap-x-3">
                             <Checkbox
                               checked={column.getIsVisible()}
                               onCheckedChange={(value) => {

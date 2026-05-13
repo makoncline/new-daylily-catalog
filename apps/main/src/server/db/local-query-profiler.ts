@@ -44,10 +44,7 @@ interface QueryExtensionParams {
 const globalForQueryProfiler = globalThis as typeof globalThis &
   QueryProfilerGlobalState;
 
-type AnyPrismaClient = PrismaClient<
-  Prisma.PrismaClientOptions,
-  never
->;
+type AnyPrismaClient = PrismaClient<Prisma.PrismaClientOptions, never>;
 type QueryLoggingPrismaClient = PrismaClient<
   Prisma.PrismaClientOptions,
   "query"
@@ -220,7 +217,9 @@ function collectArgKeyPaths(
       return;
     }
 
-    const entries = Object.entries(value).sort(([a], [b]) => a.localeCompare(b));
+    const entries = Object.entries(value).sort(([a], [b]) =>
+      a.localeCompare(b),
+    );
     for (const [key, nestedValue] of entries) {
       const nextPrefix = prefix ? `${prefix}.${key}` : key;
       collectArgKeyPaths(nestedValue, paths, nextPrefix, depth + 1);
@@ -278,8 +277,7 @@ function canEnableProfiler(context: QueryProfilerContext) {
     return false;
   }
 
-  const isLocalSqliteFile =
-    context.databaseUrl.startsWith("file:");
+  const isLocalSqliteFile = context.databaseUrl.startsWith("file:");
 
   if (isLocalSqliteFile) {
     return true;

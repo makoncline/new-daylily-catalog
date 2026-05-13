@@ -1,4 +1,10 @@
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import {
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import { beforeEach, describe, expect, it } from "vitest";
 import {
   createTagPrintDocumentHtml,
@@ -104,7 +110,7 @@ describe("TagDesignerPanel", () => {
     render(<TagDesignerPanel listings={[]} />);
     expect(screen.getByText("Sample Cultivar Name")).toBeInTheDocument();
     expect(
-      screen.getByText("Sample preview — select listings below"),
+      screen.getByText("Sample preview: select listings below"),
     ).toBeInTheDocument();
   });
 
@@ -137,7 +143,9 @@ describe("TagDesignerPanel", () => {
       screen.queryByLabelText("Copies of each selected label"),
     ).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Print quantity" }));
-    expect(screen.getByLabelText("Copies of each selected label")).toHaveValue(1);
+    expect(screen.getByLabelText("Copies of each selected label")).toHaveValue(
+      1,
+    );
     expect(screen.getByLabelText("Page width (in)")).toHaveValue(3.5);
     expect(screen.getByLabelText("Page height (in)")).toHaveValue(1);
     expect(screen.getByLabelText("Print dashed borders")).not.toBeChecked();
@@ -155,7 +163,9 @@ describe("TagDesignerPanel", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Make Sheet" }));
     const dialog = screen.getByRole("dialog");
-    fireEvent.click(within(dialog).getByRole("button", { name: "Print quantity" }));
+    fireEvent.click(
+      within(dialog).getByRole("button", { name: "Print quantity" }),
+    );
     const copiesInput = within(dialog).getByLabelText(
       "Copies of each selected label",
     );
@@ -192,7 +202,9 @@ describe("TagDesignerPanel", () => {
     fireEvent.change(pageWidthInput, { target: { value: "7" } });
     fireEvent.blur(pageWidthInput);
 
-    fireEvent.click(within(dialog).getByRole("button", { name: "Print quantity" }));
+    fireEvent.click(
+      within(dialog).getByRole("button", { name: "Print quantity" }),
+    );
     const copiesInput = within(dialog).getByLabelText(
       "Copies of each selected label",
     );
@@ -239,7 +251,9 @@ describe("TagDesignerPanel", () => {
       expect(input).toHaveValue(scenario.expected);
     }
 
-    fireEvent.click(within(dialog).getByRole("button", { name: "Print quantity" }));
+    fireEvent.click(
+      within(dialog).getByRole("button", { name: "Print quantity" }),
+    );
     const copiesInput = within(dialog).getByLabelText(
       "Copies of each selected label",
     );

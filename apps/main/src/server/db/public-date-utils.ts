@@ -1,4 +1,4 @@
-export function toDate(value: Date | string | null | undefined): Date | undefined {
+function toDate(value: Date | string | null | undefined): Date | undefined {
   if (!value) {
     return undefined;
   }

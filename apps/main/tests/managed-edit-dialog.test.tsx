@@ -1,4 +1,10 @@
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import {
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { ManagedEditDialog } from "@/app/dashboard/_components/managed-edit-dialog";
 import type { SaveOnNavigateHandle } from "@/hooks/use-save-before-navigate";

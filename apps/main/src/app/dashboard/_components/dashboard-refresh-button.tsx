@@ -33,8 +33,10 @@ export function DashboardRefreshButton() {
         utils.stripe.getSubscription.invalidate(),
       ]);
 
-      await utils.dashboardDb.userProfile.get.fetch();
-      const subscription = await utils.stripe.getSubscription.fetch();
+      const [, subscription] = await Promise.all([
+        utils.dashboardDb.userProfile.get.fetch(),
+        utils.stripe.getSubscription.fetch(),
+      ]);
       if (clerkUserId) {
         writeCachedSubscription(clerkUserId, subscription);
       }

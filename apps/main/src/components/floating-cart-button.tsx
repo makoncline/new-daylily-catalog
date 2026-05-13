@@ -34,7 +34,7 @@ export function FloatingCartButton({
           className="w-full sm:w-auto"
           onClick={() => setIsDialogOpen(true)}
         >
-          <MessageCircle className="h-4 w-4" />
+          <MessageCircle className="size-4" />
           <span>
             Contact Seller
             {itemCount > 0 &&
@@ -46,7 +46,7 @@ export function FloatingCartButton({
       <DialogTrigger asChild>
         <Button
           type="button"
-          className="fixed bottom-4 right-4 z-50 flex items-center gap-2 rounded-full shadow-md"
+          className="fixed right-4 bottom-4 z-50 flex items-center gap-2 rounded-full shadow-md"
           variant="default"
           aria-label={
             itemCount > 0
@@ -56,12 +56,12 @@ export function FloatingCartButton({
         >
           {itemCount > 0 ? (
             <>
-              <ShoppingCart className="h-5 w-5" />
-              <div className="h-4 w-px bg-primary-foreground/30" />
+              <ShoppingCart className="size-5" />
+              <div className="bg-primary-foreground/30 h-4 w-px" />
               <span>{itemCount > 99 ? "99+" : itemCount}</span>
             </>
           ) : (
-            <MessageCircle className="h-5 w-5" />
+            <MessageCircle className="size-5" />
           )}
         </Button>
       </DialogTrigger>

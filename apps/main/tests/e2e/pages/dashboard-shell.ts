@@ -47,7 +47,10 @@ export class DashboardShell {
   async refreshDashboardData() {
     await this.refreshButton.waitFor({ state: "visible" });
     await this.refreshButton.click();
-    await expect(this.refreshButton).toHaveAttribute("data-state", "refreshing");
+    await expect(this.refreshButton).toHaveAttribute(
+      "data-state",
+      "refreshing",
+    );
     await expect(this.refreshButton).toHaveAttribute("data-state", "idle");
   }
 }

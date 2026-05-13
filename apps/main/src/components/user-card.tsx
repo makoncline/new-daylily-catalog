@@ -13,7 +13,6 @@ import {
 } from "@/components/ui/tooltip";
 import Link from "next/link";
 import { type RouterOutputs } from "@/trpc/react";
-import { Skeleton } from "@/components/ui/skeleton";
 import { H3, Muted } from "@/components/typography";
 import { ImagePlaceholder } from "./image-placeholder";
 import { ImagePopover } from "@/components/image-popover";
@@ -65,7 +64,7 @@ export function UserCard({
   const visiblePath = `/${slug ?? id}`;
 
   return (
-    <Card className="group flex h-full flex-col overflow-hidden transition-all hover:border-primary">
+    <Card className="group hover:border-primary flex h-full flex-col overflow-hidden transition-all">
       <div className="relative">
         <Link href={visiblePath} className="block">
           {images[0]?.url ? (
@@ -81,7 +80,7 @@ export function UserCard({
           )}
         </Link>
 
-        <div className="absolute right-2 top-2">
+        <div className="absolute top-2 right-2">
           {/* Pro Badge */}
           {hasActiveSubscription && (
             <Badge
@@ -95,7 +94,7 @@ export function UserCard({
 
         {/* Recently Updated Badge */}
         {lastUpdatedLabel && (
-          <div className="absolute bottom-2 right-2">
+          <div className="absolute right-2 bottom-2">
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger>
@@ -103,7 +102,7 @@ export function UserCard({
                     variant="outline"
                     className="bg-background/80 backdrop-blur-sm"
                   >
-                    <Clock className="h-3 w-3" />
+                    <Clock className="size-3" />
                   </Badge>
                 </TooltipTrigger>
                 <TooltipContent side="top" align="end" className="p-2">
@@ -145,47 +144,23 @@ export function UserCard({
                 <TruncatedText
                   text={description}
                   lines={3}
-                  className="text-sm text-muted-foreground"
+                  className="text-muted-foreground text-sm"
                 />
               )}
             </div>
 
-            <div className="flex gap-3 text-sm text-muted-foreground">
+            <div className="text-muted-foreground flex gap-3 text-sm">
               <Badge
                 variant="secondary"
                 className="flex items-center gap-1 text-xs"
               >
-                <Flower2 className="h-3 w-3" />
+                <Flower2 className="size-3" />
                 <span>{listingCount} listings</span>
               </Badge>
             </div>
           </div>
         </CardContent>
       </Link>
-    </Card>
-  );
-}
-
-export function UserCardSkeleton() {
-  return (
-    <Card className="group flex h-full flex-col overflow-hidden">
-      <div className="relative">
-        <ImagePlaceholder />
-      </div>
-      <CardContent className="flex flex-1 flex-col p-4">
-        <div className="flex flex-1 flex-col justify-between gap-4">
-          <div className="space-y-2">
-            <Skeleton className="h-6 w-3/4" />
-            <Skeleton className="h-5 w-1/2" />
-            <Skeleton className="h-4 w-1/3" />
-            <Skeleton className="h-16 w-full" />
-          </div>
-          <div className="flex gap-3">
-            <Skeleton className="h-6 w-24" />
-            <Skeleton className="h-6 w-20" />
-          </div>
-        </div>
-      </CardContent>
     </Card>
   );
 }

@@ -85,9 +85,9 @@ export function CultivarQuickSpecs({
               onClick={() => void onCopy()}
             >
               {copied ? (
-                <CopyCheck className="h-4 w-4" />
+                <CopyCheck className="size-4" />
               ) : (
-                <Copy className="h-4 w-4" />
+                <Copy className="size-4" />
               )}
               <span>{copied ? "Copied" : "Copy specs"}</span>
             </Button>
@@ -119,7 +119,7 @@ export function CultivarQuickSpecs({
               size="sm"
               onClick={() => setExpanded((value) => !value)}
             >
-              <Sparkles className="h-4 w-4" />
+              <Sparkles className="size-4" />
               <span>{expanded ? "Show key specs" : "Show all specs"}</span>
             </Button>
           )}

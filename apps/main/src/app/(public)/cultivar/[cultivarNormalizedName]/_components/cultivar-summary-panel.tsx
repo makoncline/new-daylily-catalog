@@ -6,7 +6,9 @@ import { Button } from "@/components/ui/button";
 import { H1, Muted } from "@/components/typography";
 import { type RouterOutputs } from "@/trpc/react";
 
-type CultivarPageOutput = NonNullable<RouterOutputs["public"]["getCultivarPage"]>;
+type CultivarPageOutput = NonNullable<
+  RouterOutputs["public"]["getCultivarPage"]
+>;
 type CultivarSummary = CultivarPageOutput["summary"];
 
 interface CultivarSummaryPanelProps {
@@ -32,7 +34,11 @@ export function CultivarSummaryPanel({ summary }: CultivarSummaryPanelProps) {
   };
 
   return (
-    <section id="cultivar-summary" aria-label="Cultivar summary" className="space-y-5">
+    <section
+      id="cultivar-summary"
+      aria-label="Cultivar summary"
+      className="space-y-5"
+    >
       <div className="space-y-2">
         <H1 className="text-[clamp(30px,5vw,64px)]">{summary.name}</H1>
 
@@ -45,14 +51,20 @@ export function CultivarSummaryPanel({ summary }: CultivarSummaryPanelProps) {
         <Button asChild size="lg" className="min-w-64 justify-between">
           <Link href="#offers">
             <span>
-              Available from {summary.gardensCount} {summary.gardensCount === 1 ? "catalog" : "catalogs"}
+              Available from {summary.gardensCount}{" "}
+              {summary.gardensCount === 1 ? "catalog" : "catalogs"}
             </span>
-            <ArrowRight className="h-4 w-4" />
+            <ArrowRight className="size-4" />
           </Link>
         </Button>
 
-        <Button type="button" variant="outline" size="icon" onClick={() => void onShare()}>
-          <Share2 className="h-4 w-4" />
+        <Button
+          type="button"
+          variant="outline"
+          size="icon"
+          onClick={() => void onShare()}
+        >
+          <Share2 className="size-4" />
           <span className="sr-only">Share cultivar page</span>
         </Button>
       </div>

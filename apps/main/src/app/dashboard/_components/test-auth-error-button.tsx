@@ -1,15 +1,9 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { useState } from "react";
 
 export function TestAuthErrorButton() {
-  const [isVisible, setIsVisible] = useState(true);
-
   const handleTestError = () => {
-    // Hide the button to avoid multiple clicks
-    setIsVisible(false);
-
     // Force the browser to clear Clerk session
     document.cookie.split(";").forEach((cookie) => {
       const parts = cookie.trim().split("=");
@@ -23,10 +17,8 @@ export function TestAuthErrorButton() {
     window.location.reload();
   };
 
-  if (!isVisible) return null;
-
   return (
-    <div className="fixed bottom-4 right-4 z-50">
+    <div className="fixed right-4 bottom-4 z-50">
       <Button
         variant="destructive"
         onClick={handleTestError}

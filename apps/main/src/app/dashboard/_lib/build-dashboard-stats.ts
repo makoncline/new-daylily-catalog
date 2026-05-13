@@ -71,11 +71,15 @@ export function buildDashboardStats({
     Boolean(listing.cultivarReferenceId),
   ).length;
 
-  const listingsWithPrice = listings.filter((listing) => listing.price !== null);
+  const listingsWithPrice = listings.filter(
+    (listing) => listing.price !== null,
+  );
   const averagePrice =
     listingsWithPrice.length > 0
-      ? listingsWithPrice.reduce((sum, listing) => sum + (listing.price ?? 0), 0) /
-        listingsWithPrice.length
+      ? listingsWithPrice.reduce(
+          (sum, listing) => sum + (listing.price ?? 0),
+          0,
+        ) / listingsWithPrice.length
       : 0;
 
   const totalLists = lists.length;
@@ -125,7 +129,9 @@ export function buildDashboardStats({
         !hasContent(profile?.description) && "description",
         !hasContent(profile?.content) && "content",
         !hasContent(profile?.location) && "location",
-      ].filter((field): field is (typeof profileFields)[number] => Boolean(field)),
+      ].filter((field): field is (typeof profileFields)[number] =>
+        Boolean(field),
+      ),
     },
     listStats: {
       averageListingsPerList,

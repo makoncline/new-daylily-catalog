@@ -31,14 +31,14 @@ export function CurrencyInput({
   const displayValue = value ? value.toString() : "";
 
   // Clean and parse input
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const updateCurrencyValue = (e: React.ChangeEvent<HTMLInputElement>) => {
     const cleanValue = e.target.value.replace(/\D/g, "");
     const numValue = cleanValue ? parseInt(cleanValue, 10) : null;
     onChange(numValue);
   };
 
   // Format on blur and trigger save if needed
-  const handleBlur = (e: React.FocusEvent<HTMLInputElement>) => {
+  const commitCurrencyValue = (e: React.FocusEvent<HTMLInputElement>) => {
     if (value !== null && value !== undefined) {
       e.target.value = value.toLocaleString();
     }
@@ -59,8 +59,8 @@ export function CurrencyInput({
         pattern="[0-9]*"
         className={cn("pl-7", className)}
         value={displayValue}
-        onChange={handleChange}
-        onBlur={handleBlur}
+        onChange={updateCurrencyValue}
+        onBlur={commitCurrencyValue}
         {...props}
       />
     </div>

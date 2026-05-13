@@ -4,12 +4,12 @@ import type Stripe from "stripe";
 import { tryCatch } from "@/lib/utils";
 import { reportError } from "@/lib/error-utils";
 
-export const DEFAULT_SUB_DATA = { status: "none" } as const;
+const DEFAULT_SUB_DATA = { status: "none" } as const;
 
-export const getStripeCustomerKey = (customerId: string) =>
+const getStripeCustomerKey = (customerId: string) =>
   `stripe:customer:${customerId}`;
 
-export async function syncStripeSubscriptionToKVBase(
+async function syncStripeSubscriptionToKVBase(
   customerId: string,
   stripe: Stripe,
   kvStore: typeof appKvStore,
@@ -63,7 +63,11 @@ export async function syncStripeSubscriptionToKVBase(
 }
 
 export async function syncStripeSubscriptionToKV(customerId: string) {
-  return syncStripeSubscriptionToKVBase(customerId, getStripeClient(), appKvStore);
+  return syncStripeSubscriptionToKVBase(
+    customerId,
+    getStripeClient(),
+    appKvStore,
+  );
 }
 
 export const getStripeSubscription = async (

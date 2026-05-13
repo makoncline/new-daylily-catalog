@@ -66,8 +66,6 @@ async function createCatalogsPageMetadata(url: string): Promise<Metadata> {
   }
 }
 
-export function generateCatalogsPageMetadata(
-  url: string,
-): Promise<Metadata> {
+export function generateCatalogsPageMetadata(url: string): Promise<Metadata> {
   return createCatalogsPageMetadata(url);
 }

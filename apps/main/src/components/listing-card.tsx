@@ -14,7 +14,6 @@ import { type RouterOutputs } from "@/trpc/react";
 import { cn, formatPrice } from "@/lib/utils";
 import { toCultivarRouteSegment } from "@/lib/utils/cultivar-utils";
 import { OptimizedImage } from "./optimized-image";
-import { Skeleton } from "./ui/skeleton";
 import { ImagePlaceholder } from "./image-placeholder";
 import { ImagePopover } from "@/components/image-popover";
 import { AddToCartButton } from "@/components/add-to-cart-button";
@@ -115,7 +114,7 @@ export function ListingCard({ listing, priority = false }: ListingCardProps) {
                         variant="secondary"
                         className="hover:bg-secondary backdrop-blur-sm"
                       >
-                        <Link2 className="h-3 w-3" />
+                        <Link2 className="size-3" />
                         <span className="sr-only">
                           View linked cultivar page
                         </span>
@@ -126,7 +125,7 @@ export function ListingCard({ listing, priority = false }: ListingCardProps) {
                       variant="secondary"
                       className="hover:bg-secondary backdrop-blur-sm"
                     >
-                      <Link2 className="h-3 w-3" />
+                      <Link2 className="size-3" />
                     </Badge>
                   )}
                 </TooltipTrigger>
@@ -151,7 +150,7 @@ export function ListingCard({ listing, priority = false }: ListingCardProps) {
           <div className="space-y-2">
             <h3
               className={cn(
-                "font-semibold tracking-tight whitespace-normal break-words",
+                "font-semibold tracking-tight break-words whitespace-normal",
                 titleSizeClass,
               )}
               title={titleWasTruncated ? listing.title : undefined}
@@ -194,7 +193,7 @@ export function ListingCard({ listing, priority = false }: ListingCardProps) {
                         variant="secondary"
                         className="flex cursor-pointer items-center gap-1 text-xs"
                       >
-                        <ListChecks className="h-3 w-3" />
+                        <ListChecks className="size-3" />
                         <span>
                           {listing.lists.length}{" "}
                           {listing.lists.length === 1 ? "list" : "lists"}
@@ -220,13 +219,7 @@ export function ListingCard({ listing, priority = false }: ListingCardProps) {
 
             {/* Add to Cart Button - Only show if listing has a price */}
             {listing.price !== null && (
-              <div
-                onClick={(e) => {
-                  e.stopPropagation();
-                  e.preventDefault();
-                }}
-                className="z-10"
-              >
+              <div className="z-10">
                 <AddToCartButton
                   listing={{
                     id: listing.id,
@@ -237,28 +230,6 @@ export function ListingCard({ listing, priority = false }: ListingCardProps) {
                 />
               </div>
             )}
-          </div>
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
-
-export function ListingCardSkeleton() {
-  return (
-    <Card className="group flex h-full flex-col overflow-hidden">
-      <div className="relative">
-        <Skeleton className="aspect-square w-full" />
-      </div>
-      <CardContent className="flex flex-1 flex-col p-4">
-        <div className="flex flex-1 flex-col justify-between gap-4">
-          <div className="space-y-2">
-            <Skeleton className="h-6 w-3/4" />
-            <Skeleton className="h-5 w-1/2" />
-            <Skeleton className="h-4 w-full" />
-          </div>
-          <div className="flex gap-3">
-            <Skeleton className="h-4 w-24" />
           </div>
         </div>
       </CardContent>

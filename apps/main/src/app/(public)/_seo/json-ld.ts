@@ -121,6 +121,8 @@ async function createSoftwareApplicationJsonLd(metadata: MetadataInput) {
   }
 }
 
-export async function generateSoftwareApplicationJsonLd(metadata: MetadataInput) {
+export async function generateSoftwareApplicationJsonLd(
+  metadata: MetadataInput,
+) {
   return createSoftwareApplicationJsonLd(metadata);
 }

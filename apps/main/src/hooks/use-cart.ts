@@ -23,7 +23,8 @@ export function useCart(userId: string) {
     [items],
   );
   const total = useMemo(
-    () => items.reduce((sum, item) => sum + (item.price ?? 0) * item.quantity, 0),
+    () =>
+      items.reduce((sum, item) => sum + (item.price ?? 0) * item.quantity, 0),
     [items],
   );
 

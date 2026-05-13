@@ -1,6 +1,14 @@
 // @vitest-environment node
 
-import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  afterEach,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+} from "vitest";
 import type { TRPCInternalContext } from "@/server/api/trpc";
 
 process.env.SKIP_ENV_VALIDATION = "1";
@@ -13,7 +21,9 @@ const originalV2DisplayFlag =
   process.env.NEXT_PUBLIC_USE_V2_CULTIVAR_DISPLAY_DATA;
 
 beforeAll(async () => {
-  ({ dashboardDbAhsRouter } = await import("@/server/api/routers/dashboard-db/ahs"));
+  ({ dashboardDbAhsRouter } = await import(
+    "@/server/api/routers/dashboard-db/ahs"
+  ));
 });
 
 interface MockDb {
@@ -52,7 +62,8 @@ describe("dashboardDb.ahs", () => {
       return;
     }
 
-    process.env.NEXT_PUBLIC_USE_V2_CULTIVAR_DISPLAY_DATA = originalV2DisplayFlag;
+    process.env.NEXT_PUBLIC_USE_V2_CULTIVAR_DISPLAY_DATA =
+      originalV2DisplayFlag;
   });
 
   it("returns V2-mapped cultivar detail data when the feature flag is enabled", async () => {

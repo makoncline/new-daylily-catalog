@@ -2,10 +2,10 @@
 
 import React, {
   createContext,
-  useContext,
+  use,
   useEffect,
+  useReducer,
   useRef,
-  useState,
 } from "react";
 import { useAuth } from "@clerk/nextjs";
 import { api } from "@/trpc/react";
@@ -39,21 +39,78 @@ interface DashboardDbState {
   isRefreshing: boolean;
 }
 
+interface LoadingScreenState {
+  hide: boolean;
+  exiting: boolean;
+}
+
+type LoadingScreenAction =
+  | {
+      type: "set";
+      hide: boolean;
+      exiting: boolean;
+    }
+  | {
+      type: "hide";
+    };
+
+type DashboardDbAction =
+  | {
+      type: "set";
+      state: DashboardDbState;
+    }
+  | {
+      type: "set-refreshing";
+      isRefreshing: boolean;
+      userId: string;
+    };
+
+function dashboardDbReducer(
+  state: DashboardDbState,
+  action: DashboardDbAction,
+) {
+  if (action.type === "set-refreshing") {
+    return state.userId === action.userId
+      ? { ...state, isRefreshing: action.isRefreshing }
+      : state;
+  }
+
+  return state.status === action.state.status &&
+    state.userId === action.state.userId &&
+    state.isRefreshing === action.state.isRefreshing
+    ? state
+    : action.state;
+}
+
+function loadingScreenReducer(
+  state: LoadingScreenState,
+  action: LoadingScreenAction,
+) {
+  if (action.type === "hide") {
+    return state.hide ? state : { ...state, hide: true };
+  }
+
+  if (state.hide === action.hide && state.exiting === action.exiting) {
+    return state;
+  }
+
+  return {
+    hide: action.hide,
+    exiting: action.exiting,
+  };
+}
+
 const DashboardDbContext = createContext<DashboardDbState | null>(null);
 
 export function useDashboardDb() {
-  const value = useContext(DashboardDbContext);
+  const value = use(DashboardDbContext);
   if (!value) {
     throw new Error("useDashboardDb must be used within DashboardDbProvider");
   }
   return value;
 }
 
-export function DashboardDbProvider({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+function useDashboardDbProviderState() {
   const utils = api.useUtils();
   const { userId: clerkUserId } = useAuth();
   const {
@@ -64,14 +121,19 @@ export function DashboardDbProvider({
 
   const userId = user?.id ?? null;
 
-  const [state, setState] = useState<DashboardDbState>({
+  const [state, dispatchDashboardDb] = useReducer(dashboardDbReducer, {
     status: "idle",
     userId: null,
     isRefreshing: false,
   });
 
-  const [hideLoadingScreen, setHideLoadingScreen] = useState(false);
-  const [isExitingLoadingScreen, setIsExitingLoadingScreen] = useState(false);
+  const [loadingScreenState, dispatchLoadingScreen] = useReducer(
+    loadingScreenReducer,
+    {
+      hide: false,
+      exiting: false,
+    },
+  );
   const initializedUserIdRef = useRef<string | null>(null);
   const lastReportedFailureKeyRef = useRef<string | null>(null);
   const clerkUserIdRef = useRef<string | null>(clerkUserId);
@@ -80,19 +142,13 @@ export function DashboardDbProvider({
   > | null>(null);
   const sqlitePersistenceStartedAtRef = useRef<number | null>(null);
   clerkUserIdRef.current = clerkUserId;
-  const setDashboardDbState = (nextState: DashboardDbState) => {
+  const updateDashboardDbState = (nextState: DashboardDbState) => {
     queueMicrotask(() => {
-      setState((current) =>
-        current.status === nextState.status &&
-        current.userId === nextState.userId &&
-        current.isRefreshing === nextState.isRefreshing
-          ? current
-          : nextState,
-      );
+      dispatchDashboardDb({ type: "set", state: nextState });
     });
   };
 
-  const setLoadingScreenState = ({
+  const updateLoadingScreenState = ({
     hide,
     exiting,
   }: {
@@ -100,22 +156,19 @@ export function DashboardDbProvider({
     exiting: boolean;
   }) => {
     queueMicrotask(() => {
-      setHideLoadingScreen((current) => (current === hide ? current : hide));
-      setIsExitingLoadingScreen((current) =>
-        current === exiting ? current : exiting,
-      );
+      dispatchLoadingScreen({ type: "set", hide, exiting });
     });
   };
-  const setDashboardRefreshing = (
+  const updateDashboardRefreshing = (
     nextIsRefreshing: boolean,
     expectedUserId: string,
   ) => {
     queueMicrotask(() => {
-      setState((current) =>
-        current.userId === expectedUserId
-          ? { ...current, isRefreshing: nextIsRefreshing }
-          : current,
-      );
+      dispatchDashboardDb({
+        type: "set-refreshing",
+        isRefreshing: nextIsRefreshing,
+        userId: expectedUserId,
+      });
     });
   };
 
@@ -126,13 +179,13 @@ export function DashboardDbProvider({
 
   useEffect(() => {
     if (state.status !== "ready") {
-      setLoadingScreenState({ hide: false, exiting: false });
+      updateLoadingScreenState({ hide: false, exiting: false });
       return;
     }
 
-    setLoadingScreenState({ hide: false, exiting: true });
+    updateLoadingScreenState({ hide: false, exiting: true });
     const id = window.setTimeout(() => {
-      setHideLoadingScreen(true);
+      dispatchLoadingScreen({ type: "hide" });
     }, 200);
 
     return () => {
@@ -142,7 +195,7 @@ export function DashboardDbProvider({
 
   useEffect(() => {
     if (isLoading) {
-      setDashboardDbState({
+      updateDashboardDbState({
         status: "loading",
         userId: null,
         isRefreshing: false,
@@ -166,7 +219,7 @@ export function DashboardDbProvider({
           userId: null,
         });
       });
-      setDashboardDbState({
+      updateDashboardDbState({
         status: "idle",
         userId: null,
         isRefreshing: false,
@@ -214,11 +267,11 @@ export function DashboardDbProvider({
             path: phase,
           },
         );
-        setDashboardRefreshing(false, userId);
+        updateDashboardRefreshing(false, userId);
       });
     };
     setCurrentUserId(userId);
-    setDashboardDbState({
+    updateDashboardDbState({
       status: "loading",
       userId,
       isRefreshing: false,
@@ -253,7 +306,7 @@ export function DashboardDbProvider({
 
         if (hasFreshSqliteCache) {
           phase = "sqlite-warm-hydrate";
-          setDashboardDbState({
+          updateDashboardDbState({
             status: "loading",
             userId,
             isRefreshing: true,
@@ -274,7 +327,7 @@ export function DashboardDbProvider({
 
             if (!cancelled) {
               finished = true;
-              setState({
+              updateDashboardDbState({
                 status: "ready",
                 userId,
                 isRefreshing: true,
@@ -321,7 +374,7 @@ export function DashboardDbProvider({
 
         if (!cancelled) {
           finished = true;
-          setState({
+          updateDashboardDbState({
             status: "ready",
             userId,
             isRefreshing: usedReplica,
@@ -368,7 +421,7 @@ export function DashboardDbProvider({
             });
           }
 
-          setState({
+          updateDashboardDbState({
             status: "error",
             userId,
             isRefreshing: false,
@@ -387,6 +440,21 @@ export function DashboardDbProvider({
       }
     };
   }, [isError, isLoading, userId, utils]);
+
+  return {
+    hideLoadingScreen: loadingScreenState.hide,
+    isExitingLoadingScreen: loadingScreenState.exiting,
+    state,
+  };
+}
+
+export function DashboardDbProvider({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  const { hideLoadingScreen, isExitingLoadingScreen, state } =
+    useDashboardDbProviderState();
 
   return (
     <DashboardDbContext.Provider value={state}>

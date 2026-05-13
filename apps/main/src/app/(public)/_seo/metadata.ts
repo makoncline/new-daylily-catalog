@@ -3,7 +3,9 @@ import { METADATA_CONFIG } from "@/config/constants";
 import { buildPublicPageMetadata, type PublicPageMetadata } from "./public-seo";
 
 // Base function for generating metadata
-async function createHomePageMetadata(url: string): Promise<PublicPageMetadata> {
+async function createHomePageMetadata(
+  url: string,
+): Promise<PublicPageMetadata> {
   const description =
     "Discover beautiful daylilies from growers across the country. Browse our collection of registered cultivars and connect with daylily enthusiasts.";
   const imageUrl = IMAGES.DEFAULT_META;

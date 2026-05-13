@@ -232,7 +232,9 @@ export function getSheetMarkup({
             tag.qrCodeUrl !== null && tag.qrCodeUrl !== undefined
               ? buildQrCodeSvgMarkup(tag.qrCodeUrl)
               : "";
-          const qrHtml = qrSvgMarkup ? `<div class="qr">${qrSvgMarkup}</div>` : "";
+          const qrHtml = qrSvgMarkup
+            ? `<div class="qr">${qrSvgMarkup}</div>`
+            : "";
           const hasQrClass = hasQrCode ? " has-qr" : "";
 
           return `<article class="tag${hasQrClass}"><div class="tag-content">${rowsHtml}</div>${qrHtml}</article>`;

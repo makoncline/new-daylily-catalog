@@ -14,7 +14,11 @@ import { AhsListingDisplay } from "@/components/ahs-listing-display";
 import { Separator } from "@/components/ui/separator";
 import { useSetAtom } from "jotai";
 import { editingListingIdAtom } from "./edit-listing-dialog";
-import { getErrorMessage, normalizeError, reportError } from "@/lib/error-utils";
+import {
+  getErrorMessage,
+  normalizeError,
+  reportError,
+} from "@/lib/error-utils";
 import { APP_CONFIG } from "@/config/constants";
 import { insertListing } from "@/app/dashboard/_lib/dashboard-db/listings-collection";
 import { useManagedDialogOpen } from "@/hooks/use-managed-dialog-open";
@@ -34,7 +38,7 @@ export function CreateListingDialog({
   const [selectedResult, setSelectedResult] = useState<AhsSearchResult | null>(
     null,
   );
-  const [isPending, setIsPending] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const { closeDialog, handleOpenChange, open } =
     useManagedDialogOpen(onOpenChange);
 
@@ -74,7 +78,7 @@ export function CreateListingDialog({
    * Submits form data to create a new listing.
    */
   const handleCreate = async () => {
-    setIsPending(true);
+    setIsSaving(true);
     try {
       const normalizedTitle = title.trim();
       const selectedName = selectedResult?.name?.trim();
@@ -110,14 +114,14 @@ export function CreateListingDialog({
         context: { source: "CreateListingDialog" },
       });
     } finally {
-      setIsPending(false);
+      setIsSaving(false);
     }
   };
 
   return (
     <ManagedCreateDialog
-      cancelDisabled={isPending}
-      confirmDisabled={isPending || (!title.trim() && !selectedResult)}
+      cancelDisabled={isSaving}
+      confirmDisabled={isSaving || (!title.trim() && !selectedResult)}
       confirmLabel="Create Listing"
       description="Create a new daylily listing by providing a title or selecting from the AHS database."
       onCancel={closeDialog}
@@ -130,7 +134,7 @@ export function CreateListingDialog({
         <Label htmlFor="ahs-listing">AHS Database Listing (optional)</Label>
         <AhsListingSelect
           onSelect={handleAhsListingSelect}
-          disabled={isPending}
+          disabled={isSaving}
         />
 
         {selectedResult && detailedAhsListing && (
@@ -151,7 +155,7 @@ export function CreateListingDialog({
               variant="ghost"
               size="sm"
               onClick={syncTitleWithAhs}
-              disabled={isPending}
+              disabled={isSaving}
             >
               Sync with AHS name
             </Button>
@@ -162,7 +166,7 @@ export function CreateListingDialog({
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           placeholder={selectedResult?.name ?? "Enter a title"}
-          disabled={isPending}
+          disabled={isSaving}
         />
       </div>
     </ManagedCreateDialog>

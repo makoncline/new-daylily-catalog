@@ -13,7 +13,11 @@ import { useManagedFormSave } from "@/hooks/use-managed-form-save";
 import { useParentCommitFlag } from "@/hooks/use-parent-commit-flag";
 import { useZodForm } from "@/hooks/use-zod-form";
 import { useAutoResizeTextArea } from "@/hooks/use-auto-resize-textarea";
-import { getErrorMessage, normalizeError, reportError } from "@/lib/error-utils";
+import {
+  getErrorMessage,
+  normalizeError,
+  reportError,
+} from "@/lib/error-utils";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -65,7 +69,7 @@ interface ListingFormProps {
   formRef?: React.RefObject<ListingFormHandle | null>;
 }
 
-export type ListingFormSaveReason = "manual" | "close" | "navigate";
+type ListingFormSaveReason = "manual" | "close" | "navigate";
 
 export interface ListingFormHandle {
   saveChanges: (reason: ListingFormSaveReason) => Promise<boolean>;
@@ -84,7 +88,10 @@ function toFormValues(listing: ListingCollectionItem): ListingFormData {
   )!;
 }
 
-function areListingValuesEqual(a: ListingFormData, b: ListingFormData): boolean {
+function areListingValuesEqual(
+  a: ListingFormData,
+  b: ListingFormData,
+): boolean {
   return (
     a.title === b.title &&
     a.description === b.description &&
@@ -94,7 +101,7 @@ function areListingValuesEqual(a: ListingFormData, b: ListingFormData): boolean 
   );
 }
 
-function ListingFormInner({
+function useListingFormController({
   listingId,
   listing,
   linkedAhs,
@@ -111,7 +118,7 @@ function ListingFormInner({
   onDelete: () => void;
   formRef?: React.RefObject<ListingFormHandle | null>;
 }) {
-  const [isPending, setIsPending] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const { textAreaRef, adjustHeight } = useAutoResizeTextArea();
   const {
     markNeedsParentCommit,
@@ -147,7 +154,7 @@ function ListingFormInner({
       });
     },
   });
-  const isBusy = isPending || isDeletePending;
+  const isBusy = isSaving || isDeletePending;
 
   const hasPendingChanges = useCallback(() => {
     const values = form.getValues();
@@ -190,7 +197,7 @@ function ListingFormInner({
 
         const shouldUpdateUi = reason !== "navigate";
         if (shouldUpdateUi) {
-          setIsPending(true);
+          setIsSaving(true);
         }
 
         try {
@@ -218,7 +225,7 @@ function ListingFormInner({
           return false;
         } finally {
           if (shouldUpdateUi) {
-            setIsPending(false);
+            setIsSaving(false);
           }
         }
       },
@@ -231,7 +238,7 @@ function ListingFormInner({
   }
 
   const handleUpdateLists = async (nextListIds: string[]) => {
-    setIsPending(true);
+    setIsSaving(true);
     const prev = new Set(selectedListIds);
     const next = new Set(nextListIds);
 
@@ -256,7 +263,7 @@ function ListingFormInner({
         context: { source: "ListingForm" },
       });
     } finally {
-      setIsPending(false);
+      setIsSaving(false);
     }
   };
 
@@ -264,6 +271,56 @@ function ListingFormInner({
     return dbValue === STATUS.HIDDEN ? STATUS.HIDDEN : "published";
   };
 
+  return {
+    adjustHeight,
+    confirmDelete,
+    form,
+    getUIStatusValue,
+    handleUpdateLists,
+    hasPendingChanges,
+    images,
+    isBusy,
+    isDeleteDialogOpen,
+    linkedAhs,
+    listing,
+    listingId,
+    markNeedsParentCommit,
+    onSubmit,
+    openDeleteDialog,
+    selectedListIds,
+    setIsDeleteDialogOpen,
+    textAreaRef,
+  };
+}
+
+function ListingFormInner(
+  props: Parameters<typeof useListingFormController>[0],
+) {
+  const controller = useListingFormController(props);
+
+  return <ListingFormFields {...controller} />;
+}
+
+function ListingFormFields({
+  adjustHeight,
+  confirmDelete,
+  form,
+  getUIStatusValue,
+  handleUpdateLists,
+  hasPendingChanges,
+  images,
+  isBusy,
+  isDeleteDialogOpen,
+  linkedAhs,
+  listing,
+  listingId,
+  markNeedsParentCommit,
+  onSubmit,
+  openDeleteDialog,
+  selectedListIds,
+  setIsDeleteDialogOpen,
+  textAreaRef,
+}: ReturnType<typeof useListingFormController>) {
   return (
     <Form {...form}>
       <form
@@ -277,11 +334,7 @@ function ListingFormInner({
             <FormItem>
               <FormLabel>Name</FormLabel>
               <FormControl>
-                <Input
-                  {...field}
-                  value={field.value ?? ""}
-                  disabled={isBusy}
-                />
+                <Input {...field} value={field.value ?? ""} disabled={isBusy} />
               </FormControl>
               <FormDescription>
                 Required. This is the name of your listing.
