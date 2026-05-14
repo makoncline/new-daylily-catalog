@@ -20,12 +20,21 @@ test.describe("WebMCP discovery", () => {
             name: string;
             description: string;
             inputSchema: unknown;
-          }) {
-            registeredTools.push({
+          }, options?: { signal?: AbortSignal }) {
+            const registration = {
               name: tool.name,
               description: tool.description,
               inputSchema: tool.inputSchema,
-            });
+            };
+            registeredTools.push(registration);
+            options?.signal?.addEventListener(
+              "abort",
+              () => {
+                const index = registeredTools.indexOf(registration);
+                if (index >= 0) registeredTools.splice(index, 1);
+              },
+              { once: true },
+            );
           },
         },
       });
