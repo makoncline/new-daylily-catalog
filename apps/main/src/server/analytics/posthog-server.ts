@@ -1,3 +1,5 @@
+import { getRuntimePosthogConfig } from "@/lib/observability-env";
+
 interface CaptureServerPosthogEventInput {
   distinctId: string;
   event: string;
@@ -5,14 +7,11 @@ interface CaptureServerPosthogEventInput {
 }
 
 function getPosthogServerConfig() {
-  const posthogKey = process.env.NEXT_PUBLIC_POSTHOG_KEY;
-  if (process.env.NODE_ENV !== "production" || !posthogKey) {
+  if (process.env.NODE_ENV !== "production") {
     return null;
   }
 
-  const host =
-    process.env.NEXT_PUBLIC_POSTHOG_HOST ?? "https://us.i.posthog.com";
-  return { host, posthogKey };
+  return getRuntimePosthogConfig();
 }
 
 export async function captureServerPosthogEvent({

@@ -1,45 +1,47 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { MockInstance } from "vitest";
 
 const initMock = vi.hoisted(() => vi.fn());
-const posthogInitMock = vi.hoisted(() => vi.fn());
-const posthogClientMock = vi.hoisted(() => ({
-  init: posthogInitMock,
-}));
+const replayIntegrationMock = vi.hoisted(() =>
+  vi.fn(() => ({ name: "replay" })),
+);
 const mutableEnv = process.env as Record<string, string | undefined>;
 
 vi.mock("@sentry/nextjs", () => ({
   init: initMock,
-  replayIntegration: vi.fn(() => ({ name: "replay" })),
+  replayIntegration: replayIntegrationMock,
   captureRouterTransitionStart: vi.fn(),
-}));
-
-vi.mock("posthog-js", () => ({
-  default: posthogClientMock,
 }));
 
 describe("instrumentation-client", () => {
   let previousNodeEnv: string | undefined;
-  let previousSentryEnabled: string | undefined;
-  let previousPosthogKey: string | undefined;
-  let previousPosthogHost: string | undefined;
+  let fetchMock: MockInstance<typeof fetch>;
 
   beforeEach(() => {
     initMock.mockClear();
-    posthogInitMock.mockClear();
-    delete (globalThis as { posthog?: unknown }).posthog;
+    replayIntegrationMock.mockClear();
     previousNodeEnv = process.env.NODE_ENV;
-    previousSentryEnabled = process.env.NEXT_PUBLIC_SENTRY_ENABLED;
-    previousPosthogKey = process.env.NEXT_PUBLIC_POSTHOG_KEY;
-    previousPosthogHost = process.env.NEXT_PUBLIC_POSTHOG_HOST;
     mutableEnv.NODE_ENV = "production";
-    process.env.NEXT_PUBLIC_SENTRY_ENABLED = "true";
-    process.env.NEXT_PUBLIC_POSTHOG_KEY = "phc_test_key";
-    process.env.NEXT_PUBLIC_POSTHOG_HOST = "https://us.i.posthog.com";
+    fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          sentry: {
+            enabled: true,
+            dsn: "https://examplePublicKey@o0.ingest.sentry.io/0",
+          },
+        }),
+        {
+          headers: {
+            "Content-Type": "application/json",
+          },
+        },
+      ),
+    );
     vi.resetModules();
   });
 
   afterEach(() => {
-    delete (globalThis as { posthog?: unknown }).posthog;
+    fetchMock.mockRestore();
 
     if (previousNodeEnv === undefined) {
       delete mutableEnv.NODE_ENV;
@@ -47,49 +49,14 @@ describe("instrumentation-client", () => {
       mutableEnv.NODE_ENV = previousNodeEnv;
     }
 
-    if (previousSentryEnabled === undefined) {
-      delete process.env.NEXT_PUBLIC_SENTRY_ENABLED;
-    } else {
-      process.env.NEXT_PUBLIC_SENTRY_ENABLED = previousSentryEnabled;
-    }
-
-    if (previousPosthogKey === undefined) {
-      delete process.env.NEXT_PUBLIC_POSTHOG_KEY;
-    } else {
-      process.env.NEXT_PUBLIC_POSTHOG_KEY = previousPosthogKey;
-    }
-
-    if (previousPosthogHost === undefined) {
-      delete process.env.NEXT_PUBLIC_POSTHOG_HOST;
-    } else {
-      process.env.NEXT_PUBLIC_POSTHOG_HOST = previousPosthogHost;
-    }
-  });
-
-  it("initializes posthog using public env config", async () => {
-    await import("@/instrumentation-client");
-
-    expect(posthogInitMock).toHaveBeenCalledTimes(1);
-    expect(posthogInitMock).toHaveBeenCalledWith("phc_test_key", {
-      api_host: "https://us.i.posthog.com",
-      defaults: "2026-01-30",
-    });
-    expect((globalThis as { posthog?: unknown }).posthog).toBe(
-      posthogClientMock,
-    );
-  });
-
-  it("does not initialize posthog outside production", async () => {
-    mutableEnv.NODE_ENV = "development";
-
-    await import("@/instrumentation-client");
-
-    expect(posthogInitMock).not.toHaveBeenCalled();
-    expect((globalThis as { posthog?: unknown }).posthog).toBeUndefined();
   });
 
   it("configures ignoreErrors for abort variants", async () => {
     await import("@/instrumentation-client");
+
+    await vi.waitFor(() => {
+      expect(initMock).toHaveBeenCalledTimes(1);
+    });
 
     expect(initMock).toHaveBeenCalledTimes(1);
     const [config] = initMock.mock.calls[0] ?? [];
@@ -114,6 +81,10 @@ describe("instrumentation-client", () => {
   it("drops abort events based on exception type or name", async () => {
     await import("@/instrumentation-client");
 
+    await vi.waitFor(() => {
+      expect(initMock).toHaveBeenCalledTimes(1);
+    });
+
     const [config] = initMock.mock.calls.at(-1) ?? [];
     const beforeSend = config?.beforeSend;
 
@@ -130,5 +101,24 @@ describe("instrumentation-client", () => {
     expect(
       beforeSend({}, { originalException: { name: "AbortError" } }),
     ).toBeNull();
+  });
+
+  it("does not initialize sentry when runtime config disables it", async () => {
+    fetchMock.mockResolvedValueOnce(
+      new Response(JSON.stringify({ sentry: { enabled: false } }), {
+        headers: {
+          "Content-Type": "application/json",
+        },
+      }),
+    );
+
+    await import("@/instrumentation-client");
+
+    await vi.waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith("/api/runtime-config", {
+        cache: "no-store",
+      });
+    });
+    expect(initMock).not.toHaveBeenCalled();
   });
 });

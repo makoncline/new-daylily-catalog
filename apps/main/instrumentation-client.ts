@@ -1,28 +1,27 @@
 // This file configures the initialization of client-side observability libraries.
 // Next.js 15.3+ loads this file automatically.
 
-import * as Sentry from "@sentry/nextjs";
-import posthog from "posthog-js";
-
-const isSentryEnabled = process.env.NEXT_PUBLIC_SENTRY_ENABLED !== "false";
-const sentryDsn =
-  process.env.NEXT_PUBLIC_SENTRY_DSN ??
-  "https://b3773458fec6aa0c594a9c1c73ed046a@o1136137.ingest.us.sentry.io/4508939597643776";
-const posthogKey = process.env.NEXT_PUBLIC_POSTHOG_KEY;
 const isProduction = process.env.NODE_ENV === "production";
+type SentryModule = typeof import("@sentry/nextjs");
+type RouterTransitionStartArgs = Parameters<
+  SentryModule["captureRouterTransitionStart"]
+>;
 
-if (isProduction && posthogKey) {
-  posthog.init(posthogKey, {
-    api_host: process.env.NEXT_PUBLIC_POSTHOG_HOST,
-    defaults: "2026-01-30",
-  });
-
-  (globalThis as { posthog?: typeof posthog }).posthog = posthog;
+interface RuntimeConfig {
+  sentry?: {
+    enabled?: boolean;
+    dsn?: string;
+  };
 }
 
-if (isSentryEnabled) {
+async function initializeSentry(runtimeConfig: RuntimeConfig) {
+  if (!runtimeConfig.sentry?.enabled || !runtimeConfig.sentry.dsn) {
+    return false;
+  }
+
+  const Sentry = await import("@sentry/nextjs");
   Sentry.init({
-    dsn: sentryDsn,
+    dsn: runtimeConfig.sentry.dsn,
 
     integrations: [Sentry.replayIntegration()],
     enableLogs: true,
@@ -45,6 +44,35 @@ if (isSentryEnabled) {
       return hasAbortType || hasAbortName ? null : event;
     },
   });
+  return true;
 }
 
-export const onRouterTransitionStart = Sentry.captureRouterTransitionStart;
+async function initializeObservability() {
+  const response = await fetch("/api/runtime-config", {
+    cache: "no-store",
+  });
+
+  if (!response.ok) {
+    throw new Error(`Runtime config request failed: ${response.status}`);
+  }
+
+  return initializeSentry((await response.json()) as RuntimeConfig);
+}
+
+const sentryInitializedPromise = initializeObservability().catch(
+  (error: unknown) => {
+    console.error("Observability initialization failed:", error);
+    return false;
+  },
+);
+
+export function onRouterTransitionStart(...args: RouterTransitionStartArgs) {
+  void sentryInitializedPromise.then(async (isInitialized) => {
+    if (!isInitialized) {
+      return;
+    }
+
+    const Sentry = await import("@sentry/nextjs");
+    Sentry.captureRouterTransitionStart(...args);
+  });
+}

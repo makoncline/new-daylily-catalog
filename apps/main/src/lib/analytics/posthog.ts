@@ -39,9 +39,11 @@ export interface PosthogUserIdentity {
   email?: string;
 }
 
-function canUsePosthog() {
-  const posthogKey = process.env.NEXT_PUBLIC_POSTHOG_KEY;
-  return process.env.NODE_ENV === "production" && Boolean(posthogKey);
+interface RuntimeConfig {
+  posthog: {
+    key: string;
+    host: string;
+  };
 }
 
 function withDefaultSourcePage(properties?: PosthogEventProperties) {
@@ -59,31 +61,76 @@ function withDefaultSourcePage(properties?: PosthogEventProperties) {
   };
 }
 
+let posthogEnabledPromise: Promise<boolean> | undefined;
+
+async function isPosthogEnabled() {
+  if (posthogEnabledPromise) {
+    return posthogEnabledPromise;
+  }
+
+  posthogEnabledPromise = initializePosthog().catch((error: unknown) => {
+    posthogEnabledPromise = undefined;
+    throw error;
+  });
+
+  return posthogEnabledPromise;
+}
+
+async function initializePosthog() {
+  if (process.env.NODE_ENV !== "production") {
+    return false;
+  }
+
+  const response = await fetch("/api/runtime-config", {
+    cache: "no-store",
+  });
+  if (!response.ok) {
+    throw new Error(`Runtime config request failed: ${response.status}`);
+  }
+
+  const runtimeConfig = (await response.json()) as RuntimeConfig;
+  posthog.init(runtimeConfig.posthog.key, {
+    api_host: runtimeConfig.posthog.host,
+    defaults: "2026-01-30",
+  });
+
+  return true;
+}
+
+function reportPosthogError(error: unknown) {
+  console.error("PostHog initialization failed", error);
+}
+
+function runWithPosthog(callback: () => void) {
+  void isPosthogEnabled()
+    .then((isEnabled) => {
+      if (isEnabled) {
+        callback();
+      }
+    })
+    .catch(reportPosthogError);
+}
+
 export function capturePosthogEvent(
   event: PosthogEventName,
   properties?: PosthogEventProperties,
 ) {
-  if (!canUsePosthog()) {
-    return;
-  }
+  const eventProperties = withDefaultSourcePage(properties);
+  runWithPosthog(() => posthog.capture(event, eventProperties));
+}
 
-  posthog.capture(event, withDefaultSourcePage(properties));
+export function preloadPosthog() {
+  runWithPosthog(() => undefined);
 }
 
 export function identifyPosthogUser(identity: PosthogUserIdentity) {
-  if (!canUsePosthog()) {
-    return;
-  }
-
-  posthog.identify(identity.id, {
-    email: identity.email,
+  runWithPosthog(() => {
+    posthog.identify(identity.id, {
+      email: identity.email,
+    });
   });
 }
 
 export function resetPosthogUser() {
-  if (!canUsePosthog()) {
-    return;
-  }
-
-  posthog.reset();
+  runWithPosthog(() => posthog.reset());
 }

@@ -1,0 +1,73 @@
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+describe("runtime config route", () => {
+  let previousSentryEnabled: string | undefined;
+  let previousPosthogKey: string | undefined;
+  let previousPosthogHost: string | undefined;
+  let previousClerkPublishableKey: string | undefined;
+  let previousCloudflareUrl: string | undefined;
+
+  beforeEach(() => {
+    previousSentryEnabled = process.env.NEXT_PUBLIC_SENTRY_ENABLED;
+    previousPosthogKey = process.env.NEXT_PUBLIC_POSTHOG_KEY;
+    previousPosthogHost = process.env.NEXT_PUBLIC_POSTHOG_HOST;
+    previousClerkPublishableKey = process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY;
+    previousCloudflareUrl = process.env.NEXT_PUBLIC_CLOUDFLARE_URL;
+    vi.resetModules();
+  });
+
+  afterEach(() => {
+    if (previousSentryEnabled === undefined) {
+      delete process.env.NEXT_PUBLIC_SENTRY_ENABLED;
+    } else {
+      process.env.NEXT_PUBLIC_SENTRY_ENABLED = previousSentryEnabled;
+    }
+
+    if (previousPosthogKey === undefined) {
+      delete process.env.NEXT_PUBLIC_POSTHOG_KEY;
+    } else {
+      process.env.NEXT_PUBLIC_POSTHOG_KEY = previousPosthogKey;
+    }
+
+    if (previousPosthogHost === undefined) {
+      delete process.env.NEXT_PUBLIC_POSTHOG_HOST;
+    } else {
+      process.env.NEXT_PUBLIC_POSTHOG_HOST = previousPosthogHost;
+    }
+
+    if (previousClerkPublishableKey === undefined) {
+      delete process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY;
+    } else {
+      process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY =
+        previousClerkPublishableKey;
+    }
+
+    if (previousCloudflareUrl === undefined) {
+      delete process.env.NEXT_PUBLIC_CLOUDFLARE_URL;
+    } else {
+      process.env.NEXT_PUBLIC_CLOUDFLARE_URL = previousCloudflareUrl;
+    }
+  });
+
+  it("returns runtime observability settings from server env", async () => {
+    process.env.NEXT_PUBLIC_SENTRY_ENABLED = "false";
+    process.env.NEXT_PUBLIC_POSTHOG_KEY = "phc_runtime_key";
+    process.env.NEXT_PUBLIC_POSTHOG_HOST = "https://eu.i.posthog.com";
+    process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY = "pk_test_unit";
+    process.env.NEXT_PUBLIC_CLOUDFLARE_URL = "https://cdn.example.com";
+    const { GET } = await import("@/app/api/runtime-config/route");
+
+    const response = GET();
+
+    await expect(response.json()).resolves.toEqual({
+      sentry: {
+        enabled: false,
+        dsn: "https://b3773458fec6aa0c594a9c1c73ed046a@o1136137.ingest.us.sentry.io/4508939597643776",
+      },
+      posthog: {
+        key: "phc_runtime_key",
+        host: "https://eu.i.posthog.com",
+      },
+    });
+  });
+});

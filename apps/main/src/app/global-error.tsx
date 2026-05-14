@@ -3,8 +3,6 @@
 import * as Sentry from "@sentry/nextjs";
 import { useEffect } from "react";
 
-const isSentryEnabled = process.env.NEXT_PUBLIC_SENTRY_ENABLED !== "false";
-
 export default function GlobalError({
   error,
   reset,
@@ -13,9 +11,7 @@ export default function GlobalError({
   reset: () => void;
 }) {
   useEffect(() => {
-    if (isSentryEnabled) {
-      Sentry.captureException(error);
-    }
+    Sentry.captureException(error);
   }, [error]);
 
   return (

@@ -15,6 +15,7 @@ interface MockUseUserResult {
 
 const useUserMock = vi.hoisted(() => vi.fn<() => MockUseUserResult>());
 const identifyPosthogUserMock = vi.hoisted(() => vi.fn());
+const preloadPosthogMock = vi.hoisted(() => vi.fn());
 const resetPosthogUserMock = vi.hoisted(() => vi.fn());
 
 vi.mock("@clerk/nextjs", () => ({
@@ -23,12 +24,14 @@ vi.mock("@clerk/nextjs", () => ({
 
 vi.mock("@/lib/analytics/posthog", () => ({
   identifyPosthogUser: identifyPosthogUserMock,
+  preloadPosthog: preloadPosthogMock,
   resetPosthogUser: resetPosthogUserMock,
 }));
 
 describe("PosthogUserIdentification", () => {
   beforeEach(() => {
     identifyPosthogUserMock.mockClear();
+    preloadPosthogMock.mockClear();
     resetPosthogUserMock.mockClear();
   });
 
@@ -54,6 +57,7 @@ describe("PosthogUserIdentification", () => {
       expect(identifyPosthogUserMock).toHaveBeenCalledTimes(1);
     });
 
+    expect(preloadPosthogMock).toHaveBeenCalledTimes(1);
     expect(identifyPosthogUserMock).toHaveBeenCalledWith({
       id: "user_123",
       email: "user@example.com",
