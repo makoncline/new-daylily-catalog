@@ -57,6 +57,8 @@ interface McpTool {
   >;
   annotations?: {
     readOnlyHint?: boolean;
+    openWorldHint?: boolean;
+    destructiveHint?: boolean;
   };
   _meta?: Record<string, unknown>;
 }
@@ -89,6 +91,11 @@ const PUBLIC_SECURITY_SCHEMES = [{ type: "noauth" }] as const;
 const PRIVATE_SECURITY_SCHEMES = [
   { type: "oauth2", scopes: PRIVATE_OAUTH_SCOPES },
 ] as const;
+const READ_ONLY_TOOL_ANNOTATIONS = {
+  readOnlyHint: true,
+  openWorldHint: false,
+  destructiveHint: false,
+} as const;
 
 function getExpectedMcpOAuthClientId() {
   const clientId = process.env.DAYLILY_MCP_OAUTH_CLIENT_ID?.trim();
@@ -296,7 +303,7 @@ const tools: McpTool[] = [
     },
     outputSchema: searchResultsOutputSchema,
     securitySchemes: [...PUBLIC_SECURITY_SCHEMES],
-    annotations: { readOnlyHint: true },
+    annotations: READ_ONLY_TOOL_ANNOTATIONS,
     _meta: toolMeta("Searching cultivars", "Cultivar search complete"),
   },
   {
@@ -314,7 +321,7 @@ const tools: McpTool[] = [
     },
     outputSchema: cultivarOutputSchema,
     securitySchemes: [...PUBLIC_SECURITY_SCHEMES],
-    annotations: { readOnlyHint: true },
+    annotations: READ_ONLY_TOOL_ANNOTATIONS,
     _meta: toolMeta("Loading cultivar", "Cultivar loaded"),
   },
   {
@@ -325,7 +332,7 @@ const tools: McpTool[] = [
     inputSchema: publicListingSearchInputSchema(),
     outputSchema: paginatedOutputSchema,
     securitySchemes: [...PUBLIC_SECURITY_SCHEMES],
-    annotations: { readOnlyHint: true },
+    annotations: READ_ONLY_TOOL_ANNOTATIONS,
     _meta: toolMeta("Searching public listings", "Public listing search complete"),
   },
   {
@@ -350,7 +357,7 @@ const tools: McpTool[] = [
     },
     outputSchema: listingOutputSchema,
     securitySchemes: [...PUBLIC_SECURITY_SCHEMES],
-    annotations: { readOnlyHint: true },
+    annotations: READ_ONLY_TOOL_ANNOTATIONS,
     _meta: toolMeta("Loading public listing", "Public listing loaded"),
   },
   {
@@ -361,7 +368,7 @@ const tools: McpTool[] = [
     inputSchema: publicProfileInputSchema(),
     outputSchema: profileOutputSchema,
     securitySchemes: [...PUBLIC_SECURITY_SCHEMES],
-    annotations: { readOnlyHint: true },
+    annotations: READ_ONLY_TOOL_ANNOTATIONS,
     _meta: toolMeta("Loading public profile", "Public profile loaded"),
   },
   {
@@ -372,7 +379,7 @@ const tools: McpTool[] = [
     inputSchema: publicProfileInputSchema(),
     outputSchema: paginatedOutputSchema,
     securitySchemes: [...PUBLIC_SECURITY_SCHEMES],
-    annotations: { readOnlyHint: true },
+    annotations: READ_ONLY_TOOL_ANNOTATIONS,
     _meta: toolMeta("Loading public lists", "Public lists loaded"),
   },
   {
@@ -383,7 +390,7 @@ const tools: McpTool[] = [
     inputSchema: publicListingSearchInputSchema({ requireSellerSlug: true }),
     outputSchema: paginatedOutputSchema,
     securitySchemes: [...PUBLIC_SECURITY_SCHEMES],
-    annotations: { readOnlyHint: true },
+    annotations: READ_ONLY_TOOL_ANNOTATIONS,
     _meta: toolMeta("Loading public listings", "Public listings loaded"),
   },
   {
@@ -398,7 +405,7 @@ const tools: McpTool[] = [
     },
     outputSchema: profileOutputSchema,
     securitySchemes: [...PRIVATE_SECURITY_SCHEMES],
-    annotations: { readOnlyHint: true },
+    annotations: READ_ONLY_TOOL_ANNOTATIONS,
     _meta: toolMeta("Loading profile", "Profile loaded"),
   },
   {
@@ -409,7 +416,7 @@ const tools: McpTool[] = [
     inputSchema: paginatedInputSchema(),
     outputSchema: paginatedOutputSchema,
     securitySchemes: [...PRIVATE_SECURITY_SCHEMES],
-    annotations: { readOnlyHint: true },
+    annotations: READ_ONLY_TOOL_ANNOTATIONS,
     _meta: toolMeta("Loading lists", "Lists loaded"),
   },
   {
@@ -420,7 +427,7 @@ const tools: McpTool[] = [
     inputSchema: idInputSchema(),
     outputSchema: listOutputSchema,
     securitySchemes: [...PRIVATE_SECURITY_SCHEMES],
-    annotations: { readOnlyHint: true },
+    annotations: READ_ONLY_TOOL_ANNOTATIONS,
     _meta: toolMeta("Loading list", "List loaded"),
   },
   {
@@ -431,7 +438,7 @@ const tools: McpTool[] = [
     inputSchema: listingSearchInputSchema(),
     outputSchema: paginatedOutputSchema,
     securitySchemes: [...PRIVATE_SECURITY_SCHEMES],
-    annotations: { readOnlyHint: true },
+    annotations: READ_ONLY_TOOL_ANNOTATIONS,
     _meta: toolMeta("Loading listings", "Listings loaded"),
   },
   {
@@ -442,7 +449,7 @@ const tools: McpTool[] = [
     inputSchema: idInputSchema(),
     outputSchema: listingOutputSchema,
     securitySchemes: [...PRIVATE_SECURITY_SCHEMES],
-    annotations: { readOnlyHint: true },
+    annotations: READ_ONLY_TOOL_ANNOTATIONS,
     _meta: toolMeta("Loading listing", "Listing loaded"),
   },
 ];

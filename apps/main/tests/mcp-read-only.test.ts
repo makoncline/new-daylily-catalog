@@ -114,6 +114,11 @@ describe("read-only MCP server", () => {
     });
     for (const tool of body.result.tools) {
       expect(tool._meta?.securitySchemes).toEqual(tool.securitySchemes);
+      expect(tool.annotations).toEqual({
+        readOnlyHint: true,
+        openWorldHint: false,
+        destructiveHint: false,
+      });
     }
   });
 
