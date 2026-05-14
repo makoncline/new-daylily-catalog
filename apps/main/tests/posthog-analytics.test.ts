@@ -31,6 +31,7 @@ describe("posthog analytics helper", () => {
       new Response(
         JSON.stringify({
           posthog: {
+            enabled: true,
             key: "phc_runtime_key",
             host: "https://us.i.posthog.com",
           },

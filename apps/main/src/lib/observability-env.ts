@@ -3,65 +3,126 @@ const NEXT_PUBLIC_PREFIX = "NEXT_PUBLIC";
 const SENTRY_ENABLED_ENV_NAME = `${NEXT_PUBLIC_PREFIX}_SENTRY_ENABLED`;
 const POSTHOG_KEY_ENV_NAME = `${NEXT_PUBLIC_PREFIX}_POSTHOG_KEY`;
 const POSTHOG_HOST_ENV_NAME = `${NEXT_PUBLIC_PREFIX}_POSTHOG_HOST`;
+const OBSERVABILITY_LOG_KEY = Symbol.for(
+  "daylily-catalog.observability-status-logged",
+);
+
+interface ObservabilityStatus {
+  sentry: {
+    enabled: boolean;
+    reason: string | null;
+  };
+  posthog: {
+    enabled: boolean;
+    host: string | null;
+    keyConfigured: boolean;
+    reason: string | null;
+  };
+}
+
+interface ObservabilityGlobal {
+  [OBSERVABILITY_LOG_KEY]?: boolean;
+}
 
 function readRuntimeEnv(name: string) {
   return process.env[name];
 }
 
-function requireRuntimeEnv(name: string) {
-  const value = readRuntimeEnv(name);
-  if (!value) {
-    throw new Error(`${name} is required.`);
-  }
+export function getObservabilityStatus() {
+  const sentryEnabledValue = readRuntimeEnv(SENTRY_ENABLED_ENV_NAME);
+  const posthogKey = readRuntimeEnv(POSTHOG_KEY_ENV_NAME);
+  const posthogHost = readRuntimeEnv(POSTHOG_HOST_ENV_NAME);
+  const posthogHostReason = getPosthogHostDisabledReason(posthogHost);
+  const status: ObservabilityStatus = {
+    sentry: {
+      enabled: sentryEnabledValue === "true",
+      reason: getSentryDisabledReason(sentryEnabledValue),
+    },
+    posthog: {
+      enabled: Boolean(posthogKey) && Boolean(posthogHost) && !posthogHostReason,
+      host: posthogHost ?? null,
+      keyConfigured: Boolean(posthogKey),
+      reason:
+        getPosthogKeyDisabledReason(posthogKey) ??
+        getPosthogHostDisabledReason(posthogHost),
+    },
+  };
 
-  return value;
+  logObservabilityStatusOnce(status);
+  return status;
 }
 
 export function getRuntimeSentryEnabled() {
-  const value = requireRuntimeEnv(SENTRY_ENABLED_ENV_NAME);
-  if (value !== "true" && value !== "false") {
-    throw new Error(`${SENTRY_ENABLED_ENV_NAME} must be set to true or false.`);
-  }
-
-  return value === "true";
+  return getObservabilityStatus().sentry.enabled;
 }
 
 export function getRuntimePosthogConfig() {
-  const host = requireRuntimeEnv(POSTHOG_HOST_ENV_NAME);
-  return {
-    host: parsePosthogHost(host),
-    posthogKey: requireRuntimeEnv(POSTHOG_KEY_ENV_NAME),
-  };
-}
-
-export function getOptionalRuntimePosthogConfig() {
-  const posthogKey = readRuntimeEnv(POSTHOG_KEY_ENV_NAME);
-  const host = readRuntimeEnv(POSTHOG_HOST_ENV_NAME);
-
-  if (!posthogKey && !host) {
+  const status = getObservabilityStatus();
+  if (!status.posthog.enabled || !status.posthog.host) {
     return null;
   }
 
-  if (!posthogKey) {
-    throw new Error(`${POSTHOG_KEY_ENV_NAME} is required.`);
-  }
-
-  if (!host) {
-    throw new Error(`${POSTHOG_HOST_ENV_NAME} is required.`);
-  }
-
   return {
-    host: parsePosthogHost(host),
-    posthogKey,
+    host: status.posthog.host,
+    posthogKey: readRuntimeEnv(POSTHOG_KEY_ENV_NAME)!,
   };
 }
 
-function parsePosthogHost(host: string) {
-  try {
-    new URL(host);
-  } catch {
-    throw new Error(`${POSTHOG_HOST_ENV_NAME} must be a valid URL.`);
+export function getRuntimePosthogClientConfig() {
+  return getRuntimePosthogConfig();
+}
+
+export function getOptionalRuntimePosthogConfig() {
+  return getRuntimePosthogConfig();
+}
+
+function getSentryDisabledReason(value: string | undefined) {
+  if (value === "true") {
+    return null;
   }
 
-  return host;
+  if (value === "false") {
+    return "disabled_by_env";
+  }
+
+  if (!value) {
+    return "missing_env";
+  }
+
+  return "invalid_env";
+}
+
+function getPosthogKeyDisabledReason(value: string | undefined) {
+  return value ? null : "missing_key";
+}
+
+function getPosthogHostDisabledReason(value: string | undefined) {
+  if (!value) {
+    return "missing_host";
+  }
+
+  try {
+    new URL(value);
+    return null;
+  } catch {
+    return "invalid_host";
+  }
+}
+
+function logObservabilityStatusOnce(status: ObservabilityStatus) {
+  const globalState = globalThis as ObservabilityGlobal;
+  if (globalState[OBSERVABILITY_LOG_KEY]) {
+    return;
+  }
+
+  globalState[OBSERVABILITY_LOG_KEY] = true;
+  console.info(
+    JSON.stringify({
+      event: "observability_status",
+      nodeEnv: process.env.NODE_ENV ?? null,
+      vercelEnv: process.env.VERCEL_ENV ?? null,
+      sentry: status.sentry,
+      posthog: status.posthog,
+    }),
+  );
 }

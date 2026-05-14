@@ -41,8 +41,9 @@ export interface PosthogUserIdentity {
 
 interface RuntimeConfig {
   posthog: {
-    key: string;
-    host: string;
+    enabled?: boolean;
+    key?: string;
+    host?: string;
   };
 }
 
@@ -89,6 +90,14 @@ async function initializePosthog() {
   }
 
   const runtimeConfig = (await response.json()) as RuntimeConfig;
+  if (
+    !runtimeConfig.posthog.enabled ||
+    !runtimeConfig.posthog.key ||
+    !runtimeConfig.posthog.host
+  ) {
+    return false;
+  }
+
   posthog.init(runtimeConfig.posthog.key, {
     api_host: runtimeConfig.posthog.host,
     defaults: "2026-01-30",
