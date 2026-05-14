@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -161,6 +162,10 @@ export function AhsListingSelect({
         <div className="flex h-full flex-col overflow-hidden">
           <DialogHeader className="shrink-0 px-4 pt-4 pb-2">
             <DialogTitle>Select Daylily Database Listing</DialogTitle>
+            <DialogDescription>
+              Search by cultivar name and select the matching database listing
+              to link details to this listing.
+            </DialogDescription>
           </DialogHeader>
           <div className="flex-1 overflow-hidden">{searchContent}</div>
         </div>

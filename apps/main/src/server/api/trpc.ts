@@ -38,6 +38,8 @@ async function getOrCreateUser(clerkUserId: string) {
 
 type TRPCContextUser = Awaited<ReturnType<typeof getOrCreateUser>>;
 
+const SESSION_AUTH_TOKENS = ["session_token"] as const;
+
 export interface TRPCContext {
   headers: Headers;
   db: typeof db;
@@ -153,8 +155,24 @@ const timingMiddleware = t.middleware(async ({ next, path }) => {
  */
 export const publicProcedure = t.procedure.use(timingMiddleware);
 
+export async function resolveAuthenticatedClerkUserId() {
+  const authObject = await auth({
+    acceptsToken: [...SESSION_AUTH_TOKENS],
+  });
+
+  if (
+    authObject.isAuthenticated &&
+    "userId" in authObject &&
+    typeof authObject.userId === "string"
+  ) {
+    return authObject.userId;
+  }
+
+  return null;
+}
+
 async function resolveAuthenticatedUser() {
-  const { userId: clerkUserId } = await auth();
+  const clerkUserId = await resolveAuthenticatedClerkUserId();
 
   if (!clerkUserId) {
     return null;

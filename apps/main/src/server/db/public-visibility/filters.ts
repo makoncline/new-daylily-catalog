@@ -7,7 +7,13 @@ export function isPublished(): Prisma.ListingWhereInput {
   };
 }
 
-function hasActiveSubscription(
+export function isPublicList(): Prisma.ListWhereInput {
+  return {
+    OR: [{ status: null }, { NOT: { status: STATUS.HIDDEN } }],
+  };
+}
+
+export function hasActiveSubscription(
   proUserIds: readonly string[],
 ): Prisma.ListingWhereInput {
   return {

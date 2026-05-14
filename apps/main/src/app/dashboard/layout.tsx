@@ -10,6 +10,7 @@ import { DashboardClientWrapper } from "./_components/dashboard-client-wrapper";
 import { DashboardRefreshButton } from "./_components/dashboard-refresh-button";
 import { cookies } from "next/headers";
 import { type Metadata } from "next";
+import { WebMcpProvider } from "@/components/webmcp-provider";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
@@ -35,6 +36,7 @@ export default async function DashboardLayout({
 
   return (
     <DashboardClientWrapper>
+      <WebMcpProvider />
       <SidebarProvider defaultOpen={defaultOpen}>
         <AppSidebar />
         <SidebarInset>

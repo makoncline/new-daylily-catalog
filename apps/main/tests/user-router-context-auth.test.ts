@@ -55,6 +55,9 @@ describe("user router context auth resolution", () => {
       code: "UNAUTHORIZED",
     });
     expect(authMock).toHaveBeenCalledTimes(1);
+    expect(authMock).toHaveBeenCalledWith({
+      acceptsToken: ["session_token"],
+    });
   });
 
   it("treats preloaded null auth sentinel as resolved unauthenticated", async () => {

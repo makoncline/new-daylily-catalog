@@ -9,9 +9,12 @@ import {
 import { getProUserIds } from "@/server/db/getProUserIds";
 import { replicaDb } from "@/server/db";
 import { getUserIdFromSlugOrId } from "@/server/db/getPublicProfile";
-import { isPublished } from "@/server/db/public-visibility/filters";
+import {
+  isPublicList,
+  isPublished,
+} from "@/server/db/public-visibility/filters";
 
-const publicListingSelect = {
+export const publicListingSelect = {
   id: true,
   title: true,
   slug: true,
@@ -30,6 +33,7 @@ const publicListingSelect = {
     },
   },
   lists: {
+    where: isPublicList(),
     select: {
       id: true,
       title: true,
@@ -89,7 +93,7 @@ function buildListingView<T extends ListingPayload>(listing: T) {
   };
 }
 
-function buildPublicListingDetail(listing: ListingPayload) {
+export function buildPublicListingDetail(listing: ListingPayload) {
   return {
     ...buildListingView(listing),
     userSlug: listing.user.profile?.slug ?? listing.userId,

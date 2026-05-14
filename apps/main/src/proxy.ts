@@ -12,11 +12,7 @@ const isProtectedRoute = createRouteMatcher([
 
 const fastAgentDiscoveryMisses = new Set([
   "/.well-known/http-message-signatures-directory",
-  "/.well-known/oauth-authorization-server",
-  "/.well-known/openid-configuration",
-  "/.well-known/oauth-protected-resource",
   "/.well-known/mcp.json",
-  "/.well-known/mcp/server-card.json",
   "/.well-known/mcp/server-cards.json",
   "/.well-known/agent-card.json",
   "/.well-known/skills/index.json",
@@ -33,6 +29,10 @@ const publicAgentDiscoveryPaths = new Set([
   "/.well-known/api-catalog",
   "/.well-known/agent-skills/index.json",
   "/.well-known/agent-skills/daylily-catalog/SKILL.md",
+  "/.well-known/oauth-authorization-server",
+  "/.well-known/openid-configuration",
+  "/.well-known/oauth-protected-resource",
+  "/.well-known/mcp/server-card.json",
   "/openapi.json",
   "/llms.txt",
   "/llms-full.txt",
