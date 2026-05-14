@@ -25,10 +25,19 @@ function getSectionGroupFilters(
   filterIds: string[],
 ) {
   type SectionFilter = (typeof section.filters)[number];
+  const filtersById = new Map(
+    section.filters.map((filter) => [filter.id, filter]),
+  );
+  const filters: SectionFilter[] = [];
 
-  return filterIds
-    .map((filterId) => section.filters.find((filter) => filter.id === filterId))
-    .filter((filter): filter is SectionFilter => filter !== undefined);
+  for (const filterId of filterIds) {
+    const filter = filtersById.get(filterId);
+    if (filter) {
+      filters.push(filter);
+    }
+  }
+
+  return filters;
 }
 
 export function PublicCatalogSearchAdvancedPanel<TData>({
@@ -54,11 +63,11 @@ export function PublicCatalogSearchAdvancedPanel<TData>({
           type="button"
           variant="ghost"
           size="icon"
-          className="h-8 w-8"
+          className="size-8"
           onClick={() => onCollapsedChange(false)}
           data-testid="search-panel-expand"
         >
-          <Search className="h-4 w-4" />
+          <Search className="size-4" />
           <span className="sr-only">Expand search panel</span>
         </Button>
       </div>
@@ -77,21 +86,23 @@ export function PublicCatalogSearchAdvancedPanel<TData>({
             type="button"
             variant="ghost"
             size="icon"
-            className="h-6 w-6"
+            className="size-6"
             onClick={() => onCollapsedChange(true)}
             data-testid="search-panel-collapse"
           >
-            <PanelLeftClose className="h-3.5 w-3.5" />
+            <PanelLeftClose className="size-3.5" />
             <span className="sr-only">Collapse search panel</span>
           </Button>
           <span className="text-sm font-semibold">Search</span>
         </div>
         <label
+          htmlFor="search-mode-switch"
           className="flex items-center gap-2"
           data-testid="search-mode-toggle"
         >
           <span className="text-muted-foreground text-xs">Advanced</span>
           <Switch
+            id="search-mode-switch"
             checked={isAdvanced}
             onCheckedChange={(checked) =>
               onModeChange(checked ? "advanced" : "basic")

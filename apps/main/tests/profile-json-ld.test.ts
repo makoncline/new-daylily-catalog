@@ -39,7 +39,9 @@ describe("profile page json-ld", () => {
       }>;
     };
 
-    expect(makesOffer.makesOffer?.[0]?.itemOffered?.offers?.price).toBe("125.00");
+    expect(makesOffer.makesOffer?.[0]?.itemOffered?.offers?.price).toBe(
+      "125.00",
+    );
   });
 
   it("omits makesOffer for listings without sellable product data", async () => {

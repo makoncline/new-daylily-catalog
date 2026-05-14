@@ -25,13 +25,7 @@ interface DashboardListingFilterToolbarProps<TData extends ListingWithLists> {
 
 export function buildDashboardListingListFilterOptions<
   TData extends ListingWithLists,
->({
-  lists,
-  listings,
-}: {
-  lists: ListRef[];
-  listings: TData[];
-}) {
+>({ lists, listings }: { lists: ListRef[]; listings: TData[] }) {
   return lists.map((list) => ({
     label: list.title,
     value: list.id,

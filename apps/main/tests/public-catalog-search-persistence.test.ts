@@ -81,7 +81,9 @@ describe("public catalog search persistence", () => {
     const staleForRevalidateSnapshot = {
       ...recentSnapshot,
       persistedAt: new Date(
-        Date.now() - PUBLIC_CATALOG_SEARCH_PERSISTED_SWR.revalidateAfterMs - 1000,
+        Date.now() -
+          PUBLIC_CATALOG_SEARCH_PERSISTED_SWR.revalidateAfterMs -
+          1000,
       ).toISOString(),
     };
 

@@ -149,7 +149,7 @@ function createLegacyEditorJsData(content: string): OutputData {
   };
 }
 
-export function sanitizeEditorJsData(data: OutputData): OutputData {
+function sanitizeEditorJsData(data: OutputData): OutputData {
   return {
     ...data,
     blocks: data.blocks.map((block) => ({

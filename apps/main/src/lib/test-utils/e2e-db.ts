@@ -13,11 +13,7 @@ function normalizeDbPath(sqliteUrl: string) {
   return path.isAbsolute(p) ? p : path.resolve(process.cwd(), p);
 }
 
-export const DEFAULT_TEMP_DB_PATH = path.join(
-  "tests",
-  ".tmp",
-  "ui-listings.sqlite",
-);
+const DEFAULT_TEMP_DB_PATH = path.join("tests", ".tmp", "ui-listings.sqlite");
 
 export function resolveTempDbUrl(pathOrUrl?: string) {
   const value = pathOrUrl ?? DEFAULT_TEMP_DB_PATH;
@@ -35,7 +31,7 @@ export function resolveTempDbPath(pathOrUrl?: string) {
   return normalizeDbPath(resolveTempDbUrl(pathOrUrl));
 }
 
-export function assertSafeTestDbUrl(sqliteUrl: string) {
+function assertSafeTestDbUrl(sqliteUrl: string) {
   if (process.env.NODE_ENV === "production") {
     throw new Error("Refusing to run e2e DB helpers in production.");
   }
@@ -43,16 +39,16 @@ export function assertSafeTestDbUrl(sqliteUrl: string) {
     throw new Error(`Test DB URL must start with "file:". Got: ${sqliteUrl}`);
   }
   const absolute = normalizeDbPath(sqliteUrl);
-  const allowedRoots = [path.resolve(process.cwd(), "tests", ".tmp") + path.sep];
+  const allowedRoots = [
+    path.resolve(process.cwd(), "tests", ".tmp") + path.sep,
+  ];
   const isAllowed = allowedRoots.some((root) => absolute.startsWith(root));
   if (!isAllowed) {
-    throw new Error(
-      `Test DB path must be under tests/.tmp. Got: ${absolute}.`,
-    );
+    throw new Error(`Test DB path must be under tests/.tmp. Got: ${absolute}.`);
   }
 }
 
-export function getTempDbUrl(url?: string) {
+function getTempDbUrl(url?: string) {
   const resolved = url ?? process.env.DATABASE_URL;
   if (!resolved) throw new Error("DATABASE_URL is not set");
   assertSafeTestDbUrl(resolved);
@@ -70,7 +66,9 @@ export function ensureLocalTempDbSafety(url?: string) {
 
 function isRetryableSqliteCleanupError(error: unknown) {
   const message = error instanceof Error ? error.message : String(error);
-  return /Operation has timed out|SQLITE_BUSY|database is locked/i.test(message);
+  return /Operation has timed out|SQLITE_BUSY|database is locked/i.test(
+    message,
+  );
 }
 
 function sleep(ms: number) {
@@ -82,7 +80,11 @@ async function configureSqliteConnection(db: PrismaClient) {
 }
 
 async function clearTempDb(db: PrismaClient) {
-  for (let attempt = 0; attempt <= SQLITE_CLEAR_RETRY_DELAYS_MS.length; attempt++) {
+  for (
+    let attempt = 0;
+    attempt <= SQLITE_CLEAR_RETRY_DELAYS_MS.length;
+    attempt++
+  ) {
     try {
       await db.image.deleteMany();
       await db.$executeRaw`DELETE FROM "_ListToListing"`;

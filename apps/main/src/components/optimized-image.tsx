@@ -107,7 +107,7 @@ export function OptimizedImage({
   return (
     <div
       className={cn(
-        "relative aspect-square w-full overflow-hidden bg-muted",
+        "bg-muted relative aspect-square w-full overflow-hidden",
         className,
       )}
       {...props}
@@ -137,18 +137,6 @@ export function OptimizedImage({
         priority={priority}
         onLoad={handleLoad}
       />
-
-      {/* Non-JS fallback ensures the real image is in the HTML for non-JS renderers */}
-      <noscript>
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src={imageUrl}
-          alt={alt}
-          width={dimension}
-          height={dimension}
-          style={{ objectFit: fit }}
-        />
-      </noscript>
     </div>
   );
 }
@@ -174,13 +162,14 @@ function OptimizedImageInner({
   priority,
   onLoad,
 }: OptimizedImageInnerProps) {
-  const [currentSrc, setCurrentSrc] = React.useState(imageUrl);
+  const [fallbackSrc, setFallbackSrc] = React.useState<string | null>(null);
+  const currentSrc = fallbackSrc ?? imageUrl;
 
   const handleError: React.ReactEventHandler<HTMLImageElement> =
     React.useCallback(
       (_error) => {
         if (currentSrc !== src && imageUrl !== src) {
-          setCurrentSrc(src);
+          setFallbackSrc(src);
           return;
         }
 

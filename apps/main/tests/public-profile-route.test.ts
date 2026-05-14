@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mockGetPublicForSaleListingsCount = vi.fn();
 const mockGetPublicListingCardsByIds = vi.fn();
-const mockGetPublicListingsPageIds = vi.fn();
+const mockGetPublicListingsPageIdsForUserId = vi.fn();
 const mockGetPublicSellerContent = vi.fn();
 const mockGetPublicSellerListSummaries = vi.fn();
 const mockGetPublicSellerSummary = vi.fn();
@@ -11,7 +11,7 @@ const mockGetUserIdFromSlugOrId = vi.fn();
 vi.mock("@/server/db/public-listing-read-model", () => ({
   getPublicForSaleListingsCount: mockGetPublicForSaleListingsCount,
   getPublicListingCardsByIds: mockGetPublicListingCardsByIds,
-  getPublicListingsPageIds: mockGetPublicListingsPageIds,
+  getPublicListingsPageIdsForUserId: mockGetPublicListingsPageIdsForUserId,
 }));
 
 vi.mock("@/server/db/public-seller-read-model", () => ({
@@ -35,7 +35,7 @@ describe("public profile route helpers", () => {
     });
     mockGetPublicSellerContent.mockResolvedValue({ blocks: [] });
     mockGetPublicSellerListSummaries.mockResolvedValue([]);
-    mockGetPublicListingsPageIds.mockResolvedValue({
+    mockGetPublicListingsPageIdsForUserId.mockResolvedValue({
       ids: ["listing-1", "listing-2"],
       page: 1,
       pageSize: 100,
@@ -57,8 +57,8 @@ describe("public profile route helpers", () => {
 
     const pageData = await getPublicProfilePageData("alpha-garden", 1);
 
-    expect(mockGetPublicListingsPageIds).toHaveBeenCalledWith({
-      userSlugOrId: "alpha-garden",
+    expect(mockGetPublicListingsPageIdsForUserId).toHaveBeenCalledWith({
+      userId: "user-1",
       page: 1,
       pageSize: PUBLIC_PROFILE_LISTINGS_PAGE_SIZE,
     });

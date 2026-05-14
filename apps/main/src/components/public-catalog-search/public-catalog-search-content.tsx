@@ -2,7 +2,7 @@
 
 import { type Table } from "@tanstack/react-table";
 import { Loader2, RefreshCw } from "lucide-react";
-import { useMemo, useState } from "react";
+import { Suspense, useMemo, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { NoResults } from "@/app/(public)/[userSlugOrId]/_components/no-results";
 import { DataTablePagination } from "@/components/data-table/data-table-pagination";
@@ -97,7 +97,7 @@ function PublicCatalogSearchContentView({
             >
               <RefreshCw
                 className={cn(
-                  "mr-2 h-4 w-4",
+                  "mr-2 size-4",
                   isRefreshingCatalogData && "animate-spin",
                 )}
               />
@@ -106,13 +106,13 @@ function PublicCatalogSearchContentView({
 
             {isLoading && (
               <div className="text-muted-foreground flex items-center gap-2 text-sm">
-                <Loader2 className="h-4 w-4 animate-spin" />
-                <span>Loading more listings...</span>
+                <Loader2 className="size-4 animate-spin" />
+                <span>Loading more listings…</span>
               </div>
             )}
             {isRefreshingCatalogData && (
               <div className="text-muted-foreground text-sm">
-                Refreshing cached results...
+                Refreshing cached results…
               </div>
             )}
           </div>
@@ -168,7 +168,10 @@ function PublicCatalogSearchUncontrolledContent({
 }: PublicCatalogSearchContentProps) {
   const pathname = usePathname();
   const router = useRouter();
+  const replaceRoute = router.replace.bind(router);
   const searchParams = useSearchParams();
+  const getSearchParam = searchParams.get.bind(searchParams);
+  const stringifySearchParams = searchParams.toString.bind(searchParams);
   const columnNames = useMemo(() => buildPublicCatalogSearchColumnNames(), []);
 
   const table = useDataTable({
@@ -178,7 +181,7 @@ function PublicCatalogSearchUncontrolledContent({
     columnNames,
   });
 
-  const mode = parseModeParam(searchParams.get("mode"));
+  const mode = parseModeParam(getSearchParam("mode"));
   const [panelCollapsed, setPanelCollapsed] = useState(false);
 
   const listOptions = useMemo(
@@ -192,7 +195,7 @@ function PublicCatalogSearchUncontrolledContent({
   );
 
   const setMode = (nextMode: PublicCatalogSearchMode) => {
-    const params = new URLSearchParams(searchParams.toString());
+    const params = new URLSearchParams(stringifySearchParams());
 
     if (nextMode === "advanced") {
       params.set("mode", "advanced");
@@ -201,7 +204,7 @@ function PublicCatalogSearchUncontrolledContent({
     }
 
     const query = params.toString();
-    void router.replace(query ? `${pathname}?${query}` : pathname, {
+    void replaceRoute(query ? `${pathname}?${query}` : pathname, {
       scroll: false,
     });
   };
@@ -259,7 +262,9 @@ function PublicCatalogSearchControlledContent({
       isRefreshingCatalogData={
         isRefreshingCatalogData ?? controller.isRefreshingCatalogData
       }
-      onRefreshCatalogData={onRefreshCatalogData ?? controller.refreshCatalogData}
+      onRefreshCatalogData={
+        onRefreshCatalogData ?? controller.refreshCatalogData
+      }
     />
   );
 }
@@ -268,8 +273,17 @@ export function PublicCatalogSearchContent(
   props: PublicCatalogSearchContentWithControllerProps,
 ) {
   if (props.controller) {
-    return <PublicCatalogSearchControlledContent {...props} controller={props.controller} />;
+    return (
+      <PublicCatalogSearchControlledContent
+        {...props}
+        controller={props.controller}
+      />
+    );
   }
 
-  return <PublicCatalogSearchUncontrolledContent {...props} />;
+  return (
+    <Suspense fallback={null}>
+      <PublicCatalogSearchUncontrolledContent {...props} />
+    </Suspense>
+  );
 }

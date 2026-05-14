@@ -13,7 +13,10 @@ const TEMPLATE_DB_PATH = path.join(
   TMP_DIR,
   `prisma-schema-template-${process.pid}.sqlite`,
 );
-const TEMP_SCHEMA_PATH = path.join(TMP_DIR, `prisma-schema-test-${process.pid}.prisma`);
+const TEMP_SCHEMA_PATH = path.join(
+  TMP_DIR,
+  `prisma-schema-test-${process.pid}.prisma`,
+);
 
 let hasPreparedTemplateDb = false;
 let tempAppDbQueue = Promise.resolve();
@@ -60,7 +63,7 @@ function getCliSchemaPath() {
   return TEMP_SCHEMA_PATH;
 }
 
-export function createTempSqliteUrl() {
+function createTempSqliteUrl() {
   fs.mkdirSync(TMP_DIR, { recursive: true });
   ensureTemplateDb();
 
@@ -91,7 +94,7 @@ function assertSafeTestDbUrl(sqliteUrl: string) {
   }
 }
 
-export function prismaDbPush(sqliteUrl: string) {
+function prismaDbPush(sqliteUrl: string) {
   assertSafeTestDbUrl(sqliteUrl);
 
   const rustLog = process.env.RUST_LOG;
@@ -159,9 +162,9 @@ export function callerLink(caller: AnyCaller): TRPCLink<AppRouter> {
 
           Promise.resolve(fn(op.input))
             .then((data: unknown) => {
-              emit.next(
-                { result: { data } } as unknown as Parameters<typeof emit.next>[0],
-              );
+              emit.next({ result: { data } } as unknown as Parameters<
+                typeof emit.next
+              >[0]);
               emit.complete();
             })
             .catch((err: unknown) =>
@@ -225,7 +228,9 @@ export async function withTempAppDb<T>(
       return {
         db,
         headers: new Headers(),
-        _authUser: { id: user.id } as unknown as TRPCInternalContext["_authUser"],
+        _authUser: {
+          id: user.id,
+        } as unknown as TRPCInternalContext["_authUser"],
       } satisfies TRPCInternalContext;
     });
 

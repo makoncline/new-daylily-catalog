@@ -103,7 +103,7 @@ export function DashboardPageClient({
                   </div>
                   <Button size="lg" asChild>
                     <Link href="/dashboard/profile">
-                      <User className="mr-2 h-4 w-4" />
+                      <User className="mr-2 size-4" />
                       Complete Your Profile
                     </Link>
                   </Button>
@@ -190,19 +190,19 @@ export function DashboardPageClient({
                   <div className="flex flex-col gap-2">
                     <Button size="lg" asChild>
                       <Link href="/dashboard/listings">
-                        <Package className="mr-2 h-4 w-4" />
+                        <Package className="mr-2 size-4" />
                         Manage Listings
                       </Link>
                     </Button>
                     <Button size="lg" variant="outline" asChild>
                       <Link href="/dashboard/lists">
-                        <ListChecks className="mr-2 h-4 w-4" />
+                        <ListChecks className="mr-2 size-4" />
                         Manage Lists
                       </Link>
                     </Button>
                     <Button size="lg" variant="outline" asChild>
                       <Link href="/dashboard/tags">
-                        <Tag className="mr-2 h-4 w-4" />
+                        <Tag className="mr-2 size-4" />
                         Print Tags
                       </Link>
                     </Button>

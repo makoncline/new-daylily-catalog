@@ -8,13 +8,9 @@ import {
   type PublicCatalogSearchFacetOptions,
 } from "./public-catalog-search-types";
 
-export type PublicCatalogSearchFilterKind =
-  | "text"
-  | "range"
-  | "facet"
-  | "boolean";
+type PublicCatalogSearchFilterKind = "text" | "range" | "facet" | "boolean";
 
-export type PublicCatalogSearchFilterSectionId =
+type PublicCatalogSearchFilterSectionId =
   | "listing"
   | "registration"
   | "traits"
@@ -281,7 +277,7 @@ export const PUBLIC_CATALOG_SEARCH_SECTION_DEFINITIONS: SectionDef[] = [
   },
 ];
 
-export const PUBLIC_CATALOG_SEARCH_FILTERS = [
+const PUBLIC_CATALOG_SEARCH_FILTERS = [
   ...PUBLIC_CATALOG_SEARCH_TOOLBAR_FILTERS,
   ...PUBLIC_CATALOG_SEARCH_SECTION_DEFINITIONS.flatMap(
     (section) => section.filters,
@@ -371,7 +367,7 @@ export function getPublicCatalogSearchFilterDefinition(
   return FILTER_BY_ID.get(id) ?? null;
 }
 
-export function getPublicCatalogSearchSectionDefinition(
+function getPublicCatalogSearchSectionDefinition(
   id: PublicCatalogSearchSectionDefinition["id"],
 ): PublicCatalogSearchSectionDefinition | null {
   return (
@@ -493,7 +489,7 @@ export function buildPublicCatalogSearchColumnNames() {
   );
 }
 
-export function isPublicCatalogSearchFilterValueActive(value: unknown) {
+function isPublicCatalogSearchFilterValueActive(value: unknown) {
   if (value === undefined || value === null || value === false) {
     return false;
   }
@@ -509,7 +505,7 @@ export function isPublicCatalogSearchFilterValueActive(value: unknown) {
   return true;
 }
 
-export function countPublicCatalogSearchActiveFilters<TData>(
+function countPublicCatalogSearchActiveFilters<TData>(
   table: Table<TData>,
   filterIds: string[],
 ) {

@@ -48,7 +48,7 @@ export function CatalogSeoListings({
               {forSaleCount > 0 && (
                 <Link href={`/${canonicalUserSlug}/search?price=true`}>
                   <Card className="group h-full transition-all hover:shadow-md">
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
+                    <CardHeader className="flex flex-row items-center justify-between gap-y-0 pb-4">
                       <CardTitle className="group-hover:text-primary text-lg font-semibold">
                         For Sale
                       </CardTitle>
@@ -71,7 +71,7 @@ export function CatalogSeoListings({
                   href={`/${canonicalUserSlug}/search?lists=${encodeURIComponent(list.id)}`}
                 >
                   <Card className="group h-full transition-all hover:shadow-md">
-                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
+                    <CardHeader className="flex flex-row items-center justify-between gap-y-0 pb-4">
                       <CardTitle className="group-hover:text-primary text-lg font-semibold">
                         {list.title}
                       </CardTitle>

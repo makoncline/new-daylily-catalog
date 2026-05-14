@@ -401,24 +401,3 @@ export function buildPublicCultivarPage(args: {
     offers: args.offersSection.offers,
   };
 }
-
-export function buildPublicCultivarPageFromListingCards(args: {
-  listingCards: CultivarListingCards;
-  summariesByUserId: CultivarSummariesByUserId;
-  summarySection: Awaited<ReturnType<typeof buildPublicCultivarSummary>>;
-}) {
-  const offersSection = buildPublicCultivarOffersFromListingCards({
-    listingCards: args.listingCards,
-    summariesByUserId: args.summariesByUserId,
-  });
-  const photosSection = buildPublicCultivarGardenPhotosFromListingCards({
-    listingCards: args.listingCards,
-    summariesByUserId: args.summariesByUserId,
-  });
-
-  return buildPublicCultivarPage({
-    offersSection,
-    photosSection,
-    summarySection: args.summarySection,
-  });
-}

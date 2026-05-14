@@ -22,7 +22,7 @@ export default function Error({
   return (
     <MainContent>
       <EmptyState
-        icon={<AlertCircle className="h-12 w-12 text-destructive" />}
+        icon={<AlertCircle className="text-destructive size-12" />}
         title="Something went wrong!"
         description="There was an error loading this catalog. Please try again later."
         action={

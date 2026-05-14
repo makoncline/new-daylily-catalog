@@ -32,7 +32,7 @@ test.describe("dashboard listings search touch interactions @local", () => {
     await page.evaluate(() => {
       localStorage.removeItem("dashboard-listings-search-collapsed");
       localStorage.removeItem("dashboard-listings-search-mode");
-      localStorage.removeItem("table-state-listings-table");
+      localStorage.removeItem("table-state-listings-table:v1");
     });
 
     await dashboardListings.goto();

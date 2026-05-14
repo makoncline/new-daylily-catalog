@@ -1,4 +1,1 @@
-export {
-  getPublicCatalogCardsByUserIds,
-  getPublicProfiles,
-} from "./public-seller-read-model";
+export { getPublicProfiles } from "./public-seller-read-model";

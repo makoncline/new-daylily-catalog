@@ -5,9 +5,9 @@ import { ContactForm } from "@/components/contact-form";
 // Mock hooks
 let cartItems: Array<{ id: string }> = [];
 type MutationOnError = (error: unknown, errorInfo: unknown) => void;
-const mutationOnError = vi.hoisted(
-  () => ({ current: undefined as MutationOnError | undefined }),
-);
+const mutationOnError = vi.hoisted(() => ({
+  current: undefined as MutationOnError | undefined,
+}));
 const reportErrorMock = vi.hoisted(() => vi.fn());
 
 const mockUseCart = vi.fn(() => ({
@@ -161,9 +161,7 @@ describe("ContactForm", () => {
       }
       fireEvent.submit(formElement);
 
-      expect(
-        await screen.findByText(/include a message/i),
-      ).toBeInTheDocument();
+      expect(await screen.findByText(/include a message/i)).toBeInTheDocument();
 
       await flushMicrotasks();
     } finally {

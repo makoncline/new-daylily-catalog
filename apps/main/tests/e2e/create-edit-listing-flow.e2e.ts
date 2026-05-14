@@ -69,7 +69,7 @@ test.describe("create/edit listing flow @local", () => {
     await page.goto("/");
     await clerk.signIn({ page, emailAddress: TEST_USER.email });
     await page.evaluate(() => {
-      localStorage.removeItem("table-state-listings-table");
+      localStorage.removeItem("table-state-listings-table:v1");
     });
 
     await dashboardListings.goto();
@@ -115,7 +115,9 @@ test.describe("create/edit listing flow @local", () => {
 
     await expectToast("Listing created");
     await editListingDialog.isReady();
-    await expect(page).toHaveURL((url) => url.searchParams.get("editing") !== null);
+    await expect(page).toHaveURL(
+      (url) => url.searchParams.get("editing") !== null,
+    );
 
     const createdEditingId = await editListingDialog.getEditingParamFromUrl();
     expect(createdEditingId).not.toBeNull();

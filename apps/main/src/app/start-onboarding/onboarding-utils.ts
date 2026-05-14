@@ -139,9 +139,7 @@ export function isStarterProfileImageUrl(url: string | null | undefined) {
   return STARTER_PROFILE_IMAGES.some((image) => image.url === url);
 }
 
-export function getCreatedAtTimestamp(
-  value: Date | string | null | undefined,
-) {
+function getCreatedAtTimestamp(value: Date | string | null | undefined) {
   if (!value) {
     return Number.POSITIVE_INFINITY;
   }
@@ -180,9 +178,7 @@ export function normalizePersistedImageUrl(value: string | null | undefined) {
   return trimmedValue.startsWith("blob:") ? null : trimmedValue;
 }
 
-export function normalizeCultivarSearchValue(
-  value: string | null | undefined,
-) {
+export function normalizeCultivarSearchValue(value: string | null | undefined) {
   return (value ?? "").toLowerCase().replace(/\s+/g, " ").trim();
 }
 

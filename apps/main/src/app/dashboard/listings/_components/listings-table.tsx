@@ -44,9 +44,19 @@ function getSectionGroupFilters(
   section: PublicCatalogSearchSectionDefinition,
   filterIds: string[],
 ) {
-  return filterIds
-    .map((filterId) => section.filters.find((filter) => filter.id === filterId))
-    .filter((filter) => filter !== undefined);
+  const filtersById = new Map(
+    section.filters.map((filter) => [filter.id, filter]),
+  );
+  const filters: PublicCatalogSearchSectionDefinition["filters"] = [];
+
+  for (const filterId of filterIds) {
+    const filter = filtersById.get(filterId);
+    if (filter) {
+      filters.push(filter);
+    }
+  }
+
+  return filters;
 }
 
 function isFacetFilterGroup(
@@ -188,9 +198,9 @@ function ListingsTableLive() {
             data-testid="search-collapse-toggle"
           >
             {searchCollapsed ? (
-              <ChevronDown className="h-4 w-4" />
+              <ChevronDown className="size-4" />
             ) : (
-              <ChevronUp className="h-4 w-4" />
+              <ChevronUp className="size-4" />
             )}
             <span className="sr-only">
               {searchCollapsed ? "Show search filters" : "Hide search filters"}
@@ -224,6 +234,7 @@ function ListingsTableLive() {
               </div>
 
               <label
+                htmlFor="dashboard-listings-search-mode-switch"
                 className="grid grid-rows-[auto_2rem] justify-items-center gap-1"
                 data-testid="search-mode-toggle"
               >
@@ -231,6 +242,7 @@ function ListingsTableLive() {
                   Advanced
                 </span>
                 <Switch
+                  id="dashboard-listings-search-mode-switch"
                   checked={isAdvanced}
                   onCheckedChange={(checked) =>
                     setSearchMode(checked ? "advanced" : "basic")

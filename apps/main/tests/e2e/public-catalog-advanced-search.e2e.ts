@@ -179,7 +179,9 @@ test.describe("public catalog advanced search @local", () => {
     page,
   }) => {
     const expectUrlParam = async (key: string, expected: string | null) => {
-      await expect(page).toHaveURL((url) => url.searchParams.get(key) === expected);
+      await expect(page).toHaveURL(
+        (url) => url.searchParams.get(key) === expected,
+      );
     };
 
     await page.goto(`/${PROFILE_SLUG}/search`);
@@ -217,13 +219,19 @@ test.describe("public catalog advanced search @local", () => {
 
     await page.getByRole("button", { name: /registration/i }).click();
     await page.getByTestId("advanced-filter-hybridizer").fill("Reed");
-    await page.getByTestId("advanced-filter-year-thumb-min").press("ArrowRight");
+    await page
+      .getByTestId("advanced-filter-year-thumb-min")
+      .press("ArrowRight");
 
     await page
       .getByTestId("advanced-filter-lists")
       .getByRole("button", { name: /lists/i })
       .click();
-    await page.locator("[cmdk-item]").filter({ hasText: "Featured Picks" }).first().click();
+    await page
+      .locator("[cmdk-item]")
+      .filter({ hasText: "Featured Picks" })
+      .first()
+      .click();
     await page.keyboard.press("Escape");
 
     await page.getByRole("button", { name: /bloom traits/i }).click();
@@ -231,15 +239,25 @@ test.describe("public catalog advanced search @local", () => {
       .getByTestId("advanced-filter-bloom-season")
       .getByRole("button", { name: /bloom season/i })
       .click();
-    await page.locator("[cmdk-item]").filter({ hasText: "Midseason" }).first().click();
+    await page
+      .locator("[cmdk-item]")
+      .filter({ hasText: "Midseason" })
+      .first()
+      .click();
     await page.keyboard.press("Escape");
 
-    await page.getByRole("button", { name: /classification & details/i }).click();
+    await page
+      .getByRole("button", { name: /classification & details/i })
+      .click();
     await page
       .getByTestId("advanced-filter-ploidy")
       .getByRole("button", { name: /ploidy/i })
       .click();
-    await page.locator("[cmdk-item]").filter({ hasText: "Tet" }).first().click();
+    await page
+      .locator("[cmdk-item]")
+      .filter({ hasText: "Tet" })
+      .first()
+      .click();
     await page.keyboard.press("Escape");
 
     await page.getByTestId("advanced-filter-color").fill("Rose");
@@ -252,7 +270,9 @@ test.describe("public catalog advanced search @local", () => {
     await expectUrlParam("price", "true");
     await expectUrlParam("hasPhoto", "true");
     await expectUrlParam("hybridizer", "Reed");
-    await expect(page).toHaveURL((url) => url.searchParams.get("year") !== null);
+    await expect(page).toHaveURL(
+      (url) => url.searchParams.get("year") !== null,
+    );
     await expectUrlParam("lists", "list-featured");
     await expectUrlParam("bloomSeason", "Midseason");
     await expectUrlParam("ploidy", "Tet");

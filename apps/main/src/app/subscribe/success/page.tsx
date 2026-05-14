@@ -1,5 +1,4 @@
-"use server";
-
+import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { auth } from "@clerk/nextjs/server";
 import { getUserByClerkId } from "@/server/api/trpc";
@@ -9,17 +8,21 @@ import {
   withSubscribeSuccessSyncedParam,
 } from "@/lib/utils/safe-redirect";
 
+export const metadata: Metadata = {
+  title: "Subscription Updated | Daylily Catalog",
+  description: "Your Daylily Catalog subscription has been updated.",
+};
+
 export default async function SubscribeSuccessPage({
   searchParams,
 }: {
   searchParams: Promise<{ redirect?: string }>;
 }) {
-  const { userId } = await auth();
+  const [authResult, params] = await Promise.all([auth(), searchParams]);
+  const { userId } = authResult;
   if (!userId) {
     redirect("/");
   }
-
-  const params = await searchParams;
 
   // Get the current user with their stripeCustomerId
   const user = await getUserByClerkId(userId);

@@ -162,6 +162,8 @@ describe("CatalogSeoListings", () => {
       />,
     );
 
-    expect(screen.queryByRole("link", { name: /for sale/i })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("link", { name: /for sale/i }),
+    ).not.toBeInTheDocument();
   });
 });

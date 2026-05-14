@@ -30,9 +30,9 @@ test.describe("manage list page features @local", () => {
     };
 
     const expectFirstRowTitle = async (title: string) => {
-      await expect(manageListPage.rows().first().locator("td").nth(1)).toContainText(
-        title,
-      );
+      await expect(
+        manageListPage.rows().first().locator("td").nth(1),
+      ).toContainText(title);
     };
 
     const assertSortTogglesBetween = async (
@@ -55,7 +55,7 @@ test.describe("manage list page features @local", () => {
     await page.goto("/");
     await clerk.signIn({ page, emailAddress: TEST_USER.email });
     await page.evaluate(() => {
-      localStorage.removeItem("table-state-list-listings-table");
+      localStorage.removeItem("table-state-list-listings-table:v1");
     });
 
     await manageListPage.goto(seedMeta.listId);
@@ -75,7 +75,9 @@ test.describe("manage list page features @local", () => {
 
     await manageListPage.goto(seedMeta.listId);
     await manageListPage.isReady();
-    await expect(manageListPage.titleInput).toHaveValue(seedMeta.updatedListTitle);
+    await expect(manageListPage.titleInput).toHaveValue(
+      seedMeta.updatedListTitle,
+    );
     await expect(manageListPage.descriptionInput).toHaveValue(
       seedMeta.updatedListDescription,
     );
@@ -95,7 +97,7 @@ test.describe("manage list page features @local", () => {
     await expectPageIndicator(1, seedMeta.expectedPageCountBeforeAdd);
 
     await page.evaluate(() => {
-      localStorage.removeItem("table-state-list-listings-table");
+      localStorage.removeItem("table-state-list-listings-table:v1");
     });
     await manageListPage.goto(seedMeta.listId);
     await manageListPage.isReady();
@@ -126,7 +128,7 @@ test.describe("manage list page features @local", () => {
 
     // Phase 5: column filter + sorting checks
     await manageListPage.openColumnFilter("Title");
-    await manageListPage.setOpenColumnFilterValue(seedMeta.titleFilterToken);
+    await manageListPage.setOpenColumnFilterValue(seedMeta.titleFilterText);
     await expect(manageListPage.rows()).toHaveCount(1);
     await page.keyboard.press("Escape");
     await manageListPage.resetToolbarFiltersIfVisible();

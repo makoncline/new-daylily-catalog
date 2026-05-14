@@ -30,7 +30,7 @@ export function buildLegacyListingRedirectPath(
   return `/${listingInfo.userId}/${listingId}`;
 }
 
-export function searchParamsToQueryString(searchParams: LegacySearchParams) {
+function searchParamsToQueryString(searchParams: LegacySearchParams) {
   const params = new URLSearchParams();
 
   Object.entries(searchParams).forEach(([key, value]) => {

@@ -1,7 +1,7 @@
 import type { LucideIcon } from "lucide-react";
 import type { DashboardStats } from "@/types/dashboard-stats-types";
 
-export interface BaseStep {
+interface BaseStep {
   id: string;
   label: string;
   description: string;

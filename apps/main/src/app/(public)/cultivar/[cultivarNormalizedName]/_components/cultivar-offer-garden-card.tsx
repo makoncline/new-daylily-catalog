@@ -45,7 +45,9 @@ export function CultivarOfferGardenCard({
   gardenCard,
 }: CultivarOfferGardenCardProps) {
   const catalogHref = `/${gardenCard.slug}`;
-  const memberSinceLabel = formatMemberSinceLabel(new Date(gardenCard.createdAt));
+  const memberSinceLabel = formatMemberSinceLabel(
+    new Date(gardenCard.createdAt),
+  );
   const updatedLabel = formatUpdatedLabel(new Date(gardenCard.updatedAt));
 
   return (
@@ -78,7 +80,7 @@ export function CultivarOfferGardenCard({
               )}
               <Muted className="text-xs">{memberSinceLabel}</Muted>
               <Muted className="flex items-center gap-1 text-xs">
-                <Clock className="h-3 w-3" />
+                <Clock className="size-3" />
                 <span>{updatedLabel}</span>
               </Muted>
             </div>
@@ -94,14 +96,14 @@ export function CultivarOfferGardenCard({
                 variant="secondary"
                 className="flex items-center gap-1 text-xs whitespace-nowrap"
               >
-                <Flower2 className="h-3 w-3" />
+                <Flower2 className="size-3" />
                 <span>{gardenCard.listingCount} listings</span>
               </Badge>
               <Badge
                 variant="secondary"
                 className="flex items-center gap-1 text-xs whitespace-nowrap"
               >
-                <ListChecks className="h-3 w-3" />
+                <ListChecks className="size-3" />
                 <span>{gardenCard.listCount} lists</span>
               </Badge>
             </div>

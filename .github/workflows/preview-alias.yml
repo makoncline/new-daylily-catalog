@@ -33,7 +33,15 @@ jobs:
             echo "SHA=${{ github.sha }}" >> $GITHUB_OUTPUT
             echo "HASH=$(echo '${{ github.sha }}' | cut -c1-8)" >> $GITHUB_OUTPUT
           else
-            echo "URL=${{ github.event.deployment_status.environment_url || github.event.deployment_status.target_url }}" >> $GITHUB_OUTPUT
+            URL="${{ github.event.deployment_status.environment_url }}"
+            if [ -z "$URL" ]; then
+              URL="${{ github.event.deployment_status.target_url }}"
+            fi
+            if [ -z "$URL" ]; then
+              echo "Deployment status did not include environment_url or target_url." >&2
+              exit 1
+            fi
+            echo "URL=$URL" >> $GITHUB_OUTPUT
             echo "SHA=${{ github.event.deployment.sha }}" >> $GITHUB_OUTPUT
             echo "HASH=$(echo '${{ github.event.deployment.sha }}' | cut -c1-8)" >> $GITHUB_OUTPUT
           fi

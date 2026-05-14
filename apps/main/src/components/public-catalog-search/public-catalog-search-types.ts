@@ -1,9 +1,9 @@
 import { type RouterOutputs } from "@/trpc/react";
-import { type Column, type Table } from "@tanstack/react-table";
+import { type Table } from "@tanstack/react-table";
 
 export type PublicCatalogListing =
   RouterOutputs["public"]["getListings"][number];
-export type PublicCatalogProfile = RouterOutputs["public"]["getProfile"];
+type PublicCatalogProfile = RouterOutputs["public"]["getProfile"];
 export type PublicCatalogLists = NonNullable<PublicCatalogProfile>["lists"];
 
 export interface PublicCatalogSearchClientProps {
@@ -38,13 +38,6 @@ export interface PublicCatalogSearchFacetOptions {
   ploidy: PublicCatalogSearchFacetOption[];
   foliageType: PublicCatalogSearchFacetOption[];
   fragrance: PublicCatalogSearchFacetOption[];
-}
-
-export interface PublicCatalogSearchToolbarProps {
-  table: Table<PublicCatalogListing>;
-  listsColumn: Column<PublicCatalogListing, unknown> | null;
-  listOptions: PublicCatalogSearchFacetOption[];
-  onSearchSubmit?: () => void;
 }
 
 export interface PublicCatalogSearchAdvancedPanelProps<

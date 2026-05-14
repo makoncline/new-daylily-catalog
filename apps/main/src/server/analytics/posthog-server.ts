@@ -10,7 +10,8 @@ function getPosthogServerConfig() {
     return null;
   }
 
-  const host = process.env.NEXT_PUBLIC_POSTHOG_HOST ?? "https://us.i.posthog.com";
+  const host =
+    process.env.NEXT_PUBLIC_POSTHOG_HOST ?? "https://us.i.posthog.com";
   return { host, posthogKey };
 }
 

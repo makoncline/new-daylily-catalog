@@ -17,7 +17,7 @@ export function CatalogSearchHeader({ profile }: CatalogSearchHeaderProps) {
     <div id="profile" className="space-y-3">
       <H1 className="text-[clamp(24px,5vw,48px)]">{gardenName}</H1>
 
-      <P className="text-lg text-muted-foreground">
+      <P className="text-muted-foreground text-lg">
         Search and filter listings from this garden.
       </P>
 

@@ -64,7 +64,9 @@ export class CreateListingDialog {
     await this.openAhsPicker();
 
     // Find the search input in the AHS dialog
-    const searchInput = this.ahsDialog.getByPlaceholder("Search AHS listings...");
+    const searchInput = this.ahsDialog.getByPlaceholder(
+      "Search AHS listings…",
+    );
     await searchInput.waitFor({ state: "visible" });
 
     // Type the search query (partial name)

@@ -42,8 +42,7 @@ export function useOnboardingProfileImageFlow({
   const [profileImageInputMode, setProfileImageInputMode] = useState<
     "starter" | "upload"
   >("starter");
-  const [useExistingProfileImage, setUseExistingProfileImage] =
-    useState(false);
+  const [useExistingProfileImage, setUseExistingProfileImage] = useState(false);
   const [applyStarterNameOverlay, setApplyStarterNameOverlay] = useState(true);
   const [isGeneratingStarterImage, setIsGeneratingStarterImage] =
     useState(false);
@@ -221,7 +220,11 @@ export function useOnboardingProfileImageFlow({
         })();
       }, debounceMs);
     },
-    [cancelStarterImageGeneration, generateStarterImageWithGardenName, setProfileDraft],
+    [
+      cancelStarterImageGeneration,
+      generateStarterImageWithGardenName,
+      setProfileDraft,
+    ],
   );
 
   useEffect(() => {
@@ -270,8 +273,7 @@ export function useOnboardingProfileImageFlow({
       if (selectedStarterImageUrl && applyStarterNameOverlay) {
         scheduleStarterImageGeneration({
           baseImageUrl: selectedStarterImageUrl,
-          gardenName:
-            nextGardenName.trim() || DEFAULT_GARDEN_NAME_PLACEHOLDER,
+          gardenName: nextGardenName.trim() || DEFAULT_GARDEN_NAME_PLACEHOLDER,
           debounceMs: 150,
         });
       }

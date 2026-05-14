@@ -3,9 +3,9 @@ import { baseListingColumns } from "@/app/dashboard/listings/_components/columns
 import { getColumns as getManageListColumns } from "@/app/dashboard/lists/[listId]/_components/columns";
 
 const getColumnIds = (columns: { id?: string }[]) =>
-  columns
-    .map((column) => column.id)
-    .filter((id): id is string => typeof id === "string");
+  columns.flatMap((column) =>
+    typeof column.id === "string" ? [column.id] : [],
+  );
 
 describe("manage list table columns", () => {
   it("matches dashboard listings columns after select column", () => {

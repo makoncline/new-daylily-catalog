@@ -1,4 +1,4 @@
-export type WithoutUndefined<T> = { [K in keyof T]: Exclude<T[K], undefined> };
+type WithoutUndefined<T> = { [K in keyof T]: Exclude<T[K], undefined> };
 export type DefinedPatch<T> = Partial<WithoutUndefined<T>>;
 
 /**
@@ -16,4 +16,3 @@ export function omitUndefined<T extends object>(
   }
   return out as DefinedPatch<T>;
 }
-

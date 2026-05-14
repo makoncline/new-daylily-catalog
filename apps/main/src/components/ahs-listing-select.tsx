@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ChevronsUpDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -39,6 +39,7 @@ export function AhsListingSelect({
   const [open, setOpen] = useState(false);
   const [searchValue, setSearchValue] = useState("");
   const [debouncedSearchValue, setDebouncedSearchValue] = useState("");
+  const searchInputRef = useRef<HTMLInputElement | null>(null);
 
   // Debounce search value to prevent excessive API calls
   useEffect(() => {
@@ -67,6 +68,16 @@ export function AhsListingSelect({
     },
   );
 
+  useEffect(() => {
+    if (!open) {
+      return;
+    }
+
+    requestAnimationFrame(() => {
+      searchInputRef.current?.focus();
+    });
+  }, [open]);
+
   // Handler for selecting an item
   const handleSelect = (result: AhsSearchResult) => {
     onSelect(result);
@@ -77,21 +88,24 @@ export function AhsListingSelect({
   const renderSearchContent = () => (
     <Command shouldFilter={false} className="flex h-full flex-col">
       <CommandInput
-        placeholder="Search AHS listings..."
+        placeholder="Search AHS listings…"
+        ref={searchInputRef}
         value={searchValue}
         onValueChange={setSearchValue}
-        autoFocus={true}
         className="border-none pl-3 focus:ring-0"
       />
-      <CommandList className="flex-1 overflow-x-hidden overflow-y-auto pb-2">
+      <CommandList
+        id="ahs-listing-select-list"
+        className="flex-1 overflow-x-hidden overflow-y-auto pb-2"
+      >
         {!searchValue && (
-          <CommandEmpty>Type to search AHS listings...</CommandEmpty>
+          <CommandEmpty>Type to search AHS listings…</CommandEmpty>
         )}
         {searchValue &&
           (debouncedSearchValue !== searchValue ||
             ahsSearchQuery.isLoading) && (
             <div className="flex h-full items-center justify-center">
-              <p className="text-muted-foreground text-sm">Loading...</p>
+              <p className="text-muted-foreground text-sm">Loading…</p>
             </div>
           )}
         {searchValue &&
@@ -127,21 +141,24 @@ export function AhsListingSelect({
     <Button
       variant="outline"
       role="combobox"
+      aria-label="Select Daylily Database listing"
       aria-expanded={open}
+      aria-controls="ahs-listing-select-list"
       className="w-full justify-between"
       disabled={disabled}
       id="ahs-listing-select"
     >
-      Select Daylily Database listing...
-      <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+      Select Daylily Database listing…
+      <ChevronsUpDown className="ml-2 size-4 shrink-0 opacity-50" />
     </Button>
   );
+  const searchContent = renderSearchContent();
 
   // Always use Dialog
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>{triggerButton}</DialogTrigger>
-      <DialogContent>
+      <DialogContent aria-describedby={undefined}>
         <div className="flex h-full flex-col overflow-hidden">
           <DialogHeader className="shrink-0 px-4 pt-4 pb-2">
             <DialogTitle>Select Daylily Database Listing</DialogTitle>
@@ -150,7 +167,7 @@ export function AhsListingSelect({
               to link details to this listing.
             </DialogDescription>
           </DialogHeader>
-          <div className="flex-1 overflow-hidden">{renderSearchContent()}</div>
+          <div className="flex-1 overflow-hidden">{searchContent}</div>
         </div>
       </DialogContent>
     </Dialog>

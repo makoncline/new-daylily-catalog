@@ -490,12 +490,13 @@ describe("read-only MCP server", () => {
         }),
       }),
     );
-    expect(
-      mocks.readDb.listing.findMany.mock.calls[0]?.[0].select,
-    ).not.toHaveProperty("privateNote");
-    expect(
-      mocks.readDb.listing.findMany.mock.calls[0]?.[0].select.lists.where,
-    ).toEqual({ OR: [{ status: null }, { NOT: { status: "HIDDEN" } }] });
+    const publicListingSearchCall = mocks.readDb.listing.findMany.mock.calls
+      .map(([call]) => call)
+      .find((call) => call?.select?.lists);
+    expect(publicListingSearchCall?.select).not.toHaveProperty("privateNote");
+    expect(publicListingSearchCall?.select.lists.where).toEqual({
+      OR: [{ status: null }, { NOT: { status: "HIDDEN" } }],
+    });
   });
 
   it("gates public MCP point lookups to active public catalogs", async () => {

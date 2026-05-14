@@ -116,7 +116,10 @@ describe("AhsListingLink", () => {
     );
 
     render(
-      <AhsListingLink listing={createListing()} linkedAhs={createLinkedAhs()} />,
+      <AhsListingLink
+        listing={createListing()}
+        linkedAhs={createLinkedAhs()}
+      />,
     );
 
     fireEvent.click(screen.getByRole("button", { name: "Unlink" }));

@@ -203,7 +203,7 @@ export function SellerLandingAuthCta({
   const { isLoaded, userId } = useAuth();
   const { trackAuthStarted, trackSellerCtaClicked } = useSellerLandingEvents();
 
-  const handleClick = () => {
+  const startSellerOnboarding = () => {
     trackSellerCtaClicked({
       ctaId,
       ctaLabel,
@@ -233,7 +233,7 @@ export function SellerLandingAuthCta({
         ctaLabel={ctaLabel}
         className={className}
         testId={testId}
-        onClick={handleClick}
+        onClick={startSellerOnboarding}
       />
     );
   }
@@ -243,7 +243,7 @@ export function SellerLandingAuthCta({
       ctaLabel={ctaLabel}
       className={className}
       testId={testId}
-      onClick={handleClick}
+      onClick={startSellerOnboarding}
     />
   );
 }
@@ -259,7 +259,7 @@ export function SellerLandingExampleLink({
   const { userId } = useAuth();
   const { trackSellerExampleClicked } = useSellerLandingEvents();
 
-  const handleClick = () => {
+  const trackExampleClick = () => {
     trackSellerExampleClicked({
       ctaId,
       ctaLabel,
@@ -273,7 +273,7 @@ export function SellerLandingExampleLink({
       href={href}
       className={className}
       data-testid={testId}
-      onClick={handleClick}
+      onClick={trackExampleClick}
     >
       {children ?? ctaLabel}
     </Link>

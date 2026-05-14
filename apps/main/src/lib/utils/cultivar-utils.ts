@@ -24,25 +24,11 @@ export function normalizeCultivarName(
   return normalized.length > 0 ? normalized : null;
 }
 
-/**
- * Formats a normalized cultivar name for human-friendly display.
- * Example: "happy returns" -> "Happy returns"
- */
-export function toSentenceCaseCultivarName(
-  name: string | null | undefined,
-): string | null {
-  const normalized = normalizeCultivarName(name);
-  if (!normalized) {
-    return null;
-  }
-
-  return normalized.charAt(0).toUpperCase() + normalized.slice(1);
-}
-
 function encodeCultivarRouteCharacter(character: string): string {
   return encodeURIComponent(character)
-    .replace(CULTIVAR_ROUTE_LITERAL_ESCAPE_REGEX, (value) =>
-      `%${value.charCodeAt(0).toString(16).toUpperCase()}`,
+    .replace(
+      CULTIVAR_ROUTE_LITERAL_ESCAPE_REGEX,
+      (value) => `%${value.charCodeAt(0).toString(16).toUpperCase()}`,
     )
     .replace(/%/g, "~")
     .toLowerCase();
@@ -125,5 +111,7 @@ export function fromCultivarRouteSegment(
     return null;
   }
 
-  return toCultivarRouteSegment(normalized) === routeSegment ? normalized : null;
+  return toCultivarRouteSegment(normalized) === routeSegment
+    ? normalized
+    : null;
 }

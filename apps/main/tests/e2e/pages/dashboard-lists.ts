@@ -16,7 +16,9 @@ export class DashboardLists {
   constructor(page: Page) {
     this.page = page;
     this.heading = page.locator("h1").filter({ hasText: "Lists" }).first();
-    this.createListButton = page.getByRole("button", { name: "Create List" }).first();
+    this.createListButton = page
+      .getByRole("button", { name: "Create List" })
+      .first();
     this.listsTableReady = page.getByTestId("list-table");
     this.listsTable = this.listsTableReady.locator("table").first();
     this.globalSearchInput = page.getByPlaceholder("Filter lists...");
@@ -105,7 +107,9 @@ export class DashboardLists {
   async setRowsPerPage(value: number) {
     await this.pagerPerPage.scrollIntoViewIfNeeded();
     await this.pagerPerPage.click();
-    const selectContent = this.page.locator('[data-slot="select-content"]:visible').last();
+    const selectContent = this.page
+      .locator('[data-slot="select-content"]:visible')
+      .last();
     await selectContent.waitFor({ state: "visible" });
     const option = selectContent
       .getByRole("option", { name: String(value), exact: true })

@@ -118,7 +118,11 @@ export function useSaveBeforeNavigate<TReason extends string = "navigate">(
       }
 
       const hrefAttribute = anchor.getAttribute("href");
-      if (!hrefAttribute || hrefAttribute === "#" || hrefAttribute.startsWith("#")) {
+      if (
+        !hrefAttribute ||
+        hrefAttribute === "#" ||
+        hrefAttribute.startsWith("#")
+      ) {
         return;
       }
 

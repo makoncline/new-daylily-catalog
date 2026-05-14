@@ -54,22 +54,25 @@ vi.mock("@/components/data-table/data-table-pagination", () => ({
   DataTablePagination: () => <div data-testid="catalog-pagination" />,
 }));
 
-vi.mock("@/components/public-catalog-search/public-catalog-search-table", () => ({
-  PublicCatalogSearchTable: ({
-    desktopColumns,
-  }: {
-    desktopColumns: 2 | 3;
-  }) => {
-    mockPublicCatalogSearchTable({ desktopColumns });
+vi.mock(
+  "@/components/public-catalog-search/public-catalog-search-table",
+  () => ({
+    PublicCatalogSearchTable: ({
+      desktopColumns,
+    }: {
+      desktopColumns: 2 | 3;
+    }) => {
+      mockPublicCatalogSearchTable({ desktopColumns });
 
-    return (
-      <div
-        data-testid="catalog-table"
-        data-desktop-columns={String(desktopColumns)}
-      />
-    );
-  },
-}));
+      return (
+        <div
+          data-testid="catalog-table"
+          data-desktop-columns={String(desktopColumns)}
+        />
+      );
+    },
+  }),
+);
 
 describe("PublicCatalogSearchContent", () => {
   afterEach(() => {
@@ -127,13 +130,9 @@ describe("PublicCatalogSearchContent", () => {
       />,
     );
 
-    const form = screen.getByTestId("search-query-form");
-    form.dispatchEvent(
-      new Event("submit", {
-        bubbles: true,
-        cancelable: true,
-      }),
-    );
+    fireEvent.keyDown(screen.getByTestId("search-all-fields-input"), {
+      key: "Enter",
+    });
 
     expect(mockScrollIntoView).toHaveBeenCalled();
     scrollElement.remove();

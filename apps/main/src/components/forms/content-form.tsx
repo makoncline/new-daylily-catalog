@@ -41,16 +41,12 @@ export function ContentManagerFormItem({
   onDirtyChange,
 }: ContentManagerFormProps) {
   const [isSaving, setIsSaving] = React.useState(false);
-  const [lastSaved, setLastSaved] = React.useState(
-    () => initialProfile.content,
-  );
   const [isDirty, setIsDirty] = React.useState(false);
   const editorRef = React.useRef<EditorJS | null>(null);
   const contentRef = React.useRef<HTMLDivElement | null>(null);
   const isDirtyRef = React.useRef(isDirty);
-  const lastSavedRef = React.useRef(lastSaved);
+  const lastSavedRef = React.useRef(initialProfile.content);
   isDirtyRef.current = isDirty;
-  lastSavedRef.current = lastSaved;
 
   const updateContentMutation =
     api.dashboardDb.userProfile.updateContent.useMutation();
@@ -62,15 +58,12 @@ export function ContentManagerFormItem({
 
     isDirtyRef.current = true;
     setIsDirty(true);
-  }, []);
+    onDirtyChange?.(true);
+  }, [onDirtyChange]);
 
   const hasPendingChanges = React.useCallback(() => {
     return isDirtyRef.current;
   }, []);
-
-  React.useEffect(() => {
-    onDirtyChange?.(isDirty);
-  }, [isDirty, onDirtyChange]);
 
   const saveChangesInternal = React.useCallback(
     async (reason: ContentManagerSaveReason): Promise<boolean> => {
@@ -103,6 +96,7 @@ export function ContentManagerFormItem({
               isDirtyRef.current = false;
               if (shouldUpdateUi) {
                 setIsDirty(false);
+                onDirtyChange?.(false);
               }
               return true;
             }
@@ -115,13 +109,11 @@ export function ContentManagerFormItem({
         await updateContentMutation.mutateAsync({ content: newData });
 
         lastSavedRef.current = newData;
-        if (shouldUpdateUi) {
-          setLastSaved(newData);
-        }
 
         isDirtyRef.current = false;
         if (shouldUpdateUi) {
           setIsDirty(false);
+          onDirtyChange?.(false);
         }
 
         onMutationSuccess?.();
@@ -145,7 +137,7 @@ export function ContentManagerFormItem({
         }
       }
     },
-    [onMutationSuccess, updateContentMutation],
+    [onDirtyChange, onMutationSuccess, updateContentMutation],
   );
 
   const { saveChanges } = useManagedFormSave<
@@ -163,7 +155,6 @@ export function ContentManagerFormItem({
     }
 
     lastSavedRef.current = initialProfile.content;
-    setLastSaved(initialProfile.content);
   }, [initialProfile.content]);
 
   useOnClickOutside(contentRef as React.RefObject<HTMLElement>, () => {
@@ -171,6 +162,7 @@ export function ContentManagerFormItem({
   });
 
   const isPendingIndicatorVisible = isSaving || updateContentMutation.isPending;
+  const editorResetKey = initialProfile.content ?? "empty-content";
 
   return (
     <FormItem>
@@ -182,12 +174,13 @@ export function ContentManagerFormItem({
           </Muted>
         </div>
         {isPendingIndicatorVisible && (
-          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+          <Loader2 className="mr-2 size-4 animate-spin" />
         )}
       </div>
       <div ref={contentRef} className="space-y-3">
         <div className="bg-background min-h-96 rounded-md border">
           <Editor
+            key={editorResetKey}
             editorRef={editorRef}
             initialContent={parseEditorContent(initialProfile.content)}
             className="px-3 py-2 pb-8"

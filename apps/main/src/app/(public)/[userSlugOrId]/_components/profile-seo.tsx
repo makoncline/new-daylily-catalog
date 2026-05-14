@@ -1,3 +1,4 @@
+// eslint-disable react/no-danger -- intentional static JSON-LD, style, or compatibility script injection.
 import { generateProfilePageJsonLd } from "../_seo/json-ld";
 import {
   createBreadcrumbListSchema,

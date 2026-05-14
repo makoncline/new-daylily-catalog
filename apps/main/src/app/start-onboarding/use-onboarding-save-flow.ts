@@ -229,7 +229,10 @@ export function useOnboardingSaveFlow({
             });
           }
         } catch (error) {
-          console.error("Failed to save onboarding profile image record.", error);
+          console.error(
+            "Failed to save onboarding profile image record.",
+            error,
+          );
         }
       }
 

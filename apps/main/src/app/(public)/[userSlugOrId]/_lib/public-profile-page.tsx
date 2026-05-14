@@ -45,7 +45,9 @@ async function loadPublicProfilePageResult(
   }
 
   if (!pageDataResult.data) {
-    throw pageDataResult.error ?? new Error("Failed to load public profile page");
+    throw (
+      pageDataResult.error ?? new Error("Failed to load public profile page")
+    );
   }
 
   if (pageDataResult.data.page !== requestedPage) {
@@ -69,11 +71,11 @@ function toProfileForPage<TProfile extends { lists: unknown[] }>(
   };
 }
 
-export async function generatePublicProfilePageMetadata({
+const generatePublicProfilePageMetadata = async ({
   requirePaginatedPage = false,
   requestedPage,
   userSlugOrId,
-}: GeneratePublicProfilePageMetadataArgs): Promise<Metadata> {
+}: GeneratePublicProfilePageMetadataArgs): Promise<Metadata> => {
   if (requirePaginatedPage && requestedPage < 2) {
     return {
       robots: "noindex, nofollow",
@@ -108,14 +110,17 @@ export async function generatePublicProfilePageMetadata({
     hasNonPageStateParams: false,
     shouldIndex: shouldIndexCanonicalRoute,
   });
-}
+};
 
-export async function renderPublicProfilePage({
+const renderPublicProfilePage = async ({
   requestedPage,
   routeType,
   userSlugOrId,
-}: RenderPublicProfilePageArgs) {
-  const pageData = await loadPublicProfilePageResult(userSlugOrId, requestedPage);
+}: RenderPublicProfilePageArgs) => {
+  const pageData = await loadPublicProfilePageResult(
+    userSlugOrId,
+    requestedPage,
+  );
   const profile = pageData.profile;
   const profileForPage = toProfileForPage(profile, requestedPage);
   const canonicalUserSlug = profile.slug ?? profile.id;
@@ -150,7 +155,10 @@ export async function renderPublicProfilePage({
         </div>
 
         <div className="space-y-6">
-          <ProfileContent initialProfile={profileForPage} />
+          <ProfileContent
+            initialProfile={profileForPage}
+            currentPage={pageData.page}
+          />
 
           <CatalogSeoListings
             canonicalUserSlug={canonicalUserSlug}
@@ -168,4 +176,6 @@ export async function renderPublicProfilePage({
       </MainContent>
     </>
   );
-}
+};
+
+export { generatePublicProfilePageMetadata, renderPublicProfilePage };

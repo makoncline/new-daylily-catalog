@@ -71,9 +71,10 @@ export interface TRPCInternalContext extends TRPCContext {
  *
  * @see https://trpc.io/docs/server/context
  */
-export const createTRPCContext = async (
-  opts: { headers: Headers; requestUrl?: string },
-): Promise<TRPCContext> => {
+export const createTRPCContext = async (opts: {
+  headers: Headers;
+  requestUrl?: string;
+}): Promise<TRPCContext> => {
   return {
     ...opts,
     db,
@@ -89,7 +90,7 @@ export const createTRPCContext = async (
  * ZodErrors so that you get typesafety on the frontend if your procedure fails due to validation
  * errors on the backend.
  */
-export const t = initTRPC.context<TRPCInternalContext>().create({
+const t = initTRPC.context<TRPCInternalContext>().create({
   transformer: superjson,
   errorFormatter({ shape, error }) {
     return {

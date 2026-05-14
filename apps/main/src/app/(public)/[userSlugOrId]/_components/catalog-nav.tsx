@@ -1,27 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useSearchParams } from "next/navigation";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
-import { parsePositiveInteger } from "@/lib/public-catalog-url-state";
-import { Skeleton } from "@/components/ui/skeleton";
 
 interface CatalogNavProps {
   canonicalUserSlug: string;
-}
-
-function getPageFromPathname(pathname: string | null) {
-  if (!pathname) {
-    return null;
-  }
-
-  const match = /\/page\/(\d+)\/?$/.exec(pathname);
-  if (!match) {
-    return null;
-  }
-
-  return parsePositiveInteger(match[1], 1);
+  currentPage: number;
 }
 
 function getCatalogSearchHref(canonicalUserSlug: string, page: number) {
@@ -32,12 +17,7 @@ function getCatalogSearchHref(canonicalUserSlug: string, page: number) {
   return `/${canonicalUserSlug}/search`;
 }
 
-export function CatalogNav({ canonicalUserSlug }: CatalogNavProps) {
-  const searchParams = useSearchParams();
-  const pathname = usePathname();
-  const pageFromPathname = getPageFromPathname(pathname);
-  const pageFromQuery = parsePositiveInteger(searchParams.get("page"), 1);
-  const currentPage = pageFromPathname ?? pageFromQuery;
+export function CatalogNav({ canonicalUserSlug, currentPage }: CatalogNavProps) {
   const searchHref = getCatalogSearchHref(canonicalUserSlug, currentPage);
   const sections = [
     {
@@ -112,7 +92,7 @@ function NavLink({
       className={cn(
         "flex h-7 items-center justify-center rounded-full",
         "text-center text-sm font-medium",
-        "text-muted-foreground transition-colors hover:text-primary",
+        "text-muted-foreground hover:text-primary transition-colors",
         "data-[active=true]:bg-muted data-[active=true]:text-primary",
       )}
       data-active={isActive}
@@ -120,17 +100,5 @@ function NavLink({
     >
       {section.name}
     </Link>
-  );
-}
-
-export function CatalogNavSkeleton() {
-  return (
-    <div className="flex items-center gap-4">
-      <Skeleton className="h-7 w-14" />
-      <Skeleton className="h-7 w-14" />
-      <Skeleton className="h-7 w-14" />
-      <Skeleton className="h-7 w-14" />
-      <Skeleton className="h-7 w-24" />
-    </div>
   );
 }

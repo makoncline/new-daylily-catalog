@@ -12,7 +12,11 @@ import { Muted } from "@/components/typography";
 import { isV2CultivarDisplayDataEnabled } from "@/config/feature-flags";
 
 import type { AhsSearchResult } from "./ahs-listing-select";
-import { getErrorMessage, normalizeError, reportError } from "@/lib/error-utils";
+import {
+  getErrorMessage,
+  normalizeError,
+  reportError,
+} from "@/lib/error-utils";
 import type { RouterOutputs } from "@/trpc/react";
 import {
   linkAhs,
@@ -36,13 +40,13 @@ export function AhsListingLink({
   onNameChange,
   onMutationSuccess,
 }: AhsListingLinkProps) {
-  const [isPending, setIsPending] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const dayliliesListingId = isV2CultivarDisplayDataEnabled()
     ? null
     : (linkedAhs?.id ?? null);
 
   async function updateAhsListing(selected: AhsSearchResult | null) {
-    setIsPending(true);
+    setIsSaving(true);
     try {
       if (selected?.name) {
         if (!selected.cultivarReferenceId) {
@@ -85,12 +89,12 @@ export function AhsListingLink({
         context: { source: "AhsListingLink" },
       });
     } finally {
-      setIsPending(false);
+      setIsSaving(false);
     }
   }
 
   async function syncName() {
-    setIsPending(true);
+    setIsSaving(true);
     try {
       const updatedListing = await syncAhsName({
         id: listing.id,
@@ -109,7 +113,7 @@ export function AhsListingLink({
         context: { source: "AhsListingLink" },
       });
     } finally {
-      setIsPending(false);
+      setIsSaving(false);
     }
   }
 
@@ -143,9 +147,9 @@ export function AhsListingLink({
                     variant="outline"
                     size="sm"
                     onClick={syncName}
-                    disabled={isPending}
+                    disabled={isSaving}
                   >
-                    {isPending ? "Syncing..." : "Sync Name"}
+                    {isSaving ? "Syncing..." : "Sync Name"}
                   </Button>
                 )}
                 <Button
@@ -153,9 +157,9 @@ export function AhsListingLink({
                   variant="outline"
                   size="sm"
                   onClick={() => updateAhsListing(null)}
-                  disabled={isPending}
+                  disabled={isSaving}
                 >
-                  {isPending ? "Unlinking..." : "Unlink"}
+                  {isSaving ? "Unlinking..." : "Unlink"}
                 </Button>
               </div>
             </div>
@@ -166,7 +170,7 @@ export function AhsListingLink({
         <div>
           <AhsListingSelect
             onSelect={(result) => updateAhsListing(result)}
-            disabled={isPending}
+            disabled={isSaving}
           />
         </div>
       )}

@@ -44,11 +44,8 @@ describe("dashboardDb list membership sync", () => {
         initializeListsCollection,
       } = await import("@/app/dashboard/_lib/dashboard-db/lists-collection");
 
-      const {
-        insertListing,
-        deleteListing,
-        initializeListingsCollection,
-      } = await import("@/app/dashboard/_lib/dashboard-db/listings-collection");
+      const { insertListing, deleteListing, initializeListingsCollection } =
+        await import("@/app/dashboard/_lib/dashboard-db/listings-collection");
 
       await act(async () => {
         await initializeListsCollection(user.id);

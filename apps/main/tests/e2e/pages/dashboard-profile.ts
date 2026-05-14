@@ -56,9 +56,7 @@ export class DashboardProfile {
     await expect
       .poll(async () => {
         return this.slugInput.evaluate((element) => {
-          return element instanceof HTMLInputElement
-            ? element.readOnly
-            : true;
+          return element instanceof HTMLInputElement ? element.readOnly : true;
         });
       })
       .toBe(false);
@@ -97,14 +95,14 @@ export class DashboardProfile {
     const selectAll = process.platform === "darwin" ? "Meta+A" : "Control+A";
     await this.contentEditor.waitFor({ state: "visible" });
     const editableElement = this.contentEditor.locator(
-      '[contenteditable="true"]',
-    );
+      '.ce-block .ce-paragraph[contenteditable="true"]',
+    ).first();
     await editableElement.waitFor({ state: "visible" });
 
     await editableElement.click();
     await editableElement.press(selectAll);
     await editableElement.press("Backspace");
     await editableElement.type(text);
-    await this.heading.click();
+    await expect(editableElement).toContainText(text);
   }
 }

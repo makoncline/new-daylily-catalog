@@ -1,5 +1,11 @@
+import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { SUBSCRIPTION_CONFIG } from "@/config/subscription-config";
+
+export const metadata: Metadata = {
+  title: "Start Onboarding | Daylily Catalog",
+  description: "Continue setting up your Daylily Catalog seller account.",
+};
 
 export default function StartOnboardingPageRedirect({
   searchParams,

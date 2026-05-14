@@ -15,8 +15,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import React, { useState } from "react";
-import { useDebouncedCallback } from "use-debounce";
+import React from "react";
 
 interface DataTableColumnHeaderProps<TData, TValue> {
   column: Column<TData, TValue>;
@@ -32,25 +31,10 @@ export function DataTableColumnHeader<TData, TValue>({
   enableFilter,
 }: DataTableColumnHeaderProps<TData, TValue>) {
   const columnFilterValue = column.getFilterValue();
-  // Local state for immediate input updates
-  const [value, setValue] = useState<string>(
-    typeof columnFilterValue === "string" ? columnFilterValue : "",
-  );
+  const value = typeof columnFilterValue === "string" ? columnFilterValue : "";
 
-  React.useEffect(() => {
-    setValue(typeof columnFilterValue === "string" ? columnFilterValue : "");
-  }, [columnFilterValue]);
-
-  // Debounced function for expensive filtering operations
-  const debouncedFiltering = useDebouncedCallback((filterValue: string) => {
-    column.setFilterValue(filterValue);
-  }, 200, { leading: true });
-
-  // Handle input changes - update UI immediately but debounce filtering
-  const handleChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const newValue = event.target.value;
-    setValue(newValue);
-    debouncedFiltering(newValue);
+  const updateColumnFilter = (event: React.ChangeEvent<HTMLInputElement>) => {
+    column.setFilterValue(event.target.value);
   };
 
   if (!column.getCanSort() && !enableFilter) {
@@ -63,7 +47,7 @@ export function DataTableColumnHeader<TData, TValue>({
         <Button
           variant="ghost"
           size="sm"
-          className="-ml-1 h-8 data-[state=open]:bg-accent"
+          className="data-[state=open]:bg-accent -ml-1 h-8"
           onClick={(event) => {
             event.stopPropagation();
             column.toggleSorting(column.getIsSorted() === "asc");
@@ -71,11 +55,11 @@ export function DataTableColumnHeader<TData, TValue>({
         >
           <span>{title}</span>
           {column.getIsSorted() === "desc" ? (
-            <ArrowDownIcon className="h-4 w-4" />
+            <ArrowDownIcon className="size-4" />
           ) : column.getIsSorted() === "asc" ? (
-            <ArrowUpIcon className="h-4 w-4" />
+            <ArrowUpIcon className="size-4" />
           ) : (
-            <CaretSortIcon className="h-4 w-4" />
+            <CaretSortIcon className="size-4" />
           )}
         </Button>
       ) : (
@@ -88,12 +72,12 @@ export function DataTableColumnHeader<TData, TValue>({
             <Button
               variant="ghost"
               size="sm"
-              className="h-8 w-8 p-0 hover:bg-muted"
+              className="hover:bg-muted size-8 p-0"
               onClick={(event) => {
                 event.stopPropagation();
               }}
             >
-              <Search className="h-4 w-4" />
+              <Search className="size-4" />
               <span className="sr-only">
                 Filter {typeof title === "string" ? title.toLowerCase() : ""}
               </span>
@@ -103,7 +87,7 @@ export function DataTableColumnHeader<TData, TValue>({
             <Input
               placeholder={`Filter ${typeof title === "string" ? title.toLowerCase() : ""}...`}
               value={value}
-              onChange={handleChange}
+              onChange={updateColumnFilter}
               className="h-8"
             />
           </PopoverContent>

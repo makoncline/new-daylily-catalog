@@ -48,29 +48,35 @@ vi.mock("@/components/forms/list-form", () => ({
   },
 }));
 
-vi.mock("@/app/dashboard/lists/[listId]/_components/add-listings-section", () => ({
-  AddListingsSection: ({
-    onMutationSuccess,
-  }: {
-    onMutationSuccess?: () => void;
-  }) => (
-    <button type="button" onClick={onMutationSuccess}>
-      Add listing
-    </button>
-  ),
-}));
+vi.mock(
+  "@/app/dashboard/lists/[listId]/_components/add-listings-section",
+  () => ({
+    AddListingsSection: ({
+      onMutationSuccess,
+    }: {
+      onMutationSuccess?: () => void;
+    }) => (
+      <button type="button" onClick={onMutationSuccess}>
+        Add listing
+      </button>
+    ),
+  }),
+);
 
-vi.mock("@/app/dashboard/lists/[listId]/_components/list-listings-table", () => ({
-  ListListingsTable: ({
-    onMutationSuccess,
-  }: {
-    onMutationSuccess?: () => void;
-  }) => (
-    <button type="button" onClick={onMutationSuccess}>
-      Remove listing
-    </button>
-  ),
-}));
+vi.mock(
+  "@/app/dashboard/lists/[listId]/_components/list-listings-table",
+  () => ({
+    ListListingsTable: ({
+      onMutationSuccess,
+    }: {
+      onMutationSuccess?: () => void;
+    }) => (
+      <button type="button" onClick={onMutationSuccess}>
+        Remove listing
+      </button>
+    ),
+  }),
+);
 
 describe("Manage list membership mutations", () => {
   beforeEach(() => {

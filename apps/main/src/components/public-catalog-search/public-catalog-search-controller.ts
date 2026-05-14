@@ -1,7 +1,17 @@
 "use client";
 
-import { type ColumnDef, type Table, useReactTable } from "@tanstack/react-table";
-import { useEffect, useMemo, useState, type Dispatch, type SetStateAction } from "react";
+import {
+  type ColumnDef,
+  type Table,
+  useReactTable,
+} from "@tanstack/react-table";
+import {
+  useEffect,
+  useMemo,
+  useState,
+  type Dispatch,
+  type SetStateAction,
+} from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { toast } from "sonner";
 import { defaultTableConfig } from "@/lib/table-config";
@@ -58,32 +68,6 @@ interface UsePublicCatalogSearchControllerArgs {
   lists: PublicCatalogLists;
   userId: string;
   userSlugOrId: string;
-}
-
-function useOptionalRouter() {
-  try {
-    return useRouter();
-  } catch {
-    return {
-      replace: () => undefined,
-    };
-  }
-}
-
-function useOptionalPathname() {
-  try {
-    return usePathname();
-  } catch {
-    return "";
-  }
-}
-
-function useOptionalSearchParams() {
-  try {
-    return useSearchParams();
-  } catch {
-    return new URLSearchParams();
-  }
 }
 
 function usePublicCatalogSearchControllerTest({
@@ -275,8 +259,8 @@ function usePublicCatalogSearchSnapshotEffects({
             utils.public.getListings.setInfiniteData(queryInput, () =>
               snapshotToInfiniteData(revalidatedSnapshot),
             );
-  });
-}
+          });
+        }
       }
 
       if (!cancelled) {
@@ -368,9 +352,9 @@ function usePublicCatalogSearchControllerProd({
   userSlugOrId,
 }: UsePublicCatalogSearchControllerArgs): PublicCatalogSearchControllerState {
   const utils = api.useUtils();
-  const pathname = useOptionalPathname();
-  const router = useOptionalRouter();
-  const searchParams = useOptionalSearchParams();
+  const pathname = usePathname();
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const [isRefreshingCatalogData, setIsRefreshingCatalogData] = useState(false);
   const [panelCollapsed, setPanelCollapsed] = useState(false);
 
@@ -421,10 +405,7 @@ function usePublicCatalogSearchControllerProd({
     [listings],
   );
 
-  const columnNames = useMemo(
-    () => buildPublicCatalogSearchColumnNames(),
-    [],
-  );
+  const columnNames = useMemo(() => buildPublicCatalogSearchColumnNames(), []);
 
   const table = useDataTable({
     data: listings,
@@ -433,9 +414,9 @@ function usePublicCatalogSearchControllerProd({
     columnNames,
   });
 
-  const mode = (searchParams.get("mode") === "advanced"
-    ? "advanced"
-    : "basic") satisfies PublicCatalogSearchMode;
+  const mode = (
+    searchParams.get("mode") === "advanced" ? "advanced" : "basic"
+  ) satisfies PublicCatalogSearchMode;
 
   const setMode = (nextMode: PublicCatalogSearchMode) => {
     const params = new URLSearchParams(searchParams.toString());

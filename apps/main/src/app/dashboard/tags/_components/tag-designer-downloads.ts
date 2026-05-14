@@ -2,7 +2,10 @@
 
 import { toast } from "sonner";
 import { chunkTags, resolveSheetMetrics } from "./tag-designer-model";
-import type { TagPreviewData, TagSheetCreatorState } from "./tag-designer-model";
+import type {
+  TagPreviewData,
+  TagSheetCreatorState,
+} from "./tag-designer-model";
 import {
   createTagPrintDocumentHtml,
   getSheetMarkup,
@@ -14,15 +17,13 @@ interface PreparedTagDocumentFrame {
   iframeWindow: Window;
 }
 
-function prepareTagDocumentFrame(html: string): PreparedTagDocumentFrame | null {
+function prepareTagDocumentFrame(
+  html: string,
+): PreparedTagDocumentFrame | null {
   const iframe = document.createElement("iframe");
   iframe.setAttribute("aria-hidden", "true");
-  iframe.style.position = "fixed";
-  iframe.style.right = "0";
-  iframe.style.bottom = "0";
-  iframe.style.width = "0";
-  iframe.style.height = "0";
-  iframe.style.border = "0";
+  iframe.style.cssText =
+    "position:fixed;right:0;bottom:0;width:0;height:0;border:0";
   document.body.appendChild(iframe);
 
   const iframeWindow = iframe.contentWindow;
@@ -175,13 +176,18 @@ async function renderTagCanvasesForExport(args: {
     const { default: html2canvas } = await import("html2canvas");
     const canvases: HTMLCanvasElement[] = [];
 
-    for (const tag of args.tags) {
-      const canvas = await renderSingleTagCanvas({
-        tag,
-        widthInches: args.widthInches,
-        heightInches: args.heightInches,
-        html2canvas,
-      });
+    const renderedCanvases = await Promise.all(
+      args.tags.map((tag) =>
+        renderSingleTagCanvas({
+          tag,
+          widthInches: args.widthInches,
+          heightInches: args.heightInches,
+          html2canvas,
+        }),
+      ),
+    );
+
+    for (const canvas of renderedCanvases) {
       if (!canvas) {
         toast.error("Unable to prepare tag export.");
         return null;
@@ -225,7 +231,8 @@ async function renderSingleSheetCanvas(args: {
     await waitForFrameRender(preparedFrame.iframeWindow);
     await waitForFrameRender(preparedFrame.iframeWindow);
 
-    const sheetElement = frameDocument.querySelector<HTMLElement>(".sheet-page");
+    const sheetElement =
+      frameDocument.querySelector<HTMLElement>(".sheet-page");
     if (!sheetElement) return null;
 
     return args.html2canvas(sheetElement, {
@@ -261,14 +268,19 @@ async function renderSheetCanvasesForExport(args: {
     const canvases: HTMLCanvasElement[] = [];
     const sheets = chunkTags(args.tags, metrics.tagsPerSheet);
 
-    for (const sheetTags of sheets) {
-      const canvas = await renderSingleSheetCanvas({
-        sheetTags,
-        sheetState: args.sheetState,
-        tagWidthInches: args.tagWidthInches,
-        tagHeightInches: args.tagHeightInches,
-        html2canvas,
-      });
+    const renderedCanvases = await Promise.all(
+      sheets.map((sheetTags) =>
+        renderSingleSheetCanvas({
+          sheetTags,
+          sheetState: args.sheetState,
+          tagWidthInches: args.tagWidthInches,
+          tagHeightInches: args.tagHeightInches,
+          html2canvas,
+        }),
+      ),
+    );
+
+    for (const canvas of renderedCanvases) {
       if (!canvas) {
         toast.error("Unable to prepare sheet export.");
         return null;
@@ -358,11 +370,13 @@ export async function downloadTagImagesZip(args: {
     const zip = new JSZip();
     const folder = zip.folder("daylily-tags");
 
-    for (const [index, canvas] of canvases.entries()) {
-      const fileName = `tag-${String(index + 1).padStart(3, "0")}.png`;
-      const blob = await canvasToPngBlob(canvas);
-      folder?.file(fileName, blob);
-    }
+    await Promise.all(
+      canvases.map(async (canvas, index) => {
+        const fileName = `tag-${String(index + 1).padStart(3, "0")}.png`;
+        const blob = await canvasToPngBlob(canvas);
+        folder?.file(fileName, blob);
+      }),
+    );
 
     const zipBlob = await zip.generateAsync({
       type: "blob",
@@ -390,7 +404,9 @@ export async function downloadTagSheetsPdf(args: {
 
   try {
     const { jsPDF } = await import("jspdf");
-    const pageWidthPoints = Number((args.sheetState.pageWidthInches * 72).toFixed(2));
+    const pageWidthPoints = Number(
+      (args.sheetState.pageWidthInches * 72).toFixed(2),
+    );
     const pageHeightPoints = Number(
       (args.sheetState.pageHeightInches * 72).toFixed(2),
     );
@@ -441,11 +457,13 @@ export async function downloadTagSheetImagesZip(args: {
     const zip = new JSZip();
     const folder = zip.folder("daylily-tag-sheets");
 
-    for (const [index, canvas] of canvases.entries()) {
-      const fileName = `sheet-${String(index + 1).padStart(3, "0")}.png`;
-      const blob = await canvasToPngBlob(canvas);
-      folder?.file(fileName, blob);
-    }
+    await Promise.all(
+      canvases.map(async (canvas, index) => {
+        const fileName = `sheet-${String(index + 1).padStart(3, "0")}.png`;
+        const blob = await canvasToPngBlob(canvas);
+        folder?.file(fileName, blob);
+      }),
+    );
 
     const zipBlob = await zip.generateAsync({
       type: "blob",

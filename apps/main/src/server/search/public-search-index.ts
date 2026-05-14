@@ -5,13 +5,16 @@ import { mkdir, open, stat, unlink } from "node:fs/promises";
 import path from "node:path";
 import { promisify } from "node:util";
 import { createClient } from "@libsql/client";
+import { env, isLibsqlDatabaseUrl } from "@/env";
 
 const execFileAsync = promisify(execFile);
 
-const SEARCH_INDEX_FRESH_FOR_SECONDS = 60 * 60;
+const DEFAULT_SEARCH_INDEX_REFRESH_INTERVAL_SECONDS = 60 * 60;
 const SEARCH_INDEX_MAX_STALE_SECONDS = 24 * 60 * 60;
 const SEARCH_INDEX_REFRESH_LOCK_STALE_MS = 10 * 60 * 1000;
 const EXPECTED_SEARCH_INDEX_SCHEMA_VERSION = "5";
+const PUBLIC_SEARCH_BUILD_SOURCE_REPLICA_PATH =
+  "/data/search/public-search-source-replica.sqlite";
 
 interface SearchIndexMeta {
   builtAt: string | null;
@@ -74,6 +77,37 @@ function getRefreshLockPath() {
   return `${getPublicSearchIndexPath()}.refresh.lock`;
 }
 
+async function preparePublicSearchBuildSource() {
+  const databaseUrl = env.DATABASE_URL;
+
+  if (
+    process.env.NODE_ENV !== "production" ||
+    !databaseUrl ||
+    !isLibsqlDatabaseUrl(databaseUrl) ||
+    !env.TURSO_DATABASE_AUTH_TOKEN
+  ) {
+    return null;
+  }
+
+  await mkdir(path.dirname(PUBLIC_SEARCH_BUILD_SOURCE_REPLICA_PATH), {
+    recursive: true,
+  });
+
+  const client = createClient({
+    authToken: env.TURSO_DATABASE_AUTH_TOKEN,
+    syncUrl: databaseUrl,
+    url: `file:${PUBLIC_SEARCH_BUILD_SOURCE_REPLICA_PATH}`,
+  });
+
+  try {
+    await client.sync();
+  } finally {
+    client.close();
+  }
+
+  return PUBLIC_SEARCH_BUILD_SOURCE_REPLICA_PATH;
+}
+
 function isMissingFileError(error: unknown) {
   return (
     error instanceof Error &&
@@ -103,6 +137,26 @@ function getAgeSeconds(builtAt: string | null) {
   return Math.max(0, Math.floor((Date.now() - builtAtMs) / 1000));
 }
 
+function getSearchIndexRefreshIntervalSeconds() {
+  const value = env.PUBLIC_SEARCH_INDEX_REFRESH_INTERVAL_SECONDS;
+  if (!value) {
+    return DEFAULT_SEARCH_INDEX_REFRESH_INTERVAL_SECONDS;
+  }
+
+  const parsed = Number(value);
+  if (!Number.isInteger(parsed) || parsed < 0) {
+    throw new Error(
+      "PUBLIC_SEARCH_INDEX_REFRESH_INTERVAL_SECONDS must be a non-negative integer.",
+    );
+  }
+
+  return parsed === 0 ? null : parsed;
+}
+
+function isSearchIndexRefreshEnabled() {
+  return getSearchIndexRefreshIntervalSeconds() !== null;
+}
+
 function getStatusFromAge(
   ageSeconds: number | null,
   schemaVersion: string | null,
@@ -115,7 +169,12 @@ function getStatusFromAge(
     return "expired" satisfies PublicSearchIndexStatus["status"];
   }
 
-  if (ageSeconds < SEARCH_INDEX_FRESH_FOR_SECONDS) {
+  const refreshIntervalSeconds = getSearchIndexRefreshIntervalSeconds();
+  if (refreshIntervalSeconds === null) {
+    return "stale" satisfies PublicSearchIndexStatus["status"];
+  }
+
+  if (ageSeconds < refreshIntervalSeconds) {
     return "fresh" satisfies PublicSearchIndexStatus["status"];
   }
 
@@ -190,7 +249,7 @@ async function hasActiveRefreshLock() {
   }
 }
 
-export async function getPublicSearchIndexStatus(): Promise<PublicSearchIndexStatus> {
+async function getPublicSearchIndexStatus(): Promise<PublicSearchIndexStatus> {
   const dbPath = getPublicSearchIndexPath();
 
   try {
@@ -281,62 +340,68 @@ function logSearchIndex(event: string, payload: Record<string, unknown> = {}) {
   );
 }
 
-export async function refreshPublicSearchIndex(): Promise<PublicSearchIndexStatus> {
+async function refreshPublicSearchIndex(): Promise<PublicSearchIndexStatus> {
   globalForPublicSearchIndex.publicSearchIndexRefreshPromise ??= (async () => {
-      const releaseLock = await acquireRefreshLock();
+    const releaseLock = await acquireRefreshLock();
 
-      if (!releaseLock) {
-        logSearchIndex("public_search_index_refresh_skipped_locked");
-        return getPublicSearchIndexStatus();
+    if (!releaseLock) {
+      logSearchIndex("public_search_index_refresh_skipped_locked");
+      return getPublicSearchIndexStatus();
+    }
+
+    try {
+      const sourcePath = await preparePublicSearchBuildSource();
+      const buildArgs = [getBuildScriptPath()];
+
+      if (sourcePath) {
+        buildArgs.push("--source", sourcePath);
       }
 
-      try {
-        logSearchIndex("public_search_index_build_started", {
-          path: getPublicSearchIndexPath(),
+      buildArgs.push("--target", getPublicSearchIndexPath());
+
+      logSearchIndex("public_search_index_build_started", {
+        path: getPublicSearchIndexPath(),
+        sourcePath,
+      });
+
+      const { stdout, stderr } = await execFileAsync(
+        process.execPath,
+        buildArgs,
+        {
+          cwd: getAppRoot(),
+          env: process.env,
+          maxBuffer: 1024 * 1024,
+        },
+      );
+
+      if (stdout.trim().length > 0) {
+        logSearchIndex("public_search_index_build_stdout", {
+          output: stdout.trim(),
         });
-
-        const { stdout, stderr } = await execFileAsync(
-          process.execPath,
-          [
-            getBuildScriptPath(),
-            "--target",
-            getPublicSearchIndexPath(),
-          ],
-          {
-            cwd: getAppRoot(),
-            env: process.env,
-            maxBuffer: 1024 * 1024,
-          },
-        );
-
-        if (stdout.trim().length > 0) {
-          logSearchIndex("public_search_index_build_stdout", {
-            output: stdout.trim(),
-          });
-        }
-
-        if (stderr.trim().length > 0) {
-          logSearchIndex("public_search_index_build_stderr", {
-            output: stderr.trim(),
-          });
-        }
-
-        const status = await getPublicSearchIndexStatus();
-        logSearchIndex("public_search_index_build_succeeded", {
-          ageSeconds: status.ageSeconds,
-          counts: status.counts,
-          path: status.path,
-        });
-
-        return status;
-      } catch (error) {
-        logSearchIndex("public_search_index_build_failed", {
-          error: error instanceof Error ? error.message : String(error),
-        });
-        throw error;
-      } finally {
-        await releaseLock();
       }
+
+      if (stderr.trim().length > 0) {
+        logSearchIndex("public_search_index_build_stderr", {
+          output: stderr.trim(),
+        });
+      }
+
+      const status = await getPublicSearchIndexStatus();
+      logSearchIndex("public_search_index_build_succeeded", {
+        ageSeconds: status.ageSeconds,
+        counts: status.counts,
+        path: status.path,
+      });
+
+      return status;
+    } catch (error) {
+      logSearchIndex("public_search_index_build_failed", {
+        error: error instanceof Error ? error.message : String(error),
+      });
+      throw error;
+    } finally {
+      await releaseLock();
+    }
   })().finally(() => {
     globalForPublicSearchIndex.publicSearchIndexRefreshPromise = undefined;
   });
@@ -346,6 +411,10 @@ export async function refreshPublicSearchIndex(): Promise<PublicSearchIndexStatu
 
 export async function ensurePublicSearchIndex() {
   const status = await getPublicSearchIndexStatus();
+
+  if (!isSearchIndexRefreshEnabled()) {
+    return status;
+  }
 
   if (!status.exists) {
     return refreshPublicSearchIndex();

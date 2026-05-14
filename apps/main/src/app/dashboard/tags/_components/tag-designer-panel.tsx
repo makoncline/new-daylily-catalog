@@ -1,5 +1,7 @@
 "use client";
 
+// eslint-disable react/no-danger -- intentional static JSON-LD, style, or compatibility script injection.
+
 import * as React from "react";
 import {
   ArrowDown,
@@ -72,8 +74,6 @@ import {
   MIN_SHEET_COLUMNS,
   MIN_SHEET_COPIES_PER_LABEL,
   MIN_SHEET_MARGIN_INCHES,
-  MIN_SHEET_PAGE_HEIGHT_INCHES,
-  MIN_SHEET_PAGE_WIDTH_INCHES,
   MIN_SHEET_PADDING_INCHES,
   MIN_SHEET_ROWS,
   MIN_TAG_HEIGHT_INCHES,
@@ -108,8 +108,100 @@ import type {
 } from "./tag-designer-model";
 import { useTagDesignerController } from "./use-tag-designer-controller";
 
-export { createTagPrintDocumentHtml, createTagSheetDocumentHtml } from "./tag-designer-export";
+export {
+  createTagPrintDocumentHtml,
+  createTagSheetDocumentHtml,
+} from "./tag-designer-export";
 export type { TagListingData } from "./tag-designer-model";
+
+type SheetNumberStateKey = {
+  [Key in keyof TagSheetCreatorState]: TagSheetCreatorState[Key] extends number
+    ? Key
+    : never;
+}[keyof TagSheetCreatorState];
+
+const SHEET_NUMBER_FIELDS: Array<{
+  id: string;
+  label: string;
+  stateKey: SheetNumberStateKey;
+  min: number;
+  max: number;
+  step: number;
+  decimals: number;
+}> = [
+  {
+    id: "sheet-page-width",
+    label: "Page width (in)",
+    stateKey: "pageWidthInches",
+    min: MIN_TAG_WIDTH_INCHES,
+    max: MAX_SHEET_PAGE_WIDTH_INCHES,
+    step: 0.01,
+    decimals: 2,
+  },
+  {
+    id: "sheet-page-height",
+    label: "Page height (in)",
+    stateKey: "pageHeightInches",
+    min: MIN_TAG_HEIGHT_INCHES,
+    max: MAX_SHEET_PAGE_HEIGHT_INCHES,
+    step: 0.01,
+    decimals: 2,
+  },
+  {
+    id: "sheet-rows",
+    label: "Rows",
+    stateKey: "rows",
+    min: MIN_SHEET_ROWS,
+    max: MAX_SHEET_ROWS,
+    step: 1,
+    decimals: 0,
+  },
+  {
+    id: "sheet-columns",
+    label: "Columns",
+    stateKey: "columns",
+    min: MIN_SHEET_COLUMNS,
+    max: MAX_SHEET_COLUMNS,
+    step: 1,
+    decimals: 0,
+  },
+  {
+    id: "sheet-margin-x",
+    label: "Page margin X (in)",
+    stateKey: "marginXInches",
+    min: MIN_SHEET_MARGIN_INCHES,
+    max: MAX_SHEET_MARGIN_INCHES,
+    step: 0.01,
+    decimals: 2,
+  },
+  {
+    id: "sheet-margin-y",
+    label: "Page margin Y (in)",
+    stateKey: "marginYInches",
+    min: MIN_SHEET_MARGIN_INCHES,
+    max: MAX_SHEET_MARGIN_INCHES,
+    step: 0.01,
+    decimals: 2,
+  },
+  {
+    id: "sheet-padding-x",
+    label: "Tag padding X (in)",
+    stateKey: "paddingXInches",
+    min: MIN_SHEET_PADDING_INCHES,
+    max: MAX_SHEET_PADDING_INCHES,
+    step: 0.01,
+    decimals: 2,
+  },
+  {
+    id: "sheet-padding-y",
+    label: "Tag padding Y (in)",
+    stateKey: "paddingYInches",
+    min: MIN_SHEET_PADDING_INCHES,
+    max: MAX_SHEET_PADDING_INCHES,
+    step: 0.01,
+    decimals: 2,
+  },
+];
 
 // ---------------------------------------------------------------------------
 // Cell editor component
@@ -165,23 +257,23 @@ function TagCellEditor({
           type="button"
           variant="ghost"
           size="sm"
-          className="h-6 w-6 px-0"
+          className="size-6 px-0"
           disabled={isFirst}
           onClick={onMoveUp}
           title="Move cell left"
         >
-          <ArrowUp className="h-3 w-3" />
+          <ArrowUp className="size-3" />
         </Button>
         <Button
           type="button"
           variant="ghost"
           size="sm"
-          className="h-6 w-6 px-0"
+          className="size-6 px-0"
           disabled={isLast}
           onClick={onMoveDown}
           title="Move cell right"
         >
-          <ArrowDown className="h-3 w-3" />
+          <ArrowDown className="size-3" />
         </Button>
       </div>
 
@@ -278,7 +370,7 @@ function TagCellEditor({
                   : { overflow: false },
               )
             }
-            className="h-3 w-3"
+            className="size-3"
           />
           Ov
         </label>
@@ -293,7 +385,7 @@ function TagCellEditor({
                   : { fit: false },
               )
             }
-            className="h-3 w-3"
+            className="size-3"
           />
           Fit
         </label>
@@ -308,7 +400,7 @@ function TagCellEditor({
                   : { wrap: false },
               )
             }
-            className="h-3 w-3"
+            className="size-3"
           />
           Wrap
         </label>
@@ -319,7 +411,7 @@ function TagCellEditor({
           type="button"
           variant={cell.bold ? "default" : "outline"}
           size="sm"
-          className="h-6 w-6 px-0 text-xs"
+          className="size-6 px-0 text-xs"
           onClick={() => patch({ bold: !cell.bold })}
           title="Bold"
         >
@@ -329,7 +421,7 @@ function TagCellEditor({
           type="button"
           variant={cell.italic ? "default" : "outline"}
           size="sm"
-          className="h-6 w-6 px-0 text-xs italic"
+          className="size-6 px-0 text-xs italic"
           onClick={() => patch({ italic: !cell.italic })}
           title="Italic"
         >
@@ -339,7 +431,7 @@ function TagCellEditor({
           type="button"
           variant={cell.underline ? "default" : "outline"}
           size="sm"
-          className="h-6 w-6 px-0 text-xs underline"
+          className="size-6 px-0 text-xs underline"
           onClick={() => patch({ underline: !cell.underline })}
           title="Underline"
         >
@@ -351,11 +443,11 @@ function TagCellEditor({
         type="button"
         variant="ghost"
         size="sm"
-        className="h-6 w-6 px-0"
+        className="size-6 px-0"
         onClick={onRemove}
         title="Remove cell"
       >
-        <X className="h-3 w-3" />
+        <X className="size-3" />
       </Button>
     </div>
   );
@@ -422,10 +514,13 @@ function TagDesignerHeader({
       <div className="flex items-center gap-2">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="outline" disabled={!hasListings || isPreparingDownload}>
-              <Download className="mr-2 h-4 w-4" />
-              {isPreparingDownload ? "Preparing..." : "Download"}
-              <ChevronDown className="ml-2 h-3.5 w-3.5" />
+            <Button
+              variant="outline"
+              disabled={!hasListings || isPreparingDownload}
+            >
+              <Download className="mr-2 size-4" />
+              {isPreparingDownload ? "Preparing…" : "Download"}
+              <ChevronDown className="ml-2 size-3.5" />
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-44">
@@ -433,28 +528,28 @@ function TagDesignerHeader({
               onSelect={() => onDownloadPages()}
               disabled={isPreparingDownload}
             >
-              <FileDown className="h-4 w-4" />
+              <FileDown className="size-4" />
               Pages (.html)
             </DropdownMenuItem>
             <DropdownMenuItem
               onSelect={() => onDownloadPdf()}
               disabled={isPreparingDownload}
             >
-              <FileText className="h-4 w-4" />
+              <FileText className="size-4" />
               PDF (.pdf)
             </DropdownMenuItem>
             <DropdownMenuItem
               onSelect={() => onDownloadImages()}
               disabled={isPreparingDownload}
             >
-              <FileImage className="h-4 w-4" />
+              <FileImage className="size-4" />
               Images (.zip)
             </DropdownMenuItem>
             <DropdownMenuItem
               onSelect={() => onDownloadCsv()}
               disabled={isPreparingDownload}
             >
-              <Download className="h-4 w-4" />
+              <Download className="size-4" />
               CSV
             </DropdownMenuItem>
           </DropdownMenuContent>
@@ -465,11 +560,11 @@ function TagDesignerHeader({
           onClick={onOpenSheetCreator}
           disabled={!hasListings}
         >
-          <LayoutGrid className="mr-2 h-4 w-4" />
+          <LayoutGrid className="mr-2 size-4" />
           Make Sheet
         </Button>
         <Button onClick={onPrint} disabled={!hasListings}>
-          <Printer className="mr-2 h-4 w-4" />
+          <Printer className="mr-2 size-4" />
           Print
         </Button>
       </div>
@@ -551,11 +646,11 @@ function SheetNumberField({
           type="button"
           variant="outline"
           size="icon"
-          className="h-9 w-9 shrink-0"
+          className="size-9 shrink-0"
           aria-label={`Decrease ${label}`}
           onClick={() => stepValue(-1)}
         >
-          <Minus className="h-4 w-4" />
+          <Minus className="size-4" />
         </Button>
 
         <Input
@@ -593,11 +688,11 @@ function SheetNumberField({
           type="button"
           variant="outline"
           size="icon"
-          className="h-9 w-9 shrink-0"
+          className="size-9 shrink-0"
           aria-label={`Increase ${label}`}
           onClick={() => stepValue(1)}
         >
-          <Plus className="h-4 w-4" />
+          <Plus className="size-4" />
         </Button>
       </div>
 
@@ -628,7 +723,7 @@ interface TagSheetCreatorDialogProps {
   isPreparingDownload: boolean;
 }
 
-function TagSheetCreatorDialog({
+function useTagSheetCreatorDialogController({
   open,
   onOpenChange,
   selectedLabelCount,
@@ -674,6 +769,52 @@ function TagSheetCreatorDialog({
     pageWidthPx > 0 ? Math.min(previewMaxWidthPx / pageWidthPx, 1) : 1;
   const canExport = sheetMetrics.isValid && totalLabelCount > 0;
 
+  return {
+    canExport,
+    copiesPerLabel,
+    estimatedSheetCount,
+    firstSheetPreviewTags,
+    isPreparingDownload,
+    isPrintQuantityOpen,
+    marginXPx,
+    marginYPx,
+    onCopiesPerLabelChange,
+    onDownloadSheetImages,
+    onDownloadSheetPages,
+    onDownloadSheetPdf,
+    onOpenChange,
+    onPrintSheets,
+    onResetToSingleTag,
+    open,
+    paddingXPx,
+    paddingYPx,
+    pageHeightPx,
+    pageWidthPx,
+    previewScale,
+    selectedLabelCount,
+    setIsPrintQuantityOpen,
+    sheetMetrics,
+    sheetState,
+    slotHeightPx,
+    slotWidthPx,
+    totalLabelCount,
+    updateSheetState,
+  };
+}
+
+function TagSheetCreatorDialog(props: TagSheetCreatorDialogProps) {
+  const controller = useTagSheetCreatorDialogController(props);
+
+  return <TagSheetCreatorDialogView controller={controller} />;
+}
+
+function TagSheetCreatorDialogView({
+  controller,
+}: {
+  controller: ReturnType<typeof useTagSheetCreatorDialogController>;
+}) {
+  const { onOpenChange, open } = controller;
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-2xl">
@@ -685,404 +826,371 @@ function TagSheetCreatorDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="grid gap-3 md:grid-cols-2">
-          <SheetNumberField
-            id="sheet-page-width"
-            label="Page width (in)"
-            value={sheetState.pageWidthInches}
-            min={MIN_SHEET_PAGE_WIDTH_INCHES}
-            max={MAX_SHEET_PAGE_WIDTH_INCHES}
-            step={0.01}
-            decimals={2}
-            onCommit={(nextValue) =>
-              updateSheetState((previous) => ({
-                ...previous,
-                pageWidthInches: nextValue,
-              }))
-            }
-          />
+        <TagSheetSettings controller={controller} />
 
-          <SheetNumberField
-            id="sheet-page-height"
-            label="Page height (in)"
-            value={sheetState.pageHeightInches}
-            min={MIN_SHEET_PAGE_HEIGHT_INCHES}
-            max={MAX_SHEET_PAGE_HEIGHT_INCHES}
-            step={0.01}
-            decimals={2}
-            onCommit={(nextValue) =>
-              updateSheetState((previous) => ({
-                ...previous,
-                pageHeightInches: nextValue,
-              }))
-            }
-          />
+        <TagSheetSummary controller={controller} />
 
-          <SheetNumberField
-            id="sheet-rows"
-            label="Rows"
-            value={sheetState.rows}
-            min={MIN_SHEET_ROWS}
-            max={MAX_SHEET_ROWS}
-            step={1}
-            decimals={0}
-            onCommit={(nextValue) =>
-              updateSheetState((previous) => ({
-                ...previous,
-                rows: nextValue,
-              }))
-            }
-          />
+        <TagSheetPreview controller={controller} />
 
-          <SheetNumberField
-            id="sheet-columns"
-            label="Columns"
-            value={sheetState.columns}
-            min={MIN_SHEET_COLUMNS}
-            max={MAX_SHEET_COLUMNS}
-            step={1}
-            decimals={0}
-            onCommit={(nextValue) =>
-              updateSheetState((previous) => ({
-                ...previous,
-                columns: nextValue,
-              }))
-            }
-          />
-
-          <SheetNumberField
-            id="sheet-margin-x"
-            label="Page margin X (in)"
-            value={sheetState.marginXInches}
-            min={MIN_SHEET_MARGIN_INCHES}
-            max={MAX_SHEET_MARGIN_INCHES}
-            step={0.01}
-            decimals={2}
-            onCommit={(nextValue) =>
-              updateSheetState((previous) => ({
-                ...previous,
-                marginXInches: nextValue,
-              }))
-            }
-          />
-
-          <SheetNumberField
-            id="sheet-margin-y"
-            label="Page margin Y (in)"
-            value={sheetState.marginYInches}
-            min={MIN_SHEET_MARGIN_INCHES}
-            max={MAX_SHEET_MARGIN_INCHES}
-            step={0.01}
-            decimals={2}
-            onCommit={(nextValue) =>
-              updateSheetState((previous) => ({
-                ...previous,
-                marginYInches: nextValue,
-              }))
-            }
-          />
-
-          <SheetNumberField
-            id="sheet-padding-x"
-            label="Tag padding X (in)"
-            value={sheetState.paddingXInches}
-            min={MIN_SHEET_PADDING_INCHES}
-            max={MAX_SHEET_PADDING_INCHES}
-            step={0.01}
-            decimals={2}
-            onCommit={(nextValue) =>
-              updateSheetState((previous) => ({
-                ...previous,
-                paddingXInches: nextValue,
-              }))
-            }
-          />
-
-          <SheetNumberField
-            id="sheet-padding-y"
-            label="Tag padding Y (in)"
-            value={sheetState.paddingYInches}
-            min={MIN_SHEET_PADDING_INCHES}
-            max={MAX_SHEET_PADDING_INCHES}
-            step={0.01}
-            decimals={2}
-            onCommit={(nextValue) =>
-              updateSheetState((previous) => ({
-                ...previous,
-                paddingYInches: nextValue,
-              }))
-            }
-          />
-
-          <div className="md:col-span-2">
-            <label
-              htmlFor="sheet-print-dashed-borders"
-              className="flex items-center gap-2 text-sm"
-            >
-              <input
-                id="sheet-print-dashed-borders"
-                type="checkbox"
-                checked={sheetState.printDashedBorders}
-                onChange={(event) =>
-                  updateSheetState((previous) => ({
-                    ...previous,
-                    printDashedBorders: event.target.checked,
-                  }))
-                }
-                className="h-4 w-4"
-              />
-              <span>Print dashed borders</span>
-            </label>
-          </div>
-
-          <div className="md:col-span-2">
-            <Collapsible
-              open={isPrintQuantityOpen}
-              onOpenChange={setIsPrintQuantityOpen}
-            >
-              <CollapsibleTrigger asChild>
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="w-full justify-between"
-                >
-                  <span>Print quantity</span>
-                  <ChevronDown
-                    className={cn(
-                      "h-4 w-4 transition-transform",
-                      isPrintQuantityOpen && "rotate-180",
-                    )}
-                  />
-                </Button>
-              </CollapsibleTrigger>
-              <CollapsibleContent className="border-border bg-muted/20 mt-3 space-y-2 rounded-md border p-3">
-                <SheetNumberField
-                  id="sheet-copies-per-label"
-                  label="Copies of each selected label"
-                  value={copiesPerLabel}
-                  min={MIN_SHEET_COPIES_PER_LABEL}
-                  max={MAX_SHEET_COPIES_PER_LABEL}
-                  step={1}
-                  decimals={0}
-                  onCommit={onCopiesPerLabelChange}
-                />
-                <p className="text-muted-foreground text-xs">
-                  The same label is repeated together before printing the next
-                  label.
-                </p>
-              </CollapsibleContent>
-            </Collapsible>
-          </div>
-        </div>
-
-        <div className="space-y-1 text-sm">
-          <p className="text-muted-foreground">
-            Tag size on sheet (fixed to active tag size):{" "}
-            {sheetMetrics.slotWidthInches.toFixed(2)}&quot; ×{" "}
-            {sheetMetrics.slotHeightInches.toFixed(2)}&quot;
-          </p>
-          <p className="font-medium">
-            {selectedLabelCount} label{selectedLabelCount === 1 ? "" : "s"}{" "}
-            selected, {copiesPerLabel} cop{copiesPerLabel === 1 ? "y" : "ies"}{" "}
-            of each, {totalLabelCount} total label
-            {totalLabelCount === 1 ? "" : "s"}.
-          </p>
-          <p className="text-muted-foreground">
-            {sheetMetrics.tagsPerSheet} tag
-            {sheetMetrics.tagsPerSheet === 1 ? "" : "s"} per sheet,{" "}
-            {estimatedSheetCount} sheet
-            {estimatedSheetCount === 1 ? "" : "s"} needed.
-          </p>
-          {!sheetMetrics.isValid ? (
-            <p className="text-destructive">
-              Page too small for this layout. Required:{" "}
-              {sheetMetrics.requiredWidthInches.toFixed(2)}&quot; ×{" "}
-              {sheetMetrics.requiredHeightInches.toFixed(2)}&quot;.
-            </p>
-          ) : null}
-        </div>
-
-        <div className="space-y-2">
-          <h4 className="text-sm font-medium">Sheet Preview</h4>
-          {sheetMetrics.isValid && firstSheetPreviewTags.length > 0 ? (
-            <>
-              <div className="border-border bg-muted/20 overflow-auto rounded-md border p-3">
-                <div
-                  className="mx-auto"
-                  style={{
-                    width: `${pageWidthPx * previewScale}px`,
-                    height: `${pageHeightPx * previewScale}px`,
-                  }}
-                >
-                  <div
-                    className="origin-top-left"
-                    style={{
-                      width: `${pageWidthPx}px`,
-                      height: `${pageHeightPx}px`,
-                      transform: `scale(${previewScale})`,
-                    }}
-                  >
-                    <div
-                      className="bg-background border-border h-full w-full border"
-                      style={{
-                        padding: `${marginYPx}px ${marginXPx}px`,
-                        display: "grid",
-                        gridTemplateColumns: `repeat(${sheetState.columns}, ${slotWidthPx}px)`,
-                        gridTemplateRows: `repeat(${sheetState.rows}, ${slotHeightPx}px)`,
-                        columnGap: `${paddingXPx}px`,
-                        rowGap: `${paddingYPx}px`,
-                        alignContent: "start",
-                        justifyContent: "start",
-                      }}
-                    >
-                      {firstSheetPreviewTags.map((tag) => (
-                        <article
-                          key={`sheet-preview-${tag.id}`}
-                          className="border-muted-foreground/40 bg-background relative overflow-hidden border border-dashed p-2"
-                          style={{
-                            width: `${sheetMetrics.slotWidthInches}in`,
-                            height: `${sheetMetrics.slotHeightInches}in`,
-                          }}
-                        >
-                          <div
-                            style={{
-                              paddingRight: tag.qrCodeUrl
-                                ? `${QR_RESERVED_RIGHT_INCHES}in`
-                                : undefined,
-                              paddingBottom: tag.qrCodeUrl
-                                ? `${QR_RESERVED_BOTTOM_INCHES}in`
-                                : undefined,
-                            }}
-                          >
-                            {tag.rows.map((row) => (
-                              <div
-                                key={row.id}
-                                className="grid items-baseline gap-x-2"
-                                style={{
-                                  gridTemplateColumns: row.cells
-                                    .map((cell) => `${cell.width}fr`)
-                                    .join(" "),
-                                }}
-                              >
-                                {row.cells.map((cell) => (
-                                  <p
-                                    key={cell.id}
-                                    className={cn(
-                                      "min-w-0 leading-tight",
-                                      cell.wrap
-                                        ? "break-words whitespace-normal"
-                                        : "whitespace-nowrap",
-                                      cell.overflow
-                                        ? "overflow-visible"
-                                        : "overflow-hidden",
-                                      cell.bold && "font-semibold",
-                                      cell.italic && "italic",
-                                      cell.underline && "underline",
-                                      cell.textAlign === "center" &&
-                                        "text-center",
-                                      cell.textAlign === "right" && "text-right",
-                                      cell.textAlign === "left" && "text-left",
-                                    )}
-                                    style={{
-                                      fontSize: `${resolveCellFontSizePx(
-                                        cell,
-                                        row,
-                                        sheetMetrics.slotWidthInches,
-                                        Boolean(tag.qrCodeUrl),
-                                      )}px`,
-                                    }}
-                                  >
-                                    {cell.text}
-                                  </p>
-                                ))}
-                              </div>
-                            ))}
-                          </div>
-
-                          {tag.qrCodeUrl ? (
-                            <QrCodeSvg
-                              qrCodeUrl={tag.qrCodeUrl}
-                              className="absolute bg-white [&_svg]:block [&_svg]:h-full [&_svg]:w-full"
-                              style={{
-                                right: `${QR_OFFSET_INCHES}in`,
-                                bottom: `${QR_OFFSET_INCHES}in`,
-                                width: `${QR_SIZE_INCHES}in`,
-                                height: `${QR_SIZE_INCHES}in`,
-                              }}
-                            />
-                          ) : null}
-                        </article>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              </div>
-              {estimatedSheetCount > 1 ? (
-                <p className="text-muted-foreground text-xs">
-                  Preview shows the first sheet only.
-                </p>
-              ) : null}
-            </>
-          ) : (
-            <p className="text-muted-foreground text-sm">
-              {selectedLabelCount === 0
-                ? "Select listings below to preview sheet output."
-                : "Adjust settings so the selected page can fit the tag grid."}
-            </p>
-          )}
-        </div>
-
-        <DialogFooter className="gap-2">
-          <Button type="button" variant="ghost" onClick={onResetToSingleTag}>
-            Reset to 1 Tag
-          </Button>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                type="button"
-                variant="outline"
-                disabled={!canExport || isPreparingDownload}
-              >
-                <Download className="mr-2 h-4 w-4" />
-                {isPreparingDownload ? "Preparing..." : "Download"}
-                <ChevronDown className="ml-2 h-3.5 w-3.5" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-48">
-              <DropdownMenuItem
-                onSelect={() => onDownloadSheetPages()}
-                disabled={isPreparingDownload}
-              >
-                <FileDown className="h-4 w-4" />
-                HTML Sheets (.html)
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onSelect={() => onDownloadSheetPdf()}
-                disabled={isPreparingDownload}
-              >
-                <FileText className="h-4 w-4" />
-                PDF (.pdf)
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onSelect={() => onDownloadSheetImages()}
-                disabled={isPreparingDownload}
-              >
-                <FileImage className="h-4 w-4" />
-                Images (.zip)
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-          <Button
-            type="button"
-            onClick={onPrintSheets}
-            disabled={!canExport}
-          >
-            <Printer className="mr-2 h-4 w-4" />
-            Print Sheets
-          </Button>
-        </DialogFooter>
+        <TagSheetActions controller={controller} />
       </DialogContent>
     </Dialog>
+  );
+}
+
+function TagSheetSettings({
+  controller,
+}: {
+  controller: ReturnType<typeof useTagSheetCreatorDialogController>;
+}) {
+  const {
+    copiesPerLabel,
+    isPrintQuantityOpen,
+    onCopiesPerLabelChange,
+    setIsPrintQuantityOpen,
+    sheetState,
+    updateSheetState,
+  } = controller;
+
+  return (
+    <div className="grid gap-3 md:grid-cols-2">
+      {SHEET_NUMBER_FIELDS.map((field) => (
+        <SheetNumberField
+          key={field.id}
+          id={field.id}
+          label={field.label}
+          value={sheetState[field.stateKey]}
+          min={field.min}
+          max={field.max}
+          step={field.step}
+          decimals={field.decimals}
+          onCommit={(nextValue) =>
+            updateSheetState((previous) => ({
+              ...previous,
+              [field.stateKey]: nextValue,
+            }))
+          }
+        />
+      ))}
+
+      <div className="md:col-span-2">
+        <label
+          htmlFor="sheet-print-dashed-borders"
+          className="flex items-center gap-2 text-sm"
+        >
+          <input
+            id="sheet-print-dashed-borders"
+            type="checkbox"
+            checked={sheetState.printDashedBorders}
+            onChange={(event) =>
+              updateSheetState((previous) => ({
+                ...previous,
+                printDashedBorders: event.target.checked,
+              }))
+            }
+            className="size-4"
+          />
+          <span>Print dashed borders</span>
+        </label>
+      </div>
+
+      <div className="md:col-span-2">
+        <Collapsible
+          open={isPrintQuantityOpen}
+          onOpenChange={setIsPrintQuantityOpen}
+        >
+          <CollapsibleTrigger asChild>
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full justify-between"
+            >
+              <span>Print quantity</span>
+              <ChevronDown
+                className={cn(
+                  "size-4 transition-transform",
+                  isPrintQuantityOpen && "rotate-180",
+                )}
+              />
+            </Button>
+          </CollapsibleTrigger>
+          <CollapsibleContent className="border-border bg-muted/20 mt-3 space-y-2 rounded-md border p-3">
+            <SheetNumberField
+              id="sheet-copies-per-label"
+              label="Copies of each selected label"
+              value={copiesPerLabel}
+              min={MIN_SHEET_COPIES_PER_LABEL}
+              max={MAX_SHEET_COPIES_PER_LABEL}
+              step={1}
+              decimals={0}
+              onCommit={onCopiesPerLabelChange}
+            />
+            <p className="text-muted-foreground text-xs">
+              The same label is repeated together before printing the next
+              label.
+            </p>
+          </CollapsibleContent>
+        </Collapsible>
+      </div>
+    </div>
+  );
+}
+
+function TagSheetSummary({
+  controller,
+}: {
+  controller: ReturnType<typeof useTagSheetCreatorDialogController>;
+}) {
+  const {
+    copiesPerLabel,
+    estimatedSheetCount,
+    selectedLabelCount,
+    sheetMetrics,
+    totalLabelCount,
+  } = controller;
+
+  return (
+    <div className="space-y-1 text-sm">
+      <p className="text-muted-foreground">
+        Tag size on sheet (fixed to active tag size):{" "}
+        {sheetMetrics.slotWidthInches.toFixed(2)}&quot; ×{" "}
+        {sheetMetrics.slotHeightInches.toFixed(2)}&quot;
+      </p>
+      <p className="font-medium">
+        {selectedLabelCount} label{selectedLabelCount === 1 ? "" : "s"}{" "}
+        selected, {copiesPerLabel} cop{copiesPerLabel === 1 ? "y" : "ies"} of
+        each, {totalLabelCount} total label
+        {totalLabelCount === 1 ? "" : "s"}.
+      </p>
+      <p className="text-muted-foreground">
+        {sheetMetrics.tagsPerSheet} tag
+        {sheetMetrics.tagsPerSheet === 1 ? "" : "s"} per sheet,{" "}
+        {estimatedSheetCount} sheet
+        {estimatedSheetCount === 1 ? "" : "s"} needed.
+      </p>
+      {!sheetMetrics.isValid ? (
+        <p className="text-destructive">
+          Page too small for this layout. Required:{" "}
+          {sheetMetrics.requiredWidthInches.toFixed(2)}&quot; ×{" "}
+          {sheetMetrics.requiredHeightInches.toFixed(2)}&quot;.
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
+function TagSheetPreview({
+  controller,
+}: {
+  controller: ReturnType<typeof useTagSheetCreatorDialogController>;
+}) {
+  const {
+    estimatedSheetCount,
+    firstSheetPreviewTags,
+    marginXPx,
+    marginYPx,
+    paddingXPx,
+    paddingYPx,
+    pageHeightPx,
+    pageWidthPx,
+    previewScale,
+    selectedLabelCount,
+    sheetMetrics,
+    sheetState,
+    slotHeightPx,
+    slotWidthPx,
+  } = controller;
+
+  return (
+    <div className="space-y-2">
+      <h4 className="text-sm font-medium">Sheet Preview</h4>
+      {sheetMetrics.isValid && firstSheetPreviewTags.length > 0 ? (
+        <>
+          <div className="border-border bg-muted/20 overflow-auto rounded-md border p-3">
+            <div
+              className="mx-auto"
+              style={{
+                width: `${pageWidthPx * previewScale}px`,
+                height: `${pageHeightPx * previewScale}px`,
+              }}
+            >
+              <div
+                className="origin-top-left"
+                style={{
+                  width: `${pageWidthPx}px`,
+                  height: `${pageHeightPx}px`,
+                  transform: `scale(${previewScale})`,
+                }}
+              >
+                <div
+                  className="bg-background border-border grid size-full content-start justify-start border"
+                  style={{
+                    padding: `${marginYPx}px ${marginXPx}px`,
+                    gridTemplateColumns: `repeat(${sheetState.columns}, ${slotWidthPx}px)`,
+                    gridTemplateRows: `repeat(${sheetState.rows}, ${slotHeightPx}px)`,
+                    columnGap: `${paddingXPx}px`,
+                    rowGap: `${paddingYPx}px`,
+                  }}
+                >
+                  {firstSheetPreviewTags.map((tag) => (
+                    <article
+                      key={`sheet-preview-${tag.id}`}
+                      className="border-muted-foreground/40 bg-background relative overflow-hidden border border-dashed p-2"
+                      style={{
+                        width: `${sheetMetrics.slotWidthInches}in`,
+                        height: `${sheetMetrics.slotHeightInches}in`,
+                      }}
+                    >
+                      <div
+                        style={{
+                          paddingRight: tag.qrCodeUrl
+                            ? `${QR_RESERVED_RIGHT_INCHES}in`
+                            : undefined,
+                          paddingBottom: tag.qrCodeUrl
+                            ? `${QR_RESERVED_BOTTOM_INCHES}in`
+                            : undefined,
+                        }}
+                      >
+                        {tag.rows.map((row) => (
+                          <div
+                            key={row.id}
+                            className="grid items-baseline gap-x-2"
+                            style={{
+                              gridTemplateColumns: row.cells
+                                .map((cell) => `${cell.width}fr`)
+                                .join(" "),
+                            }}
+                          >
+                            {row.cells.map((cell) => (
+                              <p
+                                key={cell.id}
+                                className={cn(
+                                  "min-w-0 leading-tight",
+                                  cell.wrap
+                                    ? "break-words whitespace-normal"
+                                    : "whitespace-nowrap",
+                                  cell.overflow
+                                    ? "overflow-visible"
+                                    : "overflow-hidden",
+                                  cell.bold && "font-semibold",
+                                  cell.italic && "italic",
+                                  cell.underline && "underline",
+                                  cell.textAlign === "center" && "text-center",
+                                  cell.textAlign === "right" && "text-right",
+                                  cell.textAlign === "left" && "text-left",
+                                )}
+                                style={{
+                                  fontSize: `${resolveCellFontSizePx(
+                                    cell,
+                                    row,
+                                    sheetMetrics.slotWidthInches,
+                                    Boolean(tag.qrCodeUrl),
+                                  )}px`,
+                                }}
+                              >
+                                {cell.text}
+                              </p>
+                            ))}
+                          </div>
+                        ))}
+                      </div>
+
+                      {tag.qrCodeUrl ? (
+                        <QrCodeSvg
+                          qrCodeUrl={tag.qrCodeUrl}
+                          className="absolute bg-white [&_svg]:block [&_svg]:h-full [&_svg]:w-full"
+                          style={{
+                            right: `${QR_OFFSET_INCHES}in`,
+                            bottom: `${QR_OFFSET_INCHES}in`,
+                            width: `${QR_SIZE_INCHES}in`,
+                            height: `${QR_SIZE_INCHES}in`,
+                          }}
+                        />
+                      ) : null}
+                    </article>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+          {estimatedSheetCount > 1 ? (
+            <p className="text-muted-foreground text-xs">
+              Preview shows the first sheet only.
+            </p>
+          ) : null}
+        </>
+      ) : (
+        <p className="text-muted-foreground text-sm">
+          {selectedLabelCount === 0
+            ? "Select listings below to preview sheet output."
+            : "Adjust settings so the selected page can fit the tag grid."}
+        </p>
+      )}
+    </div>
+  );
+}
+
+function TagSheetActions({
+  controller,
+}: {
+  controller: ReturnType<typeof useTagSheetCreatorDialogController>;
+}) {
+  const {
+    canExport,
+    isPreparingDownload,
+    onDownloadSheetImages,
+    onDownloadSheetPages,
+    onDownloadSheetPdf,
+    onPrintSheets,
+    onResetToSingleTag,
+  } = controller;
+
+  return (
+    <DialogFooter className="gap-2">
+      <Button type="button" variant="ghost" onClick={onResetToSingleTag}>
+        Reset to 1 Tag
+      </Button>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button
+            type="button"
+            variant="outline"
+            disabled={!canExport || isPreparingDownload}
+          >
+            <Download className="mr-2 size-4" />
+            {isPreparingDownload ? "Preparing…" : "Download"}
+            <ChevronDown className="ml-2 size-3.5" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end" className="w-48">
+          <DropdownMenuItem
+            onSelect={() => onDownloadSheetPages()}
+            disabled={isPreparingDownload}
+          >
+            <FileDown className="size-4" />
+            HTML Sheets (.html)
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            onSelect={() => onDownloadSheetPdf()}
+            disabled={isPreparingDownload}
+          >
+            <FileText className="size-4" />
+            PDF (.pdf)
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            onSelect={() => onDownloadSheetImages()}
+            disabled={isPreparingDownload}
+          >
+            <FileImage className="size-4" />
+            Images (.zip)
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+      <Button type="button" onClick={onPrintSheets} disabled={!canExport}>
+        <Printer className="mr-2 size-4" />
+        Print Sheets
+      </Button>
+    </DialogFooter>
   );
 }
 
@@ -1094,7 +1202,9 @@ interface TagTemplatePickerProps {
   builtinTemplates: ResolvedTagLayoutTemplate[];
   userTemplates: StoredTagLayoutTemplate[];
   onApplyTemplate: (templateId: string) => void;
-  onDeleteTemplateMouseDown: (event: React.MouseEvent<HTMLButtonElement>) => void;
+  onDeleteTemplateMouseDown: (
+    event: React.MouseEvent<HTMLButtonElement>,
+  ) => void;
   onDeleteTemplateClick: (
     event: React.MouseEvent<HTMLButtonElement>,
     templateId: string,
@@ -1124,15 +1234,16 @@ function TagTemplatePicker({
             variant="outline"
             role="combobox"
             aria-expanded={isOpen}
+            aria-controls="template-picker-list"
             className="h-9 w-full justify-between"
           >
             <span className="truncate">{selectedTemplateLabel}</span>
-            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+            <ChevronsUpDown className="ml-2 size-4 shrink-0 opacity-50" />
           </Button>
         </PopoverTrigger>
         <PopoverContent className="w-[320px] p-0" align="start">
           <Command>
-            <CommandList>
+            <CommandList id="template-picker-list">
               <CommandGroup heading="Built-in">
                 {builtinTemplates.map((template) => (
                   <CommandItem
@@ -1142,7 +1253,7 @@ function TagTemplatePicker({
                   >
                     <Check
                       className={cn(
-                        "mr-2 h-4 w-4",
+                        "mr-2 size-4",
                         template.id === selectedTemplateId
                           ? "opacity-100"
                           : "opacity-0",
@@ -1165,7 +1276,7 @@ function TagTemplatePicker({
                       >
                         <Check
                           className={cn(
-                            "mr-2 h-4 w-4",
+                            "mr-2 size-4",
                             template.id === selectedTemplateId
                               ? "opacity-100"
                               : "opacity-0",
@@ -1177,7 +1288,7 @@ function TagTemplatePicker({
                             type="button"
                             variant="ghost"
                             size="icon"
-                            className="text-muted-foreground hover:text-destructive h-6 w-6 shrink-0"
+                            className="text-muted-foreground hover:text-destructive size-6 shrink-0"
                             onMouseDown={onDeleteTemplateMouseDown}
                             onClick={(event) =>
                               onDeleteTemplateClick(
@@ -1188,7 +1299,7 @@ function TagTemplatePicker({
                             }
                             aria-label={`Delete template ${template.name}`}
                           >
-                            <Trash2 className="h-3.5 w-3.5" />
+                            <Trash2 className="size-3.5" />
                           </Button>
                         </div>
                       </CommandItem>
@@ -1203,7 +1314,7 @@ function TagTemplatePicker({
                   onSelect={() => onApplyTemplate(TEMPLATE_IMPORT_ID)}
                   className="px-2"
                 >
-                  Import shared template...
+                  Import shared template…
                 </CommandItem>
               </CommandGroup>
             </CommandList>
@@ -1381,7 +1492,7 @@ function TagDesignerControls({
                 showQrCode: e.target.checked,
               }))
             }
-            className="h-4 w-4"
+            className="size-4"
           />
           <span>QR code</span>
         </label>
@@ -1463,7 +1574,7 @@ function TagDesignerLayout({
             }}
             title="Copy layout template JSON"
           >
-            <Share2 className="mr-1 h-3 w-3" />
+            <Share2 className="mr-1 size-3" />
             Share
           </Button>
           <Button
@@ -1473,11 +1584,11 @@ function TagDesignerLayout({
             onClick={onResetLayout}
             title="Reset to default layout"
           >
-            <RotateCcw className="mr-1 h-3 w-3" />
+            <RotateCcw className="mr-1 size-3" />
             Reset
           </Button>
           <Button type="button" variant="outline" size="sm" onClick={onAddRow}>
-            <Plus className="mr-1 h-3 w-3" />
+            <Plus className="mr-1 size-3" />
             Add Row
           </Button>
         </div>
@@ -1516,33 +1627,33 @@ function TagDesignerLayout({
                   type="button"
                   variant="ghost"
                   size="sm"
-                  className="h-6 w-6 px-0"
+                  className="size-6 px-0"
                   disabled={rowIndex === 0}
                   onClick={() => onMoveRow(rowIndex, -1)}
                   title="Move row up"
                 >
-                  <ArrowUp className="h-3 w-3" />
+                  <ArrowUp className="size-3" />
                 </Button>
                 <Button
                   type="button"
                   variant="ghost"
                   size="sm"
-                  className="h-6 w-6 px-0"
+                  className="size-6 px-0"
                   disabled={rowIndex === rows.length - 1}
                   onClick={() => onMoveRow(rowIndex, 1)}
                   title="Move row down"
                 >
-                  <ArrowDown className="h-3 w-3" />
+                  <ArrowDown className="size-3" />
                 </Button>
                 <Button
                   type="button"
                   variant="ghost"
                   size="sm"
-                  className="text-destructive h-6 w-6 px-0"
+                  className="text-destructive size-6 px-0"
                   onClick={() => onRemoveRow(rowIndex)}
                   title="Remove row"
                 >
-                  <Trash2 className="h-3 w-3" />
+                  <Trash2 className="size-3" />
                 </Button>
               </div>
               <span className="text-muted-foreground text-xs font-medium">
@@ -1576,7 +1687,7 @@ function TagDesignerLayout({
               className="h-6 text-xs"
               onClick={() => onAddCellToRow(rowIndex)}
             >
-              <Plus className="mr-1 h-3 w-3" />
+              <Plus className="mr-1 size-3" />
               Cell
             </Button>
           </div>
@@ -1608,7 +1719,7 @@ function TagDesignerPreview({
         <div className="flex items-center gap-2">
           {listingsCount === 0 ? (
             <p className="text-muted-foreground text-xs">
-              Sample preview — select listings below
+              Sample preview: select listings below
             </p>
           ) : null}
           {listingsCount > 0 &&
@@ -1647,7 +1758,9 @@ function TagDesignerPreview({
                     key={row.id}
                     className="grid items-baseline gap-x-2"
                     style={{
-                      gridTemplateColumns: row.cells.map((c) => `${c.width}fr`).join(" "),
+                      gridTemplateColumns: row.cells
+                        .map((c) => `${c.width}fr`)
+                        .join(" "),
                     }}
                   >
                     {row.cells.map((cell) => (
@@ -1658,7 +1771,9 @@ function TagDesignerPreview({
                           cell.wrap
                             ? "break-words whitespace-normal"
                             : "whitespace-nowrap",
-                          cell.overflow ? "overflow-visible" : "overflow-hidden",
+                          cell.overflow
+                            ? "overflow-visible"
+                            : "overflow-hidden",
                           cell.bold && "font-semibold",
                           cell.italic && "italic",
                           cell.underline && "underline",

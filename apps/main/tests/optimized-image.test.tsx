@@ -1,12 +1,14 @@
-import type React from "react";
+import React from "react";
 import { render, fireEvent, screen } from "@testing-library/react";
 import { vi } from "vitest";
 
 vi.mock("next/image", () => ({
   __esModule: true,
-  default: (props: React.ImgHTMLAttributes<HTMLImageElement>) => (
-    <img {...props} />
-  ),
+  default: ({
+    alt = "",
+    ...props
+  }: React.ImgHTMLAttributes<HTMLImageElement>) =>
+    React.createElement("img", { alt, ...props }),
 }));
 
 const reportErrorMock = vi.hoisted(() => vi.fn());

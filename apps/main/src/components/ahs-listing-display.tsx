@@ -2,7 +2,6 @@
 
 import { Separator } from "@/components/ui/separator";
 import { type RouterOutputs } from "@/trpc/react";
-import { Skeleton } from "@/components/ui/skeleton";
 import { H3, P, Muted } from "@/components/typography";
 import { ImagePopover } from "@/components/image-popover";
 
@@ -73,16 +72,6 @@ export function AhsListingDisplay({
           </div>
         )}
       </div>
-    </div>
-  );
-}
-
-export function AhsListingDisplaySkeleton() {
-  return (
-    <div className="space-y-4">
-      <Skeleton className="h-8 w-2/3" />
-      <Skeleton className="h-4 w-1/4" />
-      <Skeleton className="h-20 w-full" />
     </div>
   );
 }

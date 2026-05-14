@@ -62,8 +62,6 @@ export const publicListingSelect = {
   },
 } as const;
 
-export const listingSelect = publicListingSelect;
-
 type ListingWithRelations = Awaited<ReturnType<typeof getListings>>[number];
 type ListingPayload = Prisma.ListingGetPayload<{
   select: typeof publicListingSelect;
@@ -102,7 +100,7 @@ export function buildPublicListingDetail(listing: ListingPayload) {
   };
 }
 
-export async function getSortedPublicListingIds(
+async function getSortedPublicListingIds(
   userId: string,
   options?: {
     forSaleFirst?: boolean;
@@ -146,7 +144,7 @@ export async function getSortedPublicListingIds(
   return rows.map((row) => row.id);
 }
 
-export async function getPublicListingRowsByIds(
+async function getPublicListingRowsByIds(
   ids: string[],
 ): Promise<ListingPayload[]> {
   if (ids.length === 0) {
@@ -230,7 +228,7 @@ export async function getPublicListingsPageIdsForUserId({
   };
 }
 
-export async function getPublicListingsPageIds({
+async function getPublicListingsPageIds({
   userSlugOrId,
   page,
   pageSize = PUBLIC_PROFILE_LISTINGS_PAGE_SIZE,

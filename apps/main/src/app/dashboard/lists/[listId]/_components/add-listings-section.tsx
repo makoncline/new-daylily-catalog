@@ -20,7 +20,7 @@ export function AddListingsSection({
         listId={listId}
         onMutationSuccess={onMutationSuccess}
       />
-      <p className={cn("text-[0.8rem] text-muted-foreground")}>
+      <p className={cn("text-muted-foreground text-[0.8rem]")}>
         Search your listings to add them to this list
       </p>
     </div>

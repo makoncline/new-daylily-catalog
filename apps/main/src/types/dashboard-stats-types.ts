@@ -1,10 +1,10 @@
-export type DashboardProfileMissingField =
+type DashboardProfileMissingField =
   | "hasProfileImage"
   | "description"
   | "content"
   | "location";
 
-export interface DashboardListingStats {
+interface DashboardListingStats {
   withImages: number;
   withAhsData: number;
   withPrice: number;
@@ -12,16 +12,16 @@ export interface DashboardListingStats {
   inLists: number;
 }
 
-export interface DashboardImageStats {
+interface DashboardImageStats {
   total: number;
 }
 
-export interface DashboardProfileStats {
+interface DashboardProfileStats {
   completionPercentage: number;
   missingFields: DashboardProfileMissingField[];
 }
 
-export interface DashboardListStats {
+interface DashboardListStats {
   averageListingsPerList: number;
 }
 

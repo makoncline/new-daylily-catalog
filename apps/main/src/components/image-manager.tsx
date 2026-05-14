@@ -28,7 +28,11 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { OptimizedImage } from "@/components/optimized-image";
 import { ImagePreviewDialog } from "@/components/image-preview-dialog";
 import { useConfirmableAsyncAction } from "@/hooks/use-confirmable-async-action";
-import { getErrorMessage, normalizeError, reportError } from "@/lib/error-utils";
+import {
+  getErrorMessage,
+  normalizeError,
+  reportError,
+} from "@/lib/error-utils";
 import {
   deleteImage,
   reorderImages,
@@ -206,7 +210,7 @@ export function ImageManager({
                         {...attributes}
                         {...listeners}
                       >
-                        <GripVertical className="h-4 w-4" />
+                        <GripVertical className="size-4" />
                         <span className="sr-only">Drag to reorder</span>
                       </Button>
                       <ImagePreviewDialog
@@ -227,7 +231,7 @@ export function ImageManager({
                           openDeleteDialog();
                         }}
                       >
-                        <Trash2 className="h-4 w-4" />
+                        <Trash2 className="size-4" />
                         <span className="sr-only">Delete image</span>
                       </Button>
                     </>
@@ -267,7 +271,7 @@ export function ImageManagerSkeleton() {
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4">
         {Array.from({ length: 4 }).map((_, i) => (
           <div key={i} className="relative aspect-square">
-            <Skeleton className="h-full w-full rounded-lg" />
+            <Skeleton className="size-full rounded-lg" />
           </div>
         ))}
       </div>

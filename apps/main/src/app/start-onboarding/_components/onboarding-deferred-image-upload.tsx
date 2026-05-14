@@ -68,7 +68,7 @@ export function OnboardingDeferredImageUpload({
         >
           <input {...getInputProps()} id="image-upload-input" />
           {isDragActive ? (
-            <P>Drop the image here...</P>
+            <P>Drop the image here…</P>
           ) : (
             <P>Drag and drop an image here, or click to select one</P>
           )}
@@ -97,6 +97,7 @@ export function OnboardingDeferredImageUpload({
               src={stagedPreviewUrl}
               alt="Prepared upload preview"
               fill
+              sizes={`${IMAGE_CONFIG.SIZES.THUMBNAIL}px`}
               className="object-cover"
               unoptimized
             />

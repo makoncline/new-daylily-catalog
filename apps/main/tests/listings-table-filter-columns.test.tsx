@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import type { ColumnDef } from "@tanstack/react-table";
 import { APP_CONFIG } from "@/config/constants";
 import { useDataTable } from "@/hooks/use-data-table";
+import { getTableLocalStorageKey } from "@/hooks/use-table-local-storage-sync";
 import {
   getColumns,
   type ListingData,
@@ -43,7 +44,7 @@ function useListingsTableWithPersistedVisibility() {
 describe("dashboard listings table filter-only columns", () => {
   it("keeps new filter-only columns hidden when older column visibility is persisted", () => {
     localStorage.setItem(
-      "table-state-listings-table",
+      getTableLocalStorageKey("listings-table"),
       JSON.stringify({
         columnVisibility: {
           description: false,

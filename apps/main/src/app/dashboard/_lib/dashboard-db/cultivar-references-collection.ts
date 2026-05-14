@@ -22,7 +22,7 @@ import {
 
 const CURSOR_BASE = "dashboard-db:cultivar-references:maxUpdatedAt";
 const QUERY_KEY = ["dashboard-db", "cultivar-references"] as const;
-export const CULTIVAR_REFERENCES_SYNC_PAGE_SIZE = 50;
+const CULTIVAR_REFERENCES_SYNC_PAGE_SIZE = 50;
 let shouldSkipNextCultivarReferencesSync = false;
 
 export type CultivarReferenceCollectionItem =
@@ -132,9 +132,7 @@ export function resetCultivarReferencesCollectionWithPersistence(
   );
 }
 
-export async function refreshCultivarReferencesCollectionFromServer(
-  userId: string,
-) {
+async function refreshCultivarReferencesCollectionFromServer(userId: string) {
   await refreshDashboardDbCollectionFromServer({
     userId,
     queryKey: QUERY_KEY,

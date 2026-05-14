@@ -5,13 +5,30 @@ import type EditorJS from "@editorjs/editorjs";
 import { type ToolConstructable, type OutputData } from "@editorjs/editorjs";
 
 import { cn } from "@/lib/utils";
-import { Skeleton } from "@/components/ui/skeleton";
+
 interface EditorProps {
   initialContent?: OutputData;
   className?: string;
   editorRef: React.RefObject<EditorJS | null>;
   readOnly?: boolean;
   onChange?: () => void;
+}
+
+function destroyEditor(editor: EditorJS) {
+  const readyEditor = editor as EditorJS & { isReady?: Promise<void> };
+
+  if (typeof readyEditor.destroy === "function") {
+    readyEditor.destroy();
+    return;
+  }
+
+  void readyEditor.isReady
+    ?.then(() => {
+      if (typeof readyEditor.destroy === "function") {
+        readyEditor.destroy();
+      }
+    })
+    .catch(() => undefined);
 }
 
 export function Editor({
@@ -21,79 +38,75 @@ export function Editor({
   readOnly,
   onChange,
 }: EditorProps) {
-  const [isMounted, setIsMounted] = React.useState<boolean>(false);
-
   const initialContentRef = React.useRef(initialContent);
+  const holderRef = React.useRef<HTMLDivElement | null>(null);
+  const onChangeRef = React.useRef(onChange);
 
-  const initializeEditor = React.useCallback(async () => {
-    if (editorRef.current) return;
+  // EditorJS owns its DOM after mount, so callback changes should not recreate it.
+  React.useEffect(() => {
+    onChangeRef.current = onChange;
+  }, [onChange]);
 
-    const EditorJS = (await import("@editorjs/editorjs")).default;
-    const Header = (await import("@editorjs/header")).default;
-    const Table = (await import("@editorjs/table")).default;
-    const List = (await import("@editorjs/list")).default;
-    const InlineCode = (await import("@editorjs/inline-code")).default;
+  React.useEffect(() => {
+    let isCancelled = false;
+    const holder = holderRef.current;
 
-    const editor = new EditorJS({
-      holder: "editor",
-      onReady() {
-        editorRef.current = editor;
-      },
-      onChange: () => {
-        onChange?.();
-      },
-      placeholder: "Type something...",
-      inlineToolbar: true,
-      readOnly: readOnly,
-      data: initialContentRef.current,
-      tools: {
-        header: {
-          class: Header as unknown as ToolConstructable,
-          inlineToolbar: true,
-          config: {
-            levels: [2, 3, 4, 5, 6],
-            defaultLevel: 2,
-          },
+    if (!holder || editorRef.current) {
+      return;
+    }
+
+    void (async () => {
+      const EditorJS = (await import("@editorjs/editorjs")).default;
+      const Header = (await import("@editorjs/header")).default;
+      const Table = (await import("@editorjs/table")).default;
+      const List = (await import("@editorjs/list")).default;
+      const InlineCode = (await import("@editorjs/inline-code")).default;
+
+      if (isCancelled || editorRef.current) {
+        return;
+      }
+
+      const editor = new EditorJS({
+        holder,
+        onChange: () => {
+          onChangeRef.current?.();
         },
-        list: List,
-        inlineCode: InlineCode,
-        table: Table,
-      },
-    });
-  }, [editorRef, onChange, readOnly]);
+        placeholder: "Type something...",
+        inlineToolbar: true,
+        readOnly: readOnly,
+        data: initialContentRef.current,
+        tools: {
+          header: {
+            class: Header as unknown as ToolConstructable,
+            inlineToolbar: true,
+            config: {
+              levels: [2, 3, 4, 5, 6],
+              defaultLevel: 2,
+            },
+          },
+          list: List,
+          inlineCode: InlineCode,
+          table: Table,
+        },
+      });
 
-  React.useEffect(() => {
-    if (typeof window !== "undefined") {
-      setIsMounted(true);
-    }
-  }, []);
+      editorRef.current = editor;
+    })();
 
-  React.useEffect(() => {
-    if (isMounted && !editorRef.current) {
-      void initializeEditor();
-
-      return () => {
-        if (editorRef.current) {
-          editorRef.current.destroy();
-          editorRef.current = null;
-        }
-      };
-    }
-  }, [isMounted, initializeEditor, editorRef]);
-
-  if (!isMounted) {
-    return null;
-  }
+    return () => {
+      isCancelled = true;
+      if (editorRef.current) {
+        destroyEditor(editorRef.current);
+        editorRef.current = null;
+      }
+    };
+  }, [editorRef, readOnly]);
 
   return (
     <div className={cn("grid w-full gap-10", className)}>
       <div className="prose prose-stone dark:prose-invert mx-auto w-full">
-        <div id="editor" className="bg-background text-sm" />
+        <div ref={holderRef} id="editor" className="bg-background text-sm" />
       </div>
     </div>
   );
-}
-
-export function EditorSkeleton() {
-  return <Skeleton className="h-[300px] w-full" />;
 }

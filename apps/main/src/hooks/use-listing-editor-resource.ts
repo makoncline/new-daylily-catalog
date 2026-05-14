@@ -35,14 +35,12 @@ export function useListingEditorResource(
   );
   const listing = listings[0] ?? null;
 
-  const {
-    data: cultivarReferences = [],
-    isReady: isCultivarReferencesReady,
-  } = useLiveQuery((q) =>
-    q
-      .from({ ref: cultivarReferencesCollection })
-      .orderBy(({ ref }) => ref.updatedAt, "asc"),
-  );
+  const { data: cultivarReferences = [], isReady: isCultivarReferencesReady } =
+    useLiveQuery((q) =>
+      q
+        .from({ ref: cultivarReferencesCollection })
+        .orderBy(({ ref }) => ref.updatedAt, "asc"),
+    );
 
   const { data: images = [], isReady: isImagesReady } = useLiveQuery(
     (q) =>

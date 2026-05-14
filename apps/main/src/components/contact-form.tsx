@@ -252,8 +252,8 @@ export function ContactForm({ userId, onSubmitSuccess }: ContactFormProps) {
             >
               {isSubmitting ? (
                 <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Sending...
+                  <Loader2 className="mr-2 size-4 animate-spin" />
+                  Sending…
                 </>
               ) : (
                 "Send Message"
@@ -311,10 +311,10 @@ function CartItemRow({ item, onQuantityChange, onRemove }: CartItemRowProps) {
           type="button"
           variant="outline"
           size="icon"
-          className="h-7 w-7"
+          className="size-7"
           onClick={() => onQuantityChange(item.id, item.quantity - 1)}
         >
-          <MinusCircle className="h-4 w-4" />
+          <MinusCircle className="size-4" />
         </Button>
 
         <span className="w-6 text-center">{item.quantity}</span>
@@ -323,20 +323,20 @@ function CartItemRow({ item, onQuantityChange, onRemove }: CartItemRowProps) {
           type="button"
           variant="outline"
           size="icon"
-          className="h-7 w-7"
+          className="size-7"
           onClick={() => onQuantityChange(item.id, item.quantity + 1)}
         >
-          <PlusCircle className="h-4 w-4" />
+          <PlusCircle className="size-4" />
         </Button>
 
         <Button
           type="button"
           variant="outline"
           size="icon"
-          className="ml-2 h-7 w-7"
+          className="ml-2 size-7"
           onClick={() => onRemove(item.id)}
         >
-          <Trash2 className="h-4 w-4" />
+          <Trash2 className="size-4" />
         </Button>
       </div>
     </div>

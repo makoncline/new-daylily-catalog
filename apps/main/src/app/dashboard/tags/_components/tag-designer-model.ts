@@ -30,7 +30,7 @@ export const ALL_FIELD_IDS = [
 export type TagFieldId = (typeof ALL_FIELD_IDS)[number];
 export type TagTextAlign = "left" | "center" | "right";
 
-export interface TagAhsListingData {
+interface TagAhsListingData {
   hybridizer?: string | null;
   year?: string | number | null;
   bloomSize?: string | null;
@@ -183,32 +183,32 @@ export type UpdateTagSheetCreatorState = (
 export const TAG_DESIGNER_STORAGE_KEY = "tag-designer-state-v2";
 export const TAG_TEMPLATE_LIBRARY_STORAGE_KEY = "tag-designer-templates-v1";
 export const TAG_SHEET_CREATOR_STORAGE_KEY = "tag-sheet-creator-state-v1";
-export const TEMPLATE_DEFAULT_ID = "default-template";
+const TEMPLATE_DEFAULT_ID = "default-template";
 export const TEMPLATE_CUSTOM_ID = "custom-template";
 export const TEMPLATE_IMPORT_ID = "import-template";
-export const TEMPLATE_NAME_QR_ID = "template-name-qr";
-export const TEMPLATE_FULL_DETAIL_ID = "template-full-detail";
+const TEMPLATE_NAME_QR_ID = "template-name-qr";
+const TEMPLATE_FULL_DETAIL_ID = "template-full-detail";
 
 export const MIN_TAG_WIDTH_INCHES = 1;
 export const MAX_TAG_WIDTH_INCHES = 6;
 export const MIN_TAG_HEIGHT_INCHES = 0.5;
 export const MAX_TAG_HEIGHT_INCHES = 4;
 export const CSS_PIXELS_PER_INCH = 96;
-export const TAG_HORIZONTAL_PADDING_INCHES = 0.16;
-export const TAG_COLUMN_GAP_INCHES = 0.06;
-export const MIN_FIT_FONT_SIZE_PX = 6;
-export const AVERAGE_CHARACTER_WIDTH_EM = 0.56;
-export const FIT_FONT_SCALE_BUFFER = 0.95;
+const TAG_HORIZONTAL_PADDING_INCHES = 0.16;
+const TAG_COLUMN_GAP_INCHES = 0.06;
+const MIN_FIT_FONT_SIZE_PX = 6;
+const AVERAGE_CHARACTER_WIDTH_EM = 0.56;
+const FIT_FONT_SCALE_BUFFER = 0.95;
 export const QR_SIZE_INCHES = 0.5;
 export const QR_OFFSET_INCHES = 0.06;
-export const QR_TEXT_GAP_INCHES = 0.04;
+const QR_TEXT_GAP_INCHES = 0.04;
 export const QR_RESERVED_RIGHT_INCHES =
   QR_SIZE_INCHES + QR_OFFSET_INCHES + QR_TEXT_GAP_INCHES;
 export const QR_RESERVED_BOTTOM_INCHES =
   QR_SIZE_INCHES + QR_OFFSET_INCHES + QR_TEXT_GAP_INCHES;
-export const MIN_SHEET_PAGE_WIDTH_INCHES = MIN_TAG_WIDTH_INCHES;
+const MIN_SHEET_PAGE_WIDTH_INCHES = MIN_TAG_WIDTH_INCHES;
 export const MAX_SHEET_PAGE_WIDTH_INCHES = 24;
-export const MIN_SHEET_PAGE_HEIGHT_INCHES = MIN_TAG_HEIGHT_INCHES;
+const MIN_SHEET_PAGE_HEIGHT_INCHES = MIN_TAG_HEIGHT_INCHES;
 export const MAX_SHEET_PAGE_HEIGHT_INCHES = 24;
 export const MIN_SHEET_ROWS = 1;
 export const MAX_SHEET_ROWS = 20;
@@ -307,7 +307,7 @@ export const FIELD_DEFAULTS: Record<
   customText: { label: "", bold: false, fontSize: 16 },
 };
 
-export const DEFAULT_ROWS: TagRow[] = [
+const DEFAULT_ROWS: TagRow[] = [
   {
     id: "d0",
     cells: [
@@ -388,7 +388,7 @@ export function generateRowId() {
   return `r-${Date.now()}-${_nextRowId++}`;
 }
 
-export function createTemplateCell(
+function createTemplateCell(
   fieldId: TagFieldId,
   overrides: Partial<TagCell> = {},
 ): TagCell {
@@ -428,7 +428,9 @@ export const BUILTIN_TAG_LAYOUT_TEMPLATES: Array<
       rows: [
         {
           id: "name-qr-row",
-          cells: [createTemplateCell("title", { fontSize: 22, textAlign: "left" })],
+          cells: [
+            createTemplateCell("title", { fontSize: 22, textAlign: "left" }),
+          ],
         },
       ],
     },
@@ -551,7 +553,7 @@ export function clamp(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value));
 }
 
-export function normalizeInches(value: number) {
+function normalizeInches(value: number) {
   return Number(value.toFixed(2));
 }
 
@@ -586,13 +588,13 @@ export function normalizeSheetNumber(
   return Number(clamped.toFixed(decimals));
 }
 
-export function toNonEmptyString(value: string | null | undefined) {
+function toNonEmptyString(value: string | null | undefined) {
   const trimmed = value?.trim();
   if (!trimmed || trimmed.length === 0) return null;
   return trimmed;
 }
 
-export function trimTrailingSlash(value: string) {
+function trimTrailingSlash(value: string) {
   return value.replace(/\/+$/, "");
 }
 
@@ -617,7 +619,7 @@ export function buildQrCodeSvgMarkup(url: string) {
   });
 }
 
-export function normalizeCellTextMode({
+function normalizeCellTextMode({
   overflow,
   fit,
   wrap,
@@ -642,7 +644,7 @@ export function normalizeCellTextMode({
   return { overflow: false, fit: false, wrap: false };
 }
 
-export function normalizePloidy(value: string | null | undefined) {
+function normalizePloidy(value: string | null | undefined) {
   const normalized = toNonEmptyString(value);
   if (!normalized) return null;
   if (normalized.toLowerCase() === "tetraploid") return "tet";
@@ -650,7 +652,7 @@ export function normalizePloidy(value: string | null | undefined) {
   return normalized;
 }
 
-export function resolveFieldValue(
+function resolveFieldValue(
   listing: TagListingData,
   fieldId: TagFieldId,
 ): string | null {
@@ -704,19 +706,10 @@ export function resolveFieldValue(
   }
 }
 
-export function escapeHtml(value: string) {
-  return value
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#39;");
-}
-
 const VALID_TEXT_ALIGNS = new Set<TagTextAlign>(["left", "center", "right"]);
 const VALID_FIELD_IDS = new Set<string>(ALL_FIELD_IDS);
 
-export function sanitizeCell(cell: Partial<TagCell>): TagCell | null {
+function sanitizeCell(cell: Partial<TagCell>): TagCell | null {
   if (!cell || typeof cell !== "object") return null;
   if (!cell.fieldId || !VALID_FIELD_IDS.has(cell.fieldId)) return null;
 
@@ -745,7 +738,7 @@ export function sanitizeCell(cell: Partial<TagCell>): TagCell | null {
   };
 }
 
-export function sanitizeRow(row: Partial<TagRow>): TagRow | null {
+function sanitizeRow(row: Partial<TagRow>): TagRow | null {
   if (!row || typeof row !== "object" || !Array.isArray(row.cells)) return null;
 
   const cells = (row.cells as Partial<TagCell>[])
@@ -760,12 +753,16 @@ export function sanitizeRow(row: Partial<TagRow>): TagRow | null {
   };
 }
 
-export function sanitizeTagDesignerState(state: TagDesignerState): TagDesignerState {
+export function sanitizeTagDesignerState(
+  state: TagDesignerState,
+): TagDesignerState {
   if (!Array.isArray((state as unknown as Record<string, unknown>).rows)) {
     return { ...DEFAULT_TAG_DESIGNER_STATE };
   }
 
-  const presetExists = TAG_SIZE_PRESETS.some((p) => p.id === state.sizePresetId);
+  const presetExists = TAG_SIZE_PRESETS.some(
+    (p) => p.id === state.sizePresetId,
+  );
 
   const rows = (state.rows as Partial<TagRow>[])
     .map((r) => sanitizeRow(r))
@@ -776,7 +773,8 @@ export function sanitizeTagDesignerState(state: TagDesignerState): TagDesignerSt
       ? state.sizePresetId
       : DEFAULT_TAG_DESIGNER_STATE.sizePresetId,
     customWidthInches: clamp(
-      Number(state.customWidthInches) || DEFAULT_TAG_DESIGNER_STATE.customWidthInches,
+      Number(state.customWidthInches) ||
+        DEFAULT_TAG_DESIGNER_STATE.customWidthInches,
       MIN_TAG_WIDTH_INCHES,
       MAX_TAG_WIDTH_INCHES,
     ),
@@ -854,7 +852,11 @@ export function sanitizeTagSheetCreatorState(
         MAX_SHEET_PAGE_HEIGHT_INCHES,
       ),
     ),
-    rows: clamp(Math.round(rows ?? fallback.rows), MIN_SHEET_ROWS, MAX_SHEET_ROWS),
+    rows: clamp(
+      Math.round(rows ?? fallback.rows),
+      MIN_SHEET_ROWS,
+      MAX_SHEET_ROWS,
+    ),
     columns: clamp(
       Math.round(columns ?? fallback.columns),
       MIN_SHEET_COLUMNS,
@@ -1097,7 +1099,9 @@ export function downloadSelectedListingsCsv(
   );
   if (!includedFields.length || !listings.length) return;
 
-  const header = includedFields.map((id) => escapeCsvCell(FIELD_DISPLAY_NAMES[id]));
+  const header = includedFields.map((id) =>
+    escapeCsvCell(FIELD_DISPLAY_NAMES[id]),
+  );
   const csvRows = listings.map((listing) =>
     includedFields.map((id) => {
       const raw = resolveFieldValue(listing, id);

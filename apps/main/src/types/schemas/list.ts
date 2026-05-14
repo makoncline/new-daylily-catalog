@@ -6,10 +6,3 @@ export const listFormSchema = z.object({
 });
 
 export type ListFormData = z.infer<typeof listFormSchema>;
-
-export const listUpdateSchema = z.object({
-  id: z.string().min(1),
-  data: listFormSchema,
-});
-
-export type ListUpdateInput = z.infer<typeof listUpdateSchema>;

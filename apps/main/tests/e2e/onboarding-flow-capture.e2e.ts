@@ -34,8 +34,7 @@ const captureViewportByMode: Record<
 };
 
 const CAPTURE_DIR_NAME =
-  process.env.E2E_ONBOARDING_CAPTURE_DIR ??
-  `latest-${captureViewportMode}`;
+  process.env.E2E_ONBOARDING_CAPTURE_DIR ?? `latest-${captureViewportMode}`;
 const CAPTURE_RUN_INFO_PATH = path.join(
   CAPTURE_ROOT_DIR,
   CAPTURE_DIR_NAME,
@@ -63,13 +62,7 @@ async function waitForSettledPage(page: Page) {
   await page.waitForTimeout(100);
 }
 
-async function saveCapture({
-  page,
-  label,
-}: {
-  page: Page;
-  label: string;
-}) {
+async function saveCapture({ page, label }: { page: Page; label: string }) {
   if (!captureDirForRun) {
     throw new Error("Capture directory was not initialized.");
   }
@@ -127,7 +120,9 @@ async function cleanupPreviousCaptureUser() {
     }
 
     await deleteClerkUserByEmail(previousEmail);
-    console.log(`[onboarding-flow-capture] cleaned previous user ${previousEmail}`);
+    console.log(
+      `[onboarding-flow-capture] cleaned previous user ${previousEmail}`,
+    );
   } catch {
     // Ignore missing/invalid run info; this is best-effort cleanup.
   }
@@ -159,7 +154,9 @@ function logCaptureStep(label: string) {
 }
 
 async function clickPrimaryAction(page: Page) {
-  const primaryActionButton = page.getByTestId("start-onboarding-primary-action");
+  const primaryActionButton = page.getByTestId(
+    "start-onboarding-primary-action",
+  );
   const hasPrimaryAction = (await primaryActionButton.count()) > 0;
   if (!hasPrimaryAction) {
     return false;
@@ -195,7 +192,9 @@ async function fillInputWithRetry({
     await page.waitForTimeout(120);
   }
 
-  throw new Error(`Unable to set ${selector} to "${value}" during capture flow`);
+  throw new Error(
+    `Unable to set ${selector} to "${value}" during capture flow`,
+  );
 }
 
 test.describe("onboarding flow screenshot capture @capture", () => {
@@ -230,9 +229,15 @@ test.describe("onboarding flow screenshot capture @capture", () => {
       .waitFor({ state: "visible" });
 
     logCaptureStep("Start signup from home CTA");
-    await page.getByRole("button", { name: "Create your catalog" }).first().click();
+    await page
+      .getByRole("button", { name: "Create your catalog" })
+      .first()
+      .click();
     await expect(page).toHaveURL(/\/start-membership/);
-    await page.getByRole("button", { name: "Create your catalog" }).first().click();
+    await page
+      .getByRole("button", { name: "Create your catalog" })
+      .first()
+      .click();
     await clerkAuthModal.startSignUp();
 
     logCaptureStep("Submit signup email and verification code");
@@ -256,23 +261,29 @@ test.describe("onboarding flow screenshot capture @capture", () => {
     // Wait until profile data is available in onboarding before attempting save.
     logCaptureStep("Wait for onboarding profile readiness");
     await page
-      .locator('[data-testid="start-onboarding-page"][data-profile-ready="true"]')
+      .locator(
+        '[data-testid="start-onboarding-page"][data-profile-ready="true"]',
+      )
       .waitFor({ state: "visible" });
 
     logCaptureStep("Fill profile card fields");
     await page.locator("#garden-name").fill("Sunrise Daylily Farm");
     await page.locator("#garden-location").fill("Snohomish, WA");
     const starterOverlayCheckbox = page.locator("#starter-overlay");
-    if ((await starterOverlayCheckbox.getAttribute("aria-checked")) === "true") {
+    if (
+      (await starterOverlayCheckbox.getAttribute("aria-checked")) === "true"
+    ) {
       await starterOverlayCheckbox.click();
     }
     await page
       .locator('[data-testid="start-onboarding-page"] .overflow-x-auto button')
       .first()
       .click();
-    await page.locator("#garden-description").fill(
-      "Family-grown daylilies with seasonal shipping and collector-focused descriptions.",
-    );
+    await page
+      .locator("#garden-description")
+      .fill(
+        "Family-grown daylilies with seasonal shipping and collector-focused descriptions.",
+      );
 
     await saveCapture({
       page,
@@ -304,7 +315,8 @@ test.describe("onboarding flow screenshot capture @capture", () => {
     await fillInputWithRetry({
       page,
       selector: "#listing-description",
-      value: "Healthy spring fan with strong roots and bright rebloom potential.",
+      value:
+        "Healthy spring fan with strong roots and bright rebloom potential.",
     });
 
     await saveCapture({
@@ -351,7 +363,9 @@ test.describe("onboarding flow screenshot capture @capture", () => {
     }
 
     if (captureDirForRun) {
-      console.log(`[onboarding-flow-capture] Screenshots saved: ${captureDirForRun}`);
+      console.log(
+        `[onboarding-flow-capture] Screenshots saved: ${captureDirForRun}`,
+      );
     }
   });
 });

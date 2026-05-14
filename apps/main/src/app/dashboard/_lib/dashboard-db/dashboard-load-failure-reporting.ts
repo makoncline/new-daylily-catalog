@@ -2,8 +2,7 @@
 
 import { getErrorMessage, reportError } from "@/lib/error-utils";
 
-const TELEGRAM_ALERT_URL =
-  "https://send-to-makon.vercel.app/api/send-telegram";
+const TELEGRAM_ALERT_URL = "https://send-to-makon.vercel.app/api/send-telegram";
 
 interface DashboardLoadFailureBrowserContext {
   url?: string;
@@ -71,11 +70,13 @@ function getBrowserContext() {
   } satisfies DashboardLoadFailureBrowserContext;
 }
 
-function sendTelegramDashboardLoadFailure(args: DashboardLoadFailureReport & {
-  errorMessage: string;
-  sentryEventId: string | undefined;
-  browserContext: DashboardLoadFailureBrowserContext;
-}) {
+function sendTelegramDashboardLoadFailure(
+  args: DashboardLoadFailureReport & {
+    errorMessage: string;
+    sentryEventId: string | undefined;
+    browserContext: DashboardLoadFailureBrowserContext;
+  },
+) {
   if (typeof fetch === "undefined") return;
 
   try {
@@ -95,11 +96,13 @@ function sendTelegramDashboardLoadFailure(args: DashboardLoadFailureReport & {
   }
 }
 
-function buildTelegramMessage(args: DashboardLoadFailureReport & {
-  errorMessage: string;
-  sentryEventId: string | undefined;
-  browserContext: DashboardLoadFailureBrowserContext;
-}) {
+function buildTelegramMessage(
+  args: DashboardLoadFailureReport & {
+    errorMessage: string;
+    sentryEventId: string | undefined;
+    browserContext: DashboardLoadFailureBrowserContext;
+  },
+) {
   const context = args.browserContext;
   return [
     "Dashboard load failed",

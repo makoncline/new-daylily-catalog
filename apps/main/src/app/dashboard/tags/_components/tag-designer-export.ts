@@ -3,7 +3,6 @@
 export {
   createTagPrintDocumentHtml,
   createTagSheetDocumentHtml,
-  getSheetMarkup,
 } from "./tag-designer-html";
 export {
   buildTagSheetsHtmlFilename,

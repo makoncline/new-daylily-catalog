@@ -3,7 +3,6 @@
 import * as React from "react";
 import { cn } from "@/lib/utils";
 import { OptimizedImage } from "@/components/optimized-image";
-import { Skeleton } from "@/components/ui/skeleton";
 
 interface ImageData {
   id: string;
@@ -46,10 +45,11 @@ function Thumbnail({
   generateAltText,
 }: ThumbnailProps) {
   return (
-    <div
+    <button
+      type="button"
       className={cn(
-        "cursor-pointer overflow-hidden rounded-lg",
-        isSelected && "ring-2 ring-primary ring-offset-2",
+        "overflow-hidden rounded-lg",
+        isSelected && "ring-primary ring-2 ring-offset-2",
       )}
       onClick={onClick}
     >
@@ -59,7 +59,7 @@ function Thumbnail({
         size="thumbnail"
         className="h-full w-full"
       />
-    </div>
+    </button>
   );
 }
 
@@ -123,22 +123,6 @@ export function ImageGallery({
             ))
           : undefined
       }
-    />
-  );
-}
-
-interface ImageGallerySkeletonProps {
-  className?: string;
-}
-
-export function ImageGallerySkeleton({ className }: ImageGallerySkeletonProps) {
-  return (
-    <ImageGalleryLayout
-      className={className}
-      mainContent={<Skeleton className="aspect-square w-full" />}
-      thumbnailContent={Array.from({ length: 4 }).map((_, i) => (
-        <Skeleton key={i} className="aspect-square w-full rounded-lg" />
-      ))}
     />
   );
 }

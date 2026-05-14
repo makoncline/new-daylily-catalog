@@ -19,7 +19,9 @@ function inferProtocol(host: string, rawProtocol: string | null | undefined) {
 }
 
 function getVercelProjectProductionUrl() {
-  const productionHost = normalizeHost(process.env.VERCEL_PROJECT_PRODUCTION_URL);
+  const productionHost = normalizeHost(
+    process.env.VERCEL_PROJECT_PRODUCTION_URL,
+  );
   if (!productionHost) {
     return null;
   }
@@ -45,7 +47,10 @@ function getRequestOrigin(requestHeaders?: Headers | null) {
     requestHeaders?.get("x-forwarded-host") ?? requestHeaders?.get("host"),
   );
   if (host) {
-    const protocol = inferProtocol(host, requestHeaders?.get("x-forwarded-proto"));
+    const protocol = inferProtocol(
+      host,
+      requestHeaders?.get("x-forwarded-proto"),
+    );
     return `${protocol}://${host}`;
   }
 

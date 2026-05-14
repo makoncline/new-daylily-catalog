@@ -16,8 +16,18 @@ vi.mock("@/app/(public)/[userSlugOrId]/_components/content-section", () => ({
 }));
 
 vi.mock("@/app/(public)/[userSlugOrId]/_components/catalog-nav", () => ({
-  CatalogNav: ({ canonicalUserSlug }: { canonicalUserSlug: string }) => (
-    <div data-testid="catalog-nav" data-slug={canonicalUserSlug} />
+  CatalogNav: ({
+    canonicalUserSlug,
+    currentPage,
+  }: {
+    canonicalUserSlug: string;
+    currentPage: number;
+  }) => (
+    <div
+      data-testid="catalog-nav"
+      data-slug={canonicalUserSlug}
+      data-page={currentPage}
+    />
   ),
 }));
 
@@ -42,7 +52,7 @@ describe("ProfileContent", () => {
       content: null,
     };
 
-    render(<ProfileContent initialProfile={profile} />);
+    render(<ProfileContent initialProfile={profile} currentPage={1} />);
 
     const imageWrapper = screen.getByTestId("images-section").parentElement;
 

@@ -51,7 +51,11 @@ export function ManagedCreateDialog({
         <div className={bodyClassName}>{children}</div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={onCancel} disabled={cancelDisabled}>
+          <Button
+            variant="outline"
+            onClick={onCancel}
+            disabled={cancelDisabled}
+          >
             Cancel
           </Button>
           <Button onClick={onConfirm} disabled={confirmDisabled}>

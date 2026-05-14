@@ -24,7 +24,7 @@ export function CheckoutButton({
       disabled={isPending}
       {...props}
     >
-      <Sparkles className="mr-2 h-4 w-4" />
+      <Sparkles className="mr-2 size-4" />
       {children ?? (isPending ? "Loading..." : "Upgrade to Pro")}
     </Button>
   );

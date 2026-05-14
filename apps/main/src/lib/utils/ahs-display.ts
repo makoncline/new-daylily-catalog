@@ -73,7 +73,10 @@ type WithDisplayAhsListing<TSource extends AhsDisplaySource> = Omit<
 
 export type WithResolvedDisplayAhsListing<TSource extends AhsDisplaySource> =
   WithDisplayAhsListing<TSource> &
-    (TSource["cultivarReference"] extends infer TCultivarReference | null | undefined
+    (TSource["cultivarReference"] extends
+      | infer TCultivarReference
+      | null
+      | undefined
       ? {
           cultivarReference: TCultivarReference extends object
             ? Omit<NonNullable<TCultivarReference>, "ahsListing"> & {
@@ -170,7 +173,9 @@ function decodeNumericHtmlEntity(entity: string) {
   }
 }
 
-function isCombiningMarkName(value: string): value is keyof typeof combiningMarks {
+function isCombiningMarkName(
+  value: string,
+): value is keyof typeof combiningMarks {
   return value in combiningMarks;
 }
 
@@ -180,9 +185,8 @@ function decodeNamedHtmlEntity(entity: string) {
     return direct;
   }
 
-  const accentMatch = /^([A-Za-z])(acute|grave|circ|tilde|uml|ring|cedil)$/.exec(
-    entity,
-  );
+  const accentMatch =
+    /^([A-Za-z])(acute|grave|circ|tilde|uml|ring|cedil)$/.exec(entity);
   if (!accentMatch) {
     return null;
   }
@@ -247,10 +251,14 @@ function getLegacyAhsListing(source: AhsDisplaySource) {
 }
 
 function getV2AhsCultivar(source: AhsDisplaySource) {
-  return source.cultivarReference?.v2AhsCultivar ?? source.v2AhsCultivar ?? null;
+  return (
+    source.cultivarReference?.v2AhsCultivar ?? source.v2AhsCultivar ?? null
+  );
 }
 
-function getV2HybridizerDisplayValue(v2AhsCultivar: V2AhsCultivarDisplaySource) {
+function getV2HybridizerDisplayValue(
+  v2AhsCultivar: V2AhsCultivarDisplaySource,
+) {
   return (
     toNonEmptyDisplayValue(v2AhsCultivar.primary_hybridizer_name) ??
     decodeLegacyHybridizerValue(v2AhsCultivar.hybridizer_code_legacy) ??

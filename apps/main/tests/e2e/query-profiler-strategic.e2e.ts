@@ -23,7 +23,9 @@ async function visit(page: Page, path: string) {
 }
 
 async function clickLoadMoreIfVisible(page: Page) {
-  const loadMoreButton = page.getByRole("button", { name: /load more/i }).first();
+  const loadMoreButton = page
+    .getByRole("button", { name: /load more/i })
+    .first();
   const isVisible = await loadMoreButton.isVisible().catch(() => false);
   if (!isVisible) {
     return false;
@@ -59,7 +61,10 @@ test.describe("query profiler strategic navigation @profile", () => {
     await signInForProfileRun(page);
 
     await visit(page, "/dashboard/listings");
-    await visit(page, `/dashboard/listings?query=${encodeURIComponent(PROFILE_QUERY)}`);
+    await visit(
+      page,
+      `/dashboard/listings?query=${encodeURIComponent(PROFILE_QUERY)}`,
+    );
     await visit(
       page,
       `/dashboard/listings?query=${encodeURIComponent(PROFILE_QUERY)}&page=2`,

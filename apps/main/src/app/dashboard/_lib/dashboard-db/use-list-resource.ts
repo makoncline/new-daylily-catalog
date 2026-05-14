@@ -14,12 +14,15 @@ export interface UseListResourceResult {
 }
 
 export function useListResource(listId: string): UseListResourceResult {
-  const { data: lists = [], isReady } = useSeededDashboardDbQuery<ListCollectionItem>({
-    deps: [listId],
-    query: (q) =>
-      q.from({ list: listsCollection }).where(({ list }) => eq(list.id, listId)),
-    queryKey: DASHBOARD_DB_QUERY_KEYS.lists,
-  });
+  const { data: lists = [], isReady } =
+    useSeededDashboardDbQuery<ListCollectionItem>({
+      deps: [listId],
+      query: (q) =>
+        q
+          .from({ list: listsCollection })
+          .where(({ list }) => eq(list.id, listId)),
+      queryKey: DASHBOARD_DB_QUERY_KEYS.lists,
+    });
   const list = lists.find((candidate) => candidate.id === listId) ?? null;
 
   return {

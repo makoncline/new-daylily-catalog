@@ -17,7 +17,8 @@ export default function ProfilePage() {
   const formRef = useRef<ProfileFormHandle | null>(null);
   useSaveBeforeNavigate(formRef, "navigate");
 
-  const { data: profile, isLoading } = api.dashboardDb.userProfile.get.useQuery();
+  const { data: profile, isLoading } =
+    api.dashboardDb.userProfile.get.useQuery();
 
   if (isLoading || !profile) {
     return (

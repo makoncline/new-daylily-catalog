@@ -1,12 +1,12 @@
 import { type RouterOutputs } from "@/trpc/react";
 
-export const OFFER_QUERY_KEYS = {
+const OFFER_QUERY_KEYS = {
   sort: "offerSort",
   forSale: "offerForSale",
   hasPhoto: "offerHasPhoto",
 } as const;
 
-export const OFFER_SORT_OPTIONS = [
+const OFFER_SORT_OPTIONS = [
   "best-match",
   "price-asc",
   "price-desc",
@@ -15,7 +15,9 @@ export const OFFER_SORT_OPTIONS = [
 
 export type OfferSort = (typeof OFFER_SORT_OPTIONS)[number];
 
-type CultivarPageOutput = NonNullable<RouterOutputs["public"]["getCultivarPage"]>;
+type CultivarPageOutput = NonNullable<
+  RouterOutputs["public"]["getCultivarPage"]
+>;
 type OfferGardenCard = CultivarPageOutput["offers"]["gardenCards"][number];
 type OfferListing = OfferGardenCard["offers"][number];
 
@@ -181,7 +183,11 @@ function filterOffers(offers: OfferListing[], filters: OfferFilters) {
   });
 }
 
-function compareGardenCards(a: OfferGardenCard, b: OfferGardenCard, sort: OfferSort) {
+function compareGardenCards(
+  a: OfferGardenCard,
+  b: OfferGardenCard,
+  sort: OfferSort,
+) {
   const aTopOffer = a.offers[0];
   const bTopOffer = b.offers[0];
 
@@ -253,6 +259,9 @@ export function getFilteredGardenOffers(
 
   return {
     gardens,
-    offersCount: gardens.reduce((count, garden) => count + garden.offers.length, 0),
+    offersCount: gardens.reduce(
+      (count, garden) => count + garden.offers.length,
+      0,
+    ),
   };
 }

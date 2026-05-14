@@ -49,10 +49,10 @@ export function DataTableRowActions<TData extends { id: string }>({
         <DropdownMenuTrigger asChild>
           <Button
             variant="ghost"
-            className="data-[state=open]:bg-muted flex h-full w-full p-0"
+            className="data-[state=open]:bg-muted flex size-full p-0"
             data-testid="listing-row-actions-trigger"
           >
-            <DotsHorizontalIcon className="h-4 w-4" />
+            <DotsHorizontalIcon className="size-4" />
             <span className="sr-only">Open menu</span>
           </Button>
         </DropdownMenuTrigger>
@@ -64,7 +64,7 @@ export function DataTableRowActions<TData extends { id: string }>({
             }}
             data-testid="listing-row-action-edit"
           >
-            <Pencil className="mr-2 h-4 w-4" />
+            <Pencil className="mr-2 size-4" />
             Edit
           </DropdownMenuItem>
           <DropdownMenuSeparator />
@@ -76,7 +76,7 @@ export function DataTableRowActions<TData extends { id: string }>({
             }}
             data-testid="listing-row-action-delete"
           >
-            <Trash2 className="mr-2 h-4 w-4" />
+            <Trash2 className="mr-2 size-4" />
             Delete
           </DropdownMenuItem>
         </DropdownMenuContent>

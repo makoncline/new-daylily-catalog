@@ -4,7 +4,7 @@ import { useCart } from "@/hooks/use-cart";
 import { Button } from "@/components/ui/button";
 import { type CartItem } from "@/types";
 import { ShoppingCart, Check, Plus } from "lucide-react";
-import { useState } from "react";
+import { useState, type MouseEvent } from "react";
 import { toast } from "sonner";
 import {
   Tooltip,
@@ -35,7 +35,9 @@ export function AddToCartButton({
   const isInCart = items.some((item) => item.id === listing.id);
   const [isAdding, setIsAdding] = useState(false);
 
-  const handleAddToCart = () => {
+  const handleAddToCart = (event: MouseEvent<HTMLButtonElement>) => {
+    event.stopPropagation();
+    event.preventDefault();
     setIsAdding(true);
 
     // Create the cart item
@@ -75,12 +77,12 @@ export function AddToCartButton({
             onClick={handleAddToCart}
             disabled={isAdding}
           >
-            <ShoppingCart className="h-1 w-1" />
+            <ShoppingCart className="size-1" />
             <div className="h-3 w-px bg-current opacity-30" />
             {isInCart ? (
-              <Check className="h-1 w-1" />
+              <Check className="size-1" />
             ) : (
-              <Plus className="h-1 w-1" />
+              <Plus className="size-1" />
             )}
           </Button>
         </TooltipTrigger>

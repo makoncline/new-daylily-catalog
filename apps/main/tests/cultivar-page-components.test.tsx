@@ -13,14 +13,18 @@ import { CultivarGardenPhotosSection } from "@/app/(public)/cultivar/[cultivarNo
 import { CultivarRelatedSection } from "@/app/(public)/cultivar/[cultivarNormalizedName]/_components/cultivar-related-section";
 import { type RouterOutputs } from "@/trpc/react";
 
-type CultivarPageOutput = NonNullable<RouterOutputs["public"]["getCultivarPage"]>;
+type CultivarPageOutput = NonNullable<
+  RouterOutputs["public"]["getCultivarPage"]
+>;
 
 type HeroImage = CultivarPageOutput["heroImages"][number];
 type QuickSpec = CultivarPageOutput["quickSpecs"]["all"][number];
-type Offer = CultivarPageOutput["offers"]["gardenCards"][number]["offers"][number];
-type OfferGardenCard =
-  CultivarPageOutput["offers"]["gardenCards"][number];
+type Offer =
+  CultivarPageOutput["offers"]["gardenCards"][number]["offers"][number];
+type OfferGardenCard = CultivarPageOutput["offers"]["gardenCards"][number];
 type RelatedCultivar = CultivarPageOutput["relatedByHybridizer"][number];
+
+const GARDEN_PHOTO_UPDATED_AT = new Date("2026-02-11T00:00:00.000Z");
 
 describe("cultivar page components", () => {
   beforeEach(() => {
@@ -62,7 +66,9 @@ describe("cultivar page components", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /alternate image/i }));
 
-    expect(screen.getAllByRole("img", { name: /alternate image/i })[0]).toBeVisible();
+    expect(
+      screen.getAllByRole("img", { name: /alternate image/i })[0],
+    ).toBeVisible();
   });
 
   it("expands quick specs and copy includes summary details + all fields", async () => {
@@ -142,7 +148,9 @@ describe("cultivar page components", () => {
       "href",
       "/seeded-daylily?lists=list-1#listings",
     );
-    expect(screen.queryByRole("link", { name: /contact/i })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("link", { name: /contact/i }),
+    ).not.toBeInTheDocument();
     expect(screen.queryByText(/add to cart/i)).not.toBeInTheDocument();
   });
 
@@ -282,13 +290,15 @@ describe("cultivar page components", () => {
             listingTitle: "Coffee Frenzy Prime Fan",
             sellerSlug: "seeded-daylily",
             sellerTitle: "Seeded Daylily",
-            updatedAt: new Date("2026-02-11T00:00:00.000Z"),
+            updatedAt: GARDEN_PHOTO_UPDATED_AT,
           },
         ]}
       />,
     );
 
-    expect(screen.getByRole("heading", { level: 2, name: /photos in catalogs/i })).toBeVisible();
+    expect(
+      screen.getByRole("heading", { level: 2, name: /photos in catalogs/i }),
+    ).toBeVisible();
     expect(screen.queryByText(/add a photo/i)).not.toBeInTheDocument();
   });
 });
