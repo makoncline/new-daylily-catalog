@@ -160,17 +160,70 @@ describe("WebMcpProvider", () => {
 
     const provideContextInput = provideContext.mock.calls[0]?.[0];
     expect(provideContextInput?.tools).toHaveLength(11);
-    expect(provideContextInput?.tools[0]?.name).toBe(
-      "daylily.navigate",
-    );
+    expect(provideContextInput?.tools[0]?.name).toBe("daylily.navigate");
+  });
+
+  test("ignores duplicate tool registration errors on dashboard rerenders", async () => {
+    const registeredToolNames = new Set<string>();
+    const registerTool = vi.fn((tool: { name: string }) => {
+      if (registeredToolNames.has(tool.name)) {
+        throw new DOMException(
+          "Failed to execute 'registerTool' on 'ModelContext': Duplicate tool name",
+          "InvalidStateError",
+        );
+      }
+      registeredToolNames.add(tool.name);
+    });
+    setModelContext({ registerTool });
+
+    const { rerender } = render(<WebMcpProvider />);
+    await waitFor(() => {
+      expect(registerTool).toHaveBeenCalledTimes(11);
+    });
+
+    mocks.pathname = "/dashboard/listings";
+    rerender(<WebMcpProvider />);
+
+    await waitFor(() => {
+      expect(registerTool).toHaveBeenCalledTimes(22);
+    });
+    expect(registeredToolNames.size).toBe(11);
+  });
+
+  test("does not crash the dashboard when registerTool throws", async () => {
+    const registerTool = vi.fn(() => {
+      throw new Error("host WebMCP registration failed");
+    });
+    setModelContext({ registerTool });
+
+    render(<WebMcpProvider />);
+
+    await waitFor(() => {
+      expect(registerTool).toHaveBeenCalledTimes(11);
+    });
+  });
+
+  test("does not crash the dashboard when provideContext throws", async () => {
+    const provideContext = vi.fn(() => {
+      throw new Error("host WebMCP context failed");
+    });
+    setModelContext({ provideContext });
+
+    render(<WebMcpProvider />);
+
+    await waitFor(() => {
+      expect(provideContext).toHaveBeenCalled();
+    });
   });
 
   test("converts plain profile content into EditorJS paragraphs", async () => {
     const registerTool = vi.fn();
     setModelContext({ registerTool });
-    mocks.trpcClient.dashboardDb.userProfile.updateContent.mutate.mockResolvedValue({
-      id: "profile-1",
-    });
+    mocks.trpcClient.dashboardDb.userProfile.updateContent.mutate.mockResolvedValue(
+      {
+        id: "profile-1",
+      },
+    );
 
     render(<WebMcpProvider />);
     await waitFor(() => {
@@ -220,9 +273,11 @@ describe("WebMcpProvider", () => {
       price: 20,
     });
 
-    expect(mocks.trpcClient.dashboardDb.listing.get.query).toHaveBeenCalledWith({
-      id: "listing-1",
-    });
+    expect(mocks.trpcClient.dashboardDb.listing.get.query).toHaveBeenCalledWith(
+      {
+        id: "listing-1",
+      },
+    );
     expect(result.structuredContent).toMatchObject({
       ok: true,
       listing: { id: "listing-1", title: "Updated listing", price: 20 },

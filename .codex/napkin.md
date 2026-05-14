@@ -2,6 +2,7 @@
 
 ## Log
 
+- 2026-05-14 - Dashboard WebMCP best-effort invariant - `navigator.modelContext` setup can throw host-specific errors such as duplicate fixed tool names across provider rerenders/remounts. WebMCP must never break dashboard rendering; catch all setup/register/provide failures in `webmcp-provider.tsx`, accept that WebMCP may not work for that page load, and cover generic host throws plus rerenders in `tests/webmcp-provider.test.tsx`.
 - 2026-05-13 - Rolling Oaks ChatGPT MCP DB - For large-catalog ChatGPT app smoke tests, copy `/Users/makon/dev/new-daylily-catalog/prisma/local-prod-copy-daylily-catalog.db` to `apps/main/tests/.tmp/rolling-oaks-chatgpt-prod-copy.sqlite` and run the MCP dev server with that `DATABASE_URL`. RollingOaksDaylilies is `User.id='3'` / slug `rollingoaksdaylilies`, and the snapshot already mapped it to dev Clerk user `user_32T1tvQIoeDiev3SJwar7ogR8oo`.
 - 2026-05-13 - ChatGPT MCP settings refresh - ChatGPT kept stale Daylily Catalog MCP action metadata after server tool changes until the app registration was refreshed. After changing `/api/mcp/server`, open Settings -> Apps -> Daylily Catalog DEV and click Refresh before testing new tool selection in chats.
 - 2026-05-13 - Clerk dev OTP test emails - Clerk dev OTP `424242` only worked after switching the browser OAuth smoke user to an email containing `+clerk_test`; a generic `chatgpt-app-smoke+...@example.com` stayed stuck on the code screen. Use the Clerk test-address pattern for future browser auth smoke tests, then delete the user through the Clerk Backend API.
