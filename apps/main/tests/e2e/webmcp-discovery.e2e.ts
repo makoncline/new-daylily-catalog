@@ -36,6 +36,7 @@ test.describe("WebMCP discovery", () => {
       });
     });
 
+    await page.goto("/");
     await clerk.signIn({ page, emailAddress: TEST_USER.email });
     await page.goto("/dashboard");
     await expect(page).toHaveURL(/\/dashboard/);
