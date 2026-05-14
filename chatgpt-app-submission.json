@@ -1,0 +1,248 @@
+{
+  "$schema": "https://developers.openai.com/apps-sdk/schemas/chatgpt-app-submission.v1.json",
+  "schema_version": 1,
+  "app_info": {
+    "display_name": "Daylily Catalog",
+    "subtitle": "Browse daylily catalogs",
+    "description": "Daylily Catalog helps buyers search public daylily listings, compare prices and photos, inspect cultivar details, and browse grower catalogs. Signed-in growers can also ask ChatGPT to read their own catalog profile, lists, listings, private notes, images, and linked cultivar data.",
+    "category": "SHOPPING"
+  },
+  "tools": {
+    "daylily.search_cultivars": {
+      "annotations": {
+        "readOnlyHint": true,
+        "openWorldHint": false,
+        "destructiveHint": false
+      },
+      "justifications": {
+        "read_only_justification": "Searches public cultivar reference records and does not modify any catalog data.",
+        "open_world_justification": "Does not publish content, contact sellers, or change public internet state.",
+        "destructive_justification": "Does not delete, overwrite, revoke, or perform irreversible actions."
+      }
+    },
+    "daylily.get_cultivar": {
+      "annotations": {
+        "readOnlyHint": true,
+        "openWorldHint": false,
+        "destructiveHint": false
+      },
+      "justifications": {
+        "read_only_justification": "Retrieves one public cultivar reference record by identifier or normalized name.",
+        "open_world_justification": "Only returns existing cultivar data and does not write to external systems.",
+        "destructive_justification": "Does not delete, overwrite, revoke, or perform irreversible actions."
+      }
+    },
+    "daylily.search_public_listings": {
+      "annotations": {
+        "readOnlyHint": true,
+        "openWorldHint": false,
+        "destructiveHint": false
+      },
+      "justifications": {
+        "read_only_justification": "Searches public listing records from active catalogs without changing listings, lists, or profiles.",
+        "open_world_justification": "Does not publish listings, contact growers, or modify public catalog state.",
+        "destructive_justification": "Does not delete, overwrite, revoke, or perform irreversible actions."
+      }
+    },
+    "daylily.get_public_listing": {
+      "annotations": {
+        "readOnlyHint": true,
+        "openWorldHint": false,
+        "destructiveHint": false
+      },
+      "justifications": {
+        "read_only_justification": "Retrieves one public listing detail and excludes hidden listings and private notes.",
+        "open_world_justification": "Only reads public listing data and does not write to external systems.",
+        "destructive_justification": "Does not delete, overwrite, revoke, or perform irreversible actions."
+      }
+    },
+    "daylily.get_public_profile": {
+      "annotations": {
+        "readOnlyHint": true,
+        "openWorldHint": false,
+        "destructiveHint": false
+      },
+      "justifications": {
+        "read_only_justification": "Retrieves public seller profile details, public lists, images, and counts.",
+        "open_world_justification": "Only returns existing public profile data and does not change public state.",
+        "destructive_justification": "Does not delete, overwrite, revoke, or perform irreversible actions."
+      }
+    },
+    "daylily.list_public_profile_lists": {
+      "annotations": {
+        "readOnlyHint": true,
+        "openWorldHint": false,
+        "destructiveHint": false
+      },
+      "justifications": {
+        "read_only_justification": "Lists public seller collections without creating, editing, or hiding lists.",
+        "open_world_justification": "Does not publish content or modify external systems.",
+        "destructive_justification": "Does not delete, overwrite, revoke, or perform irreversible actions."
+      }
+    },
+    "daylily.list_public_listings": {
+      "annotations": {
+        "readOnlyHint": true,
+        "openWorldHint": false,
+        "destructiveHint": false
+      },
+      "justifications": {
+        "read_only_justification": "Lists public listings for a seller or public list and applies read-only filters.",
+        "open_world_justification": "Does not create orders, contact sellers, or modify public catalog state.",
+        "destructive_justification": "Does not delete, overwrite, revoke, or perform irreversible actions."
+      }
+    },
+    "daylily.get_profile": {
+      "annotations": {
+        "readOnlyHint": true,
+        "openWorldHint": false,
+        "destructiveHint": false
+      },
+      "justifications": {
+        "read_only_justification": "Retrieves the connected user's own Daylily Catalog profile without updating it.",
+        "open_world_justification": "Only reads authenticated account data and does not publish or modify public content.",
+        "destructive_justification": "Does not delete, overwrite, revoke, or perform irreversible actions."
+      }
+    },
+    "daylily.list_lists": {
+      "annotations": {
+        "readOnlyHint": true,
+        "openWorldHint": false,
+        "destructiveHint": false
+      },
+      "justifications": {
+        "read_only_justification": "Lists the connected user's catalog lists and listing ids without changing them.",
+        "open_world_justification": "Only reads authenticated catalog data and does not change public internet state.",
+        "destructive_justification": "Does not delete, overwrite, revoke, or perform irreversible actions."
+      }
+    },
+    "daylily.get_list": {
+      "annotations": {
+        "readOnlyHint": true,
+        "openWorldHint": false,
+        "destructiveHint": false
+      },
+      "justifications": {
+        "read_only_justification": "Retrieves one list owned by the connected user without editing list metadata or membership.",
+        "open_world_justification": "Only reads authenticated catalog data and does not publish or modify public state.",
+        "destructive_justification": "Does not delete, overwrite, revoke, or perform irreversible actions."
+      }
+    },
+    "daylily.list_listings": {
+      "annotations": {
+        "readOnlyHint": true,
+        "openWorldHint": false,
+        "destructiveHint": false
+      },
+      "justifications": {
+        "read_only_justification": "Searches and pages through the connected user's own listings, including private notes, without modifying records.",
+        "open_world_justification": "Only reads authenticated catalog data and does not create listings or publish updates.",
+        "destructive_justification": "Does not delete, overwrite, revoke, or perform irreversible actions."
+      }
+    },
+    "daylily.get_listing": {
+      "annotations": {
+        "readOnlyHint": true,
+        "openWorldHint": false,
+        "destructiveHint": false
+      },
+      "justifications": {
+        "read_only_justification": "Retrieves one listing owned by the connected user, including private notes and images, without updating it.",
+        "open_world_justification": "Only reads authenticated catalog data and does not change public or third-party systems.",
+        "destructive_justification": "Does not delete, overwrite, revoke, or perform irreversible actions."
+      }
+    }
+  },
+  "test_cases": [
+    {
+      "description": "Search public inventory for a buyer by color, price, and photo availability.",
+      "user_prompt": "Show me purple daylilies with photos that are under $25.",
+      "file_attachment_urls": null,
+      "tools_triggered": "daylily.search_public_listings",
+      "expected_output": "Returns matching public listings with cultivar, seller, price, photo, and pagination details without private notes.",
+      "expected_output_url": null
+    },
+    {
+      "description": "Browse one grower's public catalog and lists.",
+      "user_prompt": "What public lists does Rolling Oaks Daylilies have, and show me listings from one of those lists?",
+      "file_attachment_urls": null,
+      "tools_triggered": "daylily.get_public_profile, daylily.list_public_profile_lists, daylily.list_public_listings",
+      "expected_output": "Summarizes the public grower profile, public lists, and matching public listings for the selected list.",
+      "expected_output_url": null
+    },
+    {
+      "description": "Look up a specific public listing.",
+      "user_prompt": "Get the public listing details for a Daylily Catalog listing if I give you its seller slug and listing slug.",
+      "file_attachment_urls": null,
+      "tools_triggered": "daylily.get_public_listing",
+      "expected_output": "Returns the public listing detail or explains that the listing was not found or is not public.",
+      "expected_output_url": null
+    },
+    {
+      "description": "Research cultivar reference data.",
+      "user_prompt": "Find cultivars hybridized by Stamile with blue or purple color notes.",
+      "file_attachment_urls": null,
+      "tools_triggered": "daylily.search_cultivars",
+      "expected_output": "Returns public cultivar reference matches with names, hybridizers, years, colors, and canonical cultivar links when available.",
+      "expected_output_url": null
+    },
+    {
+      "description": "Read authenticated grower catalog profile and lists.",
+      "user_prompt": "After I connect my Daylily Catalog account, summarize my catalog profile and list names.",
+      "file_attachment_urls": null,
+      "tools_triggered": "daylily.get_profile, daylily.list_lists",
+      "expected_output": "Uses OAuth, then summarizes only the connected user's own profile and catalog lists.",
+      "expected_output_url": null
+    },
+    {
+      "description": "Search authenticated grower listings with advanced filters.",
+      "user_prompt": "After I connect my account, find my listings with no price and no uploaded listing photo.",
+      "file_attachment_urls": null,
+      "tools_triggered": "daylily.list_listings",
+      "expected_output": "Returns the connected user's own filtered listings and includes private owner fields where available.",
+      "expected_output_url": null
+    },
+    {
+      "description": "Inspect an authenticated grower's exact listing.",
+      "user_prompt": "After I connect my account, get this listing by id and tell me its private note, lists, images, and linked cultivar.",
+      "file_attachment_urls": null,
+      "tools_triggered": "daylily.get_listing",
+      "expected_output": "Returns one listing owned by the connected user or a not-found response if the listing is not theirs.",
+      "expected_output_url": null
+    }
+  ],
+  "negative_test_cases": [
+    {
+      "description": "Do not trigger for unrelated travel requests.",
+      "user_prompt": "Find me flights to Denver next weekend.",
+      "file_attachment_urls": null,
+      "tools_triggered": null,
+      "expected_output": "The app should not be invoked because the request is unrelated to daylily catalogs, listings, or cultivar research.",
+      "expected_output_url": null
+    },
+    {
+      "description": "Do not trigger for general gardening advice that does not require catalog data.",
+      "user_prompt": "How should I prune roses in spring?",
+      "file_attachment_urls": null,
+      "tools_triggered": null,
+      "expected_output": "The app should not be invoked because the request does not ask for Daylily Catalog data.",
+      "expected_output_url": null
+    },
+    {
+      "description": "Do not perform unsupported writes through the hosted app.",
+      "user_prompt": "Create a new listing in my Daylily Catalog account for a seedling and upload a photo.",
+      "file_attachment_urls": null,
+      "tools_triggered": null,
+      "expected_output": "The app should explain that the hosted ChatGPT app is read-only and cannot create listings or upload images.",
+      "expected_output_url": null
+    },
+    {
+      "description": "Do not reveal another grower's private catalog data.",
+      "user_prompt": "Show me private notes from Rolling Oaks Daylilies without connecting that owner's account.",
+      "file_attachment_urls": null,
+      "tools_triggered": null,
+      "expected_output": "The app should not provide private notes for another account and should only use public catalog tools unless the rightful owner connects.",
+      "expected_output_url": null
+    }
+  ]
+}
