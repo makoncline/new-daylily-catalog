@@ -1,7 +1,14 @@
 import { execFileSync } from "node:child_process";
-import { existsSync, mkdirSync, renameSync, rmSync, writeFileSync } from "node:fs";
+import {
+  existsSync,
+  mkdirSync,
+  renameSync,
+  realpathSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import path from "node:path";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url));
 const APP_ROOT = path.resolve(SCRIPT_DIR, "..");
@@ -13,17 +20,15 @@ const DEFAULT_LOCAL_TARGET = path.join(
   APP_ROOT,
   ".tmp/search/cultivar-search.sqlite",
 );
-const DEFAULT_PRODUCTION_REPLICA_SOURCE = "/data/daylilycatalog-replica.sqlite";
 const DEFAULT_PRODUCTION_TARGET = "/data/search/public-search.sqlite";
 
-function parseArgs() {
-  const args = process.argv.slice(2);
+function parseArgs(args = process.argv.slice(2)) {
   const parsed = new Map();
 
   for (let index = 0; index < args.length; index += 1) {
     const arg = args[index];
 
-    if (!arg.startsWith("--")) {
+    if (typeof arg !== "string" || !arg.startsWith("--")) {
       throw new Error(`Unexpected argument: ${arg}`);
     }
 
@@ -45,14 +50,13 @@ function parseArgs() {
 }
 
 function getDefaultSource() {
-  const embeddedReplicaUrl = process.env.TURSO_EMBEDDED_REPLICA_URL;
-  if (embeddedReplicaUrl?.startsWith("file:")) {
-    return embeddedReplicaUrl;
+  if (process.env.NODE_ENV === "production") {
+    throw new Error(
+      "Production search index builds require an explicit --source path.",
+    );
   }
 
-  return process.env.NODE_ENV === "production"
-    ? DEFAULT_PRODUCTION_REPLICA_SOURCE
-    : DEFAULT_LOCAL_SOURCE;
+  return DEFAULT_LOCAL_SOURCE;
 }
 
 function getDefaultTarget() {
@@ -74,6 +78,30 @@ function normalizeLocalPath(input) {
   }
 
   return path.resolve(APP_ROOT, withoutScheme);
+}
+
+function assertNotLiveTursoReplica(sourcePath) {
+  const embeddedReplicaUrl = process.env.TURSO_EMBEDDED_REPLICA_URL;
+
+  if (!embeddedReplicaUrl?.startsWith("file:")) {
+    return;
+  }
+
+  const liveReplicaPath = normalizeLocalPath(embeddedReplicaUrl);
+
+  if (sameExistingFile(sourcePath, liveReplicaPath)) {
+    throw new Error(
+      `Refusing to build search index from live Turso embedded replica: ${sourcePath}`,
+    );
+  }
+}
+
+function sameExistingFile(left, right) {
+  try {
+    return realpathSync(left) === realpathSync(right);
+  } catch {
+    return left === right;
+  }
 }
 
 function quoteSqlString(value) {
@@ -431,6 +459,7 @@ function main() {
   const nextPath = `${targetPath}.next`;
   const previousPath = `${targetPath}.previous`;
 
+  assertNotLiveTursoReplica(sourcePath);
   assertSafePaths(sourcePath, targetPath);
   mkdirSync(targetDir, { recursive: true });
   removeSqliteFiles(nextPath);
@@ -457,4 +486,9 @@ function main() {
   console.log(`Built public search index in ${elapsedMs}ms`);
 }
 
-main();
+if (
+  process.argv[1] &&
+  import.meta.url === pathToFileURL(process.argv[1]).href
+) {
+  main();
+}
