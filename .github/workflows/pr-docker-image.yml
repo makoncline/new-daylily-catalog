@@ -102,11 +102,6 @@ jobs:
             exit 1
           fi
 
-          if [ -z "$BUILD_NEXT_PUBLIC_SENTRY_ENABLED" ] || [ -z "$BUILD_NEXT_PUBLIC_POSTHOG_KEY" ] || [ -z "$BUILD_NEXT_PUBLIC_POSTHOG_HOST" ]; then
-            echo "Configure NEXT_PUBLIC_SENTRY_ENABLED, NEXT_PUBLIC_POSTHOG_KEY, and NEXT_PUBLIC_POSTHOG_HOST in the '$BUILD_ENVIRONMENT_NAME' environment." >&2
-            exit 1
-          fi
-
           cat > "$BUILD_ENV_FILE" <<EOF
           APP_BASE_URL=$BUILD_APP_BASE_URL
           NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=$BUILD_CLERK_PUBLISHABLE_KEY

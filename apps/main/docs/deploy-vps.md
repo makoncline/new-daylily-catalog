@@ -183,11 +183,14 @@ For a non-Vercel CI build that still generates correct public metadata and sitem
 - `APP_BASE_URL` set to the canonical public origin (`https://daylilycatalog.com` in production)
 - `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`
 - `NEXT_PUBLIC_CLOUDFLARE_URL`
+- `DATABASE_URL`
+- `TURSO_DATABASE_AUTH_TOKEN` when `DATABASE_URL` uses `libsql://`
+
+Optional observability env:
+
 - `NEXT_PUBLIC_SENTRY_ENABLED`
 - `NEXT_PUBLIC_POSTHOG_KEY`
 - `NEXT_PUBLIC_POSTHOG_HOST`
-- `DATABASE_URL`
-- `TURSO_DATABASE_AUTH_TOKEN` when `DATABASE_URL` uses `libsql://`
 
 Notes:
 
