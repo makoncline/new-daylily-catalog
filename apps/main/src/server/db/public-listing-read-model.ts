@@ -9,7 +9,10 @@ import {
 import { getProUserIds } from "@/server/db/getProUserIds";
 import { replicaDb } from "@/server/db";
 import { getUserIdFromSlugOrId } from "@/server/db/getPublicProfile";
-import { isPublished } from "@/server/db/public-visibility/filters";
+import {
+  isPublicList,
+  isPublished,
+} from "@/server/db/public-visibility/filters";
 
 export const publicListingSelect = {
   id: true,
@@ -30,6 +33,7 @@ export const publicListingSelect = {
     },
   },
   lists: {
+    where: isPublicList(),
     select: {
       id: true,
       title: true,

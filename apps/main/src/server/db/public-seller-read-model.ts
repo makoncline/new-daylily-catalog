@@ -3,7 +3,10 @@ import { TRPCError } from "@trpc/server";
 import { replicaDb } from "@/server/db";
 import { getLatestDate } from "@/server/db/public-date-utils";
 import { getProUserIds } from "@/server/db/getProUserIds";
-import { isPublished } from "@/server/db/public-visibility/filters";
+import {
+  isPublicList,
+  isPublished,
+} from "@/server/db/public-visibility/filters";
 import { parseAndSanitizeEditorJsContent } from "@/server/security/editor-js-content";
 
 export interface PublicSellerSummary {
@@ -197,10 +200,13 @@ export async function getPublicSellerSummariesByUserIds(
             listings: {
               where: isPublished(),
             },
-            lists: true,
+            lists: {
+              where: isPublicList(),
+            },
           },
         },
         lists: {
+          where: isPublicList(),
           select: {
             updatedAt: true,
           },
@@ -273,6 +279,7 @@ export async function getPublicSellerListSummariesByUserIds(userIds: string[]) {
 
   const rows = await replicaDb.list.findMany({
     where: {
+      ...isPublicList(),
       userId: {
         in: userIds,
       },
