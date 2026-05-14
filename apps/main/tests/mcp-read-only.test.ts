@@ -1,5 +1,8 @@
 // @vitest-environment node
 
+process.env.SKIP_ENV_VALIDATION = "1";
+process.env.DATABASE_URL ??= "file:./tests/.tmp/mcp-read-only.sqlite";
+
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
