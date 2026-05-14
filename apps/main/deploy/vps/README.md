@@ -17,6 +17,7 @@ Embedded Turso replica:
 - Leave `DATABASE_URL` set to the remote `libsql://...` Turso URL.
 - Set `TURSO_EMBEDDED_REPLICA_URL=file:/data/turso-replica.db` on the VPS to serve public page reads from the local replica while dashboard reads and all writes continue to go to Turso.
 - `TURSO_EMBEDDED_REPLICA_SYNC_INTERVAL_SECONDS` controls periodic pull sync; the template uses 600 seconds because only public pages read from the replica.
+- `PUBLIC_SEARCH_INDEX_REFRESH_INTERVAL_SECONDS` controls the public search source-replica sync/rebuild cadence; set it to `0` to stop search index rebuilds without rebuilding the image.
 - `compose.yaml` mounts `/srv/stacks/daylilycatalog/data` at `/data` so the replica file survives container replacement.
 
 Config sync:
