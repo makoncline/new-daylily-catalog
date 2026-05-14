@@ -76,7 +76,7 @@ describe("proxy matcher", () => {
     ).toBe(false);
   });
 
-  it("still runs for protected and auth-backed tRPC routes", async () => {
+  it("still runs for protected and auth-backed routes", async () => {
     const { config } = await import("@/proxy");
 
     expect(
@@ -97,6 +97,12 @@ describe("proxy matcher", () => {
         url: "/api/trpc/dashboardDb.user.getCurrentUser",
       }),
     ).toBe(true);
+    expect(
+      unstable_doesMiddlewareMatch({
+        config,
+        url: "/api/mcp/server",
+      }),
+    ).toBe(false);
     expect(
       unstable_doesMiddlewareMatch({
         config,

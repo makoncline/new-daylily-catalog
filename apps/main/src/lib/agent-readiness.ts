@@ -1,3 +1,5 @@
+import { getCanonicalBaseUrl } from "@/lib/utils/getBaseUrl";
+
 export const AI_AGENT_USER_AGENTS = [
   "ClaudeBot",
   "Claude-User",
@@ -40,6 +42,87 @@ export const AGENT_DISCOVERY_HEADERS = {
   "Cache-Control": "no-store",
 } as const;
 
+const OAUTH_SCOPES_SUPPORTED = [
+  "email",
+  "offline_access",
+  "profile",
+] as const;
+
+const OAUTH_PROTECTED_RESOURCE_SCOPES = ["profile"] as const;
+
+export function getOAuthScopesSupported(): string[] {
+  return [...OAUTH_SCOPES_SUPPORTED];
+}
+
+export function getOAuthProtectedResourceScopes(): string[] {
+  return [...OAUTH_PROTECTED_RESOURCE_SCOPES];
+}
+
+function getClerkIssuerFromPublishableKey() {
+  const publishableKey = process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY;
+  const encoded = publishableKey?.replace(/^pk_(?:test|live)_/, "");
+  if (!encoded || encoded === publishableKey) {
+    return null;
+  }
+
+  try {
+    const decoded = atob(encoded);
+    const host = decoded.replace(/\$$/, "").trim();
+    if (!host || host.includes("/") || host.includes(":")) {
+      return null;
+    }
+    return `https://${host}`;
+  } catch {
+    return null;
+  }
+}
+
+function getFallbackClerkIssuer(baseUrl: string) {
+  try {
+    const hostname = new URL(baseUrl).hostname;
+    if (hostname === "localhost" || hostname === "127.0.0.1") {
+      return baseUrl;
+    }
+    return `https://clerk.${hostname}`;
+  } catch {
+    return baseUrl;
+  }
+}
+
+export function getOAuthIssuer(baseUrl: string) {
+  return getClerkIssuerFromPublishableKey() ?? getFallbackClerkIssuer(baseUrl);
+}
+
+export function getOAuthAuthorizationServerMetadata(baseUrl: string) {
+  const issuer = getOAuthIssuer(baseUrl);
+
+  return {
+    issuer,
+    authorization_endpoint: `${issuer}/oauth/authorize`,
+    token_endpoint: `${issuer}/oauth/token`,
+    jwks_uri: `${issuer}/.well-known/jwks.json`,
+    response_types_supported: ["code"],
+    grant_types_supported: ["authorization_code", "refresh_token"],
+    token_endpoint_auth_methods_supported: ["client_secret_basic", "none"],
+    scopes_supported: OAUTH_SCOPES_SUPPORTED,
+    subject_types_supported: ["public"],
+    id_token_signing_alg_values_supported: ["RS256"],
+    claims_supported: ["sub", "iss", "aud", "exp", "iat", "email", "name"],
+    service_documentation: "https://clerk.com/docs",
+    code_challenge_methods_supported: ["S256"],
+  };
+}
+
+export function getOAuthProtectedResourceMetadata(baseUrl: string) {
+  return {
+    resource: baseUrl,
+    authorization_servers: [getOAuthIssuer(baseUrl)],
+    scopes_supported: OAUTH_PROTECTED_RESOURCE_SCOPES,
+    bearer_methods_supported: ["header"],
+    resource_documentation: `${baseUrl}/llms-full.txt`,
+  };
+}
+
 export function getRequestBaseUrl(request: Request | undefined): string | null {
   if (!request) {
     return null;
@@ -49,7 +132,11 @@ export function getRequestBaseUrl(request: Request | undefined): string | null {
   const host = forwardedHost ?? request.headers.get("host");
 
   if (!host) {
-    return null;
+    try {
+      return new URL(request.url).origin;
+    } catch {
+      return null;
+    }
   }
 
   const forwardedProto = request.headers.get("x-forwarded-proto");
@@ -57,6 +144,15 @@ export function getRequestBaseUrl(request: Request | undefined): string | null {
     forwardedProto ?? (host.startsWith("localhost") ? "http" : "https");
 
   return `${protocol}://${host}`;
+}
+
+export function getTrustedBaseUrl(request: Request | undefined): string {
+  const canonicalBaseUrl = getCanonicalBaseUrl();
+  if (process.env.NODE_ENV === "production") {
+    return canonicalBaseUrl;
+  }
+
+  return getRequestBaseUrl(request) ?? canonicalBaseUrl;
 }
 
 export function getLlmsTxt(baseUrl: string): string {
