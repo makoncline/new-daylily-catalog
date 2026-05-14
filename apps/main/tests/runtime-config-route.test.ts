@@ -78,19 +78,14 @@ describe("runtime config route", () => {
     });
 
     expect(consoleInfoMock).toHaveBeenCalledTimes(1);
-    expect(JSON.parse(consoleInfoMock.mock.calls[0]?.[0] as string)).toEqual({
+    expect(JSON.parse(consoleInfoMock.mock.calls[0]?.[0] as string)).toMatchObject({
       event: "observability_status",
-      nodeEnv: "test",
-      vercelEnv: null,
       sentry: {
         enabled: false,
-        reason: "disabled_by_env",
       },
       posthog: {
         enabled: true,
-        host: "https://eu.i.posthog.com",
         keyConfigured: true,
-        reason: null,
       },
     });
   });

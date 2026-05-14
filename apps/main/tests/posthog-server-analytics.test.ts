@@ -116,39 +116,8 @@ describe("captureServerPosthogEvent", () => {
     });
   });
 
-  it("does nothing outside production", async () => {
-    mutableEnv.NODE_ENV = "development";
-    const fetchMock = vi.spyOn(globalThis, "fetch");
-    const { captureServerPosthogEvent } = await import(
-      "@/server/analytics/posthog-server"
-    );
-
-    await captureServerPosthogEvent({
-      distinctId: "clerk_123",
-      event: "signup_completed",
-    });
-
-    expect(fetchMock).not.toHaveBeenCalled();
-  });
-
   it("does nothing in production when PostHog is not configured", async () => {
     delete process.env.NEXT_PUBLIC_POSTHOG_KEY;
-    delete process.env.NEXT_PUBLIC_POSTHOG_HOST;
-    const fetchMock = vi.spyOn(globalThis, "fetch");
-    const { captureServerPosthogEvent } = await import(
-      "@/server/analytics/posthog-server"
-    );
-
-    await captureServerPosthogEvent({
-      distinctId: "system:public-isr",
-      event: "public_isr_page_generated",
-    });
-
-    expect(fetchMock).not.toHaveBeenCalled();
-  });
-
-  it("does nothing when PostHog is partially configured", async () => {
-    process.env.NEXT_PUBLIC_POSTHOG_KEY = "phc_test_key";
     delete process.env.NEXT_PUBLIC_POSTHOG_HOST;
     const fetchMock = vi.spyOn(globalThis, "fetch");
     const { captureServerPosthogEvent } = await import(

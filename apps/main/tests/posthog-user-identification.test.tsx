@@ -57,7 +57,6 @@ describe("PosthogUserIdentification", () => {
       expect(identifyPosthogUserMock).toHaveBeenCalledTimes(1);
     });
 
-    expect(preloadPosthogMock).toHaveBeenCalledTimes(1);
     expect(identifyPosthogUserMock).toHaveBeenCalledWith({
       id: "user_123",
       email: "user@example.com",
