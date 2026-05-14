@@ -1,9 +1,9 @@
 import { TRPCError } from "@trpc/server";
-import { auth } from "@clerk/nextjs/server";
 import {
   createTRPCRouter,
   protectedProcedure,
   publicProcedure,
+  resolveAuthenticatedClerkUserId,
 } from "@/server/api/trpc";
 import type { TRPCInternalContext } from "@/server/api/trpc";
 
@@ -15,7 +15,7 @@ export const dashboardDbUserRouter = createTRPCRouter({
       return { id: contextUser.id };
     }
 
-    const { userId: clerkUserId } = await auth();
+    const clerkUserId = await resolveAuthenticatedClerkUserId();
 
     if (!clerkUserId) {
       throw new TRPCError({
