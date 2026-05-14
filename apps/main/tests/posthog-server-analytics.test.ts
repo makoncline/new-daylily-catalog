@@ -130,4 +130,35 @@ describe("captureServerPosthogEvent", () => {
 
     expect(fetchMock).not.toHaveBeenCalled();
   });
+
+  it("does nothing in production when PostHog is not configured", async () => {
+    delete process.env.NEXT_PUBLIC_POSTHOG_KEY;
+    delete process.env.NEXT_PUBLIC_POSTHOG_HOST;
+    const fetchMock = vi.spyOn(globalThis, "fetch");
+    const { captureServerPosthogEvent } = await import(
+      "@/server/analytics/posthog-server"
+    );
+
+    await captureServerPosthogEvent({
+      distinctId: "system:public-isr",
+      event: "public_isr_page_generated",
+    });
+
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("throws when PostHog is partially configured", async () => {
+    process.env.NEXT_PUBLIC_POSTHOG_KEY = "phc_test_key";
+    delete process.env.NEXT_PUBLIC_POSTHOG_HOST;
+    const { captureServerPosthogEvent } = await import(
+      "@/server/analytics/posthog-server"
+    );
+
+    await expect(
+      captureServerPosthogEvent({
+        distinctId: "system:public-isr",
+        event: "public_isr_page_generated",
+      }),
+    ).rejects.toThrow("NEXT_PUBLIC_POSTHOG_HOST is required.");
+  });
 });

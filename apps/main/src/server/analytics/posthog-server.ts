@@ -1,4 +1,4 @@
-import { getRuntimePosthogConfig } from "@/lib/observability-env";
+import { getOptionalRuntimePosthogConfig } from "@/lib/observability-env";
 
 interface CaptureServerPosthogEventInput {
   distinctId: string;
@@ -11,7 +11,7 @@ function getPosthogServerConfig() {
     return null;
   }
 
-  return getRuntimePosthogConfig();
+  return getOptionalRuntimePosthogConfig();
 }
 
 export async function captureServerPosthogEvent({

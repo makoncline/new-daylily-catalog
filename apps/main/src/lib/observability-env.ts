@@ -28,14 +28,40 @@ export function getRuntimeSentryEnabled() {
 
 export function getRuntimePosthogConfig() {
   const host = requireRuntimeEnv(POSTHOG_HOST_ENV_NAME);
+  return {
+    host: parsePosthogHost(host),
+    posthogKey: requireRuntimeEnv(POSTHOG_KEY_ENV_NAME),
+  };
+}
+
+export function getOptionalRuntimePosthogConfig() {
+  const posthogKey = readRuntimeEnv(POSTHOG_KEY_ENV_NAME);
+  const host = readRuntimeEnv(POSTHOG_HOST_ENV_NAME);
+
+  if (!posthogKey && !host) {
+    return null;
+  }
+
+  if (!posthogKey) {
+    throw new Error(`${POSTHOG_KEY_ENV_NAME} is required.`);
+  }
+
+  if (!host) {
+    throw new Error(`${POSTHOG_HOST_ENV_NAME} is required.`);
+  }
+
+  return {
+    host: parsePosthogHost(host),
+    posthogKey,
+  };
+}
+
+function parsePosthogHost(host: string) {
   try {
     new URL(host);
   } catch {
     throw new Error(`${POSTHOG_HOST_ENV_NAME} must be a valid URL.`);
   }
 
-  return {
-    host,
-    posthogKey: requireRuntimeEnv(POSTHOG_KEY_ENV_NAME),
-  };
+  return host;
 }
