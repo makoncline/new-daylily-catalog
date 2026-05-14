@@ -27,6 +27,8 @@ const grepInvert = (() => {
 })();
 
 process.env.NEXT_PUBLIC_SENTRY_ENABLED = "false";
+process.env.NEXT_PUBLIC_POSTHOG_KEY = "phc_test_key";
+process.env.NEXT_PUBLIC_POSTHOG_HOST = "https://us.i.posthog.com";
 
 // Pre-provision temp DB path when running locally (not attaching to BASE_URL)
 // DB template copy and clearing is handled by global-setup.ts
@@ -92,6 +94,8 @@ export default defineConfig({
           ...process.env,
           PORT: e2ePort,
           NEXT_PUBLIC_SENTRY_ENABLED: "false",
+          NEXT_PUBLIC_POSTHOG_KEY: "phc_test_key",
+          NEXT_PUBLIC_POSTHOG_HOST: "https://us.i.posthog.com",
           DATABASE_URL: process.env.DATABASE_URL!,
           E2E_TEST_DB_URL: process.env.E2E_TEST_DB_URL!,
           SKIP_ENV_VALIDATION: "1",

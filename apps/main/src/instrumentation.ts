@@ -1,7 +1,8 @@
 import * as Sentry from "@sentry/nextjs";
 import type { Instrumentation } from "next";
+import { getRuntimeSentryEnabled } from "@/lib/observability-env";
 
-const isSentryEnabled = process.env.NEXT_PUBLIC_SENTRY_ENABLED !== "false";
+const isSentryEnabled = getRuntimeSentryEnabled();
 
 export async function register() {
   if (!isSentryEnabled) {

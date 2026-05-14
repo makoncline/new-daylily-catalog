@@ -4,7 +4,6 @@ import * as dotenv from "dotenv";
 import path from "path";
 import { fileURLToPath } from "url";
 
-const booleanStringSchema = z.union([z.literal("true"), z.literal("false")]);
 const appRoot = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
   "..",
@@ -36,27 +35,16 @@ export const env = createEnv({
     AWS_SECRET_ACCESS_KEY: z.string().optional(),
     AWS_REGION: z.string().optional(),
     AWS_BUCKET_NAME: z.string().optional(),
-    SENTRY_DSN: z.string().url().optional(),
     SENTRY_AUTH_TOKEN: z.string().optional(),
     NODE_ENV: z.enum(["development", "test", "production"]),
   },
   client: {
     NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: z.string(),
     NEXT_PUBLIC_CLOUDFLARE_URL: z.string(),
-    NEXT_PUBLIC_SENTRY_ENABLED: z
-      .union([z.literal("true"), z.literal("false")])
-      .optional()
-      .default("true"),
-    NEXT_PUBLIC_SENTRY_DSN: z.string().url().optional(),
     NEXT_PUBLIC_USE_V2_CULTIVAR_DISPLAY_DATA: z
       .union([z.literal("true"), z.literal("false")])
       .optional()
       .default("false"),
-    NEXT_PUBLIC_POSTHOG_KEY: z.string().optional().default(""),
-    NEXT_PUBLIC_POSTHOG_HOST: z
-      .string()
-      .optional()
-      .default("https://us.i.posthog.com"),
   },
   runtimeEnv: {
     APP_BASE_URL: process.env.APP_BASE_URL,
@@ -82,15 +70,10 @@ export const env = createEnv({
     AWS_SECRET_ACCESS_KEY: process.env.AWS_SECRET_ACCESS_KEY,
     AWS_REGION: process.env.AWS_REGION,
     AWS_BUCKET_NAME: process.env.AWS_BUCKET_NAME,
-    SENTRY_DSN: process.env.SENTRY_DSN,
     SENTRY_AUTH_TOKEN: process.env.SENTRY_AUTH_TOKEN,
     NODE_ENV: process.env.NODE_ENV,
-    NEXT_PUBLIC_SENTRY_ENABLED: process.env.NEXT_PUBLIC_SENTRY_ENABLED,
-    NEXT_PUBLIC_SENTRY_DSN: process.env.NEXT_PUBLIC_SENTRY_DSN,
     NEXT_PUBLIC_USE_V2_CULTIVAR_DISPLAY_DATA:
       process.env.NEXT_PUBLIC_USE_V2_CULTIVAR_DISPLAY_DATA,
-    NEXT_PUBLIC_POSTHOG_KEY: process.env.NEXT_PUBLIC_POSTHOG_KEY,
-    NEXT_PUBLIC_POSTHOG_HOST: process.env.NEXT_PUBLIC_POSTHOG_HOST,
   },
   skipValidation: !!process.env.SKIP_ENV_VALIDATION,
   emptyStringAsUndefined: true,

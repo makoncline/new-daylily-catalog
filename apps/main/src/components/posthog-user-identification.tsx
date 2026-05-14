@@ -2,12 +2,20 @@
 
 import { useUser } from "@clerk/nextjs";
 import { useEffect } from "react";
-import { identifyPosthogUser, resetPosthogUser } from "@/lib/analytics/posthog";
+import {
+  identifyPosthogUser,
+  preloadPosthog,
+  resetPosthogUser,
+} from "@/lib/analytics/posthog";
 
 export function PosthogUserIdentification() {
   const { isLoaded, isSignedIn, user } = useUser();
   const userId = user?.id;
   const userEmail = user?.primaryEmailAddress?.emailAddress;
+
+  useEffect(() => {
+    preloadPosthog();
+  }, []);
 
   useEffect(() => {
     if (!isLoaded) {

@@ -4,17 +4,16 @@
 // https://docs.sentry.io/platforms/javascript/guides/nextjs/
 
 import * as Sentry from "@sentry/nextjs";
+import { SENTRY_DSN } from "./src/lib/sentry-config";
+import { getRuntimeSentryEnabled } from "./src/lib/observability-env";
 
-const isSentryEnabled = process.env.NEXT_PUBLIC_SENTRY_ENABLED !== "false";
+const isSentryEnabled = getRuntimeSentryEnabled();
 const isProduction = process.env.NODE_ENV === "production";
-const sentryDsn =
-  process.env.SENTRY_DSN ??
-  process.env.NEXT_PUBLIC_SENTRY_DSN ??
-  "https://b3773458fec6aa0c594a9c1c73ed046a@o1136137.ingest.us.sentry.io/4508939597643776";
 
 if (isSentryEnabled) {
   Sentry.init({
-    dsn: sentryDsn,
+    dsn: SENTRY_DSN,
+    environment: process.env.NODE_ENV,
 
     // Enable logs to be sent to Sentry
     enableLogs: true,

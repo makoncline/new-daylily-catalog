@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import type { ReactNode } from "react";
+import { capturePosthogEvent } from "@/lib/analytics/posthog";
 
 interface SellerIntentLinkProps {
   href?: string;
@@ -29,18 +30,7 @@ export function SellerIntentLink({
       sourcePath ?? globalThis.location?.pathname ?? "/";
     const resolvedSourcePageType = sourcePageType ?? "public";
 
-    const posthog = (
-      globalThis as {
-        posthog?: {
-          capture?: (
-            eventName: string,
-            properties?: Record<string, unknown>,
-          ) => void;
-        };
-      }
-    ).posthog;
-
-    posthog?.capture?.("seller_cta_clicked", {
+    capturePosthogEvent("seller_cta_clicked", {
       entry_surface: entrySurface,
       source_page_type: resolvedSourcePageType,
       source_path: resolvedSourcePath,

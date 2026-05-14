@@ -23,10 +23,14 @@ Required environment setup:
   - Variable: `APP_BASE_URL` set to `https://daylilycatalog.com`
   - Variable: `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`
   - Variable: `NEXT_PUBLIC_CLOUDFLARE_URL`
+  - Variable: `NEXT_PUBLIC_SENTRY_ENABLED`
+  - Variable: `NEXT_PUBLIC_POSTHOG_KEY`
+  - Variable: `NEXT_PUBLIC_POSTHOG_HOST`
   - Variable: `STRIPE_PRICE_ID`
   - Variable: `DATABASE_URL`
   - Secret: `TURSO_DATABASE_AUTH_TOKEN`
   - Secret: `STRIPE_SECRET_KEY` optional for cold-cache-safe production Docker builds
+  - Secret: `SENTRY_AUTH_TOKEN` optional for source-map upload during Docker image builds
   - Secret: `DEPLOY_WEBHOOK_TOKEN`
 - `preview` environment:
   - Variable: `APP_BASE_URL` set to the preview deployment origin for that environment
@@ -77,6 +81,9 @@ Non-secrets:
 - `AWS_BUCKET_NAME`
 - `STRIPE_PRICE_ID`
 - `DATABASE_URL`
+- `NEXT_PUBLIC_SENTRY_ENABLED`
+- `NEXT_PUBLIC_POSTHOG_KEY`
+- `NEXT_PUBLIC_POSTHOG_HOST`
 
 Secrets:
 
@@ -90,9 +97,6 @@ Secrets:
 
 Optional:
 
-- `NEXT_PUBLIC_SENTRY_ENABLED` (defaults to `true`; set to `false` if you want Sentry disabled)
-- `NEXT_PUBLIC_POSTHOG_KEY`
-- `NEXT_PUBLIC_POSTHOG_HOST` (defaults to `https://us.i.posthog.com`)
 - `SENTRY_AUTH_TOKEN`
 
 ### Optional local SQLite runtime mode
@@ -159,6 +163,7 @@ install -d -o 1001 -g 1001 /srv/stacks/daylilycatalog/next-cache
 ## Image Build
 
 The Docker build prerenders static public routes and sitemap data, so build with the same env file you plan to run in production.
+Sentry support is always included in the Docker build so source maps and runtime instrumentation stay available. Browser observability reads `NEXT_PUBLIC_SENTRY_ENABLED`, `NEXT_PUBLIC_POSTHOG_KEY`, and `NEXT_PUBLIC_POSTHOG_HOST` from the running container through `/api/runtime-config`; server Sentry reads `NEXT_PUBLIC_SENTRY_ENABLED` through the runtime env helper. Changing the VPS `.env` and restarting the container can turn observability on or off without rebuilding the image.
 
 GitHub Actions now hashes the generated Docker build env and passes that fingerprint as a build arg, so changes to canonical build-time env like `APP_BASE_URL` automatically force a fresh `next build` layer instead of reusing stale cached public output.
 
@@ -178,9 +183,14 @@ For a non-Vercel CI build that still generates correct public metadata and sitem
 - `APP_BASE_URL` set to the canonical public origin (`https://daylilycatalog.com` in production)
 - `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`
 - `NEXT_PUBLIC_CLOUDFLARE_URL`
-- `NEXT_PUBLIC_SENTRY_ENABLED=false`
 - `DATABASE_URL`
 - `TURSO_DATABASE_AUTH_TOKEN` when `DATABASE_URL` uses `libsql://`
+
+Optional observability env:
+
+- `NEXT_PUBLIC_SENTRY_ENABLED`
+- `NEXT_PUBLIC_POSTHOG_KEY`
+- `NEXT_PUBLIC_POSTHOG_HOST`
 
 Notes:
 
