@@ -1,6 +1,5 @@
 import type { Prisma } from "@prisma/client";
 import { z } from "zod";
-import { env } from "@/env";
 import {
   getOAuthProtectedResourceScopes,
   getTrustedBaseUrl,
@@ -92,7 +91,7 @@ const PRIVATE_SECURITY_SCHEMES = [
 ] as const;
 
 function getExpectedMcpOAuthClientId() {
-  const clientId = env.DAYLILY_MCP_OAUTH_CLIENT_ID?.trim();
+  const clientId = process.env.DAYLILY_MCP_OAUTH_CLIENT_ID?.trim();
   if (!clientId) return null;
   return clientId;
 }
