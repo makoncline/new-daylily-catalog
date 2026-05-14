@@ -4,7 +4,6 @@ import * as dotenv from "dotenv";
 import path from "path";
 import { fileURLToPath } from "url";
 
-const booleanStringSchema = z.union([z.literal("true"), z.literal("false")]);
 const appRoot = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
   "..",
@@ -42,9 +41,6 @@ export const env = createEnv({
   client: {
     NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: z.string(),
     NEXT_PUBLIC_CLOUDFLARE_URL: z.string(),
-    NEXT_PUBLIC_SENTRY_ENABLED: booleanStringSchema,
-    NEXT_PUBLIC_POSTHOG_KEY: z.string().min(1),
-    NEXT_PUBLIC_POSTHOG_HOST: z.string().url(),
     NEXT_PUBLIC_USE_V2_CULTIVAR_DISPLAY_DATA: z
       .union([z.literal("true"), z.literal("false")])
       .optional()
@@ -76,9 +72,6 @@ export const env = createEnv({
     AWS_BUCKET_NAME: process.env.AWS_BUCKET_NAME,
     SENTRY_AUTH_TOKEN: process.env.SENTRY_AUTH_TOKEN,
     NODE_ENV: process.env.NODE_ENV,
-    NEXT_PUBLIC_SENTRY_ENABLED: process.env.NEXT_PUBLIC_SENTRY_ENABLED,
-    NEXT_PUBLIC_POSTHOG_KEY: process.env.NEXT_PUBLIC_POSTHOG_KEY,
-    NEXT_PUBLIC_POSTHOG_HOST: process.env.NEXT_PUBLIC_POSTHOG_HOST,
     NEXT_PUBLIC_USE_V2_CULTIVAR_DISPLAY_DATA:
       process.env.NEXT_PUBLIC_USE_V2_CULTIVAR_DISPLAY_DATA,
   },
