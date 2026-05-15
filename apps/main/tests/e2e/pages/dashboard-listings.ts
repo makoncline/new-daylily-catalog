@@ -133,7 +133,11 @@ export class DashboardListings {
     const filterInput = this.page
       .locator('input[placeholder^="Filter "]:visible')
       .last();
-    await filterInput.fill(value);
+    await filterInput.fill("");
+    await filterInput.pressSequentially(value);
+    await expect(filterInput).toBeVisible();
+    await expect(filterInput).toBeFocused();
+    await expect(filterInput).toHaveValue(value);
   }
 
   async sortByColumn(columnLabel: string) {

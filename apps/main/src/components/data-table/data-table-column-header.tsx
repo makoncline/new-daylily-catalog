@@ -24,6 +24,8 @@ interface DataTableColumnHeaderProps<TData, TValue> {
   enableFilter?: boolean;
 }
 
+const ACTIVE_COLUMN_FILTER_KEY = "active-column-filter";
+
 export function DataTableColumnHeader<TData, TValue>({
   column,
   title,
@@ -32,8 +34,29 @@ export function DataTableColumnHeader<TData, TValue>({
 }: DataTableColumnHeaderProps<TData, TValue>) {
   const columnFilterValue = column.getFilterValue();
   const value = typeof columnFilterValue === "string" ? columnFilterValue : "";
+  const filterInputRef = React.useRef<HTMLInputElement>(null);
+  const [filterOpen, setFilterOpen] = React.useState(() => {
+    if (typeof window === "undefined") return false;
+    return window.sessionStorage.getItem(ACTIVE_COLUMN_FILTER_KEY) === column.id;
+  });
+
+  const updateFilterOpen = (open: boolean) => {
+    setFilterOpen(open);
+    if (typeof window === "undefined") return;
+    if (open) {
+      window.sessionStorage.setItem(ACTIVE_COLUMN_FILTER_KEY, column.id);
+    } else if (
+      window.sessionStorage.getItem(ACTIVE_COLUMN_FILTER_KEY) === column.id
+    ) {
+      window.sessionStorage.removeItem(ACTIVE_COLUMN_FILTER_KEY);
+    }
+  };
 
   const updateColumnFilter = (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (typeof window !== "undefined") {
+      window.sessionStorage.setItem(ACTIVE_COLUMN_FILTER_KEY, column.id);
+    }
+    setFilterOpen(true);
     column.setFilterValue(event.target.value);
   };
 
@@ -67,7 +90,7 @@ export function DataTableColumnHeader<TData, TValue>({
       )}
 
       {enableFilter && (
-        <Popover>
+        <Popover open={filterOpen} onOpenChange={updateFilterOpen}>
           <PopoverTrigger asChild>
             <Button
               variant="ghost"
@@ -83,8 +106,16 @@ export function DataTableColumnHeader<TData, TValue>({
               </span>
             </Button>
           </PopoverTrigger>
-          <PopoverContent className="w-[200px] p-2" align="start">
+          <PopoverContent
+            className="w-[200px] p-2"
+            align="start"
+            onOpenAutoFocus={(event) => {
+              event.preventDefault();
+              filterInputRef.current?.focus({ preventScroll: true });
+            }}
+          >
             <Input
+              ref={filterInputRef}
               placeholder={`Filter ${typeof title === "string" ? title.toLowerCase() : ""}...`}
               value={value}
               onChange={updateColumnFilter}
