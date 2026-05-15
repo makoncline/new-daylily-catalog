@@ -1,0 +1,12 @@
+diff --git a/dist/build/index.js b/dist/build/index.js
+index 7c9f969458d9f2d8e7433d78d3fe252d326fb811..24334c81d3ed59c999d76d91318c149b34129d90 100644
+--- a/dist/build/index.js
++++ b/dist/build/index.js
+@@ -1054,6 +1054,7 @@ async function build(dir, reactProductionProfiling = false, debugOutput = false,
+                         _constants1.BUILD_ID_FILE,
+                         _path.default.join(_constants1.SERVER_DIRECTORY, _constants1.NEXT_FONT_MANIFEST + '.js'),
+                         _path.default.join(_constants1.SERVER_DIRECTORY, _constants1.NEXT_FONT_MANIFEST + '.json'),
++                        'package.json',
+                         _constants1.SERVER_FILES_MANIFEST + '.json'
+                     ].filter(_nonnullable.nonNullable).map((file)=>_path.default.join(config.distDir, file)),
+                     ignore: []
