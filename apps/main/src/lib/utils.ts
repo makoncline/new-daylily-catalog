@@ -1,6 +1,7 @@
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
 import { type AhsListing } from "@prisma/client";
+import type { AhsDisplayListing } from "@/lib/utils/ahs-display";
 
 const USD_FORMATTER = new Intl.NumberFormat("en-US", {
   style: "currency",
@@ -97,19 +98,19 @@ export async function uploadFileWithProgress({
 }
 
 export function formatAhsListingSummary(
-  ahs: Partial<AhsListing> | null,
+  ahs: Partial<AhsListing> | AhsDisplayListing | null,
 ): string | null {
   return formatAhsSummary(ahs, true);
 }
 
 export function formatAhsListingSummaryForCard(
-  ahs: Partial<AhsListing> | null,
+  ahs: Partial<AhsListing> | AhsDisplayListing | null,
 ): string | null {
   return formatAhsSummary(ahs, false);
 }
 
 function formatAhsSummary(
-  ahs: Partial<AhsListing> | null,
+  ahs: Partial<AhsListing> | AhsDisplayListing | null,
   includeIdentity: boolean,
 ): string | null {
   if (!ahs) return null;

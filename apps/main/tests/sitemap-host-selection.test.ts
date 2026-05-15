@@ -4,11 +4,13 @@ import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 const publicReadMocks = vi.hoisted(() => ({
   getPublicCatalogRouteEntries: vi.fn(),
+  getPublicListingRouteEntries: vi.fn(),
   getCultivarSitemapEntries: vi.fn(),
 }));
 
 vi.mock("@/server/db/public-listing-read-model", () => ({
   getPublicCatalogRouteEntries: publicReadMocks.getPublicCatalogRouteEntries,
+  getPublicListingRouteEntries: publicReadMocks.getPublicListingRouteEntries,
 }));
 
 vi.mock("@/server/db/public-cultivar-read-model", () => ({
@@ -29,6 +31,13 @@ describe("sitemap and robots host selection", () => {
       {
         slug: "rolling-oaks",
         totalPages: 3,
+        lastModified: new Date("2026-03-01T00:00:00.000Z"),
+      },
+    ]);
+    publicReadMocks.getPublicListingRouteEntries.mockResolvedValue([
+      {
+        sellerSlug: "rolling-oaks",
+        listingSlug: "every-friday-night",
         lastModified: new Date("2026-03-01T00:00:00.000Z"),
       },
     ]);
@@ -76,6 +85,13 @@ describe("sitemap and robots host selection", () => {
       sitemapEntries.some(
         (entry) =>
           entry.url === "https://daylilycatalog.com/rolling-oaks/page/3",
+      ),
+    ).toBe(true);
+    expect(
+      sitemapEntries.some(
+        (entry) =>
+          entry.url ===
+          "https://daylilycatalog.com/rolling-oaks/every-friday-night",
       ),
     ).toBe(true);
 
