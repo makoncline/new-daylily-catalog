@@ -18,6 +18,10 @@ async function getCroppedBlob(
   image: HTMLImageElement,
   crop: PixelCrop,
   mimeType: string,
+  options?: {
+    maxOutputPx?: number;
+    quality?: number;
+  },
 ): Promise<Blob> {
   const canvas = document.createElement("canvas");
   const ctx = canvas.getContext("2d");
@@ -25,15 +29,22 @@ async function getCroppedBlob(
 
   const scaleX = image.naturalWidth / image.width;
   const scaleY = image.naturalHeight / image.height;
-  canvas.width = Math.floor(crop.width * scaleX);
-  canvas.height = Math.floor(crop.height * scaleY);
+  const sourceWidth = Math.floor(crop.width * scaleX);
+  const sourceHeight = Math.floor(crop.height * scaleY);
+  const maxOutputPx = options?.maxOutputPx ?? 1600;
+  const outputScale = Math.min(
+    1,
+    maxOutputPx / Math.max(sourceWidth, sourceHeight),
+  );
+  canvas.width = Math.max(1, Math.round(sourceWidth * outputScale));
+  canvas.height = Math.max(1, Math.round(sourceHeight * outputScale));
 
   ctx.drawImage(
     image,
     crop.x * scaleX,
     crop.y * scaleY,
-    crop.width * scaleX,
-    crop.height * scaleY,
+    sourceWidth,
+    sourceHeight,
     0,
     0,
     canvas.width,
@@ -44,7 +55,7 @@ async function getCroppedBlob(
     canvas.toBlob(
       (blob) => (blob ? resolve(blob) : reject(new Error("Canvas is empty"))),
       mimeType,
-      1,
+      options?.quality ?? 0.92,
     );
   });
 }
@@ -53,6 +64,8 @@ interface ImageCropperProps {
   src: string; // Image source URL
   minPx?: number; // Minimum pixel dimension in the *final* cropped image (default 300)
   mimeType?: string; // MIME type for the output (default "image/jpeg")
+  maxOutputPx?: number;
+  quality?: number;
   onCropComplete: (blob: Blob) => void;
   onCancel?: () => void;
   isDisabled?: boolean;
@@ -67,6 +80,8 @@ export function ImageCropper({
   src,
   minPx = 300,
   mimeType = "image/jpeg",
+  maxOutputPx = 1600,
+  quality = 0.92,
   onCropComplete,
   onCancel,
   isDisabled,
@@ -148,7 +163,10 @@ export function ImageCropper({
         height: (crop.height / 100) * displayDims.h,
       };
 
-      const blob = await getCroppedBlob(img, pxCrop, mimeType);
+      const blob = await getCroppedBlob(img, pxCrop, mimeType, {
+        maxOutputPx,
+        quality,
+      });
       onCropComplete(blob);
     } catch (error) {
       toast.error("Failed to crop image", {

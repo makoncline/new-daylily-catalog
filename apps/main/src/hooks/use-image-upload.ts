@@ -4,6 +4,8 @@ import { toast } from "sonner";
 import { uploadFileWithProgress } from "@/lib/utils";
 import { getSupportedImageContentType, type ImageType } from "@/types/image";
 import { type Image } from "@prisma/client";
+import { APP_CONFIG } from "@/config/constants";
+import { capturePosthogEvent } from "@/lib/analytics/posthog";
 import {
   getErrorMessage,
   normalizeError,
@@ -14,12 +16,14 @@ import { createImage } from "@/app/dashboard/_lib/dashboard-db/images-collection
 interface UseImageUploadOptions {
   type: ImageType;
   referenceId: string;
+  isFirstImageUpload?: boolean;
   onSuccess?: (image: Image) => void;
 }
 
 export function useImageUpload({
   type,
   referenceId,
+  isFirstImageUpload = false,
   onSuccess,
 }: UseImageUploadOptions) {
   const [progress, setProgress] = useState(0);
@@ -39,6 +43,22 @@ export function useImageUpload({
         const contentType = getSupportedImageContentType(file.type);
         if (!contentType) {
           throw new Error("Only JPEG, PNG, and WebP images are supported");
+        }
+
+        if (file.size > APP_CONFIG.UPLOAD.MAX_FILE_SIZE) {
+          capturePosthogEvent("image_upload_failed", {
+            imageType: type,
+            referenceId,
+            reason: "cropped_file_too_large",
+            fileSize: file.size,
+            maxFileSize: APP_CONFIG.UPLOAD.MAX_FILE_SIZE,
+            stage: "presign",
+          });
+          throw new Error(
+            `Cropped image is over ${Math.round(
+              APP_CONFIG.UPLOAD.MAX_FILE_SIZE / 1024 / 1024,
+            )}MB. Try a smaller crop or image.`,
+          );
         }
 
         const { presignedUrl, key, url } =
@@ -68,6 +88,14 @@ export function useImageUpload({
 
         toast.success("Image uploaded successfully");
 
+        if (isFirstImageUpload) {
+          capturePosthogEvent("first_image_uploaded", {
+            imageType: type,
+            referenceId,
+            fileSize: file.size,
+          });
+        }
+
         onSuccess?.(image);
         return image;
       } catch (error) {
@@ -85,12 +113,18 @@ export function useImageUpload({
           error: normalizeError(error),
           context: { source: "useImageUpload", step },
         });
+        capturePosthogEvent("image_upload_failed", {
+          imageType: type,
+          referenceId,
+          reason: getErrorMessage(error),
+          stage: step,
+        });
       } finally {
         setIsUploading(false);
         setProgress(0);
       }
     },
-    [type, referenceId, getPresignedUrlMutation, onSuccess],
+    [type, referenceId, isFirstImageUpload, getPresignedUrlMutation, onSuccess],
   );
 
   return {

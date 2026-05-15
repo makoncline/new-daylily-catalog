@@ -39,6 +39,7 @@ export function ListingMediaSection({
             <ImageUpload
               type="listing"
               referenceId={listingId}
+              isFirstImageUpload={images.length === 0}
               onMutationSuccess={onMutationSuccess}
             />
           </div>

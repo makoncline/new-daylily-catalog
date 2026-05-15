@@ -26,6 +26,7 @@ export function ProfileImageManager({
           <ImageUpload
             type="profile"
             referenceId={profileId}
+            isFirstImageUpload={images.length === 0}
             onMutationSuccess={onMutationSuccess}
           />
         </div>
