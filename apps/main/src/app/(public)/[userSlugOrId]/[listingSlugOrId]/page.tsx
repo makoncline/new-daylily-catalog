@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { cache } from "react";
 import { MainContent } from "@/app/(public)/_components/main-content";
 import { PublicBreadcrumbs } from "@/app/(public)/_components/public-breadcrumbs";
 import {
@@ -42,42 +43,50 @@ interface PageProps {
   }>;
 }
 
+const loadPublicListingPageBySegments = cache(
+  async (userSlugOrId: string, listingSlugOrId: string) => {
+    const routeResult = await tryCatch(
+      (async () => {
+        const userId = await getUserIdFromSlugOrId(userSlugOrId);
+        const listingId = await getListingIdFromSlugOrId(
+          listingSlugOrId,
+          userId,
+        );
+
+        return { listingId, userId };
+      })(),
+    );
+
+    if (getErrorCode(routeResult.error) === "NOT_FOUND") {
+      notFound();
+    }
+
+    if (!routeResult.data) {
+      throw routeResult.error ?? new Error("Failed to resolve legacy listing");
+    }
+
+    const { listingId, userId } = routeResult.data;
+    const listingResult = await tryCatch(getPublicListingDetail(listingId));
+
+    if (getErrorCode(listingResult.error) === "NOT_FOUND") {
+      notFound();
+    }
+
+    if (!listingResult.data) {
+      throw listingResult.error ?? new Error("Failed to load public listing");
+    }
+
+    if (listingResult.data.userId !== userId) {
+      notFound();
+    }
+
+    return listingResult.data;
+  },
+);
+
 async function loadPublicListingPage(params: PageProps["params"]) {
   const { userSlugOrId, listingSlugOrId } = await params;
-
-  const routeResult = await tryCatch(
-    (async () => {
-      const userId = await getUserIdFromSlugOrId(userSlugOrId);
-      const listingId = await getListingIdFromSlugOrId(listingSlugOrId, userId);
-
-      return { listingId, userId };
-    })(),
-  );
-
-  if (getErrorCode(routeResult.error) === "NOT_FOUND") {
-    notFound();
-  }
-
-  if (!routeResult.data) {
-    throw routeResult.error ?? new Error("Failed to resolve legacy listing");
-  }
-
-  const { listingId, userId } = routeResult.data;
-  const listingResult = await tryCatch(getPublicListingDetail(listingId));
-
-  if (getErrorCode(listingResult.error) === "NOT_FOUND") {
-    notFound();
-  }
-
-  if (!listingResult.data) {
-    throw listingResult.error ?? new Error("Failed to load public listing");
-  }
-
-  if (listingResult.data.userId !== userId) {
-    notFound();
-  }
-
-  return listingResult.data;
+  return loadPublicListingPageBySegments(userSlugOrId, listingSlugOrId);
 }
 
 function truncateDescription(value: string, maxLength = 155) {

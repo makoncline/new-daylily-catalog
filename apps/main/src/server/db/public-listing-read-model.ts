@@ -6,7 +6,10 @@ import {
   withResolvedDisplayAhsListing,
   v2AhsCultivarDisplaySelect,
 } from "@/lib/utils/ahs-display";
-import { getProUserIds } from "@/server/db/getProUserIds";
+import {
+  getActiveProUserIdsForUserIds,
+  getProUserIds,
+} from "@/server/db/getProUserIds";
 import { replicaDb } from "@/server/db";
 import { getUserIdFromSlugOrId } from "@/server/db/getPublicProfile";
 import {
@@ -261,13 +264,10 @@ export async function getPublicListingsPage(args: GetPublicListingsPageArgs) {
 }
 
 export async function getPublicListingDetail(listingId: string) {
-  const [listing, proUserIds] = await Promise.all([
-    replicaDb.listing.findFirst({
-      where: { id: listingId, ...isPublished() },
-      select: publicListingSelect,
-    }),
-    getProUserIds(),
-  ]);
+  const listing = await replicaDb.listing.findFirst({
+    where: { id: listingId, ...isPublished() },
+    select: publicListingSelect,
+  });
 
   if (!listing) {
     throw new TRPCError({
@@ -275,6 +275,8 @@ export async function getPublicListingDetail(listingId: string) {
       message: "Listing not found",
     });
   }
+
+  const proUserIds = await getActiveProUserIdsForUserIds([listing.userId]);
 
   return buildPublicListingDetail(listing, proUserIds.includes(listing.userId));
 }
