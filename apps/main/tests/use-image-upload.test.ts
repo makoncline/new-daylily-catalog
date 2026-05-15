@@ -48,11 +48,20 @@ vi.mock("@/lib/error-utils", () => ({
   reportError: reportErrorMock,
 }));
 
-import { useImageUpload } from "@/hooks/use-image-upload";
+import {
+  getImageUploadFileName,
+  useImageUpload,
+} from "@/hooks/use-image-upload";
 
 describe("useImageUpload", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+  });
+
+  it("names uploads using the signed content type", () => {
+    expect(getImageUploadFileName("image/jpeg", 123)).toBe("123.jpg");
+    expect(getImageUploadFileName("image/png", 123)).toBe("123.png");
+    expect(getImageUploadFileName("image/webp", 123)).toBe("123.webp");
   });
 
   it("uploads successfully and resets state", async () => {
@@ -93,6 +102,7 @@ describe("useImageUpload", () => {
     expect(getPresignedUrlMutateAsyncMock).toHaveBeenCalledWith(
       expect.objectContaining({
         type: "listing",
+        fileName: expect.stringMatching(/^\d+\.jpg$/),
         contentType: "image/jpeg",
         size: file.size,
         referenceId: "listing-1",
@@ -158,6 +168,46 @@ describe("useImageUpload", () => {
     expect(uploadFileWithProgressMock).toHaveBeenCalledWith(
       expect.objectContaining({
         contentType: "image/jpeg",
+      }),
+    );
+  });
+
+  it("presigns WebP uploads with a WebP filename", async () => {
+    const uploadedImage = {
+      id: "img-1",
+      url: "https://example.com/images/img-1.webp",
+    };
+
+    getPresignedUrlMutateAsyncMock.mockResolvedValue({
+      presignedUrl: "https://upload-url.example",
+      key: "abc123.webp",
+      url: uploadedImage.url,
+    });
+    uploadFileWithProgressMock.mockResolvedValue(undefined);
+    createImageMock.mockResolvedValue(uploadedImage);
+
+    const { result } = renderHook(() =>
+      useImageUpload({
+        type: "listing",
+        referenceId: "listing-1",
+      }),
+    );
+
+    const file = new Blob(["image-bytes"], { type: "image/webp" });
+
+    await act(async () => {
+      await result.current.upload(file);
+    });
+
+    expect(getPresignedUrlMutateAsyncMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        fileName: expect.stringMatching(/^\d+\.webp$/),
+        contentType: "image/webp",
+      }),
+    );
+    expect(uploadFileWithProgressMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        contentType: "image/webp",
       }),
     );
   });

@@ -63,7 +63,7 @@ async function getCroppedBlob(
 interface ImageCropperProps {
   src: string; // Image source URL
   minPx?: number; // Minimum pixel dimension in the *final* cropped image (default 300)
-  mimeType?: string; // MIME type for the output (default "image/jpeg")
+  mimeType?: string; // MIME type for the output (default "image/webp")
   maxOutputPx?: number;
   quality?: number;
   onCropComplete: (blob: Blob) => void;
@@ -79,9 +79,9 @@ interface ImageCropperProps {
 export function ImageCropper({
   src,
   minPx = 300,
-  mimeType = "image/jpeg",
+  mimeType = "image/webp",
   maxOutputPx = 1600,
-  quality = 0.92,
+  quality = 1,
   onCropComplete,
   onCancel,
   isDisabled,

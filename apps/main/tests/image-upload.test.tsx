@@ -61,7 +61,7 @@ vi.mock("@/components/image-cropper", () => ({
       <button
         type="button"
         onClick={() =>
-          onCropComplete(new Blob(["cropped"], { type: "image/jpeg" }))
+          onCropComplete(new Blob(["cropped"], { type: "image/webp" }))
         }
         disabled={isDisabled}
       >
