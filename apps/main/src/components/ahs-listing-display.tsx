@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+import { ExternalLink } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { type RouterOutputs } from "@/trpc/react";
 import { H3, P, Muted } from "@/components/typography";
@@ -8,11 +10,13 @@ import { ImagePopover } from "@/components/image-popover";
 interface AhsListingDisplayProps {
   ahsListing: NonNullable<RouterOutputs["public"]["getListing"]["ahsListing"]>;
   className?: string;
+  cultivarHref?: string | null;
 }
 
 export function AhsListingDisplay({
   ahsListing,
   className,
+  cultivarHref,
 }: AhsListingDisplayProps) {
   // Combine all fields into a single array for natural flow
   const fields = [
@@ -43,7 +47,22 @@ export function AhsListingDisplay({
           />
         )}
         <div className="flex flex-col">
-          <H3 className="text-[clamp(12px,5vw,24px)]">{ahsListing.name}</H3>
+          <div className="flex items-center gap-2">
+            <H3 className="text-[clamp(12px,5vw,24px)]">
+              {ahsListing.name}
+            </H3>
+            {cultivarHref && (
+              <Link
+                href={cultivarHref}
+                target="_blank"
+                rel="noopener noreferrer"
+                title="Open cultivar page"
+              >
+                <ExternalLink className="text-muted-foreground hover:text-foreground size-5 transition-colors" />
+                <span className="sr-only">Open cultivar page</span>
+              </Link>
+            )}
+          </div>
           <Muted>
             ({ahsListing.hybridizer}, {ahsListing.year})
           </Muted>

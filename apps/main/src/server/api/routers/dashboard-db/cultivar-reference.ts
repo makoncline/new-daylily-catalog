@@ -30,6 +30,9 @@ const v2CultivarReferenceSelect = {
   id: true,
   normalizedName: true,
   updatedAt: true,
+  ahsListing: {
+    select: ahsDisplayAhsListingSelect,
+  },
   v2AhsCultivar: {
     select: v2AhsCultivarDisplaySelect,
   },
@@ -126,7 +129,7 @@ function mapV2CultivarReferenceRow(
     updatedAt: row.updatedAt,
     ahsListing: row.v2AhsCultivar
       ? mapV2AhsCultivarToDisplayAhsListing(row.v2AhsCultivar)
-      : null,
+      : (row.ahsListing ?? null),
   };
 }
 

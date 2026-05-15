@@ -24,6 +24,7 @@ import {
   dashboardDbCollectionId,
   withDashboardDbPersistence,
 } from "@/app/dashboard/_lib/dashboard-db/dashboard-db-persisted-options";
+import { capturePosthogEvent } from "@/lib/analytics/posthog";
 
 const CURSOR_BASE = "dashboard-db:listings:maxUpdatedAt";
 const QUERY_KEY = ["dashboard-db", "listings"] as const;
@@ -137,6 +138,9 @@ export function resetListingsCollectionWithPersistence(
 type InsertDraft = RouterInputs["dashboardDb"]["listing"]["create"];
 export async function insertListing(draft: InsertDraft) {
   return runWithDashboardRefreshLock(async () => {
+    const hadPersistedListings = getExistingListingRows(QUERY_KEY).some(
+      (listing) => !listing.id.startsWith("temp:"),
+    );
     const run = makeInsertWithSwap<InsertDraft, ListingCollectionItem>({
       collection: listingsCollection,
       makeTemp: (d) => ({
@@ -156,6 +160,13 @@ export async function insertListing(draft: InsertDraft) {
     });
 
     const created = await run(draft);
+
+    if (!hadPersistedListings) {
+      capturePosthogEvent("first_listing_created", {
+        listingId: created.id,
+        cultivarLinked: Boolean(draft.cultivarReferenceId),
+      });
+    }
 
     if (draft.cultivarReferenceId) {
       try {
@@ -211,7 +222,6 @@ export async function linkAhs(draft: LinkAhsDraft) {
   return runWithDashboardRefreshLock(async () => {
     const updated =
       await getTrpcClient().dashboardDb.listing.linkAhs.mutate(draft);
-    listingsCollection.utils.writeUpdate(updated);
 
     if (updated.cultivarReferenceId) {
       try {
@@ -221,6 +231,7 @@ export async function linkAhs(draft: LinkAhsDraft) {
       }
     }
 
+    listingsCollection.utils.writeUpdate(updated);
     return updated;
   });
 }

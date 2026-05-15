@@ -39,6 +39,7 @@ import {
 } from "@/components/public-catalog-search/public-catalog-search-registry";
 import type { PublicCatalogSearchMode } from "@/components/public-catalog-search/public-catalog-search-types";
 import { logDashboardTiming } from "@/app/dashboard/_lib/dashboard-timing";
+import { api } from "@/trpc/react";
 
 function getSectionGroupFilters(
   section: PublicCatalogSearchSectionDefinition,
@@ -73,8 +74,20 @@ function ListingsTableLive() {
   const firstRowsPaintedRef = React.useRef(false);
   const { editListing } = useEditListing();
   const { listingRows: listings, lists } = useDashboardListingReadModel();
+  const { data: profile = null } = api.dashboardDb.userProfile.get.useQuery(
+    undefined,
+    {
+      staleTime: Infinity,
+      refetchOnWindowFocus: false,
+      refetchOnMount: false,
+    },
+  );
+  const publicUserSlug = profile?.slug ?? profile?.userId ?? "";
 
-  const columns = getColumns(editListing);
+  const columns = React.useMemo(
+    () => getColumns(editListing, publicUserSlug),
+    [editListing, publicUserSlug],
+  );
   const [searchMode, setSearchMode] = useLocalStorage<PublicCatalogSearchMode>(
     "dashboard-listings-search-mode",
     "basic",

@@ -16,12 +16,14 @@ interface FloatingCartButtonProps {
   userId: string;
   userName?: string;
   showTopButton?: boolean;
+  onContactClick?: () => void;
 }
 
 export function FloatingCartButton({
   userId,
   userName,
   showTopButton = false,
+  onContactClick,
 }: FloatingCartButtonProps) {
   const { itemCount } = useCart(userId);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -32,7 +34,10 @@ export function FloatingCartButton({
         <Button
           type="button"
           className="w-full sm:w-auto"
-          onClick={() => setIsDialogOpen(true)}
+          onClick={() => {
+            onContactClick?.();
+            setIsDialogOpen(true);
+          }}
         >
           <MessageCircle className="size-4" />
           <span>
@@ -48,6 +53,7 @@ export function FloatingCartButton({
           type="button"
           className="fixed right-4 bottom-4 z-50 flex items-center gap-2 rounded-full shadow-md"
           variant="default"
+          onClick={onContactClick}
           aria-label={
             itemCount > 0
               ? `Contact seller and view cart (${itemCount} ${itemCount === 1 ? "item" : "items"})`

@@ -1,17 +1,20 @@
 "use client";
 
 import { useState, useCallback } from "react";
-import { useDropzone } from "react-dropzone";
+import { type FileRejection, useDropzone } from "react-dropzone";
 import { ImageCropper } from "@/components/image-cropper";
 import { useImageUpload } from "@/hooks/use-image-upload";
 import type { ImageType, ImageUploadResponse } from "@/types/image";
 import { APP_CONFIG } from "@/config/constants";
 import { Progress } from "@/components/ui/progress";
 import { P } from "@/components/typography";
+import { capturePosthogEvent } from "@/lib/analytics/posthog";
+import { toast } from "sonner";
 
 export interface ImageUploadProps {
   type: ImageType;
   referenceId: string;
+  isFirstImageUpload?: boolean;
   onUploadComplete?: (result: ImageUploadResponse) => void;
   onMutationSuccess?: () => void;
 }
@@ -19,6 +22,7 @@ export interface ImageUploadProps {
 export function ImageUpload({
   type,
   referenceId,
+  isFirstImageUpload = false,
   onUploadComplete,
   onMutationSuccess,
 }: ImageUploadProps) {
@@ -26,6 +30,7 @@ export function ImageUpload({
   const { upload, progress, isUploading } = useImageUpload({
     type,
     referenceId,
+    isFirstImageUpload,
     onSuccess: (image) => {
       onUploadComplete?.({
         success: true,
@@ -53,8 +58,36 @@ export function ImageUpload({
     reader.readAsDataURL(file);
   }, []);
 
+  const onDropRejected = useCallback(
+    (rejections: FileRejection[]) => {
+      const rejection = rejections[0];
+      const file = rejection?.file;
+      const reason =
+        rejection?.errors[0]?.code === "file-too-large"
+          ? "file_too_large"
+          : (rejection?.errors[0]?.code ?? "dropzone_rejected");
+
+      capturePosthogEvent("image_upload_failed", {
+        imageType: type,
+        referenceId,
+        reason,
+        fileSize: file?.size,
+        maxFileSize: APP_CONFIG.UPLOAD.MAX_FILE_SIZE,
+        stage: "select",
+      });
+
+      toast.error("Image is too large", {
+        description: `Images must be under ${Math.round(
+          APP_CONFIG.UPLOAD.MAX_FILE_SIZE / 1024 / 1024,
+        )}MB before cropping.`,
+      });
+    },
+    [referenceId, type],
+  );
+
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
+    onDropRejected,
     accept: {
       "image/*": [], // Accepts all image types
     },

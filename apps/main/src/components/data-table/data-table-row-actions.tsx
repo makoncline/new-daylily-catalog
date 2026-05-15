@@ -12,19 +12,32 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
 import { useState } from "react";
-import { Pencil, Trash2 } from "lucide-react";
+import { Copy, Pencil, Trash2 } from "lucide-react";
 import { DeleteConfirmDialog } from "@/components/delete-confirm-dialog";
 import { deleteListing as deleteListingFromDb } from "@/app/dashboard/_lib/dashboard-db/listings-collection";
 import { useConfirmableAsyncAction } from "@/hooks/use-confirmable-async-action";
+import { capturePosthogEvent } from "@/lib/analytics/posthog";
 
 interface DataTableRowActionsProps<TData> {
   row: Row<TData>;
   onEdit: (id: string) => void;
+  publicUserSlug?: string;
 }
 
-export function DataTableRowActions<TData extends { id: string }>({
+function getAbsoluteListingUrl(path: string) {
+  if (typeof window === "undefined") {
+    return path;
+  }
+
+  return new URL(path, window.location.origin).toString();
+}
+
+export function DataTableRowActions<
+  TData extends { id: string; slug?: string | null; userId?: string },
+>({
   row,
   onEdit,
+  publicUserSlug,
 }: DataTableRowActionsProps<TData>) {
   const [open, setOpen] = useState(false);
   const {
@@ -42,6 +55,21 @@ export function DataTableRowActions<TData extends { id: string }>({
       toast.error("Failed to delete listing");
     },
   });
+  const publicListingPath = `/${publicUserSlug ?? row.original.userId ?? ""}/${
+    row.original.slug ?? row.original.id
+  }`;
+
+  async function copyListingLink() {
+    await navigator.clipboard.writeText(getAbsoluteListingUrl(publicListingPath));
+    capturePosthogEvent("listing_link_copied", {
+      sellerId: row.original.userId,
+      listingId: row.original.id,
+      pageType: "dashboard_listings",
+      sourcePage: window.location.pathname,
+    });
+    toast.success("Listing link copied");
+    setOpen(false);
+  }
 
   return (
     <>
@@ -66,6 +94,14 @@ export function DataTableRowActions<TData extends { id: string }>({
           >
             <Pencil className="mr-2 size-4" />
             Edit
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            onClick={() => {
+              void copyListingLink();
+            }}
+          >
+            <Copy className="mr-2 size-4" />
+            Copy link
           </DropdownMenuItem>
           <DropdownMenuSeparator />
           <DropdownMenuItem

@@ -6,7 +6,10 @@ import {
   withResolvedDisplayAhsListing,
   v2AhsCultivarDisplaySelect,
 } from "@/lib/utils/ahs-display";
-import { getProUserIds } from "@/server/db/getProUserIds";
+import {
+  getActiveProUserIdsForUserIds,
+  getProUserIds,
+} from "@/server/db/getProUserIds";
 import { replicaDb } from "@/server/db";
 import { getUserIdFromSlugOrId } from "@/server/db/getPublicProfile";
 import {
@@ -80,6 +83,8 @@ function buildListingView<T extends ListingPayload>(listing: T) {
   return {
     ...displayListing,
     ahsListing: displayAhsListing,
+    userSlug: listing.user.profile?.slug ?? listing.userId,
+    sellerTitle: listing.user.profile?.title ?? null,
     images:
       displayListing.images.length === 0 && displayAhsListing?.ahsImageUrl
         ? [
@@ -93,10 +98,13 @@ function buildListingView<T extends ListingPayload>(listing: T) {
   };
 }
 
-export function buildPublicListingDetail(listing: ListingPayload) {
+export function buildPublicListingDetail(
+  listing: ListingPayload,
+  hasActiveSubscription = false,
+) {
   return {
     ...buildListingView(listing),
-    userSlug: listing.user.profile?.slug ?? listing.userId,
+    hasActiveSubscription,
   };
 }
 
@@ -268,7 +276,9 @@ export async function getPublicListingDetail(listingId: string) {
     });
   }
 
-  return buildPublicListingDetail(listing);
+  const proUserIds = await getActiveProUserIdsForUserIds([listing.userId]);
+
+  return buildPublicListingDetail(listing, proUserIds.includes(listing.userId));
 }
 
 export async function getPublicForSaleListingsCount(userId: string) {
@@ -286,6 +296,12 @@ export async function getPublicForSaleListingsCount(userId: string) {
 interface PublicCatalogRouteEntry {
   slug: string;
   totalPages: number;
+  lastModified: Date;
+}
+
+interface PublicListingRouteEntry {
+  listingSlug: string;
+  sellerSlug: string;
   lastModified: Date;
 }
 
@@ -352,4 +368,47 @@ export async function getPublicCatalogRouteEntries(): Promise<
       lastModified: user.profile?.updatedAt ?? user.createdAt,
     };
   });
+}
+
+export async function getPublicListingRouteEntries(): Promise<
+  PublicListingRouteEntry[]
+> {
+  const proUserIds = await getProUserIds();
+
+  if (proUserIds.length === 0) {
+    return [];
+  }
+
+  const listings = await replicaDb.listing.findMany({
+    where: {
+      ...isPublished(),
+      userId: {
+        in: proUserIds,
+      },
+    },
+    select: {
+      id: true,
+      slug: true,
+      updatedAt: true,
+      user: {
+        select: {
+          id: true,
+          profile: {
+            select: {
+              slug: true,
+            },
+          },
+        },
+      },
+    },
+    orderBy: {
+      updatedAt: "desc",
+    },
+  });
+
+  return listings.map((listing) => ({
+    sellerSlug: listing.user.profile?.slug ?? listing.user.id,
+    listingSlug: listing.slug || listing.id,
+    lastModified: listing.updatedAt,
+  }));
 }

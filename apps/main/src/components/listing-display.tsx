@@ -2,7 +2,7 @@
 
 import { ImageGallery } from "@/components/image-gallery";
 import { AhsListingDisplay } from "@/components/ahs-listing-display";
-import { formatPrice } from "@/lib/utils";
+import { formatAhsListingSummary, formatPrice } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -14,6 +14,7 @@ import { type RouterOutputs } from "@/trpc/react";
 import { AddToCartButton } from "@/components/add-to-cart-button";
 import { useDisplayAhsListing } from "@/hooks/use-display-ahs-listing";
 import { toCultivarRouteSegment } from "@/lib/utils/cultivar-utils";
+import { CopyListingLinkButton } from "@/components/copy-listing-link-button";
 
 type Listing = RouterOutputs["public"]["getListings"][number];
 
@@ -30,9 +31,18 @@ export function ListingDisplay({
   const cultivarRouteSegment = toCultivarRouteSegment(
     listing.cultivarReference?.normalizedName,
   );
+  const cultivarHref = cultivarRouteSegment
+    ? `/cultivar/${cultivarRouteSegment}`
+    : null;
+  const listingHref = `/${listing.userSlug}/${listing.slug || listing.id}`;
 
   // Determine which heading component to use based on variant
   const HeadingComponent = variant === "page" ? H1 : H2;
+  const trimmedDescription = listing.description?.trim();
+  const buyerDescription =
+    trimmedDescription && trimmedDescription.length > 0
+      ? trimmedDescription
+      : formatAhsListingSummary(displayAhsListing);
 
   return (
     <div className="space-y-8">
@@ -51,12 +61,26 @@ export function ListingDisplay({
         {/* Title and external link */}
         <div className="flex items-center justify-between gap-4">
           <HeadingComponent>{listing.title}</HeadingComponent>
-          {cultivarRouteSegment && variant !== "page" && (
-            <Link href={`/cultivar/${cultivarRouteSegment}`}>
-              <ExternalLink className="text-muted-foreground hover:text-foreground size-5 transition-colors" />
-              <span className="sr-only">View Cultivar Page</span>
-            </Link>
-          )}
+          <div className="flex shrink-0 items-center gap-1">
+            {variant !== "page" && (
+              <Link
+                href={listingHref}
+                target="_blank"
+                rel="noopener noreferrer"
+                title="Open listing page"
+              >
+                <ExternalLink className="text-muted-foreground hover:text-foreground size-5 transition-colors" />
+                <span className="sr-only">Open listing page</span>
+              </Link>
+            )}
+            <CopyListingLinkButton
+              listingId={listing.id}
+              listingUrl={listingHref}
+              sellerId={listing.userId}
+              pageType={variant === "page" ? "public_listing" : "catalog_modal"}
+              className="size-7"
+            />
+          </div>
         </div>
         {/* Price and Add to Cart */}
         {listing.price && (
@@ -86,15 +110,18 @@ export function ListingDisplay({
         )}
       </div>
 
-      <P className="text-muted-foreground">
-        {listing.description ?? "No description available"}
-      </P>
+      {buyerDescription && (
+        <P className="text-muted-foreground">{buyerDescription}</P>
+      )}
 
       {displayAhsListing && (
         <>
           <Separator />
           <Muted>Daylily Database Data</Muted>
-          <AhsListingDisplay ahsListing={displayAhsListing} />
+          <AhsListingDisplay
+            ahsListing={displayAhsListing}
+            cultivarHref={cultivarHref}
+          />
         </>
       )}
     </div>

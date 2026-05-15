@@ -170,7 +170,9 @@ export async function ensureCultivarReferencesCached(ids: string[]) {
   if (rows.length) {
     cultivarReferencesCollection.utils.writeBatch(() => {
       rows.forEach((row) => {
-        if (!cultivarReferencesCollection.get(row.id)) {
+        if (cultivarReferencesCollection.get(row.id)) {
+          cultivarReferencesCollection.utils.writeUpdate(row);
+        } else {
           cultivarReferencesCollection.utils.writeInsert(row);
         }
       });

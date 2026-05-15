@@ -8,6 +8,7 @@ const mockDb = vi.hoisted(() => ({
     findMany: vi.fn(),
   },
   listing: {
+    findFirst: vi.fn(),
     findMany: vi.fn(),
     groupBy: vi.fn(),
   },
@@ -31,6 +32,8 @@ vi.mock("@/server/db/getPublicProfile", () => ({
 import {
   getListings,
   getPublicCatalogRouteEntries,
+  getPublicListingDetail,
+  getPublicListingRouteEntries,
   getPublicListingsPage,
   transformListings,
 } from "@/server/db/getPublicListings";
@@ -275,7 +278,7 @@ describe("getPublicListings helpers", () => {
       hybridizer: "Thibault-Lippé",
       year: "2024",
       bloomSeason: "Late",
-      bloomSize: "7.5 inches",
+      bloomSize: '7.5"',
       color: null,
     });
     expect(transformed[0]?.cultivarReference?.ahsListing).toMatchObject({
@@ -358,5 +361,101 @@ describe("getPublicListings helpers", () => {
       },
     ]);
     expect(mockDb.keyValue.findMany).toHaveBeenCalledTimes(1);
+  });
+
+  it("returns dedicated public listing detail from a published listing", async () => {
+    mockDb.listing.findFirst.mockResolvedValue({
+      ...createListing("id-a", "Every Friday Night"),
+      updatedAt: new Date("2026-05-01T00:00:00.000Z"),
+      price: 30,
+      user: {
+        profile: {
+          slug: "rolling-oaks",
+          title: "Rolling Oaks Daylilies",
+        },
+      },
+    });
+    mockDb.keyValue.findMany.mockResolvedValue([
+      {
+        key: "stripe:customer:cus-pro",
+        value: JSON.stringify({ status: "active" }),
+      },
+    ]);
+    mockDb.user.findMany.mockResolvedValue([
+      {
+        id: "user-1",
+        stripeCustomerId: "cus-pro",
+      },
+    ]);
+
+    const listing = await getPublicListingDetail("id-a");
+
+    expect(mockDb.listing.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          id: "id-a",
+        }),
+      }),
+    );
+    expect(listing).toMatchObject({
+      id: "id-a",
+      title: "Every Friday Night",
+      userSlug: "rolling-oaks",
+      sellerTitle: "Rolling Oaks Daylilies",
+      hasActiveSubscription: true,
+    });
+  });
+
+  it("returns only pro-user public listing route entries for the sitemap", async () => {
+    mockDb.keyValue.findMany.mockResolvedValue([
+      {
+        key: "stripe:customer:cus-pro",
+        value: JSON.stringify({ status: "active" }),
+      },
+      {
+        key: "stripe:customer:cus-free",
+        value: JSON.stringify({ status: "none" }),
+      },
+    ]);
+    mockDb.user.findMany.mockResolvedValue([
+      {
+        id: "user-pro",
+        stripeCustomerId: "cus-pro",
+      },
+      {
+        id: "user-free",
+        stripeCustomerId: "cus-free",
+      },
+    ]);
+    mockDb.listing.findMany.mockResolvedValue([
+      {
+        id: "id-a",
+        slug: "every-friday-night",
+        updatedAt: new Date("2026-05-01T00:00:00.000Z"),
+        user: {
+          id: "user-pro",
+          profile: {
+            slug: "rolling-oaks",
+          },
+        },
+      },
+    ]);
+
+    const entries = await getPublicListingRouteEntries();
+
+    expect(mockDb.listing.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          userId: { in: ["user-pro"] },
+        }),
+      }),
+    );
+    expect(entries).toEqual([
+      {
+        sellerSlug: "rolling-oaks",
+        listingSlug: "every-friday-night",
+        lastModified: new Date("2026-05-01T00:00:00.000Z"),
+      },
+    ]);
   });
 });
