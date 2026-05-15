@@ -256,20 +256,22 @@ export const dashboardDbImageRouter = createTRPCRouter({
         i."createdAt",
         i."updatedAt",
         i."status"
-      FROM "Image" i
-      WHERE
-        EXISTS (
-          SELECT 1
-          FROM "Listing" l
-          WHERE l."id" = i."listingId"
-            AND l."userId" = ${ctx.user.id}
-        )
-        OR EXISTS (
-          SELECT 1
-          FROM "UserProfile" up
-          WHERE up."id" = i."userProfileId"
-            AND up."userId" = ${ctx.user.id}
-        )
+      FROM "Listing" l
+      INNER JOIN "Image" i ON i."listingId" = l."id"
+      WHERE l."userId" = ${ctx.user.id}
+      UNION
+      SELECT
+        i."id",
+        i."url",
+        i."order",
+        i."listingId",
+        i."userProfileId",
+        i."createdAt",
+        i."updatedAt",
+        i."status"
+      FROM "UserProfile" up
+      INNER JOIN "Image" i ON i."userProfileId" = up."id"
+      WHERE up."userId" = ${ctx.user.id}
     `);
 
     return rows.map(mapImageRow).sort(sortImagesForDashboard);
