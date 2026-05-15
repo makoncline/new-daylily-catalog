@@ -176,7 +176,7 @@ async function renderSingleTagCanvas(args: {
     const tagElement = frameDocument.querySelector<HTMLElement>(".tag");
     if (!tagElement) return null;
 
-    return args.html2canvas(tagElement, {
+    return await args.html2canvas(tagElement, {
       backgroundColor: "#ffffff",
       scale: 3,
       foreignObjectRendering: true,
@@ -261,7 +261,7 @@ async function renderSingleSheetCanvas(args: {
       frameDocument.querySelector<HTMLElement>(".sheet-page");
     if (!sheetElement) return null;
 
-    return args.html2canvas(sheetElement, {
+    return await args.html2canvas(sheetElement, {
       backgroundColor: "#ffffff",
       scale: 2,
       foreignObjectRendering: true,

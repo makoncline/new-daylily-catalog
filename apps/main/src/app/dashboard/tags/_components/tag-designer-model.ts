@@ -994,7 +994,7 @@ export function buildResolvedRowsForListing(
   for (const row of rows) {
     const resolved: ResolvedCell[] = [];
 
-    for (const cell of row.cells) {
+    for (const [cellIndex, cell] of row.cells.entries()) {
       let text: string;
       if (cell.fieldId === "customText") {
         text = cell.label ?? "";
@@ -1004,7 +1004,7 @@ export function buildResolvedRowsForListing(
       }
 
       resolved.push({
-        id: `${listing.id}-${row.id}-${cell.fieldId}`,
+        id: `${listing.id}-${row.id}-${cellIndex}-${cell.fieldId}`,
         text,
         width: cell.width,
         textAlign: cell.textAlign,
