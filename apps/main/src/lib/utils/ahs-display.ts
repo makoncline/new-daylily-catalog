@@ -137,7 +137,7 @@ function formatInches(value: number | null | undefined) {
     return null;
   }
 
-  return `${formatted} inches`;
+  return `${formatted}"`;
 }
 
 function formatInteger(value: number | null | undefined) {
