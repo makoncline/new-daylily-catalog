@@ -160,27 +160,6 @@ function getValidatedImageUrlFromUrl(args: {
   return getValidatedImageUrl({ ...args, key });
 }
 
-async function getOwnedImageWhere(args: { db: DbClient; userId: string }) {
-  const [listingRows, profile] = await Promise.all([
-    args.db.listing.findMany({
-      where: { userId: args.userId },
-      select: { id: true },
-    }),
-    args.db.userProfile.findUnique({
-      where: { userId: args.userId },
-      select: { id: true },
-    }),
-  ]);
-
-  const listingIds = listingRows.map((listing) => listing.id);
-  const ownerFilters = [
-    ...(listingIds.length ? [{ listingId: { in: listingIds } }] : []),
-    ...(profile ? [{ userProfileId: profile.id }] : []),
-  ];
-
-  return ownerFilters.length ? { OR: ownerFilters } : null;
-}
-
 async function getDashboardImagesByListingIds(args: {
   db: DbClient;
   userId: string;
@@ -267,21 +246,33 @@ export const dashboardDbImageRouter = createTRPCRouter({
     }),
 
   list: protectedProcedure.query(async ({ ctx }) => {
-    const ownedImageWhere = await getOwnedImageWhere({
-      db: ctx.db,
-      userId: ctx.user.id,
-    });
-    if (!ownedImageWhere) return [];
+    const rows = await ctx.db.$queryRaw<ImageRow[]>(Prisma.sql`
+      SELECT
+        i."id",
+        i."url",
+        i."order",
+        i."listingId",
+        i."userProfileId",
+        i."createdAt",
+        i."updatedAt",
+        i."status"
+      FROM "Image" i
+      WHERE
+        EXISTS (
+          SELECT 1
+          FROM "Listing" l
+          WHERE l."id" = i."listingId"
+            AND l."userId" = ${ctx.user.id}
+        )
+        OR EXISTS (
+          SELECT 1
+          FROM "UserProfile" up
+          WHERE up."id" = i."userProfileId"
+            AND up."userId" = ${ctx.user.id}
+        )
+    `);
 
-    return ctx.db.image.findMany({
-      where: ownedImageWhere,
-      orderBy: [
-        { listingId: "asc" },
-        { userProfileId: "asc" },
-        { order: "asc" },
-      ],
-      select: imageSelect,
-    });
+    return rows.map(mapImageRow).sort(sortImagesForDashboard);
   }),
 
   listByListingIds: protectedProcedure
