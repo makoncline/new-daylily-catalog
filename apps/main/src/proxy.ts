@@ -3,6 +3,12 @@ import type { NextFetchEvent, NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { SUBSCRIPTION_CONFIG } from "@/config/subscription-config";
 import { getHomeMarkdown, getRequestBaseUrl } from "@/lib/agent-readiness";
+import {
+  PUBLIC_SEO_HTML_CACHE_POLICY_BY_ROUTE_TYPE,
+  type PublicSeoHtmlCachePolicy,
+  type PublicSeoRouteType,
+  getPublicSeoRouteType,
+} from "@/lib/public-seo-routes";
 
 const isProtectedRoute = createRouteMatcher([
   "/dashboard(.*)",
@@ -37,6 +43,78 @@ const publicAgentDiscoveryPaths = new Set([
   "/llms.txt",
   "/llms-full.txt",
 ]);
+
+const NEXT_ROUTER_VARIANT_HEADERS = [
+  "rsc",
+  "next-router-state-tree",
+  "next-router-prefetch",
+  "next-router-segment-prefetch",
+  "next-url",
+] as const;
+
+function hasAnyHeader(req: NextRequest, names: readonly string[]) {
+  return names.some((name) => req.headers.has(name));
+}
+
+function getPublicSeoHtmlCacheRouteType(req: NextRequest) {
+  if (req.method !== "GET" && req.method !== "HEAD") {
+    return null;
+  }
+
+  if (req.headers.has("authorization") || req.headers.has("cookie")) {
+    return null;
+  }
+
+  if (hasAnyHeader(req, NEXT_ROUTER_VARIANT_HEADERS)) {
+    return null;
+  }
+
+  if (req.nextUrl.search) {
+    return null;
+  }
+
+  const accept = req.headers.get("accept");
+  if (accept && !accept.includes("text/html") && !accept.includes("*/*")) {
+    return null;
+  }
+
+  return getPublicSeoRouteType(req.nextUrl.pathname);
+}
+
+function formatPublicSeoHtmlCacheControl(
+  policy: PublicSeoHtmlCachePolicy,
+  { browserMaxAge }: { browserMaxAge: number },
+) {
+  return `public, max-age=${browserMaxAge}, s-maxage=${policy.sMaxAge}, stale-while-revalidate=${policy.staleWhileRevalidate}`;
+}
+
+function formatPublicSeoHtmlCdnCacheControl(
+  policy: PublicSeoHtmlCachePolicy,
+) {
+  return `public, max-age=${policy.sMaxAge}, stale-while-revalidate=${policy.staleWhileRevalidate}`;
+}
+
+function withPublicSeoHtmlCacheHeaders(routeType: PublicSeoRouteType) {
+  const policy = PUBLIC_SEO_HTML_CACHE_POLICY_BY_ROUTE_TYPE[routeType];
+  const response = NextResponse.next();
+  response.headers.set(
+    "Cache-Control",
+    formatPublicSeoHtmlCacheControl(policy, { browserMaxAge: 0 }),
+  );
+  response.headers.set(
+    "CDN-Cache-Control",
+    formatPublicSeoHtmlCdnCacheControl(policy),
+  );
+  response.headers.set(
+    "Cloudflare-CDN-Cache-Control",
+    formatPublicSeoHtmlCdnCacheControl(policy),
+  );
+  response.headers.set(
+    "X-Daylily-Cache-Policy",
+    `public-seo-html; route=${routeType}`,
+  );
+  return response;
+}
 
 const protectedRouteProxy = clerkMiddleware(async (auth, req) => {
   if (!isProtectedRoute(req)) {
@@ -84,8 +162,9 @@ export function proxy(req: NextRequest, event: NextFetchEvent) {
     });
   }
 
-  if (req.nextUrl.pathname === "/") {
-    return undefined;
+  const publicSeoHtmlRouteType = getPublicSeoHtmlCacheRouteType(req);
+  if (publicSeoHtmlRouteType) {
+    return withPublicSeoHtmlCacheHeaders(publicSeoHtmlRouteType);
   }
 
   return protectedRouteProxy(req, event);
@@ -99,7 +178,19 @@ export const config = {
     "/onboarding/:path*",
     "/subscribe/success/:path*",
     "/api/trpc/:path*",
-    "/",
+    {
+      source: "/",
+      missing: [
+        { type: "header", key: "authorization" },
+        { type: "header", key: "cookie" },
+        { type: "header", key: "rsc" },
+        { type: "header", key: "next-router-state-tree" },
+        { type: "header", key: "next-router-prefetch" },
+        { type: "header", key: "next-router-segment-prefetch" },
+        { type: "header", key: "next-url" },
+        { type: "query", key: "_rsc" },
+      ],
+    },
     "/.well-known/:path*",
     "/openapi.json",
     "/llms.txt",
@@ -109,5 +200,70 @@ export const config = {
     "/sitemap.xml.gz",
     "/api",
     "/api/v1",
+    {
+      source: "/catalogs",
+      missing: [
+        { type: "header", key: "authorization" },
+        { type: "header", key: "cookie" },
+        { type: "header", key: "rsc" },
+        { type: "header", key: "next-router-state-tree" },
+        { type: "header", key: "next-router-prefetch" },
+        { type: "header", key: "next-router-segment-prefetch" },
+        { type: "header", key: "next-url" },
+        { type: "query", key: "_rsc" },
+      ],
+    },
+    {
+      source: "/cultivar/:cultivarNormalizedName",
+      missing: [
+        { type: "header", key: "authorization" },
+        { type: "header", key: "cookie" },
+        { type: "header", key: "rsc" },
+        { type: "header", key: "next-router-state-tree" },
+        { type: "header", key: "next-router-prefetch" },
+        { type: "header", key: "next-router-segment-prefetch" },
+        { type: "header", key: "next-url" },
+        { type: "query", key: "_rsc" },
+      ],
+    },
+    {
+      source: "/:userSlugOrId",
+      missing: [
+        { type: "header", key: "authorization" },
+        { type: "header", key: "cookie" },
+        { type: "header", key: "rsc" },
+        { type: "header", key: "next-router-state-tree" },
+        { type: "header", key: "next-router-prefetch" },
+        { type: "header", key: "next-router-segment-prefetch" },
+        { type: "header", key: "next-url" },
+        { type: "query", key: "_rsc" },
+      ],
+    },
+    {
+      source: "/:userSlugOrId/:listingSlugOrId",
+      missing: [
+        { type: "header", key: "authorization" },
+        { type: "header", key: "cookie" },
+        { type: "header", key: "rsc" },
+        { type: "header", key: "next-router-state-tree" },
+        { type: "header", key: "next-router-prefetch" },
+        { type: "header", key: "next-router-segment-prefetch" },
+        { type: "header", key: "next-url" },
+        { type: "query", key: "_rsc" },
+      ],
+    },
+    {
+      source: "/:userSlugOrId/page/:page",
+      missing: [
+        { type: "header", key: "authorization" },
+        { type: "header", key: "cookie" },
+        { type: "header", key: "rsc" },
+        { type: "header", key: "next-router-state-tree" },
+        { type: "header", key: "next-router-prefetch" },
+        { type: "header", key: "next-router-segment-prefetch" },
+        { type: "header", key: "next-url" },
+        { type: "query", key: "_rsc" },
+      ],
+    },
   ],
 };

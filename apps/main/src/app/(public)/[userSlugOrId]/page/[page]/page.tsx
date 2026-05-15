@@ -6,10 +6,7 @@ import {
   renderPublicProfilePage,
 } from "../../_lib/public-profile-page";
 
-// CACHE_LITERAL_REF: CACHE_CONFIG.PUBLIC.STATIC_REVALIDATE_SECONDS
-export const revalidate = 1800;
-export const dynamic = "force-static";
-export const dynamicParams = true;
+export const dynamic = "force-dynamic";
 
 interface ProfilePaginatedPageProps {
   params: Promise<{

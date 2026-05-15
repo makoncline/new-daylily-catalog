@@ -30,11 +30,10 @@ import {
   getListingIdFromSlugOrId,
   getUserIdFromSlugOrId,
 } from "@/server/db/getPublicProfile";
+import { trackPublicHtmlOriginRendered } from "@/server/analytics/public-html-origin-posthog";
 import { getPublicListingDetail } from "@/server/db/public-listing-read-model";
 
-export const revalidate = 900;
-export const dynamic = "force-static";
-export const dynamicParams = true;
+export const dynamic = "force-dynamic";
 
 interface PageProps {
   params: Promise<{
@@ -271,6 +270,10 @@ export default async function PublicListingPage({ params }: PageProps) {
   const imageUrl = getOptimizedMetaImageUrl(
     listing.images[0]?.url ?? IMAGES.DEFAULT_LISTING,
   );
+  trackPublicHtmlOriginRendered({
+    routePath: canonicalPath,
+    routeType: "listing_page",
+  });
   const jsonLd = createListingJsonLd({
     baseUrl,
     canonicalPath,

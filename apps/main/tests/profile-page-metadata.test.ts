@@ -28,8 +28,8 @@ vi.mock("@/app/(public)/[userSlugOrId]/_components/profile-seo", () => ({
   ProfilePageSEO: () => null,
 }));
 
-vi.mock("@/app/(public)/_components/isr-written-at", () => ({
-  IsrWrittenAt: () => null,
+vi.mock("@/server/analytics/public-html-origin-posthog", () => ({
+  trackPublicHtmlOriginRendered: () => null,
 }));
 
 vi.mock("@/app/(public)/[userSlugOrId]/_lib/public-profile-route", () => ({

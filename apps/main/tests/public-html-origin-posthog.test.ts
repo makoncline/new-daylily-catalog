@@ -17,19 +17,19 @@ vi.mock("@/server/analytics/posthog-server", () => ({
   captureServerPosthogEvent: captureServerPosthogEventMock,
 }));
 
-describe("IsrWrittenAt", () => {
+describe("trackPublicHtmlOriginRendered", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  it("schedules a PostHog event for ISR page generation", async () => {
-    const { IsrWrittenAt } = await import(
-      "@/app/(public)/_components/isr-written-at"
+  it("schedules a PostHog event for public HTML origin renders", async () => {
+    const { trackPublicHtmlOriginRendered } = await import(
+      "@/server/analytics/public-html-origin-posthog"
     );
 
-    IsrWrittenAt({
-      routePath: "/catalogs",
-      routeType: "catalogs_index",
+    trackPublicHtmlOriginRendered({
+      routePath: "/rollingoaksdaylilies/timber-man",
+      routeType: "listing_page",
     });
 
     expect(afterMock).toHaveBeenCalledTimes(1);
@@ -40,13 +40,13 @@ describe("IsrWrittenAt", () => {
     await scheduledTask();
 
     expect(captureServerPosthogEventMock).toHaveBeenCalledWith({
-      distinctId: "system:public-isr",
-      event: "public_isr_page_generated",
+      distinctId: "system:public-html-origin",
+      event: "public_html_origin_rendered",
       properties: {
-        source_page: "/catalogs",
-        render_mode: "isr",
-        route_path: "/catalogs",
-        route_type: "catalogs_index",
+        source_page: "/rollingoaksdaylilies/timber-man",
+        render_mode: "dynamic_origin",
+        route_path: "/rollingoaksdaylilies/timber-man",
+        route_type: "listing_page",
       },
     });
   });

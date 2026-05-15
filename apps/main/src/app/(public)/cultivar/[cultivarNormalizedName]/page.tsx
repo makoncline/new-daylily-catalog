@@ -5,10 +5,10 @@ import { MainContent } from "@/app/(public)/_components/main-content";
 import { Breadcrumbs } from "@/components/breadcrumbs";
 import { getCanonicalBaseUrl } from "@/lib/utils/getBaseUrl";
 import { serializeJsonLd } from "@/lib/utils/json-ld";
-import { IsrWrittenAt } from "@/app/(public)/_components/isr-written-at";
 import { SellerIntentLink } from "@/components/seller-intent-link";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { trackPublicHtmlOriginRendered } from "@/server/analytics/public-html-origin-posthog";
 import {
   CultivarPageRoot,
   CultivarPageSection,
@@ -23,8 +23,7 @@ import {
   getCultivarPageRouteArtifacts,
 } from "./_lib/cultivar-page-route";
 
-export const revalidate = 3600;
-export const dynamic = "force-static";
+export const dynamic = "force-dynamic";
 
 interface PageProps {
   params: Promise<{
@@ -55,6 +54,10 @@ export default async function CultivarPage({ params }: PageProps) {
     cultivarNormalizedName,
     cultivarPage,
   );
+  trackPublicHtmlOriginRendered({
+    routePath: `/cultivar/${cultivarNormalizedName}`,
+    routeType: "cultivar_page",
+  });
 
   return (
     <MainContent>
@@ -118,11 +121,6 @@ export default async function CultivarPage({ params }: PageProps) {
           </footer>
         </CultivarPageRoot>
       </div>
-
-      <IsrWrittenAt
-        routePath={`/cultivar/${cultivarNormalizedName}`}
-        routeType="cultivar_page"
-      />
     </MainContent>
   );
 }
