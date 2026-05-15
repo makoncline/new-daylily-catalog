@@ -40,6 +40,27 @@ import { applyWhereIn } from "./test-utils/apply-where-in";
 const originalV2DisplayFlag =
   process.env.NEXT_PUBLIC_USE_V2_CULTIVAR_DISPLAY_DATA;
 
+function createListingUser(userId: string) {
+  const profiles: Record<string, { slug: string; title: string }> = {
+    "user-alpha": {
+      slug: "alpha-pro",
+      title: "Alpha Pro Garden",
+    },
+    "user-hobby": {
+      slug: "hobby-garden",
+      title: "Hobby Garden",
+    },
+    "user-top": {
+      slug: "top-pro",
+      title: "Top Pro Garden",
+    },
+  };
+
+  return {
+    profile: profiles[userId] ?? null,
+  };
+}
+
 describe("getPublicCultivarPage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -189,6 +210,7 @@ describe("getPublicCultivarPage", () => {
         description: "Prime",
         updatedAt: new Date("2026-01-11T00:00:00.000Z"),
         userId: "user-top",
+        user: createListingUser("user-top"),
         cultivarReferenceId: "cultivar-1",
         images: [
           {
@@ -212,6 +234,7 @@ describe("getPublicCultivarPage", () => {
         description: "Display",
         updatedAt: new Date("2026-01-15T00:00:00.000Z"),
         userId: "user-top",
+        user: createListingUser("user-top"),
         cultivarReferenceId: "cultivar-1",
         images: [
           {
@@ -230,6 +253,7 @@ describe("getPublicCultivarPage", () => {
         description: "Alpha",
         updatedAt: new Date("2026-01-13T00:00:00.000Z"),
         userId: "user-alpha",
+        user: createListingUser("user-alpha"),
         cultivarReferenceId: "cultivar-1",
         images: [
           {
@@ -248,6 +272,7 @@ describe("getPublicCultivarPage", () => {
         description: "Hobby",
         updatedAt: new Date("2026-01-20T00:00:00.000Z"),
         userId: "user-hobby",
+        user: createListingUser("user-hobby"),
         cultivarReferenceId: "cultivar-1",
         images: [
           {

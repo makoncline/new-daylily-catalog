@@ -222,7 +222,6 @@ export async function linkAhs(draft: LinkAhsDraft) {
   return runWithDashboardRefreshLock(async () => {
     const updated =
       await getTrpcClient().dashboardDb.listing.linkAhs.mutate(draft);
-    listingsCollection.utils.writeUpdate(updated);
 
     if (updated.cultivarReferenceId) {
       try {
@@ -232,6 +231,7 @@ export async function linkAhs(draft: LinkAhsDraft) {
       }
     }
 
+    listingsCollection.utils.writeUpdate(updated);
     return updated;
   });
 }
