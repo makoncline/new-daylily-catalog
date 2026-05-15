@@ -3,6 +3,11 @@ import { TRPCError } from "@trpc/server";
 import { protectedProcedure, createTRPCRouter } from "@/server/api/trpc";
 import { generateUniqueSlug } from "@/lib/utils/slugify-server";
 import {
+  ahsDisplayAhsListingSelect,
+  getDisplayAhsListing,
+  v2AhsCultivarDisplaySelect,
+} from "@/lib/utils/ahs-display";
+import {
   dashboardSyncInputSchema,
   parseDashboardSyncSince,
 } from "./dashboard-db-router-helpers";
@@ -142,7 +147,8 @@ export const dashboardDbListingRouter = createTRPCRouter({
         where: { id: input.cultivarReferenceId },
         select: {
           id: true,
-          ahsListing: { select: { name: true } },
+          ahsListing: { select: ahsDisplayAhsListingSelect },
+          v2AhsCultivar: { select: v2AhsCultivarDisplaySelect },
         },
       });
       if (!cultivarReference) {
@@ -153,7 +159,7 @@ export const dashboardDbListingRouter = createTRPCRouter({
       }
 
       const nextTitle = input.syncName
-        ? cultivarReference.ahsListing?.name
+        ? getDisplayAhsListing(cultivarReference)?.name
         : undefined;
       if (input.syncName && !nextTitle) {
         throw new TRPCError({
