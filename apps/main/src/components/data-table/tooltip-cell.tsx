@@ -14,6 +14,7 @@ interface TooltipCellProps {
   content: string | null;
   /** Number of lines to show before truncating. Defaults to 1 */
   lines?: number;
+  className?: string;
 }
 
 /**
@@ -23,7 +24,7 @@ interface TooltipCellProps {
  * - Shows full content in a popover on click (mobile-friendly)
  * - Only renders popover if content is actually truncated
  */
-export function TooltipCell({ content, lines = 1 }: TooltipCellProps) {
+export function TooltipCell({ content, lines = 1, className }: TooltipCellProps) {
   const [isTruncated, setIsTruncated] = useState(false);
 
   // Handle empty states
@@ -35,6 +36,7 @@ export function TooltipCell({ content, lines = 1 }: TooltipCellProps) {
       <TruncatedText
         text={content}
         lines={lines}
+        className={className}
         onTruncated={setIsTruncated}
       />
     );
@@ -44,10 +46,11 @@ export function TooltipCell({ content, lines = 1 }: TooltipCellProps) {
   return (
     <Popover>
       <PopoverTrigger asChild>
-        <div className="cursor-pointer">
+        <div className="min-w-0 cursor-pointer">
           <TruncatedText
             text={content}
             lines={lines}
+            className={className}
             onTruncated={setIsTruncated}
           />
         </div>
