@@ -425,16 +425,32 @@ test.describe("cultivar guest flow @local", () => {
     ).toHaveCount(0);
 
     await page.goto("/top-pro/listing-top-prime");
-    await expect(page).toHaveURL(/\/top-pro\?viewing=listing-top-prime$/);
+    await expect(page).toHaveURL(/\/top-pro\/listing-top-prime$/);
+    await expect(
+      page.getByRole("heading", { level: 1, name: "Coffee Frenzy Prime Fan" }),
+    ).toBeVisible();
 
     await page.goto("/top-pro/coffee-frenzy-prime-fan");
-    await expect(page).toHaveURL(/\/top-pro\?viewing=listing-top-prime$/);
+    await expect(page).toHaveURL(/\/top-pro\/coffee-frenzy-prime-fan$/);
+    await expect(
+      page.getByRole("heading", { level: 1, name: "Coffee Frenzy Prime Fan" }),
+    ).toBeVisible();
 
     await page.goto(`/${topCatalogUserId}/listing-top-prime`);
-    await expect(page).toHaveURL(/\/top-pro\?viewing=listing-top-prime$/);
+    await expect(page).toHaveURL(
+      new RegExp(`/${topCatalogUserId}/listing-top-prime$`),
+    );
+    await expect(
+      page.getByRole("heading", { level: 1, name: "Coffee Frenzy Prime Fan" }),
+    ).toBeVisible();
 
     await page.goto(`/${topCatalogUserId}/coffee-frenzy-prime-fan`);
-    await expect(page).toHaveURL(/\/top-pro\?viewing=listing-top-prime$/);
+    await expect(page).toHaveURL(
+      new RegExp(`/${topCatalogUserId}/coffee-frenzy-prime-fan$`),
+    );
+    await expect(
+      page.getByRole("heading", { level: 1, name: "Coffee Frenzy Prime Fan" }),
+    ).toBeVisible();
 
     await page.goto(
       `/${topCatalogUserId}?viewing=listing-top-prime&utm_source=e2e-test`,
