@@ -1,12 +1,15 @@
 import { type Table } from "@tanstack/react-table";
 import {
   parseNumericRange,
+  splitFacetValue,
+  splitFormFacetValue,
   type NumericRange,
 } from "./public-catalog-search-filter-utils";
 import {
   type PublicCatalogSearchFacetOption,
   type PublicCatalogSearchFacetOptions,
 } from "./public-catalog-search-types";
+import { normalizeSearchText } from "@/lib/search-normalization";
 
 type PublicCatalogSearchFilterKind = "text" | "range" | "facet" | "boolean";
 
@@ -435,29 +438,25 @@ export function buildPublicCatalogSearchFacetOptions<
 >(listings: TListing[]): PublicCatalogSearchFacetOptions {
   const buildFacetOptions = (
     getValue: (listing: TListing) => string | null | undefined,
+    splitValue = splitFacetValue,
   ) => {
     const counts = new Map<string, { label: string; count: number }>();
 
     listings.forEach((listing) => {
-      const rawValue = getValue(listing);
-      if (typeof rawValue !== "string") {
-        return;
+      for (const label of splitValue(getValue(listing))) {
+        const key = normalizeSearchText(label);
+        const existing = counts.get(key);
+
+        if (key.length === 0) {
+          continue;
+        }
+
+        if (existing) {
+          existing.count += 1;
+        } else {
+          counts.set(key, { label, count: 1 });
+        }
       }
-
-      const label = rawValue.trim();
-      if (label.length === 0) {
-        return;
-      }
-
-      const key = label.toLowerCase();
-      const existing = counts.get(key);
-
-      if (existing) {
-        existing.count += 1;
-        return;
-      }
-
-      counts.set(key, { label, count: 1 });
     });
 
     return Array.from(counts.values())
@@ -472,7 +471,7 @@ export function buildPublicCatalogSearchFacetOptions<
   return {
     bloomHabit: buildFacetOptions(FACET_VALUE_GETTERS.bloomHabit),
     bloomSeason: buildFacetOptions(FACET_VALUE_GETTERS.bloomSeason),
-    form: buildFacetOptions(FACET_VALUE_GETTERS.form),
+    form: buildFacetOptions(FACET_VALUE_GETTERS.form, splitFormFacetValue),
     ploidy: buildFacetOptions(FACET_VALUE_GETTERS.ploidy),
     foliageType: buildFacetOptions(FACET_VALUE_GETTERS.foliageType),
     fragrance: buildFacetOptions(FACET_VALUE_GETTERS.fragrance),

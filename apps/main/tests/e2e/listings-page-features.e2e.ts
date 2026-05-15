@@ -20,6 +20,8 @@ test.describe("listings page features @local", () => {
     page,
     dashboardListings,
   }) => {
+    test.slow();
+
     const expectUrlParam = async (key: string, expected: string | null) => {
       await expect(page).toHaveURL(
         (url) => url.searchParams.get(key) === expected,

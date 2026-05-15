@@ -239,6 +239,7 @@ const listings: PublicCatalogListing[] = [
       hybridizer: "Reed",
       year: "2012",
       bloomSeason: "Midseason",
+      form: "Sculpted|Single",
       ploidy: "Tet",
       scapeHeight: "36 inches",
       color: "Rose pink",
@@ -273,6 +274,7 @@ const listings: PublicCatalogListing[] = [
       hybridizer: "Reed",
       year: "2018",
       bloomSeason: "Late",
+      form: "single | Unusual, Crispate-Cascade",
       ploidy: "Tet",
       scapeHeight: "40 inches",
       color: "Peach",
@@ -350,6 +352,23 @@ describe("public catalog search advanced filters", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /classification/i }));
     fireEvent.click(
+      within(screen.getByTestId("advanced-filter-form")).getByRole("button", {
+        name: /form/i,
+      }),
+    );
+    expect(screen.getByText("Sculpted")).toBeVisible();
+    expect(screen.getByText("Single")).toBeVisible();
+    expect(screen.getByText("Unusual")).toBeVisible();
+    expect(screen.getByText("Crispate")).toBeVisible();
+    expect(screen.getByText("Cascade")).toBeVisible();
+    expect(screen.queryByText("Sculpted|Single")).not.toBeInTheDocument();
+    expect(screen.queryByText("single")).not.toBeInTheDocument();
+    expect(
+      screen.queryByText("Unusual, Crispate-Cascade"),
+    ).not.toBeInTheDocument();
+    fireEvent.click(screen.getByText("Sculpted"));
+
+    fireEvent.click(
       within(screen.getByTestId("advanced-filter-ploidy")).getByRole("button", {
         name: /ploidy/i,
       }),
@@ -383,6 +402,7 @@ describe("public catalog search advanced filters", () => {
       expect(params.get("year")).not.toBeNull();
       expect(params.get("lists")).toBe("list-featured");
       expect(params.get("bloomSeason")).toBe("Midseason");
+      expect(params.get("form")).toBe("Sculpted");
       expect(params.get("ploidy")).toBe("Tet");
       expect(params.get("color")).toBe("Rose");
       expect(params.get("parentage")).toBe("A x B");
@@ -395,6 +415,43 @@ describe("public catalog search advanced filters", () => {
         within(screen.getByTestId("catalog-table")).getAllByRole("listitem"),
       ).toHaveLength(3);
     });
+  });
+
+  it("filters by normalized form values split from dashes and aliases", async () => {
+    const { rerender } = renderCatalog();
+
+    fireEvent.click(screen.getByTestId("search-mode-switch"));
+
+    await waitFor(() => {
+      expect(navigationState.getParams().get("mode")).toBe("advanced");
+    });
+
+    rerender(
+      <PublicCatalogSearchContent
+        lists={lists}
+        listings={listings}
+        isLoading={false}
+        totalListingsCount={3}
+      />,
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: /classification/i }));
+    fireEvent.click(
+      within(screen.getByTestId("advanced-filter-form")).getByRole("button", {
+        name: /form/i,
+      }),
+    );
+    fireEvent.click(screen.getByText("Cascade"));
+
+    await waitFor(() => {
+      expect(
+        within(screen.getByTestId("catalog-table")).getAllByRole("listitem"),
+      ).toHaveLength(1);
+      expect(navigationState.getParams().get("form")).toBe("Cascade");
+    });
+
+    expect(screen.getByText("Gamma Peach")).toBeVisible();
+    expect(screen.queryByText("Alpha Rose")).not.toBeInTheDocument();
   });
 
   it("shows section badge counts only for sections with active filters", async () => {
