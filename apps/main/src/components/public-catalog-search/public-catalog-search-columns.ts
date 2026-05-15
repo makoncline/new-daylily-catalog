@@ -4,6 +4,7 @@ import { type ColumnDef, type FilterFn } from "@tanstack/react-table";
 import { fuzzyFilter } from "@/lib/table-utils";
 import {
   matchesExactValue,
+  matchesFormFacetValue,
   matchesNumericRange,
   matchesTextContains,
 } from "./public-catalog-search-filter-utils";
@@ -14,6 +15,9 @@ const textContainsFilter: FilterFn<PublicCatalogListing> = (row, id, value) =>
 
 const exactMatchFilter: FilterFn<PublicCatalogListing> = (row, id, value) =>
   matchesExactValue(row.getValue(id), value);
+
+const formFacetFilter: FilterFn<PublicCatalogListing> = (row, id, value) =>
+  matchesFormFacetValue(row.getValue(id), value);
 
 const numericRangeFilter: FilterFn<PublicCatalogListing> = (row, id, value) =>
   matchesNumericRange(row.getValue(id), value);
@@ -183,7 +187,7 @@ export const publicCatalogSearchColumns = [
   {
     id: "form",
     accessorFn: (row) => row.ahsListing?.form ?? null,
-    filterFn: exactMatchFilter,
+    filterFn: formFacetFilter,
     enableSorting: false,
     enableHiding: true,
   },

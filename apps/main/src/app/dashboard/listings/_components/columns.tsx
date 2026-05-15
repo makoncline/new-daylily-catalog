@@ -17,6 +17,7 @@ import React from "react";
 import { fuzzyFilter } from "@/lib/table-utils";
 import {
   matchesExactValue,
+  matchesFormFacetValue,
   matchesNumericRange,
   matchesTextContains,
 } from "@/components/public-catalog-search/public-catalog-search-filter-utils";
@@ -44,6 +45,9 @@ const textContainsFilter: FilterFn<ListingData> = (row, id, value) =>
 
 const exactMatchFilter: FilterFn<ListingData> = (row, id, value) =>
   matchesExactValue(row.getValue(id), value);
+
+const formFacetFilter: FilterFn<ListingData> = (row, id, value) =>
+  matchesFormFacetValue(row.getValue(id), value);
 
 const numericRangeFilter: FilterFn<ListingData> = (row, id, value) =>
   matchesNumericRange(row.getValue(id), value);
@@ -488,7 +492,7 @@ export function getBaseListingColumns(): ColumnDef<ListingData>[] {
         const value = row.original.ahsListing?.form;
         return <TooltipCell content={value ?? null} />;
       },
-      filterFn: exactMatchFilter,
+      filterFn: formFacetFilter,
       enableSorting: true,
       enableHiding: true,
     },
