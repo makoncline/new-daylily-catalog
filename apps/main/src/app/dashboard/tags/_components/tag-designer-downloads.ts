@@ -123,6 +123,31 @@ type Html2CanvasRenderer = (
   },
 ) => Promise<HTMLCanvasElement>;
 
+const RASTER_RENDER_CONCURRENCY = 2;
+
+export async function mapWithConcurrency<TInput, TOutput>(
+  inputs: TInput[],
+  concurrency: number,
+  mapper: (input: TInput) => Promise<TOutput>,
+) {
+  const results = new Array<TOutput>(inputs.length);
+  let nextIndex = 0;
+
+  const workers = Array.from(
+    { length: Math.min(concurrency, inputs.length) },
+    async () => {
+      while (nextIndex < inputs.length) {
+        const index = nextIndex;
+        nextIndex += 1;
+        results[index] = await mapper(inputs[index]!);
+      }
+    },
+  );
+
+  await Promise.all(workers);
+  return results;
+}
+
 async function renderSingleTagCanvas(args: {
   tag: TagPreviewData;
   widthInches: number;
@@ -176,15 +201,16 @@ async function renderTagCanvasesForExport(args: {
     const { default: html2canvas } = await import("html2canvas");
     const canvases: HTMLCanvasElement[] = [];
 
-    const renderedCanvases = await Promise.all(
-      args.tags.map((tag) =>
+    const renderedCanvases = await mapWithConcurrency(
+      args.tags,
+      RASTER_RENDER_CONCURRENCY,
+      (tag) =>
         renderSingleTagCanvas({
           tag,
           widthInches: args.widthInches,
           heightInches: args.heightInches,
           html2canvas,
         }),
-      ),
     );
 
     for (const canvas of renderedCanvases) {
@@ -268,8 +294,10 @@ async function renderSheetCanvasesForExport(args: {
     const canvases: HTMLCanvasElement[] = [];
     const sheets = chunkTags(args.tags, metrics.tagsPerSheet);
 
-    const renderedCanvases = await Promise.all(
-      sheets.map((sheetTags) =>
+    const renderedCanvases = await mapWithConcurrency(
+      sheets,
+      RASTER_RENDER_CONCURRENCY,
+      (sheetTags) =>
         renderSingleSheetCanvas({
           sheetTags,
           sheetState: args.sheetState,
@@ -277,7 +305,6 @@ async function renderSheetCanvasesForExport(args: {
           tagHeightInches: args.tagHeightInches,
           html2canvas,
         }),
-      ),
     );
 
     for (const canvas of renderedCanvases) {
