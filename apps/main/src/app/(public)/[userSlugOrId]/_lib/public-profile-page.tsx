@@ -4,7 +4,6 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { MainContent } from "@/app/(public)/_components/main-content";
 import { PublicBreadcrumbs } from "@/app/(public)/_components/public-breadcrumbs";
-import { IsrWrittenAt } from "@/app/(public)/_components/isr-written-at";
 import { CatalogSeoListings } from "@/app/(public)/[userSlugOrId]/_components/catalog-seo-listings";
 import { ProfileContent } from "@/app/(public)/[userSlugOrId]/_components/profile-content";
 import { ProfilePageSEO } from "@/app/(public)/[userSlugOrId]/_components/profile-seo";
@@ -12,6 +11,7 @@ import { generatePaginatedProfileMetadata } from "@/app/(public)/[userSlugOrId]/
 import { generateProfileMetadata } from "@/app/(public)/[userSlugOrId]/_seo/metadata";
 import { getErrorCode, tryCatch } from "@/lib/utils";
 import { getCanonicalBaseUrl } from "@/lib/utils/getBaseUrl";
+import { trackPublicHtmlOriginRendered } from "@/server/analytics/public-html-origin-posthog";
 import { getPublicProfilePageData } from "./public-profile-route";
 
 interface GeneratePublicProfilePageMetadataArgs {
@@ -139,6 +139,7 @@ const renderPublicProfilePage = async ({
     requestedPage === 1
       ? `/${canonicalUserSlug}`
       : `/${canonicalUserSlug}/page/${pageData.page}`;
+  trackPublicHtmlOriginRendered({ routePath, routeType });
 
   return (
     <>
@@ -171,8 +172,6 @@ const renderPublicProfilePage = async ({
             showListSummaries={requestedPage === 1}
           />
         </div>
-
-        <IsrWrittenAt routePath={routePath} routeType={routeType} />
       </MainContent>
     </>
   );

@@ -3,9 +3,7 @@ import {
   renderPublicProfilePage,
 } from "./_lib/public-profile-page";
 
-export const revalidate = 900;
-export const dynamic = "force-static";
-export const dynamicParams = true;
+export const dynamic = "force-dynamic";
 
 interface PageProps {
   params: Promise<{

@@ -1,11 +1,12 @@
 import { HomePageSEO } from "./_components/home-seo";
 import { generateHomePageMetadata } from "./_seo/metadata";
 import { getCanonicalBaseUrl } from "@/lib/utils/getBaseUrl";
+import { trackPublicHtmlOriginRendered } from "@/server/analytics/public-html-origin-posthog";
 import HomePageClient, {
   type HomePageCatalog,
 } from "./_components/home-page-client";
 
-export const dynamic = "force-static";
+export const dynamic = "force-dynamic";
 
 const staticHomeCatalogs = [
   {
@@ -132,6 +133,10 @@ export async function generateMetadata() {
 export default async function HomePage() {
   const url = getCanonicalBaseUrl();
   const metadata = await generateHomePageMetadata(url);
+  trackPublicHtmlOriginRendered({
+    routePath: "/",
+    routeType: "home",
+  });
 
   return (
     <>

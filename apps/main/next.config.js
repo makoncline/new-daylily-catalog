@@ -13,6 +13,7 @@ const appDir = path.dirname(fileURLToPath(import.meta.url));
 const config = {
   output: "standalone",
   outputFileTracingRoot: path.join(appDir, "../.."),
+  cacheMaxMemorySize: 0,
 
   images: {
     remotePatterns: [{ hostname: "daylilycatalog.com" }],
