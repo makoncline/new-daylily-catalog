@@ -4,8 +4,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "next build",
-    "build:next": "next build",
+    "build": "next build && node scripts/mark-next-server-commonjs.mjs",
+    "build:next": "next build && node scripts/mark-next-server-commonjs.mjs",
     "dev": "node scripts/with-env.mjs --env development -- next dev --turbopack",
     "postinstall": "prisma generate",
     "lint": "eslint src",
