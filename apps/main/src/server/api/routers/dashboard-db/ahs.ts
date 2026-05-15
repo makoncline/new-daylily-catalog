@@ -22,7 +22,9 @@ async function runCultivarReferenceSearchQuery(
 
   const results = await db.cultivarReference.findMany({
     where: {
-      ...(useV2DisplayData ? {} : { ahsId: { not: null } }),
+      ...(useV2DisplayData
+        ? { v2AhsCultivar: { isNot: null } }
+        : { ahsId: { not: null } }),
       normalizedName: { startsWith: normalizedQuery },
     },
     take: 25,
