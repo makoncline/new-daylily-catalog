@@ -352,4 +352,24 @@ describe("dashboardDb.ahs", () => {
     expect(replicaDb.cultivarReference.findMany).toHaveBeenCalledOnce();
     expect(db.cultivarReference.findMany).not.toHaveBeenCalled();
   });
+
+  it("does not expose legacy-only cultivar references in V2 search", async () => {
+    process.env.NEXT_PUBLIC_USE_V2_CULTIVAR_DISPLAY_DATA = "true";
+
+    const db = createMockDb();
+    db.cultivarReference.findMany.mockResolvedValue([]);
+
+    const caller = createCaller(db);
+    const result = await caller.search({ query: "when you wish" });
+
+    expect(db.cultivarReference.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          v2AhsCultivar: { isNot: null },
+          normalizedName: { startsWith: "when you wish" },
+        }),
+      }),
+    );
+    expect(result).toEqual([]);
+  });
 });
