@@ -269,6 +269,50 @@ describe("dashboardDb.image", () => {
     expect(db.image.findMany).not.toHaveBeenCalled();
   });
 
+  it("list fetches images with owner-checked SQL instead of materialized listing ids", async () => {
+    const db = createMockDb();
+    db.listing.findMany.mockResolvedValue(
+      Array.from({ length: 5000 }, (_, index) => ({ id: `listing-${index}` })),
+    );
+    db.$queryRaw.mockResolvedValueOnce([
+      {
+        id: "profile-image",
+        url: "https://example.com/profile.jpg",
+        order: 0,
+        listingId: null,
+        userProfileId: "profile-1",
+        createdAt: "2026-01-01T00:00:00.000Z",
+        updatedAt: "2026-01-02T00:00:00.000Z",
+        status: null,
+      },
+      {
+        id: "listing-image",
+        url: "https://example.com/listing.jpg",
+        order: 1,
+        listingId: "listing-1",
+        userProfileId: null,
+        createdAt: "2026-01-01T00:00:00.000Z",
+        updatedAt: "2026-01-02T00:00:00.000Z",
+        status: null,
+      },
+    ]);
+
+    const caller = createCaller(db);
+    const result = await caller.list();
+
+    expect(result.map((row) => row.id)).toEqual([
+      "profile-image",
+      "listing-image",
+    ]);
+    expect(result[0]?.updatedAt).toEqual(
+      new Date("2026-01-02T00:00:00.000Z"),
+    );
+    expect(db.$queryRaw).toHaveBeenCalledTimes(1);
+    expect(db.listing.findMany).not.toHaveBeenCalled();
+    expect(db.userProfile.findUnique).not.toHaveBeenCalled();
+    expect(db.image.findMany).not.toHaveBeenCalled();
+  });
+
   it("listByListingIds fetches image chunks with indexed owner-checked queries", async () => {
     const db = createMockDb();
     db.$queryRaw.mockResolvedValueOnce([
