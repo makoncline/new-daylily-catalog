@@ -81,7 +81,7 @@ export function ImageCropper({
   minPx = 300,
   mimeType = "image/webp",
   maxOutputPx = 1600,
-  quality = 1,
+  quality = 0.98,
   onCropComplete,
   onCancel,
   isDisabled,
