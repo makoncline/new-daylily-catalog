@@ -63,14 +63,16 @@ describe("seller funnel proxy protection", () => {
   it("redirects unauthenticated onboarding access to auth-error", async () => {
     authMock.mockResolvedValueOnce({ userId: null });
 
-    const request = new NextRequest("http://localhost:3000/onboarding");
+    const request = new NextRequest(
+      "http://localhost:3000/onboarding?plan=pro",
+    );
     const middlewareEvent = {} as Parameters<NextMiddleware>[1];
 
     const response = await proxy(request, middlewareEvent);
 
     expect(authMock).toHaveBeenCalledTimes(1);
     expect(response?.headers.get("location")).toContain(
-      "/auth-error?returnTo=%2Fonboarding",
+      "/auth-error?returnTo=%2Fonboarding%3Fplan%3Dpro",
     );
   });
 

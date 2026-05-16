@@ -47,7 +47,9 @@ const protectedRouteProxy = clerkMiddleware(async (auth, req) => {
 
   if (!userId) {
     // Redirect to our custom auth error page instead of Clerk's sign-in page
-    const returnTo = encodeURIComponent(req.nextUrl.pathname);
+    const returnTo = encodeURIComponent(
+      `${req.nextUrl.pathname}${req.nextUrl.search}`,
+    );
     return NextResponse.redirect(
       new URL(`/auth-error?returnTo=${returnTo}`, req.url),
     );

@@ -7,11 +7,11 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Suspense } from "react";
 import { SUBSCRIPTION_CONFIG } from "@/config/subscription-config";
+import { getSafeAuthReturnTo } from "./auth-return-to";
 
 function AuthErrorContent() {
   const searchParams = useSearchParams();
-  const getSearchParam = searchParams.get.bind(searchParams);
-  const returnTo = getSearchParam("returnTo") ?? "/dashboard";
+  const returnTo = getSafeAuthReturnTo(searchParams.get("returnTo"));
 
   return (
     <div className="flex min-h-screen flex-col items-center justify-center p-4 text-center">
@@ -31,17 +31,17 @@ function AuthErrorContent() {
             expired.
           </p>
           <div className="flex flex-col gap-4 pt-4 sm:flex-row sm:justify-center">
-            <Button asChild size="lg">
-              <SignInButton
-                mode="modal"
-                forceRedirectUrl={returnTo}
-                signUpForceRedirectUrl={
-                  SUBSCRIPTION_CONFIG.NEW_USER_ONBOARDING_PATH
-                }
-              >
+            <SignInButton
+              mode="redirect"
+              forceRedirectUrl={returnTo}
+              signUpForceRedirectUrl={
+                SUBSCRIPTION_CONFIG.NEW_USER_ONBOARDING_PATH
+              }
+            >
+              <Button size="lg">
                 Sign In
-              </SignInButton>
-            </Button>
+              </Button>
+            </SignInButton>
             <Button variant="outline" asChild size="lg">
               <Link href="/">Return Home</Link>
             </Button>
