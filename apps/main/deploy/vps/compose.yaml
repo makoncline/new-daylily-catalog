@@ -2,6 +2,7 @@ services:
   app:
     image: ghcr.io/makoncline/daylilycatalog:${IMAGE_TAG}
     restart: unless-stopped
+    mem_limit: 1400m
     env_file:
       - .env
     volumes:
