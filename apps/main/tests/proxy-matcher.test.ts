@@ -13,67 +13,13 @@ vi.mock("@clerk/nextjs/server", () => ({
 }));
 
 describe("proxy matcher", () => {
-  it("does not run for routes that no longer need proxy handling", async () => {
+  it("does not run for API routes without proxy handling", async () => {
     const { config } = await import("@/proxy");
 
     expect(
       unstable_doesMiddlewareMatch({
         config,
-        url: "/api/legacy-redirect?listingId=listing-1",
-      }),
-    ).toBe(false);
-    expect(
-      unstable_doesMiddlewareMatch({
-        config,
-        url: "/trpc/public.getProfile",
-      }),
-    ).toBe(false);
-    expect(
-      unstable_doesMiddlewareMatch({
-        config,
-        url: "/users/user-1",
-      }),
-    ).toBe(false);
-    expect(
-      unstable_doesMiddlewareMatch({
-        config,
-        url: "/catalog/listing-1",
-      }),
-    ).toBe(false);
-    expect(
-      unstable_doesMiddlewareMatch({
-        config,
-        url: "/cultivar/Happy%20Returns",
-      }),
-    ).toBe(false);
-    expect(
-      unstable_doesMiddlewareMatch({
-        config,
-        url: "/catalogs",
-      }),
-    ).toBe(false);
-    expect(
-      unstable_doesMiddlewareMatch({
-        config,
-        url: "/start-membership",
-      }),
-    ).toBe(false);
-    expect(
-      unstable_doesMiddlewareMatch({
-        config,
-        url: "/graceful_petals_daylilies/page/2",
-      }),
-    ).toBe(false);
-    expect(
-      unstable_doesMiddlewareMatch({
-        config,
-        url: "/graceful_petals_daylilies?page=2",
-      }),
-    ).toBe(false);
-    expect(
-      unstable_doesMiddlewareMatch({
-        config,
-        url: "/graceful_petals_daylilies?viewing=listing_123",
+        url: "/api/mcp/server",
       }),
     ).toBe(false);
   });
@@ -117,11 +63,103 @@ describe("proxy matcher", () => {
         url: "/",
       }),
     ).toBe(true);
+  });
+
+  it("runs for public SEO HTML routes that get shared cache headers", async () => {
+    const { config } = await import("@/proxy");
+
     expect(
       unstable_doesMiddlewareMatch({
         config,
-        url: "/user_top?viewing=listing-top-prime",
+        url: "/",
       }),
-    ).toBe(false);
+    ).toBe(true);
+    expect(
+      unstable_doesMiddlewareMatch({
+        config,
+        url: "/catalogs",
+      }),
+    ).toBe(true);
+    expect(
+      unstable_doesMiddlewareMatch({
+        config,
+        url: "/rollingoaksdaylilies",
+      }),
+    ).toBe(true);
+    expect(
+      unstable_doesMiddlewareMatch({
+        config,
+        url: "/rollingoaksdaylilies/page/2",
+      }),
+    ).toBe(true);
+    expect(
+      unstable_doesMiddlewareMatch({
+        config,
+        url: "/cultivar/Happy%20Returns",
+      }),
+    ).toBe(true);
+    expect(
+      unstable_doesMiddlewareMatch({
+        config,
+        url: "/rollingoaksdaylilies/timber-man",
+      }),
+    ).toBe(true);
+  });
+
+  it("does not run for public SEO cache bypass variants", async () => {
+    const { config } = await import("@/proxy");
+    const cases = [
+      {
+        name: "cookie",
+        input: {
+          config,
+          url: "/rollingoaksdaylilies/timber-man",
+          cookies: { __session: "fake" },
+        },
+      },
+      {
+        name: "authorization",
+        input: {
+          config,
+          url: "/rollingoaksdaylilies/timber-man",
+          headers: { authorization: "Bearer fake" },
+        },
+      },
+      {
+        name: "rsc header",
+        input: {
+          config,
+          url: "/rollingoaksdaylilies/timber-man",
+          headers: { rsc: "1" },
+        },
+      },
+      {
+        name: "_rsc query",
+        input: {
+          config,
+          url: "/rollingoaksdaylilies/timber-man?_rsc=abc",
+        },
+      },
+      {
+        name: "router state header",
+        input: {
+          config,
+          url: "/rollingoaksdaylilies/timber-man",
+          headers: { "next-router-state-tree": "[]" },
+        },
+      },
+      {
+        name: "router prefetch header",
+        input: {
+          config,
+          url: "/rollingoaksdaylilies/timber-man",
+          headers: { "next-router-prefetch": "1" },
+        },
+      },
+    ] as const;
+
+    for (const { input, name } of cases) {
+      expect(unstable_doesMiddlewareMatch(input), name).toBe(false);
+    }
   });
 });
