@@ -37,9 +37,12 @@ function createMockDb(): MockDb {
   };
 }
 
-function createCaller(db: MockDb) {
+function createCaller(db: MockDb, cultivarReadDb?: MockDb) {
   return dashboardDbCultivarReferenceRouter.createCaller({
     db: db as unknown as TRPCInternalContext["db"],
+    cultivarReadDb: cultivarReadDb as
+      | TRPCInternalContext["cultivarReadDb"]
+      | undefined,
     _authUser: { id: "user-1" } as unknown as TRPCInternalContext["_authUser"],
     headers: new Headers(),
   });
@@ -93,6 +96,34 @@ describe("dashboardDb.cultivarReference", () => {
         orderBy: { updatedAt: "desc" },
       }),
     );
+  });
+
+  it("uses the primary database for user listing ids and the cultivar read database for reference rows", async () => {
+    const primaryDb = createMockDb();
+    const cultivarReadDb = createMockDb();
+    primaryDb.listing.findMany.mockResolvedValue([{ cultivarReferenceId: "cr-1" }]);
+    cultivarReadDb.cultivarReference.findMany.mockResolvedValue([
+      {
+        id: "cr-1",
+        normalizedName: "coffee frenzy",
+        updatedAt: new Date("2026-04-08T00:00:00.000Z"),
+        ahsListing: null,
+        v2AhsCultivar: null,
+      },
+    ]);
+
+    const caller = createCaller(primaryDb, cultivarReadDb);
+    const result = await caller.listForUserListings();
+
+    expect(result).toHaveLength(1);
+    expect(primaryDb.listing.findMany).toHaveBeenCalledTimes(1);
+    expect(cultivarReadDb.listing.findMany).not.toHaveBeenCalled();
+    expect(cultivarReadDb.cultivarReference.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: { in: ["cr-1"] } },
+      }),
+    );
+    expect(primaryDb.cultivarReference.findMany).not.toHaveBeenCalled();
   });
 
   it("sync returns early when the user has no linked cultivar references", async () => {

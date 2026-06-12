@@ -14,6 +14,9 @@ export const env = createEnv({
   server: {
     APP_BASE_URL: z.string().url().optional(),
     DATABASE_URL: z.string().optional(),
+    CULTIVAR_READ_DATABASE_URL: z.string().optional(),
+    CULTIVAR_READ_SYNC_URL: z.string().optional(),
+    CULTIVAR_READ_SYNC_INTERVAL_SECONDS: z.coerce.number().positive().optional(),
     TURSO_DATABASE_AUTH_TOKEN: z.string().optional(),
     VERCEL_AUTOMATION_BYPASS_SECRET: z.string().optional(),
     CLERK_SECRET_KEY: z.string().optional(),
@@ -47,6 +50,10 @@ export const env = createEnv({
   runtimeEnv: {
     APP_BASE_URL: process.env.APP_BASE_URL,
     DATABASE_URL: process.env.DATABASE_URL,
+    CULTIVAR_READ_DATABASE_URL: process.env.CULTIVAR_READ_DATABASE_URL,
+    CULTIVAR_READ_SYNC_URL: process.env.CULTIVAR_READ_SYNC_URL,
+    CULTIVAR_READ_SYNC_INTERVAL_SECONDS:
+      process.env.CULTIVAR_READ_SYNC_INTERVAL_SECONDS,
     TURSO_DATABASE_AUTH_TOKEN: process.env.TURSO_DATABASE_AUTH_TOKEN,
     VERCEL_AUTOMATION_BYPASS_SECRET:
       process.env.VERCEL_AUTOMATION_BYPASS_SECRET,
@@ -122,6 +129,23 @@ if (!process.env.SKIP_ENV_VALIDATION) {
     throw new Error(
       "TURSO_DATABASE_AUTH_TOKEN is required for libsql:// DATABASE_URL values.",
     );
+  }
+
+  if (
+    env.CULTIVAR_READ_DATABASE_URL &&
+    !isFileDatabaseUrl(env.CULTIVAR_READ_DATABASE_URL) &&
+    !isLibsqlDatabaseUrl(env.CULTIVAR_READ_DATABASE_URL)
+  ) {
+    throw new Error(
+      "CULTIVAR_READ_DATABASE_URL must start with file: for an embedded replica/local SQLite or libsql:// for Turso.",
+    );
+  }
+
+  if (
+    env.CULTIVAR_READ_SYNC_URL &&
+    !isLibsqlDatabaseUrl(env.CULTIVAR_READ_SYNC_URL)
+  ) {
+    throw new Error("CULTIVAR_READ_SYNC_URL must start with libsql://.");
   }
 
   const hasVercelHost =

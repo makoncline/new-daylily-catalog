@@ -2,7 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { fileURLToPath } from "node:url";
-import { normalizeCultivarName } from "../src/lib/utils/cultivar-utils";
+import deburr from "lodash.deburr";
 
 interface SourceCultivarRow {
   id: string;
@@ -178,6 +178,8 @@ const DEFAULT_OUTPUT_DIR = path.join(
   "v2-ahs-cultivar-delta",
 );
 const UPSERT_DIR_NAME = "upsert";
+const NEW_UPSERT_DIR_NAME = "upsert-new";
+const CHANGED_UPSERT_DIR_NAME = "upsert-changed";
 const LINK_FILE_NAME = "link-new-cultivar-references.sql";
 const VERIFY_FILE_NAME = "verify.sql";
 const REVIEW_FILE_NAME = "review-linked-name-drift.sql";
@@ -228,6 +230,51 @@ const COMPARABLE_COLUMNS = [
   "image_url",
   "awards_json",
 ] as const;
+const CHAR_VARIANT_MAP: Record<string, string> = {
+  "\u0060": "'",
+  "\u2019": "'",
+  "\u2018": "'",
+  "\u02BC": "'",
+  "\uFF07": "'",
+  "\u201C": '"',
+  "\u201D": '"',
+  "\u2033": '"',
+  "\uFF02": '"',
+  "\u2013": "-",
+  "\u2014": "-",
+  "\u2212": "-",
+  "\uFE63": "-",
+  "\uFF0D": "-",
+  "\u00AD": "",
+  "\u00A0": " ",
+  "\u2007": " ",
+  "\u202F": " ",
+};
+const CHAR_VARIANT_REGEX =
+  /[\u0060\u2019\u2018\u02BC\uFF07\u201C\u201D\u2033\uFF02\u2013\u2014\u2212\uFE63\uFF0D\u00AD\u00A0\u2007\u202F]/g;
+
+function normalizeCultivarName(name: string | null | undefined): string | null {
+  if (!name) {
+    return null;
+  }
+
+  const normalizedWithVariantsFolded = name
+    .normalize("NFKC")
+    .replace(
+      CHAR_VARIANT_REGEX,
+      (character) => CHAR_VARIANT_MAP[character] ?? character,
+    );
+  const normalized = deburr(normalizedWithVariantsFolded)
+    .toLowerCase()
+    .replace(/\s+/g, " ")
+    .trim();
+
+  return normalized.length > 0 ? normalized : null;
+}
+
+const CHANGE_TRIGGER_COLUMNS = COMPARABLE_COLUMNS.filter(
+  (column) => column !== "last_updated",
+);
 const INSERT_COLUMNS = [
   "id",
   ...COMPARABLE_COLUMNS,
@@ -513,7 +560,7 @@ function diffComparableRows(
 ) {
   const changedColumns: string[] = [];
 
-  COMPARABLE_COLUMNS.forEach((column) => {
+  CHANGE_TRIGGER_COLUMNS.forEach((column) => {
     if (current[column] !== next[column]) {
       changedColumns.push(column);
     }
@@ -605,8 +652,9 @@ function writeUpsertArtifacts(
   outputDir: string,
   summary: DeltaSummary,
   rows: ComparableCultivarRow[],
+  importDirName = UPSERT_DIR_NAME,
 ) {
-  const importDir = path.join(outputDir, UPSERT_DIR_NAME);
+  const importDir = path.join(outputDir, importDirName);
   const chunkMetadata: ImportChunkMetadata[] = [];
   let rowCount = 0;
   let batchCount = 0;
@@ -671,6 +719,7 @@ COMMIT;
   flushChunk();
 
   const manifest = {
+    importDirName,
     prodDbPath: summary.prodDbPath,
     sourceDbPath: summary.sourceDbPath,
     totalRows: rowCount,
@@ -1159,6 +1208,13 @@ async function main() {
   fs.mkdirSync(args.outputDir, { recursive: true });
 
   writeUpsertArtifacts(args.outputDir, summary, touchedRows);
+  writeUpsertArtifacts(args.outputDir, summary, newRows, NEW_UPSERT_DIR_NAME);
+  writeUpsertArtifacts(
+    args.outputDir,
+    summary,
+    changedRowsRaw.map((row) => row.next),
+    CHANGED_UPSERT_DIR_NAME,
+  );
   writeFile(
     path.join(args.outputDir, LINK_FILE_NAME),
     buildLinkSql(newRows, summary),

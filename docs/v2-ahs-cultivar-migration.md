@@ -75,6 +75,13 @@ npx tsx scripts/apply-v2-ahs-cultivar-import.ts --sqlite prisma/local-prod-copy-
 
 ## Incremental V2 Refreshes
 
+For the current post-migration refresh process, prefer the repo-local Codex skill
+at `.codex/skills/v2-ahs-refresh/SKILL.md`. It uses per-run artifact folders
+under `temp/v2-ahs-refresh-runs/<run-id>/` and requires a human review gate
+after SQL generation. Do not apply generated V2 refresh SQL to Turso until the
+human has reviewed the change report, requested any corrections, and explicitly
+approved the final apply batch.
+
 For post-migration refreshes, compare the latest scrape snapshot against a
 fresh local prod copy and generate a contained delta artifact set:
 

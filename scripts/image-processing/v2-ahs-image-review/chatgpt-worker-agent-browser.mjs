@@ -80,6 +80,13 @@ class DailyImageLimitExceededError extends Error {
   }
 }
 
+class SourceImageInvalidError extends Error {
+  constructor(message) {
+    super(message);
+    this.name = "SourceImageInvalidError";
+  }
+}
+
 class BrowserApprovalRequiredError extends Error {
   constructor(message = "Chrome requires manual debugging approval before the worker can continue") {
     super(message);
@@ -554,6 +561,10 @@ function browserClick(selector) {
   execAgentBrowser(["click", selector]);
 }
 
+function browserHover(selector) {
+  execAgentBrowser(["hover", selector]);
+}
+
 function browserUpload(selector, filePath) {
   execAgentBrowser(["upload", selector, filePath]);
 }
@@ -990,7 +1001,7 @@ function claimNextListingLinkedItem(preferredId = null) {
     database.exec(`ATTACH DATABASE '${escapedProdPath}' AS "prod"`);
     database.exec("BEGIN IMMEDIATE TRANSACTION");
 
-    const row = preferredId
+    let row = preferredId
       ? database
           .prepare(`
             SELECT "id"
@@ -1023,6 +1034,34 @@ function claimNextListingLinkedItem(preferredId = null) {
             LIMIT 1
           `)
           .get();
+
+    if (!row?.id && !preferredId) {
+      row = database
+        .prepare(`
+          SELECT q."id"
+          FROM "v2_image_review_queue" q
+          JOIN prod."V2AhsCultivar" v
+            ON v."id" = q."id"
+          WHERE q."status" IN ('pending', 'failed', 'rejected')
+          ORDER BY
+            CASE
+              WHEN v."introduction_date" IS NULL OR v."introduction_date" = ''
+                THEN 1
+              ELSE 0
+            END,
+            v."introduction_date" DESC,
+            CASE q."status"
+              WHEN 'pending' THEN 0
+              WHEN 'rejected' THEN 1
+              WHEN 'failed' THEN 2
+              ELSE 3
+            END,
+            q."updatedAt" ASC,
+            q."id" ASC
+          LIMIT 1
+        `)
+        .get();
+    }
 
     if (!row?.id) {
       database.exec("COMMIT");
@@ -1088,24 +1127,39 @@ async function refreshProjectPage(projectUrl) {
 
 async function clickProjectHomeLink(projectUrl) {
   const expectedPath = getProjectPath(projectUrl);
-  const exactHrefSelector = JSON.stringify(`a[href="${expectedPath}"]`);
   const expectedPathJson = JSON.stringify(expectedPath);
+  const markerSelector = "[data-codex-project-home-link]";
+  const markerSelectorJson = JSON.stringify(markerSelector);
 
   try {
     await waitFor(
       "project home link",
       async () => {
         return browserEvalBoolean(
-          `!!(() => {
-            return (
-              document.querySelector(${exactHrefSelector}) ||
-              document.querySelector('a[aria-label^="Open "][aria-label$=" project"]') ||
-              [...document.querySelectorAll('a[href]')].find((link) => {
-                const href = link.getAttribute('href') || '';
-                const label = (link.getAttribute('aria-label') || link.innerText || '').trim();
-                return href === ${expectedPathJson} || (label.startsWith('Open ') && label.endsWith(' project'));
-              })
-            );
+          `(() => {
+            const findProjectHomeControl = () => {
+              const exactHref = [...document.querySelectorAll('a[href]')].find(
+                (link) => (link.getAttribute('href') || '') === ${expectedPathJson},
+              );
+              if (exactHref) return exactHref;
+
+              const projectIcon = document
+                .querySelector('[data-testid="project-folder-icon"]')
+                ?.closest('a, button, [role="button"]');
+              if (projectIcon) return projectIcon;
+
+              return [...document.querySelectorAll('a[href], button, [role="button"]')].find((node) => {
+                const href = node.getAttribute('href') || '';
+                const label = (node.getAttribute('aria-label') || node.innerText || '').trim().toLowerCase();
+                return (
+                  href === ${expectedPathJson} ||
+                  label.includes('project') ||
+                  label.includes('folder')
+                );
+              });
+            };
+
+            return Boolean(findProjectHomeControl());
           })()`,
         );
       },
@@ -1117,27 +1171,46 @@ async function clickProjectHomeLink(projectUrl) {
     return false;
   }
 
-  return browserEvalBoolean(
-      `(() => {
-        const link =
-          document.querySelector(${exactHrefSelector}) ||
-          document.querySelector('a[aria-label^="Open "][aria-label$=" project"]') ||
-          [...document.querySelectorAll('a[href]')].find((node) => {
-            const href = node.getAttribute('href') || '';
-            const label = (node.getAttribute('aria-label') || node.innerText || '').trim();
-            return href === ${expectedPathJson} || (label.startsWith('Open ') && label.endsWith(' project'));
-          });
-        if (!link) {
-          return false;
-        }
-        const href = link.href || link.getAttribute('href') || "";
-        if (!href) {
-          return false;
-        }
-        window.location.href = href;
-        return true;
-      })()`,
+  const marked = browserEvalBoolean(
+    `(() => {
+      document.querySelectorAll(${markerSelectorJson}).forEach((node) => {
+        node.removeAttribute('data-codex-project-home-link');
+      });
+
+      const exactHref = [...document.querySelectorAll('a[href]')].find(
+        (link) => (link.getAttribute('href') || '') === ${expectedPathJson},
+      );
+      const projectIcon = document
+        .querySelector('[data-testid="project-folder-icon"]')
+        ?.closest('a, button, [role="button"]');
+      const fuzzy = [...document.querySelectorAll('a[href], button, [role="button"]')].find((node) => {
+        const href = node.getAttribute('href') || '';
+        const label = (node.getAttribute('aria-label') || node.innerText || '').trim().toLowerCase();
+        return (
+          href === ${expectedPathJson} ||
+          label.includes('project') ||
+          label.includes('folder')
+        );
+      });
+      const control =
+        exactHref ||
+        projectIcon ||
+        fuzzy;
+      if (!control) {
+        return false;
+      }
+
+      control.setAttribute('data-codex-project-home-link', 'true');
+      return true;
+    })()`,
   );
+
+  if (!marked) {
+    return false;
+  }
+
+  browserClick(markerSelector);
+  return true;
 }
 
 async function ensureProjectPage(projectUrl, projectPrefix) {
@@ -1165,6 +1238,10 @@ async function deleteConversationFromProject(conversationUrl, projectUrl) {
   const conversationPath = getProjectPath(conversationUrl);
   const conversationPathJson = JSON.stringify(conversationPath);
   const conversationId = getConversationIdFromUrl(conversationUrl);
+  const conversationIdJson = JSON.stringify(conversationId);
+  const conversationPathSuffixJson = JSON.stringify(`/c/${conversationId}`);
+  const rowMarkerSelector = '[data-codex-delete-row="true"]';
+  const rowMarkerSelectorJson = JSON.stringify(rowMarkerSelector);
   const optionsTriggerSelector = JSON.stringify(
     `button[data-conversation-options-trigger="${conversationId}"]`,
   );
@@ -1174,9 +1251,16 @@ async function deleteConversationFromProject(conversationUrl, projectUrl) {
     async () => {
       return browserEvalBoolean(
         `(() => {
-          const link = [...document.querySelectorAll('a[href]')].find((node) =>
-            (node.getAttribute('href') || '') === ${conversationPathJson},
-          );
+          const links = [...document.querySelectorAll('a[href]')];
+          const link =
+            links.find((node) => (node.getAttribute('href') || '') === ${conversationPathJson}) ||
+            links.find((node) => {
+              const href = node.getAttribute('href') || '';
+              return (
+                href.endsWith(${conversationPathSuffixJson}) &&
+                !node.closest('nav[aria-label="Sidebar"], nav')
+              );
+            });
           const trigger = document.querySelector(
             ${optionsTriggerSelector},
           );
@@ -1207,29 +1291,55 @@ async function deleteConversationFromProject(conversationUrl, projectUrl) {
       break;
     }
 
-    const triggerClickSelector = browserEvalValue(
+    const rowSelector = browserEvalValue(
       `(() => {
-        const link = [...document.querySelectorAll('a[href]')].find((node) =>
-          (node.getAttribute('href') || '') === ${conversationPathJson},
-        );
+        document.querySelectorAll(${rowMarkerSelectorJson}).forEach((node) => {
+          node.removeAttribute('data-codex-delete-row');
+        });
+
+        const links = [...document.querySelectorAll('a[href]')];
+        const link =
+          links.find((node) => (node.getAttribute('href') || '') === ${conversationPathJson}) ||
+          links.find((node) => {
+            const href = node.getAttribute('href') || '';
+            return (
+              href.endsWith(${conversationPathSuffixJson}) &&
+              !node.closest('nav[aria-label="Sidebar"], nav')
+            );
+          });
         const row =
           link?.closest('li, [role="listitem"], article, section, [data-testid]') ||
           link?.parentElement ||
           null;
 
-        if (row) {
-          row.scrollIntoView({ block: 'center' });
-          const hoverEvents = ['pointerenter', 'mouseenter', 'mouseover', 'mousemove'];
-          for (const type of hoverEvents) {
-            row.dispatchEvent(
-              new MouseEvent(type, { bubbles: true, cancelable: true, view: window }),
-            );
-          }
+        if (!row) {
+          return null;
         }
 
+        row.scrollIntoView({ block: 'center' });
+        row.setAttribute('data-codex-delete-row', 'true');
+        return ${rowMarkerSelectorJson};
+      })()`,
+    );
+
+    if (typeof rowSelector === "string" && rowSelector) {
+      browserHover(rowSelector);
+      await sleep(500);
+    }
+
+    const triggerClickSelector = browserEvalValue(
+      `(() => {
+        const row = document.querySelector(${rowMarkerSelectorJson});
         const trigger =
-          document.querySelector(${optionsTriggerSelector}) ||
+          row?.querySelector(${optionsTriggerSelector}) ||
           row?.querySelector('button[data-conversation-options-trigger]') ||
+          [...(row || document).querySelectorAll('button')].find((button) => {
+            const label = (button.getAttribute('aria-label') || button.innerText || '').trim();
+            return (
+              label.includes('Open conversation options') ||
+              label.includes(${conversationIdJson})
+            );
+          }) ||
           null;
 
         if (!trigger) {
@@ -1237,13 +1347,6 @@ async function deleteConversationFromProject(conversationUrl, projectUrl) {
         }
 
         trigger.scrollIntoView({ block: 'center' });
-
-        const hoverEvents = ['pointerenter', 'mouseenter', 'mouseover', 'mousemove'];
-        for (const type of hoverEvents) {
-          trigger.dispatchEvent(
-            new MouseEvent(type, { bubbles: true, cancelable: true, view: window }),
-          );
-        }
 
         trigger.setAttribute('data-codex-delete-trigger', 'true');
         return '[data-codex-delete-trigger="true"]';
@@ -1798,6 +1901,7 @@ async function ensureCreateImageMode() {
 }
 
 async function uploadFile(filePath) {
+  assertValidSourceImageFile(filePath);
   browserUpload("#upload-photos", filePath);
 
   const fileName = path.basename(filePath);
@@ -1814,6 +1918,49 @@ async function uploadFile(filePath) {
     },
     15000,
     400,
+  );
+}
+
+function assertValidSourceImageFile(filePath) {
+  const bytes = fs.readFileSync(filePath);
+
+  const isJpeg =
+    bytes.length >= 3 &&
+    bytes[0] === 0xff &&
+    bytes[1] === 0xd8 &&
+    bytes[2] === 0xff;
+  const isPng =
+    bytes.length >= 8 &&
+    bytes[0] === 0x89 &&
+    bytes[1] === 0x50 &&
+    bytes[2] === 0x4e &&
+    bytes[3] === 0x47;
+  const isGif =
+    bytes.length >= 6 &&
+    (bytes.subarray(0, 6).toString("ascii") === "GIF87a" ||
+      bytes.subarray(0, 6).toString("ascii") === "GIF89a");
+  const isWebp =
+    bytes.length >= 12 &&
+    bytes.subarray(0, 4).toString("ascii") === "RIFF" &&
+    bytes.subarray(8, 12).toString("ascii") === "WEBP";
+  const isTiff =
+    bytes.length >= 4 &&
+    ((bytes[0] === 0x49 &&
+      bytes[1] === 0x49 &&
+      bytes[2] === 0x2a &&
+      bytes[3] === 0x00) ||
+      (bytes[0] === 0x4d &&
+        bytes[1] === 0x4d &&
+        bytes[2] === 0x00 &&
+        bytes[3] === 0x2a));
+
+  if (isJpeg || isPng || isGif || isWebp || isTiff) {
+    return;
+  }
+
+  const preview = bytes.subarray(0, 32).toString("utf8").replaceAll("\n", "\\n");
+  throw new SourceImageInvalidError(
+    `Invalid source image file ${path.relative(REPO_ROOT, filePath)} (${bytes.length} bytes, starts with ${JSON.stringify(preview)})`,
   );
 }
 
@@ -1929,7 +2076,22 @@ async function clickSkipButton() {
   return true;
 }
 
-async function waitForGeneratedImage() {
+function getGeneratedImageSrcs() {
+  const result = browserEvalJson(
+    `JSON.stringify(
+      [...document.querySelectorAll("img")]
+        .filter((img) => (img.alt || "").startsWith("Generated image"))
+        .map((img) => img.currentSrc || img.src || "")
+        .filter(Boolean),
+    )`,
+  );
+
+  return Array.isArray(result)
+    ? new Set(result.filter((src) => typeof src === "string" && src))
+    : new Set();
+}
+
+async function waitForGeneratedImage(existingGeneratedSrcs = new Set()) {
   const result = await waitFor(
     "generated image",
     async () => {
@@ -2023,7 +2185,8 @@ async function waitForGeneratedImage() {
               image &&
               typeof image.src === "string" &&
               image.src &&
-              image.src !== result.uploadedSrc,
+              image.src !== result.uploadedSrc &&
+              !existingGeneratedSrcs.has(image.src),
           )
         : [];
 
@@ -2073,7 +2236,7 @@ async function waitForGeneratedImage() {
       if (result.plainDownloadVisible && Array.isArray(result.resourceUrls)) {
         const generatedCandidate = [...result.resourceUrls]
           .reverse()
-          .find((url) => url !== result.uploadedSrc);
+          .find((url) => url !== result.uploadedSrc && !existingGeneratedSrcs.has(url));
 
         if (generatedCandidate) {
           return {
@@ -2225,13 +2388,15 @@ async function processItem(
       await ensureProjectPage(projectUrl, projectPrefix);
       await resetComposerDraft();
       await ensureCreateImageMode();
+      const existingGeneratedSrcs = getGeneratedImageSrcs();
       await uploadFile(item.originalPath);
       await ensureCreateImageMode();
       await fillPromptAndSend(prompt);
 
-      const conversationUrl = await waitForConversationUrl(projectPrefix);
-      lastConversationUrl = conversationUrl;
-      const { generatedSrc } = await waitForGeneratedImage();
+      const { generatedSrc } = await waitForGeneratedImage(existingGeneratedSrcs);
+      const conversationPageUrl = getCurrentConversationUrl(projectPrefix);
+      const conversationUrl = conversationPageUrl ?? browserGetUrl();
+      lastConversationUrl = conversationPageUrl;
       const editedPath = await saveGeneratedImage(conversationUrl, generatedSrc, item.id);
 
       updateStatus(item.id, "review", {
@@ -2258,14 +2423,14 @@ async function processItem(
 
       let deletedConversation = false;
 
-      if (deleteAfterSave) {
+      if (deleteAfterSave && conversationPageUrl) {
         try {
           if (!onProjectPage) {
             await ensureProjectPage(projectUrl, projectPrefix);
             onProjectPage = true;
           }
 
-          await deleteConversationFromProject(conversationUrl, projectUrl);
+          await deleteConversationFromProject(conversationPageUrl, projectUrl);
           deletedConversation = true;
         } catch (deleteError) {
           if (deleteError instanceof ChatGptRateLimitError) {
@@ -2500,6 +2665,36 @@ async function main() {
         typeof error.conversationUrl === "string"
           ? error.conversationUrl
           : null;
+
+      if (error instanceof SourceImageInvalidError) {
+        updateStatus(item.id, "source_invalid", {
+          lastError: message,
+          promptVersion: PROMPT_VERSION,
+        });
+
+        console.warn(
+          `[chatgpt-image-worker] skipped invalid source image id=${item.id} error=${message}`,
+        );
+
+        consecutiveErrorState = {
+          count: 0,
+          key: null,
+          label: null,
+        };
+        processed += 1;
+
+        if (processed < options.limit) {
+          await cooldownBetweenItems(
+            options.delayMinSeconds,
+            options.delayMaxSeconds,
+            "invalid source image",
+          );
+          continue;
+        }
+
+        break;
+      }
+
       let debugArtifacts = null;
 
       try {

@@ -423,6 +423,43 @@ export function getEditedItems() {
   }
 }
 
+export function getCodexNativeItems() {
+  const database = openQueueDb();
+
+  try {
+    ensureSchema(database);
+
+    const rows = database
+      .prepare(`
+        SELECT
+          "id",
+          "postTitle",
+          "editedPath",
+          "status",
+          "promptVersion",
+          "updatedAt"
+        FROM "v2_image_review_queue"
+        WHERE "editedPath" IS NOT NULL
+          AND "editedPath" <> ''
+          AND "promptVersion" = 'codex-native-imagegen-v1'
+        ORDER BY datetime("updatedAt") DESC, "id" DESC
+      `)
+      .all();
+
+    return rows.map((row) => ({
+      id: String(row.id),
+      postTitle: typeof row.postTitle === "string" ? row.postTitle : null,
+      editedPath: typeof row.editedPath === "string" ? row.editedPath : null,
+      status: String(row.status),
+      promptVersion:
+        typeof row.promptVersion === "string" ? row.promptVersion : null,
+      updatedAt: String(row.updatedAt),
+    }));
+  } finally {
+    database.close();
+  }
+}
+
 export function updateStatus(id, status, options = {}) {
   const database = openQueueDb();
 

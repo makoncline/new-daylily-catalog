@@ -23,6 +23,8 @@ prisma/local-dev-seeded.sqlite-shm
 tests/.tmp/
 .tmp/
 /temp_pages/
+/temp_pages_*/
+/temp/
 prisma/prisma/
 prisma/data-migrations/20260407_upsert_v2_ahs_cultivars/
 prisma/data-migrations/v2-ahs-cultivar-delta/
@@ -41,9 +43,11 @@ next-env.d.ts
 *.pem
 
 # local operator scratch space
+/downloads/
 /downloads/v2-ahs-images/
 /downloads/v2-ahs-images-chatgpt/
 /downloads/v2-ahs-image-review/
+/local/
 /local/v2-ahs-image-review/
 
 # debug

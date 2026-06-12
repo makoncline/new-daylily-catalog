@@ -111,14 +111,16 @@ export const dashboardDbAhsRouter = createTRPCRouter({
   search: protectedProcedure
     .input(z.object({ query: z.string().min(1) }))
     .query(async ({ ctx, input }) =>
-      runCultivarReferenceSearchQuery(ctx.db, input.query),
+      runCultivarReferenceSearchQuery(ctx.cultivarReadDb ?? ctx.db, input.query),
     ),
 
   get: protectedProcedure
     .input(z.object({ id: z.string().min(1) }))
     .query(async ({ ctx, input }) => {
       const useV2DisplayData = isV2CultivarDisplayDataEnabled();
-      const cultivarReference = await ctx.db.cultivarReference.findUnique({
+      const cultivarReference = await (
+        ctx.cultivarReadDb ?? ctx.db
+      ).cultivarReference.findUnique({
         where: useV2DisplayData ? { id: input.id } : { ahsId: input.id },
         select: {
           ahsListing: {

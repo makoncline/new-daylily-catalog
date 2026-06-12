@@ -32,9 +32,12 @@ function createMockDb(): MockDb {
   };
 }
 
-function createCaller(db: MockDb) {
+function createCaller(db: MockDb, cultivarReadDb?: MockDb) {
   return dashboardDbAhsRouter.createCaller({
     db: db as unknown as TRPCInternalContext["db"],
+    cultivarReadDb: cultivarReadDb as
+      | TRPCInternalContext["cultivarReadDb"]
+      | undefined,
     _authUser: { id: "user-1" } as unknown as TRPCInternalContext["_authUser"],
     headers: new Headers(),
   });
@@ -187,5 +190,53 @@ describe("dashboardDb.ahs", () => {
         cultivarReferenceId: "cr-1",
       },
     ]);
+  });
+
+  it("runs cultivar search against the configured cultivar read database", async () => {
+    const primaryDb = createMockDb();
+    const cultivarReadDb = createMockDb();
+    cultivarReadDb.cultivarReference.findMany.mockResolvedValue([
+      {
+        id: "cr-1",
+        ahsId: "ahs-1",
+        normalizedName: "coffee frenzy",
+        ahsListing: {
+          id: "ahs-1",
+          name: "Coffee Frenzy",
+          ahsImageUrl: null,
+          hybridizer: null,
+          year: null,
+          scapeHeight: null,
+          bloomSize: null,
+          bloomSeason: null,
+          form: null,
+          ploidy: null,
+          foliageType: null,
+          bloomHabit: null,
+          budcount: null,
+          branches: null,
+          sculpting: null,
+          foliage: null,
+          flower: null,
+          fragrance: null,
+          parentage: null,
+          color: null,
+        },
+        v2AhsCultivar: null,
+      },
+    ]);
+
+    const caller = createCaller(primaryDb, cultivarReadDb);
+    const result = await caller.search({ query: "coffee" });
+
+    expect(result).toEqual([
+      {
+        id: "ahs-1",
+        name: "Coffee Frenzy",
+        cultivarReferenceId: "cr-1",
+      },
+    ]);
+    expect(cultivarReadDb.cultivarReference.findMany).toHaveBeenCalledTimes(1);
+    expect(primaryDb.cultivarReference.findMany).not.toHaveBeenCalled();
   });
 });

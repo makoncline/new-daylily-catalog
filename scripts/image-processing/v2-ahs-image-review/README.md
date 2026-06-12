@@ -6,14 +6,16 @@ Runtime state stays out of git:
 - outputs, logs, queue DB: `downloads/v2-ahs-image-review/`
 - source image cache: `downloads/v2-ahs-images/`
 - browser profiles, target cache, local venv, Xcode build products: `local/v2-ahs-image-review/`
+- local S3 uploader credentials: `local/v2-ahs-image-review/s3.env`
 - failure debug artifacts: `downloads/v2-ahs-image-review/debug/`
 
 ## Main entrypoints
 
 - queue sync: `node scripts/image-processing/v2-ahs-image-review/sync.mjs`
 - review server: `node scripts/image-processing/v2-ahs-image-review/server.mjs`
+- Codex-native image generation: `scripts/image-processing/v2-ahs-image-review/codex-native-image-generation.md`
 - ChatGPT worker: `node scripts/image-processing/v2-ahs-image-review/chatgpt-worker-agent-browser.mjs --limit 50`
-- S3 backup: `node scripts/image-processing/v2-ahs-image-review/backup-to-s3.mjs --bucket <bucket>`
+- S3 backup: `node scripts/image-processing/v2-ahs-image-review/backup-to-s3.mjs`
 
 ## Review UI
 
@@ -65,26 +67,49 @@ downloads/v2-ahs-image-review/debug/
 Use this to copy the generated images somewhere durable outside the laptop:
 
 ```bash
-node scripts/image-processing/v2-ahs-image-review/backup-to-s3.mjs \
-  --bucket your-bucket-name
+node scripts/image-processing/v2-ahs-image-review/backup-to-s3.mjs
 ```
 
 Dry run first:
 
 ```bash
-node scripts/image-processing/v2-ahs-image-review/backup-to-s3.mjs \
-  --bucket your-bucket-name \
-  --dry-run
+node scripts/image-processing/v2-ahs-image-review/backup-to-s3.mjs --dry-run
 ```
 
 Optional flags:
-- `--prefix your/path` to change the S3 key prefix. Default: `v2-ahs-image-review`
-- `--include-db` to also upload `downloads/v2-ahs-image-review/review.sqlite`
-- `--force` to re-upload even when the remote file already has the same sha256
+- `--limit 1` to test only the first edited image
+
+Each run updates a SQLite backup manifest:
+
+```text
+downloads/v2-ahs-image-review/s3-manifest.sqlite
+```
+
+The manifest records `CultivarReference.id`, V2 AHS id, normalized name, local
+path, S3 key, sha256, byte size, and whether the image was uploaded, already
+present, or only planned by a dry run.
+
+Edited image object names are derived from the local production copy's
+`CultivarReference` rows:
+
+```text
+cultivar-images/{normalized-name}-{CultivarReference.id}.png
+```
+
+Local variant files with names like `1000_1.png` are skipped. The backup stores
+one image per cultivar reference.
 
 You can also set:
 - `V2_IMAGE_REVIEW_S3_BUCKET`
 - `V2_IMAGE_REVIEW_S3_PREFIX`
+
+For this local workflow, put uploader credentials in:
+
+```text
+local/v2-ahs-image-review/s3.env
+```
+
+That file is gitignored and is loaded by `backup-to-s3.mjs` after `.env.development`, so image-processing credentials can override the app's normal AWS credentials without affecting the app.
 
 ## Notes
 

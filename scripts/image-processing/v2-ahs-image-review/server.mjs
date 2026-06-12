@@ -4,6 +4,7 @@ import http from "node:http";
 import { fileURLToPath } from "node:url";
 import {
   getCounts,
+  getCodexNativeItems,
   getEditedItems,
   getFilePath,
   getItem,
@@ -89,6 +90,11 @@ const server = http.createServer(async (request, response) => {
     return;
   }
 
+  if (request.method === "GET" && requestUrl.pathname === "/compare") {
+    sendFile(response, path.join(SCRIPT_DIR, "compare.html"));
+    return;
+  }
+
   if (request.method === "GET" && requestUrl.pathname === "/app.mjs") {
     sendFile(response, path.join(SCRIPT_DIR, "app.mjs"));
     return;
@@ -123,6 +129,16 @@ const server = http.createServer(async (request, response) => {
   if (request.method === "GET" && requestUrl.pathname === "/api/edited") {
     sendJson(response, {
       items: getEditedItems(),
+      paths: {
+        edited: REVIEW_EDITED_DIR,
+      },
+    });
+    return;
+  }
+
+  if (request.method === "GET" && requestUrl.pathname === "/api/codex-native") {
+    sendJson(response, {
+      items: getCodexNativeItems(),
       paths: {
         edited: REVIEW_EDITED_DIR,
       },

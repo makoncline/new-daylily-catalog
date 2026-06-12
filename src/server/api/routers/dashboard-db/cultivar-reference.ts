@@ -61,7 +61,7 @@ export const dashboardDbCultivarReferenceRouter = createTRPCRouter({
       return [];
     }
 
-    const rows = await ctx.db.cultivarReference.findMany({
+    const rows = await (ctx.cultivarReadDb ?? ctx.db).cultivarReference.findMany({
       where: {
         id: {
           in: cultivarReferenceIds,
@@ -87,7 +87,9 @@ export const dashboardDbCultivarReferenceRouter = createTRPCRouter({
         return [];
       }
 
-      const rows = await ctx.db.cultivarReference.findMany({
+      const rows = await (
+        ctx.cultivarReadDb ?? ctx.db
+      ).cultivarReference.findMany({
         where: {
           id: {
             in: cultivarReferenceIds,
@@ -105,7 +107,9 @@ export const dashboardDbCultivarReferenceRouter = createTRPCRouter({
     .input(z.object({ ids: z.array(z.string().trim().min(1)).min(1).max(200) }))
     .query(async ({ ctx, input }) => {
       const unique = Array.from(new Set(input.ids));
-      const rows = await ctx.db.cultivarReference.findMany({
+      const rows = await (
+        ctx.cultivarReadDb ?? ctx.db
+      ).cultivarReference.findMany({
         where: { id: { in: unique } },
         select: cultivarReferenceSelect,
       });
