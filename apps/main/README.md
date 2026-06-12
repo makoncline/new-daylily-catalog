@@ -1,29 +1,56 @@
-# Create T3 App
+# @daylily-catalog/main
 
-This is a [T3 Stack](https://create.t3.gg/) project bootstrapped with `create-t3-app`.
+This package is the all-in-one Daylily Catalog Next.js app. It owns the public
+catalog pages, seller dashboard, onboarding flows, payments, API routes, MCP
+read-only tools, search, and operational scripts for the main product.
 
-## What's next? How do I make an app with this?
+## Directory Map
 
-We try to keep this project as simple as possible, so you can start with just the scaffolding we set up for you, and add additional things later when they become necessary.
+- `src/app/` - Next.js App Router routes, layouts, route handlers, and
+  route-local components.
+- `src/components/` - shared UI and feature components. `src/components/ui/`
+  contains shadcn components.
+- `src/server/` - tRPC routers, database clients, Clerk integration, Stripe,
+  MCP tools, search, analytics, and server-side services.
+- `prisma/` - Prisma schema, migrations, and reviewed data-migration SQL.
+- `tests/` - Vitest integration/unit specs and Playwright end-to-end specs.
 
-If you are not familiar with the different technologies used in this project, please refer to the respective docs. If you still are in the wind, please join our [Discord](https://t3.gg/discord) and ask for help.
+## Operational Context
 
-- [Next.js](https://nextjs.org)
-- [NextAuth.js](https://next-auth.js.org)
-- [Prisma](https://prisma.io)
-- [Drizzle](https://orm.drizzle.team)
-- [Tailwind CSS](https://tailwindcss.com)
-- [tRPC](https://trpc.io)
+This app expects environment-specific configuration for database access,
+authentication, payments, storage, observability, and production-like smoke
+tests. Do not treat this README as a complete local setup guide.
 
-## Learn More
+For configured checkouts, scripts that need local environment values should run
+through the existing environment wrapper. At the root, `pnpm env:dev ...`
+delegates to this package's `scripts/with-env.mjs --env development -- ...`;
+inside `apps/main`, the equivalent is `pnpm env:dev ...`.
 
-To learn more about the [T3 Stack](https://create.t3.gg/), take a look at the following resources:
+Routine verification and operational workflows are documented in the runbooks
+linked below and in `../../AGENTS.md`.
 
-- [Documentation](https://create.t3.gg/)
-- [Learn the T3 Stack](https://create.t3.gg/en/faq#what-learning-resources-are-currently-available) — Check out these awesome tutorials
+## Environment Loading
 
-You can check out the [create-t3-app GitHub repository](https://github.com/t3-oss/create-t3-app) — your feedback and contributions are welcome!
+`scripts/with-env.mjs` loads the requested `.env.<name>` file from the
+repository root first and then `apps/main/.env.<name>` if that file exists.
+Keep local secrets in ignored env files and update `.env.example` when adding
+or renaming required variables.
 
-## How do I deploy this?
+## Testing And Runbooks
 
-Follow our deployment guides for [Vercel](https://create.t3.gg/en/deployment/vercel), [Netlify](https://create.t3.gg/en/deployment/netlify) and [Docker](https://create.t3.gg/en/deployment/docker) for more information.
+The repo has focused Vitest coverage for app-owned behavior and Playwright
+coverage for browser flows. Local Playwright runs can create temporary SQLite
+databases; attach/preview runs use `BASE_URL` and should not seed data. See the
+linked docs for the current workflow details instead of copying commands from
+memory.
+
+## Related Docs
+
+- `docs/README.md` - categorized index for app runbooks.
+- `docs/e2e-tests.md` - Playwright workflow and tagging rules.
+- `docs/deploy-vps.md` - VPS Docker deployment and runtime contract.
+- `docs/public-rendering-cache-strategy.md` - public page cache strategy.
+- `docs/local-query-profiler.md` - local query profiling workflow.
+- `docs/prod-readonly-dashboard-smoke.md` - production-shaped read-only smoke
+  testing from local code.
+- `../../AGENTS.md` - agent-oriented repo conventions and gotchas.
