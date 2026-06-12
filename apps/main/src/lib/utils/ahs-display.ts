@@ -310,7 +310,15 @@ export function getDisplayAhsListing(
     return null;
   }
 
-  return mapV2AhsCultivarToDisplayAhsListing(v2AhsCultivar);
+  const v2DisplayAhsListing =
+    mapV2AhsCultivarToDisplayAhsListing(v2AhsCultivar);
+
+  return {
+    ...v2DisplayAhsListing,
+    ahsImageUrl:
+      toNonEmptyDisplayValue(v2DisplayAhsListing.ahsImageUrl) ??
+      toNonEmptyDisplayValue(legacyAhsListing?.ahsImageUrl),
+  };
 }
 
 export function withResolvedDisplayAhsListing<TSource extends AhsDisplaySource>(

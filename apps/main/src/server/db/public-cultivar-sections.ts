@@ -163,9 +163,25 @@ function sortOffersBestMatch(
 
 function getCultivarHeroImages(
   cultivarReference: PublicCultivarReferenceData["cultivarReference"],
+  listingCards: CultivarListingCards,
 ) {
+  const catalogImages = listingCards.flatMap((listing) =>
+    listing.images
+      .filter((image) => image.id !== `ahs-${listing.id}`)
+      .map((image) => ({
+        alt: `${listing.title} catalog image`,
+        id: image.id,
+        listingId: listing.id,
+        sellerSlug: listing.userSlug,
+        sellerTitle: listing.sellerTitle,
+        source: "catalog" as const,
+        url: image.url,
+      })),
+  );
+
   return cultivarReference.ahsListing?.ahsImageUrl
     ? [
+        ...catalogImages.slice(0, 11),
         {
           alt: cultivarReference.ahsListing.name
             ? `${cultivarReference.ahsListing.name} AHS image`
@@ -178,7 +194,7 @@ function getCultivarHeroImages(
           url: cultivarReference.ahsListing.ahsImageUrl,
         },
       ]
-    : [];
+    : catalogImages.slice(0, 12);
 }
 
 function toGardenCards(args: {
@@ -358,7 +374,7 @@ export async function buildPublicCultivarSummary(args: PublicCultivarContext) {
     freshness: {
       cultivarUpdatedAt: cultivarReference.updatedAt,
     },
-    heroImages: getCultivarHeroImages(cultivarReference),
+    heroImages: getCultivarHeroImages(cultivarReference, args.listingCards),
     quickSpecs: {
       all: allSpecs.all,
       top: allSpecs.top,

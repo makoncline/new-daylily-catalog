@@ -223,6 +223,11 @@ describe("getPublicCultivarPage", () => {
             url: "https://example.com/top-b.jpg",
             updatedAt: new Date("2026-01-10T00:00:00.000Z"),
           },
+          ...Array.from({ length: 12 }, (_, index) => ({
+            id: `img-top-extra-${index}`,
+            url: `https://example.com/top-extra-${index}.jpg`,
+            updatedAt: new Date("2026-01-09T00:00:00.000Z"),
+          })),
         ],
         lists: [{ id: "list-show", title: "Show Winners" }],
       },
@@ -356,6 +361,10 @@ describe("getPublicCultivarPage", () => {
     ).toEqual(["listing-top-a", "listing-top-b"]);
 
     expect(result?.heroImages[0]).toMatchObject({
+      source: "catalog",
+    });
+    expect(result?.heroImages).toHaveLength(12);
+    expect(result?.heroImages.at(-1)).toMatchObject({
       source: "ahs",
       url: "https://example.com/ahs.jpg",
     });
@@ -570,7 +579,7 @@ describe("getPublicCultivarPage", () => {
         flower_form_names: "Double",
         unusual_forms_names: "Crispate",
         parentage: "(V2 A x V2 B)",
-        image_url: "https://example.com/v2.jpg",
+        image_url: "   ",
       },
     });
 
@@ -588,6 +597,11 @@ describe("getPublicCultivarPage", () => {
     expect(result?.cultivar.ahsListing).toMatchObject({
       id: "v2-2",
       hybridizer: "Gregory-CJ & V.",
+      ahsImageUrl: "https://example.com/legacy.jpg",
+    });
+    expect(result?.heroImages[0]).toMatchObject({
+      source: "ahs",
+      url: "https://example.com/legacy.jpg",
     });
   });
 
