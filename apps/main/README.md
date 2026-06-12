@@ -15,38 +15,34 @@ read-only tools, search, and operational scripts for the main product.
 - `prisma/` - Prisma schema, migrations, and reviewed data-migration SQL.
 - `tests/` - Vitest integration/unit specs and Playwright end-to-end specs.
 
-## Development Commands
+## Operational Context
 
-Run these from the repository root:
+This app expects environment-specific configuration for database access,
+authentication, payments, storage, observability, and production-like smoke
+tests. Do not treat this README as a complete local setup guide.
 
-| Command | Purpose |
-| --- | --- |
-| `pnpm main dev` | Start the app with `scripts/with-env.mjs` and Next dev. |
-| `pnpm main lint` | Run ESLint over `src`. |
-| `pnpm main typecheck` | Run `tsc --noEmit`. |
-| `pnpm main test` | Run the Vitest suite. |
-| `pnpm main test -- tests/<file>.test.ts` | Run one Vitest file. |
-| `pnpm main test:e2e` | Run the Playwright suite. |
-| `pnpm main profile:queries` | Run the strategic local query profiler. |
+For configured checkouts, scripts that need local environment values should run
+through the existing environment wrapper. At the root, `pnpm env:dev ...`
+delegates to this package's `scripts/with-env.mjs --env development -- ...`;
+inside `apps/main`, the equivalent is `pnpm env:dev ...`.
 
-The root scripts (`pnpm dev`, `pnpm lint`, `pnpm typecheck`, `pnpm test`, and
-`pnpm test:e2e`) delegate to this package through Turbo.
+Routine verification and operational workflows are documented in the runbooks
+linked below and in `../../AGENTS.md`.
 
 ## Environment Loading
 
-Development commands use `scripts/with-env.mjs`. For `--env development`, it
-loads `.env.development` from the repository root first and then
-`apps/main/.env.development` if that file exists. Keep local secrets in ignored
-env files and update `.env.example` when adding or renaming required variables.
+`scripts/with-env.mjs` loads the requested `.env.<name>` file from the
+repository root first and then `apps/main/.env.<name>` if that file exists.
+Keep local secrets in ignored env files and update `.env.example` when adding
+or renaming required variables.
 
-## Testing Notes
+## Testing And Runbooks
 
-- Unit and integration tests use Vitest: `pnpm main test`.
-- A focused Vitest file can be run with
-  `pnpm main test -- tests/<file>.test.ts`.
-- Browser tests use Playwright: `pnpm main test:e2e`.
-- Local Playwright runs create a temp SQLite database when `BASE_URL` is not
-  set. Attach/preview runs use `BASE_URL` and should not seed data.
+The repo has focused Vitest coverage for app-owned behavior and Playwright
+coverage for browser flows. Local Playwright runs can create temporary SQLite
+databases; attach/preview runs use `BASE_URL` and should not seed data. See the
+linked docs for the current workflow details instead of copying commands from
+memory.
 
 ## Related Docs
 
