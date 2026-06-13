@@ -24,8 +24,16 @@ vi.mock("@/server/db/getProUserIds", () => ({
   getProUserIds: dbMocks.getProUserIds,
 }));
 
-function createFeedListing(index: number) {
+function createFeedListing(
+  index: number,
+  options: {
+    imageUrls?: string[];
+  } = {},
+) {
   const id = `listing-${index.toString().padStart(3, "0")}`;
+  const imageUrls = options.imageUrls ?? [
+    `https://example.com/listing-${index}.jpg`,
+  ];
 
   return {
     id,
@@ -40,18 +48,16 @@ function createFeedListing(index: number) {
     status: "PUBLISHED",
     createdAt: new Date("2026-01-01T00:00:00.000Z"),
     updatedAt: new Date("2026-01-01T00:00:00.000Z"),
-    images: [
-      {
-        id: `image-${index}`,
-        url: `https://example.com/listing-${index}.jpg`,
-        order: 0,
-        createdAt: new Date("2026-01-01T00:00:00.000Z"),
-        updatedAt: new Date("2026-01-01T00:00:00.000Z"),
-        status: null,
-        userProfileId: null,
-        listingId: id,
-      },
-    ],
+    images: imageUrls.map((url, imageIndex) => ({
+      id: `image-${index}-${imageIndex}`,
+      url,
+      order: imageIndex,
+      createdAt: new Date("2026-01-01T00:00:00.000Z"),
+      updatedAt: new Date("2026-01-01T00:00:00.000Z"),
+      status: null,
+      userProfileId: null,
+      listingId: id,
+    })),
     cultivarReference: {
       id: `cultivar-reference-${index}`,
       ahsId: `ahs-${index}`,
@@ -110,6 +116,7 @@ describe("google merchant feed route", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     process.env.APP_BASE_URL = "https://daylilycatalog.com";
+    process.env.NEXT_PUBLIC_CLOUDFLARE_URL = "https://cf.daylilycatalog.com";
     delete process.env.NEXT_PUBLIC_USE_V2_CULTIVAR_DISPLAY_DATA;
     dbMocks.getProUserIds.mockResolvedValue(["user-1"]);
   });
@@ -153,6 +160,39 @@ describe("google merchant feed route", () => {
         orderBy: { id: "asc" },
         take: 200,
       }),
+    );
+  });
+
+  it("serves Daylily-owned S3 image links through the Cloudflare image URL", async () => {
+    dbMocks.listingFindMany
+      .mockResolvedValueOnce([
+        createFeedListing(1, {
+          imageUrls: [
+            "https://daylily-catalog-images.s3.amazonaws.com/listing/main.jpg",
+            "https://daylily-catalog-images.s3.us-east-1.amazonaws.com/listing/extra.jpg",
+            "https://example.com/external.jpg",
+          ],
+        }),
+      ])
+      .mockResolvedValueOnce([]);
+
+    const { GET } = await import("@/app/api/google-merchant-feed/route");
+    const response = await GET(
+      new Request("https://daylilycatalog.com/api/google-merchant-feed"),
+    );
+    const body = await response.text();
+
+    expect(response.status).toBe(200);
+    expect(body).toContain(
+      "https://cf.daylilycatalog.com/cdn-cgi/image/width=800,fit=cover,format=auto,quality=90/https://daylily-catalog-images.s3.amazonaws.com/listing/main.jpg",
+    );
+    expect(body).toContain(
+      "https://cf.daylilycatalog.com/cdn-cgi/image/width=800,fit=cover,format=auto,quality=90/https://daylily-catalog-images.s3.us-east-1.amazonaws.com/listing/extra.jpg",
+    );
+    expect(body).toContain("<g:additional_image_link>");
+    expect(body).not.toContain("<g:image_link>https://daylily-catalog-images");
+    expect(body).toContain(
+      "<g:additional_image_link>https://example.com/external.jpg</g:additional_image_link>",
     );
   });
 });

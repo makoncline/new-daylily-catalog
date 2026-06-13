@@ -1,4 +1,5 @@
 import { METADATA_CONFIG } from "@/config/constants";
+import { getCloudflareUrlForDaylilyS3Image } from "@/lib/utils/cloudflareLoader";
 import type { CultivarPageData } from "../_lib/cultivar-page-route";
 
 export function generateCultivarJsonLd(
@@ -25,7 +26,9 @@ export function generateCultivarJsonLd(
   );
 
   const description = `${cultivarPage.summary.name} cultivar page with specs and public catalog offers.`;
-  const imageUrls = cultivarPage.heroImages.map((image) => image.url);
+  const imageUrls = cultivarPage.heroImages.map((image) =>
+    getCloudflareUrlForDaylilyS3Image(image.url),
+  );
 
   if (productOffers.length === 0) {
     return {

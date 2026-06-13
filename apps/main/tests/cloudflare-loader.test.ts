@@ -3,7 +3,7 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { IMAGES } from "@/lib/constants/images";
 import {
-  getCloudflareMetaImageUrl,
+  getCloudflareUrlForDaylilyS3Image,
   getOptimizedMetaImageUrl,
 } from "@/lib/utils/cloudflareLoader";
 
@@ -36,14 +36,15 @@ describe("Cloudflare image URL helpers", () => {
     expect(url).not.toContain("height=630");
   });
 
-  it("includes both width and height when explicitly creating an OG crop", () => {
-    const url = getCloudflareMetaImageUrl(
+  it("converts public Daylily-owned S3 images to the full-size transform", () => {
+    const url = getCloudflareUrlForDaylilyS3Image(
       "https://daylily-catalog-images.s3.amazonaws.com/listing.jpg",
     );
 
-    expect(url).toContain("width=1200");
-    expect(url).toContain("height=630");
-    expect(url).toContain("fit=cover");
+    expect(url).toContain("width=800");
+    expect(url).toContain("quality=90");
+    expect(url).not.toContain("width=1200");
+    expect(url).not.toContain("height=630");
   });
 
   it("falls back instead of transforming untrusted external metadata images", () => {

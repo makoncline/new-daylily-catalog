@@ -1,6 +1,7 @@
 import { HomePageSEO } from "./_components/home-seo";
 import { generateHomePageMetadata } from "./_seo/metadata";
 import { getCanonicalBaseUrl } from "@/lib/utils/getBaseUrl";
+import { getCloudflareUrlForDaylilyS3ImagePath } from "@/lib/utils/cloudflareLoader";
 import HomePageClient, {
   type HomePageCatalog,
 } from "./_components/home-page-client";
@@ -18,7 +19,9 @@ const staticHomeCatalogs = [
     images: [
       {
         id: "cm6jw663j05l1n5lbjaih756y",
-        url: "https://daylily-catalog-images.s3.amazonaws.com/3/fe5c7-CFB870A9-7905-4813-BBD6-56972A124803.jpeg",
+        url: getCloudflareUrlForDaylilyS3ImagePath(
+          "3/fe5c7-CFB870A9-7905-4813-BBD6-56972A124803.jpeg",
+        ),
       },
     ],
   },
@@ -32,7 +35,9 @@ const staticHomeCatalogs = [
     images: [
       {
         id: "cmduh50jq0001ki6w10cmdaxa",
-        url: "https://daylily-catalog-images.s3.us-east-1.amazonaws.com/93/cm6jw662t05ixn5lbhfkpiduh/2e56dd20.jpg",
+        url: getCloudflareUrlForDaylilyS3ImagePath(
+          "93/cm6jw662t05ixn5lbhfkpiduh/2e56dd20.jpg",
+        ),
       },
     ],
   },
@@ -46,7 +51,9 @@ const staticHomeCatalogs = [
     images: [
       {
         id: "cm6ju52ts02szkpf6p7nbvuix",
-        url: "https://daylily-catalog-images.s3.amazonaws.com/profile/94/8c0c6f10-9a85-4780-9d84-b436f521d979",
+        url: getCloudflareUrlForDaylilyS3ImagePath(
+          "profile/94/8c0c6f10-9a85-4780-9d84-b436f521d979",
+        ),
       },
     ],
   },
@@ -60,7 +67,9 @@ const staticHomeCatalogs = [
     images: [
       {
         id: "cmc1rjeso0006r1g0x01x6rtb",
-        url: "https://daylily-catalog-images.s3.us-east-1.amazonaws.com/cmc1rb09p0000r1g0xs6g5858/cmc1rbriq0002r1g0rwh003aj/f05de7fa.jpg",
+        url: getCloudflareUrlForDaylilyS3ImagePath(
+          "cmc1rb09p0000r1g0xs6g5858/cmc1rbriq0002r1g0rwh003aj/f05de7fa.jpg",
+        ),
       },
     ],
   },
@@ -75,7 +84,9 @@ const staticHomeCatalogs = [
     images: [
       {
         id: "cm6ju52tp02snkpf6ndmkrm18",
-        url: "https://daylily-catalog-images.s3.amazonaws.com/profile/63/2f846805-f809-4cf1-a045-4e475fe417c0",
+        url: getCloudflareUrlForDaylilyS3ImagePath(
+          "profile/63/2f846805-f809-4cf1-a045-4e475fe417c0",
+        ),
       },
     ],
   },
@@ -90,7 +101,9 @@ const staticHomeCatalogs = [
     images: [
       {
         id: "cm6ju52ti02sdkpf6u3v2myy1",
-        url: "https://daylily-catalog-images.s3.amazonaws.com/profile/195/0ed042e3-e6f8-4d30-8d49-6ee00b768995",
+        url: getCloudflareUrlForDaylilyS3ImagePath(
+          "profile/195/0ed042e3-e6f8-4d30-8d49-6ee00b768995",
+        ),
       },
     ],
   },
@@ -104,7 +117,9 @@ const staticHomeCatalogs = [
     images: [
       {
         id: "cm8khxaac00053k7l8mf3p1jy",
-        url: "https://daylily-catalog-images.s3.us-east-1.amazonaws.com/cm8khl4h8000063ayta4oez5y/cm8khli2o00013k7l7y28qvpe/f0a9c568.jpg",
+        url: getCloudflareUrlForDaylilyS3ImagePath(
+          "cm8khl4h8000063ayta4oez5y/cm8khli2o00013k7l7y28qvpe/f0a9c568.jpg",
+        ),
       },
     ],
   },
@@ -118,7 +133,9 @@ const staticHomeCatalogs = [
     images: [
       {
         id: "cm6ju52tf02s5kpf68e2tz9km",
-        url: "https://daylily-catalog-images.s3.amazonaws.com/profile/87/91566ea0-b848-497c-988d-4d1a0964ebd4",
+        url: getCloudflareUrlForDaylilyS3ImagePath(
+          "profile/87/91566ea0-b848-497c-988d-4d1a0964ebd4",
+        ),
       },
     ],
   },

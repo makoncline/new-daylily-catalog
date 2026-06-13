@@ -8,6 +8,7 @@ import {
 } from "@/lib/utils/ahs-display";
 import { getProUserIds } from "@/server/db/getProUserIds";
 import { shouldShowToPublic } from "@/server/db/public-visibility/filters";
+import { getCloudflareUrlForDaylilyS3Image } from "@/lib/utils/cloudflareLoader";
 
 // Constants for merchant feed configuration
 const SHIPPING_WEIGHT = "0.5 lb";
@@ -88,8 +89,11 @@ export async function GET(_request: Request) {
               userDescription ?? ahsDescription ?? `${listingName} daylily`;
           }
 
-          const imageUrl =
+          const rawImageUrl =
             displayListing.images?.[0]?.url ?? displayAhsListing?.ahsImageUrl;
+          const imageUrl = rawImageUrl
+            ? getCloudflareUrlForDaylilyS3Image(rawImageUrl)
+            : null;
           const additionalImages = displayListing.images?.slice(1, 4) ?? [];
           const productUrl = `${baseUrl}/${displayListing.userId}/${displayListing.id}`;
           const catalogName =
@@ -128,7 +132,7 @@ export async function GET(_request: Request) {
           }${additionalImages
             .map(
               (img) => `
-<g:additional_image_link>${escapeXml(img.url)}</g:additional_image_link>`,
+<g:additional_image_link>${escapeXml(getCloudflareUrlForDaylilyS3Image(img.url))}</g:additional_image_link>`,
             )
             .join("")}
 <g:custom_label_0>${escapeXml(cleanCatalogName)}</g:custom_label_0>

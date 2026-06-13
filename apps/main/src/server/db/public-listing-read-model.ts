@@ -16,6 +16,7 @@ import {
   isPublicList,
   isPublished,
 } from "@/server/db/public-visibility/filters";
+import { getCloudflareUrlForDaylilyS3Image } from "@/lib/utils/cloudflareLoader";
 
 export const publicListingSelect = {
   id: true,
@@ -79,22 +80,26 @@ interface GetListingsArgs {
 function buildListingView<T extends ListingPayload>(listing: T) {
   const displayListing = withResolvedDisplayAhsListing(listing);
   const displayAhsListing = displayListing.ahsListing;
+  const images =
+    displayListing.images.length === 0 && displayAhsListing?.ahsImageUrl
+      ? [
+          {
+            id: `ahs-${displayListing.id}`,
+            url: displayAhsListing.ahsImageUrl,
+            updatedAt: displayListing.updatedAt,
+          },
+        ]
+      : displayListing.images;
 
   return {
     ...displayListing,
     ahsListing: displayAhsListing,
     userSlug: listing.user.profile?.slug ?? listing.userId,
     sellerTitle: listing.user.profile?.title ?? null,
-    images:
-      displayListing.images.length === 0 && displayAhsListing?.ahsImageUrl
-        ? [
-            {
-              id: `ahs-${displayListing.id}`,
-              url: displayAhsListing.ahsImageUrl,
-              updatedAt: displayListing.updatedAt,
-            },
-          ]
-        : displayListing.images,
+    images: images.map((image) => ({
+      ...image,
+      url: getCloudflareUrlForDaylilyS3Image(image.url),
+    })),
   };
 }
 

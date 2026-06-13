@@ -41,6 +41,7 @@ import { applyWhereIn } from "./test-utils/apply-where-in";
 
 const originalV2DisplayFlag =
   process.env.NEXT_PUBLIC_USE_V2_CULTIVAR_DISPLAY_DATA;
+const originalCloudflareUrl = process.env.NEXT_PUBLIC_CLOUDFLARE_URL;
 
 function getQueryText(query: unknown): string {
   if (
@@ -92,16 +93,22 @@ interface UserFindManyArgs {
 describe("getPublicListings helpers", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    process.env.NEXT_PUBLIC_CLOUDFLARE_URL = "https://cf.daylilycatalog.com";
   });
 
   afterEach(() => {
     if (originalV2DisplayFlag === undefined) {
       delete process.env.NEXT_PUBLIC_USE_V2_CULTIVAR_DISPLAY_DATA;
-      return;
+    } else {
+      process.env.NEXT_PUBLIC_USE_V2_CULTIVAR_DISPLAY_DATA =
+        originalV2DisplayFlag;
     }
 
-    process.env.NEXT_PUBLIC_USE_V2_CULTIVAR_DISPLAY_DATA =
-      originalV2DisplayFlag;
+    if (originalCloudflareUrl === undefined) {
+      delete process.env.NEXT_PUBLIC_CLOUDFLARE_URL;
+    } else {
+      process.env.NEXT_PUBLIC_CLOUDFLARE_URL = originalCloudflareUrl;
+    }
   });
 
   it("uses the same deterministic sorted ids for cursor pagination", async () => {
@@ -368,6 +375,13 @@ describe("getPublicListings helpers", () => {
       ...createListing("id-a", "Every Friday Night"),
       updatedAt: new Date("2026-05-01T00:00:00.000Z"),
       price: 30,
+      images: [
+        {
+          id: "image-a",
+          url: "https://daylily-catalog-images.s3.amazonaws.com/listings/every-friday-night.jpg",
+          updatedAt: new Date("2026-05-01T00:00:00.000Z"),
+        },
+      ],
       user: {
         profile: {
           slug: "rolling-oaks",
@@ -404,6 +418,9 @@ describe("getPublicListings helpers", () => {
       sellerTitle: "Rolling Oaks Daylilies",
       hasActiveSubscription: true,
     });
+    expect(listing.images[0]?.url).toBe(
+      "https://cf.daylilycatalog.com/cdn-cgi/image/width=800,fit=cover,format=auto,quality=90/https://daylily-catalog-images.s3.amazonaws.com/listings/every-friday-night.jpg",
+    );
   });
 
   it("returns only pro-user public listing route entries for the sitemap", async () => {

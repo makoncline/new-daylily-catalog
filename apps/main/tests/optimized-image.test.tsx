@@ -68,6 +68,26 @@ describe("OptimizedImage", () => {
     expect(reportErrorMock).toHaveBeenCalledTimes(1);
   });
 
+  it("keeps thumbnail transforms size-aware when given a Cloudflare-routed S3 URL", () => {
+    const originalSrc =
+      "https://daylily-catalog-images.s3.amazonaws.com/lily/63/ed27a857-1e93-4aa4-add9-15bcb12e2208";
+    const routedSrc =
+      "https://cf.daylilycatalog.com/cdn-cgi/image/width=800,fit=cover,format=auto,quality=90/https://daylily-catalog-images.s3.amazonaws.com/lily/63/ed27a857-1e93-4aa4-add9-15bcb12e2208";
+
+    render(<OptimizedImage alt="Thumbnail" src={routedSrc} />);
+
+    const image = screen.getByRole("img");
+    expect(image).toHaveAttribute(
+      "src",
+      "https://cf.daylilycatalog.com/cdn-cgi/image/width=200,fit=cover,format=auto,quality=75/https://daylily-catalog-images.s3.amazonaws.com/lily/63/ed27a857-1e93-4aa4-add9-15bcb12e2208",
+    );
+
+    fireEvent.error(image);
+
+    expect(image).toHaveAttribute("src", originalSrc);
+    expect(reportErrorMock).toHaveBeenCalledTimes(0);
+  });
+
   it("does not report external host load failures", () => {
     const externalSrc =
       "https://www.daylilydatabase.org/AHSPhoto/C/ChinaBlushCherylDay_1584735345.jpg";
