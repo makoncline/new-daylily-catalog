@@ -2,9 +2,11 @@ import { IMAGES } from "@/lib/constants/images";
 
 const IMAGE_TRANSFORM_CONFIG = {
   SIZES: {
+    THUMBNAIL: 200,
     FULL: 800,
   },
   QUALITY: {
+    MEDIUM: 75,
     HIGH: 90,
   },
   FIT: "cover" as const,
@@ -32,15 +34,41 @@ function isTrustedMetaImageUrl(src: string) {
   }
 }
 
-function shouldUseExistingFullImageTransform(src: string) {
+function shouldUseExistingImageTransform(src: string) {
   try {
     const url = new URL(src);
-    return url.hostname
-      .toLowerCase()
-      .startsWith("daylily-catalog-images");
+    return url.hostname.toLowerCase().startsWith("daylily-catalog-images");
   } catch {
     return false;
   }
+}
+
+function getOriginalCloudflareImageSource(src: string) {
+  try {
+    const url = new URL(src);
+    const marker = "/cdn-cgi/image/";
+    const markerIndex = url.pathname.indexOf(marker);
+
+    if (markerIndex < 0) {
+      return null;
+    }
+
+    const transformedPath = url.pathname.slice(markerIndex + marker.length);
+    const sourceIndex = transformedPath.indexOf("https://");
+
+    if (sourceIndex < 0) {
+      return null;
+    }
+
+    return decodeURI(transformedPath.slice(sourceIndex));
+  } catch {
+    return null;
+  }
+}
+
+export function getDaylilyS3ImageTransformSource(src: string) {
+  const source = getOriginalCloudflareImageSource(src) ?? src;
+  return shouldUseExistingImageTransform(source) ? source : null;
 }
 
 // Helper function for metadata image optimization that handles both public and external images
@@ -49,9 +77,11 @@ export const getOptimizedMetaImageUrl = (src: string) => {
     return src;
   }
 
-  if (src.startsWith("https://") && shouldUseExistingFullImageTransform(src)) {
+  const transformSource = getDaylilyS3ImageTransformSource(src);
+
+  if (src.startsWith("https://") && transformSource) {
     return cloudflareLoader({
-      src,
+      src: transformSource,
       width: IMAGE_TRANSFORM_CONFIG.SIZES.FULL,
       quality: IMAGE_TRANSFORM_CONFIG.QUALITY.HIGH,
       fit: IMAGE_TRANSFORM_CONFIG.FIT,
@@ -67,15 +97,25 @@ export const getOptimizedMetaImageUrl = (src: string) => {
   return IMAGES.DEFAULT_META;
 };
 
-export const getCloudflareMetaImageUrl = (src: string) => {
+export const getCloudflareUrlForDaylilyS3Image = (src: string) => {
+  const transformSource = getDaylilyS3ImageTransformSource(src);
+
+  if (!transformSource) {
+    return src;
+  }
+
   return cloudflareLoader({
-    src,
-    width: 1200,
-    height: 630,
-    quality: 90,
-    format: "webp",
-    fit: "cover",
+    src: transformSource,
+    width: IMAGE_TRANSFORM_CONFIG.SIZES.FULL,
+    quality: IMAGE_TRANSFORM_CONFIG.QUALITY.HIGH,
+    fit: IMAGE_TRANSFORM_CONFIG.FIT,
   });
+};
+
+export const getCloudflareUrlForDaylilyS3ImagePath = (path: string) => {
+  return getCloudflareUrlForDaylilyS3Image(
+    `https://daylily-catalog-images.s3.amazonaws.com/${path}`,
+  );
 };
 
 // Cloudflare image loader following their recommended pattern

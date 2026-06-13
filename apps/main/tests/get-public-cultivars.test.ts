@@ -39,6 +39,7 @@ import { applyWhereIn } from "./test-utils/apply-where-in";
 
 const originalV2DisplayFlag =
   process.env.NEXT_PUBLIC_USE_V2_CULTIVAR_DISPLAY_DATA;
+const originalCloudflareUrl = process.env.NEXT_PUBLIC_CLOUDFLARE_URL;
 
 function createListingUser(userId: string) {
   const profiles: Record<string, { slug: string; title: string }> = {
@@ -64,6 +65,7 @@ function createListingUser(userId: string) {
 describe("getPublicCultivarPage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    process.env.NEXT_PUBLIC_CLOUDFLARE_URL = "https://cf.daylilycatalog.com";
     mockGetActiveProUserIdsForUserIds.mockResolvedValue([]);
     mockGetProUserIds.mockResolvedValue([]);
   });
@@ -71,11 +73,16 @@ describe("getPublicCultivarPage", () => {
   afterEach(() => {
     if (originalV2DisplayFlag === undefined) {
       delete process.env.NEXT_PUBLIC_USE_V2_CULTIVAR_DISPLAY_DATA;
-      return;
+    } else {
+      process.env.NEXT_PUBLIC_USE_V2_CULTIVAR_DISPLAY_DATA =
+        originalV2DisplayFlag;
     }
 
-    process.env.NEXT_PUBLIC_USE_V2_CULTIVAR_DISPLAY_DATA =
-      originalV2DisplayFlag;
+    if (originalCloudflareUrl === undefined) {
+      delete process.env.NEXT_PUBLIC_CLOUDFLARE_URL;
+    } else {
+      process.env.NEXT_PUBLIC_CLOUDFLARE_URL = originalCloudflareUrl;
+    }
   });
 
   it("handles cache-serialized cultivar listing data", () => {
@@ -92,7 +99,7 @@ describe("getPublicCultivarPage", () => {
           images: [
             {
               id: "img-top-a",
-              url: "https://example.com/top-a.jpg",
+              url: "https://daylily-catalog-images.s3.amazonaws.com/listing/top-a.jpg",
               updatedAt: new Date("2026-01-11T00:00:00.000Z"),
             },
             {
@@ -169,6 +176,9 @@ describe("getPublicCultivarPage", () => {
     expect(photos.gardenPhotos[0]?.id).toBe("img-top-c");
     expect(photos.freshness.photosUpdatedAt).toEqual(
       new Date("2026-01-15T00:00:00.000Z"),
+    );
+    expect(offers.offers.gardenCards[0]?.offers[0]?.previewImageUrl).toBe(
+      "https://cf.daylilycatalog.com/cdn-cgi/image/width=800,fit=cover,format=auto,quality=90/https://daylily-catalog-images.s3.amazonaws.com/listing/top-a.jpg",
     );
   });
 

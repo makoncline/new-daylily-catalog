@@ -4,7 +4,10 @@ import * as React from "react";
 import Image from "next/image";
 import { cn } from "@/lib/utils";
 import { reportError } from "@/lib/error-utils";
-import { cloudflareLoader } from "@/lib/utils/cloudflareLoader";
+import {
+  cloudflareLoader,
+  getDaylilyS3ImageTransformSource,
+} from "@/lib/utils/cloudflareLoader";
 
 // Image configuration
 export const IMAGE_CONFIG = {
@@ -31,18 +34,6 @@ export const IMAGE_CONFIG = {
 } as const;
 
 const reportedImageErrors = new Set<string>();
-const TRANSFORM_ELIGIBLE_HOST_PREFIX = "daylily-catalog-images";
-
-function shouldUseCloudflareTransform(src: string): boolean {
-  try {
-    const parsedUrl = new URL(src);
-    return parsedUrl.hostname
-      .toLowerCase()
-      .startsWith(TRANSFORM_ELIGIBLE_HOST_PREFIX);
-  } catch {
-    return false;
-  }
-}
 
 interface OptimizedImageProps extends React.HTMLAttributes<HTMLDivElement> {
   src: string;
@@ -63,16 +54,16 @@ export function OptimizedImage({
   ...props
 }: OptimizedImageProps) {
   const [loaded, setLoaded] = React.useState(false);
-  const shouldTransform = shouldUseCloudflareTransform(src);
+  const transformSource = getDaylilyS3ImageTransformSource(src);
 
   const dimension =
     size === "thumbnail"
       ? IMAGE_CONFIG.SIZES.THUMBNAIL
       : IMAGE_CONFIG.SIZES.FULL;
 
-  const imageUrl = shouldTransform
+  const imageUrl = transformSource
     ? cloudflareLoader({
-        src,
+        src: transformSource,
         width: dimension,
         quality:
           size === "thumbnail"
@@ -82,9 +73,9 @@ export function OptimizedImage({
       })
     : src;
 
-  const blurUrl = shouldTransform
+  const blurUrl = transformSource
     ? cloudflareLoader({
-        src,
+        src: transformSource,
         width: IMAGE_CONFIG.BLUR.SIZE,
         quality: IMAGE_CONFIG.BLUR.QUALITY,
         fit,
@@ -135,6 +126,7 @@ export function OptimizedImage({
         fit={fit}
         size={size}
         priority={priority}
+        transformSource={transformSource}
         onLoad={handleLoad}
       />
     </div>
@@ -149,6 +141,7 @@ interface OptimizedImageInnerProps {
   fit: "contain" | "cover";
   size: "thumbnail" | "full";
   priority: boolean;
+  transformSource: string | null;
   onLoad: React.ReactEventHandler<HTMLImageElement>;
 }
 
@@ -160,20 +153,22 @@ function OptimizedImageInner({
   fit,
   size,
   priority,
+  transformSource,
   onLoad,
 }: OptimizedImageInnerProps) {
   const [fallbackSrc, setFallbackSrc] = React.useState<string | null>(null);
   const currentSrc = fallbackSrc ?? imageUrl;
+  const fallbackTarget = transformSource ?? src;
 
   const handleError: React.ReactEventHandler<HTMLImageElement> =
     React.useCallback(
       (_error) => {
-        if (currentSrc !== src && imageUrl !== src) {
-          setFallbackSrc(src);
+        if (currentSrc !== fallbackTarget && imageUrl !== fallbackTarget) {
+          setFallbackSrc(fallbackTarget);
           return;
         }
 
-        if (!shouldUseCloudflareTransform(src)) return;
+        if (!transformSource) return;
 
         const reportKey = `${src}::${imageUrl}`;
         if (reportedImageErrors.has(reportKey)) return;
@@ -186,6 +181,7 @@ function OptimizedImageInner({
           context: {
             source: "OptimizedImage",
             src,
+            transformSource,
             transformedUrl: imageUrl,
             attemptedSrc: currentSrc,
             size,
@@ -193,7 +189,7 @@ function OptimizedImageInner({
           },
         });
       },
-      [currentSrc, imageUrl, src, size, fit],
+      [currentSrc, fallbackTarget, imageUrl, src, transformSource, size, fit],
     );
 
   return (

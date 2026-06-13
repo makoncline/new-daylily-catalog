@@ -8,6 +8,7 @@ import {
   isPublished,
 } from "@/server/db/public-visibility/filters";
 import { parseAndSanitizeEditorJsContent } from "@/server/security/editor-js-content";
+import { getCloudflareUrlForDaylilyS3Image } from "@/lib/utils/cloudflareLoader";
 
 export interface PublicSellerSummary {
   id: string;
@@ -236,7 +237,7 @@ export async function getPublicSellerSummariesByUserIds(
         images:
           user.profile?.images.map((image) => ({
             id: image.id,
-            url: image.url,
+            url: getCloudflareUrlForDaylilyS3Image(image.url),
           })) ?? [],
         listingCount: user._count.listings,
         listCount: user._count.lists,

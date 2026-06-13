@@ -5,6 +5,7 @@ import {
   type PublicCultivarContext,
   type PublicCultivarReferenceData,
 } from "@/server/db/public-cultivar-context";
+import { getCloudflareUrlForDaylilyS3Image } from "@/lib/utils/cloudflareLoader";
 
 const CULTIVAR_SPEC_FIELDS = [
   ["Scape Height", "scapeHeight"],
@@ -175,7 +176,7 @@ function getCultivarHeroImages(
         sellerSlug: listing.userSlug,
         sellerTitle: listing.sellerTitle,
         source: "catalog" as const,
-        url: image.url,
+        url: getCloudflareUrlForDaylilyS3Image(image.url),
       })),
   );
 
@@ -191,7 +192,9 @@ function getCultivarHeroImages(
           sellerSlug: null,
           sellerTitle: null,
           source: "ahs" as const,
-          url: cultivarReference.ahsListing.ahsImageUrl,
+          url: getCloudflareUrlForDaylilyS3Image(
+            cultivarReference.ahsListing.ahsImageUrl,
+          ),
         },
       ]
     : catalogImages.slice(0, 12);
@@ -262,7 +265,9 @@ function toGardenCards(args: {
       id: listing.id,
       imageCount: listing.images.length,
       lists: listing.lists,
-      previewImageUrl: listing.images[0]?.url ?? null,
+      previewImageUrl: listing.images[0]?.url
+        ? getCloudflareUrlForDaylilyS3Image(listing.images[0].url)
+        : null,
       price: listing.price,
       slug: listing.slug,
       title: listing.title,
@@ -324,7 +329,7 @@ function toGardenPhotos(args: {
         sellerSlug: summary.slug ?? summary.id,
         sellerTitle: summary.title ?? summary.slug ?? "Unnamed Garden",
         updatedAt: image.updatedAt,
-        url: image.url,
+        url: getCloudflareUrlForDaylilyS3Image(image.url),
       }));
     })
     .sort((a, b) => {
