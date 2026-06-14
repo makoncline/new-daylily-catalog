@@ -44,8 +44,8 @@ This document is being introduced with the first PR in a stacked migration. At
 that point, only the schema/env/docs foundation is shipped.
 
 - [x] Added `ImageAsset` schema to `prisma/schema.prisma`.
-- [x] Added reviewed additive SQL:
-  `prisma/data-migrations/20260613_add_image_asset_table.sql`.
+- [x] Added Prisma-generated structural SQL:
+  `prisma/migrations/20260613180000_add_image_asset/migration.sql`.
 - [x] Added R2/media env placeholders and `USE_IMAGE_ASSETS=false` defaults.
 - [ ] Add R2 key/url helpers and read-model helper tests.
 - [ ] Add local-first backfill and variant scripts.
@@ -80,17 +80,15 @@ added later if async processing failures are frequent enough to justify it.
 
 Add `ImageAsset` while keeping legacy `Image` during migration.
 
-This repo does not ship generated Prisma migrations for this class of
-prod-shaped SQLite/Turso change. The expected process is:
+Use the repo migration workflow for this schema change. The expected process is:
 
 1. Update `prisma/schema.prisma` so Prisma Client types match the target schema.
-2. Commit reviewed additive SQL under `prisma/data-migrations/`.
+2. Generate and commit structural SQL under `prisma/migrations/`.
 3. Rehearse that SQL against a local prod copy and then a Turso branch.
 4. Apply the reviewed SQL to production Turso manually later, only after
    explicit approval.
 
-Do not run Prisma-generated migrations or apply this SQL to production as part
-of the first PR.
+Do not apply this SQL to production as part of the first PR.
 
 ```prisma
 model ImageAsset {
@@ -100,16 +98,13 @@ model ImageAsset {
 
   listingId           String?
   userProfileId       String?
-  cultivarReferenceId String?
 
   order               Int      @default(0)
-  kind                String   // "profile" | "listing" | "cultivar"
+  kind                String   // "profile" | "listing"
   status              String?
 
   originalKey         String?
   originalUrl         String?
-
-  generatedOriginalKey String?
 
   displayKey          String?
   displayUrl          String?
@@ -125,17 +120,15 @@ model ImageAsset {
 
   listing             Listing?           @relation(fields: [listingId], references: [id], onDelete: Cascade)
   userProfile         UserProfile?       @relation(fields: [userProfileId], references: [id], onDelete: Cascade)
-  cultivarReference   CultivarReference? @relation(fields: [cultivarReferenceId], references: [id], onDelete: Cascade)
 
   @@index([listingId])
   @@index([userProfileId])
-  @@index([cultivarReferenceId])
 }
 ```
 
-The app should enforce exactly one owner field for new rows. `generatedOriginalKey`
-is for cultivar generated masters when they exist separately from source
-originals.
+The app should enforce exactly one owner field for new rows. Generated cultivar
+assets should use this same asset pattern later, but their relation/source fields
+are deferred until that workflow has a current read/write path.
 
 For migrated and dual-written user-uploaded images, prefer creating
 `ImageAsset.id` equal to the legacy `Image.id`, and also populate
@@ -153,9 +146,6 @@ users/{userId}/profile-images/{imageAssetId}/original.{ext}
 users/{userId}/profile-images/{imageAssetId}/versions/{versionId}/original.{ext}
 users/{userId}/listing-images/{listingId}/{imageAssetId}/original.{ext}
 users/{userId}/listing-images/{listingId}/{imageAssetId}/versions/{versionId}/original.{ext}
-cultivars/{normalizedName}-{cultivarReferenceId}/{imageAssetId}/source-original.{ext}
-cultivars/{normalizedName}-{cultivarReferenceId}/{imageAssetId}/generated-original.{ext}
-
 users/{userId}/profile-images/{imageAssetId}/display-800.webp
 users/{userId}/profile-images/{imageAssetId}/thumb-200.webp
 users/{userId}/profile-images/{imageAssetId}/blur-20.webp
@@ -170,15 +160,11 @@ users/{userId}/listing-images/{listingId}/{imageAssetId}/versions/{versionId}/di
 users/{userId}/listing-images/{listingId}/{imageAssetId}/versions/{versionId}/thumb-200.webp
 users/{userId}/listing-images/{listingId}/{imageAssetId}/versions/{versionId}/blur-20.webp
 
-cultivars/{normalizedName}-{cultivarReferenceId}/{imageAssetId}/display-800.webp
-cultivars/{normalizedName}-{cultivarReferenceId}/{imageAssetId}/thumb-200.webp
-cultivars/{normalizedName}-{cultivarReferenceId}/{imageAssetId}/blur-20.webp
 ```
 
-Use IDs for user-owned paths because user/listing slugs can change. Use
-`normalizedName` plus `CultivarReference.id` for cultivar paths so operator
-inspection is readable but still unique. Do not rename existing cultivar objects
-just because the normalized name changes later.
+Use IDs for user-owned paths because user/listing slugs can change. Cultivar
+asset paths can add readable normalized names plus stable IDs when that workflow
+lands.
 
 Replacement uploads for an existing legacy `Image.id` must use the versioned
 path form. Variant keys are derived from the original key, so this avoids
@@ -472,5 +458,5 @@ for more user input:
   can be regenerated.
 - Keep `legacyImageId` until the legacy `Image` table is fully retired. Do not
   drop it during this migration.
-- Use `cultivarReferenceId` for generated cultivar assets in this migration. Add
-  a more specific source table only if future review metadata needs it.
+- Defer generated cultivar asset relations until generated cultivar images are
+  actually served by the app.

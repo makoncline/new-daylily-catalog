@@ -103,7 +103,6 @@ model CultivarReference {
   ahsListing    AhsListing?    @relation(fields: [ahsId], references: [id], onDelete: SetNull)
   v2AhsCultivar V2AhsCultivar? @relation(fields: [v2AhsCultivarId], references: [id], onDelete: SetNull)
   listings      Listing[]
-  imageAssets   ImageAsset[]
 
   @@unique([normalizedName], map: "CultivarReference_normalizedName_unique_idx")
   @@index([ahsId])
@@ -199,7 +198,6 @@ model ImageAsset {
 
   originalKey          String?
   originalUrl          String?
-  generatedOriginalKey String?
   displayKey           String?
   displayUrl           String?
   thumbKey             String?
@@ -210,17 +208,14 @@ model ImageAsset {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  userProfileId       String?
-  listingId           String?
-  cultivarReferenceId String?
+  userProfileId String?
+  listingId     String?
 
-  userProfile       UserProfile?       @relation(fields: [userProfileId], references: [id], onDelete: Cascade)
-  listing           Listing?           @relation(fields: [listingId], references: [id], onDelete: Cascade)
-  cultivarReference CultivarReference? @relation(fields: [cultivarReferenceId], references: [id], onDelete: Cascade)
+  userProfile UserProfile? @relation(fields: [userProfileId], references: [id], onDelete: Cascade)
+  listing     Listing?     @relation(fields: [listingId], references: [id], onDelete: Cascade)
 
   @@index([userProfileId])
   @@index([listingId])
-  @@index([cultivarReferenceId])
 }
 
 model User {

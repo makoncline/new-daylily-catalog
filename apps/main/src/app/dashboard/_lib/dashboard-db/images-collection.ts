@@ -268,22 +268,20 @@ export async function deleteImage(draft: DeleteDraft) {
 }
 
 async function refreshImagesCollectionFromServer(userId: string) {
-  await runWithDashboardRefreshLock(async () => {
-    await refreshDashboardDbCollectionFromServer({
-      userId,
-      queryKey: QUERY_KEY,
-      cursorBase: CURSOR_BASE,
-      fetchRows: () =>
-        fetchDashboardSyncPages({
-          label: "image.full-refresh",
-          since: null,
-          pageSize: IMAGES_SYNC_PAGE_SIZE,
-          fetchPage: (input) =>
-            getTrpcClient().dashboardDb.image.sync.query(input),
-        }),
-      sortRows: sortImages,
-      filterRows: (row) => !DELETED_IDS.has(row.id),
-    });
+  await refreshDashboardDbCollectionFromServer({
+    userId,
+    queryKey: QUERY_KEY,
+    cursorBase: CURSOR_BASE,
+    fetchRows: () =>
+      fetchDashboardSyncPages({
+        label: "image.full-refresh",
+        since: null,
+        pageSize: IMAGES_SYNC_PAGE_SIZE,
+        fetchPage: (input) =>
+          getTrpcClient().dashboardDb.image.sync.query(input),
+      }),
+    sortRows: sortImages,
+    filterRows: (row) => !DELETED_IDS.has(row.id),
   });
 }
 

@@ -239,21 +239,19 @@ export async function removeListingFromList(args: {
 }
 
 async function refreshListsCollectionFromServer(userId: string) {
-  await runWithDashboardRefreshLock(async () => {
-    await refreshDashboardDbCollectionFromServer({
-      userId,
-      queryKey: QUERY_KEY,
-      cursorBase: CURSOR_BASE,
-      fetchRows: () =>
-        fetchDashboardSyncPages({
-          label: "list.full-refresh",
-          since: null,
-          fetchPage: (input) =>
-            getTrpcClient().dashboardDb.list.sync.query(input),
-        }),
-      sortRows: sortLists,
-      filterRows: (row) => !DELETED_IDS.has(row.id),
-    });
+  await refreshDashboardDbCollectionFromServer({
+    userId,
+    queryKey: QUERY_KEY,
+    cursorBase: CURSOR_BASE,
+    fetchRows: () =>
+      fetchDashboardSyncPages({
+        label: "list.full-refresh",
+        since: null,
+        fetchPage: (input) =>
+          getTrpcClient().dashboardDb.list.sync.query(input),
+      }),
+    sortRows: sortLists,
+    filterRows: (row) => !DELETED_IDS.has(row.id),
   });
 }
 
