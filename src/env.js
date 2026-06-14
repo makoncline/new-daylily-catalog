@@ -16,7 +16,10 @@ export const env = createEnv({
     DATABASE_URL: z.string().optional(),
     CULTIVAR_READ_DATABASE_URL: z.string().optional(),
     CULTIVAR_READ_SYNC_URL: z.string().optional(),
-    CULTIVAR_READ_SYNC_INTERVAL_SECONDS: z.coerce.number().positive().optional(),
+    CULTIVAR_READ_SYNC_INTERVAL_SECONDS: z.coerce
+      .number()
+      .positive()
+      .optional(),
     TURSO_DATABASE_AUTH_TOKEN: z.string().optional(),
     VERCEL_AUTOMATION_BYPASS_SECRET: z.string().optional(),
     CLERK_SECRET_KEY: z.string().optional(),
@@ -28,6 +31,12 @@ export const env = createEnv({
     AWS_SECRET_ACCESS_KEY: z.string().optional(),
     AWS_REGION: z.string().optional(),
     AWS_BUCKET_NAME: z.string().optional(),
+    R2_ACCOUNT_ID: z.string().optional(),
+    R2_ACCESS_KEY_ID: z.string().optional(),
+    R2_SECRET_ACCESS_KEY: z.string().optional(),
+    R2_BUCKET_NAME: z.string().optional(),
+    R2_PUBLIC_BASE_URL: z.string().url().optional(),
+    USE_IMAGE_ASSETS: booleanStringSchema.optional().default("false"),
     NODE_ENV: z.enum(["development", "test", "production"]),
   },
   client: {
@@ -69,6 +78,12 @@ export const env = createEnv({
     AWS_SECRET_ACCESS_KEY: process.env.AWS_SECRET_ACCESS_KEY,
     AWS_REGION: process.env.AWS_REGION,
     AWS_BUCKET_NAME: process.env.AWS_BUCKET_NAME,
+    R2_ACCOUNT_ID: process.env.R2_ACCOUNT_ID,
+    R2_ACCESS_KEY_ID: process.env.R2_ACCESS_KEY_ID,
+    R2_SECRET_ACCESS_KEY: process.env.R2_SECRET_ACCESS_KEY,
+    R2_BUCKET_NAME: process.env.R2_BUCKET_NAME,
+    R2_PUBLIC_BASE_URL: process.env.R2_PUBLIC_BASE_URL,
+    USE_IMAGE_ASSETS: process.env.USE_IMAGE_ASSETS,
     NODE_ENV: process.env.NODE_ENV,
     NEXT_PUBLIC_SENTRY_ENABLED: process.env.NEXT_PUBLIC_SENTRY_ENABLED,
     NEXT_PUBLIC_USE_V2_CULTIVAR_DISPLAY_DATA:
@@ -122,10 +137,7 @@ if (!process.env.SKIP_ENV_VALIDATION) {
     );
   }
 
-  if (
-    isLibsqlDatabaseUrl(env.DATABASE_URL) &&
-    !env.TURSO_DATABASE_AUTH_TOKEN
-  ) {
+  if (isLibsqlDatabaseUrl(env.DATABASE_URL) && !env.TURSO_DATABASE_AUTH_TOKEN) {
     throw new Error(
       "TURSO_DATABASE_AUTH_TOKEN is required for libsql:// DATABASE_URL values.",
     );
