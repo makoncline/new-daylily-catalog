@@ -363,6 +363,7 @@ describe("WebMcpProvider", () => {
       key: "user-1/listing-1/uploaded.jpg",
       imageId: "image-1",
       r2OriginalKey: "users/user-1/listing-images/listing-1/image-1/original.jpg",
+      r2Uploaded: true,
     });
 
     expect(mocks.createImage).toHaveBeenCalledWith({
@@ -373,5 +374,34 @@ describe("WebMcpProvider", () => {
       imageId: "image-1",
       r2OriginalKey: "users/user-1/listing-images/listing-1/image-1/original.jpg",
     });
+  });
+
+  test("rejects ImageAsset metadata unless the R2 upload is acknowledged", async () => {
+    const registerTool = vi.fn();
+    setModelContext({ registerTool });
+
+    render(<WebMcpProvider />);
+    await waitFor(() => {
+      expect(registerTool).toHaveBeenCalled();
+    });
+
+    const attachImageTool = registerTool.mock.calls
+      .map(([tool]) => tool)
+      .find((tool) => tool.name === "daylily.attach-uploaded-image");
+
+    await expect(
+      attachImageTool.execute({
+        type: "listing",
+        referenceId: "listing-1",
+        url: "https://example.com/uploaded.jpg",
+        key: "user-1/listing-1/uploaded.jpg",
+        imageId: "image-1",
+        r2OriginalKey:
+          "users/user-1/listing-images/listing-1/image-1/original.jpg",
+      }),
+    ).rejects.toThrow(
+      "r2Uploaded must be true after uploading to the returned R2 signed URL.",
+    );
+    expect(mocks.createImage).not.toHaveBeenCalled();
   });
 });
