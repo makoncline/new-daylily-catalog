@@ -3,6 +3,7 @@ import { withTempE2EDb } from "../../src/lib/test-utils/e2e-db";
 import { deleteClerkUserByEmail } from "./utils/clerk";
 import { seedAhsListing } from "./utils/ahs-listings";
 
+const TEST_EMAIL = "onboarding-full+clerk_test@gmail.com";
 const TEST_CODE = "424242";
 
 async function seedOnboardingCultivars() {
@@ -64,10 +65,8 @@ test.describe("onboarding full flow @local", () => {
     onboardingFlowPage,
     stripeCheckout,
     dashboardHome,
-  }, testInfo) => {
-    const testEmail = `onboarding-full+clerk_test-${Date.now()}-${testInfo.retry}@gmail.com`;
-
-    await deleteClerkUserByEmail(testEmail);
+  }) => {
+    await deleteClerkUserByEmail(TEST_EMAIL);
 
     try {
       await seedOnboardingCultivars();
@@ -84,7 +83,7 @@ test.describe("onboarding full flow @local", () => {
         .first()
         .click();
 
-      await clerkAuthModal.signUpWithEmail(testEmail, TEST_CODE);
+      await clerkAuthModal.signUpWithEmail(TEST_EMAIL, TEST_CODE);
       await expect(page).toHaveURL(/\/onboarding/);
       await onboardingFlowPage.waitForLoaded();
       await onboardingFlowPage.waitForProfileReady();
@@ -126,7 +125,7 @@ test.describe("onboarding full flow @local", () => {
       await expect(page).toHaveURL(/\/dashboard/);
       await dashboardHome.waitForLoaded();
     } finally {
-      await deleteClerkUserByEmail(testEmail);
+      await deleteClerkUserByEmail(TEST_EMAIL);
     }
   });
 });
