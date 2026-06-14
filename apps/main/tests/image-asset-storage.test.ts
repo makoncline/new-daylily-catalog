@@ -3,6 +3,7 @@ import { beforeAll, describe, expect, it } from "vitest";
 process.env.SKIP_ENV_VALIDATION = "1";
 process.env.DATABASE_URL ??=
   "file:./tests/.tmp/image-asset-storage-test.sqlite";
+process.env.R2_PUBLIC_BASE_URL ??= "https://media.daylilycatalog.com";
 
 let storage: typeof import("@/server/services/image-asset-storage");
 

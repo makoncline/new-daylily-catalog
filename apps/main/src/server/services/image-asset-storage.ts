@@ -2,28 +2,19 @@ import path from "node:path";
 import { PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { env, requireEnv } from "@/env";
+import type { ImageType } from "@/types/image";
 
-export const IMAGE_ASSET_BUCKET_NAME = "daylily-catalog-media";
-export const IMAGE_ASSET_PUBLIC_BASE_URL = "https://media.daylilycatalog.com";
 export const IMAGE_ASSET_VARIANT_CACHE_CONTROL =
   "public, max-age=31536000, immutable";
 const IMAGE_ASSET_VERSION_ID_PATTERN = /^[a-f0-9]{12,32}$/;
 const SAFE_IMAGE_EXTENSIONS = new Set([".jpg", ".jpeg", ".png", ".webp"]);
 
-export type UserImageAssetKind = "profile" | "listing";
-
 export interface UserImageAssetKeyArgs {
-  kind: UserImageAssetKind;
+  kind: ImageType;
   userId: string;
   imageAssetId: string;
   listingId?: string | null;
   versionId?: string | null;
-}
-
-export interface CultivarImageAssetKeyArgs {
-  cultivarReferenceId: string;
-  normalizedName: string | null | undefined;
-  imageAssetId: string;
 }
 
 export function areImageAssetsEnabled() {
@@ -32,18 +23,11 @@ export function areImageAssetsEnabled() {
 
 export function areImageAssetUploadsConfigured() {
   return Boolean(
-    env.R2_ACCOUNT_ID && env.R2_ACCESS_KEY_ID && env.R2_SECRET_ACCESS_KEY,
-  );
-}
-
-export function getR2BucketName() {
-  return env.R2_BUCKET_NAME ?? IMAGE_ASSET_BUCKET_NAME;
-}
-
-export function getR2PublicBaseUrl() {
-  return (env.R2_PUBLIC_BASE_URL ?? IMAGE_ASSET_PUBLIC_BASE_URL).replace(
-    /\/+$/,
-    "",
+    env.R2_ACCOUNT_ID &&
+      env.R2_ACCESS_KEY_ID &&
+      env.R2_SECRET_ACCESS_KEY &&
+      env.R2_BUCKET_NAME &&
+      env.R2_PUBLIC_BASE_URL,
   );
 }
 
@@ -65,13 +49,17 @@ export function getR2Client() {
 
 export function buildR2PublicUrl(key: string) {
   assertCanonicalImageAssetKey(key);
+  const publicBaseUrl = requireEnv(
+    "R2_PUBLIC_BASE_URL",
+    env.R2_PUBLIC_BASE_URL,
+  ).replace(/\/+$/, "");
 
   const encodedKey = key
     .split("/")
     .map((segment) => encodeURIComponent(segment))
     .join("/");
 
-  return `${getR2PublicBaseUrl()}/${encodedKey}`;
+  return `${publicBaseUrl}/${encodedKey}`;
 }
 
 export function getSafeImageExtension(fileName: string) {
@@ -104,17 +92,6 @@ export function assertCanonicalImageAssetKey(key: string) {
   }
 }
 
-function sanitizePathSegment(value: string) {
-  const sanitized = value
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9-]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .replace(/-{2,}/g, "-");
-
-  return sanitized || "unknown";
-}
-
 export function buildUserImageAssetBaseKey(args: UserImageAssetKeyArgs) {
   if (args.kind === "profile") {
     return `users/${args.userId}/profile-images/${args.imageAssetId}`;
@@ -139,12 +116,6 @@ function buildVersionedImageAssetBaseKey(args: UserImageAssetKeyArgs) {
   }
 
   return `${baseKey}/versions/${args.versionId}`;
-}
-
-export function buildCultivarImageAssetBaseKey(
-  args: CultivarImageAssetKeyArgs,
-) {
-  return `cultivars/${sanitizePathSegment(args.normalizedName ?? "unknown")}-${args.cultivarReferenceId}/${args.imageAssetId}`;
 }
 
 export function buildOriginalImageAssetKey(
@@ -191,7 +162,7 @@ export async function getR2PresignedPutUrl(args: {
   cacheControl?: string;
 }) {
   const command = new PutObjectCommand({
-    Bucket: getR2BucketName(),
+    Bucket: requireEnv("R2_BUCKET_NAME", env.R2_BUCKET_NAME),
     Key: args.key,
     ContentType: args.contentType,
     CacheControl: args.cacheControl,
