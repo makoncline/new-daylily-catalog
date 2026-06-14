@@ -1,6 +1,7 @@
 import { PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import { PrismaClient } from "@prisma/client";
 import sharp from "sharp";
+import { revalidatePublicCacheForAsset } from "./public-cache-revalidation.mjs";
 
 const DEFAULT_CONCURRENCY = 5;
 const DEFAULT_BATCH_SIZE = 50;
@@ -335,7 +336,7 @@ async function backfillImage({ image, db, r2, bucket, dryRun }) {
     ),
   ]);
 
-  await db.imageAsset.upsert({
+  const asset = await db.imageAsset.upsert({
     where: { id: image.id },
     create: {
       id: image.id,
@@ -367,6 +368,24 @@ async function backfillImage({ image, db, r2, bucket, dryRun }) {
       ...ownerData,
     },
   });
+
+  await db.image.update({
+    where: { id: image.id },
+    data: { updatedAt: new Date() },
+  });
+
+  try {
+    await revalidatePublicCacheForAsset({ asset, db });
+  } catch (error) {
+    console.error("[image-assets] public cache revalidation failed", {
+      imageAssetId: asset.id,
+      error,
+    });
+    captureScriptException(error, {
+      tags: { source: "image-assets:backfill-revalidation" },
+      extra: { imageAssetId: asset.id },
+    });
+  }
 
   console.log("[backfilled]", image.id);
 }
@@ -483,10 +502,13 @@ async function main() {
       `[image-assets] backfilling ${images.length} images with concurrency ${concurrency}`,
     );
 
+    let failedCount = 0;
+
     await runConcurrent(images, concurrency, async (image) => {
       try {
         await backfillImage({ image, db, r2, bucket, dryRun: args.dryRun });
       } catch (error) {
+        failedCount += 1;
         console.error("[failed]", image.id, error);
         captureScriptException(error, {
           tags: { source: "image-assets:backfill" },
@@ -510,6 +532,13 @@ async function main() {
         }
       }
     });
+
+    if (failedCount > 0) {
+      console.error(
+        `[image-assets] ${failedCount} of ${images.length} backfill items failed`,
+      );
+      process.exitCode = 1;
+    }
   } finally {
     await db.$disconnect();
   }

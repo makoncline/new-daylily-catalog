@@ -327,10 +327,13 @@ async function main() {
       `[image-assets] processing ${assets.length} assets with concurrency ${concurrency}`,
     );
 
+    let failedCount = 0;
+
     await runConcurrent(assets, concurrency, async (asset) => {
       try {
         await processAsset({ asset, db, r2, bucket, dryRun: args.dryRun });
       } catch (error) {
+        failedCount += 1;
         console.error("[failed]", asset.id, error);
         captureScriptException(error, {
           tags: { source: "image-assets:variants" },
@@ -344,6 +347,13 @@ async function main() {
         }
       }
     });
+
+    if (failedCount > 0) {
+      console.error(
+        `[image-assets] ${failedCount} of ${assets.length} variant items failed`,
+      );
+      process.exitCode = 1;
+    }
   } finally {
     await db.$disconnect();
   }
