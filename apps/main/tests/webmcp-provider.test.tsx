@@ -341,4 +341,37 @@ describe("WebMcpProvider", () => {
       privateNote: { type: ["string", "null"] },
     });
   });
+
+  test("passes ImageAsset metadata when attaching an uploaded image", async () => {
+    const registerTool = vi.fn();
+    setModelContext({ registerTool });
+    mocks.createImage.mockResolvedValue({ id: "image-1" });
+
+    render(<WebMcpProvider />);
+    await waitFor(() => {
+      expect(registerTool).toHaveBeenCalled();
+    });
+
+    const attachImageTool = registerTool.mock.calls
+      .map(([tool]) => tool)
+      .find((tool) => tool.name === "daylily.attach-uploaded-image");
+
+    await attachImageTool.execute({
+      type: "listing",
+      referenceId: "listing-1",
+      url: "https://example.com/uploaded.jpg",
+      key: "user-1/listing-1/uploaded.jpg",
+      imageId: "image-1",
+      r2OriginalKey: "users/user-1/listing-images/listing-1/image-1/original.jpg",
+    });
+
+    expect(mocks.createImage).toHaveBeenCalledWith({
+      type: "listing",
+      referenceId: "listing-1",
+      url: "https://example.com/uploaded.jpg",
+      key: "user-1/listing-1/uploaded.jpg",
+      imageId: "image-1",
+      r2OriginalKey: "users/user-1/listing-images/listing-1/image-1/original.jpg",
+    });
+  });
 });

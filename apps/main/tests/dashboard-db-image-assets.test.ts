@@ -93,7 +93,7 @@ describe("dashboard image asset mutations", () => {
     const result = await createCaller(db).getPresignedUrl({
       type: "listing",
       referenceId: "listing-1",
-      fileName: "payload.png",
+      fileName: "payload.svg",
       contentType: "image/png",
       size: 1234,
     });

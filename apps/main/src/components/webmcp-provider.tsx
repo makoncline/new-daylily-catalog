@@ -579,7 +579,7 @@ export function WebMcpProvider() {
           name: "daylily.attach-uploaded-image",
           title: "Attach Uploaded Image",
           description:
-            "Attach an image to a profile or listing after it has been uploaded to a Daylily Catalog signed upload URL.",
+            "Attach an image to a profile or listing after it has been uploaded to a Daylily Catalog signed upload URL. Include imageId and r2OriginalKey when returned by daylily.prepare-image-upload.",
           inputSchema: {
             type: "object",
             additionalProperties: false,
@@ -592,6 +592,8 @@ export function WebMcpProvider() {
               },
               url: { type: "string" },
               key: { type: "string" },
+              imageId: { type: "string" },
+              r2OriginalKey: { type: "string" },
             },
           },
           annotations: {
@@ -608,10 +610,19 @@ export function WebMcpProvider() {
             const referenceId = asString(input.referenceId);
             const url = asString(input.url);
             const key = asString(input.key);
+            const imageId = asString(input.imageId);
+            const r2OriginalKey = asString(input.r2OriginalKey);
             if (!referenceId || !url || !key) {
               throw new Error("referenceId, url, and key are required.");
             }
-            const image = await createImage({ type, referenceId, url, key });
+            const image = await createImage({
+              type,
+              referenceId,
+              url,
+              key,
+              ...(imageId ? { imageId } : {}),
+              ...(r2OriginalKey ? { r2OriginalKey } : {}),
+            });
             return toolResult({ ok: true, image });
           },
         },

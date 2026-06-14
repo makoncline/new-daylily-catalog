@@ -351,7 +351,7 @@ export const dashboardDbImageRouter = createTRPCRouter({
             listingId: input.type === "listing" ? input.referenceId : null,
             imageAssetId: imageId,
             versionId: r2VersionId,
-            fileName: input.fileName,
+            fileName: `original${ext}`,
           })
         : null;
 
