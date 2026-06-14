@@ -100,8 +100,7 @@ function buildListingView<T extends ListingPayload>(listing: T) {
     variant: "display",
     source: "public-listing",
   });
-  const publicListing = { ...displayListing };
-  delete (publicListing as Partial<typeof publicListing>).imageAssets;
+  const { imageAssets: _imageAssets, ...publicListing } = displayListing;
   const images =
     resolvedImages.length === 0 && displayAhsListing?.ahsImageUrl
       ? [

@@ -257,7 +257,7 @@ export async function getPublicSellerSummariesByUserIds(
           }).map((image) => ({
             id: image.id,
             url: getCloudflareUrlForDaylilyS3Image(image.url),
-          })) ?? [],
+          })),
         listingCount: user._count.listings,
         listCount: user._count.lists,
         hasActiveSubscription: activeUserIds.has(user.id),
