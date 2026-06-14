@@ -100,7 +100,8 @@ function buildListingView<T extends ListingPayload>(listing: T) {
     variant: "display",
     source: "public-listing",
   });
-  const { imageAssets: _imageAssets, ...publicListing } = displayListing;
+  const { imageAssets, ...publicListing } = displayListing;
+  void imageAssets;
   const images =
     resolvedImages.length === 0 && displayAhsListing?.ahsImageUrl
       ? [
