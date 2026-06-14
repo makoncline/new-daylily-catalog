@@ -7,6 +7,7 @@ export const IMAGE_ASSET_BUCKET_NAME = "daylily-catalog-media";
 export const IMAGE_ASSET_PUBLIC_BASE_URL = "https://media.daylilycatalog.com";
 export const IMAGE_ASSET_VARIANT_CACHE_CONTROL =
   "public, max-age=31536000, immutable";
+const IMAGE_ASSET_VERSION_ID_PATTERN = /^[a-f0-9]{12,32}$/;
 
 export type UserImageAssetKind = "profile" | "listing";
 export type ImageAssetKind = UserImageAssetKind | "cultivar";
@@ -111,6 +112,10 @@ function buildVersionedImageAssetBaseKey(args: UserImageAssetKeyArgs) {
     return baseKey;
   }
 
+  if (!IMAGE_ASSET_VERSION_ID_PATTERN.test(args.versionId)) {
+    throw new Error("versionId must be 12 to 32 lowercase hex characters.");
+  }
+
   return `${baseKey}/versions/${args.versionId}`;
 }
 
@@ -138,13 +143,18 @@ export function isExpectedOriginalImageAssetKey(
 
   const relativeKey = args.key.slice(baseKey.length + 1);
   const expectedPattern = args.requireVersion
-    ? /^versions\/[a-f0-9]{12}\/original\.[a-z0-9]+$/
-    : /^(?:versions\/[a-f0-9]{12}\/)?original\.[a-z0-9]+$/;
+    ? /^versions\/[a-f0-9]{12,32}\/original\.[a-z0-9]+$/
+    : /^(?:versions\/[a-f0-9]{12,32}\/)?original\.[a-z0-9]+$/;
 
   return expectedPattern.test(relativeKey);
 }
 
-export function buildVariantImageAssetKeys(baseKey: string) {
+export function buildVariantImageAssetKeys(baseKeyOrArgs: string | UserImageAssetKeyArgs) {
+  const baseKey =
+    typeof baseKeyOrArgs === "string"
+      ? baseKeyOrArgs
+      : buildVersionedImageAssetBaseKey(baseKeyOrArgs);
+
   return {
     displayKey: `${baseKey}/display-800.webp`,
     thumbKey: `${baseKey}/thumb-200.webp`,
