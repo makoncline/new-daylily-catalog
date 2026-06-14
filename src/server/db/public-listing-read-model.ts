@@ -10,6 +10,7 @@ import { getCachedProUserIds } from "@/server/db/getCachedProUserIds";
 import { db } from "@/server/db";
 import { getUserIdFromSlugOrId } from "@/server/db/getPublicProfile";
 import { isPublished } from "@/server/db/public-visibility/filters";
+import { resolveLegacyImagesWithAssets } from "@/server/services/image-asset-read-model";
 
 export const publicListingSelect = {
   id: true,
@@ -56,6 +57,19 @@ export const publicListingSelect = {
       order: "asc",
     },
   },
+  imageAssets: {
+    select: {
+      id: true,
+      legacyImageId: true,
+      originalUrl: true,
+      displayUrl: true,
+      thumbUrl: true,
+      blurUrl: true,
+    },
+    orderBy: {
+      order: "asc",
+    },
+  },
 } as const;
 
 export const listingSelect = publicListingSelect;
@@ -74,12 +88,20 @@ interface GetListingsArgs {
 function buildListingView<T extends ListingPayload>(listing: T) {
   const displayListing = withResolvedDisplayAhsListing(listing);
   const displayAhsListing = displayListing.ahsListing;
+  const resolvedImages = resolveLegacyImagesWithAssets({
+    images: displayListing.images,
+    imageAssets: displayListing.imageAssets,
+    variant: "display",
+    source: "public-listing",
+  });
+  const publicListing = { ...displayListing };
+  delete (publicListing as Partial<typeof publicListing>).imageAssets;
 
   return {
-    ...displayListing,
+    ...publicListing,
     ahsListing: displayAhsListing,
     images:
-      displayListing.images.length === 0 && displayAhsListing?.ahsImageUrl
+      resolvedImages.length === 0 && displayAhsListing?.ahsImageUrl
         ? [
             {
               id: `ahs-${displayListing.id}`,
@@ -87,7 +109,7 @@ function buildListingView<T extends ListingPayload>(listing: T) {
               updatedAt: displayListing.updatedAt,
             },
           ]
-        : displayListing.images,
+        : resolvedImages,
   };
 }
 

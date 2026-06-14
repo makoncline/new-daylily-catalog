@@ -4,6 +4,7 @@ import { db } from "@/server/db";
 import { getLatestDate } from "@/server/db/public-date-utils";
 import { getCachedProUserIds } from "@/server/db/getCachedProUserIds";
 import { isPublished } from "@/server/db/public-visibility/filters";
+import { resolveLegacyImagesWithAssets } from "@/server/services/image-asset-read-model";
 
 export interface PublicSellerSummary {
   id: string;
@@ -49,7 +50,9 @@ interface PublicSellerSummaryOptions {
   activeUserIds?: readonly string[] | Set<string>;
 }
 
-function parseProfileContent(content: string | null): OutputData | string | null {
+function parseProfileContent(
+  content: string | null,
+): OutputData | string | null {
   if (!content) {
     return null;
   }
@@ -67,9 +70,7 @@ function toActiveUserIdSet(activeUserIds?: readonly string[] | Set<string>) {
     return null;
   }
 
-  return activeUserIds instanceof Set
-    ? activeUserIds
-    : new Set(activeUserIds);
+  return activeUserIds instanceof Set ? activeUserIds : new Set(activeUserIds);
 }
 
 export function buildPublicSellerProfile(args: {
@@ -198,6 +199,19 @@ export async function getPublicSellerSummariesByUserIds(
                 order: "asc",
               },
             },
+            imageAssets: {
+              select: {
+                id: true,
+                legacyImageId: true,
+                originalUrl: true,
+                displayUrl: true,
+                thumbUrl: true,
+                blurUrl: true,
+              },
+              orderBy: {
+                order: "asc",
+              },
+            },
           },
         },
         _count: {
@@ -236,7 +250,12 @@ export async function getPublicSellerSummariesByUserIds(
         description: user.profile?.description ?? null,
         location: user.profile?.location ?? null,
         images:
-          user.profile?.images.map((image) => ({
+          resolveLegacyImagesWithAssets({
+            images: user.profile?.images ?? [],
+            imageAssets: user.profile?.imageAssets ?? [],
+            variant: "display",
+            source: "public-seller",
+          }).map((image) => ({
             id: image.id,
             url: image.url,
           })) ?? [],

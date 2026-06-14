@@ -6,6 +6,7 @@ import {
   withResolvedDisplayAhsListing,
   v2AhsCultivarDisplaySelect,
 } from "@/lib/utils/ahs-display";
+import { resolveLegacyImagesWithAssets } from "@/server/services/image-asset-read-model";
 
 // Constants for merchant feed configuration
 const SHIPPING_WEIGHT = "0.5 lb";
@@ -19,6 +20,22 @@ export async function GET(_request: Request) {
     const include = {
       images: {
         take: 4, // Get up to 4 images (1 main + 3 additional)
+        orderBy: {
+          order: "asc" as const,
+        },
+      },
+      imageAssets: {
+        select: {
+          id: true,
+          legacyImageId: true,
+          originalUrl: true,
+          displayUrl: true,
+          thumbUrl: true,
+          blurUrl: true,
+        },
+        orderBy: {
+          order: "asc" as const,
+        },
       },
       cultivarReference: {
         include: {
@@ -58,6 +75,12 @@ export async function GET(_request: Request) {
       try {
         const displayListing = withResolvedDisplayAhsListing(listing);
         const displayAhsListing = displayListing.ahsListing;
+        const resolvedImages = resolveLegacyImagesWithAssets({
+          images: displayListing.images,
+          imageAssets: displayListing.imageAssets,
+          variant: "display",
+          source: "google-merchant-feed",
+        });
         const listingName =
           displayListing.title ?? displayAhsListing?.name ?? "Unnamed Daylily";
         // Combine descriptions
@@ -72,8 +95,8 @@ export async function GET(_request: Request) {
         }
 
         const imageUrl =
-          displayListing.images?.[0]?.url ?? displayAhsListing?.ahsImageUrl;
-        const additionalImages = displayListing.images?.slice(1, 4) ?? [];
+          resolvedImages[0]?.url ?? displayAhsListing?.ahsImageUrl;
+        const additionalImages = resolvedImages.slice(1, 4);
         const productUrl = `${baseUrl}/${displayListing.userId}/${displayListing.id}`;
         const catalogName =
           displayListing.user.profile?.title ??

@@ -1,9 +1,19 @@
 import { IMAGE_CONFIG } from "@/components/optimized-image";
 
+const STATIC_IMAGE_ASSET_HOST = "media.daylilycatalog.com";
+
+function isStaticImageAssetUrl(src: string) {
+  try {
+    return new URL(src).hostname.toLowerCase() === STATIC_IMAGE_ASSET_HOST;
+  } catch {
+    return false;
+  }
+}
+
 // Helper function for metadata image optimization that handles both public and external images
 export const getOptimizedMetaImageUrl = (src: string) => {
   // If the image is from our public folder (starts with /assets), return as is
-  if (src.startsWith("/assets")) {
+  if (src.startsWith("/assets") || isStaticImageAssetUrl(src)) {
     return src;
   }
 
