@@ -11,30 +11,60 @@ const PUBLIC_CACHE_TAGS = {
   PUBLIC_CULTIVAR_PAGE: "public:cultivar:page",
 };
 
-function slugify(text) {
-  return text
-    .toString()
-    .toLowerCase()
-    .trim()
-    .replace(/\s+/g, "-")
-    .replace(/[^\w-]+/g, "")
-    .replace(/--+/g, "-")
-    .replace(/^-+/, "")
-    .replace(/-+$/, "");
-}
+const CULTIVAR_ROUTE_ALNUM_REGEX = /^[a-z0-9]$/;
+const CULTIVAR_ROUTE_LITERAL_ESCAPE_REGEX = /[-_.!~*'()]/g;
 
-function toCultivarRouteSegment(name) {
-  if (!name) return null;
+function normalizeCultivarName(name) {
+  if (!name) {
+    return null;
+  }
 
   const normalized = name
     .toString()
     .normalize("NFKD")
     .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[\u2018\u2019\u201B\u2032\u00B4\u0060]/g, "'")
+    .replace(/[\u2010-\u2015\u2212]/g, "-")
     .trim()
     .toLowerCase()
     .replace(/\s+/g, " ");
 
-  return slugify(normalized) || null;
+  return normalized.length > 0 ? normalized : null;
+}
+
+function encodeCultivarRouteCharacter(character) {
+  return encodeURIComponent(character)
+    .replace(
+      CULTIVAR_ROUTE_LITERAL_ESCAPE_REGEX,
+      (value) => `%${value.charCodeAt(0).toString(16).toUpperCase()}`,
+    )
+    .replace(/%/g, "~")
+    .toLowerCase();
+}
+
+function toCultivarRouteSegment(name) {
+  const normalized = normalizeCultivarName(name);
+  if (!normalized) {
+    return null;
+  }
+
+  let segment = "";
+
+  for (const character of normalized) {
+    if (CULTIVAR_ROUTE_ALNUM_REGEX.test(character)) {
+      segment += character;
+      continue;
+    }
+
+    if (character === " ") {
+      segment += "-";
+      continue;
+    }
+
+    segment += encodeCultivarRouteCharacter(character);
+  }
+
+  return segment;
 }
 
 function getPublicProfileTag(userId) {

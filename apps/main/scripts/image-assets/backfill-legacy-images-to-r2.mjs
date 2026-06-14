@@ -33,11 +33,14 @@ function readIntEnv(name, fallback) {
 
 function parseArgs() {
   const args = process.argv.slice(2);
+  const limitIndex = args.indexOf("--limit");
+  const limitValue = limitIndex >= 0 ? args[limitIndex + 1] : null;
+
   return {
     dryRun: args.includes("--dry-run"),
     retryFailed: args.includes("--retry-failed"),
     limit:
-      Number.parseInt(args[args.indexOf("--limit") + 1] ?? "", 10) ||
+      Number.parseInt(limitValue ?? "", 10) ||
       readIntEnv("IMAGE_ASSET_BACKFILL_BATCH_SIZE", DEFAULT_BATCH_SIZE),
   };
 }

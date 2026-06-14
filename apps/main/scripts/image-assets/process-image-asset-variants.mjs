@@ -35,6 +35,8 @@ function parseArgs() {
   const args = process.argv.slice(2);
   const assetIdIndex = args.indexOf("--asset-id");
   const assetId = assetIdIndex >= 0 ? args[assetIdIndex + 1] : null;
+  const limitIndex = args.indexOf("--limit");
+  const limitValue = limitIndex >= 0 ? args[limitIndex + 1] : null;
 
   if (assetIdIndex >= 0 && (!assetId || assetId.startsWith("--"))) {
     throw new Error("--asset-id requires a value.");
@@ -45,7 +47,7 @@ function parseArgs() {
     retryFailed: args.includes("--retry-failed"),
     assetId,
     limit:
-      Number.parseInt(args[args.indexOf("--limit") + 1] ?? "", 10) ||
+      Number.parseInt(limitValue ?? "", 10) ||
       readIntEnv("IMAGE_ASSET_BACKFILL_BATCH_SIZE", DEFAULT_BATCH_SIZE),
   };
 }

@@ -36,7 +36,7 @@ describe("image asset public cache revalidation", () => {
           id: "listing-1",
           userId: "user-1",
           cultivarReference: {
-            normalizedName: "Café Au Lait",
+            normalizedName: "It's Just a Memory",
           },
           user: {
             profile: {
@@ -58,10 +58,13 @@ describe("image asset public cache revalidation", () => {
 
     expect(payload).toEqual({
       source: "image-assets.variants",
-      paths: [{ path: "/garden-slug" }, { path: "/cultivar/cafe-au-lait" }],
+      paths: [
+        { path: "/garden-slug" },
+        { path: "/cultivar/it~27s-just-a-memory" },
+      ],
       tags: [
         { tag: "public:listings:card:listing-1" },
-        { tag: "public:cultivar:page:cafe-au-lait" },
+        { tag: "public:cultivar:page:it~27s-just-a-memory" },
       ],
     });
   });
