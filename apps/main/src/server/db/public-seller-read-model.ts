@@ -9,6 +9,7 @@ import {
 } from "@/server/db/public-visibility/filters";
 import { parseAndSanitizeEditorJsContent } from "@/server/security/editor-js-content";
 import { getCloudflareUrlForDaylilyS3Image } from "@/lib/utils/cloudflareLoader";
+import { resolveLegacyImagesWithAssets } from "@/server/services/image-asset-read-model";
 
 export interface PublicSellerSummary {
   id: string;
@@ -194,6 +195,19 @@ export async function getPublicSellerSummariesByUserIds(
                 order: "asc",
               },
             },
+            imageAssets: {
+              select: {
+                id: true,
+                legacyImageId: true,
+                originalUrl: true,
+                displayUrl: true,
+                thumbUrl: true,
+                blurUrl: true,
+              },
+              orderBy: {
+                order: "asc",
+              },
+            },
           },
         },
         _count: {
@@ -235,7 +249,12 @@ export async function getPublicSellerSummariesByUserIds(
         description: user.profile?.description ?? null,
         location: user.profile?.location ?? null,
         images:
-          user.profile?.images.map((image) => ({
+          resolveLegacyImagesWithAssets({
+            images: user.profile?.images ?? [],
+            imageAssets: user.profile?.imageAssets ?? [],
+            variant: "display",
+            source: "public-seller",
+          }).map((image) => ({
             id: image.id,
             url: getCloudflareUrlForDaylilyS3Image(image.url),
           })) ?? [],

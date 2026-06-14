@@ -18,6 +18,15 @@ const TRUSTED_META_IMAGE_HOSTS = new Set([
   "www.daylilycatalog.com",
   "daylily-catalog-images.s3.amazonaws.com",
 ]);
+const STATIC_IMAGE_ASSET_HOST = "media.daylilycatalog.com";
+
+function isStaticImageAssetUrl(src: string) {
+  try {
+    return new URL(src).hostname.toLowerCase() === STATIC_IMAGE_ASSET_HOST;
+  } catch {
+    return false;
+  }
+}
 
 function isTrustedMetaImageUrl(src: string) {
   try {
@@ -73,7 +82,7 @@ export function getDaylilyS3ImageTransformSource(src: string) {
 
 // Helper function for metadata image optimization that handles both public and external images
 export const getOptimizedMetaImageUrl = (src: string) => {
-  if (src.startsWith("/assets")) {
+  if (src.startsWith("/assets") || isStaticImageAssetUrl(src)) {
     return src;
   }
 

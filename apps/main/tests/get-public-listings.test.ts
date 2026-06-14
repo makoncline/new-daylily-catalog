@@ -76,6 +76,7 @@ function createListing(id: string, title: string) {
       ahsListing: null,
     },
     images: [],
+    imageAssets: [],
   };
 }
 
