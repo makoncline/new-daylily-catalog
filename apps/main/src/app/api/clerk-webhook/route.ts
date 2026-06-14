@@ -6,9 +6,10 @@ import { NextResponse } from "next/server";
 import { headers } from "next/headers";
 import { syncClerkUserToKV } from "@/server/clerk/sync-user";
 import { captureServerPosthogEvent } from "@/server/analytics/posthog-server";
+import { logUserAuth } from "@/server/audit/user-action-audit";
 
 // Only include events that are actually supported by Clerk
-const relevantEvents = new Set([
+const relevantEvents = new Set<string>([
   "user.created",
   "user.updated",
   "user.deleted",
@@ -17,9 +18,19 @@ const relevantEvents = new Set([
   "email.deleted",
   "profile.updated",
   "username.updated",
+  "session.created",
 ]);
 
 function getUserIdFromEvent(evt: WebhookEvent): string | null {
+  if (evt.type === "session.created") {
+    const session = evt.data as unknown as { user_id?: string };
+    if (!session.user_id) {
+      console.error("No user id found in event", evt.type);
+      return null;
+    }
+    return session.user_id;
+  }
+
   const { id } = evt.data;
   if (!id) {
     console.error("No user id found in event", evt.type);
@@ -80,7 +91,17 @@ export async function POST(req: Request) {
       });
 
       // Then sync their data to KV store
-      await syncClerkUserToKV(clerkUserId);
+      const clerkUserData = await syncClerkUserToKV(clerkUserId);
+
+      if (evt.type === "user.created" || evt.type === "session.created") {
+        logUserAuth({
+          action: evt.type === "user.created" ? "signup" : "signin",
+          appUserId: user.id,
+          clerkUserId,
+          email: clerkUserData?.email,
+          source: "clerk-webhook",
+        });
+      }
 
       if (evt.type === "user.created") {
         await captureServerPosthogEvent({

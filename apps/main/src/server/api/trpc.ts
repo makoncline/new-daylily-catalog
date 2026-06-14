@@ -4,6 +4,7 @@ import superjson from "superjson";
 import { db, hasEmbeddedReplica, replicaDb } from "@/server/db";
 import { getClerkUserData } from "@/server/clerk/sync-user";
 import { ZodError } from "zod";
+import { logUserMutation } from "@/server/audit/user-action-audit";
 
 export async function getUserByClerkId(clerkUserId: string) {
   const user = await db.user.findUnique({
@@ -181,6 +182,13 @@ async function resolveAuthenticatedUser() {
   return getOrCreateUser(clerkUserId);
 }
 
+const READ_ONLY_MUTATION_PATHS = new Set([
+  "dashboardDb.cultivarReference.getByIdsBatch",
+  "dashboardDb.cultivarReference.getByIdsBatchReplica",
+  "dashboardDb.image.listByListingIds",
+  "dashboardDb.image.listByListingIdsReplica",
+]);
+
 const isAuthenticated = t.middleware(async (opts) => {
   if (typeof opts.ctx._authUser === "undefined") {
     opts.ctx._authUserPromise ??= resolveAuthenticatedUser();
@@ -196,13 +204,33 @@ const isAuthenticated = t.middleware(async (opts) => {
     });
   }
 
-  return opts.next({
+  const shouldAuditMutation =
+    opts.type === "mutation" && !READ_ONLY_MUTATION_PATHS.has(opts.path);
+  const rawInput = shouldAuditMutation ? await opts.getRawInput() : undefined;
+  const startedAt = Date.now();
+
+  const result = await opts.next({
     ctx: {
       ...opts.ctx,
       _authUser: user,
       user,
     },
   });
+
+  if (shouldAuditMutation) {
+    logUserMutation({
+      path: opts.path,
+      user,
+      rawInput,
+      requestUrl: opts.ctx.requestUrl,
+      headers: opts.ctx.headers,
+      status: result.ok ? "success" : "error",
+      durationMs: Date.now() - startedAt,
+      errorCode: result.ok ? undefined : result.error.code,
+    });
+  }
+
+  return result;
 });
 
 export const protectedProcedure = publicProcedure.use(isAuthenticated);
