@@ -7,11 +7,16 @@ coverage
 node_modules
 tests
 docs
+downloads
+local
 .server-deploy
 *.log
 *.sqlite
 *.sqlite-shm
 *.sqlite-wal
+*.db
+*.db-*
+*.db.bak-*
 .env
 .env.development
 .env.production

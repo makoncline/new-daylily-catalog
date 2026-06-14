@@ -44,6 +44,8 @@
   ],
   "exclude": [
     "node_modules",
+    "downloads",
+    "local",
     "playwright-report",
     "src/components/ui/**/*"
   ]
