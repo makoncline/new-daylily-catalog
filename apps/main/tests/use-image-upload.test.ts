@@ -71,9 +71,15 @@ describe("useImageUpload", () => {
     };
 
     getPresignedUrlMutateAsyncMock.mockResolvedValue({
+      imageId: "img-1",
       presignedUrl: "https://upload-url.example",
       key: "abc123.jpg",
       url: uploadedImage.url,
+      r2: {
+        presignedUrl: "https://r2-upload-url.example",
+        key: "users/user-1/listing-images/listing-1/img-1/original.jpg",
+        url: "https://media.daylilycatalog.com/users/user-1/listing-images/listing-1/img-1/original.jpg",
+      },
     });
     uploadFileWithProgressMock.mockImplementation(
       async ({ onProgress }: { onProgress: (value: number) => void }) => {
@@ -108,7 +114,16 @@ describe("useImageUpload", () => {
         referenceId: "listing-1",
       }),
     );
-    expect(uploadFileWithProgressMock).toHaveBeenCalledWith(
+    expect(uploadFileWithProgressMock).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({
+        presignedUrl: "https://r2-upload-url.example",
+        file,
+        onProgress: expect.any(Function),
+      }),
+    );
+    expect(uploadFileWithProgressMock).toHaveBeenNthCalledWith(
+      2,
       expect.objectContaining({
         presignedUrl: "https://upload-url.example",
         file,
@@ -120,6 +135,8 @@ describe("useImageUpload", () => {
       referenceId: "listing-1",
       url: uploadedImage.url,
       key: "abc123.jpg",
+      imageId: "img-1",
+      r2OriginalKey: "users/user-1/listing-images/listing-1/img-1/original.jpg",
     });
     expect(onSuccess).toHaveBeenCalledWith(uploadedImage);
     expect(toastSuccessMock).toHaveBeenCalledWith(
@@ -140,9 +157,11 @@ describe("useImageUpload", () => {
     };
 
     getPresignedUrlMutateAsyncMock.mockResolvedValue({
+      imageId: "img-1",
       presignedUrl: "https://upload-url.example",
       key: "abc123.jpg",
       url: uploadedImage.url,
+      r2: null,
     });
     uploadFileWithProgressMock.mockResolvedValue(undefined);
     createImageMock.mockResolvedValue(uploadedImage);
@@ -179,9 +198,11 @@ describe("useImageUpload", () => {
     };
 
     getPresignedUrlMutateAsyncMock.mockResolvedValue({
+      imageId: "img-1",
       presignedUrl: "https://upload-url.example",
       key: "abc123.webp",
       url: uploadedImage.url,
+      r2: null,
     });
     uploadFileWithProgressMock.mockResolvedValue(undefined);
     createImageMock.mockResolvedValue(uploadedImage);
@@ -270,9 +291,11 @@ describe("useImageUpload", () => {
 
   it("handles upload failure and resets state", async () => {
     getPresignedUrlMutateAsyncMock.mockResolvedValue({
+      imageId: "img-1",
       presignedUrl: "https://upload-url.example",
       key: "abc123.jpg",
       url: "https://example.com/images/img-1.jpg",
+      r2: null,
     });
     uploadFileWithProgressMock.mockRejectedValue(new Error("Upload failed"));
 
@@ -304,9 +327,11 @@ describe("useImageUpload", () => {
 
   it("handles create-image failure and resets state", async () => {
     getPresignedUrlMutateAsyncMock.mockResolvedValue({
+      imageId: "img-1",
       presignedUrl: "https://upload-url.example",
       key: "abc123.jpg",
       url: "https://example.com/images/img-1.jpg",
+      r2: null,
     });
     uploadFileWithProgressMock.mockResolvedValue(undefined);
     createImageMock.mockRejectedValue(new Error("Create failed"));

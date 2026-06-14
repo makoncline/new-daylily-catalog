@@ -17,7 +17,9 @@ import {
 } from "./onboarding-utils";
 
 interface UploadedImage {
+  imageId: string;
   key: string;
+  r2OriginalKey?: string;
   url: string;
 }
 
@@ -27,8 +29,10 @@ interface UseOnboardingSaveFlowArgs {
   clearPendingProfileUpload: () => void;
   clearPendingStarterImage: () => void;
   createImageRecord: (args: {
+    imageId?: string;
     key: string;
     referenceId: string;
+    r2OriginalKey?: string;
     type: "listing" | "profile";
     url: string;
   }) => Promise<{ id: string } | void>;
@@ -64,6 +68,7 @@ interface UseOnboardingSaveFlowArgs {
   updateImageRecord: (args: {
     imageId: string;
     referenceId: string;
+    r2OriginalKey?: string;
     type: "listing" | "profile";
     url: string;
   }) => Promise<{ id: string }>;
@@ -85,6 +90,7 @@ interface UseOnboardingSaveFlowArgs {
   }) => Promise<unknown>;
   uploadImageBlob: (args: {
     blob: Blob;
+    imageId?: string;
     referenceId: string;
     type: "listing" | "profile";
   }) => Promise<UploadedImage>;
@@ -151,6 +157,7 @@ export function useOnboardingSaveFlow({
       if (pendingProfileUploadBlob) {
         const nextUploadedProfileImage = await uploadImageBlob({
           blob: pendingProfileUploadBlob,
+          imageId: earliestPersistedProfileImageId ?? undefined,
           type: "profile",
           referenceId: profileId,
         });
@@ -179,6 +186,7 @@ export function useOnboardingSaveFlow({
 
           uploadedProfileImage = await uploadImageBlob({
             blob: starterBlobToUpload,
+            imageId: earliestPersistedProfileImageId ?? undefined,
             type: "profile",
             referenceId: profileId,
           });
@@ -219,13 +227,16 @@ export function useOnboardingSaveFlow({
               referenceId: profileId,
               imageId: earliestPersistedProfileImageId,
               url: uploadedProfileImage.url,
+              r2OriginalKey: uploadedProfileImage.r2OriginalKey,
             });
           } else {
             await createImageRecord({
               type: "profile",
               referenceId: profileId,
+              imageId: uploadedProfileImage.imageId,
               url: uploadedProfileImage.url,
               key: uploadedProfileImage.key,
+              r2OriginalKey: uploadedProfileImage.r2OriginalKey,
             });
           }
         } catch (error) {
@@ -310,11 +321,13 @@ export function useOnboardingSaveFlow({
       let listingImageToSave: string | null =
         selectedListingImageUrl ?? selectedCultivarImageUrl ?? null;
       let listingImageKeyToSave: string | null = null;
+      let uploadedListingImage: UploadedImage | null = null;
       let shouldPersistUploadedListingImage = false;
 
       if (pendingListingUploadBlob) {
-        const uploadedListingImage = await uploadImageBlob({
+        uploadedListingImage = await uploadImageBlob({
           blob: pendingListingUploadBlob,
+          imageId: earliestPersistedListingImageId ?? undefined,
           type: "listing",
           referenceId: listingId,
         });
@@ -328,6 +341,7 @@ export function useOnboardingSaveFlow({
 
       if (
         listingImageToSave &&
+        uploadedListingImage &&
         shouldPersistUploadedListingImage &&
         listingImageKeyToSave
       ) {
@@ -337,14 +351,17 @@ export function useOnboardingSaveFlow({
             referenceId: listingId,
             imageId: earliestPersistedListingImageId,
             url: listingImageToSave,
+            r2OriginalKey: uploadedListingImage.r2OriginalKey,
           });
           setSelectedListingImageId(updatedImage.id);
         } else {
           const createdImage = await createImageRecord({
             type: "listing",
             referenceId: listingId,
+            imageId: uploadedListingImage.imageId,
             url: listingImageToSave,
             key: listingImageKeyToSave,
+            r2OriginalKey: uploadedListingImage.r2OriginalKey,
           });
           if (createdImage?.id) {
             setSelectedListingImageId(createdImage.id);

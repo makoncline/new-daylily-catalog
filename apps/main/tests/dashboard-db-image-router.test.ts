@@ -44,6 +44,10 @@ interface MockDb {
     findMany: ReturnType<typeof vi.fn>;
     update: ReturnType<typeof vi.fn>;
   };
+  imageAsset: {
+    deleteMany: ReturnType<typeof vi.fn>;
+    updateMany: ReturnType<typeof vi.fn>;
+  };
   listing: {
     findFirst: ReturnType<typeof vi.fn>;
     findMany: ReturnType<typeof vi.fn>;
@@ -63,12 +67,19 @@ function createMockDb(): MockDb {
     findMany: vi.fn(),
     update: vi.fn(),
   };
+  const imageAsset = {
+    deleteMany: vi.fn(),
+    updateMany: vi.fn(),
+  };
   return {
     $queryRaw: vi.fn(),
     $transaction: vi.fn(async (arg) =>
-      typeof arg === "function" ? await arg({ image }) : await Promise.all(arg),
+      typeof arg === "function"
+        ? await arg({ image, imageAsset })
+        : await Promise.all(arg),
     ),
     image,
+    imageAsset,
     listing: {
       findFirst: vi.fn(),
       findMany: vi.fn(),

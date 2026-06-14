@@ -621,11 +621,12 @@ function useStartOnboardingController({
     updateImageRecord: updateImageMutation.mutateAsync,
     updateListing: updateListingMutation.mutateAsync,
     updateProfile: updateProfileMutation.mutateAsync,
-    uploadImageBlob: ({ blob, referenceId, type }) =>
+    uploadImageBlob: ({ blob, imageId, referenceId, type }) =>
       uploadOnboardingImageBlob({
         blob,
         type,
         referenceId,
+        imageId,
         getPresignedUrl: getImagePresignedUrlMutation.mutateAsync,
       }),
     useExistingProfileImage,
@@ -1260,11 +1261,13 @@ async function generateStarterImageWithGardenName({
 
 async function uploadOnboardingImageBlob({
   blob,
+  imageId: existingImageId,
   type,
   referenceId,
   getPresignedUrl,
 }: {
   blob: Blob;
+  imageId?: string;
   type: "profile" | "listing";
   referenceId: string;
   getPresignedUrl: (input: {
@@ -1273,10 +1276,17 @@ async function uploadOnboardingImageBlob({
     contentType: ImageContentType;
     size: number;
     referenceId: string;
+    imageId?: string;
   }) => Promise<{
+    imageId: string;
     presignedUrl: string;
     key: string;
     url: string;
+    r2: {
+      presignedUrl: string;
+      key: string;
+      url: string;
+    } | null;
   }>;
 }) {
   const fileNamePrefix = type === "profile" ? "profile" : "listing";
@@ -1286,13 +1296,29 @@ async function uploadOnboardingImageBlob({
     throw new Error("Only JPEG, PNG, and WebP images are supported");
   }
 
-  const { presignedUrl, key, url } = await getPresignedUrl({
+  const {
+    imageId: presignedImageId,
+    presignedUrl,
+    key,
+    url,
+    r2,
+  } = await getPresignedUrl({
     type,
     fileName,
     contentType,
     size: blob.size,
     referenceId,
+    imageId: existingImageId,
   });
+
+  if (r2) {
+    await uploadFileWithProgress({
+      presignedUrl: r2.presignedUrl,
+      contentType,
+      file: blob,
+      onProgress: () => undefined,
+    });
+  }
 
   await uploadFileWithProgress({
     presignedUrl,
@@ -1301,7 +1327,7 @@ async function uploadOnboardingImageBlob({
     onProgress: () => undefined,
   });
 
-  return { url, key };
+  return { imageId: presignedImageId, url, key, r2OriginalKey: r2?.key };
 }
 
 async function fetchImageBlobFromUrl(imageUrl: string) {

@@ -79,7 +79,7 @@ export function useImageUpload({
           );
         }
 
-        const { presignedUrl, key, url } =
+        const { imageId, presignedUrl, key, url, r2 } =
           await getPresignedUrlMutation.mutateAsync({
             type,
             fileName: getImageUploadFileName(contentType),
@@ -89,11 +89,21 @@ export function useImageUpload({
           });
 
         step = "upload";
+        if (r2) {
+          await uploadFileWithProgress({
+            presignedUrl: r2.presignedUrl,
+            contentType,
+            file,
+            onProgress: (value) => setProgress(Math.floor(value / 2)),
+          });
+        }
+
         await uploadFileWithProgress({
           presignedUrl,
           contentType,
           file,
-          onProgress: setProgress,
+          onProgress: (value) =>
+            setProgress(r2 ? 50 + Math.floor(value / 2) : value),
         });
 
         step = "create";
@@ -102,6 +112,8 @@ export function useImageUpload({
           referenceId,
           url,
           key,
+          imageId,
+          r2OriginalKey: r2?.key,
         });
 
         toast.success("Image uploaded successfully");
