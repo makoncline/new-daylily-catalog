@@ -160,15 +160,43 @@ async function fetchSourceBuffer(url) {
       throw new Error(`Source image exceeds ${maxBytes} bytes.`);
     }
 
-    const buffer = Buffer.from(await response.arrayBuffer());
-    if (buffer.byteLength > maxBytes) {
-      throw new Error(`Source image exceeds ${maxBytes} bytes.`);
-    }
-
-    return buffer;
+    return readResponseBuffer(response, maxBytes);
   } finally {
     clearTimeout(timer);
   }
+}
+
+async function readResponseBuffer(response, maxBytes) {
+  if (!response.body) {
+    const fallbackBuffer = Buffer.from(await response.arrayBuffer());
+    if (fallbackBuffer.byteLength > maxBytes) {
+      throw new Error(`Source image exceeds ${maxBytes} bytes.`);
+    }
+    return fallbackBuffer;
+  }
+
+  const reader = response.body.getReader();
+  const chunks = [];
+  let totalBytes = 0;
+
+  try {
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      if (!value) continue;
+
+      totalBytes += value.byteLength;
+      if (totalBytes > maxBytes) {
+        throw new Error(`Source image exceeds ${maxBytes} bytes.`);
+      }
+
+      chunks.push(Buffer.from(value));
+    }
+  } finally {
+    reader.releaseLock();
+  }
+
+  return Buffer.concat(chunks, totalBytes);
 }
 
 async function uploadWebp(r2, bucket, key, body) {

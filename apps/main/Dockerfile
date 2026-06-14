@@ -64,6 +64,7 @@ COPY --from=builder --chown=nextjs:nodejs /app/apps/main/scripts/image-assets ./
 COPY --from=builder --chown=nextjs:nodejs /app/apps/main/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/apps/main/.next/static ./apps/main/.next/static
 COPY --from=deps --chown=nextjs:nodejs /app/node_modules ./node_modules
+COPY --from=deps --chown=nextjs:nodejs /app/apps/main/node_modules ./apps/main/node_modules
 
 USER nextjs
 

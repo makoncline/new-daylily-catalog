@@ -214,10 +214,7 @@ async function fetchSourceBuffer(url) {
       throw new Error(`Source image exceeds ${maxBytes} bytes.`);
     }
 
-    const buffer = Buffer.from(await response.arrayBuffer());
-    if (buffer.byteLength > maxBytes) {
-      throw new Error(`Source image exceeds ${maxBytes} bytes.`);
-    }
+    const buffer = await readResponseBuffer(response, maxBytes);
 
     return {
       buffer,
@@ -231,6 +228,39 @@ async function fetchSourceBuffer(url) {
   } finally {
     clearTimeout(timer);
   }
+}
+
+async function readResponseBuffer(response, maxBytes) {
+  if (!response.body) {
+    const fallbackBuffer = Buffer.from(await response.arrayBuffer());
+    if (fallbackBuffer.byteLength > maxBytes) {
+      throw new Error(`Source image exceeds ${maxBytes} bytes.`);
+    }
+    return fallbackBuffer;
+  }
+
+  const reader = response.body.getReader();
+  const chunks = [];
+  let totalBytes = 0;
+
+  try {
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      if (!value) continue;
+
+      totalBytes += value.byteLength;
+      if (totalBytes > maxBytes) {
+        throw new Error(`Source image exceeds ${maxBytes} bytes.`);
+      }
+
+      chunks.push(Buffer.from(value));
+    }
+  } finally {
+    reader.releaseLock();
+  }
+
+  return Buffer.concat(chunks, totalBytes);
 }
 
 async function uploadObject(r2, bucket, key, body, contentType, cacheControl) {
@@ -355,6 +385,85 @@ async function runConcurrent(items, concurrency, worker) {
   await Promise.all(workers);
 }
 
+async function findRetryImages(db, limit) {
+  const failedAssets = await db.imageAsset.findMany({
+    where: { status: "backfill_failed" },
+    select: { id: true, legacyImageId: true },
+    orderBy: { createdAt: "asc" },
+    take: limit,
+  });
+  const imageIds = failedAssets.map((asset) => asset.legacyImageId ?? asset.id);
+
+  if (imageIds.length === 0) {
+    return [];
+  }
+
+  return db.image.findMany({
+    where: {
+      id: { in: imageIds },
+      OR: [
+        { listingId: { not: null }, listing: { isNot: null } },
+        { userProfileId: { not: null }, userProfile: { isNot: null } },
+      ],
+    },
+    include: {
+      listing: { select: { userId: true } },
+      userProfile: { select: { userId: true } },
+    },
+    orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+    take: limit,
+  });
+}
+
+async function findNewImages(db, limit) {
+  const images = [];
+  let cursor;
+  const pageSize = Math.max(limit, DEFAULT_BATCH_SIZE);
+
+  while (images.length < limit) {
+    const page = await db.image.findMany({
+      where: {
+        OR: [
+          { listingId: { not: null }, listing: { isNot: null } },
+          { userProfileId: { not: null }, userProfile: { isNot: null } },
+        ],
+      },
+      include: {
+        listing: { select: { userId: true } },
+        userProfile: { select: { userId: true } },
+      },
+      orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+      ...(cursor ? { cursor, skip: 1 } : {}),
+      take: pageSize,
+    });
+
+    if (page.length === 0) {
+      break;
+    }
+
+    for (const image of page) {
+      const existingAsset = await db.imageAsset.findFirst({
+        where: {
+          OR: [{ id: image.id }, { legacyImageId: image.id }],
+        },
+        select: { id: true },
+      });
+
+      if (!existingAsset) {
+        images.push(image);
+      }
+
+      if (images.length >= limit) {
+        break;
+      }
+    }
+
+    cursor = { id: page[page.length - 1].id };
+  }
+
+  return images;
+}
+
 async function main() {
   const args = parseArgs();
   const db = await createDb();
@@ -366,49 +475,9 @@ async function main() {
   );
 
   try {
-    const existingAssets = await db.imageAsset.findMany({
-      where: args.retryFailed ? { status: "backfill_failed" } : undefined,
-      select: { id: true, legacyImageId: true },
-    });
-    const assetImageIds = existingAssets.map(
-      (asset) => asset.legacyImageId ?? asset.id,
-    );
-
-    const images = await db.image.findMany({
-      where: {
-        OR: [
-          { listingId: { not: null }, listing: { isNot: null } },
-          { userProfileId: { not: null }, userProfile: { isNot: null } },
-        ],
-        AND: [
-          {
-            OR: [
-              { listingId: { not: null } },
-              { userProfileId: { not: null } },
-            ],
-          },
-          args.retryFailed
-            ? {
-                id: {
-                  in: assetImageIds,
-                },
-              }
-            : {
-                NOT: {
-                  id: {
-                    in: assetImageIds,
-                  },
-                },
-              },
-        ],
-      },
-      include: {
-        listing: { select: { userId: true } },
-        userProfile: { select: { userId: true } },
-      },
-      orderBy: { createdAt: "asc" },
-      take: args.limit,
-    });
+    const images = args.retryFailed
+      ? await findRetryImages(db, args.limit)
+      : await findNewImages(db, args.limit);
 
     console.log(
       `[image-assets] backfilling ${images.length} images with concurrency ${concurrency}`,
