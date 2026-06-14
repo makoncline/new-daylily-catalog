@@ -17,7 +17,9 @@ import {
 } from "./onboarding-utils";
 
 interface UploadedImage {
+  imageId?: string;
   key: string;
+  r2OriginalKey?: string;
   url: string;
 }
 
@@ -27,7 +29,9 @@ interface UseOnboardingSaveFlowArgs {
   clearPendingProfileUpload: () => void;
   clearPendingStarterImage: () => void;
   createImageRecord: (args: {
+    imageId?: string;
     key: string;
+    r2OriginalKey?: string;
     referenceId: string;
     type: "listing" | "profile";
     url: string;
@@ -63,6 +67,7 @@ interface UseOnboardingSaveFlowArgs {
   setSelectedListingImageUrl: Dispatch<SetStateAction<string | null>>;
   updateImageRecord: (args: {
     imageId: string;
+    r2OriginalKey?: string;
     referenceId: string;
     type: "listing" | "profile";
     url: string;
@@ -85,6 +90,7 @@ interface UseOnboardingSaveFlowArgs {
   }) => Promise<unknown>;
   uploadImageBlob: (args: {
     blob: Blob;
+    imageId?: string | null;
     referenceId: string;
     type: "listing" | "profile";
   }) => Promise<UploadedImage>;
@@ -153,6 +159,7 @@ export function useOnboardingSaveFlow({
           blob: pendingProfileUploadBlob,
           type: "profile",
           referenceId: profileId,
+          imageId: earliestPersistedProfileImageId,
         });
         uploadedProfileImage = nextUploadedProfileImage;
 
@@ -181,6 +188,7 @@ export function useOnboardingSaveFlow({
             blob: starterBlobToUpload,
             type: "profile",
             referenceId: profileId,
+            imageId: earliestPersistedProfileImageId,
           });
 
           clearPendingStarterImage();
@@ -219,6 +227,7 @@ export function useOnboardingSaveFlow({
               referenceId: profileId,
               imageId: earliestPersistedProfileImageId,
               url: uploadedProfileImage.url,
+              r2OriginalKey: uploadedProfileImage.r2OriginalKey,
             });
           } else {
             await createImageRecord({
@@ -226,6 +235,8 @@ export function useOnboardingSaveFlow({
               referenceId: profileId,
               url: uploadedProfileImage.url,
               key: uploadedProfileImage.key,
+              imageId: uploadedProfileImage.imageId,
+              r2OriginalKey: uploadedProfileImage.r2OriginalKey,
             });
           }
         } catch (error) {
@@ -306,7 +317,9 @@ export function useOnboardingSaveFlow({
 
       let listingImageToSave: string | null =
         selectedListingImageUrl ?? selectedCultivarImageUrl ?? null;
+      let listingImageIdToSave: string | undefined;
       let listingImageKeyToSave: string | null = null;
+      let listingR2OriginalKeyToSave: string | undefined;
       let shouldPersistUploadedListingImage = false;
 
       if (pendingListingUploadBlob) {
@@ -314,10 +327,13 @@ export function useOnboardingSaveFlow({
           blob: pendingListingUploadBlob,
           type: "listing",
           referenceId: listingId,
+          imageId: earliestPersistedListingImageId,
         });
 
         listingImageToSave = uploadedListingImage.url;
+        listingImageIdToSave = uploadedListingImage.imageId;
         listingImageKeyToSave = uploadedListingImage.key;
+        listingR2OriginalKeyToSave = uploadedListingImage.r2OriginalKey;
         shouldPersistUploadedListingImage = true;
         clearPendingListingUpload();
         setSelectedListingImageUrl(uploadedListingImage.url);
@@ -334,6 +350,7 @@ export function useOnboardingSaveFlow({
             referenceId: listingId,
             imageId: earliestPersistedListingImageId,
             url: listingImageToSave,
+            r2OriginalKey: listingR2OriginalKeyToSave,
           });
           setSelectedListingImageId(updatedImage.id);
         } else {
@@ -342,6 +359,8 @@ export function useOnboardingSaveFlow({
             referenceId: listingId,
             url: listingImageToSave,
             key: listingImageKeyToSave,
+            imageId: listingImageIdToSave,
+            r2OriginalKey: listingR2OriginalKeyToSave,
           });
           if (createdImage?.id) {
             setSelectedListingImageId(createdImage.id);

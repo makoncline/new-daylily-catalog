@@ -62,16 +62,18 @@ describe("useImageUpload", () => {
     };
 
     getPresignedUrlMutateAsyncMock.mockResolvedValue({
+      imageId: "img-1",
       presignedUrl: "https://upload-url.example",
       key: "abc123.jpg",
       url: uploadedImage.url,
+      r2: {
+        presignedUrl: "https://r2-upload-url.example",
+        key: "users/user-1/listing-images/listing-1/img-1/original.jpg",
+        url: "https://media.daylilycatalog.com/users/user-1/listing-images/listing-1/img-1/original.jpg",
+      },
     });
     uploadFileWithProgressMock.mockImplementation(
-      async ({
-        onProgress,
-      }: {
-        onProgress: (value: number) => void;
-      }) => {
+      async ({ onProgress }: { onProgress: (value: number) => void }) => {
         onProgress(25);
         onProgress(100);
       },
@@ -102,7 +104,16 @@ describe("useImageUpload", () => {
         referenceId: "listing-1",
       }),
     );
-    expect(uploadFileWithProgressMock).toHaveBeenCalledWith(
+    expect(uploadFileWithProgressMock).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({
+        presignedUrl: "https://r2-upload-url.example",
+        file,
+        onProgress: expect.any(Function),
+      }),
+    );
+    expect(uploadFileWithProgressMock).toHaveBeenNthCalledWith(
+      2,
       expect.objectContaining({
         presignedUrl: "https://upload-url.example",
         file,
@@ -114,9 +125,13 @@ describe("useImageUpload", () => {
       referenceId: "listing-1",
       url: uploadedImage.url,
       key: "abc123.jpg",
+      imageId: "img-1",
+      r2OriginalKey: "users/user-1/listing-images/listing-1/img-1/original.jpg",
     });
     expect(onSuccess).toHaveBeenCalledWith(uploadedImage);
-    expect(toastSuccessMock).toHaveBeenCalledWith("Image uploaded successfully");
+    expect(toastSuccessMock).toHaveBeenCalledWith(
+      "Image uploaded successfully",
+    );
     expect(returned).toEqual(uploadedImage);
 
     await waitFor(() => {
@@ -126,7 +141,9 @@ describe("useImageUpload", () => {
   });
 
   it("handles presigned-url failure and resets state", async () => {
-    getPresignedUrlMutateAsyncMock.mockRejectedValue(new Error("Presign failed"));
+    getPresignedUrlMutateAsyncMock.mockRejectedValue(
+      new Error("Presign failed"),
+    );
 
     const { result } = renderHook(() =>
       useImageUpload({

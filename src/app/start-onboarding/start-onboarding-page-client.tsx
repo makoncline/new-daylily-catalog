@@ -440,11 +440,12 @@ export function StartOnboardingPageClient({
     updateImageRecord: updateImageMutation.mutateAsync,
     updateListing: updateListingMutation.mutateAsync,
     updateProfile: updateProfileMutation.mutateAsync,
-    uploadImageBlob: ({ blob, referenceId, type }) =>
+    uploadImageBlob: ({ blob, imageId, referenceId, type }) =>
       uploadOnboardingImageBlob({
         blob,
         type,
         referenceId,
+        imageId,
         getPresignedUrl: getImagePresignedUrlMutation.mutateAsync,
       }),
     useExistingProfileImage,
@@ -831,34 +832,53 @@ async function uploadOnboardingImageBlob({
   blob,
   type,
   referenceId,
+  imageId,
   getPresignedUrl,
 }: {
   blob: Blob;
   type: "profile" | "listing";
   referenceId: string;
+  imageId?: string | null;
   getPresignedUrl: (input: {
     type: "profile" | "listing";
     fileName: string;
     contentType: string;
     size: number;
     referenceId: string;
+    imageId?: string;
   }) => Promise<{
+    imageId?: string;
     presignedUrl: string;
     key: string;
     url: string;
+    r2?: {
+      presignedUrl: string;
+      key: string;
+      url: string;
+    } | null;
   }>;
 }) {
   const fileNamePrefix = type === "profile" ? "profile" : "listing";
   const fileName = `onboarding-${fileNamePrefix}-${Date.now()}.jpg`;
   const contentType = blob.type || "image/jpeg";
 
-  const { presignedUrl, key, url } = await getPresignedUrl({
-    type,
-    fileName,
-    contentType,
-    size: blob.size,
-    referenceId,
-  });
+  const { imageId: presignedImageId, presignedUrl, key, url, r2 } =
+    await getPresignedUrl({
+      type,
+      fileName,
+      contentType,
+      size: blob.size,
+      referenceId,
+      ...(imageId ? { imageId } : {}),
+    });
+
+  if (r2) {
+    await uploadFileWithProgress({
+      presignedUrl: r2.presignedUrl,
+      file: blob,
+      onProgress: () => undefined,
+    });
+  }
 
   await uploadFileWithProgress({
     presignedUrl,
@@ -866,7 +886,7 @@ async function uploadOnboardingImageBlob({
     onProgress: () => undefined,
   });
 
-  return { url, key };
+  return { imageId: presignedImageId, url, key, r2OriginalKey: r2?.key };
 }
 
 async function fetchImageBlobFromUrl(imageUrl: string) {

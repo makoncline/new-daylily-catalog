@@ -1,5 +1,5 @@
 import React from "react";
-import { beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { act, render, screen, waitFor } from "@testing-library/react";
 import { useLiveQuery } from "@tanstack/react-db";
 import { createTRPCProxyClient, type TRPCLink } from "@trpc/client";
@@ -8,8 +8,21 @@ import type { AppRouter } from "@/server/api/root";
 import type { TRPCInternalContext } from "@/server/api/trpc";
 import { callerLink, withTempAppDb } from "@/lib/test-utils/app-test-db";
 
+const originalV2DisplayFlag =
+  process.env.NEXT_PUBLIC_USE_V2_CULTIVAR_DISPLAY_DATA;
+
 beforeEach(() => {
+  process.env.NEXT_PUBLIC_USE_V2_CULTIVAR_DISPLAY_DATA = "false";
   localStorage.clear();
+});
+
+afterEach(() => {
+  if (originalV2DisplayFlag === undefined) {
+    delete process.env.NEXT_PUBLIC_USE_V2_CULTIVAR_DISPLAY_DATA;
+    return;
+  }
+
+  process.env.NEXT_PUBLIC_USE_V2_CULTIVAR_DISPLAY_DATA = originalV2DisplayFlag;
 });
 
 function ListingsViewer({

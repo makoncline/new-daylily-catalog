@@ -454,6 +454,9 @@ describe("dashboardDb public ISR invalidation", () => {
           status: null,
         }),
       },
+      imageAsset: {
+        deleteMany: vi.fn().mockResolvedValue({ count: 0 }),
+      },
       listing: {
         findMany: vi.fn().mockResolvedValue([
           {
@@ -477,6 +480,13 @@ describe("dashboardDb public ISR invalidation", () => {
         findFirst: vi.fn().mockResolvedValue({ id: "profile-1" }),
         findUnique: vi.fn().mockResolvedValue({ slug: "garden" }),
       },
+      $transaction: vi.fn(
+        async (
+          callback: (
+            tx: typeof db,
+          ) => Promise<unknown>,
+        ) => callback(db),
+      ),
     };
 
     const caller = dashboardDbImageRouter.createCaller(createContext(db));

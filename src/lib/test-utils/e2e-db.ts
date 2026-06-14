@@ -43,12 +43,12 @@ export function assertSafeTestDbUrl(sqliteUrl: string) {
     throw new Error(`Test DB URL must start with "file:". Got: ${sqliteUrl}`);
   }
   const absolute = normalizeDbPath(sqliteUrl);
-  const allowedRoots = [path.resolve(process.cwd(), "tests", ".tmp") + path.sep];
+  const allowedRoots = [
+    path.resolve(process.cwd(), "tests", ".tmp") + path.sep,
+  ];
   const isAllowed = allowedRoots.some((root) => absolute.startsWith(root));
   if (!isAllowed) {
-    throw new Error(
-      `Test DB path must be under tests/.tmp. Got: ${absolute}.`,
-    );
+    throw new Error(`Test DB path must be under tests/.tmp. Got: ${absolute}.`);
   }
 }
 
@@ -70,7 +70,9 @@ export function ensureLocalTempDbSafety(url?: string) {
 
 function isRetryableSqliteCleanupError(error: unknown) {
   const message = error instanceof Error ? error.message : String(error);
-  return /Operation has timed out|SQLITE_BUSY|database is locked/i.test(message);
+  return /Operation has timed out|SQLITE_BUSY|database is locked/i.test(
+    message,
+  );
 }
 
 function sleep(ms: number) {
@@ -82,8 +84,13 @@ async function configureSqliteConnection(db: PrismaClient) {
 }
 
 async function clearTempDb(db: PrismaClient) {
-  for (let attempt = 0; attempt <= SQLITE_CLEAR_RETRY_DELAYS_MS.length; attempt++) {
+  for (
+    let attempt = 0;
+    attempt <= SQLITE_CLEAR_RETRY_DELAYS_MS.length;
+    attempt++
+  ) {
     try {
+      await db.imageAsset.deleteMany();
       await db.image.deleteMany();
       await db.$executeRaw`DELETE FROM "_ListToListing"`;
       await db.list.deleteMany();

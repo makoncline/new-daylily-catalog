@@ -4,7 +4,11 @@ import { toast } from "sonner";
 import { uploadFileWithProgress } from "@/lib/utils";
 import { type ImageType } from "@/types/image";
 import { type Image } from "@prisma/client";
-import { getErrorMessage, normalizeError, reportError } from "@/lib/error-utils";
+import {
+  getErrorMessage,
+  normalizeError,
+  reportError,
+} from "@/lib/error-utils";
 import { createImage } from "@/app/dashboard/_lib/dashboard-db/images-collection";
 
 interface UseImageUploadOptions {
@@ -32,7 +36,7 @@ export function useImageUpload({
         setIsUploading(true);
         setProgress(0);
 
-        const { presignedUrl, key, url } =
+        const { imageId, presignedUrl, key, url, r2 } =
           await getPresignedUrlMutation.mutateAsync({
             type,
             fileName: `${Date.now()}.jpg`,
@@ -42,10 +46,19 @@ export function useImageUpload({
           });
 
         step = "upload";
+        if (r2) {
+          await uploadFileWithProgress({
+            presignedUrl: r2.presignedUrl,
+            file,
+            onProgress: (value) => setProgress(Math.floor(value / 2)),
+          });
+        }
+
         await uploadFileWithProgress({
           presignedUrl,
           file,
-          onProgress: setProgress,
+          onProgress: (value) =>
+            setProgress(r2 ? 50 + Math.floor(value / 2) : value),
         });
 
         step = "create";
@@ -54,6 +67,8 @@ export function useImageUpload({
           referenceId,
           url,
           key,
+          imageId,
+          r2OriginalKey: r2?.key,
         });
 
         toast.success("Image uploaded successfully");
@@ -89,4 +104,3 @@ export function useImageUpload({
     isUploading,
   };
 }
-
