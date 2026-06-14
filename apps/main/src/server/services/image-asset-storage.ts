@@ -8,6 +8,7 @@ export const IMAGE_ASSET_PUBLIC_BASE_URL = "https://media.daylilycatalog.com";
 export const IMAGE_ASSET_VARIANT_CACHE_CONTROL =
   "public, max-age=31536000, immutable";
 const IMAGE_ASSET_VERSION_ID_PATTERN = /^[a-f0-9]{12,32}$/;
+const SAFE_IMAGE_EXTENSIONS = new Set([".jpg", ".jpeg", ".png", ".webp"]);
 
 export type UserImageAssetKind = "profile" | "listing";
 export type ImageAssetKind = UserImageAssetKind | "cultivar";
@@ -64,6 +65,8 @@ export function getR2Client() {
 }
 
 export function buildR2PublicUrl(key: string) {
+  assertCanonicalImageAssetKey(key);
+
   const encodedKey = key
     .split("/")
     .map((segment) => encodeURIComponent(segment))
@@ -75,11 +78,31 @@ export function buildR2PublicUrl(key: string) {
 export function getSafeImageExtension(fileName: string) {
   const ext = path.extname(fileName).toLowerCase();
 
-  if (/^\.[a-z0-9]+$/.test(ext)) {
+  if (SAFE_IMAGE_EXTENSIONS.has(ext)) {
     return ext;
   }
 
   return ".jpg";
+}
+
+export function assertCanonicalImageAssetKey(key: string) {
+  if (
+    !key ||
+    key.startsWith("/") ||
+    key.includes("\\") ||
+    key.includes("//")
+  ) {
+    throw new Error("ImageAsset key must be a canonical relative R2 key.");
+  }
+
+  const segments = key.split("/");
+  if (
+    segments.some(
+      (segment) => segment === "" || segment === "." || segment === "..",
+    )
+  ) {
+    throw new Error("ImageAsset key must not contain empty or dot segments.");
+  }
 }
 
 function sanitizePathSegment(value: string) {
@@ -154,6 +177,7 @@ export function buildVariantImageAssetKeys(baseKeyOrArgs: string | UserImageAsse
     typeof baseKeyOrArgs === "string"
       ? baseKeyOrArgs
       : buildVersionedImageAssetBaseKey(baseKeyOrArgs);
+  assertCanonicalImageAssetKey(baseKey);
 
   return {
     displayKey: `${baseKey}/display-800.webp`,

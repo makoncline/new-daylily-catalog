@@ -94,4 +94,27 @@ describe("image asset storage keys", () => {
       }),
     ).toThrow("versionId must be 12 to 32 lowercase hex characters.");
   });
+
+  it("rejects non-canonical keys before publishing URLs or variants", () => {
+    expect(() => storage.buildR2PublicUrl("users/user-1/../bad.jpg")).toThrow(
+      "ImageAsset key must not contain empty or dot segments.",
+    );
+    expect(() => storage.buildR2PublicUrl("/users/user-1/bad.jpg")).toThrow(
+      "ImageAsset key must be a canonical relative R2 key.",
+    );
+    expect(() =>
+      storage.buildVariantImageAssetKeys("users/user-1//image-1"),
+    ).toThrow("ImageAsset key must be a canonical relative R2 key.");
+  });
+
+  it("falls back to jpg for unsupported public original extensions", () => {
+    expect(
+      storage.buildOriginalImageAssetKey({
+        kind: "profile",
+        userId: "user-1",
+        imageAssetId: "image-1",
+        fileName: "profile.svg",
+      }),
+    ).toBe("users/user-1/profile-images/image-1/original.jpg");
+  });
 });
