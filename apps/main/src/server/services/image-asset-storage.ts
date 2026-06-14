@@ -11,7 +11,6 @@ const IMAGE_ASSET_VERSION_ID_PATTERN = /^[a-f0-9]{12,32}$/;
 const SAFE_IMAGE_EXTENSIONS = new Set([".jpg", ".jpeg", ".png", ".webp"]);
 
 export type UserImageAssetKind = "profile" | "listing";
-export type ImageAssetKind = UserImageAssetKind | "cultivar";
 
 export interface UserImageAssetKeyArgs {
   kind: UserImageAssetKind;
