@@ -9,11 +9,27 @@ import {
 import { getProUserIds } from "@/server/db/getProUserIds";
 import { shouldShowToPublic } from "@/server/db/public-visibility/filters";
 import { getCloudflareUrlForDaylilyS3Image } from "@/lib/utils/cloudflareLoader";
-import { resolveLegacyImagesWithAssets } from "@/server/services/image-asset-read-model";
+import {
+  areImageAssetsEnabled,
+  resolveLegacyImagesWithAssets,
+} from "@/server/services/image-asset-read-model";
 
 // Constants for merchant feed configuration
 const SHIPPING_WEIGHT = "0.5 lb";
 const FEED_BATCH_SIZE = 200;
+const imageAssetInclude = {
+  select: {
+    id: true,
+    legacyImageId: true,
+    originalUrl: true,
+    displayUrl: true,
+    thumbUrl: true,
+    blurUrl: true,
+  },
+  orderBy: {
+    order: "asc" as const,
+  },
+};
 
 export async function GET(_request: Request) {
   try {
@@ -31,19 +47,7 @@ export async function GET(_request: Request) {
           order: "asc" as const,
         },
       },
-      imageAssets: {
-        select: {
-          id: true,
-          legacyImageId: true,
-          originalUrl: true,
-          displayUrl: true,
-          thumbUrl: true,
-          blurUrl: true,
-        },
-        orderBy: {
-          order: "asc" as const,
-        },
-      },
+      ...(areImageAssetsEnabled() ? { imageAssets: imageAssetInclude } : {}),
       cultivarReference: {
         include: {
           ahsListing: {
@@ -93,7 +97,10 @@ export async function GET(_request: Request) {
           const displayAhsListing = displayListing.ahsListing;
           const resolvedImages = resolveLegacyImagesWithAssets({
             images: displayListing.images,
-            imageAssets: displayListing.imageAssets,
+            imageAssets:
+              "imageAssets" in displayListing
+                ? displayListing.imageAssets
+                : [],
             variant: "display",
             source: "google-merchant-feed",
           });

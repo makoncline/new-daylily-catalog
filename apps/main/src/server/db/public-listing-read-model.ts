@@ -17,7 +17,24 @@ import {
   isPublished,
 } from "@/server/db/public-visibility/filters";
 import { getCloudflareUrlForDaylilyS3Image } from "@/lib/utils/cloudflareLoader";
-import { resolveLegacyImagesWithAssets } from "@/server/services/image-asset-read-model";
+import {
+  areImageAssetsEnabled,
+  resolveLegacyImagesWithAssets,
+} from "@/server/services/image-asset-read-model";
+
+const imageAssetSelect = {
+  select: {
+    id: true,
+    legacyImageId: true,
+    originalUrl: true,
+    displayUrl: true,
+    thumbUrl: true,
+    blurUrl: true,
+  },
+  orderBy: {
+    order: "asc",
+  },
+} as const;
 
 export const publicListingSelect = {
   id: true,
@@ -65,19 +82,7 @@ export const publicListingSelect = {
       order: "asc",
     },
   },
-  imageAssets: {
-    select: {
-      id: true,
-      legacyImageId: true,
-      originalUrl: true,
-      displayUrl: true,
-      thumbUrl: true,
-      blurUrl: true,
-    },
-    orderBy: {
-      order: "asc",
-    },
-  },
+  ...(areImageAssetsEnabled() ? { imageAssets: imageAssetSelect } : {}),
 } as const;
 
 type ListingWithRelations = Awaited<ReturnType<typeof getListings>>[number];
@@ -96,12 +101,14 @@ function buildListingView<T extends ListingPayload>(listing: T) {
   const displayAhsListing = displayListing.ahsListing;
   const resolvedImages = resolveLegacyImagesWithAssets({
     images: displayListing.images,
-    imageAssets: displayListing.imageAssets,
+    imageAssets: "imageAssets" in displayListing ? displayListing.imageAssets : [],
     variant: "display",
     source: "public-listing",
   });
-  const { imageAssets, ...publicListing } = displayListing;
-  void imageAssets;
+  const publicListing =
+    "imageAssets" in displayListing
+      ? (({ imageAssets, ...listing }) => listing)(displayListing)
+      : displayListing;
   const images =
     resolvedImages.length === 0 && displayAhsListing?.ahsImageUrl
       ? [

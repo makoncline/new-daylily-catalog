@@ -9,7 +9,24 @@ import {
 } from "@/server/db/public-visibility/filters";
 import { parseAndSanitizeEditorJsContent } from "@/server/security/editor-js-content";
 import { getCloudflareUrlForDaylilyS3Image } from "@/lib/utils/cloudflareLoader";
-import { resolveLegacyImagesWithAssets } from "@/server/services/image-asset-read-model";
+import {
+  areImageAssetsEnabled,
+  resolveLegacyImagesWithAssets,
+} from "@/server/services/image-asset-read-model";
+
+const imageAssetSelect = {
+  select: {
+    id: true,
+    legacyImageId: true,
+    originalUrl: true,
+    displayUrl: true,
+    thumbUrl: true,
+    blurUrl: true,
+  },
+  orderBy: {
+    order: "asc",
+  },
+} as const;
 
 export interface PublicSellerSummary {
   id: string;
@@ -195,19 +212,9 @@ export async function getPublicSellerSummariesByUserIds(
                 order: "asc",
               },
             },
-            imageAssets: {
-              select: {
-                id: true,
-                legacyImageId: true,
-                originalUrl: true,
-                displayUrl: true,
-                thumbUrl: true,
-                blurUrl: true,
-              },
-              orderBy: {
-                order: "asc",
-              },
-            },
+            ...(areImageAssetsEnabled()
+              ? { imageAssets: imageAssetSelect }
+              : {}),
           },
         },
         _count: {
@@ -251,7 +258,10 @@ export async function getPublicSellerSummariesByUserIds(
         images:
           resolveLegacyImagesWithAssets({
             images: user.profile?.images ?? [],
-            imageAssets: user.profile?.imageAssets ?? [],
+            imageAssets:
+              user.profile && "imageAssets" in user.profile
+                ? user.profile.imageAssets
+                : [],
             variant: "display",
             source: "public-seller",
           }).map((image) => ({
