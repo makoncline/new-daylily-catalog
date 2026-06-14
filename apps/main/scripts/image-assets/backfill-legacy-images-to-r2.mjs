@@ -1,4 +1,3 @@
-import { revalidatePublicCacheForAsset } from "./public-cache-revalidation.mjs";
 import {
   buildWebpVariants,
   captureScriptException,
@@ -125,19 +124,6 @@ async function backfillImage({ image, db, r2, bucket, dryRun }) {
     where: { id: image.id },
     data: { updatedAt: new Date() },
   });
-
-  try {
-    await revalidatePublicCacheForAsset({ asset, db });
-  } catch (error) {
-    console.error("[image-assets] public cache revalidation failed", {
-      imageAssetId: asset.id,
-      error,
-    });
-    captureScriptException(error, {
-      tags: { source: "image-assets:backfill-revalidation" },
-      extra: { imageAssetId: asset.id },
-    });
-  }
 
   console.log("[backfilled]", image.id);
 }

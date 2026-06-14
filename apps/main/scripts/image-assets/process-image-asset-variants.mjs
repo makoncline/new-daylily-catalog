@@ -1,4 +1,3 @@
-import { revalidatePublicCacheForAsset } from "./public-cache-revalidation.mjs";
 import {
   buildWebpVariants,
   captureScriptException,
@@ -95,19 +94,6 @@ async function processAsset({ asset, db, r2, bucket, dryRun }) {
     await db.image.update({
       where: { id: asset.legacyImageId },
       data: { updatedAt: new Date() },
-    });
-  }
-
-  try {
-    await revalidatePublicCacheForAsset({ asset, db });
-  } catch (error) {
-    console.error("[image-assets] public cache revalidation failed", {
-      imageAssetId: asset.id,
-      error,
-    });
-    captureScriptException(error, {
-      tags: { source: "image-assets:variants-revalidation" },
-      extra: { imageAssetId: asset.id },
     });
   }
 
