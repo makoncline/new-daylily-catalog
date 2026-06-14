@@ -6,6 +6,8 @@ node_modules
 apps/*/.next
 apps/*/.turbo
 apps/*/coverage
+apps/*/downloads
+apps/*/local
 apps/*/node_modules
 apps/*/tests
 apps/*/docs
@@ -14,6 +16,9 @@ apps/*/.server-deploy
 *.sqlite
 *.sqlite-shm
 *.sqlite-wal
+*.db
+*.db-*
+*.db.bak-*
 .env
 apps/*/.env
 apps/*/.env.development
