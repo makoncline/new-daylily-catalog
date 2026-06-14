@@ -257,19 +257,21 @@ export async function syncAhsName(draft: SyncAhsNameDraft) {
 }
 
 export async function refreshListingsCollectionFromServer(userId: string) {
-  await refreshDashboardDbCollectionFromServer({
-    userId,
-    queryKey: QUERY_KEY,
-    cursorBase: CURSOR_BASE,
-    fetchRows: () =>
-      fetchDashboardSyncPages({
-        label: "listing.full-refresh",
-        since: null,
-        fetchPage: (input) =>
-          getTrpcClient().dashboardDb.listing.sync.query(input),
-      }),
-    sortRows: sortListings,
-    filterRows: (row) => !DELETED_IDS.has(row.id),
+  await runWithDashboardRefreshLock(async () => {
+    await refreshDashboardDbCollectionFromServer({
+      userId,
+      queryKey: QUERY_KEY,
+      cursorBase: CURSOR_BASE,
+      fetchRows: () =>
+        fetchDashboardSyncPages({
+          label: "listing.full-refresh",
+          since: null,
+          fetchPage: (input) =>
+            getTrpcClient().dashboardDb.listing.sync.query(input),
+        }),
+      sortRows: sortListings,
+      filterRows: (row) => !DELETED_IDS.has(row.id),
+    });
   });
 }
 

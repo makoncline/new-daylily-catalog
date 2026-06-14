@@ -466,6 +466,10 @@ describe("dashboardDb TanStack DB collections", () => {
       const updateGate = new Promise<void>((resolve) => {
         releaseUpdate = () => resolve();
       });
+      let markUpdateRequestStarted: (() => void) | undefined;
+      const updateRequestStarted = new Promise<void>((resolve) => {
+        markUpdateRequestStarted = () => resolve();
+      });
 
       const delayUpdateLink: TRPCLink<AppRouter> = () => {
         return ({ op, next }) =>
@@ -477,6 +481,7 @@ describe("dashboardDb TanStack DB collections", () => {
 
             void (async () => {
               if (op.path === "dashboardDb.listing.update") {
+                markUpdateRequestStarted?.();
                 await updateGate;
               }
 
@@ -522,11 +527,12 @@ describe("dashboardDb TanStack DB collections", () => {
       });
 
       let updatePromise: Promise<void> | null = null;
-      act(() => {
+      await act(async () => {
         updatePromise = updateListing({
           id: seeded.id,
           data: { title: "Beta" },
         });
+        await updateRequestStarted;
       });
 
       await waitFor(() => {
