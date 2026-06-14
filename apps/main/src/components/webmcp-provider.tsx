@@ -503,7 +503,7 @@ export function WebMcpProvider() {
           name: "daylily.prepare-image-upload",
           title: "Prepare Image Upload",
           description:
-            "Create signed upload URLs for a profile or listing image. Upload the file to presignedUrl. If upload.r2 is returned, also upload the same file to upload.r2.presignedUrl before calling daylily.attach-uploaded-image with imageId, r2OriginalKey, and r2Uploaded: true.",
+            "Create signed upload URLs for a profile or listing image. Upload the file to presignedUrl. If upload.r2 is returned, also upload the same file to upload.r2.presignedUrl before calling daylily.attach-uploaded-image with imageId and r2OriginalKey.",
           inputSchema: {
             type: "object",
             additionalProperties: false,
@@ -579,7 +579,7 @@ export function WebMcpProvider() {
           name: "daylily.attach-uploaded-image",
           title: "Attach Uploaded Image",
           description:
-            "Attach an image to a profile or listing after it has been uploaded to the Daylily Catalog signed upload URL. If daylily.prepare-image-upload returned upload.r2, only include imageId and r2OriginalKey after the same file has also been uploaded to upload.r2.presignedUrl, and set r2Uploaded to true.",
+            "Attach an image to a profile or listing after it has been uploaded to the Daylily Catalog signed upload URL. If daylily.prepare-image-upload returned upload.r2, include imageId and r2OriginalKey only after the same file has also been uploaded to upload.r2.presignedUrl.",
           inputSchema: {
             type: "object",
             additionalProperties: false,
@@ -594,7 +594,6 @@ export function WebMcpProvider() {
               key: { type: "string" },
               imageId: { type: "string" },
               r2OriginalKey: { type: "string" },
-              r2Uploaded: { type: "boolean" },
             },
           },
           annotations: {
@@ -615,11 +614,6 @@ export function WebMcpProvider() {
             const r2OriginalKey = asString(input.r2OriginalKey);
             if (!referenceId || !url || !key) {
               throw new Error("referenceId, url, and key are required.");
-            }
-            if ((imageId || r2OriginalKey) && input.r2Uploaded !== true) {
-              throw new Error(
-                "r2Uploaded must be true after uploading to the returned R2 signed URL.",
-              );
             }
             if (imageId && !r2OriginalKey) {
               throw new Error("r2OriginalKey is required with imageId.");

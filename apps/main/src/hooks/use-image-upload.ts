@@ -112,8 +112,7 @@ export function useImageUpload({
           referenceId,
           url,
           key,
-          imageId,
-          r2OriginalKey: r2?.key,
+          ...(r2 ? { imageId, r2OriginalKey: r2.key } : {}),
         });
 
         toast.success("Image uploaded successfully");

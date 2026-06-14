@@ -1,15 +1,12 @@
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { Prisma } from "@prisma/client";
-import { after } from "next/server";
 import { protectedProcedure, createTRPCRouter } from "@/server/api/trpc";
 import { env, requireEnv } from "@/env";
 import { APP_CONFIG } from "@/config/constants";
 import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
-import { spawn } from "node:child_process";
 import crypto from "node:crypto";
-import { existsSync } from "node:fs";
 import { imageContentTypeSchema, imageTypeSchema } from "@/types/image";
 import type { db } from "@/server/db";
 import {
@@ -242,60 +239,6 @@ async function resolveDashboardImageRows(args: {
       source: "dashboardDb.image",
     }),
   }));
-}
-
-function getImageAssetVariantScriptPath() {
-  const appRelative = "scripts/image-assets/process-image-asset-variants.mjs";
-  if (existsSync(appRelative)) {
-    return appRelative;
-  }
-
-  return "apps/main/scripts/image-assets/process-image-asset-variants.mjs";
-}
-
-function scheduleImageAssetVariantProcessing(imageAssetId: string) {
-  after(async () => {
-    await new Promise<void>((resolve) => {
-      const child = spawn(
-        process.execPath,
-        [
-          getImageAssetVariantScriptPath(),
-          "--asset-id",
-          imageAssetId,
-          "--limit",
-          "1",
-        ],
-        {
-          cwd: process.cwd(),
-          env: process.env,
-          stdio: ["ignore", "pipe", "pipe"],
-        },
-      );
-
-      child.stdout.on("data", (chunk: Buffer) => {
-        console.log("[image-assets:variants]", chunk.toString().trim());
-      });
-      child.stderr.on("data", (chunk: Buffer) => {
-        console.error("[image-assets:variants]", chunk.toString().trim());
-      });
-      child.on("error", (error) => {
-        console.error("[image-assets:variants] failed to start", {
-          imageAssetId,
-          error,
-        });
-        resolve();
-      });
-      child.on("close", (code) => {
-        if (code !== 0) {
-          console.error("[image-assets:variants] exited non-zero", {
-            imageAssetId,
-            code,
-          });
-        }
-        resolve();
-      });
-    });
-  });
 }
 
 export const dashboardDbImageRouter = createTRPCRouter({
@@ -534,6 +477,13 @@ export const dashboardDbImageRouter = createTRPCRouter({
       const currentCount = await ctx.db.image.count({ where: whereClause });
       const shouldCreateImageAsset = Boolean(input.r2OriginalKey);
 
+      if (input.imageId && !input.r2OriginalKey) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Image asset upload metadata is invalid",
+        });
+      }
+
       if (input.r2OriginalKey) {
         if (!input.imageId || !areImageAssetUploadsConfigured()) {
           throw new TRPCError({
@@ -595,10 +545,6 @@ export const dashboardDbImageRouter = createTRPCRouter({
         db: ctx.db,
         rows: [image],
       });
-
-      if (shouldCreateImageAsset) {
-        scheduleImageAssetVariantProcessing(image.id);
-      }
 
       return resolved ?? image;
     }),
@@ -732,10 +678,6 @@ export const dashboardDbImageRouter = createTRPCRouter({
         db: ctx.db,
         rows: [image],
       });
-
-      if (input.r2OriginalKey) {
-        scheduleImageAssetVariantProcessing(image.id);
-      }
 
       return resolved ?? image;
     }),

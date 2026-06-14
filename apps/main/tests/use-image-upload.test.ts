@@ -350,6 +350,12 @@ describe("useImageUpload", () => {
       returned = await result.current.upload(file);
     });
 
+    expect(createImageMock).toHaveBeenCalledWith({
+      type: "listing",
+      referenceId: "listing-1",
+      url: "https://example.com/images/img-1.jpg",
+      key: "abc123.jpg",
+    });
     expect(returned).toBeUndefined();
     expect(toastErrorMock).toHaveBeenCalledWith("Failed to save image", {
       description: "Create failed",

@@ -19,21 +19,10 @@ process.env.R2_BUCKET_NAME = "daylily-media";
 process.env.R2_PUBLIC_BASE_URL = "https://media.daylilycatalog.com";
 process.env.USE_IMAGE_ASSETS = "false";
 
-const afterMock = vi.hoisted(() => vi.fn());
 const s3Mocks = vi.hoisted(() => ({
   getSignedUrl: vi.fn(),
   putObjectCommand: vi.fn((input: unknown) => ({ input })),
 }));
-
-vi.mock("next/server", async () => {
-  const actual =
-    await vi.importActual<typeof import("next/server")>("next/server");
-
-  return {
-    ...actual,
-    after: afterMock,
-  };
-});
 
 vi.mock("@aws-sdk/client-s3", () => ({
   S3Client: vi.fn(),
@@ -162,7 +151,33 @@ describe("dashboard image asset mutations", () => {
         status: "pending_variants",
       }),
     });
-    expect(afterMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("rejects client-selected image ids without R2 metadata", async () => {
+    const db = {
+      image: {
+        count: vi.fn().mockResolvedValue(0),
+      },
+      listing: {
+        findFirst: vi.fn().mockResolvedValue({ id: "listing-1" }),
+      },
+    };
+
+    const key = "user-1/listing-1/uploaded.jpg";
+    const url = `https://${process.env.AWS_BUCKET_NAME}.s3.${process.env.AWS_REGION}.amazonaws.com/${key}`;
+
+    await expect(
+      createCaller(db).create({
+        type: "listing",
+        referenceId: "listing-1",
+        imageId: "image-1",
+        key,
+        url,
+      }),
+    ).rejects.toMatchObject({
+      code: "BAD_REQUEST",
+      message: "Image asset upload metadata is invalid",
+    });
   });
 
   it("resets variant URLs when replacing an image through R2", async () => {
@@ -222,6 +237,5 @@ describe("dashboard image asset mutations", () => {
       }),
     );
     expect(tx.imageAsset.deleteMany).not.toHaveBeenCalled();
-    expect(afterMock).toHaveBeenCalledTimes(1);
   });
 });

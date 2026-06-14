@@ -363,7 +363,6 @@ describe("WebMcpProvider", () => {
       key: "user-1/listing-1/uploaded.jpg",
       imageId: "image-1",
       r2OriginalKey: "users/user-1/listing-images/listing-1/image-1/original.jpg",
-      r2Uploaded: true,
     });
 
     expect(mocks.createImage).toHaveBeenCalledWith({
@@ -376,7 +375,7 @@ describe("WebMcpProvider", () => {
     });
   });
 
-  test("rejects ImageAsset metadata unless the R2 upload is acknowledged", async () => {
+  test("rejects partial ImageAsset metadata when attaching an uploaded image", async () => {
     const registerTool = vi.fn();
     setModelContext({ registerTool });
 
@@ -396,12 +395,8 @@ describe("WebMcpProvider", () => {
         url: "https://example.com/uploaded.jpg",
         key: "user-1/listing-1/uploaded.jpg",
         imageId: "image-1",
-        r2OriginalKey:
-          "users/user-1/listing-images/listing-1/image-1/original.jpg",
       }),
-    ).rejects.toThrow(
-      "r2Uploaded must be true after uploading to the returned R2 signed URL.",
-    );
+    ).rejects.toThrow("r2OriginalKey is required with imageId.");
     expect(mocks.createImage).not.toHaveBeenCalled();
   });
 });
