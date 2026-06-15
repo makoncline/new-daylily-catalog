@@ -238,4 +238,45 @@ describe("dashboard image asset mutations", () => {
     );
     expect(tx.imageAsset.deleteMany).not.toHaveBeenCalled();
   });
+
+  it("preserves ImageAsset rows when a legacy replacement omits R2 metadata", async () => {
+    const updatedImage = createImageRow({
+      url: `https://${process.env.AWS_BUCKET_NAME}.s3.${process.env.AWS_REGION}.amazonaws.com/user-1/listing-1/replacement.jpg`,
+    });
+    const tx = {
+      image: {
+        update: vi.fn().mockResolvedValue(updatedImage),
+      },
+      imageAsset: {
+        upsert: vi.fn().mockResolvedValue(undefined),
+        deleteMany: vi.fn().mockResolvedValue({ count: 0 }),
+      },
+    };
+    const db = {
+      $transaction: vi.fn(async (callback: (txArg: typeof tx) => unknown) =>
+        callback(tx),
+      ),
+      image: {
+        findUnique: vi.fn().mockResolvedValue({
+          id: "image-1",
+          listingId: "listing-1",
+          userProfileId: null,
+        }),
+      },
+      listing: {
+        findFirst: vi.fn().mockResolvedValue({ id: "listing-1" }),
+      },
+    };
+
+    await createCaller(db).update({
+      type: "listing",
+      referenceId: "listing-1",
+      imageId: "image-1",
+      url: `https://${process.env.AWS_BUCKET_NAME}.s3.${process.env.AWS_REGION}.amazonaws.com/user-1/listing-1/replacement.jpg`,
+    });
+
+    expect(tx.image.update).toHaveBeenCalled();
+    expect(tx.imageAsset.upsert).not.toHaveBeenCalled();
+    expect(tx.imageAsset.deleteMany).not.toHaveBeenCalled();
+  });
 });
