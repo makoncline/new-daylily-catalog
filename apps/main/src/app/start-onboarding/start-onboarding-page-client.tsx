@@ -1273,7 +1273,6 @@ async function uploadOnboardingImageBlob({
   referenceId: string;
   getPresignedUrl: (input: {
     type: "profile" | "listing";
-    fileName: string;
     contentType: ImageContentType;
     size: number;
     referenceId: string;
@@ -1290,8 +1289,6 @@ async function uploadOnboardingImageBlob({
     } | null;
   }>;
 }) {
-  const fileNamePrefix = type === "profile" ? "profile" : "listing";
-  const fileName = `onboarding-${fileNamePrefix}-${Date.now()}.jpg`;
   const contentType = getSupportedImageContentType(blob.type);
   if (!contentType) {
     throw new Error("Only JPEG, PNG, and WebP images are supported");
@@ -1305,7 +1302,6 @@ async function uploadOnboardingImageBlob({
     r2,
   } = await getPresignedUrl({
     type,
-    fileName,
     contentType,
     size: blob.size,
     referenceId,

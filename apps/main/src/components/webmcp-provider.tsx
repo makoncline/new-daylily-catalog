@@ -507,13 +507,7 @@ export function WebMcpProvider() {
           inputSchema: {
             type: "object",
             additionalProperties: false,
-            required: [
-              "type",
-              "referenceId",
-              "fileName",
-              "contentType",
-              "size",
-            ],
+            required: ["type", "referenceId", "contentType", "size"],
             properties: {
               type: { type: "string", enum: ["profile", "listing"] },
               referenceId: {
@@ -521,7 +515,6 @@ export function WebMcpProvider() {
                 description:
                   "Profile id or listing id that will own the image.",
               },
-              fileName: { type: "string" },
               contentType: {
                 type: "string",
                 enum: ["image/jpeg", "image/png", "image/webp"],
@@ -545,27 +538,24 @@ export function WebMcpProvider() {
               throw new Error("type must be profile or listing.");
             }
             const referenceId = asString(input.referenceId);
-            const fileName = asString(input.fileName);
             const contentType = asString(input.contentType);
             const size =
               typeof input.size === "number" ? Math.trunc(input.size) : 0;
             if (
               !referenceId ||
-              !fileName ||
               !["image/jpeg", "image/png", "image/webp"].includes(
                 contentType,
               ) ||
               size < 1
             ) {
               throw new Error(
-                "referenceId, fileName, supported contentType, and positive size are required.",
+                "referenceId, supported contentType, and positive size are required.",
               );
             }
             const upload =
               await client.dashboardDb.image.getPresignedUrl.mutate({
                 type,
                 referenceId,
-                fileName,
                 contentType: contentType as
                   | "image/jpeg"
                   | "image/png"
@@ -614,9 +604,6 @@ export function WebMcpProvider() {
             const r2OriginalKey = asString(input.r2OriginalKey);
             if (!referenceId || !url || !key) {
               throw new Error("referenceId, url, and key are required.");
-            }
-            if (imageId && !r2OriginalKey) {
-              throw new Error("r2OriginalKey is required with imageId.");
             }
             if (r2OriginalKey && !imageId) {
               throw new Error("imageId is required with r2OriginalKey.");

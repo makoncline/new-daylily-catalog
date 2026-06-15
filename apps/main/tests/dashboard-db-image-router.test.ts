@@ -113,7 +113,6 @@ describe("dashboardDb.image", () => {
     const result = await caller.getPresignedUrl({
       type: "listing",
       referenceId: "listing-1",
-      fileName: "payload.svg",
       contentType: "image/jpeg",
       size: 1234,
     });
@@ -139,7 +138,6 @@ describe("dashboardDb.image", () => {
       caller.getPresignedUrl({
         type: "listing",
         referenceId: "listing-1",
-        fileName: "payload.svg",
         contentType: "image/svg+xml" as never,
         size: 1234,
       }),
@@ -315,9 +313,7 @@ describe("dashboardDb.image", () => {
       "profile-image",
       "listing-image",
     ]);
-    expect(result[0]?.updatedAt).toEqual(
-      new Date("2026-01-02T00:00:00.000Z"),
-    );
+    expect(result[0]?.updatedAt).toEqual(new Date("2026-01-02T00:00:00.000Z"));
     expect(db.$queryRaw).toHaveBeenCalledTimes(1);
     expect(db.listing.findMany).not.toHaveBeenCalled();
     expect(db.userProfile.findUnique).not.toHaveBeenCalled();

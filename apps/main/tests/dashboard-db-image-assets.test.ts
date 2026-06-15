@@ -67,9 +67,12 @@ function createImageRow(overrides: Partial<Record<string, unknown>> = {}) {
 describe("dashboard image asset mutations", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    s3Mocks.getSignedUrl
-      .mockResolvedValueOnce("https://s3-upload-url.example")
-      .mockResolvedValueOnce("https://r2-upload-url.example");
+    s3Mocks.getSignedUrl.mockImplementation(
+      async (_client: unknown, command: { input: { Bucket?: string } }) =>
+        command.input.Bucket === process.env.R2_BUCKET_NAME
+          ? "https://r2-upload-url.example"
+          : "https://s3-upload-url.example",
+    );
   });
 
   it("presigns S3 and R2 uploads with the shared ImageAsset id", async () => {
@@ -82,7 +85,6 @@ describe("dashboard image asset mutations", () => {
     const result = await createCaller(db).getPresignedUrl({
       type: "listing",
       referenceId: "listing-1",
-      fileName: "payload.svg",
       contentType: "image/png",
       size: 1234,
     });
@@ -152,33 +154,6 @@ describe("dashboard image asset mutations", () => {
           "https://media.daylilycatalog.com/users/user-1/listing-images/listing-1/image-1/original.jpg",
         status: "pending_variants",
       }),
-    });
-  });
-
-  it("rejects client-selected image ids without R2 metadata", async () => {
-    const db = {
-      image: {
-        count: vi.fn().mockResolvedValue(0),
-      },
-      listing: {
-        findFirst: vi.fn().mockResolvedValue({ id: "listing-1" }),
-      },
-    };
-
-    const key = "user-1/listing-1/uploaded.jpg";
-    const url = `https://${process.env.AWS_BUCKET_NAME}.s3.${process.env.AWS_REGION}.amazonaws.com/${key}`;
-
-    await expect(
-      createCaller(db).create({
-        type: "listing",
-        referenceId: "listing-1",
-        imageId: "image-1",
-        key,
-        url,
-      }),
-    ).rejects.toMatchObject({
-      code: "BAD_REQUEST",
-      message: "Image asset upload metadata is invalid",
     });
   });
 

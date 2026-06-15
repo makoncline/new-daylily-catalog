@@ -362,7 +362,8 @@ describe("WebMcpProvider", () => {
       url: "https://example.com/uploaded.jpg",
       key: "user-1/listing-1/uploaded.jpg",
       imageId: "image-1",
-      r2OriginalKey: "users/user-1/listing-images/listing-1/image-1/original.jpg",
+      r2OriginalKey:
+        "users/user-1/listing-images/listing-1/image-1/original.jpg",
     });
 
     expect(mocks.createImage).toHaveBeenCalledWith({
@@ -371,11 +372,12 @@ describe("WebMcpProvider", () => {
       url: "https://example.com/uploaded.jpg",
       key: "user-1/listing-1/uploaded.jpg",
       imageId: "image-1",
-      r2OriginalKey: "users/user-1/listing-images/listing-1/image-1/original.jpg",
+      r2OriginalKey:
+        "users/user-1/listing-images/listing-1/image-1/original.jpg",
     });
   });
 
-  test("rejects partial ImageAsset metadata when attaching an uploaded image", async () => {
+  test("rejects R2 metadata without an ImageAsset id when attaching an uploaded image", async () => {
     const registerTool = vi.fn();
     setModelContext({ registerTool });
 
@@ -394,9 +396,10 @@ describe("WebMcpProvider", () => {
         referenceId: "listing-1",
         url: "https://example.com/uploaded.jpg",
         key: "user-1/listing-1/uploaded.jpg",
-        imageId: "image-1",
+        r2OriginalKey:
+          "users/user-1/listing-images/listing-1/image-1/original.jpg",
       }),
-    ).rejects.toThrow("r2OriginalKey is required with imageId.");
+    ).rejects.toThrow("imageId is required with r2OriginalKey.");
     expect(mocks.createImage).not.toHaveBeenCalled();
   });
 });
