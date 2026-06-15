@@ -9,13 +9,9 @@ import {
 
 export const IMAGE_ASSET_VARIANT_CACHE_CONTROL =
   "public, max-age=31536000, immutable";
-const IMAGE_ASSET_VERSION_ID_PATTERN = /^[a-f0-9]{12,32}$/;
 const ORIGINAL_IMAGE_ASSET_FILE_PATTERN = "original\\.(?:jpe?g|png|webp)";
 const ORIGINAL_IMAGE_ASSET_KEY_PATTERN = new RegExp(
-  `^(?:versions/[a-f0-9]{12,32}/)?${ORIGINAL_IMAGE_ASSET_FILE_PATTERN}$`,
-);
-const VERSIONED_ORIGINAL_IMAGE_ASSET_KEY_PATTERN = new RegExp(
-  `^versions/[a-f0-9]{12,32}/${ORIGINAL_IMAGE_ASSET_FILE_PATTERN}$`,
+  `^${ORIGINAL_IMAGE_ASSET_FILE_PATTERN}$`,
 );
 
 export interface UserImageAssetKeyArgs {
@@ -23,7 +19,6 @@ export interface UserImageAssetKeyArgs {
   userId: string;
   imageAssetId: string;
   listingId?: string | null;
-  versionId?: string | null;
 }
 
 export function areImageAssetUploadsConfigured() {
@@ -94,30 +89,16 @@ export function buildUserImageAssetBaseKey(args: UserImageAssetKeyArgs) {
   return `users/${args.userId}/listing-images/${args.listingId}/${args.imageAssetId}`;
 }
 
-function buildVersionedImageAssetBaseKey(args: UserImageAssetKeyArgs) {
-  const baseKey = buildUserImageAssetBaseKey(args);
-
-  if (!args.versionId) {
-    return baseKey;
-  }
-
-  if (!IMAGE_ASSET_VERSION_ID_PATTERN.test(args.versionId)) {
-    throw new Error("versionId must be 12 to 32 lowercase hex characters.");
-  }
-
-  return `${baseKey}/versions/${args.versionId}`;
-}
-
 export function buildOriginalImageAssetKey(
   args: UserImageAssetKeyArgs & { contentType: ImageContentType },
 ) {
-  return `${buildVersionedImageAssetBaseKey(args)}/original${
+  return `${buildUserImageAssetBaseKey(args)}/original${
     imageExtensionByContentType[args.contentType]
   }`;
 }
 
 export function isExpectedOriginalImageAssetKey(
-  args: UserImageAssetKeyArgs & { key: string; requireVersion?: boolean },
+  args: UserImageAssetKeyArgs & { key: string },
 ) {
   const baseKey = buildUserImageAssetBaseKey(args);
   if (!args.key.startsWith(`${baseKey}/`)) {
@@ -125,11 +106,7 @@ export function isExpectedOriginalImageAssetKey(
   }
 
   const relativeKey = args.key.slice(baseKey.length + 1);
-  const expectedPattern = args.requireVersion
-    ? VERSIONED_ORIGINAL_IMAGE_ASSET_KEY_PATTERN
-    : ORIGINAL_IMAGE_ASSET_KEY_PATTERN;
-
-  return expectedPattern.test(relativeKey);
+  return ORIGINAL_IMAGE_ASSET_KEY_PATTERN.test(relativeKey);
 }
 
 export function buildVariantImageAssetKeys(
@@ -138,7 +115,7 @@ export function buildVariantImageAssetKeys(
   const baseKey =
     typeof baseKeyOrArgs === "string"
       ? baseKeyOrArgs
-      : buildVersionedImageAssetBaseKey(baseKeyOrArgs);
+      : buildUserImageAssetBaseKey(baseKeyOrArgs);
   assertCanonicalImageAssetKey(baseKey);
 
   return {
@@ -168,7 +145,6 @@ export async function getR2OriginalUploadMetadata(args: {
   userId: string;
   listingId: string | null;
   imageAssetId: string;
-  versionId: string | null;
   contentType: ImageContentType;
 }) {
   if (!areImageAssetUploadsConfigured()) return null;

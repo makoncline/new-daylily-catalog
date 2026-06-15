@@ -35,74 +35,18 @@ describe("image asset storage keys", () => {
     ).toBe(true);
   });
 
-  it("supports versioned replacement keys for immutable variant URLs", () => {
-    const versionId = "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4";
-    const key = storage.buildOriginalImageAssetKey({
-      kind: "profile",
-      userId: "user-1",
-      imageAssetId: "image-1",
-      versionId,
-      contentType: "image/png",
-    });
-
-    expect(key).toBe(
-      "users/user-1/profile-images/image-1/versions/a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4/original.png",
-    );
-    expect(
-      storage.isExpectedOriginalImageAssetKey({
-        kind: "profile",
-        userId: "user-1",
-        imageAssetId: "image-1",
-        key,
-        requireVersion: true,
-      }),
-    ).toBe(true);
-    expect(
-      storage.isExpectedOriginalImageAssetKey({
-        kind: "profile",
-        userId: "user-1",
-        imageAssetId: "image-1",
-        key: "users/user-1/profile-images/image-1/original.png",
-        requireVersion: true,
-      }),
-    ).toBe(false);
-    expect(
-      storage.isExpectedOriginalImageAssetKey({
-        kind: "profile",
-        userId: "user-1",
-        imageAssetId: "image-1",
-        key: "users/user-1/profile-images/image-1/versions/a1b2c3d4e5f6/original.svg",
-        requireVersion: true,
-      }),
-    ).toBe(false);
-
+  it("derives variant keys from stable image asset keys", () => {
     expect(
       storage.buildVariantImageAssetKeys({
         kind: "profile",
         userId: "user-1",
         imageAssetId: "image-1",
-        versionId,
       }),
     ).toEqual({
-      displayKey:
-        "users/user-1/profile-images/image-1/versions/a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4/display-800.webp",
-      thumbKey:
-        "users/user-1/profile-images/image-1/versions/a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4/thumb-200.webp",
-      blurKey:
-        "users/user-1/profile-images/image-1/versions/a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4/blur-20.webp",
+      displayKey: "users/user-1/profile-images/image-1/display-800.webp",
+      thumbKey: "users/user-1/profile-images/image-1/thumb-200.webp",
+      blurKey: "users/user-1/profile-images/image-1/blur-20.webp",
     });
-  });
-
-  it("rejects invalid version ids before building keys", () => {
-    expect(() =>
-      storage.buildOriginalImageAssetKey({
-        kind: "profile",
-        userId: "user-1",
-        imageAssetId: "image-1",
-        versionId: "not-a-version-id",
-        contentType: "image/png",
-      }),
-    ).toThrow("versionId must be 12 to 32 lowercase hex characters.");
   });
 
   it("rejects non-canonical keys before publishing URLs or variants", () => {
