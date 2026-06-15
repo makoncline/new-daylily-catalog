@@ -108,14 +108,14 @@ describe("image asset storage keys", () => {
     ).toThrow("ImageAsset key must be a canonical relative R2 key.");
   });
 
-  it("falls back to jpg for unsupported public original extensions", () => {
-    expect(
+  it("rejects unsupported public original extensions", () => {
+    expect(() =>
       storage.buildOriginalImageAssetKey({
         kind: "profile",
         userId: "user-1",
         imageAssetId: "image-1",
         fileName: "profile.svg",
       }),
-    ).toBe("users/user-1/profile-images/image-1/original.jpg");
+    ).toThrow("ImageAsset original file extension is not supported.");
   });
 });

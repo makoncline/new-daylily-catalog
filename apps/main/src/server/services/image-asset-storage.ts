@@ -62,14 +62,14 @@ export function buildR2PublicUrl(key: string) {
   return `${publicBaseUrl}/${encodedKey}`;
 }
 
-export function getSafeImageExtension(fileName: string) {
+export function getImageExtension(fileName: string) {
   const ext = path.extname(fileName).toLowerCase();
 
   if (SAFE_IMAGE_EXTENSIONS.has(ext)) {
     return ext;
   }
 
-  return ".jpg";
+  throw new Error("ImageAsset original file extension is not supported.");
 }
 
 export function assertCanonicalImageAssetKey(key: string) {
@@ -121,7 +121,7 @@ function buildVersionedImageAssetBaseKey(args: UserImageAssetKeyArgs) {
 export function buildOriginalImageAssetKey(
   args: UserImageAssetKeyArgs & { fileName: string },
 ) {
-  return `${buildVersionedImageAssetBaseKey(args)}/original${getSafeImageExtension(
+  return `${buildVersionedImageAssetBaseKey(args)}/original${getImageExtension(
     args.fileName,
   )}`;
 }
@@ -142,7 +142,9 @@ export function isExpectedOriginalImageAssetKey(
   return expectedPattern.test(relativeKey);
 }
 
-export function buildVariantImageAssetKeys(baseKeyOrArgs: string | UserImageAssetKeyArgs) {
+export function buildVariantImageAssetKeys(
+  baseKeyOrArgs: string | UserImageAssetKeyArgs,
+) {
   const baseKey =
     typeof baseKeyOrArgs === "string"
       ? baseKeyOrArgs
