@@ -8,28 +8,6 @@ export const DEFAULT_TIMEOUT_SECONDS = 60;
 export const DEFAULT_MAX_SOURCE_BYTES = 25 * 1024 * 1024;
 export const VARIANT_CACHE_CONTROL = "public, max-age=31536000, immutable";
 
-const SENTRY_DSN =
-  "https://b3773458fec6aa0c594a9c1c73ed046a@o1136137.ingest.us.sentry.io/4508939597643776";
-
-let sentryCaptureException = null;
-if (process.env.NEXT_PUBLIC_SENTRY_ENABLED !== "false") {
-  try {
-    const Sentry = await import("@sentry/nextjs");
-    Sentry.init({ dsn: SENTRY_DSN, enableLogs: true });
-    sentryCaptureException = Sentry.captureException;
-  } catch (error) {
-    console.warn("[image-assets] sentry unavailable", error);
-  }
-}
-
-export function captureScriptException(error, context) {
-  try {
-    sentryCaptureException?.(error, context);
-  } catch (captureError) {
-    console.warn("[image-assets] sentry capture failed", captureError);
-  }
-}
-
 export function readIntEnv(name, fallback) {
   const value = process.env[name];
   if (!value) return fallback;
@@ -117,40 +95,7 @@ function contentTypeFromExtension(url) {
   const ext = extensionFromUrl(url);
   if (ext === ".png") return "image/png";
   if (ext === ".webp") return "image/webp";
-  if (ext === ".gif") return "image/gif";
   return "image/jpeg";
-}
-
-function detectImageContentType(buffer, fallback) {
-  if (
-    buffer[0] === 0xff &&
-    buffer[1] === 0xd8 &&
-    buffer[2] === 0xff
-  ) {
-    return "image/jpeg";
-  }
-
-  if (
-    buffer[0] === 0x89 &&
-    buffer[1] === 0x50 &&
-    buffer[2] === 0x4e &&
-    buffer[3] === 0x47
-  ) {
-    return "image/png";
-  }
-
-  if (
-    buffer.subarray(0, 4).toString("ascii") === "RIFF" &&
-    buffer.subarray(8, 12).toString("ascii") === "WEBP"
-  ) {
-    return "image/webp";
-  }
-
-  if (buffer.subarray(0, 3).toString("ascii") === "GIF") {
-    return "image/gif";
-  }
-
-  return fallback;
 }
 
 export function variantKeysFromOriginalKey(originalKey) {
@@ -193,16 +138,11 @@ export async function fetchSourceBuffer(url) {
     }
 
     const buffer = await readResponseBuffer(response, maxBytes);
+    const contentType = responseContentType?.startsWith("image/")
+      ? responseContentType
+      : contentTypeFromExtension(url);
 
-    return {
-      buffer,
-      contentType: detectImageContentType(
-        buffer,
-        responseContentType?.startsWith("image/")
-          ? responseContentType
-          : contentTypeFromExtension(url),
-      ),
-    };
+    return { buffer, contentType };
   } finally {
     clearTimeout(timer);
   }

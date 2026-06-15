@@ -1,6 +1,5 @@
 import {
   buildWebpVariants,
-  captureScriptException,
   createDb,
   createR2Client,
   DEFAULT_BATCH_SIZE,
@@ -234,10 +233,6 @@ async function main() {
       } catch (error) {
         failedCount += 1;
         console.error("[failed]", image.id, error);
-        captureScriptException(error, {
-          tags: { source: "image-assets:backfill" },
-          extra: { imageId: image.id },
-        });
         if (!args.dryRun) {
           await db.imageAsset.upsert({
             where: { id: image.id },

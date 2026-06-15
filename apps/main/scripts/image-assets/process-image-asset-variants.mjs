@@ -1,6 +1,5 @@
 import {
   buildWebpVariants,
-  captureScriptException,
   createDb,
   createR2Client,
   DEFAULT_BATCH_SIZE,
@@ -137,10 +136,6 @@ async function main() {
       } catch (error) {
         failedCount += 1;
         console.error("[failed]", asset.id, error);
-        captureScriptException(error, {
-          tags: { source: "image-assets:variants" },
-          extra: { imageAssetId: asset.id },
-        });
         if (!args.dryRun) {
           await db.imageAsset.update({
             where: { id: asset.id },
