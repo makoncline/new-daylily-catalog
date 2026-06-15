@@ -1,6 +1,7 @@
 import { IMAGES } from "@/lib/constants/images";
 import { getOptimizedMetaImageUrl } from "@/lib/utils/cloudflareLoader";
 import { reportError } from "@/lib/error-utils";
+import { METADATA_CONFIG } from "@/config/constants";
 import { buildPublicPageMetadata } from "@/app/(public)/_seo/public-seo";
 import { type Metadata } from "next";
 
@@ -11,7 +12,7 @@ const MAX_DESCRIPTION_LENGTH = 160;
 // Function to generate metadata for catalogs page
 async function createCatalogsPageMetadata(url: string): Promise<Metadata> {
   try {
-    const title = "Browse Daylily Catalogs";
+    const title = `Browse Daylily Catalogs | ${METADATA_CONFIG.SITE_NAME}`;
     const pageUrl = `${url}/catalogs`;
     let description =
       "Discover beautiful daylilies from growers across the country. Browse our curated collection of daylily catalogs featuring rare and popular varieties.";
@@ -60,7 +61,7 @@ async function createCatalogsPageMetadata(url: string): Promise<Metadata> {
       imageUrl: getOptimizedMetaImageUrl(IMAGES.DEFAULT_META),
       metadataBase: new URL(url),
       pageUrl: `${url}/catalogs`,
-      title: "Browse Daylily Catalogs",
+      title: `Browse Daylily Catalogs | ${METADATA_CONFIG.SITE_NAME}`,
     });
   }
 }
