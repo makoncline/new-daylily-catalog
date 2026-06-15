@@ -191,6 +191,7 @@ describe("useImageUpload", () => {
     expect(createImageMock).toHaveBeenCalledWith({
       type: "listing",
       referenceId: "listing-1",
+      imageId: "img-1",
       url: uploadedImage.url,
       key: "abc123.jpg",
     });
@@ -248,7 +249,7 @@ describe("useImageUpload", () => {
     );
   });
 
-  it("presigns WebP uploads with a WebP filename", async () => {
+  it("presigns WebP uploads with WebP content type", async () => {
     const uploadedImage = {
       id: "img-1",
       url: "https://example.com/images/img-1.webp",
@@ -409,6 +410,7 @@ describe("useImageUpload", () => {
     expect(createImageMock).toHaveBeenCalledWith({
       type: "listing",
       referenceId: "listing-1",
+      imageId: "img-1",
       url: "https://example.com/images/img-1.jpg",
       key: "abc123.jpg",
     });

@@ -106,9 +106,10 @@ export function useImageUpload({
         const image = await createImage({
           type,
           referenceId,
+          imageId,
           url,
           key,
-          ...(r2OriginalKey ? { imageId, r2OriginalKey } : {}),
+          ...(r2OriginalKey ? { r2OriginalKey } : {}),
         });
 
         toast.success("Image uploaded successfully");

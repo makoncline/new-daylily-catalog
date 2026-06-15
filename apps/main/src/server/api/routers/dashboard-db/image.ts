@@ -256,9 +256,7 @@ async function resolveDashboardImageRows(args: {
     where: {
       legacyImageId: { in: imageIds },
     },
-    select: {
-      ...imageAssetUrlSelect,
-    },
+    select: imageAssetUrlSelect,
   });
   const imageAssetByLegacyId = buildImageAssetMap(assets);
 

@@ -110,11 +110,9 @@ export function ImageUpload({
           <ImageCropper
             src={previewUrl}
             onCropComplete={async (result) => {
-              try {
-                await upload(result);
+              const image = await upload(result);
+              if (image) {
                 reset();
-              } catch {
-                // Error is handled in useImageUpload
               }
             }}
             onCancel={reset}
