@@ -1,22 +1,12 @@
 // @vitest-environment node
 
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-
-const reportErrorMock = vi.hoisted(() => vi.fn());
-
-vi.mock("@/lib/error-utils", () => ({
-  reportError: reportErrorMock,
-}));
+import { afterEach, describe, expect, it } from "vitest";
 
 import { resolveLegacyImagesWithAssets } from "@/server/services/image-asset-read-model";
 
 const originalUseImageAssets = process.env.USE_IMAGE_ASSETS;
 
 describe("image asset read model", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-  });
-
   afterEach(() => {
     if (originalUseImageAssets === undefined) {
       delete process.env.USE_IMAGE_ASSETS;
@@ -41,11 +31,9 @@ describe("image asset read model", () => {
           blurUrl: "https://media.example/blur.webp",
         },
       ],
-      source: "test",
     });
 
     expect(image?.url).toBe("https://legacy.example/image.jpg");
-    expect(reportErrorMock).not.toHaveBeenCalled();
   });
 
   it("uses the requested ImageAsset variant when enabled", () => {
@@ -63,15 +51,24 @@ describe("image asset read model", () => {
           blurUrl: "https://media.example/blur.webp",
         },
       ],
-      source: "test",
       variant: "thumb",
     });
 
     expect(image?.url).toBe("https://media.example/thumb.webp");
-    expect(reportErrorMock).not.toHaveBeenCalled();
   });
 
-  it("falls back to the ImageAsset original and reports missing variants", () => {
+  it("keeps the legacy URL when an asset row is missing", () => {
+    process.env.USE_IMAGE_ASSETS = "true";
+
+    const [image] = resolveLegacyImagesWithAssets({
+      images: [{ id: "image-1", url: "https://legacy.example/image.jpg" }],
+      imageAssets: [],
+    });
+
+    expect(image?.url).toBe("https://legacy.example/image.jpg");
+  });
+
+  it("falls back to the ImageAsset original when a variant is missing", () => {
     process.env.USE_IMAGE_ASSETS = "true";
 
     const [image] = resolveLegacyImagesWithAssets({
@@ -86,21 +83,9 @@ describe("image asset read model", () => {
           blurUrl: null,
         },
       ],
-      source: "public-listing",
       variant: "display",
     });
 
     expect(image?.url).toBe("https://media.example/original.webp");
-    expect(reportErrorMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        level: "warning",
-        context: expect.objectContaining({
-          imageId: "image-1",
-          imageAssetId: "asset-1",
-          requestedVariant: "display",
-          source: "public-listing",
-        }),
-      }),
-    );
   });
 });
