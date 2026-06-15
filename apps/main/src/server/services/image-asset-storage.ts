@@ -9,6 +9,12 @@ export const IMAGE_ASSET_VARIANT_CACHE_CONTROL =
 const IMAGE_ASSET_VERSION_ID_PATTERN = /^[a-f0-9]{12,32}$/;
 const SAFE_IMAGE_EXTENSIONS = new Set([".jpg", ".jpeg", ".png", ".webp"]);
 const ORIGINAL_IMAGE_ASSET_FILE_PATTERN = "original\\.(?:jpe?g|png|webp)";
+const ORIGINAL_IMAGE_ASSET_KEY_PATTERN = new RegExp(
+  `^(?:versions/[a-f0-9]{12,32}/)?${ORIGINAL_IMAGE_ASSET_FILE_PATTERN}$`,
+);
+const VERSIONED_ORIGINAL_IMAGE_ASSET_KEY_PATTERN = new RegExp(
+  `^versions/[a-f0-9]{12,32}/${ORIGINAL_IMAGE_ASSET_FILE_PATTERN}$`,
+);
 
 export interface UserImageAssetKeyArgs {
   kind: ImageType;
@@ -137,12 +143,8 @@ export function isExpectedOriginalImageAssetKey(
 
   const relativeKey = args.key.slice(baseKey.length + 1);
   const expectedPattern = args.requireVersion
-    ? new RegExp(
-        `^versions/[a-f0-9]{12,32}/${ORIGINAL_IMAGE_ASSET_FILE_PATTERN}$`,
-      )
-    : new RegExp(
-        `^(?:versions/[a-f0-9]{12,32}/)?${ORIGINAL_IMAGE_ASSET_FILE_PATTERN}$`,
-      );
+    ? VERSIONED_ORIGINAL_IMAGE_ASSET_KEY_PATTERN
+    : ORIGINAL_IMAGE_ASSET_KEY_PATTERN;
 
   return expectedPattern.test(relativeKey);
 }
