@@ -103,7 +103,6 @@ function buildListingView<T extends ListingPayload>(listing: T) {
     images: displayListing.images,
     imageAssets: "imageAssets" in displayListing ? displayListing.imageAssets : [],
     variant: "display",
-    source: "public-listing",
   });
   const publicListing =
     "imageAssets" in displayListing

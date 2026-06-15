@@ -263,7 +263,6 @@ export async function getPublicSellerSummariesByUserIds(
                 ? user.profile.imageAssets
                 : [],
             variant: "display",
-            source: "public-seller",
           }).map((image) => ({
             id: image.id,
             url: getCloudflareUrlForDaylilyS3Image(image.url),

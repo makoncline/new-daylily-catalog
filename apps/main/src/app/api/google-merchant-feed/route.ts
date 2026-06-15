@@ -102,7 +102,6 @@ export async function GET(_request: Request) {
                 ? displayListing.imageAssets
                 : [],
             variant: "display",
-            source: "google-merchant-feed",
           });
           const listingName =
             displayListing.title ??
