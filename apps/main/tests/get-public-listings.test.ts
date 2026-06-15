@@ -42,6 +42,7 @@ import { applyWhereIn } from "./test-utils/apply-where-in";
 const originalV2DisplayFlag =
   process.env.NEXT_PUBLIC_USE_V2_CULTIVAR_DISPLAY_DATA;
 const originalCloudflareUrl = process.env.NEXT_PUBLIC_CLOUDFLARE_URL;
+const originalUseImageAssets = process.env.USE_IMAGE_ASSETS;
 
 function getQueryText(query: unknown): string {
   if (
@@ -109,6 +110,12 @@ describe("getPublicListings helpers", () => {
       delete process.env.NEXT_PUBLIC_CLOUDFLARE_URL;
     } else {
       process.env.NEXT_PUBLIC_CLOUDFLARE_URL = originalCloudflareUrl;
+    }
+
+    if (originalUseImageAssets === undefined) {
+      delete process.env.USE_IMAGE_ASSETS;
+    } else {
+      process.env.USE_IMAGE_ASSETS = originalUseImageAssets;
     }
   });
 
@@ -421,6 +428,60 @@ describe("getPublicListings helpers", () => {
     });
     expect(listing.images[0]?.url).toBe(
       "https://cf.daylilycatalog.com/cdn-cgi/image/width=800,fit=cover,format=auto,quality=90/https://daylily-catalog-images.s3.amazonaws.com/listings/every-friday-night.jpg",
+    );
+  });
+
+  it("uses ImageAsset display URLs for public listing detail when enabled", async () => {
+    process.env.USE_IMAGE_ASSETS = "true";
+    mockDb.listing.findFirst.mockResolvedValue({
+      ...createListing("id-a", "Every Friday Night"),
+      updatedAt: new Date("2026-05-01T00:00:00.000Z"),
+      price: 30,
+      images: [
+        {
+          id: "image-a",
+          url: "https://daylily-catalog-images.s3.amazonaws.com/listings/every-friday-night.jpg",
+          updatedAt: new Date("2026-05-01T00:00:00.000Z"),
+        },
+      ],
+      imageAssets: [
+        {
+          id: "image-a",
+          legacyImageId: "image-a",
+          originalUrl:
+            "https://media.daylilycatalog.com/users/user-1/listing-images/id-a/image-a/original.jpg",
+          displayUrl:
+            "https://media.daylilycatalog.com/users/user-1/listing-images/id-a/image-a/display-800.webp",
+          thumbUrl:
+            "https://media.daylilycatalog.com/users/user-1/listing-images/id-a/image-a/thumb-200.webp",
+          blurUrl:
+            "https://media.daylilycatalog.com/users/user-1/listing-images/id-a/image-a/blur-20.webp",
+        },
+      ],
+      user: {
+        profile: {
+          slug: "rolling-oaks",
+          title: "Rolling Oaks Daylilies",
+        },
+      },
+    });
+    mockDb.keyValue.findMany.mockResolvedValue([
+      {
+        key: "stripe:customer:cus-pro",
+        value: JSON.stringify({ status: "active" }),
+      },
+    ]);
+    mockDb.user.findMany.mockResolvedValue([
+      {
+        id: "user-1",
+        stripeCustomerId: "cus-pro",
+      },
+    ]);
+
+    const listing = await getPublicListingDetail("id-a");
+
+    expect(listing.images[0]?.url).toBe(
+      "https://media.daylilycatalog.com/users/user-1/listing-images/id-a/image-a/display-800.webp",
     );
   });
 
