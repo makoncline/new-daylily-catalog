@@ -2,12 +2,13 @@ import path from "node:path";
 import { PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { env, requireEnv } from "@/env";
-import type { ImageType } from "@/types/image";
+import type { ImageContentType, ImageType } from "@/types/image";
 
 export const IMAGE_ASSET_VARIANT_CACHE_CONTROL =
   "public, max-age=31536000, immutable";
 const IMAGE_ASSET_VERSION_ID_PATTERN = /^[a-f0-9]{12,32}$/;
 const SAFE_IMAGE_EXTENSIONS = new Set([".jpg", ".jpeg", ".png", ".webp"]);
+const ORIGINAL_IMAGE_ASSET_FILE_PATTERN = "original\\.(?:jpe?g|png|webp)";
 
 export interface UserImageAssetKeyArgs {
   kind: ImageType;
@@ -136,8 +137,12 @@ export function isExpectedOriginalImageAssetKey(
 
   const relativeKey = args.key.slice(baseKey.length + 1);
   const expectedPattern = args.requireVersion
-    ? /^versions\/[a-f0-9]{12,32}\/original\.[a-z0-9]+$/
-    : /^(?:versions\/[a-f0-9]{12,32}\/)?original\.[a-z0-9]+$/;
+    ? new RegExp(
+        `^versions/[a-f0-9]{12,32}/${ORIGINAL_IMAGE_ASSET_FILE_PATTERN}$`,
+      )
+    : new RegExp(
+        `^(?:versions/[a-f0-9]{12,32}/)?${ORIGINAL_IMAGE_ASSET_FILE_PATTERN}$`,
+      );
 
   return expectedPattern.test(relativeKey);
 }
@@ -160,7 +165,7 @@ export function buildVariantImageAssetKeys(
 
 export async function getR2PresignedPutUrl(args: {
   key: string;
-  contentType: string;
+  contentType: ImageContentType;
   cacheControl?: string;
 }) {
   const command = new PutObjectCommand({

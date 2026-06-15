@@ -66,6 +66,15 @@ describe("image asset storage keys", () => {
         requireVersion: true,
       }),
     ).toBe(false);
+    expect(
+      storage.isExpectedOriginalImageAssetKey({
+        kind: "profile",
+        userId: "user-1",
+        imageAssetId: "image-1",
+        key: "users/user-1/profile-images/image-1/versions/a1b2c3d4e5f6/original.svg",
+        requireVersion: true,
+      }),
+    ).toBe(false);
 
     expect(
       storage.buildVariantImageAssetKeys({
