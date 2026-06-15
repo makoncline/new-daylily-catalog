@@ -88,7 +88,7 @@ async function backfillImage({ image, db, r2, bucket, dryRun }) {
     ),
   ]);
 
-  const asset = await db.imageAsset.upsert({
+  await db.imageAsset.upsert({
     where: { id: image.id },
     create: {
       id: image.id,
@@ -130,26 +130,17 @@ async function backfillImage({ image, db, r2, bucket, dryRun }) {
 }
 
 async function markBackfillFailed(db, image) {
-  const updated = await db.imageAsset.updateMany({
-    where: { id: image.id, status: { not: "ready" } },
-    data: { status: "backfill_failed" },
-  });
-
-  if (updated.count > 0) {
-    return;
-  }
-
   const existing = await db.imageAsset.findUnique({
     where: { id: image.id },
-    select: { id: true },
+    select: { status: true },
   });
-
-  if (existing) {
+  if (existing?.status === "ready") {
     return;
   }
 
-  await db.imageAsset.create({
-    data: {
+  await db.imageAsset.upsert({
+    where: { id: image.id },
+    create: {
       id: image.id,
       legacyImageId: image.id,
       order: image.order,
@@ -159,6 +150,7 @@ async function markBackfillFailed(db, image) {
         ? { listingId: image.listingId }
         : { userProfileId: image.userProfileId }),
     },
+    update: { status: "backfill_failed" },
   });
 }
 

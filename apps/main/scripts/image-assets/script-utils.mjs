@@ -105,10 +105,11 @@ export async function getDecodedImageContentType(buffer, fallbackUrl) {
 }
 
 export function variantKeysFromOriginalKey(originalKey) {
-  const baseKey = originalKey.replace(
-    /\/(?:original|source-original|generated-original)\.[a-z0-9]+$/i,
-    "",
-  );
+  const baseKey = originalKey.replace(/\/original\.[a-z0-9]+$/i, "");
+  if (baseKey === originalKey) {
+    throw new Error(`Invalid ImageAsset original key: ${originalKey}`);
+  }
+
   return {
     displayKey: `${baseKey}/display-800.webp`,
     thumbKey: `${baseKey}/thumb-200.webp`,
