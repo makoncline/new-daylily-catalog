@@ -46,8 +46,8 @@ that point, only the schema/env/docs foundation is shipped.
 - [x] Added `ImageAsset` schema to `prisma/schema.prisma`.
 - [x] Added Prisma-generated structural SQL:
   `prisma/migrations/20260613180000_add_image_asset/migration.sql`.
-- [x] Added R2/media env placeholders and `USE_IMAGE_ASSETS=false` defaults.
-- [ ] Add R2 key/url helpers and read-model helper tests.
+- [x] Added `USE_IMAGE_ASSETS=false` defaults.
+- [ ] Add R2/media env placeholders, key/url helpers, and helper tests.
 - [ ] Add local-first backfill and variant scripts.
 - [ ] Add `USE_IMAGE_ASSETS` read-path support.
 - [ ] Add dual-write for new uploaded originals.
@@ -253,7 +253,6 @@ select
   kind,
   listingId,
   userProfileId,
-  cultivarReferenceId,
   originalUrl,
   updatedAt
 from ImageAsset
