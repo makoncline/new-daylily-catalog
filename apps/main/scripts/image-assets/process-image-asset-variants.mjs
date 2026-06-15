@@ -5,9 +5,9 @@ import {
   DEFAULT_BATCH_SIZE,
   DEFAULT_CONCURRENCY,
   fetchSourceBuffer,
-  getR2BucketName,
   publicUrlForKey,
   readIntEnv,
+  requireEnv,
   runConcurrent,
   uploadObject,
   VARIANT_CACHE_CONTROL,
@@ -103,7 +103,7 @@ async function main() {
   const args = parseArgs();
   const db = await createDb();
   const r2 = args.dryRun ? null : createR2Client();
-  const bucket = args.dryRun ? null : getR2BucketName();
+  const bucket = args.dryRun ? null : requireEnv("R2_BUCKET_NAME");
   const concurrency = readIntEnv(
     "IMAGE_ASSET_BACKFILL_CONCURRENCY",
     DEFAULT_CONCURRENCY,

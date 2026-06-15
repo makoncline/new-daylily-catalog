@@ -69,10 +69,6 @@ export function createR2Client() {
   });
 }
 
-export function getR2BucketName() {
-  return requireEnv("R2_BUCKET_NAME");
-}
-
 export function publicUrlForKey(key) {
   const baseUrl = requireEnv("R2_PUBLIC_BASE_URL").replace(/\/+$/, "");
   return `${baseUrl}/${key
