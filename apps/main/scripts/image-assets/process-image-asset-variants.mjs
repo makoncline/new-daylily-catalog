@@ -46,7 +46,7 @@ async function processAsset({ asset, db, r2, bucket, dryRun }) {
     return;
   }
 
-  const { buffer } = await fetchSourceBuffer(asset.originalUrl);
+  const buffer = await fetchSourceBuffer(asset.originalUrl);
   const { display, thumb, blur } = await buildWebpVariants(buffer);
 
   await Promise.all([
@@ -137,8 +137,8 @@ async function main() {
         failedCount += 1;
         console.error("[failed]", asset.id, error);
         if (!args.dryRun) {
-          await db.imageAsset.update({
-            where: { id: asset.id },
+          await db.imageAsset.updateMany({
+            where: { id: asset.id, status: { not: "ready" } },
             data: { status: "variant_failed" },
           });
         }

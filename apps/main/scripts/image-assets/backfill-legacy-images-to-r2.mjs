@@ -6,6 +6,7 @@ import {
   DEFAULT_CONCURRENCY,
   extensionFromUrl,
   fetchSourceBuffer,
+  getDecodedImageContentType,
   getR2BucketName,
   publicUrlForKey,
   readIntEnv,
@@ -55,8 +56,9 @@ async function backfillImage({ image, db, r2, bucket, dryRun }) {
     return;
   }
 
-  const { buffer, contentType } = await fetchSourceBuffer(image.url);
+  const buffer = await fetchSourceBuffer(image.url);
   const { display, thumb, blur } = await buildWebpVariants(buffer);
+  const contentType = await getDecodedImageContentType(buffer, image.url);
 
   await Promise.all([
     uploadObject(r2, bucket, originalKey, buffer, contentType, undefined),
@@ -125,6 +127,39 @@ async function backfillImage({ image, db, r2, bucket, dryRun }) {
   });
 
   console.log("[backfilled]", image.id);
+}
+
+async function markBackfillFailed(db, image) {
+  const updated = await db.imageAsset.updateMany({
+    where: { id: image.id, status: { not: "ready" } },
+    data: { status: "backfill_failed" },
+  });
+
+  if (updated.count > 0) {
+    return;
+  }
+
+  const existing = await db.imageAsset.findUnique({
+    where: { id: image.id },
+    select: { id: true },
+  });
+
+  if (existing) {
+    return;
+  }
+
+  await db.imageAsset.create({
+    data: {
+      id: image.id,
+      legacyImageId: image.id,
+      order: image.order,
+      kind: image.listingId ? "listing" : "profile",
+      status: "backfill_failed",
+      ...(image.listingId
+        ? { listingId: image.listingId }
+        : { userProfileId: image.userProfileId }),
+    },
+  });
 }
 
 async function findRetryImages(db, limit) {
@@ -234,20 +269,7 @@ async function main() {
         failedCount += 1;
         console.error("[failed]", image.id, error);
         if (!args.dryRun) {
-          await db.imageAsset.upsert({
-            where: { id: image.id },
-            create: {
-              id: image.id,
-              legacyImageId: image.id,
-              order: image.order,
-              kind: image.listingId ? "listing" : "profile",
-              status: "backfill_failed",
-              ...(image.listingId
-                ? { listingId: image.listingId }
-                : { userProfileId: image.userProfileId }),
-            },
-            update: { status: "backfill_failed" },
-          });
+          await markBackfillFailed(db, image);
         }
       }
     });

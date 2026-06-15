@@ -98,6 +98,16 @@ function contentTypeFromExtension(url) {
   return "image/jpeg";
 }
 
+export async function getDecodedImageContentType(buffer, fallbackUrl) {
+  const metadata = await sharp(buffer).metadata();
+
+  if (metadata.format === "png") return "image/png";
+  if (metadata.format === "webp") return "image/webp";
+  if (metadata.format === "jpeg") return "image/jpeg";
+
+  return contentTypeFromExtension(fallbackUrl);
+}
+
 export function variantKeysFromOriginalKey(originalKey) {
   const baseKey = originalKey.replace(
     /\/(?:original|source-original|generated-original)\.[a-z0-9]+$/i,
@@ -128,7 +138,6 @@ export async function fetchSourceBuffer(url) {
       throw new Error(`Source download failed: ${response.status}`);
     }
 
-    const responseContentType = response.headers.get("content-type");
     const contentLength = Number.parseInt(
       response.headers.get("content-length") ?? "",
       10,
@@ -137,12 +146,7 @@ export async function fetchSourceBuffer(url) {
       throw new Error(`Source image exceeds ${maxBytes} bytes.`);
     }
 
-    const buffer = await readResponseBuffer(response, maxBytes);
-    const contentType = responseContentType?.startsWith("image/")
-      ? responseContentType
-      : contentTypeFromExtension(url);
-
-    return { buffer, contentType };
+    return readResponseBuffer(response, maxBytes);
   } finally {
     clearTimeout(timer);
   }
