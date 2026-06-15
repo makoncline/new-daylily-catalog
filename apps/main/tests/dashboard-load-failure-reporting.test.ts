@@ -17,8 +17,28 @@ afterEach(() => {
 });
 
 describe("dashboard load failure reporting", () => {
-  it("does not throw when Sentry and Telegram reporting fail", () => {
+  it("does not send Telegram reports outside production", () => {
     vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const fetchMock = vi.fn<typeof fetch>();
+    vi.stubGlobal("fetch", fetchMock);
+
+    reportDashboardLoadFailure({
+      error: new Error("bootstrap failed"),
+      userId: "user-1",
+      phase: "cold-bootstrap",
+      startedAt: new Date("2026-04-28T00:00:00.000Z"),
+      failedAt: new Date("2026-04-28T00:00:05.000Z"),
+      elapsedMs: 5000,
+      bootstrapActive: true,
+    });
+
+    expect(reportError).toHaveBeenCalled();
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("does not throw when Sentry and production Telegram reporting fail", () => {
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    vi.stubEnv("NODE_ENV", "production");
     const fetchMock = vi.fn<typeof fetch>(async () => {
       throw new Error("telegram unavailable");
     });
