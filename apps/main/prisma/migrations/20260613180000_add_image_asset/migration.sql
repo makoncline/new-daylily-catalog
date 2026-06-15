@@ -17,6 +17,11 @@ CREATE TABLE "ImageAsset" (
     "updatedAt" DATETIME NOT NULL,
     "userProfileId" TEXT,
     "listingId" TEXT,
+    CHECK (
+      ("kind" = 'listing' AND "listingId" IS NOT NULL AND "userProfileId" IS NULL)
+      OR
+      ("kind" = 'profile' AND "userProfileId" IS NOT NULL AND "listingId" IS NULL)
+    ),
     CONSTRAINT "ImageAsset_userProfileId_fkey" FOREIGN KEY ("userProfileId") REFERENCES "UserProfile" ("id") ON DELETE CASCADE ON UPDATE CASCADE,
     CONSTRAINT "ImageAsset_listingId_fkey" FOREIGN KEY ("listingId") REFERENCES "Listing" ("id") ON DELETE CASCADE ON UPDATE CASCADE
 );
@@ -29,4 +34,3 @@ CREATE INDEX "ImageAsset_userProfileId_idx" ON "ImageAsset"("userProfileId");
 
 -- CreateIndex
 CREATE INDEX "ImageAsset_listingId_idx" ON "ImageAsset"("listingId");
-
