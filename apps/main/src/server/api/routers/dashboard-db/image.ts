@@ -174,6 +174,38 @@ function getValidatedImageUrlFromUrl(args: {
   return getValidatedImageUrl({ ...args, key });
 }
 
+function assertR2OriginalKeyMatchesTarget(args: {
+  type: z.infer<typeof imageTypeSchema>;
+  referenceId: string;
+  userId: string;
+  imageAssetId: string;
+  key: string;
+  requireVersion?: boolean;
+}) {
+  if (!areImageAssetUploadsConfigured()) {
+    throw new TRPCError({
+      code: "BAD_REQUEST",
+      message: "Image asset upload metadata is invalid",
+    });
+  }
+
+  const isExpectedKey = isExpectedOriginalImageAssetKey({
+    kind: args.type,
+    userId: args.userId,
+    listingId: args.type === "listing" ? args.referenceId : null,
+    imageAssetId: args.imageAssetId,
+    key: args.key,
+    requireVersion: args.requireVersion,
+  });
+
+  if (!isExpectedKey) {
+    throw new TRPCError({
+      code: "BAD_REQUEST",
+      message: "Image asset upload metadata is invalid",
+    });
+  }
+}
+
 async function getDashboardImagesByListingIds(args: {
   db: DbClient;
   userId: string;
@@ -485,27 +517,20 @@ export const dashboardDbImageRouter = createTRPCRouter({
       }
 
       if (input.r2OriginalKey) {
-        if (!input.imageId || !areImageAssetUploadsConfigured()) {
+        if (!input.imageId) {
           throw new TRPCError({
             code: "BAD_REQUEST",
             message: "Image asset upload metadata is invalid",
           });
         }
 
-        const isExpectedKey = isExpectedOriginalImageAssetKey({
-          kind: input.type,
+        assertR2OriginalKeyMatchesTarget({
+          type: input.type,
+          referenceId: input.referenceId,
           userId: ctx.user.id,
-          listingId: input.type === "listing" ? input.referenceId : null,
           imageAssetId: input.imageId,
           key: input.r2OriginalKey,
         });
-
-        if (!isExpectedKey) {
-          throw new TRPCError({
-            code: "BAD_REQUEST",
-            message: "Image asset upload metadata is invalid",
-          });
-        }
       }
 
       const image = await ctx.db.$transaction(async (tx) => {
@@ -602,28 +627,14 @@ export const dashboardDbImageRouter = createTRPCRouter({
       });
 
       if (input.r2OriginalKey) {
-        if (!areImageAssetUploadsConfigured()) {
-          throw new TRPCError({
-            code: "BAD_REQUEST",
-            message: "Image asset upload metadata is invalid",
-          });
-        }
-
-        const isExpectedKey = isExpectedOriginalImageAssetKey({
-          kind: input.type,
+        assertR2OriginalKeyMatchesTarget({
+          type: input.type,
+          referenceId: input.referenceId,
           userId: ctx.user.id,
-          listingId: input.type === "listing" ? input.referenceId : null,
           imageAssetId: input.imageId,
           key: input.r2OriginalKey,
           requireVersion: true,
         });
-
-        if (!isExpectedKey) {
-          throw new TRPCError({
-            code: "BAD_REQUEST",
-            message: "Image asset upload metadata is invalid",
-          });
-        }
       }
 
       const image = await ctx.db.$transaction(async (tx) => {
