@@ -103,12 +103,6 @@ function ownerWhere(type: ImageType, referenceId: string) {
     : { userProfileId: referenceId };
 }
 
-function ownerReset(type: ImageType, referenceId: string) {
-  return type === "listing"
-    ? { listingId: referenceId, userProfileId: null }
-    : { listingId: null, userProfileId: referenceId };
-}
-
 function listingIdForImageAsset(type: ImageType, referenceId: string) {
   return type === "listing" ? referenceId : null;
 }
@@ -198,7 +192,6 @@ function assertR2OriginalKeyMatchesTarget(args: {
   userId: string;
   imageAssetId: string;
   key: string;
-  requireVersion?: boolean;
 }) {
   const isExpectedKey = isExpectedOriginalImageAssetKey({
     kind: args.type,
@@ -206,7 +199,6 @@ function assertR2OriginalKeyMatchesTarget(args: {
     listingId: listingIdForImageAsset(args.type, args.referenceId),
     imageAssetId: args.imageAssetId,
     key: args.key,
-    requireVersion: args.requireVersion,
   });
 
   if (!isExpectedKey) {
@@ -278,7 +270,6 @@ export const dashboardDbImageRouter = createTRPCRouter({
         contentType: imageContentTypeSchema,
         size: z.number().int().positive().max(APP_CONFIG.UPLOAD.MAX_FILE_SIZE),
         referenceId: z.string(),
-        imageId: z.string().optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
@@ -308,18 +299,14 @@ export const dashboardDbImageRouter = createTRPCRouter({
       });
 
       const ext = imageExtensionByContentType[input.contentType];
-      const imageId = input.imageId ?? crypto.randomUUID();
+      const imageId = crypto.randomUUID();
       const fileId = crypto.randomBytes(16).toString("hex");
       const key = `${ctx.user.id}/${input.referenceId}/${fileId}${ext}`;
-      const r2VersionId = input.imageId
-        ? crypto.randomBytes(6).toString("hex")
-        : null;
       const r2 = await getR2OriginalUploadMetadata({
         kind: input.type,
         userId: ctx.user.id,
         listingId: listingIdForImageAsset(input.type, input.referenceId),
         imageAssetId: imageId,
-        versionId: r2VersionId,
         contentType: input.contentType,
       });
 
@@ -544,7 +531,6 @@ export const dashboardDbImageRouter = createTRPCRouter({
         referenceId: z.string(),
         imageId: z.string(),
         url: z.url(),
-        r2OriginalKey: z.string().min(1).optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
@@ -589,17 +575,6 @@ export const dashboardDbImageRouter = createTRPCRouter({
         userId: ctx.user.id,
       });
 
-      if (input.r2OriginalKey) {
-        assertR2OriginalKeyMatchesTarget({
-          type: input.type,
-          referenceId: input.referenceId,
-          userId: ctx.user.id,
-          imageAssetId: input.imageId,
-          key: input.r2OriginalKey,
-          requireVersion: true,
-        });
-      }
-
       const image = await ctx.db.$transaction(async (tx) => {
         const updated = await tx.image.update({
           where: { id: input.imageId },
@@ -607,39 +582,9 @@ export const dashboardDbImageRouter = createTRPCRouter({
           select: imageSelect,
         });
 
-        if (input.r2OriginalKey) {
-          await tx.imageAsset.upsert({
-            where: { legacyImageId: input.imageId },
-            create: {
-              id: input.imageId,
-              legacyImageId: input.imageId,
-              kind: input.type,
-              order: updated.order,
-              status: "pending_variants",
-              originalKey: input.r2OriginalKey,
-              originalUrl: buildR2PublicUrl(input.r2OriginalKey),
-              ...ownerWhere(input.type, input.referenceId),
-            },
-            update: {
-              kind: input.type,
-              order: updated.order,
-              status: "pending_variants",
-              originalKey: input.r2OriginalKey,
-              originalUrl: buildR2PublicUrl(input.r2OriginalKey),
-              displayKey: null,
-              displayUrl: null,
-              thumbKey: null,
-              thumbUrl: null,
-              blurKey: null,
-              blurUrl: null,
-              ...ownerReset(input.type, input.referenceId),
-            },
-          });
-        } else {
-          await tx.imageAsset.deleteMany({
-            where: { legacyImageId: input.imageId },
-          });
-        }
+        await tx.imageAsset.deleteMany({
+          where: { legacyImageId: input.imageId },
+        });
 
         return updated;
       });

@@ -37,8 +37,6 @@ interface UseOnboardingSaveFlowArgs {
     url: string;
   }) => Promise<{ id: string } | void>;
   defaultStarterImageUrl: string | null;
-  earliestPersistedListingImageId: string | null;
-  earliestPersistedProfileImageId: string | null;
   ensureListingDraftRecord: () => Promise<string>;
   fetchImageBlobFromUrl: (imageUrl: string) => Promise<Blob>;
   focusListingField: (field: ListingOnboardingField) => void;
@@ -65,13 +63,6 @@ interface UseOnboardingSaveFlowArgs {
   setProfileDraft: Dispatch<SetStateAction<ProfileOnboardingDraft>>;
   setSelectedListingImageId: Dispatch<SetStateAction<string | null>>;
   setSelectedListingImageUrl: Dispatch<SetStateAction<string | null>>;
-  updateImageRecord: (args: {
-    imageId: string;
-    referenceId: string;
-    r2OriginalKey?: string;
-    type: "listing" | "profile";
-    url: string;
-  }) => Promise<{ id: string }>;
   updateListing: (args: {
     data: {
       description: string;
@@ -90,7 +81,6 @@ interface UseOnboardingSaveFlowArgs {
   }) => Promise<unknown>;
   uploadImageBlob: (args: {
     blob: Blob;
-    imageId?: string;
     referenceId: string;
     type: "listing" | "profile";
   }) => Promise<UploadedImage>;
@@ -104,8 +94,6 @@ export function useOnboardingSaveFlow({
   clearPendingStarterImage,
   createImageRecord,
   defaultStarterImageUrl,
-  earliestPersistedListingImageId,
-  earliestPersistedProfileImageId,
   ensureListingDraftRecord,
   fetchImageBlobFromUrl,
   focusListingField,
@@ -128,7 +116,6 @@ export function useOnboardingSaveFlow({
   setProfileDraft,
   setSelectedListingImageId,
   setSelectedListingImageUrl,
-  updateImageRecord,
   updateListing,
   updateProfile,
   uploadImageBlob,
@@ -157,7 +144,6 @@ export function useOnboardingSaveFlow({
       if (pendingProfileUploadBlob) {
         const nextUploadedProfileImage = await uploadImageBlob({
           blob: pendingProfileUploadBlob,
-          imageId: earliestPersistedProfileImageId ?? undefined,
           type: "profile",
           referenceId: profileId,
         });
@@ -186,7 +172,6 @@ export function useOnboardingSaveFlow({
 
           uploadedProfileImage = await uploadImageBlob({
             blob: starterBlobToUpload,
-            imageId: earliestPersistedProfileImageId ?? undefined,
             type: "profile",
             referenceId: profileId,
           });
@@ -221,24 +206,14 @@ export function useOnboardingSaveFlow({
 
       if (uploadedProfileImage) {
         try {
-          if (earliestPersistedProfileImageId) {
-            await updateImageRecord({
-              type: "profile",
-              referenceId: profileId,
-              imageId: earliestPersistedProfileImageId,
-              url: uploadedProfileImage.url,
-              r2OriginalKey: uploadedProfileImage.r2OriginalKey,
-            });
-          } else {
-            await createImageRecord({
-              type: "profile",
-              referenceId: profileId,
-              imageId: uploadedProfileImage.imageId,
-              url: uploadedProfileImage.url,
-              key: uploadedProfileImage.key,
-              r2OriginalKey: uploadedProfileImage.r2OriginalKey,
-            });
-          }
+          await createImageRecord({
+            type: "profile",
+            referenceId: profileId,
+            imageId: uploadedProfileImage.imageId,
+            url: uploadedProfileImage.url,
+            key: uploadedProfileImage.key,
+            r2OriginalKey: uploadedProfileImage.r2OriginalKey,
+          });
         } catch (error) {
           console.error(
             "Failed to save onboarding profile image record.",
@@ -270,7 +245,6 @@ export function useOnboardingSaveFlow({
     clearPendingStarterImage,
     createImageRecord,
     defaultStarterImageUrl,
-    earliestPersistedProfileImageId,
     fetchImageBlobFromUrl,
     focusProfileField,
     invalidateProfileData,
@@ -282,7 +256,6 @@ export function useOnboardingSaveFlow({
     profileMissingField,
     selectedStarterImageUrl,
     setProfileDraft,
-    updateImageRecord,
     updateProfile,
     uploadImageBlob,
     useExistingProfileImage,
@@ -327,7 +300,6 @@ export function useOnboardingSaveFlow({
       if (pendingListingUploadBlob) {
         uploadedListingImage = await uploadImageBlob({
           blob: pendingListingUploadBlob,
-          imageId: earliestPersistedListingImageId ?? undefined,
           type: "listing",
           referenceId: listingId,
         });
@@ -345,27 +317,16 @@ export function useOnboardingSaveFlow({
         shouldPersistUploadedListingImage &&
         listingImageKeyToSave
       ) {
-        if (earliestPersistedListingImageId) {
-          const updatedImage = await updateImageRecord({
-            type: "listing",
-            referenceId: listingId,
-            imageId: earliestPersistedListingImageId,
-            url: listingImageToSave,
-            r2OriginalKey: uploadedListingImage.r2OriginalKey,
-          });
-          setSelectedListingImageId(updatedImage.id);
-        } else {
-          const createdImage = await createImageRecord({
-            type: "listing",
-            referenceId: listingId,
-            imageId: uploadedListingImage.imageId,
-            url: listingImageToSave,
-            key: listingImageKeyToSave,
-            r2OriginalKey: uploadedListingImage.r2OriginalKey,
-          });
-          if (createdImage?.id) {
-            setSelectedListingImageId(createdImage.id);
-          }
+        const createdImage = await createImageRecord({
+          type: "listing",
+          referenceId: listingId,
+          imageId: uploadedListingImage.imageId,
+          url: listingImageToSave,
+          key: listingImageKeyToSave,
+          r2OriginalKey: uploadedListingImage.r2OriginalKey,
+        });
+        if (createdImage?.id) {
+          setSelectedListingImageId(createdImage.id);
         }
       }
 
@@ -391,7 +352,6 @@ export function useOnboardingSaveFlow({
   }, [
     clearPendingListingUpload,
     createImageRecord,
-    earliestPersistedListingImageId,
     ensureListingDraftRecord,
     focusListingField,
     invalidateListingData,
@@ -403,7 +363,6 @@ export function useOnboardingSaveFlow({
     selectedListingImageUrl,
     setSelectedListingImageId,
     setSelectedListingImageUrl,
-    updateImageRecord,
     updateListing,
     uploadImageBlob,
   ]);

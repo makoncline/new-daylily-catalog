@@ -157,73 +157,15 @@ describe("dashboard image asset mutations", () => {
     });
   });
 
-  it("resets variant URLs when replacing an image through R2", async () => {
+  it("deletes stale ImageAsset rows when a legacy image update occurs", async () => {
     const updatedImage = createImageRow({
-      url: `https://${process.env.AWS_BUCKET_NAME}.s3.${process.env.AWS_REGION}.amazonaws.com/user-1/listing-1/replacement.jpg`,
+      url: `https://${process.env.AWS_BUCKET_NAME}.s3.${process.env.AWS_REGION}.amazonaws.com/user-1/listing-1/changed.jpg`,
     });
     const tx = {
       image: {
         update: vi.fn().mockResolvedValue(updatedImage),
       },
       imageAsset: {
-        upsert: vi.fn().mockResolvedValue(undefined),
-      },
-    };
-    const db = {
-      $transaction: vi.fn(async (callback: (txArg: typeof tx) => unknown) =>
-        callback(tx),
-      ),
-      image: {
-        findUnique: vi.fn().mockResolvedValue({
-          id: "image-1",
-          listingId: "listing-1",
-          userProfileId: null,
-        }),
-      },
-      listing: {
-        findFirst: vi.fn().mockResolvedValue({ id: "listing-1" }),
-      },
-    };
-
-    await createCaller(db).update({
-      type: "listing",
-      referenceId: "listing-1",
-      imageId: "image-1",
-      url: `https://${process.env.AWS_BUCKET_NAME}.s3.${process.env.AWS_REGION}.amazonaws.com/user-1/listing-1/replacement.jpg`,
-      r2OriginalKey:
-        "users/user-1/listing-images/listing-1/image-1/versions/a1b2c3d4e5f6/original.jpg",
-    });
-
-    expect(tx.imageAsset.upsert).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: { legacyImageId: "image-1" },
-        update: expect.objectContaining({
-          displayKey: null,
-          displayUrl: null,
-          thumbKey: null,
-          thumbUrl: null,
-          blurKey: null,
-          blurUrl: null,
-          originalKey:
-            "users/user-1/listing-images/listing-1/image-1/versions/a1b2c3d4e5f6/original.jpg",
-          originalUrl:
-            "https://media.daylilycatalog.com/users/user-1/listing-images/listing-1/image-1/versions/a1b2c3d4e5f6/original.jpg",
-          status: "pending_variants",
-        }),
-      }),
-    );
-  });
-
-  it("deletes stale ImageAsset rows when a legacy replacement omits R2 metadata", async () => {
-    const updatedImage = createImageRow({
-      url: `https://${process.env.AWS_BUCKET_NAME}.s3.${process.env.AWS_REGION}.amazonaws.com/user-1/listing-1/replacement.jpg`,
-    });
-    const tx = {
-      image: {
-        update: vi.fn().mockResolvedValue(updatedImage),
-      },
-      imageAsset: {
-        upsert: vi.fn().mockResolvedValue(undefined),
         deleteMany: vi.fn().mockResolvedValue({ count: 1 }),
       },
     };
@@ -247,11 +189,10 @@ describe("dashboard image asset mutations", () => {
       type: "listing",
       referenceId: "listing-1",
       imageId: "image-1",
-      url: `https://${process.env.AWS_BUCKET_NAME}.s3.${process.env.AWS_REGION}.amazonaws.com/user-1/listing-1/replacement.jpg`,
+      url: `https://${process.env.AWS_BUCKET_NAME}.s3.${process.env.AWS_REGION}.amazonaws.com/user-1/listing-1/changed.jpg`,
     });
 
     expect(tx.image.update).toHaveBeenCalled();
-    expect(tx.imageAsset.upsert).not.toHaveBeenCalled();
     expect(tx.imageAsset.deleteMany).toHaveBeenCalledWith({
       where: { legacyImageId: "image-1" },
     });

@@ -299,7 +299,6 @@ function useStartOnboardingController({
   const getImagePresignedUrlMutation =
     api.dashboardDb.image.getPresignedUrl.useMutation();
   const createImageMutation = api.dashboardDb.image.create.useMutation();
-  const updateImageMutation = api.dashboardDb.image.update.useMutation();
   const createListingMutation = api.dashboardDb.listing.create.useMutation();
   const updateListingMutation = api.dashboardDb.listing.update.useMutation();
   const linkAhsMutation = api.dashboardDb.listing.linkAhs.useMutation();
@@ -587,8 +586,6 @@ function useStartOnboardingController({
     clearPendingStarterImage,
     createImageRecord: createImageMutation.mutateAsync,
     defaultStarterImageUrl: DEFAULT_STARTER_IMAGE_URL,
-    earliestPersistedListingImageId: earliestPersistedListingImage?.id ?? null,
-    earliestPersistedProfileImageId: earliestPersistedProfileImage?.id ?? null,
     ensureListingDraftRecord,
     fetchImageBlobFromUrl,
     focusListingField,
@@ -619,15 +616,13 @@ function useStartOnboardingController({
     setProfileDraft,
     setSelectedListingImageId,
     setSelectedListingImageUrl,
-    updateImageRecord: updateImageMutation.mutateAsync,
     updateListing: updateListingMutation.mutateAsync,
     updateProfile: updateProfileMutation.mutateAsync,
-    uploadImageBlob: ({ blob, imageId, referenceId, type }) =>
+    uploadImageBlob: ({ blob, referenceId, type }) =>
       uploadOnboardingImageBlob({
         blob,
         type,
         referenceId,
-        imageId,
         getPresignedUrl: getImagePresignedUrlMutation.mutateAsync,
       }),
     useExistingProfileImage,
@@ -1262,13 +1257,11 @@ async function generateStarterImageWithGardenName({
 
 async function uploadOnboardingImageBlob({
   blob,
-  imageId: existingImageId,
   type,
   referenceId,
   getPresignedUrl,
 }: {
   blob: Blob;
-  imageId?: string;
   type: "profile" | "listing";
   referenceId: string;
   getPresignedUrl: (input: {
@@ -1276,7 +1269,6 @@ async function uploadOnboardingImageBlob({
     contentType: ImageContentType;
     size: number;
     referenceId: string;
-    imageId?: string;
   }) => Promise<{
     imageId: string;
     presignedUrl: string;
@@ -1305,7 +1297,6 @@ async function uploadOnboardingImageBlob({
     contentType,
     size: blob.size,
     referenceId,
-    imageId: existingImageId,
   });
 
   let r2OriginalKey: string | undefined;

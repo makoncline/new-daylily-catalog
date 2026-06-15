@@ -60,8 +60,6 @@ function renderSaveFlow({
       clearPendingStarterImage: vi.fn(),
       createImageRecord: vi.fn().mockResolvedValue(undefined),
       defaultStarterImageUrl: "/starter.jpg",
-      earliestPersistedListingImageId: null,
-      earliestPersistedProfileImageId: null,
       ensureListingDraftRecord: vi.fn().mockResolvedValue("listing-1"),
       fetchImageBlobFromUrl: vi.fn(),
       focusListingField: vi.fn(),
@@ -84,7 +82,6 @@ function renderSaveFlow({
       setProfileDraft,
       setSelectedListingImageId,
       setSelectedListingImageUrl,
-      updateImageRecord: vi.fn().mockResolvedValue({ id: "updated-image-1" }),
       updateListing: vi.fn().mockResolvedValue(undefined),
       updateProfile: vi.fn().mockResolvedValue(undefined),
       uploadImageBlob: vi.fn().mockResolvedValue({
