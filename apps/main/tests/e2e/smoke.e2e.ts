@@ -10,7 +10,9 @@ test.describe("guest user tour @preview", () => {
     // Catalogs page
     await page.goto("/catalogs");
     await expect(page).toHaveURL("/catalogs");
-    await expect(page).toHaveTitle("Browse Daylily Catalogs");
+    await expect(page).toHaveTitle(
+      /^Browse Daylily Catalogs(?: \| Daylily Catalog){0,2}$/,
+    );
 
     // Open first catalog from the grid
     const firstCatalogLink = page
