@@ -170,22 +170,6 @@ function getValidatedImageUrl(args: {
   return getS3ImageUrl(args.key);
 }
 
-function getValidatedImageUrlFromUrl(args: {
-  referenceId: string;
-  url: string;
-  userId: string;
-}) {
-  const key = parseS3ImageKey(args.url);
-  if (!key) {
-    throw new TRPCError({
-      code: "BAD_REQUEST",
-      message: "Invalid image upload URL",
-    });
-  }
-
-  return getValidatedImageUrl({ ...args, key });
-}
-
 function assertR2OriginalKeyMatchesTarget(args: {
   type: ImageType;
   referenceId: string;
@@ -514,79 +498,6 @@ export const dashboardDbImageRouter = createTRPCRouter({
         }
 
         return created;
-      });
-
-      const [resolved] = await resolveDashboardImageRows({
-        db: ctx.db,
-        rows: [image],
-      });
-
-      return resolved ?? image;
-    }),
-
-  update: protectedProcedure
-    .input(
-      z.object({
-        type: imageTypeSchema,
-        referenceId: z.string(),
-        imageId: z.string(),
-        url: z.url(),
-      }),
-    )
-    .mutation(async ({ ctx, input }) => {
-      if (input.type === "listing") {
-        await assertOwnedListing({
-          db: ctx.db,
-          listingId: input.referenceId,
-          userId: ctx.user.id,
-        });
-      } else {
-        await assertOwnedProfile({
-          db: ctx.db,
-          userId: ctx.user.id,
-          userProfileId: input.referenceId,
-        });
-      }
-
-      const existing = await ctx.db.image.findUnique({
-        where: { id: input.imageId },
-        select: {
-          id: true,
-          listingId: true,
-          userProfileId: true,
-        },
-      });
-
-      const belongsToTarget =
-        input.type === "listing"
-          ? existing?.listingId === input.referenceId
-          : existing?.userProfileId === input.referenceId;
-
-      if (!existing || !belongsToTarget) {
-        throw new TRPCError({
-          code: "NOT_FOUND",
-          message: "Image not found",
-        });
-      }
-
-      const imageUrl = getValidatedImageUrlFromUrl({
-        referenceId: input.referenceId,
-        url: input.url,
-        userId: ctx.user.id,
-      });
-
-      const image = await ctx.db.$transaction(async (tx) => {
-        const updated = await tx.image.update({
-          where: { id: input.imageId },
-          data: { url: imageUrl },
-          select: imageSelect,
-        });
-
-        await tx.imageAsset.deleteMany({
-          where: { legacyImageId: input.imageId },
-        });
-
-        return updated;
       });
 
       const [resolved] = await resolveDashboardImageRows({

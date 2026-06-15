@@ -157,44 +157,4 @@ describe("dashboard image asset mutations", () => {
     });
   });
 
-  it("deletes stale ImageAsset rows when a legacy image update occurs", async () => {
-    const updatedImage = createImageRow({
-      url: `https://${process.env.AWS_BUCKET_NAME}.s3.${process.env.AWS_REGION}.amazonaws.com/user-1/listing-1/changed.jpg`,
-    });
-    const tx = {
-      image: {
-        update: vi.fn().mockResolvedValue(updatedImage),
-      },
-      imageAsset: {
-        deleteMany: vi.fn().mockResolvedValue({ count: 1 }),
-      },
-    };
-    const db = {
-      $transaction: vi.fn(async (callback: (txArg: typeof tx) => unknown) =>
-        callback(tx),
-      ),
-      image: {
-        findUnique: vi.fn().mockResolvedValue({
-          id: "image-1",
-          listingId: "listing-1",
-          userProfileId: null,
-        }),
-      },
-      listing: {
-        findFirst: vi.fn().mockResolvedValue({ id: "listing-1" }),
-      },
-    };
-
-    await createCaller(db).update({
-      type: "listing",
-      referenceId: "listing-1",
-      imageId: "image-1",
-      url: `https://${process.env.AWS_BUCKET_NAME}.s3.${process.env.AWS_REGION}.amazonaws.com/user-1/listing-1/changed.jpg`,
-    });
-
-    expect(tx.image.update).toHaveBeenCalled();
-    expect(tx.imageAsset.deleteMany).toHaveBeenCalledWith({
-      where: { legacyImageId: "image-1" },
-    });
-  });
 });
