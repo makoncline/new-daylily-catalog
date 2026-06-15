@@ -1,13 +1,15 @@
-import path from "node:path";
 import { PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { env, requireEnv } from "@/env";
-import type { ImageContentType, ImageType } from "@/types/image";
+import {
+  imageExtensionByContentType,
+  type ImageContentType,
+  type ImageType,
+} from "@/types/image";
 
 export const IMAGE_ASSET_VARIANT_CACHE_CONTROL =
   "public, max-age=31536000, immutable";
 const IMAGE_ASSET_VERSION_ID_PATTERN = /^[a-f0-9]{12,32}$/;
-const SAFE_IMAGE_EXTENSIONS = new Set([".jpg", ".jpeg", ".png", ".webp"]);
 const ORIGINAL_IMAGE_ASSET_FILE_PATTERN = "original\\.(?:jpe?g|png|webp)";
 const ORIGINAL_IMAGE_ASSET_KEY_PATTERN = new RegExp(
   `^(?:versions/[a-f0-9]{12,32}/)?${ORIGINAL_IMAGE_ASSET_FILE_PATTERN}$`,
@@ -22,10 +24,6 @@ export interface UserImageAssetKeyArgs {
   imageAssetId: string;
   listingId?: string | null;
   versionId?: string | null;
-}
-
-export function areImageAssetsEnabled() {
-  return env.USE_IMAGE_ASSETS === "true";
 }
 
 export function areImageAssetUploadsConfigured() {
@@ -69,23 +67,8 @@ export function buildR2PublicUrl(key: string) {
   return `${publicBaseUrl}/${encodedKey}`;
 }
 
-export function getImageExtension(fileName: string) {
-  const ext = path.extname(fileName).toLowerCase();
-
-  if (SAFE_IMAGE_EXTENSIONS.has(ext)) {
-    return ext;
-  }
-
-  throw new Error("ImageAsset original file extension is not supported.");
-}
-
 export function assertCanonicalImageAssetKey(key: string) {
-  if (
-    !key ||
-    key.startsWith("/") ||
-    key.includes("\\") ||
-    key.includes("//")
-  ) {
+  if (!key || key.startsWith("/") || key.includes("\\") || key.includes("//")) {
     throw new Error("ImageAsset key must be a canonical relative R2 key.");
   }
 
@@ -126,11 +109,11 @@ function buildVersionedImageAssetBaseKey(args: UserImageAssetKeyArgs) {
 }
 
 export function buildOriginalImageAssetKey(
-  args: UserImageAssetKeyArgs & { fileName: string },
+  args: UserImageAssetKeyArgs & { contentType: ImageContentType },
 ) {
-  return `${buildVersionedImageAssetBaseKey(args)}/original${getImageExtension(
-    args.fileName,
-  )}`;
+  return `${buildVersionedImageAssetBaseKey(args)}/original${
+    imageExtensionByContentType[args.contentType]
+  }`;
 }
 
 export function isExpectedOriginalImageAssetKey(
@@ -178,4 +161,26 @@ export async function getR2PresignedPutUrl(args: {
   });
 
   return getSignedUrl(getR2Client(), command, { expiresIn: 3600 });
+}
+
+export async function getR2OriginalUploadMetadata(args: {
+  kind: ImageType;
+  userId: string;
+  listingId: string | null;
+  imageAssetId: string;
+  versionId: string | null;
+  contentType: ImageContentType;
+}) {
+  if (!areImageAssetUploadsConfigured()) return null;
+
+  const key = buildOriginalImageAssetKey(args);
+
+  return {
+    key,
+    url: buildR2PublicUrl(key),
+    presignedUrl: await getR2PresignedPutUrl({
+      key,
+      contentType: args.contentType,
+    }),
+  };
 }

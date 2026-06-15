@@ -1,13 +1,4 @@
 import { z } from "zod";
-import { type Image } from "@prisma/client";
-
-export interface ImageUploadResponse {
-  success: boolean;
-  error?: string;
-  url: string;
-  key: string;
-  image: Image;
-}
 
 // Zod schemas for validation
 export const imageTypeSchema = z.enum(["listing", "profile"]);
@@ -18,6 +9,12 @@ export const imageContentTypeSchema = z.enum([
   "image/webp",
 ]);
 export type ImageContentType = z.infer<typeof imageContentTypeSchema>;
+
+export const imageExtensionByContentType = {
+  "image/jpeg": ".jpg",
+  "image/png": ".png",
+  "image/webp": ".webp",
+} satisfies Record<ImageContentType, string>;
 
 export function getSupportedImageContentType(
   contentType: string | undefined,

@@ -18,7 +18,7 @@ describe("image asset storage keys", () => {
       userId: "user-1",
       listingId: "listing-1",
       imageAssetId: "image-1",
-      fileName: "daylily.JPG",
+      contentType: "image/jpeg",
     });
 
     expect(key).toBe(
@@ -42,7 +42,7 @@ describe("image asset storage keys", () => {
       userId: "user-1",
       imageAssetId: "image-1",
       versionId,
-      fileName: "profile.png",
+      contentType: "image/png",
     });
 
     expect(key).toBe(
@@ -100,7 +100,7 @@ describe("image asset storage keys", () => {
         userId: "user-1",
         imageAssetId: "image-1",
         versionId: "not-a-version-id",
-        fileName: "profile.png",
+        contentType: "image/png",
       }),
     ).toThrow("versionId must be 12 to 32 lowercase hex characters.");
   });
@@ -117,14 +117,14 @@ describe("image asset storage keys", () => {
     ).toThrow("ImageAsset key must be a canonical relative R2 key.");
   });
 
-  it("rejects unsupported public original extensions", () => {
-    expect(() =>
+  it("derives original key extensions from validated content type", () => {
+    expect(
       storage.buildOriginalImageAssetKey({
         kind: "profile",
         userId: "user-1",
         imageAssetId: "image-1",
-        fileName: "profile.svg",
+        contentType: "image/webp",
       }),
-    ).toThrow("ImageAsset original file extension is not supported.");
+    ).toBe("users/user-1/profile-images/image-1/original.webp");
   });
 });
