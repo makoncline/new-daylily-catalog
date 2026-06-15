@@ -673,6 +673,10 @@ export const dashboardDbImageRouter = createTRPCRouter({
                 : { listingId: null, userProfileId: input.referenceId }),
             },
           });
+        } else {
+          await tx.imageAsset.deleteMany({
+            where: { legacyImageId: input.imageId },
+          });
         }
 
         return updated;

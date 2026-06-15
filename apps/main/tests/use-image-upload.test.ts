@@ -150,6 +150,73 @@ describe("useImageUpload", () => {
     });
   });
 
+  it("continues with legacy upload when R2 upload fails", async () => {
+    const uploadedImage = {
+      id: "img-1",
+      url: "https://example.com/images/img-1.jpg",
+    };
+
+    getPresignedUrlMutateAsyncMock.mockResolvedValue({
+      imageId: "img-1",
+      presignedUrl: "https://upload-url.example",
+      key: "abc123.jpg",
+      url: uploadedImage.url,
+      r2: {
+        presignedUrl: "https://r2-upload-url.example",
+        key: "users/user-1/listing-images/listing-1/img-1/original.jpg",
+        url: "https://media.daylilycatalog.com/users/user-1/listing-images/listing-1/img-1/original.jpg",
+      },
+    });
+    uploadFileWithProgressMock
+      .mockRejectedValueOnce(new Error("R2 unavailable"))
+      .mockResolvedValueOnce(undefined);
+    createImageMock.mockResolvedValue(uploadedImage);
+
+    const { result } = renderHook(() =>
+      useImageUpload({
+        type: "listing",
+        referenceId: "listing-1",
+      }),
+    );
+
+    const file = new Blob(["image-bytes"], { type: "image/jpeg" });
+
+    let returned: unknown;
+    await act(async () => {
+      returned = await result.current.upload(file);
+    });
+
+    expect(uploadFileWithProgressMock).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({
+        presignedUrl: "https://r2-upload-url.example",
+      }),
+    );
+    expect(uploadFileWithProgressMock).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        presignedUrl: "https://upload-url.example",
+      }),
+    );
+    expect(createImageMock).toHaveBeenCalledWith({
+      type: "listing",
+      referenceId: "listing-1",
+      url: uploadedImage.url,
+      key: "abc123.jpg",
+    });
+    expect(reportErrorMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        level: "warning",
+        context: expect.objectContaining({
+          source: "useImageUpload",
+          step: "r2-upload",
+        }),
+      }),
+    );
+    expect(toastErrorMock).not.toHaveBeenCalled();
+    expect(returned).toEqual(uploadedImage);
+  });
+
   it("uses a supported signed content type for untyped blobs", async () => {
     const uploadedImage = {
       id: "img-1",

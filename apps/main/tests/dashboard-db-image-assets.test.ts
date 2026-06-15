@@ -128,7 +128,8 @@ describe("dashboard image asset mutations", () => {
       imageId: "image-1",
       key,
       url,
-      r2OriginalKey: "users/user-1/listing-images/listing-1/image-1/original.jpg",
+      r2OriginalKey:
+        "users/user-1/listing-images/listing-1/image-1/original.jpg",
     });
 
     expect(tx.image.create).toHaveBeenCalledWith(
@@ -145,7 +146,8 @@ describe("dashboard image asset mutations", () => {
         id: "image-1",
         legacyImageId: "image-1",
         listingId: "listing-1",
-        originalKey: "users/user-1/listing-images/listing-1/image-1/original.jpg",
+        originalKey:
+          "users/user-1/listing-images/listing-1/image-1/original.jpg",
         originalUrl:
           "https://media.daylilycatalog.com/users/user-1/listing-images/listing-1/image-1/original.jpg",
         status: "pending_variants",
@@ -237,7 +239,7 @@ describe("dashboard image asset mutations", () => {
     );
   });
 
-  it("preserves ImageAsset rows when a legacy replacement omits R2 metadata", async () => {
+  it("deletes stale ImageAsset rows when a legacy replacement omits R2 metadata", async () => {
     const updatedImage = createImageRow({
       url: `https://${process.env.AWS_BUCKET_NAME}.s3.${process.env.AWS_REGION}.amazonaws.com/user-1/listing-1/replacement.jpg`,
     });
@@ -247,6 +249,7 @@ describe("dashboard image asset mutations", () => {
       },
       imageAsset: {
         upsert: vi.fn().mockResolvedValue(undefined),
+        deleteMany: vi.fn().mockResolvedValue({ count: 1 }),
       },
     };
     const db = {
@@ -274,5 +277,8 @@ describe("dashboard image asset mutations", () => {
 
     expect(tx.image.update).toHaveBeenCalled();
     expect(tx.imageAsset.upsert).not.toHaveBeenCalled();
+    expect(tx.imageAsset.deleteMany).toHaveBeenCalledWith({
+      where: { legacyImageId: "image-1" },
+    });
   });
 });

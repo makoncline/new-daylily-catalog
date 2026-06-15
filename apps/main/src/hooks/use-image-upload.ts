@@ -89,13 +89,28 @@ export function useImageUpload({
           });
 
         step = "upload";
+        let r2OriginalKey: string | undefined;
         if (r2) {
-          await uploadFileWithProgress({
-            presignedUrl: r2.presignedUrl,
-            contentType,
-            file,
-            onProgress: (value) => setProgress(Math.floor(value / 2)),
-          });
+          try {
+            await uploadFileWithProgress({
+              presignedUrl: r2.presignedUrl,
+              contentType,
+              file,
+              onProgress: (value) => setProgress(Math.floor(value / 2)),
+            });
+            r2OriginalKey = r2.key;
+          } catch (error) {
+            reportError({
+              error: normalizeError(error),
+              level: "warning",
+              context: {
+                source: "useImageUpload",
+                step: "r2-upload",
+                imageType: type,
+                referenceId,
+              },
+            });
+          }
         }
 
         await uploadFileWithProgress({
@@ -103,7 +118,7 @@ export function useImageUpload({
           contentType,
           file,
           onProgress: (value) =>
-            setProgress(r2 ? 50 + Math.floor(value / 2) : value),
+            setProgress(r2OriginalKey ? 50 + Math.floor(value / 2) : value),
         });
 
         step = "create";
@@ -112,7 +127,7 @@ export function useImageUpload({
           referenceId,
           url,
           key,
-          ...(r2 ? { imageId, r2OriginalKey: r2.key } : {}),
+          ...(r2OriginalKey ? { imageId, r2OriginalKey } : {}),
         });
 
         toast.success("Image uploaded successfully");

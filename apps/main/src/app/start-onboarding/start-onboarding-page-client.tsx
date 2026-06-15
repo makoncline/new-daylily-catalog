@@ -52,6 +52,7 @@ import {
   getSupportedImageContentType,
   type ImageContentType,
 } from "@/types/image";
+import { normalizeError, reportError } from "@/lib/error-utils";
 
 const DEFAULT_STARTER_IMAGE_URL = STARTER_PROFILE_IMAGES[0]?.url ?? null;
 
@@ -1311,13 +1312,28 @@ async function uploadOnboardingImageBlob({
     imageId: existingImageId,
   });
 
+  let r2OriginalKey: string | undefined;
   if (r2) {
-    await uploadFileWithProgress({
-      presignedUrl: r2.presignedUrl,
-      contentType,
-      file: blob,
-      onProgress: () => undefined,
-    });
+    try {
+      await uploadFileWithProgress({
+        presignedUrl: r2.presignedUrl,
+        contentType,
+        file: blob,
+        onProgress: () => undefined,
+      });
+      r2OriginalKey = r2.key;
+    } catch (error) {
+      reportError({
+        error: normalizeError(error),
+        level: "warning",
+        context: {
+          source: "startOnboarding.uploadImageBlob",
+          step: "r2-upload",
+          imageType: type,
+          referenceId,
+        },
+      });
+    }
   }
 
   await uploadFileWithProgress({
@@ -1327,7 +1343,7 @@ async function uploadOnboardingImageBlob({
     onProgress: () => undefined,
   });
 
-  return { imageId: presignedImageId, url, key, r2OriginalKey: r2?.key };
+  return { imageId: presignedImageId, url, key, r2OriginalKey };
 }
 
 async function fetchImageBlobFromUrl(imageUrl: string) {
