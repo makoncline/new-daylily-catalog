@@ -246,10 +246,7 @@ async function resolveDashboardImageRows(args: {
   const imageIds = args.rows.map((row) => row.id);
   const assets = await args.db.imageAsset.findMany({
     where: {
-      OR: [
-        { legacyImageId: { in: imageIds } },
-        { id: { in: imageIds } },
-      ],
+      legacyImageId: { in: imageIds },
     },
     select: {
       id: true,

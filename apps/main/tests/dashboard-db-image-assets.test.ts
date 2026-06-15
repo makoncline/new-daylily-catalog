@@ -190,7 +190,6 @@ describe("dashboard image asset mutations", () => {
       },
       imageAsset: {
         upsert: vi.fn().mockResolvedValue(undefined),
-        deleteMany: vi.fn().mockResolvedValue({ count: 0 }),
       },
     };
     const db = {
@@ -236,7 +235,6 @@ describe("dashboard image asset mutations", () => {
         }),
       }),
     );
-    expect(tx.imageAsset.deleteMany).not.toHaveBeenCalled();
   });
 
   it("preserves ImageAsset rows when a legacy replacement omits R2 metadata", async () => {
@@ -249,7 +247,6 @@ describe("dashboard image asset mutations", () => {
       },
       imageAsset: {
         upsert: vi.fn().mockResolvedValue(undefined),
-        deleteMany: vi.fn().mockResolvedValue({ count: 0 }),
       },
     };
     const db = {
@@ -277,6 +274,5 @@ describe("dashboard image asset mutations", () => {
 
     expect(tx.image.update).toHaveBeenCalled();
     expect(tx.imageAsset.upsert).not.toHaveBeenCalled();
-    expect(tx.imageAsset.deleteMany).not.toHaveBeenCalled();
   });
 });
