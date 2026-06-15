@@ -140,33 +140,20 @@ Planned one-bucket key layout for the initial R2 proof of concept:
 
 ```text
 users/{userId}/profile-images/{imageAssetId}/original.{ext}
-users/{userId}/profile-images/{imageAssetId}/versions/{versionId}/original.{ext}
 users/{userId}/listing-images/{listingId}/{imageAssetId}/original.{ext}
-users/{userId}/listing-images/{listingId}/{imageAssetId}/versions/{versionId}/original.{ext}
 users/{userId}/profile-images/{imageAssetId}/display-800.webp
 users/{userId}/profile-images/{imageAssetId}/thumb-200.webp
 users/{userId}/profile-images/{imageAssetId}/blur-20.webp
-users/{userId}/profile-images/{imageAssetId}/versions/{versionId}/display-800.webp
-users/{userId}/profile-images/{imageAssetId}/versions/{versionId}/thumb-200.webp
-users/{userId}/profile-images/{imageAssetId}/versions/{versionId}/blur-20.webp
 
 users/{userId}/listing-images/{listingId}/{imageAssetId}/display-800.webp
 users/{userId}/listing-images/{listingId}/{imageAssetId}/thumb-200.webp
 users/{userId}/listing-images/{listingId}/{imageAssetId}/blur-20.webp
-users/{userId}/listing-images/{listingId}/{imageAssetId}/versions/{versionId}/display-800.webp
-users/{userId}/listing-images/{listingId}/{imageAssetId}/versions/{versionId}/thumb-200.webp
-users/{userId}/listing-images/{listingId}/{imageAssetId}/versions/{versionId}/blur-20.webp
 
 ```
 
 Use IDs for user-owned paths because user/listing slugs can change. Cultivar
 asset paths can add readable normalized names plus stable IDs when that workflow
 lands.
-
-Replacement uploads for an existing legacy `Image.id` must use the versioned
-path form. Variant keys are derived from the original key, so this avoids
-reusing immutable `display-800.webp`, `thumb-200.webp`, or `blur-20.webp` URLs
-after a user replaces an image.
 
 Originals are public in this initial R2 design, but public app surfaces should
 converge on static variants. The main cost-control rule is: feeds, metadata,
@@ -187,10 +174,8 @@ Cache-Control: public, max-age=31536000, immutable
 Content-Type: image/webp
 ```
 
-The product workflow is create/delete, not in-place replacement. The legacy
-image update endpoint keeps only a small defensive guard for internal callers:
-if an existing `Image` row is pointed at a new legacy URL without R2 metadata,
-delete the matching `ImageAsset` so reads cannot serve a stale R2 URL.
+The product workflow is create/delete, not in-place image replacement. New image
+uploads should create new rows and new R2 keys.
 
 ## Processing
 
@@ -271,8 +256,7 @@ node scripts/image-assets/process-image-asset-variants.mjs --retry-failed --limi
 
 Use `backfill-legacy-images-to-r2.mjs --retry-failed` only for rows already
 marked `backfill_failed`; variant repair belongs to
-`process-image-asset-variants.mjs --retry-failed` so replacement/versioned keys
-are not rewritten to unversioned backfill paths.
+`process-image-asset-variants.mjs --retry-failed`.
 
 Add a scheduled runner later only if failures become common, deploys/restarts
 leave pending rows around too often, or manual recovery becomes operationally
