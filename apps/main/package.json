@@ -28,9 +28,7 @@
     "test:e2e": "playwright test",
     "test:e2e:attach": "BASE_URL=http://localhost:3000 playwright test",
     "profile:queries": "bash scripts/profile-queries-strategic.sh",
-    "db:sync:seed": "bash scripts/sync-seeded-daylily-catalog-from-local.sh",
-    "image-assets:backfill": "node scripts/image-assets/backfill-legacy-images-to-r2.mjs",
-    "image-assets:variants": "node scripts/image-assets/process-image-asset-variants.mjs"
+    "db:sync:seed": "bash scripts/sync-seeded-daylily-catalog-from-local.sh"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.882.0",
