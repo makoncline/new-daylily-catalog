@@ -148,7 +148,7 @@ function NomadsCatalogCard({
       >
         {image?.url ? (
           <OptimizedImage
-            src={image.url}
+            image={image}
             alt={`${gardenName} catalog image`}
             size="full"
             priority={priority}

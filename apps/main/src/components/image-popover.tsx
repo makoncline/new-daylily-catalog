@@ -7,15 +7,14 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
-import { OptimizedImage } from "@/components/optimized-image";
+import {
+  OptimizedImage,
+  type OptimizedImageSource,
+} from "@/components/optimized-image";
 import { cn } from "@/lib/utils";
 
 interface ImagePopoverProps {
-  /**
-   * List of images to display in the popover
-   * Each image should have a url and id
-   */
-  images: Array<{ url: string; id: string }>;
+  images: OptimizedImageSource[];
   /**
    * Optional class name for the trigger button
    */
@@ -71,7 +70,7 @@ export function ImagePopover({
             )}
           >
             <OptimizedImage
-              src={image.url}
+              image={image}
               alt="Image preview"
               size="thumbnail"
               className="h-full w-full object-cover"

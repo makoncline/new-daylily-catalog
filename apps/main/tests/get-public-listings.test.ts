@@ -448,6 +448,7 @@ describe("getPublicListings helpers", () => {
         {
           id: "image-a",
           legacyImageId: "image-a",
+          status: "ready",
           originalUrl:
             "https://media.daylilycatalog.com/users/user-1/listing-images/id-a/image-a/original.jpg",
           displayUrl:
@@ -482,6 +483,9 @@ describe("getPublicListings helpers", () => {
 
     expect(listing.images[0]?.url).toBe(
       "https://media.daylilycatalog.com/users/user-1/listing-images/id-a/image-a/display-800.webp",
+    );
+    expect(listing.images[0]?.imageAsset?.blurUrl).toBe(
+      "https://media.daylilycatalog.com/users/user-1/listing-images/id-a/image-a/blur-20.webp",
     );
   });
 

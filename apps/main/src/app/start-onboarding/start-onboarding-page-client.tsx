@@ -462,7 +462,6 @@ function useStartOnboardingController({
   const selectedCultivarImageUrl =
     selectedCultivarDetailsQuery.data?.ahsImageUrl ?? null;
   const {
-    earliestPersistedListingImage,
     isBuyerContactPreviewHydrating,
     isListingCultivarPlaceholder,
     isListingDescriptionInRecommendedRange,

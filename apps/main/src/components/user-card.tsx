@@ -69,7 +69,7 @@ export function UserCard({
         <Link href={visiblePath} className="block">
           {images[0]?.url ? (
             <OptimizedImage
-              src={images[0].url}
+              image={images[0]}
               alt={`${gardenName} profile image`}
               size="full"
               priority={priority}
@@ -117,10 +117,7 @@ export function UserCard({
         {images.length > 1 && (
           <div className="absolute bottom-2 left-2">
             <ImagePopover
-              images={images.map((img, i) => ({
-                url: img.url,
-                id: `user-image-${i}`,
-              }))}
+              images={images}
               size="sm"
               className="bg-background/80 backdrop-blur-sm"
             />

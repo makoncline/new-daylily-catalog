@@ -63,7 +63,7 @@ export function ListingCard({ listing, priority = false }: ListingCardProps) {
         <div className="aspect-square">
           {firstImage ? (
             <OptimizedImage
-              src={firstImage.url}
+              image={firstImage}
               alt={listing.title}
               size="full"
               priority={priority}
@@ -89,10 +89,7 @@ export function ListingCard({ listing, priority = false }: ListingCardProps) {
         {hasMultipleImages && (
           <div className="absolute bottom-2 left-2">
             <ImagePopover
-              images={listing.images.map((img, i) => ({
-                url: img.url,
-                id: `listing-image-${i}`,
-              }))}
+              images={listing.images}
               size="sm"
               className="hover:bg-secondary backdrop-blur-sm"
             />
