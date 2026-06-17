@@ -30,5 +30,11 @@
     ".next/dev/types/**/*.ts",
     "src/env.js"
   ],
-  "exclude": ["node_modules", "playwright-report", "src/components/ui/**/*"]
+  "exclude": [
+    "node_modules",
+    "downloads",
+    "local",
+    "playwright-report",
+    "src/components/ui/**/*"
+  ]
 }

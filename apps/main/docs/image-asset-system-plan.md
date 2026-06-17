@@ -66,7 +66,7 @@ Do not add cron/systemd scheduling in this PR. The v1 runtime path is:
 
 1. Upload the original.
 2. Create the `ImageAsset` row with `status = "pending_variants"`.
-3. Run `pnpm image-assets:variants` manually to process pending rows.
+3. Run `node scripts/image-assets/process-image-asset-variants.mjs` manually to process pending rows.
 4. Mark success as `ready`; mark failure as `variant_failed`.
 5. Recover failures manually with `--retry-failed`.
 

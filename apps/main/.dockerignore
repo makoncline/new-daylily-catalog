@@ -4,6 +4,8 @@
 .next
 .turbo
 coverage
+downloads
+local
 node_modules
 tests
 docs
@@ -12,6 +14,9 @@ docs
 *.sqlite
 *.sqlite-shm
 *.sqlite-wal
+*.db
+*.db-*
+*.db.bak-*
 .env
 .env.development
 .env.production
