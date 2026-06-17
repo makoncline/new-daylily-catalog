@@ -2,6 +2,7 @@ import "server-only";
 
 import { PutObjectCommand } from "@aws-sdk/client-s3";
 import sharp from "sharp";
+import { APP_CONFIG } from "@/config/constants";
 import { env, requireEnv } from "@/env";
 import type { db as appDb } from "@/server/db";
 import {
@@ -14,7 +15,6 @@ import {
 const DEFAULT_LIMIT = 1;
 const MAX_LIMIT = 25;
 const DEFAULT_TIMEOUT_SECONDS = 60;
-const DEFAULT_MAX_SOURCE_BYTES = 25 * 1024 * 1024;
 
 type DbClient = typeof appDb;
 
@@ -36,87 +36,22 @@ function clampLimit(limit: number | undefined) {
   return Math.min(Math.max(Math.trunc(limit), 1), MAX_LIMIT);
 }
 
-function readPositiveIntEnv(name: string, fallback: number) {
-  const value = Number.parseInt(
-    process.env[name] ?? "",
-    10,
-  );
-  return Number.isFinite(value) && value > 0 ? value : fallback;
-}
-
-function getTimeoutSeconds() {
-  return readPositiveIntEnv(
-    "IMAGE_ASSET_BACKFILL_DOWNLOAD_TIMEOUT_SECONDS",
-    DEFAULT_TIMEOUT_SECONDS,
-  );
-}
-
-function getMaxSourceBytes() {
-  return readPositiveIntEnv(
-    "IMAGE_ASSET_BACKFILL_MAX_SOURCE_BYTES",
-    DEFAULT_MAX_SOURCE_BYTES,
-  );
-}
-
-async function readResponseBuffer(response: Response, maxBytes: number) {
-  if (!response.body) {
-    const buffer = Buffer.from(await response.arrayBuffer());
-    if (buffer.byteLength > maxBytes) {
-      throw new Error(`Source image exceeds ${maxBytes} bytes.`);
-    }
-    return buffer;
-  }
-
-  const reader = response.body.getReader();
-  const chunks: Buffer[] = [];
-  let totalBytes = 0;
-
-  try {
-    for (;;) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      if (!value) continue;
-
-      totalBytes += value.byteLength;
-      if (totalBytes > maxBytes) {
-        throw new Error(`Source image exceeds ${maxBytes} bytes.`);
-      }
-
-      chunks.push(Buffer.from(value));
-    }
-  } finally {
-    reader.releaseLock();
-  }
-
-  return Buffer.concat(chunks, totalBytes);
-}
-
 async function fetchSourceBuffer(url: string) {
-  const maxBytes = getMaxSourceBytes();
-  const controller = new AbortController();
-  const timer = setTimeout(
-    () => controller.abort(),
-    getTimeoutSeconds() * 1000,
-  );
-
-  try {
-    const response = await fetch(url, { signal: controller.signal });
-    if (!response.ok) {
-      throw new Error(`Source download failed: ${response.status}`);
-    }
-
-    const contentLength = Number.parseInt(
-      response.headers.get("content-length") ?? "",
-      10,
-    );
-    if (Number.isFinite(contentLength) && contentLength > maxBytes) {
-      throw new Error(`Source image exceeds ${maxBytes} bytes.`);
-    }
-
-    return readResponseBuffer(response, maxBytes);
-  } finally {
-    clearTimeout(timer);
+  const response = await fetch(url, {
+    signal: AbortSignal.timeout(DEFAULT_TIMEOUT_SECONDS * 1000),
+  });
+  if (!response.ok) {
+    throw new Error(`Source download failed: ${response.status}`);
   }
+
+  const buffer = Buffer.from(await response.arrayBuffer());
+  if (buffer.byteLength > APP_CONFIG.UPLOAD.MAX_FILE_SIZE) {
+    throw new Error(
+      `Source image exceeds ${APP_CONFIG.UPLOAD.MAX_FILE_SIZE} bytes.`,
+    );
+  }
+
+  return buffer;
 }
 
 async function buildWebpVariants(source: Buffer) {
