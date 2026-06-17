@@ -18,25 +18,22 @@ function isAuthorized(request: Request) {
   return authorization === `Bearer ${secret}` || internalSecret === secret;
 }
 
-async function readJsonBody(request: Request) {
-  const body = await request.text();
-  if (!body.trim()) return {};
-
-  try {
-    return JSON.parse(body) as unknown;
-  } catch {
-    return null;
-  }
-}
-
 export async function POST(request: Request) {
   if (!isAuthorized(request)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const parsed = processVariantsInputSchema.safeParse(
-    await readJsonBody(request),
-  );
+  const body = await request.text();
+  let input: unknown = {};
+  if (body.trim()) {
+    try {
+      input = JSON.parse(body) as unknown;
+    } catch {
+      input = null;
+    }
+  }
+
+  const parsed = processVariantsInputSchema.safeParse(input);
   if (!parsed.success) {
     return NextResponse.json({ error: "Invalid request" }, { status: 400 });
   }

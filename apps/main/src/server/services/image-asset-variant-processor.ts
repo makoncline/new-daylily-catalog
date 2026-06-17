@@ -13,7 +13,6 @@ import {
 } from "@/server/services/image-asset-storage";
 
 const DEFAULT_LIMIT = 1;
-const MAX_LIMIT = 25;
 const DEFAULT_TIMEOUT_SECONDS = 60;
 
 type DbClient = typeof appDb;
@@ -29,11 +28,6 @@ interface ImageAssetVariantResult {
   id: string;
   status: "ready" | "failed";
   error?: string;
-}
-
-function clampLimit(limit: number | undefined) {
-  if (!limit || !Number.isFinite(limit)) return DEFAULT_LIMIT;
-  return Math.min(Math.max(Math.trunc(limit), 1), MAX_LIMIT);
 }
 
 async function fetchSourceBuffer(url: string) {
@@ -177,7 +171,7 @@ function findProcessableImageAssets(args: {
 export async function processPendingImageAssetVariants(
   options: ProcessImageAssetVariantsOptions,
 ) {
-  const limit = clampLimit(options.limit);
+  const limit = options.limit ?? DEFAULT_LIMIT;
   const pendingAssets = await findProcessableImageAssets({
     db: options.db,
     assetId: options.assetId,
