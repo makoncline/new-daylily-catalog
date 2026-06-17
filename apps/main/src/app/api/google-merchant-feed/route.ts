@@ -9,10 +9,27 @@ import {
 import { getProUserIds } from "@/server/db/getProUserIds";
 import { shouldShowToPublic } from "@/server/db/public-visibility/filters";
 import { getCloudflareUrlForDaylilyS3Image } from "@/lib/utils/cloudflareLoader";
+import {
+  areImageAssetsEnabled,
+  resolveLegacyImagesWithAssets,
+} from "@/server/services/image-asset-read-model";
 
 // Constants for merchant feed configuration
 const SHIPPING_WEIGHT = "0.5 lb";
 const FEED_BATCH_SIZE = 200;
+const imageAssetInclude = {
+  select: {
+    id: true,
+    legacyImageId: true,
+    originalUrl: true,
+    displayUrl: true,
+    thumbUrl: true,
+    blurUrl: true,
+  },
+  orderBy: {
+    order: "asc" as const,
+  },
+};
 
 export async function GET(_request: Request) {
   try {
@@ -26,7 +43,11 @@ export async function GET(_request: Request) {
     const include = {
       images: {
         take: 4, // Get up to 4 images (1 main + 3 additional)
+        orderBy: {
+          order: "asc" as const,
+        },
       },
+      ...(areImageAssetsEnabled() ? { imageAssets: imageAssetInclude } : {}),
       cultivarReference: {
         include: {
           ahsListing: {
@@ -74,6 +95,14 @@ export async function GET(_request: Request) {
         try {
           const displayListing = withResolvedDisplayAhsListing(listing);
           const displayAhsListing = displayListing.ahsListing;
+          const resolvedImages = resolveLegacyImagesWithAssets({
+            images: displayListing.images,
+            imageAssets:
+              "imageAssets" in displayListing
+                ? displayListing.imageAssets
+                : [],
+            variant: "display",
+          });
           const listingName =
             displayListing.title ??
             displayAhsListing?.name ??
@@ -90,11 +119,11 @@ export async function GET(_request: Request) {
           }
 
           const rawImageUrl =
-            displayListing.images?.[0]?.url ?? displayAhsListing?.ahsImageUrl;
+            resolvedImages[0]?.url ?? displayAhsListing?.ahsImageUrl;
           const imageUrl = rawImageUrl
             ? getCloudflareUrlForDaylilyS3Image(rawImageUrl)
             : null;
-          const additionalImages = displayListing.images?.slice(1, 4) ?? [];
+          const additionalImages = resolvedImages.slice(1, 4);
           const productUrl = `${baseUrl}/${displayListing.userId}/${displayListing.id}`;
           const catalogName =
             displayListing.user.profile?.title ??

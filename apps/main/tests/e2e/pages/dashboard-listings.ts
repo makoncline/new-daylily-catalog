@@ -172,7 +172,6 @@ export class DashboardListings {
 
   private firstVisibleRowActionButton(): Locator {
     return this.page
-      .getByTestId("listing-table")
       .locator('[data-testid="listing-row-actions-trigger"]:visible')
       .first();
   }
@@ -198,7 +197,8 @@ export class DashboardListings {
       try {
         const trigger =
           rowActionButtonFactory?.() ?? this.firstVisibleRowActionButton();
-        await trigger.waitFor({ state: "visible" });
+        await trigger.waitFor({ state: "visible", timeout: 5000 });
+        await trigger.scrollIntoViewIfNeeded();
         await trigger.click({ force: true });
         await this.rowActionMenu().waitFor({ state: "visible", timeout: 2000 });
         return;

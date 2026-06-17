@@ -9,6 +9,24 @@ import {
 } from "@/server/db/public-visibility/filters";
 import { parseAndSanitizeEditorJsContent } from "@/server/security/editor-js-content";
 import { getCloudflareUrlForDaylilyS3Image } from "@/lib/utils/cloudflareLoader";
+import {
+  areImageAssetsEnabled,
+  resolveLegacyImagesWithAssets,
+} from "@/server/services/image-asset-read-model";
+
+const imageAssetSelect = {
+  select: {
+    id: true,
+    legacyImageId: true,
+    originalUrl: true,
+    displayUrl: true,
+    thumbUrl: true,
+    blurUrl: true,
+  },
+  orderBy: {
+    order: "asc",
+  },
+} as const;
 
 export interface PublicSellerSummary {
   id: string;
@@ -194,6 +212,9 @@ export async function getPublicSellerSummariesByUserIds(
                 order: "asc",
               },
             },
+            ...(areImageAssetsEnabled()
+              ? { imageAssets: imageAssetSelect }
+              : {}),
           },
         },
         _count: {
@@ -235,10 +256,17 @@ export async function getPublicSellerSummariesByUserIds(
         description: user.profile?.description ?? null,
         location: user.profile?.location ?? null,
         images:
-          user.profile?.images.map((image) => ({
+          resolveLegacyImagesWithAssets({
+            images: user.profile?.images ?? [],
+            imageAssets:
+              user.profile && "imageAssets" in user.profile
+                ? user.profile.imageAssets
+                : [],
+            variant: "display",
+          }).map((image) => ({
             id: image.id,
             url: getCloudflareUrlForDaylilyS3Image(image.url),
-          })) ?? [],
+          })),
         listingCount: user._count.listings,
         listCount: user._count.lists,
         hasActiveSubscription: activeUserIds.has(user.id),

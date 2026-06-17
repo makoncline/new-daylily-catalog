@@ -17,6 +17,24 @@ import {
   isPublished,
 } from "@/server/db/public-visibility/filters";
 import { getCloudflareUrlForDaylilyS3Image } from "@/lib/utils/cloudflareLoader";
+import {
+  areImageAssetsEnabled,
+  resolveLegacyImagesWithAssets,
+} from "@/server/services/image-asset-read-model";
+
+const imageAssetSelect = {
+  select: {
+    id: true,
+    legacyImageId: true,
+    originalUrl: true,
+    displayUrl: true,
+    thumbUrl: true,
+    blurUrl: true,
+  },
+  orderBy: {
+    order: "asc",
+  },
+} as const;
 
 export const publicListingSelect = {
   id: true,
@@ -64,6 +82,7 @@ export const publicListingSelect = {
       order: "asc",
     },
   },
+  ...(areImageAssetsEnabled() ? { imageAssets: imageAssetSelect } : {}),
 } as const;
 
 type ListingWithRelations = Awaited<ReturnType<typeof getListings>>[number];
@@ -80,8 +99,19 @@ interface GetListingsArgs {
 function buildListingView<T extends ListingPayload>(listing: T) {
   const displayListing = withResolvedDisplayAhsListing(listing);
   const displayAhsListing = displayListing.ahsListing;
+  const resolvedImages = resolveLegacyImagesWithAssets({
+    images: displayListing.images,
+    imageAssets: "imageAssets" in displayListing ? displayListing.imageAssets : [],
+    variant: "display",
+  });
+  const publicListing =
+    "imageAssets" in displayListing
+      ? (({ imageAssets: _imageAssets, ...listing }) => listing)(
+          displayListing,
+        )
+      : displayListing;
   const images =
-    displayListing.images.length === 0 && displayAhsListing?.ahsImageUrl
+    resolvedImages.length === 0 && displayAhsListing?.ahsImageUrl
       ? [
           {
             id: `ahs-${displayListing.id}`,
@@ -89,10 +119,10 @@ function buildListingView<T extends ListingPayload>(listing: T) {
             updatedAt: displayListing.updatedAt,
           },
         ]
-      : displayListing.images;
+      : resolvedImages;
 
   return {
-    ...displayListing,
+    ...publicListing,
     ahsListing: displayAhsListing,
     userSlug: listing.user.profile?.slug ?? listing.userId,
     sellerTitle: listing.user.profile?.title ?? null,
