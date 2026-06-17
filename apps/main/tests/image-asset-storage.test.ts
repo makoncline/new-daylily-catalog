@@ -49,6 +49,19 @@ describe("image asset storage keys", () => {
     });
   });
 
+  it("derives variant keys from original object keys", () => {
+    expect(
+      storage.buildVariantImageAssetKeysFromOriginalKey(
+        "users/user-1/listing-images/listing-1/image-1/original.webp",
+      ),
+    ).toEqual({
+      displayKey:
+        "users/user-1/listing-images/listing-1/image-1/display-800.webp",
+      thumbKey: "users/user-1/listing-images/listing-1/image-1/thumb-200.webp",
+      blurKey: "users/user-1/listing-images/listing-1/image-1/blur-20.webp",
+    });
+  });
+
   it("rejects non-canonical keys before publishing URLs or variants", () => {
     expect(() => storage.buildR2PublicUrl("users/user-1/../bad.jpg")).toThrow(
       "ImageAsset key must not contain empty or dot segments.",

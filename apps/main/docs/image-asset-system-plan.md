@@ -47,7 +47,7 @@ This document tracks the stacked ImageAsset/R2 migration PRs.
       `prisma/migrations/20260613180000_add_image_asset/migration.sql`.
 - [x] Added `USE_IMAGE_ASSETS=false` defaults.
 - [x] Add R2/media env placeholders, key/url helpers, and helper tests.
-- [x] Add local-first backfill and variant scripts.
+- [x] Add local-first backfill tooling and in-app variant processing.
 - [x] Add `USE_IMAGE_ASSETS` read-path support.
 - [x] Add dual-write for new uploaded originals.
 - [ ] Backfill legacy local-prod-copy `Image` rows to R2 and local
@@ -66,9 +66,9 @@ Do not add cron/systemd scheduling in this PR. The v1 runtime path is:
 
 1. Upload the original.
 2. Create the `ImageAsset` row with `status = "pending_variants"`.
-3. Run `node scripts/image-assets/process-image-asset-variants.mjs` manually to process pending rows.
+3. Process variants asynchronously inside the Next.js app runtime.
 4. Mark success as `ready`; mark failure as `variant_failed`.
-5. Recover failures manually with `--retry-failed`.
+5. Recover failures manually through the internal retry endpoint.
 
 This keeps the first production rollout smaller. A scheduled reconciler can be
 added later if manual processing becomes operationally annoying.
@@ -250,13 +250,18 @@ order by updatedAt desc;
 Manual retry commands:
 
 ```sh
-node scripts/image-assets/process-image-asset-variants.mjs --asset-id <id> --retry-failed
-node scripts/image-assets/process-image-asset-variants.mjs --retry-failed --limit 25
+curl -X POST http://127.0.0.1:3000/api/internal/image-assets/process-variants \
+  -H "Authorization: Bearer $CLERK_WEBHOOK_SECRET" \
+  -H "Content-Type: application/json" \
+  -d '{"assetId":"<id>","limit":1,"retryFailed":true}'
+
+curl -X POST http://127.0.0.1:3000/api/internal/image-assets/process-variants \
+  -H "Authorization: Bearer $CLERK_WEBHOOK_SECRET"
 ```
 
 Use `backfill-legacy-images-to-r2.mjs --retry-failed` only for rows already
-marked `backfill_failed`; variant repair belongs to
-`process-image-asset-variants.mjs --retry-failed`.
+marked `backfill_failed`; variant repair belongs to the internal retry
+endpoint.
 
 Add a scheduled runner later only if failures become common, deploys/restarts
 leave pending rows around too often, or manual recovery becomes operationally
@@ -269,11 +274,10 @@ annoying.
    - confirm browser upload progress and error handling are acceptable for the
      dual original upload,
    - confirm new `ImageAsset` rows start as `pending_variants`,
-   - run `process-image-asset-variants.mjs` against new uploads and confirm
-     they become ready.
+   - confirm in-app async processing creates variants and marks rows `ready`.
 3. Verify manual recovery: force or identify one `variant_failed` row in the
-   branch, inspect it with the recovery query, then retry it with
-   `--asset-id <id> --retry-failed`.
+   branch, inspect it with the recovery query, then retry it through the
+   internal endpoint.
 4. Re-run the local-first backfill for the delta created since the first prod
    snapshot.
 5. Export the final local `ImageAsset` manifest and import only the delta into
