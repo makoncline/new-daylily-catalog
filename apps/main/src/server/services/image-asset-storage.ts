@@ -13,6 +13,7 @@ const ORIGINAL_IMAGE_ASSET_FILE_PATTERN = "original\\.(?:jpe?g|png|webp)";
 const ORIGINAL_IMAGE_ASSET_KEY_PATTERN = new RegExp(
   `^${ORIGINAL_IMAGE_ASSET_FILE_PATTERN}$`,
 );
+let r2Client: S3Client | undefined;
 
 export interface UserImageAssetKeyArgs {
   kind: ImageType;
@@ -32,11 +33,9 @@ export function areImageAssetUploadsConfigured() {
 }
 
 export function getR2Client() {
-  const accountId = requireEnv("R2_ACCOUNT_ID", env.R2_ACCOUNT_ID);
-
-  return new S3Client({
+  r2Client ??= new S3Client({
     region: "auto",
-    endpoint: `https://${accountId}.r2.cloudflarestorage.com`,
+    endpoint: `https://${requireEnv("R2_ACCOUNT_ID", env.R2_ACCOUNT_ID)}.r2.cloudflarestorage.com`,
     credentials: {
       accessKeyId: requireEnv("R2_ACCESS_KEY_ID", env.R2_ACCESS_KEY_ID),
       secretAccessKey: requireEnv(
@@ -45,6 +44,8 @@ export function getR2Client() {
       ),
     },
   });
+
+  return r2Client;
 }
 
 export function buildR2PublicUrl(key: string) {
@@ -123,6 +124,17 @@ export function buildVariantImageAssetKeys(
     thumbKey: `${baseKey}/thumb-200.webp`,
     blurKey: `${baseKey}/blur-20.webp`,
   } as const;
+}
+
+export function buildVariantImageAssetKeysFromOriginalKey(originalKey: string) {
+  assertCanonicalImageAssetKey(originalKey);
+
+  const baseKey = originalKey.replace(/\/original\.[a-z0-9]+$/i, "");
+  if (baseKey === originalKey) {
+    throw new Error(`Invalid ImageAsset original key: ${originalKey}`);
+  }
+
+  return buildVariantImageAssetKeys(baseKey);
 }
 
 export async function getR2PresignedPutUrl(args: {

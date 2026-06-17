@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { Prisma } from "@prisma/client";
+import { after } from "next/server";
 import { protectedProcedure, createTRPCRouter } from "@/server/api/trpc";
 import { env, requireEnv } from "@/env";
 import { APP_CONFIG } from "@/config/constants";
@@ -25,6 +26,7 @@ import {
   getR2OriginalUploadMetadata,
   isExpectedOriginalImageAssetKey,
 } from "@/server/services/image-asset-storage";
+import { processPendingImageAssetVariants } from "@/server/services/image-asset-variant-processor";
 import {
   assertOwnedListing,
   assertOwnedProfile,
@@ -188,6 +190,30 @@ function assertR2OriginalKeyMatchesTarget(args: {
   if (!isExpectedKey) {
     throw invalidImageAssetMetadata();
   }
+}
+
+function scheduleImageAssetVariantProcessing(args: {
+  db: DbClient;
+  imageAssetId: string;
+}) {
+  console.info("[image-assets] variants scheduled", {
+    imageAssetId: args.imageAssetId,
+  });
+
+  after(async () => {
+    try {
+      await processPendingImageAssetVariants({
+        db: args.db,
+        assetId: args.imageAssetId,
+        limit: 1,
+      });
+    } catch (error) {
+      console.error("[image-assets] variants schedule failed", {
+        imageAssetId: args.imageAssetId,
+        error,
+      });
+    }
+  });
 }
 
 async function getDashboardImagesByListingIds(args: {
@@ -504,6 +530,13 @@ export const dashboardDbImageRouter = createTRPCRouter({
         db: ctx.db,
         rows: [image],
       });
+
+      if (shouldCreateImageAsset) {
+        scheduleImageAssetVariantProcessing({
+          db: ctx.db,
+          imageAssetId: image.id,
+        });
+      }
 
       return resolved ?? image;
     }),

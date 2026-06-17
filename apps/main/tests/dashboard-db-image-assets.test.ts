@@ -23,6 +23,8 @@ const s3Mocks = vi.hoisted(() => ({
   getSignedUrl: vi.fn(),
   putObjectCommand: vi.fn((input: unknown) => ({ input })),
 }));
+const afterMock = vi.hoisted(() => vi.fn());
+const variantProcessorMock = vi.hoisted(() => vi.fn());
 
 vi.mock("@aws-sdk/client-s3", () => ({
   S3Client: vi.fn(),
@@ -31,6 +33,20 @@ vi.mock("@aws-sdk/client-s3", () => ({
 
 vi.mock("@aws-sdk/s3-request-presigner", () => ({
   getSignedUrl: s3Mocks.getSignedUrl,
+}));
+
+vi.mock("next/server", async () => {
+  const actual =
+    await vi.importActual<typeof import("next/server")>("next/server");
+
+  return {
+    ...actual,
+    after: afterMock,
+  };
+});
+
+vi.mock("@/server/services/image-asset-variant-processor", () => ({
+  processPendingImageAssetVariants: variantProcessorMock,
 }));
 
 type RouterModule = typeof import("@/server/api/routers/dashboard-db/image");
@@ -67,6 +83,11 @@ function createImageRow(overrides: Partial<Record<string, unknown>> = {}) {
 describe("dashboard image asset mutations", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    variantProcessorMock.mockResolvedValue({
+      processed: 1,
+      failed: 0,
+      results: [{ id: "image-1", status: "ready" }],
+    });
     s3Mocks.getSignedUrl.mockImplementation(
       async (_client: unknown, command: { input: { Bucket?: string } }) =>
         command.input.Bucket === process.env.R2_BUCKET_NAME
@@ -155,6 +176,17 @@ describe("dashboard image asset mutations", () => {
         status: "pending_variants",
       }),
     });
-  });
 
+    expect(afterMock).toHaveBeenCalledTimes(1);
+    const [scheduledTask] = afterMock.mock.calls[0] ?? [];
+    expect(typeof scheduledTask).toBe("function");
+
+    await scheduledTask();
+
+    expect(variantProcessorMock).toHaveBeenCalledWith({
+      db,
+      assetId: "image-1",
+      limit: 1,
+    });
+  });
 });
