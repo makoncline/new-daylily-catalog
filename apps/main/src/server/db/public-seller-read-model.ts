@@ -11,22 +11,16 @@ import { parseAndSanitizeEditorJsContent } from "@/server/security/editor-js-con
 import { getCloudflareUrlForDaylilyS3Image } from "@/lib/utils/cloudflareLoader";
 import {
   areImageAssetsEnabled,
+  type ImageAssetView,
+  orderedImageAssetUrlInclude,
   resolveLegacyImagesWithAssets,
 } from "@/server/services/image-asset-read-model";
 
-const imageAssetSelect = {
-  select: {
-    id: true,
-    legacyImageId: true,
-    originalUrl: true,
-    displayUrl: true,
-    thumbUrl: true,
-    blurUrl: true,
-  },
-  orderBy: {
-    order: "asc",
-  },
-} as const;
+interface PublicSellerImage {
+  id: string;
+  url: string;
+  imageAsset?: ImageAssetView;
+}
 
 export interface PublicSellerSummary {
   id: string;
@@ -34,7 +28,7 @@ export interface PublicSellerSummary {
   slug: string | null;
   description: string | null;
   location: string | null;
-  images: Array<{ id: string; url: string }>;
+  images: PublicSellerImage[];
   listingCount: number;
   listCount: number;
   hasActiveSubscription: boolean;
@@ -56,7 +50,7 @@ export interface PublicSellerProfile {
   description: string | null;
   content: OutputData | string | null;
   location: string | null;
-  images: Array<{ id: string; url: string }>;
+  images: PublicSellerImage[];
   createdAt: Date;
   updatedAt: Date;
   listingCount: number;
@@ -213,7 +207,7 @@ export async function getPublicSellerSummariesByUserIds(
               },
             },
             ...(areImageAssetsEnabled()
-              ? { imageAssets: imageAssetSelect }
+              ? { imageAssets: orderedImageAssetUrlInclude }
               : {}),
           },
         },
@@ -264,7 +258,7 @@ export async function getPublicSellerSummariesByUserIds(
                 : [],
             variant: "display",
           }).map((image) => ({
-            id: image.id,
+            ...image,
             url: getCloudflareUrlForDaylilyS3Image(image.url),
           })),
         listingCount: user._count.listings,

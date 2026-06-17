@@ -503,17 +503,11 @@ export function WebMcpProvider() {
           name: "daylily.prepare-image-upload",
           title: "Prepare Image Upload",
           description:
-            "Create a signed upload URL for a profile or listing image. Upload the file to the returned presignedUrl, then call daylily.attach-uploaded-image with the returned key and url.",
+            "Create signed upload URLs for a profile or listing image. Upload the file to presignedUrl. If upload.r2 is returned, also upload the same file to upload.r2.presignedUrl before calling daylily.attach-uploaded-image with imageId and r2OriginalKey.",
           inputSchema: {
             type: "object",
             additionalProperties: false,
-            required: [
-              "type",
-              "referenceId",
-              "fileName",
-              "contentType",
-              "size",
-            ],
+            required: ["type", "referenceId", "contentType", "size"],
             properties: {
               type: { type: "string", enum: ["profile", "listing"] },
               referenceId: {
@@ -521,7 +515,6 @@ export function WebMcpProvider() {
                 description:
                   "Profile id or listing id that will own the image.",
               },
-              fileName: { type: "string" },
               contentType: {
                 type: "string",
                 enum: ["image/jpeg", "image/png", "image/webp"],
@@ -545,27 +538,24 @@ export function WebMcpProvider() {
               throw new Error("type must be profile or listing.");
             }
             const referenceId = asString(input.referenceId);
-            const fileName = asString(input.fileName);
             const contentType = asString(input.contentType);
             const size =
               typeof input.size === "number" ? Math.trunc(input.size) : 0;
             if (
               !referenceId ||
-              !fileName ||
               !["image/jpeg", "image/png", "image/webp"].includes(
                 contentType,
               ) ||
               size < 1
             ) {
               throw new Error(
-                "referenceId, fileName, supported contentType, and positive size are required.",
+                "referenceId, supported contentType, and positive size are required.",
               );
             }
             const upload =
               await client.dashboardDb.image.getPresignedUrl.mutate({
                 type,
                 referenceId,
-                fileName,
                 contentType: contentType as
                   | "image/jpeg"
                   | "image/png"
@@ -579,7 +569,7 @@ export function WebMcpProvider() {
           name: "daylily.attach-uploaded-image",
           title: "Attach Uploaded Image",
           description:
-            "Attach an image to a profile or listing after it has been uploaded to a Daylily Catalog signed upload URL.",
+            "Attach an image to a profile or listing after it has been uploaded to the Daylily Catalog signed upload URL. If daylily.prepare-image-upload returned upload.r2, include imageId and r2OriginalKey only after the same file has also been uploaded to upload.r2.presignedUrl.",
           inputSchema: {
             type: "object",
             additionalProperties: false,
@@ -592,6 +582,8 @@ export function WebMcpProvider() {
               },
               url: { type: "string" },
               key: { type: "string" },
+              imageId: { type: "string" },
+              r2OriginalKey: { type: "string" },
             },
           },
           annotations: {
@@ -608,10 +600,22 @@ export function WebMcpProvider() {
             const referenceId = asString(input.referenceId);
             const url = asString(input.url);
             const key = asString(input.key);
+            const imageId = asString(input.imageId);
+            const r2OriginalKey = asString(input.r2OriginalKey);
             if (!referenceId || !url || !key) {
               throw new Error("referenceId, url, and key are required.");
             }
-            const image = await createImage({ type, referenceId, url, key });
+            if (r2OriginalKey && !imageId) {
+              throw new Error("imageId is required with r2OriginalKey.");
+            }
+            const image = await createImage({
+              type,
+              referenceId,
+              url,
+              key,
+              ...(imageId ? { imageId } : {}),
+              ...(r2OriginalKey ? { r2OriginalKey } : {}),
+            });
             return toolResult({ ok: true, image });
           },
         },

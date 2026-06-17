@@ -36,7 +36,9 @@ export const IMAGE_CONFIG = {
 const reportedImageErrors = new Set<string>();
 
 interface OptimizedImageProps extends React.HTMLAttributes<HTMLDivElement> {
-  src: string;
+  src?: string;
+  image?: OptimizedImageSource;
+  variant?: "display" | "thumb";
   alt: string;
   size?: "thumbnail" | "full";
   className?: string;
@@ -44,8 +46,56 @@ interface OptimizedImageProps extends React.HTMLAttributes<HTMLDivElement> {
   fit?: "contain" | "cover";
 }
 
+export interface OptimizedImageSource {
+  id: string;
+  url: string;
+  imageAsset?: {
+    id: string;
+    status: string | null;
+    originalUrl: string | null;
+    displayUrl: string | null;
+    thumbUrl: string | null;
+    blurUrl: string | null;
+  } | null;
+}
+
+function getImageAssetVariantUrl(
+  image: OptimizedImageSource,
+  variant: "display" | "thumb",
+) {
+  const asset = image.imageAsset;
+  if (!asset) return image.url;
+
+  const variantUrl = variant === "thumb" ? asset.thumbUrl : asset.displayUrl;
+  return variantUrl ?? asset.originalUrl ?? image.url;
+}
+
+function resolveImageSource(args: {
+  image?: OptimizedImageSource;
+  src?: string;
+  variant: "display" | "thumb";
+}) {
+  if (!args.image) {
+    if (!args.src) {
+      throw new Error("OptimizedImage requires either src or image.");
+    }
+
+    return {
+      src: args.src,
+      blurSrc: null,
+    };
+  }
+
+  return {
+    src: getImageAssetVariantUrl(args.image, args.variant),
+    blurSrc: args.image.imageAsset?.blurUrl ?? null,
+  };
+}
+
 export function OptimizedImage({
   src,
+  image,
+  variant,
   alt,
   size = "thumbnail",
   className,
@@ -54,7 +104,13 @@ export function OptimizedImage({
   ...props
 }: OptimizedImageProps) {
   const [loaded, setLoaded] = React.useState(false);
-  const transformSource = getDaylilyS3ImageTransformSource(src);
+  const imageVariant = variant ?? (size === "thumbnail" ? "thumb" : "display");
+  const resolvedImage = resolveImageSource({
+    image,
+    src,
+    variant: imageVariant,
+  });
+  const transformSource = getDaylilyS3ImageTransformSource(resolvedImage.src);
 
   const dimension =
     size === "thumbnail"
@@ -71,16 +127,18 @@ export function OptimizedImage({
             : IMAGE_CONFIG.QUALITY.HIGH,
         fit,
       })
-    : src;
+    : resolvedImage.src;
 
-  const blurUrl = transformSource
-    ? cloudflareLoader({
-        src: transformSource,
-        width: IMAGE_CONFIG.BLUR.SIZE,
-        quality: IMAGE_CONFIG.BLUR.QUALITY,
-        fit,
-      })
-    : src;
+  const blurUrl =
+    resolvedImage.blurSrc ??
+    (transformSource
+      ? cloudflareLoader({
+          src: transformSource,
+          width: IMAGE_CONFIG.BLUR.SIZE,
+          quality: IMAGE_CONFIG.BLUR.QUALITY,
+          fit,
+        })
+      : resolvedImage.src);
 
   const handleLoad: React.ReactEventHandler<HTMLImageElement> =
     React.useCallback(() => {
@@ -120,7 +178,7 @@ export function OptimizedImage({
       <OptimizedImageInner
         key={imageUrl}
         alt={alt}
-        src={src}
+        src={resolvedImage.src}
         imageUrl={imageUrl}
         dimension={dimension}
         fit={fit}

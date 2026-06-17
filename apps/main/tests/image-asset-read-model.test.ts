@@ -25,6 +25,7 @@ describe("image asset read model", () => {
         {
           id: "asset-1",
           legacyImageId: "image-1",
+          status: "ready",
           originalUrl: "https://media.example/original.webp",
           displayUrl: "https://media.example/display.webp",
           thumbUrl: "https://media.example/thumb.webp",
@@ -34,6 +35,7 @@ describe("image asset read model", () => {
     });
 
     expect(image?.url).toBe("https://legacy.example/image.jpg");
+    expect(image).not.toHaveProperty("imageAsset");
   });
 
   it("uses the requested ImageAsset variant when enabled", () => {
@@ -45,6 +47,7 @@ describe("image asset read model", () => {
         {
           id: "asset-1",
           legacyImageId: "image-1",
+          status: "ready",
           originalUrl: "https://media.example/original.webp",
           displayUrl: "https://media.example/display.webp",
           thumbUrl: "https://media.example/thumb.webp",
@@ -55,6 +58,11 @@ describe("image asset read model", () => {
     });
 
     expect(image?.url).toBe("https://media.example/thumb.webp");
+    expect(image?.imageAsset).toMatchObject({
+      id: "asset-1",
+      status: "ready",
+      blurUrl: "https://media.example/blur.webp",
+    });
   });
 
   it("keeps the legacy URL when an asset row is missing", () => {
@@ -77,6 +85,7 @@ describe("image asset read model", () => {
         {
           id: "asset-1",
           legacyImageId: "image-1",
+          status: "pending_variants",
           originalUrl: "https://media.example/original.webp",
           displayUrl: null,
           thumbUrl: null,

@@ -11,25 +11,13 @@ import { shouldShowToPublic } from "@/server/db/public-visibility/filters";
 import { getCloudflareUrlForDaylilyS3Image } from "@/lib/utils/cloudflareLoader";
 import {
   areImageAssetsEnabled,
+  orderedImageAssetUrlInclude,
   resolveLegacyImagesWithAssets,
 } from "@/server/services/image-asset-read-model";
 
 // Constants for merchant feed configuration
 const SHIPPING_WEIGHT = "0.5 lb";
 const FEED_BATCH_SIZE = 200;
-const imageAssetInclude = {
-  select: {
-    id: true,
-    legacyImageId: true,
-    originalUrl: true,
-    displayUrl: true,
-    thumbUrl: true,
-    blurUrl: true,
-  },
-  orderBy: {
-    order: "asc" as const,
-  },
-};
 
 export async function GET(_request: Request) {
   try {
@@ -47,7 +35,9 @@ export async function GET(_request: Request) {
           order: "asc" as const,
         },
       },
-      ...(areImageAssetsEnabled() ? { imageAssets: imageAssetInclude } : {}),
+      ...(areImageAssetsEnabled()
+        ? { imageAssets: orderedImageAssetUrlInclude }
+        : {}),
       cultivarReference: {
         include: {
           ahsListing: {

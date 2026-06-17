@@ -118,7 +118,7 @@ describe("ImageUpload", () => {
     });
   });
 
-  it("uploads cropped image, clears cropper, and emits onUploadComplete", async () => {
+  it("uploads cropped image, clears cropper, and emits mutation success", async () => {
     uploadMock.mockImplementation(async () => {
       imageUploadState.onSuccess?.({
         id: "img-1",
@@ -127,12 +127,12 @@ describe("ImageUpload", () => {
       return { id: "img-1", url: "https://example.com/images/img-1.jpg" };
     });
 
-    const onUploadComplete = vi.fn();
+    const onMutationSuccess = vi.fn();
     render(
       <ImageUpload
         type="listing"
         referenceId="listing-1"
-        onUploadComplete={onUploadComplete}
+        onMutationSuccess={onMutationSuccess}
       />,
     );
     selectImageFile();
@@ -150,15 +150,7 @@ describe("ImageUpload", () => {
       expect(screen.queryByTestId("image-cropper")).not.toBeInTheDocument();
     });
 
-    expect(onUploadComplete).toHaveBeenCalledWith({
-      success: true,
-      url: "https://example.com/images/img-1.jpg",
-      key: "img-1.jpg",
-      image: {
-        id: "img-1",
-        url: "https://example.com/images/img-1.jpg",
-      },
-    });
+    expect(onMutationSuccess).toHaveBeenCalledTimes(1);
   });
 
   it("returns to dropzone UI when crop is cancelled", async () => {

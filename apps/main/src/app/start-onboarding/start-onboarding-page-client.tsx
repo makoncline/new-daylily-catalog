@@ -52,6 +52,7 @@ import {
   getSupportedImageContentType,
   type ImageContentType,
 } from "@/types/image";
+import { normalizeError, reportError } from "@/lib/error-utils";
 
 const DEFAULT_STARTER_IMAGE_URL = STARTER_PROFILE_IMAGES[0]?.url ?? null;
 
@@ -298,7 +299,6 @@ function useStartOnboardingController({
   const getImagePresignedUrlMutation =
     api.dashboardDb.image.getPresignedUrl.useMutation();
   const createImageMutation = api.dashboardDb.image.create.useMutation();
-  const updateImageMutation = api.dashboardDb.image.update.useMutation();
   const createListingMutation = api.dashboardDb.listing.create.useMutation();
   const updateListingMutation = api.dashboardDb.listing.update.useMutation();
   const linkAhsMutation = api.dashboardDb.listing.linkAhs.useMutation();
@@ -462,7 +462,6 @@ function useStartOnboardingController({
   const selectedCultivarImageUrl =
     selectedCultivarDetailsQuery.data?.ahsImageUrl ?? null;
   const {
-    earliestPersistedListingImage,
     isBuyerContactPreviewHydrating,
     isListingCultivarPlaceholder,
     isListingDescriptionInRecommendedRange,
@@ -586,8 +585,6 @@ function useStartOnboardingController({
     clearPendingStarterImage,
     createImageRecord: createImageMutation.mutateAsync,
     defaultStarterImageUrl: DEFAULT_STARTER_IMAGE_URL,
-    earliestPersistedListingImageId: earliestPersistedListingImage?.id ?? null,
-    earliestPersistedProfileImageId: earliestPersistedProfileImage?.id ?? null,
     ensureListingDraftRecord,
     fetchImageBlobFromUrl,
     focusListingField,
@@ -618,7 +615,6 @@ function useStartOnboardingController({
     setProfileDraft,
     setSelectedListingImageId,
     setSelectedListingImageUrl,
-    updateImageRecord: updateImageMutation.mutateAsync,
     updateListing: updateListingMutation.mutateAsync,
     updateProfile: updateProfileMutation.mutateAsync,
     uploadImageBlob: ({ blob, referenceId, type }) =>
@@ -1269,30 +1265,62 @@ async function uploadOnboardingImageBlob({
   referenceId: string;
   getPresignedUrl: (input: {
     type: "profile" | "listing";
-    fileName: string;
     contentType: ImageContentType;
     size: number;
     referenceId: string;
   }) => Promise<{
+    imageId: string;
     presignedUrl: string;
     key: string;
     url: string;
+    r2: {
+      presignedUrl: string;
+      key: string;
+      url: string;
+    } | null;
   }>;
 }) {
-  const fileNamePrefix = type === "profile" ? "profile" : "listing";
-  const fileName = `onboarding-${fileNamePrefix}-${Date.now()}.jpg`;
   const contentType = getSupportedImageContentType(blob.type);
   if (!contentType) {
     throw new Error("Only JPEG, PNG, and WebP images are supported");
   }
 
-  const { presignedUrl, key, url } = await getPresignedUrl({
+  const {
+    imageId: presignedImageId,
+    presignedUrl,
+    key,
+    url,
+    r2,
+  } = await getPresignedUrl({
     type,
-    fileName,
     contentType,
     size: blob.size,
     referenceId,
   });
+
+  let r2OriginalKey: string | undefined;
+  if (r2) {
+    try {
+      await uploadFileWithProgress({
+        presignedUrl: r2.presignedUrl,
+        contentType,
+        file: blob,
+        onProgress: () => undefined,
+      });
+      r2OriginalKey = r2.key;
+    } catch (error) {
+      reportError({
+        error: normalizeError(error),
+        level: "warning",
+        context: {
+          source: "startOnboarding.uploadImageBlob",
+          step: "r2-upload",
+          imageType: type,
+          referenceId,
+        },
+      });
+    }
+  }
 
   await uploadFileWithProgress({
     presignedUrl,
@@ -1301,7 +1329,7 @@ async function uploadOnboardingImageBlob({
     onProgress: () => undefined,
   });
 
-  return { url, key };
+  return { imageId: presignedImageId, url, key, r2OriginalKey };
 }
 
 async function fetchImageBlobFromUrl(imageUrl: string) {

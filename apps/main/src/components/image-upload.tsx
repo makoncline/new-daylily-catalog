@@ -4,7 +4,7 @@ import { useState, useCallback } from "react";
 import { type FileRejection, useDropzone } from "react-dropzone";
 import { ImageCropper } from "@/components/image-cropper";
 import { useImageUpload } from "@/hooks/use-image-upload";
-import type { ImageType, ImageUploadResponse } from "@/types/image";
+import type { ImageType } from "@/types/image";
 import { APP_CONFIG } from "@/config/constants";
 import { Progress } from "@/components/ui/progress";
 import { P } from "@/components/typography";
@@ -15,7 +15,6 @@ export interface ImageUploadProps {
   type: ImageType;
   referenceId: string;
   isFirstImageUpload?: boolean;
-  onUploadComplete?: (result: ImageUploadResponse) => void;
   onMutationSuccess?: () => void;
 }
 
@@ -23,7 +22,6 @@ export function ImageUpload({
   type,
   referenceId,
   isFirstImageUpload = false,
-  onUploadComplete,
   onMutationSuccess,
 }: ImageUploadProps) {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -31,13 +29,7 @@ export function ImageUpload({
     type,
     referenceId,
     isFirstImageUpload,
-    onSuccess: (image) => {
-      onUploadComplete?.({
-        success: true,
-        url: image.url,
-        key: image.url.split("/").pop() ?? "",
-        image,
-      });
+    onSuccess: () => {
       onMutationSuccess?.();
     },
   });
@@ -118,11 +110,9 @@ export function ImageUpload({
           <ImageCropper
             src={previewUrl}
             onCropComplete={async (result) => {
-              try {
-                await upload(result);
+              const image = await upload(result);
+              if (image) {
                 reset();
-              } catch {
-                // Error is handled in useImageUpload
               }
             }}
             onCancel={reset}

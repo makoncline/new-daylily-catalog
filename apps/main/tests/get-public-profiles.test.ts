@@ -1,6 +1,6 @@
 // @vitest-environment node
 
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const mockDb = vi.hoisted(() => ({
   user: {
@@ -22,9 +22,20 @@ vi.mock("@/server/db/getProUserIds", () => ({
 import { getPublicProfiles } from "@/server/db/getPublicProfiles";
 import { applyWhereIn } from "./test-utils/apply-where-in";
 
+const originalUseImageAssets = process.env.USE_IMAGE_ASSETS;
+
 describe("getPublicProfiles", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+  });
+
+  afterEach(() => {
+    if (originalUseImageAssets === undefined) {
+      delete process.env.USE_IMAGE_ASSETS;
+      return;
+    }
+
+    process.env.USE_IMAGE_ASSETS = originalUseImageAssets;
   });
 
   it("returns only pro catalogs for the /catalogs page", async () => {
@@ -40,6 +51,7 @@ describe("getPublicProfiles", () => {
           updatedAt: new Date("2026-02-01T00:00:00.000Z"),
           images: [
             {
+              id: "image-pro",
               url: "https://example.com/pro.jpg",
               updatedAt: new Date("2026-02-01T00:00:00.000Z"),
             },
@@ -87,5 +99,58 @@ describe("getPublicProfiles", () => {
       hasActiveSubscription: true,
       listingCount: 120,
     });
+  });
+
+  it("keeps ImageAsset metadata on profile images when enabled", async () => {
+    process.env.USE_IMAGE_ASSETS = "true";
+    const users = [
+      {
+        id: "user-pro",
+        createdAt: new Date("2020-01-01T00:00:00.000Z"),
+        profile: {
+          title: "Pro Garden",
+          slug: "pro-garden",
+          description: "Catalog",
+          location: "Alabama",
+          updatedAt: new Date("2026-02-01T00:00:00.000Z"),
+          images: [
+            {
+              id: "profile-image",
+              url: "https://legacy.example/profile.jpg",
+              updatedAt: new Date("2026-02-01T00:00:00.000Z"),
+            },
+          ],
+          imageAssets: [
+            {
+              id: "profile-image",
+              legacyImageId: "profile-image",
+              status: "ready",
+              originalUrl: "https://media.example/original.jpg",
+              displayUrl: "https://media.example/display.webp",
+              thumbUrl: "https://media.example/thumb.webp",
+              blurUrl: "https://media.example/blur.webp",
+            },
+          ],
+        },
+        _count: {
+          listings: 120,
+          lists: 3,
+        },
+        lists: [{ updatedAt: new Date("2026-02-01T00:00:00.000Z") }],
+        listings: [{ updatedAt: new Date("2026-02-02T00:00:00.000Z") }],
+      },
+    ];
+
+    mockDb.user.findMany.mockImplementation((args: unknown) =>
+      Promise.resolve(applyWhereIn(users, args, "id")),
+    );
+    mockGetProUserIds.mockResolvedValue(["user-pro"]);
+
+    const [profile] = await getPublicProfiles();
+
+    expect(profile?.images[0]?.url).toBe("https://media.example/display.webp");
+    expect(profile?.images[0]?.imageAsset?.blurUrl).toBe(
+      "https://media.example/blur.webp",
+    );
   });
 });

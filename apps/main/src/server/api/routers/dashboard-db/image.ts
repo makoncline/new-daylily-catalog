@@ -7,8 +7,24 @@ import { APP_CONFIG } from "@/config/constants";
 import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import crypto from "node:crypto";
-import { imageContentTypeSchema, imageTypeSchema } from "@/types/image";
+import {
+  imageContentTypeSchema,
+  imageExtensionByContentType,
+  imageTypeSchema,
+  type ImageType,
+} from "@/types/image";
 import type { db } from "@/server/db";
+import {
+  areImageAssetsEnabled,
+  buildImageAssetMap,
+  imageAssetUrlSelect,
+  resolveImageAssetUrl,
+} from "@/server/services/image-asset-read-model";
+import {
+  buildR2PublicUrl,
+  getR2OriginalUploadMetadata,
+  isExpectedOriginalImageAssetKey,
+} from "@/server/services/image-asset-storage";
 import {
   assertOwnedListing,
   assertOwnedProfile,
@@ -28,14 +44,7 @@ const imageSelect = {
 } as const;
 
 type DbClient = typeof db;
-const imageExtensionByContentType: Record<
-  z.infer<typeof imageContentTypeSchema>,
-  string
-> = {
-  "image/jpeg": ".jpg",
-  "image/png": ".png",
-  "image/webp": ".webp",
-};
+type DashboardImageRow = ReturnType<typeof mapImageRow>;
 
 type ImageRow = {
   id: string;
@@ -86,6 +95,23 @@ function getUploadRegion() {
 
 function getS3ImageUrl(key: string) {
   return `https://${getUploadBucketName()}.s3.${getUploadRegion()}.amazonaws.com/${key}`;
+}
+
+function ownerWhere(type: ImageType, referenceId: string) {
+  return type === "listing"
+    ? { listingId: referenceId }
+    : { userProfileId: referenceId };
+}
+
+function listingIdForImageAsset(type: ImageType, referenceId: string) {
+  return type === "listing" ? referenceId : null;
+}
+
+function invalidImageAssetMetadata() {
+  return new TRPCError({
+    code: "BAD_REQUEST",
+    message: "Image asset upload metadata is invalid",
+  });
 }
 
 function assertUploadKeyMatchesTarget(args: {
@@ -144,20 +170,24 @@ function getValidatedImageUrl(args: {
   return getS3ImageUrl(args.key);
 }
 
-function getValidatedImageUrlFromUrl(args: {
+function assertR2OriginalKeyMatchesTarget(args: {
+  type: ImageType;
   referenceId: string;
-  url: string;
   userId: string;
+  imageAssetId: string;
+  key: string;
 }) {
-  const key = parseS3ImageKey(args.url);
-  if (!key) {
-    throw new TRPCError({
-      code: "BAD_REQUEST",
-      message: "Invalid image upload URL",
-    });
-  }
+  const isExpectedKey = isExpectedOriginalImageAssetKey({
+    kind: args.type,
+    userId: args.userId,
+    listingId: listingIdForImageAsset(args.type, args.referenceId),
+    imageAssetId: args.imageAssetId,
+    key: args.key,
+  });
 
-  return getValidatedImageUrl({ ...args, key });
+  if (!isExpectedKey) {
+    throw invalidImageAssetMetadata();
+  }
 }
 
 async function getDashboardImagesByListingIds(args: {
@@ -185,7 +215,35 @@ async function getDashboardImagesByListingIds(args: {
       AND l."userId" = ${args.userId}
   `);
 
-  return rows.map(mapImageRow).sort(sortImagesForDashboard);
+  const mappedRows = rows.map(mapImageRow).sort(sortImagesForDashboard);
+  return resolveDashboardImageRows({ db: args.db, rows: mappedRows });
+}
+
+async function resolveDashboardImageRows(args: {
+  db: DbClient;
+  rows: DashboardImageRow[];
+}) {
+  if (!areImageAssetsEnabled() || args.rows.length === 0) {
+    return args.rows;
+  }
+
+  const imageIds = args.rows.map((row) => row.id);
+  const assets = await args.db.imageAsset.findMany({
+    where: {
+      legacyImageId: { in: imageIds },
+    },
+    select: imageAssetUrlSelect,
+  });
+  const imageAssetByLegacyId = buildImageAssetMap(assets);
+
+  return args.rows.map((row) => ({
+    ...row,
+    url: resolveImageAssetUrl({
+      image: row,
+      imageAssetByLegacyId,
+      variant: "thumb",
+    }),
+  }));
 }
 
 export const dashboardDbImageRouter = createTRPCRouter({
@@ -193,7 +251,6 @@ export const dashboardDbImageRouter = createTRPCRouter({
     .input(
       z.object({
         type: imageTypeSchema,
-        fileName: z.string().min(1).max(255),
         contentType: imageContentTypeSchema,
         size: z.number().int().positive().max(APP_CONFIG.UPLOAD.MAX_FILE_SIZE),
         referenceId: z.string(),
@@ -226,8 +283,16 @@ export const dashboardDbImageRouter = createTRPCRouter({
       });
 
       const ext = imageExtensionByContentType[input.contentType];
+      const imageId = crypto.randomUUID();
       const fileId = crypto.randomBytes(16).toString("hex");
       const key = `${ctx.user.id}/${input.referenceId}/${fileId}${ext}`;
+      const r2 = await getR2OriginalUploadMetadata({
+        kind: input.type,
+        userId: ctx.user.id,
+        listingId: listingIdForImageAsset(input.type, input.referenceId),
+        imageAssetId: imageId,
+        contentType: input.contentType,
+      });
 
       const command = new PutObjectCommand({
         Bucket: getUploadBucketName(),
@@ -239,9 +304,11 @@ export const dashboardDbImageRouter = createTRPCRouter({
       const url = await getSignedUrl(s3Client, command, { expiresIn: 3600 });
 
       return {
+        imageId,
         presignedUrl: url,
         key,
         url: getS3ImageUrl(key),
+        r2,
       } as const;
     }),
 
@@ -274,7 +341,8 @@ export const dashboardDbImageRouter = createTRPCRouter({
       WHERE up."userId" = ${ctx.user.id}
     `);
 
-    return rows.map(mapImageRow).sort(sortImagesForDashboard);
+    const mappedRows = rows.map(mapImageRow).sort(sortImagesForDashboard);
+    return resolveDashboardImageRows({ db: ctx.db, rows: mappedRows });
   }),
 
   listByListingIds: protectedProcedure
@@ -345,7 +413,10 @@ export const dashboardDbImageRouter = createTRPCRouter({
         ${input.limit ? Prisma.sql`LIMIT ${input.limit}` : Prisma.empty}
       `);
 
-      return rows.map(mapImageRow);
+      return resolveDashboardImageRows({
+        db: ctx.db,
+        rows: rows.map(mapImageRow),
+      });
     }),
 
   create: protectedProcedure
@@ -355,6 +426,8 @@ export const dashboardDbImageRouter = createTRPCRouter({
         referenceId: z.string(),
         url: z.url(),
         key: z.string().min(1),
+        imageId: z.string().optional(),
+        r2OriginalKey: z.string().min(1).optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
@@ -379,85 +452,60 @@ export const dashboardDbImageRouter = createTRPCRouter({
         userId: ctx.user.id,
       });
 
-      const whereClause =
-        input.type === "listing"
-          ? { listingId: input.referenceId }
-          : { userProfileId: input.referenceId };
+      const whereClause = ownerWhere(input.type, input.referenceId);
 
       const currentCount = await ctx.db.image.count({ where: whereClause });
+      const shouldCreateImageAsset = Boolean(input.r2OriginalKey);
 
-      const image = await ctx.db.image.create({
-        data: {
-          url: imageUrl,
-          order: currentCount,
-          ...(input.type === "listing"
-            ? { listingId: input.referenceId }
-            : { userProfileId: input.referenceId }),
-        },
-        select: imageSelect,
-      });
+      if (input.r2OriginalKey) {
+        if (!input.imageId) {
+          throw invalidImageAssetMetadata();
+        }
 
-      return image;
-    }),
-
-  update: protectedProcedure
-    .input(
-      z.object({
-        type: imageTypeSchema,
-        referenceId: z.string(),
-        imageId: z.string(),
-        url: z.url(),
-      }),
-    )
-    .mutation(async ({ ctx, input }) => {
-      if (input.type === "listing") {
-        await assertOwnedListing({
-          db: ctx.db,
-          listingId: input.referenceId,
+        assertR2OriginalKeyMatchesTarget({
+          type: input.type,
+          referenceId: input.referenceId,
           userId: ctx.user.id,
-        });
-      } else {
-        await assertOwnedProfile({
-          db: ctx.db,
-          userId: ctx.user.id,
-          userProfileId: input.referenceId,
+          imageAssetId: input.imageId,
+          key: input.r2OriginalKey,
         });
       }
 
-      const existing = await ctx.db.image.findUnique({
-        where: { id: input.imageId },
-        select: {
-          id: true,
-          listingId: true,
-          userProfileId: true,
-        },
-      });
-
-      const belongsToTarget =
-        input.type === "listing"
-          ? existing?.listingId === input.referenceId
-          : existing?.userProfileId === input.referenceId;
-
-      if (!existing || !belongsToTarget) {
-        throw new TRPCError({
-          code: "NOT_FOUND",
-          message: "Image not found",
+      const image = await ctx.db.$transaction(async (tx) => {
+        const created = await tx.image.create({
+          data: {
+            ...(input.imageId ? { id: input.imageId } : {}),
+            url: imageUrl,
+            order: currentCount,
+            ...whereClause,
+          },
+          select: imageSelect,
         });
-      }
 
-      const imageUrl = getValidatedImageUrlFromUrl({
-        referenceId: input.referenceId,
-        url: input.url,
-        userId: ctx.user.id,
+        if (shouldCreateImageAsset && input.r2OriginalKey) {
+          await tx.imageAsset.create({
+            data: {
+              id: created.id,
+              legacyImageId: created.id,
+              kind: input.type,
+              order: currentCount,
+              status: "pending_variants",
+              originalKey: input.r2OriginalKey,
+              originalUrl: buildR2PublicUrl(input.r2OriginalKey),
+              ...whereClause,
+            },
+          });
+        }
+
+        return created;
       });
 
-      const image = await ctx.db.image.update({
-        where: { id: input.imageId },
-        data: { url: imageUrl },
-        select: imageSelect,
+      const [resolved] = await resolveDashboardImageRows({
+        db: ctx.db,
+        rows: [image],
       });
 
-      return image;
+      return resolved ?? image;
     }),
 
   reorder: protectedProcedure
@@ -485,10 +533,7 @@ export const dashboardDbImageRouter = createTRPCRouter({
         });
       }
 
-      const whereClause =
-        input.type === "listing"
-          ? { listingId: input.referenceId }
-          : { userProfileId: input.referenceId };
+      const whereClause = ownerWhere(input.type, input.referenceId);
 
       const allImages = await ctx.db.image.findMany({
         where: whereClause,
@@ -519,12 +564,16 @@ export const dashboardDbImageRouter = createTRPCRouter({
       ];
 
       await ctx.db.$transaction(
-        mergedOrder.map((img, index) =>
+        mergedOrder.flatMap((img, index) => [
           ctx.db.image.update({
             where: { id: img.id },
             data: { order: index },
           }),
-        ),
+          ctx.db.imageAsset.updateMany({
+            where: { legacyImageId: img.id },
+            data: { order: index },
+          }),
+        ]),
       );
 
       return { success: true } as const;
@@ -553,10 +602,7 @@ export const dashboardDbImageRouter = createTRPCRouter({
         });
       }
 
-      const whereClause =
-        input.type === "listing"
-          ? { listingId: input.referenceId }
-          : { userProfileId: input.referenceId };
+      const whereClause = ownerWhere(input.type, input.referenceId);
 
       await ctx.db.$transaction(async (tx) => {
         const deleted = await tx.image.deleteMany({
@@ -568,6 +614,9 @@ export const dashboardDbImageRouter = createTRPCRouter({
             message: "Image not found",
           });
         }
+        await tx.imageAsset.deleteMany({
+          where: { legacyImageId: input.imageId },
+        });
 
         const remaining = await tx.image.findMany({
           where: whereClause,
@@ -577,10 +626,16 @@ export const dashboardDbImageRouter = createTRPCRouter({
 
         await Promise.all(
           remaining.map((img, index) =>
-            tx.image.update({
-              where: { id: img.id },
-              data: { order: index },
-            }),
+            Promise.all([
+              tx.image.update({
+                where: { id: img.id },
+                data: { order: index },
+              }),
+              tx.imageAsset.updateMany({
+                where: { legacyImageId: img.id },
+                data: { order: index },
+              }),
+            ]),
           ),
         );
       });

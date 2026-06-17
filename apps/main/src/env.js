@@ -4,7 +4,7 @@ import * as dotenv from "dotenv";
 import path from "path";
 import { fileURLToPath } from "url";
 
-const booleanStringSchema = z.union([z.literal("true"), z.literal("false")]);
+const booleanStringSchema = z.stringbool();
 const appRoot = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
   "..",
@@ -41,17 +41,16 @@ export const env = createEnv({
     R2_SECRET_ACCESS_KEY: z.string().optional(),
     R2_BUCKET_NAME: z.string().optional(),
     R2_PUBLIC_BASE_URL: z.string().url().optional(),
-    USE_IMAGE_ASSETS: booleanStringSchema.optional().default("false"),
+    USE_IMAGE_ASSETS: booleanStringSchema.optional().default(false),
     SENTRY_AUTH_TOKEN: z.string().optional(),
     NODE_ENV: z.enum(["development", "test", "production"]),
   },
   client: {
     NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: z.string(),
     NEXT_PUBLIC_CLOUDFLARE_URL: z.string(),
-    NEXT_PUBLIC_USE_V2_CULTIVAR_DISPLAY_DATA: z
-      .union([z.literal("true"), z.literal("false")])
+    NEXT_PUBLIC_USE_V2_CULTIVAR_DISPLAY_DATA: booleanStringSchema
       .optional()
-      .default("false"),
+      .default(false),
   },
   runtimeEnv: {
     APP_BASE_URL: process.env.APP_BASE_URL,

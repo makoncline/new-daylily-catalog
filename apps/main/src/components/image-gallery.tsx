@@ -2,11 +2,12 @@
 
 import * as React from "react";
 import { cn } from "@/lib/utils";
-import { OptimizedImage } from "@/components/optimized-image";
+import {
+  OptimizedImage,
+  type OptimizedImageSource,
+} from "@/components/optimized-image";
 
-interface ImageData {
-  id: string;
-  url: string;
+interface ImageData extends OptimizedImageSource {
   alt?: string;
 }
 
@@ -54,7 +55,7 @@ function Thumbnail({
       onClick={onClick}
     >
       <OptimizedImage
-        src={image.url}
+        image={image}
         alt={image.alt ?? generateAltText(true)}
         size="thumbnail"
         className="h-full w-full"
@@ -103,7 +104,7 @@ export function ImageGallery({
       className={className}
       mainContent={
         <OptimizedImage
-          src={selectedImage.url}
+          image={selectedImage}
           alt={selectedImage.alt ?? generateAltText(false)}
           size="full"
           priority

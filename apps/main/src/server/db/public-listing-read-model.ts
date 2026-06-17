@@ -19,22 +19,9 @@ import {
 import { getCloudflareUrlForDaylilyS3Image } from "@/lib/utils/cloudflareLoader";
 import {
   areImageAssetsEnabled,
+  orderedImageAssetUrlInclude,
   resolveLegacyImagesWithAssets,
 } from "@/server/services/image-asset-read-model";
-
-const imageAssetSelect = {
-  select: {
-    id: true,
-    legacyImageId: true,
-    originalUrl: true,
-    displayUrl: true,
-    thumbUrl: true,
-    blurUrl: true,
-  },
-  orderBy: {
-    order: "asc",
-  },
-} as const;
 
 export const publicListingSelect = {
   id: true,
@@ -82,7 +69,9 @@ export const publicListingSelect = {
       order: "asc",
     },
   },
-  ...(areImageAssetsEnabled() ? { imageAssets: imageAssetSelect } : {}),
+  ...(areImageAssetsEnabled()
+    ? { imageAssets: orderedImageAssetUrlInclude }
+    : {}),
 } as const;
 
 type ListingWithRelations = Awaited<ReturnType<typeof getListings>>[number];

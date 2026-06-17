@@ -77,6 +77,7 @@ function sendTelegramDashboardLoadFailure(
     browserContext: DashboardLoadFailureBrowserContext;
   },
 ) {
+  if (process.env.NODE_ENV !== "production") return;
   if (typeof fetch === "undefined") return;
 
   try {
