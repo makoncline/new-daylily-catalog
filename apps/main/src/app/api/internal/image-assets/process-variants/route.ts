@@ -7,7 +7,7 @@ import { processPendingImageAssetVariants } from "@/server/services/image-asset-
 const processVariantsInputSchema = z.object({
   assetId: z.string().trim().min(1).optional(),
   limit: z.number().int().positive().max(25).optional(),
-  retryFailed: z.boolean().optional().default(true),
+  retryFailed: z.boolean().optional().default(false),
 });
 
 function isAuthorized(request: Request) {
@@ -18,12 +18,25 @@ function isAuthorized(request: Request) {
   return authorization === `Bearer ${secret}` || internalSecret === secret;
 }
 
+async function readJsonBody(request: Request) {
+  const body = await request.text();
+  if (!body.trim()) return {};
+
+  try {
+    return JSON.parse(body) as unknown;
+  } catch {
+    return null;
+  }
+}
+
 export async function POST(request: Request) {
   if (!isAuthorized(request)) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const parsed = processVariantsInputSchema.safeParse(await request.json());
+  const parsed = processVariantsInputSchema.safeParse(
+    await readJsonBody(request),
+  );
   if (!parsed.success) {
     return NextResponse.json({ error: "Invalid request" }, { status: 400 });
   }

@@ -218,12 +218,10 @@ export async function processPendingImageAssetVariants(
   options: ProcessImageAssetVariantsOptions,
 ) {
   const limit = clampLimit(options.limit);
-  const assets = await options.db.imageAsset.findMany({
+  const pendingAssets = await options.db.imageAsset.findMany({
     where: {
       ...(options.assetId ? { id: options.assetId } : {}),
-      status: options.retryFailed
-        ? { in: ["pending_variants", "variant_failed"] }
-        : "pending_variants",
+      status: "pending_variants",
       originalUrl: { not: null },
       originalKey: { not: null },
       OR: [{ displayUrl: null }, { thumbUrl: null }, { blurUrl: null }],
@@ -231,6 +229,22 @@ export async function processPendingImageAssetVariants(
     orderBy: { createdAt: "asc" },
     take: limit,
   });
+  const retryLimit = options.retryFailed ? limit - pendingAssets.length : 0;
+  const failedAssets =
+    retryLimit > 0
+      ? await options.db.imageAsset.findMany({
+          where: {
+            ...(options.assetId ? { id: options.assetId } : {}),
+            status: "variant_failed",
+            originalUrl: { not: null },
+            originalKey: { not: null },
+            OR: [{ displayUrl: null }, { thumbUrl: null }, { blurUrl: null }],
+          },
+          orderBy: { createdAt: "asc" },
+          take: retryLimit,
+        })
+      : [];
+  const assets = [...pendingAssets, ...failedAssets];
 
   console.info("[image-assets] variants started", {
     assetId: options.assetId,

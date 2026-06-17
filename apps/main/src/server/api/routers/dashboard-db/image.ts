@@ -26,7 +26,6 @@ import {
   getR2OriginalUploadMetadata,
   isExpectedOriginalImageAssetKey,
 } from "@/server/services/image-asset-storage";
-import { processPendingImageAssetVariants } from "@/server/services/image-asset-variant-processor";
 import {
   assertOwnedListing,
   assertOwnedProfile,
@@ -202,6 +201,10 @@ function scheduleImageAssetVariantProcessing(args: {
 
   after(async () => {
     try {
+      const { processPendingImageAssetVariants } = await import(
+        "@/server/services/image-asset-variant-processor"
+      );
+
       await processPendingImageAssetVariants({
         db: args.db,
         assetId: args.imageAssetId,
