@@ -22,9 +22,12 @@ describe("image asset variant processor", () => {
     const { processPendingImageAssetVariants } = await import(
       "@/server/services/image-asset-variant-processor"
     );
+    type ProcessOptions = Parameters<
+      typeof processPendingImageAssetVariants
+    >[0];
 
     await processPendingImageAssetVariants({
-      db: db as never,
+      db: db as unknown as ProcessOptions["db"],
       limit: 5,
       retryFailed: true,
     });

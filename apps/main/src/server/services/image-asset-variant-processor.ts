@@ -36,20 +36,26 @@ function clampLimit(limit: number | undefined) {
   return Math.min(Math.max(Math.trunc(limit), 1), MAX_LIMIT);
 }
 
-function getTimeoutSeconds() {
+function readPositiveIntEnv(name: string, fallback: number) {
   const value = Number.parseInt(
-    process.env.IMAGE_ASSET_BACKFILL_DOWNLOAD_TIMEOUT_SECONDS ?? "",
+    process.env[name] ?? "",
     10,
   );
-  return Number.isFinite(value) && value > 0 ? value : DEFAULT_TIMEOUT_SECONDS;
+  return Number.isFinite(value) && value > 0 ? value : fallback;
+}
+
+function getTimeoutSeconds() {
+  return readPositiveIntEnv(
+    "IMAGE_ASSET_BACKFILL_DOWNLOAD_TIMEOUT_SECONDS",
+    DEFAULT_TIMEOUT_SECONDS,
+  );
 }
 
 function getMaxSourceBytes() {
-  const value = Number.parseInt(
-    process.env.IMAGE_ASSET_BACKFILL_MAX_SOURCE_BYTES ?? "",
-    10,
+  return readPositiveIntEnv(
+    "IMAGE_ASSET_BACKFILL_MAX_SOURCE_BYTES",
+    DEFAULT_MAX_SOURCE_BYTES,
   );
-  return Number.isFinite(value) && value > 0 ? value : DEFAULT_MAX_SOURCE_BYTES;
 }
 
 async function readResponseBuffer(response: Response, maxBytes: number) {
@@ -214,34 +220,43 @@ async function processOneImageAsset(
   }
 }
 
-export async function processPendingImageAssetVariants(
-  options: ProcessImageAssetVariantsOptions,
-) {
-  const limit = clampLimit(options.limit);
-  const pendingAssets = await options.db.imageAsset.findMany({
+function findProcessableImageAssets(args: {
+  db: DbClient;
+  assetId?: string;
+  status: "pending_variants" | "variant_failed";
+  limit: number;
+}) {
+  return args.db.imageAsset.findMany({
     where: {
-      ...(options.assetId ? { id: options.assetId } : {}),
-      status: "pending_variants",
+      ...(args.assetId ? { id: args.assetId } : {}),
+      status: args.status,
       originalUrl: { not: null },
       originalKey: { not: null },
       OR: [{ displayUrl: null }, { thumbUrl: null }, { blurUrl: null }],
     },
     orderBy: { createdAt: "asc" },
-    take: limit,
+    take: args.limit,
+  });
+}
+
+export async function processPendingImageAssetVariants(
+  options: ProcessImageAssetVariantsOptions,
+) {
+  const limit = clampLimit(options.limit);
+  const pendingAssets = await findProcessableImageAssets({
+    db: options.db,
+    assetId: options.assetId,
+    status: "pending_variants",
+    limit,
   });
   const retryLimit = options.retryFailed ? limit - pendingAssets.length : 0;
   const failedAssets =
     retryLimit > 0
-      ? await options.db.imageAsset.findMany({
-          where: {
-            ...(options.assetId ? { id: options.assetId } : {}),
-            status: "variant_failed",
-            originalUrl: { not: null },
-            originalKey: { not: null },
-            OR: [{ displayUrl: null }, { thumbUrl: null }, { blurUrl: null }],
-          },
-          orderBy: { createdAt: "asc" },
-          take: retryLimit,
+      ? await findProcessableImageAssets({
+          db: options.db,
+          assetId: options.assetId,
+          status: "variant_failed",
+          limit: retryLimit,
         })
       : [];
   const assets = [...pendingAssets, ...failedAssets];

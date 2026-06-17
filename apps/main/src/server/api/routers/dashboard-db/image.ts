@@ -211,7 +211,7 @@ function scheduleImageAssetVariantProcessing(args: {
         limit: 1,
       });
     } catch (error) {
-      console.error("[image-assets] variants schedule failed", {
+      console.error("[image-assets] variants async processing failed", {
         imageAssetId: args.imageAssetId,
         error,
       });
