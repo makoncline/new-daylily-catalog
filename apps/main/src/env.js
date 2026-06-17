@@ -4,6 +4,7 @@ import * as dotenv from "dotenv";
 import path from "path";
 import { fileURLToPath } from "url";
 
+const booleanStringSchema = z.union([z.literal("true"), z.literal("false")]);
 const appRoot = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
   "..",
@@ -35,6 +36,7 @@ export const env = createEnv({
     AWS_SECRET_ACCESS_KEY: z.string().optional(),
     AWS_REGION: z.string().optional(),
     AWS_BUCKET_NAME: z.string().optional(),
+    USE_IMAGE_ASSETS: booleanStringSchema.optional().default("false"),
     SENTRY_AUTH_TOKEN: z.string().optional(),
     NODE_ENV: z.enum(["development", "test", "production"]),
   },
@@ -70,6 +72,7 @@ export const env = createEnv({
     AWS_SECRET_ACCESS_KEY: process.env.AWS_SECRET_ACCESS_KEY,
     AWS_REGION: process.env.AWS_REGION,
     AWS_BUCKET_NAME: process.env.AWS_BUCKET_NAME,
+    USE_IMAGE_ASSETS: process.env.USE_IMAGE_ASSETS,
     SENTRY_AUTH_TOKEN: process.env.SENTRY_AUTH_TOKEN,
     NODE_ENV: process.env.NODE_ENV,
     NEXT_PUBLIC_USE_V2_CULTIVAR_DISPLAY_DATA:
