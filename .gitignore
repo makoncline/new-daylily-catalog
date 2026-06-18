@@ -29,7 +29,6 @@ apps/*/prisma/local-dev-seeded.sqlite-shm
 tests/.tmp/
 apps/*/tests/.tmp/
 .tmp/
-/temp_pages/
 prisma/prisma/
 prisma/data-migrations/20260407_upsert_v2_ahs_cultivars/
 prisma/data-migrations/v2-ahs-cultivar-delta/
@@ -58,10 +57,9 @@ apps/*/next-env.d.ts
 # local operator scratch space
 /downloads/
 /local/
-/downloads/v2-ahs-images/
-/downloads/v2-ahs-images-chatgpt/
-/downloads/v2-ahs-image-review/
-/local/v2-ahs-image-review/
+/temp/
+/temp_pages/
+/temp_pages_*/
 
 # debug
 npm-debug.log*

@@ -40,7 +40,11 @@ originals available for future reprocessing.
 
 ## Current Status
 
-This document tracks the stacked ImageAsset/R2 migration PRs.
+This document began as the stacked ImageAsset/R2 migration plan. The
+profile/listing ImageAsset implementation is now merged into `origin/main`; keep
+this document as the convention/runbook source for follow-up asset work,
+especially generated cultivar assets. Verify live production state before using
+old status notes as operational truth.
 
 - [x] Added `ImageAsset` schema to `prisma/schema.prisma`.
 - [x] Added Prisma-generated structural SQL:
@@ -50,15 +54,13 @@ This document tracks the stacked ImageAsset/R2 migration PRs.
 - [x] Add local-first backfill tooling and in-app variant processing.
 - [x] Add `USE_IMAGE_ASSETS` read-path support.
 - [x] Add dual-write for new uploaded originals.
-- [ ] Backfill legacy local-prod-copy `Image` rows to R2 and local
+- [x] Backfill legacy local-prod-copy `Image` rows to R2 and local
       `ImageAsset`.
-- [ ] Import reviewed `ImageAsset` data into a Turso branch.
-- [ ] Run production-like Docker verification against a Turso branch with
-      `USE_IMAGE_ASSETS=false` and `USE_IMAGE_ASSETS=true`.
-- [ ] Enable `USE_IMAGE_ASSETS` in production after explicit approval and
-      successful production-data verification.
-
-Production Turso has not been mutated by this migration.
+- [x] Import reviewed `ImageAsset` data into Turso.
+- [x] Run production-like verification with `USE_IMAGE_ASSETS=false` and
+      `USE_IMAGE_ASSETS=true`.
+- [x] Enable `USE_IMAGE_ASSETS` after explicit approval and successful
+      production-data verification.
 
 ## Runtime Decision
 
@@ -151,9 +153,19 @@ users/{userId}/listing-images/{listingId}/{imageAssetId}/blur-20.webp
 
 ```
 
-Use IDs for user-owned paths because user/listing slugs can change. Cultivar
-asset paths can add readable normalized names plus stable IDs when that workflow
-lands.
+Use IDs for user-owned paths because user/listing slugs can change. Generated
+cultivar assets should also use stable IDs instead of names in R2 keys:
+
+```text
+cultivars/{cultivarReferenceId}/{imageAssetId}/original.png
+cultivars/{cultivarReferenceId}/{imageAssetId}/display-800.webp
+cultivars/{cultivarReferenceId}/{imageAssetId}/thumb-200.webp
+cultivars/{cultivarReferenceId}/{imageAssetId}/blur-20.webp
+```
+
+For cultivar assets, `original.png` means the original generated output, not the
+AHS/source image. Regeneration should create a new `ImageAsset.id` and new R2
+keys rather than overwriting immutable objects.
 
 Originals are public in this initial R2 design, but public app surfaces should
 converge on static variants. The main cost-control rule is: feeds, metadata,
@@ -176,6 +188,77 @@ Content-Type: image/webp
 
 The product workflow is create/delete, not in-place image replacement. New image
 uploads should create new rows and new R2 keys.
+
+## Generated Cultivar Asset Follow-Up
+
+Generated cultivar image workflow state is intentionally outside the repo:
+
+```text
+~/daylily-catalog-image-processing
+```
+
+Important local inputs:
+
+```text
+v2-ahs-image-review/review.sqlite
+v2-ahs-image-review/s3-manifest.sqlite
+v2-ahs-image-review/edited/*.png
+v2-ahs-images/*
+v2-ahs-image-review/s3.env
+```
+
+Last handoff verification found:
+
+```text
+8093 edited generated images
+64632 cached source images
+0 review.sqlite rows pointing at repo-local downloads/
+0 s3-manifest.sqlite rows pointing at repo-local downloads/
+```
+
+The production app must not depend on those local files. They are migration
+inputs only.
+
+The next schema follow-up should add cultivar ownership to `ImageAsset`:
+
+```prisma
+cultivarReferenceId String?
+cultivarReference   CultivarReference? @relation(fields: [cultivarReferenceId], references: [id], onDelete: Cascade)
+
+@@index([cultivarReferenceId])
+```
+
+The existing `ImageAsset` table check constraint only allows listing/profile
+owners. The cultivar follow-up needs a reviewed structural migration that
+permits exactly one owner:
+
+```text
+kind = 'listing'  with listingId only
+kind = 'profile'  with userProfileId only
+kind = 'cultivar' with cultivarReferenceId only
+```
+
+Follow `apps/main/docs/db-migration.md`: update Prisma schema, generate
+structural SQL with `prisma migrate dev --create-only` against a clean local
+authoring DB, rehearse on a fresh local prod copy from
+`pnpm env:dev bash scripts/db-backup.sh`, and apply exact reviewed SQL to Turso
+only after explicit approval.
+
+Use a local SQLite prod copy as the import manifest. For each generated PNG,
+create the local `ImageAsset` row, upload `original.png`, generate/upload
+`display-800.webp`, `thumb-200.webp`, and `blur-20.webp`, then mark the row
+`ready` only after all uploads succeed. Do not run broad image processing while
+connected to production Turso.
+
+When the app read path is added, gate it behind a default-false feature flag.
+The intended read order is:
+
+```text
+ready cultivar ImageAsset
+V2 image URL
+legacy AHS image URL
+default image
+```
 
 ## Processing
 
@@ -447,5 +530,6 @@ for more user input:
   can be regenerated.
 - Keep `legacyImageId` until the legacy `Image` table is fully retired. Do not
   drop it during this migration.
-- Defer generated cultivar asset relations until generated cultivar images are
-  actually served by the app.
+- For generated cultivar assets, add `cultivarReferenceId` in a follow-up schema
+  migration and use `kind = "cultivar"`; do not overload listing/profile owner
+  fields.
