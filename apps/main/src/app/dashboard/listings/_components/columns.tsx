@@ -21,7 +21,7 @@ import {
   matchesNumericRange,
   matchesTextContains,
 } from "@/components/public-catalog-search/public-catalog-search-filter-utils";
-import type { Image } from "@prisma/client";
+import type { ImageCollectionItem } from "@/app/dashboard/_lib/dashboard-db/images-collection";
 
 interface ListingListRef {
   id: string;
@@ -34,7 +34,7 @@ type CultivarReference =
 type CultivarReferenceAhsListing = CultivarReference["ahsListing"];
 
 export type ListingData = ListingBase & {
-  images: Image[];
+  images: ImageCollectionItem[];
   lists: ListingListRef[];
   ahsListing: CultivarReferenceAhsListing | null;
 };

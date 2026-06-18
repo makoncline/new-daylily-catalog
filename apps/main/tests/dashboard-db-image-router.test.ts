@@ -1,6 +1,14 @@
 // @vitest-environment node
 
-import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  afterEach,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+} from "vitest";
 import type { TRPCInternalContext } from "@/server/api/trpc";
 
 process.env.SKIP_ENV_VALIDATION = "1";
@@ -26,6 +34,7 @@ vi.mock("@aws-sdk/s3-request-presigner", () => ({
 
 type RouterModule = typeof import("@/server/api/routers/dashboard-db/image");
 let dashboardDbImageRouter: RouterModule["dashboardDbImageRouter"];
+const originalUseImageAssets = process.env.USE_IMAGE_ASSETS;
 
 beforeAll(async () => {
   ({ dashboardDbImageRouter } = await import(
@@ -46,6 +55,7 @@ interface MockDb {
   };
   imageAsset: {
     deleteMany: ReturnType<typeof vi.fn>;
+    findMany: ReturnType<typeof vi.fn>;
     updateMany: ReturnType<typeof vi.fn>;
   };
   listing: {
@@ -69,6 +79,7 @@ function createMockDb(): MockDb {
   };
   const imageAsset = {
     deleteMany: vi.fn(),
+    findMany: vi.fn(),
     updateMany: vi.fn(),
   };
   return {
@@ -103,6 +114,15 @@ describe("dashboardDb.image", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     s3Mocks.getSignedUrl.mockResolvedValue("https://upload-url.example");
+  });
+
+  afterEach(() => {
+    if (originalUseImageAssets === undefined) {
+      delete process.env.USE_IMAGE_ASSETS;
+      return;
+    }
+
+    process.env.USE_IMAGE_ASSETS = originalUseImageAssets;
   });
 
   it("presigns only allowed image types with a server-derived extension and content length", async () => {
@@ -262,6 +282,55 @@ describe("dashboardDb.image", () => {
     expect(db.listing.findMany).not.toHaveBeenCalled();
     expect(db.userProfile.findUnique).not.toHaveBeenCalled();
     expect(db.image.findMany).not.toHaveBeenCalled();
+  });
+
+  it("sync returns dashboard thumb URLs with ImageAsset metadata when asset reads are enabled", async () => {
+    process.env.USE_IMAGE_ASSETS = "true";
+    const db = createMockDb();
+    db.$queryRaw.mockResolvedValueOnce([
+      {
+        id: "image-1",
+        url: "https://daylily-catalog-images.s3.amazonaws.com/listing/image-1.jpg",
+        order: 1,
+        listingId: "listing-1",
+        userProfileId: null,
+        createdAt: "2026-01-01T00:00:00.000Z",
+        updatedAt: "2026-01-02T00:00:00.000Z",
+        status: null,
+      },
+    ]);
+    db.imageAsset.findMany.mockResolvedValueOnce([
+      {
+        id: "asset-1",
+        legacyImageId: "image-1",
+        status: "ready",
+        originalUrl: "https://media.example/image-1/original.jpg",
+        displayUrl: "https://media.example/image-1/display-800.webp",
+        thumbUrl: "https://media.example/image-1/thumb-200.webp",
+        blurUrl: "https://media.example/image-1/blur-20.webp",
+      },
+    ]);
+
+    const caller = createCaller(db);
+    const result = await caller.sync({ since: null });
+
+    expect(result[0]).toMatchObject({
+      id: "image-1",
+      url: "https://media.example/image-1/thumb-200.webp",
+      imageAsset: {
+        id: "asset-1",
+        displayUrl: "https://media.example/image-1/display-800.webp",
+        thumbUrl: "https://media.example/image-1/thumb-200.webp",
+        blurUrl: "https://media.example/image-1/blur-20.webp",
+      },
+    });
+    expect(db.imageAsset.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          legacyImageId: { in: ["image-1"] },
+        },
+      }),
+    );
   });
 
   it("sync returns an empty page when the owner-checked query has no rows", async () => {

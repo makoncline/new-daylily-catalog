@@ -88,6 +88,79 @@ describe("OptimizedImage", () => {
     expect(reportErrorMock).toHaveBeenCalledTimes(0);
   });
 
+  it("uses ImageAsset variants directly and resets the blur overlay for each source", () => {
+    const firstImage = {
+      id: "image-1",
+      url: "https://legacy.example/image-1.jpg",
+      imageAsset: {
+        id: "asset-1",
+        status: "ready",
+        originalUrl: "https://media.example/image-1/original.jpg",
+        displayUrl: "https://media.example/image-1/display-800.webp",
+        thumbUrl: "https://media.example/image-1/thumb-200.webp",
+        blurUrl: "https://media.example/image-1/blur-20.webp",
+      },
+    };
+    const secondImage = {
+      id: "image-2",
+      url: "https://legacy.example/image-2.jpg",
+      imageAsset: {
+        id: "asset-2",
+        status: "ready",
+        originalUrl: "https://media.example/image-2/original.jpg",
+        displayUrl: "https://media.example/image-2/display-800.webp",
+        thumbUrl: "https://media.example/image-2/thumb-200.webp",
+        blurUrl: "https://media.example/image-2/blur-20.webp",
+      },
+    };
+
+    const { container, rerender } = render(
+      <OptimizedImage alt="Asset image" image={firstImage} size="full" />,
+    );
+
+    const image = screen.getByRole("img");
+    const blurOverlay = container.querySelector(
+      '[aria-hidden="true"]',
+    ) as HTMLElement;
+
+    expect(image).toHaveAttribute(
+      "src",
+      "https://media.example/image-1/display-800.webp",
+    );
+    expect(blurOverlay.getAttribute("style")).toContain(
+      "https://media.example/image-1/blur-20.webp",
+    );
+    expect(blurOverlay.className).toContain("opacity-100");
+
+    fireEvent.load(image);
+    expect(blurOverlay.className).toContain("opacity-0");
+
+    rerender(
+      <OptimizedImage alt="Asset image" image={secondImage} size="full" />,
+    );
+
+    const nextBlurOverlay = container.querySelector(
+      '[aria-hidden="true"]',
+    ) as HTMLElement;
+    expect(screen.getByRole("img")).toHaveAttribute(
+      "src",
+      "https://media.example/image-2/display-800.webp",
+    );
+    expect(nextBlurOverlay.getAttribute("style")).toContain(
+      "https://media.example/image-2/blur-20.webp",
+    );
+    expect(nextBlurOverlay.className).toContain("opacity-100");
+
+    rerender(
+      <OptimizedImage alt="Asset image" image={secondImage} size="thumbnail" />,
+    );
+
+    expect(screen.getByRole("img")).toHaveAttribute(
+      "src",
+      "https://media.example/image-2/thumb-200.webp",
+    );
+  });
+
   it("does not report external host load failures", () => {
     const externalSrc =
       "https://www.daylilydatabase.org/AHSPhoto/C/ChinaBlushCherylDay_1584735345.jpg";

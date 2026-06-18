@@ -103,7 +103,9 @@ export function OptimizedImage({
   fit = IMAGE_CONFIG.FIT,
   ...props
 }: OptimizedImageProps) {
-  const [loaded, setLoaded] = React.useState(false);
+  const [loadedImageUrl, setLoadedImageUrl] = React.useState<string | null>(
+    null,
+  );
   const imageVariant = variant ?? (size === "thumbnail" ? "thumb" : "display");
   const resolvedImage = resolveImageSource({
     image,
@@ -140,18 +142,19 @@ export function OptimizedImage({
         })
       : resolvedImage.src);
 
+  const loaded = loadedImageUrl === imageUrl;
   const handleLoad: React.ReactEventHandler<HTMLImageElement> =
     React.useCallback(() => {
       // In development, hold the overlay a bit so you can observe the blur-up
       if (process.env.NODE_ENV === "development") {
         const { MIN, MAX } = IMAGE_CONFIG.DEBUG.BLUR_DELAY;
         const ms = Math.floor(Math.random() * (MAX - MIN + 1)) + MIN;
-        const id = setTimeout(() => setLoaded(true), ms);
-        return () => clearTimeout(id);
+        setTimeout(() => setLoadedImageUrl(imageUrl), ms);
+        return;
       }
       // In production, fade overlay immediately after paint
-      setLoaded(true);
-    }, []);
+      setLoadedImageUrl(imageUrl);
+    }, [imageUrl]);
 
   return (
     <div

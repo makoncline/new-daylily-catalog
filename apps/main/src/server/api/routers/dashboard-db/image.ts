@@ -17,9 +17,8 @@ import {
 import type { db } from "@/server/db";
 import {
   areImageAssetsEnabled,
-  buildImageAssetMap,
   imageAssetUrlSelect,
-  resolveImageAssetUrl,
+  resolveLegacyImagesWithAssets,
 } from "@/server/services/image-asset-read-model";
 import {
   buildR2PublicUrl,
@@ -263,16 +262,12 @@ async function resolveDashboardImageRows(args: {
     },
     select: imageAssetUrlSelect,
   });
-  const imageAssetByLegacyId = buildImageAssetMap(assets);
 
-  return args.rows.map((row) => ({
-    ...row,
-    url: resolveImageAssetUrl({
-      image: row,
-      imageAssetByLegacyId,
-      variant: "thumb",
-    }),
-  }));
+  return resolveLegacyImagesWithAssets({
+    images: args.rows,
+    imageAssets: assets,
+    variant: "thumb",
+  });
 }
 
 export const dashboardDbImageRouter = createTRPCRouter({

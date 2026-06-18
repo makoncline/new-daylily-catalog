@@ -36,7 +36,7 @@ export function CultivarGardenPhotosSection({
             >
               <div className="aspect-square overflow-hidden rounded-lg border">
                 <OptimizedImage
-                  src={photo.url}
+                  image={photo}
                   alt={`${photo.listingTitle} from ${photo.sellerTitle}`}
                   size="full"
                   className="h-full w-full object-cover transition-transform duration-200 group-hover:scale-[1.03]"
