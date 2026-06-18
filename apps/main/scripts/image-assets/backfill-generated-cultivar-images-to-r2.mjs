@@ -131,6 +131,13 @@ function findExistingCultivarImageAsset(db, cultivarReferenceId) {
   });
 }
 
+function isMissingCultivarReferenceError(error, item) {
+  return (
+    error instanceof Error &&
+    error.message === `Missing CultivarReference ${item.cultivarReferenceId}`
+  );
+}
+
 async function ensureCultivarImageAsset(db, item) {
   const existing = await findExistingCultivarImageAsset(
     db,
@@ -267,11 +274,24 @@ async function markBackfillFailed(db, item, error) {
   });
 }
 
+function logSkippedMissingCultivarReference(item, error) {
+  const message = error instanceof Error ? error.message : String(error);
+
+  console.error("[generated-cultivar-backfill-skipped]", {
+    cultivarReferenceId: item.cultivarReferenceId,
+    v2AhsCultivarId: item.v2AhsCultivarId,
+    error: message,
+  });
+}
+
 async function main() {
   const args = parseArgs();
   assertLocalDatabaseUnlessExplicitlyAllowed(args.allowRemoteDb);
 
   const db = await createDb();
+  if (!args.dryRun) {
+    requireEnv("R2_PUBLIC_BASE_URL");
+  }
   const r2 = args.dryRun ? null : createR2Client();
   const bucket = args.dryRun ? null : requireEnv("R2_BUCKET_NAME");
   const concurrency = readIntEnv(
@@ -307,7 +327,9 @@ async function main() {
         });
       } catch (error) {
         failedCount += 1;
-        if (!args.dryRun) {
+        if (!args.dryRun && isMissingCultivarReferenceError(error, item)) {
+          logSkippedMissingCultivarReference(item, error);
+        } else if (!args.dryRun) {
           await markBackfillFailed(db, item, error);
         } else {
           console.error("[dry-run-failed]", item.cultivarReferenceId, error);
