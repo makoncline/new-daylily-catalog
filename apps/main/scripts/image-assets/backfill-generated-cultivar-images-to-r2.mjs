@@ -15,6 +15,7 @@ import {
   runConcurrent,
   uploadObject,
   VARIANT_CACHE_CONTROL,
+  variantKeysFromOriginalKey,
 } from "./script-utils.mjs";
 
 const DEFAULT_DATA_ROOT = path.join(
@@ -66,13 +67,8 @@ function readManifestItems({ dataRoot }) {
         `
           SELECT
             "localPath",
-            "originalFileName",
             "v2AhsCultivarId",
-            "cultivarReferenceId",
-            "normalizedName",
-            "bytes",
-            "sha256",
-            "status"
+            "cultivarReferenceId"
           FROM "s3_image_backup_manifest"
           WHERE "status" IN ('uploaded', 'already_uploaded')
           ORDER BY "cultivarReferenceId" ASC
@@ -81,14 +77,8 @@ function readManifestItems({ dataRoot }) {
       .all()
       .map((row) => ({
         localPath: String(row.localPath),
-        originalFileName: String(row.originalFileName),
         v2AhsCultivarId: String(row.v2AhsCultivarId),
         cultivarReferenceId: String(row.cultivarReferenceId),
-        normalizedName:
-          typeof row.normalizedName === "string" ? row.normalizedName : null,
-        bytes: Number(row.bytes),
-        sha256: String(row.sha256),
-        status: String(row.status),
       }));
   } finally {
     manifest.close();
@@ -97,19 +87,6 @@ function readManifestItems({ dataRoot }) {
 
 function cultivarOriginalKey(item, imageAssetId) {
   return `cultivars/${item.cultivarReferenceId}/${imageAssetId}/original.png`;
-}
-
-function variantKeysFromOriginalKey(originalKey) {
-  const baseKey = originalKey.replace(/\/original\.png$/i, "");
-  if (baseKey === originalKey) {
-    throw new Error(`Invalid generated cultivar original key: ${originalKey}`);
-  }
-
-  return {
-    displayKey: `${baseKey}/display-800.webp`,
-    thumbKey: `${baseKey}/thumb-200.webp`,
-    blurKey: `${baseKey}/blur-20.webp`,
-  };
 }
 
 async function filterItemsForRun({ db, items, retryFailed, limit }) {
