@@ -39,6 +39,11 @@ interface CultivarOfferRowProps {
 
 export function CultivarOfferRow({ sellerSlug, offer }: CultivarOfferRowProps) {
   const listingHref = getOfferViewingHref(sellerSlug, offer.id);
+  const previewImage =
+    offer.previewImage ??
+    (offer.previewImageUrl
+      ? { id: `${offer.id}-preview`, url: offer.previewImageUrl }
+      : null);
   const updatedLabel = `Updated ${updatedDateFormatter.format(
     new Date(offer.updatedAt),
   )}`;
@@ -47,18 +52,18 @@ export function CultivarOfferRow({ sellerSlug, offer }: CultivarOfferRowProps) {
     <div
       className={cn(
         "flex flex-col gap-4 rounded-lg border p-4",
-        offer.previewImageUrl && "md:h-56 md:flex-row",
+        previewImage && "md:h-56 md:flex-row",
       )}
       data-testid="cultivar-offer-row"
       data-listing-id={offer.id}
     >
-      {offer.previewImageUrl && (
+      {previewImage && (
         <Link
           href={listingHref}
           className="aspect-square w-full shrink-0 overflow-hidden rounded-md border md:h-full md:w-auto"
         >
           <OptimizedImage
-            src={offer.previewImageUrl}
+            image={previewImage}
             alt={`${offer.title} listing image`}
             className="size-full object-cover"
             size="full"

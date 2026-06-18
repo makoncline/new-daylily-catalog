@@ -40,7 +40,7 @@ export function CultivarGallery({
     <section aria-label="Cultivar gallery" className="space-y-3">
       <div className="bg-muted/20 max-w-[400px] overflow-hidden rounded-xl border">
         <OptimizedImage
-          src={selectedImage.url}
+          image={selectedImage}
           alt={selectedImage.alt ?? `${cultivarName} image`}
           size="full"
           priority
@@ -68,7 +68,7 @@ export function CultivarGallery({
                 aria-pressed={isActive}
               >
                 <OptimizedImage
-                  src={image.url}
+                  image={image}
                   alt={image.alt ?? `${cultivarName} thumbnail`}
                   size="thumbnail"
                   className="h-16 w-full object-cover"

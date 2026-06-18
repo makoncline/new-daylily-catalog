@@ -1,13 +1,15 @@
 "use client";
 
-import { type Image as ImageType } from "@prisma/client";
-import { OptimizedImage } from "@/components/optimized-image";
+import {
+  OptimizedImage,
+  type OptimizedImageSource,
+} from "@/components/optimized-image";
 import { cn } from "@/lib/utils";
 import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
 import { ImageGallery } from "@/components/image-gallery";
 
 interface TableImagePreviewProps {
-  images: ImageType[];
+  images: OptimizedImageSource[];
   ahsImageUrl?: string | null;
 }
 
@@ -15,7 +17,7 @@ export function TableImagePreview({
   images,
   ahsImageUrl,
 }: TableImagePreviewProps) {
-  const allImages = [
+  const allImages: OptimizedImageSource[] = [
     ...images,
     ...(ahsImageUrl ? [{ url: ahsImageUrl, id: "ahs-image" }] : []),
   ];
@@ -34,7 +36,7 @@ export function TableImagePreview({
         >
           <div className="absolute overflow-hidden rounded-[4px]">
             <OptimizedImage
-              src={firstImage.url}
+              image={firstImage}
               alt="Image preview"
               size="thumbnail"
             />

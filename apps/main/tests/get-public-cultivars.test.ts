@@ -121,8 +121,16 @@ describe("getPublicCultivarPage", () => {
           images: [
             {
               id: "img-top-c",
-              url: "https://example.com/top-c.jpg",
+              url: "https://media.example/top-c/display-800.webp",
               updatedAt: new Date("2026-01-15T00:00:00.000Z"),
+              imageAsset: {
+                id: "asset-top-c",
+                status: "ready",
+                originalUrl: "https://media.example/top-c/original.jpg",
+                displayUrl: "https://media.example/top-c/display-800.webp",
+                thumbUrl: "https://media.example/top-c/thumb-200.webp",
+                blurUrl: "https://media.example/top-c/blur-20.webp",
+              },
             },
           ],
           lists: [],
@@ -173,13 +181,29 @@ describe("getPublicCultivarPage", () => {
     expect(offers.freshness.offersUpdatedAt).toEqual(
       new Date("2026-01-15T00:00:00.000Z"),
     );
-    expect(photos.gardenPhotos[0]?.id).toBe("img-top-c");
+    expect(photos.gardenPhotos[0]).toMatchObject({
+      id: "img-top-c",
+      url: "https://media.example/top-c/display-800.webp",
+      imageAsset: {
+        blurUrl: "https://media.example/top-c/blur-20.webp",
+      },
+    });
     expect(photos.freshness.photosUpdatedAt).toEqual(
       new Date("2026-01-15T00:00:00.000Z"),
     );
     expect(offers.offers.gardenCards[0]?.offers[0]?.previewImageUrl).toBe(
       "https://cf.daylilycatalog.com/cdn-cgi/image/width=800,fit=cover,format=auto,quality=90/https://daylily-catalog-images.s3.amazonaws.com/listing/top-a.jpg",
     );
+    expect(offers.offers.gardenCards[0]?.offers[1]).toMatchObject({
+      id: "listing-top-b",
+      previewImageUrl: "https://media.example/top-c/display-800.webp",
+      previewImage: {
+        imageAsset: {
+          displayUrl: "https://media.example/top-c/display-800.webp",
+          thumbUrl: "https://media.example/top-c/thumb-200.webp",
+        },
+      },
+    });
   });
 
   it("returns conversion-ready cultivar payload with pro offers only", async () => {

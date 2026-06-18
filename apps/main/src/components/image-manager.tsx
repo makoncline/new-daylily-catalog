@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { type Image } from "@prisma/client";
 import {
   DndContext,
   closestCenter,
@@ -35,12 +34,13 @@ import {
 } from "@/lib/error-utils";
 import {
   deleteImage,
+  type ImageCollectionItem,
   reorderImages,
 } from "@/app/dashboard/_lib/dashboard-db/images-collection";
 
 interface ImageManagerProps {
-  images: Image[];
-  onImagesChange?: (images: Image[]) => void;
+  images: ImageCollectionItem[];
+  onImagesChange?: (images: ImageCollectionItem[]) => void;
   onMutationSuccess?: () => void;
   referenceId: string;
   type: ImageType;
@@ -50,7 +50,7 @@ function SortableImage({
   image,
   dragControls,
 }: {
-  image: Image;
+  image: ImageCollectionItem;
   dragControls: (
     attributes: DraggableAttributes,
     listeners: Record<string, unknown>,
@@ -74,7 +74,7 @@ function SortableImage({
   return (
     <div ref={setNodeRef} style={style} className="relative aspect-square">
       <OptimizedImage
-        src={image.url}
+        image={image}
         alt="Daylily image"
         size="thumbnail"
         className="rounded-lg border"
@@ -91,7 +91,8 @@ export function ImageManager({
   referenceId,
   type,
 }: ImageManagerProps) {
-  const [imageToDelete, setImageToDelete] = useState<Image | null>(null);
+  const [imageToDelete, setImageToDelete] =
+    useState<ImageCollectionItem | null>(null);
   const {
     isDialogOpen: isDeleteDialogOpen,
     isPending,

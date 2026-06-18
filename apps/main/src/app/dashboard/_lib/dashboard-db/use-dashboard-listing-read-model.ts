@@ -1,11 +1,13 @@
 "use client";
 
 import { useEffect, useMemo, useRef } from "react";
-import type { Image } from "@prisma/client";
 import type { RouterOutputs } from "@/trpc/react";
 import { listingsCollection } from "./listings-collection";
 import { listsCollection } from "./lists-collection";
-import { imagesCollection } from "./images-collection";
+import {
+  imagesCollection,
+  type ImageCollectionItem,
+} from "./images-collection";
 import { cultivarReferencesCollection } from "./cultivar-references-collection";
 import { DASHBOARD_DB_QUERY_KEYS } from "./dashboard-db-keys";
 import { useSeededDashboardDbQuery } from "./use-seeded-dashboard-db-query";
@@ -18,7 +20,7 @@ type CultivarReference =
   RouterOutputs["dashboardDb"]["cultivarReference"]["listForUserListings"][number];
 
 export interface DashboardListingReadModel {
-  images: Image[];
+  images: ImageCollectionItem[];
   lists: List[];
   listingRows: ListingData[];
   listingsById: Map<string, ListingData>;
@@ -38,8 +40,8 @@ function buildListsByListingId(lists: List[]) {
   return map;
 }
 
-function buildImagesByListingId(images: Image[]) {
-  const map = new Map<string, Image[]>();
+function buildImagesByListingId(images: ImageCollectionItem[]) {
+  const map = new Map<string, ImageCollectionItem[]>();
 
   for (const image of images) {
     if (!image.listingId) continue;
@@ -68,7 +70,7 @@ function buildListingRows({
   listings,
 }: {
   cultivarReferenceById: Map<string, CultivarReference>;
-  imagesByListingId: Map<string, Image[]>;
+  imagesByListingId: Map<string, ImageCollectionItem[]>;
   listsByListingId: Map<string, Array<Pick<List, "id" | "title">>>;
   listings: Listing[];
 }) {
@@ -104,7 +106,7 @@ export function useDashboardListingReadModel(): DashboardListingReadModel {
         .orderBy(({ list }) => list.createdAt, "desc"),
     queryKey: DASHBOARD_DB_QUERY_KEYS.lists,
   });
-  const imagesQuery = useSeededDashboardDbQuery<Image>({
+  const imagesQuery = useSeededDashboardDbQuery<ImageCollectionItem>({
     debugLabel: "dashboard.images",
     query: (q) =>
       q

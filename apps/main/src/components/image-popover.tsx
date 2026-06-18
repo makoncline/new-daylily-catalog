@@ -65,7 +65,7 @@ export function ImagePopover({
             className={cn(
               "overflow-hidden rounded-md",
               isSingleImage
-                ? "aspect-square w-[300px]"
+                ? "aspect-square w-[200px]"
                 : "aspect-square w-[100px]",
             )}
           >

@@ -6,6 +6,7 @@ import {
   type PublicCultivarReferenceData,
 } from "@/server/db/public-cultivar-context";
 import { getCloudflareUrlForDaylilyS3Image } from "@/lib/utils/cloudflareLoader";
+import type { ImageAssetView } from "@/server/services/image-asset-read-model";
 
 const CULTIVAR_SPEC_FIELDS = [
   ["Scape Height", "scapeHeight"],
@@ -44,6 +45,25 @@ type PublicRelatedCultivar = {
   segment: string;
   year: string | null;
 };
+
+type PublicCultivarImage = {
+  id: string;
+  url: string;
+  imageAsset?: ImageAssetView;
+};
+
+type CultivarListingCardImage = CultivarListingCards[number]["images"][number];
+
+function toPublicCultivarImage(
+  image: CultivarListingCardImage,
+): PublicCultivarImage & CultivarListingCardImage {
+  return {
+    ...image,
+    url: image.imageAsset
+      ? image.url
+      : getCloudflareUrlForDaylilyS3Image(image.url),
+  };
+}
 
 function getCultivarDisplayName(
   normalizedName: string | null,
@@ -169,15 +189,18 @@ function getCultivarHeroImages(
   const catalogImages = listingCards.flatMap((listing) =>
     listing.images
       .filter((image) => image.id !== `ahs-${listing.id}`)
-      .map((image) => ({
-        alt: `${listing.title} catalog image`,
-        id: image.id,
-        listingId: listing.id,
-        sellerSlug: listing.userSlug,
-        sellerTitle: listing.sellerTitle,
-        source: "catalog" as const,
-        url: getCloudflareUrlForDaylilyS3Image(image.url),
-      })),
+      .map((image) => {
+        const publicImage = toPublicCultivarImage(image);
+
+        return {
+          ...publicImage,
+          alt: `${listing.title} catalog image`,
+          listingId: listing.id,
+          sellerSlug: listing.userSlug,
+          sellerTitle: listing.sellerTitle,
+          source: "catalog" as const,
+        };
+      }),
   );
 
   return cultivarReference.ahsListing?.ahsImageUrl
@@ -214,7 +237,7 @@ function toGardenCards(args: {
       location: string | null;
       listingCount: number;
       listCount: number;
-      profileImages: Array<{ id: string; url: string }>;
+      profileImages: PublicCultivarImage[];
       createdAt: Date;
       updatedAt: Date;
       offers: Array<{
@@ -225,6 +248,7 @@ function toGardenCards(args: {
         description: string | null;
         updatedAt: Date;
         imageCount: number;
+        previewImage?: PublicCultivarImage | null;
         previewImageUrl: string | null;
         lists: Array<{ id: string; title: string }>;
       }>;
@@ -260,14 +284,17 @@ function toGardenCards(args: {
       return;
     }
 
+    const previewImage = listing.images[0]
+      ? toPublicCultivarImage(listing.images[0])
+      : null;
+
     gardenCard.offers.push({
       description: listing.description,
       id: listing.id,
       imageCount: listing.images.length,
       lists: listing.lists,
-      previewImageUrl: listing.images[0]?.url
-        ? getCloudflareUrlForDaylilyS3Image(listing.images[0].url)
-        : null,
+      previewImage,
+      previewImageUrl: previewImage?.url ?? null,
       price: listing.price,
       slug: listing.slug,
       title: listing.title,
@@ -322,15 +349,18 @@ function toGardenPhotos(args: {
         return [];
       }
 
-      return listing.images.map((image) => ({
-        id: image.id,
-        listingId: listing.id,
-        listingTitle: listing.title,
-        sellerSlug: summary.slug ?? summary.id,
-        sellerTitle: summary.title ?? summary.slug ?? "Unnamed Garden",
-        updatedAt: image.updatedAt,
-        url: getCloudflareUrlForDaylilyS3Image(image.url),
-      }));
+      return listing.images.map((image) => {
+        const publicImage = toPublicCultivarImage(image);
+
+        return {
+          ...publicImage,
+          listingId: listing.id,
+          listingTitle: listing.title,
+          sellerSlug: summary.slug ?? summary.id,
+          sellerTitle: summary.title ?? summary.slug ?? "Unnamed Garden",
+          updatedAt: image.updatedAt,
+        };
+      });
     })
     .sort((a, b) => {
       const aUpdatedAt = toDate(a.updatedAt);
