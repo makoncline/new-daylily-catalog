@@ -95,10 +95,6 @@ function readManifestItems({ dataRoot }) {
   }
 }
 
-function cultivarImageAssetId(cultivarReferenceId) {
-  return `cultivar-${cultivarReferenceId}`;
-}
-
 function cultivarOriginalKey(item, imageAssetId) {
   return `cultivars/${item.cultivarReferenceId}/${imageAssetId}/original.png`;
 }
@@ -147,6 +143,35 @@ async function filterItemsForRun({ db, items, retryFailed, limit }) {
   return selected;
 }
 
+function findExistingCultivarImageAsset(db, cultivarReferenceId) {
+  return db.imageAsset.findFirst({
+    where: {
+      kind: "cultivar",
+      cultivarReferenceId,
+    },
+    orderBy: { createdAt: "asc" },
+    select: { id: true },
+  });
+}
+
+async function ensureCultivarImageAsset(db, item) {
+  const existing = await findExistingCultivarImageAsset(
+    db,
+    item.cultivarReferenceId,
+  );
+  if (existing) return existing;
+
+  return db.imageAsset.create({
+    data: {
+      order: 0,
+      kind: "cultivar",
+      status: "backfill_pending",
+      cultivarReferenceId: item.cultivarReferenceId,
+    },
+    select: { id: true },
+  });
+}
+
 async function backfillGeneratedCultivarImage({
   db,
   r2,
@@ -166,7 +191,9 @@ async function backfillGeneratedCultivarImage({
     throw new Error(`Generated image is missing: ${item.localPath}`);
   }
 
-  const imageAssetId = cultivarImageAssetId(item.cultivarReferenceId);
+  const imageAssetId = dryRun
+    ? "<generated-image-asset-id>"
+    : (await ensureCultivarImageAsset(db, item)).id;
   const originalKey = cultivarOriginalKey(item, imageAssetId);
   const variantKeys = variantKeysFromOriginalKey(originalKey);
 
@@ -219,24 +246,9 @@ async function backfillGeneratedCultivarImage({
     ),
   ]);
 
-  await db.imageAsset.upsert({
+  await db.imageAsset.update({
     where: { id: imageAssetId },
-    create: {
-      id: imageAssetId,
-      order: 0,
-      kind: "cultivar",
-      status: "ready",
-      cultivarReferenceId: item.cultivarReferenceId,
-      originalKey,
-      originalUrl: urls.originalUrl,
-      displayKey: variantKeys.displayKey,
-      displayUrl: urls.displayUrl,
-      thumbKey: variantKeys.thumbKey,
-      thumbUrl: urls.thumbUrl,
-      blurKey: variantKeys.blurKey,
-      blurUrl: urls.blurUrl,
-    },
-    update: {
+    data: {
       order: 0,
       kind: "cultivar",
       status: "ready",
@@ -260,19 +272,12 @@ async function backfillGeneratedCultivarImage({
 }
 
 async function markBackfillFailed(db, item, error) {
-  const imageAssetId = cultivarImageAssetId(item.cultivarReferenceId);
+  const imageAssetId = (await ensureCultivarImageAsset(db, item)).id;
   const message = error instanceof Error ? error.message : String(error);
 
-  await db.imageAsset.upsert({
+  await db.imageAsset.update({
     where: { id: imageAssetId },
-    create: {
-      id: imageAssetId,
-      order: 0,
-      kind: "cultivar",
-      status: "backfill_failed",
-      cultivarReferenceId: item.cultivarReferenceId,
-    },
-    update: {
+    data: {
       status: "backfill_failed",
       cultivarReferenceId: item.cultivarReferenceId,
     },
