@@ -250,6 +250,44 @@ create the local `ImageAsset` row, upload `original.png`, generate/upload
 `ready` only after all uploads succeed. Do not run broad image processing while
 connected to production Turso.
 
+Local rehearsal commands:
+
+```bash
+pnpm env:dev bash scripts/db-backup.sh
+
+cp prisma/local-prod-copy-daylily-catalog.db \
+  prisma/local-prod-copy-daylily-catalog-cultivar-image-rehearsal.db
+
+sqlite3 prisma/local-prod-copy-daylily-catalog-cultivar-image-rehearsal.db \
+  < prisma/migrations/20260618173438_add_cultivar_image_assets/migration.sql
+
+DATABASE_URL="file:$PWD/prisma/local-prod-copy-daylily-catalog-cultivar-image-rehearsal.db" \
+  node scripts/image-assets/backfill-generated-cultivar-images-to-r2.mjs \
+    --dry-run \
+    --limit 25
+```
+
+When the local dry run is clean and R2 writes are explicitly approved, run the
+same script without `--dry-run` against the rehearsal SQLite DB only. Do not use
+`--allow-remote-db` for this workflow unless production/Turso import has been
+separately reviewed and approved.
+
+For the approved prod-R2/local-DB rehearsal from `apps/main`, source the root
+production env explicitly:
+
+```bash
+set -a
+source ../../.env.production
+set +a
+
+DATABASE_URL="file:$PWD/prisma/local-prod-copy-daylily-catalog-cultivar-image-rehearsal.db" \
+IMAGE_ASSET_BACKFILL_CONCURRENCY=1 \
+  node scripts/image-assets/backfill-generated-cultivar-images-to-r2.mjs \
+    --limit 3
+```
+
+The script refuses non-`file:` databases unless `--allow-remote-db` is passed.
+
 When the app read path is added, gate it behind a default-false feature flag.
 The intended read order is:
 

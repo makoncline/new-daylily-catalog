@@ -19,10 +19,16 @@ local-dev.sqlite
 *.bak
 *.bak-*
 prisma/local-dev.sqlite
+prisma/local-dev-*.sqlite
+prisma/local-dev-*.sqlite-shm
+prisma/local-dev-*.sqlite-wal
 prisma/local-dev-seeded.sqlite
 prisma/local-dev-seeded.sqlite-wal
 prisma/local-dev-seeded.sqlite-shm
 apps/*/prisma/local-dev.sqlite
+apps/*/prisma/local-dev-*.sqlite
+apps/*/prisma/local-dev-*.sqlite-shm
+apps/*/prisma/local-dev-*.sqlite-wal
 apps/*/prisma/local-dev-seeded.sqlite
 apps/*/prisma/local-dev-seeded.sqlite-wal
 apps/*/prisma/local-dev-seeded.sqlite-shm

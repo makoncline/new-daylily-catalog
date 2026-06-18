@@ -102,6 +102,7 @@ model CultivarReference {
 
   ahsListing    AhsListing?    @relation(fields: [ahsId], references: [id], onDelete: SetNull)
   v2AhsCultivar V2AhsCultivar? @relation(fields: [v2AhsCultivarId], references: [id], onDelete: SetNull)
+  imageAssets   ImageAsset[]
   listings      Listing[]
 
   @@unique([normalizedName], map: "CultivarReference_normalizedName_unique_idx")
@@ -196,26 +197,29 @@ model ImageAsset {
   kind          String
   status        String?
 
-  originalKey          String?
-  originalUrl          String?
-  displayKey           String?
-  displayUrl           String?
-  thumbKey             String?
-  thumbUrl             String?
-  blurKey              String?
-  blurUrl              String?
+  originalKey String?
+  originalUrl String?
+  displayKey  String?
+  displayUrl  String?
+  thumbKey    String?
+  thumbUrl    String?
+  blurKey     String?
+  blurUrl     String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  userProfileId String?
-  listingId     String?
+  userProfileId       String?
+  listingId           String?
+  cultivarReferenceId String?
 
-  userProfile UserProfile? @relation(fields: [userProfileId], references: [id], onDelete: Cascade)
-  listing     Listing?     @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  userProfile       UserProfile?       @relation(fields: [userProfileId], references: [id], onDelete: Cascade)
+  listing           Listing?           @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  cultivarReference CultivarReference? @relation(fields: [cultivarReferenceId], references: [id], onDelete: Cascade)
 
   @@index([userProfileId])
   @@index([listingId])
+  @@index([cultivarReferenceId])
 }
 
 model User {
