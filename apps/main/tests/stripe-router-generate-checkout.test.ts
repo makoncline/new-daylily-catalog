@@ -205,7 +205,7 @@ describe("stripe.getPortalSession", () => {
     });
   });
 
-  it("uses the canonical dashboard URL for Stripe portal return URLs", async () => {
+  it("returns from the Stripe portal through subscription sync", async () => {
     const db = createMockDb();
     const caller = createCaller(
       db,
@@ -223,7 +223,7 @@ describe("stripe.getPortalSession", () => {
 
     expect(stripeMocks.billingPortalCreate).toHaveBeenCalledWith({
       customer: "cus_existing",
-      return_url: "https://daylilycatalog.com/dashboard",
+      return_url: "https://daylilycatalog.com/subscribe/success",
     });
   });
 });

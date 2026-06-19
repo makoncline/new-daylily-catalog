@@ -18,3 +18,18 @@ export function hasActiveSubscription(
       return false;
   }
 }
+
+export function needsBillingAttention(
+  status: string | null | undefined,
+): boolean {
+  if (!status) return false;
+
+  switch (status) {
+    case "incomplete":
+    case "past_due":
+    case "unpaid":
+      return true;
+    default:
+      return false;
+  }
+}

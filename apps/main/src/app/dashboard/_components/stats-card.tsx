@@ -2,7 +2,14 @@
 
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Plus, Package, ListChecks, ImageIcon, Sparkles } from "lucide-react";
+import {
+  CreditCard,
+  Plus,
+  Package,
+  ListChecks,
+  ImageIcon,
+  Sparkles,
+} from "lucide-react";
 import Link from "next/link";
 import { H2, H3, P, Muted } from "@/components/typography";
 import { PRO_FEATURES } from "@/config/constants";
@@ -10,6 +17,9 @@ import { SUBSCRIPTION_CONFIG } from "@/config/subscription-config";
 import { usePro } from "@/hooks/use-pro";
 import { CheckoutButton } from "@/components/checkout-button";
 import type { DashboardStats } from "@/types/dashboard-stats-types";
+import { needsBillingAttention } from "@/server/stripe/subscription-utils";
+import { useStripePortal } from "@/hooks/use-stripe-portal";
+import { normalizeError, reportError } from "@/lib/error-utils";
 
 interface StatsCardProps {
   stats: DashboardStats;
@@ -126,12 +136,25 @@ export function ImagesCard({ stats }: StatsCardProps) {
 }
 
 export function ProMembershipCard() {
-  const { isPro, isLoading } = usePro();
+  const { isPro, isLoading, subscriptionStatus } = usePro();
+  const { isPending: isPortalPending, openStripePortal } = useStripePortal();
 
   // Don't show if loading or if user is already a pro member
   if (isLoading || isPro) {
     return null;
   }
+
+  const showBillingAttention = needsBillingAttention(subscriptionStatus);
+  const handleUpdateBilling = async () => {
+    try {
+      await openStripePortal();
+    } catch (error) {
+      reportError({
+        error: normalizeError(error),
+        context: { action: "proMembershipCardOpenPortal" },
+      });
+    }
+  };
 
   return (
     <Card
@@ -168,7 +191,24 @@ export function ProMembershipCard() {
             </ul>
           </div>
           <div className="flex flex-1 flex-col justify-end gap-6">
-            <CheckoutButton size="lg" data-testid="dashboard-upgrade-to-pro" />
+            {showBillingAttention ? (
+              <Button
+                size="lg"
+                variant="destructive"
+                type="button"
+                onClick={() => void handleUpdateBilling()}
+                disabled={isPortalPending}
+                data-testid="dashboard-update-billing"
+              >
+                <CreditCard className="mr-2 size-4" />
+                {isPortalPending ? "Loading…" : "Update billing"}
+              </Button>
+            ) : (
+              <CheckoutButton
+                size="lg"
+                data-testid="dashboard-upgrade-to-pro"
+              />
+            )}
           </div>
         </div>
       </div>

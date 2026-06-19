@@ -1,14 +1,17 @@
 "use client";
 
-import { api } from "@/trpc/react";
-import { useRouter } from "next/navigation";
 import { Sparkles } from "lucide-react";
 import { useEffect } from "react";
 import { DropdownMenuItem } from "@/components/ui/dropdown-menu";
-import { hasActiveSubscription } from "@/server/stripe/subscription-utils";
+import {
+  hasActiveSubscription,
+  needsBillingAttention,
+} from "@/server/stripe/subscription-utils";
 import { usePro } from "@/hooks/use-pro";
 import { logDashboardTiming } from "@/app/dashboard/_lib/dashboard-timing";
 import { usePersistedSubscriptionQuery } from "@/hooks/use-persisted-subscription-query";
+import { useStripePortal } from "@/hooks/use-stripe-portal";
+import { normalizeError, reportError } from "@/lib/error-utils";
 
 function StripeCheckoutButton() {
   const { sendToCheckout, isPending } = usePro();
@@ -20,29 +23,31 @@ function StripeCheckoutButton() {
   );
 }
 
-function StripePortalButton() {
-  const router = useRouter();
-  const pushRoute = router.push.bind(router);
-  const getPortalSession = api.stripe.getPortalSession.useMutation();
+function StripePortalButton({
+  label = "Manage Subscription",
+}: {
+  label?: string;
+}) {
+  const { isPending, openStripePortal } = useStripePortal();
 
-  const openStripePortal = async () => {
+  const handleOpenPortal = async () => {
     try {
-      const { url } = await getPortalSession.mutateAsync();
-
-      // First go to success page to sync data
-      pushRoute("/subscribe/success?redirect=" + encodeURIComponent(url));
+      await openStripePortal();
     } catch (error) {
-      console.error("Failed to get portal session", error);
+      reportError({
+        error: normalizeError(error),
+        context: { action: "stripeButtonOpenPortal" },
+      });
     }
   };
 
   return (
     <DropdownMenuItem
-      onClick={openStripePortal}
-      disabled={getPortalSession.isPending}
+      onClick={() => void handleOpenPortal()}
+      disabled={isPending}
     >
       <Sparkles className="mr-2 size-4" />
-      {getPortalSession.isPending ? "Loading…" : "Manage Subscription"}
+      {isPending ? "Loading…" : label}
     </DropdownMenuItem>
   );
 }
@@ -68,6 +73,10 @@ export function StripeButton() {
         Loading…
       </DropdownMenuItem>
     );
+  }
+
+  if (needsBillingAttention(subscription?.status)) {
+    return <StripePortalButton label="Update Billing" />;
   }
 
   if (hasActiveSubscription(subscription?.status)) {

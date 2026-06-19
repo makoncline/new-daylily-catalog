@@ -8,6 +8,7 @@ import { DashboardBreadcrumbs } from "./_components/dashboard-breadcrumbs";
 import { AppSidebar } from "@/components/app-sidebar";
 import { DashboardClientWrapper } from "./_components/dashboard-client-wrapper";
 import { DashboardRefreshButton } from "./_components/dashboard-refresh-button";
+import { DashboardBillingAlert } from "./_components/dashboard-billing-alert";
 import { cookies } from "next/headers";
 import { type Metadata } from "next";
 import { WebMcpProvider } from "@/components/webmcp-provider";
@@ -53,7 +54,10 @@ export default async function DashboardLayout({
               </div>
             </div>
           </header>
-          <div className="flex-1 space-y-4 p-8">{children}</div>
+          <div className="flex-1 space-y-4 p-8">
+            <DashboardBillingAlert />
+            {children}
+          </div>
         </SidebarInset>
       </SidebarProvider>
     </DashboardClientWrapper>
