@@ -143,4 +143,103 @@ describe("stripe router integration", () => {
       expect(mockStripeSubscriptionsList).not.toHaveBeenCalled();
     });
   });
+
+  it("generateCheckout blocks users whose subscription needs billing attention", async () => {
+    await withTempAppDb(async ({ user }) => {
+      const { db, caller } = await createAuthedCaller(user.id);
+
+      await db.user.update({
+        where: { id: user.id },
+        data: { stripeCustomerId: "cus_past_due_user" },
+      });
+
+      const pastDueSub = {
+        subscriptionId: "sub_past_due",
+        status: "past_due",
+        priceId: "price_pro",
+        currentPeriodStart: 1700000000,
+        currentPeriodEnd: 1702592000,
+        cancelAtPeriodEnd: false,
+        paymentMethod: {
+          brand: "visa",
+          last4: "4242",
+        },
+      };
+
+      await db.keyValue.upsert({
+        where: { key: "stripe:customer:cus_past_due_user" },
+        update: {
+          value: JSON.stringify(pastDueSub),
+        },
+        create: {
+          key: "stripe:customer:cus_past_due_user",
+          value: JSON.stringify(pastDueSub),
+        },
+      });
+
+      await expect(caller.stripe.generateCheckout()).rejects.toMatchObject({
+        code: "CONFLICT",
+        message:
+          "This account already has a subscription that needs a billing update.",
+      });
+
+      expect(mockStripeCustomersCreate).not.toHaveBeenCalled();
+      expect(mockStripeCheckoutSessionsCreate).not.toHaveBeenCalled();
+      expect(mockStripeSubscriptionsList).not.toHaveBeenCalled();
+    });
+  });
+
+  it("getSubscription uses Stripe's default non-canceled subscription list", async () => {
+    await withTempAppDb(async ({ user }) => {
+      const { db, caller } = await createAuthedCaller(user.id);
+
+      await db.user.update({
+        where: { id: user.id },
+        data: { stripeCustomerId: "cus_multi_sub_user" },
+      });
+
+      mockStripeSubscriptionsList.mockResolvedValue({
+        data: [
+          {
+            id: "sub_active",
+            status: "active",
+            created: 1700000000,
+            cancel_at_period_end: false,
+            default_payment_method: null,
+            items: {
+              data: [
+                {
+                  price: { id: "price_current" },
+                  current_period_start: 1703000000,
+                  current_period_end: 1705592000,
+                },
+              ],
+            },
+          },
+        ],
+      });
+
+      const subscription = await caller.stripe.getSubscription();
+
+      expect(subscription).toMatchObject({
+        subscriptionId: "sub_active",
+        status: "active",
+        priceId: "price_current",
+      });
+      expect(mockStripeSubscriptionsList).toHaveBeenCalledWith({
+        customer: "cus_multi_sub_user",
+        limit: 1,
+        expand: ["data.default_payment_method"],
+      });
+
+      const cached = await db.keyValue.findUnique({
+        where: { key: "stripe:customer:cus_multi_sub_user" },
+      });
+      expect(JSON.parse(cached?.value ?? "{}")).toMatchObject({
+        subscriptionId: "sub_active",
+        status: "active",
+        priceId: "price_current",
+      });
+    });
+  });
 });

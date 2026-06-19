@@ -14,11 +14,9 @@ async function syncStripeSubscriptionToKVBase(
   stripe: Stripe,
   kvStore: typeof appKvStore,
 ) {
-  // Fetch all subscriptions for this customer from Stripe
   const subscriptions = await stripe.subscriptions.list({
     customer: customerId,
     limit: 1,
-    status: "all",
     expand: ["data.default_payment_method"],
   });
 
@@ -27,7 +25,6 @@ async function syncStripeSubscriptionToKVBase(
     await kvStore.set(getStripeCustomerKey(customerId), subData);
     return subData;
   }
-  // If a user can have multiple subscriptions, that's your problem
   const subscription = subscriptions.data[0]!;
   const subscriptionItem = subscription.items.data[0]!;
   const subscriptionWithPeriods = subscription as Stripe.Subscription & {

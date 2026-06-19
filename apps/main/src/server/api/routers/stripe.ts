@@ -3,7 +3,10 @@ import { TRPCError } from "@trpc/server";
 import { env, requireEnv } from "@/env";
 import { getStripeSubscription } from "@/server/stripe/sync-subscription";
 import { getCanonicalBaseUrl } from "@/lib/utils/getBaseUrl";
-import { hasActiveSubscription } from "@/server/stripe/subscription-utils";
+import {
+  hasActiveSubscription,
+  needsBillingAttention,
+} from "@/server/stripe/subscription-utils";
 import { SUBSCRIPTION_CONFIG } from "@/config/subscription-config";
 import { getStripeClient } from "@/server/stripe/client";
 
@@ -27,6 +30,14 @@ export const stripeRouter = createTRPCRouter({
         throw new TRPCError({
           code: "CONFLICT",
           message: "An active subscription already exists for this account.",
+        });
+      }
+
+      if (needsBillingAttention(subscription.status)) {
+        throw new TRPCError({
+          code: "CONFLICT",
+          message:
+            "This account already has a subscription that needs a billing update.",
         });
       }
     }
@@ -89,7 +100,7 @@ export const stripeRouter = createTRPCRouter({
 
     const session = await stripe.billingPortal.sessions.create({
       customer: user.stripeCustomerId,
-      return_url: `${baseUrl}/dashboard`,
+      return_url: `${baseUrl}/subscribe/success`,
     });
 
     return { url: session.url };
