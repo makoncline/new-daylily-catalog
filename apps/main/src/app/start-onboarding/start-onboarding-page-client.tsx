@@ -459,8 +459,12 @@ function useStartOnboardingController({
   const profileMissingField = getNextIncompleteProfileField(profileDraft);
   const listingMissingField = getNextIncompleteListingField(listingDraft);
 
+  const selectedCultivarReferenceImage =
+    selectedCultivarDetailsQuery.data?.cultivarReferenceImage ?? null;
   const selectedCultivarImageUrl =
-    selectedCultivarDetailsQuery.data?.ahsImageUrl ?? null;
+    selectedCultivarReferenceImage?.url ??
+    selectedCultivarDetailsQuery.data?.ahsImageUrl ??
+    null;
   const {
     isBuyerContactPreviewHydrating,
     isListingCultivarPlaceholder,

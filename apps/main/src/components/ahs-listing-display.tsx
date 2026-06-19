@@ -6,18 +6,27 @@ import { Separator } from "@/components/ui/separator";
 import { type RouterOutputs } from "@/trpc/react";
 import { H3, P, Muted } from "@/components/typography";
 import { ImagePopover } from "@/components/image-popover";
+import type { OptimizedImageSource } from "@/components/optimized-image";
 
 interface AhsListingDisplayProps {
   ahsListing: NonNullable<RouterOutputs["public"]["getListing"]["ahsListing"]>;
   className?: string;
   cultivarHref?: string | null;
+  cultivarReferenceImage?: OptimizedImageSource | null;
 }
 
 export function AhsListingDisplay({
   ahsListing,
   className,
   cultivarHref,
+  cultivarReferenceImage,
 }: AhsListingDisplayProps) {
+  const images: OptimizedImageSource[] = cultivarReferenceImage
+    ? [cultivarReferenceImage]
+    : ahsListing.ahsImageUrl
+      ? [{ url: ahsListing.ahsImageUrl, id: "ahs-image" }]
+      : [];
+
   // Combine all fields into a single array for natural flow
   const fields = [
     { label: "Scape Height", value: ahsListing.scapeHeight },
@@ -40,12 +49,7 @@ export function AhsListingDisplay({
   return (
     <div className={className}>
       <div className="mb-4 flex items-center gap-2">
-        {ahsListing.ahsImageUrl && (
-          <ImagePopover
-            images={[{ url: ahsListing.ahsImageUrl, id: "ahs-image" }]}
-            size="sm"
-          />
-        )}
+        {images.length > 0 && <ImagePopover images={images} size="sm" />}
         <div className="flex flex-col">
           <div className="flex items-center gap-2">
             <H3 className="text-[clamp(12px,5vw,24px)]">

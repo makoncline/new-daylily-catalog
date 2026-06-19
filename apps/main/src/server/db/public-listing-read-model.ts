@@ -22,6 +22,11 @@ import {
   orderedImageAssetUrlInclude,
   resolveLegacyImagesWithAssets,
 } from "@/server/services/image-asset-read-model";
+import {
+  generatedCultivarImageAssetInclude,
+  resolveCultivarReferenceImage,
+  shouldQueryGeneratedCultivarImageAssets,
+} from "@/server/services/cultivar-reference-image-read-model";
 
 export const publicListingSelect = {
   id: true,
@@ -50,6 +55,7 @@ export const publicListingSelect = {
   },
   cultivarReference: {
     select: {
+      id: true,
       normalizedName: true,
       ahsListing: {
         select: ahsDisplayAhsListingSelect,
@@ -57,6 +63,9 @@ export const publicListingSelect = {
       v2AhsCultivar: {
         select: v2AhsCultivarDisplaySelect,
       },
+      ...(shouldQueryGeneratedCultivarImageAssets()
+        ? { imageAssets: generatedCultivarImageAssetInclude }
+        : {}),
     },
   },
   images: {
@@ -88,23 +97,40 @@ interface GetListingsArgs {
 function buildListingView<T extends ListingPayload>(listing: T) {
   const displayListing = withResolvedDisplayAhsListing(listing);
   const displayAhsListing = displayListing.ahsListing;
+  const cultivarReferenceImage = displayListing.cultivarReference
+    ? resolveCultivarReferenceImage({
+        id: `ahs-${displayListing.id}`,
+        fallbackImageUrl: displayAhsListing?.ahsImageUrl,
+        imageAssets:
+          "imageAssets" in displayListing.cultivarReference
+            ? displayListing.cultivarReference.imageAssets
+            : [],
+      })
+    : null;
   const resolvedImages = resolveLegacyImagesWithAssets({
     images: displayListing.images,
     imageAssets: "imageAssets" in displayListing ? displayListing.imageAssets : [],
     variant: "display",
   });
-  const publicListing =
+  const publicCultivarReference = displayListing.cultivarReference
+    ? (({ imageAssets: _imageAssets, ...cultivarReference }) =>
+        cultivarReference)(displayListing.cultivarReference)
+    : displayListing.cultivarReference;
+  const publicListingBase =
     "imageAssets" in displayListing
       ? (({ imageAssets: _imageAssets, ...listing }) => listing)(
           displayListing,
         )
       : displayListing;
+  const publicListing = {
+    ...publicListingBase,
+    cultivarReference: publicCultivarReference,
+  };
   const images =
-    resolvedImages.length === 0 && displayAhsListing?.ahsImageUrl
+    resolvedImages.length === 0 && cultivarReferenceImage
       ? [
           {
-            id: `ahs-${displayListing.id}`,
-            url: displayAhsListing.ahsImageUrl,
+            ...cultivarReferenceImage,
             updatedAt: displayListing.updatedAt,
           },
         ]
@@ -113,6 +139,7 @@ function buildListingView<T extends ListingPayload>(listing: T) {
   return {
     ...publicListing,
     ahsListing: displayAhsListing,
+    cultivarReferenceImage,
     userSlug: listing.user.profile?.slug ?? listing.userId,
     sellerTitle: listing.user.profile?.title ?? null,
     images: images.map((image) => ({

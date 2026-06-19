@@ -59,7 +59,7 @@ export function buildImageAssetMap(assets: readonly ImageAssetUrlRow[]) {
   return map;
 }
 
-function toImageAssetView(asset: ImageAssetUrlRow): ImageAssetView {
+export function toImageAssetView(asset: ImageAssetUrlRow): ImageAssetView {
   return {
     id: asset.id,
     status: asset.status,

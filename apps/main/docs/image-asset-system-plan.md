@@ -61,6 +61,12 @@ old status notes as operational truth.
       `USE_IMAGE_ASSETS=true`.
 - [x] Enable `USE_IMAGE_ASSETS` after explicit approval and successful
       production-data verification.
+- [x] Add cultivar ownership to `ImageAsset`.
+- [x] Backfill generated cultivar image originals/variants to prod R2 through
+      a local SQLite rehearsal DB.
+- [x] Import reviewed generated cultivar `ImageAsset` rows into production
+      Turso.
+- [x] Add generated cultivar asset read path behind a default-false flag.
 
 ## Runtime Decision
 
@@ -189,7 +195,7 @@ Content-Type: image/webp
 The product workflow is create/delete, not in-place image replacement. New image
 uploads should create new rows and new R2 keys.
 
-## Generated Cultivar Asset Follow-Up
+## Generated Cultivar Assets
 
 Generated cultivar image workflow state is intentionally outside the repo:
 
@@ -219,7 +225,8 @@ Last handoff verification found:
 The production app must not depend on those local files. They are migration
 inputs only.
 
-The next schema follow-up should add cultivar ownership to `ImageAsset`:
+The completed cultivar schema follow-up added cultivar ownership to
+`ImageAsset`:
 
 ```prisma
 cultivarReferenceId String?
@@ -228,9 +235,7 @@ cultivarReference   CultivarReference? @relation(fields: [cultivarReferenceId], 
 @@index([cultivarReferenceId])
 ```
 
-The existing `ImageAsset` table check constraint only allows listing/profile
-owners. The cultivar follow-up needs a reviewed structural migration that
-permits exactly one owner:
+The `ImageAsset` table check constraint permits exactly one owner:
 
 ```text
 kind = 'listing'  with listingId only
@@ -243,6 +248,41 @@ structural SQL with `prisma migrate dev --create-only` against a clean local
 authoring DB, rehearse on a fresh local prod copy from
 `pnpm env:dev bash scripts/db-backup.sh`, and apply exact reviewed SQL to Turso
 only after explicit approval.
+
+### 2026-06-18 Production Import Record
+
+- PR #231 added the cultivar `ImageAsset` schema/tooling and migration
+  `prisma/migrations/20260618173438_add_cultivar_image_assets/migration.sql`.
+- Production schema was applied manually before deploy and verified with
+  `PRAGMA foreign_key_check`.
+- Generated images were processed from `~/daylily-catalog-image-processing`
+  into prod R2 bucket `daylily-catalog-media` under
+  `cultivars/<cultivarReferenceId>/<imageAssetId>/...`.
+- Local rehearsal produced `7816` `kind='cultivar'` rows, all `ready`, with
+  original/display/thumb/blur URLs populated.
+- Import artifacts live outside the repo at
+  `~/daylily-catalog-image-processing/v2-ahs-image-review/data-imports/generated-cultivar-image-assets-20260618/`.
+- Pre-import Turso checkpoint branch:
+  `dlcat-pre-cultivar-imgasset-data-20260618t231549`.
+- Production import added `7816` `ready` cultivar `ImageAsset` rows. Post-import
+  checks: `missing_required_urls = 0`, `bad_owner_rows = 0`, and
+  `PRAGMA foreign_key_check` returned no rows.
+- App generated-cultivar reads are controlled separately by
+  `USE_GENERATED_CULTIVAR_IMAGE_ASSETS`; keep it default-false until the public
+  read path is verified in production.
+
+### Turso Cleanup Candidates
+
+Do not delete these until the generated-cultivar read path is deployed, verified,
+and the rollback window is no longer useful. Image-asset-related branches/backup
+DBs seen on 2026-06-18:
+
+- `daylily-image-assets-20260613`
+- `daylily-public-s3-url-20260613t18571781377073z`
+- `dlcat-pre-imgasset-20260617t1042`
+- `dlcat-cultivar-imgasset-test-20260618t210748`
+- `dlcat-pre-cultivar-imgasset-20260618t210748`
+- `dlcat-pre-cultivar-imgasset-data-20260618t231549`
 
 Use a local SQLite prod copy as the import manifest. For each generated PNG,
 create the local `ImageAsset` row, upload `original.png`, generate/upload

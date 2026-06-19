@@ -187,6 +187,8 @@ CREATE TABLE CultivarSearchIndex (
   parentage TEXT,
   rebloom INTEGER,
   imageUrl TEXT,
+  generatedImageUrl TEXT,
+  fallbackImageUrl TEXT,
   hasImage INTEGER NOT NULL,
   listingCount INTEGER NOT NULL,
   forSaleListingCount INTEGER NOT NULL,
@@ -227,6 +229,24 @@ listing_counts AS (
   WHERE l."cultivarReferenceId" IS NOT NULL
     AND (l."status" IS NULL OR l."status" <> 'HIDDEN')
   GROUP BY l."cultivarReferenceId"
+),
+generated_cultivar_images AS (
+  SELECT
+    "cultivarReferenceId",
+    COALESCE(NULLIF(TRIM("displayUrl"), ''), NULLIF(TRIM("originalUrl"), '')) AS generatedImageUrl
+  FROM (
+    SELECT
+      ia.*,
+      ROW_NUMBER() OVER (
+        PARTITION BY ia."cultivarReferenceId"
+        ORDER BY ia."order" ASC, ia."createdAt" ASC
+      ) AS rn
+    FROM source."ImageAsset" ia
+    WHERE ia."kind" = 'cultivar'
+      AND ia."status" = 'ready'
+      AND ia."cultivarReferenceId" IS NOT NULL
+  )
+  WHERE rn = 1
 )
 INSERT INTO CultivarSearchIndex (
   cultivarReferenceId,
@@ -251,6 +271,8 @@ INSERT INTO CultivarSearchIndex (
   parentage,
   rebloom,
   imageUrl,
+  generatedImageUrl,
+  fallbackImageUrl,
   hasImage,
   listingCount,
   forSaleListingCount,
@@ -297,9 +319,20 @@ SELECT
   NULLIF(TRIM(v2."color"), ''),
   NULLIF(TRIM(v2."parentage"), ''),
   v2."rebloom",
-  NULLIF(TRIM(v2."image_url"), ''),
+  COALESCE(
+    NULLIF(TRIM(v2."image_url"), ''),
+    NULLIF(TRIM(ahs."ahsImageUrl"), '')
+  ),
+  gci.generatedImageUrl,
+  COALESCE(
+    NULLIF(TRIM(v2."image_url"), ''),
+    NULLIF(TRIM(ahs."ahsImageUrl"), '')
+  ),
   CASE
-    WHEN NULLIF(TRIM(v2."image_url"), '') IS NULL THEN 0
+    WHEN COALESCE(
+      NULLIF(TRIM(v2."image_url"), ''),
+      NULLIF(TRIM(ahs."ahsImageUrl"), '')
+    ) IS NULL THEN 0
     ELSE 1
   END,
   COALESCE(lc.listingCount, 0),
@@ -310,7 +343,9 @@ SELECT
   )
 FROM source."CultivarReference" cr
 JOIN source."V2AhsCultivar" v2 ON v2."id" = cr."v2AhsCultivarId"
+LEFT JOIN source."AhsListing" ahs ON ahs."id" = cr."ahsId"
 LEFT JOIN listing_counts lc ON lc."cultivarReferenceId" = cr."id"
+LEFT JOIN generated_cultivar_images gci ON gci."cultivarReferenceId" = cr."id"
 WHERE cr."normalizedName" IS NOT NULL
   AND COALESCE(NULLIF(TRIM(v2."post_title"), ''), cr."normalizedName") IS NOT NULL;
 
@@ -422,7 +457,7 @@ CREATE INDEX CultivarListingSearchIndex_hasPhoto_idx
 
 INSERT INTO SearchIndexMeta(key, value)
 VALUES
-  ('schemaVersion', '5'),
+  ('schemaVersion', '6'),
   ('builtAt', strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
   ('sourcePath', ${quoteSqlString(sourcePath)});
 ANALYZE;
