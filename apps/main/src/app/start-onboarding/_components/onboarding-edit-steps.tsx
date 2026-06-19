@@ -783,6 +783,9 @@ function OnboardingListingEditorFields({
                 <AhsListingDisplay
                   ahsListing={selectedCultivarDetails}
                   className="mt-1"
+                  cultivarReferenceImage={
+                    selectedCultivarDetails.cultivarReferenceImage
+                  }
                 />
               </div>
             ) : (

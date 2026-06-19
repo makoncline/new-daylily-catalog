@@ -10,16 +10,17 @@ import {
   vi,
 } from "vitest";
 import type { TRPCInternalContext } from "@/server/api/trpc";
+import type * as CultivarReferenceRouterModule from "@/server/api/routers/dashboard-db/cultivar-reference";
 
 process.env.SKIP_ENV_VALIDATION = "1";
 process.env.DATABASE_URL ??=
   "file:./tests/.tmp/dashboard-db-cultivar-reference.sqlite";
 
-type RouterModule =
-  typeof import("@/server/api/routers/dashboard-db/cultivar-reference");
-let dashboardDbCultivarReferenceRouter: RouterModule["dashboardDbCultivarReferenceRouter"];
+let dashboardDbCultivarReferenceRouter: typeof CultivarReferenceRouterModule.dashboardDbCultivarReferenceRouter;
 const originalV2DisplayFlag =
   process.env.NEXT_PUBLIC_USE_V2_CULTIVAR_DISPLAY_DATA;
+const originalUseGeneratedCultivarImageAssets =
+  process.env.USE_GENERATED_CULTIVAR_IMAGE_ASSETS;
 
 beforeAll(async () => {
   ({ dashboardDbCultivarReferenceRouter } = await import(
@@ -29,6 +30,9 @@ beforeAll(async () => {
 
 interface MockDb {
   $queryRaw: ReturnType<typeof vi.fn>;
+  imageAsset: {
+    findMany: ReturnType<typeof vi.fn>;
+  };
   listing: {
     findMany: ReturnType<typeof vi.fn>;
   };
@@ -40,6 +44,9 @@ interface MockDb {
 function createMockDb(): MockDb {
   return {
     $queryRaw: vi.fn(),
+    imageAsset: {
+      findMany: vi.fn().mockResolvedValue([]),
+    },
     listing: {
       findMany: vi.fn(),
     },
@@ -96,11 +103,18 @@ describe("dashboardDb.cultivarReference", () => {
   afterEach(() => {
     if (originalV2DisplayFlag === undefined) {
       delete process.env.NEXT_PUBLIC_USE_V2_CULTIVAR_DISPLAY_DATA;
-      return;
+    } else {
+      process.env.NEXT_PUBLIC_USE_V2_CULTIVAR_DISPLAY_DATA =
+        originalV2DisplayFlag;
     }
 
-    process.env.NEXT_PUBLIC_USE_V2_CULTIVAR_DISPLAY_DATA =
-      originalV2DisplayFlag;
+    if (originalUseGeneratedCultivarImageAssets === undefined) {
+      delete process.env.USE_GENERATED_CULTIVAR_IMAGE_ASSETS;
+    } else {
+      process.env.USE_GENERATED_CULTIVAR_IMAGE_ASSETS =
+        originalUseGeneratedCultivarImageAssets;
+    }
+
   });
 
   it("listForUserListings filters cultivar references with an owner-checked query", async () => {
@@ -407,5 +421,64 @@ describe("dashboardDb.cultivarReference", () => {
       color: null,
     });
     expect(result[0]).not.toHaveProperty("v2AhsCultivar");
+  });
+
+  it("chunks generated image asset lookups when the generated image flag is enabled", async () => {
+    process.env.NEXT_PUBLIC_USE_V2_CULTIVAR_DISPLAY_DATA = "false";
+    process.env.USE_GENERATED_CULTIVAR_IMAGE_ASSETS = "true";
+
+    const db = createMockDb();
+    db.$queryRaw.mockResolvedValue(
+      Array.from({ length: 901 }, (_, index) =>
+        createRawLegacyCultivarReference(`cr-${index}`),
+      ),
+    );
+
+    const caller = createCaller(db);
+    const result = await caller.listForUserListings();
+
+    expect(result).toHaveLength(901);
+    expect(db.imageAsset.findMany.mock.calls.length).toBeGreaterThan(1);
+    for (const call of db.imageAsset.findMany.mock.calls) {
+      const input = call[0] as {
+        where: { cultivarReferenceId: { in: string[] } };
+      };
+
+      expect(
+        input.where.cultivarReferenceId.in.length,
+      ).toBeLessThanOrEqual(400);
+    }
+  });
+
+  it("uses generated image assets when the server flag is enabled", async () => {
+    process.env.NEXT_PUBLIC_USE_V2_CULTIVAR_DISPLAY_DATA = "false";
+    process.env.USE_GENERATED_CULTIVAR_IMAGE_ASSETS = "true";
+
+    const db = createMockDb();
+    db.$queryRaw.mockResolvedValue([createRawLegacyCultivarReference("cr-1")]);
+    db.imageAsset.findMany.mockResolvedValue([
+      {
+        blurUrl: "https://cdn.example.com/generated-blur.txt",
+        cultivarReferenceId: "cr-1",
+        displayUrl: "https://cdn.example.com/generated-display.jpg",
+        id: "asset-1",
+        legacyImageId: null,
+        originalUrl: "https://cdn.example.com/generated-original.jpg",
+        status: "ready",
+        thumbUrl: "https://cdn.example.com/generated-thumb.jpg",
+      },
+    ]);
+
+    const caller = createCaller(db);
+    const result = await caller.listForUserListings();
+
+    expect(db.imageAsset.findMany).toHaveBeenCalledOnce();
+    expect(result[0]?.cultivarReferenceImage).toMatchObject({
+      imageAsset: {
+        displayUrl: "https://cdn.example.com/generated-display.jpg",
+        id: "asset-1",
+      },
+      url: "https://cdn.example.com/generated-display.jpg",
+    });
   });
 });

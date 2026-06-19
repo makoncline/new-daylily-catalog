@@ -12,6 +12,7 @@ import {
   isPublicSearchIndexUsable,
   PublicSearchIndexUnavailableError,
 } from "@/server/search/public-search-index";
+import { areGeneratedCultivarImageAssetsEnabledByDefault } from "@/config/feature-flags";
 
 interface CultivarSearchArgs {
   bloomHabit?: string;
@@ -492,6 +493,8 @@ export async function searchCultivars(args: CultivarSearchArgs) {
           i.parentage,
           i.rebloom,
           i.imageUrl,
+          i.generatedImageUrl,
+          i.fallbackImageUrl,
           i.hasImage,
           i.listingCount,
           i.forSaleListingCount,
@@ -584,12 +587,19 @@ export async function searchCultivars(args: CultivarSearchArgs) {
       const normalizedName = toRequiredString(row.normalizedName);
       const cultivarReferenceId = toRequiredString(row.cultivarReferenceId);
       const segment = toCultivarRouteSegment(normalizedName);
+      const generatedImageUrl = toStringOrNull(row.generatedImageUrl);
+      const fallbackImageUrl =
+        toStringOrNull(row.fallbackImageUrl) ?? toStringOrNull(row.imageUrl);
+      const imageUrl =
+        areGeneratedCultivarImageAssetsEnabledByDefault() && generatedImageUrl
+          ? generatedImageUrl
+          : fallbackImageUrl;
 
       return {
         canonicalUrl: segment ? `${args.baseUrl}/cultivar/${segment}` : null,
         catalogListings: listingsByCultivar.get(cultivarReferenceId) ?? [],
         cultivarReferenceId,
-        imageUrl: toStringOrNull(row.imageUrl),
+        imageUrl,
         parentageTree: parentageByCultivar.get(cultivarReferenceId) ?? null,
         listingSummary: {
           catalogsWithListings: Number(row.listingCount ?? 0),

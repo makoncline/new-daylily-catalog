@@ -11,6 +11,11 @@ import {
   getDisplayAhsListing,
   v2AhsCultivarDisplaySelect,
 } from "@/lib/utils/ahs-display";
+import {
+  generatedCultivarImageAssetInclude,
+  resolveCultivarReferenceImage,
+  shouldQueryGeneratedCultivarImageAssets,
+} from "@/server/services/cultivar-reference-image-read-model";
 
 async function runCultivarReferenceSearchQuery(
   db: PrismaClient,
@@ -127,25 +132,39 @@ export const dashboardDbAhsRouter = createTRPCRouter({
       const cultivarReference = await readDb.cultivarReference.findUnique({
         where: useV2DisplayData ? { id: input.id } : { ahsId: input.id },
         select: {
+          id: true,
           ahsListing: {
             select: ahsDisplayAhsListingSelect,
           },
           v2AhsCultivar: {
             select: v2AhsCultivarDisplaySelect,
           },
+          ...(shouldQueryGeneratedCultivarImageAssets()
+            ? { imageAssets: generatedCultivarImageAssetInclude }
+            : {}),
         },
       });
 
       const ahsListing = cultivarReference
         ? getDisplayAhsListing(cultivarReference)
         : null;
-      if (!ahsListing) {
+      if (!cultivarReference || !ahsListing) {
         throw new TRPCError({
           code: "NOT_FOUND",
           message: "AHS listing not found",
         });
       }
 
-      return ahsListing;
+      return {
+        ...ahsListing,
+        cultivarReferenceImage: resolveCultivarReferenceImage({
+          id: `ahs-${cultivarReference.id}`,
+          fallbackImageUrl: ahsListing.ahsImageUrl,
+          imageAssets:
+            "imageAssets" in cultivarReference
+              ? cultivarReference.imageAssets
+              : [],
+        }),
+      };
     }),
 });

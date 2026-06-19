@@ -42,6 +42,9 @@ export const env = createEnv({
     R2_BUCKET_NAME: z.string().optional(),
     R2_PUBLIC_BASE_URL: z.string().url().optional(),
     USE_IMAGE_ASSETS: booleanStringSchema.optional().default(false),
+    USE_GENERATED_CULTIVAR_IMAGE_ASSETS: booleanStringSchema
+      .optional()
+      .default(false),
     SENTRY_AUTH_TOKEN: z.string().optional(),
     NODE_ENV: z.enum(["development", "test", "production"]),
   },
@@ -82,6 +85,8 @@ export const env = createEnv({
     R2_BUCKET_NAME: process.env.R2_BUCKET_NAME,
     R2_PUBLIC_BASE_URL: process.env.R2_PUBLIC_BASE_URL,
     USE_IMAGE_ASSETS: process.env.USE_IMAGE_ASSETS,
+    USE_GENERATED_CULTIVAR_IMAGE_ASSETS:
+      process.env.USE_GENERATED_CULTIVAR_IMAGE_ASSETS,
     SENTRY_AUTH_TOKEN: process.env.SENTRY_AUTH_TOKEN,
     NODE_ENV: process.env.NODE_ENV,
     NEXT_PUBLIC_USE_V2_CULTIVAR_DISPLAY_DATA:

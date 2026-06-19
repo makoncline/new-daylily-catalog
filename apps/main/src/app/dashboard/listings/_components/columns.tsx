@@ -32,11 +32,13 @@ type ListingBase = RouterOutputs["dashboardDb"]["listing"]["list"][number];
 type CultivarReference =
   RouterOutputs["dashboardDb"]["cultivarReference"]["listForUserListings"][number];
 type CultivarReferenceAhsListing = CultivarReference["ahsListing"];
+type CultivarReferenceImage = CultivarReference["cultivarReferenceImage"];
 
 export type ListingData = ListingBase & {
   images: ImageCollectionItem[];
   lists: ListingListRef[];
   ahsListing: CultivarReferenceAhsListing | null;
+  cultivarReferenceImage: CultivarReferenceImage | null;
 };
 type ListingRow = Row<ListingData>;
 
@@ -67,7 +69,7 @@ const hasPhotoFilter: FilterFn<ListingData> = (row, _, value) => {
 
   return (
     row.original.images.length > 0 ||
-    Boolean(row.original.ahsListing?.ahsImageUrl)
+    Boolean(row.original.cultivarReferenceImage)
   );
 };
 
@@ -117,7 +119,7 @@ export function getBaseListingColumns(): ColumnDef<ListingData>[] {
         title: LISTING_TABLE_COLUMN_NAMES.images,
       },
       accessorFn: (row) =>
-        (row.images?.length ?? 0) + (row.ahsListing?.ahsImageUrl ? 1 : 0),
+        (row.images?.length ?? 0) + (row.cultivarReferenceImage ? 1 : 0),
       header: ({ column }) => (
         <DataTableColumnHeader
           column={column}
@@ -133,9 +135,14 @@ export function getBaseListingColumns(): ColumnDef<ListingData>[] {
       ),
       cell: ({ row }) => {
         const images = row.original.images;
-        const ahsImageUrl = row.original.ahsListing?.ahsImageUrl;
-        if (!images?.length && !ahsImageUrl) return null;
-        return <TableImagePreview images={images} ahsImageUrl={ahsImageUrl} />;
+        const cultivarReferenceImage = row.original.cultivarReferenceImage;
+        if (!images?.length && !cultivarReferenceImage) return null;
+        return (
+          <TableImagePreview
+            images={images}
+            cultivarReferenceImage={cultivarReferenceImage}
+          />
+        );
       },
       enableSorting: true,
       enableHiding: true,
@@ -651,7 +658,7 @@ const dashboardAdvancedFilterColumns: ColumnDef<ListingData>[] = [
       title: "Has Photo",
     },
     accessorFn: (row) =>
-      row.images.length > 0 || Boolean(row.ahsListing?.ahsImageUrl),
+      row.images.length > 0 || Boolean(row.cultivarReferenceImage),
     filterFn: hasPhotoFilter,
     enableSorting: false,
     enableHiding: false,

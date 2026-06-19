@@ -121,6 +121,7 @@ export function ListingDisplay({
           <AhsListingDisplay
             ahsListing={displayAhsListing}
             cultivarHref={cultivarHref}
+            cultivarReferenceImage={listing.cultivarReferenceImage}
           />
         </>
       )}

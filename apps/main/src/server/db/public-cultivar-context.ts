@@ -17,6 +17,11 @@ import {
 import { getPublicListingCardsByIds } from "@/server/db/public-listing-read-model";
 import { getPublicSellerSummariesByUserIds } from "@/server/db/public-seller-read-model";
 import {
+  generatedCultivarImageAssetInclude,
+  shouldQueryGeneratedCultivarImageAssets,
+} from "@/server/services/cultivar-reference-image-read-model";
+import type { ImageAssetUrlRow } from "@/server/services/image-asset-read-model";
+import {
   isPublished,
   shouldShowToPublic,
 } from "@/server/db/public-visibility/filters";
@@ -37,6 +42,7 @@ interface PublicCultivarReferenceRecord {
   updatedAt: Date;
   ahsListing: CultivarAhsListing | null;
   v2AhsCultivar?: V2AhsCultivarDisplaySource | null;
+  imageAssets?: ImageAssetUrlRow[];
 }
 
 export interface PublicCultivarReferenceData {
@@ -79,6 +85,9 @@ async function findCultivarReferenceByNormalizedName(
       v2AhsCultivar: {
         select: v2AhsCultivarDisplaySelect,
       },
+      ...(shouldQueryGeneratedCultivarImageAssets()
+        ? { imageAssets: generatedCultivarImageAssetInclude }
+        : {}),
     },
     orderBy: {
       updatedAt: "desc",

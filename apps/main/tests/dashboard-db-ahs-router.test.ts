@@ -19,6 +19,8 @@ let dashboardDbAhsRouter: RouterModule["dashboardDbAhsRouter"];
 
 const originalV2DisplayFlag =
   process.env.NEXT_PUBLIC_USE_V2_CULTIVAR_DISPLAY_DATA;
+const originalUseGeneratedCultivarImageAssets =
+  process.env.USE_GENERATED_CULTIVAR_IMAGE_ASSETS;
 
 beforeAll(async () => {
   ({ dashboardDbAhsRouter } = await import(
@@ -59,11 +61,18 @@ describe("dashboardDb.ahs", () => {
   afterEach(() => {
     if (originalV2DisplayFlag === undefined) {
       delete process.env.NEXT_PUBLIC_USE_V2_CULTIVAR_DISPLAY_DATA;
-      return;
+    } else {
+      process.env.NEXT_PUBLIC_USE_V2_CULTIVAR_DISPLAY_DATA =
+        originalV2DisplayFlag;
     }
 
-    process.env.NEXT_PUBLIC_USE_V2_CULTIVAR_DISPLAY_DATA =
-      originalV2DisplayFlag;
+    if (originalUseGeneratedCultivarImageAssets === undefined) {
+      delete process.env.USE_GENERATED_CULTIVAR_IMAGE_ASSETS;
+    } else {
+      process.env.USE_GENERATED_CULTIVAR_IMAGE_ASSETS =
+        originalUseGeneratedCultivarImageAssets;
+    }
+
   });
 
   it("returns V2-mapped cultivar detail data when the feature flag is enabled", async () => {
@@ -172,6 +181,61 @@ describe("dashboardDb.ahs", () => {
     expect(result.name).toBe("Replica Coffee Frenzy");
     expect(replicaDb.cultivarReference.findUnique).toHaveBeenCalledOnce();
     expect(db.cultivarReference.findUnique).not.toHaveBeenCalled();
+  });
+
+  it("uses generated-only image assets when the server flag is enabled", async () => {
+    process.env.NEXT_PUBLIC_USE_V2_CULTIVAR_DISPLAY_DATA = "true";
+    process.env.USE_GENERATED_CULTIVAR_IMAGE_ASSETS = "true";
+
+    const db = createMockDb();
+    db.cultivarReference.findUnique.mockResolvedValue({
+      id: "cr-generated-only",
+      ahsListing: null,
+      v2AhsCultivar: {
+        id: "cr-generated-only",
+        post_title: "Generated Only Preview",
+        introduction_date: null,
+        primary_hybridizer_name: null,
+        hybridizer_code_legacy: null,
+        additional_hybridizers_names: null,
+        bloom_season_names: null,
+        fragrance_names: null,
+        bloom_habit_names: null,
+        foliage_names: null,
+        ploidy_names: null,
+        scape_height_in: null,
+        bloom_size_in: null,
+        bud_count: null,
+        branches: null,
+        color: null,
+        flower_form_names: null,
+        unusual_forms_names: null,
+        parentage: null,
+        image_url: null,
+      },
+      imageAssets: [
+        {
+          blurUrl: "https://cdn.example.com/generated-blur.txt",
+          displayUrl: "https://cdn.example.com/generated-display.jpg",
+          id: "asset-1",
+          legacyImageId: null,
+          originalUrl: "https://cdn.example.com/generated-original.jpg",
+          status: "ready",
+          thumbUrl: "https://cdn.example.com/generated-thumb.jpg",
+        },
+      ],
+    });
+
+    const caller = createCaller(db);
+    const result = await caller.get({ id: "cr-generated-only" });
+
+    expect(result.cultivarReferenceImage).toMatchObject({
+      imageAsset: {
+        displayUrl: "https://cdn.example.com/generated-display.jpg",
+        id: "asset-1",
+      },
+      url: "https://cdn.example.com/generated-display.jpg",
+    });
   });
 
   it("falls back to the decoded legacy hybridizer code for dashboard cultivar detail reads", async () => {
