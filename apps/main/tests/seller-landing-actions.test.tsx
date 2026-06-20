@@ -2,8 +2,8 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { MouseEvent, ReactNode } from "react";
 import {
-  SellerLandingOnboardingCta,
   SellerLandingExampleLink,
+  SellerLandingOnboardingCta,
 } from "@/app/start-membership/_components/seller-landing-actions";
 
 const capturePosthogEventMock = vi.hoisted(() => vi.fn());
@@ -42,7 +42,7 @@ describe("seller landing actions", () => {
     vi.clearAllMocks();
   });
 
-  it("links the seller CTA to the signup start route without Clerk state", () => {
+  it("links the seller CTA directly to anonymous onboarding", () => {
     render(
       <SellerLandingOnboardingCta
         ctaId="seller-landing-hero-primary"
@@ -50,16 +50,12 @@ describe("seller landing actions", () => {
       />,
     );
 
-    expect(screen.getByRole("button", { name: "Create your catalog" })).toHaveAttribute(
-      "type",
-      "submit",
-    );
     expect(
-      screen.getByRole("button", { name: "Create your catalog" }).closest("form"),
-    ).toHaveAttribute("action", "/sign-up");
+      screen.getByRole("link", { name: "Create your catalog" }),
+    ).toHaveAttribute("data-href", "/onboarding");
   });
 
-  it("captures seller CTA clicks with the next path", () => {
+  it("captures seller CTA clicks with the onboarding target", () => {
     render(
       <SellerLandingOnboardingCta
         ctaId="seller-landing-hero-primary"
@@ -67,27 +63,19 @@ describe("seller landing actions", () => {
       />,
     );
 
-    const createCatalogButton = screen.getByRole("button", {
-      name: "Create your catalog",
-    });
-    createCatalogButton.addEventListener("click", (event) =>
-      event.preventDefault(),
-    );
-    fireEvent.click(createCatalogButton);
+    fireEvent.click(screen.getByRole("link", { name: "Create your catalog" }));
 
-    expect(capturePosthogEventMock).toHaveBeenNthCalledWith(
-      1,
+    expect(capturePosthogEventMock).toHaveBeenCalledWith(
       "seller_cta_clicked",
       {
         source_page_type: "seller_landing",
         source_path: "/start-membership",
         cta_id: "seller-landing-hero-primary",
         cta_label: "Create your catalog",
-        target_path: "/sign-up",
+        target_path: "/onboarding",
         next_path: "/onboarding",
       },
     );
-    expect(capturePosthogEventMock).toHaveBeenCalledTimes(1);
   });
 
   it("tracks example-link clicks", () => {

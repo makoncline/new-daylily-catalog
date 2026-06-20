@@ -201,6 +201,23 @@ describe("seller funnel proxy protection", () => {
     expect(redirectToSignInMock).not.toHaveBeenCalled();
   });
 
+  it("keeps /onboarding publicly accessible for anonymous setup", async () => {
+    const routeMatcherArg = createRouteMatcherMock.mock.calls[0]?.[0];
+
+    expect(routeMatcherArg).toBeDefined();
+    expect(routeMatcherArg?.some((route) => route.includes("onboarding"))).toBe(
+      false,
+    );
+
+    const request = new NextRequest("http://localhost:3000/onboarding");
+    const middlewareEvent = {} as Parameters<NextMiddleware>[1];
+
+    const response = await proxy(request, middlewareEvent);
+
+    expect(response).toBeUndefined();
+    expect(authMock).not.toHaveBeenCalled();
+  });
+
   it("allows authenticated dashboard access", async () => {
     const request = new NextRequest("http://localhost:3000/dashboard/listings");
     const middlewareEvent = {} as Parameters<NextMiddleware>[1];
@@ -302,34 +319,6 @@ describe("seller funnel proxy protection", () => {
     expect(response?.status).toBe(404);
     expect(response?.headers.get("location")).toBeNull();
     expect(response?.headers.get("cache-control")).toBe("no-store");
-  });
-
-  it("redirects unauthenticated onboarding document navigations through Clerk", async () => {
-    const clerkRedirect = NextResponse.redirect(
-      "https://accounts.daylilycatalog.com/sign-in",
-    );
-
-    redirectToSignInMock.mockReturnValueOnce(clerkRedirect);
-    authMock.mockResolvedValueOnce({
-      isAuthenticated: false,
-      redirectToSignIn: redirectToSignInMock,
-    });
-
-    const request = new NextRequest("http://localhost:3000/onboarding", {
-      headers: {
-        accept: "text/html",
-        "sec-fetch-dest": "document",
-      },
-    });
-    const middlewareEvent = {} as Parameters<NextMiddleware>[1];
-
-    const response = await proxy(request, middlewareEvent);
-
-    expect(authMock).toHaveBeenCalledTimes(1);
-    expect(redirectToSignInMock).toHaveBeenCalledWith({
-      returnBackUrl: new URL("/onboarding", "http://localhost:3000"),
-    });
-    expect(response).toBe(clerkRedirect);
   });
 
   it("redirects unauthenticated subscribe success document navigations through Clerk", async () => {

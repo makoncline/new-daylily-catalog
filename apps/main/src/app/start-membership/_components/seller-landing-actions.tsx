@@ -7,7 +7,6 @@ import { SUBSCRIPTION_CONFIG } from "@/config/subscription-config";
 import { capturePosthogEvent } from "@/lib/analytics/posthog";
 
 const SELLER_LANDING_PATH = "/start-membership";
-const SELLER_SIGNUP_PATH = SUBSCRIPTION_CONFIG.SELLER_SIGNUP_PATH;
 const ONBOARDING_PATH = SUBSCRIPTION_CONFIG.NEW_USER_ONBOARDING_PATH;
 
 interface SellerLandingOnboardingCtaProps {
@@ -115,23 +114,21 @@ export function SellerLandingOnboardingCta({
     trackSellerCtaClicked({
       ctaId,
       ctaLabel,
-      targetPath: SELLER_SIGNUP_PATH,
+      targetPath: ONBOARDING_PATH,
       nextPath: ONBOARDING_PATH,
     });
   };
 
   return (
-    <form action={SELLER_SIGNUP_PATH}>
-      <Button
-        className={className}
+    <Button asChild className={className} size="lg">
+      <Link
+        href={ONBOARDING_PATH}
         data-testid={testId}
-        size="lg"
-        type="submit"
         onClick={startSellerOnboarding}
       >
         {ctaLabel}
-      </Button>
-    </form>
+      </Link>
+    </Button>
   );
 }
 
