@@ -7,7 +7,7 @@ import {
   ensureSchema,
   openQueueDb,
   PROD_COPY_DB_PATH,
-  REPO_ROOT,
+  REVIEW_ROOT,
   REVIEW_EDITED_DIR,
   updateStatus,
 } from "./review-db.mjs";
@@ -22,18 +22,8 @@ const CHROME_DEVTOOLS_PORT_FILE = path.join(
   "Chrome",
   "DevToolsActivePort",
 );
-const WORKER_LOG_PATH = path.join(
-  REPO_ROOT,
-  "downloads",
-  "v2-ahs-image-review",
-  "chatgpt-worker.log",
-);
-const DEBUG_ARTIFACTS_DIR = path.join(
-  REPO_ROOT,
-  "downloads",
-  "v2-ahs-image-review",
-  "debug",
-);
+const WORKER_LOG_PATH = path.join(REVIEW_ROOT, "chatgpt-worker.log");
+const DEBUG_ARTIFACTS_DIR = path.join(REVIEW_ROOT, "debug");
 const DEFAULT_PROJECT_URL =
   "https://chatgpt.com/g/g-p-699f1be0ab188191b6684cd2d8da6013-daylily-images/project";
 const DEFAULT_PROMPT =
@@ -50,7 +40,9 @@ let activeProjectUrl = DEFAULT_PROJECT_URL;
 let activeProjectPrefix = DEFAULT_PROJECT_URL.replace(/\/project$/, "");
 
 class WrongChatGptModeError extends Error {
-  constructor(message = "ChatGPT returned image-edit mode instead of image generation") {
+  constructor(
+    message = "ChatGPT returned image-edit mode instead of image generation",
+  ) {
     super(message);
     this.name = "WrongChatGptModeError";
   }
@@ -64,7 +56,9 @@ class ChatGptRateLimitError extends Error {
 }
 
 class BrowserApprovalRequiredError extends Error {
-  constructor(message = "Chrome requires manual debugging approval before the worker can continue") {
+  constructor(
+    message = "Chrome requires manual debugging approval before the worker can continue",
+  ) {
     super(message);
     this.name = "BrowserApprovalRequiredError";
   }
@@ -110,8 +104,7 @@ function sendNotify(title, message) {
       encoding: "utf8",
     });
   } catch (error) {
-    const detail =
-      error instanceof Error ? error.message : String(error);
+    const detail = error instanceof Error ? error.message : String(error);
     console.warn(`[chatgpt-image-worker] notify failed: ${detail}`);
   }
 }
@@ -219,7 +212,9 @@ function parseArgs() {
     if (arg === "--delay-min-seconds") {
       const raw = Number(args[index + 1] ?? "");
       if (!Number.isFinite(raw) || raw < 0) {
-        throw new Error(`Invalid --delay-min-seconds value: ${args[index + 1]}`);
+        throw new Error(
+          `Invalid --delay-min-seconds value: ${args[index + 1]}`,
+        );
       }
       delayMinSeconds = raw;
       index += 1;
@@ -238,7 +233,9 @@ function parseArgs() {
     if (arg === "--delay-max-seconds") {
       const raw = Number(args[index + 1] ?? "");
       if (!Number.isFinite(raw) || raw < 0) {
-        throw new Error(`Invalid --delay-max-seconds value: ${args[index + 1]}`);
+        throw new Error(
+          `Invalid --delay-max-seconds value: ${args[index + 1]}`,
+        );
       }
       delayMaxSeconds = raw;
       index += 1;
@@ -433,11 +430,7 @@ function toSafeDebugSlug(value, fallback = "debug") {
 
 async function captureDebugArtifacts(
   item,
-  {
-    label = "failure",
-    error = null,
-    conversationUrl = null,
-  } = {},
+  { label = "failure", error = null, conversationUrl = null } = {},
 ) {
   const timestamp = new Date().toISOString();
   const stamp = timestamp.replace(/[:.]/g, "-");
@@ -468,13 +461,17 @@ async function captureDebugArtifacts(
   try {
     lines.push(`currentUrl: ${browserGetUrl()}`);
   } catch (snapshotError) {
-    lines.push(`currentUrlError: ${snapshotError instanceof Error ? snapshotError.message : String(snapshotError)}`);
+    lines.push(
+      `currentUrlError: ${snapshotError instanceof Error ? snapshotError.message : String(snapshotError)}`,
+    );
   }
 
   try {
     lines.push(`pageTitle: ${browserGetTitle()}`);
   } catch (snapshotError) {
-    lines.push(`pageTitleError: ${snapshotError instanceof Error ? snapshotError.message : String(snapshotError)}`);
+    lines.push(
+      `pageTitleError: ${snapshotError instanceof Error ? snapshotError.message : String(snapshotError)}`,
+    );
   }
 
   try {
@@ -497,7 +494,9 @@ async function captureDebugArtifacts(
       lines.push(bodyState.bodyTail);
     }
   } catch (snapshotError) {
-    lines.push(`bodyTextError: ${snapshotError instanceof Error ? snapshotError.message : String(snapshotError)}`);
+    lines.push(
+      `bodyTextError: ${snapshotError instanceof Error ? snapshotError.message : String(snapshotError)}`,
+    );
   }
 
   try {
@@ -506,7 +505,9 @@ async function captureDebugArtifacts(
     lines.push("snapshot:");
     lines.push(snapshotText);
   } catch (snapshotError) {
-    lines.push(`snapshotError: ${snapshotError instanceof Error ? snapshotError.message : String(snapshotError)}`);
+    lines.push(
+      `snapshotError: ${snapshotError instanceof Error ? snapshotError.message : String(snapshotError)}`,
+    );
   }
 
   let screenshotSaved = false;
@@ -515,7 +516,9 @@ async function captureDebugArtifacts(
     execAgentBrowser(["screenshot", "--full", screenshotPath]);
     screenshotSaved = fs.existsSync(screenshotPath);
   } catch (snapshotError) {
-    lines.push(`screenshotError: ${snapshotError instanceof Error ? snapshotError.message : String(snapshotError)}`);
+    lines.push(
+      `screenshotError: ${snapshotError instanceof Error ? snapshotError.message : String(snapshotError)}`,
+    );
   }
 
   fs.writeFileSync(textPath, `${lines.join("\n")}\n`, "utf8");
@@ -533,10 +536,16 @@ function readChromeDevtoolsPort() {
     );
   }
 
-  const port = fs.readFileSync(CHROME_DEVTOOLS_PORT_FILE, "utf8").trim().split("\n")[0]?.trim();
+  const port = fs
+    .readFileSync(CHROME_DEVTOOLS_PORT_FILE, "utf8")
+    .trim()
+    .split("\n")[0]
+    ?.trim();
 
   if (!port) {
-    throw new Error(`Could not read a Chrome CDP port from ${CHROME_DEVTOOLS_PORT_FILE}.`);
+    throw new Error(
+      `Could not read a Chrome CDP port from ${CHROME_DEVTOOLS_PORT_FILE}.`,
+    );
   }
 
   return port;
@@ -568,7 +577,12 @@ function connectAgentBrowserSession() {
   execAgentBrowser(["connect", port]);
 }
 
-async function waitFor(description, callback, timeoutMs = 30000, intervalMs = 500) {
+async function waitFor(
+  description,
+  callback,
+  timeoutMs = 30000,
+  intervalMs = 500,
+) {
   const startedAt = Date.now();
   let lastError = null;
 
@@ -594,7 +608,8 @@ async function waitFor(description, callback, timeoutMs = 30000, intervalMs = 50
 
 function getQueueItem(database, id) {
   const row = database
-    .prepare(`
+    .prepare(
+      `
       SELECT
         "id",
         "postTitle",
@@ -608,7 +623,8 @@ function getQueueItem(database, id) {
         "updatedAt"
       FROM "v2_image_review_queue"
       WHERE "id" = ?
-    `)
+    `,
+    )
     .get(id);
 
   if (!row) {
@@ -641,16 +657,19 @@ function claimNextListingLinkedItem(preferredId = null) {
 
     const row = preferredId
       ? database
-          .prepare(`
+          .prepare(
+            `
             SELECT "id"
             FROM "v2_image_review_queue"
             WHERE "id" = ?
               AND "status" IN ('pending', 'failed', 'rejected')
             LIMIT 1
-          `)
+          `,
+          )
           .get(preferredId)
       : database
-          .prepare(`
+          .prepare(
+            `
             SELECT q."id"
             FROM prod."Listing" l
             JOIN prod."CultivarReference" cr
@@ -670,7 +689,8 @@ function claimNextListingLinkedItem(preferredId = null) {
               q."updatedAt" ASC,
               q."id" ASC
             LIMIT 1
-          `)
+          `,
+          )
           .get();
 
     if (!row?.id) {
@@ -686,7 +706,8 @@ function claimNextListingLinkedItem(preferredId = null) {
     }
 
     database
-      .prepare(`
+      .prepare(
+        `
         UPDATE "v2_image_review_queue"
         SET
           "status" = 'processing',
@@ -694,7 +715,8 @@ function claimNextListingLinkedItem(preferredId = null) {
           "attempts" = "attempts" + 1,
           "updatedAt" = datetime('now')
         WHERE "id" = ?
-      `)
+      `,
+      )
       .run(item.id);
 
     database.exec("COMMIT");
@@ -756,7 +778,7 @@ async function clickProjectHomeLink(projectUrl) {
   }
 
   return browserEvalBoolean(
-      `(() => {
+    `(() => {
         const link =
           document.querySelector(${JSON.stringify(`a[aria-label="Open daylily images project"][href="${expectedPath}"]`)}) ||
           document.querySelector('a[aria-label="Open daylily images project"]') ||
@@ -894,9 +916,7 @@ async function focusPromptEditor() {
   await waitFor(
     "prompt editor",
     async () => {
-      return browserEvalBoolean(
-        `!!document.getElementById("prompt-textarea")`,
-      );
+      return browserEvalBoolean(`!!document.getElementById("prompt-textarea")`);
     },
     10000,
     300,
@@ -1115,7 +1135,7 @@ async function waitForGeneratedImage() {
     "generated image",
     async () => {
       const result = browserEvalJson(
-          `JSON.stringify({
+        `JSON.stringify({
             generatedImages: [...new Map(
               [...document.querySelectorAll("img")]
                 .filter((img) => (img.alt || "").startsWith("Generated image:"))
@@ -1274,7 +1294,9 @@ async function waitForGeneratedImage() {
 }
 
 function removeExistingEditedVariants(id) {
-  for (const entry of fs.readdirSync(REVIEW_EDITED_DIR, { withFileTypes: true })) {
+  for (const entry of fs.readdirSync(REVIEW_EDITED_DIR, {
+    withFileTypes: true,
+  })) {
     if (!entry.isFile()) {
       continue;
     }
@@ -1374,7 +1396,11 @@ async function processItem(
       const conversationUrl = await waitForConversationUrl(projectPrefix);
       lastConversationUrl = conversationUrl;
       const { generatedSrc } = await waitForGeneratedImage();
-      const editedPath = await saveGeneratedImage(conversationUrl, generatedSrc, item.id);
+      const editedPath = await saveGeneratedImage(
+        conversationUrl,
+        generatedSrc,
+        item.id,
+      );
 
       updateStatus(item.id, "review", {
         editedPath,
@@ -1515,7 +1541,9 @@ async function main() {
       } catch (debugError) {
         console.warn(
           `[chatgpt-image-worker] failed to capture debug artifacts for id=${item.id}: ${
-            debugError instanceof Error ? debugError.message : String(debugError)
+            debugError instanceof Error
+              ? debugError.message
+              : String(debugError)
           }`,
         );
       }
@@ -1532,7 +1560,9 @@ async function main() {
           `[chatgpt-image-worker] stopping for browser approval id=${item.id} error=${message}${
             conversationUrl ? ` url=${conversationUrl}` : ""
           }${
-            debugArtifacts?.textPath ? ` debugText=${debugArtifacts.textPath}` : ""
+            debugArtifacts?.textPath
+              ? ` debugText=${debugArtifacts.textPath}`
+              : ""
           }${
             debugArtifacts?.screenshotPath
               ? ` debugShot=${debugArtifacts.screenshotPath}`
@@ -1559,7 +1589,9 @@ async function main() {
         `[chatgpt-image-worker] failed id=${item.id} error=${message}${
           conversationUrl ? ` url=${conversationUrl}` : ""
         }${
-          debugArtifacts?.textPath ? ` debugText=${debugArtifacts.textPath}` : ""
+          debugArtifacts?.textPath
+            ? ` debugText=${debugArtifacts.textPath}`
+            : ""
         }${
           debugArtifacts?.screenshotPath
             ? ` debugShot=${debugArtifacts.screenshotPath}`

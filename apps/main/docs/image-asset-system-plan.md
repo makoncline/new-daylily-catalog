@@ -191,6 +191,9 @@ uploads should create new rows and new R2 keys.
 
 ## Generated Cultivar Asset Follow-Up
 
+For ongoing catch-up after new listings are linked to cultivar references, use
+`apps/main/docs/generated-cultivar-image-catchup.md`.
+
 Generated cultivar image workflow state is intentionally outside the repo:
 
 ```text

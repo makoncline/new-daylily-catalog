@@ -17,6 +17,7 @@ import {
 
 const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url));
 const PORT = Number(process.env.V2_IMAGE_REVIEW_PORT ?? "4310");
+const HOST = process.env.V2_IMAGE_REVIEW_HOST ?? "127.0.0.1";
 
 function getContentType(filePath) {
   const extension = path.extname(filePath).toLowerCase();
@@ -77,7 +78,10 @@ function sendFile(response, filePath) {
 }
 
 const server = http.createServer(async (request, response) => {
-  const requestUrl = new URL(request.url ?? "/", `http://127.0.0.1:${PORT}`);
+  const requestUrl = new URL(
+    request.url ?? "/",
+    `http://${request.headers.host ?? `${HOST}:${PORT}`}`,
+  );
 
   if (request.method === "GET" && requestUrl.pathname === "/") {
     sendFile(response, path.join(SCRIPT_DIR, "index.html"));
@@ -102,9 +106,15 @@ const server = http.createServer(async (request, response) => {
   if (request.method === "GET" && requestUrl.pathname === "/api/state") {
     const limit = Math.max(
       1,
-      Math.min(24, Number(requestUrl.searchParams.get("limit") ?? "6") || 6),
+      Math.min(
+        1000,
+        Number(requestUrl.searchParams.get("limit") ?? "1000") || 1000,
+      ),
     );
-    const offset = Math.max(0, Number(requestUrl.searchParams.get("offset") ?? "0") || 0);
+    const offset = Math.max(
+      0,
+      Number(requestUrl.searchParams.get("offset") ?? "0") || 0,
+    );
 
     sendJson(response, {
       counts: getCounts(),
@@ -145,20 +155,31 @@ const server = http.createServer(async (request, response) => {
       return;
     }
 
+    let didUpdate = false;
+
     if (status === "requeue") {
-      updateStatus(id, "pending", { editedPath: null, lastError: null });
+      didUpdate = updateStatus(id, "pending", {
+        editedPath: null,
+        lastError: null,
+      });
     } else if (
       status === "approved" ||
       status === "rejected" ||
       status === "review"
     ) {
-      updateStatus(id, status);
+      didUpdate = updateStatus(id, status);
     } else {
       sendJson(response, { error: "Unsupported status" }, 400);
       return;
     }
 
-    sendJson(response, { ok: true });
+    if (!didUpdate) {
+      sendJson(response, { error: "Queue item not found" }, 404);
+      return;
+    }
+
+    console.log(`[v2-image-review] ${id} -> ${status}`);
+    sendJson(response, { ok: true, id, status, counts: getCounts() });
     return;
   }
 
@@ -185,6 +206,6 @@ const server = http.createServer(async (request, response) => {
   sendJson(response, { error: "Not found" }, 404);
 });
 
-server.listen(PORT, "127.0.0.1", () => {
-  console.log(`[v2-image-review] http://127.0.0.1:${PORT}`);
+server.listen(PORT, HOST, () => {
+  console.log(`[v2-image-review] http://${HOST}:${PORT}`);
 });
