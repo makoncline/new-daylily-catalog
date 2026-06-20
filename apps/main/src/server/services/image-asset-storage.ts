@@ -153,6 +153,22 @@ export async function getR2PresignedPutUrl(args: {
   return getSignedUrl(getR2Client(), command, { expiresIn: 3600 });
 }
 
+export async function uploadR2ImageBuffer(args: {
+  body: Buffer;
+  contentType: ImageContentType;
+  key: string;
+}) {
+  await getR2Client().send(
+    new PutObjectCommand({
+      Bucket: requireEnv("R2_BUCKET_NAME", env.R2_BUCKET_NAME),
+      Key: args.key,
+      Body: args.body,
+      ContentType: args.contentType,
+      ContentLength: args.body.byteLength,
+    }),
+  );
+}
+
 export async function getR2OriginalUploadMetadata(args: {
   kind: ImageType;
   userId: string;

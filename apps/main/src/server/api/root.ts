@@ -1,4 +1,5 @@
 import { createTRPCRouter, createCallerFactory } from "@/server/api/trpc";
+import { onboardingRouter } from "@/server/api/routers/onboarding";
 import { stripeRouter } from "@/server/api/routers/stripe";
 import { userRouter } from "@/server/api/routers/user";
 import { publicRouter } from "./routers/public";
@@ -10,6 +11,7 @@ import { dashboardDbRouter } from "./routers/dashboard-db";
  * All routers added in /api/routers should be manually added here.
  */
 export const appRouter = createTRPCRouter({
+  onboarding: onboardingRouter,
   stripe: stripeRouter,
   user: userRouter,
   public: publicRouter,

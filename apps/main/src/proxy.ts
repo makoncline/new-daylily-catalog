@@ -1,12 +1,10 @@
 import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
 import type { NextFetchEvent, NextRequest } from "next/server";
 import { NextResponse } from "next/server";
-import { SUBSCRIPTION_CONFIG } from "@/config/subscription-config";
 import { getHomeMarkdown, getRequestBaseUrl } from "@/lib/agent-readiness";
 
 const isProtectedRoute = createRouteMatcher([
   "/dashboard(.*)",
-  `${SUBSCRIPTION_CONFIG.NEW_USER_ONBOARDING_PATH}(.*)`,
   "/subscribe/success(.*)",
 ]);
 

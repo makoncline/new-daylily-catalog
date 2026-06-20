@@ -60,30 +60,35 @@ describe("seller funnel proxy protection", () => {
     expect(authMock).not.toHaveBeenCalled();
   });
 
-  it("redirects unauthenticated onboarding access to auth-error", async () => {
-    authMock.mockResolvedValueOnce({ userId: null });
+  it("keeps /onboarding publicly accessible for anonymous setup", async () => {
+    const routeMatcherArg = createRouteMatcherMock.mock.calls[0]?.[0];
+
+    expect(routeMatcherArg).toBeDefined();
+    expect(routeMatcherArg?.some((route) => route.includes("onboarding"))).toBe(
+      false,
+    );
 
     const request = new NextRequest("http://localhost:3000/onboarding");
+    const middlewareEvent = {} as Parameters<NextMiddleware>[1];
+
+    const response = await proxy(request, middlewareEvent);
+
+    expect(authMock).not.toHaveBeenCalled();
+    expect(response).toBeUndefined();
+  });
+
+  it("still protects dashboard access", async () => {
+    authMock.mockResolvedValueOnce({ userId: null });
+
+    const request = new NextRequest("http://localhost:3000/dashboard");
     const middlewareEvent = {} as Parameters<NextMiddleware>[1];
 
     const response = await proxy(request, middlewareEvent);
 
     expect(authMock).toHaveBeenCalledTimes(1);
     expect(response?.headers.get("location")).toContain(
-      "/auth-error?returnTo=%2Fonboarding",
+      "/auth-error?returnTo=%2Fdashboard",
     );
-  });
-
-  it("allows authenticated onboarding access", async () => {
-    authMock.mockResolvedValueOnce({ userId: "user_123" });
-
-    const request = new NextRequest("http://localhost:3000/onboarding");
-    const middlewareEvent = {} as Parameters<NextMiddleware>[1];
-
-    const response = await proxy(request, middlewareEvent);
-
-    expect(authMock).toHaveBeenCalledTimes(1);
-    expect(response).toBeUndefined();
   });
 
   it("runs Clerk middleware for subscribe success", async () => {

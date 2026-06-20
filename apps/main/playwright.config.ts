@@ -1,12 +1,21 @@
 import { defineConfig, devices } from "@playwright/test";
 import fs from "node:fs";
 import path from "node:path";
+import dotenv from "dotenv";
+
+dotenv.config({
+  path: path.resolve(process.cwd(), "../../.env.development"),
+  override: false,
+});
+dotenv.config({
+  path: path.resolve(process.cwd(), ".env.development"),
+  override: false,
+});
 
 const e2ePort = process.env.E2E_PORT ?? "3100";
 const baseURL = process.env.BASE_URL ?? `http://localhost:${e2ePort}`;
 const isProdScenario = process.env.E2E_PROD_SCENARIO === "1";
 const isProfileScenario = process.env.E2E_PROFILE_SCENARIO === "1";
-const isOnboardingCaptureScenario = process.env.E2E_ONBOARDING_CAPTURE === "1";
 const grepInvert = (() => {
   const basePattern = process.env.BASE_URL ? "@local" : "@preview";
   const excludedTags = [basePattern];
@@ -17,10 +26,6 @@ const grepInvert = (() => {
 
   if (!isProdScenario) {
     excludedTags.push("@prod");
-  }
-
-  if (!isOnboardingCaptureScenario) {
-    excludedTags.push("@capture");
   }
 
   return new RegExp(excludedTags.join("|"));
@@ -53,6 +58,7 @@ if (!process.env.BASE_URL) {
   process.env.E2E_TEST_DB_URL = process.env.DATABASE_URL;
   process.env.SKIP_ENV_VALIDATION = "1";
   process.env.PLAYWRIGHT_LOCAL_E2E = "true";
+  process.env.APP_BASE_URL = baseURL;
 }
 
 export default defineConfig({
@@ -70,7 +76,6 @@ export default defineConfig({
   // - @local runs only locally (BASE_URL not set)
   // - @prod runs only in attach mode when E2E_PROD_SCENARIO=1
   // - @profile runs only when E2E_PROFILE_SCENARIO=1
-  // - @capture runs only when E2E_ONBOARDING_CAPTURE=1
   // - untagged runs in both
   grepInvert,
   use: {
@@ -96,6 +101,7 @@ export default defineConfig({
           NEXT_PUBLIC_SENTRY_ENABLED: "false",
           NEXT_PUBLIC_POSTHOG_KEY: "phc_test_key",
           NEXT_PUBLIC_POSTHOG_HOST: "https://us.i.posthog.com",
+          APP_BASE_URL: baseURL,
           DATABASE_URL: process.env.DATABASE_URL!,
           E2E_TEST_DB_URL: process.env.E2E_TEST_DB_URL!,
           SKIP_ENV_VALIDATION: "1",
