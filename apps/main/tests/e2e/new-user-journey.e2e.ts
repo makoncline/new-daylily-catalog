@@ -19,8 +19,6 @@ test.describe("new user journey @local", () => {
     createListingDialog,
     editListingDialog,
     stripeCheckout,
-    startMembershipPage,
-    startOnboardingPage,
     dashboardShell,
     clerkAuthModal,
   }, testInfo) => {
@@ -38,16 +36,13 @@ test.describe("new user journey @local", () => {
         await homePage.openDashboard();
         await clerkAuthModal.signUpWithEmail(testEmail, TEST_CODE);
 
-        // redirect to onboarding after sign up
-        await startOnboardingPage.isReady();
+        // Signed-in users get an explicit off-ramp instead of entering the
+        // anonymous onboarding flow.
         await expect(page).toHaveURL(/\/onboarding/);
-
-        // Keep this journey focused on membership + dashboard behaviors.
-        await page.goto("/onboarding?step=start-membership");
-
-        // continue to dashboard onboarding from membership step
-        await startMembershipPage.isReady();
-        await startMembershipPage.continueForNowLink.click();
+        await expect(
+          page.getByRole("heading", { name: "You are already signed in." }),
+        ).toBeVisible();
+        await page.getByRole("link", { name: "Go to dashboard" }).click();
 
         await dashboardHome.waitForLoaded();
         await expect(page).toHaveURL(/\/dashboard/);
