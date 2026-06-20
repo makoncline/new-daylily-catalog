@@ -7,6 +7,10 @@ import { clerkSetup } from "@clerk/testing/playwright";
 export default async function globalSetup(_config: FullConfig) {
   // Load env for Clerk keys
   dotenv.config({
+    path: path.resolve(process.cwd(), "../../.env.development"),
+    override: false,
+  });
+  dotenv.config({
     path: path.resolve(process.cwd(), ".env.development"),
     override: false,
   });
@@ -36,5 +40,8 @@ export default async function globalSetup(_config: FullConfig) {
   fs.writeFileSync(path.join(metaDir, "e2e-db-path.txt"), filePath, "utf8");
 
   // Clear .next cache to ensure fresh build with test env
-  fs.rmSync(path.join(process.cwd(), ".next", "cache"), { recursive: true, force: true });
+  fs.rmSync(path.join(process.cwd(), ".next", "cache"), {
+    recursive: true,
+    force: true,
+  });
 }
