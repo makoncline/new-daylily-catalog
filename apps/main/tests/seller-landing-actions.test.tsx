@@ -7,7 +7,6 @@ import {
 } from "@/app/start-membership/_components/seller-landing-actions";
 
 const useAuthMock = vi.hoisted(() => vi.fn());
-const signUpButtonPropsMock = vi.hoisted(() => vi.fn());
 const capturePosthogEventMock = vi.hoisted(() => vi.fn());
 
 vi.mock("next/link", () => ({
@@ -37,17 +36,6 @@ vi.mock("next/link", () => ({
 
 vi.mock("@clerk/nextjs", () => ({
   useAuth: () => useAuthMock(),
-  SignUpButton: ({
-    children,
-    ...props
-  }: {
-    children: ReactNode;
-    forceRedirectUrl?: string;
-    signInForceRedirectUrl?: string;
-  }) => {
-    signUpButtonPropsMock(props);
-    return <div data-testid="mock-sign-up-button">{children}</div>;
-  },
 }));
 
 vi.mock("@/lib/analytics/posthog", () => ({
@@ -63,7 +51,7 @@ describe("seller landing actions", () => {
     });
   });
 
-  it("configures Clerk auth redirect to onboarding", () => {
+  it("links signed-out sellers directly to anonymous onboarding", () => {
     render(
       <SellerLandingAuthCta
         ctaId="seller-landing-hero-primary"
@@ -71,15 +59,30 @@ describe("seller landing actions", () => {
       />,
     );
 
-    expect(signUpButtonPropsMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        forceRedirectUrl: "/onboarding",
-        signInForceRedirectUrl: "/onboarding",
-      }),
-    );
+    expect(
+      screen.getByRole("link", { name: "Create your catalog" }),
+    ).toHaveAttribute("data-href", "/onboarding");
   });
 
-  it("captures seller CTA, auth start, and next path when signed out", () => {
+  it("links signed-in sellers to onboarding for the already-signed-in treatment", () => {
+    useAuthMock.mockReturnValue({
+      isLoaded: true,
+      userId: "clerk-user",
+    });
+
+    render(
+      <SellerLandingAuthCta
+        ctaId="seller-landing-hero-primary"
+        ctaLabel="Create your catalog"
+      />,
+    );
+
+    expect(
+      screen.getByRole("link", { name: "Create your catalog" }),
+    ).toHaveAttribute("data-href", "/onboarding");
+  });
+
+  it("captures seller CTA and next path when signed out", () => {
     render(
       <SellerLandingAuthCta
         ctaId="seller-landing-hero-primary"
@@ -88,11 +91,10 @@ describe("seller landing actions", () => {
     );
 
     fireEvent.click(
-      screen.getByRole("button", { name: "Create your catalog" }),
+      screen.getByRole("link", { name: "Create your catalog" }),
     );
 
-    expect(capturePosthogEventMock).toHaveBeenNthCalledWith(
-      1,
+    expect(capturePosthogEventMock).toHaveBeenCalledWith(
       "seller_cta_clicked",
       {
         source_page_type: "seller_landing",
@@ -104,15 +106,6 @@ describe("seller landing actions", () => {
         is_authenticated: false,
       },
     );
-    expect(capturePosthogEventMock).toHaveBeenNthCalledWith(2, "auth_started", {
-      source_page_type: "seller_landing",
-      source_path: "/start-membership",
-      cta_id: "seller-landing-hero-primary",
-      cta_label: "Create your catalog",
-      target_path: "/onboarding",
-      next_path: "/onboarding",
-      is_authenticated: false,
-    });
   });
 
   it("tracks example-link clicks", () => {
