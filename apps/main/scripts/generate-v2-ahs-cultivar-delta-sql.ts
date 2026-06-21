@@ -2,6 +2,8 @@ import fs from "node:fs";
 import path from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { fileURLToPath } from "node:url";
+// Node 24 strips TypeScript for local operator scripts but still needs the real extension.
+// @ts-expect-error TS5097: this script intentionally runs through Node's TS loader.
 import { normalizeCanonicalText } from "../src/lib/search-normalization.ts";
 
 function normalizeCultivarName(name: string | null | undefined): string | null {

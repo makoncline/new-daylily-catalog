@@ -146,12 +146,14 @@ function loadImageRows(limit: number | null): ImageRow[] {
     const result = statement.all() as Array<Record<string, unknown>>;
 
     return result
-      .map((row) => ({
-        id: String(row.id),
-        post_title: toOptionalString(row.post_title),
-        image_url: String(row.image_url),
-        source_kind: row.source_kind === "legacy" ? "legacy" : "v2",
-      }))
+      .map(
+        (row): ImageRow => ({
+          id: String(row.id),
+          post_title: toOptionalString(row.post_title),
+          image_url: String(row.image_url),
+          source_kind: row.source_kind === "legacy" ? "legacy" : "v2",
+        }),
+      )
       .filter((row) => !sourceInvalidIds.has(row.id))
       .slice(0, limit ?? undefined);
   } finally {
