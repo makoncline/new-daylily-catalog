@@ -14,6 +14,11 @@ import {
   orderedImageAssetUrlInclude,
   resolveLegacyImagesWithAssets,
 } from "@/server/services/image-asset-read-model";
+import {
+  generatedCultivarImageAssetInclude,
+  resolveCultivarReferenceImage,
+  shouldQueryGeneratedCultivarImageAssets,
+} from "@/server/services/cultivar-reference-image-read-model";
 
 // Constants for merchant feed configuration
 const SHIPPING_WEIGHT = "0.5 lb";
@@ -46,6 +51,9 @@ export async function GET(_request: Request) {
           v2AhsCultivar: {
             select: v2AhsCultivarDisplaySelect,
           },
+          ...(shouldQueryGeneratedCultivarImageAssets()
+            ? { imageAssets: generatedCultivarImageAssetInclude }
+            : {}),
         },
       },
       user: {
@@ -93,6 +101,16 @@ export async function GET(_request: Request) {
                 : [],
             variant: "display",
           });
+          const cultivarReferenceImage = displayListing.cultivarReference
+            ? resolveCultivarReferenceImage({
+                id: `ahs-${displayListing.id}`,
+                fallbackImageUrl: displayAhsListing?.ahsImageUrl,
+                imageAssets:
+                  "imageAssets" in displayListing.cultivarReference
+                    ? displayListing.cultivarReference.imageAssets
+                    : [],
+              })
+            : null;
           const listingName =
             displayListing.title ??
             displayAhsListing?.name ??
@@ -109,7 +127,7 @@ export async function GET(_request: Request) {
           }
 
           const rawImageUrl =
-            resolvedImages[0]?.url ?? displayAhsListing?.ahsImageUrl;
+            resolvedImages[0]?.url ?? cultivarReferenceImage?.url;
           const imageUrl = rawImageUrl
             ? getCloudflareUrlForDaylilyS3Image(rawImageUrl)
             : null;

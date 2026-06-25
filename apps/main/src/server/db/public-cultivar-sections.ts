@@ -7,6 +7,7 @@ import {
 } from "@/server/db/public-cultivar-context";
 import { getCloudflareUrlForDaylilyS3Image } from "@/lib/utils/cloudflareLoader";
 import type { ImageAssetView } from "@/server/services/image-asset-read-model";
+import { resolveCultivarReferenceImage } from "@/server/services/cultivar-reference-image-read-model";
 
 const CULTIVAR_SPEC_FIELDS = [
   ["Scape Height", "scapeHeight"],
@@ -202,22 +203,26 @@ function getCultivarHeroImages(
         };
       }),
   );
+  const cultivarReferenceImage = resolveCultivarReferenceImage({
+    id: cultivarReference.ahsListing?.id
+      ? `ahs-${cultivarReference.ahsListing.id}`
+      : `cultivar-reference-${cultivarReference.id}`,
+    fallbackImageUrl: cultivarReference.ahsListing?.ahsImageUrl,
+    imageAssets: cultivarReference.imageAssets,
+  });
 
-  return cultivarReference.ahsListing?.ahsImageUrl
+  return cultivarReferenceImage
     ? [
         ...catalogImages.slice(0, 11),
         {
-          alt: cultivarReference.ahsListing.name
+          ...cultivarReferenceImage,
+          alt: cultivarReference.ahsListing?.name
             ? `${cultivarReference.ahsListing.name} AHS image`
             : "AHS cultivar image",
-          id: `ahs-${cultivarReference.ahsListing.id}`,
           listingId: null,
           sellerSlug: null,
           sellerTitle: null,
           source: "ahs" as const,
-          url: getCloudflareUrlForDaylilyS3Image(
-            cultivarReference.ahsListing.ahsImageUrl,
-          ),
         },
       ]
     : catalogImages.slice(0, 12);

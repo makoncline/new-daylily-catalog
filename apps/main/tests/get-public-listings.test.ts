@@ -43,6 +43,8 @@ const originalV2DisplayFlag =
   process.env.NEXT_PUBLIC_USE_V2_CULTIVAR_DISPLAY_DATA;
 const originalCloudflareUrl = process.env.NEXT_PUBLIC_CLOUDFLARE_URL;
 const originalUseImageAssets = process.env.USE_IMAGE_ASSETS;
+const originalUseGeneratedCultivarImageAssets =
+  process.env.USE_GENERATED_CULTIVAR_IMAGE_ASSETS;
 
 function getQueryText(query: unknown): string {
   if (
@@ -116,6 +118,13 @@ describe("getPublicListings helpers", () => {
       delete process.env.USE_IMAGE_ASSETS;
     } else {
       process.env.USE_IMAGE_ASSETS = originalUseImageAssets;
+    }
+
+    if (originalUseGeneratedCultivarImageAssets === undefined) {
+      delete process.env.USE_GENERATED_CULTIVAR_IMAGE_ASSETS;
+    } else {
+      process.env.USE_GENERATED_CULTIVAR_IMAGE_ASSETS =
+        originalUseGeneratedCultivarImageAssets;
     }
   });
 
@@ -236,6 +245,7 @@ describe("getPublicListings helpers", () => {
         ...createListing("id-a", "Alpha"),
         updatedAt: new Date("2026-04-08T00:00:00.000Z"),
         cultivarReference: {
+          id: "cultivar-alpha",
           normalizedName: "alpha",
           ahsListing: {
             id: "ahs-1",
@@ -281,6 +291,7 @@ describe("getPublicListings helpers", () => {
             parentage: "(V2 A x V2 B)",
             image_url: "https://example.com/v2-alpha.jpg",
           },
+          imageAssets: [],
         },
         images: [],
       },
@@ -307,6 +318,98 @@ describe("getPublicListings helpers", () => {
         updatedAt: new Date("2026-04-08T00:00:00.000Z"),
       },
     ]);
+  });
+
+  it("uses generated cultivar ImageAsset fallback images when enabled", () => {
+    process.env.NEXT_PUBLIC_USE_V2_CULTIVAR_DISPLAY_DATA = "true";
+    process.env.USE_GENERATED_CULTIVAR_IMAGE_ASSETS = "true";
+
+    const transformed = transformListings([
+      {
+        ...createListing("id-a", "Alpha"),
+        updatedAt: new Date("2026-04-08T00:00:00.000Z"),
+        cultivarReference: {
+          id: "cultivar-alpha",
+          normalizedName: "alpha",
+          ahsListing: {
+            id: "ahs-1",
+            name: "Legacy Alpha",
+            ahsImageUrl: "https://example.com/legacy-alpha.jpg",
+            hybridizer: "Legacy Hybridizer",
+            year: "2011",
+            scapeHeight: "30 inches",
+            bloomSize: "6 inches",
+            bloomSeason: "Midseason",
+            form: "Single",
+            ploidy: "Tetraploid",
+            foliageType: "Dormant",
+            bloomHabit: "Diurnal",
+            budcount: "20",
+            branches: "4",
+            sculpting: null,
+            foliage: null,
+            flower: null,
+            fragrance: null,
+            parentage: "(Legacy A x Legacy B)",
+            color: "Legacy color",
+          },
+          v2AhsCultivar: {
+            id: "v2-1",
+            post_title: "V2 Alpha",
+            introduction_date: "2024-05-01",
+            primary_hybridizer_name: "V2 Hybridizer",
+            hybridizer_code_legacy: null,
+            additional_hybridizers_names: null,
+            bloom_season_names: "Late",
+            fragrance_names: null,
+            bloom_habit_names: null,
+            foliage_names: null,
+            ploidy_names: null,
+            scape_height_in: null,
+            bloom_size_in: null,
+            bud_count: null,
+            branches: null,
+            color: null,
+            flower_form_names: null,
+            unusual_forms_names: null,
+            parentage: null,
+            image_url: "https://example.com/v2-alpha.jpg",
+          },
+          imageAssets: [
+            {
+              id: "asset-alpha",
+              legacyImageId: null,
+              order: 0,
+              kind: "cultivar",
+              status: "ready",
+              originalKey: "cultivar-images/alpha/original.png",
+              originalUrl: "https://media.daylilycatalog.com/original.png",
+              displayKey: "cultivar-images/alpha/display-800.webp",
+              displayUrl: "https://media.daylilycatalog.com/display-800.webp",
+              thumbKey: "cultivar-images/alpha/thumb-200.webp",
+              thumbUrl: "https://media.daylilycatalog.com/thumb-200.webp",
+              blurKey: "cultivar-images/alpha/blur-20.webp",
+              blurUrl: "https://media.daylilycatalog.com/blur-20.webp",
+              createdAt: new Date("2026-04-08T00:00:00.000Z"),
+              updatedAt: new Date("2026-04-08T00:00:00.000Z"),
+              userProfileId: null,
+              listingId: null,
+              cultivarReferenceId: "cultivar-alpha",
+            },
+          ],
+        },
+        images: [],
+      },
+    ] as Parameters<typeof transformListings>[0]);
+
+    expect(transformed[0]?.images[0]).toMatchObject({
+      id: "ahs-id-a",
+      url: "https://media.daylilycatalog.com/display-800.webp",
+      imageAsset: {
+        id: "asset-alpha",
+        blurUrl: "https://media.daylilycatalog.com/blur-20.webp",
+      },
+    });
   });
 
   it("excludes free accounts from public catalog route entries", async () => {

@@ -10,16 +10,16 @@ import { ImageGallery } from "@/components/image-gallery";
 
 interface TableImagePreviewProps {
   images: OptimizedImageSource[];
-  ahsImageUrl?: string | null;
+  cultivarReferenceImage?: OptimizedImageSource | null;
 }
 
 export function TableImagePreview({
   images,
-  ahsImageUrl,
+  cultivarReferenceImage,
 }: TableImagePreviewProps) {
   const allImages: OptimizedImageSource[] = [
     ...images,
-    ...(ahsImageUrl ? [{ url: ahsImageUrl, id: "ahs-image" }] : []),
+    ...(cultivarReferenceImage ? [cultivarReferenceImage] : []),
   ];
 
   if (allImages.length === 0) return null;

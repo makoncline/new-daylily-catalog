@@ -13,6 +13,12 @@ import type {
 } from "@/lib/utils/ahs-display";
 import { isV2CultivarDisplayDataEnabled } from "@/config/feature-flags";
 import {
+  type CultivarReferenceImageView,
+  resolveCultivarReferenceImage,
+  shouldQueryGeneratedCultivarImageAssets,
+} from "@/server/services/cultivar-reference-image-read-model";
+import { imageAssetUrlSelect } from "@/server/services/image-asset-read-model";
+import {
   dashboardSyncInputSchema,
   parseDashboardSyncSince,
 } from "./dashboard-db-router-helpers";
@@ -43,7 +49,19 @@ type DashboardCultivarReference = {
   normalizedName: string | null;
   updatedAt: Date;
   ahsListing: AhsDisplayListing | null;
+  cultivarReferenceImage: CultivarReferenceImageView | null;
 };
+
+const cultivarReferenceImageAssetSelect = {
+  ...imageAssetUrlSelect,
+  cultivarReferenceId: true,
+} as const;
+
+type CultivarReferenceImageAssetRow = Prisma.ImageAssetGetPayload<{
+  select: typeof cultivarReferenceImageAssetSelect;
+}>;
+
+const CULTIVAR_REFERENCE_IMAGE_ASSET_QUERY_CHUNK_SIZE = 400;
 
 type LegacyCultivarReferenceRow = Prisma.CultivarReferenceGetPayload<{
   select: typeof legacyCultivarReferenceSelect;
@@ -109,9 +127,19 @@ function toDate(value: Date | string | number) {
   return value instanceof Date ? value : new Date(value);
 }
 
+function chunkArray<T>(values: readonly T[], size: number) {
+  const chunks: T[][] = [];
+
+  for (let index = 0; index < values.length; index += size) {
+    chunks.push(values.slice(index, index + size));
+  }
+
+  return chunks;
+}
+
 function mapLegacyCultivarReferenceRow(
   row: LegacyCultivarReferenceRow,
-): DashboardCultivarReference {
+): Omit<DashboardCultivarReference, "cultivarReferenceImage"> {
   return {
     id: row.id,
     normalizedName: row.normalizedName,
@@ -122,7 +150,7 @@ function mapLegacyCultivarReferenceRow(
 
 function mapV2CultivarReferenceRow(
   row: V2CultivarReferenceRow,
-): DashboardCultivarReference {
+): Omit<DashboardCultivarReference, "cultivarReferenceImage"> {
   return {
     id: row.id,
     normalizedName: row.normalizedName,
@@ -135,7 +163,7 @@ function mapV2CultivarReferenceRow(
 
 function mapRawLegacyCultivarReferenceRow(
   row: RawLegacyCultivarReferenceRow,
-): DashboardCultivarReference {
+): Omit<DashboardCultivarReference, "cultivarReferenceImage"> {
   const ahsListing = row.ahs_id
     ? {
         id: row.ahs_id,
@@ -171,7 +199,7 @@ function mapRawLegacyCultivarReferenceRow(
 
 function mapRawV2CultivarReferenceRow(
   row: RawV2CultivarReferenceRow,
-): DashboardCultivarReference {
+): Omit<DashboardCultivarReference, "cultivarReferenceImage"> {
   const v2AhsCultivar: V2AhsCultivarDisplaySource | null = row.v2_id
     ? {
         id: row.v2_id,
@@ -245,7 +273,10 @@ async function getCultivarReferencesByIdsRaw(
       ORDER BY cr."id"
     `);
 
-    return rows.map(mapRawV2CultivarReferenceRow);
+    return addCultivarReferenceImages(
+      db,
+      rows.map(mapRawV2CultivarReferenceRow),
+    );
   }
 
   const rows = await db.$queryRaw<RawLegacyCultivarReferenceRow[]>(Prisma.sql`
@@ -279,7 +310,72 @@ async function getCultivarReferencesByIdsRaw(
     ORDER BY cr."id"
   `);
 
-  return rows.map(mapRawLegacyCultivarReferenceRow);
+  return addCultivarReferenceImages(
+    db,
+    rows.map(mapRawLegacyCultivarReferenceRow),
+  );
+}
+
+async function getCultivarReferenceImageAssets(
+  db: PrismaClient,
+  cultivarReferenceIds: string[],
+) {
+  const map = new Map<string, CultivarReferenceImageAssetRow>();
+
+  if (
+    !shouldQueryGeneratedCultivarImageAssets() ||
+    cultivarReferenceIds.length === 0
+  ) {
+    return map;
+  }
+
+  const chunks = chunkArray(
+    Array.from(new Set(cultivarReferenceIds)),
+    CULTIVAR_REFERENCE_IMAGE_ASSET_QUERY_CHUNK_SIZE,
+  );
+
+  for (const chunk of chunks) {
+    const rows = await db.imageAsset.findMany({
+      where: {
+        kind: "cultivar",
+        status: "ready",
+        cultivarReferenceId: { in: chunk },
+      },
+      select: cultivarReferenceImageAssetSelect,
+      orderBy: [{ order: "asc" }, { createdAt: "asc" }],
+    });
+
+    for (const row of rows) {
+      if (row.cultivarReferenceId && !map.has(row.cultivarReferenceId)) {
+        map.set(row.cultivarReferenceId, row);
+      }
+    }
+  }
+
+  return map;
+}
+
+async function addCultivarReferenceImages(
+  db: PrismaClient,
+  rows: Array<Omit<DashboardCultivarReference, "cultivarReferenceImage">>,
+): Promise<DashboardCultivarReference[]> {
+  const imageAssetsByCultivarReferenceId = await getCultivarReferenceImageAssets(
+    db,
+    rows.map((row) => row.id),
+  );
+
+  return rows.map((row) => {
+    const imageAsset = imageAssetsByCultivarReferenceId.get(row.id);
+
+    return {
+      ...row,
+      cultivarReferenceImage: resolveCultivarReferenceImage({
+        id: `ahs-${row.id}`,
+        fallbackImageUrl: row.ahsListing?.ahsImageUrl,
+        imageAssets: imageAsset ? [imageAsset] : [],
+      }),
+    };
+  });
 }
 
 async function getCultivarReferencesForUserListings(
@@ -349,7 +445,10 @@ async function getCultivarReferencesForUserListings(
       ${limitClause}
     `);
 
-    return rows.map(mapRawV2CultivarReferenceRow);
+    return addCultivarReferenceImages(
+      db,
+      rows.map(mapRawV2CultivarReferenceRow),
+    );
   }
 
   const rows = await db.$queryRaw<RawLegacyCultivarReferenceRow[]>(Prisma.sql`
@@ -386,7 +485,10 @@ async function getCultivarReferencesForUserListings(
     ${limitClause}
   `);
 
-  return rows.map(mapRawLegacyCultivarReferenceRow);
+  return addCultivarReferenceImages(
+    db,
+    rows.map(mapRawLegacyCultivarReferenceRow),
+  );
 }
 
 export const dashboardDbCultivarReferenceRouter = createTRPCRouter({
@@ -432,7 +534,10 @@ export const dashboardDbCultivarReferenceRouter = createTRPCRouter({
           select: v2CultivarReferenceSelect,
         });
 
-        return rows.map(mapV2CultivarReferenceRow);
+        return addCultivarReferenceImages(
+          ctx.db,
+          rows.map(mapV2CultivarReferenceRow),
+        );
       }
 
       const rows = await ctx.db.cultivarReference.findMany({
@@ -440,7 +545,10 @@ export const dashboardDbCultivarReferenceRouter = createTRPCRouter({
         select: legacyCultivarReferenceSelect,
       });
 
-      return rows.map(mapLegacyCultivarReferenceRow);
+      return addCultivarReferenceImages(
+        ctx.db,
+        rows.map(mapLegacyCultivarReferenceRow),
+      );
     }),
 
   getByIdsBatch: protectedProcedure

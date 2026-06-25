@@ -9,6 +9,11 @@ import {
   getDisplayAhsListing,
   v2AhsCultivarDisplaySelect,
 } from "@/lib/utils/ahs-display";
+import {
+  generatedCultivarImageAssetInclude,
+  resolveCultivarReferenceImage,
+  shouldQueryGeneratedCultivarImageAssets,
+} from "@/server/services/cultivar-reference-image-read-model";
 import { toCultivarRouteSegment } from "@/lib/utils/cultivar-utils";
 import { db, replicaDb } from "@/server/db";
 import { getProUserIds } from "@/server/db/getProUserIds";
@@ -194,6 +199,12 @@ function serializeCultivarReference(
 ) {
   if (!cultivarReference) return null;
   const ahsListing = getDisplayAhsListing(cultivarReference);
+  const cultivarReferenceImage = resolveCultivarReferenceImage({
+    id: `ahs-${cultivarReference.id}`,
+    fallbackImageUrl: ahsListing?.ahsImageUrl,
+    imageAssets:
+      "imageAssets" in cultivarReference ? cultivarReference.imageAssets : [],
+  });
   const segment = cultivarReference.normalizedName
     ? toCultivarRouteSegment(cultivarReference.normalizedName)
     : null;
@@ -219,7 +230,7 @@ function serializeCultivarReference(
           color: ahsListing.color,
           form: ahsListing.form,
           parentage: ahsListing.parentage,
-          imageUrl: ahsListing.ahsImageUrl,
+          imageUrl: cultivarReferenceImage?.url ?? null,
         }
       : null,
   };
@@ -612,6 +623,9 @@ const cultivarReferenceSelect = {
   updatedAt: true,
   ahsListing: { select: ahsDisplayAhsListingSelect },
   v2AhsCultivar: { select: v2AhsCultivarDisplaySelect },
+  ...(shouldQueryGeneratedCultivarImageAssets()
+    ? { imageAssets: generatedCultivarImageAssetInclude }
+    : {}),
 } as const;
 
 const listingSelect = {

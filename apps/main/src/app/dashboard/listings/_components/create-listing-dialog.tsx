@@ -140,7 +140,10 @@ export function CreateListingDialog({
         {selectedResult && detailedAhsListing && (
           <div className="mt-4">
             <Separator className="my-4" />
-            <AhsListingDisplay ahsListing={detailedAhsListing} />
+            <AhsListingDisplay
+              ahsListing={detailedAhsListing}
+              cultivarReferenceImage={detailedAhsListing.cultivarReferenceImage}
+            />
             <Separator className="my-4" />
           </div>
         )}

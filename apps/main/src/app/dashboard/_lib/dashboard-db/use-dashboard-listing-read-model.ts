@@ -84,6 +84,7 @@ function buildListingRows({
       images: imagesByListingId.get(listing.id) ?? [],
       lists: listsByListingId.get(listing.id) ?? [],
       ahsListing: ref?.ahsListing ?? null,
+      cultivarReferenceImage: ref?.cultivarReferenceImage ?? null,
     };
   });
 }
