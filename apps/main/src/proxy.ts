@@ -38,8 +38,30 @@ const publicAgentDiscoveryPaths = new Set([
   "/llms-full.txt",
 ]);
 
+function isRscRequest(req: NextRequest) {
+  return (
+    req.nextUrl.searchParams.has("_rsc") ||
+    req.headers.get("accept")?.includes("text/x-component")
+  );
+}
+
 const protectedRouteProxy = clerkMiddleware(async (auth, req) => {
   if (!isProtectedRoute(req)) {
+    return undefined;
+  }
+
+  if (isRscRequest(req)) {
+    const { userId } = await auth();
+
+    if (!userId) {
+      return new NextResponse("Authentication required", {
+        status: 401,
+        headers: {
+          "Content-Type": "text/plain; charset=utf-8",
+        },
+      });
+    }
+
     return undefined;
   }
 
