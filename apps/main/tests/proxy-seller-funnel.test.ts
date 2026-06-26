@@ -1,18 +1,12 @@
 // @vitest-environment node
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { NextRequest, type NextMiddleware } from "next/server";
+import { NextRequest, NextResponse, type NextMiddleware } from "next/server";
 
-const { authMock, authProtectMock } = vi.hoisted(() => {
-  const protect = vi.fn(async () => undefined);
-  return {
-    authProtectMock: protect,
-    authMock: Object.assign(
-      vi.fn(async () => ({ userId: null as string | null })),
-      { protect },
-    ),
-  };
-});
+const { authMock, redirectToSignInMock } = vi.hoisted(() => ({
+  redirectToSignInMock: vi.fn(),
+  authMock: vi.fn(),
+}));
 const createRouteMatcherMock = vi.hoisted(() =>
   vi.fn((routes: string[]) => {
     return (request: NextRequest) => {
@@ -47,6 +41,16 @@ describe("seller funnel proxy protection", () => {
   beforeEach(async () => {
     vi.clearAllMocks();
     vi.resetModules();
+
+    redirectToSignInMock.mockReturnValue(
+      NextResponse.redirect("https://accounts.daylilycatalog.com/sign-in"),
+    );
+
+    authMock.mockResolvedValue({
+      isAuthenticated: true,
+      redirectToSignIn: redirectToSignInMock,
+    });
+
     ({ proxy } = await import("@/proxy"));
   });
 
@@ -65,10 +69,55 @@ describe("seller funnel proxy protection", () => {
 
     expect(response).toBeUndefined();
     expect(authMock).not.toHaveBeenCalled();
-    expect(authProtectMock).not.toHaveBeenCalled();
+    expect(redirectToSignInMock).not.toHaveBeenCalled();
   });
 
-  it("delegates dashboard RSC auth handling to Clerk without an auth-error redirect", async () => {
+  it("allows authenticated dashboard access", async () => {
+    const request = new NextRequest("http://localhost:3000/dashboard/listings");
+    const middlewareEvent = {} as Parameters<NextMiddleware>[1];
+
+    const response = await proxy(request, middlewareEvent);
+
+    expect(authMock).toHaveBeenCalledTimes(1);
+    expect(response).toBeUndefined();
+    expect(redirectToSignInMock).not.toHaveBeenCalled();
+  });
+
+  it("redirects unauthenticated dashboard document navigations through Clerk", async () => {
+    const clerkRedirect = NextResponse.redirect(
+      "https://accounts.daylilycatalog.com/sign-in",
+    );
+
+    redirectToSignInMock.mockReturnValueOnce(clerkRedirect);
+    authMock.mockResolvedValueOnce({
+      isAuthenticated: false,
+      redirectToSignIn: redirectToSignInMock,
+    });
+
+    const request = new NextRequest("http://localhost:3000/dashboard/listings", {
+      headers: {
+        accept: "text/html",
+        "sec-fetch-dest": "document",
+      },
+    });
+    const middlewareEvent = {} as Parameters<NextMiddleware>[1];
+
+    const response = await proxy(request, middlewareEvent);
+
+    expect(authMock).toHaveBeenCalledTimes(1);
+    expect(redirectToSignInMock).toHaveBeenCalledTimes(1);
+    expect(redirectToSignInMock).toHaveBeenCalledWith({
+      returnBackUrl: new URL("/dashboard/listings", "http://localhost:3000"),
+    });
+    expect(response).toBe(clerkRedirect);
+  });
+
+  it("returns 404 without redirect for unauthenticated dashboard RSC requests", async () => {
+    authMock.mockResolvedValueOnce({
+      isAuthenticated: false,
+      redirectToSignIn: redirectToSignInMock,
+    });
+
     const request = new NextRequest(
       "http://localhost:3000/dashboard/listings?_rsc=test",
       {
@@ -83,34 +132,72 @@ describe("seller funnel proxy protection", () => {
 
     const response = await proxy(request, middlewareEvent);
 
-    expect(authProtectMock).toHaveBeenCalledTimes(1);
-    expect(authMock).not.toHaveBeenCalled();
-    expect(response?.headers.get("location") ?? "").not.toContain(
-      "/auth-error",
-    );
+    expect(authMock).toHaveBeenCalledTimes(1);
+    expect(redirectToSignInMock).not.toHaveBeenCalled();
+    expect(response?.status).toBe(404);
+    expect(response?.headers.get("location")).toBeNull();
+    expect(response?.headers.get("cache-control")).toBe("no-store");
   });
 
-  it("delegates onboarding protection to Clerk", async () => {
-    const request = new NextRequest("http://localhost:3000/onboarding");
+  it("redirects unauthenticated onboarding document navigations through Clerk", async () => {
+    const clerkRedirect = NextResponse.redirect(
+      "https://accounts.daylilycatalog.com/sign-in",
+    );
+
+    redirectToSignInMock.mockReturnValueOnce(clerkRedirect);
+    authMock.mockResolvedValueOnce({
+      isAuthenticated: false,
+      redirectToSignIn: redirectToSignInMock,
+    });
+
+    const request = new NextRequest("http://localhost:3000/onboarding", {
+      headers: {
+        accept: "text/html",
+        "sec-fetch-dest": "document",
+      },
+    });
     const middlewareEvent = {} as Parameters<NextMiddleware>[1];
 
     const response = await proxy(request, middlewareEvent);
 
-    expect(authProtectMock).toHaveBeenCalledTimes(1);
-    expect(authMock).not.toHaveBeenCalled();
-    expect(response).toBeUndefined();
+    expect(authMock).toHaveBeenCalledTimes(1);
+    expect(redirectToSignInMock).toHaveBeenCalledWith({
+      returnBackUrl: new URL("/onboarding", "http://localhost:3000"),
+    });
+    expect(response).toBe(clerkRedirect);
   });
 
-  it("runs Clerk middleware for subscribe success", async () => {
+  it("redirects unauthenticated subscribe success document navigations through Clerk", async () => {
+    const clerkRedirect = NextResponse.redirect(
+      "https://accounts.daylilycatalog.com/sign-in",
+    );
+
+    redirectToSignInMock.mockReturnValueOnce(clerkRedirect);
+    authMock.mockResolvedValueOnce({
+      isAuthenticated: false,
+      redirectToSignIn: redirectToSignInMock,
+    });
+
     const request = new NextRequest(
       "http://localhost:3000/subscribe/success?redirect=/dashboard",
+      {
+        headers: {
+          accept: "text/html",
+          "sec-fetch-dest": "document",
+        },
+      },
     );
     const middlewareEvent = {} as Parameters<NextMiddleware>[1];
 
     const response = await proxy(request, middlewareEvent);
 
-    expect(authProtectMock).toHaveBeenCalledTimes(1);
-    expect(authMock).not.toHaveBeenCalled();
-    expect(response).toBeUndefined();
+    expect(authMock).toHaveBeenCalledTimes(1);
+    expect(redirectToSignInMock).toHaveBeenCalledWith({
+      returnBackUrl: new URL(
+        "/subscribe/success?redirect=/dashboard",
+        "http://localhost:3000",
+      ),
+    });
+    expect(response).toBe(clerkRedirect);
   });
 });
