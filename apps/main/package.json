@@ -28,7 +28,8 @@
     "test:e2e": "playwright test",
     "test:e2e:attach": "BASE_URL=http://localhost:3000 playwright test",
     "profile:queries": "bash scripts/profile-queries-strategic.sh",
-    "db:sync:seed": "bash scripts/sync-seeded-daylily-catalog-from-local.sh"
+    "db:sync:seed": "bash scripts/sync-seeded-daylily-catalog-from-local.sh",
+    "prod-like:prepare": "node scripts/prepare-prod-like-local-smoke.mjs"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.882.0",
