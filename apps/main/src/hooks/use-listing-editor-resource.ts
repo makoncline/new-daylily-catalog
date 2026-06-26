@@ -14,11 +14,14 @@ import { imagesCollection } from "@/app/dashboard/_lib/dashboard-db/images-colle
 import { listsCollection } from "@/app/dashboard/_lib/dashboard-db/lists-collection";
 
 type LinkedAhsListing = CultivarReferenceCollectionItem["ahsListing"];
+type LinkedCultivarReferenceImage =
+  CultivarReferenceCollectionItem["cultivarReferenceImage"];
 
 export interface ListingEditorResource {
   images: Image[];
   isReady: boolean;
   linkedAhs: LinkedAhsListing | null;
+  linkedCultivarReferenceImage: LinkedCultivarReferenceImage | null;
   listing: ListingCollectionItem | null;
   selectedListIds: string[];
 }
@@ -59,10 +62,14 @@ export function useListingEditorResource(
     .filter((list) => list.listings.some(({ id }) => id === listingId))
     .map((list) => list.id);
 
-  const linkedAhs = listing?.cultivarReferenceId
-    ? (cultivarReferences.find((row) => row.id === listing.cultivarReferenceId)
-        ?.ahsListing ?? null)
+  const linkedCultivarReference = listing?.cultivarReferenceId
+    ? (cultivarReferences.find(
+        (row) => row.id === listing.cultivarReferenceId,
+      ) ?? null)
     : null;
+  const linkedAhs = linkedCultivarReference?.ahsListing ?? null;
+  const linkedCultivarReferenceImage =
+    linkedCultivarReference?.cultivarReferenceImage ?? null;
 
   return {
     images,
@@ -73,6 +80,7 @@ export function useListingEditorResource(
       isListsReady &&
       !!listing,
     linkedAhs,
+    linkedCultivarReferenceImage,
     listing,
     selectedListIds,
   };

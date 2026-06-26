@@ -11,6 +11,8 @@ import { type ListingCollectionItem } from "@/app/dashboard/_lib/dashboard-db/li
 import { type CultivarReferenceCollectionItem } from "@/app/dashboard/_lib/dashboard-db/cultivar-references-collection";
 
 type LinkedAhsListing = CultivarReferenceCollectionItem["ahsListing"];
+type LinkedCultivarReferenceImage =
+  CultivarReferenceCollectionItem["cultivarReferenceImage"];
 
 export function ListingMediaSection({
   images,
@@ -75,11 +77,13 @@ export function ListingListsSection({
 
 export function ListingCultivarLinkSection({
   linkedAhs,
+  linkedCultivarReferenceImage,
   listing,
   onMutationSuccess,
   onNameChange,
 }: {
   linkedAhs: LinkedAhsListing | null;
+  linkedCultivarReferenceImage: LinkedCultivarReferenceImage | null;
   listing: ListingCollectionItem;
   onMutationSuccess: () => void;
   onNameChange: (name: string) => void;
@@ -92,6 +96,7 @@ export function ListingCultivarLinkSection({
       <AhsListingLink
         listing={listing}
         linkedAhs={linkedAhs}
+        cultivarReferenceImage={linkedCultivarReferenceImage}
         onNameChange={onNameChange}
         onMutationSuccess={onMutationSuccess}
       />

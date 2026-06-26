@@ -62,6 +62,8 @@ import {
 import { useListingEditorResource } from "@/hooks/use-listing-editor-resource";
 
 type LinkedAhsListing = CultivarReferenceCollectionItem["ahsListing"];
+type LinkedCultivarReferenceImage =
+  CultivarReferenceCollectionItem["cultivarReferenceImage"];
 
 interface ListingFormProps {
   listingId: string;
@@ -105,6 +107,7 @@ function useListingFormController({
   listingId,
   listing,
   linkedAhs,
+  linkedCultivarReferenceImage,
   images,
   selectedListIds,
   onDelete,
@@ -113,6 +116,7 @@ function useListingFormController({
   listingId: string;
   listing: ListingCollectionItem;
   linkedAhs: LinkedAhsListing | null;
+  linkedCultivarReferenceImage: LinkedCultivarReferenceImage | null;
   images: Image[];
   selectedListIds: string[];
   onDelete: () => void;
@@ -282,6 +286,7 @@ function useListingFormController({
     isBusy,
     isDeleteDialogOpen,
     linkedAhs,
+    linkedCultivarReferenceImage,
     listing,
     listingId,
     markNeedsParentCommit,
@@ -312,6 +317,7 @@ function ListingFormFields({
   isBusy,
   isDeleteDialogOpen,
   linkedAhs,
+  linkedCultivarReferenceImage,
   listing,
   listingId,
   markNeedsParentCommit,
@@ -462,6 +468,7 @@ function ListingFormFields({
         <ListingCultivarLinkSection
           listing={listing}
           linkedAhs={linkedAhs}
+          linkedCultivarReferenceImage={linkedCultivarReferenceImage}
           onNameChange={(name) => {
             form.setValue("title", name);
           }}
@@ -499,8 +506,14 @@ function ListingFormFields({
 }
 
 function ListingFormLive({ listingId, onDelete, formRef }: ListingFormProps) {
-  const { images, isReady, linkedAhs, listing, selectedListIds } =
-    useListingEditorResource(listingId);
+  const {
+    images,
+    isReady,
+    linkedAhs,
+    linkedCultivarReferenceImage,
+    listing,
+    selectedListIds,
+  } = useListingEditorResource(listingId);
 
   if (!isReady || !listing) {
     return <ListingFormSkeleton />;
@@ -511,6 +524,7 @@ function ListingFormLive({ listingId, onDelete, formRef }: ListingFormProps) {
       listingId={listingId}
       listing={listing}
       linkedAhs={linkedAhs}
+      linkedCultivarReferenceImage={linkedCultivarReferenceImage}
       images={images}
       selectedListIds={selectedListIds}
       onDelete={onDelete}
