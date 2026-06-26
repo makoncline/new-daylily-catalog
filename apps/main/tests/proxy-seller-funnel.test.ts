@@ -3,9 +3,16 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { NextRequest, type NextMiddleware } from "next/server";
 
-const authMock = vi.hoisted(() =>
-  vi.fn(async () => ({ userId: null as string | null })),
-);
+const { authMock, authProtectMock } = vi.hoisted(() => {
+  const protect = vi.fn(async () => undefined);
+  return {
+    authProtectMock: protect,
+    authMock: Object.assign(
+      vi.fn(async () => ({ userId: null as string | null })),
+      { protect },
+    ),
+  };
+});
 const createRouteMatcherMock = vi.hoisted(() =>
   vi.fn((routes: string[]) => {
     return (request: NextRequest) => {
@@ -58,37 +65,43 @@ describe("seller funnel proxy protection", () => {
 
     expect(response).toBeUndefined();
     expect(authMock).not.toHaveBeenCalled();
+    expect(authProtectMock).not.toHaveBeenCalled();
   });
 
-  it("redirects unauthenticated onboarding access to auth-error", async () => {
-    authMock.mockResolvedValueOnce({ userId: null });
-
-    const request = new NextRequest("http://localhost:3000/onboarding");
+  it("delegates dashboard RSC auth handling to Clerk without an auth-error redirect", async () => {
+    const request = new NextRequest(
+      "http://localhost:3000/dashboard/listings?_rsc=test",
+      {
+        headers: {
+          accept: "text/x-component",
+          "next-url": "/dashboard",
+          "sec-fetch-dest": "empty",
+        },
+      },
+    );
     const middlewareEvent = {} as Parameters<NextMiddleware>[1];
 
     const response = await proxy(request, middlewareEvent);
 
-    expect(authMock).toHaveBeenCalledTimes(1);
-    expect(response?.headers.get("location")).toContain(
-      "/auth-error?returnTo=%2Fonboarding",
+    expect(authProtectMock).toHaveBeenCalledTimes(1);
+    expect(authMock).not.toHaveBeenCalled();
+    expect(response?.headers.get("location") ?? "").not.toContain(
+      "/auth-error",
     );
   });
 
-  it("allows authenticated onboarding access", async () => {
-    authMock.mockResolvedValueOnce({ userId: "user_123" });
-
+  it("delegates onboarding protection to Clerk", async () => {
     const request = new NextRequest("http://localhost:3000/onboarding");
     const middlewareEvent = {} as Parameters<NextMiddleware>[1];
 
     const response = await proxy(request, middlewareEvent);
 
-    expect(authMock).toHaveBeenCalledTimes(1);
+    expect(authProtectMock).toHaveBeenCalledTimes(1);
+    expect(authMock).not.toHaveBeenCalled();
     expect(response).toBeUndefined();
   });
 
   it("runs Clerk middleware for subscribe success", async () => {
-    authMock.mockResolvedValueOnce({ userId: "user_123" });
-
     const request = new NextRequest(
       "http://localhost:3000/subscribe/success?redirect=/dashboard",
     );
@@ -96,7 +109,8 @@ describe("seller funnel proxy protection", () => {
 
     const response = await proxy(request, middlewareEvent);
 
-    expect(authMock).toHaveBeenCalledTimes(1);
+    expect(authProtectMock).toHaveBeenCalledTimes(1);
+    expect(authMock).not.toHaveBeenCalled();
     expect(response).toBeUndefined();
   });
 });
