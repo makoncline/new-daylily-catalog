@@ -15,5 +15,9 @@ console.log(`[v2-image-review] queuedRows=${result.queuedRows}`);
 console.log(`[v2-image-review] insertedRows=${result.insertedRows}`);
 console.log(`[v2-image-review] updatedRows=${result.updatedRows}`);
 console.log(
+  `[v2-image-review] importedRowsMarked=${result.importedRowsMarked}`,
+);
+console.log(`[v2-image-review] legacyRowsMarked=${result.legacyRowsMarked}`);
+console.log(
   `[v2-image-review] missingOriginalRows=${result.missingOriginalRows}`,
 );

@@ -1,21 +1,25 @@
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { DatabaseSync } from "node:sqlite";
 
 const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url));
-export const REPO_ROOT = path.resolve(SCRIPT_DIR, "../../..");
+export const APP_ROOT = path.resolve(SCRIPT_DIR, "../../..");
+export const DATA_ROOT =
+  process.env.V2_AHS_IMAGE_REVIEW_DATA_ROOT ||
+  path.join(os.homedir(), "daylily-catalog-image-processing");
 export const LOCAL_RUNTIME_ROOT = path.join(
-  REPO_ROOT,
-  "local",
+  DATA_ROOT,
   "v2-ahs-image-review",
+  "local",
 );
-export const REVIEW_ROOT = path.join(REPO_ROOT, "downloads", "v2-ahs-image-review");
+export const REVIEW_ROOT = path.join(DATA_ROOT, "v2-ahs-image-review");
 export const REVIEW_DB_PATH = path.join(REVIEW_ROOT, "review.sqlite");
 export const REVIEW_EDITED_DIR = path.join(REVIEW_ROOT, "edited");
-export const ORIGINALS_DIR = path.join(REPO_ROOT, "downloads", "v2-ahs-images");
+export const ORIGINALS_DIR = path.join(DATA_ROOT, "v2-ahs-images");
 export const PROD_COPY_DB_PATH = path.join(
-  REPO_ROOT,
+  APP_ROOT,
   "prisma",
   "local-prod-copy-daylily-catalog.db",
 );
@@ -77,7 +81,8 @@ export function ensureSchema(database) {
 
 function readQueueItem(database, id) {
   const row = database
-    .prepare(`
+    .prepare(
+      `
       SELECT
         "id",
         "postTitle",
@@ -91,7 +96,8 @@ function readQueueItem(database, id) {
         "updatedAt"
       FROM "v2_image_review_queue"
       WHERE "id" = ?
-    `)
+    `,
+    )
     .get(id);
 
   if (!row) {
@@ -128,13 +134,44 @@ export function syncQueue() {
     ensureSchema(queueDb);
 
     const sourceRows = prodDb
-      .prepare(`
-        SELECT "id", "post_title"
-        FROM "V2AhsCultivar"
-        WHERE "image_url" IS NOT NULL
-          AND "image_url" <> ''
-        ORDER BY "id"
-      `)
+      .prepare(
+        `
+        SELECT
+          cr."id",
+          COALESCE(
+            NULLIF(v2."post_title", ''),
+            NULLIF(ahs."name", ''),
+            MIN(NULLIF(l."title", ''))
+          ) AS "post_title"
+        FROM "CultivarReference" cr
+        JOIN "Listing" l
+          ON l."cultivarReferenceId" = cr."id"
+        LEFT JOIN "V2AhsCultivar" v2
+          ON v2."id" = cr."v2AhsCultivarId"
+        LEFT JOIN "AhsListing" ahs
+          ON ahs."id" = cr."ahsId"
+        WHERE NOT EXISTS (
+            SELECT 1
+            FROM "ImageAsset" ia
+            WHERE ia."cultivarReferenceId" = cr."id"
+              AND ia."kind" = 'cultivar'
+              AND ia."status" = 'ready'
+          )
+          AND (
+            NULLIF(v2."image_url", '') IS NOT NULL
+            OR NULLIF(ahs."ahsImageUrl", '') IS NOT NULL
+          )
+        GROUP BY
+          cr."id",
+          v2."post_title",
+          ahs."name",
+          v2."introduction_date",
+          ahs."year"
+        ORDER BY
+          COALESCE(v2."introduction_date", ahs."year", '') DESC,
+          cr."id" ASC
+      `,
+      )
       .all();
 
     const existingStmt = queueDb.prepare(`
@@ -172,14 +209,66 @@ export function syncQueue() {
         "promptVersion" = excluded."promptVersion",
         "updatedAt" = excluded."updatedAt"
     `);
+    const importedRows = prodDb
+      .prepare(
+        `
+        SELECT DISTINCT ia."cultivarReferenceId" AS "id"
+        FROM "ImageAsset" ia
+        WHERE ia."cultivarReferenceId" IS NOT NULL
+          AND ia."kind" = 'cultivar'
+          AND ia."status" = 'ready'
+        UNION
+        SELECT DISTINCT cr."ahsId" AS "id"
+        FROM "ImageAsset" ia
+        JOIN "CultivarReference" cr
+          ON cr."id" = ia."cultivarReferenceId"
+        WHERE cr."ahsId" IS NOT NULL
+          AND ia."kind" = 'cultivar'
+          AND ia."status" = 'ready'
+        UNION
+        SELECT DISTINCT cr."v2AhsCultivarId" AS "id"
+        FROM "ImageAsset" ia
+        JOIN "CultivarReference" cr
+          ON cr."id" = ia."cultivarReferenceId"
+        WHERE cr."v2AhsCultivarId" IS NOT NULL
+          AND ia."kind" = 'cultivar'
+          AND ia."status" = 'ready'
+      `,
+      )
+      .all();
+    const markImportedStmt = queueDb.prepare(`
+      UPDATE "v2_image_review_queue"
+      SET
+        "status" = 'imported',
+        "lastError" = NULL,
+        "updatedAt" = ?
+      WHERE "id" = ?
+        AND "status" <> 'imported'
+    `);
+    const markLegacyStmt = queueDb.prepare(`
+      UPDATE "v2_image_review_queue"
+      SET
+        "status" = 'legacy',
+        "updatedAt" = ?
+      WHERE "id" NOT LIKE 'cr-%'
+        AND "status" IN ('review', 'approved')
+    `);
 
     let insertedRows = 0;
     let updatedRows = 0;
     let missingOriginalRows = 0;
     let queuedRows = 0;
+    let importedRowsMarked = 0;
+    let legacyRowsMarked = 0;
     const updatedAt = nowIso();
 
     queueDb.exec("BEGIN TRANSACTION");
+
+    for (const importedRow of importedRows) {
+      const result = markImportedStmt.run(updatedAt, String(importedRow.id));
+      importedRowsMarked += Number(result.changes ?? 0);
+    }
+    legacyRowsMarked += Number(markLegacyStmt.run(updatedAt).changes ?? 0);
 
     for (const sourceRow of sourceRows) {
       const id = String(sourceRow.id);
@@ -221,7 +310,9 @@ export function syncQueue() {
         typeof existing?.promptVersion === "string"
           ? existing.promptVersion
           : null,
-        typeof existing?.createdAt === "string" ? existing.createdAt : updatedAt,
+        typeof existing?.createdAt === "string"
+          ? existing.createdAt
+          : updatedAt,
         updatedAt,
       );
 
@@ -242,6 +333,8 @@ export function syncQueue() {
       insertedRows,
       updatedRows,
       missingOriginalRows,
+      importedRowsMarked,
+      legacyRowsMarked,
     };
   } catch (error) {
     try {
@@ -260,11 +353,13 @@ export function getCounts() {
   try {
     ensureSchema(database);
     const rows = database
-      .prepare(`
+      .prepare(
+        `
         SELECT "status", COUNT(*) AS "count"
         FROM "v2_image_review_queue"
         GROUP BY "status"
-      `)
+      `,
+      )
       .all();
 
     const result = {
@@ -273,6 +368,8 @@ export function getCounts() {
       processing: 0,
       review: 0,
       approved: 0,
+      imported: 0,
+      legacy: 0,
       rejected: 0,
       failed: 0,
     };
@@ -286,6 +383,8 @@ export function getCounts() {
       if (status === "processing") result.processing = count;
       if (status === "review") result.review = count;
       if (status === "approved") result.approved = count;
+      if (status === "imported") result.imported = count;
+      if (status === "legacy") result.legacy = count;
       if (status === "rejected") result.rejected = count;
       if (status === "failed") result.failed = count;
     }
@@ -307,7 +406,8 @@ export function getItem(preferredId = null) {
     }
 
     const row = database
-      .prepare(`
+      .prepare(
+        `
         SELECT "id"
         FROM "v2_image_review_queue"
         ORDER BY
@@ -318,12 +418,15 @@ export function getItem(preferredId = null) {
             WHEN 'pending' THEN 3
             WHEN 'rejected' THEN 4
             WHEN 'approved' THEN 5
-            ELSE 6
+            WHEN 'imported' THEN 6
+            WHEN 'legacy' THEN 7
+            ELSE 8
           END,
           "updatedAt" ASC,
           "id" ASC
         LIMIT 1
-      `)
+      `,
+      )
       .get();
 
     return row?.id ? readQueueItem(database, String(row.id)) : null;
@@ -339,7 +442,8 @@ export function getItems({ limit = 6, offset = 0 } = {}) {
     ensureSchema(database);
 
     const rows = database
-      .prepare(`
+      .prepare(
+        `
         SELECT
           "id",
           "postTitle",
@@ -352,21 +456,16 @@ export function getItems({ limit = 6, offset = 0 } = {}) {
           "createdAt",
           "updatedAt"
         FROM "v2_image_review_queue"
+        WHERE "status" = 'review'
+          AND "originalPath" IS NOT NULL
+          AND "editedPath" IS NOT NULL
         ORDER BY
-          CASE "status"
-            WHEN 'review' THEN 0
-            WHEN 'failed' THEN 1
-            WHEN 'processing' THEN 2
-            WHEN 'pending' THEN 3
-            WHEN 'rejected' THEN 4
-            WHEN 'approved' THEN 5
-            ELSE 6
-          END,
           "updatedAt" ASC,
           "id" ASC
         LIMIT ?
         OFFSET ?
-      `)
+      `,
+      )
       .all(limit, offset);
 
     return rows.map((row) => ({
@@ -394,7 +493,8 @@ export function getEditedItems() {
     ensureSchema(database);
 
     const rows = database
-      .prepare(`
+      .prepare(
+        `
         SELECT
           "id",
           "postTitle",
@@ -406,7 +506,8 @@ export function getEditedItems() {
         WHERE "editedPath" IS NOT NULL
           AND "editedPath" <> ''
         ORDER BY datetime("updatedAt") DESC, "id" DESC
-      `)
+      `,
+      )
       .all();
 
     return rows.map((row) => ({
@@ -435,7 +536,8 @@ export function updateStatus(id, status, options = {}) {
     }
 
     database
-      .prepare(`
+      .prepare(
+        `
         UPDATE "v2_image_review_queue"
         SET
           "status" = ?,
@@ -445,11 +547,16 @@ export function updateStatus(id, status, options = {}) {
           "attempts" = ?,
           "updatedAt" = ?
         WHERE "id" = ?
-      `)
+      `,
+      )
       .run(
         status,
-        Object.hasOwn(options, "lastError") ? options.lastError : item.lastError,
-        Object.hasOwn(options, "editedPath") ? options.editedPath : item.editedPath,
+        Object.hasOwn(options, "lastError")
+          ? options.lastError
+          : item.lastError,
+        Object.hasOwn(options, "editedPath")
+          ? options.editedPath
+          : item.editedPath,
         Object.hasOwn(options, "promptVersion")
           ? options.promptVersion
           : item.promptVersion,
@@ -473,16 +580,19 @@ export function claimNextPendingItem(preferredId = null) {
 
     const row = preferredId
       ? database
-          .prepare(`
+          .prepare(
+            `
             SELECT "id"
             FROM "v2_image_review_queue"
             WHERE "id" = ?
               AND "status" IN ('pending', 'failed', 'rejected')
             LIMIT 1
-          `)
+          `,
+          )
           .get(preferredId)
       : database
-          .prepare(`
+          .prepare(
+            `
             SELECT "id"
             FROM "v2_image_review_queue"
             WHERE "status" IN ('pending', 'failed', 'rejected')
@@ -495,7 +605,8 @@ export function claimNextPendingItem(preferredId = null) {
               "updatedAt" ASC,
               "id" ASC
             LIMIT 1
-          `)
+          `,
+          )
           .get();
 
     if (!row?.id) {
@@ -511,7 +622,8 @@ export function claimNextPendingItem(preferredId = null) {
     }
 
     database
-      .prepare(`
+      .prepare(
+        `
         UPDATE "v2_image_review_queue"
         SET
           "status" = 'processing',
@@ -519,7 +631,8 @@ export function claimNextPendingItem(preferredId = null) {
           "attempts" = "attempts" + 1,
           "updatedAt" = ?
         WHERE "id" = ?
-      `)
+      `,
+      )
       .run(nowIso(), item.id);
 
     database.exec("COMMIT");

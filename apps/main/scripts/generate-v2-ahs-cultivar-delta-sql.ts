@@ -2,7 +2,18 @@ import fs from "node:fs";
 import path from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { fileURLToPath } from "node:url";
-import { normalizeCultivarName } from "../src/lib/utils/cultivar-utils";
+// Node 24 strips TypeScript for local operator scripts but still needs the real extension.
+// @ts-expect-error TS5097: this script intentionally runs through Node's TS loader.
+import { normalizeCanonicalText } from "../src/lib/search-normalization.ts";
+
+function normalizeCultivarName(name: string | null | undefined): string | null {
+  if (!name) {
+    return null;
+  }
+
+  const normalized = normalizeCanonicalText(name);
+  return normalized.length > 0 ? normalized : null;
+}
 
 interface SourceCultivarRow {
   id: string;
@@ -122,7 +133,11 @@ interface NewRowSummary {
   lastUpdated: string | null;
   existingCultivarReferenceIdByName: string | null;
   existingCultivarReferenceV2IdByName: string | null;
-  action: "link-existing-reference" | "create-reference" | "conflict" | "skip-missing-normalized-name";
+  action:
+    | "link-existing-reference"
+    | "create-reference"
+    | "conflict"
+    | "skip-missing-normalized-name";
 }
 
 interface DeltaSummary {
@@ -144,6 +159,7 @@ interface DeltaSummary {
     changedRowsWithLinkedReferenceNameDrift: number;
     changedRowsWithSafeReferenceRename: number;
     changedRowsWithReviewRequired: number;
+    ignoredLastUpdatedOnlyRows: number;
   };
   prodOnlyIds: string[];
   newRows: NewRowSummary[];
@@ -185,7 +201,10 @@ const SUMMARY_FILE_NAME = "summary.json";
 const BATCH_SIZE = 200;
 const MAX_BATCHES_PER_IMPORT_CHUNK = 32;
 const IMPORT_MANIFEST_FILE_NAME = "manifest.json";
-const COMPARABLE_COLUMNS = [
+// The upstream last_updated field is noisy and must not create updates by
+// itself. Keep it in WRITE_COLUMNS so real new/changed rows preserve the source
+// value, but exclude it from COMPARABLE_COLUMNS.
+const WRITE_COLUMNS = [
   "post_id",
   "link_normalized_name",
   "post_title",
@@ -228,9 +247,51 @@ const COMPARABLE_COLUMNS = [
   "image_url",
   "awards_json",
 ] as const;
+const COMPARABLE_COLUMNS = [
+  "post_id",
+  "link_normalized_name",
+  "post_title",
+  "post_status",
+  "introduction_date",
+  "primary_hybridizer_id",
+  "primary_hybridizer_name",
+  "additional_hybridizers_ids",
+  "additional_hybridizers_names",
+  "hybridizer_code_legacy",
+  "seedling_number",
+  "bloom_season_ids",
+  "bloom_season_names",
+  "fragrance_ids",
+  "fragrance_names",
+  "bloom_habit_ids",
+  "bloom_habit_names",
+  "foliage_ids",
+  "foliage_names",
+  "ploidy_ids",
+  "ploidy_names",
+  "scape_height_in",
+  "bloom_size_in",
+  "bud_count",
+  "branches",
+  "color",
+  "rebloom",
+  "flower_form_ids",
+  "flower_form_names",
+  "double_percentage",
+  "polymerous_percentage",
+  "spider_ratio",
+  "petal_length_in",
+  "petal_width_in",
+  "unusual_forms_ids",
+  "unusual_forms_names",
+  "parentage",
+  "images_count",
+  "image_url",
+  "awards_json",
+] as const;
 const INSERT_COLUMNS = [
   "id",
-  ...COMPARABLE_COLUMNS,
+  ...WRITE_COLUMNS,
   "createdAt",
   "updatedAt",
 ] as const;
@@ -475,7 +536,9 @@ function readSourceRows(sourceDbPath: string) {
   const sourceDb = new DatabaseSync(sourceDbPath, { readOnly: true });
 
   try {
-    const rows = sourceDb.prepare(SOURCE_SELECT_SQL).all() as unknown as SourceCultivarRow[];
+    const rows = sourceDb
+      .prepare(SOURCE_SELECT_SQL)
+      .all() as unknown as SourceCultivarRow[];
 
     return rows.map(buildComparableRow);
   } finally {
@@ -575,7 +638,7 @@ function buildImportRowSql(row: ComparableCultivarRow) {
 
 function buildImportStatement(rows: string[]) {
   const columnList = INSERT_COLUMNS.map((column) => `"${column}"`).join(", ");
-  const updateList = COMPARABLE_COLUMNS.map(
+  const updateList = WRITE_COLUMNS.map(
     (column) => `  "${column}" = excluded."${column}"`,
   ).join(",\n");
 
@@ -681,7 +744,11 @@ COMMIT;
     chunks: chunkMetadata,
   };
   const manifestPath = path.join(importDir, IMPORT_MANIFEST_FILE_NAME);
-  fs.writeFileSync(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`, "utf8");
+  fs.writeFileSync(
+    manifestPath,
+    `${JSON.stringify(manifest, null, 2)}\n`,
+    "utf8",
+  );
 }
 
 function buildSingleColumnValuesCte(name: string, values: string[]) {
@@ -876,7 +943,10 @@ function buildVerifySql(
       row.linkedCultivarReferenceId != null &&
       !row.cultivarReferenceRenameWouldBeSafe,
   ).length;
-  const touchedIdsCte = buildSingleColumnValuesCte("delta_touched_ids", touchedIds);
+  const touchedIdsCte = buildSingleColumnValuesCte(
+    "delta_touched_ids",
+    touchedIds,
+  );
   const newIdsCte = buildSingleColumnValuesCte("delta_new_ids", newIds);
   const changedNameCte = buildChangedNameCte(
     "delta_changed_names",
@@ -952,7 +1022,10 @@ WHERE cr."v2AhsCultivarId" IS NOT NULL
 `);
 }
 
-function buildReviewSql(changedRows: ChangedRowSummary[], summary: DeltaSummary) {
+function buildReviewSql(
+  changedRows: ChangedRowSummary[],
+  summary: DeltaSummary,
+) {
   const changedNameRows = changedRows
     .filter(
       (row) =>
@@ -1047,6 +1120,14 @@ async function main() {
   const prodOnlyIds = prodRows
     .filter((row) => !sourceById.has(row.id))
     .map((row) => row.id);
+  const ignoredLastUpdatedOnlyRows = sourceRows.filter((next) => {
+    const current = prodById.get(next.id);
+    return (
+      current != null &&
+      current.last_updated !== next.last_updated &&
+      diffComparableRows(current, next).length === 0
+    );
+  }).length;
 
   const changedRows = changedRowsRaw.map((row) => {
     const linkedCultivarReference =
@@ -1147,6 +1228,7 @@ async function main() {
       changedRowsWithReviewRequired: changedRows.filter(
         (row) => row.cultivarReferenceRenameNeedsReview,
       ).length,
+      ignoredLastUpdatedOnlyRows,
     },
     prodOnlyIds,
     newRows: newRowsSummary,
@@ -1182,6 +1264,9 @@ async function main() {
   console.log(`[delta-sql] source rows ${summary.counts.sourceRows}`);
   console.log(`[delta-sql] new rows ${summary.counts.newRows}`);
   console.log(`[delta-sql] changed rows ${summary.counts.changedRows}`);
+  console.log(
+    `[delta-sql] ignored last_updated-only rows ${summary.counts.ignoredLastUpdatedOnlyRows}`,
+  );
   console.log(`[delta-sql] prod-only rows ${summary.counts.prodOnlyRows}`);
   console.log(
     `[delta-sql] new rows link existing reference ${summary.counts.newRowsLinkExistingReference}`,

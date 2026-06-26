@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { randomUUID } from "node:crypto";
 import { DatabaseSync } from "node:sqlite";
 
 import {
@@ -33,6 +34,7 @@ function parseArgs() {
   return {
     dryRun: args.includes("--dry-run"),
     retryFailed: args.includes("--retry-failed"),
+    includeS3Manifest: args.includes("--include-s3-manifest"),
     allowRemoteDb: args.includes("--allow-remote-db"),
     limit:
       Number.parseInt(valueAfter("--limit") ?? "", 10) ||
@@ -57,8 +59,16 @@ function getManifestPath(dataRoot) {
   return path.join(dataRoot, "v2-ahs-image-review", "s3-manifest.sqlite");
 }
 
+function getReviewDbPath(dataRoot) {
+  return path.join(dataRoot, "v2-ahs-image-review", "review.sqlite");
+}
+
 function readManifestItems({ dataRoot }) {
   const manifestPath = getManifestPath(dataRoot);
+  if (!fs.existsSync(manifestPath)) {
+    return [];
+  }
+
   const manifest = new DatabaseSync(manifestPath, { readOnly: true });
 
   try {
@@ -79,10 +89,57 @@ function readManifestItems({ dataRoot }) {
         localPath: String(row.localPath),
         v2AhsCultivarId: String(row.v2AhsCultivarId),
         cultivarReferenceId: String(row.cultivarReferenceId),
+        source: "s3-manifest",
       }));
   } finally {
     manifest.close();
   }
+}
+
+function readReviewItems({ dataRoot }) {
+  const reviewDbPath = getReviewDbPath(dataRoot);
+  if (!fs.existsSync(reviewDbPath)) {
+    return [];
+  }
+
+  const reviewDb = new DatabaseSync(reviewDbPath, { readOnly: true });
+
+  try {
+    return reviewDb
+      .prepare(
+        `
+          SELECT
+            "id" AS "cultivarReferenceId",
+            "editedPath" AS "localPath"
+          FROM "v2_image_review_queue"
+          WHERE "status" IN ('review', 'approved')
+            AND "editedPath" IS NOT NULL
+            AND "id" LIKE 'cr-%'
+          ORDER BY "id" ASC
+        `,
+      )
+      .all()
+      .map((row) => ({
+        localPath: String(row.localPath),
+        v2AhsCultivarId: "",
+        cultivarReferenceId: String(row.cultivarReferenceId),
+        source: "review-db",
+      }));
+  } finally {
+    reviewDb.close();
+  }
+}
+
+function mergeItems(...itemGroups) {
+  const byCultivarReferenceId = new Map();
+
+  for (const item of itemGroups.flat()) {
+    byCultivarReferenceId.set(item.cultivarReferenceId, item);
+  }
+
+  return [...byCultivarReferenceId.values()].sort((left, right) =>
+    left.cultivarReferenceId.localeCompare(right.cultivarReferenceId),
+  );
 }
 
 function cultivarOriginalKey(item, imageAssetId) {
@@ -90,25 +147,62 @@ function cultivarOriginalKey(item, imageAssetId) {
 }
 
 async function filterItemsForRun({ db, items, retryFailed, limit }) {
+  const candidateCultivarReferenceIds = [
+    ...new Set(items.map((item) => item.cultivarReferenceId)),
+  ];
+  const validCultivarReferences = await db.cultivarReference.findMany({
+    where: { id: { in: candidateCultivarReferenceIds } },
+    select: { id: true },
+  });
+  const validCultivarReferenceIds = new Set(
+    validCultivarReferences.map((cultivarReference) => cultivarReference.id),
+  );
   const existingAssets = await db.imageAsset.findMany({
     where: { kind: "cultivar" },
     select: { cultivarReferenceId: true, status: true },
   });
-  const existingStatusByCultivarReferenceId = new Map(
-    existingAssets
-      .filter((asset) => asset.cultivarReferenceId)
-      .map((asset) => [asset.cultivarReferenceId, asset.status]),
-  );
+  const existingStatusesByCultivarReferenceId = new Map();
+  for (const asset of existingAssets) {
+    if (!asset.cultivarReferenceId) continue;
+
+    const statuses =
+      existingStatusesByCultivarReferenceId.get(asset.cultivarReferenceId) ??
+      new Set();
+    statuses.add(asset.status);
+    existingStatusesByCultivarReferenceId.set(
+      asset.cultivarReferenceId,
+      statuses,
+    );
+  }
   const selected = [];
+  const missingReferenceSamples = [];
+  let missingReferenceCount = 0;
 
   for (const item of items) {
-    const existingStatus = existingStatusByCultivarReferenceId.get(
+    if (!validCultivarReferenceIds.has(item.cultivarReferenceId)) {
+      missingReferenceCount += 1;
+      if (missingReferenceSamples.length < 5) {
+        missingReferenceSamples.push({
+          cultivarReferenceId: item.cultivarReferenceId,
+          source: item.source,
+        });
+      }
+      continue;
+    }
+
+    const existingStatuses = existingStatusesByCultivarReferenceId.get(
       item.cultivarReferenceId,
     );
 
-    if (!existingStatus) {
+    if (!existingStatuses) {
       selected.push(item);
-    } else if (retryFailed && existingStatus !== "ready") {
+    } else if (existingStatuses.has("ready")) {
+      continue;
+    } else if (retryFailed) {
+      console.warn("[generated-cultivar-backfill-retrying-non-ready]", {
+        cultivarReferenceId: item.cultivarReferenceId,
+        existingStatuses: [...existingStatuses],
+      });
       selected.push(item);
     }
 
@@ -117,14 +211,22 @@ async function filterItemsForRun({ db, items, retryFailed, limit }) {
     }
   }
 
+  if (missingReferenceCount > 0) {
+    console.warn("[generated-cultivar-backfill-skipped-missing-references]", {
+      count: missingReferenceCount,
+      samples: missingReferenceSamples,
+    });
+  }
+
   return selected;
 }
 
-function findExistingCultivarImageAsset(db, cultivarReferenceId) {
+function findExistingReadyCultivarImageAsset(db, cultivarReferenceId) {
   return db.imageAsset.findFirst({
     where: {
       kind: "cultivar",
       cultivarReferenceId,
+      status: "ready",
     },
     orderBy: { createdAt: "asc" },
     select: { id: true },
@@ -138,22 +240,16 @@ function isMissingCultivarReferenceError(error, item) {
   );
 }
 
-async function ensureCultivarImageAsset(db, item) {
-  const existing = await findExistingCultivarImageAsset(
+async function existingReadyCultivarImageAsset(db, item) {
+  const existing = await findExistingReadyCultivarImageAsset(
     db,
     item.cultivarReferenceId,
   );
-  if (existing) return existing;
+  return existing ?? null;
+}
 
-  return db.imageAsset.create({
-    data: {
-      order: 0,
-      kind: "cultivar",
-      status: "backfill_pending",
-      cultivarReferenceId: item.cultivarReferenceId,
-    },
-    select: { id: true },
-  });
+function generateImageAssetId() {
+  return randomUUID();
 }
 
 async function backfillGeneratedCultivarImage({
@@ -171,13 +267,22 @@ async function backfillGeneratedCultivarImage({
     throw new Error(`Missing CultivarReference ${item.cultivarReferenceId}`);
   }
 
-  if (!fs.existsSync(item.localPath)) {
-    throw new Error(`Generated image is missing: ${item.localPath}`);
+  const existingReadyAsset = dryRun
+    ? null
+    : await existingReadyCultivarImageAsset(db, item);
+  if (existingReadyAsset) {
+    console.log("[generated-cultivar-backfill-skipped-existing-ready]", {
+      cultivarReferenceId: item.cultivarReferenceId,
+      v2AhsCultivarId: item.v2AhsCultivarId,
+      source: item.source,
+      imageAssetId: existingReadyAsset.id,
+    });
+    return;
   }
 
   const imageAssetId = dryRun
     ? "<generated-image-asset-id>"
-    : (await ensureCultivarImageAsset(db, item)).id;
+    : generateImageAssetId();
   const originalKey = cultivarOriginalKey(item, imageAssetId);
   const variantKeys = variantKeysFromOriginalKey(originalKey);
 
@@ -185,6 +290,7 @@ async function backfillGeneratedCultivarImage({
     console.log("[dry-run] would backfill generated cultivar image", {
       cultivarReferenceId: item.cultivarReferenceId,
       v2AhsCultivarId: item.v2AhsCultivarId,
+      source: item.source,
       imageAssetId,
       originalKey,
       ...variantKeys,
@@ -198,6 +304,10 @@ async function backfillGeneratedCultivarImage({
     thumbUrl: publicUrlForKey(variantKeys.thumbKey),
     blurUrl: publicUrlForKey(variantKeys.blurKey),
   };
+
+  if (!fs.existsSync(item.localPath)) {
+    throw new Error(`Generated image is missing: ${item.localPath}`);
+  }
 
   const source = await fs.promises.readFile(item.localPath);
   const { display, thumb, blur } = await buildWebpVariants(source);
@@ -230,9 +340,9 @@ async function backfillGeneratedCultivarImage({
     ),
   ]);
 
-  await db.imageAsset.update({
-    where: { id: imageAssetId },
+  await db.imageAsset.create({
     data: {
+      id: imageAssetId,
       order: 0,
       kind: "cultivar",
       status: "ready",
@@ -251,25 +361,18 @@ async function backfillGeneratedCultivarImage({
   console.log("[backfilled-generated-cultivar]", {
     cultivarReferenceId: item.cultivarReferenceId,
     v2AhsCultivarId: item.v2AhsCultivarId,
+    source: item.source,
     imageAssetId,
   });
 }
 
 async function markBackfillFailed(db, item, error) {
-  const imageAssetId = (await ensureCultivarImageAsset(db, item)).id;
   const message = error instanceof Error ? error.message : String(error);
-
-  await db.imageAsset.update({
-    where: { id: imageAssetId },
-    data: {
-      status: "backfill_failed",
-      cultivarReferenceId: item.cultivarReferenceId,
-    },
-  });
 
   console.error("[generated-cultivar-backfill-failed]", {
     cultivarReferenceId: item.cultivarReferenceId,
     v2AhsCultivarId: item.v2AhsCultivarId,
+    source: item.source,
     error: message,
   });
 }
@@ -280,6 +383,7 @@ function logSkippedMissingCultivarReference(item, error) {
   console.error("[generated-cultivar-backfill-skipped]", {
     cultivarReferenceId: item.cultivarReferenceId,
     v2AhsCultivarId: item.v2AhsCultivarId,
+    source: item.source,
     error: message,
   });
 }
@@ -300,18 +404,24 @@ async function main() {
   );
 
   try {
-    const manifestItems = readManifestItems({
+    const manifestItems = args.includeS3Manifest
+      ? readManifestItems({
+          dataRoot: args.dataRoot,
+        })
+      : [];
+    const reviewItems = readReviewItems({
       dataRoot: args.dataRoot,
     });
+    const backfillItems = mergeItems(manifestItems, reviewItems);
     const items = await filterItemsForRun({
       db,
-      items: manifestItems,
+      items: backfillItems,
       retryFailed: args.retryFailed,
       limit: args.limit,
     });
 
     console.log(
-      `[image-assets] generated cultivar backfill candidates=${items.length} manifestRows=${manifestItems.length} limit=${args.limit} concurrency=${concurrency}`,
+      `[image-assets] generated cultivar backfill candidates=${items.length} manifestRows=${manifestItems.length} reviewRows=${reviewItems.length} mergedRows=${backfillItems.length} limit=${args.limit} concurrency=${concurrency}`,
     );
 
     let failedCount = 0;

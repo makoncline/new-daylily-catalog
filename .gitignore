@@ -66,6 +66,8 @@ apps/*/next-env.d.ts
 /temp/
 /temp_pages/
 /temp_pages_*/
+apps/*/temp_pages/
+apps/*/temp_pages_*/
 
 # debug
 npm-debug.log*

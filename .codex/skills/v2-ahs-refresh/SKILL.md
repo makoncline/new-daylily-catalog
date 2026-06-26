@@ -67,7 +67,7 @@ pnpm main env:dev bash scripts/db-backup.sh
 Generate the delta against the actual deployed baseline:
 
 ```bash
-pnpm main exec tsx scripts/generate-v2-ahs-cultivar-delta-sql.ts \
+pnpm main exec node scripts/generate-v2-ahs-cultivar-delta-sql.ts \
   --prod-db prisma/local-prod-copy-daylily-catalog.db \
   --source-db cultivars.db
 ```
@@ -81,6 +81,10 @@ This writes ignored artifacts under `apps/main/prisma/data-migrations/v2-ahs-cul
 
 Always inspect `summary.json` before applying anything.
 
+The generator intentionally ignores upstream `last_updated` as a reason to
+update a row. It reports `ignoredLastUpdatedOnlyRows` in `summary.json`, while
+still writing `last_updated` for rows that are new or have real data changes.
+
 ## Local Rehearsal
 
 Rehearse on a disposable copy, not the prod copy itself:
@@ -90,7 +94,7 @@ cd apps/main
 
 cp prisma/local-prod-copy-daylily-catalog.db tests/.tmp/v2-delta-rehearsal.sqlite
 
-npx tsx scripts/apply-v2-ahs-cultivar-import.ts \
+node scripts/apply-v2-ahs-cultivar-import.ts \
   --sqlite tests/.tmp/v2-delta-rehearsal.sqlite \
   --import-dir prisma/data-migrations/v2-ahs-cultivar-delta/upsert
 
@@ -110,7 +114,7 @@ Only do this when the user explicitly asks.
 ```bash
 cd apps/main
 
-npx tsx scripts/apply-v2-ahs-cultivar-import.ts \
+node scripts/apply-v2-ahs-cultivar-import.ts \
   --db daylily-catalog \
   --import-dir prisma/data-migrations/v2-ahs-cultivar-delta/upsert
 
