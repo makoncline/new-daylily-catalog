@@ -206,6 +206,18 @@ a cleanup manifest under:
 - The follow-up rows were synced to `imported` and local artifacts were cleaned
   up with a manifest.
 
+## Import Record: 2026-06-26
+
+- Created Turso checkpoint branch
+  `daylily-catalog-pre-imgcatch-20260626-122931`.
+- Imported 39 generated cultivar `ImageAsset` rows to production.
+- Verification passed: 39 asset ids present, 39 ready cultivar assets, zero
+  duplicate ready cultivar-reference rows, and no foreign-key violations.
+- Review queue was synced afterward: 8712 `imported` rows and 3 known
+  `source_invalid` rows remain.
+- Cleaned imported generated/candidate artifacts, deleting 78 files and
+  reclaiming 167.1 MB. Source originals were intentionally left untouched.
+
 ## Related V2 Data Refresh
 
 For newly added or changed V2 cultivar source data, use the V2 AHS refresh
