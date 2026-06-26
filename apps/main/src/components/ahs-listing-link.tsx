@@ -18,6 +18,7 @@ import {
   reportError,
 } from "@/lib/error-utils";
 import type { RouterOutputs } from "@/trpc/react";
+import type { OptimizedImageSource } from "@/components/optimized-image";
 import {
   linkAhs,
   syncAhsName,
@@ -30,6 +31,7 @@ type CultivarReferenceAhsListing =
 interface AhsListingLinkProps {
   listing: RouterOutputs["dashboardDb"]["listing"]["list"][number];
   linkedAhs: CultivarReferenceAhsListing | null;
+  cultivarReferenceImage?: OptimizedImageSource | null;
   onNameChange?: (name: string) => void;
   onMutationSuccess?: () => void;
 }
@@ -37,6 +39,7 @@ interface AhsListingLinkProps {
 export function AhsListingLink({
   listing,
   linkedAhs,
+  cultivarReferenceImage,
   onNameChange,
   onMutationSuccess,
 }: AhsListingLinkProps) {
@@ -163,7 +166,10 @@ export function AhsListingLink({
                 </Button>
               </div>
             </div>
-            <AhsListingDisplay ahsListing={linkedAhs} />
+            <AhsListingDisplay
+              ahsListing={linkedAhs}
+              cultivarReferenceImage={cultivarReferenceImage}
+            />
           </CardContent>
         </Card>
       ) : (
