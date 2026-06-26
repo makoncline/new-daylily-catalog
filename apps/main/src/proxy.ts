@@ -38,14 +38,43 @@ const publicAgentDiscoveryPaths = new Set([
   "/llms-full.txt",
 ]);
 
+function isDocumentNavigation(req: NextRequest) {
+  const accept = req.headers.get("accept") ?? "";
+  const secFetchDest = req.headers.get("sec-fetch-dest");
+
+  return (
+    secFetchDest === "document" ||
+    secFetchDest === "iframe" ||
+    accept.includes("text/html")
+  );
+}
+
 const protectedRouteProxy = clerkMiddleware(async (auth, req) => {
   if (!isProtectedRoute(req)) {
     return undefined;
   }
 
-  await auth.protect();
+  const { isAuthenticated, redirectToSignIn } = await auth();
 
-  return undefined;
+  if (isAuthenticated) {
+    return undefined;
+  }
+
+  if (isDocumentNavigation(req)) {
+    return redirectToSignIn({
+      returnBackUrl: new URL(
+        `${req.nextUrl.pathname}${req.nextUrl.search}`,
+        req.url,
+      ),
+    });
+  }
+
+  return new NextResponse(null, {
+    status: 404,
+    headers: {
+      "Cache-Control": "no-store",
+    },
+  });
 });
 
 export function proxy(req: NextRequest, event: NextFetchEvent) {
