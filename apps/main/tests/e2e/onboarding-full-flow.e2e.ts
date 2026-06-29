@@ -7,6 +7,7 @@ import {
   ANONYMOUS_ONBOARDING_DRAFT_KEY,
   type AnonymousOnboardingDraft,
 } from "../../src/app/onboarding/anonymous-onboarding-draft";
+import { seedOnboardingExampleCultivars } from "../../src/lib/test-utils/seed-onboarding-example-cultivars";
 
 const TEST_CODE = "424242";
 const LISTING_IMAGE_PATH = "public/assets/catalog-blooms.webp";
@@ -73,7 +74,7 @@ test.describe("anonymous onboarding checkout flow @local", () => {
 
     await deleteClerkUserByEmail(initialEmail);
     await deleteClerkUserByEmail(paidEmail);
-    await withTempE2EDb(async () => undefined);
+    await withTempE2EDb(seedOnboardingExampleCultivars);
 
     try {
       await homePage.goto();

@@ -4,6 +4,7 @@ import { auth } from "@clerk/nextjs/server";
 import { ArrowRight, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { getMembershipPriceDisplay } from "@/server/stripe/get-membership-price-display";
+import { getOnboardingExampleCultivars } from "./anonymous-onboarding-example-cultivars";
 import { AnonymousOnboardingPageClient } from "./anonymous-onboarding-layout";
 
 export const dynamic = "force-dynamic";
@@ -29,8 +30,10 @@ export default async function OnboardingPage() {
   }
 
   const membershipPriceDisplay = await getMembershipPriceDisplay();
+  const exampleCultivars = await getOnboardingExampleCultivars();
   return (
     <AnonymousOnboardingPageClient
+      exampleCultivars={exampleCultivars}
       membershipPriceDisplay={membershipPriceDisplay}
     />
   );

@@ -11,6 +11,7 @@ export interface MembershipPriceDisplay {
 
 export interface AnonymousOnboardingPageClientProps {
   membershipPriceDisplay: MembershipPriceDisplay;
+  exampleCultivars: ExampleCultivar[];
 }
 
 export interface ExampleCultivar {
@@ -126,29 +127,11 @@ export const ANONYMOUS_ONBOARDING_STEPS: {
   },
 ];
 
-export const EXAMPLE_CULTIVARS: ExampleCultivar[] = [
-  {
-    key: "coffee-frenzy",
-    name: "Coffee Frenzy",
-    hybridizerYear: "Reed, 2012",
-    imageUrl:
-      "https://daylily-wordpress-dev.s3.us-east-2.amazonaws.com/wp-content/uploads/20250808202213/Coffee-Frenzy.jpg",
-  },
-  {
-    key: "happy-returns",
-    name: "Happy Returns",
-    hybridizerYear: "Apps, 1986",
-    imageUrl:
-      "https://daylily-wordpress-dev.s3.us-east-2.amazonaws.com/wp-content/uploads/20250806121351/Happy_Returns.jpg",
-  },
-  {
-    key: "primal-scream",
-    name: "Primal Scream",
-    hybridizerYear: "Hanson-C., 1994",
-    imageUrl:
-      "https://daylily-wordpress-dev.s3.us-east-2.amazonaws.com/wp-content/uploads/20250812091039/Primal-Scream.jpg",
-  },
-];
+export const ONBOARDING_EXAMPLE_CULTIVAR_REFERENCE_IDS = [
+  "cr-v2-ahs-77248",
+  "cr-v2-ahs-23741",
+  "cr-v2-ahs-7847",
+] as const;
 
 export function normalizeEmail(value: string) {
   return value.trim().toLowerCase();
@@ -165,11 +148,18 @@ export function getProfilePreview(draft: AnonymousOnboardingDraft) {
   };
 }
 
-export function getListingPreview(draft: AnonymousOnboardingDraft) {
+export function getListingPreview(
+  draft: AnonymousOnboardingDraft,
+  exampleCultivars: ExampleCultivar[],
+) {
+  if (exampleCultivars.length === 0) {
+    throw new Error("Onboarding example cultivars are not configured.");
+  }
+
   const selectedCultivar =
-    EXAMPLE_CULTIVARS.find(
+    exampleCultivars.find(
       (cultivar) => cultivar.key === draft.listingPreview.cultivarKey,
-    ) ?? EXAMPLE_CULTIVARS[0]!;
+    ) ?? exampleCultivars[0]!;
 
   return {
     selectedCultivar,

@@ -24,9 +24,9 @@ import {
   DEFAULT_GARDEN_NAME_PLACEHOLDER,
   DEFAULT_LOCATION_PLACEHOLDER,
   DEFAULT_PROFILE_DESCRIPTION_PLACEHOLDER,
-  EXAMPLE_CULTIVARS,
   STARTER_PROFILE_IMAGES,
 } from "./anonymous-onboarding-config";
+import type { ExampleCultivar } from "./anonymous-onboarding-config";
 import type { AnonymousOnboardingController } from "./use-anonymous-onboarding-controller";
 import type {
   AnonymousOnboardingListingPreviewDraft,
@@ -396,6 +396,7 @@ export function ProfileStep({
 type ListingStepProps = Pick<
   AnonymousOnboardingController,
   | "draft"
+  | "exampleCultivars"
   | "imageError"
   | "listingPreview"
   | "setDraft"
@@ -405,6 +406,7 @@ type ListingStepProps = Pick<
 
 export function ListingStep({
   draft,
+  exampleCultivars,
   imageError,
   listingPreview,
   setDraft,
@@ -428,7 +430,7 @@ export function ListingStep({
         <div className="space-y-2 rounded-lg border p-4">
           <Label>Example cultivar</Label>
           <div className="grid gap-2 sm:grid-cols-3">
-            {EXAMPLE_CULTIVARS.map((cultivar) => {
+            {exampleCultivars.map((cultivar: ExampleCultivar) => {
               const selected =
                 cultivar.key === draft.listingPreview.cultivarKey;
               return (

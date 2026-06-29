@@ -82,6 +82,7 @@ export function AnonymousOnboardingPageClient(
         {draft.step === "listing" ? (
           <ListingStep
             draft={controller.draft}
+            exampleCultivars={controller.exampleCultivars}
             imageError={controller.imageError}
             listingPreview={controller.listingPreview}
             setDraft={controller.setDraft}
