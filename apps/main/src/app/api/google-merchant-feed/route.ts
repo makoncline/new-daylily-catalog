@@ -2,7 +2,6 @@ import { replicaDb } from "@/server/db";
 import { getCanonicalBaseUrl } from "@/lib/utils/getBaseUrl";
 import { formatAhsListingSummary } from "@/lib/utils";
 import {
-  ahsDisplayAhsListingSelect,
   withResolvedDisplayAhsListing,
   v2AhsCultivarDisplaySelect,
 } from "@/lib/utils/ahs-display";
@@ -45,9 +44,6 @@ export async function GET(_request: Request) {
         : {}),
       cultivarReference: {
         include: {
-          ahsListing: {
-            select: ahsDisplayAhsListingSelect,
-          },
           v2AhsCultivar: {
             select: v2AhsCultivarDisplaySelect,
           },

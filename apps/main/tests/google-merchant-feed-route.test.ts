@@ -117,7 +117,6 @@ describe("google merchant feed route", () => {
     vi.clearAllMocks();
     process.env.APP_BASE_URL = "https://daylilycatalog.com";
     process.env.NEXT_PUBLIC_CLOUDFLARE_URL = "https://cf.daylilycatalog.com";
-    delete process.env.NEXT_PUBLIC_USE_V2_CULTIVAR_DISPLAY_DATA;
     dbMocks.getProUserIds.mockResolvedValue(["user-1"]);
   });
 

@@ -1,5 +1,4 @@
 import {
-  ahsDisplayAhsListingSelect,
   type AhsDisplayListing,
   type V2AhsCultivarDisplaySource,
   v2AhsCultivarDisplaySelect,
@@ -31,8 +30,6 @@ const getCultivarReferenceLookupWhereClause = () => ({
     not: null,
   },
 });
-
-const cultivarAhsListingSelect = ahsDisplayAhsListingSelect;
 
 export type CultivarAhsListing = AhsDisplayListing;
 
@@ -79,9 +76,6 @@ async function findCultivarReferenceByNormalizedName(
       id: true,
       normalizedName: true,
       updatedAt: true,
-      ahsListing: {
-        select: cultivarAhsListingSelect,
-      },
       v2AhsCultivar: {
         select: v2AhsCultivarDisplaySelect,
       },

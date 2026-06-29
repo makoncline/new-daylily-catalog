@@ -17,8 +17,6 @@ process.env.DATABASE_URL ??= "file:./tests/.tmp/dashboard-db-ahs.sqlite";
 type RouterModule = typeof import("@/server/api/routers/dashboard-db/ahs");
 let dashboardDbAhsRouter: RouterModule["dashboardDbAhsRouter"];
 
-const originalV2DisplayFlag =
-  process.env.NEXT_PUBLIC_USE_V2_CULTIVAR_DISPLAY_DATA;
 const originalUseGeneratedCultivarImageAssets =
   process.env.USE_GENERATED_CULTIVAR_IMAGE_ASSETS;
 
@@ -59,13 +57,6 @@ describe("dashboardDb.ahs", () => {
   });
 
   afterEach(() => {
-    if (originalV2DisplayFlag === undefined) {
-      delete process.env.NEXT_PUBLIC_USE_V2_CULTIVAR_DISPLAY_DATA;
-    } else {
-      process.env.NEXT_PUBLIC_USE_V2_CULTIVAR_DISPLAY_DATA =
-        originalV2DisplayFlag;
-    }
-
     if (originalUseGeneratedCultivarImageAssets === undefined) {
       delete process.env.USE_GENERATED_CULTIVAR_IMAGE_ASSETS;
     } else {
@@ -75,9 +66,7 @@ describe("dashboardDb.ahs", () => {
 
   });
 
-  it("returns V2-mapped cultivar detail data when the feature flag is enabled", async () => {
-    process.env.NEXT_PUBLIC_USE_V2_CULTIVAR_DISPLAY_DATA = "true";
-
+  it("returns V2-mapped cultivar detail data", async () => {
     const db = createMockDb();
     db.cultivarReference.findUnique.mockResolvedValue({
       ahsListing: {
@@ -145,8 +134,6 @@ describe("dashboardDb.ahs", () => {
   });
 
   it("reads cultivar details from the replica database when it is available", async () => {
-    process.env.NEXT_PUBLIC_USE_V2_CULTIVAR_DISPLAY_DATA = "true";
-
     const db = createMockDb();
     const replicaDb = createMockDb();
     replicaDb.cultivarReference.findUnique.mockResolvedValue({
@@ -184,7 +171,6 @@ describe("dashboardDb.ahs", () => {
   });
 
   it("uses generated-only image assets when the server flag is enabled", async () => {
-    process.env.NEXT_PUBLIC_USE_V2_CULTIVAR_DISPLAY_DATA = "true";
     process.env.USE_GENERATED_CULTIVAR_IMAGE_ASSETS = "true";
 
     const db = createMockDb();
@@ -239,8 +225,6 @@ describe("dashboardDb.ahs", () => {
   });
 
   it("falls back to the decoded legacy hybridizer code for dashboard cultivar detail reads", async () => {
-    process.env.NEXT_PUBLIC_USE_V2_CULTIVAR_DISPLAY_DATA = "true";
-
     const db = createMockDb();
     db.cultivarReference.findUnique.mockResolvedValue({
       ahsListing: {
@@ -299,9 +283,7 @@ describe("dashboardDb.ahs", () => {
     });
   });
 
-  it("uses the display cultivar name for search results when the feature flag is enabled", async () => {
-    process.env.NEXT_PUBLIC_USE_V2_CULTIVAR_DISPLAY_DATA = "true";
-
+  it("uses the display cultivar name for search results", async () => {
     const db = createMockDb();
     db.cultivarReference.findMany.mockResolvedValue([
       {
@@ -368,8 +350,6 @@ describe("dashboardDb.ahs", () => {
   });
 
   it("reads cultivar search results from the replica database when it is available", async () => {
-    process.env.NEXT_PUBLIC_USE_V2_CULTIVAR_DISPLAY_DATA = "true";
-
     const db = createMockDb();
     const replicaDb = createMockDb();
     replicaDb.cultivarReference.findMany.mockResolvedValue([
@@ -418,8 +398,6 @@ describe("dashboardDb.ahs", () => {
   });
 
   it("does not expose legacy-only cultivar references in V2 search", async () => {
-    process.env.NEXT_PUBLIC_USE_V2_CULTIVAR_DISPLAY_DATA = "true";
-
     const db = createMockDb();
     db.cultivarReference.findMany.mockResolvedValue([]);
 

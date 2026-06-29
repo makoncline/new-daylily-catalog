@@ -1,28 +1,4 @@
 import type { Prisma } from "@prisma/client";
-import { isV2CultivarDisplayDataEnabled } from "@/config/feature-flags";
-
-export const ahsDisplayAhsListingSelect = {
-  id: true,
-  name: true,
-  ahsImageUrl: true,
-  hybridizer: true,
-  year: true,
-  scapeHeight: true,
-  bloomSize: true,
-  bloomSeason: true,
-  ploidy: true,
-  foliageType: true,
-  bloomHabit: true,
-  color: true,
-  form: true,
-  parentage: true,
-  fragrance: true,
-  budcount: true,
-  branches: true,
-  sculpting: true,
-  foliage: true,
-  flower: true,
-} as const satisfies Prisma.AhsListingSelect;
 
 export const v2AhsCultivarDisplaySelect = {
   id: true,
@@ -47,9 +23,28 @@ export const v2AhsCultivarDisplaySelect = {
   image_url: true,
 } as const satisfies Prisma.V2AhsCultivarSelect;
 
-export type AhsDisplayListing = Prisma.AhsListingGetPayload<{
-  select: typeof ahsDisplayAhsListingSelect;
-}>;
+export type AhsDisplayListing = {
+  id: string;
+  name: string | null;
+  ahsImageUrl: string | null;
+  hybridizer: string | null;
+  year: string | null;
+  scapeHeight: string | null;
+  bloomSize: string | null;
+  bloomSeason: string | null;
+  ploidy: string | null;
+  foliageType: string | null;
+  bloomHabit: string | null;
+  color: string | null;
+  form: string | null;
+  parentage: string | null;
+  fragrance: string | null;
+  budcount: string | null;
+  branches: string | null;
+  sculpting: string | null;
+  foliage: string | null;
+  flower: string | null;
+};
 
 export type V2AhsCultivarDisplaySource = Prisma.V2AhsCultivarGetPayload<{
   select: typeof v2AhsCultivarDisplaySelect;
@@ -246,10 +241,6 @@ function joinDisplayValues(values: Array<string | null | undefined>) {
   return unique.length > 0 ? unique.join(", ") : null;
 }
 
-function getLegacyAhsListing(source: AhsDisplaySource) {
-  return source.ahsListing ?? source.cultivarReference?.ahsListing ?? null;
-}
-
 function getV2AhsCultivar(source: AhsDisplaySource) {
   return (
     source.cultivarReference?.v2AhsCultivar ?? source.v2AhsCultivar ?? null
@@ -272,7 +263,7 @@ export function mapV2AhsCultivarToDisplayAhsListing(
   return {
     id: v2AhsCultivar.id,
     name: v2AhsCultivar.post_title ?? null,
-    ahsImageUrl: v2AhsCultivar.image_url ?? null,
+    ahsImageUrl: toNonEmptyDisplayValue(v2AhsCultivar.image_url),
     hybridizer: getV2HybridizerDisplayValue(v2AhsCultivar),
     year: getYearFromIntroductionDate(v2AhsCultivar.introduction_date),
     scapeHeight: formatInches(v2AhsCultivar.scape_height_in),
@@ -299,26 +290,12 @@ export function mapV2AhsCultivarToDisplayAhsListing(
 export function getDisplayAhsListing(
   source: AhsDisplaySource,
 ): AhsDisplayListing | null {
-  const legacyAhsListing = getLegacyAhsListing(source);
-
-  if (!isV2CultivarDisplayDataEnabled()) {
-    return legacyAhsListing;
-  }
-
   const v2AhsCultivar = getV2AhsCultivar(source);
   if (!v2AhsCultivar) {
     return null;
   }
 
-  const v2DisplayAhsListing =
-    mapV2AhsCultivarToDisplayAhsListing(v2AhsCultivar);
-
-  return {
-    ...v2DisplayAhsListing,
-    ahsImageUrl:
-      toNonEmptyDisplayValue(v2DisplayAhsListing.ahsImageUrl) ??
-      toNonEmptyDisplayValue(legacyAhsListing?.ahsImageUrl),
-  };
+  return mapV2AhsCultivarToDisplayAhsListing(v2AhsCultivar);
 }
 
 export function withResolvedDisplayAhsListing<TSource extends AhsDisplaySource>(

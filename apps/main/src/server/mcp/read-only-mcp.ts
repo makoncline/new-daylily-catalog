@@ -5,7 +5,6 @@ import {
   getTrustedBaseUrl,
 } from "@/lib/agent-readiness";
 import {
-  ahsDisplayAhsListingSelect,
   getDisplayAhsListing,
   v2AhsCultivarDisplaySelect,
 } from "@/lib/utils/ahs-display";
@@ -621,7 +620,6 @@ const cultivarReferenceSelect = {
   v2AhsCultivarId: true,
   normalizedName: true,
   updatedAt: true,
-  ahsListing: { select: ahsDisplayAhsListingSelect },
   v2AhsCultivar: { select: v2AhsCultivarDisplaySelect },
   ...(shouldQueryGeneratedCultivarImageAssets()
     ? { imageAssets: generatedCultivarImageAssetInclude }

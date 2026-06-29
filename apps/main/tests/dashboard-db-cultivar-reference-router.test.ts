@@ -17,8 +17,6 @@ process.env.DATABASE_URL ??=
   "file:./tests/.tmp/dashboard-db-cultivar-reference.sqlite";
 
 let dashboardDbCultivarReferenceRouter: typeof CultivarReferenceRouterModule.dashboardDbCultivarReferenceRouter;
-const originalV2DisplayFlag =
-  process.env.NEXT_PUBLIC_USE_V2_CULTIVAR_DISPLAY_DATA;
 const originalUseGeneratedCultivarImageAssets =
   process.env.USE_GENERATED_CULTIVAR_IMAGE_ASSETS;
 
@@ -56,7 +54,7 @@ function createMockDb(): MockDb {
   };
 }
 
-function createRawLegacyCultivarReference(
+function createRawV2CultivarReference(
   id: string,
   updatedAt = "2026-01-01T00:00:00.000Z",
 ) {
@@ -64,26 +62,26 @@ function createRawLegacyCultivarReference(
     id,
     normalizedName: id,
     updatedAt,
-    ahs_id: null,
-    ahs_name: null,
-    ahs_ahsImageUrl: null,
-    ahs_hybridizer: null,
-    ahs_year: null,
-    ahs_scapeHeight: null,
-    ahs_bloomSize: null,
-    ahs_bloomSeason: null,
-    ahs_ploidy: null,
-    ahs_foliageType: null,
-    ahs_bloomHabit: null,
-    ahs_color: null,
-    ahs_form: null,
-    ahs_parentage: null,
-    ahs_fragrance: null,
-    ahs_budcount: null,
-    ahs_branches: null,
-    ahs_sculpting: null,
-    ahs_foliage: null,
-    ahs_flower: null,
+    v2_id: null,
+    v2_post_title: null,
+    v2_introduction_date: null,
+    v2_primary_hybridizer_name: null,
+    v2_hybridizer_code_legacy: null,
+    v2_additional_hybridizers_names: null,
+    v2_bloom_season_names: null,
+    v2_fragrance_names: null,
+    v2_bloom_habit_names: null,
+    v2_foliage_names: null,
+    v2_ploidy_names: null,
+    v2_scape_height_in: null,
+    v2_bloom_size_in: null,
+    v2_bud_count: null,
+    v2_branches: null,
+    v2_color: null,
+    v2_flower_form_names: null,
+    v2_unusual_forms_names: null,
+    v2_parentage: null,
+    v2_image_url: null,
   };
 }
 
@@ -101,13 +99,6 @@ describe("dashboardDb.cultivarReference", () => {
   });
 
   afterEach(() => {
-    if (originalV2DisplayFlag === undefined) {
-      delete process.env.NEXT_PUBLIC_USE_V2_CULTIVAR_DISPLAY_DATA;
-    } else {
-      process.env.NEXT_PUBLIC_USE_V2_CULTIVAR_DISPLAY_DATA =
-        originalV2DisplayFlag;
-    }
-
     if (originalUseGeneratedCultivarImageAssets === undefined) {
       delete process.env.USE_GENERATED_CULTIVAR_IMAGE_ASSETS;
     } else {
@@ -120,8 +111,8 @@ describe("dashboardDb.cultivarReference", () => {
   it("listForUserListings filters cultivar references with an owner-checked query", async () => {
     const db = createMockDb();
     db.$queryRaw.mockResolvedValue([
-      createRawLegacyCultivarReference("cr-1"),
-      createRawLegacyCultivarReference("cr-2"),
+      createRawV2CultivarReference("cr-1"),
+      createRawV2CultivarReference("cr-2"),
     ]);
 
     const caller = createCaller(db);
@@ -148,7 +139,7 @@ describe("dashboardDb.cultivarReference", () => {
   it("sync maps updated cultivar references from the owner-checked query", async () => {
     const db = createMockDb();
     db.$queryRaw.mockResolvedValue([
-      createRawLegacyCultivarReference("cr-new", "2026-01-02T00:00:00.000Z"),
+      createRawV2CultivarReference("cr-new", "2026-01-02T00:00:00.000Z"),
     ]);
 
     const caller = createCaller(db);
@@ -170,8 +161,8 @@ describe("dashboardDb.cultivarReference", () => {
   it("getByIdsBatch fetches large POST-backed ID batches directly", async () => {
     const db = createMockDb();
     db.$queryRaw.mockResolvedValue([
-      createRawLegacyCultivarReference("cr-1"),
-      createRawLegacyCultivarReference("cr-2"),
+      createRawV2CultivarReference("cr-1"),
+      createRawV2CultivarReference("cr-2"),
     ]);
 
     const caller = createCaller(db);
@@ -185,80 +176,7 @@ describe("dashboardDb.cultivarReference", () => {
     expect(db.cultivarReference.findMany).not.toHaveBeenCalled();
   });
 
-  it("getByIdsBatch matches the legacy getByIds display shape", async () => {
-    process.env.NEXT_PUBLIC_USE_V2_CULTIVAR_DISPLAY_DATA = "false";
-
-    const db = createMockDb();
-    const updatedAt = new Date("2026-01-01T00:00:00.000Z");
-    const ahsListing = {
-      id: "ahs-1",
-      name: "Coffee Frenzy",
-      ahsImageUrl: "https://example.com/legacy.jpg",
-      hybridizer: "Legacy Hybridizer",
-      year: "2012",
-      scapeHeight: "36",
-      bloomSize: "6",
-      bloomSeason: "Midseason",
-      ploidy: "Tetraploid",
-      foliageType: "Dormant",
-      bloomHabit: "Diurnal",
-      color: "Gold with red eye",
-      form: "Single",
-      parentage: "(A x B)",
-      fragrance: "Fragrant",
-      budcount: "24",
-      branches: "5",
-      sculpting: "Pleated",
-      foliage: "Dormant",
-      flower: "Single",
-    };
-
-    db.cultivarReference.findMany.mockResolvedValue([
-      {
-        id: "cr-1",
-        normalizedName: "coffee frenzy",
-        updatedAt,
-        ahsListing,
-      },
-    ]);
-    db.$queryRaw.mockResolvedValue([
-      {
-        id: "cr-1",
-        normalizedName: "coffee frenzy",
-        updatedAt: updatedAt.toISOString(),
-        ahs_id: ahsListing.id,
-        ahs_name: ahsListing.name,
-        ahs_ahsImageUrl: ahsListing.ahsImageUrl,
-        ahs_hybridizer: ahsListing.hybridizer,
-        ahs_year: ahsListing.year,
-        ahs_scapeHeight: ahsListing.scapeHeight,
-        ahs_bloomSize: ahsListing.bloomSize,
-        ahs_bloomSeason: ahsListing.bloomSeason,
-        ahs_ploidy: ahsListing.ploidy,
-        ahs_foliageType: ahsListing.foliageType,
-        ahs_bloomHabit: ahsListing.bloomHabit,
-        ahs_color: ahsListing.color,
-        ahs_form: ahsListing.form,
-        ahs_parentage: ahsListing.parentage,
-        ahs_fragrance: ahsListing.fragrance,
-        ahs_budcount: ahsListing.budcount,
-        ahs_branches: ahsListing.branches,
-        ahs_sculpting: ahsListing.sculpting,
-        ahs_foliage: ahsListing.foliage,
-        ahs_flower: ahsListing.flower,
-      },
-    ]);
-
-    const caller = createCaller(db);
-    const getByIdsResult = await caller.getByIds({ ids: ["cr-1"] });
-    const batchResult = await caller.getByIdsBatch({ ids: ["cr-1"] });
-
-    expect(batchResult).toEqual(getByIdsResult);
-  });
-
-  it("getByIdsBatch matches the V2 getByIds display shape", async () => {
-    process.env.NEXT_PUBLIC_USE_V2_CULTIVAR_DISPLAY_DATA = "true";
-
+  it("getByIdsBatch matches the getByIds display shape", async () => {
     const db = createMockDb();
     const updatedAt = new Date("2026-04-08T00:00:00.000Z");
     const v2AhsCultivar = {
@@ -329,8 +247,6 @@ describe("dashboardDb.cultivarReference", () => {
   });
 
   it("getByIdsBatch keeps the V2 path without returning raw V2 source data", async () => {
-    process.env.NEXT_PUBLIC_USE_V2_CULTIVAR_DISPLAY_DATA = "true";
-
     const db = createMockDb();
     db.$queryRaw.mockResolvedValue([
       {
@@ -376,9 +292,7 @@ describe("dashboardDb.cultivarReference", () => {
     expect(result[0]).not.toHaveProperty("v2AhsCultivar");
   });
 
-  it("returns V2-mapped display data when the feature flag is enabled", async () => {
-    process.env.NEXT_PUBLIC_USE_V2_CULTIVAR_DISPLAY_DATA = "true";
-
+  it("returns V2-mapped display data", async () => {
     const db = createMockDb();
     db.$queryRaw.mockResolvedValue([
       {
@@ -424,13 +338,12 @@ describe("dashboardDb.cultivarReference", () => {
   });
 
   it("chunks generated image asset lookups when the generated image flag is enabled", async () => {
-    process.env.NEXT_PUBLIC_USE_V2_CULTIVAR_DISPLAY_DATA = "false";
     process.env.USE_GENERATED_CULTIVAR_IMAGE_ASSETS = "true";
 
     const db = createMockDb();
     db.$queryRaw.mockResolvedValue(
       Array.from({ length: 901 }, (_, index) =>
-        createRawLegacyCultivarReference(`cr-${index}`),
+        createRawV2CultivarReference(`cr-${index}`),
       ),
     );
 
@@ -451,11 +364,10 @@ describe("dashboardDb.cultivarReference", () => {
   });
 
   it("uses generated image assets when the server flag is enabled", async () => {
-    process.env.NEXT_PUBLIC_USE_V2_CULTIVAR_DISPLAY_DATA = "false";
     process.env.USE_GENERATED_CULTIVAR_IMAGE_ASSETS = "true";
 
     const db = createMockDb();
-    db.$queryRaw.mockResolvedValue([createRawLegacyCultivarReference("cr-1")]);
+    db.$queryRaw.mockResolvedValue([createRawV2CultivarReference("cr-1")]);
     db.imageAsset.findMany.mockResolvedValue([
       {
         blurUrl: "https://cdn.example.com/generated-blur.txt",

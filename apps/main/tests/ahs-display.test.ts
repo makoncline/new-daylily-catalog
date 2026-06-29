@@ -1,23 +1,11 @@
 // @vitest-environment node
 
-import { afterEach, describe, expect, it } from "vitest";
+import { describe, expect, it } from "vitest";
 import {
   getDisplayAhsListing,
   type AhsDisplayListing,
   type V2AhsCultivarDisplaySource,
 } from "@/lib/utils/ahs-display";
-
-const originalV2DisplayFlag =
-  process.env.NEXT_PUBLIC_USE_V2_CULTIVAR_DISPLAY_DATA;
-
-afterEach(() => {
-  if (originalV2DisplayFlag === undefined) {
-    delete process.env.NEXT_PUBLIC_USE_V2_CULTIVAR_DISPLAY_DATA;
-    return;
-  }
-
-  process.env.NEXT_PUBLIC_USE_V2_CULTIVAR_DISPLAY_DATA = originalV2DisplayFlag;
-});
 
 function createLegacyAhsListing(
   overrides: Partial<AhsDisplayListing> = {},
@@ -76,23 +64,7 @@ function createV2AhsCultivar(
 }
 
 describe("getDisplayAhsListing", () => {
-  it("keeps the legacy AHS payload when the feature flag is off", () => {
-    process.env.NEXT_PUBLIC_USE_V2_CULTIVAR_DISPLAY_DATA = "false";
-
-    const legacyAhsListing = createLegacyAhsListing();
-    const displayAhsListing = getDisplayAhsListing({
-      cultivarReference: {
-        ahsListing: legacyAhsListing,
-        v2AhsCultivar: createV2AhsCultivar(),
-      },
-    });
-
-    expect(displayAhsListing).toEqual(legacyAhsListing);
-  });
-
-  it("prefers the V2 primary hybridizer name when the feature flag is on", () => {
-    process.env.NEXT_PUBLIC_USE_V2_CULTIVAR_DISPLAY_DATA = "true";
-
+  it("maps V2 cultivar display data", () => {
     const displayAhsListing = getDisplayAhsListing({
       cultivarReference: {
         ahsListing: createLegacyAhsListing(),
@@ -126,8 +98,6 @@ describe("getDisplayAhsListing", () => {
   });
 
   it("falls back to the legacy hybridizer code when the V2 primary hybridizer is blank", () => {
-    process.env.NEXT_PUBLIC_USE_V2_CULTIVAR_DISPLAY_DATA = "true";
-
     const displayAhsListing = getDisplayAhsListing({
       cultivarReference: {
         ahsListing: createLegacyAhsListing(),
@@ -143,8 +113,6 @@ describe("getDisplayAhsListing", () => {
   });
 
   it("HTML-decodes the legacy hybridizer fallback before display", () => {
-    process.env.NEXT_PUBLIC_USE_V2_CULTIVAR_DISPLAY_DATA = "true";
-
     const displayAhsListing = getDisplayAhsListing({
       cultivarReference: {
         ahsListing: createLegacyAhsListing(),
@@ -160,8 +128,6 @@ describe("getDisplayAhsListing", () => {
   });
 
   it("falls back to unknown when V2 hybridizer fields are unavailable", () => {
-    process.env.NEXT_PUBLIC_USE_V2_CULTIVAR_DISPLAY_DATA = "true";
-
     const displayAhsListing = getDisplayAhsListing({
       cultivarReference: {
         ahsListing: createLegacyAhsListing(),
@@ -176,9 +142,7 @@ describe("getDisplayAhsListing", () => {
     expect(displayAhsListing?.hybridizer).toBe("unknown");
   });
 
-  it("returns null when the feature flag is on and V2 data is unavailable", () => {
-    process.env.NEXT_PUBLIC_USE_V2_CULTIVAR_DISPLAY_DATA = "true";
-
+  it("returns null when V2 data is unavailable", () => {
     const displayAhsListing = getDisplayAhsListing({
       cultivarReference: {
         ahsListing: createLegacyAhsListing(),

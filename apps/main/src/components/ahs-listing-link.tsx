@@ -9,7 +9,6 @@ import { Card, CardContent } from "@/components/ui/card";
 import { AhsListingSelect } from "./ahs-listing-select";
 import { AhsListingDisplay } from "./ahs-listing-display";
 import { Muted } from "@/components/typography";
-import { isV2CultivarDisplayDataEnabled } from "@/config/feature-flags";
 
 import type { AhsSearchResult } from "./ahs-listing-select";
 import {
@@ -44,9 +43,6 @@ export function AhsListingLink({
   onMutationSuccess,
 }: AhsListingLinkProps) {
   const [isSaving, setIsSaving] = useState(false);
-  const dayliliesListingId = isV2CultivarDisplayDataEnabled()
-    ? null
-    : (linkedAhs?.id ?? null);
 
   async function updateAhsListing(selected: AhsSearchResult | null) {
     setIsSaving(true);
@@ -128,20 +124,9 @@ export function AhsListingLink({
             <div className="mb-4 flex items-center justify-between">
               <Muted>
                 Linked to{" "}
-                {dayliliesListingId ? (
-                  <a
-                    href={`https://daylilies.org/daylilies/${dayliliesListingId}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-foreground font-medium hover:underline"
-                  >
-                    {linkedAhs.name}
-                  </a>
-                ) : (
-                  <span className="text-foreground font-medium">
-                    {linkedAhs.name}
-                  </span>
-                )}
+                <span className="text-foreground font-medium">
+                  {linkedAhs.name}
+                </span>
               </Muted>
               <div className="flex gap-2">
                 {listing.title !== linkedAhs.name && (

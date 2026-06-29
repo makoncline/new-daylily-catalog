@@ -51,9 +51,6 @@ export const env = createEnv({
   client: {
     NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: z.string(),
     NEXT_PUBLIC_CLOUDFLARE_URL: z.string(),
-    NEXT_PUBLIC_USE_V2_CULTIVAR_DISPLAY_DATA: booleanStringSchema
-      .optional()
-      .default(false),
   },
   runtimeEnv: {
     APP_BASE_URL: process.env.APP_BASE_URL,
@@ -89,8 +86,6 @@ export const env = createEnv({
       process.env.USE_GENERATED_CULTIVAR_IMAGE_ASSETS,
     SENTRY_AUTH_TOKEN: process.env.SENTRY_AUTH_TOKEN,
     NODE_ENV: process.env.NODE_ENV,
-    NEXT_PUBLIC_USE_V2_CULTIVAR_DISPLAY_DATA:
-      process.env.NEXT_PUBLIC_USE_V2_CULTIVAR_DISPLAY_DATA,
   },
   skipValidation: !!process.env.SKIP_ENV_VALIDATION,
   emptyStringAsUndefined: true,

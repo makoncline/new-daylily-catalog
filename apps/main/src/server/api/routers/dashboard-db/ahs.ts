@@ -5,9 +5,7 @@ import { compareItems, rankings, rankItem } from "@tanstack/match-sorter-utils";
 import { normalizeCultivarName } from "@/lib/utils/cultivar-utils";
 import { reportError } from "@/lib/error-utils";
 import type { PrismaClient } from "@prisma/client";
-import { isV2CultivarDisplayDataEnabled } from "@/config/feature-flags";
 import {
-  ahsDisplayAhsListingSelect,
   getDisplayAhsListing,
   v2AhsCultivarDisplaySelect,
 } from "@/lib/utils/ahs-display";
@@ -23,24 +21,17 @@ async function runCultivarReferenceSearchQuery(
 ) {
   const normalizedQuery = normalizeCultivarName(query);
   if (!normalizedQuery) return [];
-  const useV2DisplayData = isV2CultivarDisplayDataEnabled();
 
   const results = await db.cultivarReference.findMany({
     where: {
-      ...(useV2DisplayData
-        ? { v2AhsCultivar: { isNot: null } }
-        : { ahsId: { not: null } }),
+      v2AhsCultivar: { isNot: null },
       normalizedName: { startsWith: normalizedQuery },
     },
     take: 25,
     orderBy: { normalizedName: "asc" },
     select: {
       id: true,
-      ahsId: true,
       normalizedName: true,
-      ahsListing: {
-        select: ahsDisplayAhsListingSelect,
-      },
       v2AhsCultivar: {
         select: v2AhsCultivarDisplaySelect,
       },
@@ -60,7 +51,6 @@ async function runCultivarReferenceSearchQuery(
         context: {
           source: "dashboardDb.ahs.search",
           cultivarReferenceId: row.id,
-          ahsId: row.ahsId,
           normalizedName: row.normalizedName,
         },
       });
@@ -73,7 +63,6 @@ async function runCultivarReferenceSearchQuery(
       context: {
         source: "dashboardDb.ahs.search",
         cultivarReferenceId: row.id,
-        ahsId: row.ahsId,
       },
     });
     return null;
@@ -96,20 +85,9 @@ async function runCultivarReferenceSearchQuery(
     const name = getDisplayName(row);
     if (!name) return [];
 
-    if (useV2DisplayData) {
-      return [
-        {
-          id: row.id,
-          name,
-          cultivarReferenceId: row.id,
-        },
-      ];
-    }
-
-    if (!row.ahsId) return [];
     return [
       {
-        id: row.ahsId,
+        id: row.id,
         name,
         cultivarReferenceId: row.id,
       },
@@ -127,15 +105,11 @@ export const dashboardDbAhsRouter = createTRPCRouter({
   get: protectedProcedure
     .input(z.object({ id: z.string().min(1) }))
     .query(async ({ ctx, input }) => {
-      const useV2DisplayData = isV2CultivarDisplayDataEnabled();
       const readDb = ctx.replicaDb ?? ctx.db;
       const cultivarReference = await readDb.cultivarReference.findUnique({
-        where: useV2DisplayData ? { id: input.id } : { ahsId: input.id },
+        where: { id: input.id },
         select: {
           id: true,
-          ahsListing: {
-            select: ahsDisplayAhsListingSelect,
-          },
           v2AhsCultivar: {
             select: v2AhsCultivarDisplaySelect,
           },
