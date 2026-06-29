@@ -131,19 +131,22 @@ export const EXAMPLE_CULTIVARS: ExampleCultivar[] = [
     key: "coffee-frenzy",
     name: "Coffee Frenzy",
     hybridizerYear: "Reed, 2012",
-    imageUrl: LISTING_FALLBACK_IMAGE,
-  },
-  {
-    key: "stella-de-oro",
-    name: "Stella de Oro",
-    hybridizerYear: "Jablonski, 1975",
-    imageUrl: "/assets/catalog-blooms.webp",
+    imageUrl:
+      "https://daylily-wordpress-dev.s3.us-east-2.amazonaws.com/wp-content/uploads/20250808202213/Coffee-Frenzy.jpg",
   },
   {
     key: "happy-returns",
     name: "Happy Returns",
-    hybridizerYear: "Apps, 1991",
-    imageUrl: "/assets/hero-garden.webp",
+    hybridizerYear: "Apps, 1986",
+    imageUrl:
+      "https://daylily-wordpress-dev.s3.us-east-2.amazonaws.com/wp-content/uploads/20250806121351/Happy_Returns.jpg",
+  },
+  {
+    key: "primal-scream",
+    name: "Primal Scream",
+    hybridizerYear: "Hanson-C., 1994",
+    imageUrl:
+      "https://daylily-wordpress-dev.s3.us-east-2.amazonaws.com/wp-content/uploads/20250812091039/Primal-Scream.jpg",
   },
 ];
 
