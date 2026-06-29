@@ -24,6 +24,7 @@ import {
 import type { AnonymousOnboardingStepId } from "./anonymous-onboarding-draft";
 
 export function useAnonymousOnboardingController({
+  exampleCultivars,
   membershipPriceDisplay,
 }: AnonymousOnboardingPageClientProps) {
   const router = useRouter();
@@ -97,7 +98,7 @@ export function useAnonymousOnboardingController({
   const progressValue =
     ((currentStepIndex + 1) / ANONYMOUS_ONBOARDING_STEPS.length) * 100;
   const profilePreview = getProfilePreview(draft);
-  const listingPreview = getListingPreview(draft);
+  const listingPreview = getListingPreview(draft, exampleCultivars);
   const emailInput = emailInputOverride ?? draft.email ?? "";
   const emailIsValid = /.+@.+\..+/.test(normalizeEmail(emailInput));
 
@@ -439,6 +440,7 @@ export function useAnonymousOnboardingController({
     draft,
     emailInput,
     emailIsValid,
+    exampleCultivars,
     goBack,
     goForward,
     goToStep,

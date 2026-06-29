@@ -1,19 +1,96 @@
 import { describe, expect, it } from "vitest";
+import { buildOnboardingExampleCultivars } from "@/app/onboarding/anonymous-onboarding-example-cultivar-builder";
 import {
-  EXAMPLE_CULTIVARS,
-  LISTING_FALLBACK_IMAGE,
+  ONBOARDING_EXAMPLE_CULTIVAR_REFERENCE_IDS,
+  getListingPreview,
 } from "@/app/onboarding/anonymous-onboarding-config";
+import { createAnonymousOnboardingDraft } from "@/app/onboarding/anonymous-onboarding-draft";
 
 describe("anonymous onboarding config", () => {
-  it("uses real reference images for example cultivars", () => {
-    expect(EXAMPLE_CULTIVARS.length).toBeGreaterThan(0);
+  it("builds ordered example cultivars from cultivar reference ids", () => {
+    const examples = buildOnboardingExampleCultivars(
+      [
+        {
+          id: "cr-second",
+          ahsListing: null,
+          v2AhsCultivar: {
+            id: "v2-second",
+            post_title: "Second Bloom",
+            introduction_date: "2020-01-01",
+            primary_hybridizer_name: "Second Hybridizer",
+            hybridizer_code_legacy: null,
+            additional_hybridizers_names: null,
+            bloom_season_names: null,
+            fragrance_names: null,
+            bloom_habit_names: null,
+            foliage_names: null,
+            ploidy_names: null,
+            scape_height_in: null,
+            bloom_size_in: null,
+            bud_count: null,
+            branches: null,
+            color: null,
+            flower_form_names: null,
+            unusual_forms_names: null,
+            parentage: null,
+            image_url: "https://example.com/second.jpg",
+          },
+        },
+        {
+          id: "cr-first",
+          ahsListing: null,
+          v2AhsCultivar: {
+            id: "v2-first",
+            post_title: "First Bloom",
+            introduction_date: "2021-01-01",
+            primary_hybridizer_name: "First Hybridizer",
+            hybridizer_code_legacy: null,
+            additional_hybridizers_names: null,
+            bloom_season_names: null,
+            fragrance_names: null,
+            bloom_habit_names: null,
+            foliage_names: null,
+            ploidy_names: null,
+            scape_height_in: null,
+            bloom_size_in: null,
+            bud_count: null,
+            branches: null,
+            color: null,
+            flower_form_names: null,
+            unusual_forms_names: null,
+            parentage: null,
+            image_url: "https://example.com/first.jpg",
+          },
+        },
+      ],
+      ["cr-first", "cr-second"],
+    );
 
-    expect(
-      EXAMPLE_CULTIVARS.every(
-        (cultivar) =>
-          cultivar.imageUrl.startsWith("https://") &&
-          cultivar.imageUrl !== LISTING_FALLBACK_IMAGE,
-      ),
-    ).toBe(true);
+    expect(examples).toEqual([
+      {
+        key: "cr-first",
+        name: "First Bloom",
+        hybridizerYear: "First Hybridizer, 2021",
+        imageUrl: "https://example.com/first.jpg",
+      },
+      {
+        key: "cr-second",
+        name: "Second Bloom",
+        hybridizerYear: "Second Hybridizer, 2020",
+        imageUrl: "https://example.com/second.jpg",
+      },
+    ]);
+  });
+
+  it("requires configured example cultivars before building a listing preview", () => {
+    expect(ONBOARDING_EXAMPLE_CULTIVAR_REFERENCE_IDS).toEqual([
+      "cr-v2-ahs-77248",
+      "cr-v2-ahs-23741",
+      "cr-v2-ahs-7847",
+    ]);
+
+    expect(() =>
+      getListingPreview(createAnonymousOnboardingDraft(), []),
+    ).toThrow("Onboarding example cultivars are not configured.");
   });
 });
