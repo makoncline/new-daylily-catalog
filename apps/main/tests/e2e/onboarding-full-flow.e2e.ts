@@ -9,7 +9,6 @@ import {
 } from "../../src/app/onboarding/anonymous-onboarding-draft";
 
 const TEST_CODE = "424242";
-const PROFILE_IMAGE_PATH = "public/assets/home-redesign/grower-garden.webp";
 const LISTING_IMAGE_PATH = "public/assets/catalog-blooms.webp";
 
 const appRoot = process.cwd();
@@ -21,11 +20,42 @@ async function readBrowserDraft(page: Page) {
   }, ANONYMOUS_ONBOARDING_DRAFT_KEY);
 }
 
+async function completeClerkEmailCodeFlow(page: Page, email: string) {
+  const clerkPanel = page.getByTestId("checkout-clerk-sign-in");
+  const emailInput = clerkPanel.getByLabel(/email/i).first();
+  await expect(emailInput).toBeVisible({ timeout: 15_000 });
+  await expect(emailInput).toHaveValue(email);
+  await clerkPanel.getByRole("button", { name: /continue/i }).click();
+
+  const signUpLink = clerkPanel.getByRole("link", { name: /sign up/i });
+  if (await signUpLink.isVisible({ timeout: 5_000 }).catch(() => false)) {
+    await signUpLink.click();
+    if (await emailInput.isVisible({ timeout: 5_000 }).catch(() => false)) {
+      await emailInput.fill(email);
+    }
+    await clerkPanel.getByRole("button", { name: /continue/i }).click();
+  }
+
+  const codeInput = page
+    .getByRole("textbox", { name: /enter verification code/i })
+    .first();
+  await expect(codeInput).toBeVisible({ timeout: 15_000 });
+  await expect(codeInput).toBeEnabled();
+
+  const sendCodeWarning = page.getByText(
+    "You need to send a verification code before attempting to verify.",
+  );
+  if (await sendCodeWarning.isVisible().catch(() => false)) {
+    await page.getByRole("button", { name: /continue/i }).last().click();
+  }
+
+  await codeInput.type(TEST_CODE, { delay: 100 });
+}
+
 test.describe("anonymous onboarding checkout flow @local", () => {
   test("starts on the home page and reaches the paid dashboard", async ({
     page,
     homePage,
-    clerkAuthModal,
     dashboardHome,
   }, testInfo) => {
     test.slow();
@@ -66,8 +96,10 @@ test.describe("anonymous onboarding checkout flow @local", () => {
 
       await page.getByTestId("anonymous-profile-name").fill(profileName);
       await page
-        .getByTestId("anonymous-profile-image")
-        .setInputFiles(path.join(appRoot, PROFILE_IMAGE_PATH));
+        .getByTestId(
+          "onboarding-starter-image-morning-serenity-along-the-garden-path",
+        )
+        .click();
       await expect
         .poll(async () => {
           const draft = await readBrowserDraft(page);
@@ -132,15 +164,18 @@ test.describe("anonymous onboarding checkout flow @local", () => {
         /\/onboarding\/checkout\/success\?session_id=cs_test_onboarding_/,
         { timeout: 45_000 },
       );
-      await expect(page.getByTestId("checkout-paid-email")).toHaveText(
-        paidEmail,
-      );
 
-      await page.getByTestId("checkout-create-account").click();
-      await clerkAuthModal.signUpWithEmail(paidEmail, TEST_CODE);
+      await completeClerkEmailCodeFlow(page, paidEmail);
 
       await expect(page).toHaveURL(/\/dashboard/, { timeout: 45_000 });
       await dashboardHome.waitForLoaded();
+      await expect(dashboardHome.profileCompletionPercentage).toHaveText("75%");
+      await expect(
+        page.getByText("Add first profile image", { exact: true }),
+      ).toHaveCount(0);
+      await expect(
+        page.getByText("Add your content", { exact: true }),
+      ).toBeVisible();
 
       const clerkUserId = await getClerkUserIdByEmail(paidEmail);
       expect(clerkUserId).toBeTruthy();
