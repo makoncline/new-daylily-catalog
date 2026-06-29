@@ -1,7 +1,19 @@
 // @vitest-environment node
 
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { formatMembershipPriceDisplay } from "@/server/stripe/membership-price-display";
+
+const stripeMocks = vi.hoisted(() => ({
+  pricesRetrieve: vi.fn(),
+}));
+
+vi.mock("@/server/stripe/client", () => ({
+  getStripeClient: () => ({
+    prices: {
+      retrieve: stripeMocks.pricesRetrieve,
+    },
+  }),
+}));
 
 describe("formatMembershipPriceDisplay", () => {
   it("formats whole-dollar monthly prices without decimals", () => {
@@ -70,5 +82,42 @@ describe("formatMembershipPriceDisplay", () => {
     });
 
     expect(result).toBeNull();
+  });
+});
+
+describe("getMembershipPriceDisplay", () => {
+  beforeEach(() => {
+    vi.resetModules();
+    stripeMocks.pricesRetrieve.mockReset();
+    process.env.SKIP_ENV_VALIDATION = "1";
+    process.env.STRIPE_SECRET_KEY = "sk_test_price_display";
+    process.env.STRIPE_PRICE_ID = "price_membership_test";
+    process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY = "pk_test_clerk";
+    process.env.NEXT_PUBLIC_CLOUDFLARE_URL = "https://example.com";
+  });
+
+  it("fetches the configured Stripe price when env validation is skipped", async () => {
+    stripeMocks.pricesRetrieve.mockResolvedValue({
+      unit_amount: 12000,
+      unit_amount_decimal: null,
+      currency: "usd",
+      recurring: {
+        interval: "year",
+        interval_count: 1,
+      },
+    });
+
+    const { getMembershipPriceDisplay } = await import(
+      "@/server/stripe/get-membership-price-display"
+    );
+
+    await expect(getMembershipPriceDisplay()).resolves.toEqual({
+      amount: "$120",
+      interval: "/yr",
+      monthlyEquivalent: "$10",
+    });
+    expect(stripeMocks.pricesRetrieve).toHaveBeenCalledWith(
+      "price_membership_test",
+    );
   });
 });

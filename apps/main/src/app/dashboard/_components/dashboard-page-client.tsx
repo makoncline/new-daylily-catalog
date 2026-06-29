@@ -27,6 +27,9 @@ export function DashboardPageClient({
   initialStats,
 }: DashboardPageClientProps) {
   const stats = initialStats;
+  const remainingProfileSteps = profileSteps.filter((step) =>
+    stats.profileStats.missingFields.includes(step.id),
+  );
 
   return (
     <>
@@ -70,16 +73,14 @@ export function DashboardPageClient({
             <div className="bg-card/50 p-6">
               <div className="flex flex-col gap-6 lg:flex-row">
                 <div className="flex-1">
-                  {profileSteps.map((step, i) => (
+                  {remainingProfileSteps.map((step, i) => (
                     <Step
                       key={step.id}
-                      completed={
-                        !stats.profileStats.missingFields.includes(step.id)
-                      }
+                      completed={false}
                       label={step.label}
                       description={step.description}
                       icon={step.icon}
-                      isLast={i === profileSteps.length - 1}
+                      isLast={i === remainingProfileSteps.length - 1}
                     />
                   ))}
                 </div>

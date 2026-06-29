@@ -59,11 +59,23 @@ export function AnonymousOnboardingPageClient(
         ) : null}
         {draft.step === "profile" ? (
           <ProfileStep
+            applyStarterNameOverlay={controller.applyStarterNameOverlay}
+            clearProfileImage={controller.clearProfileImage}
             draft={controller.draft}
             imageError={controller.imageError}
+            isGeneratingStarterProfileImage={
+              controller.isGeneratingStarterProfileImage
+            }
+            profileImageInputMode={controller.profileImageInputMode}
             profilePreview={controller.profilePreview}
+            selectStarterProfileImage={controller.selectStarterProfileImage}
+            selectedStarterProfileImageUrl={
+              controller.selectedStarterProfileImageUrl
+            }
+            setApplyStarterNameOverlay={controller.setApplyStarterNameOverlay}
             setDraft={controller.setDraft}
-            setImageError={controller.setImageError}
+            setProfileImageInputMode={controller.setProfileImageInputMode}
+            updateProfileGardenName={controller.updateProfileGardenName}
             updateProfileImage={controller.updateProfileImage}
           />
         ) : null}
@@ -100,7 +112,7 @@ export function AnonymousOnboardingPageClient(
           />
         ) : null}
 
-        {draft.step !== "checkout" ? (
+        {draft.step !== "email" && draft.step !== "checkout" ? (
           <AnonymousOnboardingFooter
             clearDraft={controller.clearDraft}
             collectEmail={controller.collectEmail}
@@ -162,7 +174,7 @@ function AnonymousOnboardingHeader({
         {ANONYMOUS_ONBOARDING_STEPS.map((step, index) => {
           const isCurrent = step.id === draft.step;
           const isComplete = index < currentStepIndex;
-          const canOpen = step.id === "email" || Boolean(draft.email);
+          const canOpen = index <= currentStepIndex;
 
           return (
             <button

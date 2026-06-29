@@ -10,7 +10,7 @@ export interface MembershipPriceDisplay {
 }
 
 export interface AnonymousOnboardingPageClientProps {
-  membershipPriceDisplay: MembershipPriceDisplay | null;
+  membershipPriceDisplay: MembershipPriceDisplay;
 }
 
 export interface ExampleCultivar {
@@ -19,6 +19,60 @@ export interface ExampleCultivar {
   hybridizerYear: string;
   imageUrl: string;
 }
+
+export interface StarterProfileImage {
+  id: string;
+  label: string;
+  url: string;
+}
+
+export const STARTER_PROFILE_IMAGES: StarterProfileImage[] = [
+  {
+    id: "dew-kissed-daylily-leaf-at-dawn",
+    label: "Dew-Kissed Leaf",
+    url: "/assets/onboarding-starter-images/Dew-kissed daylily leaf at dawn.png",
+  },
+  {
+    id: "gardening-essentials-on-a-potting-bench",
+    label: "Potting Bench",
+    url: "/assets/onboarding-starter-images/Gardening essentials on a potting bench.png",
+  },
+  {
+    id: "lush-green-daylily-leaves-in-morning-light",
+    label: "Morning Leaves",
+    url: "/assets/onboarding-starter-images/Lush green daylily leaves in morning light.png",
+  },
+  {
+    id: "morning-serenity-along-the-garden-path",
+    label: "Garden Path",
+    url: "/assets/onboarding-starter-images/Morning serenity along the garden path.png",
+  },
+  {
+    id: "serene-midday-sky-with-clouds",
+    label: "Midday Sky",
+    url: "/assets/onboarding-starter-images/Serene midday sky with clouds.png",
+  },
+  {
+    id: "soft-sage-daylily-leaf-pattern",
+    label: "Sage Pattern",
+    url: "/assets/onboarding-starter-images/Soft sage daylily leaf pattern.png",
+  },
+  {
+    id: "soft-watercolor-daylilies-with-white-space",
+    label: "Watercolor Daylilies",
+    url: "/assets/onboarding-starter-images/Soft watercolor daylilies with white space.png",
+  },
+  {
+    id: "vibrant-daylilies-in-full-bloom",
+    label: "Full Bloom",
+    url: "/assets/onboarding-starter-images/Vibrant daylilies in full bloom.png",
+  },
+  {
+    id: "vibrant-orange-daylily-in-bloom",
+    label: "Orange Bloom",
+    url: "/assets/onboarding-starter-images/Vibrant orange daylily in bloom.png",
+  },
+];
 
 export const PROFILE_PLACEHOLDER_IMAGE =
   "/assets/onboarding-generated/profile-placeholder.png";
@@ -66,9 +120,9 @@ export const ANONYMOUS_ONBOARDING_STEPS: {
   },
   {
     id: "checkout",
-    title: "Get listed",
-    chipLabel: "Get listed",
-    description: "Start your free trial now.",
+    title: "Start your trial",
+    chipLabel: "Start trial",
+    description: "Start your free trial and open your dashboard.",
   },
 ];
 

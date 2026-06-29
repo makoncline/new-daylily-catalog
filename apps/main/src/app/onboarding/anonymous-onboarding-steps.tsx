@@ -1,6 +1,7 @@
 "use client";
 
 import { SignInButton } from "@clerk/nextjs";
+import Image from "next/image";
 import {
   ArrowRight,
   CheckCircle2,
@@ -9,10 +10,12 @@ import {
   Pencil,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { SUBSCRIPTION_CONFIG } from "@/config/subscription-config";
+import { cn } from "@/lib/utils";
 import {
   ListingPreviewCard,
   ProfilePreviewCard,
@@ -22,6 +25,7 @@ import {
   DEFAULT_LOCATION_PLACEHOLDER,
   DEFAULT_PROFILE_DESCRIPTION_PLACEHOLDER,
   EXAMPLE_CULTIVARS,
+  STARTER_PROFILE_IMAGES,
 } from "./anonymous-onboarding-config";
 import type { AnonymousOnboardingController } from "./use-anonymous-onboarding-controller";
 import type {
@@ -145,20 +149,36 @@ export function EmailStep({
 
 type ProfileStepProps = Pick<
   AnonymousOnboardingController,
+  | "applyStarterNameOverlay"
+  | "clearProfileImage"
   | "draft"
   | "imageError"
+  | "isGeneratingStarterProfileImage"
+  | "profileImageInputMode"
   | "profilePreview"
+  | "selectStarterProfileImage"
+  | "selectedStarterProfileImageUrl"
+  | "setApplyStarterNameOverlay"
   | "setDraft"
-  | "setImageError"
+  | "setProfileImageInputMode"
+  | "updateProfileGardenName"
   | "updateProfileImage"
 >;
 
 export function ProfileStep({
+  applyStarterNameOverlay,
+  clearProfileImage,
   draft,
   imageError,
+  isGeneratingStarterProfileImage,
+  profileImageInputMode,
   profilePreview,
+  selectStarterProfileImage,
+  selectedStarterProfileImageUrl,
+  setApplyStarterNameOverlay,
   setDraft,
-  setImageError,
+  setProfileImageInputMode,
+  updateProfileGardenName,
   updateProfileImage,
 }: ProfileStepProps) {
   return (
@@ -183,37 +203,137 @@ export function ProfileStep({
             data-testid="anonymous-profile-name"
             value={draft.profile.gardenName}
             placeholder={DEFAULT_GARDEN_NAME_PLACEHOLDER}
-            onChange={(event) =>
-              updateProfileDraft(setDraft, {
-                gardenName: event.target.value,
-              })
-            }
+            onChange={(event) => updateProfileGardenName(event.target.value)}
           />
         </div>
 
-        <div className="space-y-2 rounded-lg border p-4">
-          <Label htmlFor="anonymous-profile-image">Profile image</Label>
-          <Input
-            id="anonymous-profile-image"
-            data-testid="anonymous-profile-image"
-            type="file"
-            accept="image/png,image/jpeg,image/webp"
-            onChange={(event) => {
-              void updateProfileImage(event.target.files?.[0]);
-              event.currentTarget.value = "";
-            }}
-          />
+        <div className="space-y-4 rounded-lg border p-4">
+          <div className="space-y-1">
+            <Label>Profile image</Label>
+            <p className="text-muted-foreground text-xs leading-relaxed">
+              Your photo is what customers notice first when scanning catalogs.
+            </p>
+          </div>
+
+          <div className="grid gap-2 sm:grid-cols-2">
+            <Button
+              type="button"
+              variant={
+                profileImageInputMode === "starter" ? "default" : "outline"
+              }
+              onClick={() => setProfileImageInputMode("starter")}
+              data-testid="anonymous-profile-image-mode-starter"
+            >
+              Use a starter image
+            </Button>
+            <Button
+              type="button"
+              variant={
+                profileImageInputMode === "upload" ? "default" : "outline"
+              }
+              onClick={() => setProfileImageInputMode("upload")}
+              data-testid="anonymous-profile-image-mode-upload"
+            >
+              Upload your own image
+            </Button>
+          </div>
+
+          {profileImageInputMode === "starter" ? (
+            <div className="space-y-3">
+              <div className="flex items-start gap-3 rounded-lg border border-dashed p-3">
+                <Checkbox
+                  id="anonymous-starter-overlay"
+                  checked={applyStarterNameOverlay}
+                  onCheckedChange={(value) =>
+                    setApplyStarterNameOverlay(value === true)
+                  }
+                />
+                <div className="space-y-1 text-sm">
+                  <Label
+                    htmlFor="anonymous-starter-overlay"
+                    className="cursor-pointer"
+                  >
+                    Stamp seller name onto starter image
+                  </Label>
+                  <p className="text-muted-foreground text-xs leading-relaxed">
+                    Good for a quick starter logo. You can replace it with an
+                    uploaded image at any time.
+                  </p>
+                </div>
+              </div>
+
+              <div
+                data-testid="onboarding-starter-image-picker"
+                className="overflow-x-auto pb-2"
+              >
+                <div className="grid w-full auto-cols-[calc((100%-1rem)/2.5)] grid-flow-col gap-2 sm:auto-cols-[calc((100%-1.5rem)/3.5)] lg:auto-cols-[calc((100%-2rem)/4.5)]">
+                  {STARTER_PROFILE_IMAGES.map((image) => {
+                    const selected =
+                      selectedStarterProfileImageUrl === image.url;
+
+                    return (
+                      <button
+                        key={image.id}
+                        type="button"
+                        className="w-full text-left disabled:opacity-60"
+                        onClick={() => selectStarterProfileImage(image.url)}
+                        disabled={isGeneratingStarterProfileImage}
+                        aria-pressed={selected}
+                        data-testid={`onboarding-starter-image-${image.id}`}
+                      >
+                        <div
+                          className={cn(
+                            "relative aspect-square overflow-hidden rounded-md ring-1 transition",
+                            selected ? "ring-primary ring-2" : "ring-border/40",
+                          )}
+                        >
+                          <Image
+                            src={image.url}
+                            alt=""
+                            fill
+                            className="object-cover"
+                            sizes="(max-width: 640px) 40vw, 160px"
+                          />
+                        </div>
+                        <p className="mt-2 text-xs font-medium">
+                          {image.label}
+                        </p>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {isGeneratingStarterProfileImage ? (
+                <p className="text-muted-foreground text-xs">
+                  Generating starter image with your garden name...
+                </p>
+              ) : null}
+            </div>
+          ) : (
+            <div className="space-y-2">
+              <Label htmlFor="anonymous-profile-image" className="sr-only">
+                Upload profile image
+              </Label>
+              <Input
+                id="anonymous-profile-image"
+                data-testid="anonymous-profile-image"
+                type="file"
+                accept="image/png,image/jpeg,image/webp"
+                onChange={(event) => {
+                  void updateProfileImage(event.target.files?.[0]);
+                  event.currentTarget.value = "";
+                }}
+              />
+            </div>
+          )}
+
           {draft.profile.profileImageDataUrl ? (
             <Button
               type="button"
               size="sm"
               variant="outline"
-              onClick={() => {
-                setImageError(null);
-                updateProfileDraft(setDraft, {
-                  profileImageDataUrl: null,
-                });
-              }}
+              onClick={clearProfileImage}
             >
               Remove image
             </Button>
@@ -502,8 +622,8 @@ export function PreviewStep({
           <p className="flex items-start gap-2">
             <CheckCircle2 className="mt-0.5 size-4 text-emerald-600" />
             <span>
-              Path 2: Buyer adds priced listings to cart, then sends one
-              message with item details.
+              Path 2: Buyer adds priced listings to cart, then sends one message
+              with item details.
             </span>
           </p>
         </div>
@@ -598,13 +718,13 @@ export function CheckoutStep({
               </div>
             </form>
           ) : (
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <div>
+            <div className="flex flex-col gap-3">
+              <div className="min-w-0">
                 <p className="text-muted-foreground text-xs font-medium tracking-wide uppercase">
                   Account email
                 </p>
                 <p
-                  className="text-lg font-semibold"
+                  className="text-lg font-semibold break-all"
                   data-testid="anonymous-checkout-email-value"
                 >
                   {draft.email}
@@ -613,6 +733,7 @@ export function CheckoutStep({
               <Button
                 type="button"
                 variant="outline"
+                className="w-fit"
                 onClick={() => setIsEditingCheckoutEmail(true)}
               >
                 <Pencil className="size-4" />
@@ -647,19 +768,15 @@ export function CheckoutStep({
           Grower membership
         </p>
         <div>
-          {membershipPriceDisplay ? (
-            <p className="flex items-end gap-1 leading-none">
-              <span className="text-5xl font-bold tracking-tight">
-                {membershipPriceDisplay.amount}
-              </span>
-              <span className="text-2xl font-semibold tracking-tight">
-                {membershipPriceDisplay.interval}
-              </span>
-            </p>
-          ) : (
-            <p className="text-2xl font-semibold">Shown at checkout</p>
-          )}
-          {membershipPriceDisplay?.monthlyEquivalent ? (
+          <p className="flex items-end gap-1 leading-none">
+            <span className="text-5xl font-bold tracking-tight">
+              {membershipPriceDisplay.amount}
+            </span>
+            <span className="text-2xl font-semibold tracking-tight">
+              {membershipPriceDisplay.interval}
+            </span>
+          </p>
+          {membershipPriceDisplay.monthlyEquivalent ? (
             <p className="text-muted-foreground mt-2 text-sm">
               {membershipPriceDisplay.monthlyEquivalent}/mo equivalent
             </p>
