@@ -1,10 +1,10 @@
 "use client";
 
-import { SignInButton, SignUpButton, useAuth } from "@clerk/nextjs";
+import { SignIn, useAuth } from "@clerk/nextjs";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef } from "react";
-import { AlertCircle, CheckCircle2, Mail } from "lucide-react";
+import { AlertCircle, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { api } from "@/trpc/react";
 import {
@@ -127,10 +127,7 @@ export function CheckoutSuccessPageClient({
             <p className="text-destructive text-sm">
               {claimCheckout.error.message}
             </p>
-            <Button
-              type="button"
-              onClick={claimCheckoutAndOpenDashboard}
-            >
+            <Button type="button" onClick={claimCheckoutAndOpenDashboard}>
               Try again
             </Button>
           </div>
@@ -142,74 +139,17 @@ export function CheckoutSuccessPageClient({
   }
 
   return (
-    <CheckoutShell
-      icon={<Mail className="size-6" />}
-      title="Verify your email to open your dashboard"
-      description={`Your trial is active. We will email your login code to ${status.email}.`}
-    >
-      <div className="space-y-4">
-        <div className="bg-muted rounded-lg p-4">
-          <p className="text-muted-foreground text-xs font-medium tracking-wide uppercase">
-            Account email
-          </p>
-          <p
-            className="text-lg font-semibold"
-            data-testid="checkout-paid-email"
-          >
-            {status.email}
-          </p>
-        </div>
-
-        <div className="flex flex-col gap-3 sm:flex-row">
-          {isLoaded ? (
-            <SignUpButton
-              mode="modal"
-              forceRedirectUrl={returnTo}
-              fallbackRedirectUrl={returnTo}
-              signInForceRedirectUrl={returnTo}
-              signInFallbackRedirectUrl={returnTo}
-            >
-              <Button data-testid="checkout-create-account">
-                Send code and create account
-              </Button>
-            </SignUpButton>
-          ) : (
-            <Button data-testid="checkout-create-account" disabled>
-              Send code and create account
-            </Button>
-          )}
-
-          {isLoaded ? (
-            <SignInButton
-              mode="modal"
-              forceRedirectUrl={returnTo}
-              fallbackRedirectUrl={returnTo}
-              signUpForceRedirectUrl={returnTo}
-              signUpFallbackRedirectUrl={returnTo}
-            >
-              <Button variant="outline">Already have an account? Log in</Button>
-            </SignInButton>
-          ) : (
-            <Button variant="outline" disabled>
-              Already have an account? Log in
-            </Button>
-          )}
-        </div>
-
-        <div className="space-y-2">
-          <p className="text-muted-foreground text-sm">
-            If this email is wrong, do not create an account yet. Contact
-            support and include this checkout code.
-          </p>
-          <p className="font-mono text-xs break-all">{status.sessionId}</p>
-          <Button asChild variant="link" className="h-auto p-0">
-            <Link href="mailto:support@daylilycatalog.com">
-              This email is wrong
-            </Link>
-          </Button>
-        </div>
-      </div>
-    </CheckoutShell>
+    <CheckoutAuthShell data-testid="checkout-clerk-sign-in">
+      <SignIn
+        routing="virtual"
+        forceRedirectUrl={returnTo}
+        fallbackRedirectUrl={returnTo}
+        signUpForceRedirectUrl={returnTo}
+        signUpFallbackRedirectUrl={returnTo}
+        initialValues={{ emailAddress: status.email }}
+        withSignUp
+      />
+    </CheckoutAuthShell>
   );
 }
 
@@ -243,6 +183,28 @@ function CheckoutShell({
 
           {children}
         </div>
+      </div>
+    </div>
+  );
+}
+
+function CheckoutAuthShell({
+  children,
+  "data-testid": testId,
+}: {
+  children: React.ReactNode;
+  "data-testid"?: string;
+}) {
+  return (
+    <div
+      className="bg-muted/20 min-h-svh"
+      data-testid="onboarding-checkout-success"
+    >
+      <div
+        className="mx-auto flex min-h-svh w-full items-center justify-center px-4 py-10"
+        data-testid={testId}
+      >
+        {children}
       </div>
     </div>
   );

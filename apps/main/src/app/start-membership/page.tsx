@@ -12,6 +12,10 @@ import { SUBSCRIPTION_CONFIG } from "@/config/subscription-config";
 import { IMAGES } from "@/lib/constants/images";
 import { getCanonicalBaseUrl } from "@/lib/utils/getBaseUrl";
 import { serializeJsonLd } from "@/lib/utils/json-ld";
+import {
+  getMembershipPriceDisplay,
+  type MembershipPriceDisplay,
+} from "@/server/stripe/get-membership-price-display";
 import { UsedByWave } from "@/components/used-by-wave";
 import { LaurelRatingBadge } from "@/components/laurel-rating-badge";
 
@@ -86,8 +90,8 @@ const HOW_IT_WORKS_STEPS = [
     detail: "See what buyers will see before it goes public.",
   },
   {
-    title: "Publish when ready",
-    detail: "Start your trial when your catalog is ready to go live.",
+    title: "Start your trial",
+    detail: "Checkout first, then verify your email to open your dashboard.",
   },
 ] as const;
 
@@ -103,13 +107,12 @@ const FAQ_ITEMS = [
   },
   {
     question: "When does my free trial start?",
-    answer:
-      "The trial starts when you publish your catalog, not while you are building it.",
+    answer: "The trial starts at checkout, before your dashboard opens.",
   },
   {
     question: "Can I build my catalog before publishing?",
     answer:
-      "Yes. You can create your catalog and preview it before buyers can open it.",
+      "Yes. You can build and preview your catalog before buyers can open it.",
   },
   {
     question: "What appears on cultivar pages?",
@@ -118,8 +121,7 @@ const FAQ_ITEMS = [
   },
 ] as const;
 
-export const dynamic = "force-static";
-export const revalidate = false;
+export const dynamic = "force-dynamic";
 
 function createFaqSchema(baseUrl: string) {
   return {
@@ -140,6 +142,7 @@ function createFaqSchema(baseUrl: string) {
 export default async function StartMembershipPage() {
   const baseUrl = getCanonicalBaseUrl();
   const faqSchema = createFaqSchema(baseUrl);
+  const membershipPriceDisplay = await getMembershipPriceDisplay();
 
   return (
     <div className="min-h-svh overflow-hidden">
@@ -150,7 +153,7 @@ export default async function StartMembershipPage() {
         dangerouslySetInnerHTML={{ __html: serializeJsonLd(faqSchema) }}
       />
 
-      <StartMembershipHero />
+      <StartMembershipHero membershipPriceDisplay={membershipPriceDisplay} />
 
       <GrowerTestimonialsSection />
 
@@ -167,7 +170,13 @@ export default async function StartMembershipPage() {
   );
 }
 
-function StartMembershipHero() {
+function StartMembershipHero({
+  membershipPriceDisplay,
+}: {
+  membershipPriceDisplay: MembershipPriceDisplay;
+}) {
+  const trialPriceText = `Membership is ${membershipPriceDisplay.amount}${membershipPriceDisplay.interval} after the trial.`;
+
   return (
     <section className="relative isolate overflow-hidden bg-[#07120e] px-4 pt-24 pb-36 text-white lg:px-8 lg:pt-20 lg:pb-32">
       <div className="absolute inset-0 -z-10 bg-[#07120e]" aria-hidden="true">
@@ -201,8 +210,9 @@ function StartMembershipHero() {
 
           <p className="mt-6 max-w-[34rem] text-xl leading-8 font-medium text-pretty text-[#dfe9dc] lg:mt-4 lg:text-lg lg:leading-7">
             Add photos, prices, availability, notes, and contact info. Build and
-            preview for free. Start a {SUBSCRIPTION_CONFIG.FREE_TRIAL_DAYS}-day
-            trial when you publish, then $120/year.
+            preview your catalog first. Start a{" "}
+            {SUBSCRIPTION_CONFIG.FREE_TRIAL_DAYS}-day trial before your
+            dashboard opens. {trialPriceText}
           </p>
 
           <div className="mt-8 flex flex-col gap-4 lg:mt-5 lg:flex-row lg:gap-5">
@@ -235,15 +245,20 @@ function StartMembershipHero() {
           </p>
           <p className="mt-4 flex items-end gap-1 leading-none">
             <span className="text-6xl font-bold tracking-tight text-white">
-              $120
+              {membershipPriceDisplay.amount}
             </span>
             <span className="text-4xl font-semibold tracking-tight text-white">
-              /year
+              {membershipPriceDisplay.interval}
             </span>
           </p>
+          {membershipPriceDisplay.monthlyEquivalent ? (
+            <p className="mt-3 text-base leading-6 text-[#dfe9dc]">
+              {membershipPriceDisplay.monthlyEquivalent}/mo equivalent
+            </p>
+          ) : null}
           <p className="mt-3 max-w-lg text-lg leading-7 text-[#dfe9dc]">
-            Build for free. Start your {SUBSCRIPTION_CONFIG.FREE_TRIAL_DAYS}
-            -day trial when you publish.
+            Start your {SUBSCRIPTION_CONFIG.FREE_TRIAL_DAYS}-day trial before
+            your paid dashboard opens.
           </p>
 
           <div className="mt-6 grid gap-4 border-t border-white/22 pt-5">
@@ -414,7 +429,7 @@ function HowItWorksSection() {
       <div className="mx-auto max-w-[1024px]">
         <p className="text-sm font-bold text-[#f4c477]">How it works</p>
         <h2 className="mt-4 max-w-3xl text-4xl leading-tight font-semibold tracking-normal text-balance lg:text-6xl">
-          Build first. Publish when ready.
+          Build first. Start your trial when ready.
         </h2>
 
         <ol className="mt-10 grid list-none border-y border-white/20 lg:grid-cols-4">
@@ -591,8 +606,8 @@ function StartMembershipFinalCta() {
           Ready to create your daylily catalog?
         </p>
         <p className="mt-6 max-w-2xl text-lg leading-8 text-[#dfe9dc]">
-          Build your catalog for free, preview it, and publish when you are
-          ready.
+          Build and preview your catalog, start your trial, then open your
+          dashboard.
         </p>
 
         <div className="mt-9 flex flex-col gap-3 lg:flex-row">
