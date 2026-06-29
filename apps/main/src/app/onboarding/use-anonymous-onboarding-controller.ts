@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import { api } from "@/trpc/react";
 import {
   ANONYMOUS_ONBOARDING_STEPS,
+  DEFAULT_GARDEN_NAME_PLACEHOLDER,
+  STARTER_PROFILE_IMAGES,
   getListingPreview,
   getProfilePreview,
   normalizeEmail,
@@ -13,6 +15,7 @@ import {
 import {
   clearAnonymousOnboardingDraft,
   compressOnboardingImageFile,
+  createOnboardingProfileImageFromStarter,
   createAnonymousOnboardingDraft,
   readAnonymousOnboardingDraft,
   writeAnonymousOnboardingDraft,
@@ -73,6 +76,17 @@ export function useAnonymousOnboardingController({
   );
   const [isEditingCheckoutEmail, setIsEditingCheckoutEmail] = useState(false);
   const [imageError, setImageError] = useState<string | null>(null);
+  const [profileImageInputMode, setProfileImageInputModeState] = useState<
+    "starter" | "upload"
+  >("starter");
+  const [selectedStarterProfileImageUrl, setSelectedStarterProfileImageUrl] =
+    useState<string | null>(null);
+  const [applyStarterNameOverlay, setApplyStarterNameOverlayState] =
+    useState(true);
+  const [isGeneratingStarterProfileImage, setIsGeneratingStarterProfileImage] =
+    useState(false);
+  const starterProfileImageGenerationTimeoutRef = useRef<number | null>(null);
+  const starterProfileImageGenerationRequestIdRef = useRef(0);
   const collectEmail = api.onboarding.collectEmail.useMutation();
   const createCheckout = api.onboarding.createCheckout.useMutation();
 
@@ -137,6 +151,184 @@ export function useAnonymousOnboardingController({
     ],
   );
 
+  const cancelStarterProfileImageGeneration = useCallback(() => {
+    if (starterProfileImageGenerationTimeoutRef.current !== null) {
+      window.clearTimeout(starterProfileImageGenerationTimeoutRef.current);
+      starterProfileImageGenerationTimeoutRef.current = null;
+    }
+
+    starterProfileImageGenerationRequestIdRef.current += 1;
+    setIsGeneratingStarterProfileImage(false);
+  }, []);
+
+  useEffect(
+    () => () => {
+      if (starterProfileImageGenerationTimeoutRef.current !== null) {
+        window.clearTimeout(starterProfileImageGenerationTimeoutRef.current);
+      }
+
+      starterProfileImageGenerationRequestIdRef.current += 1;
+    },
+    [],
+  );
+
+  const scheduleStarterProfileImageGeneration = useCallback(
+    ({
+      applyNameOverlay,
+      baseImageUrl,
+      debounceMs,
+      gardenName,
+    }: {
+      applyNameOverlay: boolean;
+      baseImageUrl: string;
+      debounceMs: number;
+      gardenName: string;
+    }) => {
+      if (starterProfileImageGenerationTimeoutRef.current !== null) {
+        window.clearTimeout(starterProfileImageGenerationTimeoutRef.current);
+      }
+
+      const requestId = starterProfileImageGenerationRequestIdRef.current + 1;
+      starterProfileImageGenerationRequestIdRef.current = requestId;
+      setImageError(null);
+      setIsGeneratingStarterProfileImage(true);
+
+      starterProfileImageGenerationTimeoutRef.current = window.setTimeout(
+        () => {
+          void (async () => {
+            try {
+              const dataUrl = await createOnboardingProfileImageFromStarter({
+                applyNameOverlay,
+                baseImageUrl,
+                gardenName:
+                  gardenName.trim() || DEFAULT_GARDEN_NAME_PLACEHOLDER,
+              });
+
+              if (
+                starterProfileImageGenerationRequestIdRef.current !== requestId
+              ) {
+                return;
+              }
+
+              setDraft((currentDraft) => ({
+                ...currentDraft,
+                profile: {
+                  ...currentDraft.profile,
+                  profileImageDataUrl: dataUrl,
+                },
+              }));
+            } catch (error) {
+              if (
+                starterProfileImageGenerationRequestIdRef.current !== requestId
+              ) {
+                return;
+              }
+
+              setImageError(
+                error instanceof Error ? error.message : String(error),
+              );
+            } finally {
+              if (
+                starterProfileImageGenerationRequestIdRef.current === requestId
+              ) {
+                starterProfileImageGenerationTimeoutRef.current = null;
+                setIsGeneratingStarterProfileImage(false);
+              }
+            }
+          })();
+        },
+        debounceMs,
+      );
+    },
+    [setDraft],
+  );
+
+  const selectStarterProfileImage = useCallback(
+    (baseImageUrl: string) => {
+      setProfileImageInputModeState("starter");
+      setSelectedStarterProfileImageUrl(baseImageUrl);
+      scheduleStarterProfileImageGeneration({
+        applyNameOverlay: applyStarterNameOverlay,
+        baseImageUrl,
+        debounceMs: 0,
+        gardenName: draftRef.current.profile.gardenName,
+      });
+    },
+    [applyStarterNameOverlay, scheduleStarterProfileImageGeneration],
+  );
+
+  const setProfileImageInputMode = useCallback(
+    (mode: "starter" | "upload") => {
+      setImageError(null);
+      setProfileImageInputModeState(mode);
+
+      if (mode === "upload") {
+        cancelStarterProfileImageGeneration();
+        return;
+      }
+
+      const starterImageUrl =
+        selectedStarterProfileImageUrl ?? STARTER_PROFILE_IMAGES[0]?.url;
+      if (starterImageUrl) {
+        selectStarterProfileImage(starterImageUrl);
+      }
+    },
+    [
+      cancelStarterProfileImageGeneration,
+      selectStarterProfileImage,
+      selectedStarterProfileImageUrl,
+    ],
+  );
+
+  const setApplyStarterNameOverlay = useCallback(
+    (enabled: boolean) => {
+      setApplyStarterNameOverlayState(enabled);
+      if (!selectedStarterProfileImageUrl) {
+        return;
+      }
+
+      scheduleStarterProfileImageGeneration({
+        applyNameOverlay: enabled,
+        baseImageUrl: selectedStarterProfileImageUrl,
+        debounceMs: 0,
+        gardenName: draftRef.current.profile.gardenName,
+      });
+    },
+    [scheduleStarterProfileImageGeneration, selectedStarterProfileImageUrl],
+  );
+
+  const updateProfileGardenName = useCallback(
+    (gardenName: string) => {
+      setDraft((currentDraft) => ({
+        ...currentDraft,
+        profile: {
+          ...currentDraft.profile,
+          gardenName,
+        },
+      }));
+
+      if (
+        profileImageInputMode === "starter" &&
+        applyStarterNameOverlay &&
+        selectedStarterProfileImageUrl
+      ) {
+        scheduleStarterProfileImageGeneration({
+          applyNameOverlay: true,
+          baseImageUrl: selectedStarterProfileImageUrl,
+          debounceMs: 150,
+          gardenName,
+        });
+      }
+    },
+    [
+      applyStarterNameOverlay,
+      profileImageInputMode,
+      scheduleStarterProfileImageGeneration,
+      selectedStarterProfileImageUrl,
+      setDraft,
+    ],
+  );
+
   const updateImageDraft = useCallback(
     async (
       file: File | undefined,
@@ -172,6 +364,19 @@ export function useAnonymousOnboardingController({
     },
     [setDraft],
   );
+
+  const clearProfileImage = useCallback(() => {
+    cancelStarterProfileImageGeneration();
+    setImageError(null);
+    setSelectedStarterProfileImageUrl(null);
+    setDraft((currentDraft) => ({
+      ...currentDraft,
+      profile: {
+        ...currentDraft.profile,
+        profileImageDataUrl: null,
+      },
+    }));
+  }, [cancelStarterProfileImageGeneration, setDraft]);
 
   const goForward = useCallback(async () => {
     if (draft.step === "email") {
@@ -215,12 +420,19 @@ export function useAnonymousOnboardingController({
   }, [createCheckout, draft.draftId, draft.email, goToStep]);
 
   const clearDraft = useCallback(() => {
+    cancelStarterProfileImageGeneration();
     clearStoredDraft();
     setEmailInputOverride(null);
+    setSelectedStarterProfileImageUrl(null);
+    setProfileImageInputModeState("starter");
+    setApplyStarterNameOverlayState(true);
     router.replace("/onboarding", { scroll: false });
-  }, [clearStoredDraft, router]);
+  }, [cancelStarterProfileImageGeneration, clearStoredDraft, router]);
 
   return {
+    applyStarterNameOverlay,
+    clearDraft,
+    clearProfileImage,
     collectEmail,
     createCheckout,
     currentStepIndex,
@@ -232,22 +444,35 @@ export function useAnonymousOnboardingController({
     goToStep,
     imageError,
     isEditingCheckoutEmail,
+    isGeneratingStarterProfileImage,
     listingPreview,
     membershipPriceDisplay,
+    profileImageInputMode,
     profilePreview,
     progressValue,
     saveEmailAndContinue,
+    selectStarterProfileImage,
+    selectedStarterProfileImageUrl,
+    setApplyStarterNameOverlay,
     setDraft,
     setEmailInput: setEmailInputOverride,
     setImageError,
     setIsEditingCheckoutEmail,
+    setProfileImageInputMode,
     startCheckout,
     storageWarning,
     updateListingImage: (file: File | undefined) =>
       updateImageDraft(file, "listingImageDataUrl"),
-    updateProfileImage: (file: File | undefined) =>
-      updateImageDraft(file, "profileImageDataUrl"),
-    clearDraft,
+    updateProfileGardenName,
+    updateProfileImage: (file: File | undefined) => {
+      if (file) {
+        cancelStarterProfileImageGeneration();
+        setProfileImageInputModeState("upload");
+        setSelectedStarterProfileImageUrl(null);
+      }
+
+      return updateImageDraft(file, "profileImageDataUrl");
+    },
   };
 }
 
