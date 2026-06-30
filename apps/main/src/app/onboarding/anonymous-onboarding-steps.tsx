@@ -424,12 +424,13 @@ export function ProfileStep({
                           <button
                             key={image.id}
                             type="button"
-                            className="w-full text-left disabled:opacity-60"
+                            className="w-full disabled:opacity-60"
                             onClick={() =>
                               selectStarterProfileImage(image.url)
                             }
                             disabled={isGeneratingStarterProfileImage}
                             aria-pressed={selected}
+                            aria-label={image.label}
                             data-testid={`onboarding-starter-image-${image.id}`}
                           >
                             <div
@@ -442,15 +443,12 @@ export function ProfileStep({
                             >
                               <Image
                                 src={image.url}
-                                alt=""
+                                alt={image.label}
                                 fill
                                 className="object-cover"
                                 sizes="(max-width: 640px) 40vw, 160px"
                               />
                             </div>
-                            <p className="mt-2 text-xs font-medium">
-                              {image.label}
-                            </p>
                           </button>
                         );
                       })}
