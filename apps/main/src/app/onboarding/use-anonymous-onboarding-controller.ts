@@ -110,9 +110,6 @@ export function useAnonymousOnboardingController({
     (step: AnonymousOnboardingStepId) => {
       setImageError(null);
       setDraft((currentDraft) => ({ ...currentDraft, step }));
-      window.requestAnimationFrame(() => {
-        window.scrollTo({ top: 0, behavior: "smooth" });
-      });
     },
     [setDraft],
   );
