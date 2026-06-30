@@ -39,8 +39,6 @@ import {
 } from "@/server/db/getPublicListings";
 import { applyWhereIn } from "./test-utils/apply-where-in";
 
-const originalV2DisplayFlag =
-  process.env.NEXT_PUBLIC_USE_V2_CULTIVAR_DISPLAY_DATA;
 const originalCloudflareUrl = process.env.NEXT_PUBLIC_CLOUDFLARE_URL;
 const originalUseImageAssets = process.env.USE_IMAGE_ASSETS;
 const originalUseGeneratedCultivarImageAssets =
@@ -101,13 +99,6 @@ describe("getPublicListings helpers", () => {
   });
 
   afterEach(() => {
-    if (originalV2DisplayFlag === undefined) {
-      delete process.env.NEXT_PUBLIC_USE_V2_CULTIVAR_DISPLAY_DATA;
-    } else {
-      process.env.NEXT_PUBLIC_USE_V2_CULTIVAR_DISPLAY_DATA =
-        originalV2DisplayFlag;
-    }
-
     if (originalCloudflareUrl === undefined) {
       delete process.env.NEXT_PUBLIC_CLOUDFLARE_URL;
     } else {
@@ -237,9 +228,7 @@ describe("getPublicListings helpers", () => {
     expect(searchQuery).not.toMatch(/COALESCE\("price", 0\) > 0/);
   });
 
-  it("maps V2 cultivar display data onto public listing cards when the feature flag is enabled", () => {
-    process.env.NEXT_PUBLIC_USE_V2_CULTIVAR_DISPLAY_DATA = "true";
-
+  it("maps V2 cultivar display data onto public listing cards", () => {
     const transformed = transformListings([
       {
         ...createListing("id-a", "Alpha"),
@@ -247,28 +236,6 @@ describe("getPublicListings helpers", () => {
         cultivarReference: {
           id: "cultivar-alpha",
           normalizedName: "alpha",
-          ahsListing: {
-            id: "ahs-1",
-            name: "Legacy Alpha",
-            ahsImageUrl: "https://example.com/legacy-alpha.jpg",
-            hybridizer: "Legacy Hybridizer",
-            year: "2011",
-            scapeHeight: "30 inches",
-            bloomSize: "6 inches",
-            bloomSeason: "Midseason",
-            form: "Single",
-            ploidy: "Tetraploid",
-            foliageType: "Dormant",
-            bloomHabit: "Diurnal",
-            budcount: "20",
-            branches: "4",
-            sculpting: null,
-            foliage: null,
-            flower: null,
-            fragrance: null,
-            parentage: "(Legacy A x Legacy B)",
-            color: "Legacy color",
-          },
           v2AhsCultivar: {
             id: "v2-1",
             post_title: "V2 Alpha",
@@ -321,7 +288,6 @@ describe("getPublicListings helpers", () => {
   });
 
   it("uses generated cultivar ImageAsset fallback images when enabled", () => {
-    process.env.NEXT_PUBLIC_USE_V2_CULTIVAR_DISPLAY_DATA = "true";
     process.env.USE_GENERATED_CULTIVAR_IMAGE_ASSETS = "true";
 
     const transformed = transformListings([
@@ -331,28 +297,6 @@ describe("getPublicListings helpers", () => {
         cultivarReference: {
           id: "cultivar-alpha",
           normalizedName: "alpha",
-          ahsListing: {
-            id: "ahs-1",
-            name: "Legacy Alpha",
-            ahsImageUrl: "https://example.com/legacy-alpha.jpg",
-            hybridizer: "Legacy Hybridizer",
-            year: "2011",
-            scapeHeight: "30 inches",
-            bloomSize: "6 inches",
-            bloomSeason: "Midseason",
-            form: "Single",
-            ploidy: "Tetraploid",
-            foliageType: "Dormant",
-            bloomHabit: "Diurnal",
-            budcount: "20",
-            branches: "4",
-            sculpting: null,
-            foliage: null,
-            flower: null,
-            fragrance: null,
-            parentage: "(Legacy A x Legacy B)",
-            color: "Legacy color",
-          },
           v2AhsCultivar: {
             id: "v2-1",
             post_title: "V2 Alpha",

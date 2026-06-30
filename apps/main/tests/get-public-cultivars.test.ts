@@ -37,8 +37,6 @@ import {
 } from "@/server/db/getPublicCultivars";
 import { applyWhereIn } from "./test-utils/apply-where-in";
 
-const originalV2DisplayFlag =
-  process.env.NEXT_PUBLIC_USE_V2_CULTIVAR_DISPLAY_DATA;
 const originalCloudflareUrl = process.env.NEXT_PUBLIC_CLOUDFLARE_URL;
 const originalUseGeneratedCultivarImageAssets =
   process.env.USE_GENERATED_CULTIVAR_IMAGE_ASSETS;
@@ -73,13 +71,6 @@ describe("getPublicCultivarPage", () => {
   });
 
   afterEach(() => {
-    if (originalV2DisplayFlag === undefined) {
-      delete process.env.NEXT_PUBLIC_USE_V2_CULTIVAR_DISPLAY_DATA;
-    } else {
-      process.env.NEXT_PUBLIC_USE_V2_CULTIVAR_DISPLAY_DATA =
-        originalV2DisplayFlag;
-    }
-
     if (originalCloudflareUrl === undefined) {
       delete process.env.NEXT_PUBLIC_CLOUDFLARE_URL;
     } else {
@@ -220,27 +211,27 @@ describe("getPublicCultivarPage", () => {
       id: "cultivar-1",
       normalizedName: "coffee frenzy",
       updatedAt: new Date("2026-01-05T00:00:00.000Z"),
-      ahsListing: {
-        id: "ahs-1",
-        name: "Coffee Frenzy",
-        ahsImageUrl: "https://example.com/ahs.jpg",
-        hybridizer: "Reed",
-        year: "2012",
-        scapeHeight: "36 inches",
-        bloomSize: "6 inches",
-        bloomSeason: "Midseason",
-        form: "Single",
-        ploidy: "Tet",
-        foliageType: "Dormant",
-        bloomHabit: "Diurnal",
-        budcount: "24",
-        branches: "5",
-        sculpting: "Ruffled",
-        foliage: "Green",
-        flower: "Cocoa brown with gold throat",
-        fragrance: "Light",
-        parentage: "(A x B)",
+      v2AhsCultivar: {
+        id: "v2-coffee-frenzy",
+        post_title: "Coffee Frenzy",
+        introduction_date: "2012-01-01",
+        primary_hybridizer_name: "Reed",
+        hybridizer_code_legacy: null,
+        additional_hybridizers_names: null,
+        bloom_season_names: "Midseason",
+        fragrance_names: "Light",
+        bloom_habit_names: "Diurnal",
+        foliage_names: "Dormant",
+        ploidy_names: "Tet",
+        scape_height_in: 36,
+        bloom_size_in: 6,
+        bud_count: 24,
+        branches: 5,
         color: "Coffee brown",
+        flower_form_names: "Single",
+        unusual_forms_names: null,
+        parentage: "(A x B)",
+        image_url: "https://example.com/ahs.jpg",
       },
     });
 
@@ -491,9 +482,7 @@ describe("getPublicCultivarPage", () => {
     );
   });
 
-  it("prefers V2 cultivar display data for the public cultivar page when the feature flag is enabled", async () => {
-    process.env.NEXT_PUBLIC_USE_V2_CULTIVAR_DISPLAY_DATA = "true";
-
+  it("uses V2 cultivar display data for the public cultivar page", async () => {
     mockDb.cultivarReference.findFirst.mockResolvedValue({
       id: "cultivar-v2",
       normalizedName: "coffee frenzy",
@@ -574,7 +563,6 @@ describe("getPublicCultivarPage", () => {
   });
 
   it("uses generated cultivar ImageAsset hero images when enabled", async () => {
-    process.env.NEXT_PUBLIC_USE_V2_CULTIVAR_DISPLAY_DATA = "true";
     process.env.USE_GENERATED_CULTIVAR_IMAGE_ASSETS = "true";
 
     mockDb.cultivarReference.findFirst.mockResolvedValue({
@@ -653,8 +641,6 @@ describe("getPublicCultivarPage", () => {
   });
 
   it("uses the decoded legacy hybridizer fallback on the public cultivar page when V2 primary is blank", async () => {
-    process.env.NEXT_PUBLIC_USE_V2_CULTIVAR_DISPLAY_DATA = "true";
-
     mockDb.cultivarReference.findFirst.mockResolvedValue({
       id: "cultivar-v2-fallback",
       normalizedName: "reimer sunrise",
@@ -719,12 +705,9 @@ describe("getPublicCultivarPage", () => {
     expect(result?.cultivar.ahsListing).toMatchObject({
       id: "v2-2",
       hybridizer: "Gregory-CJ & V.",
-      ahsImageUrl: "https://example.com/legacy.jpg",
+      ahsImageUrl: null,
     });
-    expect(result?.heroImages[0]).toMatchObject({
-      source: "ahs",
-      url: "https://example.com/legacy.jpg",
-    });
+    expect(result?.heroImages).toEqual([]);
   });
 
   it("resolves slugified segments back to punctuation-heavy cultivar names", async () => {

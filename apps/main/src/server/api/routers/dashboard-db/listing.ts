@@ -3,7 +3,6 @@ import { TRPCError } from "@trpc/server";
 import { protectedProcedure, createTRPCRouter } from "@/server/api/trpc";
 import { generateUniqueSlug } from "@/lib/utils/slugify-server";
 import {
-  ahsDisplayAhsListingSelect,
   getDisplayAhsListing,
   v2AhsCultivarDisplaySelect,
 } from "@/lib/utils/ahs-display";
@@ -147,7 +146,6 @@ export const dashboardDbListingRouter = createTRPCRouter({
         where: { id: input.cultivarReferenceId },
         select: {
           id: true,
-          ahsListing: { select: ahsDisplayAhsListingSelect },
           v2AhsCultivar: { select: v2AhsCultivarDisplaySelect },
         },
       });
@@ -219,12 +217,14 @@ export const dashboardDbListingRouter = createTRPCRouter({
           id: true,
           cultivarReference: {
             select: {
-              ahsListing: { select: { name: true } },
+              v2AhsCultivar: { select: v2AhsCultivarDisplaySelect },
             },
           },
         },
       });
-      const name = listing?.cultivarReference?.ahsListing?.name;
+      const name = listing?.cultivarReference
+        ? getDisplayAhsListing(listing.cultivarReference)?.name
+        : null;
       if (!listing?.id || !name) {
         throw new TRPCError({
           code: "NOT_FOUND",

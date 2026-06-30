@@ -1062,85 +1062,70 @@ describe("dashboardDb TanStack DB collections", () => {
   });
 
   it("cultivar refs: linking updates live joined AHS fields", async () => {
-    const previousV2DisplayFlag =
-      process.env.NEXT_PUBLIC_USE_V2_CULTIVAR_DISPLAY_DATA;
-    process.env.NEXT_PUBLIC_USE_V2_CULTIVAR_DISPLAY_DATA = "true";
+    await withTempAppDb(async () => {
+      const { db } = await import("@/server/db");
 
-    try {
-      await withTempAppDb(async () => {
-        const { db } = await import("@/server/db");
+      const v2AhsCultivar = await db.v2AhsCultivar.create({
+        data: {
+          id: "v2-alpha",
+          post_title: "AHS-Alpha",
+          link_normalized_name: "ahs-alpha",
+        },
+      });
+      const cultivarRef = await db.cultivarReference.create({
+        data: {
+          v2AhsCultivarId: v2AhsCultivar.id,
+          normalizedName: "ahs-alpha",
+        },
+      });
 
-        const v2AhsCultivar = await db.v2AhsCultivar.create({
-          data: {
-            id: "v2-alpha",
-            post_title: "AHS-Alpha",
-            link_normalized_name: "ahs-alpha",
-          },
-        });
-        const cultivarRef = await db.cultivarReference.create({
-          data: {
-            v2AhsCultivarId: v2AhsCultivar.id,
-            normalizedName: "ahs-alpha",
-          },
-        });
+      const {
+        listingsCollection,
+        insertListing,
+        linkAhs,
+        initializeListingsCollection,
+      } = await import("@/app/dashboard/_lib/dashboard-db/listings-collection");
+      const {
+        cultivarReferencesCollection,
+        initializeCultivarReferencesCollection,
+      } = await import(
+        "@/app/dashboard/_lib/dashboard-db/cultivar-references-collection"
+      );
 
-        const {
-          listingsCollection,
-          insertListing,
-          linkAhs,
-          initializeListingsCollection,
-        } = await import(
-          "@/app/dashboard/_lib/dashboard-db/listings-collection"
+      await act(async () => {
+        await initializeListingsCollection("test-user");
+        await initializeCultivarReferencesCollection("test-user");
+        render(
+          <CultivarJoinViewer
+            listingsCollection={listingsCollection}
+            cultivarReferencesCollection={cultivarReferencesCollection}
+          />,
         );
-        const {
-          cultivarReferencesCollection,
-          initializeCultivarReferencesCollection,
-        } = await import(
-          "@/app/dashboard/_lib/dashboard-db/cultivar-references-collection"
-        );
+      });
 
-        await act(async () => {
-          await initializeListingsCollection("test-user");
-          await initializeCultivarReferencesCollection("test-user");
-          render(
-            <CultivarJoinViewer
-              listingsCollection={listingsCollection}
-              cultivarReferencesCollection={cultivarReferencesCollection}
-            />,
-          );
-        });
+      let listingId = "";
+      await act(async () => {
+        const created = await insertListing({ title: "L1" });
+        listingId = created.id;
+      });
 
-        let listingId = "";
-        await act(async () => {
-          const created = await insertListing({ title: "L1" });
-          listingId = created.id;
-        });
+      await waitFor(() => {
+        expect(screen.getByTestId("joined").textContent).toBe("L1:");
+      });
 
-        await waitFor(() => {
-          expect(screen.getByTestId("joined").textContent).toBe("L1:");
-        });
-
-        await act(async () => {
-          await linkAhs({
-            id: listingId,
-            cultivarReferenceId: cultivarRef.id,
-            syncName: true,
-          });
-        });
-
-        await waitFor(() => {
-          expect(screen.getByTestId("joined").textContent).toBe(
-            "AHS-Alpha:AHS-Alpha",
-          );
+      await act(async () => {
+        await linkAhs({
+          id: listingId,
+          cultivarReferenceId: cultivarRef.id,
+          syncName: true,
         });
       });
-    } finally {
-      if (previousV2DisplayFlag === undefined) {
-        delete process.env.NEXT_PUBLIC_USE_V2_CULTIVAR_DISPLAY_DATA;
-      } else {
-        process.env.NEXT_PUBLIC_USE_V2_CULTIVAR_DISPLAY_DATA =
-          previousV2DisplayFlag;
-      }
-    }
+
+      await waitFor(() => {
+        expect(screen.getByTestId("joined").textContent).toBe(
+          "AHS-Alpha:AHS-Alpha",
+        );
+      });
+    });
   }, 15_000);
 });

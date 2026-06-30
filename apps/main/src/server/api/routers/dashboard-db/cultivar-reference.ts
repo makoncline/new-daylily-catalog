@@ -3,7 +3,6 @@ import { Prisma } from "@prisma/client";
 import { createTRPCRouter, protectedProcedure } from "@/server/api/trpc";
 import type { PrismaClient } from "@prisma/client";
 import {
-  ahsDisplayAhsListingSelect,
   mapV2AhsCultivarToDisplayAhsListing,
   v2AhsCultivarDisplaySelect,
 } from "@/lib/utils/ahs-display";
@@ -11,7 +10,6 @@ import type {
   AhsDisplayListing,
   V2AhsCultivarDisplaySource,
 } from "@/lib/utils/ahs-display";
-import { isV2CultivarDisplayDataEnabled } from "@/config/feature-flags";
 import {
   type CultivarReferenceImageView,
   resolveCultivarReferenceImage,
@@ -23,22 +21,10 @@ import {
   parseDashboardSyncSince,
 } from "./dashboard-db-router-helpers";
 
-const legacyCultivarReferenceSelect = {
-  id: true,
-  normalizedName: true,
-  updatedAt: true,
-  ahsListing: {
-    select: ahsDisplayAhsListingSelect,
-  },
-} as const;
-
 const v2CultivarReferenceSelect = {
   id: true,
   normalizedName: true,
   updatedAt: true,
-  ahsListing: {
-    select: ahsDisplayAhsListingSelect,
-  },
   v2AhsCultivar: {
     select: v2AhsCultivarDisplaySelect,
   },
@@ -63,10 +49,6 @@ type CultivarReferenceImageAssetRow = Prisma.ImageAssetGetPayload<{
 
 const CULTIVAR_REFERENCE_IMAGE_ASSET_QUERY_CHUNK_SIZE = 400;
 
-type LegacyCultivarReferenceRow = Prisma.CultivarReferenceGetPayload<{
-  select: typeof legacyCultivarReferenceSelect;
-}>;
-
 type V2CultivarReferenceRow = Prisma.CultivarReferenceGetPayload<{
   select: typeof v2CultivarReferenceSelect;
 }>;
@@ -75,29 +57,6 @@ type RawCultivarReferenceBaseRow = {
   id: string;
   normalizedName: string | null;
   updatedAt: Date | string | number;
-};
-
-type RawLegacyCultivarReferenceRow = RawCultivarReferenceBaseRow & {
-  ahs_id: string | null;
-  ahs_name: string | null;
-  ahs_ahsImageUrl: string | null;
-  ahs_hybridizer: string | null;
-  ahs_year: string | null;
-  ahs_scapeHeight: string | null;
-  ahs_bloomSize: string | null;
-  ahs_bloomSeason: string | null;
-  ahs_ploidy: string | null;
-  ahs_foliageType: string | null;
-  ahs_bloomHabit: string | null;
-  ahs_color: string | null;
-  ahs_form: string | null;
-  ahs_parentage: string | null;
-  ahs_fragrance: string | null;
-  ahs_budcount: string | null;
-  ahs_branches: string | null;
-  ahs_sculpting: string | null;
-  ahs_foliage: string | null;
-  ahs_flower: string | null;
 };
 
 type RawV2CultivarReferenceRow = RawCultivarReferenceBaseRow & {
@@ -137,17 +96,6 @@ function chunkArray<T>(values: readonly T[], size: number) {
   return chunks;
 }
 
-function mapLegacyCultivarReferenceRow(
-  row: LegacyCultivarReferenceRow,
-): Omit<DashboardCultivarReference, "cultivarReferenceImage"> {
-  return {
-    id: row.id,
-    normalizedName: row.normalizedName,
-    updatedAt: row.updatedAt,
-    ahsListing: row.ahsListing ?? null,
-  };
-}
-
 function mapV2CultivarReferenceRow(
   row: V2CultivarReferenceRow,
 ): Omit<DashboardCultivarReference, "cultivarReferenceImage"> {
@@ -157,43 +105,7 @@ function mapV2CultivarReferenceRow(
     updatedAt: row.updatedAt,
     ahsListing: row.v2AhsCultivar
       ? mapV2AhsCultivarToDisplayAhsListing(row.v2AhsCultivar)
-      : (row.ahsListing ?? null),
-  };
-}
-
-function mapRawLegacyCultivarReferenceRow(
-  row: RawLegacyCultivarReferenceRow,
-): Omit<DashboardCultivarReference, "cultivarReferenceImage"> {
-  const ahsListing = row.ahs_id
-    ? {
-        id: row.ahs_id,
-        name: row.ahs_name,
-        ahsImageUrl: row.ahs_ahsImageUrl,
-        hybridizer: row.ahs_hybridizer,
-        year: row.ahs_year,
-        scapeHeight: row.ahs_scapeHeight,
-        bloomSize: row.ahs_bloomSize,
-        bloomSeason: row.ahs_bloomSeason,
-        ploidy: row.ahs_ploidy,
-        foliageType: row.ahs_foliageType,
-        bloomHabit: row.ahs_bloomHabit,
-        color: row.ahs_color,
-        form: row.ahs_form,
-        parentage: row.ahs_parentage,
-        fragrance: row.ahs_fragrance,
-        budcount: row.ahs_budcount,
-        branches: row.ahs_branches,
-        sculpting: row.ahs_sculpting,
-        foliage: row.ahs_foliage,
-        flower: row.ahs_flower,
-      }
-    : null;
-
-  return {
-    id: row.id,
-    normalizedName: row.normalizedName,
-    updatedAt: toDate(row.updatedAt),
-    ahsListing,
+      : null,
   };
 }
 
@@ -241,78 +153,40 @@ async function getCultivarReferencesByIdsRaw(
 ): Promise<DashboardCultivarReference[]> {
   if (!ids.length) return [];
 
-  if (isV2CultivarDisplayDataEnabled()) {
-    const rows = await db.$queryRaw<RawV2CultivarReferenceRow[]>(Prisma.sql`
-      SELECT
-        cr."id",
-        cr."normalizedName",
-        cr."updatedAt",
-        v2."id" AS "v2_id",
-        v2."post_title" AS "v2_post_title",
-        v2."introduction_date" AS "v2_introduction_date",
-        v2."primary_hybridizer_name" AS "v2_primary_hybridizer_name",
-        v2."hybridizer_code_legacy" AS "v2_hybridizer_code_legacy",
-        v2."additional_hybridizers_names" AS "v2_additional_hybridizers_names",
-        v2."bloom_season_names" AS "v2_bloom_season_names",
-        v2."fragrance_names" AS "v2_fragrance_names",
-        v2."bloom_habit_names" AS "v2_bloom_habit_names",
-        v2."foliage_names" AS "v2_foliage_names",
-        v2."ploidy_names" AS "v2_ploidy_names",
-        v2."scape_height_in" AS "v2_scape_height_in",
-        v2."bloom_size_in" AS "v2_bloom_size_in",
-        v2."bud_count" AS "v2_bud_count",
-        v2."branches" AS "v2_branches",
-        v2."color" AS "v2_color",
-        v2."flower_form_names" AS "v2_flower_form_names",
-        v2."unusual_forms_names" AS "v2_unusual_forms_names",
-        v2."parentage" AS "v2_parentage",
-        v2."image_url" AS "v2_image_url"
-      FROM "CultivarReference" cr
-      LEFT JOIN "V2AhsCultivar" v2 ON v2."id" = cr."v2AhsCultivarId"
-      WHERE cr."id" IN (${Prisma.join(ids)})
-      ORDER BY cr."id"
-    `);
-
-    return addCultivarReferenceImages(
-      db,
-      rows.map(mapRawV2CultivarReferenceRow),
-    );
-  }
-
-  const rows = await db.$queryRaw<RawLegacyCultivarReferenceRow[]>(Prisma.sql`
+  const rows = await db.$queryRaw<RawV2CultivarReferenceRow[]>(Prisma.sql`
     SELECT
       cr."id",
       cr."normalizedName",
       cr."updatedAt",
-      ahs."id" AS "ahs_id",
-      ahs."name" AS "ahs_name",
-      ahs."ahsImageUrl" AS "ahs_ahsImageUrl",
-      ahs."hybridizer" AS "ahs_hybridizer",
-      ahs."year" AS "ahs_year",
-      ahs."scapeHeight" AS "ahs_scapeHeight",
-      ahs."bloomSize" AS "ahs_bloomSize",
-      ahs."bloomSeason" AS "ahs_bloomSeason",
-      ahs."ploidy" AS "ahs_ploidy",
-      ahs."foliageType" AS "ahs_foliageType",
-      ahs."bloomHabit" AS "ahs_bloomHabit",
-      ahs."color" AS "ahs_color",
-      ahs."form" AS "ahs_form",
-      ahs."parentage" AS "ahs_parentage",
-      ahs."fragrance" AS "ahs_fragrance",
-      ahs."budcount" AS "ahs_budcount",
-      ahs."branches" AS "ahs_branches",
-      ahs."sculpting" AS "ahs_sculpting",
-      ahs."foliage" AS "ahs_foliage",
-      ahs."flower" AS "ahs_flower"
+      v2."id" AS "v2_id",
+      v2."post_title" AS "v2_post_title",
+      v2."introduction_date" AS "v2_introduction_date",
+      v2."primary_hybridizer_name" AS "v2_primary_hybridizer_name",
+      v2."hybridizer_code_legacy" AS "v2_hybridizer_code_legacy",
+      v2."additional_hybridizers_names" AS "v2_additional_hybridizers_names",
+      v2."bloom_season_names" AS "v2_bloom_season_names",
+      v2."fragrance_names" AS "v2_fragrance_names",
+      v2."bloom_habit_names" AS "v2_bloom_habit_names",
+      v2."foliage_names" AS "v2_foliage_names",
+      v2."ploidy_names" AS "v2_ploidy_names",
+      v2."scape_height_in" AS "v2_scape_height_in",
+      v2."bloom_size_in" AS "v2_bloom_size_in",
+      v2."bud_count" AS "v2_bud_count",
+      v2."branches" AS "v2_branches",
+      v2."color" AS "v2_color",
+      v2."flower_form_names" AS "v2_flower_form_names",
+      v2."unusual_forms_names" AS "v2_unusual_forms_names",
+      v2."parentage" AS "v2_parentage",
+      v2."image_url" AS "v2_image_url"
     FROM "CultivarReference" cr
-    LEFT JOIN "AhsListing" ahs ON ahs."id" = cr."ahsId"
+    LEFT JOIN "V2AhsCultivar" v2 ON v2."id" = cr."v2AhsCultivarId"
     WHERE cr."id" IN (${Prisma.join(ids)})
     ORDER BY cr."id"
   `);
 
   return addCultivarReferenceImages(
     db,
-    rows.map(mapRawLegacyCultivarReferenceRow),
+    rows.map(mapRawV2CultivarReferenceRow),
   );
 }
 
@@ -410,74 +284,33 @@ async function getCultivarReferencesForUserListings(
     ? Prisma.sql`LIMIT ${options.limit}`
     : Prisma.empty;
 
-  if (isV2CultivarDisplayDataEnabled()) {
-    const rows = await db.$queryRaw<RawV2CultivarReferenceRow[]>(Prisma.sql`
-      SELECT
-        cr."id",
-        cr."normalizedName",
-        cr."updatedAt",
-        v2."id" AS "v2_id",
-        v2."post_title" AS "v2_post_title",
-        v2."introduction_date" AS "v2_introduction_date",
-        v2."primary_hybridizer_name" AS "v2_primary_hybridizer_name",
-        v2."hybridizer_code_legacy" AS "v2_hybridizer_code_legacy",
-        v2."additional_hybridizers_names" AS "v2_additional_hybridizers_names",
-        v2."bloom_season_names" AS "v2_bloom_season_names",
-        v2."fragrance_names" AS "v2_fragrance_names",
-        v2."bloom_habit_names" AS "v2_bloom_habit_names",
-        v2."foliage_names" AS "v2_foliage_names",
-        v2."ploidy_names" AS "v2_ploidy_names",
-        v2."scape_height_in" AS "v2_scape_height_in",
-        v2."bloom_size_in" AS "v2_bloom_size_in",
-        v2."bud_count" AS "v2_bud_count",
-        v2."branches" AS "v2_branches",
-        v2."color" AS "v2_color",
-        v2."flower_form_names" AS "v2_flower_form_names",
-        v2."unusual_forms_names" AS "v2_unusual_forms_names",
-        v2."parentage" AS "v2_parentage",
-        v2."image_url" AS "v2_image_url"
-      FROM "CultivarReference" cr
-      LEFT JOIN "V2AhsCultivar" v2 ON v2."id" = cr."v2AhsCultivarId"
-      WHERE ${ownerWhere}
-        ${sinceWhere}
-        ${cursorWhere}
-      ORDER BY cr."id" ${orderDirection}
-      ${limitClause}
-    `);
-
-    return addCultivarReferenceImages(
-      db,
-      rows.map(mapRawV2CultivarReferenceRow),
-    );
-  }
-
-  const rows = await db.$queryRaw<RawLegacyCultivarReferenceRow[]>(Prisma.sql`
+  const rows = await db.$queryRaw<RawV2CultivarReferenceRow[]>(Prisma.sql`
     SELECT
       cr."id",
       cr."normalizedName",
       cr."updatedAt",
-      ahs."id" AS "ahs_id",
-      ahs."name" AS "ahs_name",
-      ahs."ahsImageUrl" AS "ahs_ahsImageUrl",
-      ahs."hybridizer" AS "ahs_hybridizer",
-      ahs."year" AS "ahs_year",
-      ahs."scapeHeight" AS "ahs_scapeHeight",
-      ahs."bloomSize" AS "ahs_bloomSize",
-      ahs."bloomSeason" AS "ahs_bloomSeason",
-      ahs."ploidy" AS "ahs_ploidy",
-      ahs."foliageType" AS "ahs_foliageType",
-      ahs."bloomHabit" AS "ahs_bloomHabit",
-      ahs."color" AS "ahs_color",
-      ahs."form" AS "ahs_form",
-      ahs."parentage" AS "ahs_parentage",
-      ahs."fragrance" AS "ahs_fragrance",
-      ahs."budcount" AS "ahs_budcount",
-      ahs."branches" AS "ahs_branches",
-      ahs."sculpting" AS "ahs_sculpting",
-      ahs."foliage" AS "ahs_foliage",
-      ahs."flower" AS "ahs_flower"
+      v2."id" AS "v2_id",
+      v2."post_title" AS "v2_post_title",
+      v2."introduction_date" AS "v2_introduction_date",
+      v2."primary_hybridizer_name" AS "v2_primary_hybridizer_name",
+      v2."hybridizer_code_legacy" AS "v2_hybridizer_code_legacy",
+      v2."additional_hybridizers_names" AS "v2_additional_hybridizers_names",
+      v2."bloom_season_names" AS "v2_bloom_season_names",
+      v2."fragrance_names" AS "v2_fragrance_names",
+      v2."bloom_habit_names" AS "v2_bloom_habit_names",
+      v2."foliage_names" AS "v2_foliage_names",
+      v2."ploidy_names" AS "v2_ploidy_names",
+      v2."scape_height_in" AS "v2_scape_height_in",
+      v2."bloom_size_in" AS "v2_bloom_size_in",
+      v2."bud_count" AS "v2_bud_count",
+      v2."branches" AS "v2_branches",
+      v2."color" AS "v2_color",
+      v2."flower_form_names" AS "v2_flower_form_names",
+      v2."unusual_forms_names" AS "v2_unusual_forms_names",
+      v2."parentage" AS "v2_parentage",
+      v2."image_url" AS "v2_image_url"
     FROM "CultivarReference" cr
-    LEFT JOIN "AhsListing" ahs ON ahs."id" = cr."ahsId"
+    LEFT JOIN "V2AhsCultivar" v2 ON v2."id" = cr."v2AhsCultivarId"
     WHERE ${ownerWhere}
       ${sinceWhere}
       ${cursorWhere}
@@ -487,7 +320,7 @@ async function getCultivarReferencesForUserListings(
 
   return addCultivarReferenceImages(
     db,
-    rows.map(mapRawLegacyCultivarReferenceRow),
+    rows.map(mapRawV2CultivarReferenceRow),
   );
 }
 
@@ -528,26 +361,14 @@ export const dashboardDbCultivarReferenceRouter = createTRPCRouter({
     .input(z.object({ ids: z.array(z.string().trim().min(1)).min(1).max(200) }))
     .query(async ({ ctx, input }) => {
       const unique = Array.from(new Set(input.ids));
-      if (isV2CultivarDisplayDataEnabled()) {
-        const rows = await ctx.db.cultivarReference.findMany({
-          where: { id: { in: unique } },
-          select: v2CultivarReferenceSelect,
-        });
-
-        return addCultivarReferenceImages(
-          ctx.db,
-          rows.map(mapV2CultivarReferenceRow),
-        );
-      }
-
       const rows = await ctx.db.cultivarReference.findMany({
         where: { id: { in: unique } },
-        select: legacyCultivarReferenceSelect,
+        select: v2CultivarReferenceSelect,
       });
 
       return addCultivarReferenceImages(
         ctx.db,
-        rows.map(mapLegacyCultivarReferenceRow),
+        rows.map(mapV2CultivarReferenceRow),
       );
     }),
 

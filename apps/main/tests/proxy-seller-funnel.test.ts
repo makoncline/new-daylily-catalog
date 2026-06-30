@@ -112,6 +112,42 @@ describe("seller funnel proxy protection", () => {
     expect(response).toBe(clerkRedirect);
   });
 
+  it("uses forwarded host headers for protected document redirect URLs", async () => {
+    const clerkRedirect = NextResponse.redirect(
+      "https://accounts.daylilycatalog.com/sign-in",
+    );
+
+    redirectToSignInMock.mockReturnValueOnce(clerkRedirect);
+    authMock.mockResolvedValueOnce({
+      isAuthenticated: false,
+      redirectToSignIn: redirectToSignInMock,
+    });
+
+    const request = new NextRequest(
+      "http://0.0.0.0:3000/dashboard/listings",
+      {
+        headers: {
+          accept: "text/html",
+          "sec-fetch-dest": "document",
+          "x-forwarded-host": "dev.daylilycatalog.com",
+          "x-forwarded-proto": "https",
+        },
+      },
+    );
+    const middlewareEvent = {} as Parameters<NextMiddleware>[1];
+
+    const response = await proxy(request, middlewareEvent);
+
+    expect(authMock).toHaveBeenCalledTimes(1);
+    expect(redirectToSignInMock).toHaveBeenCalledWith({
+      returnBackUrl: new URL(
+        "/dashboard/listings",
+        "https://dev.daylilycatalog.com",
+      ),
+    });
+    expect(response).toBe(clerkRedirect);
+  });
+
   it("returns 404 without redirect for unauthenticated dashboard RSC requests", async () => {
     authMock.mockResolvedValueOnce({
       isAuthenticated: false,

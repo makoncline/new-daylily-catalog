@@ -61,10 +61,12 @@ const protectedRouteProxy = clerkMiddleware(async (auth, req) => {
   }
 
   if (isDocumentNavigation(req)) {
+    const requestBaseUrl = getRequestBaseUrl(req) ?? req.nextUrl.origin;
+
     return redirectToSignIn({
       returnBackUrl: new URL(
         `${req.nextUrl.pathname}${req.nextUrl.search}`,
-        req.url,
+        requestBaseUrl,
       ),
     });
   }

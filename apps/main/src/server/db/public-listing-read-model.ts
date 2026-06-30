@@ -2,7 +2,6 @@ import { Prisma } from "@prisma/client";
 import { TRPCError } from "@trpc/server";
 import { PUBLIC_PROFILE_LISTINGS_PAGE_SIZE, STATUS } from "@/config/constants";
 import {
-  ahsDisplayAhsListingSelect,
   withResolvedDisplayAhsListing,
   v2AhsCultivarDisplaySelect,
 } from "@/lib/utils/ahs-display";
@@ -57,9 +56,6 @@ export const publicListingSelect = {
     select: {
       id: true,
       normalizedName: true,
-      ahsListing: {
-        select: ahsDisplayAhsListingSelect,
-      },
       v2AhsCultivar: {
         select: v2AhsCultivarDisplaySelect,
       },
