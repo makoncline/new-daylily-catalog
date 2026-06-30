@@ -1,3 +1,4 @@
+import { PublicFooter } from "@/components/public-footer";
 import { PublicNav } from "@/components/public-nav";
 
 export default function OnboardingLayout({
@@ -10,7 +11,8 @@ export default function OnboardingLayout({
       <header className="flex h-16 items-center border-b px-4">
         <PublicNav />
       </header>
-      <main className="flex-1">{children}</main>
+      <main className="bg-muted/20 flex-1">{children}</main>
+      <PublicFooter />
     </div>
   );
 }

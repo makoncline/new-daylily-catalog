@@ -18,10 +18,7 @@ export function OnboardingStatusPage({
   title,
 }: OnboardingStatusPageProps) {
   return (
-    <div
-      className="bg-muted/20 min-h-[calc(100svh-4rem)]"
-      data-testid={testId}
-    >
+    <div className="bg-muted/20" data-testid={testId}>
       <section className="mx-auto w-full max-w-6xl px-4 py-14 sm:py-20 lg:px-8 lg:py-24">
         <div className="max-w-2xl space-y-7">
           <div className="space-y-4">
