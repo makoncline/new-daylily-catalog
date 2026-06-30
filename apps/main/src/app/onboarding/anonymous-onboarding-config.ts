@@ -84,6 +84,10 @@ export const DEFAULT_PROFILE_DESCRIPTION_PLACEHOLDER =
 export const DEFAULT_LISTING_DESCRIPTION_PLACEHOLDER =
   "Healthy dormant fan with strong roots, clearly labeled, and ready for spring shipping or local pickup.";
 
+export function getListingTitlePlaceholder(cultivarName: string) {
+  return `${cultivarName} Spring Fan`;
+}
+
 export const ANONYMOUS_ONBOARDING_STEPS: {
   id: AnonymousOnboardingStepId;
   title: string;
@@ -158,10 +162,12 @@ export function getListingPreview(
     exampleCultivars.find(
       (cultivar) => cultivar.key === draft.listingPreview.cultivarKey,
     ) ?? exampleCultivars[0]!;
+  const titlePlaceholder = getListingTitlePlaceholder(selectedCultivar.name);
 
   return {
     selectedCultivar,
-    title: draft.listingPreview.title.trim() || selectedCultivar.name,
+    title: draft.listingPreview.title.trim() || titlePlaceholder,
+    titlePlaceholder,
     description:
       draft.listingPreview.description.trim() ||
       DEFAULT_LISTING_DESCRIPTION_PLACEHOLDER,

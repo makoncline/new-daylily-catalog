@@ -45,15 +45,20 @@ export const DEFAULT_ANONYMOUS_ONBOARDING_PROFILE: AnonymousOnboardingProfileDra
     profileImageSource: null,
   };
 
+const DEFAULT_ANONYMOUS_ONBOARDING_CULTIVAR_KEY = "cr-v2-ahs-77248";
+
 export const DEFAULT_ANONYMOUS_ONBOARDING_LISTING: AnonymousOnboardingListingPreviewDraft =
   {
-    cultivarKey: "coffee-frenzy",
-    title: "Coffee Frenzy Spring Fan",
+    cultivarKey: DEFAULT_ANONYMOUS_ONBOARDING_CULTIVAR_KEY,
+    title: "",
     price: 25,
     description:
       "Healthy dormant fan with strong roots, clearly labeled, and ready for spring shipping or local pickup.",
     imageDataUrl: null,
   };
+
+const LEGACY_DEFAULT_CULTIVAR_KEY = "coffee-frenzy";
+const LEGACY_GENERATED_LISTING_TITLE = "Coffee Frenzy Spring Fan";
 
 function nowIso() {
   return new Date().toISOString();
@@ -111,6 +116,20 @@ function readNullablePrice(value: unknown) {
     : null;
 }
 
+function readListingTitle(value: unknown) {
+  const title = readString(value);
+  return title === LEGACY_GENERATED_LISTING_TITLE ? "" : title;
+}
+
+function readListingCultivarKey(value: unknown) {
+  const cultivarKey = readString(value);
+  if (!cultivarKey || cultivarKey === LEGACY_DEFAULT_CULTIVAR_KEY) {
+    return DEFAULT_ANONYMOUS_ONBOARDING_LISTING.cultivarKey;
+  }
+
+  return cultivarKey;
+}
+
 function readStep(value: unknown): AnonymousOnboardingStepId {
   switch (value) {
     case "email":
@@ -161,12 +180,8 @@ export function parseAnonymousOnboardingDraft(
       profileImageSource: readProfileImageSource(profile?.profileImageSource),
     },
     listingPreview: {
-      cultivarKey:
-        readString(listingPreview?.cultivarKey) ||
-        DEFAULT_ANONYMOUS_ONBOARDING_LISTING.cultivarKey,
-      title:
-        readString(listingPreview?.title) ||
-        DEFAULT_ANONYMOUS_ONBOARDING_LISTING.title,
+      cultivarKey: readListingCultivarKey(listingPreview?.cultivarKey),
+      title: readListingTitle(listingPreview?.title),
       price: readNullablePrice(listingPreview?.price),
       description:
         readString(listingPreview?.description) ||

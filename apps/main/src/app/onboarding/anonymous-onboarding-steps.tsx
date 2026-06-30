@@ -646,10 +646,6 @@ export function ListingStep({
                       listingPreview: {
                         ...currentDraft.listingPreview,
                         cultivarKey: cultivar.key,
-                        title:
-                          currentDraft.listingPreview.title.trim().length > 0
-                            ? currentDraft.listingPreview.title
-                            : `${cultivar.name} Spring Fan`,
                       },
                     }))
                   }
@@ -667,6 +663,7 @@ export function ListingStep({
             id="anonymous-listing-title"
             data-testid="anonymous-listing-title"
             value={draft.listingPreview.title}
+            placeholder={listingPreview.titlePlaceholder}
             onChange={(event) =>
               updateListingPreviewDraft(setDraft, {
                 title: event.target.value,

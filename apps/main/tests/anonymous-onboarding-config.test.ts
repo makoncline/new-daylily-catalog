@@ -163,4 +163,50 @@ describe("anonymous onboarding config", () => {
       null,
     );
   });
+
+  it("derives the listing title placeholder from the selected cultivar", () => {
+    const examples = [
+      {
+        key: "cr-first",
+        name: "First Bloom",
+        hybridizerYear: "First Hybridizer, 2021",
+        imageUrl: "https://example.com/first.jpg",
+      },
+      {
+        key: "cr-second",
+        name: "Second Bloom",
+        hybridizerYear: "Second Hybridizer, 2020",
+        imageUrl: "https://example.com/second.jpg",
+      },
+    ];
+    const blankTitleDraft = createAnonymousOnboardingDraft({
+      listingPreview: {
+        cultivarKey: "cr-second",
+        title: "",
+        price: 25,
+        description: "",
+        imageDataUrl: null,
+      },
+    });
+
+    expect(getListingPreview(blankTitleDraft, examples)).toMatchObject({
+      title: "Second Bloom Spring Fan",
+      titlePlaceholder: "Second Bloom Spring Fan",
+    });
+
+    const typedTitleDraft = createAnonymousOnboardingDraft({
+      listingPreview: {
+        cultivarKey: "cr-second",
+        title: "My own listing title",
+        price: 25,
+        description: "",
+        imageDataUrl: null,
+      },
+    });
+
+    expect(getListingPreview(typedTitleDraft, examples)).toMatchObject({
+      title: "My own listing title",
+      titlePlaceholder: "Second Bloom Spring Fan",
+    });
+  });
 });
