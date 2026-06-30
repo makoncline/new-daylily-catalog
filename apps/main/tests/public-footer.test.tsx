@@ -40,7 +40,7 @@ vi.mock("next/link", () => ({
 }));
 
 describe("PublicFooter", () => {
-  it("includes a subtle feedback link", () => {
+  it("renders a feedback-only bar by default", () => {
     render(<PublicFooter />);
 
     const feedbackLink = screen.getByRole("link", { name: "Feedback" });
@@ -49,5 +49,23 @@ describe("PublicFooter", () => {
       "https://coda.io/form/Ideas-Bugs_dWgu2I2WTqJ?board-slug=daylily-catalog",
     );
     expect(feedbackLink).toHaveClass("text-xs");
+    expect(
+      screen.queryByText("Browse daylily catalogs created by growers."),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("link", { name: "Create your catalog" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("can include the existing marketing footer when requested", () => {
+    render(<PublicFooter showMarketing />);
+
+    expect(
+      screen.getByText("Browse daylily catalogs created by growers."),
+    ).toBeVisible();
+    expect(
+      screen.getByRole("link", { name: "Create your catalog" }),
+    ).toBeVisible();
+    expect(screen.getByRole("link", { name: "Feedback" })).toBeVisible();
   });
 });

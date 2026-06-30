@@ -23,7 +23,7 @@ export default async function PublicLayout({
       <main id="main-content" className="w-full flex-1 overflow-hidden">
         {children}
       </main>
-      <PublicFooter />
+      <PublicFooter showMarketing />
     </div>
   );
 }
