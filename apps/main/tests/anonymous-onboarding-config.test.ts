@@ -3,6 +3,7 @@ import { buildOnboardingExampleCultivars } from "@/app/onboarding/anonymous-onbo
 import {
   ONBOARDING_EXAMPLE_CULTIVAR_REFERENCE_IDS,
   getListingPreview,
+  getProfilePreview,
 } from "@/app/onboarding/anonymous-onboarding-config";
 import { createAnonymousOnboardingDraft } from "@/app/onboarding/anonymous-onboarding-draft";
 
@@ -92,5 +93,11 @@ describe("anonymous onboarding config", () => {
     expect(() =>
       getListingPreview(createAnonymousOnboardingDraft(), []),
     ).toThrow("Onboarding example cultivars are not configured.");
+  });
+
+  it("does not add a fallback image to an empty profile preview", () => {
+    expect(getProfilePreview(createAnonymousOnboardingDraft()).imageUrl).toBe(
+      null,
+    );
   });
 });

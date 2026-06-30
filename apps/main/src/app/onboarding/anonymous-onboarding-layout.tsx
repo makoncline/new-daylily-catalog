@@ -74,6 +74,7 @@ export function AnonymousOnboardingPageClient(
             }
             setApplyStarterNameOverlay={controller.setApplyStarterNameOverlay}
             setDraft={controller.setDraft}
+            setImageError={controller.setImageError}
             setProfileImageInputMode={controller.setProfileImageInputMode}
             updateProfileGardenName={controller.updateProfileGardenName}
             updateProfileImage={controller.updateProfileImage}
