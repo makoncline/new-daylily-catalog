@@ -1,11 +1,12 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { auth } from "@clerk/nextjs/server";
-import { ArrowRight, CheckCircle2 } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { getMembershipPriceDisplay } from "@/server/stripe/get-membership-price-display";
 import { getOnboardingExampleCultivars } from "./anonymous-onboarding-example-cultivars";
 import { AnonymousOnboardingPageClient } from "./anonymous-onboarding-layout";
+import { OnboardingStatusPage } from "./onboarding-status-page";
 
 export const dynamic = "force-dynamic";
 
@@ -41,35 +42,23 @@ export default async function OnboardingPage() {
 
 function SignedInOnboardingMessage() {
   return (
-    <div className="bg-muted/20 min-h-svh">
-      <div className="mx-auto flex min-h-svh w-full max-w-3xl items-center px-4 py-10">
-        <div className="bg-card w-full space-y-6 rounded-lg border p-8 shadow-sm">
-          <div className="space-y-3">
-            <div className="bg-primary/10 text-primary flex size-10 items-center justify-center rounded-full">
-              <CheckCircle2 className="size-5" />
-            </div>
-            <h1 className="text-3xl font-semibold tracking-tight">
-              You are already signed in.
-            </h1>
-            <p className="text-muted-foreground leading-relaxed">
-              This setup is for new growers before they create an account. Your
-              account is ready to manage from the dashboard.
-            </p>
-          </div>
-
-          <div className="flex flex-col gap-3 sm:flex-row">
-            <Button asChild size="lg">
-              <Link href="/dashboard">
-                Go to dashboard
-                <ArrowRight className="size-4" />
-              </Link>
-            </Button>
-            <Button asChild size="lg" variant="outline">
-              <Link href="/">Return home</Link>
-            </Button>
-          </div>
-        </div>
-      </div>
-    </div>
+    <OnboardingStatusPage
+      eyebrow="Signed in"
+      title="You are already signed in."
+      description="This setup is for new growers before they create an account. Your account is ready to manage from the dashboard."
+      actions={
+        <>
+          <Button asChild size="lg">
+            <Link href="/dashboard">
+              Go to dashboard
+              <ArrowRight className="size-4" />
+            </Link>
+          </Button>
+          <Button asChild size="lg" variant="outline">
+            <Link href="/">Return home</Link>
+          </Button>
+        </>
+      }
+    />
   );
 }
