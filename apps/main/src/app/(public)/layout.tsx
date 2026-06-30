@@ -4,6 +4,7 @@ import { SellerIntentLink } from "@/components/seller-intent-link";
 import { getCanonicalBaseUrl } from "@/lib/utils/getBaseUrl";
 import Link from "next/link";
 import { Flower2 } from "lucide-react";
+import { PublicFeedbackLink } from "@/components/public-feedback-link";
 export const metadata: Metadata = {
   metadataBase: new URL(getCanonicalBaseUrl()),
 };
@@ -55,6 +56,9 @@ export default async function PublicLayout({
             >
               Create your catalog
             </SellerIntentLink>
+            <PublicFeedbackLink className="inline-flex h-10 items-center border border-[#d8dfd2] bg-white px-4 text-[#142118] transition-colors hover:border-[#173126] hover:bg-[#173126] hover:text-white">
+              Feedback
+            </PublicFeedbackLink>
           </div>
         </div>
       </footer>
