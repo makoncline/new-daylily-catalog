@@ -14,6 +14,7 @@ export interface AnonymousOnboardingProfileDraft {
   location: string;
   description: string;
   profileImageDataUrl: string | null;
+  profileImageSource: "starter" | "upload" | null;
 }
 
 export interface AnonymousOnboardingListingPreviewDraft {
@@ -41,6 +42,7 @@ export const DEFAULT_ANONYMOUS_ONBOARDING_PROFILE: AnonymousOnboardingProfileDra
     location: "",
     description: "",
     profileImageDataUrl: null,
+    profileImageSource: null,
   };
 
 export const DEFAULT_ANONYMOUS_ONBOARDING_LISTING: AnonymousOnboardingListingPreviewDraft =
@@ -99,6 +101,10 @@ function readNullableString(value: unknown) {
   return typeof value === "string" && value.length > 0 ? value : null;
 }
 
+function readProfileImageSource(value: unknown) {
+  return value === "starter" || value === "upload" ? value : null;
+}
+
 function readNullablePrice(value: unknown) {
   return typeof value === "number" && Number.isFinite(value) && value >= 0
     ? value
@@ -152,6 +158,7 @@ export function parseAnonymousOnboardingDraft(
       location: readString(profile?.location),
       description: readString(profile?.description),
       profileImageDataUrl: readNullableString(profile?.profileImageDataUrl),
+      profileImageSource: readProfileImageSource(profile?.profileImageSource),
     },
     listingPreview: {
       cultivarKey:

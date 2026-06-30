@@ -75,8 +75,6 @@ export const STARTER_PROFILE_IMAGES: StarterProfileImage[] = [
   },
 ];
 
-export const PROFILE_PLACEHOLDER_IMAGE =
-  "/assets/onboarding-generated/profile-placeholder.png";
 export const LISTING_FALLBACK_IMAGE =
   "/assets/onboarding-generated/listing-fallback.png";
 export const DEFAULT_GARDEN_NAME_PLACEHOLDER = "Your Garden Name";
@@ -144,7 +142,7 @@ export function getProfilePreview(draft: AnonymousOnboardingDraft) {
     description:
       draft.profile.description.trim() ||
       DEFAULT_PROFILE_DESCRIPTION_PLACEHOLDER,
-    imageUrl: draft.profile.profileImageDataUrl ?? PROFILE_PLACEHOLDER_IMAGE,
+    imageUrl: draft.profile.profileImageDataUrl,
   };
 }
 

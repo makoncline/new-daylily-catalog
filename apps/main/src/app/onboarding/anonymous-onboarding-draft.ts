@@ -115,7 +115,7 @@ function loadImageElement(url: string) {
   });
 }
 
-function fileToDataUrl(file: File) {
+function blobToDataUrl(blob: Blob) {
   return new Promise<string>((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => {
@@ -126,7 +126,7 @@ function fileToDataUrl(file: File) {
       reject(new Error("Unable to read selected image."));
     };
     reader.onerror = () => reject(new Error("Unable to read selected image."));
-    reader.readAsDataURL(file);
+    reader.readAsDataURL(blob);
   });
 }
 
@@ -398,8 +398,8 @@ export async function createOnboardingProfileImageFromStarter({
   return dataUrl;
 }
 
-export async function compressOnboardingImageFile(file: File) {
-  const originalDataUrl = await fileToDataUrl(file);
+export async function compressOnboardingImageBlob(blob: Blob) {
+  const originalDataUrl = await blobToDataUrl(blob);
   const image = await loadImageFromDataUrl(originalDataUrl);
   const canvas = document.createElement("canvas");
   const size = 640;
@@ -433,4 +433,8 @@ export async function compressOnboardingImageFile(file: File) {
   }
 
   return compressedDataUrl;
+}
+
+export async function compressOnboardingImageFile(file: File) {
+  return compressOnboardingImageBlob(file);
 }

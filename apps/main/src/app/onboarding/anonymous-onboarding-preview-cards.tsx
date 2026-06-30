@@ -5,10 +5,7 @@ import { Link2, MapPin, ShoppingCart } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { formatPrice } from "@/lib/utils";
-import {
-  LISTING_FALLBACK_IMAGE,
-  PROFILE_PLACEHOLDER_IMAGE,
-} from "./anonymous-onboarding-config";
+import { LISTING_FALLBACK_IMAGE } from "./anonymous-onboarding-config";
 
 export function ProfilePreviewCard({
   title,
@@ -19,23 +16,27 @@ export function ProfilePreviewCard({
 }: {
   title: string;
   description: string;
-  imageUrl: string;
+  imageUrl: string | null;
   location: string;
   ownershipBadge: string;
 }) {
-  const previewImageSrc = imageUrl.trim() || PROFILE_PLACEHOLDER_IMAGE;
+  const trimmedImageUrl = imageUrl?.trim() ?? "";
+  const previewImageSrc =
+    trimmedImageUrl.length > 0 ? trimmedImageUrl : null;
 
   return (
     <div className="bg-card border-primary w-full max-w-sm overflow-hidden rounded-2xl border shadow-[0_0_0_2px_rgba(24,24,27,0.08)]">
-      <div className="relative aspect-square border-b">
-        <Image
-          src={previewImageSrc}
-          alt={title}
-          fill
-          sizes="(min-width: 1024px) 384px, 100vw"
-          className="object-cover"
-          unoptimized
-        />
+      <div className="bg-muted relative aspect-square border-b">
+        {previewImageSrc ? (
+          <Image
+            src={previewImageSrc}
+            alt={title}
+            fill
+            sizes="(min-width: 1024px) 384px, 100vw"
+            className="object-cover"
+            unoptimized
+          />
+        ) : null}
         <Badge className="absolute top-3 left-3" variant="secondary">
           {ownershipBadge}
         </Badge>

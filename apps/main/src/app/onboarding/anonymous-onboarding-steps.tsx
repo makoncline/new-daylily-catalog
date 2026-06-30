@@ -2,6 +2,8 @@
 
 import { SignInButton } from "@clerk/nextjs";
 import Image from "next/image";
+import { useCallback, useState } from "react";
+import { type FileRejection, useDropzone } from "react-dropzone";
 import {
   ArrowRight,
   CheckCircle2,
@@ -9,6 +11,7 @@ import {
   Mail,
   Pencil,
 } from "lucide-react";
+import { ImageCropper } from "@/components/image-cropper";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
@@ -66,6 +69,21 @@ function parseListingPriceInput(value: string) {
   return value.trim().length === 0 || !Number.isFinite(parsedValue)
     ? null
     : Math.max(0, parsedValue);
+}
+
+function readFileAsDataUrl(file: File) {
+  return new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result === "string") {
+        resolve(reader.result);
+        return;
+      }
+      reject(new Error("Unable to read selected image."));
+    };
+    reader.onerror = () => reject(new Error("Unable to read selected image."));
+    reader.readAsDataURL(file);
+  });
 }
 
 type EmailStepProps = Pick<
@@ -160,10 +178,130 @@ type ProfileStepProps = Pick<
   | "selectedStarterProfileImageUrl"
   | "setApplyStarterNameOverlay"
   | "setDraft"
+  | "setImageError"
   | "setProfileImageInputMode"
   | "updateProfileGardenName"
   | "updateProfileImage"
 >;
+
+function ProfileImageInlinePreview({
+  imageUrl,
+  title,
+}: {
+  imageUrl: string | null;
+  title: string;
+}) {
+  const trimmedImageUrl = imageUrl?.trim() ?? "";
+  const previewImageSrc =
+    trimmedImageUrl.length > 0 ? trimmedImageUrl : null;
+
+  return (
+    <div
+      className="bg-muted relative aspect-square w-full overflow-hidden rounded-lg border"
+      data-testid="anonymous-profile-image-inline-preview"
+      aria-label={
+        previewImageSrc ? "Selected profile image preview" : "No profile image"
+      }
+    >
+      {previewImageSrc ? (
+        <Image
+          src={previewImageSrc}
+          alt={title}
+          fill
+          sizes="(max-width: 640px) 100vw, 192px"
+          className="object-cover"
+          unoptimized
+        />
+      ) : null}
+    </div>
+  );
+}
+
+function ProfileImageUploadCropper({
+  setImageError,
+  updateProfileImage,
+}: {
+  setImageError: AnonymousOnboardingController["setImageError"];
+  updateProfileImage: AnonymousOnboardingController["updateProfileImage"];
+}) {
+  const [cropImageUrl, setCropImageUrl] = useState<string | null>(null);
+
+  const resetCropper = useCallback(() => {
+    setCropImageUrl(null);
+  }, []);
+
+  const onDrop = useCallback(
+    (acceptedFiles: File[]) => {
+      const file = acceptedFiles[0];
+      if (!file) {
+        return;
+      }
+
+      setImageError(null);
+      void readFileAsDataUrl(file)
+        .then(setCropImageUrl)
+        .catch((error: unknown) => {
+          setImageError(error instanceof Error ? error.message : String(error));
+        });
+    },
+    [setImageError],
+  );
+
+  const onDropRejected = useCallback(
+    (rejections: FileRejection[]) => {
+      const message =
+        rejections[0]?.errors[0]?.message ?? "Choose an image file.";
+      setImageError(message);
+    },
+    [setImageError],
+  );
+
+  const { getRootProps, getInputProps, isDragActive } = useDropzone({
+    accept: {
+      "image/*": [],
+    },
+    multiple: false,
+    onDrop,
+    onDropRejected,
+  });
+
+  if (cropImageUrl) {
+    return (
+      <ImageCropper
+        src={cropImageUrl}
+        confirmButtonLabel="Use cropped image"
+        onCancel={resetCropper}
+        onCropComplete={(blob) => {
+          void updateProfileImage(blob).then(resetCropper);
+        }}
+      />
+    );
+  }
+
+  return (
+    <div
+      {...getRootProps()}
+      className={cn(
+        "cursor-pointer rounded-lg border-2 border-dashed p-5 text-center text-sm transition",
+        isDragActive ? "border-primary" : "border-muted",
+      )}
+      data-testid="anonymous-profile-image-dropzone"
+    >
+      <input
+        {...getInputProps({
+          id: "anonymous-profile-image",
+          "data-testid": "anonymous-profile-image",
+          "aria-label": "Upload profile image",
+        })}
+      />
+      <p className="font-medium">
+        {isDragActive
+          ? "Drop the image here"
+          : "Drag and drop an image here, or click to select one"}
+      </p>
+    </div>
+  );
+}
 
 export function ProfileStep({
   applyStarterNameOverlay,
@@ -177,6 +315,7 @@ export function ProfileStep({
   selectedStarterProfileImageUrl,
   setApplyStarterNameOverlay,
   setDraft,
+  setImageError,
   setProfileImageInputMode,
   updateProfileGardenName,
   updateProfileImage,
@@ -207,7 +346,10 @@ export function ProfileStep({
           />
         </div>
 
-        <div className="space-y-4 rounded-lg border p-4">
+        <div
+          className="space-y-4 rounded-lg border p-4"
+          data-testid="anonymous-profile-image-section"
+        >
           <div className="space-y-1">
             <Label>Profile image</Label>
             <p className="text-muted-foreground text-xs leading-relaxed">
@@ -215,132 +357,137 @@ export function ProfileStep({
             </p>
           </div>
 
-          <div className="grid gap-2 sm:grid-cols-2">
-            <Button
-              type="button"
-              variant={
-                profileImageInputMode === "starter" ? "default" : "outline"
-              }
-              onClick={() => setProfileImageInputMode("starter")}
-              data-testid="anonymous-profile-image-mode-starter"
-            >
-              Use a starter image
-            </Button>
-            <Button
-              type="button"
-              variant={
-                profileImageInputMode === "upload" ? "default" : "outline"
-              }
-              onClick={() => setProfileImageInputMode("upload")}
-              data-testid="anonymous-profile-image-mode-upload"
-            >
-              Upload your own image
-            </Button>
-          </div>
+          <div className="grid gap-4 sm:grid-cols-[12rem_minmax(0,1fr)]">
+            <ProfileImageInlinePreview
+              imageUrl={draft.profile.profileImageDataUrl}
+              title={profilePreview.title}
+            />
 
-          {profileImageInputMode === "starter" ? (
-            <div className="space-y-3">
-              <div className="flex items-start gap-3 rounded-lg border border-dashed p-3">
-                <Checkbox
-                  id="anonymous-starter-overlay"
-                  checked={applyStarterNameOverlay}
-                  onCheckedChange={(value) =>
-                    setApplyStarterNameOverlay(value === true)
+            <div className="space-y-4">
+              <div className="grid gap-2 sm:grid-cols-2">
+                <Button
+                  type="button"
+                  variant={
+                    profileImageInputMode === "starter" ? "default" : "outline"
                   }
-                />
-                <div className="space-y-1 text-sm">
-                  <Label
-                    htmlFor="anonymous-starter-overlay"
-                    className="cursor-pointer"
-                  >
-                    Stamp seller name onto starter image
-                  </Label>
-                  <p className="text-muted-foreground text-xs leading-relaxed">
-                    Good for a quick starter logo. You can replace it with an
-                    uploaded image at any time.
-                  </p>
-                </div>
+                  onClick={() => setProfileImageInputMode("starter")}
+                  data-testid="anonymous-profile-image-mode-starter"
+                >
+                  Use a starter image
+                </Button>
+                <Button
+                  type="button"
+                  variant={
+                    profileImageInputMode === "upload" ? "default" : "outline"
+                  }
+                  onClick={() => setProfileImageInputMode("upload")}
+                  data-testid="anonymous-profile-image-mode-upload"
+                >
+                  Upload your own image
+                </Button>
               </div>
 
-              <div
-                data-testid="onboarding-starter-image-picker"
-                className="overflow-x-auto pb-2"
-              >
-                <div className="grid w-full auto-cols-[calc((100%-1rem)/2.5)] grid-flow-col gap-2 sm:auto-cols-[calc((100%-1.5rem)/3.5)] lg:auto-cols-[calc((100%-2rem)/4.5)]">
-                  {STARTER_PROFILE_IMAGES.map((image) => {
-                    const selected =
-                      selectedStarterProfileImageUrl === image.url;
-
-                    return (
-                      <button
-                        key={image.id}
-                        type="button"
-                        className="w-full text-left disabled:opacity-60"
-                        onClick={() => selectStarterProfileImage(image.url)}
-                        disabled={isGeneratingStarterProfileImage}
-                        aria-pressed={selected}
-                        data-testid={`onboarding-starter-image-${image.id}`}
+              {profileImageInputMode === "starter" ? (
+                <div className="space-y-3">
+                  <div className="flex items-start gap-3 rounded-lg border border-dashed p-3">
+                    <Checkbox
+                      id="anonymous-starter-overlay"
+                      checked={applyStarterNameOverlay}
+                      onCheckedChange={(value) =>
+                        setApplyStarterNameOverlay(value === true)
+                      }
+                    />
+                    <div className="space-y-1 text-sm">
+                      <Label
+                        htmlFor="anonymous-starter-overlay"
+                        className="cursor-pointer"
                       >
-                        <div
-                          className={cn(
-                            "relative aspect-square overflow-hidden rounded-md ring-1 transition",
-                            selected ? "ring-primary ring-2" : "ring-border/40",
-                          )}
-                        >
-                          <Image
-                            src={image.url}
-                            alt=""
-                            fill
-                            className="object-cover"
-                            sizes="(max-width: 640px) 40vw, 160px"
-                          />
-                        </div>
-                        <p className="mt-2 text-xs font-medium">
-                          {image.label}
-                        </p>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
+                        Stamp seller name onto starter image
+                      </Label>
+                      <p className="text-muted-foreground text-xs leading-relaxed">
+                        Good for a quick starter logo. You can replace it with
+                        an uploaded image at any time.
+                      </p>
+                    </div>
+                  </div>
 
-              {isGeneratingStarterProfileImage ? (
-                <p className="text-muted-foreground text-xs">
-                  Generating starter image with your garden name...
-                </p>
+                  <div
+                    data-testid="onboarding-starter-image-picker"
+                    className="overflow-x-auto pb-2"
+                  >
+                    <div className="grid w-full auto-cols-[calc((100%-1rem)/2.5)] grid-flow-col gap-2 sm:auto-cols-[calc((100%-1.5rem)/3.5)] lg:auto-cols-[calc((100%-2rem)/4.5)]">
+                      {STARTER_PROFILE_IMAGES.map((image) => {
+                        const selected =
+                          selectedStarterProfileImageUrl === image.url;
+
+                        return (
+                          <button
+                            key={image.id}
+                            type="button"
+                            className="w-full text-left disabled:opacity-60"
+                            onClick={() =>
+                              selectStarterProfileImage(image.url)
+                            }
+                            disabled={isGeneratingStarterProfileImage}
+                            aria-pressed={selected}
+                            data-testid={`onboarding-starter-image-${image.id}`}
+                          >
+                            <div
+                              className={cn(
+                                "relative aspect-square overflow-hidden rounded-md ring-1 transition",
+                                selected
+                                  ? "ring-primary ring-2"
+                                  : "ring-border/40",
+                              )}
+                            >
+                              <Image
+                                src={image.url}
+                                alt=""
+                                fill
+                                className="object-cover"
+                                sizes="(max-width: 640px) 40vw, 160px"
+                              />
+                            </div>
+                            <p className="mt-2 text-xs font-medium">
+                              {image.label}
+                            </p>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {isGeneratingStarterProfileImage ? (
+                    <p className="text-muted-foreground text-xs">
+                      Generating starter image with your garden name...
+                    </p>
+                  ) : null}
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <ProfileImageUploadCropper
+                    setImageError={setImageError}
+                    updateProfileImage={updateProfileImage}
+                  />
+                  {draft.profile.profileImageSource === "upload" &&
+                  draft.profile.profileImageDataUrl ? (
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={clearProfileImage}
+                    >
+                      Remove image
+                    </Button>
+                  ) : null}
+                </div>
+              )}
+
+              {imageError ? (
+                <p className="text-destructive text-sm">{imageError}</p>
               ) : null}
             </div>
-          ) : (
-            <div className="space-y-2">
-              <Label htmlFor="anonymous-profile-image" className="sr-only">
-                Upload profile image
-              </Label>
-              <Input
-                id="anonymous-profile-image"
-                data-testid="anonymous-profile-image"
-                type="file"
-                accept="image/png,image/jpeg,image/webp"
-                onChange={(event) => {
-                  void updateProfileImage(event.target.files?.[0]);
-                  event.currentTarget.value = "";
-                }}
-              />
-            </div>
-          )}
-
-          {draft.profile.profileImageDataUrl ? (
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              onClick={clearProfileImage}
-            >
-              Remove image
-            </Button>
-          ) : null}
-          {imageError ? (
-            <p className="text-destructive text-sm">{imageError}</p>
-          ) : null}
+          </div>
         </div>
 
         <div className="space-y-2 rounded-lg border p-4">

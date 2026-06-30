@@ -23,6 +23,7 @@ describe("anonymous onboarding draft storage", () => {
         location: "Denver, CO",
         description: "Example description",
         profileImageDataUrl: null,
+        profileImageSource: null,
       },
     });
 
@@ -37,6 +38,7 @@ describe("anonymous onboarding draft storage", () => {
         gardenName: "Example Garden",
         location: "Denver, CO",
         description: "Example description",
+        profileImageSource: null,
       },
     });
   });
