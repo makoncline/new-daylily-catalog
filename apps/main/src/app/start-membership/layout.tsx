@@ -1,4 +1,5 @@
 import { PublicHeader } from "@/components/public-nav";
+import { PublicFooter } from "@/components/public-footer";
 
 export default function StartMembershipLayout({
   children,
@@ -9,6 +10,7 @@ export default function StartMembershipLayout({
     <div className="flex min-h-svh flex-col">
       <PublicHeader />
       <main className="flex-1">{children}</main>
+      <PublicFooter />
     </div>
   );
 }
