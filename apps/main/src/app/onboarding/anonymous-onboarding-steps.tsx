@@ -413,7 +413,7 @@ export function ProfileStep({
 
                   <div
                     data-testid="onboarding-starter-image-picker"
-                    className="overflow-x-auto pb-2"
+                    className="overflow-x-auto p-1"
                   >
                     <div className="grid w-full auto-cols-[calc((100%-1rem)/2.5)] grid-flow-col gap-2 sm:auto-cols-[calc((100%-1.5rem)/3.5)] lg:auto-cols-[calc((100%-2rem)/4.5)]">
                       {STARTER_PROFILE_IMAGES.map((image) => {
