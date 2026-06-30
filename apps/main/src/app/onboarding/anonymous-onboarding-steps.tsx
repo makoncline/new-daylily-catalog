@@ -530,7 +530,7 @@ export function ProfileStep({
                       variant="outline"
                       onClick={clearProfileImage}
                     >
-                      Remove image
+                      Reset
                     </Button>
                   ) : null}
                 </div>
@@ -733,7 +733,7 @@ export function ListingStep({
                     });
                   }}
                 >
-                  Remove image
+                  Reset
                 </Button>
               ) : null}
               {imageError ? (
