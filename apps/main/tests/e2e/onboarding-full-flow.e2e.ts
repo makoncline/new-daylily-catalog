@@ -127,6 +127,7 @@ test.describe("anonymous onboarding checkout flow @local", () => {
       await page
         .getByTestId("anonymous-listing-image")
         .setInputFiles(path.join(appRoot, LISTING_IMAGE_PATH));
+      await page.getByRole("button", { name: "Use cropped image" }).click();
       await expect
         .poll(async () => {
           const draft = await readBrowserDraft(page);

@@ -490,8 +490,8 @@ export function useAnonymousOnboardingController({
     setProfileImageInputMode,
     startCheckout,
     storageWarning,
-    updateListingImage: (file: File | undefined) =>
-      updateImageDraft(file, "listingImageDataUrl"),
+    updateListingImage: (image: Blob | File | undefined) =>
+      updateImageDraft(image, "listingImageDataUrl"),
     updateProfileGardenName,
     updateProfileImage: (image: Blob | File | undefined) => {
       if (image) {
