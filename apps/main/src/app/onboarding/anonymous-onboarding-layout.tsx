@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useEffect, useRef } from "react";
 import { ArrowRight, CheckCircle2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -27,6 +28,24 @@ export function AnonymousOnboardingPageClient(
 ) {
   const controller = useAnonymousOnboardingController(props);
   const { draft, storageWarning } = controller;
+  const stepContentRef = useRef<HTMLDivElement | null>(null);
+  const previousStepRef = useRef(draft.step);
+
+  useEffect(() => {
+    if (previousStepRef.current === draft.step) {
+      return;
+    }
+
+    previousStepRef.current = draft.step;
+    const frame = window.requestAnimationFrame(() => {
+      stepContentRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+    });
+
+    return () => window.cancelAnimationFrame(frame);
+  }, [draft.step]);
 
   return (
     <div
@@ -48,71 +67,77 @@ export function AnonymousOnboardingPageClient(
           </div>
         ) : null}
 
-        {draft.step === "email" ? (
-          <EmailStep
-            collectEmail={controller.collectEmail}
-            emailInput={controller.emailInput}
-            emailIsValid={controller.emailIsValid}
-            saveEmailAndContinue={controller.saveEmailAndContinue}
-            setEmailInput={controller.setEmailInput}
-          />
-        ) : null}
-        {draft.step === "profile" ? (
-          <ProfileStep
-            applyStarterNameOverlay={controller.applyStarterNameOverlay}
-            clearProfileImage={controller.clearProfileImage}
-            draft={controller.draft}
-            imageError={controller.imageError}
-            isGeneratingStarterProfileImage={
-              controller.isGeneratingStarterProfileImage
-            }
-            profileImageInputMode={controller.profileImageInputMode}
-            profilePreview={controller.profilePreview}
-            selectStarterProfileImage={controller.selectStarterProfileImage}
-            selectedStarterProfileImageUrl={
-              controller.selectedStarterProfileImageUrl
-            }
-            setApplyStarterNameOverlay={controller.setApplyStarterNameOverlay}
-            setDraft={controller.setDraft}
-            setImageError={controller.setImageError}
-            setProfileImageInputMode={controller.setProfileImageInputMode}
-            updateProfileGardenName={controller.updateProfileGardenName}
-            updateProfileImage={controller.updateProfileImage}
-          />
-        ) : null}
-        {draft.step === "listing" ? (
-          <ListingStep
-            draft={controller.draft}
-            exampleCultivars={controller.exampleCultivars}
-            imageError={controller.imageError}
-            listingPreview={controller.listingPreview}
-            setDraft={controller.setDraft}
-            setImageError={controller.setImageError}
-            updateListingImage={controller.updateListingImage}
-          />
-        ) : null}
-        {draft.step === "preview" ? (
-          <PreviewStep
-            draft={controller.draft}
-            goToStep={controller.goToStep}
-            listingPreview={controller.listingPreview}
-            profilePreview={controller.profilePreview}
-          />
-        ) : null}
-        {draft.step === "checkout" ? (
-          <CheckoutStep
-            createCheckout={controller.createCheckout}
-            draft={controller.draft}
-            emailInput={controller.emailInput}
-            emailIsValid={controller.emailIsValid}
-            isEditingCheckoutEmail={controller.isEditingCheckoutEmail}
-            membershipPriceDisplay={controller.membershipPriceDisplay}
-            saveEmailAndContinue={controller.saveEmailAndContinue}
-            setEmailInput={controller.setEmailInput}
-            setIsEditingCheckoutEmail={controller.setIsEditingCheckoutEmail}
-            startCheckout={controller.startCheckout}
-          />
-        ) : null}
+        <div
+          ref={stepContentRef}
+          className="scroll-mt-4 lg:scroll-mt-6"
+          data-testid="anonymous-onboarding-step-content"
+        >
+          {draft.step === "email" ? (
+            <EmailStep
+              collectEmail={controller.collectEmail}
+              emailInput={controller.emailInput}
+              emailIsValid={controller.emailIsValid}
+              saveEmailAndContinue={controller.saveEmailAndContinue}
+              setEmailInput={controller.setEmailInput}
+            />
+          ) : null}
+          {draft.step === "profile" ? (
+            <ProfileStep
+              applyStarterNameOverlay={controller.applyStarterNameOverlay}
+              clearProfileImage={controller.clearProfileImage}
+              draft={controller.draft}
+              imageError={controller.imageError}
+              isGeneratingStarterProfileImage={
+                controller.isGeneratingStarterProfileImage
+              }
+              profileImageInputMode={controller.profileImageInputMode}
+              profilePreview={controller.profilePreview}
+              selectStarterProfileImage={controller.selectStarterProfileImage}
+              selectedStarterProfileImageUrl={
+                controller.selectedStarterProfileImageUrl
+              }
+              setApplyStarterNameOverlay={controller.setApplyStarterNameOverlay}
+              setDraft={controller.setDraft}
+              setImageError={controller.setImageError}
+              setProfileImageInputMode={controller.setProfileImageInputMode}
+              updateProfileGardenName={controller.updateProfileGardenName}
+              updateProfileImage={controller.updateProfileImage}
+            />
+          ) : null}
+          {draft.step === "listing" ? (
+            <ListingStep
+              draft={controller.draft}
+              exampleCultivars={controller.exampleCultivars}
+              imageError={controller.imageError}
+              listingPreview={controller.listingPreview}
+              setDraft={controller.setDraft}
+              setImageError={controller.setImageError}
+              updateListingImage={controller.updateListingImage}
+            />
+          ) : null}
+          {draft.step === "preview" ? (
+            <PreviewStep
+              draft={controller.draft}
+              goToStep={controller.goToStep}
+              listingPreview={controller.listingPreview}
+              profilePreview={controller.profilePreview}
+            />
+          ) : null}
+          {draft.step === "checkout" ? (
+            <CheckoutStep
+              createCheckout={controller.createCheckout}
+              draft={controller.draft}
+              emailInput={controller.emailInput}
+              emailIsValid={controller.emailIsValid}
+              isEditingCheckoutEmail={controller.isEditingCheckoutEmail}
+              membershipPriceDisplay={controller.membershipPriceDisplay}
+              saveEmailAndContinue={controller.saveEmailAndContinue}
+              setEmailInput={controller.setEmailInput}
+              setIsEditingCheckoutEmail={controller.setIsEditingCheckoutEmail}
+              startCheckout={controller.startCheckout}
+            />
+          ) : null}
+        </div>
 
         {draft.step !== "email" && draft.step !== "checkout" ? (
           <AnonymousOnboardingFooter
