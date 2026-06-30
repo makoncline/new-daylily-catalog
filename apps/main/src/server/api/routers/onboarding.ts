@@ -24,7 +24,11 @@ export const onboardingRouter = createTRPCRouter({
   createCheckout: publicProcedure
     .input(checkoutInputSchema)
     .mutation(async ({ ctx, input }) => {
-      return createAnonymousOnboardingCheckout({ db: ctx.db, input });
+      return createAnonymousOnboardingCheckout({
+        db: ctx.db,
+        headers: ctx.headers,
+        input,
+      });
     }),
 
   getCheckoutStatus: publicProcedure
