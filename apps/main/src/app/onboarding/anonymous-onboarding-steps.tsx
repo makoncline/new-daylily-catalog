@@ -586,7 +586,8 @@ export function ListingStep({
                   key={cultivar.key}
                   type="button"
                   variant={selected ? "default" : "outline"}
-                  className="justify-start whitespace-normal"
+                  className="w-full justify-center overflow-hidden px-3"
+                  title={cultivar.name}
                   onClick={() =>
                     setDraft((currentDraft) => ({
                       ...currentDraft,
@@ -601,7 +602,7 @@ export function ListingStep({
                     }))
                   }
                 >
-                  {cultivar.name}
+                  <span className="max-w-full truncate">{cultivar.name}</span>
                 </Button>
               );
             })}
