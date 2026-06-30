@@ -2,12 +2,11 @@
 
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { Flower2, MessageCircle } from "lucide-react";
+import { Flower2 } from "lucide-react";
 import { Small } from "@/components/typography";
 import { DashboardButton } from "@/components/dashboard-button";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
-import { PublicFeedbackLink } from "@/components/public-feedback-link";
 
 type PublicNavTheme = "light" | "dark";
 
@@ -28,10 +27,6 @@ function getNavThemeClasses(theme: PublicNavTheme) {
       theme === "dark"
         ? "h-9 rounded-lg bg-white px-3 text-xs text-[#07120e] shadow-none hover:bg-[#f4c477] disabled:opacity-100"
         : "h-9 rounded-lg bg-[#173126] px-3 text-xs text-white shadow-none hover:bg-[#274835] disabled:opacity-100",
-    mobileFeedback:
-      theme === "dark"
-        ? "h-9 w-9 rounded-lg border border-white/25 bg-white/10 p-0 text-white shadow-none hover:bg-white hover:text-[#07120e]"
-        : "h-9 w-9 rounded-lg border border-[#c8d4c1] bg-white p-0 text-[#142118] shadow-none hover:bg-[#173126] hover:text-white",
   };
 }
 
@@ -128,17 +123,7 @@ export function PublicNav({ theme = "light" }: { theme?: PublicNavTheme }) {
         </Button>
       </div>
 
-      <div className="flex shrink-0 items-center gap-2 lg:hidden">
-        <Button
-          variant="outline"
-          asChild
-          size="sm"
-          className={classes.mobileFeedback}
-        >
-          <PublicFeedbackLink aria-label="Feedback">
-            <MessageCircle className="size-4" />
-          </PublicFeedbackLink>
-        </Button>
+      <div className="shrink-0 lg:hidden">
         <DashboardButton className={classes.mobileDashboard} />
       </div>
 
@@ -163,15 +148,6 @@ export function PublicNav({ theme = "light" }: { theme?: PublicNavTheme }) {
           className={cn("text-base", classes.link)}
         >
           <Link href="/start-membership">For growers</Link>
-        </Button>
-
-        <Button
-          variant="ghost"
-          asChild
-          size="sm"
-          className={cn("text-base", classes.link)}
-        >
-          <PublicFeedbackLink>Feedback</PublicFeedbackLink>
         </Button>
 
         <DashboardButton className={classes.dashboard} />
