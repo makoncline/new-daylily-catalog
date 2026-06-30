@@ -127,7 +127,7 @@ export const ANONYMOUS_ONBOARDING_STEPS: {
 
 export const ONBOARDING_EXAMPLE_CULTIVAR_REFERENCE_IDS = [
   "cr-v2-ahs-77248",
-  "cr-v2-ahs-23741",
+  "cr-v2-ahs-71522",
   "cr-v2-ahs-7847",
 ] as const;
 
