@@ -184,7 +184,7 @@ function CheckoutAuthShell({
 }) {
   return (
     <div
-      className="bg-muted/20 min-h-[calc(100svh-4rem)]"
+      className="bg-muted/20"
       data-testid="onboarding-checkout-success"
     >
       <div
