@@ -437,7 +437,7 @@ export function ProfileStep({
                               className={cn(
                                 "relative aspect-square overflow-hidden rounded-md ring-1 transition",
                                 selected
-                                  ? "ring-primary ring-2"
+                                  ? "ring-primary ring-4 ring-offset-2 ring-offset-background"
                                   : "ring-border/40",
                               )}
                             >
@@ -448,6 +448,11 @@ export function ProfileStep({
                                 className="object-cover"
                                 sizes="(max-width: 640px) 40vw, 160px"
                               />
+                              {selected ? (
+                                <span className="bg-primary text-primary-foreground absolute top-1.5 right-1.5 grid size-7 place-items-center rounded-full shadow-sm">
+                                  <CheckCircle2 className="size-4.5" />
+                                </span>
+                              ) : null}
                             </div>
                           </button>
                         );
