@@ -7,7 +7,10 @@ import { SUBSCRIPTION_CONFIG } from "@/config/subscription-config";
 import { env, requireEnv } from "@/env";
 import { MAX_ONBOARDING_IMAGE_DATA_URL_LENGTH } from "@/lib/onboarding/anonymous-onboarding-draft";
 import { captureServerPosthogEvent } from "@/server/analytics/posthog-server";
-import { getCanonicalBaseUrl } from "@/lib/utils/getBaseUrl";
+import {
+  getCanonicalBaseUrl,
+  getRequestBaseUrl,
+} from "@/lib/utils/getBaseUrl";
 import { getStripeClient } from "@/server/stripe/client";
 import { hasActiveSubscription } from "@/server/stripe/subscription-utils";
 import {
@@ -426,14 +429,43 @@ export async function collectAnonymousOnboardingEmailLead(
   return { ok: true };
 }
 
+function isLocalBaseUrl(value: string) {
+  try {
+    const { hostname } = new URL(value);
+    return (
+      hostname === "localhost" ||
+      hostname === "127.0.0.1" ||
+      hostname === "[::1]"
+    );
+  } catch {
+    return false;
+  }
+}
+
+function getAnonymousCheckoutBaseUrl(headers?: Headers | null) {
+  const canonicalBaseUrl = getCanonicalBaseUrl();
+  const requestBaseUrl = getRequestBaseUrl(headers);
+
+  if (
+    isLocalBaseUrl(canonicalBaseUrl) &&
+    isLocalBaseUrl(requestBaseUrl)
+  ) {
+    return requestBaseUrl;
+  }
+
+  return canonicalBaseUrl;
+}
+
 export async function createAnonymousOnboardingCheckout({
   db,
+  headers,
   input,
 }: {
   db: PrismaClient;
+  headers?: Headers | null;
   input: z.infer<typeof checkoutInputSchema>;
 }) {
-  const baseUrl = getCanonicalBaseUrl();
+  const baseUrl = getAnonymousCheckoutBaseUrl(headers);
 
   if (isLocalE2ECheckoutEnabled()) {
     const session = await createLocalE2ECheckoutSession({

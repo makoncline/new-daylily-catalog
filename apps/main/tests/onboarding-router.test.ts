@@ -22,6 +22,10 @@ const posthogMocks = vi.hoisted(() => ({
   captureServerPosthogEvent: vi.fn(),
 }));
 
+const baseUrlMocks = vi.hoisted(() => ({
+  canonicalBaseUrl: "https://daylilycatalog.test",
+}));
+
 vi.mock("@/server/analytics/posthog-server", () => ({
   captureServerPosthogEvent: posthogMocks.captureServerPosthogEvent,
 }));
@@ -41,7 +45,16 @@ vi.mock("@/server/stripe/client", () => ({
 }));
 
 vi.mock("@/lib/utils/getBaseUrl", () => ({
-  getCanonicalBaseUrl: () => "https://daylilycatalog.test",
+  getCanonicalBaseUrl: () => baseUrlMocks.canonicalBaseUrl,
+  getRequestBaseUrl: (headers?: Headers | null) => {
+    const host = headers?.get("x-forwarded-host") ?? headers?.get("host");
+    if (!host) {
+      return baseUrlMocks.canonicalBaseUrl;
+    }
+
+    const protocol = headers?.get("x-forwarded-proto") ?? "http";
+    return `${protocol}://${host}`;
+  },
 }));
 
 type OnboardingRouterModule = typeof import("@/server/api/routers/onboarding");
@@ -51,16 +64,17 @@ beforeAll(async () => {
   ({ onboardingRouter } = await import("@/server/api/routers/onboarding"));
 });
 
-function createPublicCaller(db: unknown) {
+function createPublicCaller(db: unknown, headers = new Headers()) {
   return onboardingRouter.createCaller({
     db: db as TRPCInternalContext["db"],
-    headers: new Headers(),
+    headers,
   });
 }
 
 describe("onboarding router", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    baseUrlMocks.canonicalBaseUrl = "https://daylilycatalog.test";
     delete process.env.PLAYWRIGHT_LOCAL_E2E;
 
     stripeMocks.checkoutCreate.mockResolvedValue({
@@ -126,6 +140,27 @@ describe("onboarding router", () => {
           email: "buyer@example.com",
         },
         client_reference_id: "draft-abc",
+      }),
+    );
+  });
+
+  it("uses the localhost request origin for checkout return URLs", async () => {
+    baseUrlMocks.canonicalBaseUrl = "http://localhost:3000";
+    const caller = createPublicCaller(
+      { user: {} },
+      new Headers({ host: "localhost:3007" }),
+    );
+
+    await caller.createCheckout({
+      draftId: "draft-localhost",
+      email: "buyer@example.com",
+    });
+
+    expect(stripeMocks.checkoutCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        success_url:
+          "http://localhost:3007/onboarding/checkout/success?session_id={CHECKOUT_SESSION_ID}",
+        cancel_url: "http://localhost:3007/onboarding",
       }),
     );
   });
