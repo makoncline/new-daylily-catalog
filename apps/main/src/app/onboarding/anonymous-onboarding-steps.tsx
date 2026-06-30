@@ -184,11 +184,17 @@ type ProfileStepProps = Pick<
   | "updateProfileImage"
 >;
 
-function ProfileImageInlinePreview({
+function OnboardingImageInlinePreview({
   imageUrl,
   title,
+  emptyLabel,
+  imageLabel,
+  testId,
 }: {
+  emptyLabel: string;
   imageUrl: string | null;
+  imageLabel: string;
+  testId: string;
   title: string;
 }) {
   const trimmedImageUrl = imageUrl?.trim() ?? "";
@@ -198,10 +204,8 @@ function ProfileImageInlinePreview({
   return (
     <div
       className="bg-muted relative aspect-square w-full overflow-hidden rounded-lg border"
-      data-testid="anonymous-profile-image-inline-preview"
-      aria-label={
-        previewImageSrc ? "Selected profile image preview" : "No profile image"
-      }
+      data-testid={testId}
+      aria-label={previewImageSrc ? imageLabel : emptyLabel}
     >
       {previewImageSrc ? (
         <Image
@@ -217,12 +221,56 @@ function ProfileImageInlinePreview({
   );
 }
 
-function ProfileImageUploadCropper({
-  setImageError,
-  updateProfileImage,
+function ProfileImageInlinePreview({
+  imageUrl,
+  title,
 }: {
+  imageUrl: string | null;
+  title: string;
+}) {
+  return (
+    <OnboardingImageInlinePreview
+      emptyLabel="No profile image"
+      imageLabel="Selected profile image preview"
+      imageUrl={imageUrl}
+      testId="anonymous-profile-image-inline-preview"
+      title={title}
+    />
+  );
+}
+
+function ListingImageInlinePreview({
+  imageUrl,
+  title,
+}: {
+  imageUrl: string | null;
+  title: string;
+}) {
+  return (
+    <OnboardingImageInlinePreview
+      emptyLabel="No listing image"
+      imageLabel="Selected listing image preview"
+      imageUrl={imageUrl}
+      testId="anonymous-listing-image-inline-preview"
+      title={title}
+    />
+  );
+}
+
+function OnboardingImageUploadCropper({
+  dropzoneTestId,
+  inputId,
+  inputLabel,
+  inputTestId,
+  setImageError,
+  updateImage,
+}: {
+  dropzoneTestId: string;
+  inputId: string;
+  inputLabel: string;
+  inputTestId: string;
   setImageError: AnonymousOnboardingController["setImageError"];
-  updateProfileImage: AnonymousOnboardingController["updateProfileImage"];
+  updateImage: (image: Blob | File | undefined) => Promise<void> | void;
 }) {
   const [cropImageUrl, setCropImageUrl] = useState<string | null>(null);
 
@@ -272,7 +320,7 @@ function ProfileImageUploadCropper({
         confirmButtonLabel="Use cropped image"
         onCancel={resetCropper}
         onCropComplete={(blob) => {
-          void updateProfileImage(blob).then(resetCropper);
+          void Promise.resolve(updateImage(blob)).then(resetCropper);
         }}
       />
     );
@@ -285,13 +333,13 @@ function ProfileImageUploadCropper({
         "cursor-pointer rounded-lg border-2 border-dashed p-5 text-center text-sm transition",
         isDragActive ? "border-primary" : "border-muted",
       )}
-      data-testid="anonymous-profile-image-dropzone"
+      data-testid={dropzoneTestId}
     >
       <input
         {...getInputProps({
-          id: "anonymous-profile-image",
-          "data-testid": "anonymous-profile-image",
-          "aria-label": "Upload profile image",
+          id: inputId,
+          "data-testid": inputTestId,
+          "aria-label": inputLabel,
         })}
       />
       <p className="font-medium">
@@ -466,9 +514,13 @@ export function ProfileStep({
                 </div>
               ) : (
                 <div className="space-y-3">
-                  <ProfileImageUploadCropper
+                  <OnboardingImageUploadCropper
+                    dropzoneTestId="anonymous-profile-image-dropzone"
+                    inputId="anonymous-profile-image"
+                    inputLabel="Upload profile image"
+                    inputTestId="anonymous-profile-image"
                     setImageError={setImageError}
-                    updateProfileImage={updateProfileImage}
+                    updateImage={updateProfileImage}
                   />
                   {draft.profile.profileImageSource === "upload" &&
                   draft.profile.profileImageDataUrl ? (
@@ -653,38 +705,42 @@ export function ListingStep({
           />
         </div>
 
-        <div className="space-y-2 rounded-lg border p-4">
-          <Label htmlFor="anonymous-listing-image">
-            Listing image (optional)
-          </Label>
-          <Input
-            id="anonymous-listing-image"
-            data-testid="anonymous-listing-image"
-            type="file"
-            accept="image/png,image/jpeg,image/webp"
-            onChange={(event) => {
-              void updateListingImage(event.target.files?.[0]);
-              event.currentTarget.value = "";
-            }}
-          />
-          {draft.listingPreview.imageDataUrl ? (
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              onClick={() => {
-                setImageError(null);
-                updateListingPreviewDraft(setDraft, {
-                  imageDataUrl: null,
-                });
-              }}
-            >
-              Remove image
-            </Button>
-          ) : null}
-          {imageError ? (
-            <p className="text-destructive text-sm">{imageError}</p>
-          ) : null}
+        <div className="space-y-4 rounded-lg border p-4">
+          <Label>Listing image (optional)</Label>
+          <div className="grid gap-4 sm:grid-cols-[12rem_minmax(0,1fr)]">
+            <ListingImageInlinePreview
+              imageUrl={draft.listingPreview.imageDataUrl}
+              title={listingPreview.title}
+            />
+            <div className="space-y-3">
+              <OnboardingImageUploadCropper
+                dropzoneTestId="anonymous-listing-image-dropzone"
+                inputId="anonymous-listing-image"
+                inputLabel="Upload listing image"
+                inputTestId="anonymous-listing-image"
+                setImageError={setImageError}
+                updateImage={updateListingImage}
+              />
+              {draft.listingPreview.imageDataUrl ? (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={() => {
+                    setImageError(null);
+                    updateListingPreviewDraft(setDraft, {
+                      imageDataUrl: null,
+                    });
+                  }}
+                >
+                  Remove image
+                </Button>
+              ) : null}
+              {imageError ? (
+                <p className="text-destructive text-sm">{imageError}</p>
+              ) : null}
+            </div>
+          </div>
         </div>
       </div>
 
