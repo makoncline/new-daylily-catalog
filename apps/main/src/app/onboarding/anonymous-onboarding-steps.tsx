@@ -632,7 +632,7 @@ export function ListingStep({
           <div className="grid gap-2 sm:grid-cols-3">
             {exampleCultivars.map((cultivar: ExampleCultivar) => {
               const selected =
-                cultivar.key === draft.listingPreview.cultivarKey;
+                cultivar.key === listingPreview.selectedCultivar.key;
               return (
                 <Button
                   key={cultivar.key}
