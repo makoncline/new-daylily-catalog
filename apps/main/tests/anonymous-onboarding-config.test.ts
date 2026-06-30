@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 import { buildOnboardingExampleCultivars } from "@/app/onboarding/anonymous-onboarding-example-cultivar-builder";
 import {
   ONBOARDING_EXAMPLE_CULTIVAR_REFERENCE_IDS,
@@ -7,13 +7,24 @@ import {
 } from "@/app/onboarding/anonymous-onboarding-config";
 import { createAnonymousOnboardingDraft } from "@/app/onboarding/anonymous-onboarding-draft";
 
+const originalUseImageAssets = process.env.USE_IMAGE_ASSETS;
+
 describe("anonymous onboarding config", () => {
+  afterEach(() => {
+    if (originalUseImageAssets === undefined) {
+      delete process.env.USE_IMAGE_ASSETS;
+    } else {
+      process.env.USE_IMAGE_ASSETS = originalUseImageAssets;
+    }
+  });
+
   it("builds ordered example cultivars from cultivar reference ids", () => {
     const examples = buildOnboardingExampleCultivars(
       [
         {
           id: "cr-second",
           ahsListing: null,
+          imageAssets: [],
           v2AhsCultivar: {
             id: "v2-second",
             post_title: "Second Bloom",
@@ -40,6 +51,7 @@ describe("anonymous onboarding config", () => {
         {
           id: "cr-first",
           ahsListing: null,
+          imageAssets: [],
           v2AhsCultivar: {
             id: "v2-first",
             post_title: "First Bloom",
@@ -81,6 +93,57 @@ describe("anonymous onboarding config", () => {
         imageUrl: "https://example.com/second.jpg",
       },
     ]);
+  });
+
+  it("uses cultivar image asset URLs when image assets are enabled", () => {
+    process.env.USE_IMAGE_ASSETS = "true";
+
+    const examples = buildOnboardingExampleCultivars(
+      [
+        {
+          id: "cr-first",
+          ahsListing: null,
+          imageAssets: [
+            {
+              id: "asset-first",
+              legacyImageId: null,
+              status: "ready",
+              originalUrl: "https://example.com/generated-original.jpg",
+              displayUrl: "https://example.com/generated-display.jpg",
+              thumbUrl: null,
+              blurUrl: null,
+            },
+          ],
+          v2AhsCultivar: {
+            id: "v2-first",
+            post_title: "First Bloom",
+            introduction_date: "2021-01-01",
+            primary_hybridizer_name: "First Hybridizer",
+            hybridizer_code_legacy: null,
+            additional_hybridizers_names: null,
+            bloom_season_names: null,
+            fragrance_names: null,
+            bloom_habit_names: null,
+            foliage_names: null,
+            ploidy_names: null,
+            scape_height_in: null,
+            bloom_size_in: null,
+            bud_count: null,
+            branches: null,
+            color: null,
+            flower_form_names: null,
+            unusual_forms_names: null,
+            parentage: null,
+            image_url: "https://example.com/source.jpg",
+          },
+        },
+      ],
+      ["cr-first"],
+    );
+
+    expect(examples[0]?.imageUrl).toBe(
+      "https://example.com/generated-display.jpg",
+    );
   });
 
   it("requires configured example cultivars before building a listing preview", () => {
