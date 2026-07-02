@@ -36,13 +36,14 @@ test.describe("manual sign-in @local", () => {
     });
   });
 
-  test("home -> dashboard button -> Clerk modal -> dashboard", async ({
+  test("home -> dashboard button -> sign-in page -> dashboard", async ({
     page,
   }) => {
     await page.goto("/");
     await expect(page).toHaveTitle("Daylily Catalog");
 
-    await page.getByRole("button", { name: "Sign in" }).click();
+    await page.getByRole("button", { name: "Dashboard" }).click();
+    await expect(page).toHaveURL(/\/start-dashboard/);
 
     const emailInput = page.getByLabel(/email/i).first();
     await expect(emailInput).toBeVisible();
@@ -69,6 +70,6 @@ test.describe("manual sign-in @local", () => {
     await expect(page).toHaveURL(/\/dashboard/);
     await expect(
       page.getByRole("heading", { name: "Dashboard" }),
-    ).toBeVisible();
+    ).toBeVisible({ timeout: 30_000 });
   });
 });

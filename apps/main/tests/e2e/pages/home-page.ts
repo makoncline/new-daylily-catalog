@@ -7,7 +7,7 @@ export class HomePage {
 
   constructor(page: Page) {
     this.page = page;
-    this.dashboardButton = page.getByRole("button", { name: "Sign in" });
+    this.dashboardButton = page.getByRole("button", { name: "Dashboard" });
     this.heroHeading = page.getByRole("heading", { level: 1 });
   }
 
