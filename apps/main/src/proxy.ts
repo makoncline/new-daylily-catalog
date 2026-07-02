@@ -49,6 +49,22 @@ function isDocumentNavigation(req: NextRequest) {
   );
 }
 
+function isAppRouterRscRequest(req: NextRequest) {
+  return (
+    req.nextUrl.searchParams.has("_rsc") ||
+    req.headers.get("rsc") === "1" ||
+    req.headers.get("accept")?.includes("text/x-component") === true
+  );
+}
+
+function uncachedRscResponse() {
+  const response = NextResponse.next();
+
+  response.headers.set("Cache-Control", "no-store");
+
+  return response;
+}
+
 const protectedRouteProxy = clerkMiddleware(async (auth, req) => {
   if (!isProtectedRoute(req)) {
     return undefined;
@@ -111,6 +127,10 @@ export function proxy(req: NextRequest, event: NextFetchEvent) {
     return undefined;
   }
 
+  if (isAppRouterRscRequest(req) && !isProtectedRoute(req)) {
+    return uncachedRscResponse();
+  }
+
   return protectedRouteProxy(req, event);
 }
 
@@ -132,5 +152,24 @@ export const config = {
     "/sitemap.xml.gz",
     "/api",
     "/api/v1",
+    {
+      source: "/:path*",
+      has: [
+        {
+          type: "query",
+          key: "_rsc",
+        },
+      ],
+    },
+    {
+      source: "/:path*",
+      has: [
+        {
+          type: "header",
+          key: "rsc",
+          value: "1",
+        },
+      ],
+    },
   ],
 };

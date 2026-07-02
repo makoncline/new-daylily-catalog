@@ -300,4 +300,16 @@ describe("public surface cache safety", () => {
     expect(startDashboard).toContain("forceRedirectUrl={DASHBOARD_PATH}");
     expect(startDashboard).toContain("signUpForceRedirectUrl={ONBOARDING_PATH}");
   });
+
+  it("keeps public app-router RSC fetches out of long-lived public caches", () => {
+    const proxy = readSource("src/proxy.ts");
+
+    expect(proxy).toContain("isAppRouterRscRequest");
+    expect(proxy).toContain('req.nextUrl.searchParams.has("_rsc")');
+    expect(proxy).toContain('req.headers.get("rsc") === "1"');
+    expect(proxy).toContain('response.headers.set("Cache-Control", "no-store")');
+    expect(proxy).toContain("!isProtectedRoute(req)");
+    expect(proxy).toContain('key: "_rsc"');
+    expect(proxy).toContain('key: "rsc"');
+  });
 });
