@@ -4,9 +4,9 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Flower2 } from "lucide-react";
 import { Small } from "@/components/typography";
-import { DashboardButton } from "@/components/dashboard-button";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
+import { SUBSCRIPTION_CONFIG } from "@/config/subscription-config";
 
 type PublicNavTheme = "light" | "dark";
 
@@ -124,7 +124,11 @@ export function PublicNav({ theme = "light" }: { theme?: PublicNavTheme }) {
       </div>
 
       <div className="shrink-0 lg:hidden">
-        <DashboardButton className={classes.mobileDashboard} />
+        <form action={SUBSCRIPTION_CONFIG.DASHBOARD_SIGN_IN_PATH}>
+          <Button className={classes.mobileDashboard} size="sm" type="submit">
+            Dashboard
+          </Button>
+        </form>
       </div>
 
       <div className="hidden items-center gap-4 lg:ml-auto lg:flex">
@@ -150,7 +154,11 @@ export function PublicNav({ theme = "light" }: { theme?: PublicNavTheme }) {
           <Link href="/start-membership">For growers</Link>
         </Button>
 
-        <DashboardButton className={classes.dashboard} />
+        <form action={SUBSCRIPTION_CONFIG.DASHBOARD_SIGN_IN_PATH}>
+          <Button className={classes.dashboard} size="sm" type="submit">
+            Dashboard
+          </Button>
+        </form>
       </div>
     </nav>
   );

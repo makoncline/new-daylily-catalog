@@ -10,7 +10,7 @@ import {
   type ContactFormWithCartData,
   contactFormWithCartSchema,
 } from "@/types";
-import { api } from "@/trpc/react";
+import { api, TRPCReactProvider } from "@/trpc/react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -47,6 +47,14 @@ interface ContactFormProps {
 }
 
 export function ContactForm({ userId, onSubmitSuccess }: ContactFormProps) {
+  return (
+    <TRPCReactProvider>
+      <ContactFormContent userId={userId} onSubmitSuccess={onSubmitSuccess} />
+    </TRPCReactProvider>
+  );
+}
+
+function ContactFormContent({ userId, onSubmitSuccess }: ContactFormProps) {
   const { items, updateQuantity, removeItem, clearCart, total } =
     useCart(userId);
   const { customerInfo, updateCustomerInfo } = useCustomerInfo();

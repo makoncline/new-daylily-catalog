@@ -20,6 +20,7 @@ const persistedSWRConfig = vi.hoisted(() => ({
 }));
 
 vi.mock("@/trpc/react", () => ({
+  TRPCReactProvider: ({ children }: { children: React.ReactNode }) => children,
   api: {
     useUtils: () => ({
       public: {

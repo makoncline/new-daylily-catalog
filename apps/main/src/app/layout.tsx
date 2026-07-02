@@ -2,14 +2,7 @@ import "@/styles/globals.css";
 
 import { GeistSans } from "geist/font/sans";
 import { type Metadata } from "next";
-import { ClerkProvider } from "@clerk/nextjs";
-import { TRPCReactProvider } from "@/trpc/react";
 import { Toaster } from "@/components/ui/sonner";
-import { TooltipProvider } from "@radix-ui/react-tooltip";
-import { ClerkUserProfileDialog } from "@/components/clerk-user-profile-dialog";
-import { SpeedInsights } from "@vercel/speed-insights/next";
-import { AdminMenu } from "@/components/admin-menu";
-import { PosthogUserIdentification } from "@/components/posthog-user-identification";
 import { UnsupportedSafariNotice } from "@/components/unsupported-safari-notice";
 
 export const metadata: Metadata = {
@@ -21,22 +14,12 @@ export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <>
-      <ClerkProvider>
-        <TRPCReactProvider>
-          <html lang="en" className={`${GeistSans.variable}`}>
-            <body className="flex min-h-svh flex-col">
-              <UnsupportedSafariNotice />
-              <TooltipProvider>{children}</TooltipProvider>
-              <Toaster />
-              <ClerkUserProfileDialog />
-              <AdminMenu />
-              <PosthogUserIdentification />
-              <SpeedInsights />
-            </body>
-          </html>
-        </TRPCReactProvider>
-      </ClerkProvider>
-    </>
+    <html lang="en" className={`${GeistSans.variable}`}>
+      <body className="flex min-h-svh flex-col">
+        <UnsupportedSafariNotice />
+        {children}
+        <Toaster />
+      </body>
+    </html>
   );
 }

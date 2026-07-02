@@ -1,5 +1,6 @@
 import { type ReactNode } from "react";
 import { type Metadata } from "next";
+import { AuthProviders } from "@/components/auth-providers";
 
 export const metadata: Metadata = {
   robots: {
@@ -15,5 +16,5 @@ export const metadata: Metadata = {
 };
 
 export default function AuthErrorLayout({ children }: { children: ReactNode }) {
-  return children;
+  return <AuthProviders>{children}</AuthProviders>;
 }

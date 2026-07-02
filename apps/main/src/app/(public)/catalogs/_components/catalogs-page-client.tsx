@@ -1,6 +1,5 @@
 "use client";
 
-import { useAuth } from "@clerk/nextjs";
 import Link from "next/link";
 import { UserCard } from "@/components/user-card";
 import { type RouterOutputs } from "@/trpc/react";
@@ -39,7 +38,6 @@ export function CatalogsPageClient({
 }: {
   catalogs: RouterOutputs["public"]["getPublicProfiles"];
 }) {
-  const { userId } = useAuth();
   const table = useDataTable({
     data: catalogs,
     columns,
@@ -54,7 +52,6 @@ export function CatalogsPageClient({
       cta_id: "catalogs-create-catalog",
       cta_label: "Create your catalog",
       target_path: "/start-membership",
-      is_authenticated: Boolean(userId),
     });
   };
 
