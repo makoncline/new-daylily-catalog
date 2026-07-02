@@ -33,9 +33,6 @@
     "turbo": "^2.9.6"
   },
   "pnpm": {
-    "patchedDependencies": {
-      "next@16.2.6": "patches/next@16.2.6.patch"
-    },
     "overrides": {
       "@tanstack/query-core": "5.100.10",
       "@types/react": "19.2.14",
