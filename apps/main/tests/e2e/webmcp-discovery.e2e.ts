@@ -2,7 +2,7 @@ import { clerk } from "@clerk/testing/playwright";
 import { TEST_USER } from "../../src/lib/test-utils/e2e-users";
 import { test, expect } from "./fixtures/app-fixtures";
 
-test.describe("WebMCP discovery", () => {
+test.describe("WebMCP discovery @local", () => {
   test("registers dashboard tools for signed-in dashboard pages when the browser exposes WebMCP", async ({
     page,
   }) => {
