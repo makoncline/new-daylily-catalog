@@ -5,6 +5,13 @@ import { getRuntimeSentryEnabled } from "@/lib/observability-env";
 const isSentryEnabled = getRuntimeSentryEnabled();
 
 export async function register() {
+  if (process.env.NEXT_RUNTIME === "nodejs") {
+    const { startMemoryTelemetry } = await import(
+      "@/server/observability/memory-telemetry"
+    );
+    startMemoryTelemetry();
+  }
+
   if (!isSentryEnabled) {
     return;
   }
