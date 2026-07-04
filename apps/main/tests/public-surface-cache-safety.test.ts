@@ -293,8 +293,8 @@ describe("public surface cache safety", () => {
     expect(readSource("src/app/onboarding/layout.tsx")).toContain(
       "<AuthProviders>",
     );
-    expect(readSource("src/app/start-onboarding/layout.tsx")).toContain(
-      "<AuthProviders>",
+    expect(readSource("src/app/start-onboarding/page.tsx")).toContain(
+      "redirect(SUBSCRIPTION_CONFIG.NEW_USER_ONBOARDING_PATH)",
     );
     expect(readSource("src/app/start-membership/layout.tsx")).not.toContain(
       "AuthProviders",

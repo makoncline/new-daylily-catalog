@@ -1,7 +1,6 @@
 import type { Prisma } from "@prisma/client";
 import {
-  ahsDisplayAhsListingSelect,
-  getDisplayAhsListing,
+  type AhsDisplayListing,
   mapV2AhsCultivarToDisplayAhsListing,
   v2AhsCultivarDisplaySelect,
 } from "@/lib/utils/ahs-display";
@@ -14,10 +13,33 @@ import {
   orderedImageAssetUrlInclude,
 } from "@/server/services/image-asset-read-model";
 
+const onboardingAhsListingSelect = {
+  id: true,
+  name: true,
+  ahsImageUrl: true,
+  hybridizer: true,
+  year: true,
+  scapeHeight: true,
+  bloomSize: true,
+  bloomSeason: true,
+  ploidy: true,
+  foliageType: true,
+  bloomHabit: true,
+  color: true,
+  form: true,
+  parentage: true,
+  fragrance: true,
+  budcount: true,
+  branches: true,
+  sculpting: true,
+  foliage: true,
+  flower: true,
+} as const satisfies Prisma.AhsListingSelect;
+
 export const onboardingCultivarReferenceSelect = {
   id: true,
   ahsListing: {
-    select: ahsDisplayAhsListingSelect,
+    select: onboardingAhsListingSelect,
   },
   v2AhsCultivar: {
     select: v2AhsCultivarDisplaySelect,
@@ -31,12 +53,13 @@ export type OnboardingCultivarReferenceRow =
   }>;
 
 function getOnboardingDisplayAhsListing(row: OnboardingCultivarReferenceRow) {
+  const legacyAhsListing: AhsDisplayListing | null = row.ahsListing;
+
   return (
-    getDisplayAhsListing(row) ??
     (row.v2AhsCultivar
       ? mapV2AhsCultivarToDisplayAhsListing(row.v2AhsCultivar)
       : null) ??
-    row.ahsListing
+    legacyAhsListing
   );
 }
 

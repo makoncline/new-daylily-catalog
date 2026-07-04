@@ -10,7 +10,7 @@ const TEST_EMAIL_PREFIX = "newuser+clerk_test";
 const TEST_CODE = "424242";
 
 test.describe("new user journey @local", () => {
-  test("new user can sign up through grower onboarding", async ({
+  test("new user can sign up through dashboard button", async ({
     page,
     homePage,
     dashboardHome,
@@ -32,15 +32,8 @@ test.describe("new user journey @local", () => {
         await homePage.goto();
         await homePage.isReady();
 
-        // sign up through the grower entry path
-        await page
-          .getByRole("link", { name: "Create your catalog" })
-          .first()
-          .click();
-        await expect(page).toHaveURL(/\/start-membership/);
-        await startMembershipPage.isReady();
-        await startMembershipPage.startTrialButton.click();
-        await expect(page).toHaveURL(/\/sign-up/);
+        // sign up
+        await homePage.openDashboard();
         await clerkAuthModal.signUpWithEmail(testEmail, TEST_CODE);
 
         // Signed-in users get an explicit off-ramp instead of entering the
