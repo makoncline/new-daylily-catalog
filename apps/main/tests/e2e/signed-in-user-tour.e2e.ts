@@ -1,10 +1,9 @@
 import { test, expect } from "../../e2e/test-setup";
 import { withTempE2EDb } from "../../src/lib/test-utils/e2e-db";
 import {
-  TEST_USER,
   createAuthedUser,
 } from "../../src/lib/test-utils/e2e-users";
-import { clerk } from "@clerk/testing/playwright";
+import { signInTestUser } from "./utils/auth";
 
 test.describe("signed-in user tour @local", () => {
   let testListId: string;
@@ -47,8 +46,7 @@ test.describe("signed-in user tour @local", () => {
 
   test("visits all dashboard routes successfully", async ({ page }) => {
     // Sign in
-    await page.goto("/");
-    await clerk.signIn({ page, emailAddress: TEST_USER.email });
+    await signInTestUser(page);
 
     // Dashboard home
     await page.goto("/dashboard");

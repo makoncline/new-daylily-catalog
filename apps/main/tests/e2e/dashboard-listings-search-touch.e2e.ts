@@ -1,7 +1,6 @@
-import { clerk } from "@clerk/testing/playwright";
 import { withTempE2EDb } from "../../src/lib/test-utils/e2e-db";
-import { TEST_USER } from "../../src/lib/test-utils/e2e-users";
 import { test, expect } from "./fixtures/app-fixtures";
+import { signInTestUser } from "./utils/auth";
 import {
   seedListingsPageData,
   type ListingsPageSeedMeta,
@@ -26,8 +25,7 @@ test.describe("dashboard listings search touch interactions @local", () => {
     page,
     dashboardListings,
   }) => {
-    await page.goto("/");
-    await clerk.signIn({ page, emailAddress: TEST_USER.email });
+    await signInTestUser(page);
 
     await page.evaluate(() => {
       localStorage.removeItem("dashboard-listings-search-collapsed");

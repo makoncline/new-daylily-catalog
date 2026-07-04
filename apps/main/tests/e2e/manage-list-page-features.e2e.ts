@@ -1,7 +1,6 @@
-import { clerk } from "@clerk/testing/playwright";
 import { withTempE2EDb } from "../../src/lib/test-utils/e2e-db";
-import { TEST_USER } from "../../src/lib/test-utils/e2e-users";
 import { test, expect } from "./fixtures/app-fixtures";
+import { signInTestUser } from "./utils/auth";
 import {
   seedManageListPageData,
   type ManageListPageSeedMeta,
@@ -52,8 +51,7 @@ test.describe("manage list page features @local", () => {
     };
 
     // Phase 1: sign in and navigate to manage list page
-    await page.goto("/");
-    await clerk.signIn({ page, emailAddress: TEST_USER.email });
+    await signInTestUser(page);
     await page.evaluate(() => {
       localStorage.removeItem("table-state-list-listings-table:v1");
     });
