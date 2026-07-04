@@ -349,23 +349,33 @@ only after the image has been uploaded to R2 and a ready production `ImageAsset`
 row has been created.
 
 The generated cultivar backfill reads rows from the review DB where
-`status IN ('review', 'approved')` and `editedPath IS NOT NULL`. It uploads the
-edited image and variants to R2, then writes the production `ImageAsset`.
-
-With limited disk space, run the production import at low concurrency:
+`status IN ('review', 'approved')` and `editedPath IS NOT NULL`. The mature
+workflow is local-first:
 
 ```bash
-pnpm main env:prod node --input-type=module -e 'process.env.DATABASE_URL = process.env.TURSO_DATABASE_URL; process.env.IMAGE_ASSET_BACKFILL_CONCURRENCY = "1"; process.env.IMAGE_ASSET_BACKFILL_BATCH_SIZE = "50"; process.argv = [process.argv[0], "scripts/image-assets/backfill-generated-cultivar-images-to-r2.mjs", "--allow-remote-db", "--limit", "50"]; await import("./scripts/image-assets/backfill-generated-cultivar-images-to-r2.mjs");'
+cd apps/main
+
+set -a
+source ../../.env.production
+set +a
+
+DATABASE_URL=file:./prisma/local-prod-copy-daylily-catalog.db \
+IMAGE_ASSET_BACKFILL_CONCURRENCY=1 \
+  node scripts/image-assets/backfill-generated-cultivar-images-to-r2.mjs
 ```
 
 Notes:
 
-- `.env.production` may define `TURSO_DATABASE_URL` without `DATABASE_URL`; the
-  wrapper above maps it for the backfill script.
-- Keep `IMAGE_ASSET_BACKFILL_CONCURRENCY=1` when disk is almost full.
-- Record the exact `cultivarReferenceId` values printed as
-  `[backfilled-generated-cultivar]`.
-- Only delete local files for those exact imported ids.
+- The script uploads R2 objects and creates ready `ImageAsset` rows in the local
+  prod-copy database.
+- Export only those new local `ImageAsset` rows, inspect the SQL, then apply the
+  additive insert transaction to production Turso after approval.
+- A Turso checkpoint branch is optional for small additive-only `ImageAsset`
+  batches. Create one for larger batches, schema changes, updates/deletes,
+  manually edited SQL, or anything not trivially inspectable.
+- Record the exact `ImageAsset.id` and `cultivarReferenceId` values imported.
+- Only delete local files for those exact imported ids after production verify
+  and queue sync.
 
 After successful production import, either refresh the local prod-copy DB and
 run `sync.mjs`, or mark the exact imported ids as `imported` in
