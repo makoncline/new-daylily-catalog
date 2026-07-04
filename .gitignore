@@ -34,10 +34,7 @@ apps/*/prisma/local-dev-seeded.sqlite-wal
 apps/*/prisma/local-dev-seeded.sqlite-shm
 tests/.tmp/
 apps/*/tests/.tmp/
-apps/*/local/.env.production.build
-apps/*/local/compose.prod-like.override.yaml
-apps/*/local/cloudflared-prod-like.log
-apps/*/local/cloudflared-prod-like.pid
+apps/*/local/
 apps/*/prisma/prod-like-build-db
 .tmp/
 prisma/prisma/

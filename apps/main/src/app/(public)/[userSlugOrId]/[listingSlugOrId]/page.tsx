@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { cache } from "react";
 import { MainContent } from "@/app/(public)/_components/main-content";
-import { PublicBreadcrumbs } from "@/app/(public)/_components/public-breadcrumbs";
 import {
   buildNoIndexMetadata,
   buildPublicPageMetadata,
@@ -12,6 +11,7 @@ import {
   PublicListingPageViewTracker,
 } from "./_components/public-listing-page-actions";
 import { ListingDisplay } from "@/components/listing-display";
+import { ServerBreadcrumbs } from "@/components/server-breadcrumbs";
 import {
   createBreadcrumbListSchema,
   createUserProfileBreadcrumbs,
@@ -89,6 +89,8 @@ async function loadPublicListingPage(params: PageProps["params"]) {
   return loadPublicListingPageBySegments(userSlugOrId, listingSlugOrId);
 }
 
+type PublicListingPageData = Awaited<ReturnType<typeof loadPublicListingPage>>;
+
 function truncateDescription(value: string, maxLength = 155) {
   const trimmed = value.trim().replace(/\s+/g, " ");
 
@@ -99,9 +101,7 @@ function truncateDescription(value: string, maxLength = 155) {
   return `${trimmed.slice(0, maxLength - 3).trim()}...`;
 }
 
-function getListingDescription(
-  listing: Awaited<ReturnType<typeof loadPublicListingPage>>,
-) {
+function getListingDescription(listing: PublicListingPageData) {
   const trimmedDescription = listing.description?.trim();
   const buyerDescription =
     trimmedDescription && trimmedDescription.length > 0
@@ -116,9 +116,7 @@ function getListingDescription(
   return truncateDescription(parts.join(" "));
 }
 
-function getListingTitle(
-  listing: Awaited<ReturnType<typeof loadPublicListingPage>>,
-) {
+function getListingTitle(listing: PublicListingPageData) {
   const parts = [
     listing.title,
     listing.price ? formatPrice(listing.price) : null,
@@ -127,9 +125,7 @@ function getListingTitle(
   return `${parts.join(" - ")} | ${listing.sellerTitle ?? "Daylily Catalog"}`;
 }
 
-function getCanonicalListingPath(
-  listing: Awaited<ReturnType<typeof loadPublicListingPage>>,
-) {
+function getCanonicalListingPath(listing: PublicListingPageData) {
   return `/${listing.userSlug}/${listing.slug || listing.id}`;
 }
 
@@ -180,7 +176,7 @@ function createListingJsonLd({
   canonicalPath: string;
   description: string;
   imageUrl: string;
-  listing: Awaited<ReturnType<typeof loadPublicListingPage>>;
+  listing: PublicListingPageData;
   listingUrl: string;
 }) {
   const sellerName = listing.sellerTitle ?? "Daylily Catalog";
@@ -298,16 +294,17 @@ export default async function PublicListingPage({ params }: PageProps) {
         {listing.title} from {listing.sellerTitle ?? "Daylily Catalog"}
       </h1>
 
-      <div className="mb-6">
-        <PublicBreadcrumbs
-          profile={{
-            id: listing.userId,
-            title: listing.sellerTitle,
-            slug: listing.userSlug,
-          }}
-          listingTitle={listing.title}
-        />
-      </div>
+      <ServerBreadcrumbs
+        className="mb-6"
+        items={[
+          { title: "Catalogs", href: "/catalogs" },
+          {
+            title: listing.sellerTitle ?? "Untitled Catalog",
+            href: `/${listing.userSlug}`,
+          },
+          { title: listing.title },
+        ]}
+      />
 
       <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:justify-end">
         <PublicListingContactButton
