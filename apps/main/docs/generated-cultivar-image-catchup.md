@@ -159,6 +159,16 @@ Export only the new local `ImageAsset` rows, inspect the SQL, and apply to
 production Turso only after explicit approval. This should remain a separate
 review step from generation/upload.
 
+For small catch-up batches where the SQL is only additive `ImageAsset` inserts,
+a Turso checkpoint branch is optional. The rollback path is deleting those exact
+new `ImageAsset.id` rows from production; uploaded R2 objects can be left
+orphaned or cleaned later. Still create a checkpoint branch for larger batches,
+schema changes, updates/deletes, manually edited SQL, or any import that is not
+trivially inspectable.
+
+Always keep the exported SQL path and exact imported `ImageAsset.id` values in
+the terminal/log output.
+
 After a production import, refresh or mirror the local prod copy before running
 `sync.mjs`; queue bookkeeping is based on the local DB.
 
@@ -217,6 +227,18 @@ a cleanup manifest under:
   `source_invalid` rows remain.
 - Cleaned imported generated/candidate artifacts, deleting 78 files and
   reclaiming 167.1 MB. Source originals were intentionally left untouched.
+
+## Import Record: 2026-07-04
+
+- Created Turso checkpoint branch
+  `daylily-catalog-pre-imgcatch-20260704-0809`.
+- Imported 13 generated cultivar `ImageAsset` rows to production.
+- Verification passed: 13 asset ids present, 13 ready cultivar assets, zero
+  duplicate ready cultivar-reference rows, and no foreign-key violations.
+- Review queue was synced afterward: 8734 `imported` rows and 3 known
+  `source_invalid` rows remain.
+- After this run, checkpoint branches are considered optional for small,
+  additive-only generated cultivar image imports.
 
 ## Related V2 Data Refresh
 
