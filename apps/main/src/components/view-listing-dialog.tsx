@@ -7,7 +7,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { api } from "@/trpc/react";
+import { api, TRPCReactProvider, type RouterOutputs } from "@/trpc/react";
 import { useParams } from "next/navigation";
 import { ErrorBoundary } from "react-error-boundary";
 import { ErrorFallback } from "@/components/error-fallback";
@@ -17,7 +17,6 @@ import {
   ListingDisplaySkeleton,
 } from "@/components/listing-display";
 import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
-import { type RouterOutputs } from "@/trpc/react";
 import { withPublicClientQueryCache } from "@/lib/cache/client-cache";
 import { useListingDialogQueryState } from "@/hooks/use-listing-dialog-query-state";
 
@@ -28,6 +27,14 @@ interface ViewListingDialogProps {
 }
 
 export function ViewListingDialog({ listings }: ViewListingDialogProps) {
+  return (
+    <TRPCReactProvider>
+      <ViewListingDialogContent listings={listings} />
+    </TRPCReactProvider>
+  );
+}
+
+function ViewListingDialogContent({ listings }: ViewListingDialogProps) {
   const { viewingId, closeListing } = useListingDialogQueryState();
   const params = useParams<{ userSlugOrId: string }>();
   const isOpen = !!viewingId;

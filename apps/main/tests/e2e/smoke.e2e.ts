@@ -14,15 +14,14 @@ test.describe("guest user tour @preview", () => {
       /^Browse Daylily Catalogs(?: \| Daylily Catalog){0,2}$/,
     );
 
-    // Open first catalog from the grid
-    const firstCatalogLink = page
-      .locator("div.grid")
-      .first()
-      .locator("a[href^='/']")
-      .first();
-    await expect(firstCatalogLink).toBeVisible();
-    await firstCatalogLink.click();
-    await expect(page).toHaveURL(/\/[^/]+$/);
+    // Open the seeded public catalog. The preview smoke data is intentionally
+    // stable here, while catalog ordering can change as real catalogs publish.
+    const seededCatalogLink = page
+      .locator('a[href="/seeded-daylily"]')
+      .filter({ hasText: "Seeded Daylily Farm" });
+    await expect(seededCatalogLink).toBeVisible();
+    await seededCatalogLink.click();
+    await expect(page).toHaveURL(/\/seeded-daylily$/);
 
     // Open first listing card (opens dialog)
     const firstListingCard = page

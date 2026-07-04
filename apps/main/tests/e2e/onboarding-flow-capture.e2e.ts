@@ -238,6 +238,7 @@ test.describe("onboarding flow screenshot capture @capture", () => {
       .getByRole("button", { name: "Create your catalog" })
       .first()
       .click();
+    await expect(page).toHaveURL(/\/sign-up/);
     await clerkAuthModal.startSignUp();
 
     logCaptureStep("Submit signup email and verification code");

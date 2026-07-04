@@ -1,8 +1,7 @@
-import { clerk } from "@clerk/testing/playwright";
-import { TEST_USER } from "../../src/lib/test-utils/e2e-users";
 import { test, expect } from "./fixtures/app-fixtures";
+import { signInTestUser } from "./utils/auth";
 
-test.describe("WebMCP discovery", () => {
+test.describe("WebMCP discovery @local", () => {
   test("registers dashboard tools for signed-in dashboard pages when the browser exposes WebMCP", async ({
     page,
   }) => {
@@ -45,8 +44,7 @@ test.describe("WebMCP discovery", () => {
       });
     });
 
-    await page.goto("/");
-    await clerk.signIn({ page, emailAddress: TEST_USER.email });
+    await signInTestUser(page);
     await page.goto("/dashboard");
     await expect(page).toHaveURL(/\/dashboard/);
 

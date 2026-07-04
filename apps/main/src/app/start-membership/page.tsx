@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import Image from "next/image";
 import { ArrowRight, CheckCircle2, ChevronDown } from "lucide-react";
 import {
-  SellerLandingAuthCta,
+  SellerLandingOnboardingCta,
   SellerLandingExampleLink,
   SellerLandingViewTracker,
 } from "./_components/seller-landing-actions";
@@ -206,7 +206,7 @@ function StartMembershipHero() {
           </p>
 
           <div className="mt-8 flex flex-col gap-4 lg:mt-5 lg:flex-row lg:gap-5">
-            <SellerLandingAuthCta
+            <SellerLandingOnboardingCta
               ctaId="seller-landing-hero-primary"
               ctaLabel="Create your catalog"
               className={marketingPrimaryButton}
@@ -439,7 +439,7 @@ function HowItWorksSection() {
           ))}
         </ol>
         <div className="mt-8">
-          <SellerLandingAuthCta
+          <SellerLandingOnboardingCta
             ctaId="seller-landing-process-primary"
             ctaLabel="Create your catalog"
             className={marketingPrimaryButton}
@@ -596,7 +596,7 @@ function StartMembershipFinalCta() {
         </p>
 
         <div className="mt-9 flex flex-col gap-3 lg:flex-row">
-          <SellerLandingAuthCta
+          <SellerLandingOnboardingCta
             ctaId="seller-landing-final-primary"
             ctaLabel="Create your catalog"
             className={marketingPrimaryButton}

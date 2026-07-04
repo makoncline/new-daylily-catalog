@@ -1,11 +1,20 @@
 "use client";
 
 import { ViewListingDialog } from "@/components/view-listing-dialog";
+import { TRPCReactProvider } from "@/trpc/react";
 import { usePublicCatalogSearchController } from "./public-catalog-search-controller";
 import { PublicCatalogSearchContent } from "./public-catalog-search-content";
 import { type PublicCatalogSearchClientProps } from "./public-catalog-search-types";
 
-export function PublicCatalogSearchClient({
+export function PublicCatalogSearchClient(props: PublicCatalogSearchClientProps) {
+  return (
+    <TRPCReactProvider>
+      <PublicCatalogSearchClientContent {...props} />
+    </TRPCReactProvider>
+  );
+}
+
+function PublicCatalogSearchClientContent({
   userId,
   userSlugOrId,
   lists,

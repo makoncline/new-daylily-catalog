@@ -1,7 +1,6 @@
-import { clerk } from "@clerk/testing/playwright";
 import { withTempE2EDb } from "../../src/lib/test-utils/e2e-db";
-import { TEST_USER } from "../../src/lib/test-utils/e2e-users";
 import { test, expect } from "./fixtures/app-fixtures";
+import { signInTestUser } from "./utils/auth";
 import {
   seedListingImageManagerData,
   type ListingImageManagerSeedMeta,
@@ -50,8 +49,7 @@ test.describe("listing image manager @local", () => {
       throw new Error("Expected 3 seeded images");
     }
 
-    await page.goto("/");
-    await clerk.signIn({ page, emailAddress: TEST_USER.email });
+    await signInTestUser(page);
 
     await page.evaluate(() => {
       localStorage.removeItem("table-state-listings-table:v1");
