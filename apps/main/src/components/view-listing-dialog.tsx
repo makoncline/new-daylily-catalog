@@ -27,14 +27,6 @@ interface ViewListingDialogProps {
 }
 
 export function ViewListingDialog({ listings }: ViewListingDialogProps) {
-  return (
-    <TRPCReactProvider>
-      <ViewListingDialogContent listings={listings} />
-    </TRPCReactProvider>
-  );
-}
-
-function ViewListingDialogContent({ listings }: ViewListingDialogProps) {
   const { viewingId, closeListing } = useListingDialogQueryState();
   const params = useParams<{ userSlugOrId: string }>();
   const isOpen = !!viewingId;
@@ -45,18 +37,9 @@ function ViewListingDialogContent({ listings }: ViewListingDialogProps) {
   const shouldFetchViewingListing =
     Boolean(viewingId) && !currentListing && Boolean(params.userSlugOrId);
 
-  const listingQuery = api.public.getListing.useQuery(
-    {
-      userSlugOrId: params.userSlugOrId ?? "",
-      listingSlugOrId: viewingId ?? "",
-    },
-    withPublicClientQueryCache({
-      enabled: shouldFetchViewingListing,
-      retry: false,
-    }),
-  );
-
-  const displayListing = currentListing ?? listingQuery.data ?? null;
+  if (!isOpen) {
+    return null;
+  }
 
   const handleOpenChange = (open: boolean) => {
     if (!open) {
@@ -91,15 +74,48 @@ function ViewListingDialogContent({ listings }: ViewListingDialogProps) {
             })
           }
         >
-          {displayListing ? (
-            <ListingDisplay listing={displayListing} />
-          ) : shouldFetchViewingListing && !listingQuery.error ? (
-            <ListingDisplaySkeleton />
-          ) : (
+          {currentListing ? (
+            <ListingDisplay listing={currentListing} />
+          ) : shouldFetchViewingListing ? (
+            <TRPCReactProvider>
+              <FetchedListingDisplay
+                listingSlugOrId={viewingId ?? ""}
+                userSlugOrId={params.userSlugOrId ?? ""}
+              />
+            </TRPCReactProvider>
+          ) : viewingId ? (
             <div className="py-4 text-center">Listing not found</div>
-          )}
+          ) : null}
         </ErrorBoundary>
       </DialogContent>
     </Dialog>
   );
+}
+
+function FetchedListingDisplay({
+  listingSlugOrId,
+  userSlugOrId,
+}: {
+  listingSlugOrId: string;
+  userSlugOrId: string;
+}) {
+  const listingQuery = api.public.getListing.useQuery(
+    {
+      userSlugOrId,
+      listingSlugOrId,
+    },
+    withPublicClientQueryCache({
+      retry: false,
+    }),
+  );
+
+  if (listingQuery.data) {
+    return <ListingDisplay listing={listingQuery.data} />;
+  }
+
+  if (!listingQuery.error) {
+    return <ListingDisplaySkeleton />;
+  }
+
+  return <div className="py-4 text-center">Listing not found</div>;
 }
