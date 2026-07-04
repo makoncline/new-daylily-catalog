@@ -56,7 +56,7 @@ describe("seller landing actions", () => {
     );
     expect(
       screen.getByRole("button", { name: "Create your catalog" }).closest("form"),
-    ).toHaveAttribute("action", "/start-signup");
+    ).toHaveAttribute("action", "/sign-up");
   });
 
   it("captures seller CTA clicks with the next path", () => {
@@ -83,7 +83,7 @@ describe("seller landing actions", () => {
         source_path: "/start-membership",
         cta_id: "seller-landing-hero-primary",
         cta_label: "Create your catalog",
-        target_path: "/start-signup",
+        target_path: "/sign-up",
         next_path: "/onboarding",
       },
     );

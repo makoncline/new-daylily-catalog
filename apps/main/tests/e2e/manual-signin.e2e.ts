@@ -43,7 +43,7 @@ test.describe("manual sign-in @local", () => {
     await expect(page).toHaveTitle("Daylily Catalog");
 
     await page.getByRole("button", { name: "Dashboard" }).click();
-    await expect(page).toHaveURL(/\/start-dashboard/);
+    await expect(page).toHaveURL(/\/sign-in/);
 
     const emailInput = page.getByLabel(/email/i).first();
     await expect(emailInput).toBeVisible();

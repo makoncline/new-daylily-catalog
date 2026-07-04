@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { StartDashboardPageClient } from "./start-dashboard-page-client";
+import { SignInPageClient } from "./sign-in-page-client";
 
 export const dynamic = "force-dynamic";
 
@@ -18,6 +18,6 @@ export const metadata: Metadata = {
   },
 };
 
-export default function StartDashboardPage() {
-  return <StartDashboardPageClient />;
+export default function SignInPage() {
+  return <SignInPageClient />;
 }

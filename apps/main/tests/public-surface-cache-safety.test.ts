@@ -153,7 +153,7 @@ function collectImportGraph(entrypoints: string[]) {
 
     for (const specifier of collectSourceSpecifiers(source)) {
       const importedPath = resolveSourceImport(current, specifier);
-      if (importedPath && importedPath.startsWith(SOURCE_ROOT)) {
+      if (importedPath?.startsWith(SOURCE_ROOT)) {
         pending.push(importedPath);
       }
     }
@@ -278,27 +278,27 @@ describe("public surface cache safety", () => {
     expect(readSource("src/app/start-membership/layout.tsx")).not.toContain(
       "AuthProviders",
     );
-    expect(readSource("src/app/start-signup/layout.tsx")).toContain(
+    expect(readSource("src/app/sign-up/layout.tsx")).toContain(
       "<AuthProviders>",
     );
-    expect(readSource("src/app/start-dashboard/layout.tsx")).toContain(
+    expect(readSource("src/app/sign-in/layout.tsx")).toContain(
       "<AuthProviders>",
     );
   });
 
   it("keeps public auth-start routes pointed at the right protected flows", () => {
-    const startSignup = readSource(
-      "src/app/start-signup/start-signup-page-client.tsx",
+    const signUp = readSource(
+      "src/app/sign-up/sign-up-page-client.tsx",
     );
-    const startDashboard = readSource(
-      "src/app/start-dashboard/start-dashboard-page-client.tsx",
+    const signIn = readSource(
+      "src/app/sign-in/sign-in-page-client.tsx",
     );
 
-    expect(startSignup).toContain("window.location.replace(ONBOARDING_PATH)");
-    expect(startSignup).toContain("forceRedirectUrl={ONBOARDING_PATH}");
-    expect(startDashboard).toContain("window.location.replace(DASHBOARD_PATH)");
-    expect(startDashboard).toContain("forceRedirectUrl={DASHBOARD_PATH}");
-    expect(startDashboard).toContain("signUpForceRedirectUrl={ONBOARDING_PATH}");
+    expect(signUp).toContain("window.location.replace(ONBOARDING_PATH)");
+    expect(signUp).toContain("forceRedirectUrl={ONBOARDING_PATH}");
+    expect(signIn).toContain("window.location.replace(DASHBOARD_PATH)");
+    expect(signIn).toContain("forceRedirectUrl={DASHBOARD_PATH}");
+    expect(signIn).toContain("signUpForceRedirectUrl={ONBOARDING_PATH}");
   });
 
   it("keeps public app-router RSC fetches out of long-lived public caches", () => {

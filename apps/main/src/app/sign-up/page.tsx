@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { StartSignupPageClient } from "./start-signup-page-client";
+import { SignUpPageClient } from "./sign-up-page-client";
 
 export const dynamic = "force-dynamic";
 
@@ -18,6 +18,6 @@ export const metadata: Metadata = {
   },
 };
 
-export default function StartSignupPage() {
-  return <StartSignupPageClient />;
+export default function SignUpPage() {
+  return <SignUpPageClient />;
 }

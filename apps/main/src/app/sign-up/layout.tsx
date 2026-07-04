@@ -1,7 +1,7 @@
 import { type ReactNode } from "react";
 import { AuthProviders } from "@/components/auth-providers";
 
-export default function StartDashboardLayout({
+export default function SignUpLayout({
   children,
 }: {
   children: ReactNode;

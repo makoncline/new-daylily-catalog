@@ -1,19 +1,20 @@
 "use client";
 
-import { SignUp, useAuth } from "@clerk/nextjs";
+import { SignIn, useAuth } from "@clerk/nextjs";
 import { Flower2 } from "lucide-react";
 import Link from "next/link";
 import { useEffect } from "react";
 import { SUBSCRIPTION_CONFIG } from "@/config/subscription-config";
 
+const DASHBOARD_PATH = "/dashboard";
 const ONBOARDING_PATH = SUBSCRIPTION_CONFIG.NEW_USER_ONBOARDING_PATH;
 
-export function StartSignupPageClient() {
+export function SignInPageClient() {
   const { isLoaded, userId } = useAuth();
 
   useEffect(() => {
     if (isLoaded && userId) {
-      window.location.replace(ONBOARDING_PATH);
+      window.location.replace(DASHBOARD_PATH);
     }
   }, [isLoaded, userId]);
 
@@ -28,12 +29,12 @@ export function StartSignupPageClient() {
       </Link>
 
       {!isLoaded || userId ? null : (
-        <SignUp
+        <SignIn
           routing="hash"
-          forceRedirectUrl={ONBOARDING_PATH}
-          fallbackRedirectUrl={ONBOARDING_PATH}
-          signInForceRedirectUrl={ONBOARDING_PATH}
-          signInFallbackRedirectUrl={ONBOARDING_PATH}
+          forceRedirectUrl={DASHBOARD_PATH}
+          fallbackRedirectUrl={DASHBOARD_PATH}
+          signUpForceRedirectUrl={ONBOARDING_PATH}
+          signUpFallbackRedirectUrl={ONBOARDING_PATH}
         />
       )}
     </main>
