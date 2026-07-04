@@ -45,6 +45,7 @@ export class ClerkAuthModal {
     await this.startSignUp();
     await this.emailInput.waitFor({ state: "visible" });
     await this.emailInput.fill(email);
+    await expect(this.emailInput).toHaveValue(email);
     await this.continueButton.click();
     await this.codeInput.waitFor({ state: "visible" });
     await expect(this.codeInput).toBeEnabled();
