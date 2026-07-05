@@ -68,7 +68,7 @@ test.describe("anonymous onboarding checkout flow @local", () => {
     const profileLocation = "Olympia, WA";
     const profileDescription =
       "Small grower catalog focused on clear photos and seasonal availability.";
-    const listingTitle = "Happy Returns starter clump";
+    const listingTitle = "Lemon Chiffon Cupcake starter clump";
     const listingDescription =
       "Bright repeat-blooming example listing with clean roots and simple notes.";
 
@@ -118,7 +118,7 @@ test.describe("anonymous onboarding checkout flow @local", () => {
       await expect(
         page.getByRole("heading", { name: "Edit your first listing" }),
       ).toBeVisible();
-      await page.getByRole("button", { name: "Happy Returns" }).click();
+      await page.getByRole("button", { name: "Lemon Chiffon Cupcake" }).click();
       await page.getByTestId("anonymous-listing-title").fill(listingTitle);
       await page.getByTestId("anonymous-listing-price").fill("18");
       await page

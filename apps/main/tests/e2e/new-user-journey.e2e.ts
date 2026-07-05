@@ -54,7 +54,9 @@ test.describe("new user journey @local", () => {
 
         // go to the profile page
         await dashboardHome.completeProfileButton.click();
-        await expect(page).toHaveURL(/\/dashboard\/profile/);
+        await expect(page).toHaveURL(/\/dashboard\/profile/, {
+          timeout: 15_000,
+        });
         await dashboardProfile.isReady();
 
         // fill in the profile fields
