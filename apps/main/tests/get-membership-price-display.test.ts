@@ -120,4 +120,52 @@ describe("getMembershipPriceDisplay", () => {
       "price_membership_test",
     );
   });
+
+  it("reuses the in-process price cache", async () => {
+    stripeMocks.pricesRetrieve.mockResolvedValue({
+      unit_amount: 12000,
+      unit_amount_decimal: null,
+      currency: "usd",
+      recurring: {
+        interval: "year",
+        interval_count: 1,
+      },
+    });
+
+    const { getMembershipPriceDisplay } = await import(
+      "@/server/stripe/get-membership-price-display"
+    );
+
+    await expect(getMembershipPriceDisplay()).resolves.toEqual({
+      amount: "$120",
+      interval: "/yr",
+      monthlyEquivalent: "$10",
+    });
+    await expect(getMembershipPriceDisplay()).resolves.toEqual({
+      amount: "$120",
+      interval: "/yr",
+      monthlyEquivalent: "$10",
+    });
+    expect(stripeMocks.pricesRetrieve).toHaveBeenCalledTimes(1);
+  });
+
+  it("throws when the configured Stripe price does not include an amount", async () => {
+    stripeMocks.pricesRetrieve.mockResolvedValue({
+      unit_amount: null,
+      unit_amount_decimal: null,
+      currency: "usd",
+      recurring: {
+        interval: "year",
+        interval_count: 1,
+      },
+    });
+
+    const { getMembershipPriceDisplay } = await import(
+      "@/server/stripe/get-membership-price-display"
+    );
+
+    await expect(getMembershipPriceDisplay()).rejects.toThrow(
+      "Stripe membership price is missing an amount.",
+    );
+  });
 });

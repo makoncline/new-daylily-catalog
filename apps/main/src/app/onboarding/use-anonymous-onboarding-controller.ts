@@ -437,11 +437,15 @@ export function useAnonymousOnboardingController({
       return;
     }
 
-    const result = await createCheckout.mutateAsync({
-      email: draft.email,
-      draftId: draft.draftId,
-    });
-    window.location.href = result.url;
+    try {
+      const result = await createCheckout.mutateAsync({
+        email: draft.email,
+        draftId: draft.draftId,
+      });
+      window.location.href = result.url;
+    } catch {
+      return;
+    }
   }, [createCheckout, draft.draftId, draft.email, goToStep]);
 
   const clearDraft = useCallback(() => {

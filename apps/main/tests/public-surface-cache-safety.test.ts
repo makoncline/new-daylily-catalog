@@ -236,6 +236,13 @@ describe("public surface cache safety", () => {
     }
   });
 
+  it("keeps the membership landing page statically rendered with ISR", () => {
+    const source = readSource("src/app/start-membership/page.tsx");
+
+    expect(source).toContain('export const dynamic = "force-static"');
+    expect(source).toContain("export const revalidate = 3600");
+  });
+
   it("renders public navigation without Clerk auth state", () => {
     const source = readSource("src/components/public-nav.tsx");
 
