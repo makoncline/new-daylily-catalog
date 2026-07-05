@@ -54,6 +54,102 @@ describe("seller funnel proxy protection", () => {
     ({ proxy } = await import("@/proxy"));
   });
 
+  it("adds Cloudflare-only cache directives to public HTML document routes", async () => {
+    const middlewareEvent = {} as Parameters<NextMiddleware>[1];
+    const publicDocumentUrls = [
+      "http://localhost:3000/catalogs",
+      "http://localhost:3000/cultivar/blue-crush",
+      "http://localhost:3000/plantfancygardens",
+      "http://localhost:3000/plantfancygardens/page/2",
+      "http://localhost:3000/plantfancygardens/alienation",
+    ];
+
+    for (const url of publicDocumentUrls) {
+      const request = new NextRequest(url, {
+        headers: {
+          accept: "text/html",
+          "sec-fetch-dest": "document",
+        },
+      });
+
+      const response = await proxy(request, middlewareEvent);
+
+      expect(response?.headers.get("cloudflare-cdn-cache-control")).toBe(
+        "public, max-age=43200, stale-while-revalidate=604800, stale-if-error=86400",
+      );
+    }
+
+    expect(authMock).not.toHaveBeenCalled();
+  });
+
+  it("adds public HTML cache directives to crawler-shaped route requests", async () => {
+    const request = new NextRequest("http://localhost:3000/plantfancygardens");
+    const middlewareEvent = {} as Parameters<NextMiddleware>[1];
+
+    const response = await proxy(request, middlewareEvent);
+
+    expect(response?.headers.get("cloudflare-cdn-cache-control")).toBe(
+      "public, max-age=43200, stale-while-revalidate=604800, stale-if-error=86400",
+    );
+    expect(authMock).not.toHaveBeenCalled();
+  });
+
+  it("does not add public HTML cache directives to excluded or variant routes", async () => {
+    const middlewareEvent = {} as Parameters<NextMiddleware>[1];
+
+    for (const url of [
+      "http://localhost:3000/start-membership",
+      "http://localhost:3000/plantfancygardens/search",
+      "http://localhost:3000/api/trpc/public.getListings",
+      "http://localhost:3000/llms.txt",
+    ]) {
+      const request = new NextRequest(url, {
+        headers: {
+          accept: "text/html",
+          "sec-fetch-dest": "document",
+        },
+      });
+
+      const response = await proxy(request, middlewareEvent);
+
+      expect(
+        response?.headers.get("cloudflare-cdn-cache-control") ?? null,
+      ).toBeNull();
+    }
+
+    const rscRequest = new NextRequest(
+      "http://localhost:3000/plantfancygardens?_rsc=test",
+      {
+        headers: {
+          accept: "text/x-component",
+          rsc: "1",
+        },
+      },
+    );
+    const rscResponse = await proxy(rscRequest, middlewareEvent);
+
+    expect(rscResponse?.headers.get("cache-control")).toBe("no-store");
+    expect(
+      rscResponse?.headers.get("cloudflare-cdn-cache-control"),
+    ).toBeNull();
+
+    const prefetchRequest = new NextRequest(
+      "http://localhost:3000/plantfancygardens",
+      {
+        headers: {
+          accept: "text/html",
+          "sec-fetch-dest": "document",
+          "sec-purpose": "prefetch",
+        },
+      },
+    );
+    const prefetchResponse = await proxy(prefetchRequest, middlewareEvent);
+
+    expect(
+      prefetchResponse?.headers.get("cloudflare-cdn-cache-control") ?? null,
+    ).toBeNull();
+  });
+
   it("keeps /start-membership publicly accessible", async () => {
     const routeMatcherArg = createRouteMatcherMock.mock.calls[0]?.[0];
 

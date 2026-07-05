@@ -19,66 +19,18 @@ describe("proxy matcher", () => {
     expect(
       unstable_doesMiddlewareMatch({
         config,
-        url: "/api/legacy-redirect?listingId=listing-1",
+        url: "/users/user-1/listing-1",
       }),
     ).toBe(false);
     expect(
       unstable_doesMiddlewareMatch({
         config,
-        url: "/trpc/public.getProfile",
-      }),
-    ).toBe(false);
-    expect(
-      unstable_doesMiddlewareMatch({
-        config,
-        url: "/users/user-1",
-      }),
-    ).toBe(false);
-    expect(
-      unstable_doesMiddlewareMatch({
-        config,
-        url: "/catalog/listing-1",
-      }),
-    ).toBe(false);
-    expect(
-      unstable_doesMiddlewareMatch({
-        config,
-        url: "/cultivar/Happy%20Returns",
-      }),
-    ).toBe(false);
-    expect(
-      unstable_doesMiddlewareMatch({
-        config,
-        url: "/catalogs",
-      }),
-    ).toBe(false);
-    expect(
-      unstable_doesMiddlewareMatch({
-        config,
-        url: "/start-membership",
-      }),
-    ).toBe(false);
-    expect(
-      unstable_doesMiddlewareMatch({
-        config,
-        url: "/graceful_petals_daylilies/page/2",
-      }),
-    ).toBe(false);
-    expect(
-      unstable_doesMiddlewareMatch({
-        config,
-        url: "/graceful_petals_daylilies?page=2",
-      }),
-    ).toBe(false);
-    expect(
-      unstable_doesMiddlewareMatch({
-        config,
-        url: "/graceful_petals_daylilies?viewing=listing_123",
+        url: "/catalog/listing-1/extra",
       }),
     ).toBe(false);
   });
 
-  it("still runs for protected and auth-backed routes", async () => {
+  it("runs for protected, auth-backed, and public HTML cache routes", async () => {
     const { config } = await import("@/proxy");
 
     expect(
@@ -122,6 +74,30 @@ describe("proxy matcher", () => {
         config,
         url: "/user_top?viewing=listing-top-prime",
       }),
-    ).toBe(false);
+    ).toBe(true);
+    expect(
+      unstable_doesMiddlewareMatch({
+        config,
+        url: "/catalogs",
+      }),
+    ).toBe(true);
+    expect(
+      unstable_doesMiddlewareMatch({
+        config,
+        url: "/cultivar/Happy%20Returns",
+      }),
+    ).toBe(true);
+    expect(
+      unstable_doesMiddlewareMatch({
+        config,
+        url: "/graceful_petals_daylilies/page/2",
+      }),
+    ).toBe(true);
+    expect(
+      unstable_doesMiddlewareMatch({
+        config,
+        url: "/graceful_petals_daylilies/20-16",
+      }),
+    ).toBe(true);
   });
 });

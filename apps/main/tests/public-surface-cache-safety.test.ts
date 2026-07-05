@@ -333,4 +333,15 @@ describe("public surface cache safety", () => {
     expect(proxy).toContain('key: "_rsc"');
     expect(proxy).toContain('key: "rsc"');
   });
+
+  it("keeps public HTML cache TTLs in Cloudflare CDN response headers", () => {
+    const proxy = readSource("src/proxy.ts");
+
+    expect(proxy).toContain("Cloudflare-CDN-Cache-Control");
+    expect(proxy).toContain("public, max-age=43200");
+    expect(proxy).toContain("stale-while-revalidate=604800");
+    expect(proxy).toContain("stale-if-error=86400");
+    expect(proxy).toContain("isPublicHtmlCloudflareCacheRequest");
+    expect(proxy).toContain("isPublicHtmlCloudflareCachePath");
+  });
 });
