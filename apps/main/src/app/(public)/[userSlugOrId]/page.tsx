@@ -3,8 +3,7 @@ import {
   renderPublicProfilePage,
 } from "./_lib/public-profile-page";
 
-export const revalidate = 900;
-export const dynamic = "force-static";
+export const dynamic = "force-dynamic";
 export const dynamicParams = true;
 
 interface PageProps {
@@ -25,7 +24,6 @@ export default async function Page({ params }: PageProps) {
   const { userSlugOrId } = await params;
   return renderPublicProfilePage({
     requestedPage: 1,
-    routeType: "profile_page",
     userSlugOrId,
   });
 }

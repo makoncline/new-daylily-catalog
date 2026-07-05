@@ -125,8 +125,8 @@ describe("captureServerPosthogEvent", () => {
     );
 
     await captureServerPosthogEvent({
-      distinctId: "system:public-isr",
-      event: "public_isr_page_generated",
+      distinctId: "system:test",
+      event: "test_event",
     });
 
     expect(fetchMock).not.toHaveBeenCalled();

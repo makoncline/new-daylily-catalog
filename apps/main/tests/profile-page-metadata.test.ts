@@ -28,10 +28,6 @@ vi.mock("@/app/(public)/[userSlugOrId]/_components/profile-seo", () => ({
   ProfilePageSEO: () => null,
 }));
 
-vi.mock("@/app/(public)/_components/isr-written-at", () => ({
-  IsrWrittenAt: () => null,
-}));
-
 vi.mock("@/app/(public)/[userSlugOrId]/_lib/public-profile-route", () => ({
   getPublicProfilePageData: mockGetPublicProfilePageData,
 }));

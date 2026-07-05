@@ -32,8 +32,7 @@ import {
 } from "@/server/db/getPublicProfile";
 import { getPublicListingDetail } from "@/server/db/public-listing-read-model";
 
-export const revalidate = 900;
-export const dynamic = "force-static";
+export const dynamic = "force-dynamic";
 export const dynamicParams = true;
 
 interface PageProps {

@@ -4,7 +4,6 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { MainContent } from "@/app/(public)/_components/main-content";
 import { PublicBreadcrumbs } from "@/app/(public)/_components/public-breadcrumbs";
-import { IsrWrittenAt } from "@/app/(public)/_components/isr-written-at";
 import { CatalogSeoListings } from "@/app/(public)/[userSlugOrId]/_components/catalog-seo-listings";
 import { ProfileContent } from "@/app/(public)/[userSlugOrId]/_components/profile-content";
 import { ProfilePageSEO } from "@/app/(public)/[userSlugOrId]/_components/profile-seo";
@@ -22,7 +21,6 @@ interface GeneratePublicProfilePageMetadataArgs {
 
 interface RenderPublicProfilePageArgs {
   requestedPage: number;
-  routeType: "profile_page" | "profile_page_paginated";
   userSlugOrId: string;
 }
 
@@ -114,7 +112,6 @@ const generatePublicProfilePageMetadata = async ({
 
 const renderPublicProfilePage = async ({
   requestedPage,
-  routeType,
   userSlugOrId,
 }: RenderPublicProfilePageArgs) => {
   const pageData = await loadPublicProfilePageResult(
@@ -134,11 +131,6 @@ const renderPublicProfilePage = async ({
     shouldIndex:
       userSlugOrId === canonicalUserSlug && profile.hasActiveSubscription,
   });
-
-  const routePath =
-    requestedPage === 1
-      ? `/${canonicalUserSlug}`
-      : `/${canonicalUserSlug}/page/${pageData.page}`;
 
   return (
     <>
@@ -172,7 +164,6 @@ const renderPublicProfilePage = async ({
           />
         </div>
 
-        <IsrWrittenAt routePath={routePath} routeType={routeType} />
       </MainContent>
     </>
   );

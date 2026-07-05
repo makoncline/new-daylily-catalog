@@ -17,6 +17,13 @@ const ROOT_CACHE_VARIANT_MARKERS = [
   "PosthogUserIdentification",
   "TRPCReactProvider",
 ] as const;
+const CLOUDFLARE_OWNED_PUBLIC_HTML_ROUTES = [
+  "src/app/(public)/catalogs/page.tsx",
+  "src/app/(public)/cultivar/[cultivarNormalizedName]/page.tsx",
+  "src/app/(public)/[userSlugOrId]/page.tsx",
+  "src/app/(public)/[userSlugOrId]/page/[page]/page.tsx",
+  "src/app/(public)/[userSlugOrId]/[listingSlugOrId]/page.tsx",
+] as const;
 
 function readSource(sourcePath: string) {
   return readFileSync(join(process.cwd(), sourcePath), "utf8");
@@ -167,6 +174,20 @@ describe("public surface cache safety", () => {
     expect(
       collectSourceSpecifiers('import "@/components/auth-providers";'),
     ).toContain("@/components/auth-providers");
+  });
+
+  it("keeps Cloudflare-owned public HTML routes out of Next route caching", () => {
+    for (const sourcePath of CLOUDFLARE_OWNED_PUBLIC_HTML_ROUTES) {
+      const source = readSource(sourcePath);
+
+      expect(source, sourcePath).toContain(
+        'export const dynamic = "force-dynamic"',
+      );
+      expect(source, sourcePath).not.toContain("export const revalidate");
+      expect(source, sourcePath).not.toContain(
+        'export const dynamic = "force-static"',
+      );
+    }
   });
 
   it("keeps auth-aware providers out of the root layout import graph", () => {
