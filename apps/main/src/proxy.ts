@@ -48,9 +48,13 @@ const publicHtmlFirstSegmentExclusions = new Set([
   ".well-known",
   "api",
   "auth-error",
+  "catalog",
+  "catalogs",
   "dashboard",
+  "kitchen-sink",
   "onboarding",
   "openapi.json",
+  "sentry-example-page",
   "sign-in",
   "sign-up",
   "start-membership",
@@ -153,6 +157,7 @@ function isPublicHtmlCloudflareCachePath(pathname: string) {
 function isPublicHtmlCloudflareCacheRequest(req: NextRequest) {
   return (
     (req.method === "GET" || req.method === "HEAD") &&
+    !isProtectedRoute(req) &&
     !isPrefetchRequest(req) &&
     !isAppRouterRscRequest(req) &&
     isPublicHtmlCloudflareCachePath(req.nextUrl.pathname)

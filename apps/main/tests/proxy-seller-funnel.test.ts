@@ -99,6 +99,10 @@ describe("seller funnel proxy protection", () => {
 
     for (const url of [
       "http://localhost:3000/start-membership",
+      "http://localhost:3000/catalogs/extra",
+      "http://localhost:3000/catalog/legacy-listing",
+      "http://localhost:3000/kitchen-sink",
+      "http://localhost:3000/sentry-example-page",
       "http://localhost:3000/plantfancygardens/search",
       "http://localhost:3000/api/trpc/public.getListings",
       "http://localhost:3000/llms.txt",
@@ -147,6 +151,35 @@ describe("seller funnel proxy protection", () => {
 
     expect(
       prefetchResponse?.headers.get("cloudflare-cdn-cache-control") ?? null,
+    ).toBeNull();
+  });
+
+  it("runs protected routes through Clerk before public HTML cache eligibility", async () => {
+    const clerkRedirect = NextResponse.redirect(
+      "https://accounts.daylilycatalog.com/sign-in",
+    );
+
+    redirectToSignInMock.mockReturnValueOnce(clerkRedirect);
+    authMock.mockResolvedValueOnce({
+      isAuthenticated: false,
+      redirectToSignIn: redirectToSignInMock,
+    });
+
+    const request = new NextRequest("http://localhost:3000/onboarding", {
+      headers: {
+        accept: "text/html",
+        "sec-fetch-dest": "document",
+      },
+    });
+    const middlewareEvent = {} as Parameters<NextMiddleware>[1];
+
+    const response = await proxy(request, middlewareEvent);
+
+    expect(authMock).toHaveBeenCalledTimes(1);
+    expect(redirectToSignInMock).toHaveBeenCalledTimes(1);
+    expect(response).toBe(clerkRedirect);
+    expect(
+      response?.headers.get("cloudflare-cdn-cache-control") ?? null,
     ).toBeNull();
   });
 
