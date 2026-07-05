@@ -21,6 +21,14 @@ const createRouteMatcherMock = vi.hoisted(() =>
     };
   }),
 );
+const signInUrl = "https://accounts.daylilycatalog.com/sign-in";
+
+function expectSignInRedirect(response: unknown) {
+  const redirect = response as Response | null | undefined;
+
+  expect(redirect?.status).toBe(307);
+  expect(redirect?.headers.get("location")).toBe(signInUrl);
+}
 
 vi.mock("@clerk/nextjs/server", () => ({
   clerkMiddleware:
@@ -43,7 +51,7 @@ describe("seller funnel proxy protection", () => {
     vi.resetModules();
 
     redirectToSignInMock.mockReturnValue(
-      NextResponse.redirect("https://accounts.daylilycatalog.com/sign-in"),
+      NextResponse.redirect(signInUrl),
     );
 
     authMock.mockResolvedValue({
@@ -155,9 +163,7 @@ describe("seller funnel proxy protection", () => {
   });
 
   it("runs protected routes through Clerk before public HTML cache eligibility", async () => {
-    const clerkRedirect = NextResponse.redirect(
-      "https://accounts.daylilycatalog.com/sign-in",
-    );
+    const clerkRedirect = NextResponse.redirect(signInUrl);
 
     redirectToSignInMock.mockReturnValueOnce(clerkRedirect);
     authMock.mockResolvedValueOnce({
@@ -165,7 +171,7 @@ describe("seller funnel proxy protection", () => {
       redirectToSignIn: redirectToSignInMock,
     });
 
-    const request = new NextRequest("http://localhost:3000/onboarding", {
+    const request = new NextRequest("http://localhost:3000/dashboard/listings", {
       headers: {
         accept: "text/html",
         "sec-fetch-dest": "document",
@@ -177,7 +183,7 @@ describe("seller funnel proxy protection", () => {
 
     expect(authMock).toHaveBeenCalledTimes(1);
     expect(redirectToSignInMock).toHaveBeenCalledTimes(1);
-    expect(response).toBe(clerkRedirect);
+    expectSignInRedirect(response);
     expect(
       response?.headers.get("cloudflare-cdn-cache-control") ?? null,
     ).toBeNull();
@@ -230,9 +236,7 @@ describe("seller funnel proxy protection", () => {
   });
 
   it("redirects unauthenticated dashboard document navigations through Clerk", async () => {
-    const clerkRedirect = NextResponse.redirect(
-      "https://accounts.daylilycatalog.com/sign-in",
-    );
+    const clerkRedirect = NextResponse.redirect(signInUrl);
 
     redirectToSignInMock.mockReturnValueOnce(clerkRedirect);
     authMock.mockResolvedValueOnce({
@@ -255,13 +259,11 @@ describe("seller funnel proxy protection", () => {
     expect(redirectToSignInMock).toHaveBeenCalledWith({
       returnBackUrl: new URL("/dashboard/listings", "http://localhost:3000"),
     });
-    expect(response).toBe(clerkRedirect);
+    expectSignInRedirect(response);
   });
 
   it("uses forwarded host headers for protected document redirect URLs", async () => {
-    const clerkRedirect = NextResponse.redirect(
-      "https://accounts.daylilycatalog.com/sign-in",
-    );
+    const clerkRedirect = NextResponse.redirect(signInUrl);
 
     redirectToSignInMock.mockReturnValueOnce(clerkRedirect);
     authMock.mockResolvedValueOnce({
@@ -291,7 +293,7 @@ describe("seller funnel proxy protection", () => {
         "https://dev.daylilycatalog.com",
       ),
     });
-    expect(response).toBe(clerkRedirect);
+    expectSignInRedirect(response);
   });
 
   it("returns 404 without redirect for unauthenticated dashboard RSC requests", async () => {
@@ -322,9 +324,7 @@ describe("seller funnel proxy protection", () => {
   });
 
   it("redirects unauthenticated subscribe success document navigations through Clerk", async () => {
-    const clerkRedirect = NextResponse.redirect(
-      "https://accounts.daylilycatalog.com/sign-in",
-    );
+    const clerkRedirect = NextResponse.redirect(signInUrl);
 
     redirectToSignInMock.mockReturnValueOnce(clerkRedirect);
     authMock.mockResolvedValueOnce({
@@ -352,6 +352,6 @@ describe("seller funnel proxy protection", () => {
         "http://localhost:3000",
       ),
     });
-    expect(response).toBe(clerkRedirect);
+    expectSignInRedirect(response);
   });
 });
