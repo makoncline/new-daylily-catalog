@@ -38,6 +38,40 @@ const publicAgentDiscoveryPaths = new Set([
   "/llms-full.txt",
 ]);
 
+const PUBLIC_HTML_CLOUDFLARE_CDN_CACHE_CONTROL_HEADER =
+  "Cloudflare-CDN-Cache-Control";
+const PUBLIC_HTML_CLOUDFLARE_CDN_CACHE_CONTROL =
+  "public, max-age=43200, stale-while-revalidate=604800, stale-if-error=86400";
+
+const publicHtmlFirstSegmentExclusions = new Set([
+  "_next",
+  ".well-known",
+  "api",
+  "auth-error",
+  "catalog",
+  "catalogs",
+  "dashboard",
+  "kitchen-sink",
+  "onboarding",
+  "openapi.json",
+  "sentry-example-page",
+  "sign-in",
+  "sign-up",
+  "start-membership",
+  "start-onboarding",
+  "subscribe",
+  "trpc",
+  "users",
+]);
+
+const publicHtmlExactPathExclusions = new Set([
+  "/",
+  "/llms.txt",
+  "/llms-full.txt",
+  "/openapi.json",
+  "/start-membership",
+]);
+
 function isDocumentNavigation(req: NextRequest) {
   const accept = req.headers.get("accept") ?? "";
   const secFetchDest = req.headers.get("sec-fetch-dest");
@@ -49,9 +83,25 @@ function isDocumentNavigation(req: NextRequest) {
   );
 }
 
-function isAppRouterRscRequest(req: NextRequest) {
+function isPrefetchRequest(req: NextRequest) {
+  return (
+    req.headers.get("next-router-prefetch") === "1" ||
+    req.headers.get("purpose") === "prefetch" ||
+    req.headers.get("sec-purpose")?.includes("prefetch") === true
+  );
+}
+
+function hasAppRouterRscQuery(req: NextRequest) {
   return (
     req.nextUrl.searchParams.has("_rsc") ||
+    req.url.includes("?_rsc=") ||
+    req.url.includes("&_rsc=")
+  );
+}
+
+function isAppRouterRscRequest(req: NextRequest) {
+  return (
+    hasAppRouterRscQuery(req) ||
     req.headers.get("rsc") === "1" ||
     req.headers.get("accept")?.includes("text/x-component") === true
   );
@@ -61,6 +111,66 @@ function uncachedRscResponse() {
   const response = NextResponse.next();
 
   response.headers.set("Cache-Control", "no-store");
+
+  return response;
+}
+
+function isPublicHtmlCloudflareCachePath(pathname: string) {
+  if (publicHtmlExactPathExclusions.has(pathname)) {
+    return false;
+  }
+
+  if (pathname.includes(".")) {
+    return false;
+  }
+
+  if (pathname === "/catalogs") {
+    return true;
+  }
+
+  const segments = pathname.split("/").filter(Boolean);
+  const [firstSegment, secondSegment, thirdSegment] = segments;
+
+  if (!firstSegment || publicHtmlFirstSegmentExclusions.has(firstSegment)) {
+    return false;
+  }
+
+  if (firstSegment === "cultivar") {
+    return segments.length === 2;
+  }
+
+  if (segments.length === 1) {
+    return true;
+  }
+
+  if (segments.length === 2) {
+    return secondSegment !== "search";
+  }
+
+  if (segments.length === 3) {
+    return secondSegment === "page" && /^\d+$/.test(thirdSegment ?? "");
+  }
+
+  return false;
+}
+
+function isPublicHtmlCloudflareCacheRequest(req: NextRequest) {
+  return (
+    (req.method === "GET" || req.method === "HEAD") &&
+    !isProtectedRoute(req) &&
+    !isPrefetchRequest(req) &&
+    !isAppRouterRscRequest(req) &&
+    isPublicHtmlCloudflareCachePath(req.nextUrl.pathname)
+  );
+}
+
+function cloudflareCachedPublicHtmlResponse() {
+  const response = NextResponse.next();
+
+  response.headers.set(
+    PUBLIC_HTML_CLOUDFLARE_CDN_CACHE_CONTROL_HEADER,
+    PUBLIC_HTML_CLOUDFLARE_CDN_CACHE_CONTROL,
+  );
 
   return response;
 }
@@ -131,6 +241,10 @@ export function proxy(req: NextRequest, event: NextFetchEvent) {
     return uncachedRscResponse();
   }
 
+  if (isPublicHtmlCloudflareCacheRequest(req)) {
+    return cloudflareCachedPublicHtmlResponse();
+  }
+
   return protectedRouteProxy(req, event);
 }
 
@@ -147,6 +261,11 @@ export const config = {
     "/openapi.json",
     "/llms.txt",
     "/llms-full.txt",
+    "/catalogs",
+    "/cultivar/:cultivarNormalizedName",
+    "/:userSlugOrId",
+    "/:userSlugOrId/page/:page",
+    "/:userSlugOrId/:listingSlugOrId",
     "/sitemap-index.xml",
     "/sitemap_index.xml",
     "/sitemap.xml.gz",

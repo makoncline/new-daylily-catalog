@@ -10,7 +10,6 @@ import {
   CatalogsSkeleton,
   CatalogsPageClient,
 } from "./_components/catalogs-page-client";
-import { IsrWrittenAt } from "../_components/isr-written-at";
 import { generateCatalogsPageMetadata } from "./_seo/metadata";
 import {
   createBreadcrumbListSchema,
@@ -18,7 +17,7 @@ import {
 } from "@/lib/utils/breadcrumbs";
 import { serializeJsonLd } from "@/lib/utils/json-ld";
 
-export const revalidate = 1800;
+export const dynamic = "force-dynamic";
 
 export async function generateMetadata(): Promise<Metadata> {
   const url = getCanonicalBaseUrl();
@@ -118,8 +117,6 @@ export default async function CatalogsPage() {
       <Suspense fallback={<CatalogsSkeleton />}>
         <CatalogsPageClient catalogs={catalogs} />
       </Suspense>
-
-      <IsrWrittenAt routePath="/catalogs" routeType="catalogs_index" />
     </MainContent>
   );
 }

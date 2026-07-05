@@ -5,6 +5,11 @@ Date: 2026-05-10
 This document records the public-page strategy after moving the main site from
 Vercel to the VPS and adding Turso/libSQL embedded replica support.
 
+> 2026-07-05 update: this document records the earlier VPS-local ISR baseline.
+> High-cardinality public HTML is now moving to Cloudflare as the single
+> whole-document cache owner. Use
+> `public-cloudflare-html-cache.md` for current public HTML cache rollout work.
+
 It supersedes the older direction in `next-16-cache-migration-notes.md` for
 public pages. That note was written for a Vercel/remote-Turso world where
 function-level caching and precise invalidation reduced remote reads and

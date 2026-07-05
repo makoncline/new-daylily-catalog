@@ -18,6 +18,8 @@ deep operational detail in the linked documents and use this index for routing.
   smoke workflow.
 - `db-backup-readme.md` - database backup workflow.
 - `public-rendering-cache-strategy.md` - public rendering and cache ownership.
+- `public-cloudflare-html-cache.md` - Cloudflare-owned public HTML cache
+  rollout and verification plan.
 - `next-16-cache-migration-notes.md` - older cache migration notes retained for
   context.
 

@@ -6,9 +6,7 @@ import {
   renderPublicProfilePage,
 } from "../../_lib/public-profile-page";
 
-// CACHE_LITERAL_REF: CACHE_CONFIG.PUBLIC.STATIC_REVALIDATE_SECONDS
-export const revalidate = 1800;
-export const dynamic = "force-static";
+export const dynamic = "force-dynamic";
 export const dynamicParams = true;
 
 interface ProfilePaginatedPageProps {
@@ -41,7 +39,6 @@ export default async function ProfilePaginatedPage({
   }
   return renderPublicProfilePage({
     requestedPage: parsedPage,
-    routeType: "profile_page_paginated",
     userSlugOrId,
   });
 }
