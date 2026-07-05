@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
-import { SignUpPageClient } from "./sign-up-page-client";
+import { redirect } from "next/navigation";
+import { SUBSCRIPTION_CONFIG } from "@/config/subscription-config";
 
 export const dynamic = "force-dynamic";
 
@@ -19,5 +20,5 @@ export const metadata: Metadata = {
 };
 
 export default function SignUpPage() {
-  return <SignUpPageClient />;
+  redirect(SUBSCRIPTION_CONFIG.NEW_USER_ONBOARDING_PATH);
 }
