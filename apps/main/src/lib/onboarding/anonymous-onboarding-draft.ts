@@ -45,7 +45,7 @@ export const DEFAULT_ANONYMOUS_ONBOARDING_PROFILE: AnonymousOnboardingProfileDra
     profileImageSource: null,
   };
 
-const DEFAULT_ANONYMOUS_ONBOARDING_CULTIVAR_KEY = "cr-v2-ahs-77248";
+const DEFAULT_ANONYMOUS_ONBOARDING_CULTIVAR_KEY = "cr-ahs-176320";
 
 export const DEFAULT_ANONYMOUS_ONBOARDING_LISTING: AnonymousOnboardingListingPreviewDraft =
   {

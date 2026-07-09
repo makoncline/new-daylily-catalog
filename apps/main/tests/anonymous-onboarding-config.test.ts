@@ -148,9 +148,9 @@ describe("anonymous onboarding config", () => {
 
   it("requires configured example cultivars before building a listing preview", () => {
     expect(ONBOARDING_EXAMPLE_CULTIVAR_REFERENCE_IDS).toEqual([
-      "cr-v2-ahs-77248",
-      "cr-v2-ahs-71522",
-      "cr-v2-ahs-7847",
+      "cr-ahs-176320",
+      "cr-ahs-170157",
+      "cr-ahs-8527",
     ]);
 
     expect(() =>

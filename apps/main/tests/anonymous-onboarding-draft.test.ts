@@ -74,7 +74,7 @@ describe("anonymous onboarding draft storage", () => {
   it("keeps the example listing title empty until the user types one", () => {
     const draft = createAnonymousOnboardingDraft();
 
-    expect(draft.listingPreview.cultivarKey).toBe("cr-v2-ahs-77248");
+    expect(draft.listingPreview.cultivarKey).toBe("cr-ahs-176320");
     expect(draft.listingPreview.title).toBe("");
   });
 
@@ -96,7 +96,7 @@ describe("anonymous onboarding draft storage", () => {
       },
     });
 
-    expect(parsed?.listingPreview.cultivarKey).toBe("cr-v2-ahs-77248");
+    expect(parsed?.listingPreview.cultivarKey).toBe("cr-ahs-176320");
     expect(parsed?.listingPreview.title).toBe("");
   });
 });
