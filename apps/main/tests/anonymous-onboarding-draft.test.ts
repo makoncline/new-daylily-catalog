@@ -92,6 +92,8 @@ describe("anonymous onboarding draft storage", () => {
 
     expect(draft.listingPreview.cultivarKey).toBe("cr-ahs-176320");
     expect(draft.listingPreview.title).toBe("");
+    expect(draft.listingPreview.price).toBeNull();
+    expect(draft.listingPreview.description).toBe("");
   });
 
   it("normalizes the legacy generated listing title from stored drafts", () => {

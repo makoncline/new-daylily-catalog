@@ -52,9 +52,8 @@ export const DEFAULT_ANONYMOUS_ONBOARDING_LISTING: AnonymousOnboardingListingPre
   {
     cultivarKey: DEFAULT_ANONYMOUS_ONBOARDING_CULTIVAR_KEY,
     title: "",
-    price: 25,
-    description:
-      "Healthy dormant fan with strong roots, clearly labeled, and ready for spring shipping or local pickup.",
+    price: null,
+    description: "",
     imageDataUrl: null,
   };
 

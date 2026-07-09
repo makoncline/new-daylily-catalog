@@ -165,6 +165,16 @@ test.describe("anonymous onboarding checkout flow @local", () => {
         page.getByRole("heading", { name: "Edit your first listing" }),
       ).toBeVisible();
       await expect(page).toHaveURL(/\/onboarding\?step=listing/);
+      await expect(page.getByTestId("anonymous-listing-price")).toHaveAttribute(
+        "placeholder",
+        "25",
+      );
+      await expect(
+        page.getByTestId("anonymous-listing-description"),
+      ).toHaveAttribute(
+        "placeholder",
+        "Healthy dormant fan with strong roots, clearly labeled, and ready for spring shipping or local pickup.",
+      );
       await page.getByRole("button", { name: "Lemon Chiffon Cupcake" }).click();
       await page.getByTestId("anonymous-listing-title").fill(listingTitle);
       await page.getByTestId("anonymous-listing-price").fill("18");
@@ -181,6 +191,12 @@ test.describe("anonymous onboarding checkout flow @local", () => {
           return draft?.listingPreview.imageDataUrl?.startsWith("data:image/");
         })
         .toBe(true);
+      await expect(
+        page.getByTestId("anonymous-listing-image-dropzone"),
+      ).toHaveCount(0);
+      await expect(
+        page.getByTestId("anonymous-listing-image-reset"),
+      ).toBeVisible();
 
       await page.reload();
       await expect(

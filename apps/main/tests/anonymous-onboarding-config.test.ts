@@ -192,6 +192,9 @@ describe("anonymous onboarding config", () => {
     expect(getListingPreview(blankTitleDraft, examples)).toMatchObject({
       title: "Second Bloom Spring Fan",
       titlePlaceholder: "Second Bloom Spring Fan",
+      price: 25,
+      description:
+        "Healthy dormant fan with strong roots, clearly labeled, and ready for spring shipping or local pickup.",
     });
 
     const typedTitleDraft = createAnonymousOnboardingDraft({

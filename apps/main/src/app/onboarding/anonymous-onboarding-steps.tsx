@@ -24,6 +24,8 @@ import {
 } from "./anonymous-onboarding-preview-cards";
 import {
   DEFAULT_GARDEN_NAME_PLACEHOLDER,
+  DEFAULT_LISTING_DESCRIPTION_PLACEHOLDER,
+  DEFAULT_LISTING_PRICE_PLACEHOLDER,
   DEFAULT_LOCATION_PLACEHOLDER,
   DEFAULT_PROFILE_DESCRIPTION_PLACEHOLDER,
   STARTER_PROFILE_IMAGES,
@@ -647,8 +649,9 @@ export function ListingStep({
                   key={cultivar.key}
                   type="button"
                   variant={selected ? "default" : "outline"}
-                  className="w-full justify-center overflow-hidden px-3"
+                  className="h-auto min-h-16 w-full justify-start overflow-hidden px-2 py-2 text-left"
                   title={cultivar.name}
+                  aria-label={cultivar.name}
                   onClick={() =>
                     setDraft((currentDraft) => ({
                       ...currentDraft,
@@ -659,7 +662,21 @@ export function ListingStep({
                     }))
                   }
                 >
-                  <span className="max-w-full truncate">{cultivar.name}</span>
+                  <Image
+                    src={cultivar.imageUrl}
+                    alt=""
+                    width={48}
+                    height={48}
+                    className="size-12 shrink-0 rounded object-cover"
+                  />
+                  <span className="min-w-0 space-y-0.5">
+                    <span className="block text-sm leading-tight font-medium whitespace-normal">
+                      {cultivar.name}
+                    </span>
+                    <span className="block text-xs leading-tight font-normal whitespace-normal opacity-80">
+                      {cultivar.hybridizerYear}
+                    </span>
+                  </span>
                 </Button>
               );
             })}
@@ -688,6 +705,7 @@ export function ListingStep({
             data-testid="anonymous-listing-price"
             inputMode="decimal"
             value={draft.listingPreview.price ?? ""}
+            placeholder={String(DEFAULT_LISTING_PRICE_PLACEHOLDER)}
             onChange={(event) =>
               updateListingPreviewDraft(setDraft, {
                 price: parseListingPriceInput(event.target.value),
@@ -703,6 +721,7 @@ export function ListingStep({
             data-testid="anonymous-listing-description"
             rows={4}
             value={draft.listingPreview.description}
+            placeholder={DEFAULT_LISTING_DESCRIPTION_PLACEHOLDER}
             onChange={(event) =>
               updateListingPreviewDraft(setDraft, {
                 description: event.target.value,
@@ -719,19 +738,12 @@ export function ListingStep({
               title={listingPreview.title}
             />
             <div className="space-y-3">
-              <OnboardingImageUploadCropper
-                dropzoneTestId="anonymous-listing-image-dropzone"
-                inputId="anonymous-listing-image"
-                inputLabel="Upload listing image"
-                inputTestId="anonymous-listing-image"
-                setImageError={setImageError}
-                updateImage={updateListingImage}
-              />
               {draft.listingPreview.imageDataUrl ? (
                 <Button
                   type="button"
                   size="sm"
                   variant="outline"
+                  data-testid="anonymous-listing-image-reset"
                   onClick={() => {
                     setImageError(null);
                     updateListingPreviewDraft(setDraft, {
@@ -741,7 +753,16 @@ export function ListingStep({
                 >
                   Reset
                 </Button>
-              ) : null}
+              ) : (
+                <OnboardingImageUploadCropper
+                  dropzoneTestId="anonymous-listing-image-dropzone"
+                  inputId="anonymous-listing-image"
+                  inputLabel="Upload listing image"
+                  inputTestId="anonymous-listing-image"
+                  setImageError={setImageError}
+                  updateImage={updateListingImage}
+                />
+              )}
               {imageError ? (
                 <p className="text-destructive text-sm">{imageError}</p>
               ) : null}
@@ -755,7 +776,7 @@ export function ListingStep({
         <ListingPreviewCard
           title={listingPreview.title}
           description={listingPreview.description}
-          price={draft.listingPreview.price}
+          price={listingPreview.price}
           linkedLabel={listingPreview.selectedCultivar.name}
           hybridizerYear={listingPreview.selectedCultivar.hybridizerYear}
           imageUrl={listingPreview.imageUrl}
@@ -803,7 +824,7 @@ export function PreviewStep({
           <ListingPreviewCard
             title={listingPreview.title}
             description={listingPreview.description}
-            price={draft.listingPreview.price}
+            price={listingPreview.price}
             linkedLabel={listingPreview.selectedCultivar.name}
             hybridizerYear={listingPreview.selectedCultivar.hybridizerYear}
             imageUrl={listingPreview.imageUrl}
