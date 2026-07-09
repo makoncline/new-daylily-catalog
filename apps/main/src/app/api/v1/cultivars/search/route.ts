@@ -4,6 +4,7 @@ import { getCanonicalBaseUrl } from "@/lib/utils/getBaseUrl";
 import {
   getPublicSearchApiDisabledResponse,
   isPublicSearchApiEnabled,
+  toPublicSearchStatus,
 } from "@/server/search/public-search-api-platform";
 import { searchCultivars } from "@/server/search/cultivar-search";
 import { PublicSearchIndexUnavailableError } from "@/server/search/public-search-index";
@@ -79,7 +80,7 @@ export async function GET(request: Request) {
         {
           error: "public_search_index_unavailable",
           message: "The public search index is building. Try again shortly.",
-          searchIndex: error.status,
+          searchIndex: toPublicSearchStatus(error.status),
         },
         {
           headers: {
