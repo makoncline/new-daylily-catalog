@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useRef } from "react";
 import { ArrowRight, CheckCircle2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -142,7 +141,6 @@ export function AnonymousOnboardingPageClient(
 
         {draft.step !== "email" && draft.step !== "checkout" ? (
           <AnonymousOnboardingFooter
-            clearDraft={controller.clearDraft}
             collectEmail={controller.collectEmail}
             currentStepIndex={controller.currentStepIndex}
             draft={controller.draft}
@@ -236,7 +234,6 @@ function AnonymousOnboardingHeader({
 
 type AnonymousOnboardingFooterProps = Pick<
   AnonymousOnboardingController,
-  | "clearDraft"
   | "collectEmail"
   | "currentStepIndex"
   | "draft"
@@ -246,7 +243,6 @@ type AnonymousOnboardingFooterProps = Pick<
 >;
 
 function AnonymousOnboardingFooter({
-  clearDraft,
   collectEmail,
   currentStepIndex,
   draft,
@@ -257,7 +253,7 @@ function AnonymousOnboardingFooter({
   const currentStep = ANONYMOUS_ONBOARDING_STEPS[currentStepIndex]!;
 
   return (
-    <footer className="space-y-2 border-t pt-3">
+    <footer className="border-t pt-3">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="text-muted-foreground text-sm">
           {currentStep.description}
@@ -284,22 +280,6 @@ function AnonymousOnboardingFooter({
         </div>
       </div>
 
-      <div className="flex flex-wrap justify-between gap-3">
-        <Button
-          type="button"
-          variant="link"
-          className="text-muted-foreground hover:text-foreground h-auto p-0 text-xs"
-          onClick={clearDraft}
-        >
-          Start over
-        </Button>
-        <Link
-          href="/"
-          className="text-muted-foreground hover:text-foreground text-xs underline underline-offset-2"
-        >
-          Return home
-        </Link>
-      </div>
     </footer>
   );
 }

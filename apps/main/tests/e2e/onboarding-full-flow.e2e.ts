@@ -96,6 +96,51 @@ test.describe("anonymous onboarding checkout flow @local", () => {
       ).toBeVisible();
       await expect(page).toHaveURL(/\/onboarding\?step=profile/);
 
+      const defaultStarterImage = page.getByTestId(
+        "onboarding-starter-image-dew-kissed-daylily-leaf-at-dawn",
+      );
+      await expect(defaultStarterImage).toHaveAttribute("aria-pressed", "true");
+      await expect
+        .poll(async () => {
+          const draft = await readBrowserDraft(page);
+          return draft?.profile.profileImageSource;
+        })
+        .toBe("starter");
+
+      await page
+        .getByTestId("anonymous-profile-image-mode-upload")
+        .click();
+      await page
+        .getByTestId("anonymous-profile-image")
+        .setInputFiles(path.join(appRoot, LISTING_IMAGE_PATH));
+      await page.getByRole("button", { name: "Use cropped image" }).click();
+      await expect
+        .poll(async () => {
+          const draft = await readBrowserDraft(page);
+          return draft?.profile.profileImageSource === "upload"
+            ? draft.profile.profileImageDataUrl
+            : null;
+        })
+        .not.toBeNull();
+      const uploadedProfileImage = (await readBrowserDraft(page))?.profile
+        .profileImageDataUrl;
+      await page
+        .getByTestId("anonymous-profile-image-mode-starter")
+        .click();
+      await expect(defaultStarterImage).toHaveAttribute("aria-pressed", "true");
+      await page
+        .getByTestId("anonymous-profile-image-mode-upload")
+        .click();
+      await expect
+        .poll(async () => {
+          const draft = await readBrowserDraft(page);
+          return draft?.profile.profileImageDataUrl;
+        })
+        .toBe(uploadedProfileImage);
+      await page
+        .getByTestId("anonymous-profile-image-mode-starter")
+        .click();
+
       await page.getByTestId("anonymous-profile-name").fill(profileName);
       await page
         .getByTestId(

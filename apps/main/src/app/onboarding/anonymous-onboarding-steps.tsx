@@ -322,14 +322,16 @@ function OnboardingImageUploadCropper({
 
   if (cropImageUrl) {
     return (
-      <ImageCropper
-        src={cropImageUrl}
-        confirmButtonLabel="Use cropped image"
-        onCancel={resetCropper}
-        onCropComplete={(blob) => {
-          void Promise.resolve(updateImage(blob)).then(resetCropper);
-        }}
-      />
+      <div className="max-w-sm [overflow-anchor:none]">
+        <ImageCropper
+          src={cropImageUrl}
+          confirmButtonLabel="Use cropped image"
+          onCancel={resetCropper}
+          onCropComplete={(blob) => {
+            void Promise.resolve(updateImage(blob)).then(resetCropper);
+          }}
+        />
+      </div>
     );
   }
 
