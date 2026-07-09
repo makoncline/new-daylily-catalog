@@ -361,23 +361,20 @@ function useDashboardDbProviderState() {
         const replicaBootstrapDurationMs =
           performance.now() - replicaBootstrapStartedAt;
 
-        let serverBootstrapDurationMs: number | null = null;
-        if (!usedReplica) {
-          phase = "cold-bootstrap";
-          const serverBootstrapStartedAt = performance.now();
-          await bootstrapDashboardDbFromServer(userId, {
-            isActive: isBootstrapActive,
-          });
-          serverBootstrapDurationMs =
-            performance.now() - serverBootstrapStartedAt;
-        }
+        phase = "cold-bootstrap";
+        const serverBootstrapStartedAt = performance.now();
+        await bootstrapDashboardDbFromServer(userId, {
+          isActive: isBootstrapActive,
+        });
+        const serverBootstrapDurationMs =
+          performance.now() - serverBootstrapStartedAt;
 
         if (!cancelled) {
           finished = true;
           updateDashboardDbState({
             status: "ready",
             userId,
-            isRefreshing: usedReplica,
+            isRefreshing: false,
           });
           logDashboardSyncTiming("provider.ready", startedAtMs, {
             path: phase,
@@ -392,17 +389,12 @@ function useDashboardDbProviderState() {
             replicaBootstrapDurationMs: Number(
               replicaBootstrapDurationMs.toFixed(1),
             ),
-            serverBootstrapDurationMs:
-              serverBootstrapDurationMs === null
-                ? null
-                : Number(serverBootstrapDurationMs.toFixed(1)),
+            serverBootstrapDurationMs: Number(
+              serverBootstrapDurationMs.toFixed(1),
+            ),
           });
 
-          if (usedReplica) {
-            startBackgroundRefresh();
-          } else {
-            void refreshSubscriptionCache();
-          }
+          void refreshSubscriptionCache();
         }
       } catch (error) {
         if (!cancelled) {

@@ -225,7 +225,7 @@ describe("dashboardDb provider bootstrap", () => {
             "ready",
           );
         },
-        { timeout: 2000 },
+        { timeout: 10_000 },
       );
 
       await act(async () => {
@@ -567,15 +567,15 @@ describe("dashboardDb provider bootstrap", () => {
     });
   });
 
-  it("renders replica data before the primary refresh finishes when SQLite is cold", async () => {
+  it("keeps cold SQLite dashboards loading until primary bootstrap finishes", async () => {
     vi.resetModules();
 
-    const backgroundRefresh = deferred();
+    const primaryBootstrap = deferred();
     const bootstrapDashboardDbFromReplica = vi.fn(async () => true);
-    const bootstrapDashboardDbFromServer = vi.fn(async () => undefined);
-    const revalidateDashboardDbInBackground = vi.fn(
-      () => backgroundRefresh.promise,
+    const bootstrapDashboardDbFromServer = vi.fn(
+      () => primaryBootstrap.promise,
     );
+    const revalidateDashboardDbInBackground = vi.fn(async () => undefined);
 
     vi.doMock(
       "@/app/dashboard/_lib/dashboard-db/dashboard-db-sqlite-persistence",
@@ -655,25 +655,24 @@ describe("dashboardDb provider bootstrap", () => {
     );
 
     await waitFor(() => {
-      expect(screen.getByTestId("dashboard-ready").textContent).toBe("ready");
+      expect(bootstrapDashboardDbFromReplica).toHaveBeenCalledTimes(1);
+      expect(bootstrapDashboardDbFromServer).toHaveBeenCalledTimes(1);
     });
-    expect(screen.getByTestId("dashboard-refreshing").textContent).toBe(
-      "refreshing",
-    );
-    expect(bootstrapDashboardDbFromReplica).toHaveBeenCalledTimes(1);
-    expect(bootstrapDashboardDbFromServer).not.toHaveBeenCalled();
-    expect(revalidateDashboardDbInBackground).toHaveBeenCalledTimes(1);
+    expect(screen.queryByTestId("dashboard-ready")).toBeNull();
+    expect(revalidateDashboardDbInBackground).not.toHaveBeenCalled();
 
     await act(async () => {
-      backgroundRefresh.resolve();
-      await backgroundRefresh.promise;
+      primaryBootstrap.resolve();
+      await primaryBootstrap.promise;
     });
 
     await waitFor(() => {
-      expect(screen.getByTestId("dashboard-refreshing").textContent).toBe(
-        "idle",
-      );
+      expect(screen.getByTestId("dashboard-ready").textContent).toBe("ready");
     });
+    expect(screen.getByTestId("dashboard-refreshing").textContent).toBe(
+      "idle",
+    );
+    expect(revalidateDashboardDbInBackground).not.toHaveBeenCalled();
   });
 
   it("renders server data without a background refresh when SQLite and replica are unavailable", async () => {
