@@ -16,6 +16,8 @@ async function syncStripeSubscriptionToKVBase(
 ) {
   const subscriptions = await stripe.subscriptions.list({
     customer: customerId,
+    // Canceled subscriptions are excluded by default, so the current record
+    // is sufficient: https://docs.stripe.com/api/subscriptions/list
     limit: 1,
     expand: ["data.default_payment_method"],
   });
@@ -95,6 +97,8 @@ export const getStripeSubscription = async (
         stripeCustomerId,
       },
     });
+    // Keep checkout available; its customer binding and Stripe's setting are
+    // the final duplicate guard: https://docs.stripe.com/payments/checkout/limit-subscriptions
     return DEFAULT_SUB_DATA;
   }
   return result.data;

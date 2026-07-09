@@ -57,6 +57,8 @@ export const stripeRouter = createTRPCRouter({
       });
     }
 
+    // Always bind Checkout to the Customer; Stripe's one-subscription setting
+    // handles concurrent sessions: https://github.com/t3dotgg/stripe-recommendations
     const session = await stripe.checkout.sessions.create({
       customer: stripeCustomerId,
       mode: "subscription",
