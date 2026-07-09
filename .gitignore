@@ -63,6 +63,7 @@ apps/*/next-env.d.ts
 *.pem
 
 # local operator scratch space
+/plans/
 /downloads/
 /local/
 /temp/
