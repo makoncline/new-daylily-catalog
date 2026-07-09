@@ -1,9 +1,6 @@
 import { z } from "zod";
 import { createTRPCRouter, publicProcedure } from "../trpc";
-import {
-  getCultivarRouteSegments,
-  getPublicCultivarPage,
-} from "@/server/db/public-cultivar-read-model";
+import { getPublicCultivarPage } from "@/server/db/public-cultivar-read-model";
 import {
   getListings,
   getPublicListingDetail,
@@ -89,10 +86,6 @@ export const publicRouter = createTRPCRouter({
       }),
     )
     .query(({ input }) => getPublicCultivarPage(input.cultivarNormalizedName)),
-
-  getCultivarRouteSegments: publicProcedure.query(() =>
-    getCultivarRouteSegments(),
-  ),
 
   sendMessage: publicProcedure
     .input(publicInquiryInputSchema)

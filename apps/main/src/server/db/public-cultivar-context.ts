@@ -91,26 +91,6 @@ async function findCultivarReferenceByNormalizedName(
   return row ? withResolvedDisplayAhsListing(row) : null;
 }
 
-export async function getCultivarRouteSegments(): Promise<string[]> {
-  const cultivars = await replicaDb.cultivarReference.findMany({
-    where: getCultivarReferenceLookupWhereClause(),
-    select: {
-      normalizedName: true,
-    },
-  });
-
-  const uniqueSegments = new Set<string>();
-
-  cultivars.forEach((cultivar) => {
-    const segment = toCultivarRouteSegment(cultivar.normalizedName);
-    if (segment) {
-      uniqueSegments.add(segment);
-    }
-  });
-
-  return Array.from(uniqueSegments).sort();
-}
-
 export async function getCultivarSitemapEntries(): Promise<
   Array<{
     segment: string;
