@@ -5,6 +5,7 @@ import type { CartItem } from "@/types";
 import { getCanonicalBaseUrl } from "@/lib/utils/getBaseUrl";
 import { db } from "@/server/db";
 import { getClerkUserData } from "@/server/clerk/sync-user";
+import { isPublished } from "@/server/db/public-visibility/filters";
 import { enforcePublicInquiryRateLimit } from "@/server/services/public-inquiry-rate-limit";
 
 export interface SendPublicInquiryInput {
@@ -25,6 +26,7 @@ interface PublicInquiryContext {
   customerName: string | undefined;
   customerEmail: string;
   formattedItems: string;
+  hadOmittedItems: boolean;
   hasCartItems: boolean;
   sellerEmail: string;
   sellerNameForSellerEmail: string;
@@ -97,6 +99,37 @@ function formatCartItems(items: CartItem[] | undefined) {
   };
 }
 
+async function resolveCartItems(input: SendPublicInquiryInput) {
+  if (!input.items?.length) {
+    return { items: input.items, hadOmittedItems: false };
+  }
+
+  const listings = await db.listing.findMany({
+    where: {
+      id: { in: [...new Set(input.items.map((item) => item.listingId))] },
+      userId: input.userId,
+      ...isPublished(),
+    },
+    select: { id: true, title: true, price: true },
+  });
+  const listingById = new Map(listings.map((listing) => [listing.id, listing]));
+  const items = input.items.flatMap((item) => {
+    const listing = listingById.get(item.listingId);
+    return listing
+      ? [{ ...item, title: listing.title, price: listing.price }]
+      : [];
+  });
+
+  if (items.length === 0) {
+    throw new TRPCError({
+      code: "BAD_REQUEST",
+      message: "Cart items could not be verified.",
+    });
+  }
+
+  return { items, hadOmittedItems: items.length !== input.items.length };
+}
+
 async function loadPublicInquiryContext(
   input: SendPublicInquiryInput,
 ): Promise<PublicInquiryContext> {
@@ -132,9 +165,8 @@ async function loadPublicInquiryContext(
   }
 
   const customerDisplayName = getCustomerDisplayName(input);
-  const { formattedItems, hasCartItems, subtotal } = formatCartItems(
-    input.items,
-  );
+  const { items, hadOmittedItems } = await resolveCartItems(input);
+  const { formattedItems, hasCartItems, subtotal } = formatCartItems(items);
   const catalogUrl = `${getCanonicalBaseUrl()}/${user.profile?.slug ?? user.id}`;
 
   return {
@@ -143,6 +175,7 @@ async function loadPublicInquiryContext(
     customerName: input.customerName,
     customerEmail: input.customerEmail,
     formattedItems,
+    hadOmittedItems,
     hasCartItems,
     sellerEmail,
     sellerNameForSellerEmail: user.profile?.title ?? "Seller",
@@ -174,7 +207,7 @@ ${formattedMessage}`
 ${
   context.hasCartItems
     ? `Customer's Selected Items:
-${context.formattedItems}
+${context.formattedItems}${context.hadOmittedItems ? "\n\nOne or more unavailable items were omitted." : ""}
 
 Subtotal: $${context.subtotal.toFixed(2)}
 Note: Final pricing, shipping, and handling are at your discretion.`
@@ -214,7 +247,7 @@ ${formattedMessage}`
 ${
   context.hasCartItems
     ? `Items you're interested in:
-${context.formattedItems}
+${context.formattedItems}${context.hadOmittedItems ? "\n\nOne or more unavailable items were omitted." : ""}
 
 Subtotal: $${context.subtotal.toFixed(2)}
 (Note: Final pricing, shipping, and handling may vary at the discretion of the seller.)`
