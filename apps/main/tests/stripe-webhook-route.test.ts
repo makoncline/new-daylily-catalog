@@ -113,7 +113,8 @@ describe("Stripe webhook route", () => {
   });
 
   it("acknowledges relevant events without a customer id", async () => {
-    // Current behavior - plan 003 changes this to fail closed.
+    // Some tracked event objects have nullable customers:
+    // https://docs.stripe.com/api/payment_intents/object
     mocks.constructEvent.mockReturnValue({
       type: "invoice.paid",
       data: { object: {} },
