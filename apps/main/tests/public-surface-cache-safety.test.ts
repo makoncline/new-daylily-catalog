@@ -236,6 +236,13 @@ describe("public surface cache safety", () => {
     }
   });
 
+  it("keeps the membership landing page statically rendered with ISR", () => {
+    const source = readSource("src/app/start-membership/page.tsx");
+
+    expect(source).toContain('export const dynamic = "force-static"');
+    expect(source).toContain("export const revalidate = 3600");
+  });
+
   it("renders public navigation without Clerk auth state", () => {
     const source = readSource("src/components/public-nav.tsx");
 
@@ -293,8 +300,8 @@ describe("public surface cache safety", () => {
     expect(readSource("src/app/onboarding/layout.tsx")).toContain(
       "<AuthProviders>",
     );
-    expect(readSource("src/app/start-onboarding/layout.tsx")).toContain(
-      "<AuthProviders>",
+    expect(readSource("src/app/start-onboarding/page.tsx")).toContain(
+      "redirect(SUBSCRIPTION_CONFIG.NEW_USER_ONBOARDING_PATH)",
     );
     expect(readSource("src/app/start-membership/layout.tsx")).not.toContain(
       "AuthProviders",
@@ -308,18 +315,16 @@ describe("public surface cache safety", () => {
   });
 
   it("keeps public auth-start routes pointed at the right protected flows", () => {
-    const signUp = readSource(
-      "src/app/sign-up/sign-up-page-client.tsx",
-    );
-    const signIn = readSource(
-      "src/app/sign-in/sign-in-page-client.tsx",
-    );
+    const signUp = readSource("src/app/sign-up/page.tsx");
+    const signIn = readSource("src/app/sign-in/sign-in-page-client.tsx");
 
-    expect(signUp).toContain("window.location.replace(ONBOARDING_PATH)");
-    expect(signUp).toContain("forceRedirectUrl={ONBOARDING_PATH}");
+    expect(signUp).toContain(
+      "redirect(SUBSCRIPTION_CONFIG.NEW_USER_ONBOARDING_PATH)",
+    );
     expect(signIn).toContain("window.location.replace(DASHBOARD_PATH)");
     expect(signIn).toContain("forceRedirectUrl={DASHBOARD_PATH}");
-    expect(signIn).toContain("signUpForceRedirectUrl={ONBOARDING_PATH}");
+    expect(signIn).toContain("withSignUp={false}");
+    expect(signIn).not.toContain("signUpForceRedirectUrl");
   });
 
   it("keeps public app-router RSC fetches out of long-lived public caches", () => {

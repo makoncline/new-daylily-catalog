@@ -90,8 +90,8 @@ export function buildDashboardStats({
   const averageListingsPerList =
     totalLists > 0 ? totalListingsInLists / totalLists : 0;
 
-  const profileImageCount = images.filter((image) =>
-    Boolean(image.userProfileId),
+  const profileImageCount = images.filter(
+    (image) => Boolean(image.userProfileId) || !image.listingId,
   ).length;
   const profileFields = [
     "hasProfileImage",

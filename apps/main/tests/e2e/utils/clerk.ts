@@ -4,11 +4,22 @@ const clerkClient = createClerkClient({
   secretKey: process.env.CLERK_SECRET_KEY,
 });
 
+function assertSafeClerkTestEnvironment() {
+  const secretKey = process.env.CLERK_SECRET_KEY ?? "";
+  if (!secretKey.startsWith("sk_test_")) {
+    throw new Error(
+      "Refusing to mutate Clerk users without a test Clerk secret key.",
+    );
+  }
+}
+
 /**
  * Delete a Clerk user by email address
  * Useful for cleaning up test users after e2e tests
  */
 export async function deleteClerkUserByEmail(email: string): Promise<void> {
+  assertSafeClerkTestEnvironment();
+
   try {
     const users = await clerkClient.users.getUserList({
       emailAddress: [email],
@@ -25,6 +36,8 @@ export async function deleteClerkUserByEmail(email: string): Promise<void> {
 export async function getClerkUserIdByEmail(
   email: string,
 ): Promise<string | null> {
+  assertSafeClerkTestEnvironment();
+
   const users = await clerkClient.users.getUserList({
     emailAddress: [email],
   });

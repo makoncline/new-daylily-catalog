@@ -34,10 +34,10 @@ export class ClerkAuthModal {
 
     if (await this.signUpLink.isVisible().catch(() => false)) {
       await this.signUpLink.click();
-      await Promise.any([
-        this.createAccountHeading.waitFor({ state: "visible", timeout: 8000 }),
-        this.emailInput.waitFor({ state: "visible", timeout: 8000 }),
-      ]);
+      await this.createAccountHeading.waitFor({
+        state: "visible",
+        timeout: 8000,
+      });
     }
   }
 

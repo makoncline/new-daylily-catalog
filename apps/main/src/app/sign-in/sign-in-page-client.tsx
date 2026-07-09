@@ -4,10 +4,8 @@ import { SignIn, useAuth } from "@clerk/nextjs";
 import { Flower2 } from "lucide-react";
 import Link from "next/link";
 import { useEffect } from "react";
-import { SUBSCRIPTION_CONFIG } from "@/config/subscription-config";
 
 const DASHBOARD_PATH = "/dashboard";
-const ONBOARDING_PATH = SUBSCRIPTION_CONFIG.NEW_USER_ONBOARDING_PATH;
 
 export function SignInPageClient() {
   const { isLoaded, userId } = useAuth();
@@ -19,12 +17,12 @@ export function SignInPageClient() {
   }, [isLoaded, userId]);
 
   return (
-    <main className="flex min-h-svh flex-col items-center bg-muted/30 px-4 py-8">
+    <main className="bg-muted/30 flex min-h-svh flex-col items-center px-4 py-8">
       <Link
         href="/"
-        className="mb-8 inline-flex items-center gap-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
+        className="text-muted-foreground hover:text-foreground mb-8 inline-flex items-center gap-2 text-sm font-medium transition-colors"
       >
-        <Flower2 className="size-4 text-primary" aria-hidden="true" />
+        <Flower2 className="text-primary size-4" aria-hidden="true" />
         <span>Daylily Catalog</span>
       </Link>
 
@@ -33,8 +31,7 @@ export function SignInPageClient() {
           routing="hash"
           forceRedirectUrl={DASHBOARD_PATH}
           fallbackRedirectUrl={DASHBOARD_PATH}
-          signUpForceRedirectUrl={ONBOARDING_PATH}
-          signUpFallbackRedirectUrl={ONBOARDING_PATH}
+          withSignUp={false}
         />
       )}
     </main>

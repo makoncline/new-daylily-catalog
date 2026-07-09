@@ -1,18 +1,14 @@
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { Prisma } from "@prisma/client";
-import { after } from "next/server";
 import { protectedProcedure, createTRPCRouter } from "@/server/api/trpc";
-import { env, requireEnv } from "@/env";
 import { APP_CONFIG } from "@/config/constants";
-import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
+import { PutObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import crypto from "node:crypto";
 import {
   imageContentTypeSchema,
-  imageExtensionByContentType,
   imageTypeSchema,
-  type ImageType,
 } from "@/types/image";
 import type { db } from "@/server/db";
 import {
@@ -21,27 +17,28 @@ import {
   resolveLegacyImagesWithAssets,
 } from "@/server/services/image-asset-read-model";
 import {
-  buildR2PublicUrl,
   getR2OriginalUploadMetadata,
   isExpectedOriginalImageAssetKey,
 } from "@/server/services/image-asset-storage";
+import { scheduleImageAssetVariantProcessing } from "@/server/services/image-asset-scheduler";
+import {
+  buildLegacyImageKey,
+  getLegacyImageUploadBucketName,
+  getLegacyImageUrl,
+  getLegacyS3Client,
+  getValidatedLegacyImageUrl,
+} from "@/server/services/legacy-image-storage";
+import {
+  createUserImageRecord,
+  getListingIdForImageAsset,
+  getUserImageOwnerWhere,
+} from "@/server/services/user-image-records";
 import {
   assertOwnedListing,
   assertOwnedProfile,
   dashboardSyncInputSchema,
   parseDashboardSyncSince,
 } from "./dashboard-db-router-helpers";
-
-const imageSelect = {
-  id: true,
-  url: true,
-  order: true,
-  listingId: true,
-  userProfileId: true,
-  createdAt: true,
-  updatedAt: true,
-  status: true,
-} as const;
 
 type DbClient = typeof db;
 type DashboardImageRow = ReturnType<typeof mapImageRow>;
@@ -69,152 +66,22 @@ function mapImageRow(row: ImageRow) {
   };
 }
 
-function compareNullableStrings(a: string | null, b: string | null) {
-  return (a ?? "").localeCompare(b ?? "");
-}
-
 function sortImagesForDashboard(
   a: ReturnType<typeof mapImageRow>,
   b: ReturnType<typeof mapImageRow>,
 ) {
   return (
-    compareNullableStrings(a.listingId, b.listingId) ||
-    compareNullableStrings(a.userProfileId, b.userProfileId) ||
+    (a.listingId ?? "").localeCompare(b.listingId ?? "") ||
+    (a.userProfileId ?? "").localeCompare(b.userProfileId ?? "") ||
     a.order - b.order ||
     a.id.localeCompare(b.id)
   );
-}
-
-function getUploadBucketName() {
-  return requireEnv("AWS_BUCKET_NAME", env.AWS_BUCKET_NAME);
-}
-
-function getUploadRegion() {
-  return requireEnv("AWS_REGION", env.AWS_REGION);
-}
-
-function getS3ImageUrl(key: string) {
-  return `https://${getUploadBucketName()}.s3.${getUploadRegion()}.amazonaws.com/${key}`;
-}
-
-function ownerWhere(type: ImageType, referenceId: string) {
-  return type === "listing"
-    ? { listingId: referenceId }
-    : { userProfileId: referenceId };
-}
-
-function listingIdForImageAsset(type: ImageType, referenceId: string) {
-  return type === "listing" ? referenceId : null;
 }
 
 function invalidImageAssetMetadata() {
   return new TRPCError({
     code: "BAD_REQUEST",
     message: "Image asset upload metadata is invalid",
-  });
-}
-
-function assertUploadKeyMatchesTarget(args: {
-  key: string;
-  referenceId: string;
-  userId: string;
-}) {
-  const prefix = `${args.userId}/${args.referenceId}/`;
-  const hasAllowedExtension = Object.values(imageExtensionByContentType).some(
-    (extension) => args.key.endsWith(extension),
-  );
-
-  if (!args.key.startsWith(prefix) || !hasAllowedExtension) {
-    throw new TRPCError({
-      code: "BAD_REQUEST",
-      message: "Invalid image upload key",
-    });
-  }
-}
-
-function parseS3ImageKey(url: string) {
-  try {
-    const parsed = new URL(url);
-    const expectedHost = `${getUploadBucketName()}.s3.${getUploadRegion()}.amazonaws.com`;
-
-    if (parsed.protocol !== "https:" || parsed.host !== expectedHost) {
-      return null;
-    }
-
-    return decodeURIComponent(parsed.pathname.replace(/^\/+/, ""));
-  } catch {
-    return null;
-  }
-}
-
-function getValidatedImageUrl(args: {
-  key: string;
-  referenceId: string;
-  url: string;
-  userId: string;
-}) {
-  assertUploadKeyMatchesTarget({
-    key: args.key,
-    referenceId: args.referenceId,
-    userId: args.userId,
-  });
-
-  const parsedKey = parseS3ImageKey(args.url);
-  if (parsedKey !== args.key || args.url !== getS3ImageUrl(args.key)) {
-    throw new TRPCError({
-      code: "BAD_REQUEST",
-      message: "Invalid image upload URL",
-    });
-  }
-
-  return getS3ImageUrl(args.key);
-}
-
-function assertR2OriginalKeyMatchesTarget(args: {
-  type: ImageType;
-  referenceId: string;
-  userId: string;
-  imageAssetId: string;
-  key: string;
-}) {
-  const isExpectedKey = isExpectedOriginalImageAssetKey({
-    kind: args.type,
-    userId: args.userId,
-    listingId: listingIdForImageAsset(args.type, args.referenceId),
-    imageAssetId: args.imageAssetId,
-    key: args.key,
-  });
-
-  if (!isExpectedKey) {
-    throw invalidImageAssetMetadata();
-  }
-}
-
-function scheduleImageAssetVariantProcessing(args: {
-  db: DbClient;
-  imageAssetId: string;
-}) {
-  console.info("[image-assets] variants scheduled", {
-    imageAssetId: args.imageAssetId,
-  });
-
-  after(async () => {
-    try {
-      const { processPendingImageAssetVariants } = await import(
-        "@/server/services/image-asset-variant-processor"
-      );
-
-      await processPendingImageAssetVariants({
-        db: args.db,
-        assetId: args.imageAssetId,
-        limit: 1,
-      });
-    } catch (error) {
-      console.error("[image-assets] variants async processing failed", {
-        imageAssetId: args.imageAssetId,
-        error,
-      });
-    }
   });
 }
 
@@ -295,43 +162,41 @@ export const dashboardDbImageRouter = createTRPCRouter({
         });
       }
 
-      const s3Client = new S3Client({
-        region: requireEnv("AWS_REGION", env.AWS_REGION),
-        credentials: {
-          accessKeyId: requireEnv("AWS_ACCESS_KEY_ID", env.AWS_ACCESS_KEY_ID),
-          secretAccessKey: requireEnv(
-            "AWS_SECRET_ACCESS_KEY",
-            env.AWS_SECRET_ACCESS_KEY,
-          ),
-        },
-      });
-
-      const ext = imageExtensionByContentType[input.contentType];
       const imageId = crypto.randomUUID();
       const fileId = crypto.randomBytes(16).toString("hex");
-      const key = `${ctx.user.id}/${input.referenceId}/${fileId}${ext}`;
+      const key = buildLegacyImageKey({
+        contentType: input.contentType,
+        fileId,
+        referenceId: input.referenceId,
+        userId: ctx.user.id,
+      });
       const r2 = await getR2OriginalUploadMetadata({
         kind: input.type,
         userId: ctx.user.id,
-        listingId: listingIdForImageAsset(input.type, input.referenceId),
+        listingId: getListingIdForImageAsset({
+          type: input.type,
+          referenceId: input.referenceId,
+        }),
         imageAssetId: imageId,
         contentType: input.contentType,
       });
 
       const command = new PutObjectCommand({
-        Bucket: getUploadBucketName(),
+        Bucket: getLegacyImageUploadBucketName(),
         Key: key,
         ContentType: input.contentType,
         ContentLength: input.size,
       });
 
-      const url = await getSignedUrl(s3Client, command, { expiresIn: 3600 });
+      const url = await getSignedUrl(getLegacyS3Client(), command, {
+        expiresIn: 3600,
+      });
 
       return {
         imageId,
         presignedUrl: url,
         key,
-        url: getS3ImageUrl(key),
+        url: getLegacyImageUrl(key),
         r2,
       } as const;
     }),
@@ -469,59 +334,50 @@ export const dashboardDbImageRouter = createTRPCRouter({
         });
       }
 
-      const imageUrl = getValidatedImageUrl({
+      const imageUrl = getValidatedLegacyImageUrl({
         key: input.key,
         referenceId: input.referenceId,
         url: input.url,
         userId: ctx.user.id,
       });
+      if (!imageUrl) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "Invalid image upload URL",
+        });
+      }
 
-      const whereClause = ownerWhere(input.type, input.referenceId);
+      const owner = { type: input.type, referenceId: input.referenceId };
+      const whereClause = getUserImageOwnerWhere(owner);
 
       const currentCount = await ctx.db.image.count({ where: whereClause });
-      const shouldCreateImageAsset = Boolean(input.r2OriginalKey);
 
       if (input.r2OriginalKey) {
         if (!input.imageId) {
           throw invalidImageAssetMetadata();
         }
 
-        assertR2OriginalKeyMatchesTarget({
-          type: input.type,
-          referenceId: input.referenceId,
+        const isExpectedKey = isExpectedOriginalImageAssetKey({
+          kind: input.type,
           userId: ctx.user.id,
-          imageAssetId: input.imageId,
+          listingId: getListingIdForImageAsset(owner),
           key: input.r2OriginalKey,
+          imageAssetId: input.imageId,
         });
+        if (!isExpectedKey) {
+          throw invalidImageAssetMetadata();
+        }
       }
 
       const image = await ctx.db.$transaction(async (tx) => {
-        const created = await tx.image.create({
-          data: {
-            ...(input.imageId ? { id: input.imageId } : {}),
-            url: imageUrl,
-            order: currentCount,
-            ...whereClause,
-          },
-          select: imageSelect,
+        return createUserImageRecord({
+          db: tx,
+          imageId: input.imageId,
+          order: currentCount,
+          owner,
+          r2OriginalKey: input.r2OriginalKey,
+          url: imageUrl,
         });
-
-        if (shouldCreateImageAsset && input.r2OriginalKey) {
-          await tx.imageAsset.create({
-            data: {
-              id: created.id,
-              legacyImageId: created.id,
-              kind: input.type,
-              order: currentCount,
-              status: "pending_variants",
-              originalKey: input.r2OriginalKey,
-              originalUrl: buildR2PublicUrl(input.r2OriginalKey),
-              ...whereClause,
-            },
-          });
-        }
-
-        return created;
       });
 
       const [resolved] = await resolveDashboardImageRows({
@@ -529,7 +385,7 @@ export const dashboardDbImageRouter = createTRPCRouter({
         rows: [image],
       });
 
-      if (shouldCreateImageAsset) {
+      if (input.r2OriginalKey) {
         scheduleImageAssetVariantProcessing({
           db: ctx.db,
           imageAssetId: image.id,
@@ -564,7 +420,10 @@ export const dashboardDbImageRouter = createTRPCRouter({
         });
       }
 
-      const whereClause = ownerWhere(input.type, input.referenceId);
+      const whereClause = getUserImageOwnerWhere({
+        type: input.type,
+        referenceId: input.referenceId,
+      });
 
       const allImages = await ctx.db.image.findMany({
         where: whereClause,
@@ -633,7 +492,10 @@ export const dashboardDbImageRouter = createTRPCRouter({
         });
       }
 
-      const whereClause = ownerWhere(input.type, input.referenceId);
+      const whereClause = getUserImageOwnerWhere({
+        type: input.type,
+        referenceId: input.referenceId,
+      });
 
       await ctx.db.$transaction(async (tx) => {
         const deleted = await tx.image.deleteMany({

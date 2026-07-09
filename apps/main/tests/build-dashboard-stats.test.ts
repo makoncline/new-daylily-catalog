@@ -178,4 +178,42 @@ describe("buildDashboardStats", () => {
       "location",
     ]);
   });
+
+  it("counts profile-style images without listing ownership as profile progress", () => {
+    const stats = buildDashboardStats({
+      listings: [],
+      lists: [],
+      images: [
+        {
+          id: "onboarding-profile-image",
+          url: "https://example.com/onboarding-profile.jpg",
+          order: 0,
+          listingId: null,
+          userProfileId: null,
+          createdAt: now,
+          updatedAt: now,
+          status: "onboarding-import-local-e2e",
+        },
+      ],
+      profile: {
+        id: "profile-3",
+        userId: "u3",
+        title: "Imported Garden",
+        slug: "u3",
+        logoUrl: null,
+        description: null,
+        content: null,
+        location: null,
+        createdAt: now,
+        updatedAt: now,
+      },
+    });
+
+    expect(stats.profileStats.completionPercentage).toBe(25);
+    expect(stats.profileStats.missingFields).toStrictEqual([
+      "description",
+      "content",
+      "location",
+    ]);
+  });
 });

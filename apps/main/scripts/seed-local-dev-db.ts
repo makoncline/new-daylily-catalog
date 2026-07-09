@@ -5,6 +5,7 @@ import { PrismaClient } from "@prisma/client";
 import { PrismaLibSql } from "@prisma/adapter-libsql";
 import { createAuthedUser } from "../src/lib/test-utils/e2e-users";
 import { seedAhsListing } from "../src/lib/test-utils/seed-cultivar-sources";
+import { seedOnboardingExampleCultivars } from "../src/lib/test-utils/seed-onboarding-example-cultivars";
 
 const DEFAULT_DB_PATH = path.join("prisma", "local-dev-seeded.sqlite");
 const MAIN_USER_LISTINGS_COUNT = 80;
@@ -342,6 +343,7 @@ async function seed(dbUrl: string) {
     const syntheticAhsPairs = (await createSyntheticAhsRows(db)).concat(
       await createDualSource2026Rows(db),
     );
+    await seedOnboardingExampleCultivars(db);
 
     const listingIds: string[] = [];
     for (let i = 1; i <= MAIN_USER_LISTINGS_COUNT; i++) {

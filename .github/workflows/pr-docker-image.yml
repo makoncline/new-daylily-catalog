@@ -88,6 +88,7 @@ jobs:
           BUILD_DATABASE_URL: ${{ vars.DATABASE_URL }}
           BUILD_TURSO_DATABASE_AUTH_TOKEN: ${{ secrets.TURSO_DATABASE_AUTH_TOKEN }}
           BUILD_STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY }}
+          BUILD_STRIPE_PRICE_ID: ${{ vars.STRIPE_PRICE_ID }}
           BUILD_SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
         run: |
           BUILD_ENV_FILE="$RUNNER_TEMP/daylilycatalog-build.env"
@@ -102,6 +103,11 @@ jobs:
             exit 1
           fi
 
+          if [ -z "$BUILD_STRIPE_SECRET_KEY" ] || [ -z "$BUILD_STRIPE_PRICE_ID" ]; then
+            echo "Configure STRIPE_SECRET_KEY and STRIPE_PRICE_ID in the '$BUILD_ENVIRONMENT_NAME' environment." >&2
+            exit 1
+          fi
+
           cat > "$BUILD_ENV_FILE" <<EOF
           APP_BASE_URL=$BUILD_APP_BASE_URL
           NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=$BUILD_CLERK_PUBLISHABLE_KEY
@@ -111,11 +117,9 @@ jobs:
           NEXT_PUBLIC_POSTHOG_HOST=$BUILD_NEXT_PUBLIC_POSTHOG_HOST
           DATABASE_URL=$BUILD_DATABASE_URL
           TURSO_DATABASE_AUTH_TOKEN=$BUILD_TURSO_DATABASE_AUTH_TOKEN
+          STRIPE_SECRET_KEY=$BUILD_STRIPE_SECRET_KEY
+          STRIPE_PRICE_ID=$BUILD_STRIPE_PRICE_ID
           EOF
-
-          if [ -n "$BUILD_STRIPE_SECRET_KEY" ]; then
-            echo "STRIPE_SECRET_KEY=$BUILD_STRIPE_SECRET_KEY" >> "$BUILD_ENV_FILE"
-          fi
 
           if [ -n "$BUILD_SENTRY_AUTH_TOKEN" ]; then
             echo "SENTRY_AUTH_TOKEN=$BUILD_SENTRY_AUTH_TOKEN" >> "$BUILD_ENV_FILE"
