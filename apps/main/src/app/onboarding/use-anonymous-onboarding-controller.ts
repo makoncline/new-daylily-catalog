@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { api } from "@/trpc/react";
 import {
   ANONYMOUS_ONBOARDING_STEPS,
@@ -34,7 +34,6 @@ export function useAnonymousOnboardingController({
   exampleCultivars,
   membershipPriceDisplay,
 }: AnonymousOnboardingPageClientProps) {
-  const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const [draft, setDraftState] = useState(() =>
@@ -101,9 +100,13 @@ export function useAnonymousOnboardingController({
     if (hasHydratedDraftRef.current) {
       return;
     }
-    hasHydratedDraftRef.current = true;
 
     const frame = window.requestAnimationFrame(() => {
+      if (hasHydratedDraftRef.current) {
+        return;
+      }
+      hasHydratedDraftRef.current = true;
+
       const storedDraft = readAnonymousOnboardingDraft();
       const requestedStep = readOnboardingStep(searchParams.get("step"));
       const requestedStepIndex = requestedStep
@@ -134,12 +137,12 @@ export function useAnonymousOnboardingController({
       );
       setDraftIsHydrated(true);
       if (requestedStep !== initialStep) {
-        router.replace(buildStepUrl(initialStep), { scroll: false });
+        window.history.replaceState(null, "", buildStepUrl(initialStep));
       }
     });
 
     return () => window.cancelAnimationFrame(frame);
-  }, [buildStepUrl, router, searchParams]);
+  }, [buildStepUrl, searchParams]);
 
   useEffect(() => {
     if (!hasHydratedDraftRef.current) {
@@ -156,7 +159,11 @@ export function useAnonymousOnboardingController({
       getOnboardingStepIndex(requestedStep) >
       getOnboardingStepIndex(draftRef.current.furthestStep)
     ) {
-      router.replace(buildStepUrl(draftRef.current.step), { scroll: false });
+      window.history.replaceState(
+        null,
+        "",
+        buildStepUrl(draftRef.current.step),
+      );
       return;
     }
 
@@ -164,7 +171,7 @@ export function useAnonymousOnboardingController({
       ...currentDraft,
       step: requestedStep,
     }));
-  }, [buildStepUrl, router, searchParams, setDraft]);
+  }, [buildStepUrl, searchParams, setDraft]);
 
   const stepIndex = ANONYMOUS_ONBOARDING_STEPS.findIndex(
     (step) => step.id === draft.step,
@@ -193,9 +200,9 @@ export function useAnonymousOnboardingController({
 
         return { ...currentDraft, step, furthestStep };
       });
-      router.push(buildStepUrl(step), { scroll: false });
+      window.history.pushState(null, "", buildStepUrl(step));
     },
-    [buildStepUrl, router, setDraft],
+    [buildStepUrl, setDraft],
   );
 
   const saveEmailAndContinue = useCallback(

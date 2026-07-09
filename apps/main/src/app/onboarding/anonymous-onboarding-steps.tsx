@@ -668,6 +668,7 @@ export function ListingStep({
                     width={48}
                     height={48}
                     className="size-12 shrink-0 rounded object-cover"
+                    unoptimized
                   />
                   <span className="min-w-0 space-y-0.5">
                     <span className="block text-sm leading-tight font-medium whitespace-normal">
