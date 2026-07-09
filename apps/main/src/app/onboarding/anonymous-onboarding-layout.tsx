@@ -69,7 +69,7 @@ export function AnonymousOnboardingPageClient(
 
         <div
           ref={stepContentRef}
-          className="scroll-mt-4 lg:scroll-mt-6"
+          className="scroll-mt-20 lg:scroll-mt-24"
           data-testid="anonymous-onboarding-step-content"
         >
           {draft.step === "email" ? (

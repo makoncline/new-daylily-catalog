@@ -27,7 +27,7 @@ export function ProfileContent({
         <div className="order-1 sm:order-2 sm:col-span-7">
           <ProfileSection profile={initialProfile} />
         </div>
-        <div className="order-2 sm:col-span-12 sm:hidden">
+        <div className="order-2 sm:order-3 sm:col-span-12">
           <CatalogNav
             canonicalUserSlug={canonicalUserSlug}
             currentPage={currentPage}
@@ -39,12 +39,6 @@ export function ProfileContent({
             profileTitle={initialProfile.title ?? undefined}
           />
         </div>
-      </div>
-      <div className="hidden sm:block">
-        <CatalogNav
-          canonicalUserSlug={canonicalUserSlug}
-          currentPage={currentPage}
-        />
       </div>
       <ContentSection content={initialProfile.content} />
     </>

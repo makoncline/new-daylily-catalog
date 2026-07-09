@@ -126,7 +126,7 @@ function PublicCatalogSearchContentView({
               : "lg:grid-cols-[320px_minmax(0,1fr)]",
           )}
         >
-          <div className="lg:sticky lg:top-4">
+          <div className="lg:sticky lg:top-24">
             <PublicCatalogSearchAdvancedPanel
               table={table}
               listOptions={listOptions}

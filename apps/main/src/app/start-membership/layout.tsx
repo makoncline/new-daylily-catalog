@@ -1,16 +1,9 @@
-import { PublicHeader } from "@/components/public-nav";
-import { PublicFooter } from "@/components/public-footer";
+import { PublicShell } from "@/components/public-shell";
 
 export default function StartMembershipLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  return (
-    <div className="flex min-h-svh flex-col">
-      <PublicHeader />
-      <main className="flex-1">{children}</main>
-      <PublicFooter />
-    </div>
-  );
+  return <PublicShell>{children}</PublicShell>;
 }

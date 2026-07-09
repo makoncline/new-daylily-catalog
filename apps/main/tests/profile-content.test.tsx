@@ -23,7 +23,7 @@ vi.mock("@/app/(public)/[userSlugOrId]/_components/catalog-nav", () => ({
     canonicalUserSlug: string;
     currentPage: number;
   }) => (
-    <div
+    <nav
       data-testid="catalog-nav"
       data-slug={canonicalUserSlug}
       data-page={currentPage}
@@ -32,7 +32,7 @@ vi.mock("@/app/(public)/[userSlugOrId]/_components/catalog-nav", () => ({
 }));
 
 describe("ProfileContent", () => {
-  it("keeps image panel visible in mobile layout classes", () => {
+  it("renders the catalog section navigation", () => {
     const profile: RouterOutputs["public"]["getProfile"] = {
       id: "user-1",
       slug: "seeded-daylily",
@@ -52,13 +52,13 @@ describe("ProfileContent", () => {
       content: null,
     };
 
-    render(<ProfileContent initialProfile={profile} currentPage={1} />);
+    render(<ProfileContent initialProfile={profile} currentPage={3} />);
 
-    const imageWrapper = screen.getByTestId("images-section").parentElement;
-
-    expect(imageWrapper).not.toBeNull();
-    expect(imageWrapper).toHaveClass("order-3");
-    expect(imageWrapper).not.toHaveClass("hidden");
-    expect(screen.getAllByTestId("catalog-nav")).toHaveLength(2);
+    expect(screen.getByTestId("images-section")).toBeInTheDocument();
+    expect(screen.getByTestId("catalog-nav")).toHaveAttribute(
+      "data-slug",
+      "seeded-daylily",
+    );
+    expect(screen.getByTestId("catalog-nav")).toHaveAttribute("data-page", "3");
   });
 });

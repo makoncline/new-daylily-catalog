@@ -3,12 +3,10 @@ import { describe, expect, it, vi } from "vitest";
 import type { ReactNode } from "react";
 import OnboardingLayout from "@/app/onboarding/layout";
 
-vi.mock("@/components/public-nav", () => ({
-  PublicNav: () => <nav>Public nav</nav>,
-}));
-
-vi.mock("@/components/public-footer", () => ({
-  PublicFooter: () => <footer>Feedback footer</footer>,
+vi.mock("@/components/public-shell", () => ({
+  PublicShell: ({ children }: { children: ReactNode }) => (
+    <div data-testid="public-shell">{children}</div>
+  ),
 }));
 
 vi.mock("@/components/auth-providers", () => ({
@@ -18,7 +16,7 @@ vi.mock("@/components/auth-providers", () => ({
 }));
 
 describe("OnboardingLayout", () => {
-  it("wraps onboarding and checkout interstitial pages with the feedback footer", () => {
+  it("wraps onboarding and checkout interstitial pages with the shared public shell", () => {
     render(
       <OnboardingLayout>
         <div>Onboarding content</div>
@@ -26,8 +24,7 @@ describe("OnboardingLayout", () => {
     );
 
     expect(screen.getByTestId("auth-providers")).toBeVisible();
-    expect(screen.getByText("Public nav")).toBeVisible();
+    expect(screen.getByTestId("public-shell")).toBeInTheDocument();
     expect(screen.getByText("Onboarding content")).toBeVisible();
-    expect(screen.getByText("Feedback footer")).toBeVisible();
   });
 });
