@@ -2,164 +2,145 @@
 
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { Flower2 } from "lucide-react";
+import { Flower2, Menu } from "lucide-react";
 import { Small } from "@/components/typography";
 import { usePathname } from "next/navigation";
+import { useEffect, useRef } from "react";
 import { cn } from "@/lib/utils";
 import { SUBSCRIPTION_CONFIG } from "@/config/subscription-config";
 
-type PublicNavTheme = "light" | "dark";
-
-function getNavThemeClasses(theme: PublicNavTheme) {
-  return {
-    brand: theme === "dark" ? "text-white" : "text-[#142118]",
-    logo: theme === "dark" ? "text-[#f4c477]" : "text-[#173126]",
-    link:
-      theme === "dark"
-        ? "text-white hover:bg-white/10 hover:text-white"
-        : "text-[#142118] hover:bg-[#e9efe3] hover:text-[#142118]",
-    active: theme === "dark" ? "bg-white/10 text-white" : "bg-[#e9efe3]",
-    dashboard:
-      theme === "dark"
-        ? "ml-2 h-10 rounded-md border border-white/25 bg-transparent px-5 text-sm text-white shadow-none hover:bg-white hover:text-[#07120e] disabled:opacity-100"
-        : "ml-2 h-10 rounded-md border border-[#c8d4c1] bg-white px-5 text-sm text-[#142118] shadow-none hover:bg-[#173126] hover:text-white disabled:opacity-100",
-    mobileDashboard:
-      theme === "dark"
-        ? "h-9 rounded-lg bg-white px-3 text-xs text-[#07120e] shadow-none hover:bg-[#f4c477] disabled:opacity-100"
-        : "h-9 rounded-lg bg-[#173126] px-3 text-xs text-white shadow-none hover:bg-[#274835] disabled:opacity-100",
-  };
-}
+const activeNavClassName =
+  "font-semibold underline decoration-current/35 underline-offset-8";
 
 export function PublicHeader() {
   const pathname = usePathname();
-  const isHeroOverlayPage =
-    pathname === "/" || pathname === "/start-membership";
-  const theme = isHeroOverlayPage ? "dark" : "light";
+  const mobileNavRef = useRef<HTMLDetailsElement>(null);
+  const isHomepage = pathname === "/";
+  const isCatalogsActive = pathname === "/catalogs";
+  const isGrowersActive =
+    pathname === "/start-membership" || pathname.startsWith("/onboarding");
+
+  useEffect(() => {
+    mobileNavRef.current?.removeAttribute("open");
+  }, [pathname]);
 
   return (
     <header
       className={cn(
-        "z-50 flex w-full items-center px-3 py-1 backdrop-blur-xl lg:px-8",
-        isHeroOverlayPage
-          ? "fixed inset-x-0 top-0 border-none bg-black/6"
-          : "min-h-20 border-b border-[#d8dfd2] bg-[#fbfaf4]/92 lg:h-20 lg:py-0",
+        "public-header sticky inset-x-0 top-0 z-50 flex min-h-16 w-full items-center border-none bg-transparent px-3 py-2 before:pointer-events-none before:absolute before:inset-x-0 before:top-0 before:-bottom-5 before:z-[-1] before:content-[''] before:backdrop-blur-[5px] before:[mask-image:linear-gradient(to_bottom,#000_0%,#000_calc(100%_-_20px),transparent_100%)] before:[-webkit-mask-image:linear-gradient(to_bottom,#000_0%,#000_calc(100%_-_20px),transparent_100%)] lg:h-20 lg:px-8 lg:py-0",
+        isHomepage ? "text-white" : "text-[#142118]",
       )}
     >
-      <div
-        className={cn(
-          "mx-auto w-full",
-          isHeroOverlayPage ? "max-w-[1024px]" : "max-w-[1600px]",
-        )}
-      >
-        <PublicNav theme={theme} />
-      </div>
+      <nav className="mx-auto flex w-full max-w-[1024px] items-center justify-between gap-2 py-1 lg:gap-4">
+        <Link
+          href="/"
+          className="flex shrink-0 items-center gap-1.5 text-current transition-opacity hover:opacity-80 focus-visible:ring-1 focus-visible:ring-[#f4c477] focus-visible:outline-none lg:gap-3"
+        >
+          <span
+            className={cn(
+              "flex h-7 w-7 items-center justify-center lg:h-8 lg:w-8",
+              isHomepage ? "text-[#f4c477]" : "text-[#b7791f]",
+            )}
+          >
+            <Flower2 className="h-5 w-5 lg:h-6 lg:w-6" />
+          </span>
+          <Small className="text-sm leading-none font-semibold whitespace-nowrap text-current lg:text-base">
+            Daylily Catalog
+          </Small>
+        </Link>
+
+        <details
+          ref={mobileNavRef}
+          className="group relative shrink-0 lg:hidden"
+          data-testid="mobile-public-nav"
+        >
+          <summary
+            aria-label="Open public navigation"
+            className={cn(
+              "flex h-9 w-9 cursor-pointer list-none items-center justify-center rounded-md border bg-transparent transition-colors focus-visible:ring-1 focus-visible:ring-[#f4c477] focus-visible:outline-none [&::-webkit-details-marker]:hidden",
+              isHomepage
+                ? "border-white/30 text-white hover:bg-white/10"
+                : "border-[#142118]/20 text-[#142118] hover:bg-[#142118]/5",
+            )}
+          >
+            <Menu className="size-4" />
+            <span className="sr-only">Open public navigation</span>
+          </summary>
+          <ul className="absolute top-[calc(100%+0.25rem)] right-0 w-56 overflow-hidden rounded-md border border-[#142118]/10 bg-white/85 p-1 text-sm text-[#142118] shadow-md backdrop-blur-xl">
+            <li>
+              <Link
+                href="/catalogs"
+                aria-current={isCatalogsActive ? "page" : undefined}
+                className={cn(
+                  "block rounded-sm px-2 py-1.5 hover:bg-[#142118]/8",
+                  isCatalogsActive && activeNavClassName,
+                )}
+              >
+                Browse catalogs
+              </Link>
+            </li>
+            <li>
+              <Link
+                href="/start-membership"
+                aria-current={isGrowersActive ? "page" : undefined}
+                className={cn(
+                  "block rounded-sm px-2 py-1.5 hover:bg-[#142118]/8",
+                  isGrowersActive && activeNavClassName,
+                )}
+              >
+                For growers
+              </Link>
+            </li>
+            <li className="mt-1 border-t border-[#142118]/10 pt-1">
+              <Link
+                href={SUBSCRIPTION_CONFIG.DASHBOARD_SIGN_IN_PATH}
+                className="block rounded-sm px-2 py-1.5 hover:bg-[#142118]/8"
+              >
+                Dashboard
+              </Link>
+            </li>
+          </ul>
+        </details>
+
+        <div className="hidden items-center gap-4 lg:ml-auto lg:flex">
+          <Link
+            href="/catalogs"
+            aria-current={isCatalogsActive ? "page" : undefined}
+            className={cn(
+              "px-3 py-2 text-base text-current transition-opacity hover:opacity-70 focus-visible:ring-1 focus-visible:ring-current focus-visible:outline-none",
+              isCatalogsActive && activeNavClassName,
+            )}
+          >
+            Browse catalogs
+          </Link>
+
+          <Link
+            href="/start-membership"
+            aria-current={isGrowersActive ? "page" : undefined}
+            className={cn(
+              "px-3 py-2 text-base text-current transition-opacity hover:opacity-70 focus-visible:ring-1 focus-visible:ring-current focus-visible:outline-none",
+              isGrowersActive && activeNavClassName,
+            )}
+          >
+            For growers
+          </Link>
+
+          <form action={SUBSCRIPTION_CONFIG.DASHBOARD_SIGN_IN_PATH}>
+            <Button
+              className={cn(
+                "ml-2 h-10 rounded-md border bg-transparent px-5 text-sm shadow-none disabled:opacity-100",
+                isHomepage
+                  ? "border-white/35 text-white hover:bg-white hover:text-[#142118]"
+                  : "border-[#142118]/25 text-[#142118] hover:bg-[#142118] hover:text-white",
+              )}
+              size="sm"
+              type="submit"
+            >
+              Dashboard
+            </Button>
+          </form>
+        </div>
+      </nav>
     </header>
-  );
-}
-
-export function PublicNav({ theme = "light" }: { theme?: PublicNavTheme }) {
-  const pathname = usePathname();
-  const isHeroOverlayPage =
-    pathname === "/" || pathname === "/start-membership";
-  const isCatalogsActive = pathname === "/catalogs";
-  const classes = getNavThemeClasses(theme);
-
-  return (
-    <nav className="flex w-full items-center justify-between gap-2 py-1 lg:gap-4">
-      <Link
-        href="/"
-        className={cn(
-          "flex shrink-0 items-center gap-1.5 transition-opacity hover:opacity-80 focus-visible:ring-1 focus-visible:ring-[#f4c477] focus-visible:outline-none lg:gap-3",
-          classes.brand,
-        )}
-      >
-        <span
-          className={cn(
-            "flex h-7 w-7 items-center justify-center lg:h-8 lg:w-8",
-            classes.logo,
-          )}
-        >
-          <Flower2 className="h-5 w-5 lg:h-6 lg:w-6" />
-        </span>
-        <Small
-          className={cn(
-            "text-xs leading-none font-semibold whitespace-nowrap min-[390px]:text-sm lg:text-base",
-            classes.brand,
-          )}
-        >
-          Daylily Catalog
-        </Small>
-      </Link>
-
-      <div
-        className={cn(
-          "min-w-0 flex-1 items-center justify-center gap-1 lg:hidden",
-          isHeroOverlayPage ? "hidden" : "flex",
-        )}
-      >
-        <Button
-          variant="ghost"
-          asChild
-          size="sm"
-          className={cn(
-            "h-8 px-1 text-[10.5px] whitespace-nowrap min-[390px]:px-1.5 min-[390px]:text-[11px]",
-            classes.link,
-            isCatalogsActive && classes.active,
-          )}
-        >
-          <Link href="/catalogs">Browse catalogs</Link>
-        </Button>
-
-        <Button
-          variant="ghost"
-          asChild
-          size="sm"
-          className={cn(
-            "h-8 px-1 text-[10.5px] whitespace-nowrap min-[390px]:px-1.5 min-[390px]:text-[11px]",
-            classes.link,
-          )}
-        >
-          <Link href="/start-membership">For growers</Link>
-        </Button>
-      </div>
-
-      <div className="shrink-0 lg:hidden">
-        <form action={SUBSCRIPTION_CONFIG.DASHBOARD_SIGN_IN_PATH}>
-          <Button className={classes.mobileDashboard} size="sm" type="submit">
-            Dashboard
-          </Button>
-        </form>
-      </div>
-
-      <div className="hidden items-center gap-4 lg:ml-auto lg:flex">
-        <Button
-          variant="ghost"
-          asChild
-          size="sm"
-          className={cn(
-            "text-base",
-            classes.link,
-            isCatalogsActive && classes.active,
-          )}
-        >
-          <Link href="/catalogs">Browse catalogs</Link>
-        </Button>
-
-        <Button
-          variant="ghost"
-          asChild
-          size="sm"
-          className={cn("text-base", classes.link)}
-        >
-          <Link href="/start-membership">For growers</Link>
-        </Button>
-
-        <form action={SUBSCRIPTION_CONFIG.DASHBOARD_SIGN_IN_PATH}>
-          <Button className={classes.dashboard} size="sm" type="submit">
-            Dashboard
-          </Button>
-        </form>
-      </div>
-    </nav>
   );
 }

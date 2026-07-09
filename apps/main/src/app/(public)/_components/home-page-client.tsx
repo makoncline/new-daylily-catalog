@@ -215,7 +215,7 @@ function LandingVariantTwoWithCatalogs({
     .slice(0, 6);
 
   return (
-    <div className="mx-auto overflow-hidden bg-[#07120e] text-white">
+    <div className="mx-auto -mt-16 overflow-hidden bg-[#07120e] text-white lg:-mt-20">
       <HomeHeroSection />
 
       <BuyerTestimonialsSection />
@@ -239,7 +239,7 @@ export default function HomePageClient({
 
 function HomeHeroSection() {
   return (
-    <section className="relative isolate overflow-hidden px-4 pt-24 pb-36 lg:px-8 lg:pt-20 lg:pb-32">
+    <section className="relative isolate overflow-hidden px-4 pt-24 pb-36 lg:px-8 lg:pt-24 lg:pb-32">
       <div className="absolute inset-0 -z-10 bg-[#07120e]" aria-hidden="true">
         <Image
           src="/assets/home-redesign/daylily-hero-grid.webp"

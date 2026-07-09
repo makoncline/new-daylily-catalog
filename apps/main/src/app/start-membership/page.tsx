@@ -146,7 +146,7 @@ export default async function StartMembershipPage() {
   const membershipPriceDisplay = await getMembershipPriceDisplay();
 
   return (
-    <div className="min-h-svh overflow-hidden">
+    <div className="-mt-16 min-h-svh overflow-hidden lg:-mt-20">
       <SellerLandingViewTracker />
 
       <script
@@ -179,7 +179,7 @@ function StartMembershipHero({
   const trialPriceText = `Membership is ${membershipPriceDisplay.amount}${membershipPriceDisplay.interval} after the trial.`;
 
   return (
-    <section className="relative isolate overflow-hidden bg-[#07120e] px-4 pt-24 pb-36 text-white lg:px-8 lg:pt-20 lg:pb-32">
+    <section className="relative isolate overflow-hidden bg-[#07120e] px-4 pt-24 pb-36 text-white lg:px-8 lg:pt-24 lg:pb-32">
       <div className="absolute inset-0 -z-10 bg-[#07120e]" aria-hidden="true">
         <Image
           src="/assets/home-redesign/daylily-hero-grid.webp"

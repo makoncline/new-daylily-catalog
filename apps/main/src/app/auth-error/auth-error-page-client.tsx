@@ -2,7 +2,6 @@
 
 import { Button } from "@/components/ui/button";
 import { SignInButton, SignOutButton, useAuth } from "@clerk/nextjs";
-import { Flower2 } from "lucide-react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Suspense } from "react";
@@ -16,14 +15,7 @@ function AuthErrorContent() {
   const isSignedIn = isLoaded && Boolean(userId);
 
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center p-4 text-center">
-      <div className="mb-6 flex items-center gap-2">
-        <Flower2 className="size-8" />
-        <Link href="/" className="text-xl font-semibold">
-          Daylily Catalog
-        </Link>
-      </div>
-
+    <div className="flex min-h-[calc(100svh-12rem)] flex-col items-center justify-center p-4 text-center">
       <div className="bg-card mx-auto max-w-md space-y-6 rounded-lg border p-8 shadow-sm">
         <h1 className="text-3xl font-semibold">
           {isSignedIn ? "Something Went Wrong" : "Authentication Required"}
