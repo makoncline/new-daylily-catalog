@@ -94,6 +94,7 @@ test.describe("anonymous onboarding checkout flow @local", () => {
       await expect(
         page.getByRole("heading", { name: "Edit your profile" }),
       ).toBeVisible();
+      await expect(page).toHaveURL(/\/onboarding\?step=profile/);
 
       await page.getByTestId("anonymous-profile-name").fill(profileName);
       await page
@@ -118,6 +119,7 @@ test.describe("anonymous onboarding checkout flow @local", () => {
       await expect(
         page.getByRole("heading", { name: "Edit your first listing" }),
       ).toBeVisible();
+      await expect(page).toHaveURL(/\/onboarding\?step=listing/);
       await page.getByRole("button", { name: "Lemon Chiffon Cupcake" }).click();
       await page.getByTestId("anonymous-listing-title").fill(listingTitle);
       await page.getByTestId("anonymous-listing-price").fill("18");
@@ -149,6 +151,16 @@ test.describe("anonymous onboarding checkout flow @local", () => {
           "Path 1: Buyer opens your catalog and sends an email immediately.",
         ),
       ).toBeVisible();
+      await expect(page).toHaveURL(/\/onboarding\?step=preview/);
+
+      await page.getByTestId("anonymous-onboarding-step-profile").click();
+      await expect(page).toHaveURL(/\/onboarding\?step=profile/);
+      await expect(
+        page.getByTestId("anonymous-onboarding-step-profile"),
+      ).toHaveAttribute("data-complete", "true");
+      await page.goBack();
+      await expect(page).toHaveURL(/\/onboarding\?step=preview/);
+
       await page.getByTestId("anonymous-onboarding-primary-action").click();
       await expect(
         page.getByRole("heading", { name: "Confirm your account email" }),

@@ -65,10 +65,26 @@ describe("anonymous onboarding draft storage", () => {
     expect(readAnonymousOnboardingDraft()).toMatchObject({
       email: "lead@example.com",
       step: "profile",
+      furthestStep: "profile",
     });
 
     expect(clearAnonymousOnboardingDraft()).toBe(true);
     expect(window.localStorage.getItem(ANONYMOUS_ONBOARDING_DRAFT_KEY)).toBeNull();
+  });
+
+  it("preserves the furthest reached step when reading older drafts", () => {
+    const parsed = parseAnonymousOnboardingDraft({
+      version: 1,
+      draftId: "draft-before-step-history",
+      email: "seller@example.com",
+      step: "preview",
+      createdAt: "2026-07-09T00:00:00.000Z",
+      updatedAt: "2026-07-09T00:00:00.000Z",
+      profile: {},
+      listingPreview: {},
+    });
+
+    expect(parsed?.furthestStep).toBe("preview");
   });
 
   it("keeps the example listing title empty until the user types one", () => {

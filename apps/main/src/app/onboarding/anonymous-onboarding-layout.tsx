@@ -57,6 +57,7 @@ export function AnonymousOnboardingPageClient(
         <AnonymousOnboardingHeader
           currentStepIndex={controller.currentStepIndex}
           draft={controller.draft}
+          furthestStepIndex={controller.furthestStepIndex}
           goToStep={controller.goToStep}
           progressValue={controller.progressValue}
         />
@@ -157,12 +158,17 @@ export function AnonymousOnboardingPageClient(
 
 type AnonymousOnboardingHeaderProps = Pick<
   AnonymousOnboardingController,
-  "currentStepIndex" | "draft" | "goToStep" | "progressValue"
+  | "currentStepIndex"
+  | "draft"
+  | "furthestStepIndex"
+  | "goToStep"
+  | "progressValue"
 >;
 
 function AnonymousOnboardingHeader({
   currentStepIndex,
   draft,
+  furthestStepIndex,
   goToStep,
   progressValue,
 }: AnonymousOnboardingHeaderProps) {
@@ -200,8 +206,8 @@ function AnonymousOnboardingHeader({
       <div className="flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {ANONYMOUS_ONBOARDING_STEPS.map((step, index) => {
           const isCurrent = step.id === draft.step;
-          const isComplete = index < currentStepIndex;
-          const canOpen = index <= currentStepIndex;
+          const isComplete = index < furthestStepIndex;
+          const canOpen = index <= furthestStepIndex;
 
           return (
             <button
@@ -212,6 +218,7 @@ function AnonymousOnboardingHeader({
               className="focus-visible:ring-ring disabled:text-muted-foreground/50 data-[current=true]:border-primary data-[current=true]:bg-primary/10 data-[current=true]:text-primary shrink-0 rounded-full border px-3 py-1 text-xs font-medium transition-colors focus-visible:ring-1 focus-visible:outline-none disabled:cursor-not-allowed data-[complete=true]:border-emerald-500/40 data-[complete=true]:bg-emerald-500/10 data-[complete=true]:text-emerald-700"
               data-current={isCurrent}
               data-complete={isComplete}
+              data-testid={`anonymous-onboarding-step-${step.id}`}
               onClick={() => goToStep(step.id)}
             >
               <span className="inline-flex items-center gap-1.5">

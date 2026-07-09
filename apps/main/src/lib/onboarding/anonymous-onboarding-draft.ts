@@ -30,6 +30,7 @@ export interface AnonymousOnboardingDraft {
   draftId: string;
   email: string | null;
   step: AnonymousOnboardingStepId;
+  furthestStep: AnonymousOnboardingStepId;
   createdAt: string;
   updatedAt: string;
   profile: AnonymousOnboardingProfileDraft;
@@ -76,6 +77,7 @@ export function createAnonymousOnboardingDraft(
     draftId: crypto.randomUUID(),
     email: null,
     step: "email",
+    furthestStep: overrides?.step ?? "email",
     createdAt: timestamp,
     updatedAt: timestamp,
   };
@@ -170,6 +172,7 @@ export function parseAnonymousOnboardingDraft(
     draftId,
     email: readNullableString(rawDraft.email),
     step: readStep(rawDraft.step),
+    furthestStep: readStep(rawDraft.furthestStep ?? rawDraft.step),
     createdAt: readString(rawDraft.createdAt) || nowIso(),
     updatedAt: readString(rawDraft.updatedAt) || nowIso(),
     profile: {

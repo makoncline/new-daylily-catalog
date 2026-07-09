@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { api } from "@/trpc/react";
 import {
   ANONYMOUS_ONBOARDING_STEPS,
@@ -22,15 +22,26 @@ import {
 } from "./anonymous-onboarding-draft";
 import type { AnonymousOnboardingStepId } from "./anonymous-onboarding-draft";
 
+function readOnboardingStep(value: string | null) {
+  return ANONYMOUS_ONBOARDING_STEPS.find((step) => step.id === value)?.id;
+}
+
+function getOnboardingStepIndex(step: AnonymousOnboardingStepId) {
+  return ANONYMOUS_ONBOARDING_STEPS.findIndex((item) => item.id === step);
+}
+
 export function useAnonymousOnboardingController({
   exampleCultivars,
   membershipPriceDisplay,
 }: AnonymousOnboardingPageClientProps) {
   const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const [draft, setDraftState] = useState(() =>
     createAnonymousOnboardingDraft(),
   );
   const draftRef = useRef(draft);
+  const hasHydratedDraftRef = useRef(false);
   const [storageWarning, setStorageWarning] = useState<string | null>(null);
 
   const setDraft = useCallback(
@@ -80,25 +91,84 @@ export function useAnonymousOnboardingController({
   const collectEmail = api.onboarding.collectEmail.useMutation();
   const createCheckout = api.onboarding.createCheckout.useMutation();
 
+  const buildStepUrl = useCallback(
+    (step: AnonymousOnboardingStepId) => {
+      const nextSearchParams = new URLSearchParams(searchParams.toString());
+      nextSearchParams.set("step", step);
+      return `${pathname}?${nextSearchParams.toString()}`;
+    },
+    [pathname, searchParams],
+  );
+
   useEffect(() => {
+    if (hasHydratedDraftRef.current) {
+      return;
+    }
+    hasHydratedDraftRef.current = true;
+
     const frame = window.requestAnimationFrame(() => {
       const storedDraft = readAnonymousOnboardingDraft();
-      draftRef.current = storedDraft;
-      setDraftState(storedDraft);
+      const requestedStep = readOnboardingStep(searchParams.get("step"));
+      const requestedStepIndex = requestedStep
+        ? getOnboardingStepIndex(requestedStep)
+        : -1;
+      const furthestStepIndex = getOnboardingStepIndex(
+        storedDraft.furthestStep,
+      );
+      const initialStep =
+        requestedStep && requestedStepIndex <= furthestStepIndex
+          ? requestedStep
+          : storedDraft.step;
+      const hydratedDraft = { ...storedDraft, step: initialStep };
+
+      draftRef.current = hydratedDraft;
+      setDraftState(hydratedDraft);
       setProfileImageInputModeState(
         storedDraft.profile.profileImageSource === "upload"
           ? "upload"
           : "starter",
       );
+      if (requestedStep !== initialStep) {
+        router.replace(buildStepUrl(initialStep), { scroll: false });
+      }
     });
 
     return () => window.cancelAnimationFrame(frame);
-  }, []);
+  }, [buildStepUrl, router, searchParams]);
+
+  useEffect(() => {
+    if (!hasHydratedDraftRef.current) {
+      return;
+    }
+
+    const requestedStep = readOnboardingStep(searchParams.get("step"));
+    if (requestedStep === draftRef.current.step) {
+      return;
+    }
+
+    if (
+      !requestedStep ||
+      getOnboardingStepIndex(requestedStep) >
+      getOnboardingStepIndex(draftRef.current.furthestStep)
+    ) {
+      router.replace(buildStepUrl(draftRef.current.step), { scroll: false });
+      return;
+    }
+
+    setDraft((currentDraft) => ({
+      ...currentDraft,
+      step: requestedStep,
+    }));
+  }, [buildStepUrl, router, searchParams, setDraft]);
 
   const stepIndex = ANONYMOUS_ONBOARDING_STEPS.findIndex(
     (step) => step.id === draft.step,
   );
   const currentStepIndex = stepIndex >= 0 ? stepIndex : 0;
+  const furthestStepIndex = Math.max(
+    0,
+    getOnboardingStepIndex(draft.furthestStep),
+  );
   const progressValue =
     ((currentStepIndex + 1) / ANONYMOUS_ONBOARDING_STEPS.length) * 100;
   const profilePreview = getProfilePreview(draft);
@@ -109,9 +179,18 @@ export function useAnonymousOnboardingController({
   const goToStep = useCallback(
     (step: AnonymousOnboardingStepId) => {
       setImageError(null);
-      setDraft((currentDraft) => ({ ...currentDraft, step }));
+      setDraft((currentDraft) => {
+        const furthestStep =
+          getOnboardingStepIndex(step) >
+          getOnboardingStepIndex(currentDraft.furthestStep)
+            ? step
+            : currentDraft.furthestStep;
+
+        return { ...currentDraft, step, furthestStep };
+      });
+      router.push(buildStepUrl(step), { scroll: false });
     },
-    [setDraft],
+    [buildStepUrl, router, setDraft],
   );
 
   const saveEmailAndContinue = useCallback(
@@ -455,8 +534,13 @@ export function useAnonymousOnboardingController({
     setSelectedStarterProfileImageUrl(null);
     setProfileImageInputModeState("starter");
     setApplyStarterNameOverlayState(true);
-    router.replace("/onboarding", { scroll: false });
-  }, [cancelStarterProfileImageGeneration, clearStoredDraft, router]);
+    router.replace(buildStepUrl("email"), { scroll: false });
+  }, [
+    buildStepUrl,
+    cancelStarterProfileImageGeneration,
+    clearStoredDraft,
+    router,
+  ]);
 
   return {
     applyStarterNameOverlay,
@@ -469,6 +553,7 @@ export function useAnonymousOnboardingController({
     emailInput,
     emailIsValid,
     exampleCultivars,
+    furthestStepIndex,
     goBack,
     goForward,
     goToStep,
