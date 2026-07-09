@@ -176,8 +176,6 @@ function StartMembershipHero({
 }: {
   membershipPriceDisplay: MembershipPriceDisplay;
 }) {
-  const trialPriceText = `Membership is ${membershipPriceDisplay.amount}${membershipPriceDisplay.interval} after the trial.`;
-
   return (
     <section className="relative isolate overflow-hidden bg-[#07120e] px-4 pt-24 pb-36 text-white lg:px-8 lg:pt-24 lg:pb-32">
       <div className="absolute inset-0 -z-10 bg-[#07120e]" aria-hidden="true">
@@ -213,7 +211,7 @@ function StartMembershipHero({
             Add photos, prices, availability, notes, and contact info. Build and
             preview your catalog first. Start a{" "}
             {SUBSCRIPTION_CONFIG.FREE_TRIAL_DAYS}-day trial before your
-            dashboard opens. {trialPriceText}
+            dashboard opens.
           </p>
 
           <div className="mt-8 flex flex-col gap-4 lg:mt-5 lg:flex-row lg:gap-5">
@@ -244,19 +242,10 @@ function StartMembershipHero({
           <p className="text-sm font-bold tracking-[0.18em] text-[#f4c477] uppercase">
             Grower membership
           </p>
-          <p className="mt-4 flex items-end gap-1 leading-none">
-            <span className="text-6xl font-bold tracking-tight text-white">
-              {membershipPriceDisplay.amount}
-            </span>
-            <span className="text-4xl font-semibold tracking-tight text-white">
-              {membershipPriceDisplay.interval}
-            </span>
+          <p className="mt-4 text-6xl leading-none font-bold tracking-tight text-white">
+            {membershipPriceDisplay.amount}
+            {membershipPriceDisplay.interval}
           </p>
-          {membershipPriceDisplay.monthlyEquivalent ? (
-            <p className="mt-3 text-base leading-6 text-[#dfe9dc]">
-              {membershipPriceDisplay.monthlyEquivalent}/mo equivalent
-            </p>
-          ) : null}
           <p className="mt-3 max-w-lg text-lg leading-7 text-[#dfe9dc]">
             Start your {SUBSCRIPTION_CONFIG.FREE_TRIAL_DAYS}-day trial before
             your paid dashboard opens.

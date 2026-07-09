@@ -789,11 +789,10 @@ export function ListingStep({
 
 type PreviewStepProps = Pick<
   AnonymousOnboardingController,
-  "draft" | "goToStep" | "listingPreview" | "profilePreview"
+  "goToStep" | "listingPreview" | "profilePreview"
 >;
 
 export function PreviewStep({
-  draft,
   goToStep,
   listingPreview,
   profilePreview,
@@ -844,7 +843,7 @@ export function PreviewStep({
         <p className="font-semibold">How buyers contact you</p>
         <p className="text-muted-foreground text-sm leading-relaxed">
           Buyers can contact you directly from your catalog, or add priced
-          listings to cart and send one message with selected items.
+          listings to cart and send a message with their selected items.
         </p>
         <div className="text-muted-foreground space-y-2 text-sm">
           <p className="flex items-start gap-2">
@@ -856,14 +855,19 @@ export function PreviewStep({
           <p className="flex items-start gap-2">
             <CheckCircle2 className="mt-0.5 size-4 text-emerald-600" />
             <span>
-              Path 2: Buyer adds priced listings to cart, then sends one message
+              Path 2: Buyer adds priced listings to cart, then sends a message
               with item details.
             </span>
           </p>
         </div>
         <p className="text-muted-foreground text-sm leading-relaxed">
-          Buyers do not pay on Daylily Catalog. You arrange payment and shipping
-          directly after inquiry.
+          Buyers do not pay on Daylily Catalog. You arrange payment directly
+          after inquiry using an option such as PayPal, Venmo, or Stripe, then
+          coordinate shipping with the buyer.
+        </p>
+        <p className="text-muted-foreground text-sm leading-relaxed">
+          Your personal dashboard always shows your live catalog. Public catalog
+          pages may take up to 24 hours to reflect dashboard changes.
         </p>
         <p className="text-muted-foreground text-sm leading-relaxed">
           Your catalog and listings will not be publicly discoverable until you
@@ -1001,21 +1005,10 @@ export function CheckoutStep({
         <p className="text-muted-foreground text-sm font-medium tracking-wide uppercase">
           Grower membership
         </p>
-        <div>
-          <p className="flex items-end gap-1 leading-none">
-            <span className="text-5xl font-bold tracking-tight">
-              {membershipPriceDisplay.amount}
-            </span>
-            <span className="text-2xl font-semibold tracking-tight">
-              {membershipPriceDisplay.interval}
-            </span>
-          </p>
-          {membershipPriceDisplay.monthlyEquivalent ? (
-            <p className="text-muted-foreground mt-2 text-sm">
-              {membershipPriceDisplay.monthlyEquivalent}/mo equivalent
-            </p>
-          ) : null}
-        </div>
+        <p className="text-5xl leading-none font-bold tracking-tight">
+          {membershipPriceDisplay.amount}
+          {membershipPriceDisplay.interval}
+        </p>
         <p className="text-muted-foreground text-sm leading-relaxed">
           Start with a {SUBSCRIPTION_CONFIG.FREE_TRIAL_DAYS}-day free trial. We
           will add your profile to your dashboard after you verify your email.

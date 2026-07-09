@@ -117,7 +117,6 @@ export function AnonymousOnboardingPageClient(
           ) : null}
           {draft.step === "preview" ? (
             <PreviewStep
-              draft={controller.draft}
               goToStep={controller.goToStep}
               listingPreview={controller.listingPreview}
               profilePreview={controller.profilePreview}

@@ -212,6 +212,12 @@ test.describe("anonymous onboarding checkout flow @local", () => {
           "Path 1: Buyer opens your catalog and sends an email immediately.",
         ),
       ).toBeVisible();
+      await expect(
+        page.getByText(/PayPal, Venmo, or Stripe/),
+      ).toBeVisible();
+      await expect(
+        page.getByText(/may take up to 24 hours/),
+      ).toBeVisible();
       await expect(page).toHaveURL(/\/onboarding\?step=preview/);
 
       await page.getByTestId("anonymous-onboarding-step-profile").click();
@@ -226,6 +232,7 @@ test.describe("anonymous onboarding checkout flow @local", () => {
       await expect(
         page.getByRole("heading", { name: "Confirm your account email" }),
       ).toBeVisible();
+      await expect(page.getByText(/\/mo equivalent/)).toHaveCount(0);
 
       await page.getByRole("button", { name: /Edit email/i }).click();
       await page.getByTestId("anonymous-checkout-email").fill(paidEmail);
