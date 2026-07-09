@@ -110,7 +110,6 @@ describe("seller funnel proxy protection", () => {
       "http://localhost:3000/catalogs/extra",
       "http://localhost:3000/catalog/legacy-listing",
       "http://localhost:3000/kitchen-sink",
-      "http://localhost:3000/sentry-example-page",
       "http://localhost:3000/plantfancygardens/search",
       "http://localhost:3000/api/trpc/public.getListings",
       "http://localhost:3000/llms.txt",

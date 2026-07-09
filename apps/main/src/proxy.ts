@@ -52,7 +52,6 @@ const publicHtmlFirstSegmentExclusions = new Set([
   "kitchen-sink",
   "onboarding",
   "openapi.json",
-  "sentry-example-page",
   "sign-in",
   "sign-up",
   "start-membership",

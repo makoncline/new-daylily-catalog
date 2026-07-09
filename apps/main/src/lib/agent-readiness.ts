@@ -25,7 +25,6 @@ export const PRIVATE_AGENT_DISALLOWS = [
   "/api/clerk-webhook",
   "/api/google-merchant-feed",
   "/api/legacy-redirect",
-  "/api/sentry-example-api",
   "/api/stripe-webhook",
   "/api/trpc/",
   "/trpc/",
