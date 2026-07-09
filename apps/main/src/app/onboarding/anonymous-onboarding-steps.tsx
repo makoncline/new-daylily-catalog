@@ -1,14 +1,13 @@
 "use client";
 
-import { SignInButton } from "@clerk/nextjs";
 import Image from "next/image";
+import Link from "next/link";
 import { useCallback, useState } from "react";
 import { type FileRejection, useDropzone } from "react-dropzone";
 import {
   ArrowRight,
   CheckCircle2,
   CreditCard,
-  Mail,
   Pencil,
 } from "lucide-react";
 import { ImageCropper } from "@/components/image-cropper";
@@ -102,9 +101,12 @@ export function EmailStep({
   saveEmailAndContinue,
   setEmailInput,
 }: EmailStepProps) {
+  const [emailWasBlurred, setEmailWasBlurred] = useState(false);
+  const showEmailError = emailWasBlurred && !emailIsValid;
+
   return (
     <form
-      className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(320px,420px)]"
+      className="space-y-6"
       onSubmit={(event) => {
         event.preventDefault();
         void saveEmailAndContinue("initial");
@@ -131,8 +133,22 @@ export function EmailStep({
             autoComplete="email"
             value={emailInput}
             onChange={(event) => setEmailInput(event.target.value)}
+            onBlur={() => setEmailWasBlurred(true)}
+            aria-invalid={showEmailError}
+            aria-describedby={
+              showEmailError ? "anonymous-onboarding-email-error" : undefined
+            }
             placeholder="you@example.com"
           />
+          {showEmailError ? (
+            <p
+              id="anonymous-onboarding-email-error"
+              className="text-destructive text-sm"
+              role="alert"
+            >
+              Enter a valid email address.
+            </p>
+          ) : null}
         </div>
 
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
@@ -145,21 +161,12 @@ export function EmailStep({
             <ArrowRight className="size-4" />
           </Button>
 
-          <SignInButton mode="modal" forceRedirectUrl="/dashboard">
-            <Button type="button" variant="outline">
+          <Button asChild variant="outline">
+            <Link href="/sign-in">
               Already have an account? Log in
-            </Button>
-          </SignInButton>
+            </Link>
+          </Button>
         </div>
-      </div>
-
-      <div className="bg-card h-fit space-y-3 rounded-lg border p-5">
-        <Mail className="text-primary size-6" />
-        <p className="font-medium">Why ask first?</p>
-        <p className="text-muted-foreground text-sm leading-relaxed">
-          This saves your progress in this browser and keeps the same email
-          through checkout and sign-in.
-        </p>
       </div>
     </form>
   );
