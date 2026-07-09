@@ -83,6 +83,16 @@ export async function POST(req: Request) {
         );
       }
 
+      if (evt.type === "user.deleted") {
+        await db.keyValue.deleteMany({
+          where: { key: `clerk:user:${clerkUserId}` },
+        });
+        return NextResponse.json(
+          { message: "Deleted user cache cleared successfully" },
+          { status: 200 },
+        );
+      }
+
       // First ensure the user exists in our database
       const user = await db.user.upsert({
         where: { clerkUserId },
