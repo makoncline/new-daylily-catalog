@@ -20,6 +20,25 @@ interface UseImageUploadOptions {
   onSuccess?: (image: Image) => void;
 }
 
+function blobToDataUrl(blob: Blob, contentType: string) {
+  return new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.addEventListener("load", () => {
+      if (typeof reader.result !== "string") {
+        reject(new Error("Failed to read image"));
+        return;
+      }
+      resolve(
+        `data:${contentType};base64,${reader.result.slice(reader.result.indexOf(",") + 1)}`,
+      );
+    });
+    reader.addEventListener("error", () =>
+      reject(reader.error ?? new Error("Failed to read image")),
+    );
+    reader.readAsDataURL(blob);
+  });
+}
+
 export function useImageUpload({
   type,
   referenceId,
@@ -31,10 +50,12 @@ export function useImageUpload({
 
   const getPresignedUrlMutation =
     api.dashboardDb.image.getPresignedUrl.useMutation();
+  const moderateImageMutation =
+    api.dashboardDb.image.moderateImage.useMutation();
 
   const upload = useCallback(
     async (file: Blob) => {
-      let step: "presign" | "upload" | "create" = "presign";
+      let step: "presign" | "moderate" | "upload" | "create" = "presign";
 
       try {
         setIsUploading(true);
@@ -61,13 +82,58 @@ export function useImageUpload({
           );
         }
 
-        const { imageId, presignedUrl, key, url, r2 } =
-          await getPresignedUrlMutation.mutateAsync({
-            type,
-            contentType,
-            size: file.size,
-            referenceId,
+        const uploadInput = {
+          type,
+          contentType,
+          size: file.size,
+          referenceId,
+        } as const;
+        let uploadMetadata =
+          await getPresignedUrlMutation.mutateAsync(uploadInput);
+
+        if ("moderationRequired" in uploadMetadata) {
+          step = "moderate";
+          uploadMetadata = await getPresignedUrlMutation.mutateAsync({
+            ...uploadInput,
+            imageDataUrl: await blobToDataUrl(file, contentType),
           });
+        }
+
+        if ("moderationRequired" in uploadMetadata) {
+          throw new Error("Image moderation did not complete");
+        }
+
+        const {
+          imageId,
+          presignedUrl,
+          key,
+          url,
+          r2,
+          contentMd5,
+          shadowModerationRequested,
+        } = uploadMetadata;
+
+        if (shadowModerationRequested) {
+          void blobToDataUrl(file, contentType)
+            .then((imageDataUrl) =>
+              moderateImageMutation.mutateAsync({
+                ...uploadInput,
+                imageDataUrl,
+              }),
+            )
+            .catch((error: unknown) => {
+              reportError({
+                error: normalizeError(error),
+                level: "warning",
+                context: {
+                  source: "useImageUpload",
+                  step: "shadow-moderation",
+                  imageType: type,
+                  referenceId,
+                },
+              });
+            });
+        }
 
         step = "upload";
         let r2OriginalKey: string | undefined;
@@ -76,6 +142,7 @@ export function useImageUpload({
             await uploadFileWithProgress({
               presignedUrl: r2.presignedUrl,
               contentType,
+              contentMd5,
               file,
               onProgress: (value) => setProgress(Math.floor(value / 2)),
             });
@@ -97,6 +164,7 @@ export function useImageUpload({
         await uploadFileWithProgress({
           presignedUrl,
           contentType,
+          contentMd5,
           file,
           onProgress: (value) =>
             setProgress(r2OriginalKey ? 50 + Math.floor(value / 2) : value),
@@ -126,11 +194,13 @@ export function useImageUpload({
         return image;
       } catch (error) {
         toast.error(
-          step === "presign"
-            ? "Failed to get upload URL"
-            : step === "upload"
-              ? "Failed to upload image"
-              : "Failed to save image",
+          step === "moderate"
+            ? "Image not accepted"
+            : step === "presign"
+              ? "Failed to get upload URL"
+              : step === "upload"
+                ? "Failed to upload image"
+                : "Failed to save image",
           {
             description: getErrorMessage(error),
           },
@@ -150,7 +220,14 @@ export function useImageUpload({
         setProgress(0);
       }
     },
-    [type, referenceId, isFirstImageUpload, getPresignedUrlMutation, onSuccess],
+    [
+      type,
+      referenceId,
+      isFirstImageUpload,
+      getPresignedUrlMutation,
+      moderateImageMutation,
+      onSuccess,
+    ],
   );
 
   return {

@@ -2,6 +2,7 @@ import { renderHook, act, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const getPresignedUrlMutateAsyncMock = vi.hoisted(() => vi.fn());
+const moderateImageMutateAsyncMock = vi.hoisted(() => vi.fn());
 const createImageMock = vi.hoisted(() => vi.fn());
 const uploadFileWithProgressMock = vi.hoisted(() => vi.fn());
 const toastSuccessMock = vi.hoisted(() => vi.fn());
@@ -20,6 +21,11 @@ vi.mock("@/trpc/react", () => ({
         getPresignedUrl: {
           useMutation: () => ({
             mutateAsync: getPresignedUrlMutateAsyncMock,
+          }),
+        },
+        moderateImage: {
+          useMutation: () => ({
+            mutateAsync: moderateImageMutateAsyncMock,
           }),
         },
       },
@@ -53,6 +59,7 @@ import { useImageUpload } from "@/hooks/use-image-upload";
 describe("useImageUpload", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    moderateImageMutateAsyncMock.mockResolvedValue({ outcome: "approved" });
   });
 
   it("uploads successfully and resets state", async () => {
@@ -66,6 +73,7 @@ describe("useImageUpload", () => {
       presignedUrl: "https://upload-url.example",
       key: "abc123.jpg",
       url: uploadedImage.url,
+      shadowModerationRequested: true,
       r2: {
         presignedUrl: "https://r2-upload-url.example",
         key: "users/user-1/listing-images/listing-1/img-1/original.jpg",
@@ -79,6 +87,9 @@ describe("useImageUpload", () => {
       },
     );
     createImageMock.mockResolvedValue(uploadedImage);
+    moderateImageMutateAsyncMock.mockRejectedValue(
+      new Error("Shadow moderation unavailable"),
+    );
 
     const onSuccess = vi.fn();
     const { result } = renderHook(() =>
@@ -135,9 +146,77 @@ describe("useImageUpload", () => {
     expect(returned).toEqual(uploadedImage);
 
     await waitFor(() => {
+      expect(moderateImageMutateAsyncMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          imageDataUrl: expect.stringMatching(/^data:image\/jpeg;base64,/),
+        }),
+      );
+      expect(reportErrorMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          level: "warning",
+          context: expect.objectContaining({ step: "shadow-moderation" }),
+        }),
+      );
+    });
+
+    await waitFor(() => {
       expect(result.current.isUploading).toBe(false);
       expect(result.current.progress).toBe(0);
     });
+  });
+
+  it("waits for moderation only when enforcement is enabled", async () => {
+    const uploadedImage = {
+      id: "img-1",
+      url: "https://example.com/images/img-1.jpg",
+    };
+    getPresignedUrlMutateAsyncMock
+      .mockResolvedValueOnce({ moderationRequired: true })
+      .mockResolvedValueOnce({
+        imageId: "img-1",
+        presignedUrl: "https://upload-url.example",
+        key: "abc123.jpg",
+        url: uploadedImage.url,
+        contentMd5: "checksum",
+        shadowModerationRequested: false,
+        r2: {
+          presignedUrl: "https://r2-upload-url.example",
+          key: "users/user-1/listing-images/listing-1/img-1/original.jpg",
+          url: "https://media.daylilycatalog.com/users/user-1/listing-images/listing-1/img-1/original.jpg",
+        },
+      });
+    uploadFileWithProgressMock.mockResolvedValue(undefined);
+    createImageMock.mockResolvedValue(uploadedImage);
+
+    const { result } = renderHook(() =>
+      useImageUpload({ type: "listing", referenceId: "listing-1" }),
+    );
+    const file = new Blob(["image-bytes"], { type: "image/jpeg" });
+
+    await act(async () => {
+      await result.current.upload(file);
+    });
+
+    expect(getPresignedUrlMutateAsyncMock).toHaveBeenCalledTimes(2);
+    expect(moderateImageMutateAsyncMock).not.toHaveBeenCalled();
+    expect(getPresignedUrlMutateAsyncMock).toHaveBeenNthCalledWith(
+      1,
+      expect.not.objectContaining({ imageDataUrl: expect.anything() }),
+    );
+    expect(getPresignedUrlMutateAsyncMock).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        imageDataUrl: expect.stringMatching(/^data:image\/jpeg;base64,/),
+      }),
+    );
+    expect(uploadFileWithProgressMock).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({ contentMd5: "checksum" }),
+    );
+    expect(uploadFileWithProgressMock).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({ contentMd5: "checksum" }),
+    );
   });
 
   it("continues with legacy upload when R2 upload fails", async () => {
