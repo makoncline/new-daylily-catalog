@@ -8,16 +8,11 @@ import { syncClerkUserToKV } from "@/server/clerk/sync-user";
 import { captureServerPosthogEvent } from "@/server/analytics/posthog-server";
 import { logUserAuth } from "@/server/audit/user-action-audit";
 
-// Only include events that are actually supported by Clerk
-const relevantEvents = new Set<string>([
+// Only these events should create, update, or clear app users.
+const relevantEvents = new Set<WebhookEvent["type"]>([
   "user.created",
   "user.updated",
   "user.deleted",
-  "email.created",
-  "email.updated",
-  "email.deleted",
-  "profile.updated",
-  "username.updated",
   "session.created",
 ]);
 
