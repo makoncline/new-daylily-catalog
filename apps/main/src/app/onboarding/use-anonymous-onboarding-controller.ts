@@ -130,6 +130,12 @@ export function useAnonymousOnboardingController({
         starterProfileImageDataUrlRef.current =
           storedDraft.profile.profileImageDataUrl;
       }
+      setSelectedStarterProfileImageUrl(
+        storedDraft.profile.starterImageUrl ??
+          (storedDraft.profile.profileImageSource === "starter"
+            ? null
+            : (STARTER_PROFILE_IMAGES[0]?.url ?? null)),
+      );
       setProfileImageInputModeState(
         storedDraft.profile.profileImageSource === "upload"
           ? "upload"
@@ -310,6 +316,7 @@ export function useAnonymousOnboardingController({
                   ...currentDraft.profile,
                   profileImageDataUrl: dataUrl,
                   profileImageSource: "starter",
+                  starterImageUrl: baseImageUrl,
                 },
               }));
             } catch (error) {
@@ -352,6 +359,7 @@ export function useAnonymousOnboardingController({
           ...currentDraft.profile,
           profileImageDataUrl: null,
           profileImageSource: null,
+          starterImageUrl: baseImageUrl,
         },
       }));
       scheduleStarterProfileImageGeneration({
@@ -391,16 +399,21 @@ export function useAnonymousOnboardingController({
         uploadedProfileImageDataUrlRef.current =
           draftRef.current.profile.profileImageDataUrl;
       }
-      const baseImageUrl =
-        selectedStarterProfileImageUrl ?? STARTER_PROFILE_IMAGES[0]?.url;
       const starterImageDataUrl = starterProfileImageDataUrlRef.current;
-      setSelectedStarterProfileImageUrl(baseImageUrl ?? null);
+      const baseImageUrl =
+        selectedStarterProfileImageUrl ??
+        (starterImageDataUrl ? undefined : STARTER_PROFILE_IMAGES[0]?.url);
+      if (baseImageUrl) {
+        setSelectedStarterProfileImageUrl(baseImageUrl);
+      }
       setDraft((currentDraft) => ({
         ...currentDraft,
         profile: {
           ...currentDraft.profile,
           profileImageDataUrl: starterImageDataUrl,
           profileImageSource: starterImageDataUrl ? "starter" : null,
+          starterImageUrl:
+            baseImageUrl ?? currentDraft.profile.starterImageUrl,
         },
       }));
       if (!starterImageDataUrl && baseImageUrl) {

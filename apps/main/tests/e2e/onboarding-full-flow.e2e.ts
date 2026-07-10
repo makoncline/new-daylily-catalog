@@ -65,6 +65,7 @@ test.describe("anonymous onboarding checkout flow @local", () => {
     const initialEmail = `anonymous-initial+clerk_test_${runId}@example.com`;
     const paidEmail = `anonymous-paid+clerk_test_${runId}@example.com`;
     const profileName = "Anonymous Flow Daylilies";
+    const initialProfileName = "Anonymous Flow";
     const profileLocation = "Olympia, WA";
     const profileDescription =
       "Small grower catalog focused on clear photos and seasonal availability.";
@@ -132,12 +133,11 @@ test.describe("anonymous onboarding checkout flow @local", () => {
         .getByTestId("anonymous-profile-image-mode-starter")
         .click();
 
-      await page.getByTestId("anonymous-profile-name").fill(profileName);
-      await page
-        .getByTestId(
-          "onboarding-starter-image-morning-serenity-along-the-garden-path",
-        )
-        .click();
+      await page.getByTestId("anonymous-profile-name").fill(initialProfileName);
+      const gardenPathStarter = page.getByTestId(
+        "onboarding-starter-image-morning-serenity-along-the-garden-path",
+      );
+      await gardenPathStarter.click();
       await expect
         .poll(async () => {
           const draft = await readBrowserDraft(page);
@@ -150,6 +150,13 @@ test.describe("anonymous onboarding checkout flow @local", () => {
       await page
         .getByTestId("anonymous-profile-description")
         .fill(profileDescription);
+      await page.reload();
+      await expect(
+        page.getByRole("heading", { name: "Edit your profile" }),
+      ).toBeVisible();
+      await expect(gardenPathStarter).toHaveAttribute("aria-pressed", "true");
+      await page.getByTestId("anonymous-profile-name").fill(profileName);
+      await expect(gardenPathStarter).toHaveAttribute("aria-pressed", "true");
 
       await page.getByTestId("anonymous-onboarding-primary-action").click();
       await expect(

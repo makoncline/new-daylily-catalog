@@ -15,6 +15,7 @@ export interface AnonymousOnboardingProfileDraft {
   description: string;
   profileImageDataUrl: string | null;
   profileImageSource: "starter" | "upload" | null;
+  starterImageUrl: string | null;
 }
 
 export interface AnonymousOnboardingListingPreviewDraft {
@@ -44,6 +45,7 @@ export const DEFAULT_ANONYMOUS_ONBOARDING_PROFILE: AnonymousOnboardingProfileDra
     description: "",
     profileImageDataUrl: null,
     profileImageSource: null,
+    starterImageUrl: null,
   };
 
 const DEFAULT_ANONYMOUS_ONBOARDING_CULTIVAR_KEY = "cr-ahs-176320";
@@ -180,6 +182,7 @@ export function parseAnonymousOnboardingDraft(
       description: readString(profile?.description),
       profileImageDataUrl: readNullableString(profile?.profileImageDataUrl),
       profileImageSource: readProfileImageSource(profile?.profileImageSource),
+      starterImageUrl: readNullableString(profile?.starterImageUrl),
     },
     listingPreview: {
       cultivarKey: readListingCultivarKey(listingPreview?.cultivarKey),
