@@ -99,13 +99,11 @@ test.describe("anonymous onboarding checkout flow @local", () => {
       const defaultStarterImage = page.getByTestId(
         "onboarding-starter-image-dew-kissed-daylily-leaf-at-dawn",
       );
+      const profileImagePreview = page
+        .getByTestId("anonymous-profile-image-inline-preview")
+        .locator("img");
       await expect(defaultStarterImage).toHaveAttribute("aria-pressed", "true");
-      await expect
-        .poll(async () => {
-          const draft = await readBrowserDraft(page);
-          return draft?.profile.profileImageSource;
-        })
-        .toBe("starter");
+      await expect(profileImagePreview).toBeVisible();
 
       await page
         .getByTestId("anonymous-profile-image-mode-upload")
@@ -114,28 +112,21 @@ test.describe("anonymous onboarding checkout flow @local", () => {
         .getByTestId("anonymous-profile-image")
         .setInputFiles(path.join(appRoot, LISTING_IMAGE_PATH));
       await page.getByRole("button", { name: "Use cropped image" }).click();
-      await expect
-        .poll(async () => {
-          const draft = await readBrowserDraft(page);
-          return draft?.profile.profileImageSource === "upload"
-            ? draft.profile.profileImageDataUrl
-            : null;
-        })
-        .not.toBeNull();
-      const uploadedProfileImage = (await readBrowserDraft(page))?.profile
-        .profileImageDataUrl;
+      await expect(profileImagePreview).toHaveAttribute("src", /data:image\//);
+      const uploadedProfileImage = await profileImagePreview.getAttribute("src");
+      expect(uploadedProfileImage).toBeTruthy();
       await page
         .getByTestId("anonymous-profile-image-mode-starter")
         .click();
       await expect(defaultStarterImage).toHaveAttribute("aria-pressed", "true");
+      await expect
+        .poll(() => profileImagePreview.getAttribute("src"))
+        .not.toBe(uploadedProfileImage);
       await page
         .getByTestId("anonymous-profile-image-mode-upload")
         .click();
       await expect
-        .poll(async () => {
-          const draft = await readBrowserDraft(page);
-          return draft?.profile.profileImageDataUrl;
-        })
+        .poll(() => profileImagePreview.getAttribute("src"))
         .toBe(uploadedProfileImage);
       await page
         .getByTestId("anonymous-profile-image-mode-starter")
@@ -222,10 +213,11 @@ test.describe("anonymous onboarding checkout flow @local", () => {
 
       await page.getByTestId("anonymous-onboarding-step-profile").click();
       await expect(page).toHaveURL(/\/onboarding\?step=profile/);
-      await expect(
-        page.getByTestId("anonymous-onboarding-step-profile"),
-      ).toHaveAttribute("data-complete", "true");
       await page.goBack();
+      await expect(page).toHaveURL(/\/onboarding\?step=preview/);
+      await page.goForward();
+      await expect(page).toHaveURL(/\/onboarding\?step=profile/);
+      await page.getByTestId("anonymous-onboarding-step-preview").click();
       await expect(page).toHaveURL(/\/onboarding\?step=preview/);
 
       await page.getByTestId("anonymous-onboarding-primary-action").click();
