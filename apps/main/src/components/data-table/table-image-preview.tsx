@@ -34,11 +34,12 @@ export function TableImagePreview({
             "group bg-muted/50 relative -m-1 flex aspect-square h-[calc(100%_+_1rem)] items-center justify-center rounded-md border",
           )}
         >
-          <div className="absolute overflow-hidden rounded-[4px]">
+          <div className="absolute inset-0 overflow-hidden rounded-[4px]">
             <OptimizedImage
               image={firstImage}
               alt="Image preview"
               size="thumbnail"
+              className="size-full"
             />
           </div>
         </button>

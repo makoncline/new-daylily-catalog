@@ -11,6 +11,7 @@ import {
 import {
   areImageAssetsEnabled,
   orderedImageAssetUrlInclude,
+  toImageAssetView,
 } from "@/server/services/image-asset-read-model";
 
 const onboardingAhsListingSelect = {
@@ -63,15 +64,17 @@ function getOnboardingDisplayAhsListing(row: OnboardingCultivarReferenceRow) {
   );
 }
 
-function getOnboardingImageAssetUrl(row: OnboardingCultivarReferenceRow) {
+function getOnboardingImageAsset(row: OnboardingCultivarReferenceRow) {
   if (!areImageAssetsEnabled()) return null;
 
   const asset = row.imageAssets[0];
+  if (!asset) return null;
+
   const displayUrl = asset?.displayUrl?.trim();
-  if (displayUrl) return displayUrl;
+  if (displayUrl) return { asset: toImageAssetView(asset), url: displayUrl };
 
   const originalUrl = asset?.originalUrl?.trim();
-  if (originalUrl) return originalUrl;
+  if (originalUrl) return { asset: toImageAssetView(asset), url: originalUrl };
 
   return null;
 }
@@ -90,9 +93,8 @@ export function buildOnboardingExampleCultivars(
       .map((value) => value?.trim())
       .filter((value): value is string => Boolean(value))
       .join(", ");
-    const imageUrl =
-      (row ? getOnboardingImageAssetUrl(row) : null) ??
-      ahsListing?.ahsImageUrl?.trim();
+    const imageAsset = row ? getOnboardingImageAsset(row) : null;
+    const imageUrl = imageAsset?.url ?? ahsListing?.ahsImageUrl?.trim();
 
     if (!row || !name || !hybridizerYear || !imageUrl) {
       return [];
@@ -104,6 +106,7 @@ export function buildOnboardingExampleCultivars(
         name,
         hybridizerYear,
         imageUrl,
+        ...(imageAsset ? { imageAsset: imageAsset.asset } : {}),
       },
     ];
   });

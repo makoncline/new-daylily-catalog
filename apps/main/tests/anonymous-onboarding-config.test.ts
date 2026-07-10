@@ -111,7 +111,7 @@ describe("anonymous onboarding config", () => {
               originalUrl: "https://example.com/generated-original.jpg",
               displayUrl: "https://example.com/generated-display.jpg",
               thumbUrl: null,
-              blurUrl: null,
+              blurUrl: "https://example.com/generated-blur.webp",
             },
           ],
           v2AhsCultivar: {
@@ -144,6 +144,10 @@ describe("anonymous onboarding config", () => {
     expect(examples[0]?.imageUrl).toBe(
       "https://example.com/generated-display.jpg",
     );
+    expect(examples[0]?.imageAsset).toMatchObject({
+      id: "asset-first",
+      blurUrl: "https://example.com/generated-blur.webp",
+    });
   });
 
   it("requires configured example cultivars before building a listing preview", () => {

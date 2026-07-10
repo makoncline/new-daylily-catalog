@@ -4,6 +4,10 @@ import Image from "next/image";
 import { Link2, MapPin, ShoppingCart } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  OptimizedImage,
+  type OptimizedImageSource,
+} from "@/components/optimized-image";
 import { formatPrice } from "@/lib/utils";
 import { LISTING_FALLBACK_IMAGE } from "./anonymous-onboarding-config";
 
@@ -69,6 +73,7 @@ export function ListingPreviewCard({
   linkedLabel,
   hybridizerYear,
   imageUrl,
+  imageAsset,
   ownershipBadge,
 }: {
   title: string;
@@ -77,6 +82,7 @@ export function ListingPreviewCard({
   linkedLabel: string;
   hybridizerYear: string;
   imageUrl: string;
+  imageAsset?: OptimizedImageSource["imageAsset"];
   ownershipBadge: string;
 }) {
   const showAddToCartButton = price !== null;
@@ -85,13 +91,11 @@ export function ListingPreviewCard({
   return (
     <div className="bg-card border-primary w-full max-w-sm overflow-hidden rounded-xl border shadow-[0_0_0_2px_rgba(24,24,27,0.08)]">
       <div className="bg-muted relative aspect-square border-b">
-        <Image
-          src={previewImageSrc}
+        <OptimizedImage
+          image={{ id: previewImageSrc, url: previewImageSrc, imageAsset }}
           alt={title}
-          fill
-          className="object-cover"
-          sizes="(max-width: 1024px) 50vw, 280px"
-          unoptimized
+          size="full"
+          className="size-full object-cover"
         />
         {price !== null ? (
           <Badge
