@@ -379,10 +379,6 @@ export async function hydrateDashboardDbFromSqlitePersistence(args: {
     ),
     queryDataDurationMs: Number(queryDataDurationMs.toFixed(1)),
   });
-
-  return {
-    listingCount: listings.rows.length,
-  };
 }
 
 async function fetchDashboardDbSnapshotFromSource(

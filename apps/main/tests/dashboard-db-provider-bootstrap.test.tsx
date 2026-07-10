@@ -436,7 +436,7 @@ describe("dashboardDb provider bootstrap", () => {
     vi.resetModules();
     useAuthMock.mockReturnValue({ isLoaded: true, userId: null });
 
-    const warmHydrate = deferred<{ listingCount: number }>();
+    const warmHydrate = deferred();
     const backgroundRefresh = deferred();
     const bootstrapDashboardDbFromReplica = vi.fn(async () => false);
     const bootstrapDashboardDbFromServer = vi.fn(async () => undefined);
@@ -531,7 +531,7 @@ describe("dashboardDb provider bootstrap", () => {
     expect(screen.queryByTestId("dashboard-ready")).toBeNull();
 
     await act(async () => {
-      warmHydrate.resolve({ listingCount: 1 });
+      warmHydrate.resolve();
       await warmHydrate.promise;
     });
 
@@ -567,7 +567,7 @@ describe("dashboardDb provider bootstrap", () => {
     });
   });
 
-  it("loads the replica before rendering an empty SQLite cache", async () => {
+  it("waits for the replica before rendering when SQLite has no valid cache", async () => {
     vi.resetModules();
 
     const replicaBootstrap = deferred<boolean>();
@@ -576,9 +576,9 @@ describe("dashboardDb provider bootstrap", () => {
       () => replicaBootstrap.promise,
     );
     const bootstrapDashboardDbFromServer = vi.fn(async () => undefined);
-    const hydrateDashboardDbFromSqlitePersistence = vi.fn(async () => ({
-      listingCount: 0,
-    }));
+    const hydrateDashboardDbFromSqlitePersistence = vi.fn(
+      async () => undefined,
+    );
     const revalidateDashboardDbInBackground = vi.fn(
       () => backgroundRefresh.promise,
     );
@@ -602,7 +602,7 @@ describe("dashboardDb provider bootstrap", () => {
       () => ({
         bootstrapDashboardDbFromReplica,
         bootstrapDashboardDbFromServer,
-        hasFreshDashboardDbSqliteCache: vi.fn(() => true),
+        hasFreshDashboardDbSqliteCache: vi.fn(() => false),
         hydrateDashboardDbFromSqlitePersistence,
         revalidateDashboardDbInBackground,
         resetDashboardRefreshLock: vi.fn(),
@@ -679,7 +679,7 @@ describe("dashboardDb provider bootstrap", () => {
     expect(bootstrapDashboardDbFromReplica).toHaveBeenCalledTimes(1);
     expect(bootstrapDashboardDbFromServer).not.toHaveBeenCalled();
     expect(revalidateDashboardDbInBackground).toHaveBeenCalledTimes(1);
-    expect(hydrateDashboardDbFromSqlitePersistence).toHaveBeenCalledTimes(1);
+    expect(hydrateDashboardDbFromSqlitePersistence).not.toHaveBeenCalled();
 
     await act(async () => {
       backgroundRefresh.resolve();

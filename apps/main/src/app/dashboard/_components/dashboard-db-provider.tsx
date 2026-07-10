@@ -303,7 +303,6 @@ function useDashboardDbProviderState() {
 
         const hasFreshSqliteCache =
           sqlitePersistence && hasFreshDashboardDbSqliteCache(userId);
-        let sqliteCacheListingCount: number | null = null;
 
         if (hasFreshSqliteCache) {
           phase = "sqlite-warm-hydrate";
@@ -321,11 +320,7 @@ function useDashboardDbProviderState() {
               profilePrefetchPromise,
             ]);
 
-          if (
-            hydrateResult.status === "fulfilled" &&
-            hydrateResult.value.listingCount > 0
-          ) {
-            sqliteCacheListingCount = hydrateResult.value.listingCount;
+          if (hydrateResult.status === "fulfilled") {
             if (profilePrefetchResult.status === "rejected") {
               throw profilePrefetchResult.reason;
             }
@@ -352,10 +347,6 @@ function useDashboardDbProviderState() {
               startBackgroundRefresh();
             }
             return;
-          }
-
-          if (hydrateResult.status === "fulfilled") {
-            sqliteCacheListingCount = hydrateResult.value.listingCount;
           }
         }
 
@@ -396,8 +387,7 @@ function useDashboardDbProviderState() {
             sqlitePersistenceAwaitDurationMs: Number(
               sqlitePersistenceAwaitDurationMs.toFixed(1),
             ),
-            hasFreshSqliteCache: Boolean(hasFreshSqliteCache),
-            sqliteCacheListingCount,
+            hasFreshSqliteCache: false,
             usedReplica,
             replicaBootstrapDurationMs: Number(
               replicaBootstrapDurationMs.toFixed(1),
