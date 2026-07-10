@@ -141,12 +141,14 @@ export function buildVariantImageAssetKeysFromOriginalKey(originalKey: string) {
 export async function getR2PresignedPutUrl(args: {
   key: string;
   contentType: ImageContentType;
+  contentMd5?: string;
   cacheControl?: string;
 }) {
   const command = new PutObjectCommand({
     Bucket: requireEnv("R2_BUCKET_NAME", env.R2_BUCKET_NAME),
     Key: args.key,
     ContentType: args.contentType,
+    ContentMD5: args.contentMd5,
     CacheControl: args.cacheControl,
   });
 
@@ -175,6 +177,7 @@ export async function getR2OriginalUploadMetadata(args: {
   listingId: string | null;
   imageAssetId: string;
   contentType: ImageContentType;
+  contentMd5?: string;
 }) {
   if (!areImageAssetUploadsConfigured()) return null;
 
@@ -186,6 +189,7 @@ export async function getR2OriginalUploadMetadata(args: {
     presignedUrl: await getR2PresignedPutUrl({
       key,
       contentType: args.contentType,
+      contentMd5: args.contentMd5,
     }),
   };
 }

@@ -6,10 +6,8 @@ import { APP_CONFIG } from "@/config/constants";
 import { PutObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import crypto from "node:crypto";
-import {
-  imageContentTypeSchema,
-  imageTypeSchema,
-} from "@/types/image";
+import sharp from "sharp";
+import { imageContentTypeSchema, imageTypeSchema } from "@/types/image";
 import type { db } from "@/server/db";
 import {
   areImageAssetsEnabled,
@@ -33,6 +31,8 @@ import {
   getListingIdForImageAsset,
   getUserImageOwnerWhere,
 } from "@/server/services/user-image-records";
+import { captureServerPosthogEvent } from "@/server/analytics/posthog-server";
+import { parseBooleanEnv } from "@/env";
 import {
   assertOwnedListing,
   assertOwnedProfile,
@@ -42,6 +42,35 @@ import {
 
 type DbClient = typeof db;
 type DashboardImageRow = ReturnType<typeof mapImageRow>;
+
+const MODERATION_MODEL = "omni-moderation-latest";
+const MAX_IMAGE_DATA_URL_LENGTH =
+  Math.ceil((APP_CONFIG.UPLOAD.MAX_FILE_SIZE * 4) / 3) + 100;
+
+const moderationResponseSchema = z.object({
+  results: z
+    .array(
+      z.object({
+        categories: z.object({
+          sexual: z.boolean(),
+          "sexual/minors": z.boolean(),
+        }),
+        category_scores: z.object({
+          sexual: z.number(),
+          "sexual/minors": z.number(),
+        }),
+      }),
+    )
+    .min(1),
+});
+
+const imageModerationInputSchema = z.object({
+  type: imageTypeSchema,
+  contentType: imageContentTypeSchema,
+  size: z.number().int().positive().max(APP_CONFIG.UPLOAD.MAX_FILE_SIZE),
+  referenceId: z.string(),
+  imageDataUrl: z.string().max(MAX_IMAGE_DATA_URL_LENGTH),
+});
 
 type ImageRow = {
   id: string;
@@ -83,6 +112,158 @@ function invalidImageAssetMetadata() {
     code: "BAD_REQUEST",
     message: "Image asset upload metadata is invalid",
   });
+}
+
+function decodeImageDataUrl(
+  dataUrl: string,
+  contentType: string,
+  size: number,
+) {
+  const prefix = `data:${contentType};base64,`;
+  if (!dataUrl.startsWith(prefix)) {
+    throw new TRPCError({
+      code: "BAD_REQUEST",
+      message: "Invalid image data",
+    });
+  }
+
+  const buffer = Buffer.from(dataUrl.slice(prefix.length), "base64");
+  if (buffer.byteLength !== size) {
+    throw new TRPCError({
+      code: "BAD_REQUEST",
+      message: "Invalid image data",
+    });
+  }
+
+  return buffer;
+}
+
+async function requestImageModeration(image: Buffer) {
+  const apiKey = process.env.OPENAI_IMAGE_MODERATION_API_KEY?.trim();
+  if (!apiKey) throw new Error("OPENAI_IMAGE_MODERATION_API_KEY is missing");
+
+  const sourceImage = sharp(image, { animated: true, failOn: "error" });
+  const metadata = await sourceImage.metadata();
+  if ((metadata.pages ?? 1) > 1) {
+    throw new Error("Animated images are not supported");
+  }
+
+  const moderationImage = await sourceImage
+    .rotate()
+    .resize(512, 512, { fit: "inside", withoutEnlargement: true })
+    .webp({ quality: 75 })
+    .toBuffer();
+  const response = await fetch("https://api.openai.com/v1/moderations", {
+    method: "POST",
+    signal: AbortSignal.timeout(10_000),
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model: MODERATION_MODEL,
+      input: [
+        {
+          type: "image_url",
+          image_url: {
+            url: `data:image/webp;base64,${moderationImage.toString("base64")}`,
+          },
+        },
+      ],
+    }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`OpenAI moderation failed with status ${response.status}`);
+  }
+
+  const [result] = moderationResponseSchema.parse(
+    await response.json(),
+  ).results;
+  if (!result) throw new Error("OpenAI moderation returned no result");
+  return result;
+}
+
+async function moderateAndLogImage(args: {
+  enforced: boolean;
+  fileSize: number;
+  image: Buffer;
+  imageType: string;
+  referenceId: string;
+  userId: string;
+}) {
+  const startedAt = performance.now();
+  let outcome: "approved" | "rejected" | "unavailable";
+  let sexualScore: number | undefined;
+  let sexualMinorsScore: number | undefined;
+  let errorMessage: string | undefined;
+
+  try {
+    const result = await requestImageModeration(args.image);
+    sexualScore = result.category_scores.sexual;
+    sexualMinorsScore = result.category_scores["sexual/minors"];
+    outcome =
+      result.categories.sexual || result.categories["sexual/minors"]
+        ? "rejected"
+        : "approved";
+  } catch (error) {
+    outcome = "unavailable";
+    errorMessage = error instanceof Error ? error.message : String(error);
+  }
+
+  const decision = args.enforced && outcome !== "approved" ? "reject" : "allow";
+  const properties = {
+    mode: args.enforced ? "enforce" : "shadow",
+    outcome,
+    decision,
+    imageType: args.imageType,
+    referenceId: args.referenceId,
+    fileSize: args.fileSize,
+    model: MODERATION_MODEL,
+    sexualScore,
+    sexualMinorsScore,
+  } as const;
+
+  console.info(
+    JSON.stringify({
+      event: "image_moderation",
+      userId: args.userId,
+      ...properties,
+      durationMs: Math.round(performance.now() - startedAt),
+      errorMessage,
+    }),
+  );
+
+  if (outcome !== "approved") {
+    await captureServerPosthogEvent({
+      distinctId: args.userId,
+      event: `image_moderation_${outcome}`,
+      properties,
+    });
+  }
+
+  return { outcome, sexualScore } as const;
+}
+
+async function assertOwnedImageTarget(args: {
+  db: DbClient;
+  referenceId: string;
+  type: "listing" | "profile";
+  userId: string;
+}) {
+  if (args.type === "listing") {
+    await assertOwnedListing({
+      db: args.db,
+      listingId: args.referenceId,
+      userId: args.userId,
+    });
+  } else {
+    await assertOwnedProfile({
+      db: args.db,
+      userId: args.userId,
+      userProfileId: args.referenceId,
+    });
+  }
 }
 
 async function getDashboardImagesByListingIds(args: {
@@ -138,6 +319,31 @@ async function resolveDashboardImageRows(args: {
 }
 
 export const dashboardDbImageRouter = createTRPCRouter({
+  moderateImage: protectedProcedure
+    .input(imageModerationInputSchema)
+    .mutation(async ({ ctx, input }) => {
+      await assertOwnedImageTarget({
+        db: ctx.db,
+        referenceId: input.referenceId,
+        type: input.type,
+        userId: ctx.user.id,
+      });
+      const image = decodeImageDataUrl(
+        input.imageDataUrl,
+        input.contentType,
+        input.size,
+      );
+
+      return moderateAndLogImage({
+        enforced: false,
+        fileSize: input.size,
+        image,
+        imageType: input.type,
+        referenceId: input.referenceId,
+        userId: ctx.user.id,
+      });
+    }),
+
   getPresignedUrl: protectedProcedure
     .input(
       z.object({
@@ -145,21 +351,57 @@ export const dashboardDbImageRouter = createTRPCRouter({
         contentType: imageContentTypeSchema,
         size: z.number().int().positive().max(APP_CONFIG.UPLOAD.MAX_FILE_SIZE),
         referenceId: z.string(),
+        imageDataUrl: z.string().max(MAX_IMAGE_DATA_URL_LENGTH).optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      if (input.type === "listing") {
-        await assertOwnedListing({
-          db: ctx.db,
-          listingId: input.referenceId,
+      await assertOwnedImageTarget({
+        db: ctx.db,
+        referenceId: input.referenceId,
+        type: input.type,
+        userId: ctx.user.id,
+      });
+
+      let contentMd5: string | undefined;
+      const moderationEnabled = Boolean(
+        process.env.OPENAI_IMAGE_MODERATION_API_KEY?.trim(),
+      );
+      const moderationEnforced =
+        moderationEnabled &&
+        parseBooleanEnv(process.env.IMAGE_MODERATION_ENFORCED);
+      if (moderationEnforced) {
+        if (!input.imageDataUrl) {
+          return { moderationRequired: true } as const;
+        }
+
+        const image = decodeImageDataUrl(
+          input.imageDataUrl,
+          input.contentType,
+          input.size,
+        );
+        const result = await moderateAndLogImage({
+          enforced: true,
+          fileSize: input.size,
+          image,
+          imageType: input.type,
+          referenceId: input.referenceId,
           userId: ctx.user.id,
         });
-      } else {
-        await assertOwnedProfile({
-          db: ctx.db,
-          userId: ctx.user.id,
-          userProfileId: input.referenceId,
-        });
+
+        if (result.outcome !== "approved") {
+          throw new TRPCError({
+            code:
+              result.outcome === "rejected"
+                ? "BAD_REQUEST"
+                : "INTERNAL_SERVER_ERROR",
+            message:
+              result.outcome === "rejected"
+                ? "We couldn't accept this image. Please choose another."
+                : "We couldn't verify this image. Please try again.",
+          });
+        }
+
+        contentMd5 = crypto.createHash("md5").update(image).digest("base64");
       }
 
       const imageId = crypto.randomUUID();
@@ -179,6 +421,7 @@ export const dashboardDbImageRouter = createTRPCRouter({
         }),
         imageAssetId: imageId,
         contentType: input.contentType,
+        contentMd5,
       });
 
       const command = new PutObjectCommand({
@@ -186,6 +429,7 @@ export const dashboardDbImageRouter = createTRPCRouter({
         Key: key,
         ContentType: input.contentType,
         ContentLength: input.size,
+        ContentMD5: contentMd5,
       });
 
       const url = await getSignedUrl(getLegacyS3Client(), command, {
@@ -198,6 +442,8 @@ export const dashboardDbImageRouter = createTRPCRouter({
         key,
         url: getLegacyImageUrl(key),
         r2,
+        contentMd5,
+        shadowModerationRequested: moderationEnabled && !moderationEnforced,
       } as const;
     }),
 

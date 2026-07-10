@@ -503,7 +503,7 @@ export function WebMcpProvider() {
           name: "daylily.prepare-image-upload",
           title: "Prepare Image Upload",
           description:
-            "Create signed upload URLs for a profile or listing image. Upload the file to presignedUrl. If upload.r2 is returned, also upload the same file to upload.r2.presignedUrl before calling daylily.attach-uploaded-image with imageId and r2OriginalKey.",
+            "Create signed upload URLs for a profile or listing image. If the result says moderationRequired, call this tool again with the same fields plus imageDataUrl. Upload the file to presignedUrl. When upload.contentMd5 is returned, include Content-MD5 with that value on every upload PUT. If upload.r2 is returned, also upload the same file to upload.r2.presignedUrl before calling daylily.attach-uploaded-image with imageId and r2OriginalKey.",
           inputSchema: {
             type: "object",
             additionalProperties: false,
@@ -524,6 +524,11 @@ export function WebMcpProvider() {
                 minimum: 1,
                 description: "Image file size in bytes.",
               },
+              imageDataUrl: {
+                type: "string",
+                description:
+                  "The exact image as a base64 data URL when moderation is required.",
+              },
             },
           },
           annotations: {
@@ -539,6 +544,7 @@ export function WebMcpProvider() {
             }
             const referenceId = asString(input.referenceId);
             const contentType = asString(input.contentType);
+            const imageDataUrl = asString(input.imageDataUrl);
             const size =
               typeof input.size === "number" ? Math.trunc(input.size) : 0;
             if (
@@ -561,6 +567,7 @@ export function WebMcpProvider() {
                   | "image/png"
                   | "image/webp",
                 size,
+                ...(imageDataUrl ? { imageDataUrl } : {}),
               });
             return toolResult({ ok: true, upload });
           },
