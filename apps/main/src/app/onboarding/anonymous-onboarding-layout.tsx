@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useRef } from "react";
 import { ArrowRight, CheckCircle2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -57,6 +56,7 @@ export function AnonymousOnboardingPageClient(
         <AnonymousOnboardingHeader
           currentStepIndex={controller.currentStepIndex}
           draft={controller.draft}
+          furthestStepIndex={controller.furthestStepIndex}
           goToStep={controller.goToStep}
           progressValue={controller.progressValue}
         />
@@ -117,7 +117,6 @@ export function AnonymousOnboardingPageClient(
           ) : null}
           {draft.step === "preview" ? (
             <PreviewStep
-              draft={controller.draft}
               goToStep={controller.goToStep}
               listingPreview={controller.listingPreview}
               profilePreview={controller.profilePreview}
@@ -141,7 +140,6 @@ export function AnonymousOnboardingPageClient(
 
         {draft.step !== "email" && draft.step !== "checkout" ? (
           <AnonymousOnboardingFooter
-            clearDraft={controller.clearDraft}
             collectEmail={controller.collectEmail}
             currentStepIndex={controller.currentStepIndex}
             draft={controller.draft}
@@ -157,12 +155,17 @@ export function AnonymousOnboardingPageClient(
 
 type AnonymousOnboardingHeaderProps = Pick<
   AnonymousOnboardingController,
-  "currentStepIndex" | "draft" | "goToStep" | "progressValue"
+  | "currentStepIndex"
+  | "draft"
+  | "furthestStepIndex"
+  | "goToStep"
+  | "progressValue"
 >;
 
 function AnonymousOnboardingHeader({
   currentStepIndex,
   draft,
+  furthestStepIndex,
   goToStep,
   progressValue,
 }: AnonymousOnboardingHeaderProps) {
@@ -200,8 +203,8 @@ function AnonymousOnboardingHeader({
       <div className="flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {ANONYMOUS_ONBOARDING_STEPS.map((step, index) => {
           const isCurrent = step.id === draft.step;
-          const isComplete = index < currentStepIndex;
-          const canOpen = index <= currentStepIndex;
+          const isComplete = index < furthestStepIndex;
+          const canOpen = index <= furthestStepIndex;
 
           return (
             <button
@@ -212,6 +215,7 @@ function AnonymousOnboardingHeader({
               className="focus-visible:ring-ring disabled:text-muted-foreground/50 data-[current=true]:border-primary data-[current=true]:bg-primary/10 data-[current=true]:text-primary shrink-0 rounded-full border px-3 py-1 text-xs font-medium transition-colors focus-visible:ring-1 focus-visible:outline-none disabled:cursor-not-allowed data-[complete=true]:border-emerald-500/40 data-[complete=true]:bg-emerald-500/10 data-[complete=true]:text-emerald-700"
               data-current={isCurrent}
               data-complete={isComplete}
+              data-testid={`anonymous-onboarding-step-${step.id}`}
               onClick={() => goToStep(step.id)}
             >
               <span className="inline-flex items-center gap-1.5">
@@ -229,7 +233,6 @@ function AnonymousOnboardingHeader({
 
 type AnonymousOnboardingFooterProps = Pick<
   AnonymousOnboardingController,
-  | "clearDraft"
   | "collectEmail"
   | "currentStepIndex"
   | "draft"
@@ -239,7 +242,6 @@ type AnonymousOnboardingFooterProps = Pick<
 >;
 
 function AnonymousOnboardingFooter({
-  clearDraft,
   collectEmail,
   currentStepIndex,
   draft,
@@ -250,7 +252,7 @@ function AnonymousOnboardingFooter({
   const currentStep = ANONYMOUS_ONBOARDING_STEPS[currentStepIndex]!;
 
   return (
-    <footer className="space-y-2 border-t pt-3">
+    <footer className="border-t pt-3">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="text-muted-foreground text-sm">
           {currentStep.description}
@@ -277,22 +279,6 @@ function AnonymousOnboardingFooter({
         </div>
       </div>
 
-      <div className="flex flex-wrap justify-between gap-3">
-        <Button
-          type="button"
-          variant="link"
-          className="text-muted-foreground hover:text-foreground h-auto p-0 text-xs"
-          onClick={clearDraft}
-        >
-          Start over
-        </Button>
-        <Link
-          href="/"
-          className="text-muted-foreground hover:text-foreground text-xs underline underline-offset-2"
-        >
-          Return home
-        </Link>
-      </div>
     </footer>
   );
 }

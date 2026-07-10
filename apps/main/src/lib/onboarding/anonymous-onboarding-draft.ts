@@ -15,6 +15,8 @@ export interface AnonymousOnboardingProfileDraft {
   description: string;
   profileImageDataUrl: string | null;
   profileImageSource: "starter" | "upload" | null;
+  starterImageUrl: string | null;
+  starterImageApplyNameOverlay: boolean;
 }
 
 export interface AnonymousOnboardingListingPreviewDraft {
@@ -30,6 +32,7 @@ export interface AnonymousOnboardingDraft {
   draftId: string;
   email: string | null;
   step: AnonymousOnboardingStepId;
+  furthestStep: AnonymousOnboardingStepId;
   createdAt: string;
   updatedAt: string;
   profile: AnonymousOnboardingProfileDraft;
@@ -43,6 +46,8 @@ export const DEFAULT_ANONYMOUS_ONBOARDING_PROFILE: AnonymousOnboardingProfileDra
     description: "",
     profileImageDataUrl: null,
     profileImageSource: null,
+    starterImageUrl: null,
+    starterImageApplyNameOverlay: true,
   };
 
 const DEFAULT_ANONYMOUS_ONBOARDING_CULTIVAR_KEY = "cr-ahs-176320";
@@ -51,9 +56,8 @@ export const DEFAULT_ANONYMOUS_ONBOARDING_LISTING: AnonymousOnboardingListingPre
   {
     cultivarKey: DEFAULT_ANONYMOUS_ONBOARDING_CULTIVAR_KEY,
     title: "",
-    price: 25,
-    description:
-      "Healthy dormant fan with strong roots, clearly labeled, and ready for spring shipping or local pickup.",
+    price: null,
+    description: "",
     imageDataUrl: null,
   };
 
@@ -76,6 +80,7 @@ export function createAnonymousOnboardingDraft(
     draftId: crypto.randomUUID(),
     email: null,
     step: "email",
+    furthestStep: overrides?.step ?? "email",
     createdAt: timestamp,
     updatedAt: timestamp,
   };
@@ -104,6 +109,10 @@ function readString(value: unknown) {
 
 function readNullableString(value: unknown) {
   return typeof value === "string" && value.length > 0 ? value : null;
+}
+
+function readBoolean(value: unknown, fallback: boolean) {
+  return typeof value === "boolean" ? value : fallback;
 }
 
 function readProfileImageSource(value: unknown) {
@@ -170,6 +179,7 @@ export function parseAnonymousOnboardingDraft(
     draftId,
     email: readNullableString(rawDraft.email),
     step: readStep(rawDraft.step),
+    furthestStep: readStep(rawDraft.furthestStep ?? rawDraft.step),
     createdAt: readString(rawDraft.createdAt) || nowIso(),
     updatedAt: readString(rawDraft.updatedAt) || nowIso(),
     profile: {
@@ -178,6 +188,11 @@ export function parseAnonymousOnboardingDraft(
       description: readString(profile?.description),
       profileImageDataUrl: readNullableString(profile?.profileImageDataUrl),
       profileImageSource: readProfileImageSource(profile?.profileImageSource),
+      starterImageUrl: readNullableString(profile?.starterImageUrl),
+      starterImageApplyNameOverlay: readBoolean(
+        profile?.starterImageApplyNameOverlay,
+        true,
+      ),
     },
     listingPreview: {
       cultivarKey: readListingCultivarKey(listingPreview?.cultivarKey),

@@ -1,18 +1,18 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { api } from "@/trpc/react";
 import {
   ANONYMOUS_ONBOARDING_STEPS,
   DEFAULT_GARDEN_NAME_PLACEHOLDER,
+  STARTER_PROFILE_IMAGES,
   getListingPreview,
   getProfilePreview,
   normalizeEmail,
   type AnonymousOnboardingPageClientProps,
 } from "./anonymous-onboarding-config";
 import {
-  clearAnonymousOnboardingDraft,
   compressOnboardingImageBlob,
   createOnboardingProfileImageFromStarter,
   createAnonymousOnboardingDraft,
@@ -22,15 +22,42 @@ import {
 } from "./anonymous-onboarding-draft";
 import type { AnonymousOnboardingStepId } from "./anonymous-onboarding-draft";
 
+function readOnboardingStep(value: string | null) {
+  return ANONYMOUS_ONBOARDING_STEPS.find((step) => step.id === value)?.id;
+}
+
+function getOnboardingStepIndex(step: AnonymousOnboardingStepId) {
+  return ANONYMOUS_ONBOARDING_STEPS.findIndex((item) => item.id === step);
+}
+
+function getStarterProfileImageGenerationKey({
+  applyNameOverlay,
+  baseImageUrl,
+  gardenName,
+}: {
+  applyNameOverlay: boolean;
+  baseImageUrl: string;
+  gardenName: string;
+}) {
+  return JSON.stringify([
+    baseImageUrl,
+    applyNameOverlay,
+    gardenName.trim() || DEFAULT_GARDEN_NAME_PLACEHOLDER,
+  ]);
+}
+
 export function useAnonymousOnboardingController({
   exampleCultivars,
   membershipPriceDisplay,
 }: AnonymousOnboardingPageClientProps) {
-  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const [draft, setDraftState] = useState(() =>
     createAnonymousOnboardingDraft(),
   );
   const draftRef = useRef(draft);
+  const hasHydratedDraftRef = useRef(false);
+  const [draftIsHydrated, setDraftIsHydrated] = useState(false);
   const [storageWarning, setStorageWarning] = useState<string | null>(null);
 
   const setDraft = useCallback(
@@ -54,13 +81,6 @@ export function useAnonymousOnboardingController({
     [],
   );
 
-  const clearStoredDraft = useCallback(() => {
-    clearAnonymousOnboardingDraft();
-    const nextDraft = createAnonymousOnboardingDraft();
-    draftRef.current = nextDraft;
-    setDraftState(nextDraft);
-    setStorageWarning(null);
-  }, []);
   const [emailInputOverride, setEmailInputOverride] = useState<string | null>(
     null,
   );
@@ -70,7 +90,13 @@ export function useAnonymousOnboardingController({
     "starter" | "upload"
   >("starter");
   const [selectedStarterProfileImageUrl, setSelectedStarterProfileImageUrl] =
-    useState<string | null>(null);
+    useState<string | null>(STARTER_PROFILE_IMAGES[0]?.url ?? null);
+  const uploadedProfileImageDataUrlRef = useRef<string | null>(null);
+  const starterProfileImageCacheRef = useRef<{
+    dataUrl: string;
+    generationKey: string;
+  } | null>(null);
+  const defaultStarterGenerationStartedRef = useRef(false);
   const [applyStarterNameOverlay, setApplyStarterNameOverlayState] =
     useState(true);
   const [isGeneratingStarterProfileImage, setIsGeneratingStarterProfileImage] =
@@ -80,25 +106,123 @@ export function useAnonymousOnboardingController({
   const collectEmail = api.onboarding.collectEmail.useMutation();
   const createCheckout = api.onboarding.createCheckout.useMutation();
 
+  const buildStepUrl = useCallback(
+    (step: AnonymousOnboardingStepId) => {
+      const nextSearchParams = new URLSearchParams(searchParams.toString());
+      nextSearchParams.set("step", step);
+      return `${pathname}?${nextSearchParams.toString()}`;
+    },
+    [pathname, searchParams],
+  );
+
   useEffect(() => {
+    if (hasHydratedDraftRef.current) {
+      return;
+    }
+
     const frame = window.requestAnimationFrame(() => {
+      if (hasHydratedDraftRef.current) {
+        return;
+      }
+      hasHydratedDraftRef.current = true;
+
       const storedDraft = readAnonymousOnboardingDraft();
-      draftRef.current = storedDraft;
-      setDraftState(storedDraft);
+      const requestedStep = readOnboardingStep(searchParams.get("step"));
+      const requestedStepIndex = requestedStep
+        ? getOnboardingStepIndex(requestedStep)
+        : -1;
+      const furthestStepIndex = getOnboardingStepIndex(
+        storedDraft.furthestStep,
+      );
+      const initialStep =
+        requestedStep && requestedStepIndex <= furthestStepIndex
+          ? requestedStep
+          : storedDraft.step;
+      const hydratedDraft = { ...storedDraft, step: initialStep };
+
+      draftRef.current = hydratedDraft;
+      setDraftState(hydratedDraft);
+      if (storedDraft.profile.profileImageSource === "upload") {
+        uploadedProfileImageDataUrlRef.current =
+          storedDraft.profile.profileImageDataUrl;
+      } else if (storedDraft.profile.profileImageSource === "starter") {
+        const starterImageUrl = storedDraft.profile.starterImageUrl;
+        const dataUrl = storedDraft.profile.profileImageDataUrl;
+        if (starterImageUrl && dataUrl) {
+          starterProfileImageCacheRef.current = {
+            dataUrl,
+            generationKey: getStarterProfileImageGenerationKey({
+              applyNameOverlay:
+                storedDraft.profile.starterImageApplyNameOverlay,
+              baseImageUrl: starterImageUrl,
+              gardenName: storedDraft.profile.gardenName,
+            }),
+          };
+        }
+      }
+      setSelectedStarterProfileImageUrl(
+        storedDraft.profile.starterImageUrl ??
+          (storedDraft.profile.profileImageSource === "starter"
+            ? null
+            : (STARTER_PROFILE_IMAGES[0]?.url ?? null)),
+      );
       setProfileImageInputModeState(
         storedDraft.profile.profileImageSource === "upload"
           ? "upload"
           : "starter",
       );
+      setApplyStarterNameOverlayState(
+        storedDraft.profile.starterImageApplyNameOverlay,
+      );
+      setDraftIsHydrated(true);
+      if (requestedStep !== initialStep) {
+        window.history.replaceState(null, "", buildStepUrl(initialStep));
+      }
     });
 
     return () => window.cancelAnimationFrame(frame);
-  }, []);
+  }, [buildStepUrl, searchParams]);
+
+  useEffect(() => {
+    if (!hasHydratedDraftRef.current) {
+      return;
+    }
+
+    const requestedStep = readOnboardingStep(searchParams.get("step"));
+    if (requestedStep === draftRef.current.step) {
+      return;
+    }
+
+    if (
+      !requestedStep ||
+      getOnboardingStepIndex(requestedStep) >
+      getOnboardingStepIndex(draftRef.current.furthestStep)
+    ) {
+      window.history.replaceState(
+        null,
+        "",
+        buildStepUrl(draftRef.current.step),
+      );
+      return;
+    }
+
+    if (requestedStep === "email") {
+      setEmailInputOverride(null);
+    }
+    setDraft((currentDraft) => ({
+      ...currentDraft,
+      step: requestedStep,
+    }));
+  }, [buildStepUrl, searchParams, setDraft]);
 
   const stepIndex = ANONYMOUS_ONBOARDING_STEPS.findIndex(
     (step) => step.id === draft.step,
   );
   const currentStepIndex = stepIndex >= 0 ? stepIndex : 0;
+  const furthestStepIndex = Math.max(
+    0,
+    getOnboardingStepIndex(draft.furthestStep),
+  );
   const progressValue =
     ((currentStepIndex + 1) / ANONYMOUS_ONBOARDING_STEPS.length) * 100;
   const profilePreview = getProfilePreview(draft);
@@ -109,9 +233,21 @@ export function useAnonymousOnboardingController({
   const goToStep = useCallback(
     (step: AnonymousOnboardingStepId) => {
       setImageError(null);
-      setDraft((currentDraft) => ({ ...currentDraft, step }));
+      if (step === "email") {
+        setEmailInputOverride(null);
+      }
+      setDraft((currentDraft) => {
+        const furthestStep =
+          getOnboardingStepIndex(step) >
+          getOnboardingStepIndex(currentDraft.furthestStep)
+            ? step
+            : currentDraft.furthestStep;
+
+        return { ...currentDraft, step, furthestStep };
+      });
+      window.history.pushState(null, "", buildStepUrl(step));
     },
-    [setDraft],
+    [buildStepUrl, setDraft],
   );
 
   const saveEmailAndContinue = useCallback(
@@ -212,12 +348,22 @@ export function useAnonymousOnboardingController({
                 return;
               }
 
+              starterProfileImageCacheRef.current = {
+                dataUrl,
+                generationKey: getStarterProfileImageGenerationKey({
+                  applyNameOverlay,
+                  baseImageUrl,
+                  gardenName,
+                }),
+              };
               setDraft((currentDraft) => ({
                 ...currentDraft,
                 profile: {
                   ...currentDraft.profile,
                   profileImageDataUrl: dataUrl,
                   profileImageSource: "starter",
+                  starterImageUrl: baseImageUrl,
+                  starterImageApplyNameOverlay: applyNameOverlay,
                 },
               }));
             } catch (error) {
@@ -248,6 +394,10 @@ export function useAnonymousOnboardingController({
 
   const selectStarterProfileImage = useCallback(
     (baseImageUrl: string) => {
+      if (draftRef.current.profile.profileImageSource === "upload") {
+        uploadedProfileImageDataUrlRef.current =
+          draftRef.current.profile.profileImageDataUrl;
+      }
       setProfileImageInputModeState("starter");
       setSelectedStarterProfileImageUrl(baseImageUrl);
       setDraft((currentDraft) => ({
@@ -256,6 +406,7 @@ export function useAnonymousOnboardingController({
           ...currentDraft.profile,
           profileImageDataUrl: null,
           profileImageSource: null,
+          starterImageUrl: baseImageUrl,
         },
       }));
       scheduleStarterProfileImageGeneration({
@@ -275,37 +426,113 @@ export function useAnonymousOnboardingController({
 
       if (mode === "upload") {
         cancelStarterProfileImageGeneration();
-        setSelectedStarterProfileImageUrl(null);
-        if (draftRef.current.profile.profileImageSource === "starter") {
-          setDraft((currentDraft) => ({
-            ...currentDraft,
-            profile: {
-              ...currentDraft.profile,
-              profileImageDataUrl: null,
-              profileImageSource: null,
-            },
-          }));
-        }
-        return;
-      }
-
-      if (draftRef.current.profile.profileImageSource === "upload") {
+        const uploadedImageDataUrl = uploadedProfileImageDataUrlRef.current;
         setDraft((currentDraft) => ({
           ...currentDraft,
           profile: {
             ...currentDraft.profile,
-            profileImageDataUrl: null,
-            profileImageSource: null,
+            profileImageDataUrl: uploadedImageDataUrl,
+            profileImageSource: uploadedImageDataUrl ? "upload" : null,
           },
         }));
+        return;
+      }
+
+      if (draftRef.current.profile.profileImageSource === "upload") {
+        uploadedProfileImageDataUrlRef.current =
+          draftRef.current.profile.profileImageDataUrl;
+      }
+      const baseImageUrl =
+        selectedStarterProfileImageUrl ??
+        STARTER_PROFILE_IMAGES[0]?.url;
+      const expectedGenerationKey = baseImageUrl
+        ? getStarterProfileImageGenerationKey({
+            applyNameOverlay: applyStarterNameOverlay,
+            baseImageUrl,
+            gardenName: draftRef.current.profile.gardenName,
+          })
+        : null;
+      const starterImageDataUrl =
+        starterProfileImageCacheRef.current?.generationKey ===
+        expectedGenerationKey
+          ? starterProfileImageCacheRef.current.dataUrl
+          : null;
+      if (baseImageUrl) {
+        setSelectedStarterProfileImageUrl(baseImageUrl);
+      }
+      setDraft((currentDraft) => ({
+        ...currentDraft,
+        profile: {
+          ...currentDraft.profile,
+          profileImageDataUrl: starterImageDataUrl,
+          profileImageSource: starterImageDataUrl ? "starter" : null,
+          starterImageUrl:
+            baseImageUrl ?? currentDraft.profile.starterImageUrl,
+        },
+      }));
+      if (!starterImageDataUrl && baseImageUrl) {
+        scheduleStarterProfileImageGeneration({
+          applyNameOverlay: applyStarterNameOverlay,
+          baseImageUrl,
+          debounceMs: 0,
+          gardenName: draftRef.current.profile.gardenName,
+        });
       }
     },
-    [cancelStarterProfileImageGeneration, setDraft],
+    [
+      applyStarterNameOverlay,
+      cancelStarterProfileImageGeneration,
+      scheduleStarterProfileImageGeneration,
+      selectedStarterProfileImageUrl,
+      setDraft,
+    ],
   );
+
+  useEffect(() => {
+    if (
+      !draftIsHydrated ||
+      profileImageInputMode !== "starter" ||
+      draft.profile.profileImageDataUrl ||
+      isGeneratingStarterProfileImage ||
+      defaultStarterGenerationStartedRef.current
+    ) {
+      return;
+    }
+
+    const baseImageUrl =
+      selectedStarterProfileImageUrl ?? STARTER_PROFILE_IMAGES[0]?.url;
+    if (!baseImageUrl) {
+      return;
+    }
+
+    defaultStarterGenerationStartedRef.current = true;
+    scheduleStarterProfileImageGeneration({
+      applyNameOverlay: applyStarterNameOverlay,
+      baseImageUrl,
+      debounceMs: 0,
+      gardenName: draft.profile.gardenName,
+    });
+  }, [
+    applyStarterNameOverlay,
+    draft.profile.gardenName,
+    draft.profile.profileImageDataUrl,
+    draftIsHydrated,
+    isGeneratingStarterProfileImage,
+    profileImageInputMode,
+    scheduleStarterProfileImageGeneration,
+    selectedStarterProfileImageUrl,
+  ]);
 
   const setApplyStarterNameOverlay = useCallback(
     (enabled: boolean) => {
       setApplyStarterNameOverlayState(enabled);
+      setDraft((currentDraft) => ({
+        ...currentDraft,
+        profile: {
+          ...currentDraft.profile,
+          starterImageApplyNameOverlay: enabled,
+        },
+      }));
       if (!selectedStarterProfileImageUrl) {
         return;
       }
@@ -317,7 +544,11 @@ export function useAnonymousOnboardingController({
         gardenName: draftRef.current.profile.gardenName,
       });
     },
-    [scheduleStarterProfileImageGeneration, selectedStarterProfileImageUrl],
+    [
+      scheduleStarterProfileImageGeneration,
+      selectedStarterProfileImageUrl,
+      setDraft,
+    ],
   );
 
   const updateProfileGardenName = useCallback(
@@ -364,6 +595,9 @@ export function useAnonymousOnboardingController({
       try {
         setImageError(null);
         const dataUrl = await compressOnboardingImageBlob(image);
+        if (target === "profileImageDataUrl") {
+          uploadedProfileImageDataUrlRef.current = dataUrl;
+        }
         setDraft((currentDraft) =>
           target === "profileImageDataUrl"
             ? {
@@ -392,7 +626,7 @@ export function useAnonymousOnboardingController({
   const clearProfileImage = useCallback(() => {
     cancelStarterProfileImageGeneration();
     setImageError(null);
-    setSelectedStarterProfileImageUrl(null);
+    uploadedProfileImageDataUrlRef.current = null;
     setDraft((currentDraft) => ({
       ...currentDraft,
       profile: {
@@ -448,19 +682,8 @@ export function useAnonymousOnboardingController({
     }
   }, [createCheckout, draft.draftId, draft.email, goToStep]);
 
-  const clearDraft = useCallback(() => {
-    cancelStarterProfileImageGeneration();
-    clearStoredDraft();
-    setEmailInputOverride(null);
-    setSelectedStarterProfileImageUrl(null);
-    setProfileImageInputModeState("starter");
-    setApplyStarterNameOverlayState(true);
-    router.replace("/onboarding", { scroll: false });
-  }, [cancelStarterProfileImageGeneration, clearStoredDraft, router]);
-
   return {
     applyStarterNameOverlay,
-    clearDraft,
     clearProfileImage,
     collectEmail,
     createCheckout,
@@ -469,6 +692,7 @@ export function useAnonymousOnboardingController({
     emailInput,
     emailIsValid,
     exampleCultivars,
+    furthestStepIndex,
     goBack,
     goForward,
     goToStep,
@@ -498,7 +722,6 @@ export function useAnonymousOnboardingController({
       if (image) {
         cancelStarterProfileImageGeneration();
         setProfileImageInputModeState("upload");
-        setSelectedStarterProfileImageUrl(null);
       }
 
       return updateImageDraft(image, "profileImageDataUrl");

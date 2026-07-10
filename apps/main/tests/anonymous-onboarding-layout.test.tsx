@@ -45,6 +45,7 @@ function buildController(step: AnonymousOnboardingStepId) {
       step,
     },
     emailIsValid: true,
+    furthestStepIndex: currentStepIndex,
     goBack: vi.fn(),
     goForward: vi.fn(),
     goToStep: vi.fn(),

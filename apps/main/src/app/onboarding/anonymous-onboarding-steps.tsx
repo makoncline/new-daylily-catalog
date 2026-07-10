@@ -1,14 +1,13 @@
 "use client";
 
-import { SignInButton } from "@clerk/nextjs";
 import Image from "next/image";
+import Link from "next/link";
 import { useCallback, useState } from "react";
 import { type FileRejection, useDropzone } from "react-dropzone";
 import {
   ArrowRight,
   CheckCircle2,
   CreditCard,
-  Mail,
   Pencil,
 } from "lucide-react";
 import { ImageCropper } from "@/components/image-cropper";
@@ -25,6 +24,8 @@ import {
 } from "./anonymous-onboarding-preview-cards";
 import {
   DEFAULT_GARDEN_NAME_PLACEHOLDER,
+  DEFAULT_LISTING_DESCRIPTION_PLACEHOLDER,
+  DEFAULT_LISTING_PRICE_PLACEHOLDER,
   DEFAULT_LOCATION_PLACEHOLDER,
   DEFAULT_PROFILE_DESCRIPTION_PLACEHOLDER,
   STARTER_PROFILE_IMAGES,
@@ -102,9 +103,12 @@ export function EmailStep({
   saveEmailAndContinue,
   setEmailInput,
 }: EmailStepProps) {
+  const [emailWasBlurred, setEmailWasBlurred] = useState(false);
+  const showEmailError = emailWasBlurred && !emailIsValid;
+
   return (
     <form
-      className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(320px,420px)]"
+      className="space-y-6"
       onSubmit={(event) => {
         event.preventDefault();
         void saveEmailAndContinue("initial");
@@ -125,14 +129,32 @@ export function EmailStep({
           <Label htmlFor="anonymous-onboarding-email">Email address</Label>
           <Input
             id="anonymous-onboarding-email"
+            name="email"
             data-testid="anonymous-onboarding-email"
+            data-1p-ignore="true"
+            data-bwignore="true"
+            data-lpignore="true"
             type="email"
             required
             autoComplete="email"
             value={emailInput}
             onChange={(event) => setEmailInput(event.target.value)}
+            onBlur={() => setEmailWasBlurred(true)}
+            aria-invalid={showEmailError}
+            aria-describedby={
+              showEmailError ? "anonymous-onboarding-email-error" : undefined
+            }
             placeholder="you@example.com"
           />
+          {showEmailError ? (
+            <p
+              id="anonymous-onboarding-email-error"
+              className="text-destructive text-sm"
+              role="alert"
+            >
+              Enter a valid email address.
+            </p>
+          ) : null}
         </div>
 
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
@@ -145,21 +167,12 @@ export function EmailStep({
             <ArrowRight className="size-4" />
           </Button>
 
-          <SignInButton mode="modal" forceRedirectUrl="/dashboard">
-            <Button type="button" variant="outline">
+          <Button asChild variant="outline">
+            <Link href="/sign-in">
               Already have an account? Log in
-            </Button>
-          </SignInButton>
+            </Link>
+          </Button>
         </div>
-      </div>
-
-      <div className="bg-card h-fit space-y-3 rounded-lg border p-5">
-        <Mail className="text-primary size-6" />
-        <p className="font-medium">Why ask first?</p>
-        <p className="text-muted-foreground text-sm leading-relaxed">
-          This saves your progress in this browser and keeps the same email
-          through checkout and sign-in.
-        </p>
       </div>
     </form>
   );
@@ -315,14 +328,16 @@ function OnboardingImageUploadCropper({
 
   if (cropImageUrl) {
     return (
-      <ImageCropper
-        src={cropImageUrl}
-        confirmButtonLabel="Use cropped image"
-        onCancel={resetCropper}
-        onCropComplete={(blob) => {
-          void Promise.resolve(updateImage(blob)).then(resetCropper);
-        }}
-      />
+      <div className="max-w-sm [overflow-anchor:none]">
+        <ImageCropper
+          src={cropImageUrl}
+          confirmButtonLabel="Use cropped image"
+          onCancel={resetCropper}
+          onCropComplete={(blob) => {
+            void Promise.resolve(updateImage(blob)).then(resetCropper);
+          }}
+        />
+      </div>
     );
   }
 
@@ -514,25 +529,27 @@ export function ProfileStep({
                 </div>
               ) : (
                 <div className="space-y-3">
-                  <OnboardingImageUploadCropper
-                    dropzoneTestId="anonymous-profile-image-dropzone"
-                    inputId="anonymous-profile-image"
-                    inputLabel="Upload profile image"
-                    inputTestId="anonymous-profile-image"
-                    setImageError={setImageError}
-                    updateImage={updateProfileImage}
-                  />
                   {draft.profile.profileImageSource === "upload" &&
                   draft.profile.profileImageDataUrl ? (
                     <Button
                       type="button"
                       size="sm"
                       variant="outline"
+                      data-testid="anonymous-profile-image-reset"
                       onClick={clearProfileImage}
                     >
                       Reset
                     </Button>
-                  ) : null}
+                  ) : (
+                    <OnboardingImageUploadCropper
+                      dropzoneTestId="anonymous-profile-image-dropzone"
+                      inputId="anonymous-profile-image"
+                      inputLabel="Upload profile image"
+                      inputTestId="anonymous-profile-image"
+                      setImageError={setImageError}
+                      updateImage={updateProfileImage}
+                    />
+                  )}
                 </div>
               )}
 
@@ -638,8 +655,9 @@ export function ListingStep({
                   key={cultivar.key}
                   type="button"
                   variant={selected ? "default" : "outline"}
-                  className="w-full justify-center overflow-hidden px-3"
+                  className="h-auto min-h-16 w-full justify-start overflow-hidden px-2 py-2 text-left"
                   title={cultivar.name}
+                  aria-label={cultivar.name}
                   onClick={() =>
                     setDraft((currentDraft) => ({
                       ...currentDraft,
@@ -650,7 +668,22 @@ export function ListingStep({
                     }))
                   }
                 >
-                  <span className="max-w-full truncate">{cultivar.name}</span>
+                  <Image
+                    src={cultivar.imageUrl}
+                    alt=""
+                    width={48}
+                    height={48}
+                    className="size-12 shrink-0 rounded object-cover"
+                    unoptimized
+                  />
+                  <span className="min-w-0 space-y-0.5">
+                    <span className="block text-sm leading-tight font-medium whitespace-normal">
+                      {cultivar.name}
+                    </span>
+                    <span className="block text-xs leading-tight font-normal whitespace-normal opacity-80">
+                      {cultivar.hybridizerYear}
+                    </span>
+                  </span>
                 </Button>
               );
             })}
@@ -679,6 +712,7 @@ export function ListingStep({
             data-testid="anonymous-listing-price"
             inputMode="decimal"
             value={draft.listingPreview.price ?? ""}
+            placeholder={String(DEFAULT_LISTING_PRICE_PLACEHOLDER)}
             onChange={(event) =>
               updateListingPreviewDraft(setDraft, {
                 price: parseListingPriceInput(event.target.value),
@@ -694,6 +728,7 @@ export function ListingStep({
             data-testid="anonymous-listing-description"
             rows={4}
             value={draft.listingPreview.description}
+            placeholder={DEFAULT_LISTING_DESCRIPTION_PLACEHOLDER}
             onChange={(event) =>
               updateListingPreviewDraft(setDraft, {
                 description: event.target.value,
@@ -710,19 +745,12 @@ export function ListingStep({
               title={listingPreview.title}
             />
             <div className="space-y-3">
-              <OnboardingImageUploadCropper
-                dropzoneTestId="anonymous-listing-image-dropzone"
-                inputId="anonymous-listing-image"
-                inputLabel="Upload listing image"
-                inputTestId="anonymous-listing-image"
-                setImageError={setImageError}
-                updateImage={updateListingImage}
-              />
               {draft.listingPreview.imageDataUrl ? (
                 <Button
                   type="button"
                   size="sm"
                   variant="outline"
+                  data-testid="anonymous-listing-image-reset"
                   onClick={() => {
                     setImageError(null);
                     updateListingPreviewDraft(setDraft, {
@@ -732,7 +760,16 @@ export function ListingStep({
                 >
                   Reset
                 </Button>
-              ) : null}
+              ) : (
+                <OnboardingImageUploadCropper
+                  dropzoneTestId="anonymous-listing-image-dropzone"
+                  inputId="anonymous-listing-image"
+                  inputLabel="Upload listing image"
+                  inputTestId="anonymous-listing-image"
+                  setImageError={setImageError}
+                  updateImage={updateListingImage}
+                />
+              )}
               {imageError ? (
                 <p className="text-destructive text-sm">{imageError}</p>
               ) : null}
@@ -746,7 +783,7 @@ export function ListingStep({
         <ListingPreviewCard
           title={listingPreview.title}
           description={listingPreview.description}
-          price={draft.listingPreview.price}
+          price={listingPreview.price}
           linkedLabel={listingPreview.selectedCultivar.name}
           hybridizerYear={listingPreview.selectedCultivar.hybridizerYear}
           imageUrl={listingPreview.imageUrl}
@@ -759,11 +796,10 @@ export function ListingStep({
 
 type PreviewStepProps = Pick<
   AnonymousOnboardingController,
-  "draft" | "goToStep" | "listingPreview" | "profilePreview"
+  "goToStep" | "listingPreview" | "profilePreview"
 >;
 
 export function PreviewStep({
-  draft,
   goToStep,
   listingPreview,
   profilePreview,
@@ -794,7 +830,7 @@ export function PreviewStep({
           <ListingPreviewCard
             title={listingPreview.title}
             description={listingPreview.description}
-            price={draft.listingPreview.price}
+            price={listingPreview.price}
             linkedLabel={listingPreview.selectedCultivar.name}
             hybridizerYear={listingPreview.selectedCultivar.hybridizerYear}
             imageUrl={listingPreview.imageUrl}
@@ -814,7 +850,7 @@ export function PreviewStep({
         <p className="font-semibold">How buyers contact you</p>
         <p className="text-muted-foreground text-sm leading-relaxed">
           Buyers can contact you directly from your catalog, or add priced
-          listings to cart and send one message with selected items.
+          listings to cart and send a message with their selected items.
         </p>
         <div className="text-muted-foreground space-y-2 text-sm">
           <p className="flex items-start gap-2">
@@ -826,14 +862,19 @@ export function PreviewStep({
           <p className="flex items-start gap-2">
             <CheckCircle2 className="mt-0.5 size-4 text-emerald-600" />
             <span>
-              Path 2: Buyer adds priced listings to cart, then sends one message
+              Path 2: Buyer adds priced listings to cart, then sends a message
               with item details.
             </span>
           </p>
         </div>
         <p className="text-muted-foreground text-sm leading-relaxed">
-          Buyers do not pay on Daylily Catalog. You arrange payment and shipping
-          directly after inquiry.
+          Buyers do not pay on Daylily Catalog. You arrange payment directly
+          after inquiry using an option such as PayPal, Venmo, or Stripe, then
+          coordinate shipping with the buyer.
+        </p>
+        <p className="text-muted-foreground text-sm leading-relaxed">
+          Your personal dashboard always shows your live catalog. Public catalog
+          pages may take up to 24 hours to reflect dashboard changes.
         </p>
         <p className="text-muted-foreground text-sm leading-relaxed">
           Your catalog and listings will not be publicly discoverable until you
@@ -895,9 +936,14 @@ export function CheckoutStep({
               <Label htmlFor="anonymous-checkout-email">Account email</Label>
               <Input
                 id="anonymous-checkout-email"
+                name="email"
                 data-testid="anonymous-checkout-email"
+                data-1p-ignore="true"
+                data-bwignore="true"
+                data-lpignore="true"
                 type="email"
                 required
+                autoComplete="email"
                 value={emailInput}
                 onChange={(event) => setEmailInput(event.target.value)}
               />
@@ -971,21 +1017,10 @@ export function CheckoutStep({
         <p className="text-muted-foreground text-sm font-medium tracking-wide uppercase">
           Grower membership
         </p>
-        <div>
-          <p className="flex items-end gap-1 leading-none">
-            <span className="text-5xl font-bold tracking-tight">
-              {membershipPriceDisplay.amount}
-            </span>
-            <span className="text-2xl font-semibold tracking-tight">
-              {membershipPriceDisplay.interval}
-            </span>
-          </p>
-          {membershipPriceDisplay.monthlyEquivalent ? (
-            <p className="text-muted-foreground mt-2 text-sm">
-              {membershipPriceDisplay.monthlyEquivalent}/mo equivalent
-            </p>
-          ) : null}
-        </div>
+        <p className="text-5xl leading-none font-bold tracking-tight">
+          {membershipPriceDisplay.amount}
+          {membershipPriceDisplay.interval}
+        </p>
         <p className="text-muted-foreground text-sm leading-relaxed">
           Start with a {SUBSCRIPTION_CONFIG.FREE_TRIAL_DAYS}-day free trial. We
           will add your profile to your dashboard after you verify your email.

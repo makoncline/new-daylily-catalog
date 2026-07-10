@@ -83,6 +83,7 @@ export const DEFAULT_PROFILE_DESCRIPTION_PLACEHOLDER =
   "Daylily collector in Your City, ST offering healthy dormant fans, clearly labeled plants, and prompt replies with spring and fall shipping.";
 export const DEFAULT_LISTING_DESCRIPTION_PLACEHOLDER =
   "Healthy dormant fan with strong roots, clearly labeled, and ready for spring shipping or local pickup.";
+export const DEFAULT_LISTING_PRICE_PLACEHOLDER = 25;
 
 export function getListingTitlePlaceholder(cultivarName: string) {
   return `${cultivarName} Spring Fan`;
@@ -168,6 +169,8 @@ export function getListingPreview(
     selectedCultivar,
     title: draft.listingPreview.title.trim() || titlePlaceholder,
     titlePlaceholder,
+    price:
+      draft.listingPreview.price ?? DEFAULT_LISTING_PRICE_PLACEHOLDER,
     description:
       draft.listingPreview.description.trim() ||
       DEFAULT_LISTING_DESCRIPTION_PLACEHOLDER,

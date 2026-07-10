@@ -65,6 +65,7 @@ test.describe("anonymous onboarding checkout flow @local", () => {
     const initialEmail = `anonymous-initial+clerk_test_${runId}@example.com`;
     const paidEmail = `anonymous-paid+clerk_test_${runId}@example.com`;
     const profileName = "Anonymous Flow Daylilies";
+    const initialProfileName = "Anonymous Flow";
     const profileLocation = "Olympia, WA";
     const profileDescription =
       "Small grower catalog focused on clear photos and seasonal availability.";
@@ -94,13 +95,84 @@ test.describe("anonymous onboarding checkout flow @local", () => {
       await expect(
         page.getByRole("heading", { name: "Edit your profile" }),
       ).toBeVisible();
+      await expect(page).toHaveURL(/\/onboarding\?step=profile/);
 
-      await page.getByTestId("anonymous-profile-name").fill(profileName);
+      await page.goBack();
+      await expect(page).toHaveURL(/\/onboarding\?step=email/);
+      await expect(
+        page.getByTestId("anonymous-onboarding-email"),
+      ).toHaveValue(initialEmail);
+      await page.goForward();
+      await expect(
+        page.getByRole("heading", { name: "Edit your profile" }),
+      ).toBeVisible();
+
+      const defaultStarterImage = page.getByTestId(
+        "onboarding-starter-image-dew-kissed-daylily-leaf-at-dawn",
+      );
+      const profileImagePreview = page
+        .getByTestId("anonymous-profile-image-inline-preview")
+        .locator("img");
+      await expect(defaultStarterImage).toHaveAttribute("aria-pressed", "true");
+      await expect(profileImagePreview).toBeVisible();
+
       await page
-        .getByTestId(
-          "onboarding-starter-image-morning-serenity-along-the-garden-path",
-        )
+        .getByTestId("anonymous-profile-image-mode-upload")
         .click();
+      await expect(
+        page.getByTestId("anonymous-profile-image-dropzone"),
+      ).toBeVisible();
+      await expect(
+        page.getByTestId("anonymous-profile-image-reset"),
+      ).toHaveCount(0);
+      await page
+        .getByTestId("anonymous-profile-image")
+        .setInputFiles(path.join(appRoot, LISTING_IMAGE_PATH));
+      await page.getByRole("button", { name: "Use cropped image" }).click();
+      await expect(profileImagePreview).toHaveAttribute("src", /data:image\//);
+      await expect(
+        page.getByTestId("anonymous-profile-image-dropzone"),
+      ).toHaveCount(0);
+      await expect(
+        page.getByTestId("anonymous-profile-image-reset"),
+      ).toBeVisible();
+      const uploadedProfileImage = await profileImagePreview.getAttribute("src");
+      expect(uploadedProfileImage).toBeTruthy();
+      await page
+        .getByTestId("anonymous-profile-image-mode-starter")
+        .click();
+      await expect(defaultStarterImage).toHaveAttribute("aria-pressed", "true");
+      await expect
+        .poll(() => profileImagePreview.getAttribute("src"))
+        .not.toBe(uploadedProfileImage);
+      await page
+        .getByTestId("anonymous-profile-image-mode-upload")
+        .click();
+      await expect
+        .poll(() => profileImagePreview.getAttribute("src"))
+        .toBe(uploadedProfileImage);
+      await page
+        .getByTestId("anonymous-profile-image-mode-starter")
+        .click();
+
+      await page.getByTestId("anonymous-profile-name").fill(initialProfileName);
+      const gardenPathStarter = page.getByTestId(
+        "onboarding-starter-image-morning-serenity-along-the-garden-path",
+      );
+      const defaultStarterImageSrc = await profileImagePreview.getAttribute(
+        "src",
+      );
+      await gardenPathStarter.click();
+      await page
+        .getByTestId("anonymous-profile-image-mode-upload")
+        .click();
+      await page
+        .getByTestId("anonymous-profile-image-mode-starter")
+        .click();
+      await expect(gardenPathStarter).toHaveAttribute("aria-pressed", "true");
+      await expect
+        .poll(() => profileImagePreview.getAttribute("src"))
+        .not.toBe(defaultStarterImageSrc);
       await expect
         .poll(async () => {
           const draft = await readBrowserDraft(page);
@@ -113,11 +185,44 @@ test.describe("anonymous onboarding checkout flow @local", () => {
       await page
         .getByTestId("anonymous-profile-description")
         .fill(profileDescription);
+      const overlayCheckbox = page.getByRole("checkbox", {
+        name: "Stamp seller name onto starter image",
+      });
+      const imageWithOverlay = await profileImagePreview.getAttribute("src");
+      await overlayCheckbox.click();
+      await expect(overlayCheckbox).not.toBeChecked();
+      await expect
+        .poll(() => profileImagePreview.getAttribute("src"))
+        .not.toBe(imageWithOverlay);
+      await page.reload();
+      await expect(
+        page.getByRole("heading", { name: "Edit your profile" }),
+      ).toBeVisible();
+      await expect(gardenPathStarter).toHaveAttribute("aria-pressed", "true");
+      await expect(overlayCheckbox).not.toBeChecked();
+      const imageWithoutOverlay = await profileImagePreview.getAttribute("src");
+      await page.getByTestId("anonymous-profile-name").fill(profileName);
+      await expect(gardenPathStarter).toHaveAttribute("aria-pressed", "true");
+      await expect(profileImagePreview).toHaveAttribute(
+        "src",
+        imageWithoutOverlay!,
+      );
 
       await page.getByTestId("anonymous-onboarding-primary-action").click();
       await expect(
         page.getByRole("heading", { name: "Edit your first listing" }),
       ).toBeVisible();
+      await expect(page).toHaveURL(/\/onboarding\?step=listing/);
+      await expect(page.getByTestId("anonymous-listing-price")).toHaveAttribute(
+        "placeholder",
+        "25",
+      );
+      await expect(
+        page.getByTestId("anonymous-listing-description"),
+      ).toHaveAttribute(
+        "placeholder",
+        "Healthy dormant fan with strong roots, clearly labeled, and ready for spring shipping or local pickup.",
+      );
       await page.getByRole("button", { name: "Lemon Chiffon Cupcake" }).click();
       await page.getByTestId("anonymous-listing-title").fill(listingTitle);
       await page.getByTestId("anonymous-listing-price").fill("18");
@@ -134,6 +239,12 @@ test.describe("anonymous onboarding checkout flow @local", () => {
           return draft?.listingPreview.imageDataUrl?.startsWith("data:image/");
         })
         .toBe(true);
+      await expect(
+        page.getByTestId("anonymous-listing-image-dropzone"),
+      ).toHaveCount(0);
+      await expect(
+        page.getByTestId("anonymous-listing-image-reset"),
+      ).toBeVisible();
 
       await page.reload();
       await expect(
@@ -149,10 +260,28 @@ test.describe("anonymous onboarding checkout flow @local", () => {
           "Path 1: Buyer opens your catalog and sends an email immediately.",
         ),
       ).toBeVisible();
+      await expect(
+        page.getByText(/PayPal, Venmo, or Stripe/),
+      ).toBeVisible();
+      await expect(
+        page.getByText(/may take up to 24 hours/),
+      ).toBeVisible();
+      await expect(page).toHaveURL(/\/onboarding\?step=preview/);
+
+      await page.getByTestId("anonymous-onboarding-step-profile").click();
+      await expect(page).toHaveURL(/\/onboarding\?step=profile/);
+      await page.goBack();
+      await expect(page).toHaveURL(/\/onboarding\?step=preview/);
+      await page.goForward();
+      await expect(page).toHaveURL(/\/onboarding\?step=profile/);
+      await page.getByTestId("anonymous-onboarding-step-preview").click();
+      await expect(page).toHaveURL(/\/onboarding\?step=preview/);
+
       await page.getByTestId("anonymous-onboarding-primary-action").click();
       await expect(
         page.getByRole("heading", { name: "Confirm your account email" }),
       ).toBeVisible();
+      await expect(page.getByText(/\/mo equivalent/)).toHaveCount(0);
 
       await page.getByRole("button", { name: /Edit email/i }).click();
       await page.getByTestId("anonymous-checkout-email").fill(paidEmail);
