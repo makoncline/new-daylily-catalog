@@ -564,6 +564,34 @@ describe("read-only MCP server", () => {
     });
   });
 
+  it("does not expose unexpected MCP error details", async () => {
+    const error = new Error("database path leaked");
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    mocks.readDb.listing.findMany.mockRejectedValueOnce(error);
+
+    const { handleMcpRequest } = await import("@/server/mcp/read-only-mcp");
+    const response = await handleMcpRequest(
+      new Request("https://daylilycatalog.com/api/mcp/server", {
+        body: JSON.stringify({
+          jsonrpc: "2.0",
+          id: 53,
+          method: "tools/call",
+          params: {
+            name: "daylily.search_public_listings",
+            arguments: {},
+          },
+        }),
+        method: "POST",
+      }),
+    );
+
+    await expect(response.json()).resolves.toMatchObject({
+      error: { code: -32603, message: "Internal error." },
+      id: 53,
+    });
+    expect(errorSpy).toHaveBeenCalledWith("Unexpected MCP error:", error);
+  });
+
   it("keeps private tools limited to read API wrappers", async () => {
     const { handleMcpRequest } = await import("@/server/mcp/read-only-mcp");
     const response = await handleMcpRequest(

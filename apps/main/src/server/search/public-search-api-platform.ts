@@ -19,3 +19,12 @@ export function getPublicSearchApiDisabledResponse() {
     },
   );
 }
+
+export function toPublicSearchStatus<
+  T extends { path: string; sourcePath: string | null },
+>(status: T): Omit<T, "path" | "sourcePath"> {
+  const publicStatus: Partial<T> = { ...status };
+  delete publicStatus.path;
+  delete publicStatus.sourcePath;
+  return publicStatus as Omit<T, "path" | "sourcePath">;
+}

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import {
   getPublicSearchApiDisabledResponse,
   isPublicSearchApiEnabled,
+  toPublicSearchStatus,
 } from "@/server/search/public-search-api-platform";
 import { getPublicParentageIndexStatus } from "@/server/search/public-parentage-index";
 import {
@@ -23,7 +24,7 @@ export async function GET() {
 
   return NextResponse.json({
     ok: isPublicSearchIndexUsable(status),
-    parentageIndex: parentageStatus,
-    searchIndex: status,
+    parentageIndex: toPublicSearchStatus(parentageStatus),
+    searchIndex: toPublicSearchStatus(status),
   });
 }

@@ -940,6 +940,11 @@ function jsonRpcSuccess(id: JsonRpcRequest["id"], result: unknown) {
   };
 }
 
+function internalJsonRpcError(error: unknown) {
+  console.error("Unexpected MCP error:", error);
+  return { code: -32603, message: "Internal error." };
+}
+
 function jsonRpcError(id: JsonRpcRequest["id"], error: unknown) {
   const normalized =
     error instanceof McpError
@@ -954,10 +959,7 @@ function jsonRpcError(id: JsonRpcRequest["id"], error: unknown) {
             message: "Invalid tool arguments.",
             data: z.treeifyError(error),
           }
-        : {
-            code: -32603,
-            message: error instanceof Error ? error.message : "Internal error.",
-          };
+        : internalJsonRpcError(error);
 
   return {
     jsonrpc: "2.0",
