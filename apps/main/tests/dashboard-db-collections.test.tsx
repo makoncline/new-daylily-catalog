@@ -561,7 +561,7 @@ describe("dashboardDb TanStack DB collections", () => {
     });
   });
 
-  it("listings: optimistic updates wait for an in-flight full refresh", async () => {
+  it("listings: optimistic updates do not wait for an in-flight full refresh", async () => {
     await withTempAppDb(async ({ user }) => {
       const { db } = await import("@/server/db");
 
@@ -598,21 +598,27 @@ describe("dashboardDb TanStack DB collections", () => {
               | undefined;
             let cancelled = false;
 
-            void (async () => {
-              if (op.path === "dashboardDb.bootstrap.roots") {
-                await bootstrapRootsGate;
-              }
+            sub = next(op).subscribe({
+              next: (value) => {
+                void (async () => {
+                  if (op.path === "dashboardDb.bootstrap.roots") {
+                    await bootstrapRootsGate;
+                  }
 
-              if (cancelled) {
-                return;
-              }
+                  if (!cancelled) emit.next(value);
+                })();
+              },
+              error: (err) => emit.error(err),
+              complete: () => {
+                void (async () => {
+                  if (op.path === "dashboardDb.bootstrap.roots") {
+                    await bootstrapRootsGate;
+                  }
 
-              sub = next(op).subscribe({
-                next: (value) => emit.next(value),
-                error: (err) => emit.error(err),
-                complete: () => emit.complete(),
-              });
-            })();
+                  if (!cancelled) emit.complete();
+                })();
+              },
+            });
 
             return () => {
               cancelled = true;
@@ -668,8 +674,8 @@ describe("dashboardDb TanStack DB collections", () => {
       });
 
       expect(refreshResolved).toBe(false);
-      expect(updateResolved).toBe(false);
-      expect(screen.getByTestId("titles").textContent).toBe("Alpha");
+      expect(updateResolved).toBe(true);
+      expect(screen.getByTestId("titles").textContent).toBe("Beta");
 
       releaseBootstrapRoots?.();
 
