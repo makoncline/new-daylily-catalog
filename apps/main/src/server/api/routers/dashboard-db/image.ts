@@ -6,7 +6,6 @@ import { APP_CONFIG } from "@/config/constants";
 import { PutObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import crypto from "node:crypto";
-import sharp from "sharp";
 import { imageContentTypeSchema, imageTypeSchema } from "@/types/image";
 import type { db } from "@/server/db";
 import {
@@ -143,6 +142,7 @@ function decodeImageDataUrl(
 async function requestImageModeration(image: Buffer) {
   const apiKey = process.env.OPENAI_IMAGE_MODERATION_API_KEY?.trim();
   if (!apiKey) throw new Error("OPENAI_IMAGE_MODERATION_API_KEY is missing");
+  const { default: sharp } = await import("sharp");
 
   let moderationImage: Buffer;
   try {
