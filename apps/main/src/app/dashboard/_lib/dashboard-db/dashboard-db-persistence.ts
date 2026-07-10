@@ -31,6 +31,7 @@ import {
 
 let dashboardDbRefreshQueue: Promise<void> = Promise.resolve();
 let dashboardDbRefreshGeneration = 0;
+let dashboardDbLockedWorkRevision = 0;
 
 const LISTINGS_CURSOR_BASE = "dashboard-db:listings:maxUpdatedAt";
 const LISTS_CURSOR_BASE = "dashboard-db:lists:maxUpdatedAt";
@@ -489,7 +490,11 @@ export function runWithDashboardRefreshLock<T>(work: () => Promise<T>) {
         throw new DashboardRefreshLockCancelledError();
       }
 
-      return await work();
+      try {
+        return await work();
+      } finally {
+        dashboardDbLockedWorkRevision += 1;
+      }
     })
     .finally(() => {
       release();
@@ -580,17 +585,22 @@ export async function refreshDashboardDbFromServer(
   userId: string,
   guard?: DashboardDbRefreshGuard,
 ) {
+  if (guard?.isActive && !guard.isActive()) {
+    return false;
+  }
+
+  if (getCurrentUserId() !== userId) {
+    return false;
+  }
+
+  const lockedWorkRevision = dashboardDbLockedWorkRevision;
+  const snapshot = await fetchDashboardDbSnapshotFromServer();
+
   try {
     return await runWithDashboardRefreshLock(async () => {
-      if (guard?.isActive && !guard.isActive()) {
+      if (lockedWorkRevision !== dashboardDbLockedWorkRevision) {
         return false;
       }
-
-      if (getCurrentUserId() !== userId) {
-        return false;
-      }
-
-      const snapshot = await fetchDashboardDbSnapshotFromServer();
 
       if (guard?.isActive && !guard.isActive()) {
         return false;
