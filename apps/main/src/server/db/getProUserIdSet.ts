@@ -25,6 +25,8 @@ export async function getProUserIdSet(
     return new Set();
   }
 
+  // Public visibility accepts replica/CDN lag under the 24-hour update window;
+  // dashboard billing reads the primary KV store for immediate status.
   const records = await replicaDb.keyValue.findMany({
     where: {
       key: {
