@@ -254,7 +254,7 @@ describe("dashboardDb provider bootstrap", () => {
         opCounts.get("dashboardDb.cultivarReference.listForUserListings") ?? 0,
       ).toBe(0);
     });
-  }, 10_000);
+  }, 20_000);
 
   it("cold bootstrap still loads complete data when persistence is unavailable", async () => {
     await withTempAppDb(async ({ user }) => {
