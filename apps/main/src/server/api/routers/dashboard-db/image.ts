@@ -33,6 +33,8 @@ import {
 } from "@/server/services/user-image-records";
 import { captureServerPosthogEvent } from "@/server/analytics/posthog-server";
 import { parseBooleanEnv } from "@/env";
+import { reportError } from "@/lib/error-utils";
+import { after } from "next/server";
 import {
   assertOwnedListing,
   assertOwnedProfile,
@@ -142,17 +144,26 @@ async function requestImageModeration(image: Buffer) {
   const apiKey = process.env.OPENAI_IMAGE_MODERATION_API_KEY?.trim();
   if (!apiKey) throw new Error("OPENAI_IMAGE_MODERATION_API_KEY is missing");
 
-  const sourceImage = sharp(image, { animated: true, failOn: "error" });
-  const metadata = await sourceImage.metadata();
-  if ((metadata.pages ?? 1) > 1) {
-    throw new Error("Animated images are not supported");
+  let moderationImage: Buffer;
+  try {
+    const sourceImage = sharp(image, { animated: true, failOn: "error" });
+    const metadata = await sourceImage.metadata();
+    if ((metadata.pages ?? 1) > 1) {
+      throw new InvalidModerationImageError(
+        "Animated images are not supported",
+      );
+    }
+
+    moderationImage = await sourceImage
+      .rotate()
+      .resize(512, 512, { fit: "inside", withoutEnlargement: true })
+      .webp({ quality: 75 })
+      .toBuffer();
+  } catch (error) {
+    if (error instanceof InvalidModerationImageError) throw error;
+    throw new InvalidModerationImageError("Invalid image", { cause: error });
   }
 
-  const moderationImage = await sourceImage
-    .rotate()
-    .resize(512, 512, { fit: "inside", withoutEnlargement: true })
-    .webp({ quality: 75 })
-    .toBuffer();
   const response = await fetch("https://api.openai.com/v1/moderations", {
     method: "POST",
     signal: AbortSignal.timeout(10_000),
@@ -184,6 +195,8 @@ async function requestImageModeration(image: Buffer) {
   return result;
 }
 
+class InvalidModerationImageError extends Error {}
+
 async function moderateAndLogImage(args: {
   enforced: boolean;
   fileSize: number;
@@ -207,11 +220,12 @@ async function moderateAndLogImage(args: {
         ? "rejected"
         : "approved";
   } catch (error) {
-    outcome = "unavailable";
+    outcome =
+      error instanceof InvalidModerationImageError ? "rejected" : "unavailable";
     errorMessage = error instanceof Error ? error.message : String(error);
   }
 
-  const decision = args.enforced && outcome !== "approved" ? "reject" : "allow";
+  const decision = args.enforced && outcome === "rejected" ? "reject" : "allow";
   const properties = {
     mode: args.enforced ? "enforce" : "shadow",
     outcome,
@@ -234,11 +248,27 @@ async function moderateAndLogImage(args: {
     }),
   );
 
+  if (outcome === "unavailable") {
+    reportError({
+      error: new Error("Image moderation unavailable"),
+      context: {
+        source: "imageModeration",
+        mode: properties.mode,
+        imageType: args.imageType,
+        referenceId: args.referenceId,
+        userId: args.userId,
+        providerError: errorMessage,
+      },
+    });
+  }
+
   if (outcome !== "approved") {
-    await captureServerPosthogEvent({
-      distinctId: args.userId,
-      event: `image_moderation_${outcome}`,
-      properties,
+    after(() => {
+      return captureServerPosthogEvent({
+        distinctId: args.userId,
+        event: `image_moderation_${outcome}`,
+        properties,
+      });
     });
   }
 
@@ -388,16 +418,10 @@ export const dashboardDbImageRouter = createTRPCRouter({
           userId: ctx.user.id,
         });
 
-        if (result.outcome !== "approved") {
+        if (result.outcome === "rejected") {
           throw new TRPCError({
-            code:
-              result.outcome === "rejected"
-                ? "BAD_REQUEST"
-                : "INTERNAL_SERVER_ERROR",
-            message:
-              result.outcome === "rejected"
-                ? "We couldn't accept this image. Please choose another."
-                : "We couldn't verify this image. Please try again.",
+            code: "BAD_REQUEST",
+            message: "We couldn't accept this image. Please choose another.",
           });
         }
 

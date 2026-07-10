@@ -2,6 +2,8 @@
 
 ## Log
 
+- 2026-07-10 - moderation enforcement fails open on provider outages - The user wants confirmed prohibited or invalid/animated images blocked, but OpenAI outages/timeouts must allow the upload and generate a Sentry error, PostHog event, and structured `decision: allow` log.
+- 2026-07-10 - ignored root scripts need app-scoped module resolution - A script under root `local/` cannot import app-only packages such as `sharp` by bare name. Use `createRequire()` anchored at `apps/main/package.json` when an ignored root script needs app workspace dependencies.
 - 2026-07-09 - env.js helpers need JSDoc types - `apps/main/src/env.js` is JavaScript checked by TypeScript with no implicit any; add JSDoc parameter types to new exported helpers before running typecheck.
 - 2026-07-09 - never broad-search ignored env files - A review subprocess used a repository-wide grep for an env name and printed the ignored `.env.local` API key. Scope searches to tracked source/tests (`git grep` or explicit paths), and rotate any key printed into tool output before handoff.
 - 2026-07-09 - no format check script - This repo has no `format:check` package script; run `pnpm exec prettier --check <files>` for a non-mutating formatting check.

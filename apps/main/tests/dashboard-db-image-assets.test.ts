@@ -33,6 +33,7 @@ const s3Mocks = vi.hoisted(() => ({
 const afterMock = vi.hoisted(() => vi.fn());
 const variantProcessorMock = vi.hoisted(() => vi.fn());
 const captureServerPosthogEventMock = vi.hoisted(() => vi.fn());
+const reportErrorMock = vi.hoisted(() => vi.fn());
 const fetchMock = vi.hoisted(() => vi.fn());
 const consoleInfoMock = vi
   .spyOn(console, "info")
@@ -67,6 +68,14 @@ vi.mock("@/server/analytics/posthog-server", () => ({
   captureServerPosthogEvent: captureServerPosthogEventMock,
 }));
 
+vi.mock("@/lib/error-utils", async () => {
+  const actual =
+    await vi.importActual<typeof import("@/lib/error-utils")>(
+      "@/lib/error-utils",
+    );
+  return { ...actual, reportError: reportErrorMock };
+});
+
 type RouterModule = typeof import("@/server/api/routers/dashboard-db/image");
 let dashboardDbImageRouter: RouterModule["dashboardDbImageRouter"];
 
@@ -82,6 +91,14 @@ function createCaller(db: unknown) {
     _authUser: { id: "user-1" } as TRPCInternalContext["_authUser"],
     headers: new Headers(),
   });
+}
+
+async function runAfterTask(index = 0) {
+  const task = afterMock.mock.calls[index]?.[0] as
+    | (() => Promise<void> | void)
+    | undefined;
+  if (!task) throw new Error("Expected an after() task");
+  await task();
 }
 
 function createImageRow(overrides: Partial<Record<string, unknown>> = {}) {
@@ -279,9 +296,56 @@ describe("dashboard image asset mutations", () => {
       }),
     ).rejects.toThrow("We couldn't accept this image");
     expect(s3Mocks.getSignedUrl).not.toHaveBeenCalled();
+    await runAfterTask();
     expect(captureServerPosthogEventMock).toHaveBeenCalledWith(
       expect.objectContaining({ event: "image_moderation_rejected" }),
     );
+  });
+
+  it("allows enforced uploads and reports when moderation is unavailable", async () => {
+    process.env.IMAGE_MODERATION_ENFORCED = "true";
+    const db = {
+      listing: {
+        findFirst: vi.fn().mockResolvedValue({ id: "listing-1" }),
+      },
+    };
+    fetchMock.mockResolvedValue(new Response(null, { status: 503 }));
+
+    const result = await createCaller(db).getPresignedUrl({
+      type: "listing",
+      referenceId: "listing-1",
+      contentType: "image/png",
+      size: SAFE_IMAGE_SIZE,
+      imageDataUrl: SAFE_IMAGE_DATA_URL,
+    });
+
+    if ("moderationRequired" in result) throw new Error("Unexpected result");
+    expect(result.contentMd5).toEqual(expect.any(String));
+    expect(s3Mocks.getSignedUrl).toHaveBeenCalledTimes(2);
+    expect(reportErrorMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        error: expect.objectContaining({
+          message: "Image moderation unavailable",
+        }),
+        context: expect.objectContaining({
+          source: "imageModeration",
+          providerError: "OpenAI moderation failed with status 503",
+        }),
+      }),
+    );
+    await runAfterTask();
+    expect(captureServerPosthogEventMock).toHaveBeenCalledWith(
+      expect.objectContaining({ event: "image_moderation_unavailable" }),
+    );
+    const moderationLogs = consoleInfoMock.mock.calls
+      .map(([message]) => String(message))
+      .filter((message) => message.includes('"event":"image_moderation"'));
+    expect(moderationLogs).toHaveLength(1);
+    expect(JSON.parse(moderationLogs[0]!)).toMatchObject({
+      mode: "enforce",
+      outcome: "unavailable",
+      decision: "allow",
+    });
   });
 
   it("rejects sexual content involving minors", async () => {
@@ -339,7 +403,7 @@ describe("dashboard image asset mutations", () => {
         size: animatedImage.byteLength,
         imageDataUrl: `data:image/webp;base64,${animatedImage.toString("base64")}`,
       }),
-    ).rejects.toThrow("We couldn't verify this image");
+    ).rejects.toThrow("We couldn't accept this image");
     expect(fetchMock).not.toHaveBeenCalled();
     expect(s3Mocks.getSignedUrl).not.toHaveBeenCalled();
   });
