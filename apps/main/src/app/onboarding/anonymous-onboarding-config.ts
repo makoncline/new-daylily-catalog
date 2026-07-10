@@ -1,3 +1,4 @@
+import type { OptimizedImageSource } from "@/components/optimized-image";
 import type {
   AnonymousOnboardingDraft,
   AnonymousOnboardingStepId,
@@ -19,6 +20,7 @@ export interface ExampleCultivar {
   name: string;
   hybridizerYear: string;
   imageUrl: string;
+  imageAsset?: OptimizedImageSource["imageAsset"];
 }
 
 export interface StarterProfileImage {
@@ -175,5 +177,8 @@ export function getListingPreview(
       draft.listingPreview.description.trim() ||
       DEFAULT_LISTING_DESCRIPTION_PLACEHOLDER,
     imageUrl: draft.listingPreview.imageDataUrl ?? selectedCultivar.imageUrl,
+    imageAsset: draft.listingPreview.imageDataUrl
+      ? undefined
+      : selectedCultivar.imageAsset,
   };
 }

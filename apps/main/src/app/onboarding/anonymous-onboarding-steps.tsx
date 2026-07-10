@@ -11,6 +11,7 @@ import {
   Pencil,
 } from "lucide-react";
 import { ImageCropper } from "@/components/image-cropper";
+import { OptimizedImage } from "@/components/optimized-image";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
@@ -668,13 +669,15 @@ export function ListingStep({
                     }))
                   }
                 >
-                  <Image
-                    src={cultivar.imageUrl}
+                  <OptimizedImage
+                    image={{
+                      id: cultivar.key,
+                      url: cultivar.imageUrl,
+                      imageAsset: cultivar.imageAsset,
+                    }}
                     alt=""
-                    width={48}
-                    height={48}
+                    size="thumbnail"
                     className="size-12 shrink-0 rounded object-cover"
-                    unoptimized
                   />
                   <span className="min-w-0 space-y-0.5">
                     <span className="block text-sm leading-tight font-medium whitespace-normal">
@@ -787,6 +790,7 @@ export function ListingStep({
           linkedLabel={listingPreview.selectedCultivar.name}
           hybridizerYear={listingPreview.selectedCultivar.hybridizerYear}
           imageUrl={listingPreview.imageUrl}
+          imageAsset={listingPreview.imageAsset}
           ownershipBadge="Example only"
         />
       </div>
@@ -834,6 +838,7 @@ export function PreviewStep({
             linkedLabel={listingPreview.selectedCultivar.name}
             hybridizerYear={listingPreview.selectedCultivar.hybridizerYear}
             imageUrl={listingPreview.imageUrl}
+            imageAsset={listingPreview.imageAsset}
             ownershipBadge="Example only"
           />
           <Button
