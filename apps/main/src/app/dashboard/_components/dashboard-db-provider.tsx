@@ -303,6 +303,7 @@ function useDashboardDbProviderState() {
 
         const hasFreshSqliteCache =
           sqlitePersistence && hasFreshDashboardDbSqliteCache(userId);
+        let sqliteCacheListingCount: number | null = null;
 
         if (hasFreshSqliteCache) {
           phase = "sqlite-warm-hydrate";
@@ -320,7 +321,11 @@ function useDashboardDbProviderState() {
               profilePrefetchPromise,
             ]);
 
-          if (hydrateResult.status === "fulfilled") {
+          if (
+            hydrateResult.status === "fulfilled" &&
+            hydrateResult.value.listingCount > 0
+          ) {
+            sqliteCacheListingCount = hydrateResult.value.listingCount;
             if (profilePrefetchResult.status === "rejected") {
               throw profilePrefetchResult.reason;
             }
@@ -348,6 +353,10 @@ function useDashboardDbProviderState() {
             }
             return;
           }
+
+          if (hydrateResult.status === "fulfilled") {
+            sqliteCacheListingCount = hydrateResult.value.listingCount;
+          }
         }
 
         phase = "replica-bootstrap";
@@ -361,20 +370,23 @@ function useDashboardDbProviderState() {
         const replicaBootstrapDurationMs =
           performance.now() - replicaBootstrapStartedAt;
 
-        phase = "cold-bootstrap";
-        const serverBootstrapStartedAt = performance.now();
-        await bootstrapDashboardDbFromServer(userId, {
-          isActive: isBootstrapActive,
-        });
-        const serverBootstrapDurationMs =
-          performance.now() - serverBootstrapStartedAt;
+        let serverBootstrapDurationMs: number | null = null;
+        if (!usedReplica) {
+          phase = "cold-bootstrap";
+          const serverBootstrapStartedAt = performance.now();
+          await bootstrapDashboardDbFromServer(userId, {
+            isActive: isBootstrapActive,
+          });
+          serverBootstrapDurationMs =
+            performance.now() - serverBootstrapStartedAt;
+        }
 
         if (!cancelled) {
           finished = true;
           updateDashboardDbState({
             status: "ready",
             userId,
-            isRefreshing: false,
+            isRefreshing: usedReplica,
           });
           logDashboardSyncTiming("provider.ready", startedAtMs, {
             path: phase,
@@ -384,17 +396,23 @@ function useDashboardDbProviderState() {
             sqlitePersistenceAwaitDurationMs: Number(
               sqlitePersistenceAwaitDurationMs.toFixed(1),
             ),
-            hasFreshSqliteCache: false,
+            hasFreshSqliteCache: Boolean(hasFreshSqliteCache),
+            sqliteCacheListingCount,
             usedReplica,
             replicaBootstrapDurationMs: Number(
               replicaBootstrapDurationMs.toFixed(1),
             ),
-            serverBootstrapDurationMs: Number(
-              serverBootstrapDurationMs.toFixed(1),
-            ),
+            serverBootstrapDurationMs:
+              serverBootstrapDurationMs === null
+                ? null
+                : Number(serverBootstrapDurationMs.toFixed(1)),
           });
 
-          void refreshSubscriptionCache();
+          if (usedReplica) {
+            startBackgroundRefresh();
+          } else {
+            void refreshSubscriptionCache();
+          }
         }
       } catch (error) {
         if (!cancelled) {
