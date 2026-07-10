@@ -206,6 +206,9 @@ export function useAnonymousOnboardingController({
       return;
     }
 
+    if (requestedStep === "email") {
+      setEmailInputOverride(null);
+    }
     setDraft((currentDraft) => ({
       ...currentDraft,
       step: requestedStep,
@@ -230,6 +233,9 @@ export function useAnonymousOnboardingController({
   const goToStep = useCallback(
     (step: AnonymousOnboardingStepId) => {
       setImageError(null);
+      if (step === "email") {
+        setEmailInputOverride(null);
+      }
       setDraft((currentDraft) => {
         const furthestStep =
           getOnboardingStepIndex(step) >

@@ -97,6 +97,16 @@ test.describe("anonymous onboarding checkout flow @local", () => {
       ).toBeVisible();
       await expect(page).toHaveURL(/\/onboarding\?step=profile/);
 
+      await page.goBack();
+      await expect(page).toHaveURL(/\/onboarding\?step=email/);
+      await expect(
+        page.getByTestId("anonymous-onboarding-email"),
+      ).toHaveValue(initialEmail);
+      await page.goForward();
+      await expect(
+        page.getByRole("heading", { name: "Edit your profile" }),
+      ).toBeVisible();
+
       const defaultStarterImage = page.getByTestId(
         "onboarding-starter-image-dew-kissed-daylily-leaf-at-dawn",
       );

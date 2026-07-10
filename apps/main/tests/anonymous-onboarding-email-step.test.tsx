@@ -18,6 +18,11 @@ describe("EmailStep", () => {
     render(<EmailStep {...props} />);
 
     const emailInput = screen.getByLabelText("Email address");
+    expect(emailInput).toHaveAttribute("name", "email");
+    expect(emailInput).toHaveAttribute("autocomplete", "email");
+    expect(emailInput).toHaveAttribute("data-1p-ignore", "true");
+    expect(emailInput).toHaveAttribute("data-bwignore", "true");
+    expect(emailInput).toHaveAttribute("data-lpignore", "true");
     expect(emailInput).not.toHaveAttribute("aria-invalid", "true");
     expect(
       screen.queryByText("Enter a valid email address."),

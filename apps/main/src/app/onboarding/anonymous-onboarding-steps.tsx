@@ -129,7 +129,11 @@ export function EmailStep({
           <Label htmlFor="anonymous-onboarding-email">Email address</Label>
           <Input
             id="anonymous-onboarding-email"
+            name="email"
             data-testid="anonymous-onboarding-email"
+            data-1p-ignore="true"
+            data-bwignore="true"
+            data-lpignore="true"
             type="email"
             required
             autoComplete="email"
@@ -930,9 +934,14 @@ export function CheckoutStep({
               <Label htmlFor="anonymous-checkout-email">Account email</Label>
               <Input
                 id="anonymous-checkout-email"
+                name="email"
                 data-testid="anonymous-checkout-email"
+                data-1p-ignore="true"
+                data-bwignore="true"
+                data-lpignore="true"
                 type="email"
                 required
+                autoComplete="email"
                 value={emailInput}
                 onChange={(event) => setEmailInput(event.target.value)}
               />
