@@ -4,11 +4,6 @@ import { PublicFooter } from "@/components/public-footer";
 
 const navigationState = vi.hoisted(() => ({ pathname: "/" }));
 
-vi.mock("@/hooks/use-feedback-url", () => ({
-  useFeedbackUrl: () =>
-    "https://coda.io/form/Ideas-Bugs_dWgu2I2WTqJ?board-slug=daylily-catalog",
-}));
-
 vi.mock("next/navigation", () => ({
   usePathname: () => navigationState.pathname,
 }));
@@ -18,19 +13,20 @@ describe("PublicFooter", () => {
     navigationState.pathname = "/";
   });
 
-  it("renders the single public feedback footer", () => {
+  it("renders the public policy and support links", () => {
     render(<PublicFooter />);
 
     const footerNav = screen.getByRole("navigation", { name: "Public footer" });
-    const feedbackLink = screen.getByRole("link", { name: "Feedback" });
+    const privacyLink = screen.getByRole("link", { name: "Privacy" });
+    const termsLink = screen.getByRole("link", { name: "Terms" });
+    const supportLink = screen.getByRole("link", { name: "Support" });
 
-    expect(feedbackLink).toHaveAttribute(
-      "href",
-      "https://coda.io/form/Ideas-Bugs_dWgu2I2WTqJ?board-slug=daylily-catalog",
-    );
+    expect(privacyLink).toHaveAttribute("href", "/privacy");
+    expect(termsLink).toHaveAttribute("href", "/terms");
+    expect(supportLink).toHaveAttribute("href", "/support");
     expect(screen.getByRole("contentinfo")).toBeInTheDocument();
     expect(footerNav).toBeVisible();
-    expect(footerNav.querySelectorAll("li")).toHaveLength(1);
+    expect(footerNav.querySelectorAll("li")).toHaveLength(3);
     expect(
       screen.queryByText("Browse daylily catalogs created by growers."),
     ).not.toBeInTheDocument();
@@ -44,7 +40,7 @@ describe("PublicFooter", () => {
     render(<PublicFooter />);
 
     expect(screen.getByRole("contentinfo")).toHaveClass("text-white");
-    expect(screen.getByRole("link", { name: "Feedback" })).toHaveClass(
+    expect(screen.getByRole("link", { name: "Support" })).toHaveClass(
       "text-white/70",
     );
   });

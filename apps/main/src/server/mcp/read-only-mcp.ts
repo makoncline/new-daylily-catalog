@@ -5,6 +5,7 @@ import {
   getTrustedBaseUrl,
 } from "@/lib/agent-readiness";
 import {
+  type AhsDisplayListing,
   getDisplayAhsListing,
   v2AhsCultivarDisplaySelect,
 } from "@/lib/utils/ahs-display";
@@ -186,8 +187,50 @@ function parseObject(value: unknown) {
     : {};
 }
 
-function serializeDate(value: Date | null | undefined) {
-  return value ? value.toISOString() : null;
+function serializeDate(value: Date | string | null | undefined) {
+  if (!value) return null;
+  return value instanceof Date ? value.toISOString() : value;
+}
+
+function serializeImage(image: {
+  id: string;
+  order?: number | null;
+  status?: string | null;
+  updatedAt?: Date | string | null;
+  url: string;
+}) {
+  return {
+    id: image.id,
+    url: image.url,
+    ...(image.order !== undefined ? { order: image.order } : {}),
+    ...(image.status !== undefined ? { status: image.status } : {}),
+    ...(image.updatedAt !== undefined
+      ? { updatedAt: serializeDate(image.updatedAt) }
+      : {}),
+  };
+}
+
+function serializeCultivarDisplay(
+  ahsListing: AhsDisplayListing | null,
+  imageUrl?: string | null,
+) {
+  if (!ahsListing) return null;
+
+  return {
+    name: ahsListing.name,
+    hybridizer: ahsListing.hybridizer,
+    year: ahsListing.year,
+    scapeHeight: ahsListing.scapeHeight,
+    bloomSize: ahsListing.bloomSize,
+    bloomSeason: ahsListing.bloomSeason,
+    ploidy: ahsListing.ploidy,
+    foliageType: ahsListing.foliageType,
+    bloomHabit: ahsListing.bloomHabit,
+    color: ahsListing.color,
+    form: ahsListing.form,
+    parentage: ahsListing.parentage,
+    imageUrl: imageUrl ?? null,
+  };
 }
 
 function serializeCultivarReference(
@@ -215,23 +258,79 @@ function serializeCultivarReference(
     normalizedName: cultivarReference.normalizedName,
     canonicalUrl: segment ? `${baseUrl}/cultivar/${segment}` : null,
     updatedAt: serializeDate(cultivarReference.updatedAt),
-    display: ahsListing
+    display: serializeCultivarDisplay(
+      ahsListing,
+      cultivarReferenceImage?.url ?? null,
+    ),
+  };
+}
+
+function serializePublicListing(
+  listing: ReturnType<typeof buildPublicListingDetail>,
+  baseUrl: string,
+) {
+  const sellerSlug = listing.userSlug ?? listing.userId;
+  const cultivarSegment = listing.cultivarReference?.normalizedName
+    ? toCultivarRouteSegment(listing.cultivarReference.normalizedName)
+    : null;
+
+  return {
+    id: listing.id,
+    title: listing.title,
+    slug: listing.slug,
+    canonicalUrl:
+      sellerSlug && listing.slug
+        ? `${baseUrl}/${sellerSlug}/${listing.slug}`
+        : null,
+    description: listing.description,
+    price: listing.price,
+    updatedAt: serializeDate(listing.updatedAt),
+    seller: {
+      slug: listing.userSlug,
+      title: listing.sellerTitle,
+    },
+    lists: listing.lists.map((list) => ({
+      id: list.id,
+      title: list.title,
+    })),
+    cultivar: listing.cultivarReference
       ? {
-          name: ahsListing.name,
-          hybridizer: ahsListing.hybridizer,
-          year: ahsListing.year,
-          scapeHeight: ahsListing.scapeHeight,
-          bloomSize: ahsListing.bloomSize,
-          bloomSeason: ahsListing.bloomSeason,
-          ploidy: ahsListing.ploidy,
-          foliageType: ahsListing.foliageType,
-          bloomHabit: ahsListing.bloomHabit,
-          color: ahsListing.color,
-          form: ahsListing.form,
-          parentage: ahsListing.parentage,
-          imageUrl: cultivarReferenceImage?.url ?? null,
+          id: listing.cultivarReference.id,
+          normalizedName: listing.cultivarReference.normalizedName,
+          canonicalUrl: cultivarSegment
+            ? `${baseUrl}/cultivar/${cultivarSegment}`
+            : null,
+          display: serializeCultivarDisplay(
+            listing.ahsListing,
+            listing.cultivarReferenceImage?.url ?? null,
+          ),
         }
       : null,
+    images: listing.images.map(serializeImage),
+  };
+}
+
+function serializePublicProfile(
+  profile: Awaited<ReturnType<typeof getPublicProfile>>,
+) {
+  return {
+    id: profile.id,
+    title: profile.title,
+    slug: profile.slug,
+    description: profile.description,
+    content: profile.content,
+    location: profile.location,
+    images: profile.images.map(serializeImage),
+    createdAt: serializeDate(profile.createdAt),
+    updatedAt: serializeDate(profile.updatedAt),
+    listingCount: profile.listingCount,
+    listCount: profile.listCount,
+    lists: profile.lists.map((list) => ({
+      id: list.id,
+      title: list.title,
+      description: list.description,
+      listingCount: list.listingCount,
+    })),
   };
 }
 
@@ -253,12 +352,7 @@ function serializeListing(
     createdAt: serializeDate(listing.createdAt),
     updatedAt: serializeDate(listing.updatedAt),
     cultivar: serializeCultivarReference(listing.cultivarReference, baseUrl),
-    images: listing.images.map((image) => ({
-      id: image.id,
-      url: image.url,
-      order: image.order,
-      status: image.status,
-    })),
+    images: listing.images.map(serializeImage),
     lists: listing.lists.map((list) => ({
       id: list.id,
       title: list.title,
@@ -787,7 +881,12 @@ async function callTool(context: McpContext, name: string, input: unknown) {
       });
       const items = rows
         .slice(0, parsed.limit)
-        .map((listing) => buildPublicListingDetail(listing));
+        .map((listing) =>
+          serializePublicListing(
+            buildPublicListingDetail(listing),
+            context.baseUrl,
+          ),
+        );
       return mcpResult({
         items,
         nextCursor: rows.length > parsed.limit ? items.at(-1)?.id : null,
@@ -797,14 +896,16 @@ async function callTool(context: McpContext, name: string, input: unknown) {
     case "daylily.get_public_listing": {
       const parsed = publicListingSchema.parse(args);
       const listing = await getPublicMcpListingDetail(context, parsed);
-      return mcpResult({ listing });
+      return mcpResult({
+        listing: serializePublicListing(listing, context.baseUrl),
+      });
     }
 
     case "daylily.get_public_profile": {
       const parsed = publicProfileSchema.parse(args);
       await getPublicMcpUserId(parsed.sellerSlug);
       const profile = await getPublicProfile(parsed.sellerSlug);
-      return mcpResult({ profile });
+      return mcpResult({ profile: serializePublicProfile(profile) });
     }
 
     case "daylily.list_public_profile_lists": {
@@ -827,7 +928,12 @@ async function callTool(context: McpContext, name: string, input: unknown) {
       });
       const items = rows
         .slice(0, parsed.limit)
-        .map((listing) => buildPublicListingDetail(listing));
+        .map((listing) =>
+          serializePublicListing(
+            buildPublicListingDetail(listing),
+            context.baseUrl,
+          ),
+        );
       return mcpResult({
         items,
         nextCursor: rows.length > parsed.limit ? items.at(-1)?.id : null,
@@ -988,7 +1094,10 @@ function validateMcpProtocolVersion(request: Request) {
   const version = request.headers.get("mcp-protocol-version");
   if (version && !isSupportedMcpProtocolVersion(version)) {
     return Response.json(
-      jsonRpcError(null, new McpError("Unsupported MCP protocol version.", -32600)),
+      jsonRpcError(
+        null,
+        new McpError("Unsupported MCP protocol version.", -32600),
+      ),
       { status: 400 },
     );
   }
@@ -1153,7 +1262,9 @@ export async function handleMcpRequest(request: Request) {
     }
   }
 
-  let responseBody: ReturnType<typeof jsonRpcSuccess> | ReturnType<typeof jsonRpcError>;
+  let responseBody:
+    | ReturnType<typeof jsonRpcSuccess>
+    | ReturnType<typeof jsonRpcError>;
   try {
     const result = await handleJsonRpcRequest(rpcRequest, context);
     responseBody = jsonRpcSuccess(rpcRequest.id, result);

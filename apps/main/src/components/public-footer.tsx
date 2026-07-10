@@ -1,7 +1,7 @@
 "use client";
 
-import { PublicFeedbackLink } from "@/components/public-feedback-link";
 import { cn } from "@/lib/utils";
+import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 export function PublicFooter() {
@@ -23,7 +23,8 @@ export function PublicFooter() {
         >
           <ul className="flex items-center justify-end gap-4 text-right">
             <li>
-              <PublicFeedbackLink
+              <Link
+                href="/privacy"
                 className={cn(
                   "text-[11px] leading-none font-medium underline-offset-4 transition-colors hover:underline",
                   usesDarkHeroFooter
@@ -31,8 +32,34 @@ export function PublicFooter() {
                     : "text-[#142118]/60 hover:text-[#142118]",
                 )}
               >
-                Feedback
-              </PublicFeedbackLink>
+                Privacy
+              </Link>
+            </li>
+            <li>
+              <Link
+                href="/terms"
+                className={cn(
+                  "text-[11px] leading-none font-medium underline-offset-4 transition-colors hover:underline",
+                  usesDarkHeroFooter
+                    ? "text-white/70 hover:text-white"
+                    : "text-[#142118]/60 hover:text-[#142118]",
+                )}
+              >
+                Terms
+              </Link>
+            </li>
+            <li>
+              <Link
+                href="/support"
+                className={cn(
+                  "text-[11px] leading-none font-medium underline-offset-4 transition-colors hover:underline",
+                  usesDarkHeroFooter
+                    ? "text-white/70 hover:text-white"
+                    : "text-[#142118]/60 hover:text-[#142118]",
+                )}
+              >
+                Support
+              </Link>
             </li>
           </ul>
         </nav>

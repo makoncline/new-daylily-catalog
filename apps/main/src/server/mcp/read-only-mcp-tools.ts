@@ -206,7 +206,7 @@ export function buildReadOnlyMcpTools(privateScopes: string[]): McpTool[] {
       name: "daylily.list_listings",
       title: "List Listings",
       description:
-        "Use this when the signed-in user asks to search, filter, or page through their own listing records. Supports the dashboard's key advanced filters such as title, description, listId, status, price/photo availability, cultivar name, hybridizer, year, color, parentage, and bloom traits. Use the most selective filter arguments directly instead of scanning the full catalog. If the user names a list but you do not know its id, call daylily.list_lists first, then pass listId here. For complete catalog-wide summaries or facet-style searches, use limit 500 and repeat with the same filters plus nextCursor until nextCursor is null. Requires OAuth.",
+        "Use this when the signed-in user asks to search, filter, or page through their own listing records, including private notes. Supports the dashboard's key advanced filters such as title, description, listId, status, price/photo availability, cultivar name, hybridizer, year, color, parentage, and bloom traits. Use the most selective filter arguments directly instead of scanning the full catalog. If the user names a list but you do not know its id, call daylily.list_lists first, then pass listId here. For complete catalog-wide summaries or facet-style searches, use limit 500 and repeat with the same filters plus nextCursor until nextCursor is null. Requires OAuth.",
       inputSchema: listingSearchInputSchema(),
       outputSchema: paginatedOutputSchema,
       securitySchemes: [...privateSecuritySchemes],
