@@ -320,7 +320,10 @@ function useDashboardDbProviderState() {
               profilePrefetchPromise,
             ]);
 
-          if (hydrateResult.status === "fulfilled") {
+          if (
+            hydrateResult.status === "fulfilled" &&
+            hydrateResult.value.listingCount > 0
+          ) {
             if (profilePrefetchResult.status === "rejected") {
               throw profilePrefetchResult.reason;
             }
