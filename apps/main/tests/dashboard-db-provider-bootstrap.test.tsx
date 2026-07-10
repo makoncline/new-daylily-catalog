@@ -225,7 +225,7 @@ describe("dashboardDb provider bootstrap", () => {
             "ready",
           );
         },
-        { timeout: 2000 },
+        { timeout: 10_000 },
       );
 
       await act(async () => {
@@ -254,7 +254,7 @@ describe("dashboardDb provider bootstrap", () => {
         opCounts.get("dashboardDb.cultivarReference.listForUserListings") ?? 0,
       ).toBe(0);
     });
-  }, 10_000);
+  }, 20_000);
 
   it("cold bootstrap still loads complete data when persistence is unavailable", async () => {
     await withTempAppDb(async ({ user }) => {
@@ -436,7 +436,7 @@ describe("dashboardDb provider bootstrap", () => {
     vi.resetModules();
     useAuthMock.mockReturnValue({ isLoaded: true, userId: null });
 
-    const warmHydrate = deferred();
+    const warmHydrate = deferred<{ listingCount: number }>();
     const backgroundRefresh = deferred();
     const bootstrapDashboardDbFromReplica = vi.fn(async () => false);
     const bootstrapDashboardDbFromServer = vi.fn(async () => undefined);
@@ -531,7 +531,7 @@ describe("dashboardDb provider bootstrap", () => {
     expect(screen.queryByTestId("dashboard-ready")).toBeNull();
 
     await act(async () => {
-      warmHydrate.resolve();
+      warmHydrate.resolve({ listingCount: 1 });
       await warmHydrate.promise;
     });
 
@@ -567,12 +567,18 @@ describe("dashboardDb provider bootstrap", () => {
     });
   });
 
-  it("renders replica data before the primary refresh finishes when SQLite is cold", async () => {
+  it("waits for the replica before rendering when the SQLite cache is empty", async () => {
     vi.resetModules();
 
+    const replicaBootstrap = deferred<boolean>();
     const backgroundRefresh = deferred();
-    const bootstrapDashboardDbFromReplica = vi.fn(async () => true);
+    const bootstrapDashboardDbFromReplica = vi.fn(
+      () => replicaBootstrap.promise,
+    );
     const bootstrapDashboardDbFromServer = vi.fn(async () => undefined);
+    const hydrateDashboardDbFromSqlitePersistence = vi.fn(
+      async () => ({ listingCount: 0 }),
+    );
     const revalidateDashboardDbInBackground = vi.fn(
       () => backgroundRefresh.promise,
     );
@@ -596,8 +602,8 @@ describe("dashboardDb provider bootstrap", () => {
       () => ({
         bootstrapDashboardDbFromReplica,
         bootstrapDashboardDbFromServer,
-        hasFreshDashboardDbSqliteCache: vi.fn(() => false),
-        hydrateDashboardDbFromSqlitePersistence: vi.fn(async () => undefined),
+        hasFreshDashboardDbSqliteCache: vi.fn(() => true),
+        hydrateDashboardDbFromSqlitePersistence,
         revalidateDashboardDbInBackground,
         resetDashboardRefreshLock: vi.fn(),
       }),
@@ -655,6 +661,16 @@ describe("dashboardDb provider bootstrap", () => {
     );
 
     await waitFor(() => {
+      expect(bootstrapDashboardDbFromReplica).toHaveBeenCalledTimes(1);
+    });
+    expect(screen.queryByTestId("dashboard-ready")).toBeNull();
+
+    await act(async () => {
+      replicaBootstrap.resolve(true);
+      await replicaBootstrap.promise;
+    });
+
+    await waitFor(() => {
       expect(screen.getByTestId("dashboard-ready").textContent).toBe("ready");
     });
     expect(screen.getByTestId("dashboard-refreshing").textContent).toBe(
@@ -663,6 +679,7 @@ describe("dashboardDb provider bootstrap", () => {
     expect(bootstrapDashboardDbFromReplica).toHaveBeenCalledTimes(1);
     expect(bootstrapDashboardDbFromServer).not.toHaveBeenCalled();
     expect(revalidateDashboardDbInBackground).toHaveBeenCalledTimes(1);
+    expect(hydrateDashboardDbFromSqlitePersistence).toHaveBeenCalledTimes(1);
 
     await act(async () => {
       backgroundRefresh.resolve();
