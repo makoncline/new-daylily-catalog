@@ -1,6 +1,8 @@
 import { render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { PublicFooter } from "@/components/public-footer";
+
+const navigationState = vi.hoisted(() => ({ pathname: "/" }));
 
 vi.mock("@/hooks/use-feedback-url", () => ({
   useFeedbackUrl: () =>
@@ -8,10 +10,14 @@ vi.mock("@/hooks/use-feedback-url", () => ({
 }));
 
 vi.mock("next/navigation", () => ({
-  usePathname: () => "/",
+  usePathname: () => navigationState.pathname,
 }));
 
 describe("PublicFooter", () => {
+  beforeEach(() => {
+    navigationState.pathname = "/";
+  });
+
   it("renders the single public feedback footer", () => {
     render(<PublicFooter />);
 
@@ -31,5 +37,15 @@ describe("PublicFooter", () => {
     expect(
       screen.queryByRole("link", { name: "Create your catalog" }),
     ).not.toBeInTheDocument();
+  });
+
+  it("uses the high-contrast hero footer on the grower landing page", () => {
+    navigationState.pathname = "/start-membership";
+    render(<PublicFooter />);
+
+    expect(screen.getByRole("contentinfo")).toHaveClass("text-white");
+    expect(screen.getByRole("link", { name: "Feedback" })).toHaveClass(
+      "text-white/70",
+    );
   });
 });

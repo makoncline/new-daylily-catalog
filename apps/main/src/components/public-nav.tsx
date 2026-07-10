@@ -15,7 +15,8 @@ const activeNavClassName =
 export function PublicHeader() {
   const pathname = usePathname();
   const mobileNavRef = useRef<HTMLDetailsElement>(null);
-  const isHomepage = pathname === "/";
+  const usesDarkHeroNav =
+    pathname === "/" || pathname === "/start-membership";
   const isCatalogsActive = pathname === "/catalogs";
   const isGrowersActive =
     pathname === "/start-membership" || pathname.startsWith("/onboarding");
@@ -28,7 +29,7 @@ export function PublicHeader() {
     <header
       className={cn(
         "public-header sticky inset-x-0 top-0 z-50 flex min-h-16 w-full items-center border-none bg-transparent px-3 py-2 before:pointer-events-none before:absolute before:inset-x-0 before:top-0 before:-bottom-5 before:z-[-1] before:content-[''] before:backdrop-blur-[5px] before:[mask-image:linear-gradient(to_bottom,#000_0%,#000_calc(100%_-_20px),transparent_100%)] before:[-webkit-mask-image:linear-gradient(to_bottom,#000_0%,#000_calc(100%_-_20px),transparent_100%)] lg:h-20 lg:px-8 lg:py-0",
-        isHomepage ? "text-white" : "text-[#142118]",
+        usesDarkHeroNav ? "text-white" : "text-[#142118]",
       )}
     >
       <nav className="mx-auto flex w-full max-w-[1024px] items-center justify-between gap-2 py-1 lg:gap-4">
@@ -39,7 +40,7 @@ export function PublicHeader() {
           <span
             className={cn(
               "flex h-7 w-7 items-center justify-center lg:h-8 lg:w-8",
-              isHomepage ? "text-[#f4c477]" : "text-[#b7791f]",
+              usesDarkHeroNav ? "text-[#f4c477]" : "text-[#b7791f]",
             )}
           >
             <Flower2 className="h-5 w-5 lg:h-6 lg:w-6" />
@@ -58,7 +59,7 @@ export function PublicHeader() {
             aria-label="Open public navigation"
             className={cn(
               "flex h-9 w-9 cursor-pointer list-none items-center justify-center rounded-md border bg-transparent transition-colors focus-visible:ring-1 focus-visible:ring-[#f4c477] focus-visible:outline-none [&::-webkit-details-marker]:hidden",
-              isHomepage
+              usesDarkHeroNav
                 ? "border-white/30 text-white hover:bg-white/10"
                 : "border-[#142118]/20 text-[#142118] hover:bg-[#142118]/5",
             )}
@@ -129,7 +130,7 @@ export function PublicHeader() {
             <Button
               className={cn(
                 "ml-2 h-10 rounded-md border bg-transparent px-5 text-sm shadow-none disabled:opacity-100",
-                isHomepage
+                usesDarkHeroNav
                   ? "border-white/35 text-white hover:bg-white hover:text-[#142118]"
                   : "border-[#142118]/25 text-[#142118] hover:bg-[#142118] hover:text-white",
               )}

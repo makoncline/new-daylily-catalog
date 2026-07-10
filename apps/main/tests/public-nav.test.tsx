@@ -56,6 +56,16 @@ describe("PublicHeader", () => {
     expect(dashboardLink).toHaveAttribute("href", "/sign-in");
   });
 
+  it("uses the high-contrast hero navigation on the grower landing page", () => {
+    navigationState.pathname = "/start-membership";
+    render(<PublicHeader />);
+
+    expect(screen.getByRole("banner")).toHaveClass("text-white");
+    expect(screen.getByRole("button", { name: "Dashboard" })).toHaveClass(
+      "text-white",
+    );
+  });
+
   it("closes the mobile menu after navigation", () => {
     const { rerender } = render(<PublicHeader />);
     const mobileNav = screen.getByTestId("mobile-public-nav");
