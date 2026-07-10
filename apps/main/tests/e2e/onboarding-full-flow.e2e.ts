@@ -137,7 +137,20 @@ test.describe("anonymous onboarding checkout flow @local", () => {
       const gardenPathStarter = page.getByTestId(
         "onboarding-starter-image-morning-serenity-along-the-garden-path",
       );
+      const defaultStarterImageSrc = await profileImagePreview.getAttribute(
+        "src",
+      );
       await gardenPathStarter.click();
+      await page
+        .getByTestId("anonymous-profile-image-mode-upload")
+        .click();
+      await page
+        .getByTestId("anonymous-profile-image-mode-starter")
+        .click();
+      await expect(gardenPathStarter).toHaveAttribute("aria-pressed", "true");
+      await expect
+        .poll(() => profileImagePreview.getAttribute("src"))
+        .not.toBe(defaultStarterImageSrc);
       await expect
         .poll(async () => {
           const draft = await readBrowserDraft(page);

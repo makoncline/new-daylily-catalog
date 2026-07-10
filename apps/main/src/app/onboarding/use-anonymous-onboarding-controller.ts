@@ -30,6 +30,22 @@ function getOnboardingStepIndex(step: AnonymousOnboardingStepId) {
   return ANONYMOUS_ONBOARDING_STEPS.findIndex((item) => item.id === step);
 }
 
+function getStarterProfileImageGenerationKey({
+  applyNameOverlay,
+  baseImageUrl,
+  gardenName,
+}: {
+  applyNameOverlay: boolean;
+  baseImageUrl: string;
+  gardenName: string;
+}) {
+  return JSON.stringify([
+    baseImageUrl,
+    applyNameOverlay,
+    gardenName.trim() || DEFAULT_GARDEN_NAME_PLACEHOLDER,
+  ]);
+}
+
 export function useAnonymousOnboardingController({
   exampleCultivars,
   membershipPriceDisplay,
@@ -76,7 +92,10 @@ export function useAnonymousOnboardingController({
   const [selectedStarterProfileImageUrl, setSelectedStarterProfileImageUrl] =
     useState<string | null>(STARTER_PROFILE_IMAGES[0]?.url ?? null);
   const uploadedProfileImageDataUrlRef = useRef<string | null>(null);
-  const starterProfileImageDataUrlRef = useRef<string | null>(null);
+  const starterProfileImageCacheRef = useRef<{
+    dataUrl: string;
+    generationKey: string;
+  } | null>(null);
   const defaultStarterGenerationStartedRef = useRef(false);
   const [applyStarterNameOverlay, setApplyStarterNameOverlayState] =
     useState(true);
@@ -127,8 +146,18 @@ export function useAnonymousOnboardingController({
         uploadedProfileImageDataUrlRef.current =
           storedDraft.profile.profileImageDataUrl;
       } else if (storedDraft.profile.profileImageSource === "starter") {
-        starterProfileImageDataUrlRef.current =
-          storedDraft.profile.profileImageDataUrl;
+        const starterImageUrl = storedDraft.profile.starterImageUrl;
+        const dataUrl = storedDraft.profile.profileImageDataUrl;
+        if (starterImageUrl && dataUrl) {
+          starterProfileImageCacheRef.current = {
+            dataUrl,
+            generationKey: getStarterProfileImageGenerationKey({
+              applyNameOverlay: true,
+              baseImageUrl: starterImageUrl,
+              gardenName: storedDraft.profile.gardenName,
+            }),
+          };
+        }
       }
       setSelectedStarterProfileImageUrl(
         storedDraft.profile.starterImageUrl ??
@@ -309,7 +338,14 @@ export function useAnonymousOnboardingController({
                 return;
               }
 
-              starterProfileImageDataUrlRef.current = dataUrl;
+              starterProfileImageCacheRef.current = {
+                dataUrl,
+                generationKey: getStarterProfileImageGenerationKey({
+                  applyNameOverlay,
+                  baseImageUrl,
+                  gardenName,
+                }),
+              };
               setDraft((currentDraft) => ({
                 ...currentDraft,
                 profile: {
@@ -379,10 +415,6 @@ export function useAnonymousOnboardingController({
 
       if (mode === "upload") {
         cancelStarterProfileImageGeneration();
-        if (draftRef.current.profile.profileImageSource === "starter") {
-          starterProfileImageDataUrlRef.current =
-            draftRef.current.profile.profileImageDataUrl;
-        }
         const uploadedImageDataUrl = uploadedProfileImageDataUrlRef.current;
         setDraft((currentDraft) => ({
           ...currentDraft,
@@ -399,10 +431,21 @@ export function useAnonymousOnboardingController({
         uploadedProfileImageDataUrlRef.current =
           draftRef.current.profile.profileImageDataUrl;
       }
-      const starterImageDataUrl = starterProfileImageDataUrlRef.current;
       const baseImageUrl =
         selectedStarterProfileImageUrl ??
-        (starterImageDataUrl ? undefined : STARTER_PROFILE_IMAGES[0]?.url);
+        STARTER_PROFILE_IMAGES[0]?.url;
+      const expectedGenerationKey = baseImageUrl
+        ? getStarterProfileImageGenerationKey({
+            applyNameOverlay: applyStarterNameOverlay,
+            baseImageUrl,
+            gardenName: draftRef.current.profile.gardenName,
+          })
+        : null;
+      const starterImageDataUrl =
+        starterProfileImageCacheRef.current?.generationKey ===
+        expectedGenerationKey
+          ? starterProfileImageCacheRef.current.dataUrl
+          : null;
       if (baseImageUrl) {
         setSelectedStarterProfileImageUrl(baseImageUrl);
       }
