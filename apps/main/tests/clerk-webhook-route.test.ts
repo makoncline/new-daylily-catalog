@@ -190,7 +190,10 @@ describe("Clerk webhook route", () => {
   });
 
   it("acknowledges irrelevant events without processing a user", async () => {
-    mocks.event = { type: "organization.created", data: { id: "org_test" } };
+    mocks.event = {
+      type: "email.created",
+      data: { id: "email_test", user_id: "user_test" },
+    };
     const { POST } = await import("@/app/api/clerk-webhook/route");
 
     const response = await POST(request());
