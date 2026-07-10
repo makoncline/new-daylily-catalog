@@ -529,25 +529,27 @@ export function ProfileStep({
                 </div>
               ) : (
                 <div className="space-y-3">
-                  <OnboardingImageUploadCropper
-                    dropzoneTestId="anonymous-profile-image-dropzone"
-                    inputId="anonymous-profile-image"
-                    inputLabel="Upload profile image"
-                    inputTestId="anonymous-profile-image"
-                    setImageError={setImageError}
-                    updateImage={updateProfileImage}
-                  />
                   {draft.profile.profileImageSource === "upload" &&
                   draft.profile.profileImageDataUrl ? (
                     <Button
                       type="button"
                       size="sm"
                       variant="outline"
+                      data-testid="anonymous-profile-image-reset"
                       onClick={clearProfileImage}
                     >
                       Reset
                     </Button>
-                  ) : null}
+                  ) : (
+                    <OnboardingImageUploadCropper
+                      dropzoneTestId="anonymous-profile-image-dropzone"
+                      inputId="anonymous-profile-image"
+                      inputLabel="Upload profile image"
+                      inputTestId="anonymous-profile-image"
+                      setImageError={setImageError}
+                      updateImage={updateProfileImage}
+                    />
+                  )}
                 </div>
               )}
 

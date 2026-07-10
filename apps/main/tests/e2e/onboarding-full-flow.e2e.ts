@@ -119,11 +119,23 @@ test.describe("anonymous onboarding checkout flow @local", () => {
       await page
         .getByTestId("anonymous-profile-image-mode-upload")
         .click();
+      await expect(
+        page.getByTestId("anonymous-profile-image-dropzone"),
+      ).toBeVisible();
+      await expect(
+        page.getByTestId("anonymous-profile-image-reset"),
+      ).toHaveCount(0);
       await page
         .getByTestId("anonymous-profile-image")
         .setInputFiles(path.join(appRoot, LISTING_IMAGE_PATH));
       await page.getByRole("button", { name: "Use cropped image" }).click();
       await expect(profileImagePreview).toHaveAttribute("src", /data:image\//);
+      await expect(
+        page.getByTestId("anonymous-profile-image-dropzone"),
+      ).toHaveCount(0);
+      await expect(
+        page.getByTestId("anonymous-profile-image-reset"),
+      ).toBeVisible();
       const uploadedProfileImage = await profileImagePreview.getAttribute("src");
       expect(uploadedProfileImage).toBeTruthy();
       await page
