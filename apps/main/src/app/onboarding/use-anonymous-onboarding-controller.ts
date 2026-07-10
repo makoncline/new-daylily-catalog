@@ -152,7 +152,8 @@ export function useAnonymousOnboardingController({
           starterProfileImageCacheRef.current = {
             dataUrl,
             generationKey: getStarterProfileImageGenerationKey({
-              applyNameOverlay: true,
+              applyNameOverlay:
+                storedDraft.profile.starterImageApplyNameOverlay,
               baseImageUrl: starterImageUrl,
               gardenName: storedDraft.profile.gardenName,
             }),
@@ -169,6 +170,9 @@ export function useAnonymousOnboardingController({
         storedDraft.profile.profileImageSource === "upload"
           ? "upload"
           : "starter",
+      );
+      setApplyStarterNameOverlayState(
+        storedDraft.profile.starterImageApplyNameOverlay,
       );
       setDraftIsHydrated(true);
       if (requestedStep !== initialStep) {
@@ -353,6 +357,7 @@ export function useAnonymousOnboardingController({
                   profileImageDataUrl: dataUrl,
                   profileImageSource: "starter",
                   starterImageUrl: baseImageUrl,
+                  starterImageApplyNameOverlay: applyNameOverlay,
                 },
               }));
             } catch (error) {
@@ -515,6 +520,13 @@ export function useAnonymousOnboardingController({
   const setApplyStarterNameOverlay = useCallback(
     (enabled: boolean) => {
       setApplyStarterNameOverlayState(enabled);
+      setDraft((currentDraft) => ({
+        ...currentDraft,
+        profile: {
+          ...currentDraft.profile,
+          starterImageApplyNameOverlay: enabled,
+        },
+      }));
       if (!selectedStarterProfileImageUrl) {
         return;
       }
@@ -526,7 +538,11 @@ export function useAnonymousOnboardingController({
         gardenName: draftRef.current.profile.gardenName,
       });
     },
-    [scheduleStarterProfileImageGeneration, selectedStarterProfileImageUrl],
+    [
+      scheduleStarterProfileImageGeneration,
+      selectedStarterProfileImageUrl,
+      setDraft,
+    ],
   );
 
   const updateProfileGardenName = useCallback(

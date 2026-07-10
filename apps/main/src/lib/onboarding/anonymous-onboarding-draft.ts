@@ -16,6 +16,7 @@ export interface AnonymousOnboardingProfileDraft {
   profileImageDataUrl: string | null;
   profileImageSource: "starter" | "upload" | null;
   starterImageUrl: string | null;
+  starterImageApplyNameOverlay: boolean;
 }
 
 export interface AnonymousOnboardingListingPreviewDraft {
@@ -46,6 +47,7 @@ export const DEFAULT_ANONYMOUS_ONBOARDING_PROFILE: AnonymousOnboardingProfileDra
     profileImageDataUrl: null,
     profileImageSource: null,
     starterImageUrl: null,
+    starterImageApplyNameOverlay: true,
   };
 
 const DEFAULT_ANONYMOUS_ONBOARDING_CULTIVAR_KEY = "cr-ahs-176320";
@@ -107,6 +109,10 @@ function readString(value: unknown) {
 
 function readNullableString(value: unknown) {
   return typeof value === "string" && value.length > 0 ? value : null;
+}
+
+function readBoolean(value: unknown, fallback: boolean) {
+  return typeof value === "boolean" ? value : fallback;
 }
 
 function readProfileImageSource(value: unknown) {
@@ -183,6 +189,10 @@ export function parseAnonymousOnboardingDraft(
       profileImageDataUrl: readNullableString(profile?.profileImageDataUrl),
       profileImageSource: readProfileImageSource(profile?.profileImageSource),
       starterImageUrl: readNullableString(profile?.starterImageUrl),
+      starterImageApplyNameOverlay: readBoolean(
+        profile?.starterImageApplyNameOverlay,
+        true,
+      ),
     },
     listingPreview: {
       cultivarKey: readListingCultivarKey(listingPreview?.cultivarKey),

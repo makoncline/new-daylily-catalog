@@ -163,13 +163,28 @@ test.describe("anonymous onboarding checkout flow @local", () => {
       await page
         .getByTestId("anonymous-profile-description")
         .fill(profileDescription);
+      const overlayCheckbox = page.getByRole("checkbox", {
+        name: "Stamp seller name onto starter image",
+      });
+      const imageWithOverlay = await profileImagePreview.getAttribute("src");
+      await overlayCheckbox.click();
+      await expect(overlayCheckbox).not.toBeChecked();
+      await expect
+        .poll(() => profileImagePreview.getAttribute("src"))
+        .not.toBe(imageWithOverlay);
       await page.reload();
       await expect(
         page.getByRole("heading", { name: "Edit your profile" }),
       ).toBeVisible();
       await expect(gardenPathStarter).toHaveAttribute("aria-pressed", "true");
+      await expect(overlayCheckbox).not.toBeChecked();
+      const imageWithoutOverlay = await profileImagePreview.getAttribute("src");
       await page.getByTestId("anonymous-profile-name").fill(profileName);
       await expect(gardenPathStarter).toHaveAttribute("aria-pressed", "true");
+      await expect(profileImagePreview).toHaveAttribute(
+        "src",
+        imageWithoutOverlay!,
+      );
 
       await page.getByTestId("anonymous-onboarding-primary-action").click();
       await expect(

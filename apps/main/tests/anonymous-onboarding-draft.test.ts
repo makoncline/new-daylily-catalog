@@ -26,6 +26,7 @@ describe("anonymous onboarding draft storage", () => {
         profileImageDataUrl: null,
         profileImageSource: null,
         starterImageUrl: null,
+        starterImageApplyNameOverlay: true,
       },
     });
 
