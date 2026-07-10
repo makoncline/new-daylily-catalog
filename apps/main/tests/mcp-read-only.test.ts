@@ -211,9 +211,9 @@ describe("read-only MCP server", () => {
         },
       },
     });
-    expect(
-      body.result._meta["mcp/www_authenticate"][0],
-    ).toContain('scope="profile"');
+    expect(body.result._meta["mcp/www_authenticate"][0]).toContain(
+      'scope="profile"',
+    );
     expect(mocks.authenticateRequest).toHaveBeenCalledTimes(1);
   });
 
@@ -505,6 +505,119 @@ describe("read-only MCP server", () => {
     expect(publicListingSearchCall?.select.lists.where).toEqual({
       OR: [{ status: null }, { NOT: { status: "HIDDEN" } }],
     });
+  });
+
+  it("returns sanitized public listing fields through MCP", async () => {
+    mocks.readDb.listing.findMany.mockResolvedValueOnce([
+      {
+        id: "listing-1",
+        title: "Orange daylily",
+        slug: "orange-daylily",
+        description: "Bright public description",
+        price: 12,
+        userId: "seller-1",
+        updatedAt: new Date("2026-01-02T00:00:00.000Z"),
+        user: {
+          profile: {
+            slug: "active",
+            title: "Active Garden",
+          },
+        },
+        lists: [{ id: "list-1", title: "Spring" }],
+        cultivarReference: {
+          id: "cultivar-1",
+          normalizedName: "orange daylily",
+          v2AhsCultivar: null,
+          imageAssets: [
+            {
+              id: "cultivar-asset",
+              legacyImageId: null,
+              status: "ready",
+              displayUrl: "https://media.daylilycatalog.com/cultivar.webp",
+              originalUrl: "https://media.daylilycatalog.com/cultivar.png",
+              thumbUrl: null,
+              blurUrl: null,
+            },
+          ],
+        },
+        cultivarReferenceImage: {
+          id: "ahs-listing-1",
+          url: "https://media.daylilycatalog.com/cultivar.webp",
+          imageAsset: { id: "cultivar-asset" },
+        },
+        images: [
+          {
+            id: "image-1",
+            url: "https://media.daylilycatalog.com/orange.webp",
+            updatedAt: new Date("2026-01-02T00:00:00.000Z"),
+            imageAsset: {
+              id: "asset-1",
+              blurUrl: "https://media.daylilycatalog.com/orange-blur.webp",
+            },
+          },
+        ],
+        imageAssets: [
+          {
+            id: "asset-1",
+            legacyImageId: "image-1",
+            status: "ready",
+            displayUrl: "https://media.daylilycatalog.com/orange.webp",
+            originalUrl: "https://media.daylilycatalog.com/orange.png",
+            thumbUrl: null,
+            blurUrl: "https://media.daylilycatalog.com/orange-blur.webp",
+          },
+        ],
+        hasActiveSubscription: true,
+      },
+    ]);
+
+    const { handleMcpRequest } = await import("@/server/mcp/read-only-mcp");
+    const response = await handleMcpRequest(
+      new Request("https://daylilycatalog.com/api/mcp/server", {
+        body: JSON.stringify({
+          jsonrpc: "2.0",
+          id: 55,
+          method: "tools/call",
+          params: {
+            name: "daylily.search_public_listings",
+            arguments: { sellerSlug: "active" },
+          },
+        }),
+        method: "POST",
+      }),
+    );
+
+    const body = await response.json();
+    const item = body.result.structuredContent.items[0];
+
+    expect(item).toMatchObject({
+      canonicalUrl: "https://daylilycatalog.com/active/orange-daylily",
+      cultivar: {
+        canonicalUrl: "https://daylilycatalog.com/cultivar/orange-daylily",
+        id: "cultivar-1",
+        normalizedName: "orange daylily",
+      },
+      images: [
+        {
+          id: "image-1",
+          updatedAt: "2026-01-02T00:00:00.000Z",
+          url: "https://media.daylilycatalog.com/orange.webp",
+        },
+      ],
+      seller: {
+        slug: "active",
+        title: "Active Garden",
+      },
+    });
+    expect(item).not.toHaveProperty("user");
+    expect(item).not.toHaveProperty("userId");
+    expect(item).not.toHaveProperty("ahsListing");
+    expect(item).not.toHaveProperty("cultivarReference");
+    expect(item).not.toHaveProperty("cultivarReferenceImage");
+    expect(item).not.toHaveProperty("hasActiveSubscription");
+    expect(item.images[0]).not.toHaveProperty("imageAsset");
+    expect(item.cultivar).not.toHaveProperty("imageAssets");
+    expect(item.cultivar).not.toHaveProperty("v2AhsCultivar");
   });
 
   it("gates public MCP point lookups to active public catalogs", async () => {
