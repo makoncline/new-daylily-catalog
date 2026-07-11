@@ -137,7 +137,7 @@ describe("stripe.generateCheckout", () => {
     );
   });
 
-  it("creates a Stripe customer when needed and still applies the trial period", async () => {
+  it("creates a Stripe customer idempotently and still applies the trial period", async () => {
     stripeMocks.customersCreate.mockResolvedValue({
       id: "cus_new",
     });
@@ -150,12 +150,15 @@ describe("stripe.generateCheckout", () => {
 
     await caller.generateCheckout();
 
-    expect(stripeMocks.customersCreate).toHaveBeenCalledWith({
-      email: "new-user@example.com",
-      metadata: {
-        userId: "user-2",
+    expect(stripeMocks.customersCreate).toHaveBeenCalledWith(
+      {
+        email: "new-user@example.com",
+        metadata: {
+          userId: "user-2",
+        },
       },
-    });
+      { idempotencyKey: "customer:user:user-2" },
+    );
     expect(db.user.update).toHaveBeenCalledWith({
       where: { id: "user-2" },
       data: { stripeCustomerId: "cus_new" },

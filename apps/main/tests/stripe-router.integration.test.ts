@@ -80,6 +80,7 @@ describe("stripe router integration", () => {
         expect.objectContaining({
           metadata: { userId: user.id },
         }),
+        { idempotencyKey: `customer:user:${user.id}` },
       );
 
       expect(mockStripeCheckoutSessionsCreate).toHaveBeenCalledWith(
