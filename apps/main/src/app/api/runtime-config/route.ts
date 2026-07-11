@@ -25,6 +25,14 @@ export function GET() {
         : {
             enabled: false,
           },
+      localDataRuntime: process.env.REALISTIC_DATA_RUNTIME_ID
+        ? {
+            mode: "realistic-data",
+            databaseId: process.env.REALISTIC_DATA_RUNTIME_ID,
+          }
+        : process.env.HERMETIC_MODE === "1"
+          ? { mode: "hermetic" }
+          : null,
     },
     {
       headers: {

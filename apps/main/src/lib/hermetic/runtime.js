@@ -63,5 +63,15 @@ export function validateHermeticRuntime(input) {
 }
 
 export function isHermeticMode() {
-  return process.env.HERMETIC_MODE === "1";
+  if (process.env.HERMETIC_MODE !== "1") return false;
+
+  validateHermeticRuntime({
+    nodeEnv: process.env.NODE_ENV,
+    databaseUrl: process.env.DATABASE_URL,
+    appBaseUrl: process.env.APP_BASE_URL,
+    clerkSecretKey: process.env.CLERK_SECRET_KEY,
+    stripeSecretKey: process.env.STRIPE_SECRET_KEY,
+    appRoot: process.cwd(),
+  });
+  return true;
 }

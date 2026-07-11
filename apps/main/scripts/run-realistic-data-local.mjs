@@ -60,6 +60,7 @@ const child = spawn(
       ...process.env,
       APP_BASE_URL: `http://localhost:${localPort}`,
       DATABASE_URL: `file:${databasePath}`,
+      REALISTIC_DATA_RUNTIME_ID: databasePath,
       PUBLIC_SEARCH_INDEX_REFRESH_INTERVAL_SECONDS: "0",
       TURSO_DATABASE_AUTH_TOKEN: "",
       TURSO_EMBEDDED_REPLICA_URL: "",

@@ -75,10 +75,13 @@ describe("runtime config route", () => {
         key: "phc_runtime_key",
         host: "https://eu.i.posthog.com",
       },
+      localDataRuntime: null,
     });
 
     expect(consoleInfoMock).toHaveBeenCalledTimes(1);
-    expect(JSON.parse(consoleInfoMock.mock.calls[0]?.[0] as string)).toMatchObject({
+    expect(
+      JSON.parse(consoleInfoMock.mock.calls[0]?.[0] as string),
+    ).toMatchObject({
       event: "observability_status",
       sentry: {
         enabled: false,

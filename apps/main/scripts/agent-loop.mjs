@@ -6,6 +6,8 @@ import path from "node:path";
 import {
   buildAgentLoopPlan,
   formatDuration,
+  getAgentLoopServerConfig,
+  isExpectedAgentLoopRuntime,
   parseAgentLoopArgs,
 } from "./agent-loop-lib.mjs";
 
@@ -18,6 +20,7 @@ const databasePath = path.join(
   "realistic-data.sqlite",
 );
 const baseURL = process.env.AGENT_ATLAS_BASE_URL ?? "http://localhost:3012";
+const serverConfig = getAgentLoopServerConfig(baseURL, databasePath);
 const options = parseAgentLoopArgs(process.argv.slice(2));
 const timings = [];
 let ownedServer = null;
@@ -56,7 +59,8 @@ async function healthy() {
     const response = await fetch(`${baseURL}/api/runtime-config`, {
       signal: AbortSignal.timeout(5_000),
     });
-    return response.status < 500;
+    if (!response.ok) return false;
+    return isExpectedAgentLoopRuntime(await response.json(), databasePath);
   } catch {
     return false;
   }
@@ -93,7 +97,11 @@ async function ensureServer() {
   console.log(`Starting realistic-data app at ${baseURL}`);
   ownedServer = spawn("pnpm", ["realistic-data:dev"], {
     cwd: appRoot,
-    env: { ...process.env, LOCAL_QUERY_LOGGING: "0" },
+    env: {
+      ...process.env,
+      LOCAL_QUERY_LOGGING: "0",
+      REALISTIC_DATA_LOCAL_PORT: serverConfig.port,
+    },
     stdio: "inherit",
   });
   ownedServer.on("exit", (code) => {

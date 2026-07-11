@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
   buildAgentLoopPlan,
+  getAgentLoopServerConfig,
+  isExpectedAgentLoopRuntime,
   parseAgentLoopArgs,
 } from "../scripts/agent-loop-lib.mjs";
 
@@ -48,5 +50,32 @@ describe("agent loop command planning", () => {
       ["pnpm", ["agent:capture:changed"]],
       ["pnpm", ["agent:build"]],
     ]);
+  });
+
+  it("binds and identifies the configured realistic-data server", () => {
+    expect(
+      getAgentLoopServerConfig("http://localhost:4123", "/tmp/data.sqlite"),
+    ).toEqual({ port: "4123", databaseId: "/tmp/data.sqlite" });
+    expect(() =>
+      getAgentLoopServerConfig("https://example.com", "/tmp/data.sqlite"),
+    ).toThrow("must be a local HTTP URL");
+
+    expect(
+      isExpectedAgentLoopRuntime(
+        {
+          localDataRuntime: {
+            mode: "realistic-data",
+            databaseId: "/tmp/data.sqlite",
+          },
+        },
+        "/tmp/data.sqlite",
+      ),
+    ).toBe(true);
+    expect(
+      isExpectedAgentLoopRuntime(
+        { localDataRuntime: { mode: "hermetic" } },
+        "/tmp/data.sqlite",
+      ),
+    ).toBe(false);
   });
 });

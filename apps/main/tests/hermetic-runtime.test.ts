@@ -1,8 +1,9 @@
 import path from "node:path";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   getHermeticPersona,
   HERMETIC_PERSONAS,
+  isHermeticMode,
   validateHermeticRuntime,
 } from "@/lib/hermetic/runtime";
 
@@ -13,6 +14,10 @@ const safeDatabaseUrl = `file:${path.join(
   ".tmp",
   "hermetic-runtime.sqlite",
 )}`;
+
+afterEach(() => {
+  vi.unstubAllEnvs();
+});
 
 describe("hermetic runtime safety", () => {
   it("accepts only a local test database without live service credentials", () => {
@@ -55,5 +60,16 @@ describe("hermetic runtime safety", () => {
     );
     expect(getHermeticPersona("unknown")).toBeNull();
     expect(getHermeticPersona(undefined)).toBeNull();
+  });
+
+  it("enforces the safety boundary wherever hermetic mode is consumed", () => {
+    vi.stubEnv("HERMETIC_MODE", "1");
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("DATABASE_URL", "libsql://production-database");
+    vi.stubEnv("APP_BASE_URL", "https://daylilycatalog.com");
+
+    expect(() => isHermeticMode()).toThrow(
+      "Hermetic mode cannot run in production.",
+    );
   });
 });

@@ -56,3 +56,30 @@ export function formatDuration(milliseconds) {
     ? `${milliseconds}ms`
     : `${(milliseconds / 1_000).toFixed(1)}s`;
 }
+
+/** @param {string} baseURL @param {string} databaseId */
+export function getAgentLoopServerConfig(baseURL, databaseId) {
+  const url = new URL(baseURL);
+  if (
+    url.protocol !== "http:" ||
+    !["localhost", "127.0.0.1", "::1"].includes(url.hostname)
+  ) {
+    throw new Error("AGENT_ATLAS_BASE_URL must be a local HTTP URL.");
+  }
+  return {
+    port: url.port || "80",
+    databaseId,
+  };
+}
+
+/** @param {unknown} payload @param {string} databaseId */
+export function isExpectedAgentLoopRuntime(payload, databaseId) {
+  if (!payload || typeof payload !== "object") return false;
+  const runtime =
+    /** @type {{ localDataRuntime?: { mode?: unknown; databaseId?: unknown } }} */ (
+      payload
+    ).localDataRuntime;
+  return (
+    runtime?.mode === "realistic-data" && runtime.databaseId === databaseId
+  );
+}
