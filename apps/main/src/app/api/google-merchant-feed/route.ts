@@ -29,7 +29,7 @@ export async function GET(_request: Request) {
 
     const proUserIds = await getProUserIds();
     const where = {
-      price: { not: null },
+      price: { gt: 0 },
       ...shouldShowToPublic(proUserIds),
     };
     const include = {
