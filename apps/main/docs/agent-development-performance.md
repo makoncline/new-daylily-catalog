@@ -30,7 +30,11 @@ The E2E run included two failed 30-second attempts for `listing-image-manager` b
 | Related Vitest for leaf UI change           | 26.47s |                                 4.16s | Keep: 84% less test time; full CI remains            |
 | Agent checks with related tests             |  4.76s |                                 7.10s | Keep: adds integration signal for 2.34s              |
 | Weighted E2E groups                         | 3m 39s |                                 3m 21s | Keep: 8% shorter critical path; all 14 flows passed  |
-| CI ESLint cache                             |    28s |                       28s cold miss | Awaiting a warm-cache measurement                     |
+| CI ESLint cache                             |    28s |                                     2s | Keep: 93% faster while complete lint still runs      |
+| CI quality and unit gate                    | 1m 49s |                                    53s | Keep: 51% faster; 144 files and 491 tests passed     |
+| Local Vitest with four workers              |  68.9s |                                  86.1s | Rejected: slower and still produced a timeout        |
+| Local Vitest thread pool                    |  68.9s |                            Over 2m 30s | Rejected: slower and changed isolation behavior      |
+| CI dependency fetch and install             |      — |                                   5-7s | No change: too small to justify broader caching      |
 
 ## Comparison rules
 
@@ -54,3 +58,9 @@ The PR Docker workflow also demonstrated its warm-cache boundary: run `291418278
 Related Vitest selection was benchmarked with `currency-input.tsx`: two dependent test files completed in 4.16s versus the 26.47s full local suite. Running those tests concurrently with typecheck and lint completed in 7.10s, compared with the previous 4.76s static-check-only loop. A central AHS display source selected 23 files and took 25.8s, so related selection is a leaf-change optimization and signal improvement, not a universal suite replacement.
 
 The first weighted-group verification is GitHub Actions run `29155497470`. All 14 local E2E flows passed without changing their files or assertions. Its complete group jobs finished in 3m 21s, 2m 44s, and 2m 22s, reducing the previous 3m 39s critical path by 18 seconds. The same run established the ESLint cache cold baseline: the cache missed and the complete lint step remained 28 seconds before saving the cache for the next commit.
+
+The warm ESLint cache was verified in GitHub Actions run `29155649263`. The complete lint command still executed and passed in 2s, down from 28s; the combined lint/typecheck/unit job fell from 1m 58s on the cold cache to 1m 25s.
+
+Unit sharding was verified in GitHub Actions run `29156591514`. Vitest's native deterministic two-way sharding split the 144 files into complementary 72-file jobs; both passed, covering all 491 tests. The complete shard jobs finished in 53s and 52s, while the separate cached lint/typecheck job finished in 29s. This reduces the prior 1m 49s combined quality-and-unit critical path to 53s. Dependency fetch plus install consumed only 5-7s per isolated job, so no additional dependency-cache machinery was added.
+
+Local worker tuning was rejected. On the same eight-core machine, the unrestricted suite took 68.9s and experienced contention timeouts, four workers took 86.1s with a timeout, and the thread pool exceeded 2m 30s while changing mock isolation behavior. These experiments did not change test timeouts or assertions and are not part of the retained configuration.
