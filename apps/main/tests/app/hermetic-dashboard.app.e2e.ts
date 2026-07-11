@@ -226,9 +226,12 @@ test("anonymous onboarding persists its draft and reaches the dashboard offline"
   await expect(
     page.getByRole("heading", { name: "Confirm your account email" }),
   ).toBeVisible();
-  await page.getByTestId("anonymous-onboarding-checkout").click();
-
-  await expect(page).toHaveURL(/\/onboarding\/checkout\/success\?session_id=/);
+  await Promise.all([
+    page.waitForURL(/\/onboarding\/checkout\/success\?session_id=/, {
+      timeout: 15_000,
+    }),
+    page.getByTestId("anonymous-onboarding-checkout").click(),
+  ]);
   await page.locator('[data-hermetic-persona="new-unpaid"]').click();
   await expect(page).toHaveURL(/\/dashboard/, { timeout: 15_000 });
   await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible();
