@@ -25,6 +25,7 @@ The E2E run included two failed 30-second attempts for `listing-image-manager` b
 | Three-way isolated E2E CI sharding          | 5m 48s | 2m 24s cold; 2m 41s warm with retries | Keep: all 14 flows passed                          |
 | Complete E2E CI job                         | 7m 43s |              3m 33s cold; 3m 24s warm | Keep: 54-56% faster end to end                     |
 | Playwright Chromium provisioning            | 1m 10s |                 24s cold; 15-25s warm | Keep: browser download skipped on every warm shard |
+| Preview smoke workflow                      | 2m 00s |                               Pending | Browser provisioning alone was 1m 16s              |
 
 ## Comparison rules
 
@@ -38,3 +39,5 @@ The E2E run included two failed 30-second attempts for `listing-image-manager` b
 The cold candidate measurement is GitHub Actions run `29141461230`. Its three shards ran 5, 5, and 4 tests with no retries. The slowest test phase was 2m 24s and the slowest complete shard job was 3m 33s. The unit job failed before the Node 24 follow-up because `realistic-data-snapshot.test.ts` requires the `node:sqlite` built-in that is unavailable under the workflow's previous Node 20 runtime.
 
 The successful warm-cache verification is GitHub Actions run `29141650462`. Lint, Node 24 typecheck, all 485 unit tests, and all 14 E2E flows passed. Chromium installation was skipped on every shard. Shards 1 and 2 each needed one retry, so their 2m 41s and 2m 38s test phases should not be compared as retry-free runs; the slowest complete job still finished in 3m 24s.
+
+The preview-smoke baseline is GitHub Actions run `29141978987`: 2m 00s total, including 1m 16s for `playwright install --with-deps` and 13s for the unchanged preview smoke test. Its candidate replaces only browser provisioning and leaves the smoke test unchanged.
