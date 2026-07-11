@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
+import { e2eCiGroups, validateE2eCiGroups } from "../scripts/e2e-ci-groups.mjs";
 
 const repoRoot = path.resolve(process.cwd(), "../..");
 
@@ -19,14 +20,32 @@ describe("E2E execution infrastructure", () => {
       "utf8",
     );
 
-    expect(workflow).toContain("matrix:\n        shard: [1, 2, 3]");
+    expect(workflow).toContain("matrix:\n        group: [1, 2, 3]");
     expect(workflow.match(/node-version: 24/g)).toHaveLength(2);
-    expect(workflow).toContain("playwright test --shard=${{ matrix.shard }}/3");
+    expect(workflow).toContain(
+      "run-e2e-ci-group.mjs --group=${{ matrix.group }}",
+    );
     expect(workflow).toContain("path: ~/.cache/ms-playwright");
+    expect(workflow).toContain("path: apps/main/local/eslint/.eslintcache");
     expect(previewWorkflow).toContain("node-version: 24");
     expect(previewWorkflow).toContain("path: ~/.cache/ms-playwright");
     expect(previewWorkflow).toContain("playwright install-deps chromium");
     expect(previewWorkflow).not.toContain("playwright install --with-deps");
+    expect(previewWorkflow).toContain(
+      "github.event.deployment_status.creator.login == 'vercel[bot]'",
+    );
+    expect(previewWorkflow).toContain(
+      "github.event.deployment_status.environment_url != ''",
+    );
     expect(globalSetup).toContain('rmSync(path.join(process.cwd(), ".next"');
+  });
+
+  it("assigns every local E2E file to exactly one weighted group", () => {
+    const { assigned, discovered } = validateE2eCiGroups();
+
+    expect(assigned.sort()).toEqual(discovered);
+    expect(Object.values(e2eCiGroups).map((group) => group.length)).toEqual([
+      4, 5, 5,
+    ]);
   });
 });

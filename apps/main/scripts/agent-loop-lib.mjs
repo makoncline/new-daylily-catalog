@@ -45,7 +45,7 @@ export function buildAgentLoopPlan(options) {
     : options.story
       ? [["pnpm", ["agent:capture:story", "--", options.story]]]
       : [["pnpm", ["agent:capture:changed"]]];
-  if (!options.uiOnly) plan.push(["pnpm", ["typecheck"]], ["pnpm", ["lint"]]);
+  if (!options.uiOnly) plan.push(["pnpm", ["agent:checks"]]);
   if (options.build) plan.push(["pnpm", ["agent:build"]]);
   return plan;
 }

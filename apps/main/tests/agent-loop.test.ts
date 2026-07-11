@@ -10,8 +10,7 @@ describe("agent loop command planning", () => {
 
     expect(buildAgentLoopPlan(options)).toEqual([
       ["pnpm", ["agent:capture:changed"]],
-      ["pnpm", ["typecheck"]],
-      ["pnpm", ["lint"]],
+      ["pnpm", ["agent:checks"]],
     ]);
   });
 

@@ -27,6 +27,14 @@ jobs:
       - run: pnpm fetch
       - run: pnpm install --frozen-lockfile --prefer-offline
 
+      - name: Restore ESLint cache
+        uses: actions/cache@v4
+        with:
+          path: apps/main/local/eslint/.eslintcache
+          key: eslint-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}-${{ github.sha }}
+          restore-keys: |
+            eslint-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}-
+
       - name: Lint
         run: pnpm lint
 
@@ -37,7 +45,7 @@ jobs:
         run: pnpm test
 
   e2e:
-    name: E2E Tests (${{ matrix.shard }}/3)
+    name: E2E Tests (group ${{ matrix.group }}/3)
     runs-on: ubuntu-latest
     # Skip E2E on forked PRs (secrets not available)
     if: github.event.pull_request.head.repo.fork != true
@@ -45,7 +53,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        shard: [1, 2, 3]
+        group: [1, 2, 3]
     env:
       SKIP_ENV_VALIDATION: "1"
       DATABASE_URL: "file:./prisma/local-dev.sqlite"
@@ -99,13 +107,13 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y sqlite3
 
       - name: Run E2E tests
-        run: pnpm main exec playwright test --shard=${{ matrix.shard }}/3
+        run: pnpm main exec node scripts/run-e2e-ci-group.mjs --group=${{ matrix.group }}
 
       - name: Upload Playwright artifacts
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: playwright-artifacts-${{ matrix.shard }}-of-3
+          name: playwright-artifacts-${{ matrix.group }}-of-3
           path: |
             apps/main/test-results
             apps/main/playwright-report

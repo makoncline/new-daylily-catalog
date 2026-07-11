@@ -45,7 +45,8 @@
     "agent:build": "node scripts/run-agent-local-build.mjs",
     "agent:baseline:export": "node scripts/agent-atlas-baseline-portability.mjs export",
     "agent:baseline:import": "node scripts/agent-atlas-baseline-portability.mjs import",
-    "agent:checks": "concurrently --kill-others-on-fail --names typecheck,lint \"pnpm typecheck\" \"pnpm lint\"",
+    "agent:test:related": "node scripts/agent-related-tests.mjs",
+    "agent:checks": "concurrently --kill-others-on-fail --names tests,typecheck,lint \"pnpm agent:test:related\" \"pnpm typecheck\" \"pnpm lint\"",
     "agent:verify": "pnpm agent:capture && pnpm agent:compare && pnpm agent:checks",
     "agent:verify:changed": "pnpm agent:capture:changed && pnpm agent:checks",
     "agent:report": "playwright show-report local/agent-atlas/report"
