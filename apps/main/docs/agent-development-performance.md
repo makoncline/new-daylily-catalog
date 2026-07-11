@@ -29,8 +29,8 @@ The E2E run included two failed 30-second attempts for `listing-image-manager` b
 | PR Docker rebuild                           | 5m 33s |                                   20s | Keep: warm cache avoided rebuilding unchanged app    |
 | Related Vitest for leaf UI change           | 26.47s |                                 4.16s | Keep: 84% less test time; full CI remains            |
 | Agent checks with related tests             |  4.76s |                                 7.10s | Keep: adds integration signal for 2.34s              |
-| Weighted E2E groups                         | 3m 39s |                               Pending | Same 14 files; measured groups target about 91s each |
-| CI ESLint cache                             |    28s |                               Pending | Complete lint still runs with content cache restored |
+| Weighted E2E groups                         | 3m 39s |                                 3m 21s | Keep: 8% shorter critical path; all 14 flows passed  |
+| CI ESLint cache                             |    28s |                       28s cold miss | Awaiting a warm-cache measurement                     |
 
 ## Comparison rules
 
@@ -52,3 +52,5 @@ The successful optimized preview smoke is GitHub Actions run `29142175681`: 1m 3
 The PR Docker workflow also demonstrated its warm-cache boundary: run `29141827884` took 5m 33s for the first complete build, while the workflow-only follow-up run `29142069076` completed in 20s without rebuilding the unchanged application.
 
 Related Vitest selection was benchmarked with `currency-input.tsx`: two dependent test files completed in 4.16s versus the 26.47s full local suite. Running those tests concurrently with typecheck and lint completed in 7.10s, compared with the previous 4.76s static-check-only loop. A central AHS display source selected 23 files and took 25.8s, so related selection is a leaf-change optimization and signal improvement, not a universal suite replacement.
+
+The first weighted-group verification is GitHub Actions run `29155497470`. All 14 local E2E flows passed without changing their files or assertions. Its complete group jobs finished in 3m 21s, 2m 44s, and 2m 22s, reducing the previous 3m 39s critical path by 18 seconds. The same run established the ESLint cache cold baseline: the cache missed and the complete lint step remained 28 seconds before saving the cache for the next commit.
