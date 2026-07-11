@@ -18,13 +18,13 @@ The E2E run included two failed 30-second attempts for `listing-image-manager` b
 
 ## Candidate measurements
 
-| Change                                      | Before |  After | Status                                           |
-| ------------------------------------------- | -----: | -----: | ------------------------------------------------ |
-| Run typecheck and lint concurrently         |  8.75s |  4.76s | Keep: 46% faster and both commands passed        |
-| Preserve a separate Next E2E compiler cache |  20.1s |  21.8s | Rejected: complete focused run was not faster    |
-| Three-way isolated E2E CI sharding          | 5m 48s | 2m 24s | Keep: 59% faster test phase; all 14 flows passed |
-| Complete E2E CI job                         | 7m 43s | 3m 33s | Keep: 54% faster end to end                      |
-| Playwright Chromium provisioning            | 1m 10s |    24s | Keep: 66% faster cold; cache-hit run pending     |
+| Change                                      | Before |                                 After | Status                                             |
+| ------------------------------------------- | -----: | ------------------------------------: | -------------------------------------------------- |
+| Run typecheck and lint concurrently         |  8.75s |                                 4.76s | Keep: 46% faster and both commands passed          |
+| Preserve a separate Next E2E compiler cache |  20.1s |                                 21.8s | Rejected: complete focused run was not faster      |
+| Three-way isolated E2E CI sharding          | 5m 48s | 2m 24s cold; 2m 41s warm with retries | Keep: all 14 flows passed                          |
+| Complete E2E CI job                         | 7m 43s |              3m 33s cold; 3m 24s warm | Keep: 54-56% faster end to end                     |
+| Playwright Chromium provisioning            | 1m 10s |                 24s cold; 15-25s warm | Keep: browser download skipped on every warm shard |
 
 ## Comparison rules
 
@@ -35,6 +35,6 @@ The E2E run included two failed 30-second attempts for `listing-image-manager` b
 5. Keep a change only when the improvement repeats or is confirmed by the corresponding GitHub Actions job.
 6. Do not weaken assertions, remove flows, increase timeouts, or replace integration coverage to improve timing.
 
-The first candidate measurement is GitHub Actions run `29141461230`. Its three shards ran 5, 5, and 4 tests with no retries. The slowest test phase was 2m 24s and the slowest complete shard job was 3m 33s. The unit job failed before the Node 24 follow-up because `realistic-data-snapshot.test.ts` requires the `node:sqlite` built-in that is unavailable under the workflow's previous Node 20 runtime.
+The cold candidate measurement is GitHub Actions run `29141461230`. Its three shards ran 5, 5, and 4 tests with no retries. The slowest test phase was 2m 24s and the slowest complete shard job was 3m 33s. The unit job failed before the Node 24 follow-up because `realistic-data-snapshot.test.ts` requires the `node:sqlite` built-in that is unavailable under the workflow's previous Node 20 runtime.
 
-After the Node 24 rerun, record the warm browser-cache duration and require the complete workflow to pass before considering the candidate verified.
+The successful warm-cache verification is GitHub Actions run `29141650462`. Lint, Node 24 typecheck, all 485 unit tests, and all 14 E2E flows passed. Chromium installation was skipped on every shard. Shards 1 and 2 each needed one retry, so their 2m 41s and 2m 38s test phases should not be compared as retry-free runs; the slowest complete job still finished in 3m 24s.
