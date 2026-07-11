@@ -14,6 +14,8 @@ deep operational detail in the linked documents and use this index for routing.
 ## Deployment and Production
 
 - `deploy-vps.md` - VPS Docker deployment, runtime env, and host strategy.
+- `observability-product-research.md` - Sentry, PostHog, Search Console,
+  Ahrefs, and VPS log workflows for product research and production triage.
 - `prod-readonly-dashboard-smoke.md` - read-only production-shaped dashboard
   smoke workflow.
 - `db-backup-readme.md` - database backup workflow.
