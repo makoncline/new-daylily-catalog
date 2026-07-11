@@ -1,5 +1,6 @@
 # Agents
 
+- [2026-07-11] E2E timeout classification versus waits: `test.slow()` only expands a test's failure ceiling and does not delay successful actions. The listing image manager persistence flow can cross the default 30s ceiling, which kills the page and retries the entire flow; keep it slow rather than removing state-based waits or raising individual locator timeouts. Chrome measurements on realistic data showed the row menu itself opens in about 0.5s and stage Clerk transitions in about 3-5s.
 - [2026-07-11] Vitest performance boundary: This 144-file suite is dominated by jsdom/import/database integration work, and local worker/pool tuning made it slower while causing contention timeouts or mock-isolation failures. Keep the default local Vitest configuration; use native isolated CI sharding for cycle-time gains, and do not raise timeouts to make a faster-looking configuration pass.
 
 - [2026-07-11] Preview smoke deployment recursion: Jobs declaring `environment: preview` create GitHub deployment-status records, so a `deployment_status` workflow that filters only by environment can trigger itself and every PR E2E job recursively. Require a successful status created by `vercel[bot]` with a non-empty `environment_url`; keep concurrency cancellation as a backup, not the primary filter.

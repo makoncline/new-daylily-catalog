@@ -35,6 +35,7 @@ The E2E run included two failed 30-second attempts for `listing-image-manager` b
 | Local Vitest with four workers              |  68.9s |                                  86.1s | Rejected: slower and still produced a timeout        |
 | Local Vitest thread pool                    |  68.9s |                            Over 2m 30s | Rejected: slower and changed isolation behavior      |
 | CI dependency fetch and install             |      — |                                   5-7s | No change: too small to justify broader caching      |
+| Image-manager focused E2E                    |  2m 32s |                                  34.8s | Keep: one pass instead of four 30s timeout attempts  |
 
 ## Comparison rules
 
@@ -64,3 +65,5 @@ The warm ESLint cache was verified in GitHub Actions run `29155649263`. The comp
 Unit sharding was verified in GitHub Actions run `29156591514`. Vitest's native deterministic two-way sharding split the 144 files into complementary 72-file jobs; both passed, covering all 491 tests. The complete shard jobs finished in 53s and 52s, while the separate cached lint/typecheck job finished in 29s. This reduces the prior 1m 49s combined quality-and-unit critical path to 53s. Dependency fetch plus install consumed only 5-7s per isolated job, so no additional dependency-cache machinery was added.
 
 Local worker tuning was rejected. On the same eight-core machine, the unrestricted suite took 68.9s and experienced contention timeouts, four workers took 86.1s with a timeout, and the thread pool exceeded 2m 30s while changing mock isolation behavior. These experiments did not change test timeouts or assertions and are not part of the retained configuration.
+
+The E2E wait audit used the realistic-data app with stage Clerk in Chrome. Clerk's email-to-code transition took 4.3s, code-to-dashboard navigation took 2.8s, dashboard readiness took another 1.1s, and a realistic 3,078-listing row-action menu opened in 506ms without a forced click. Those measurements support keeping bounded state waits while avoiding fixed sleeps. The main variance came from `listing-image-manager.e2e.ts`: its complete persistence flow crossed the default 30s test ceiling, causing Playwright to kill the page and replay the whole test. Classifying that existing flow as slow changed no steps or assertions; the focused command then passed on its first attempt in 34.8s end to end instead of failing after four 30s attempts in 2m 32s.

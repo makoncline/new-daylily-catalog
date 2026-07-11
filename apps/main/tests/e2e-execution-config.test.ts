@@ -19,6 +19,13 @@ describe("E2E execution infrastructure", () => {
       path.join(repoRoot, ".github/workflows/e2e-on-preview.yml"),
       "utf8",
     );
+    const imageManagerFlow = fs.readFileSync(
+      path.join(
+        process.cwd(),
+        "tests/e2e/listing-image-manager.e2e.ts",
+      ),
+      "utf8",
+    );
 
     expect(workflow).toContain("matrix:\n        group: [1, 2, 3]");
     expect(workflow).toContain("matrix:\n        shard: [1, 2]");
@@ -42,6 +49,7 @@ describe("E2E execution infrastructure", () => {
       "github.event.deployment_status.environment_url != ''",
     );
     expect(previewWorkflow).toContain("&& 'eligible' || github.run_id");
+    expect(imageManagerFlow).toContain("test.slow()");
     expect(globalSetup).toContain('rmSync(path.join(process.cwd(), ".next"');
   });
 
