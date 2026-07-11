@@ -43,3 +43,11 @@ Important happy paths include:
 Before adding or changing a happy-path E2E test, an agent should exercise the flow with browser use against realistic local data. Chrome, Computer Use, and CDP can reveal understandable labels, real transition timing, console errors, failed requests, and missing UI states. Convert stable observations into semantic locators, state-based waits, page-object actions, and assertions.
 
 Browser exploration discovers behavior; integration tests encode most behavior cheaply; E2E tests prove the crucial complete journeys.
+
+### Hermetic full-app integration tests
+
+`pnpm test:app` is the preferred browser-level integration tier. It starts the
+real application with deterministic personas and SQLite data, blocks all
+non-local network traffic, and exercises flows through visible UI. It is
+faster and more deterministic than connected E2E while retaining the app's
+real frontend/backend boundary. See `docs/hermetic-full-app-tests.md`.

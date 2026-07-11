@@ -1,5 +1,7 @@
 import { captureCheckpoint, expect, test } from "./atlas-test";
 
+const hermetic = process.env.HERMETIC_MODE === "1";
+
 const publicRoutes = [
   [
     "home-page",
@@ -16,7 +18,14 @@ const publicRoutes = [
   ["support-page", "/support", "Support", "Public help and contact surface."],
   ["privacy-page", "/privacy", "Privacy", "Public privacy information."],
   ["terms-page", "/terms", "Terms", "Public terms of service."],
-  ["sign-in-page", "/sign-in", "Sign in", "Clerk-powered account entry state."],
+  [
+    "sign-in-page",
+    "/sign-in",
+    hermetic ? "Choose a local test persona" : "Sign in",
+    hermetic
+      ? "Offline persona entry state."
+      : "Clerk-powered account entry state.",
+  ],
 ] as const;
 
 for (const [name, route, heading, description] of publicRoutes) {
@@ -30,8 +39,14 @@ for (const [name, route, heading, description] of publicRoutes) {
 }
 
 test("catalog search results", async ({ page }, testInfo) => {
-  await page.goto("/rollingoaksdaylilies/search?query=blue");
-  await expect(page.locator("main")).toContainText(/blue/i);
+  await page.goto(
+    hermetic
+      ? "/hermetic-pro-garden/search?query=Daylily"
+      : "/rollingoaksdaylilies/search?query=blue",
+  );
+  await expect(page.locator("main")).toContainText(
+    hermetic ? /Daylily/i : /blue/i,
+  );
   await captureCheckpoint(
     page,
     testInfo,

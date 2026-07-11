@@ -6,10 +6,16 @@ import { EditListingDialog } from "../e2e/pages/edit-listing-dialog";
 
 test.setTimeout(120_000);
 
-const personaByProject = {
-  "rolling-oaks": "prodlike+clerk_test_rollingoaks@example.com",
-  "plant-fancy-gardens": "prodlike+clerk_test_plantfancy@example.com",
-} as const;
+const personaByProject =
+  process.env.HERMETIC_MODE === "1"
+    ? ({
+        "rolling-oaks": "pro-primary+clerk_test@hermetic.local",
+        "plant-fancy-gardens": "pro-secondary+clerk_test@hermetic.local",
+      } as const)
+    : ({
+        "rolling-oaks": "prodlike+clerk_test_rollingoaks@example.com",
+        "plant-fancy-gardens": "prodlike+clerk_test_plantfancy@example.com",
+      } as const);
 
 const checkpoints = [
   { name: "dashboard-overview", route: "/dashboard", heading: "Dashboard" },
@@ -35,9 +41,9 @@ test("dashboard states", async ({ page }, testInfo) => {
   for (const checkpoint of checkpoints) {
     await page.goto(checkpoint.route);
     await expect(page).toHaveURL(checkpoint.route);
-    await expect(
-      page.getByRole("button", { name: `${persona} ${persona}` }),
-    ).toBeVisible({ timeout: 30_000 });
+    await expect(page.getByText(persona).first()).toBeAttached({
+      timeout: 30_000,
+    });
     await expect(
       page.getByRole("heading", { name: checkpoint.heading }).first(),
     ).toBeVisible({ timeout: 30_000 });

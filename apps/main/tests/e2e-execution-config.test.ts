@@ -32,7 +32,11 @@ describe("E2E execution infrastructure", () => {
     expect(workflow).toContain(
       "vitest run --shard=${{ matrix.shard }}/2",
     );
-    expect(workflow.match(/node-version: 24/g)).toHaveLength(3);
+    expect(workflow.match(/node-version: 24/g)).toHaveLength(4);
+    expect(workflow).toContain("run: pnpm test:app");
+    expect(
+      fs.readFileSync(path.join(process.cwd(), "playwright.config.ts"), "utf8"),
+    ).toContain('testIgnore: "app/**"');
     expect(workflow).toContain(
       "run-e2e-ci-group.mjs --group=${{ matrix.group }}",
     );

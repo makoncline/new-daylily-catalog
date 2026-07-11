@@ -27,6 +27,7 @@ export function ensureAtlasAuth() {
     mtimeMs: existsSync(file) ? statSync(file).mtimeMs : 0,
   }));
   const reusable =
+    process.env.HERMETIC_MODE !== "1" &&
     process.env.AGENT_ATLAS_FORCE_AUTH !== "1" &&
     authStateIsFresh(states, Date.now(), freshnessHours * 60 * 60 * 1_000);
   if (reusable) {

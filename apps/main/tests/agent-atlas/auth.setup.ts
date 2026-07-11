@@ -8,16 +8,30 @@ const personas = [
   {
     key: "rolling-oaks",
     email: "prodlike+clerk_test_rollingoaks@example.com",
+    hermeticKey: "pro-primary",
   },
   {
     key: "plant-fancy-gardens",
     email: "prodlike+clerk_test_plantfancy@example.com",
+    hermeticKey: "pro-secondary",
   },
 ] as const;
 
 for (const persona of personas) {
   setup(`authenticate ${persona.key}`, async ({ page }) => {
     await page.goto("/sign-in");
+    if (process.env.HERMETIC_MODE === "1") {
+      await page
+        .locator(`[data-hermetic-persona="${persona.hermeticKey}"]`)
+        .click();
+      await expect(page).toHaveURL(/\/dashboard/);
+      mkdirSync(authDirectory, { recursive: true });
+      await page.context().storageState({
+        path: path.join(authDirectory, `${persona.key}.json`),
+      });
+      return;
+    }
+
     const emailInput = page.getByLabel(/email/i).first();
     await expect(emailInput).toBeVisible();
     await emailInput.fill(persona.email);

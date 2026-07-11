@@ -64,6 +64,7 @@ if (!process.env.BASE_URL) {
 export default defineConfig({
   testDir: "./tests",
   testMatch: "**/*.e2e.{ts,tsx}",
+  testIgnore: "app/**",
   globalSetup: "./e2e/global-setup.ts",
   globalTeardown: "./e2e/global-teardown.ts",
   reporter: [["list"], ["html", { open: "never" }]],

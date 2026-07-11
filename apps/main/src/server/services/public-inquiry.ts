@@ -7,6 +7,8 @@ import { db } from "@/server/db";
 import { getClerkUserData } from "@/server/clerk/sync-user";
 import { isPublished } from "@/server/db/public-visibility/filters";
 import { enforcePublicInquiryRateLimit } from "@/server/services/public-inquiry-rate-limit";
+import { isHermeticMode } from "@/lib/hermetic/runtime.js";
+import { randomUUID } from "node:crypto";
 
 export interface SendPublicInquiryInput {
   userId: string;
@@ -291,6 +293,34 @@ export async function sendPublicInquiry(
 
     const sellerEmailBody = buildSellerEmailBody(context, formattedMessage);
     const customerEmailBody = buildCustomerEmailBody(context, formattedMessage);
+
+    if (isHermeticMode()) {
+      await db.keyValue.createMany({
+        data: [
+          {
+            key: `hermetic:event:email:${randomUUID()}`,
+            value: JSON.stringify({
+              type: "email",
+              audience: "seller",
+              to: context.sellerEmail,
+              subject: "New Customer Inquiry | Daylily Catalog",
+              body: sellerEmailBody,
+            }),
+          },
+          {
+            key: `hermetic:event:email:${randomUUID()}`,
+            value: JSON.stringify({
+              type: "email",
+              audience: "customer",
+              to: context.customerEmail,
+              subject: `We've received your inquiry! | ${context.sellerSubjectName}`,
+              body: customerEmailBody,
+            }),
+          },
+        ],
+      });
+      return { success: true, message: "Message sent successfully" };
+    }
 
     const ses = getSesClient();
 
