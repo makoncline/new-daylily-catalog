@@ -29,7 +29,18 @@
     "test:e2e:attach": "BASE_URL=http://localhost:3000 playwright test",
     "profile:queries": "bash scripts/profile-queries-strategic.sh",
     "db:sync:seed": "bash scripts/sync-seeded-daylily-catalog-from-local.sh",
-    "prod-like:prepare": "node scripts/prepare-prod-like-local-smoke.mjs"
+    "prod-like:prepare": "node scripts/prepare-prod-like-local-smoke.mjs",
+    "realistic-data:prepare": "node scripts/generate-realistic-data-snapshot.mjs",
+    "realistic-data:dev": "node scripts/run-realistic-data-local.mjs",
+    "agent:dev": "pnpm realistic-data:dev",
+    "agent:auth": "playwright test -c playwright.agent-atlas.config.ts --project=auth-setup",
+    "agent:capture": "node scripts/generate-agent-atlas-gallery.mjs --clean && playwright test -c playwright.agent-atlas.config.ts && node scripts/generate-agent-atlas-gallery.mjs",
+    "agent:baseline": "node scripts/agent-atlas-baseline.mjs",
+    "agent:compare": "node scripts/agent-atlas-compare.mjs",
+    "agent:capture:changed": "node scripts/run-agent-atlas-changed.mjs",
+    "agent:verify": "pnpm agent:capture && pnpm agent:compare && pnpm typecheck && pnpm lint",
+    "agent:verify:changed": "pnpm agent:capture:changed && pnpm typecheck && pnpm lint",
+    "agent:report": "playwright show-report local/agent-atlas/report"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.882.0",
