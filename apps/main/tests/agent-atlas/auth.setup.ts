@@ -2,12 +2,7 @@ import { expect, test as setup } from "@playwright/test";
 import { mkdirSync } from "node:fs";
 import path from "node:path";
 
-const authDirectory = path.join(
-  process.cwd(),
-  "local",
-  "agent-atlas",
-  ".auth",
-);
+const authDirectory = path.join(process.cwd(), "local", "agent-atlas", ".auth");
 
 const personas = [
   {
@@ -26,7 +21,10 @@ for (const persona of personas) {
     const emailInput = page.getByLabel(/email/i).first();
     await expect(emailInput).toBeVisible();
     await emailInput.fill(persona.email);
-    await page.getByRole("button", { name: /continue/i }).first().click();
+    await page
+      .getByRole("button", { name: /continue/i })
+      .first()
+      .click();
 
     const codeInput = page
       .getByRole("textbox", { name: /enter verification code/i })
@@ -36,7 +34,10 @@ for (const persona of personas) {
       "You need to send a verification code before attempting to verify.",
     );
     if (await sendCodeWarning.isVisible().catch(() => false)) {
-      await page.getByRole("button", { name: /continue/i }).last().click();
+      await page
+        .getByRole("button", { name: /continue/i })
+        .last()
+        .click();
     }
     await codeInput.type("424242", { delay: 100 });
 

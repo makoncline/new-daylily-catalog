@@ -2,7 +2,9 @@ import { captureCheckpoint, expect, test } from "./atlas-test";
 
 test("catalog directory", async ({ page }, testInfo) => {
   await page.goto("/catalogs");
-  await expect(page.getByRole("heading", { name: "Daylily Catalogs" })).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Daylily Catalogs" }),
+  ).toBeVisible();
   await captureCheckpoint(page, testInfo, "catalog-directory");
 });
 
@@ -38,7 +40,9 @@ test("signed-out onboarding", async ({ page }, testInfo) => {
 
 test("catalog directory @mobile", async ({ page }, testInfo) => {
   await page.goto("/catalogs");
-  await expect(page.getByRole("heading", { name: "Daylily Catalogs" })).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Daylily Catalogs" }),
+  ).toBeVisible();
   await captureCheckpoint(page, testInfo, "catalog-directory-mobile");
 });
 

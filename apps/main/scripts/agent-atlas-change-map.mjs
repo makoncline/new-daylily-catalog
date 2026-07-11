@@ -1,7 +1,7 @@
 export const ATLAS_STORIES = {
   public: {
     grep:
-      "catalog directory|public catalog|representative public listing|signed-out onboarding|home-page|start-membership|support-page|privacy-page|terms-page|sign-in-page|catalog search results",
+      "catalog directory|public catalog|public mobile|representative public listing|signed-out onboarding|home-page|start-membership|support-page|privacy-page|terms-page|sign-in-page|catalog search results",
   },
   onboarding: { grep: "onboarding" },
   "dashboard-base": { grep: "dashboard states" },

@@ -1,6 +1,14 @@
 #!/usr/bin/env node
 
-import { copyFileSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
+import {
+  copyFileSync,
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  readdirSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import path from "node:path";
 import sharp from "sharp";
 
@@ -21,9 +29,20 @@ mkdirSync(assetRoot, { recursive: true });
 async function compareImages(beforePath, afterPath, diffPath) {
   const beforeImage = sharp(beforePath).ensureAlpha();
   const afterImage = sharp(afterPath).ensureAlpha();
-  const [beforeMeta, afterMeta] = await Promise.all([beforeImage.metadata(), afterImage.metadata()]);
-  if (beforeMeta.width !== afterMeta.width || beforeMeta.height !== afterMeta.height) {
-    return { changedPixels: null, totalPixels: null, percent: 100, dimensionsChanged: true };
+  const [beforeMeta, afterMeta] = await Promise.all([
+    beforeImage.metadata(),
+    afterImage.metadata(),
+  ]);
+  if (
+    beforeMeta.width !== afterMeta.width ||
+    beforeMeta.height !== afterMeta.height
+  ) {
+    return {
+      changedPixels: null,
+      totalPixels: null,
+      percent: 100,
+      dimensionsChanged: true,
+    };
   }
   const [{ data: before }, { data: after }] = await Promise.all([
     beforeImage.raw().toBuffer({ resolveWithObject: true }),
@@ -45,7 +64,9 @@ async function compareImages(beforePath, afterPath, diffPath) {
       diff[offset + 2] = 68;
       diff[offset + 3] = 255;
     } else {
-      const gray = Math.round((after[offset] + after[offset + 1] + after[offset + 2]) / 3);
+      const gray = Math.round(
+        (after[offset] + after[offset + 1] + after[offset + 2]) / 3,
+      );
       diff[offset] = gray;
       diff[offset + 1] = gray;
       diff[offset + 2] = gray;
@@ -53,7 +74,9 @@ async function compareImages(beforePath, afterPath, diffPath) {
     }
   }
   const totalPixels = before.length / 4;
-  await sharp(diff, { raw: { width: beforeMeta.width, height: beforeMeta.height, channels: 4 } })
+  await sharp(diff, {
+    raw: { width: beforeMeta.width, height: beforeMeta.height, channels: 4 },
+  })
     .png()
     .toFile(diffPath);
   return {
@@ -65,18 +88,30 @@ async function compareImages(beforePath, afterPath, diffPath) {
 }
 
 function escapeHtml(value) {
-  return String(value).replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;");
+  return String(value)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;");
 }
 
 const results = [];
-for (const file of readdirSync(captures).filter((name) => name.endsWith(".json")).sort()) {
+for (const file of readdirSync(captures)
+  .filter((name) => name.endsWith(".json"))
+  .sort()) {
   const item = JSON.parse(readFileSync(path.join(captures, file), "utf8"));
   const beforePath = path.join(baseline, `${item.key}.png`);
   const afterPath = path.join(captures, `${item.key}.png`);
   if (!existsSync(beforePath)) {
     const afterAsset = `${item.key}-after.png`;
     copyFileSync(afterPath, path.join(assetRoot, afterAsset));
-    results.push({ ...item, status: "new", percent: 100, dimensionsChanged: false, afterAsset });
+    results.push({
+      ...item,
+      status: "new",
+      percent: 100,
+      dimensionsChanged: false,
+      afterAsset,
+    });
     continue;
   }
   const beforeAsset = `${item.key}-before.png`;
@@ -84,7 +119,11 @@ for (const file of readdirSync(captures).filter((name) => name.endsWith(".json")
   const diffAsset = `${item.key}-diff.png`;
   copyFileSync(beforePath, path.join(assetRoot, beforeAsset));
   copyFileSync(afterPath, path.join(assetRoot, afterAsset));
-  const comparison = await compareImages(beforePath, afterPath, path.join(assetRoot, diffAsset));
+  const comparison = await compareImages(
+    beforePath,
+    afterPath,
+    path.join(assetRoot, diffAsset),
+  );
   results.push({
     ...item,
     ...comparison,
@@ -104,21 +143,45 @@ const summary = {
   new: results.filter((item) => item.status === "new").length,
 };
 const payload = { summary, results };
-writeFileSync(path.join(reportRoot, "comparison.json"), `${JSON.stringify(payload, null, 2)}\n`);
+writeFileSync(
+  path.join(reportRoot, "comparison.json"),
+  `${JSON.stringify(payload, null, 2)}\n`,
+);
 writeFileSync(
   path.join(reportRoot, "comparison.md"),
   `# Agent atlas comparison\n\n- Compared: ${summary.compared}\n- Unchanged: ${summary.unchanged}\n- Needs review: ${summary.review}\n- New: ${summary.new}\n- Threshold: ${summary.thresholdPercent}%\n\n${results
     .filter((item) => item.status !== "unchanged")
-    .map((item) => `- **${item.key}**: ${item.status} (${item.percent.toFixed(3)}%)`)
+    .map(
+      (item) =>
+        `- **${item.key}**: ${item.status} (${item.percent.toFixed(3)}%)`,
+    )
     .join("\n")}\n`,
 );
 
 const cards = results
-  .map((item) => `<article class="card ${item.status}"><header><strong>${escapeHtml(item.name)}</strong><span>${item.status} · ${item.percent.toFixed(3)}%</span></header><p>${escapeHtml(item.description ?? item.url)}</p><div class="images">${item.beforeAsset ? `<figure><figcaption>Baseline</figcaption><img src="comparison-assets/${item.beforeAsset}"></figure>` : ""}<figure><figcaption>Current</figcaption><img src="comparison-assets/${item.afterAsset ?? `${item.key}-after.png`}"></figure>${item.diffAsset ? `<figure><figcaption>Difference</figcaption><img src="comparison-assets/${item.diffAsset}"></figure>` : ""}</div></article>`)
+  .map((item) => {
+    const diagnostics = item.diagnostics ?? {
+      consoleErrors: [],
+      pageErrors: [],
+      failedRequests: [],
+    };
+    const diagnosticLines = [
+      ...diagnostics.consoleErrors.map((value) => `Console: ${value}`),
+      ...diagnostics.pageErrors.map((value) => `Page: ${value}`),
+      ...diagnostics.failedRequests.map(
+        (value) => `Request: ${value.method} ${value.url} — ${value.error}`,
+      ),
+    ];
+    return `<article class="card ${item.status}"><header><strong>${escapeHtml(item.name)}</strong><span>${item.status} · ${item.percent.toFixed(3)}%</span></header><p>${escapeHtml(item.description ?? item.url)}</p><p class="meta">${escapeHtml(item.project)} · ${escapeHtml(item.story ?? "unknown story")} · ${escapeHtml(new URL(item.url).pathname)} · ${escapeHtml(item.viewport ? `${item.viewport.width}×${item.viewport.height}` : "viewport unknown")}</p>${diagnosticLines.length ? `<details open><summary>${diagnosticLines.length} browser diagnostics</summary><ul>${diagnosticLines.map((line) => `<li>${escapeHtml(line)}</li>`).join("")}</ul></details>` : ""}<p><strong>Rerun:</strong> <code>${escapeHtml(item.rerunCommand ?? "pnpm agent:capture")}</code></p><div class="images">${item.beforeAsset ? `<figure><figcaption>Baseline</figcaption><img src="comparison-assets/${item.beforeAsset}"></figure>` : ""}<figure><figcaption>Current</figcaption><img src="comparison-assets/${item.afterAsset ?? `${item.key}-after.png`}"></figure>${item.diffAsset ? `<figure><figcaption>Difference</figcaption><img src="comparison-assets/${item.diffAsset}"></figure>` : ""}</div></article>`;
+  })
   .join("\n");
 writeFileSync(
   path.join(reportRoot, "visual-review.html"),
-  `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>Atlas comparison</title><style>body{font:15px system-ui;margin:0;padding:32px;background:#f5f5f2;color:#20231f}main{display:grid;gap:20px}.summary,.card{background:white;border:1px solid #ddd;border-radius:14px;padding:18px}.card.review{border-color:#ef4444}.card.new{border-color:#d97706}header{display:flex;justify-content:space-between;gap:12px}.images{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}figure{margin:0;max-height:440px;overflow:auto;border:1px solid #ddd}figcaption{position:sticky;top:0;background:#20231f;color:white;padding:6px 9px}img{display:block;width:100%}@media(max-width:800px){.images{grid-template-columns:1fr}}</style></head><body><section class="summary"><h1>Atlas comparison</h1><p>${summary.unchanged} unchanged · ${summary.review} need review · ${summary.new} new · ${summary.compared} compared</p></section><main>${cards}</main></body></html>`,
+  `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>Atlas comparison</title><style>body{font:15px system-ui;margin:0;padding:32px;background:#f5f5f2;color:#20231f}main{display:grid;gap:20px}.summary,.card{background:white;border:1px solid #ddd;border-radius:14px;padding:18px}.card.review{border-color:#ef4444}.card.new{border-color:#d97706}header{display:flex;justify-content:space-between;gap:12px}.meta{color:#62685f}code{background:#f0f2ed;padding:4px 7px;border-radius:5px}.images{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}figure{margin:0;max-height:440px;overflow:auto;border:1px solid #ddd}figcaption{position:sticky;top:0;background:#20231f;color:white;padding:6px 9px}img{display:block;width:100%}@media(max-width:800px){.images{grid-template-columns:1fr}}</style></head><body><section class="summary"><h1>Atlas comparison</h1><p>${summary.unchanged} unchanged · ${summary.review} need review · ${summary.new} new · ${summary.compared} compared</p><p>Review changed cards, inspect browser diagnostics, then rerun the shown command or approve intentional changes with <code>pnpm agent:baseline</code>.</p></section><main>${cards}</main></body></html>`,
 );
 console.log(JSON.stringify(summary, null, 2));
-if ((summary.review > 0 || summary.new > 0) && process.env.AGENT_ATLAS_ALLOW_CHANGES !== "1") process.exitCode = 2;
+if (
+  (summary.review > 0 || summary.new > 0) &&
+  process.env.AGENT_ATLAS_ALLOW_CHANGES !== "1"
+)
+  process.exitCode = 2;

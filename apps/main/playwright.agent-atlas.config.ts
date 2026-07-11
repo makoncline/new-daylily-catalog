@@ -9,7 +9,10 @@ export default defineConfig({
   outputDir: path.join(artifactRoot, "test-results"),
   reporter: [
     ["list"],
-    ["html", { open: "never", outputFolder: path.join(artifactRoot, "report") }],
+    [
+      "html",
+      { open: "never", outputFolder: path.join(artifactRoot, "report") },
+    ],
   ],
   retries: 0,
   workers: 1,
@@ -28,7 +31,11 @@ export default defineConfig({
     },
     {
       name: "anonymous-desktop",
-      testMatch: ["public*.atlas.ts", "onboarding.atlas.ts"],
+      testMatch: [
+        "public*.atlas.ts",
+        "onboarding.atlas.ts",
+        "diagnostics.atlas.ts",
+      ],
       grepInvert: /@mobile/,
     },
     {

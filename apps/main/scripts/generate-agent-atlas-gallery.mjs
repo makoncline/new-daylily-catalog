@@ -23,17 +23,26 @@ if (process.argv.includes("--clean")) {
 }
 
 const descriptions = {
-  "catalog-directory": "Production-shaped catalog discovery with active growers and listing counts.",
-  "rolling-oaks-public-catalog": "Large public catalog with thousands of listings and profile media.",
-  "plant-fancy-public-catalog": "Medium public pro catalog used as the second authenticated persona.",
-  "representative-public-listing": "A real copied listing detail page with catalog context and media.",
-  "signed-out-onboarding": "The first-time grower flow as seen by an anonymous visitor.",
-  "catalog-directory-mobile": "Catalog discovery at a touch-friendly mobile viewport.",
-  "rolling-oaks-public-mobile": "The large Rolling Oaks catalog at a mobile viewport.",
+  "catalog-directory":
+    "Production-shaped catalog discovery with active growers and listing counts.",
+  "rolling-oaks-public-catalog":
+    "Large public catalog with thousands of listings and profile media.",
+  "plant-fancy-public-catalog":
+    "Medium public pro catalog used as the second authenticated persona.",
+  "representative-public-listing":
+    "A real copied listing detail page with catalog context and media.",
+  "signed-out-onboarding":
+    "The first-time grower flow as seen by an anonymous visitor.",
+  "catalog-directory-mobile":
+    "Catalog discovery at a touch-friendly mobile viewport.",
+  "rolling-oaks-public-mobile":
+    "The large Rolling Oaks catalog at a mobile viewport.",
   "dashboard-overview": "Authenticated catalog totals and management summary.",
-  "dashboard-listings": "Authenticated listing management using realistic catalog volume.",
+  "dashboard-listings":
+    "Authenticated listing management using realistic catalog volume.",
   "dashboard-lists": "Authenticated list organization and management.",
-  "dashboard-profile": "Authenticated public-profile content and image management.",
+  "dashboard-profile":
+    "Authenticated public-profile content and image management.",
 };
 
 function escapeHtml(value) {
@@ -58,7 +67,9 @@ if (!existsSync(captureDirectory)) {
 mkdirSync(assetDirectory, { recursive: true });
 const items = readdirSync(captureDirectory)
   .filter((file) => file.endsWith(".json"))
-  .map((file) => JSON.parse(readFileSync(path.join(captureDirectory, file), "utf8")))
+  .map((file) =>
+    JSON.parse(readFileSync(path.join(captureDirectory, file), "utf8")),
+  )
   .sort((a, b) => a.key.localeCompare(b.key));
 
 for (const item of items) {
@@ -80,8 +91,12 @@ const cards = items
       descriptions[normalizedName] ??
       "Repeatable application checkpoint.";
     const route = new URL(item.url).pathname;
+    const diagnosticCount = Object.values(item.diagnostics ?? {}).reduce(
+      (total, entries) => total + (Array.isArray(entries) ? entries.length : 0),
+      0,
+    );
     return `
-      <article class="card">
+      <article class="card" data-project="${escapeHtml(item.project)}" data-story="${escapeHtml(item.story ?? "unknown")}">
         <a href="gallery-assets/${escapeHtml(item.key)}.png" target="_blank">
           <img src="gallery-assets/${escapeHtml(item.key)}.png" alt="${escapeHtml(title)} screenshot" loading="lazy">
         </a>
@@ -89,7 +104,8 @@ const cards = items
           <p class="eyebrow">${escapeHtml(persona)}</p>
           <h2>${escapeHtml(title)}</h2>
           <p>${escapeHtml(description)}</p>
-          <code>${escapeHtml(route)}</code>
+          <div class="meta"><code>${escapeHtml(route)}</code><span>${escapeHtml(item.viewport ? `${item.viewport.width}×${item.viewport.height}` : "viewport unknown")}</span><span>${diagnosticCount} diagnostics</span></div>
+          <p class="rerun"><strong>Rerun</strong> <code>${escapeHtml(item.rerunCommand ?? "pnpm agent:capture")}</code></p>
         </div>
       </article>`;
   })
@@ -119,6 +135,8 @@ writeFileSync(
     h2 { margin: 0 0 8px; font-size: 1.25rem; }
     .content > p:not(.eyebrow) { min-height: 44px; margin: 0 0 14px; color: #62685f; line-height: 1.45; }
     code { display: inline-block; max-width: 100%; overflow: hidden; padding: 6px 9px; border-radius: 7px; background: #f0f2ed; color: #465143; text-overflow: ellipsis; white-space: nowrap; }
+    .meta { display:flex; flex-wrap:wrap; gap:8px; align-items:center; color:#62685f; font-size:.8rem; }
+    .rerun { min-height:0!important; margin-top:12px!important; font-size:.8rem; }
     @media (max-width: 600px) { body { padding: 24px 14px; } .grid { grid-template-columns: 1fr; } }
   </style>
 </head>
@@ -132,4 +150,6 @@ writeFileSync(
 </html>`,
 );
 
-console.log(`Generated ${items.length}-image gallery at ${path.join(reportDirectory, "gallery.html")}`);
+console.log(
+  `Generated ${items.length}-image gallery at ${path.join(reportDirectory, "gallery.html")}`,
+);

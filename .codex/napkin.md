@@ -2,6 +2,9 @@
 
 ## Log
 
+- 2026-07-10 - local agent builds need dev keys with production semantics - `pnpm build` from `apps/main` misses repo-root env, while `pnpm env:dev pnpm build` sets a nonstandard development `NODE_ENV` and can fail `_global-error` prerendering. Load development test-service values in a dedicated script, force `NODE_ENV=production`, and blank upload/observability secrets.
+- 2026-07-10 - Next dev single-instance lock - Next 16 refuses a second dev server from the same app directory even on another port. Agent lifecycle tests need the existing server stopped or a separate checkout, and health loops must detect an early child exit instead of waiting for timeout.
+- 2026-07-10 - pnpm script argument separator reaches Node - `pnpm agent:loop -- --ui-only` passes the literal `--` into `process.argv` for this script. CLI parsers used behind package scripts should ignore a standalone separator and cover it with a test.
 - 2026-07-10 - self-miss napkin disclosure recurrence - I announced the napkin skill while beginning an atlas review. Keep napkin use silent even when another skill is being announced; mention only the task-relevant browser or implementation skill.
 - 2026-07-10 - realistic-data catalogs need local active cache - `/catalogs` only includes users whose cached Stripe status is active or trialing. Preserve those copied production states under synthetic local-only Stripe IDs, while only selected personas receive stage Clerk and real Stripe test identities.
 - 2026-07-10 - prod smoke account can use existing subscription visibility - A user without an active Stripe subscription can still manage the dashboard, is excluded from `/catalogs` and the sitemap, and has direct public pages marked `noindex`. Use a permanent synthetic live-Clerk account with fake data and serialized run-owned mutations; use stable public baseline rows instead of asserting immediate public visibility through the lagging replica/cache.

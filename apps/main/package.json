@@ -38,6 +38,12 @@
     "agent:baseline": "node scripts/agent-atlas-baseline.mjs",
     "agent:compare": "node scripts/agent-atlas-compare.mjs",
     "agent:capture:changed": "node scripts/run-agent-atlas-changed.mjs",
+    "agent:capture:story": "node scripts/run-agent-atlas-story.mjs",
+    "agent:loop": "node scripts/agent-loop.mjs",
+    "agent:loop:full": "node scripts/agent-loop.mjs --full",
+    "agent:build": "node scripts/run-agent-local-build.mjs",
+    "agent:baseline:export": "node scripts/agent-atlas-baseline-portability.mjs export",
+    "agent:baseline:import": "node scripts/agent-atlas-baseline-portability.mjs import",
     "agent:verify": "pnpm agent:capture && pnpm agent:compare && pnpm typecheck && pnpm lint",
     "agent:verify:changed": "pnpm agent:capture:changed && pnpm typecheck && pnpm lint",
     "agent:report": "playwright show-report local/agent-atlas/report"

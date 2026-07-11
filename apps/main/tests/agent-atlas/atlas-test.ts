@@ -4,37 +4,49 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
 
 type AtlasFixtures = {
-  diagnostics: void;
+  diagnostics: DiagnosticState;
 };
+
+type DiagnosticState = {
+  consoleErrors: string[];
+  pageErrors: string[];
+  failedRequests: Array<{ method: string; url: string; error: string }>;
+};
+
+const diagnosticsByPage = new WeakMap<Page, DiagnosticState>();
 
 export const test = base.extend<AtlasFixtures>({
   diagnostics: [
     async ({ page }, use, testInfo) => {
-      const consoleErrors: string[] = [];
-      const pageErrors: string[] = [];
-      const failedRequests: Array<{ method: string; url: string; error: string }> =
-        [];
+      const state: DiagnosticState = {
+        consoleErrors: [],
+        pageErrors: [],
+        failedRequests: [],
+      };
+      diagnosticsByPage.set(page, state);
+      await page.emulateMedia({ reducedMotion: "reduce" });
 
       page.on("console", (message) => {
-        if (message.type() === "error") consoleErrors.push(message.text());
+        if (message.type() === "error")
+          state.consoleErrors.push(message.text());
       });
-      page.on("pageerror", (error) => pageErrors.push(error.message));
+      page.on("pageerror", (error) => state.pageErrors.push(error.message));
       page.on("requestfailed", (request) => {
-        failedRequests.push({
+        state.failedRequests.push({
           method: request.method(),
           url: request.url(),
           error: request.failure()?.errorText ?? "unknown failure",
         });
       });
 
-      await use();
+      await use(state);
 
       await testInfo.attach("browser-diagnostics.json", {
-        body: JSON.stringify({ consoleErrors, pageErrors, failedRequests }, null, 2),
+        body: JSON.stringify(state, null, 2),
         contentType: "application/json",
       });
-      expect(pageErrors, "uncaught browser errors").toEqual([]);
-      expect(consoleErrors, "browser console errors").toEqual([]);
+      expect(state.pageErrors, "uncaught browser errors").toEqual([]);
+      expect(state.consoleErrors, "browser console errors").toEqual([]);
     },
     { auto: true },
   ],
@@ -64,14 +76,24 @@ export async function captureCheckpoint(
       ),
       new Promise<void>((resolve) => setTimeout(resolve, 2_000)),
     ]);
+    await Promise.race([
+      Promise.all(
+        document
+          .getAnimations()
+          .map((animation) => animation.finished.catch(() => undefined)),
+      ),
+      new Promise<void>((resolve) => setTimeout(resolve, 1_000)),
+    ]);
   });
   await page.waitForTimeout(300);
   await expect(page.locator("body")).not.toBeEmpty();
-  await expect(
-    page.locator(
-      "[data-nextjs-dialog], .vite-error-overlay, #webpack-dev-server-client-overlay",
-    ),
-  ).toHaveCount(0);
+  if (process.env.AGENT_ATLAS_SIMULATE_FAILURE !== "1") {
+    await expect(
+      page.locator(
+        "[data-nextjs-dialog], .vite-error-overlay, #webpack-dev-server-client-overlay",
+      ),
+    ).toHaveCount(0);
+  }
   const screenshot = await page.screenshot({ fullPage: true });
   const captureDirectory = path.join(
     process.cwd(),
@@ -80,6 +102,21 @@ export async function captureCheckpoint(
     "gallery-captures",
   );
   const captureKey = `${testInfo.project.name}-${name}`;
+  const diagnostics = diagnosticsByPage.get(page) ?? {
+    consoleErrors: [],
+    pageErrors: [],
+    failedRequests: [],
+  };
+  const story = name.includes("onboarding")
+    ? "onboarding"
+    : testInfo.project.name.startsWith("anonymous")
+      ? "public"
+      : name.includes("dialog") ||
+          name.includes("filter") ||
+          name.includes("picker") ||
+          name.includes("tag")
+        ? "dashboard-interactions"
+        : "dashboard-base";
   mkdirSync(captureDirectory, { recursive: true });
   writeFileSync(path.join(captureDirectory, `${captureKey}.png`), screenshot);
   writeFileSync(
@@ -92,6 +129,10 @@ export async function captureCheckpoint(
         project: testInfo.project.name,
         title: await page.title(),
         url: page.url(),
+        viewport: page.viewportSize(),
+        story,
+        diagnostics,
+        rerunCommand: `pnpm agent:capture:story -- ${story}`,
       },
       null,
       2,
