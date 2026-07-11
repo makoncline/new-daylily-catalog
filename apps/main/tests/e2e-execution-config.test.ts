@@ -37,6 +37,7 @@ describe("E2E execution infrastructure", () => {
     expect(previewWorkflow).toContain(
       "github.event.deployment_status.environment_url != ''",
     );
+    expect(previewWorkflow).toContain("&& 'eligible' || github.run_id");
     expect(globalSetup).toContain('rmSync(path.join(process.cwd(), ".next"');
   });
 

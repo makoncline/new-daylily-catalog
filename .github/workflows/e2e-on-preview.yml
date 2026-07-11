@@ -10,7 +10,10 @@ on:
         type: string
 
 concurrency:
-  group: e2e-${{ github.event.deployment.sha || github.event.inputs.commit_sha }}
+  # Only eligible smoke runs share a cancellation key. GitHub creates a workflow
+  # run for every deployment status before evaluating the job-level condition;
+  # give irrelevant events unique keys so they cannot cancel the real Vercel run.
+  group: e2e-${{ github.event.deployment.sha || github.event.inputs.commit_sha }}-${{ (github.event_name == 'workflow_dispatch' || (github.event.deployment_status.state == 'success' && github.event.deployment_status.creator.login == 'vercel[bot]' && github.event.deployment_status.environment_url != '')) && 'eligible' || github.run_id }}
   cancel-in-progress: true
 
 jobs:
