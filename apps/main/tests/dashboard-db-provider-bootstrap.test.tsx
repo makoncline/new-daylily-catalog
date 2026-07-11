@@ -158,6 +158,46 @@ function getBootstrapTestResult(path: string) {
 }
 
 describe("dashboardDb provider bootstrap", () => {
+  it("shows an error when the current user lookup fails", async () => {
+    const failure = new Error("current user lookup failed");
+    const links: TRPCLink<AppRouter>[] = [
+      () =>
+        ({ op }) =>
+          observable((emit) => {
+            emit.error(
+              (op.path === "dashboardDb.user.getCurrentUserId"
+                ? failure
+                : new Error(`Unexpected operation ${op.path}`)) as Parameters<
+                typeof emit.error
+              >[0],
+            );
+          }),
+    ];
+    const trpcClient = api.createClient({ links });
+    const queryClient = getQueryClient();
+    queryClient.setDefaultOptions({ queries: { retry: false } });
+    const { DashboardDbProvider } = await import(
+      "@/app/dashboard/_components/dashboard-db-provider"
+    );
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <api.Provider client={trpcClient} queryClient={queryClient}>
+          <DashboardDbProvider>
+            <DashboardReadyMarker />
+          </DashboardDbProvider>
+        </api.Provider>
+      </QueryClientProvider>,
+    );
+
+    await waitFor(() => {
+      expect(
+        screen.getByText("Unable to load dashboard data"),
+      ).toBeInTheDocument();
+    });
+    expect(screen.queryByTestId("dashboard-ready")).toBeNull();
+  });
+
   it("cold bootstrap fetches each dashboard collection once", async () => {
     await withTempAppDb(async ({ user }) => {
       const { db } = await import("@/server/db");

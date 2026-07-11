@@ -19,6 +19,26 @@ const profileSelect = {
   updatedAt: true,
 } as const;
 
+const reservedProfileSlugs = new Set([
+  "_next",
+  "auth-error",
+  "catalog",
+  "catalogs",
+  "cultivar",
+  "dashboard",
+  "kitchen-sink",
+  "onboarding",
+  "privacy",
+  "sign-in",
+  "sign-up",
+  "start-membership",
+  "start-onboarding",
+  "subscribe",
+  "support",
+  "terms",
+  "users",
+]);
+
 async function checkSlugAvailability(
   db: PrismaClient,
   slug: string | null,
@@ -29,7 +49,10 @@ async function checkSlugAvailability(
   }
 
   const normalizedSlug = slug.toLowerCase();
-  if (!isValidSlug(normalizedSlug)) {
+  if (
+    !isValidSlug(normalizedSlug) ||
+    reservedProfileSlugs.has(normalizedSlug)
+  ) {
     return false;
   }
 

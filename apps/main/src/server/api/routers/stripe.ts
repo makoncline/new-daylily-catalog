@@ -43,12 +43,15 @@ export const stripeRouter = createTRPCRouter({
     }
 
     if (!stripeCustomerId) {
-      const customer = await stripe.customers.create({
-        email: user.clerk?.email,
-        metadata: {
-          userId: user.id,
+      const customer = await stripe.customers.create(
+        {
+          email: user.clerk?.email,
+          metadata: {
+            userId: user.id,
+          },
         },
-      });
+        { idempotencyKey: `customer:user:${user.id}` },
+      );
       stripeCustomerId = customer.id;
 
       await ctx.db.user.update({

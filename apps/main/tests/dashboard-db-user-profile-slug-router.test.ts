@@ -74,6 +74,17 @@ describe("dashboardDb.userProfile slug namespace", () => {
     });
   });
 
+  it("rejects reserved application routes before querying uniqueness", async () => {
+    const db = createMockDb();
+    const caller = createCaller(db);
+
+    await expect(caller.checkSlug({ slug: "dashboard" })).resolves.toEqual({
+      available: false,
+    });
+    expect(db.userProfile.findFirst).not.toHaveBeenCalled();
+    expect(db.user.findFirst).not.toHaveBeenCalled();
+  });
+
   it("does not allow updates to shadow another user's raw id", async () => {
     const db = createMockDb();
     db.userProfile.findFirst.mockResolvedValue(null);

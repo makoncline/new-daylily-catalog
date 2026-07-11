@@ -203,6 +203,15 @@ function useDashboardDbProviderState() {
       return;
     }
 
+    if (isError && !user) {
+      updateDashboardDbState({
+        status: "error",
+        userId: null,
+        isRefreshing: false,
+      });
+      return;
+    }
+
     if (!userId) {
       initializedUserIdRef.current = null;
       resetDashboardRefreshLock();
@@ -224,10 +233,6 @@ function useDashboardDbProviderState() {
         userId: null,
         isRefreshing: false,
       });
-      return;
-    }
-
-    if (isError) {
       return;
     }
 
