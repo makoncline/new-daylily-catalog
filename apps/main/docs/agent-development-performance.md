@@ -18,12 +18,13 @@ The E2E run included two failed 30-second attempts for `listing-image-manager` b
 
 ## Candidate measurements
 
-| Change                                      | Before |   After | Status                                          |
-| ------------------------------------------- | -----: | ------: | ----------------------------------------------- |
-| Run typecheck and lint concurrently         |  8.75s |   4.76s | Keep: 46% faster and both commands passed       |
-| Preserve a separate Next E2E compiler cache |  20.1s |   21.8s | Rejected: complete focused run was not faster   |
-| Three-way isolated E2E CI sharding          | 5m 48s | Pending | Keep experimental until measured in Actions     |
-| Cache Playwright Chromium download          | 1m 10s | Pending | Keep experimental until a cache-hit Actions run |
+| Change                                      | Before |  After | Status                                           |
+| ------------------------------------------- | -----: | -----: | ------------------------------------------------ |
+| Run typecheck and lint concurrently         |  8.75s |  4.76s | Keep: 46% faster and both commands passed        |
+| Preserve a separate Next E2E compiler cache |  20.1s |  21.8s | Rejected: complete focused run was not faster    |
+| Three-way isolated E2E CI sharding          | 5m 48s | 2m 24s | Keep: 59% faster test phase; all 14 flows passed |
+| Complete E2E CI job                         | 7m 43s | 3m 33s | Keep: 54% faster end to end                      |
+| Playwright Chromium provisioning            | 1m 10s |    24s | Keep: 66% faster cold; cache-hit run pending     |
 
 ## Comparison rules
 
@@ -34,4 +35,6 @@ The E2E run included two failed 30-second attempts for `listing-image-manager` b
 5. Keep a change only when the improvement repeats or is confirmed by the corresponding GitHub Actions job.
 6. Do not weaken assertions, remove flows, increase timeouts, or replace integration coverage to improve timing.
 
-After the next CI run, update the pending rows with the workflow, E2E job, and browser-install durations. Revert either candidate if it does not materially improve its complete phase.
+The first candidate measurement is GitHub Actions run `29141461230`. Its three shards ran 5, 5, and 4 tests with no retries. The slowest test phase was 2m 24s and the slowest complete shard job was 3m 33s. The unit job failed before the Node 24 follow-up because `realistic-data-snapshot.test.ts` requires the `node:sqlite` built-in that is unavailable under the workflow's previous Node 20 runtime.
+
+After the Node 24 rerun, record the warm browser-cache duration and require the complete workflow to pass before considering the candidate verified.

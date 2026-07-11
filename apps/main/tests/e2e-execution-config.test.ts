@@ -16,6 +16,7 @@ describe("E2E execution infrastructure", () => {
     );
 
     expect(workflow).toContain("matrix:\n        shard: [1, 2, 3]");
+    expect(workflow.match(/node-version: 24/g)).toHaveLength(2);
     expect(workflow).toContain("playwright test --shard=${{ matrix.shard }}/3");
     expect(workflow).toContain("path: ~/.cache/ms-playwright");
     expect(globalSetup).toContain('rmSync(path.join(process.cwd(), ".next"');
