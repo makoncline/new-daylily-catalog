@@ -167,9 +167,13 @@ test("protected routes and a second persona use the local auth shell", async ({
     ["dashboard-nav-profile", "/dashboard/profile", "Profile"],
     ["dashboard-nav-tags", "/dashboard/tags", "Tags"],
   ] as const) {
-    await page.getByTestId(testId).click();
-    await expect(page).toHaveURL(path);
-    await expect(page.getByRole("heading", { name: heading })).toBeVisible();
+    await Promise.all([
+      page.waitForURL(path, { timeout: 15_000 }),
+      page.getByTestId(testId).click(),
+    ]);
+    await expect(
+      page.getByRole("heading", { name: heading, exact: true }),
+    ).toBeVisible();
   }
 });
 
