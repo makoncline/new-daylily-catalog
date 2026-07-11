@@ -21,7 +21,11 @@ describe("E2E execution infrastructure", () => {
     );
 
     expect(workflow).toContain("matrix:\n        group: [1, 2, 3]");
-    expect(workflow.match(/node-version: 24/g)).toHaveLength(2);
+    expect(workflow).toContain("matrix:\n        shard: [1, 2]");
+    expect(workflow).toContain(
+      "vitest run --shard=${{ matrix.shard }}/2",
+    );
+    expect(workflow.match(/node-version: 24/g)).toHaveLength(3);
     expect(workflow).toContain(
       "run-e2e-ci-group.mjs --group=${{ matrix.group }}",
     );
