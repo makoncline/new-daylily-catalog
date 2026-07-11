@@ -25,7 +25,8 @@ The E2E run included two failed 30-second attempts for `listing-image-manager` b
 | Three-way isolated E2E CI sharding          | 5m 48s | 2m 24s cold; 2m 41s warm with retries | Keep: all 14 flows passed                          |
 | Complete E2E CI job                         | 7m 43s |              3m 33s cold; 3m 24s warm | Keep: 54-56% faster end to end                     |
 | Playwright Chromium provisioning            | 1m 10s |                 24s cold; 15-25s warm | Keep: browser download skipped on every warm shard |
-| Preview smoke workflow                      | 2m 00s |                               Pending | Browser provisioning alone was 1m 16s              |
+| Preview smoke workflow                      | 2m 00s |                                1m 30s | Keep: 25% faster end to end                        |
+| PR Docker rebuild                           | 5m 33s |                                   20s | Keep: warm cache avoided rebuilding unchanged app  |
 
 ## Comparison rules
 
@@ -41,3 +42,7 @@ The cold candidate measurement is GitHub Actions run `29141461230`. Its three sh
 The successful warm-cache verification is GitHub Actions run `29141650462`. Lint, Node 24 typecheck, all 485 unit tests, and all 14 E2E flows passed. Chromium installation was skipped on every shard. Shards 1 and 2 each needed one retry, so their 2m 41s and 2m 38s test phases should not be compared as retry-free runs; the slowest complete job still finished in 3m 24s.
 
 The preview-smoke baseline is GitHub Actions run `29141978987`: 2m 00s total, including 1m 16s for `playwright install --with-deps` and 13s for the unchanged preview smoke test. Its candidate replaces only browser provisioning and leaves the smoke test unchanged.
+
+The successful optimized preview smoke is GitHub Actions run `29142175681`: 1m 30s total. Browser cache restoration plus Chromium system dependencies took 29s, the browser download was skipped, and the unchanged smoke test passed. Its test phase varied to 23s, so the accepted improvement is the complete 30-second workflow reduction rather than a claim about test execution.
+
+The PR Docker workflow also demonstrated its warm-cache boundary: run `29141827884` took 5m 33s for the first complete build, while the workflow-only follow-up run `29142069076` completed in 20s without rebuilding the unchanged application.
