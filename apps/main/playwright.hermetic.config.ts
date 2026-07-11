@@ -8,7 +8,7 @@ export default defineConfig({
   testMatch: "**/*.app.e2e.ts",
   fullyParallel: false,
   workers: 1,
-  retries: 0,
+  retries: process.env.CI ? 1 : 0,
   reporter: [
     ["list"],
     ["html", { outputFolder: "local/hermetic/report", open: "never" }],

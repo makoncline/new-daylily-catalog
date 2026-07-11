@@ -459,7 +459,9 @@ test("pro seller uploads, reorders, and deletes images through local storage", a
   await images.imageDeleteButtonById("hermetic-image-3").click();
   await images.confirmImageDelete();
   await expect(images.imageItemById("hermetic-image-3")).toHaveCount(0);
-  await page.reload();
+  await page.goto(
+    "/dashboard/listings?editing=hermetic-listing-pro-primary-1",
+  );
   await editDialog.isReady();
   await expect(images.imageItems()).toHaveCount(3);
 });
