@@ -120,7 +120,7 @@ describe("google merchant feed route", () => {
     dbMocks.getProUserIds.mockResolvedValue(["user-1"]);
   });
 
-  it("paginates listing queries to stay below database parameter limits", async () => {
+  it("filters non-positive prices while paginating listing queries", async () => {
     const firstPage = Array.from({ length: 200 }, (_, index) =>
       createFeedListing(index + 1),
     );
@@ -143,7 +143,7 @@ describe("google merchant feed route", () => {
       1,
       expect.objectContaining({
         where: {
-          price: { not: null },
+          price: { gt: 0 },
           OR: [{ status: null }, { NOT: { status: "HIDDEN" } }],
           userId: { in: ["user-1"] },
         },
