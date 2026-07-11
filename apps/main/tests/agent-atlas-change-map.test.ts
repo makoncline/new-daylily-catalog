@@ -21,14 +21,24 @@ describe("selectAtlasStories", () => {
         "apps/main/src/app/dashboard/profile/page.tsx",
       ]),
     ).toEqual(["public", "dashboard-base"]);
+
+    expect(
+      selectAtlasStories(["apps/main/src/components/forms/listing-form.tsx"]),
+    ).toEqual(["dashboard-base", "dashboard-interactions"]);
+    expect(
+      selectAtlasStories([
+        "apps/main/src/components/public-catalog-search/public-catalog-search-table.tsx",
+      ]),
+    ).toEqual(["public", "dashboard-base", "dashboard-interactions"]);
+    expect(
+      selectAtlasStories(["apps/main/src/components/public-nav.tsx"]),
+    ).toEqual(["public", "onboarding"]);
   });
 
   test("uses the full atlas for shared or unknown application changes", () => {
     expect(
-      selectAtlasStories(["apps/main/src/components/public-nav.tsx"]),
+      selectAtlasStories(["apps/main/src/components/ui/button.tsx"]),
     ).toEqual(["all"]);
-    expect(selectAtlasStories(["apps/main/src/server/db.ts"])).toEqual([
-      "all",
-    ]);
+    expect(selectAtlasStories(["apps/main/src/server/db.ts"])).toEqual(["all"]);
   });
 });

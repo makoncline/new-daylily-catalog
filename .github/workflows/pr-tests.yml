@@ -37,11 +37,15 @@ jobs:
         run: pnpm test
 
   e2e:
-    name: E2E Tests
+    name: E2E Tests (${{ matrix.shard }}/3)
     runs-on: ubuntu-latest
     # Skip E2E on forked PRs (secrets not available)
     if: github.event.pull_request.head.repo.fork != true
     environment: preview
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3]
     env:
       SKIP_ENV_VALIDATION: "1"
       DATABASE_URL: "file:./prisma/local-dev.sqlite"
@@ -77,20 +81,31 @@ jobs:
       - run: pnpm fetch
       - run: pnpm install --frozen-lockfile --prefer-offline
 
-      - name: Install Playwright browsers
-        run: pnpm main exec playwright install --with-deps
+      - name: Restore Playwright browser cache
+        id: playwright-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-1.55.0
+
+      - name: Install Playwright system dependencies
+        run: pnpm main exec playwright install-deps chromium
+
+      - name: Install Playwright browser
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        run: pnpm main exec playwright install chromium
 
       - name: Install sqlite3
         run: sudo apt-get update && sudo apt-get install -y sqlite3
 
       - name: Run E2E tests
-        run: pnpm test:e2e
+        run: pnpm main exec playwright test --shard=${{ matrix.shard }}/3
 
       - name: Upload Playwright artifacts
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: playwright-artifacts
+          name: playwright-artifacts-${{ matrix.shard }}-of-3
           path: |
             apps/main/test-results
             apps/main/playwright-report

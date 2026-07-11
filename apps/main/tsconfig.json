@@ -12,7 +12,6 @@
     "incremental": true,
 
     /* Path Aliases */
-    "baseUrl": ".",
     "paths": {
       "@/*": ["./src/*"],
       "@/env": ["./src/env.js"]

@@ -11,6 +11,10 @@ import {
 } from "node:fs";
 import path from "node:path";
 import sharp from "sharp";
+import {
+  comparisonIncludes,
+  parseComparisonStories,
+} from "./agent-atlas-compare-selection.mjs";
 
 const appRoot = path.resolve(import.meta.dirname, "..");
 const atlasRoot = path.join(appRoot, "local", "agent-atlas");
@@ -19,6 +23,7 @@ const baseline = path.join(atlasRoot, "baseline");
 const reportRoot = path.join(atlasRoot, "report");
 const assetRoot = path.join(reportRoot, "comparison-assets");
 const threshold = Number(process.env.AGENT_ATLAS_DIFF_PERCENT ?? "0.1");
+const selectedStories = parseComparisonStories(process.argv.slice(2));
 
 if (!existsSync(baseline)) {
   throw new Error("No approved baseline. Run pnpm agent:baseline first.");
@@ -74,15 +79,18 @@ async function compareImages(beforePath, afterPath, diffPath) {
     }
   }
   const totalPixels = before.length / 4;
-  await sharp(diff, {
-    raw: { width: beforeMeta.width, height: beforeMeta.height, channels: 4 },
-  })
-    .png()
-    .toFile(diffPath);
+  const percent = (changedPixels / totalPixels) * 100;
+  if (percent > threshold) {
+    await sharp(diff, {
+      raw: { width: beforeMeta.width, height: beforeMeta.height, channels: 4 },
+    })
+      .png()
+      .toFile(diffPath);
+  }
   return {
     changedPixels,
     totalPixels,
-    percent: (changedPixels / totalPixels) * 100,
+    percent,
     dimensionsChanged: false,
   };
 }
@@ -100,6 +108,7 @@ for (const file of readdirSync(captures)
   .filter((name) => name.endsWith(".json"))
   .sort()) {
   const item = JSON.parse(readFileSync(path.join(captures, file), "utf8"));
+  if (!comparisonIncludes(item, selectedStories)) continue;
   const beforePath = path.join(baseline, `${item.key}.png`);
   const afterPath = path.join(captures, `${item.key}.png`);
   if (!existsSync(beforePath)) {
@@ -130,7 +139,10 @@ for (const file of readdirSync(captures)
     status: comparison.percent > threshold ? "review" : "unchanged",
     beforeAsset,
     afterAsset,
-    diffAsset: comparison.dimensionsChanged ? null : diffAsset,
+    diffAsset:
+      comparison.dimensionsChanged || comparison.percent <= threshold
+        ? null
+        : diffAsset,
   });
 }
 

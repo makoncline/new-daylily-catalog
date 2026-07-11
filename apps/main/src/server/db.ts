@@ -54,7 +54,10 @@ function getLocalSqliteLogConfig() {
     return baseLogs;
   }
 
-  if (env.NODE_ENV === "development") {
+  if (
+    env.NODE_ENV === "development" &&
+    process.env.LOCAL_QUERY_LOGGING !== "0"
+  ) {
     baseLogs.push({ level: "query", emit: "stdout" });
   }
 

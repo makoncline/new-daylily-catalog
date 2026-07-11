@@ -53,7 +53,7 @@ function run(command, args, runOptions = {}) {
 
 async function healthy() {
   try {
-    const response = await fetch(`${baseURL}/catalogs`, {
+    const response = await fetch(`${baseURL}/api/runtime-config`, {
       signal: AbortSignal.timeout(5_000),
     });
     return response.status < 500;
@@ -93,7 +93,7 @@ async function ensureServer() {
   console.log(`Starting realistic-data app at ${baseURL}`);
   ownedServer = spawn("pnpm", ["realistic-data:dev"], {
     cwd: appRoot,
-    env: process.env,
+    env: { ...process.env, LOCAL_QUERY_LOGGING: "0" },
     stdio: "inherit",
   });
   ownedServer.on("exit", (code) => {

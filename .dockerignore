@@ -9,6 +9,7 @@ temp
 temp_pages
 temp_pages_*
 apps/*/.next
+apps/*/Dockerfile
 apps/*/.turbo
 apps/*/coverage
 apps/*/downloads

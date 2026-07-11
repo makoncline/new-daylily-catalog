@@ -68,4 +68,7 @@ export default withSentryConfig(config, {
 
   // Keep source map uploads scoped to the default client files to avoid slower Vercel builds.
   widenClientFileUpload: false,
+  sourcemaps: {
+    disable: process.env.SENTRY_SOURCEMAPS_DISABLED === "1",
+  },
 });

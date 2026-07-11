@@ -2,6 +2,7 @@
 
 import { spawnSync } from "node:child_process";
 import { ATLAS_STORIES } from "./agent-atlas-change-map.mjs";
+import { ensureAtlasAuth } from "./agent-atlas-auth-state.mjs";
 
 const story = process.argv.slice(2).find((argument) => argument !== "--");
 if (!story || !(story in ATLAS_STORIES)) {
@@ -10,6 +11,7 @@ if (!story || !(story in ATLAS_STORIES)) {
   );
 }
 const grep = ATLAS_STORIES[story].grep;
+if (story.startsWith("dashboard")) ensureAtlasAuth();
 for (const [command, args] of [
   [
     "pnpm",
@@ -21,10 +23,11 @@ for (const [command, args] of [
       "playwright.agent-atlas.config.ts",
       "--grep",
       grep,
+      ...(story.startsWith("dashboard") ? ["--no-deps"] : []),
     ],
   ],
   ["node", ["scripts/generate-agent-atlas-gallery.mjs"]],
-  ["node", ["scripts/agent-atlas-compare.mjs"]],
+  ["node", ["scripts/agent-atlas-compare.mjs", "--stories", story]],
 ]) {
   const result = spawnSync(command, args, {
     stdio: "inherit",

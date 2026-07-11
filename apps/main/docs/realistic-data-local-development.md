@@ -88,6 +88,11 @@ Every checkpoint attaches a full-page screenshot and JSON metadata. Every test
 also attaches console errors, uncaught page errors, and failed requests. Failed
 states retain Playwright screenshots, video, and trace files.
 
+Authenticated atlas runs reuse both persona storage states for up to eight
+hours, avoiding repeated Clerk OTP setup. Missing or stale state refreshes both
+personas automatically. Set `AGENT_ATLAS_FORCE_AUTH=1` for an explicit refresh
+or change the bounded window with `AGENT_ATLAS_AUTH_HOURS`.
+
 Open the browsable report with `pnpm agent:report`, or open
 `http://localhost:9323/gallery.html` while that report server is running for the
 single-page screenshot gallery. Artifacts and authentication state stay under
@@ -159,7 +164,11 @@ browser diagnostics, and the exact story rerun command.
 Production builds are opt-in because they are not part of the fast UI loop;
 `--build` uses development test-service keys with production build semantics,
 disables uploads and external observability, and records duration in the same
-timing report.
+timing report. It retains Next's built-in TypeScript check because bypassing it
+did not improve total build wall time in local measurements. The local build is
+bounded to 180 seconds so a stalled Turbopack compiler cannot hold the agent
+loop indefinitely; override that guard with `AGENT_BUILD_TIMEOUT_SECONDS` when
+a deliberately slower build needs more time. Deployment builds are unaffected.
 
 ## Portable visual baselines
 
@@ -203,6 +212,35 @@ Use `agent-loop.json` when changing concurrency or caching. Targeted UI-only
 loops avoid authentication and unrelated stories; full loops intentionally
 authenticate both personas. Keep authenticated dashboard projects serialized
 because they share realistic data and exercise large catalogs.
+
+Changed-file selection keeps known component families narrow: public shell
+changes run public plus onboarding stories, dashboard forms run dashboard
+stories, and shared catalog-search/data-table changes run only their public and
+dashboard consumers. Unknown shared components and UI primitives still select
+the full atlas. The loop probes the lightweight runtime-config endpoint for
+readiness and suppresses routine local Prisma query logging while it owns the
+server; set `LOCAL_QUERY_LOGGING=0` manually when the same quiet development
+output is useful outside the loop.
+
+Targeted story and changed-file runs compare only the stories they captured.
+Pixel detection still scans every selected screenshot, but unchanged states do
+not waste time encoding diff PNGs; difference images are written only for
+states that cross the review threshold. Locally this reduced a clean full
+40-image comparison from about 8.6 seconds to 3.8 seconds and a 13-image public
+comparison to about 2.3 seconds.
+
+The normal `typecheck` uses the pinned TypeScript 7 native compiler (`tsgo`).
+On this checkout it reduced a full non-incremental check from about 9.5 seconds
+to about 1.2 seconds. TypeScript 5.9 remains installed for Next.js and
+typescript-eslint compatibility; use `pnpm typecheck:legacy` when validating a
+compiler discrepancy. Do not replace the 5.9 package until typescript-eslint
+supports TypeScript 7's compiler API.
+
+ESLint uses a content-based cache at
+`local/eslint/.eslintcache`. The first run still checks the full `src` tree;
+repeat runs and ordinary focused changes reuse results for unchanged files. The
+cache is ignored local tooling state and can be deleted safely if ESLint cache
+behavior is ever suspect.
 
 If startup fails, confirm the snapshot exists and stage Clerk/Stripe keys use
 test prefixes. If authentication fails, rerun `pnpm agent:auth`. If a visual

@@ -1,7 +1,6 @@
 export const ATLAS_STORIES = {
   public: {
-    grep:
-      "catalog directory|public catalog|public mobile|representative public listing|signed-out onboarding|home-page|start-membership|support-page|privacy-page|terms-page|sign-in-page|catalog search results",
+    grep: "catalog directory|public catalog|public mobile|representative public listing|signed-out onboarding|home-page|start-membership|support-page|privacy-page|terms-page|sign-in-page|catalog search results",
   },
   onboarding: { grep: "onboarding" },
   "dashboard-base": { grep: "dashboard states" },
@@ -13,6 +12,35 @@ const storyOrder = Object.keys(ATLAS_STORIES);
 /** @param {string} file */
 function storiesForFile(file) {
   const normalized = file.replaceAll("\\", "/");
+
+  if (
+    normalized.includes("/components/public-catalog-search/") ||
+    normalized.includes("/components/data-table/")
+  ) {
+    return ["public", "dashboard-base", "dashboard-interactions"];
+  }
+  if (
+    normalized.includes("/components/forms/") ||
+    /\/components\/(ahs-listing-(display|select)|currency-input|delete-confirm-dialog|image-manager|image-upload|multi-list-select|slug-change-confirm-dialog)\.tsx$/.test(
+      normalized,
+    )
+  ) {
+    return ["dashboard-base", "dashboard-interactions"];
+  }
+  if (
+    /\/components\/(app-sidebar|auth-handler|dashboard-providers|nav-main|nav-secondary|nav-user|posthog-user-identification|stripe-portal-button|webmcp-provider)\.tsx$/.test(
+      normalized,
+    )
+  ) {
+    return ["dashboard-base"];
+  }
+  if (
+    /\/components\/(public-footer|public-nav|public-shell)\.tsx$/.test(
+      normalized,
+    )
+  ) {
+    return ["public", "onboarding"];
+  }
 
   if (
     normalized.includes("/components/") ||
@@ -59,6 +87,9 @@ export function selectAtlasStories(files) {
 export function grepForStories(stories) {
   if (stories.length === 0 || stories.includes("all")) return null;
   return stories
-    .map((story) => ATLAS_STORIES[/** @type {keyof typeof ATLAS_STORIES} */ (story)].grep)
+    .map(
+      (story) =>
+        ATLAS_STORIES[/** @type {keyof typeof ATLAS_STORIES} */ (story)].grep,
+    )
     .join("|");
 }
