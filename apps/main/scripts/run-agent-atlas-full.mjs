@@ -12,6 +12,7 @@ function run(command, args) {
   if (result.status !== 0) process.exit(result.status ?? 1);
 }
 
+process.env.AGENT_ATLAS_RUN_STARTED_AT = String(Date.now());
 run("node", ["scripts/generate-agent-atlas-gallery.mjs", "--clean"]);
 ensureAtlasAuth();
 run("pnpm", [

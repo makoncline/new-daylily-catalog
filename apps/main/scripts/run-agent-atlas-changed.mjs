@@ -54,6 +54,7 @@ if (stories.length === 0) {
 
 const grep = grepForStories(stories);
 console.log(`Changed files select atlas stories: ${stories.join(", ")}`);
+process.env.AGENT_ATLAS_RUN_STARTED_AT = String(Date.now());
 const args = [
   "exec",
   "playwright",

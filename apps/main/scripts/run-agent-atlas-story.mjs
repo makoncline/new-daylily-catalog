@@ -12,6 +12,7 @@ if (!story || !(story in ATLAS_STORIES)) {
 }
 const grep = ATLAS_STORIES[story].grep;
 if (story.startsWith("dashboard")) ensureAtlasAuth();
+process.env.AGENT_ATLAS_RUN_STARTED_AT = String(Date.now());
 for (const [command, args] of [
   [
     "pnpm",

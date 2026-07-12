@@ -13,3 +13,15 @@ export function comparisonIncludes(item, stories) {
     stories === null || (item.story !== undefined && stories.has(item.story))
   );
 }
+
+/**
+ * @param {{ key: string; story?: string }[]} baselineItems
+ * @param {{ key: string }[]} currentRunItems
+ * @param {Set<string> | null} stories
+ */
+export function removedBaselineItems(baselineItems, currentRunItems, stories) {
+  const currentKeys = new Set(currentRunItems.map((item) => item.key));
+  return baselineItems.filter(
+    (item) => comparisonIncludes(item, stories) && !currentKeys.has(item.key),
+  );
+}
