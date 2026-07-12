@@ -17,7 +17,9 @@ overrides:
   minimatch@>=9.0.0 <9.0.7: 9.0.7
   picomatch@<2.3.2: 2.3.2
   picomatch@>=4.0.0 <4.0.4: 4.0.4
-  playwright: 1.55.1
+  '@playwright/test': 1.61.1
+  playwright: 1.61.1
+  playwright-core: 1.61.1
   protobufjs: 7.6.1
   rollup: 4.59.0
   shell-quote: 1.8.4
@@ -378,7 +380,7 @@ importers:
         specifier: ^3.3.1
         version: 3.3.1
       '@playwright/test':
-        specifier: ^1.55.1
+        specifier: 1.61.1
         version: 1.61.1
       '@tailwindcss/postcss':
         specifier: ^4.1.13
@@ -803,7 +805,7 @@ packages:
     resolution: {integrity: sha512-w6HxhMrza3fD6XB0yy7TEHkAERPYYzpQ79bEvW8sJeCPcLIJ7nF/yaDzDpiLdn97yFW4i1YHKJIlD6J7Exi9Tw==}
     engines: {node: '>=18.17.0'}
     peerDependencies:
-      '@playwright/test': ^1
+      '@playwright/test': 1.61.1
       cypress: ^13 || ^14
     peerDependenciesMeta:
       '@playwright/test':
@@ -5722,7 +5724,7 @@ packages:
     hasBin: true
     peerDependencies:
       '@opentelemetry/api': ^1.1.0
-      '@playwright/test': ^1.51.1
+      '@playwright/test': 1.61.1
       babel-plugin-react-compiler: '*'
       react: ^18.2.0 || 19.0.0-rc-de68d2f4-20241204 || ^19.0.0
       react-dom: ^18.2.0 || 19.0.0-rc-de68d2f4-20241204 || ^19.0.0
@@ -5903,13 +5905,13 @@ packages:
   pkg-types@2.3.1:
     resolution: {integrity: sha512-y+ichcgc2LrADuhLNAx8DFjVfgz91pRxfZdI3UDhxHvcVEZsenLO+7XaU5vOp0u/7V/wZ+plyuQxtrDlZJ+yeg==}
 
-  playwright-core@1.55.1:
-    resolution: {integrity: sha512-Z6Mh9mkwX+zxSlHqdr5AOcJnfp+xUWLCt9uKV18fhzA8eyxUd8NUWzAjxUh55RZKSYwDGX0cfaySdhZJGMoJ+w==}
+  playwright-core@1.61.1:
+    resolution: {integrity: sha512-h7Qlt6m4REp25qvIdvbDtVmD4LqVXfpRxhORv9L0jzETM05p4fuPJ3dKyuSXQxDSbXnmS79HAgi9589lGSpLkg==}
     engines: {node: '>=18'}
     hasBin: true
 
-  playwright@1.55.1:
-    resolution: {integrity: sha512-cJW4Xd/G3v5ovXtJJ52MAOclqeac9S/aGGgRzLabuF8TnIb6xHvMzKIa6JmrRzUkeXJgfL1MhukP0NK6l39h3A==}
+  playwright@1.61.1:
+    resolution: {integrity: sha512-DWnY5o3YbLWK4GovuAVwpqL+1VwGNdUGrRr++8j8PtQQzvAVZUIMjKQ90fY689sEJZJBbZVw1rXaOKSTitkzPQ==}
     engines: {node: '>=18'}
     hasBin: true
 
@@ -9008,7 +9010,7 @@ snapshots:
 
   '@playwright/test@1.61.1':
     dependencies:
-      playwright: 1.55.1
+      playwright: 1.61.1
 
   '@posthog/core@1.23.1':
     dependencies:
@@ -13192,11 +13194,11 @@ snapshots:
       exsolve: 1.0.8
       pathe: 2.0.3
 
-  playwright-core@1.55.1: {}
+  playwright-core@1.61.1: {}
 
-  playwright@1.55.1:
+  playwright@1.61.1:
     dependencies:
-      playwright-core: 1.55.1
+      playwright-core: 1.61.1
     optionalDependencies:
       fsevents: 2.3.2
 
