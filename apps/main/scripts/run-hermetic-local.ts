@@ -1,4 +1,5 @@
 import path from "node:path";
+import { pathToFileURL } from "node:url";
 import fs from "node:fs";
 import { spawn, spawnSync } from "node:child_process";
 import type { ChildProcess } from "node:child_process";
@@ -20,6 +21,7 @@ const hermeticEnv: NodeJS.ProcessEnv = {
   NODE_OPTIONS: "",
   RUST_LOG: "info",
   HERMETIC_MODE: "1",
+  HERMETIC_RUNTIME_ID: databasePath,
   LOCAL_QUERY_LOGGING: "0",
   NEXT_PUBLIC_HERMETIC_MODE: "1",
   APP_BASE_URL: appBaseUrl,
@@ -69,6 +71,9 @@ run("pnpm", ["exec", "prisma", "db", "push"]);
 run("node", ["scripts/seed-hermetic-data.ts"]);
 
 console.log(`[hermetic] Starting offline app at ${appBaseUrl}`);
+const networkGuardUrl = pathToFileURL(
+  path.resolve(process.cwd(), "scripts", "integration-network-guard.mjs"),
+).href;
 const child: ChildProcess = spawn(
   "pnpm",
   [
@@ -83,7 +88,10 @@ const child: ChildProcess = spawn(
   ],
   {
     cwd: process.cwd(),
-    env: hermeticEnv,
+    env: {
+      ...hermeticEnv,
+      NODE_OPTIONS: `--import=${networkGuardUrl}`,
+    },
     stdio: "inherit",
   },
 );

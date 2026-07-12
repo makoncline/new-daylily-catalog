@@ -7,13 +7,14 @@ const stories = new Set([
 
 /** @param {string[]} argv */
 export function parseAgentLoopArgs(argv) {
-  /** @type {{ full: boolean; story: string | null; uiOnly: boolean; keepServer: boolean; build: boolean }} */
+  /** @type {{ full: boolean; story: string | null; uiOnly: boolean; keepServer: boolean; build: boolean; realisticData: boolean }} */
   const options = {
     full: false,
     story: null,
     uiOnly: false,
     keepServer: false,
     build: false,
+    realisticData: false,
   };
   for (let index = 0; index < argv.length; index += 1) {
     const argument = argv[index];
@@ -22,6 +23,7 @@ export function parseAgentLoopArgs(argv) {
     else if (argument === "--ui-only") options.uiOnly = true;
     else if (argument === "--keep-server") options.keepServer = true;
     else if (argument === "--build") options.build = true;
+    else if (argument === "--realistic-data") options.realisticData = true;
     else if (argument === "--story") options.story = argv[++index] ?? null;
     else throw new Error(`Unknown agent loop option: ${argument}`);
   }
@@ -86,14 +88,15 @@ export function getAgentLoopServerConfig(baseURL, databaseId) {
   };
 }
 
-/** @param {unknown} payload @param {string} databaseId */
-export function isExpectedAgentLoopRuntime(payload, databaseId) {
+/** @param {unknown} payload @param {{ mode: "hermetic" | "realistic-data"; databaseId: string }} expected */
+export function isExpectedAgentLoopRuntime(payload, expected) {
   if (!payload || typeof payload !== "object") return false;
   const runtime =
     /** @type {{ localDataRuntime?: { mode?: unknown; databaseId?: unknown } }} */ (
       payload
     ).localDataRuntime;
   return (
-    runtime?.mode === "realistic-data" && runtime.databaseId === databaseId
+    runtime?.mode === expected.mode &&
+    runtime.databaseId === expected.databaseId
   );
 }

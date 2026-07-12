@@ -10,11 +10,12 @@ prod-shaped data) and the prod-like Docker smoke process.
 
 ## Commands
 
-- Start the browserable app: `pnpm exec tsx scripts/run-hermetic-local.ts`
-- Run the full browser integration suite: `pnpm exec playwright test -c playwright.hermetic.config.ts`
-- Run one flow: `pnpm main exec playwright test -c playwright.hermetic.config.ts --grep "listing filters"`
-- Capture the Atlas without third parties: `node scripts/run-hermetic-atlas.mjs`
-- Open the report: `pnpm main exec playwright show-report local/hermetic/report`
+- Start the browserable app: `pnpm exec tsx scripts/run-integration-local.ts`
+- Run the full browser integration suite (it owns its server): `pnpm exec playwright test -c playwright.integration.config.ts`
+- Run one flow: `pnpm exec playwright test -c playwright.integration.config.ts --grep "listing filters"`
+- Run one flow against an already-running app: `BASE_URL=http://localhost:3200 pnpm exec playwright test -c playwright.integration.config.ts --grep "listing filters"`
+- Capture the Atlas without third parties: `node scripts/run-integration-atlas.mjs`
+- Open the report: `pnpm exec playwright show-report local/integration/report`
 
 The app defaults to `http://localhost:3200`. The launcher always recreates its
 database under `apps/main/tests/.tmp`, validates the local origin and database,
@@ -52,8 +53,9 @@ prevent unrelated records from being coupled inside one flow.
 - PostHog, Sentry, Telegram, and moderation are disabled unless a scenario
   explicitly provides a local handler.
 
-Every full-app test installs a route gate that throws on non-local HTTP or
-WebSocket traffic and attaches `network-ledger.json` to its result. Unhandled
+Every full-app test installs a browser route gate that throws on non-local HTTP
+or WebSocket traffic and attaches `network-ledger.json` to its result. The
+server process independently blocks non-loopback sockets before DNS. Unhandled
 external requests are test failures, not warnings.
 
 ## Choosing a mode
@@ -72,9 +74,9 @@ integration tests. Add a local adapter only at a true third-party boundary.
 
 On July 11, 2026, the local verification completed with:
 
-- 10 full-app integration flows in 1 minute 42 seconds
+- 10 full-app integration flows in 1 minute 6 seconds
 - 27 active Atlas scenarios producing a 40-image gallery in 1 minute
-- 493 Vitest unit/integration tests in 37 seconds
+- 501 Vitest unit/integration tests in 24 seconds
 - 14 unchanged connected E2E flows in 2 minutes 56 seconds
 - ESLint, native TypeScript, and legacy TypeScript checks passing
 

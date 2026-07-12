@@ -13,15 +13,22 @@ import {
 
 const appRoot = path.resolve(import.meta.dirname, "..");
 const atlasRoot = path.join(appRoot, "local", "agent-atlas");
-const databasePath = path.join(
-  appRoot,
-  "local",
-  "realistic-data",
-  "realistic-data.sqlite",
-);
-const baseURL = process.env.AGENT_ATLAS_BASE_URL ?? "http://localhost:3012";
-const serverConfig = getAgentLoopServerConfig(baseURL, databasePath);
 const options = parseAgentLoopArgs(process.argv.slice(2));
+const runtimeMode = options.realisticData ? "realistic-data" : "hermetic";
+const databasePath = options.realisticData
+  ? path.join(appRoot, "local", "realistic-data", "realistic-data.sqlite")
+  : path.join(appRoot, "tests", ".tmp", "hermetic-local.sqlite");
+const baseURL =
+  process.env.AGENT_ATLAS_BASE_URL ??
+  (options.realisticData ? "http://localhost:3012" : "http://localhost:3200");
+const serverConfig = getAgentLoopServerConfig(baseURL, databasePath);
+const atlasEnv = options.realisticData
+  ? { AGENT_ATLAS_BASE_URL: baseURL }
+  : {
+      AGENT_ATLAS_BASE_URL: baseURL,
+      AGENT_ATLAS_FORCE_AUTH: "1",
+      HERMETIC_MODE: "1",
+    };
 const timings = [];
 let ownedServer = null;
 
@@ -54,15 +61,20 @@ function run(command, args, runOptions = {}) {
   });
 }
 
-async function healthy() {
+async function probeRuntime() {
   try {
     const response = await fetch(`${baseURL}/api/runtime-config`, {
       signal: AbortSignal.timeout(5_000),
     });
-    if (!response.ok) return false;
-    return isExpectedAgentLoopRuntime(await response.json(), databasePath);
+    if (!response.ok) return "absent";
+    return isExpectedAgentLoopRuntime(await response.json(), {
+      mode: runtimeMode,
+      databaseId: databasePath,
+    })
+      ? "match"
+      : "incompatible";
   } catch {
-    return false;
+    return "absent";
   }
 }
 
@@ -74,10 +86,16 @@ async function waitForHealth() {
       (ownedServer.exitCode !== null || ownedServer.signalCode !== null)
     ) {
       throw new Error(
-        `Realistic-data server exited before ${baseURL} became healthy.`,
+        `${runtimeMode} server exited before ${baseURL} became healthy.`,
       );
     }
-    if (await healthy()) return;
+    const runtime = await probeRuntime();
+    if (runtime === "match") return;
+    if (runtime === "incompatible") {
+      throw new Error(
+        `${baseURL} is already serving a different local data runtime. Stop it or choose another AGENT_ATLAS_BASE_URL.`,
+      );
+    }
     await new Promise((resolve) => setTimeout(resolve, 1_000));
   }
   throw new Error(
@@ -86,27 +104,41 @@ async function waitForHealth() {
 }
 
 async function ensureServer() {
-  if (await healthy()) {
+  const runtime = await probeRuntime();
+  if (runtime === "match") {
     console.log(`Reusing healthy local app at ${baseURL}`);
     return;
   }
-  if (!existsSync(databasePath)) {
+  if (runtime === "incompatible") {
+    throw new Error(
+      `${baseURL} is already serving a different local data runtime. Stop it or choose another AGENT_ATLAS_BASE_URL.`,
+    );
+  }
+  if (options.realisticData && !existsSync(databasePath)) {
     console.log("Realistic database is missing; preparing it now.");
     await run("pnpm", ["realistic-data:prepare"]);
   }
-  console.log(`Starting realistic-data app at ${baseURL}`);
-  ownedServer = spawn("pnpm", ["realistic-data:dev"], {
+  console.log(`Starting ${runtimeMode} app at ${baseURL}`);
+  const command = options.realisticData
+    ? ["realistic-data:dev"]
+    : ["exec", "tsx", "scripts/run-integration-local.ts"];
+  ownedServer = spawn("pnpm", command, {
     cwd: appRoot,
     env: {
       ...process.env,
       LOCAL_QUERY_LOGGING: "0",
-      REALISTIC_DATA_LOCAL_PORT: serverConfig.port,
+      ...(options.realisticData
+        ? { REALISTIC_DATA_LOCAL_PORT: serverConfig.port }
+        : {
+            HERMETIC_DB_NAME: path.basename(databasePath),
+            PORT: serverConfig.port,
+          }),
     },
     stdio: "inherit",
   });
   ownedServer.on("exit", (code) => {
     if (code && code !== 0)
-      console.error(`Realistic-data server exited ${code}.`);
+      console.error(`${runtimeMode} server exited ${code}.`);
   });
   await waitForHealth();
 }
@@ -161,8 +193,19 @@ process.on("SIGTERM", () => {
 
 try {
   await ensureServer();
-  for (const [command, args] of buildAgentLoopPlan(options))
-    await run(command, args);
+  const needsInitialBaseline = !existsSync(path.join(atlasRoot, "baseline"));
+  if (needsInitialBaseline && !options.full && !options.story) {
+    console.log(
+      "No local atlas reference exists; capturing the full UI atlas once.",
+    );
+  }
+  const planOptions = needsInitialBaseline
+    ? { ...options, full: true, story: null }
+    : options;
+  for (const [command, args] of buildAgentLoopPlan(planOptions)) {
+    const usesAtlas = args.some((arg) => arg.includes("atlas"));
+    await run(command, args, { env: usesAtlas ? atlasEnv : undefined });
+  }
   writeTimingReport("passed");
 } catch (error) {
   writeTimingReport("failed", error);

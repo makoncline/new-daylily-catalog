@@ -10,6 +10,8 @@ describe("agent loop command planning", () => {
   it("defaults to a targeted UI and static verification loop", () => {
     const options = parseAgentLoopArgs([]);
 
+    expect(options.realisticData).toBe(false);
+
     expect(buildAgentLoopPlan(options)).toEqual([
       ["node", ["scripts/run-agent-atlas-changed.mjs"]],
       [
@@ -53,6 +55,7 @@ describe("agent loop command planning", () => {
 
   it("accepts pnpm's argument separator", () => {
     expect(parseAgentLoopArgs(["--", "--ui-only"]).uiOnly).toBe(true);
+    expect(parseAgentLoopArgs(["--realistic-data"]).realisticData).toBe(true);
   });
 
   it("adds an opt-in production build timing gate", () => {
@@ -80,13 +83,29 @@ describe("agent loop command planning", () => {
             databaseId: "/tmp/data.sqlite",
           },
         },
-        "/tmp/data.sqlite",
+        { mode: "realistic-data", databaseId: "/tmp/data.sqlite" },
       ),
     ).toBe(true);
     expect(
       isExpectedAgentLoopRuntime(
-        { localDataRuntime: { mode: "hermetic" } },
-        "/tmp/data.sqlite",
+        {
+          localDataRuntime: {
+            mode: "hermetic",
+            databaseId: "/tmp/data.sqlite",
+          },
+        },
+        { mode: "realistic-data", databaseId: "/tmp/data.sqlite" },
+      ),
+    ).toBe(false);
+    expect(
+      isExpectedAgentLoopRuntime(
+        {
+          localDataRuntime: {
+            mode: "hermetic",
+            databaseId: "/tmp/other.sqlite",
+          },
+        },
+        { mode: "hermetic", databaseId: "/tmp/data.sqlite" },
       ),
     ).toBe(false);
   });

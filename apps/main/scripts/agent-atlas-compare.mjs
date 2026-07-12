@@ -15,6 +15,7 @@ import {
   comparisonIncludes,
   parseComparisonStories,
 } from "./agent-atlas-compare-selection.mjs";
+import { initializeAtlasBaseline } from "./agent-atlas-baseline-state.mjs";
 
 const appRoot = path.resolve(import.meta.dirname, "..");
 const atlasRoot = path.join(appRoot, "local", "agent-atlas");
@@ -25,9 +26,10 @@ const assetRoot = path.join(reportRoot, "comparison-assets");
 const threshold = Number(process.env.AGENT_ATLAS_DIFF_PERCENT ?? "0.1");
 const selectedStories = parseComparisonStories(process.argv.slice(2));
 
-if (!existsSync(baseline)) {
-  throw new Error(
-    "No approved baseline. Run node scripts/agent-atlas-baseline.mjs first.",
+const baselineInitialized = initializeAtlasBaseline(captures, baseline);
+if (baselineInitialized) {
+  console.log(
+    "Initialized the local atlas reference from the first full capture. Review it before explicitly approving changes.",
   );
 }
 rmSync(assetRoot, { recursive: true, force: true });
@@ -155,6 +157,7 @@ const summary = {
   unchanged: results.filter((item) => item.status === "unchanged").length,
   review: results.filter((item) => item.status === "review").length,
   new: results.filter((item) => item.status === "new").length,
+  baselineInitialized,
 };
 const payload = { summary, results };
 writeFileSync(
@@ -163,7 +166,7 @@ writeFileSync(
 );
 writeFileSync(
   path.join(reportRoot, "comparison.md"),
-  `# Agent atlas comparison\n\n- Compared: ${summary.compared}\n- Unchanged: ${summary.unchanged}\n- Needs review: ${summary.review}\n- New: ${summary.new}\n- Threshold: ${summary.thresholdPercent}%\n\n${results
+  `# Agent atlas comparison\n\n${baselineInitialized ? "> First-run local reference initialized from this full capture. It is not an explicit approval.\n\n" : ""}- Compared: ${summary.compared}\n- Unchanged: ${summary.unchanged}\n- Needs review: ${summary.review}\n- New: ${summary.new}\n- Threshold: ${summary.thresholdPercent}%\n\n${results
     .filter((item) => item.status !== "unchanged")
     .map(
       (item) =>
@@ -191,7 +194,7 @@ const cards = results
   .join("\n");
 writeFileSync(
   path.join(reportRoot, "visual-review.html"),
-  `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>Atlas comparison</title><style>body{font:15px system-ui;margin:0;padding:32px;background:#f5f5f2;color:#20231f}main{display:grid;gap:20px}.summary,.card{background:white;border:1px solid #ddd;border-radius:14px;padding:18px}.card.review{border-color:#ef4444}.card.new{border-color:#d97706}header{display:flex;justify-content:space-between;gap:12px}.meta{color:#62685f}code{background:#f0f2ed;padding:4px 7px;border-radius:5px}.images{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}figure{margin:0;max-height:440px;overflow:auto;border:1px solid #ddd}figcaption{position:sticky;top:0;background:#20231f;color:white;padding:6px 9px}img{display:block;width:100%}@media(max-width:800px){.images{grid-template-columns:1fr}}</style></head><body><section class="summary"><h1>Atlas comparison</h1><p>${summary.unchanged} unchanged · ${summary.review} need review · ${summary.new} new · ${summary.compared} compared</p><p>Review changed cards, inspect browser diagnostics, then rerun the shown command or approve intentional changes with <code>node scripts/agent-atlas-baseline.mjs</code>.</p></section><main>${cards}</main></body></html>`,
+  `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>Atlas comparison</title><style>body{font:15px system-ui;margin:0;padding:32px;background:#f5f5f2;color:#20231f}main{display:grid;gap:20px}.summary,.card{background:white;border:1px solid #ddd;border-radius:14px;padding:18px}.notice{background:#fff7d6;border:1px solid #d97706;border-radius:8px;padding:10px}.card.review{border-color:#ef4444}.card.new{border-color:#d97706}header{display:flex;justify-content:space-between;gap:12px}.meta{color:#62685f}code{background:#f0f2ed;padding:4px 7px;border-radius:5px}.images{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}figure{margin:0;max-height:440px;overflow:auto;border:1px solid #ddd}figcaption{position:sticky;top:0;background:#20231f;color:white;padding:6px 9px}img{display:block;width:100%}@media(max-width:800px){.images{grid-template-columns:1fr}}</style></head><body><section class="summary"><h1>Atlas comparison</h1>${baselineInitialized ? '<p class="notice">First-run local reference initialized from this full capture. Review it before explicitly approving future changes.</p>' : ""}<p>${summary.unchanged} unchanged · ${summary.review} need review · ${summary.new} new · ${summary.compared} compared</p><p>Review changed cards, inspect browser diagnostics, then rerun the shown command or approve intentional changes with <code>node scripts/agent-atlas-baseline.mjs</code>.</p></section><main>${cards}</main></body></html>`,
 );
 console.log(JSON.stringify(summary, null, 2));
 if (

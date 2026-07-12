@@ -100,7 +100,7 @@ jobs:
 
       - name: Run full-app integration tests
         working-directory: apps/main
-        run: pnpm exec playwright test -c playwright.hermetic.config.ts
+        run: pnpm exec playwright test -c playwright.integration.config.ts
 
       - name: Upload full-app integration artifacts
         if: always()
@@ -109,7 +109,7 @@ jobs:
           name: full-app-integration-artifacts
           path: |
             apps/main/test-results
-            apps/main/local/hermetic/report
+            apps/main/local/integration/report
 
   e2e:
     name: E2E Tests (group ${{ matrix.group }}/3)

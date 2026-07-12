@@ -29,7 +29,7 @@ describe("E2E execution infrastructure", () => {
     expect(workflow).toContain("vitest run --shard=${{ matrix.shard }}/2");
     expect(workflow.match(/node-version: 24/g)).toHaveLength(4);
     expect(workflow).toContain(
-      "run: pnpm exec playwright test -c playwright.hermetic.config.ts",
+      "run: pnpm exec playwright test -c playwright.integration.config.ts",
     );
     expect(
       fs.readFileSync(path.join(process.cwd(), "playwright.config.ts"), "utf8"),

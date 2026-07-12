@@ -2,7 +2,7 @@
 
 End-to-end tests live in `tests/e2e/` and use Playwright.
 See `docs/testing-strategy.md` for the boundary between unit, integration, external-network, browser-exploration, and E2E coverage.
-For the offline real-browser integration tier, see `docs/hermetic-full-app-tests.md`.
+For the offline real-browser integration tier, see `docs/full-app-integration.md`.
 
 ## Run
 
