@@ -15,8 +15,7 @@ const activeNavClassName =
 export function PublicHeader() {
   const pathname = usePathname();
   const mobileNavRef = useRef<HTMLDetailsElement>(null);
-  const usesDarkHeroNav =
-    pathname === "/" || pathname === "/start-membership";
+  const usesDarkHeroNav = pathname === "/" || pathname === "/start-membership";
   const isCatalogsActive = pathname === "/catalogs";
   const isGrowersActive =
     pathname === "/start-membership" || pathname.startsWith("/onboarding");
@@ -28,7 +27,7 @@ export function PublicHeader() {
   return (
     <header
       className={cn(
-        "public-header sticky inset-x-0 top-0 z-50 flex min-h-16 w-full items-center border-none bg-transparent px-3 py-2 before:pointer-events-none before:absolute before:inset-x-0 before:top-0 before:-bottom-5 before:z-[-1] before:content-[''] before:backdrop-blur-[5px] before:[mask-image:linear-gradient(to_bottom,#000_0%,#000_calc(100%_-_20px),transparent_100%)] before:[-webkit-mask-image:linear-gradient(to_bottom,#000_0%,#000_calc(100%_-_20px),transparent_100%)] lg:h-20 lg:px-8 lg:py-0",
+        "public-header relative z-50 flex min-h-16 w-full shrink-0 items-center border-none bg-transparent px-3 py-2 before:pointer-events-none before:absolute before:inset-x-0 before:top-0 before:-bottom-5 before:z-[-1] before:[mask-image:linear-gradient(to_bottom,#000_0%,#000_calc(100%_-_20px),transparent_100%)] before:backdrop-blur-[5px] before:content-[''] before:[-webkit-mask-image:linear-gradient(to_bottom,#000_0%,#000_calc(100%_-_20px),transparent_100%)] lg:h-20 lg:px-8 lg:py-0",
         usesDarkHeroNav ? "text-white" : "text-[#142118]",
       )}
     >
