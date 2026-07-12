@@ -12,6 +12,8 @@ Use unit tests for pure logic with meaningful branching: parsers, validation, ca
 
 Most tests should be integration tests. Exercise real components, state management, routers, services, and temporary SQLite databases together whenever practical. Assert observable behavior rather than internal calls.
 
+Integration tests can cover a component, a server flow, or the full application in a browser. “Hermetic” is not another test level; it means the integration test runs offline with deterministic local replacements for external services. `pnpm test:app` is our full-app integration suite: real Next.js, React, tRPC, and SQLite with local Clerk, Stripe, storage, and email boundaries.
+
 Mock only at true system boundaries:
 
 - Use MSW to represent an external HTTP service while keeping the native `fetch` implementation and real application request construction.
@@ -42,12 +44,4 @@ Important happy paths include:
 
 Before adding or changing a happy-path E2E test, an agent should exercise the flow with browser use against realistic local data. Chrome, Computer Use, and CDP can reveal understandable labels, real transition timing, console errors, failed requests, and missing UI states. Convert stable observations into semantic locators, state-based waits, page-object actions, and assertions.
 
-Browser exploration discovers behavior; integration tests encode most behavior cheaply; E2E tests prove the crucial complete journeys.
-
-### Hermetic full-app integration tests
-
-`pnpm test:app` is the preferred browser-level integration tier. It starts the
-real application with deterministic personas and SQLite data, blocks all
-non-local network traffic, and exercises flows through visible UI. It is
-faster and more deterministic than connected E2E while retaining the app's
-real frontend/backend boundary. See `docs/hermetic-full-app-tests.md`.
+Browser exploration discovers behavior; integration tests encode most behavior cheaply; E2E tests prove the crucial complete journeys. See `docs/hermetic-full-app-tests.md` for the offline full-app integration environment.
