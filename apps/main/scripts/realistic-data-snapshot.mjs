@@ -2,6 +2,17 @@ import { copyFileSync, mkdirSync, rmSync } from "node:fs";
 import path from "node:path";
 import { DatabaseSync } from "node:sqlite";
 
+/** @param {{ appRoot: string; configuredPath?: string; cwd?: string }} options */
+export function resolveRealisticDataOutputPath({
+  appRoot,
+  configuredPath,
+  cwd = process.cwd(),
+}) {
+  return configuredPath
+    ? path.resolve(cwd, configuredPath)
+    : path.join(appRoot, "local", "realistic-data", "realistic-data.sqlite");
+}
+
 /**
  * @typedef {object} RealisticDataPersona
  * @property {string} key
@@ -52,13 +63,15 @@ export function generateRealisticDataSnapshot({
   try {
     db.exec("PRAGMA foreign_keys = ON; BEGIN IMMEDIATE;");
     const productionActiveUsers = db
-      .prepare(`
+      .prepare(
+        `
         SELECT User.id AS userId, KeyValue.value AS subscriptionValue
         FROM User
         INNER JOIN KeyValue
           ON KeyValue.key = 'stripe:customer:' || User.stripeCustomerId
         WHERE User.stripeCustomerId IS NOT NULL
-      `)
+      `,
+      )
       .all()
       .flatMap((row) => {
         if (
@@ -158,8 +171,9 @@ export function generateRealisticDataSnapshot({
     throw error;
   }
 
-  const userCount = db.prepare("SELECT COUNT(*) AS count FROM User").get()
-    ?.count;
+  const userCount = db
+    .prepare("SELECT COUNT(*) AS count FROM User")
+    .get()?.count;
   const listingCount = db
     .prepare("SELECT COUNT(*) AS count FROM Listing")
     .get()?.count;

@@ -4,7 +4,10 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { describe, expect, test } from "vitest";
 
-import { generateRealisticDataSnapshot } from "../scripts/realistic-data-snapshot.mjs";
+import {
+  generateRealisticDataSnapshot,
+  resolveRealisticDataOutputPath,
+} from "../scripts/realistic-data-snapshot.mjs";
 
 function createSourceDatabase(databasePath: string) {
   const db = new DatabaseSync(databasePath);
@@ -53,6 +56,18 @@ function createSourceDatabase(databasePath: string) {
 }
 
 describe("generateRealisticDataSnapshot", () => {
+  test("resolves one output path for preparation and launch", () => {
+    expect(
+      resolveRealisticDataOutputPath({
+        appRoot: "/app",
+        configuredPath: "custom/snapshot.sqlite",
+        cwd: "/workspace",
+      }),
+    ).toBe("/workspace/custom/snapshot.sqlite");
+    expect(resolveRealisticDataOutputPath({ appRoot: "/app" })).toBe(
+      "/app/local/realistic-data/realistic-data.sqlite",
+    );
+  });
   test("keeps realistic data while replacing every production identity binding", () => {
     const directory = mkdtempSync(
       path.join(tmpdir(), "realistic-data-snapshot-"),

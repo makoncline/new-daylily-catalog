@@ -8,12 +8,14 @@ import path from "node:path";
 import Stripe from "stripe";
 
 import { REALISTIC_DATA_PERSONAS } from "./realistic-data-personas.mjs";
-import { generateRealisticDataSnapshot } from "./realistic-data-snapshot.mjs";
+import {
+  generateRealisticDataSnapshot,
+  resolveRealisticDataOutputPath,
+} from "./realistic-data-snapshot.mjs";
 
 const appRoot = path.resolve(import.meta.dirname, "..");
 const repoRoot = path.resolve(appRoot, "../..");
 const outputDirectory = path.join(appRoot, "local", "realistic-data");
-const defaultOutputPath = path.join(outputDirectory, "realistic-data.sqlite");
 const defaultManifestPath = path.join(outputDirectory, "personas.json");
 const sourceCandidates = [
   path.join(appRoot, "prisma", "local-prod-copy-daylily-catalog.db"),
@@ -38,7 +40,9 @@ for (const envPath of [
 function requireTestKey(name, prefix) {
   const value = process.env[name] ?? "";
   if (!value.startsWith(prefix)) {
-    throw new Error(`${name} must be a test-mode key beginning with ${prefix}.`);
+    throw new Error(
+      `${name} must be a test-mode key beginning with ${prefix}.`,
+    );
   }
   return value;
 }
@@ -47,7 +51,9 @@ function resolveSourcePath() {
   if (process.env.REALISTIC_DATA_SOURCE_DB_PATH) {
     return path.resolve(process.env.REALISTIC_DATA_SOURCE_DB_PATH);
   }
-  const sourcePath = sourceCandidates.find((candidate) => existsSync(candidate));
+  const sourcePath = sourceCandidates.find((candidate) =>
+    existsSync(candidate),
+  );
   if (!sourcePath) {
     throw new Error(
       "No production snapshot found. Set REALISTIC_DATA_SOURCE_DB_PATH or create local-prod-copy-daylily-catalog.db.",
@@ -109,9 +115,10 @@ async function main() {
   requireTestKey("NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY", "pk_test_");
   const stripeSecretKey = requireTestKey("STRIPE_SECRET_KEY", "sk_test_");
   const sourcePath = resolveSourcePath();
-  const outputPath = process.env.REALISTIC_DATA_OUTPUT_DB_PATH
-    ? path.resolve(process.env.REALISTIC_DATA_OUTPUT_DB_PATH)
-    : defaultOutputPath;
+  const outputPath = resolveRealisticDataOutputPath({
+    appRoot,
+    configuredPath: process.env.REALISTIC_DATA_OUTPUT_DB_PATH,
+  });
 
   const clerk = createClerkClient({ secretKey: clerkSecretKey });
   const stripe = new Stripe(stripeSecretKey, {

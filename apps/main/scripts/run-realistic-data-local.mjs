@@ -4,15 +4,10 @@ import { spawn } from "node:child_process";
 import * as dotenv from "dotenv";
 import { existsSync } from "node:fs";
 import path from "node:path";
+import { resolveRealisticDataOutputPath } from "./realistic-data-snapshot.mjs";
 
 const appRoot = path.resolve(import.meta.dirname, "..");
 const repoRoot = path.resolve(appRoot, "../..");
-const databasePath = path.join(
-  appRoot,
-  "local",
-  "realistic-data",
-  "realistic-data.sqlite",
-);
 const localPort = process.env.REALISTIC_DATA_LOCAL_PORT ?? "3012";
 
 for (const envPath of [
@@ -21,6 +16,10 @@ for (const envPath of [
 ]) {
   if (existsSync(envPath)) dotenv.config({ path: envPath, quiet: true });
 }
+const databasePath = resolveRealisticDataOutputPath({
+  appRoot,
+  configuredPath: process.env.REALISTIC_DATA_OUTPUT_DB_PATH,
+});
 
 function assertTestEnvironment() {
   const requiredPrefixes = [

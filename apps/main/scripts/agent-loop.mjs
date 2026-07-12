@@ -10,13 +10,17 @@ import {
   isExpectedAgentLoopRuntime,
   parseAgentLoopArgs,
 } from "./agent-loop-lib.mjs";
+import { resolveRealisticDataOutputPath } from "./realistic-data-snapshot.mjs";
 
 const appRoot = path.resolve(import.meta.dirname, "..");
 const atlasRoot = path.join(appRoot, "local", "agent-atlas");
 const options = parseAgentLoopArgs(process.argv.slice(2));
 const runtimeMode = options.realisticData ? "realistic-data" : "hermetic";
 const databasePath = options.realisticData
-  ? path.join(appRoot, "local", "realistic-data", "realistic-data.sqlite")
+  ? resolveRealisticDataOutputPath({
+      appRoot,
+      configuredPath: process.env.REALISTIC_DATA_OUTPUT_DB_PATH,
+    })
   : path.join(appRoot, "tests", ".tmp", "hermetic-local.sqlite");
 const baseURL =
   process.env.AGENT_ATLAS_BASE_URL ??
