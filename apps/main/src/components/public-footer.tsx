@@ -6,13 +6,12 @@ import { usePathname } from "next/navigation";
 
 export function PublicFooter() {
   const pathname = usePathname();
-  const usesDarkHeroFooter =
-    pathname === "/" || pathname === "/start-membership";
+  const usesDarkHeroFooter = pathname === "/start-membership";
 
   return (
     <footer
       className={cn(
-        "fixed inset-x-0 bottom-0 z-50 w-full bg-transparent before:pointer-events-none before:absolute before:inset-x-0 before:-top-5 before:bottom-0 before:z-[-1] before:content-[''] before:backdrop-blur-[5px] before:[mask-image:linear-gradient(to_bottom,transparent_0%,#000_20px,#000_100%)] before:[-webkit-mask-image:linear-gradient(to_bottom,transparent_0%,#000_20px,#000_100%)]",
+        "relative z-50 -mt-[calc(1.25rem+env(safe-area-inset-bottom))] w-full shrink-0 bg-transparent before:pointer-events-none before:absolute before:inset-x-0 before:-top-5 before:bottom-0 before:z-[-1] before:[mask-image:linear-gradient(to_bottom,transparent_0%,#000_20px,#000_100%)] before:backdrop-blur-[5px] before:content-[''] before:[-webkit-mask-image:linear-gradient(to_bottom,transparent_0%,#000_20px,#000_100%)]",
         usesDarkHeroFooter ? "text-white" : "text-[#142118]",
       )}
     >

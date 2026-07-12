@@ -146,7 +146,7 @@ export default async function StartMembershipPage() {
   const membershipPriceDisplay = await getMembershipPriceDisplay();
 
   return (
-    <div className="-mt-16 min-h-svh overflow-hidden lg:-mt-20">
+    <div className="min-h-svh overflow-hidden">
       <SellerLandingViewTracker />
 
       <script

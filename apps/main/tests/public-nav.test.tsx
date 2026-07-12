@@ -23,6 +23,10 @@ describe("PublicHeader", () => {
     const growersLinks = screen.getAllByRole("link", { name: "For growers" });
 
     expect(screen.getByRole("banner")).toBeInTheDocument();
+    expect(screen.getByRole("banner")).not.toHaveClass("sticky");
+    expect(screen.getByRole("banner")).toHaveClass(
+      "before:backdrop-blur-[5px]",
+    );
     expect(catalogsLinks).toHaveLength(2);
     expect(
       catalogsLinks.every(
@@ -61,6 +65,7 @@ describe("PublicHeader", () => {
     render(<PublicHeader />);
 
     expect(screen.getByRole("banner")).toHaveClass("text-white");
+    expect(screen.getByRole("banner")).not.toHaveClass("bg-[#07120e]");
     expect(screen.getByRole("button", { name: "Dashboard" })).toHaveClass(
       "text-white",
     );

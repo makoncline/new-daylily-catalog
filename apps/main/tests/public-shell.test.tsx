@@ -1,6 +1,12 @@
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 
+const navigationState = vi.hoisted(() => ({ pathname: "/" }));
+
+vi.mock("next/navigation", () => ({
+  usePathname: () => navigationState.pathname,
+}));
+
 vi.mock("@/components/public-nav", () => ({
   PublicHeader: () => <header>Public header</header>,
 }));
@@ -25,6 +31,27 @@ describe("PublicShell", () => {
     expect(skipLink).toHaveAttribute("href", "#main-content");
     const main = screen.getByRole("main");
     expect(main).toHaveAttribute("id", "main-content");
+    expect(main).toHaveClass("-mt-16", "lg:-mt-20");
+    expect(main).not.toHaveClass("pt-16");
     expect(screen.getByText("Public page content")).toBeVisible();
+    expect(main.parentElement).toHaveClass("bg-[#f1f4ec]");
+  });
+
+  it("uses the dark page background on the grower landing page", () => {
+    navigationState.pathname = "/start-membership";
+
+    render(<PublicShell>Membership</PublicShell>);
+
+    expect(screen.getByRole("main").parentElement).toHaveClass("bg-[#07120e]");
+    expect(screen.getByRole("main")).toHaveClass("-mt-16", "lg:-mt-20");
+  });
+
+  it("uses the light page background away from dark landing pages", () => {
+    navigationState.pathname = "/catalogs";
+
+    render(<PublicShell>Catalogs</PublicShell>);
+
+    expect(screen.getByRole("main").parentElement).toHaveClass("bg-[#f6f8f3]");
+    expect(screen.getByRole("main")).not.toHaveClass("-mt-16", "lg:-mt-20");
   });
 });

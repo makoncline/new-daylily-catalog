@@ -215,7 +215,7 @@ function LandingVariantTwoWithCatalogs({
     .slice(0, 6);
 
   return (
-    <div className="mx-auto -mt-16 overflow-hidden bg-[#07120e] text-white lg:-mt-20">
+    <div className="mx-auto overflow-hidden bg-[#07120e] text-white">
       <HomeHeroSection />
 
       <BuyerTestimonialsSection />
