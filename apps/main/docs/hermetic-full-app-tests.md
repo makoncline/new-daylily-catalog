@@ -1,6 +1,6 @@
-# Hermetic full-app development and tests
+# Full-app integration development and tests
 
-Hermetic mode runs the real Next.js application completely offline. It uses
+Full-app integration runs the real Next.js application completely offline. It uses
 the real React UI, navigation, tRPC routes, application services, and a fresh
 temporary SQLite database. Only third-party boundaries are replaced locally.
 
@@ -33,14 +33,14 @@ Open `/sign-in` and select a persona. No OTP is required.
 - `profile-editor`: isolated profile mutation records
 - `checkout-unpaid`: isolated upgrade/checkout records
 
-Each browser scenario resets the database through a hermetic-only route before
+Each browser scenario resets the database through an integration-only route before
 it starts. Purpose-specific personas also make a scenario's intent obvious and
 prevent unrelated records from being coupled inside one flow.
 
 ## Local boundaries
 
 - Clerk imports resolve to local client/server adapters only in the guarded
-  hermetic process. Normal builds still resolve the real Clerk packages.
+  integration process. Normal builds still resolve the real Clerk packages.
 - Stripe prices, customers, checkout, portal, and subscription states use the
   local simulator. `/hermetic/stripe/checkout` is never available normally.
 - Browser image uploads PUT to `/api/hermetic/images/*` and persist under the
@@ -58,7 +58,7 @@ external requests are test failures, not warnings.
 
 ## Choosing a mode
 
-- Use hermetic mode for most code/UI iteration, agent browser navigation,
+- Use the integration environment for most code/UI iteration, agent browser navigation,
   screenshots, and happy-path integration coverage.
 - Use `realistic-data:dev` when production-shaped scale or stage Clerk/Stripe
   behavior matters.
@@ -66,13 +66,13 @@ external requests are test failures, not warnings.
   signed provider protocol, and deploy-preview checks.
 
 Do not mock the app's tRPC/API routes, database, components, or navigation in
-hermetic tests. Add a local adapter only at a true third-party boundary.
+integration tests. Add a local adapter only at a true third-party boundary.
 
 ## Verified baseline
 
 On July 11, 2026, the local verification completed with:
 
-- 10 hermetic full-app flows in 1 minute 42 seconds
+- 10 full-app integration flows in 1 minute 42 seconds
 - 27 active Atlas scenarios producing a 40-image gallery in 1 minute
 - 493 Vitest unit/integration tests in 37 seconds
 - 14 unchanged connected E2E flows in 2 minutes 56 seconds
