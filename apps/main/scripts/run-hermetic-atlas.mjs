@@ -12,7 +12,7 @@ const env = {
   AGENT_ATLAS_FORCE_AUTH: "1",
 };
 
-const server = spawn("pnpm", ["hermetic:dev"], {
+const server = spawn("pnpm", ["exec", "tsx", "scripts/run-hermetic-local.ts"], {
   cwd: process.cwd(),
   env,
   stdio: "inherit",

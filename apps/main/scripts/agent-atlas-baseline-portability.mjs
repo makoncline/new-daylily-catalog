@@ -37,7 +37,9 @@ if (isCli) {
   if (action === "export") {
     const manifestPath = path.join(baselineRoot, "baseline.json");
     if (!existsSync(manifestPath))
-      throw new Error("No baseline manifest. Run pnpm agent:baseline first.");
+      throw new Error(
+        "No baseline manifest. Run node scripts/agent-atlas-baseline.mjs first.",
+      );
     validateBaselineManifest(JSON.parse(readFileSync(manifestPath, "utf8")));
     const result = spawnSync(
       "tar",

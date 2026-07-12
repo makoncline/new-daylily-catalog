@@ -16,7 +16,9 @@ const captures = path.join(atlasRoot, "gallery-captures");
 const baseline = path.join(atlasRoot, "baseline");
 
 if (!existsSync(captures)) {
-  throw new Error("No atlas captures found. Run pnpm agent:capture first.");
+  throw new Error(
+    "No atlas captures found. Run node scripts/run-agent-atlas-full.mjs first.",
+  );
 }
 
 rmSync(baseline, { recursive: true, force: true });

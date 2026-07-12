@@ -145,7 +145,9 @@ function writeTimingReport(status, error) {
   console.log(
     `- Timing data: ${path.join(atlasRoot, "report", "agent-loop.json")}`,
   );
-  console.log("- Serve reports: pnpm agent:report");
+  console.log(
+    "- Serve reports: pnpm exec playwright show-report local/agent-atlas/report",
+  );
 }
 
 process.on("SIGINT", () => {

@@ -12,7 +12,7 @@ Use unit tests for pure logic with meaningful branching: parsers, validation, ca
 
 Most tests should be integration tests. Exercise real components, state management, routers, services, and temporary SQLite databases together whenever practical. Assert observable behavior rather than internal calls.
 
-Integration tests run offline and deterministically by default. They can cover a component, a server flow, or the full application in a browser. `pnpm test:app` is our full-app integration suite: real Next.js, React, tRPC, and SQLite with local Clerk, Stripe, storage, and email boundaries.
+Integration tests run offline and deterministically by default. They can cover a component, a server flow, or the full application in a browser. `pnpm exec playwright test -c playwright.hermetic.config.ts` runs the full-app suite: real Next.js, React, tRPC, and SQLite with local Clerk, Stripe, storage, and email boundaries.
 
 Mock only at true system boundaries:
 

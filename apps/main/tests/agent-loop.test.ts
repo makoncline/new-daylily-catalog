@@ -11,8 +11,20 @@ describe("agent loop command planning", () => {
     const options = parseAgentLoopArgs([]);
 
     expect(buildAgentLoopPlan(options)).toEqual([
-      ["pnpm", ["agent:capture:changed"]],
-      ["pnpm", ["agent:checks"]],
+      ["node", ["scripts/run-agent-atlas-changed.mjs"]],
+      [
+        "pnpm",
+        [
+          "exec",
+          "concurrently",
+          "--kill-others-on-fail",
+          "--names",
+          "tests,typecheck,lint",
+          "node scripts/agent-related-tests.mjs",
+          "pnpm typecheck",
+          "pnpm lint",
+        ],
+      ],
     ]);
   });
 
@@ -25,11 +37,11 @@ describe("agent loop command planning", () => {
     );
 
     expect(full).toEqual([
-      ["pnpm", ["agent:capture"]],
-      ["pnpm", ["agent:compare"]],
+      ["node", ["scripts/run-agent-atlas-full.mjs"]],
+      ["node", ["scripts/agent-atlas-compare.mjs"]],
     ]);
     expect(story).toEqual([
-      ["pnpm", ["agent:capture:story", "--", "onboarding"]],
+      ["node", ["scripts/run-agent-atlas-story.mjs", "onboarding"]],
     ]);
   });
 
@@ -47,8 +59,8 @@ describe("agent loop command planning", () => {
     expect(
       buildAgentLoopPlan(parseAgentLoopArgs(["--ui-only", "--build"])),
     ).toEqual([
-      ["pnpm", ["agent:capture:changed"]],
-      ["pnpm", ["agent:build"]],
+      ["node", ["scripts/run-agent-atlas-changed.mjs"]],
+      ["node", ["scripts/run-agent-local-build.mjs"]],
     ]);
   });
 

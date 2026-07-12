@@ -10,10 +10,10 @@ prod-shaped data) and the prod-like Docker smoke process.
 
 ## Commands
 
-- Start the browserable app: `pnpm hermetic:dev`
-- Run the full browser integration suite: `pnpm test:app`
+- Start the browserable app: `pnpm exec tsx scripts/run-hermetic-local.ts`
+- Run the full browser integration suite: `pnpm exec playwright test -c playwright.hermetic.config.ts`
 - Run one flow: `pnpm main exec playwright test -c playwright.hermetic.config.ts --grep "listing filters"`
-- Capture the Atlas without third parties: `pnpm agent:capture:hermetic`
+- Capture the Atlas without third parties: `node scripts/run-hermetic-atlas.mjs`
 - Open the report: `pnpm main exec playwright show-report local/hermetic/report`
 
 The app defaults to `http://localhost:3200`. The launcher always recreates its

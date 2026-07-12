@@ -61,7 +61,9 @@ function displayName(value) {
 }
 
 if (!existsSync(captureDirectory)) {
-  throw new Error("No gallery captures found. Run pnpm agent:capture first.");
+  throw new Error(
+    "No gallery captures found. Run node scripts/run-agent-atlas-full.mjs first.",
+  );
 }
 
 mkdirSync(assetDirectory, { recursive: true });
@@ -105,7 +107,7 @@ const cards = items
           <h2>${escapeHtml(title)}</h2>
           <p>${escapeHtml(description)}</p>
           <div class="meta"><code>${escapeHtml(route)}</code><span>${escapeHtml(item.viewport ? `${item.viewport.width}×${item.viewport.height}` : "viewport unknown")}</span><span>${diagnosticCount} diagnostics</span></div>
-          <p class="rerun"><strong>Rerun</strong> <code>${escapeHtml(item.rerunCommand ?? "pnpm agent:capture")}</code></p>
+          <p class="rerun"><strong>Rerun</strong> <code>${escapeHtml(item.rerunCommand ?? "node scripts/run-agent-atlas-full.mjs")}</code></p>
         </div>
       </article>`;
   })

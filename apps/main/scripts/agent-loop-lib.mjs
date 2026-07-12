@@ -39,14 +39,28 @@ export function parseAgentLoopArgs(argv) {
 export function buildAgentLoopPlan(options) {
   const plan = options.full
     ? [
-        ["pnpm", ["agent:capture"]],
-        ["pnpm", ["agent:compare"]],
+        ["node", ["scripts/run-agent-atlas-full.mjs"]],
+        ["node", ["scripts/agent-atlas-compare.mjs"]],
       ]
     : options.story
-      ? [["pnpm", ["agent:capture:story", "--", options.story]]]
-      : [["pnpm", ["agent:capture:changed"]]];
-  if (!options.uiOnly) plan.push(["pnpm", ["agent:checks"]]);
-  if (options.build) plan.push(["pnpm", ["agent:build"]]);
+      ? [["node", ["scripts/run-agent-atlas-story.mjs", options.story]]]
+      : [["node", ["scripts/run-agent-atlas-changed.mjs"]]];
+  if (!options.uiOnly) {
+    plan.push([
+      "pnpm",
+      [
+        "exec",
+        "concurrently",
+        "--kill-others-on-fail",
+        "--names",
+        "tests,typecheck,lint",
+        "node scripts/agent-related-tests.mjs",
+        "pnpm typecheck",
+        "pnpm lint",
+      ],
+    ]);
+  }
+  if (options.build) plan.push(["node", ["scripts/run-agent-local-build.mjs"]]);
   return plan;
 }
 

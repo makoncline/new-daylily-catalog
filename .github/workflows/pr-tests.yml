@@ -66,8 +66,8 @@ jobs:
       - name: Unit Tests
         run: pnpm main exec vitest run --shard=${{ matrix.shard }}/2
 
-  hermetic-app:
-    name: Hermetic Full-App Tests
+  full-app-integration:
+    name: Full-App Integration Tests
     runs-on: ubuntu-latest
     steps:
       - name: Enable corepack
@@ -98,14 +98,15 @@ jobs:
         if: steps.playwright-cache.outputs.cache-hit != 'true'
         run: pnpm main exec playwright install chromium
 
-      - name: Run hermetic full-app tests
-        run: pnpm test:app
+      - name: Run full-app integration tests
+        working-directory: apps/main
+        run: pnpm exec playwright test -c playwright.hermetic.config.ts
 
-      - name: Upload hermetic Playwright artifacts
+      - name: Upload full-app integration artifacts
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: hermetic-full-app-artifacts
+          name: full-app-integration-artifacts
           path: |
             apps/main/test-results
             apps/main/local/hermetic/report

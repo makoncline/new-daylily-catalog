@@ -22,7 +22,7 @@ export default defineConfig({
   webServer: process.env.BASE_URL
     ? undefined
     : {
-        command: "pnpm hermetic:dev",
+        command: "pnpm exec tsx scripts/run-hermetic-local.ts",
         url: `${baseURL}/api/runtime-config`,
         reuseExistingServer: false,
         timeout: 120_000,

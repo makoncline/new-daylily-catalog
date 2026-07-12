@@ -20,20 +20,17 @@ describe("E2E execution infrastructure", () => {
       "utf8",
     );
     const imageManagerFlow = fs.readFileSync(
-      path.join(
-        process.cwd(),
-        "tests/e2e/listing-image-manager.e2e.ts",
-      ),
+      path.join(process.cwd(), "tests/e2e/listing-image-manager.e2e.ts"),
       "utf8",
     );
 
     expect(workflow).toContain("matrix:\n        group: [1, 2, 3]");
     expect(workflow).toContain("matrix:\n        shard: [1, 2]");
-    expect(workflow).toContain(
-      "vitest run --shard=${{ matrix.shard }}/2",
-    );
+    expect(workflow).toContain("vitest run --shard=${{ matrix.shard }}/2");
     expect(workflow.match(/node-version: 24/g)).toHaveLength(4);
-    expect(workflow).toContain("run: pnpm test:app");
+    expect(workflow).toContain(
+      "run: pnpm exec playwright test -c playwright.hermetic.config.ts",
+    );
     expect(
       fs.readFileSync(path.join(process.cwd(), "playwright.config.ts"), "utf8"),
     ).toContain('testIgnore: "app/**"');

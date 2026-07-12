@@ -132,7 +132,7 @@ export async function captureCheckpoint(
         viewport: page.viewportSize(),
         story,
         diagnostics,
-        rerunCommand: `pnpm agent:capture:story -- ${story}`,
+        rerunCommand: `node scripts/run-agent-atlas-story.mjs ${story}`,
       },
       null,
       2,

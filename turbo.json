@@ -15,8 +15,6 @@
     "E2E_PROD_SCENARIO",
     "E2E_PROFILE_SCENARIO",
     "E2E_TEST_DB_URL",
-    "HERMETIC_MODE",
-    "HERMETIC_PORT",
     "NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY",
     "NEXT_PUBLIC_CLOUDFLARE_URL",
     "NEXT_PUBLIC_SENTRY_ENABLED",
@@ -53,9 +51,6 @@
       "cache": false
     },
     "test:e2e:attach": {
-      "cache": false
-    },
-    "test:app": {
       "cache": false
     },
     "dev": {
