@@ -18,6 +18,10 @@ describe("profile slug rules", () => {
     expect(SLUG_INPUT_PATTERN.test("GracefulPetals")).toBe(false);
   });
 
+  it("is valid for the browser pattern attribute", () => {
+    expect(() => new RegExp(SLUG_INPUT_PATTERN.source, "v")).not.toThrow();
+  });
+
   it("applies profile form schema constraints", () => {
     expect(
       profileFormSchema.safeParse({

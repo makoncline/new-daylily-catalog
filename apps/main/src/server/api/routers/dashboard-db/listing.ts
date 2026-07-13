@@ -10,6 +10,9 @@ import {
   dashboardSyncInputSchema,
   parseDashboardSyncSince,
 } from "./dashboard-db-router-helpers";
+import { APP_CONFIG } from "@/config/constants";
+import { getStripeSubscriptionResult } from "@/server/stripe/sync-subscription";
+import { hasActiveSubscription } from "@/server/stripe/subscription-utils";
 
 const listingSelect = {
   id: true,
@@ -34,6 +37,9 @@ export const dashboardDbListingRouter = createTRPCRouter({
       }),
     )
     .mutation(async ({ ctx, input }) => {
+      const subscriptionResult = await getStripeSubscriptionResult(
+        ctx.user.stripeCustomerId,
+      );
       if (input.cultivarReferenceId) {
         const cultivarReference = await ctx.db.cultivarReference.findUnique({
           where: { id: input.cultivarReferenceId },
@@ -49,21 +55,37 @@ export const dashboardDbListingRouter = createTRPCRouter({
         }
       }
 
-      const slug = await generateUniqueSlug(
-        input.title,
-        ctx.user.id,
-        undefined,
-        ctx.db,
-      );
+      const listing = await ctx.db.$transaction(async (tx) => {
+        if (
+          subscriptionResult.confirmed &&
+          !hasActiveSubscription(subscriptionResult.subscription.status)
+        ) {
+          const listingCount = await tx.listing.count({
+            where: { userId: ctx.user.id },
+          });
+          if (listingCount >= APP_CONFIG.LISTING.FREE_TIER_MAX_LISTINGS) {
+            throw new TRPCError({
+              code: "FORBIDDEN",
+              message: "Upgrade to Pro to create more listings.",
+            });
+          }
+        }
 
-      const listing = await ctx.db.listing.create({
-        data: {
-          userId: ctx.user.id,
-          title: input.title,
-          slug,
-          cultivarReferenceId: input.cultivarReferenceId ?? null,
-        },
-        select: listingSelect,
+        const slug = await generateUniqueSlug(
+          input.title,
+          ctx.user.id,
+          undefined,
+          tx,
+        );
+        return tx.listing.create({
+          data: {
+            userId: ctx.user.id,
+            title: input.title,
+            slug,
+            cultivarReferenceId: input.cultivarReferenceId ?? null,
+          },
+          select: listingSelect,
+        });
       });
 
       return listing;

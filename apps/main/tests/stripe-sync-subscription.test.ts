@@ -29,6 +29,7 @@ vi.mock("@/lib/error-utils", () => ({
 
 import {
   getStripeSubscription,
+  getStripeSubscriptionResult,
   syncStripeSubscriptionToKV,
 } from "@/server/stripe/sync-subscription";
 
@@ -122,6 +123,15 @@ describe("Stripe subscription cache synchronization", () => {
     expect(report.context).toEqual({
       source: "getStripeSubscription",
       stripeCustomerId: "cus_error",
+    });
+  });
+
+  it("marks a cache-miss sync failure as unconfirmed for entitlements", async () => {
+    mocks.listSubscriptions.mockRejectedValue(new Error("Stripe unavailable"));
+
+    await expect(getStripeSubscriptionResult("cus_error")).resolves.toEqual({
+      subscription: { status: "none" },
+      confirmed: false,
     });
   });
 });

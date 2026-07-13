@@ -1,5 +1,5 @@
 // Regex patterns for slug validation
-export const SLUG_INPUT_PATTERN = /^[a-z0-9-_\s]*$/;
+export const SLUG_INPUT_PATTERN = /^[a-z0-9_\s\-]*$/;
 const SLUG_FINAL_PATTERN = /^[a-z0-9-_]+$/;
 const SLUG_MIN_LENGTH = 5;
 const SLUG_MAX_LENGTH = 50;
