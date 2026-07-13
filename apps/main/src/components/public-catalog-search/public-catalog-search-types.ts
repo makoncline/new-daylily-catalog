@@ -19,6 +19,9 @@ export interface PublicCatalogSearchContentProps {
   listings: PublicCatalogListing[];
   isLoading: boolean;
   totalListingsCount: number;
+  storageKey?: string;
+  onOpenListing?: (listingId: string) => void;
+  showCart?: boolean;
   isRefreshingCatalogData?: boolean;
   onRefreshCatalogData?: () => void;
 }

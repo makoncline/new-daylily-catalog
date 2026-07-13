@@ -4,6 +4,7 @@ import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import type { TRPCInternalContext } from "@/server/api/trpc";
 import { SUBSCRIPTION_CONFIG } from "@/config/subscription-config";
 import { withTempAppDb } from "@/lib/test-utils/app-test-db";
+import { seedOnboardingExampleCultivars } from "@/lib/test-utils/seed-onboarding-example-cultivars";
 
 process.env.SKIP_ENV_VALIDATION = "1";
 process.env.DATABASE_URL ??= "file:./tests/.tmp/onboarding-router.sqlite";
@@ -82,6 +83,34 @@ describe("onboarding router", () => {
     });
   });
 
+  it("searches the real cultivar registry and returns enriched photo data anonymously", async () => {
+    await withTempAppDb(async () => {
+      const { db } = await import("@/server/db");
+      const { createCaller } = await import("@/server/api/root");
+      await seedOnboardingExampleCultivars(db);
+      const caller = createCaller(async () => ({
+        db,
+        replicaDb: db,
+        headers: new Headers(),
+      }));
+
+      const results = await caller.onboarding.searchCultivars({
+        query: "primal",
+      });
+
+      expect(results).toHaveLength(1);
+      expect(results[0]).toMatchObject({
+        cultivarReferenceId: "cr-ahs-8527",
+        name: "Primal Scream",
+        hybridizer: "Curt Hanson",
+        year: "1994",
+        image: {
+          url: expect.stringContaining("media.daylilycatalog.com"),
+        },
+      });
+    });
+  });
+
   it("captures anonymous onboarding email leads with stage context", async () => {
     const caller = createPublicCaller({ user: {} });
 
@@ -90,15 +119,17 @@ describe("onboarding router", () => {
       email: "Lead@Example.com",
       stage: "pre_checkout_review",
       changed: true,
+      analyticsDistinctId: "anonymous-browser-123",
     });
 
     expect(posthogMocks.captureServerPosthogEvent).toHaveBeenCalledWith({
-      distinctId: "draft-123",
+      distinctId: "anonymous-browser-123",
       event: "onboarding_email_collected",
       properties: {
-        draftId: "draft-123",
+        draft_id: "draft-123",
         email: "lead@example.com",
-        emailDomain: "example.com",
+        email_domain: "example.com",
+        flow_version: "real_product_v2",
         stage: "pre_checkout_review",
         changed: true,
         source: "anonymous_onboarding",
@@ -185,7 +216,7 @@ describe("onboarding router", () => {
     });
   });
 
-  it("claims a local e2e checkout, imports profile only, and creates no listing", async () => {
+  it("claims a local e2e checkout, imports only the garden name, and creates no listing", async () => {
     process.env.PLAYWRIGHT_LOCAL_E2E = "true";
 
     await withTempAppDb(async () => {
@@ -219,16 +250,21 @@ describe("onboarding router", () => {
         sessionId: sessionId!,
         profile: {
           gardenName: "Paid Daylily Farm",
-          location: "Denver, CO",
-          description: "Small daylily garden with clear seasonal shipping.",
-          profileImageDataUrl:
-            "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD",
         },
       });
 
       expect(claim).toMatchObject({
         ok: true,
         importedProfile: true,
+      });
+      expect(posthogMocks.captureServerPosthogEvent).toHaveBeenCalledWith({
+        distinctId: "clerk_new_user",
+        event: "onboarding_completed",
+        properties: {
+          source: "anonymous_onboarding",
+          flow_version: "real_product_v2",
+          imported_profile: true,
+        },
       });
 
       const updatedUser = await db.user.findUniqueOrThrow({
@@ -242,9 +278,9 @@ describe("onboarding router", () => {
         include: { images: true },
       });
       expect(profile.title).toBe("Paid Daylily Farm");
-      expect(profile.location).toBe("Denver, CO");
-      expect(profile.images).toHaveLength(1);
-      expect(profile.images[0]?.status).toBe("onboarding-import-local-e2e");
+      expect(profile.location).toBeNull();
+      expect(profile.description).toBeNull();
+      expect(profile.images).toHaveLength(0);
 
       await expect(
         db.listing.count({ where: { userId: user.id } }),
@@ -299,9 +335,6 @@ describe("onboarding router", () => {
         sessionId: sessionId!,
         profile: {
           gardenName: "Imported Name",
-          location: "Imported Location",
-          description: "Imported Description",
-          profileImageDataUrl: null,
         },
       });
 
@@ -354,9 +387,6 @@ describe("onboarding router", () => {
         sessionId: sessionId!,
         profile: {
           gardenName: "Should Not Import",
-          location: "Should Not Import",
-          description: "Should Not Import",
-          profileImageDataUrl: null,
         },
       });
 
@@ -402,9 +432,6 @@ describe("onboarding router", () => {
         sessionId: "cs_test_claim",
         profile: {
           gardenName: "Paid Daylily Farm",
-          location: "Denver, CO",
-          description: "Small daylily garden with clear seasonal shipping.",
-          profileImageDataUrl: null,
         },
       });
 

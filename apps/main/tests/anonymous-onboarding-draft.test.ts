@@ -3,6 +3,7 @@
 import { beforeEach, describe, expect, it } from "vitest";
 import {
   ANONYMOUS_ONBOARDING_DRAFT_KEY,
+  LEGACY_ANONYMOUS_ONBOARDING_DRAFT_KEY,
   clearAnonymousOnboardingDraft,
   createAnonymousOnboardingDraft,
   parseAnonymousOnboardingDraft,
@@ -28,13 +29,35 @@ describe("anonymous onboarding draft storage", () => {
         starterImageUrl: null,
         starterImageApplyNameOverlay: true,
       },
+      collection: [
+        {
+          cultivarReferenceId: "cr-primal",
+          name: "Primal Scream",
+          hybridizer: "Curt Hanson",
+          year: "1994",
+          imageUrl: "https://media.example/primal.webp",
+          scapeHeight: '34"',
+          bloomSize: '7.5"',
+          bloomSeason: "Early midseason",
+          form: "Unusual form",
+          ploidy: "Tetraploid",
+          foliageType: "Dormant",
+          color: "Orange",
+          fragrance: null,
+          parentage: null,
+          quantity: 3,
+          price: 25,
+          status: "for_sale",
+          description: "Strong double fan",
+        },
+      ],
     });
 
     expect(writeAnonymousOnboardingDraft(draft)).toBe(true);
 
     const loaded = readAnonymousOnboardingDraft();
     expect(loaded).toMatchObject({
-      version: 1,
+      version: 2,
       draftId: "draft-1",
       email: "seller@example.com",
       profile: {
@@ -43,6 +66,14 @@ describe("anonymous onboarding draft storage", () => {
         description: "Example description",
         profileImageSource: null,
       },
+      collection: [
+        expect.objectContaining({
+          cultivarReferenceId: "cr-primal",
+          name: "Primal Scream",
+          quantity: 3,
+          price: 25,
+        }),
+      ],
     });
   });
 
@@ -53,7 +84,9 @@ describe("anonymous onboarding draft storage", () => {
 
     expect(loaded.draftId).toMatch(/^draft-|[0-9a-f-]{36}/);
     expect(loaded.email).toBeNull();
-    expect(window.localStorage.getItem(ANONYMOUS_ONBOARDING_DRAFT_KEY)).toBeNull();
+    expect(
+      window.localStorage.getItem(ANONYMOUS_ONBOARDING_DRAFT_KEY),
+    ).toBeNull();
   });
 
   it("updates and clears the stored draft", () => {
@@ -70,22 +103,77 @@ describe("anonymous onboarding draft storage", () => {
     });
 
     expect(clearAnonymousOnboardingDraft()).toBe(true);
-    expect(window.localStorage.getItem(ANONYMOUS_ONBOARDING_DRAFT_KEY)).toBeNull();
+    expect(
+      window.localStorage.getItem(ANONYMOUS_ONBOARDING_DRAFT_KEY),
+    ).toBeNull();
   });
 
-  it("preserves the furthest reached step when reading older drafts", () => {
+  it("preserves the furthest reached step in current drafts", () => {
     const parsed = parseAnonymousOnboardingDraft({
-      version: 1,
+      version: 2,
       draftId: "draft-before-step-history",
       email: "seller@example.com",
-      step: "preview",
+      step: "buyer-preview",
       createdAt: "2026-07-09T00:00:00.000Z",
       updatedAt: "2026-07-09T00:00:00.000Z",
       profile: {},
       listingPreview: {},
     });
 
-    expect(parsed?.furthestStep).toBe("preview");
+    expect(parsed?.furthestStep).toBe("buyer-preview");
+  });
+
+  it("keeps only the v1 garden name and restarts the new collection flow", () => {
+    window.localStorage.setItem(
+      LEGACY_ANONYMOUS_ONBOARDING_DRAFT_KEY,
+      JSON.stringify({
+        version: 1,
+        draftId: "legacy-draft",
+        email: "legacy@example.com",
+        step: "preview",
+        furthestStep: "checkout",
+        createdAt: "2026-07-09T00:00:00.000Z",
+        updatedAt: "2026-07-10T00:00:00.000Z",
+        profile: {
+          gardenName: "Legacy Garden",
+          location: "Denver, CO",
+          description: "Preserve me",
+        },
+        listingPreview: {
+          cultivarKey: "cr-ahs-176320",
+          title: "Legacy preview",
+          price: 30,
+          description: "Legacy listing preview",
+        },
+      }),
+    );
+
+    const migrated = readAnonymousOnboardingDraft();
+
+    expect(migrated).toMatchObject({
+      version: 2,
+      flowVersion: "real_product_v2",
+      draftId: "legacy-draft",
+      email: "legacy@example.com",
+      step: "workflow",
+      furthestStep: "workflow",
+      profile: {
+        gardenName: "Legacy Garden",
+        location: "",
+        description: "",
+        profileImageDataUrl: null,
+      },
+      listingPreview: {
+        title: "Legacy preview",
+        price: 30,
+      },
+    });
+    expect(
+      window.localStorage.getItem(LEGACY_ANONYMOUS_ONBOARDING_DRAFT_KEY),
+    ).toBeNull();
+    expect(
+      window.localStorage.getItem(ANONYMOUS_ONBOARDING_DRAFT_KEY),
+    ).not.toBeNull();
   });
 
   it("keeps the example listing title empty until the user types one", () => {
@@ -97,10 +185,10 @@ describe("anonymous onboarding draft storage", () => {
 
   it("normalizes the legacy generated listing title from stored drafts", () => {
     const parsed = parseAnonymousOnboardingDraft({
-      version: 1,
+      version: 2,
       draftId: "draft-legacy-title",
       email: null,
-      step: "listing",
+      step: "listing-demo",
       createdAt: "2026-06-30T00:00:00.000Z",
       updatedAt: "2026-06-30T00:00:00.000Z",
       profile: {},

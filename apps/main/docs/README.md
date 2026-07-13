@@ -40,5 +40,7 @@ deep operational detail in the linked documents and use this index for routing.
 - `features.md` - product feature notes.
 - `user-stories.md` - user-story notes.
 - `landing-page.md` - landing page notes.
+- `persuasion-first-onboarding-plan.md` - implementation plan for the
+  persuasion, proof, personalization, analytics, replay, and activation flow.
 - `onboarding-capture-review-2026-02-27.md` - onboarding capture review.
 - `todo.md` - app-level todo notes.
