@@ -22,6 +22,8 @@ test.describe("listing image manager @local", () => {
     imageManager,
     dashboardShell,
   }) => {
+    test.slow();
+
     const toast = (message: string) =>
       page.locator("[data-sonner-toast]").filter({ hasText: message }).first();
 

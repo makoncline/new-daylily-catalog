@@ -29,7 +29,8 @@ function getStripeCustomerKey(customerId: string) {
 
 export function isLocalE2ECheckoutEnabled() {
   return (
-    process.env.PLAYWRIGHT_LOCAL_E2E === "true" &&
+    (process.env.PLAYWRIGHT_LOCAL_E2E === "true" ||
+      process.env.HERMETIC_MODE === "1") &&
     process.env.NODE_ENV !== "production"
   );
 }

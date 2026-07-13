@@ -5,6 +5,7 @@ import { getCloudflareUrlForDaylilyS3ImagePath } from "@/lib/utils/cloudflareLoa
 import HomePageClient, {
   type HomePageCatalog,
 } from "./_components/home-page-client";
+import { isHermeticMode } from "@/lib/hermetic/runtime.js";
 
 export const dynamic = "force-static";
 
@@ -141,6 +142,27 @@ const staticHomeCatalogs = [
   },
 ] satisfies readonly HomePageCatalog[];
 
+const hermeticHomeCatalogs = [
+  {
+    id: "hermetic-pro-primary",
+    title: "Hermetic Pro Garden",
+    slug: "hermetic-pro-garden",
+    description: "Deterministic offline catalog for full-app testing.",
+    location: "Hermetic, Local",
+    listingCount: 36,
+    images: [],
+  },
+  {
+    id: "hermetic-pro-secondary",
+    title: "Hermetic Second Garden",
+    slug: "hermetic-second-garden",
+    description: "Second offline persona for authorization checks.",
+    location: "Hermetic, Local",
+    listingCount: 12,
+    images: [],
+  },
+] satisfies readonly HomePageCatalog[];
+
 export async function generateMetadata() {
   const url = getCanonicalBaseUrl();
   return generateHomePageMetadata(url);
@@ -153,7 +175,9 @@ export default async function HomePage() {
   return (
     <>
       <HomePageSEO metadata={metadata} />
-      <HomePageClient catalogs={staticHomeCatalogs} />
+      <HomePageClient
+        catalogs={isHermeticMode() ? hermeticHomeCatalogs : staticHomeCatalogs}
+      />
     </>
   );
 }
