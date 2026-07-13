@@ -23,6 +23,7 @@ import { APP_CONFIG } from "@/config/constants";
 import { insertListing } from "@/app/dashboard/_lib/dashboard-db/listings-collection";
 import { useManagedDialogOpen } from "@/hooks/use-managed-dialog-open";
 import { ManagedCreateDialog } from "@/app/dashboard/_components/managed-create-dialog";
+import { Spinner } from "@/components/ui/spinner";
 
 /**
  * Dialog for creating a new daylily listing.
@@ -122,7 +123,16 @@ export function CreateListingDialog({
     <ManagedCreateDialog
       cancelDisabled={isSaving}
       confirmDisabled={isSaving || (!title.trim() && !selectedResult)}
-      confirmLabel="Create Listing"
+      confirmLabel={
+        isSaving ? (
+          <>
+            <Spinner aria-hidden="true" />
+            Creating…
+          </>
+        ) : (
+          "Create Listing"
+        )
+      }
       description="Create a new daylily listing by providing a title or selecting from the AHS database."
       onCancel={closeDialog}
       onConfirm={handleCreate}

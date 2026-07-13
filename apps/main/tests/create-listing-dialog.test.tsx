@@ -1,5 +1,11 @@
 import type * as Jotai from "jotai";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { CreateListingDialog } from "@/app/dashboard/listings/_components/create-listing-dialog";
 
@@ -23,8 +29,10 @@ vi.mock("@/app/dashboard/_lib/dashboard-db/listings-collection", () => ({
     title: string;
     cultivarReferenceId: string | null;
   }) => {
-    mockInsertListing(input);
-    return { id: "listing-1", title: input.title };
+    return mockInsertListing(input) as Promise<{
+      id: string;
+      title: string;
+    }>;
   },
 }));
 
@@ -101,6 +109,10 @@ vi.mock("@/lib/error-utils", () => ({
 describe("CreateListingDialog", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockInsertListing.mockResolvedValue({
+      id: "listing-1",
+      title: "Created listing",
+    });
   });
 
   it("uses selected AHS name when title input is blank", async () => {
@@ -118,6 +130,36 @@ describe("CreateListingDialog", () => {
         title: "Coffee Two",
         cultivarReferenceId: "cr-ahs-2",
       });
+    });
+  });
+
+  it("shows immediate progress while the listing is being created", async () => {
+    let resolveInsert: ((listing: { id: string; title: string }) => void) | null =
+      null;
+    mockInsertListing.mockReturnValue(
+      new Promise((resolve) => {
+        resolveInsert = resolve;
+      }),
+    );
+
+    render(<CreateListingDialog onOpenChange={vi.fn()} />);
+
+    fireEvent.change(screen.getByLabelText("Listing Title"), {
+      target: { value: "Slow connection listing" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Create Listing" }));
+
+    const pendingButton = await screen.findByRole("button", {
+      name: "Creating…",
+    });
+    expect(pendingButton).toBeDisabled();
+
+    act(() => {
+      resolveInsert?.({ id: "listing-1", title: "Slow connection listing" });
+    });
+
+    await waitFor(() => {
+      expect(mockSetEditingId).toHaveBeenCalledWith("listing-1");
     });
   });
 });

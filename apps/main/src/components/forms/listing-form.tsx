@@ -47,6 +47,7 @@ import {
   ListingMediaSection,
 } from "@/components/forms/listing-form-sections";
 import { useConfirmableAsyncAction } from "@/hooks/use-confirmable-async-action";
+import { Spinner } from "@/components/ui/spinner";
 
 import { STATUS } from "@/config/constants";
 import {
@@ -68,6 +69,7 @@ type LinkedCultivarReferenceImage =
 interface ListingFormProps {
   listingId: string;
   onDelete: () => void;
+  onSave: () => void;
   formRef?: React.RefObject<ListingFormHandle | null>;
 }
 
@@ -111,6 +113,7 @@ function useListingFormController({
   images,
   selectedListIds,
   onDelete,
+  onSave,
   formRef,
 }: {
   listingId: string;
@@ -120,6 +123,7 @@ function useListingFormController({
   images: Image[];
   selectedListIds: string[];
   onDelete: () => void;
+  onSave: () => void;
   formRef?: React.RefObject<ListingFormHandle | null>;
 }) {
   const [isSaving, setIsSaving] = useState(false);
@@ -215,6 +219,9 @@ function useListingFormController({
             form.reset(values, { keepIsValid: true });
           }
           toast.success("Changes saved");
+          if (reason === "manual") {
+            onSave();
+          }
           return true;
         } catch (error) {
           if (shouldUpdateUi) {
@@ -233,7 +240,7 @@ function useListingFormController({
           }
         }
       },
-      [form, listing, needsParentCommitRef, resetNeedsParentCommit],
+      [form, listing, needsParentCommitRef, onSave, resetNeedsParentCommit],
     ),
   });
 
@@ -284,6 +291,7 @@ function useListingFormController({
     hasPendingChanges,
     images,
     isBusy,
+    isSaving,
     isDeleteDialogOpen,
     linkedAhs,
     linkedCultivarReferenceImage,
@@ -315,6 +323,7 @@ function ListingFormFields({
   hasPendingChanges,
   images,
   isBusy,
+  isSaving,
   isDeleteDialogOpen,
   linkedAhs,
   linkedCultivarReferenceImage,
@@ -481,7 +490,14 @@ function ListingFormFields({
             onClick={() => void onSubmit()}
             disabled={isBusy || !hasPendingChanges()}
           >
-            Save Changes
+            {isSaving ? (
+              <>
+                <Spinner aria-hidden="true" />
+                Saving…
+              </>
+            ) : (
+              "Save Changes"
+            )}
           </Button>
           <Button
             type="button"
@@ -505,7 +521,12 @@ function ListingFormFields({
   );
 }
 
-function ListingFormLive({ listingId, onDelete, formRef }: ListingFormProps) {
+function ListingFormLive({
+  listingId,
+  onDelete,
+  onSave,
+  formRef,
+}: ListingFormProps) {
   const {
     images,
     isReady,
@@ -528,6 +549,7 @@ function ListingFormLive({ listingId, onDelete, formRef }: ListingFormProps) {
       images={images}
       selectedListIds={selectedListIds}
       onDelete={onDelete}
+      onSave={onSave}
       formRef={formRef}
     />
   );
