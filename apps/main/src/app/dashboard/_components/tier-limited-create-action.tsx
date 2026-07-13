@@ -22,6 +22,8 @@ interface TierLimitedCreateActionProps {
   upgradeDialogDescription: ReactNode;
   upgradeDialogTitle: string;
   renderCreateDialog: (onOpenChange: (open: boolean) => void) => ReactNode;
+  createDialogOpen?: boolean;
+  onCreateDialogOpenChange?: (open: boolean) => void;
 }
 
 export function TierLimitedCreateAction({
@@ -35,19 +37,24 @@ export function TierLimitedCreateAction({
   upgradeDialogDescription,
   upgradeDialogTitle,
   renderCreateDialog,
+  createDialogOpen,
+  onCreateDialogOpenChange,
 }: TierLimitedCreateActionProps) {
   const [showUpgradeDialog, setShowUpgradeDialog] = useState(false);
   const [showCreateDialog, setShowCreateDialog] = useState(false);
+  const reachedLimit = !isPro && (currentCount ?? 0) >= freeTierLimit;
+  const controlledUpgradeOpen = createDialogOpen === true && reachedLimit;
+  const isCreateDialogOpen =
+    (createDialogOpen ?? showCreateDialog) && !reachedLimit;
+  const setCreateDialogOpen = onCreateDialogOpenChange ?? setShowCreateDialog;
 
   const handleCreateClick = () => {
-    const reachedLimit = !isPro && (currentCount ?? 0) >= freeTierLimit;
-
     if (reachedLimit) {
       setShowUpgradeDialog(true);
       return;
     }
 
-    setShowCreateDialog(true);
+    setCreateDialogOpen(true);
   };
 
   return (
@@ -57,7 +64,13 @@ export function TierLimitedCreateAction({
         {buttonLabel}
       </Button>
 
-      <Dialog open={showUpgradeDialog} onOpenChange={setShowUpgradeDialog}>
+      <Dialog
+        open={showUpgradeDialog || controlledUpgradeOpen}
+        onOpenChange={(open) => {
+          setShowUpgradeDialog(open);
+          if (!open && controlledUpgradeOpen) setCreateDialogOpen(false);
+        }}
+      >
         <DialogContent className={upgradeDialogClassName}>
           <DialogHeader>
             <DialogTitle>{upgradeDialogTitle}</DialogTitle>
@@ -67,10 +80,10 @@ export function TierLimitedCreateAction({
         </DialogContent>
       </Dialog>
 
-      {showCreateDialog &&
+      {isCreateDialogOpen &&
         renderCreateDialog((open) => {
           if (!open) {
-            setShowCreateDialog(false);
+            setCreateDialogOpen(false);
           }
         })}
     </>

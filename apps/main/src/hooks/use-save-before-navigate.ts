@@ -9,6 +9,25 @@ export interface SaveOnNavigateHandle<TReason extends string = "navigate"> {
   saveChanges: (reason: TReason) => Promise<boolean>;
 }
 
+interface BrowserNavigationEvent extends Event {
+  canIntercept: boolean;
+  downloadRequest: string | null;
+  hashChange: boolean;
+  navigationType: "push" | "reload" | "replace" | "traverse";
+  intercept(options: { precommitHandler: () => Promise<void> }): void;
+}
+
+interface BrowserNavigation {
+  addEventListener(
+    type: "navigate",
+    listener: (event: BrowserNavigationEvent) => void,
+  ): void;
+  removeEventListener(
+    type: "navigate",
+    listener: (event: BrowserNavigationEvent) => void,
+  ): void;
+}
+
 function currentPath() {
   return `${window.location.pathname}${window.location.search}${window.location.hash}`;
 }
@@ -17,6 +36,7 @@ export function useSaveBeforeNavigate<TReason extends string = "navigate">(
   formRef: RefObject<SaveOnNavigateHandle<TReason> | null>,
   navigateReason: TReason,
   enabled = true,
+  guardBrowserHistory = false,
 ) {
   const router = useRouter();
   const savingRef = useRef<Promise<boolean> | null>(null);
@@ -81,6 +101,49 @@ export function useSaveBeforeNavigate<TReason extends string = "navigate">(
 
       event.preventDefault();
       event.returnValue = "";
+    };
+
+    const navigation = (window as unknown as { navigation?: BrowserNavigation })
+      .navigation;
+    const onNavigate = (event: BrowserNavigationEvent) => {
+      if (
+        !guardBrowserHistory ||
+        !event.canIntercept ||
+        !event.cancelable ||
+        event.navigationType !== "traverse" ||
+        event.hashChange ||
+        event.downloadRequest ||
+        !formRef.current?.hasPendingChanges()
+      ) {
+        return;
+      }
+
+      event.intercept({
+        async precommitHandler() {
+          let ok = false;
+          try {
+            ok = await saveIfDirty();
+          } catch {
+            ok = false;
+          }
+          if (!ok) {
+            toast.error(
+              "Error saving changes. Please fix errors and try again.",
+            );
+            throw new Error(
+              "Navigation blocked because changes could not save",
+            );
+          }
+        },
+      });
+    };
+    // This agent-facing prototype can hold same-document history traversal through
+    // Chromium's Navigation API. Cross-document and older-browser traversal retains
+    // best-effort saving plus beforeunload; a pushState sentinel destroys Forward history.
+    const onPopState = () => {
+      if (!navigation && formRef.current?.hasPendingChanges()) {
+        void saveIfDirty().catch(() => undefined);
+      }
     };
 
     const onClick = (event: MouseEvent) => {
@@ -153,13 +216,22 @@ export function useSaveBeforeNavigate<TReason extends string = "navigate">(
     };
 
     window.addEventListener("beforeunload", onBeforeUnload);
+    window.addEventListener("popstate", onPopState);
+    navigation?.addEventListener("navigate", onNavigate);
     document.addEventListener("click", onClick, true);
 
     return () => {
       window.removeEventListener("beforeunload", onBeforeUnload);
+      window.removeEventListener("popstate", onPopState);
+      navigation?.removeEventListener("navigate", onNavigate);
       document.removeEventListener("click", onClick, true);
+
+      // Next.js client-side route changes keep the document alive, so an
+      // in-flight save can finish even after this component unmounts. Full
+      // document exits remain protected by beforeunload above.
+      void saveIfDirty().catch(() => undefined);
     };
-  }, [attemptNavigate, enabled, formRef]);
+  }, [attemptNavigate, enabled, formRef, guardBrowserHistory, saveIfDirty]);
 
   return {
     saveIfDirty,

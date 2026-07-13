@@ -70,9 +70,27 @@ function isFacetFilterGroup(
   );
 }
 
-function ListingsTableLive() {
+export type ListingsTableViewState = {
+  searchMode: PublicCatalogSearchMode;
+  setSearchMode: (mode: PublicCatalogSearchMode) => void;
+  searchCollapsed: boolean;
+  setSearchCollapsed: (
+    value: boolean | ((current: boolean) => boolean),
+  ) => void;
+};
+
+function ListingsTableLive({
+  onCreate,
+  onEdit,
+  useNativeUrlHistory,
+  viewState,
+}: {
+  onCreate?: () => void;
+  onEdit: (id: string) => void;
+  useNativeUrlHistory?: boolean;
+  viewState?: ListingsTableViewState;
+}) {
   const firstRowsPaintedRef = React.useRef(false);
-  const { editListing } = useEditListing();
   const { listingRows: listings, lists } = useDashboardListingReadModel();
   const { data: profile = null } = api.dashboardDb.userProfile.get.useQuery(
     undefined,
@@ -85,16 +103,32 @@ function ListingsTableLive() {
   const publicUserSlug = profile?.slug ?? profile?.userId ?? "";
 
   const columns = React.useMemo(
-    () => getColumns(editListing, publicUserSlug),
-    [editListing, publicUserSlug],
+    () => getColumns(onEdit, publicUserSlug),
+    [onEdit, publicUserSlug],
   );
-  const [searchMode, setSearchMode] = useLocalStorage<PublicCatalogSearchMode>(
-    "dashboard-listings-search-mode",
-    "basic",
-  );
-  const [searchCollapsed, setSearchCollapsed] = useLocalStorage(
+  const [storedSearchMode, setStoredSearchMode] =
+    useLocalStorage<PublicCatalogSearchMode>(
+      "dashboard-listings-search-mode",
+      "basic",
+    );
+  const [storedSearchCollapsed, setStoredSearchCollapsed] = useLocalStorage(
     "dashboard-listings-search-collapsed",
     false,
+  );
+  const searchMode = viewState?.searchMode ?? storedSearchMode;
+  const setSearchMode = viewState?.setSearchMode ?? setStoredSearchMode;
+  const searchCollapsed = viewState?.searchCollapsed ?? storedSearchCollapsed;
+  const setSearchCollapsed =
+    viewState?.setSearchCollapsed ?? setStoredSearchCollapsed;
+  const createAction = onCreate ? (
+    <CreateListingButton
+      createDialogOpen={false}
+      onCreateDialogOpenChange={(open) => {
+        if (open) onCreate();
+      }}
+    />
+  ) : (
+    <CreateListingButton />
   );
   const columnNames = React.useMemo(
     () => ({
@@ -111,6 +145,7 @@ function ListingsTableLive() {
     data: listings,
     columns,
     storageKey: "listings-table",
+    useNativeUrlHistory,
     columnNames,
     pinnedColumns: {
       left: ["select", "title"],
@@ -188,7 +223,7 @@ function ListingsTableLive() {
       <EmptyState
         title="No listings"
         description="Create your first listing to start selling"
-        action={<CreateListingButton />}
+        action={createAction}
       />
     );
   }
@@ -345,7 +380,7 @@ function ListingsTableLive() {
             <EmptyState
               title="No listings found"
               description="Try adjusting your filters or create a new listing"
-              action={<CreateListingButton />}
+              action={createAction}
             />
           }
         >
@@ -356,6 +391,34 @@ function ListingsTableLive() {
   );
 }
 
-export function ListingsTable() {
-  return <ListingsTableLive />;
+function ListingsTableWithInternalEditor({
+  viewState,
+}: {
+  viewState?: ListingsTableViewState;
+}) {
+  const { editListing } = useEditListing();
+  return <ListingsTableLive onEdit={editListing} viewState={viewState} />;
+}
+
+export function ListingsTable({
+  onCreate,
+  onEdit,
+  useNativeUrlHistory,
+  viewState,
+}: {
+  onCreate?: () => void;
+  onEdit?: (id: string) => void;
+  useNativeUrlHistory?: boolean;
+  viewState?: ListingsTableViewState;
+} = {}) {
+  return onEdit ? (
+    <ListingsTableLive
+      onCreate={onCreate}
+      onEdit={onEdit}
+      useNativeUrlHistory={useNativeUrlHistory}
+      viewState={viewState}
+    />
+  ) : (
+    <ListingsTableWithInternalEditor viewState={viewState} />
+  );
 }

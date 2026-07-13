@@ -19,7 +19,15 @@ type Listing = RouterOutputs["dashboardDb"]["listing"]["list"][number];
  * Button component that launches the create listing dialog.
  * Handles subscription tier checks and upgrade prompts for free tier users.
  */
-export function CreateListingButton() {
+export function CreateListingButton({
+  createDialogOpen,
+  onCreateDialogOpenChange,
+  onCreated,
+}: {
+  createDialogOpen?: boolean;
+  onCreateDialogOpenChange?: (open: boolean) => void;
+  onCreated?: (listingId: string) => void;
+} = {}) {
   const { isPro } = usePro();
   const listingsQuery = useSeededDashboardDbQuery<Listing>({
     query: (q) => q.from({ listing: listingsCollection }),
@@ -74,8 +82,13 @@ export function CreateListingButton() {
         </div>
       }
       renderCreateDialog={(onOpenChange) => (
-        <CreateListingDialog onOpenChange={onOpenChange} />
+        <CreateListingDialog
+          onOpenChange={onOpenChange}
+          onCreated={onCreated}
+        />
       )}
+      createDialogOpen={createDialogOpen}
+      onCreateDialogOpenChange={onCreateDialogOpenChange}
     />
   );
 }

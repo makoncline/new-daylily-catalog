@@ -17,7 +17,8 @@ export function DashboardBreadcrumbs() {
       items={[
         { title: "Home", href: "/" },
         { title: "Dashboard", href: "/dashboard" },
-        ...(pathname === "/dashboard/listings"
+        ...(pathname === "/dashboard/listings" ||
+        pathname === "/dashboard/listings-next"
           ? [{ title: "Listings" }]
           : pathname === "/dashboard/lists"
             ? [{ title: "Lists" }]

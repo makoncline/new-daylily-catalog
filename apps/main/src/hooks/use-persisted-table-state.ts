@@ -9,10 +9,12 @@ import { useTableUrlSync, useUrlInitialTableState } from "./use-table-url-sync";
 
 export function useInitialPersistedTableState(args: {
   filterableColumnIds?: string[];
+  sortableColumnIds?: string[];
   storageKey: string;
 }) {
   const urlState = useUrlInitialTableState({
     filterableColumnIds: args.filterableColumnIds,
+    sortableColumnIds: args.sortableColumnIds,
   });
   const localStorageState = useLocalStorageInitialTableState({
     storageKey: args.storageKey,

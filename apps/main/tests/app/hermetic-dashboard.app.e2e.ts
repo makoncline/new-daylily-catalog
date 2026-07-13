@@ -26,8 +26,12 @@ function isAbortedReadError(message: string) {
   }
 
   const queryProcedure = message.match(/<< query #\d+ %c([^%\s]+)/)?.[1];
-  return queryProcedure
-    ? matchingAbortedRequest(`/api/trpc/${queryProcedure}`)
+  const readMutationProcedure = message.match(
+    /<< mutation #\d+ %c(dashboardDb\.(?:image\.listByListingIds|cultivarReference\.getByIdsBatch))%c/,
+  )?.[1];
+  const readProcedure = queryProcedure ?? readMutationProcedure;
+  return readProcedure
+    ? matchingAbortedRequest(`/api/trpc/${readProcedure}`)
     : false;
 }
 
@@ -104,6 +108,228 @@ test("pro seller can sign in locally and open the real listings dashboard", asyn
   await expect(
     listings.listingRow("Hermetic Pro Garden Daylily 01"),
   ).toBeVisible();
+});
+
+test("seller uses the separate listings development route without a new UI", async ({
+  page,
+}) => {
+  test.slow();
+  await page.setViewportSize({ width: 1024, height: 1366 });
+  await page.goto("/sign-in");
+  await page.locator('[data-hermetic-persona="pro-primary"]').click();
+
+  const listings = new DashboardListings(page);
+  const createDialog = new CreateListingDialog(page);
+  const editDialog = new EditListingDialog(page);
+  await page.goto("/dashboard/listings-next?creating=1");
+  await listings.isReady();
+  await createDialog.isReady();
+  await createDialog.changeTitle("URL Transition Listing");
+  await createDialog.createListing();
+  await expect(page).toHaveURL((url) => {
+    return (
+      Boolean(url.searchParams.get("editing")) &&
+      !url.searchParams.has("creating")
+    );
+  });
+  await expect(createDialog.dialog).toBeHidden();
+  await editDialog.isReady();
+  await editDialog.fillDescription("Dirty edit discarded by deletion.");
+  await editDialog.clickDeleteListing();
+  await editDialog.confirmDeleteListing();
+  await expect(editDialog.dialog).toBeHidden();
+  await expect(page).toHaveURL((url) => !url.searchParams.has("editing"));
+  await expect(listings.listingRow("URL Transition Listing")).toHaveCount(0);
+  await page.waitForLoadState("networkidle");
+
+  await page.goto("/dashboard/listings-next?sort=createdAt.asc");
+  await listings.isReady();
+  await listings.sortByColumn("Created");
+  await expect(page).toHaveURL(
+    (url) => url.searchParams.get("sort") === "createdAt.desc",
+  );
+  await page.reload();
+  await listings.isReady();
+  await listings.sortByColumn("Created");
+  await expect(page).toHaveURL(
+    (url) => url.searchParams.get("sort") === "createdAt.asc",
+  );
+  await page.goBack();
+  await listings.isReady();
+  await expect(page).toHaveURL(
+    (url) => url.searchParams.get("sort") === "createdAt.desc",
+  );
+  await listings.sortByColumn("Created");
+  await expect(page).toHaveURL(
+    (url) => url.searchParams.get("sort") === "createdAt.asc",
+  );
+  await page.waitForLoadState("networkidle");
+
+  await page.goto("/dashboard/listings-next?query=no-such-listing");
+  await listings.isReady();
+  const noResults = page
+    .getByRole("heading", { name: "No listings found" })
+    .locator("../..");
+  await noResults.getByRole("button", { name: "Create Listing" }).click();
+  await expect(page).toHaveURL(
+    (url) => url.searchParams.get("creating") === "1",
+  );
+  await createDialog.isReady();
+  await page.keyboard.press("Escape");
+
+  await page.waitForLoadState("networkidle");
+  const reset = await page.request.post("/api/hermetic/reset");
+  expect(reset.ok()).toBe(true);
+  await page.goto("/dashboard/listings-next");
+  await listings.isReady();
+  await listings.globalSearchInput.fill("Private hermetic note 5");
+  await page.getByTestId("search-collapse-toggle").click();
+  await expect(page).toHaveURL(
+    (url) =>
+      url.searchParams.get("query") === "Private hermetic note 5" &&
+      url.searchParams.get("search") === "collapsed",
+  );
+  await page.getByTestId("search-collapse-toggle").click();
+  await expect(
+    listings.listingRow("Hermetic Pro Garden Daylily 05"),
+  ).toBeVisible();
+  await listings.setGlobalSearch("Private hermetic note 6");
+  await expect(page).toHaveURL(
+    (url) => url.searchParams.get("query") === "Private hermetic note 6",
+  );
+  await page.goBack();
+  await expect(page).toHaveURL(
+    (url) => url.searchParams.get("query") === "Private hermetic note 5",
+  );
+  await expect(
+    listings.listingRow("Hermetic Pro Garden Daylily 05"),
+  ).toBeVisible();
+  await listings.sortByColumn("Title");
+  await expect(page).toHaveURL(
+    (url) => url.searchParams.get("sort") === "title.desc",
+  );
+  await page.goBack();
+  await expect(page).toHaveURL(
+    (url) =>
+      url.searchParams.get("query") === "Private hermetic note 5" &&
+      !url.searchParams.has("sort"),
+  );
+  await page.waitForLoadState("networkidle");
+
+  await listings.chooseRowActionEditForListing(
+    "Hermetic Pro Garden Daylily 05",
+  );
+  await editDialog.isReady();
+  const editingId = await editDialog.getListingIdFromUrl();
+  expect(editingId).toBeTruthy();
+  await editDialog.fillTitle("Hermetic Preserved UI Listing");
+  await editDialog.fillDescription(
+    "Saved through the separate development route.",
+  );
+  await page.goBack();
+  await expect(editDialog.dialog).toBeHidden();
+  await page.waitForLoadState("networkidle");
+
+  await page.reload();
+  await listings.isReady();
+  await expect(
+    listings.listingRow("Hermetic Preserved UI Listing"),
+  ).toBeVisible();
+  await page.waitForLoadState("networkidle");
+
+  await page.goto(
+    `/dashboard/listings-next?query=${encodeURIComponent("Private hermetic note 5")}&editing=${editingId}&section=images`,
+  );
+  await listings.isReady();
+  await editDialog.isReady();
+  await editDialog.closeWithHeaderX();
+  await expect(page).toHaveURL((url) => {
+    return !url.searchParams.has("editing") && !url.searchParams.has("section");
+  });
+
+  await listings.chooseRowActionEditForListing("Hermetic Preserved UI Listing");
+  await editDialog.isReady();
+  await expect(page).toHaveURL((url) => !url.searchParams.has("section"));
+  await editDialog.closeWithHeaderX();
+  await page.waitForLoadState("networkidle");
+
+  await page.goto(
+    `/dashboard/listings-next?query=${encodeURIComponent("Private hermetic note 5")}&editing=${editingId}`,
+  );
+  await listings.isReady();
+  await editDialog.isReady();
+  await editDialog.fillDescription("Saved before switching listings by URL.");
+  await editDialog.dialog.evaluate((dialog) => {
+    dialog.scrollTop = dialog.scrollHeight;
+  });
+  await page.evaluate(() => {
+    const url = new URL(window.location.href);
+    url.searchParams.set("editing", "hermetic-listing-pro-primary-6");
+    url.searchParams.set("section", "images");
+    window.history.pushState(null, "", url);
+  });
+  await expect(editDialog.titleInput).toHaveValue(
+    "Hermetic Pro Garden Daylily 06",
+  );
+  await expect(
+    editDialog.dialog.locator('[data-listing-editor-section="images"]'),
+  ).toBeInViewport();
+  await editDialog.closeWithHeaderX();
+
+  await page.goto("/dashboard");
+  await page.goto(
+    `/dashboard/listings-next?query=${encodeURIComponent("Private hermetic note 5")}&editing=${editingId}`,
+  );
+  await listings.isReady();
+  await editDialog.isReady();
+  await editDialog.fillDescription("Saved before cross-route navigation.");
+  await editDialog.closeWithHeaderX();
+  await page
+    .getByRole("navigation", { name: "breadcrumb" })
+    .getByRole("link", { name: "Dashboard", exact: true })
+    .click();
+  await expect(page).toHaveURL(/\/dashboard$/);
+  await page.waitForLoadState("networkidle");
+  await page.goBack();
+  await listings.isReady();
+  await page.goForward();
+  await expect(page).toHaveURL(/\/dashboard$/);
+  await page.goBack();
+  await listings.isReady();
+  await listings.chooseRowActionEditForListing("Hermetic Preserved UI Listing");
+  await editDialog.isReady();
+  await expect(editDialog.descriptionInput).toHaveValue(
+    "Saved before cross-route navigation.",
+  );
+  await editDialog.closeWithHeaderX();
+
+  await page.reload();
+  await listings.isReady();
+  await expect(
+    listings.listingRow("Hermetic Preserved UI Listing"),
+  ).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Listings" })).toBeVisible();
+  await expect(
+    page.getByText("Manage and showcase your daylilies."),
+  ).toBeVisible();
+  await expect(
+    page
+      .getByRole("navigation", { name: "breadcrumb" })
+      .getByText("Listings", { exact: true }),
+  ).toBeVisible();
+  await expect(page.getByTestId("listing-table")).toBeVisible();
+  await expect(page.getByTestId("search-all-fields-input")).toHaveValue(
+    "Private hermetic note 5",
+  );
+
+  await page.goto(`/dashboard/listings-next?editing=${editingId}`);
+  await listings.isReady();
+  await editDialog.isReady();
+  await page.goto("/dashboard");
+  await page.goBack();
+  await editDialog.isReady();
+  await page.goForward();
+  await expect(page).toHaveURL(/\/dashboard$/);
 });
 
 test("guest browses catalogs, a seller, a listing, and catalog search", async ({
