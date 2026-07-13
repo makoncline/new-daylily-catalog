@@ -89,7 +89,7 @@ jobs:
           BUILD_TURSO_DATABASE_AUTH_TOKEN: ${{ secrets.TURSO_DATABASE_AUTH_TOKEN }}
           BUILD_STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY }}
           BUILD_STRIPE_PRICE_ID: ${{ vars.STRIPE_PRICE_ID }}
-          BUILD_SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          BUILD_SENTRY_AUTH_TOKEN: ${{ github.event_name != 'pull_request' && secrets.SENTRY_AUTH_TOKEN || '' }}
         run: |
           BUILD_ENV_FILE="$RUNNER_TEMP/daylilycatalog-build.env"
 
@@ -125,6 +125,10 @@ jobs:
             echo "SENTRY_AUTH_TOKEN=$BUILD_SENTRY_AUTH_TOKEN" >> "$BUILD_ENV_FILE"
           fi
 
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            echo "SENTRY_SOURCEMAPS_DISABLED=1" >> "$BUILD_ENV_FILE"
+          fi
+
           BUILD_ENV_FINGERPRINT="$(sha256sum "$BUILD_ENV_FILE" | cut -d' ' -f1)"
 
           echo "profile=$BUILD_ENVIRONMENT_NAME" >> "$GITHUB_OUTPUT"
@@ -132,6 +136,21 @@ jobs:
           echo "fingerprint=$BUILD_ENV_FINGERPRINT" >> "$GITHUB_OUTPUT"
 
       - uses: docker/setup-buildx-action@v3
+
+      - name: Restore Next Docker compiler cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ runner.temp }}/daylily-next-cache
+          key: ${{ runner.os }}-docker-next-${{ github.event_name == 'pull_request' && 'preview' || 'production' }}-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-docker-next-${{ github.event_name == 'pull_request' && 'preview' || 'production' }}-
+
+      # BuildKit's gha exporter does not preserve RUN cache mounts by itself.
+      - name: Inject Next compiler cache into BuildKit
+        uses: reproducible-containers/buildkit-cache-dance@4b2444fec0c0fb9dbf175a96c094720a692ef810 # v2.1.4
+        with:
+          cache-source: ${{ runner.temp }}/daylily-next-cache
+          cache-target: /app/apps/main/.next/cache
 
       - name: Log in to GHCR
         if: steps.meta.outputs.should_push == 'true'

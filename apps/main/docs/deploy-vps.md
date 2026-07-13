@@ -12,6 +12,9 @@ Immutable image tags are the deploy unit.
 - The VPS should deploy by setting `IMAGE_TAG` in `.env`, not by relying on `latest`.
 - After a successful image push on `main`, GitHub Actions calls the deploy webhook at `https://deploy.makon.dev/deploy/daylilycatalog`.
 - Pull requests still run Docker image verification in the `preview` GitHub Environment, but server config sync and deploy stay gated to `push` on `main`.
+- Docker builds persist the environment-scoped Next compiler cache across GitHub-hosted runners. The normal `type=gha` layer cache remains enabled, while cache-mount contents use the cache-dance workaround because the GHA exporter does not preserve them directly.
+- Non-pushed pull-request verification images skip Sentry sourcemap processing and do not receive `SENTRY_AUTH_TOKEN`. Main images retain source-map upload behavior.
+- The runner combines Next standalone output with a lockfile-backed production closure from `packages/standalone-runtime`. That manifest contains only the image-processing, S3, Prisma, and libsql packages imported by current externalized server code; Prisma's generated client is copied separately from the app build. The Docker build loads every declared external inside the final runner before emitting an image. A local production-shaped build measured 868 MB versus 1.76 GB for the prior production image, and both `/` and database-backed `/catalogs` returned 200.
 
 ## GitHub Actions Environments
 
