@@ -41,7 +41,6 @@ import {
 import { applyWhereIn } from "./test-utils/apply-where-in";
 
 const originalCloudflareUrl = process.env.NEXT_PUBLIC_CLOUDFLARE_URL;
-const originalUseImageAssets = process.env.USE_IMAGE_ASSETS;
 const originalUseGeneratedCultivarImageAssets =
   process.env.USE_GENERATED_CULTIVAR_IMAGE_ASSETS;
 
@@ -104,12 +103,6 @@ describe("getPublicListings helpers", () => {
       delete process.env.NEXT_PUBLIC_CLOUDFLARE_URL;
     } else {
       process.env.NEXT_PUBLIC_CLOUDFLARE_URL = originalCloudflareUrl;
-    }
-
-    if (originalUseImageAssets === undefined) {
-      delete process.env.USE_IMAGE_ASSETS;
-    } else {
-      process.env.USE_IMAGE_ASSETS = originalUseImageAssets;
     }
 
     if (originalUseGeneratedCultivarImageAssets === undefined) {
@@ -479,8 +472,7 @@ describe("getPublicListings helpers", () => {
     );
   });
 
-  it("uses ImageAsset display URLs for public listing detail when enabled", async () => {
-    process.env.USE_IMAGE_ASSETS = "true";
+  it("uses ImageAsset display URLs for public listing detail", async () => {
     mockDb.listing.findFirst.mockResolvedValue({
       ...createListing("id-a", "Every Friday Night"),
       updatedAt: new Date("2026-05-01T00:00:00.000Z"),

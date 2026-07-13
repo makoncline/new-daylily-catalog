@@ -34,7 +34,6 @@ vi.mock("@aws-sdk/s3-request-presigner", () => ({
 
 type RouterModule = typeof import("@/server/api/routers/dashboard-db/image");
 let dashboardDbImageRouter: RouterModule["dashboardDbImageRouter"];
-const originalUseImageAssets = process.env.USE_IMAGE_ASSETS;
 
 beforeAll(async () => {
   ({ dashboardDbImageRouter } = await import(
@@ -114,15 +113,6 @@ describe("dashboardDb.image", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     s3Mocks.getSignedUrl.mockResolvedValue("https://upload-url.example");
-  });
-
-  afterEach(() => {
-    if (originalUseImageAssets === undefined) {
-      delete process.env.USE_IMAGE_ASSETS;
-      return;
-    }
-
-    process.env.USE_IMAGE_ASSETS = originalUseImageAssets;
   });
 
   it("presigns only allowed image types with a server-derived extension and content length", async () => {
@@ -284,8 +274,7 @@ describe("dashboardDb.image", () => {
     expect(db.image.findMany).not.toHaveBeenCalled();
   });
 
-  it("sync returns dashboard thumb URLs with ImageAsset metadata when asset reads are enabled", async () => {
-    process.env.USE_IMAGE_ASSETS = "true";
+  it("sync returns dashboard thumb URLs with ImageAsset metadata", async () => {
     const db = createMockDb();
     db.$queryRaw.mockResolvedValueOnce([
       {

@@ -9,7 +9,6 @@ import crypto from "node:crypto";
 import { imageContentTypeSchema, imageTypeSchema } from "@/types/image";
 import type { db } from "@/server/db";
 import {
-  areImageAssetsEnabled,
   imageAssetUrlSelect,
   resolveLegacyImagesWithAssets,
 } from "@/server/services/image-asset-read-model";
@@ -329,7 +328,7 @@ async function resolveDashboardImageRows(args: {
   db: DbClient;
   rows: DashboardImageRow[];
 }) {
-  if (!areImageAssetsEnabled() || args.rows.length === 0) {
+  if (args.rows.length === 0) {
     return args.rows;
   }
 

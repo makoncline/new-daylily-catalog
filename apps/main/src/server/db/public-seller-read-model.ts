@@ -13,7 +13,6 @@ import {
 import { parseAndSanitizeEditorJsContent } from "@/server/security/editor-js-content";
 import { getCloudflareUrlForDaylilyS3Image } from "@/lib/utils/cloudflareLoader";
 import {
-  areImageAssetsEnabled,
   type ImageAssetView,
   orderedImageAssetUrlInclude,
   resolveLegacyImagesWithAssets,
@@ -211,9 +210,7 @@ export async function getPublicSellerSummariesByUserIds(
                   order: "asc",
                 },
               },
-              ...(areImageAssetsEnabled()
-                ? { imageAssets: orderedImageAssetUrlInclude }
-                : {}),
+              imageAssets: orderedImageAssetUrlInclude,
             },
           },
         },
@@ -276,10 +273,7 @@ export async function getPublicSellerSummariesByUserIds(
           location: user.profile?.location ?? null,
           images: resolveLegacyImagesWithAssets({
             images: user.profile?.images ?? [],
-            imageAssets:
-              user.profile && "imageAssets" in user.profile
-                ? user.profile.imageAssets
-                : [],
+            imageAssets: user.profile?.imageAssets ?? [],
             variant: "display",
           }).map((image) => ({
             ...image,
