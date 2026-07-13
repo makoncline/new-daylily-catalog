@@ -5,6 +5,7 @@ import { db, hasEmbeddedReplica, replicaDb } from "@/server/db";
 import { getClerkUserData } from "@/server/clerk/sync-user";
 import { ZodError } from "zod";
 import { logUserMutation } from "@/server/audit/user-action-audit";
+import { isHermeticMode } from "@/lib/hermetic/runtime.js";
 
 export async function getUserByClerkId(clerkUserId: string) {
   const user = await db.user.findUnique({
@@ -135,7 +136,7 @@ export const createTRPCRouter = t.router;
 const timingMiddleware = t.middleware(async ({ next, path }) => {
   const start = Date.now();
 
-  if (t._config.isDev) {
+  if (t._config.isDev && !isHermeticMode()) {
     // artificial delay in dev
     const waitMs = Math.floor(Math.random() * 400) + 100;
     await new Promise((resolve) => setTimeout(resolve, waitMs));

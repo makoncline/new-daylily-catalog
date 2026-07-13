@@ -5,6 +5,13 @@ deep operational detail in the linked documents and use this index for routing.
 
 ## Local Development and Tests
 
+- `agent-development-flywheel.md` - default code-to-browser-to-verification
+  loop for agents.
+- `full-app-integration.md` - offline full-app integration environment and
+  third-party boundaries.
+- `testing-strategy.md` - concise test-level ownership and confidence model.
+- `realistic-data-local-development.md` - production-shaped local data with
+  stage services for explicit connected checks.
 - `e2e-tests.md` - Playwright local, preview, and page-object workflow.
 - `local-query-profiler.md` - local profiling against a production-shaped
   SQLite snapshot.

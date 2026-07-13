@@ -3,6 +3,8 @@ import fs from "node:fs";
 import path from "node:path";
 import dotenv from "dotenv";
 
+delete process.env.NO_COLOR;
+
 dotenv.config({
   path: path.resolve(process.cwd(), "../../.env.development"),
   override: false,
@@ -64,6 +66,7 @@ if (!process.env.BASE_URL) {
 export default defineConfig({
   testDir: "./tests",
   testMatch: "**/*.e2e.{ts,tsx}",
+  testIgnore: "app/**",
   globalSetup: "./e2e/global-setup.ts",
   globalTeardown: "./e2e/global-teardown.ts",
   reporter: [["list"], ["html", { open: "never" }]],

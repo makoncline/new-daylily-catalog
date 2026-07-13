@@ -6,6 +6,9 @@ describe("runtime config route", () => {
   let previousPosthogHost: string | undefined;
   let previousClerkPublishableKey: string | undefined;
   let previousCloudflareUrl: string | undefined;
+  let previousHermeticMode: string | undefined;
+  let previousHermeticRuntimeId: string | undefined;
+  let previousRealisticRuntimeId: string | undefined;
   let consoleInfoMock: ReturnType<typeof vi.spyOn>;
 
   beforeEach(() => {
@@ -14,6 +17,9 @@ describe("runtime config route", () => {
     previousPosthogHost = process.env.NEXT_PUBLIC_POSTHOG_HOST;
     previousClerkPublishableKey = process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY;
     previousCloudflareUrl = process.env.NEXT_PUBLIC_CLOUDFLARE_URL;
+    previousHermeticMode = process.env.HERMETIC_MODE;
+    previousHermeticRuntimeId = process.env.HERMETIC_RUNTIME_ID;
+    previousRealisticRuntimeId = process.env.REALISTIC_DATA_RUNTIME_ID;
     consoleInfoMock = vi.spyOn(console, "info").mockImplementation(() => {
       return undefined;
     });
@@ -53,6 +59,15 @@ describe("runtime config route", () => {
     } else {
       process.env.NEXT_PUBLIC_CLOUDFLARE_URL = previousCloudflareUrl;
     }
+
+    for (const [name, value] of [
+      ["HERMETIC_MODE", previousHermeticMode],
+      ["HERMETIC_RUNTIME_ID", previousHermeticRuntimeId],
+      ["REALISTIC_DATA_RUNTIME_ID", previousRealisticRuntimeId],
+    ] as const) {
+      if (value === undefined) delete process.env[name];
+      else process.env[name] = value;
+    }
   });
 
   it("returns runtime observability settings from server env", async () => {
@@ -75,10 +90,13 @@ describe("runtime config route", () => {
         key: "phc_runtime_key",
         host: "https://eu.i.posthog.com",
       },
+      localDataRuntime: null,
     });
 
     expect(consoleInfoMock).toHaveBeenCalledTimes(1);
-    expect(JSON.parse(consoleInfoMock.mock.calls[0]?.[0] as string)).toMatchObject({
+    expect(
+      JSON.parse(consoleInfoMock.mock.calls[0]?.[0] as string),
+    ).toMatchObject({
       event: "observability_status",
       sentry: {
         enabled: false,
@@ -106,6 +124,23 @@ describe("runtime config route", () => {
       },
       posthog: {
         enabled: false,
+      },
+    });
+  });
+
+  it("identifies the exact offline integration runtime", async () => {
+    process.env.HERMETIC_MODE = "1";
+    process.env.HERMETIC_RUNTIME_ID = "/tmp/integration.sqlite";
+    delete process.env.REALISTIC_DATA_RUNTIME_ID;
+    process.env.NEXT_PUBLIC_SENTRY_ENABLED = "false";
+    delete process.env.NEXT_PUBLIC_POSTHOG_KEY;
+    delete process.env.NEXT_PUBLIC_POSTHOG_HOST;
+    const { GET } = await import("@/app/api/runtime-config/route");
+
+    await expect(GET().json()).resolves.toMatchObject({
+      localDataRuntime: {
+        mode: "hermetic",
+        databaseId: "/tmp/integration.sqlite",
       },
     });
   });

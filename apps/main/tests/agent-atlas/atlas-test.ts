@@ -1,0 +1,223 @@
+import { expect, test as base } from "@playwright/test";
+import type { Page, TestInfo } from "@playwright/test";
+import { mkdirSync, writeFileSync } from "node:fs";
+import path from "node:path";
+import { getAtlasRoot } from "../../scripts/agent-atlas-paths.mjs";
+
+type AtlasFixtures = {
+  diagnostics: DiagnosticState;
+};
+
+type DiagnosticState = {
+  consoleErrors: string[];
+  pageErrors: string[];
+  failedRequests: Array<{ method: string; url: string; error: string }>;
+};
+
+const diagnosticsByPage = new WeakMap<Page, DiagnosticState>();
+
+export const test = base.extend<AtlasFixtures>({
+  diagnostics: [
+    async ({ page }, use, testInfo) => {
+      const state: DiagnosticState = {
+        consoleErrors: [],
+        pageErrors: [],
+        failedRequests: [],
+      };
+      diagnosticsByPage.set(page, state);
+      await page.emulateMedia({ reducedMotion: "reduce" });
+
+      page.on("console", (message) => {
+        if (message.type() === "error")
+          state.consoleErrors.push(message.text());
+      });
+      page.on("pageerror", (error) => state.pageErrors.push(error.message));
+      page.on("requestfailed", (request) => {
+        state.failedRequests.push({
+          method: request.method(),
+          url: request.url(),
+          error: request.failure()?.errorText ?? "unknown failure",
+        });
+      });
+
+      await use(state);
+
+      await testInfo.attach("browser-diagnostics.json", {
+        body: JSON.stringify(state, null, 2),
+        contentType: "application/json",
+      });
+      expect(state.pageErrors, "uncaught browser errors").toEqual([]);
+      expect(state.consoleErrors, "browser console errors").toEqual([]);
+    },
+    { auto: true },
+  ],
+});
+
+export { expect } from "@playwright/test";
+
+async function hasVisibleInteractionLayer(page: Page) {
+  return (
+    (await page
+      .locator(
+        '[role="dialog"], [role="alertdialog"], [role="menu"]:visible, [role="listbox"]:visible, [data-state="open"][class*="fixed inset-0"]',
+      )
+      .count()) > 0
+  );
+}
+
+async function useSmallestVisiblePageSizes(page: Page) {
+  const pagers = page.locator('[data-testid="pager-per-page"]:visible');
+  const count = await pagers.count();
+
+  for (let index = 0; index < count; index += 1) {
+    const pager = pagers.nth(index);
+    await pager.scrollIntoViewIfNeeded();
+    await pager.click();
+    const options = page.locator(
+      '[data-slot="select-content"]:visible [role="option"]',
+    );
+    await expect(options.first()).toBeVisible();
+    const sizes = (await options.allTextContents())
+      .map((value) => Number(value.trim()))
+      .filter((value) => Number.isFinite(value));
+    const smallest = Math.min(...sizes);
+    if (!Number.isFinite(smallest)) {
+      await page.keyboard.press("Escape");
+      continue;
+    }
+    await options.getByText(String(smallest), { exact: true }).click();
+    await expect(pager).toContainText(String(smallest));
+  }
+}
+
+export async function captureCheckpoint(
+  page: Page,
+  testInfo: TestInfo,
+  name: string,
+  description?: string,
+  options: { allowExpectedErrors?: boolean; viewportOnly?: boolean } = {},
+) {
+  const selectedCaptureNames =
+    process.env.AGENT_ATLAS_CAPTURE_NAMES?.split(",");
+  const normalizedName = name.startsWith(`${testInfo.project.name}-`)
+    ? name.slice(testInfo.project.name.length + 1)
+    : name;
+  if (selectedCaptureNames && !selectedCaptureNames.includes(normalizedName))
+    return;
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  const interactionLayerVisible = await hasVisibleInteractionLayer(page);
+  if (!interactionLayerVisible) {
+    await useSmallestVisiblePageSizes(page);
+  }
+  await page.evaluate(async () => {
+    await document.fonts.ready;
+    await Promise.race([
+      Promise.all(
+        [...document.images].map(
+          (image) =>
+            image.complete ||
+            new Promise<void>((resolve) => {
+              image.addEventListener("load", () => resolve(), { once: true });
+              image.addEventListener("error", () => resolve(), { once: true });
+            }),
+        ),
+      ),
+      new Promise<void>((resolve) => setTimeout(resolve, 2_000)),
+    ]);
+    await Promise.race([
+      Promise.all(
+        document
+          .getAnimations()
+          .map((animation) => animation.finished.catch(() => undefined)),
+      ),
+      new Promise<void>((resolve) => setTimeout(resolve, 1_000)),
+    ]);
+  });
+  await page.waitForTimeout(300);
+  await expect(page.locator("body")).not.toBeEmpty();
+  if (
+    process.env.AGENT_ATLAS_SIMULATE_FAILURE !== "1" &&
+    !options.allowExpectedErrors
+  ) {
+    await expect(
+      page.locator(
+        "[data-nextjs-dialog], .vite-error-overlay, #webpack-dev-server-client-overlay",
+      ),
+    ).toHaveCount(0);
+  }
+  const screenshot = await page.screenshot({
+    fullPage: !interactionLayerVisible && !options.viewportOnly,
+  });
+  const captureDirectory = path.join(
+    getAtlasRoot(process.cwd()),
+    "gallery-captures",
+  );
+  const captureKey = `${testInfo.project.name}-${name}`;
+  const diagnosticsState = diagnosticsByPage.get(page) ?? {
+    consoleErrors: [],
+    pageErrors: [],
+    failedRequests: [],
+  };
+  const diagnostics = {
+    consoleErrors: [...diagnosticsState.consoleErrors],
+    pageErrors: [...diagnosticsState.pageErrors],
+    failedRequests: [...diagnosticsState.failedRequests],
+  };
+  if (!options.allowExpectedErrors) {
+    expect(diagnostics.pageErrors, "uncaught browser errors").toEqual([]);
+    expect(diagnostics.consoleErrors, "browser console errors").toEqual([]);
+  }
+  const story = name.includes("onboarding")
+    ? "onboarding"
+    : testInfo.project.name.startsWith("anonymous")
+      ? "public"
+      : name.includes("dialog") ||
+          name.includes("filter") ||
+          name.includes("picker") ||
+          name.includes("tag")
+        ? "dashboard-interactions"
+        : "dashboard-base";
+  mkdirSync(captureDirectory, { recursive: true });
+  writeFileSync(path.join(captureDirectory, `${captureKey}.png`), screenshot);
+  writeFileSync(
+    path.join(captureDirectory, `${captureKey}.json`),
+    JSON.stringify(
+      {
+        key: captureKey,
+        name,
+        description,
+        project: testInfo.project.name,
+        title: await page.title(),
+        url: page.url(),
+        viewport: page.viewportSize(),
+        story,
+        diagnostics,
+        rerunCommand: `node scripts/run-agent-atlas-story.mjs ${story}`,
+      },
+      null,
+      2,
+    ),
+  );
+
+  await testInfo.attach(`${name}.png`, {
+    body: screenshot,
+    contentType: "image/png",
+  });
+  await testInfo.attach(`${name}.json`, {
+    body: JSON.stringify(
+      {
+        capturedAt: new Date().toISOString(),
+        project: testInfo.project.name,
+        title: await page.title(),
+        url: page.url(),
+      },
+      null,
+      2,
+    ),
+    contentType: "application/json",
+  });
+
+  diagnosticsState.consoleErrors.length = 0;
+  diagnosticsState.pageErrors.length = 0;
+  diagnosticsState.failedRequests.length = 0;
+}

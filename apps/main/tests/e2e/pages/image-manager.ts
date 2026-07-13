@@ -47,34 +47,52 @@ export class ImageManager {
   }
 
   async dragImageBefore(sourceId: string, targetId: string) {
-    const sourceHandle = this.imageDragHandleById(sourceId);
-    const targetHandle = this.imageDragHandleById(targetId);
+    let lastError: unknown;
 
-    await sourceHandle.waitFor({ state: "visible" });
-    await targetHandle.waitFor({ state: "visible" });
-    await sourceHandle.scrollIntoViewIfNeeded();
-    await targetHandle.scrollIntoViewIfNeeded();
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      let mouseIsDown = false;
+      try {
+        const sourceHandle = this.imageDragHandleById(sourceId);
+        const targetHandle = this.imageDragHandleById(targetId);
 
-    const sourceBox = await sourceHandle.boundingBox();
-    const targetBox = await targetHandle.boundingBox();
+        await sourceHandle.waitFor({ state: "visible" });
+        await targetHandle.waitFor({ state: "visible" });
+        await sourceHandle.scrollIntoViewIfNeeded();
+        await targetHandle.scrollIntoViewIfNeeded();
 
-    if (!sourceBox || !targetBox) {
-      throw new Error(
-        "Unable to drag image: source or target handle has no box",
-      );
+        const sourceBox = await sourceHandle.boundingBox();
+        const targetBox = await targetHandle.boundingBox();
+
+        if (!sourceBox || !targetBox) {
+          throw new Error(
+            "Unable to drag image: source or target handle has no box",
+          );
+        }
+
+        await this.page.mouse.move(
+          sourceBox.x + sourceBox.width / 2,
+          sourceBox.y + sourceBox.height / 2,
+        );
+        await this.page.mouse.down();
+        mouseIsDown = true;
+        await this.page.mouse.move(
+          targetBox.x + targetBox.width / 2,
+          targetBox.y + targetBox.height / 2,
+          { steps: 16 },
+        );
+        await this.page.mouse.up();
+        mouseIsDown = false;
+        return;
+      } catch (error) {
+        lastError = error;
+        if (mouseIsDown) {
+          await this.page.mouse.up().catch(() => undefined);
+        }
+        await this.page.waitForTimeout(250);
+      }
     }
 
-    await this.page.mouse.move(
-      sourceBox.x + sourceBox.width / 2,
-      sourceBox.y + sourceBox.height / 2,
-    );
-    await this.page.mouse.down();
-    await this.page.mouse.move(
-      targetBox.x + targetBox.width / 2,
-      targetBox.y + targetBox.height / 2,
-      { steps: 16 },
-    );
-    await this.page.mouse.up();
+    throw lastError;
   }
 
   async imageOrderIds(): Promise<string[]> {

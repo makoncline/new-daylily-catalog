@@ -10,7 +10,10 @@ on:
         type: string
 
 concurrency:
-  group: e2e-${{ github.event.deployment.sha || github.event.inputs.commit_sha }}
+  # Only eligible smoke runs share a cancellation key. GitHub creates a workflow
+  # run for every deployment status before evaluating the job-level condition;
+  # give irrelevant events unique keys so they cannot cancel the real Vercel run.
+  group: e2e-${{ github.event.deployment.sha || github.event.inputs.commit_sha }}-${{ (github.event_name == 'workflow_dispatch' || (github.event.deployment_status.state == 'success' && github.event.deployment_status.creator.login == 'vercel[bot]' && github.event.deployment_status.environment_url != '' && (github.event.deployment.environment == 'Preview' || github.event.deployment.environment == 'preview'))) && 'eligible' || github.run_id }}
   cancel-in-progress: true
 
 jobs:
@@ -18,6 +21,8 @@ jobs:
     if: >
       github.event_name == 'workflow_dispatch' ||
       (github.event.deployment_status.state == 'success' &&
+       github.event.deployment_status.creator.login == 'vercel[bot]' &&
+       github.event.deployment_status.environment_url != '' &&
        (github.event.deployment.environment == 'Preview' || github.event.deployment.environment == 'preview'))
     runs-on: ubuntu-latest
     environment: preview
@@ -42,13 +47,26 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 24
           cache: "pnpm"
           cache-dependency-path: pnpm-lock.yaml
 
       - run: pnpm fetch
       - run: pnpm install --frozen-lockfile --prefer-offline
-      - run: pnpm main exec playwright install --with-deps
+
+      - name: Restore Playwright browser cache
+        id: playwright-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+
+      - name: Install Playwright system dependencies
+        run: pnpm main exec playwright install-deps chromium
+
+      - name: Install Playwright browser
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        run: pnpm main exec playwright install chromium
 
       - name: Compute BASE_URL (alias)
         id: url

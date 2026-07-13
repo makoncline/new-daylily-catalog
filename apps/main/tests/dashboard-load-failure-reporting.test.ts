@@ -1,8 +1,21 @@
 // @vitest-environment jsdom
 
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { HttpResponse, http } from "msw";
+import { setupServer } from "msw/node";
+import {
+  afterAll,
+  afterEach,
+  beforeAll,
+  describe,
+  expect,
+  it,
+  vi,
+} from "vitest";
 import { reportDashboardLoadFailure } from "@/app/dashboard/_lib/dashboard-db/dashboard-load-failure-reporting";
 import { reportError } from "@/lib/error-utils";
+
+const telegramAlertUrl = "https://send-to-makon.vercel.app/api/send-telegram";
+const server = setupServer();
 
 vi.mock("@/lib/error-utils", () => ({
   getErrorMessage: vi.fn(() => "bootstrap failed"),
@@ -11,16 +24,29 @@ vi.mock("@/lib/error-utils", () => ({
   }),
 }));
 
+beforeAll(() => {
+  server.listen({ onUnhandledRequest: "error" });
+});
+
 afterEach(() => {
-  vi.unstubAllGlobals();
+  server.resetHandlers();
   vi.clearAllMocks();
+});
+
+afterAll(() => {
+  server.close();
 });
 
 describe("dashboard load failure reporting", () => {
   it("does not send Telegram reports outside production", () => {
     vi.spyOn(console, "error").mockImplementation(() => undefined);
-    const fetchMock = vi.fn<typeof fetch>();
-    vi.stubGlobal("fetch", fetchMock);
+    let telegramRequests = 0;
+    server.use(
+      http.get(telegramAlertUrl, () => {
+        telegramRequests += 1;
+        return HttpResponse.json({ ok: true });
+      }),
+    );
 
     reportDashboardLoadFailure({
       error: new Error("bootstrap failed"),
@@ -33,16 +59,20 @@ describe("dashboard load failure reporting", () => {
     });
 
     expect(reportError).toHaveBeenCalled();
-    expect(fetchMock).not.toHaveBeenCalled();
+    expect(telegramRequests).toBe(0);
   });
 
-  it("does not throw when Sentry and production Telegram reporting fail", () => {
+  it("does not throw when Sentry and production Telegram reporting fail", async () => {
     vi.spyOn(console, "error").mockImplementation(() => undefined);
     vi.stubEnv("NODE_ENV", "production");
-    const fetchMock = vi.fn<typeof fetch>(async () => {
-      throw new Error("telegram unavailable");
+    const requestObserved = new Promise<Request>((resolve) => {
+      server.use(
+        http.get(telegramAlertUrl, ({ request }) => {
+          resolve(request);
+          return HttpResponse.error();
+        }),
+      );
     });
-    vi.stubGlobal("fetch", fetchMock);
 
     expect(() =>
       reportDashboardLoadFailure({
@@ -56,17 +86,18 @@ describe("dashboard load failure reporting", () => {
       }),
     ).not.toThrow();
 
+    const request = await requestObserved;
+    const url = new URL(request.url);
+
     expect(reportError).toHaveBeenCalled();
-    expect(fetchMock).toHaveBeenCalledWith(
-      expect.stringContaining(
-        "https://send-to-makon.vercel.app/api/send-telegram?",
-      ),
-      expect.objectContaining({
-        credentials: "omit",
-        keepalive: true,
-        method: "GET",
-        mode: "no-cors",
-      }),
+    expect(request.method).toBe("GET");
+    expect(request.credentials).toBe("omit");
+    expect(request.keepalive).toBe(true);
+    expect(request.mode).toBe("no-cors");
+    expect(url.searchParams.get("subject")).toBe(
+      "Daylily dashboard load failed",
     );
+    expect(url.searchParams.get("message")).toContain("User: user-1");
+    expect(url.searchParams.get("message")).toContain("Phase: cold-bootstrap");
   });
 });
