@@ -36,6 +36,14 @@ export type PosthogEventName =
   | "seller_cta_clicked"
   | "seller_example_clicked"
   | "onboarding_entry_viewed"
+  | "onboarding_quiz_answered"
+  | "onboarding_cultivar_selected"
+  | "onboarding_cultivar_removed"
+  | "onboarding_listing_preview_edited"
+  | "onboarding_buyer_catalog_interacted"
+  | "onboarding_share_preview_viewed"
+  | "onboarding_example_viewed"
+  | "onboarding_step_exited"
   | "membership_skipped"
   | "catalog_published";
 
@@ -111,6 +119,9 @@ async function initializePosthog() {
   posthog.init(runtimeConfig.posthog.key, {
     api_host: runtimeConfig.posthog.host,
     defaults: "2026-01-30",
+    session_recording: {
+      maskAllInputs: true,
+    },
   });
 
   return true;
@@ -140,6 +151,17 @@ export function capturePosthogEvent(
 
 export function preloadPosthog() {
   runWithPosthog(() => undefined);
+}
+
+export async function getPosthogDistinctId() {
+  const enabled = await isPosthogEnabled();
+  return enabled ? posthog.get_distinct_id() : null;
+}
+
+export function startOnboardingSessionRecording() {
+  runWithPosthog(() => {
+    posthog.startSessionRecording({ sampling: true });
+  });
 }
 
 export function identifyPosthogUser(identity: PosthogUserIdentity) {

@@ -8,11 +8,15 @@ import { type PublicCatalogListing } from "./public-catalog-search-types";
 interface PublicCatalogSearchTableProps {
   table: Table<PublicCatalogListing>;
   desktopColumns: 2 | 3;
+  onOpenListing?: (listingId: string) => void;
+  showCart?: boolean;
 }
 
 export function PublicCatalogSearchTable({
   table,
   desktopColumns,
+  onOpenListing,
+  showCart,
 }: PublicCatalogSearchTableProps) {
   const rows = table.getRowModel().rows;
 
@@ -27,7 +31,11 @@ export function PublicCatalogSearchTable({
     >
       {rows.map((row) => (
         <div key={row.original.id}>
-          <ListingCard listing={row.original} />
+          <ListingCard
+            listing={row.original}
+            onOpenListing={onOpenListing}
+            showCart={showCart}
+          />
         </div>
       ))}
     </div>

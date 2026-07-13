@@ -14,27 +14,38 @@ vi.mock("@/app/onboarding/anonymous-onboarding-steps", async () => {
   return {
     CheckoutStep: () => React.createElement("div", null, "Checkout step"),
     EmailStep: () => React.createElement("div", null, "Email step"),
-    ListingStep: () => React.createElement("div", null, "Listing step"),
-    PreviewStep: () => React.createElement("div", null, "Preview step"),
-    ProfileStep: () => React.createElement("div", null, "Profile step"),
   };
 });
 
-const exampleCultivars = [
-  {
-    key: "cr-first",
-    name: "First Bloom",
-    hybridizerYear: "First Hybridizer, 2021",
-    imageUrl: "https://example.com/first.jpg",
-  },
-];
+vi.mock("@/app/onboarding/anonymous-onboarding-persuasion-steps", async () => {
+  const React = await import("react");
+  return {
+    PersonalizeStep: () => React.createElement("div", null, "Personalize"),
+    WorkflowStep: () => React.createElement("div", null, "Workflow"),
+  };
+});
+
+vi.mock("@/app/onboarding/anonymous-onboarding-product-steps", async () => {
+  const React = await import("react");
+  return {
+    BuyerExperienceStep: () =>
+      React.createElement("div", null, "Buyer experience"),
+    CollectionEnrichmentStep: () =>
+      React.createElement("div", null, "Enrichment"),
+    CultivarCollectionStep: () => React.createElement("div", null, "Cultivars"),
+    ListingsWorkspaceStep: () => React.createElement("div", null, "Listings"),
+  };
+});
 
 function buildController(step: AnonymousOnboardingStepId) {
   const currentStepIndex = [
+    "workflow",
+    "buyer-need",
+    "problem",
+    "search-tour",
+    "proof",
+    "personalize",
     "email",
-    "profile",
-    "listing",
-    "preview",
     "checkout",
   ].indexOf(step);
 
@@ -49,7 +60,8 @@ function buildController(step: AnonymousOnboardingStepId) {
     goBack: vi.fn(),
     goForward: vi.fn(),
     goToStep: vi.fn(),
-    progressValue: ((currentStepIndex + 1) / 5) * 100,
+    progressValue: ((currentStepIndex + 1) / 12) * 100,
+    currentStepCanContinue: true,
     storageWarning: null,
   };
 }
@@ -77,10 +89,9 @@ describe("AnonymousOnboardingPageClient", () => {
     window.cancelAnimationFrame = vi.fn();
 
     try {
-      controllerMock.mockReturnValue(buildController("profile"));
+      controllerMock.mockReturnValue(buildController("proof"));
       const view = render(
         <AnonymousOnboardingPageClient
-          exampleCultivars={exampleCultivars}
           membershipPriceDisplay={{
             amount: "$99",
             interval: "year",
@@ -91,10 +102,9 @@ describe("AnonymousOnboardingPageClient", () => {
 
       expect(scrollIntoViewMock).not.toHaveBeenCalled();
 
-      controllerMock.mockReturnValue(buildController("listing"));
+      controllerMock.mockReturnValue(buildController("personalize"));
       view.rerender(
         <AnonymousOnboardingPageClient
-          exampleCultivars={exampleCultivars}
           membershipPriceDisplay={{
             amount: "$99",
             interval: "year",
@@ -106,11 +116,11 @@ describe("AnonymousOnboardingPageClient", () => {
       expect(
         screen.getByTestId("anonymous-onboarding-step-content"),
       ).toBeInTheDocument();
-      expect(scrollIntoViewMock).toHaveBeenCalledWith({
-        behavior: "smooth",
-        block: "start",
+      expect(scrollIntoViewMock).not.toHaveBeenCalled();
+      expect(scrollToMock).toHaveBeenCalledWith({
+        behavior: "instant",
+        top: 0,
       });
-      expect(scrollToMock).not.toHaveBeenCalled();
     } finally {
       HTMLElement.prototype.scrollIntoView = originalScrollIntoView;
       window.scrollTo = originalScrollTo;

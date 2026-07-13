@@ -50,9 +50,6 @@ export function CheckoutSuccessPageClient({
         sessionId: activeSessionId,
         profile: {
           gardenName: draft.profile.gardenName,
-          location: draft.profile.location,
-          description: draft.profile.description,
-          profileImageDataUrl: draft.profile.profileImageDataUrl,
         },
       },
       {
@@ -183,13 +180,8 @@ function CheckoutAuthShell({
   "data-testid"?: string;
 }) {
   return (
-    <div
-      className="bg-muted/20"
-      data-testid="onboarding-checkout-success"
-    >
-      <div
-        className="mx-auto grid w-full max-w-6xl gap-8 px-4 py-14 sm:py-20 lg:grid-cols-[minmax(0,1fr)_28rem] lg:px-8 lg:py-24"
-      >
+    <div className="bg-muted/20" data-testid="onboarding-checkout-success">
+      <div className="mx-auto grid w-full max-w-6xl gap-8 px-4 py-14 sm:py-20 lg:grid-cols-[minmax(0,1fr)_28rem] lg:px-8 lg:py-24">
         <div className="max-w-2xl space-y-4">
           <p className="text-primary text-sm font-semibold">Trial active</p>
           <h1 className="text-4xl leading-tight font-semibold tracking-tight text-balance sm:text-5xl">

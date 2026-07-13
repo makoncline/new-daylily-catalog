@@ -13,8 +13,18 @@ import {
   checkoutStatusInputSchema,
   getAnonymousOnboardingCheckoutStatus,
 } from "@/server/onboarding/anonymous-onboarding-service";
+import {
+  anonymousCultivarSearchInputSchema,
+  searchAnonymousOnboardingCultivars,
+} from "@/server/onboarding/anonymous-onboarding-cultivar-search";
 
 export const onboardingRouter = createTRPCRouter({
+  searchCultivars: publicProcedure
+    .input(anonymousCultivarSearchInputSchema)
+    .query(async ({ ctx, input }) =>
+      searchAnonymousOnboardingCultivars(ctx.replicaDb ?? ctx.db, input.query),
+    ),
+
   collectEmail: publicProcedure
     .input(collectEmailInputSchema)
     .mutation(async ({ input }) => {

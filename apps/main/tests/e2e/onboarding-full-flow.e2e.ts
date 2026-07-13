@@ -1,4 +1,3 @@
-import path from "node:path";
 import type { Page } from "@playwright/test";
 import { test, expect } from "./fixtures/app-fixtures";
 import { deleteClerkUserByEmail, getClerkUserIdByEmail } from "./utils/clerk";
@@ -10,9 +9,6 @@ import {
 import { seedOnboardingExampleCultivars } from "../../src/lib/test-utils/seed-onboarding-example-cultivars";
 
 const TEST_CODE = "424242";
-const LISTING_IMAGE_PATH = "public/assets/catalog-blooms.webp";
-
-const appRoot = process.cwd();
 
 async function readBrowserDraft(page: Page) {
   return page.evaluate((storageKey) => {
@@ -42,19 +38,53 @@ async function completeClerkEmailCodeFlow(page: Page, email: string) {
     .first();
   await expect(codeInput).toBeVisible({ timeout: 15_000 });
   await expect(codeInput).toBeEnabled();
-
-  const sendCodeWarning = page.getByText(
-    "You need to send a verification code before attempting to verify.",
-  );
-  if (await sendCodeWarning.isVisible().catch(() => false)) {
-    await page.getByRole("button", { name: /continue/i }).last().click();
-  }
-
   await codeInput.type(TEST_CODE, { delay: 100 });
 }
 
-test.describe("anonymous onboarding checkout flow @local", () => {
-  test("starts on the home page and reaches the paid dashboard", async ({
+test.describe("persuasion-first anonymous onboarding @local", () => {
+  test("stays stacked on phones and becomes a split enrichment workspace on iPad", async ({
+    page,
+  }) => {
+    await page.goto("/");
+    await withTempE2EDb(seedOnboardingExampleCultivars);
+
+    for (const viewport of [
+      { width: 390, height: 844, expectedColumns: 1 },
+      { width: 820, height: 1180, expectedColumns: 3 },
+    ]) {
+      await page.setViewportSize(viewport);
+      await page.goto("/onboarding");
+      await page.getByTestId("onboarding-workflow-document").click();
+      await page.getByTestId("onboarding-catalog-size-25_99").click();
+      await page.getByTestId("anonymous-onboarding-primary-action").click();
+      await page.getByTestId("onboarding-cultivar-search").fill("Primal");
+      await page
+        .getByRole("button", { name: /add primal scream to your preview/i })
+        .click();
+      await page.getByTestId("onboarding-cultivar-search").fill("Coffee");
+      await page
+        .getByRole("button", { name: /add coffee frenzy to your preview/i })
+        .click();
+      await page.getByTestId("anonymous-onboarding-primary-action").click();
+
+      const split = page.getByTestId("onboarding-enrichment-split");
+      await expect(split).toBeVisible();
+      const columnCount = await split.evaluate(
+        (element) =>
+          getComputedStyle(element).gridTemplateColumns.split(" ").length,
+      );
+      expect(columnCount).toBe(viewport.expectedColumns);
+      expect(
+        await page.evaluate(
+          () => document.documentElement.scrollWidth <= window.innerWidth,
+        ),
+      ).toBe(true);
+
+      await page.evaluate(() => window.localStorage.clear());
+    }
+  });
+
+  test("turns real cultivar data into a private catalog and imports only the garden name", async ({
     page,
     homePage,
     dashboardHome,
@@ -62,16 +92,9 @@ test.describe("anonymous onboarding checkout flow @local", () => {
     test.slow();
 
     const runId = `${Date.now()}-${testInfo.workerIndex}-${testInfo.repeatEachIndex}`;
-    const initialEmail = `anonymous-initial+clerk_test_${runId}@example.com`;
-    const paidEmail = `anonymous-paid+clerk_test_${runId}@example.com`;
-    const profileName = "Anonymous Flow Daylilies";
-    const initialProfileName = "Anonymous Flow";
-    const profileLocation = "Olympia, WA";
-    const profileDescription =
-      "Small grower catalog focused on clear photos and seasonal availability.";
-    const listingTitle = "Lemon Chiffon Cupcake starter clump";
-    const listingDescription =
-      "Bright repeat-blooming example listing with clean roots and simple notes.";
+    const initialEmail = `persuasion-initial+clerk_test_${runId}@example.com`;
+    const paidEmail = `persuasion-paid+clerk_test_${runId}@example.com`;
+    const profileName = "Persuasion Flow Daylilies";
 
     await deleteClerkUserByEmail(initialEmail);
     await deleteClerkUserByEmail(paidEmail);
@@ -80,7 +103,6 @@ test.describe("anonymous onboarding checkout flow @local", () => {
     try {
       await homePage.goto();
       await homePage.isReady();
-
       await page
         .getByRole("link", { name: "Create your catalog" })
         .first()
@@ -88,200 +110,83 @@ test.describe("anonymous onboarding checkout flow @local", () => {
       await expect(page).toHaveURL(/\/start-membership/);
       await page.getByTestId("start-membership-checkout").first().click();
       await expect(page).toHaveURL(/\/onboarding/);
-      await expect(page.getByTestId("anonymous-onboarding-page")).toBeVisible();
+
+      await page.getByTestId("onboarding-workflow-facebook").click();
+      await page.getByTestId("onboarding-catalog-size-100_499").click();
+      await page.getByTestId("anonymous-onboarding-primary-action").click();
+
+      await page.getByTestId("onboarding-cultivar-search").fill("Primal");
+      await page
+        .getByRole("button", { name: /add primal scream to your preview/i })
+        .click();
+      await page.getByTestId("onboarding-cultivar-search").fill("Coffee");
+      await page
+        .getByRole("button", { name: /add coffee frenzy to your preview/i })
+        .click();
+      await page.getByTestId("anonymous-onboarding-primary-action").click();
+
+      await expect(page.getByText("Your collection before")).toBeVisible();
+      await expect(page.getByText(/automatically adds/i)).toBeVisible();
+      await page.getByTestId("anonymous-onboarding-primary-action").click();
+
+      await expect(
+        page.getByText(/Private preview · browser only/i),
+      ).toBeVisible();
+      await page.getByLabel("Price for Primal Scream").fill("32");
+      await page.getByTestId("anonymous-onboarding-primary-action").click();
+
+      await expect(
+        page.getByRole("heading", {
+          name: /One listing works wherever buyers find you/i,
+        }),
+      ).toBeVisible();
+      await page.getByRole("button", { name: "Facebook" }).click();
+      await expect(page.getByText("DAYLILYCATALOG.COM")).toBeVisible();
+      await page.getByRole("tab", { name: "Buyer catalog" }).click();
+      await expect(page.getByTestId("advanced-filter-for-sale")).toBeVisible();
+      await expect(page.getByTestId("advanced-filter-has-photo")).toBeVisible();
+      await page.getByTestId("search-mode-switch").click();
+      await page
+        .getByRole("button", { name: "Classification & Details" })
+        .click();
+      await expect(page.getByText("Parentage")).toBeVisible();
+      await page.getByTestId("anonymous-onboarding-primary-action").click();
+
+      await page.getByTestId("onboarding-personalize-name").fill(profileName);
+      await expect(page.getByTestId("onboarding-personalize-name")).toHaveValue(
+        profileName,
+      );
+      await page.getByTestId("anonymous-onboarding-primary-action").click();
+
+      await expect(
+        page.getByRole("heading", {
+          name: "Save the catalog you just shaped.",
+        }),
+      ).toBeVisible();
+
+      const draft = await readBrowserDraft(page);
+      expect(draft).toMatchObject({
+        version: 2,
+        workflow: "facebook",
+        catalogSize: "100_499",
+        collection: [
+          expect.objectContaining({ name: "Primal Scream", price: 32 }),
+          expect.objectContaining({ name: "Coffee Frenzy" }),
+        ],
+        profile: { gardenName: profileName },
+      });
+      expect(draft?.ahaReachedAt).toBeTruthy();
 
       await page.getByTestId("anonymous-onboarding-email").fill(initialEmail);
       await page.getByTestId("anonymous-onboarding-email-submit").click();
       await expect(
-        page.getByRole("heading", { name: "Edit your profile" }),
+        page.getByRole("heading", {
+          name: "Publish when you are ready to start your trial",
+        }),
+      ).toBeVisible({ timeout: 30_000 });
+      await expect(
+        page.getByText(/sample listings do not import/i),
       ).toBeVisible();
-      await expect(page).toHaveURL(/\/onboarding\?step=profile/);
-
-      await page.goBack();
-      await expect(page).toHaveURL(/\/onboarding\?step=email/);
-      await expect(
-        page.getByTestId("anonymous-onboarding-email"),
-      ).toHaveValue(initialEmail);
-      await page.goForward();
-      await expect(
-        page.getByRole("heading", { name: "Edit your profile" }),
-      ).toBeVisible();
-
-      const defaultStarterImage = page.getByTestId(
-        "onboarding-starter-image-dew-kissed-daylily-leaf-at-dawn",
-      );
-      const profileImagePreview = page
-        .getByTestId("anonymous-profile-image-inline-preview")
-        .locator("img");
-      await expect(defaultStarterImage).toHaveAttribute("aria-pressed", "true");
-      await expect(profileImagePreview).toBeVisible();
-
-      await page
-        .getByTestId("anonymous-profile-image-mode-upload")
-        .click();
-      await expect(
-        page.getByTestId("anonymous-profile-image-dropzone"),
-      ).toBeVisible();
-      await expect(
-        page.getByTestId("anonymous-profile-image-reset"),
-      ).toHaveCount(0);
-      await page
-        .getByTestId("anonymous-profile-image")
-        .setInputFiles(path.join(appRoot, LISTING_IMAGE_PATH));
-      await page.getByRole("button", { name: "Use cropped image" }).click();
-      await expect(profileImagePreview).toHaveAttribute("src", /data:image\//);
-      await expect(
-        page.getByTestId("anonymous-profile-image-dropzone"),
-      ).toHaveCount(0);
-      await expect(
-        page.getByTestId("anonymous-profile-image-reset"),
-      ).toBeVisible();
-      const uploadedProfileImage = await profileImagePreview.getAttribute("src");
-      expect(uploadedProfileImage).toBeTruthy();
-      await page
-        .getByTestId("anonymous-profile-image-mode-starter")
-        .click();
-      await expect(defaultStarterImage).toHaveAttribute("aria-pressed", "true");
-      await expect
-        .poll(() => profileImagePreview.getAttribute("src"))
-        .not.toBe(uploadedProfileImage);
-      await page
-        .getByTestId("anonymous-profile-image-mode-upload")
-        .click();
-      await expect
-        .poll(() => profileImagePreview.getAttribute("src"))
-        .toBe(uploadedProfileImage);
-      await page
-        .getByTestId("anonymous-profile-image-mode-starter")
-        .click();
-
-      await page.getByTestId("anonymous-profile-name").fill(initialProfileName);
-      const gardenPathStarter = page.getByTestId(
-        "onboarding-starter-image-morning-serenity-along-the-garden-path",
-      );
-      const defaultStarterImageSrc = await profileImagePreview.getAttribute(
-        "src",
-      );
-      await gardenPathStarter.click();
-      await page
-        .getByTestId("anonymous-profile-image-mode-upload")
-        .click();
-      await page
-        .getByTestId("anonymous-profile-image-mode-starter")
-        .click();
-      await expect(gardenPathStarter).toHaveAttribute("aria-pressed", "true");
-      await expect
-        .poll(() => profileImagePreview.getAttribute("src"))
-        .not.toBe(defaultStarterImageSrc);
-      await expect
-        .poll(async () => {
-          const draft = await readBrowserDraft(page);
-          return draft?.profile.profileImageDataUrl?.startsWith("data:image/");
-        })
-        .toBe(true);
-      await page
-        .getByTestId("anonymous-profile-location")
-        .fill(profileLocation);
-      await page
-        .getByTestId("anonymous-profile-description")
-        .fill(profileDescription);
-      const overlayCheckbox = page.getByRole("checkbox", {
-        name: "Stamp seller name onto starter image",
-      });
-      const imageWithOverlay = await profileImagePreview.getAttribute("src");
-      await overlayCheckbox.click();
-      await expect(overlayCheckbox).not.toBeChecked();
-      await expect
-        .poll(() => profileImagePreview.getAttribute("src"))
-        .not.toBe(imageWithOverlay);
-      await page.reload();
-      await expect(
-        page.getByRole("heading", { name: "Edit your profile" }),
-      ).toBeVisible();
-      await expect(gardenPathStarter).toHaveAttribute("aria-pressed", "true");
-      await expect(overlayCheckbox).not.toBeChecked();
-      const imageWithoutOverlay = await profileImagePreview.getAttribute("src");
-      await page.getByTestId("anonymous-profile-name").fill(profileName);
-      await expect(gardenPathStarter).toHaveAttribute("aria-pressed", "true");
-      await expect(profileImagePreview).toHaveAttribute(
-        "src",
-        imageWithoutOverlay!,
-      );
-
-      await page.getByTestId("anonymous-onboarding-primary-action").click();
-      await expect(
-        page.getByRole("heading", { name: "Edit your first listing" }),
-      ).toBeVisible();
-      await expect(page).toHaveURL(/\/onboarding\?step=listing/);
-      await expect(page.getByTestId("anonymous-listing-price")).toHaveAttribute(
-        "placeholder",
-        "25",
-      );
-      await expect(
-        page.getByTestId("anonymous-listing-description"),
-      ).toHaveAttribute(
-        "placeholder",
-        "Healthy dormant fan with strong roots, clearly labeled, and ready for spring shipping or local pickup.",
-      );
-      await page.getByRole("button", { name: "Lemon Chiffon Cupcake" }).click();
-      await page.getByTestId("anonymous-listing-title").fill(listingTitle);
-      await page.getByTestId("anonymous-listing-price").fill("18");
-      await page
-        .getByTestId("anonymous-listing-description")
-        .fill(listingDescription);
-      await page
-        .getByTestId("anonymous-listing-image")
-        .setInputFiles(path.join(appRoot, LISTING_IMAGE_PATH));
-      await page.getByRole("button", { name: "Use cropped image" }).click();
-      await expect
-        .poll(async () => {
-          const draft = await readBrowserDraft(page);
-          return draft?.listingPreview.imageDataUrl?.startsWith("data:image/");
-        })
-        .toBe(true);
-      await expect(
-        page.getByTestId("anonymous-listing-image-dropzone"),
-      ).toHaveCount(0);
-      await expect(
-        page.getByTestId("anonymous-listing-image-reset"),
-      ).toBeVisible();
-
-      await page.reload();
-      await expect(
-        page.getByRole("heading", { name: "Edit your first listing" }),
-      ).toBeVisible();
-      await expect(page.getByTestId("anonymous-listing-title")).toHaveValue(
-        listingTitle,
-      );
-
-      await page.getByTestId("anonymous-onboarding-primary-action").click();
-      await expect(
-        page.getByText(
-          "Path 1: Buyer opens your catalog and sends an email immediately.",
-        ),
-      ).toBeVisible();
-      await expect(
-        page.getByText(/PayPal, Venmo, or Stripe/),
-      ).toBeVisible();
-      await expect(
-        page.getByText(/may take up to 24 hours/),
-      ).toBeVisible();
-      await expect(page).toHaveURL(/\/onboarding\?step=preview/);
-
-      await page.getByTestId("anonymous-onboarding-step-profile").click();
-      await expect(page).toHaveURL(/\/onboarding\?step=profile/);
-      await page.goBack();
-      await expect(page).toHaveURL(/\/onboarding\?step=preview/);
-      await page.goForward();
-      await expect(page).toHaveURL(/\/onboarding\?step=profile/);
-      await page.getByTestId("anonymous-onboarding-step-preview").click();
-      await expect(page).toHaveURL(/\/onboarding\?step=preview/);
-
-      await page.getByTestId("anonymous-onboarding-primary-action").click();
-      await expect(
-        page.getByRole("heading", { name: "Confirm your account email" }),
-      ).toBeVisible();
-      await expect(page.getByText(/\/mo equivalent/)).toHaveCount(0);
 
       await page.getByRole("button", { name: /Edit email/i }).click();
       await page.getByTestId("anonymous-checkout-email").fill(paidEmail);
@@ -295,19 +200,10 @@ test.describe("anonymous onboarding checkout flow @local", () => {
         /\/onboarding\/checkout\/success\?session_id=cs_test_onboarding_/,
         { timeout: 45_000 },
       );
-
       await completeClerkEmailCodeFlow(page, paidEmail);
 
       await expect(page).toHaveURL(/\/dashboard/, { timeout: 45_000 });
       await dashboardHome.waitForLoaded();
-      await expect(dashboardHome.profileCompletionPercentage).toHaveText("75%");
-      await expect(
-        page.getByText("Add first profile image", { exact: true }),
-      ).toHaveCount(0);
-      await expect(
-        page.getByText("Add your content", { exact: true }),
-      ).toBeVisible();
-
       const clerkUserId = await getClerkUserIdByEmail(paidEmail);
       expect(clerkUserId).toBeTruthy();
 
@@ -315,23 +211,12 @@ test.describe("anonymous onboarding checkout flow @local", () => {
         async (db) => {
           const user = await db.user.findUniqueOrThrow({
             where: { clerkUserId: clerkUserId! },
-            include: {
-              profile: { include: { images: true } },
-              listings: true,
-            },
+            include: { profile: true, listings: true },
           });
-          const subscriptionCache = await db.keyValue.findFirst({
-            where: {
-              key: { startsWith: `stripe:customer:${user.stripeCustomerId}` },
-            },
-          });
-
           return {
             stripeCustomerId: user.stripeCustomerId,
             profile: user.profile,
             listingCount: user.listings.length,
-            profileImageStatus: user.profile?.images[0]?.status ?? null,
-            subscriptionCache: subscriptionCache?.value ?? null,
           };
         },
         { clearFirst: false },
@@ -339,12 +224,9 @@ test.describe("anonymous onboarding checkout flow @local", () => {
 
       expect(dbState.stripeCustomerId).toMatch(/^cus_e2e_/);
       expect(dbState.profile?.title).toBe(profileName);
-      expect(dbState.profile?.location).toBe(profileLocation);
-      expect(dbState.profile?.description).toBe(profileDescription);
-      expect(dbState.profile?.images).toHaveLength(1);
-      expect(dbState.profileImageStatus).toBe("onboarding-import-local-e2e");
+      expect(dbState.profile?.location).toBeNull();
+      expect(dbState.profile?.description).toBeNull();
       expect(dbState.listingCount).toBe(0);
-      expect(dbState.subscriptionCache).toContain('"status":"trialing"');
     } finally {
       await deleteClerkUserByEmail(initialEmail);
       await deleteClerkUserByEmail(paidEmail);

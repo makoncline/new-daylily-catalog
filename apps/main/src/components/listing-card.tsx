@@ -29,9 +29,16 @@ type ListingCardProps = {
   listing: RouterOutputs["public"]["getListings"][number];
   className?: string;
   priority?: boolean;
+  onOpenListing?: (listingId: string) => void;
+  showCart?: boolean;
 };
 
-export function ListingCard({ listing, priority = false }: ListingCardProps) {
+export function ListingCard({
+  listing,
+  priority = false,
+  onOpenListing,
+  showCart = true,
+}: ListingCardProps) {
   const { openListing } = useListingDialogQueryState();
   const displayAhsListing = useDisplayAhsListing(listing);
   const displayTitle = formatListingCardTitle(listing.title);
@@ -46,7 +53,9 @@ export function ListingCard({ listing, priority = false }: ListingCardProps) {
   return (
     <Card
       className="group hover:border-primary relative flex h-full cursor-pointer flex-col overflow-hidden transition-all"
-      onClick={() => openListing(listing.id)}
+      onClick={() =>
+        onOpenListing ? onOpenListing(listing.id) : openListing(listing.id)
+      }
     >
       {/* Create SEO links for each URL variation */}
       {/* {urlVariations.map((url, index) => (
@@ -215,7 +224,7 @@ export function ListingCard({ listing, priority = false }: ListingCardProps) {
             )}
 
             {/* Add to Cart Button - Only show if listing has a price */}
-            {listing.price !== null && (
+            {showCart && listing.price !== null && (
               <div className="z-10">
                 <AddToCartButton
                   listing={{

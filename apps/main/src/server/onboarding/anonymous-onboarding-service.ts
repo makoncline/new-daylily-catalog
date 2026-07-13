@@ -1,33 +1,14 @@
-import { randomBytes, randomUUID } from "node:crypto";
+import { randomUUID } from "node:crypto";
 import type { Prisma, PrismaClient } from "@prisma/client";
 import type Stripe from "stripe";
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import { SUBSCRIPTION_CONFIG } from "@/config/subscription-config";
 import { env, requireEnv } from "@/env";
-import { MAX_ONBOARDING_IMAGE_DATA_URL_LENGTH } from "@/lib/onboarding/anonymous-onboarding-draft";
 import { captureServerPosthogEvent } from "@/server/analytics/posthog-server";
-import {
-  getCanonicalBaseUrl,
-  getRequestBaseUrl,
-} from "@/lib/utils/getBaseUrl";
+import { getCanonicalBaseUrl, getRequestBaseUrl } from "@/lib/utils/getBaseUrl";
 import { getStripeClient } from "@/server/stripe/client";
 import { hasActiveSubscription } from "@/server/stripe/subscription-utils";
-import {
-  areImageAssetUploadsConfigured,
-  buildOriginalImageAssetKey,
-  buildR2PublicUrl,
-  uploadR2ImageBuffer,
-} from "@/server/services/image-asset-storage";
-import { scheduleImageAssetVariantProcessing } from "@/server/services/image-asset-scheduler";
-import {
-  areLegacyImageUploadsConfigured,
-  buildLegacyImageKey,
-  getLegacyImageUrl,
-  uploadLegacyImageBuffer,
-} from "@/server/services/legacy-image-storage";
-import { createUserImageRecord } from "@/server/services/user-image-records";
-import { getSupportedImageContentType } from "@/types/image";
 import type { TRPCInternalContext } from "@/server/api/trpc";
 import {
   createLocalE2ECheckoutSession,
@@ -39,6 +20,7 @@ const ANONYMOUS_ONBOARDING_FLOW = "anonymous_onboarding";
 
 const emailSchema = z.string().trim().email().max(254).toLowerCase();
 const draftIdSchema = z.string().trim().min(1).max(128);
+const analyticsDistinctIdSchema = z.string().trim().min(1).max(200).optional();
 const checkoutSessionIdSchema = z.string().trim().min(1).max(255);
 const leadStageSchema = z.enum(["initial", "pre_checkout_review"]);
 
@@ -47,6 +29,7 @@ export const collectEmailInputSchema = z.object({
   draftId: draftIdSchema,
   stage: leadStageSchema,
   changed: z.boolean().default(false),
+  analyticsDistinctId: analyticsDistinctIdSchema,
 });
 
 export const checkoutInputSchema = z.object({
@@ -60,14 +43,6 @@ export const checkoutStatusInputSchema = z.object({
 
 export const profileImportInputSchema = z.object({
   gardenName: z.string().trim().max(120).optional().default(""),
-  location: z.string().trim().max(160).optional().default(""),
-  description: z.string().trim().max(1_000).optional().default(""),
-  profileImageDataUrl: z
-    .string()
-    .max(MAX_ONBOARDING_IMAGE_DATA_URL_LENGTH)
-    .nullable()
-    .optional()
-    .default(null),
 });
 
 export const claimCheckoutInputSchema = z.object({
@@ -86,19 +61,8 @@ interface AnonymousCheckoutDetails {
 type AuthenticatedUser = NonNullable<TRPCInternalContext["_authUser"]>;
 type ProfileImportInput = z.infer<typeof profileImportInputSchema>;
 
-interface PreparedImportedImage {
-  imageId: string;
-  url: string;
-  status: string;
-  r2Original: {
-    key: string;
-    url: string;
-  } | null;
-}
-
 interface PreparedProfileImport {
   profileId: string;
-  image: PreparedImportedImage | null;
 }
 
 function getCustomerId(
@@ -228,104 +192,11 @@ function hasMeaningfulProfile(profile: {
   );
 }
 
-function parseImageDataUrl(value: string | null | undefined) {
-  if (!value) {
-    return null;
-  }
-
-  const match =
-    /^data:(image\/(?:jpeg|jpg|png|webp));base64,([a-z0-9+/=]+)$/i.exec(value);
-  if (!match) {
-    return null;
-  }
-
-  const normalizedContentType =
-    match[1]?.toLowerCase() === "image/jpg" ? "image/jpeg" : match[1];
-  const contentType = getSupportedImageContentType(normalizedContentType);
-  if (!contentType) {
-    return null;
-  }
-
-  return {
-    contentType,
-    buffer: Buffer.from(match[2] ?? "", "base64"),
-  };
-}
-
-async function prepareImportedProfileImage(args: {
-  dataUrl: string | null | undefined;
-  profileId: string;
-  userId: string;
-}): Promise<PreparedImportedImage | null> {
-  const parsed = parseImageDataUrl(args.dataUrl);
-  if (!parsed) {
-    return null;
-  }
-
-  const imageId = randomUUID();
-
-  if (isLocalE2ECheckoutEnabled()) {
-    return {
-      imageId,
-      url: args.dataUrl!,
-      status: "onboarding-import-local-e2e",
-      r2Original: null,
-    };
-  }
-
-  if (!areLegacyImageUploadsConfigured()) {
-    throw new TRPCError({
-      code: "INTERNAL_SERVER_ERROR",
-      message: "We could not save your profile image. Please try again.",
-    });
-  }
-
-  const legacyKey = buildLegacyImageKey({
-    contentType: parsed.contentType,
-    fileId: randomBytes(16).toString("hex"),
-    referenceId: args.profileId,
-    userId: args.userId,
-  });
-  await uploadLegacyImageBuffer({
-    body: parsed.buffer,
-    contentType: parsed.contentType,
-    key: legacyKey,
-  });
-
-  let r2Original: PreparedImportedImage["r2Original"] = null;
-  if (areImageAssetUploadsConfigured()) {
-    const r2Key = buildOriginalImageAssetKey({
-      kind: "profile",
-      userId: args.userId,
-      imageAssetId: imageId,
-      contentType: parsed.contentType,
-    });
-    await uploadR2ImageBuffer({
-      body: parsed.buffer,
-      contentType: parsed.contentType,
-      key: r2Key,
-    });
-    r2Original = {
-      key: r2Key,
-      url: buildR2PublicUrl(r2Key),
-    };
-  }
-
-  return {
-    imageId,
-    url: getLegacyImageUrl(legacyKey),
-    status: "onboarding-import",
-    r2Original,
-  };
-}
-
 async function prepareProfileImport({
   db,
-  profile,
   userId,
 }: {
   db: PrismaClient;
-  profile: ProfileImportInput;
   userId: string;
 }) {
   const existingProfile = await db.userProfile.findUnique({
@@ -347,19 +218,10 @@ async function prepareProfileImport({
   }
 
   const profileId = existingProfile?.id ?? randomUUID();
-  const shouldImportImage =
-    profile.profileImageDataUrl && (existingProfile?.images.length ?? 0) === 0;
-  const image = shouldImportImage
-    ? await prepareImportedProfileImage({
-        dataUrl: profile.profileImageDataUrl,
-        profileId,
-        userId,
-      })
-    : null;
 
   return {
     imported: true,
-    preparedImport: { profileId, image } satisfies PreparedProfileImport,
+    preparedImport: { profileId } satisfies PreparedProfileImport,
   };
 }
 
@@ -374,55 +236,34 @@ async function applyPreparedProfileImport({
   profile: ProfileImportInput;
   userId: string;
 }) {
-  const importedProfile = await db.userProfile.upsert({
+  await db.userProfile.upsert({
     where: { userId },
     create: {
       id: preparedImport.profileId,
       userId,
       slug: userId,
       title: profile.gardenName || null,
-      location: profile.location || null,
-      description: profile.description || null,
     },
     update: {
       title: profile.gardenName || null,
-      location: profile.location || null,
-      description: profile.description || null,
     },
-    select: { id: true },
   });
-
-  if (!preparedImport.image) {
-    return null;
-  }
-
-  const createdImage = await createUserImageRecord({
-    db,
-    imageId: preparedImport.image.imageId,
-    order: 0,
-    owner: { type: "profile", referenceId: importedProfile.id },
-    r2OriginalKey: preparedImport.image.r2Original?.key,
-    r2OriginalUrl: preparedImport.image.r2Original?.url,
-    status: preparedImport.image.status,
-    url: preparedImport.image.url,
-  });
-
-  return preparedImport.image.r2Original ? createdImage.id : null;
 }
 
 export async function collectAnonymousOnboardingEmailLead(
   input: z.infer<typeof collectEmailInputSchema>,
 ) {
   await captureServerPosthogEvent({
-    distinctId: input.draftId,
+    distinctId: input.analyticsDistinctId ?? input.draftId,
     event: "onboarding_email_collected",
     properties: {
-      draftId: input.draftId,
+      draft_id: input.draftId,
       email: input.email,
-      emailDomain: input.email.split("@")[1]?.toLowerCase() ?? "",
+      email_domain: input.email.split("@")[1]?.toLowerCase() ?? "",
       stage: input.stage,
       changed: input.changed,
       source: ANONYMOUS_ONBOARDING_FLOW,
+      flow_version: "real_product_v2",
     },
   });
 
@@ -446,10 +287,7 @@ function getAnonymousCheckoutBaseUrl(headers?: Headers | null) {
   const canonicalBaseUrl = getCanonicalBaseUrl();
   const requestBaseUrl = getRequestBaseUrl(headers);
 
-  if (
-    isLocalBaseUrl(canonicalBaseUrl) &&
-    isLocalBaseUrl(requestBaseUrl)
-  ) {
+  if (isLocalBaseUrl(canonicalBaseUrl) && isLocalBaseUrl(requestBaseUrl)) {
     return requestBaseUrl;
   }
 
@@ -576,11 +414,13 @@ export async function claimAnonymousOnboardingCheckout({
     });
   }
 
-  const shouldImportProfile = accountWasCreatedForCheckout(user, details.created);
+  const shouldImportProfile = accountWasCreatedForCheckout(
+    user,
+    details.created,
+  );
   const profileImport = shouldImportProfile
     ? await prepareProfileImport({
         db,
-        profile: input.profile,
         userId: user.id,
       })
     : ({
@@ -588,7 +428,7 @@ export async function claimAnonymousOnboardingCheckout({
         preparedImport: null,
       } as const);
 
-  const scheduledImageAssetId = await db.$transaction(async (tx) => {
+  await db.$transaction(async (tx) => {
     if (user.stripeCustomerId !== details.customerId) {
       await tx.user.update({
         where: { id: user.id },
@@ -597,10 +437,10 @@ export async function claimAnonymousOnboardingCheckout({
     }
 
     if (!profileImport.preparedImport) {
-      return null;
+      return;
     }
 
-    return applyPreparedProfileImport({
+    await applyPreparedProfileImport({
       db: tx,
       preparedImport: profileImport.preparedImport,
       profile: input.profile,
@@ -608,12 +448,16 @@ export async function claimAnonymousOnboardingCheckout({
     });
   });
 
-  if (scheduledImageAssetId) {
-    scheduleImageAssetVariantProcessing({
-      db,
-      imageAssetId: scheduledImageAssetId,
-    });
-  }
+  // Account setup must not depend on an observability network request.
+  void captureServerPosthogEvent({
+    distinctId: user.clerkUserId ?? user.id,
+    event: "onboarding_completed",
+    properties: {
+      source: ANONYMOUS_ONBOARDING_FLOW,
+      flow_version: "real_product_v2",
+      imported_profile: profileImport.imported,
+    },
+  });
 
   return {
     ok: true,

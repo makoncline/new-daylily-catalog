@@ -4,50 +4,55 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
 import { api } from "@/trpc/react";
 import {
+  capturePosthogEvent,
+  getPosthogDistinctId,
+  preloadPosthog,
+  startOnboardingSessionRecording,
+} from "@/lib/analytics/posthog";
+import { ANONYMOUS_ONBOARDING_FLOW_VERSION } from "./anonymous-onboarding-draft";
+import {
   ANONYMOUS_ONBOARDING_STEPS,
-  DEFAULT_GARDEN_NAME_PLACEHOLDER,
-  STARTER_PROFILE_IMAGES,
-  getListingPreview,
-  getProfilePreview,
   normalizeEmail,
   type AnonymousOnboardingPageClientProps,
 } from "./anonymous-onboarding-config";
 import {
-  compressOnboardingImageBlob,
-  createOnboardingProfileImageFromStarter,
+  createAnonymousOnboardingId,
   createAnonymousOnboardingDraft,
   readAnonymousOnboardingDraft,
   writeAnonymousOnboardingDraft,
   type AnonymousOnboardingDraft,
+  type AnonymousOnboardingCollectionItem,
 } from "./anonymous-onboarding-draft";
-import type { AnonymousOnboardingStepId } from "./anonymous-onboarding-draft";
+import type {
+  AnonymousOnboardingCatalogSize,
+  AnonymousOnboardingStepId,
+  AnonymousOnboardingWorkflow,
+} from "./anonymous-onboarding-draft";
 
 function readOnboardingStep(value: string | null) {
   return ANONYMOUS_ONBOARDING_STEPS.find((step) => step.id === value)?.id;
+}
+
+function migrateRemovedOnboardingStep(step: AnonymousOnboardingStepId) {
+  switch (step) {
+    case "catalog-size":
+      return "workflow";
+    case "listing-demo":
+      return "proof";
+    case "profile":
+      return "personalize";
+    case "buyer-preview":
+      return "email";
+    default:
+      return step;
+  }
 }
 
 function getOnboardingStepIndex(step: AnonymousOnboardingStepId) {
   return ANONYMOUS_ONBOARDING_STEPS.findIndex((item) => item.id === step);
 }
 
-function getStarterProfileImageGenerationKey({
-  applyNameOverlay,
-  baseImageUrl,
-  gardenName,
-}: {
-  applyNameOverlay: boolean;
-  baseImageUrl: string;
-  gardenName: string;
-}) {
-  return JSON.stringify([
-    baseImageUrl,
-    applyNameOverlay,
-    gardenName.trim() || DEFAULT_GARDEN_NAME_PLACEHOLDER,
-  ]);
-}
-
 export function useAnonymousOnboardingController({
-  exampleCultivars,
   membershipPriceDisplay,
 }: AnonymousOnboardingPageClientProps) {
   const pathname = usePathname();
@@ -58,6 +63,8 @@ export function useAnonymousOnboardingController({
   const draftRef = useRef(draft);
   const hasHydratedDraftRef = useRef(false);
   const [draftIsHydrated, setDraftIsHydrated] = useState(false);
+  const analyticsDistinctIdRef = useRef<string | null>(null);
+  const entryTrackedRef = useRef(false);
   const [storageWarning, setStorageWarning] = useState<string | null>(null);
 
   const setDraft = useCallback(
@@ -85,26 +92,26 @@ export function useAnonymousOnboardingController({
     null,
   );
   const [isEditingCheckoutEmail, setIsEditingCheckoutEmail] = useState(false);
-  const [imageError, setImageError] = useState<string | null>(null);
-  const [profileImageInputMode, setProfileImageInputModeState] = useState<
-    "starter" | "upload"
-  >("starter");
-  const [selectedStarterProfileImageUrl, setSelectedStarterProfileImageUrl] =
-    useState<string | null>(STARTER_PROFILE_IMAGES[0]?.url ?? null);
-  const uploadedProfileImageDataUrlRef = useRef<string | null>(null);
-  const starterProfileImageCacheRef = useRef<{
-    dataUrl: string;
-    generationKey: string;
-  } | null>(null);
-  const defaultStarterGenerationStartedRef = useRef(false);
-  const [applyStarterNameOverlay, setApplyStarterNameOverlayState] =
-    useState(true);
-  const [isGeneratingStarterProfileImage, setIsGeneratingStarterProfileImage] =
-    useState(false);
-  const starterProfileImageGenerationTimeoutRef = useRef<number | null>(null);
-  const starterProfileImageGenerationRequestIdRef = useRef(0);
   const collectEmail = api.onboarding.collectEmail.useMutation();
   const createCheckout = api.onboarding.createCheckout.useMutation();
+  const [cultivarQuery, setCultivarQuery] = useState("");
+  const normalizedCultivarQuery = cultivarQuery.trim();
+  const [debouncedCultivarQuery, setDebouncedCultivarQuery] = useState("");
+  useEffect(() => {
+    const timeout = window.setTimeout(
+      () => setDebouncedCultivarQuery(normalizedCultivarQuery),
+      300,
+    );
+    return () => window.clearTimeout(timeout);
+  }, [normalizedCultivarQuery]);
+  const cultivarSearch = api.onboarding.searchCultivars.useQuery(
+    { query: debouncedCultivarQuery },
+    {
+      enabled: debouncedCultivarQuery.length >= 3,
+      staleTime: 5 * 60 * 1000,
+    },
+  );
+  const cultivarSearchData = cultivarSearch.data;
 
   const buildStepUrl = useCallback(
     (step: AnonymousOnboardingStepId) => {
@@ -116,64 +123,82 @@ export function useAnonymousOnboardingController({
   );
 
   useEffect(() => {
+    if (!draftIsHydrated) return;
+    preloadPosthog();
+    startOnboardingSessionRecording();
+    void getPosthogDistinctId()
+      .then((distinctId) => {
+        analyticsDistinctIdRef.current = distinctId;
+      })
+      .catch(() => undefined);
+    if (entryTrackedRef.current) return;
+    entryTrackedRef.current = true;
+    capturePosthogEvent("onboarding_entry_viewed", {
+      flow_version: ANONYMOUS_ONBOARDING_FLOW_VERSION,
+      draft_id: draftRef.current.draftId,
+      step_id: draftRef.current.step,
+      is_resumed: draftRef.current.updatedAt !== draftRef.current.createdAt,
+    });
+  }, [draftIsHydrated]);
+
+  useEffect(() => {
+    if (!draftIsHydrated) return;
+    const currentDraft = draftRef.current;
+    const stepVisitId = createAnonymousOnboardingId();
+    const startedAt = performance.now();
+    const stepIndex = getOnboardingStepIndex(currentDraft.step);
+    const sharedProperties = {
+      flow_version: ANONYMOUS_ONBOARDING_FLOW_VERSION,
+      draft_id: currentDraft.draftId,
+      step_id: currentDraft.step,
+      step_index: stepIndex + 1,
+      total_steps: ANONYMOUS_ONBOARDING_STEPS.length,
+      step_visit_id: stepVisitId,
+      workflow: currentDraft.workflow,
+      catalog_size: currentDraft.catalogSize,
+      buyer_need: currentDraft.buyerNeed,
+    };
+    capturePosthogEvent("onboarding_step_viewed", sharedProperties);
+    return () => {
+      capturePosthogEvent("onboarding_step_exited", {
+        ...sharedProperties,
+        elapsed_ms: Math.round(performance.now() - startedAt),
+        exit_reason: "step_changed_or_page_hidden",
+      });
+    };
+  }, [draft.step, draftIsHydrated]);
+
+  useEffect(() => {
     if (hasHydratedDraftRef.current) {
       return;
     }
 
     const frame = window.requestAnimationFrame(() => {
-      if (hasHydratedDraftRef.current) {
-        return;
-      }
+      if (hasHydratedDraftRef.current) return;
       hasHydratedDraftRef.current = true;
 
       const storedDraft = readAnonymousOnboardingDraft();
       const requestedStep = readOnboardingStep(searchParams.get("step"));
+      const storedStep = migrateRemovedOnboardingStep(storedDraft.step);
+      const storedFurthestStep = migrateRemovedOnboardingStep(
+        storedDraft.furthestStep,
+      );
       const requestedStepIndex = requestedStep
         ? getOnboardingStepIndex(requestedStep)
         : -1;
-      const furthestStepIndex = getOnboardingStepIndex(
-        storedDraft.furthestStep,
-      );
+      const furthestStepIndex = getOnboardingStepIndex(storedFurthestStep);
       const initialStep =
         requestedStep && requestedStepIndex <= furthestStepIndex
           ? requestedStep
-          : storedDraft.step;
-      const hydratedDraft = { ...storedDraft, step: initialStep };
+          : storedStep;
+      const hydratedDraft = {
+        ...storedDraft,
+        step: initialStep,
+        furthestStep: storedFurthestStep,
+      };
 
       draftRef.current = hydratedDraft;
       setDraftState(hydratedDraft);
-      if (storedDraft.profile.profileImageSource === "upload") {
-        uploadedProfileImageDataUrlRef.current =
-          storedDraft.profile.profileImageDataUrl;
-      } else if (storedDraft.profile.profileImageSource === "starter") {
-        const starterImageUrl = storedDraft.profile.starterImageUrl;
-        const dataUrl = storedDraft.profile.profileImageDataUrl;
-        if (starterImageUrl && dataUrl) {
-          starterProfileImageCacheRef.current = {
-            dataUrl,
-            generationKey: getStarterProfileImageGenerationKey({
-              applyNameOverlay:
-                storedDraft.profile.starterImageApplyNameOverlay,
-              baseImageUrl: starterImageUrl,
-              gardenName: storedDraft.profile.gardenName,
-            }),
-          };
-        }
-      }
-      setSelectedStarterProfileImageUrl(
-        storedDraft.profile.starterImageUrl ??
-          (storedDraft.profile.profileImageSource === "starter"
-            ? null
-            : (STARTER_PROFILE_IMAGES[0]?.url ?? null)),
-      );
-      setProfileImageInputModeState(
-        storedDraft.profile.profileImageSource === "upload"
-          ? "upload"
-          : "starter",
-      );
-      setApplyStarterNameOverlayState(
-        storedDraft.profile.starterImageApplyNameOverlay,
-      );
       setDraftIsHydrated(true);
       if (requestedStep !== initialStep) {
         window.history.replaceState(null, "", buildStepUrl(initialStep));
@@ -196,7 +221,7 @@ export function useAnonymousOnboardingController({
     if (
       !requestedStep ||
       getOnboardingStepIndex(requestedStep) >
-      getOnboardingStepIndex(draftRef.current.furthestStep)
+        getOnboardingStepIndex(draftRef.current.furthestStep)
     ) {
       window.history.replaceState(
         null,
@@ -206,13 +231,17 @@ export function useAnonymousOnboardingController({
       return;
     }
 
-    if (requestedStep === "email") {
-      setEmailInputOverride(null);
-    }
-    setDraft((currentDraft) => ({
-      ...currentDraft,
-      step: requestedStep,
-    }));
+    const frame = window.requestAnimationFrame(() => {
+      if (requestedStep === "email") {
+        setEmailInputOverride(null);
+      }
+      setDraft((currentDraft) => ({
+        ...currentDraft,
+        step: requestedStep,
+      }));
+    });
+
+    return () => window.cancelAnimationFrame(frame);
   }, [buildStepUrl, searchParams, setDraft]);
 
   const stepIndex = ANONYMOUS_ONBOARDING_STEPS.findIndex(
@@ -225,14 +254,37 @@ export function useAnonymousOnboardingController({
   );
   const progressValue =
     ((currentStepIndex + 1) / ANONYMOUS_ONBOARDING_STEPS.length) * 100;
-  const profilePreview = getProfilePreview(draft);
-  const listingPreview = getListingPreview(draft, exampleCultivars);
   const emailInput = emailInputOverride ?? draft.email ?? "";
   const emailIsValid = /.+@.+\..+/.test(normalizeEmail(emailInput));
+  const personalizeNameIsValid = draft.profile.gardenName.trim().length >= 2;
+  const hasPreviewCollection = draft.collection.length >= 2;
+  const currentStepCanContinue = (() => {
+    switch (draft.step) {
+      case "workflow":
+        return Boolean(draft.workflow && draft.catalogSize);
+      case "buyer-need":
+        return hasPreviewCollection;
+      case "problem":
+      case "search-tour":
+      case "proof":
+        return hasPreviewCollection;
+      case "personalize":
+        return hasPreviewCollection && personalizeNameIsValid;
+      case "email":
+        return (
+          hasPreviewCollection &&
+          emailIsValid &&
+          !collectEmail.isPending
+        );
+      case "checkout":
+        return hasPreviewCollection && Boolean(draft.email);
+      default:
+        return true;
+    }
+  })();
 
   const goToStep = useCallback(
     (step: AnonymousOnboardingStepId) => {
-      setImageError(null);
       if (step === "email") {
         setEmailInputOverride(null);
       }
@@ -261,11 +313,15 @@ export function useAnonymousOnboardingController({
       setDraft((currentDraft) => ({ ...currentDraft, email }));
       setEmailInputOverride(null);
       try {
+        const analyticsDistinctId =
+          analyticsDistinctIdRef.current ??
+          (await getPosthogDistinctId().catch(() => null));
         await collectEmail.mutateAsync({
           email,
           draftId: draft.draftId,
           stage,
           changed: stage === "pre_checkout_review" ? changed : false,
+          analyticsDistinctId: analyticsDistinctId ?? undefined,
         });
       } catch (error) {
         console.warn("Unable to capture onboarding email lead", error);
@@ -276,277 +332,28 @@ export function useAnonymousOnboardingController({
         return;
       }
 
-      goToStep("profile");
+      capturePosthogEvent("onboarding_step_completed", {
+        flow_version: ANONYMOUS_ONBOARDING_FLOW_VERSION,
+        draft_id: draft.draftId,
+        step_id: "email",
+        step_index: getOnboardingStepIndex("email") + 1,
+        total_steps: ANONYMOUS_ONBOARDING_STEPS.length,
+        workflow: draft.workflow,
+        catalog_size: draft.catalogSize,
+        buyer_need: draft.buyerNeed,
+      });
+      goToStep("checkout");
     },
     [
       collectEmail,
       draft.draftId,
       draft.email,
+      draft.buyerNeed,
+      draft.catalogSize,
+      draft.workflow,
       emailInput,
       emailIsValid,
       goToStep,
-      setDraft,
-    ],
-  );
-
-  const cancelStarterProfileImageGeneration = useCallback(() => {
-    if (starterProfileImageGenerationTimeoutRef.current !== null) {
-      window.clearTimeout(starterProfileImageGenerationTimeoutRef.current);
-      starterProfileImageGenerationTimeoutRef.current = null;
-    }
-
-    starterProfileImageGenerationRequestIdRef.current += 1;
-    setIsGeneratingStarterProfileImage(false);
-  }, []);
-
-  useEffect(
-    () => () => {
-      if (starterProfileImageGenerationTimeoutRef.current !== null) {
-        window.clearTimeout(starterProfileImageGenerationTimeoutRef.current);
-      }
-
-      starterProfileImageGenerationRequestIdRef.current += 1;
-    },
-    [],
-  );
-
-  const scheduleStarterProfileImageGeneration = useCallback(
-    ({
-      applyNameOverlay,
-      baseImageUrl,
-      debounceMs,
-      gardenName,
-    }: {
-      applyNameOverlay: boolean;
-      baseImageUrl: string;
-      debounceMs: number;
-      gardenName: string;
-    }) => {
-      if (starterProfileImageGenerationTimeoutRef.current !== null) {
-        window.clearTimeout(starterProfileImageGenerationTimeoutRef.current);
-      }
-
-      const requestId = starterProfileImageGenerationRequestIdRef.current + 1;
-      starterProfileImageGenerationRequestIdRef.current = requestId;
-      setImageError(null);
-      setIsGeneratingStarterProfileImage(true);
-
-      starterProfileImageGenerationTimeoutRef.current = window.setTimeout(
-        () => {
-          void (async () => {
-            try {
-              const dataUrl = await createOnboardingProfileImageFromStarter({
-                applyNameOverlay,
-                baseImageUrl,
-                gardenName:
-                  gardenName.trim() || DEFAULT_GARDEN_NAME_PLACEHOLDER,
-              });
-
-              if (
-                starterProfileImageGenerationRequestIdRef.current !== requestId
-              ) {
-                return;
-              }
-
-              starterProfileImageCacheRef.current = {
-                dataUrl,
-                generationKey: getStarterProfileImageGenerationKey({
-                  applyNameOverlay,
-                  baseImageUrl,
-                  gardenName,
-                }),
-              };
-              setDraft((currentDraft) => ({
-                ...currentDraft,
-                profile: {
-                  ...currentDraft.profile,
-                  profileImageDataUrl: dataUrl,
-                  profileImageSource: "starter",
-                  starterImageUrl: baseImageUrl,
-                  starterImageApplyNameOverlay: applyNameOverlay,
-                },
-              }));
-            } catch (error) {
-              if (
-                starterProfileImageGenerationRequestIdRef.current !== requestId
-              ) {
-                return;
-              }
-
-              setImageError(
-                error instanceof Error ? error.message : String(error),
-              );
-            } finally {
-              if (
-                starterProfileImageGenerationRequestIdRef.current === requestId
-              ) {
-                starterProfileImageGenerationTimeoutRef.current = null;
-                setIsGeneratingStarterProfileImage(false);
-              }
-            }
-          })();
-        },
-        debounceMs,
-      );
-    },
-    [setDraft],
-  );
-
-  const selectStarterProfileImage = useCallback(
-    (baseImageUrl: string) => {
-      if (draftRef.current.profile.profileImageSource === "upload") {
-        uploadedProfileImageDataUrlRef.current =
-          draftRef.current.profile.profileImageDataUrl;
-      }
-      setProfileImageInputModeState("starter");
-      setSelectedStarterProfileImageUrl(baseImageUrl);
-      setDraft((currentDraft) => ({
-        ...currentDraft,
-        profile: {
-          ...currentDraft.profile,
-          profileImageDataUrl: null,
-          profileImageSource: null,
-          starterImageUrl: baseImageUrl,
-        },
-      }));
-      scheduleStarterProfileImageGeneration({
-        applyNameOverlay: applyStarterNameOverlay,
-        baseImageUrl,
-        debounceMs: 0,
-        gardenName: draftRef.current.profile.gardenName,
-      });
-    },
-    [applyStarterNameOverlay, scheduleStarterProfileImageGeneration, setDraft],
-  );
-
-  const setProfileImageInputMode = useCallback(
-    (mode: "starter" | "upload") => {
-      setImageError(null);
-      setProfileImageInputModeState(mode);
-
-      if (mode === "upload") {
-        cancelStarterProfileImageGeneration();
-        const uploadedImageDataUrl = uploadedProfileImageDataUrlRef.current;
-        setDraft((currentDraft) => ({
-          ...currentDraft,
-          profile: {
-            ...currentDraft.profile,
-            profileImageDataUrl: uploadedImageDataUrl,
-            profileImageSource: uploadedImageDataUrl ? "upload" : null,
-          },
-        }));
-        return;
-      }
-
-      if (draftRef.current.profile.profileImageSource === "upload") {
-        uploadedProfileImageDataUrlRef.current =
-          draftRef.current.profile.profileImageDataUrl;
-      }
-      const baseImageUrl =
-        selectedStarterProfileImageUrl ??
-        STARTER_PROFILE_IMAGES[0]?.url;
-      const expectedGenerationKey = baseImageUrl
-        ? getStarterProfileImageGenerationKey({
-            applyNameOverlay: applyStarterNameOverlay,
-            baseImageUrl,
-            gardenName: draftRef.current.profile.gardenName,
-          })
-        : null;
-      const starterImageDataUrl =
-        starterProfileImageCacheRef.current?.generationKey ===
-        expectedGenerationKey
-          ? starterProfileImageCacheRef.current.dataUrl
-          : null;
-      if (baseImageUrl) {
-        setSelectedStarterProfileImageUrl(baseImageUrl);
-      }
-      setDraft((currentDraft) => ({
-        ...currentDraft,
-        profile: {
-          ...currentDraft.profile,
-          profileImageDataUrl: starterImageDataUrl,
-          profileImageSource: starterImageDataUrl ? "starter" : null,
-          starterImageUrl:
-            baseImageUrl ?? currentDraft.profile.starterImageUrl,
-        },
-      }));
-      if (!starterImageDataUrl && baseImageUrl) {
-        scheduleStarterProfileImageGeneration({
-          applyNameOverlay: applyStarterNameOverlay,
-          baseImageUrl,
-          debounceMs: 0,
-          gardenName: draftRef.current.profile.gardenName,
-        });
-      }
-    },
-    [
-      applyStarterNameOverlay,
-      cancelStarterProfileImageGeneration,
-      scheduleStarterProfileImageGeneration,
-      selectedStarterProfileImageUrl,
-      setDraft,
-    ],
-  );
-
-  useEffect(() => {
-    if (
-      !draftIsHydrated ||
-      profileImageInputMode !== "starter" ||
-      draft.profile.profileImageDataUrl ||
-      isGeneratingStarterProfileImage ||
-      defaultStarterGenerationStartedRef.current
-    ) {
-      return;
-    }
-
-    const baseImageUrl =
-      selectedStarterProfileImageUrl ?? STARTER_PROFILE_IMAGES[0]?.url;
-    if (!baseImageUrl) {
-      return;
-    }
-
-    defaultStarterGenerationStartedRef.current = true;
-    scheduleStarterProfileImageGeneration({
-      applyNameOverlay: applyStarterNameOverlay,
-      baseImageUrl,
-      debounceMs: 0,
-      gardenName: draft.profile.gardenName,
-    });
-  }, [
-    applyStarterNameOverlay,
-    draft.profile.gardenName,
-    draft.profile.profileImageDataUrl,
-    draftIsHydrated,
-    isGeneratingStarterProfileImage,
-    profileImageInputMode,
-    scheduleStarterProfileImageGeneration,
-    selectedStarterProfileImageUrl,
-  ]);
-
-  const setApplyStarterNameOverlay = useCallback(
-    (enabled: boolean) => {
-      setApplyStarterNameOverlayState(enabled);
-      setDraft((currentDraft) => ({
-        ...currentDraft,
-        profile: {
-          ...currentDraft.profile,
-          starterImageApplyNameOverlay: enabled,
-        },
-      }));
-      if (!selectedStarterProfileImageUrl) {
-        return;
-      }
-
-      scheduleStarterProfileImageGeneration({
-        applyNameOverlay: enabled,
-        baseImageUrl: selectedStarterProfileImageUrl,
-        debounceMs: 0,
-        gardenName: draftRef.current.profile.gardenName,
-      });
-    },
-    [
-      scheduleStarterProfileImageGeneration,
-      selectedStarterProfileImageUrl,
       setDraft,
     ],
   );
@@ -560,103 +367,210 @@ export function useAnonymousOnboardingController({
           gardenName,
         },
       }));
-
-      if (
-        profileImageInputMode === "starter" &&
-        applyStarterNameOverlay &&
-        selectedStarterProfileImageUrl
-      ) {
-        scheduleStarterProfileImageGeneration({
-          applyNameOverlay: true,
-          baseImageUrl: selectedStarterProfileImageUrl,
-          debounceMs: 150,
-          gardenName,
-        });
-      }
-    },
-    [
-      applyStarterNameOverlay,
-      profileImageInputMode,
-      scheduleStarterProfileImageGeneration,
-      selectedStarterProfileImageUrl,
-      setDraft,
-    ],
-  );
-
-  const updateImageDraft = useCallback(
-    async (
-      image: Blob | File | undefined,
-      target: "profileImageDataUrl" | "listingImageDataUrl",
-    ) => {
-      if (!image) {
-        return;
-      }
-
-      try {
-        setImageError(null);
-        const dataUrl = await compressOnboardingImageBlob(image);
-        if (target === "profileImageDataUrl") {
-          uploadedProfileImageDataUrlRef.current = dataUrl;
-        }
-        setDraft((currentDraft) =>
-          target === "profileImageDataUrl"
-            ? {
-                ...currentDraft,
-                profile: {
-                  ...currentDraft.profile,
-                  profileImageDataUrl: dataUrl,
-                  profileImageSource: "upload",
-                },
-              }
-            : {
-                ...currentDraft,
-                listingPreview: {
-                  ...currentDraft.listingPreview,
-                  imageDataUrl: dataUrl,
-                },
-              },
-        );
-      } catch (error) {
-        setImageError(error instanceof Error ? error.message : String(error));
-      }
     },
     [setDraft],
   );
 
-  const clearProfileImage = useCallback(() => {
-    cancelStarterProfileImageGeneration();
-    setImageError(null);
-    uploadedProfileImageDataUrlRef.current = null;
-    setDraft((currentDraft) => ({
-      ...currentDraft,
-      profile: {
-        ...currentDraft.profile,
-        profileImageDataUrl: null,
-        profileImageSource: null,
-      },
-    }));
-  }, [cancelStarterProfileImageGeneration, setDraft]);
+  const setWorkflow = useCallback(
+    (workflow: AnonymousOnboardingWorkflow) => {
+      capturePosthogEvent("onboarding_quiz_answered", {
+        flow_version: ANONYMOUS_ONBOARDING_FLOW_VERSION,
+        draft_id: draftRef.current.draftId,
+        question_id: "current_workflow",
+        answer_id: workflow,
+        answer_changed: Boolean(
+          draftRef.current.workflow && draftRef.current.workflow !== workflow,
+        ),
+      });
+      setDraft((currentDraft) => ({ ...currentDraft, workflow }));
+    },
+    [setDraft],
+  );
+
+  const setCatalogSize = useCallback(
+    (catalogSize: AnonymousOnboardingCatalogSize) => {
+      capturePosthogEvent("onboarding_quiz_answered", {
+        flow_version: ANONYMOUS_ONBOARDING_FLOW_VERSION,
+        draft_id: draftRef.current.draftId,
+        question_id: "catalog_size",
+        answer_id: catalogSize,
+        answer_changed: Boolean(
+          draftRef.current.catalogSize &&
+            draftRef.current.catalogSize !== catalogSize,
+        ),
+      });
+      setDraft((currentDraft) => ({ ...currentDraft, catalogSize }));
+    },
+    [setDraft],
+  );
+
+  const addCultivarToCollection = useCallback(
+    (cultivar: NonNullable<typeof cultivarSearchData>[number]) => {
+      if (
+        draftRef.current.collection.some(
+          (item) => item.cultivarReferenceId === cultivar.cultivarReferenceId,
+        ) ||
+        draftRef.current.collection.length >= 5
+      ) {
+        return;
+      }
+
+      const item: AnonymousOnboardingCollectionItem = {
+        cultivarReferenceId: cultivar.cultivarReferenceId,
+        name: cultivar.name,
+        hybridizer: cultivar.hybridizer,
+        year: cultivar.year,
+        imageUrl: cultivar.image?.url ?? cultivar.ahsImageUrl,
+        scapeHeight: cultivar.scapeHeight,
+        bloomSize: cultivar.bloomSize,
+        bloomSeason: cultivar.bloomSeason,
+        form: cultivar.form,
+        ploidy: cultivar.ploidy,
+        foliageType: cultivar.foliageType,
+        color: cultivar.color,
+        fragrance: cultivar.fragrance,
+        parentage: cultivar.parentage,
+        quantity: 1,
+        price: 25,
+        status: "for_sale",
+        description:
+          "Healthy plant from our garden. Contact us for current shipping or pickup details.",
+      };
+      const selectionCount = draftRef.current.collection.length + 1;
+      setDraft((currentDraft) => ({
+        ...currentDraft,
+        buyerNeed: currentDraft.buyerNeed ?? "find_cultivar",
+        collection: [...currentDraft.collection, item],
+      }));
+      capturePosthogEvent("onboarding_cultivar_selected", {
+        flow_version: ANONYMOUS_ONBOARDING_FLOW_VERSION,
+        draft_id: draftRef.current.draftId,
+        interaction_type: "real_cultivar_selected",
+        cultivar_reference_id: cultivar.cultivarReferenceId,
+        selection_count: selectionCount,
+      });
+    },
+    [setDraft],
+  );
+
+  const removeCultivarFromCollection = useCallback(
+    (cultivarReferenceId: string) => {
+      capturePosthogEvent("onboarding_cultivar_removed", {
+        flow_version: ANONYMOUS_ONBOARDING_FLOW_VERSION,
+        draft_id: draftRef.current.draftId,
+        cultivar_reference_id: cultivarReferenceId,
+        selection_count: Math.max(0, draftRef.current.collection.length - 1),
+      });
+      setDraft((currentDraft) => ({
+        ...currentDraft,
+        collection: currentDraft.collection.filter(
+          (item) => item.cultivarReferenceId !== cultivarReferenceId,
+        ),
+      }));
+    },
+    [setDraft],
+  );
+
+  const updateCollectionItem = useCallback(
+    (
+      cultivarReferenceId: string,
+      patch: Partial<
+        Pick<
+          AnonymousOnboardingCollectionItem,
+          "description" | "price" | "quantity" | "status"
+        >
+      >,
+    ) => {
+      capturePosthogEvent("onboarding_listing_preview_edited", {
+        flow_version: ANONYMOUS_ONBOARDING_FLOW_VERSION,
+        draft_id: draftRef.current.draftId,
+        cultivar_reference_id: cultivarReferenceId,
+        field: Object.keys(patch)[0] ?? "unknown",
+      });
+      setDraft((currentDraft) => ({
+        ...currentDraft,
+        collection: currentDraft.collection.map((item) =>
+          item.cultivarReferenceId === cultivarReferenceId
+            ? { ...item, ...patch }
+            : item,
+        ),
+      }));
+    },
+    [setDraft],
+  );
+
+  const markProofViewed = useCallback(
+    (type: "catalog" | "listing") => {
+      capturePosthogEvent("onboarding_example_viewed", {
+        flow_version: ANONYMOUS_ONBOARDING_FLOW_VERSION,
+        draft_id: draftRef.current.draftId,
+        example_type: type,
+        presentation_mode: "embedded_share_preview",
+      });
+      setDraft((currentDraft) => ({
+        ...currentDraft,
+        proof: {
+          ...currentDraft.proof,
+          viewedCatalogExample:
+            type === "catalog" || currentDraft.proof.viewedCatalogExample,
+          viewedListingExample:
+            type === "listing" || currentDraft.proof.viewedListingExample,
+        },
+      }));
+    },
+    [setDraft],
+  );
 
   const goForward = useCallback(async () => {
+    if (!currentStepCanContinue) return;
+    capturePosthogEvent("onboarding_step_completed", {
+      flow_version: ANONYMOUS_ONBOARDING_FLOW_VERSION,
+      draft_id: draft.draftId,
+      step_id: draft.step,
+      step_index: currentStepIndex + 1,
+      total_steps: ANONYMOUS_ONBOARDING_STEPS.length,
+      workflow: draft.workflow,
+      catalog_size: draft.catalogSize,
+      buyer_need: draft.buyerNeed,
+    });
     if (draft.step === "email") {
       await saveEmailAndContinue("initial");
       return;
     }
-
-    if (draft.step === "profile") {
-      goToStep("listing");
-      return;
+    const nextStep = ANONYMOUS_ONBOARDING_STEPS[currentStepIndex + 1]?.id;
+    if (!nextStep) return;
+    if (
+      draft.step === "proof" &&
+      nextStep === "personalize" &&
+      !draft.ahaReachedAt
+    ) {
+      capturePosthogEvent("onboarding_aha_reached", {
+        flow_version: ANONYMOUS_ONBOARDING_FLOW_VERSION,
+        draft_id: draft.draftId,
+        aha_type: "buyer_experience_previewed",
+        workflow: draft.workflow,
+        catalog_size: draft.catalogSize,
+        buyer_need: draft.buyerNeed,
+      });
+      setDraft((currentDraft) => ({
+        ...currentDraft,
+        ahaReachedAt: new Date().toISOString(),
+      }));
     }
-
-    if (draft.step === "listing") {
-      goToStep("preview");
-      return;
-    }
-
-    if (draft.step === "preview") {
-      goToStep("checkout");
-    }
-  }, [draft.step, goToStep, saveEmailAndContinue]);
+    goToStep(nextStep);
+  }, [
+    currentStepCanContinue,
+    currentStepIndex,
+    draft.ahaReachedAt,
+    draft.buyerNeed,
+    draft.catalogSize,
+    draft.draftId,
+    draft.step,
+    draft.workflow,
+    goToStep,
+    saveEmailAndContinue,
+    setDraft,
+  ]);
 
   const goBack = useCallback(() => {
     const previousStep = ANONYMOUS_ONBOARDING_STEPS[currentStepIndex - 1]?.id;
@@ -666,66 +580,87 @@ export function useAnonymousOnboardingController({
   }, [currentStepIndex, goToStep]);
 
   const startCheckout = useCallback(async () => {
+    if (draft.collection.length < 2) {
+      goToStep("buyer-need");
+      return;
+    }
     if (!draft.email) {
       goToStep("email");
       return;
     }
 
+    capturePosthogEvent("checkout_started", {
+      source: "anonymous_onboarding",
+      flow_version: ANONYMOUS_ONBOARDING_FLOW_VERSION,
+      draft_id: draft.draftId,
+    });
     try {
       const result = await createCheckout.mutateAsync({
         email: draft.email,
         draftId: draft.draftId,
       });
+      capturePosthogEvent("checkout_redirect_ready", {
+        source: "anonymous_onboarding",
+        flow_version: ANONYMOUS_ONBOARDING_FLOW_VERSION,
+        draft_id: draft.draftId,
+      });
       window.location.href = result.url;
     } catch {
+      capturePosthogEvent("checkout_failed", {
+        source: "anonymous_onboarding",
+        flow_version: ANONYMOUS_ONBOARDING_FLOW_VERSION,
+        draft_id: draft.draftId,
+      });
       return;
     }
-  }, [createCheckout, draft.draftId, draft.email, goToStep]);
+  }, [
+    createCheckout,
+    draft.collection.length,
+    draft.draftId,
+    draft.email,
+    goToStep,
+  ]);
 
   return {
-    applyStarterNameOverlay,
-    clearProfileImage,
+    addCultivarToCollection,
     collectEmail,
     createCheckout,
     currentStepIndex,
+    currentStepCanContinue,
+    cultivarQuery,
+    cultivarSearchError: cultivarSearch.error,
+    cultivarSearchIsLoading:
+      normalizedCultivarQuery.length >= 3 &&
+      (normalizedCultivarQuery !== debouncedCultivarQuery ||
+        cultivarSearch.isFetching),
+    cultivarSearchResults:
+      normalizedCultivarQuery === debouncedCultivarQuery
+        ? (cultivarSearchData ?? [])
+        : [],
     draft,
+    draftIsHydrated,
     emailInput,
     emailIsValid,
-    exampleCultivars,
     furthestStepIndex,
     goBack,
     goForward,
     goToStep,
-    imageError,
     isEditingCheckoutEmail,
-    isGeneratingStarterProfileImage,
-    listingPreview,
+    markProofViewed,
     membershipPriceDisplay,
-    profileImageInputMode,
-    profilePreview,
+    removeCultivarFromCollection,
     progressValue,
     saveEmailAndContinue,
-    selectStarterProfileImage,
-    selectedStarterProfileImageUrl,
-    setApplyStarterNameOverlay,
+    setCatalogSize,
+    setCultivarQuery,
     setDraft,
     setEmailInput: setEmailInputOverride,
-    setImageError,
     setIsEditingCheckoutEmail,
-    setProfileImageInputMode,
+    setWorkflow,
     startCheckout,
     storageWarning,
-    updateListingImage: (image: Blob | File | undefined) =>
-      updateImageDraft(image, "listingImageDataUrl"),
     updateProfileGardenName,
-    updateProfileImage: (image: Blob | File | undefined) => {
-      if (image) {
-        cancelStarterProfileImageGeneration();
-        setProfileImageInputModeState("upload");
-      }
-
-      return updateImageDraft(image, "profileImageDataUrl");
-    },
+    updateCollectionItem,
   };
 }
 

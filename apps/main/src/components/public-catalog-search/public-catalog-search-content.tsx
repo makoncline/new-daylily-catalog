@@ -41,6 +41,8 @@ interface PublicCatalogSearchContentViewProps {
   table: Table<PublicCatalogListing>;
   isLoading: boolean;
   totalListingsCount: number;
+  onOpenListing?: (listingId: string) => void;
+  showCart?: boolean;
   isRefreshingCatalogData?: boolean;
   onRefreshCatalogData?: () => void;
 }
@@ -65,6 +67,8 @@ function PublicCatalogSearchContentView({
   scrollToResultsSummary,
   isLoading,
   totalListingsCount,
+  onOpenListing,
+  showCart,
   isRefreshingCatalogData = false,
   onRefreshCatalogData,
 }: PublicCatalogSearchContentViewProps) {
@@ -85,24 +89,26 @@ function PublicCatalogSearchContentView({
           </div>
 
           <div className="flex items-center gap-3">
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              onClick={onRefreshCatalogData}
-              disabled={isRefreshingCatalogData}
-              aria-label="Refresh catalog data"
-              data-testid="catalog-search-refresh"
-              data-state={isRefreshingCatalogData ? "refreshing" : "idle"}
-            >
-              <RefreshCw
-                className={cn(
-                  "mr-2 size-4",
-                  isRefreshingCatalogData && "animate-spin",
-                )}
-              />
-              Refresh data
-            </Button>
+            {onRefreshCatalogData ? (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={onRefreshCatalogData}
+                disabled={isRefreshingCatalogData}
+                aria-label="Refresh catalog data"
+                data-testid="catalog-search-refresh"
+                data-state={isRefreshingCatalogData ? "refreshing" : "idle"}
+              >
+                <RefreshCw
+                  className={cn(
+                    "mr-2 size-4",
+                    isRefreshingCatalogData && "animate-spin",
+                  )}
+                />
+                Refresh data
+              </Button>
+            ) : null}
 
             {isLoading && (
               <div className="text-muted-foreground flex items-center gap-2 text-sm">
@@ -147,6 +153,8 @@ function PublicCatalogSearchContentView({
                 <PublicCatalogSearchTable
                   table={table}
                   desktopColumns={panelCollapsed ? 3 : 2}
+                  onOpenListing={onOpenListing}
+                  showCart={showCart}
                 />
                 <DataTablePagination table={table} />
               </>
@@ -163,6 +171,9 @@ function PublicCatalogSearchUncontrolledContent({
   listings,
   isLoading,
   totalListingsCount,
+  storageKey = "public-catalog-listings-table",
+  onOpenListing,
+  showCart,
   isRefreshingCatalogData = false,
   onRefreshCatalogData,
 }: PublicCatalogSearchContentProps) {
@@ -177,7 +188,7 @@ function PublicCatalogSearchUncontrolledContent({
   const table = useDataTable({
     data: listings,
     columns: publicCatalogSearchColumns,
-    storageKey: "public-catalog-listings-table",
+    storageKey,
     columnNames,
   });
 
@@ -228,6 +239,8 @@ function PublicCatalogSearchUncontrolledContent({
       scrollToResultsSummary={scrollToResultsSummary}
       isLoading={isLoading}
       totalListingsCount={totalListingsCount}
+      onOpenListing={onOpenListing}
+      showCart={showCart}
       isRefreshingCatalogData={isRefreshingCatalogData}
       onRefreshCatalogData={onRefreshCatalogData}
     />
@@ -239,6 +252,8 @@ function PublicCatalogSearchControlledContent({
   listings,
   isLoading,
   totalListingsCount,
+  onOpenListing,
+  showCart,
   isRefreshingCatalogData,
   onRefreshCatalogData,
   controller,
@@ -259,6 +274,8 @@ function PublicCatalogSearchControlledContent({
       scrollToResultsSummary={controller.scrollToResultsSummary}
       isLoading={isLoading}
       totalListingsCount={totalListingsCount}
+      onOpenListing={onOpenListing}
+      showCart={showCart}
       isRefreshingCatalogData={
         isRefreshingCatalogData ?? controller.isRefreshingCatalogData
       }
