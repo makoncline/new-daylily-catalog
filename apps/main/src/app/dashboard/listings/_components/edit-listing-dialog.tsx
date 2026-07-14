@@ -55,7 +55,12 @@ export function EditListingDialog() {
       isOpen={!!editingId}
       onClose={closeEditListing}
       renderForm={(id, formRef, onClose) => (
-        <ListingForm listingId={id} onDelete={onClose} formRef={formRef} />
+        <ListingForm
+          listingId={id}
+          onDelete={onClose}
+          onSave={onClose}
+          formRef={formRef}
+        />
       )}
       title="Edit Listing"
     />

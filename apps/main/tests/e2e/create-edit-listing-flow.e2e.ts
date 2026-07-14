@@ -134,6 +134,10 @@ test.describe("create/edit listing flow @local", () => {
     await editListingDialog.setStatusToHidden();
     await editListingDialog.clickSaveChanges();
     await expectToast("Changes saved");
+    await expectUrlParam("editing", null);
+
+    await dashboardListings.openFirstVisibleRowEdit();
+    await editListingDialog.isReady();
 
     await editListingDialog.openListsPicker();
     await editListingDialog.toggleListByName(seedMeta.existingListTitle);
@@ -184,7 +188,9 @@ test.describe("create/edit listing flow @local", () => {
     // Verify unlink persists after save (regression test for link/unlink bug)
     await editListingDialog.clickSaveChanges();
     await expectToast("Changes saved");
-    // Wait for the dialog to be ready after save mutation
+    await expectUrlParam("editing", null);
+
+    await dashboardListings.openFirstVisibleRowEdit();
     await editListingDialog.isReady();
     await expect(editListingDialog.ahsListingSelectButton).toBeVisible();
     await captureCheckpoint("edit-dialog-ahs-unlinked-after-save");

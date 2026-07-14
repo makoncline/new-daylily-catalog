@@ -10,8 +10,10 @@ process.env.DATABASE_URL ??=
   "file:./tests/.tmp/dashboard-db-listing-entitlements.sqlite";
 
 const getStripeSubscriptionResult = vi.hoisted(() => vi.fn());
+const getStripeSubscription = vi.hoisted(() => vi.fn());
 
 vi.mock("@/server/stripe/sync-subscription", () => ({
+  getStripeSubscription,
   getStripeSubscriptionResult,
 }));
 

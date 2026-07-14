@@ -472,6 +472,24 @@ importers:
 
   packages/config: {}
 
+  packages/standalone-runtime:
+    dependencies:
+      '@aws-sdk/client-s3':
+        specifier: ^3.882.0
+        version: 3.882.0
+      '@libsql/client':
+        specifier: ^0.17.3
+        version: 0.17.3
+      '@prisma/adapter-libsql':
+        specifier: 7.8.0
+        version: 7.8.0
+      '@prisma/client':
+        specifier: 7.8.0
+        version: 7.8.0(prisma@7.8.0(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(better-sqlite3@12.9.0)(react-dom@19.2.4(react@19.2.4))(react@19.2.4)(typescript@5.9.2))(typescript@5.9.2)
+      sharp:
+        specifier: ^0.35.1
+        version: 0.35.1
+
 packages:
 
   '@adobe/css-tools@4.4.4':
