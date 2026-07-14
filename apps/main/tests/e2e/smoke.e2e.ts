@@ -14,14 +14,13 @@ test.describe("guest user tour @preview", () => {
       /^Browse Daylily Catalogs(?: \| Daylily Catalog){0,2}$/,
     );
 
-    // Open the seeded public catalog. The preview smoke data is intentionally
-    // stable here, while catalog ordering can change as real catalogs publish.
-    const seededCatalogLink = page
-      .locator('a[href="/seeded-daylily"]')
-      .filter({ hasText: "Seeded Daylily Farm" });
-    await expect(seededCatalogLink).toBeVisible();
-    await seededCatalogLink.click();
-    await expect(page).toHaveURL(/\/seeded-daylily$/);
+    // Open one of the stage-login catalogs retained from realistic data.
+    const realisticCatalogLink = page
+      .locator('a[href="/plantfancygardens"]')
+      .filter({ hasText: "PlantFancyGardens" });
+    await expect(realisticCatalogLink).toBeVisible();
+    await realisticCatalogLink.click();
+    await expect(page).toHaveURL(/\/plantfancygardens$/);
 
     // Open first listing card (opens dialog)
     const firstListingCard = page
