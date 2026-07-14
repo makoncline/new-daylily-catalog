@@ -26,7 +26,7 @@ jobs:
       immutable_tag: ${{ steps.meta.outputs.immutable_tag }}
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Compute image metadata
         id: meta
@@ -38,15 +38,18 @@ jobs:
           if [ "${{ github.event_name }}" = "pull_request" ]; then
             IMMUTABLE_TAG="pr-${{ github.event.pull_request.number }}-${SHORT_SHA}"
             SHOULD_PUSH="false"
+            CACHE_TO=""
           else
             IMMUTABLE_TAG="main-${SHORT_SHA}"
             SHOULD_PUSH="true"
+            CACHE_TO="type=gha,mode=max"
           fi
 
           {
             echo "image_repo=${IMAGE_REPO}"
             echo "immutable_tag=${IMMUTABLE_TAG}"
             echo "should_push=${SHOULD_PUSH}"
+            echo "cache_to=${CACHE_TO}"
             echo "alias_tags<<EOF"
             if [ "$SHOULD_PUSH" = "true" ]; then
               echo "latest"
@@ -135,22 +138,7 @@ jobs:
           echo "path=$BUILD_ENV_FILE" >> "$GITHUB_OUTPUT"
           echo "fingerprint=$BUILD_ENV_FINGERPRINT" >> "$GITHUB_OUTPUT"
 
-      - uses: docker/setup-buildx-action@v3
-
-      - name: Restore Next Docker compiler cache
-        uses: actions/cache@v4
-        with:
-          path: ${{ runner.temp }}/daylily-next-cache
-          key: ${{ runner.os }}-docker-next-${{ github.event_name == 'pull_request' && 'preview' || 'production' }}-${{ github.sha }}
-          restore-keys: |
-            ${{ runner.os }}-docker-next-${{ github.event_name == 'pull_request' && 'preview' || 'production' }}-
-
-      # BuildKit's gha exporter does not preserve RUN cache mounts by itself.
-      - name: Inject Next compiler cache into BuildKit
-        uses: reproducible-containers/buildkit-cache-dance@4b2444fec0c0fb9dbf175a96c094720a692ef810 # v2.1.4
-        with:
-          cache-source: ${{ runner.temp }}/daylily-next-cache
-          cache-target: /app/apps/main/.next/cache
+      - uses: docker/setup-buildx-action@v4
 
       - name: Log in to GHCR
         if: steps.meta.outputs.should_push == 'true'
@@ -161,7 +149,7 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Build and push image
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: .
           file: apps/main/Dockerfile
@@ -173,7 +161,9 @@ jobs:
           secret-files: |
             app_env=${{ steps.build-env.outputs.path }}
           cache-from: type=gha
-          cache-to: type=gha,mode=max
+          # PRs consume the last main cache without paying to export throwaway app layers.
+          # Main refreshes the complete cache after merge for future builds.
+          cache-to: ${{ steps.meta.outputs.cache_to }}
 
       - name: Summarize image tags
         run: |

@@ -5,7 +5,7 @@ import { describe, expect, it } from "vitest";
 const repoRoot = path.resolve(process.cwd(), "../..");
 
 describe("Docker build cache and observability boundaries", () => {
-  it("persists an environment-scoped Next compiler cache", () => {
+  it("keeps PR cache exports lean without moving a separate compiler cache", () => {
     const dockerfile = readFileSync(
       path.join(repoRoot, "apps/main/Dockerfile"),
       "utf8",
@@ -14,14 +14,23 @@ describe("Docker build cache and observability boundaries", () => {
       path.join(repoRoot, ".github/workflows/pr-docker-image.yml"),
       "utf8",
     );
-
+    expect(dockerfile).not.toContain(
+      "type=cache,target=/app/apps/main/.next/cache",
+    );
+    expect(dockerfile).toContain("FROM base AS builder");
     expect(dockerfile).toContain(
-      "type=cache,target=/app/apps/main/.next/cache,sharing=locked",
+      "COPY --from=deps /app/node_modules ./node_modules",
     );
+    expect(workflow).not.toContain("buildkit-cache-dance");
+    expect(workflow).not.toContain("actions/cache");
+    expect(workflow).toContain("actions/checkout@v7");
+    expect(workflow).toContain("docker/setup-buildx-action@v4");
+    expect(workflow).toContain("docker/build-push-action@v7");
+    expect(workflow).toContain('CACHE_TO=""');
+    expect(workflow).toContain('CACHE_TO="type=gha,mode=max"');
     expect(workflow).toContain(
-      "reproducible-containers/buildkit-cache-dance@4b2444fec0c0fb9dbf175a96c094720a692ef810",
+      "cache-to: ${{ steps.meta.outputs.cache_to }}",
     );
-    expect(workflow).toContain("cache-target: /app/apps/main/.next/cache");
     expect(
       readFileSync(path.join(repoRoot, ".dockerignore"), "utf8"),
     ).toContain("apps/*/Dockerfile");

@@ -44,7 +44,6 @@ ENV NODE_ENV=production
 ARG BUILD_ENV_FINGERPRINT
 
 RUN --mount=type=secret,id=app_env \
-    --mount=type=cache,target=/app/apps/main/.next/cache,sharing=locked \
     : "${BUILD_ENV_FINGERPRINT:?BUILD_ENV_FINGERPRINT is required for Docker builds}" \
     && printf '%s' "$BUILD_ENV_FINGERPRINT" >/dev/null \
     && set -a \
