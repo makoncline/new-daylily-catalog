@@ -111,10 +111,10 @@ function ContactFormContent({ userId, onSubmitSuccess }: ContactFormProps) {
   // Update form when customerInfo changes (on initial load)
   useEffect(() => {
     if (customerInfo.email) {
-      form.setValue("email", customerInfo.email);
+      form.setValue("email", customerInfo.email, { shouldValidate: true });
     }
     if (customerInfo.name) {
-      form.setValue("name", customerInfo.name);
+      form.setValue("name", customerInfo.name, { shouldValidate: true });
     }
   }, [customerInfo, form]);
 

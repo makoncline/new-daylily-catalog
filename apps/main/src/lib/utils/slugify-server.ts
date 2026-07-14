@@ -6,7 +6,7 @@ export async function generateUniqueSlug(
   title: string,
   userId: string,
   currentId?: string,
-  dbClient: PrismaClient = db,
+  dbClient: Pick<PrismaClient, "listing"> = db,
 ): Promise<string> {
   const slug = slugify(title);
   let counter = 0;

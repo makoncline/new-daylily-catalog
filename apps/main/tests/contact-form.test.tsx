@@ -1,4 +1,10 @@
-import { render, screen, fireEvent, act } from "@testing-library/react";
+import {
+  render,
+  screen,
+  fireEvent,
+  act,
+  waitFor,
+} from "@testing-library/react";
 import { vi, describe, it, expect, beforeEach } from "vitest";
 import { ContactForm } from "@/components/contact-form";
 
@@ -18,8 +24,9 @@ const mockUseCart = vi.fn(() => ({
   total: 0,
 }));
 
+let customerInfo = { email: "", name: "" };
 const mockUseCustomerInfo = vi.fn(() => ({
-  customerInfo: { email: "", name: "" },
+  customerInfo,
   updateCustomerInfo: vi.fn(),
 }));
 
@@ -111,6 +118,7 @@ describe("ContactForm", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     cartItems = [];
+    customerInfo = { email: "", name: "" };
   });
 
   it("invalid email shows field error and does not trigger unhandled rejection", async () => {
@@ -169,6 +177,19 @@ describe("ContactForm", () => {
     }
 
     expect(t.reasons).toHaveLength(0);
+  });
+
+  it("enables submission for a cart when valid remembered customer info is restored", async () => {
+    cartItems = [{ id: "item-1" }];
+    customerInfo = { email: "remembered@example.com", name: "Buyer" };
+
+    render(<ContactForm userId="test-user-id" />);
+
+    await waitFor(() =>
+      expect(
+        screen.getByRole("button", { name: "Send Message" }),
+      ).toBeEnabled(),
+    );
   });
 
   it("does not report expected BAD_REQUEST validation errors", async () => {

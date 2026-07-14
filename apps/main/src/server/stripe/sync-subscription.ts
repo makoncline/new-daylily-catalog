@@ -69,11 +69,11 @@ export async function syncStripeSubscriptionToKV(customerId: string) {
   );
 }
 
-export const getStripeSubscription = async (
+export const getStripeSubscriptionResult = async (
   stripeCustomerId: string | null | undefined,
 ) => {
   if (!stripeCustomerId) {
-    return DEFAULT_SUB_DATA;
+    return { subscription: DEFAULT_SUB_DATA, confirmed: true } as const;
   }
 
   // Try to get from cache first
@@ -82,7 +82,7 @@ export const getStripeSubscription = async (
   );
 
   if (cachedData) {
-    return cachedData;
+    return { subscription: cachedData, confirmed: true } as const;
   }
 
   // If not in cache, sync from Stripe and cache it
@@ -99,10 +99,14 @@ export const getStripeSubscription = async (
     });
     // Keep checkout available; its customer binding and Stripe's setting are
     // the final duplicate guard: https://docs.stripe.com/payments/checkout/limit-subscriptions
-    return DEFAULT_SUB_DATA;
+    return { subscription: DEFAULT_SUB_DATA, confirmed: false } as const;
   }
-  return result.data;
+  return { subscription: result.data, confirmed: true } as const;
 };
+
+export const getStripeSubscription = async (
+  stripeCustomerId: string | null | undefined,
+) => (await getStripeSubscriptionResult(stripeCustomerId)).subscription;
 
 export type StripeSubCache = Awaited<
   ReturnType<typeof syncStripeSubscriptionToKV>
