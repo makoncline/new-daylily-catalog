@@ -441,12 +441,19 @@ export async function buildPublicCultivarSummary(args: PublicCultivarContext) {
   const gardensCount = userIds.length;
   const offersCount = args.listingCards.length;
   const primaryHybridizer =
-    cultivarReference.v2AhsCultivar?.primary_hybridizer_name;
-  const relatedByHybridizer = primaryHybridizer?.trim()
+    cultivarReference.v2AhsCultivar?.primary_hybridizer_name?.trim();
+  const legacyHybridizer =
+    cultivarReference.v2AhsCultivar?.hybridizer_code_legacy?.trim();
+  const hybridizerWhere = primaryHybridizer
+    ? { primary_hybridizer_name: primaryHybridizer }
+    : legacyHybridizer
+      ? { hybridizer_code_legacy: legacyHybridizer }
+      : null;
+  const relatedByHybridizer = hybridizerWhere
     ? (
         await replicaDb.v2AhsCultivar.findMany({
           where: {
-            primary_hybridizer_name: primaryHybridizer,
+            ...hybridizerWhere,
             image_url: {
               not: null,
             },

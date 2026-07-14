@@ -15,6 +15,11 @@ export async function getMainSitemapEntries(baseUrl: string) {
       priority: 0.8,
     },
     {
+      url: `${baseUrl}/cultivars`,
+      changeFrequency: "weekly",
+      priority: 0.8,
+    },
+    {
       url: `${baseUrl}/start-membership`,
       changeFrequency: "weekly",
       priority: 0.7,

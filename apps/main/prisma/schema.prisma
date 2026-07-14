@@ -90,6 +90,7 @@ model V2AhsCultivar {
   @@index([link_normalized_name], map: "V2AhsCultivar_link_normalized_name_idx")
   @@index([post_title], map: "V2AhsCultivar_post_title_idx")
   @@index([primary_hybridizer_name], map: "V2AhsCultivar_primary_hybridizer_name_idx")
+  @@index([hybridizer_code_legacy], map: "V2AhsCultivar_hybridizer_code_legacy_idx")
 }
 
 model CultivarReference {

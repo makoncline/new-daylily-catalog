@@ -1,28 +1,30 @@
 "use client";
 
 import Link from "next/link";
-import { Badge } from "@/components/ui/badge";
-import { Card, CardContent } from "@/components/ui/card";
-import { TruncatedText } from "@/components/truncated-text";
-import { H3 } from "@/components/typography";
 import { cn, formatAhsListingSummaryForCard } from "@/lib/utils";
-import { type RouterOutputs } from "@/trpc/react";
+import type { AhsDisplayListing } from "@/lib/utils/ahs-display";
 import { OptimizedImage } from "./optimized-image";
 
-type CultivarPageOutput = NonNullable<
-  RouterOutputs["public"]["getCultivarPage"]
->;
-type RelatedCultivar = CultivarPageOutput["relatedByHybridizer"][number];
+interface CultivarCardCultivar {
+  ahsListing: AhsDisplayListing | null;
+  hybridizer: string | null;
+  imageUrl: string | null;
+  name: string;
+  segment: string;
+  year: string | null;
+}
 
 type CultivarCardProps = {
-  cultivar: RelatedCultivar;
+  cultivar: CultivarCardCultivar;
   className?: string;
+  nofollow?: boolean;
   priority?: boolean;
 };
 
 export function CultivarCard({
   cultivar,
   className,
+  nofollow = true,
   priority = false,
 }: CultivarCardProps) {
   const cultivarUrl = `/cultivar/${cultivar.segment}`;
@@ -30,57 +32,72 @@ export function CultivarCard({
     .filter(Boolean)
     .join(", ");
   const description = formatAhsListingSummaryForCard(cultivar.ahsListing);
+  const titleFontSizeRem = Math.max(
+    1.05,
+    Math.min(2.05, 15.5 / Math.max(cultivar.name.length * 0.52, 1)),
+  );
 
   return (
     <Link
       href={cultivarUrl}
-      rel="nofollow"
+      rel={nofollow ? "nofollow" : undefined}
       prefetch={false}
       className={cn(
-        "block h-full w-[75vw] min-w-[75vw] md:w-full md:max-w-[560px] md:min-w-0",
+        "group relative isolate flex min-h-[18rem] w-[75vw] min-w-[75vw] overflow-hidden rounded-3xl border border-[#dbe3d5] bg-[#173126] text-white shadow-[0_24px_80px_-58px_rgba(24,50,32,0.9)] transition-transform duration-300 hover:-translate-y-1 md:w-[20rem] md:min-w-[20rem]",
         className,
       )}
     >
-      <Card className="group hover:border-primary relative flex h-full cursor-pointer flex-col overflow-hidden transition-all md:h-56 md:flex-row">
-        <div className="relative aspect-square w-full shrink-0 overflow-hidden md:h-full md:w-auto">
-          {cultivar.imageUrl ? (
-            <OptimizedImage
-              src={cultivar.imageUrl}
-              alt={cultivar.name}
-              size="full"
-              priority={priority}
-              className="h-full w-full object-cover"
-            />
-          ) : (
-            <div className="bg-muted/20 h-full w-full" />
-          )}
+      {cultivar.imageUrl ? (
+        <OptimizedImage
+          src={cultivar.imageUrl}
+          alt={cultivar.name}
+          size="full"
+          priority={priority}
+          className="absolute inset-0 aspect-auto size-full transition-transform duration-500 group-hover:scale-[1.04]"
+        />
+      ) : (
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_35%_30%,#6b8f63,#173126_62%)]" />
+      )}
+
+      <div className="absolute inset-0 bg-linear-to-t from-[#07120e]/95 via-[#07120e]/58 to-[#07120e]/18" />
+
+      <div className="relative z-10 flex min-h-[18rem] w-full flex-col p-5">
+        <div className="flex flex-1 items-center">
+          <div className="w-full min-w-0">
+            <h3
+              className="truncate leading-none font-semibold text-white drop-shadow-lg"
+              style={{ fontSize: `${titleFontSizeRem}rem` }}
+              title={cultivar.name}
+            >
+              {cultivar.name}
+            </h3>
+
+            <p
+              className={cn(
+                "mt-2 min-h-5 truncate text-sm font-semibold text-white/86 drop-shadow",
+                !secondaryLine && "invisible",
+              )}
+            >
+              {secondaryLine || "Cultivar details"}
+            </p>
+
+            <p
+              className={cn(
+                "mt-3 line-clamp-2 min-h-12 text-sm leading-6 text-white/84",
+                !description && "invisible",
+              )}
+            >
+              {description ?? "Cultivar description"}
+            </p>
+          </div>
         </div>
 
-        <CardContent className="flex min-w-0 flex-1 flex-col overflow-hidden p-4">
-          <div className="min-w-0 space-y-2 overflow-hidden">
-            <H3 className="text-2xl leading-tight">
-              <TruncatedText text={cultivar.name} lines={1} />
-            </H3>
-
-            {secondaryLine && (
-              <Badge
-                variant="secondary"
-                className="inline-flex items-center text-xs"
-              >
-                <TruncatedText text={secondaryLine} lines={1} />
-              </Badge>
-            )}
-
-            {description && (
-              <TruncatedText
-                text={description}
-                lines={4}
-                className="text-muted-foreground text-xs leading-relaxed"
-              />
-            )}
-          </div>
-        </CardContent>
-      </Card>
+        <div className="flex h-11 items-center justify-end text-sm font-bold text-white">
+          <span className="inline-flex min-w-[8.25rem] items-center justify-center rounded-full bg-white px-4 py-2 whitespace-nowrap text-[#173126]">
+            View cultivar
+          </span>
+        </div>
+      </div>
     </Link>
   );
 }

@@ -201,11 +201,13 @@ export function PublicCatalogSearchQueryField<TData>({
   className,
   inputClassName,
   onSubmit,
+  placeholder = "Search listings...",
   table,
 }: {
   className?: string;
   inputClassName?: string;
   onSubmit?: () => void;
+  placeholder?: string;
   table: Table<TData>;
 }) {
   const globalFilter: unknown = table.getState().globalFilter;
@@ -222,7 +224,7 @@ export function PublicCatalogSearchQueryField<TData>({
   return (
     <div className={className} data-testid="search-query-form">
       <Input
-        placeholder="Search listings..."
+        placeholder={placeholder}
         value={currentGlobalFilter}
         className={cn("h-9", inputClassName)}
         data-testid="search-all-fields-input"
