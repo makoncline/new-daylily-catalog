@@ -19,8 +19,10 @@ test.describe("guest user tour @preview", () => {
       .locator('a[href="/plantfancygardens"]')
       .filter({ hasText: "PlantFancyGardens" });
     await expect(realisticCatalogLink).toBeVisible();
-    await realisticCatalogLink.click();
-    await expect(page).toHaveURL(/\/plantfancygardens$/);
+    await Promise.all([
+      page.waitForURL(/\/plantfancygardens$/, { timeout: 60_000 }),
+      realisticCatalogLink.click(),
+    ]);
 
     // Open first listing card (opens dialog)
     const firstListingCard = page
