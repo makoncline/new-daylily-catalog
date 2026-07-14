@@ -18,9 +18,19 @@ WORKDIR /app
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY patches ./patches
 COPY apps/main/package.json ./apps/main/package.json
+COPY packages/standalone-runtime/package.json ./packages/standalone-runtime/package.json
 COPY apps/main/prisma ./apps/main/prisma
 
-RUN pnpm install --frozen-lockfile --filter @daylily-catalog/main...
+RUN pnpm install --frozen-lockfile \
+    --filter @daylily-catalog/main... \
+    --filter @daylily-catalog/standalone-runtime...
+
+FROM deps AS runtime-deps
+
+RUN pnpm --filter @daylily-catalog/standalone-runtime --prod deploy /runtime \
+    && source_modules="$(dirname "$(dirname "$(readlink -f /app/apps/main/node_modules/@prisma/client)")")" \
+    && runtime_modules="$(dirname "$(dirname "$(readlink -f /runtime/node_modules/@prisma/client)")")" \
+    && cp -a "$source_modules/.prisma" "$runtime_modules/.prisma"
 
 FROM base AS builder
 
@@ -61,9 +71,11 @@ COPY --from=builder --chown=nextjs:nodejs /app/apps/main/public ./apps/main/publ
 COPY --from=builder --chown=nextjs:nodejs /app/apps/main/scripts/build-public-search-index.mjs ./apps/main/scripts/build-public-search-index.mjs
 COPY --from=builder --chown=nextjs:nodejs /app/apps/main/scripts/build-public-parentage-index.mjs ./apps/main/scripts/build-public-parentage-index.mjs
 COPY --from=builder --chown=nextjs:nodejs /app/apps/main/.next/standalone ./
-COPY --from=deps --chown=nextjs:nodejs /app/node_modules ./node_modules
-COPY --from=deps --chown=nextjs:nodejs /app/apps/main/node_modules ./apps/main/node_modules
+COPY --from=runtime-deps --chown=nextjs:nodejs /runtime/node_modules ./apps/main/node_modules
 COPY --from=builder --chown=nextjs:nodejs /app/apps/main/.next/static ./apps/main/.next/static
+
+RUN cd /app/apps/main \
+    && node -e 'for (const dependency of ["sharp", "@aws-sdk/client-s3", "@prisma/client", "@prisma/adapter-libsql", "@libsql/client"]) require(dependency)'
 
 USER nextjs
 
