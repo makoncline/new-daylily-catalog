@@ -39,11 +39,13 @@ function createDeferred<T>(): Deferred<T> {
 
 function SaveBeforeNavigateHarness({
   handle,
+  guardBrowserHistory = false,
 }: {
   handle: SaveOnNavigateHandle<"navigate">;
+  guardBrowserHistory?: boolean;
 }) {
   const formRef = React.useRef<SaveOnNavigateHandle<"navigate"> | null>(handle);
-  useSaveBeforeNavigate(formRef, "navigate", true);
+  useSaveBeforeNavigate(formRef, "navigate", true, guardBrowserHistory);
 
   return (
     <div>
@@ -171,6 +173,53 @@ describe("useSaveBeforeNavigate", () => {
     window.dispatchEvent(beforeUnloadEvent);
 
     expect(beforeUnloadEvent.defaultPrevented).toBe(true);
+  });
+
+  it("holds same-document history traversal until pending changes save", async () => {
+    const saveDeferred = createDeferred<boolean>();
+    const handle: SaveOnNavigateHandle<"navigate"> = {
+      hasPendingChanges: vi.fn(() => true),
+      saveChanges: vi.fn(() => saveDeferred.promise),
+    };
+    let navigationListener: ((event: Event) => void) | undefined;
+    const navigation = {
+      addEventListener: vi.fn(
+        (_type: string, listener: (event: Event) => void) => {
+          navigationListener = listener;
+        },
+      ),
+      removeEventListener: vi.fn(),
+    };
+    Object.defineProperty(window, "navigation", {
+      configurable: true,
+      value: navigation,
+    });
+
+    render(<SaveBeforeNavigateHarness handle={handle} guardBrowserHistory />);
+    await waitFor(() => expect(navigationListener).toBeDefined());
+
+    let precommitHandler: (() => Promise<void>) | undefined;
+    const intercept = vi.fn(
+      (options: { precommitHandler: () => Promise<void> }) => {
+        precommitHandler = options.precommitHandler;
+      },
+    );
+    const event = Object.assign(new Event("navigate", { cancelable: true }), {
+      canIntercept: true,
+      downloadRequest: null,
+      hashChange: false,
+      intercept,
+      navigationType: "traverse",
+    });
+    navigationListener?.(event);
+
+    expect(intercept).toHaveBeenCalledTimes(1);
+    const pendingNavigation = precommitHandler?.();
+    expect(handle.saveChanges).toHaveBeenCalledTimes(1);
+    saveDeferred.resolve(true);
+    await expect(pendingNavigation).resolves.toBeUndefined();
+
+    Reflect.deleteProperty(window, "navigation");
   });
 
   it("ignores hash-only anchors", () => {

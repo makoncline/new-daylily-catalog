@@ -1,8 +1,11 @@
 "use client";
 
 import {
+  Fragment,
   Suspense,
+  useEffect,
   useRef,
+  useState,
   type ErrorInfo,
   type ReactNode,
   type RefObject,
@@ -29,7 +32,9 @@ interface ManagedEditDialogProps<
   entityId: string | null;
   fallback: ReactNode;
   isOpen: boolean;
+  guardEntityTransitions?: boolean;
   onClose: () => void;
+  onEntityChangeRejected?: (entityId: string) => void;
   onError?: (error: Error, errorInfo: ErrorInfo) => void;
   renderForm: (
     id: string,
@@ -46,14 +51,67 @@ export function ManagedEditDialog<
   description,
   entityId,
   fallback,
+  guardEntityTransitions = false,
   isOpen,
   onClose,
+  onEntityChangeRejected,
   onError,
   renderForm,
   title,
 }: ManagedEditDialogProps<THandle>) {
   const formRef = useRef<THandle | null>(null);
-  useSaveBeforeNavigate(formRef, "navigate", isOpen);
+  const skipNextEntitySaveRef = useRef(false);
+  const [guardedEntityId, setGuardedEntityId] = useState(entityId);
+  const rejectionHandlerRef = useRef(onEntityChangeRejected);
+  const displayedEntityId = guardEntityTransitions ? guardedEntityId : entityId;
+  const displayedIsOpen = guardEntityTransitions
+    ? Boolean(displayedEntityId)
+    : isOpen;
+  const { saveIfDirty } = useSaveBeforeNavigate(
+    formRef,
+    "navigate",
+    displayedIsOpen,
+    guardEntityTransitions,
+  );
+
+  useEffect(() => {
+    rejectionHandlerRef.current = onEntityChangeRejected;
+  }, [onEntityChangeRejected]);
+
+  useEffect(() => {
+    if (!guardEntityTransitions || entityId === guardedEntityId) {
+      return;
+    }
+
+    if (skipNextEntitySaveRef.current) {
+      skipNextEntitySaveRef.current = false;
+      setGuardedEntityId(entityId);
+      return;
+    }
+
+    let cancelled = false;
+    void saveIfDirty()
+      .then((didSave) => {
+        if (cancelled) return;
+        if (!didSave) {
+          if (guardedEntityId) {
+            rejectionHandlerRef.current?.(guardedEntityId);
+          }
+          return;
+        }
+
+        setGuardedEntityId(entityId);
+      })
+      .catch(() => {
+        if (!cancelled && guardedEntityId) {
+          rejectionHandlerRef.current?.(guardedEntityId);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [entityId, guardEntityTransitions, guardedEntityId, saveIfDirty]);
 
   const handleOpenChange = async (open: boolean) => {
     if (open) {
@@ -68,10 +126,22 @@ export function ManagedEditDialog<
     onClose();
   };
 
-  // eslint-disable-next-line react-hooks/refs -- renderForm receives the ref object; it does not read formRef.current during render.
-  const renderedForm = entityId ? renderForm(entityId, formRef, onClose) : null;
-  const content = entityId ? (
+  const handleEntityDeleted = () => {
+    skipNextEntitySaveRef.current = true;
+    formRef.current = null;
+    onClose();
+  };
+
+  const renderedFormContent = displayedEntityId
+    // eslint-disable-next-line react-hooks/refs -- renderForm receives the ref and delete callback; it does not invoke either during render.
+    ? renderForm(displayedEntityId, formRef, handleEntityDeleted)
+    : null;
+  const renderedForm = displayedEntityId ? (
+    <Fragment key={displayedEntityId}>{renderedFormContent}</Fragment>
+  ) : null;
+  const content = displayedEntityId ? (
     <ErrorBoundary
+      key={displayedEntityId}
       fallback={<ErrorFallback resetErrorBoundary={onClose} />}
       onError={onError}
     >
@@ -80,8 +150,10 @@ export function ManagedEditDialog<
   ) : null;
 
   return (
-    <Dialog open={isOpen} onOpenChange={handleOpenChange}>
-      <DialogContent>
+    <Dialog open={displayedIsOpen} onOpenChange={handleOpenChange}>
+      <DialogContent
+        data-managed-edit-entity-id={displayedEntityId ?? undefined}
+      >
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
           <DialogDescription>{description}</DialogDescription>

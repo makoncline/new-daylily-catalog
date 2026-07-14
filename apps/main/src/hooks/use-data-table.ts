@@ -7,7 +7,10 @@ import {
   type TableOptions,
 } from "@tanstack/react-table";
 import { defaultTableConfig } from "@/lib/table-config";
-import { getFilterableColumnIds } from "@/lib/table-utils";
+import {
+  getFilterableColumnIds,
+  getSortableColumnIds,
+} from "@/lib/table-utils";
 import { LISTING_TABLE_COLUMN_NAMES } from "@/config/constants";
 import {
   useInitialPersistedTableState,
@@ -25,6 +28,7 @@ interface UseDataTableProps<TData> {
   config?: Partial<TableOptions<TData>>;
   columnNames?: Record<string, string>;
   initialStateOverrides?: TableOptions<TData>["initialState"];
+  useNativeUrlHistory?: boolean;
 }
 
 export function useDataTable<TData>({
@@ -33,13 +37,16 @@ export function useDataTable<TData>({
   storageKey,
   pinnedColumns = { left: [], right: [] },
   initialStateOverrides,
+  useNativeUrlHistory = false,
   config,
   columnNames = LISTING_TABLE_COLUMN_NAMES,
 }: UseDataTableProps<TData>): Table<TData> {
   const filterableColumnIds = getFilterableColumnIds(columns);
+  const sortableColumnIds = getSortableColumnIds(columns);
 
   const persistedState = useInitialPersistedTableState({
     filterableColumnIds,
+    sortableColumnIds,
     storageKey,
   });
   const columnVisibility = {
@@ -55,7 +62,9 @@ export function useDataTable<TData>({
     columns,
     meta: {
       filterableColumns: filterableColumnIds,
+      sortableColumns: sortableColumnIds,
       storageKey,
+      useNativeUrlHistory,
       pinnedColumns,
       getColumnLabel: (columnId) =>
         (columnNames[columnId] as unknown as string) ?? columnId,

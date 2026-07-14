@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { useRouter, usePathname, useSearchParams } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { TABLE_CONFIG } from "@/config/constants";
 import { type Table } from "@tanstack/react-table";
 import {
@@ -27,8 +27,10 @@ function getDefaultPageSize(pathname: string | null): number {
 
 export function useUrlInitialTableState({
   filterableColumnIds,
+  sortableColumnIds,
 }: {
   filterableColumnIds?: string[];
+  sortableColumnIds?: string[];
 } = {}) {
   const searchParams = useSearchParams();
   const pathname = usePathname();
@@ -40,6 +42,16 @@ export function useUrlInitialTableState({
   const pageSize =
     Number(searchParams.get("size")) || getDefaultPageSize(pathname);
   const globalFilter = searchParams.get("query") ?? undefined;
+  const sorting = (() => {
+    const value = searchParams.get("sort");
+    if (!value) return undefined;
+
+    const [id, direction] = value.split(".");
+    if (!id || !sortableColumnIds?.includes(id)) return undefined;
+    if (direction !== "asc" && direction !== "desc") return undefined;
+
+    return [{ id, desc: direction === "desc" }];
+  })();
 
   // Get column filters from URL
   const columnFilters = filterableColumnIds
@@ -65,8 +77,10 @@ export function useUrlInitialTableState({
     },
     globalFilter,
     columnFilters,
+    ...(sorting ? { sorting } : {}),
     meta: {
       filterableColumns: filterableColumnIds,
+      sortableColumns: sortableColumnIds,
     },
   };
 }
@@ -77,11 +91,84 @@ export function useTableUrlSync<TData>(table: Table<TData>) {
   const searchParams = useSearchParams();
 
   // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-  const { pagination, columnFilters, globalFilter } = table.getState();
+  const { pagination, columnFilters, globalFilter, sorting } = table.getState();
   const filterableColumns = table.options.meta?.filterableColumns;
+  const sortableColumns = table.options.meta?.sortableColumns;
+  const useNativeUrlHistory = table.options.meta?.useNativeUrlHistory;
+  const searchString = searchParams.toString();
+  const synchronizedSearchRef = React.useRef(searchString);
+  const pendingSearchesRef = React.useRef<string[]>([]);
+  const skipNextWriteRef = React.useRef(false);
+
+  React.useEffect(() => {
+    if (searchString === synchronizedSearchRef.current) return;
+    const pendingIndex = pendingSearchesRef.current.indexOf(searchString);
+    if (pendingIndex >= 0) {
+      pendingSearchesRef.current.splice(0, pendingIndex + 1);
+      synchronizedSearchRef.current = searchString;
+      return;
+    }
+
+    const nextPagination = {
+      pageIndex:
+        (Number(searchParams.get("page")) ||
+          TABLE_CONFIG.PAGINATION.DEFAULT_PAGE_INDEX + 1) - 1,
+      pageSize:
+        Number(searchParams.get("size")) || getDefaultPageSize(pathname),
+    };
+    const nextGlobalFilter = searchParams.get("query") ?? undefined;
+    const nextColumnFilters = (filterableColumns ?? []).flatMap((id) => {
+      const rawValue = searchParams.get(id);
+      return rawValue
+        ? [{ id, value: parseTableUrlColumnFilterValue(id, rawValue) }]
+        : [];
+    });
+    const value = searchParams.get("sort");
+    const [id, direction] = value?.split(".") ?? [];
+    const nextSorting =
+      id &&
+      sortableColumns?.includes(id) &&
+      (direction === "asc" || direction === "desc")
+        ? [{ id, desc: direction === "desc" }]
+        : nextGlobalFilter && sortableColumns?.includes("title")
+          ? [{ id: "title", desc: false }]
+          : [];
+    const currentState = table.getState();
+    synchronizedSearchRef.current = searchString;
+
+    if (
+      currentState.pagination.pageIndex !== nextPagination.pageIndex ||
+      currentState.pagination.pageSize !== nextPagination.pageSize ||
+      currentState.globalFilter !== nextGlobalFilter ||
+      JSON.stringify(currentState.columnFilters) !==
+        JSON.stringify(nextColumnFilters) ||
+      currentState.sorting[0]?.id !== nextSorting[0]?.id ||
+      currentState.sorting[0]?.desc !== nextSorting[0]?.desc
+    ) {
+      skipNextWriteRef.current = true;
+      table.setState((state) => ({
+        ...state,
+        pagination: nextPagination,
+        globalFilter: nextGlobalFilter,
+        columnFilters: nextColumnFilters,
+        sorting: nextSorting,
+      }));
+    }
+  }, [
+    filterableColumns,
+    pathname,
+    searchParams,
+    searchString,
+    sortableColumns,
+    table,
+  ]);
 
   React.useEffect(() => {
     if (typeof window === "undefined") return;
+    if (skipNextWriteRef.current) {
+      skipNextWriteRef.current = false;
+      return;
+    }
 
     const url = new URL(window.location.href);
     const oldParams = new URLSearchParams(window.location.search);
@@ -133,6 +220,21 @@ export function useTableUrlSync<TData>(table: Table<TData>) {
       url.searchParams.set("query", String(globalFilter));
     }
 
+    const firstSort = sorting[0];
+    const hasImplicitQuerySort =
+      Boolean(globalFilter) &&
+      firstSort?.id === "title" &&
+      firstSort.desc === false &&
+      !oldParams.has("sort");
+    if (firstSort && !hasImplicitQuerySort) {
+      url.searchParams.set(
+        "sort",
+        `${firstSort.id}.${firstSort.desc ? "desc" : "asc"}`,
+      );
+    } else {
+      url.searchParams.delete("sort");
+    }
+
     const newParams = url.searchParams;
     const hasChanges =
       Array.from(oldParams.entries()).some(
@@ -141,7 +243,15 @@ export function useTableUrlSync<TData>(table: Table<TData>) {
 
     // Only update URL if parameters have actually changed
     if (hasChanges) {
-      router.push(url.href, { scroll: false });
+      const nextSearch = newParams.toString();
+      if (pendingSearchesRef.current.at(-1) !== nextSearch) {
+        pendingSearchesRef.current.push(nextSearch);
+      }
+      if (useNativeUrlHistory) {
+        window.history.pushState(null, "", url.href);
+      } else {
+        router.push(url.href, { scroll: false });
+      }
     }
   }, [
     pathname,
@@ -150,6 +260,8 @@ export function useTableUrlSync<TData>(table: Table<TData>) {
     pagination,
     columnFilters,
     globalFilter,
+    sorting,
     filterableColumns,
+    useNativeUrlHistory,
   ]);
 }

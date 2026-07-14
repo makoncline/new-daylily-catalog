@@ -44,16 +44,26 @@ export const useEditListing = () => {
  * Opens when editingListingIdAtom has a valid listing ID.
  * Automatically saves changes when closing.
  */
-export function EditListingDialog() {
-  const { editingId, closeEditListing } = useEditListing();
-
+function EditListingDialogContent({
+  editingId,
+  guardEntityTransitions,
+  onClose,
+  onEntityChangeRejected,
+}: {
+  editingId: string | null;
+  guardEntityTransitions?: boolean;
+  onClose: () => void;
+  onEntityChangeRejected?: (entityId: string) => void;
+}) {
   return (
     <ManagedEditDialog<ListingFormHandle>
       description="Make changes to your listing here."
       entityId={editingId}
       fallback={<ListingFormSkeleton />}
+      guardEntityTransitions={guardEntityTransitions}
       isOpen={!!editingId}
-      onClose={closeEditListing}
+      onClose={onClose}
+      onEntityChangeRejected={onEntityChangeRejected}
       renderForm={(id, formRef, onClose) => (
         <ListingForm
           listingId={id}
@@ -64,5 +74,36 @@ export function EditListingDialog() {
       )}
       title="Edit Listing"
     />
+  );
+}
+
+function InternalEditListingDialog() {
+  const { closeEditListing, editingId } = useEditListing();
+  return (
+    <EditListingDialogContent
+      editingId={editingId}
+      onClose={closeEditListing}
+    />
+  );
+}
+
+export function EditListingDialog({
+  state,
+}: {
+  state?: {
+    editingId: string | null;
+    onClose: () => void;
+    onEntityChangeRejected: (entityId: string) => void;
+  };
+} = {}) {
+  return state ? (
+    <EditListingDialogContent
+      editingId={state.editingId}
+      guardEntityTransitions
+      onClose={state.onClose}
+      onEntityChangeRejected={state.onEntityChangeRejected}
+    />
+  ) : (
+    <InternalEditListingDialog />
   );
 }

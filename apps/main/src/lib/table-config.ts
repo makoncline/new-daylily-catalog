@@ -13,6 +13,7 @@ declare module "@tanstack/react-table" {
   // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-constraint, @typescript-eslint/no-unused-vars
   interface TableMeta<TData extends unknown> {
     filterableColumns?: string[];
+    sortableColumns?: string[];
     storageKey?: string;
   }
 }

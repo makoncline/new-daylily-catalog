@@ -101,6 +101,14 @@ export function getFilterableColumnIds<TData>(
     .map((column) => column.id!);
 }
 
+export function getSortableColumnIds<TData>(
+  columns: ColumnDef<TData, unknown>[],
+): string[] {
+  return columns
+    .filter((column) => column.id && column.enableSorting === true)
+    .map((column) => column.id!);
+}
+
 export function resetTableState<TData>(
   table: Table<TData>,
   options?: {

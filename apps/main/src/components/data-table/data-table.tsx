@@ -27,7 +27,9 @@ declare module "@tanstack/react-table" {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   interface TableMeta<TData> {
     filterableColumns?: string[];
+    sortableColumns?: string[];
     storageKey?: string;
+    useNativeUrlHistory?: boolean;
     pinnedColumns?: {
       left?: string[];
       right?: string[];

@@ -32,8 +32,10 @@ import { Spinner } from "@/components/ui/spinner";
  */
 export function CreateListingDialog({
   onOpenChange,
+  onCreated,
 }: {
   onOpenChange: (open: boolean) => void;
+  onCreated?: (listingId: string) => void;
 }) {
   const [title, setTitle] = useState("");
   const [selectedResult, setSelectedResult] = useState<AhsSearchResult | null>(
@@ -105,7 +107,11 @@ export function CreateListingDialog({
       });
 
       closeDialog();
-      setEditingId(newListing.id);
+      if (onCreated) {
+        onCreated(newListing.id);
+      } else {
+        setEditingId(newListing.id);
+      }
     } catch (error) {
       toast.error("Failed to create listing", {
         description: getErrorMessage(error),
