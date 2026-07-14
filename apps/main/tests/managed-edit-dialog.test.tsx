@@ -75,4 +75,51 @@ describe("ManagedEditDialog", () => {
     });
     expect(onClose).not.toHaveBeenCalled();
   });
+
+  it("keeps the dialog open only for PostHog survey interactions", async () => {
+    const onClose = vi.fn();
+    const handle: SaveOnNavigateHandle<"close" | "navigate"> = {
+      hasPendingChanges: vi.fn(() => false),
+      saveChanges: vi.fn(async () => true),
+    };
+
+    render(
+      <ManagedEditDialog
+        description="Edit description"
+        entityId="item-1"
+        fallback={<div>Loading</div>}
+        isOpen
+        onClose={onClose}
+        renderForm={(id, formRef) => {
+          formRef.current = handle;
+          return <div>Editing {id}</div>;
+        }}
+        title="Edit Item"
+      />,
+    );
+
+    const surveyHost = document.createElement("div");
+    surveyHost.className = "PostHogSurvey-survey-id";
+    const surveyTextArea = document.createElement("textarea");
+    surveyHost.attachShadow({ mode: "open" }).appendChild(surveyTextArea);
+    document.body.appendChild(surveyHost);
+
+    await new Promise((resolve) => window.setTimeout(resolve, 0));
+    fireEvent.pointerDown(surveyTextArea);
+
+    expect(handle.saveChanges).not.toHaveBeenCalled();
+    expect(onClose).not.toHaveBeenCalled();
+
+    const outsideElement = document.createElement("div");
+    document.body.appendChild(outsideElement);
+    fireEvent.pointerDown(outsideElement);
+
+    await waitFor(() => {
+      expect(handle.saveChanges).toHaveBeenCalledWith("close");
+    });
+    expect(onClose).toHaveBeenCalledTimes(1);
+
+    surveyHost.remove();
+    outsideElement.remove();
+  });
 });
