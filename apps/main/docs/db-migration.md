@@ -49,7 +49,7 @@ prisma/local-dev.sqlite
 Recommended seeded app DB:
 
 ```text
-prisma/local-dev-seeded.sqlite
+local/realistic-data/realistic-data.sqlite
 ```
 
 Use `prisma/local-dev.sqlite` for Prisma migration authoring and keep the

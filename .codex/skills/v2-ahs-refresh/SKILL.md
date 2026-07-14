@@ -134,8 +134,8 @@ Do not run the full 100k-row V2 import on stage.
 This repo uses `seeded-daylily-catalog` as stage. Refresh it by rebuilding the seeded local DB and syncing that seeded DB:
 
 ```bash
-pnpm main db:seed:local-dev
-pnpm main db:sync:seed
+pnpm db:seed:prepare
+pnpm db:seed:sync
 ```
 
 ## Known Limits

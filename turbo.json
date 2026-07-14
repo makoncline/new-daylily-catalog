@@ -21,6 +21,8 @@
     "PLAYWRIGHT_LOCAL_E2E",
     "POSTHOG_PROJECT_ID",
     "POSTHOG_PROJECT_KEY",
+    "REALISTIC_DATA_OUTPUT_DB_PATH",
+    "REALISTIC_DATA_SOURCE_DB_PATH",
     "SENTRY_AUTH_TOKEN",
     "SENTRY_ORG",
     "SENTRY_PROJECT",
@@ -79,7 +81,10 @@
       "cache": false,
       "persistent": true
     },
-    "db:seed:local-dev": {
+    "db:seed:prepare": {
+      "cache": false
+    },
+    "db:seed:sync": {
       "cache": false
     },
     "migrate:generate": {
@@ -90,9 +95,6 @@
       "persistent": true
     },
     "profile:queries": {
-      "cache": false
-    },
-    "db:sync:seed": {
       "cache": false
     }
   }
