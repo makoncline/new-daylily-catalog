@@ -56,6 +56,40 @@ jobs:
       - name: Vitest unit and integration tests
         run: pnpm main exec vitest run --shard=${{ matrix.shard }}/2
 
+  full-app-integration:
+    name: Full-app integration tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Enable corepack
+        run: corepack enable
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: "pnpm"
+          cache-dependency-path: pnpm-lock.yaml
+      - run: pnpm fetch
+      - run: pnpm install --frozen-lockfile --prefer-offline
+      - name: Restore Playwright browser cache
+        id: playwright-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+      - name: Install Playwright system dependencies
+        run: pnpm main exec playwright install-deps chromium
+      - name: Install Playwright browser
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        run: pnpm main exec playwright install chromium
+      - name: Run full-app integration tests
+        run: node apps/main/scripts/run-integration-local.mjs
+      - name: Upload Playwright artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: full-app-integration-artifacts
+          path: apps/main/tests/.tmp/integration-results
+
   e2e:
     name: Connected E2E tests (group ${{ matrix.group }}/3)
     runs-on: ubuntu-latest
