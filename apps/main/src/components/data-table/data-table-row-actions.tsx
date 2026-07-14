@@ -33,7 +33,12 @@ function getAbsoluteListingUrl(path: string) {
 }
 
 export function DataTableRowActions<
-  TData extends { id: string; slug?: string | null; userId?: string },
+  TData extends {
+    id: string;
+    slug?: string | null;
+    title?: string;
+    userId?: string;
+  },
 >({
   row,
   onEdit,
@@ -79,9 +84,9 @@ export function DataTableRowActions<
             variant="ghost"
             className="data-[state=open]:bg-muted flex size-full p-0"
             data-testid="listing-row-actions-trigger"
+            aria-label={`Open menu for ${row.original.title ?? "listing"}`}
           >
             <DotsHorizontalIcon className="size-4" />
-            <span className="sr-only">Open menu</span>
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-[160px]">

@@ -78,9 +78,10 @@ export class DashboardListings {
   }
 
   rowActionTrigger(listingTitle: string): Locator {
-    return this.listingRow(listingTitle)
-      .locator('[data-testid="listing-row-actions-trigger"]')
-      .first();
+    return this.page.getByRole("button", {
+      name: `Open menu for ${listingTitle}`,
+      exact: true,
+    });
   }
 
   async setGlobalSearch(value: string) {
@@ -141,13 +142,11 @@ export class DashboardListings {
   }
 
   async sortByColumn(columnLabel: string) {
-    const sortableHeader = this.page
-      .locator("th", { hasText: columnLabel })
-      .first()
-      .locator(":scope > div")
+    const sortButton = this.page
+      .getByRole("button", { name: columnLabel, exact: true })
       .first();
-    await sortableHeader.scrollIntoViewIfNeeded();
-    await sortableHeader.dispatchEvent("click");
+    await sortButton.scrollIntoViewIfNeeded();
+    await sortButton.click();
   }
 
   async goToNextPage() {

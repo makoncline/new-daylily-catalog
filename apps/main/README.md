@@ -47,6 +47,9 @@ memory.
 ## Related Docs
 
 - `docs/README.md` - categorized index for app runbooks.
+- `docs/agent-development-flywheel.md` - default agent iteration loop.
+- `docs/full-app-integration.md` - offline full-app integration runtime.
+- `docs/testing-strategy.md` - test-level ownership and confidence model.
 - `docs/e2e-tests.md` - Playwright workflow and tagging rules.
 - `docs/deploy-vps.md` - VPS Docker deployment and runtime contract.
 - `docs/public-rendering-cache-strategy.md` - public page cache strategy.

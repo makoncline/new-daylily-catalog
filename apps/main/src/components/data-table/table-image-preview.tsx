@@ -5,7 +5,12 @@ import {
   type OptimizedImageSource,
 } from "@/components/optimized-image";
 import { cn } from "@/lib/utils";
-import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { ImageGallery } from "@/components/image-gallery";
 
 interface TableImagePreviewProps {
@@ -45,6 +50,7 @@ export function TableImagePreview({
         </button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-xl">
+        <DialogTitle className="sr-only">Image preview</DialogTitle>
         <ImageGallery images={allImages} />
       </DialogContent>
     </Dialog>

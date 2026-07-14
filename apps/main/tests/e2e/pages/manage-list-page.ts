@@ -100,7 +100,16 @@ export class ManageListPage {
   }
 
   async saveChangesAndWait() {
+    const responsePromise = this.page.waitForResponse(
+      (response) =>
+        response.request().method() === "POST" &&
+        response.url().includes("dashboardDb.list.update"),
+    );
     await this.saveChanges();
+    const response = await responsePromise;
+    if (!response.ok()) {
+      throw new Error(`List update failed with ${response.status()}.`);
+    }
   }
 
   async openAddListingsDialog() {

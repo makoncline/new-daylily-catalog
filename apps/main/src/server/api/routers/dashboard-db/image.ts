@@ -21,6 +21,7 @@ import { scheduleImageAssetVariantProcessing } from "@/server/services/image-ass
 import {
   buildLegacyImageKey,
   getLegacyImageUploadBucketName,
+  getHermeticImageUploadUrl,
   getLegacyImageUrl,
   getLegacyS3Client,
   getValidatedLegacyImageUrl,
@@ -447,6 +448,19 @@ export const dashboardDbImageRouter = createTRPCRouter({
         contentType: input.contentType,
         contentMd5,
       });
+
+      const hermeticUploadUrl = getHermeticImageUploadUrl(key);
+      if (hermeticUploadUrl) {
+        return {
+          imageId,
+          presignedUrl: hermeticUploadUrl,
+          key,
+          url: getLegacyImageUrl(key),
+          r2: null,
+          contentMd5,
+          shadowModerationRequested: false,
+        } as const;
+      }
 
       const command = new PutObjectCommand({
         Bucket: getLegacyImageUploadBucketName(),

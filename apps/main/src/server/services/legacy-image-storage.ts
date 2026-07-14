@@ -4,6 +4,7 @@ import {
   imageExtensionByContentType,
   type ImageContentType,
 } from "@/types/image";
+import { isHermeticMode } from "@/lib/hermetic/runtime.js";
 
 let legacyS3Client: S3Client | undefined;
 
@@ -40,7 +41,22 @@ export function getLegacyS3Client() {
 }
 
 export function getLegacyImageUrl(key: string) {
+  if (isHermeticMode()) {
+    const baseUrl = process.env.APP_BASE_URL;
+    if (!baseUrl) throw new Error("APP_BASE_URL is required in hermetic mode.");
+    const encodedKey = key
+      .split("/")
+      .map((segment) => encodeURIComponent(segment))
+      .join("/");
+    return `${baseUrl}/api/hermetic/images/${encodedKey}`;
+  }
+
   return `https://${getLegacyImageUploadBucketName()}.s3.${getLegacyImageUploadRegion()}.amazonaws.com/${key}`;
+}
+
+export function getHermeticImageUploadUrl(key: string) {
+  if (!isHermeticMode()) return null;
+  return `${getLegacyImageUrl(key)}?upload=1`;
 }
 
 export function buildLegacyImageKey(args: {
@@ -103,6 +119,13 @@ export function getValidatedLegacyImageUrl(args: {
   url: string;
   userId: string;
 }) {
+  if (isHermeticMode()) {
+    return isLegacyImageKeyForTarget(args) &&
+      args.url === getLegacyImageUrl(args.key)
+      ? args.url
+      : null;
+  }
+
   const parsedKey = parseLegacyImageKey(args.url);
   if (
     !isLegacyImageKeyForTarget(args) ||

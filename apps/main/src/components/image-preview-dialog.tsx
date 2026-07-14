@@ -2,7 +2,12 @@
 
 import { Expand } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogTrigger } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { ImageGallery } from "@/components/image-gallery";
 import { cn } from "@/lib/utils";
 import type { OptimizedImageSource } from "@/components/optimized-image";
@@ -39,6 +44,7 @@ export function ImagePreviewDialog({
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-xl">
+        <DialogTitle className="sr-only">Image preview</DialogTitle>
         <ImageGallery images={images} />
       </DialogContent>
     </Dialog>

@@ -8,12 +8,38 @@ import { fileURLToPath } from "node:url";
 import path from "node:path";
 
 const appDir = path.dirname(fileURLToPath(import.meta.url));
+const hermeticMode = process.env.HERMETIC_MODE === "1";
+/** @type {Record<string, string>} */
+const hermeticAliases = {};
+if (hermeticMode) {
+  hermeticAliases["@clerk/nextjs/server"] =
+    "./src/lib/hermetic/clerk-server.ts";
+  hermeticAliases["@clerk/nextjs"] = "./src/lib/hermetic/clerk-client.tsx";
+}
 
 /** @type {import("next").NextConfig} */
 const config = {
   output: "standalone",
   outputFileTracingRoot: path.join(appDir, "../.."),
   cacheMaxMemorySize: 0,
+
+  turbopack: {
+    resolveAlias: hermeticAliases,
+  },
+
+  webpack(webpackConfig) {
+    const webpackHermeticAliases = Object.fromEntries(
+      Object.entries(hermeticAliases).map(([name, target]) => [
+        name,
+        path.resolve(appDir, target),
+      ]),
+    );
+    webpackConfig.resolve.alias = {
+      ...webpackConfig.resolve.alias,
+      ...webpackHermeticAliases,
+    };
+    return webpackConfig;
+  },
 
   images: {
     remotePatterns: [{ hostname: "daylilycatalog.com" }],

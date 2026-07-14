@@ -225,6 +225,19 @@ export class DashboardLists {
     return this.editDialog().getByRole("button", { name: "Save Changes" });
   }
 
+  async saveChangesAndWait() {
+    const responsePromise = this.page.waitForResponse(
+      (response) =>
+        response.request().method() === "POST" &&
+        response.url().includes("dashboardDb.list.update"),
+    );
+    await this.saveChangesButton().click();
+    const response = await responsePromise;
+    if (!response.ok()) {
+      throw new Error(`List update failed with ${response.status()}.`);
+    }
+  }
+
   resetButton(): Locator {
     return this.page.getByRole("button", { name: "Reset" }).first();
   }

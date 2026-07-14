@@ -359,11 +359,13 @@ function ListingFormFields({
           )}
         />
 
-        <ListingMediaSection
-          images={images}
-          listingId={listingId}
-          onMutationSuccess={markNeedsParentCommit}
-        />
+        <div data-listing-editor-section="images">
+          <ListingMediaSection
+            images={images}
+            listingId={listingId}
+            onMutationSuccess={markNeedsParentCommit}
+          />
+        </div>
 
         <FormField
           control={form.control}
