@@ -54,4 +54,37 @@ describe("posthog browser analytics", () => {
     expect(initMock).not.toHaveBeenCalled();
     expect(captureMock).not.toHaveBeenCalled();
   });
+
+  it("enables PostHog surveys when browser analytics is available", async () => {
+    fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          posthog: {
+            enabled: true,
+            host: "https://analytics.example.com",
+            key: "phc_test",
+          },
+        }),
+        {
+          headers: {
+            "Content-Type": "application/json",
+          },
+        },
+      ),
+    );
+    const { capturePosthogEvent } = await import("@/lib/analytics/posthog");
+
+    capturePosthogEvent("checkout_started");
+
+    await vi.waitFor(() => {
+      expect(initMock).toHaveBeenCalledWith("phc_test", {
+        advanced_enable_surveys: true,
+        api_host: "https://analytics.example.com",
+        defaults: "2026-01-30",
+      });
+    });
+    expect(captureMock).toHaveBeenCalledWith("checkout_started", {
+      source_page: "/",
+    });
+  });
 });

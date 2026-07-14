@@ -109,6 +109,7 @@ async function initializePosthog() {
   }
 
   posthog.init(runtimeConfig.posthog.key, {
+    advanced_enable_surveys: true,
     api_host: runtimeConfig.posthog.host,
     defaults: "2026-01-30",
   });
