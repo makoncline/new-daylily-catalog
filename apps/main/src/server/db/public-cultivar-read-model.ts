@@ -1,4 +1,7 @@
-export { getCultivarSitemapEntries } from "./public-cultivar-context";
+export {
+  getCultivarSitemapEntries,
+  getCultivarSitemapEntryCount,
+} from "./public-cultivar-context";
 export {
   buildPublicCultivarGardenPhotosFromListingCards,
   buildPublicCultivarOffersFromListingCards,

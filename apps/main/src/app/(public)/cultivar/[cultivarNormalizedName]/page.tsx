@@ -15,6 +15,7 @@ import {
 import { CultivarHeroSection } from "./_components/cultivar-hero-section";
 import { CultivarGardenPhotosSection } from "./_components/cultivar-garden-photos-section";
 import { CultivarOffersSection } from "./_components/cultivar-offers-section";
+import { CultivarRelatedSection } from "./_components/cultivar-related-section";
 import { Muted } from "@/components/typography";
 import { generateCultivarJsonLd } from "./_seo/json-ld";
 import {
@@ -98,15 +99,14 @@ export default async function CultivarPage({ params }: PageProps) {
             <CultivarOffersSection offers={cultivarPage.offers} />
           </CultivarPageSection>
 
-          {/* TODO: Re-enable after optimizing related-hybridizer fan-out on cultivar pages. */}
-          {/*
-          <CultivarPageSection>
-            <CultivarRelatedSection
-              relatedCultivars={cultivarPage.relatedByHybridizer}
-              hybridizer={cultivarPage.summary.hybridizer}
-            />
-          </CultivarPageSection>
-          */}
+          {cultivarPage.relatedByHybridizer.length > 0 && (
+            <CultivarPageSection>
+              <CultivarRelatedSection
+                relatedCultivars={cultivarPage.relatedByHybridizer}
+                hybridizer={cultivarPage.summary.hybridizer}
+              />
+            </CultivarPageSection>
+          )}
 
           <footer id="cultivar-metadata" className="space-y-2 border-t pt-6">
             <Muted>

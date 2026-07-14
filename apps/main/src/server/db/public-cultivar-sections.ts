@@ -5,6 +5,12 @@ import {
   type PublicCultivarContext,
   type PublicCultivarReferenceData,
 } from "@/server/db/public-cultivar-context";
+import {
+  v2AhsCultivarDisplaySelect,
+  withResolvedDisplayAhsListing,
+} from "@/lib/utils/ahs-display";
+import { toCultivarRouteSegment } from "@/lib/utils/cultivar-utils";
+import { replicaDb } from "@/server/db";
 import { getCloudflareUrlForDaylilyS3Image } from "@/lib/utils/cloudflareLoader";
 import type { ImageAssetView } from "@/server/services/image-asset-read-model";
 import { resolveCultivarReferenceImage } from "@/server/services/cultivar-reference-image-read-model";
@@ -37,6 +43,8 @@ const TOP_QUICK_SPEC_LABELS = new Set([
   "Color",
 ]);
 
+const RELATED_CULTIVAR_LIMIT = 5;
+
 type PublicRelatedCultivar = {
   ahsListing: CultivarAhsListing | null;
   hybridizer: string | null;
@@ -54,6 +62,39 @@ type PublicCultivarImage = {
 };
 
 type CultivarListingCardImage = CultivarListingCards[number]["images"][number];
+
+function toRelatedCultivars(
+  relatedByHybridizer: Array<{
+    normalizedName: string | null;
+    ahsListing: CultivarAhsListing | null;
+  }>,
+): PublicRelatedCultivar[] {
+  return relatedByHybridizer
+    .flatMap((relatedCultivar) => {
+      const segment = toCultivarRouteSegment(relatedCultivar.normalizedName);
+      const imageUrl = relatedCultivar.ahsListing?.ahsImageUrl;
+
+      if (!segment || !imageUrl) {
+        return [];
+      }
+
+      return [
+        {
+          ahsListing: relatedCultivar.ahsListing,
+          hybridizer: relatedCultivar.ahsListing?.hybridizer ?? null,
+          imageUrl,
+          name: getCultivarDisplayName(
+            relatedCultivar.normalizedName,
+            relatedCultivar.ahsListing,
+          ),
+          normalizedName: relatedCultivar.normalizedName,
+          segment,
+          year: relatedCultivar.ahsListing?.year ?? null,
+        },
+      ];
+    })
+    .sort((a, b) => a.name.localeCompare(b.name));
+}
 
 function toPublicCultivarImage(
   image: CultivarListingCardImage,
@@ -399,6 +440,44 @@ export async function buildPublicCultivarSummary(args: PublicCultivarContext) {
   const allSpecs = getCultivarSpecs(cultivarReference.ahsListing);
   const gardensCount = userIds.length;
   const offersCount = args.listingCards.length;
+  const primaryHybridizer =
+    cultivarReference.v2AhsCultivar?.primary_hybridizer_name;
+  const relatedByHybridizer = primaryHybridizer?.trim()
+    ? (
+        await replicaDb.v2AhsCultivar.findMany({
+          where: {
+            primary_hybridizer_name: primaryHybridizer,
+            image_url: {
+              not: null,
+            },
+            cultivarReference: {
+              is: {
+                id: {
+                  not: cultivarReference.id,
+                },
+                normalizedName: {
+                  not: null,
+                },
+              },
+            },
+          },
+          select: {
+            ...v2AhsCultivarDisplaySelect,
+            cultivarReference: {
+              select: {
+                normalizedName: true,
+              },
+            },
+          },
+          take: RELATED_CULTIVAR_LIMIT,
+        })
+      ).map((row) =>
+        withResolvedDisplayAhsListing({
+          normalizedName: row.cultivarReference?.normalizedName ?? null,
+          v2AhsCultivar: row,
+        }),
+      )
+    : [];
 
   const cultivarName = getCultivarDisplayName(
     cultivarReference.normalizedName,
@@ -419,7 +498,7 @@ export async function buildPublicCultivarSummary(args: PublicCultivarContext) {
       all: allSpecs.all,
       top: allSpecs.top,
     },
-    relatedByHybridizer: [] as PublicRelatedCultivar[],
+    relatedByHybridizer: toRelatedCultivars(relatedByHybridizer),
     summary: {
       gardensCount,
       hybridizer: cultivarReference.ahsListing?.hybridizer ?? null,
