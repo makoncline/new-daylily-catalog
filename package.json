@@ -23,11 +23,11 @@
     "db:push": "TURBO_CACHE_DIR=.turbo turbo run db:push --filter=@daylily-catalog/main",
     "db:generate": "TURBO_CACHE_DIR=.turbo turbo run db:generate --filter=@daylily-catalog/main",
     "db:studio": "TURBO_CACHE_DIR=.turbo turbo run db:studio --filter=@daylily-catalog/main",
-    "db:seed:local-dev": "TURBO_CACHE_DIR=.turbo turbo run db:seed:local-dev --filter=@daylily-catalog/main",
+    "db:seed:prepare": "TURBO_CACHE_DIR=.turbo turbo run db:seed:prepare --filter=@daylily-catalog/main",
+    "db:seed:sync": "TURBO_CACHE_DIR=.turbo turbo run db:seed:sync --filter=@daylily-catalog/main",
     "migrate:generate": "TURBO_CACHE_DIR=.turbo turbo run migrate:generate --filter=@daylily-catalog/main",
     "browser-tools-server": "TURBO_CACHE_DIR=.turbo turbo run browser-tools-server --filter=@daylily-catalog/main",
-    "profile:queries": "TURBO_CACHE_DIR=.turbo turbo run profile:queries --filter=@daylily-catalog/main",
-    "db:sync:seed": "TURBO_CACHE_DIR=.turbo turbo run db:sync:seed --filter=@daylily-catalog/main"
+    "profile:queries": "TURBO_CACHE_DIR=.turbo turbo run profile:queries --filter=@daylily-catalog/main"
   },
   "devDependencies": {
     "turbo": "^2.9.6"

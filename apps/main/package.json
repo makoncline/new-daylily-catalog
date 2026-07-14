@@ -6,7 +6,7 @@
   "scripts": {
     "build": "next build",
     "build:next": "next build",
-    "dev": "node scripts/with-env.mjs --env development -- next dev --turbopack",
+    "dev": "node scripts/with-env.mjs --env development --seeded-database-default -- next dev --turbopack",
     "postinstall": "prisma generate",
     "lint": "eslint src",
     "start": "next start",
@@ -17,7 +17,8 @@
     "db:push": "prisma db push",
     "db:generate": "prisma generate",
     "db:studio": "prisma studio",
-    "db:seed:local-dev": "npx tsx scripts/seed-local-dev-db.ts",
+    "db:seed:prepare": "node scripts/generate-realistic-data-snapshot.mjs",
+    "db:seed:sync": "bash scripts/sync-seeded-daylily-catalog-from-local.sh",
     "search:index:build": "node scripts/build-public-search-index.mjs",
     "search:parentage:build": "node scripts/build-public-parentage-index.mjs",
     "migrate:generate": "npx prisma migrate dev",
@@ -28,7 +29,6 @@
     "test:e2e": "playwright test",
     "test:e2e:attach": "BASE_URL=http://localhost:3000 playwright test",
     "profile:queries": "bash scripts/profile-queries-strategic.sh",
-    "db:sync:seed": "bash scripts/sync-seeded-daylily-catalog-from-local.sh",
     "prod-like:prepare": "node scripts/prepare-prod-like-local-smoke.mjs"
   },
   "dependencies": {

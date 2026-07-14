@@ -5,6 +5,8 @@ deep operational detail in the linked documents and use this index for routing.
 
 ## Local Development and Tests
 
+- `realistic-data-local-development.md` - generate and use the production-shaped
+  seeded development database.
 - `e2e-tests.md` - Playwright local, preview, and page-object workflow.
 - `local-query-profiler.md` - local profiling against a production-shaped
   SQLite snapshot.
