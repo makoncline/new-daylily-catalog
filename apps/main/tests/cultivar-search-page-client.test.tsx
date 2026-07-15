@@ -76,6 +76,34 @@ function searchResponse() {
   };
 }
 
+function searchResponseFor(args: {
+  cultivarReferenceId: string;
+  name: string;
+  nextOffset?: number | null;
+}) {
+  const response = searchResponse();
+  const result = response.results[0];
+  if (!result) throw new Error("Expected seeded cultivar search result.");
+
+  return {
+    ...response,
+    pagination: {
+      ...response.pagination,
+      hasMore: args.nextOffset !== null && args.nextOffset !== undefined,
+      nextOffset: args.nextOffset ?? null,
+    },
+    results: [
+      {
+        ...result,
+        canonicalUrl: `https://daylilycatalog.com/cultivar/${args.cultivarReferenceId}`,
+        cultivarReferenceId: args.cultivarReferenceId,
+        name: args.name,
+        normalizedName: args.name.toLowerCase(),
+      },
+    ],
+  };
+}
+
 describe("CultivarSearchPageClient", () => {
   const fetchMock = vi.fn();
 
@@ -206,5 +234,76 @@ describe("CultivarSearchPageClient", () => {
         ),
       ).toBe(true);
     });
+  });
+
+  it("does not append an old pagination response after filters change", async () => {
+    let resolveOldPage:
+      | ((value: { json: () => Promise<unknown>; ok: boolean }) => void)
+      | undefined;
+    const oldPageResponse = new Promise<{
+      json: () => Promise<unknown>;
+      ok: boolean;
+    }>((resolve) => {
+      resolveOldPage = resolve;
+    });
+
+    fetchMock.mockImplementation((url: string) => {
+      if (url.includes("offset=24")) return oldPageResponse;
+      const response = url.includes("hasCultivarPhoto=true")
+        ? searchResponseFor({
+            cultivarReferenceId: "filtered",
+            name: "Filtered cultivar",
+          })
+        : searchResponseFor({
+            cultivarReferenceId: "first-page",
+            name: "First page cultivar",
+            nextOffset: 24,
+          });
+
+      return Promise.resolve({ json: async () => response, ok: true });
+    });
+
+    render(
+      <CultivarSearchPageClient
+        initialState={{
+          hasCultivarPhoto: false,
+          hasForSaleListings: false,
+          hasListings: false,
+          q: "",
+        }}
+      />,
+    );
+
+    await screen.findByRole("heading", { name: "First page cultivar" });
+    fireEvent.click(
+      screen.getByRole("button", { name: "Load more cultivars" }),
+    );
+    await waitFor(() =>
+      expect(
+        fetchMock.mock.calls.some(([url]) => String(url).includes("offset=24")),
+      ).toBe(true),
+    );
+
+    fireEvent.click(screen.getByRole("button", { name: "With photos" }));
+    await screen.findByRole("heading", { name: "Filtered cultivar" });
+
+    const oldPageJsonMock = vi.fn(async () =>
+      searchResponseFor({
+        cultivarReferenceId: "old-page",
+        name: "Old page cultivar",
+      }),
+    );
+    resolveOldPage?.({
+      json: oldPageJsonMock,
+      ok: true,
+    });
+
+    await waitFor(() => expect(oldPageJsonMock).toHaveBeenCalled());
+    expect(
+      screen.queryByRole("heading", { name: "Old page cultivar" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: "Filtered cultivar" }),
+    ).toBeVisible();
   });
 });

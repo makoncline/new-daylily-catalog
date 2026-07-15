@@ -974,6 +974,7 @@ export function CultivarSearchPageClient({
 
   const loadMore = async () => {
     if (nextOffset === null || loadingMore) return;
+    const requestId = requestCounter.current;
     setLoadingMore(true);
     setError(null);
     try {
@@ -982,9 +983,11 @@ export function CultivarSearchPageClient({
       );
       if (!response.ok) throw new Error("More cultivars could not be loaded.");
       const data = (await response.json()) as CultivarSearchResponse;
+      if (requestId !== requestCounter.current) return;
       setResults((current) => [...current, ...data.results]);
       setNextOffset(data.pagination.nextOffset);
     } catch (caughtError) {
+      if (requestId !== requestCounter.current) return;
       setError(
         caughtError instanceof Error
           ? caughtError.message

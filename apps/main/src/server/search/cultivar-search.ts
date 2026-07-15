@@ -108,7 +108,7 @@ function getLimit(rawLimit: number | undefined) {
 }
 
 function getListingLimit(rawLimit: number | undefined) {
-  if (!rawLimit || !Number.isInteger(rawLimit)) {
+  if (rawLimit === undefined || !Number.isInteger(rawLimit)) {
     return DEFAULT_LISTING_LIMIT;
   }
 
@@ -252,6 +252,10 @@ function addTextFilter(args: {
     .map((value) => value.trim())
     .filter(Boolean);
 
+  if (values.length === 0) {
+    return;
+  }
+
   if (values.length === 1) {
     args.sql.push(`${args.columnSql} LIKE ?`);
     args.params.push(toContainsQuery(values[0] ?? ""));
@@ -262,6 +266,49 @@ function addTextFilter(args: {
     `(${values.map(() => `${args.columnSql} LIKE ?`).join(" OR ")})`,
   );
   args.params.push(...values.map(toContainsQuery));
+}
+
+function addFacetFilter(args: {
+  columnSql: string;
+  params: InValue[];
+  sql: string[];
+  specialClauses?: Record<string, string>;
+  value?: string;
+  valueAliases?: Record<string, string>;
+}) {
+  const values = args.value
+    ?.split("|")
+    .map((value) => value.trim())
+    .filter(Boolean);
+
+  if (!values || values.length === 0) {
+    return;
+  }
+
+  const normalizedColumn = `lower(replace(COALESCE(${args.columnSql}, ''), ', ', '|'))`;
+  const clauses: string[] = [];
+  const params: InValue[] = [];
+
+  for (const value of values) {
+    const normalizedValue = value.toLowerCase();
+    const specialClause = args.specialClauses?.[normalizedValue];
+    if (specialClause) {
+      clauses.push(specialClause);
+      continue;
+    }
+
+    const aliasedValue =
+      args.valueAliases?.[normalizedValue] ?? normalizedValue;
+    const escapedValue = aliasedValue
+      .replaceAll("\\", "\\\\")
+      .replaceAll("%", "\\%")
+      .replaceAll("_", "\\_");
+    clauses.push(`('|' || ${normalizedColumn} || '|') LIKE ? ESCAPE '\\'`);
+    params.push(`%|${escapedValue}|%`);
+  }
+
+  args.sql.push(`(${clauses.join(" OR ")})`);
+  args.params.push(...params);
 }
 
 function addListingExistsFilter(args: {
@@ -459,14 +506,15 @@ export async function searchCultivars(args: CultivarSearchArgs) {
     sql: whereSql,
     value: args.cultivarName,
   });
-  addTextFilter({
-    columnSql: "lower(i.bloomHabit)",
+  addFacetFilter({
+    columnSql: "i.bloomHabit",
     params,
     sql: whereSql,
+    specialClauses: { rebloom: "i.rebloom = 1" },
     value: args.bloomHabit,
   });
-  addTextFilter({
-    columnSql: "lower(i.bloomSeason)",
+  addFacetFilter({
+    columnSql: "i.bloomSeason",
     params,
     sql: whereSql,
     value: args.bloomSeason,
@@ -477,20 +525,21 @@ export async function searchCultivars(args: CultivarSearchArgs) {
     sql: whereSql,
     value: args.color,
   });
-  addTextFilter({
-    columnSql: "lower(i.foliageType)",
+  addFacetFilter({
+    columnSql: "i.foliageType",
     params,
     sql: whereSql,
     value: args.foliageType,
   });
-  addTextFilter({
-    columnSql: "lower(i.form)",
+  addFacetFilter({
+    columnSql: "i.form",
     params,
     sql: whereSql,
     value: args.form,
+    valueAliases: { unusual: "unusual form" },
   });
-  addTextFilter({
-    columnSql: "lower(i.fragrance)",
+  addFacetFilter({
+    columnSql: "i.fragrance",
     params,
     sql: whereSql,
     value: args.fragrance,
@@ -501,8 +550,8 @@ export async function searchCultivars(args: CultivarSearchArgs) {
     sql: whereSql,
     value: args.parentage,
   });
-  addTextFilter({
-    columnSql: "lower(i.ploidy)",
+  addFacetFilter({
+    columnSql: "i.ploidy",
     params,
     sql: whereSql,
     value: args.ploidy,

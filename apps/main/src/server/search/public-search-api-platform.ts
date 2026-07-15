@@ -3,7 +3,7 @@ import "server-only";
 import { isPublicCultivarSearchEnabled } from "@/config/feature-flags";
 
 export function isPublicSearchApiEnabled() {
-  return isPublicCultivarSearchEnabled() && process.env.VERCEL !== "1";
+  return isPublicCultivarSearchEnabled();
 }
 
 export function getPublicSearchApiDisabledResponse() {

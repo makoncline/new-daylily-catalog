@@ -3,5 +3,8 @@ export function areGeneratedCultivarImageAssetsEnabledByDefault() {
 }
 
 export function isPublicCultivarSearchEnabled() {
-  return process.env.PUBLIC_CULTIVAR_SEARCH_ENABLED === "true";
+  return (
+    process.env.PUBLIC_CULTIVAR_SEARCH_ENABLED === "true" &&
+    process.env.VERCEL !== "1"
+  );
 }

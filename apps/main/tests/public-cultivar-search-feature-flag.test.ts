@@ -9,11 +9,13 @@ import {
 } from "@/lib/agent-readiness";
 
 const originalValue = process.env.PUBLIC_CULTIVAR_SEARCH_ENABLED;
+const originalVercel = process.env.VERCEL;
 const baseUrl = "https://daylilycatalog.com";
 
 describe("public cultivar search feature flag", () => {
   afterEach(() => {
     process.env.PUBLIC_CULTIVAR_SEARCH_ENABLED = originalValue;
+    process.env.VERCEL = originalVercel;
   });
 
   it("defaults off and removes search from agent discovery", () => {
@@ -34,6 +36,17 @@ describe("public cultivar search feature flag", () => {
     expect(getLlmsTxt(baseUrl)).toContain("/api/v1/cultivars/search");
     expect(getHomeMarkdown(baseUrl)).toContain("/api/v1/cultivars/search");
     expect(getOpenApiDocument(baseUrl).paths).toHaveProperty(
+      "/api/v1/cultivars/search",
+    );
+  });
+
+  it("keeps every public surface disabled on unsupported deployments", () => {
+    process.env.PUBLIC_CULTIVAR_SEARCH_ENABLED = "true";
+    process.env.VERCEL = "1";
+
+    expect(isPublicCultivarSearchEnabled()).toBe(false);
+    expect(getLlmsTxt(baseUrl)).not.toContain("/api/v1/cultivars/search");
+    expect(getOpenApiDocument(baseUrl).paths).not.toHaveProperty(
       "/api/v1/cultivars/search",
     );
   });
