@@ -12,7 +12,7 @@ async function openPricedListing(page: Page) {
 }
 
 function addToCartButton(page: Page) {
-  return page.locator("button:has(svg.lucide-shopping-cart)").first();
+  return page.getByRole("button", { name: "Add UNPREDICTABLE to cart" });
 }
 
 async function addItem(page: Page) {
@@ -64,16 +64,18 @@ test("Contact form with cart", async ({ page }) => {
 
 test("Adjusted cart quantity", async ({ page }) => {
   await openCartContactForm(page);
-  await page.getByRole("textbox", { name: "Email" }).fill("buyer@example.com");
-  await page.locator("button:has(svg.lucide-circle-plus)").click();
+  await page
+    .getByRole("button", { name: "Increase quantity for UNPREDICTABLE" })
+    .click();
   await expect(page.getByText("$800.00", { exact: true })).toBeVisible();
   await captureAtlasState(page, "buyer-cart-quantity", { fullPage: false });
 });
 
 test("Cart item removed", async ({ page }) => {
   await openCartContactForm(page);
-  await page.getByRole("textbox", { name: "Email" }).fill("buyer@example.com");
-  await page.locator("button:has(svg.lucide-trash-2)").click();
+  await page
+    .getByRole("button", { name: "Remove UNPREDICTABLE from cart" })
+    .click();
   await expect(page.getByRole("heading", { name: "Cart Items" })).toHaveCount(
     0,
   );
