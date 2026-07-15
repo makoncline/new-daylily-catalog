@@ -397,23 +397,6 @@ function addFacetParam(params: URLSearchParams, key: string, value: string) {
   addParam(params, key, canonicalValue);
 }
 
-function cleanTrait(value: string | null) {
-  if (!value) return null;
-  const cleaned = value.trim().replaceAll("|", " · ");
-  return /[\p{L}\p{N}]/u.test(cleaned) ? cleaned : null;
-}
-
-function getResultDetails(result: CultivarSearchResult) {
-  return [
-    cleanTrait(result.traits.bloomSeason),
-    cleanTrait(result.traits.form),
-    cleanTrait(result.traits.ploidy),
-  ]
-    .filter((value): value is string => Boolean(value))
-    .slice(0, 3)
-    .join(" · ");
-}
-
 function getSharedFilter(id: string): PublicCatalogSearchFilterDefinition {
   const definition = getPublicCatalogSearchFilterDefinition(id);
   if (!definition) throw new Error(`Unknown shared search filter: ${id}`);
@@ -856,8 +839,9 @@ function CultivarCard({
   const canonicalPath = result.canonicalUrl
     ? new URL(result.canonicalUrl).pathname
     : null;
-  const detailLine = getResultDetails(result);
-  const availability = result.listingSummary.catalogsWithListings;
+  const attribution = [result.traits.hybridizer, result.traits.year]
+    .filter(Boolean)
+    .join(", ");
 
   const content = (
     <article className="group relative isolate flex min-h-[19rem] overflow-hidden rounded-3xl border border-[#dbe3d5] bg-[#173126] text-white shadow-[0_24px_80px_-58px_rgba(24,50,32,0.9)] transition-transform duration-300 hover:-translate-y-1">
@@ -888,24 +872,11 @@ function CultivarCard({
         <h2 className="text-2xl leading-tight font-semibold text-white drop-shadow-lg">
           {result.name}
         </h2>
-        <p className="mt-1 text-sm font-semibold text-[#f4c477]">
-          {[result.traits.hybridizer, result.traits.year]
-            .filter(Boolean)
-            .join(", ") || "Cultivar details"}
-        </p>
-        {detailLine ? (
-          <p className="mt-2 line-clamp-1 text-sm text-white/78">
-            {detailLine}
+        {attribution ? (
+          <p className="mt-1 text-sm font-semibold text-[#f4c477]">
+            {attribution}
           </p>
         ) : null}
-        <div className="mt-4 flex items-center justify-between gap-4 border-t border-white/20 pt-3 text-sm font-bold">
-          <span>
-            {availability > 0
-              ? `${availability} ${availability === 1 ? "catalog" : "catalogs"}`
-              : "View cultivar"}
-          </span>
-          <span className="text-[#f4c477]">Open →</span>
-        </div>
       </div>
     </article>
   );

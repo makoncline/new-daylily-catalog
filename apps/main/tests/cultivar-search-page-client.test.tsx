@@ -165,6 +165,11 @@ describe("CultivarSearchPageClient", () => {
       "href",
       "/cultivar/stella-de-oro",
     );
+    expect(
+      screen.queryByText("Early Mid · Single · Diploid"),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByText("3 catalogs")).not.toBeInTheDocument();
+    expect(screen.queryByText("Open →")).not.toBeInTheDocument();
     expect(String(fetchMock.mock.calls[0]?.[0])).toBe(
       "/api/v1/cultivars/search?form=Double%7CSpider&limit=24&mode=summary&offset=0&photosFirst=true&priceMax=286&q=Stella+de+Oro&sort=relevance",
     );
