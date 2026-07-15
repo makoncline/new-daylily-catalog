@@ -90,6 +90,14 @@ export async function seedIntegrationData(databaseUrl) {
           status: "PUBLISHED",
         },
       }),
+      db.list.create({
+        data: {
+          id: "integration-favorites-list",
+          userId: INTEGRATION_SELLER.userId,
+          title: "Integration Favorites",
+          description: "List membership integration fixture",
+        },
+      }),
       db.keyValue.create({
         data: {
           key: `clerk:user:${INTEGRATION_SELLER.clerkUserId}`,
