@@ -113,6 +113,7 @@ try {
         BASE_URL: baseURL,
         ATLAS_OUTPUT_DIR: outputDirectory,
         ATLAS_CAPTURE_DIR: captureDirectory,
+        ATLAS_AUTH_STATE: path.join(outputDirectory, ".auth/member.json"),
         ATLAS_PLAYWRIGHT_RESULTS_DIR: path.join(
           outputDirectory,
           "playwright-results",

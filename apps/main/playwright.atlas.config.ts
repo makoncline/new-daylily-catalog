@@ -2,9 +2,10 @@ import { defineConfig, devices } from "@playwright/test";
 import path from "node:path";
 const baseURL = process.env.BASE_URL ?? "http://localhost:3210";
 const outputRoot = process.env.ATLAS_OUTPUT_DIR ?? "local/atlas/current";
+const authState =
+  process.env.ATLAS_AUTH_STATE ?? path.join(outputRoot, ".auth/member.json");
 export default defineConfig({
   testDir: "./tests/atlas",
-  testMatch: "**/*.atlas.ts",
   timeout: 120_000,
   retries: 0,
   workers: 1,
@@ -30,4 +31,20 @@ export default defineConfig({
     screenshot: "off",
     trace: "retain-on-failure",
   },
+  projects: [
+    {
+      name: "anonymous",
+      testMatch: ["public-catalog.atlas.ts", "onboarding-membership.atlas.ts"],
+    },
+    {
+      name: "member-auth",
+      testMatch: "member-auth.setup.ts",
+    },
+    {
+      name: "member",
+      testMatch: "listing-management.atlas.ts",
+      dependencies: ["member-auth"],
+      use: { storageState: authState },
+    },
+  ],
 });
