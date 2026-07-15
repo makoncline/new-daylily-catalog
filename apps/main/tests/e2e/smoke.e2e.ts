@@ -2,8 +2,6 @@ import { test, expect } from "../../e2e/test-setup";
 
 test.describe("guest user tour @preview", () => {
   test("navigates through unauthed pages", async ({ page }) => {
-    test.slow();
-
     // Home page
     await page.goto("/");
     await expect(page).toHaveURL("/");
@@ -33,8 +31,19 @@ test.describe("guest user tour @preview", () => {
       .first();
     await expect(firstListingCard).toBeVisible();
     await firstListingCard.click();
-    await expect(page.getByRole("dialog")).toBeVisible({ timeout: 30_000 });
+    await expect(page.getByRole("dialog")).toBeVisible();
+
+    // Navigate to cultivar page from a linked listing card
     await page.getByRole("button", { name: "Close" }).click();
-    await expect(page.getByRole("dialog")).toBeHidden();
+    const listingPageLink = page
+      .locator("#listings")
+      .getByRole("link", { name: "View linked cultivar page" })
+      .first();
+    await expect(listingPageLink).toBeVisible();
+    await listingPageLink.click();
+
+    // Cultivar page should render a main heading
+    await page.waitForURL(/\/cultivar\/[^/]+$/);
+    await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
   });
 });

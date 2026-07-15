@@ -105,7 +105,6 @@ export function ListingCard({ listing, priority = false }: ListingCardProps) {
                   {cultivarRouteSegment ? (
                     <Link
                       href={`/cultivar/${cultivarRouteSegment}`}
-                      prefetch={false}
                       onClick={(event) => event.stopPropagation()}
                     >
                       <Badge

@@ -92,7 +92,7 @@ export function CatalogSeoPagination({
           disabled={page <= 1}
           data-testid={prevTestId}
         >
-          <Link href={prevHref} prefetch={false}>
+          <Link href={prevHref}>
             <span className="sr-only">Go to previous page</span>
             <ChevronLeftIcon className="size-4" />
           </Link>
@@ -104,7 +104,7 @@ export function CatalogSeoPagination({
           disabled={page >= totalPages}
           data-testid={nextTestId}
         >
-          <Link href={nextHref} prefetch={false}>
+          <Link href={nextHref}>
             <span className="sr-only">Go to next page</span>
             <ChevronRightIcon className="size-4" />
           </Link>
