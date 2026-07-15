@@ -38,12 +38,12 @@ export function useCreateListing() {
   const searchParams = useSearchParams();
 
   return {
-    closeCreateListing: () => setValue(null),
+    closeCreateListing: () => setValue(null, "replace"),
     finishCreateListing: (listingId: string) => {
       const params = new URLSearchParams(searchParams.toString());
       params.delete("creating");
       params.set("editing", listingId);
-      router.push(`${pathname}?${params.toString()}`, { scroll: false });
+      router.replace(`${pathname}?${params.toString()}`, { scroll: false });
     },
     isCreating: value === "true",
     openCreateListing: () => setValue("true"),

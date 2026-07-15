@@ -11,15 +11,21 @@ vi.mock("@/components/forms/listing-form", async () => {
     ListingForm: ({
       formRef,
       onSave,
+      onPendingChangesChange,
     }: {
       formRef: React.RefObject<{
         hasPendingChanges: () => boolean;
         saveChanges: (reason: string) => Promise<boolean>;
       } | null>;
       onSave: () => void;
+      onPendingChangesChange?: (hasPendingChanges: boolean) => void;
     }) => {
       const [name, setName] = React.useState("Saved listing");
       const isDirty = name !== "Saved listing";
+
+      React.useEffect(() => {
+        onPendingChangesChange?.(isDirty);
+      }, [isDirty, onPendingChangesChange]);
 
       formRef.current = {
         hasPendingChanges: () => isDirty,
@@ -31,13 +37,18 @@ vi.mock("@/components/forms/listing-form", async () => {
       };
 
       return (
-        <label>
-          Name
-          <input
-            value={name}
-            onChange={(event) => setName(event.target.value)}
-          />
-        </label>
+        <>
+          <label>
+            Name
+            <input
+              value={name}
+              onChange={(event) => setName(event.target.value)}
+            />
+          </label>
+          <button type="button" onClick={() => setName("Programmatic change")}>
+            Change programmatically
+          </button>
+        </>
       );
     },
   };
@@ -78,5 +89,15 @@ describe("EditListingSurface", () => {
     fireEvent.click(screen.getByRole("button", { name: "Discard" }));
     expect(onClose).toHaveBeenCalledTimes(1);
     expect(saveChanges).toHaveBeenCalledTimes(1);
+  });
+
+  it("shows save and discard for programmatic form changes", async () => {
+    render(<EditListingSurface listingId="listing-1" onClose={vi.fn()} />);
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Change programmatically" }),
+    );
+
+    expect(await screen.findByText("Unsaved listing")).toBeVisible();
   });
 });

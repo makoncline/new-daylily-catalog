@@ -36,7 +36,7 @@ export const useEditListing = () => {
       setValue(id);
     },
     closeEditListing: () => {
-      setValue(null);
+      setValue(null, "replace");
     },
     editingId: value,
   };
@@ -63,12 +63,6 @@ export function EditListingSurface({
   );
   const { confirmDiscard } = useUnsavedChangesGuard(hasPendingChanges);
 
-  const syncDirtyState = () => {
-    requestAnimationFrame(() => {
-      setIsDirty(hasPendingChanges());
-    });
-  };
-
   const handleBack = () => {
     if (confirmDiscard()) {
       onClose();
@@ -81,7 +75,6 @@ export function EditListingSurface({
       await formRef.current?.saveChanges("manual");
     } finally {
       setIsSaving(false);
-      syncDirtyState();
     }
   };
 
@@ -93,8 +86,6 @@ export function EditListingSurface({
     <section
       aria-label="Edit listing"
       className="mx-auto w-full max-w-3xl pb-8"
-      onInputCapture={syncDirtyState}
-      onChangeCapture={syncDirtyState}
     >
       {isDirty ? (
         <ListingSurfaceSaveBar
@@ -126,6 +117,7 @@ export function EditListingSurface({
             onDelete={onClose}
             onSave={onClose}
             formRef={formRef}
+            onPendingChangesChange={setIsDirty}
           />
         </Suspense>
       </ErrorBoundary>

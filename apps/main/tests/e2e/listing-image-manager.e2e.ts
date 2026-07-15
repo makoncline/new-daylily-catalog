@@ -87,7 +87,7 @@ test.describe("listing image manager @local", () => {
     await expectImageOrder(reorderedIds);
 
     // Reorder persistence after refresh
-    await editListingDialog.close();
+    await editListingDialog.saveAndClose();
     await dashboardShell.refreshDashboardData();
     await dashboardListings.setGlobalSearch("Image Manager Seed Listing");
     await dashboardListings.chooseRowActionEdit();
@@ -107,7 +107,7 @@ test.describe("listing image manager @local", () => {
     await expectImageOrder(remainingIds);
 
     // Delete persistence after refresh
-    await editListingDialog.close();
+    await editListingDialog.saveAndClose();
     await dashboardShell.refreshDashboardData();
     await dashboardListings.setGlobalSearch("Image Manager Seed Listing");
     await dashboardListings.chooseRowActionEdit();

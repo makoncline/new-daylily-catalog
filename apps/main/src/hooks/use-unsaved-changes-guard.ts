@@ -10,7 +10,10 @@ export function useUnsavedChangesGuard(
   enabled = true,
 ) {
   const hasPendingChangesRef = useRef(hasPendingChanges);
-  hasPendingChangesRef.current = hasPendingChanges;
+
+  useEffect(() => {
+    hasPendingChangesRef.current = hasPendingChanges;
+  }, [hasPendingChanges]);
 
   const confirmDiscard = useCallback(() => {
     return (

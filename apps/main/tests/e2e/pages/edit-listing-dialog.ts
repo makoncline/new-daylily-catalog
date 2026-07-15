@@ -239,7 +239,8 @@ export class EditListingDialog {
     await this.dialog.waitFor({ state: "hidden" });
   }
 
-  async closeWithHeaderX() {
-    await this.close();
+  async saveAndClose() {
+    await this.clickSaveChanges();
+    await this.dialog.waitFor({ state: "hidden" });
   }
 }
