@@ -29,6 +29,7 @@ export function CatalogNav({
           <li key={section.href}>
             <Link
               href={section.href}
+              prefetch={false}
               className="text-muted-foreground hover:text-primary text-sm font-medium transition-colors"
             >
               {section.name}
