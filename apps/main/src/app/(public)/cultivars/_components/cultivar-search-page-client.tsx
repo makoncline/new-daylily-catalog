@@ -866,14 +866,14 @@ function CultivarCard({
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_35%_30%,#6b8f63,#173126_62%)]" />
       )}
 
-      <div className="absolute inset-0 bg-linear-to-t from-[#07120e]/98 via-[#07120e]/38 to-[#07120e]/8" />
+      <div className="absolute inset-0 bg-[radial-gradient(ellipse_92%_62%_at_0%_100%,rgba(7,18,14,0.92)_0%,rgba(7,18,14,0.64)_38%,rgba(7,18,14,0.16)_70%,transparent_100%)]" />
 
       <div className="relative z-10 flex min-h-[19rem] w-full flex-col justify-end p-5">
         <h2 className="text-2xl leading-tight font-semibold text-white drop-shadow-lg">
           {result.name}
         </h2>
         {attribution ? (
-          <p className="mt-1 text-sm font-semibold text-[#f4c477]">
+          <p className="mt-1 text-sm font-semibold text-[#f4c477] drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">
             {attribution}
           </p>
         ) : null}
