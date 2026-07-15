@@ -21,13 +21,14 @@ export async function getProUserIds(): Promise<string[]> {
 
 export async function getActiveProUserIdsForUserIds(
   userIds: readonly string[],
+  database: typeof replicaDb = replicaDb,
 ): Promise<string[]> {
   const uniqueUserIds = Array.from(new Set(userIds));
   if (uniqueUserIds.length === 0) {
     return [];
   }
 
-  const users = await replicaDb.user.findMany({
+  const users = await database.user.findMany({
     where: {
       id: {
         in: uniqueUserIds,
@@ -42,7 +43,7 @@ export async function getActiveProUserIdsForUserIds(
     },
   });
 
-  const proUserIds = await getProUserIdSet(users);
+  const proUserIds = await getProUserIdSet(users, database);
 
   return Array.from(proUserIds).sort();
 }
