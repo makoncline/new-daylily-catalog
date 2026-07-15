@@ -8,6 +8,7 @@ const mockDb = vi.hoisted(() => ({
     findMany: vi.fn(),
   },
   listing: {
+    count: vi.fn(),
     findFirst: vi.fn(),
     findMany: vi.fn(),
     groupBy: vi.fn(),
@@ -161,12 +162,10 @@ describe("getPublicListings helpers", () => {
 
   it("returns SEO page slices from the same sorted-id source", async () => {
     mockGetUserIdFromSlugOrId.mockResolvedValue("user-1");
-    mockDb.$queryRaw.mockResolvedValue([
-      { id: "id-a" },
-      { id: "id-b" },
-      { id: "id-c" },
-      { id: "id-d" },
-    ]);
+    mockDb.listing.count.mockResolvedValue(4);
+    mockDb.$queryRaw
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([{ id: "id-c" }, { id: "id-d" }]);
 
     mockDb.listing.findMany.mockImplementation(
       ({ where }: { where: { id: { in: string[] } } }) => {
@@ -205,6 +204,7 @@ describe("getPublicListings helpers", () => {
 
   it("uses for-sale-first sorting for SEO page ids only", async () => {
     mockGetUserIdFromSlugOrId.mockResolvedValue("user-1");
+    mockDb.listing.count.mockResolvedValue(0);
     mockDb.$queryRaw.mockResolvedValue([]);
 
     await getPublicListingsPage({
@@ -215,6 +215,7 @@ describe("getPublicListings helpers", () => {
 
     const seoQuery = getQueryText(mockDb.$queryRaw.mock.calls[0]?.[0]);
     expect(seoQuery).toMatch(/COALESCE\("price", 0\) > 0/);
+    expect(seoQuery).toMatch(/LIMIT\s+OFFSET/);
 
     mockDb.$queryRaw.mockClear();
     mockDb.$queryRaw.mockResolvedValue([]);
