@@ -15,6 +15,7 @@ const stateFor =
   });
 const publicState = stateFor("tests/atlas/public-catalog.atlas.ts");
 const onboardingState = stateFor("tests/atlas/onboarding-membership.atlas.ts");
+const listingState = stateFor("tests/atlas/listing-management.atlas.ts");
 const testRef = (layer, file) => ({
   path: file,
   command:
@@ -264,6 +265,153 @@ export const ATLAS_FLOWS = [
             "Checkout review",
             "The account email and membership terms immediately before Stripe.",
             "/onboarding?step=checkout",
+            false,
+          ),
+        ],
+      },
+    ],
+  },
+  {
+    id: "listing-management",
+    audience: "member",
+    title: "Find, create, and edit listings",
+    description:
+      "Manage a production-shaped catalog through the same dashboard controls members use.",
+    tests: {
+      unit: [testRef("unit", "tests/listings-search-normalization.test.tsx")],
+      integration: [
+        testRef(
+          "integration",
+          "tests/dashboard-listing-filter-toolbar.test.ts",
+        ),
+        testRef("integration", "tests/listings-table-filter-columns.test.tsx"),
+        testRef("integration", "tests/create-listing-dialog.test.tsx"),
+        testRef("integration", "tests/listing-dialog-query-state.test.tsx"),
+        testRef("integration", "tests/edit-listing-dialog-url-sync.test.tsx"),
+      ],
+      e2e: [
+        testRef("e2e", "tests/e2e/listings-page-features.e2e.ts"),
+        testRef("e2e", "tests/e2e/create-edit-listing-flow.e2e.ts"),
+      ],
+    },
+    steps: [
+      {
+        title: "Orient in a real catalog",
+        states: [
+          listingState(
+            "listing-management-table",
+            "Listings table",
+            "A compact page of a production-sized member catalog.",
+            "/dashboard/listings?size=10",
+          ),
+          listingState(
+            "listing-management-row-actions",
+            "Listing row actions",
+            "The visible actions available for an existing listing.",
+            "/dashboard/listings?size=10",
+            false,
+          ),
+        ],
+      },
+      {
+        title: "Find the right listings",
+        states: [
+          listingState(
+            "listing-management-query",
+            "Listing search",
+            "A member query narrowed to matching catalog rows.",
+            "/dashboard/listings?size=10&query=Richfield%20Muriel",
+          ),
+          listingState(
+            "listing-management-advanced",
+            "Advanced listing search",
+            "The detailed field-by-field search controls.",
+            "/dashboard/listings?size=10",
+            false,
+          ),
+          listingState(
+            "listing-management-for-sale",
+            "For sale filter",
+            "The catalog narrowed to listings currently offered for sale.",
+            "/dashboard/listings?size=10",
+            false,
+          ),
+          listingState(
+            "listing-management-list-filter",
+            "List filter choices",
+            "The member's real lists available as listing filters.",
+            "/dashboard/listings?size=10",
+            false,
+          ),
+          listingState(
+            "listing-management-sort",
+            "Sorted listings",
+            "The table sorted through its visible Title column control.",
+            "/dashboard/listings?size=10",
+            false,
+          ),
+          listingState(
+            "listing-management-page-two",
+            "Listings page two",
+            "The next compact page in a production-sized catalog.",
+            "/dashboard/listings?size=10&page=2",
+          ),
+          listingState(
+            "listing-management-no-results",
+            "No matching listings",
+            "Clear feedback when no member listing matches a query.",
+            "/dashboard/listings?size=10&query=no-such-member-listing",
+          ),
+        ],
+      },
+      {
+        title: "Create a listing",
+        states: [
+          listingState(
+            "listing-management-create-empty",
+            "Create listing",
+            "The empty listing dialog before selecting a cultivar.",
+            "/dashboard/listings?size=10",
+            false,
+          ),
+          listingState(
+            "listing-management-cultivar-picker",
+            "Cultivar picker results",
+            "Real AHS cultivar matches inside the listing creation flow.",
+            "/dashboard/listings?size=10",
+            false,
+          ),
+          listingState(
+            "listing-management-create-selected",
+            "Cultivar selected",
+            "A create form populated from a selected cultivar without saving it.",
+            "/dashboard/listings?size=10",
+            false,
+          ),
+        ],
+      },
+      {
+        title: "Edit a listing",
+        states: [
+          listingState(
+            "listing-management-edit-populated",
+            "Edit populated listing",
+            "An existing real listing with images, status, notes, and linked data.",
+            "/dashboard/listings?size=10",
+            false,
+          ),
+          listingState(
+            "listing-management-edit-validation",
+            "Empty required listing name",
+            "The current edit state after clearing the required name, before saving.",
+            "/dashboard/listings?size=10",
+            false,
+          ),
+          listingState(
+            "listing-management-list-picker",
+            "Listing membership picker",
+            "The real lists available while editing a listing.",
+            "/dashboard/listings?size=10",
             false,
           ),
         ],
