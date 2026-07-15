@@ -6,8 +6,14 @@ import {
 } from "@/components/forms/listing-form";
 import { ListingFormSkeleton } from "@/components/forms/listing-form-skeleton";
 import { atom } from "jotai";
+import { ArrowLeft } from "lucide-react";
+import { Suspense, useLayoutEffect, useRef } from "react";
+import { ErrorBoundary } from "react-error-boundary";
 import { useAtomDialogSearchParam } from "@/hooks/use-dialog-search-param";
-import { ManagedEditDialog } from "@/app/dashboard/_components/managed-edit-dialog";
+import { useSaveBeforeNavigate } from "@/hooks/use-save-before-navigate";
+import { Button } from "@/components/ui/button";
+import { ErrorFallback } from "@/components/error-fallback";
+import { PageHeader } from "@/components/page-header";
 
 /**
  * Atom for editing state
@@ -26,6 +32,7 @@ export const useEditListing = () => {
     atom: editingListingIdAtom,
     history: "push",
     paramName: "editing",
+    scroll: false,
   });
 
   return {
@@ -40,29 +47,80 @@ export const useEditListing = () => {
 };
 
 /**
- * Dialog component for editing a listing.
- * Opens when editingListingIdAtom has a valid listing ID.
- * Automatically saves changes when closing.
+ * Full-page surface for editing a listing without modal viewport geometry.
+ * Automatically saves changes before returning to the listings table.
  */
-export function EditListingDialog() {
-  const { editingId, closeEditListing } = useEditListing();
+export function EditListingSurface({
+  listingId,
+  onClose,
+}: {
+  listingId: string;
+  onClose: () => void;
+}) {
+  const formRef = useRef<ListingFormHandle | null>(null);
+  const backButtonRef = useRef<HTMLButtonElement | null>(null);
+  const surfaceRef = useRef<HTMLElement | null>(null);
+  useSaveBeforeNavigate(formRef, "navigate");
+
+  const handleBack = async () => {
+    const didSave = await formRef.current?.saveChanges("close");
+    if (didSave === false) {
+      return;
+    }
+
+    onClose();
+  };
+
+  useLayoutEffect(() => {
+    backButtonRef.current?.focus({ preventScroll: true });
+    const shellElements = [
+      ...document.querySelectorAll<HTMLElement>('[data-sidebar="sidebar"]'),
+      surfaceRef.current
+        ?.closest("main")
+        ?.querySelector<HTMLElement>(":scope > header"),
+      document.querySelector<HTMLElement>(
+        '[data-testid="dashboard-billing-alert"]',
+      ),
+    ].filter((element): element is HTMLElement => Boolean(element));
+
+    shellElements.forEach((element) => {
+      element.inert = true;
+    });
+    return () => {
+      shellElements.forEach((element) => {
+        element.inert = false;
+      });
+    };
+  }, []);
 
   return (
-    <ManagedEditDialog<ListingFormHandle>
-      description="Make changes to your listing here."
-      entityId={editingId}
-      fallback={<ListingFormSkeleton />}
-      isOpen={!!editingId}
-      onClose={closeEditListing}
-      renderForm={(id, formRef, onClose) => (
-        <ListingForm
-          listingId={id}
-          onDelete={onClose}
-          onSave={onClose}
-          formRef={formRef}
-        />
-      )}
-      title="Edit Listing"
-    />
+    <section
+      ref={surfaceRef}
+      aria-label="Edit listing"
+      className="mx-auto w-full max-w-3xl pb-8"
+    >
+      <PageHeader heading="Edit Listing" text="Make changes to your listing.">
+        <Button
+          ref={backButtonRef}
+          type="button"
+          variant="outline"
+          onClick={() => void handleBack()}
+        >
+          <ArrowLeft aria-hidden="true" />
+          Back to listings
+        </Button>
+      </PageHeader>
+
+      <ErrorBoundary fallback={<ErrorFallback resetErrorBoundary={onClose} />}>
+        <Suspense fallback={<ListingFormSkeleton />}>
+          <ListingForm
+            listingId={listingId}
+            onDelete={onClose}
+            onSave={onClose}
+            formRef={formRef}
+          />
+        </Suspense>
+      </ErrorBoundary>
+    </section>
   );
 }

@@ -70,7 +70,9 @@ describe("useEditListing URL sync", () => {
     fireEvent.click(screen.getByRole("button"));
 
     await waitFor(() => {
-      expect(navigationState.push).toHaveBeenCalledWith("/dashboard/listings");
+      expect(navigationState.push).toHaveBeenCalledWith("/dashboard/listings", {
+        scroll: false,
+      });
     });
     expect(navigationState.replace).not.toHaveBeenCalled();
     expect(navigationState.push.mock.calls.some(([url]) => url === "?")).toBe(
