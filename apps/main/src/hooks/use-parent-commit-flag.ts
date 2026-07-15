@@ -4,7 +4,7 @@ import { useCallback, useRef, useState } from "react";
 
 export function useParentCommitFlag() {
   const needsParentCommitRef = useRef(false);
-  const [, setNeedsParentCommit] = useState(false);
+  const [needsParentCommit, setNeedsParentCommit] = useState(false);
 
   const markNeedsParentCommit = useCallback(() => {
     if (needsParentCommitRef.current) {
@@ -22,6 +22,7 @@ export function useParentCommitFlag() {
 
   return {
     markNeedsParentCommit,
+    needsParentCommit,
     needsParentCommitRef,
     resetNeedsParentCommit,
   };

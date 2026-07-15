@@ -213,7 +213,7 @@ test.describe("create/edit listing flow @local", () => {
     );
 
     await editListingDialog.typePrivateNoteWithoutBlur(pendingPrivateNote);
-    await editListingDialog.closeWithHeaderX();
+    await editListingDialog.saveAndClose();
     await expectToast("Changes saved");
     await expectUrlParam("editing", null);
 

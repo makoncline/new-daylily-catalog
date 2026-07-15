@@ -11,7 +11,17 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 
-interface TierLimitedCreateActionProps {
+type CreateActionBehavior =
+  | {
+      onCreate: () => void;
+      renderCreateDialog?: never;
+    }
+  | {
+      onCreate?: never;
+      renderCreateDialog: (onOpenChange: (open: boolean) => void) => ReactNode;
+    };
+
+type TierLimitedCreateActionProps = {
   buttonLabel: string;
   buttonTestId?: string;
   currentCount?: number;
@@ -21,8 +31,7 @@ interface TierLimitedCreateActionProps {
   upgradeDialogClassName?: string;
   upgradeDialogDescription: ReactNode;
   upgradeDialogTitle: string;
-  renderCreateDialog: (onOpenChange: (open: boolean) => void) => ReactNode;
-}
+} & CreateActionBehavior;
 
 export function TierLimitedCreateAction({
   buttonLabel,
@@ -30,6 +39,7 @@ export function TierLimitedCreateAction({
   currentCount,
   freeTierLimit,
   isPro,
+  onCreate,
   upgradeDialogBody,
   upgradeDialogClassName,
   upgradeDialogDescription,
@@ -44,6 +54,11 @@ export function TierLimitedCreateAction({
 
     if (reachedLimit) {
       setShowUpgradeDialog(true);
+      return;
+    }
+
+    if (onCreate) {
+      onCreate();
       return;
     }
 
@@ -68,7 +83,7 @@ export function TierLimitedCreateAction({
       </Dialog>
 
       {showCreateDialog &&
-        renderCreateDialog((open) => {
+        renderCreateDialog?.((open) => {
           if (!open) {
             setShowCreateDialog(false);
           }

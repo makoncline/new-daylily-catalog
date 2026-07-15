@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { type Image } from "@prisma/client";
 import { toast } from "sonner";
 
@@ -70,6 +70,7 @@ interface ListingFormProps {
   listingId: string;
   onDelete: () => void;
   onSave: () => void;
+  onPendingChangesChange?: (hasPendingChanges: boolean) => void;
   formRef?: React.RefObject<ListingFormHandle | null>;
 }
 
@@ -114,6 +115,7 @@ function useListingFormController({
   selectedListIds,
   onDelete,
   onSave,
+  onPendingChangesChange,
   formRef,
 }: {
   listingId: string;
@@ -124,12 +126,14 @@ function useListingFormController({
   selectedListIds: string[];
   onDelete: () => void;
   onSave: () => void;
+  onPendingChangesChange?: (hasPendingChanges: boolean) => void;
   formRef?: React.RefObject<ListingFormHandle | null>;
 }) {
   const [isSaving, setIsSaving] = useState(false);
   const { textAreaRef, adjustHeight } = useAutoResizeTextArea();
   const {
     markNeedsParentCommit,
+    needsParentCommit,
     needsParentCommitRef,
     resetNeedsParentCommit,
   } = useParentCommitFlag();
@@ -244,6 +248,16 @@ function useListingFormController({
     ),
   });
 
+  useEffect(() => {
+    const notifyPendingChanges = () => {
+      onPendingChangesChange?.(hasPendingChanges());
+    };
+
+    notifyPendingChanges();
+    const subscription = form.watch(notifyPendingChanges);
+    return () => subscription.unsubscribe();
+  }, [form, hasPendingChanges, needsParentCommit, onPendingChangesChange]);
+
   async function onSubmit() {
     await saveChanges("manual");
   }
@@ -338,10 +352,7 @@ function ListingFormFields({
 }: ReturnType<typeof useListingFormController>) {
   return (
     <Form {...form}>
-      <form
-        onSubmit={form.handleSubmit(onSubmit)}
-        className="mb-[300px] space-y-6"
-      >
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6 pb-16">
         <FormField
           control={form.control}
           name="title"
@@ -525,6 +536,7 @@ function ListingFormLive({
   listingId,
   onDelete,
   onSave,
+  onPendingChangesChange,
   formRef,
 }: ListingFormProps) {
   const {
@@ -550,6 +562,7 @@ function ListingFormLive({
       selectedListIds={selectedListIds}
       onDelete={onDelete}
       onSave={onSave}
+      onPendingChangesChange={onPendingChangesChange}
       formRef={formRef}
     />
   );
