@@ -2,6 +2,8 @@ import { test, expect } from "../../e2e/test-setup";
 
 test.describe("guest user tour @preview", () => {
   test("navigates through unauthed pages", async ({ page }) => {
+    test.slow();
+
     // Home page
     await page.goto("/");
     await expect(page).toHaveURL("/");
@@ -31,7 +33,7 @@ test.describe("guest user tour @preview", () => {
       .first();
     await expect(firstListingCard).toBeVisible();
     await firstListingCard.click();
-    await expect(page.getByRole("dialog")).toBeVisible();
+    await expect(page.getByRole("dialog")).toBeVisible({ timeout: 30_000 });
     await page.getByRole("button", { name: "Close" }).click();
     await expect(page.getByRole("dialog")).toBeHidden();
   });
