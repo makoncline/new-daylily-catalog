@@ -314,13 +314,20 @@ function CartItemRow({ item, onQuantityChange, onRemove }: CartItemRowProps) {
         )}
       </div>
 
-      <div className="flex items-center gap-2">
+      <div
+        className="flex items-center gap-2"
+        onPointerDown={(event) => {
+          // Avoid replacing this row during the focused email field's blur validation.
+          event.preventDefault();
+        }}
+      >
         <Button
           type="button"
           variant="outline"
           size="icon"
           className="size-7"
           onClick={() => onQuantityChange(item.id, item.quantity - 1)}
+          aria-label={`Decrease quantity for ${item.title}`}
         >
           <MinusCircle className="size-4" />
         </Button>
@@ -333,6 +340,7 @@ function CartItemRow({ item, onQuantityChange, onRemove }: CartItemRowProps) {
           size="icon"
           className="size-7"
           onClick={() => onQuantityChange(item.id, item.quantity + 1)}
+          aria-label={`Increase quantity for ${item.title}`}
         >
           <PlusCircle className="size-4" />
         </Button>
@@ -343,6 +351,7 @@ function CartItemRow({ item, onQuantityChange, onRemove }: CartItemRowProps) {
           size="icon"
           className="ml-2 size-7"
           onClick={() => onRemove(item.id)}
+          aria-label={`Remove ${item.title} from cart`}
         >
           <Trash2 className="size-4" />
         </Button>

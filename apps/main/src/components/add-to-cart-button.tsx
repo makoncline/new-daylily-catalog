@@ -76,6 +76,11 @@ export function AddToCartButton({
             )}
             onClick={handleAddToCart}
             disabled={isAdding}
+            aria-label={
+              isInCart
+                ? `${listing.title} is already in cart`
+                : `Add ${listing.title} to cart`
+            }
           >
             <ShoppingCart className="size-1" />
             <div className="h-3 w-px bg-current opacity-30" />
