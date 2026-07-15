@@ -12,10 +12,7 @@ export class CreateListingDialog {
 
   constructor(page: Page) {
     this.page = page;
-    // The dialog should be visible after clicking Create Listing button
-    this.dialog = page.getByRole("dialog").filter({
-      hasText: "Create New Listing",
-    });
+    this.dialog = page.getByRole("region", { name: "Create listing" });
     this.ahsDialog = page.getByRole("dialog").filter({
       has: page.getByRole("heading", {
         name: "Select Daylily Database Listing",
@@ -30,12 +27,12 @@ export class CreateListingDialog {
     this.syncWithAhsButton = this.dialog.getByRole("button", {
       name: "Sync with AHS name",
     });
-    // The create button in the footer
-    this.createButton = this.dialog
-      .getByRole("button", { name: "Create Listing" })
-      .last(); // Use last() to avoid matching buttons in nested dialogs
-    // The cancel button
-    this.cancelButton = this.dialog.getByRole("button", { name: "Cancel" });
+    this.createButton = this.dialog.getByRole("button", {
+      name: "Create Listing",
+    });
+    this.cancelButton = this.dialog.getByRole("button", {
+      name: "Back to listings",
+    });
   }
 
   async isReady() {
@@ -64,9 +61,7 @@ export class CreateListingDialog {
     await this.openAhsPicker();
 
     // Find the search input in the AHS dialog
-    const searchInput = this.ahsDialog.getByPlaceholder(
-      "Search AHS listings…",
-    );
+    const searchInput = this.ahsDialog.getByPlaceholder("Search AHS listings…");
     await searchInput.waitFor({ state: "visible" });
 
     // Type the search query (partial name)

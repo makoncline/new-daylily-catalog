@@ -8,6 +8,10 @@ import {
   type MouseEvent as ReactMouseEvent,
 } from "react";
 import { CreateListingButton } from "./_components/create-listing-button";
+import {
+  CreateListingSurface,
+  useCreateListing,
+} from "./_components/create-listing-dialog";
 import { ListingsTable } from "./_components/listings-table";
 import {
   EditListingSurface,
@@ -18,6 +22,8 @@ import { logDashboardTiming } from "@/app/dashboard/_lib/dashboard-timing";
 
 export default function ListingsPage() {
   const { closeEditListing, editingId } = useEditListing();
+  const { closeCreateListing, isCreating } = useCreateListing();
+  const isShowingSurface = isCreating || Boolean(editingId);
   const dashboardScrollYRef = useRef(0);
   const dashboardRef = useRef<HTMLDivElement | null>(null);
   const returnFocusRef = useRef<HTMLElement | null>(null);
@@ -28,7 +34,7 @@ export default function ListingsPage() {
   }, []);
 
   useLayoutEffect(() => {
-    if (editingId) {
+    if (isShowingSurface) {
       wasEditingRef.current = true;
       window.scrollTo({ top: 0 });
       return;
@@ -48,7 +54,7 @@ export default function ListingsPage() {
     });
 
     return () => cancelAnimationFrame(frame);
-  }, [editingId]);
+  }, [isShowingSurface]);
 
   const rememberDashboardState = (event: ReactMouseEvent) => {
     dashboardScrollYRef.current = window.scrollY;
@@ -64,7 +70,7 @@ export default function ListingsPage() {
 
   return (
     <>
-      <Activity mode={editingId ? "hidden" : "visible"}>
+      <Activity mode={isShowingSurface ? "hidden" : "visible"}>
         <div
           ref={dashboardRef}
           className="space-y-4"
@@ -82,7 +88,9 @@ export default function ListingsPage() {
         </div>
       </Activity>
 
-      {editingId ? (
+      {isCreating ? (
+        <CreateListingSurface onClose={closeCreateListing} />
+      ) : editingId ? (
         <EditListingSurface listingId={editingId} onClose={closeEditListing} />
       ) : null}
     </>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import { api } from "@/trpc/react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -12,7 +12,7 @@ import {
 } from "@/components/ahs-listing-select";
 import { AhsListingDisplay } from "@/components/ahs-listing-display";
 import { Separator } from "@/components/ui/separator";
-import { useSetAtom } from "jotai";
+import { atom, useAtom, useSetAtom } from "jotai";
 import { editingListingIdAtom } from "./edit-listing-dialog";
 import {
   getErrorMessage,
@@ -21,29 +21,62 @@ import {
 } from "@/lib/error-utils";
 import { APP_CONFIG } from "@/config/constants";
 import { insertListing } from "@/app/dashboard/_lib/dashboard-db/listings-collection";
-import { useManagedDialogOpen } from "@/hooks/use-managed-dialog-open";
-import { ManagedCreateDialog } from "@/app/dashboard/_components/managed-create-dialog";
 import { Spinner } from "@/components/ui/spinner";
+import { ArrowLeft } from "lucide-react";
+import { PageHeader } from "@/components/page-header";
 
 /**
- * Dialog for creating a new daylily listing.
- * Allows selecting an AHS database entry and/or setting a custom title.
- * After successful creation, automatically opens the edit dialog for further customization.
+ * State for the full-page listing creation surface.
  */
-export function CreateListingDialog({
-  onOpenChange,
-}: {
-  onOpenChange: (open: boolean) => void;
-}) {
+export const creatingListingAtom = atom(false);
+
+export function useCreateListing() {
+  const [isCreating, setIsCreating] = useAtom(creatingListingAtom);
+
+  return {
+    closeCreateListing: () => setIsCreating(false),
+    isCreating,
+    openCreateListing: () => setIsCreating(true),
+  };
+}
+
+/**
+ * Full-page surface for creating a new daylily listing.
+ * Allows selecting an AHS database entry and/or setting a custom title.
+ * After successful creation, automatically opens the full-page editor.
+ */
+export function CreateListingSurface({ onClose }: { onClose: () => void }) {
   const [title, setTitle] = useState("");
   const [selectedResult, setSelectedResult] = useState<AhsSearchResult | null>(
     null,
   );
   const [isSaving, setIsSaving] = useState(false);
-  const { closeDialog, handleOpenChange, open } =
-    useManagedDialogOpen(onOpenChange);
+  const backButtonRef = useRef<HTMLButtonElement | null>(null);
+  const surfaceRef = useRef<HTMLElement | null>(null);
 
   const setEditingId = useSetAtom(editingListingIdAtom);
+
+  useLayoutEffect(() => {
+    backButtonRef.current?.focus({ preventScroll: true });
+    const shellElements = [
+      ...document.querySelectorAll<HTMLElement>('[data-sidebar="sidebar"]'),
+      surfaceRef.current
+        ?.closest("main")
+        ?.querySelector<HTMLElement>(":scope > header"),
+      document.querySelector<HTMLElement>(
+        '[data-testid="dashboard-billing-alert"]',
+      ),
+    ].filter((element): element is HTMLElement => Boolean(element));
+
+    shellElements.forEach((element) => {
+      element.inert = true;
+    });
+    return () => {
+      shellElements.forEach((element) => {
+        element.inert = false;
+      });
+    };
+  }, []);
 
   const { data: detailedAhsListing } = api.dashboardDb.ahs.get.useQuery(
     {
@@ -104,7 +137,7 @@ export function CreateListingDialog({
         description: `${newListing.title} has been created.`,
       });
 
-      closeDialog();
+      onClose();
       setEditingId(newListing.id);
     } catch (error) {
       toast.error("Failed to create listing", {
@@ -120,68 +153,90 @@ export function CreateListingDialog({
   };
 
   return (
-    <ManagedCreateDialog
-      cancelDisabled={isSaving}
-      confirmDisabled={isSaving || (!title.trim() && !selectedResult)}
-      confirmLabel={
-        isSaving ? (
-          <>
-            <Spinner aria-hidden="true" />
-            Creating…
-          </>
-        ) : (
-          "Create Listing"
-        )
-      }
-      description="Create a new daylily listing by providing a title or selecting from the AHS database."
-      onCancel={closeDialog}
-      onConfirm={handleCreate}
-      onOpenChange={handleOpenChange}
-      open={open}
-      title="Create New Listing"
+    <section
+      ref={surfaceRef}
+      aria-label="Create listing"
+      className="mx-auto w-full max-w-3xl pb-8"
     >
-      <div className="space-y-2">
-        <Label htmlFor="ahs-listing">AHS Database Listing (optional)</Label>
-        <AhsListingSelect
-          onSelect={handleAhsListingSelect}
+      <PageHeader
+        heading="Create New Listing"
+        text="Create a new daylily listing by providing a title or selecting from the AHS database."
+      >
+        <Button
+          ref={backButtonRef}
+          type="button"
+          variant="outline"
+          onClick={onClose}
           disabled={isSaving}
-        />
+        >
+          <ArrowLeft aria-hidden="true" />
+          Back to listings
+        </Button>
+      </PageHeader>
 
-        {selectedResult && detailedAhsListing && (
-          <div className="mt-4">
-            <Separator className="my-4" />
-            <AhsListingDisplay
-              ahsListing={detailedAhsListing}
-              cultivarReferenceImage={detailedAhsListing.cultivarReferenceImage}
-            />
-            <Separator className="my-4" />
-          </div>
-        )}
-      </div>
+      <div className="space-y-6 pb-16">
+        <div className="space-y-2">
+          <Label htmlFor="ahs-listing">AHS Database Listing (optional)</Label>
+          <AhsListingSelect
+            onSelect={handleAhsListingSelect}
+            disabled={isSaving}
+          />
 
-      <div className="space-y-2">
-        <div className="flex items-center justify-between">
-          <Label htmlFor="title">Listing Title</Label>
-          {selectedResult && (
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              onClick={syncTitleWithAhs}
-              disabled={isSaving}
-            >
-              Sync with AHS name
-            </Button>
+          {selectedResult && detailedAhsListing && (
+            <div className="mt-4">
+              <Separator className="my-4" />
+              <AhsListingDisplay
+                ahsListing={detailedAhsListing}
+                cultivarReferenceImage={
+                  detailedAhsListing.cultivarReferenceImage
+                }
+              />
+              <Separator className="my-4" />
+            </div>
           )}
         </div>
-        <Input
-          id="title"
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-          placeholder={selectedResult?.name ?? "Enter a title"}
-          disabled={isSaving}
-        />
+
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <Label htmlFor="title">Listing Title</Label>
+            {selectedResult && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={syncTitleWithAhs}
+                disabled={isSaving}
+              >
+                Sync with AHS name
+              </Button>
+            )}
+          </div>
+          <Input
+            id="title"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            placeholder={selectedResult?.name ?? "Enter a title"}
+            disabled={isSaving}
+          />
+        </div>
+
+        <div className="flex justify-end">
+          <Button
+            type="button"
+            onClick={() => void handleCreate()}
+            disabled={isSaving || (!title.trim() && !selectedResult)}
+          >
+            {isSaving ? (
+              <>
+                <Spinner aria-hidden="true" />
+                Creating…
+              </>
+            ) : (
+              "Create Listing"
+            )}
+          </Button>
+        </div>
       </div>
-    </ManagedCreateDialog>
+    </section>
   );
 }

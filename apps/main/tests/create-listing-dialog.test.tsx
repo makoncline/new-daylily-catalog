@@ -7,7 +7,7 @@ import {
   waitFor,
 } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { CreateListingDialog } from "@/app/dashboard/listings/_components/create-listing-dialog";
+import { CreateListingSurface } from "@/app/dashboard/listings/_components/create-listing-dialog";
 
 const mockInsertListing = vi.hoisted(() => vi.fn());
 const mockSetEditingId = vi.hoisted(() => vi.fn());
@@ -106,7 +106,7 @@ vi.mock("@/lib/error-utils", () => ({
   reportError: vi.fn(),
 }));
 
-describe("CreateListingDialog", () => {
+describe("CreateListingSurface", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockInsertListing.mockResolvedValue({
@@ -115,8 +115,17 @@ describe("CreateListingDialog", () => {
     });
   });
 
+  it("renders creation as a page surface instead of a dialog", () => {
+    render(<CreateListingSurface onClose={vi.fn()} />);
+
+    expect(
+      screen.getByRole("region", { name: "Create listing" }),
+    ).toBeVisible();
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
   it("uses selected AHS name when title input is blank", async () => {
-    render(<CreateListingDialog onOpenChange={vi.fn()} />);
+    render(<CreateListingSurface onClose={vi.fn()} />);
 
     fireEvent.click(screen.getByRole("button", { name: "Select AHS" }));
 
@@ -134,15 +143,16 @@ describe("CreateListingDialog", () => {
   });
 
   it("shows immediate progress while the listing is being created", async () => {
-    let resolveInsert: ((listing: { id: string; title: string }) => void) | null =
-      null;
+    let resolveInsert:
+      | ((listing: { id: string; title: string }) => void)
+      | null = null;
     mockInsertListing.mockReturnValue(
       new Promise((resolve) => {
         resolveInsert = resolve;
       }),
     );
 
-    render(<CreateListingDialog onOpenChange={vi.fn()} />);
+    render(<CreateListingSurface onClose={vi.fn()} />);
 
     fireEvent.change(screen.getByLabelText("Listing Title"), {
       target: { value: "Slow connection listing" },
