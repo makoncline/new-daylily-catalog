@@ -29,6 +29,7 @@ const safeRuntime = {
   appBaseUrl: "http://localhost:3210",
   databaseUrl: safeDatabaseUrl,
   env: {
+    INTEGRATION_PROVIDER_URL: "http://localhost:3211",
     CLERK_SECRET_KEY: "sk_test_integration",
     NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: "pk_test_integration",
     STRIPE_SECRET_KEY: "sk_test_integration",
@@ -46,6 +47,7 @@ function integrationSubprocessEnv(
     INTEGRATION_MODE: "1",
     INTEGRATION_NETWORK_GUARD: "1",
     APP_BASE_URL: safeRuntime.appBaseUrl,
+    INTEGRATION_PROVIDER_URL: "http://localhost:3211",
     DATABASE_URL: safeRuntime.databaseUrl,
     CLERK_SECRET_KEY: "sk_test_integration",
     NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: "pk_test_integration",
@@ -196,6 +198,9 @@ describe("offline integration runtime", () => {
 
       expect(snapshots[0]).toEqual(snapshots[1]);
       expect(snapshots[0]?.map(({ value }) => value)).toEqual([
+        "cultivar:cr-ahs-170157:onboarding gold",
+        "cultivar:cr-ahs-176320:onboarding rose",
+        "cultivar:cr-ahs-8527:onboarding sunset",
         "cultivar:integration-cultivar-reference:integration bloom",
         "listing:integration-existing-listing:Existing Bloom",
         "profile:integration-profile:integration-seller",

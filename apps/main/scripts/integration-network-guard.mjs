@@ -4,6 +4,7 @@ import https from "node:https";
 import path from "node:path";
 
 const LOOPBACK_HOSTS = new Set(["localhost", "127.0.0.1", "[::1]", "::1"]);
+const installedKey = Symbol.for("daylily.integrationNetworkGuardInstalled");
 export const FORBIDDEN_SERVICE_ENV = [
   "CLERK_WEBHOOK_SECRET",
   "STRIPE_WEBHOOK_SECRET",
@@ -87,6 +88,7 @@ export function validateIntegrationRuntime({
   }
 
   requireLoopbackUrl(appBaseUrl, "APP_BASE_URL");
+  requireLoopbackUrl(env.INTEGRATION_PROVIDER_URL, "INTEGRATION_PROVIDER_URL");
   requireDisposableDatabase(databaseUrl, appRoot);
   requirePlaceholder("CLERK_SECRET_KEY", env.CLERK_SECRET_KEY);
   requirePlaceholder(
@@ -182,6 +184,9 @@ function guardHttpModule(module, defaultProtocol) {
 }
 
 export function installIntegrationNetworkGuard() {
+  if (Reflect.get(globalThis, installedKey)) return;
+  Reflect.set(globalThis, installedKey, true);
+
   const originalFetch = globalThis.fetch;
   globalThis.fetch = function guardedFetch(input, init) {
     const url = input instanceof Request ? input.url : input;

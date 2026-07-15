@@ -1,3 +1,5 @@
+import { cookies } from "next/headers";
+
 const clerkUser = {
   id: "user_integration_seller",
   email: "integration-seller@example.test",
@@ -13,8 +15,19 @@ const authResult = {
   redirectToSignIn: () => new Response(null, { status: 307 }),
 };
 
+const anonymousAuthResult = {
+  isAuthenticated: false,
+  userId: null,
+  redirectToSignIn: () => new Response(null, { status: 307 }),
+};
+
+function authResultForCookie(value: string | undefined) {
+  return value === "anonymous" ? anonymousAuthResult : authResult;
+}
+
 export async function auth() {
-  return authResult;
+  const cookieStore = await cookies();
+  return authResultForCookie(cookieStore.get("integration-auth")?.value);
 }
 
 export function createRouteMatcher(patterns: string[]) {
@@ -29,13 +42,21 @@ export function createRouteMatcher(patterns: string[]) {
 
 export function clerkMiddleware(
   handler: (
-    authenticate: () => Promise<typeof authResult>,
+    authenticate: () => Promise<typeof authResult | typeof anonymousAuthResult>,
     request: unknown,
     event: unknown,
   ) => unknown,
 ) {
-  return (request: unknown, event: unknown) =>
-    handler(async () => authResult, request, event);
+  return (
+    request: { cookies?: { get(name: string): { value: string } | undefined } },
+    event: unknown,
+  ) =>
+    handler(
+      async () =>
+        authResultForCookie(request.cookies?.get("integration-auth")?.value),
+      request,
+      event,
+    );
 }
 
 export async function clerkClient() {

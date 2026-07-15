@@ -10,6 +10,13 @@ export const INTEGRATION_SELLER = {
   stripeCustomerId: "cus_integration_seller",
 };
 
+/** @type {readonly (readonly [string, string, string])[]} */
+const onboardingCultivars = [
+  ["cr-ahs-176320", "ahs-176320", "Onboarding Rose"],
+  ["cr-ahs-170157", "ahs-170157", "Onboarding Gold"],
+  ["cr-ahs-8527", "ahs-8527", "Onboarding Sunset"],
+];
+
 /** @param {string} databaseUrl */
 export async function seedIntegrationData(databaseUrl) {
   const db = new PrismaClient({
@@ -53,6 +60,26 @@ export async function seedIntegrationData(databaseUrl) {
           normalizedName: "integration bloom",
         },
       }),
+      ...onboardingCultivars.flatMap(
+        ([cultivarReferenceId, ahsId, name]) => [
+          db.ahsListing.create({
+            data: {
+              id: ahsId,
+              name,
+              hybridizer: "Integration Garden",
+              year: "2026",
+              ahsImageUrl: "/assets/catalog-blooms.webp",
+            },
+          }),
+          db.cultivarReference.create({
+            data: {
+              id: cultivarReferenceId,
+              ahsId,
+              normalizedName: name.toLowerCase(),
+            },
+          }),
+        ],
+      ),
       db.listing.create({
         data: {
           id: "integration-existing-listing",
