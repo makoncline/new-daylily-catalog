@@ -66,7 +66,7 @@ export function UserCard({
   return (
     <Card className="group hover:border-primary flex h-full flex-col overflow-hidden transition-all">
       <div className="relative">
-        <Link href={visiblePath} className="block">
+        <Link href={visiblePath} prefetch={false} className="block">
           {images[0]?.url ? (
             <OptimizedImage
               image={images[0]}
@@ -125,7 +125,11 @@ export function UserCard({
         )}
       </div>
 
-      <Link href={visiblePath} className="flex flex-1 flex-col">
+      <Link
+        href={visiblePath}
+        prefetch={false}
+        className="flex flex-1 flex-col"
+      >
         <CardContent className="flex flex-1 flex-col p-4">
           <div className="flex flex-1 flex-col justify-between gap-4">
             <div className="space-y-2">
