@@ -7,6 +7,16 @@ test.describe("guest user tour @preview", () => {
     await expect(page).toHaveURL("/");
     await expect(page).toHaveTitle("Daylily Catalog");
 
+    const exampleCultivarLink = page.getByRole("link", {
+      name: "See an example cultivar page",
+    });
+    await expect(exampleCultivarLink).toBeVisible();
+    await Promise.all([
+      page.waitForURL(/\/cultivar\/[^/]+$/),
+      exampleCultivarLink.click(),
+    ]);
+    await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+
     // Catalogs page
     await page.goto("/catalogs");
     await expect(page).toHaveURL("/catalogs");
@@ -32,18 +42,7 @@ test.describe("guest user tour @preview", () => {
     await expect(firstListingCard).toBeVisible();
     await firstListingCard.click();
     await expect(page.getByRole("dialog")).toBeVisible();
-
-    // Navigate to cultivar page from a linked listing card
     await page.getByRole("button", { name: "Close" }).click();
-    const listingPageLink = page
-      .locator("#listings")
-      .getByRole("link", { name: "View linked cultivar page" })
-      .first();
-    await expect(listingPageLink).toBeVisible();
-    await listingPageLink.click();
-
-    // Cultivar page should render a main heading
-    await page.waitForURL(/\/cultivar\/[^/]+$/);
-    await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+    await expect(page.getByRole("dialog")).toBeHidden();
   });
 });
