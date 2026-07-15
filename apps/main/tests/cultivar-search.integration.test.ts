@@ -83,12 +83,12 @@ describe("cultivar search", () => {
       INSERT INTO CultivarSearchIndex (
         id, cultivarReferenceId, normalizedName, displayName,
         displayNameSearch, bloomSeason, foliageType, fragrance, rebloom,
-        sourceUpdatedAt
+        hasImage, listingCount, sourceUpdatedAt
       ) VALUES
-        (1, 'early', 'early', 'Early', 'early', 'Early', 'Evergreen', 'Fragrant', 0, '2026-01-01'),
-        (2, 'extra-early', 'extra early', 'Extra Early', 'extra early', 'Extra Early', 'Semi-Evergreen', 'Very Fragrant', 0, '2026-01-01'),
-        (3, 'early-midseason', 'early midseason', 'Early Midseason', 'early midseason', 'Early-Midseason', 'Dormant', NULL, 0, '2026-01-01'),
-        (4, 'rebloomer', 'rebloomer', 'Rebloomer', 'rebloomer', 'Midseason', 'Dormant', NULL, 1, '2026-01-01');
+        (1, 'early', 'early', 'Early', 'early', 'Early', 'Evergreen', 'Fragrant', 0, 0, 10, '2026-01-01'),
+        (2, 'extra-early', 'extra early', 'Extra Early', 'extra early', 'Extra Early', 'Semi-Evergreen', 'Very Fragrant', 0, 1, 0, '2026-01-01'),
+        (3, 'early-midseason', 'early midseason', 'Early Midseason', 'early midseason', 'Early-Midseason', 'Dormant', NULL, 0, 0, 0, '2026-01-01'),
+        (4, 'rebloomer', 'rebloomer', 'Rebloomer', 'rebloomer', 'Midseason', 'Dormant', NULL, 1, 0, 0, '2026-01-01');
 
       INSERT INTO CultivarListingSearchIndex VALUES (
         'listing-1', 'early', 'garden', 'Test Garden', 'Early listing',
@@ -145,6 +145,31 @@ describe("cultivar search", () => {
     expect(results.map((result) => result.cultivarReferenceId)).toEqual([
       "rebloomer",
     ]);
+  });
+
+  it("can boost cultivars with photos without filtering other results", async () => {
+    const boosted = await searchCultivars({
+      baseUrl: "https://daylilycatalog.com",
+      includeParentageTrees: false,
+      listingLimit: 0,
+      limit: 4,
+      photosFirst: true,
+    });
+    const unboosted = await searchCultivars({
+      baseUrl: "https://daylilycatalog.com",
+      includeParentageTrees: false,
+      listingLimit: 0,
+      limit: 4,
+      photosFirst: false,
+    });
+
+    expect(boosted.map((result) => result.cultivarReferenceId)).toEqual([
+      "extra-early",
+      "early",
+      "early-midseason",
+      "rebloomer",
+    ]);
+    expect(unboosted[0]?.cultivarReferenceId).toBe("early");
   });
 
   it("skips listing-sample expansion when listingLimit is zero", async () => {

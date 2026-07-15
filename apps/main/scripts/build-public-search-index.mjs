@@ -457,6 +457,31 @@ CREATE INDEX CultivarSearchIndex_listingCount_idx
 CREATE INDEX CultivarSearchIndex_forSaleListingCount_idx
   ON CultivarSearchIndex(forSaleListingCount);
 
+CREATE INDEX CultivarSearchIndex_photo_listing_order_idx
+  ON CultivarSearchIndex(
+    hasImage DESC,
+    listingCount DESC,
+    forSaleListingCount DESC,
+    displayName COLLATE NOCASE ASC,
+    id ASC
+  );
+
+CREATE INDEX CultivarSearchIndex_photo_newest_order_idx
+  ON CultivarSearchIndex(
+    hasImage DESC,
+    (yearInt IS NULL) ASC,
+    yearInt DESC,
+    displayName COLLATE NOCASE ASC,
+    id ASC
+  );
+
+CREATE INDEX CultivarSearchIndex_photo_name_order_idx
+  ON CultivarSearchIndex(
+    hasImage DESC,
+    displayName COLLATE NOCASE ASC,
+    id ASC
+  );
+
 CREATE INDEX CultivarListingSearchIndex_cultivarReferenceId_idx
   ON CultivarListingSearchIndex(cultivarReferenceId);
 
@@ -474,7 +499,7 @@ CREATE INDEX CultivarListingSearchIndex_hasPhoto_idx
 
 INSERT INTO SearchIndexMeta(key, value)
 VALUES
-  ('schemaVersion', '7'),
+  ('schemaVersion', '8'),
   ('builtAt', strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
   ('sourcePath', ${quoteSqlString(sourcePath)});
 ANALYZE;

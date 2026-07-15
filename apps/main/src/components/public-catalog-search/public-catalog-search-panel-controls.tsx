@@ -151,6 +151,7 @@ export function PublicCatalogSearchBooleanFilter({
 }) {
   return (
     <Button
+      aria-pressed={active}
       data-testid={testId}
       type="button"
       size="sm"

@@ -90,6 +90,7 @@ export async function GET(request: Request) {
         : getNumberParam(searchParams, "listingLimit"),
       listingTitle: searchParams.get("listingTitle") ?? undefined,
       parentage: searchParams.get("parentage") ?? undefined,
+      photosFirst: getBooleanParam(searchParams, "photosFirst"),
       ploidy: searchParams.get("ploidy") ?? undefined,
       prefixLastToken: summaryMode,
       priceMax: getNumberParam(searchParams, "priceMax"),

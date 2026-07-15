@@ -128,6 +128,8 @@ export default async function CultivarsPage({
           ),
           listingTitle: getFirstSearchParam(rawSearchParams, "listingTitle"),
           parentage: getFirstSearchParam(rawSearchParams, "parentage"),
+          photosFirst:
+            getFirstSearchParam(rawSearchParams, "photosFirst") !== "false",
           ploidy: getFirstSearchParam(rawSearchParams, "ploidy"),
           priceMax: getFirstSearchParam(rawSearchParams, "priceMax"),
           priceMin: getFirstSearchParam(rawSearchParams, "priceMin"),

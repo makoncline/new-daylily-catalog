@@ -58,7 +58,7 @@ describe("public cultivar search route", () => {
     const { GET } = await import("@/app/api/v1/cultivars/search/route");
     const response = await GET(
       new Request(
-        "https://daylilycatalog.com/api/v1/cultivars/search?mode=summary&q=Stell&limit=24&offset=24&hasCultivarPhoto=true&sort=name",
+        "https://daylilycatalog.com/api/v1/cultivars/search?mode=summary&q=Stell&limit=24&offset=24&hasCultivarPhoto=true&photosFirst=true&sort=name",
       ),
     );
 
@@ -69,6 +69,7 @@ describe("public cultivar search route", () => {
         limit: 25,
         listingLimit: 0,
         offset: 24,
+        photosFirst: true,
         prefixLastToken: true,
         q: "Stell",
         sort: "name",

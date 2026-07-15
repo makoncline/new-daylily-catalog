@@ -48,6 +48,7 @@ interface CultivarSearchArgs {
   includeParentageTrees?: boolean;
   offset?: number;
   parentage?: string;
+  photosFirst?: boolean;
   ploidy?: string;
   prefixLastToken?: boolean;
   priceMax?: number;
@@ -149,36 +150,38 @@ function toContainsQuery(value: string) {
 
 function getOrderBy(args: {
   hasFtsQuery: boolean;
+  photosFirst?: boolean;
   q?: string;
   sort?: CultivarSearchSort;
 }) {
   const sort = args.sort ?? "relevance";
+  const photoBoost = args.photosFirst ? "i.hasImage DESC, " : "";
 
   if (sort === "name") {
     return {
       params: [] as InValue[],
-      sql: "i.displayName COLLATE NOCASE ASC, i.id ASC",
+      sql: `${photoBoost}i.displayName COLLATE NOCASE ASC, i.id ASC`,
     };
   }
 
   if (sort === "newest") {
     return {
       params: [] as InValue[],
-      sql: "i.yearInt IS NULL ASC, i.yearInt DESC, i.displayName COLLATE NOCASE ASC, i.id ASC",
+      sql: `${photoBoost}i.yearInt IS NULL ASC, i.yearInt DESC, i.displayName COLLATE NOCASE ASC, i.id ASC`,
     };
   }
 
   if (sort === "oldest") {
     return {
       params: [] as InValue[],
-      sql: "i.yearInt IS NULL ASC, i.yearInt ASC, i.displayName COLLATE NOCASE ASC, i.id ASC",
+      sql: `${photoBoost}i.yearInt IS NULL ASC, i.yearInt ASC, i.displayName COLLATE NOCASE ASC, i.id ASC`,
     };
   }
 
   if (sort === "mostListed" || !args.hasFtsQuery) {
     return {
       params: [] as InValue[],
-      sql: "i.listingCount DESC, i.forSaleListingCount DESC, i.displayName COLLATE NOCASE ASC, i.id ASC",
+      sql: `${photoBoost}i.listingCount DESC, i.forSaleListingCount DESC, i.displayName COLLATE NOCASE ASC, i.id ASC`,
     };
   }
 
@@ -192,6 +195,7 @@ function getOrderBy(args: {
         WHEN i.displayNameSearch LIKE ? THEN 1
         ELSE 2
       END,
+      ${photoBoost}
       bm25(CultivarSearchFts, 8.0, 6.0, 3.0, 1.5, 0.5),
       i.listingCount DESC,
       i.displayName COLLATE NOCASE ASC,
@@ -486,6 +490,7 @@ export async function searchCultivars(args: CultivarSearchArgs) {
     : "CultivarSearchIndex i";
   const orderBy = getOrderBy({
     hasFtsQuery: Boolean(ftsQuery),
+    photosFirst: args.photosFirst,
     q: args.q,
     sort: args.sort,
   });

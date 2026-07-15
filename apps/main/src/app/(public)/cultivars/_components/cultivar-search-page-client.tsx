@@ -4,8 +4,9 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { ChevronDown, LoaderCircle, RotateCcw } from "lucide-react";
+import { Camera, ChevronDown, LoaderCircle, RotateCcw } from "lucide-react";
 import {
+  type MouseEvent as ReactMouseEvent,
   type ReactNode,
   useCallback,
   useEffect,
@@ -33,17 +34,13 @@ import {
 import { type PublicCatalogSearchFacetOption } from "@/components/public-catalog-search/public-catalog-search-types";
 import { OptimizedImage } from "@/components/optimized-image";
 import { Button } from "@/components/ui/button";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { capturePosthogEvent } from "@/lib/analytics/posthog";
 import { useIsMobile } from "@/hooks/use-mobile";
 
 const PAGE_SIZE = 24;
+const RESTORATION_STORAGE_KEY = "cultivar-search:return-snapshot:v1";
+const HISTORY_ENTRY_KEY = "cultivarSearchEntryId";
+const RESTORATION_MAX_AGE_MS = 2 * 60 * 60 * 1000;
 
 type CultivarSort = "relevance" | "name" | "newest" | "oldest" | "mostListed";
 
@@ -69,6 +66,7 @@ interface InitialCultivarSearchState {
   listingDescription?: string;
   listingTitle?: string;
   parentage?: string;
+  photosFirst?: boolean;
   ploidy?: string;
   priceMax?: string;
   priceMin?: string;
@@ -153,6 +151,21 @@ interface CultivarSearchResponse {
   results: CultivarSearchResult[];
 }
 
+interface CultivarSearchReturnSnapshot {
+  advanced: boolean;
+  entryId: string;
+  nextOffset: number | null;
+  results: CultivarSearchResult[];
+  savedAt: number;
+  scrollAnchor: {
+    cultivarReferenceId: string;
+    viewportOffset: number;
+  } | null;
+  scrollY: number;
+  url: string;
+  version: 1;
+}
+
 const EMPTY_FILTERS: CultivarSearchFilters = {
   bloomHabit: "",
   bloomSizeMax: "",
@@ -185,15 +198,92 @@ const EMPTY_FILTERS: CultivarSearchFilters = {
 };
 
 const SORT_OPTIONS: Array<{ label: string; value: CultivarSort }> = [
-  { label: "Recommended", value: "relevance" },
-  { label: "Name A–Z", value: "name" },
-  { label: "Newest", value: "newest" },
-  { label: "Oldest", value: "oldest" },
+  { label: "Best match", value: "relevance" },
+  { label: "Newest introductions", value: "newest" },
   { label: "Most listed", value: "mostListed" },
+  { label: "Name A–Z", value: "name" },
 ];
 
 function isCultivarSort(value: string | undefined): value is CultivarSort {
   return SORT_OPTIONS.some((option) => option.value === value);
+}
+
+function getCurrentUrl() {
+  return `${window.location.pathname}${window.location.search}`;
+}
+
+function getHistoryState() {
+  const state = window.history.state as unknown;
+  return state && typeof state === "object"
+    ? (state as Record<string, unknown>)
+    : {};
+}
+
+function createHistoryEntryId() {
+  return (
+    globalThis.crypto?.randomUUID?.() ??
+    `cultivar-search-${Date.now()}-${Math.random().toString(36).slice(2)}`
+  );
+}
+
+function ensureHistoryEntryId() {
+  const state = getHistoryState();
+  const existing = state[HISTORY_ENTRY_KEY];
+  if (typeof existing === "string" && existing.length > 0) {
+    return existing;
+  }
+
+  const entryId = createHistoryEntryId();
+  window.history.replaceState(
+    { ...state, [HISTORY_ENTRY_KEY]: entryId },
+    "",
+    window.location.href,
+  );
+  return entryId;
+}
+
+function takeReturnSnapshot(entryId: string) {
+  let raw: string | null = null;
+  try {
+    raw = window.sessionStorage.getItem(RESTORATION_STORAGE_KEY);
+    window.sessionStorage.removeItem(RESTORATION_STORAGE_KEY);
+  } catch {
+    return null;
+  }
+
+  if (!raw) return null;
+
+  try {
+    const snapshot = JSON.parse(raw) as Partial<CultivarSearchReturnSnapshot>;
+    if (
+      snapshot.version !== 1 ||
+      snapshot.entryId !== entryId ||
+      snapshot.url !== getCurrentUrl() ||
+      typeof snapshot.savedAt !== "number" ||
+      Date.now() - snapshot.savedAt > RESTORATION_MAX_AGE_MS ||
+      !Array.isArray(snapshot.results)
+    ) {
+      return null;
+    }
+
+    return snapshot as CultivarSearchReturnSnapshot;
+  } catch {
+    return null;
+  }
+}
+
+function getScrollAnchor() {
+  const cards = document.querySelectorAll<HTMLElement>(
+    "[data-cultivar-result-id]",
+  );
+  for (const card of cards) {
+    const rect = card.getBoundingClientRect();
+    if (rect.bottom <= 0 || rect.top >= window.innerHeight) continue;
+    const cultivarReferenceId = card.dataset.cultivarResultId;
+    if (!cultivarReferenceId) continue;
+    return { cultivarReferenceId, viewportOffset: rect.top };
+  }
+  return null;
 }
 
 function getInitialFilters(
@@ -707,9 +797,11 @@ function AdvancedFilters({
 
 function CultivarCard({
   index,
+  onOpen,
   result,
 }: {
   index: number;
+  onOpen: (event: ReactMouseEvent<HTMLAnchorElement>) => void;
   result: CultivarSearchResult;
 }) {
   const canonicalPath = result.canonicalUrl
@@ -773,15 +865,17 @@ function CultivarCard({
 
   return (
     <Link
+      data-cultivar-result-id={result.cultivarReferenceId}
       href={canonicalPath}
-      onClick={() =>
+      onClick={(event) => {
+        onOpen(event);
         capturePosthogEvent("public_cultivar_search_result_opened", {
           cultivar_reference_id: result.cultivarReferenceId,
           result_index: index,
           matched_on: result.matchedOn,
           source_path: "/cultivars",
-        })
-      }
+        });
+      }}
       className="block rounded-3xl focus-visible:ring-2 focus-visible:ring-[#b7791f] focus-visible:ring-offset-2 focus-visible:outline-none"
     >
       {content}
@@ -816,6 +910,9 @@ export function CultivarSearchPageClient({
   const [sort, setSort] = useState<CultivarSort>(() =>
     isCultivarSort(initialState.sort) ? initialState.sort : "relevance",
   );
+  const [photosFirst, setPhotosFirst] = useState(
+    initialState.photosFirst ?? true,
+  );
   const [advanced, setAdvanced] = useState(false);
   const [results, setResults] = useState<CultivarSearchResult[]>([]);
   const [nextOffset, setNextOffset] = useState<number | null>(null);
@@ -823,7 +920,27 @@ export function CultivarSearchPageClient({
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [retryKey, setRetryKey] = useState(0);
+  const [restorationChecked, setRestorationChecked] = useState(false);
   const requestCounter = useRef(0);
+  const historyEntryIdRef = useRef<string | null>(null);
+  const pendingScrollRestorationRef =
+    useRef<CultivarSearchReturnSnapshot | null>(null);
+  const skipNextFetchRef = useRef(false);
+
+  useEffect(() => {
+    const entryId = ensureHistoryEntryId();
+    historyEntryIdRef.current = entryId;
+    const snapshot = takeReturnSnapshot(entryId);
+    if (snapshot) {
+      setAdvanced(snapshot.advanced);
+      setResults(snapshot.results);
+      setNextOffset(snapshot.nextOffset);
+      setLoading(false);
+      pendingScrollRestorationRef.current = snapshot;
+      skipNextFetchRef.current = true;
+    }
+    setRestorationChecked(true);
+  }, []);
 
   useEffect(() => {
     const timeout = window.setTimeout(() => setDebouncedQuery(query), 250);
@@ -884,10 +1001,11 @@ export function CultivarSearchPageClient({
     addParam(params, "scapeHeightMin", requestFilters.scapeHeightMin);
     addParam(params, "yearMax", requestFilters.yearMax);
     addParam(params, "yearMin", requestFilters.yearMin);
+    if (!photosFirst) params.set("photosFirst", "false");
     if (sort !== "relevance") params.set("sort", sort);
     params.sort();
     return params.toString();
-  }, [debouncedQuery, requestFilters, sort]);
+  }, [debouncedQuery, photosFirst, requestFilters, sort]);
 
   const buildRequestParams = useCallback(
     (offset: number) => {
@@ -895,14 +1013,21 @@ export function CultivarSearchPageClient({
       params.set("mode", "summary");
       params.set("limit", String(PAGE_SIZE));
       params.set("offset", String(offset));
+      params.set("photosFirst", String(photosFirst));
       params.set("sort", sort);
       params.sort();
       return params;
     },
-    [shareParams, sort],
+    [photosFirst, shareParams, sort],
   );
 
   useEffect(() => {
+    if (!restorationChecked) return;
+    if (skipNextFetchRef.current) {
+      skipNextFetchRef.current = false;
+      return;
+    }
+
     const controller = new AbortController();
     const requestId = ++requestCounter.current;
     setLoading(true);
@@ -943,7 +1068,45 @@ export function CultivarSearchPageClient({
     const nextUrl = shareParams ? `/cultivars?${shareParams}` : "/cultivars";
     window.history.replaceState(window.history.state, "", nextUrl);
     return () => controller.abort();
-  }, [buildRequestParams, retryKey, shareParams]);
+  }, [buildRequestParams, restorationChecked, retryKey, shareParams]);
+
+  useEffect(() => {
+    const snapshot = pendingScrollRestorationRef.current;
+    if (!snapshot || loading) return;
+    pendingScrollRestorationRef.current = null;
+
+    let secondFrame = 0;
+    const firstFrame = window.requestAnimationFrame(() => {
+      secondFrame = window.requestAnimationFrame(() => {
+        const anchor = snapshot.scrollAnchor
+          ? Array.from(
+              document.querySelectorAll<HTMLElement>(
+                "[data-cultivar-result-id]",
+              ),
+            ).find(
+              (card) =>
+                card.dataset.cultivarResultId ===
+                snapshot.scrollAnchor?.cultivarReferenceId,
+            )
+          : null;
+        if (anchor && snapshot.scrollAnchor) {
+          window.scrollBy({
+            behavior: "instant",
+            top:
+              anchor.getBoundingClientRect().top -
+              snapshot.scrollAnchor.viewportOffset,
+          });
+          return;
+        }
+        window.scrollTo({ behavior: "instant", top: snapshot.scrollY });
+      });
+    });
+
+    return () => {
+      window.cancelAnimationFrame(firstFrame);
+      window.cancelAnimationFrame(secondFrame);
+    };
+  }, [loading, results.length]);
 
   const updateFilters = (patch: Partial<CultivarSearchFilters>) => {
     setFilters((current) => ({ ...current, ...patch }));
@@ -964,12 +1127,52 @@ export function CultivarSearchPageClient({
     setFilters(EMPTY_FILTERS);
     setRequestFilters(EMPTY_FILTERS);
     setSort("relevance");
+    setPhotosFirst(true);
   };
 
   const hasSearchState = Boolean(
     debouncedQuery ||
       Object.values(filters).some(Boolean) ||
-      sort !== "relevance",
+      sort !== "relevance" ||
+      !photosFirst,
+  );
+
+  const saveReturnSnapshot = useCallback(
+    (event: ReactMouseEvent<HTMLAnchorElement>) => {
+      if (
+        event.button !== 0 ||
+        event.metaKey ||
+        event.ctrlKey ||
+        event.shiftKey ||
+        event.altKey
+      ) {
+        return;
+      }
+
+      const entryId = historyEntryIdRef.current ?? ensureHistoryEntryId();
+      historyEntryIdRef.current = entryId;
+      const snapshot: CultivarSearchReturnSnapshot = {
+        advanced,
+        entryId,
+        nextOffset,
+        results,
+        savedAt: Date.now(),
+        scrollAnchor: getScrollAnchor(),
+        scrollY: window.scrollY,
+        url: getCurrentUrl(),
+        version: 1,
+      };
+
+      try {
+        window.sessionStorage.setItem(
+          RESTORATION_STORAGE_KEY,
+          JSON.stringify(snapshot),
+        );
+      } catch {
+        // Browser storage can be disabled; URL state still restores normally.
+      }
+    },
+    [advanced, nextOffset, results],
   );
 
   const loadMore = async () => {
@@ -1155,38 +1358,72 @@ export function CultivarSearchPageClient({
         aria-labelledby="cultivar-results-heading"
         className="mx-auto max-w-[1180px] px-4 py-8 lg:px-8 lg:py-10"
       >
-        <div className="mb-5 flex flex-wrap items-end justify-between gap-3 border-b border-[#142118]/14 pb-4">
-          <div>
-            <h2
-              id="cultivar-results-heading"
-              className="text-2xl font-semibold text-[#142118]"
-            >
-              {debouncedQuery ? "Search results" : "Browse cultivars"}
-            </h2>
-            <p className="mt-1 text-sm text-[#617064]">
-              Open a cultivar to see its details, photos, parentage, and public
-              listings.
-            </p>
+        <div className="mb-5 border-b border-[#142118]/14 pb-4">
+          <div className="flex flex-wrap items-end justify-between gap-3">
+            <div>
+              <h2
+                id="cultivar-results-heading"
+                className="text-2xl font-semibold text-[#142118]"
+              >
+                {debouncedQuery ? "Search results" : "Browse cultivars"}
+              </h2>
+              <p className="mt-1 text-sm text-[#617064]">
+                Open a cultivar to see its details, photos, parentage, and
+                public listings.
+              </p>
+            </div>
           </div>
 
-          <Select
-            value={sort}
-            onValueChange={(value) => setSort(value as CultivarSort)}
-          >
-            <SelectTrigger
+          <div className="mt-5 flex flex-wrap items-center gap-x-5 gap-y-3 border-t border-[#142118]/10 pt-4">
+            <div
               aria-label="Sort cultivars"
-              className="ml-auto h-9 w-44 border-[#142118]/20 bg-white shadow-none"
+              className="flex flex-wrap items-center gap-2"
+              role="group"
             >
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {SORT_OPTIONS.map((option) => (
-                <SelectItem key={option.value} value={option.value}>
-                  {option.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+              <span className="mr-1 text-xs font-semibold tracking-[0.12em] text-[#617064] uppercase">
+                Sort
+              </span>
+              {SORT_OPTIONS.map((option) => {
+                const active = sort === option.value;
+                return (
+                  <Button
+                    aria-pressed={active}
+                    className={
+                      active
+                        ? "h-9 border-[#173126] bg-[#173126] px-3.5 text-white shadow-none hover:bg-[#294635]"
+                        : "h-9 border-[#142118]/20 bg-white px-3.5 text-[#294635] shadow-none hover:border-[#142118]/35 hover:bg-[#f2f5ef]"
+                    }
+                    key={option.value}
+                    onClick={() => setSort(option.value)}
+                    size="sm"
+                    type="button"
+                    variant={active ? "default" : "outline"}
+                  >
+                    {option.label}
+                  </Button>
+                );
+              })}
+            </div>
+
+            <div className="border-[#142118]/12 sm:border-l sm:pl-5">
+              <Button
+                aria-pressed={photosFirst}
+                className={
+                  photosFirst
+                    ? "h-9 border-[#173126] bg-[#173126] px-3.5 text-white shadow-none hover:bg-[#294635]"
+                    : "h-9 border-[#142118]/20 bg-white px-3.5 text-[#294635] shadow-none hover:border-[#142118]/35 hover:bg-[#f2f5ef]"
+                }
+                data-testid="cultivar-sort-photos-first"
+                onClick={() => setPhotosFirst((current) => !current)}
+                size="sm"
+                type="button"
+                variant={photosFirst ? "default" : "outline"}
+              >
+                <Camera className="size-4" />
+                Photos first
+              </Button>
+            </div>
+          </div>
         </div>
 
         {loading ? (
@@ -1221,6 +1458,7 @@ export function CultivarSearchPageClient({
                 <CultivarCard
                   key={result.cultivarReferenceId}
                   index={index}
+                  onOpen={saveReturnSnapshot}
                   result={result}
                 />
               ))}

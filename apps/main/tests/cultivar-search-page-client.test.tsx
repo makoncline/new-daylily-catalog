@@ -109,6 +109,11 @@ describe("CultivarSearchPageClient", () => {
 
   beforeEach(() => {
     window.history.replaceState({}, "", "/");
+    window.sessionStorage.clear();
+    Object.defineProperty(window, "scrollY", {
+      configurable: true,
+      value: 0,
+    });
     fetchMock.mockClear();
     fetchMock.mockResolvedValue({
       json: async () => searchResponse(),
@@ -129,6 +134,7 @@ describe("CultivarSearchPageClient", () => {
   });
 
   afterEach(() => {
+    vi.restoreAllMocks();
     vi.unstubAllGlobals();
   });
 
@@ -154,7 +160,7 @@ describe("CultivarSearchPageClient", () => {
       "/cultivar/stella-de-oro",
     );
     expect(String(fetchMock.mock.calls[0]?.[0])).toBe(
-      "/api/v1/cultivars/search?form=Double%7CSpider&limit=24&mode=summary&offset=0&priceMax=286&q=Stella+de+Oro&sort=relevance",
+      "/api/v1/cultivars/search?form=Double%7CSpider&limit=24&mode=summary&offset=0&photosFirst=true&priceMax=286&q=Stella+de+Oro&sort=relevance",
     );
     expect(`${window.location.pathname}${window.location.search}`).toBe(
       "/cultivars?form=Double%7CSpider&priceMax=286&q=Stella+de+Oro",
@@ -169,6 +175,32 @@ describe("CultivarSearchPageClient", () => {
         ),
       ).toBe(true);
     });
+
+    expect(screen.getByRole("group", { name: "Sort cultivars" })).toBeVisible();
+    expect(screen.getByRole("button", { name: "Best match" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    expect(
+      screen.getByRole("button", { name: "Photos first" }),
+    ).toHaveAttribute("aria-pressed", "true");
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Newest introductions" }),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Photos first" }));
+
+    await waitFor(() => {
+      const lastUrl = String(fetchMock.mock.calls.at(-1)?.[0]);
+      expect(lastUrl).toContain("sort=newest");
+      expect(lastUrl).toContain("photosFirst=false");
+    });
+    expect(`${window.location.pathname}${window.location.search}`).toContain(
+      "photosFirst=false",
+    );
+    expect(`${window.location.pathname}${window.location.search}`).toContain(
+      "sort=newest",
+    );
   });
 
   it("exposes the complete advanced filter groups and sends their values", async () => {
@@ -305,5 +337,100 @@ describe("CultivarSearchPageClient", () => {
     expect(
       screen.getByRole("heading", { name: "Filtered cultivar" }),
     ).toBeVisible();
+  });
+
+  it("restores loaded pages only when returning to the same history entry", async () => {
+    const scrollToMock = vi
+      .spyOn(window, "scrollTo")
+      .mockImplementation(() => undefined);
+    Object.defineProperty(window, "scrollY", {
+      configurable: true,
+      value: 742,
+    });
+
+    fetchMock.mockImplementation((url: string) => {
+      const response = url.includes("offset=24")
+        ? searchResponseFor({
+            cultivarReferenceId: "second-page",
+            name: "Second page cultivar",
+          })
+        : searchResponseFor({
+            cultivarReferenceId: "first-page",
+            name: "First page cultivar",
+            nextOffset: 24,
+          });
+
+      return Promise.resolve({ json: async () => response, ok: true });
+    });
+
+    const firstRender = render(
+      <CultivarSearchPageClient
+        initialState={{
+          hasCultivarPhoto: false,
+          hasForSaleListings: false,
+          hasListings: false,
+          q: "",
+        }}
+      />,
+    );
+
+    await screen.findByRole("heading", { name: "First page cultivar" });
+    fireEvent.click(
+      screen.getByRole("button", { name: "Load more cultivars" }),
+    );
+    await screen.findByRole("heading", { name: "Second page cultivar" });
+    const resultLink = screen.getByRole("link", {
+      name: /Second page cultivar/,
+    });
+    resultLink.addEventListener("click", (event) => event.preventDefault());
+    fireEvent.click(resultLink);
+
+    const searchEntryState = window.history.state;
+    firstRender.unmount();
+    fetchMock.mockClear();
+
+    const restoredRender = render(
+      <CultivarSearchPageClient
+        initialState={{
+          hasCultivarPhoto: false,
+          hasForSaleListings: false,
+          hasListings: false,
+          q: "",
+        }}
+      />,
+    );
+
+    expect(
+      await screen.findByRole("heading", { name: "Second page cultivar" }),
+    ).toBeVisible();
+    expect(fetchMock).not.toHaveBeenCalled();
+    await waitFor(() =>
+      expect(scrollToMock).toHaveBeenCalledWith({
+        behavior: "instant",
+        top: 742,
+      }),
+    );
+
+    restoredRender.unmount();
+    window.history.replaceState({}, "", "/cultivars");
+    expect(window.history.state).not.toEqual(searchEntryState);
+    fetchMock.mockClear();
+
+    render(
+      <CultivarSearchPageClient
+        initialState={{
+          hasCultivarPhoto: false,
+          hasForSaleListings: false,
+          hasListings: false,
+          q: "",
+        }}
+      />,
+    );
+
+    await screen.findByRole("heading", { name: "First page cultivar" });
+    expect(
+      screen.queryByRole("heading", { name: "Second page cultivar" }),
+    ).not.toBeInTheDocument();
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 });
