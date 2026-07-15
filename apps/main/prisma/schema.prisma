@@ -89,6 +89,7 @@ model V2AhsCultivar {
   @@index([post_id], map: "V2AhsCultivar_post_id_idx")
   @@index([link_normalized_name], map: "V2AhsCultivar_link_normalized_name_idx")
   @@index([post_title], map: "V2AhsCultivar_post_title_idx")
+  @@index([primary_hybridizer_id], map: "V2AhsCultivar_primary_hybridizer_id_idx")
   @@index([primary_hybridizer_name], map: "V2AhsCultivar_primary_hybridizer_name_idx")
   @@index([hybridizer_code_legacy], map: "V2AhsCultivar_hybridizer_code_legacy_idx")
 }

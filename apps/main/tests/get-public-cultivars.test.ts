@@ -510,8 +510,8 @@ describe("getPublicCultivarPage", () => {
     expect(mockDb.v2AhsCultivar.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
         where: expect.objectContaining({
-          primary_hybridizer_name: "Reed",
-          image_url: { not: null },
+          OR: [{ primary_hybridizer_name: "Reed" }],
+          AND: [{ image_url: { not: null } }],
           cultivarReference: {
             is: expect.objectContaining({
               id: { not: "cultivar-1" },
@@ -614,7 +614,64 @@ describe("getPublicCultivarPage", () => {
     expect(mockDb.v2AhsCultivar.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
         where: expect.objectContaining({
-          primary_hybridizer_name: "V2 Hybridizer",
+          OR: [{ primary_hybridizer_name: "V2 Hybridizer" }],
+        }),
+      }),
+    );
+  });
+
+  it("finds related cultivars across stable, current, and legacy hybridizer identifiers", async () => {
+    mockDb.cultivarReference.findFirst.mockResolvedValue({
+      id: "cultivar-modern-hybridizer",
+      normalizedName: "voellig losgeloest",
+      updatedAt: new Date("2026-01-05T00:00:00.000Z"),
+      v2AhsCultivar: {
+        id: "v2-modern-hybridizer",
+        post_title: "Voellig Losgeloest",
+        primary_hybridizer_id: "180114",
+        primary_hybridizer_name: "Frank Schueler",
+        hybridizer_code_legacy: "Schueler",
+        image_url: "https://example.com/voellig.jpg",
+      },
+    });
+    mockDb.listing.findMany.mockResolvedValue([]);
+    mockDb.user.findMany.mockResolvedValue([]);
+    mockDb.v2AhsCultivar.findMany.mockResolvedValue([
+      {
+        id: "v2-legacy-peer",
+        post_title: "Legacy Schueler Peer",
+        primary_hybridizer_id: null,
+        primary_hybridizer_name: null,
+        hybridizer_code_legacy: "Schueler",
+        image_url: "https://example.com/legacy-peer.jpg",
+        cultivarReference: {
+          id: "cultivar-legacy-peer",
+          normalizedName: "legacy schueler peer",
+        },
+      },
+    ]);
+
+    const result = await getPublicCultivarPage("voellig-losgeloest");
+
+    expect(result?.relatedByHybridizer).toEqual([
+      expect.objectContaining({
+        name: "Legacy Schueler Peer",
+        segment: "legacy-schueler-peer",
+      }),
+    ]);
+    expect(mockDb.v2AhsCultivar.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        orderBy: {
+          cultivarReference: {
+            normalizedName: "asc",
+          },
+        },
+        where: expect.objectContaining({
+          OR: [
+            { primary_hybridizer_id: "180114" },
+            { primary_hybridizer_name: "Frank Schueler" },
+            { hybridizer_code_legacy: "Schueler" },
+          ],
         }),
       }),
     );
@@ -698,6 +755,99 @@ describe("getPublicCultivarPage", () => {
     });
   });
 
+  it("includes related cultivars that only have a generated image", async () => {
+    process.env.USE_GENERATED_CULTIVAR_IMAGE_ASSETS = "true";
+
+    mockDb.cultivarReference.findFirst.mockResolvedValue({
+      id: "cultivar-silver-butterfly",
+      normalizedName: "silver butterfly",
+      updatedAt: new Date("2026-01-05T00:00:00.000Z"),
+      v2AhsCultivar: {
+        id: "v2-silver-butterfly",
+        post_title: "Silver Butterfly",
+        primary_hybridizer_id: null,
+        primary_hybridizer_name: null,
+        hybridizer_code_legacy: "Schlumpf",
+        image_url: "https://example.com/silver-butterfly.jpg",
+      },
+      imageAssets: [],
+    });
+    mockDb.listing.findMany.mockResolvedValue([]);
+    mockDb.user.findMany.mockResolvedValue([]);
+    mockDb.v2AhsCultivar.findMany.mockResolvedValue([
+      {
+        id: "v2-black-knight",
+        post_title: "Black Knight",
+        primary_hybridizer_id: null,
+        primary_hybridizer_name: null,
+        hybridizer_code_legacy: "Schlumpf",
+        image_url: null,
+        cultivarReference: {
+          id: "cultivar-black-knight",
+          normalizedName: "black knight",
+          imageAssets: [
+            {
+              id: "asset-black-knight",
+              legacyImageId: null,
+              status: "ready",
+              originalUrl:
+                "https://media.daylilycatalog.com/black-knight/original.png",
+              displayUrl:
+                "https://media.daylilycatalog.com/black-knight/display-800.webp",
+              thumbUrl:
+                "https://media.daylilycatalog.com/black-knight/thumb-200.webp",
+              blurUrl:
+                "https://media.daylilycatalog.com/black-knight/blur-20.webp",
+            },
+          ],
+        },
+      },
+    ]);
+
+    const result = await getPublicCultivarPage("silver-butterfly");
+
+    expect(result?.relatedByHybridizer).toEqual([
+      expect.objectContaining({
+        name: "Black Knight",
+        segment: "black-knight",
+        imageUrl:
+          "https://media.daylilycatalog.com/black-knight/display-800.webp",
+      }),
+    ]);
+    expect(mockDb.v2AhsCultivar.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          AND: [
+            {
+              OR: [
+                { image_url: { not: null } },
+                {
+                  cultivarReference: {
+                    is: {
+                      imageAssets: {
+                        some: {
+                          kind: "cultivar",
+                          status: "ready",
+                        },
+                      },
+                    },
+                  },
+                },
+              ],
+            },
+          ],
+        }),
+        select: expect.objectContaining({
+          cultivarReference: {
+            select: expect.objectContaining({
+              imageAssets: expect.any(Object),
+            }),
+          },
+        }),
+      }),
+    );
+  });
+
   it("uses the decoded legacy hybridizer fallback on the public cultivar page when V2 primary is blank", async () => {
     mockDb.cultivarReference.findFirst.mockResolvedValue({
       id: "cultivar-v2-fallback",
@@ -769,7 +919,9 @@ describe("getPublicCultivarPage", () => {
     expect(mockDb.v2AhsCultivar.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
         where: expect.objectContaining({
-          hybridizer_code_legacy: "Gregory-CJ &amp; V.",
+          OR: [
+            { hybridizer_code_legacy: "Gregory-CJ &amp; V." },
+          ],
         }),
       }),
     );

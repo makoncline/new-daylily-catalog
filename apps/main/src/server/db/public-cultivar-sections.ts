@@ -13,7 +13,11 @@ import { toCultivarRouteSegment } from "@/lib/utils/cultivar-utils";
 import { replicaDb } from "@/server/db";
 import { getCloudflareUrlForDaylilyS3Image } from "@/lib/utils/cloudflareLoader";
 import type { ImageAssetView } from "@/server/services/image-asset-read-model";
-import { resolveCultivarReferenceImage } from "@/server/services/cultivar-reference-image-read-model";
+import {
+  generatedCultivarImageAssetInclude,
+  resolveCultivarReferenceImage,
+  shouldQueryGeneratedCultivarImageAssets,
+} from "@/server/services/cultivar-reference-image-read-model";
 
 const CULTIVAR_SPEC_FIELDS = [
   ["Scape Height", "scapeHeight"],
@@ -67,12 +71,13 @@ function toRelatedCultivars(
   relatedByHybridizer: Array<{
     normalizedName: string | null;
     ahsListing: CultivarAhsListing | null;
+    imageUrl: string | null;
   }>,
 ): PublicRelatedCultivar[] {
   return relatedByHybridizer
     .flatMap((relatedCultivar) => {
       const segment = toCultivarRouteSegment(relatedCultivar.normalizedName);
-      const imageUrl = relatedCultivar.ahsListing?.ahsImageUrl;
+      const imageUrl = relatedCultivar.imageUrl;
 
       if (!segment || !imageUrl) {
         return [];
@@ -440,23 +445,51 @@ export async function buildPublicCultivarSummary(args: PublicCultivarContext) {
   const allSpecs = getCultivarSpecs(cultivarReference.ahsListing);
   const gardensCount = userIds.length;
   const offersCount = args.listingCards.length;
+  const primaryHybridizerId =
+    cultivarReference.v2AhsCultivar?.primary_hybridizer_id?.trim();
   const primaryHybridizer =
     cultivarReference.v2AhsCultivar?.primary_hybridizer_name?.trim();
   const legacyHybridizer =
     cultivarReference.v2AhsCultivar?.hybridizer_code_legacy?.trim();
-  const hybridizerWhere = primaryHybridizer
-    ? { primary_hybridizer_name: primaryHybridizer }
-    : legacyHybridizer
-      ? { hybridizer_code_legacy: legacyHybridizer }
-      : null;
-  const relatedByHybridizer = hybridizerWhere
+  const hybridizerIdentifiers = [
+    ...(primaryHybridizerId
+      ? [{ primary_hybridizer_id: primaryHybridizerId }]
+      : []),
+    ...(primaryHybridizer
+      ? [{ primary_hybridizer_name: primaryHybridizer }]
+      : []),
+    ...(legacyHybridizer
+      ? [{ hybridizer_code_legacy: legacyHybridizer }]
+      : []),
+  ];
+  const generatedCultivarImagesEnabled =
+    shouldQueryGeneratedCultivarImageAssets();
+  const relatedByHybridizer = hybridizerIdentifiers.length
     ? (
         await replicaDb.v2AhsCultivar.findMany({
           where: {
-            ...hybridizerWhere,
-            image_url: {
-              not: null,
-            },
+            OR: hybridizerIdentifiers,
+            AND: generatedCultivarImagesEnabled
+              ? [
+                  {
+                    OR: [
+                      { image_url: { not: null } },
+                      {
+                        cultivarReference: {
+                          is: {
+                            imageAssets: {
+                              some: {
+                                kind: "cultivar",
+                                status: "ready",
+                              },
+                            },
+                          },
+                        },
+                      },
+                    ],
+                  },
+                ]
+              : [{ image_url: { not: null } }],
             cultivarReference: {
               is: {
                 id: {
@@ -472,18 +505,37 @@ export async function buildPublicCultivarSummary(args: PublicCultivarContext) {
             ...v2AhsCultivarDisplaySelect,
             cultivarReference: {
               select: {
+                id: true,
                 normalizedName: true,
+                ...(generatedCultivarImagesEnabled
+                  ? { imageAssets: generatedCultivarImageAssetInclude }
+                  : {}),
               },
+            },
+          },
+          orderBy: {
+            cultivarReference: {
+              normalizedName: "asc",
             },
           },
           take: RELATED_CULTIVAR_LIMIT,
         })
-      ).map((row) =>
-        withResolvedDisplayAhsListing({
+      ).map((row) => {
+        const resolvedCultivar = withResolvedDisplayAhsListing({
           normalizedName: row.cultivarReference?.normalizedName ?? null,
           v2AhsCultivar: row,
-        }),
-      )
+        });
+        const image = resolveCultivarReferenceImage({
+          id: row.cultivarReference?.id ?? row.id,
+          fallbackImageUrl: row.image_url,
+          imageAssets: row.cultivarReference?.imageAssets,
+        });
+
+        return {
+          ...resolvedCultivar,
+          imageUrl: image?.url ?? null,
+        };
+      })
     : [];
 
   const cultivarName = getCultivarDisplayName(

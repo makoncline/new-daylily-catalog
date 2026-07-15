@@ -32,7 +32,11 @@ interface PublicCultivarReferenceRecord {
   normalizedName: string | null;
   updatedAt: Date;
   ahsListing: CultivarAhsListing | null;
-  v2AhsCultivar?: V2AhsCultivarDisplaySource | null;
+  v2AhsCultivar?:
+    | (V2AhsCultivarDisplaySource & {
+        primary_hybridizer_id?: string | null;
+      })
+    | null;
   imageAssets?: ImageAssetUrlRow[];
 }
 
@@ -71,7 +75,10 @@ async function findCultivarReferenceByNormalizedName(
       normalizedName: true,
       updatedAt: true,
       v2AhsCultivar: {
-        select: v2AhsCultivarDisplaySelect,
+        select: {
+          ...v2AhsCultivarDisplaySelect,
+          primary_hybridizer_id: true,
+        },
       },
       ...(shouldQueryGeneratedCultivarImageAssets()
         ? { imageAssets: generatedCultivarImageAssetInclude }
