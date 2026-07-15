@@ -8,6 +8,7 @@ import { DataTableFilteredCount } from "@/components/data-table/data-table-filte
 import { InlineCode } from "@/components/typography";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Switch } from "@/components/ui/switch";
 import { resetTableState } from "@/lib/table-utils";
 import { cn } from "@/lib/utils";
 import {
@@ -220,22 +221,73 @@ export function PublicCatalogSearchQueryField<TData>({
   };
 
   return (
+    <PublicCatalogSearchQueryInput
+      className={className}
+      inputClassName={inputClassName}
+      onChange={updateFilter}
+      onSubmit={onSubmit}
+      placeholder="Search listings..."
+      value={currentGlobalFilter}
+    />
+  );
+}
+
+export function PublicCatalogSearchQueryInput({
+  className,
+  inputClassName,
+  onChange,
+  onSubmit,
+  placeholder,
+  value,
+}: {
+  className?: string;
+  inputClassName?: string;
+  onChange: (value: string) => void;
+  onSubmit?: () => void;
+  placeholder: string;
+  value: string;
+}) {
+  return (
     <div className={className} data-testid="search-query-form">
       <Input
-        placeholder="Search listings..."
-        value={currentGlobalFilter}
+        placeholder={placeholder}
+        value={value}
         className={cn("h-9", inputClassName)}
         data-testid="search-all-fields-input"
-        onChange={(e) => {
-          updateFilter(e.target.value);
-        }}
+        onChange={(event) => onChange(event.target.value)}
         onKeyDown={(event) => {
-          if (event.key !== "Enter") return;
-
-          onSubmit?.();
+          if (event.key === "Enter") onSubmit?.();
         }}
       />
     </div>
+  );
+}
+
+export function PublicCatalogSearchModeToggle({
+  checked,
+  id,
+  onCheckedChange,
+}: {
+  checked: boolean;
+  id: string;
+  onCheckedChange: (checked: boolean) => void;
+}) {
+  return (
+    <label
+      htmlFor={id}
+      className="grid grid-rows-[auto_2rem] justify-items-center gap-1"
+      data-testid="search-mode-toggle"
+    >
+      <span className="text-xs font-medium tracking-wide uppercase">
+        Advanced
+      </span>
+      <Switch
+        id={id}
+        checked={checked}
+        onCheckedChange={onCheckedChange}
+        data-testid="search-mode-switch"
+      />
+    </label>
   );
 }
 

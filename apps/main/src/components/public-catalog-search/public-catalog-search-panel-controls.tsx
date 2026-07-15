@@ -134,36 +134,35 @@ function getFilterIcon(kind: "camera" | "dollar" | "link" | undefined) {
   }
 }
 
-function BooleanFilterToggle<TData>({
-  column,
+export function PublicCatalogSearchBooleanFilter({
+  active,
   label,
   icon,
+  onToggle,
   testId,
-  table,
+  tone = "default",
 }: {
-  column: Column<TData, unknown> | null;
+  active: boolean;
   label: string;
   icon?: "camera" | "dollar" | "link";
+  onToggle: () => void;
   testId: string;
-  table: Table<TData>;
+  tone?: "default" | "dark";
 }) {
-  if (!column) {
-    return null;
-  }
-
-  const active = isBooleanFilterActive(column);
-
   return (
     <Button
       data-testid={testId}
       type="button"
       size="sm"
       variant={active ? "default" : "outline"}
-      className={cn(active && "shadow-sm")}
-      onClick={() => {
-        column.setFilterValue(active ? undefined : true);
-        table.resetPagination();
-      }}
+      className={cn(
+        active && "shadow-sm",
+        tone === "dark" &&
+          (active
+            ? "bg-[#f4c477] text-[#142118] hover:bg-[#eab663] max-sm:h-11 max-sm:px-3"
+            : "border-white/30 bg-transparent text-white hover:bg-white/10 hover:text-white max-sm:h-11 max-sm:px-3"),
+      )}
+      onClick={onToggle}
     >
       {getFilterIcon(icon)}
       <span>{label}</span>
@@ -171,84 +170,82 @@ function BooleanFilterToggle<TData>({
   );
 }
 
-function TextFilterControl<TData>({
-  column,
+export function PublicCatalogSearchTextFilter({
   label,
+  onChange,
   placeholder,
-  table,
   testId,
+  tone = "default",
+  value,
 }: {
-  column: Column<TData, unknown> | null;
   label: string;
+  onChange: (value: string) => void;
   placeholder: string;
-  table: Table<TData>;
   testId: string;
+  tone?: "default" | "dark";
+  value: string;
 }) {
-  if (!column) {
-    return null;
-  }
-
-  const value = column.getFilterValue();
-  const inputValue = typeof value === "string" ? value : "";
-
   return (
     <div className="space-y-2">
-      <Label className="text-xs font-medium tracking-wide uppercase">
+      <Label
+        className={cn(
+          "text-xs font-medium tracking-wide uppercase",
+          tone === "dark" && "text-[#f4c477]",
+        )}
+      >
         {label}
       </Label>
       <Input
         data-testid={testId}
-        value={inputValue}
+        value={value}
         placeholder={placeholder}
-        onChange={(event) => {
-          const nextValue = event.target.value;
-          column.setFilterValue(nextValue.length > 0 ? nextValue : undefined);
-          table.resetPagination();
-        }}
+        className={cn(
+          tone === "dark" &&
+            "border-white/25 bg-[#07120e]/55 text-white shadow-none placeholder:text-white/45 max-sm:h-11",
+        )}
+        onChange={(event) => onChange(event.target.value)}
       />
     </div>
   );
 }
 
-function RangeFilterControl<TData>({
-  column,
+export interface PublicCatalogSearchRangeBounds {
+  min: number;
+  max: number;
+  step?: number;
+}
+
+export function PublicCatalogSearchRangeFilter({
+  bounds,
   label,
-  table,
+  onChange,
+  onCommit,
   testId,
+  tone = "default",
   unit,
+  value,
 }: {
-  column: Column<TData, unknown> | null;
+  bounds: PublicCatalogSearchRangeBounds;
   label: string;
-  table: Table<TData>;
+  onChange: (value: NumericRange) => void;
+  onCommit?: (value: NumericRange) => void;
   testId: string;
+  tone?: "default" | "dark";
   unit?: string;
+  value: NumericRange;
 }) {
-  if (!column) {
-    return null;
-  }
-
-  const bounds = getRangeBounds(table, column);
-  if (!bounds) {
-    return (
-      <div className="w-full max-w-64 space-y-2">
-        <Label className="text-xs font-medium tracking-wide uppercase">
-          {label}
-          {unit ? ` (${unit})` : ""}
-        </Label>
-        <p className="text-muted-foreground text-xs">No numeric values</p>
-      </div>
-    );
-  }
-
-  const range = getRangeValue(column);
-  let sliderMin = clampValue(range.min ?? bounds.min, bounds.min, bounds.max);
-  let sliderMax = clampValue(range.max ?? bounds.max, bounds.min, bounds.max);
+  const step = bounds.step ?? 1;
+  let sliderMin = clampValue(value.min ?? bounds.min, bounds.min, bounds.max);
+  let sliderMax = clampValue(value.max ?? bounds.max, bounds.min, bounds.max);
 
   if (sliderMin > sliderMax) {
     [sliderMin, sliderMax] = [sliderMax, sliderMin];
   }
 
-  const commitRange = (nextMinValue: number, nextMaxValue: number) => {
+  const getNextRange = (
+    nextMinValue: number,
+    nextMaxValue: number,
+  ): NumericRange => {
     const nextMin = roundToStep(
       clampValue(nextMinValue, bounds.min, bounds.max),
     );
@@ -259,40 +256,51 @@ function RangeFilterControl<TData>({
     const max = nextMax >= bounds.max ? null : nextMax;
 
     if (min === null && max === null) {
-      column.setFilterValue(undefined);
-      table.resetPagination();
-      return;
+      return { min: null, max: null };
     }
 
-    column.setFilterValue(formatNumericRange({ min, max }));
-    table.resetPagination();
+    return { min, max };
   };
 
   const handleSliderChange = (nextValues: number[]) => {
     const [nextMinValue = bounds.min, nextMaxValue = bounds.max] = nextValues;
-    commitRange(nextMinValue, nextMaxValue);
+    onChange(getNextRange(nextMinValue, nextMaxValue));
+  };
+
+  const handleSliderCommit = (nextValues: number[]) => {
+    const [nextMinValue = bounds.min, nextMaxValue = bounds.max] = nextValues;
+    onCommit?.(getNextRange(nextMinValue, nextMaxValue));
   };
 
   const handleInputCommit = (which: "min" | "max", raw: string) => {
     const parsed = Number.parseFloat(raw);
     if (!Number.isFinite(parsed)) return;
-    if (which === "min") {
-      commitRange(parsed, sliderMax);
-    } else {
-      commitRange(sliderMin, parsed);
-    }
+    const nextRange =
+      which === "min"
+        ? getNextRange(parsed, sliderMax)
+        : getNextRange(sliderMin, parsed);
+    onChange(nextRange);
+    onCommit?.(nextRange);
   };
 
   const displayLabel = unit ? `${label} (${unit})` : label;
 
   return (
-    <div className="w-full max-w-64 space-y-2">
+    <div className="w-full max-w-64 space-y-2" data-testid={testId}>
       <div className="flex items-center justify-between gap-2">
-        <Label className="text-xs font-medium tracking-wide uppercase">
+        <Label
+          className={cn(
+            "text-xs font-medium tracking-wide uppercase",
+            tone === "dark" && "text-[#f4c477]",
+          )}
+        >
           {displayLabel}
         </Label>
         <span
-          className="text-muted-foreground text-xs"
+          className={cn(
+            "text-muted-foreground text-xs",
+            tone === "dark" && "text-white/65",
+          )}
           data-testid={`${testId}-value`}
         >
           {formatRangeNumber(sliderMin)} - {formatRangeNumber(sliderMax)}
@@ -304,23 +312,43 @@ function RangeFilterControl<TData>({
         value={[sliderMin, sliderMax]}
         min={bounds.min}
         max={bounds.max}
-        step={bounds.step}
+        step={step}
         minStepsBetweenThumbs={0}
         onValueChange={handleSliderChange}
-        className="relative flex w-full touch-none items-center select-none"
+        onValueCommit={handleSliderCommit}
+        className={cn(
+          "relative flex w-full touch-none items-center select-none",
+          tone === "dark" && "max-sm:py-2",
+        )}
       >
-        <SliderPrimitive.Track className="bg-primary/20 relative h-1.5 w-full grow overflow-hidden rounded-full">
-          <SliderPrimitive.Range className="bg-primary absolute h-full" />
+        <SliderPrimitive.Track
+          className={cn(
+            "bg-primary/20 relative h-1.5 w-full grow overflow-hidden rounded-full",
+            tone === "dark" && "bg-white/20",
+          )}
+        >
+          <SliderPrimitive.Range
+            className={cn(
+              "bg-primary absolute h-full",
+              tone === "dark" && "bg-[#f4c477]",
+            )}
+          />
         </SliderPrimitive.Track>
         <SliderPrimitive.Thumb
           data-testid={`${testId}-thumb-min`}
           aria-label={`${label} minimum`}
-          className="border-primary/50 bg-background focus-visible:ring-ring block size-4 rounded-full border shadow transition-colors focus-visible:ring-1 focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50"
+          className={cn(
+            "border-primary/50 bg-background focus-visible:ring-ring block size-4 rounded-full border shadow transition-colors focus-visible:ring-1 focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50",
+            tone === "dark" && "border-[#f4c477] bg-[#07120e]",
+          )}
         />
         <SliderPrimitive.Thumb
           data-testid={`${testId}-thumb-max`}
           aria-label={`${label} maximum`}
-          className="border-primary/50 bg-background focus-visible:ring-ring block size-4 rounded-full border shadow transition-colors focus-visible:ring-1 focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50"
+          className={cn(
+            "border-primary/50 bg-background focus-visible:ring-ring block size-4 rounded-full border shadow transition-colors focus-visible:ring-1 focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50",
+            tone === "dark" && "border-[#f4c477] bg-[#07120e]",
+          )}
         />
       </SliderPrimitive.Root>
 
@@ -329,10 +357,14 @@ function RangeFilterControl<TData>({
           type="number"
           data-testid={`${testId}-input-min`}
           aria-label={`${label} minimum`}
-          className="h-7 w-20 text-xs tabular-nums"
+          className={cn(
+            "h-7 w-20 text-xs tabular-nums",
+            tone === "dark" &&
+              "border-white/25 bg-[#07120e]/55 text-white shadow-none max-sm:h-10",
+          )}
           min={bounds.min}
           max={bounds.max}
-          step={bounds.step}
+          step={step}
           value={formatRangeNumber(sliderMin)}
           onChange={() => undefined}
           onBlur={(e) => handleInputCommit("min", e.target.value)}
@@ -346,10 +378,14 @@ function RangeFilterControl<TData>({
           type="number"
           data-testid={`${testId}-input-max`}
           aria-label={`${label} maximum`}
-          className="h-7 w-20 text-right text-xs tabular-nums"
+          className={cn(
+            "h-7 w-20 text-right text-xs tabular-nums",
+            tone === "dark" &&
+              "border-white/25 bg-[#07120e]/55 text-white shadow-none max-sm:h-10",
+          )}
           min={bounds.min}
           max={bounds.max}
-          step={bounds.step}
+          step={step}
           value={formatRangeNumber(sliderMax)}
           onChange={() => undefined}
           onBlur={(e) => handleInputCommit("max", e.target.value)}
@@ -364,6 +400,37 @@ function RangeFilterControl<TData>({
   );
 }
 
+export function PublicCatalogSearchFacetFilter({
+  label,
+  onChange,
+  options,
+  testId,
+  tone = "default",
+  values,
+}: {
+  label: string;
+  onChange: (values: string[]) => void;
+  options: PublicCatalogSearchFacetOption[];
+  testId: string;
+  tone?: "default" | "dark";
+  values: string[];
+}) {
+  return (
+    <div data-testid={testId}>
+      <DataTableFacetedFilter<unknown>
+        title={label}
+        options={options}
+        values={values}
+        onValuesChange={onChange}
+        buttonClassName={cn(
+          tone === "dark" &&
+            "border-white/30 bg-transparent text-white hover:bg-white/10 hover:text-white max-sm:h-11",
+        )}
+      />
+    </div>
+  );
+}
+
 export function PublicCatalogSearchFilterControl<TData>({
   definition,
   context,
@@ -374,38 +441,73 @@ export function PublicCatalogSearchFilterControl<TData>({
   const column = getPublicCatalogSearchFilterColumn(context.table, definition);
 
   switch (definition.kind) {
-    case "boolean":
+    case "boolean": {
+      if (!column) return null;
+      const active = isBooleanFilterActive(column);
       return (
-        <BooleanFilterToggle
-          column={column}
+        <PublicCatalogSearchBooleanFilter
+          active={active}
           icon={definition.icon}
           label={definition.label}
+          onToggle={() => {
+            column.setFilterValue(active ? undefined : true);
+            context.table.resetPagination();
+          }}
           testId={definition.testId}
-          table={context.table}
         />
       );
-    case "text":
+    }
+    case "text": {
+      if (!column) return null;
+      const value = column.getFilterValue();
       return (
-        <TextFilterControl
-          column={column}
+        <PublicCatalogSearchTextFilter
           label={definition.label}
+          value={typeof value === "string" ? value : ""}
           placeholder={
             definition.placeholder ?? `Search ${definition.label.toLowerCase()}`
           }
-          table={context.table}
+          onChange={(nextValue) => {
+            column.setFilterValue(nextValue.length > 0 ? nextValue : undefined);
+            context.table.resetPagination();
+          }}
           testId={definition.testId}
         />
       );
-    case "range":
+    }
+    case "range": {
+      if (!column) return null;
+      const bounds = getRangeBounds(context.table, column);
+      if (!bounds) {
+        return (
+          <div className="w-full max-w-64 space-y-2">
+            <Label className="text-xs font-medium tracking-wide uppercase">
+              {definition.label}
+              {definition.unit ? ` (${definition.unit})` : ""}
+            </Label>
+            <p className="text-muted-foreground text-xs">No numeric values</p>
+          </div>
+        );
+      }
+
       return (
-        <RangeFilterControl
-          column={column}
+        <PublicCatalogSearchRangeFilter
+          bounds={bounds}
           label={definition.label}
-          table={context.table}
+          value={getRangeValue(column)}
+          onChange={(nextValue) => {
+            if (nextValue.min === null && nextValue.max === null) {
+              column.setFilterValue(undefined);
+            } else {
+              column.setFilterValue(formatNumericRange(nextValue));
+            }
+            context.table.resetPagination();
+          }}
           testId={definition.testId}
           unit={definition.unit}
         />
       );
+    }
     case "facet": {
       return (
         <div data-testid={definition.testId}>

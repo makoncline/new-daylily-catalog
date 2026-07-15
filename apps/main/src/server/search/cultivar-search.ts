@@ -14,6 +14,13 @@ import {
 } from "@/server/search/public-search-index";
 import { areGeneratedCultivarImageAssetsEnabledByDefault } from "@/config/feature-flags";
 
+export type CultivarSearchSort =
+  | "relevance"
+  | "name"
+  | "newest"
+  | "oldest"
+  | "mostListed";
+
 interface CultivarSearchArgs {
   bloomHabit?: string;
   bloomSizeMax?: number;
@@ -28,6 +35,7 @@ interface CultivarSearchArgs {
   foliageType?: string;
   form?: string;
   fragrance?: string;
+  hasCultivarPhoto?: boolean;
   hasForSaleListings?: boolean;
   hasPhoto?: boolean;
   hasListings?: boolean;
@@ -37,13 +45,17 @@ interface CultivarSearchArgs {
   listingDescription?: string;
   listingTitle?: string;
   baseUrl: string;
+  includeParentageTrees?: boolean;
+  offset?: number;
   parentage?: string;
   ploidy?: string;
+  prefixLastToken?: boolean;
   priceMax?: number;
   priceMin?: number;
   q?: string;
   scapeHeightMax?: number;
   scapeHeightMin?: number;
+  sort?: CultivarSearchSort;
   yearMax?: number;
   yearMin?: number;
 }
@@ -76,6 +88,7 @@ const DEFAULT_LIMIT = 10;
 const MAX_LIMIT = 50;
 const DEFAULT_LISTING_LIMIT = 5;
 const MAX_LISTING_LIMIT = 10;
+const MAX_OFFSET = 200_000;
 const SEARCH_TOKEN_REGEX = /[\p{L}\p{N}']+/gu;
 
 function toStringOrNull(value: unknown) {
@@ -102,7 +115,15 @@ function getListingLimit(rawLimit: number | undefined) {
   return Math.min(Math.max(rawLimit, 0), MAX_LISTING_LIMIT);
 }
 
-function toFtsQuery(value: string | undefined) {
+function getOffset(rawOffset: number | undefined) {
+  if (!rawOffset || !Number.isInteger(rawOffset)) {
+    return 0;
+  }
+
+  return Math.min(Math.max(rawOffset, 0), MAX_OFFSET);
+}
+
+function toFtsQuery(value: string | undefined, prefixLastToken = false) {
   if (!value) {
     return null;
   }
@@ -112,11 +133,90 @@ function toFtsQuery(value: string | undefined) {
     return null;
   }
 
-  return tokens.map((token) => `"${token.replaceAll('"', '""')}"`).join(" ");
+  return tokens
+    .map((token, index) => {
+      const escapedToken = `"${token.replaceAll('"', '""')}"`;
+      return prefixLastToken && index === tokens.length - 1
+        ? `${escapedToken}*`
+        : escapedToken;
+    })
+    .join(" ");
 }
 
 function toContainsQuery(value: string) {
   return `%${value.trim().toLowerCase()}%`;
+}
+
+function getOrderBy(args: {
+  hasFtsQuery: boolean;
+  q?: string;
+  sort?: CultivarSearchSort;
+}) {
+  const sort = args.sort ?? "relevance";
+
+  if (sort === "name") {
+    return {
+      params: [] as InValue[],
+      sql: "i.displayName COLLATE NOCASE ASC, i.id ASC",
+    };
+  }
+
+  if (sort === "newest") {
+    return {
+      params: [] as InValue[],
+      sql: "i.yearInt IS NULL ASC, i.yearInt DESC, i.displayName COLLATE NOCASE ASC, i.id ASC",
+    };
+  }
+
+  if (sort === "oldest") {
+    return {
+      params: [] as InValue[],
+      sql: "i.yearInt IS NULL ASC, i.yearInt ASC, i.displayName COLLATE NOCASE ASC, i.id ASC",
+    };
+  }
+
+  if (sort === "mostListed" || !args.hasFtsQuery) {
+    return {
+      params: [] as InValue[],
+      sql: "i.listingCount DESC, i.forSaleListingCount DESC, i.displayName COLLATE NOCASE ASC, i.id ASC",
+    };
+  }
+
+  const normalizedQuery = args.q?.trim().toLowerCase() ?? "";
+
+  return {
+    params: [normalizedQuery, `${normalizedQuery}%`] as InValue[],
+    sql: `
+      CASE
+        WHEN i.displayNameSearch = ? THEN 0
+        WHEN i.displayNameSearch LIKE ? THEN 1
+        ELSE 2
+      END,
+      bm25(CultivarSearchFts, 8.0, 6.0, 3.0, 1.5, 0.5),
+      i.listingCount DESC,
+      i.displayName COLLATE NOCASE ASC,
+      i.id ASC
+    `,
+  };
+}
+
+function getMatchReason(args: {
+  color: string | null;
+  displayName: string;
+  hybridizer: string | null;
+  parentage: string | null;
+  q?: string;
+}) {
+  const query = args.q?.trim().toLowerCase();
+  if (!query) return null;
+
+  const displayName = args.displayName.toLowerCase();
+  if (displayName === query) return "Exact cultivar";
+  if (displayName.startsWith(query)) return "Cultivar name";
+  if (args.hybridizer?.toLowerCase().includes(query)) return "Hybridizer";
+  if (args.color?.toLowerCase().includes(query)) return "Color description";
+  if (args.parentage?.toLowerCase().includes(query)) return "Parentage";
+  return "Cultivar record";
 }
 
 function addNumberFilter(args: {
@@ -147,8 +247,21 @@ function addTextFilter(args: {
     return;
   }
 
-  args.sql.push(`${args.columnSql} LIKE ?`);
-  args.params.push(toContainsQuery(args.value));
+  const values = args.value
+    .split("|")
+    .map((value) => value.trim())
+    .filter(Boolean);
+
+  if (values.length === 1) {
+    args.sql.push(`${args.columnSql} LIKE ?`);
+    args.params.push(toContainsQuery(values[0] ?? ""));
+    return;
+  }
+
+  args.sql.push(
+    `(${values.map(() => `${args.columnSql} LIKE ?`).join(" OR ")})`,
+  );
+  args.params.push(...values.map(toContainsQuery));
 }
 
 function addListingExistsFilter(args: {
@@ -225,7 +338,10 @@ async function getParentageTrees(args: {
       `,
     });
 
-    const nodeMapsByCultivar = new Map<string, Map<string, ParentageTreeNode>>();
+    const nodeMapsByCultivar = new Map<
+      string,
+      Map<string, ParentageTreeNode>
+    >();
 
     for (const row of result.rows) {
       const childCultivarReferenceId = toRequiredString(
@@ -244,7 +360,9 @@ async function getParentageTrees(args: {
       const node: ParentageTreeNode = {
         confidence: toNumberOrNull(row.confidence),
         match:
-          matchedCultivarReferenceId && matchedNormalizedName && matchedDisplayName
+          matchedCultivarReferenceId &&
+          matchedNormalizedName &&
+          matchedDisplayName
             ? {
                 confidence: toNumberOrNull(row.confidence),
                 cultivarReferenceId: matchedCultivarReferenceId,
@@ -315,13 +433,15 @@ export async function searchCultivars(args: CultivarSearchArgs) {
   });
   const whereSql: string[] = [];
   const params: InValue[] = [];
-  const ftsQuery = toFtsQuery(args.q);
+  const ftsQuery = toFtsQuery(args.q, args.prefixLastToken);
   const fromSql = ftsQuery
     ? "CultivarSearchFts f JOIN CultivarSearchIndex i ON i.id = f.rowid"
     : "CultivarSearchIndex i";
-  const orderSql = ftsQuery
-    ? "bm25(CultivarSearchFts), i.listingCount DESC, i.displayName COLLATE NOCASE ASC"
-    : "i.listingCount DESC, i.displayName COLLATE NOCASE ASC";
+  const orderBy = getOrderBy({
+    hasFtsQuery: Boolean(ftsQuery),
+    q: args.q,
+    sort: args.sort,
+  });
 
   if (ftsQuery) {
     whereSql.push("CultivarSearchFts MATCH ?");
@@ -390,6 +510,10 @@ export async function searchCultivars(args: CultivarSearchArgs) {
 
   if (args.hasListings) {
     whereSql.push("i.listingCount > 0");
+  }
+
+  if (args.hasCultivarPhoto) {
+    whereSql.push("i.hasImage = 1");
   }
 
   if (args.hasForSaleListings) {
@@ -466,7 +590,8 @@ export async function searchCultivars(args: CultivarSearchArgs) {
     values: listingFilterValues,
   });
 
-  params.push(getLimit(args.limit));
+  params.push(...orderBy.params);
+  params.push(getLimit(args.limit), getOffset(args.offset));
 
   try {
     const result = await client.execute({
@@ -493,7 +618,11 @@ export async function searchCultivars(args: CultivarSearchArgs) {
           i.parentage,
           i.rebloom,
           i.imageUrl,
+          i.generatedImageAssetId,
           i.generatedImageUrl,
+          i.generatedOriginalUrl,
+          i.generatedThumbUrl,
+          i.generatedBlurUrl,
           i.fallbackImageUrl,
           i.hasImage,
           i.listingCount,
@@ -501,8 +630,8 @@ export async function searchCultivars(args: CultivarSearchArgs) {
           i.sourceUpdatedAt
         FROM ${fromSql}
         ${whereSql.length > 0 ? `WHERE ${whereSql.join(" AND ")}` : ""}
-        ORDER BY ${orderSql}
-        LIMIT ?
+        ORDER BY ${orderBy.sql}
+        LIMIT ? OFFSET ?
       `,
     });
     const listingLimit = getListingLimit(args.listingLimit);
@@ -578,34 +707,64 @@ export async function searchCultivars(args: CultivarSearchArgs) {
       }
     }
 
-    const parentageByCultivar = await getParentageTrees({
-      baseUrl: args.baseUrl,
-      cultivarReferenceIds,
-    });
+    const parentageByCultivar =
+      args.includeParentageTrees === false
+        ? new Map<string, ParentageTree>()
+        : await getParentageTrees({
+            baseUrl: args.baseUrl,
+            cultivarReferenceIds,
+          });
 
     return result.rows.map((row) => {
       const normalizedName = toRequiredString(row.normalizedName);
       const cultivarReferenceId = toRequiredString(row.cultivarReferenceId);
       const segment = toCultivarRouteSegment(normalizedName);
       const generatedImageUrl = toStringOrNull(row.generatedImageUrl);
+      const generatedImageAssetId = toStringOrNull(row.generatedImageAssetId);
       const fallbackImageUrl =
         toStringOrNull(row.fallbackImageUrl) ?? toStringOrNull(row.imageUrl);
-      const imageUrl =
-        areGeneratedCultivarImageAssetsEnabledByDefault() && generatedImageUrl
-          ? generatedImageUrl
-          : fallbackImageUrl;
+      const usesGeneratedImage = Boolean(
+        areGeneratedCultivarImageAssetsEnabledByDefault() &&
+          generatedImageUrl &&
+          generatedImageAssetId,
+      );
+      const imageUrl = usesGeneratedImage
+        ? generatedImageUrl
+        : fallbackImageUrl;
+      const displayName = toRequiredString(row.displayName, normalizedName);
+      const hybridizer = toStringOrNull(row.hybridizer);
+      const color = toStringOrNull(row.color);
+      const parentage = toStringOrNull(row.parentage);
 
       return {
         canonicalUrl: segment ? `${args.baseUrl}/cultivar/${segment}` : null,
         catalogListings: listingsByCultivar.get(cultivarReferenceId) ?? [],
         cultivarReferenceId,
+        imageAsset:
+          usesGeneratedImage && generatedImageAssetId
+            ? {
+                blurUrl: toStringOrNull(row.generatedBlurUrl),
+                displayUrl: generatedImageUrl,
+                id: generatedImageAssetId,
+                originalUrl: toStringOrNull(row.generatedOriginalUrl),
+                status: "ready",
+                thumbUrl: toStringOrNull(row.generatedThumbUrl),
+              }
+            : null,
         imageUrl,
+        matchedOn: getMatchReason({
+          color,
+          displayName,
+          hybridizer,
+          parentage,
+          q: args.q,
+        }),
         parentageTree: parentageByCultivar.get(cultivarReferenceId) ?? null,
         listingSummary: {
           catalogsWithListings: Number(row.listingCount ?? 0),
           forSaleListings: Number(row.forSaleListingCount ?? 0),
         },
-        name: toRequiredString(row.displayName, normalizedName),
+        name: displayName,
         normalizedName,
         source: {
           dataSource: "AHS V2 cultivar data",
@@ -618,12 +777,12 @@ export async function searchCultivars(args: CultivarSearchArgs) {
             typeof row.bloomSizeIn === "number" ? row.bloomSizeIn : null,
           branches: typeof row.branches === "number" ? row.branches : null,
           budCount: typeof row.budCount === "number" ? row.budCount : null,
-          color: toStringOrNull(row.color),
+          color,
           foliageType: toStringOrNull(row.foliageType),
           form: toStringOrNull(row.form),
           fragrance: toStringOrNull(row.fragrance),
-          hybridizer: toStringOrNull(row.hybridizer),
-          parentage: toStringOrNull(row.parentage),
+          hybridizer,
+          parentage,
           ploidy: toStringOrNull(row.ploidy),
           rebloom: row.rebloom === null ? null : Boolean(row.rebloom),
           scapeHeightIn:

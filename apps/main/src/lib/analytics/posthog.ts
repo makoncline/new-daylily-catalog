@@ -25,6 +25,7 @@ export type PosthogEventName =
   | "catalog_link_copied"
   | "public_listing_contact_clicked"
   | "public_catalog_contact_clicked"
+  | "public_cultivar_search_result_opened"
   | "seller_order_method_clicked"
   | "first_listing_created"
   | "first_image_uploaded"

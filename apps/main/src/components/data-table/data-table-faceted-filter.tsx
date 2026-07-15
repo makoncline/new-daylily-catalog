@@ -31,7 +31,10 @@ interface DataTableFacetedFilterProps<TData> {
     value: string;
     icon?: React.ComponentType<{ className?: string }>;
   }[];
-  table: Table<TData>;
+  table?: Table<TData>;
+  values?: string[];
+  onValuesChange?: (values: string[]) => void;
+  buttonClassName?: string;
 }
 
 export function DataTableFacetedFilter<TData>({
@@ -39,25 +42,35 @@ export function DataTableFacetedFilter<TData>({
   title,
   options,
   table,
+  values,
+  onValuesChange,
+  buttonClassName,
 }: DataTableFacetedFilterProps<TData>) {
   const rawFilterValue = column?.getFilterValue();
-  const selectedValues = new Set(
-    Array.isArray(rawFilterValue)
-      ? rawFilterValue
-      : typeof rawFilterValue === "string"
-        ? [rawFilterValue]
-        : typeof rawFilterValue === "number" ||
-            typeof rawFilterValue === "boolean"
-          ? [String(rawFilterValue)]
-          : rawFilterValue === undefined || rawFilterValue === null
-            ? []
-            : [],
-  );
+  const columnValues: string[] = Array.isArray(rawFilterValue)
+    ? rawFilterValue.map(String)
+    : typeof rawFilterValue === "string"
+      ? [rawFilterValue]
+      : typeof rawFilterValue === "number" ||
+          typeof rawFilterValue === "boolean"
+        ? [String(rawFilterValue)]
+        : [];
+  const selectedValues = new Set<string>(values ?? columnValues);
+
+  const commitValues = (nextValues: string[]) => {
+    column?.setFilterValue(nextValues.length ? nextValues : undefined);
+    onValuesChange?.(nextValues);
+    table?.resetPagination();
+  };
 
   return (
     <Popover>
       <PopoverTrigger asChild>
-        <Button variant="outline" size="sm" className="h-8 border-dashed">
+        <Button
+          variant="outline"
+          size="sm"
+          className={cn("h-8 border-dashed", buttonClassName)}
+        >
           <PlusCircle className="mr-2 size-4" />
           {title}
           {selectedValues?.size > 0 && (
@@ -112,11 +125,7 @@ export function DataTableFacetedFilter<TData>({
                       } else {
                         selectedValues.add(option.value);
                       }
-                      const filterValues = Array.from(selectedValues);
-                      column?.setFilterValue(
-                        filterValues.length ? filterValues : undefined,
-                      );
-                      table.resetPagination();
+                      commitValues(Array.from(selectedValues));
                     }}
                   >
                     <div
@@ -143,8 +152,7 @@ export function DataTableFacetedFilter<TData>({
                 <CommandGroup>
                   <CommandItem
                     onSelect={() => {
-                      column?.setFilterValue(undefined);
-                      table.resetPagination();
+                      commitValues([]);
                     }}
                     className="justify-center text-center"
                   >

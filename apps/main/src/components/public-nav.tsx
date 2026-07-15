@@ -12,10 +12,21 @@ import { SUBSCRIPTION_CONFIG } from "@/config/subscription-config";
 const activeNavClassName =
   "font-semibold underline decoration-current/35 underline-offset-8";
 
-export function PublicHeader() {
+interface PublicHeaderProps {
+  cultivarSearchEnabled?: boolean;
+}
+
+export function PublicHeader({
+  cultivarSearchEnabled = false,
+}: PublicHeaderProps) {
   const pathname = usePathname();
   const mobileNavRef = useRef<HTMLDetailsElement>(null);
-  const usesDarkHeroNav = pathname === "/" || pathname === "/start-membership";
+  const usesDarkHeroNav =
+    pathname === "/" ||
+    pathname === "/start-membership" ||
+    pathname === "/cultivars";
+  const isCultivarsActive =
+    pathname === "/cultivars" || pathname.startsWith("/cultivar/");
   const isCatalogsActive = pathname === "/catalogs";
   const isGrowersActive =
     pathname === "/start-membership" || pathname.startsWith("/onboarding");
@@ -67,6 +78,20 @@ export function PublicHeader() {
             <span className="sr-only">Open public navigation</span>
           </summary>
           <ul className="absolute top-[calc(100%+0.25rem)] right-0 w-56 overflow-hidden rounded-md border border-[#142118]/10 bg-white/85 p-1 text-sm text-[#142118] shadow-md backdrop-blur-xl">
+            {cultivarSearchEnabled ? (
+              <li>
+                <Link
+                  href="/cultivars"
+                  aria-current={isCultivarsActive ? "page" : undefined}
+                  className={cn(
+                    "block rounded-sm px-2 py-1.5 hover:bg-[#142118]/8",
+                    isCultivarsActive && activeNavClassName,
+                  )}
+                >
+                  Search cultivars
+                </Link>
+              </li>
+            ) : null}
             <li>
               <Link
                 href="/catalogs"
@@ -103,6 +128,19 @@ export function PublicHeader() {
         </details>
 
         <div className="hidden items-center gap-4 lg:ml-auto lg:flex">
+          {cultivarSearchEnabled ? (
+            <Link
+              href="/cultivars"
+              aria-current={isCultivarsActive ? "page" : undefined}
+              className={cn(
+                "px-3 py-2 text-base text-current transition-opacity hover:opacity-70 focus-visible:ring-1 focus-visible:ring-current focus-visible:outline-none",
+                isCultivarsActive && activeNavClassName,
+              )}
+            >
+              Search cultivars
+            </Link>
+          ) : null}
+
           <Link
             href="/catalogs"
             aria-current={isCatalogsActive ? "page" : undefined}

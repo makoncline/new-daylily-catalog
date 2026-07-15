@@ -1,5 +1,6 @@
 import { getCanonicalBaseUrl } from "@/lib/utils/getBaseUrl";
 import { type MetadataRoute } from "next";
+import { isPublicCultivarSearchEnabled } from "@/config/feature-flags";
 import { getCultivarSitemapEntries } from "@/server/db/public-cultivar-read-model";
 import {
   getPublicCatalogRouteEntries,
@@ -30,6 +31,14 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       priority: 0.7,
     },
   );
+
+  if (isPublicCultivarSearchEnabled()) {
+    sitemap.push({
+      url: `${baseUrl}/cultivars`,
+      changeFrequency: "weekly",
+      priority: 0.9,
+    });
+  }
 
   const publicCatalogEntries = await getPublicCatalogRouteEntries();
   publicCatalogEntries.forEach((entry) => {
