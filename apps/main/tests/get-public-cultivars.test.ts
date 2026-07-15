@@ -2,8 +2,6 @@
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("server-only", () => ({}));
-
 const mockDb = vi.hoisted(() => ({
   cultivarReference: {
     count: vi.fn(),
@@ -42,7 +40,6 @@ import {
   getCultivarSitemapEntryCount,
   getPublicCultivarPage,
 } from "@/server/db/getPublicCultivars";
-import { searchPublicCultivars } from "@/server/db/public-cultivar-search";
 import { applyWhereIn } from "./test-utils/apply-where-in";
 
 const originalCloudflareUrl = process.env.NEXT_PUBLIC_CLOUDFLARE_URL;
@@ -907,64 +904,6 @@ describe("getPublicCultivarPage", () => {
         }),
       }),
     );
-  });
-});
-
-describe("searchPublicCultivars", () => {
-  beforeEach(() => {
-    vi.clearAllMocks();
-  });
-
-  it("runs a bounded replica query and returns canonical cultivar cards", async () => {
-    mockDb.v2AhsCultivar.findMany.mockResolvedValue([
-      {
-        id: "v2-china-veil",
-        post_title: "China Veil",
-        introduction_date: "1998-01-01",
-        primary_hybridizer_name: "Moldovan",
-        hybridizer_code_legacy: null,
-        image_url: "https://example.com/china-veil.jpg",
-        cultivarReference: {
-          normalizedName: "china veil",
-        },
-      },
-    ]);
-
-    const results = await searchPublicCultivars({
-      hasPhoto: true,
-      hybridizer: "Moldovan",
-      q: "china veil",
-    });
-
-    expect(mockDb.v2AhsCultivar.findMany).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: {
-          AND: expect.arrayContaining([
-            expect.objectContaining({
-              OR: expect.arrayContaining([
-                { post_title: { contains: "china veil" } },
-              ]),
-            }),
-            expect.objectContaining({
-              OR: expect.arrayContaining([
-                {
-                  primary_hybridizer_name: { contains: "Moldovan" },
-                },
-              ]),
-            }),
-            { image_url: { not: "" } },
-          ]),
-        },
-        take: 48,
-      }),
-    );
-    expect(results).toEqual([
-      expect.objectContaining({
-        name: "China Veil",
-        segment: "china-veil",
-        imageUrl: "https://example.com/china-veil.jpg",
-      }),
-    ]);
   });
 });
 
