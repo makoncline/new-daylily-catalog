@@ -155,7 +155,9 @@ function getOrderBy(args: {
   sort?: CultivarSearchSort;
 }) {
   const sort = args.sort ?? "relevance";
-  const photoBoost = args.photosFirst ? "i.hasImage DESC, " : "";
+  const photoBoost = args.photosFirst
+    ? "(i.generatedImageUrl IS NOT NULL) DESC, i.hasImage DESC, "
+    : "";
 
   if (sort === "name") {
     return {

@@ -83,12 +83,13 @@ describe("cultivar search", () => {
       INSERT INTO CultivarSearchIndex (
         id, cultivarReferenceId, normalizedName, displayName,
         displayNameSearch, bloomSeason, foliageType, fragrance, rebloom,
-        hasImage, listingCount, sourceUpdatedAt
+        generatedImageAssetId, generatedImageUrl, hasImage, listingCount,
+        sourceUpdatedAt
       ) VALUES
-        (1, 'early', 'early', 'Early', 'early', 'Early', 'Evergreen', 'Fragrant', 0, 0, 10, '2026-01-01'),
-        (2, 'extra-early', 'extra early', 'Extra Early', 'extra early', 'Extra Early', 'Semi-Evergreen', 'Very Fragrant', 0, 1, 0, '2026-01-01'),
-        (3, 'early-midseason', 'early midseason', 'Early Midseason', 'early midseason', 'Early-Midseason', 'Dormant', NULL, 0, 0, 0, '2026-01-01'),
-        (4, 'rebloomer', 'rebloomer', 'Rebloomer', 'rebloomer', 'Midseason', 'Dormant', NULL, 1, 0, 0, '2026-01-01');
+        (1, 'early', 'early', 'Early', 'early', 'Early', 'Evergreen', 'Fragrant', 0, NULL, NULL, 0, 10, '2026-01-01'),
+        (2, 'extra-early', 'extra early', 'Extra Early', 'extra early', 'Extra Early', 'Semi-Evergreen', 'Very Fragrant', 0, NULL, NULL, 1, 0, '2026-01-01'),
+        (3, 'early-midseason', 'early midseason', 'Early Midseason', 'early midseason', 'Early-Midseason', 'Dormant', NULL, 0, 'generated-3', 'https://media.example.com/generated-3.webp', 1, 0, '2026-01-01'),
+        (4, 'rebloomer', 'rebloomer', 'Rebloomer', 'rebloomer', 'Midseason', 'Dormant', NULL, 1, NULL, NULL, 0, 0, '2026-01-01');
 
       INSERT INTO CultivarListingSearchIndex VALUES (
         'listing-1', 'early', 'garden', 'Test Garden', 'Early listing',
@@ -147,7 +148,7 @@ describe("cultivar search", () => {
     ]);
   });
 
-  it("can boost cultivars with photos without filtering other results", async () => {
+  it("boosts generated cultivar images ahead of other photos without filtering results", async () => {
     const boosted = await searchCultivars({
       baseUrl: "https://daylilycatalog.com",
       includeParentageTrees: false,
@@ -164,9 +165,9 @@ describe("cultivar search", () => {
     });
 
     expect(boosted.map((result) => result.cultivarReferenceId)).toEqual([
+      "early-midseason",
       "extra-early",
       "early",
-      "early-midseason",
       "rebloomer",
     ]);
     expect(unboosted[0]?.cultivarReferenceId).toBe("early");

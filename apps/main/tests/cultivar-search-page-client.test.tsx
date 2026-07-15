@@ -139,6 +139,12 @@ describe("CultivarSearchPageClient", () => {
   });
 
   it("searches the compact public index and applies cultivar-photo filters", async () => {
+    window.history.replaceState(
+      {},
+      "",
+      "/cultivars?form=Spider%7CDouble%7CSpider&priceMax=286&q=Stella+de+Oro",
+    );
+
     render(
       <CultivarSearchPageClient
         initialState={{
@@ -163,7 +169,11 @@ describe("CultivarSearchPageClient", () => {
       "/api/v1/cultivars/search?form=Double%7CSpider&limit=24&mode=summary&offset=0&photosFirst=true&priceMax=286&q=Stella+de+Oro&sort=relevance",
     );
     expect(`${window.location.pathname}${window.location.search}`).toBe(
-      "/cultivars?form=Double%7CSpider&priceMax=286&q=Stella+de+Oro",
+      "/cultivars?advanced=true&form=Double%7CSpider&priceMax=286&q=Stella+de+Oro",
+    );
+    expect(screen.getByRole("switch", { name: "Advanced" })).toBeChecked();
+    expect(screen.getByTestId("advanced-filter-form")).toHaveTextContent(
+      "2 selected",
     );
 
     fireEvent.click(screen.getByRole("button", { name: "With photos" }));
@@ -307,6 +317,7 @@ describe("CultivarSearchPageClient", () => {
     );
 
     await screen.findByRole("heading", { name: "First page cultivar" });
+
     fireEvent.click(
       screen.getByRole("button", { name: "Load more cultivars" }),
     );
@@ -375,6 +386,25 @@ describe("CultivarSearchPageClient", () => {
     );
 
     await screen.findByRole("heading", { name: "First page cultivar" });
+
+    fireEvent.change(
+      screen.getByPlaceholderText(
+        "Search by cultivar name, hybridizer, or color…",
+      ),
+      { target: { value: "Back Search" } },
+    );
+    fireEvent.click(screen.getByRole("switch", { name: "Advanced" }));
+    fireEvent.click(
+      screen.getByRole("button", { name: "Newest introductions" }),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Photos first" }));
+
+    await waitFor(() => {
+      expect(`${window.location.pathname}${window.location.search}`).toBe(
+        "/cultivars?advanced=true&photosFirst=false&q=Back+Search&sort=newest",
+      );
+    });
+
     fireEvent.click(
       screen.getByRole("button", { name: "Load more cultivars" }),
     );
@@ -403,6 +433,18 @@ describe("CultivarSearchPageClient", () => {
     expect(
       await screen.findByRole("heading", { name: "Second page cultivar" }),
     ).toBeVisible();
+    expect(
+      screen.getByPlaceholderText(
+        "Search by cultivar name, hybridizer, or color…",
+      ),
+    ).toHaveValue("Back Search");
+    expect(screen.getByRole("switch", { name: "Advanced" })).toBeChecked();
+    expect(
+      screen.getByRole("button", { name: "Newest introductions" }),
+    ).toHaveAttribute("aria-pressed", "true");
+    expect(
+      screen.getByRole("button", { name: "Photos first" }),
+    ).toHaveAttribute("aria-pressed", "false");
     expect(fetchMock).not.toHaveBeenCalled();
     await waitFor(() =>
       expect(scrollToMock).toHaveBeenCalledWith({

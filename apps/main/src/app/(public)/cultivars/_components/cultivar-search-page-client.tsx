@@ -36,6 +36,7 @@ import { OptimizedImage } from "@/components/optimized-image";
 import { Button } from "@/components/ui/button";
 import { capturePosthogEvent } from "@/lib/analytics/posthog";
 import { useIsMobile } from "@/hooks/use-mobile";
+import { hasAdvancedCultivarSearchState } from "../_lib/cultivar-search-url";
 
 const PAGE_SIZE = 24;
 const RESTORATION_STORAGE_KEY = "cultivar-search:return-snapshot:v1";
@@ -45,6 +46,7 @@ const RESTORATION_MAX_AGE_MS = 2 * 60 * 60 * 1000;
 type CultivarSort = "relevance" | "name" | "newest" | "oldest" | "mostListed";
 
 interface InitialCultivarSearchState {
+  advanced?: boolean;
   bloomHabit?: string;
   bloomSizeMax?: string;
   bloomSizeMin?: string;
@@ -152,7 +154,6 @@ interface CultivarSearchResponse {
 }
 
 interface CultivarSearchReturnSnapshot {
-  advanced: boolean;
   entryId: string;
   nextOffset: number | null;
   results: CultivarSearchResult[];
@@ -163,7 +164,7 @@ interface CultivarSearchReturnSnapshot {
   } | null;
   scrollY: number;
   url: string;
-  version: 1;
+  version: 2;
 }
 
 const EMPTY_FILTERS: CultivarSearchFilters = {
@@ -256,7 +257,7 @@ function takeReturnSnapshot(entryId: string) {
   try {
     const snapshot = JSON.parse(raw) as Partial<CultivarSearchReturnSnapshot>;
     if (
-      snapshot.version !== 1 ||
+      snapshot.version !== 2 ||
       snapshot.entryId !== entryId ||
       snapshot.url !== getCurrentUrl() ||
       typeof snapshot.savedAt !== "number" ||
@@ -318,6 +319,54 @@ function getInitialFilters(
     scapeHeightMin: initialState.scapeHeightMin ?? "",
     yearMax: initialState.yearMax ?? "",
     yearMin: initialState.yearMin ?? "",
+  };
+}
+
+function readControlStateFromUrl() {
+  const params = new URLSearchParams(window.location.search);
+  const urlState: InitialCultivarSearchState = {
+    advanced:
+      params.get("advanced") === "true" ||
+      hasAdvancedCultivarSearchState((key) => params.has(key)),
+    bloomHabit: params.get("bloomHabit") ?? undefined,
+    bloomSizeMax: params.get("bloomSizeMax") ?? undefined,
+    bloomSizeMin: params.get("bloomSizeMin") ?? undefined,
+    bloomSeason: params.get("bloomSeason") ?? undefined,
+    branchesMax: params.get("branchesMax") ?? undefined,
+    branchesMin: params.get("branchesMin") ?? undefined,
+    budCountMax: params.get("budCountMax") ?? undefined,
+    budCountMin: params.get("budCountMin") ?? undefined,
+    color: params.get("color") ?? undefined,
+    cultivarName: params.get("cultivarName") ?? undefined,
+    foliageType: params.get("foliageType") ?? undefined,
+    form: params.get("form") ?? undefined,
+    fragrance: params.get("fragrance") ?? undefined,
+    hasCultivarPhoto: params.get("hasCultivarPhoto") === "true",
+    hasForSaleListings: params.get("hasForSaleListings") === "true",
+    hasListingPhoto: params.get("hasPhoto") === "true",
+    hasListings: params.get("hasListings") === "true",
+    hybridizer: params.get("hybridizer") ?? undefined,
+    listingDescription: params.get("listingDescription") ?? undefined,
+    listingTitle: params.get("listingTitle") ?? undefined,
+    parentage: params.get("parentage") ?? undefined,
+    photosFirst: params.get("photosFirst") !== "false",
+    ploidy: params.get("ploidy") ?? undefined,
+    priceMax: params.get("priceMax") ?? undefined,
+    priceMin: params.get("priceMin") ?? undefined,
+    q: params.get("q") ?? "",
+    scapeHeightMax: params.get("scapeHeightMax") ?? undefined,
+    scapeHeightMin: params.get("scapeHeightMin") ?? undefined,
+    sort: params.get("sort") ?? undefined,
+    yearMax: params.get("yearMax") ?? undefined,
+    yearMin: params.get("yearMin") ?? undefined,
+  };
+
+  return {
+    advanced: urlState.advanced ?? false,
+    filters: getInitialFilters(urlState),
+    photosFirst: urlState.photosFirst ?? true,
+    query: urlState.q,
+    sort: isCultivarSort(urlState.sort) ? urlState.sort : "relevance",
   };
 }
 
@@ -913,7 +962,7 @@ export function CultivarSearchPageClient({
   const [photosFirst, setPhotosFirst] = useState(
     initialState.photosFirst ?? true,
   );
-  const [advanced, setAdvanced] = useState(false);
+  const [advanced, setAdvanced] = useState(initialState.advanced ?? false);
   const [results, setResults] = useState<CultivarSearchResult[]>([]);
   const [nextOffset, setNextOffset] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
@@ -928,11 +977,19 @@ export function CultivarSearchPageClient({
   const skipNextFetchRef = useRef(false);
 
   useEffect(() => {
+    const urlState = readControlStateFromUrl();
+    setQuery(urlState.query);
+    setDebouncedQuery(urlState.query);
+    setFilters(urlState.filters);
+    setRequestFilters(urlState.filters);
+    setSort(urlState.sort);
+    setPhotosFirst(urlState.photosFirst);
+    setAdvanced(urlState.advanced);
+
     const entryId = ensureHistoryEntryId();
     historyEntryIdRef.current = entryId;
     const snapshot = takeReturnSnapshot(entryId);
     if (snapshot) {
-      setAdvanced(snapshot.advanced);
       setResults(snapshot.results);
       setNextOffset(snapshot.nextOffset);
       setLoading(false);
@@ -1007,6 +1064,13 @@ export function CultivarSearchPageClient({
     return params.toString();
   }, [debouncedQuery, photosFirst, requestFilters, sort]);
 
+  const urlParams = useMemo(() => {
+    const params = new URLSearchParams(shareParams);
+    if (advanced) params.set("advanced", "true");
+    params.sort();
+    return params.toString();
+  }, [advanced, shareParams]);
+
   const buildRequestParams = useCallback(
     (offset: number) => {
       const params = new URLSearchParams(shareParams);
@@ -1065,10 +1129,14 @@ export function CultivarSearchPageClient({
         if (requestId === requestCounter.current) setLoading(false);
       });
 
-    const nextUrl = shareParams ? `/cultivars?${shareParams}` : "/cultivars";
-    window.history.replaceState(window.history.state, "", nextUrl);
     return () => controller.abort();
   }, [buildRequestParams, restorationChecked, retryKey, shareParams]);
+
+  useEffect(() => {
+    if (!restorationChecked) return;
+    const nextUrl = urlParams ? `/cultivars?${urlParams}` : "/cultivars";
+    window.history.replaceState(window.history.state, "", nextUrl);
+  }, [restorationChecked, urlParams]);
 
   useEffect(() => {
     const snapshot = pendingScrollRestorationRef.current;
@@ -1128,13 +1196,15 @@ export function CultivarSearchPageClient({
     setRequestFilters(EMPTY_FILTERS);
     setSort("relevance");
     setPhotosFirst(true);
+    setAdvanced(false);
   };
 
   const hasSearchState = Boolean(
     debouncedQuery ||
       Object.values(filters).some(Boolean) ||
       sort !== "relevance" ||
-      !photosFirst,
+      !photosFirst ||
+      advanced,
   );
 
   const saveReturnSnapshot = useCallback(
@@ -1152,7 +1222,6 @@ export function CultivarSearchPageClient({
       const entryId = historyEntryIdRef.current ?? ensureHistoryEntryId();
       historyEntryIdRef.current = entryId;
       const snapshot: CultivarSearchReturnSnapshot = {
-        advanced,
         entryId,
         nextOffset,
         results,
@@ -1160,7 +1229,7 @@ export function CultivarSearchPageClient({
         scrollAnchor: getScrollAnchor(),
         scrollY: window.scrollY,
         url: getCurrentUrl(),
-        version: 1,
+        version: 2,
       };
 
       try {
@@ -1172,7 +1241,7 @@ export function CultivarSearchPageClient({
         // Browser storage can be disabled; URL state still restores normally.
       }
     },
-    [advanced, nextOffset, results],
+    [nextOffset, results],
   );
 
   const loadMore = async () => {

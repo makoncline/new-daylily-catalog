@@ -7,6 +7,7 @@ import { isPublicCultivarSearchEnabled } from "@/config/feature-flags";
 import { getCanonicalBaseUrl } from "@/lib/utils/getBaseUrl";
 import { serializeJsonLd } from "@/lib/utils/json-ld";
 import { CultivarSearchPageClient } from "./_components/cultivar-search-page-client";
+import { hasAdvancedCultivarSearchState } from "./_lib/cultivar-search-url";
 
 export const dynamic = "force-dynamic";
 
@@ -99,6 +100,11 @@ export default async function CultivarsPage({
 
       <CultivarSearchPageClient
         initialState={{
+          advanced:
+            getFirstSearchParam(rawSearchParams, "advanced") === "true" ||
+            hasAdvancedCultivarSearchState(
+              (key) => getFirstSearchParam(rawSearchParams, key) !== undefined,
+            ),
           bloomHabit: getFirstSearchParam(rawSearchParams, "bloomHabit"),
           bloomSizeMax: getFirstSearchParam(rawSearchParams, "bloomSizeMax"),
           bloomSizeMin: getFirstSearchParam(rawSearchParams, "bloomSizeMin"),

@@ -1,5 +1,6 @@
 # Agents
 
+- [2026-07-15] Cultivar Back restoration has split ownership: `/cultivars` query, filters, basic/advanced mode, sort, and photo boost must be re-read from the current URL on mount; the single consumed `sessionStorage` snapshot is only for loaded results, pagination, and scroll/anchor position tied to one history entry. When changing restoration, never let the snapshot override shareable controls or a fresh/shared URL inherit transient result depth.
 - [2026-07-15] Photo-boosted cultivar browse needs composite ordering indexes: Prefixing the default 104k-cultivar order with `hasImage` made SQLite build a temporary full-catalog sort and raised local response time from roughly 14ms to 490ms. When changing public cultivar sort precedence, add a matching composite index in `build-public-search-index.mjs`, bump the search schema version, and benchmark the default unfiltered request against a production-shaped index.
 
 - [2026-07-14] Public cultivar search hot path: `/api/v1/cultivars/search?mode=summary` enables prefix matching, disables listing samples and parentage-tree expansion, and returns bounded offset pagination for the interactive `/cultivars` page. Use `hasCultivarPhoto` for `CultivarSearchIndex.hasImage`; legacy `hasPhoto` still means a linked seller listing has a photo. Keep full mode as the detailed agent/MCP response.
