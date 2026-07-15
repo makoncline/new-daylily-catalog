@@ -115,6 +115,39 @@ describe("CreateListingSurface", () => {
       screen.getByRole("region", { name: "Create listing" }),
     ).toBeVisible();
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(screen.queryByText("Unsaved listing")).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Save" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("shows save and discard after the user starts a listing", () => {
+    render(
+      <CreateListingSurface onClose={vi.fn()} onCreated={mockOnCreated} />,
+    );
+
+    fireEvent.change(screen.getByLabelText("Listing Title"), {
+      target: { value: "New listing" },
+    });
+
+    expect(screen.getByText("Unsaved listing")).toBeVisible();
+    expect(screen.getByRole("button", { name: "Save" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Discard" })).toBeEnabled();
+  });
+
+  it("discards without creating a listing", () => {
+    const onClose = vi.fn();
+    render(
+      <CreateListingSurface onClose={onClose} onCreated={mockOnCreated} />,
+    );
+
+    fireEvent.change(screen.getByLabelText("Listing Title"), {
+      target: { value: "Abandoned listing" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Discard" }));
+
+    expect(onClose).toHaveBeenCalledTimes(1);
+    expect(mockInsertListing).not.toHaveBeenCalled();
   });
 
   it("uses selected AHS name when title input is blank", async () => {

@@ -24,6 +24,8 @@ import { Spinner } from "@/components/ui/spinner";
 import { ArrowLeft } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { useQueryParamDialogState } from "@/hooks/use-dialog-search-param";
+import { useUnsavedChangesGuard } from "@/hooks/use-unsaved-changes-guard";
+import { ListingSurfaceSaveBar } from "./listing-surface-save-bar";
 
 export function useCreateListing() {
   const { setValue, value } = useQueryParamDialogState({
@@ -66,6 +68,8 @@ export function CreateListingSurface({
   );
   const [isSaving, setIsSaving] = useState(false);
   const backButtonRef = useRef<HTMLButtonElement | null>(null);
+  const hasPendingChanges = () => Boolean(title.trim() || selectedResult);
+  const { confirmDiscard } = useUnsavedChangesGuard(hasPendingChanges);
 
   useLayoutEffect(() => {
     backButtonRef.current?.focus({ preventScroll: true });
@@ -144,11 +148,28 @@ export function CreateListingSurface({
     }
   };
 
+  const handleBack = () => {
+    if (confirmDiscard()) {
+      onClose();
+    }
+  };
+
   return (
     <section
       aria-label="Create listing"
       className="mx-auto w-full max-w-3xl pb-8"
     >
+      {hasPendingChanges() ? (
+        <ListingSurfaceSaveBar
+          title="Unsaved listing"
+          saveLabel="Save"
+          isSaving={isSaving}
+          saveDisabled={false}
+          onDiscard={onClose}
+          onSave={() => void handleCreate()}
+        />
+      ) : null}
+
       <PageHeader
         heading="Create New Listing"
         text="Create a new daylily listing by providing a title or selecting from the AHS database."
@@ -157,7 +178,7 @@ export function CreateListingSurface({
           ref={backButtonRef}
           type="button"
           variant="outline"
-          onClick={onClose}
+          onClick={handleBack}
           disabled={isSaving}
         >
           <ArrowLeft aria-hidden="true" />
