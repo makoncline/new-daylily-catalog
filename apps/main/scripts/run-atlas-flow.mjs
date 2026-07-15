@@ -5,6 +5,10 @@ import path from "node:path";
 import * as dotenv from "dotenv";
 import { generateAtlasGallery } from "./generate-atlas-gallery.mjs";
 import {
+  ATLAS_HEALTH_PATH,
+  terminateAtlasServer,
+} from "./atlas-server-process.mjs";
+import {
   getAtlasFlow,
   missingFreshStateIds,
   validateAtlasFlows,
@@ -22,15 +26,7 @@ const captureDirectory = path.join(outputDirectory, "screenshots");
 const baseURL = process.env.BASE_URL ?? "http://localhost:3210";
 const explicitDatabaseUrl = process.env.DATABASE_URL;
 let server;
-const stopServer = () => {
-  if (!server?.pid || server.exitCode !== null) return;
-  try {
-    process.kill(
-      process.platform === "win32" ? server.pid : -server.pid,
-      "SIGTERM",
-    );
-  } catch {}
-};
+const stopServer = () => terminateAtlasServer(server);
 for (const signal of ["SIGINT", "SIGTERM"]) {
   process.on(signal, () => {
     stopServer();
@@ -39,7 +35,7 @@ for (const signal of ["SIGINT", "SIGTERM"]) {
 }
 async function isHealthy() {
   try {
-    const response = await fetch(new URL("/catalogs", baseURL), {
+    const response = await fetch(new URL(ATLAS_HEALTH_PATH, baseURL), {
       signal: AbortSignal.timeout(5_000),
     });
     return response.status < 500;
@@ -65,23 +61,19 @@ async function startServer() {
     throw new Error(
       "Seeded database missing. Run `pnpm db:seed:prepare` first.",
     );
-  server = spawn(
-    "pnpm",
-    ["dev", "--", "--port", new URL(baseURL).port],
-    {
-      cwd: repoRoot,
-      detached: process.platform !== "win32",
-      stdio: "inherit",
-      env: {
-        ...process.env,
-        DATABASE_URL: explicitDatabaseUrl ?? `file:${seededDatabase}`,
-        PUBLIC_SEARCH_INDEX_REFRESH_INTERVAL_SECONDS: "0",
-        TURSO_DATABASE_AUTH_TOKEN: "",
-        TURSO_EMBEDDED_REPLICA_URL: "",
-        TURSO_EMBEDDED_REPLICA_SYNC_URL: "",
-      },
+  server = spawn("pnpm", ["dev", "--", "--port", new URL(baseURL).port], {
+    cwd: repoRoot,
+    detached: process.platform !== "win32",
+    stdio: "inherit",
+    env: {
+      ...process.env,
+      DATABASE_URL: explicitDatabaseUrl ?? `file:${seededDatabase}`,
+      PUBLIC_SEARCH_INDEX_REFRESH_INTERVAL_SECONDS: "0",
+      TURSO_DATABASE_AUTH_TOKEN: "",
+      TURSO_EMBEDDED_REPLICA_URL: "",
+      TURSO_EMBEDDED_REPLICA_SYNC_URL: "",
     },
-  );
+  });
   const deadline = Date.now() + 120_000;
   while (Date.now() < deadline) {
     if (server.exitCode !== null)
