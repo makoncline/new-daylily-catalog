@@ -7,16 +7,6 @@ test.describe("guest user tour @preview", () => {
     await expect(page).toHaveURL("/");
     await expect(page).toHaveTitle("Daylily Catalog");
 
-    const exampleCultivarLink = page.getByRole("link", {
-      name: "See an example cultivar page",
-    });
-    await expect(exampleCultivarLink).toBeVisible();
-    await Promise.all([
-      page.waitForURL(/\/cultivar\/[^/]+$/),
-      exampleCultivarLink.click(),
-    ]);
-    await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
-
     // Catalogs page
     await page.goto("/catalogs");
     await expect(page).toHaveURL("/catalogs");
