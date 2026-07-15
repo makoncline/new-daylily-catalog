@@ -3,6 +3,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const mockDb = vi.hoisted(() => ({
+  list: {
+    groupBy: vi.fn(),
+  },
+  listing: {
+    groupBy: vi.fn(),
+  },
   user: {
     findMany: vi.fn(),
   },
@@ -89,6 +95,30 @@ describe("getPublicProfiles", () => {
     );
 
     mockGetProUserIds.mockResolvedValue(["user-pro"]);
+    mockDb.listing.groupBy.mockResolvedValue([
+      {
+        userId: "user-pro",
+        _count: { _all: 120 },
+        _max: { updatedAt: new Date("2026-02-02T00:00:00.000Z") },
+      },
+      {
+        userId: "user-free",
+        _count: { _all: 25 },
+        _max: { updatedAt: new Date("2026-02-03T00:00:00.000Z") },
+      },
+    ]);
+    mockDb.list.groupBy.mockResolvedValue([
+      {
+        userId: "user-pro",
+        _count: { _all: 3 },
+        _max: { updatedAt: new Date("2026-02-01T00:00:00.000Z") },
+      },
+      {
+        userId: "user-free",
+        _count: { _all: 1 },
+        _max: { updatedAt: new Date("2026-02-01T00:00:00.000Z") },
+      },
+    ]);
 
     const profiles = await getPublicProfiles();
 
@@ -145,6 +175,20 @@ describe("getPublicProfiles", () => {
       Promise.resolve(applyWhereIn(users, args, "id")),
     );
     mockGetProUserIds.mockResolvedValue(["user-pro"]);
+    mockDb.listing.groupBy.mockResolvedValue([
+      {
+        userId: "user-pro",
+        _count: { _all: 120 },
+        _max: { updatedAt: new Date("2026-02-02T00:00:00.000Z") },
+      },
+    ]);
+    mockDb.list.groupBy.mockResolvedValue([
+      {
+        userId: "user-pro",
+        _count: { _all: 3 },
+        _max: { updatedAt: new Date("2026-02-01T00:00:00.000Z") },
+      },
+    ]);
 
     const [profile] = await getPublicProfiles();
 
