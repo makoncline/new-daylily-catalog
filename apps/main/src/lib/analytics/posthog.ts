@@ -1,6 +1,6 @@
 "use client";
 
-import posthog from "posthog-js";
+import posthog, { type CaptureResult } from "posthog-js";
 
 export type PosthogEventName =
   | "home_signup_cta_clicked"
@@ -57,6 +57,103 @@ interface RuntimeConfig {
   };
 }
 
+interface ListingEditorTapDiagnostic {
+  active_element: string | null;
+  dialog_scroll_top: number;
+  element_at_point: string | null;
+  phase: "click" | "pointerdown";
+  target: string | null;
+  viewport_height: number;
+  viewport_offset_top: number;
+  x: number;
+  y: number;
+}
+
+const listingEditorTapDiagnostics: ListingEditorTapDiagnostic[] = [];
+let listingEditorTapDiagnosticsStarted = false;
+let lastListingEditorTapAt = 0;
+
+function describeElement(element: Element | null) {
+  if (!element) return null;
+
+  const form = element.closest("form");
+  const formChildIndex = form
+    ? Array.from(form.children).findIndex((child) => child.contains(element)) +
+      1
+    : 0;
+  const name = element.getAttribute("name");
+  const role = element.getAttribute("role");
+  const slot = element.getAttribute("data-slot");
+
+  return [
+    element.tagName.toLowerCase(),
+    name ? `[name=${name}]` : "",
+    role ? `[role=${role}]` : "",
+    slot ? `[data-slot=${slot}]` : "",
+    formChildIndex ? `:form-child=${formChildIndex}` : "",
+  ].join("");
+}
+
+function recordListingEditorTap(event: PointerEvent | MouseEvent) {
+  if (window.location.pathname !== "/dashboard/listings") return;
+
+  const target = event.target instanceof Element ? event.target : null;
+  const form = target?.closest('[role="dialog"] form');
+  if (!form) return;
+
+  const dialog = form.closest('[role="dialog"]');
+  const elementAtPoint = document.elementFromPoint?.(
+    event.clientX,
+    event.clientY,
+  );
+  const viewport = window.visualViewport;
+
+  listingEditorTapDiagnostics.push({
+    active_element: describeElement(
+      document.activeElement instanceof Element ? document.activeElement : null,
+    ),
+    dialog_scroll_top: dialog instanceof HTMLElement ? dialog.scrollTop : 0,
+    element_at_point: describeElement(elementAtPoint),
+    phase: event.type as "click" | "pointerdown",
+    target: describeElement(target),
+    viewport_height: viewport?.height ?? window.innerHeight,
+    viewport_offset_top: viewport?.offsetTop ?? 0,
+    x: event.clientX,
+    y: event.clientY,
+  });
+  lastListingEditorTapAt = Date.now();
+  listingEditorTapDiagnostics.splice(
+    0,
+    Math.max(0, listingEditorTapDiagnostics.length - 8),
+  );
+}
+
+function startListingEditorTapDiagnostics() {
+  if (listingEditorTapDiagnosticsStarted) return;
+  listingEditorTapDiagnosticsStarted = true;
+  document.addEventListener("pointerdown", recordListingEditorTap, true);
+  document.addEventListener("click", recordListingEditorTap, true);
+}
+
+function addListingEditorTapDiagnostics(event: CaptureResult | null) {
+  if (
+    event?.event !== "$rageclick" ||
+    window.location.pathname !== "/dashboard/listings" ||
+    Date.now() - lastListingEditorTapAt > 5_000 ||
+    !listingEditorTapDiagnostics.length
+  ) {
+    return event;
+  }
+
+  return {
+    ...event,
+    properties: {
+      ...event.properties,
+      listing_editor_tap_diagnostics: [...listingEditorTapDiagnostics],
+    },
+  };
+}
+
 function withDefaultSourcePage(properties?: PosthogEventProperties) {
   if (typeof window === "undefined") {
     return properties;
@@ -108,9 +205,11 @@ async function initializePosthog() {
     return false;
   }
 
+  startListingEditorTapDiagnostics();
   posthog.init(runtimeConfig.posthog.key, {
     advanced_enable_surveys: true,
     api_host: runtimeConfig.posthog.host,
+    before_send: addListingEditorTapDiagnostics,
     defaults: "2026-01-30",
   });
 
