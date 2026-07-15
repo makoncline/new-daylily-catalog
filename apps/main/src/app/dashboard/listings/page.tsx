@@ -22,7 +22,8 @@ import { logDashboardTiming } from "@/app/dashboard/_lib/dashboard-timing";
 
 export default function ListingsPage() {
   const { closeEditListing, editingId } = useEditListing();
-  const { closeCreateListing, isCreating } = useCreateListing();
+  const { closeCreateListing, finishCreateListing, isCreating } =
+    useCreateListing();
   const isShowingSurface = isCreating || Boolean(editingId);
   const dashboardScrollYRef = useRef(0);
   const dashboardRef = useRef<HTMLDivElement | null>(null);
@@ -89,7 +90,10 @@ export default function ListingsPage() {
       </Activity>
 
       {isCreating ? (
-        <CreateListingSurface onClose={closeCreateListing} />
+        <CreateListingSurface
+          onClose={closeCreateListing}
+          onCreated={finishCreateListing}
+        />
       ) : editingId ? (
         <EditListingSurface listingId={editingId} onClose={closeEditListing} />
       ) : null}

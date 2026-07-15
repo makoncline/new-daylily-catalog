@@ -79,4 +79,15 @@ describe("useEditListing URL sync", () => {
       false,
     );
   });
+
+  it("follows browser history changes to the editing query", async () => {
+    const { rerender } = render(<EditListingHookHarness />);
+
+    expect(screen.getByRole("button")).toHaveTextContent("listing-1");
+
+    navigationState.setSearch("");
+    rerender(<EditListingHookHarness />);
+
+    expect(screen.getByRole("button")).toHaveTextContent("none");
+  });
 });

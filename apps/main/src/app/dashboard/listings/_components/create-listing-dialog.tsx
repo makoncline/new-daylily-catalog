@@ -12,8 +12,7 @@ import {
 } from "@/components/ahs-listing-select";
 import { AhsListingDisplay } from "@/components/ahs-listing-display";
 import { Separator } from "@/components/ui/separator";
-import { atom, useAtom, useSetAtom } from "jotai";
-import { editingListingIdAtom } from "./edit-listing-dialog";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
   getErrorMessage,
   normalizeError,
@@ -24,19 +23,28 @@ import { insertListing } from "@/app/dashboard/_lib/dashboard-db/listings-collec
 import { Spinner } from "@/components/ui/spinner";
 import { ArrowLeft } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
-
-/**
- * State for the full-page listing creation surface.
- */
-export const creatingListingAtom = atom(false);
+import { useQueryParamDialogState } from "@/hooks/use-dialog-search-param";
 
 export function useCreateListing() {
-  const [isCreating, setIsCreating] = useAtom(creatingListingAtom);
+  const { setValue, value } = useQueryParamDialogState({
+    history: "push",
+    paramName: "creating",
+    scroll: false,
+  });
+  const pathname = usePathname();
+  const router = useRouter();
+  const searchParams = useSearchParams();
 
   return {
-    closeCreateListing: () => setIsCreating(false),
-    isCreating,
-    openCreateListing: () => setIsCreating(true),
+    closeCreateListing: () => setValue(null),
+    finishCreateListing: (listingId: string) => {
+      const params = new URLSearchParams(searchParams.toString());
+      params.delete("creating");
+      params.set("editing", listingId);
+      router.push(`${pathname}?${params.toString()}`, { scroll: false });
+    },
+    isCreating: value === "true",
+    openCreateListing: () => setValue("true"),
   };
 }
 
@@ -45,37 +53,22 @@ export function useCreateListing() {
  * Allows selecting an AHS database entry and/or setting a custom title.
  * After successful creation, automatically opens the full-page editor.
  */
-export function CreateListingSurface({ onClose }: { onClose: () => void }) {
+export function CreateListingSurface({
+  onClose,
+  onCreated,
+}: {
+  onClose: () => void;
+  onCreated: (listingId: string) => void;
+}) {
   const [title, setTitle] = useState("");
   const [selectedResult, setSelectedResult] = useState<AhsSearchResult | null>(
     null,
   );
   const [isSaving, setIsSaving] = useState(false);
   const backButtonRef = useRef<HTMLButtonElement | null>(null);
-  const surfaceRef = useRef<HTMLElement | null>(null);
-
-  const setEditingId = useSetAtom(editingListingIdAtom);
 
   useLayoutEffect(() => {
     backButtonRef.current?.focus({ preventScroll: true });
-    const shellElements = [
-      ...document.querySelectorAll<HTMLElement>('[data-sidebar="sidebar"]'),
-      surfaceRef.current
-        ?.closest("main")
-        ?.querySelector<HTMLElement>(":scope > header"),
-      document.querySelector<HTMLElement>(
-        '[data-testid="dashboard-billing-alert"]',
-      ),
-    ].filter((element): element is HTMLElement => Boolean(element));
-
-    shellElements.forEach((element) => {
-      element.inert = true;
-    });
-    return () => {
-      shellElements.forEach((element) => {
-        element.inert = false;
-      });
-    };
   }, []);
 
   const { data: detailedAhsListing } = api.dashboardDb.ahs.get.useQuery(
@@ -137,8 +130,7 @@ export function CreateListingSurface({ onClose }: { onClose: () => void }) {
         description: `${newListing.title} has been created.`,
       });
 
-      onClose();
-      setEditingId(newListing.id);
+      onCreated(newListing.id);
     } catch (error) {
       toast.error("Failed to create listing", {
         description: getErrorMessage(error),
@@ -154,7 +146,6 @@ export function CreateListingSurface({ onClose }: { onClose: () => void }) {
 
   return (
     <section
-      ref={surfaceRef}
       aria-label="Create listing"
       className="mx-auto w-full max-w-3xl pb-8"
     >

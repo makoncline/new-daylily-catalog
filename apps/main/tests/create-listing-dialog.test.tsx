@@ -1,4 +1,3 @@
-import type * as Jotai from "jotai";
 import {
   act,
   fireEvent,
@@ -10,7 +9,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { CreateListingSurface } from "@/app/dashboard/listings/_components/create-listing-dialog";
 
 const mockInsertListing = vi.hoisted(() => vi.fn());
-const mockSetEditingId = vi.hoisted(() => vi.fn());
+const mockOnCreated = vi.hoisted(() => vi.fn());
 
 vi.mock("@/trpc/react", () => ({
   api: {
@@ -35,14 +34,6 @@ vi.mock("@/app/dashboard/_lib/dashboard-db/listings-collection", () => ({
     }>;
   },
 }));
-
-vi.mock("jotai", async (importOriginal) => {
-  const actual = await importOriginal<typeof Jotai>();
-  return {
-    ...actual,
-    useSetAtom: () => mockSetEditingId,
-  };
-});
 
 vi.mock("@/components/ahs-listing-select", () => ({
   AhsListingSelect: ({
@@ -116,7 +107,9 @@ describe("CreateListingSurface", () => {
   });
 
   it("renders creation as a page surface instead of a dialog", () => {
-    render(<CreateListingSurface onClose={vi.fn()} />);
+    render(
+      <CreateListingSurface onClose={vi.fn()} onCreated={mockOnCreated} />,
+    );
 
     expect(
       screen.getByRole("region", { name: "Create listing" }),
@@ -125,7 +118,9 @@ describe("CreateListingSurface", () => {
   });
 
   it("uses selected AHS name when title input is blank", async () => {
-    render(<CreateListingSurface onClose={vi.fn()} />);
+    render(
+      <CreateListingSurface onClose={vi.fn()} onCreated={mockOnCreated} />,
+    );
 
     fireEvent.click(screen.getByRole("button", { name: "Select AHS" }));
 
@@ -152,7 +147,9 @@ describe("CreateListingSurface", () => {
       }),
     );
 
-    render(<CreateListingSurface onClose={vi.fn()} />);
+    render(
+      <CreateListingSurface onClose={vi.fn()} onCreated={mockOnCreated} />,
+    );
 
     fireEvent.change(screen.getByLabelText("Listing Title"), {
       target: { value: "Slow connection listing" },
@@ -169,7 +166,7 @@ describe("CreateListingSurface", () => {
     });
 
     await waitFor(() => {
-      expect(mockSetEditingId).toHaveBeenCalledWith("listing-1");
+      expect(mockOnCreated).toHaveBeenCalledWith("listing-1");
     });
   });
 });
