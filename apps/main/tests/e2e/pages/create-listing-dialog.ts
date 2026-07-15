@@ -110,6 +110,7 @@ export class CreateListingDialog {
   }
 
   async cancel() {
+    this.page.once("dialog", (dialog) => void dialog.accept());
     await this.cancelButton.click();
     await this.dialog.waitFor({ state: "hidden" });
   }

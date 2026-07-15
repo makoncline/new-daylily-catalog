@@ -56,7 +56,6 @@ test.describe("listing image manager @local", () => {
     });
 
     await page.goto(`/dashboard/listings?editing=${seedMeta.listingId}`);
-    await dashboardListings.isReady();
     await editListingDialog.isReady();
     await expectEditingParam(seedMeta.listingId);
     await expect(imageManager.imageGrid()).toBeVisible();
