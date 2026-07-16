@@ -37,17 +37,13 @@ async function openFirstListingForEdit(
 
 test("Listings table", async ({ page }) => {
   await openListings(page);
-  await captureAtlasState(page, "listing-management-table", {
-    fullPage: false,
-  });
+  await captureAtlasState(page, "listing-management-table");
 });
 
 test("Listing row actions", async ({ page }) => {
   await openListings(page);
   await openFirstRowMenu(page);
-  await captureAtlasState(page, "listing-management-row-actions", {
-    fullPage: false,
-  });
+  await captureAtlasState(page, "listing-management-row-actions");
 });
 
 test("Listing search", async ({ page }) => {
@@ -55,9 +51,7 @@ test("Listing search", async ({ page }) => {
   await listings.setGlobalSearch("Richfield Muriel");
   await expect(listings.filteredCount()).toContainText("result");
   await expect(listings.listingsTable).toContainText("Richfield Muriel");
-  await captureAtlasState(page, "listing-management-query", {
-    fullPage: false,
-  });
+  await captureAtlasState(page, "listing-management-query");
 });
 
 test("Advanced listing search", async ({ page }) => {
@@ -65,18 +59,14 @@ test("Advanced listing search", async ({ page }) => {
   const advanced = page.getByTestId("search-mode-switch");
   await advanced.click();
   await expect(advanced).toBeChecked();
-  await captureAtlasState(page, "listing-management-advanced", {
-    fullPage: false,
-  });
+  await captureAtlasState(page, "listing-management-advanced");
 });
 
 test("For sale filter", async ({ page }) => {
   const listings = await openListings(page);
   await page.getByRole("button", { name: "For Sale", exact: true }).click();
   await expect(listings.filteredCount()).toBeVisible();
-  await captureAtlasState(page, "listing-management-for-sale", {
-    fullPage: false,
-  });
+  await captureAtlasState(page, "listing-management-for-sale");
 });
 
 test("List filter choices", async ({ page }) => {
@@ -85,36 +75,28 @@ test("List filter choices", async ({ page }) => {
   await expect(
     page.locator('[data-slot="command-item"]').first(),
   ).toBeVisible();
-  await captureAtlasState(page, "listing-management-list-filter", {
-    fullPage: false,
-  });
+  await captureAtlasState(page, "listing-management-list-filter");
 });
 
 test("Sorted listings", async ({ page }) => {
   const listings = await openListings(page);
   await listings.sortByColumn("Title");
   await expect(listings.listingTableReady).toBeVisible();
-  await captureAtlasState(page, "listing-management-sort", {
-    fullPage: false,
-  });
+  await captureAtlasState(page, "listing-management-sort");
 });
 
 test("Listings page two", async ({ page }) => {
   const listings = await openListings(page);
   await listings.goToNextPage();
   await expect(listings.pageIndicator()).toContainText("Page 2");
-  await captureAtlasState(page, "listing-management-page-two", {
-    fullPage: false,
-  });
+  await captureAtlasState(page, "listing-management-page-two");
 });
 
 test("No matching listings", async ({ page }) => {
   const listings = await openListings(page);
   await listings.setGlobalSearch("no-such-member-listing");
   await expect(listings.filteredCount()).toContainText("0");
-  await captureAtlasState(page, "listing-management-no-results", {
-    fullPage: false,
-  });
+  await captureAtlasState(page, "listing-management-no-results");
 });
 
 test("Create listing", async ({ page }) => {
@@ -123,9 +105,7 @@ test("Create listing", async ({ page }) => {
   const dialog = new CreateListingDialog(page);
   await dialog.isReady();
   await expect(dialog.createButton).toBeDisabled();
-  await captureAtlasState(page, "listing-management-create-empty", {
-    fullPage: false,
-  });
+  await captureAtlasState(page, "listing-management-create-empty");
 });
 
 test("Cultivar picker results", async ({ page }) => {
@@ -138,9 +118,7 @@ test("Cultivar picker results", async ({ page }) => {
     .getByPlaceholder("Search AHS listings…")
     .fill("Stella");
   await expect(dialog.ahsDialog).toContainText("Stella de Oro");
-  await captureAtlasState(page, "listing-management-cultivar-picker", {
-    fullPage: false,
-  });
+  await captureAtlasState(page, "listing-management-cultivar-picker");
 });
 
 test("Cultivar selected", async ({ page }) => {
@@ -150,18 +128,14 @@ test("Cultivar selected", async ({ page }) => {
   await dialog.isReady();
   await dialog.searchAndSelectAhsListing("Stella", "Stella de Oro");
   await expect(dialog.titleInput).toHaveValue(/Stella de Oro/i);
-  await captureAtlasState(page, "listing-management-create-selected", {
-    fullPage: false,
-  });
+  await captureAtlasState(page, "listing-management-create-selected");
 });
 
 test("Edit populated listing", async ({ page }) => {
   await openListings(page);
   const dialog = await openFirstListingForEdit(page);
   await expect(dialog.titleInput).not.toHaveValue("");
-  await captureAtlasState(page, "listing-management-edit-populated", {
-    fullPage: false,
-  });
+  await captureAtlasState(page, "listing-management-edit-populated");
 });
 
 test("Empty required listing name", async ({ page }) => {
@@ -170,9 +144,7 @@ test("Empty required listing name", async ({ page }) => {
   await dialog.titleInput.fill("");
   await dialog.titleInput.blur();
   await expect(dialog.saveChangesButton).toBeEnabled();
-  await captureAtlasState(page, "listing-management-edit-validation", {
-    fullPage: false,
-  });
+  await captureAtlasState(page, "listing-management-edit-validation");
 });
 
 test("Listing membership picker", async ({ page }) => {
@@ -182,7 +154,5 @@ test("Listing membership picker", async ({ page }) => {
   await expect(
     page.getByRole("heading", { name: "Select Lists" }),
   ).toBeVisible();
-  await captureAtlasState(page, "listing-management-list-picker", {
-    fullPage: false,
-  });
+  await captureAtlasState(page, "listing-management-list-picker");
 });

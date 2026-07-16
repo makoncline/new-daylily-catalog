@@ -4,23 +4,28 @@ import { mkdirSync } from "node:fs";
 import path from "node:path";
 import { getAtlasState } from "../../scripts/atlas-flows.mjs";
 export { expect, test };
-export async function captureAtlasState(
-  page: Page,
-  stateId: string,
-  { fullPage = true }: { fullPage?: boolean } = {},
-) {
+export async function captureAtlasState(page: Page, stateId: string) {
   const captureDirectory = process.env.ATLAS_CAPTURE_DIR;
   if (!captureDirectory) throw new Error("ATLAS_CAPTURE_DIR is required.");
   const stateItem = getAtlasState(stateId);
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.evaluate(async () => {
     await document.fonts.ready;
-    const visibleImages = [...document.images].filter((image) => {
-      const rect = image.getBoundingClientRect();
-      return rect.bottom > 0 && rect.top < innerHeight;
-    });
+    const initialScrollY = scrollY;
+    const images = [...document.images];
+    for (
+      let position = 0;
+      position < document.documentElement.scrollHeight;
+      position += innerHeight
+    ) {
+      scrollTo(0, position);
+      await new Promise((resolve) =>
+        requestAnimationFrame(() => requestAnimationFrame(resolve)),
+      );
+    }
+    scrollTo(0, initialScrollY);
     await Promise.all(
-      visibleImages.map(
+      images.map(
         (image) =>
           image.complete ||
           new Promise<void>((resolve) => {
@@ -37,7 +42,7 @@ export async function captureAtlasState(
   mkdirSync(captureDirectory, { recursive: true });
   await page.screenshot({
     path: path.join(captureDirectory, stateItem.capture),
-    fullPage,
+    fullPage: true,
     animations: "disabled",
   });
 }
