@@ -20,11 +20,14 @@ test baseline, change the app, then rerun the same evidence.
 From the repository root:
 
 ```sh
+node apps/main/scripts/run-atlas-flow.mjs all --output=local/atlas/current
 node apps/main/scripts/run-atlas-flow.mjs public-catalog --output=local/atlas/before
 ```
 
-Open the absolute `index.html` path printed by the command and run the tests
-listed there. After making a change:
+The `all` command keeps one Turbopack server alive while capturing every flow
+and creates a home page linking the galleries. Open the absolute `index.html`
+path printed by the command and run the tests listed there. After making a
+change:
 
 ```sh
 node apps/main/scripts/run-atlas-flow.mjs public-catalog --output=local/atlas/after
