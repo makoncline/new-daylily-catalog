@@ -31,6 +31,24 @@ WHERE "link_normalized_name" IS NULL
   OR TRIM("link_normalized_name") = '';
 
 SELECT
+  'v2_flower_show_non_null_count' AS "check",
+  COUNT(*) AS "value"
+FROM "V2AhsCultivar"
+WHERE NULLIF(TRIM("flower_show"), '') IS NOT NULL;
+
+SELECT
+  'v2_sculpted_type_ids_non_null_count' AS "check",
+  COUNT(*) AS "value"
+FROM "V2AhsCultivar"
+WHERE NULLIF(TRIM("sculpted_type_ids"), '') IS NOT NULL;
+
+SELECT
+  'v2_sculpted_type_names_non_null_count' AS "check",
+  COUNT(*) AS "value"
+FROM "V2AhsCultivar"
+WHERE NULLIF(TRIM("sculpted_type_names"), '') IS NOT NULL;
+
+SELECT
   'v2_duplicate_link_normalized_name_groups' AS "check",
   COUNT(*) AS "value"
 FROM (

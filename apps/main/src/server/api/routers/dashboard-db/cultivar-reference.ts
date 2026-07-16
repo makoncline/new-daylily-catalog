@@ -78,6 +78,7 @@ type RawV2CultivarReferenceRow = RawCultivarReferenceBaseRow & {
   v2_color: string | null;
   v2_flower_form_names: string | null;
   v2_unusual_forms_names: string | null;
+  v2_sculpted_type_names: string | null;
   v2_parentage: string | null;
   v2_image_url: string | null;
 };
@@ -132,6 +133,7 @@ function mapRawV2CultivarReferenceRow(
         color: row.v2_color,
         flower_form_names: row.v2_flower_form_names,
         unusual_forms_names: row.v2_unusual_forms_names,
+        sculpted_type_names: row.v2_sculpted_type_names,
         parentage: row.v2_parentage,
         image_url: row.v2_image_url,
       }
@@ -176,6 +178,7 @@ async function getCultivarReferencesByIdsRaw(
       v2."color" AS "v2_color",
       v2."flower_form_names" AS "v2_flower_form_names",
       v2."unusual_forms_names" AS "v2_unusual_forms_names",
+      v2."sculpted_type_names" AS "v2_sculpted_type_names",
       v2."parentage" AS "v2_parentage",
       v2."image_url" AS "v2_image_url"
     FROM "CultivarReference" cr
@@ -307,6 +310,7 @@ async function getCultivarReferencesForUserListings(
       v2."color" AS "v2_color",
       v2."flower_form_names" AS "v2_flower_form_names",
       v2."unusual_forms_names" AS "v2_unusual_forms_names",
+      v2."sculpted_type_names" AS "v2_sculpted_type_names",
       v2."parentage" AS "v2_parentage",
       v2."image_url" AS "v2_image_url"
     FROM "CultivarReference" cr

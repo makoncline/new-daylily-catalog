@@ -18,6 +18,7 @@ interface UpsertCultivarReferenceWithV2Input {
   fragrance?: string | null;
   budcount?: string | null;
   branches?: string | null;
+  sculpting?: string | null;
   ahsImageUrl?: string | null;
   v2AhsCultivarId?: string;
   v2PostId?: string | null;
@@ -121,6 +122,7 @@ async function upsertCultivarReferenceWithV2({
   fragrance,
   budcount,
   branches,
+  sculpting,
   ahsImageUrl,
   v2AhsCultivarId,
   v2PostId,
@@ -151,6 +153,7 @@ async function upsertCultivarReferenceWithV2({
       bloom_size_in: parseNumericString(bloomSize),
       bud_count: parseIntegerString(budcount),
       branches: parseIntegerString(branches),
+      sculpted_type_names: sculpting ?? null,
       color: color ?? null,
       parentage: parentage ?? null,
       images_count: imageUrl ? 1 : 0,
@@ -174,6 +177,7 @@ async function upsertCultivarReferenceWithV2({
       bloom_size_in: parseNumericString(bloomSize),
       bud_count: parseIntegerString(budcount),
       branches: parseIntegerString(branches),
+      sculpted_type_names: sculpting ?? null,
       color: color ?? null,
       parentage: parentage ?? null,
       images_count: imageUrl ? 1 : 0,
@@ -318,6 +322,7 @@ export async function seedAhsListing({
       fragrance: ahsListing.fragrance,
       budcount: ahsListing.budcount,
       branches: ahsListing.branches,
+      sculpting: ahsListing.sculpting,
       ahsImageUrl: ahsListing.ahsImageUrl,
       v2AhsCultivarId,
       v2PostId,

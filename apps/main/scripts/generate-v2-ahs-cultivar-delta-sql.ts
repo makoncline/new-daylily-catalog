@@ -52,6 +52,9 @@ interface SourceCultivarRow {
   petal_width_in: number | null;
   unusual_forms_ids: string | null;
   unusual_forms_names: string | null;
+  sculpted_type_ids: string | null;
+  sculpted_type_names: string | null;
+  flower_show: string | null;
   parentage: string | null;
   images_count: number | null;
   last_updated: string | null;
@@ -97,6 +100,9 @@ interface ComparableCultivarRow {
   petal_width_in: number | null;
   unusual_forms_ids: string | null;
   unusual_forms_names: string | null;
+  sculpted_type_ids: string | null;
+  sculpted_type_names: string | null;
+  flower_show: string | null;
   parentage: string | null;
   images_count: number | null;
   last_updated: string | null;
@@ -241,6 +247,9 @@ const WRITE_COLUMNS = [
   "petal_width_in",
   "unusual_forms_ids",
   "unusual_forms_names",
+  "sculpted_type_ids",
+  "sculpted_type_names",
+  "flower_show",
   "parentage",
   "images_count",
   "last_updated",
@@ -284,6 +293,9 @@ const COMPARABLE_COLUMNS = [
   "petal_width_in",
   "unusual_forms_ids",
   "unusual_forms_names",
+  "sculpted_type_ids",
+  "sculpted_type_names",
+  "flower_show",
   "parentage",
   "images_count",
   "image_url",
@@ -333,6 +345,9 @@ const SOURCE_SELECT_SQL = `
     petal_width_in,
     unusual_forms_ids,
     unusual_forms_names,
+    sculpted_type_ids,
+    sculpted_type_names,
+    flower_show,
     parentage,
     images_count,
     last_updated,
@@ -341,7 +356,17 @@ const SOURCE_SELECT_SQL = `
   FROM cultivars
   ORDER BY id
 `;
-const PROD_SELECT_SQL = `
+function optionalProdColumnSelect(
+  availableColumns: Set<string>,
+  column: "flower_show" | "sculpted_type_ids" | "sculpted_type_names",
+) {
+  return availableColumns.has(column)
+    ? `"${column}"`
+    : `NULL AS "${column}"`;
+}
+
+function buildProdSelectSql(availableColumns: Set<string>) {
+  return `
   SELECT
     id,
     post_id,
@@ -380,6 +405,9 @@ const PROD_SELECT_SQL = `
     petal_width_in,
     unusual_forms_ids,
     unusual_forms_names,
+    ${optionalProdColumnSelect(availableColumns, "sculpted_type_ids")},
+    ${optionalProdColumnSelect(availableColumns, "sculpted_type_names")},
+    ${optionalProdColumnSelect(availableColumns, "flower_show")},
     parentage,
     images_count,
     last_updated,
@@ -388,6 +416,7 @@ const PROD_SELECT_SQL = `
   FROM "V2AhsCultivar"
   ORDER BY id
 `;
+}
 const CULTIVAR_REFERENCE_SELECT_SQL = `
   SELECT
     id,
@@ -524,6 +553,9 @@ function buildComparableRow(row: SourceCultivarRow): ComparableCultivarRow {
     petal_width_in: row.petal_width_in,
     unusual_forms_ids: row.unusual_forms_ids,
     unusual_forms_names: row.unusual_forms_names,
+    sculpted_type_ids: row.sculpted_type_ids,
+    sculpted_type_names: row.sculpted_type_names,
+    flower_show: row.flower_show,
     parentage: row.parentage,
     images_count: row.images_count,
     last_updated: row.last_updated,
@@ -550,8 +582,16 @@ function readProdRows(prodDbPath: string) {
   const prodDb = new DatabaseSync(prodDbPath, { readOnly: true });
 
   try {
+    const availableColumns = new Set(
+      (
+        prodDb.prepare(`PRAGMA table_info('V2AhsCultivar')`).all() as Array<{
+          name: string;
+        }>
+      ).map((column) => column.name),
+    );
+
     return prodDb
-      .prepare(PROD_SELECT_SQL)
+      .prepare(buildProdSelectSql(availableColumns))
       .all() as unknown as ComparableCultivarRow[];
   } finally {
     prodDb.close();
@@ -624,6 +664,9 @@ function buildImportRowSql(row: ComparableCultivarRow) {
     row.petal_width_in,
     row.unusual_forms_ids,
     row.unusual_forms_names,
+    row.sculpted_type_ids,
+    row.sculpted_type_names,
+    row.flower_show,
     row.parentage,
     row.images_count,
     row.last_updated,
@@ -962,6 +1005,24 @@ SELECT 'expected_new_rows' AS "check", ${summary.counts.newRows} AS "value";
 SELECT 'expected_changed_rows' AS "check", ${summary.counts.changedRows} AS "value";
 SELECT 'expected_prod_only_rows' AS "check", ${summary.counts.prodOnlyRows} AS "value";
 SELECT 'expected_remaining_name_mismatches_after_apply' AS "check", ${expectedRemainingMismatches} AS "value";
+
+SELECT
+  'v2_flower_show_non_null_count' AS "check",
+  COUNT(*) AS "value"
+FROM "V2AhsCultivar"
+WHERE NULLIF(TRIM("flower_show"), '') IS NOT NULL;
+
+SELECT
+  'v2_sculpted_type_ids_non_null_count' AS "check",
+  COUNT(*) AS "value"
+FROM "V2AhsCultivar"
+WHERE NULLIF(TRIM("sculpted_type_ids"), '') IS NOT NULL;
+
+SELECT
+  'v2_sculpted_type_names_non_null_count' AS "check",
+  COUNT(*) AS "value"
+FROM "V2AhsCultivar"
+WHERE NULLIF(TRIM("sculpted_type_names"), '') IS NOT NULL;
 
 WITH ${touchedIdsCte}
 SELECT

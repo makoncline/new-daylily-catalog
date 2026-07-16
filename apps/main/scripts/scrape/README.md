@@ -131,7 +131,7 @@ The `cultivars` table includes:
 - **Registration:** `introduction_date`, `last_updated`
 - **Hybridizer:** `primary_hybridizer_name`, `hybridizer_code_legacy`
 - **Physical:** `scape_height_in`, `bloom_size_in`, `bud_count`, `branches`
-- **Taxonomy:** `bloom_season_names`, `bloom_habit_names`, `foliage_names`, `ploidy_names`, `flower_form_names`
+- **Taxonomy:** `bloom_season_names`, `bloom_habit_names`, `foliage_names`, `ploidy_names`, `flower_form_names`, `flower_show`, `sculpted_type_ids`, `sculpted_type_names`
 - **Attributes:** `color`, `parentage`, `seedling_number`, `rebloom`, `double_percentage`
 - **Media:** `image_url` (full-size URL or `NULL` when the API only returns the placeholder), `awards_json` (JSON), `images_count`
 

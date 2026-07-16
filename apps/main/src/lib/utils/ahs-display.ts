@@ -19,6 +19,7 @@ export const v2AhsCultivarDisplaySelect = {
   color: true,
   flower_form_names: true,
   unusual_forms_names: true,
+  sculpted_type_names: true,
   parentage: true,
   image_url: true,
 } as const satisfies Prisma.V2AhsCultivarSelect;
@@ -281,7 +282,7 @@ export function mapV2AhsCultivarToDisplayAhsListing(
     fragrance: v2AhsCultivar.fragrance_names ?? null,
     budcount: formatInteger(v2AhsCultivar.bud_count),
     branches: formatInteger(v2AhsCultivar.branches),
-    sculpting: null,
+    sculpting: v2AhsCultivar.sculpted_type_names ?? null,
     foliage: null,
     flower: null,
   };

@@ -68,6 +68,9 @@ CREATE TABLE cultivars (
     petal_width_in REAL,
     unusual_forms_ids TEXT,
     unusual_forms_names TEXT,
+    sculpted_type_ids TEXT,
+    sculpted_type_names TEXT,
+    flower_show TEXT,
     parentage TEXT,
     images_count INTEGER,
     last_updated TEXT,
@@ -161,6 +164,9 @@ for PAGE_FILE in $PAGE_FILES; do
       (if .petal_width_in == null then "NULL" else .petal_width_in end) + "," +
       (if .unusual_forms_ids == null then "NULL" else "\"" + (.unusual_forms_ids | gsub("\""; "\"\"")) + "\"" end) + "," +
       (if .unusual_forms_names == null then "NULL" else "\"" + (.unusual_forms_names | gsub("\""; "\"\"")) + "\"" end) + "," +
+      (if .sculpted_type_ids == null then "NULL" else "\"" + (.sculpted_type_ids | gsub("\""; "\"\"")) + "\"" end) + "," +
+      (if .sculpted_type_names == null then "NULL" else "\"" + (.sculpted_type_names | gsub("\""; "\"\"")) + "\"" end) + "," +
+      (if .flower_show == null then "NULL" else "\"" + (.flower_show | gsub("\""; "\"\"")) + "\"" end) + "," +
       (if .parentage == null then "NULL" else "\"" + (.parentage | gsub("\""; "\"\"")) + "\"" end) + "," +
       (if .images_count == null then "NULL" else .images_count end) + "," +
       (if .last_updated == null then "NULL" else "\"" + (.last_updated | gsub("\""; "\"\"")) + "\"" end) + "," +

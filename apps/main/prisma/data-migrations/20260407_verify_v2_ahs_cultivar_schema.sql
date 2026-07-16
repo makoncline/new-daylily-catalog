@@ -40,3 +40,27 @@ SELECT
     WHERE type = 'index'
       AND name = 'V2AhsCultivar_link_normalized_name_idx'
   ) AS "value";
+
+SELECT
+  'has_v2_flower_show_column' AS "check",
+  EXISTS(
+    SELECT 1
+    FROM pragma_table_info('V2AhsCultivar')
+    WHERE name = 'flower_show'
+  ) AS "value";
+
+SELECT
+  'has_v2_sculpted_type_ids_column' AS "check",
+  EXISTS(
+    SELECT 1
+    FROM pragma_table_info('V2AhsCultivar')
+    WHERE name = 'sculpted_type_ids'
+  ) AS "value";
+
+SELECT
+  'has_v2_sculpted_type_names_column' AS "check",
+  EXISTS(
+    SELECT 1
+    FROM pragma_table_info('V2AhsCultivar')
+    WHERE name = 'sculpted_type_names'
+  ) AS "value";

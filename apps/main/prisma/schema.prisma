@@ -76,6 +76,9 @@ model V2AhsCultivar {
   petal_width_in               Float?
   unusual_forms_ids            String?
   unusual_forms_names          String?
+  sculpted_type_ids            String?
+  sculpted_type_names          String?
+  flower_show                  String?
   parentage                    String?
   images_count                 Int?
   last_updated                 String?

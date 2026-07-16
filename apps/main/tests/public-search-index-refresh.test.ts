@@ -150,7 +150,7 @@ describe("public search index refresh", () => {
               key: "sourcePath",
               value: "/data/search/public-search-source-replica.sqlite",
             },
-            { key: "schemaVersion", value: "9" },
+            { key: "schemaVersion", value: "10" },
           ],
         };
       }

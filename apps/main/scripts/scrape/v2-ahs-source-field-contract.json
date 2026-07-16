@@ -1,0 +1,60 @@
+{
+  "capturedAt": "2026-07-16T20:18:00Z",
+  "source": "https://daylilies.org/wp-admin/admin-ajax.php?action=cultivar_search",
+  "rawCultivarKeyCount": 44,
+  "storedDirectly": [
+    "additional_hybridizers_ids",
+    "additional_hybridizers_names",
+    "bloom_habit_ids",
+    "bloom_habit_names",
+    "bloom_season_ids",
+    "bloom_season_names",
+    "bloom_size_in",
+    "branches",
+    "bud_count",
+    "color",
+    "double_percentage",
+    "flower_form_ids",
+    "flower_form_names",
+    "flower_show",
+    "foliage_ids",
+    "foliage_names",
+    "fragrance_ids",
+    "fragrance_names",
+    "hybridizer_code_legacy",
+    "id",
+    "images_count",
+    "introduction_date",
+    "last_updated",
+    "parentage",
+    "petal_length_in",
+    "petal_width_in",
+    "ploidy_ids",
+    "ploidy_names",
+    "polymerous_percentage",
+    "post_id",
+    "post_status",
+    "post_title",
+    "primary_hybridizer_id",
+    "primary_hybridizer_name",
+    "rebloom",
+    "scape_height_in",
+    "sculpted_type_ids",
+    "sculpted_type_names",
+    "seedling_number",
+    "spider_ratio",
+    "unusual_forms_ids",
+    "unusual_forms_names"
+  ],
+  "transformed": {
+    "awards": {
+      "target": "awards_json",
+      "reason": "Stored as JSON text for SQLite and Prisma portability."
+    },
+    "first_image": {
+      "target": "image_url",
+      "reason": "Stores only the first full-size URL and converts the source placeholder asset to null."
+    }
+  },
+  "ignored": {}
+}

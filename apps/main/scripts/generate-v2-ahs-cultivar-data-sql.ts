@@ -41,6 +41,9 @@ interface SourceCultivarRow {
   petal_width_in: number | null;
   unusual_forms_ids: string | null;
   unusual_forms_names: string | null;
+  sculpted_type_ids: string | null;
+  sculpted_type_names: string | null;
+  flower_show: string | null;
   parentage: string | null;
   images_count: number | null;
   last_updated: string | null;
@@ -108,6 +111,9 @@ const SOURCE_SELECT_SQL = `
     petal_width_in,
     unusual_forms_ids,
     unusual_forms_names,
+    sculpted_type_ids,
+    sculpted_type_names,
+    flower_show,
     parentage,
     images_count,
     last_updated,
@@ -154,6 +160,9 @@ const INSERT_COLUMNS = [
   "petal_width_in",
   "unusual_forms_ids",
   "unusual_forms_names",
+  "sculpted_type_ids",
+  "sculpted_type_names",
+  "flower_show",
   "parentage",
   "images_count",
   "last_updated",
@@ -199,6 +208,9 @@ const UPSERT_UPDATE_COLUMNS = [
   "petal_width_in",
   "unusual_forms_ids",
   "unusual_forms_names",
+  "sculpted_type_ids",
+  "sculpted_type_names",
+  "flower_show",
   "parentage",
   "images_count",
   "last_updated",
@@ -305,6 +317,9 @@ function buildImportRowSql(row: SourceCultivarRow) {
     row.petal_width_in,
     row.unusual_forms_ids,
     row.unusual_forms_names,
+    row.sculpted_type_ids,
+    row.sculpted_type_names,
+    row.flower_show,
     row.parentage,
     row.images_count,
     row.last_updated,
@@ -535,6 +550,24 @@ SELECT
 FROM "V2AhsCultivar"
 WHERE "link_normalized_name" IS NULL
   OR TRIM("link_normalized_name") = '';
+
+SELECT
+  'v2_flower_show_non_null_count' AS "check",
+  COUNT(*) AS "value"
+FROM "V2AhsCultivar"
+WHERE NULLIF(TRIM("flower_show"), '') IS NOT NULL;
+
+SELECT
+  'v2_sculpted_type_ids_non_null_count' AS "check",
+  COUNT(*) AS "value"
+FROM "V2AhsCultivar"
+WHERE NULLIF(TRIM("sculpted_type_ids"), '') IS NOT NULL;
+
+SELECT
+  'v2_sculpted_type_names_non_null_count' AS "check",
+  COUNT(*) AS "value"
+FROM "V2AhsCultivar"
+WHERE NULLIF(TRIM("sculpted_type_names"), '') IS NOT NULL;
 
 SELECT
   'v2_duplicate_link_normalized_name_groups' AS "check",

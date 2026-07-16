@@ -180,6 +180,7 @@ CREATE TABLE CultivarSearchIndex (
   bloomSeason TEXT,
   bloomHabit TEXT,
   form TEXT,
+  flowerShow TEXT,
   ploidy TEXT,
   foliageType TEXT,
   fragrance TEXT,
@@ -272,6 +273,7 @@ INSERT INTO CultivarSearchIndex (
   bloomSeason,
   bloomHabit,
   form,
+  flowerShow,
   ploidy,
   foliageType,
   fragrance,
@@ -325,6 +327,9 @@ SELECT
       NULLIF(TRIM(v2."unusual_forms_names"), '')
     )
   END,
+  -- flower_show is the source's authoritative show classification. Missing
+  -- values stay NULL instead of being guessed from multiform form fields.
+  NULLIF(TRIM(v2."flower_show"), ''),
   NULLIF(TRIM(v2."ploidy_names"), ''),
   NULLIF(TRIM(v2."foliage_names"), ''),
   NULLIF(TRIM(v2."fragrance_names"), ''),
@@ -502,7 +507,7 @@ CREATE INDEX CultivarListingSearchIndex_hasPhoto_idx
 
 INSERT INTO SearchIndexMeta(key, value)
 VALUES
-  ('schemaVersion', '9'),
+  ('schemaVersion', '10'),
   ('builtAt', strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
   ('sourcePath', ${quoteSqlString(sourcePath)});
 ANALYZE;
