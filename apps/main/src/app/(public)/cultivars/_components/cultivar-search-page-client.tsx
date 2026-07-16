@@ -15,6 +15,8 @@ import {
   useState,
 } from "react";
 import {
+  type PublicCatalogSearchFilterChip,
+  PublicCatalogSearchFilterChipList,
   PublicCatalogSearchModeToggle,
   PublicCatalogSearchQueryInput,
   PublicCatalogSearchSection,
@@ -204,6 +206,104 @@ const SORT_OPTIONS: Array<{ label: string; value: CultivarSort }> = [
   { label: "Most listed", value: "mostListed" },
   { label: "Name A–Z", value: "name" },
 ];
+
+const BOOLEAN_FILTER_CHIPS = [
+  { key: "hasCultivarPhoto", label: "With photos" },
+  { key: "hasListings", label: "In catalogs" },
+  { key: "hasForSaleListings", label: "For sale" },
+  { key: "hasListingPhoto", label: "Listing has photo" },
+] as const satisfies ReadonlyArray<{
+  key: keyof CultivarSearchFilters;
+  label: string;
+}>;
+
+const TEXT_FILTER_CHIPS = [
+  { key: "listingTitle", label: "Listing title" },
+  { key: "listingDescription", label: "Listing description" },
+  { key: "cultivarName", label: "Cultivar" },
+  { key: "hybridizer", label: "Hybridizer" },
+  { key: "color", label: "Color" },
+  { key: "parentage", label: "Parentage" },
+] as const satisfies ReadonlyArray<{
+  key: keyof CultivarSearchFilters;
+  label: string;
+}>;
+
+const FACET_FILTER_CHIPS = [
+  { key: "bloomHabit", label: "Bloom habit" },
+  { key: "bloomSeason", label: "Bloom season" },
+  { key: "form", label: "Form" },
+  { key: "ploidy", label: "Ploidy" },
+  { key: "foliageType", label: "Foliage type" },
+  { key: "fragrance", label: "Fragrance" },
+] as const satisfies ReadonlyArray<{
+  key: keyof CultivarSearchFilters;
+  label: string;
+}>;
+
+const RANGE_FILTER_CHIPS: ReadonlyArray<{
+  label: string;
+  maxKey: keyof CultivarSearchFilters;
+  minKey: keyof CultivarSearchFilters;
+  prefix?: string;
+  suffix?: string;
+}> = [
+  {
+    label: "Price",
+    maxKey: "priceMax",
+    minKey: "priceMin",
+    prefix: "$",
+  },
+  { label: "Year", maxKey: "yearMax", minKey: "yearMin" },
+  {
+    label: "Scape height",
+    maxKey: "scapeHeightMax",
+    minKey: "scapeHeightMin",
+    suffix: " in.",
+  },
+  {
+    label: "Bloom size",
+    maxKey: "bloomSizeMax",
+    minKey: "bloomSizeMin",
+    suffix: " in.",
+  },
+  { label: "Bud count", maxKey: "budCountMax", minKey: "budCountMin" },
+  { label: "Branches", maxKey: "branchesMax", minKey: "branchesMin" },
+];
+
+function formatFacetChipValue(value: string) {
+  return [
+    ...new Set(
+      value
+        .split("|")
+        .map((item) => item.trim())
+        .filter(Boolean),
+    ),
+  ]
+    .sort((left, right) => left.localeCompare(right))
+    .join(", ");
+}
+
+function formatRangeChipLabel({
+  label,
+  max,
+  min,
+  prefix = "",
+  suffix = "",
+}: {
+  label: string;
+  max: string;
+  min: string;
+  prefix?: string;
+  suffix?: string;
+}) {
+  const formatValue = (value: string) => `${prefix}${value}${suffix}`;
+  if (min && max) {
+    return `${label}: ${formatValue(min)}–${formatValue(max)}`;
+  }
+  if (min) return `${label}: ${formatValue(min)}+`;
+  return `${label}: Up to ${formatValue(max)}`;
+}
 
 function isCultivarSort(value: string | undefined): value is CultivarSort {
   return SORT_OPTIONS.some((option) => option.value === value);
@@ -1160,6 +1260,67 @@ export function CultivarSearchPageClient({
     commitFilters(patch);
   };
 
+  const clearFilterKeys = (...keys: Array<keyof CultivarSearchFilters>) => {
+    const patch = Object.fromEntries(
+      keys.map((key) => [key, EMPTY_FILTERS[key]]),
+    ) as Partial<CultivarSearchFilters>;
+    updateFiltersImmediately(patch);
+  };
+
+  const activeFilterChips: PublicCatalogSearchFilterChip[] = [];
+  if (debouncedQuery) {
+    activeFilterChips.push({
+      id: "query",
+      label: `Search: ${debouncedQuery}`,
+      onClear: () => {
+        setQuery("");
+        setDebouncedQuery("");
+      },
+    });
+  }
+
+  for (const { key, label } of BOOLEAN_FILTER_CHIPS) {
+    if (!requestFilters[key]) continue;
+    activeFilterChips.push({
+      id: key,
+      label,
+      onClear: () => clearFilterKeys(key),
+    });
+  }
+
+  for (const { key, label } of TEXT_FILTER_CHIPS) {
+    const value = requestFilters[key];
+    if (typeof value !== "string" || !value.trim()) continue;
+    activeFilterChips.push({
+      id: key,
+      label: `${label}: ${value.trim()}`,
+      onClear: () => clearFilterKeys(key),
+    });
+  }
+
+  for (const { key, label } of FACET_FILTER_CHIPS) {
+    const value = requestFilters[key];
+    if (typeof value !== "string" || !value.trim()) continue;
+    activeFilterChips.push({
+      id: key,
+      label: `${label}: ${formatFacetChipValue(value)}`,
+      onClear: () => clearFilterKeys(key),
+    });
+  }
+
+  for (const { label, maxKey, minKey, prefix, suffix } of RANGE_FILTER_CHIPS) {
+    const min = requestFilters[minKey];
+    const max = requestFilters[maxKey];
+    if (typeof min !== "string" || typeof max !== "string" || (!min && !max)) {
+      continue;
+    }
+    activeFilterChips.push({
+      id: `${minKey}-${maxKey}`,
+      label: formatRangeChipLabel({ label, max, min, prefix, suffix }),
+      onClear: () => clearFilterKeys(minKey, maxKey),
+    });
+  }
+
   const clearAll = () => {
     setQuery("");
     setDebouncedQuery("");
@@ -1287,6 +1448,12 @@ export function CultivarSearchPageClient({
                 ) : null}
               </div>
             </div>
+
+            <PublicCatalogSearchFilterChipList
+              chips={activeFilterChips}
+              className="pt-1"
+              buttonClassName="border-white/30 bg-transparent text-white hover:bg-white/10 hover:text-white"
+            />
 
             <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-3 max-sm:gap-y-1.5">
               <div className="space-y-1.5 max-sm:contents">

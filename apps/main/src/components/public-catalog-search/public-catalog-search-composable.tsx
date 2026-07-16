@@ -22,7 +22,7 @@ import {
   type PublicCatalogSearchFacetOptions,
 } from "./public-catalog-search-types";
 
-interface FilterChip {
+export interface PublicCatalogSearchFilterChip {
   id: string;
   label: string;
   onClear: () => void;
@@ -37,8 +37,8 @@ export interface PublicCatalogSearchComposerContext<TData> {
 function buildFilterChips<TData>(
   table: Table<TData>,
   listOptions: PublicCatalogSearchFacetOption[],
-): FilterChip[] {
-  const chips: FilterChip[] = [];
+): PublicCatalogSearchFilterChip[] {
+  const chips: PublicCatalogSearchFilterChip[] = [];
   const globalFilter: unknown = table.getState().globalFilter;
 
   if (typeof globalFilter === "string" && globalFilter.length > 0) {
@@ -135,6 +135,21 @@ export function PublicCatalogSearchFilterChips<TData>({
   listOptions: PublicCatalogSearchFacetOption[];
 }) {
   const chips = buildFilterChips(table, listOptions);
+
+  return (
+    <PublicCatalogSearchFilterChipList chips={chips} className={className} />
+  );
+}
+
+export function PublicCatalogSearchFilterChipList({
+  buttonClassName,
+  chips,
+  className,
+}: {
+  buttonClassName?: string;
+  chips: PublicCatalogSearchFilterChip[];
+  className?: string;
+}) {
   if (chips.length === 0) return null;
 
   return (
@@ -148,7 +163,7 @@ export function PublicCatalogSearchFilterChips<TData>({
           type="button"
           variant="outline"
           size="sm"
-          className="h-6 gap-1 rounded-full px-2 text-xs"
+          className={cn("h-6 gap-1 rounded-full px-2 text-xs", buttonClassName)}
           onClick={chip.onClear}
         >
           {chip.label}

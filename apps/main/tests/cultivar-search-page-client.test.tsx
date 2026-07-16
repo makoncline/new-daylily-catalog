@@ -180,6 +180,28 @@ describe("CultivarSearchPageClient", () => {
     expect(screen.getByTestId("advanced-filter-form")).toHaveTextContent(
       "2 selected",
     );
+    expect(screen.getByTestId("active-filter-chips")).toBeVisible();
+    expect(
+      screen.getByRole("button", { name: "Search: Stella de Oro" }),
+    ).toBeVisible();
+    expect(
+      screen.getByRole("button", { name: "Form: Double, Spider" }),
+    ).toBeVisible();
+    expect(
+      screen.getByRole("button", { name: "Price: Up to $286" }),
+    ).toBeVisible();
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Form: Double, Spider" }),
+    );
+
+    await waitFor(() => {
+      expect(String(fetchMock.mock.calls.at(-1)?.[0])).not.toContain("form=");
+      expect(window.location.search).not.toContain("form=");
+    });
+    expect(
+      screen.queryByRole("button", { name: "Form: Double, Spider" }),
+    ).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "With photos" }));
 
