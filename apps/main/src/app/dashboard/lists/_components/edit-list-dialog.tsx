@@ -1,54 +1,113 @@
 "use client";
 
-import { reportError } from "@/lib/error-utils";
 import { ListForm, type ListFormHandle } from "@/components/forms/list-form";
 import { ListFormSkeleton } from "@/components/forms/list-form-skeleton";
-import { atom } from "jotai";
-import { useAtomDialogSearchParam } from "@/hooks/use-dialog-search-param";
-import { ManagedEditDialog } from "@/app/dashboard/_components/managed-edit-dialog";
-
-// Atom for editing state
-export const editingListIdAtom = atom<string | null>(null);
+import { ArrowLeft } from "lucide-react";
+import {
+  Suspense,
+  useCallback,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from "react";
+import { ErrorBoundary } from "react-error-boundary";
+import { useQueryParamDialogState } from "@/hooks/use-dialog-search-param";
+import { useUnsavedChangesGuard } from "@/hooks/use-unsaved-changes-guard";
+import { Button } from "@/components/ui/button";
+import { ErrorFallback } from "@/components/error-fallback";
+import { PageHeader } from "@/components/page-header";
+import { ListingSurfaceSaveBar } from "../../listings/_components/listing-surface-save-bar";
 
 export const useEditList = () => {
-  const { close, open, value } = useAtomDialogSearchParam({
-    atom: editingListIdAtom,
-    history: "replace",
+  const { setValue, value } = useQueryParamDialogState({
+    history: "push",
     paramName: "editing",
+    scroll: false,
   });
 
   return {
     editList: (id: string) => {
-      open(id);
+      setValue(id);
     },
     closeEditList: () => {
-      close();
+      setValue(null, "replace");
     },
     editingId: value,
   };
 };
 
-export function EditListDialog() {
-  const { editingId, closeEditList } = useEditList();
+export function EditListSurface({
+  listId,
+  onClose,
+}: {
+  listId: string;
+  onClose: () => void;
+}) {
+  const formRef = useRef<ListFormHandle | null>(null);
+  const backButtonRef = useRef<HTMLButtonElement | null>(null);
+  const [isDirty, setIsDirty] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const hasPendingChanges = useCallback(
+    () => formRef.current?.hasPendingChanges() ?? false,
+    [],
+  );
+  const { confirmDiscard } = useUnsavedChangesGuard(hasPendingChanges);
+
+  const handleBack = () => {
+    if (confirmDiscard()) {
+      onClose();
+    }
+  };
+
+  const handleSave = async () => {
+    setIsSaving(true);
+    try {
+      await formRef.current?.saveChanges("manual");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  useLayoutEffect(() => {
+    backButtonRef.current?.focus({ preventScroll: true });
+  }, []);
 
   return (
-    <ManagedEditDialog<ListFormHandle>
-      contentWrapperClassName="h-[calc(100%-4rem)]"
-      description="Make changes to your list here."
-      entityId={editingId}
-      fallback={<ListFormSkeleton />}
-      isOpen={!!editingId}
-      onClose={closeEditList}
-      onError={(error, errorInfo) =>
-        reportError({
-          error,
-          context: { source: "EditListDialog", errorInfo },
-        })
-      }
-      renderForm={(id, formRef, onClose) => (
-        <ListForm formRef={formRef} listId={id} onDelete={onClose} />
-      )}
-      title="Edit List"
-    />
+    <section aria-label="Edit list" className="mx-auto w-full max-w-3xl pb-8">
+      {isDirty ? (
+        <ListingSurfaceSaveBar
+          title="Unsaved list"
+          saveLabel="Save"
+          isSaving={isSaving}
+          saveDisabled={false}
+          onDiscard={onClose}
+          onSave={() => void handleSave()}
+        />
+      ) : null}
+
+      <PageHeader heading="Edit List" text="Make changes to your list.">
+        <Button
+          ref={backButtonRef}
+          type="button"
+          variant="outline"
+          onClick={handleBack}
+        >
+          <ArrowLeft aria-hidden="true" />
+          Back to lists
+        </Button>
+      </PageHeader>
+
+      <ErrorBoundary fallback={<ErrorFallback resetErrorBoundary={onClose} />}>
+        <Suspense fallback={<ListFormSkeleton />}>
+          <ListForm
+            formRef={formRef}
+            listId={listId}
+            onDelete={onClose}
+            onSave={onClose}
+            onPendingChangesChange={setIsDirty}
+          />
+        </Suspense>
+      </ErrorBoundary>
+    </section>
   );
 }

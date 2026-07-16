@@ -31,6 +31,8 @@ import { useConfirmableAsyncAction } from "@/hooks/use-confirmable-async-action"
 interface ListFormProps {
   listId: string;
   onDelete?: () => void;
+  onSave?: () => void;
+  onPendingChangesChange?: (hasPendingChanges: boolean) => void;
   formRef?: React.RefObject<ListFormHandle | null>;
 }
 
@@ -57,17 +59,22 @@ function ListFormInner({
   list,
   listId,
   onDelete,
+  onSave,
+  onPendingChangesChange,
   formRef,
 }: {
   list: ListCollectionItem;
   listId: string;
   onDelete?: () => void;
+  onSave?: () => void;
+  onPendingChangesChange?: (hasPendingChanges: boolean) => void;
   formRef?: React.RefObject<ListFormHandle | null>;
 }) {
   const [isSaving, setIsSaving] = useState(false);
   const committedValuesRef = useRef<ListFormData>(toFormValues(list));
   const {
     markNeedsParentCommit,
+    needsParentCommit,
     needsParentCommitRef,
     resetNeedsParentCommit,
   } = useParentCommitFlag();
@@ -157,6 +164,9 @@ function ListFormInner({
         toast.success("List updated", {
           description: "Your list has been updated successfully",
         });
+        if (reason === "manual") {
+          onSave?.();
+        }
         return true;
       } catch {
         if (shouldUpdateUi) {
@@ -176,6 +186,16 @@ function ListFormInner({
       markNeedsCommit: markNeedsParentCommit,
     }),
   });
+
+  useEffect(() => {
+    const notifyPendingChanges = () => {
+      onPendingChangesChange?.(hasPendingChanges());
+    };
+
+    notifyPendingChanges();
+    const subscription = form.watch(notifyPendingChanges);
+    return () => subscription.unsubscribe();
+  }, [form, hasPendingChanges, needsParentCommit, onPendingChangesChange]);
 
   useEffect(() => {
     const nextCommittedValues = toFormValues(list);
@@ -275,7 +295,13 @@ function ListFormInner({
   );
 }
 
-function ListFormLive({ listId, onDelete, formRef }: ListFormProps) {
+function ListFormLive({
+  listId,
+  onDelete,
+  onSave,
+  onPendingChangesChange,
+  formRef,
+}: ListFormProps) {
   const { isReady, list } = useListResource(listId);
 
   if (!isReady || !list) {
@@ -288,6 +314,8 @@ function ListFormLive({ listId, onDelete, formRef }: ListFormProps) {
       list={list}
       listId={listId}
       onDelete={onDelete}
+      onSave={onSave}
+      onPendingChangesChange={onPendingChangesChange}
       formRef={formRef}
     />
   );

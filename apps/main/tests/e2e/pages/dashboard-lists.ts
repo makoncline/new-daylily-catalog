@@ -201,16 +201,30 @@ export class DashboardLists {
   }
 
   async closeEditDialog() {
-    const closeButton = this.page
-      .getByRole("dialog", { name: "Edit List" })
-      .getByRole("button", { name: "Close" });
+    const closeButton = this.editDialog().getByRole("button", {
+      name: "Back to lists",
+    });
     await closeButton.scrollIntoViewIfNeeded();
     await closeButton.click();
     await this.editDialog().waitFor({ state: "hidden" });
   }
 
   editDialog(): Locator {
-    return this.page.getByRole("dialog", { name: "Edit List" });
+    return this.page.getByRole("region", { name: "Edit list" });
+  }
+
+  createSurface(): Locator {
+    return this.page.getByRole("region", { name: "Create list" });
+  }
+
+  createTitleInput(): Locator {
+    return this.createSurface().getByLabel("List Title");
+  }
+
+  createSurfaceSubmitButton(): Locator {
+    return this.createSurface().getByRole("button", {
+      name: "Create List",
+    });
   }
 
   editTitleInput(): Locator {
@@ -221,8 +235,11 @@ export class DashboardLists {
     return this.editDialog().getByLabel("Description");
   }
 
-  saveChangesButton(): Locator {
-    return this.editDialog().getByRole("button", { name: "Save Changes" });
+  surfaceSaveButton(): Locator {
+    return this.editDialog().getByRole("button", {
+      name: "Save",
+      exact: true,
+    });
   }
 
   resetButton(): Locator {

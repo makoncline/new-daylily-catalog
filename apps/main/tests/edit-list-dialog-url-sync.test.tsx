@@ -70,7 +70,10 @@ describe("useEditList URL sync", () => {
     fireEvent.click(screen.getByRole("button"));
 
     await waitFor(() => {
-      expect(navigationState.replace).toHaveBeenCalledWith("/dashboard/lists");
+      expect(navigationState.replace).toHaveBeenCalledWith(
+        "/dashboard/lists",
+        { scroll: false },
+      );
     });
     expect(navigationState.push).not.toHaveBeenCalled();
     expect(

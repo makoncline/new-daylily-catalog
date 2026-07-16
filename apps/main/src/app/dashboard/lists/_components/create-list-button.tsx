@@ -6,10 +6,11 @@ import { APP_CONFIG, PRO_FEATURES } from "@/config/constants";
 import { usePro } from "@/hooks/use-pro";
 import { CheckoutButton } from "@/components/checkout-button";
 import { TierLimitedCreateAction } from "@/app/dashboard/_components/tier-limited-create-action";
-import { CreateListDialog } from "./create-list-dialog";
+import { useCreateList } from "./create-list-dialog";
 
 export function CreateListButton() {
   const { isPro, isLoading: isSubscriptionLoading } = usePro();
+  const { openCreateList } = useCreateList();
 
   const { data: listCount, isLoading: isListCountLoading } =
     api.dashboardDb.list.count.useQuery();
@@ -21,6 +22,7 @@ export function CreateListButton() {
       disabled={isSubscriptionLoading || isListCountLoading}
       freeTierLimit={APP_CONFIG.LIST.FREE_TIER_MAX_LISTS}
       isPro={isPro}
+      onCreate={openCreateList}
       upgradeDialogClassName="sm:max-w-[500px]"
       upgradeDialogTitle="Upgrade to Pro"
       upgradeDialogDescription={
@@ -50,9 +52,6 @@ export function CreateListButton() {
           <CheckoutButton size="lg" />
         </div>
       }
-      renderCreateDialog={(onOpenChange) => (
-        <CreateListDialog onOpenChange={onOpenChange} />
-      )}
     />
   );
 }

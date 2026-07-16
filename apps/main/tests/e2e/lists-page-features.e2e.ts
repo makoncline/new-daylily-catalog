@@ -19,6 +19,8 @@ test.describe("lists page features @local", () => {
     page,
     dashboardLists,
   }) => {
+    test.slow();
+
     const expectPageIndicator = async (
       currentPage: number,
       totalPages: number,
@@ -78,6 +80,23 @@ test.describe("lists page features @local", () => {
     await dashboardLists.goto();
     await expect(page).toHaveURL(/\/dashboard\/lists/);
     await dashboardLists.isReady();
+
+    // Create uses a full-page surface and transitions into the edit surface.
+    const createdListTitle = `Full page list ${Date.now()}`;
+    await page.goto("/dashboard/lists?creating=true");
+    await expect(dashboardLists.createSurface()).toBeVisible();
+    await expect(page).toHaveURL(/creating=true/);
+    await dashboardLists.createTitleInput().fill(createdListTitle);
+    await dashboardLists.createSurfaceSubmitButton().click();
+    await expect(dashboardLists.editDialog()).toBeVisible();
+    await expect(page).toHaveURL(/editing=/);
+    await expect(dashboardLists.editTitleInput()).toHaveValue(createdListTitle);
+
+    await dashboardLists.editDialog().getByRole("button", {
+      name: "Delete List",
+    }).click();
+    await dashboardLists.confirmDelete();
+    await expect(dashboardLists.editDialog()).toBeHidden();
 
     // Phase 2: baseline table and pagination behavior
     await expect(dashboardLists.rows()).toHaveCount(seedMeta.defaultPageSize);
@@ -179,9 +198,9 @@ test.describe("lists page features @local", () => {
       .fill(
         `Updated description ${seedMeta.editTargetUpdatedDescriptionToken}`,
       );
-    await dashboardLists.saveChangesButton().click();
-
-    await dashboardLists.closeEditDialog();
+    await expect(page.getByText("Unsaved list", { exact: true })).toBeVisible();
+    await dashboardLists.surfaceSaveButton().click();
+    await expect(dashboardLists.editDialog()).toBeHidden();
 
     await dashboardLists.setGlobalSearch(seedMeta.editTargetUpdatedTitle);
     await expect(dashboardLists.rows()).toHaveCount(1);

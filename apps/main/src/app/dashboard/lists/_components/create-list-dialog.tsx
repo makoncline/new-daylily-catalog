@@ -1,27 +1,59 @@
 "use client";
 
-import { useState } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import { toast } from "sonner";
+import { ArrowLeft } from "lucide-react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { useSetAtom } from "jotai";
-import { editingListIdAtom } from "./edit-list-dialog";
+import { Spinner } from "@/components/ui/spinner";
+import { PageHeader } from "@/components/page-header";
 import { normalizeError, reportError } from "@/lib/error-utils";
 import { insertList } from "@/app/dashboard/_lib/dashboard-db/lists-collection";
-import { useManagedDialogOpen } from "@/hooks/use-managed-dialog-open";
-import { ManagedCreateDialog } from "@/app/dashboard/_components/managed-create-dialog";
+import { useQueryParamDialogState } from "@/hooks/use-dialog-search-param";
+import { useUnsavedChangesGuard } from "@/hooks/use-unsaved-changes-guard";
+import { ListingSurfaceSaveBar } from "../../listings/_components/listing-surface-save-bar";
 
-export function CreateListDialog({
-  onOpenChange,
+export function useCreateList() {
+  const { setValue, value } = useQueryParamDialogState({
+    history: "push",
+    paramName: "creating",
+    scroll: false,
+  });
+  const pathname = usePathname();
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
+  return {
+    closeCreateList: () => setValue(null, "replace"),
+    finishCreateList: (listId: string) => {
+      const params = new URLSearchParams(searchParams.toString());
+      params.delete("creating");
+      params.set("editing", listId);
+      router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+    },
+    isCreating: value === "true",
+    openCreateList: () => setValue("true"),
+  };
+}
+
+export function CreateListSurface({
+  onClose,
+  onCreated,
 }: {
-  onOpenChange: (open: boolean) => void;
+  onClose: () => void;
+  onCreated: (listId: string) => void;
 }) {
   const [title, setTitle] = useState("");
   const [isSaving, setIsSaving] = useState(false);
-  const { closeDialog, handleOpenChange, open } =
-    useManagedDialogOpen(onOpenChange);
+  const backButtonRef = useRef<HTMLButtonElement | null>(null);
+  const hasPendingChanges = () => Boolean(title.trim());
+  const { confirmDiscard } = useUnsavedChangesGuard(hasPendingChanges);
 
-  const setEditingId = useSetAtom(editingListIdAtom);
+  useLayoutEffect(() => {
+    backButtonRef.current?.focus({ preventScroll: true });
+  }, []);
 
   const handleCreate = async () => {
     if (!title.trim()) {
@@ -42,8 +74,7 @@ export function CreateListDialog({
         description: `${newList.title} has been created.`,
       });
 
-      closeDialog();
-      setEditingId(newList.id);
+      onCreated(newList.id);
     } catch (error) {
       toast.error("Failed to create list");
       reportError({
@@ -55,32 +86,76 @@ export function CreateListDialog({
     }
   };
 
+  const handleBack = () => {
+    if (confirmDiscard()) {
+      onClose();
+    }
+  };
+
   return (
-    <ManagedCreateDialog
-      cancelDisabled={isSaving}
-      confirmDisabled={isSaving || !title.trim()}
-      confirmLabel="Create List"
-      contentClassName="top-[20%] sm:top-[30%]"
-      description="Create a new list to organize your daylilies."
-      onCancel={closeDialog}
-      onConfirm={handleCreate}
-      onOpenChange={handleOpenChange}
-      open={open}
-      title="Create New List"
+    <section
+      aria-label="Create list"
+      className="mx-auto w-full max-w-3xl pb-8"
     >
-      <div className="space-y-2">
-        <Label htmlFor="title">
-          List Title <span className="text-destructive">*</span>
-        </Label>
-        <Input
-          id="title"
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-          placeholder="Enter a title"
-          disabled={isSaving}
-          required
+      {hasPendingChanges() ? (
+        <ListingSurfaceSaveBar
+          title="Unsaved list"
+          saveLabel="Save"
+          isSaving={isSaving}
+          saveDisabled={false}
+          onDiscard={onClose}
+          onSave={() => void handleCreate()}
         />
+      ) : null}
+
+      <PageHeader
+        heading="Create New List"
+        text="Create a new list to organize your daylilies."
+      >
+        <Button
+          ref={backButtonRef}
+          type="button"
+          variant="outline"
+          onClick={handleBack}
+          disabled={isSaving}
+        >
+          <ArrowLeft aria-hidden="true" />
+          Back to lists
+        </Button>
+      </PageHeader>
+
+      <div className="space-y-6 pb-16">
+        <div className="space-y-2">
+          <Label htmlFor="title">
+            List Title <span className="text-destructive">*</span>
+          </Label>
+          <Input
+            id="title"
+            value={title}
+            onChange={(event) => setTitle(event.target.value)}
+            placeholder="Enter a title"
+            disabled={isSaving}
+            required
+          />
+        </div>
+
+        <div className="flex justify-end">
+          <Button
+            type="button"
+            onClick={() => void handleCreate()}
+            disabled={isSaving || !title.trim()}
+          >
+            {isSaving ? (
+              <>
+                <Spinner aria-hidden="true" />
+                Creating…
+              </>
+            ) : (
+              "Create List"
+            )}
+          </Button>
+        </div>
       </div>
-    </ManagedCreateDialog>
+    </section>
   );
 }
