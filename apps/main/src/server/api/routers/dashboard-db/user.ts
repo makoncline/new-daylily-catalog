@@ -15,7 +15,10 @@ export const dashboardDbUserRouter = createTRPCRouter({
       return { id: contextUser.id };
     }
 
-    const clerkUserId = await resolveAuthenticatedClerkUserId();
+    const clerkUserId =
+      typeof ctx.clerkUserId === "undefined"
+        ? await resolveAuthenticatedClerkUserId()
+        : ctx.clerkUserId;
 
     if (!clerkUserId) {
       throw new TRPCError({

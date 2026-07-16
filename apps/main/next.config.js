@@ -13,6 +13,7 @@ const appDir = path.dirname(fileURLToPath(import.meta.url));
 const config = {
   output: "standalone",
   outputFileTracingRoot: path.join(appDir, "../.."),
+  serverExternalPackages: ["@prisma/adapter-better-sqlite3", "better-sqlite3"],
   cacheMaxMemorySize: 0,
 
   images: {

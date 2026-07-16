@@ -215,7 +215,7 @@ test.describe("dashboard setup journey @local", () => {
       });
 
       // refresh to pick up the listing image inserted directly in the database
-      await editListingDialog.close();
+      await editListingDialog.saveAndClose();
       await dashboardShell.refreshDashboardData();
       await dashboardListings.isReady();
       await dashboardListings.chooseRowActionEdit();
@@ -241,7 +241,7 @@ test.describe("dashboard setup journey @local", () => {
       await expect(editListingDialog.titleInput).toHaveValue("Stella de Oro");
 
       // close the dialog
-      await editListingDialog.close();
+      await editListingDialog.saveAndClose();
 
       // programmatically add 2 more listings with different names
       // Get the user ID first (reuse the clerkUserId from earlier)

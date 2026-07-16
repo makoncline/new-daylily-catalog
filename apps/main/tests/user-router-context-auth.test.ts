@@ -72,4 +72,17 @@ describe("user router context auth resolution", () => {
     });
     expect(authMock).not.toHaveBeenCalled();
   });
+
+  it("does not resolve ambient auth again for a signed-out HTTP context", async () => {
+    const caller = userRouter.createCaller(
+      createCallerContext({
+        clerkUserId: null,
+      }),
+    );
+
+    await expect(caller.getCurrentUser()).rejects.toMatchObject({
+      code: "UNAUTHORIZED",
+    });
+    expect(authMock).not.toHaveBeenCalled();
+  });
 });

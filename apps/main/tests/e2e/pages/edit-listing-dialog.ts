@@ -19,9 +19,7 @@ export class EditListingDialog {
 
   constructor(page: Page) {
     this.page = page;
-    this.dialog = page.getByRole("dialog").filter({
-      hasText: "Edit Listing",
-    });
+    this.dialog = page.getByRole("region", { name: "Edit listing" });
     this.listSelectButton = this.dialog.locator("#list-select");
     this.titleInput = this.dialog.getByLabel("Name");
     this.descriptionInput = this.dialog.getByLabel("Description");
@@ -234,14 +232,15 @@ export class EditListingDialog {
   }
 
   async close() {
-    const closeButton = this.dialog
-      .locator('button[aria-label="Close"]')
-      .or(this.dialog.getByRole("button", { name: /close/i }).first());
+    const closeButton = this.dialog.getByRole("button", {
+      name: "Back to listings",
+    });
     await closeButton.click();
     await this.dialog.waitFor({ state: "hidden" });
   }
 
-  async closeWithHeaderX() {
-    await this.close();
+  async saveAndClose() {
+    await this.clickSaveChanges();
+    await this.dialog.waitFor({ state: "hidden" });
   }
 }

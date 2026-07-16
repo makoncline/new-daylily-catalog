@@ -15,6 +15,7 @@ interface SubscriptionLookupUser {
 
 export async function getProUserIdSet(
   users: SubscriptionLookupUser[],
+  database: typeof replicaDb = replicaDb,
 ): Promise<Set<string>> {
   const usersWithCustomerId = users.filter(
     (user): user is SubscriptionLookupUser & { stripeCustomerId: string } =>
@@ -27,7 +28,7 @@ export async function getProUserIdSet(
 
   // Public visibility accepts replica/CDN lag under the 24-hour update window;
   // dashboard billing reads the primary KV store for immediate status.
-  const records = await replicaDb.keyValue.findMany({
+  const records = await database.keyValue.findMany({
     where: {
       key: {
         in: usersWithCustomerId.map((user) =>

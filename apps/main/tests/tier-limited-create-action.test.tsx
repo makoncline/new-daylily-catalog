@@ -1,50 +1,120 @@
 import { fireEvent, render, screen } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
-import { TierLimitedCreateAction } from "@/app/dashboard/_components/tier-limited-create-action";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { CreateListingButton } from "@/app/dashboard/listings/_components/create-listing-button";
+import { CreateListButton } from "@/app/dashboard/lists/_components/create-list-button";
+import { APP_CONFIG } from "@/config/constants";
+
+const mocks = vi.hoisted(() => ({
+  listCount: vi.fn(),
+  listings: vi.fn(),
+  openCreateListing: vi.fn(),
+  usePro: vi.fn(),
+}));
+
+vi.mock("@/hooks/use-pro", () => ({
+  usePro: mocks.usePro,
+}));
+
+vi.mock(
+  "@/app/dashboard/_lib/dashboard-db/use-seeded-dashboard-db-query",
+  () => ({
+    useSeededDashboardDbQuery: mocks.listings,
+  }),
+);
+
+vi.mock("@/app/dashboard/_lib/dashboard-db/listings-collection", () => ({
+  listingsCollection: {},
+}));
+
+vi.mock("@/app/dashboard/_lib/dashboard-timing", () => ({
+  logDashboardTiming: vi.fn(),
+}));
+
+vi.mock(
+  "@/app/dashboard/listings/_components/create-listing-dialog",
+  () => ({
+    useCreateListing: () => ({
+      openCreateListing: mocks.openCreateListing,
+    }),
+  }),
+);
+
+vi.mock("@/trpc/react", () => ({
+  api: {
+    dashboardDb: {
+      list: {
+        count: {
+          useQuery: mocks.listCount,
+        },
+      },
+    },
+  },
+}));
 
 vi.mock("@/components/checkout-button", () => ({
   CheckoutButton: () => <button type="button">Checkout</button>,
 }));
 
-describe("TierLimitedCreateAction", () => {
-  it("opens the upgrade dialog when a free user hits the limit", () => {
-    render(
-      <TierLimitedCreateAction
-        buttonLabel="Create Thing"
-        currentCount={2}
-        freeTierLimit={2}
-        isPro={false}
-        upgradeDialogTitle="Upgrade Required"
-        upgradeDialogDescription="Limit reached"
-        upgradeDialogBody={<div>Upgrade body</div>}
-        renderCreateDialog={() => <div>Create dialog</div>}
-      />,
-    );
-
-    fireEvent.click(screen.getByRole("button", { name: "Create Thing" }));
-
-    expect(screen.getByText("Upgrade Required")).toBeInTheDocument();
-    expect(screen.getByText("Upgrade body")).toBeInTheDocument();
-    expect(screen.queryByText("Create dialog")).not.toBeInTheDocument();
+describe("dashboard create buttons", () => {
+  beforeEach(() => {
+    mocks.openCreateListing.mockReset();
   });
 
-  it("opens the create dialog when under the limit", () => {
-    render(
-      <TierLimitedCreateAction
-        buttonLabel="Create Thing"
-        currentCount={1}
-        freeTierLimit={2}
-        isPro={false}
-        upgradeDialogTitle="Upgrade Required"
-        upgradeDialogDescription="Limit reached"
-        upgradeDialogBody={<div>Upgrade body</div>}
-        renderCreateDialog={() => <div>Create dialog</div>}
-      />,
-    );
+  it("disables listing and list creation until account data is loaded", () => {
+    mocks.usePro.mockReturnValue({ isLoading: true, isPro: false });
+    mocks.listings.mockReturnValue({ data: [], isReady: false });
+    mocks.listCount.mockReturnValue({ data: undefined, isLoading: true });
 
-    fireEvent.click(screen.getByRole("button", { name: "Create Thing" }));
+    const listing = render(<CreateListingButton />);
+    expect(
+      screen.getByRole("button", { name: "Create Listing" }),
+    ).toBeDisabled();
+    listing.unmount();
 
-    expect(screen.getByText("Create dialog")).toBeInTheDocument();
-    expect(screen.queryByText("Upgrade Required")).not.toBeInTheDocument();
+    render(<CreateListButton />);
+    expect(screen.getByRole("button", { name: "Create List" })).toBeDisabled();
+  });
+
+  it("opens each create path for a loaded Pro account", () => {
+    mocks.usePro.mockReturnValue({ isLoading: false, isPro: true });
+    mocks.listings.mockReturnValue({
+      data: Array(APP_CONFIG.LISTING.FREE_TIER_MAX_LISTINGS).fill({}),
+      isReady: true,
+    });
+    mocks.listCount.mockReturnValue({
+      data: APP_CONFIG.LIST.FREE_TIER_MAX_LISTS,
+      isLoading: false,
+    });
+
+    const listing = render(<CreateListingButton />);
+    fireEvent.click(screen.getByRole("button", { name: "Create Listing" }));
+    expect(mocks.openCreateListing).toHaveBeenCalledOnce();
+    listing.unmount();
+
+    render(<CreateListButton />);
+    fireEvent.click(screen.getByRole("button", { name: "Create List" }));
+    expect(screen.getByRole("dialog")).toHaveTextContent("Create New List");
+  });
+
+  it("opens each upgrade path for a loaded free account at its limit", () => {
+    mocks.usePro.mockReturnValue({ isLoading: false, isPro: false });
+    mocks.listings.mockReturnValue({
+      data: Array(APP_CONFIG.LISTING.FREE_TIER_MAX_LISTINGS).fill({}),
+      isReady: true,
+    });
+    mocks.listCount.mockReturnValue({
+      data: APP_CONFIG.LIST.FREE_TIER_MAX_LISTS,
+      isLoading: false,
+    });
+
+    const listing = render(<CreateListingButton />);
+    fireEvent.click(screen.getByRole("button", { name: "Create Listing" }));
+    expect(screen.getByRole("dialog")).toHaveTextContent("Upgrade Required");
+    expect(mocks.openCreateListing).not.toHaveBeenCalled();
+    listing.unmount();
+
+    render(<CreateListButton />);
+    fireEvent.click(screen.getByRole("button", { name: "Create List" }));
+    expect(screen.getByRole("dialog")).toHaveTextContent("Upgrade to Pro");
   });
 });

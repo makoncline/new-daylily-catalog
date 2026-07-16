@@ -84,7 +84,10 @@ export function useQueryParamDialogState({
 
   const value = searchParams.get(paramName);
 
-  const setValue = (nextValue: string | null) => {
+  const setValue = (
+    nextValue: string | null,
+    nextHistory: "push" | "replace" = history,
+  ) => {
     const nextUrl = buildDialogSearchParamUrl(
       pathname,
       searchParams,
@@ -92,7 +95,7 @@ export function useQueryParamDialogState({
       nextValue,
     );
 
-    navigateToUrl(history, router, nextUrl, scroll);
+    navigateToUrl(nextHistory, router, nextUrl, scroll);
   };
 
   return {
