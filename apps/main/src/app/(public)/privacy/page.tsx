@@ -66,10 +66,11 @@ export default function PrivacyPage() {
             handles full card details, not Daylily Catalog.
           </p>
           <p>
-            Site health data: page views, button clicks, upload events, request
-            metadata, browser or device information, error reports, performance
-            information, and rate-limit data. Rate-limit data can include hashed
-            IP-derived and email-derived keys.
+            Site health and product usage data: page views, search terms and
+            filters, button clicks, upload events, request metadata, browser or
+            device information, error reports, performance information, and
+            rate-limit data. Rate-limit data can include hashed IP-derived and
+            email-derived keys.
           </p>
         </Section>
 

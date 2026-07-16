@@ -15,10 +15,13 @@ describe("PublicHeader", () => {
 
   it("renders the public destinations and marks the current page active", () => {
     navigationState.pathname = "/catalogs";
-    render(<PublicHeader />);
+    render(<PublicHeader cultivarSearchEnabled />);
 
     const catalogsLinks = screen.getAllByRole("link", {
       name: "Browse catalogs",
+    });
+    const cultivarLinks = screen.getAllByRole("link", {
+      name: "Search cultivars",
     });
     const growersLinks = screen.getAllByRole("link", { name: "For growers" });
 
@@ -28,6 +31,10 @@ describe("PublicHeader", () => {
       "before:backdrop-blur-[5px]",
     );
     expect(catalogsLinks).toHaveLength(2);
+    expect(cultivarLinks).toHaveLength(2);
+    expect(
+      cultivarLinks.every((link) => link.getAttribute("href") === "/cultivars"),
+    ).toBe(true);
     expect(
       catalogsLinks.every(
         (link) =>
@@ -46,15 +53,17 @@ describe("PublicHeader", () => {
 
   it("renders mobile destinations without requiring hydration", () => {
     navigationState.pathname = "/onboarding";
-    render(<PublicHeader />);
+    render(<PublicHeader cultivarSearchEnabled />);
 
     const mobileNav = screen.getByTestId("mobile-public-nav");
     const catalogsLink = mobileNav.querySelector('a[href="/catalogs"]');
+    const cultivarLink = mobileNav.querySelector('a[href="/cultivars"]');
     const growersLink = mobileNav.querySelector('a[href="/start-membership"]');
     const dashboardLink = mobileNav.querySelector('a[href="/sign-in"]');
 
     expect(screen.getByText("Open public navigation")).toBeInTheDocument();
     expect(catalogsLink).toHaveAttribute("href", "/catalogs");
+    expect(cultivarLink).toHaveAttribute("href", "/cultivars");
     expect(growersLink).toHaveAttribute("href", "/start-membership");
     expect(growersLink).toHaveAttribute("aria-current", "page");
     expect(dashboardLink).toHaveAttribute("href", "/sign-in");
@@ -69,6 +78,14 @@ describe("PublicHeader", () => {
     expect(screen.getByRole("button", { name: "Dashboard" })).toHaveClass(
       "text-white",
     );
+  });
+
+  it("does not expose cultivar search when the feature is disabled", () => {
+    render(<PublicHeader />);
+
+    expect(
+      screen.queryByRole("link", { name: "Search cultivars" }),
+    ).not.toBeInTheDocument();
   });
 
   it("closes the mobile menu after navigation", () => {

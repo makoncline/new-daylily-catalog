@@ -7,14 +7,22 @@ import { usePathname } from "next/navigation";
 
 interface PublicShellProps {
   children: React.ReactNode;
+  cultivarSearchEnabled?: boolean;
   mainClassName?: string;
 }
 
-export function PublicShell({ children, mainClassName }: PublicShellProps) {
+export function PublicShell({
+  children,
+  cultivarSearchEnabled = false,
+  mainClassName,
+}: PublicShellProps) {
   const pathname = usePathname();
-  const overlapsHero = pathname === "/" || pathname === "/start-membership";
+  const overlapsHero =
+    pathname === "/" ||
+    pathname === "/start-membership" ||
+    pathname === "/cultivars";
   const shellBackgroundClassName =
-    pathname === "/start-membership"
+    pathname === "/start-membership" || pathname === "/cultivars"
       ? "bg-[#07120e]"
       : pathname === "/"
         ? "bg-[#f1f4ec]"
@@ -33,7 +41,7 @@ export function PublicShell({ children, mainClassName }: PublicShellProps) {
       >
         Skip to content
       </a>
-      <PublicHeader />
+      <PublicHeader cultivarSearchEnabled={cultivarSearchEnabled} />
       <main
         id="main-content"
         className={cn(

@@ -1,6 +1,7 @@
 import { getPublicCatalogRouteEntries } from "@/server/db/public-listing-read-model";
 import { getPublicListingRouteEntries } from "@/server/db/public-listing-read-model";
 import type { SitemapUrl } from "@/lib/sitemap-xml";
+import { isPublicCultivarSearchEnabled } from "@/config/feature-flags";
 
 export async function getMainSitemapEntries(baseUrl: string) {
   const entries: SitemapUrl[] = [
@@ -20,6 +21,15 @@ export async function getMainSitemapEntries(baseUrl: string) {
       priority: 0.7,
     },
   ];
+
+  if (isPublicCultivarSearchEnabled()) {
+    entries.push({
+      url: `${baseUrl}/cultivars`,
+      changeFrequency: "weekly",
+      priority: 0.9,
+    });
+  }
+
   const [catalogs, listings] = await Promise.all([
     getPublicCatalogRouteEntries(),
     getPublicListingRouteEntries(),

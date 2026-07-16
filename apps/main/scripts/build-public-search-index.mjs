@@ -187,7 +187,11 @@ CREATE TABLE CultivarSearchIndex (
   parentage TEXT,
   rebloom INTEGER,
   imageUrl TEXT,
+  generatedImageAssetId TEXT,
   generatedImageUrl TEXT,
+  generatedOriginalUrl TEXT,
+  generatedThumbUrl TEXT,
+  generatedBlurUrl TEXT,
   fallbackImageUrl TEXT,
   hasImage INTEGER NOT NULL,
   listingCount INTEGER NOT NULL,
@@ -233,7 +237,11 @@ listing_counts AS (
 generated_cultivar_images AS (
   SELECT
     "cultivarReferenceId",
-    COALESCE(NULLIF(TRIM("displayUrl"), ''), NULLIF(TRIM("originalUrl"), '')) AS generatedImageUrl
+    "id" AS generatedImageAssetId,
+    COALESCE(NULLIF(TRIM("displayUrl"), ''), NULLIF(TRIM("originalUrl"), '')) AS generatedImageUrl,
+    NULLIF(TRIM("originalUrl"), '') AS generatedOriginalUrl,
+    NULLIF(TRIM("thumbUrl"), '') AS generatedThumbUrl,
+    NULLIF(TRIM("blurUrl"), '') AS generatedBlurUrl
   FROM (
     SELECT
       ia.*,
@@ -271,7 +279,11 @@ INSERT INTO CultivarSearchIndex (
   parentage,
   rebloom,
   imageUrl,
+  generatedImageAssetId,
   generatedImageUrl,
+  generatedOriginalUrl,
+  generatedThumbUrl,
+  generatedBlurUrl,
   fallbackImageUrl,
   hasImage,
   listingCount,
@@ -323,13 +335,18 @@ SELECT
     NULLIF(TRIM(v2."image_url"), ''),
     NULLIF(TRIM(ahs."ahsImageUrl"), '')
   ),
+  gci.generatedImageAssetId,
   gci.generatedImageUrl,
+  gci.generatedOriginalUrl,
+  gci.generatedThumbUrl,
+  gci.generatedBlurUrl,
   COALESCE(
     NULLIF(TRIM(v2."image_url"), ''),
     NULLIF(TRIM(ahs."ahsImageUrl"), '')
   ),
   CASE
     WHEN COALESCE(
+      gci.generatedImageUrl,
       NULLIF(TRIM(v2."image_url"), ''),
       NULLIF(TRIM(ahs."ahsImageUrl"), '')
     ) IS NULL THEN 0
@@ -440,6 +457,34 @@ CREATE INDEX CultivarSearchIndex_listingCount_idx
 CREATE INDEX CultivarSearchIndex_forSaleListingCount_idx
   ON CultivarSearchIndex(forSaleListingCount);
 
+CREATE INDEX CultivarSearchIndex_photo_listing_order_idx
+  ON CultivarSearchIndex(
+    (generatedImageUrl IS NOT NULL) DESC,
+    hasImage DESC,
+    listingCount DESC,
+    forSaleListingCount DESC,
+    displayName COLLATE NOCASE ASC,
+    id ASC
+  );
+
+CREATE INDEX CultivarSearchIndex_photo_newest_order_idx
+  ON CultivarSearchIndex(
+    (generatedImageUrl IS NOT NULL) DESC,
+    hasImage DESC,
+    (yearInt IS NULL) ASC,
+    yearInt DESC,
+    displayName COLLATE NOCASE ASC,
+    id ASC
+  );
+
+CREATE INDEX CultivarSearchIndex_photo_name_order_idx
+  ON CultivarSearchIndex(
+    (generatedImageUrl IS NOT NULL) DESC,
+    hasImage DESC,
+    displayName COLLATE NOCASE ASC,
+    id ASC
+  );
+
 CREATE INDEX CultivarListingSearchIndex_cultivarReferenceId_idx
   ON CultivarListingSearchIndex(cultivarReferenceId);
 
@@ -457,7 +502,7 @@ CREATE INDEX CultivarListingSearchIndex_hasPhoto_idx
 
 INSERT INTO SearchIndexMeta(key, value)
 VALUES
-  ('schemaVersion', '6'),
+  ('schemaVersion', '9'),
   ('builtAt', strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
   ('sourcePath', ${quoteSqlString(sourcePath)});
 ANALYZE;

@@ -81,6 +81,7 @@ describe("posthog browser analytics", () => {
         advanced_enable_surveys: true,
         api_host: "https://analytics.example.com",
         defaults: "2026-01-30",
+        person_profiles: "identified_only",
       });
     });
     expect(captureMock).toHaveBeenCalledWith("checkout_started", {

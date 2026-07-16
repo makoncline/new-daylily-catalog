@@ -25,6 +25,8 @@ export type PosthogEventName =
   | "catalog_link_copied"
   | "public_listing_contact_clicked"
   | "public_catalog_contact_clicked"
+  | "public_cultivar_search_results_viewed"
+  | "public_cultivar_search_result_opened"
   | "seller_order_method_clicked"
   | "first_listing_created"
   | "first_image_uploaded"
@@ -112,6 +114,7 @@ async function initializePosthog() {
     advanced_enable_surveys: true,
     api_host: runtimeConfig.posthog.host,
     defaults: "2026-01-30",
+    person_profiles: "identified_only",
   });
 
   return true;

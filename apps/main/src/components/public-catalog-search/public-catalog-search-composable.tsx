@@ -8,6 +8,7 @@ import { DataTableFilteredCount } from "@/components/data-table/data-table-filte
 import { InlineCode } from "@/components/typography";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Switch } from "@/components/ui/switch";
 import { resetTableState } from "@/lib/table-utils";
 import { cn } from "@/lib/utils";
 import {
@@ -21,7 +22,7 @@ import {
   type PublicCatalogSearchFacetOptions,
 } from "./public-catalog-search-types";
 
-interface FilterChip {
+export interface PublicCatalogSearchFilterChip {
   id: string;
   label: string;
   onClear: () => void;
@@ -36,8 +37,8 @@ export interface PublicCatalogSearchComposerContext<TData> {
 function buildFilterChips<TData>(
   table: Table<TData>,
   listOptions: PublicCatalogSearchFacetOption[],
-): FilterChip[] {
-  const chips: FilterChip[] = [];
+): PublicCatalogSearchFilterChip[] {
+  const chips: PublicCatalogSearchFilterChip[] = [];
   const globalFilter: unknown = table.getState().globalFilter;
 
   if (typeof globalFilter === "string" && globalFilter.length > 0) {
@@ -134,6 +135,21 @@ export function PublicCatalogSearchFilterChips<TData>({
   listOptions: PublicCatalogSearchFacetOption[];
 }) {
   const chips = buildFilterChips(table, listOptions);
+
+  return (
+    <PublicCatalogSearchFilterChipList chips={chips} className={className} />
+  );
+}
+
+export function PublicCatalogSearchFilterChipList({
+  buttonClassName,
+  chips,
+  className,
+}: {
+  buttonClassName?: string;
+  chips: PublicCatalogSearchFilterChip[];
+  className?: string;
+}) {
   if (chips.length === 0) return null;
 
   return (
@@ -147,7 +163,7 @@ export function PublicCatalogSearchFilterChips<TData>({
           type="button"
           variant="outline"
           size="sm"
-          className="h-6 gap-1 rounded-full px-2 text-xs"
+          className={cn("h-6 gap-1 rounded-full px-2 text-xs", buttonClassName)}
           onClick={chip.onClear}
         >
           {chip.label}
@@ -220,22 +236,73 @@ export function PublicCatalogSearchQueryField<TData>({
   };
 
   return (
+    <PublicCatalogSearchQueryInput
+      className={className}
+      inputClassName={inputClassName}
+      onChange={updateFilter}
+      onSubmit={onSubmit}
+      placeholder="Search listings..."
+      value={currentGlobalFilter}
+    />
+  );
+}
+
+export function PublicCatalogSearchQueryInput({
+  className,
+  inputClassName,
+  onChange,
+  onSubmit,
+  placeholder,
+  value,
+}: {
+  className?: string;
+  inputClassName?: string;
+  onChange: (value: string) => void;
+  onSubmit?: () => void;
+  placeholder: string;
+  value: string;
+}) {
+  return (
     <div className={className} data-testid="search-query-form">
       <Input
-        placeholder="Search listings..."
-        value={currentGlobalFilter}
+        placeholder={placeholder}
+        value={value}
         className={cn("h-9", inputClassName)}
         data-testid="search-all-fields-input"
-        onChange={(e) => {
-          updateFilter(e.target.value);
-        }}
+        onChange={(event) => onChange(event.target.value)}
         onKeyDown={(event) => {
-          if (event.key !== "Enter") return;
-
-          onSubmit?.();
+          if (event.key === "Enter") onSubmit?.();
         }}
       />
     </div>
+  );
+}
+
+export function PublicCatalogSearchModeToggle({
+  checked,
+  id,
+  onCheckedChange,
+}: {
+  checked: boolean;
+  id: string;
+  onCheckedChange: (checked: boolean) => void;
+}) {
+  return (
+    <label
+      htmlFor={id}
+      className="grid grid-rows-[auto_2rem] justify-items-center gap-1"
+      data-testid="search-mode-toggle"
+    >
+      <span className="text-xs font-medium tracking-wide uppercase">
+        Advanced
+      </span>
+      <Switch
+        id={id}
+        checked={checked}
+        onCheckedChange={onCheckedChange}
+        data-testid="search-mode-switch"
+      />
+    </label>
   );
 }
 

@@ -20,14 +20,19 @@ vi.mock("@/server/db/public-cultivar-read-model", () => ({
 }));
 
 const originalVercelEnv = process.env.VERCEL_ENV;
+const originalVercel = process.env.VERCEL;
 const originalVercelUrl = process.env.VERCEL_URL;
 const originalVercelProjectProductionUrl =
   process.env.VERCEL_PROJECT_PRODUCTION_URL;
 const originalPort = process.env.PORT;
+const originalPublicCultivarSearchEnabled =
+  process.env.PUBLIC_CULTIVAR_SEARCH_ENABLED;
 
 describe("sitemap and robots host selection", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    delete process.env.VERCEL;
+    delete process.env.PUBLIC_CULTIVAR_SEARCH_ENABLED;
 
     publicReadMocks.getPublicCatalogRouteEntries.mockResolvedValue([
       {
@@ -54,11 +59,14 @@ describe("sitemap and robots host selection", () => {
   });
 
   afterAll(() => {
+    process.env.VERCEL = originalVercel;
     process.env.VERCEL_ENV = originalVercelEnv;
     process.env.VERCEL_URL = originalVercelUrl;
     process.env.VERCEL_PROJECT_PRODUCTION_URL =
       originalVercelProjectProductionUrl;
     process.env.PORT = originalPort;
+    process.env.PUBLIC_CULTIVAR_SEARCH_ENABLED =
+      originalPublicCultivarSearchEnabled;
   });
 
   it("uses the production domain for production deployments", async () => {
@@ -168,6 +176,24 @@ describe("sitemap and robots host selection", () => {
     const robotsText = await robots().text();
     expect(robotsText).toContain("Host: http://localhost:4123");
     expect(robotsText).toContain("Sitemap: http://localhost:4123/sitemap.xml");
+  });
+
+  it("only includes the cultivar search page when its feature is enabled", async () => {
+    process.env.VERCEL_ENV = "development";
+    delete process.env.VERCEL_URL;
+    delete process.env.VERCEL_PROJECT_PRODUCTION_URL;
+    process.env.PORT = "4123";
+    const { GET: mainSitemap } = await import("@/app/sitemaps/main.xml/route");
+
+    expect(await (await mainSitemap()).text()).not.toContain(
+      "<loc>http://localhost:4123/cultivars</loc>",
+    );
+
+    process.env.PUBLIC_CULTIVAR_SEARCH_ENABLED = "true";
+
+    expect(await (await mainSitemap()).text()).toContain(
+      "<loc>http://localhost:4123/cultivars</loc>",
+    );
   });
 
   it("rejects cultivar sitemap pages beyond the current replica count", async () => {
