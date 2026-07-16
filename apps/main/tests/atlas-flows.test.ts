@@ -5,6 +5,8 @@ import os from "node:os";
 import path from "node:path";
 import {
   ATLAS_FLOWS,
+  getAtlasFlow,
+  getAtlasState,
   missingFreshStateIds,
   resolveLiveStateUrl,
   statesForFlow,
@@ -20,6 +22,22 @@ describe("Atlas flow contract", () => {
   it("validates the public flow and every referenced file", () => {
     expect(validateAtlasFlows({ appRoot })).toBe(true);
     expect(statesForFlow(ATLAS_FLOWS[0]!)).toHaveLength(9);
+  });
+
+  it("resolves states from independently captured flows", () => {
+    const onboarding = getAtlasFlow("onboarding-membership");
+
+    expect(onboarding.steps.map(({ title }) => title)).toEqual([
+      "Understand the offer",
+      "Start setup",
+      "Build a profile",
+      "Build an example listing",
+      "Review the catalog",
+      "Start the trial",
+    ]);
+    expect(getAtlasState("onboarding-email-empty").captureSpec).toBe(
+      "tests/atlas/onboarding-membership.atlas.ts",
+    );
   });
 
   it.each([
