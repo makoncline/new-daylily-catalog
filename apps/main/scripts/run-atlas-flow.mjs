@@ -5,14 +5,11 @@ import path from "node:path";
 import * as dotenv from "dotenv";
 import { generateAtlasGallery } from "./generate-atlas-gallery.mjs";
 import {
-  ATLAS_HEALTH_PATH,
-  terminateAtlasServer,
-} from "./atlas-server-process.mjs";
-import {
   getAtlasFlow,
   missingFreshStateIds,
   validateAtlasFlows,
 } from "./atlas-flows.mjs";
+const ATLAS_HEALTH_PATH = "/api/runtime-config";
 const appRoot = path.resolve(import.meta.dirname, "..");
 const repoRoot = path.resolve(appRoot, "../..");
 const [flowId, outputArgument, ...unexpected] = process.argv.slice(2);
@@ -26,7 +23,17 @@ const captureDirectory = path.join(outputDirectory, "screenshots");
 const baseURL = process.env.BASE_URL ?? "http://localhost:3210";
 const explicitDatabaseUrl = process.env.DATABASE_URL;
 let server;
-const stopServer = () => terminateAtlasServer(server);
+const stopServer = () => {
+  if (!server?.pid) return;
+  try {
+    process.kill(
+      process.platform === "win32" ? server.pid : -server.pid,
+      "SIGTERM",
+    );
+  } catch {
+    // The process group already exited.
+  }
+};
 for (const signal of ["SIGINT", "SIGTERM"]) {
   process.on(signal, () => {
     stopServer();
@@ -38,7 +45,7 @@ async function isHealthy() {
     const response = await fetch(new URL(ATLAS_HEALTH_PATH, baseURL), {
       signal: AbortSignal.timeout(5_000),
     });
-    return response.status < 500;
+    return response.ok;
   } catch {
     return false;
   }
