@@ -1,6 +1,16 @@
 import { render, screen, within } from "@testing-library/react";
+import { type ComponentProps } from "react";
 import { describe, expect, it, vi } from "vitest";
 import { CatalogSeoListings } from "@/app/(public)/[userSlugOrId]/_components/catalog-seo-listings";
+
+vi.mock("next/link", () => ({
+  default: ({
+    prefetch,
+    ...props
+  }: ComponentProps<"a"> & { prefetch?: boolean }) => (
+    <a {...props} data-prefetch={String(prefetch)} />
+  ),
+}));
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({
@@ -38,6 +48,9 @@ describe("CatalogSeoListings", () => {
     expect(
       screen.getByRole("link", { name: /General Listing/i }),
     ).toHaveAttribute("href", "/rollingoaksdaylilies/search?lists=5");
+    expect(
+      screen.getByRole("link", { name: /General Listing/i }),
+    ).toHaveAttribute("data-prefetch", "false");
     expect(
       screen.getByRole("link", { name: /Kay Cline Seedlings/i }),
     ).toHaveAttribute("href", "/rollingoaksdaylilies/search?lists=4");
@@ -96,6 +109,9 @@ describe("CatalogSeoListings", () => {
     expect(
       screen.getByRole("link", { name: "Search and filter listings" }),
     ).toHaveAttribute("href", "/rollingoaksdaylilies/search?page=3");
+    expect(
+      screen.getByRole("link", { name: "Search and filter listings" }),
+    ).toHaveAttribute("data-prefetch", "false");
   });
 
   it("anchors pagination links to listings section", () => {
@@ -118,6 +134,10 @@ describe("CatalogSeoListings", () => {
     expect(screen.getByTestId("legacy-page-next")).toHaveAttribute(
       "href",
       "/rollingoaksdaylilies/page/4#listings",
+    );
+    expect(screen.getByTestId("legacy-page-next")).toHaveAttribute(
+      "data-prefetch",
+      "false",
     );
     expect(screen.getByTestId("legacy-top-page-prev")).toHaveAttribute(
       "href",

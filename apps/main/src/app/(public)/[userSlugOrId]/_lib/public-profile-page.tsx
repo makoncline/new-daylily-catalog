@@ -2,6 +2,7 @@
 
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { cache } from "react";
 import { MainContent } from "@/app/(public)/_components/main-content";
 import { PublicBreadcrumbs } from "@/app/(public)/_components/public-breadcrumbs";
 import { CatalogSeoListings } from "@/app/(public)/[userSlugOrId]/_components/catalog-seo-listings";
@@ -30,12 +31,14 @@ const CATALOG_NOT_FOUND_METADATA = {
   robots: "noindex, nofollow",
 } as const;
 
+const getCachedPublicProfilePageData = cache(getPublicProfilePageData);
+
 async function loadPublicProfilePageResult(
   userSlugOrId: string,
   requestedPage: number,
 ) {
   const pageDataResult = await tryCatch(
-    getPublicProfilePageData(userSlugOrId, requestedPage),
+    getCachedPublicProfilePageData(userSlugOrId, requestedPage),
   );
 
   if (getErrorCode(pageDataResult.error) === "NOT_FOUND") {
@@ -82,7 +85,7 @@ const generatePublicProfilePageMetadata = async ({
 
   const baseUrl = getCanonicalBaseUrl();
   const pageDataResult = await tryCatch(
-    getPublicProfilePageData(userSlugOrId, requestedPage),
+    getCachedPublicProfilePageData(userSlugOrId, requestedPage),
   );
 
   if (!pageDataResult.data) {
@@ -163,7 +166,6 @@ const renderPublicProfilePage = async ({
             showListSummaries={requestedPage === 1}
           />
         </div>
-
       </MainContent>
     </>
   );

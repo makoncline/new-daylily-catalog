@@ -1,7 +1,14 @@
 import * as React from "react";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { useEditListing } from "@/app/dashboard/listings/_components/edit-listing-dialog";
+import { useCreateListing } from "@/app/dashboard/listings/_components/create-listing-dialog";
 
 const navigationState = vi.hoisted(() => {
   let pathname = "/dashboard/listings";
@@ -53,6 +60,16 @@ function EditListingHookHarness() {
   );
 }
 
+function CreateListingHookHarness() {
+  const { finishCreateListing } = useCreateListing();
+
+  return (
+    <button type="button" onClick={() => finishCreateListing("listing-2")}>
+      Finish creating
+    </button>
+  );
+}
+
 describe("useEditListing URL sync", () => {
   beforeEach(() => {
     navigationState.setSearch("editing=listing-1");
@@ -60,8 +77,8 @@ describe("useEditListing URL sync", () => {
     navigationState.replace.mockClear();
   });
 
-  it("clears editing query without pushing a bare '?' URL", async () => {
-    render(<EditListingHookHarness />);
+  it("replaces the editing query without pushing a bare '?' URL", async () => {
+    const { rerender } = render(<EditListingHookHarness />);
 
     await waitFor(() => {
       expect(screen.getByRole("button")).toHaveTextContent("listing-1");
@@ -69,12 +86,53 @@ describe("useEditListing URL sync", () => {
 
     fireEvent.click(screen.getByRole("button"));
 
+    expect(screen.getByRole("button")).toHaveTextContent("none");
+
     await waitFor(() => {
-      expect(navigationState.push).toHaveBeenCalledWith("/dashboard/listings");
+      expect(navigationState.replace).toHaveBeenCalledWith(
+        "/dashboard/listings",
+        { scroll: false },
+      );
     });
-    expect(navigationState.replace).not.toHaveBeenCalled();
+    expect(navigationState.push).not.toHaveBeenCalled();
     expect(navigationState.push.mock.calls.some(([url]) => url === "?")).toBe(
       false,
     );
+
+    navigationState.setSearch("");
+    rerender(<EditListingHookHarness />);
+    await act(async () => {
+      await new Promise((resolve) => window.setTimeout(resolve, 0));
+    });
+
+    navigationState.setSearch("editing=listing-1");
+    rerender(<EditListingHookHarness />);
+    expect(screen.getByRole("button")).toHaveTextContent("listing-1");
+  });
+
+  it("replaces create mode with edit mode after creation", async () => {
+    navigationState.setSearch("creating=true");
+    render(<CreateListingHookHarness />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Finish creating" }));
+
+    await waitFor(() => {
+      expect(navigationState.replace).toHaveBeenCalledWith(
+        "/dashboard/listings?editing=listing-2",
+        { scroll: false },
+      );
+    });
+    expect(navigationState.push).not.toHaveBeenCalled();
+  });
+
+  it("follows browser history changes to the editing query", async () => {
+    const { rerender } = render(<EditListingHookHarness />);
+
+    expect(screen.getByRole("button")).toHaveTextContent("listing-1");
+
+    navigationState.setSearch("");
+    rerender(<EditListingHookHarness />);
+
+    expect(screen.getByRole("button")).toHaveTextContent("none");
   });
 });
