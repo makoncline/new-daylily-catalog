@@ -114,22 +114,39 @@ function assertLoopbackDestination(value) {
 }
 
 /**
+ * @param {URL} input
+ * @param {import("node:http").RequestOptions | undefined} options
+ */
+function applyRequestOptions(input, options) {
+  const url = new URL(input);
+  if (!options) return url;
+
+  if (options.protocol) url.protocol = options.protocol;
+  if (options.hostname) url.hostname = String(options.hostname);
+  else if (options.host) url.host = String(options.host);
+  if (options.port !== undefined) url.port = String(options.port);
+  if (options.path !== undefined) {
+    const pathUrl = new URL(String(options.path), url.origin);
+    url.pathname = pathUrl.pathname;
+    url.search = pathUrl.search;
+  }
+  return url;
+}
+
+/**
  * @param {string} defaultProtocol
  * @param {string | URL | import("node:http").RequestOptions} input
  * @param {import("node:http").RequestOptions | undefined} options
  */
 function requestUrl(defaultProtocol, input, options) {
   if (input instanceof URL || typeof input === "string") {
-    return new URL(input);
+    return applyRequestOptions(new URL(input), options);
   }
 
-  const requestOptions = input ?? options ?? {};
-  const protocol = requestOptions.protocol ?? defaultProtocol;
-  const hostname =
-    requestOptions.hostname ?? requestOptions.host ?? "localhost";
-  const port = requestOptions.port ? `:${requestOptions.port}` : "";
-  const pathname = requestOptions.path ?? "/";
-  return new URL(`${protocol}//${hostname}${port}${pathname}`);
+  return applyRequestOptions(
+    new URL(`${input?.protocol ?? defaultProtocol}//localhost/`),
+    input,
+  );
 }
 
 /**

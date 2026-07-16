@@ -5,7 +5,10 @@ import { pathToFileURL } from "node:url";
 import { PrismaLibSql } from "@prisma/adapter-libsql";
 import { PrismaClient } from "@prisma/client";
 import { describe, expect, it } from "vitest";
-import { validateIntegrationRuntime } from "../scripts/integration-network-guard.mjs";
+import {
+  FORBIDDEN_SERVICE_ENV,
+  validateIntegrationRuntime,
+} from "../scripts/integration-network-guard.mjs";
 import { seedIntegrationData } from "../scripts/seed-integration-data.mjs";
 
 const appRoot = path.resolve(import.meta.dirname, "..");
@@ -32,23 +35,34 @@ const safeRuntime = {
   },
 };
 
-function runWithGuard(code: string) {
+function integrationSubprocessEnv(
+  inheritedEnv: NodeJS.ProcessEnv = process.env,
+) {
+  const env = { ...inheritedEnv };
+  for (const name of FORBIDDEN_SERVICE_ENV) delete env[name];
+  return {
+    ...env,
+    NODE_ENV: "test",
+    INTEGRATION_MODE: "1",
+    INTEGRATION_NETWORK_GUARD: "1",
+    APP_BASE_URL: safeRuntime.appBaseUrl,
+    DATABASE_URL: safeRuntime.databaseUrl,
+    CLERK_SECRET_KEY: "sk_test_integration",
+    NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: "pk_test_integration",
+    STRIPE_SECRET_KEY: "sk_test_integration",
+  };
+}
+
+function runWithGuard(
+  code: string,
+  inheritedEnv: NodeJS.ProcessEnv = process.env,
+) {
   return spawnSync(
     process.execPath,
     ["--import", guardUrl, "--input-type=module", "--eval", code],
     {
       cwd: appRoot,
-      env: {
-        ...process.env,
-        NODE_ENV: "test",
-        INTEGRATION_MODE: "1",
-        INTEGRATION_NETWORK_GUARD: "1",
-        APP_BASE_URL: safeRuntime.appBaseUrl,
-        DATABASE_URL: safeRuntime.databaseUrl,
-        CLERK_SECRET_KEY: "sk_test_integration",
-        NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: "pk_test_integration",
-        STRIPE_SECRET_KEY: "sk_test_integration",
-      },
+      env: integrationSubprocessEnv(inheritedEnv),
       encoding: "utf8",
     },
   );
@@ -93,6 +107,10 @@ describe("offline integration runtime", () => {
         url: "https://example.com/https",
       },
       {
+        code: 'import https from "node:https"; https.get(new URL("https://localhost/allowed"), { hostname: "example.com", path: "/overridden" })',
+        url: "https://example.com/overridden",
+      },
+      {
         code: 'new WebSocket("wss://example.com/socket")',
         url: "wss://example.com/socket",
       },
@@ -105,6 +123,20 @@ describe("offline integration runtime", () => {
         `Blocked outbound integration request: ${attempt.url}`,
       );
     }
+  });
+
+  it("does not inherit real-service credentials in guard subprocesses", () => {
+    const result = runWithGuard('await fetch("https://example.com/fetch")', {
+      ...process.env,
+      AWS_ACCESS_KEY_ID: "inherited-real-credential",
+      TURSO_DATABASE_AUTH_TOKEN: "inherited-real-token",
+    });
+
+    expect(result.status).not.toBe(0);
+    expect(result.stderr).toContain(
+      "Blocked outbound integration request: https://example.com/fetch",
+    );
+    expect(result.stderr).not.toContain("Integration mode refuses");
   });
 
   it("seeds the same minimal seller state into independent databases", async () => {
