@@ -868,25 +868,13 @@ function CultivarCard({
 
       <div className="relative z-10 flex min-h-[19rem] w-full flex-col justify-end p-5">
         <div className="max-w-full">
-          <div className="relative isolate w-fit max-w-full">
-            <div
-              aria-hidden="true"
-              className="absolute -inset-x-2.5 -inset-y-1 -z-10 rounded-lg bg-[#07120e]/75 blur-[6px]"
-            />
-            <h2 className="text-2xl leading-tight font-semibold text-white drop-shadow-lg">
-              {result.name}
-            </h2>
-          </div>
+          <h2 className="text-2xl leading-tight font-semibold text-white [text-shadow:0_2px_3px_rgba(0,0,0,0.98),0_0_10px_rgba(0,0,0,0.95),0_0_24px_rgba(0,0,0,0.8)]">
+            {result.name}
+          </h2>
           {attribution ? (
-            <div className="relative isolate mt-2 w-fit max-w-full">
-              <div
-                aria-hidden="true"
-                className="absolute -inset-x-2 -inset-y-1 -z-10 rounded-md bg-[#07120e]/75 blur-[6px]"
-              />
-              <p className="text-sm font-semibold text-[#f4c477] drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)]">
-                {attribution}
-              </p>
-            </div>
+            <p className="mt-1 text-sm font-semibold text-[#f4c477] [text-shadow:0_1px_2px_rgba(0,0,0,1),0_0_8px_rgba(0,0,0,0.95),0_0_18px_rgba(0,0,0,0.8)]">
+              {attribution}
+            </p>
           ) : null}
         </div>
       </div>
