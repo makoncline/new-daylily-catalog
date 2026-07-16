@@ -121,6 +121,7 @@ describe("cultivar search", () => {
       INSERT INTO CultivarSearchFacetValue VALUES
         ('hybridizer', 'Reed', 'reed', 3),
         ('hybridizer', 'Stone', 'stone', 1),
+        ('hybridizer', 'Pete Harry', 'pete harry', 1),
         ('award', 'HM', 'hm', 2),
         ('award', 'Stout', 'stout', 1);
 
@@ -302,6 +303,19 @@ describe("cultivar search", () => {
         count: 3,
         label: "Reed",
         value: "Reed",
+      },
+    ]);
+
+    await expect(
+      searchCultivarFacetValues({
+        facet: "hybridizer",
+        query: "harry",
+      }),
+    ).resolves.toEqual([
+      {
+        count: 1,
+        label: "Pete Harry",
+        value: "Pete Harry",
       },
     ]);
   });

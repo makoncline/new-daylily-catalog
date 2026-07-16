@@ -994,12 +994,24 @@ export async function searchCultivarFacetValues(args: {
 
   try {
     const result = await client.execute({
-      args: [args.facet, query, `${query}%`, query, `${query}%`, limit],
+      args: [
+        args.facet,
+        query,
+        query,
+        `${query}%`,
+        query,
+        `${query}%`,
+        limit,
+      ],
       sql: `
         SELECT value, count
         FROM CultivarSearchFacetValue
         WHERE facet = ?
-          AND (? = '' OR valueSearch LIKE ?)
+          AND (
+            ? = ''
+            OR (facet = 'hybridizer' AND instr(valueSearch, ?) > 0)
+            OR (facet <> 'hybridizer' AND valueSearch LIKE ?)
+          )
         ORDER BY
           CASE
             WHEN valueSearch = ? THEN 0
