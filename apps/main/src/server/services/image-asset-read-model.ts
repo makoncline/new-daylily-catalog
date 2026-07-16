@@ -1,9 +1,5 @@
 import type { Prisma } from "@prisma/client";
 
-export function areImageAssetsEnabled() {
-  return process.env.USE_IMAGE_ASSETS === "true";
-}
-
 export interface LegacyImageRow {
   id: string;
   url: string;
@@ -101,10 +97,6 @@ export function resolveImageAssetUrl(args: {
   imageAssetByLegacyId: ReadonlyMap<string, ImageAssetUrlRow>;
   variant?: ImageAssetVariant;
 }) {
-  if (!areImageAssetsEnabled()) {
-    return args.image.url;
-  }
-
   const asset = args.imageAssetByLegacyId.get(args.image.id);
   if (!asset) {
     logImageAssetFallback({
@@ -151,9 +143,7 @@ export function resolveLegacyImagesWithAssets<
   const imageAssetByLegacyId = buildImageAssetMap(args.imageAssets ?? []);
 
   return args.images.map((image) => {
-    const asset = areImageAssetsEnabled()
-      ? imageAssetByLegacyId.get(image.id)
-      : undefined;
+    const asset = imageAssetByLegacyId.get(image.id);
 
     return {
       ...image,

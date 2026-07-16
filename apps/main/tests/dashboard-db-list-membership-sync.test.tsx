@@ -1,8 +1,16 @@
 import React from "react";
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { act, render, screen, waitFor } from "@testing-library/react";
 import { useLiveQuery } from "@tanstack/react-db";
 import { withTempAppDb } from "@/lib/test-utils/app-test-db";
+
+vi.mock("@/server/stripe/sync-subscription", () => ({
+  getStripeSubscription: vi.fn().mockResolvedValue({ status: "active" }),
+  getStripeSubscriptionResult: vi.fn().mockResolvedValue({
+    subscription: { status: "active" },
+    confirmed: true,
+  }),
+}));
 
 beforeEach(() => {
   localStorage.clear();

@@ -36,7 +36,7 @@ originals available for future reprocessing.
   reference originals once variants exist.
 - Do not add Cloudflare Workers/Queues initially.
 - Generate variants with a local/VPS script using `sharp`.
-- Use a feature flag, `USE_IMAGE_ASSETS`, for read-path rollout.
+- Roll out the ImageAsset read path behind a temporary feature flag.
 
 ## Current Status
 
@@ -49,18 +49,20 @@ old status notes as operational truth.
 - [x] Added `ImageAsset` schema to `prisma/schema.prisma`.
 - [x] Added Prisma-generated structural SQL:
       `prisma/migrations/20260613180000_add_image_asset/migration.sql`.
-- [x] Added `USE_IMAGE_ASSETS=false` defaults.
+- [x] Added default-off ImageAsset read-path rollout controls.
 - [x] Add R2/media env placeholders, key/url helpers, and helper tests.
 - [x] Add local-first backfill tooling and in-app variant processing.
-- [x] Add `USE_IMAGE_ASSETS` read-path support.
+- [x] Add feature-gated ImageAsset read-path support.
 - [x] Add dual-write for new uploaded originals.
 - [x] Backfill legacy local-prod-copy `Image` rows to R2 and local
       `ImageAsset`.
 - [x] Import reviewed `ImageAsset` data into Turso.
-- [x] Run production-like verification with `USE_IMAGE_ASSETS=false` and
-      `USE_IMAGE_ASSETS=true`.
-- [x] Enable `USE_IMAGE_ASSETS` after explicit approval and successful
+- [x] Run production-like verification with ImageAsset reads disabled and
+      enabled.
+- [x] Enable ImageAsset reads after explicit approval and successful
       production-data verification.
+- [x] Baseline ImageAsset reads and remove the rollout flag after sustained
+      production use.
 - [x] Add cultivar ownership to `ImageAsset`.
 - [x] Backfill generated cultivar image originals/variants to prod R2 through
       a local SQLite rehearsal DB.
@@ -382,7 +384,7 @@ asset.
 
 ## Failure Behavior
 
-Once `USE_IMAGE_ASSETS` is enabled, public read paths should prefer variants and
+Public read paths prefer variants and
 should only use originals as a temporary missing-variant fallback.
 
 Recommended behavior for missing variants:
@@ -458,7 +460,7 @@ annoying.
    R2.
 9. After explicit approval only, repeat the reviewed schema/data apply against
    production Turso.
-10. Enable `USE_IMAGE_ASSETS` in production only after the production apply is
+10. Enable ImageAsset reads in production only after the production apply is
     verified.
 11. Leave legacy S3 objects and old hosts intact until R2 backup/restore is
     proven and production has run cleanly.
@@ -476,7 +478,7 @@ Allowed rehearsal targets are:
 
 For production-like runs, use local `.env.production` as the source of secrets,
 then override only `DATABASE_URL`, `TURSO_DATABASE_AUTH_TOKEN`, R2 env vars,
-`APP_BASE_URL`, and `USE_IMAGE_ASSETS`.
+and `APP_BASE_URL`.
 
 Production apply is out of scope for the initial implementation. A later
 production apply should use the same reviewed data artifacts and commands that
@@ -515,7 +517,7 @@ Require user input before:
 - Mutating the production Turso database.
 - Applying schema/data changes to a local prod copy when the task did not
   explicitly authorize a rehearsal.
-- Enabling `USE_IMAGE_ASSETS` in production.
+- Enabling ImageAsset reads in production.
 - Deleting or modifying existing S3 objects.
 - Deleting or modifying existing Cloudflare hostnames.
 - Enabling Workers, Queues, or paid Cloudflare add-ons.
@@ -564,8 +566,8 @@ Non-obvious findings:
   representative AWS Console checks showed object-not-found. They are not
   recoverable from the public URL path.
 - Docker `--env-file` preserves quotes. Branch Docker verification needed
-  unquoted runtime overrides for values such as `APP_BASE_URL`,
-  `R2_PUBLIC_BASE_URL`, and `USE_IMAGE_ASSETS`.
+  unquoted runtime overrides for values such as `APP_BASE_URL` and
+  `R2_PUBLIC_BASE_URL`.
 - The prod Turso database token did not authorize the branch URL during Docker
   builds. Create/use a branch token for branch-local production builds.
 - Docker build context can become huge because this repo has large local

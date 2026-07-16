@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { flushSync } from "react-dom";
 import { useManagedFormSave } from "@/hooks/use-managed-form-save";
 import { useParentCommitFlag } from "@/hooks/use-parent-commit-flag";
 import { useZodForm } from "@/hooks/use-zod-form";
@@ -31,6 +32,8 @@ import { useConfirmableAsyncAction } from "@/hooks/use-confirmable-async-action"
 interface ListFormProps {
   listId: string;
   onDelete?: () => void;
+  onSave?: () => void;
+  onPendingChangesChange?: (hasPendingChanges: boolean) => void;
   formRef?: React.RefObject<ListFormHandle | null>;
 }
 
@@ -57,17 +60,22 @@ function ListFormInner({
   list,
   listId,
   onDelete,
+  onSave,
+  onPendingChangesChange,
   formRef,
 }: {
   list: ListCollectionItem;
   listId: string;
   onDelete?: () => void;
+  onSave?: () => void;
+  onPendingChangesChange?: (hasPendingChanges: boolean) => void;
   formRef?: React.RefObject<ListFormHandle | null>;
 }) {
   const [isSaving, setIsSaving] = useState(false);
   const committedValuesRef = useRef<ListFormData>(toFormValues(list));
   const {
     markNeedsParentCommit,
+    needsParentCommit,
     needsParentCommitRef,
     resetNeedsParentCommit,
   } = useParentCommitFlag();
@@ -84,13 +92,13 @@ function ListFormInner({
     setIsDialogOpen: setIsDeleteDialogOpen,
   } = useConfirmableAsyncAction({
     action: async () => {
+      flushSync(() => onDelete?.());
       await deleteList({ id: listId });
     },
     onSuccess: () => {
       toast.success("List deleted", {
         description: "Your list has been deleted successfully",
       });
-      onDelete?.();
     },
     onError: () => {
       toast.error("Failed to delete list", {
@@ -157,6 +165,9 @@ function ListFormInner({
         toast.success("List updated", {
           description: "Your list has been updated successfully",
         });
+        if (reason === "manual") {
+          onSave?.();
+        }
         return true;
       } catch {
         if (shouldUpdateUi) {
@@ -176,6 +187,16 @@ function ListFormInner({
       markNeedsCommit: markNeedsParentCommit,
     }),
   });
+
+  useEffect(() => {
+    const notifyPendingChanges = () => {
+      onPendingChangesChange?.(hasPendingChanges());
+    };
+
+    notifyPendingChanges();
+    const subscription = form.watch(notifyPendingChanges);
+    return () => subscription.unsubscribe();
+  }, [form, hasPendingChanges, needsParentCommit, onPendingChangesChange]);
 
   useEffect(() => {
     const nextCommittedValues = toFormValues(list);
@@ -275,7 +296,13 @@ function ListFormInner({
   );
 }
 
-function ListFormLive({ listId, onDelete, formRef }: ListFormProps) {
+function ListFormLive({
+  listId,
+  onDelete,
+  onSave,
+  onPendingChangesChange,
+  formRef,
+}: ListFormProps) {
   const { isReady, list } = useListResource(listId);
 
   if (!isReady || !list) {
@@ -288,6 +315,8 @@ function ListFormLive({ listId, onDelete, formRef }: ListFormProps) {
       list={list}
       listId={listId}
       onDelete={onDelete}
+      onSave={onSave}
+      onPendingChangesChange={onPendingChangesChange}
       formRef={formRef}
     />
   );

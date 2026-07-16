@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { describe, expect, it } from "vitest";
 import { buildOnboardingExampleCultivars } from "@/app/onboarding/anonymous-onboarding-example-cultivar-builder";
 import {
   ONBOARDING_EXAMPLE_CULTIVAR_REFERENCE_IDS,
@@ -7,17 +7,7 @@ import {
 } from "@/app/onboarding/anonymous-onboarding-config";
 import { createAnonymousOnboardingDraft } from "@/app/onboarding/anonymous-onboarding-draft";
 
-const originalUseImageAssets = process.env.USE_IMAGE_ASSETS;
-
 describe("anonymous onboarding config", () => {
-  afterEach(() => {
-    if (originalUseImageAssets === undefined) {
-      delete process.env.USE_IMAGE_ASSETS;
-    } else {
-      process.env.USE_IMAGE_ASSETS = originalUseImageAssets;
-    }
-  });
-
   it("builds ordered example cultivars from cultivar reference ids", () => {
     const examples = buildOnboardingExampleCultivars(
       [
@@ -95,9 +85,7 @@ describe("anonymous onboarding config", () => {
     ]);
   });
 
-  it("uses cultivar image asset URLs when image assets are enabled", () => {
-    process.env.USE_IMAGE_ASSETS = "true";
-
+  it("uses cultivar image asset URLs", () => {
     const examples = buildOnboardingExampleCultivars(
       [
         {

@@ -9,7 +9,6 @@ import {
   type ExampleCultivar,
 } from "./anonymous-onboarding-config";
 import {
-  areImageAssetsEnabled,
   orderedImageAssetUrlInclude,
   toImageAssetView,
 } from "@/server/services/image-asset-read-model";
@@ -59,14 +58,11 @@ function getOnboardingDisplayAhsListing(row: OnboardingCultivarReferenceRow) {
   return (
     (row.v2AhsCultivar
       ? mapV2AhsCultivarToDisplayAhsListing(row.v2AhsCultivar)
-      : null) ??
-    legacyAhsListing
+      : null) ?? legacyAhsListing
   );
 }
 
 function getOnboardingImageAsset(row: OnboardingCultivarReferenceRow) {
-  if (!areImageAssetsEnabled()) return null;
-
   const asset = row.imageAssets[0];
   if (!asset) return null;
 
