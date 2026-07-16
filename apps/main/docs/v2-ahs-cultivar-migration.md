@@ -93,20 +93,51 @@ This writes ignored artifacts under
 - `review-linked-name-drift.sql`
 - `summary.json`
 
-Apply the generated delta import locally:
+The July 2026 source-field expansion is forward-only and must be applied before
+its generated delta SQL:
+
+- `prisma/migrations/20260716203000_add_v2_ahs_source_classification_fields/migration.sql`
+- adds nullable `flower_show`, `sculpted_type_ids`, and `sculpted_type_names`
+- keeps missing production columns comparable as `NULL` during delta generation,
+  so the delta can be generated directly against an untouched fresh production
+  copy
+- treats `flower_show` as the authoritative public search-index value; missing
+  values remain `NULL` rather than being derived from multiform form fields
+
+Rehearse the schema migration and generated delta on a disposable production
+copy:
 
 ```bash
-npx tsx scripts/apply-v2-ahs-cultivar-import.ts \
-  --sqlite prisma/local-prod-copy-daylily-catalog.db \
+mkdir -p tests/.tmp
+cp prisma/local-prod-copy-daylily-catalog.db tests/.tmp/v2-delta-rehearsal.sqlite
+sqlite3 tests/.tmp/v2-delta-rehearsal.sqlite \
+  < prisma/migrations/20260716203000_add_v2_ahs_source_classification_fields/migration.sql
+sqlite3 tests/.tmp/v2-delta-rehearsal.sqlite \
+  < prisma/data-migrations/20260407_verify_v2_ahs_cultivar_schema.sql
+node scripts/apply-v2-ahs-cultivar-import.ts \
+  --sqlite tests/.tmp/v2-delta-rehearsal.sqlite \
   --import-dir prisma/data-migrations/v2-ahs-cultivar-delta/upsert
+sqlite3 tests/.tmp/v2-delta-rehearsal.sqlite \
+  < prisma/data-migrations/v2-ahs-cultivar-delta/link-new-cultivar-references.sql
+sqlite3 tests/.tmp/v2-delta-rehearsal.sqlite \
+  < prisma/data-migrations/v2-ahs-cultivar-delta/verify.sql
 ```
 
-Or against Turso:
+Only after explicit production approval, apply the exact same files to Turso in
+the same order:
 
 ```bash
-npx tsx scripts/apply-v2-ahs-cultivar-import.ts \
+turso db shell daylily-catalog \
+  < prisma/migrations/20260716203000_add_v2_ahs_source_classification_fields/migration.sql
+turso db shell daylily-catalog \
+  < prisma/data-migrations/20260407_verify_v2_ahs_cultivar_schema.sql
+node scripts/apply-v2-ahs-cultivar-import.ts \
   --db daylily-catalog \
   --import-dir prisma/data-migrations/v2-ahs-cultivar-delta/upsert
+turso db shell daylily-catalog \
+  < prisma/data-migrations/v2-ahs-cultivar-delta/link-new-cultivar-references.sql
+turso db shell daylily-catalog \
+  < prisma/data-migrations/v2-ahs-cultivar-delta/verify.sql
 ```
 
 ## Structural Migration Authoring

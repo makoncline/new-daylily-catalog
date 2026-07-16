@@ -120,7 +120,8 @@
 | Foliage Type | `foliage_names` | |
 | Fragrance | `fragrance_names` | null if not fragrant |
 | Bloom Habit | `bloom_habit_names` | |
-| Flower Show | Not directly available | May be derived from `flower_form_names` |
+| Flower Show | `flower_show` | Authoritative source classification; do not derive precedence from multiform `flower_form_names` |
+| Sculpted Type | `sculpted_type_names` | May contain multiple values separated by `\|`; IDs are in `sculpted_type_ids` |
 | Bud Count | `bud_count` | String |
 | Branches | `branches` | String |
 | Seedling Number | `seedling_number` | |
