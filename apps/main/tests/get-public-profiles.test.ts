@@ -1,6 +1,6 @@
 // @vitest-environment node
 
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mockDb = vi.hoisted(() => ({
   list: {
@@ -28,20 +28,9 @@ vi.mock("@/server/db/getProUserIds", () => ({
 import { getPublicProfiles } from "@/server/db/getPublicProfiles";
 import { applyWhereIn } from "./test-utils/apply-where-in";
 
-const originalUseImageAssets = process.env.USE_IMAGE_ASSETS;
-
 describe("getPublicProfiles", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-  });
-
-  afterEach(() => {
-    if (originalUseImageAssets === undefined) {
-      delete process.env.USE_IMAGE_ASSETS;
-      return;
-    }
-
-    process.env.USE_IMAGE_ASSETS = originalUseImageAssets;
   });
 
   it("returns only pro catalogs for the /catalogs page", async () => {
@@ -131,8 +120,7 @@ describe("getPublicProfiles", () => {
     });
   });
 
-  it("keeps ImageAsset metadata on profile images when enabled", async () => {
-    process.env.USE_IMAGE_ASSETS = "true";
+  it("keeps ImageAsset metadata on profile images", async () => {
     const users = [
       {
         id: "user-pro",

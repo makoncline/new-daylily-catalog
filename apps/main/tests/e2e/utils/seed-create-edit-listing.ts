@@ -1,6 +1,7 @@
 import type { E2EPrismaClient } from "../../../src/lib/test-utils/e2e-db";
 import { createAuthedUser } from "../../../src/lib/test-utils/e2e-users";
 import { seedAhsListing } from "./ahs-listings";
+import { setStripeSubscriptionStatus } from "./stripe";
 
 interface SeedCreateEditListingInput {
   db: E2EPrismaClient;
@@ -28,6 +29,12 @@ export async function seedCreateEditListingData({
   db,
 }: SeedCreateEditListingInput): Promise<CreateEditListingSeedMeta> {
   const user = await createAuthedUser(db);
+  if (user.stripeCustomerId) {
+    await setStripeSubscriptionStatus({
+      db,
+      stripeCustomerId: user.stripeCustomerId,
+    });
+  }
 
   const existingList = await db.list.create({
     data: {

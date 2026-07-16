@@ -1,12 +1,33 @@
 import { HomePageSEO } from "./_components/home-seo";
 import { generateHomePageMetadata } from "./_seo/metadata";
 import { getCanonicalBaseUrl } from "@/lib/utils/getBaseUrl";
-import { getCloudflareUrlForDaylilyS3ImagePath } from "@/lib/utils/cloudflareLoader";
 import HomePageClient, {
   type HomePageCatalog,
 } from "./_components/home-page-client";
 
 export const dynamic = "force-static";
+
+function getStaticProfileImage(args: {
+  imageId: string;
+  originalExtension?: "jpeg" | "jpg";
+  userId: string;
+}) {
+  const baseUrl = `https://media.daylilycatalog.com/users/${args.userId}/profile-images/${args.imageId}`;
+  const displayUrl = `${baseUrl}/display-800.webp`;
+
+  return {
+    id: args.imageId,
+    url: displayUrl,
+    imageAsset: {
+      id: args.imageId,
+      status: "ready",
+      originalUrl: `${baseUrl}/original.${args.originalExtension ?? "jpg"}`,
+      displayUrl,
+      thumbUrl: `${baseUrl}/thumb-200.webp`,
+      blurUrl: `${baseUrl}/blur-20.webp`,
+    },
+  };
+}
 
 const staticHomeCatalogs = [
   {
@@ -17,12 +38,11 @@ const staticHomeCatalogs = [
     location: "Picayune, Mississippi",
     listingCount: 3030,
     images: [
-      {
-        id: "cm6jw663j05l1n5lbjaih756y",
-        url: getCloudflareUrlForDaylilyS3ImagePath(
-          "3/fe5c7-CFB870A9-7905-4813-BBD6-56972A124803.jpeg",
-        ),
-      },
+      getStaticProfileImage({
+        imageId: "cm6jw663j05l1n5lbjaih756y",
+        originalExtension: "jpeg",
+        userId: "3",
+      }),
     ],
   },
   {
@@ -33,12 +53,10 @@ const staticHomeCatalogs = [
     location: "Troy, South Carolina",
     listingCount: 534,
     images: [
-      {
-        id: "cmduh50jq0001ki6w10cmdaxa",
-        url: getCloudflareUrlForDaylilyS3ImagePath(
-          "93/cm6jw662t05ixn5lbhfkpiduh/2e56dd20.jpg",
-        ),
-      },
+      getStaticProfileImage({
+        imageId: "cmduh50jq0001ki6w10cmdaxa",
+        userId: "93",
+      }),
     ],
   },
   {
@@ -49,12 +67,10 @@ const staticHomeCatalogs = [
     location: "Chipley, Florida",
     listingCount: 512,
     images: [
-      {
-        id: "cm6ju52ts02szkpf6p7nbvuix",
-        url: getCloudflareUrlForDaylilyS3ImagePath(
-          "profile/94/8c0c6f10-9a85-4780-9d84-b436f521d979",
-        ),
-      },
+      getStaticProfileImage({
+        imageId: "cm6ju52ts02szkpf6p7nbvuix",
+        userId: "94",
+      }),
     ],
   },
   {
@@ -65,12 +81,10 @@ const staticHomeCatalogs = [
     location: "Ridgeway, South Carolina",
     listingCount: 410,
     images: [
-      {
-        id: "cmc1rjeso0006r1g0x01x6rtb",
-        url: getCloudflareUrlForDaylilyS3ImagePath(
-          "cmc1rb09p0000r1g0xs6g5858/cmc1rbriq0002r1g0rwh003aj/f05de7fa.jpg",
-        ),
-      },
+      getStaticProfileImage({
+        imageId: "cmc1rjeso0006r1g0x01x6rtb",
+        userId: "cmc1rb09p0000r1g0xs6g5858",
+      }),
     ],
   },
   {
@@ -82,12 +96,10 @@ const staticHomeCatalogs = [
     location: "Maryville, Tennessee",
     listingCount: 373,
     images: [
-      {
-        id: "cm6ju52tp02snkpf6ndmkrm18",
-        url: getCloudflareUrlForDaylilyS3ImagePath(
-          "profile/63/2f846805-f809-4cf1-a045-4e475fe417c0",
-        ),
-      },
+      getStaticProfileImage({
+        imageId: "cm6ju52tp02snkpf6ndmkrm18",
+        userId: "63",
+      }),
     ],
   },
   {
@@ -99,12 +111,10 @@ const staticHomeCatalogs = [
     location: "Southern Indiana",
     listingCount: 368,
     images: [
-      {
-        id: "cm6ju52ti02sdkpf6u3v2myy1",
-        url: getCloudflareUrlForDaylilyS3ImagePath(
-          "profile/195/0ed042e3-e6f8-4d30-8d49-6ee00b768995",
-        ),
-      },
+      getStaticProfileImage({
+        imageId: "cm6ju52ti02sdkpf6u3v2myy1",
+        userId: "195",
+      }),
     ],
   },
   {
@@ -115,12 +125,10 @@ const staticHomeCatalogs = [
     location: "Woodside, California",
     listingCount: 358,
     images: [
-      {
-        id: "cm8khxaac00053k7l8mf3p1jy",
-        url: getCloudflareUrlForDaylilyS3ImagePath(
-          "cm8khl4h8000063ayta4oez5y/cm8khli2o00013k7l7y28qvpe/f0a9c568.jpg",
-        ),
-      },
+      getStaticProfileImage({
+        imageId: "cm8khxaac00053k7l8mf3p1jy",
+        userId: "cm8khl4h8000063ayta4oez5y",
+      }),
     ],
   },
   {
@@ -131,12 +139,10 @@ const staticHomeCatalogs = [
     location: "Santa Barbara, California",
     listingCount: 161,
     images: [
-      {
-        id: "cm6ju52tf02s5kpf68e2tz9km",
-        url: getCloudflareUrlForDaylilyS3ImagePath(
-          "profile/87/91566ea0-b848-497c-988d-4d1a0964ebd4",
-        ),
-      },
+      getStaticProfileImage({
+        imageId: "cm6ju52tf02s5kpf68e2tz9km",
+        userId: "87",
+      }),
     ],
   },
 ] satisfies readonly HomePageCatalog[];

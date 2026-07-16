@@ -29,6 +29,9 @@ deep operational detail in the linked documents and use this index for routing.
 
 ## Data, Search, and Cultivar Migration
 
+- `public-cultivar-search-research.md` - competitive research, search/SEO
+  strategy, and phased implementation recommendations for a public cultivar
+  search over the full registry.
 - `db-migration.md` - database migration workflow.
 - `cultivar-reference-migration.md` - cultivar reference migration notes.
 - `cultivar-reference-dedupe-runbook.md` - cultivar reference dedupe runbook.

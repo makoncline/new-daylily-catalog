@@ -19,6 +19,8 @@ test.describe("lists page features @local", () => {
     page,
     dashboardLists,
   }) => {
+    test.slow();
+
     const expectPageIndicator = async (
       currentPage: number,
       totalPages: number,
@@ -78,6 +80,11 @@ test.describe("lists page features @local", () => {
     await dashboardLists.goto();
     await expect(page).toHaveURL(/\/dashboard\/lists/);
     await dashboardLists.isReady();
+
+    // Query parameters cannot bypass the free-tier create limit.
+    await page.goto("/dashboard/lists?creating=true");
+    await expect(dashboardLists.createSurface()).toBeHidden();
+    await expect(page).not.toHaveURL(/creating=true/);
 
     // Phase 2: baseline table and pagination behavior
     await expect(dashboardLists.rows()).toHaveCount(seedMeta.defaultPageSize);
@@ -179,9 +186,9 @@ test.describe("lists page features @local", () => {
       .fill(
         `Updated description ${seedMeta.editTargetUpdatedDescriptionToken}`,
       );
-    await dashboardLists.saveChangesButton().click();
-
-    await dashboardLists.closeEditDialog();
+    await expect(page.getByText("Unsaved list", { exact: true })).toBeVisible();
+    await dashboardLists.surfaceSaveButton().click();
+    await expect(dashboardLists.editDialog()).toBeHidden();
 
     await dashboardLists.setGlobalSearch(seedMeta.editTargetUpdatedTitle);
     await expect(dashboardLists.rows()).toHaveCount(1);
@@ -196,8 +203,35 @@ test.describe("lists page features @local", () => {
     ).toBeVisible();
 
     await dashboardLists.openFirstVisibleRowActions();
-    await dashboardLists.chooseRowActionDelete();
+    await dashboardLists.chooseRowActionEdit();
+    await expect(dashboardLists.editDialog()).toBeVisible();
+
+    let releaseDeleteRequest = () => {};
+    let markDeleteRequestStarted = () => {};
+    const deleteRequestStarted = new Promise<void>((resolve) => {
+      markDeleteRequestStarted = resolve;
+    });
+    const deleteRequestBlocked = new Promise<void>((resolve) => {
+      releaseDeleteRequest = resolve;
+    });
+    await page.route("**/api/trpc/**", async (route) => {
+      if (route.request().url().includes("dashboardDb.list.delete")) {
+        markDeleteRequestStarted();
+        await deleteRequestBlocked;
+      }
+      await route.continue();
+    });
+
+    await dashboardLists.surfaceDeleteButton().click();
     await dashboardLists.confirmDelete();
+    await deleteRequestStarted;
+    await expect(
+      page.getByRole("heading", { name: "Lists", exact: true }),
+    ).toBeVisible();
+    await expect(dashboardLists.editDialog()).toHaveCount(0);
+    await expect(page.locator(".animate-pulse:visible")).toHaveCount(0);
+    await expect(page).not.toHaveURL(/editing=/);
+    releaseDeleteRequest();
 
     await expect(
       page.getByRole("heading", { name: "No lists found" }),

@@ -66,14 +66,11 @@ export function generateCultivarJsonLd(
       value: spec.value,
     })),
     offers: productOffers,
-    // TODO: Re-enable related-cultivar links after optimizing cultivar-page fan-out.
-    /*
     isRelatedTo: cultivarPage.relatedByHybridizer.map((cultivar) => ({
       "@type": "Product",
       name: cultivar.name,
       url: `${baseUrl}/cultivar/${cultivar.segment}`,
       image: cultivar.imageUrl,
     })),
-    */
   };
 }

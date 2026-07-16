@@ -25,9 +25,9 @@ import {
   PublicCatalogSearchQueryField,
   PublicCatalogSearchResetButton,
   PublicCatalogSearchResultCount,
+  PublicCatalogSearchModeToggle,
   PublicCatalogSearchSection,
 } from "@/components/public-catalog-search/public-catalog-search-composable";
-import { Switch } from "@/components/ui/switch";
 import { useLocalStorage } from "@/hooks/use-local-storage";
 import {
   buildPublicCatalogSearchColumnNames,
@@ -246,23 +246,13 @@ function ListingsTableLive() {
                 />
               </div>
 
-              <label
-                htmlFor="dashboard-listings-search-mode-switch"
-                className="grid grid-rows-[auto_2rem] justify-items-center gap-1"
-                data-testid="search-mode-toggle"
-              >
-                <span className="text-xs font-medium tracking-wide uppercase">
-                  Advanced
-                </span>
-                <Switch
-                  id="dashboard-listings-search-mode-switch"
-                  checked={isAdvanced}
-                  onCheckedChange={(checked) =>
-                    setSearchMode(checked ? "advanced" : "basic")
-                  }
-                  data-testid="search-mode-switch"
-                />
-              </label>
+              <PublicCatalogSearchModeToggle
+                id="dashboard-listings-search-mode-switch"
+                checked={isAdvanced}
+                onCheckedChange={(checked) =>
+                  setSearchMode(checked ? "advanced" : "basic")
+                }
+              />
             </div>
 
             <PublicCatalogSearchFilterFields

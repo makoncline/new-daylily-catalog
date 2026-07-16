@@ -71,11 +71,10 @@ COPY --from=builder --chown=nextjs:nodejs /app/apps/main/public ./apps/main/publ
 COPY --from=builder --chown=nextjs:nodejs /app/apps/main/scripts/build-public-search-index.mjs ./apps/main/scripts/build-public-search-index.mjs
 COPY --from=builder --chown=nextjs:nodejs /app/apps/main/scripts/build-public-parentage-index.mjs ./apps/main/scripts/build-public-parentage-index.mjs
 COPY --from=builder --chown=nextjs:nodejs /app/apps/main/.next/standalone ./
-COPY --from=runtime-deps --chown=nextjs:nodejs /runtime/node_modules ./apps/main/node_modules
+COPY --from=runtime-deps --chown=nextjs:nodejs /runtime/node_modules ./node_modules
 COPY --from=builder --chown=nextjs:nodejs /app/apps/main/.next/static ./apps/main/.next/static
 
-RUN cd /app/apps/main \
-    && node -e 'for (const dependency of ["sharp", "@aws-sdk/client-s3", "@prisma/client", "@prisma/adapter-libsql", "@libsql/client"]) require(dependency)'
+RUN node -e 'const { execFileSync } = require("node:child_process"); const { createRequire } = require("node:module"); void (async () => { const serverRequire = createRequire("/app/apps/main/server.js"); for (const dependency of ["@aws-sdk/client-s3", "@prisma/client", "@prisma/adapter-libsql", "@libsql/client"]) serverRequire(dependency); const sharp = serverRequire("sharp"); await sharp({ create: { width: 1, height: 1, channels: 4, background: { r: 0, g: 0, b: 0, alpha: 0 } } }).webp().toBuffer(); const sharpAddon = Object.keys(require.cache).find((modulePath) => modulePath.endsWith(".node") && modulePath.includes("sharp")); if (!sharpAddon) throw new Error("Loaded Sharp native addon was not found."); const sharpLdd = execFileSync("ldd", [sharpAddon], { encoding: "utf8" }); process.stdout.write(sharpLdd); if (sharpLdd.includes("not found")) process.exit(1); })().catch((error) => { console.error(error); process.exit(1); })'
 
 USER nextjs
 

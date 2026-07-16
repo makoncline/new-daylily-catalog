@@ -26,6 +26,13 @@ describe("cultivar json-ld", () => {
           },
         ],
       },
+      relatedByHybridizer: [
+        {
+          name: "Isle of Wight",
+          segment: "isle-of-wight",
+          imageUrl: "https://example.com/isle.jpg",
+        },
+      ],
     } as unknown as CultivarInput;
 
     const jsonLd = generateCultivarJsonLd(
@@ -35,10 +42,17 @@ describe("cultivar json-ld", () => {
     ) as {
       "@type": string;
       offers?: unknown[];
+      isRelatedTo?: Array<{ name: string; url: string }>;
     };
 
     expect(jsonLd["@type"]).toBe("Product");
     expect(jsonLd.offers).toHaveLength(1);
+    expect(jsonLd.isRelatedTo).toEqual([
+      expect.objectContaining({
+        name: "Isle of Wight",
+        url: "https://daylily-catalog.com/cultivar/isle-of-wight",
+      }),
+    ]);
   });
 
   it("returns WebPage schema when no priced offers exist", () => {
@@ -59,6 +73,7 @@ describe("cultivar json-ld", () => {
           },
         ],
       },
+      relatedByHybridizer: [],
     } as unknown as CultivarInput;
 
     const jsonLd = generateCultivarJsonLd(
@@ -99,6 +114,7 @@ describe("cultivar json-ld", () => {
           },
         ],
       },
+      relatedByHybridizer: [],
     } as unknown as CultivarInput;
 
     const jsonLd = generateCultivarJsonLd(
