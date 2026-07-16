@@ -146,11 +146,13 @@ function useListingFormController({
     setIsDialogOpen: setIsDeleteDialogOpen,
   } = useConfirmableAsyncAction({
     action: async () => {
-      await deleteListing({ id: listing.id });
+      await deleteListing({
+        id: listing.id,
+        onOptimisticDelete: onDelete,
+      });
     },
     onSuccess: () => {
       toast.success("Listing deleted successfully");
-      onDelete();
     },
     onError: (error) => {
       toast.error("Failed to delete listing", {
