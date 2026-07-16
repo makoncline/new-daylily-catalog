@@ -14,7 +14,6 @@ import { getPublicListingCardsByIds } from "@/server/db/public-listing-read-mode
 import { getPublicSellerSummariesByUserIds } from "@/server/db/public-seller-read-model";
 import {
   generatedCultivarImageAssetInclude,
-  shouldQueryGeneratedCultivarImageAssets,
 } from "@/server/services/cultivar-reference-image-read-model";
 import type { ImageAssetUrlRow } from "@/server/services/image-asset-read-model";
 import { isPublished } from "@/server/db/public-visibility/filters";
@@ -80,9 +79,7 @@ async function findCultivarReferenceByNormalizedName(
           primary_hybridizer_id: true,
         },
       },
-      ...(shouldQueryGeneratedCultivarImageAssets()
-        ? { imageAssets: generatedCultivarImageAssetInclude }
-        : {}),
+      imageAssets: generatedCultivarImageAssetInclude,
     },
     orderBy: {
       updatedAt: "desc",

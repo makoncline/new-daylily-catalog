@@ -13,7 +13,6 @@ import type {
 import {
   type CultivarReferenceImageView,
   resolveCultivarReferenceImage,
-  shouldQueryGeneratedCultivarImageAssets,
 } from "@/server/services/cultivar-reference-image-read-model";
 import { imageAssetUrlSelect } from "@/server/services/image-asset-read-model";
 import {
@@ -199,10 +198,7 @@ async function getCultivarReferenceImageAssets(
 ) {
   const map = new Map<string, CultivarReferenceImageAssetRow>();
 
-  if (
-    !shouldQueryGeneratedCultivarImageAssets() ||
-    cultivarReferenceIds.length === 0
-  ) {
+  if (cultivarReferenceIds.length === 0) {
     return map;
   }
 

@@ -12,7 +12,6 @@ import {
 import {
   generatedCultivarImageAssetInclude,
   resolveCultivarReferenceImage,
-  shouldQueryGeneratedCultivarImageAssets,
 } from "@/server/services/cultivar-reference-image-read-model";
 import { toCultivarRouteSegment } from "@/lib/utils/cultivar-utils";
 import { db, replicaDb } from "@/server/db";
@@ -715,9 +714,7 @@ const cultivarReferenceSelect = {
   normalizedName: true,
   updatedAt: true,
   v2AhsCultivar: { select: v2AhsCultivarDisplaySelect },
-  ...(shouldQueryGeneratedCultivarImageAssets()
-    ? { imageAssets: generatedCultivarImageAssetInclude }
-    : {}),
+  imageAssets: generatedCultivarImageAssetInclude,
 } as const;
 
 const listingSelect = {

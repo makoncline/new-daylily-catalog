@@ -1,7 +1,6 @@
 // @vitest-environment node
 
 import {
-  afterEach,
   beforeAll,
   beforeEach,
   describe,
@@ -17,8 +16,6 @@ process.env.DATABASE_URL ??=
   "file:./tests/.tmp/dashboard-db-cultivar-reference.sqlite";
 
 let dashboardDbCultivarReferenceRouter: typeof CultivarReferenceRouterModule.dashboardDbCultivarReferenceRouter;
-const originalUseGeneratedCultivarImageAssets =
-  process.env.USE_GENERATED_CULTIVAR_IMAGE_ASSETS;
 
 beforeAll(async () => {
   ({ dashboardDbCultivarReferenceRouter } = await import(
@@ -96,16 +93,6 @@ function createCaller(db: MockDb) {
 describe("dashboardDb.cultivarReference", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-  });
-
-  afterEach(() => {
-    if (originalUseGeneratedCultivarImageAssets === undefined) {
-      delete process.env.USE_GENERATED_CULTIVAR_IMAGE_ASSETS;
-    } else {
-      process.env.USE_GENERATED_CULTIVAR_IMAGE_ASSETS =
-        originalUseGeneratedCultivarImageAssets;
-    }
-
   });
 
   it("listForUserListings filters cultivar references with an owner-checked query", async () => {
@@ -337,9 +324,7 @@ describe("dashboardDb.cultivarReference", () => {
     expect(result[0]).not.toHaveProperty("v2AhsCultivar");
   });
 
-  it("chunks generated image asset lookups when the generated image flag is enabled", async () => {
-    process.env.USE_GENERATED_CULTIVAR_IMAGE_ASSETS = "true";
-
+  it("chunks generated image asset lookups", async () => {
     const db = createMockDb();
     db.$queryRaw.mockResolvedValue(
       Array.from({ length: 901 }, (_, index) =>
@@ -363,9 +348,7 @@ describe("dashboardDb.cultivarReference", () => {
     }
   });
 
-  it("uses generated image assets when the server flag is enabled", async () => {
-    process.env.USE_GENERATED_CULTIVAR_IMAGE_ASSETS = "true";
-
+  it("uses generated image assets", async () => {
     const db = createMockDb();
     db.$queryRaw.mockResolvedValue([createRawV2CultivarReference("cr-1")]);
     db.imageAsset.findMany.mockResolvedValue([

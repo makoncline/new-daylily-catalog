@@ -16,7 +16,6 @@ import type { ImageAssetView } from "@/server/services/image-asset-read-model";
 import {
   generatedCultivarImageAssetInclude,
   resolveCultivarReferenceImage,
-  shouldQueryGeneratedCultivarImageAssets,
 } from "@/server/services/cultivar-reference-image-read-model";
 
 const CULTIVAR_SPEC_FIELDS = [
@@ -487,34 +486,30 @@ export async function buildPublicCultivarSummary(args: PublicCultivarContext) {
       : legacyHybridizer
         ? [{ hybridizer_code_legacy: legacyHybridizer }]
         : [];
-  const generatedCultivarImagesEnabled =
-    shouldQueryGeneratedCultivarImageAssets();
   const relatedByHybridizer = hybridizerIdentifiers.length
     ? (
         await replicaDb.v2AhsCultivar.findMany({
           where: {
             OR: hybridizerIdentifiers,
-            AND: generatedCultivarImagesEnabled
-              ? [
+            AND: [
+              {
+                OR: [
+                  { image_url: { not: null } },
                   {
-                    OR: [
-                      { image_url: { not: null } },
-                      {
-                        cultivarReference: {
-                          is: {
-                            imageAssets: {
-                              some: {
-                                kind: "cultivar",
-                                status: "ready",
-                              },
-                            },
+                    cultivarReference: {
+                      is: {
+                        imageAssets: {
+                          some: {
+                            kind: "cultivar",
+                            status: "ready",
                           },
                         },
                       },
-                    ],
+                    },
                   },
-                ]
-              : [{ image_url: { not: null } }],
+                ],
+              },
+            ],
             cultivarReference: {
               is: {
                 id: {
@@ -532,9 +527,7 @@ export async function buildPublicCultivarSummary(args: PublicCultivarContext) {
               select: {
                 id: true,
                 normalizedName: true,
-                ...(generatedCultivarImagesEnabled
-                  ? { imageAssets: generatedCultivarImageAssetInclude }
-                  : {}),
+                imageAssets: generatedCultivarImageAssetInclude,
               },
             },
           },

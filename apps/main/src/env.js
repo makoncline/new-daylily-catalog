@@ -48,9 +48,6 @@ export const env = createEnv({
     R2_PUBLIC_BASE_URL: z.string().url().optional(),
     IMAGE_MODERATION_ENFORCED: booleanStringSchema.optional().default(false),
     OPENAI_IMAGE_MODERATION_API_KEY: z.string().optional(),
-    USE_GENERATED_CULTIVAR_IMAGE_ASSETS: booleanStringSchema
-      .optional()
-      .default(false),
     SENTRY_AUTH_TOKEN: z.string().optional(),
     NODE_ENV: z.enum(["development", "test", "production"]),
   },
@@ -90,8 +87,6 @@ export const env = createEnv({
     IMAGE_MODERATION_ENFORCED: process.env.IMAGE_MODERATION_ENFORCED,
     OPENAI_IMAGE_MODERATION_API_KEY:
       process.env.OPENAI_IMAGE_MODERATION_API_KEY,
-    USE_GENERATED_CULTIVAR_IMAGE_ASSETS:
-      process.env.USE_GENERATED_CULTIVAR_IMAGE_ASSETS,
     SENTRY_AUTH_TOKEN: process.env.SENTRY_AUTH_TOKEN,
     NODE_ENV: process.env.NODE_ENV,
   },
