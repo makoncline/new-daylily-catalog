@@ -281,10 +281,35 @@ test.describe("create/edit listing flow @local", () => {
     await editListingDialog.isReady();
     await expect(page).toHaveURL(/editing=/);
 
+    let releaseDeleteRequest = () => {};
+    let markDeleteRequestStarted = () => {};
+    const deleteRequestStarted = new Promise<void>((resolve) => {
+      markDeleteRequestStarted = resolve;
+    });
+    const deleteRequestBlocked = new Promise<void>((resolve) => {
+      releaseDeleteRequest = resolve;
+    });
+    await page.route("**/api/trpc/**", async (route) => {
+      if (route.request().url().includes("dashboardDb.listing.delete")) {
+        markDeleteRequestStarted();
+        await deleteRequestBlocked;
+      }
+      await route.continue();
+    });
+
     await editListingDialog.clickDeleteListing();
     await editListingDialog.confirmDeleteListing();
-    await expectToast("Listing deleted successfully");
+    await deleteRequestStarted;
+    await expect(
+      page.getByRole("heading", { name: "Listings", exact: true }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("heading", { name: "Edit Listing", exact: true }),
+    ).toHaveCount(0);
+    await expect(page.locator(".animate-pulse:visible")).toHaveCount(0);
     await expectUrlParam("editing", null);
+    releaseDeleteRequest();
+    await expectToast("Listing deleted successfully");
 
     await expect(
       page.getByRole("heading", { name: "No listings" }),

@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useCallback, useEffect, useState } from "react";
+import { flushSync } from "react-dom";
 import { type Image } from "@prisma/client";
 import { toast } from "sonner";
 
@@ -150,11 +151,11 @@ function useListingFormController({
     setIsDialogOpen: setIsDeleteDialogOpen,
   } = useConfirmableAsyncAction({
     action: async () => {
+      flushSync(onDelete);
       await deleteListing({ id: listing.id });
     },
     onSuccess: () => {
       toast.success("Listing deleted successfully");
-      onDelete();
     },
     onError: (error) => {
       toast.error("Failed to delete listing", {
