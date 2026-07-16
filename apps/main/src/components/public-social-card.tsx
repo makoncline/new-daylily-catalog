@@ -1,6 +1,7 @@
 /* eslint-disable @next/next/no-img-element -- Satori renders standard img elements into the social PNG. */
 import type { PublicSocialCardData } from "@/lib/social-card";
 import { formatPrice } from "@/lib/utils";
+import { Flower2 } from "lucide-react";
 
 const COLORS = {
   amber: "#f4c477",
@@ -109,23 +110,7 @@ function BrandMark() {
         textShadow: "0 2px 12px rgba(0, 0, 0, 0.55)",
       }}
     >
-      <svg
-        width="32"
-        height="32"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke={COLORS.amber}
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        xmlns="http://www.w3.org/2000/svg"
-      >
-        <path d="M12 5a3 3 0 1 1 3 3m-3-3a3 3 0 1 0-3 3m3-3v1M9 8a3 3 0 1 0 3 3M9 8h1m5 0a3 3 0 1 1-3 3m3-3h-1m-2 3v-1" />
-        <circle cx="12" cy="8" r="2" />
-        <path d="M12 10v12" />
-        <path d="M12 22c4.2 0 7-1.667 7-5-4.2 0-7 1.667-7 5Z" />
-        <path d="M12 22c-4.2 0-7-1.667-7-5 4.2 0 7 1.667 7 5Z" />
-      </svg>
+      <Flower2 size={32} color={COLORS.amber} />
       <span>Daylily Catalog</span>
     </div>
   );
@@ -138,43 +123,10 @@ function BloomPlaceholder() {
         display: "flex",
         width: "100%",
         height: "100%",
-        alignItems: "center",
-        justifyContent: "center",
         backgroundImage:
-          "radial-gradient(circle at 70% 20%, #f7d6a8 0%, #d46652 42%, #304f2c 100%)",
+          "radial-gradient(circle at 70% 35%, #f7d6a8 0%, #d46652 38%, #304f2c 100%)",
       }}
-    >
-      <svg
-        width="340"
-        height="340"
-        viewBox="0 0 330 330"
-        fill="none"
-        xmlns="http://www.w3.org/2000/svg"
-      >
-        <path
-          d="M165 166C89 157 66 108 77 59c50-7 93 23 88 107Z"
-          fill="#FFF7E9"
-          fillOpacity="0.68"
-        />
-        <path
-          d="M165 166c9-76 58-99 107-88 7 50-23 93-107 88Z"
-          fill="#FFF7E9"
-          fillOpacity="0.68"
-        />
-        <path
-          d="M165 166c76 9 99 58 88 107-50 7-93-23-88-107Z"
-          fill="#FFF7E9"
-          fillOpacity="0.68"
-        />
-        <path
-          d="M165 166c-9 76-58 99-107 88-7-50 23-93 107-88Z"
-          fill="#FFF7E9"
-          fillOpacity="0.68"
-        />
-        <circle cx="165" cy="166" r="39" fill="#F4B058" />
-        <circle cx="165" cy="166" r="17" fill="#704321" />
-      </svg>
-    </div>
+    />
   );
 }
 
@@ -213,7 +165,7 @@ export function PublicSocialCard({ data }: { data: PublicSocialCardData }) {
         overflow: "hidden",
         color: COLORS.cream,
         backgroundColor: COLORS.deepGreen,
-        fontFamily: "Geist",
+        fontFamily: "sans-serif",
       }}
     >
       <div

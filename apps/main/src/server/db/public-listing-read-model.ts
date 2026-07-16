@@ -265,36 +265,6 @@ export async function getPublicListingCardsByIds(ids: string[]) {
   return transformListings(rows);
 }
 
-export async function getPublicListingCardsForUserId(
-  userId: string,
-  limit: number,
-) {
-  const items = await getListings({ userId, limit });
-  return transformListings(items);
-}
-
-export async function getPublicForSaleListingCardsForUserId(
-  userId: string,
-  limit: number,
-) {
-  const items = await replicaDb.listing.findMany({
-    where: {
-      userId,
-      ...isPublished(),
-      price: {
-        gt: 0,
-      },
-    },
-    select: publicListingSelect,
-    orderBy: {
-      updatedAt: "desc",
-    },
-    take: limit,
-  });
-
-  return transformListings(items);
-}
-
 export async function getInitialListings(userSlugOrId: string) {
   const userId = await getUserIdFromSlugOrId(userSlugOrId);
   const items = await getListings({ userId, limit: 36 });

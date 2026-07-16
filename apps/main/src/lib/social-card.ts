@@ -3,9 +3,7 @@ export const SOCIAL_CARD_SIZE = {
   height: 630,
 } as const;
 
-export const SOCIAL_CARD_RENDER_VERSION = "2";
-
-export const SOCIAL_CARD_KINDS = [
+const SOCIAL_CARD_KINDS = [
   "catalog",
   "for-sale",
   "list",
@@ -14,33 +12,32 @@ export const SOCIAL_CARD_KINDS = [
 
 export type SocialCardKind = (typeof SOCIAL_CARD_KINDS)[number];
 
+interface BaseSocialCardData {
+  title: string;
+  imageUrls: string[];
+}
+
 export type PublicSocialCardData =
-  | {
+  | (BaseSocialCardData & {
       kind: "catalog";
-      title: string;
       location: string | null;
       listingCount: number;
-      imageUrls: string[];
-    }
-  | {
+    })
+  | (BaseSocialCardData & {
       kind: "list";
-      title: string;
       sellerTitle: string;
       listingCount: number;
-      imageUrls: string[];
-    }
-  | {
+    })
+  | (BaseSocialCardData & {
       kind: "listing";
-      title: string;
       sellerTitle: string;
       hybridizer: string | null;
       year: string | null;
       price: number | null;
-      imageUrls: string[];
-    };
+    });
 
 export function isSocialCardKind(value: string): value is SocialCardKind {
-  return SOCIAL_CARD_KINDS.some((kind) => kind === value);
+  return (SOCIAL_CARD_KINDS as readonly string[]).includes(value);
 }
 
 export function getSocialCardImageUrl({
@@ -52,12 +49,7 @@ export function getSocialCardImageUrl({
   id: string;
   kind: SocialCardKind;
 }) {
-  const url = new URL(
-    `/api/og/${kind}/${encodeURIComponent(id)}`,
-    `${baseUrl.replace(/\/$/, "")}/`,
-  );
-
-  url.searchParams.set("v", SOCIAL_CARD_RENDER_VERSION);
-
+  const url = new URL(`/api/og/${kind}/${encodeURIComponent(id)}`, baseUrl);
+  url.searchParams.set("v", "2");
   return url.toString();
 }

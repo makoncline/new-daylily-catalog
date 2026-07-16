@@ -81,25 +81,23 @@ function createMockDb(): MockDb {
     findMany: vi.fn(),
     updateMany: vi.fn(),
   };
-  const listing = {
-    findFirst: vi.fn(),
-    findMany: vi.fn(),
-  };
-  const userProfile = {
-    findFirst: vi.fn(),
-    findUnique: vi.fn(),
-  };
   return {
     $queryRaw: vi.fn(),
     $transaction: vi.fn(async (arg) =>
       typeof arg === "function"
-        ? await arg({ image, imageAsset, listing, userProfile })
+        ? await arg({ image, imageAsset })
         : await Promise.all(arg),
     ),
     image,
     imageAsset,
-    listing,
-    userProfile,
+    listing: {
+      findFirst: vi.fn(),
+      findMany: vi.fn(),
+    },
+    userProfile: {
+      findFirst: vi.fn(),
+      findUnique: vi.fn(),
+    },
   };
 }
 

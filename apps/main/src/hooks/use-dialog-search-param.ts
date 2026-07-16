@@ -11,7 +11,6 @@ interface SearchParamLike {
 
 interface QueryParamDialogStateOptions {
   history?: "push" | "replace";
-  navigation?: "router" | "native-history";
   paramName: string;
   scroll?: boolean;
 }
@@ -54,17 +53,8 @@ function navigateToUrl(
   history: "push" | "replace",
   router: ReturnType<typeof useRouter>,
   url: string,
-  navigation: "router" | "native-history" = "router",
   scroll?: boolean,
 ) {
-  if (navigation === "native-history") {
-    const method = history === "replace" ? "replaceState" : "pushState";
-    window.history[method](window.history.state, "", url);
-    const historyState = window.history.state as unknown;
-    window.dispatchEvent(new PopStateEvent("popstate", { state: historyState }));
-    return;
-  }
-
   if (history === "replace") {
     if (typeof scroll === "boolean") {
       router.replace(url, { scroll });
@@ -85,7 +75,6 @@ function navigateToUrl(
 
 export function useQueryParamDialogState({
   history = "push",
-  navigation = "router",
   paramName,
   scroll,
 }: QueryParamDialogStateOptions) {
@@ -106,7 +95,7 @@ export function useQueryParamDialogState({
       nextValue,
     );
 
-    navigateToUrl(nextHistory, router, nextUrl, navigation, scroll);
+    navigateToUrl(nextHistory, router, nextUrl, scroll);
   };
 
   return {
@@ -141,7 +130,7 @@ export function useAtomDialogSearchParam({
     const currentUrl = buildCurrentUrl(pathname, searchParams);
 
     if (nextUrl !== currentUrl) {
-      navigateToUrl(history, router, nextUrl, "router", scroll);
+      navigateToUrl(history, router, nextUrl, scroll);
     }
   }, [history, paramName, pathname, router, scroll, searchParams, value]);
 

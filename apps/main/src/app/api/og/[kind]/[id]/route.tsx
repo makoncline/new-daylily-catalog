@@ -1,5 +1,3 @@
-import { readFile } from "node:fs/promises";
-import { join } from "node:path";
 import { ImageResponse } from "next/og";
 import sharp from "sharp";
 import { PublicSocialCard } from "@/components/public-social-card";
@@ -12,12 +10,6 @@ import { getPublicSocialCardData } from "@/server/db/public-social-card-read-mod
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const fontDirectory = join(
-  process.cwd(),
-  "node_modules/geist/dist/fonts/geist-sans",
-);
-const regularFont = readFile(join(fontDirectory, "Geist-Regular.ttf"));
-const boldFont = readFile(join(fontDirectory, "Geist-Bold.ttf"));
 const MAX_SOURCE_IMAGE_BYTES = 10 * 1024 * 1024;
 
 async function prepareImageForSatori(source: string, requestUrl: string) {
@@ -96,11 +88,7 @@ export async function GET(
   }
 
   try {
-    const [publicData, regularFontData, boldFontData] = await Promise.all([
-      getPublicSocialCardData(kind, id),
-      regularFont,
-      boldFont,
-    ]);
+    const publicData = await getPublicSocialCardData(kind, id);
     const imageUrls = await prepareSocialCardImages(
       publicData.imageUrls,
       request.url,
@@ -109,20 +97,6 @@ export async function GET(
 
     return new ImageResponse(<PublicSocialCard data={data} />, {
       ...SOCIAL_CARD_SIZE,
-      fonts: [
-        {
-          name: "Geist",
-          data: regularFontData,
-          style: "normal",
-          weight: 400,
-        },
-        {
-          name: "Geist",
-          data: boldFontData,
-          style: "normal",
-          weight: 700,
-        },
-      ],
       headers: {
         "Cache-Control": "public, max-age=300",
         "Cloudflare-CDN-Cache-Control":

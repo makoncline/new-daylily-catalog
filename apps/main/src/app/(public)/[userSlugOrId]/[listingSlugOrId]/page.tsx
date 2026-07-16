@@ -150,19 +150,17 @@ export async function generateMetadata({
     listing.images[0]?.url ?? IMAGES.DEFAULT_LISTING,
   );
   const title = getListingTitle(listing);
-  const socialImageUrl = getSocialCardImageUrl({
-    baseUrl,
-    kind: "listing",
-    id: listing.id,
-  });
-
   return buildPublicPageMetadata({
     canonicalPath,
     description,
     imageAlt: `${listing.title} daylily listing`,
     imageUrl,
     pageUrl,
-    socialImageUrl,
+    socialImageUrl: getSocialCardImageUrl({
+      baseUrl,
+      kind: "listing",
+      id: listing.id,
+    }),
     robots: listing.hasActiveSubscription
       ? "index, follow, max-image-preview:large"
       : "noindex, follow",

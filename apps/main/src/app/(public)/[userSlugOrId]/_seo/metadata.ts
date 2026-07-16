@@ -3,7 +3,12 @@ import { getOptimizedMetaImageUrl } from "@/lib/utils/cloudflareLoader";
 import { reportError } from "@/lib/error-utils";
 import { METADATA_CONFIG } from "@/config/constants";
 import { getSocialCardImageUrl } from "@/lib/social-card";
-import type { PublicPageMetadata } from "@/app/(public)/_seo/public-seo";
+import {
+  buildPublicPageMetadata,
+  type PublicPageMetadata,
+} from "@/app/(public)/_seo/public-seo";
+import type { PublicCatalogSearchParamRecord } from "@/lib/public-catalog-url-state";
+import { parseTableUrlColumnFilterValue } from "@/lib/table-url-filters";
 
 // Optimal meta description length
 const MIN_DESCRIPTION_LENGTH = 70;
@@ -16,9 +21,42 @@ interface PublicProfile {
   slug: string | null;
   description: string | null;
   location: string | null;
-  updatedAt?: Date | string | null;
   images?: Array<{ id: string; url: string }>;
   // Add other fields as needed
+}
+
+interface PublicCollectionProfile extends PublicProfile {
+  lists: Array<{
+    id: string;
+    title: string;
+    description: string | null;
+    listingCount: number;
+  }>;
+}
+
+function hasOnlyCollectionParams(
+  searchParams: PublicCatalogSearchParamRecord | undefined,
+  collectionParam: "lists" | "price",
+) {
+  return Object.keys(searchParams ?? {}).every((key) =>
+    [collectionParam, "page", "size"].includes(key),
+  );
+}
+
+function getSingleListId(rawValue: string | string[] | undefined) {
+  const ids = (Array.isArray(rawValue) ? rawValue : [rawValue]).flatMap(
+    (value) => {
+      if (!value) return [];
+      const parsed = parseTableUrlColumnFilterValue("lists", value);
+      return Array.isArray(parsed)
+        ? parsed
+        : typeof parsed === "string"
+          ? [parsed]
+          : [];
+    },
+  );
+  const uniqueIds = Array.from(new Set(ids));
+  return uniqueIds.length === 1 ? uniqueIds[0] : null;
 }
 
 // Function to generate metadata for a user profile
@@ -83,40 +121,16 @@ async function createProfileMetadata(
     });
 
     return {
+      ...buildPublicPageMetadata({
+        canonicalPath: `/${canonicalUserSlug}`,
+        description: description.trim(),
+        imageAlt: `${title} catalog preview`,
+        imageUrl,
+        pageUrl,
+        socialImageUrl,
+        title: `${title} | ${METADATA_CONFIG.SITE_NAME}`,
+      }),
       url,
-      title: `${title} | ${METADATA_CONFIG.SITE_NAME}`,
-      description: description.trim(),
-      imageUrl,
-      pageUrl,
-      // Let Google show big thumbnails in Search/Discover.
-      robots: "index, follow, max-image-preview:large",
-      openGraph: {
-        title: `${title} | ${METADATA_CONFIG.SITE_NAME}`,
-        description: description.trim(),
-        url: pageUrl,
-        siteName: METADATA_CONFIG.SITE_NAME,
-        locale: METADATA_CONFIG.LOCALE,
-        images: [
-          {
-            url: socialImageUrl,
-            width: 1200,
-            height: 630,
-            alt: `${title} catalog preview`,
-            type: "image/png",
-          },
-        ],
-        type: "website",
-      },
-      twitter: {
-        card: METADATA_CONFIG.TWITTER_CARD_TYPE,
-        title: `${title} | ${METADATA_CONFIG.SITE_NAME}`,
-        description: description.trim(),
-        site: METADATA_CONFIG.TWITTER_HANDLE,
-        images: [socialImageUrl],
-      },
-      alternates: {
-        canonical: `/${canonicalUserSlug}`,
-      },
     };
   } catch (error) {
     reportError({
@@ -156,4 +170,64 @@ export function generateProfileMetadata(
   url: string,
 ) {
   return createProfileMetadata(profile, url);
+}
+
+export function generateCollectionMetadata(
+  profile: PublicCollectionProfile,
+  searchParams: PublicCatalogSearchParamRecord | undefined,
+  baseUrl: string,
+) {
+  const sellerTitle = profile.title ?? "Daylily Catalog";
+  const selectedList = profile.lists.find(
+    (list) => list.id === getSingleListId(searchParams?.lists),
+  );
+  const isForSale = (
+    Array.isArray(searchParams?.price)
+      ? searchParams.price
+      : [searchParams?.price]
+  ).includes("true");
+  const collection =
+    selectedList && hasOnlyCollectionParams(searchParams, "lists")
+      ? {
+          kind: "list" as const,
+          id: selectedList.id,
+          title: selectedList.title,
+          description:
+            selectedList.description?.trim() ||
+            `Browse ${selectedList.listingCount.toLocaleString()} daylily ${selectedList.listingCount === 1 ? "listing" : "listings"} curated by ${sellerTitle}.`,
+        }
+      : isForSale && hasOnlyCollectionParams(searchParams, "price")
+        ? {
+            kind: "for-sale" as const,
+            id: profile.id,
+            title: "For Sale",
+            description: `Browse daylilies currently marked for sale by ${sellerTitle}.`,
+          }
+        : null;
+
+  if (!collection) return null;
+
+  const canonicalUserSlug = profile.slug ?? profile.id;
+  const pageUrl = new URL(`/${canonicalUserSlug}/search`, baseUrl);
+  pageUrl.searchParams.set(
+    collection.kind === "list" ? "lists" : "price",
+    collection.kind === "list" ? collection.id : "true",
+  );
+
+  return buildPublicPageMetadata({
+    canonicalPath: `/${canonicalUserSlug}`,
+    description: collection.description,
+    imageAlt: `${collection.title} from ${sellerTitle}`,
+    imageUrl: getOptimizedMetaImageUrl(
+      profile.images?.[0]?.url ?? IMAGES.DEFAULT_CATALOG,
+    ),
+    pageUrl: pageUrl.toString(),
+    robots: "noindex, nofollow",
+    socialImageUrl: getSocialCardImageUrl({
+      baseUrl,
+      kind: collection.kind,
+      id: collection.id,
+    }),
+    title: `${collection.title} | ${sellerTitle}`,
+  });
 }

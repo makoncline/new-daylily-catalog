@@ -2,10 +2,11 @@ import { TRPCError } from "@trpc/server";
 import type { PublicSocialCardData, SocialCardKind } from "@/lib/social-card";
 import { replicaDb } from "@/server/db";
 import {
-  getPublicForSaleListingCardsForUserId,
+  getListings,
   getPublicListingCardsByIds,
-  getPublicListingCardsForUserId,
   getPublicListingDetail,
+  publicListingSelect,
+  transformListings,
 } from "@/server/db/public-listing-read-model";
 import { getPublicProfile } from "@/server/db/public-seller-read-model";
 import {
@@ -23,7 +24,9 @@ async function getCatalogSocialCardData(
   id: string,
 ): Promise<PublicSocialCardData> {
   const profile = await getPublicProfile(id);
-  const listings = await getPublicListingCardsForUserId(profile.id, 8);
+  const listings = transformListings(
+    await getListings({ userId: profile.id, limit: 8 }),
+  );
 
   return {
     kind: "catalog",
@@ -101,9 +104,18 @@ async function getListSocialCardData(
 async function getForSaleSocialCardData(
   id: string,
 ): Promise<PublicSocialCardData> {
-  const [profile, listings, listingCount] = await Promise.all([
+  const [profile, listingRows, listingCount] = await Promise.all([
     getPublicProfile(id),
-    getPublicForSaleListingCardsForUserId(id, 8),
+    replicaDb.listing.findMany({
+      where: {
+        userId: id,
+        ...isPublished(),
+        price: { gt: 0 },
+      },
+      select: publicListingSelect,
+      orderBy: { updatedAt: "desc" },
+      take: 8,
+    }),
     replicaDb.listing.count({
       where: {
         userId: id,
@@ -114,6 +126,7 @@ async function getForSaleSocialCardData(
       },
     }),
   ]);
+  const listings = transformListings(listingRows);
 
   return {
     kind: "list",
