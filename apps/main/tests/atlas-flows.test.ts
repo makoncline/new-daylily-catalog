@@ -40,6 +40,18 @@ describe("Atlas flow contract", () => {
     );
   });
 
+  it("declares the listing-management journey and its compact UI states", () => {
+    const listings = getAtlasFlow("listing-management");
+
+    expect(listings.steps.map(({ title }) => title)).toEqual([
+      "Orient in a real catalog",
+      "Find the right listings",
+      "Create a listing",
+      "Edit a listing",
+    ]);
+    expect(statesForFlow(listings)).toHaveLength(15);
+  });
+
   it.each([
     ["state id", "id", "Duplicate Atlas state id"],
     ["capture", "capture", "Duplicate Atlas capture"],
