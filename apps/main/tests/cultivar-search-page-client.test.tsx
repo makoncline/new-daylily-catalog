@@ -142,7 +142,7 @@ describe("CultivarSearchPageClient", () => {
     window.history.replaceState(
       {},
       "",
-      "/cultivars?form=Spider%7CDouble%7CSpider&priceMax=286&q=Stella+de+Oro",
+      "/cultivars?form=Spider%7CDouble%7CSpider&hasPhoto=true&listingDescription=division&listingTitle=sale&priceMax=286&priceMin=10&q=Stella+de+Oro",
     );
 
     render(
@@ -152,7 +152,6 @@ describe("CultivarSearchPageClient", () => {
           hasForSaleListings: false,
           hasListings: false,
           form: "Spider|Double|Spider",
-          priceMax: "286",
           q: "Stella de Oro",
         }}
       />,
@@ -171,10 +170,10 @@ describe("CultivarSearchPageClient", () => {
     expect(screen.queryByText("3 catalogs")).not.toBeInTheDocument();
     expect(screen.queryByText("Open →")).not.toBeInTheDocument();
     expect(String(fetchMock.mock.calls[0]?.[0])).toBe(
-      "/api/v1/cultivars/search?form=Double%7CSpider&limit=24&mode=summary&offset=0&photosFirst=true&priceMax=286&q=Stella+de+Oro&sort=relevance",
+      "/api/v1/cultivars/search?form=Double%7CSpider&limit=24&mode=summary&offset=0&photosFirst=true&q=Stella+de+Oro&sort=relevance",
     );
     expect(`${window.location.pathname}${window.location.search}`).toBe(
-      "/cultivars?advanced=true&form=Double%7CSpider&priceMax=286&q=Stella+de+Oro",
+      "/cultivars?advanced=true&form=Double%7CSpider&q=Stella+de+Oro",
     );
     expect(screen.getByRole("switch", { name: "Advanced" })).toBeChecked();
     expect(screen.getByTestId("advanced-filter-form")).toHaveTextContent(
@@ -187,9 +186,7 @@ describe("CultivarSearchPageClient", () => {
     expect(
       screen.getByRole("button", { name: "Form: Double, Spider" }),
     ).toBeVisible();
-    expect(
-      screen.getByRole("button", { name: "Price: Up to $286" }),
-    ).toBeVisible();
+    expect(screen.queryByText(/Price:/)).not.toBeInTheDocument();
 
     fireEvent.click(
       screen.getByRole("button", { name: "Form: Double, Spider" }),
@@ -240,7 +237,7 @@ describe("CultivarSearchPageClient", () => {
     );
   });
 
-  it("exposes the complete advanced filter groups and sends their values", async () => {
+  it("exposes cultivar-focused advanced filters and sends their values", async () => {
     render(
       <CultivarSearchPageClient
         initialState={{
@@ -255,9 +252,10 @@ describe("CultivarSearchPageClient", () => {
     await screen.findByRole("heading", { name: "Stella de Oro" });
     fireEvent.click(screen.getByRole("switch", { name: "Advanced" }));
 
+    expect(screen.queryByText("Listing")).not.toBeInTheDocument();
     expect(
-      screen.getByText("Listing", { selector: "section > div" }),
-    ).toBeVisible();
+      screen.queryByPlaceholderText("Search listing title"),
+    ).not.toBeInTheDocument();
     expect(
       screen.getByText("Registration", { selector: "section > div" }),
     ).toBeVisible();
@@ -273,14 +271,6 @@ describe("CultivarSearchPageClient", () => {
     expect(screen.getByTestId("advanced-filter-budcount")).toBeVisible();
     expect(screen.getByTestId("advanced-filter-parentage")).toBeVisible();
 
-    fireEvent.change(screen.getByPlaceholderText("Search listing title"), {
-      target: { value: "division" },
-    });
-    expect(
-      fetchMock.mock.calls.some(([url]) =>
-        String(url).includes("listingTitle=division"),
-      ),
-    ).toBe(false);
     const scapeHeightMinimum = screen.getByTestId(
       "advanced-filter-scape-height-input-min",
     );
@@ -297,7 +287,6 @@ describe("CultivarSearchPageClient", () => {
       expect(
         urls.some(
           (url) =>
-            url.includes("listingTitle=division") &&
             url.includes("scapeHeightMin=28") &&
             url.includes("parentage=seedling"),
         ),

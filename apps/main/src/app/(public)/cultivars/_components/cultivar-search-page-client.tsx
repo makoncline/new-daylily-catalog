@@ -64,16 +64,11 @@ interface InitialCultivarSearchState {
   fragrance?: string;
   hasCultivarPhoto: boolean;
   hasForSaleListings: boolean;
-  hasListingPhoto?: boolean;
   hasListings: boolean;
   hybridizer?: string;
-  listingDescription?: string;
-  listingTitle?: string;
   parentage?: string;
   photosFirst?: boolean;
   ploidy?: string;
-  priceMax?: string;
-  priceMin?: string;
   q: string;
   scapeHeightMax?: string;
   scapeHeightMin?: string;
@@ -98,15 +93,10 @@ interface CultivarSearchFilters {
   fragrance: string;
   hasCultivarPhoto: boolean;
   hasForSaleListings: boolean;
-  hasListingPhoto: boolean;
   hasListings: boolean;
   hybridizer: string;
-  listingDescription: string;
-  listingTitle: string;
   parentage: string;
   ploidy: string;
-  priceMax: string;
-  priceMin: string;
   scapeHeightMax: string;
   scapeHeightMin: string;
   yearMax: string;
@@ -185,15 +175,10 @@ const EMPTY_FILTERS: CultivarSearchFilters = {
   fragrance: "",
   hasCultivarPhoto: false,
   hasForSaleListings: false,
-  hasListingPhoto: false,
   hasListings: false,
   hybridizer: "",
-  listingDescription: "",
-  listingTitle: "",
   parentage: "",
   ploidy: "",
-  priceMax: "",
-  priceMin: "",
   scapeHeightMax: "",
   scapeHeightMin: "",
   yearMax: "",
@@ -211,15 +196,12 @@ const BOOLEAN_FILTER_CHIPS = [
   { key: "hasCultivarPhoto", label: "With photos" },
   { key: "hasListings", label: "In catalogs" },
   { key: "hasForSaleListings", label: "For sale" },
-  { key: "hasListingPhoto", label: "Listing has photo" },
 ] as const satisfies ReadonlyArray<{
   key: keyof CultivarSearchFilters;
   label: string;
 }>;
 
 const TEXT_FILTER_CHIPS = [
-  { key: "listingTitle", label: "Listing title" },
-  { key: "listingDescription", label: "Listing description" },
   { key: "cultivarName", label: "Cultivar" },
   { key: "hybridizer", label: "Hybridizer" },
   { key: "color", label: "Color" },
@@ -248,12 +230,6 @@ const RANGE_FILTER_CHIPS: ReadonlyArray<{
   prefix?: string;
   suffix?: string;
 }> = [
-  {
-    label: "Price",
-    maxKey: "priceMax",
-    minKey: "priceMin",
-    prefix: "$",
-  },
   { label: "Year", maxKey: "yearMax", minKey: "yearMin" },
   {
     label: "Scape height",
@@ -406,15 +382,10 @@ function getInitialFilters(
     fragrance: initialState.fragrance ?? "",
     hasCultivarPhoto: initialState.hasCultivarPhoto,
     hasForSaleListings: initialState.hasForSaleListings,
-    hasListingPhoto: initialState.hasListingPhoto ?? false,
     hasListings: initialState.hasListings,
     hybridizer: initialState.hybridizer ?? "",
-    listingDescription: initialState.listingDescription ?? "",
-    listingTitle: initialState.listingTitle ?? "",
     parentage: initialState.parentage ?? "",
     ploidy: initialState.ploidy ?? "",
-    priceMax: initialState.priceMax ?? "",
-    priceMin: initialState.priceMin ?? "",
     scapeHeightMax: initialState.scapeHeightMax ?? "",
     scapeHeightMin: initialState.scapeHeightMin ?? "",
     yearMax: initialState.yearMax ?? "",
@@ -443,16 +414,11 @@ function readControlStateFromUrl() {
     fragrance: params.get("fragrance") ?? undefined,
     hasCultivarPhoto: params.get("hasCultivarPhoto") === "true",
     hasForSaleListings: params.get("hasForSaleListings") === "true",
-    hasListingPhoto: params.get("hasPhoto") === "true",
     hasListings: params.get("hasListings") === "true",
     hybridizer: params.get("hybridizer") ?? undefined,
-    listingDescription: params.get("listingDescription") ?? undefined,
-    listingTitle: params.get("listingTitle") ?? undefined,
     parentage: params.get("parentage") ?? undefined,
     photosFirst: params.get("photosFirst") !== "false",
     ploidy: params.get("ploidy") ?? undefined,
-    priceMax: params.get("priceMax") ?? undefined,
-    priceMin: params.get("priceMin") ?? undefined,
     q: params.get("q") ?? "",
     scapeHeightMax: params.get("scapeHeightMax") ?? undefined,
     scapeHeightMin: params.get("scapeHeightMin") ?? undefined,
@@ -690,57 +656,10 @@ function AdvancedFilters({
   };
 
   return (
-    <div className="grid gap-x-6 border-t border-white/20 md:grid-cols-2 md:gap-y-6 md:pt-4 xl:grid-cols-4">
-      <ResponsiveAdvancedFilterSection
-        title="Listing"
-        initiallyOpen
-        activeCount={
-          [
-            filters.listingTitle,
-            filters.listingDescription,
-            filters.priceMin || filters.priceMax,
-            filters.hasListingPhoto,
-          ].filter(Boolean).length
-        }
-      >
-        <div className="space-y-3">
-          <CultivarTextFilter
-            definitionId="title"
-            value={filters.listingTitle}
-            onChange={(listingTitle) => onChange({ listingTitle })}
-          />
-          <CultivarTextFilter
-            definitionId="description"
-            value={filters.listingDescription}
-            onChange={(listingDescription) => onChange({ listingDescription })}
-          />
-          <CultivarRangeFilter
-            definitionId="priceValue"
-            bounds={{ min: 0, max: 500, step: 1 }}
-            min={filters.priceMin}
-            max={filters.priceMax}
-            onChange={({ min: priceMin, max: priceMax }) =>
-              onChange({ priceMin, priceMax })
-            }
-            onCommit={({ min: priceMin, max: priceMax }) =>
-              onCommit({ priceMin, priceMax })
-            }
-          />
-          <CultivarBooleanFilter
-            active={filters.hasListingPhoto}
-            definitionId="hasPhoto"
-            label="Listing has photo"
-            onToggle={() =>
-              updateImmediately({
-                hasListingPhoto: !filters.hasListingPhoto,
-              })
-            }
-          />
-        </div>
-      </ResponsiveAdvancedFilterSection>
-
+    <div className="grid gap-x-6 border-t border-white/20 md:grid-cols-2 md:gap-y-6 md:pt-4 xl:grid-cols-3">
       <ResponsiveAdvancedFilterSection
         title="Registration"
+        initiallyOpen
         activeCount={
           [
             filters.cultivarName,
@@ -1082,8 +1001,6 @@ export function CultivarSearchPageClient({
         color: filters.color,
         cultivarName: filters.cultivarName,
         hybridizer: filters.hybridizer,
-        listingDescription: filters.listingDescription,
-        listingTitle: filters.listingTitle,
         parentage: filters.parentage,
       }));
     }, 250);
@@ -1093,8 +1010,6 @@ export function CultivarSearchPageClient({
     filters.color,
     filters.cultivarName,
     filters.hybridizer,
-    filters.listingDescription,
-    filters.listingTitle,
     filters.parentage,
   ]);
 
@@ -1116,15 +1031,10 @@ export function CultivarSearchPageClient({
     addFacetParam(params, "fragrance", requestFilters.fragrance);
     addParam(params, "hasCultivarPhoto", requestFilters.hasCultivarPhoto);
     addParam(params, "hasForSaleListings", requestFilters.hasForSaleListings);
-    addParam(params, "hasPhoto", requestFilters.hasListingPhoto);
     addParam(params, "hasListings", requestFilters.hasListings);
     addParam(params, "hybridizer", requestFilters.hybridizer);
-    addParam(params, "listingDescription", requestFilters.listingDescription);
-    addParam(params, "listingTitle", requestFilters.listingTitle);
     addParam(params, "parentage", requestFilters.parentage);
     addFacetParam(params, "ploidy", requestFilters.ploidy);
-    addParam(params, "priceMax", requestFilters.priceMax);
-    addParam(params, "priceMin", requestFilters.priceMin);
     addParam(params, "scapeHeightMax", requestFilters.scapeHeightMax);
     addParam(params, "scapeHeightMin", requestFilters.scapeHeightMin);
     addParam(params, "yearMax", requestFilters.yearMax);

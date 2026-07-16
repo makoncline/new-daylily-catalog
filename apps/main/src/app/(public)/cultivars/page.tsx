@@ -123,22 +123,13 @@ export default async function CultivarsPage({
           hasForSaleListings:
             getFirstSearchParam(rawSearchParams, "hasForSaleListings") ===
             "true",
-          hasListingPhoto:
-            getFirstSearchParam(rawSearchParams, "hasPhoto") === "true",
           hasListings:
             getFirstSearchParam(rawSearchParams, "hasListings") === "true",
           hybridizer: getFirstSearchParam(rawSearchParams, "hybridizer"),
-          listingDescription: getFirstSearchParam(
-            rawSearchParams,
-            "listingDescription",
-          ),
-          listingTitle: getFirstSearchParam(rawSearchParams, "listingTitle"),
           parentage: getFirstSearchParam(rawSearchParams, "parentage"),
           photosFirst:
             getFirstSearchParam(rawSearchParams, "photosFirst") !== "false",
           ploidy: getFirstSearchParam(rawSearchParams, "ploidy"),
-          priceMax: getFirstSearchParam(rawSearchParams, "priceMax"),
-          priceMin: getFirstSearchParam(rawSearchParams, "priceMin"),
           q: getFirstSearchParam(rawSearchParams, "q") ?? "",
           scapeHeightMax: getFirstSearchParam(
             rawSearchParams,
