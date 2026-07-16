@@ -39,7 +39,7 @@ function hasOnlyCollectionParams(
   collectionParam: "lists" | "price",
 ) {
   return Object.keys(searchParams ?? {}).every((key) =>
-    [collectionParam, "page", "size"].includes(key),
+    [collectionParam, "mode", "page", "size"].includes(key),
   );
 }
 

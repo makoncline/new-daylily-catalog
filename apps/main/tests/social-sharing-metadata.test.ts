@@ -65,12 +65,12 @@ describe("social sharing metadata", () => {
   it("builds distinct list and for-sale previews", () => {
     const listMetadata = generateCollectionMetadata(
       profile,
-      { lists: "list-1" },
+      { lists: "list-1", mode: "advanced" },
       "https://daylilycatalog.com",
     );
     const forSaleMetadata = generateCollectionMetadata(
       profile,
-      { price: "true" },
+      { price: "true", mode: "advanced" },
       "https://daylilycatalog.com",
     );
 
