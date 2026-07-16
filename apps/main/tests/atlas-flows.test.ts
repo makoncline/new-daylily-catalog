@@ -53,6 +53,14 @@ describe("Atlas flow contract", () => {
     );
   });
 
+  it("makes every copied reproduction command self-contained", () => {
+    for (const stateItem of statesForFlow(ATLAS_FLOWS[0]!)) {
+      expect(stateItem.reproductionCommand).toContain(
+        "ATLAS_CAPTURE_DIR=local/atlas/reproduce/screenshots",
+      );
+    }
+  });
+
   it("never publishes a live link for interaction-only state", () => {
     const pageTwo = statesForFlow(ATLAS_FLOWS[0]!).find(
       ({ id }: { id: string }) => id === "search-page-two",

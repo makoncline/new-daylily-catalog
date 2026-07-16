@@ -3,7 +3,7 @@ import { existsSync, statSync } from "node:fs";
 import path from "node:path";
 const CAPTURE_SPEC = "tests/atlas/public-catalog.atlas.ts";
 const reproduce = (title) =>
-  `pnpm main exec playwright test -c playwright.atlas.config.ts tests/atlas/public-catalog.atlas.ts --grep "${title}"`;
+  `ATLAS_OUTPUT_DIR=local/atlas/reproduce ATLAS_CAPTURE_DIR=local/atlas/reproduce/screenshots pnpm main exec playwright test -c playwright.atlas.config.ts tests/atlas/public-catalog.atlas.ts --grep "${title}"`;
 const state = (id, title, description, url, urlReproducible = true) => ({
   id,
   title,
