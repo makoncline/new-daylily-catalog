@@ -60,15 +60,33 @@ function searchResponse() {
           updatedAt: "2026-07-14T00:00:00.000Z",
         },
         traits: {
+          awards: [
+            {
+              name: "HM",
+              url: "https://daylilies.org/award/honorable-mention/",
+              year: "1980",
+            },
+          ],
+          bloomHabit: "Diurnal",
           bloomSeason: "Early Mid",
           bloomSizeIn: 2.75,
+          branches: 3,
+          budCount: 18,
           color: "gold with a deeper throat",
+          doublePercentage: null,
           foliageType: "Dormant",
           form: "Single",
+          fragrance: "Fragrant",
           hybridizer: "Jablonski",
+          parentage: "(Tiny Gold × Golden Star)",
+          petalLengthIn: null,
+          petalWidthIn: null,
           ploidy: "Diploid",
+          polymerousPercentage: null,
           rebloom: true,
           scapeHeightIn: 11,
+          seedlingNumber: "J-75",
+          spiderRatio: null,
           year: 1975,
         },
       },
@@ -175,8 +193,24 @@ describe("CultivarSearchPageClient", () => {
     ).not.toBeInTheDocument();
     expect(screen.queryByText("3 catalogs")).not.toBeInTheDocument();
     expect(screen.queryByText("Open →")).not.toBeInTheDocument();
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: "Show full details for Stella de Oro",
+      }),
+    );
+    expect(screen.getByText("J-75")).toBeVisible();
+    expect(screen.getByText("(Tiny Gold × Golden Star)")).toBeVisible();
+    expect(screen.getByRole("link", { name: "HM · 1980" })).toHaveAttribute(
+      "href",
+      "https://daylilies.org/award/honorable-mention/",
+    );
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: "Show full details for Stella de Oro",
+      }),
+    );
     expect(String(fetchMock.mock.calls[0]?.[0])).toBe(
-      "/api/v1/cultivars/search?form=Double%7CSpider&limit=24&mode=summary&offset=0&photosFirst=true&q=Stella+de+Oro&sort=relevance",
+      "/api/v1/cultivars/search?form=Double%7CSpider&limit=24&mode=summary&offset=0&photosFirst=false&q=Stella+de+Oro&sort=name",
     );
     expect(`${window.location.pathname}${window.location.search}`).toBe(
       "/cultivars?advanced=true&form=Double%7CSpider&q=Stella+de+Oro",
@@ -236,13 +270,13 @@ describe("CultivarSearchPageClient", () => {
     });
 
     expect(screen.getByRole("group", { name: "Sort cultivars" })).toBeVisible();
-    expect(screen.getByRole("button", { name: "Best match" })).toHaveAttribute(
+    expect(screen.getByRole("button", { name: "Name A–Z" })).toHaveAttribute(
       "aria-pressed",
       "true",
     );
     expect(
       screen.getByRole("button", { name: "Photos first" }),
-    ).toHaveAttribute("aria-pressed", "true");
+    ).toHaveAttribute("aria-pressed", "false");
 
     fireEvent.click(
       screen.getByRole("button", { name: "Newest introductions" }),
@@ -252,10 +286,10 @@ describe("CultivarSearchPageClient", () => {
     await waitFor(() => {
       const lastUrl = String(fetchMock.mock.calls.at(-1)?.[0]);
       expect(lastUrl).toContain("sort=newest");
-      expect(lastUrl).toContain("photosFirst=false");
+      expect(lastUrl).toContain("photosFirst=true");
     });
     expect(`${window.location.pathname}${window.location.search}`).toContain(
-      "photosFirst=false",
+      "photosFirst=true",
     );
     expect(`${window.location.pathname}${window.location.search}`).toContain(
       "sort=newest",
@@ -263,6 +297,28 @@ describe("CultivarSearchPageClient", () => {
   });
 
   it("exposes cultivar-focused advanced filters and sends their values", async () => {
+    fetchMock.mockImplementation((url: string) => {
+      if (url.includes("/api/v1/cultivars/facets")) {
+        return Promise.resolve({
+          json: async () => ({
+            options: [
+              { count: 24, label: "Reed", value: "Reed" },
+              { count: 12, label: "Stone", value: "Stone" },
+            ],
+          }),
+          ok: true,
+          status: 200,
+        });
+      }
+
+      return Promise.resolve({
+        headers: new Headers(),
+        json: async () => searchResponse(),
+        ok: true,
+        status: 200,
+      });
+    });
+
     render(
       <CultivarSearchPageClient
         initialState={{
@@ -295,6 +351,14 @@ describe("CultivarSearchPageClient", () => {
     expect(screen.getByTestId("advanced-filter-bloom-size")).toBeVisible();
     expect(screen.getByTestId("advanced-filter-budcount")).toBeVisible();
     expect(screen.getByTestId("advanced-filter-parentage")).toBeVisible();
+    expect(screen.getByTestId("advanced-filter-award")).toBeVisible();
+
+    fireEvent.click(screen.getByRole("button", { name: "Hybridizer" }));
+    fireEvent.change(screen.getByPlaceholderText("Search hybridizer…"), {
+      target: { value: "Re" },
+    });
+    fireEvent.click(await screen.findByText("Reed"));
+    fireEvent.click(screen.getByText("Stone"));
 
     const scapeHeightMinimum = screen.getByTestId(
       "advanced-filter-scape-height-input-min",
@@ -313,7 +377,8 @@ describe("CultivarSearchPageClient", () => {
         urls.some(
           (url) =>
             url.includes("scapeHeightMin=28") &&
-            url.includes("parentage=seedling"),
+            url.includes("parentage=seedling") &&
+            url.includes("hybridizer=Reed%7CStone"),
         ),
       ).toBe(true);
     });
@@ -430,7 +495,7 @@ describe("CultivarSearchPageClient", () => {
 
     fireEvent.change(
       screen.getByPlaceholderText(
-        "Search by cultivar name, hybridizer, or color…",
+        "Search names, hybridizers, colors, awards, or parentage…",
       ),
       { target: { value: "Back Search" } },
     );
@@ -442,7 +507,7 @@ describe("CultivarSearchPageClient", () => {
 
     await waitFor(() => {
       expect(`${window.location.pathname}${window.location.search}`).toBe(
-        "/cultivars?advanced=true&photosFirst=false&q=Back+Search&sort=newest",
+        "/cultivars?advanced=true&photosFirst=true&q=Back+Search&sort=newest",
       );
     });
 
@@ -485,7 +550,7 @@ describe("CultivarSearchPageClient", () => {
     ).toBeVisible();
     expect(
       screen.getByPlaceholderText(
-        "Search by cultivar name, hybridizer, or color…",
+        "Search names, hybridizers, colors, awards, or parentage…",
       ),
     ).toHaveValue("Back Search");
     expect(screen.getByRole("switch", { name: "Advanced" })).toBeChecked();
@@ -494,7 +559,7 @@ describe("CultivarSearchPageClient", () => {
     ).toHaveAttribute("aria-pressed", "true");
     expect(
       screen.getByRole("button", { name: "Photos first" }),
-    ).toHaveAttribute("aria-pressed", "false");
+    ).toHaveAttribute("aria-pressed", "true");
     expect(fetchMock).not.toHaveBeenCalled();
     expect(capturePosthogEventMock).not.toHaveBeenCalled();
     await waitFor(() =>

@@ -1,4 +1,5 @@
 export const ADVANCED_CULTIVAR_SEARCH_PARAM_KEYS = [
+  "award",
   "bloomHabit",
   "bloomSizeMax",
   "bloomSizeMin",

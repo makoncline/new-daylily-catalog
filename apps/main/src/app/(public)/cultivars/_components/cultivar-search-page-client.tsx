@@ -4,7 +4,16 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { Camera, ChevronDown, LoaderCircle, RotateCcw } from "lucide-react";
+import {
+  Award,
+  Camera,
+  Check,
+  ChevronDown,
+  Info,
+  LoaderCircle,
+  PlusCircle,
+  RotateCcw,
+} from "lucide-react";
 import {
   type MouseEvent as ReactMouseEvent,
   type ReactNode,
@@ -36,6 +45,19 @@ import {
 import { type PublicCatalogSearchFacetOption } from "@/components/public-catalog-search/public-catalog-search-types";
 import { OptimizedImage } from "@/components/optimized-image";
 import { Button } from "@/components/ui/button";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { getCultivarSearchTelemetryProperties } from "@/lib/analytics/cultivar-search-telemetry";
 import { capturePosthogEvent } from "@/lib/analytics/posthog";
 import { useIsMobile } from "@/hooks/use-mobile";
@@ -50,6 +72,7 @@ type CultivarSort = "relevance" | "name" | "newest" | "oldest" | "mostListed";
 
 interface InitialCultivarSearchState {
   advanced?: boolean;
+  award?: string;
   bloomHabit?: string;
   bloomSizeMax?: string;
   bloomSizeMin?: string;
@@ -79,6 +102,7 @@ interface InitialCultivarSearchState {
 }
 
 interface CultivarSearchFilters {
+  award: string;
   bloomHabit: string;
   bloomSizeMax: string;
   bloomSizeMin: string;
@@ -124,15 +148,31 @@ interface CultivarSearchResult {
   name: string;
   normalizedName: string;
   traits: {
+    awards: Array<{
+      name: string;
+      url: string | null;
+      year: string | null;
+    }>;
+    bloomHabit: string | null;
     bloomSeason: string | null;
     bloomSizeIn: number | null;
+    branches: number | null;
+    budCount: number | null;
     color: string | null;
+    doublePercentage: number | null;
     foliageType: string | null;
     form: string | null;
+    fragrance: string | null;
     hybridizer: string | null;
+    parentage: string | null;
+    petalLengthIn: number | null;
+    petalWidthIn: number | null;
     ploidy: string | null;
+    polymerousPercentage: number | null;
     rebloom: boolean | null;
     scapeHeightIn: number | null;
+    seedlingNumber: string | null;
+    spiderRatio: number | null;
     year: number | null;
   };
 }
@@ -174,6 +214,7 @@ interface CultivarSearchReturnSnapshot {
 }
 
 const EMPTY_FILTERS: CultivarSearchFilters = {
+  award: "",
   bloomHabit: "",
   bloomSizeMax: "",
   bloomSizeMin: "",
@@ -200,10 +241,10 @@ const EMPTY_FILTERS: CultivarSearchFilters = {
 };
 
 const SORT_OPTIONS: Array<{ label: string; value: CultivarSort }> = [
+  { label: "Name A–Z", value: "name" },
   { label: "Best match", value: "relevance" },
   { label: "Newest introductions", value: "newest" },
   { label: "Most listed", value: "mostListed" },
-  { label: "Name A–Z", value: "name" },
 ];
 
 function roundTelemetryDuration(durationMs: number) {
@@ -271,7 +312,6 @@ const BOOLEAN_FILTER_CHIPS = [
 
 const TEXT_FILTER_CHIPS = [
   { key: "cultivarName", label: "Cultivar" },
-  { key: "hybridizer", label: "Hybridizer" },
   { key: "color", label: "Color" },
   { key: "parentage", label: "Parentage" },
 ] as const satisfies ReadonlyArray<{
@@ -280,12 +320,14 @@ const TEXT_FILTER_CHIPS = [
 }>;
 
 const FACET_FILTER_CHIPS = [
+  { key: "award", label: "Awards" },
   { key: "bloomHabit", label: "Bloom habit" },
   { key: "bloomSeason", label: "Bloom season" },
   { key: "form", label: "Form" },
   { key: "ploidy", label: "Ploidy" },
   { key: "foliageType", label: "Foliage type" },
   { key: "fragrance", label: "Fragrance" },
+  { key: "hybridizer", label: "Hybridizer" },
 ] as const satisfies ReadonlyArray<{
   key: keyof CultivarSearchFilters;
   label: string;
@@ -435,6 +477,7 @@ function getInitialFilters(
   initialState: InitialCultivarSearchState,
 ): CultivarSearchFilters {
   return {
+    award: initialState.award ?? "",
     bloomHabit: initialState.bloomHabit ?? "",
     bloomSizeMax: initialState.bloomSizeMax ?? "",
     bloomSizeMin: initialState.bloomSizeMin ?? "",
@@ -467,6 +510,7 @@ function readControlStateFromUrl() {
     advanced:
       params.get("advanced") === "true" ||
       hasAdvancedCultivarSearchState((key) => params.has(key)),
+    award: params.get("award") ?? undefined,
     bloomHabit: params.get("bloomHabit") ?? undefined,
     bloomSizeMax: params.get("bloomSizeMax") ?? undefined,
     bloomSizeMin: params.get("bloomSizeMin") ?? undefined,
@@ -485,7 +529,7 @@ function readControlStateFromUrl() {
     hasListings: params.get("hasListings") === "true",
     hybridizer: params.get("hybridizer") ?? undefined,
     parentage: params.get("parentage") ?? undefined,
-    photosFirst: params.get("photosFirst") !== "false",
+    photosFirst: params.get("photosFirst") === "true",
     ploidy: params.get("ploidy") ?? undefined,
     q: params.get("q") ?? "",
     scapeHeightMax: params.get("scapeHeightMax") ?? undefined,
@@ -498,9 +542,9 @@ function readControlStateFromUrl() {
   return {
     advanced: urlState.advanced ?? false,
     filters: getInitialFilters(urlState),
-    photosFirst: urlState.photosFirst ?? true,
+    photosFirst: urlState.photosFirst ?? false,
     query: urlState.q,
-    sort: isCultivarSort(urlState.sort) ? urlState.sort : "relevance",
+    sort: isCultivarSort(urlState.sort) ? urlState.sort : "name",
   };
 }
 
@@ -640,6 +684,183 @@ function CultivarFacetFilter({
   );
 }
 
+function RemoteCultivarFacetFilter({
+  facet,
+  label,
+  onChange,
+  testId,
+  value,
+}: {
+  facet: "award" | "hybridizer";
+  label: string;
+  onChange: (value: string) => void;
+  testId: string;
+  value: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const [options, setOptions] = useState<PublicCatalogSearchFacetOption[]>([]);
+  const [loading, setLoading] = useState(false);
+  const selectedValues = useMemo(
+    () =>
+      value
+        .split("|")
+        .map((item) => item.trim())
+        .filter(Boolean),
+    [value],
+  );
+
+  useEffect(() => {
+    if (!open) return;
+
+    const controller = new AbortController();
+    const timeout = window.setTimeout(() => {
+      const params = new URLSearchParams({ facet });
+      if (query.trim()) params.set("q", query.trim());
+      setLoading(true);
+      void fetch(`/api/v1/cultivars/facets?${params}`, {
+        signal: controller.signal,
+      })
+        .then(async (response) => {
+          if (!response.ok)
+            throw new Error("Facet options could not be loaded.");
+          return (await response.json()) as {
+            options: PublicCatalogSearchFacetOption[];
+          };
+        })
+        .then((data) => {
+          setOptions(data.options);
+        })
+        .catch((error: unknown) => {
+          if (!controller.signal.aborted) {
+            setOptions([]);
+            console.warn("Cultivar facet options could not be loaded.", {
+              error,
+              facet,
+            });
+          }
+        })
+        .finally(() => {
+          if (!controller.signal.aborted) setLoading(false);
+        });
+    }, 150);
+
+    return () => {
+      window.clearTimeout(timeout);
+      controller.abort();
+    };
+  }, [facet, open, query]);
+
+  const visibleOptions = useMemo(() => {
+    const byValue = new Map(options.map((option) => [option.value, option]));
+    for (const selectedValue of selectedValues) {
+      if (!byValue.has(selectedValue)) {
+        byValue.set(selectedValue, {
+          count: 0,
+          label: selectedValue,
+          value: selectedValue,
+        });
+      }
+    }
+    return [...byValue.values()];
+  }, [options, selectedValues]);
+
+  const toggleValue = (nextValue: string) => {
+    const next = new Set(selectedValues);
+    if (next.has(nextValue)) {
+      next.delete(nextValue);
+    } else {
+      next.add(nextValue);
+    }
+    onChange(
+      [...next].sort((left, right) => left.localeCompare(right)).join("|"),
+    );
+  };
+
+  return (
+    <div data-testid={testId}>
+      <Popover
+        open={open}
+        onOpenChange={(nextOpen) => {
+          setOpen(nextOpen);
+          if (!nextOpen) setQuery("");
+        }}
+      >
+        <PopoverTrigger asChild>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            className="h-8 border-dashed border-white/30 bg-transparent text-white hover:bg-white/10 hover:text-white max-sm:h-11"
+          >
+            {facet === "award" ? (
+              <Award className="mr-2 size-4" />
+            ) : (
+              <PlusCircle className="mr-2 size-4" />
+            )}
+            {label}
+            {selectedValues.length > 0 ? (
+              <span className="ml-2 rounded-sm bg-white/15 px-1.5 py-0.5 text-xs">
+                {selectedValues.length === 1
+                  ? selectedValues[0]
+                  : `${selectedValues.length} selected`}
+              </span>
+            ) : null}
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent
+          className="w-[min(22rem,calc(100vw-2rem))] p-0"
+          align="start"
+        >
+          <Command shouldFilter={false}>
+            <CommandInput
+              aria-label={`Search ${label.toLowerCase()}`}
+              placeholder={`Search ${label.toLowerCase()}…`}
+              value={query}
+              onValueChange={setQuery}
+            />
+            <CommandList>
+              <CommandEmpty>
+                {loading ? "Searching…" : `No ${label.toLowerCase()} found.`}
+              </CommandEmpty>
+              <CommandGroup>
+                {visibleOptions.map((option) => {
+                  const selected = selectedValues.includes(option.value);
+                  return (
+                    <CommandItem
+                      key={option.value}
+                      value={option.value}
+                      onSelect={() => toggleValue(option.value)}
+                    >
+                      <span
+                        className={
+                          selected
+                            ? "flex size-4 items-center justify-center rounded-sm bg-[#173126] text-white"
+                            : "flex size-4 items-center justify-center rounded-sm border border-[#173126]/35"
+                        }
+                      >
+                        {selected ? <Check className="size-3.5" /> : null}
+                      </span>
+                      <span className="min-w-0 flex-1 truncate">
+                        {option.label}
+                      </span>
+                      {option.count > 0 ? (
+                        <span className="text-muted-foreground text-xs tabular-nums">
+                          {option.count.toLocaleString()}
+                        </span>
+                      ) : null}
+                    </CommandItem>
+                  );
+                })}
+              </CommandGroup>
+            </CommandList>
+          </Command>
+        </PopoverContent>
+      </Popover>
+    </div>
+  );
+}
+
 function CultivarBooleanFilter({
   active,
   definitionId,
@@ -730,6 +951,7 @@ function AdvancedFilters({
         initiallyOpen
         activeCount={
           [
+            filters.award,
             filters.cultivarName,
             filters.hybridizer,
             filters.yearMin || filters.yearMax,
@@ -742,11 +964,22 @@ function AdvancedFilters({
             value={filters.cultivarName}
             onChange={(cultivarName) => onChange({ cultivarName })}
           />
-          <CultivarTextFilter
-            definitionId="hybridizer"
-            value={filters.hybridizer}
-            onChange={(hybridizer) => onChange({ hybridizer })}
-          />
+          <div className="flex flex-wrap gap-2">
+            <RemoteCultivarFacetFilter
+              facet="hybridizer"
+              label="Hybridizer"
+              testId="advanced-filter-hybridizer"
+              value={filters.hybridizer}
+              onChange={(hybridizer) => updateImmediately({ hybridizer })}
+            />
+            <RemoteCultivarFacetFilter
+              facet="award"
+              label="Awards"
+              testId="advanced-filter-award"
+              value={filters.award}
+              onChange={(award) => updateImmediately({ award })}
+            />
+          </div>
           <CultivarRangeFilter
             definitionId="year"
             bounds={{ min: 1890, max: new Date().getFullYear(), step: 1 }}
@@ -914,6 +1147,181 @@ function AdvancedFilters({
   );
 }
 
+function formatInches(value: number | null | undefined) {
+  return value === null || value === undefined ? null : `${value}"`;
+}
+
+function CultivarDetailRow({
+  label,
+  value,
+}: {
+  label: string;
+  value: ReactNode;
+}) {
+  if (value === null || value === undefined || value === "") return null;
+
+  return (
+    <div className="grid grid-cols-[7rem_minmax(0,1fr)] gap-3 border-b border-[#142118]/8 py-2 last:border-0">
+      <dt className="text-xs font-semibold tracking-[0.08em] text-[#617064] uppercase">
+        {label}
+      </dt>
+      <dd className="min-w-0 text-sm leading-5 text-[#142118]">{value}</dd>
+    </div>
+  );
+}
+
+function CultivarDetailsPopover({
+  canonicalPath,
+  result,
+}: {
+  canonicalPath: string | null;
+  result: CultivarSearchResult;
+}) {
+  const traits = result.traits;
+  const awards = traits.awards ?? [];
+
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <Button
+          aria-label={`Show full details for ${result.name}`}
+          className="absolute right-4 bottom-4 z-20 size-10 rounded-full border border-white/55 bg-[#07120e]/78 p-0 text-white shadow-lg backdrop-blur-md hover:bg-[#07120e] hover:text-white focus-visible:ring-[#f4c477]"
+          onClick={(event) => event.stopPropagation()}
+          size="icon"
+          type="button"
+          variant="outline"
+        >
+          <Info className="size-4" />
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent
+        align="end"
+        side="top"
+        sideOffset={10}
+        className="max-h-[min(70vh,38rem)] w-[min(25rem,calc(100vw-2rem))] overflow-y-auto rounded-2xl border-[#dbe3d5] p-0 shadow-2xl"
+      >
+        <div className="sticky top-0 z-10 border-b border-[#142118]/10 bg-[#f7f3e9]/96 px-5 py-4 backdrop-blur">
+          <p className="text-xs font-semibold tracking-[0.12em] text-[#8a5a14] uppercase">
+            Cultivar details
+          </p>
+          <h3 className="mt-1 text-xl font-semibold text-[#142118]">
+            {result.name}
+          </h3>
+        </div>
+        <dl className="px-5 py-2">
+          <CultivarDetailRow label="Hybridizer" value={traits.hybridizer} />
+          <CultivarDetailRow label="Year" value={traits.year} />
+          <CultivarDetailRow label="Seedling" value={traits.seedlingNumber} />
+          <CultivarDetailRow label="Form" value={traits.form} />
+          <CultivarDetailRow
+            label="Bloom size"
+            value={formatInches(traits.bloomSizeIn)}
+          />
+          <CultivarDetailRow
+            label="Scape height"
+            value={formatInches(traits.scapeHeightIn)}
+          />
+          <CultivarDetailRow label="Bloom season" value={traits.bloomSeason} />
+          <CultivarDetailRow label="Bloom habit" value={traits.bloomHabit} />
+          <CultivarDetailRow
+            label="Rebloom"
+            value={
+              traits.rebloom === null || traits.rebloom === undefined
+                ? null
+                : traits.rebloom
+                  ? "Yes"
+                  : "No"
+            }
+          />
+          <CultivarDetailRow label="Ploidy" value={traits.ploidy} />
+          <CultivarDetailRow label="Foliage" value={traits.foliageType} />
+          <CultivarDetailRow label="Fragrance" value={traits.fragrance} />
+          <CultivarDetailRow label="Bud count" value={traits.budCount} />
+          <CultivarDetailRow label="Branches" value={traits.branches} />
+          <CultivarDetailRow
+            label="Double"
+            value={
+              traits.doublePercentage === null ||
+              traits.doublePercentage === undefined
+                ? null
+                : `${traits.doublePercentage}%`
+            }
+          />
+          <CultivarDetailRow
+            label="Polymerous"
+            value={
+              traits.polymerousPercentage === null ||
+              traits.polymerousPercentage === undefined
+                ? null
+                : `${traits.polymerousPercentage}%`
+            }
+          />
+          <CultivarDetailRow
+            label="Spider ratio"
+            value={
+              traits.spiderRatio === null || traits.spiderRatio === undefined
+                ? null
+                : `${traits.spiderRatio}:1`
+            }
+          />
+          <CultivarDetailRow
+            label="Petal"
+            value={
+              traits.petalLengthIn === null ||
+              traits.petalLengthIn === undefined ||
+              traits.petalWidthIn === null ||
+              traits.petalWidthIn === undefined
+                ? null
+                : `${traits.petalLengthIn}" × ${traits.petalWidthIn}"`
+            }
+          />
+          <CultivarDetailRow label="Color" value={traits.color} />
+          <CultivarDetailRow label="Parentage" value={traits.parentage} />
+          <CultivarDetailRow
+            label="Awards"
+            value={
+              awards.length === 0 ? null : (
+                <ul className="space-y-1.5">
+                  {awards.map((award, awardIndex) => (
+                    <li key={`${award.name}-${award.year ?? awardIndex}`}>
+                      {award.url ? (
+                        <a
+                          className="font-medium text-[#7b4e0d] underline decoration-[#c99a51]/55 underline-offset-2"
+                          href={award.url}
+                          rel="noreferrer"
+                          target="_blank"
+                        >
+                          {award.name}
+                          {award.year ? ` · ${award.year}` : ""}
+                        </a>
+                      ) : (
+                        <>
+                          {award.name}
+                          {award.year ? ` · ${award.year}` : ""}
+                        </>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              )
+            }
+          />
+        </dl>
+        {canonicalPath ? (
+          <div className="border-t border-[#142118]/10 bg-[#f7f3e9] p-4">
+            <Link
+              className="inline-flex text-sm font-semibold text-[#173126] underline decoration-[#8ca184] underline-offset-4"
+              href={canonicalPath}
+            >
+              Open full cultivar page
+            </Link>
+          </div>
+        ) : null}
+      </PopoverContent>
+    </Popover>
+  );
+}
+
 function CultivarCard({
   index,
   onOpen,
@@ -953,7 +1361,7 @@ function CultivarCard({
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_35%_30%,#6b8f63,#173126_62%)]" />
       )}
 
-      <div className="relative z-10 flex min-h-[19rem] w-full flex-col justify-end p-5">
+      <div className="relative z-10 flex min-h-[19rem] w-full flex-col justify-end p-5 pr-16">
         <div className="max-w-full">
           <h2 className="text-2xl leading-tight font-semibold text-white [text-shadow:0_2px_3px_rgba(0,0,0,0.98),0_0_10px_rgba(0,0,0,0.95),0_0_24px_rgba(0,0,0,0.8)]">
             {result.name}
@@ -968,25 +1376,32 @@ function CultivarCard({
     </article>
   );
 
-  if (!canonicalPath) return content;
-
   return (
-    <Link
+    <div
+      className="relative"
       data-cultivar-result-id={result.cultivarReferenceId}
-      href={canonicalPath}
-      onClick={(event) => {
-        onOpen(event);
-        capturePosthogEvent("public_cultivar_search_result_opened", {
-          cultivar_reference_id: result.cultivarReferenceId,
-          result_index: index,
-          matched_on: result.matchedOn,
-          source_path: "/cultivars",
-        });
-      }}
-      className="block rounded-3xl focus-visible:ring-2 focus-visible:ring-[#b7791f] focus-visible:ring-offset-2 focus-visible:outline-none"
     >
-      {content}
-    </Link>
+      {canonicalPath ? (
+        <Link
+          href={canonicalPath}
+          onClick={(event) => {
+            onOpen(event);
+            capturePosthogEvent("public_cultivar_search_result_opened", {
+              cultivar_reference_id: result.cultivarReferenceId,
+              result_index: index,
+              matched_on: result.matchedOn,
+              source_path: "/cultivars",
+            });
+          }}
+          className="block rounded-3xl focus-visible:ring-2 focus-visible:ring-[#b7791f] focus-visible:ring-offset-2 focus-visible:outline-none"
+        >
+          {content}
+        </Link>
+      ) : (
+        content
+      )}
+      <CultivarDetailsPopover canonicalPath={canonicalPath} result={result} />
+    </div>
   );
 }
 
@@ -1015,10 +1430,10 @@ export function CultivarSearchPageClient({
     getInitialFilters(initialState),
   );
   const [sort, setSort] = useState<CultivarSort>(() =>
-    isCultivarSort(initialState.sort) ? initialState.sort : "relevance",
+    isCultivarSort(initialState.sort) ? initialState.sort : "name",
   );
   const [photosFirst, setPhotosFirst] = useState(
-    initialState.photosFirst ?? true,
+    initialState.photosFirst ?? false,
   );
   const [advanced, setAdvanced] = useState(initialState.advanced ?? false);
   const [results, setResults] = useState<CultivarSearchResult[]>([]);
@@ -1071,21 +1486,16 @@ export function CultivarSearchPageClient({
         ...current,
         color: filters.color,
         cultivarName: filters.cultivarName,
-        hybridizer: filters.hybridizer,
         parentage: filters.parentage,
       }));
     }, 250);
 
     return () => window.clearTimeout(timeout);
-  }, [
-    filters.color,
-    filters.cultivarName,
-    filters.hybridizer,
-    filters.parentage,
-  ]);
+  }, [filters.color, filters.cultivarName, filters.parentage]);
 
   const shareParams = useMemo(() => {
     const params = new URLSearchParams();
+    addFacetParam(params, "award", requestFilters.award);
     addParam(params, "q", debouncedQuery);
     addFacetParam(params, "bloomHabit", requestFilters.bloomHabit);
     addParam(params, "bloomSizeMax", requestFilters.bloomSizeMax);
@@ -1103,15 +1513,15 @@ export function CultivarSearchPageClient({
     addParam(params, "hasCultivarPhoto", requestFilters.hasCultivarPhoto);
     addParam(params, "hasForSaleListings", requestFilters.hasForSaleListings);
     addParam(params, "hasListings", requestFilters.hasListings);
-    addParam(params, "hybridizer", requestFilters.hybridizer);
+    addFacetParam(params, "hybridizer", requestFilters.hybridizer);
     addParam(params, "parentage", requestFilters.parentage);
     addFacetParam(params, "ploidy", requestFilters.ploidy);
     addParam(params, "scapeHeightMax", requestFilters.scapeHeightMax);
     addParam(params, "scapeHeightMin", requestFilters.scapeHeightMin);
     addParam(params, "yearMax", requestFilters.yearMax);
     addParam(params, "yearMin", requestFilters.yearMin);
-    if (!photosFirst) params.set("photosFirst", "false");
-    if (sort !== "relevance") params.set("sort", sort);
+    if (photosFirst) params.set("photosFirst", "true");
+    if (sort !== "name") params.set("sort", sort);
     params.sort();
     return params.toString();
   }, [debouncedQuery, photosFirst, requestFilters, sort]);
@@ -1350,16 +1760,16 @@ export function CultivarSearchPageClient({
     setDebouncedQuery("");
     setFilters(EMPTY_FILTERS);
     setRequestFilters(EMPTY_FILTERS);
-    setSort("relevance");
-    setPhotosFirst(true);
+    setSort("name");
+    setPhotosFirst(false);
     setAdvanced(false);
   };
 
   const hasSearchState = Boolean(
     debouncedQuery ||
       Object.values(filters).some(Boolean) ||
-      sort !== "relevance" ||
-      !photosFirst ||
+      sort !== "name" ||
+      photosFirst ||
       advanced,
   );
 
@@ -1473,7 +1883,7 @@ export function CultivarSearchPageClient({
             Search over 100,000 daylily cultivars
           </h1>
           <p className="mt-2 max-w-2xl text-base text-[#dfe9dc]">
-            Find cultivars by name, hybridizer, color, bloom season, and more.
+            Find cultivars by name, hybridizer, awards, color, form, and more.
           </p>
 
           <div className="mt-7 space-y-2 border-y border-white/28 bg-[#07120e]/35 py-3 backdrop-blur-[2px]">
@@ -1513,7 +1923,7 @@ export function CultivarSearchPageClient({
                 <PublicCatalogSearchQueryInput
                   value={query}
                   onChange={setQuery}
-                  placeholder="Search by cultivar name, hybridizer, or color…"
+                  placeholder="Search names, hybridizers, colors, awards, or parentage…"
                   className="max-sm:col-span-2"
                   inputClassName="h-10 border-white/30 bg-white/95 text-[#142118] shadow-none placeholder:text-[#617064] focus-visible:ring-[#f4c477]"
                 />

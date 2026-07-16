@@ -22,6 +22,7 @@ export type CultivarSearchSort =
   | "mostListed";
 
 interface CultivarSearchArgs {
+  award?: string;
   bloomHabit?: string;
   bloomSizeMax?: number;
   bloomSizeMin?: number;
@@ -59,6 +60,20 @@ interface CultivarSearchArgs {
   sort?: CultivarSearchSort;
   yearMax?: number;
   yearMin?: number;
+}
+
+export type CultivarSearchFacet = "award" | "hybridizer";
+
+export interface CultivarSearchFacetOption {
+  count: number;
+  label: string;
+  value: string;
+}
+
+interface CultivarAward {
+  name: string;
+  year: string | null;
+  url: string | null;
 }
 
 interface ParentageTreeMatch {
@@ -162,7 +177,7 @@ function getOrderBy(args: {
   if (sort === "name") {
     return {
       params: [] as InValue[],
-      sql: `${photoBoost}i.displayName COLLATE NOCASE ASC, i.id ASC`,
+      sql: `${photoBoost}(substr(ltrim(i.displayName), 1, 1) GLOB '[0-9]') ASC, i.displayName COLLATE NOCASE ASC, i.id ASC`,
     };
   }
 
@@ -198,7 +213,7 @@ function getOrderBy(args: {
         ELSE 2
       END,
       ${photoBoost}
-      bm25(CultivarSearchFts, 8.0, 6.0, 3.0, 1.5, 0.5),
+      bm25(CultivarSearchFts, 8.0, 6.0, 3.0, 1.5, 0.5, 1.0),
       i.listingCount DESC,
       i.displayName COLLATE NOCASE ASC,
       i.id ASC
@@ -207,6 +222,7 @@ function getOrderBy(args: {
 }
 
 function getMatchReason(args: {
+  awardNames: string | null;
   color: string | null;
   displayName: string;
   hybridizer: string | null;
@@ -222,6 +238,7 @@ function getMatchReason(args: {
   if (args.hybridizer?.toLowerCase().includes(query)) return "Hybridizer";
   if (args.color?.toLowerCase().includes(query)) return "Color description";
   if (args.parentage?.toLowerCase().includes(query)) return "Parentage";
+  if (args.awardNames?.toLowerCase().includes(query)) return "Award";
   return "Cultivar record";
 }
 
@@ -272,6 +289,49 @@ function addTextFilter(args: {
     `(${values.map(() => `${args.columnSql} LIKE ?`).join(" OR ")})`,
   );
   args.params.push(...values.map(toContainsQuery));
+}
+
+function addNormalizedExactValueFilter(args: {
+  params: InValue[];
+  sql: string[];
+  columnSql: string;
+  value?: string;
+}) {
+  const values = args.value
+    ?.split("|")
+    .map((value) => value.trim().toLowerCase())
+    .filter(Boolean);
+
+  if (!values || values.length === 0) {
+    return;
+  }
+
+  args.sql.push(`${args.columnSql} IN (${values.map(() => "?").join(", ")})`);
+  args.params.push(...values);
+}
+
+function addAwardFilter(args: {
+  params: InValue[];
+  sql: string[];
+  value?: string;
+}) {
+  const values = args.value
+    ?.split("|")
+    .map((value) => value.trim().toLowerCase())
+    .filter(Boolean);
+
+  if (!values || values.length === 0) {
+    return;
+  }
+
+  args.sql.push(`
+    i.id IN (
+      SELECT awardFilter.cultivarId
+      FROM CultivarSearchAward awardFilter
+      WHERE awardFilter.valueSearch IN (${values.map(() => "?").join(", ")})
+    )
+  `);
+  args.params.push(...values);
 }
 
 function addFacetFilter(args: {
@@ -340,6 +400,44 @@ function addListingExistsFilter(args: {
 
 function toNumberOrNull(value: unknown) {
   return typeof value === "number" && Number.isFinite(value) ? value : null;
+}
+
+function parseAwards(value: unknown): CultivarAward[] {
+  if (typeof value !== "string" || value.length === 0) {
+    return [];
+  }
+
+  try {
+    const parsed = JSON.parse(value) as unknown;
+    if (!Array.isArray(parsed)) {
+      return [];
+    }
+
+    return parsed.flatMap((award) => {
+      if (!award || typeof award !== "object") {
+        return [];
+      }
+
+      const rawAward = award as Record<string, unknown>;
+      const name = toStringOrNull(rawAward.name);
+      if (!name) {
+        return [];
+      }
+
+      return [
+        {
+          name,
+          url: toStringOrNull(rawAward.award_url),
+          year:
+            typeof rawAward.year === "number"
+              ? String(rawAward.year)
+              : toStringOrNull(rawAward.year),
+        },
+      ];
+    });
+  } catch {
+    return [];
+  }
 }
 
 function getParentageParentPath(pathValue: string) {
@@ -502,16 +600,23 @@ export async function searchCultivars(args: CultivarSearchArgs) {
     params.push(ftsQuery);
   }
 
-  if (args.hybridizer?.trim()) {
-    whereSql.push("i.hybridizerSearch LIKE ?");
-    params.push(toContainsQuery(args.hybridizer));
-  }
+  addNormalizedExactValueFilter({
+    columnSql: "i.hybridizerSearch",
+    params,
+    sql: whereSql,
+    value: args.hybridizer,
+  });
 
   addTextFilter({
     columnSql: "i.displayNameSearch",
     params,
     sql: whereSql,
     value: args.cultivarName,
+  });
+  addAwardFilter({
+    params,
+    sql: whereSql,
+    value: args.award,
   });
   addFacetFilter({
     columnSql: "i.bloomHabit",
@@ -660,6 +765,7 @@ export async function searchCultivars(args: CultivarSearchArgs) {
           i.displayName,
           i.hybridizer,
           i.yearInt,
+          i.seedlingNumber,
           i.scapeHeightIn,
           i.bloomSizeIn,
           i.budCount,
@@ -673,6 +779,13 @@ export async function searchCultivars(args: CultivarSearchArgs) {
           i.color,
           i.parentage,
           i.rebloom,
+          i.doublePercentage,
+          i.polymerousPercentage,
+          i.spiderRatio,
+          i.petalLengthIn,
+          i.petalWidthIn,
+          i.awardNames,
+          i.awardsJson,
           i.imageUrl,
           i.generatedImageAssetId,
           i.generatedImageUrl,
@@ -791,6 +904,7 @@ export async function searchCultivars(args: CultivarSearchArgs) {
       const hybridizer = toStringOrNull(row.hybridizer);
       const color = toStringOrNull(row.color);
       const parentage = toStringOrNull(row.parentage);
+      const awardNames = toStringOrNull(row.awardNames);
 
       return {
         canonicalUrl: segment ? `${args.baseUrl}/cultivar/${segment}` : null,
@@ -809,6 +923,7 @@ export async function searchCultivars(args: CultivarSearchArgs) {
             : null,
         imageUrl,
         matchedOn: getMatchReason({
+          awardNames,
           color,
           displayName,
           hybridizer,
@@ -827,6 +942,7 @@ export async function searchCultivars(args: CultivarSearchArgs) {
           updatedAt: toRequiredString(row.sourceUpdatedAt),
         },
         traits: {
+          awards: parseAwards(row.awardsJson),
           bloomHabit: toStringOrNull(row.bloomHabit),
           bloomSeason: toStringOrNull(row.bloomSeason),
           bloomSizeIn:
@@ -834,19 +950,86 @@ export async function searchCultivars(args: CultivarSearchArgs) {
           branches: typeof row.branches === "number" ? row.branches : null,
           budCount: typeof row.budCount === "number" ? row.budCount : null,
           color,
+          doublePercentage: toNumberOrNull(row.doublePercentage),
           foliageType: toStringOrNull(row.foliageType),
           form: toStringOrNull(row.form),
           fragrance: toStringOrNull(row.fragrance),
           hybridizer,
           parentage,
+          petalLengthIn: toNumberOrNull(row.petalLengthIn),
+          petalWidthIn: toNumberOrNull(row.petalWidthIn),
           ploidy: toStringOrNull(row.ploidy),
+          polymerousPercentage: toNumberOrNull(row.polymerousPercentage),
           rebloom: row.rebloom === null ? null : Boolean(row.rebloom),
           scapeHeightIn:
             typeof row.scapeHeightIn === "number" ? row.scapeHeightIn : null,
+          seedlingNumber: toStringOrNull(row.seedlingNumber),
+          spiderRatio: toNumberOrNull(row.spiderRatio),
           year: typeof row.yearInt === "number" ? row.yearInt : null,
         },
         type: "cultivar" as const,
         v2AhsCultivarId: toStringOrNull(row.v2AhsCultivarId),
+      };
+    });
+  } finally {
+    client.close();
+  }
+}
+
+export async function searchCultivarFacetValues(args: {
+  facet: CultivarSearchFacet;
+  limit?: number;
+  query?: string;
+}): Promise<CultivarSearchFacetOption[]> {
+  const searchIndexStatus = await ensurePublicSearchIndex();
+  if (!isPublicSearchIndexUsable(searchIndexStatus)) {
+    throw new PublicSearchIndexUnavailableError(searchIndexStatus);
+  }
+
+  const client = createClient({
+    url: `file:${getPublicSearchIndexPath()}`,
+  });
+  const query = args.query?.trim().toLowerCase() ?? "";
+  const limit = Math.min(Math.max(Math.trunc(args.limit ?? 50), 1), 100);
+
+  try {
+    const result = await client.execute({
+      args: [
+        args.facet,
+        query,
+        query,
+        `${query}%`,
+        query,
+        `${query}%`,
+        limit,
+      ],
+      sql: `
+        SELECT value, count
+        FROM CultivarSearchFacetValue
+        WHERE facet = ?
+          AND (
+            ? = ''
+            OR (facet = 'hybridizer' AND instr(valueSearch, ?) > 0)
+            OR (facet <> 'hybridizer' AND valueSearch LIKE ?)
+          )
+        ORDER BY
+          CASE
+            WHEN valueSearch = ? THEN 0
+            WHEN valueSearch LIKE ? THEN 1
+            ELSE 2
+          END,
+          count DESC,
+          value COLLATE NOCASE ASC
+        LIMIT ?
+      `,
+    });
+
+    return result.rows.map((row) => {
+      const value = toRequiredString(row.value);
+      return {
+        count: Number(row.count ?? 0),
+        label: value,
+        value,
       };
     });
   } finally {

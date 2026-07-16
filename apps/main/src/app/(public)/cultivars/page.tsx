@@ -105,6 +105,7 @@ export default async function CultivarsPage({
             hasAdvancedCultivarSearchState(
               (key) => getFirstSearchParam(rawSearchParams, key) !== undefined,
             ),
+          award: getFirstSearchParam(rawSearchParams, "award"),
           bloomHabit: getFirstSearchParam(rawSearchParams, "bloomHabit"),
           bloomSizeMax: getFirstSearchParam(rawSearchParams, "bloomSizeMax"),
           bloomSizeMin: getFirstSearchParam(rawSearchParams, "bloomSizeMin"),
@@ -128,7 +129,7 @@ export default async function CultivarsPage({
           hybridizer: getFirstSearchParam(rawSearchParams, "hybridizer"),
           parentage: getFirstSearchParam(rawSearchParams, "parentage"),
           photosFirst:
-            getFirstSearchParam(rawSearchParams, "photosFirst") !== "false",
+            getFirstSearchParam(rawSearchParams, "photosFirst") === "true",
           ploidy: getFirstSearchParam(rawSearchParams, "ploidy"),
           q: getFirstSearchParam(rawSearchParams, "q") ?? "",
           scapeHeightMax: getFirstSearchParam(
@@ -139,7 +140,7 @@ export default async function CultivarsPage({
             rawSearchParams,
             "scapeHeightMin",
           ),
-          sort: getFirstSearchParam(rawSearchParams, "sort"),
+          sort: getFirstSearchParam(rawSearchParams, "sort") ?? "name",
           yearMax: getFirstSearchParam(rawSearchParams, "yearMax"),
           yearMin: getFirstSearchParam(rawSearchParams, "yearMin"),
         }}
