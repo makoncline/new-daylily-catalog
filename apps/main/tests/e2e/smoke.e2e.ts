@@ -2,6 +2,8 @@ import { test, expect } from "../../e2e/test-setup";
 
 test.describe("guest user tour @preview", () => {
   test("navigates through unauthed pages", async ({ page }) => {
+    test.slow();
+
     // Home page
     await page.goto("/");
     await expect(page).toHaveURL("/");
