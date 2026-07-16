@@ -39,13 +39,13 @@ async function openCartContactForm(page: Page) {
 test("Priced listing", async ({ page }) => {
   await openPricedListing(page);
   await expect(addToCartButton(page)).toBeVisible();
-  await captureAtlasState(page, "buyer-priced-listing", { fullPage: false });
+  await captureAtlasState(page, "buyer-priced-listing");
 });
 
 test("Item added to cart", async ({ page }) => {
   await addItem(page);
   await expect(page.getByText("Added to cart", { exact: true })).toBeVisible();
-  await captureAtlasState(page, "buyer-item-added", { fullPage: false });
+  await captureAtlasState(page, "buyer-item-added");
 });
 
 test("Message-only contact form", async ({ page }) => {
@@ -54,12 +54,12 @@ test("Message-only contact form", async ({ page }) => {
   await expect(
     page.getByRole("heading", { name: "Contact starcrossedseeds" }),
   ).toBeVisible();
-  await captureAtlasState(page, "buyer-contact-empty", { fullPage: false });
+  await captureAtlasState(page, "buyer-contact-empty");
 });
 
 test("Contact form with cart", async ({ page }) => {
   await openCartContactForm(page);
-  await captureAtlasState(page, "buyer-contact-cart", { fullPage: false });
+  await captureAtlasState(page, "buyer-contact-cart");
 });
 
 test("Adjusted cart quantity", async ({ page }) => {
@@ -68,7 +68,7 @@ test("Adjusted cart quantity", async ({ page }) => {
     .getByRole("button", { name: "Increase quantity for UNPREDICTABLE" })
     .click();
   await expect(page.getByText("$800.00", { exact: true })).toBeVisible();
-  await captureAtlasState(page, "buyer-cart-quantity", { fullPage: false });
+  await captureAtlasState(page, "buyer-cart-quantity");
 });
 
 test("Cart item removed", async ({ page }) => {
@@ -79,7 +79,7 @@ test("Cart item removed", async ({ page }) => {
   await expect(page.getByRole("heading", { name: "Cart Items" })).toHaveCount(
     0,
   );
-  await captureAtlasState(page, "buyer-cart-removed", { fullPage: false });
+  await captureAtlasState(page, "buyer-cart-removed");
 });
 
 test("Invalid contact email", async ({ page }) => {
@@ -90,7 +90,7 @@ test("Invalid contact email", async ({ page }) => {
   await expect(
     page.getByText("Please enter a valid email address"),
   ).toBeVisible();
-  await captureAtlasState(page, "buyer-email-invalid", { fullPage: false });
+  await captureAtlasState(page, "buyer-email-invalid");
 });
 
 test("Message ready to send", async ({ page }) => {
@@ -104,5 +104,5 @@ test("Message ready to send", async ({ page }) => {
   await expect(
     page.getByRole("button", { name: "Send Message" }),
   ).toBeEnabled();
-  await captureAtlasState(page, "buyer-ready-to-send", { fullPage: false });
+  await captureAtlasState(page, "buyer-ready-to-send");
 });

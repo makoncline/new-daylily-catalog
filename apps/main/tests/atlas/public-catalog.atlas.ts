@@ -17,7 +17,7 @@ test("Populated catalog", async ({ page }) => {
   await expect(
     page.getByRole("heading", { name: "Listings", exact: true }),
   ).toBeVisible();
-  await captureAtlasState(page, "populated-catalog", { fullPage: false });
+  await captureAtlasState(page, "populated-catalog");
 });
 test("Search results", async ({ page }) => {
   await page.goto("/rollingoaksdaylilies/search?query=Absolute%20Ripper");
@@ -40,7 +40,7 @@ test("Advanced filters", async ({ page }) => {
   await expect(
     page.getByRole("heading", { name: "Classification & Details" }),
   ).toBeVisible();
-  await captureAtlasState(page, "advanced-filters", { fullPage: false });
+  await captureAtlasState(page, "advanced-filters");
 });
 test("No results", async ({ page }) => {
   await page.goto("/rollingoaksdaylilies/search?query=no-such-daylily");
@@ -54,7 +54,7 @@ test("Search page two", async ({ page }) => {
   await expect(page.getByTestId("pager-page-indicator")).toContainText(
     "Page 2 of",
   );
-  await captureAtlasState(page, "search-page-two", { fullPage: false });
+  await captureAtlasState(page, "search-page-two");
 });
 test("Listing detail", async ({ page }) => {
   await page.goto("/plantfancygardens/woodside-debutante");
