@@ -73,7 +73,23 @@ describe("Docker build cache and observability boundaries", () => {
       "COPY --from=deps --chown=nextjs:nodejs /app/node_modules",
     );
     expect(dockerfile).toContain(
-      'for (const dependency of ["sharp", "@aws-sdk/client-s3", "@prisma/client", "@prisma/adapter-libsql", "@libsql/client"]) require(dependency)',
+      "COPY --from=runtime-deps --chown=nextjs:nodejs /runtime/node_modules ./node_modules",
+    );
+    expect(dockerfile).not.toContain(
+      "/runtime/node_modules ./apps/main/node_modules",
+    );
+    expect(dockerfile).toContain(
+      'const serverRequire = createRequire("/app/apps/main/server.js")',
+    );
+    expect(dockerfile).toContain(
+      'for (const dependency of ["@aws-sdk/client-s3", "@prisma/client", "@prisma/adapter-libsql", "@libsql/client"]) serverRequire(dependency)',
+    );
+    expect(dockerfile).toContain('const sharp = serverRequire("sharp")');
+    expect(dockerfile).toContain("Object.keys(require.cache).find");
+    expect(dockerfile).toContain("await sharp({ create:");
+    expect(dockerfile).toContain('modulePath.includes("sharp")');
+    expect(dockerfile).toContain(
+      'if (sharpLdd.includes("not found")) process.exit(1)',
     );
     expect(dockerfile).toContain(
       "pnpm --filter @daylily-catalog/standalone-runtime --prod deploy /runtime",

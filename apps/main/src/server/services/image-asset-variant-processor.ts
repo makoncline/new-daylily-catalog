@@ -1,7 +1,6 @@
 import "server-only";
 
 import { PutObjectCommand } from "@aws-sdk/client-s3";
-import sharp from "sharp";
 import { APP_CONFIG } from "@/config/constants";
 import { env, requireEnv } from "@/env";
 import type { db as appDb } from "@/server/db";
@@ -49,6 +48,7 @@ async function fetchSourceBuffer(url: string) {
 }
 
 async function buildWebpVariants(source: Buffer) {
+  const { default: sharp } = await import("sharp");
   const base = sharp(source, { failOn: "error" }).rotate();
 
   const [display, thumb, blur] = await Promise.all([
