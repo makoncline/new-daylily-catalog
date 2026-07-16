@@ -6,8 +6,21 @@
 import { withSentryConfig } from "@sentry/nextjs";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
+import { validateIntegrationRuntime } from "./scripts/integration-network-guard.mjs";
 
 const appDir = path.dirname(fileURLToPath(import.meta.url));
+const integrationMode = process.env.INTEGRATION_MODE === "1";
+
+if (integrationMode) {
+  validateIntegrationRuntime({
+    appRoot: appDir,
+    nodeEnv: process.env.NODE_ENV,
+    integrationMode: process.env.INTEGRATION_MODE,
+    appBaseUrl: process.env.APP_BASE_URL,
+    databaseUrl: process.env.DATABASE_URL,
+    env: process.env,
+  });
+}
 
 /** @type {import("next").NextConfig} */
 const config = {
@@ -24,6 +37,17 @@ const config = {
   devIndicators: {
     position: "bottom-right",
   },
+
+  ...(integrationMode
+    ? {
+        turbopack: {
+          resolveAlias: {
+            "@clerk/nextjs": "./tests/integration/clerk-client.tsx",
+            "@clerk/nextjs/server": "./tests/integration/clerk-server.ts",
+          },
+        },
+      }
+    : {}),
 
   // Add redirects for legacy URLs
   async redirects() {

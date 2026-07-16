@@ -38,3 +38,17 @@ for states fully represented by their URL; interaction-only states provide an
 exact Playwright reproduction command instead.
 Atlas uses the standard realistic seeded development database and does not
 write to it. If it is missing, run `pnpm db:seed:prepare`.
+
+## Integration loop
+
+```sh
+node apps/main/scripts/run-integration-local.mjs
+node apps/main/scripts/run-integration-local.mjs tests/integration/create-edit-listing.integration.ts
+```
+
+The runner owns a unique database under `tests/.tmp`, authenticates one fixed
+seller through a narrow Clerk seam, and deletes the database afterward. It
+rejects nonlocal URLs/databases, live credentials, and outbound requests.
+
+Ordinary `pnpm dev` remains the realistic seeded-data environment. Integration
+mode is test infrastructure, not a second development mode or test category.
