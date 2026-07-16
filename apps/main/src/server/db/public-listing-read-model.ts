@@ -105,7 +105,8 @@ function buildListingView<T extends ListingPayload>(listing: T) {
     : null;
   const resolvedImages = resolveLegacyImagesWithAssets({
     images: displayListing.images,
-    imageAssets: "imageAssets" in displayListing ? displayListing.imageAssets : [],
+    imageAssets:
+      "imageAssets" in displayListing ? displayListing.imageAssets : [],
     variant: "display",
   });
   const publicCultivarReference = displayListing.cultivarReference
@@ -114,9 +115,7 @@ function buildListingView<T extends ListingPayload>(listing: T) {
     : displayListing.cultivarReference;
   const publicListingBase =
     "imageAssets" in displayListing
-      ? (({ imageAssets: _imageAssets, ...listing }) => listing)(
-          displayListing,
-        )
+      ? (({ imageAssets: _imageAssets, ...listing }) => listing)(displayListing)
       : displayListing;
   const publicListing = {
     ...publicListingBase,
@@ -199,6 +198,38 @@ async function getSortedPublicListingIds(
   return rows.map((row) => row.id);
 }
 
+async function getSortedPublicListingPageIds(
+  database: typeof replicaDb,
+  userId: string,
+  options: {
+    limit: number;
+    offset: number;
+  },
+): Promise<string[]> {
+  const rows = await database.$queryRaw<Array<{ id: string }>>(Prisma.sql`
+    SELECT "id"
+    FROM "Listing"
+    WHERE "userId" = ${userId}
+      AND ("status" IS NULL OR "status" <> ${STATUS.HIDDEN})
+    ORDER BY
+      CASE
+        WHEN COALESCE("price", 0) > 0 THEN 0
+        ELSE 1
+      END,
+      CASE
+        WHEN LTRIM("title") GLOB '[A-Za-z]*' THEN 0
+        WHEN LTRIM("title") GLOB '[0-9]*' THEN 1
+        ELSE 2
+      END,
+      LTRIM("title") COLLATE NOCASE ASC,
+      "id" ASC
+    LIMIT ${options.limit}
+    OFFSET ${options.offset}
+  `);
+
+  return rows.map((row) => row.id);
+}
+
 async function getPublicListingRowsByIds(
   ids: string[],
 ): Promise<ListingPayload[]> {
@@ -259,19 +290,37 @@ export interface GetPublicListingsPageIdsForUserIdArgs {
   pageSize?: number;
 }
 
-export async function getPublicListingsPageIdsForUserId({
-  userId,
-  page,
-  pageSize = PUBLIC_PROFILE_LISTINGS_PAGE_SIZE,
-}: GetPublicListingsPageIdsForUserIdArgs) {
-  const sortedIds = await getSortedPublicListingIds(userId, {
-    forSaleFirst: true,
-  });
-  const totalCount = sortedIds.length;
+export async function getPublicListingsPageIdsForUserId(
+  {
+    userId,
+    page,
+    pageSize = PUBLIC_PROFILE_LISTINGS_PAGE_SIZE,
+  }: GetPublicListingsPageIdsForUserIdArgs,
+  database: typeof replicaDb = replicaDb,
+) {
+  const requestedPage = Math.max(page, 1);
+  const requestedOffset = (requestedPage - 1) * pageSize;
+  const [totalCount, requestedIds] = await Promise.all([
+    database.listing.count({
+      where: {
+        userId,
+        ...isPublished(),
+      },
+    }),
+    getSortedPublicListingPageIds(database, userId, {
+      limit: pageSize,
+      offset: requestedOffset,
+    }),
+  ]);
   const totalPages = Math.max(1, Math.ceil(totalCount / pageSize));
-  const boundedPage = Math.min(Math.max(page, 1), totalPages);
-  const offset = (boundedPage - 1) * pageSize;
-  const ids = sortedIds.slice(offset, offset + pageSize);
+  const boundedPage = Math.min(requestedPage, totalPages);
+  const ids =
+    boundedPage === requestedPage
+      ? requestedIds
+      : await getSortedPublicListingPageIds(database, userId, {
+          limit: pageSize,
+          offset: (boundedPage - 1) * pageSize,
+        });
 
   return {
     ids,

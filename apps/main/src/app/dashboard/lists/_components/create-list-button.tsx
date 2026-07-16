@@ -9,14 +9,16 @@ import { TierLimitedCreateAction } from "@/app/dashboard/_components/tier-limite
 import { CreateListDialog } from "./create-list-dialog";
 
 export function CreateListButton() {
-  const { isPro } = usePro();
+  const { isPro, isLoading: isSubscriptionLoading } = usePro();
 
-  const { data: listCount } = api.dashboardDb.list.count.useQuery();
+  const { data: listCount, isLoading: isListCountLoading } =
+    api.dashboardDb.list.count.useQuery();
 
   return (
     <TierLimitedCreateAction
       buttonLabel="Create List"
       currentCount={listCount}
+      disabled={isSubscriptionLoading || isListCountLoading}
       freeTierLimit={APP_CONFIG.LIST.FREE_TIER_MAX_LISTS}
       isPro={isPro}
       upgradeDialogClassName="sm:max-w-[500px]"

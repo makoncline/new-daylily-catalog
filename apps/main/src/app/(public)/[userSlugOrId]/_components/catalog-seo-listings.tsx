@@ -46,7 +46,10 @@ export function CatalogSeoListings({
           {profileLists.length > 0 || forSaleCount > 0 ? (
             <div className="grid gap-4 sm:grid-cols-2">
               {forSaleCount > 0 && (
-                <Link href={`/${canonicalUserSlug}/search?price=true`}>
+                <Link
+                  href={`/${canonicalUserSlug}/search?price=true`}
+                  prefetch={false}
+                >
                   <Card className="group h-full transition-all hover:shadow-md">
                     <CardHeader className="flex flex-row items-center justify-between gap-y-0 pb-4">
                       <CardTitle className="group-hover:text-primary text-lg font-semibold">
@@ -69,6 +72,7 @@ export function CatalogSeoListings({
                 <Link
                   key={list.id}
                   href={`/${canonicalUserSlug}/search?lists=${encodeURIComponent(list.id)}`}
+                  prefetch={false}
                 >
                   <Card className="group h-full transition-all hover:shadow-md">
                     <CardHeader className="flex flex-row items-center justify-between gap-y-0 pb-4">
@@ -108,7 +112,9 @@ export function CatalogSeoListings({
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex flex-wrap items-center gap-3">
               <Button asChild size="sm" variant="outline">
-                <Link href={searchHref}>Search and filter listings</Link>
+                <Link href={searchHref} prefetch={false}>
+                  Search and filter listings
+                </Link>
               </Button>
             </div>
 
