@@ -36,6 +36,7 @@ import {
 import { type PublicCatalogSearchFacetOption } from "@/components/public-catalog-search/public-catalog-search-types";
 import { OptimizedImage } from "@/components/optimized-image";
 import { Button } from "@/components/ui/button";
+import { getCultivarSearchTelemetryProperties } from "@/lib/analytics/cultivar-search-telemetry";
 import { capturePosthogEvent } from "@/lib/analytics/posthog";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { hasAdvancedCultivarSearchState } from "../_lib/cultivar-search-url";
@@ -145,6 +146,19 @@ interface CultivarSearchResponse {
   results: CultivarSearchResult[];
 }
 
+type SearchRequestKind = "initial" | "load_more" | "refinement" | "retry";
+type SearchTelemetryOutcome =
+  | "empty"
+  | "error"
+  | "index_unavailable"
+  | "results";
+
+interface SearchResponseTelemetry {
+  httpStatus: number;
+  requestId: string | undefined;
+  serverDurationMs: number | undefined;
+}
+
 interface CultivarSearchReturnSnapshot {
   entryId: string;
   nextOffset: number | null;
@@ -191,6 +205,60 @@ const SORT_OPTIONS: Array<{ label: string; value: CultivarSort }> = [
   { label: "Most listed", value: "mostListed" },
   { label: "Name A–Z", value: "name" },
 ];
+
+function roundTelemetryDuration(durationMs: number) {
+  return Math.round(durationMs * 10) / 10;
+}
+
+function getSearchResponseTelemetry(
+  response: Response,
+): SearchResponseTelemetry {
+  const serverDuration = Number.parseFloat(
+    response.headers?.get("X-Cultivar-Search-Duration-Ms") ?? "",
+  );
+
+  return {
+    httpStatus: response.status,
+    requestId:
+      response.headers?.get("X-Cultivar-Search-Request-Id") ?? undefined,
+    serverDurationMs: Number.isFinite(serverDuration)
+      ? serverDuration
+      : undefined,
+  };
+}
+
+function captureSearchResultsViewed({
+  clientDurationMs,
+  hasMore,
+  outcome,
+  params,
+  requestKind,
+  responseTelemetry,
+  resultsReturned,
+  visibleResultCount,
+}: {
+  clientDurationMs: number;
+  hasMore?: boolean;
+  outcome: SearchTelemetryOutcome;
+  params: URLSearchParams;
+  requestKind: SearchRequestKind;
+  responseTelemetry: SearchResponseTelemetry;
+  resultsReturned?: number;
+  visibleResultCount?: number;
+}) {
+  capturePosthogEvent("public_cultivar_search_results_viewed", {
+    ...getCultivarSearchTelemetryProperties(params),
+    client_duration_ms: roundTelemetryDuration(clientDurationMs),
+    has_more: hasMore,
+    http_status: responseTelemetry.httpStatus,
+    outcome,
+    request_id: responseTelemetry.requestId,
+    request_kind: requestKind,
+    results_returned: resultsReturned,
+    server_duration_ms: responseTelemetry.serverDurationMs,
+    visible_result_count: visibleResultCount,
+  });
+}
 
 const BOOLEAN_FILTER_CHIPS = [
   { key: "hasCultivarPhoto", label: "With photos" },
@@ -965,6 +1033,8 @@ export function CultivarSearchPageClient({
   const pendingScrollRestorationRef =
     useRef<CultivarSearchReturnSnapshot | null>(null);
   const skipNextFetchRef = useRef(false);
+  const hasPresentedSearchStateRef = useRef(false);
+  const retryPendingRef = useRef(false);
 
   useEffect(() => {
     const urlState = readControlStateFromUrl();
@@ -985,6 +1055,7 @@ export function CultivarSearchPageClient({
       setLoading(false);
       pendingScrollRestorationRef.current = snapshot;
       skipNextFetchRef.current = true;
+      hasPresentedSearchStateRef.current = true;
     }
     setRestorationChecked(true);
   }, []);
@@ -1074,14 +1145,28 @@ export function CultivarSearchPageClient({
     }
 
     const controller = new AbortController();
-    const requestId = ++requestCounter.current;
+    const clientRequestSequence = ++requestCounter.current;
+    const requestKind: SearchRequestKind = retryPendingRef.current
+      ? "retry"
+      : hasPresentedSearchStateRef.current
+        ? "refinement"
+        : "initial";
+    retryPendingRef.current = false;
+    const requestParams = buildRequestParams(0);
+    const requestStartedAt = performance.now();
+    let responseTelemetry: SearchResponseTelemetry = {
+      httpStatus: 0,
+      requestId: undefined,
+      serverDurationMs: undefined,
+    };
     setLoading(true);
     setError(null);
 
-    void fetch(`/api/v1/cultivars/search?${buildRequestParams(0)}`, {
+    void fetch(`/api/v1/cultivars/search?${requestParams}`, {
       signal: controller.signal,
     })
       .then(async (response) => {
+        responseTelemetry = getSearchResponseTelemetry(response);
         if (!response.ok) {
           throw new Error(
             response.status === 503
@@ -1092,12 +1177,29 @@ export function CultivarSearchPageClient({
         return (await response.json()) as CultivarSearchResponse;
       })
       .then((data) => {
-        if (requestId !== requestCounter.current) return;
+        if (clientRequestSequence !== requestCounter.current) return;
+        hasPresentedSearchStateRef.current = true;
         setResults(data.results);
         setNextOffset(data.pagination.nextOffset);
+        captureSearchResultsViewed({
+          clientDurationMs: performance.now() - requestStartedAt,
+          hasMore: data.pagination.hasMore,
+          outcome: data.results.length > 0 ? "results" : "empty",
+          params: requestParams,
+          requestKind,
+          responseTelemetry,
+          resultsReturned: data.results.length,
+          visibleResultCount: data.results.length,
+        });
       })
       .catch((caughtError: unknown) => {
-        if (controller.signal.aborted) return;
+        if (
+          controller.signal.aborted ||
+          clientRequestSequence !== requestCounter.current
+        ) {
+          return;
+        }
+        hasPresentedSearchStateRef.current = true;
         setResults([]);
         setNextOffset(null);
         setError(
@@ -1105,9 +1207,21 @@ export function CultivarSearchPageClient({
             ? caughtError.message
             : "Cultivar search could not be loaded.",
         );
+        captureSearchResultsViewed({
+          clientDurationMs: performance.now() - requestStartedAt,
+          outcome:
+            responseTelemetry.httpStatus === 503
+              ? "index_unavailable"
+              : "error",
+          params: requestParams,
+          requestKind,
+          responseTelemetry,
+          resultsReturned: 0,
+          visibleResultCount: 0,
+        });
       })
       .finally(() => {
-        if (requestId === requestCounter.current) setLoading(false);
+        if (clientRequestSequence === requestCounter.current) setLoading(false);
       });
 
     return () => controller.abort();
@@ -1288,25 +1402,51 @@ export function CultivarSearchPageClient({
 
   const loadMore = async () => {
     if (nextOffset === null || loadingMore) return;
-    const requestId = requestCounter.current;
+    const clientRequestSequence = requestCounter.current;
+    const requestParams = buildRequestParams(nextOffset);
+    const requestStartedAt = performance.now();
+    let responseTelemetry: SearchResponseTelemetry = {
+      httpStatus: 0,
+      requestId: undefined,
+      serverDurationMs: undefined,
+    };
     setLoadingMore(true);
     setError(null);
     try {
-      const response = await fetch(
-        `/api/v1/cultivars/search?${buildRequestParams(nextOffset)}`,
-      );
+      const response = await fetch(`/api/v1/cultivars/search?${requestParams}`);
+      responseTelemetry = getSearchResponseTelemetry(response);
       if (!response.ok) throw new Error("More cultivars could not be loaded.");
       const data = (await response.json()) as CultivarSearchResponse;
-      if (requestId !== requestCounter.current) return;
+      if (clientRequestSequence !== requestCounter.current) return;
       setResults((current) => [...current, ...data.results]);
       setNextOffset(data.pagination.nextOffset);
+      captureSearchResultsViewed({
+        clientDurationMs: performance.now() - requestStartedAt,
+        hasMore: data.pagination.hasMore,
+        outcome: data.results.length > 0 ? "results" : "empty",
+        params: requestParams,
+        requestKind: "load_more",
+        responseTelemetry,
+        resultsReturned: data.results.length,
+        visibleResultCount: results.length + data.results.length,
+      });
     } catch (caughtError) {
-      if (requestId !== requestCounter.current) return;
+      if (clientRequestSequence !== requestCounter.current) return;
       setError(
         caughtError instanceof Error
           ? caughtError.message
           : "More cultivars could not be loaded.",
       );
+      captureSearchResultsViewed({
+        clientDurationMs: performance.now() - requestStartedAt,
+        outcome:
+          responseTelemetry.httpStatus === 503 ? "index_unavailable" : "error",
+        params: requestParams,
+        requestKind: "load_more",
+        responseTelemetry,
+        resultsReturned: 0,
+        visibleResultCount: results.length,
+      });
     } finally {
       setLoadingMore(false);
     }
@@ -1553,7 +1693,10 @@ export function CultivarSearchPageClient({
             <p className="mt-2 text-sm text-[#617064]">{error}</p>
             <Button
               className="mt-5 bg-[#142118] text-white hover:bg-[#294635]"
-              onClick={() => setRetryKey((value) => value + 1)}
+              onClick={() => {
+                retryPendingRef.current = true;
+                setRetryKey((value) => value + 1);
+              }}
             >
               Try again
             </Button>

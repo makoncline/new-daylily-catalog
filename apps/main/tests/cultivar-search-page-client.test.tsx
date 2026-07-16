@@ -115,9 +115,15 @@ describe("CultivarSearchPageClient", () => {
       value: 0,
     });
     fetchMock.mockClear();
+    capturePosthogEventMock.mockClear();
     fetchMock.mockResolvedValue({
+      headers: new Headers({
+        "X-Cultivar-Search-Duration-Ms": "12.4",
+        "X-Cultivar-Search-Request-Id": "search-request-1",
+      }),
       json: async () => searchResponse(),
       ok: true,
+      status: 200,
     });
     vi.stubGlobal("fetch", fetchMock);
     vi.stubGlobal(
@@ -178,6 +184,25 @@ describe("CultivarSearchPageClient", () => {
     expect(screen.getByRole("switch", { name: "Advanced" })).toBeChecked();
     expect(screen.getByTestId("advanced-filter-form")).toHaveTextContent(
       "2 selected",
+    );
+    expect(capturePosthogEventMock).toHaveBeenCalledWith(
+      "public_cultivar_search_results_viewed",
+      expect.objectContaining({
+        active_filters: "form",
+        client_duration_ms: expect.any(Number),
+        filter_count: 1,
+        form: "double|spider",
+        has_more: false,
+        http_status: 200,
+        outcome: "results",
+        query: "stella de oro",
+        query_kind: "query_and_filters",
+        request_id: "search-request-1",
+        request_kind: "initial",
+        results_returned: 1,
+        server_duration_ms: 12.4,
+        visible_result_count: 1,
+      }),
     );
     expect(screen.getByTestId("active-filter-chips")).toBeVisible();
     expect(
@@ -422,9 +447,17 @@ describe("CultivarSearchPageClient", () => {
     });
 
     fireEvent.click(
-      screen.getByRole("button", { name: "Load more cultivars" }),
+      await screen.findByRole("button", { name: "Load more cultivars" }),
     );
     await screen.findByRole("heading", { name: "Second page cultivar" });
+    expect(capturePosthogEventMock).toHaveBeenCalledWith(
+      "public_cultivar_search_results_viewed",
+      expect.objectContaining({
+        request_kind: "load_more",
+        results_returned: 1,
+        visible_result_count: 2,
+      }),
+    );
     const resultLink = screen.getByRole("link", {
       name: /Second page cultivar/,
     });
@@ -434,6 +467,7 @@ describe("CultivarSearchPageClient", () => {
     const searchEntryState = window.history.state;
     firstRender.unmount();
     fetchMock.mockClear();
+    capturePosthogEventMock.mockClear();
 
     const restoredRender = render(
       <CultivarSearchPageClient
@@ -462,6 +496,7 @@ describe("CultivarSearchPageClient", () => {
       screen.getByRole("button", { name: "Photos first" }),
     ).toHaveAttribute("aria-pressed", "false");
     expect(fetchMock).not.toHaveBeenCalled();
+    expect(capturePosthogEventMock).not.toHaveBeenCalled();
     await waitFor(() =>
       expect(scrollToMock).toHaveBeenCalledWith({
         behavior: "instant",

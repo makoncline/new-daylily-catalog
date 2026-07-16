@@ -1,5 +1,8 @@
+import { randomUUID } from "node:crypto";
 import { NextResponse } from "next/server";
 import { getRequestBaseUrl } from "@/lib/agent-readiness";
+import { getCultivarSearchTelemetryProperties } from "@/lib/analytics/cultivar-search-telemetry";
+import { reportError } from "@/lib/error-utils";
 import { getCanonicalBaseUrl } from "@/lib/utils/getBaseUrl";
 import {
   getPublicSearchApiDisabledResponse,
@@ -11,6 +14,73 @@ import { PublicSearchIndexUnavailableError } from "@/server/search/public-search
 import type { CultivarSearchSort } from "@/server/search/cultivar-search";
 
 export const runtime = "nodejs";
+
+type SearchRequestStatus = "error" | "index_unavailable" | "success";
+
+function roundDurationMs(durationMs: number) {
+  return Math.round(durationMs * 10) / 10;
+}
+
+function getRequestId(request: Request) {
+  return (
+    request.headers.get("cf-ray") ??
+    request.headers.get("x-request-id") ??
+    randomUUID()
+  );
+}
+
+function getTelemetryHeaders(requestId: string, durationMs: number) {
+  return {
+    "X-Cultivar-Search-Duration-Ms": String(roundDurationMs(durationMs)),
+    "X-Cultivar-Search-Request-Id": requestId,
+  };
+}
+
+function logSearchRequest({
+  durationMs,
+  errorName,
+  hasMore,
+  httpStatus,
+  mode,
+  requestId,
+  resultsReturned,
+  searchParams,
+  status,
+}: {
+  durationMs: number;
+  errorName?: string;
+  hasMore?: boolean;
+  httpStatus: number;
+  mode: "full" | "summary";
+  requestId: string;
+  resultsReturned?: number;
+  searchParams: URLSearchParams;
+  status: SearchRequestStatus;
+}) {
+  const payload = JSON.stringify({
+    component: "public-cultivar-search",
+    event: "public_cultivar_search_request",
+    timestamp: new Date().toISOString(),
+    request_id: requestId,
+    status,
+    http_status: httpStatus,
+    duration_ms: roundDurationMs(durationMs),
+    mode,
+    source_surface: mode === "summary" ? "public_page" : "public_api",
+    results_returned: resultsReturned,
+    has_more: hasMore,
+    error_name: errorName,
+    ...getCultivarSearchTelemetryProperties(searchParams),
+  });
+
+  if (status === "success") {
+    console.info(payload);
+  } else if (status === "index_unavailable") {
+    console.warn(payload);
+  } else {
+    console.error(payload);
+  }
+}
 
 function getNumberParam(params: URLSearchParams, key: string) {
   const value = params.get(key);
@@ -56,9 +126,13 @@ export async function GET(request: Request) {
     return getPublicSearchApiDisabledResponse();
   }
 
+  const startedAt = performance.now();
+  const requestId = getRequestId(request);
+  const { searchParams } = new URL(request.url);
+  const summaryMode = searchParams.get("mode") === "summary";
+  const mode = summaryMode ? "summary" : "full";
+
   try {
-    const { searchParams } = new URL(request.url);
-    const summaryMode = searchParams.get("mode") === "summary";
     const summaryLimit = summaryMode ? getSummaryLimit(searchParams) : null;
     const results = await searchCultivars({
       baseUrl: getRequestBaseUrl(request) ?? getCanonicalBaseUrl(),
@@ -109,22 +183,47 @@ export async function GET(request: Request) {
       ? results.slice(0, summaryLimit)
       : results;
 
-    return NextResponse.json({
-      results: responseResults,
-      ...(summaryLimit
-        ? {
-            pagination: {
-              hasMore,
-              limit: summaryLimit,
-              nextOffset: hasMore
-                ? (getNumberParam(searchParams, "offset") ?? 0) + summaryLimit
-                : null,
-            },
-          }
-        : {}),
+    const durationMs = performance.now() - startedAt;
+    logSearchRequest({
+      durationMs,
+      hasMore: summaryMode ? hasMore : undefined,
+      httpStatus: 200,
+      mode,
+      requestId,
+      resultsReturned: responseResults.length,
+      searchParams,
+      status: "success",
     });
+
+    return NextResponse.json(
+      {
+        results: responseResults,
+        ...(summaryLimit
+          ? {
+              pagination: {
+                hasMore,
+                limit: summaryLimit,
+                nextOffset: hasMore
+                  ? (getNumberParam(searchParams, "offset") ?? 0) + summaryLimit
+                  : null,
+              },
+            }
+          : {}),
+      },
+      { headers: getTelemetryHeaders(requestId, durationMs) },
+    );
   } catch (error) {
     if (error instanceof PublicSearchIndexUnavailableError) {
+      const durationMs = performance.now() - startedAt;
+      logSearchRequest({
+        durationMs,
+        httpStatus: 503,
+        mode,
+        requestId,
+        searchParams,
+        status: "index_unavailable",
+      });
+
       return NextResponse.json(
         {
           error: "public_search_index_unavailable",
@@ -134,12 +233,40 @@ export async function GET(request: Request) {
         {
           headers: {
             "Retry-After": "30",
+            ...getTelemetryHeaders(requestId, durationMs),
           },
           status: 503,
         },
       );
     }
 
-    throw error;
+    const durationMs = performance.now() - startedAt;
+    logSearchRequest({
+      durationMs,
+      errorName: error instanceof Error ? error.name : "UnknownError",
+      httpStatus: 500,
+      mode,
+      requestId,
+      searchParams,
+      status: "error",
+    });
+    reportError({
+      error,
+      context: {
+        requestId,
+        source: "public-cultivar-search",
+      },
+    });
+
+    return NextResponse.json(
+      {
+        error: "internal_server_error",
+        message: "Cultivar search could not be loaded.",
+      },
+      {
+        headers: getTelemetryHeaders(requestId, durationMs),
+        status: 500,
+      },
+    );
   }
 }
