@@ -20,7 +20,7 @@ type Listing = RouterOutputs["dashboardDb"]["listing"]["list"][number];
  * Handles subscription tier checks and upgrade prompts for free tier users.
  */
 export function CreateListingButton() {
-  const { isPro } = usePro();
+  const { isPro, isLoading: isSubscriptionLoading } = usePro();
   const { openCreateListing } = useCreateListing();
   const listingsQuery = useSeededDashboardDbQuery<Listing>({
     query: (q) => q.from({ listing: listingsCollection }),
@@ -41,6 +41,7 @@ export function CreateListingButton() {
       buttonLabel="Create Listing"
       buttonTestId="create-listing-button"
       currentCount={listingCount}
+      disabled={isSubscriptionLoading || !listingsQuery.isReady}
       freeTierLimit={APP_CONFIG.LISTING.FREE_TIER_MAX_LISTINGS}
       isPro={isPro}
       onCreate={openCreateListing}
