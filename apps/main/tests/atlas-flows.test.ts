@@ -52,6 +52,17 @@ describe("Atlas flow contract", () => {
     expect(statesForFlow(listings)).toHaveLength(15);
   });
 
+  it("declares the buyer inquiry journey without sending a real message", () => {
+    const buyerInquiry = getAtlasFlow("buyer-inquiry");
+
+    expect(buyerInquiry.steps.map(({ title }) => title)).toEqual([
+      "Choose an item",
+      "Contact the seller",
+      "Review the request",
+    ]);
+    expect(statesForFlow(buyerInquiry)).toHaveLength(8);
+  });
+
   it.each([
     ["state id", "id", "Duplicate Atlas state id"],
     ["capture", "capture", "Duplicate Atlas capture"],

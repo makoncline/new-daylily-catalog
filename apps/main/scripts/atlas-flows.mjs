@@ -16,6 +16,7 @@ const stateFor =
 const publicState = stateFor("tests/atlas/public-catalog.atlas.ts");
 const onboardingState = stateFor("tests/atlas/onboarding-membership.atlas.ts");
 const listingState = stateFor("tests/atlas/listing-management.atlas.ts");
+const buyerState = stateFor("tests/atlas/buyer-inquiry.atlas.ts");
 const testRef = (layer, file) => ({
   path: file,
   command:
@@ -412,6 +413,95 @@ export const ATLAS_FLOWS = [
             "Listing membership picker",
             "The real lists available while editing a listing.",
             "/dashboard/listings?size=10",
+            false,
+          ),
+        ],
+      },
+    ],
+  },
+  {
+    id: "buyer-inquiry",
+    audience: "public",
+    title: "Choose a listing and contact its seller",
+    description:
+      "Build a request from a realistically priced listing and review every pre-submit contact state without sending a real message.",
+    tests: {
+      unit: [testRef("unit", "tests/use-cart.test.tsx")],
+      integration: [
+        testRef("integration", "tests/contact-form.test.tsx"),
+        testRef("integration", "tests/public-inquiry.test.ts"),
+        testRef("integration", "tests/public-inquiry-rate-limit.test.ts"),
+        testRef("integration", "tests/public-router-send-message.test.ts"),
+      ],
+      e2e: [],
+    },
+    steps: [
+      {
+        title: "Choose an item",
+        states: [
+          buyerState(
+            "buyer-priced-listing",
+            "Priced listing",
+            "A real public listing with price, images, seller contact, and cart action.",
+            "/starcrossedseeds/unpredictable",
+          ),
+          buyerState(
+            "buyer-item-added",
+            "Item added to cart",
+            "The listing immediately after its visible cart action succeeds.",
+            "/starcrossedseeds/unpredictable",
+            false,
+          ),
+        ],
+      },
+      {
+        title: "Contact the seller",
+        states: [
+          buyerState(
+            "buyer-contact-empty",
+            "Message-only contact form",
+            "The seller contact dialog before the buyer adds an item.",
+            "/starcrossedseeds/unpredictable",
+            false,
+          ),
+          buyerState(
+            "buyer-contact-cart",
+            "Contact form with cart",
+            "The request dialog with one realistically priced listing and subtotal.",
+            "/starcrossedseeds/unpredictable",
+            false,
+          ),
+          buyerState(
+            "buyer-cart-quantity",
+            "Adjusted cart quantity",
+            "The request after the buyer increases the listing quantity.",
+            "/starcrossedseeds/unpredictable",
+            false,
+          ),
+        ],
+      },
+      {
+        title: "Review the request",
+        states: [
+          buyerState(
+            "buyer-cart-removed",
+            "Cart item removed",
+            "The contact form after removing the only requested listing.",
+            "/starcrossedseeds/unpredictable",
+            false,
+          ),
+          buyerState(
+            "buyer-email-invalid",
+            "Invalid contact email",
+            "Inline validation for an invalid buyer email address.",
+            "/starcrossedseeds/unpredictable",
+            false,
+          ),
+          buyerState(
+            "buyer-ready-to-send",
+            "Message ready to send",
+            "A valid message-only inquiry ready for submission, without sending it.",
+            "/starcrossedseeds/unpredictable",
             false,
           ),
         ],

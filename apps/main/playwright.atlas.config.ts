@@ -34,7 +34,11 @@ export default defineConfig({
   projects: [
     {
       name: "anonymous",
-      testMatch: ["public-catalog.atlas.ts", "onboarding-membership.atlas.ts"],
+      testMatch: [
+        "public-catalog.atlas.ts",
+        "onboarding-membership.atlas.ts",
+        "buyer-inquiry.atlas.ts",
+      ],
     },
     {
       name: "member-auth",
