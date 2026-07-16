@@ -9,88 +9,142 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  lint-typecheck-unit:
-    name: Lint, Typecheck, Unit Tests
+  quality:
+    name: Lint and typecheck
     runs-on: ubuntu-latest
     steps:
       - name: Enable corepack
         run: corepack enable
-
       - uses: actions/checkout@v4
-
       - uses: actions/setup-node@v4
         with:
           node-version: 24
           cache: "pnpm"
           cache-dependency-path: pnpm-lock.yaml
-
       - run: pnpm fetch
       - run: pnpm install --frozen-lockfile --prefer-offline
-
+      - name: Restore ESLint cache
+        uses: actions/cache@v4
+        with:
+          path: apps/main/local/eslint/.eslintcache
+          key: eslint-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}-${{ github.sha }}
+          restore-keys: |
+            eslint-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}-
       - name: Lint
-        run: pnpm lint
-
+        run: pnpm main exec eslint src --cache --cache-location local/eslint/.eslintcache --cache-strategy content
       - name: Typecheck
         run: pnpm typecheck
 
-      - name: Unit Tests
-        run: pnpm test
+  vitest:
+    name: Vitest unit and integration tests (shard ${{ matrix.shard }}/2)
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2]
+    steps:
+      - name: Enable corepack
+        run: corepack enable
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: "pnpm"
+          cache-dependency-path: pnpm-lock.yaml
+      - run: pnpm fetch
+      - run: pnpm install --frozen-lockfile --prefer-offline
+      - name: Vitest unit and integration tests
+        run: pnpm main exec vitest run --shard=${{ matrix.shard }}/2
+
+  full-app-integration:
+    name: Full-app integration tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Enable corepack
+        run: corepack enable
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: "pnpm"
+          cache-dependency-path: pnpm-lock.yaml
+      - run: pnpm fetch
+      - run: pnpm install --frozen-lockfile --prefer-offline
+      - name: Restore Playwright browser cache
+        id: playwright-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+      - name: Install Playwright system dependencies
+        run: pnpm main exec playwright install-deps chromium
+      - name: Install Playwright browser
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        run: pnpm main exec playwright install chromium
+      - name: Run full-app integration tests
+        run: node apps/main/scripts/run-integration-local.mjs
+      - name: Upload Playwright artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: full-app-integration-artifacts
+          path: apps/main/tests/.tmp/integration-results
 
   e2e:
-    name: E2E Tests
+    name: Connected E2E tests (group ${{ matrix.group }}/3)
     runs-on: ubuntu-latest
-    # Skip E2E on forked PRs (secrets not available)
     if: github.event.pull_request.head.repo.fork != true
     environment: preview
+    strategy:
+      fail-fast: false
+      matrix:
+        group: [1, 2, 3]
     env:
       SKIP_ENV_VALIDATION: "1"
       DATABASE_URL: "file:./prisma/local-dev.sqlite"
       E2E_PORT: "3100"
-      # Clerk
       CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
       NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: ${{ vars.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY }}
-      # Stripe (use test keys)
       STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY }}
       STRIPE_PRICE_ID: ${{ vars.STRIPE_PRICE_ID }}
       STRIPE_WEBHOOK_SECRET: "whsec_test_placeholder"
-      # Clerk webhook (placeholder for env validation)
       CLERK_WEBHOOK_SECRET: "whsec_test_placeholder"
-      # AWS (placeholders - not used in tests)
       AWS_ACCESS_KEY_ID: "placeholder"
       AWS_SECRET_ACCESS_KEY: "placeholder"
       AWS_REGION: "us-east-1"
       AWS_BUCKET_NAME: "placeholder"
-      # Cloudflare (placeholder)
       NEXT_PUBLIC_CLOUDFLARE_URL: "https://placeholder.cloudflare.com"
     steps:
       - name: Enable corepack
         run: corepack enable
-
       - uses: actions/checkout@v4
-
       - uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: "pnpm"
           cache-dependency-path: pnpm-lock.yaml
-
       - run: pnpm fetch
       - run: pnpm install --frozen-lockfile --prefer-offline
-
-      - name: Install Playwright browsers
-        run: pnpm main exec playwright install --with-deps
-
+      - name: Restore Playwright browser cache
+        id: playwright-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+      - name: Install Playwright system dependencies
+        run: pnpm main exec playwright install-deps chromium
+      - name: Install Playwright browser
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        run: pnpm main exec playwright install chromium
       - name: Install sqlite3
         run: sudo apt-get update && sudo apt-get install -y sqlite3
-
-      - name: Run E2E tests
-        run: pnpm test:e2e
-
+      - name: Run connected E2E group
+        run: node apps/main/scripts/run-e2e-ci-group.mjs ${{ matrix.group }}
       - name: Upload Playwright artifacts
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: playwright-artifacts
+          name: playwright-artifacts-${{ matrix.group }}-of-3
           path: |
             apps/main/test-results
             apps/main/playwright-report

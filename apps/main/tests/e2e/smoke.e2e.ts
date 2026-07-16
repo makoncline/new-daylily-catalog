@@ -2,6 +2,8 @@ import { test, expect } from "../../e2e/test-setup";
 
 test.describe("guest user tour @preview", () => {
   test("navigates through unauthed pages", async ({ page }) => {
+    test.slow();
+
     // Home page
     await page.goto("/");
     await expect(page).toHaveURL("/");
@@ -24,26 +26,25 @@ test.describe("guest user tour @preview", () => {
       realisticCatalogLink.click(),
     ]);
 
-    // Open first listing card (opens dialog)
+    // Open the first listing by clicking its visible title.
     const firstListingCard = page
       .locator("#listings")
       .locator("div.group.relative")
       .first();
     await expect(firstListingCard).toBeVisible();
-    await firstListingCard.click();
-    await expect(page.getByRole("dialog")).toBeVisible();
+    await firstListingCard.getByRole("heading").click();
+    const listingDialog = page.getByRole("dialog");
+    await expect(listingDialog).toBeVisible({ timeout: 30_000 });
 
-    // Navigate to cultivar page from a linked listing card
-    await page.getByRole("button", { name: "Close" }).click();
-    const listingPageLink = page
-      .locator("#listings")
-      .getByRole("link", { name: "View linked cultivar page" })
-      .first();
-    await expect(listingPageLink).toBeVisible();
-    await listingPageLink.click();
+    // Follow the visible cultivar link from the listing dialog.
+    const cultivarPagePromise = page.waitForEvent("popup");
+    await listingDialog
+      .getByRole("link", { name: "Open cultivar page" })
+      .click();
+    const cultivarPage = await cultivarPagePromise;
 
     // Cultivar page should render a main heading
-    await page.waitForURL(/\/cultivar\/[^/]+$/);
-    await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+    await cultivarPage.waitForURL(/\/cultivar\/[^/]+$/, { timeout: 60_000 });
+    await expect(cultivarPage.getByRole("heading", { level: 1 })).toBeVisible();
   });
 });

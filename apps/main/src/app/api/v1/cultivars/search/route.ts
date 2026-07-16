@@ -135,6 +135,7 @@ export async function GET(request: Request) {
   try {
     const summaryLimit = summaryMode ? getSummaryLimit(searchParams) : null;
     const results = await searchCultivars({
+      award: searchParams.get("award") ?? undefined,
       baseUrl: getRequestBaseUrl(request) ?? getCanonicalBaseUrl(),
       bloomHabit: searchParams.get("bloomHabit") ?? undefined,
       bloomSizeMax: getNumberParam(searchParams, "bloomSizeMax"),

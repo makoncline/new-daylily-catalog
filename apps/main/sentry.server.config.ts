@@ -6,6 +6,7 @@ import * as Sentry from "@sentry/nextjs";
 import { SENTRY_DSN } from "./src/lib/sentry-config";
 import {
   getRuntimeSentryEnabled,
+  getRuntimeSentryEnvironment,
   getRuntimeSentryRelease,
 } from "./src/lib/observability-env";
 
@@ -15,7 +16,7 @@ const isProduction = process.env.NODE_ENV === "production";
 if (isSentryEnabled) {
   Sentry.init({
     dsn: SENTRY_DSN,
-    environment: process.env.NODE_ENV,
+    environment: getRuntimeSentryEnvironment(),
     release: getRuntimeSentryRelease() ?? undefined,
 
     // Enable logs to be sent to Sentry

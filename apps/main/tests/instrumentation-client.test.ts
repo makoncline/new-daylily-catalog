@@ -57,6 +57,7 @@ describe("instrumentation-client", () => {
           sentry: {
             enabled: true,
             dsn: "https://public@example.com/1",
+            environment: "preview",
             release: "0123456789abcdef",
           },
         }),
@@ -74,6 +75,7 @@ describe("instrumentation-client", () => {
       expect(initMock).toHaveBeenCalledWith(
         expect.objectContaining({
           dsn: "https://public@example.com/1",
+          environment: "preview",
           release: "0123456789abcdef",
         }),
       );

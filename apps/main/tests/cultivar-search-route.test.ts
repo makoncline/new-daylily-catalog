@@ -71,14 +71,16 @@ describe("public cultivar search route", () => {
     const { GET } = await import("@/app/api/v1/cultivars/search/route");
     const response = await GET(
       new Request(
-        "https://daylilycatalog.com/api/v1/cultivars/search?mode=summary&q=Stell&limit=24&offset=24&hasCultivarPhoto=true&photosFirst=true&sort=name",
+        "https://daylilycatalog.com/api/v1/cultivars/search?mode=summary&q=Stell&limit=24&offset=24&award=HM&hybridizer=Reed%7CStone&hasCultivarPhoto=true&photosFirst=true&sort=name",
         { headers: { "cf-ray": "cultivar-search-request" } },
       ),
     );
 
     expect(searchCultivarsMock).toHaveBeenCalledWith(
       expect.objectContaining({
+        award: "HM",
         hasCultivarPhoto: true,
+        hybridizer: "Reed|Stone",
         includeParentageTrees: false,
         limit: 25,
         listingLimit: 0,
@@ -108,11 +110,12 @@ describe("public cultivar search route", () => {
 
     const rawLog = infoMock.mock.calls.at(-1)?.[0];
     expect(JSON.parse(String(rawLog))).toMatchObject({
-      active_filters: "has_cultivar_photo",
+      active_filters: "award|has_cultivar_photo|hybridizer",
       component: "public-cultivar-search",
       event: "public_cultivar_search_request",
-      filter_count: 1,
+      filter_count: 3,
       has_cultivar_photo: true,
+      hybridizer: "reed|stone",
       has_more: true,
       http_status: 200,
       mode: "summary",
@@ -124,6 +127,7 @@ describe("public cultivar search route", () => {
       request_id: "cultivar-search-request",
       results_returned: 24,
       sort: "name",
+      award: "hm",
       source_surface: "public_page",
       status: "success",
     });

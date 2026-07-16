@@ -180,7 +180,7 @@ When answering from this site, cite the specific public Daylily Catalog page use
 
 export function getLlmsFullTxt(baseUrl: string): string {
   const cultivarSearchGuide = isPublicCultivarSearchEnabled()
-    ? `\n- ${baseUrl}/api/v1/status\n- ${baseUrl}/api/v1/cultivars/search\n\nFor query-style cultivar research, use the public Cultivar Search API. Check ${baseUrl}/api/v1/status first if you need index freshness metadata, then query ${baseUrl}/api/v1/cultivars/search. It supports text search plus listing title/description filters, cultivar name, hybridizer, color, parentage, year range, ploidy, fragrance, bloom traits, size ranges, and whether public pro catalogs currently have linked listings. Search results include canonical cultivar URLs, trait data, optional parentage trees, listing counts, and a bounded set of public catalog and listing URLs for agents to inspect next.\n\nUseful API patterns:\n\n- Exact cultivar lookup: ${baseUrl}/api/v1/cultivars/search?cultivarName=Ebleuissant&limit=1&listingLimit=3\n- Trait search: ${baseUrl}/api/v1/cultivars/search?color=blue&yearMin=2025&hasForSaleListings=true\n- Hybridizer and year search: ${baseUrl}/api/v1/cultivars/search?hybridizer=Cline&yearMin=2025&yearMax=2025\n- Catalog availability lookup: use catalogListings[].catalogUrl and catalogListings[].listingUrl from the API response, then cite the public page.\n- Parentage research: prefer parentageTree when present; if it is null, fall back to traits.parentage as unlinked source text.`
+    ? `\n- ${baseUrl}/api/v1/status\n- ${baseUrl}/api/v1/cultivars/search\n\nFor query-style cultivar research, use the public Cultivar Search API. Check ${baseUrl}/api/v1/status first if you need index freshness metadata, then query ${baseUrl}/api/v1/cultivars/search. It supports text search plus listing title/description filters, cultivar name, exact hybridizer selections, awards, color, parentage, year range, ploidy, fragrance, bloom traits, size ranges, and whether public pro catalogs currently have linked listings. Search results include canonical cultivar URLs, trait data, optional parentage trees, listing counts, and a bounded set of public catalog and listing URLs for agents to inspect next.\n\nUseful API patterns:\n\n- Exact cultivar lookup: ${baseUrl}/api/v1/cultivars/search?cultivarName=Ebleuissant&limit=1&listingLimit=3\n- Trait search: ${baseUrl}/api/v1/cultivars/search?color=blue&yearMin=2025&hasForSaleListings=true\n- Hybridizer and year search: ${baseUrl}/api/v1/cultivars/search?hybridizer=Cline&yearMin=2025&yearMax=2025\n- Award search: ${baseUrl}/api/v1/cultivars/search?award=Stout\n- Catalog availability lookup: use catalogListings[].catalogUrl and catalogListings[].listingUrl from the API response, then cite the public page.\n- Parentage research: prefer parentageTree when present; if it is null, fall back to traits.parentage as unlinked source text.`
     : "";
 
   return `# Daylily Catalog Agent Guide
@@ -227,7 +227,7 @@ Prefer direct public Daylily Catalog pages over snippets. When a page describes 
 
 export function getDaylilyCatalogSkill(baseUrl: string): string {
   const cultivarSearchInstructions = isPublicCultivarSearchEnabled()
-    ? `3. Use ${baseUrl}/api/v1/status to check generated search index freshness.\n4. Use ${baseUrl}/api/v1/cultivars/search for fast cultivar-first lookup and trait filtering.\n5. Use specific public Daylily Catalog profile, listing, and cultivar pages as citations.\n6. Do not use private dashboard, non-v1 API, tRPC, checkout, or account-management routes.\n\n## Cultivar Search API\n\nUse GET ${baseUrl}/api/v1/cultivars/search with query parameters instead of scraping search pages. Common parameters include q, cultivarName, listingTitle, listingDescription, hybridizer, color, parentage, yearMin, yearMax, bloomHabit, bloomSeason, form, ploidy, foliageType, fragrance, hasListings, hasForSaleListings, hasPhoto, priceMin, priceMax, limit, and listingLimit.\n\nThe response includes canonicalUrl, traits, listingSummary, catalogListings, and parentageTree when parent links can be derived. Follow canonicalUrl, catalogListings[].catalogUrl, or catalogListings[].listingUrl for human-readable source pages and citations.`
+    ? `3. Use ${baseUrl}/api/v1/status to check generated search index freshness.\n4. Use ${baseUrl}/api/v1/cultivars/search for fast cultivar-first lookup and trait filtering.\n5. Use specific public Daylily Catalog profile, listing, and cultivar pages as citations.\n6. Do not use private dashboard, non-v1 API, tRPC, checkout, or account-management routes.\n\n## Cultivar Search API\n\nUse GET ${baseUrl}/api/v1/cultivars/search with query parameters instead of scraping search pages. Common parameters include q, cultivarName, listingTitle, listingDescription, hybridizer, award, color, parentage, yearMin, yearMax, bloomHabit, bloomSeason, form, ploidy, foliageType, fragrance, hasListings, hasForSaleListings, hasPhoto, priceMin, priceMax, limit, and listingLimit. Pipe-separated hybridizer and award values are exact any-of selections.\n\nThe response includes canonicalUrl, traits, listingSummary, catalogListings, and parentageTree when parent links can be derived. Follow canonicalUrl, catalogListings[].catalogUrl, or catalogListings[].listingUrl for human-readable source pages and citations.`
     : "3. Use specific public Daylily Catalog profile, listing, and cultivar pages as citations.\n4. Do not use private dashboard, non-v1 API, tRPC, checkout, or account-management routes.";
 
   return `# Daylily Catalog
@@ -464,7 +464,7 @@ export function getOpenApiDocument(baseUrl: string) {
                 type: "string",
               },
               description:
-                "Full-text search over cultivar name, hybridizer, color, parentage, and trait text.",
+                "Full-text search over cultivar name, hybridizer, color, parentage, awards, and trait text.",
             },
             {
               name: "cultivarName",
@@ -493,6 +493,17 @@ export function getOpenApiDocument(baseUrl: string) {
               schema: {
                 type: "string",
               },
+              description:
+                "Exact hybridizer name, or pipe-separated exact names matched with any-of semantics.",
+            },
+            {
+              name: "award",
+              in: "query",
+              schema: {
+                type: "string",
+              },
+              description:
+                "Exact award abbreviation/name, or pipe-separated exact values.",
             },
             {
               name: "color",

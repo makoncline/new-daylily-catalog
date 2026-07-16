@@ -155,6 +155,8 @@ ATTACH DATABASE ${quoteSqlString(sourcePath)} AS source;
 
 DROP TABLE IF EXISTS SearchIndexMeta;
 DROP TABLE IF EXISTS CultivarSearchIndex;
+DROP TABLE IF EXISTS CultivarSearchFacetValue;
+DROP TABLE IF EXISTS CultivarSearchAward;
 DROP TABLE IF EXISTS CultivarListingSearchIndex;
 DROP TABLE IF EXISTS CultivarSearchFts;
 
@@ -173,6 +175,7 @@ CREATE TABLE CultivarSearchIndex (
   hybridizer TEXT,
   hybridizerSearch TEXT,
   yearInt INTEGER,
+  seedlingNumber TEXT,
   scapeHeightIn REAL,
   bloomSizeIn REAL,
   budCount INTEGER,
@@ -187,6 +190,13 @@ CREATE TABLE CultivarSearchIndex (
   color TEXT,
   parentage TEXT,
   rebloom INTEGER,
+  doublePercentage REAL,
+  polymerousPercentage REAL,
+  spiderRatio REAL,
+  petalLengthIn REAL,
+  petalWidthIn REAL,
+  awardNames TEXT,
+  awardsJson TEXT,
   imageUrl TEXT,
   generatedImageAssetId TEXT,
   generatedImageUrl TEXT,
@@ -198,6 +208,20 @@ CREATE TABLE CultivarSearchIndex (
   listingCount INTEGER NOT NULL,
   forSaleListingCount INTEGER NOT NULL,
   sourceUpdatedAt TEXT NOT NULL
+);
+
+CREATE TABLE CultivarSearchFacetValue (
+  facet TEXT NOT NULL,
+  value TEXT NOT NULL,
+  valueSearch TEXT NOT NULL,
+  count INTEGER NOT NULL,
+  PRIMARY KEY (facet, value)
+);
+
+CREATE TABLE CultivarSearchAward (
+  cultivarId INTEGER NOT NULL,
+  valueSearch TEXT NOT NULL,
+  PRIMARY KEY (cultivarId, valueSearch)
 );
 
 CREATE TABLE CultivarListingSearchIndex (
@@ -266,6 +290,7 @@ INSERT INTO CultivarSearchIndex (
   hybridizer,
   hybridizerSearch,
   yearInt,
+  seedlingNumber,
   scapeHeightIn,
   bloomSizeIn,
   budCount,
@@ -280,6 +305,13 @@ INSERT INTO CultivarSearchIndex (
   color,
   parentage,
   rebloom,
+  doublePercentage,
+  polymerousPercentage,
+  spiderRatio,
+  petalLengthIn,
+  petalWidthIn,
+  awardNames,
+  awardsJson,
   imageUrl,
   generatedImageAssetId,
   generatedImageUrl,
@@ -312,6 +344,7 @@ SELECT
     WHEN v2."introduction_date" GLOB '[12][0-9][0-9][0-9]*' THEN CAST(substr(v2."introduction_date", 1, 4) AS INTEGER)
     ELSE NULL
   END,
+  NULLIF(TRIM(v2."seedling_number"), ''),
   v2."scape_height_in",
   v2."bloom_size_in",
   v2."bud_count",
@@ -336,6 +369,29 @@ SELECT
   NULLIF(TRIM(v2."color"), ''),
   NULLIF(TRIM(v2."parentage"), ''),
   v2."rebloom",
+  v2."double_percentage",
+  v2."polymerous_percentage",
+  v2."spider_ratio",
+  v2."petal_length_in",
+  v2."petal_width_in",
+  (
+    SELECT group_concat(awardName, '|')
+    FROM (
+      SELECT DISTINCT NULLIF(TRIM(json_extract(award.value, '$.name')), '') AS awardName
+      FROM json_each(
+        CASE
+          WHEN json_valid(v2."awards_json") THEN v2."awards_json"
+          ELSE '[]'
+        END
+      ) award
+      WHERE NULLIF(TRIM(json_extract(award.value, '$.name')), '') IS NOT NULL
+      ORDER BY awardName COLLATE NOCASE
+    )
+  ),
+  CASE
+    WHEN json_valid(v2."awards_json") THEN v2."awards_json"
+    ELSE NULL
+  END,
   COALESCE(
     NULLIF(TRIM(v2."image_url"), ''),
     NULLIF(TRIM(ahs."ahsImageUrl"), '')
@@ -370,6 +426,38 @@ LEFT JOIN listing_counts lc ON lc."cultivarReferenceId" = cr."id"
 LEFT JOIN generated_cultivar_images gci ON gci."cultivarReferenceId" = cr."id"
 WHERE cr."normalizedName" IS NOT NULL
   AND COALESCE(NULLIF(TRIM(v2."post_title"), ''), cr."normalizedName") IS NOT NULL;
+
+INSERT INTO CultivarSearchFacetValue (facet, value, valueSearch, count)
+SELECT
+  'hybridizer',
+  hybridizer,
+  lower(hybridizer),
+  COUNT(*)
+FROM CultivarSearchIndex
+WHERE hybridizer IS NOT NULL
+GROUP BY hybridizer;
+
+INSERT INTO CultivarSearchFacetValue (facet, value, valueSearch, count)
+SELECT
+  'award',
+  NULLIF(TRIM(json_extract(award.value, '$.name')), ''),
+  lower(NULLIF(TRIM(json_extract(award.value, '$.name')), '')),
+  COUNT(*)
+FROM CultivarSearchIndex i
+JOIN json_each(COALESCE(i.awardsJson, '[]')) award
+WHERE NULLIF(TRIM(json_extract(award.value, '$.name')), '') IS NOT NULL
+GROUP BY NULLIF(TRIM(json_extract(award.value, '$.name')), '');
+
+INSERT INTO CultivarSearchAward (cultivarId, valueSearch)
+SELECT
+  i.id,
+  lower(NULLIF(TRIM(json_extract(award.value, '$.name')), ''))
+FROM CultivarSearchIndex i
+JOIN json_each(COALESCE(i.awardsJson, '[]')) award
+WHERE NULLIF(TRIM(json_extract(award.value, '$.name')), '') IS NOT NULL
+GROUP BY
+  i.id,
+  lower(NULLIF(TRIM(json_extract(award.value, '$.name')), ''));
 
 WITH active_pro_users AS (
   SELECT u."id"
@@ -429,17 +517,41 @@ CREATE VIRTUAL TABLE CultivarSearchFts USING fts5(
   hybridizer,
   color,
   parentage,
+  awardNames,
   content='CultivarSearchIndex',
   content_rowid='id',
   tokenize='unicode61 remove_diacritics 2'
 );
 
-INSERT INTO CultivarSearchFts(rowid, displayName, normalizedName, hybridizer, color, parentage)
-SELECT id, displayName, normalizedName, hybridizer, color, parentage
+INSERT INTO CultivarSearchFts(
+  rowid,
+  displayName,
+  normalizedName,
+  hybridizer,
+  color,
+  parentage,
+  awardNames
+)
+SELECT
+  id,
+  displayName,
+  normalizedName,
+  hybridizer,
+  color,
+  parentage,
+  awardNames
 FROM CultivarSearchIndex;
 
 CREATE INDEX CultivarSearchIndex_yearInt_idx
   ON CultivarSearchIndex(yearInt);
+
+CREATE INDEX CultivarSearchIndex_hybridizer_name_order_idx
+  ON CultivarSearchIndex(
+    hybridizerSearch,
+    (substr(ltrim(displayName), 1, 1) GLOB '[0-9]') ASC,
+    displayName COLLATE NOCASE ASC,
+    id ASC
+  );
 
 CREATE INDEX CultivarSearchIndex_bloomSizeIn_idx
   ON CultivarSearchIndex(bloomSizeIn);
@@ -486,9 +598,23 @@ CREATE INDEX CultivarSearchIndex_photo_name_order_idx
   ON CultivarSearchIndex(
     (generatedImageUrl IS NOT NULL) DESC,
     hasImage DESC,
+    (substr(ltrim(displayName), 1, 1) GLOB '[0-9]') ASC,
     displayName COLLATE NOCASE ASC,
     id ASC
   );
+
+CREATE INDEX CultivarSearchIndex_name_order_idx
+  ON CultivarSearchIndex(
+    (substr(ltrim(displayName), 1, 1) GLOB '[0-9]') ASC,
+    displayName COLLATE NOCASE ASC,
+    id ASC
+  );
+
+CREATE INDEX CultivarSearchFacetValue_search_idx
+  ON CultivarSearchFacetValue(facet, valueSearch, count DESC);
+
+CREATE INDEX CultivarSearchAward_value_cultivar_idx
+  ON CultivarSearchAward(valueSearch, cultivarId);
 
 CREATE INDEX CultivarListingSearchIndex_cultivarReferenceId_idx
   ON CultivarListingSearchIndex(cultivarReferenceId);
@@ -507,7 +633,7 @@ CREATE INDEX CultivarListingSearchIndex_hasPhoto_idx
 
 INSERT INTO SearchIndexMeta(key, value)
 VALUES
-  ('schemaVersion', '10'),
+  ('schemaVersion', '11'),
   ('builtAt', strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
   ('sourcePath', ${quoteSqlString(sourcePath)});
 ANALYZE;

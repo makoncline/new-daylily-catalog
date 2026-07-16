@@ -106,11 +106,18 @@ The plugin version in the path can change. If the file is missing, locate the
 current helper under the installed Sentry plugin rather than copying the script
 into this repository.
 
-### Interpretation caveat
+### Environments
 
-Sentry's `production` environment can include events from
-`*.deploy-preview.daylilycatalog.com`. Before calling an issue a live customer
-problem, inspect the event URL or host and confirm it is `daylilycatalog.com`.
+New events are separated into:
+
+- `production` for the VPS deployment
+- `preview` for Vercel preview deployments
+- `prod-like` for the local production-like Docker workflow
+
+Events captured before this separation was deployed can still include
+`*.deploy-preview.daylilycatalog.com` under `production`. For older events,
+inspect the event URL or host before treating an issue as a live customer
+problem.
 
 ## PostHog
 

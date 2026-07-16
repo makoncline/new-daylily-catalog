@@ -1,6 +1,7 @@
 const NEXT_PUBLIC_PREFIX = "NEXT_PUBLIC";
 
 const SENTRY_ENABLED_ENV_NAME = `${NEXT_PUBLIC_PREFIX}_SENTRY_ENABLED`;
+const SENTRY_ENVIRONMENT_ENV_NAME = "SENTRY_ENVIRONMENT";
 const SENTRY_RELEASE_ENV_NAME = "SENTRY_RELEASE";
 const POSTHOG_KEY_ENV_NAME = `${NEXT_PUBLIC_PREFIX}_POSTHOG_KEY`;
 const POSTHOG_HOST_ENV_NAME = `${NEXT_PUBLIC_PREFIX}_POSTHOG_HOST`;
@@ -56,6 +57,22 @@ export function getObservabilityStatus() {
 
 export function getRuntimeSentryEnabled() {
   return getObservabilityStatus().sentry.enabled;
+}
+
+export function getRuntimeSentryEnvironment() {
+  const configuredEnvironment = readRuntimeEnv(
+    SENTRY_ENVIRONMENT_ENV_NAME,
+  )?.trim();
+  if (configuredEnvironment) {
+    return configuredEnvironment;
+  }
+
+  const vercelEnvironment = readRuntimeEnv("VERCEL_ENV")?.trim();
+  if (vercelEnvironment) {
+    return vercelEnvironment;
+  }
+
+  return readRuntimeEnv("NODE_ENV") ?? "development";
 }
 
 export function getRuntimeSentryRelease() {
@@ -128,6 +145,7 @@ function logObservabilityStatusOnce(status: ObservabilityStatus) {
       event: "observability_status",
       nodeEnv: process.env.NODE_ENV ?? null,
       vercelEnv: process.env.VERCEL_ENV ?? null,
+      sentryEnvironment: getRuntimeSentryEnvironment(),
       sentry: status.sentry,
       posthog: status.posthog,
     }),
