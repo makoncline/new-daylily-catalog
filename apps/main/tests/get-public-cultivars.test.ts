@@ -4,7 +4,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const mockDb = vi.hoisted(() => ({
   cultivarReference: {
+    count: vi.fn(),
     findFirst: vi.fn(),
+    findMany: vi.fn(),
+  },
+  v2AhsCultivar: {
     findMany: vi.fn(),
   },
   list: {
@@ -37,6 +41,7 @@ import {
   buildPublicCultivarGardenPhotosFromListingCards,
   buildPublicCultivarOffersFromListingCards,
   getCultivarSitemapEntries,
+  getCultivarSitemapEntryCount,
   getPublicCultivarPage,
 } from "@/server/db/getPublicCultivars";
 import { applyWhereIn } from "./test-utils/apply-where-in";
@@ -70,6 +75,7 @@ describe("getPublicCultivarPage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     process.env.NEXT_PUBLIC_CLOUDFLARE_URL = "https://cf.daylilycatalog.com";
+    mockDb.v2AhsCultivar.findMany.mockResolvedValue([]);
     mockGetActiveProUserIdsForUserIds.mockResolvedValue([]);
     mockGetProUserIds.mockResolvedValue([]);
     mockDb.list.groupBy.mockResolvedValue([]);
@@ -381,6 +387,33 @@ describe("getPublicCultivarPage", () => {
     ];
 
     mockDb.user.findMany.mockResolvedValue(sellerRows);
+    mockDb.v2AhsCultivar.findMany.mockResolvedValue([
+      {
+        id: "v2-isle-of-wight",
+        post_title: "Isle of Wight",
+        introduction_date: "2007-01-01",
+        primary_hybridizer_name: "Reed",
+        hybridizer_code_legacy: null,
+        additional_hybridizers_names: null,
+        bloom_season_names: "Early",
+        fragrance_names: null,
+        bloom_habit_names: null,
+        foliage_names: null,
+        ploidy_names: null,
+        scape_height_in: null,
+        bloom_size_in: null,
+        bud_count: null,
+        branches: null,
+        color: "Peach",
+        flower_form_names: null,
+        unusual_forms_names: null,
+        parentage: null,
+        image_url: "https://example.com/isle.jpg",
+        cultivarReference: {
+          normalizedName: "isle of wight",
+        },
+      },
+    ]);
     mockDb.listing.groupBy.mockResolvedValue(
       sellerRows.map((seller) => ({
         userId: seller.id,
@@ -494,8 +527,27 @@ describe("getPublicCultivarPage", () => {
       }),
     );
 
-    expect(mockDb.cultivarReference.findMany).not.toHaveBeenCalled();
-    expect(result?.relatedByHybridizer).toEqual([]);
+    expect(mockDb.v2AhsCultivar.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          OR: [{ primary_hybridizer_name: "Reed" }],
+          AND: [{ image_url: { not: null } }],
+          cultivarReference: {
+            is: expect.objectContaining({
+              id: { not: "cultivar-1" },
+            }),
+          },
+        }),
+        take: 5,
+      }),
+    );
+    expect(result?.relatedByHybridizer).toEqual([
+      expect.objectContaining({
+        name: "Isle of Wight",
+        segment: "isle-of-wight",
+        imageUrl: "https://example.com/isle.jpg",
+      }),
+    ]);
 
     expect(result?.freshness.offersUpdatedAt).toEqual(
       new Date("2026-01-15T00:00:00.000Z"),
@@ -579,7 +631,77 @@ describe("getPublicCultivarPage", () => {
       id: "ahs-v2-1",
       url: "https://example.com/v2.jpg",
     });
-    expect(mockDb.cultivarReference.findMany).not.toHaveBeenCalled();
+    expect(mockDb.v2AhsCultivar.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          OR: [{ primary_hybridizer_name: "V2 Hybridizer" }],
+        }),
+      }),
+    );
+  });
+
+  it("keeps modern hybridizer ids distinct while including legacy-only peers", async () => {
+    mockDb.cultivarReference.findFirst.mockResolvedValue({
+      id: "cultivar-modern-hybridizer",
+      normalizedName: "voellig losgeloest",
+      updatedAt: new Date("2026-01-05T00:00:00.000Z"),
+      v2AhsCultivar: {
+        id: "v2-modern-hybridizer",
+        post_title: "Voellig Losgeloest",
+        primary_hybridizer_id: "180114",
+        primary_hybridizer_name: "Frank Schueler",
+        hybridizer_code_legacy: "Schueler",
+        image_url: "https://example.com/voellig.jpg",
+      },
+    });
+    mockDb.listing.findMany.mockResolvedValue([]);
+    mockDb.user.findMany.mockResolvedValue([]);
+    mockDb.v2AhsCultivar.findMany.mockResolvedValue([
+      {
+        id: "v2-legacy-peer",
+        post_title: "Legacy Schueler Peer",
+        primary_hybridizer_id: null,
+        primary_hybridizer_name: null,
+        hybridizer_code_legacy: "Schueler",
+        image_url: "https://example.com/legacy-peer.jpg",
+        cultivarReference: {
+          id: "cultivar-legacy-peer",
+          normalizedName: "legacy schueler peer",
+        },
+      },
+    ]);
+
+    const result = await getPublicCultivarPage("voellig-losgeloest");
+
+    expect(result?.relatedByHybridizer).toEqual([
+      expect.objectContaining({
+        name: "Legacy Schueler Peer",
+        segment: "legacy-schueler-peer",
+      }),
+    ]);
+    expect(mockDb.v2AhsCultivar.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        orderBy: {
+          cultivarReference: {
+            normalizedName: "asc",
+          },
+        },
+        where: expect.objectContaining({
+          OR: [
+            { primary_hybridizer_id: "180114" },
+            {
+              primary_hybridizer_id: null,
+              primary_hybridizer_name: "Frank Schueler",
+            },
+            {
+              primary_hybridizer_id: null,
+              primary_hybridizer_name: null,
+              hybridizer_code_legacy: "Schueler",
+            },
+          ],
+        }),
+      }),
+    );
   });
 
   it("uses generated cultivar ImageAsset hero images when enabled", async () => {
@@ -660,6 +782,99 @@ describe("getPublicCultivarPage", () => {
     });
   });
 
+  it("includes related cultivars that only have a generated image", async () => {
+    process.env.USE_GENERATED_CULTIVAR_IMAGE_ASSETS = "true";
+
+    mockDb.cultivarReference.findFirst.mockResolvedValue({
+      id: "cultivar-silver-butterfly",
+      normalizedName: "silver butterfly",
+      updatedAt: new Date("2026-01-05T00:00:00.000Z"),
+      v2AhsCultivar: {
+        id: "v2-silver-butterfly",
+        post_title: "Silver Butterfly",
+        primary_hybridizer_id: null,
+        primary_hybridizer_name: null,
+        hybridizer_code_legacy: "Schlumpf",
+        image_url: "https://example.com/silver-butterfly.jpg",
+      },
+      imageAssets: [],
+    });
+    mockDb.listing.findMany.mockResolvedValue([]);
+    mockDb.user.findMany.mockResolvedValue([]);
+    mockDb.v2AhsCultivar.findMany.mockResolvedValue([
+      {
+        id: "v2-black-knight",
+        post_title: "Black Knight",
+        primary_hybridizer_id: null,
+        primary_hybridizer_name: null,
+        hybridizer_code_legacy: "Schlumpf",
+        image_url: null,
+        cultivarReference: {
+          id: "cultivar-black-knight",
+          normalizedName: "black knight",
+          imageAssets: [
+            {
+              id: "asset-black-knight",
+              legacyImageId: null,
+              status: "ready",
+              originalUrl:
+                "https://media.daylilycatalog.com/black-knight/original.png",
+              displayUrl:
+                "https://media.daylilycatalog.com/black-knight/display-800.webp",
+              thumbUrl:
+                "https://media.daylilycatalog.com/black-knight/thumb-200.webp",
+              blurUrl:
+                "https://media.daylilycatalog.com/black-knight/blur-20.webp",
+            },
+          ],
+        },
+      },
+    ]);
+
+    const result = await getPublicCultivarPage("silver-butterfly");
+
+    expect(result?.relatedByHybridizer).toEqual([
+      expect.objectContaining({
+        name: "Black Knight",
+        segment: "black-knight",
+        imageUrl:
+          "https://media.daylilycatalog.com/black-knight/display-800.webp",
+      }),
+    ]);
+    expect(mockDb.v2AhsCultivar.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          AND: [
+            {
+              OR: [
+                { image_url: { not: null } },
+                {
+                  cultivarReference: {
+                    is: {
+                      imageAssets: {
+                        some: {
+                          kind: "cultivar",
+                          status: "ready",
+                        },
+                      },
+                    },
+                  },
+                },
+              ],
+            },
+          ],
+        }),
+        select: expect.objectContaining({
+          cultivarReference: {
+            select: expect.objectContaining({
+              imageAssets: expect.any(Object),
+            }),
+          },
+        }),
+      }),
+    );
+  });
+
   it("uses the decoded legacy hybridizer fallback on the public cultivar page when V2 primary is blank", async () => {
     mockDb.cultivarReference.findFirst.mockResolvedValue({
       id: "cultivar-v2-fallback",
@@ -728,6 +943,13 @@ describe("getPublicCultivarPage", () => {
       ahsImageUrl: null,
     });
     expect(result?.heroImages).toEqual([]);
+    expect(mockDb.v2AhsCultivar.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          OR: [{ hybridizer_code_legacy: "Gregory-CJ &amp; V." }],
+        }),
+      }),
+    );
   });
 
   it("resolves slugified segments back to punctuation-heavy cultivar names", async () => {
@@ -867,84 +1089,54 @@ describe("getCultivarSitemapEntries", () => {
     vi.clearAllMocks();
   });
 
-  it("uses cultivar/listing updated times and keeps exact route segment ordering stable", async () => {
-    mockGetProUserIds.mockResolvedValue(["user-pro"]);
-
-    const listingRows = [
+  it("pages through every routable cultivar on the replica without requiring a public listing", async () => {
+    mockDb.cultivarReference.count.mockResolvedValue(104_000);
+    const cultivarRows = [
       {
-        userId: "user-pro",
-        updatedAt: new Date("2026-01-03T00:00:00.000Z"),
-        cultivarReference: {
-          normalizedName: "coffee frenzy",
-          updatedAt: new Date("2026-01-01T00:00:00.000Z"),
-        },
+        normalizedName: "50,000 watts",
       },
       {
-        userId: "user-pro",
-        updatedAt: new Date("2026-01-02T00:00:00.000Z"),
-        cultivarReference: {
-          normalizedName: "coffee-frenzy",
-          updatedAt: new Date("2026-01-02T00:00:00.000Z"),
-        },
+        normalizedName: "aerial appliqué",
       },
       {
-        userId: "user-pro",
-        updatedAt: new Date("2026-01-04T00:00:00.000Z"),
-        cultivarReference: {
-          normalizedName: "apple blossom",
-          updatedAt: new Date("2026-01-05T00:00:00.000Z"),
-        },
-      },
-      {
-        userId: "user-free",
-        updatedAt: new Date("2026-01-08T00:00:00.000Z"),
-        cultivarReference: {
-          normalizedName: "aerial appliqué",
-          updatedAt: new Date("2026-01-06T00:00:00.000Z"),
-        },
-      },
-      {
-        userId: "user-pro",
-        updatedAt: new Date("2026-01-07T00:00:00.000Z"),
-        cultivarReference: {
-          normalizedName: "50,000 watts",
-          updatedAt: new Date("2026-01-07T00:00:00.000Z"),
-        },
+        normalizedName: "coffee frenzy",
       },
     ];
-    mockDb.listing.findMany.mockImplementation((args: unknown) =>
-      Promise.resolve(applyWhereIn(listingRows, args, "userId")),
-    );
+    mockDb.cultivarReference.findMany.mockResolvedValue(cultivarRows);
 
-    const result = await getCultivarSitemapEntries();
+    const [count, result] = await Promise.all([
+      getCultivarSitemapEntryCount(),
+      getCultivarSitemapEntries({
+        page: 2,
+        pageSize: 45_000,
+      }),
+    ]);
+
+    expect(count).toBe(104_000);
+    expect(mockDb.cultivarReference.count).toHaveBeenCalledWith({
+      where: { normalizedName: { not: null } },
+    });
 
     expect(result).toEqual([
       {
         segment: "50~2c000-watts",
-        lastModified: new Date("2026-01-07T00:00:00.000Z"),
       },
       {
-        segment: "apple-blossom",
-        lastModified: new Date("2026-01-05T00:00:00.000Z"),
+        segment: "aerial-applique",
       },
       {
         segment: "coffee-frenzy",
-        lastModified: new Date("2026-01-03T00:00:00.000Z"),
-      },
-      {
-        segment: "coffee~2dfrenzy",
-        lastModified: new Date("2026-01-02T00:00:00.000Z"),
       },
     ]);
 
-    expect(mockDb.listing.findMany).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: expect.objectContaining({
-          userId: {
-            in: ["user-pro"],
-          },
-        }),
-      }),
-    );
+    expect(mockDb.cultivarReference.findMany).toHaveBeenCalledWith({
+      where: { normalizedName: { not: null } },
+      select: { normalizedName: true },
+      orderBy: { normalizedName: "asc" },
+      skip: 90_000,
+      take: 45_000,
+    });
+    expect(mockDb.listing.findMany).not.toHaveBeenCalled();
+    expect(mockGetProUserIds).not.toHaveBeenCalled();
   });
 });
