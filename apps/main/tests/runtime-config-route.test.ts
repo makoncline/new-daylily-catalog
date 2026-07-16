@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 describe("runtime config route", () => {
   let previousSentryEnabled: string | undefined;
+  let previousSentryRelease: string | undefined;
   let previousPosthogKey: string | undefined;
   let previousPosthogHost: string | undefined;
   let previousClerkPublishableKey: string | undefined;
@@ -10,6 +11,7 @@ describe("runtime config route", () => {
 
   beforeEach(() => {
     previousSentryEnabled = process.env.NEXT_PUBLIC_SENTRY_ENABLED;
+    previousSentryRelease = process.env.SENTRY_RELEASE;
     previousPosthogKey = process.env.NEXT_PUBLIC_POSTHOG_KEY;
     previousPosthogHost = process.env.NEXT_PUBLIC_POSTHOG_HOST;
     previousClerkPublishableKey = process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY;
@@ -27,6 +29,12 @@ describe("runtime config route", () => {
       delete process.env.NEXT_PUBLIC_SENTRY_ENABLED;
     } else {
       process.env.NEXT_PUBLIC_SENTRY_ENABLED = previousSentryEnabled;
+    }
+
+    if (previousSentryRelease === undefined) {
+      delete process.env.SENTRY_RELEASE;
+    } else {
+      process.env.SENTRY_RELEASE = previousSentryRelease;
     }
 
     if (previousPosthogKey === undefined) {
@@ -57,6 +65,7 @@ describe("runtime config route", () => {
 
   it("returns runtime observability settings from server env", async () => {
     process.env.NEXT_PUBLIC_SENTRY_ENABLED = "false";
+    process.env.SENTRY_RELEASE = "0123456789abcdef";
     process.env.NEXT_PUBLIC_POSTHOG_KEY = "phc_runtime_key";
     process.env.NEXT_PUBLIC_POSTHOG_HOST = "https://eu.i.posthog.com";
     process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY = "pk_test_unit";
@@ -69,6 +78,7 @@ describe("runtime config route", () => {
       sentry: {
         enabled: false,
         dsn: "https://b3773458fec6aa0c594a9c1c73ed046a@o1136137.ingest.us.sentry.io/4508939597643776",
+        release: "0123456789abcdef",
       },
       posthog: {
         enabled: true,
@@ -78,7 +88,9 @@ describe("runtime config route", () => {
     });
 
     expect(consoleInfoMock).toHaveBeenCalledTimes(1);
-    expect(JSON.parse(consoleInfoMock.mock.calls[0]?.[0] as string)).toMatchObject({
+    expect(
+      JSON.parse(consoleInfoMock.mock.calls[0]?.[0] as string),
+    ).toMatchObject({
       event: "observability_status",
       sentry: {
         enabled: false,
@@ -92,6 +104,7 @@ describe("runtime config route", () => {
 
   it("returns disabled PostHog config when PostHog env is missing", async () => {
     process.env.NEXT_PUBLIC_SENTRY_ENABLED = "false";
+    delete process.env.SENTRY_RELEASE;
     delete process.env.NEXT_PUBLIC_POSTHOG_KEY;
     delete process.env.NEXT_PUBLIC_POSTHOG_HOST;
     process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY = "pk_test_unit";
@@ -103,6 +116,7 @@ describe("runtime config route", () => {
     await expect(response.json()).resolves.toMatchObject({
       sentry: {
         enabled: false,
+        release: null,
       },
       posthog: {
         enabled: false,

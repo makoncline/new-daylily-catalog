@@ -40,11 +40,15 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY --from=deps /app/apps/main/node_modules ./apps/main/node_modules
 COPY . .
 
-ENV NODE_ENV=production
 ARG BUILD_ENV_FINGERPRINT
+ARG GIT_COMMIT_SHA
+
+ENV NODE_ENV=production
+ENV SENTRY_RELEASE=$GIT_COMMIT_SHA
 
 RUN --mount=type=secret,id=app_env \
     : "${BUILD_ENV_FINGERPRINT:?BUILD_ENV_FINGERPRINT is required for Docker builds}" \
+    && : "${GIT_COMMIT_SHA:?GIT_COMMIT_SHA is required for Docker builds}" \
     && printf '%s' "$BUILD_ENV_FINGERPRINT" >/dev/null \
     && set -a \
     && . /run/secrets/app_env \
@@ -55,10 +59,13 @@ RUN --mount=type=secret,id=app_env \
 
 FROM base AS runner
 
+ARG GIT_COMMIT_SHA
+
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV HOSTNAME=0.0.0.0
 ENV PORT=3000
+ENV SENTRY_RELEASE=$GIT_COMMIT_SHA
 
 WORKDIR /app
 

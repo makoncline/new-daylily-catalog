@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import {
   getRuntimePosthogClientConfig,
   getRuntimeSentryEnabled,
+  getRuntimeSentryRelease,
 } from "@/lib/observability-env";
 import { SENTRY_DSN } from "@/lib/sentry-config";
 
@@ -15,6 +16,7 @@ export function GET() {
       sentry: {
         enabled: getRuntimeSentryEnabled(),
         dsn: SENTRY_DSN,
+        release: getRuntimeSentryRelease(),
       },
       posthog: posthogConfig
         ? {

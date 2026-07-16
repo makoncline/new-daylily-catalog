@@ -172,12 +172,18 @@ GitHub Actions now hashes the generated Docker build env and passes that fingerp
 
 ```sh
 IMAGE_TAG=main-$(git rev-parse --short=8 HEAD)
+GIT_COMMIT_SHA="$(git rev-parse HEAD)"
 BUILD_ENV_FINGERPRINT="$(sha256sum .env | cut -d' ' -f1)"
 docker build \
   --build-arg BUILD_ENV_FINGERPRINT="${BUILD_ENV_FINGERPRINT}" \
+  --build-arg GIT_COMMIT_SHA="${GIT_COMMIT_SHA}" \
   --secret id=app_env,src=.env \
   -t ghcr.io/makoncline/daylilycatalog:${IMAGE_TAG} .
 ```
+
+The full commit SHA is available as `SENTRY_RELEASE` during `next build` and in
+the final container. The runtime config endpoint passes that same value to the
+browser SDK so browser, Node.js, and edge events share one release.
 
 ### Minimum Verified CI Build Env
 
