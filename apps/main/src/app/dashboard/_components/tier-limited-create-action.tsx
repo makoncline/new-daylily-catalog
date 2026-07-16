@@ -25,6 +25,7 @@ type TierLimitedCreateActionProps = {
   buttonLabel: string;
   buttonTestId?: string;
   currentCount?: number;
+  disabled?: boolean;
   freeTierLimit: number;
   isPro: boolean;
   upgradeDialogBody: ReactNode;
@@ -37,6 +38,7 @@ export function TierLimitedCreateAction({
   buttonLabel,
   buttonTestId,
   currentCount,
+  disabled = false,
   freeTierLimit,
   isPro,
   onCreate,
@@ -67,7 +69,11 @@ export function TierLimitedCreateAction({
 
   return (
     <>
-      <Button onClick={handleCreateClick} data-testid={buttonTestId}>
+      <Button
+        onClick={handleCreateClick}
+        data-testid={buttonTestId}
+        disabled={disabled}
+      >
         <Plus className="mr-2 size-4" />
         {buttonLabel}
       </Button>
