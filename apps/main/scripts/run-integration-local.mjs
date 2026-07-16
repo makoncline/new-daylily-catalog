@@ -34,6 +34,7 @@ const integrationEnv = {
   INTEGRATION_MODE: "1",
   INTEGRATION_NETWORK_GUARD: "1",
   APP_BASE_URL: appBaseUrl,
+  INTEGRATION_PROVIDER_URL: "http://127.0.0.1:3211",
   DATABASE_URL: databaseUrl,
   CLERK_SECRET_KEY: "sk_test_integration",
   NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: "pk_test_integration",
@@ -63,18 +64,15 @@ validateIntegrationRuntime({
 let activeChild;
 let forwardedSignal;
 
-function run(command, args, { guarded = false } = {}) {
+function run(command, args) {
   return new Promise((resolve, reject) => {
-    const env = guarded
-      ? integrationEnv
-      : {
-          ...integrationEnv,
-          INTEGRATION_NETWORK_GUARD: "0",
-          NODE_OPTIONS: "",
-        };
     const child = spawn(command, args, {
       cwd: appRoot,
-      env,
+      env: {
+        ...integrationEnv,
+        INTEGRATION_NETWORK_GUARD: "0",
+        NODE_OPTIONS: "",
+      },
       stdio: "inherit",
     });
     activeChild = child;
@@ -116,7 +114,6 @@ try {
   exitCode = await run(
     path.join(appRoot, "node_modules", ".bin", "playwright"),
     ["test", "--config", "playwright.integration.config.ts", ...specs],
-    { guarded: true },
   );
 } finally {
   removeIntegrationDatabaseFiles(databaseUrl);

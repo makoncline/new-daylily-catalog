@@ -5,6 +5,17 @@ import { getRuntimeSentryEnabled } from "@/lib/observability-env";
 const isSentryEnabled = getRuntimeSentryEnabled();
 
 export async function register() {
+  if (
+    process.env.INTEGRATION_MODE === "1" &&
+    process.env.NEXT_RUNTIME === "nodejs"
+  ) {
+    await import("@/server/db");
+    const { installIntegrationNetworkGuard } = await import(
+      "../scripts/integration-network-guard.mjs"
+    );
+    installIntegrationNetworkGuard();
+  }
+
   if (process.env.NEXT_RUNTIME === "nodejs") {
     const { startMemoryTelemetry } = await import(
       "@/server/observability/memory-telemetry"
