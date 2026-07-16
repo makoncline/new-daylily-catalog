@@ -5,6 +5,7 @@ import { useQueryParamDialogState } from "@/hooks/use-dialog-search-param";
 export function useListingDialogQueryState() {
   const { setValue, value } = useQueryParamDialogState({
     history: "push",
+    navigation: "native-history",
     paramName: "viewing",
     scroll: false,
   });
