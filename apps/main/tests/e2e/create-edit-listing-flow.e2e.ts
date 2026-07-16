@@ -300,6 +300,13 @@ test.describe("create/edit listing flow @local", () => {
     await editListingDialog.clickDeleteListing();
     await editListingDialog.confirmDeleteListing();
     await deleteRequestStarted;
+    await expect(
+      page.getByRole("heading", { name: "Listings", exact: true }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("heading", { name: "Edit Listing", exact: true }),
+    ).toHaveCount(0);
+    await expect(page.locator(".animate-pulse:visible")).toHaveCount(0);
     await expectUrlParam("editing", null);
     releaseDeleteRequest();
     await expectToast("Listing deleted successfully");
