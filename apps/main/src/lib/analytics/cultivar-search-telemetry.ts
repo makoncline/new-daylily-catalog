@@ -12,6 +12,7 @@ interface TelemetryParamDefinition {
 }
 
 const SEARCH_FILTER_PARAMS: TelemetryParamDefinition[] = [
+  { kind: "text", param: "award", property: "award" },
   { kind: "text", param: "bloomHabit", property: "bloom_habit" },
   { kind: "number", param: "bloomSizeMax", property: "bloom_size_max" },
   { kind: "number", param: "bloomSizeMin", property: "bloom_size_min" },

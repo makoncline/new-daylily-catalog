@@ -17,7 +17,10 @@ vi.mock("@/server/search/public-search-index", () => ({
   PublicSearchIndexUnavailableError: class PublicSearchIndexUnavailableError extends Error {},
 }));
 
-import { searchCultivars } from "@/server/search/cultivar-search";
+import {
+  searchCultivarFacetValues,
+  searchCultivars,
+} from "@/server/search/cultivar-search";
 
 describe("cultivar search", () => {
   let tempDirectory = "";
@@ -38,6 +41,7 @@ describe("cultivar search", () => {
         hybridizer TEXT,
         hybridizerSearch TEXT,
         yearInt INTEGER,
+        seedlingNumber TEXT,
         scapeHeightIn REAL,
         bloomSizeIn REAL,
         budCount INTEGER,
@@ -51,6 +55,13 @@ describe("cultivar search", () => {
         color TEXT,
         parentage TEXT,
         rebloom INTEGER,
+        doublePercentage REAL,
+        polymerousPercentage REAL,
+        spiderRatio REAL,
+        petalLengthIn REAL,
+        petalWidthIn REAL,
+        awardNames TEXT,
+        awardsJson TEXT,
         imageUrl TEXT,
         generatedImageAssetId TEXT,
         generatedImageUrl TEXT,
@@ -62,6 +73,20 @@ describe("cultivar search", () => {
         listingCount INTEGER NOT NULL DEFAULT 0,
         forSaleListingCount INTEGER NOT NULL DEFAULT 0,
         sourceUpdatedAt TEXT NOT NULL
+      );
+
+      CREATE TABLE CultivarSearchFacetValue (
+        facet TEXT NOT NULL,
+        value TEXT NOT NULL,
+        valueSearch TEXT NOT NULL,
+        count INTEGER NOT NULL,
+        PRIMARY KEY (facet, value)
+      );
+
+      CREATE TABLE CultivarSearchAward (
+        cultivarId INTEGER NOT NULL,
+        valueSearch TEXT NOT NULL,
+        PRIMARY KEY (cultivarId, valueSearch)
       );
 
       CREATE TABLE CultivarListingSearchIndex (
@@ -82,14 +107,47 @@ describe("cultivar search", () => {
 
       INSERT INTO CultivarSearchIndex (
         id, cultivarReferenceId, normalizedName, displayName,
-        displayNameSearch, bloomSeason, foliageType, fragrance, rebloom,
+        displayNameSearch, hybridizer, hybridizerSearch, bloomSeason,
+        foliageType, fragrance, rebloom, awardNames, awardsJson,
         generatedImageAssetId, generatedImageUrl, hasImage, listingCount,
         sourceUpdatedAt
       ) VALUES
-        (1, 'early', 'early', 'Early', 'early', 'Early', 'Evergreen', 'Fragrant', 0, NULL, NULL, 0, 10, '2026-01-01'),
-        (2, 'extra-early', 'extra early', 'Extra Early', 'extra early', 'Extra Early', 'Semi-Evergreen', 'Very Fragrant', 0, NULL, NULL, 1, 0, '2026-01-01'),
-        (3, 'early-midseason', 'early midseason', 'Early Midseason', 'early midseason', 'Early-Midseason', 'Dormant', NULL, 0, 'generated-3', 'https://media.example.com/generated-3.webp', 1, 0, '2026-01-01'),
-        (4, 'rebloomer', 'rebloomer', 'Rebloomer', 'rebloomer', 'Midseason', 'Dormant', NULL, 1, NULL, NULL, 0, 0, '2026-01-01');
+        (1, 'early', 'early', 'Early', 'early', 'Reed', 'reed', 'Early', 'Evergreen', 'Fragrant', 0, 'HM', '[{"name":"HM","year":"2025","award_url":"https://daylilies.org/award/honorable-mention/"}]', NULL, NULL, 0, 10, '2026-01-01'),
+        (2, 'extra-early', 'extra early', 'Extra Early', 'extra early', 'Stone', 'stone', 'Extra Early', 'Semi-Evergreen', 'Very Fragrant', 0, NULL, NULL, NULL, NULL, 1, 0, '2026-01-01'),
+        (3, 'early-midseason', 'early midseason', 'Early Midseason', 'early midseason', 'Reed', 'reed', 'Early-Midseason', 'Dormant', NULL, 0, 'Stout|HM', '[{"name":"Stout","year":"2024"},{"name":"HM","year":"2022"}]', 'generated-3', 'https://media.example.com/generated-3.webp', 1, 0, '2026-01-01'),
+        (4, 'rebloomer', 'rebloomer', 'Rebloomer', 'rebloomer', 'Apps', 'apps', 'Midseason', 'Dormant', NULL, 1, NULL, NULL, NULL, NULL, 0, 0, '2026-01-01'),
+        (5, 'numeric', '50000 watts', '50,000 Watts', '50,000 watts', 'Reed', 'reed', 'Midseason', 'Dormant', NULL, 0, NULL, NULL, NULL, NULL, 0, 0, '2026-01-01');
+
+      INSERT INTO CultivarSearchFacetValue VALUES
+        ('hybridizer', 'Reed', 'reed', 3),
+        ('hybridizer', 'Stone', 'stone', 1),
+        ('award', 'HM', 'hm', 2),
+        ('award', 'Stout', 'stout', 1);
+
+      INSERT INTO CultivarSearchAward VALUES
+        (1, 'hm'),
+        (3, 'hm'),
+        (3, 'stout');
+
+      CREATE VIRTUAL TABLE CultivarSearchFts USING fts5(
+        displayName,
+        normalizedName,
+        hybridizer,
+        color,
+        parentage,
+        awardNames,
+        content='CultivarSearchIndex',
+        content_rowid='id'
+      );
+
+      INSERT INTO CultivarSearchFts(
+        rowid, displayName, normalizedName, hybridizer, color, parentage,
+        awardNames
+      )
+      SELECT
+        id, displayName, normalizedName, hybridizer, color, parentage,
+        awardNames
+      FROM CultivarSearchIndex;
 
       INSERT INTO CultivarListingSearchIndex VALUES (
         'listing-1', 'early', 'garden', 'Test Garden', 'Early listing',
@@ -168,7 +226,7 @@ describe("cultivar search", () => {
       "early-midseason",
       "extra-early",
       "early",
-      "rebloomer",
+      "numeric",
     ]);
     expect(unboosted[0]?.cultivarReferenceId).toBe("early");
   });
@@ -189,5 +247,62 @@ describe("cultivar search", () => {
 
     expect(withoutListings[0]?.catalogListings).toEqual([]);
     expect(withListings[0]?.catalogListings).toHaveLength(1);
+  });
+
+  it("supports exact multi-select hybridizers and awards", async () => {
+    const results = await searchCultivars({
+      award: "HM",
+      baseUrl: "https://daylilycatalog.com",
+      hybridizer: "Reed|Stone",
+      includeParentageTrees: false,
+      listingLimit: 0,
+      limit: 10,
+      sort: "name",
+    });
+
+    expect(results.map((result) => result.cultivarReferenceId)).toEqual([
+      "early",
+      "early-midseason",
+    ]);
+    expect(results[0]?.traits.awards).toEqual([
+      {
+        name: "HM",
+        url: "https://daylilies.org/award/honorable-mention/",
+        year: "2025",
+      },
+    ]);
+  });
+
+  it("sorts letter-leading cultivar names before numeric names", async () => {
+    const results = await searchCultivars({
+      baseUrl: "https://daylilycatalog.com",
+      includeParentageTrees: false,
+      listingLimit: 0,
+      limit: 10,
+      sort: "name",
+    });
+
+    expect(results.map((result) => result.cultivarReferenceId)).toEqual([
+      "early",
+      "early-midseason",
+      "extra-early",
+      "rebloomer",
+      "numeric",
+    ]);
+  });
+
+  it("returns searchable exact facet options with counts", async () => {
+    await expect(
+      searchCultivarFacetValues({
+        facet: "hybridizer",
+        query: "re",
+      }),
+    ).resolves.toEqual([
+      {
+        count: 3,
+        label: "Reed",
+        value: "Reed",
+      },
+    ]);
   });
 });
