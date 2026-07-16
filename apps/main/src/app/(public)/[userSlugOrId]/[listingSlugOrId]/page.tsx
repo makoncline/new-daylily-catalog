@@ -19,6 +19,7 @@ import {
 import { getOptimizedMetaImageUrl } from "@/lib/utils/cloudflareLoader";
 import { IMAGES } from "@/lib/constants/images";
 import { getCanonicalBaseUrl } from "@/lib/utils/getBaseUrl";
+import { getSocialCardImageUrl } from "@/lib/social-card";
 import { serializeJsonLd } from "@/lib/utils/json-ld";
 import {
   formatAhsListingSummary,
@@ -149,13 +150,17 @@ export async function generateMetadata({
     listing.images[0]?.url ?? IMAGES.DEFAULT_LISTING,
   );
   const title = getListingTitle(listing);
-
   return buildPublicPageMetadata({
     canonicalPath,
     description,
     imageAlt: `${listing.title} daylily listing`,
     imageUrl,
     pageUrl,
+    socialImageUrl: getSocialCardImageUrl({
+      baseUrl,
+      kind: "listing",
+      id: listing.id,
+    }),
     robots: listing.hasActiveSubscription
       ? "index, follow, max-image-preview:large"
       : "noindex, follow",

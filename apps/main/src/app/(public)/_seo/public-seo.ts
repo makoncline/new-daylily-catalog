@@ -14,6 +14,7 @@ interface BuildPublicPageMetadataArgs {
   description: string;
   imageAlt: string;
   imageUrl: string;
+  socialImageUrl?: string;
   pageUrl: string;
   title: string;
   keywords?: string[];
@@ -50,8 +51,11 @@ export function buildPublicPageMetadata({
   pageUrl,
   robots = "index, follow, max-image-preview:large",
   siteName = METADATA_CONFIG.SITE_NAME,
+  socialImageUrl,
   title,
 }: BuildPublicPageMetadataArgs): PublicPageMetadata {
+  const previewImageUrl = socialImageUrl ?? imageUrl;
+
   return {
     metadataBase,
     title,
@@ -73,10 +77,11 @@ export function buildPublicPageMetadata({
       type: "website",
       images: [
         {
-          url: imageUrl,
+          url: previewImageUrl,
           width: 1200,
           height: 630,
           alt: imageAlt,
+          ...(socialImageUrl ? { type: "image/png" } : {}),
         },
       ],
     },
@@ -85,7 +90,7 @@ export function buildPublicPageMetadata({
       title,
       description,
       site: METADATA_CONFIG.TWITTER_HANDLE,
-      images: [imageUrl],
+      images: [previewImageUrl],
     },
   };
 }

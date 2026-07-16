@@ -1,7 +1,10 @@
 import { type Metadata } from "next";
 import { notFound, permanentRedirect } from "next/navigation";
 import { MainContent } from "@/app/(public)/_components/main-content";
-import { buildNoIndexMetadata } from "@/app/(public)/_seo/public-seo";
+import {
+  buildNoIndexMetadata,
+} from "@/app/(public)/_seo/public-seo";
+import { generateCollectionMetadata } from "@/app/(public)/[userSlugOrId]/_seo/metadata";
 import { CatalogSearchHeader } from "@/app/(public)/[userSlugOrId]/_components/catalog-search-header";
 import { Breadcrumbs } from "@/components/breadcrumbs";
 import { PublicCatalogSearchClient } from "@/components/public-catalog-search/public-catalog-search-client";
@@ -10,6 +13,7 @@ import {
   type PublicCatalogSearchParamRecord,
 } from "@/lib/public-catalog-url-state";
 import { getErrorCode, tryCatch } from "@/lib/utils";
+import { getCanonicalBaseUrl } from "@/lib/utils/getBaseUrl";
 import { getInitialListings } from "@/server/db/public-listing-read-model";
 import { getPublicProfile } from "@/server/db/public-seller-read-model";
 
@@ -24,8 +28,12 @@ interface CatalogSearchPageProps {
 
 export async function generateMetadata({
   params,
+  searchParams,
 }: CatalogSearchPageProps): Promise<Metadata> {
-  const { userSlugOrId } = await params;
+  const [{ userSlugOrId }, rawSearchParams] = await Promise.all([
+    params,
+    searchParams,
+  ]);
   const profileResult = await tryCatch(getPublicProfile(userSlugOrId));
 
   if (!profileResult.data) {
@@ -36,15 +44,20 @@ export async function generateMetadata({
   }
 
   const profile = profileResult.data;
-  const canonicalUserSlug = profile.slug ?? profile.id;
   const titleBase = profile.title ?? "Daylily Catalog";
+  const collectionMetadata = generateCollectionMetadata(
+    profile,
+    rawSearchParams,
+    getCanonicalBaseUrl(),
+  );
+  if (collectionMetadata) return collectionMetadata;
 
   return {
     title: `${titleBase} Catalog Search`,
     description: `Search and filter listings from ${titleBase}.`,
     robots: "noindex, nofollow",
     alternates: {
-      canonical: `/${canonicalUserSlug}`,
+      canonical: `/${profile.slug ?? profile.id}`,
     },
   };
 }
