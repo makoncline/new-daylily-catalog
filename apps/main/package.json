@@ -150,6 +150,7 @@
     "@tailwindcss/postcss": "^4.1.13",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
+    "@testing-library/user-event": "^14.6.1",
     "@types/eslint": "^9.6.1",
     "@types/lodash.deburr": "^4.1.9",
     "@types/node": "^24.3.1",
