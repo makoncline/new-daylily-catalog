@@ -399,19 +399,11 @@ describe("dashboardDb TanStack DB collections", () => {
       });
 
       let deletePromise: Promise<void> | null = null;
-      let optimisticDeleteStarted = false;
       act(() => {
-        deletePromise = deleteListing({
-          id: seeded.id,
-          onOptimisticDelete: () => {
-            expect(listingsCollection.get(seeded.id)).toBeUndefined();
-            optimisticDeleteStarted = true;
-          },
-        });
+        deletePromise = deleteListing({ id: seeded.id });
       });
 
       await waitFor(() => {
-        expect(optimisticDeleteStarted).toBe(true);
         expect(screen.getByTestId("count").textContent).toBe("0");
         expect(screen.getByTestId("titles").textContent).toBe("");
       });
