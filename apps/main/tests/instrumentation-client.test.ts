@@ -49,4 +49,34 @@ describe("instrumentation-client", () => {
     });
     expect(initMock).not.toHaveBeenCalled();
   });
+
+  it("initializes browser Sentry with the runtime release", async () => {
+    fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          sentry: {
+            enabled: true,
+            dsn: "https://public@example.com/1",
+            release: "0123456789abcdef",
+          },
+        }),
+        {
+          headers: {
+            "Content-Type": "application/json",
+          },
+        },
+      ),
+    );
+
+    await import("@/instrumentation-client");
+
+    await vi.waitFor(() => {
+      expect(initMock).toHaveBeenCalledWith(
+        expect.objectContaining({
+          dsn: "https://public@example.com/1",
+          release: "0123456789abcdef",
+        }),
+      );
+    });
+  });
 });

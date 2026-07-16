@@ -11,6 +11,7 @@ interface RuntimeConfig {
   sentry?: {
     enabled?: boolean;
     dsn?: string;
+    release?: string | null;
   };
 }
 
@@ -22,6 +23,7 @@ async function initializeSentry(runtimeConfig: RuntimeConfig) {
   const Sentry = await import("@sentry/nextjs");
   Sentry.init({
     dsn: runtimeConfig.sentry.dsn,
+    release: runtimeConfig.sentry.release ?? undefined,
 
     integrations: [Sentry.replayIntegration()],
     enableLogs: true,

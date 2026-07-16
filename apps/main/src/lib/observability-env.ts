@@ -1,6 +1,7 @@
 const NEXT_PUBLIC_PREFIX = "NEXT_PUBLIC";
 
 const SENTRY_ENABLED_ENV_NAME = `${NEXT_PUBLIC_PREFIX}_SENTRY_ENABLED`;
+const SENTRY_RELEASE_ENV_NAME = "SENTRY_RELEASE";
 const POSTHOG_KEY_ENV_NAME = `${NEXT_PUBLIC_PREFIX}_POSTHOG_KEY`;
 const POSTHOG_HOST_ENV_NAME = `${NEXT_PUBLIC_PREFIX}_POSTHOG_HOST`;
 const OBSERVABILITY_LOG_KEY = Symbol.for(
@@ -39,7 +40,8 @@ export function getObservabilityStatus() {
       reason: getSentryDisabledReason(sentryEnabledValue),
     },
     posthog: {
-      enabled: Boolean(posthogKey) && Boolean(posthogHost) && !posthogHostReason,
+      enabled:
+        Boolean(posthogKey) && Boolean(posthogHost) && !posthogHostReason,
       host: posthogHost ?? null,
       keyConfigured: Boolean(posthogKey),
       reason:
@@ -54,6 +56,11 @@ export function getObservabilityStatus() {
 
 export function getRuntimeSentryEnabled() {
   return getObservabilityStatus().sentry.enabled;
+}
+
+export function getRuntimeSentryRelease() {
+  const release = readRuntimeEnv(SENTRY_RELEASE_ENV_NAME)?.trim();
+  return release === "" ? null : (release ?? null);
 }
 
 export function getRuntimePosthogConfig() {
