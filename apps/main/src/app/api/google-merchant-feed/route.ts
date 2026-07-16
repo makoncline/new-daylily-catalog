@@ -9,7 +9,6 @@ import { getProUserIds } from "@/server/db/getProUserIds";
 import { shouldShowToPublic } from "@/server/db/public-visibility/filters";
 import { getCloudflareUrlForDaylilyS3Image } from "@/lib/utils/cloudflareLoader";
 import {
-  areImageAssetsEnabled,
   orderedImageAssetUrlInclude,
   resolveLegacyImagesWithAssets,
 } from "@/server/services/image-asset-read-model";
@@ -39,9 +38,7 @@ export async function GET(_request: Request) {
           order: "asc" as const,
         },
       },
-      ...(areImageAssetsEnabled()
-        ? { imageAssets: orderedImageAssetUrlInclude }
-        : {}),
+      imageAssets: orderedImageAssetUrlInclude,
       cultivarReference: {
         include: {
           v2AhsCultivar: {
@@ -91,10 +88,7 @@ export async function GET(_request: Request) {
           const displayAhsListing = displayListing.ahsListing;
           const resolvedImages = resolveLegacyImagesWithAssets({
             images: displayListing.images,
-            imageAssets:
-              "imageAssets" in displayListing
-                ? displayListing.imageAssets
-                : [],
+            imageAssets: displayListing.imageAssets,
             variant: "display",
           });
           const cultivarReferenceImage = displayListing.cultivarReference

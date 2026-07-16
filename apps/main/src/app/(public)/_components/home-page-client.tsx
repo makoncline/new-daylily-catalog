@@ -9,14 +9,17 @@ import { H1, H2, P } from "@/components/typography";
 import { capturePosthogEvent } from "@/lib/analytics/posthog";
 import { cn } from "@/lib/utils";
 import { ArrowRight } from "lucide-react";
-import { OptimizedImage } from "@/components/optimized-image";
+import {
+  OptimizedImage,
+  type OptimizedImageSource,
+} from "@/components/optimized-image";
 import { UsedByWave } from "@/components/used-by-wave";
 import { LaurelRatingBadge } from "@/components/laurel-rating-badge";
 
 export interface HomePageCatalog {
   description: string | null;
   id: string;
-  images: Array<{ id: string; url: string }>;
+  images: OptimizedImageSource[];
   listingCount: number;
   location: string | null;
   slug: string | null;

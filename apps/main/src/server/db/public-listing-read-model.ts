@@ -17,7 +17,6 @@ import {
 } from "@/server/db/public-visibility/filters";
 import { getCloudflareUrlForDaylilyS3Image } from "@/lib/utils/cloudflareLoader";
 import {
-  areImageAssetsEnabled,
   orderedImageAssetUrlInclude,
   resolveLegacyImagesWithAssets,
 } from "@/server/services/image-asset-read-model";
@@ -74,9 +73,7 @@ export const publicListingSelect = {
       order: "asc",
     },
   },
-  ...(areImageAssetsEnabled()
-    ? { imageAssets: orderedImageAssetUrlInclude }
-    : {}),
+  imageAssets: orderedImageAssetUrlInclude,
 } as const;
 
 type ListingWithRelations = Awaited<ReturnType<typeof getListings>>[number];
@@ -105,18 +102,15 @@ function buildListingView<T extends ListingPayload>(listing: T) {
     : null;
   const resolvedImages = resolveLegacyImagesWithAssets({
     images: displayListing.images,
-    imageAssets:
-      "imageAssets" in displayListing ? displayListing.imageAssets : [],
+    imageAssets: displayListing.imageAssets,
     variant: "display",
   });
   const publicCultivarReference = displayListing.cultivarReference
     ? (({ imageAssets: _imageAssets, ...cultivarReference }) =>
         cultivarReference)(displayListing.cultivarReference)
     : displayListing.cultivarReference;
-  const publicListingBase =
-    "imageAssets" in displayListing
-      ? (({ imageAssets: _imageAssets, ...listing }) => listing)(displayListing)
-      : displayListing;
+  const publicListingBase = (({ imageAssets: _imageAssets, ...listing }) =>
+    listing)(displayListing);
   const publicListing = {
     ...publicListingBase,
     cultivarReference: publicCultivarReference,

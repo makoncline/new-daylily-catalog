@@ -17,7 +17,6 @@ process.env.R2_ACCESS_KEY_ID = "r2-key";
 process.env.R2_SECRET_ACCESS_KEY = "r2-secret";
 process.env.R2_BUCKET_NAME = "daylily-media";
 process.env.R2_PUBLIC_BASE_URL = "https://media.daylilycatalog.com";
-process.env.USE_IMAGE_ASSETS = "false";
 
 const SAFE_IMAGE_DATA_URL =
   "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=";
@@ -424,6 +423,9 @@ describe("dashboard image asset mutations", () => {
       ),
       image: {
         count: vi.fn().mockResolvedValue(0),
+      },
+      imageAsset: {
+        findMany: vi.fn().mockResolvedValue([]),
       },
       listing: {
         findFirst: vi.fn().mockResolvedValue({ id: "listing-1" }),
