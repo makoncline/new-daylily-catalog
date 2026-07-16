@@ -9,10 +9,7 @@ import {
   toCultivarRouteSegment,
 } from "@/lib/utils/cultivar-utils";
 import { replicaDb } from "@/server/db";
-import {
-  getActiveProUserIdsForUserIds,
-  getProUserIds,
-} from "@/server/db/getProUserIds";
+import { getActiveProUserIdsForUserIds } from "@/server/db/getProUserIds";
 import { getPublicListingCardsByIds } from "@/server/db/public-listing-read-model";
 import { getPublicSellerSummariesByUserIds } from "@/server/db/public-seller-read-model";
 import {
@@ -20,10 +17,7 @@ import {
   shouldQueryGeneratedCultivarImageAssets,
 } from "@/server/services/cultivar-reference-image-read-model";
 import type { ImageAssetUrlRow } from "@/server/services/image-asset-read-model";
-import {
-  isPublished,
-  shouldShowToPublic,
-} from "@/server/db/public-visibility/filters";
+import { isPublished } from "@/server/db/public-visibility/filters";
 
 const getCultivarReferenceLookupWhereClause = () => ({
   normalizedName: {
@@ -38,7 +32,11 @@ interface PublicCultivarReferenceRecord {
   normalizedName: string | null;
   updatedAt: Date;
   ahsListing: CultivarAhsListing | null;
-  v2AhsCultivar?: V2AhsCultivarDisplaySource | null;
+  v2AhsCultivar?:
+    | (V2AhsCultivarDisplaySource & {
+        primary_hybridizer_id?: string | null;
+      })
+    | null;
   imageAssets?: ImageAssetUrlRow[];
 }
 
@@ -77,7 +75,10 @@ async function findCultivarReferenceByNormalizedName(
       normalizedName: true,
       updatedAt: true,
       v2AhsCultivar: {
-        select: v2AhsCultivarDisplaySelect,
+        select: {
+          ...v2AhsCultivarDisplaySelect,
+          primary_hybridizer_id: true,
+        },
       },
       ...(shouldQueryGeneratedCultivarImageAssets()
         ? { imageAssets: generatedCultivarImageAssetInclude }
@@ -91,88 +92,43 @@ async function findCultivarReferenceByNormalizedName(
   return row ? withResolvedDisplayAhsListing(row) : null;
 }
 
-export async function getCultivarSitemapEntries(): Promise<
+const routableCultivarWhere = {
+  normalizedName: {
+    not: null,
+  },
+} as const;
+
+export async function getCultivarSitemapEntryCount() {
+  return replicaDb.cultivarReference.count({
+    where: routableCultivarWhere,
+  });
+}
+
+export async function getCultivarSitemapEntries(args: {
+  page: number;
+  pageSize: number;
+}): Promise<
   Array<{
     segment: string;
-    lastModified?: Date;
   }>
 > {
-  const proUserIds = await getProUserIds();
-
-  if (proUserIds.length === 0) {
-    return [];
-  }
-
-  const segmentMap = new Map<
-    string,
-    {
-      segment: string;
-      lastModified?: Date;
-    }
-  >();
-
-  const upsertSegment = (
-    normalizedName: string | null,
-    lastModified: Date | undefined,
-  ) => {
-    const segment = toCultivarRouteSegment(normalizedName);
-    if (!segment) {
-      return;
-    }
-
-    const existingSegmentEntry = segmentMap.get(segment);
-    if (!existingSegmentEntry) {
-      segmentMap.set(segment, { segment, lastModified });
-      return;
-    }
-
-    if (
-      lastModified &&
-      (!existingSegmentEntry.lastModified ||
-        lastModified.getTime() > existingSegmentEntry.lastModified.getTime())
-    ) {
-      segmentMap.set(segment, { segment, lastModified });
-    }
-  };
-
-  const listingRows = await replicaDb.listing.findMany({
-    where: {
-      cultivarReferenceId: {
-        not: null,
-      },
-      ...shouldShowToPublic(proUserIds),
-      cultivarReference: {
-        is: getCultivarReferenceLookupWhereClause(),
-      },
-    },
+  const cultivarReferences = await replicaDb.cultivarReference.findMany({
+    where: routableCultivarWhere,
     select: {
-      updatedAt: true,
-      cultivarReference: {
-        select: {
-          normalizedName: true,
-          updatedAt: true,
-        },
-      },
+      normalizedName: true,
     },
+    orderBy: {
+      normalizedName: "asc",
+    },
+    skip: args.page * args.pageSize,
+    take: args.pageSize,
   });
 
-  listingRows.forEach((listing) => {
-    const cultivar = listing.cultivarReference;
-    if (!cultivar) {
-      return;
-    }
+  return cultivarReferences.flatMap((cultivar) => {
+    const segment = toCultivarRouteSegment(cultivar.normalizedName);
 
-    const cultivarLastModified =
-      listing.updatedAt.getTime() > cultivar.updatedAt.getTime()
-        ? listing.updatedAt
-        : cultivar.updatedAt;
-
-    upsertSegment(cultivar.normalizedName, cultivarLastModified);
+    return segment ? [{ segment }] : [];
   });
-
-  return Array.from(segmentMap.values()).sort((a, b) =>
-    a.segment.localeCompare(b.segment),
-  );
 }
 
 async function getPublicCultivarReference(cultivarSegment: string): Promise<{
