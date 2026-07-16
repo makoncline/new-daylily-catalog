@@ -41,9 +41,17 @@ vi.mock(
 );
 
 vi.mock("@/app/dashboard/lists/_components/create-list-dialog", () => ({
-  useCreateList: () => ({
-    openCreateList: mocks.openCreateList,
-  }),
+  useCreateList: () => {
+    const pro = mocks.usePro();
+    const count = mocks.listCount();
+
+    return {
+      isEligibilityLoading: pro.isLoading || count.isLoading,
+      isPro: pro.isPro,
+      listCount: count.data,
+      openCreateList: mocks.openCreateList,
+    };
+  },
 }));
 
 vi.mock("@/trpc/react", () => ({

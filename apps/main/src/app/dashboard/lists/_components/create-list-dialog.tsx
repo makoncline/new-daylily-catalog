@@ -14,6 +14,9 @@ import { insertList } from "@/app/dashboard/_lib/dashboard-db/lists-collection";
 import { useQueryParamDialogState } from "@/hooks/use-dialog-search-param";
 import { useUnsavedChangesGuard } from "@/hooks/use-unsaved-changes-guard";
 import { ListingSurfaceSaveBar } from "../../listings/_components/listing-surface-save-bar";
+import { api } from "@/trpc/react";
+import { APP_CONFIG } from "@/config/constants";
+import { usePro } from "@/hooks/use-pro";
 
 export function useCreateList() {
   const { setValue, value } = useQueryParamDialogState({
@@ -24,8 +27,17 @@ export function useCreateList() {
   const pathname = usePathname();
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { isPro, isLoading: isSubscriptionLoading } = usePro();
+  const { data: listCount, isLoading: isListCountLoading } =
+    api.dashboardDb.list.count.useQuery();
+  const isEligibilityLoading =
+    isSubscriptionLoading || isListCountLoading || listCount === undefined;
+  const canCreateList =
+    !isEligibilityLoading &&
+    (isPro || listCount < APP_CONFIG.LIST.FREE_TIER_MAX_LISTS);
 
   return {
+    canCreateList,
     closeCreateList: () => setValue(null, "replace"),
     finishCreateList: (listId: string) => {
       const params = new URLSearchParams(searchParams.toString());
@@ -33,7 +45,10 @@ export function useCreateList() {
       params.set("editing", listId);
       router.replace(`${pathname}?${params.toString()}`, { scroll: false });
     },
-    isCreating: value === "true",
+    isCreateRequested: value === "true",
+    isEligibilityLoading,
+    isPro,
+    listCount,
     openCreateList: () => setValue("true"),
   };
 }

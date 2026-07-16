@@ -2,6 +2,7 @@
 
 import {
   Activity,
+  useEffect,
   useLayoutEffect,
   useRef,
   type MouseEvent as ReactMouseEvent,
@@ -20,12 +21,34 @@ import {
 
 export default function ListsPage() {
   const { closeEditList, editingId } = useEditList();
-  const { closeCreateList, finishCreateList, isCreating } = useCreateList();
+  const {
+    canCreateList,
+    closeCreateList,
+    finishCreateList,
+    isCreateRequested,
+    isEligibilityLoading,
+  } = useCreateList();
+  const isCreating = isCreateRequested && canCreateList;
   const isShowingSurface = isCreating || Boolean(editingId);
   const dashboardScrollYRef = useRef(0);
   const dashboardRef = useRef<HTMLDivElement | null>(null);
   const returnFocusRef = useRef<HTMLElement | null>(null);
   const wasEditingRef = useRef(false);
+
+  useEffect(() => {
+    if (
+      isCreateRequested &&
+      !isEligibilityLoading &&
+      !canCreateList
+    ) {
+      closeCreateList();
+    }
+  }, [
+    canCreateList,
+    closeCreateList,
+    isCreateRequested,
+    isEligibilityLoading,
+  ]);
 
   useLayoutEffect(() => {
     if (isShowingSurface) {

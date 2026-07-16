@@ -217,16 +217,6 @@ export class DashboardLists {
     return this.page.getByRole("region", { name: "Create list" });
   }
 
-  createTitleInput(): Locator {
-    return this.createSurface().getByLabel("List Title");
-  }
-
-  createSurfaceSubmitButton(): Locator {
-    return this.createSurface().getByRole("button", {
-      name: "Create List",
-    });
-  }
-
   editTitleInput(): Locator {
     return this.editDialog().getByLabel("Title");
   }

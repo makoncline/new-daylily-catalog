@@ -17,6 +17,7 @@ import { Button } from "@/components/ui/button";
 import { ErrorFallback } from "@/components/error-fallback";
 import { PageHeader } from "@/components/page-header";
 import { ListingSurfaceSaveBar } from "../../listings/_components/listing-surface-save-bar";
+import { reportError } from "@/lib/error-utils";
 
 export const useEditList = () => {
   const { setValue, value } = useQueryParamDialogState({
@@ -97,7 +98,15 @@ export function EditListSurface({
         </Button>
       </PageHeader>
 
-      <ErrorBoundary fallback={<ErrorFallback resetErrorBoundary={onClose} />}>
+      <ErrorBoundary
+        fallback={<ErrorFallback resetErrorBoundary={onClose} />}
+        onError={(error, errorInfo) =>
+          reportError({
+            error,
+            context: { source: "EditListSurface", errorInfo },
+          })
+        }
+      >
         <Suspense fallback={<ListFormSkeleton />}>
           <ListForm
             formRef={formRef}

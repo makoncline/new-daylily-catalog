@@ -81,22 +81,10 @@ test.describe("lists page features @local", () => {
     await expect(page).toHaveURL(/\/dashboard\/lists/);
     await dashboardLists.isReady();
 
-    // Create uses a full-page surface and transitions into the edit surface.
-    const createdListTitle = `Full page list ${Date.now()}`;
+    // Query parameters cannot bypass the free-tier create limit.
     await page.goto("/dashboard/lists?creating=true");
-    await expect(dashboardLists.createSurface()).toBeVisible();
-    await expect(page).toHaveURL(/creating=true/);
-    await dashboardLists.createTitleInput().fill(createdListTitle);
-    await dashboardLists.createSurfaceSubmitButton().click();
-    await expect(dashboardLists.editDialog()).toBeVisible();
-    await expect(page).toHaveURL(/editing=/);
-    await expect(dashboardLists.editTitleInput()).toHaveValue(createdListTitle);
-
-    await dashboardLists.editDialog().getByRole("button", {
-      name: "Delete List",
-    }).click();
-    await dashboardLists.confirmDelete();
-    await expect(dashboardLists.editDialog()).toBeHidden();
+    await expect(dashboardLists.createSurface()).toBeHidden();
+    await expect(page).not.toHaveURL(/creating=true/);
 
     // Phase 2: baseline table and pagination behavior
     await expect(dashboardLists.rows()).toHaveCount(seedMeta.defaultPageSize);

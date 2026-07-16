@@ -1,25 +1,24 @@
 "use client";
 
 import { H3 } from "@/components/typography";
-import { api } from "@/trpc/react";
 import { APP_CONFIG, PRO_FEATURES } from "@/config/constants";
-import { usePro } from "@/hooks/use-pro";
 import { CheckoutButton } from "@/components/checkout-button";
 import { TierLimitedCreateAction } from "@/app/dashboard/_components/tier-limited-create-action";
 import { useCreateList } from "./create-list-dialog";
 
 export function CreateListButton() {
-  const { isPro, isLoading: isSubscriptionLoading } = usePro();
-  const { openCreateList } = useCreateList();
-
-  const { data: listCount, isLoading: isListCountLoading } =
-    api.dashboardDb.list.count.useQuery();
+  const {
+    isEligibilityLoading,
+    isPro,
+    listCount,
+    openCreateList,
+  } = useCreateList();
 
   return (
     <TierLimitedCreateAction
       buttonLabel="Create List"
       currentCount={listCount}
-      disabled={isSubscriptionLoading || isListCountLoading}
+      disabled={isEligibilityLoading}
       freeTierLimit={APP_CONFIG.LIST.FREE_TIER_MAX_LISTS}
       isPro={isPro}
       onCreate={openCreateList}
