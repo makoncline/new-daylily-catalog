@@ -2,7 +2,10 @@ import type { OutputData } from "@editorjs/editorjs";
 import { TRPCError } from "@trpc/server";
 import { replicaDb } from "@/server/db";
 import { getLatestDate } from "@/server/db/public-date-utils";
-import { getProUserIds } from "@/server/db/getProUserIds";
+import {
+  getActiveProUserIdsForUserIds,
+  getProUserIds,
+} from "@/server/db/getProUserIds";
 import {
   isPublicList,
   isPublished,
@@ -173,84 +176,105 @@ export async function getListingIdFromSlugOrId(
 export async function getPublicSellerSummariesByUserIds(
   userIds: string[],
   options?: PublicSellerSummaryOptions,
+  database: typeof replicaDb = replicaDb,
 ) {
   if (userIds.length === 0) {
     return new Map<string, PublicSellerSummary>();
   }
 
   const activeUserIdSet = toActiveUserIdSet(options?.activeUserIds);
-  const [users, resolvedActiveUserIds] = await Promise.all([
-    replicaDb.user.findMany({
-      where: {
-        id: {
-          in: userIds,
-        },
-      },
-      select: {
-        id: true,
-        createdAt: true,
-        profile: {
-          select: {
-            title: true,
-            slug: true,
-            description: true,
-            location: true,
-            updatedAt: true,
-            images: {
-              select: {
-                id: true,
-                url: true,
-                updatedAt: true,
-              },
-              orderBy: {
-                order: "asc",
-              },
-            },
-            ...(areImageAssetsEnabled()
-              ? { imageAssets: orderedImageAssetUrlInclude }
-              : {}),
+  const [users, listingAggregates, listAggregates, resolvedActiveUserIds] =
+    await Promise.all([
+      database.user.findMany({
+        where: {
+          id: {
+            in: userIds,
           },
+        },
+        select: {
+          id: true,
+          createdAt: true,
+          profile: {
+            select: {
+              title: true,
+              slug: true,
+              description: true,
+              location: true,
+              updatedAt: true,
+              images: {
+                select: {
+                  id: true,
+                  url: true,
+                  updatedAt: true,
+                },
+                orderBy: {
+                  order: "asc",
+                },
+              },
+              ...(areImageAssetsEnabled()
+                ? { imageAssets: orderedImageAssetUrlInclude }
+                : {}),
+            },
+          },
+        },
+      }),
+      database.listing.groupBy({
+        by: ["userId"],
+        where: {
+          userId: {
+            in: userIds,
+          },
+          ...isPublished(),
         },
         _count: {
-          select: {
-            listings: {
-              where: isPublished(),
-            },
-            lists: {
-              where: isPublicList(),
-            },
-          },
+          _all: true,
         },
-        lists: {
-          where: isPublicList(),
-          select: {
-            updatedAt: true,
-          },
+        _max: {
+          updatedAt: true,
         },
-        listings: {
-          where: isPublished(),
-          select: {
-            updatedAt: true,
+      }),
+      database.list.groupBy({
+        by: ["userId"],
+        where: {
+          userId: {
+            in: userIds,
           },
+          ...isPublicList(),
         },
-      },
-    }),
-    activeUserIdSet ? Promise.resolve(null) : getProUserIds(),
-  ]);
+        _count: {
+          _all: true,
+        },
+        _max: {
+          updatedAt: true,
+        },
+      }),
+      activeUserIdSet
+        ? Promise.resolve(null)
+        : getActiveProUserIdsForUserIds(userIds, database),
+    ]);
 
   const activeUserIds = activeUserIdSet ?? new Set(resolvedActiveUserIds ?? []);
+  const listingAggregateByUserId = new Map(
+    listingAggregates.map((aggregate) => [aggregate.userId, aggregate]),
+  );
+  const listAggregateByUserId = new Map(
+    listAggregates.map((aggregate) => [aggregate.userId, aggregate]),
+  );
 
   return new Map(
-    users.map((user) => [
-      user.id,
-      {
-        id: user.id,
-        title: user.profile?.title ?? null,
-        slug: user.profile?.slug ?? null,
-        description: user.profile?.description ?? null,
-        location: user.profile?.location ?? null,
-        images:
-          resolveLegacyImagesWithAssets({
+    users.map((user) => {
+      const listingAggregate = listingAggregateByUserId.get(user.id);
+      const listAggregate = listAggregateByUserId.get(user.id);
+
+      return [
+        user.id,
+        {
+          id: user.id,
+          title: user.profile?.title ?? null,
+          slug: user.profile?.slug ?? null,
+          description: user.profile?.description ?? null,
+          location: user.profile?.location ?? null,
+          images: resolveLegacyImagesWithAssets({
             images: user.profile?.images ?? [],
             imageAssets:
               user.profile && "imageAssets" in user.profile
@@ -261,21 +285,22 @@ export async function getPublicSellerSummariesByUserIds(
             ...image,
             url: getCloudflareUrlForDaylilyS3Image(image.url),
           })),
-        listingCount: user._count.listings,
-        listCount: user._count.lists,
-        hasActiveSubscription: activeUserIds.has(user.id),
-        createdAt: user.createdAt,
-        updatedAt: getLatestDate(
-          [
-            user.profile?.updatedAt,
-            ...(user.profile?.images.map((image) => image.updatedAt) ?? []),
-            ...user.lists.map((list) => list.updatedAt),
-            ...user.listings.map((listing) => listing.updatedAt),
-          ],
-          user.createdAt,
-        ),
-      } satisfies PublicSellerSummary,
-    ]),
+          listingCount: listingAggregate?._count._all ?? 0,
+          listCount: listAggregate?._count._all ?? 0,
+          hasActiveSubscription: activeUserIds.has(user.id),
+          createdAt: user.createdAt,
+          updatedAt: getLatestDate(
+            [
+              user.profile?.updatedAt,
+              ...(user.profile?.images.map((image) => image.updatedAt) ?? []),
+              listAggregate?._max.updatedAt,
+              listingAggregate?._max.updatedAt,
+            ],
+            user.createdAt,
+          ),
+        } satisfies PublicSellerSummary,
+      ];
+    }),
   );
 }
 

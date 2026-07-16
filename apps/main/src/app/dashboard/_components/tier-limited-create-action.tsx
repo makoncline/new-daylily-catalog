@@ -11,25 +11,37 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 
-interface TierLimitedCreateActionProps {
+type CreateActionBehavior =
+  | {
+      onCreate: () => void;
+      renderCreateDialog?: never;
+    }
+  | {
+      onCreate?: never;
+      renderCreateDialog: (onOpenChange: (open: boolean) => void) => ReactNode;
+    };
+
+type TierLimitedCreateActionProps = {
   buttonLabel: string;
   buttonTestId?: string;
   currentCount?: number;
+  disabled?: boolean;
   freeTierLimit: number;
   isPro: boolean;
   upgradeDialogBody: ReactNode;
   upgradeDialogClassName?: string;
   upgradeDialogDescription: ReactNode;
   upgradeDialogTitle: string;
-  renderCreateDialog: (onOpenChange: (open: boolean) => void) => ReactNode;
-}
+} & CreateActionBehavior;
 
 export function TierLimitedCreateAction({
   buttonLabel,
   buttonTestId,
   currentCount,
+  disabled = false,
   freeTierLimit,
   isPro,
+  onCreate,
   upgradeDialogBody,
   upgradeDialogClassName,
   upgradeDialogDescription,
@@ -47,12 +59,21 @@ export function TierLimitedCreateAction({
       return;
     }
 
+    if (onCreate) {
+      onCreate();
+      return;
+    }
+
     setShowCreateDialog(true);
   };
 
   return (
     <>
-      <Button onClick={handleCreateClick} data-testid={buttonTestId}>
+      <Button
+        onClick={handleCreateClick}
+        data-testid={buttonTestId}
+        disabled={disabled}
+      >
         <Plus className="mr-2 size-4" />
         {buttonLabel}
       </Button>
@@ -68,7 +89,7 @@ export function TierLimitedCreateAction({
       </Dialog>
 
       {showCreateDialog &&
-        renderCreateDialog((open) => {
+        renderCreateDialog?.((open) => {
           if (!open) {
             setShowCreateDialog(false);
           }

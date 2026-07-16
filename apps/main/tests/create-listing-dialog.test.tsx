@@ -1,4 +1,3 @@
-import type * as Jotai from "jotai";
 import {
   act,
   fireEvent,
@@ -7,10 +6,10 @@ import {
   waitFor,
 } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { CreateListingDialog } from "@/app/dashboard/listings/_components/create-listing-dialog";
+import { CreateListingSurface } from "@/app/dashboard/listings/_components/create-listing-dialog";
 
 const mockInsertListing = vi.hoisted(() => vi.fn());
-const mockSetEditingId = vi.hoisted(() => vi.fn());
+const mockOnCreated = vi.hoisted(() => vi.fn());
 
 vi.mock("@/trpc/react", () => ({
   api: {
@@ -35,14 +34,6 @@ vi.mock("@/app/dashboard/_lib/dashboard-db/listings-collection", () => ({
     }>;
   },
 }));
-
-vi.mock("jotai", async (importOriginal) => {
-  const actual = await importOriginal<typeof Jotai>();
-  return {
-    ...actual,
-    useSetAtom: () => mockSetEditingId,
-  };
-});
 
 vi.mock("@/components/ahs-listing-select", () => ({
   AhsListingSelect: ({
@@ -106,7 +97,7 @@ vi.mock("@/lib/error-utils", () => ({
   reportError: vi.fn(),
 }));
 
-describe("CreateListingDialog", () => {
+describe("CreateListingSurface", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockInsertListing.mockResolvedValue({
@@ -115,8 +106,54 @@ describe("CreateListingDialog", () => {
     });
   });
 
+  it("renders creation as a page surface instead of a dialog", () => {
+    render(
+      <CreateListingSurface onClose={vi.fn()} onCreated={mockOnCreated} />,
+    );
+
+    expect(
+      screen.getByRole("region", { name: "Create listing" }),
+    ).toBeVisible();
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(screen.queryByText("Unsaved listing")).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Save" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("shows save and discard after the user starts a listing", () => {
+    render(
+      <CreateListingSurface onClose={vi.fn()} onCreated={mockOnCreated} />,
+    );
+
+    fireEvent.change(screen.getByLabelText("Listing Title"), {
+      target: { value: "New listing" },
+    });
+
+    expect(screen.getByText("Unsaved listing")).toBeVisible();
+    expect(screen.getByRole("button", { name: "Save" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Discard" })).toBeEnabled();
+  });
+
+  it("discards without creating a listing", () => {
+    const onClose = vi.fn();
+    render(
+      <CreateListingSurface onClose={onClose} onCreated={mockOnCreated} />,
+    );
+
+    fireEvent.change(screen.getByLabelText("Listing Title"), {
+      target: { value: "Abandoned listing" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Discard" }));
+
+    expect(onClose).toHaveBeenCalledTimes(1);
+    expect(mockInsertListing).not.toHaveBeenCalled();
+  });
+
   it("uses selected AHS name when title input is blank", async () => {
-    render(<CreateListingDialog onOpenChange={vi.fn()} />);
+    render(
+      <CreateListingSurface onClose={vi.fn()} onCreated={mockOnCreated} />,
+    );
 
     fireEvent.click(screen.getByRole("button", { name: "Select AHS" }));
 
@@ -134,15 +171,18 @@ describe("CreateListingDialog", () => {
   });
 
   it("shows immediate progress while the listing is being created", async () => {
-    let resolveInsert: ((listing: { id: string; title: string }) => void) | null =
-      null;
+    let resolveInsert:
+      | ((listing: { id: string; title: string }) => void)
+      | null = null;
     mockInsertListing.mockReturnValue(
       new Promise((resolve) => {
         resolveInsert = resolve;
       }),
     );
 
-    render(<CreateListingDialog onOpenChange={vi.fn()} />);
+    render(
+      <CreateListingSurface onClose={vi.fn()} onCreated={mockOnCreated} />,
+    );
 
     fireEvent.change(screen.getByLabelText("Listing Title"), {
       target: { value: "Slow connection listing" },
@@ -159,7 +199,7 @@ describe("CreateListingDialog", () => {
     });
 
     await waitFor(() => {
-      expect(mockSetEditingId).toHaveBeenCalledWith("listing-1");
+      expect(mockOnCreated).toHaveBeenCalledWith("listing-1");
     });
   });
 });

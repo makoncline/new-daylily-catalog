@@ -7,8 +7,12 @@ const mockDb = vi.hoisted(() => ({
     findFirst: vi.fn(),
     findMany: vi.fn(),
   },
+  list: {
+    groupBy: vi.fn(),
+  },
   listing: {
     findMany: vi.fn(),
+    groupBy: vi.fn(),
   },
   user: {
     findMany: vi.fn(),
@@ -68,6 +72,8 @@ describe("getPublicCultivarPage", () => {
     process.env.NEXT_PUBLIC_CLOUDFLARE_URL = "https://cf.daylilycatalog.com";
     mockGetActiveProUserIdsForUserIds.mockResolvedValue([]);
     mockGetProUserIds.mockResolvedValue([]);
+    mockDb.list.groupBy.mockResolvedValue([]);
+    mockDb.listing.groupBy.mockResolvedValue([]);
   });
 
   afterEach(() => {
@@ -375,6 +381,20 @@ describe("getPublicCultivarPage", () => {
     ];
 
     mockDb.user.findMany.mockResolvedValue(sellerRows);
+    mockDb.listing.groupBy.mockResolvedValue(
+      sellerRows.map((seller) => ({
+        userId: seller.id,
+        _count: { _all: seller._count.listings },
+        _max: { updatedAt: seller.listings[0]?.updatedAt ?? null },
+      })),
+    );
+    mockDb.list.groupBy.mockResolvedValue(
+      sellerRows.map((seller) => ({
+        userId: seller.id,
+        _count: { _all: seller._count.lists },
+        _max: { updatedAt: seller.lists[0]?.updatedAt ?? null },
+      })),
+    );
 
     const result = await getPublicCultivarPage("coffee-frenzy");
 
