@@ -143,7 +143,7 @@ function createPreMigrationProdDb(prodDbPath: string) {
 }
 
 describe("V2 AHS source ingestion", () => {
-  it("accounts for every captured cultivar-level source key", () => {
+  it("accounts for and stores every captured cultivar-level source key", async () => {
     const fixture = readJson<RawPageFixture>(RAW_PAGE_FIXTURE_PATH);
     const contract = readJson<SourceFieldContract>(SOURCE_FIELD_CONTRACT_PATH);
     const documentedKeys = [
@@ -166,6 +166,33 @@ describe("V2 AHS source ingestion", () => {
 
     for (const ignored of Object.values(contract.ignored)) {
       expect(ignored.reason).not.toBe("");
+    }
+
+    const tempRoot = mkdtempSync(path.join(tmpdir(), "v2-ahs-contract-"));
+
+    try {
+      const combinedDbPath = await combineFixture(tempRoot);
+      const combinedDb = new DatabaseSync(combinedDbPath, { readOnly: true });
+      const storedColumns = new Set(
+        combinedDb
+          .prepare("PRAGMA table_info(cultivars)")
+          .all()
+          .map((column) => String(column.name)),
+      );
+      combinedDb.close();
+
+      const contractColumns = [
+        ...contract.storedDirectly,
+        ...Object.values(contract.transformed).map(
+          (transformation) => transformation.target,
+        ),
+      ];
+
+      expect(
+        contractColumns.filter((column) => !storedColumns.has(column)),
+      ).toEqual([]);
+    } finally {
+      rmSync(tempRoot, { force: true, recursive: true });
     }
   });
 
