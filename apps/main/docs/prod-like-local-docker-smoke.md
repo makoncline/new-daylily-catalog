@@ -11,6 +11,8 @@ on a real `*.daylilycatalog.com` origin. It does not use the embedded replica.
 - Pulls the VPS runtime env from `/srv/stacks/daylilycatalog/.env`.
 - Writes ignored local env files under `apps/main`.
 - Overrides `DATABASE_URL` to use a local SQLite copy.
+- Sets `SENTRY_ENVIRONMENT=prod-like` so local smoke-test events stay separate
+  from production and preview events.
 - Comments out embedded replica env.
 - Sets `PUBLIC_SEARCH_INDEX_REFRESH_INTERVAL_SECONDS=0`.
 - Creates an ignored Docker Compose override that mounts the local DB into

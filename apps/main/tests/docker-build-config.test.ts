@@ -36,9 +36,16 @@ describe("Docker build cache and observability boundaries", () => {
     ).toContain("apps/*/Dockerfile");
   });
 
-  it("disables Sentry sourcemaps only for non-deployed PR images", () => {
+  it("keeps Sentry build environments distinct and disables sourcemaps only for non-deployed PR images", () => {
     const workflow = readFileSync(
       path.join(repoRoot, ".github/workflows/pr-docker-image.yml"),
+      "utf8",
+    );
+    const prodLikeScript = readFileSync(
+      path.join(
+        repoRoot,
+        "apps/main/scripts/prepare-prod-like-local-smoke.mjs",
+      ),
       "utf8",
     );
     const nextConfig = readFileSync(
@@ -46,6 +53,10 @@ describe("Docker build cache and observability boundaries", () => {
       "utf8",
     );
 
+    expect(workflow).toContain("SENTRY_ENVIRONMENT=$BUILD_ENVIRONMENT_NAME");
+    expect(prodLikeScript).toContain(
+      'setEnvValue(lines, "SENTRY_ENVIRONMENT", "prod-like")',
+    );
     expect(workflow).toContain(
       "github.event_name != 'pull_request' && secrets.SENTRY_AUTH_TOKEN || ''",
     );
