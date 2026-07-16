@@ -1,5 +1,11 @@
 import * as React from "react";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { useEditList } from "@/app/dashboard/lists/_components/edit-list-dialog";
 
@@ -61,13 +67,15 @@ describe("useEditList URL sync", () => {
   });
 
   it("clears editing query without pushing a bare '?' URL", async () => {
-    render(<EditListHookHarness />);
+    const { rerender } = render(<EditListHookHarness />);
 
     await waitFor(() => {
       expect(screen.getByRole("button")).toHaveTextContent("list-1");
     });
 
     fireEvent.click(screen.getByRole("button"));
+
+    expect(screen.getByRole("button")).toHaveTextContent("none");
 
     await waitFor(() => {
       expect(navigationState.replace).toHaveBeenCalledWith(
@@ -79,5 +87,15 @@ describe("useEditList URL sync", () => {
     expect(
       navigationState.replace.mock.calls.some(([url]) => url === "?"),
     ).toBe(false);
+
+    navigationState.setSearch("");
+    rerender(<EditListHookHarness />);
+    await act(async () => {
+      await new Promise((resolve) => window.setTimeout(resolve, 0));
+    });
+
+    navigationState.setSearch("editing=list-1");
+    rerender(<EditListHookHarness />);
+    expect(screen.getByRole("button")).toHaveTextContent("list-1");
   });
 });

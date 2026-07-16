@@ -232,6 +232,13 @@ export class DashboardLists {
     });
   }
 
+  surfaceDeleteButton(): Locator {
+    return this.editDialog().getByRole("button", {
+      name: "Delete List",
+      exact: true,
+    });
+  }
+
   resetButton(): Locator {
     return this.page.getByRole("button", { name: "Reset" }).first();
   }

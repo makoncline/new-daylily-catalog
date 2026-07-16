@@ -203,8 +203,35 @@ test.describe("lists page features @local", () => {
     ).toBeVisible();
 
     await dashboardLists.openFirstVisibleRowActions();
-    await dashboardLists.chooseRowActionDelete();
+    await dashboardLists.chooseRowActionEdit();
+    await expect(dashboardLists.editDialog()).toBeVisible();
+
+    let releaseDeleteRequest = () => {};
+    let markDeleteRequestStarted = () => {};
+    const deleteRequestStarted = new Promise<void>((resolve) => {
+      markDeleteRequestStarted = resolve;
+    });
+    const deleteRequestBlocked = new Promise<void>((resolve) => {
+      releaseDeleteRequest = resolve;
+    });
+    await page.route("**/api/trpc/**", async (route) => {
+      if (route.request().url().includes("dashboardDb.list.delete")) {
+        markDeleteRequestStarted();
+        await deleteRequestBlocked;
+      }
+      await route.continue();
+    });
+
+    await dashboardLists.surfaceDeleteButton().click();
     await dashboardLists.confirmDelete();
+    await deleteRequestStarted;
+    await expect(
+      page.getByRole("heading", { name: "Lists", exact: true }),
+    ).toBeVisible();
+    await expect(dashboardLists.editDialog()).toHaveCount(0);
+    await expect(page.locator(".animate-pulse:visible")).toHaveCount(0);
+    await expect(page).not.toHaveURL(/editing=/);
+    releaseDeleteRequest();
 
     await expect(
       page.getByRole("heading", { name: "No lists found" }),

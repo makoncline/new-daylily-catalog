@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { flushSync } from "react-dom";
 import { useManagedFormSave } from "@/hooks/use-managed-form-save";
 import { useParentCommitFlag } from "@/hooks/use-parent-commit-flag";
 import { useZodForm } from "@/hooks/use-zod-form";
@@ -91,13 +92,13 @@ function ListFormInner({
     setIsDialogOpen: setIsDeleteDialogOpen,
   } = useConfirmableAsyncAction({
     action: async () => {
+      flushSync(() => onDelete?.());
       await deleteList({ id: listId });
     },
     onSuccess: () => {
       toast.success("List deleted", {
         description: "Your list has been deleted successfully",
       });
-      onDelete?.();
     },
     onError: () => {
       toast.error("Failed to delete list", {

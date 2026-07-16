@@ -6,6 +6,7 @@ import { ArrowLeft } from "lucide-react";
 import {
   Suspense,
   useCallback,
+  useEffect,
   useLayoutEffect,
   useRef,
   useState,
@@ -25,15 +26,33 @@ export const useEditList = () => {
     paramName: "editing",
     scroll: false,
   });
+  const [optimisticEditing, setOptimisticEditing] = useState<{
+    from: string | null;
+    to: string | null;
+  } | null>(null);
+
+  const editingId =
+    optimisticEditing?.from === value ? optimisticEditing.to : value;
+
+  useEffect(() => {
+    if (optimisticEditing?.to !== value) {
+      return;
+    }
+
+    const timeout = window.setTimeout(() => setOptimisticEditing(null), 0);
+    return () => window.clearTimeout(timeout);
+  }, [optimisticEditing, value]);
 
   return {
     editList: (id: string) => {
+      setOptimisticEditing({ from: value, to: id });
       setValue(id);
     },
     closeEditList: () => {
+      setOptimisticEditing({ from: editingId, to: null });
       setValue(null, "replace");
     },
-    editingId: value,
+    editingId,
   };
 };
 
