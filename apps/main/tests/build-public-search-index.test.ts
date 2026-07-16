@@ -80,6 +80,7 @@ function createAuthoritativeFlowerShowSource(sourcePath: string) {
       "flower_form_names" TEXT,
       "unusual_forms_names" TEXT,
       "flower_show" TEXT,
+      "sculpted_type_names" TEXT,
       "seedling_number" TEXT,
       "ploidy_names" TEXT,
       "foliage_names" TEXT,
@@ -110,6 +111,7 @@ function createAuthoritativeFlowerShowSource(sourcePath: string) {
       "flower_form_names",
       "unusual_forms_names",
       "flower_show",
+      "sculpted_type_names",
       "updatedAt"
     ) VALUES
       (
@@ -118,12 +120,14 @@ function createAuthoritativeFlowerShowSource(sourcePath: string) {
         'Polymerous|Single|Unusual Form',
         'Crispate',
         'Unusual Form',
+        'Cristate|Pleated',
         '2026-07-16'
       ),
       (
         'missing',
         'Missing Flower Show',
         'Spider|Single',
+        NULL,
         NULL,
         NULL,
         '2026-07-16'
@@ -170,36 +174,44 @@ describe("build-public-search-index source selection", () => {
       createAuthoritativeFlowerShowSource(sourcePath);
       await execFileAsync(
         process.execPath,
-        [
-          buildScriptPath,
-          "--source",
-          sourcePath,
-          "--target",
-          targetPath,
-        ],
+        [buildScriptPath, "--source", sourcePath, "--target", targetPath],
         { env: process.env },
       );
 
       const targetDb = new DatabaseSync(targetPath, { readOnly: true });
       const rows = targetDb
         .prepare(
-          `SELECT displayName, flowerShow
+          `SELECT displayName, flowerShow, sculptedTypes
            FROM CultivarSearchIndex
            ORDER BY displayName`,
         )
         .all();
-      targetDb.close();
-
       expect(rows).toEqual([
         {
           displayName: "Aerial Art",
           flowerShow: "Unusual Form",
+          sculptedTypes: "Cristate|Pleated",
         },
         {
           displayName: "Missing Flower Show",
           flowerShow: null,
+          sculptedTypes: null,
         },
       ]);
+      expect(
+        targetDb
+          .prepare(
+            `SELECT value, count
+             FROM CultivarSearchFacetValue
+             WHERE facet = 'sculptedType'
+             ORDER BY value`,
+          )
+          .all(),
+      ).toEqual([
+        { value: "Cristate", count: 1 },
+        { value: "Pleated", count: 1 },
+      ]);
+      targetDb.close();
     } finally {
       rmSync(tempDirectory, { force: true, recursive: true });
     }

@@ -11,6 +11,7 @@ export const ADVANCED_CULTIVAR_SEARCH_PARAM_KEYS = [
   "color",
   "cultivarName",
   "foliageType",
+  "flowerShow",
   "form",
   "fragrance",
   "hybridizer",
@@ -18,6 +19,7 @@ export const ADVANCED_CULTIVAR_SEARCH_PARAM_KEYS = [
   "ploidy",
   "scapeHeightMax",
   "scapeHeightMin",
+  "sculptedType",
   "yearMax",
   "yearMin",
 ] as const;

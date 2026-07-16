@@ -49,6 +49,9 @@ describe("cultivar search", () => {
         bloomSeason TEXT,
         bloomHabit TEXT,
         form TEXT,
+        flowerShow TEXT,
+        flowerShowSearch TEXT,
+        sculptedTypes TEXT,
         ploidy TEXT,
         foliageType TEXT,
         fragrance TEXT,
@@ -89,6 +92,12 @@ describe("cultivar search", () => {
         PRIMARY KEY (cultivarId, valueSearch)
       );
 
+      CREATE TABLE CultivarSearchSculptedType (
+        cultivarId INTEGER NOT NULL,
+        valueSearch TEXT NOT NULL,
+        PRIMARY KEY (cultivarId, valueSearch)
+      );
+
       CREATE TABLE CultivarListingSearchIndex (
         listingId TEXT NOT NULL,
         cultivarReferenceId TEXT NOT NULL,
@@ -108,27 +117,40 @@ describe("cultivar search", () => {
       INSERT INTO CultivarSearchIndex (
         id, cultivarReferenceId, normalizedName, displayName,
         displayNameSearch, hybridizer, hybridizerSearch, bloomSeason,
-        foliageType, fragrance, rebloom, awardNames, awardsJson,
+        flowerShow, flowerShowSearch, sculptedTypes, foliageType, fragrance,
+        rebloom, awardNames, awardsJson,
         generatedImageAssetId, generatedImageUrl, hasImage, listingCount,
         sourceUpdatedAt
       ) VALUES
-        (1, 'early', 'early', 'Early', 'early', 'Reed', 'reed', 'Early', 'Evergreen', 'Fragrant', 0, 'HM', '[{"name":"HM","year":"2025","award_url":"https://daylilies.org/award/honorable-mention/"}]', NULL, NULL, 0, 10, '2026-01-01'),
-        (2, 'extra-early', 'extra early', 'Extra Early', 'extra early', 'Stone', 'stone', 'Extra Early', 'Semi-Evergreen', 'Very Fragrant', 0, NULL, NULL, NULL, NULL, 1, 0, '2026-01-01'),
-        (3, 'early-midseason', 'early midseason', 'Early Midseason', 'early midseason', 'Reed', 'reed', 'Early-Midseason', 'Dormant', NULL, 0, 'Stout|HM', '[{"name":"Stout","year":"2024"},{"name":"HM","year":"2022"}]', 'generated-3', 'https://media.example.com/generated-3.webp', 1, 0, '2026-01-01'),
-        (4, 'rebloomer', 'rebloomer', 'Rebloomer', 'rebloomer', 'Apps', 'apps', 'Midseason', 'Dormant', NULL, 1, NULL, NULL, NULL, NULL, 0, 0, '2026-01-01'),
-        (5, 'numeric', '50000 watts', '50,000 Watts', '50,000 watts', 'Reed', 'reed', 'Midseason', 'Dormant', NULL, 0, NULL, NULL, NULL, NULL, 0, 0, '2026-01-01');
+        (1, 'early', 'early', 'Early', 'early', 'Reed', 'reed', 'Early', 'Large', 'large', 'Cristate|Pleated', 'Evergreen', 'Fragrant', 0, 'HM', '[{"name":"HM","year":"2025","award_url":"https://daylilies.org/award/honorable-mention/"}]', NULL, NULL, 0, 10, '2026-01-01'),
+        (2, 'extra-early', 'extra early', 'Extra Early', 'extra early', 'Stone', 'stone', 'Extra Early', 'Small', 'small', 'Relief', 'Semi-Evergreen', 'Very Fragrant', 0, NULL, NULL, NULL, NULL, 1, 0, '2026-01-01'),
+        (3, 'early-midseason', 'early midseason', 'Early Midseason', 'early midseason', 'Reed', 'reed', 'Early-Midseason', 'Unusual Form', 'unusual form', NULL, 'Dormant', NULL, 0, 'Stout|HM', '[{"name":"Stout","year":"2024"},{"name":"HM","year":"2022"}]', 'generated-3', 'https://media.example.com/generated-3.webp', 1, 0, '2026-01-01'),
+        (4, 'rebloomer', 'rebloomer', 'Rebloomer', 'rebloomer', 'Apps', 'apps', 'Midseason', 'Large', 'large', 'Pleated', 'Dormant', NULL, 1, NULL, NULL, NULL, NULL, 0, 0, '2026-01-01'),
+        (5, 'numeric', '50000 watts', '50,000 Watts', '50,000 watts', 'Reed', 'reed', 'Midseason', 'Large', 'large', NULL, 'Dormant', NULL, 0, NULL, NULL, NULL, NULL, 0, 0, '2026-01-01');
 
       INSERT INTO CultivarSearchFacetValue VALUES
         ('hybridizer', 'Reed', 'reed', 3),
         ('hybridizer', 'Stone', 'stone', 1),
         ('hybridizer', 'Pete Harry', 'pete harry', 1),
         ('award', 'HM', 'hm', 2),
-        ('award', 'Stout', 'stout', 1);
+        ('award', 'Stout', 'stout', 1),
+        ('flowerShow', 'Large', 'large', 3),
+        ('flowerShow', 'Small', 'small', 1),
+        ('flowerShow', 'Unusual Form', 'unusual form', 1),
+        ('sculptedType', 'Cristate', 'cristate', 1),
+        ('sculptedType', 'Pleated', 'pleated', 2),
+        ('sculptedType', 'Relief', 'relief', 1);
 
       INSERT INTO CultivarSearchAward VALUES
         (1, 'hm'),
         (3, 'hm'),
         (3, 'stout');
+
+      INSERT INTO CultivarSearchSculptedType VALUES
+        (1, 'cristate'),
+        (1, 'pleated'),
+        (2, 'relief'),
+        (4, 'pleated');
 
       CREATE VIRTUAL TABLE CultivarSearchFts USING fts5(
         displayName,
@@ -271,6 +293,33 @@ describe("cultivar search", () => {
         url: "https://daylilies.org/award/honorable-mention/",
         year: "2025",
       },
+    ]);
+  });
+
+  it("filters authoritative Flower Show and multiform sculpted classifications exactly", async () => {
+    const results = await searchCultivars({
+      baseUrl: "https://daylilycatalog.com",
+      flowerShow: "Large",
+      includeParentageTrees: false,
+      listingLimit: 0,
+      sculptedType: "Cristate|Relief",
+      sort: "name",
+    });
+
+    expect(results.map((result) => result.cultivarReferenceId)).toEqual([
+      "early",
+    ]);
+    expect(results[0]?.traits).toMatchObject({
+      flowerShow: "Large",
+      sculptedTypes: "Cristate|Pleated",
+    });
+
+    await expect(
+      searchCultivarFacetValues({ facet: "sculptedType" }),
+    ).resolves.toEqual([
+      { count: 2, label: "Pleated", value: "Pleated" },
+      { count: 1, label: "Cristate", value: "Cristate" },
+      { count: 1, label: "Relief", value: "Relief" },
     ]);
   });
 

@@ -71,7 +71,7 @@ describe("public cultivar search route", () => {
     const { GET } = await import("@/app/api/v1/cultivars/search/route");
     const response = await GET(
       new Request(
-        "https://daylilycatalog.com/api/v1/cultivars/search?mode=summary&q=Stell&limit=24&offset=24&award=HM&hybridizer=Reed%7CStone&hasCultivarPhoto=true&photosFirst=true&sort=name",
+        "https://daylilycatalog.com/api/v1/cultivars/search?mode=summary&q=Stell&limit=24&offset=24&award=HM&flowerShow=Large&sculptedType=Cristate%7CRelief&hybridizer=Reed%7CStone&hasCultivarPhoto=true&photosFirst=true&sort=name",
         { headers: { "cf-ray": "cultivar-search-request" } },
       ),
     );
@@ -79,6 +79,7 @@ describe("public cultivar search route", () => {
     expect(searchCultivarsMock).toHaveBeenCalledWith(
       expect.objectContaining({
         award: "HM",
+        flowerShow: "Large",
         hasCultivarPhoto: true,
         hybridizer: "Reed|Stone",
         includeParentageTrees: false,
@@ -88,6 +89,7 @@ describe("public cultivar search route", () => {
         photosFirst: true,
         prefixLastToken: true,
         q: "Stell",
+        sculptedType: "Cristate|Relief",
         sort: "name",
       }),
     );
@@ -110,10 +112,12 @@ describe("public cultivar search route", () => {
 
     const rawLog = infoMock.mock.calls.at(-1)?.[0];
     expect(JSON.parse(String(rawLog))).toMatchObject({
-      active_filters: "award|has_cultivar_photo|hybridizer",
+      active_filters:
+        "award|flower_show|has_cultivar_photo|hybridizer|sculpted_type",
       component: "public-cultivar-search",
       event: "public_cultivar_search_request",
-      filter_count: 3,
+      filter_count: 5,
+      flower_show: "large",
       has_cultivar_photo: true,
       hybridizer: "reed|stone",
       has_more: true,
@@ -126,6 +130,7 @@ describe("public cultivar search route", () => {
       query_kind: "query_and_filters",
       request_id: "cultivar-search-request",
       results_returned: 24,
+      sculpted_type: "cristate|relief",
       sort: "name",
       award: "hm",
       source_surface: "public_page",

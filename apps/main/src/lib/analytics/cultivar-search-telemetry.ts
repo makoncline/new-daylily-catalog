@@ -24,6 +24,7 @@ const SEARCH_FILTER_PARAMS: TelemetryParamDefinition[] = [
   { kind: "text", param: "color", property: "color" },
   { kind: "text", param: "cultivarName", property: "cultivar_name" },
   { kind: "text", param: "foliageType", property: "foliage_type" },
+  { kind: "text", param: "flowerShow", property: "flower_show" },
   { kind: "text", param: "form", property: "form" },
   { kind: "text", param: "fragrance", property: "fragrance" },
   {
@@ -59,6 +60,7 @@ const SEARCH_FILTER_PARAMS: TelemetryParamDefinition[] = [
     param: "scapeHeightMin",
     property: "scape_height_min",
   },
+  { kind: "text", param: "sculptedType", property: "sculpted_type" },
   { kind: "number", param: "yearMax", property: "year_max" },
   { kind: "number", param: "yearMin", property: "year_min" },
 ];

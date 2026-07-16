@@ -75,6 +75,7 @@ function searchResponse() {
           color: "gold with a deeper throat",
           doublePercentage: null,
           foliageType: "Dormant",
+          flowerShow: "Miniature",
           form: "Single",
           fragrance: "Fragrant",
           hybridizer: "Jablonski",
@@ -87,6 +88,7 @@ function searchResponse() {
           scapeHeightIn: 11,
           seedlingNumber: "J-75",
           spiderRatio: null,
+          sculptedTypes: null,
           year: 1975,
         },
       },
@@ -210,7 +212,7 @@ describe("CultivarSearchPageClient", () => {
       }),
     );
     expect(String(fetchMock.mock.calls[0]?.[0])).toBe(
-      "/api/v1/cultivars/search?form=Double%7CSpider&limit=24&mode=summary&offset=0&photosFirst=false&q=Stella+de+Oro&sort=name",
+      "/api/v1/cultivars/search?form=Double%7CSpider&hasListings=true&limit=24&mode=summary&offset=0&q=Stella+de+Oro&sort=name",
     );
     expect(`${window.location.pathname}${window.location.search}`).toBe(
       "/cultivars?advanced=true&form=Double%7CSpider&q=Stella+de+Oro",
@@ -222,10 +224,11 @@ describe("CultivarSearchPageClient", () => {
     expect(capturePosthogEventMock).toHaveBeenCalledWith(
       "public_cultivar_search_results_viewed",
       expect.objectContaining({
-        active_filters: "form",
+        active_filters: "form|has_listings",
         client_duration_ms: expect.any(Number),
-        filter_count: 1,
+        filter_count: 2,
         form: "double|spider",
+        has_listings: true,
         has_more: false,
         http_status: 200,
         outcome: "results",
@@ -270,27 +273,35 @@ describe("CultivarSearchPageClient", () => {
     });
 
     expect(screen.getByRole("group", { name: "Sort cultivars" })).toBeVisible();
+    const inCatalogs = screen.getByTestId("advanced-filter-linked-to-cultivar");
+    const withPhotos = screen.getByTestId("cultivar-filter-has-photo");
+    expect(inCatalogs).toHaveAttribute("aria-pressed", "true");
+    expect(
+      inCatalogs.compareDocumentPosition(withPhotos) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    fireEvent.click(inCatalogs);
+    await waitFor(() => {
+      expect(String(fetchMock.mock.calls.at(-1)?.[0])).toContain(
+        "hasListings=false",
+      );
+      expect(window.location.search).toContain("hasListings=false");
+    });
     expect(screen.getByRole("button", { name: "Name A–Z" })).toHaveAttribute(
       "aria-pressed",
       "true",
     );
     expect(
-      screen.getByRole("button", { name: "Photos first" }),
-    ).toHaveAttribute("aria-pressed", "false");
+      screen.queryByRole("button", { name: "Photos first" }),
+    ).not.toBeInTheDocument();
 
     fireEvent.click(
       screen.getByRole("button", { name: "Newest introductions" }),
     );
-    fireEvent.click(screen.getByRole("button", { name: "Photos first" }));
-
     await waitFor(() => {
       const lastUrl = String(fetchMock.mock.calls.at(-1)?.[0]);
       expect(lastUrl).toContain("sort=newest");
-      expect(lastUrl).toContain("photosFirst=true");
     });
-    expect(`${window.location.pathname}${window.location.search}`).toContain(
-      "photosFirst=true",
-    );
     expect(`${window.location.pathname}${window.location.search}`).toContain(
       "sort=newest",
     );
@@ -299,13 +310,16 @@ describe("CultivarSearchPageClient", () => {
   it("exposes cultivar-focused advanced filters and sends their values", async () => {
     fetchMock.mockImplementation((url: string) => {
       if (url.includes("/api/v1/cultivars/facets")) {
+        const options = url.includes("facet=flowerShow")
+          ? [{ count: 62779, label: "Large", value: "Large" }]
+          : url.includes("facet=sculptedType")
+            ? [{ count: 492, label: "Cristate", value: "Cristate" }]
+            : [
+                { count: 24, label: "Reed", value: "Reed" },
+                { count: 12, label: "Stone", value: "Stone" },
+              ];
         return Promise.resolve({
-          json: async () => ({
-            options: [
-              { count: 24, label: "Reed", value: "Reed" },
-              { count: 12, label: "Stone", value: "Stone" },
-            ],
-          }),
+          json: async () => ({ options }),
           ok: true,
           status: 200,
         });
@@ -352,6 +366,13 @@ describe("CultivarSearchPageClient", () => {
     expect(screen.getByTestId("advanced-filter-budcount")).toBeVisible();
     expect(screen.getByTestId("advanced-filter-parentage")).toBeVisible();
     expect(screen.getByTestId("advanced-filter-award")).toBeVisible();
+    expect(screen.getByTestId("advanced-filter-flower-show")).toBeVisible();
+    expect(screen.getByTestId("advanced-filter-sculpted-type")).toBeVisible();
+
+    fireEvent.click(screen.getByRole("button", { name: "Flower Show" }));
+    fireEvent.click(await screen.findByText("Large"));
+    fireEvent.click(screen.getByRole("button", { name: "Sculpted type" }));
+    fireEvent.click(await screen.findByText("Cristate"));
 
     fireEvent.click(screen.getByRole("button", { name: "Hybridizer" }));
     fireEvent.change(screen.getByPlaceholderText("Search hybridizer…"), {
@@ -378,7 +399,9 @@ describe("CultivarSearchPageClient", () => {
           (url) =>
             url.includes("scapeHeightMin=28") &&
             url.includes("parentage=seedling") &&
-            url.includes("hybridizer=Reed%7CStone"),
+            url.includes("hybridizer=Reed%7CStone") &&
+            url.includes("flowerShow=Large") &&
+            url.includes("sculptedType=Cristate"),
         ),
       ).toBe(true);
     });
@@ -503,11 +526,9 @@ describe("CultivarSearchPageClient", () => {
     fireEvent.click(
       screen.getByRole("button", { name: "Newest introductions" }),
     );
-    fireEvent.click(screen.getByRole("button", { name: "Photos first" }));
-
     await waitFor(() => {
       expect(`${window.location.pathname}${window.location.search}`).toBe(
-        "/cultivars?advanced=true&photosFirst=true&q=Back+Search&sort=newest",
+        "/cultivars?advanced=true&q=Back+Search&sort=newest",
       );
     });
 
@@ -558,8 +579,8 @@ describe("CultivarSearchPageClient", () => {
       screen.getByRole("button", { name: "Newest introductions" }),
     ).toHaveAttribute("aria-pressed", "true");
     expect(
-      screen.getByRole("button", { name: "Photos first" }),
-    ).toHaveAttribute("aria-pressed", "true");
+      screen.queryByRole("button", { name: "Photos first" }),
+    ).not.toBeInTheDocument();
     expect(fetchMock).not.toHaveBeenCalled();
     expect(capturePosthogEventMock).not.toHaveBeenCalled();
     await waitFor(() =>
