@@ -37,7 +37,7 @@ const safeRuntime = {
 
 function integrationSubprocessEnv(
   inheritedEnv: NodeJS.ProcessEnv = process.env,
-) {
+): NodeJS.ProcessEnv {
   const env = { ...inheritedEnv };
   for (const name of FORBIDDEN_SERVICE_ENV) delete env[name];
   return {
