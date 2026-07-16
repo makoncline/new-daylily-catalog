@@ -640,7 +640,7 @@ describe("getPublicCultivarPage", () => {
     );
   });
 
-  it("finds related cultivars across stable, current, and legacy hybridizer identifiers", async () => {
+  it("keeps modern hybridizer ids distinct while including legacy-only peers", async () => {
     mockDb.cultivarReference.findFirst.mockResolvedValue({
       id: "cultivar-modern-hybridizer",
       normalizedName: "voellig losgeloest",
@@ -689,8 +689,15 @@ describe("getPublicCultivarPage", () => {
         where: expect.objectContaining({
           OR: [
             { primary_hybridizer_id: "180114" },
-            { primary_hybridizer_name: "Frank Schueler" },
-            { hybridizer_code_legacy: "Schueler" },
+            {
+              primary_hybridizer_id: null,
+              primary_hybridizer_name: "Frank Schueler",
+            },
+            {
+              primary_hybridizer_id: null,
+              primary_hybridizer_name: null,
+              hybridizer_code_legacy: "Schueler",
+            },
           ],
         }),
       }),
@@ -939,9 +946,7 @@ describe("getPublicCultivarPage", () => {
     expect(mockDb.v2AhsCultivar.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
         where: expect.objectContaining({
-          OR: [
-            { hybridizer_code_legacy: "Gregory-CJ &amp; V." },
-          ],
+          OR: [{ hybridizer_code_legacy: "Gregory-CJ &amp; V." }],
         }),
       }),
     );

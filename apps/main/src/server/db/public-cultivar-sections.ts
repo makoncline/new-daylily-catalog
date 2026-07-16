@@ -451,17 +451,42 @@ export async function buildPublicCultivarSummary(args: PublicCultivarContext) {
     cultivarReference.v2AhsCultivar?.primary_hybridizer_name?.trim();
   const legacyHybridizer =
     cultivarReference.v2AhsCultivar?.hybridizer_code_legacy?.trim();
-  const hybridizerIdentifiers = [
-    ...(primaryHybridizerId
-      ? [{ primary_hybridizer_id: primaryHybridizerId }]
-      : []),
-    ...(primaryHybridizer
-      ? [{ primary_hybridizer_name: primaryHybridizer }]
-      : []),
-    ...(legacyHybridizer
-      ? [{ hybridizer_code_legacy: legacyHybridizer }]
-      : []),
-  ];
+  const hybridizerIdentifiers = primaryHybridizerId
+    ? [
+        { primary_hybridizer_id: primaryHybridizerId },
+        ...(primaryHybridizer
+          ? [
+              {
+                primary_hybridizer_id: null,
+                primary_hybridizer_name: primaryHybridizer,
+              },
+            ]
+          : []),
+        ...(legacyHybridizer
+          ? [
+              {
+                primary_hybridizer_id: null,
+                primary_hybridizer_name: null,
+                hybridizer_code_legacy: legacyHybridizer,
+              },
+            ]
+          : []),
+      ]
+    : primaryHybridizer
+      ? [
+          { primary_hybridizer_name: primaryHybridizer },
+          ...(legacyHybridizer
+            ? [
+                {
+                  primary_hybridizer_name: null,
+                  hybridizer_code_legacy: legacyHybridizer,
+                },
+              ]
+            : []),
+        ]
+      : legacyHybridizer
+        ? [{ hybridizer_code_legacy: legacyHybridizer }]
+        : [];
   const generatedCultivarImagesEnabled =
     shouldQueryGeneratedCultivarImageAssets();
   const relatedByHybridizer = hybridizerIdentifiers.length
