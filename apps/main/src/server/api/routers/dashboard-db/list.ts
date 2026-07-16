@@ -9,6 +9,9 @@ import {
   dashboardSyncInputSchema,
   parseDashboardSyncSince,
 } from "./dashboard-db-router-helpers";
+import { APP_CONFIG } from "@/config/constants";
+import { getStripeSubscriptionResult } from "@/server/stripe/sync-subscription";
+import { hasActiveSubscription } from "@/server/stripe/subscription-utils";
 
 const listSelect = {
   id: true,
@@ -75,16 +78,35 @@ export const dashboardDbListRouter = createTRPCRouter({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      const list = await ctx.db.list.create({
-        data: {
-          userId: ctx.user.id,
-          title: input.title,
-          description: input.description,
-        },
-        select: listSelect,
-      });
+      const subscriptionResult = await getStripeSubscriptionResult(
+        ctx.user.stripeCustomerId,
+      );
 
-      return list;
+      return ctx.db.$transaction(async (tx) => {
+        if (
+          subscriptionResult.confirmed &&
+          !hasActiveSubscription(subscriptionResult.subscription.status)
+        ) {
+          const listCount = await tx.list.count({
+            where: { userId: ctx.user.id },
+          });
+          if (listCount >= APP_CONFIG.LIST.FREE_TIER_MAX_LISTS) {
+            throw new TRPCError({
+              code: "FORBIDDEN",
+              message: "Upgrade to Pro to create more lists.",
+            });
+          }
+        }
+
+        return tx.list.create({
+          data: {
+            userId: ctx.user.id,
+            title: input.title,
+            description: input.description,
+          },
+          select: listSelect,
+        });
+      });
     }),
 
   get: protectedProcedure

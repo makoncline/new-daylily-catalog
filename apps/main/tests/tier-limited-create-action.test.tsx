@@ -7,6 +7,7 @@ import { APP_CONFIG } from "@/config/constants";
 const mocks = vi.hoisted(() => ({
   listCount: vi.fn(),
   listings: vi.fn(),
+  openCreateList: vi.fn(),
   openCreateListing: vi.fn(),
   usePro: vi.fn(),
 }));
@@ -39,6 +40,20 @@ vi.mock(
   }),
 );
 
+vi.mock("@/app/dashboard/lists/_components/create-list-dialog", () => ({
+  useCreateList: () => {
+    const pro = mocks.usePro();
+    const count = mocks.listCount();
+
+    return {
+      isEligibilityLoading: pro.isLoading || count.isLoading,
+      isPro: pro.isPro,
+      listCount: count.data,
+      openCreateList: mocks.openCreateList,
+    };
+  },
+}));
+
 vi.mock("@/trpc/react", () => ({
   api: {
     dashboardDb: {
@@ -57,6 +72,7 @@ vi.mock("@/components/checkout-button", () => ({
 
 describe("dashboard create buttons", () => {
   beforeEach(() => {
+    mocks.openCreateList.mockReset();
     mocks.openCreateListing.mockReset();
   });
 
@@ -93,7 +109,7 @@ describe("dashboard create buttons", () => {
 
     render(<CreateListButton />);
     fireEvent.click(screen.getByRole("button", { name: "Create List" }));
-    expect(screen.getByRole("dialog")).toHaveTextContent("Create New List");
+    expect(mocks.openCreateList).toHaveBeenCalledOnce();
   });
 
   it("opens each upgrade path for a loaded free account at its limit", () => {
@@ -116,5 +132,6 @@ describe("dashboard create buttons", () => {
     render(<CreateListButton />);
     fireEvent.click(screen.getByRole("button", { name: "Create List" }));
     expect(screen.getByRole("dialog")).toHaveTextContent("Upgrade to Pro");
+    expect(mocks.openCreateList).not.toHaveBeenCalled();
   });
 });
