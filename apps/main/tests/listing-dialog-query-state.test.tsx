@@ -6,27 +6,29 @@ const navigationState = vi.hoisted(() => {
   let pathname = "/grower";
   let search = "utm_source=test";
 
-  const push = vi.fn((url: string) => {
+  const navigate = (url: string) => {
     const nextUrl = new URL(url, "https://example.com");
     pathname = nextUrl.pathname;
     search = nextUrl.search.startsWith("?")
       ? nextUrl.search.slice(1)
       : nextUrl.search;
-  });
+  };
 
   return {
     getPathname: () => pathname,
     getSearch: () => search,
+    navigate,
     setSearch: (value: string) => {
       search = value;
     },
-    push,
   };
 });
 
+const routerPush = vi.fn();
+
 vi.mock("next/navigation", () => ({
   useRouter: () => ({
-    push: navigationState.push,
+    push: routerPush,
   }),
   usePathname: () => navigationState.getPathname(),
   useSearchParams: () => new URLSearchParams(navigationState.getSearch()),
@@ -34,8 +36,16 @@ vi.mock("next/navigation", () => ({
 
 describe("useListingDialogQueryState", () => {
   beforeEach(() => {
+    vi.restoreAllMocks();
     navigationState.setSearch("utm_source=test");
-    navigationState.push.mockClear();
+    routerPush.mockClear();
+    vi.spyOn(window.history, "pushState").mockImplementation(
+      (_data, _unused, url) => {
+        if (url) {
+          navigationState.navigate(url.toString());
+        }
+      },
+    );
   });
 
   it("updates the viewing query while preserving unrelated params", () => {
@@ -47,10 +57,12 @@ describe("useListingDialogQueryState", () => {
       result.current.openListing("listing-1");
     });
 
-    expect(navigationState.push).toHaveBeenCalledWith(
+    expect(window.history.pushState).toHaveBeenCalledWith(
+      window.history.state,
+      "",
       "/grower?utm_source=test&viewing=listing-1",
-      { scroll: false },
     );
+    expect(routerPush).not.toHaveBeenCalled();
 
     rerender();
     expect(result.current.viewingId).toBe("listing-1");
@@ -59,9 +71,10 @@ describe("useListingDialogQueryState", () => {
       result.current.closeListing();
     });
 
-    expect(navigationState.push).toHaveBeenCalledWith(
+    expect(window.history.pushState).toHaveBeenCalledWith(
+      window.history.state,
+      "",
       "/grower?utm_source=test",
-      { scroll: false },
     );
 
     rerender();
