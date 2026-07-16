@@ -192,9 +192,9 @@ export function generateCollectionMetadata(
           kind: "list" as const,
           id: selectedList.id,
           title: selectedList.title,
-          description:
-            selectedList.description?.trim() ||
-            `Browse ${selectedList.listingCount.toLocaleString()} daylily ${selectedList.listingCount === 1 ? "listing" : "listings"} curated by ${sellerTitle}.`,
+          description: selectedList.description?.trim()
+            ? selectedList.description.trim()
+            : `Browse ${selectedList.listingCount.toLocaleString()} daylily ${selectedList.listingCount === 1 ? "listing" : "listings"} curated by ${sellerTitle}.`,
         }
       : isForSale && hasOnlyCollectionParams(searchParams, "price")
         ? {
