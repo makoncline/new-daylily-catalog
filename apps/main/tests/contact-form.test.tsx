@@ -6,20 +6,34 @@ import {
   waitFor,
 } from "@testing-library/react";
 import { vi, describe, it, expect, beforeEach } from "vitest";
+import { AddToCartButton } from "@/components/add-to-cart-button";
 import { ContactForm } from "@/components/contact-form";
+import type { CartItem } from "@/types";
 
 // Mock hooks
-let cartItems: Array<{ id: string }> = [];
+const cartItem: CartItem = {
+  id: "item-1",
+  listingId: "item-1",
+  price: 40,
+  quantity: 1,
+  title: "Example Daylily",
+  userId: "test-user-id",
+};
+let cartItems: CartItem[] = [];
 type MutationOnError = (error: unknown, errorInfo: unknown) => void;
 const mutationOnError = vi.hoisted(() => ({
   current: undefined as MutationOnError | undefined,
 }));
 const reportErrorMock = vi.hoisted(() => vi.fn());
+const mockAddItem = vi.fn();
+const mockUpdateQuantity = vi.fn();
+const mockRemoveItem = vi.fn();
 
 const mockUseCart = vi.fn(() => ({
   items: cartItems,
-  updateQuantity: vi.fn(),
-  removeItem: vi.fn(),
+  addItem: mockAddItem,
+  updateQuantity: mockUpdateQuantity,
+  removeItem: mockRemoveItem,
   clearCart: vi.fn(),
   total: 0,
 }));
@@ -152,7 +166,7 @@ describe("ContactForm", () => {
   it("cart change revalidates message without unhandled rejection", async () => {
     const t = trackUnhandledRejections();
     try {
-      cartItems = [{ id: "item-1" }];
+      cartItems = [cartItem];
       const { rerender, container } = render(
         <ContactForm userId="test-user-id" />,
       );
@@ -180,7 +194,7 @@ describe("ContactForm", () => {
   });
 
   it("enables submission for a cart when valid remembered customer info is restored", async () => {
-    cartItems = [{ id: "item-1" }];
+    cartItems = [cartItem];
     customerInfo = { email: "remembered@example.com", name: "Buyer" };
 
     render(<ContactForm userId="test-user-id" />);
@@ -190,6 +204,53 @@ describe("ContactForm", () => {
         screen.getByRole("button", { name: "Send Message" }),
       ).toBeEnabled(),
     );
+  });
+
+  it("keeps named cart controls clickable while the email field is focused", async () => {
+    cartItems = [cartItem];
+
+    render(<ContactForm userId="test-user-id" />);
+    await act(async () => {
+      screen.getByRole("textbox", { name: "Email" }).focus();
+    });
+
+    const increase = screen.getByRole("button", {
+      name: "Increase quantity for Example Daylily",
+    });
+    await act(async () => {
+      expect(fireEvent.pointerDown(increase)).toBe(false);
+      fireEvent.click(increase);
+    });
+
+    expect(mockUpdateQuantity).toHaveBeenCalledWith("item-1", 2);
+    expect(
+      screen.getByRole("button", {
+        name: "Decrease quantity for Example Daylily",
+      }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Remove Example Daylily from cart" }),
+    ).toBeInTheDocument();
+  });
+
+  it("names the listing cart action and adds the selected listing", () => {
+    const listing = {
+      id: "item-1",
+      price: 40,
+      title: "Example Daylily",
+      userId: "test-user-id",
+    };
+
+    render(<AddToCartButton listing={listing} />);
+    fireEvent.click(
+      screen.getByRole("button", { name: "Add Example Daylily to cart" }),
+    );
+
+    expect(mockAddItem).toHaveBeenCalledWith({
+      ...listing,
+      listingId: listing.id,
+      quantity: 1,
+    });
   });
 
   it("does not report expected BAD_REQUEST validation errors", async () => {
