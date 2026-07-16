@@ -44,6 +44,7 @@ const SESSION_AUTH_TOKENS = ["session_token"] as const;
 export interface TRPCContext {
   headers: Headers;
   db: typeof db;
+  clerkUserId?: string | null;
   hasReplicaDb?: boolean;
   replicaDb?: typeof db;
   requestUrl?: string;
@@ -75,6 +76,7 @@ export interface TRPCInternalContext extends TRPCContext {
 export const createTRPCContext = async (opts: {
   headers: Headers;
   requestUrl?: string;
+  clerkUserId?: string | null;
 }): Promise<TRPCContext> => {
   return {
     ...opts,
@@ -172,8 +174,11 @@ export async function resolveAuthenticatedClerkUserId() {
   return null;
 }
 
-async function resolveAuthenticatedUser() {
-  const clerkUserId = await resolveAuthenticatedClerkUserId();
+async function resolveAuthenticatedUser(requestClerkUserId?: string | null) {
+  const clerkUserId =
+    typeof requestClerkUserId === "undefined"
+      ? await resolveAuthenticatedClerkUserId()
+      : requestClerkUserId;
 
   if (!clerkUserId) {
     return null;
@@ -191,7 +196,9 @@ const READ_ONLY_MUTATION_PATHS = new Set([
 
 const isAuthenticated = t.middleware(async (opts) => {
   if (typeof opts.ctx._authUser === "undefined") {
-    opts.ctx._authUserPromise ??= resolveAuthenticatedUser();
+    opts.ctx._authUserPromise ??= resolveAuthenticatedUser(
+      opts.ctx.clerkUserId,
+    );
     opts.ctx._authUser = await opts.ctx._authUserPromise;
   }
 
