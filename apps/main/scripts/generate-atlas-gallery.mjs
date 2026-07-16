@@ -2,6 +2,7 @@
 import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import {
+  ATLAS_FLOWS,
   getAtlasFlow,
   resolveLiveStateUrl,
   statesForFlow,
@@ -12,6 +13,23 @@ const escapeHtml = (value) =>
     .replaceAll("<", "&lt;")
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;");
+
+export function generateAtlasHome({ outputDirectory, flows = ATLAS_FLOWS }) {
+  const cards = flows
+    .map(
+      (flow) =>
+        `<a href="${escapeHtml(flow.id)}/index.html"><h2>${escapeHtml(flow.title)}</h2><p>${escapeHtml(flow.description)}</p><strong>${statesForFlow(flow).length} UI states</strong></a>`,
+    )
+    .join("");
+  const html = `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Daylily Catalog UI Atlas</title><style>
+  :root{font-family:Inter,ui-sans-serif,system-ui;color:#20251f;background:#f4f5f1}*{box-sizing:border-box}body{margin:0;padding:36px}main{max-width:1100px;margin:auto}h1{font-size:clamp(2.5rem,7vw,5rem);letter-spacing:-.05em;margin:0 0 12px}header p,a p{color:#62685f;line-height:1.5}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:20px;margin-top:40px}a{display:block;padding:24px;border:1px solid #d9ddd4;border-radius:18px;background:white;color:inherit;text-decoration:none}a:hover{border-color:#71816b;box-shadow:0 12px 30px #26332212}a h2{margin-top:0}strong{color:#3f6037}@media(max-width:700px){body{padding:24px 14px}}
+  </style></head><body><main><header><p>Daylily Catalog</p><h1>UI Atlas</h1><p>Choose a crucial user flow to review its declared UI states and confidence layers.</p></header><div class="grid">${cards}</div></main></body></html>`;
+  mkdirSync(outputDirectory, { recursive: true });
+  const homePath = path.join(outputDirectory, "index.html");
+  writeFileSync(homePath, html);
+  return homePath;
+}
+
 export function generateAtlasGallery({
   flowId,
   outputDirectory,
