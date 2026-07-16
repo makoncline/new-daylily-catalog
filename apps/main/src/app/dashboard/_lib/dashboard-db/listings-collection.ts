@@ -201,20 +201,13 @@ export async function updateListing(draft: UpdateDraft) {
   });
 }
 
-export async function deleteListing({
-  id,
-  onOptimisticDelete,
-}: {
-  id: string;
-  onOptimisticDelete?: () => void;
-}) {
+export async function deleteListing({ id }: { id: string }) {
   await runWithDashboardRefreshLock(async () => {
     const previous = listingsCollection.get(id);
     DELETED_IDS.add(id);
     listingsCollection.utils.writeDelete(id);
 
     try {
-      onOptimisticDelete?.();
       await getTrpcClient().dashboardDb.listing.delete.mutate({ id });
     } catch (error) {
       if (previous) listingsCollection.utils.writeInsert(previous);
