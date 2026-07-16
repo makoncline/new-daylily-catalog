@@ -85,6 +85,7 @@ Non-secrets:
 - `STRIPE_PRICE_ID`
 - `DATABASE_URL`
 - `NEXT_PUBLIC_SENTRY_ENABLED`
+- `SENTRY_ENVIRONMENT` set to `production`
 - `NEXT_PUBLIC_POSTHOG_KEY`
 - `NEXT_PUBLIC_POSTHOG_HOST`
 
@@ -166,7 +167,7 @@ install -d -o 1001 -g 1001 /srv/stacks/daylilycatalog/next-cache
 ## Image Build
 
 The Docker build prerenders static public routes and sitemap data, so build with the same env file you plan to run in production.
-Sentry support is always included in the Docker build so source maps and runtime instrumentation stay available. Browser observability reads `NEXT_PUBLIC_SENTRY_ENABLED`, `NEXT_PUBLIC_POSTHOG_KEY`, and `NEXT_PUBLIC_POSTHOG_HOST` from the running container through `/api/runtime-config`; server Sentry reads `NEXT_PUBLIC_SENTRY_ENABLED` through the runtime env helper. Changing the VPS `.env` and restarting the container can turn observability on or off without rebuilding the image.
+Sentry support is always included in the Docker build so source maps and runtime instrumentation stay available. Browser observability reads `NEXT_PUBLIC_SENTRY_ENABLED`, `SENTRY_ENVIRONMENT`, `NEXT_PUBLIC_POSTHOG_KEY`, and `NEXT_PUBLIC_POSTHOG_HOST` from the running container through `/api/runtime-config`; server Sentry reads the same Sentry settings through the runtime env helper. Set the VPS to `SENTRY_ENVIRONMENT=production`. Vercel previews infer `preview` from `VERCEL_ENV`, and the local production-like preparation script writes `prod-like`. Changing the VPS `.env` and restarting the container can turn observability on or off or change its environment without rebuilding the image.
 
 GitHub Actions now hashes the generated Docker build env and passes that fingerprint as a build arg, so changes to canonical build-time env like `APP_BASE_URL` automatically force a fresh `next build` layer instead of reusing stale cached public output.
 
@@ -198,6 +199,7 @@ For a non-Vercel CI build that still generates correct public metadata and sitem
 Optional observability env:
 
 - `NEXT_PUBLIC_SENTRY_ENABLED`
+- `SENTRY_ENVIRONMENT` (`production` or `preview`)
 - `NEXT_PUBLIC_POSTHOG_KEY`
 - `NEXT_PUBLIC_POSTHOG_HOST`
 

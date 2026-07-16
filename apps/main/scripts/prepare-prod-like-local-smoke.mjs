@@ -157,6 +157,7 @@ function buildRuntimeEnv(source, { tunnelHost }) {
 
   setEnvValue(lines, "APP_BASE_URL", `https://${tunnelHost}`);
   setEnvValue(lines, "DATABASE_URL", DEFAULT_RUNTIME_DB_URL);
+  setEnvValue(lines, "SENTRY_ENVIRONMENT", "prod-like");
   setEnvValue(lines, "PUBLIC_SEARCH_INDEX_REFRESH_INTERVAL_SECONDS", "0");
   setEnvValue(lines, "NODE_OPTIONS", "--max-old-space-size=4096");
   commentOutEnvValue(lines, "TURSO_EMBEDDED_REPLICA_URL");
