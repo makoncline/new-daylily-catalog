@@ -30,6 +30,9 @@ test.describe("guest user tour @preview", () => {
       .locator("div.group.relative")
       .first();
     await expect(firstListingCard).toBeVisible();
+    await expect(firstListingCard).toHaveAttribute("data-hydrated", "true", {
+      timeout: 60_000,
+    });
     await firstListingCard.click();
     await expect(page.getByRole("dialog")).toBeVisible();
 

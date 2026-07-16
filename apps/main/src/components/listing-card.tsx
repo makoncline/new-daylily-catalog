@@ -18,6 +18,7 @@ import { ImagePlaceholder } from "./image-placeholder";
 import { ImagePopover } from "@/components/image-popover";
 import { AddToCartButton } from "@/components/add-to-cart-button";
 import { useDisplayAhsListing } from "@/hooks/use-display-ahs-listing";
+import { useIsHydrated } from "@/hooks/use-is-hydrated";
 import { useListingDialogQueryState } from "@/hooks/use-listing-dialog-query-state";
 import {
   formatListingCardTitle,
@@ -33,6 +34,7 @@ type ListingCardProps = {
 
 export function ListingCard({ listing, priority = false }: ListingCardProps) {
   const { openListing } = useListingDialogQueryState();
+  const isHydrated = useIsHydrated();
   const displayAhsListing = useDisplayAhsListing(listing);
   const displayTitle = formatListingCardTitle(listing.title);
   const titleSizeClass = getListingCardTitleSizeClass(displayTitle.length);
@@ -45,8 +47,17 @@ export function ListingCard({ listing, priority = false }: ListingCardProps) {
 
   return (
     <Card
-      className="group hover:border-primary relative flex h-full cursor-pointer flex-col overflow-hidden transition-all"
-      onClick={() => openListing(listing.id)}
+      aria-disabled={!isHydrated}
+      className={cn(
+        "group hover:border-primary relative flex h-full cursor-pointer flex-col overflow-hidden transition-all",
+        !isHydrated && "pointer-events-none",
+      )}
+      data-hydrated={isHydrated}
+      onClick={() => {
+        if (isHydrated) {
+          openListing(listing.id);
+        }
+      }}
     >
       {/* Create SEO links for each URL variation */}
       {/* {urlVariations.map((url, index) => (
