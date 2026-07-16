@@ -82,6 +82,10 @@ function getCardCopy(data: PublicSocialCardData) {
     case "listing":
       return {
         title: data.title,
+        subtitle:
+          [normalizeText(data.hybridizer, 42), normalizeText(data.year, 8)]
+            .filter(Boolean)
+            .join(", ") || null,
         attribution: `From ${normalizeText(data.sellerTitle, 44) ?? "Daylily Catalog"}`,
         stat:
           data.price && data.price > 0
@@ -197,6 +201,7 @@ function SocialCardBackground({ imageUrl }: { imageUrl?: string }) {
 export function PublicSocialCard({ data }: { data: PublicSocialCardData }) {
   const copy = getCardCopy(data);
   const title = normalizeText(copy.title, 64) ?? "Daylily Catalog";
+  const subtitle = "subtitle" in copy ? copy.subtitle : null;
 
   return (
     <div
@@ -273,7 +278,7 @@ export function PublicSocialCard({ data }: { data: PublicSocialCardData }) {
           <div
             style={{
               display: "flex",
-              maxHeight: 184,
+              maxHeight: subtitle ? 145 : 184,
               overflow: "hidden",
               color: COLORS.cream,
               fontSize: getTitleFontSize(title),
@@ -287,12 +292,32 @@ export function PublicSocialCard({ data }: { data: PublicSocialCardData }) {
             {title}
           </div>
 
+          {subtitle && (
+            <div
+              style={{
+                display: "flex",
+                maxWidth: 560,
+                maxHeight: 31,
+                marginTop: 14,
+                overflow: "hidden",
+                color: COLORS.cream,
+                fontSize: 25,
+                fontWeight: 600,
+                lineHeight: 1.15,
+                whiteSpace: "nowrap",
+                textShadow: "0 2px 14px rgba(0, 0, 0, 0.72)",
+              }}
+            >
+              {subtitle}
+            </div>
+          )}
+
           <div
             style={{
               display: "flex",
               width: 150,
               height: 3,
-              marginTop: 22,
+              marginTop: subtitle ? 18 : 22,
               backgroundColor: COLORS.amber,
               boxShadow: "0 2px 10px rgba(0, 0, 0, 0.35)",
             }}

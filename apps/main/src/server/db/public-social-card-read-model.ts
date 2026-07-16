@@ -135,6 +135,11 @@ async function getListingSocialCardData(
     kind: "listing",
     title: listing.title,
     sellerTitle: listing.sellerTitle ?? "Daylily Catalog",
+    hybridizer:
+      listing.ahsListing?.hybridizer?.toLowerCase() === "unknown"
+        ? null
+        : (listing.ahsListing?.hybridizer ?? null),
+    year: listing.ahsListing?.year ?? null,
     price: listing.price,
     imageUrls: uniqueImageUrls([...listing.images.map((image) => image.url)]),
   };

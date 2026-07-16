@@ -31,6 +31,8 @@ export type PublicSocialCardData =
       kind: "listing";
       title: string;
       sellerTitle: string;
+      hybridizer: string | null;
+      year: string | null;
       price: number | null;
       imageUrls: string[];
     };

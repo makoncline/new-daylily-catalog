@@ -2,7 +2,9 @@
 
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
+import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { PublicSocialCard } from "@/components/public-social-card";
 
 const mocks = vi.hoisted(() => ({
   getPublicSocialCardData: vi.fn(),
@@ -81,5 +83,24 @@ describe("social card route", () => {
 
     expect(response.status).toBe(404);
     expect(mocks.getPublicSocialCardData).not.toHaveBeenCalled();
+  });
+
+  it("shows available hybridizer and year beneath a listing title", () => {
+    const markup = renderToStaticMarkup(
+      <PublicSocialCard
+        data={{
+          kind: "listing",
+          title: "Coffee Frenzy",
+          sellerTitle: "RollingOaksDaylilies",
+          hybridizer: "Kay Cline",
+          year: "2014",
+          price: 12,
+          imageUrls: [],
+        }}
+      />,
+    );
+
+    expect(markup).toContain("Coffee Frenzy");
+    expect(markup).toContain("Kay Cline, 2014");
   });
 });
