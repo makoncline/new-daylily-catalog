@@ -31,7 +31,6 @@ const guardUrl = pathToFileURL(
 const integrationEnv = {
   ...process.env,
   NODE_ENV: "development",
-  RUST_LOG: "info",
   INTEGRATION_MODE: "1",
   INTEGRATION_NETWORK_GUARD: "1",
   APP_BASE_URL: appBaseUrl,
@@ -46,6 +45,7 @@ const integrationEnv = {
   USE_IMAGE_ASSETS: "false",
   USE_GENERATED_CULTIVAR_IMAGE_ASSETS: "false",
   PUBLIC_SEARCH_INDEX_REFRESH_INTERVAL_SECONDS: "0",
+  RUST_LOG: "info",
   NODE_OPTIONS: `--import=${guardUrl}`,
 };
 

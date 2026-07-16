@@ -6,7 +6,6 @@ test("seller creates, edits, and reloads a listing through the app", async ({
   createListingDialog,
   editListingDialog,
 }) => {
-  const createdTitle = "Integration Tracer Listing";
   const editedTitle = "Integration Tracer Listing Edited";
   const toast = (message: string) =>
     page.locator("[data-sonner-toast]").filter({ hasText: message }).first();
@@ -20,14 +19,16 @@ test("seller creates, edits, and reloads a listing through the app", async ({
     "Integration Bloom",
     "Integration Bloom",
   );
-  await createListingDialog.changeTitle(createdTitle);
+  await createListingDialog.changeTitle("Integration Tracer Listing");
   await createListingDialog.createListing();
 
   await expect(toast("Listing created")).toBeVisible();
   await editListingDialog.isReady();
   await editListingDialog.fillTitle(editedTitle);
-  await editListingDialog.clickSaveChanges();
+  await editListingDialog.saveAndClose();
   await expect(toast("Changes saved")).toBeVisible();
+  await page.getByTestId("dashboard-nav-listings").click();
+  await expect(page).toHaveURL(/\/dashboard\/listings$/);
 
   await page.reload();
   await dashboardListings.isReady();
