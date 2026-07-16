@@ -59,7 +59,12 @@ async function isHealthy() {
   }
 }
 async function startServer() {
-  if (await isHealthy()) return;
+  if (await isHealthy()) {
+    if (process.env.BASE_URL) return;
+    throw new Error(
+      `${baseURL} is already serving an app. Stop it or pass BASE_URL explicitly to reuse it.`,
+    );
+  }
   if (process.env.BASE_URL)
     throw new Error(`BASE_URL is not healthy: ${process.env.BASE_URL}`);
   for (const envPath of [

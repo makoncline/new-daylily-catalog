@@ -39,14 +39,31 @@ export function getE2eCiGroup(value) {
 /** @param {string} [appRoot] */
 export function discoverLocalE2eFiles(appRoot = defaultAppRoot) {
   const directory = path.join(appRoot, "tests/e2e");
-  return fs
-    .readdirSync(directory)
-    .filter((file) => file.endsWith(".e2e.ts"))
-    .filter((file) =>
-      fs.readFileSync(path.join(directory, file), "utf8").includes("@local"),
-    )
-    .map((file) => `tests/e2e/${file}`)
-    .sort();
+  /**
+   * @param {string} currentDirectory
+   * @returns {string[]}
+   */
+  function discover(currentDirectory) {
+    return fs
+      .readdirSync(currentDirectory, { withFileTypes: true })
+      .flatMap((entry) => {
+        const absolutePath = path.join(currentDirectory, entry.name);
+        if (entry.isDirectory()) return discover(absolutePath);
+        if (!entry.name.match(/\.e2e\.(?:ts|tsx)$/)) return [];
+
+        const source = fs.readFileSync(absolutePath, "utf8");
+        const isAttachOnly =
+          !source.includes("@local") &&
+          ["@preview", "@profile", "@prod"].some((tag) =>
+            source.includes(tag),
+          );
+        if (isAttachOnly) return [];
+
+        return [path.relative(appRoot, absolutePath).split(path.sep).join("/")];
+      });
+  }
+
+  return discover(directory).sort();
 }
 
 /**

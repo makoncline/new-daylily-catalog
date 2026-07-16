@@ -1,6 +1,10 @@
 // @vitest-environment node
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import { describe, expect, it } from "vitest";
 import {
+  discoverLocalE2eFiles,
   e2eCiGroups,
   getE2eCiGroup,
   validateE2eCiGroups,
@@ -39,6 +43,29 @@ describe("connected E2E CI groups", () => {
     expect(() => validateE2eCiGroups({ groups })).toThrow(
       '"unknown":["tests/e2e/unknown.e2e.ts"]',
     );
+  });
+
+  it("discovers nested TypeScript, TSX, and untagged local specs", () => {
+    const appRoot = fs.mkdtempSync(path.join(os.tmpdir(), "e2e-discovery-"));
+    const e2eRoot = path.join(appRoot, "tests/e2e");
+    fs.mkdirSync(path.join(e2eRoot, "nested"), { recursive: true });
+    fs.writeFileSync(
+      path.join(e2eRoot, "untagged.e2e.ts"),
+      'test("runs locally", () => {});',
+    );
+    fs.writeFileSync(
+      path.join(e2eRoot, "nested/local.e2e.tsx"),
+      'test("runs @local", () => <div />);',
+    );
+    fs.writeFileSync(
+      path.join(e2eRoot, "preview.e2e.ts"),
+      'test("runs @preview", () => {});',
+    );
+
+    expect(discoverLocalE2eFiles(appRoot)).toEqual([
+      "tests/e2e/nested/local.e2e.tsx",
+      "tests/e2e/untagged.e2e.ts",
+    ]);
   });
 
   it.each([0, 4, "unknown"])("rejects invalid group %s", (group) => {
