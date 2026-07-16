@@ -3,6 +3,8 @@ export const SOCIAL_CARD_SIZE = {
   height: 630,
 } as const;
 
+export const SOCIAL_CARD_RENDER_VERSION = "2";
+
 export const SOCIAL_CARD_KINDS = [
   "catalog",
   "for-sale",
@@ -57,12 +59,16 @@ export function getSocialCardImageUrl({
     `${baseUrl.replace(/\/$/, "")}/`,
   );
 
+  let version = SOCIAL_CARD_RENDER_VERSION;
+
   if (updatedAt) {
     const timestamp = new Date(updatedAt).getTime();
     if (Number.isFinite(timestamp)) {
-      url.searchParams.set("v", timestamp.toString(36));
+      version = `${version}-${timestamp.toString(36)}`;
     }
   }
+
+  url.searchParams.set("v", version);
 
   return url.toString();
 }
