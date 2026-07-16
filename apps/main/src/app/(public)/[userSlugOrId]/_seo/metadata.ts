@@ -2,6 +2,7 @@ import { IMAGES } from "@/lib/constants/images";
 import { getOptimizedMetaImageUrl } from "@/lib/utils/cloudflareLoader";
 import { reportError } from "@/lib/error-utils";
 import { METADATA_CONFIG } from "@/config/constants";
+import { getSocialCardImageUrl } from "@/lib/social-card";
 import type { PublicPageMetadata } from "@/app/(public)/_seo/public-seo";
 
 // Optimal meta description length
@@ -15,6 +16,7 @@ interface PublicProfile {
   slug: string | null;
   description: string | null;
   location: string | null;
+  updatedAt?: Date | string | null;
   images?: Array<{ id: string; url: string }>;
   // Add other fields as needed
 }
@@ -74,6 +76,12 @@ async function createProfileMetadata(
     const imageUrl = getOptimizedMetaImageUrl(rawImageUrl);
     const canonicalUserSlug = profile.slug ?? profile.id;
     const pageUrl = `${url}/${canonicalUserSlug}`;
+    const socialImageUrl = getSocialCardImageUrl({
+      baseUrl: url,
+      kind: "catalog",
+      id: profile.id,
+      updatedAt: profile.updatedAt,
+    });
 
     return {
       url,
@@ -91,10 +99,11 @@ async function createProfileMetadata(
         locale: METADATA_CONFIG.LOCALE,
         images: [
           {
-            url: imageUrl,
+            url: socialImageUrl,
             width: 1200,
             height: 630,
-            alt: "Daylily catalog cover image",
+            alt: `${title} catalog preview`,
+            type: "image/png",
           },
         ],
         type: "website",
@@ -104,7 +113,7 @@ async function createProfileMetadata(
         title: `${title} | ${METADATA_CONFIG.SITE_NAME}`,
         description: description.trim(),
         site: METADATA_CONFIG.TWITTER_HANDLE,
-        images: [imageUrl],
+        images: [socialImageUrl],
       },
       alternates: {
         canonical: `/${canonicalUserSlug}`,

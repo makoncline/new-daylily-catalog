@@ -28,9 +28,7 @@ describe("Docker build cache and observability boundaries", () => {
     expect(workflow).toContain("docker/build-push-action@v7");
     expect(workflow).toContain('CACHE_TO=""');
     expect(workflow).toContain('CACHE_TO="type=gha,mode=max"');
-    expect(workflow).toContain(
-      "cache-to: ${{ steps.meta.outputs.cache_to }}",
-    );
+    expect(workflow).toContain("cache-to: ${{ steps.meta.outputs.cache_to }}");
     expect(
       readFileSync(path.join(repoRoot, ".dockerignore"), "utf8"),
     ).toContain("apps/*/Dockerfile");
@@ -80,6 +78,12 @@ describe("Docker build cache and observability boundaries", () => {
     );
     expect(dockerfile).toContain(
       'cp -a "$source_modules/.prisma" "$runtime_modules/.prisma"',
+    );
+    expect(dockerfile).toContain(
+      "/app/apps/main/node_modules/geist/dist/fonts/geist-sans/Geist-Regular.ttf",
+    );
+    expect(dockerfile).toContain(
+      "/app/apps/main/node_modules/geist/dist/fonts/geist-sans/Geist-Bold.ttf",
     );
     expect(runtimePackage.dependencies).toEqual({
       "@aws-sdk/client-s3": appPackage.dependencies["@aws-sdk/client-s3"],

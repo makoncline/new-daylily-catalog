@@ -1,4 +1,5 @@
 import type { OutputData } from "@editorjs/editorjs";
+import { Prisma } from "@prisma/client";
 import { TRPCError } from "@trpc/server";
 import { replicaDb } from "@/server/db";
 import { getLatestDate } from "@/server/db/public-date-utils";
@@ -308,14 +309,23 @@ export async function getPublicSellerSummary(
   userId: string,
   options?: PublicSellerSummaryOptions,
 ) {
-  const summaries = await getPublicSellerSummariesByUserIds([userId], options);
+  const [summaries, imageUpdatedAt] = await Promise.all([
+    getPublicSellerSummariesByUserIds([userId], options),
+    getPublicSellerImageUpdatedAt(userId),
+  ]);
   const summary = summaries.get(userId);
 
   if (!summary) {
     throw new Error("Public seller summary not found");
   }
 
-  return summary;
+  return {
+    ...summary,
+    updatedAt: getLatestDate(
+      [summary.updatedAt, imageUpdatedAt],
+      summary.updatedAt,
+    ),
+  };
 }
 
 async function getPublicSellerListSummariesByUserIds(userIds: string[]) {
@@ -387,6 +397,59 @@ export async function getPublicSellerContent(userId: string) {
   });
 
   return parseProfileContent(profile?.content ?? null);
+}
+
+async function getPublicSellerImageUpdatedAt(userId: string) {
+  const [row] = await replicaDb.$queryRaw<
+    Array<{ updatedAtMs: number | string | null }>
+  >(Prisma.sql`
+    SELECT MAX(
+      CASE
+        WHEN typeof("updatedAt") IN ('integer', 'real')
+          THEN CAST("updatedAt" AS INTEGER)
+        ELSE CAST((julianday("updatedAt") - 2440587.5) * 86400000 AS INTEGER)
+      END
+    ) AS "updatedAtMs"
+    FROM (
+      SELECT image."updatedAt" AS "updatedAt"
+      FROM "Image" image
+      INNER JOIN "Listing" listing ON listing."id" = image."listingId"
+      WHERE listing."userId" = ${userId}
+
+      UNION ALL
+
+      SELECT image."updatedAt" AS "updatedAt"
+      FROM "Image" image
+      INNER JOIN "UserProfile" profile ON profile."id" = image."userProfileId"
+      WHERE profile."userId" = ${userId}
+
+      UNION ALL
+
+      SELECT asset."updatedAt" AS "updatedAt"
+      FROM "ImageAsset" asset
+      INNER JOIN "Listing" listing ON listing."id" = asset."listingId"
+      WHERE listing."userId" = ${userId}
+
+      UNION ALL
+
+      SELECT asset."updatedAt" AS "updatedAt"
+      FROM "ImageAsset" asset
+      INNER JOIN "UserProfile" profile ON profile."id" = asset."userProfileId"
+      WHERE profile."userId" = ${userId}
+
+      UNION ALL
+
+      SELECT asset."updatedAt" AS "updatedAt"
+      FROM "ImageAsset" asset
+      INNER JOIN "Listing" listing
+        ON listing."cultivarReferenceId" = asset."cultivarReferenceId"
+      WHERE listing."userId" = ${userId}
+    ) image_updates
+  `);
+
+  const updatedAtMs =
+    row?.updatedAtMs == null ? Number.NaN : Number(row.updatedAtMs);
+  return Number.isFinite(updatedAtMs) ? new Date(updatedAtMs) : undefined;
 }
 
 export async function getPublicProfile(userSlugOrId: string) {

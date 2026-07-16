@@ -14,6 +14,12 @@ const config = {
   output: "standalone",
   outputFileTracingRoot: path.join(appDir, "../.."),
   serverExternalPackages: ["@prisma/adapter-better-sqlite3", "better-sqlite3"],
+  outputFileTracingIncludes: {
+    "/api/og/**": [
+      "./node_modules/geist/dist/fonts/geist-sans/Geist-Regular.ttf",
+      "./node_modules/geist/dist/fonts/geist-sans/Geist-Bold.ttf",
+    ],
+  },
   cacheMaxMemorySize: 0,
 
   images: {

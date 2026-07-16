@@ -19,6 +19,7 @@ import {
 import { getOptimizedMetaImageUrl } from "@/lib/utils/cloudflareLoader";
 import { IMAGES } from "@/lib/constants/images";
 import { getCanonicalBaseUrl } from "@/lib/utils/getBaseUrl";
+import { getSocialCardImageUrl } from "@/lib/social-card";
 import { serializeJsonLd } from "@/lib/utils/json-ld";
 import {
   formatAhsListingSummary,
@@ -31,6 +32,7 @@ import {
   getUserIdFromSlugOrId,
 } from "@/server/db/getPublicProfile";
 import { getPublicListingDetail } from "@/server/db/public-listing-read-model";
+import { getLatestDate } from "@/server/db/public-date-utils";
 
 export const dynamic = "force-dynamic";
 export const dynamicParams = true;
@@ -149,6 +151,15 @@ export async function generateMetadata({
     listing.images[0]?.url ?? IMAGES.DEFAULT_LISTING,
   );
   const title = getListingTitle(listing);
+  const socialImageUrl = getSocialCardImageUrl({
+    baseUrl,
+    kind: "listing",
+    id: listing.id,
+    updatedAt: getLatestDate(
+      [listing.socialCardUpdatedAt, listing.updatedAt],
+      listing.updatedAt,
+    ),
+  });
 
   return buildPublicPageMetadata({
     canonicalPath,
@@ -156,6 +167,7 @@ export async function generateMetadata({
     imageAlt: `${listing.title} daylily listing`,
     imageUrl,
     pageUrl,
+    socialImageUrl,
     robots: listing.hasActiveSubscription
       ? "index, follow, max-image-preview:large"
       : "noindex, follow",

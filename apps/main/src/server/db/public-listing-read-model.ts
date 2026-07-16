@@ -271,6 +271,36 @@ export async function getPublicListingCardsByIds(ids: string[]) {
   return transformListings(rows);
 }
 
+export async function getPublicListingCardsForUserId(
+  userId: string,
+  limit: number,
+) {
+  const items = await getListings({ userId, limit });
+  return transformListings(items);
+}
+
+export async function getPublicForSaleListingCardsForUserId(
+  userId: string,
+  limit: number,
+) {
+  const items = await replicaDb.listing.findMany({
+    where: {
+      userId,
+      ...isPublished(),
+      price: {
+        gt: 0,
+      },
+    },
+    select: publicListingSelect,
+    orderBy: {
+      updatedAt: "desc",
+    },
+    take: limit,
+  });
+
+  return transformListings(items);
+}
+
 export async function getInitialListings(userSlugOrId: string) {
   const userId = await getUserIdFromSlugOrId(userSlugOrId);
   const items = await getListings({ userId, limit: 36 });
@@ -360,10 +390,13 @@ export async function getPublicListingsPage(args: GetPublicListingsPageArgs) {
 }
 
 export async function getPublicListingDetail(listingId: string) {
-  const listing = await replicaDb.listing.findFirst({
-    where: { id: listingId, ...isPublished() },
-    select: publicListingSelect,
-  });
+  const [listing, socialCardUpdatedAt] = await Promise.all([
+    replicaDb.listing.findFirst({
+      where: { id: listingId, ...isPublished() },
+      select: publicListingSelect,
+    }),
+    getPublicListingSocialCardUpdatedAt(listingId),
+  ]);
 
   if (!listing) {
     throw new TRPCError({
@@ -374,7 +407,53 @@ export async function getPublicListingDetail(listingId: string) {
 
   const proUserIds = await getActiveProUserIdsForUserIds([listing.userId]);
 
-  return buildPublicListingDetail(listing, proUserIds.includes(listing.userId));
+  return {
+    ...buildPublicListingDetail(listing, proUserIds.includes(listing.userId)),
+    socialCardUpdatedAt,
+  };
+}
+
+async function getPublicListingSocialCardUpdatedAt(listingId: string) {
+  const [row] = await replicaDb.$queryRaw<
+    Array<{ updatedAtMs: number | string | null }>
+  >(Prisma.sql`
+    SELECT MAX(
+      CASE
+        WHEN typeof("updatedAt") IN ('integer', 'real')
+          THEN CAST("updatedAt" AS INTEGER)
+        ELSE CAST((julianday("updatedAt") - 2440587.5) * 86400000 AS INTEGER)
+      END
+    ) AS "updatedAtMs"
+    FROM (
+      SELECT listing."updatedAt" AS "updatedAt"
+      FROM "Listing" listing
+      WHERE listing."id" = ${listingId}
+
+      UNION ALL
+
+      SELECT image."updatedAt" AS "updatedAt"
+      FROM "Image" image
+      WHERE image."listingId" = ${listingId}
+
+      UNION ALL
+
+      SELECT asset."updatedAt" AS "updatedAt"
+      FROM "ImageAsset" asset
+      WHERE asset."listingId" = ${listingId}
+
+      UNION ALL
+
+      SELECT asset."updatedAt" AS "updatedAt"
+      FROM "ImageAsset" asset
+      INNER JOIN "Listing" listing
+        ON listing."cultivarReferenceId" = asset."cultivarReferenceId"
+      WHERE listing."id" = ${listingId}
+    ) social_card_updates
+  `);
+
+  const updatedAtMs =
+    row?.updatedAtMs == null ? Number.NaN : Number(row.updatedAtMs);
+  return Number.isFinite(updatedAtMs) ? new Date(updatedAtMs) : new Date(0);
 }
 
 export async function getPublicForSaleListingsCount(userId: string) {

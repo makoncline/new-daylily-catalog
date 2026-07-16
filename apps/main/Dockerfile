@@ -72,6 +72,8 @@ COPY --from=builder --chown=nextjs:nodejs /app/apps/main/scripts/build-public-se
 COPY --from=builder --chown=nextjs:nodejs /app/apps/main/scripts/build-public-parentage-index.mjs ./apps/main/scripts/build-public-parentage-index.mjs
 COPY --from=builder --chown=nextjs:nodejs /app/apps/main/.next/standalone ./
 COPY --from=runtime-deps --chown=nextjs:nodejs /runtime/node_modules ./apps/main/node_modules
+COPY --from=builder --chown=nextjs:nodejs /app/apps/main/node_modules/geist/dist/fonts/geist-sans/Geist-Regular.ttf ./apps/main/node_modules/geist/dist/fonts/geist-sans/Geist-Regular.ttf
+COPY --from=builder --chown=nextjs:nodejs /app/apps/main/node_modules/geist/dist/fonts/geist-sans/Geist-Bold.ttf ./apps/main/node_modules/geist/dist/fonts/geist-sans/Geist-Bold.ttf
 COPY --from=builder --chown=nextjs:nodejs /app/apps/main/.next/static ./apps/main/.next/static
 
 RUN cd /app/apps/main \

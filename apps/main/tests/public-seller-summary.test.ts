@@ -3,6 +3,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const mockDb = vi.hoisted(() => ({
+  $queryRaw: vi.fn(),
   keyValue: {
     findMany: vi.fn(),
   },
@@ -27,6 +28,7 @@ import { getPublicSellerSummary } from "@/server/db/public-seller-read-model";
 describe("public seller summary", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockDb.$queryRaw.mockResolvedValue([{ updatedAtMs: null }]);
 
     mockDb.user.findMany
       .mockResolvedValueOnce([
