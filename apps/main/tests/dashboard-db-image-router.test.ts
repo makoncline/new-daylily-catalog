@@ -61,12 +61,10 @@ interface MockDb {
   listing: {
     findFirst: ReturnType<typeof vi.fn>;
     findMany: ReturnType<typeof vi.fn>;
-    update: ReturnType<typeof vi.fn>;
   };
   userProfile: {
     findFirst: ReturnType<typeof vi.fn>;
     findUnique: ReturnType<typeof vi.fn>;
-    update: ReturnType<typeof vi.fn>;
   };
 }
 
@@ -87,12 +85,10 @@ function createMockDb(): MockDb {
   const listing = {
     findFirst: vi.fn(),
     findMany: vi.fn(),
-    update: vi.fn(),
   };
   const userProfile = {
     findFirst: vi.fn(),
     findUnique: vi.fn(),
-    update: vi.fn(),
   };
   return {
     $queryRaw: vi.fn(),
@@ -480,25 +476,6 @@ describe("dashboardDb.image", () => {
     expect(db.image.update).toHaveBeenNthCalledWith(2, {
       where: { id: "image-3" },
       data: { order: 1 },
-    });
-  });
-
-  it("delete advances the listing timestamp when its final image is removed", async () => {
-    const db = createMockDb();
-    db.listing.findFirst.mockResolvedValueOnce({ id: "listing-1" });
-    db.image.deleteMany.mockResolvedValueOnce({ count: 1 });
-    db.image.findMany.mockResolvedValueOnce([]);
-
-    const caller = createCaller(db);
-    await caller.delete({
-      type: "listing",
-      referenceId: "listing-1",
-      imageId: "image-1",
-    });
-
-    expect(db.listing.update).toHaveBeenCalledWith({
-      where: { id: "listing-1" },
-      data: { updatedAt: expect.any(Date) },
     });
   });
 

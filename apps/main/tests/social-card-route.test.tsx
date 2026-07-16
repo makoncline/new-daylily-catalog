@@ -59,7 +59,12 @@ describe("social card route", () => {
 
     expect(response.status).toBe(200);
     expect(response.headers.get("content-type")).toBe("image/png");
-    expect(response.headers.get("cache-control")).toContain("s-maxage=86400");
+    expect(response.headers.get("cache-control")).toBe(
+      "public, max-age=300",
+    );
+    expect(response.headers.get("cloudflare-cdn-cache-control")).toBe(
+      "public, max-age=900, stale-while-revalidate=86400, stale-if-error=86400",
+    );
     expect(image.subarray(1, 4).toString()).toBe("PNG");
     expect(image.readUInt32BE(16)).toBe(1200);
     expect(image.readUInt32BE(20)).toBe(630);

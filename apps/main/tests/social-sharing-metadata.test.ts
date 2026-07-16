@@ -83,7 +83,7 @@ describe("social sharing metadata", () => {
     vi.clearAllMocks();
   });
 
-  it("always versions the renderer even when content has no timestamp", () => {
+  it("uses a stable renderer-versioned social image URL", () => {
     expect(
       getSocialCardImageUrl({
         baseUrl: "https://daylilycatalog.com",
@@ -97,8 +97,6 @@ describe("social sharing metadata", () => {
     const { generateProfileMetadata } = await import(
       "@/app/(public)/[userSlugOrId]/_seo/metadata"
     );
-    const updatedAt = new Date("2026-07-14T12:00:00.000Z");
-
     const metadata = await generateProfileMetadata(
       {
         id: "seller-1",
@@ -112,7 +110,7 @@ describe("social sharing metadata", () => {
             url: "https://media.daylilycatalog.com/profile.webp",
           },
         ],
-        updatedAt,
+        updatedAt: new Date("2026-07-14T12:00:00.000Z"),
       },
       "https://daylilycatalog.com",
     );
@@ -121,10 +119,10 @@ describe("social sharing metadata", () => {
       "https://media.daylilycatalog.com/profile.webp",
     );
     expect(getOpenGraphImageUrl(metadata)).toBe(
-      `https://daylilycatalog.com/api/og/catalog/seller-1?v=2-${updatedAt.getTime().toString(36)}`,
+      "https://daylilycatalog.com/api/og/catalog/seller-1?v=2",
     );
     expect(metadata.twitter?.images).toEqual([
-      `https://daylilycatalog.com/api/og/catalog/seller-1?v=2-${updatedAt.getTime().toString(36)}`,
+      "https://daylilycatalog.com/api/og/catalog/seller-1?v=2",
     ]);
   });
 
@@ -161,7 +159,7 @@ describe("social sharing metadata", () => {
       "https://daylilycatalog.com/mountain-view/search?lists=list-1",
     );
     expect(getOpenGraphImageUrl(metadata)).toBe(
-      `https://daylilycatalog.com/api/og/list/list-1?v=2-${updatedAt.getTime().toString(36)}`,
+      "https://daylilycatalog.com/api/og/list/list-1?v=2",
     );
     expect(metadata.alternates?.canonical).toBe("/mountain-view");
     expect(metadata.robots).toBe("noindex, nofollow");
@@ -193,7 +191,7 @@ describe("social sharing metadata", () => {
       "https://daylilycatalog.com/mountain-view/search?price=true",
     );
     expect(getOpenGraphImageUrl(metadata)).toBe(
-      `https://daylilycatalog.com/api/og/for-sale/seller-1?v=2-${updatedAt.getTime().toString(36)}`,
+      "https://daylilycatalog.com/api/og/for-sale/seller-1?v=2",
     );
     expect(metadata.robots).toBe("noindex, nofollow");
   });
@@ -251,7 +249,6 @@ describe("social sharing metadata", () => {
       ahsListing: null,
       hasActiveSubscription: true,
       updatedAt,
-      socialCardUpdatedAt: imageUpdatedAt,
     });
 
     const { generateMetadata } = await import(
@@ -265,7 +262,7 @@ describe("social sharing metadata", () => {
     });
 
     expect(getOpenGraphImageUrl(metadata)).toBe(
-      `https://daylilycatalog.com/api/og/listing/listing-1?v=2-${imageUpdatedAt.getTime().toString(36)}`,
+      "https://daylilycatalog.com/api/og/listing/listing-1?v=2",
     );
     expect(metadata.openGraph?.images).toEqual([
       expect.objectContaining({

@@ -32,7 +32,6 @@ import {
   getUserIdFromSlugOrId,
 } from "@/server/db/getPublicProfile";
 import { getPublicListingDetail } from "@/server/db/public-listing-read-model";
-import { getLatestDate } from "@/server/db/public-date-utils";
 
 export const dynamic = "force-dynamic";
 export const dynamicParams = true;
@@ -155,10 +154,6 @@ export async function generateMetadata({
     baseUrl,
     kind: "listing",
     id: listing.id,
-    updatedAt: getLatestDate(
-      [listing.socialCardUpdatedAt, listing.updatedAt],
-      listing.updatedAt,
-    ),
   });
 
   return buildPublicPageMetadata({

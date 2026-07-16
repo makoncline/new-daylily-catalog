@@ -787,21 +787,6 @@ export const dashboardDbImageRouter = createTRPCRouter({
           select: { id: true },
         });
 
-        if (remaining.length === 0) {
-          const updatedAt = new Date();
-          if (input.type === "listing") {
-            await tx.listing.update({
-              where: { id: input.referenceId },
-              data: { updatedAt },
-            });
-          } else {
-            await tx.userProfile.update({
-              where: { id: input.referenceId },
-              data: { updatedAt },
-            });
-          }
-        }
-
         await Promise.all(
           remaining.map((img, index) =>
             Promise.all([

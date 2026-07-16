@@ -80,7 +80,6 @@ async function createProfileMetadata(
       baseUrl: url,
       kind: "catalog",
       id: profile.id,
-      updatedAt: profile.updatedAt,
     });
 
     return {

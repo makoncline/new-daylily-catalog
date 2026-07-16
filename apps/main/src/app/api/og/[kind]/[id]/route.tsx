@@ -124,8 +124,9 @@ export async function GET(
         },
       ],
       headers: {
-        "Cache-Control":
-          "public, max-age=300, s-maxage=86400, stale-while-revalidate=604800",
+        "Cache-Control": "public, max-age=300",
+        "Cloudflare-CDN-Cache-Control":
+          "public, max-age=900, stale-while-revalidate=86400, stale-if-error=86400",
       },
     });
   } catch (error) {

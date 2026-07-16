@@ -112,7 +112,6 @@ export async function generateMetadata({
         baseUrl,
         kind: "list",
         id: selectedList.id,
-        updatedAt: profile.updatedAt,
       }),
       title: `${selectedList.title} | ${titleBase}`,
     });
@@ -137,7 +136,6 @@ export async function generateMetadata({
         baseUrl,
         kind: "for-sale",
         id: profile.id,
-        updatedAt: profile.updatedAt,
       }),
       title: `For Sale | ${titleBase}`,
     });

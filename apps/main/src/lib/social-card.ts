@@ -47,28 +47,17 @@ export function getSocialCardImageUrl({
   baseUrl,
   id,
   kind,
-  updatedAt,
 }: {
   baseUrl: string;
   id: string;
   kind: SocialCardKind;
-  updatedAt?: Date | string | null;
 }) {
   const url = new URL(
     `/api/og/${kind}/${encodeURIComponent(id)}`,
     `${baseUrl.replace(/\/$/, "")}/`,
   );
 
-  let version = SOCIAL_CARD_RENDER_VERSION;
-
-  if (updatedAt) {
-    const timestamp = new Date(updatedAt).getTime();
-    if (Number.isFinite(timestamp)) {
-      version = `${version}-${timestamp.toString(36)}`;
-    }
-  }
-
-  url.searchParams.set("v", version);
+  url.searchParams.set("v", SOCIAL_CARD_RENDER_VERSION);
 
   return url.toString();
 }
