@@ -35,6 +35,8 @@ cd apps/main
 CI=false pnpm env:dev bash scripts/db-backup.sh
 ```
 
+From a linked worktree, perform the [exceptional full-snapshot copy](./db-backup-readme.md#linked-worktrees) before continuing.
+
 That writes:
 
 ```txt

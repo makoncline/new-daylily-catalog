@@ -53,6 +53,8 @@ pnpm env:dev bash scripts/db-backup.sh
 pnpm images:generate --limit 20 --concurrency 10
 ```
 
+From a linked worktree, perform the [exceptional full-snapshot copy](../../../docs/db-backup-readme.md#linked-worktrees) before running generation.
+
 Spot-check generated images in the local UI, then run the generated cultivar
 ImageAsset/R2 backfill. Rows marked `review` are generated and importable; use
 `rejected` or `pending` only when a bad output needs regeneration.

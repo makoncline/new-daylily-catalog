@@ -298,6 +298,8 @@ connected to production Turso.
 
 Local rehearsal commands:
 
+From a linked worktree, first follow the [exceptional full-snapshot copy](./db-backup-readme.md#linked-worktrees).
+
 ```bash
 pnpm env:dev bash scripts/db-backup.sh
 

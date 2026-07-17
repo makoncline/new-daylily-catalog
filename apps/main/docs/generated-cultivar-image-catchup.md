@@ -37,6 +37,8 @@ Run from repo root:
 pnpm env:dev bash scripts/db-backup.sh
 ```
 
+From a linked worktree, perform the [exceptional full-snapshot copy](./db-backup-readme.md#linked-worktrees) before continuing.
+
 ## 2. Generate Images
 
 Use Codex-native image generation. Follow:

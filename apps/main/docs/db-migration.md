@@ -61,6 +61,8 @@ For rehearsal, refresh the prod copy:
 pnpm env:dev bash scripts/db-backup.sh
 ```
 
+From a linked worktree, perform the [exceptional full-snapshot copy](./db-backup-readme.md#linked-worktrees) before continuing.
+
 Expected rehearsal artifact:
 
 ```text

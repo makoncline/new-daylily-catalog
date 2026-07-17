@@ -63,6 +63,9 @@ copy to
 This is also the destination when the command is run from a linked worktree.
 Run `pnpm db:seed:prepare` from a worktree when you want its normal sanitized,
 realistic development database derived from that shared production snapshot.
+
+### Linked Worktrees
+
 For an exceptional workflow that needs the full snapshot inside a linked
 worktree, copy it explicitly:
 

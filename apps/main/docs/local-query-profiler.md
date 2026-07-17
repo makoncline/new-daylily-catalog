@@ -21,6 +21,8 @@ Turso through a `daylilycatalog.com` Cloudflare tunnel without doing writes.
 pnpm env:dev bash scripts/db-backup.sh
 ```
 
+From a linked worktree, perform the [exceptional full-snapshot copy](./db-backup-readme.md#linked-worktrees) before continuing.
+
 ## 2. Run Profiling Session
 
 ```sh
