@@ -671,6 +671,7 @@ export const ATLAS_FLOWS = [
       unit: [testRef("unit", "tests/use-cart.test.tsx")],
       integration: [
         testRef("integration", "tests/contact-form.test.tsx"),
+        testRef("integration", "tests/floating-cart-button.test.tsx"),
         testRef("integration", "tests/public-inquiry.test.ts"),
         testRef("integration", "tests/public-inquiry-rate-limit.test.ts"),
         testRef("integration", "tests/public-router-send-message.test.ts"),
