@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
@@ -77,6 +78,10 @@ export function FloatingCartButton({
           {itemCount > 0 &&
             ` (${itemCount} ${itemCount === 1 ? "item" : "items"} in cart)`}
         </DialogTitle>
+        <DialogDescription className="sr-only">
+          Ask the seller about availability, shipping, pickup, or anything else
+          you need to know.
+        </DialogDescription>
         <ContactForm
           userId={userId}
           onSubmitSuccess={() => setIsDialogOpen(false)}
