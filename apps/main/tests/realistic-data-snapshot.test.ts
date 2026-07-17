@@ -1,5 +1,11 @@
 import { DatabaseSync } from "node:sqlite";
-import { existsSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { describe, expect, test } from "vitest";
@@ -10,6 +16,7 @@ import {
   generateRealisticDataSnapshot,
   realisticDataSchemaFingerprint,
   resolveRealisticDataOutputPath,
+  resolveRealisticDataSourcePath,
 } from "../scripts/realistic-data-snapshot.mjs";
 
 function createSourceDatabase(databasePath: string) {
@@ -89,7 +96,9 @@ describe("generateRealisticDataSnapshot", () => {
   });
 
   test("rejects a seed manifest created for an older schema", () => {
-    const directory = mkdtempSync(path.join(tmpdir(), "realistic-data-schema-"));
+    const directory = mkdtempSync(
+      path.join(tmpdir(), "realistic-data-schema-"),
+    );
     const schemaPath = path.join(directory, "schema.prisma");
     const manifestPath = path.join(directory, "personas.json");
     const databasePath = "/app/local/realistic-data/custom.sqlite";
@@ -106,10 +115,7 @@ describe("generateRealisticDataSnapshot", () => {
       assertRealisticDataSeedFresh({ manifestPath, schemaPath }),
     ).toMatchObject({ databasePath });
 
-    writeFileSync(
-      schemaPath,
-      "model User { id String @id email String? }\n",
-    );
+    writeFileSync(schemaPath, "model User { id String @id email String? }\n");
     expect(() =>
       assertRealisticDataSeedFresh({ manifestPath, schemaPath }),
     ).toThrow("Run `pnpm db:seed:prepare`");
@@ -133,6 +139,23 @@ describe("generateRealisticDataSnapshot", () => {
       }),
     ).toThrow("must be stored under apps/main/local/realistic-data");
   });
+
+  test("uses the primary checkout snapshot as the realistic seed source", () => {
+    const directory = mkdtempSync(
+      path.join(tmpdir(), "realistic-data-source-"),
+    );
+    const primaryAppRoot = path.join(directory, "primary", "apps", "main");
+    const sourcePath = path.join(
+      primaryAppRoot,
+      "prisma",
+      "local-prod-copy-daylily-catalog.db",
+    );
+    mkdirSync(path.dirname(sourcePath), { recursive: true });
+    writeFileSync(sourcePath, "primary snapshot");
+
+    expect(resolveRealisticDataSourcePath({ primaryAppRoot })).toBe(sourcePath);
+  });
+
   test("keeps realistic data while replacing every production identity binding", async () => {
     const directory = mkdtempSync(
       path.join(tmpdir(), "realistic-data-snapshot-"),
@@ -258,12 +281,10 @@ describe("generateRealisticDataSnapshot", () => {
 
     const output = new DatabaseSync(outputPath, { readOnly: true });
     expect(
-      output
-        .prepare("SELECT title FROM Listing WHERE id = 'wal-listing'")
-        .get()?.title,
+      output.prepare("SELECT title FROM Listing WHERE id = 'wal-listing'").get()
+        ?.title,
     ).toBe("Committed in WAL");
     output.close();
     source.close();
   });
-
 });

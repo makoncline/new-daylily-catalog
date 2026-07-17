@@ -6,17 +6,24 @@
 # TURSO_API_TOKEN
 # CI
 
+# Exit on any error
+set -e
+
 # Variables
 DATABASE_NAME="${TURSO_SNAPSHOT_DB_NAME:-daylily-catalog}"
 TIMESTAMP=$(date +"%Y%m%d_%H%M%S")
 DUMP_FILE="${DATABASE_NAME}_${TIMESTAMP}.sql"
 ZIP_FILE="${DUMP_FILE}.zip"
-LOCAL_DB="${TURSO_SNAPSHOT_OUTPUT_DB_PATH:-prisma/local-prod-copy-${DATABASE_NAME}.db}"
+LOCAL_DB="${TURSO_SNAPSHOT_OUTPUT_DB_PATH:-}"
 S3_BUCKET="daylily-catalog-db-backup"
 AWS_REGION="us-east-1"
 
-# Exit on any error
-set -e
+if [ "$CI" != "true" ] && [ -z "$LOCAL_DB" ]; then
+  SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+  GIT_COMMON_DIR="$(git -C "$SCRIPT_DIR" rev-parse --path-format=absolute --git-common-dir)"
+  PRIMARY_REPO_ROOT="$(dirname "$GIT_COMMON_DIR")"
+  LOCAL_DB="$PRIMARY_REPO_ROOT/apps/main/prisma/local-prod-copy-${DATABASE_NAME}.db"
+fi
 
 # Ensure TURSO_API_TOKEN is set
 if [ -z "$TURSO_API_TOKEN" ]; then
@@ -69,12 +76,20 @@ fi
 # Step 4: Verify the backup locally (only in local environment)
 if [ "$CI" != "true" ]; then
   echo "Verifying the backup locally..."
+  echo "Restoring the production snapshot to $LOCAL_DB"
 
-  TEMP_LOCAL_DB="${LOCAL_DB}.tmp-${TIMESTAMP}"
-  LOCAL_DB_BACKUP="${LOCAL_DB}.bak-${TIMESTAMP}"
+  TEMP_LOCAL_DB="${LOCAL_DB}.tmp-${TIMESTAMP}-$$"
+  LOCAL_DB_BACKUP="${LOCAL_DB}.bak-${TIMESTAMP}-$$"
+  LOCAL_DB_LOCK="${LOCAL_DB}.refresh.lock"
+  LOCAL_DB_LOCK_ACQUIRED="false"
+
+  mkdir -p "$(dirname "$LOCAL_DB")"
 
   cleanup_local_temp() {
     rm -f "$TEMP_LOCAL_DB" "${TEMP_LOCAL_DB}-wal" "${TEMP_LOCAL_DB}-shm"
+    if [ "$LOCAL_DB_LOCK_ACQUIRED" = "true" ]; then
+      rmdir "$LOCAL_DB_LOCK"
+    fi
   }
 
   trap cleanup_local_temp EXIT
@@ -83,6 +98,17 @@ if [ "$CI" != "true" ]; then
 
   # Build the restored DB as a temp file first to avoid partial writes on failure.
   sqlite3 "$TEMP_LOCAL_DB" < "$SQL_FILE"
+
+  LOCK_ATTEMPT=0
+  until mkdir "$LOCAL_DB_LOCK" 2>/dev/null; do
+    LOCK_ATTEMPT=$((LOCK_ATTEMPT + 1))
+    if [ "$LOCK_ATTEMPT" -ge 300 ]; then
+      echo "Error: Timed out waiting to replace $LOCAL_DB."
+      exit 1
+    fi
+    sleep 0.1
+  done
+  LOCAL_DB_LOCK_ACQUIRED="true"
 
   if [ -f "$LOCAL_DB" ]; then
     mv "$LOCAL_DB" "$LOCAL_DB_BACKUP"
@@ -96,6 +122,8 @@ if [ "$CI" != "true" ]; then
   fi
 
   mv "$TEMP_LOCAL_DB" "$LOCAL_DB"
+  rmdir "$LOCAL_DB_LOCK"
+  LOCAL_DB_LOCK_ACQUIRED="false"
   trap - EXIT
   cleanup_local_temp
 
