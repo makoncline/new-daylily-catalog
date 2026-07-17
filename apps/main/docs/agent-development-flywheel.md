@@ -16,6 +16,35 @@ it does not prove that the design is correct. Check the complete page or
 component for clipping, overflow, missing content, and unintended layout
 changes.
 
+### Selecting local files in Chrome
+
+Use Chrome's file-chooser event for normal agent walkthroughs. Start waiting
+before clicking the real visible upload control, then give the chooser an
+absolute local path:
+
+```js
+const chooserPromise = tab.playwright.waitForEvent("filechooser", {
+  timeoutMs: 10_000,
+});
+await uploadControl.click();
+const chooser = await chooserPromise;
+await chooser.setFiles(["/absolute/path/to/test-image.webp"], {
+  timeoutMs: 10_000,
+});
+```
+
+This skips only the macOS picker. It still exercises the real file input,
+change event, and application preview or crop UI. Do not click the final
+Upload button unless the walkthrough explicitly authorizes the resulting
+network and data mutation.
+
+If `setFiles` reports `Not allowed`, enable **Allow access to file URLs** in
+the ChatGPT Chrome Extension details. Use the native macOS picker only when
+testing that picker specifically: click the visible control with Computer
+Use, press `Cmd+Shift+G`, enter the absolute path, select the file, and click
+Open. Cancel the application's pre-upload state when the investigation is
+complete.
+
 ## Confidence layers
 
 - **Atlas screenshots** document declared meaningful UI states. A capture may
