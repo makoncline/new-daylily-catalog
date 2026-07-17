@@ -26,6 +26,15 @@ export function assertRealisticDataSeedFresh({ manifestPath, schemaPath }) {
       "Realistic seed schema is stale. Run `pnpm db:seed:prepare`.",
     );
   }
+  if (
+    typeof manifest.databasePath !== "string" ||
+    manifest.databasePath.length === 0
+  ) {
+    throw new Error(
+      "Realistic seed metadata is missing its database path. Run `pnpm db:seed:prepare`.",
+    );
+  }
+  return manifest;
 }
 
 /**

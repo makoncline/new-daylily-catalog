@@ -92,17 +92,19 @@ describe("generateRealisticDataSnapshot", () => {
     const directory = mkdtempSync(path.join(tmpdir(), "realistic-data-schema-"));
     const schemaPath = path.join(directory, "schema.prisma");
     const manifestPath = path.join(directory, "personas.json");
+    const databasePath = "/app/local/realistic-data/custom.sqlite";
     writeFileSync(schemaPath, "model User { id String @id }\n");
     writeFileSync(
       manifestPath,
       JSON.stringify({
+        databasePath,
         schemaFingerprint: realisticDataSchemaFingerprint(schemaPath),
       }),
     );
 
-    expect(() =>
+    expect(
       assertRealisticDataSeedFresh({ manifestPath, schemaPath }),
-    ).not.toThrow();
+    ).toMatchObject({ databasePath });
 
     writeFileSync(
       schemaPath,

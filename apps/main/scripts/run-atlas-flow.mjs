@@ -16,6 +16,7 @@ import {
 import {
   assertRealisticDataSeedFresh,
   createDisposableRealisticDataSnapshot,
+  resolveRealisticDataOutputPath,
 } from "./realistic-data-snapshot.mjs";
 const ATLAS_HEALTH_PATH = "/api/runtime-config";
 const appRoot = path.resolve(import.meta.dirname, "..");
@@ -98,20 +99,20 @@ async function startServer() {
   ]) {
     if (existsSync(envPath)) dotenv.config({ path: envPath, quiet: true });
   }
-  const seededDatabase = path.join(
-    appRoot,
-    "local/realistic-data/realistic-data.sqlite",
-  );
   let databaseUrl = explicitDatabaseUrl;
   if (!databaseUrl) {
+    const manifest = assertRealisticDataSeedFresh({
+      manifestPath: path.join(appRoot, "local/realistic-data/personas.json"),
+      schemaPath: path.join(appRoot, "prisma/schema.prisma"),
+    });
+    const seededDatabase = resolveRealisticDataOutputPath({
+      appRoot,
+      configuredPath: manifest.databasePath,
+    });
     if (!existsSync(seededDatabase))
       throw new Error(
         "Seeded database missing. Run `pnpm db:seed:prepare` first.",
       );
-    assertRealisticDataSeedFresh({
-      manifestPath: path.join(appRoot, "local/realistic-data/personas.json"),
-      schemaPath: path.join(appRoot, "prisma/schema.prisma"),
-    });
     disposableDatabase = await createDisposableRealisticDataSnapshot({
       sourcePath: seededDatabase,
     });
