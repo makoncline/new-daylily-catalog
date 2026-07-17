@@ -17,6 +17,7 @@ const publicState = stateFor("tests/atlas/public-catalog.atlas.ts");
 const cultivarState = stateFor("tests/atlas/cultivar-search.atlas.ts");
 const onboardingState = stateFor("tests/atlas/onboarding-membership.atlas.ts");
 const listingState = stateFor("tests/atlas/listing-management.atlas.ts");
+const listingMediaState = stateFor("tests/atlas/listing-media.atlas.ts");
 const listState = stateFor("tests/atlas/list-management.atlas.ts");
 const buyerState = stateFor("tests/atlas/buyer-inquiry.atlas.ts");
 const testRef = (layer, file) => ({
@@ -535,6 +536,108 @@ export const ATLAS_FLOWS = [
             "Listing membership picker",
             "The real lists available while editing a listing.",
             "/dashboard/listings?size=10",
+            false,
+          ),
+        ],
+      },
+    ],
+  },
+  {
+    id: "listing-media",
+    audience: "member",
+    title: "Manage listing images",
+    description:
+      "Review, preview, reorder, remove, and prepare listing photos without sending an upload.",
+    tests: {
+      unit: [testRef("unit", "tests/use-image-upload.test.ts")],
+      integration: [
+        testRef("integration", "tests/image-upload.test.tsx"),
+        testRef("integration", "tests/dashboard-db-image-router.test.ts"),
+      ],
+      e2e: [testRef("e2e", "tests/e2e/listing-image-manager.e2e.ts")],
+    },
+    steps: [
+      {
+        title: "Review listing photos",
+        states: [
+          listingMediaState(
+            "listing-media-desktop-populated",
+            "Desktop populated image grid",
+            "Nine real listing photos in the four-column desktop manager.",
+            "/dashboard/listings?size=10&query=18-33",
+            false,
+          ),
+          listingMediaState(
+            "listing-media-mobile-populated",
+            "Mobile populated image grid",
+            "The same listing photos in the two-column mobile manager.",
+            "/dashboard/listings?size=10&query=18-33",
+            false,
+          ),
+          listingMediaState(
+            "listing-media-desktop-empty",
+            "Desktop empty image manager",
+            "A listing with no owned photos and its available upload dropzone.",
+            "/dashboard/listings?size=10&query=Bee-ba-tized",
+            false,
+          ),
+          listingMediaState(
+            "listing-media-mobile-empty",
+            "Mobile empty image manager",
+            "The empty owned-photo state and upload dropzone on a phone.",
+            "/dashboard/listings?size=10&query=Bee-ba-tized",
+            false,
+          ),
+        ],
+      },
+      {
+        title: "Inspect a photo",
+        states: [
+          listingMediaState(
+            "listing-media-desktop-preview",
+            "Desktop full-size preview",
+            "A listing photo opened in the real gallery preview.",
+            "/dashboard/listings?size=10&query=18-33",
+            false,
+          ),
+          listingMediaState(
+            "listing-media-mobile-preview",
+            "Mobile full-size preview",
+            "The same gallery preview at the phone viewport.",
+            "/dashboard/listings?size=10&query=18-33",
+            false,
+          ),
+        ],
+      },
+      {
+        title: "Prepare a change",
+        states: [
+          listingMediaState(
+            "listing-media-delete-confirmation",
+            "Delete image confirmation",
+            "The destructive confirmation before any listing photo is removed.",
+            "/dashboard/listings?size=10&query=18-33",
+            false,
+          ),
+          listingMediaState(
+            "listing-media-reorder-active",
+            "Pointer reorder target",
+            "The first photo held between the first two slots with the sortable control active, before dropping.",
+            "/dashboard/listings?size=10&query=18-33",
+            false,
+          ),
+          listingMediaState(
+            "listing-media-desktop-crop",
+            "Desktop selected-file crop",
+            "A local image selected for cropping before any upload request.",
+            "/dashboard/listings?size=10&query=Bee-ba-tized",
+            false,
+          ),
+          listingMediaState(
+            "listing-media-mobile-crop",
+            "Mobile selected-file crop",
+            "The same pre-upload crop controls on a phone.",
+            "/dashboard/listings?size=10&query=Bee-ba-tized",
             false,
           ),
         ],
