@@ -9,6 +9,7 @@ Values live only in `/data/runtime-feature-flags.json`:
 
 ```json
 {
+  "imageModerationEnforced": false,
   "publicCultivarSearch": true
 }
 ```

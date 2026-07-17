@@ -34,6 +34,7 @@ const variantProcessorMock = vi.hoisted(() => vi.fn());
 const captureServerPosthogEventMock = vi.hoisted(() => vi.fn());
 const reportErrorMock = vi.hoisted(() => vi.fn());
 const fetchMock = vi.hoisted(() => vi.fn());
+const featureFlags = vi.hoisted(() => ({ imageModerationEnforced: false }));
 const consoleInfoMock = vi
   .spyOn(console, "info")
   .mockImplementation(() => undefined);
@@ -74,6 +75,10 @@ vi.mock("@/lib/error-utils", async () => {
     );
   return { ...actual, reportError: reportErrorMock };
 });
+
+vi.mock("@/config/feature-flags", () => ({
+  isImageModerationEnforced: () => featureFlags.imageModerationEnforced,
+}));
 
 type RouterModule = typeof import("@/server/api/routers/dashboard-db/image");
 let dashboardDbImageRouter: RouterModule["dashboardDbImageRouter"];
@@ -117,7 +122,7 @@ function createImageRow(overrides: Partial<Record<string, unknown>> = {}) {
 describe("dashboard image asset mutations", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    process.env.IMAGE_MODERATION_ENFORCED = "false";
+    featureFlags.imageModerationEnforced = false;
     process.env.OPENAI_IMAGE_MODERATION_API_KEY = "test-moderation-key";
     variantProcessorMock.mockResolvedValue({
       processed: 1,
@@ -162,7 +167,7 @@ describe("dashboard image asset mutations", () => {
 
   it("disables moderation when the API key is missing", async () => {
     delete process.env.OPENAI_IMAGE_MODERATION_API_KEY;
-    process.env.IMAGE_MODERATION_ENFORCED = "true";
+    featureFlags.imageModerationEnforced = true;
     const db = {
       listing: {
         findFirst: vi.fn().mockResolvedValue({ id: "listing-1" }),
@@ -212,7 +217,7 @@ describe("dashboard image asset mutations", () => {
   });
 
   it("moderates the submitted image before issuing checksum-bound URLs", async () => {
-    process.env.IMAGE_MODERATION_ENFORCED = "yes";
+    featureFlags.imageModerationEnforced = true;
     const db = {
       listing: {
         findFirst: vi.fn().mockResolvedValue({ id: "listing-1" }),
@@ -265,7 +270,7 @@ describe("dashboard image asset mutations", () => {
   });
 
   it("rejects sexual images before issuing upload URLs", async () => {
-    process.env.IMAGE_MODERATION_ENFORCED = "true";
+    featureFlags.imageModerationEnforced = true;
     const db = {
       listing: {
         findFirst: vi.fn().mockResolvedValue({ id: "listing-1" }),
@@ -302,7 +307,7 @@ describe("dashboard image asset mutations", () => {
   });
 
   it("allows enforced uploads and reports when moderation is unavailable", async () => {
-    process.env.IMAGE_MODERATION_ENFORCED = "true";
+    featureFlags.imageModerationEnforced = true;
     const db = {
       listing: {
         findFirst: vi.fn().mockResolvedValue({ id: "listing-1" }),
@@ -348,7 +353,7 @@ describe("dashboard image asset mutations", () => {
   });
 
   it("rejects sexual content involving minors", async () => {
-    process.env.IMAGE_MODERATION_ENFORCED = "true";
+    featureFlags.imageModerationEnforced = true;
     const db = {
       listing: {
         findFirst: vi.fn().mockResolvedValue({ id: "listing-1" }),
@@ -381,7 +386,7 @@ describe("dashboard image asset mutations", () => {
   });
 
   it("rejects animated images before moderation", async () => {
-    process.env.IMAGE_MODERATION_ENFORCED = "true";
+    featureFlags.imageModerationEnforced = true;
     const sharp = (await import("sharp")).default;
     const animatedImage = await sharp(Buffer.from([255, 0, 0, 0, 255, 0]), {
       raw: { width: 1, height: 2, channels: 3, pageHeight: 1 },
