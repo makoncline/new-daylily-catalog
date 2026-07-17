@@ -63,7 +63,7 @@ export const CATALOG_IMPORTER_STATUS_OPTIONS: Array<{
   { label: "Exact match", value: "exact" },
   { label: "Selected match", value: "selected" },
   { label: "Needs review", value: "pending" },
-  { label: "Kept without match", value: "unmatched" },
+  { label: "Skipped", value: "unmatched" },
 ];
 
 export function getErrorMessage(error: unknown) {

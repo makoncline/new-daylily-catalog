@@ -312,7 +312,7 @@ export function CatalogImporterMapping({
             </Badge>
             {controller.skippedCount > 0 ? (
               <Badge variant="outline">
-                {controller.skippedCount.toLocaleString()} omitted
+                {controller.skippedCount.toLocaleString()} skipped
               </Badge>
             ) : null}
             {controller.duplicateCount > 0 ? (

@@ -77,11 +77,13 @@ export function applyAutomaticCultivarMatches({
   limit,
   matchedOnly,
   rows,
+  suggestedMatches,
 }: {
   automaticMatches: ReadonlyMap<string, CultivarMatchCandidate>;
   limit?: number;
   matchedOnly: boolean;
   rows: CatalogImportRow[];
+  suggestedMatches?: ReadonlyMap<string, CultivarMatchCandidate>;
 }) {
   const nextRows: CatalogImportRow[] = [];
 
@@ -93,17 +95,19 @@ export function applyAutomaticCultivarMatches({
       continue;
     }
 
-    const automaticMatch = automaticMatches.get(
-      normalizeCultivarName(row.title) ?? "",
-    );
+    const normalizedTitle = normalizeCultivarName(row.title) ?? "";
+    const automaticMatch = automaticMatches.get(normalizedTitle);
+    const suggestedMatch =
+      suggestedMatches?.get(normalizedTitle) ?? automaticMatch ?? null;
     if (automaticMatch) {
       nextRows.push({
         ...row,
         match: automaticMatch,
         matchStatus: automaticMatch.confidence === 100 ? "exact" : "selected",
+        suggestedMatch,
       });
     } else if (!matchedOnly) {
-      nextRows.push(row);
+      nextRows.push({ ...row, suggestedMatch });
     }
 
     if (limit !== undefined && nextRows.length >= limit) {
@@ -136,6 +140,7 @@ export interface CatalogImportRow {
   sourcePrice: string;
   sourceRow: number;
   sourceTitle: string;
+  suggestedMatch: CultivarMatchCandidate | null;
   title: string;
 }
 
@@ -568,6 +573,7 @@ export function createCatalogImportRows({
       sourcePrice: price.source,
       sourceRow,
       sourceTitle,
+      suggestedMatch: null,
       title,
     });
   }

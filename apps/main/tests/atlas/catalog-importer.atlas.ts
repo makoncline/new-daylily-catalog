@@ -87,19 +87,17 @@ async function uploadSpreadsheet(page: Page) {
     buffer: Buffer.from(sampleCsv()),
   });
   await expect(
-    page.getByRole("heading", { name: "Matched sample" }),
+    page.getByRole("heading", { name: "Matches", exact: true }),
   ).toBeVisible();
 }
 
-async function openReviewSheet(page: Page) {
+async function openReviewQuiz(page: Page) {
   await page.getByText("Pro workflow", { exact: true }).click();
   await expect(
-    page.getByRole("heading", { name: "Cleaned list" }),
+    page.getByRole("heading", { name: "Matches", exact: true }),
   ).toBeVisible();
-  await page.getByLabel("Review match for Mystery Bloom").click();
-  await page.getByRole("menuitem", { name: "Review cultivar match" }).click();
   await expect(
-    page.getByRole("heading", { name: "Find a match for Mystery Bloom" }),
+    page.getByRole("heading", { name: "Match unmatched names" }),
   ).toBeVisible();
 }
 
@@ -128,13 +126,13 @@ test("Mobile importer results", async ({ page }) => {
 test("Desktop importer review", async ({ page }) => {
   await openImporter(page, desktop);
   await uploadSpreadsheet(page);
-  await openReviewSheet(page);
+  await openReviewQuiz(page);
   await captureAtlasState(page, "catalog-importer-desktop-review");
 });
 
 test("Mobile importer review", async ({ page }) => {
   await openImporter(page, mobile);
   await uploadSpreadsheet(page);
-  await openReviewSheet(page);
+  await openReviewQuiz(page);
   await captureAtlasState(page, "catalog-importer-mobile-review");
 });

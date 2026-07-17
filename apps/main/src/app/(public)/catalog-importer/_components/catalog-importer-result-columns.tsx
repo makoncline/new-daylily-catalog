@@ -1,43 +1,22 @@
 "use client";
 
-import {
-  Image as ImageIcon,
-  MoreHorizontal,
-  TriangleAlert,
-} from "lucide-react";
-import type { ColumnDef, FilterFn, HeaderContext } from "@tanstack/react-table";
+import type { CSSProperties } from "react";
+import { Image as ImageIcon } from "lucide-react";
+import type { ColumnDef, HeaderContext } from "@tanstack/react-table";
 import { DataTableColumnHeader, TooltipCell } from "@/components/data-table";
 import { TableImagePreview } from "@/components/data-table/table-image-preview";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+import { badgeVariants } from "@/components/ui/badge";
 import type {
   CatalogColumnMapping,
   CatalogImportRow,
 } from "@/lib/catalog-importer";
+import { cn } from "@/lib/utils";
 import {
   getCandidateMeta,
   getCultivarImage,
   getCultivarTraitSummary,
-  getMatchStatusLabel,
-  getRowIssues,
   getUploadedImages,
 } from "@/app/(public)/catalog-importer/_lib/catalog-importer-presentation";
-
-const matchStatusFilter: FilterFn<CatalogImportRow> = (row, id, value) => {
-  if (!Array.isArray(value) || value.length === 0) {
-    return true;
-  }
-
-  return value.includes(row.getValue(id));
-};
 
 function header(title: string) {
   return function CatalogImporterColumnHeader({
@@ -49,13 +28,11 @@ function header(title: string) {
 
 interface GetCatalogImporterResultColumnsOptions {
   mapping: CatalogColumnMapping;
-  mode: "pro" | "public";
   onOpenReview: (row: CatalogImportRow) => void;
 }
 
 export function getCatalogImporterResultColumns({
   mapping,
-  mode,
   onOpenReview,
 }: GetCatalogImporterResultColumnsOptions): ColumnDef<CatalogImportRow>[] {
   const columns: ColumnDef<CatalogImportRow>[] = [
@@ -69,12 +46,6 @@ export function getCatalogImporterResultColumns({
           <p className="line-clamp-2 font-medium">
             {row.original.match?.displayName ?? row.original.title}
           </p>
-          {row.original.match &&
-          row.original.match.displayName !== row.original.title ? (
-            <p className="text-muted-foreground mt-1 line-clamp-1 text-xs">
-              Source: {row.original.title}
-            </p>
-          ) : null}
         </div>
       ),
       enableHiding: false,
@@ -83,74 +54,47 @@ export function getCatalogImporterResultColumns({
       filterFn: "fuzzy",
     },
     {
-      id: "matchStatus",
-      accessorKey: "matchStatus",
-      meta: { title: "Match status" },
-      header: header("Match status"),
-      cell: ({ row }) => (
-        <Badge
-          variant={
-            row.original.matchStatus === "pending" ? "outline" : "secondary"
-          }
-          className="whitespace-nowrap"
-        >
-          {getMatchStatusLabel(row.original.matchStatus)}
-        </Badge>
-      ),
-      filterFn: matchStatusFilter,
+      id: "matchConfidence",
+      accessorFn: (row) =>
+        row.match?.confidence ??
+        (row.matchStatus === "pending"
+          ? (row.suggestedMatch?.confidence ?? 0)
+          : 0),
+      meta: { title: "Match" },
+      header: header("Match"),
+      cell: ({ row }) => {
+        const confidence =
+          row.original.match?.confidence ??
+          (row.original.matchStatus === "pending"
+            ? (row.original.suggestedMatch?.confidence ?? 0)
+            : 0);
+        const boundedConfidence = Math.max(0, Math.min(100, confidence));
+        const hue = Math.round(
+          boundedConfidence >= 90
+            ? 60 + ((boundedConfidence - 90) / 10) * 60
+            : (boundedConfidence / 90) * 60,
+        );
+
+        return (
+          <button
+            type="button"
+            aria-label={`Review ${confidence}% match for ${row.original.sourceTitle}`}
+            title="Open match selection"
+            style={{ "--match-hue": hue } as CSSProperties}
+            className={cn(
+              badgeVariants({ variant: "outline" }),
+              "cursor-pointer border-[hsl(var(--match-hue)_58%_42%)] bg-[hsl(var(--match-hue)_72%_93%)] whitespace-nowrap text-[hsl(var(--match-hue)_68%_24%)] hover:bg-[hsl(var(--match-hue)_72%_88%)] dark:bg-[hsl(var(--match-hue)_45%_18%)] dark:text-[hsl(var(--match-hue)_65%_78%)] dark:hover:bg-[hsl(var(--match-hue)_45%_23%)]",
+            )}
+            onClick={() => onOpenReview(row.original)}
+          >
+            {confidence}%
+          </button>
+        );
+      },
       enableSorting: true,
-      enableHiding: true,
+      enableHiding: false,
     },
   ];
-
-  if (mapping.price !== null) {
-    columns.push({
-      id: "price",
-      accessorKey: "price",
-      meta: { title: "Price" },
-      header: header("Price"),
-      cell: ({ row }) => (
-        <div className="tabular-nums">
-          {row.original.price === null
-            ? (row.original.priceWarning ?? "—")
-            : row.original.price.toLocaleString(undefined, {
-                style: "currency",
-                currency: "USD",
-              })}
-        </div>
-      ),
-      enableSorting: true,
-      enableHiding: true,
-    });
-  }
-
-  if (mapping.description !== null) {
-    columns.push({
-      id: "description",
-      accessorKey: "description",
-      meta: { title: "Description" },
-      header: header("Description"),
-      cell: ({ row }) => (
-        <TooltipCell content={row.original.description || null} lines={3} />
-      ),
-      enableSorting: true,
-      enableHiding: true,
-    });
-  }
-
-  if (mapping.privateNote !== null) {
-    columns.push({
-      id: "privateNote",
-      accessorKey: "privateNote",
-      meta: { title: "Private note" },
-      header: header("Private note"),
-      cell: ({ row }) => (
-        <TooltipCell content={row.original.privateNote || null} lines={2} />
-      ),
-      enableSorting: true,
-      enableHiding: true,
-    });
-  }
 
   columns.push(
     {
@@ -208,100 +152,89 @@ export function getCatalogImporterResultColumns({
           );
         }
 
-        return (
-          <div className="w-72 max-w-72 whitespace-normal">
-            <p className="line-clamp-2 font-medium">
-              {match.displayName}
-              {getCandidateMeta(match) ? ` · ${getCandidateMeta(match)}` : ""}
-            </p>
-            <TooltipCell
-              content={getCultivarTraitSummary(match).join(" · ") || null}
-              lines={2}
-            />
-          </div>
-        );
-      },
-      enableSorting: true,
-      enableHiding: true,
-    },
-    {
-      id: "issues",
-      meta: { title: "Issues" },
-      accessorFn: (row) => getRowIssues(row).join(" · "),
-      header: header("Issues"),
-      cell: ({ row }) => {
-        const issues = getRowIssues(row.original);
-        if (issues.length === 0) {
-          return <span className="text-muted-foreground">—</span>;
-        }
+        const registryDetails = [
+          match.displayName,
+          getCandidateMeta(match),
+          ...getCultivarTraitSummary(match),
+        ]
+          .filter(Boolean)
+          .join(" · ");
 
         return (
-          <div className="flex items-center gap-2">
-            <Badge variant="outline" className="gap-1">
-              <TriangleAlert className="size-3" />
-              {issues.length}
-            </Badge>
-            <TooltipCell content={issues.join(" · ")} lines={2} />
-          </div>
+          <TooltipCell
+            content={registryDetails}
+            lines={3}
+            className="w-72 max-w-72 whitespace-normal"
+          />
         );
       },
-      enableSorting: true,
-      enableHiding: true,
-    },
-    {
-      id: "sourceRow",
-      accessorKey: "sourceRow",
-      meta: { title: "Source row" },
-      header: header("Source row"),
-      cell: ({ row }) => (
-        <span className="text-muted-foreground tabular-nums">
-          {row.original.sourceRow}
-        </span>
-      ),
       enableSorting: true,
       enableHiding: true,
     },
   );
 
-  if (mode === "pro") {
+  if (mapping.price !== null) {
     columns.push({
-      id: "actions",
-      meta: { title: "Actions" },
-      header: () => <span className="sr-only">Actions</span>,
-      cell: ({ row }) => {
-        const needsReview = row.original.matchStatus === "pending";
-        if (!needsReview) {
-          return null;
-        }
-
-        return (
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                type="button"
-                data-review-row-id={row.original.id}
-                variant="ghost"
-                size="icon"
-                className="size-8"
-                aria-label={`Review match for ${row.original.title}`}
-              >
-                <MoreHorizontal className="size-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuLabel>Row actions</DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onSelect={() => onOpenReview(row.original)}>
-                Review cultivar match
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        );
-      },
-      enableSorting: false,
-      enableHiding: false,
+      id: "price",
+      accessorKey: "price",
+      meta: { title: "Price" },
+      header: header("Price"),
+      cell: ({ row }) => (
+        <div className="tabular-nums">
+          {row.original.price === null
+            ? (row.original.priceWarning ?? "—")
+            : row.original.price.toLocaleString(undefined, {
+                style: "currency",
+                currency: "USD",
+              })}
+        </div>
+      ),
+      enableSorting: true,
+      enableHiding: true,
     });
   }
+
+  if (mapping.description !== null) {
+    columns.push({
+      id: "description",
+      accessorKey: "description",
+      meta: { title: "Description" },
+      header: header("Description"),
+      cell: ({ row }) => (
+        <TooltipCell content={row.original.description || null} lines={3} />
+      ),
+      enableSorting: true,
+      enableHiding: true,
+    });
+  }
+
+  if (mapping.privateNote !== null) {
+    columns.push({
+      id: "privateNote",
+      accessorKey: "privateNote",
+      meta: { title: "Private note" },
+      header: header("Private note"),
+      cell: ({ row }) => (
+        <TooltipCell content={row.original.privateNote || null} lines={2} />
+      ),
+      enableSorting: true,
+      enableHiding: true,
+    });
+  }
+
+  columns.push({
+    id: "sourceRow",
+    accessorKey: "sourceRow",
+    meta: { title: "Source row" },
+    header: header("Source row"),
+    cell: ({ row }) => (
+      <span className="text-muted-foreground tabular-nums">
+        {row.original.sourceRow}
+      </span>
+    ),
+    enableSorting: true,
+    enableHiding: true,
+  });
 
   return columns;
 }

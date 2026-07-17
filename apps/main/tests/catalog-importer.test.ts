@@ -256,4 +256,54 @@ describe("catalog importer normalization", () => {
       },
     ]);
   });
+
+  it("keeps the best candidate for rows that still need review", () => {
+    const [row] = createCatalogImportRows({
+      headerRowIndex: 0,
+      mapping: {
+        description: null,
+        imageUrl: null,
+        price: null,
+        privateNote: null,
+        title: 0,
+      },
+      rows: [["name"], ["Vanguard 2"]],
+    });
+    const suggestion = {
+      bloomSizeIn: null,
+      bloomSeason: null,
+      color: null,
+      confidence: 82,
+      cultivarReferenceId: "cultivar-vanguard",
+      displayName: "Vanguard",
+      form: null,
+      hybridizer: null,
+      imageAsset: null,
+      imageUrl: null,
+      listingCount: 0,
+      normalizedName: "vanguard",
+      ploidy: null,
+      rebloom: null,
+      scapeHeightIn: null,
+      year: null,
+    };
+
+    expect(
+      applyAutomaticCultivarMatches({
+        automaticMatches: new Map(),
+        matchedOnly: false,
+        rows: [row!],
+        suggestedMatches: new Map([["vanguard 2", suggestion]]),
+      }),
+    ).toMatchObject([
+      {
+        match: null,
+        matchStatus: "pending",
+        suggestedMatch: {
+          confidence: 82,
+          cultivarReferenceId: "cultivar-vanguard",
+        },
+      },
+    ]);
+  });
 });

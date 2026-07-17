@@ -90,6 +90,7 @@ export function DataTable<TData>({ table }: DataTableProps<TData>) {
                 {table.getRowModel().rows.map((row) => (
                   <TableRow
                     key={row.id}
+                    className="h-20"
                     data-state={row.getIsSelected() && "selected"}
                   >
                     {row.getVisibleCells().map((cell) =>
@@ -98,10 +99,12 @@ export function DataTable<TData>({ table }: DataTableProps<TData>) {
                           key={cell.id}
                           className="h-20 max-w-52 min-w-24 overflow-hidden whitespace-nowrap"
                         >
-                          {flexRender(
-                            cell.column.columnDef.cell,
-                            cell.getContext(),
-                          )}
+                          <div className="flex h-16 min-w-0 items-center overflow-hidden">
+                            {flexRender(
+                              cell.column.columnDef.cell,
+                              cell.getContext(),
+                            )}
+                          </div>
                         </TableCell>
                       ) : null,
                     )}
@@ -155,6 +158,7 @@ export function DataTable<TData>({ table }: DataTableProps<TData>) {
               {table.getRowModel().rows.map((row) => (
                 <TableRow
                   key={row.id}
+                  className="h-20"
                   data-state={row.getIsSelected() && "selected"}
                 >
                   {row.getVisibleCells().map((cell) =>
@@ -164,10 +168,12 @@ export function DataTable<TData>({ table }: DataTableProps<TData>) {
                         key={cell.id}
                         className="h-20 max-w-96 min-w-24 overflow-hidden whitespace-nowrap"
                       >
-                        {flexRender(
-                          cell.column.columnDef.cell,
-                          cell.getContext(),
-                        )}
+                        <div className="flex h-16 min-w-0 items-center overflow-hidden">
+                          {flexRender(
+                            cell.column.columnDef.cell,
+                            cell.getContext(),
+                          )}
+                        </div>
                       </TableCell>
                     ) : null,
                   )}
@@ -218,6 +224,7 @@ export function DataTable<TData>({ table }: DataTableProps<TData>) {
                 {table.getRowModel().rows.map((row) => (
                   <TableRow
                     key={row.id}
+                    className="h-20"
                     data-state={row.getIsSelected() && "selected"}
                   >
                     {row.getVisibleCells().map((cell) =>
@@ -226,10 +233,12 @@ export function DataTable<TData>({ table }: DataTableProps<TData>) {
                           key={cell.id}
                           className="h-20 max-w-96 overflow-hidden whitespace-nowrap"
                         >
-                          {flexRender(
-                            cell.column.columnDef.cell,
-                            cell.getContext(),
-                          )}
+                          <div className="flex h-16 min-w-0 items-center overflow-hidden">
+                            {flexRender(
+                              cell.column.columnDef.cell,
+                              cell.getContext(),
+                            )}
+                          </div>
                         </TableCell>
                       ) : null,
                     )}

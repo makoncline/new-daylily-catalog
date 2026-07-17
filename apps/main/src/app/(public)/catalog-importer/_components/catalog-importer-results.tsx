@@ -1,16 +1,11 @@
 "use client";
 
-import { useEffect, useMemo, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { ArrowRight, Download, SearchX } from "lucide-react";
+import { ArrowRight, Download } from "lucide-react";
 import { DataTable } from "@/components/data-table/data-table";
-import { DataTableFacetedFilter } from "@/components/data-table/data-table-faceted-filter";
-import { DataTableFilteredCount } from "@/components/data-table/data-table-filtered-count";
-import { DataTableFilterReset } from "@/components/data-table/data-table-filter-reset";
-import { DataTableGlobalFilter } from "@/components/data-table/data-table-global-filter";
 import { DataTableLayout } from "@/components/data-table/data-table-layout";
 import { DataTablePagination } from "@/components/data-table/data-table-pagination";
-import { DataTableViewOptions } from "@/components/data-table/data-table-view-options";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -21,10 +16,12 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { useDataTable } from "@/hooks/use-data-table";
+import { CatalogImporterIssues } from "@/app/(public)/catalog-importer/_components/catalog-importer-issues";
+import { CatalogImporterMatchSheet } from "@/app/(public)/catalog-importer/_components/catalog-importer-match-sheet";
 import { getCatalogImporterResultColumns } from "@/app/(public)/catalog-importer/_components/catalog-importer-result-columns";
-import { CatalogImporterReviewSheet } from "@/app/(public)/catalog-importer/_components/catalog-importer-review-sheet";
-import { CATALOG_IMPORTER_STATUS_OPTIONS } from "@/app/(public)/catalog-importer/_lib/catalog-importer-presentation";
+import { CatalogImporterReviewQuiz } from "@/app/(public)/catalog-importer/_components/catalog-importer-review-quiz";
 import type { CatalogImporterWorkbenchController } from "@/app/(public)/catalog-importer/_hooks/use-catalog-importer-workbench";
+import type { CatalogImportRow } from "@/lib/catalog-importer";
 
 const PAGE_SIZE_OPTIONS = [20, 50, 100, 200];
 
@@ -35,28 +32,33 @@ interface CatalogImporterResultsProps {
 export function CatalogImporterResults({
   controller,
 }: CatalogImporterResultsProps) {
-  const previousReviewRowIdRef = useRef<string | null>(null);
-  const resultsHeadingRef = useRef<HTMLHeadingElement>(null);
   const defaultPageSizeAppliedRef = useRef(false);
+  const [matchEditorRowId, setMatchEditorRowId] = useState<string | null>(null);
+  const linkedRows = useMemo(
+    () => controller.resultRows.filter((row) => row.match !== null),
+    [controller.resultRows],
+  );
+  const matchEditorRow =
+    linkedRows.find((row) => row.id === matchEditorRowId) ?? null;
+  const handleOpenReview = useCallback((row: CatalogImportRow) => {
+    setMatchEditorRowId(row.id);
+  }, []);
   const columns = useMemo(
     () =>
       getCatalogImporterResultColumns({
         mapping: controller.mapping,
-        mode: controller.mode,
-        onOpenReview: controller.openReviewRow,
+        onOpenReview: handleOpenReview,
       }),
-    [controller.mapping, controller.mode, controller.openReviewRow],
+    [controller.mapping, handleOpenReview],
   );
   const table = useDataTable({
-    data: controller.resultRows,
+    data: linkedRows,
     columns,
-    storageKey: "catalog-importer-results",
+    storageKey: "catalog-importer-matches-simple",
     columnNames: {
-      actions: "Actions",
       description: "Description",
       image: "Image",
-      issues: "Issues",
-      matchStatus: "Match status",
+      matchConfidence: "Match",
       price: "Price",
       privateNote: "Private note",
       registryDetails: "Registry details",
@@ -65,7 +67,7 @@ export function CatalogImporterResults({
     },
     pinnedColumns: {
       left: ["title"],
-      right: controller.mode === "pro" ? ["actions"] : [],
+      right: [],
     },
     initialStateOverrides: {
       pagination: { pageIndex: 0, pageSize: 20 },
@@ -73,8 +75,13 @@ export function CatalogImporterResults({
         sourceRow: false,
       },
     },
+    config: {
+      state: {
+        columnFilters: [],
+        globalFilter: "",
+      },
+    },
   });
-  const filteredRowCount = table.getFilteredRowModel().rows.length;
   const { pageIndex, pageSize } = table.getState().pagination;
 
   useEffect(() => {
@@ -94,96 +101,44 @@ export function CatalogImporterResults({
   useEffect(() => {
     const pageCount = Math.max(
       1,
-      Math.ceil(filteredRowCount / Math.max(pageSize, 1)),
+      Math.ceil(linkedRows.length / Math.max(pageSize, 1)),
     );
     if (pageIndex >= pageCount) {
       table.setPageIndex(pageCount - 1);
     }
-  }, [
-    controller.resultRows.length,
-    filteredRowCount,
-    pageIndex,
-    pageSize,
-    table,
-  ]);
-
-  useEffect(() => {
-    const activeRowId = controller.activeReviewRow?.id ?? null;
-    const previousRowId = previousReviewRowIdRef.current;
-
-    if (previousRowId && !activeRowId) {
-      window.setTimeout(() => {
-        const trigger = document.querySelector<HTMLButtonElement>(
-          `[data-review-row-id="${previousRowId}"]`,
-        );
-        if (trigger) {
-          trigger.focus();
-        } else {
-          resultsHeadingRef.current?.focus();
-        }
-      }, 0);
-    }
-
-    previousReviewRowIdRef.current = activeRowId;
-  }, [controller.activeReviewRow?.id]);
-
-  const handleReviewSheetOpenChange = (open: boolean) => {
-    if (!open) {
-      controller.closeReview();
-    }
-  };
+  }, [linkedRows.length, pageIndex, pageSize, table]);
 
   return (
-    <section
-      aria-labelledby="catalog-importer-results-heading"
-      className="min-w-0"
-    >
-      <Card className="min-w-0 overflow-hidden shadow-sm">
+    <div className="min-w-0 space-y-4">
+      <Card
+        role="region"
+        aria-labelledby="catalog-importer-results-heading"
+        className="min-w-0 overflow-hidden shadow-sm"
+      >
         <CardHeader className="gap-4 lg:flex-row lg:items-start lg:justify-between lg:space-y-0">
           <div className="space-y-1.5">
             <CardTitle
-              ref={resultsHeadingRef}
               id="catalog-importer-results-heading"
               role="heading"
               aria-level={2}
               tabIndex={-1}
             >
-              {controller.mode === "public" ? "Matched sample" : "Cleaned list"}
+              Matches
             </CardTitle>
             <CardDescription>
               {controller.mode === "public"
                 ? "A free sample of confident matches from your workbook."
-                : "Review uncertain names, adjust the table, then export every retained row."}
+                : "Select a percentage to review or change a cultivar match."}
             </CardDescription>
           </div>
           <p className="text-muted-foreground text-sm tabular-nums">
-            {filteredRowCount.toLocaleString()} of{" "}
-            {controller.resultRows.length.toLocaleString()} rows
+            {linkedRows.length.toLocaleString()} rows
           </p>
         </CardHeader>
 
         <CardContent className="min-w-0 p-4 pt-0 lg:p-6 lg:pt-0">
           <DataTableLayout
             table={table}
-            toolbar={
-              <div className="bg-muted/20 flex flex-col gap-3 rounded-lg border p-3 lg:flex-row lg:items-center lg:justify-between">
-                <div className="flex min-w-0 flex-col gap-2 lg:flex-row lg:items-center">
-                  <DataTableGlobalFilter
-                    table={table}
-                    placeholder="Filter cleaned rows…"
-                  />
-                  <DataTableFacetedFilter
-                    table={table}
-                    column={table.getColumn("matchStatus")}
-                    title="Match status"
-                    options={CATALOG_IMPORTER_STATUS_OPTIONS}
-                  />
-                  <DataTableFilteredCount table={table} />
-                  <DataTableFilterReset table={table} />
-                </div>
-                <DataTableViewOptions table={table} />
-              </div>
-            }
             pagination={
               <DataTablePagination
                 table={table}
@@ -192,10 +147,8 @@ export function CatalogImporterResults({
             }
             noResults={
               <div className="rounded-lg border border-dashed p-10 text-center">
-                <SearchX className="text-muted-foreground mx-auto size-6" />
-                <p className="mt-3 font-medium">No cleaned rows found</p>
-                <p className="text-muted-foreground mt-1 text-sm">
-                  Reset the filters to see the available results.
+                <p className="text-muted-foreground text-sm">
+                  No linked matches yet.
                 </p>
               </div>
             }
@@ -210,7 +163,7 @@ export function CatalogImporterResults({
               ? `${controller.matchedRows?.length.toLocaleString() ?? 0} confident matches from ${controller.draftRows
                   .filter((row) => !row.skipped)
                   .length.toLocaleString()} source rows.`
-              : `${controller.resultRows.length.toLocaleString()} retained rows will be included in the CSV, regardless of table filters or pagination.`}
+              : `${controller.resultRows.length.toLocaleString()} retained rows will be included in the CSV.`}
           </p>
           <div className="grid gap-2 lg:flex">
             <Button asChild variant="outline">
@@ -231,12 +184,23 @@ export function CatalogImporterResults({
         </CardFooter>
       </Card>
 
+      <CatalogImporterIssues controller={controller} />
+
       {controller.mode === "pro" ? (
-        <CatalogImporterReviewSheet
-          controller={controller}
-          onOpenChange={handleReviewSheetOpenChange}
-        />
+        <CatalogImporterReviewQuiz controller={controller} />
       ) : null}
-    </section>
+
+      <CatalogImporterMatchSheet
+        key={matchEditorRow?.id ?? "closed"}
+        controller={controller}
+        open={matchEditorRow !== null}
+        row={matchEditorRow}
+        onOpenChange={(open) => {
+          if (!open) {
+            setMatchEditorRowId(null);
+          }
+        }}
+      />
+    </div>
   );
 }
