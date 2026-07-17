@@ -25,10 +25,15 @@ export function isPublicCultivarSearchEnabled() {
   return getRuntimeFeatureFlags().publicCultivarSearch;
 }
 
+export function isImageModerationEnforced() {
+  return getRuntimeFeatureFlags().imageModerationEnforced;
+}
+
 export function getRuntimeFeatureFlags(): RuntimeFeatureFlags {
   const configured = readConfiguredRuntimeFeatureFlags();
 
   return {
+    imageModerationEnforced: configured.imageModerationEnforced,
     publicCultivarSearch: configured.publicCultivarSearch && !isVercel(),
   };
 }

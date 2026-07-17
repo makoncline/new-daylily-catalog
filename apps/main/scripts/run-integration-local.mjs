@@ -42,7 +42,6 @@ const integrationEnv = {
   STRIPE_PRICE_ID: "price_integration",
   NEXT_PUBLIC_CLOUDFLARE_URL: appBaseUrl,
   NEXT_PUBLIC_SENTRY_ENABLED: "false",
-  IMAGE_MODERATION_ENFORCED: "false",
   PUBLIC_SEARCH_INDEX_REFRESH_INTERVAL_SECONDS: "0",
   RUST_LOG: "info",
   NODE_OPTIONS: `--import=${guardUrl}`,

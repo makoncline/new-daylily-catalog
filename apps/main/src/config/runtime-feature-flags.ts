@@ -1,4 +1,5 @@
 export const DISABLED_RUNTIME_FEATURE_FLAGS = {
+  imageModerationEnforced: false,
   publicCultivarSearch: false,
 };
 
@@ -12,6 +13,7 @@ export function parseRuntimeFeatureFlags(value: unknown): RuntimeFeatureFlags {
       : {};
 
   return {
+    imageModerationEnforced: flags.imageModerationEnforced === true,
     publicCultivarSearch: flags.publicCultivarSearch === true,
   };
 }

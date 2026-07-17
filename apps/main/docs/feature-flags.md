@@ -9,6 +9,7 @@ Values live only in `/data/runtime-feature-flags.json`:
 
 ```json
 {
+  "imageModerationEnforced": false,
   "publicCultivarSearch": true
 }
 ```
@@ -31,6 +32,7 @@ and reports the effective state. Read the current public state at
 
 Before the first deployment, create the file with cultivar search enabled. The
 old app ignores it and the new app reads it on its first request.
+Do not rerun this initialization; use the setter above for every later change.
 
 ```sh
 install -d -o 1001 -g 1001 /srv/stacks/daylilycatalog/data
