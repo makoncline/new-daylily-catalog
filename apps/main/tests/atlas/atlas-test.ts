@@ -82,34 +82,24 @@ export async function captureAtlasState(page: Page, stateId: string) {
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.evaluate(async () => {
     await document.fonts.ready;
-    const initialScrollY = scrollY;
     const images = [...document.images];
-    for (
-      let position = 0;
-      position < document.documentElement.scrollHeight;
-      position += innerHeight
-    ) {
-      scrollTo(0, position);
-      await new Promise((resolve) =>
-        requestAnimationFrame(() => requestAnimationFrame(resolve)),
-      );
-    }
-    scrollTo(0, initialScrollY);
     await Promise.all(
-      images.map(
-        (image) => {
-          if (image.complete) return Promise.resolve();
-          return new Promise<void>((resolve) => {
-            image.addEventListener("load", () => resolve(), { once: true });
-            image.addEventListener("error", () => resolve(), { once: true });
-          });
-        },
-      ),
+      images.map(async (image) => {
+        try {
+          await image.decode();
+        } catch {
+          // Broken images are still allowed to reach their rendered fallback.
+        }
+      }),
     );
   });
   await expect(page.locator("body")).not.toBeEmpty();
   await expect(
     page.locator("[data-nextjs-dialog], #webpack-dev-server-client-overlay"),
+  ).toHaveCount(0);
+  await expect(
+    page.getByRole("button", { name: /Open issues overlay/i }),
+    `${stateId} must have zero Next development issues before capture`,
   ).toHaveCount(0);
   mkdirSync(captureDirectory, { recursive: true });
   const interactionSurface = await visibleInteractionSurface(page);

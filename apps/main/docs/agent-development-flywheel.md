@@ -10,6 +10,12 @@ the change. Follow the normal controls a user sees; do not substitute hidden
 controls, direct API calls, or database edits. Atlas captures do not replace
 this walkthrough.
 
+Visible-browser verification must finish with zero Next development issues.
+Open and inspect every issue the badge reports. Fix narrow tooling or test
+problems in the current slice when appropriate; split production application
+defects into a separate change before continuing. Never hide or crop out the
+badge as a screenshot workaround.
+
 Generate separate before and after galleries, then open and inspect every
 affected screenshot. A passing capture only proves that the state was created;
 it does not prove that the design is correct. Check the complete page or
