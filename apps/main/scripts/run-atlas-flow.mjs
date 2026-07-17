@@ -88,6 +88,7 @@ async function startServer() {
     env: {
       ...process.env,
       DATABASE_URL: explicitDatabaseUrl ?? `file:${seededDatabase}`,
+      PUBLIC_CULTIVAR_SEARCH_ENABLED: "true",
       PUBLIC_SEARCH_INDEX_REFRESH_INTERVAL_SECONDS: "0",
       TURSO_DATABASE_AUTH_TOKEN: "",
       TURSO_EMBEDDED_REPLICA_URL: "",
