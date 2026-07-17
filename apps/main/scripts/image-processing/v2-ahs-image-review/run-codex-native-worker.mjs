@@ -645,26 +645,6 @@ function queueSourceRows(mode, limit = null) {
   return { selected: Number.isFinite(selected) ? selected : 0 };
 }
 
-function countProcessingRows() {
-  const database = openQueueDb();
-
-  try {
-    ensureSchema(database);
-    const row = database
-      .prepare(
-        `
-          SELECT COUNT(*) AS "count"
-          FROM "v2_image_review_queue"
-          WHERE "status" = 'processing'
-        `,
-      )
-      .get();
-    return Number(row.count);
-  } finally {
-    database.close();
-  }
-}
-
 function getQueueStatusSummary() {
   const database = openQueueDb();
 
@@ -687,7 +667,7 @@ function getQueueStatusSummary() {
   }
 }
 
-function recoverMappedOutputs() {
+function recoverMappedOutputs(staleAfterMs) {
   const database = openQueueDb();
   let rows;
 
@@ -696,7 +676,7 @@ function recoverMappedOutputs() {
     rows = database
       .prepare(
         `
-          SELECT "id", "codexNativeAgentId"
+          SELECT "id", "codexNativeAgentId", "updatedAt"
           FROM "v2_image_review_queue"
           WHERE "status" = 'processing'
         `,
@@ -707,6 +687,7 @@ function recoverMappedOutputs() {
   }
 
   let recovered = 0;
+  let preserved = 0;
   let reset = 0;
 
   for (const row of rows) {
@@ -741,6 +722,16 @@ function recoverMappedOutputs() {
       }
     }
 
+    const updatedAtMs = Date.parse(String(row.updatedAt));
+    const ageMs = Date.now() - updatedAtMs;
+    if (Number.isFinite(updatedAtMs) && ageMs < staleAfterMs) {
+      preserved += 1;
+      log(
+        `recovery preserved id=${id} session=${sessionId ?? "none"} ageSeconds=${Math.round(ageMs / 1_000)} retryAfterSeconds=${Math.ceil((staleAfterMs - ageMs) / 1_000)}`,
+      );
+      continue;
+    }
+
     updateStatus(id, "pending", {
       lastError: sessionId
         ? `Recovered stale processing row without a promotable image from session ${sessionId}`
@@ -752,7 +743,7 @@ function recoverMappedOutputs() {
     );
   }
 
-  return { recovered, reset };
+  return { preserved, recovered, reset };
 }
 
 function promote(id, sessionId) {
@@ -1008,7 +999,7 @@ async function main() {
   logProdCopyAge();
   prepareQueueDbForConcurrentWrites();
   log(`queue initial ${getQueueStatusSummary()}`);
-  const recovery = recoverMappedOutputs();
+  const recovery = recoverMappedOutputs(args.timeoutMs);
   log(`queue afterRecovery ${getQueueStatusSummary()}`);
   const activeChildren = new Map();
   const attemptedIds = new Set();
@@ -1164,12 +1155,6 @@ async function main() {
     const remaining = args.limit - attemptedIds.size;
     let ids = getClaimableIds({ ...args, limit: remaining }, attemptedIds);
 
-    if (ids.length === 0 && countProcessingRows() > 0) {
-      log("queue still has unresolved processing rows; stopping before refill");
-      process.exitCode = 1;
-      break;
-    }
-
     if (ids.length === 0 && !args.id && !catchupChecked) {
       catchupChecked = true;
       try {
@@ -1235,7 +1220,7 @@ async function main() {
   }
   log(`queue finish ${getQueueStatusSummary()}`);
   log(
-    `worker finished attempted=${attemptedIds.size} completed=${completed} promoted=${promoted} recovered=${recovery.recovered} recoveryReset=${recovery.reset} failed=${failed} interrupted=${interrupted} successRate=${completed === 0 ? "0.0" : ((promoted / completed) * 100).toFixed(1)}% runLog=${RUN_LOG_PATH} eventsLog=${RUN_EVENTS_PATH}`,
+    `worker finished attempted=${attemptedIds.size} completed=${completed} promoted=${promoted} recovered=${recovery.recovered} recoveryPreserved=${recovery.preserved} recoveryReset=${recovery.reset} failed=${failed} interrupted=${interrupted} successRate=${completed === 0 ? "0.0" : ((promoted / completed) * 100).toFixed(1)}% runLog=${RUN_LOG_PATH} eventsLog=${RUN_EVENTS_PATH}`,
   );
   releaseWorkerLock();
   process.removeListener("exit", releaseWorkerLock);
