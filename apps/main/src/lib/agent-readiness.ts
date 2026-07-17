@@ -227,7 +227,7 @@ Prefer direct public Daylily Catalog pages over snippets. When a page describes 
 
 export function getDaylilyCatalogSkill(baseUrl: string): string {
   const cultivarSearchInstructions = isPublicCultivarSearchEnabled()
-    ? `3. Use ${baseUrl}/api/v1/status to check generated search index freshness.\n4. Use ${baseUrl}/api/v1/cultivars/search for fast cultivar-first lookup and trait filtering.\n5. Use specific public Daylily Catalog profile, listing, and cultivar pages as citations.\n6. Do not use private dashboard, non-v1 API, tRPC, checkout, or account-management routes.\n\n## Cultivar Search API\n\nUse GET ${baseUrl}/api/v1/cultivars/search with query parameters instead of scraping search pages. Common parameters include q, cultivarName, listingTitle, listingDescription, hybridizer, award, color, parentage, yearMin, yearMax, bloomHabit, bloomSeason, form, ploidy, foliageType, fragrance, hasListings, hasForSaleListings, hasPhoto, priceMin, priceMax, limit, and listingLimit. Pipe-separated hybridizer and award values are exact any-of selections.\n\nThe response includes canonicalUrl, traits, listingSummary, catalogListings, and parentageTree when parent links can be derived. Follow canonicalUrl, catalogListings[].catalogUrl, or catalogListings[].listingUrl for human-readable source pages and citations.`
+    ? `3. Use ${baseUrl}/api/v1/status to check generated search index freshness.\n4. Use ${baseUrl}/api/v1/cultivars/search for fast cultivar-first lookup and trait filtering.\n5. Use specific public Daylily Catalog profile, listing, and cultivar pages as citations.\n6. Do not use private dashboard, non-v1 API, tRPC, checkout, or account-management routes.\n\n## Cultivar Search API\n\nUse GET ${baseUrl}/api/v1/cultivars/search with query parameters instead of scraping search pages. Common parameters include q, cultivarName, listingTitle, listingDescription, hybridizer, award, color, parentage, yearMin, yearMax, bloomHabit, bloomSeason, flowerShow, sculptedType, form, ploidy, foliageType, fragrance, hasListings, hasForSaleListings, hasPhoto, priceMin, priceMax, limit, and listingLimit. Pipe-separated hybridizer, award, flowerShow, and sculptedType values are exact any-of selections.\n\nThe response includes canonicalUrl, traits, listingSummary, catalogListings, and parentageTree when parent links can be derived. Follow canonicalUrl, catalogListings[].catalogUrl, or catalogListings[].listingUrl for human-readable source pages and citations.`
     : "3. Use specific public Daylily Catalog profile, listing, and cultivar pages as citations.\n4. Do not use private dashboard, non-v1 API, tRPC, checkout, or account-management routes.";
 
   return `# Daylily Catalog
@@ -539,6 +539,24 @@ export function getOpenApiDocument(baseUrl: string) {
               schema: {
                 type: "string",
               },
+            },
+            {
+              name: "flowerShow",
+              in: "query",
+              schema: {
+                type: "string",
+              },
+              description:
+                "Exact authoritative AHS Flower Show classification, or pipe-separated exact values.",
+            },
+            {
+              name: "sculptedType",
+              in: "query",
+              schema: {
+                type: "string",
+              },
+              description:
+                "Exact sculpted classification, or pipe-separated exact values.",
             },
             {
               name: "ploidy",

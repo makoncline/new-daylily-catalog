@@ -157,6 +157,7 @@ DROP TABLE IF EXISTS SearchIndexMeta;
 DROP TABLE IF EXISTS CultivarSearchIndex;
 DROP TABLE IF EXISTS CultivarSearchFacetValue;
 DROP TABLE IF EXISTS CultivarSearchAward;
+DROP TABLE IF EXISTS CultivarSearchSculptedType;
 DROP TABLE IF EXISTS CultivarListingSearchIndex;
 DROP TABLE IF EXISTS CultivarSearchFts;
 
@@ -184,6 +185,8 @@ CREATE TABLE CultivarSearchIndex (
   bloomHabit TEXT,
   form TEXT,
   flowerShow TEXT,
+  flowerShowSearch TEXT,
+  sculptedTypes TEXT,
   ploidy TEXT,
   foliageType TEXT,
   fragrance TEXT,
@@ -220,6 +223,13 @@ CREATE TABLE CultivarSearchFacetValue (
 
 CREATE TABLE CultivarSearchAward (
   cultivarId INTEGER NOT NULL,
+  valueSearch TEXT NOT NULL,
+  PRIMARY KEY (cultivarId, valueSearch)
+);
+
+CREATE TABLE CultivarSearchSculptedType (
+  cultivarId INTEGER NOT NULL,
+  value TEXT NOT NULL,
   valueSearch TEXT NOT NULL,
   PRIMARY KEY (cultivarId, valueSearch)
 );
@@ -299,6 +309,8 @@ INSERT INTO CultivarSearchIndex (
   bloomHabit,
   form,
   flowerShow,
+  flowerShowSearch,
+  sculptedTypes,
   ploidy,
   foliageType,
   fragrance,
@@ -363,6 +375,8 @@ SELECT
   -- flower_show is the source's authoritative show classification. Missing
   -- values stay NULL instead of being guessed from multiform form fields.
   NULLIF(TRIM(v2."flower_show"), ''),
+  lower(NULLIF(TRIM(v2."flower_show"), '')),
+  NULLIF(TRIM(v2."sculpted_type_names"), ''),
   NULLIF(TRIM(v2."ploidy_names"), ''),
   NULLIF(TRIM(v2."foliage_names"), ''),
   NULLIF(TRIM(v2."fragrance_names"), ''),
@@ -458,6 +472,37 @@ WHERE NULLIF(TRIM(json_extract(award.value, '$.name')), '') IS NOT NULL
 GROUP BY
   i.id,
   lower(NULLIF(TRIM(json_extract(award.value, '$.name')), ''));
+
+WITH RECURSIVE sculpted_type_parts(cultivarId, rest, value) AS (
+  SELECT id, COALESCE(sculptedTypes, '') || '|', ''
+  FROM CultivarSearchIndex
+  WHERE sculptedTypes IS NOT NULL
+
+  UNION ALL
+
+  SELECT
+    cultivarId,
+    substr(rest, instr(rest, '|') + 1),
+    trim(substr(rest, 1, instr(rest, '|') - 1))
+  FROM sculpted_type_parts
+  WHERE rest <> ''
+)
+INSERT INTO CultivarSearchSculptedType (cultivarId, value, valueSearch)
+SELECT cultivarId, value, lower(value)
+FROM sculpted_type_parts
+WHERE value <> ''
+GROUP BY cultivarId, lower(value);
+
+INSERT INTO CultivarSearchFacetValue (facet, value, valueSearch, count)
+SELECT 'flowerShow', flowerShow, flowerShowSearch, COUNT(*)
+FROM CultivarSearchIndex
+WHERE flowerShow IS NOT NULL
+GROUP BY flowerShowSearch;
+
+INSERT INTO CultivarSearchFacetValue (facet, value, valueSearch, count)
+SELECT 'sculptedType', value, valueSearch, COUNT(*)
+FROM CultivarSearchSculptedType
+GROUP BY valueSearch;
 
 WITH active_pro_users AS (
   SELECT u."id"
@@ -616,6 +661,21 @@ CREATE INDEX CultivarSearchFacetValue_search_idx
 CREATE INDEX CultivarSearchAward_value_cultivar_idx
   ON CultivarSearchAward(valueSearch, cultivarId);
 
+CREATE INDEX CultivarSearchSculptedType_value_cultivar_idx
+  ON CultivarSearchSculptedType(valueSearch, cultivarId);
+
+CREATE INDEX CultivarSearchIndex_flower_show_idx
+  ON CultivarSearchIndex(flowerShowSearch, id);
+
+CREATE INDEX CultivarSearchIndex_flower_show_listing_name_idx
+  ON CultivarSearchIndex(
+    flowerShowSearch,
+    (substr(ltrim(displayName), 1, 1) GLOB '[0-9]') ASC,
+    displayName COLLATE NOCASE ASC,
+    id ASC
+  )
+  WHERE listingCount > 0;
+
 CREATE INDEX CultivarListingSearchIndex_cultivarReferenceId_idx
   ON CultivarListingSearchIndex(cultivarReferenceId);
 
@@ -633,7 +693,7 @@ CREATE INDEX CultivarListingSearchIndex_hasPhoto_idx
 
 INSERT INTO SearchIndexMeta(key, value)
 VALUES
-  ('schemaVersion', '11'),
+  ('schemaVersion', '12'),
   ('builtAt', strftime('%Y-%m-%dT%H:%M:%fZ', 'now')),
   ('sourcePath', ${quoteSqlString(sourcePath)});
 ANALYZE;

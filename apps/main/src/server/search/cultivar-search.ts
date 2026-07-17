@@ -34,6 +34,7 @@ interface CultivarSearchArgs {
   color?: string;
   cultivarName?: string;
   foliageType?: string;
+  flowerShow?: string;
   form?: string;
   fragrance?: string;
   hasCultivarPhoto?: boolean;
@@ -57,12 +58,17 @@ interface CultivarSearchArgs {
   q?: string;
   scapeHeightMax?: number;
   scapeHeightMin?: number;
+  sculptedType?: string;
   sort?: CultivarSearchSort;
   yearMax?: number;
   yearMin?: number;
 }
 
-export type CultivarSearchFacet = "award" | "hybridizer";
+export type CultivarSearchFacet =
+  | "award"
+  | "flowerShow"
+  | "hybridizer"
+  | "sculptedType";
 
 export interface CultivarSearchFacetOption {
   count: number;
@@ -329,6 +335,30 @@ function addAwardFilter(args: {
       SELECT awardFilter.cultivarId
       FROM CultivarSearchAward awardFilter
       WHERE awardFilter.valueSearch IN (${values.map(() => "?").join(", ")})
+    )
+  `);
+  args.params.push(...values);
+}
+
+function addSculptedTypeFilter(args: {
+  params: InValue[];
+  sql: string[];
+  value?: string;
+}) {
+  const values = args.value
+    ?.split("|")
+    .map((value) => value.trim().toLowerCase())
+    .filter(Boolean);
+
+  if (!values || values.length === 0) {
+    return;
+  }
+
+  args.sql.push(`
+    i.id IN (
+      SELECT sculptedTypeFilter.cultivarId
+      FROM CultivarSearchSculptedType sculptedTypeFilter
+      WHERE sculptedTypeFilter.valueSearch IN (${values.map(() => "?").join(", ")})
     )
   `);
   args.params.push(...values);
@@ -618,6 +648,17 @@ export async function searchCultivars(args: CultivarSearchArgs) {
     sql: whereSql,
     value: args.award,
   });
+  addNormalizedExactValueFilter({
+    columnSql: "i.flowerShowSearch",
+    params,
+    sql: whereSql,
+    value: args.flowerShow,
+  });
+  addSculptedTypeFilter({
+    params,
+    sql: whereSql,
+    value: args.sculptedType,
+  });
   addFacetFilter({
     columnSql: "i.bloomHabit",
     params,
@@ -773,6 +814,8 @@ export async function searchCultivars(args: CultivarSearchArgs) {
           i.bloomSeason,
           i.bloomHabit,
           i.form,
+          i.flowerShow,
+          i.sculptedTypes,
           i.ploidy,
           i.foliageType,
           i.fragrance,
@@ -953,6 +996,7 @@ export async function searchCultivars(args: CultivarSearchArgs) {
           doublePercentage: toNumberOrNull(row.doublePercentage),
           foliageType: toStringOrNull(row.foliageType),
           form: toStringOrNull(row.form),
+          flowerShow: toStringOrNull(row.flowerShow),
           fragrance: toStringOrNull(row.fragrance),
           hybridizer,
           parentage,
@@ -965,6 +1009,7 @@ export async function searchCultivars(args: CultivarSearchArgs) {
             typeof row.scapeHeightIn === "number" ? row.scapeHeightIn : null,
           seedlingNumber: toStringOrNull(row.seedlingNumber),
           spiderRatio: toNumberOrNull(row.spiderRatio),
+          sculptedTypes: toStringOrNull(row.sculptedTypes),
           year: typeof row.yearInt === "number" ? row.yearInt : null,
         },
         type: "cultivar" as const,
@@ -994,15 +1039,7 @@ export async function searchCultivarFacetValues(args: {
 
   try {
     const result = await client.execute({
-      args: [
-        args.facet,
-        query,
-        query,
-        `${query}%`,
-        query,
-        `${query}%`,
-        limit,
-      ],
+      args: [args.facet, query, query, `${query}%`, query, `${query}%`, limit],
       sql: `
         SELECT value, count
         FROM CultivarSearchFacetValue

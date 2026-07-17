@@ -6,7 +6,6 @@ import Image from "next/image";
 import Link from "next/link";
 import {
   Award,
-  Camera,
   Check,
   ChevronDown,
   Info,
@@ -84,6 +83,7 @@ interface InitialCultivarSearchState {
   color?: string;
   cultivarName?: string;
   foliageType?: string;
+  flowerShow?: string;
   form?: string;
   fragrance?: string;
   hasCultivarPhoto: boolean;
@@ -91,11 +91,11 @@ interface InitialCultivarSearchState {
   hasListings: boolean;
   hybridizer?: string;
   parentage?: string;
-  photosFirst?: boolean;
   ploidy?: string;
   q: string;
   scapeHeightMax?: string;
   scapeHeightMin?: string;
+  sculptedType?: string;
   sort?: string;
   yearMax?: string;
   yearMin?: string;
@@ -114,6 +114,7 @@ interface CultivarSearchFilters {
   color: string;
   cultivarName: string;
   foliageType: string;
+  flowerShow: string;
   form: string;
   fragrance: string;
   hasCultivarPhoto: boolean;
@@ -124,6 +125,7 @@ interface CultivarSearchFilters {
   ploidy: string;
   scapeHeightMax: string;
   scapeHeightMin: string;
+  sculptedType: string;
   yearMax: string;
   yearMin: string;
 }
@@ -161,6 +163,7 @@ interface CultivarSearchResult {
     color: string | null;
     doublePercentage: number | null;
     foliageType: string | null;
+    flowerShow: string | null;
     form: string | null;
     fragrance: string | null;
     hybridizer: string | null;
@@ -173,6 +176,7 @@ interface CultivarSearchResult {
     scapeHeightIn: number | null;
     seedlingNumber: string | null;
     spiderRatio: number | null;
+    sculptedTypes: string | null;
     year: number | null;
   };
 }
@@ -226,16 +230,18 @@ const EMPTY_FILTERS: CultivarSearchFilters = {
   color: "",
   cultivarName: "",
   foliageType: "",
+  flowerShow: "",
   form: "",
   fragrance: "",
   hasCultivarPhoto: false,
   hasForSaleListings: false,
-  hasListings: false,
+  hasListings: true,
   hybridizer: "",
   parentage: "",
   ploidy: "",
   scapeHeightMax: "",
   scapeHeightMin: "",
+  sculptedType: "",
   yearMax: "",
   yearMin: "",
 };
@@ -302,8 +308,8 @@ function captureSearchResultsViewed({
 }
 
 const BOOLEAN_FILTER_CHIPS = [
-  { key: "hasCultivarPhoto", label: "With photos" },
   { key: "hasListings", label: "In catalogs" },
+  { key: "hasCultivarPhoto", label: "With photos" },
   { key: "hasForSaleListings", label: "For sale" },
 ] as const satisfies ReadonlyArray<{
   key: keyof CultivarSearchFilters;
@@ -326,8 +332,10 @@ const FACET_FILTER_CHIPS = [
   { key: "form", label: "Form" },
   { key: "ploidy", label: "Ploidy" },
   { key: "foliageType", label: "Foliage type" },
+  { key: "flowerShow", label: "Flower Show" },
   { key: "fragrance", label: "Fragrance" },
   { key: "hybridizer", label: "Hybridizer" },
+  { key: "sculptedType", label: "Sculpted type" },
 ] as const satisfies ReadonlyArray<{
   key: keyof CultivarSearchFilters;
   label: string;
@@ -489,6 +497,7 @@ function getInitialFilters(
     color: initialState.color ?? "",
     cultivarName: initialState.cultivarName ?? "",
     foliageType: initialState.foliageType ?? "",
+    flowerShow: initialState.flowerShow ?? "",
     form: initialState.form ?? "",
     fragrance: initialState.fragrance ?? "",
     hasCultivarPhoto: initialState.hasCultivarPhoto,
@@ -499,6 +508,7 @@ function getInitialFilters(
     ploidy: initialState.ploidy ?? "",
     scapeHeightMax: initialState.scapeHeightMax ?? "",
     scapeHeightMin: initialState.scapeHeightMin ?? "",
+    sculptedType: initialState.sculptedType ?? "",
     yearMax: initialState.yearMax ?? "",
     yearMin: initialState.yearMin ?? "",
   };
@@ -522,18 +532,19 @@ function readControlStateFromUrl() {
     color: params.get("color") ?? undefined,
     cultivarName: params.get("cultivarName") ?? undefined,
     foliageType: params.get("foliageType") ?? undefined,
+    flowerShow: params.get("flowerShow") ?? undefined,
     form: params.get("form") ?? undefined,
     fragrance: params.get("fragrance") ?? undefined,
     hasCultivarPhoto: params.get("hasCultivarPhoto") === "true",
     hasForSaleListings: params.get("hasForSaleListings") === "true",
-    hasListings: params.get("hasListings") === "true",
+    hasListings: params.get("hasListings") !== "false",
     hybridizer: params.get("hybridizer") ?? undefined,
     parentage: params.get("parentage") ?? undefined,
-    photosFirst: params.get("photosFirst") === "true",
     ploidy: params.get("ploidy") ?? undefined,
     q: params.get("q") ?? "",
     scapeHeightMax: params.get("scapeHeightMax") ?? undefined,
     scapeHeightMin: params.get("scapeHeightMin") ?? undefined,
+    sculptedType: params.get("sculptedType") ?? undefined,
     sort: params.get("sort") ?? undefined,
     yearMax: params.get("yearMax") ?? undefined,
     yearMin: params.get("yearMin") ?? undefined,
@@ -542,7 +553,6 @@ function readControlStateFromUrl() {
   return {
     advanced: urlState.advanced ?? false,
     filters: getInitialFilters(urlState),
-    photosFirst: urlState.photosFirst ?? false,
     query: urlState.q,
     sort: isCultivarSort(urlState.sort) ? urlState.sort : "name",
   };
@@ -691,7 +701,7 @@ function RemoteCultivarFacetFilter({
   testId,
   value,
 }: {
-  facet: "award" | "hybridizer";
+  facet: "award" | "flowerShow" | "hybridizer" | "sculptedType";
   label: string;
   onChange: (value: string) => void;
   testId: string;
@@ -1087,16 +1097,32 @@ function AdvancedFilters({
         activeCount={
           [
             filters.form,
+            filters.flowerShow,
             filters.ploidy,
             filters.foliageType,
             filters.fragrance,
             filters.color,
             filters.parentage,
+            filters.sculptedType,
           ].filter(Boolean).length
         }
       >
         <div className="space-y-3">
           <div className="flex flex-wrap gap-2">
+            <RemoteCultivarFacetFilter
+              facet="flowerShow"
+              label="Flower Show"
+              testId="advanced-filter-flower-show"
+              value={filters.flowerShow}
+              onChange={(flowerShow) => updateImmediately({ flowerShow })}
+            />
+            <RemoteCultivarFacetFilter
+              facet="sculptedType"
+              label="Sculpted type"
+              testId="advanced-filter-sculpted-type"
+              value={filters.sculptedType}
+              onChange={(sculptedType) => updateImmediately({ sculptedType })}
+            />
             <CultivarFacetFilter
               definitionId="form"
               value={filters.form}
@@ -1432,9 +1458,6 @@ export function CultivarSearchPageClient({
   const [sort, setSort] = useState<CultivarSort>(() =>
     isCultivarSort(initialState.sort) ? initialState.sort : "name",
   );
-  const [photosFirst, setPhotosFirst] = useState(
-    initialState.photosFirst ?? false,
-  );
   const [advanced, setAdvanced] = useState(initialState.advanced ?? false);
   const [results, setResults] = useState<CultivarSearchResult[]>([]);
   const [nextOffset, setNextOffset] = useState<number | null>(null);
@@ -1458,7 +1481,6 @@ export function CultivarSearchPageClient({
     setFilters(urlState.filters);
     setRequestFilters(urlState.filters);
     setSort(urlState.sort);
-    setPhotosFirst(urlState.photosFirst);
     setAdvanced(urlState.advanced);
 
     const entryId = ensureHistoryEntryId();
@@ -1508,23 +1530,24 @@ export function CultivarSearchPageClient({
     addParam(params, "color", requestFilters.color);
     addParam(params, "cultivarName", requestFilters.cultivarName);
     addFacetParam(params, "foliageType", requestFilters.foliageType);
+    addFacetParam(params, "flowerShow", requestFilters.flowerShow);
     addFacetParam(params, "form", requestFilters.form);
     addFacetParam(params, "fragrance", requestFilters.fragrance);
     addParam(params, "hasCultivarPhoto", requestFilters.hasCultivarPhoto);
     addParam(params, "hasForSaleListings", requestFilters.hasForSaleListings);
-    addParam(params, "hasListings", requestFilters.hasListings);
+    if (!requestFilters.hasListings) params.set("hasListings", "false");
     addFacetParam(params, "hybridizer", requestFilters.hybridizer);
     addParam(params, "parentage", requestFilters.parentage);
     addFacetParam(params, "ploidy", requestFilters.ploidy);
     addParam(params, "scapeHeightMax", requestFilters.scapeHeightMax);
     addParam(params, "scapeHeightMin", requestFilters.scapeHeightMin);
+    addFacetParam(params, "sculptedType", requestFilters.sculptedType);
     addParam(params, "yearMax", requestFilters.yearMax);
     addParam(params, "yearMin", requestFilters.yearMin);
-    if (photosFirst) params.set("photosFirst", "true");
     if (sort !== "name") params.set("sort", sort);
     params.sort();
     return params.toString();
-  }, [debouncedQuery, photosFirst, requestFilters, sort]);
+  }, [debouncedQuery, requestFilters, sort]);
 
   const urlParams = useMemo(() => {
     const params = new URLSearchParams(shareParams);
@@ -1539,12 +1562,12 @@ export function CultivarSearchPageClient({
       params.set("mode", "summary");
       params.set("limit", String(PAGE_SIZE));
       params.set("offset", String(offset));
-      params.set("photosFirst", String(photosFirst));
+      params.set("hasListings", String(requestFilters.hasListings));
       params.set("sort", sort);
       params.sort();
       return params;
     },
-    [photosFirst, shareParams, sort],
+    [requestFilters.hasListings, shareParams, sort],
   );
 
   useEffect(() => {
@@ -1718,7 +1741,10 @@ export function CultivarSearchPageClient({
     activeFilterChips.push({
       id: key,
       label,
-      onClear: () => clearFilterKeys(key),
+      onClear: () =>
+        key === "hasListings"
+          ? updateFiltersImmediately({ hasListings: false })
+          : clearFilterKeys(key),
     });
   }
 
@@ -1761,15 +1787,16 @@ export function CultivarSearchPageClient({
     setFilters(EMPTY_FILTERS);
     setRequestFilters(EMPTY_FILTERS);
     setSort("name");
-    setPhotosFirst(false);
     setAdvanced(false);
   };
 
   const hasSearchState = Boolean(
     debouncedQuery ||
-      Object.values(filters).some(Boolean) ||
+      Object.entries(filters).some(
+        ([key, value]) =>
+          value !== EMPTY_FILTERS[key as keyof CultivarSearchFilters],
+      ) ||
       sort !== "name" ||
-      photosFirst ||
       advanced,
   );
 
@@ -1940,6 +1967,16 @@ export function CultivarSearchPageClient({
 
             <div className="grid grid-cols-3 gap-2 sm:flex sm:flex-wrap sm:items-center [&>button]:w-full sm:[&>button]:w-auto">
               <CultivarBooleanFilter
+                active={filters.hasListings}
+                definitionId="linkedToCultivar"
+                label="In catalogs"
+                onToggle={() =>
+                  updateFiltersImmediately({
+                    hasListings: !filters.hasListings,
+                  })
+                }
+              />
+              <CultivarBooleanFilter
                 active={filters.hasCultivarPhoto}
                 definitionId="hasPhoto"
                 label="With photos"
@@ -1947,16 +1984,6 @@ export function CultivarSearchPageClient({
                 onToggle={() =>
                   updateFiltersImmediately({
                     hasCultivarPhoto: !filters.hasCultivarPhoto,
-                  })
-                }
-              />
-              <CultivarBooleanFilter
-                active={filters.hasListings}
-                definitionId="linkedToCultivar"
-                label="In catalogs"
-                onToggle={() =>
-                  updateFiltersImmediately({
-                    hasListings: !filters.hasListings,
                   })
                 }
               />
@@ -2070,25 +2097,6 @@ export function CultivarSearchPageClient({
                   </Button>
                 );
               })}
-            </div>
-
-            <div className="border-[#142118]/12 sm:border-l sm:pl-5">
-              <Button
-                aria-pressed={photosFirst}
-                className={
-                  photosFirst
-                    ? "h-9 border-[#173126] bg-[#173126] px-3.5 text-white shadow-none hover:bg-[#294635]"
-                    : "h-9 border-[#142118]/20 bg-white px-3.5 text-[#294635] shadow-none hover:border-[#142118]/35 hover:bg-[#f2f5ef]"
-                }
-                data-testid="cultivar-sort-photos-first"
-                onClick={() => setPhotosFirst((current) => !current)}
-                size="sm"
-                type="button"
-                variant={photosFirst ? "default" : "outline"}
-              >
-                <Camera className="size-4" />
-                Photos first
-              </Button>
             </div>
           </div>
         </div>

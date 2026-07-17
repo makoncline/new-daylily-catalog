@@ -117,6 +117,7 @@ export default async function CultivarsPage({
           color: getFirstSearchParam(rawSearchParams, "color"),
           cultivarName: getFirstSearchParam(rawSearchParams, "cultivarName"),
           foliageType: getFirstSearchParam(rawSearchParams, "foliageType"),
+          flowerShow: getFirstSearchParam(rawSearchParams, "flowerShow"),
           form: getFirstSearchParam(rawSearchParams, "form"),
           fragrance: getFirstSearchParam(rawSearchParams, "fragrance"),
           hasCultivarPhoto:
@@ -125,11 +126,9 @@ export default async function CultivarsPage({
             getFirstSearchParam(rawSearchParams, "hasForSaleListings") ===
             "true",
           hasListings:
-            getFirstSearchParam(rawSearchParams, "hasListings") === "true",
+            getFirstSearchParam(rawSearchParams, "hasListings") !== "false",
           hybridizer: getFirstSearchParam(rawSearchParams, "hybridizer"),
           parentage: getFirstSearchParam(rawSearchParams, "parentage"),
-          photosFirst:
-            getFirstSearchParam(rawSearchParams, "photosFirst") === "true",
           ploidy: getFirstSearchParam(rawSearchParams, "ploidy"),
           q: getFirstSearchParam(rawSearchParams, "q") ?? "",
           scapeHeightMax: getFirstSearchParam(
@@ -140,6 +139,7 @@ export default async function CultivarsPage({
             rawSearchParams,
             "scapeHeightMin",
           ),
+          sculptedType: getFirstSearchParam(rawSearchParams, "sculptedType"),
           sort: getFirstSearchParam(rawSearchParams, "sort") ?? "name",
           yearMax: getFirstSearchParam(rawSearchParams, "yearMax"),
           yearMin: getFirstSearchParam(rawSearchParams, "yearMin"),

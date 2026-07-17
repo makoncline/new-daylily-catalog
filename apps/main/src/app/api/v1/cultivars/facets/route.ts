@@ -15,7 +15,12 @@ export const runtime = "nodejs";
 function isCultivarSearchFacet(
   value: string | null,
 ): value is CultivarSearchFacet {
-  return value === "award" || value === "hybridizer";
+  return (
+    value === "award" ||
+    value === "flowerShow" ||
+    value === "hybridizer" ||
+    value === "sculptedType"
+  );
 }
 
 export async function GET(request: Request) {
@@ -29,7 +34,8 @@ export async function GET(request: Request) {
     return NextResponse.json(
       {
         error: "invalid_facet",
-        message: "Facet must be award or hybridizer.",
+        message:
+          "Facet must be award, flowerShow, hybridizer, or sculptedType.",
       },
       { status: 400 },
     );
