@@ -4,6 +4,20 @@ set -euo pipefail
 
 LOCAL_DB_PATH="./local/realistic-data/realistic-data.sqlite"
 TURSO_DB_NAME="seeded-daylily-catalog"
+TABLES=(
+  _prisma_migrations
+  V2AhsCultivar
+  User
+  AhsListing
+  CultivarReference
+  Listing
+  List
+  _ListToListing
+  UserProfile
+  KeyValue
+  ImageAsset
+  Image
+)
 
 if ! command -v turso >/dev/null 2>&1; then
   echo "Error: turso CLI is required."
@@ -20,22 +34,38 @@ if [ ! -f "$LOCAL_DB_PATH" ]; then
   exit 1
 fi
 
+expected_tables="$(printf '%s\n' "${TABLES[@]}" | LC_ALL=C sort)"
+actual_tables="$(
+  sqlite3 "$LOCAL_DB_PATH" \
+    "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' ORDER BY name;"
+)"
+if [ "$actual_tables" != "$expected_tables" ]; then
+  echo "Error: update the dependency-ordered TABLES list for the current schema."
+  exit 1
+fi
+
 (
   echo "PRAGMA foreign_keys=OFF;"
-  node scripts/sqlite-replace-statements.mjs "$LOCAL_DB_PATH"
-  node scripts/sqlite-replace-statements.mjs --schema "$LOCAL_DB_PATH"
+  sqlite3 "$LOCAL_DB_PATH" "SELECT 'DROP VIEW IF EXISTS \"' || REPLACE(name, '\"', '\"\"') || '\";' FROM sqlite_master WHERE type='view';"
+  for ((index=${#TABLES[@]} - 1; index >= 0; index--)); do
+    echo "DROP TABLE IF EXISTS \"${TABLES[$index]}\";"
+  done
+  sqlite3 "$LOCAL_DB_PATH" ".schema --nosys"
   echo "BEGIN TRANSACTION;"
-  while IFS= read -r table_name; do
+  for table_name in "${TABLES[@]}"; do
     sqlite3 "$LOCAL_DB_PATH" ".dump --data-only \"$table_name\""
-  done < <(
-    node scripts/sqlite-replace-statements.mjs --load-order "$LOCAL_DB_PATH"
-  )
+  done
   echo "COMMIT;"
 ) | turso db shell "$TURSO_DB_NAME"
 
-verification_sql="$(
-  node scripts/sqlite-replace-statements.mjs --verify-counts "$LOCAL_DB_PATH"
-)"
+verification_sql="SELECT CASE WHEN 1 = 1"
+for table_name in "${TABLES[@]}"; do
+  expected_count="$(
+    sqlite3 "$LOCAL_DB_PATH" "SELECT COUNT(*) FROM \"$table_name\";"
+  )"
+  verification_sql+=" AND (SELECT COUNT(*) FROM \"$table_name\") = $expected_count"
+done
+verification_sql+=" THEN 'seed-sync-counts-ok' ELSE 'seed-sync-counts-mismatch' END AS verification;"
 verification_output="$(
   turso db shell "$TURSO_DB_NAME" "$verification_sql"
 )"
