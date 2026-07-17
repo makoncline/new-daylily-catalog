@@ -154,6 +154,31 @@
       .neutral {
         background: rgba(255, 255, 255, 0.45);
       }
+      dialog {
+        width: min(420px, calc(100vw - 32px));
+        padding: 0;
+        border: 1px solid var(--line-strong);
+        border-radius: 0;
+        background: var(--bg);
+        color: var(--ink);
+      }
+      dialog::backdrop {
+        background: rgba(23, 21, 17, 0.52);
+      }
+      .dialog-body {
+        display: grid;
+        gap: 18px;
+        padding: 20px;
+      }
+      .dialog-body h2 {
+        margin: 0;
+        font-size: 20px;
+      }
+      .dialog-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 8px;
+      }
       .queue-item {
         display: grid;
         gap: 0;
@@ -290,6 +315,9 @@
             <p id="paths"></p>
           </div>
           <div class="actions">
+            <button class="approve" id="approve-all-button" type="button">
+              Approve All
+            </button>
             <button
               class="neutral"
               type="button"
@@ -337,6 +365,25 @@
         >
       </div>
     </div>
+
+    <dialog id="approve-all-dialog" aria-labelledby="approve-all-title">
+      <div class="dialog-body">
+        <h2 id="approve-all-title">Approve all images?</h2>
+        <p>
+          Approve all
+          <strong id="approve-all-count">0</strong>
+          images currently awaiting review?
+        </p>
+        <div class="dialog-actions">
+          <button class="neutral" id="approve-all-cancel" type="button">
+            Cancel
+          </button>
+          <button class="approve" id="approve-all-confirm" type="button">
+            Confirm
+          </button>
+        </div>
+      </div>
+    </dialog>
 
     <script type="module" src="/app.mjs"></script>
   </body>

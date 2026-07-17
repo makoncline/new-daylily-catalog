@@ -19,6 +19,7 @@
     "db:studio": "prisma studio",
     "db:seed:prepare": "node scripts/generate-realistic-data-snapshot.mjs",
     "db:seed:sync": "bash scripts/sync-seeded-daylily-catalog-from-local.sh",
+    "images:generate": "node --disable-warning=ExperimentalWarning scripts/image-processing/v2-ahs-image-review/run-codex-native-worker.mjs",
     "search:index:build": "node scripts/build-public-search-index.mjs",
     "search:parentage:build": "node scripts/build-public-parentage-index.mjs",
     "migrate:generate": "npx prisma migrate dev",

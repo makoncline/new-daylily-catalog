@@ -11,10 +11,9 @@ import {
 } from "./review-db.mjs";
 
 const PROMPT_VERSION = "codex-native-imagegen-v1-square";
-const GENERATED_IMAGES_ROOT = path.join(
-  os.homedir(),
-  ".codex",
-  "generated_images",
+const GENERATED_IMAGES_ROOT = path.resolve(
+  process.env.CODEX_GENERATED_IMAGES_ROOT ||
+    path.join(os.homedir(), ".codex", "generated_images"),
 );
 const CANDIDATES_DIR = path.join(REVIEW_ROOT, "codex-native-candidates");
 
@@ -78,7 +77,7 @@ function readRow(id) {
     return database
       .prepare(
         `
-          SELECT "id", "postTitle", "status", "originalPath", "editedPath", "promptVersion"
+          SELECT "id", "postTitle", "status", "originalPath", "editedPath", "promptVersion", "codexNativeAgentId"
           FROM "v2_image_review_queue"
           WHERE "id" = ?
         `,
@@ -150,6 +149,18 @@ for (const { id, agentId } of pairs) {
       agentId,
       status: "missing-row",
       message: "Queue row does not exist",
+    });
+    continue;
+  }
+
+  if (currentRow.codexNativeAgentId !== agentId) {
+    results.push({
+      id,
+      agentId,
+      status: "agent-mismatch",
+      message: currentRow.codexNativeAgentId
+        ? `Assigned to ${currentRow.codexNativeAgentId}`
+        : "Queue row has no recorded Codex agent",
     });
     continue;
   }
