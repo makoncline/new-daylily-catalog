@@ -770,6 +770,20 @@ export function resolveLiveStateUrl(stateItem, baseURL) {
     ? new URL(stateItem.url, baseURL).toString()
     : null;
 }
+export function confidenceCommandsForFlow(flow) {
+  const vitestFiles = [...flow.tests.unit, ...flow.tests.integration].map(
+    ({ path: testPath }) => testPath,
+  );
+  const e2eFiles = flow.tests.e2e.map(({ path: testPath }) => testPath);
+  return [
+    vitestFiles.length
+      ? `pnpm main exec vitest run --maxWorkers=1 ${vitestFiles.join(" ")}`
+      : null,
+    e2eFiles.length
+      ? `pnpm main exec playwright test --retries=0 ${e2eFiles.join(" ")}`
+      : null,
+  ].filter(Boolean);
+}
 export function validateAtlasFlows({ flows = ATLAS_FLOWS, appRoot }) {
   const stateIds = new Set();
   const captures = new Set();

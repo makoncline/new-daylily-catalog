@@ -5,6 +5,7 @@ import os from "node:os";
 import path from "node:path";
 import {
   ATLAS_FLOWS,
+  confidenceCommandsForFlow,
   getAtlasFlow,
   getAtlasState,
   missingFreshStateIds,
@@ -69,6 +70,13 @@ describe("Atlas flow contract", () => {
     expect(getAtlasState("list-management-mobile-remove").urlReproducible).toBe(
       false,
     );
+  });
+
+  it("provides copy-paste confidence commands for a complete flow", () => {
+    expect(confidenceCommandsForFlow(getAtlasFlow("list-management"))).toEqual([
+      "pnpm main exec vitest run --maxWorkers=1 tests/manage-list-columns.test.ts tests/add-listings-combobox.test.tsx tests/dashboard-db-list-membership-sync.test.tsx tests/list-form-boundary-save.test.tsx tests/manage-list-page-membership-commit.test.tsx tests/use-list-resource.test.tsx",
+      "pnpm main exec playwright test --retries=0 tests/e2e/lists-page-features.e2e.ts tests/e2e/manage-list-page-features.e2e.ts",
+    ]);
   });
 
   it("declares the buyer inquiry journey without sending a real message", () => {
