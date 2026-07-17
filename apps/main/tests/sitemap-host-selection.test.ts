@@ -34,6 +34,14 @@ const runtimeFlagsPath = join(
   `daylily-sitemap-feature-flags-${process.pid}.json`,
 );
 
+function restoreEnv(name: string, value: string | undefined) {
+  if (value === undefined) {
+    delete process.env[name];
+  } else {
+    process.env[name] = value;
+  }
+}
+
 describe("sitemap and robots host selection", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -66,13 +74,15 @@ describe("sitemap and robots host selection", () => {
   });
 
   afterAll(() => {
-    process.env.VERCEL = originalVercel;
-    process.env.VERCEL_ENV = originalVercelEnv;
-    process.env.VERCEL_URL = originalVercelUrl;
-    process.env.VERCEL_PROJECT_PRODUCTION_URL =
-      originalVercelProjectProductionUrl;
-    process.env.PORT = originalPort;
-    process.env.RUNTIME_FEATURE_FLAGS_PATH = originalRuntimeFlagsPath;
+    restoreEnv("VERCEL", originalVercel);
+    restoreEnv("VERCEL_ENV", originalVercelEnv);
+    restoreEnv("VERCEL_URL", originalVercelUrl);
+    restoreEnv(
+      "VERCEL_PROJECT_PRODUCTION_URL",
+      originalVercelProjectProductionUrl,
+    );
+    restoreEnv("PORT", originalPort);
+    restoreEnv("RUNTIME_FEATURE_FLAGS_PATH", originalRuntimeFlagsPath);
     rmSync(runtimeFlagsPath, { force: true });
   });
 

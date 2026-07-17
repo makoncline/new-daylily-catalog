@@ -25,8 +25,9 @@ docker compose exec app \
   node apps/main/scripts/set-feature-flag.mjs publicCultivarSearch true
 ```
 
-The command validates the name and value, writes atomically, and reports the
-effective state. Read the current public state at `/api/runtime-config`.
+The command validates the name and value, serializes updates, writes atomically,
+and reports the effective state. Read the current public state at
+`/api/runtime-config`.
 
 Before the first deployment, create the file with cultivar search enabled. The
 old app ignores it and the new app reads it on its first request.
@@ -42,8 +43,8 @@ chown 1001:1001 runtime-feature-flags.json
 ## Frontend flags
 
 Public flags are exposed through `/api/runtime-config` with `Cache-Control:
-no-store`. The provider starts disabled, loads after hydration, and updates on
-the next page refresh. Read a flag through the typed hook:
+no-store`. The hook starts disabled, loads after hydration, and updates on the
+next page refresh:
 
 ```tsx
 const enabled = useFeature("publicCultivarSearch");
@@ -52,8 +53,7 @@ const enabled = useFeature("publicCultivarSearch");
 ## Flag lifecycle
 
 1. Add the server evaluator and enforce it at the server boundary.
-2. If the browser needs the value, add it to the client defaults and runtime
-   snapshot.
+2. Add the flag to the runtime contract and expose it in the effective snapshot.
 3. Add one focused integration test.
 4. After rollout, delete the flag and its configuration instead of retaining a
    permanent branch.

@@ -1,22 +1,23 @@
 import { readFileSync } from "node:fs";
+import {
+  DISABLED_RUNTIME_FEATURE_FLAGS,
+  parseRuntimeFeatureFlags,
+  type RuntimeFeatureFlags,
+} from "@/config/runtime-feature-flags";
 
 function isVercel() {
   return process.env.VERCEL === "1";
 }
 
-function getRuntimeFileFlag(name: string) {
+function readConfiguredRuntimeFeatureFlags(): RuntimeFeatureFlags {
   const path =
     process.env.RUNTIME_FEATURE_FLAGS_PATH ??
     "/data/runtime-feature-flags.json";
 
   try {
-    const flags = JSON.parse(readFileSync(path, "utf8")) as Record<
-      string,
-      unknown
-    >;
-    return flags[name] === true;
+    return parseRuntimeFeatureFlags(JSON.parse(readFileSync(path, "utf8")));
   } catch {
-    return false;
+    return DISABLED_RUNTIME_FEATURE_FLAGS;
   }
 }
 
@@ -25,11 +26,13 @@ export function areGeneratedCultivarImageAssetsEnabledByDefault() {
 }
 
 export function isPublicCultivarSearchEnabled() {
-  return getRuntimeFileFlag("publicCultivarSearch") && !isVercel();
+  return getRuntimeFeatureFlags().publicCultivarSearch;
 }
 
-export function getRuntimeFeatureFlags() {
+export function getRuntimeFeatureFlags(): RuntimeFeatureFlags {
+  const configured = readConfiguredRuntimeFeatureFlags();
+
   return {
-    publicCultivarSearch: isPublicCultivarSearchEnabled(),
+    publicCultivarSearch: configured.publicCultivarSearch && !isVercel(),
   };
 }

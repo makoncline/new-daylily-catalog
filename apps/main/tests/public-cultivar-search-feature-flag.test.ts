@@ -27,8 +27,16 @@ describe("public cultivar search feature flag", () => {
   });
 
   afterAll(() => {
-    process.env.RUNTIME_FEATURE_FLAGS_PATH = originalRuntimeFlagsPath;
-    process.env.VERCEL = originalVercel;
+    if (originalRuntimeFlagsPath === undefined) {
+      delete process.env.RUNTIME_FEATURE_FLAGS_PATH;
+    } else {
+      process.env.RUNTIME_FEATURE_FLAGS_PATH = originalRuntimeFlagsPath;
+    }
+    if (originalVercel === undefined) {
+      delete process.env.VERCEL;
+    } else {
+      process.env.VERCEL = originalVercel;
+    }
     rmSync(runtimeFlagsPath, { force: true });
   });
 

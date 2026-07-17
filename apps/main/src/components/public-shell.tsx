@@ -2,7 +2,6 @@
 
 import { PublicFooter } from "@/components/public-footer";
 import { PublicHeader } from "@/components/public-nav";
-import { FeatureFlagsProvider } from "@/components/feature-flags-provider";
 import { cn } from "@/lib/utils";
 import { usePathname } from "next/navigation";
 
@@ -37,9 +36,7 @@ export function PublicShell({ children, mainClassName }: PublicShellProps) {
       >
         Skip to content
       </a>
-      <FeatureFlagsProvider>
-        <PublicHeader />
-      </FeatureFlagsProvider>
+      <PublicHeader />
       <main
         id="main-content"
         className={cn(

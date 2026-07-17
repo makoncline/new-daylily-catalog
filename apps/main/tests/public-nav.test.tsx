@@ -9,7 +9,7 @@ vi.mock("next/navigation", () => ({
   usePathname: () => navigationState.pathname,
 }));
 
-vi.mock("@/components/feature-flags-provider", () => ({
+vi.mock("@/hooks/use-feature", () => ({
   useFeature: () => featureState.publicCultivarSearch,
 }));
 

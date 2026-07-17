@@ -1,11 +1,13 @@
 #!/usr/bin/env node
 
-import { readFile, rename, rm, writeFile } from "node:fs/promises";
+import { open, readFile, rename, rm, stat, writeFile } from "node:fs/promises";
 
 const flagsPath =
   process.env.RUNTIME_FEATURE_FLAGS_PATH ?? "/data/runtime-feature-flags.json";
 const runtimeConfigUrl =
   process.env.RUNTIME_CONFIG_URL ?? "http://127.0.0.1:3000/api/runtime-config";
+const lockPath = `${flagsPath}.lock`;
+const lockStaleMs = 60_000;
 
 async function getRuntimeFeatures() {
   const response = await fetch(runtimeConfigUrl, { cache: "no-store" });
@@ -41,6 +43,34 @@ async function readFlags() {
   }
 }
 
+async function acquireUpdateLock() {
+  try {
+    const handle = await open(lockPath, "wx");
+    return async () => {
+      await handle.close();
+      await rm(lockPath, { force: true });
+    };
+  } catch (error) {
+    if (error?.code !== "EEXIST") {
+      throw error;
+    }
+  }
+
+  try {
+    const lockAgeMs = Date.now() - (await stat(lockPath)).mtimeMs;
+    if (lockAgeMs < lockStaleMs) {
+      throw new Error("Another feature flag update is in progress.");
+    }
+    await rm(lockPath, { force: true });
+  } catch (error) {
+    if (error?.code !== "ENOENT") {
+      throw error;
+    }
+  }
+
+  return acquireUpdateLock();
+}
+
 async function main() {
   const [name, rawValue, ...extraArguments] = process.argv.slice(2);
   if (
@@ -57,16 +87,22 @@ async function main() {
   }
 
   const enabled = rawValue === "true";
-  const flags = await readFlags();
-  const previousConfigured = flags[name] === true;
-  flags[name] = enabled;
-
-  const temporaryPath = `${flagsPath}.${process.pid}.tmp`;
+  const releaseLock = await acquireUpdateLock();
+  let previousConfigured;
   try {
-    await writeFile(temporaryPath, `${JSON.stringify(flags, null, 2)}\n`);
-    await rename(temporaryPath, flagsPath);
+    const flags = await readFlags();
+    previousConfigured = flags[name] === true;
+    flags[name] = enabled;
+
+    const temporaryPath = `${flagsPath}.${process.pid}.tmp`;
+    try {
+      await writeFile(temporaryPath, `${JSON.stringify(flags, null, 2)}\n`);
+      await rename(temporaryPath, flagsPath);
+    } finally {
+      await rm(temporaryPath, { force: true });
+    }
   } finally {
-    await rm(temporaryPath, { force: true });
+    await releaseLock();
   }
 
   const effectiveFeatures = await getRuntimeFeatures();

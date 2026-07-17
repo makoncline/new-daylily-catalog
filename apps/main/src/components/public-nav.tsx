@@ -8,7 +8,7 @@ import { usePathname } from "next/navigation";
 import { useEffect, useRef } from "react";
 import { cn } from "@/lib/utils";
 import { SUBSCRIPTION_CONFIG } from "@/config/subscription-config";
-import { useFeature } from "@/components/feature-flags-provider";
+import { useFeature } from "@/hooks/use-feature";
 
 const activeNavClassName =
   "font-semibold underline decoration-current/35 underline-offset-8";

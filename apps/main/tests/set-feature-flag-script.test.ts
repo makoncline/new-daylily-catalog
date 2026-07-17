@@ -24,6 +24,7 @@ const runtimeConfigUrl = `data:application/json,${encodeURIComponent(
 describe("set-feature-flag script", () => {
   afterAll(() => {
     rmSync(flagsPath, { force: true });
+    rmSync(`${flagsPath}.lock`, { force: true });
   });
 
   it("atomically updates an allowlisted flag and reports effective state", async () => {
@@ -50,6 +51,28 @@ describe("set-feature-flag script", () => {
       previousConfigured: false,
       configured: true,
       effective: true,
+    });
+  });
+
+  it("rejects overlapping updates instead of losing flag changes", async () => {
+    writeFileSync(`${flagsPath}.lock`, "");
+
+    await expect(
+      execFileAsync(
+        process.execPath,
+        [scriptPath, "publicCultivarSearch", "true"],
+        {
+          env: {
+            ...process.env,
+            RUNTIME_CONFIG_URL: runtimeConfigUrl,
+            RUNTIME_FEATURE_FLAGS_PATH: flagsPath,
+          },
+        },
+      ),
+    ).rejects.toMatchObject({
+      stderr: expect.stringContaining(
+        "Another feature flag update is in progress.",
+      ),
     });
   });
 });
