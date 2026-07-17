@@ -2,14 +2,21 @@
 
 import Link from "next/link";
 import { ExternalLink } from "lucide-react";
+import type { ReactNode } from "react";
 import { Separator } from "@/components/ui/separator";
-import { type RouterOutputs } from "@/trpc/react";
-import { H3, P, Muted } from "@/components/typography";
+import { H3, Muted } from "@/components/typography";
 import { ImagePopover } from "@/components/image-popover";
 import type { OptimizedImageSource } from "@/components/optimized-image";
+import type { AhsDisplayListing } from "@/lib/utils/ahs-display";
+
+export interface AhsListingDisplayField {
+  label: string;
+  value: ReactNode;
+}
 
 interface AhsListingDisplayProps {
-  ahsListing: NonNullable<RouterOutputs["public"]["getListing"]["ahsListing"]>;
+  ahsListing: AhsDisplayListing;
+  additionalFields?: AhsListingDisplayField[];
   className?: string;
   cultivarHref?: string | null;
   cultivarReferenceImage?: OptimizedImageSource | null;
@@ -17,6 +24,7 @@ interface AhsListingDisplayProps {
 
 export function AhsListingDisplay({
   ahsListing,
+  additionalFields = [],
   className,
   cultivarHref,
   cultivarReferenceImage,
@@ -44,7 +52,8 @@ export function AhsListingDisplay({
     { label: "Fragrance", value: ahsListing.fragrance },
     { label: "Parentage", value: ahsListing.parentage },
     { label: "Color", value: ahsListing.color },
-  ].filter((field) => field.value);
+    ...additionalFields,
+  ].filter((field) => Boolean(field.value));
 
   return (
     <div className={className}>
@@ -83,9 +92,7 @@ export function AhsListingDisplay({
                   <Muted className="text-xs font-extralight">
                     {field.label}
                   </Muted>
-                  <div>
-                    <P className="text-sm font-light">{field.value}</P>
-                  </div>
+                  <div className="text-sm font-light">{field.value}</div>
                 </div>
                 {index < fields.length - 1 && (
                   <Separator orientation="vertical" className="mx-3 h-2/3" />

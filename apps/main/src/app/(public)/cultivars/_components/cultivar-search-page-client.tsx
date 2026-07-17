@@ -42,6 +42,7 @@ import {
   type PublicCatalogSearchFilterDefinition,
 } from "@/components/public-catalog-search/public-catalog-search-registry";
 import { type PublicCatalogSearchFacetOption } from "@/components/public-catalog-search/public-catalog-search-types";
+import { AhsListingDisplay } from "@/components/ahs-listing-display";
 import { OptimizedImage } from "@/components/optimized-image";
 import { Button } from "@/components/ui/button";
 import {
@@ -955,7 +956,7 @@ function AdvancedFilters({
   };
 
   return (
-    <div className="grid gap-x-6 border-t border-white/20 md:grid-cols-2 md:gap-y-6 md:pt-4 xl:grid-cols-3">
+    <div className="grid gap-x-6 border-t border-white/20 md:gap-y-6 md:pt-4 lg:grid-cols-3">
       <ResponsiveAdvancedFilterSection
         title="Registration"
         initiallyOpen
@@ -1177,25 +1178,6 @@ function formatInches(value: number | null | undefined) {
   return value === null || value === undefined ? null : `${value}"`;
 }
 
-function CultivarDetailRow({
-  label,
-  value,
-}: {
-  label: string;
-  value: ReactNode;
-}) {
-  if (value === null || value === undefined || value === "") return null;
-
-  return (
-    <div className="grid grid-cols-[7rem_minmax(0,1fr)] gap-3 border-b border-[#142118]/8 py-2 last:border-0">
-      <dt className="text-xs font-semibold tracking-[0.08em] text-[#617064] uppercase">
-        {label}
-      </dt>
-      <dd className="min-w-0 text-sm leading-5 text-[#142118]">{value}</dd>
-    </div>
-  );
-}
-
 function CultivarDetailsPopover({
   canonicalPath,
   result,
@@ -1205,6 +1187,90 @@ function CultivarDetailsPopover({
 }) {
   const traits = result.traits;
   const awards = traits.awards ?? [];
+  const ahsListing = {
+    id: result.cultivarReferenceId,
+    name: result.name,
+    ahsImageUrl: result.imageUrl,
+    hybridizer: traits.hybridizer,
+    year: traits.year?.toString() ?? null,
+    scapeHeight: formatInches(traits.scapeHeightIn),
+    bloomSize: formatInches(traits.bloomSizeIn),
+    bloomSeason: traits.bloomSeason,
+    ploidy: traits.ploidy,
+    foliageType: traits.foliageType,
+    bloomHabit: traits.bloomHabit,
+    color: traits.color,
+    form: traits.form,
+    parentage: traits.parentage,
+    fragrance: traits.fragrance,
+    budcount: traits.budCount?.toString() ?? null,
+    branches: traits.branches?.toString() ?? null,
+    sculpting: traits.sculptedTypes,
+    foliage: null,
+    flower: traits.flowerShow,
+  };
+  const additionalFields = [
+    { label: "Seedling", value: traits.seedlingNumber },
+    {
+      label: "Rebloom",
+      value:
+        traits.rebloom === null ? null : traits.rebloom ? "Yes" : "No",
+    },
+    {
+      label: "Double",
+      value:
+        traits.doublePercentage === null
+          ? null
+          : `${traits.doublePercentage}%`,
+    },
+    {
+      label: "Polymerous",
+      value:
+        traits.polymerousPercentage === null
+          ? null
+          : `${traits.polymerousPercentage}%`,
+    },
+    {
+      label: "Spider ratio",
+      value:
+        traits.spiderRatio === null ? null : `${traits.spiderRatio}:1`,
+    },
+    {
+      label: "Petal",
+      value:
+        traits.petalLengthIn === null || traits.petalWidthIn === null
+          ? null
+          : `${traits.petalLengthIn}" × ${traits.petalWidthIn}"`,
+    },
+    {
+      label: "Awards",
+      value:
+        awards.length === 0 ? null : (
+          <ul className="space-y-1.5">
+            {awards.map((award, awardIndex) => (
+              <li key={`${award.name}-${award.year ?? awardIndex}`}>
+                {award.url ? (
+                  <a
+                    className="font-medium text-[#7b4e0d] underline decoration-[#c99a51]/55 underline-offset-2"
+                    href={award.url}
+                    rel="noreferrer"
+                    target="_blank"
+                  >
+                    {award.name}
+                    {award.year ? ` · ${award.year}` : ""}
+                  </a>
+                ) : (
+                  <>
+                    {award.name}
+                    {award.year ? ` · ${award.year}` : ""}
+                  </>
+                )}
+              </li>
+            ))}
+          </ul>
+        ),
+    },
+  ];
 
   return (
     <Popover>
@@ -1226,113 +1292,25 @@ function CultivarDetailsPopover({
         sideOffset={10}
         className="max-h-[min(70vh,38rem)] w-[min(25rem,calc(100vw-2rem))] overflow-y-auto rounded-2xl border-[#dbe3d5] p-0 shadow-2xl"
       >
-        <div className="sticky top-0 z-10 border-b border-[#142118]/10 bg-[#f7f3e9]/96 px-5 py-4 backdrop-blur">
+        <div className="px-5 pt-4">
           <p className="text-xs font-semibold tracking-[0.12em] text-[#8a5a14] uppercase">
             Cultivar details
           </p>
-          <h3 className="mt-1 text-xl font-semibold text-[#142118]">
-            {result.name}
-          </h3>
         </div>
-        <dl className="px-5 py-2">
-          <CultivarDetailRow label="Hybridizer" value={traits.hybridizer} />
-          <CultivarDetailRow label="Year" value={traits.year} />
-          <CultivarDetailRow label="Seedling" value={traits.seedlingNumber} />
-          <CultivarDetailRow label="Form" value={traits.form} />
-          <CultivarDetailRow
-            label="Bloom size"
-            value={formatInches(traits.bloomSizeIn)}
-          />
-          <CultivarDetailRow
-            label="Scape height"
-            value={formatInches(traits.scapeHeightIn)}
-          />
-          <CultivarDetailRow label="Bloom season" value={traits.bloomSeason} />
-          <CultivarDetailRow label="Bloom habit" value={traits.bloomHabit} />
-          <CultivarDetailRow
-            label="Rebloom"
-            value={
-              traits.rebloom === null || traits.rebloom === undefined
-                ? null
-                : traits.rebloom
-                  ? "Yes"
-                  : "No"
-            }
-          />
-          <CultivarDetailRow label="Ploidy" value={traits.ploidy} />
-          <CultivarDetailRow label="Foliage" value={traits.foliageType} />
-          <CultivarDetailRow label="Fragrance" value={traits.fragrance} />
-          <CultivarDetailRow label="Bud count" value={traits.budCount} />
-          <CultivarDetailRow label="Branches" value={traits.branches} />
-          <CultivarDetailRow
-            label="Double"
-            value={
-              traits.doublePercentage === null ||
-              traits.doublePercentage === undefined
-                ? null
-                : `${traits.doublePercentage}%`
-            }
-          />
-          <CultivarDetailRow
-            label="Polymerous"
-            value={
-              traits.polymerousPercentage === null ||
-              traits.polymerousPercentage === undefined
-                ? null
-                : `${traits.polymerousPercentage}%`
-            }
-          />
-          <CultivarDetailRow
-            label="Spider ratio"
-            value={
-              traits.spiderRatio === null || traits.spiderRatio === undefined
-                ? null
-                : `${traits.spiderRatio}:1`
-            }
-          />
-          <CultivarDetailRow
-            label="Petal"
-            value={
-              traits.petalLengthIn === null ||
-              traits.petalLengthIn === undefined ||
-              traits.petalWidthIn === null ||
-              traits.petalWidthIn === undefined
-                ? null
-                : `${traits.petalLengthIn}" × ${traits.petalWidthIn}"`
-            }
-          />
-          <CultivarDetailRow label="Color" value={traits.color} />
-          <CultivarDetailRow label="Parentage" value={traits.parentage} />
-          <CultivarDetailRow
-            label="Awards"
-            value={
-              awards.length === 0 ? null : (
-                <ul className="space-y-1.5">
-                  {awards.map((award, awardIndex) => (
-                    <li key={`${award.name}-${award.year ?? awardIndex}`}>
-                      {award.url ? (
-                        <a
-                          className="font-medium text-[#7b4e0d] underline decoration-[#c99a51]/55 underline-offset-2"
-                          href={award.url}
-                          rel="noreferrer"
-                          target="_blank"
-                        >
-                          {award.name}
-                          {award.year ? ` · ${award.year}` : ""}
-                        </a>
-                      ) : (
-                        <>
-                          {award.name}
-                          {award.year ? ` · ${award.year}` : ""}
-                        </>
-                      )}
-                    </li>
-                  ))}
-                </ul>
-              )
-            }
-          />
-        </dl>
+        <AhsListingDisplay
+          ahsListing={ahsListing}
+          additionalFields={additionalFields}
+          className="px-5 py-4"
+          cultivarReferenceImage={
+            result.imageUrl
+              ? {
+                  id: result.cultivarReferenceId,
+                  url: result.imageUrl,
+                  imageAsset: result.imageAsset,
+                }
+              : null
+          }
+        />
         {canonicalPath ? (
           <div className="border-t border-[#142118]/10 bg-[#f7f3e9] p-4">
             <Link
