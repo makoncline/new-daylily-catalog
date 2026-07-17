@@ -1,6 +1,13 @@
 #!/usr/bin/env node
 import { spawn, spawnSync } from "node:child_process";
-import { existsSync, mkdirSync, rmSync } from "node:fs";
+import {
+  closeSync,
+  existsSync,
+  mkdirSync,
+  openSync,
+  renameSync,
+  rmSync,
+} from "node:fs";
 import path from "node:path";
 import * as dotenv from "dotenv";
 import {
@@ -33,10 +40,16 @@ const flows =
   requestedFlowId === "all" ? ATLAS_FLOWS : [getAtlasFlow(requestedFlowId)];
 validateAtlasFlows({ appRoot });
 const outputDirectory = path.resolve(process.cwd(), outputArgument.slice(9));
+const finalServerLogPath = path.join(outputDirectory, "server.log");
+let serverLogPath = path.join(
+  path.dirname(outputDirectory),
+  `.${path.basename(outputDirectory)}-server-${process.pid}.log`,
+);
 const baseURL = process.env.BASE_URL ?? "http://localhost:3210";
 const explicitDatabaseUrl = process.env.DATABASE_URL;
 let disposableDatabase;
 let server;
+let serverLogFd;
 const stopServer = async () => {
   if (!server?.pid || server.exitCode !== null || server.signalCode !== null)
     return;
@@ -118,10 +131,11 @@ async function startServer() {
     });
     databaseUrl = `file:${disposableDatabase.databasePath}`;
   }
+  serverLogFd = openSync(serverLogPath, "w");
   server = spawn("pnpm", ["dev", "--", "--port", new URL(baseURL).port], {
     cwd: repoRoot,
     detached: process.platform !== "win32",
-    stdio: "inherit",
+    stdio: ["ignore", serverLogFd, serverLogFd],
     env: {
       ...process.env,
       DATABASE_URL: databaseUrl,
@@ -137,15 +151,23 @@ async function startServer() {
   const deadline = Date.now() + 120_000;
   while (Date.now() < deadline) {
     if (server.exitCode !== null)
-      throw new Error("Atlas dev server exited early.");
+      throw new Error(`Atlas dev server exited early. See ${serverLogPath}.`);
     if (await isHealthy()) return;
     await new Promise((resolve) => setTimeout(resolve, 250));
   }
-  throw new Error(`Atlas dev server was not ready at ${baseURL}`);
+  throw new Error(
+    `Atlas dev server was not ready at ${baseURL}. See ${serverLogPath}.`,
+  );
 }
 try {
+  mkdirSync(path.dirname(outputDirectory), { recursive: true });
   await startServer();
   rmSync(outputDirectory, { recursive: true, force: true });
+  mkdirSync(outputDirectory, { recursive: true });
+  if (serverLogFd !== undefined) {
+    renameSync(serverLogPath, finalServerLogPath);
+    serverLogPath = finalServerLogPath;
+  }
   for (const flow of flows) {
     const flowOutputDirectory =
       flows.length === 1
@@ -203,7 +225,10 @@ try {
     console.log(
       `Atlas home: ${path.resolve(generateAtlasHome({ outputDirectory, flows }))}`,
     );
+  if (serverLogFd !== undefined)
+    console.log(`Atlas server log: ${serverLogPath}`);
 } finally {
   await stopServer();
+  if (serverLogFd !== undefined) closeSync(serverLogFd);
   disposableDatabase?.cleanup();
 }
