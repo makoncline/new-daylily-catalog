@@ -18,7 +18,7 @@ import { useDebouncedCallback } from "use-debounce";
 import { type RouterOutputs } from "@/trpc/react";
 import { api } from "@/trpc/react";
 import { getBaseUrl } from "@/lib/utils/getBaseUrl";
-import { profileFormSchema } from "@/types/schemas/profile";
+import { profileFormSchema, slugSchema } from "@/types/schemas/profile";
 import { useZodForm } from "@/hooks/use-zod-form";
 import { useManagedFormSave } from "@/hooks/use-managed-form-save";
 import { useParentCommitFlag } from "@/hooks/use-parent-commit-flag";
@@ -285,22 +285,28 @@ function useProfileFormController({
 
   const debouncedCheckSlug = useDebouncedCallback(
     (value: string | null | undefined) => {
-      if (value && value !== profile.userId) {
-        setSlugState((current) => ({ ...current, isChecking: true }));
-        void checkSlug.refetch().then((result) => {
-          setSlugState((current) => ({ ...current, isChecking: false }));
-          if (result.data?.available) {
-            form.clearErrors("slug");
-            return;
-          }
-          if (result.data && !result.data.available) {
-            form.setError("slug", {
-              type: "manual",
-              message: "This URL is already taken. Please choose another one.",
-            });
-          }
-        });
+      if (
+        !value ||
+        value === profile.userId ||
+        !slugSchema.safeParse(value).success
+      ) {
+        return;
       }
+
+      setSlugState((current) => ({ ...current, isChecking: true }));
+      void checkSlug.refetch().then((result) => {
+        setSlugState((current) => ({ ...current, isChecking: false }));
+        if (result.data?.available) {
+          form.clearErrors("slug");
+          return;
+        }
+        if (result.data && !result.data.available) {
+          form.setError("slug", {
+            type: "manual",
+            message: "This URL is already taken. Please choose another one.",
+          });
+        }
+      });
     },
     500,
   );
@@ -471,7 +477,14 @@ function ProfileSlugField() {
                     field.onChange(value);
                     debouncedCheckSlug(value);
                   }}
-                  onBlur={field.onBlur}
+                  onBlur={(event) => {
+                    field.onBlur();
+                    if (
+                      !slugSchema.safeParse(event.currentTarget.value).success
+                    ) {
+                      void form.trigger("slug");
+                    }
+                  }}
                   readOnly={!slugState.isEditingUnlocked}
                   disabled={saveState.isUpdating || !isPro}
                   placeholder={profile.userId}
