@@ -72,12 +72,29 @@ describe("Atlas flow contract", () => {
       "Inspect a cultivar",
     ]);
     expect(statesForFlow(cultivarSearch)).toHaveLength(14);
-    expect(getAtlasState("cultivar-search-desktop-info-card").urlReproducible).toBe(
-      false,
-    );
-    expect(getAtlasState("cultivar-search-mobile-info-card").urlReproducible).toBe(
-      false,
-    );
+    expect(
+      getAtlasState("cultivar-search-desktop-info-card").urlReproducible,
+    ).toBe(false);
+    expect(
+      getAtlasState("cultivar-search-mobile-info-card").urlReproducible,
+    ).toBe(false);
+  });
+
+  it("declares the public catalog importer journey at desktop and mobile sizes", () => {
+    const importer = getAtlasFlow("catalog-importer");
+
+    expect(importer.steps.map(({ title }) => title)).toEqual([
+      "Choose a spreadsheet",
+      "Map and inspect rows",
+      "Resolve an uncertain match",
+    ]);
+    expect(statesForFlow(importer)).toHaveLength(6);
+    expect(
+      getAtlasState("catalog-importer-desktop-results").urlReproducible,
+    ).toBe(false);
+    expect(
+      getAtlasState("catalog-importer-mobile-review").urlReproducible,
+    ).toBe(false);
   });
 
   it.each([

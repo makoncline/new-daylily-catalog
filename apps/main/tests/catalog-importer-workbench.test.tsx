@@ -15,12 +15,19 @@ describe("CatalogImporterWorkbench", () => {
         name: "Clean a daylily spreadsheet",
       }),
     ).toBeVisible();
-    expect(screen.getByText("Open spreadsheet")).toBeVisible();
-    expect(screen.getByRole("button", { name: "Template" })).toBeVisible();
-    expect(screen.getByText("Public")).toBeVisible();
-    expect(screen.getByText("Pro test")).toBeVisible();
     expect(
-      screen.getByText("Your spreadsheet stays in this browser."),
+      screen.getByText("Drop a spreadsheet here, or choose a file"),
+    ).toBeVisible();
+    expect(
+      screen.getByRole("button", { name: "Download template" }),
+    ).toBeVisible();
+    expect(
+      screen.getByText(
+        "Your workbook stays local; cultivar names are sent for matching.",
+      ),
+    ).toBeVisible();
+    expect(
+      screen.getByRole("navigation", { name: "Catalog import progress" }),
     ).toBeVisible();
 
     expect(

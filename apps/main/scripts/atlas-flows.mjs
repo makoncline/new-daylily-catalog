@@ -15,6 +15,7 @@ const stateFor =
   });
 const publicState = stateFor("tests/atlas/public-catalog.atlas.ts");
 const cultivarState = stateFor("tests/atlas/cultivar-search.atlas.ts");
+const importerState = stateFor("tests/atlas/catalog-importer.atlas.ts");
 const onboardingState = stateFor("tests/atlas/onboarding-membership.atlas.ts");
 const listingState = stateFor("tests/atlas/listing-management.atlas.ts");
 const buyerState = stateFor("tests/atlas/buyer-inquiry.atlas.ts");
@@ -242,6 +243,79 @@ export const ATLAS_FLOWS = [
             "Mobile cultivar detail",
             "The canonical cultivar page at the phone-width mobile size.",
             "/cultivar/coffee-frenzy",
+          ),
+        ],
+      },
+    ],
+  },
+  {
+    id: "catalog-importer",
+    audience: "public",
+    title: "Clean and match a catalog spreadsheet",
+    description:
+      "Upload a spreadsheet, map listing fields, inspect matched rows, and resolve an uncertain cultivar at desktop and mobile sizes.",
+    tests: {
+      unit: [],
+      integration: [
+        testRef("integration", "tests/catalog-importer.test.ts"),
+        testRef("integration", "tests/catalog-importer-draft.test.ts"),
+        testRef("integration", "tests/catalog-importer-workbench.test.tsx"),
+      ],
+      e2e: [testRef("e2e", "tests/e2e/catalog-importer.e2e.ts")],
+    },
+    steps: [
+      {
+        title: "Choose a spreadsheet",
+        states: [
+          importerState(
+            "catalog-importer-desktop-upload",
+            "Desktop importer upload",
+            "The public spreadsheet dropzone and workflow stages on desktop.",
+            "/catalog-importer",
+          ),
+          importerState(
+            "catalog-importer-mobile-upload",
+            "Mobile importer upload",
+            "The same upload state at phone width.",
+            "/catalog-importer",
+          ),
+        ],
+      },
+      {
+        title: "Map and inspect rows",
+        states: [
+          importerState(
+            "catalog-importer-desktop-results",
+            "Desktop importer results",
+            "A mapped workbook and dashboard-style matched-results table.",
+            "/catalog-importer",
+            false,
+          ),
+          importerState(
+            "catalog-importer-mobile-results",
+            "Mobile importer results",
+            "Mapped fields and matched rows within the phone-width workspace.",
+            "/catalog-importer",
+            false,
+          ),
+        ],
+      },
+      {
+        title: "Resolve an uncertain match",
+        states: [
+          importerState(
+            "catalog-importer-desktop-review",
+            "Desktop importer review",
+            "The Pro review sheet with a suggested registered cultivar.",
+            "/catalog-importer",
+            false,
+          ),
+          importerState(
+            "catalog-importer-mobile-review",
+            "Mobile importer review",
+            "The full-width mobile review sheet and stacked candidate card.",
+            "/catalog-importer",
+            false,
           ),
         ],
       },

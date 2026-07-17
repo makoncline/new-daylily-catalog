@@ -24,8 +24,7 @@ export function PublicHeader({
   const usesDarkHeroNav =
     pathname === "/" ||
     pathname === "/start-membership" ||
-    pathname === "/cultivars" ||
-    pathname === "/catalog-importer";
+    pathname === "/cultivars";
   const isCultivarsActive =
     pathname === "/cultivars" || pathname.startsWith("/cultivar/");
   const isCatalogImporterActive = pathname === "/catalog-importer";
