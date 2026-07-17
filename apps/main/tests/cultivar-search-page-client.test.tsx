@@ -88,7 +88,7 @@ function searchResponse() {
           scapeHeightIn: 11,
           seedlingNumber: "J-75",
           spiderRatio: null,
-          sculptedTypes: null,
+          sculptedTypes: "Pleated",
           year: 1975,
         },
       },
@@ -200,6 +200,9 @@ describe("CultivarSearchPageClient", () => {
         name: "Show full details for Stella de Oro",
       }),
     );
+    expect(screen.getByText("(Jablonski, 1975)")).toBeVisible();
+    expect(screen.getByText("Miniature")).toBeVisible();
+    expect(screen.getByText("Pleated")).toBeVisible();
     expect(screen.getByText("J-75")).toBeVisible();
     expect(screen.getByText("(Tiny Gold × Golden Star)")).toBeVisible();
     expect(screen.getByRole("link", { name: "HM · 1980" })).toHaveAttribute(
