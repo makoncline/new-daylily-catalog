@@ -63,6 +63,7 @@ const publicHtmlFirstSegmentExclusions = new Set([
 
 const publicHtmlExactPathExclusions = new Set([
   "/",
+  "/cultivars",
   "/llms.txt",
   "/llms-full.txt",
   "/openapi.json",

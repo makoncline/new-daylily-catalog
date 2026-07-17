@@ -11,6 +11,7 @@ import Stripe from "stripe";
 import { REALISTIC_DATA_PERSONAS } from "./realistic-data-personas.mjs";
 import {
   generateRealisticDataSnapshot,
+  realisticDataSchemaFingerprint,
   resolveRealisticDataOutputPath,
 } from "./realistic-data-snapshot.mjs";
 
@@ -18,6 +19,7 @@ const appRoot = path.resolve(import.meta.dirname, "..");
 const repoRoot = path.resolve(appRoot, "../..");
 const outputDirectory = path.join(appRoot, "local", "realistic-data");
 const defaultManifestPath = path.join(outputDirectory, "personas.json");
+const schemaPath = path.join(appRoot, "prisma", "schema.prisma");
 const searchIndexPath = path.join(
   appRoot,
   ".tmp",
@@ -173,6 +175,7 @@ async function main() {
     generatedAt: new Date().toISOString(),
     databasePath: outputPath,
     searchIndexPath,
+    schemaFingerprint: realisticDataSchemaFingerprint(schemaPath),
     verificationCode: "424242",
     ...summary,
   };

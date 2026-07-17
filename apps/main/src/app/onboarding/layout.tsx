@@ -1,6 +1,5 @@
 import { AuthProviders } from "@/components/auth-providers";
 import { PublicShell } from "@/components/public-shell";
-import { isPublicCultivarSearchEnabled } from "@/config/feature-flags";
 
 export default function OnboardingLayout({
   children,
@@ -9,12 +8,7 @@ export default function OnboardingLayout({
 }) {
   return (
     <AuthProviders>
-      <PublicShell
-        cultivarSearchEnabled={isPublicCultivarSearchEnabled()}
-        mainClassName="bg-muted/20"
-      >
-        {children}
-      </PublicShell>
+      <PublicShell mainClassName="bg-muted/20">{children}</PublicShell>
     </AuthProviders>
   );
 }

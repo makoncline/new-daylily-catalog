@@ -3,6 +3,19 @@
 The flywheel is organized by user flow. For each flow, establish a visual and
 test baseline, change the app, then rerun the same evidence.
 
+## Browser-first UI loop
+
+For a UI change, use the app in visible Chrome before editing and again after
+the change. Follow the normal controls a user sees; do not substitute hidden
+controls, direct API calls, or database edits. Atlas captures do not replace
+this walkthrough.
+
+Generate separate before and after galleries, then open and inspect every
+affected screenshot. A passing capture only proves that the state was created;
+it does not prove that the design is correct. Check the complete page or
+component for clipping, overflow, missing content, and unintended layout
+changes.
+
 ## Confidence layers
 
 - **Atlas screenshots** document declared meaningful UI states. A capture may
@@ -24,6 +37,10 @@ node apps/main/scripts/run-atlas-flow.mjs all --output=local/atlas/current
 node apps/main/scripts/run-atlas-flow.mjs public-catalog --output=local/atlas/before
 ```
 
+Available flow IDs are declared in
+`apps/main/scripts/atlas-flows.mjs`. Use an ID with the same runner to capture
+one flow, or use `all` to generate the linked Atlas home page.
+
 The `all` command keeps one Turbopack server alive while capturing every flow
 and creates a home page linking the galleries. Open the absolute `index.html`
 path printed by the command and run the tests listed there. After making a
@@ -39,8 +56,14 @@ pnpm lint
 Compare the retained `before` and `after` galleries. “Open live” appears only
 for states fully represented by their URL; interaction-only states provide an
 exact Playwright reproduction command instead.
-Atlas uses the standard realistic seeded development database and does not
-write to it. If it is missing, run `pnpm db:seed:prepare`.
+Atlas validates the standard realistic seed against the current Prisma schema,
+then runs against a disposable copy. Captures cannot modify the canonical
+development seed. If the seed is missing or stale, the runner stops with the
+single recovery command: `pnpm db:seed:prepare`.
+
+In a restricted agent environment, starting the local Next server may require
+elevated permission to bind its port. Rerun the Atlas command with that
+permission; do not change the app or test flow to work around the restriction.
 
 ## Integration loop
 

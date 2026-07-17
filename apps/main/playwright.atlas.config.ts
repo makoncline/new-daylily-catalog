@@ -48,7 +48,7 @@ export default defineConfig({
     },
     {
       name: "member",
-      testMatch: "listing-management.atlas.ts",
+      testMatch: ["listing-management.atlas.ts", "list-management.atlas.ts"],
       dependencies: ["member-auth"],
       use: { storageState: authState },
     },

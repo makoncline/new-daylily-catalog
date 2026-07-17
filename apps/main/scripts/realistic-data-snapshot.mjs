@@ -1,6 +1,65 @@
-import { mkdirSync, rmSync } from "node:fs";
+import { createHash } from "node:crypto";
+import { mkdirSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
 import path from "node:path";
 import { backup, DatabaseSync } from "node:sqlite";
+
+/** @param {string} schemaPath */
+export function realisticDataSchemaFingerprint(schemaPath) {
+  return createHash("sha256").update(readFileSync(schemaPath)).digest("hex");
+}
+
+/** @param {{ manifestPath: string; schemaPath: string }} options */
+export function assertRealisticDataSeedFresh({ manifestPath, schemaPath }) {
+  let manifest;
+  try {
+    manifest = JSON.parse(readFileSync(manifestPath, "utf8"));
+  } catch {
+    throw new Error(
+      "Realistic seed metadata is missing or invalid. Run `pnpm db:seed:prepare`.",
+    );
+  }
+  if (
+    manifest.schemaFingerprint !== realisticDataSchemaFingerprint(schemaPath)
+  ) {
+    throw new Error(
+      "Realistic seed schema is stale. Run `pnpm db:seed:prepare`.",
+    );
+  }
+  if (
+    typeof manifest.databasePath !== "string" ||
+    manifest.databasePath.length === 0
+  ) {
+    throw new Error(
+      "Realistic seed metadata is missing its database path. Run `pnpm db:seed:prepare`.",
+    );
+  }
+  return manifest;
+}
+
+/**
+ * @param {{ sourcePath: string; directoryRoot?: string }} options
+ */
+export async function createDisposableRealisticDataSnapshot({
+  sourcePath,
+  directoryRoot = tmpdir(),
+}) {
+  const directory = mkdtempSync(path.join(directoryRoot, "daylily-atlas-"));
+  const databasePath = path.join(directory, "realistic-data.sqlite");
+  const source = new DatabaseSync(sourcePath, { readOnly: true });
+  try {
+    await backup(source, databasePath);
+  } catch (error) {
+    rmSync(directory, { recursive: true, force: true });
+    throw error;
+  } finally {
+    source.close();
+  }
+  return {
+    databasePath,
+    cleanup: () => rmSync(directory, { recursive: true, force: true }),
+  };
+}
 
 /** @param {{ appRoot: string; configuredPath?: string; cwd?: string }} options */
 export function resolveRealisticDataOutputPath({

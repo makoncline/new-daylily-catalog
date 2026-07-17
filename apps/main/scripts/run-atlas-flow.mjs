@@ -1,6 +1,15 @@
 #!/usr/bin/env node
 import { spawn, spawnSync } from "node:child_process";
-import { existsSync, mkdirSync, rmSync } from "node:fs";
+import {
+  closeSync,
+  existsSync,
+  mkdirSync,
+  openSync,
+  renameSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
+import { tmpdir } from "node:os";
 import path from "node:path";
 import * as dotenv from "dotenv";
 import {
@@ -13,6 +22,11 @@ import {
   missingFreshStateIds,
   validateAtlasFlows,
 } from "./atlas-flows.mjs";
+import {
+  assertRealisticDataSeedFresh,
+  createDisposableRealisticDataSnapshot,
+  resolveRealisticDataOutputPath,
+} from "./realistic-data-snapshot.mjs";
 const ATLAS_HEALTH_PATH = "/api/runtime-config";
 const appRoot = path.resolve(import.meta.dirname, "..");
 const repoRoot = path.resolve(appRoot, "../..");
@@ -28,24 +42,56 @@ const flows =
   requestedFlowId === "all" ? ATLAS_FLOWS : [getAtlasFlow(requestedFlowId)];
 validateAtlasFlows({ appRoot });
 const outputDirectory = path.resolve(process.cwd(), outputArgument.slice(9));
+const finalServerLogPath = path.join(outputDirectory, "server.log");
+let serverLogPath = path.join(
+  path.dirname(outputDirectory),
+  `.${path.basename(outputDirectory)}-server-${process.pid}.log`,
+);
 const baseURL = process.env.BASE_URL ?? "http://localhost:3210";
 const explicitDatabaseUrl = process.env.DATABASE_URL;
+let disposableDatabase;
+const runtimeFlagsPath = path.join(
+  tmpdir(),
+  `daylily-atlas-feature-flags-${process.pid}.json`,
+);
 let server;
-const stopServer = () => {
-  if (!server?.pid) return;
+let serverLogFd;
+const stopServer = async () => {
+  if (!server?.pid || server.exitCode !== null || server.signalCode !== null)
+    return;
+  const activeServer = server;
+  const exited = new Promise((resolve) => activeServer.once("exit", resolve));
   try {
     process.kill(
-      process.platform === "win32" ? server.pid : -server.pid,
+      process.platform === "win32" ? activeServer.pid : -activeServer.pid,
       "SIGTERM",
     );
   } catch {
     // The process group already exited.
   }
+  await Promise.race([
+    exited,
+    new Promise((resolve) => setTimeout(resolve, 5_000)),
+  ]);
+  if (activeServer.exitCode === null && activeServer.signalCode === null) {
+    try {
+      process.kill(
+        process.platform === "win32" ? activeServer.pid : -activeServer.pid,
+        "SIGKILL",
+      );
+    } catch {
+      // The process group exited between checks.
+    }
+    await exited;
+  }
 };
 for (const signal of ["SIGINT", "SIGTERM"]) {
   process.on(signal, () => {
-    stopServer();
-    process.exit(signal === "SIGINT" ? 130 : 143);
+    void stopServer().finally(() => {
+      disposableDatabase?.cleanup();
+      rmSync(runtimeFlagsPath, { force: true });
+      process.exit(signal === "SIGINT" ? 130 : 143);
+    });
   });
 }
 async function isHealthy() {
@@ -73,23 +119,38 @@ async function startServer() {
   ]) {
     if (existsSync(envPath)) dotenv.config({ path: envPath, quiet: true });
   }
-  const seededDatabase = path.join(
-    appRoot,
-    "local/realistic-data/realistic-data.sqlite",
-  );
-  if (!explicitDatabaseUrl && !existsSync(seededDatabase))
-    throw new Error(
-      "Seeded database missing. Run `pnpm db:seed:prepare` first.",
-    );
+  let databaseUrl = explicitDatabaseUrl;
+  if (!databaseUrl) {
+    const manifest = assertRealisticDataSeedFresh({
+      manifestPath: path.join(appRoot, "local/realistic-data/personas.json"),
+      schemaPath: path.join(appRoot, "prisma/schema.prisma"),
+    });
+    const seededDatabase = resolveRealisticDataOutputPath({
+      appRoot,
+      configuredPath: manifest.databasePath,
+    });
+    if (!existsSync(seededDatabase))
+      throw new Error(
+        "Seeded database missing. Run `pnpm db:seed:prepare` first.",
+      );
+    disposableDatabase = await createDisposableRealisticDataSnapshot({
+      sourcePath: seededDatabase,
+    });
+    databaseUrl = `file:${disposableDatabase.databasePath}`;
+  }
+  serverLogFd = openSync(serverLogPath, "w");
+  writeFileSync(runtimeFlagsPath, '{"publicCultivarSearch":true}');
   server = spawn("pnpm", ["dev", "--", "--port", new URL(baseURL).port], {
     cwd: repoRoot,
     detached: process.platform !== "win32",
-    stdio: "inherit",
+    stdio: ["ignore", serverLogFd, serverLogFd],
     env: {
       ...process.env,
-      DATABASE_URL: explicitDatabaseUrl ?? `file:${seededDatabase}`,
-      PUBLIC_CULTIVAR_SEARCH_ENABLED: "true",
+      DATABASE_URL: databaseUrl,
+      NEXT_PUBLIC_POSTHOG_KEY: "",
+      NEXT_PUBLIC_SENTRY_ENABLED: "false",
       PUBLIC_SEARCH_INDEX_REFRESH_INTERVAL_SECONDS: "0",
+      RUNTIME_FEATURE_FLAGS_PATH: runtimeFlagsPath,
       TURSO_DATABASE_AUTH_TOKEN: "",
       TURSO_EMBEDDED_REPLICA_URL: "",
       TURSO_EMBEDDED_REPLICA_SYNC_URL: "",
@@ -98,15 +159,23 @@ async function startServer() {
   const deadline = Date.now() + 120_000;
   while (Date.now() < deadline) {
     if (server.exitCode !== null)
-      throw new Error("Atlas dev server exited early.");
+      throw new Error(`Atlas dev server exited early. See ${serverLogPath}.`);
     if (await isHealthy()) return;
     await new Promise((resolve) => setTimeout(resolve, 250));
   }
-  throw new Error(`Atlas dev server was not ready at ${baseURL}`);
+  throw new Error(
+    `Atlas dev server was not ready at ${baseURL}. See ${serverLogPath}.`,
+  );
 }
 try {
+  mkdirSync(path.dirname(outputDirectory), { recursive: true });
   await startServer();
   rmSync(outputDirectory, { recursive: true, force: true });
+  mkdirSync(outputDirectory, { recursive: true });
+  if (serverLogFd !== undefined) {
+    renameSync(serverLogPath, finalServerLogPath);
+    serverLogPath = finalServerLogPath;
+  }
   for (const flow of flows) {
     const flowOutputDirectory =
       flows.length === 1
@@ -164,6 +233,11 @@ try {
     console.log(
       `Atlas home: ${path.resolve(generateAtlasHome({ outputDirectory, flows }))}`,
     );
+  if (serverLogFd !== undefined)
+    console.log(`Atlas server log: ${serverLogPath}`);
 } finally {
-  stopServer();
+  await stopServer();
+  if (serverLogFd !== undefined) closeSync(serverLogFd);
+  disposableDatabase?.cleanup();
+  rmSync(runtimeFlagsPath, { force: true });
 }
