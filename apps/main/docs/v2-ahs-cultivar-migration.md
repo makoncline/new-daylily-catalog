@@ -202,6 +202,8 @@ Take a fresh backup first:
 pnpm env:dev bash scripts/db-backup.sh
 ```
 
+From a linked worktree, perform the [exceptional full-snapshot copy](./db-backup-readme.md#linked-worktrees) before continuing.
+
 Then apply the exact same SQL files:
 
 ```bash

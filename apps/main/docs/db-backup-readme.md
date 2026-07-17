@@ -57,4 +57,21 @@ pnpm env:dev bash scripts/db-backup.sh
 DATABASE_URL="file:/absolute/path/to/prisma/local-prod-copy-daylily-catalog.db" pnpm dev
 ```
 
-If `CI` is set to `false`, the script will verify the backup by creating a local copy of the database at `prisma/local-prod-copy-daylily-catalog.db` which you can use for testing.
+If `CI` is set to `false`, the script verifies the backup and writes the local
+copy to
+`apps/main/prisma/local-prod-copy-daylily-catalog.db` in the primary checkout.
+This is also the destination when the command is run from a linked worktree.
+Run `pnpm db:seed:prepare` from a worktree when you want its normal sanitized,
+realistic development database derived from that shared production snapshot.
+
+### Linked Worktrees
+
+For an exceptional workflow that needs the full snapshot inside a linked
+worktree, copy it explicitly:
+
+```sh
+PRIMARY_CHECKOUT="$(dirname "$(git rev-parse --path-format=absolute --git-common-dir)")"
+CURRENT_CHECKOUT="$(git rev-parse --show-toplevel)"
+cp "$PRIMARY_CHECKOUT/apps/main/prisma/local-prod-copy-daylily-catalog.db" \
+  "$CURRENT_CHECKOUT/apps/main/prisma/local-prod-copy-daylily-catalog.db"
+```
