@@ -3,6 +3,7 @@ import {
   act,
   fireEvent,
   render,
+  renderHook,
   screen,
   waitFor,
 } from "@testing-library/react";
@@ -123,6 +124,34 @@ describe("useEditListing URL sync", () => {
       );
     });
     expect(navigationState.push).not.toHaveBeenCalled();
+  });
+
+  it("uses the creating query as the source of truth", () => {
+    navigationState.setSearch("");
+    const { result, rerender } = renderHook(useCreateListing);
+
+    expect(result.current.isCreating).toBe(false);
+    act(() => result.current.openCreateListing());
+    expect(navigationState.push).toHaveBeenCalledWith(
+      "/dashboard/listings?creating=true",
+      { scroll: false },
+    );
+
+    rerender();
+    expect(result.current.isCreating).toBe(true);
+
+    navigationState.setSearch("");
+    rerender();
+    expect(result.current.isCreating).toBe(false);
+
+    navigationState.setSearch("creating=true");
+    rerender();
+
+    act(() => result.current.closeCreateListing());
+    expect(navigationState.replace).toHaveBeenCalledWith(
+      "/dashboard/listings",
+      { scroll: false },
+    );
   });
 
   it("follows browser history changes to the editing query", async () => {
