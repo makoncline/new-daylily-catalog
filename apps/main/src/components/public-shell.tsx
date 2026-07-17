@@ -2,20 +2,16 @@
 
 import { PublicFooter } from "@/components/public-footer";
 import { PublicHeader } from "@/components/public-nav";
+import { FeatureFlagsProvider } from "@/components/feature-flags-provider";
 import { cn } from "@/lib/utils";
 import { usePathname } from "next/navigation";
 
 interface PublicShellProps {
   children: React.ReactNode;
-  cultivarSearchEnabled?: boolean;
   mainClassName?: string;
 }
 
-export function PublicShell({
-  children,
-  cultivarSearchEnabled = false,
-  mainClassName,
-}: PublicShellProps) {
+export function PublicShell({ children, mainClassName }: PublicShellProps) {
   const pathname = usePathname();
   const overlapsHero =
     pathname === "/" ||
@@ -41,7 +37,9 @@ export function PublicShell({
       >
         Skip to content
       </a>
-      <PublicHeader cultivarSearchEnabled={cultivarSearchEnabled} />
+      <FeatureFlagsProvider>
+        <PublicHeader />
+      </FeatureFlagsProvider>
       <main
         id="main-content"
         className={cn(

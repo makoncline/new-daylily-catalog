@@ -3,19 +3,26 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { PublicHeader } from "@/components/public-nav";
 
 const navigationState = vi.hoisted(() => ({ pathname: "/" }));
+const featureState = vi.hoisted(() => ({ publicCultivarSearch: false }));
 
 vi.mock("next/navigation", () => ({
   usePathname: () => navigationState.pathname,
 }));
 
+vi.mock("@/components/feature-flags-provider", () => ({
+  useFeature: () => featureState.publicCultivarSearch,
+}));
+
 describe("PublicHeader", () => {
   beforeEach(() => {
     navigationState.pathname = "/";
+    featureState.publicCultivarSearch = false;
   });
 
   it("renders the public destinations and marks the current page active", () => {
     navigationState.pathname = "/catalogs";
-    render(<PublicHeader cultivarSearchEnabled />);
+    featureState.publicCultivarSearch = true;
+    render(<PublicHeader />);
 
     const catalogsLinks = screen.getAllByRole("link", {
       name: "Browse catalogs",
@@ -51,9 +58,10 @@ describe("PublicHeader", () => {
     expect(screen.getByRole("button", { name: "Dashboard" })).toBeVisible();
   });
 
-  it("renders mobile destinations without requiring hydration", () => {
+  it("renders enabled cultivar search in the mobile navigation", () => {
     navigationState.pathname = "/onboarding";
-    render(<PublicHeader cultivarSearchEnabled />);
+    featureState.publicCultivarSearch = true;
+    render(<PublicHeader />);
 
     const mobileNav = screen.getByTestId("mobile-public-nav");
     const catalogsLink = mobileNav.querySelector('a[href="/catalogs"]');

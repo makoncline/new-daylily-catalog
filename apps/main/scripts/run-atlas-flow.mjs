@@ -7,7 +7,9 @@ import {
   openSync,
   renameSync,
   rmSync,
+  writeFileSync,
 } from "node:fs";
+import { tmpdir } from "node:os";
 import path from "node:path";
 import * as dotenv from "dotenv";
 import {
@@ -48,6 +50,10 @@ let serverLogPath = path.join(
 const baseURL = process.env.BASE_URL ?? "http://localhost:3210";
 const explicitDatabaseUrl = process.env.DATABASE_URL;
 let disposableDatabase;
+const runtimeFlagsPath = path.join(
+  tmpdir(),
+  `daylily-atlas-feature-flags-${process.pid}.json`,
+);
 let server;
 let serverLogFd;
 const stopServer = async () => {
@@ -83,6 +89,7 @@ for (const signal of ["SIGINT", "SIGTERM"]) {
   process.on(signal, () => {
     void stopServer().finally(() => {
       disposableDatabase?.cleanup();
+      rmSync(runtimeFlagsPath, { force: true });
       process.exit(signal === "SIGINT" ? 130 : 143);
     });
   });
@@ -132,6 +139,7 @@ async function startServer() {
     databaseUrl = `file:${disposableDatabase.databasePath}`;
   }
   serverLogFd = openSync(serverLogPath, "w");
+  writeFileSync(runtimeFlagsPath, '{"publicCultivarSearch":true}');
   server = spawn("pnpm", ["dev", "--", "--port", new URL(baseURL).port], {
     cwd: repoRoot,
     detached: process.platform !== "win32",
@@ -141,8 +149,8 @@ async function startServer() {
       DATABASE_URL: databaseUrl,
       NEXT_PUBLIC_POSTHOG_KEY: "",
       NEXT_PUBLIC_SENTRY_ENABLED: "false",
-      PUBLIC_CULTIVAR_SEARCH_ENABLED: "true",
       PUBLIC_SEARCH_INDEX_REFRESH_INTERVAL_SECONDS: "0",
+      RUNTIME_FEATURE_FLAGS_PATH: runtimeFlagsPath,
       TURSO_DATABASE_AUTH_TOKEN: "",
       TURSO_EMBEDDED_REPLICA_URL: "",
       TURSO_EMBEDDED_REPLICA_SYNC_URL: "",
@@ -231,4 +239,5 @@ try {
   await stopServer();
   if (serverLogFd !== undefined) closeSync(serverLogFd);
   disposableDatabase?.cleanup();
+  rmSync(runtimeFlagsPath, { force: true });
 }
