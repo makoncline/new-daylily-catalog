@@ -37,51 +37,32 @@ Run from repo root:
 pnpm env:dev bash scripts/db-backup.sh
 ```
 
-## 2. Count Missing Linked Cultivar Images
-
-Dry-run first. This does not download images.
-
-```bash
-pnpm main exec node scripts/image-processing/v2-ahs-image-review/download-catchup-source-images.ts --dry-run
-```
-
-The output includes total queue size and V2-vs-legacy source counts.
-
-## 3. Download Source Images
-
-This downloads only source images for linked cultivar references that do not
-already have a ready generated cultivar `ImageAsset` in the local prod copy.
-Rows already marked `source_invalid` in the review DB are skipped.
-
-```bash
-pnpm main exec node scripts/image-processing/v2-ahs-image-review/download-catchup-source-images.ts
-```
-
-Outputs land in:
-
-```text
-~/daylily-catalog-image-processing/v2-ahs-images/
-```
-
-## 4. Sync The Review Queue
-
-```bash
-pnpm main exec node scripts/image-processing/v2-ahs-image-review/sync.mjs
-```
-
-This writes/updates:
-
-```text
-~/daylily-catalog-image-processing/v2-ahs-image-review/review.sqlite
-```
-
-## 5. Generate Images
+## 2. Generate Images
 
 Use Codex-native image generation. Follow:
 
 ```text
 apps/main/scripts/image-processing/v2-ahs-image-review/codex-native-image-generation.md
 ```
+
+Run a bounded batch:
+
+```bash
+pnpm main exec node scripts/image-processing/v2-ahs-image-review/run-codex-native-worker.mjs --limit 20 --concurrency 10
+```
+
+The worker:
+
+1. drains existing retryable queue rows
+2. checks the local prod copy once for newly linked cultivars without a ready
+   generated `ImageAsset`
+3. skips cultivar references already recorded in `review.sqlite`
+4. downloads and queues every missing linked source image
+5. drains those catch-up rows
+6. fills any remaining batch capacity from the alphabetical non-linked backlog
+
+Source images prefer V2 and fall back to legacy AHS when V2 is absent. Downloads
+and queue state stay under `~/daylily-catalog-image-processing/`.
 
 Generated candidates should be promoted into:
 
@@ -91,7 +72,17 @@ Generated candidates should be promoted into:
 
 Rows should be marked `review` after promotion.
 
-## 6. Spot-Check Generated Images
+Each run writes a readable log and raw Codex event stream under:
+
+```text
+~/daylily-catalog-image-processing/v2-ahs-image-review/codex-native-runs/
+```
+
+The readable log includes each thread/session outcome, whether an image was
+created, elapsed time, rolling success counts and percentages, and the model's
+text response when no image was produced.
+
+## 3. Spot-Check Generated Images
 
 Start the local review UI:
 
@@ -112,11 +103,15 @@ require formal approval. Only change rows manually when something is wrong:
 requeue obvious bad generations, reject known-bad outputs, and leave
 `source_invalid` rows out of blind retries.
 
+Source downloads use delayed retries. Exhausted downloads are recorded as
+`source_invalid` so one unavailable URL cannot block later alphabetical backlog
+work.
+
 Queue sync marks rows `imported` when the local prod copy already has a ready
 generated cultivar `ImageAsset`. Older pre-`CultivarReference.id` review rows
 that are not safely importable by the current workflow are marked `legacy`.
 
-## 7. Backfill R2 And Local ImageAsset Rows
+## 4. Backfill R2 And Local ImageAsset Rows
 
 Use a fresh local prod copy or a deliberate rehearsal copy. Do not run this
 against production Turso.
@@ -153,26 +148,16 @@ The script:
 - uploads generated original plus display/thumb/blur variants
 - creates the ready local `ImageAsset` row only after uploads succeed
 
-## 8. Import To Production
+## 5. Import To Production
 
 Export only the new local `ImageAsset` rows, inspect the SQL, and apply to
 production Turso only after explicit approval. This should remain a separate
 review step from generation/upload.
 
-For small catch-up batches where the SQL is only additive `ImageAsset` inserts,
-a Turso checkpoint branch is optional. The rollback path is deleting those exact
-new `ImageAsset.id` rows from production; uploaded R2 objects can be left
-orphaned or cleaned later. Still create a checkpoint branch for larger batches,
-schema changes, updates/deletes, manually edited SQL, or any import that is not
-trivially inspectable.
+After a production import, refresh or mirror the local prod copy before the next
+generation run; queue bookkeeping is based on the local DB.
 
-Always keep the exported SQL path and exact imported `ImageAsset.id` values in
-the terminal/log output.
-
-After a production import, refresh or mirror the local prod copy before running
-`sync.mjs`; queue bookkeeping is based on the local DB.
-
-## 9. Clean Up Imported Local Artifacts
+## 6. Clean Up Imported Local Artifacts
 
 Only clean up rows that are already marked `imported` and are still covered by a
 ready generated cultivar `ImageAsset` in the local prod copy.
@@ -239,6 +224,19 @@ a cleanup manifest under:
   `source_invalid` rows remain.
 - After this run, checkpoint branches are considered optional for small,
   additive-only generated cultivar image imports.
+
+## Optional Non-Linked Backlog
+
+Run a bounded generation batch:
+
+```bash
+pnpm main exec node scripts/image-processing/v2-ahs-image-review/run-codex-native-worker.mjs --limit 20 --concurrency 10
+```
+
+The worker drains the existing queue, performs one linked-listing catch-up check,
+drains newly queued catch-up rows, then selects alphabetical non-linked rows
+until it reaches `--limit`. The SQLite queue remains the durable recovery and
+review layer; it no longer requires separate catch-up or backlog queue commands.
 
 ## Related V2 Data Refresh
 

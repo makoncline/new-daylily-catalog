@@ -21,9 +21,10 @@ interface ParsedArgs {
 
 const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url));
 const APP_ROOT = path.resolve(SCRIPT_DIR, "../../..");
-const DATA_ROOT =
+const DATA_ROOT = path.resolve(
   process.env.V2_AHS_IMAGE_REVIEW_DATA_ROOT ??
-  path.join(os.homedir(), "daylily-catalog-image-processing");
+    path.join(os.homedir(), "daylily-catalog-image-processing"),
+);
 const PROD_DB_PATH = path.join(
   APP_ROOT,
   "prisma",
