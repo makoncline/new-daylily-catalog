@@ -21,10 +21,12 @@ setup("authenticate realistic catalog member", async ({ page }) => {
     "You need to send a verification code before attempting to verify.",
   );
   if (await sendCodeWarning.isVisible()) {
-    await page.getByRole("button", { name: /continue/i }).last().click();
+    await page
+      .getByRole("button", { name: /didn't receive a code\? resend/i })
+      .click();
     await expect(sendCodeWarning).toBeHidden();
   }
-  await codeInput.fill("424242");
+  await codeInput.pressSequentially("424242", { delay: 100 });
 
   await expect(page).toHaveURL(/\/dashboard/, { timeout: 30_000 });
   mkdirSync(path.dirname(authState), { recursive: true });
