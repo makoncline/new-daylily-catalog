@@ -20,6 +20,7 @@ const listingState = stateFor("tests/atlas/listing-management.atlas.ts");
 const listingMediaState = stateFor("tests/atlas/listing-media.atlas.ts");
 const listState = stateFor("tests/atlas/list-management.atlas.ts");
 const buyerState = stateFor("tests/atlas/buyer-inquiry.atlas.ts");
+const profileState = stateFor("tests/atlas/profile-management.atlas.ts");
 const testRef = (layer, file) => ({
   path: file,
   command:
@@ -389,6 +390,114 @@ export const ATLAS_FLOWS = [
             "Checkout review",
             "The account email and membership terms immediately before Stripe.",
             "/onboarding?step=checkout",
+            false,
+          ),
+        ],
+      },
+    ],
+  },
+  {
+    id: "profile-management",
+    audience: "member",
+    title: "Manage a grower profile",
+    description:
+      "Review realistic grower details, prepare profile edits, and inspect profile media at mobile and iPad sizes without saving changes.",
+    tests: {
+      unit: [testRef("unit", "tests/profile-slug-rules.test.ts")],
+      integration: [
+        testRef("integration", "tests/slug-change-confirm-dialog.test.tsx"),
+        testRef(
+          "integration",
+          "tests/dashboard-db-user-profile-router.test.ts",
+        ),
+        testRef(
+          "integration",
+          "tests/dashboard-db-user-profile-slug-router.test.ts",
+        ),
+        testRef("integration", "tests/image-preview-dialog.test.tsx"),
+      ],
+      e2e: [testRef("e2e", "tests/e2e/new-user-journey.e2e.ts")],
+    },
+    steps: [
+      {
+        title: "Review the profile",
+        states: [
+          profileState(
+            "profile-management-desktop-populated",
+            "Desktop populated profile",
+            "Realistic grower details, five profile images, and catalog content at the supported iPad width.",
+            "/dashboard/profile",
+          ),
+          profileState(
+            "profile-management-mobile-populated",
+            "Mobile populated profile",
+            "The same realistic grower profile and media at the supported phone width.",
+            "/dashboard/profile",
+          ),
+        ],
+      },
+      {
+        title: "Prepare profile edits",
+        states: [
+          profileState(
+            "profile-management-desktop-dirty",
+            "Desktop unsaved profile edit",
+            "A changed garden name with Save Changes enabled, before any mutation.",
+            "/dashboard/profile",
+            false,
+          ),
+          profileState(
+            "profile-management-mobile-dirty",
+            "Mobile unsaved profile edit",
+            "The same unsaved profile state at the supported phone width.",
+            "/dashboard/profile",
+            false,
+          ),
+          profileState(
+            "profile-management-desktop-url-warning",
+            "Desktop profile URL warning",
+            "The described warning shown before profile URL editing is unlocked.",
+            "/dashboard/profile",
+            false,
+          ),
+          profileState(
+            "profile-management-mobile-url-warning",
+            "Mobile profile URL warning",
+            "The same profile URL warning at the supported phone width.",
+            "/dashboard/profile",
+            false,
+          ),
+          profileState(
+            "profile-management-desktop-url-invalid",
+            "Desktop invalid profile URL",
+            "Inline minimum-length feedback for an unsaved profile URL.",
+            "/dashboard/profile",
+            false,
+          ),
+          profileState(
+            "profile-management-mobile-url-invalid",
+            "Mobile invalid profile URL",
+            "The same invalid profile URL feedback at the supported phone width.",
+            "/dashboard/profile",
+            false,
+          ),
+        ],
+      },
+      {
+        title: "Inspect profile media",
+        states: [
+          profileState(
+            "profile-management-desktop-preview",
+            "Desktop profile image preview",
+            "A seeded profile image opened in the complete gallery preview.",
+            "/dashboard/profile",
+            false,
+          ),
+          profileState(
+            "profile-management-mobile-preview",
+            "Mobile profile image preview",
+            "The same gallery preview at the supported phone width.",
+            "/dashboard/profile",
             false,
           ),
         ],

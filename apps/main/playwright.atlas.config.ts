@@ -51,6 +51,7 @@ export default defineConfig({
         "listing-management.atlas.ts",
         "listing-media.atlas.ts",
         "list-management.atlas.ts",
+        "profile-management.atlas.ts",
       ],
       dependencies: ["member-auth"],
       use: { storageState: authState },
