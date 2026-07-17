@@ -63,6 +63,23 @@ describe("Atlas flow contract", () => {
     expect(statesForFlow(buyerInquiry)).toHaveLength(8);
   });
 
+  it("declares the public cultivar search journey at both supported sizes", () => {
+    const cultivarSearch = getAtlasFlow("cultivar-search");
+
+    expect(cultivarSearch.steps.map(({ title }) => title)).toEqual([
+      "Search the registry",
+      "Refine results",
+      "Inspect a cultivar",
+    ]);
+    expect(statesForFlow(cultivarSearch)).toHaveLength(14);
+    expect(getAtlasState("cultivar-search-desktop-info-card").urlReproducible).toBe(
+      false,
+    );
+    expect(getAtlasState("cultivar-search-mobile-info-card").urlReproducible).toBe(
+      false,
+    );
+  });
+
   it.each([
     ["state id", "id", "Duplicate Atlas state id"],
     ["capture", "capture", "Duplicate Atlas capture"],

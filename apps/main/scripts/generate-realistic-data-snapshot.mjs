@@ -152,6 +152,12 @@ async function main() {
     outputPath,
     personas: resolvedPersonas,
   });
+  console.log("Aligning realistic-data snapshot with the current schema...");
+  execFileSync(
+    "pnpm",
+    ["exec", "prisma", "db", "push", "--url", `file:${outputPath}`],
+    { cwd: appRoot, env: process.env, stdio: "inherit" },
+  );
   execFileSync(
     process.execPath,
     [

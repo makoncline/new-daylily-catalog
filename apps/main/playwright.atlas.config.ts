@@ -36,6 +36,7 @@ export default defineConfig({
       name: "anonymous",
       testMatch: [
         "public-catalog.atlas.ts",
+        "cultivar-search.atlas.ts",
         "onboarding-membership.atlas.ts",
         "buyer-inquiry.atlas.ts",
       ],

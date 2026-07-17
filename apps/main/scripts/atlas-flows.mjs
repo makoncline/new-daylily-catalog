@@ -14,6 +14,7 @@ const stateFor =
     urlReproducible,
   });
 const publicState = stateFor("tests/atlas/public-catalog.atlas.ts");
+const cultivarState = stateFor("tests/atlas/cultivar-search.atlas.ts");
 const onboardingState = stateFor("tests/atlas/onboarding-membership.atlas.ts");
 const listingState = stateFor("tests/atlas/listing-management.atlas.ts");
 const buyerState = stateFor("tests/atlas/buyer-inquiry.atlas.ts");
@@ -121,6 +122,126 @@ export const ATLAS_FLOWS = [
             "Unavailable listing",
             "The public not-found state for a missing or unavailable listing.",
             "/plantfancygardens/not-a-real-listing",
+          ),
+        ],
+      },
+    ],
+  },
+  {
+    id: "cultivar-search",
+    audience: "public",
+    title: "Search and inspect registered cultivars",
+    description:
+      "Search the production-shaped cultivar registry, refine the results, and inspect a cultivar at mobile and desktop sizes.",
+    tests: {
+      unit: [],
+      integration: [
+        testRef("integration", "tests/cultivar-search-page-client.test.tsx"),
+        testRef("integration", "tests/cultivar-search-route.test.ts"),
+        testRef("integration", "tests/cultivar-search-facets-route.test.ts"),
+        testRef("integration", "tests/cultivar-search.integration.test.ts"),
+      ],
+      e2e: [testRef("e2e", "tests/e2e/cultivar-page-flow.e2e.ts")],
+    },
+    steps: [
+      {
+        title: "Search the registry",
+        states: [
+          cultivarState(
+            "cultivar-search-desktop-base",
+            "Desktop cultivar browse",
+            "The unfiltered initial registry batch at the iPad-width desktop size.",
+            "/cultivars",
+          ),
+          cultivarState(
+            "cultivar-search-mobile-base",
+            "Mobile cultivar browse",
+            "The unfiltered initial registry batch at the phone-width mobile size.",
+            "/cultivars",
+          ),
+          cultivarState(
+            "cultivar-search-desktop-results",
+            "Desktop cultivar results",
+            "A selective real-data search at the iPad-width desktop size.",
+            "/cultivars?q=Coffee%20Frenzy",
+          ),
+          cultivarState(
+            "cultivar-search-mobile-results",
+            "Mobile cultivar results",
+            "The same selective search at the phone-width mobile size.",
+            "/cultivars?q=Coffee%20Frenzy",
+          ),
+          cultivarState(
+            "cultivar-search-desktop-empty",
+            "Desktop no results",
+            "Clear recovery guidance for a query with no matching cultivar.",
+            "/cultivars?q=no-such-daylily-cultivar",
+          ),
+          cultivarState(
+            "cultivar-search-mobile-empty",
+            "Mobile no results",
+            "The no-results recovery state at the phone-width mobile size.",
+            "/cultivars?q=no-such-daylily-cultivar",
+          ),
+        ],
+      },
+      {
+        title: "Refine results",
+        states: [
+          cultivarState(
+            "cultivar-search-desktop-advanced",
+            "Desktop advanced cultivar filters",
+            "All advanced registry controls with one realistic result.",
+            "/cultivars?advanced=true&q=Coffee%20Frenzy",
+          ),
+          cultivarState(
+            "cultivar-search-mobile-advanced",
+            "Mobile advanced cultivar filters",
+            "The first collapsible advanced-filter group open on mobile.",
+            "/cultivars?advanced=true&q=Coffee%20Frenzy",
+          ),
+          cultivarState(
+            "cultivar-search-desktop-filtered",
+            "Desktop photo-filtered cultivars",
+            "A realistic search with the visible photo filter active.",
+            "/cultivars?hasCultivarPhoto=true&q=Coffee%20Frenzy",
+          ),
+          cultivarState(
+            "cultivar-search-mobile-filtered",
+            "Mobile photo-filtered cultivars",
+            "The same active filter and result at the phone-width mobile size.",
+            "/cultivars?hasCultivarPhoto=true&q=Coffee%20Frenzy",
+          ),
+        ],
+      },
+      {
+        title: "Inspect a cultivar",
+        states: [
+          cultivarState(
+            "cultivar-search-desktop-info-card",
+            "Desktop cultivar info card",
+            "The detailed registry popover opened from a search result at the iPad-width desktop size.",
+            "/cultivars?q=Coffee%20Frenzy",
+            false,
+          ),
+          cultivarState(
+            "cultivar-search-mobile-info-card",
+            "Mobile cultivar info card",
+            "The same detailed registry popover opened from a search result at the phone-width mobile size.",
+            "/cultivars?q=Coffee%20Frenzy",
+            false,
+          ),
+          cultivarState(
+            "cultivar-search-desktop-detail",
+            "Desktop cultivar detail",
+            "The canonical cultivar page at the iPad-width desktop size.",
+            "/cultivar/coffee-frenzy",
+          ),
+          cultivarState(
+            "cultivar-search-mobile-detail",
+            "Mobile cultivar detail",
+            "The canonical cultivar page at the phone-width mobile size.",
+            "/cultivar/coffee-frenzy",
           ),
         ],
       },
