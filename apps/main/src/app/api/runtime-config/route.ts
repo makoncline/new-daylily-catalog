@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { getRuntimeFeatureFlags } from "@/config/feature-flags";
 import {
   getRuntimePosthogClientConfig,
   getRuntimeSentryEnabled,
@@ -14,6 +15,7 @@ export function GET() {
 
   return NextResponse.json(
     {
+      features: getRuntimeFeatureFlags(),
       sentry: {
         enabled: getRuntimeSentryEnabled(),
         dsn: SENTRY_DSN,

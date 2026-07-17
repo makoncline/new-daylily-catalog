@@ -103,7 +103,11 @@ describe("runtime config route", () => {
         key: "phc_runtime_key",
         host: "https://eu.i.posthog.com",
       },
+      features: {
+        publicCultivarSearch: false,
+      },
     });
+    expect(response.headers.get("Cache-Control")).toBe("no-store");
 
     expect(consoleInfoMock).toHaveBeenCalledTimes(1);
     expect(
@@ -142,6 +146,9 @@ describe("runtime config route", () => {
       },
       posthog: {
         enabled: false,
+      },
+      features: {
+        publicCultivarSearch: false,
       },
     });
   });

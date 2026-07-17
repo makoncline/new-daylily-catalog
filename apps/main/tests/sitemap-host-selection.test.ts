@@ -1,5 +1,8 @@
 // @vitest-environment node
 
+import { rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 const publicReadMocks = vi.hoisted(() => ({
@@ -25,14 +28,26 @@ const originalVercelUrl = process.env.VERCEL_URL;
 const originalVercelProjectProductionUrl =
   process.env.VERCEL_PROJECT_PRODUCTION_URL;
 const originalPort = process.env.PORT;
-const originalPublicCultivarSearchEnabled =
-  process.env.PUBLIC_CULTIVAR_SEARCH_ENABLED;
+const originalRuntimeFlagsPath = process.env.RUNTIME_FEATURE_FLAGS_PATH;
+const runtimeFlagsPath = join(
+  tmpdir(),
+  `daylily-sitemap-feature-flags-${process.pid}.json`,
+);
+
+function restoreEnv(name: string, value: string | undefined) {
+  if (value === undefined) {
+    delete process.env[name];
+  } else {
+    process.env[name] = value;
+  }
+}
 
 describe("sitemap and robots host selection", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     delete process.env.VERCEL;
-    delete process.env.PUBLIC_CULTIVAR_SEARCH_ENABLED;
+    process.env.RUNTIME_FEATURE_FLAGS_PATH = runtimeFlagsPath;
+    writeFileSync(runtimeFlagsPath, '{"publicCultivarSearch":false}');
 
     publicReadMocks.getPublicCatalogRouteEntries.mockResolvedValue([
       {
@@ -59,14 +74,16 @@ describe("sitemap and robots host selection", () => {
   });
 
   afterAll(() => {
-    process.env.VERCEL = originalVercel;
-    process.env.VERCEL_ENV = originalVercelEnv;
-    process.env.VERCEL_URL = originalVercelUrl;
-    process.env.VERCEL_PROJECT_PRODUCTION_URL =
-      originalVercelProjectProductionUrl;
-    process.env.PORT = originalPort;
-    process.env.PUBLIC_CULTIVAR_SEARCH_ENABLED =
-      originalPublicCultivarSearchEnabled;
+    restoreEnv("VERCEL", originalVercel);
+    restoreEnv("VERCEL_ENV", originalVercelEnv);
+    restoreEnv("VERCEL_URL", originalVercelUrl);
+    restoreEnv(
+      "VERCEL_PROJECT_PRODUCTION_URL",
+      originalVercelProjectProductionUrl,
+    );
+    restoreEnv("PORT", originalPort);
+    restoreEnv("RUNTIME_FEATURE_FLAGS_PATH", originalRuntimeFlagsPath);
+    rmSync(runtimeFlagsPath, { force: true });
   });
 
   it("uses the production domain for production deployments", async () => {
@@ -189,7 +206,7 @@ describe("sitemap and robots host selection", () => {
       "<loc>http://localhost:4123/cultivars</loc>",
     );
 
-    process.env.PUBLIC_CULTIVAR_SEARCH_ENABLED = "true";
+    writeFileSync(runtimeFlagsPath, '{"publicCultivarSearch":true}');
 
     expect(await (await mainSitemap()).text()).toContain(
       "<loc>http://localhost:4123/cultivars</loc>",

@@ -7,15 +7,10 @@ import { usePathname } from "next/navigation";
 
 interface PublicShellProps {
   children: React.ReactNode;
-  cultivarSearchEnabled?: boolean;
   mainClassName?: string;
 }
 
-export function PublicShell({
-  children,
-  cultivarSearchEnabled = false,
-  mainClassName,
-}: PublicShellProps) {
+export function PublicShell({ children, mainClassName }: PublicShellProps) {
   const pathname = usePathname();
   const overlapsHero =
     pathname === "/" ||
@@ -41,7 +36,7 @@ export function PublicShell({
       >
         Skip to content
       </a>
-      <PublicHeader cultivarSearchEnabled={cultivarSearchEnabled} />
+      <PublicHeader />
       <main
         id="main-content"
         className={cn(
