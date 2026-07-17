@@ -20,9 +20,12 @@ export function PublicShell({
   const overlapsHero =
     pathname === "/" ||
     pathname === "/start-membership" ||
-    pathname === "/cultivars";
+    pathname === "/cultivars" ||
+    pathname === "/catalog-importer";
   const shellBackgroundClassName =
-    pathname === "/start-membership" || pathname === "/cultivars"
+    pathname === "/start-membership" ||
+    pathname === "/cultivars" ||
+    pathname === "/catalog-importer"
       ? "bg-[#07120e]"
       : pathname === "/"
         ? "bg-[#f1f4ec]"

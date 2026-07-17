@@ -46,6 +46,15 @@ describe("PublicShell", () => {
     expect(screen.getByRole("main")).toHaveClass("-mt-16", "lg:-mt-20");
   });
 
+  it("lets the catalog importer hero sit behind the public navigation", () => {
+    navigationState.pathname = "/catalog-importer";
+
+    render(<PublicShell>Catalog importer</PublicShell>);
+
+    expect(screen.getByRole("main").parentElement).toHaveClass("bg-[#07120e]");
+    expect(screen.getByRole("main")).toHaveClass("-mt-16", "lg:-mt-20");
+  });
+
   it("uses the light page background away from dark landing pages", () => {
     navigationState.pathname = "/catalogs";
 
