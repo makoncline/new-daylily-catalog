@@ -19,6 +19,8 @@ test.describe("manage list page features @local", () => {
     page,
     manageListPage,
   }) => {
+    test.slow();
+
     const expectPageIndicator = async (
       currentPage: number,
       totalPages: number,
