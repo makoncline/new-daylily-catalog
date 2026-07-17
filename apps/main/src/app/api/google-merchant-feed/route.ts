@@ -15,7 +15,6 @@ import {
 import {
   generatedCultivarImageAssetInclude,
   resolveCultivarReferenceImage,
-  shouldQueryGeneratedCultivarImageAssets,
 } from "@/server/services/cultivar-reference-image-read-model";
 
 // Constants for merchant feed configuration
@@ -44,9 +43,7 @@ export async function GET(_request: Request) {
           v2AhsCultivar: {
             select: v2AhsCultivarDisplaySelect,
           },
-          ...(shouldQueryGeneratedCultivarImageAssets()
-            ? { imageAssets: generatedCultivarImageAssetInclude }
-            : {}),
+          imageAssets: generatedCultivarImageAssetInclude,
         },
       },
       user: {

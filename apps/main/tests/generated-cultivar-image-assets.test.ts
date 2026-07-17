@@ -1,6 +1,6 @@
 // @vitest-environment node
 
-import { afterEach, describe, expect, it } from "vitest";
+import { describe, expect, it } from "vitest";
 import {
   resolveCultivarReferenceImage,
   type CultivarReferenceImageView,
@@ -17,9 +17,6 @@ const generatedAssetRow = {
   thumbUrl: "https://cdn.example.com/generated-thumb.jpg",
 } satisfies ImageAssetUrlRow;
 
-const originalUseGeneratedCultivarImageAssets =
-  process.env.USE_GENERATED_CULTIVAR_IMAGE_ASSETS;
-
 function expectCultivarImage(
   image: CultivarReferenceImageView | null,
 ): asserts image is CultivarReferenceImageView {
@@ -27,22 +24,11 @@ function expectCultivarImage(
 }
 
 describe("generated cultivar image assets", () => {
-  afterEach(() => {
-    if (originalUseGeneratedCultivarImageAssets === undefined) {
-      delete process.env.USE_GENERATED_CULTIVAR_IMAGE_ASSETS;
-    } else {
-      process.env.USE_GENERATED_CULTIVAR_IMAGE_ASSETS =
-        originalUseGeneratedCultivarImageAssets;
-    }
-  });
-
-  it("uses the fallback cultivar image while generated assets are disabled", () => {
-    process.env.USE_GENERATED_CULTIVAR_IMAGE_ASSETS = "false";
-
+  it("uses the fallback cultivar image when a generated asset is missing", () => {
     const image = resolveCultivarReferenceImage({
       fallbackImageUrl: "https://legacy.example.com/fallback.jpg",
       id: "cultivar-image",
-      imageAssets: [generatedAssetRow],
+      imageAssets: [],
     });
 
     expectCultivarImage(image);
@@ -52,9 +38,7 @@ describe("generated cultivar image assets", () => {
     });
   });
 
-  it("uses the generated ImageAsset when the server flag is enabled", () => {
-    process.env.USE_GENERATED_CULTIVAR_IMAGE_ASSETS = "true";
-
+  it("uses the generated ImageAsset when available", () => {
     const image = resolveCultivarReferenceImage({
       fallbackImageUrl: "https://legacy.example.com/fallback.jpg",
       id: "cultivar-image",
@@ -74,8 +58,6 @@ describe("generated cultivar image assets", () => {
   });
 
   it("falls back to the generated original URL when the display URL is missing", () => {
-    process.env.USE_GENERATED_CULTIVAR_IMAGE_ASSETS = "true";
-
     const image = resolveCultivarReferenceImage({
       id: "cultivar-image",
       imageAssets: [{ ...generatedAssetRow, displayUrl: null }],

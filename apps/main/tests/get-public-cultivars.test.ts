@@ -47,8 +47,6 @@ import {
 import { applyWhereIn } from "./test-utils/apply-where-in";
 
 const originalCloudflareUrl = process.env.NEXT_PUBLIC_CLOUDFLARE_URL;
-const originalUseGeneratedCultivarImageAssets =
-  process.env.USE_GENERATED_CULTIVAR_IMAGE_ASSETS;
 
 function createListingUser(userId: string) {
   const profiles: Record<string, { slug: string; title: string }> = {
@@ -87,13 +85,6 @@ describe("getPublicCultivarPage", () => {
       delete process.env.NEXT_PUBLIC_CLOUDFLARE_URL;
     } else {
       process.env.NEXT_PUBLIC_CLOUDFLARE_URL = originalCloudflareUrl;
-    }
-
-    if (originalUseGeneratedCultivarImageAssets === undefined) {
-      delete process.env.USE_GENERATED_CULTIVAR_IMAGE_ASSETS;
-    } else {
-      process.env.USE_GENERATED_CULTIVAR_IMAGE_ASSETS =
-        originalUseGeneratedCultivarImageAssets;
     }
   });
 
@@ -531,7 +522,25 @@ describe("getPublicCultivarPage", () => {
       expect.objectContaining({
         where: expect.objectContaining({
           OR: [{ primary_hybridizer_name: "Reed" }],
-          AND: [{ image_url: { not: null } }],
+          AND: [
+            {
+              OR: [
+                { image_url: { not: null } },
+                {
+                  cultivarReference: {
+                    is: {
+                      imageAssets: {
+                        some: {
+                          kind: "cultivar",
+                          status: "ready",
+                        },
+                      },
+                    },
+                  },
+                },
+              ],
+            },
+          ],
           cultivarReference: {
             is: expect.objectContaining({
               id: { not: "cultivar-1" },
@@ -704,9 +713,7 @@ describe("getPublicCultivarPage", () => {
     );
   });
 
-  it("uses generated cultivar ImageAsset hero images when enabled", async () => {
-    process.env.USE_GENERATED_CULTIVAR_IMAGE_ASSETS = "true";
-
+  it("uses generated cultivar ImageAsset hero images", async () => {
     mockDb.cultivarReference.findFirst.mockResolvedValue({
       id: "cultivar-v2",
       normalizedName: "coffee frenzy",
@@ -783,8 +790,6 @@ describe("getPublicCultivarPage", () => {
   });
 
   it("includes related cultivars that only have a generated image", async () => {
-    process.env.USE_GENERATED_CULTIVAR_IMAGE_ASSETS = "true";
-
     mockDb.cultivarReference.findFirst.mockResolvedValue({
       id: "cultivar-silver-butterfly",
       normalizedName: "silver butterfly",

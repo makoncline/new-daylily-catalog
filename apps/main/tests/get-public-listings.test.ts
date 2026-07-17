@@ -41,8 +41,6 @@ import {
 import { applyWhereIn } from "./test-utils/apply-where-in";
 
 const originalCloudflareUrl = process.env.NEXT_PUBLIC_CLOUDFLARE_URL;
-const originalUseGeneratedCultivarImageAssets =
-  process.env.USE_GENERATED_CULTIVAR_IMAGE_ASSETS;
 
 function getQueryText(query: unknown): string {
   if (
@@ -103,13 +101,6 @@ describe("getPublicListings helpers", () => {
       delete process.env.NEXT_PUBLIC_CLOUDFLARE_URL;
     } else {
       process.env.NEXT_PUBLIC_CLOUDFLARE_URL = originalCloudflareUrl;
-    }
-
-    if (originalUseGeneratedCultivarImageAssets === undefined) {
-      delete process.env.USE_GENERATED_CULTIVAR_IMAGE_ASSETS;
-    } else {
-      process.env.USE_GENERATED_CULTIVAR_IMAGE_ASSETS =
-        originalUseGeneratedCultivarImageAssets;
     }
   });
 
@@ -282,9 +273,7 @@ describe("getPublicListings helpers", () => {
     ]);
   });
 
-  it("uses generated cultivar ImageAsset fallback images when enabled", () => {
-    process.env.USE_GENERATED_CULTIVAR_IMAGE_ASSETS = "true";
-
+  it("uses generated cultivar ImageAsset fallback images", () => {
     const transformed = transformListings([
       {
         ...createListing("id-a", "Alpha"),
@@ -319,22 +308,11 @@ describe("getPublicListings helpers", () => {
             {
               id: "asset-alpha",
               legacyImageId: null,
-              order: 0,
-              kind: "cultivar",
               status: "ready",
-              originalKey: "cultivar-images/alpha/original.png",
               originalUrl: "https://media.daylilycatalog.com/original.png",
-              displayKey: "cultivar-images/alpha/display-800.webp",
               displayUrl: "https://media.daylilycatalog.com/display-800.webp",
-              thumbKey: "cultivar-images/alpha/thumb-200.webp",
               thumbUrl: "https://media.daylilycatalog.com/thumb-200.webp",
-              blurKey: "cultivar-images/alpha/blur-20.webp",
               blurUrl: "https://media.daylilycatalog.com/blur-20.webp",
-              createdAt: new Date("2026-04-08T00:00:00.000Z"),
-              updatedAt: new Date("2026-04-08T00:00:00.000Z"),
-              userProfileId: null,
-              listingId: null,
-              cultivarReferenceId: "cultivar-alpha",
             },
           ],
         },

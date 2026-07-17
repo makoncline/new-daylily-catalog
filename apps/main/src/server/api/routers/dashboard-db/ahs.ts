@@ -12,7 +12,6 @@ import {
 import {
   generatedCultivarImageAssetInclude,
   resolveCultivarReferenceImage,
-  shouldQueryGeneratedCultivarImageAssets,
 } from "@/server/services/cultivar-reference-image-read-model";
 
 async function runCultivarReferenceSearchQuery(
@@ -113,9 +112,7 @@ export const dashboardDbAhsRouter = createTRPCRouter({
           v2AhsCultivar: {
             select: v2AhsCultivarDisplaySelect,
           },
-          ...(shouldQueryGeneratedCultivarImageAssets()
-            ? { imageAssets: generatedCultivarImageAssetInclude }
-            : {}),
+          imageAssets: generatedCultivarImageAssetInclude,
         },
       });
 
@@ -134,10 +131,7 @@ export const dashboardDbAhsRouter = createTRPCRouter({
         cultivarReferenceImage: resolveCultivarReferenceImage({
           id: `ahs-${cultivarReference.id}`,
           fallbackImageUrl: ahsListing.ahsImageUrl,
-          imageAssets:
-            "imageAssets" in cultivarReference
-              ? cultivarReference.imageAssets
-              : [],
+          imageAssets: cultivarReference.imageAssets,
         }),
       };
     }),

@@ -12,7 +12,6 @@ import {
   isPublicSearchIndexUsable,
   PublicSearchIndexUnavailableError,
 } from "@/server/search/public-search-index";
-import { areGeneratedCultivarImageAssetsEnabledByDefault } from "@/config/feature-flags";
 
 export type CultivarSearchSort =
   | "relevance"
@@ -936,9 +935,7 @@ export async function searchCultivars(args: CultivarSearchArgs) {
       const fallbackImageUrl =
         toStringOrNull(row.fallbackImageUrl) ?? toStringOrNull(row.imageUrl);
       const usesGeneratedImage = Boolean(
-        areGeneratedCultivarImageAssetsEnabledByDefault() &&
-          generatedImageUrl &&
-          generatedImageAssetId,
+        generatedImageUrl && generatedImageAssetId,
       );
       const imageUrl = usesGeneratedImage
         ? generatedImageUrl
