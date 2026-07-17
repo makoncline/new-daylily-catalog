@@ -477,9 +477,13 @@ function ProfileSlugField() {
                     field.onChange(value);
                     debouncedCheckSlug(value);
                   }}
-                  onBlur={() => {
+                  onBlur={(event) => {
                     field.onBlur();
-                    void form.trigger("slug");
+                    if (
+                      !slugSchema.safeParse(event.currentTarget.value).success
+                    ) {
+                      void form.trigger("slug");
+                    }
                   }}
                   readOnly={!slugState.isEditingUnlocked}
                   disabled={saveState.isUpdating || !isPro}

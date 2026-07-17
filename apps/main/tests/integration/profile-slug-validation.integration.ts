@@ -37,4 +37,13 @@ test("invalid profile URLs are validated before checking availability", async ({
 
   await slugInput.fill("available-profile");
   await expect.poll(() => availabilityRequests.length).toBe(1);
+
+  await slugInput.fill("dashboard");
+  await expect(
+    page.getByText("This URL is already taken. Please choose another one."),
+  ).toBeVisible();
+  await slugInput.blur();
+  await expect(
+    page.getByText("This URL is already taken. Please choose another one."),
+  ).toBeVisible();
 });
