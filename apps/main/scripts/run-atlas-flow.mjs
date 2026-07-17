@@ -13,6 +13,10 @@ import {
   missingFreshStateIds,
   validateAtlasFlows,
 } from "./atlas-flows.mjs";
+import {
+  assertRealisticDataSeedFresh,
+  createDisposableRealisticDataSnapshot,
+} from "./realistic-data-snapshot.mjs";
 const ATLAS_HEALTH_PATH = "/api/runtime-config";
 const appRoot = path.resolve(import.meta.dirname, "..");
 const repoRoot = path.resolve(appRoot, "../..");
@@ -30,22 +34,43 @@ validateAtlasFlows({ appRoot });
 const outputDirectory = path.resolve(process.cwd(), outputArgument.slice(9));
 const baseURL = process.env.BASE_URL ?? "http://localhost:3210";
 const explicitDatabaseUrl = process.env.DATABASE_URL;
+let disposableDatabase;
 let server;
-const stopServer = () => {
-  if (!server?.pid) return;
+const stopServer = async () => {
+  if (!server?.pid || server.exitCode !== null || server.signalCode !== null)
+    return;
+  const activeServer = server;
+  const exited = new Promise((resolve) => activeServer.once("exit", resolve));
   try {
     process.kill(
-      process.platform === "win32" ? server.pid : -server.pid,
+      process.platform === "win32" ? activeServer.pid : -activeServer.pid,
       "SIGTERM",
     );
   } catch {
     // The process group already exited.
   }
+  await Promise.race([
+    exited,
+    new Promise((resolve) => setTimeout(resolve, 5_000)),
+  ]);
+  if (activeServer.exitCode === null && activeServer.signalCode === null) {
+    try {
+      process.kill(
+        process.platform === "win32" ? activeServer.pid : -activeServer.pid,
+        "SIGKILL",
+      );
+    } catch {
+      // The process group exited between checks.
+    }
+    await exited;
+  }
 };
 for (const signal of ["SIGINT", "SIGTERM"]) {
   process.on(signal, () => {
-    stopServer();
-    process.exit(signal === "SIGINT" ? 130 : 143);
+    void stopServer().finally(() => {
+      disposableDatabase?.cleanup();
+      process.exit(signal === "SIGINT" ? 130 : 143);
+    });
   });
 }
 async function isHealthy() {
@@ -77,17 +102,30 @@ async function startServer() {
     appRoot,
     "local/realistic-data/realistic-data.sqlite",
   );
-  if (!explicitDatabaseUrl && !existsSync(seededDatabase))
-    throw new Error(
-      "Seeded database missing. Run `pnpm db:seed:prepare` first.",
-    );
+  let databaseUrl = explicitDatabaseUrl;
+  if (!databaseUrl) {
+    if (!existsSync(seededDatabase))
+      throw new Error(
+        "Seeded database missing. Run `pnpm db:seed:prepare` first.",
+      );
+    assertRealisticDataSeedFresh({
+      manifestPath: path.join(appRoot, "local/realistic-data/personas.json"),
+      schemaPath: path.join(appRoot, "prisma/schema.prisma"),
+    });
+    disposableDatabase = await createDisposableRealisticDataSnapshot({
+      sourcePath: seededDatabase,
+    });
+    databaseUrl = `file:${disposableDatabase.databasePath}`;
+  }
   server = spawn("pnpm", ["dev", "--", "--port", new URL(baseURL).port], {
     cwd: repoRoot,
     detached: process.platform !== "win32",
     stdio: "inherit",
     env: {
       ...process.env,
-      DATABASE_URL: explicitDatabaseUrl ?? `file:${seededDatabase}`,
+      DATABASE_URL: databaseUrl,
+      NEXT_PUBLIC_POSTHOG_KEY: "",
+      NEXT_PUBLIC_SENTRY_ENABLED: "false",
       PUBLIC_CULTIVAR_SEARCH_ENABLED: "true",
       PUBLIC_SEARCH_INDEX_REFRESH_INTERVAL_SECONDS: "0",
       TURSO_DATABASE_AUTH_TOKEN: "",
@@ -165,5 +203,6 @@ try {
       `Atlas home: ${path.resolve(generateAtlasHome({ outputDirectory, flows }))}`,
     );
 } finally {
-  stopServer();
+  await stopServer();
+  disposableDatabase?.cleanup();
 }

@@ -5,7 +5,10 @@ import path from "node:path";
 import { describe, expect, test } from "vitest";
 
 import {
+  assertRealisticDataSeedFresh,
+  createDisposableRealisticDataSnapshot,
   generateRealisticDataSnapshot,
+  realisticDataSchemaFingerprint,
   resolveRealisticDataOutputPath,
 } from "../scripts/realistic-data-snapshot.mjs";
 
@@ -57,6 +60,59 @@ function createSourceDatabase(databasePath: string) {
 }
 
 describe("generateRealisticDataSnapshot", () => {
+  test("creates an isolated disposable copy for local UI automation", async () => {
+    const directory = mkdtempSync(
+      path.join(tmpdir(), "realistic-data-disposable-"),
+    );
+    const sourcePath = path.join(directory, "source.sqlite");
+    createSourceDatabase(sourcePath);
+
+    const disposable = await createDisposableRealisticDataSnapshot({
+      sourcePath,
+    });
+    const copy = new DatabaseSync(disposable.databasePath);
+    copy
+      .prepare("UPDATE Listing SET title = 'Atlas-only title' WHERE id = ?")
+      .run("large-listing");
+    copy.close();
+
+    const source = new DatabaseSync(sourcePath, { readOnly: true });
+    expect(
+      source
+        .prepare("SELECT title FROM Listing WHERE id = ?")
+        .get("large-listing")?.title,
+    ).toBe("Large listing");
+    source.close();
+
+    disposable.cleanup();
+    expect(existsSync(disposable.databasePath)).toBe(false);
+  });
+
+  test("rejects a seed manifest created for an older schema", () => {
+    const directory = mkdtempSync(path.join(tmpdir(), "realistic-data-schema-"));
+    const schemaPath = path.join(directory, "schema.prisma");
+    const manifestPath = path.join(directory, "personas.json");
+    writeFileSync(schemaPath, "model User { id String @id }\n");
+    writeFileSync(
+      manifestPath,
+      JSON.stringify({
+        schemaFingerprint: realisticDataSchemaFingerprint(schemaPath),
+      }),
+    );
+
+    expect(() =>
+      assertRealisticDataSeedFresh({ manifestPath, schemaPath }),
+    ).not.toThrow();
+
+    writeFileSync(
+      schemaPath,
+      "model User { id String @id email String? }\n",
+    );
+    expect(() =>
+      assertRealisticDataSeedFresh({ manifestPath, schemaPath }),
+    ).toThrow("Run `pnpm db:seed:prepare`");
+  });
+
   test("resolves one output path for preparation and launch", () => {
     expect(
       resolveRealisticDataOutputPath({

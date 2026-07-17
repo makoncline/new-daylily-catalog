@@ -39,10 +39,10 @@ pnpm lint
 Compare the retained `before` and `after` galleries. “Open live” appears only
 for states fully represented by their URL; interaction-only states provide an
 exact Playwright reproduction command instead.
-Atlas uses the standard realistic seeded development database. Captures do not
-mutate catalog, list, or listing business data, though authenticated dashboard
-startup can refresh operational `KeyValue` metadata. If the seed is missing or
-predates a schema change, run `pnpm db:seed:prepare`.
+Atlas validates the standard realistic seed against the current Prisma schema,
+then runs against a disposable copy. Captures cannot modify the canonical
+development seed. If the seed is missing or stale, the runner stops with the
+single recovery command: `pnpm db:seed:prepare`.
 
 ## Integration loop
 
