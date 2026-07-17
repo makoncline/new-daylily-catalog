@@ -17,6 +17,7 @@ const publicState = stateFor("tests/atlas/public-catalog.atlas.ts");
 const cultivarState = stateFor("tests/atlas/cultivar-search.atlas.ts");
 const onboardingState = stateFor("tests/atlas/onboarding-membership.atlas.ts");
 const listingState = stateFor("tests/atlas/listing-management.atlas.ts");
+const listState = stateFor("tests/atlas/list-management.atlas.ts");
 const buyerState = stateFor("tests/atlas/buyer-inquiry.atlas.ts");
 const testRef = (layer, file) => ({
   path: file,
@@ -534,6 +535,126 @@ export const ATLAS_FLOWS = [
             "Listing membership picker",
             "The real lists available while editing a listing.",
             "/dashboard/listings?size=10",
+            false,
+          ),
+        ],
+      },
+    ],
+  },
+  {
+    id: "list-management",
+    audience: "member",
+    title: "Organize catalog listings into a list",
+    description:
+      "Review real catalog lists, start a collection, and manage listing membership at mobile and desktop sizes.",
+    tests: {
+      unit: [testRef("unit", "tests/manage-list-columns.test.ts")],
+      integration: [
+        testRef("integration", "tests/add-listings-combobox.test.tsx"),
+        testRef(
+          "integration",
+          "tests/dashboard-db-list-membership-sync.test.tsx",
+        ),
+        testRef("integration", "tests/list-form-boundary-save.test.tsx"),
+        testRef(
+          "integration",
+          "tests/manage-list-page-membership-commit.test.tsx",
+        ),
+        testRef("integration", "tests/use-list-resource.test.tsx"),
+      ],
+      e2e: [
+        testRef("e2e", "tests/e2e/lists-page-features.e2e.ts"),
+        testRef("e2e", "tests/e2e/manage-list-page-features.e2e.ts"),
+      ],
+    },
+    steps: [
+      {
+        title: "Review catalog lists",
+        states: [
+          listState(
+            "list-management-desktop-library",
+            "Desktop list library",
+            "Seven realistic Rolling Oaks collections with listing counts and member actions.",
+            "/dashboard/lists",
+          ),
+          listState(
+            "list-management-mobile-library",
+            "Mobile list library",
+            "The same member collections at the supported phone size.",
+            "/dashboard/lists",
+          ),
+        ],
+      },
+      {
+        title: "Start a collection",
+        states: [
+          listState(
+            "list-management-desktop-create",
+            "Desktop new list",
+            "A named but unsaved collection with the save actions ready.",
+            "/dashboard/lists?creating=true",
+            false,
+          ),
+          listState(
+            "list-management-mobile-create",
+            "Mobile new list",
+            "The same unsaved collection surface at the supported phone size.",
+            "/dashboard/lists?creating=true",
+            false,
+          ),
+        ],
+      },
+      {
+        title: "Manage a populated collection",
+        states: [
+          listState(
+            "list-management-desktop-populated",
+            "Desktop populated list",
+            "A real 22-listing introductions collection with editable details and membership controls.",
+            "/dashboard/lists/7",
+          ),
+          listState(
+            "list-management-mobile-populated",
+            "Mobile populated list",
+            "The same realistic collection and listings table at the supported phone size.",
+            "/dashboard/lists/7",
+          ),
+        ],
+      },
+      {
+        title: "Find a listing to add",
+        states: [
+          listState(
+            "list-management-desktop-add",
+            "Desktop add-listing results",
+            "A catalog listing outside the collection found through the real add-listing dialog.",
+            "/dashboard/lists/7",
+            false,
+          ),
+          listState(
+            "list-management-mobile-add",
+            "Mobile add-listing results",
+            "The same filtered add-listing choice at the supported phone size.",
+            "/dashboard/lists/7",
+            false,
+          ),
+        ],
+      },
+      {
+        title: "Review a removal",
+        states: [
+          listState(
+            "list-management-desktop-remove",
+            "Desktop remove confirmation",
+            "A selected real listing at the final confirmation before removal.",
+            "/dashboard/lists/7",
+            false,
+          ),
+          listState(
+            "list-management-mobile-remove",
+            "Mobile remove confirmation",
+            "The same non-destructive review state at the supported phone size.",
+            "/dashboard/lists/7",
             false,
           ),
         ],

@@ -39,8 +39,10 @@ pnpm lint
 Compare the retained `before` and `after` galleries. “Open live” appears only
 for states fully represented by their URL; interaction-only states provide an
 exact Playwright reproduction command instead.
-Atlas uses the standard realistic seeded development database and does not
-write to it. If it is missing, run `pnpm db:seed:prepare`.
+Atlas uses the standard realistic seeded development database. Captures do not
+mutate catalog, list, or listing business data, though authenticated dashboard
+startup can refresh operational `KeyValue` metadata. If the seed is missing or
+predates a schema change, run `pnpm db:seed:prepare`.
 
 ## Integration loop
 

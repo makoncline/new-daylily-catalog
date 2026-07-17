@@ -52,6 +52,25 @@ describe("Atlas flow contract", () => {
     expect(statesForFlow(listings)).toHaveLength(15);
   });
 
+  it("declares the list-management journey at both supported sizes", () => {
+    const lists = getAtlasFlow("list-management");
+
+    expect(lists.steps.map(({ title }) => title)).toEqual([
+      "Review catalog lists",
+      "Start a collection",
+      "Manage a populated collection",
+      "Find a listing to add",
+      "Review a removal",
+    ]);
+    expect(statesForFlow(lists)).toHaveLength(10);
+    expect(getAtlasState("list-management-desktop-add").urlReproducible).toBe(
+      false,
+    );
+    expect(getAtlasState("list-management-mobile-remove").urlReproducible).toBe(
+      false,
+    );
+  });
+
   it("declares the buyer inquiry journey without sending a real message", () => {
     const buyerInquiry = getAtlasFlow("buyer-inquiry");
 
