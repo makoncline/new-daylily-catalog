@@ -72,6 +72,12 @@ describe("Atlas flow contract", () => {
       "Inspect a cultivar",
     ]);
     expect(statesForFlow(cultivarSearch)).toHaveLength(14);
+    expect(getAtlasState("cultivar-search-desktop-info-card").urlReproducible).toBe(
+      false,
+    );
+    expect(getAtlasState("cultivar-search-mobile-info-card").urlReproducible).toBe(
+      false,
+    );
   });
 
   it.each([

@@ -222,12 +222,14 @@ export const ATLAS_FLOWS = [
             "Desktop cultivar info card",
             "The detailed registry popover opened from a search result at the iPad-width desktop size.",
             "/cultivars?q=Coffee%20Frenzy",
+            false,
           ),
           cultivarState(
             "cultivar-search-mobile-info-card",
             "Mobile cultivar info card",
             "The same detailed registry popover opened from a search result at the phone-width mobile size.",
             "/cultivars?q=Coffee%20Frenzy",
+            false,
           ),
           cultivarState(
             "cultivar-search-desktop-detail",
