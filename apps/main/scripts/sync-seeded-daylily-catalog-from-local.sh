@@ -22,9 +22,27 @@ fi
 
 (
   echo "PRAGMA foreign_keys=OFF;"
-  sqlite3 "$LOCAL_DB_PATH" "SELECT 'DROP VIEW IF EXISTS \"' || REPLACE(name, '\"', '\"\"') || '\";' FROM sqlite_master WHERE type='view';"
-  sqlite3 "$LOCAL_DB_PATH" "SELECT 'DROP TABLE IF EXISTS \"' || REPLACE(name, '\"', '\"\"') || '\";' FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%';"
-  sqlite3 "$LOCAL_DB_PATH" ".dump"
+  node scripts/sqlite-replace-statements.mjs "$LOCAL_DB_PATH"
+  node scripts/sqlite-replace-statements.mjs --schema "$LOCAL_DB_PATH"
+  echo "BEGIN TRANSACTION;"
+  while IFS= read -r table_name; do
+    sqlite3 "$LOCAL_DB_PATH" ".dump --data-only \"$table_name\""
+  done < <(
+    node scripts/sqlite-replace-statements.mjs --load-order "$LOCAL_DB_PATH"
+  )
+  echo "COMMIT;"
 ) | turso db shell "$TURSO_DB_NAME"
+
+verification_sql="$(
+  node scripts/sqlite-replace-statements.mjs --verify-counts "$LOCAL_DB_PATH"
+)"
+verification_output="$(
+  turso db shell "$TURSO_DB_NAME" "$verification_sql"
+)"
+echo "$verification_output"
+if [[ "$verification_output" != *"seed-sync-counts-ok"* ]]; then
+  echo "Error: seeded database table counts do not match the local snapshot."
+  exit 1
+fi
 
 echo "Synced $LOCAL_DB_PATH into Turso database $TURSO_DB_NAME"
