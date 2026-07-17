@@ -42,6 +42,7 @@ interface ImageManagerProps {
   images: ImageCollectionItem[];
   onImagesChange?: (images: ImageCollectionItem[]) => void;
   onMutationSuccess?: () => void;
+  prioritizeImages?: boolean;
   referenceId: string;
   type: ImageType;
 }
@@ -49,12 +50,14 @@ interface ImageManagerProps {
 function SortableImage({
   image,
   dragControls,
+  priority,
 }: {
   image: ImageCollectionItem;
   dragControls: (
     attributes: DraggableAttributes,
     listeners: Record<string, unknown>,
   ) => React.ReactNode;
+  priority: boolean;
 }) {
   const {
     attributes,
@@ -78,6 +81,7 @@ function SortableImage({
         alt="Daylily image"
         size="thumbnail"
         className="rounded-lg border"
+        priority={priority}
       />
       {dragControls(attributes ?? {}, listeners ?? {})}
     </div>
@@ -88,6 +92,7 @@ export function ImageManager({
   images,
   onImagesChange,
   onMutationSuccess,
+  prioritizeImages = false,
   referenceId,
   type,
 }: ImageManagerProps) {
@@ -199,6 +204,7 @@ export function ImageManager({
               >
                 <SortableImage
                   image={image}
+                  priority={prioritizeImages}
                   dragControls={(attributes, listeners) => (
                     <>
                       <Button

@@ -18,6 +18,7 @@ export function ProfileImageManager({
       <ImageManager
         type="profile"
         images={images}
+        prioritizeImages
         referenceId={profileId}
         onMutationSuccess={onMutationSuccess}
       />
