@@ -223,6 +223,7 @@ describe("offline integration runtime", () => {
         "cultivar:cr-ahs-8527:onboarding sunset",
         "cultivar:integration-cultivar-reference:integration bloom",
         "listing:integration-existing-listing:Existing Bloom",
+        "listing:integration-media-listing:Integration Media Listing",
         "profile:integration-profile:integration-seller",
         "user:integration-user:user_integration_seller",
       ]);

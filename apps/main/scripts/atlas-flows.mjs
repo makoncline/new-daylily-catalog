@@ -751,6 +751,7 @@ export const ATLAS_FLOWS = [
       integration: [
         testRef("integration", "tests/image-upload.test.tsx"),
         testRef("integration", "tests/dashboard-db-image-router.test.ts"),
+        fullAppIntegrationRef("tests/integration/listing-media.integration.ts"),
       ],
       e2e: [testRef("e2e", "tests/e2e/listing-image-manager.e2e.ts")],
     },
