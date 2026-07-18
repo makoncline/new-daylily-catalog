@@ -17,30 +17,31 @@ Runtime state stays out of git:
 
 Set `V2_AHS_IMAGE_REVIEW_DATA_ROOT` to override the runtime root. The default
 keeps generated assets outside the repository so a worktree reset cannot delete
-them.
+them. The tooling resolves this root to an absolute path before opening the
+queue, reading sources, or writing outputs, so running from a worktree does not
+create worktree-local artifacts.
 
 ## Main entrypoints
 
-- source image download: `pnpm main exec node scripts/image-processing/v2-ahs-image-review/download-catchup-source-images.ts`
-- queue sync: `pnpm main exec node scripts/image-processing/v2-ahs-image-review/sync.mjs`
 - review server: `pnpm main exec node scripts/image-processing/v2-ahs-image-review/server.mjs`
-- Codex-native generation: ask a Codex thread/agent to follow
-  `apps/main/scripts/image-processing/v2-ahs-image-review/codex-native-image-generation.md`
+- Codex-native generation: `pnpm images:generate --limit 20 --concurrency 10`
 - Legacy ChatGPT worker fallback: `pnpm main exec node scripts/image-processing/v2-ahs-image-review/chatgpt-worker-agent-browser.mjs --limit 50`
 
-## Linked Cultivar Catch-Up
+## Generation Flow
 
-The source download and queue sync are intentionally scoped to catch-up work:
+The Codex-native worker:
 
-1. Find listings linked to a `CultivarReference`.
-2. Skip cultivar references that already have a ready generated cultivar
-   `ImageAsset`.
-3. Download the current source image for the cultivar, preferring V2
+1. drains all existing retryable queue rows
+2. checks once for listings linked to a `CultivarReference` without a ready
+   generated cultivar `ImageAsset`
+3. skips cultivar references already recorded in `review.sqlite`
+4. downloads and queues every missing linked source, preferring V2
    `V2AhsCultivar.image_url` and falling back to legacy `AhsListing.ahsImageUrl`
-   when the V2 image is missing.
-4. Queue the downloaded source image by `CultivarReference.id`.
+   when V2 is missing
+5. drains the catch-up rows
+6. fills remaining capacity from the alphabetical non-linked backlog
 
-Start by pulling a fresh local prod copy. These scripts read
+Start by pulling a fresh local prod copy. The worker reads
 `prisma/local-prod-copy-daylily-catalog.db`; a stale copy from before the
 generated cultivar `ImageAsset` import will incorrectly queue already-covered
 cultivars.
@@ -49,23 +50,14 @@ Run:
 
 ```bash
 pnpm env:dev bash scripts/db-backup.sh
-pnpm main exec node scripts/image-processing/v2-ahs-image-review/download-catchup-source-images.ts --dry-run
-pnpm main exec node scripts/image-processing/v2-ahs-image-review/download-catchup-source-images.ts
-pnpm main exec node scripts/image-processing/v2-ahs-image-review/sync.mjs
+pnpm images:generate --limit 20 --concurrency 10
 ```
 
-Then ask a Codex thread/agent to generate images from the queue using
-`codex-native-image-generation.md`, spot-check the generated images in the local
-UI, and later run the generated cultivar ImageAsset/R2 backfill once the
-long-running generation pass is complete. Rows marked `review` are generated and
-importable; use `rejected` or `pending` only when a bad output needs manual
-action or regeneration.
+From a linked worktree, perform the [exceptional full-snapshot copy](../../../docs/db-backup-readme.md#linked-worktrees) before running generation.
 
-The generated cultivar R2 backfill reads `review` and legacy `approved` rows from
-`~/daylily-catalog-image-processing/v2-ahs-image-review/review.sqlite` and
-skips any cultivar reference that already has a ready generated cultivar
-`ImageAsset` in the database. It uses the database as the idempotency boundary;
-it does not issue R2 object-existence reads.
+Spot-check generated images in the local UI, then run the generated cultivar
+ImageAsset/R2 backfill. Rows marked `review` are generated and importable; use
+`rejected` or `pending` only when a bad output needs regeneration.
 
 ## Review UI
 

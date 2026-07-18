@@ -104,6 +104,7 @@ describe("runtime config route", () => {
         host: "https://eu.i.posthog.com",
       },
       features: {
+        imageModerationEnforced: false,
         publicCultivarSearch: false,
       },
     });

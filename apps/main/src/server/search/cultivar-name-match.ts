@@ -1,7 +1,6 @@
 import "server-only";
 
 import { createClient } from "@libsql/client";
-import { areGeneratedCultivarImageAssetsEnabledByDefault } from "@/config/feature-flags";
 import type {
   CultivarMatchCandidate,
   CultivarNameMatchResult,
@@ -75,9 +74,7 @@ function toMatchRow(row: Record<string, unknown>): CultivarMatchRow {
   const fallbackImageUrl =
     toStringOrNull(row.fallbackImageUrl) ?? toStringOrNull(row.imageUrl);
   const usesGeneratedImage = Boolean(
-    areGeneratedCultivarImageAssetsEnabledByDefault() &&
-      generatedImageUrl &&
-      generatedImageAssetId,
+    generatedImageUrl && generatedImageAssetId,
   );
 
   return {

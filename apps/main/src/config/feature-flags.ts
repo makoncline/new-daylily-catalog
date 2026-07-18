@@ -21,18 +21,19 @@ function readConfiguredRuntimeFeatureFlags(): RuntimeFeatureFlags {
   }
 }
 
-export function areGeneratedCultivarImageAssetsEnabledByDefault() {
-  return process.env.USE_GENERATED_CULTIVAR_IMAGE_ASSETS === "true";
-}
-
 export function isPublicCultivarSearchEnabled() {
   return getRuntimeFeatureFlags().publicCultivarSearch;
+}
+
+export function isImageModerationEnforced() {
+  return getRuntimeFeatureFlags().imageModerationEnforced;
 }
 
 export function getRuntimeFeatureFlags(): RuntimeFeatureFlags {
   const configured = readConfiguredRuntimeFeatureFlags();
 
   return {
+    imageModerationEnforced: configured.imageModerationEnforced,
     publicCultivarSearch: configured.publicCultivarSearch && !isVercel(),
   };
 }

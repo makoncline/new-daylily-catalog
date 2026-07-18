@@ -23,7 +23,6 @@ import {
 import {
   generatedCultivarImageAssetInclude,
   resolveCultivarReferenceImage,
-  shouldQueryGeneratedCultivarImageAssets,
 } from "@/server/services/cultivar-reference-image-read-model";
 
 export const publicListingSelect = {
@@ -58,9 +57,7 @@ export const publicListingSelect = {
       v2AhsCultivar: {
         select: v2AhsCultivarDisplaySelect,
       },
-      ...(shouldQueryGeneratedCultivarImageAssets()
-        ? { imageAssets: generatedCultivarImageAssetInclude }
-        : {}),
+      imageAssets: generatedCultivarImageAssetInclude,
     },
   },
   images: {

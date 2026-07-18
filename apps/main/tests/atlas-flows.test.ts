@@ -72,6 +72,23 @@ describe("Atlas flow contract", () => {
     );
   });
 
+  it("declares the profile-management journey at both supported sizes", () => {
+    const profile = getAtlasFlow("profile-management");
+
+    expect(profile.steps.map(({ title }) => title)).toEqual([
+      "Review the profile",
+      "Prepare profile edits",
+      "Inspect profile media",
+    ]);
+    expect(statesForFlow(profile)).toHaveLength(10);
+    expect(
+      getAtlasState("profile-management-desktop-populated").urlReproducible,
+    ).toBe(true);
+    expect(
+      getAtlasState("profile-management-mobile-url-warning").urlReproducible,
+    ).toBe(false);
+  });
+
   it("provides copy-paste confidence commands for a complete flow", () => {
     expect(confidenceCommandsForFlow(getAtlasFlow("list-management"))).toEqual([
       "pnpm main exec vitest run --maxWorkers=1 tests/manage-list-columns.test.ts tests/add-listings-combobox.test.tsx tests/dashboard-db-list-membership-sync.test.tsx tests/list-form-boundary-save.test.tsx tests/manage-list-page-membership-commit.test.tsx tests/use-list-resource.test.tsx",
@@ -88,6 +105,10 @@ describe("Atlas flow contract", () => {
       "Review the request",
     ]);
     expect(statesForFlow(buyerInquiry)).toHaveLength(8);
+    expect(confidenceCommandsForFlow(buyerInquiry)).toEqual([
+      "pnpm main exec vitest run --maxWorkers=1 tests/use-cart.test.tsx tests/contact-form.test.tsx tests/floating-cart-button.test.tsx tests/public-inquiry.test.ts tests/public-inquiry-rate-limit.test.ts tests/public-router-send-message.test.ts",
+      "node apps/main/scripts/run-integration-local.mjs tests/integration/buyer-inquiry-email.integration.ts",
+    ]);
   });
 
   it("declares the public cultivar search journey at both supported sizes", () => {

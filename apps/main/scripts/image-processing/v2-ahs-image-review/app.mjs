@@ -3,10 +3,17 @@ const itemsGridEl = document.getElementById("items-grid");
 const pathsEl = document.getElementById("paths");
 const syncButtonEl = document.getElementById("sync-button");
 const refreshButtonEl = document.getElementById("refresh-button");
+const approveAllButtonEl = document.getElementById("approve-all-button");
+const approveAllDialogEl = document.getElementById("approve-all-dialog");
+const approveAllCountEl = document.getElementById("approve-all-count");
+const approveAllCancelEl = document.getElementById("approve-all-cancel");
+const approveAllConfirmEl = document.getElementById("approve-all-confirm");
 const pageLabelEl = document.getElementById("page-label");
 const actionMessageEl = document.getElementById("action-message");
 
-const REVIEW_LIMIT = 1000;
+let approvingAll = false;
+let approveAllIds = [];
+let reviewCount = 0;
 
 function escapeHtml(value) {
   return String(value)
@@ -38,6 +45,11 @@ function renderCounts(counts) {
         `<div class="status-cell"><div class="count-label">${escapeHtml(label)}</div><div class="count-value">${escapeHtml(value)}</div></div>`,
     )
     .join("");
+
+  reviewCount = Number(counts.review ?? 0);
+  if (approveAllButtonEl instanceof HTMLButtonElement) {
+    approveAllButtonEl.disabled = approvingAll || reviewCount === 0;
+  }
 }
 
 function setActionMessage(message, kind = "") {
@@ -104,7 +116,7 @@ function renderQueueItem(item) {
   `;
 }
 
-function renderItems(items, paging, total) {
+function renderItems(items, total) {
   if (!itemsGridEl) {
     return;
   }
@@ -186,10 +198,7 @@ itemsGridEl?.addEventListener("click", async (event) => {
 });
 
 async function loadState() {
-  const response = await fetch(
-    `/api/state?limit=${encodeURIComponent(REVIEW_LIMIT)}&offset=0`,
-    { cache: "no-store" },
-  );
+  const response = await fetch("/api/state", { cache: "no-store" });
   const state = await response.json();
   renderCounts(state.counts);
 
@@ -197,11 +206,7 @@ async function loadState() {
     pathsEl.innerHTML = `Originals: <code>${escapeHtml(state.paths.originals)}</code><br />Edited: <code>${escapeHtml(state.paths.edited)}</code><br />Queue DB: <code>${escapeHtml(state.paths.db)}</code>`;
   }
 
-  renderItems(
-    state.items ?? [],
-    state.paging ?? { limit: REVIEW_LIMIT, offset: 0 },
-    state.counts.review,
-  );
+  renderItems(state.items ?? [], state.counts.review);
 }
 
 syncButtonEl?.addEventListener("click", async () => {
@@ -221,6 +226,76 @@ syncButtonEl?.addEventListener("click", async () => {
 
 refreshButtonEl?.addEventListener("click", async () => {
   await loadState();
+});
+
+approveAllButtonEl?.addEventListener("click", () => {
+  if (!(approveAllDialogEl instanceof HTMLDialogElement) || reviewCount === 0) {
+    return;
+  }
+
+  approveAllIds = Array.from(
+    itemsGridEl?.querySelectorAll(".queue-item [data-id]") ?? [],
+  )
+    .map((element) => element.getAttribute("data-id"))
+    .filter((id, index, ids) => id && ids.indexOf(id) === index);
+
+  if (approveAllIds.length === 0) {
+    return;
+  }
+
+  if (approveAllCountEl) {
+    approveAllCountEl.textContent = String(approveAllIds.length);
+  }
+  approveAllDialogEl.showModal();
+});
+
+approveAllCancelEl?.addEventListener("click", () => {
+  if (approveAllDialogEl instanceof HTMLDialogElement) {
+    approveAllDialogEl.close();
+  }
+});
+
+approveAllConfirmEl?.addEventListener("click", async () => {
+  if (!(approveAllDialogEl instanceof HTMLDialogElement)) {
+    return;
+  }
+
+  approveAllDialogEl.close();
+  approvingAll = true;
+  if (approveAllButtonEl instanceof HTMLButtonElement) {
+    approveAllButtonEl.disabled = true;
+  }
+  setActionMessage(`Approving ${approveAllIds.length} images...`);
+
+  try {
+    const response = await fetch("/api/approve-all", {
+      method: "POST",
+      headers: {
+        accept: "application/json",
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({ ids: approveAllIds }),
+      cache: "no-store",
+      credentials: "same-origin",
+    });
+    const payload = await response.json().catch(() => ({}));
+
+    if (!response.ok || payload.ok !== true) {
+      throw new Error(payload.error || `HTTP ${response.status}`);
+    }
+
+    await loadState();
+    setActionMessage(`Approved ${payload.updated} images`, "ok");
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    setActionMessage(`Approve all failed: ${message}`, "error");
+  } finally {
+    approveAllIds = [];
+    approvingAll = false;
+    if (approveAllButtonEl instanceof HTMLButtonElement) {
+      approveAllButtonEl.disabled = reviewCount === 0;
+    }
+  }
 });
 
 window.setInterval(() => {

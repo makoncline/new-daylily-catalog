@@ -6,9 +6,10 @@ import { fileURLToPath } from "node:url";
 
 const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url));
 const APP_ROOT = path.resolve(SCRIPT_DIR, "../../..");
-const DATA_ROOT =
+const DATA_ROOT = path.resolve(
   process.env.V2_AHS_IMAGE_REVIEW_DATA_ROOT ||
-  path.join(os.homedir(), "daylily-catalog-image-processing");
+    path.join(os.homedir(), "daylily-catalog-image-processing"),
+);
 const REVIEW_ROOT = path.join(DATA_ROOT, "v2-ahs-image-review");
 const REVIEW_DB_PATH = path.join(REVIEW_ROOT, "review.sqlite");
 const PROD_COPY_DB_PATH = path.join(

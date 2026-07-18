@@ -1,5 +1,11 @@
 import { createHash } from "node:crypto";
-import { mkdirSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { backup, DatabaseSync } from "node:sqlite";
@@ -77,6 +83,25 @@ export function resolveRealisticDataOutputPath({
     );
   }
   return outputPath;
+}
+
+/**
+ * @param {{ primaryAppRoot: string; configuredPath?: string; cwd?: string }} options
+ */
+export function resolveRealisticDataSourcePath({
+  primaryAppRoot,
+  configuredPath,
+  cwd = process.cwd(),
+}) {
+  const sourcePath = configuredPath
+    ? path.resolve(cwd, configuredPath)
+    : path.join(primaryAppRoot, "prisma", "local-prod-copy-daylily-catalog.db");
+  if (!existsSync(sourcePath)) {
+    throw new Error(
+      "No production snapshot found. Run the backup command or set REALISTIC_DATA_SOURCE_DB_PATH.",
+    );
+  }
+  return sourcePath;
 }
 
 /**

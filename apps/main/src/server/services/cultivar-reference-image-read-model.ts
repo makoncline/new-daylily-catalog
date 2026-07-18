@@ -1,4 +1,3 @@
-import { areGeneratedCultivarImageAssetsEnabledByDefault } from "@/config/feature-flags";
 import { getCloudflareUrlForDaylilyS3Image } from "@/lib/utils/cloudflareLoader";
 import {
   imageAssetUrlSelect,
@@ -16,10 +15,6 @@ export const generatedCultivarImageAssetInclude = {
   orderBy: [{ order: "asc" as const }, { createdAt: "asc" as const }],
   take: 1,
 };
-
-export function shouldQueryGeneratedCultivarImageAssets() {
-  return areGeneratedCultivarImageAssetsEnabledByDefault();
-}
 
 export interface CultivarReferenceImageView {
   id: string;
@@ -49,9 +44,7 @@ export function resolveCultivarReferenceImage(args: {
   fallbackImageUrl?: string | null;
   imageAssets?: readonly ImageAssetUrlRow[] | null;
 }): CultivarReferenceImageView | null {
-  const generatedAssetRow = shouldQueryGeneratedCultivarImageAssets()
-    ? (args.imageAssets?.[0] ?? null)
-    : null;
+  const generatedAssetRow = args.imageAssets?.[0] ?? null;
   const generatedAsset = generatedAssetRow
     ? toImageAssetView(generatedAssetRow)
     : null;

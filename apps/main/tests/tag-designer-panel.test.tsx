@@ -5,7 +5,7 @@ import {
   waitFor,
   within,
 } from "@testing-library/react";
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
   createTagPrintDocumentHtml,
   createTagSheetDocumentHtml,
@@ -48,21 +48,31 @@ const multipleListings: TagListingData[] = [
   },
 ];
 
+function openSheetCreator() {
+  fireEvent.click(screen.getByRole("button", { name: "Make sheet" }));
+}
+
 describe("TagDesignerPanel", () => {
   beforeEach(() => {
     localStorage.clear();
   });
 
-  it("shows a single download button that is enabled when listings are selected", () => {
+  it("keeps one primary print action with secondary output options", () => {
     const { rerender } = render(<TagDesignerPanel listings={[]} />);
-    const disabledDownloadButton = screen.getByRole("button", {
-      name: "Download",
+    const disabledOutputButton = screen.getByRole("button", {
+      name: "Output options",
     });
-    expect(disabledDownloadButton).toBeDisabled();
+    expect(disabledOutputButton).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Make sheet" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Print" })).toBeDisabled();
 
     rerender(<TagDesignerPanel listings={sampleListings} />);
-    const downloadButton = screen.getByRole("button", { name: "Download" });
-    expect(downloadButton).toBeEnabled();
+    expect(
+      screen.getByRole("button", { name: "Output options" }),
+    ).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Make sheet" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Print" })).toBeEnabled();
+    expect(screen.getByText(/100%/)).toBeInTheDocument();
   });
 
   it("shows tag sizes in a select and reveals custom size inputs", () => {
@@ -102,7 +112,6 @@ describe("TagDesignerPanel", () => {
     await waitFor(() => {
       expect(widthInput).toHaveValue(4.2);
       expect(heightInput).toHaveValue(1.75);
-      expect(screen.getByText('Active: 4.20" × 1.75"')).toBeInTheDocument();
     });
   });
 
@@ -118,6 +127,7 @@ describe("TagDesignerPanel", () => {
     const { unmount } = render(<TagDesignerPanel listings={sampleListings} />);
 
     expect(screen.getByText("Moonlit Smile")).toBeInTheDocument();
+    expect(screen.getByText("Moonlit Smile")).toHaveClass("w-full");
     expect(screen.getByText(/Smith/)).toBeInTheDocument();
     expect(screen.getByText(/2015/)).toBeInTheDocument();
 
@@ -132,7 +142,7 @@ describe("TagDesignerPanel", () => {
   it("opens sheet creator dialog from Make Sheet with one-tag defaults", () => {
     render(<TagDesignerPanel listings={sampleListings} />);
 
-    fireEvent.click(screen.getByRole("button", { name: "Make Sheet" }));
+    openSheetCreator();
 
     expect(
       screen.getByRole("heading", { name: "Sheet Creator" }),
@@ -155,13 +165,16 @@ describe("TagDesignerPanel", () => {
     expect(
       screen.getByRole("heading", { name: "Sheet Preview" }),
     ).toBeInTheDocument();
+    expect(
+      within(screen.getByRole("dialog")).getByText("Moonlit Smile"),
+    ).toHaveClass("w-full");
     expect(screen.getByRole("button", { name: "Print Sheets" })).toBeEnabled();
   });
 
   it("resets copies per label to 1 each time the sheet dialog opens", async () => {
     render(<TagDesignerPanel listings={sampleListings} />);
 
-    fireEvent.click(screen.getByRole("button", { name: "Make Sheet" }));
+    openSheetCreator();
     const dialog = screen.getByRole("dialog");
     fireEvent.click(
       within(dialog).getByRole("button", { name: "Print quantity" }),
@@ -175,7 +188,7 @@ describe("TagDesignerPanel", () => {
 
     fireEvent.click(within(dialog).getByRole("button", { name: "Close" }));
 
-    fireEvent.click(screen.getByRole("button", { name: "Make Sheet" }));
+    openSheetCreator();
     const reopenedDialog = screen.getByRole("dialog");
     fireEvent.click(
       within(reopenedDialog).getByRole("button", { name: "Print quantity" }),
@@ -191,7 +204,7 @@ describe("TagDesignerPanel", () => {
   it("shows copy totals and groups the same label first in sheet preview", async () => {
     render(<TagDesignerPanel listings={multipleListings} />);
 
-    fireEvent.click(screen.getByRole("button", { name: "Make Sheet" }));
+    openSheetCreator();
     const dialog = screen.getByRole("dialog");
 
     const columnsInput = within(dialog).getByLabelText("Columns");
@@ -227,7 +240,7 @@ describe("TagDesignerPanel", () => {
 
   it("defers commit for all sheet number fields until blur", () => {
     render(<TagDesignerPanel listings={sampleListings} />);
-    fireEvent.click(screen.getByRole("button", { name: "Make Sheet" }));
+    openSheetCreator();
     const dialog = screen.getByRole("dialog");
 
     const scenarios = [
@@ -266,7 +279,7 @@ describe("TagDesignerPanel", () => {
 
   it("defers numeric validation until blur and supports +/- buttons", () => {
     render(<TagDesignerPanel listings={sampleListings} />);
-    fireEvent.click(screen.getByRole("button", { name: "Make Sheet" }));
+    openSheetCreator();
 
     const rowsInput = screen.getByLabelText("Rows");
     fireEvent.change(rowsInput, { target: { value: "" } });
@@ -286,22 +299,220 @@ describe("TagDesignerPanel", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("lets cell option number inputs stay empty until blur", () => {
+  it("keeps template content selected when size and QR settings change", () => {
     render(<TagDesignerPanel listings={sampleListings} />);
 
-    const widthInput = screen.getAllByTitle("Column width (fr units)")[0]!;
-    fireEvent.change(widthInput, { target: { value: "" } });
-    expect(widthInput).toHaveValue(null);
-    fireEvent.change(widthInput, { target: { value: "2" } });
-    fireEvent.blur(widthInput);
-    expect(widthInput).toHaveValue(2);
+    const gardenId = screen.getByRole("button", { name: /Garden ID/i });
+    expect(gardenId).toHaveAttribute("aria-pressed", "true");
 
-    const fontSizeInput = screen.getAllByTitle("Font size (px)")[0]!;
-    fireEvent.change(fontSizeInput, { target: { value: "" } });
-    expect(fontSizeInput).toHaveValue(null);
-    fireEvent.change(fontSizeInput, { target: { value: "18" } });
-    fireEvent.blur(fontSizeInput);
-    expect(fontSizeInput).toHaveValue(18);
+    fireEvent.change(screen.getByLabelText("Tag Size"), {
+      target: { value: "card-2x3.5" },
+    });
+    fireEvent.click(screen.getByLabelText("Include QR code"));
+
+    expect(gardenId).toHaveAttribute("aria-pressed", "true");
+    expect(screen.queryByLabelText("Custom template")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /Grower details/i }));
+    expect(screen.getByLabelText("Include QR code")).not.toBeChecked();
+    expect(screen.getByLabelText("Tag Size")).toHaveValue("card-2x4");
+  });
+
+  it("uses presets by default and reveals a simple custom template editor", () => {
+    render(<TagDesignerPanel listings={sampleListings} />);
+
+    expect(
+      screen.getByRole("button", { name: /Simple name/i }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /Garden ID/i }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /Sale tag/i }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /Grower details/i }),
+    ).toBeInTheDocument();
+    expect(screen.queryByTitle("Column width (fr units)")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Add Row" })).toBeNull();
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Customize this template" }),
+    );
+    const editor = screen.getByLabelText("Custom template");
+    fireEvent.change(editor, {
+      target: {
+        value: "{{title}}\n{{hybridizerYear}} · {{price}}",
+      },
+    });
+
+    expect(screen.getByText("Smith, 2015 · $18.50")).toBeInTheDocument();
+  });
+
+  it("does not erase formatting syntax while the user is typing", () => {
+    render(<TagDesignerPanel listings={sampleListings} />);
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Customize this template" }),
+    );
+    const editor = screen.getByLabelText("Custom template");
+
+    fireEvent.change(editor, { target: { value: "# " } });
+    expect(editor).toHaveValue("# ");
+
+    fireEvent.change(editor, { target: { value: "# {{title}}\n" } });
+    expect(editor).toHaveValue("# {{title}}\n");
+  });
+
+  it("checks readability warnings for selected tags beyond the visible eight", () => {
+    const listings = Array.from({ length: 9 }, (_, index) => ({
+      ...sampleListings[0]!,
+      id: `listing-${index + 1}`,
+      title:
+        index === 8
+          ? "An exceptionally long cultivar name that must shrink far below the readable size"
+          : `Cultivar ${index + 1}`,
+    }));
+    render(<TagDesignerPanel listings={listings} />);
+
+    expect(screen.getByText("Showing first 8 of 9 tags")).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "Some text shrinks below 10px. Use a wider tag or fewer fields.",
+      ),
+    ).toBeInTheDocument();
+  });
+
+  it("gives AI complete custom-template instructions", () => {
+    render(<TagDesignerPanel listings={sampleListings} />);
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Customize this template" }),
+    );
+    fireEvent.click(
+      screen.getByRole("button", { name: "Get AI instructions" }),
+    );
+
+    const instructions = screen.getByLabelText("AI template instructions");
+    expect((instructions as HTMLTextAreaElement).value).toContain(
+      "{{hybridizerYear}}: Hybridizer, Year",
+    );
+    expect((instructions as HTMLTextAreaElement).value).toContain(
+      "{{privateNote}}: Private Note",
+    );
+    expect((instructions as HTMLTextAreaElement).value).toContain(
+      'Tag size: 3.50" × 1.00"',
+    );
+  });
+
+  it("guards and persists custom templates in this browser", () => {
+    const { unmount } = render(<TagDesignerPanel listings={sampleListings} />);
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Customize this template" }),
+    );
+    fireEvent.change(screen.getByLabelText("Template name"), {
+      target: { value: "Propagation tag" },
+    });
+    fireEvent.change(screen.getByLabelText("Custom template"), {
+      target: { value: "{{title}} | {{year}} | {{price}}" },
+    });
+
+    expect(
+      screen.getByText("Use no more than two columns per row."),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Save as template" }),
+    ).toBeDisabled();
+
+    fireEvent.change(screen.getByLabelText("Custom template"), {
+      target: { value: "# {{title}}\n- {{privateNote}}" },
+    });
+    expect(
+      screen.getByText("Private notes will be printed on the tag."),
+    ).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Save as template" }));
+    expect(
+      screen.getByRole("button", { name: "Propagation tag" }),
+    ).toBeInTheDocument();
+    expect(screen.queryByLabelText("Custom template")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Propagation tag" }));
+    fireEvent.click(
+      screen.getByRole("button", { name: "Customize this template" }),
+    );
+    fireEvent.change(screen.getByLabelText("Template name"), {
+      target: { value: "Renamed propagation tag" },
+    });
+    fireEvent.change(screen.getByLabelText("Custom template"), {
+      target: { value: "# {{title}}\n{{price}}" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Save changes" }));
+    expect(
+      screen.queryByRole("button", { name: "Propagation tag" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Renamed propagation tag" }),
+    ).toBeInTheDocument();
+    expect(screen.queryByLabelText("Custom template")).not.toBeInTheDocument();
+
+    unmount();
+    render(<TagDesignerPanel listings={sampleListings} />);
+    expect(
+      screen.getByRole("button", { name: "Renamed propagation tag" }),
+    ).toBeInTheDocument();
+  });
+
+  it("discards an unsaved custom layout back to Garden ID", () => {
+    const { unmount } = render(<TagDesignerPanel listings={sampleListings} />);
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Customize this template" }),
+    );
+    fireEvent.change(screen.getByLabelText("Custom template"), {
+      target: { value: "# {{title}}\n{{price}}" },
+    });
+    unmount();
+
+    render(<TagDesignerPanel listings={sampleListings} />);
+    expect(screen.getByLabelText("Custom template")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Discard changes" }));
+
+    expect(screen.queryByLabelText("Custom template")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Garden ID/i })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+  });
+
+  it("can discard after deleting the template being customized", () => {
+    vi.spyOn(window, "confirm").mockReturnValue(true);
+    render(<TagDesignerPanel listings={sampleListings} />);
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Customize this template" }),
+    );
+    fireEvent.change(screen.getByLabelText("Template name"), {
+      target: { value: "Temporary template" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Save as template" }));
+    fireEvent.click(screen.getByRole("button", { name: "Temporary template" }));
+    fireEvent.click(
+      screen.getByRole("button", { name: "Customize this template" }),
+    );
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: "Delete template Temporary template",
+      }),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Discard changes" }));
+
+    expect(screen.queryByLabelText("Custom template")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Garden ID/i })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
   });
 });
 
@@ -320,7 +531,7 @@ describe("createTagPrintDocumentHtml", () => {
                 {
                   id: "cell-1",
                   text: "Title: Moonlit Smile",
-                  width: 1,
+                  width: 2,
                   textAlign: "left",
                   fontSize: 12,
                   bold: true,
@@ -339,6 +550,11 @@ describe("createTagPrintDocumentHtml", () => {
                 },
               ],
             },
+            {
+              id: "spacer-1",
+              cells: [],
+              isSpacer: true,
+            },
           ],
         },
       ],
@@ -349,6 +565,45 @@ describe("createTagPrintDocumentHtml", () => {
     expect(html).toContain("text-decoration: underline");
     expect(html).toContain("text-align: left");
     expect(html).toContain("text-align: right");
+    expect(html).toContain("flex: 2 1 0");
+    expect(html).toContain("flex: 1 1 0");
+    expect(html).toContain('class="row spacer"');
+    expect(html).toContain(".row > .cell:only-child");
+  });
+
+  it("keeps text on one line and places the QR in a fixed right column", () => {
+    const html = createTagPrintDocumentHtml({
+      widthInches: 3.5,
+      heightInches: 1,
+      tags: [
+        {
+          id: "tag-1",
+          qrCodeUrl: "https://example.com/moonlit-smile",
+          rows: [
+            {
+              id: "row-1",
+              cells: [
+                {
+                  id: "cell-1",
+                  text: "Moonlit Smile",
+                  width: 1,
+                  textAlign: "left",
+                  fontSize: 22,
+                  bold: true,
+                  italic: false,
+                  underline: false,
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    });
+
+    expect(html).toContain("grid-template-columns: minmax(0, 1fr) auto");
+    expect(html).toContain("justify-content: space-between");
+    expect(html).toContain("white-space: nowrap");
+    expect(html).not.toContain("padding-bottom: 0.6in");
   });
 
   it("renders sheet pages with configured rows and columns", () => {

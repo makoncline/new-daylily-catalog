@@ -1,3 +1,5 @@
+// @ts-nocheck
+
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -6,9 +8,10 @@ import { DatabaseSync } from "node:sqlite";
 
 const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url));
 export const APP_ROOT = path.resolve(SCRIPT_DIR, "../../..");
-export const DATA_ROOT =
+export const DATA_ROOT = path.resolve(
   process.env.V2_AHS_IMAGE_REVIEW_DATA_ROOT ||
-  path.join(os.homedir(), "daylily-catalog-image-processing");
+    path.join(os.homedir(), "daylily-catalog-image-processing"),
+);
 export const LOCAL_RUNTIME_ROOT = path.join(
   DATA_ROOT,
   "v2-ahs-image-review",
@@ -18,10 +21,9 @@ export const REVIEW_ROOT = path.join(DATA_ROOT, "v2-ahs-image-review");
 export const REVIEW_DB_PATH = path.join(REVIEW_ROOT, "review.sqlite");
 export const REVIEW_EDITED_DIR = path.join(REVIEW_ROOT, "edited");
 export const ORIGINALS_DIR = path.join(DATA_ROOT, "v2-ahs-images");
-export const PROD_COPY_DB_PATH = path.join(
-  APP_ROOT,
-  "prisma",
-  "local-prod-copy-daylily-catalog.db",
+export const PROD_COPY_DB_PATH = path.resolve(
+  process.env.V2_AHS_PROD_COPY_DB_PATH ||
+    path.join(APP_ROOT, "prisma", "local-prod-copy-daylily-catalog.db"),
 );
 
 function nowIso() {
@@ -57,7 +59,20 @@ export function ensureStorage() {
 
 export function openQueueDb() {
   ensureStorage();
-  return new DatabaseSync(REVIEW_DB_PATH);
+  const database = new DatabaseSync(REVIEW_DB_PATH);
+  database.exec("PRAGMA busy_timeout = 30000");
+  return database;
+}
+
+export function prepareQueueDbForConcurrentWrites() {
+  const database = openQueueDb();
+
+  try {
+    database.prepare("PRAGMA journal_mode = WAL").get();
+    database.exec("PRAGMA synchronous = NORMAL");
+  } finally {
+    database.close();
+  }
 }
 
 export function ensureSchema(database) {
@@ -71,12 +86,23 @@ export function ensureSchema(database) {
       "attempts" INTEGER NOT NULL DEFAULT 0,
       "lastError" TEXT,
       "promptVersion" TEXT,
+      "codexNativeAgentId" TEXT,
       "createdAt" TEXT NOT NULL,
       "updatedAt" TEXT NOT NULL
     );
     CREATE INDEX IF NOT EXISTS "v2_image_review_queue_status_updated_idx"
       ON "v2_image_review_queue"("status", "updatedAt");
   `);
+
+  const columns = database
+    .prepare(`PRAGMA table_info("v2_image_review_queue")`)
+    .all();
+
+  if (!columns.some((column) => column.name === "codexNativeAgentId")) {
+    database.exec(
+      `ALTER TABLE "v2_image_review_queue" ADD COLUMN "codexNativeAgentId" TEXT`,
+    );
+  }
 }
 
 function readQueueItem(database, id) {
@@ -92,6 +118,7 @@ function readQueueItem(database, id) {
         "attempts",
         "lastError",
         "promptVersion",
+        "codexNativeAgentId",
         "createdAt",
         "updatedAt"
       FROM "v2_image_review_queue"
@@ -114,6 +141,10 @@ function readQueueItem(database, id) {
     lastError: typeof row.lastError === "string" ? row.lastError : null,
     promptVersion:
       typeof row.promptVersion === "string" ? row.promptVersion : null,
+    codexNativeAgentId:
+      typeof row.codexNativeAgentId === "string"
+        ? row.codexNativeAgentId
+        : null,
     createdAt: String(row.createdAt),
     updatedAt: String(row.updatedAt),
   };
@@ -435,7 +466,7 @@ export function getItem(preferredId = null) {
   }
 }
 
-export function getItems({ limit = 6, offset = 0 } = {}) {
+export function getItems() {
   const database = openQueueDb();
 
   try {
@@ -462,11 +493,9 @@ export function getItems({ limit = 6, offset = 0 } = {}) {
         ORDER BY
           "updatedAt" ASC,
           "id" ASC
-        LIMIT ?
-        OFFSET ?
       `,
       )
-      .all(limit, offset);
+      .all();
 
     return rows.map((row) => ({
       id: String(row.id),
@@ -544,6 +573,7 @@ export function updateStatus(id, status, options = {}) {
           "lastError" = ?,
           "editedPath" = ?,
           "promptVersion" = ?,
+          "codexNativeAgentId" = ?,
           "attempts" = ?,
           "updatedAt" = ?
         WHERE "id" = ?
@@ -560,12 +590,120 @@ export function updateStatus(id, status, options = {}) {
         Object.hasOwn(options, "promptVersion")
           ? options.promptVersion
           : item.promptVersion,
+        Object.hasOwn(options, "codexNativeAgentId")
+          ? options.codexNativeAgentId
+          : ["pending", "failed", "rejected"].includes(status)
+            ? null
+            : item.codexNativeAgentId,
         options.incrementAttempts ? item.attempts + 1 : item.attempts,
         nowIso(),
         id,
       );
 
     return true;
+  } finally {
+    database.close();
+  }
+}
+
+export function approveReviewItems(ids) {
+  const uniqueIds = [...new Set(ids)];
+  if (uniqueIds.length === 0) return 0;
+
+  const database = openQueueDb();
+
+  try {
+    ensureSchema(database);
+    database.exec("BEGIN IMMEDIATE TRANSACTION");
+    let approved = 0;
+
+    for (let offset = 0; offset < uniqueIds.length; offset += 1_000) {
+      const chunk = uniqueIds.slice(offset, offset + 1_000);
+      const placeholders = chunk.map(() => "?").join(", ");
+      const result = database
+        .prepare(
+          `
+          UPDATE "v2_image_review_queue"
+          SET
+            "status" = 'approved',
+            "updatedAt" = ?
+          WHERE "status" = 'review'
+            AND "id" IN (${placeholders})
+        `,
+        )
+        .run(nowIso(), ...chunk);
+      approved += Number(result.changes);
+    }
+
+    database.exec("COMMIT");
+    return approved;
+  } catch (error) {
+    try {
+      database.exec("ROLLBACK");
+    } catch {}
+    throw error;
+  } finally {
+    database.close();
+  }
+}
+
+export function assignCodexNativeAgent(id, agentId) {
+  const database = openQueueDb();
+
+  try {
+    ensureSchema(database);
+    database.exec("BEGIN IMMEDIATE TRANSACTION");
+
+    const row = database
+      .prepare(
+        `
+          SELECT "status", "codexNativeAgentId"
+          FROM "v2_image_review_queue"
+          WHERE "id" = ?
+        `,
+      )
+      .get(id);
+
+    if (!row) {
+      throw new Error(`Queue row does not exist: ${id}`);
+    }
+
+    const canAssign =
+      ["pending", "failed", "rejected"].includes(String(row.status)) ||
+      (row.status === "processing" &&
+        (!row.codexNativeAgentId || row.codexNativeAgentId === agentId));
+
+    if (!canAssign) {
+      throw new Error(
+        `Queue row ${id} cannot be assigned from status ${row.status}`,
+      );
+    }
+
+    database
+      .prepare(
+        `
+          UPDATE "v2_image_review_queue"
+          SET
+            "status" = 'processing',
+            "codexNativeAgentId" = ?,
+            "lastError" = NULL,
+            "attempts" = CASE
+              WHEN "status" IN ('pending', 'failed', 'rejected')
+                THEN "attempts" + 1
+              ELSE "attempts"
+            END,
+            "updatedAt" = ?
+          WHERE "id" = ?
+        `,
+      )
+      .run(agentId, nowIso(), id);
+
+    database.exec("COMMIT");
+  } catch (error) {
+    try {
+      database.exec("ROLLBACK");
+    } catch {}
+    throw error;
   } finally {
     database.close();
   }
@@ -627,6 +765,7 @@ export function claimNextPendingItem(preferredId = null) {
         UPDATE "v2_image_review_queue"
         SET
           "status" = 'processing',
+          "codexNativeAgentId" = NULL,
           "lastError" = NULL,
           "attempts" = "attempts" + 1,
           "updatedAt" = ?

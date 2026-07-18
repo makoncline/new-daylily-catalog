@@ -30,7 +30,7 @@ import {
   getUserImageOwnerWhere,
 } from "@/server/services/user-image-records";
 import { captureServerPosthogEvent } from "@/server/analytics/posthog-server";
-import { parseBooleanEnv } from "@/env";
+import { isImageModerationEnforced } from "@/config/feature-flags";
 import { reportError } from "@/lib/error-utils";
 import { after } from "next/server";
 import {
@@ -396,8 +396,7 @@ export const dashboardDbImageRouter = createTRPCRouter({
         process.env.OPENAI_IMAGE_MODERATION_API_KEY?.trim(),
       );
       const moderationEnforced =
-        moderationEnabled &&
-        parseBooleanEnv(process.env.IMAGE_MODERATION_ENFORCED);
+        moderationEnabled && isImageModerationEnforced();
       if (moderationEnforced) {
         if (!input.imageDataUrl) {
           return { moderationRequired: true } as const;

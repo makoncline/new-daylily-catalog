@@ -1,7 +1,6 @@
 // @vitest-environment node
 
 import {
-  afterEach,
   beforeAll,
   beforeEach,
   describe,
@@ -16,9 +15,6 @@ process.env.DATABASE_URL ??= "file:./tests/.tmp/dashboard-db-ahs.sqlite";
 
 type RouterModule = typeof import("@/server/api/routers/dashboard-db/ahs");
 let dashboardDbAhsRouter: RouterModule["dashboardDbAhsRouter"];
-
-const originalUseGeneratedCultivarImageAssets =
-  process.env.USE_GENERATED_CULTIVAR_IMAGE_ASSETS;
 
 beforeAll(async () => {
   ({ dashboardDbAhsRouter } = await import(
@@ -54,16 +50,6 @@ function createCaller(db: MockDb, replicaDb = db) {
 describe("dashboardDb.ahs", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-  });
-
-  afterEach(() => {
-    if (originalUseGeneratedCultivarImageAssets === undefined) {
-      delete process.env.USE_GENERATED_CULTIVAR_IMAGE_ASSETS;
-    } else {
-      process.env.USE_GENERATED_CULTIVAR_IMAGE_ASSETS =
-        originalUseGeneratedCultivarImageAssets;
-    }
-
   });
 
   it("returns V2-mapped cultivar detail data", async () => {
@@ -170,9 +156,7 @@ describe("dashboardDb.ahs", () => {
     expect(db.cultivarReference.findUnique).not.toHaveBeenCalled();
   });
 
-  it("uses generated-only image assets when the server flag is enabled", async () => {
-    process.env.USE_GENERATED_CULTIVAR_IMAGE_ASSETS = "true";
-
+  it("uses generated-only image assets", async () => {
     const db = createMockDb();
     db.cultivarReference.findUnique.mockResolvedValue({
       id: "cr-generated-only",

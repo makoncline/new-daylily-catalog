@@ -58,10 +58,90 @@ execution is allowed for saving, copying, inspecting, and verifying the
 generated PNG artifact; it should not be used to algorithmically transform the
 original source image.
 
-## Worker Contract
+## Automated Worker
 
-For each queue row, use one fresh subagent for generation and keep all queue
-state changes in the main thread:
+Run a bounded rolling pool:
+
+```bash
+pnpm images:generate \
+  --limit 20 \
+  --concurrency 10
+```
+
+Each bounded run drains the existing queue first, performs one linked-listing
+catch-up check against the local prod copy, drains newly queued catch-up rows,
+then adds alphabetical non-linked work until it reaches `--limit`.
+The startup log reports the local prod copy's path, modification time, and
+human-readable age so stale snapshots are visible before generation proceeds.
+
+For one specific row:
+
+```bash
+pnpm images:generate \
+  --id cr-ahs-12345
+```
+
+The worker starts a fresh `codex exec` session for each source image. It records
+the `thread.started` session id before generation completes, then promotes only
+the PNG in that session's generated-images directory. A row moves to `review`
+only after the candidate and edited copies exist. Its durable log is:
+
+```text
+~/daylily-catalog-image-processing/v2-ahs-image-review/codex-native-worker.log
+~/daylily-catalog-image-processing/v2-ahs-image-review/codex-native-runs/{run-id}.log
+~/daylily-catalog-image-processing/v2-ahs-image-review/codex-native-runs/{run-id}.events.jsonl
+```
+
+The cumulative log spans all runs. Each run also gets a readable lifecycle log
+and a raw JSONL event log tagged with the queue id. Progress lines report
+completed work against `--limit`, successful images against completed threads,
+the success percentage, failures, and active workers. Queue snapshots show
+status counts before recovery, after recovery, and at completion. Successful
+thread lines confirm promotion to `review` and include latency and token usage;
+the final performance line reports wall time, throughput, latency percentiles,
+and aggregate usage. If a thread finishes without an image, its captured textual
+response is printed in the run log.
+
+The worker also reads account-wide Codex usage at startup, every three minutes,
+and at completion. These lines report used and remaining quota, reset time,
+account token change, percentage-point change, and estimated usage per minute.
+After the completion sample, a `codex usage run` line compares it directly with
+the startup baseline and reports the total account-wide quota change and average
+rate for the full run. The final `performance` line separately reports exact
+worker-only token totals captured from generation events.
+Other concurrent Codex work is included in the account-wide rate. Override the
+sampling interval with `--usage-interval-minutes`.
+
+Only one worker may use the shared review database at a time. An active worker
+holds `codex-native-worker.lock`; a second invocation exits before recovery or
+queue writes. A stale lock from a crashed process is removed automatically on
+the next run.
+Startup logs the resolved absolute queue, source, review-output, and Codex
+generated-image roots. `SIGINT` and `SIGTERM` are recorded explicitly; active
+rows return to `pending` and are counted as interrupted rather than failed.
+
+Generation sessions use an isolated Codex home under the external review root.
+They disable skill discovery and injection, Chronicle, memories, plugins, apps,
+browser/computer tools, and multi-agent support while explicitly retaining
+image generation. The isolated home links only the existing Codex
+authentication file; personal configuration, MCP servers, skills, memory,
+napkin, and repo instructions are not loaded.
+
+`--limit` bounds the total attempted rows. `--concurrency` defaults to 10 and
+`--timeout-minutes` defaults to 15. Generation agents default to
+`gpt-5.6-luna` with high reasoning; override them with `--model` and `--effort`
+or `CODEX_IMAGE_AGENT_MODEL` and `CODEX_IMAGE_AGENT_EFFORT`. Interrupting the
+worker returns active rows to `pending`; other failures are recorded as
+`failed` for inspection or a later retry. At startup it also promotes any
+existing `processing` row whose recorded session already contains a PNG,
+and returns other stranded `processing` rows to `pending`, covering crashes
+during generation or promotion. It never approves or imports an image.
+
+## Manual Worker Contract
+
+The manual subagent flow remains available for one-off custom generations. For
+each queue row, use one fresh subagent for generation and keep all queue state
+changes in the main thread:
 
 - The subagent gets only the local source image and the exact prompt above.
 - Use `fork_context: false`; do not send the full workflow document or batch
@@ -90,7 +170,7 @@ The generation request should look like this in structured form:
 }
 ```
 
-## Successful Batch Pattern
+## Manual Batch Pattern
 
 Use this pattern for unattended or semi-unattended draining:
 
@@ -103,27 +183,35 @@ Use this pattern for unattended or semi-unattended draining:
    `promote-codex-native-batch.mjs`.
 5. Close the completed subagent after promotion or after a verified no-output
    failure is handled.
-6. Refill back to three active workers until no rows remain.
+6. Refill to the operator-selected concurrency cap until no rows remain.
 7. Confirm the DB has no `pending` or `processing` rows.
 
-When running subagents, use a rolling queue with a strict concurrency cap. Three
-active subagents has been the most reliable default: fast enough to make
-progress, but low enough to avoid thread-limit and artifact-retrieval confusion.
+When running subagents, use a rolling queue with a strict concurrency cap. The
+current backlog workflow uses ten active subagents.
 
 The operator loop that worked best:
 
-1. Start exactly three fresh subagents.
-2. Wait for one or more to complete.
-3. Promote every completed PNG that exists with the batch helper.
-4. Close every completed subagent promptly.
-5. Claim and start only enough new rows to get back to three active workers.
-6. Repeat until there are no `pending` or `processing` rows.
+1. Start fresh subagents until ten are active.
+2. Persist each queue-id-to-agent-id mapping immediately with
+   `assign-codex-native-agent.mjs`.
+3. Wait for one or more to complete.
+4. Promote every completed PNG that exists with the batch helper.
+5. Close every completed subagent promptly.
+6. Start a replacement immediately after each promotion.
+7. Top up the non-linked pending backlog as needed and repeat.
 
 Do not keep completed agents open; completed agents still count against the
 concurrency limit until closed.
 
-Keep a small explicit active map in the main thread. This prevents losing track
-of which generated artifact belongs to which queue row:
+Persist the active map in `review.sqlite` as soon as each spawn returns:
+
+```bash
+pnpm main exec node scripts/image-processing/v2-ahs-image-review/assign-codex-native-agent.mjs \
+  --pair cr-ahs-12345=019...abc
+```
+
+The durable mapping prevents losing track of which generated artifact belongs
+to which queue row:
 
 ```text
 cr-ahs-12345 -> 019...abc
@@ -134,6 +222,9 @@ cr-ahs-67890 -> 019...def
 Subagent completion notifications can arrive twice: once as a tool result and
 again as a notification. Treat them as duplicate evidence for the same
 `agentId`, not as separate completions.
+
+Never infer mappings from launch or completion order. Promotion verifies the
+recorded agent ID before copying an artifact.
 
 The review UI auto-refreshes, and the reviewer may approve rows while generation
 continues. If a row disappears from review, check the DB status before assuming
@@ -255,9 +346,11 @@ Promote as soon as an agent completes. A smooth loop is:
 At the end of the queue, do not claim replacements. Keep waiting, promoting,
 and closing until `processing` is empty.
 
-If promotion fails with `database is locked`, query the rows before retrying.
-The helper may have copied one or more files before the DB update failed. Retry
-only the rows still left in `processing`.
+The worker configures the queue database for WAL mode and waits up to 30 seconds
+for concurrent writes, allowing multiple promotion processes to finish without
+immediate `database is locked` failures. If a lock still outlives that window,
+the run log records the failed status update and the worker stops before
+refilling while unresolved `processing` rows remain.
 
 If promotion fails with `ENOSPC: no space left on device`, stop starting new
 generations. Preserve current unpromoted agent folders and free space only from
@@ -320,26 +413,11 @@ http://127.0.0.1:4310/gallery
 
 ## Concurrency
 
-The observed hard subagent limit is around six active agents. Attempts above
-that can fail with `agent thread limit reached`. In practice, use three active
-subagents as the default.
-
-Recommended pattern:
-
-- Use subagents when parallelism matters.
-- Run exactly three active subagent workers by default.
-- Close each completed agent promptly.
-- Verify every candidate file before updating the DB.
-- Do not exceed three active workers. If several finish at once, promote and
-  close all of them, then refill only back to three.
-
-The strict three-worker loop is slower than the theoretical max, but it avoids
-losing track of completed outputs and keeps the review UI moving steadily.
-
-Starting more than three looked faster briefly, but it made failures harder to
-classify, increased duplicate notification noise, and left a higher risk of
-`processing` rows without a live agent. Three active workers plus immediate
-promotion kept the review UI moving most consistently.
+The automated worker defaults to ten concurrent CLI sessions and starts a
+replacement as soon as one finishes. Lower `--concurrency` if the machine or
+Codex service becomes unstable. The manual subagent fallback should use three
+active agents because completed agents continue counting against the app's
+agent limit until closed.
 
 ## R2 Import and Cleanup
 
@@ -349,33 +427,23 @@ only after the image has been uploaded to R2 and a ready production `ImageAsset`
 row has been created.
 
 The generated cultivar backfill reads rows from the review DB where
-`status IN ('review', 'approved')` and `editedPath IS NOT NULL`. The mature
-workflow is local-first:
+`status IN ('review', 'approved')` and `editedPath IS NOT NULL`. It uploads the
+edited image and variants to R2, then writes the production `ImageAsset`.
+
+With limited disk space, run the production import at low concurrency:
 
 ```bash
-cd apps/main
-
-set -a
-source ../../.env.production
-set +a
-
-DATABASE_URL=file:./prisma/local-prod-copy-daylily-catalog.db \
-IMAGE_ASSET_BACKFILL_CONCURRENCY=1 \
-  node scripts/image-assets/backfill-generated-cultivar-images-to-r2.mjs
+pnpm main env:prod node --input-type=module -e 'process.env.DATABASE_URL = process.env.TURSO_DATABASE_URL; process.env.IMAGE_ASSET_BACKFILL_CONCURRENCY = "1"; process.env.IMAGE_ASSET_BACKFILL_BATCH_SIZE = "50"; process.argv = [process.argv[0], "scripts/image-assets/backfill-generated-cultivar-images-to-r2.mjs", "--allow-remote-db", "--limit", "50"]; await import("./scripts/image-assets/backfill-generated-cultivar-images-to-r2.mjs");'
 ```
 
 Notes:
 
-- The script uploads R2 objects and creates ready `ImageAsset` rows in the local
-  prod-copy database.
-- Export only those new local `ImageAsset` rows, inspect the SQL, then apply the
-  additive insert transaction to production Turso after approval.
-- A Turso checkpoint branch is optional for small additive-only `ImageAsset`
-  batches. Create one for larger batches, schema changes, updates/deletes,
-  manually edited SQL, or anything not trivially inspectable.
-- Record the exact `ImageAsset.id` and `cultivarReferenceId` values imported.
-- Only delete local files for those exact imported ids after production verify
-  and queue sync.
+- `.env.production` may define `TURSO_DATABASE_URL` without `DATABASE_URL`; the
+  wrapper above maps it for the backfill script.
+- Keep `IMAGE_ASSET_BACKFILL_CONCURRENCY=1` when disk is almost full.
+- Record the exact `cultivarReferenceId` values printed as
+  `[backfilled-generated-cultivar]`.
+- Only delete local files for those exact imported ids.
 
 After successful production import, either refresh the local prod-copy DB and
 run `sync.mjs`, or mark the exact imported ids as `imported` in

@@ -2,6 +2,7 @@ import {
   AlertDialog,
   AlertDialogCancel,
   AlertDialogContent,
+  AlertDialogDescription,
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
@@ -36,18 +37,18 @@ export function SlugChangeConfirmDialog({
         </AlertDialogHeader>
 
         <div className="space-y-4">
-          <P>
+          <AlertDialogDescription className="text-foreground leading-7">
             Changing your profile URL can break existing links to your profile,
             including links shared previously or indexed by search engines.
-          </P>
+          </AlertDialogDescription>
           <div className="bg-muted rounded-md p-3">
-            <Muted className="flex flex-col gap-y-2">
-              <div>
+            <Muted>
+              <span className="block">
                 <span className="font-medium">Current URL: </span>
                 <InlineCode>
                   {cleanBaseUrl}/{currentSlug}
                 </InlineCode>
-              </div>
+              </span>
             </Muted>
           </div>
           <P>Do you want to unlock URL editing?</P>

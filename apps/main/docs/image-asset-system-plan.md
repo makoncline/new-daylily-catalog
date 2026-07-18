@@ -272,15 +272,16 @@ only after explicit approval.
 - Production import added `7816` `ready` cultivar `ImageAsset` rows. Post-import
   checks: `missing_required_urls = 0`, `bad_owner_rows = 0`, and
   `PRAGMA foreign_key_check` returned no rows.
-- App generated-cultivar reads are controlled separately by
-  `USE_GENERATED_CULTIVAR_IMAGE_ASSETS`; keep it default-false until the public
-  read path is verified in production.
+- Generated-cultivar ImageAsset reads were baselined after two weeks of stable
+  production use. Public, dashboard, search, merchant-feed, and MCP reads now
+  prefer ready generated assets while preserving the legacy AHS image URL
+  fallback when an asset is missing.
 
 ### Turso Cleanup Candidates
 
-Do not delete these until the generated-cultivar read path is deployed, verified,
-and the rollback window is no longer useful. Image-asset-related branches/backup
-DBs seen on 2026-06-18:
+The generated-cultivar read path has been deployed and verified. Review whether
+the rollback window is still useful before deleting these image-asset-related
+branches/backup DBs seen on 2026-06-18:
 
 - `daylily-image-assets-20260613`
 - `daylily-public-s3-url-20260613t18571781377073z`
@@ -296,6 +297,8 @@ create the local `ImageAsset` row, upload `original.png`, generate/upload
 connected to production Turso.
 
 Local rehearsal commands:
+
+From a linked worktree, first follow the [exceptional full-snapshot copy](./db-backup-readme.md#linked-worktrees).
 
 ```bash
 pnpm env:dev bash scripts/db-backup.sh

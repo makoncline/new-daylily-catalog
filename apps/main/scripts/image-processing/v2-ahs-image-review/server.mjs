@@ -3,6 +3,7 @@ import path from "node:path";
 import http from "node:http";
 import { fileURLToPath } from "node:url";
 import {
+  approveReviewItems,
   getCounts,
   getEditedItems,
   getFilePath,
@@ -104,23 +105,10 @@ const server = http.createServer(async (request, response) => {
   }
 
   if (request.method === "GET" && requestUrl.pathname === "/api/state") {
-    const limit = Math.max(
-      1,
-      Math.min(
-        1000,
-        Number(requestUrl.searchParams.get("limit") ?? "1000") || 1000,
-      ),
-    );
-    const offset = Math.max(
-      0,
-      Number(requestUrl.searchParams.get("offset") ?? "0") || 0,
-    );
-
     sendJson(response, {
       counts: getCounts(),
       item: getItem(requestUrl.searchParams.get("id")),
-      items: getItems({ limit, offset }),
-      paging: { limit, offset },
+      items: getItems(),
       paths: {
         originals: ORIGINALS_DIR,
         edited: REVIEW_EDITED_DIR,
@@ -142,6 +130,27 @@ const server = http.createServer(async (request, response) => {
 
   if (request.method === "POST" && requestUrl.pathname === "/api/sync") {
     sendJson(response, syncQueue());
+    return;
+  }
+
+  if (request.method === "POST" && requestUrl.pathname === "/api/approve-all") {
+    const body = await readJsonBody(request);
+    const ids = Array.isArray(body.ids)
+      ? body.ids.filter((id) => typeof id === "string")
+      : [];
+
+    if (ids.length === 0) {
+      sendJson(response, { error: "Missing review ids" }, 400);
+      return;
+    }
+
+    const updated = approveReviewItems(ids);
+    console.log(`[v2-image-review] approved all review items count=${updated}`);
+    sendJson(response, {
+      ok: true,
+      updated,
+      counts: getCounts(),
+    });
     return;
   }
 

@@ -4,7 +4,6 @@ import { createClerkClient } from "@clerk/backend";
 import * as dotenv from "dotenv";
 import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, writeFileSync } from "node:fs";
-import os from "node:os";
 import path from "node:path";
 import Stripe from "stripe";
 
@@ -13,6 +12,7 @@ import {
   generateRealisticDataSnapshot,
   realisticDataSchemaFingerprint,
   resolveRealisticDataOutputPath,
+  resolveRealisticDataSourcePath,
 } from "./realistic-data-snapshot.mjs";
 
 const appRoot = path.resolve(import.meta.dirname, "..");
@@ -26,19 +26,6 @@ const searchIndexPath = path.join(
   "search",
   "cultivar-search.sqlite",
 );
-const sourceCandidates = [
-  path.join(appRoot, "prisma", "local-prod-copy-daylily-catalog.db"),
-  path.join(
-    os.homedir(),
-    "dev",
-    "new-daylily-catalog",
-    "apps",
-    "main",
-    "prisma",
-    "local-prod-copy-daylily-catalog.db",
-  ),
-];
-
 for (const envPath of [
   path.join(repoRoot, ".env.development"),
   path.join(appRoot, ".env.development"),
@@ -57,18 +44,20 @@ function requireTestKey(name, prefix) {
 }
 
 function resolveSourcePath() {
-  if (process.env.REALISTIC_DATA_SOURCE_DB_PATH) {
-    return path.resolve(process.env.REALISTIC_DATA_SOURCE_DB_PATH);
-  }
-  const sourcePath = sourceCandidates.find((candidate) =>
-    existsSync(candidate),
+  const gitCommonDirectory = execFileSync(
+    "git",
+    ["-C", repoRoot, "rev-parse", "--path-format=absolute", "--git-common-dir"],
+    { encoding: "utf8" },
+  ).trim();
+  const primaryAppRoot = path.join(
+    path.dirname(gitCommonDirectory),
+    "apps",
+    "main",
   );
-  if (!sourcePath) {
-    throw new Error(
-      "No production snapshot found. Set REALISTIC_DATA_SOURCE_DB_PATH or create local-prod-copy-daylily-catalog.db.",
-    );
-  }
-  return sourcePath;
+  return resolveRealisticDataSourcePath({
+    primaryAppRoot,
+    configuredPath: process.env.REALISTIC_DATA_SOURCE_DB_PATH,
+  });
 }
 
 async function findOrCreateClerkUser(clerk, persona) {

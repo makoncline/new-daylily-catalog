@@ -4,7 +4,10 @@ import { rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
-import { isPublicCultivarSearchEnabled } from "@/config/feature-flags";
+import {
+  isImageModerationEnforced,
+  isPublicCultivarSearchEnabled,
+} from "@/config/feature-flags";
 import {
   getHomeMarkdown,
   getLlmsTxt,
@@ -19,7 +22,7 @@ const runtimeFlagsPath = join(
   `daylily-public-feature-flags-${process.pid}.json`,
 );
 
-describe("public cultivar search feature flag", () => {
+describe("runtime feature flags", () => {
   beforeEach(() => {
     process.env.RUNTIME_FEATURE_FLAGS_PATH = runtimeFlagsPath;
     writeFileSync(runtimeFlagsPath, '{"publicCultivarSearch":false}');
@@ -63,6 +66,14 @@ describe("public cultivar search feature flag", () => {
 
     writeFileSync(runtimeFlagsPath, '{"publicCultivarSearch":false}');
     expect(isPublicCultivarSearchEnabled()).toBe(false);
+  });
+
+  it("enforces image moderation only from the runtime file", () => {
+    writeFileSync(runtimeFlagsPath, '{"imageModerationEnforced":true}');
+    expect(isImageModerationEnforced()).toBe(true);
+
+    writeFileSync(runtimeFlagsPath, '{"imageModerationEnforced":false}');
+    expect(isImageModerationEnforced()).toBe(false);
   });
 
   it("keeps every public surface disabled on unsupported deployments", () => {

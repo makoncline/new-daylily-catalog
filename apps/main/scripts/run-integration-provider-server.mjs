@@ -6,8 +6,8 @@ const providerUrl = new URL(
 );
 const server = createServer(...integrationNetworkHandlers);
 
-server.listen(Number(providerUrl.port), providerUrl.hostname);
+const httpServer = server.listen(Number(providerUrl.port), providerUrl.hostname);
 
 for (const signal of ["SIGINT", "SIGTERM"]) {
-  process.once(signal, () => server.close());
+  process.once(signal, () => httpServer.close());
 }

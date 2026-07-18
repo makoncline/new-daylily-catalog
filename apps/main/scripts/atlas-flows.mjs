@@ -18,14 +18,23 @@ const cultivarState = stateFor("tests/atlas/cultivar-search.atlas.ts");
 const importerState = stateFor("tests/atlas/catalog-importer.atlas.ts");
 const onboardingState = stateFor("tests/atlas/onboarding-membership.atlas.ts");
 const listingState = stateFor("tests/atlas/listing-management.atlas.ts");
+const listingMediaState = stateFor("tests/atlas/listing-media.atlas.ts");
 const listState = stateFor("tests/atlas/list-management.atlas.ts");
+const tagState = stateFor("tests/atlas/tag-printing.atlas.ts");
 const buyerState = stateFor("tests/atlas/buyer-inquiry.atlas.ts");
+const profileState = stateFor("tests/atlas/profile-management.atlas.ts");
 const testRef = (layer, file) => ({
   path: file,
+  runner: layer === "e2e" ? "e2e" : "vitest",
   command:
     layer === "e2e"
       ? `pnpm main exec playwright test ${file}`
       : `pnpm main exec vitest run ${file}`,
+});
+const fullAppIntegrationRef = (file) => ({
+  path: file,
+  runner: "full-app-integration",
+  command: `node apps/main/scripts/run-integration-local.mjs ${file}`,
 });
 export const ATLAS_FLOWS = [
   {
@@ -355,6 +364,9 @@ export const ATLAS_FLOWS = [
       integration: [
         testRef("integration", "tests/anonymous-onboarding-layout.test.tsx"),
         testRef("integration", "tests/onboarding-router.test.ts"),
+        fullAppIntegrationRef(
+          "tests/integration/onboarding-provider-boundaries.integration.ts",
+        ),
       ],
       e2e: [testRef("e2e", "tests/e2e/onboarding-full-flow.e2e.ts")],
     },
@@ -488,6 +500,117 @@ export const ATLAS_FLOWS = [
     ],
   },
   {
+    id: "profile-management",
+    audience: "member",
+    title: "Manage a grower profile",
+    description:
+      "Review realistic grower details, prepare profile edits, and inspect profile media at mobile and iPad sizes without saving changes.",
+    tests: {
+      unit: [testRef("unit", "tests/profile-slug-rules.test.ts")],
+      integration: [
+        testRef("integration", "tests/slug-change-confirm-dialog.test.tsx"),
+        testRef(
+          "integration",
+          "tests/dashboard-db-user-profile-router.test.ts",
+        ),
+        testRef(
+          "integration",
+          "tests/dashboard-db-user-profile-slug-router.test.ts",
+        ),
+        testRef("integration", "tests/image-preview-dialog.test.tsx"),
+        fullAppIntegrationRef(
+          "tests/integration/profile-slug-validation.integration.ts",
+        ),
+      ],
+      e2e: [testRef("e2e", "tests/e2e/new-user-journey.e2e.ts")],
+    },
+    steps: [
+      {
+        title: "Review the profile",
+        states: [
+          profileState(
+            "profile-management-desktop-populated",
+            "Desktop populated profile",
+            "Realistic grower details, five profile images, and catalog content at the supported iPad width.",
+            "/dashboard/profile",
+          ),
+          profileState(
+            "profile-management-mobile-populated",
+            "Mobile populated profile",
+            "The same realistic grower profile and media at the supported phone width.",
+            "/dashboard/profile",
+          ),
+        ],
+      },
+      {
+        title: "Prepare profile edits",
+        states: [
+          profileState(
+            "profile-management-desktop-dirty",
+            "Desktop unsaved profile edit",
+            "A changed garden name with Save Changes enabled, before any mutation.",
+            "/dashboard/profile",
+            false,
+          ),
+          profileState(
+            "profile-management-mobile-dirty",
+            "Mobile unsaved profile edit",
+            "The same unsaved profile state at the supported phone width.",
+            "/dashboard/profile",
+            false,
+          ),
+          profileState(
+            "profile-management-desktop-url-warning",
+            "Desktop profile URL warning",
+            "The described warning shown before profile URL editing is unlocked.",
+            "/dashboard/profile",
+            false,
+          ),
+          profileState(
+            "profile-management-mobile-url-warning",
+            "Mobile profile URL warning",
+            "The same profile URL warning at the supported phone width.",
+            "/dashboard/profile",
+            false,
+          ),
+          profileState(
+            "profile-management-desktop-url-invalid",
+            "Desktop invalid profile URL",
+            "Inline minimum-length feedback for an unsaved profile URL.",
+            "/dashboard/profile",
+            false,
+          ),
+          profileState(
+            "profile-management-mobile-url-invalid",
+            "Mobile invalid profile URL",
+            "The same invalid profile URL feedback at the supported phone width.",
+            "/dashboard/profile",
+            false,
+          ),
+        ],
+      },
+      {
+        title: "Inspect profile media",
+        states: [
+          profileState(
+            "profile-management-desktop-preview",
+            "Desktop profile image preview",
+            "A seeded profile image opened in the complete gallery preview.",
+            "/dashboard/profile",
+            false,
+          ),
+          profileState(
+            "profile-management-mobile-preview",
+            "Mobile profile image preview",
+            "The same gallery preview at the supported phone width.",
+            "/dashboard/profile",
+            false,
+          ),
+        ],
+      },
+    ],
+  },
+  {
     id: "listing-management",
     audience: "member",
     title: "Find, create, and edit listings",
@@ -504,6 +627,9 @@ export const ATLAS_FLOWS = [
         testRef("integration", "tests/create-listing-dialog.test.tsx"),
         testRef("integration", "tests/listing-dialog-query-state.test.tsx"),
         testRef("integration", "tests/edit-listing-dialog-url-sync.test.tsx"),
+        fullAppIntegrationRef(
+          "tests/integration/create-edit-listing.integration.ts",
+        ),
       ],
       e2e: [
         testRef("e2e", "tests/e2e/listings-page-features.e2e.ts"),
@@ -628,6 +754,179 @@ export const ATLAS_FLOWS = [
             "Listing membership picker",
             "The real lists available while editing a listing.",
             "/dashboard/listings?size=10",
+            false,
+          ),
+        ],
+      },
+    ],
+  },
+  {
+    id: "tag-printing",
+    audience: "member",
+    title: "Create and print plant tags",
+    description:
+      "Choose a useful tag preset or create a custom template from real listing fields.",
+    tests: {
+      unit: [testRef("unit", "tests/tag-designer-model.test.ts")],
+      integration: [
+        testRef("integration", "tests/tag-designer-panel.test.tsx"),
+        testRef("integration", "tests/tag-print-table.test.ts"),
+      ],
+      e2e: [],
+    },
+    steps: [
+      {
+        title: "Choose tag content",
+        states: [
+          tagState(
+            "tag-printing-garden-id",
+            "Garden ID tags",
+            "The compact default preset across eight listings with long, short, complete, and incomplete data.",
+            "/dashboard/tags",
+            false,
+          ),
+          tagState(
+            "tag-printing-simple-name",
+            "Simple name tags",
+            "The most legible name-only preset across the same mixed listing batch.",
+            "/dashboard/tags",
+            false,
+          ),
+          tagState(
+            "tag-printing-sale-tag",
+            "Sale tags",
+            "A compact sales preset that includes price where available and omits missing values cleanly.",
+            "/dashboard/tags",
+            false,
+          ),
+          tagState(
+            "tag-printing-grower-details",
+            "Grower detail tags",
+            "The roomier preset with bloom, scape, season, habit, and identity details.",
+            "/dashboard/tags",
+            false,
+          ),
+          tagState(
+            "tag-printing-custom",
+            "Custom tag template",
+            "The line-based custom editor combining listing fields in a live tag preview.",
+            "/dashboard/tags",
+            false,
+          ),
+          tagState(
+            "tag-printing-ai-instructions",
+            "AI template instructions",
+            "Copyable syntax guidance with every available tag field and the current template.",
+            "/dashboard/tags",
+            false,
+          ),
+          tagState(
+            "tag-printing-sheet",
+            "Sheet creator",
+            "The secondary sheet workflow using the same selected tags and current custom layout.",
+            "/dashboard/tags",
+            false,
+          ),
+        ],
+      },
+    ],
+  },
+  {
+    id: "listing-media",
+    audience: "member",
+    title: "Manage listing images",
+    description:
+      "Review, preview, reorder, remove, and prepare listing photos without sending an upload.",
+    tests: {
+      unit: [testRef("unit", "tests/use-image-upload.test.ts")],
+      integration: [
+        testRef("integration", "tests/image-upload.test.tsx"),
+        testRef("integration", "tests/dashboard-db-image-router.test.ts"),
+      ],
+      e2e: [testRef("e2e", "tests/e2e/listing-image-manager.e2e.ts")],
+    },
+    steps: [
+      {
+        title: "Review listing photos",
+        states: [
+          listingMediaState(
+            "listing-media-desktop-populated",
+            "Desktop populated image grid",
+            "Nine real listing photos in the four-column desktop manager.",
+            "/dashboard/listings?size=10&query=18-33",
+            false,
+          ),
+          listingMediaState(
+            "listing-media-mobile-populated",
+            "Mobile populated image grid",
+            "The same listing photos in the two-column mobile manager.",
+            "/dashboard/listings?size=10&query=18-33",
+            false,
+          ),
+          listingMediaState(
+            "listing-media-desktop-empty",
+            "Desktop empty image manager",
+            "A listing with no owned photos and its available upload dropzone.",
+            "/dashboard/listings?size=10&query=Bee-ba-tized",
+            false,
+          ),
+          listingMediaState(
+            "listing-media-mobile-empty",
+            "Mobile empty image manager",
+            "The empty owned-photo state and upload dropzone on a phone.",
+            "/dashboard/listings?size=10&query=Bee-ba-tized",
+            false,
+          ),
+        ],
+      },
+      {
+        title: "Inspect a photo",
+        states: [
+          listingMediaState(
+            "listing-media-desktop-preview",
+            "Desktop full-size preview",
+            "A listing photo opened in the real gallery preview.",
+            "/dashboard/listings?size=10&query=18-33",
+            false,
+          ),
+          listingMediaState(
+            "listing-media-mobile-preview",
+            "Mobile full-size preview",
+            "The same gallery preview at the phone viewport.",
+            "/dashboard/listings?size=10&query=18-33",
+            false,
+          ),
+        ],
+      },
+      {
+        title: "Prepare a change",
+        states: [
+          listingMediaState(
+            "listing-media-delete-confirmation",
+            "Delete image confirmation",
+            "The destructive confirmation before any listing photo is removed.",
+            "/dashboard/listings?size=10&query=18-33",
+            false,
+          ),
+          listingMediaState(
+            "listing-media-reorder-active",
+            "Pointer reorder target",
+            "The first photo held between the first two slots with the sortable control active, before dropping.",
+            "/dashboard/listings?size=10&query=18-33",
+            false,
+          ),
+          listingMediaState(
+            "listing-media-desktop-crop",
+            "Desktop selected-file crop",
+            "A local image selected for cropping before any upload request.",
+            "/dashboard/listings?size=10&query=Bee-ba-tized",
+            false,
+          ),
+          listingMediaState(
+            "listing-media-mobile-crop",
+            "Mobile selected-file crop",
+            "The same pre-upload crop controls on a phone.",
+            "/dashboard/listings?size=10&query=Bee-ba-tized",
             false,
           ),
         ],
@@ -768,6 +1067,9 @@ export const ATLAS_FLOWS = [
         testRef("integration", "tests/public-inquiry.test.ts"),
         testRef("integration", "tests/public-inquiry-rate-limit.test.ts"),
         testRef("integration", "tests/public-router-send-message.test.ts"),
+        fullAppIntegrationRef(
+          "tests/integration/buyer-inquiry-email.integration.ts",
+        ),
       ],
       e2e: [],
     },
@@ -865,13 +1167,20 @@ export function resolveLiveStateUrl(stateItem, baseURL) {
     : null;
 }
 export function confidenceCommandsForFlow(flow) {
-  const vitestFiles = [...flow.tests.unit, ...flow.tests.integration].map(
-    ({ path: testPath }) => testPath,
-  );
+  const integrationReferences = flow.tests.integration;
+  const vitestFiles = [...flow.tests.unit, ...integrationReferences]
+    .filter(({ runner }) => runner === "vitest")
+    .map(({ path: testPath }) => testPath);
+  const fullAppIntegrationFiles = integrationReferences
+    .filter(({ runner }) => runner === "full-app-integration")
+    .map(({ path: testPath }) => testPath);
   const e2eFiles = flow.tests.e2e.map(({ path: testPath }) => testPath);
   return [
     vitestFiles.length
       ? `pnpm main exec vitest run --maxWorkers=1 ${vitestFiles.join(" ")}`
+      : null,
+    fullAppIntegrationFiles.length
+      ? `node apps/main/scripts/run-integration-local.mjs ${fullAppIntegrationFiles.join(" ")}`
       : null,
     e2eFiles.length
       ? `pnpm main exec playwright test --retries=0 ${e2eFiles.join(" ")}`

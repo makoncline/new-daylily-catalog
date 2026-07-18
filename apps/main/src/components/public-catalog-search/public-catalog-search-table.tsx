@@ -25,9 +25,12 @@ export function PublicCatalogSearchTable({
           : "lg:grid-cols-3 xl:grid-cols-3",
       )}
     >
-      {rows.map((row) => (
+      {rows.map((row, index) => (
         <div key={row.original.id}>
-          <ListingCard listing={row.original} />
+          <ListingCard
+            listing={row.original}
+            priority={index < desktopColumns}
+          />
         </div>
       ))}
     </div>

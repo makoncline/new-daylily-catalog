@@ -1,10 +1,8 @@
 "use client";
 
 import {
-  QR_OFFSET_INCHES,
-  QR_RESERVED_BOTTOM_INCHES,
-  QR_RESERVED_RIGHT_INCHES,
   QR_SIZE_INCHES,
+  TAG_SPACER_HEIGHT_INCHES,
   buildQrCodeSvgMarkup,
   resolveCellFontSizePx,
   resolveSheetMetrics,
@@ -22,9 +20,9 @@ function cellStyleAsCss(cell: ResolvedCell) {
     `font-style: ${cell.italic ? "italic" : "normal"}`,
     `text-decoration: ${cell.underline ? "underline" : "none"}`,
     `text-align: ${cell.textAlign}`,
-    `overflow: ${cell.overflow ? "visible" : "hidden"}`,
-    `white-space: ${cell.wrap ? "normal" : "nowrap"}`,
-    `overflow-wrap: ${cell.wrap ? "anywhere" : "normal"}`,
+    `flex: ${cell.width} 1 0`,
+    "overflow: hidden",
+    "white-space: nowrap",
   ].join("; ");
 }
 
@@ -60,7 +58,8 @@ export function createTagPrintDocumentHtml({
       const hasQrCode = Boolean(tag.qrCodeUrl);
       const rowsHtml = tag.rows
         .map((row) => {
-          const cols = row.cells.map((c) => `${c.width}fr`).join(" ");
+          if (row.isSpacer) return `<div class="row spacer"></div>`;
+
           const cellsHtml = row.cells
             .map((cell) => {
               const fittedCell = {
@@ -75,7 +74,7 @@ export function createTagPrintDocumentHtml({
               return `<div class="cell" style="${cellStyleAsCss(fittedCell)}">${escapeHtml(cell.text)}</div>`;
             })
             .join("");
-          return `<div class="row" style="grid-template-columns: ${cols};">${cellsHtml}</div>`;
+          return `<div class="row">${cellsHtml}</div>`;
         })
         .join("");
 
@@ -117,8 +116,11 @@ export function createTagPrintDocumentHtml({
         width: ${widthInches}in;
         height: ${heightInches}in;
         padding: 0.06in 0.08in;
+        display: grid;
+        grid-template-columns: minmax(0, 1fr);
+        align-items: center;
+        column-gap: 0.08in;
         overflow: hidden;
-        position: relative;
         page-break-inside: avoid;
         break-inside: avoid;
         page-break-after: always;
@@ -128,19 +130,26 @@ export function createTagPrintDocumentHtml({
         page-break-after: auto;
         break-after: auto;
       }
-      .tag.has-qr .tag-content {
-        padding-right: ${QR_RESERVED_RIGHT_INCHES}in;
-        padding-bottom: ${QR_RESERVED_BOTTOM_INCHES}in;
+      .tag.has-qr {
+        grid-template-columns: minmax(0, 1fr) auto;
+      }
+      .tag-content {
+        min-width: 0;
       }
       .row {
-        display: grid;
+        display: flex;
+        justify-content: space-between;
         column-gap: 0.06in;
         align-items: ${rowAlignItems};
       }
       .row + .row {
         margin-top: ${rowMarginTopPixels}px;
       }
+      .row.spacer {
+        height: ${TAG_SPACER_HEIGHT_INCHES}in;
+      }
       .cell {
+        min-width: 0;
         line-height: ${cellLineHeight};
         padding-top: ${cellPaddingTop};
         padding-bottom: ${cellPaddingBottom};
@@ -148,12 +157,13 @@ export function createTagPrintDocumentHtml({
         overflow: hidden;
         text-overflow: clip;
       }
+      .row > .cell:only-child {
+        width: 100%;
+      }
       .qr {
-        position: absolute;
-        right: ${QR_OFFSET_INCHES}in;
-        bottom: ${QR_OFFSET_INCHES}in;
         width: ${QR_SIZE_INCHES}in;
         height: ${QR_SIZE_INCHES}in;
+        flex: none;
         background: #fff;
       }
       .qr svg {
@@ -209,7 +219,8 @@ export function getSheetMarkup({
           const hasQrCode = Boolean(tag.qrCodeUrl);
           const rowsHtml = tag.rows
             .map((row) => {
-              const cols = row.cells.map((c) => `${c.width}fr`).join(" ");
+              if (row.isSpacer) return `<div class="row spacer"></div>`;
+
               const cellsHtml = row.cells
                 .map((cell) => {
                   const fittedCell = {
@@ -224,7 +235,7 @@ export function getSheetMarkup({
                   return `<div class="cell" style="${cellStyleAsCss(fittedCell)}">${escapeHtml(cell.text)}</div>`;
                 })
                 .join("");
-              return `<div class="row" style="grid-template-columns: ${cols};">${cellsHtml}</div>`;
+              return `<div class="row">${cellsHtml}</div>`;
             })
             .join("");
 
@@ -285,23 +296,33 @@ export function getSheetMarkup({
         width: ${slotWidthInches}in;
         height: ${slotHeightInches}in;
         padding: 0.06in 0.08in;
+        display: grid;
+        grid-template-columns: minmax(0, 1fr);
+        align-items: center;
+        column-gap: 0.08in;
         overflow: hidden;
-        position: relative;
         border: ${tagBorderCss};
       }
-      .tag.has-qr .tag-content {
-        padding-right: ${QR_RESERVED_RIGHT_INCHES}in;
-        padding-bottom: ${QR_RESERVED_BOTTOM_INCHES}in;
+      .tag.has-qr {
+        grid-template-columns: minmax(0, 1fr) auto;
+      }
+      .tag-content {
+        min-width: 0;
       }
       .row {
-        display: grid;
+        display: flex;
+        justify-content: space-between;
         column-gap: 0.06in;
         align-items: ${rowAlignItems};
       }
       .row + .row {
         margin-top: ${rowMarginTopPixels}px;
       }
+      .row.spacer {
+        height: ${TAG_SPACER_HEIGHT_INCHES}in;
+      }
       .cell {
+        min-width: 0;
         line-height: ${cellLineHeight};
         padding-top: ${cellPaddingTop};
         padding-bottom: ${cellPaddingBottom};
@@ -309,12 +330,13 @@ export function getSheetMarkup({
         overflow: hidden;
         text-overflow: clip;
       }
+      .row > .cell:only-child {
+        width: 100%;
+      }
       .qr {
-        position: absolute;
-        right: ${QR_OFFSET_INCHES}in;
-        bottom: ${QR_OFFSET_INCHES}in;
         width: ${QR_SIZE_INCHES}in;
         height: ${QR_SIZE_INCHES}in;
+        flex: none;
         background: #fff;
       }
       .qr svg {
