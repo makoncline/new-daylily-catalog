@@ -1,21 +1,10 @@
-import { chromium, type Browser } from "@playwright/test";
-import { afterAll, beforeAll, expect, test } from "vitest";
-import { prepareAtlasCapture } from "./atlas/atlas-capture-readiness";
+import { expect, test } from "@playwright/test";
+import { prepareAtlasCapture } from "../atlas/atlas-capture-readiness";
 
-let browser: Browser;
-
-beforeAll(async () => {
-  browser = await chromium.launch();
-});
-
-afterAll(async () => {
-  await browser?.close();
-});
-
-test("prepares full-page and component images without changing capture position", async () => {
-  const page = await browser.newPage({
-    viewport: { width: 800, height: 600 },
-  });
+test("prepares full-page and component images without changing capture position", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 800, height: 600 });
   const requestedImages = new Set<string>();
   await page.route("https://atlas.test/**", async (route) => {
     requestedImages.add(route.request().url());
@@ -46,8 +35,8 @@ test("prepares full-page and component images without changing capture position"
     "https://atlas.test/second.svg",
     "https://atlas.test/third.svg",
   ]);
-  await expect(
-    page
+  expect(
+    await page
       .locator("img")
       .evaluateAll((images) =>
         images.every(
@@ -57,7 +46,7 @@ test("prepares full-page and component images without changing capture position"
             image.naturalWidth > 0,
         ),
       ),
-  ).resolves.toBe(true);
+  ).toBe(true);
 
   requestedImages.clear();
   await page.setContent(`
@@ -76,14 +65,13 @@ test("prepares full-page and component images without changing capture position"
     "https://atlas.test/component-bottom.svg",
     "https://atlas.test/component-top.svg",
   ]);
-  await expect(
-    page
+  expect(
+    await page
       .locator('img[alt^="component"]')
       .evaluateAll((images) =>
         images.every(
           (image) => image instanceof HTMLImageElement && image.complete,
         ),
       ),
-  ).resolves.toBe(true);
-  await page.close();
+  ).toBe(true);
 });
