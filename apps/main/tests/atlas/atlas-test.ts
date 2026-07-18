@@ -1,9 +1,46 @@
-import { expect, test } from "@playwright/test";
-import type { Locator, Page } from "@playwright/test";
+import { expect, test as base } from "@playwright/test";
+import type { ConsoleMessage, Locator, Page } from "@playwright/test";
 import { mkdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
+import {
+  assertNoUnexpectedBrowserDiagnostics,
+  diagnosticLineFromPlaywrightConsole,
+} from "../../scripts/atlas-browser-diagnostics.mjs";
 import { getAtlasState } from "../../scripts/atlas-flows.mjs";
-export { expect, test };
+export { expect };
+
+export const test = base.extend<{ atlasBrowserDiagnostics: void }>({
+  atlasBrowserDiagnostics: [
+    async ({ page }, use) => {
+      const diagnostics: string[] = [];
+      const onConsole = (message: ConsoleMessage) => {
+        const line = diagnosticLineFromPlaywrightConsole(
+          message.type(),
+          message.text(),
+        );
+        if (line) diagnostics.push(line);
+      };
+      const onPageError = (error: Error) => {
+        const line = diagnosticLineFromPlaywrightConsole(
+          "error",
+          error.message,
+        );
+        if (line) diagnostics.push(line);
+      };
+
+      page.on("console", onConsole);
+      page.on("pageerror", onPageError);
+      try {
+        await use();
+      } finally {
+        page.off("console", onConsole);
+        page.off("pageerror", onPageError);
+      }
+      assertNoUnexpectedBrowserDiagnostics(diagnostics.join("\n"));
+    },
+    { auto: true },
+  ],
+});
 
 const interactionSurfaceSelectors = [
   '[role="dialog"]:visible',
@@ -82,34 +119,24 @@ export async function captureAtlasState(page: Page, stateId: string) {
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.evaluate(async () => {
     await document.fonts.ready;
-    const initialScrollY = scrollY;
     const images = [...document.images];
-    for (
-      let position = 0;
-      position < document.documentElement.scrollHeight;
-      position += innerHeight
-    ) {
-      scrollTo(0, position);
-      await new Promise((resolve) =>
-        requestAnimationFrame(() => requestAnimationFrame(resolve)),
-      );
-    }
-    scrollTo(0, initialScrollY);
     await Promise.all(
-      images.map(
-        (image) => {
-          if (image.complete) return Promise.resolve();
-          return new Promise<void>((resolve) => {
-            image.addEventListener("load", () => resolve(), { once: true });
-            image.addEventListener("error", () => resolve(), { once: true });
-          });
-        },
-      ),
+      images.map(async (image) => {
+        try {
+          await image.decode();
+        } catch {
+          // Broken images are still allowed to reach their rendered fallback.
+        }
+      }),
     );
   });
   await expect(page.locator("body")).not.toBeEmpty();
   await expect(
     page.locator("[data-nextjs-dialog], #webpack-dev-server-client-overlay"),
+  ).toHaveCount(0);
+  await expect(
+    page.getByRole("button", { name: /Open issues overlay/i }),
+    `${stateId} must have zero Next development issues before capture`,
   ).toHaveCount(0);
   mkdirSync(captureDirectory, { recursive: true });
   const interactionSurface = await visibleInteractionSurface(page);

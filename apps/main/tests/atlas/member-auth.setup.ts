@@ -1,6 +1,6 @@
-import { expect, test as setup } from "@playwright/test";
 import { mkdirSync } from "node:fs";
 import path from "node:path";
+import { expect, test as setup } from "./atlas-test";
 
 const authState = process.env.ATLAS_AUTH_STATE;
 

@@ -5,6 +5,7 @@ import {
   existsSync,
   mkdirSync,
   openSync,
+  readFileSync,
   renameSync,
   rmSync,
   writeFileSync,
@@ -27,6 +28,7 @@ import {
   createDisposableRealisticDataSnapshot,
   resolveRealisticDataOutputPath,
 } from "./realistic-data-snapshot.mjs";
+import { assertNoUnexpectedBrowserDiagnostics } from "./atlas-browser-diagnostics.mjs";
 const ATLAS_HEALTH_PATH = "/api/runtime-config";
 const appRoot = path.resolve(import.meta.dirname, "..");
 const repoRoot = path.resolve(appRoot, "../..");
@@ -222,6 +224,9 @@ try {
     const missing = missingFreshStateIds(flow, captureDirectory, startedAt);
     if (missing.length)
       throw new Error(`Missing or stale Atlas states: ${missing.join(", ")}`);
+    if (serverLogFd !== undefined) {
+      assertNoUnexpectedBrowserDiagnostics(readFileSync(serverLogPath, "utf8"));
+    }
     const galleryPath = generateAtlasGallery({
       flowId: flow.id,
       outputDirectory: flowOutputDirectory,
