@@ -24,10 +24,16 @@ const buyerState = stateFor("tests/atlas/buyer-inquiry.atlas.ts");
 const profileState = stateFor("tests/atlas/profile-management.atlas.ts");
 const testRef = (layer, file) => ({
   path: file,
+  runner: layer === "e2e" ? "e2e" : "vitest",
   command:
     layer === "e2e"
       ? `pnpm main exec playwright test ${file}`
       : `pnpm main exec vitest run ${file}`,
+});
+const fullAppIntegrationRef = (file) => ({
+  path: file,
+  runner: "full-app-integration",
+  command: `node apps/main/scripts/run-integration-local.mjs ${file}`,
 });
 export const ATLAS_FLOWS = [
   {
@@ -265,6 +271,9 @@ export const ATLAS_FLOWS = [
       integration: [
         testRef("integration", "tests/anonymous-onboarding-layout.test.tsx"),
         testRef("integration", "tests/onboarding-router.test.ts"),
+        fullAppIntegrationRef(
+          "tests/integration/onboarding-provider-boundaries.integration.ts",
+        ),
       ],
       e2e: [testRef("e2e", "tests/e2e/onboarding-full-flow.e2e.ts")],
     },
@@ -416,6 +425,9 @@ export const ATLAS_FLOWS = [
           "tests/dashboard-db-user-profile-slug-router.test.ts",
         ),
         testRef("integration", "tests/image-preview-dialog.test.tsx"),
+        fullAppIntegrationRef(
+          "tests/integration/profile-slug-validation.integration.ts",
+        ),
       ],
       e2e: [testRef("e2e", "tests/e2e/new-user-journey.e2e.ts")],
     },
@@ -522,6 +534,9 @@ export const ATLAS_FLOWS = [
         testRef("integration", "tests/create-listing-dialog.test.tsx"),
         testRef("integration", "tests/listing-dialog-query-state.test.tsx"),
         testRef("integration", "tests/edit-listing-dialog-url-sync.test.tsx"),
+        fullAppIntegrationRef(
+          "tests/integration/create-edit-listing.integration.ts",
+        ),
       ],
       e2e: [
         testRef("e2e", "tests/e2e/listings-page-features.e2e.ts"),
@@ -959,6 +974,9 @@ export const ATLAS_FLOWS = [
         testRef("integration", "tests/public-inquiry.test.ts"),
         testRef("integration", "tests/public-inquiry-rate-limit.test.ts"),
         testRef("integration", "tests/public-router-send-message.test.ts"),
+        fullAppIntegrationRef(
+          "tests/integration/buyer-inquiry-email.integration.ts",
+        ),
       ],
       e2e: [],
     },
@@ -1056,13 +1074,20 @@ export function resolveLiveStateUrl(stateItem, baseURL) {
     : null;
 }
 export function confidenceCommandsForFlow(flow) {
-  const vitestFiles = [...flow.tests.unit, ...flow.tests.integration].map(
-    ({ path: testPath }) => testPath,
-  );
+  const integrationReferences = flow.tests.integration;
+  const vitestFiles = [...flow.tests.unit, ...integrationReferences]
+    .filter(({ runner }) => runner === "vitest")
+    .map(({ path: testPath }) => testPath);
+  const fullAppIntegrationFiles = integrationReferences
+    .filter(({ runner }) => runner === "full-app-integration")
+    .map(({ path: testPath }) => testPath);
   const e2eFiles = flow.tests.e2e.map(({ path: testPath }) => testPath);
   return [
     vitestFiles.length
       ? `pnpm main exec vitest run --maxWorkers=1 ${vitestFiles.join(" ")}`
+      : null,
+    fullAppIntegrationFiles.length
+      ? `node apps/main/scripts/run-integration-local.mjs ${fullAppIntegrationFiles.join(" ")}`
       : null,
     e2eFiles.length
       ? `pnpm main exec playwright test --retries=0 ${e2eFiles.join(" ")}`

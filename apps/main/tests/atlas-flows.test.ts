@@ -105,6 +105,10 @@ describe("Atlas flow contract", () => {
       "Review the request",
     ]);
     expect(statesForFlow(buyerInquiry)).toHaveLength(8);
+    expect(confidenceCommandsForFlow(buyerInquiry)).toEqual([
+      "pnpm main exec vitest run --maxWorkers=1 tests/use-cart.test.tsx tests/contact-form.test.tsx tests/floating-cart-button.test.tsx tests/public-inquiry.test.ts tests/public-inquiry-rate-limit.test.ts tests/public-router-send-message.test.ts",
+      "node apps/main/scripts/run-integration-local.mjs tests/integration/buyer-inquiry-email.integration.ts",
+    ]);
   });
 
   it("declares the public cultivar search journey at both supported sizes", () => {
