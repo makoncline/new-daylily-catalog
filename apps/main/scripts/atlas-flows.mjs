@@ -55,6 +55,7 @@ export const ATLAS_FLOWS = [
       e2e: [
         testRef("e2e", "tests/e2e/public-catalog-advanced-search.e2e.ts"),
         testRef("e2e", "tests/e2e/cultivar-page-flow.e2e.ts"),
+        testRef("e2e", "tests/e2e/public-profile-first-response.e2e.ts"),
         testRef("e2e", "tests/e2e/smoke.e2e.ts"),
       ],
     },
@@ -539,6 +540,7 @@ export const ATLAS_FLOWS = [
         ),
       ],
       e2e: [
+        testRef("e2e", "tests/e2e/dashboard-listings-search-touch.e2e.ts"),
         testRef("e2e", "tests/e2e/listings-page-features.e2e.ts"),
         testRef("e2e", "tests/e2e/create-edit-listing-flow.e2e.ts"),
       ],
@@ -860,6 +862,9 @@ export const ATLAS_FLOWS = [
           "tests/manage-list-page-membership-commit.test.tsx",
         ),
         testRef("integration", "tests/use-list-resource.test.tsx"),
+        fullAppIntegrationRef(
+          "tests/integration/list-management.integration.ts",
+        ),
       ],
       e2e: [
         testRef("e2e", "tests/e2e/lists-page-features.e2e.ts"),
