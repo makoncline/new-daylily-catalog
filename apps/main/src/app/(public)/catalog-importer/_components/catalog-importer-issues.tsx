@@ -1,15 +1,8 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Trash2 } from "lucide-react";
+import { Save, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import {
   Table,
@@ -19,38 +12,19 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import {
-  CatalogImporterSourceRow,
-  type CatalogImporterSourceCell,
-} from "@/app/(public)/catalog-importer/_components/catalog-importer-match-options";
 import type { CatalogImporterWorkbenchController } from "@/app/(public)/catalog-importer/_hooks/use-catalog-importer-workbench";
 import type { CatalogImportRow } from "@/lib/catalog-importer";
 
-type CatalogImporterIssueType =
-  | "cultivar-reference-id"
-  | "duplicate"
-  | "image-url"
-  | "price";
-
-interface CatalogImporterRowIssue {
-  id: string;
-  row: CatalogImportRow;
-  type: Exclude<CatalogImporterIssueType, "duplicate">;
-}
-
-interface CatalogImporterDuplicateIssue {
+interface DuplicateGroup {
   id: string;
   rows: CatalogImportRow[];
-  type: "duplicate";
 }
 
-type CatalogImporterIssue =
-  | CatalogImporterDuplicateIssue
-  | CatalogImporterRowIssue;
+type ParsedInput<T> = { valid: true; value: T } | { valid: false; value: null };
 
-function getIssues(rows: CatalogImportRow[]) {
+function getDuplicateGroups(rows: CatalogImportRow[]) {
   const rowsBySourceRow = new Map(rows.map((row) => [row.sourceRow, row]));
-  const duplicateGroups = new Map<number, CatalogImportRow[]>();
+  const groups = new Map<number, CatalogImportRow[]>();
 
   for (const row of rows) {
     if (row.duplicateOfSourceRow === null) {
@@ -62,97 +36,51 @@ function getIssues(rows: CatalogImportRow[]) {
       continue;
     }
 
-    const group = duplicateGroups.get(firstRow.sourceRow) ?? [firstRow];
+    const group = groups.get(firstRow.sourceRow) ?? [firstRow];
     group.push(row);
-    duplicateGroups.set(firstRow.sourceRow, group);
+    groups.set(firstRow.sourceRow, group);
   }
 
-  return rows.flatMap((row): CatalogImporterIssue[] => {
-    const issues: CatalogImporterIssue[] = [];
-    const duplicateRows = duplicateGroups.get(row.sourceRow);
-
-    if (duplicateRows) {
-      issues.push({
-        id: `${row.id}:duplicate-group`,
-        rows: duplicateRows,
-        type: "duplicate",
-      });
-    }
-    if (row.priceWarning) {
-      issues.push({ id: `${row.id}:price`, row, type: "price" });
-    }
-    if (row.imageUrlWarning) {
-      issues.push({ id: `${row.id}:image-url`, row, type: "image-url" });
-    }
-    if (row.cultivarReferenceIdWarning) {
-      issues.push({
-        id: `${row.id}:cultivar-reference-id`,
-        row,
-        type: "cultivar-reference-id",
-      });
-    }
-
-    return issues;
-  });
-}
-
-function CultivarReferenceIssue({
-  controller,
-  row,
-  sourceCells,
-}: {
-  controller: CatalogImporterWorkbenchController;
-  row: CatalogImportRow;
-  sourceCells: CatalogImporterSourceCell[];
-}) {
-  return (
-    <div className="space-y-5">
-      <CatalogImporterSourceRow row={row} sourceCells={sourceCells} />
-
-      <div className="max-w-xl space-y-3">
-        <div>
-          <h3 className="font-semibold">Saved cultivar link was not found</h3>
-          <p className="text-muted-foreground mt-1 text-sm">
-            The spreadsheet contains Daylily Catalog ID{" "}
-            <span className="text-foreground font-mono">
-              {row.cultivarReferenceIdWarning}
-            </span>
-            , but it is no longer available.
-          </p>
-        </div>
-        <Button
-          type="button"
-          onClick={() => controller.clearCultivarReferenceIdIssue(row.id)}
-        >
-          Match by name
-        </Button>
-      </div>
-    </div>
+  return [...groups.entries()].map(
+    ([sourceRow, duplicateRows]): DuplicateGroup => ({
+      id: `source-row-${sourceRow}:duplicate-group`,
+      rows: duplicateRows,
+    }),
   );
 }
 
-function parsePrice(value: string) {
+function parsePrice(value: string): ParsedInput<number | null> {
   const normalized = value.replaceAll(",", "").replace(/^\$/, "").trim();
+  if (!normalized) {
+    return { valid: true, value: null };
+  }
   if (!/^\d+(?:\.\d+)?$/.test(normalized)) {
-    return null;
+    return { valid: false, value: null };
   }
 
   const price = Number(normalized);
-  return Number.isFinite(price) && price >= 0 ? price : null;
+  return Number.isFinite(price) && price >= 0
+    ? { valid: true, value: price }
+    : { valid: false, value: null };
 }
 
-function parseImageUrl(value: string) {
+function parseImageUrl(value: string): ParsedInput<string> {
+  const normalized = value.trim();
+  if (!normalized) {
+    return { valid: true, value: "" };
+  }
+
   try {
-    const url = new URL(value.trim());
+    const url = new URL(normalized);
     return url.protocol === "http:" || url.protocol === "https:"
-      ? url.toString()
-      : null;
+      ? { valid: true, value: url.toString() }
+      : { valid: false, value: null };
   } catch {
-    return null;
+    return { valid: false, value: null };
   }
 }
 
-function DuplicateIssue({
+function DuplicateGroupTable({
   controller,
   rows,
 }: {
@@ -167,10 +95,10 @@ function DuplicateIssue({
   const title = rows[0]?.title ?? "this cultivar";
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 py-6 first:pt-0 last:pb-0">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <h3 className="font-semibold">Multiple listings for {title}</h3>
+          <h4 className="font-semibold">Multiple listings for {title}</h4>
           <p className="text-muted-foreground mt-1 text-sm">
             Remove an accidental copy, or keep every listing if they are
             intentional.
@@ -248,147 +176,306 @@ function DuplicateIssue({
   );
 }
 
-function PriceIssue({
+function PriceIssuesTable({
   controller,
-  row,
-  sourceCells,
+  rows,
 }: {
   controller: CatalogImporterWorkbenchController;
-  row: CatalogImportRow;
-  sourceCells: CatalogImporterSourceCell[];
+  rows: CatalogImportRow[];
 }) {
-  const [value, setValue] = useState(row.sourcePrice);
-  const [error, setError] = useState<string | null>(null);
+  const [values, setValues] = useState<Record<string, string>>(() =>
+    Object.fromEntries(rows.map((row) => [row.id, row.sourcePrice])),
+  );
+  const parsedRows = rows.map((row) => ({
+    parsed: parsePrice(values[row.id] ?? row.sourcePrice),
+    row,
+  }));
+  const canSaveAll = parsedRows.every(({ parsed }) => parsed.valid);
 
   return (
-    <div className="space-y-5">
-      <CatalogImporterSourceRow row={row} sourceCells={sourceCells} />
-
-      <form
-        className="max-w-xl space-y-3"
-        onSubmit={(event) => {
-          event.preventDefault();
-          const price = parsePrice(value);
-          if (price === null) {
-            setError("Enter one price, such as 12 or 12.50.");
-            return;
-          }
-          controller.resolvePriceIssue(row.id, price);
-        }}
-      >
+    <section aria-labelledby="catalog-importer-price-issues-heading">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h3 className="font-semibold">Correct the price</h3>
+          <h3
+            id="catalog-importer-price-issues-heading"
+            className="font-semibold"
+          >
+            Invalid prices
+          </h3>
           <p className="text-muted-foreground mt-1 text-sm">
-            The original value could not be converted to one price.
+            Enter one price for each listing, or leave the corrected price
+            blank.
           </p>
         </div>
-        <label htmlFor={`issue-price-${row.id}`} className="sr-only">
-          Correct the price
-        </label>
-        <Input
-          id={`issue-price-${row.id}`}
-          inputMode="decimal"
-          value={value}
-          aria-invalid={Boolean(error)}
-          aria-describedby={error ? `issue-price-error-${row.id}` : undefined}
-          onChange={(event) => {
-            setValue(event.currentTarget.value);
-            setError(null);
-          }}
-        />
-        {error ? (
-          <p
-            id={`issue-price-error-${row.id}`}
-            className="text-destructive text-sm"
-          >
-            {error}
-          </p>
-        ) : null}
-        <div className="flex flex-wrap gap-2">
-          <Button type="submit">Save price</Button>
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => controller.resolvePriceIssue(row.id, null)}
-          >
-            Leave price blank
-          </Button>
-        </div>
-      </form>
-    </div>
+        <Button
+          type="button"
+          variant="outline"
+          disabled={!canSaveAll}
+          onClick={() =>
+            controller.resolvePriceIssues(
+              parsedRows.flatMap(({ parsed, row }) =>
+                parsed.valid ? [{ price: parsed.value, rowId: row.id }] : [],
+              ),
+            )
+          }
+        >
+          Save all
+        </Button>
+      </div>
+
+      <Table aria-label="Invalid price rows" className="mt-4 min-w-[44rem]">
+        <TableHeader>
+          <TableRow>
+            <TableHead className="w-px">Row</TableHead>
+            <TableHead>Name</TableHead>
+            <TableHead>Original price</TableHead>
+            <TableHead className="min-w-56">Corrected price</TableHead>
+            <TableHead className="w-px">
+              <span className="sr-only">Save</span>
+            </TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {parsedRows.map(({ parsed, row }) => (
+            <TableRow key={row.id}>
+              <TableCell className="text-muted-foreground font-mono text-xs">
+                {row.sourceRow}
+              </TableCell>
+              <TableCell className="font-medium">{row.sourceTitle}</TableCell>
+              <TableCell className="text-muted-foreground">
+                {row.sourcePrice}
+              </TableCell>
+              <TableCell>
+                <Input
+                  aria-label={`Correct price for row ${row.sourceRow}`}
+                  aria-invalid={!parsed.valid}
+                  inputMode="decimal"
+                  value={values[row.id] ?? row.sourcePrice}
+                  onChange={(event) => {
+                    const value = event.currentTarget.value;
+                    setValues((current) => ({
+                      ...current,
+                      [row.id]: value,
+                    }));
+                  }}
+                />
+                {!parsed.valid ? (
+                  <p className="text-destructive mt-1 text-xs">
+                    Use one price, such as 12 or 12.50.
+                  </p>
+                ) : null}
+              </TableCell>
+              <TableCell>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  disabled={!parsed.valid}
+                  aria-label={`Save price for row ${row.sourceRow}`}
+                  title={`Save price for row ${row.sourceRow}`}
+                  onClick={() => {
+                    if (parsed.valid) {
+                      controller.resolvePriceIssues([
+                        { price: parsed.value, rowId: row.id },
+                      ]);
+                    }
+                  }}
+                >
+                  <Save className="size-4" />
+                </Button>
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </section>
   );
 }
 
-function ImageUrlIssue({
+function ImageUrlIssuesTable({
   controller,
-  row,
-  sourceCells,
+  rows,
 }: {
   controller: CatalogImporterWorkbenchController;
-  row: CatalogImportRow;
-  sourceCells: CatalogImporterSourceCell[];
+  rows: CatalogImportRow[];
 }) {
-  const [value, setValue] = useState(row.sourceImageUrl);
-  const [error, setError] = useState<string | null>(null);
+  const [values, setValues] = useState<Record<string, string>>(() =>
+    Object.fromEntries(rows.map((row) => [row.id, row.sourceImageUrl])),
+  );
+  const parsedRows = rows.map((row) => ({
+    parsed: parseImageUrl(values[row.id] ?? row.sourceImageUrl),
+    row,
+  }));
+  const canSaveAll = parsedRows.every(({ parsed }) => parsed.valid);
 
   return (
-    <div className="space-y-5">
-      <CatalogImporterSourceRow row={row} sourceCells={sourceCells} />
-
-      <form
-        className="max-w-xl space-y-3"
-        onSubmit={(event) => {
-          event.preventDefault();
-          const imageUrl = parseImageUrl(value);
-          if (!imageUrl) {
-            setError("Enter a complete http or https image URL.");
-            return;
-          }
-          controller.resolveImageUrlIssue(row.id, imageUrl);
-        }}
-      >
+    <section aria-labelledby="catalog-importer-image-issues-heading">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h3 className="font-semibold">Correct the image URL</h3>
+          <h3
+            id="catalog-importer-image-issues-heading"
+            className="font-semibold"
+          >
+            Invalid image URLs
+          </h3>
           <p className="text-muted-foreground mt-1 text-sm">
-            The original value was not a usable web address.
+            Enter a complete image URL or leave it blank. The preview also
+            checks that saved images load.
           </p>
         </div>
-        <label htmlFor={`issue-image-url-${row.id}`} className="sr-only">
-          Correct the image URL
-        </label>
-        <Input
-          id={`issue-image-url-${row.id}`}
-          type="url"
-          value={value}
-          aria-invalid={Boolean(error)}
-          aria-describedby={
-            error ? `issue-image-url-error-${row.id}` : undefined
+        <Button
+          type="button"
+          variant="outline"
+          disabled={!canSaveAll}
+          onClick={() =>
+            controller.resolveImageUrlIssues(
+              parsedRows.flatMap(({ parsed, row }) =>
+                parsed.valid ? [{ imageUrl: parsed.value, rowId: row.id }] : [],
+              ),
+            )
           }
-          onChange={(event) => {
-            setValue(event.currentTarget.value);
-            setError(null);
-          }}
-        />
-        {error ? (
-          <p
-            id={`issue-image-url-error-${row.id}`}
-            className="text-destructive text-sm"
+        >
+          Save all
+        </Button>
+      </div>
+
+      <Table aria-label="Invalid image URL rows" className="mt-4 min-w-[52rem]">
+        <TableHeader>
+          <TableRow>
+            <TableHead className="w-px">Row</TableHead>
+            <TableHead>Name</TableHead>
+            <TableHead className="max-w-72">Original URL</TableHead>
+            <TableHead className="min-w-80">Corrected URL</TableHead>
+            <TableHead className="w-px">
+              <span className="sr-only">Save</span>
+            </TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {parsedRows.map(({ parsed, row }) => (
+            <TableRow key={row.id}>
+              <TableCell className="text-muted-foreground font-mono text-xs">
+                {row.sourceRow}
+              </TableCell>
+              <TableCell className="font-medium">{row.sourceTitle}</TableCell>
+              <TableCell className="text-muted-foreground max-w-72 break-all">
+                {row.sourceImageUrl}
+              </TableCell>
+              <TableCell>
+                <Input
+                  aria-label={`Correct image URL for row ${row.sourceRow}`}
+                  aria-invalid={!parsed.valid}
+                  type="url"
+                  value={values[row.id] ?? row.sourceImageUrl}
+                  onChange={(event) => {
+                    const value = event.currentTarget.value;
+                    setValues((current) => ({
+                      ...current,
+                      [row.id]: value,
+                    }));
+                  }}
+                />
+                {!parsed.valid ? (
+                  <p className="text-destructive mt-1 text-xs">
+                    Use a complete http or https image URL.
+                  </p>
+                ) : null}
+              </TableCell>
+              <TableCell>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  disabled={!parsed.valid}
+                  aria-label={`Save image URL for row ${row.sourceRow}`}
+                  title={`Save image URL for row ${row.sourceRow}`}
+                  onClick={() => {
+                    if (parsed.valid) {
+                      controller.resolveImageUrlIssues([
+                        { imageUrl: parsed.value, rowId: row.id },
+                      ]);
+                    }
+                  }}
+                >
+                  <Save className="size-4" />
+                </Button>
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </section>
+  );
+}
+
+function SavedIdIssuesTable({
+  controller,
+  rows,
+}: {
+  controller: CatalogImporterWorkbenchController;
+  rows: CatalogImportRow[];
+}) {
+  return (
+    <section aria-labelledby="catalog-importer-saved-id-issues-heading">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <h3
+            id="catalog-importer-saved-id-issues-heading"
+            className="font-semibold"
           >
-            {error}
+            Saved cultivar links not found
+          </h3>
+          <p className="text-muted-foreground mt-1 text-sm">
+            Clear the unavailable IDs and find each cultivar by name.
           </p>
-        ) : null}
-        <div className="flex flex-wrap gap-2">
-          <Button type="submit">Save image URL</Button>
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => controller.resolveImageUrlIssue(row.id, "")}
-          >
-            Leave image blank
-          </Button>
         </div>
-      </form>
-    </div>
+        <Button
+          type="button"
+          variant="outline"
+          onClick={() =>
+            controller.clearCultivarReferenceIdIssues(rows.map((row) => row.id))
+          }
+        >
+          Rematch all
+        </Button>
+      </div>
+
+      <Table aria-label="Invalid saved cultivar ID rows" className="mt-4">
+        <TableHeader>
+          <TableRow>
+            <TableHead className="w-px">Row</TableHead>
+            <TableHead>Name</TableHead>
+            <TableHead>Daylily Catalog ID</TableHead>
+            <TableHead className="w-px">Action</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {rows.map((row) => (
+            <TableRow key={row.id}>
+              <TableCell className="text-muted-foreground font-mono text-xs">
+                {row.sourceRow}
+              </TableCell>
+              <TableCell className="font-medium">{row.sourceTitle}</TableCell>
+              <TableCell className="font-mono text-xs">
+                {row.cultivarReferenceIdWarning}
+              </TableCell>
+              <TableCell>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() =>
+                    controller.clearCultivarReferenceIdIssues([row.id])
+                  }
+                >
+                  Match by name
+                </Button>
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </section>
   );
 }
 
@@ -397,72 +484,80 @@ export function CatalogImporterIssues({
 }: {
   controller: CatalogImporterWorkbenchController;
 }) {
-  const issues = useMemo(
-    () => getIssues(controller.resultRows),
+  const duplicateGroups = useMemo(
+    () => getDuplicateGroups(controller.resultRows),
     [controller.resultRows],
   );
+  const priceRows = controller.resultRows.filter(
+    (row) => row.priceWarning !== null,
+  );
+  const imageUrlRows = controller.resultRows.filter(
+    (row) => row.imageUrlWarning !== null,
+  );
+  const savedIdRows = controller.resultRows.filter(
+    (row) => row.cultivarReferenceIdWarning !== null,
+  );
 
-  if (issues.length === 0) {
+  if (controller.issueCount === 0) {
     return null;
   }
 
   return (
-    <Card
+    <section
       id="catalog-importer-issues"
       role="region"
       aria-labelledby="catalog-importer-issues-heading"
-      className="min-w-0 overflow-hidden shadow-sm"
+      className="scroll-mt-4 border-t pt-10"
     >
-      <CardHeader className="border-b">
-        <div className="space-y-1">
-          <CardTitle
-            id="catalog-importer-issues-heading"
-            role="heading"
-            aria-level={2}
-          >
-            Issues
-          </CardTitle>
-          <CardDescription className="tabular-nums" aria-live="polite">
-            {issues.length.toLocaleString()} issue
-            {issues.length === 1 ? "" : "s"} remaining
-          </CardDescription>
-        </div>
-      </CardHeader>
+      <div>
+        <h2
+          id="catalog-importer-issues-heading"
+          className="text-xl font-semibold tracking-tight"
+        >
+          Fix spreadsheet issues
+        </h2>
+        <p className="text-muted-foreground mt-1 text-sm tabular-nums">
+          {controller.issueCount.toLocaleString()} issue
+          {controller.issueCount === 1 ? "" : "s"} remaining
+        </p>
+      </div>
 
-      <CardContent className="divide-y p-0">
-        {issues.map((issue) => {
-          const sourceCells =
-            issue.type === "duplicate"
-              ? []
-              : controller.getSourceCellsForRow(issue.row);
-
-          return (
-            <div key={issue.id} className="min-w-0 p-4 lg:p-6">
-              {issue.type === "duplicate" ? (
-                <DuplicateIssue controller={controller} rows={issue.rows} />
-              ) : issue.type === "price" ? (
-                <PriceIssue
+      <div className="mt-6 divide-y border-y">
+        {duplicateGroups.length > 0 ? (
+          <section className="py-6" aria-labelledby="duplicate-issues-heading">
+            <h3 id="duplicate-issues-heading" className="font-semibold">
+              Duplicate listings
+            </h3>
+            <div className="divide-y">
+              {duplicateGroups.map((group) => (
+                <DuplicateGroupTable
+                  key={group.id}
                   controller={controller}
-                  row={issue.row}
-                  sourceCells={sourceCells}
+                  rows={group.rows}
                 />
-              ) : issue.type === "cultivar-reference-id" ? (
-                <CultivarReferenceIssue
-                  controller={controller}
-                  row={issue.row}
-                  sourceCells={sourceCells}
-                />
-              ) : issue.type === "image-url" ? (
-                <ImageUrlIssue
-                  controller={controller}
-                  row={issue.row}
-                  sourceCells={sourceCells}
-                />
-              ) : null}
+              ))}
             </div>
-          );
-        })}
-      </CardContent>
-    </Card>
+          </section>
+        ) : null}
+
+        {priceRows.length > 0 ? (
+          <div className="py-6">
+            <PriceIssuesTable controller={controller} rows={priceRows} />
+          </div>
+        ) : null}
+
+        {imageUrlRows.length > 0 ? (
+          <div className="py-6">
+            <ImageUrlIssuesTable controller={controller} rows={imageUrlRows} />
+          </div>
+        ) : null}
+
+        {savedIdRows.length > 0 ? (
+          <div className="py-6">
+            <SavedIdIssuesTable controller={controller} rows={savedIdRows} />
+          </div>
+        ) : null}
+      </div>
+    </section>
   );
 }

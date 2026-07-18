@@ -86,9 +86,11 @@ export function getCatalogPreviewDescription(row: CatalogImportRow) {
 function CatalogPreviewImage({
   cultivarName,
   image,
+  onImageError,
 }: {
   cultivarName: string;
   image: OptimizedImageSource;
+  onImageError?: () => void;
 }) {
   return (
     <Dialog>
@@ -103,6 +105,7 @@ function CatalogPreviewImage({
             variant="thumb"
             size="thumbnail"
             alt={cultivarName}
+            onImageError={onImageError}
           />
         </button>
       </DialogTrigger>
@@ -333,8 +336,18 @@ export function CatalogImporterCatalogPreview({
                         <div className="relative">
                           {image ? (
                             <CatalogPreviewImage
+                              key={image.url}
                               image={image}
                               cultivarName={match.displayName}
+                              onImageError={
+                                row.imageUrl
+                                  ? () =>
+                                      controller.flagImageUrlIssue(
+                                        row.id,
+                                        row.imageUrl,
+                                      )
+                                  : undefined
+                              }
                             />
                           ) : (
                             <ImagePlaceholder />

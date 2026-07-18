@@ -12,13 +12,6 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import {
   Select,
   SelectContent,
   SelectGroup,
@@ -85,99 +78,103 @@ export function CatalogImporterUpload({
 
   if (controller.parsedSpreadsheet) {
     return (
-      <Card className="shadow-sm">
-        <CardContent className="flex min-w-0 flex-col gap-3 p-3 lg:flex-row lg:items-center">
-          <div className="flex min-w-0 flex-1 items-center gap-3">
-            <div className="bg-muted flex size-9 shrink-0 items-center justify-center rounded-md">
-              <FileSpreadsheet className="text-muted-foreground size-4" />
-            </div>
-            <div className="min-w-0">
-              <p className="truncate text-sm font-medium">
-                {controller.parsedSpreadsheet.fileName}
-              </p>
-              <p className="text-muted-foreground text-xs">
-                {controller.selectedSheet?.rows.length.toLocaleString() ?? 0}{" "}
-                rows in selected sheet
-              </p>
-            </div>
+      <section
+        aria-label="Uploaded spreadsheet"
+        className="flex min-w-0 flex-col gap-3 border-y py-3 lg:flex-row lg:items-center"
+      >
+        <div className="flex min-w-0 flex-1 items-center gap-3">
+          <div className="bg-muted flex size-9 shrink-0 items-center justify-center rounded-md">
+            <FileSpreadsheet className="text-muted-foreground size-4" />
+          </div>
+          <div className="min-w-0">
+            <p className="truncate text-sm font-medium">
+              {controller.parsedSpreadsheet.fileName}
+            </p>
+            <p className="text-muted-foreground text-xs">
+              {controller.selectedSheet?.rows.length.toLocaleString() ?? 0} rows
+              in selected sheet
+            </p>
+          </div>
+        </div>
+
+        <div className="grid gap-2 lg:flex lg:items-center">
+          <div className="flex items-center gap-2">
+            <span className="text-muted-foreground text-xs font-medium">
+              Sheet
+            </span>
+            <Select
+              value={String(controller.selectedSheetIndex)}
+              onValueChange={(value) => {
+                controller.configureSheet(
+                  controller.parsedSpreadsheet!,
+                  Number(value),
+                );
+                onEditMapping?.();
+              }}
+            >
+              <SelectTrigger
+                className="h-8 min-w-0 flex-1 lg:w-56"
+                aria-label="Spreadsheet sheet"
+              >
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectGroup>
+                  {controller.parsedSpreadsheet.sheets.map((sheet, index) => (
+                    <SelectItem
+                      key={`${sheet.name}-${index}`}
+                      value={String(index)}
+                    >
+                      {sheet.name} · {sheet.rows.length.toLocaleString()} rows
+                    </SelectItem>
+                  ))}
+                </SelectGroup>
+              </SelectContent>
+            </Select>
           </div>
 
-          <div className="grid gap-2 lg:flex lg:items-center">
-            <div className="flex items-center gap-2">
-              <span className="text-muted-foreground text-xs font-medium">
-                Sheet
-              </span>
-              <Select
-                value={String(controller.selectedSheetIndex)}
-                onValueChange={(value) => {
-                  controller.configureSheet(
-                    controller.parsedSpreadsheet!,
-                    Number(value),
-                  );
-                  onEditMapping?.();
-                }}
-              >
-                <SelectTrigger
-                  className="h-8 min-w-0 flex-1 lg:w-56"
-                  aria-label="Spreadsheet sheet"
-                >
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectGroup>
-                    {controller.parsedSpreadsheet.sheets.map((sheet, index) => (
-                      <SelectItem
-                        key={`${sheet.name}-${index}`}
-                        value={String(index)}
-                      >
-                        {sheet.name} · {sheet.rows.length.toLocaleString()} rows
-                      </SelectItem>
-                    ))}
-                  </SelectGroup>
-                </SelectContent>
-              </Select>
-            </div>
-
-            {onEditMapping ? (
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="h-8"
-                onClick={onEditMapping}
-              >
-                <ListFilter className="size-4" />
-                Edit columns
-              </Button>
-            ) : null}
-
+          {onEditMapping ? (
             <Button
               type="button"
-              variant="ghost"
+              variant="outline"
               size="sm"
               className="h-8"
-              onClick={controller.resetImporter}
+              onClick={onEditMapping}
             >
-              <RotateCcw className="size-4" />
-              Reset
+              <ListFilter className="size-4" />
+              Edit columns
             </Button>
-          </div>
-        </CardContent>
-      </Card>
+          ) : null}
+
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="h-8"
+            onClick={controller.resetImporter}
+          >
+            <RotateCcw className="size-4" />
+            Reset
+          </Button>
+        </div>
+      </section>
     );
   }
 
   return (
-    <Card className="overflow-hidden shadow-sm">
-      <CardHeader className="pb-4">
-        <CardTitle role="heading" aria-level={2}>
+    <section aria-labelledby="catalog-importer-upload-heading">
+      <div className="mb-4">
+        <h2
+          id="catalog-importer-upload-heading"
+          className="text-xl font-semibold"
+        >
           Start with a spreadsheet
-        </CardTitle>
-        <CardDescription>
+        </h2>
+        <p className="text-muted-foreground mt-1 text-sm">
           Choose an XLSX or CSV file containing the listings for your catalog.
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-4">
+        </p>
+      </div>
+      <div className="space-y-4">
         <div
           {...getRootProps({
             "aria-label": "Upload spreadsheet",
@@ -227,7 +224,7 @@ export function CatalogImporterUpload({
             Use sample catalog
           </Button>
         </div>
-      </CardContent>
-    </Card>
+      </div>
+    </section>
   );
 }

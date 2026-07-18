@@ -14,14 +14,18 @@ async function readSavedDraft(page: Page) {
     () =>
       new Promise<Record<string, unknown> | null>((resolve, reject) => {
         const request = indexedDB.open("keyval-store");
-        request.onerror = () => reject(request.error);
+        request.onerror = () =>
+          reject(request.error ?? new Error("Could not open the saved draft."));
         request.onsuccess = () => {
           const database = request.result;
           const transaction = database.transaction("keyval", "readonly");
           const getRequest = transaction
             .objectStore("keyval")
             .get("catalog-importer-draft:v2");
-          getRequest.onerror = () => reject(getRequest.error);
+          getRequest.onerror = () =>
+            reject(
+              getRequest.error ?? new Error("Could not read the saved draft."),
+            );
           getRequest.onsuccess = () =>
             resolve(
               (getRequest.result as Record<string, unknown> | undefined) ??
@@ -142,7 +146,12 @@ function sampleCsv(rowCount = 25) {
           : index === 10
             ? "Daylily 10"
             : `Daylily ${index + 1}`;
-    const price = index === 1 ? "two for $20" : (10 + index).toFixed(2);
+    const price =
+      index === 1
+        ? "two for $20"
+        : index === 3
+          ? "three for $30"
+          : (10 + index).toFixed(2);
     const imageUrl = index === 2 ? "not-an-image-url" : "";
     return `${name},${price},Description ${index + 1},Bed ${index + 1},${imageUrl}`;
   });
@@ -162,6 +171,16 @@ test.describe("catalog importer", () => {
   test("prepares, restores, and downloads a spreadsheet", async ({ page }) => {
     test.slow();
     await mockCultivarMatches(page);
+    await page.route("https://example.com/daylily.jpg", async (route) => {
+      await route.fulfill({
+        body: Buffer.from(
+          "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=",
+          "base64",
+        ),
+        contentType: "image/png",
+        status: 200,
+      });
+    });
     await page.goto("/catalog-importer");
 
     await expect(page.getByRole("main")).toHaveCount(1);
@@ -224,16 +243,18 @@ test.describe("catalog importer", () => {
       "2",
     );
     await expect(catalogSummary.getByTestId("summary-issue-count")).toHaveText(
-      "3",
+      "4",
     );
 
-    const issuesRegion = page.getByRole("region", { name: "Issues" });
-    await expect(issuesRegion).toContainText("3 issues remaining");
+    const issuesRegion = page.getByRole("region", {
+      name: "Fix spreadsheet issues",
+    });
+    await expect(issuesRegion).toContainText("4 issues remaining");
     await expect(
-      issuesRegion.getByRole("heading", { name: "Correct the price" }),
+      issuesRegion.getByRole("heading", { name: "Invalid prices" }),
     ).toBeVisible();
     await expect(
-      issuesRegion.getByRole("heading", { name: "Correct the image URL" }),
+      issuesRegion.getByRole("heading", { name: "Invalid image URLs" }),
     ).toBeVisible();
     await expect(
       issuesRegion.getByRole("heading", {
@@ -251,17 +272,29 @@ test.describe("catalog importer", () => {
       duplicateRows.getByRole("button", { name: "Remove row 12" }),
     ).toBeVisible();
     await issuesRegion.getByRole("button", { name: "Keep all" }).click();
-    await expect(issuesRegion).toContainText("2 issues remaining");
+    await expect(issuesRegion).toContainText("3 issues remaining");
 
-    const correctedPrice = issuesRegion.getByLabel("Correct the price");
-    await correctedPrice.fill("12.50");
-    await issuesRegion.getByRole("button", { name: "Save price" }).click();
+    const priceIssues = issuesRegion.getByRole("region", {
+      name: "Invalid prices",
+    });
+    await priceIssues.getByLabel("Correct price for row 3").fill("12.50");
+    await priceIssues.getByLabel("Correct price for row 5").fill("13.50");
+    await priceIssues.getByRole("button", { name: "Save all" }).click();
     await expect(issuesRegion).toContainText("1 issue remaining");
 
-    const correctedImageUrl = issuesRegion.getByLabel("Correct the image URL");
+    const imageIssues = issuesRegion.getByRole("region", {
+      name: "Invalid image URLs",
+    });
+    const correctedImageUrl = imageIssues.getByLabel(
+      "Correct image URL for row 4",
+    );
     await correctedImageUrl.fill("https://example.com/daylily.jpg");
-    await issuesRegion.getByRole("button", { name: "Save image URL" }).click();
-    await expect(page.getByRole("region", { name: "Issues" })).toHaveCount(0);
+    await imageIssues
+      .getByRole("button", { name: "Save image URL for row 4" })
+      .click();
+    await expect(
+      page.getByRole("region", { name: "Fix spreadsheet issues" }),
+    ).toHaveCount(0);
     await expect
       .poll(async () =>
         JSON.stringify(await readSavedDraft(page)).includes(
@@ -271,7 +304,7 @@ test.describe("catalog importer", () => {
       .toBe(true);
 
     await expect(
-      page.getByRole("heading", { name: "Match unmatched names" }),
+      page.getByRole("heading", { name: "Review potential matches" }),
     ).toBeVisible();
     await expect(
       page.getByText("2 manual matches remaining", { exact: false }),
@@ -282,7 +315,7 @@ test.describe("catalog importer", () => {
     await expect(page.getByRole("button", { name: "Omit row" })).toHaveCount(0);
 
     const reviewQuiz = page.getByRole("region", {
-      name: "Match unmatched names",
+      name: "Review potential matches",
     });
     const sourceRow = reviewQuiz.getByRole("table", {
       name: "Uploaded spreadsheet row 25",
@@ -313,12 +346,14 @@ test.describe("catalog importer", () => {
 
     await page.reload();
     await expect(
-      page.getByRole("heading", { name: "Match unmatched names" }),
+      page.getByRole("heading", { name: "Review potential matches" }),
     ).toBeVisible();
     await expect(
       page.getByText("1 manual match remaining", { exact: false }),
     ).toBeVisible();
-    await expect(page.getByRole("region", { name: "Issues" })).toHaveCount(0);
+    await expect(
+      page.getByRole("region", { name: "Fix spreadsheet issues" }),
+    ).toHaveCount(0);
     await expect(
       page.getByRole("heading", { name: "Mystery Bloom" }),
     ).toBeVisible();
@@ -331,12 +366,12 @@ test.describe("catalog importer", () => {
       closeMatches.getByRole("button", { name: "Skip" }),
     ).toHaveAttribute("aria-keyshortcuts", "X");
     const restoredReviewQuiz = page.getByRole("region", {
-      name: "Match unmatched names",
+      name: "Review potential matches",
     });
     await restoredReviewQuiz.focus();
     await page.keyboard.press("x");
     await expect(
-      page.getByRole("region", { name: "Match unmatched names" }),
+      page.getByRole("region", { name: "Review potential matches" }),
     ).toHaveCount(0);
 
     const downloadPromise = page.waitForEvent("download");
@@ -393,7 +428,7 @@ test.describe("catalog importer", () => {
     ).toBeVisible();
 
     await expect(
-      page.getByRole("heading", { name: "Match unmatched names" }),
+      page.getByRole("heading", { name: "Review potential matches" }),
     ).toBeVisible();
     await expect(
       page.getByRole("table", { name: "Uploaded spreadsheet row 13" }),

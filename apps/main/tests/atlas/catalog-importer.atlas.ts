@@ -102,7 +102,7 @@ async function uploadSpreadsheet(page: Page) {
 
 async function openReviewQuiz(page: Page) {
   await expect(
-    page.getByRole("heading", { name: "Match unmatched names" }),
+    page.getByRole("heading", { name: "Review potential matches" }),
   ).toBeVisible();
 }
 

@@ -4,13 +4,6 @@ import { useState } from "react";
 import { ChevronDown, ChevronUp, CircleHelp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
@@ -151,16 +144,16 @@ function SpreadsheetPreview({
 
   return (
     <Collapsible open={open} onOpenChange={setOpen}>
-      <Card className="min-w-0 shadow-sm">
-        <CardHeader className="flex-row items-start justify-between gap-4 space-y-0">
+      <section className="min-w-0">
+        <div className="flex items-start justify-between gap-4 pb-4">
           <div className="space-y-1.5">
-            <CardTitle role="heading" aria-level={2}>
+            <h2 className="text-xl font-semibold tracking-tight">
               Spreadsheet preview
-            </CardTitle>
-            <CardDescription>
+            </h2>
+            <p className="text-muted-foreground text-sm">
               The detected header row is highlighted. Row and column labels
               match the workbook.
-            </CardDescription>
+            </p>
           </div>
           <CollapsibleTrigger asChild>
             <Button
@@ -179,75 +172,68 @@ function SpreadsheetPreview({
               </span>
             </Button>
           </CollapsibleTrigger>
-        </CardHeader>
+        </div>
         <CollapsibleContent>
-          <CardContent>
-            <div className="max-w-full overflow-x-auto rounded-md border">
-              <table className="w-max min-w-full border-collapse text-left text-xs">
-                <caption className="sr-only">
-                  First {controller.sourcePreviewRows.length.toLocaleString()}{" "}
-                  rows of{" "}
-                  {controller.selectedSheet?.name ?? "the selected sheet"}
-                </caption>
-                <thead className="bg-muted/60">
-                  <tr>
+          <div className="max-w-full overflow-x-auto rounded-md border">
+            <table className="w-max min-w-full border-collapse text-left text-xs">
+              <caption className="sr-only">
+                First {controller.sourcePreviewRows.length.toLocaleString()}{" "}
+                rows of {controller.selectedSheet?.name ?? "the selected sheet"}
+              </caption>
+              <thead className="bg-muted/60">
+                <tr>
+                  <th
+                    scope="col"
+                    className="text-muted-foreground sticky left-0 z-10 border-r border-b bg-inherit px-2 py-2 font-mono font-normal"
+                  >
+                    Row
+                  </th>
+                  {controller.sourcePreviewColumnIndexes.map((columnIndex) => (
                     <th
+                      key={columnIndex}
                       scope="col"
+                      className="text-muted-foreground border-r border-b px-3 py-2 font-mono font-normal whitespace-nowrap last:border-r-0"
+                    >
+                      {columnIndexToLabel(columnIndex)}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {controller.sourcePreviewRows.map((row, rowIndex) => (
+                  <tr
+                    key={rowIndex}
+                    className={
+                      rowIndex === controller.headerRowIndex
+                        ? "bg-primary/5 font-medium"
+                        : "bg-background"
+                    }
+                  >
+                    <th
+                      scope="row"
                       className="text-muted-foreground sticky left-0 z-10 border-r border-b bg-inherit px-2 py-2 font-mono font-normal"
                     >
-                      Row
+                      {rowIndex + 1}
                     </th>
                     {controller.sourcePreviewColumnIndexes.map(
                       (columnIndex) => (
-                        <th
+                        <td
                           key={columnIndex}
-                          scope="col"
-                          className="text-muted-foreground border-r border-b px-3 py-2 font-mono font-normal whitespace-nowrap last:border-r-0"
+                          className="max-w-72 border-r border-b px-3 py-2 align-top last:border-r-0"
                         >
-                          {columnIndexToLabel(columnIndex)}
-                        </th>
+                          <span className="line-clamp-3 whitespace-normal">
+                            {getSourcePreviewCellText(row[columnIndex] ?? null)}
+                          </span>
+                        </td>
                       ),
                     )}
                   </tr>
-                </thead>
-                <tbody>
-                  {controller.sourcePreviewRows.map((row, rowIndex) => (
-                    <tr
-                      key={rowIndex}
-                      className={
-                        rowIndex === controller.headerRowIndex
-                          ? "bg-primary/5 font-medium"
-                          : "bg-background"
-                      }
-                    >
-                      <th
-                        scope="row"
-                        className="text-muted-foreground sticky left-0 z-10 border-r border-b bg-inherit px-2 py-2 font-mono font-normal"
-                      >
-                        {rowIndex + 1}
-                      </th>
-                      {controller.sourcePreviewColumnIndexes.map(
-                        (columnIndex) => (
-                          <td
-                            key={columnIndex}
-                            className="max-w-72 border-r border-b px-3 py-2 align-top last:border-r-0"
-                          >
-                            <span className="line-clamp-3 whitespace-normal">
-                              {getSourcePreviewCellText(
-                                row[columnIndex] ?? null,
-                              )}
-                            </span>
-                          </td>
-                        ),
-                      )}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </CardContent>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </CollapsibleContent>
-      </Card>
+      </section>
     </Collapsible>
   );
 }
@@ -271,7 +257,7 @@ export function CatalogImporterMapping({
       aria-labelledby="catalog-importer-mapping-heading"
       className="space-y-4"
     >
-      <div className="grid min-w-0 gap-4 lg:grid-cols-[minmax(0,1.35fr)_minmax(22rem,0.65fr)]">
+      <div className="grid min-w-0 gap-8 pt-4 lg:grid-cols-[minmax(0,1.35fr)_minmax(22rem,0.65fr)]">
         <div className="order-2 min-w-0 lg:order-1">
           <SpreadsheetPreview
             controller={controller}
@@ -279,23 +265,20 @@ export function CatalogImporterMapping({
           />
         </div>
 
-        <Card className="order-1 shadow-sm lg:order-2">
-          <CardHeader className="flex-row items-start justify-between gap-4 space-y-0">
-            <div className="space-y-1.5">
-              <CardTitle
-                id="catalog-importer-mapping-heading"
-                role="heading"
-                aria-level={2}
-              >
-                Map your columns
-              </CardTitle>
-              <CardDescription>
-                Confirm which workbook columns become listing fields. Only
-                cultivar name is required.
-              </CardDescription>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-5">
+        <section className="order-1 lg:order-2 lg:border-l lg:pl-8">
+          <div className="mb-5 space-y-1.5">
+            <h2
+              id="catalog-importer-mapping-heading"
+              className="text-xl font-semibold tracking-tight"
+            >
+              Map your columns
+            </h2>
+            <p className="text-muted-foreground text-sm">
+              Confirm which workbook columns become listing fields. Only
+              cultivar name is required.
+            </p>
+          </div>
+          <div className="space-y-5">
             <TooltipProvider delayDuration={200}>
               <FieldGroup className="gap-5">
                 <Field className="gap-2">
@@ -388,8 +371,8 @@ export function CatalogImporterMapping({
                 ? "Building catalog preview…"
                 : "Build catalog preview"}
             </Button>
-          </CardContent>
-        </Card>
+          </div>
+        </section>
       </div>
     </section>
   );

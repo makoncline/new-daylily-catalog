@@ -27,7 +27,7 @@ export function CatalogImporterClient() {
     <div ref={loadDraft}>
       {initialDraft === undefined ? (
         <div
-          className="border-border bg-card text-muted-foreground rounded-lg border p-6 text-sm"
+          className="text-muted-foreground border-y py-6 text-sm"
           role="status"
         >
           Loading spreadsheet tools…

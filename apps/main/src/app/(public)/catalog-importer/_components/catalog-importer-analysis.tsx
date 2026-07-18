@@ -1,7 +1,6 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import type {
   CatalogImportRow,
@@ -121,11 +120,17 @@ export function CatalogImporterAnalysis({
   const largestCount = Math.max(1, ...ranking.values.map(([, count]) => count));
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Explore your catalog</CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
+    <section
+      aria-labelledby="catalog-importer-analysis-heading"
+      className="border-t pt-10"
+    >
+      <h2
+        id="catalog-importer-analysis-heading"
+        className="text-xl font-semibold tracking-tight"
+      >
+        Explore your catalog
+      </h2>
+      <div className="mt-5 space-y-4">
         <ToggleGroup
           type="single"
           value={facet.value}
@@ -172,7 +177,7 @@ export function CatalogImporterAnalysis({
             ))}
           </ol>
         </div>
-      </CardContent>
-    </Card>
+      </div>
+    </section>
   );
 }

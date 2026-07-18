@@ -119,9 +119,9 @@ describe("OptimizedImage", () => {
     );
 
     const image = screen.getByRole("img");
-    const blurOverlay = container.querySelector(
+    const blurOverlay = container.querySelector<HTMLElement>(
       '[aria-hidden="true"]',
-    ) as HTMLElement;
+    )!;
 
     expect(image).toHaveAttribute(
       "src",
@@ -139,9 +139,9 @@ describe("OptimizedImage", () => {
       <OptimizedImage alt="Asset image" image={secondImage} size="full" />,
     );
 
-    const nextBlurOverlay = container.querySelector(
+    const nextBlurOverlay = container.querySelector<HTMLElement>(
       '[aria-hidden="true"]',
-    ) as HTMLElement;
+    )!;
     expect(screen.getByRole("img")).toHaveAttribute(
       "src",
       "https://media.example/image-2/display-800.webp",
@@ -164,11 +164,20 @@ describe("OptimizedImage", () => {
   it("does not report external host load failures", () => {
     const externalSrc =
       "https://www.daylilydatabase.org/AHSPhoto/C/ChinaBlushCherylDay_1584735345.jpg";
-    render(<OptimizedImage alt="External" src={externalSrc} size="full" />);
+    const onImageError = vi.fn();
+    render(
+      <OptimizedImage
+        alt="External"
+        src={externalSrc}
+        size="full"
+        onImageError={onImageError}
+      />,
+    );
 
     const image = screen.getByRole("img");
     fireEvent.error(image);
 
     expect(reportErrorMock).not.toHaveBeenCalled();
+    expect(onImageError).toHaveBeenCalledOnce();
   });
 });

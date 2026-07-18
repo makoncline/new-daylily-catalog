@@ -1107,63 +1107,107 @@ export function useCatalogImporterWorkbench(
     [matchedRows, saveMatchedRows],
   );
 
-  const resolvePriceIssue = useCallback(
-    (rowId: string, price: number | null) => {
+  const resolvePriceIssues = useCallback(
+    (updates: Array<{ price: number | null; rowId: string }>) => {
       if (!matchedRows) {
         return;
       }
-      const resolvedRow = matchedRows.find((row) => row.id === rowId);
-      if (!resolvedRow) {
+      const prices = new Map(updates.map(({ price, rowId }) => [rowId, price]));
+      if (prices.size === 0) {
         return;
       }
 
       saveMatchedRows(
         matchedRows.map((row) =>
-          row.id === rowId ? { ...row, price, priceWarning: null } : row,
+          prices.has(row.id)
+            ? {
+                ...row,
+                price: prices.get(row.id) ?? null,
+                priceWarning: null,
+              }
+            : row,
         ),
       );
       setLiveAnnouncement(
-        `Price issue resolved for source row ${resolvedRow.sourceRow}.`,
+        `${prices.size.toLocaleString()} price ${prices.size === 1 ? "issue" : "issues"} resolved.`,
       );
     },
     [matchedRows, saveMatchedRows],
   );
 
-  const resolveImageUrlIssue = useCallback(
+  const resolveImageUrlIssues = useCallback(
+    (updates: Array<{ imageUrl: string; rowId: string }>) => {
+      if (!matchedRows) {
+        return;
+      }
+      const imageUrls = new Map(
+        updates.map(({ imageUrl, rowId }) => [rowId, imageUrl]),
+      );
+      if (imageUrls.size === 0) {
+        return;
+      }
+
+      saveMatchedRows(
+        matchedRows.map((row) =>
+          imageUrls.has(row.id)
+            ? {
+                ...row,
+                imageUrl: imageUrls.get(row.id) ?? "",
+                imageUrlWarning: null,
+              }
+            : row,
+        ),
+      );
+      setLiveAnnouncement(
+        `${imageUrls.size.toLocaleString()} image URL ${imageUrls.size === 1 ? "issue" : "issues"} resolved.`,
+      );
+    },
+    [matchedRows, saveMatchedRows],
+  );
+
+  const flagImageUrlIssue = useCallback(
     (rowId: string, imageUrl: string) => {
       if (!matchedRows) {
         return;
       }
-      const resolvedRow = matchedRows.find((row) => row.id === rowId);
-      if (!resolvedRow) {
+      const row = matchedRows.find((candidate) => candidate.id === rowId);
+      if (row?.imageUrl !== imageUrl) {
         return;
       }
 
       saveMatchedRows(
-        matchedRows.map((row) =>
-          row.id === rowId ? { ...row, imageUrl, imageUrlWarning: null } : row,
+        matchedRows.map((candidate) =>
+          candidate.id === rowId
+            ? {
+                ...candidate,
+                imageUrl: "",
+                imageUrlWarning: imageUrl,
+              }
+            : candidate,
         ),
       );
       setLiveAnnouncement(
-        `Image URL issue resolved for source row ${resolvedRow.sourceRow}.`,
+        `Image URL could not be loaded for source row ${row.sourceRow}.`,
       );
     },
     [matchedRows, saveMatchedRows],
   );
 
-  const clearCultivarReferenceIdIssue = useCallback(
-    (rowId: string) => {
+  const clearCultivarReferenceIdIssues = useCallback(
+    (rowIds: string[]) => {
       if (!matchedRows) {
         return;
       }
-      const resolvedRow = matchedRows.find((row) => row.id === rowId);
-      if (!resolvedRow) {
+      const targetIds = new Set(rowIds);
+      const resolvedRows = matchedRows.filter((row) => targetIds.has(row.id));
+      const firstResolvedRow = resolvedRows[0];
+      if (!firstResolvedRow) {
         return;
       }
 
       const nextRows = assignCatalogImportDuplicateGroups(
         matchedRows.map((row) =>
-          row.id === rowId
+          targetIds.has(row.id)
             ? {
                 ...row,
                 cultivarReferenceIdWarning: null,
@@ -1175,15 +1219,17 @@ export function useCatalogImporterWorkbench(
             : row,
         ),
       );
-      const nextReviewRow = nextRows.find((row) => row.id === rowId);
-      setActiveReviewRowId(rowId);
-      setReviewQuery(resolvedRow.sourceTitle);
+      const nextReviewRow = nextRows.find(
+        (row) => row.id === firstResolvedRow.id,
+      );
+      setActiveReviewRowId(firstResolvedRow.id);
+      setReviewQuery(firstResolvedRow.sourceTitle);
       if (nextReviewRow) {
         void loadCandidates(nextReviewRow);
       }
-      saveMatchedRows(nextRows, rowId);
+      saveMatchedRows(nextRows, firstResolvedRow.id);
       setLiveAnnouncement(
-        `Saved cultivar ID cleared for source row ${resolvedRow.sourceRow}. Match it by name.`,
+        `${resolvedRows.length.toLocaleString()} saved cultivar ${resolvedRows.length === 1 ? "ID" : "IDs"} cleared. Match by name to continue.`,
       );
     },
     [loadCandidates, matchedRows, saveMatchedRows],
@@ -1237,13 +1283,14 @@ export function useCatalogImporterWorkbench(
     activeReviewSourceCells,
     buildCatalogPreview,
     candidateResult,
-    clearCultivarReferenceIdIssue,
+    clearCultivarReferenceIdIssues,
     configureSheet,
     downloadResults,
     downloadError,
     downloadingResults,
     downloadTemplate,
     fileError,
+    flagImageUrlIssue,
     finishReviewRow,
     getSourceCellsForRow,
     handleHeaderChange,
@@ -1267,8 +1314,8 @@ export function useCatalogImporterWorkbench(
     keepDuplicateRows,
     removeDuplicateRow,
     resetImporter,
-    resolveImageUrlIssue,
-    resolvePriceIssue,
+    resolveImageUrlIssues,
+    resolvePriceIssues,
     resultRows,
     reviewRows,
     activeReviewIndex,

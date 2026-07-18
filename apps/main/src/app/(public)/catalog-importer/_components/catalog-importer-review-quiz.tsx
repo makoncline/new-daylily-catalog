@@ -10,13 +10,6 @@ import {
 } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
 import type { CultivarMatchCandidate } from "@/lib/catalog-importer";
@@ -141,31 +134,30 @@ export function CatalogImporterReviewQuiz({
 
   const activePosition = controller.activeReviewIndex + 1;
   return (
-    <Card
+    <section
       id="catalog-importer-review-quiz"
       role="region"
       aria-labelledby="catalog-importer-review-heading"
       aria-keyshortcuts="1 2 3 4 5 6 7 8 9 X ArrowLeft ArrowRight"
       tabIndex={0}
       onKeyDown={handleKeyDown}
-      className="focus-visible:ring-ring overflow-hidden outline-none focus-visible:ring-2"
+      className="focus-visible:ring-ring scroll-mt-4 border-t pt-10 outline-none focus-visible:ring-2"
     >
-      <CardHeader className="gap-4 border-b lg:flex-row lg:items-center lg:justify-between lg:space-y-0">
+      <div className="flex flex-col gap-4 pb-6 lg:flex-row lg:items-center lg:justify-between">
         <div className="space-y-1">
-          <CardTitle
+          <h2
             id="catalog-importer-review-heading"
-            role="heading"
-            aria-level={2}
+            className="text-xl font-semibold tracking-tight"
           >
-            Match unmatched names
-          </CardTitle>
-          <CardDescription className="tabular-nums">
+            Review potential matches
+          </h2>
+          <p className="text-muted-foreground text-sm tabular-nums">
             {controller.reviewRows.length.toLocaleString()} manual{" "}
             {controller.reviewRows.length === 1 ? "match" : "matches"} remaining
             {activePosition > 0
               ? ` · ${activePosition.toLocaleString()} of ${controller.reviewRows.length.toLocaleString()}`
               : ""}
-          </CardDescription>
+          </p>
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
@@ -195,9 +187,9 @@ export function CatalogImporterReviewQuiz({
             <ChevronRight className="size-4" />
           </Button>
         </div>
-      </CardHeader>
+      </div>
 
-      <CardContent className="space-y-5 p-4 lg:p-6">
+      <div className="space-y-5">
         <CatalogImporterSourceRow
           row={activeRow}
           sourceCells={controller.activeReviewSourceCells}
@@ -325,7 +317,7 @@ export function CatalogImporterReviewQuiz({
             />
           ) : null}
         </div>
-      </CardContent>
-    </Card>
+      </div>
+    </section>
   );
 }

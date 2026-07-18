@@ -5,7 +5,6 @@ import { CircleAlert, Download } from "lucide-react";
 import { SellerIntentLink } from "@/components/seller-intent-link";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import { Spinner } from "@/components/ui/spinner";
 import { CatalogImporterAnalysis } from "@/app/(public)/catalog-importer/_components/catalog-importer-analysis";
 import { CatalogImporterIssues } from "@/app/(public)/catalog-importer/_components/catalog-importer-issues";
@@ -33,13 +32,46 @@ export function CatalogImporterResults({
   }, []);
 
   return (
-    <div className="min-w-0 space-y-4">
+    <div className="min-w-0 space-y-10">
       <CatalogImporterOverview controller={controller} />
 
       <CatalogImporterCatalogPreview
         controller={controller}
         onOpenReview={handleOpenReview}
       />
+
+      <section
+        aria-labelledby="catalog-importer-membership-heading"
+        className="border-primary/20 bg-primary/[0.035] flex flex-col gap-5 border-y px-1 py-8 sm:flex-row sm:items-center sm:justify-between sm:px-5"
+      >
+        <div className="max-w-2xl">
+          <h2
+            id="catalog-importer-membership-heading"
+            className="text-xl font-semibold tracking-tight"
+          >
+            Turn this preview into your public catalog
+          </h2>
+          <p className="text-muted-foreground mt-2 text-sm leading-relaxed">
+            We already linked {controller.matchedCount.toLocaleString()} of{" "}
+            {controller.resultRows.length.toLocaleString()} listings. Membership
+            unlocks the dashboard and hosted catalogs; keep the prepared
+            spreadsheet for mass import when it becomes available.
+          </p>
+        </div>
+        <Button asChild size="lg" className="shrink-0">
+          <SellerIntentLink
+            ctaId="catalog-importer-membership"
+            ctaLabel="Become a member"
+            entrySurface="catalog_importer_preview"
+            sourcePageType="catalog_importer"
+            sourcePath="/catalog-importer"
+          >
+            Become a member
+          </SellerIntentLink>
+        </Button>
+      </section>
+
+      <CatalogImporterAnalysis rows={controller.resultRows} />
 
       {controller.reviewRows.length > 0 ? (
         <CatalogImporterReviewQuiz controller={controller} />
@@ -57,61 +89,36 @@ export function CatalogImporterResults({
         </Alert>
       ) : null}
 
-      <Card className="shadow-sm">
-        <CardContent className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h2 className="font-semibold">
-              {readyToDownload
-                ? "Your prepared spreadsheet is ready"
-                : "Download your progress"}
-            </h2>
-            <p className="text-muted-foreground mt-1 text-sm">
-              Downloads a new workbook with your original cell values and
-              sheets, plus Daylily Catalog IDs and cultivar links. XLSX
-              formatting and formulas are not copied.
-            </p>
-          </div>
-          <Button
-            type="button"
-            className="shrink-0"
-            disabled={controller.downloadingResults}
-            onClick={() => void controller.downloadResults()}
-          >
-            {controller.downloadingResults ? (
-              <Spinner />
-            ) : (
-              <Download className="size-4" />
-            )}
-            Download prepared spreadsheet
-          </Button>
-        </CardContent>
-      </Card>
-
-      <CatalogImporterAnalysis rows={controller.resultRows} />
-
-      <Card className="border-primary/20 shadow-sm">
-        <CardContent className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h2 className="font-semibold">Ready to publish?</h2>
-            <p className="text-muted-foreground mt-1 text-sm">
-              Membership unlocks the dashboard and hosted catalogs. Keep this
-              prepared spreadsheet for the import flow when it becomes
-              available.
-            </p>
-          </div>
-          <Button asChild className="shrink-0">
-            <SellerIntentLink
-              ctaId="catalog-importer-membership"
-              ctaLabel="Explore membership"
-              entrySurface="catalog_importer_ready_to_publish"
-              sourcePageType="catalog_importer"
-              sourcePath="/catalog-importer"
-            >
-              Explore membership
-            </SellerIntentLink>
-          </Button>
-        </CardContent>
-      </Card>
+      <section
+        aria-labelledby="catalog-importer-download-heading"
+        className="flex flex-col gap-5 border-t pt-8 sm:flex-row sm:items-center sm:justify-between"
+      >
+        <div>
+          <h2 id="catalog-importer-download-heading" className="font-semibold">
+            {readyToDownload
+              ? "Your prepared spreadsheet is ready"
+              : "Download your progress"}
+          </h2>
+          <p className="text-muted-foreground mt-1 text-sm">
+            Downloads a new workbook with your original cell values and sheets,
+            plus Daylily Catalog IDs and cultivar links. XLSX formatting and
+            formulas are not copied.
+          </p>
+        </div>
+        <Button
+          type="button"
+          className="shrink-0"
+          disabled={controller.downloadingResults}
+          onClick={() => void controller.downloadResults()}
+        >
+          {controller.downloadingResults ? (
+            <Spinner />
+          ) : (
+            <Download className="size-4" />
+          )}
+          Download prepared spreadsheet
+        </Button>
+      </section>
 
       <CatalogImporterMatchSheet
         key={matchEditorRow?.id ?? "closed"}

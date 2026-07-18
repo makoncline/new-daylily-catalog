@@ -1,7 +1,6 @@
 "use client";
 
 import { ArrowDown, Check, CircleAlert, Sprout } from "lucide-react";
-import { Card, CardContent } from "@/components/ui/card";
 import type { CatalogImporterWorkbenchController } from "@/app/(public)/catalog-importer/_hooks/use-catalog-importer-workbench";
 
 function countLabel(count: number, singular: string, plural = `${singular}s`) {
@@ -84,67 +83,65 @@ export function CatalogImporterOverview({
   ].filter((detail): detail is string => Boolean(detail));
 
   return (
-    <Card
+    <section
       id="catalog-importer-summary"
       role="region"
       aria-labelledby="catalog-importer-summary-heading"
-      className="border-primary/20 from-primary/[0.08] overflow-hidden bg-gradient-to-br via-transparent to-transparent shadow-sm"
+      className="border-primary/20 bg-primary/[0.035] border-y"
     >
-      <CardContent className="p-0">
-        <div className="flex gap-4 p-5 sm:p-6">
-          <div className="bg-primary text-primary-foreground flex size-11 shrink-0 items-center justify-center rounded-full shadow-sm">
-            <Sprout aria-hidden="true" className="size-5" />
-          </div>
-          <div className="min-w-0">
-            <h2
-              id="catalog-importer-summary-heading"
-              className="text-xl font-semibold tracking-tight"
-            >
-              Your catalog is taking shape
-            </h2>
-            <p className="text-muted-foreground mt-1 max-w-2xl text-sm leading-relaxed">
-              We linked registered cultivars for{" "}
-              {controller.matchedCount.toLocaleString()} of{" "}
-              {controller.resultRows.length.toLocaleString()} listings. Take a
-              look around, then help with anything that still needs a human eye.
-            </p>
-          </div>
+      <div className="flex gap-4 px-1 py-6 sm:px-5">
+        <div className="bg-primary text-primary-foreground flex size-11 shrink-0 items-center justify-center rounded-full">
+          <Sprout aria-hidden="true" className="size-5" />
         </div>
-
-        <div className="grid border-t sm:grid-cols-3">
-          <SummaryMetric
-            count={controller.matchedCount}
-            href="#catalog-importer-preview"
-            label="cultivars linked"
-            testId="summary-matched-count"
-          />
-          <SummaryMetric
-            count={controller.reviewRows.length}
-            href={
-              controller.reviewRows.length > 0
-                ? "#catalog-importer-review-quiz"
-                : undefined
-            }
-            label="matches need review"
-            testId="summary-review-count"
-          />
-          <SummaryMetric
-            count={controller.issueCount}
-            href={
-              controller.issueCount > 0 ? "#catalog-importer-issues" : undefined
-            }
-            label="spreadsheet issues"
-            testId="summary-issue-count"
-          />
+        <div className="min-w-0">
+          <h2
+            id="catalog-importer-summary-heading"
+            className="text-xl font-semibold tracking-tight"
+          >
+            Your catalog is taking shape
+          </h2>
+          <p className="text-muted-foreground mt-1 max-w-2xl text-sm leading-relaxed">
+            We linked registered cultivars for{" "}
+            {controller.matchedCount.toLocaleString()} of{" "}
+            {controller.resultRows.length.toLocaleString()} listings. Browse the
+            catalog, then help with anything that still needs a human eye.
+          </p>
         </div>
+      </div>
 
-        {issueDetails.length > 0 ? (
-          <div className="text-muted-foreground bg-background/45 flex items-center gap-2 border-t px-5 py-3 text-xs">
-            <CircleAlert aria-hidden="true" className="size-3.5 shrink-0" />
-            <span>{issueDetails.join(" · ")}</span>
-          </div>
-        ) : null}
-      </CardContent>
-    </Card>
+      <div className="grid border-t sm:grid-cols-3">
+        <SummaryMetric
+          count={controller.matchedCount}
+          href="#catalog-importer-preview"
+          label="cultivars linked"
+          testId="summary-matched-count"
+        />
+        <SummaryMetric
+          count={controller.reviewRows.length}
+          href={
+            controller.reviewRows.length > 0
+              ? "#catalog-importer-review-quiz"
+              : undefined
+          }
+          label="matches need review"
+          testId="summary-review-count"
+        />
+        <SummaryMetric
+          count={controller.issueCount}
+          href={
+            controller.issueCount > 0 ? "#catalog-importer-issues" : undefined
+          }
+          label="spreadsheet issues"
+          testId="summary-issue-count"
+        />
+      </div>
+
+      {issueDetails.length > 0 ? (
+        <div className="text-muted-foreground flex items-center gap-2 border-t px-1 py-3 text-xs sm:px-5">
+          <CircleAlert aria-hidden="true" className="size-3.5 shrink-0" />
+          <span>{issueDetails.join(" · ")}</span>
+        </div>
+      ) : null}
+    </section>
   );
 }
