@@ -49,7 +49,9 @@ let serverLogPath = path.join(
   path.dirname(outputDirectory),
   `.${path.basename(outputDirectory)}-server-${process.pid}.log`,
 );
-const baseURL = process.env.BASE_URL ?? "http://localhost:3210";
+const baseURL =
+  process.env.BASE_URL ??
+  `http://localhost:${process.env.ATLAS_PORT ?? "3210"}`;
 const explicitDatabaseUrl = process.env.DATABASE_URL;
 let disposableDatabase;
 const runtimeFlagsPath = path.join(

@@ -15,28 +15,25 @@ import {
   TAG_SIZE_PRESETS,
   TAG_TEMPLATE_LIBRARY_STORAGE_KEY,
   TEMPLATE_CUSTOM_ID,
-  TEMPLATE_IMPORT_ID,
+  applyTagTextTemplate,
   buildPublicListingUrl,
   buildResolvedRowsForListing,
-  createDefaultCell,
   createDefaultSheetCreatorState,
   createLayoutSignature,
   downloadSelectedListingsCsv,
   duplicateTagsForSheetLabels,
-  generateRowId,
   resolveSheetMetrics,
   sanitizeStoredTemplate,
   sanitizeTagDesignerState,
   sanitizeTagSheetCreatorState,
+  tagDesignerStateToTemplateText,
 } from "./tag-designer-model";
 import type {
   ResolvedTagLayoutTemplate,
   StoredTagLayoutTemplate,
-  TagCell,
   TagDesignerState,
   TagListingData,
   TagPreviewData,
-  TagRow,
   TagSheetCreatorState,
 } from "./tag-designer-model";
 import {
@@ -76,8 +73,6 @@ export function useTagDesignerController({
         tagHeightInches: DEFAULT_TAG_DESIGNER_STATE.customHeightInches,
       }),
     );
-  const [isTemplatePickerOpen, setIsTemplatePickerOpen] = React.useState(false);
-
   const baseUrl = React.useMemo(() => getBaseUrl(), []);
 
   const state = React.useMemo(
@@ -134,79 +129,15 @@ export function useTagDesignerController({
     );
   }, [allTemplates, state]);
 
-  const matchedTemplateName = matchedTemplate?.name ?? "custom";
   const isCustomLayout = matchedTemplate === null;
   const selectedTemplateId = matchedTemplate?.id ?? TEMPLATE_CUSTOM_ID;
-  const selectedTemplateLabel = matchedTemplate?.name ?? "Custom";
-
-  const handleShareTemplate = React.useCallback(async () => {
-    const templatePayload = JSON.stringify({
-      version: 1,
-      layout: sanitizeTagDesignerState(state),
-    });
-
-    try {
-      if (
-        typeof navigator !== "undefined" &&
-        typeof navigator.clipboard?.writeText === "function"
-      ) {
-        await navigator.clipboard.writeText(templatePayload);
-        toast.success("Layout template copied as JSON.");
-        return;
-      }
-    } catch (error) {
-      console.error("Failed to copy layout template to clipboard", error);
-    }
-
-    window.prompt("Copy template JSON", templatePayload);
-  }, [state]);
-
-  const handleImportTemplate = React.useCallback(() => {
-    const input = window.prompt("Paste shared template JSON");
-    if (input === null) return;
-
-    const trimmed = input.trim();
-    if (trimmed.length === 0) {
-      toast.error("Template JSON is empty.");
-      return;
-    }
-
-    try {
-      const parsed = JSON.parse(trimmed) as unknown;
-      let candidate = parsed;
-
-      if (parsed && typeof parsed === "object") {
-        const record = parsed as Record<string, unknown>;
-        if ("layout" in record) {
-          candidate = record.layout;
-        } else if ("state" in record) {
-          candidate = record.state;
-        }
-      }
-
-      if (!candidate || typeof candidate !== "object") {
-        throw new Error("Template must be an object.");
-      }
-
-      if (!Array.isArray((candidate as Record<string, unknown>).rows)) {
-        throw new Error("Template must include rows.");
-      }
-
-      setStoredState(sanitizeTagDesignerState(candidate as TagDesignerState));
-      toast.success("Template imported.");
-    } catch (error) {
-      console.error("Failed to import template JSON", error);
-      toast.error("Invalid template JSON.");
-    }
-  }, [setStoredState]);
+  const customTemplateText = React.useMemo(
+    () => tagDesignerStateToTemplateText(state),
+    [state],
+  );
 
   const handleTemplateSelectChange = React.useCallback(
     (nextTemplateId: string) => {
-      if (nextTemplateId === TEMPLATE_IMPORT_ID) {
-        handleImportTemplate();
-        return;
-      }
-
       if (nextTemplateId === TEMPLATE_CUSTOM_ID) return;
 
       const template = allTemplates.find(
@@ -214,61 +145,114 @@ export function useTagDesignerController({
       );
       if (!template) return;
 
-      setStoredState(sanitizeTagDesignerState(template.layout));
-      toast.success(`Applied template: ${template.name}.`);
+      setStoredState((previous) => {
+        const normalizedPrevious = sanitizeTagDesignerState(previous);
+        const normalizedTemplate = sanitizeTagDesignerState(template.layout);
+        const currentPreset =
+          TAG_SIZE_PRESETS.find(
+            (preset) => preset.id === normalizedPrevious.sizePresetId,
+          ) ?? TAG_SIZE_PRESETS[0]!;
+        const templatePreset =
+          TAG_SIZE_PRESETS.find(
+            (preset) => preset.id === normalizedTemplate.sizePresetId,
+          ) ?? TAG_SIZE_PRESETS[0]!;
+        const currentWidth =
+          currentPreset.id === "custom"
+            ? normalizedPrevious.customWidthInches
+            : currentPreset.widthInches;
+        const currentHeight =
+          currentPreset.id === "custom"
+            ? normalizedPrevious.customHeightInches
+            : currentPreset.heightInches;
+        const templateWidth =
+          templatePreset.id === "custom"
+            ? normalizedTemplate.customWidthInches
+            : templatePreset.widthInches;
+        const templateHeight =
+          templatePreset.id === "custom"
+            ? normalizedTemplate.customHeightInches
+            : templatePreset.heightInches;
+        const recommendedSizeDoesNotShrink =
+          templateWidth >= currentWidth && templateHeight >= currentHeight;
+        const shouldUseRecommendedSize =
+          recommendedSizeDoesNotShrink &&
+          (templateWidth > currentWidth || templateHeight > currentHeight);
+
+        return sanitizeTagDesignerState({
+          ...normalizedPrevious,
+          ...(shouldUseRecommendedSize
+            ? {
+                sizePresetId: normalizedTemplate.sizePresetId,
+                customWidthInches: normalizedTemplate.customWidthInches,
+                customHeightInches: normalizedTemplate.customHeightInches,
+              }
+            : {}),
+          rows: normalizedTemplate.rows,
+        });
+      });
     },
-    [allTemplates, handleImportTemplate, setStoredState],
+    [allTemplates, setStoredState],
   );
 
-  const handleSaveTemplate = React.useCallback(() => {
-    const suggestedName =
-      matchedTemplate && !matchedTemplate.isBuiltin ? matchedTemplate.name : "";
-    const inputName = window.prompt(
-      "Template name",
-      suggestedName || "My template",
-    );
-    if (inputName === null) return;
+  const handleCustomTemplateChange = React.useCallback(
+    (template: string) => {
+      updateState((previous) => applyTagTextTemplate(previous, template));
+    },
+    [updateState],
+  );
 
-    const name = inputName.trim();
-    if (!name) {
-      toast.error("Template name is required.");
-      return;
-    }
-
-    const existingByName =
-      userTemplates.find(
-        (template) => template.name.toLowerCase() === name.toLowerCase(),
-      ) ??
-      (matchedTemplate && !matchedTemplate.isBuiltin ? matchedTemplate : null);
-    const templateId =
-      existingByName?.id ?? `user-template-${Date.now().toString(36)}`;
-    const layout = sanitizeTagDesignerState(state);
-
-    setStoredUserTemplates((previous) => {
-      const sanitizedPrevious = (Array.isArray(previous) ? previous : [])
-        .map((template) => sanitizeStoredTemplate(template))
-        .filter(
-          (template): template is StoredTagLayoutTemplate => template !== null,
-        );
-
-      if (existingByName) {
-        return sanitizedPrevious.map((template) =>
-          template.id === existingByName.id
-            ? { ...template, name, layout }
-            : template,
-        );
+  const handleSaveTemplate = React.useCallback(
+    (inputName: string, sourceTemplateId?: string) => {
+      const name = inputName.trim();
+      if (!name) {
+        toast.error("Template name is required.");
+        return false;
       }
 
-      return [...sanitizedPrevious, { id: templateId, name, layout }];
-    });
+      const sourceTemplate = sourceTemplateId
+        ? userTemplates.find((template) => template.id === sourceTemplateId)
+        : null;
+      const existingByName =
+        sourceTemplate ??
+        userTemplates.find(
+          (template) => template.name.toLowerCase() === name.toLowerCase(),
+        ) ??
+        (matchedTemplate && !matchedTemplate.isBuiltin
+          ? matchedTemplate
+          : null);
+      const templateId =
+        existingByName?.id ?? `user-template-${Date.now().toString(36)}`;
+      const layout = sanitizeTagDesignerState(state);
 
-    toast.success(existingByName ? "Template updated." : "Template saved.");
-  }, [matchedTemplate, setStoredUserTemplates, state, userTemplates]);
+      setStoredUserTemplates((previous) => {
+        const sanitizedPrevious = (Array.isArray(previous) ? previous : [])
+          .map((template) => sanitizeStoredTemplate(template))
+          .filter(
+            (template): template is StoredTagLayoutTemplate =>
+              template !== null,
+          );
+
+        if (existingByName) {
+          return sanitizedPrevious.map((template) =>
+            template.id === existingByName.id
+              ? { ...template, name, layout }
+              : template,
+          );
+        }
+
+        return [...sanitizedPrevious, { id: templateId, name, layout }];
+      });
+
+      toast.success(existingByName ? "Template updated." : "Template saved.");
+      return true;
+    },
+    [matchedTemplate, setStoredUserTemplates, state, userTemplates],
+  );
 
   const handleDeleteTemplate = React.useCallback(
     (templateId: string, templateName: string) => {
       const shouldDelete = window.confirm(`Delete template "${templateName}"?`);
-      if (!shouldDelete) return;
+      if (!shouldDelete) return false;
 
       setStoredUserTemplates((previous) =>
         (Array.isArray(previous) ? previous : [])
@@ -279,37 +263,9 @@ export function useTagDesignerController({
           ),
       );
       toast.success("Template deleted.");
+      return true;
     },
     [setStoredUserTemplates],
-  );
-
-  const handleTemplateRowDeleteClick = React.useCallback(
-    (
-      event: React.MouseEvent<HTMLButtonElement>,
-      templateId: string,
-      templateName: string,
-    ) => {
-      event.preventDefault();
-      event.stopPropagation();
-      handleDeleteTemplate(templateId, templateName);
-    },
-    [handleDeleteTemplate],
-  );
-
-  const handleTemplateRowDeleteMouseDown = React.useCallback(
-    (event: React.MouseEvent<HTMLButtonElement>) => {
-      event.preventDefault();
-      event.stopPropagation();
-    },
-    [],
-  );
-
-  const applyTemplateFromPicker = React.useCallback(
-    (templateId: string) => {
-      setIsTemplatePickerOpen(false);
-      handleTemplateSelectChange(templateId);
-    },
-    [handleTemplateSelectChange],
   );
 
   const activeSizePreset = React.useMemo(
@@ -383,111 +339,6 @@ export function useTagDesignerController({
   );
 
   const visiblePreviewTags = basePreviewTags.slice(0, 8);
-
-  const updateRow = React.useCallback(
-    (rowIndex: number, updater: (row: TagRow) => TagRow) => {
-      updateState((prev) => ({
-        ...prev,
-        rows: prev.rows.map((row, index) =>
-          index === rowIndex ? updater(row) : row,
-        ),
-      }));
-    },
-    [updateState],
-  );
-
-  const addRow = React.useCallback(() => {
-    updateState((prev) => ({
-      ...prev,
-      rows: [
-        ...prev.rows,
-        { id: generateRowId(), cells: [createDefaultCell(prev.rows)] },
-      ],
-    }));
-  }, [updateState]);
-
-  const removeRow = React.useCallback(
-    (index: number) => {
-      updateState((prev) => ({
-        ...prev,
-        rows: prev.rows.filter((_, rowIndex) => rowIndex !== index),
-      }));
-    },
-    [updateState],
-  );
-
-  const moveRow = React.useCallback(
-    (index: number, direction: -1 | 1) => {
-      updateState((prev) => {
-        const nextIndex = index + direction;
-        if (nextIndex < 0 || nextIndex >= prev.rows.length) return prev;
-        const rows = [...prev.rows];
-        const currentRow = rows[index]!;
-        rows[index] = rows[nextIndex]!;
-        rows[nextIndex] = currentRow;
-        return { ...prev, rows };
-      });
-    },
-    [updateState],
-  );
-
-  const addCellToRow = React.useCallback(
-    (rowIndex: number) => {
-      updateState((prev) => ({
-        ...prev,
-        rows: prev.rows.map((row, index) =>
-          index === rowIndex
-            ? { ...row, cells: [...row.cells, createDefaultCell(prev.rows)] }
-            : row,
-        ),
-      }));
-    },
-    [updateState],
-  );
-
-  const moveCell = React.useCallback(
-    (rowIndex: number, cellIndex: number, direction: -1 | 1) => {
-      updateState((prev) => {
-        const row = prev.rows[rowIndex];
-        if (!row) return prev;
-        const nextIndex = cellIndex + direction;
-        if (nextIndex < 0 || nextIndex >= row.cells.length) return prev;
-        const cells = [...row.cells];
-        const currentCell = cells[cellIndex]!;
-        cells[cellIndex] = cells[nextIndex]!;
-        cells[nextIndex] = currentCell;
-        return {
-          ...prev,
-          rows: prev.rows.map((candidateRow, index) =>
-            index === rowIndex ? { ...candidateRow, cells } : candidateRow,
-          ),
-        };
-      });
-    },
-    [updateState],
-  );
-
-  const updateRowCell = React.useCallback(
-    (rowIndex: number, cellIndex: number, updatedCell: TagCell) => {
-      updateRow(rowIndex, (row) => ({
-        ...row,
-        cells: row.cells.map((cell, index) =>
-          index === cellIndex ? updatedCell : cell,
-        ),
-      }));
-    },
-    [updateRow],
-  );
-
-  const removeRowCell = React.useCallback(
-    (rowIndex: number, cellIndex: number) => {
-      updateRow(rowIndex, (row) => ({
-        ...row,
-        cells: row.cells.filter((_, index) => index !== cellIndex),
-      }));
-    },
-    [updateRow],
-  );
 
   const resetLayout = React.useCallback(() => {
     setStoredState(DEFAULT_TAG_DESIGNER_STATE);
@@ -747,20 +598,19 @@ export function useTagDesignerController({
 
   return {
     controlsProps: {
+      builtinTemplates,
+      customTemplateText,
       heightInches,
+      isCustomLayout,
+      onApplyTemplate: handleTemplateSelectChange,
+      onCustomTemplateChange: handleCustomTemplateChange,
+      onDeleteTemplate: handleDeleteTemplate,
+      onResetLayout: resetLayout,
+      onSaveTemplate: handleSaveTemplate,
+      selectedTemplateId,
       state,
-      templatePickerProps: {
-        builtinTemplates,
-        isOpen: isTemplatePickerOpen,
-        onApplyTemplate: applyTemplateFromPicker,
-        onDeleteTemplateClick: handleTemplateRowDeleteClick,
-        onDeleteTemplateMouseDown: handleTemplateRowDeleteMouseDown,
-        onOpenChange: setIsTemplatePickerOpen,
-        selectedTemplateId,
-        selectedTemplateLabel,
-        userTemplates,
-      },
       updateState,
+      userTemplates,
       widthInches,
     },
     headerProps: {
@@ -772,21 +622,6 @@ export function useTagDesignerController({
       onOpenSheetCreator: handleOpenSheetCreator,
       onPrint: handlePrint,
       selectedListingCount: listings.length,
-    },
-    layoutProps: {
-      isCustomLayout,
-      matchedTemplateName,
-      onAddCellToRow: addCellToRow,
-      onAddRow: addRow,
-      onMoveCell: moveCell,
-      onMoveRow: moveRow,
-      onRemoveRow: removeRow,
-      onRemoveRowCell: removeRowCell,
-      onResetLayout: resetLayout,
-      onSaveTemplate: handleSaveTemplate,
-      onShareTemplate: handleShareTemplate,
-      onUpdateRowCell: updateRowCell,
-      rows: state.rows,
     },
     previewProps: {
       heightInches,

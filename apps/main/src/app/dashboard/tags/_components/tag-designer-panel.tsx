@@ -4,33 +4,28 @@
 
 import * as React from "react";
 import {
-  ArrowDown,
-  ArrowUp,
   Check,
   ChevronDown,
-  ChevronsUpDown,
+  Copy,
   Download,
   FileDown,
   FileImage,
   FileText,
   LayoutGrid,
   Minus,
+  Pencil,
   Plus,
   Printer,
   RotateCcw,
-  Share2,
+  Sparkles,
   Trash2,
+  TriangleAlert,
 } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import {
-  Command,
-  CommandGroup,
-  CommandItem,
-  CommandList,
-  CommandSeparator,
-} from "@/components/ui/command";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -45,11 +40,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
 import {
   Collapsible,
   CollapsibleContent,
@@ -74,14 +64,17 @@ import {
   MIN_SHEET_ROWS,
   MIN_TAG_HEIGHT_INCHES,
   MIN_TAG_WIDTH_INCHES,
-  QR_OFFSET_INCHES,
-  QR_RESERVED_BOTTOM_INCHES,
-  QR_RESERVED_RIGHT_INCHES,
   QR_SIZE_INCHES,
+  TAG_SPACER_HEIGHT_INCHES,
   TAG_SIZE_PRESETS,
-  TEMPLATE_IMPORT_ID,
+  TAG_TEMPLATE_FIELD_DEFINITIONS,
+  buildTagTemplateAiInstructions,
   buildQrCodeSvgMarkup,
+  findUnknownTagTemplateFields,
   formatSheetNumberForInput,
+  getTagPreviewWarnings,
+  getTagTemplateValidationIssues,
+  getTagTextTemplateFieldIds,
   normalizeSheetNumber,
   parseSheetNumberInput,
   resolveCellFontSizePx,
@@ -90,16 +83,13 @@ import type {
   ResolvedSheetMetrics,
   ResolvedTagLayoutTemplate,
   StoredTagLayoutTemplate,
-  TagCell,
   TagDesignerState,
   TagListingData,
   TagPreviewData,
-  TagRow,
   TagSheetCreatorState,
   UpdateTagDesignerState,
   UpdateTagSheetCreatorState,
 } from "./tag-designer-model";
-import { CELL_GRID, TagCellEditor } from "./tag-cell-editor";
 import { useTagDesignerController } from "./use-tag-designer-controller";
 
 export {
@@ -221,6 +211,85 @@ function QrCodeSvg({
   );
 }
 
+function TagPreviewCard({
+  tag,
+  widthInches,
+  heightInches,
+  className,
+}: {
+  tag: TagPreviewData;
+  widthInches: number;
+  heightInches: number;
+  className?: string;
+}) {
+  return (
+    <article
+      className={cn(
+        "bg-background grid items-center gap-2 overflow-hidden border border-dashed p-2",
+        tag.qrCodeUrl ? "grid-cols-[minmax(0,1fr)_auto]" : "grid-cols-1",
+        className,
+      )}
+      style={{
+        width: `${widthInches}in`,
+        height: `${heightInches}in`,
+      }}
+    >
+      <div className="min-w-0">
+        {tag.rows.map((row) => (
+          <React.Fragment key={row.id}>
+            {row.isSpacer ? (
+              <div
+                aria-hidden="true"
+                style={{ height: `${TAG_SPACER_HEIGHT_INCHES}in` }}
+              />
+            ) : (
+              <div className="flex min-w-0 items-baseline justify-between gap-x-2">
+                {row.cells.map((cell) => (
+                  <p
+                    key={cell.id}
+                    className={cn(
+                      "min-w-0 overflow-hidden leading-tight whitespace-nowrap",
+                      row.cells.length === 1 && "w-full",
+                      cell.bold && "font-semibold",
+                      cell.italic && "italic",
+                      cell.underline && "underline",
+                      cell.textAlign === "center" && "text-center",
+                      cell.textAlign === "right" && "text-right",
+                      cell.textAlign === "left" && "text-left",
+                    )}
+                    style={{
+                      flex: `${cell.width} 1 0`,
+                      fontSize: `${resolveCellFontSizePx(
+                        cell,
+                        row,
+                        widthInches,
+                        Boolean(tag.qrCodeUrl),
+                      )}px`,
+                    }}
+                  >
+                    {cell.text}
+                  </p>
+                ))}
+              </div>
+            )}
+          </React.Fragment>
+        ))}
+      </div>
+
+      {tag.qrCodeUrl ? (
+        <QrCodeSvg
+          qrCodeUrl={tag.qrCodeUrl}
+          className="shrink-0 bg-white [&_svg]:block [&_svg]:h-full [&_svg]:w-full"
+          style={{
+            width: `${QR_SIZE_INCHES}in`,
+            height: `${QR_SIZE_INCHES}in`,
+          }}
+        />
+      ) : null}
+    </article>
+  );
+}
+
 interface TagDesignerHeaderProps {
   selectedListingCount: number;
   onDownloadCsv: () => void;
@@ -234,6 +303,21 @@ interface TagDesignerHeaderProps {
 
 function TagDesignerHeader({
   selectedListingCount,
+}: Pick<TagDesignerHeaderProps, "selectedListingCount">) {
+  return (
+    <div>
+      <h2 className="text-lg font-semibold">Tag designer</h2>
+      <p className="text-muted-foreground text-sm">
+        {selectedListingCount} selected listing
+        {selectedListingCount === 1 ? "" : "s"}. Choose the tag content, check
+        the preview, then print.
+      </p>
+    </div>
+  );
+}
+
+function TagDesignerOutputActions({
+  selectedListingCount,
   onDownloadCsv,
   onDownloadPages,
   onDownloadPdf,
@@ -245,29 +329,32 @@ function TagDesignerHeader({
   const hasListings = selectedListingCount > 0;
 
   return (
-    <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
-      <div>
-        <h2 className="text-lg font-semibold">Tag Designer</h2>
-        <p className="text-muted-foreground text-sm">
-          {selectedListingCount} selected listing
-          {selectedListingCount === 1 ? "" : "s"}. Build your tag layout
-          row-by-row.
-        </p>
+    <div className="border-border flex flex-col gap-3 border-t pt-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="text-muted-foreground text-xs">
+        Print at <span className="text-foreground font-medium">100%</span> or{" "}
+        <span className="text-foreground font-medium">Actual size</span>.
       </div>
 
       <div className="flex items-center gap-2">
+        <Button
+          variant="outline"
+          onClick={onOpenSheetCreator}
+          disabled={!hasListings}
+        >
+          <LayoutGrid className="mr-2 size-4" />
+          Make sheet
+        </Button>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button
               variant="outline"
               disabled={!hasListings || isPreparingDownload}
             >
-              <Download className="mr-2 size-4" />
-              {isPreparingDownload ? "Preparing…" : "Download"}
+              {isPreparingDownload ? "Preparing…" : "Output options"}
               <ChevronDown className="ml-2 size-3.5" />
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-44">
+          <DropdownMenuContent align="end" className="w-52">
             <DropdownMenuItem
               onSelect={() => onDownloadPages()}
               disabled={isPreparingDownload}
@@ -298,15 +385,6 @@ function TagDesignerHeader({
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
-        <Button
-          type="button"
-          variant="outline"
-          onClick={onOpenSheetCreator}
-          disabled={!hasListings}
-        >
-          <LayoutGrid className="mr-2 size-4" />
-          Make Sheet
-        </Button>
         <Button onClick={onPrint} disabled={!hasListings}>
           <Printer className="mr-2 size-4" />
           Print
@@ -777,81 +855,13 @@ function TagSheetPreview({
                   }}
                 >
                   {firstSheetPreviewTags.map((tag) => (
-                    <article
+                    <TagPreviewCard
                       key={`sheet-preview-${tag.id}`}
-                      className="border-muted-foreground/40 bg-background relative overflow-hidden border border-dashed p-2"
-                      style={{
-                        width: `${sheetMetrics.slotWidthInches}in`,
-                        height: `${sheetMetrics.slotHeightInches}in`,
-                      }}
-                    >
-                      <div
-                        style={{
-                          paddingRight: tag.qrCodeUrl
-                            ? `${QR_RESERVED_RIGHT_INCHES}in`
-                            : undefined,
-                          paddingBottom: tag.qrCodeUrl
-                            ? `${QR_RESERVED_BOTTOM_INCHES}in`
-                            : undefined,
-                        }}
-                      >
-                        {tag.rows.map((row) => (
-                          <div
-                            key={row.id}
-                            className="grid items-baseline gap-x-2"
-                            style={{
-                              gridTemplateColumns: row.cells
-                                .map((cell) => `${cell.width}fr`)
-                                .join(" "),
-                            }}
-                          >
-                            {row.cells.map((cell) => (
-                              <p
-                                key={cell.id}
-                                className={cn(
-                                  "min-w-0 leading-tight",
-                                  cell.wrap
-                                    ? "break-words whitespace-normal"
-                                    : "whitespace-nowrap",
-                                  cell.overflow
-                                    ? "overflow-visible"
-                                    : "overflow-hidden",
-                                  cell.bold && "font-semibold",
-                                  cell.italic && "italic",
-                                  cell.underline && "underline",
-                                  cell.textAlign === "center" && "text-center",
-                                  cell.textAlign === "right" && "text-right",
-                                  cell.textAlign === "left" && "text-left",
-                                )}
-                                style={{
-                                  fontSize: `${resolveCellFontSizePx(
-                                    cell,
-                                    row,
-                                    sheetMetrics.slotWidthInches,
-                                    Boolean(tag.qrCodeUrl),
-                                  )}px`,
-                                }}
-                              >
-                                {cell.text}
-                              </p>
-                            ))}
-                          </div>
-                        ))}
-                      </div>
-
-                      {tag.qrCodeUrl ? (
-                        <QrCodeSvg
-                          qrCodeUrl={tag.qrCodeUrl}
-                          className="absolute bg-white [&_svg]:block [&_svg]:h-full [&_svg]:w-full"
-                          style={{
-                            right: `${QR_OFFSET_INCHES}in`,
-                            bottom: `${QR_OFFSET_INCHES}in`,
-                            width: `${QR_SIZE_INCHES}in`,
-                            height: `${QR_SIZE_INCHES}in`,
-                          }}
-                        />
-                      ) : null}
-                    </article>
+                      tag={tag}
+                      widthInches={sheetMetrics.slotWidthInches}
+                      heightInches={sheetMetrics.slotHeightInches}
+                      className="border-muted-foreground/40"
+                    />
                   ))}
                 </div>
               </div>
@@ -935,137 +945,6 @@ function TagSheetActions({
         Print Sheets
       </Button>
     </DialogFooter>
-  );
-}
-
-interface TagTemplatePickerProps {
-  isOpen: boolean;
-  onOpenChange: (open: boolean) => void;
-  selectedTemplateLabel: string;
-  selectedTemplateId: string;
-  builtinTemplates: ResolvedTagLayoutTemplate[];
-  userTemplates: StoredTagLayoutTemplate[];
-  onApplyTemplate: (templateId: string) => void;
-  onDeleteTemplateMouseDown: (
-    event: React.MouseEvent<HTMLButtonElement>,
-  ) => void;
-  onDeleteTemplateClick: (
-    event: React.MouseEvent<HTMLButtonElement>,
-    templateId: string,
-    templateName: string,
-  ) => void;
-}
-
-function TagTemplatePicker({
-  isOpen,
-  onOpenChange,
-  selectedTemplateLabel,
-  selectedTemplateId,
-  builtinTemplates,
-  userTemplates,
-  onApplyTemplate,
-  onDeleteTemplateMouseDown,
-  onDeleteTemplateClick,
-}: TagTemplatePickerProps) {
-  return (
-    <div className="space-y-2">
-      <Label htmlFor="template-picker">Templates</Label>
-      <Popover open={isOpen} onOpenChange={onOpenChange}>
-        <PopoverTrigger asChild>
-          <Button
-            id="template-picker"
-            type="button"
-            variant="outline"
-            role="combobox"
-            aria-expanded={isOpen}
-            aria-controls="template-picker-list"
-            className="h-9 w-full justify-between"
-          >
-            <span className="truncate">{selectedTemplateLabel}</span>
-            <ChevronsUpDown className="ml-2 size-4 shrink-0 opacity-50" />
-          </Button>
-        </PopoverTrigger>
-        <PopoverContent className="w-[320px] p-0" align="start">
-          <Command>
-            <CommandList id="template-picker-list">
-              <CommandGroup heading="Built-in">
-                {builtinTemplates.map((template) => (
-                  <CommandItem
-                    key={template.id}
-                    onSelect={() => onApplyTemplate(template.id)}
-                    className="px-2"
-                  >
-                    <Check
-                      className={cn(
-                        "mr-2 size-4",
-                        template.id === selectedTemplateId
-                          ? "opacity-100"
-                          : "opacity-0",
-                      )}
-                    />
-                    <span className="truncate">{template.name}</span>
-                  </CommandItem>
-                ))}
-              </CommandGroup>
-
-              {userTemplates.length > 0 && (
-                <>
-                  <CommandSeparator />
-                  <CommandGroup heading="Saved">
-                    {userTemplates.map((template) => (
-                      <CommandItem
-                        key={template.id}
-                        onSelect={() => onApplyTemplate(template.id)}
-                        className="px-2"
-                      >
-                        <Check
-                          className={cn(
-                            "mr-2 size-4",
-                            template.id === selectedTemplateId
-                              ? "opacity-100"
-                              : "opacity-0",
-                          )}
-                        />
-                        <div className="flex min-w-0 flex-1 items-center justify-between gap-2">
-                          <span className="truncate">{template.name}</span>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon"
-                            className="text-muted-foreground hover:text-destructive size-6 shrink-0"
-                            onMouseDown={onDeleteTemplateMouseDown}
-                            onClick={(event) =>
-                              onDeleteTemplateClick(
-                                event,
-                                template.id,
-                                template.name,
-                              )
-                            }
-                            aria-label={`Delete template ${template.name}`}
-                          >
-                            <Trash2 className="size-3.5" />
-                          </Button>
-                        </div>
-                      </CommandItem>
-                    ))}
-                  </CommandGroup>
-                </>
-              )}
-
-              <CommandSeparator />
-              <CommandGroup>
-                <CommandItem
-                  onSelect={() => onApplyTemplate(TEMPLATE_IMPORT_ID)}
-                  className="px-2"
-                >
-                  Import shared template…
-                </CommandItem>
-              </CommandGroup>
-            </CommandList>
-          </Command>
-        </PopoverContent>
-      </Popover>
-    </div>
   );
 }
 
@@ -1185,258 +1064,456 @@ function TagDesignerCustomSizeInputs({
 }
 
 interface TagDesignerControlsProps {
+  builtinTemplates: ResolvedTagLayoutTemplate[];
+  customTemplateText: string;
+  isCustomLayout: boolean;
+  onApplyTemplate: (templateId: string) => void;
+  onCustomTemplateChange: (template: string) => void;
+  onDeleteTemplate: (templateId: string, templateName: string) => boolean;
+  onResetLayout: () => void;
+  onSaveTemplate: (name: string, sourceTemplateId?: string) => boolean;
+  selectedTemplateId: string;
   state: TagDesignerState;
   updateState: UpdateTagDesignerState;
+  userTemplates: StoredTagLayoutTemplate[];
   widthInches: number;
   heightInches: number;
-  templatePickerProps: TagTemplatePickerProps;
 }
 
+const TEMPLATE_DESCRIPTIONS: Record<string, string> = {
+  "template-simple-name": 'Cultivar name · recommended 1" tag',
+  "default-template": 'Name, hybridizer/year, and ploidy · recommended 1"',
+  "template-sale-tag": 'Name, identity, ploidy, and price · recommended 1"',
+  "template-grower-details":
+    'Identity and growing traits · recommended 2" × 4" card',
+};
+
 function TagDesignerControls({
+  builtinTemplates,
+  customTemplateText,
+  isCustomLayout,
+  onApplyTemplate,
+  onCustomTemplateChange,
+  onDeleteTemplate,
+  onResetLayout,
+  onSaveTemplate,
+  selectedTemplateId,
   state,
   updateState,
+  userTemplates,
   widthInches,
   heightInches,
-  templatePickerProps,
 }: TagDesignerControlsProps) {
+  const [isCustomEditorOpen, setIsCustomEditorOpen] =
+    React.useState(isCustomLayout);
+  const [isAiInstructionsOpen, setIsAiInstructionsOpen] = React.useState(false);
+  const [templateName, setTemplateName] = React.useState("");
+  const [customSourceTemplateId, setCustomSourceTemplateId] = React.useState<
+    string | null
+  >(isCustomLayout ? null : selectedTemplateId);
+  const [customTemplateDraft, setCustomTemplateDraft] =
+    React.useState(customTemplateText);
+  const templateTextareaRef = React.useRef<HTMLTextAreaElement>(null);
+  const unknownFields = findUnknownTagTemplateFields(customTemplateDraft);
+  const validationIssues = getTagTemplateValidationIssues(customTemplateDraft);
+  const usedFields = getTagTextTemplateFieldIds(customTemplateDraft);
+  const includesPrivateNote = usedFields.includes("privateNote");
+  const aiInstructions = buildTagTemplateAiInstructions(customTemplateDraft, {
+    widthInches,
+    heightInches,
+    showQrCode: state.showQrCode,
+  });
+  const sourceUserTemplate = userTemplates.find(
+    (template) => template.id === customSourceTemplateId,
+  );
+
+  React.useEffect(() => {
+    if (isCustomLayout) setIsCustomEditorOpen(true);
+  }, [isCustomLayout]);
+
+  React.useEffect(() => {
+    if (!isCustomEditorOpen) setCustomTemplateDraft(customTemplateText);
+  }, [customTemplateText, isCustomEditorOpen]);
+
+  const changeCustomTemplate = (template: string) => {
+    setCustomTemplateDraft(template);
+    onCustomTemplateChange(template);
+  };
+
+  const applyTemplate = (templateId: string) => {
+    onApplyTemplate(templateId);
+    setIsCustomEditorOpen(false);
+    setCustomSourceTemplateId(templateId);
+    setTemplateName("");
+  };
+
+  const copyAiInstructions = async () => {
+    try {
+      await navigator.clipboard.writeText(aiInstructions);
+      toast.success(
+        "AI prompt copied. Describe the tag you want, then paste back only the returned template.",
+      );
+    } catch {
+      window.prompt("Copy AI instructions", aiInstructions);
+    }
+  };
+
+  const beginCustomization = () => {
+    setCustomSourceTemplateId(isCustomLayout ? null : selectedTemplateId);
+    setCustomTemplateDraft(customTemplateText);
+    const selectedUserTemplate = userTemplates.find(
+      (template) => template.id === selectedTemplateId,
+    );
+    setTemplateName(selectedUserTemplate?.name ?? "");
+    setIsCustomEditorOpen(true);
+  };
+
+  const discardCustomChanges = () => {
+    if (customSourceTemplateId) {
+      applyTemplate(customSourceTemplateId);
+      return;
+    }
+    onResetLayout();
+    setIsCustomEditorOpen(false);
+  };
+
+  const insertField = (fieldId: string) => {
+    const textarea = templateTextareaRef.current;
+    const token = `{{${fieldId}}}`;
+    if (!textarea) {
+      changeCustomTemplate(`${customTemplateDraft}${token}`);
+      return;
+    }
+
+    const selectionStart = textarea.selectionStart;
+    const selectionEnd = textarea.selectionEnd;
+    const nextTemplate = `${customTemplateDraft.slice(
+      0,
+      selectionStart,
+    )}${token}${customTemplateDraft.slice(selectionEnd)}`;
+    changeCustomTemplate(nextTemplate);
+    requestAnimationFrame(() => {
+      textarea.focus();
+      textarea.setSelectionRange(
+        selectionStart + token.length,
+        selectionStart + token.length,
+      );
+    });
+  };
+
   return (
-    <div className="border-border grid gap-3 rounded-md border p-3 md:grid-cols-[260px_260px_1fr]">
-      <div className="space-y-2">
-        <Label htmlFor="tag-size-select">Tag Size</Label>
-        <select
-          id="tag-size-select"
-          className="border-border bg-background h-9 w-full rounded-md border px-2 text-sm"
-          value={state.sizePresetId}
-          onChange={(e) =>
-            updateState((prev) => ({
-              ...prev,
-              sizePresetId: e.target.value,
-            }))
-          }
-        >
-          {TAG_SIZE_PRESETS.map((preset) => (
-            <option key={preset.id} value={preset.id}>
-              {preset.label}
-            </option>
-          ))}
-        </select>
-      </div>
+    <div className="border-border space-y-5 rounded-lg border p-4">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+        <div className="min-w-0 flex-1 space-y-2">
+          <Label htmlFor="tag-size-select">Tag Size</Label>
+          <select
+            id="tag-size-select"
+            className="border-border bg-background h-9 w-full rounded-md border px-2 text-sm"
+            value={state.sizePresetId}
+            onChange={(event) =>
+              updateState((previous) => ({
+                ...previous,
+                sizePresetId: event.target.value,
+              }))
+            }
+          >
+            {TAG_SIZE_PRESETS.map((preset) => (
+              <option key={preset.id} value={preset.id}>
+                {preset.label}
+              </option>
+            ))}
+          </select>
+        </div>
 
-      <TagTemplatePicker {...templatePickerProps} />
-
-      <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-end">
-        <label className="flex items-center gap-2 text-sm">
+        <label className="border-border flex h-9 items-center gap-2 rounded-md border px-3 text-sm">
           <input
             id="layout-qr-toggle"
             type="checkbox"
             checked={state.showQrCode}
-            onChange={(e) =>
-              updateState((prev) => ({
-                ...prev,
-                showQrCode: e.target.checked,
+            onChange={(event) =>
+              updateState((previous) => ({
+                ...previous,
+                showQrCode: event.target.checked,
               }))
             }
             className="size-4"
           />
-          <span>QR code</span>
+          <span>Include QR code</span>
         </label>
+      </div>
 
-        {state.sizePresetId === "custom" ? (
+      {state.sizePresetId === "custom" ? (
+        <div className="grid max-w-md grid-cols-2 gap-3">
           <TagDesignerCustomSizeInputs
             customWidthInches={state.customWidthInches}
             customHeightInches={state.customHeightInches}
             updateState={updateState}
           />
+        </div>
+      ) : null}
+
+      <div className="space-y-3">
+        <div>
+          <h3 className="text-sm font-medium">Choose a template</h3>
+          <p className="text-muted-foreground text-xs">
+            Start with a common tag. You can customize it if you need more.
+          </p>
+        </div>
+
+        <div className="grid gap-2 sm:grid-cols-2">
+          {builtinTemplates.map((template) => {
+            const isSelected =
+              !isCustomEditorOpen && selectedTemplateId === template.id;
+            return (
+              <button
+                key={template.id}
+                type="button"
+                aria-pressed={isSelected}
+                onClick={() => applyTemplate(template.id)}
+                className={cn(
+                  "border-border bg-background hover:border-foreground/30 relative rounded-md border p-3 text-left transition-colors",
+                  isSelected && "border-foreground ring-foreground ring-1",
+                )}
+              >
+                {isSelected ? (
+                  <Check className="absolute top-3 right-3 size-4" />
+                ) : null}
+                <span className="block pr-5 text-sm font-medium">
+                  {template.name}
+                </span>
+                <span className="text-muted-foreground mt-1 block text-xs leading-snug">
+                  {TEMPLATE_DESCRIPTIONS[template.id]}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+
+        {userTemplates.length > 0 ? (
+          <div className="space-y-2">
+            <p className="text-muted-foreground text-xs font-medium">
+              Your templates
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {userTemplates.map((template) => (
+                <div
+                  key={template.id}
+                  className={cn(
+                    "border-border flex items-center rounded-md border",
+                    !isCustomEditorOpen &&
+                      selectedTemplateId === template.id &&
+                      "border-foreground ring-foreground ring-1",
+                  )}
+                >
+                  <button
+                    type="button"
+                    className="px-3 py-1.5 text-sm"
+                    onClick={() => applyTemplate(template.id)}
+                  >
+                    {template.name}
+                  </button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="text-muted-foreground hover:text-destructive size-8"
+                    aria-label={`Delete template ${template.name}`}
+                    onClick={() => {
+                      const didDelete = onDeleteTemplate(
+                        template.id,
+                        template.name,
+                      );
+                      if (didDelete && customSourceTemplateId === template.id) {
+                        setCustomSourceTemplateId(null);
+                      }
+                    }}
+                  >
+                    <Trash2 className="size-3.5" />
+                  </Button>
+                </div>
+              ))}
+            </div>
+          </div>
         ) : null}
 
-        <p className="text-muted-foreground text-xs">
-          Active: {widthInches.toFixed(2)}&quot; × {heightInches.toFixed(2)}
-          &quot;
-        </p>
-      </div>
-    </div>
-  );
-}
-
-interface TagDesignerLayoutProps {
-  rows: TagRow[];
-  matchedTemplateName: string;
-  isCustomLayout: boolean;
-  onSaveTemplate: () => void;
-  onShareTemplate: () => Promise<void>;
-  onResetLayout: () => void;
-  onAddRow: () => void;
-  onMoveRow: (rowIndex: number, direction: -1 | 1) => void;
-  onRemoveRow: (rowIndex: number) => void;
-  onAddCellToRow: (rowIndex: number) => void;
-  onMoveCell: (rowIndex: number, cellIndex: number, direction: -1 | 1) => void;
-  onUpdateRowCell: (rowIndex: number, cellIndex: number, cell: TagCell) => void;
-  onRemoveRowCell: (rowIndex: number, cellIndex: number) => void;
-}
-
-function TagDesignerLayout({
-  rows,
-  matchedTemplateName,
-  isCustomLayout,
-  onSaveTemplate,
-  onShareTemplate,
-  onResetLayout,
-  onAddRow,
-  onMoveRow,
-  onRemoveRow,
-  onAddCellToRow,
-  onMoveCell,
-  onUpdateRowCell,
-  onRemoveRowCell,
-}: TagDesignerLayoutProps) {
-  return (
-    <div className="space-y-3">
-      <div className="flex items-center justify-between">
-        <h3 className="text-sm font-medium">
-          Layout{" "}
-          <span className="text-muted-foreground font-normal">
-            {matchedTemplateName}
-          </span>
-        </h3>
-        <div className="flex items-center gap-2">
-          {isCustomLayout ? (
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={onSaveTemplate}
-            >
-              Save as template
-            </Button>
-          ) : null}
+        {!isCustomEditorOpen ? (
           <Button
             type="button"
             variant="outline"
             size="sm"
-            onClick={() => {
-              void onShareTemplate();
-            }}
-            title="Copy layout template JSON"
+            onClick={beginCustomization}
           >
-            <Share2 className="mr-1 size-3" />
-            Share
+            <Pencil className="mr-1.5 size-3.5" />
+            Customize this template
           </Button>
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            onClick={onResetLayout}
-            title="Reset to default layout"
-          >
-            <RotateCcw className="mr-1 size-3" />
-            Reset
-          </Button>
-          <Button type="button" variant="outline" size="sm" onClick={onAddRow}>
-            <Plus className="mr-1 size-3" />
-            Add Row
-          </Button>
-        </div>
-      </div>
-
-      {rows.length > 0 ? (
-        <div className="overflow-x-auto px-3 pb-1">
-          <div
-            className={cn(
-              CELL_GRID,
-              "text-muted-foreground min-w-[640px] text-[10px]",
-            )}
-          >
-            <span />
-            <span>Field</span>
-            <span>Label</span>
-            <span>Width</span>
-            <span>Align</span>
-            <span>Size</span>
-            <span>Fit</span>
-            <span>Style</span>
-            <span />
-          </div>
-        </div>
-      ) : null}
-
-      <div className="space-y-2">
-        {rows.map((row, rowIndex) => (
-          <div
-            key={row.id}
-            className="border-border space-y-1.5 rounded-md border px-3 py-2"
-          >
-            <div className="flex items-center justify-start gap-3">
-              <div className="flex items-center gap-0.5">
+        ) : (
+          <div className="bg-muted/30 space-y-3 rounded-md border p-3">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <Label htmlFor="custom-tag-template">Customize layout</Label>
+                <p className="text-muted-foreground text-xs">
+                  One row per line. Listing fields use{" "}
+                  <code>{"{{fieldName}}"}</code>. Text stays on one line and
+                  shrinks to fit.
+                </p>
+                <p className="text-muted-foreground text-xs">
+                  <code>#</code> large bold · <code>##</code> medium bold ·{" "}
+                  <code>-</code> small · <code>|</code> left/right columns ·
+                  blank line adds space
+                </p>
+              </div>
+              <div className="flex flex-wrap gap-2">
                 <Button
                   type="button"
                   variant="ghost"
                   size="sm"
-                  className="size-6 px-0"
-                  disabled={rowIndex === 0}
-                  onClick={() => onMoveRow(rowIndex, -1)}
-                  title="Move row up"
+                  onClick={discardCustomChanges}
                 >
-                  <ArrowUp className="size-3" />
+                  <RotateCcw className="mr-1.5 size-3.5" />
+                  Discard changes
                 </Button>
                 <Button
                   type="button"
-                  variant="ghost"
+                  variant="outline"
                   size="sm"
-                  className="size-6 px-0"
-                  disabled={rowIndex === rows.length - 1}
-                  onClick={() => onMoveRow(rowIndex, 1)}
-                  title="Move row down"
+                  onClick={() => setIsAiInstructionsOpen(true)}
                 >
-                  <ArrowDown className="size-3" />
-                </Button>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="text-destructive size-6 px-0"
-                  onClick={() => onRemoveRow(rowIndex)}
-                  title="Remove row"
-                >
-                  <Trash2 className="size-3" />
+                  <Sparkles className="mr-1.5 size-3.5" />
+                  Get AI instructions
                 </Button>
               </div>
-              <span className="text-muted-foreground text-xs font-medium">
-                Row {rowIndex + 1}
+            </div>
+
+            <div className="flex items-center gap-2">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button type="button" variant="outline" size="sm">
+                    <Plus className="mr-1.5 size-3.5" />
+                    Insert field
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent
+                  align="start"
+                  className="max-h-72 w-64 overflow-y-auto"
+                >
+                  {TAG_TEMPLATE_FIELD_DEFINITIONS.map((field) => (
+                    <DropdownMenuItem
+                      key={field.id}
+                      onSelect={() => insertField(field.id)}
+                    >
+                      <span className="flex-1">{field.label}</span>
+                      <code className="text-muted-foreground text-[11px]">
+                        {`{{${field.id}}}`}
+                      </code>
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+              <span className="text-muted-foreground text-xs">
+                Up to two columns per row
               </span>
             </div>
 
-            <div className="overflow-x-auto">
-              <div className="min-w-[640px] space-y-1">
-                {row.cells.map((cell, cellIndex) => (
-                  <TagCellEditor
-                    key={`${row.id}-${cellIndex}`}
-                    cell={cell}
-                    isFirst={cellIndex === 0}
-                    isLast={cellIndex === row.cells.length - 1}
-                    onUpdate={(updated) =>
-                      onUpdateRowCell(rowIndex, cellIndex, updated)
-                    }
-                    onRemove={() => onRemoveRowCell(rowIndex, cellIndex)}
-                    onMoveUp={() => onMoveCell(rowIndex, cellIndex, -1)}
-                    onMoveDown={() => onMoveCell(rowIndex, cellIndex, 1)}
-                  />
-                ))}
-              </div>
-            </div>
+            <Textarea
+              ref={templateTextareaRef}
+              id="custom-tag-template"
+              aria-label="Custom template"
+              value={customTemplateDraft}
+              onChange={(event) => changeCustomTemplate(event.target.value)}
+              className="min-h-28 resize-y font-mono text-sm leading-6"
+              spellCheck={false}
+            />
 
+            {unknownFields.length > 0 ? (
+              <p className="text-destructive text-xs">
+                {unknownFields.map((field) => `{{${field}}}`).join(", ")}{" "}
+                {unknownFields.length === 1 ? "is" : "are"} not an available
+                field. Choose a field from Insert field.
+              </p>
+            ) : null}
+
+            {validationIssues.map((issue) => (
+              <p key={issue} className="text-destructive text-xs">
+                {issue}
+              </p>
+            ))}
+
+            {includesPrivateNote ? (
+              <p className="flex items-center gap-1.5 text-xs text-amber-700 dark:text-amber-400">
+                <TriangleAlert className="size-3.5 shrink-0" />
+                Private notes will be printed on the tag.
+              </p>
+            ) : null}
+
+            <div className="flex flex-col gap-2 sm:flex-row">
+              <Input
+                aria-label="Template name"
+                value={templateName}
+                onChange={(event) => setTemplateName(event.target.value)}
+                placeholder="Name this layout"
+                className="sm:max-w-xs"
+              />
+              <Button
+                type="button"
+                variant="outline"
+                disabled={
+                  templateName.trim().length === 0 ||
+                  unknownFields.length > 0 ||
+                  validationIssues.length > 0
+                }
+                onClick={() => {
+                  if (onSaveTemplate(templateName, sourceUserTemplate?.id)) {
+                    setTemplateName("");
+                    setIsCustomEditorOpen(false);
+                  }
+                }}
+              >
+                {sourceUserTemplate ? "Save changes" : "Save as template"}
+              </Button>
+            </div>
+            <p className="text-muted-foreground text-xs">
+              Saved templates stay in this browser.
+            </p>
+          </div>
+        )}
+      </div>
+
+      <Dialog
+        open={isAiInstructionsOpen}
+        onOpenChange={setIsAiInstructionsOpen}
+      >
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Make a tag template with AI</DialogTitle>
+            <DialogDescription>
+              Copy this prompt into ChatGPT or another assistant, describe the
+              tag you want, then paste only the template it returns into the
+              editor.
+            </DialogDescription>
+          </DialogHeader>
+          <Textarea
+            aria-label="AI template instructions"
+            readOnly
+            value={aiInstructions}
+            className="min-h-80 resize-none font-mono text-xs leading-5"
+          />
+          <div className="text-muted-foreground text-xs">
+            {TAG_TEMPLATE_FIELD_DEFINITIONS.length} fields included.
+          </div>
+          <DialogFooter>
             <Button
               type="button"
-              variant="ghost"
-              size="sm"
-              className="h-6 text-xs"
-              onClick={() => onAddCellToRow(rowIndex)}
+              variant="outline"
+              onClick={() => {
+                void copyAiInstructions();
+              }}
             >
-              <Plus className="mr-1 size-3" />
-              Cell
+              <Copy className="mr-2 size-4" />
+              Copy instructions
             </Button>
-          </div>
-        ))}
-      </div>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -1456,8 +1533,14 @@ function TagDesignerPreview({
   widthInches,
   heightInches,
 }: TagDesignerPreviewProps) {
+  const previewWarnings = getTagPreviewWarnings({
+    tags: previewTags,
+    widthInches,
+    heightInches,
+  });
+
   return (
-    <div className="space-y-3">
+    <div className="bg-muted/20 space-y-3 rounded-md p-3">
       <div className="flex items-center justify-between">
         <h3 className="text-sm font-medium">Preview</h3>
         <div className="flex items-center gap-2">
@@ -1476,84 +1559,30 @@ function TagDesignerPreview({
         </div>
       </div>
 
+      {previewWarnings.length > 0 ? (
+        <div className="space-y-1" role="status">
+          {previewWarnings.map((warning) => (
+            <p
+              key={warning}
+              className="flex items-center gap-1.5 text-xs text-amber-700 dark:text-amber-400"
+            >
+              <TriangleAlert className="size-3.5 shrink-0" />
+              {warning}
+            </p>
+          ))}
+        </div>
+      ) : null}
+
       {visiblePreviewTags.length > 0 ? (
         <div className="flex flex-wrap gap-3">
           {visiblePreviewTags.map((tag) => (
-            <article
+            <TagPreviewCard
               key={tag.id}
-              className="border-border bg-background relative overflow-hidden rounded-md border border-dashed p-2"
-              style={{
-                width: `${widthInches}in`,
-                height: `${heightInches}in`,
-              }}
-            >
-              <div
-                style={{
-                  paddingRight: tag.qrCodeUrl
-                    ? `${QR_RESERVED_RIGHT_INCHES}in`
-                    : undefined,
-                  paddingBottom: tag.qrCodeUrl
-                    ? `${QR_RESERVED_BOTTOM_INCHES}in`
-                    : undefined,
-                }}
-              >
-                {tag.rows.map((row) => (
-                  <div
-                    key={row.id}
-                    className="grid items-baseline gap-x-2"
-                    style={{
-                      gridTemplateColumns: row.cells
-                        .map((c) => `${c.width}fr`)
-                        .join(" "),
-                    }}
-                  >
-                    {row.cells.map((cell) => (
-                      <p
-                        key={cell.id}
-                        className={cn(
-                          "min-w-0 leading-tight",
-                          cell.wrap
-                            ? "break-words whitespace-normal"
-                            : "whitespace-nowrap",
-                          cell.overflow
-                            ? "overflow-visible"
-                            : "overflow-hidden",
-                          cell.bold && "font-semibold",
-                          cell.italic && "italic",
-                          cell.underline && "underline",
-                          cell.textAlign === "center" && "text-center",
-                          cell.textAlign === "right" && "text-right",
-                          cell.textAlign === "left" && "text-left",
-                        )}
-                        style={{
-                          fontSize: `${resolveCellFontSizePx(
-                            cell,
-                            row,
-                            widthInches,
-                            Boolean(tag.qrCodeUrl),
-                          )}px`,
-                        }}
-                      >
-                        {cell.text}
-                      </p>
-                    ))}
-                  </div>
-                ))}
-              </div>
-
-              {tag.qrCodeUrl ? (
-                <QrCodeSvg
-                  qrCodeUrl={tag.qrCodeUrl}
-                  className="absolute bg-white [&_svg]:block [&_svg]:h-full [&_svg]:w-full"
-                  style={{
-                    right: `${QR_OFFSET_INCHES}in`,
-                    bottom: `${QR_OFFSET_INCHES}in`,
-                    width: `${QR_SIZE_INCHES}in`,
-                    height: `${QR_SIZE_INCHES}in`,
-                  }}
-                />
-              ) : null}
-            </article>
+              tag={tag}
+              widthInches={widthInches}
+              heightInches={heightInches}
+              className="border-border rounded-md"
+            />
           ))}
         </div>
       ) : (
@@ -1570,25 +1599,22 @@ function TagDesignerPreview({
 // ---------------------------------------------------------------------------
 
 export function TagDesignerPanel({ listings }: { listings: TagListingData[] }) {
-  const {
-    controlsProps,
-    headerProps,
-    layoutProps,
-    previewProps,
-    sheetCreatorDialogProps,
-  } = useTagDesignerController({ listings });
+  const { controlsProps, headerProps, previewProps, sheetCreatorDialogProps } =
+    useTagDesignerController({ listings });
 
   return (
     <section className="border-border bg-card mx-auto max-w-5xl space-y-4 rounded-lg border p-4">
-      <TagDesignerHeader {...headerProps} />
+      <TagDesignerHeader
+        selectedListingCount={headerProps.selectedListingCount}
+      />
 
       <TagSheetCreatorDialog {...sheetCreatorDialogProps} />
 
       <TagDesignerControls {...controlsProps} />
 
-      <TagDesignerLayout {...layoutProps} />
-
       <TagDesignerPreview {...previewProps} />
+
+      <TagDesignerOutputActions {...headerProps} />
     </section>
   );
 }

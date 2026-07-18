@@ -2,8 +2,9 @@
 
 import qrcodeGenerator from "qrcode-generator";
 
-export const ALL_FIELD_IDS = [
+const ALL_FIELD_IDS = [
   "title",
+  "hybridizerYear",
   "hybridizer",
   "year",
   "price",
@@ -28,7 +29,7 @@ export const ALL_FIELD_IDS = [
 ] as const;
 
 export type TagFieldId = (typeof ALL_FIELD_IDS)[number];
-export type TagTextAlign = "left" | "center" | "right";
+type TagTextAlign = "left" | "center" | "right";
 
 interface TagAhsListingData {
   hybridizer?: string | null;
@@ -81,7 +82,7 @@ const DEFAULT_LISTING: TagListingData = {
   },
 };
 
-export interface TagSizePreset {
+interface TagSizePreset {
   id: string;
   label: string;
   widthInches: number;
@@ -105,6 +106,7 @@ export interface TagCell {
 export interface TagRow {
   id: string;
   cells: TagCell[];
+  isSpacer?: boolean;
 }
 
 export interface TagDesignerState {
@@ -141,9 +143,10 @@ export interface ResolvedCell {
   underline: boolean;
 }
 
-export interface ResolvedRow {
+interface ResolvedRow {
   id: string;
   cells: ResolvedCell[];
+  isSpacer?: boolean;
 }
 
 export interface TagPreviewData {
@@ -185,9 +188,13 @@ export const TAG_TEMPLATE_LIBRARY_STORAGE_KEY = "tag-designer-templates-v1";
 export const TAG_SHEET_CREATOR_STORAGE_KEY = "tag-sheet-creator-state-v1";
 const TEMPLATE_DEFAULT_ID = "default-template";
 export const TEMPLATE_CUSTOM_ID = "custom-template";
-export const TEMPLATE_IMPORT_ID = "import-template";
-const TEMPLATE_NAME_QR_ID = "template-name-qr";
-const TEMPLATE_FULL_DETAIL_ID = "template-full-detail";
+const TEMPLATE_SIMPLE_NAME_ID = "template-simple-name";
+const TEMPLATE_SALE_TAG_ID = "template-sale-tag";
+const TEMPLATE_GROWER_DETAILS_ID = "template-grower-details";
+const LARGE_LINE_FONT_SIZE_PX = 22;
+const MEDIUM_LINE_FONT_SIZE_PX = 16;
+const NORMAL_LINE_FONT_SIZE_PX = 14;
+const SMALL_LINE_FONT_SIZE_PX = 11;
 
 export const MIN_TAG_WIDTH_INCHES = 1;
 export const MAX_TAG_WIDTH_INCHES = 6;
@@ -200,12 +207,11 @@ const MIN_FIT_FONT_SIZE_PX = 6;
 const AVERAGE_CHARACTER_WIDTH_EM = 0.56;
 const FIT_FONT_SCALE_BUFFER = 0.95;
 export const QR_SIZE_INCHES = 0.5;
-export const QR_OFFSET_INCHES = 0.06;
+const QR_OFFSET_INCHES = 0.06;
 const QR_TEXT_GAP_INCHES = 0.04;
-export const QR_RESERVED_RIGHT_INCHES =
+const QR_RESERVED_RIGHT_INCHES =
   QR_SIZE_INCHES + QR_OFFSET_INCHES + QR_TEXT_GAP_INCHES;
-export const QR_RESERVED_BOTTOM_INCHES =
-  QR_SIZE_INCHES + QR_OFFSET_INCHES + QR_TEXT_GAP_INCHES;
+export const TAG_SPACER_HEIGHT_INCHES = 0.08;
 const MIN_SHEET_PAGE_WIDTH_INCHES = MIN_TAG_WIDTH_INCHES;
 export const MAX_SHEET_PAGE_WIDTH_INCHES = 24;
 const MIN_SHEET_PAGE_HEIGHT_INCHES = MIN_TAG_HEIGHT_INCHES;
@@ -247,6 +253,12 @@ export const TAG_SIZE_PRESETS: TagSizePreset[] = [
     heightInches: 2,
   },
   {
+    id: "card-2x4",
+    label: 'Card 2.00" × 4.00"',
+    widthInches: 4,
+    heightInches: 2,
+  },
+  {
     id: "custom",
     label: "Custom",
     widthInches: 3.5,
@@ -254,8 +266,9 @@ export const TAG_SIZE_PRESETS: TagSizePreset[] = [
   },
 ];
 
-export const FIELD_DISPLAY_NAMES: Record<TagFieldId, string> = {
+const FIELD_DISPLAY_NAMES: Record<TagFieldId, string> = {
   title: "Title",
+  hybridizerYear: "Hybridizer, Year",
   hybridizer: "Hybridizer",
   year: "Year",
   price: "Price",
@@ -279,11 +292,12 @@ export const FIELD_DISPLAY_NAMES: Record<TagFieldId, string> = {
   customText: "Free text",
 };
 
-export const FIELD_DEFAULTS: Record<
+const FIELD_DEFAULTS: Record<
   TagFieldId,
   Pick<TagCell, "label" | "bold" | "fontSize">
 > = {
   title: { label: "", bold: true, fontSize: 22 },
+  hybridizerYear: { label: "", bold: false, fontSize: 16 },
   hybridizer: { label: "Hybridizer", bold: false, fontSize: 16 },
   year: { label: "", bold: false, fontSize: 16 },
   price: { label: "", bold: true, fontSize: 16 },
@@ -307,84 +321,9 @@ export const FIELD_DEFAULTS: Record<
   customText: { label: "", bold: false, fontSize: 16 },
 };
 
-const DEFAULT_ROWS: TagRow[] = [
-  {
-    id: "d0",
-    cells: [
-      {
-        fieldId: "title",
-        width: 1,
-        textAlign: "center",
-        fontSize: 22,
-        overflow: false,
-        fit: true,
-        wrap: false,
-        bold: true,
-        italic: false,
-        underline: false,
-        label: "",
-      },
-    ],
-  },
-  {
-    id: "d1",
-    cells: [
-      {
-        fieldId: "hybridizer",
-        width: 1,
-        textAlign: "center",
-        fontSize: 16,
-        overflow: false,
-        fit: true,
-        wrap: false,
-        bold: false,
-        italic: false,
-        underline: false,
-        label: "",
-      },
-      {
-        fieldId: "year",
-        width: 1,
-        textAlign: "left",
-        fontSize: 16,
-        overflow: false,
-        fit: true,
-        wrap: false,
-        bold: false,
-        italic: false,
-        underline: false,
-        label: "",
-      },
-      {
-        fieldId: "ploidy",
-        width: 1,
-        textAlign: "center",
-        fontSize: 16,
-        overflow: false,
-        fit: true,
-        wrap: false,
-        bold: false,
-        italic: false,
-        underline: false,
-        label: "",
-      },
-    ],
-  },
-];
-
-export const DEFAULT_TAG_DESIGNER_STATE: TagDesignerState = {
-  sizePresetId: "brother-tze-1",
-  customWidthInches: 3.5,
-  customHeightInches: 1,
-  showQrCode: true,
-  rows: DEFAULT_ROWS,
-};
-
-export const PLACEHOLDER_LISTING: TagListingData = DEFAULT_LISTING;
-
 let _nextRowId = 0;
 
-export function generateRowId() {
+function generateRowId() {
   return `r-${Date.now()}-${_nextRowId++}`;
 }
 
@@ -409,147 +348,77 @@ function createTemplateCell(
   };
 }
 
+const SIMPLE_NAME_TEMPLATE = "# {{title}}";
+const GARDEN_ID_TEMPLATE = "# {{title}}\n{{hybridizerYear}}\n- {{ploidy}}";
+const SALE_TAG_TEMPLATE =
+  "# {{title}}\n{{hybridizerYear}}\n## {{ploidy}} | {{price}}";
+const GROWER_DETAILS_TEMPLATE =
+  "# {{title}}\n## {{hybridizerYear}}\n{{ploidy}} | {{foliageType}}\nBloom {{bloomSize}} | Scape {{scapeHeight}}\n- Season {{bloomSeason}} | Habit {{bloomHabit}}";
+
+function createBuiltinTemplateRows(idPrefix: string, template: string) {
+  return createRowsFromTagTextTemplate(template).map((row, index) => ({
+    ...row,
+    id: `${idPrefix}-${index}`,
+  }));
+}
+
+export const DEFAULT_TAG_DESIGNER_STATE: TagDesignerState = {
+  sizePresetId: "brother-tze-1",
+  customWidthInches: 3.5,
+  customHeightInches: 1,
+  showQrCode: true,
+  rows: createBuiltinTemplateRows("garden-id-row", GARDEN_ID_TEMPLATE),
+};
+
+export const PLACEHOLDER_LISTING: TagListingData = DEFAULT_LISTING;
+
 export const BUILTIN_TAG_LAYOUT_TEMPLATES: Array<
   Omit<ResolvedTagLayoutTemplate, "isBuiltin" | "signature">
 > = [
   {
-    id: TEMPLATE_DEFAULT_ID,
-    name: "name + hybridizer + year + ploidy + qr",
-    layout: DEFAULT_TAG_DESIGNER_STATE,
-  },
-  {
-    id: TEMPLATE_NAME_QR_ID,
-    name: "name + qr",
+    id: TEMPLATE_SIMPLE_NAME_ID,
+    name: "Simple name",
     layout: {
       sizePresetId: "brother-tze-1",
       customWidthInches: 3.5,
       customHeightInches: 1,
       showQrCode: true,
-      rows: [
-        {
-          id: "name-qr-row",
-          cells: [
-            createTemplateCell("title", { fontSize: 22, textAlign: "left" }),
-          ],
-        },
-      ],
+      rows: createBuiltinTemplateRows("simple-name-row", SIMPLE_NAME_TEMPLATE),
     },
   },
   {
-    id: TEMPLATE_FULL_DETAIL_ID,
-    name: "full detail",
+    id: TEMPLATE_DEFAULT_ID,
+    name: "Garden ID",
+    layout: DEFAULT_TAG_DESIGNER_STATE,
+  },
+  {
+    id: TEMPLATE_SALE_TAG_ID,
+    name: "Sale tag",
     layout: {
       sizePresetId: "brother-tze-1",
       customWidthInches: 3.5,
       customHeightInches: 1,
       showQrCode: true,
-      rows: [
-        {
-          id: "full-detail-row-0",
-          cells: [createTemplateCell("title", { textAlign: "center" })],
-        },
-        {
-          id: "full-detail-row-1",
-          cells: [
-            createTemplateCell("hybridizer", {
-              label: "",
-              textAlign: "center",
-              fontSize: 16,
-            }),
-            createTemplateCell("year", {
-              width: 1,
-              label: "",
-              textAlign: "left",
-              fontSize: 16,
-            }),
-            createTemplateCell("ploidy", {
-              width: 1,
-              label: "",
-              textAlign: "center",
-              fontSize: 16,
-            }),
-          ],
-        },
-        {
-          id: "full-detail-row-2",
-          cells: [
-            createTemplateCell("bloomSize", {
-              width: 1,
-              textAlign: "left",
-              fontSize: 12,
-              label: "Bloom Size",
-              fit: false,
-            }),
-            createTemplateCell("color", {
-              width: 1,
-              textAlign: "right",
-              fontSize: 16,
-              bold: true,
-            }),
-          ],
-        },
-        {
-          id: "full-detail-row-3",
-          cells: [
-            createTemplateCell("scapeHeight", {
-              width: 1,
-              textAlign: "left",
-              fontSize: 12,
-              label: "Scape Height",
-              fit: false,
-            }),
-            createTemplateCell("form", {
-              width: 1,
-              textAlign: "right",
-              fontSize: 16,
-              bold: true,
-            }),
-          ],
-        },
-        {
-          id: "full-detail-row-4",
-          cells: [
-            createTemplateCell("budcount", {
-              width: 1,
-              textAlign: "left",
-              fontSize: 12,
-              label: "Buds",
-              fit: false,
-            }),
-            createTemplateCell("bloomSeason", {
-              width: 1,
-              textAlign: "right",
-              fontSize: 12,
-              label: "",
-              italic: true,
-            }),
-          ],
-        },
-        {
-          id: "full-detail-row-5",
-          cells: [
-            createTemplateCell("branches", {
-              width: 1,
-              textAlign: "left",
-              fontSize: 12,
-              label: "Branches",
-              fit: false,
-            }),
-            createTemplateCell("bloomHabit", {
-              width: 1,
-              textAlign: "right",
-              fontSize: 12,
-              label: "",
-              italic: true,
-            }),
-          ],
-        },
-      ],
+      rows: createBuiltinTemplateRows("sale-tag-row", SALE_TAG_TEMPLATE),
+    },
+  },
+  {
+    id: TEMPLATE_GROWER_DETAILS_ID,
+    name: "Grower details",
+    layout: {
+      sizePresetId: "card-2x4",
+      customWidthInches: 4,
+      customHeightInches: 2,
+      showQrCode: true,
+      rows: createBuiltinTemplateRows(
+        "grower-details-row",
+        GROWER_DETAILS_TEMPLATE,
+      ),
     },
   },
 ];
 
-export function clamp(value: number, min: number, max: number) {
+function clamp(value: number, min: number, max: number) {
   return Math.min(max, Math.max(min, value));
 }
 
@@ -614,34 +483,9 @@ export function buildQrCodeSvgMarkup(url: string) {
   qrCode.make();
   return qrCode.createSvgTag({
     cellSize: 1,
-    margin: 0,
+    margin: 4,
     scalable: true,
   });
-}
-
-function normalizeCellTextMode({
-  overflow,
-  fit,
-  wrap,
-}: {
-  overflow?: boolean;
-  fit?: boolean;
-  wrap?: boolean;
-}) {
-  const hasOverflow = Boolean(overflow);
-  const hasFit = typeof fit === "boolean" ? fit : true;
-  const hasWrap = typeof wrap === "boolean" ? wrap : false;
-
-  if (hasWrap) {
-    return { overflow: false, fit: false, wrap: true };
-  }
-  if (hasOverflow) {
-    return { overflow: true, fit: false, wrap: false };
-  }
-  if (hasFit) {
-    return { overflow: false, fit: true, wrap: false };
-  }
-  return { overflow: false, fit: false, wrap: false };
 }
 
 function normalizePloidy(value: string | null | undefined) {
@@ -659,6 +503,13 @@ function resolveFieldValue(
   switch (fieldId) {
     case "title":
       return toNonEmptyString(listing.title);
+    case "hybridizerYear": {
+      const hybridizer = toNonEmptyString(listing.ahsListing?.hybridizer);
+      const year = listing.ahsListing?.year
+        ? String(listing.ahsListing.year)
+        : null;
+      return [hybridizer, year].filter(Boolean).join(", ") || null;
+    }
     case "hybridizer":
       return toNonEmptyString(listing.ahsListing?.hybridizer);
     case "year":
@@ -706,6 +557,272 @@ function resolveFieldValue(
   }
 }
 
+export const TAG_TEMPLATE_FIELD_DEFINITIONS: Array<{
+  id: Exclude<TagFieldId, "customText">;
+  label: string;
+}> = ALL_FIELD_IDS.filter(
+  (fieldId): fieldId is Exclude<TagFieldId, "customText"> =>
+    fieldId !== "customText",
+).map((fieldId) => ({
+  id: fieldId,
+  label: FIELD_DISPLAY_NAMES[fieldId],
+}));
+
+const TAG_TEMPLATE_TOKEN_PATTERN = /{{\s*([a-zA-Z][a-zA-Z0-9]*)\s*}}/g;
+
+function cleanRenderedTemplateText(value: string) {
+  return value
+    .replace(/\s+/g, " ")
+    .replace(/\s+([,;:])/g, "$1")
+    .replace(/([,;:|·])(?:\s*[,;:|·])+/g, "$1")
+    .replace(/^[\s,;:|·–—-]+|[\s,;:|·–—-]+$/g, "")
+    .trim();
+}
+
+export function renderTagTextTemplate(
+  template: string,
+  listing: TagListingData,
+) {
+  return cleanRenderedTemplateText(
+    template.replace(TAG_TEMPLATE_TOKEN_PATTERN, (_, fieldName: string) => {
+      if (!VALID_FIELD_IDS.has(fieldName) || fieldName === "customText") {
+        return "";
+      }
+      return resolveFieldValue(listing, fieldName as TagFieldId) ?? "";
+    }),
+  );
+}
+
+export function findUnknownTagTemplateFields(template: string) {
+  const unknownFields = new Set<string>();
+  for (const match of template.matchAll(TAG_TEMPLATE_TOKEN_PATTERN)) {
+    const fieldName = match[1]!;
+    if (!VALID_FIELD_IDS.has(fieldName) || fieldName === "customText") {
+      unknownFields.add(fieldName);
+    }
+  }
+  return [...unknownFields];
+}
+
+export function getTagTextTemplateFieldIds(template: string) {
+  const fieldIds = new Set<Exclude<TagFieldId, "customText">>();
+  for (const match of template.matchAll(TAG_TEMPLATE_TOKEN_PATTERN)) {
+    const fieldName = match[1]!;
+    if (VALID_FIELD_IDS.has(fieldName) && fieldName !== "customText") {
+      fieldIds.add(fieldName as Exclude<TagFieldId, "customText">);
+    }
+  }
+  return [...fieldIds];
+}
+
+function templateTextForCell(cell: TagCell) {
+  if (cell.fieldId === "customText") return cell.label;
+  const token = `{{${cell.fieldId}}}`;
+  return cell.label ? `${cell.label}: ${token}` : token;
+}
+
+function templateLinePrefix(row: TagRow) {
+  const firstCell = row.cells[0];
+  if (!firstCell) return "";
+  if (firstCell.bold && firstCell.fontSize >= LARGE_LINE_FONT_SIZE_PX) {
+    return "# ";
+  }
+  if (firstCell.bold && firstCell.fontSize >= MEDIUM_LINE_FONT_SIZE_PX) {
+    return "## ";
+  }
+  if (firstCell.fontSize <= SMALL_LINE_FONT_SIZE_PX) return "- ";
+  return "";
+}
+
+export function tagDesignerStateToTemplateText(state: TagDesignerState) {
+  return state.rows
+    .map((row) => {
+      if (row.isSpacer) return "";
+      const prefix = templateLinePrefix(row);
+      const fieldIds = row.cells.map((cell) => cell.fieldId);
+      if (
+        fieldIds.length >= 2 &&
+        fieldIds[0] === "hybridizer" &&
+        fieldIds[1] === "year"
+      ) {
+        const remainingCells = row.cells.slice(2).map(templateTextForCell);
+        return `${prefix}${["{{hybridizerYear}}", ...remainingCells].join(
+          " | ",
+        )}`;
+      }
+      return `${prefix}${row.cells.map(templateTextForCell).join(" | ")}`;
+    })
+    .join("\n");
+}
+
+function parseTemplateLine(line: string) {
+  const trimmedLine = line.trim();
+  if (trimmedLine.startsWith("## ")) {
+    return {
+      text: trimmedLine.slice(3),
+      fontSize: MEDIUM_LINE_FONT_SIZE_PX,
+      bold: true,
+    };
+  }
+  if (trimmedLine.startsWith("# ")) {
+    return {
+      text: trimmedLine.slice(2),
+      fontSize: LARGE_LINE_FONT_SIZE_PX,
+      bold: true,
+    };
+  }
+  if (trimmedLine.startsWith("- ")) {
+    return {
+      text: trimmedLine.slice(2),
+      fontSize: SMALL_LINE_FONT_SIZE_PX,
+      bold: false,
+    };
+  }
+  return {
+    text: trimmedLine,
+    fontSize: NORMAL_LINE_FONT_SIZE_PX,
+    bold: false,
+  };
+}
+
+export function createRowsFromTagTextTemplate(template: string): TagRow[] {
+  const lines = template.split(/\r?\n/);
+  while (lines.length > 0 && lines[0]?.trim().length === 0) lines.shift();
+  while (lines.length > 0 && lines.at(-1)?.trim().length === 0) lines.pop();
+  const normalizedLines = lines.length > 0 ? lines : [""];
+
+  return normalizedLines.map((line) => {
+    if (line.trim().length === 0 && normalizedLines.length > 1) {
+      return {
+        id: generateRowId(),
+        cells: [],
+        isSpacer: true,
+      };
+    }
+
+    const parsed = parseTemplateLine(line);
+    const columns = parsed.text
+      .split("|")
+      .map((column) => column.trim())
+      .filter(Boolean);
+    const normalizedColumns = columns.length > 0 ? columns : [""];
+
+    return {
+      id: generateRowId(),
+      cells: normalizedColumns.map((column, index) =>
+        createTemplateCell("customText", {
+          label: column,
+          textAlign:
+            normalizedColumns.length === 1
+              ? "center"
+              : index === 0
+                ? "left"
+                : index === normalizedColumns.length - 1
+                  ? "right"
+                  : "center",
+          fontSize: parsed.fontSize,
+          bold: parsed.bold,
+          fit: true,
+          wrap: false,
+        }),
+      ),
+    };
+  });
+}
+
+export function applyTagTextTemplate(
+  state: TagDesignerState,
+  template: string,
+): TagDesignerState {
+  return {
+    ...state,
+    rows: createRowsFromTagTextTemplate(template),
+  };
+}
+
+export function getRecommendedTagTemplateRowCount(heightInches: number) {
+  if (heightInches <= 0.75) return 2;
+  if (heightInches <= 1) return 3;
+  if (heightInches <= 1.25) return 4;
+  return 6;
+}
+
+export function getTagTemplateValidationIssues(template: string) {
+  const issues: string[] = [];
+
+  if (template.includes("```")) {
+    issues.push("Paste plain template text without a Markdown code fence.");
+  }
+  if (
+    template
+      .split(/\r?\n/)
+      .some(
+        (line) => line.split("|").filter((column) => column.trim()).length > 2,
+      )
+  ) {
+    issues.push("Use no more than two columns per row.");
+  }
+  if (/<\/?[a-z][^>]*>/i.test(template)) {
+    issues.push("HTML is not supported.");
+  }
+
+  const openingBraceCount = template.match(/{{/g)?.length ?? 0;
+  const closingBraceCount = template.match(/}}/g)?.length ?? 0;
+  if (
+    openingBraceCount !== closingBraceCount ||
+    template.replace(TAG_TEMPLATE_TOKEN_PATTERN, "").includes("{{") ||
+    template.replace(TAG_TEMPLATE_TOKEN_PATTERN, "").includes("}}")
+  ) {
+    issues.push("One or more field placeholders have incomplete braces.");
+  }
+
+  return issues;
+}
+
+export function buildTagTemplateAiInstructions(
+  currentTemplate: string,
+  {
+    widthInches = 3.5,
+    heightInches = 1,
+    showQrCode = true,
+  }: {
+    widthInches?: number;
+    heightInches?: number;
+    showQrCode?: boolean;
+  } = {},
+) {
+  const fields = TAG_TEMPLATE_FIELD_DEFINITIONS.map(
+    (field) => `- {{${field.id}}}: ${field.label}`,
+  ).join("\n");
+  const recommendedRows = getRecommendedTagTemplateRowCount(heightInches);
+
+  return `Help me write a Daylily Catalog plant-tag template.
+
+Return only the finished template text. Each line becomes one printed line.
+Tag size: ${widthInches.toFixed(2)}" × ${heightInches.toFixed(2)}".
+QR code: ${showQrCode ? "on; it always occupies the right side" : "off"}.
+Use no more than ${recommendedRows} nonblank rows and no more than two columns per row.
+Text never wraps and shrinks to fit its line. Start a line with:
+- # for large bold
+- ## for medium bold
+- - for small detail text
+Use | to space columns apart. Insert listing data with {{fieldName}}
+placeholders. A blank line adds vertical space between rows. For example:
+# {{title}}
+## {{hybridizerYear}} | {{ploidy}}
+- Bloom {{bloomSize}} | Scape {{scapeHeight}}
+
+Use {{hybridizerYear}} for the common "Hybridizer, Year" format. Missing values
+and empty labeled columns are omitted. Return plain template text only, with no
+explanation and no code fence. Do not use HTML or other Markdown.
+
+Available fields:
+${fields}
+
+Current template:
+${currentTemplate}`;
+}
+
 const VALID_TEXT_ALIGNS = new Set<TagTextAlign>(["left", "center", "right"]);
 const VALID_FIELD_IDS = new Set<string>(ALL_FIELD_IDS);
 
@@ -715,11 +832,6 @@ function sanitizeCell(cell: Partial<TagCell>): TagCell | null {
 
   const fieldId = cell.fieldId;
   const defaults = FIELD_DEFAULTS[fieldId];
-  const textMode = normalizeCellTextMode({
-    overflow: cell.overflow,
-    fit: cell.fit,
-    wrap: cell.wrap,
-  });
 
   return {
     fieldId,
@@ -728,9 +840,9 @@ function sanitizeCell(cell: Partial<TagCell>): TagCell | null {
       ? cell.textAlign!
       : "left",
     fontSize: clamp(Number(cell.fontSize) || defaults.fontSize, 6, 28),
-    overflow: textMode.overflow,
-    fit: textMode.fit,
-    wrap: textMode.wrap,
+    overflow: false,
+    fit: true,
+    wrap: false,
     bold: typeof cell.bold === "boolean" ? cell.bold : defaults.bold,
     italic: Boolean(cell.italic),
     underline: Boolean(cell.underline),
@@ -740,6 +852,14 @@ function sanitizeCell(cell: Partial<TagCell>): TagCell | null {
 
 function sanitizeRow(row: Partial<TagRow>): TagRow | null {
   if (!row || typeof row !== "object" || !Array.isArray(row.cells)) return null;
+
+  if (row.isSpacer) {
+    return {
+      id: typeof row.id === "string" && row.id ? row.id : generateRowId(),
+      cells: [],
+      isSpacer: true,
+    };
+  }
 
   const cells = (row.cells as Partial<TagCell>[])
     .map((c) => sanitizeCell(c))
@@ -939,11 +1059,8 @@ export function resolveSheetMetrics(
 export function createLayoutSignature(layout: TagDesignerState) {
   const normalized = sanitizeTagDesignerState(layout);
   return JSON.stringify({
-    sizePresetId: normalized.sizePresetId,
-    customWidthInches: Number(normalized.customWidthInches.toFixed(2)),
-    customHeightInches: Number(normalized.customHeightInches.toFixed(2)),
-    showQrCode: normalized.showQrCode,
     rows: normalized.rows.map((row) => ({
+      isSpacer: Boolean(row.isSpacer),
       cells: row.cells.map((cell) => ({
         fieldId: cell.fieldId,
         width: cell.width,
@@ -992,16 +1109,36 @@ export function buildResolvedRowsForListing(
   const result: ResolvedRow[] = [];
 
   for (const row of rows) {
+    if (row.isSpacer) {
+      result.push({
+        id: `${listing.id}-${row.id}`,
+        cells: [],
+        isSpacer: true,
+      });
+      continue;
+    }
+
     const resolved: ResolvedCell[] = [];
 
     for (const [cellIndex, cell] of row.cells.entries()) {
       let text: string;
       if (cell.fieldId === "customText") {
-        text = cell.label ?? "";
+        const referencedFields = getTagTextTemplateFieldIds(cell.label ?? "");
+        if (
+          referencedFields.length > 0 &&
+          referencedFields.every(
+            (fieldId) => resolveFieldValue(listing, fieldId) === null,
+          )
+        ) {
+          continue;
+        }
+        text = renderTagTextTemplate(cell.label ?? "", listing);
       } else {
         const value = resolveFieldValue(listing, cell.fieldId);
         text = value ? (cell.label ? `${cell.label}: ${value}` : value) : "";
       }
+
+      if (!text) continue;
 
       resolved.push({
         id: `${listing.id}-${row.id}-${cellIndex}-${cell.fieldId}`,
@@ -1011,7 +1148,7 @@ export function buildResolvedRowsForListing(
         fontSize: cell.fontSize,
         overflow: cell.overflow,
         fit: cell.fit,
-        wrap: cell.wrap,
+        wrap: false,
         bold: cell.bold,
         italic: cell.italic,
         underline: cell.underline,
@@ -1023,57 +1160,9 @@ export function buildResolvedRowsForListing(
     }
   }
 
-  if (result.length === 0) {
-    return [
-      {
-        id: `${listing.id}-placeholder`,
-        cells: [
-          {
-            id: `${listing.id}-placeholder-cell`,
-            text: "No fields with values",
-            width: 1,
-            textAlign: "left",
-            fontSize: 10,
-            overflow: false,
-            fit: true,
-            wrap: false,
-            bold: false,
-            italic: true,
-            underline: false,
-          },
-        ],
-      },
-    ];
-  }
-
+  while (result[0]?.isSpacer) result.shift();
+  while (result.at(-1)?.isSpacer) result.pop();
   return result;
-}
-
-export function createDefaultCell(existingRows: TagRow[]): TagCell {
-  const usedFields = new Set<TagFieldId>();
-  for (const row of existingRows) {
-    for (const cell of row.cells) {
-      usedFields.add(cell.fieldId);
-    }
-  }
-
-  const nextFieldId =
-    ALL_FIELD_IDS.find((id) => !usedFields.has(id)) ?? "title";
-  const defaults = FIELD_DEFAULTS[nextFieldId];
-
-  return {
-    fieldId: nextFieldId,
-    width: 1,
-    textAlign: "left",
-    fontSize: defaults.fontSize,
-    overflow: false,
-    fit: true,
-    wrap: false,
-    bold: defaults.bold,
-    italic: false,
-    underline: false,
-    label: defaults.label,
-  };
 }
 
 function escapeCsvCell(value: string) {
@@ -1090,7 +1179,13 @@ export function downloadSelectedListingsCsv(
   const usedFieldIds = new Set<TagFieldId>();
   for (const row of rows) {
     for (const cell of row.cells) {
-      usedFieldIds.add(cell.fieldId);
+      if (cell.fieldId === "customText") {
+        for (const fieldId of getTagTextTemplateFieldIds(cell.label)) {
+          usedFieldIds.add(fieldId);
+        }
+      } else {
+        usedFieldIds.add(cell.fieldId);
+      }
     }
   }
 
@@ -1129,18 +1224,18 @@ export function resolveCellFontSizePx(
   if (cell.wrap) return cell.fontSize;
   if (!shouldFit) return cell.fontSize;
 
-  const rowTotalWidthUnits = row.cells.reduce(
-    (total, rowCell) => total + rowCell.width,
-    0,
-  );
-  if (rowTotalWidthUnits <= 0) return cell.fontSize;
-
   const innerWidthInches =
     tagWidthInches -
     TAG_HORIZONTAL_PADDING_INCHES -
     (hasQrCode ? QR_RESERVED_RIGHT_INCHES : 0) -
     TAG_COLUMN_GAP_INCHES * Math.max(row.cells.length - 1, 0);
   if (innerWidthInches <= 0) return cell.fontSize;
+
+  const rowTotalWidthUnits = row.cells.reduce(
+    (total, rowCell) => total + rowCell.width,
+    0,
+  );
+  if (rowTotalWidthUnits <= 0) return cell.fontSize;
 
   const cellWidthInches = innerWidthInches * (cell.width / rowTotalWidthUnits);
   const cellWidthPx = Math.max(cellWidthInches * CSS_PIXELS_PER_INCH, 1);
@@ -1158,6 +1253,58 @@ export function resolveCellFontSizePx(
       cell.fontSize,
     ).toFixed(2),
   );
+}
+
+export function getTagPreviewWarnings({
+  tags,
+  widthInches,
+  heightInches,
+}: {
+  tags: TagPreviewData[];
+  widthInches: number;
+  heightInches: number;
+}) {
+  let hasSmallText = false;
+  let hasVerticalOverflow = false;
+  const availableHeightPx = Math.max(
+    (heightInches - 0.12) * CSS_PIXELS_PER_INCH,
+    1,
+  );
+
+  for (const tag of tags) {
+    const hasQrCode = Boolean(tag.qrCodeUrl);
+    let estimatedHeightPx = 0;
+
+    for (const row of tag.rows) {
+      if (row.isSpacer) {
+        estimatedHeightPx += TAG_SPACER_HEIGHT_INCHES * CSS_PIXELS_PER_INCH;
+        continue;
+      }
+
+      const fittedSizes = row.cells.map((cell) =>
+        resolveCellFontSizePx(cell, row, widthInches, hasQrCode),
+      );
+      if (fittedSizes.some((fontSize) => fontSize < 10)) {
+        hasSmallText = true;
+      }
+      estimatedHeightPx += Math.max(...fittedSizes, 0) * 1.2;
+    }
+
+    if (estimatedHeightPx > availableHeightPx) {
+      hasVerticalOverflow = true;
+    }
+  }
+
+  const warnings: string[] = [];
+  if (hasSmallText) {
+    warnings.push(
+      "Some text shrinks below 10px. Use a wider tag or fewer fields.",
+    );
+  }
+  if (hasVerticalOverflow) {
+    warnings.push("This layout may be too tall for the selected tag size.");
+  }
+  return warnings;
 }
 
 export function duplicateTagsForSheetLabels(

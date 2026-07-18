@@ -19,6 +19,7 @@ const onboardingState = stateFor("tests/atlas/onboarding-membership.atlas.ts");
 const listingState = stateFor("tests/atlas/listing-management.atlas.ts");
 const listingMediaState = stateFor("tests/atlas/listing-media.atlas.ts");
 const listState = stateFor("tests/atlas/list-management.atlas.ts");
+const tagState = stateFor("tests/atlas/tag-printing.atlas.ts");
 const buyerState = stateFor("tests/atlas/buyer-inquiry.atlas.ts");
 const profileState = stateFor("tests/atlas/profile-management.atlas.ts");
 const testRef = (layer, file) => ({
@@ -645,6 +646,77 @@ export const ATLAS_FLOWS = [
             "Listing membership picker",
             "The real lists available while editing a listing.",
             "/dashboard/listings?size=10",
+            false,
+          ),
+        ],
+      },
+    ],
+  },
+  {
+    id: "tag-printing",
+    audience: "member",
+    title: "Create and print plant tags",
+    description:
+      "Choose a useful tag preset or create a custom template from real listing fields.",
+    tests: {
+      unit: [testRef("unit", "tests/tag-designer-model.test.ts")],
+      integration: [
+        testRef("integration", "tests/tag-designer-panel.test.tsx"),
+        testRef("integration", "tests/tag-print-table.test.ts"),
+      ],
+      e2e: [],
+    },
+    steps: [
+      {
+        title: "Choose tag content",
+        states: [
+          tagState(
+            "tag-printing-garden-id",
+            "Garden ID tags",
+            "The compact default preset across eight listings with long, short, complete, and incomplete data.",
+            "/dashboard/tags",
+            false,
+          ),
+          tagState(
+            "tag-printing-simple-name",
+            "Simple name tags",
+            "The most legible name-only preset across the same mixed listing batch.",
+            "/dashboard/tags",
+            false,
+          ),
+          tagState(
+            "tag-printing-sale-tag",
+            "Sale tags",
+            "A compact sales preset that includes price where available and omits missing values cleanly.",
+            "/dashboard/tags",
+            false,
+          ),
+          tagState(
+            "tag-printing-grower-details",
+            "Grower detail tags",
+            "The roomier preset with bloom, scape, season, habit, and identity details.",
+            "/dashboard/tags",
+            false,
+          ),
+          tagState(
+            "tag-printing-custom",
+            "Custom tag template",
+            "The line-based custom editor combining listing fields in a live tag preview.",
+            "/dashboard/tags",
+            false,
+          ),
+          tagState(
+            "tag-printing-ai-instructions",
+            "AI template instructions",
+            "Copyable syntax guidance with every available tag field and the current template.",
+            "/dashboard/tags",
+            false,
+          ),
+          tagState(
+            "tag-printing-sheet",
+            "Sheet creator",
+            "The secondary sheet workflow using the same selected tags and current custom layout.",
+            "/dashboard/tags",
             false,
           ),
         ],
