@@ -1,19 +1,38 @@
 import { expect, test as base } from "@playwright/test";
-import type { ConsoleMessage, Locator, Page } from "@playwright/test";
+import type { ConsoleMessage, Locator, Page, Response } from "@playwright/test";
 import { mkdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import {
   assertNoUnexpectedBrowserDiagnostics,
+  CHROMIUM_DOCUMENT_404_DIAGNOSTIC,
   diagnosticLineFromPlaywrightConsole,
 } from "../../scripts/atlas-browser-diagnostics.mjs";
 import { getAtlasState } from "../../scripts/atlas-flows.mjs";
 import { prepareAtlasCapture } from "./atlas-capture-readiness";
 export { expect };
 
+const expectedDiagnosticsByPage = new WeakMap<Page, string[]>();
+
+export async function gotoExpectedDocument404(
+  page: Page,
+  url: string,
+): Promise<Response> {
+  const response = await page.goto(url);
+  expect(
+    response,
+    `${url} must return a main-document response`,
+  ).not.toBeNull();
+  expect(response!.request().resourceType()).toBe("document");
+  expect(response!.status(), `${url} must return HTTP 404`).toBe(404);
+  expectedDiagnosticsByPage.get(page)?.push(CHROMIUM_DOCUMENT_404_DIAGNOSTIC);
+  return response!;
+}
+
 export const test = base.extend<{ atlasBrowserDiagnostics: void }>({
   atlasBrowserDiagnostics: [
     async ({ page }, use) => {
       const diagnostics: string[] = [];
+      expectedDiagnosticsByPage.set(page, []);
       const onConsole = (message: ConsoleMessage) => {
         const line = diagnosticLineFromPlaywrightConsole(
           message.type(),
@@ -37,7 +56,12 @@ export const test = base.extend<{ atlasBrowserDiagnostics: void }>({
         page.off("console", onConsole);
         page.off("pageerror", onPageError);
       }
-      assertNoUnexpectedBrowserDiagnostics(diagnostics.join("\n"));
+      const expectedDiagnostics = expectedDiagnosticsByPage.get(page) ?? [];
+      expectedDiagnosticsByPage.delete(page);
+      assertNoUnexpectedBrowserDiagnostics(
+        diagnostics.join("\n"),
+        expectedDiagnostics,
+      );
     },
     { auto: true },
   ],
