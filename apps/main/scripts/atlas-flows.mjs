@@ -15,6 +15,7 @@ const stateFor =
   });
 const publicState = stateFor("tests/atlas/public-catalog.atlas.ts");
 const cultivarState = stateFor("tests/atlas/cultivar-search.atlas.ts");
+const importerState = stateFor("tests/atlas/catalog-importer.atlas.ts");
 const onboardingState = stateFor("tests/atlas/onboarding-membership.atlas.ts");
 const listingState = stateFor("tests/atlas/listing-management.atlas.ts");
 const listingMediaState = stateFor("tests/atlas/listing-media.atlas.ts");
@@ -252,6 +253,98 @@ export const ATLAS_FLOWS = [
             "Mobile cultivar detail",
             "The canonical cultivar page at the phone-width mobile size.",
             "/cultivar/coffee-frenzy",
+          ),
+        ],
+      },
+    ],
+  },
+  {
+    id: "catalog-importer",
+    audience: "public",
+    title: "Prepare a daylily catalog spreadsheet",
+    description:
+      "Start from a spreadsheet, link registered cultivars, resolve catalog issues, preview the catalog, and download the prepared workbook.",
+    tests: {
+      unit: [],
+      integration: [
+        testRef("integration", "tests/catalog-importer.test.ts"),
+        testRef("integration", "tests/catalog-importer-draft.test.ts"),
+        testRef("integration", "tests/catalog-importer-workbench.test.tsx"),
+      ],
+      e2e: [testRef("e2e", "tests/e2e/catalog-importer.e2e.ts")],
+    },
+    steps: [
+      {
+        title: "Start from a spreadsheet",
+        states: [
+          importerState(
+            "catalog-importer-desktop-upload",
+            "Desktop catalog upload",
+            "The spreadsheet starting point for catalog preparation on desktop.",
+            "/catalog-importer",
+          ),
+          importerState(
+            "catalog-importer-mobile-upload",
+            "Mobile catalog upload",
+            "The same upload state at phone width.",
+            "/catalog-importer",
+          ),
+        ],
+      },
+      {
+        title: "Inspect catalog matches",
+        states: [
+          importerState(
+            "catalog-importer-desktop-results",
+            "Desktop catalog matches",
+            "A mapped workbook, workflow overview, matched rows, and prepared-file download.",
+            "/catalog-importer",
+            false,
+          ),
+          importerState(
+            "catalog-importer-mobile-results",
+            "Mobile catalog matches",
+            "Mapped fields and matched rows within the phone-width workspace.",
+            "/catalog-importer",
+            false,
+          ),
+        ],
+      },
+      {
+        title: "Resolve uncertain matches",
+        states: [
+          importerState(
+            "catalog-importer-desktop-review",
+            "Desktop catalog review",
+            "The review workspace with a suggested registered cultivar.",
+            "/catalog-importer",
+            false,
+          ),
+          importerState(
+            "catalog-importer-mobile-review",
+            "Mobile catalog review",
+            "The phone-width review workspace and compact candidate choice.",
+            "/catalog-importer",
+            false,
+          ),
+        ],
+      },
+      {
+        title: "Preview the catalog",
+        states: [
+          importerState(
+            "catalog-importer-desktop-preview",
+            "Desktop catalog preview",
+            "The searchable catalog preview and collection analysis on desktop.",
+            "/catalog-importer",
+            false,
+          ),
+          importerState(
+            "catalog-importer-mobile-preview",
+            "Mobile catalog preview",
+            "The searchable catalog preview and prepared-workbook download at phone width.",
+            "/catalog-importer",
+            false,
           ),
         ],
       },

@@ -32,12 +32,16 @@ export interface PublicCatalogSearchFacetOption {
 }
 
 export interface PublicCatalogSearchFacetOptions {
+  award: PublicCatalogSearchFacetOption[];
   bloomHabit: PublicCatalogSearchFacetOption[];
   bloomSeason: PublicCatalogSearchFacetOption[];
+  flowerShow: PublicCatalogSearchFacetOption[];
   form: PublicCatalogSearchFacetOption[];
-  ploidy: PublicCatalogSearchFacetOption[];
   foliageType: PublicCatalogSearchFacetOption[];
   fragrance: PublicCatalogSearchFacetOption[];
+  hybridizer: PublicCatalogSearchFacetOption[];
+  ploidy: PublicCatalogSearchFacetOption[];
+  sculptedType: PublicCatalogSearchFacetOption[];
 }
 
 export interface PublicCatalogSearchAdvancedPanelProps<
@@ -51,4 +55,5 @@ export interface PublicCatalogSearchAdvancedPanelProps<
   collapsed: boolean;
   onCollapsedChange: (collapsed: boolean) => void;
   onSearchSubmit?: () => void;
+  showCultivarFacets?: boolean;
 }

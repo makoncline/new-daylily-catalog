@@ -128,6 +128,24 @@ describe("Atlas flow contract", () => {
     ).toBe(false);
   });
 
+  it("declares the public catalog import journey at desktop and mobile sizes", () => {
+    const importer = getAtlasFlow("catalog-importer");
+
+    expect(importer.steps.map(({ title }) => title)).toEqual([
+      "Start from a spreadsheet",
+      "Inspect catalog matches",
+      "Resolve uncertain matches",
+      "Preview the catalog",
+    ]);
+    expect(statesForFlow(importer)).toHaveLength(8);
+    expect(
+      getAtlasState("catalog-importer-desktop-results").urlReproducible,
+    ).toBe(false);
+    expect(
+      getAtlasState("catalog-importer-mobile-review").urlReproducible,
+    ).toBe(false);
+  });
+
   it.each([
     ["state id", "id", "Duplicate Atlas state id"],
     ["capture", "capture", "Duplicate Atlas capture"],

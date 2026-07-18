@@ -16,6 +16,9 @@ const activeNavClassName =
 export function PublicHeader() {
   const pathname = usePathname();
   const cultivarSearchEnabled = useFeature("publicCultivarSearch");
+  const catalogImporterDiscoveryEnabled = useFeature(
+    "catalogImporterDiscovery",
+  );
   const mobileNavRef = useRef<HTMLDetailsElement>(null);
   const usesDarkHeroNav =
     pathname === "/" ||
@@ -23,6 +26,7 @@ export function PublicHeader() {
     pathname === "/cultivars";
   const isCultivarsActive =
     pathname === "/cultivars" || pathname.startsWith("/cultivar/");
+  const isCatalogImporterActive = pathname === "/catalog-importer";
   const isCatalogsActive = pathname === "/catalogs";
   const isGrowersActive =
     pathname === "/start-membership" || pathname.startsWith("/onboarding");
@@ -88,6 +92,20 @@ export function PublicHeader() {
                 </Link>
               </li>
             ) : null}
+            {catalogImporterDiscoveryEnabled ? (
+              <li>
+                <Link
+                  href="/catalog-importer"
+                  aria-current={isCatalogImporterActive ? "page" : undefined}
+                  className={cn(
+                    "block rounded-sm px-2 py-1.5 hover:bg-[#142118]/8",
+                    isCatalogImporterActive && activeNavClassName,
+                  )}
+                >
+                  Import a catalog
+                </Link>
+              </li>
+            ) : null}
             <li>
               <Link
                 href="/catalogs"
@@ -134,6 +152,18 @@ export function PublicHeader() {
               )}
             >
               Search cultivars
+            </Link>
+          ) : null}
+          {catalogImporterDiscoveryEnabled ? (
+            <Link
+              href="/catalog-importer"
+              aria-current={isCatalogImporterActive ? "page" : undefined}
+              className={cn(
+                "px-3 py-2 text-base text-current transition-opacity hover:opacity-70 focus-visible:ring-1 focus-visible:ring-current focus-visible:outline-none",
+                isCatalogImporterActive && activeNavClassName,
+              )}
+            >
+              Import a catalog
             </Link>
           ) : null}
 

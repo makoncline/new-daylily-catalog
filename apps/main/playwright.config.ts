@@ -40,6 +40,12 @@ process.env.NEXT_PUBLIC_POSTHOG_HOST = "https://us.i.posthog.com";
 if (!process.env.BASE_URL) {
   const tmpDir = path.join(process.cwd(), "tests", ".tmp");
   fs.mkdirSync(tmpDir, { recursive: true });
+  const runtimeFlagsPath = path.join(tmpDir, "e2e-runtime-feature-flags.json");
+  fs.writeFileSync(
+    runtimeFlagsPath,
+    JSON.stringify({ publicCultivarSearch: true }),
+  );
+  process.env.RUNTIME_FEATURE_FLAGS_PATH = runtimeFlagsPath;
 
   const existingUrl = process.env.DATABASE_URL;
   const isTempDb =

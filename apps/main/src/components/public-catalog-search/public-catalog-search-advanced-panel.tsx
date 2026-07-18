@@ -7,6 +7,7 @@ import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
 import {
   countPublicCatalogSearchSectionFilters,
+  PUBLIC_CATALOG_SEARCH_CULTIVAR_SECTION_DEFINITIONS,
   PUBLIC_CATALOG_SEARCH_SECTION_DEFINITIONS,
   PUBLIC_CATALOG_SEARCH_TOOLBAR_FILTERS,
 } from "./public-catalog-search-registry";
@@ -49,9 +50,19 @@ export function PublicCatalogSearchAdvancedPanel<TData>({
   collapsed,
   onCollapsedChange,
   onSearchSubmit,
+  showCultivarFacets = false,
 }: PublicCatalogSearchAdvancedPanelProps<TData>) {
   const isAdvanced = mode === "advanced";
   const panelContext = { table, listOptions, facetOptions };
+  const sectionDefinitions = showCultivarFacets
+    ? PUBLIC_CATALOG_SEARCH_CULTIVAR_SECTION_DEFINITIONS
+    : PUBLIC_CATALOG_SEARCH_SECTION_DEFINITIONS;
+  const toolbarFilters =
+    listOptions.length > 0
+      ? PUBLIC_CATALOG_SEARCH_TOOLBAR_FILTERS
+      : PUBLIC_CATALOG_SEARCH_TOOLBAR_FILTERS.filter(
+          (definition) => definition.id !== "lists",
+        );
 
   if (collapsed) {
     return (
@@ -127,7 +138,7 @@ export function PublicCatalogSearchAdvancedPanel<TData>({
 
       <PublicCatalogSearchFilterFields
         className="mt-4 flex flex-wrap items-center gap-2"
-        definitions={PUBLIC_CATALOG_SEARCH_TOOLBAR_FILTERS}
+        definitions={toolbarFilters}
         context={panelContext}
       />
 
@@ -137,11 +148,11 @@ export function PublicCatalogSearchAdvancedPanel<TData>({
           defaultValue={["listing"]}
           className="mt-4 space-y-1"
         >
-          {PUBLIC_CATALOG_SEARCH_SECTION_DEFINITIONS.map((section) => (
+          {sectionDefinitions.map((section) => (
             <PublicCatalogSearchFilterSection
               key={section.id}
               definition={section}
-              count={countPublicCatalogSearchSectionFilters(table, section.id)}
+              count={countPublicCatalogSearchSectionFilters(table, section)}
               className={cn(section.id === "details" && "border-b-0")}
             >
               <div className="space-y-4">

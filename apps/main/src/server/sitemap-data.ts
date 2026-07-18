@@ -1,7 +1,10 @@
 import { getPublicCatalogRouteEntries } from "@/server/db/public-listing-read-model";
 import { getPublicListingRouteEntries } from "@/server/db/public-listing-read-model";
 import type { SitemapUrl } from "@/lib/sitemap-xml";
-import { isPublicCultivarSearchEnabled } from "@/config/feature-flags";
+import {
+  isCatalogImporterDiscoveryEnabled,
+  isPublicCultivarSearchEnabled,
+} from "@/config/feature-flags";
 
 export async function getMainSitemapEntries(baseUrl: string) {
   const entries: SitemapUrl[] = [
@@ -27,6 +30,14 @@ export async function getMainSitemapEntries(baseUrl: string) {
       url: `${baseUrl}/cultivars`,
       changeFrequency: "weekly",
       priority: 0.9,
+    });
+  }
+
+  if (isCatalogImporterDiscoveryEnabled()) {
+    entries.push({
+      url: `${baseUrl}/catalog-importer`,
+      changeFrequency: "monthly",
+      priority: 0.8,
     });
   }
 

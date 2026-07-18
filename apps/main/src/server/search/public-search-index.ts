@@ -12,7 +12,7 @@ const execFileAsync = promisify(execFile);
 const DEFAULT_SEARCH_INDEX_REFRESH_INTERVAL_SECONDS = 60 * 60;
 const SEARCH_INDEX_MAX_STALE_SECONDS = 24 * 60 * 60;
 const SEARCH_INDEX_REFRESH_LOCK_STALE_MS = 10 * 60 * 1000;
-const EXPECTED_SEARCH_INDEX_SCHEMA_VERSION = "12";
+const EXPECTED_SEARCH_INDEX_SCHEMA_VERSION = "13";
 const PUBLIC_SEARCH_BUILD_SOURCE_REPLICA_PATH =
   "/data/search/public-search-source-replica.sqlite";
 

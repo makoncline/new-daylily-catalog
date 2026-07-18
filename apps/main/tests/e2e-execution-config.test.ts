@@ -17,7 +17,7 @@ describe("connected E2E CI groups", () => {
     const { assigned, discovered } = validateE2eCiGroups();
     expect(assigned).toEqual(discovered);
     expect(Object.values(e2eCiGroups).map((group) => group.length)).toEqual([
-      4, 5, 5,
+      5, 5, 5,
     ]);
   });
 

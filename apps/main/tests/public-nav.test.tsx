@@ -3,24 +3,29 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { PublicHeader } from "@/components/public-nav";
 
 const navigationState = vi.hoisted(() => ({ pathname: "/" }));
-const featureState = vi.hoisted(() => ({ publicCultivarSearch: false }));
+const featureState = vi.hoisted(() => ({
+  catalogImporterDiscovery: false,
+  publicCultivarSearch: false,
+}));
 
 vi.mock("next/navigation", () => ({
   usePathname: () => navigationState.pathname,
 }));
 
 vi.mock("@/hooks/use-feature", () => ({
-  useFeature: () => featureState.publicCultivarSearch,
+  useFeature: (name: keyof typeof featureState) => featureState[name],
 }));
 
 describe("PublicHeader", () => {
   beforeEach(() => {
     navigationState.pathname = "/";
+    featureState.catalogImporterDiscovery = false;
     featureState.publicCultivarSearch = false;
   });
 
   it("renders the public destinations and marks the current page active", () => {
     navigationState.pathname = "/catalogs";
+    featureState.catalogImporterDiscovery = true;
     featureState.publicCultivarSearch = true;
     render(<PublicHeader />);
 
@@ -29,6 +34,9 @@ describe("PublicHeader", () => {
     });
     const cultivarLinks = screen.getAllByRole("link", {
       name: "Search cultivars",
+    });
+    const importerLinks = screen.getAllByRole("link", {
+      name: "Import a catalog",
     });
     const growersLinks = screen.getAllByRole("link", { name: "For growers" });
 
@@ -41,6 +49,12 @@ describe("PublicHeader", () => {
     expect(cultivarLinks).toHaveLength(2);
     expect(
       cultivarLinks.every((link) => link.getAttribute("href") === "/cultivars"),
+    ).toBe(true);
+    expect(importerLinks).toHaveLength(2);
+    expect(
+      importerLinks.every(
+        (link) => link.getAttribute("href") === "/catalog-importer",
+      ),
     ).toBe(true);
     expect(
       catalogsLinks.every(
@@ -60,18 +74,21 @@ describe("PublicHeader", () => {
 
   it("renders enabled cultivar search in the mobile navigation", () => {
     navigationState.pathname = "/onboarding";
+    featureState.catalogImporterDiscovery = true;
     featureState.publicCultivarSearch = true;
     render(<PublicHeader />);
 
     const mobileNav = screen.getByTestId("mobile-public-nav");
     const catalogsLink = mobileNav.querySelector('a[href="/catalogs"]');
     const cultivarLink = mobileNav.querySelector('a[href="/cultivars"]');
+    const importerLink = mobileNav.querySelector('a[href="/catalog-importer"]');
     const growersLink = mobileNav.querySelector('a[href="/start-membership"]');
     const dashboardLink = mobileNav.querySelector('a[href="/sign-in"]');
 
     expect(screen.getByText("Open public navigation")).toBeInTheDocument();
     expect(catalogsLink).toHaveAttribute("href", "/catalogs");
     expect(cultivarLink).toHaveAttribute("href", "/cultivars");
+    expect(importerLink).toHaveAttribute("href", "/catalog-importer");
     expect(growersLink).toHaveAttribute("href", "/start-membership");
     expect(growersLink).toHaveAttribute("aria-current", "page");
     expect(dashboardLink).toHaveAttribute("href", "/sign-in");
@@ -88,12 +105,16 @@ describe("PublicHeader", () => {
     );
   });
 
-  it("does not expose cultivar search when the feature is disabled", () => {
+  it("keeps importer discovery independent from cultivar search discovery", () => {
+    featureState.catalogImporterDiscovery = true;
     render(<PublicHeader />);
 
     expect(
       screen.queryByRole("link", { name: "Search cultivars" }),
     ).not.toBeInTheDocument();
+    expect(
+      screen.getAllByRole("link", { name: "Import a catalog" }),
+    ).toHaveLength(2);
   });
 
   it("closes the mobile menu after navigation", () => {
