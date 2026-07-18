@@ -110,6 +110,11 @@ node apps/main/scripts/run-integration-local.mjs tests/integration/create-edit-l
 The runner owns a unique database under `tests/.tmp`, authenticates one fixed
 seller through a narrow Clerk seam, and deletes the database afterward. It
 rejects nonlocal URLs/databases, live credentials, and outbound requests.
+Buyer inquiries still use the real SES SDK request path, but the local provider
+prints each captured email in the terminal and exposes the mailbox at
+`http://127.0.0.1:3211/__emails` for integration assertions. Clear it with
+`DELETE /__emails`; do not add an SMTP transport or a second email
+implementation.
 
 Ordinary `pnpm dev` remains the realistic seeded-data environment. Integration
 mode is test infrastructure, not a second development mode or test category.

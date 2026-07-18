@@ -38,6 +38,10 @@ interface PublicInquiryContext {
 function getSesClient() {
   return new SESClient({
     region: requireEnv("AWS_REGION", env.AWS_REGION),
+    endpoint:
+      process.env.INTEGRATION_MODE === "1"
+        ? process.env.AWS_ENDPOINT_URL_SES
+        : undefined,
     credentials: {
       accessKeyId: requireEnv("AWS_ACCESS_KEY_ID", env.AWS_ACCESS_KEY_ID),
       secretAccessKey: requireEnv(
