@@ -23,6 +23,7 @@ test("seller creates and manages a list through the app", async ({ page }) => {
     .getByRole("button", { name: "Create List", exact: true })
     .click();
   await expect(toast("List created")).toBeVisible();
+  await expect(page).toHaveURL(/\/dashboard\/lists\?editing=[^&]+$/);
 
   const editingId = new URL(page.url()).searchParams.get("editing");
   expect(editingId).toBeTruthy();
