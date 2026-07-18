@@ -189,6 +189,7 @@ export function useCatalogImporterWorkbench(
   const [fileError, setFileError] = useState<string | null>(null);
   const [readingFile, setReadingFile] = useState(false);
   const [downloadingResults, setDownloadingResults] = useState(false);
+  const [downloadError, setDownloadError] = useState<string | null>(null);
   const [matchedRows, setMatchedRows] = useState<CatalogImportRow[] | null>(
     initialDraft?.matchedRows ?? null,
   );
@@ -688,6 +689,7 @@ export function useCatalogImporterWorkbench(
     setMapping(EMPTY_MAPPING);
     setFileError(null);
     setReadingFile(false);
+    setDownloadError(null);
     resetMatches();
     setStorageWarning(null);
     setLiveAnnouncement("Cleaner reset.");
@@ -1177,6 +1179,7 @@ export function useCatalogImporterWorkbench(
     }
 
     setDownloadingResults(true);
+    setDownloadError(null);
     try {
       const fileName = getDownloadFileName(parsedSpreadsheet.fileName);
       const spreadsheet = createCatalogEnrichedSpreadsheet({
@@ -1194,7 +1197,7 @@ export function useCatalogImporterWorkbench(
       });
       setLiveAnnouncement(`${fileName} downloaded.`);
     } catch (error) {
-      setMatchError(getErrorMessage(error));
+      setDownloadError(getErrorMessage(error));
     } finally {
       setDownloadingResults(false);
     }
@@ -1220,6 +1223,7 @@ export function useCatalogImporterWorkbench(
     clearCultivarReferenceIdIssue,
     configureSheet,
     downloadResults,
+    downloadError,
     downloadingResults,
     downloadTemplate,
     fileError,

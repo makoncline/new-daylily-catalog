@@ -3,24 +3,29 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { PublicHeader } from "@/components/public-nav";
 
 const navigationState = vi.hoisted(() => ({ pathname: "/" }));
-const featureState = vi.hoisted(() => ({ publicCultivarSearch: false }));
+const featureState = vi.hoisted(() => ({
+  catalogImporterDiscovery: false,
+  publicCultivarSearch: false,
+}));
 
 vi.mock("next/navigation", () => ({
   usePathname: () => navigationState.pathname,
 }));
 
 vi.mock("@/hooks/use-feature", () => ({
-  useFeature: () => featureState.publicCultivarSearch,
+  useFeature: (name: keyof typeof featureState) => featureState[name],
 }));
 
 describe("PublicHeader", () => {
   beforeEach(() => {
     navigationState.pathname = "/";
+    featureState.catalogImporterDiscovery = false;
     featureState.publicCultivarSearch = false;
   });
 
   it("renders the public destinations and marks the current page active", () => {
     navigationState.pathname = "/catalogs";
+    featureState.catalogImporterDiscovery = true;
     featureState.publicCultivarSearch = true;
     render(<PublicHeader />);
 
@@ -69,6 +74,7 @@ describe("PublicHeader", () => {
 
   it("renders enabled cultivar search in the mobile navigation", () => {
     navigationState.pathname = "/onboarding";
+    featureState.catalogImporterDiscovery = true;
     featureState.publicCultivarSearch = true;
     render(<PublicHeader />);
 
@@ -99,15 +105,16 @@ describe("PublicHeader", () => {
     );
   });
 
-  it("does not expose cultivar search when the feature is disabled", () => {
+  it("keeps importer discovery independent from cultivar search discovery", () => {
+    featureState.catalogImporterDiscovery = true;
     render(<PublicHeader />);
 
     expect(
       screen.queryByRole("link", { name: "Search cultivars" }),
     ).not.toBeInTheDocument();
     expect(
-      screen.queryByRole("link", { name: "Import a catalog" }),
-    ).not.toBeInTheDocument();
+      screen.getAllByRole("link", { name: "Import a catalog" }),
+    ).toHaveLength(2);
   });
 
   it("closes the mobile menu after navigation", () => {

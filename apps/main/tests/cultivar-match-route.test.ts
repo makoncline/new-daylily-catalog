@@ -3,7 +3,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const matchCultivarNamesMock = vi.hoisted(() => vi.fn());
-const publicSearchApiState = vi.hoisted(() => ({ enabled: true }));
 
 vi.mock("@/server/search/cultivar-name-match", () => ({
   matchCultivarNames: matchCultivarNamesMock,
@@ -12,9 +11,6 @@ vi.mock("@/server/search/cultivar-name-match", () => ({
 }));
 
 vi.mock("@/server/search/public-search-api-platform", () => ({
-  getPublicSearchApiDisabledResponse: () =>
-    Response.json({ ok: false }, { status: 404 }),
-  isPublicSearchApiEnabled: () => publicSearchApiState.enabled,
   toPublicSearchStatus: vi.fn(),
 }));
 
@@ -29,11 +25,10 @@ vi.mock("@/lib/error-utils", () => ({
 describe("public cultivar match route", () => {
   beforeEach(() => {
     matchCultivarNamesMock.mockReset();
-    publicSearchApiState.enabled = true;
   });
 
-  it("does not expose matching when public cultivar search is disabled", async () => {
-    publicSearchApiState.enabled = false;
+  it("keeps direct matching available independently of public search discovery", async () => {
+    matchCultivarNamesMock.mockResolvedValue([]);
     const { POST } = await import("@/app/api/v1/cultivars/match/route");
     const response = await POST(
       new Request("https://daylilycatalog.com/api/v1/cultivars/match", {
@@ -42,8 +37,8 @@ describe("public cultivar match route", () => {
       }),
     );
 
-    expect(response.status).toBe(404);
-    expect(matchCultivarNamesMock).not.toHaveBeenCalled();
+    expect(response.status).toBe(200);
+    expect(matchCultivarNamesMock).toHaveBeenCalledOnce();
   });
 
   it("accepts batched potential-match requests", async () => {

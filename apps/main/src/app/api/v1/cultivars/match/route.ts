@@ -1,9 +1,5 @@
 import { reportError } from "@/lib/error-utils";
-import {
-  getPublicSearchApiDisabledResponse,
-  isPublicSearchApiEnabled,
-  toPublicSearchStatus,
-} from "@/server/search/public-search-api-platform";
+import { toPublicSearchStatus } from "@/server/search/public-search-api-platform";
 import {
   matchCultivarNames,
   MAX_CULTIVAR_MATCH_NAME_LENGTH,
@@ -91,10 +87,6 @@ function getValidatedBody(body: MatchRequestBody) {
 }
 
 export async function POST(request: Request) {
-  if (!isPublicSearchApiEnabled()) {
-    return getPublicSearchApiDisabledResponse();
-  }
-
   let body: MatchRequestBody;
   try {
     body = (await request.json()) as MatchRequestBody;

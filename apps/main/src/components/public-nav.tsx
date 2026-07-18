@@ -16,6 +16,9 @@ const activeNavClassName =
 export function PublicHeader() {
   const pathname = usePathname();
   const cultivarSearchEnabled = useFeature("publicCultivarSearch");
+  const catalogImporterDiscoveryEnabled = useFeature(
+    "catalogImporterDiscovery",
+  );
   const mobileNavRef = useRef<HTMLDetailsElement>(null);
   const usesDarkHeroNav =
     pathname === "/" ||
@@ -76,32 +79,32 @@ export function PublicHeader() {
           </summary>
           <ul className="absolute top-[calc(100%+0.25rem)] right-0 w-56 overflow-hidden rounded-md border border-[#142118]/10 bg-white/85 p-1 text-sm text-[#142118] shadow-md backdrop-blur-xl">
             {cultivarSearchEnabled ? (
-              <>
-                <li>
-                  <Link
-                    href="/cultivars"
-                    aria-current={isCultivarsActive ? "page" : undefined}
-                    className={cn(
-                      "block rounded-sm px-2 py-1.5 hover:bg-[#142118]/8",
-                      isCultivarsActive && activeNavClassName,
-                    )}
-                  >
-                    Search cultivars
-                  </Link>
-                </li>
-                <li>
-                  <Link
-                    href="/catalog-importer"
-                    aria-current={isCatalogImporterActive ? "page" : undefined}
-                    className={cn(
-                      "block rounded-sm px-2 py-1.5 hover:bg-[#142118]/8",
-                      isCatalogImporterActive && activeNavClassName,
-                    )}
-                  >
-                    Import a catalog
-                  </Link>
-                </li>
-              </>
+              <li>
+                <Link
+                  href="/cultivars"
+                  aria-current={isCultivarsActive ? "page" : undefined}
+                  className={cn(
+                    "block rounded-sm px-2 py-1.5 hover:bg-[#142118]/8",
+                    isCultivarsActive && activeNavClassName,
+                  )}
+                >
+                  Search cultivars
+                </Link>
+              </li>
+            ) : null}
+            {catalogImporterDiscoveryEnabled ? (
+              <li>
+                <Link
+                  href="/catalog-importer"
+                  aria-current={isCatalogImporterActive ? "page" : undefined}
+                  className={cn(
+                    "block rounded-sm px-2 py-1.5 hover:bg-[#142118]/8",
+                    isCatalogImporterActive && activeNavClassName,
+                  )}
+                >
+                  Import a catalog
+                </Link>
+              </li>
             ) : null}
             <li>
               <Link
@@ -140,28 +143,28 @@ export function PublicHeader() {
 
         <div className="hidden items-center gap-4 lg:ml-auto lg:flex">
           {cultivarSearchEnabled ? (
-            <>
-              <Link
-                href="/cultivars"
-                aria-current={isCultivarsActive ? "page" : undefined}
-                className={cn(
-                  "px-3 py-2 text-base text-current transition-opacity hover:opacity-70 focus-visible:ring-1 focus-visible:ring-current focus-visible:outline-none",
-                  isCultivarsActive && activeNavClassName,
-                )}
-              >
-                Search cultivars
-              </Link>
-              <Link
-                href="/catalog-importer"
-                aria-current={isCatalogImporterActive ? "page" : undefined}
-                className={cn(
-                  "px-3 py-2 text-base text-current transition-opacity hover:opacity-70 focus-visible:ring-1 focus-visible:ring-current focus-visible:outline-none",
-                  isCatalogImporterActive && activeNavClassName,
-                )}
-              >
-                Import a catalog
-              </Link>
-            </>
+            <Link
+              href="/cultivars"
+              aria-current={isCultivarsActive ? "page" : undefined}
+              className={cn(
+                "px-3 py-2 text-base text-current transition-opacity hover:opacity-70 focus-visible:ring-1 focus-visible:ring-current focus-visible:outline-none",
+                isCultivarsActive && activeNavClassName,
+              )}
+            >
+              Search cultivars
+            </Link>
+          ) : null}
+          {catalogImporterDiscoveryEnabled ? (
+            <Link
+              href="/catalog-importer"
+              aria-current={isCatalogImporterActive ? "page" : undefined}
+              className={cn(
+                "px-3 py-2 text-base text-current transition-opacity hover:opacity-70 focus-visible:ring-1 focus-visible:ring-current focus-visible:outline-none",
+                isCatalogImporterActive && activeNavClassName,
+              )}
+            >
+              Import a catalog
+            </Link>
           ) : null}
 
           <Link

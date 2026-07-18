@@ -16,6 +16,7 @@ import {
 } from "@/lib/catalog-importer-draft";
 
 const capturePosthogEventMock = vi.hoisted(() => vi.fn());
+const downloadCatalogImportFileMock = vi.hoisted(() => vi.fn());
 const requestCultivarMatchesMock = vi.hoisted(() => vi.fn());
 
 vi.mock("@/lib/analytics/posthog", () => ({
@@ -26,11 +27,18 @@ vi.mock("@/lib/catalog-importer-match-client", () => ({
   requestCultivarMatches: requestCultivarMatchesMock,
 }));
 
+vi.mock("@/lib/catalog-importer-file", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/catalog-importer-file")>()),
+  downloadCatalogImportFile: downloadCatalogImportFileMock,
+}));
+
 describe("CatalogImporterWorkbench", () => {
   beforeEach(async () => {
     window.localStorage.clear();
     await clearCatalogImporterDraft();
     capturePosthogEventMock.mockClear();
+    downloadCatalogImportFileMock.mockReset();
+    downloadCatalogImportFileMock.mockResolvedValue(undefined);
     requestCultivarMatchesMock.mockReset();
     requestCultivarMatchesMock.mockResolvedValue([]);
   });
@@ -156,6 +164,45 @@ describe("CatalogImporterWorkbench", () => {
     ).toBeVisible();
     expect(requestCultivarMatchesMock.mock.calls.length).toBeGreaterThanOrEqual(
       2,
+    );
+  });
+
+  it("reports download failures separately and allows another download", async () => {
+    downloadCatalogImportFileMock
+      .mockRejectedValueOnce(new Error("The browser blocked the download."))
+      .mockResolvedValueOnce(undefined);
+    render(<CatalogImporterWorkbench />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Use sample catalog" }));
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Preview catalog" }),
+    );
+    const downloadButton = await screen.findByRole("button", {
+      name: "Download prepared spreadsheet",
+    });
+
+    fireEvent.click(downloadButton);
+    expect(
+      await screen.findByRole("heading", {
+        name: "Spreadsheet download did not finish",
+      }),
+    ).toBeVisible();
+    expect(
+      screen.queryByRole("heading", {
+        name: "Cultivar matching did not finish",
+      }),
+    ).not.toBeInTheDocument();
+
+    fireEvent.click(downloadButton);
+    await waitFor(() =>
+      expect(downloadCatalogImportFileMock).toHaveBeenCalledTimes(2),
+    );
+    await waitFor(() =>
+      expect(
+        screen.queryByRole("heading", {
+          name: "Spreadsheet download did not finish",
+        }),
+      ).not.toBeInTheDocument(),
     );
   });
 });

@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
-import { notFound } from "next/navigation";
-import { isPublicCultivarSearchEnabled } from "@/config/feature-flags";
+import { isCatalogImporterDiscoveryEnabled } from "@/config/feature-flags";
 import { METADATA_CONFIG } from "@/config/constants";
 import { getCanonicalBaseUrl } from "@/lib/utils/getBaseUrl";
 import { CatalogImporterClient } from "./_components/catalog-importer-client";
@@ -8,15 +7,6 @@ import { CatalogImporterClient } from "./_components/catalog-importer-client";
 export const dynamic = "force-dynamic";
 
 export function generateMetadata(): Metadata {
-  if (!isPublicCultivarSearchEnabled()) {
-    return {
-      robots: {
-        follow: false,
-        index: false,
-      },
-    };
-  }
-
   const baseUrl = getCanonicalBaseUrl();
   const title = `Free Daylily Catalog Spreadsheet Cleaner | ${METADATA_CONFIG.SITE_NAME}`;
   const description =
@@ -26,6 +16,12 @@ export function generateMetadata(): Metadata {
     title,
     description,
     alternates: { canonical: `${baseUrl}/catalog-importer` },
+    robots: isCatalogImporterDiscoveryEnabled()
+      ? undefined
+      : {
+          follow: false,
+          index: false,
+        },
     openGraph: {
       title,
       description,
@@ -36,10 +32,6 @@ export function generateMetadata(): Metadata {
 }
 
 export default function CatalogImporterPage() {
-  if (!isPublicCultivarSearchEnabled()) {
-    notFound();
-  }
-
   return (
     <div className="bg-background min-w-0 overflow-x-clip">
       <div className="mx-auto w-full max-w-[1440px] px-3 py-8 lg:px-8 lg:py-12">

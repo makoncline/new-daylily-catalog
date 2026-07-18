@@ -1,8 +1,9 @@
 "use client";
 
 import { useCallback, useState } from "react";
-import { Download } from "lucide-react";
+import { CircleAlert, Download } from "lucide-react";
 import { SellerIntentLink } from "@/components/seller-intent-link";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Spinner } from "@/components/ui/spinner";
@@ -46,6 +47,14 @@ export function CatalogImporterResults({
 
       {controller.issueCount > 0 ? (
         <CatalogImporterIssues controller={controller} />
+      ) : null}
+
+      {controller.downloadError ? (
+        <Alert variant="destructive">
+          <CircleAlert className="size-4" />
+          <AlertTitle>Spreadsheet download did not finish</AlertTitle>
+          <AlertDescription>{controller.downloadError}</AlertDescription>
+        </Alert>
       ) : null}
 
       <Card className="shadow-sm">

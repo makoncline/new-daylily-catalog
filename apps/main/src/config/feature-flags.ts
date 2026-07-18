@@ -25,6 +25,10 @@ export function isPublicCultivarSearchEnabled() {
   return getRuntimeFeatureFlags().publicCultivarSearch;
 }
 
+export function isCatalogImporterDiscoveryEnabled() {
+  return getRuntimeFeatureFlags().catalogImporterDiscovery;
+}
+
 export function isImageModerationEnforced() {
   return getRuntimeFeatureFlags().imageModerationEnforced;
 }
@@ -33,6 +37,7 @@ export function getRuntimeFeatureFlags(): RuntimeFeatureFlags {
   const configured = readConfiguredRuntimeFeatureFlags();
 
   return {
+    catalogImporterDiscovery: configured.catalogImporterDiscovery,
     imageModerationEnforced: configured.imageModerationEnforced,
     publicCultivarSearch: configured.publicCultivarSearch && !isVercel(),
   };

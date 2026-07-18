@@ -9,6 +9,7 @@ Values live only in `/data/runtime-feature-flags.json`:
 
 ```json
 {
+  "catalogImporterDiscovery": false,
   "imageModerationEnforced": false,
   "publicCultivarSearch": true
 }
@@ -17,6 +18,11 @@ Values live only in `/data/runtime-feature-flags.json`:
 Missing files, missing keys, malformed JSON, and non-boolean values fail closed.
 Server routes use evaluators in `src/config/feature-flags.ts` as their
 availability boundary. Cultivar search is also always disabled on Vercel.
+
+`catalogImporterDiscovery` is only a discovery control. When it is off, the
+importer is absent from navigation and sitemaps and returns `noindex` metadata.
+The importer page and its matching endpoint remain available by direct URL; do
+not use this flag as an availability or kill switch.
 
 Update a flag through the running VPS container:
 
@@ -37,7 +43,7 @@ Do not rerun this initialization; use the setter above for every later change.
 ```sh
 install -d -o 1001 -g 1001 /srv/stacks/daylilycatalog/data
 cd /srv/stacks/daylilycatalog/data
-printf '%s\n' '{"publicCultivarSearch":true}' > runtime-feature-flags.json.tmp
+printf '%s\n' '{"catalogImporterDiscovery":false,"publicCultivarSearch":true}' > runtime-feature-flags.json.tmp
 mv runtime-feature-flags.json.tmp runtime-feature-flags.json
 chown 1001:1001 runtime-feature-flags.json
 ```
