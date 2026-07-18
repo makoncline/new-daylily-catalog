@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   assertNoUnexpectedBrowserDiagnostics,
   browserDiagnosticsFromServerLog,
+  CHROMIUM_DOCUMENT_404_DIAGNOSTIC,
   CLERK_DEVELOPMENT_KEY_WARNING,
   diagnosticLineFromPlaywrightConsole,
   unexpectedBrowserDiagnostics,
@@ -60,6 +61,19 @@ describe("Atlas browser diagnostic gate", () => {
     expect(() => assertNoUnexpectedBrowserDiagnostics(serverLog)).toThrow(
       /Largest Contentful Paint[\s\S]*cannot be a descendant/,
     );
+  });
+
+  it("consumes exactly one explicitly expected document 404 diagnostic", () => {
+    const document404 = CHROMIUM_DOCUMENT_404_DIAGNOSTIC;
+    const line = `@daylily-catalog/main:dev: [browser] ${document404}`;
+
+    expect(unexpectedBrowserDiagnostics(line, [document404])).toEqual([]);
+    expect(unexpectedBrowserDiagnostics(line)).toEqual([
+      { line, message: document404 },
+    ]);
+    expect(
+      unexpectedBrowserDiagnostics([line, line].join("\n"), [document404]),
+    ).toEqual([{ line, message: document404 }]);
   });
 
   it("rejects a lookalike Clerk warning outside the exact allowlist", () => {

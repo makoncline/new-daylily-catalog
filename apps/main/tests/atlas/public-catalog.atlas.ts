@@ -1,4 +1,9 @@
-import { captureAtlasState, expect, test } from "./atlas-test";
+import {
+  captureAtlasState,
+  expect,
+  gotoExpectedDocument404,
+  test,
+} from "./atlas-test";
 test("Catalog directory", async ({ page }) => {
   await page.goto("/catalogs");
   await expect(
@@ -77,7 +82,7 @@ test("Alternate listing image", async ({ page }) => {
   await captureAtlasState(page, "listing-alternate-image");
 });
 test("Unavailable listing", async ({ page }) => {
-  await page.goto("/plantfancygardens/not-a-real-listing");
+  await gotoExpectedDocument404(page, "/plantfancygardens/not-a-real-listing");
   await expect(
     page.getByRole("heading", { name: "Page Not Found" }),
   ).toBeVisible();
