@@ -4,12 +4,25 @@ import {
   assertNoUnexpectedBrowserDiagnostics,
   browserDiagnosticsFromServerLog,
   CLERK_DEVELOPMENT_KEY_WARNING,
+  diagnosticLineFromPlaywrightConsole,
   unexpectedBrowserDiagnostics,
 } from "../scripts/atlas-browser-diagnostics.mjs";
 
 const clerkLine = `@daylily-catalog/main:dev: [browser] ${CLERK_DEVELOPMENT_KEY_WARNING} (https://clerk.example/clerk.browser.js:1:2)`;
 
 describe("Atlas browser diagnostic gate", () => {
+  it("records Playwright warnings and errors but ignores ordinary console output", () => {
+    expect(diagnosticLineFromPlaywrightConsole("warning", "warning")).toBe(
+      "[browser] warning",
+    );
+    expect(diagnosticLineFromPlaywrightConsole("error", "error")).toBe(
+      "[browser] error",
+    );
+    expect(diagnosticLineFromPlaywrightConsole("log", "ordinary output")).toBe(
+      undefined,
+    );
+  });
+
   it("extracts forwarded browser diagnostics and ignores ordinary server logs", () => {
     expect(
       browserDiagnosticsFromServerLog(

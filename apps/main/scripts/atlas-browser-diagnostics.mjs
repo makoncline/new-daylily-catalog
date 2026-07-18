@@ -6,6 +6,15 @@ export const CLERK_DEVELOPMENT_KEY_WARNING =
   "Clerk: Clerk has been loaded with development keys. Development instances have strict usage limits and should not be used when deploying your application to production. Learn more: https://clerk.com/docs/deployments/overview";
 
 /**
+ * @param {string} type
+ * @param {string} message
+ */
+export function diagnosticLineFromPlaywrightConsole(type, message) {
+  if (type !== "warning" && type !== "error") return undefined;
+  return `${BROWSER_DIAGNOSTIC_MARKER}${message}`;
+}
+
+/**
  * @param {string} serverLog
  * @returns {BrowserDiagnostic[]}
  */
@@ -47,7 +56,7 @@ export function assertNoUnexpectedBrowserDiagnostics(serverLog) {
   if (unexpected.length === 0) return true;
 
   throw new Error(
-    `Unexpected browser diagnostics in Atlas server log:\n${unexpected
+    `Unexpected browser diagnostics in Atlas:\n${unexpected
       .map(({ line }) => line)
       .join("\n")}`,
   );

@@ -1,9 +1,46 @@
-import { expect, test } from "@playwright/test";
-import type { Locator, Page } from "@playwright/test";
+import { expect, test as base } from "@playwright/test";
+import type { ConsoleMessage, Locator, Page } from "@playwright/test";
 import { mkdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
+import {
+  assertNoUnexpectedBrowserDiagnostics,
+  diagnosticLineFromPlaywrightConsole,
+} from "../../scripts/atlas-browser-diagnostics.mjs";
 import { getAtlasState } from "../../scripts/atlas-flows.mjs";
-export { expect, test };
+export { expect };
+
+export const test = base.extend<{ atlasBrowserDiagnostics: void }>({
+  atlasBrowserDiagnostics: [
+    async ({ page }, use) => {
+      const diagnostics: string[] = [];
+      const onConsole = (message: ConsoleMessage) => {
+        const line = diagnosticLineFromPlaywrightConsole(
+          message.type(),
+          message.text(),
+        );
+        if (line) diagnostics.push(line);
+      };
+      const onPageError = (error: Error) => {
+        const line = diagnosticLineFromPlaywrightConsole(
+          "error",
+          error.message,
+        );
+        if (line) diagnostics.push(line);
+      };
+
+      page.on("console", onConsole);
+      page.on("pageerror", onPageError);
+      try {
+        await use();
+      } finally {
+        page.off("console", onConsole);
+        page.off("pageerror", onPageError);
+      }
+      assertNoUnexpectedBrowserDiagnostics(diagnostics.join("\n"));
+    },
+    { auto: true },
+  ],
+});
 
 const interactionSurfaceSelectors = [
   '[role="dialog"]:visible',
