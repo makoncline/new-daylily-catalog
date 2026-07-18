@@ -680,6 +680,7 @@ export const ATLAS_FLOWS = [
       integration: [
         testRef("integration", "tests/tag-designer-panel.test.tsx"),
         testRef("integration", "tests/tag-print-table.test.ts"),
+        fullAppIntegrationRef("tests/integration/tag-printing.integration.ts"),
       ],
       e2e: [],
     },
