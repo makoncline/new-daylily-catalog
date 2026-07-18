@@ -10,9 +10,6 @@ export const FORBIDDEN_SERVICE_ENV = [
   "STRIPE_WEBHOOK_SECRET",
   "TURSO_DATABASE_AUTH_TOKEN",
   "TURSO_EMBEDDED_REPLICA_URL",
-  "AWS_ACCESS_KEY_ID",
-  "AWS_SECRET_ACCESS_KEY",
-  "AWS_REGION",
   "AWS_BUCKET_NAME",
   "R2_ACCOUNT_ID",
   "R2_ACCESS_KEY_ID",
@@ -89,6 +86,7 @@ export function validateIntegrationRuntime({
 
   requireLoopbackUrl(appBaseUrl, "APP_BASE_URL");
   requireLoopbackUrl(env.INTEGRATION_PROVIDER_URL, "INTEGRATION_PROVIDER_URL");
+  requireLoopbackUrl(env.AWS_ENDPOINT_URL_SES, "AWS_ENDPOINT_URL_SES");
   requireDisposableDatabase(databaseUrl, appRoot);
   requirePlaceholder("CLERK_SECRET_KEY", env.CLERK_SECRET_KEY);
   requirePlaceholder(
@@ -96,6 +94,9 @@ export function validateIntegrationRuntime({
     env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY,
   );
   requirePlaceholder("STRIPE_SECRET_KEY", env.STRIPE_SECRET_KEY);
+  requirePlaceholder("AWS_ACCESS_KEY_ID", env.AWS_ACCESS_KEY_ID);
+  requirePlaceholder("AWS_SECRET_ACCESS_KEY", env.AWS_SECRET_ACCESS_KEY);
+  requirePlaceholder("AWS_REGION", env.AWS_REGION);
 
   for (const name of FORBIDDEN_SERVICE_ENV) {
     if (env[name]) {

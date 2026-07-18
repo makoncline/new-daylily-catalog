@@ -27,6 +27,7 @@ export default defineConfig({
       url: `${providerURL}/__health`,
       reuseExistingServer: false,
       timeout: 15_000,
+      stdout: "pipe",
     },
     {
       command: `pnpm exec next dev --hostname localhost --port ${port}`,

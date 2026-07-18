@@ -33,6 +33,10 @@ const safeRuntime = {
     CLERK_SECRET_KEY: "sk_test_integration",
     NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: "pk_test_integration",
     STRIPE_SECRET_KEY: "sk_test_integration",
+    AWS_ACCESS_KEY_ID: "integration-access-key",
+    AWS_SECRET_ACCESS_KEY: "integration-secret-key",
+    AWS_REGION: "integration-region",
+    AWS_ENDPOINT_URL_SES: "http://localhost:3211/ses",
   },
 };
 
@@ -52,6 +56,10 @@ function integrationSubprocessEnv(
     CLERK_SECRET_KEY: "sk_test_integration",
     NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: "pk_test_integration",
     STRIPE_SECRET_KEY: "sk_test_integration",
+    AWS_ACCESS_KEY_ID: "integration-access-key",
+    AWS_SECRET_ACCESS_KEY: "integration-secret-key",
+    AWS_REGION: "integration-region",
+    AWS_ENDPOINT_URL_SES: "http://localhost:3211/ses",
   };
 }
 
@@ -89,6 +97,18 @@ describe("offline integration runtime", () => {
         env: {
           ...safeRuntime.env,
           TURSO_DATABASE_AUTH_TOKEN: "real-token",
+        },
+      },
+      {
+        env: {
+          ...safeRuntime.env,
+          AWS_ACCESS_KEY_ID: "real-access-key",
+        },
+      },
+      {
+        env: {
+          ...safeRuntime.env,
+          AWS_ENDPOINT_URL_SES: "https://email.us-east-1.amazonaws.com",
         },
       },
     ]) {

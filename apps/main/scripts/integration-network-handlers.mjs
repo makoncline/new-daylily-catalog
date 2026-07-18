@@ -1,7 +1,68 @@
 import { http, HttpResponse } from "msw";
 
+const capturedEmails = [];
+
+function queryValues(params, prefix) {
+  return [...params.entries()]
+    .filter(([name]) => name.startsWith(prefix))
+    .sort(([left], [right]) =>
+      left.localeCompare(right, undefined, { numeric: true }),
+    )
+    .map(([, value]) => value);
+}
+
+function captureSesEmail(params) {
+  const email = {
+    id: `integration-email-${capturedEmails.length + 1}`,
+    from: params.get("Source") ?? "",
+    to: queryValues(params, "Destination.ToAddresses.member."),
+    bcc: queryValues(params, "Destination.BccAddresses.member."),
+    replyTo: queryValues(params, "ReplyToAddresses.member."),
+    subject: params.get("Message.Subject.Data") ?? "",
+    text: params.get("Message.Body.Text.Data") ?? "",
+  };
+  capturedEmails.push(email);
+  console.log(
+    [
+      "",
+      `[integration email] ${email.subject}`,
+      `From: ${email.from}`,
+      `To: ${email.to.join(", ")}`,
+      email.bcc.length > 0 ? `Bcc: ${email.bcc.join(", ")}` : "",
+      email.replyTo.length > 0 ? `Reply-To: ${email.replyTo.join(", ")}` : "",
+      "",
+      email.text,
+    ]
+      .filter((line) => line !== "")
+      .join("\n"),
+  );
+  return email;
+}
+
 export const integrationNetworkHandlers = [
   http.get("*/__health", () => HttpResponse.text("ok")),
+  http.get("*/__emails", () => HttpResponse.json(capturedEmails)),
+  http.delete("*/__emails", () => {
+    capturedEmails.length = 0;
+    return new HttpResponse(null, { status: 204 });
+  }),
+  http.post("*/ses", async ({ request }) => {
+    const params = new URLSearchParams(await request.text());
+    if (params.get("Action") !== "SendEmail") {
+      return HttpResponse.json(
+        { error: `Unsupported SES action: ${params.get("Action")}` },
+        { status: 400 },
+      );
+    }
+
+    const email = captureSesEmail(params);
+    return HttpResponse.xml(`
+      <SendEmailResponse xmlns="http://ses.amazonaws.com/doc/2010-12-01/">
+        <SendEmailResult><MessageId>${email.id}</MessageId></SendEmailResult>
+        <ResponseMetadata><RequestId>${email.id}</RequestId></ResponseMetadata>
+      </SendEmailResponse>
+    `);
+  }),
   http.get("*/v1/prices/:priceId", ({ params }) =>
     HttpResponse.json({
       id: params.priceId,
