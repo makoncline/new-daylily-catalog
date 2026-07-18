@@ -92,6 +92,7 @@ describe("Atlas flow contract", () => {
   it("provides copy-paste confidence commands for a complete flow", () => {
     expect(confidenceCommandsForFlow(getAtlasFlow("list-management"))).toEqual([
       "pnpm main exec vitest run --maxWorkers=1 tests/manage-list-columns.test.ts tests/add-listings-combobox.test.tsx tests/dashboard-db-list-membership-sync.test.tsx tests/list-form-boundary-save.test.tsx tests/manage-list-page-membership-commit.test.tsx tests/use-list-resource.test.tsx",
+      "node apps/main/scripts/run-integration-local.mjs tests/integration/list-management.integration.ts",
       "pnpm main exec playwright test --retries=0 tests/e2e/lists-page-features.e2e.ts tests/e2e/manage-list-page-features.e2e.ts",
     ]);
   });
